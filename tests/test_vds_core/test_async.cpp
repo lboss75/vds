@@ -22,29 +22,25 @@ TEST(mt_tests, test_async) {
     {
         auto sp = registrator.build();
 
-        vds::sequence(
-        [&obj](const std::function<void(const std::string &)>& done, const vds::error_handler_t &, int value) {
-            obj.sync_method(done, value);
-        },
-        [&obj, &sp](const std::function<void(void)> & done, const vds::error_handler_t & error_handler, const std::string & value) {
-            obj.async_method(done, error_handler, sp, value);
-        })([&obj]() {
+        auto h = vds::sequence(
+          test_async_object::sync_method(obj),
+          test_async_object::async_method(sp, obj)
+        )
+        ([&obj, &barrier]() {
             ASSERT_EQ(obj.state_, 2);
             obj.state_++;
+            barrier.set();
         },
-        [](std::exception * ex) {
+        [&barrier](std::exception * ex) {
             FAIL() << ex->what();
             delete ex;
-        },
-        10);
-
-        sp.on_complete([&barrier] {
             barrier.set();
         });
+        
+        h(10);
+        
+        barrier.wait();
     }
-
-
-    barrier.wait();
 
     ASSERT_EQ(obj.state_, 3);
 
@@ -54,27 +50,4 @@ TEST(mt_tests, test_async) {
 test_async_object::test_async_object()
     : state_(0)
 {
-}
-
-void test_async_object::sync_method(const std::function<void(const std::string &)> & done, int value)
-{
-    ASSERT_EQ(value, 10);
-    ASSERT_EQ(this->state_, 0);
-
-    this->state_++;
-    done("test");
-}
-
-void test_async_object::async_method(const std::function<void(void)>& done, const vds::error_handler_t & error_handler, const vds::service_provider & sp,  const std::string & value)
-{
-    ASSERT_EQ(this->state_, 1);
-
-    vds::async_result task;
-    task.begin(sp, [this]() {
-        ASSERT_EQ(this->state_, 1);
-
-        this->state_++;
-    }, done, error_handler);
-
-
 }

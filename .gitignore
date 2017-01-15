@@ -27,3 +27,8 @@
 *.exe
 *.out
 *.app
+
+# Build folder
+build/
+.kdev4/vds.git.kdev4
+

@@ -20,6 +20,7 @@ All rights reserved
 #include "command_line.h"
 #include "filename.h"
 #include "foldername.h"
+#include "async_task.h"
 
 #endif // !__VDS_CORE_H_
 

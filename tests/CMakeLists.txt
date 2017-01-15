@@ -6,3 +6,4 @@ include_directories(
 )
 
 add_subdirectory(test_vds_core)
+add_subdirectory(test_vds_network)

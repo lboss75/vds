@@ -9,124 +9,116 @@ All rights reserved
 #include <functional>
 
 namespace vds {
-  typedef std::function<void(void)> simple_done_handler_t;
-  typedef std::function<void(std::exception *)> error_handler_t;
-  ////////////////////////////////////////////////////////////////
-  template<typename T>
-  struct memfun_type;
-
-  template<typename Ret, typename Class, typename... Args>
-  struct memfun_type<Ret(Class::*)(Args...) const>
+  template<typename... functor_types>
+  class _sequence_builder;
+  
+  template<typename functor_type>
+  class _sequence_builder<functor_type>
   {
-    typedef Ret signature(Args...);
-    using type = std::function<Ret(Args...)>;
-  };
-
-  template<typename F>
-  inline
-  typename memfun_type<decltype(&F::operator())>::type
-  to_function(const F & func)
-  {
-      return func;
-  }
-  ////////////////////////////////////////////////////////////////
-  template <typename function_signature>
-  struct _func_arguments;
-
-  template <typename done_method, typename ...argument_types>
-  struct _func_arguments<std::function<void (const done_method &, const error_handler_t &, argument_types ...)>>
-  {
-    typedef done_method done_method_type;
-    typedef std::function<void(const done_method_type &, const error_handler_t &, argument_types ...)> type;
-    typedef std::function<void(argument_types ...)> body;
-
-    static body bind(const type & target, const done_method & done, const error_handler_t & error_handler)
+  public:
+    _sequence_builder(const functor_type & functor)
+    : functor_(functor)
     {
-        return [target, done, error_handler](argument_types ... args) {
-          try {
-            target(done, error_handler, args...);
-          }
-          catch (std::exception * ex) {
-            error_handler(ex);
-          }
-        };
     }
-  };
-
-  ////////////////////////////////////////////////////////////////
-  template <typename new_done_method, typename functor>
-  struct _func_replate_done_method;
-
-  template <typename new_done_method, typename done_method_type, typename ...argument_types>
-  struct _func_replate_done_method<new_done_method, std::function<void(done_method_type, const error_handler_t &, argument_types ...)>>
-  {
-    typedef std::function<void(done_method_type, const error_handler_t &, argument_types ...)> original;
-    typedef std::function<void(new_done_method, const error_handler_t &, argument_types ...)> type;
-
-    template<typename functor>
-    static type join(const original & left, const functor & right)
+    
+    template <
+      typename done_method_type,
+      typename error_method_type
+    >
+    class handler
+    : public functor_type::template handler<done_method_type, error_method_type>
     {
-        return [left, right](const new_done_method & done, const error_handler_t & error_handler, argument_types ... args) {
-          try {
-            left(_func_arguments<functor>::bind(right, done, error_handler), error_handler, args...);
-          }
-          catch (std::exception * ex) {
-            error_handler(ex);
-          }
-        };
+    public:
+      handler(
+        const done_method_type & done_method,
+        const error_method_type & error_method,
+        const _sequence_builder & builder
+      ): functor_type::template handler<
+          done_method_type,
+          error_method_type>(
+            done_method, error_method, builder.functor_)
+      {
+      }
+    };
+    
+    
+  private:
+    functor_type functor_;
+  };
+  
+  template<typename first_functor_type, typename... rest_functor_types>
+  class _sequence_builder<first_functor_type, rest_functor_types...>
+  : public _sequence_builder<rest_functor_types...>
+  {
+    using base = _sequence_builder<rest_functor_types...>;
+  public:
+    _sequence_builder(const first_functor_type & functor, rest_functor_types... rest_functors)
+    : functor_(functor), base(rest_functors...)
+    {
     }
+   
+    template <
+      typename done_method_type,
+      typename error_method_type
+    >
+    class handler 
+    : public first_functor_type::template handler<
+      typename base::template handler<done_method_type,error_method_type>,
+      error_method_type>
+    {
+      using base_handler_type = typename first_functor_type::template handler<
+      typename base::template handler<done_method_type,error_method_type>,
+      error_method_type>;
+    public:
+      handler(
+        const done_method_type & done_method,
+        const error_method_type & error_method,
+        const _sequence_builder & builder
+      )
+      : base_handler_(done_method, error_method, builder),
+        base_handler_type(base_handler_, error_method, builder.functor_)
+      {
+      }
+    private:
+      typename base::template handler<done_method_type,error_method_type> base_handler_;
+    };
+    
+  private:
+    first_functor_type functor_;
   };
-
-  ////////////////////////////////////////////////////////////////
-  template <typename ...functors>
-  struct _func_of;
-
-  template <typename functor_left, typename functor_right>
-  struct _func_of<functor_left, functor_right>
+  
+  template<typename... functor_types>
+  class _sequence
   {
-    typedef typename _func_replate_done_method<
-      typename _func_arguments<functor_right>::done_method_type,
-      functor_left
-     >::type type;
-
-     static type join(const functor_left & left, const functor_right & right)
-     {
-       typedef typename _func_arguments<functor_right>::done_method_type done_method;
-        
-       return _func_replate_done_method<
-        done_method,
-        functor_left>::join(left, right);
-     }
+  public:
+    _sequence(functor_types... functors)
+    : builder_(functors...)
+    {
+    }
+    
+    template <
+      typename done_method_type,
+      typename error_method_type
+    >
+    typename _sequence_builder<functor_types...>::template handler<done_method_type, error_method_type>
+    operator()(
+      const done_method_type & done_method,
+      const error_method_type & error_method
+    )
+    {
+      return typename _sequence_builder<functor_types...>::template handler<done_method_type, error_method_type>(
+          done_method,
+          error_method,
+          this->builder_);
+    }
+  private:
+    _sequence_builder<functor_types...> builder_;
   };
-
-  ////////////////////////////////////////////////////////////////
-  template <typename functor_left, typename functor_right>
-  inline
-  typename _func_of<
-    typename memfun_type<decltype(&functor_left::operator())>::type,
-    typename memfun_type<decltype(&functor_right::operator())>::type
-    >::type
-  sequence(const functor_left & left, const functor_right & right)
-  {
-      return _func_of<
-        typename memfun_type<decltype(&functor_left::operator())>::type,
-        typename memfun_type<decltype(&functor_right::operator())>::type
-      >::join(
-        to_function(left), to_function(right));
-  }
-
-  template <typename functor_left, typename functor_right, typename ... functor>
-  inline auto 
-  sequence(const functor_left & left, const functor_right & right, functor ... functors)
-  -> decltype(sequence(_func_of<
-        typename memfun_type<decltype(&functor_left::operator())>::type,
-        typename memfun_type<decltype(&functor_right::operator())>::type
-    >::join(to_function(left), to_function(right)), functors ...))
-  {
-    return sequence(_func_of<
-      typename memfun_type<decltype(&functor_left::operator())>::type,
-      typename memfun_type<decltype(&functor_right::operator())>::type
-    >::join(to_function(left), to_function(right)), functors ...);
+  
+  template<typename... functor_types>
+  inline _sequence<functor_types...>
+  sequence(functor_types... functors){
+    return _sequence<functor_types...>(functors...);
   }
 }
 
