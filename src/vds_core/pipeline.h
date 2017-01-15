@@ -7,6 +7,7 @@ All rights reserved
 */
 
 #include <memory>
+#include "func_utils.h"
 
 namespace vds {
   template<typename... functor_types>
@@ -37,7 +38,7 @@ namespace vds {
         const done_method_type & done_method,
         const next_method_type & next_method,
         const error_method_type & error_method,
-        const _sequence_builder & builder
+        const _pipeline_builder & builder
       ): functor_type::template handler<
           done_method_type,
           next_method_type,
@@ -96,7 +97,11 @@ namespace vds {
     : public first_functor_type::template handler<
       done_method_type,
       typename base::template handler<
-        processed_caller<handler>,
+        processed_caller<
+          handler<
+            done_method_type,
+            next_method_type,
+            error_method_type>>,
         next_method_type,
         error_method_type>,
       error_method_type>
@@ -110,7 +115,7 @@ namespace vds {
         const done_method_type & done_method,
         const next_method_type & next_method,
         const error_method_type & error_method,
-        const _sequence_builder & builder
+        const _pipeline_builder & builder
       )
       : processed_caller_(this),
         base_handler_(processed_caller_, next_method, error_method, builder),
@@ -130,7 +135,7 @@ namespace vds {
   };
   
   template<typename first_functor_type, typename... rest_functor_types>
-  class _pipeline_runner<first_functor_type, rest_functor_types...>
+  class _pipeline_runner
   : public _pipeline_builder<rest_functor_types...>
   {
     using base = _pipeline_builder<rest_functor_types...>;
@@ -149,29 +154,58 @@ namespace vds {
     class handler 
     : public first_functor_type::template handler<
       typename base::template handler<
-        handler,
-        next_method_type,
-        error_method_type>,
-      error_method_type>
+        handler<next_method_type, error_method_type>,
+        _auto_cleaner<
+          handler<next_method_type, error_method_type>,
+          next_method_type,
+          decltype(&next_method_type::operator())>,
+        _auto_cleaner<
+          handler<next_method_type, error_method_type>,
+          error_method_type, 
+          decltype(&error_method_type::operator())>>,
+      _auto_cleaner<
+        handler<next_method_type, error_method_type>,
+        error_method_type, 
+        decltype(&error_method_type::operator())>>
     {
+      using next_proxy_type = 
+        _auto_cleaner<
+          handler,
+          next_method_type,
+          decltype(&next_method_type::operator())>;
+      using error_proxy_type = 
+        _auto_cleaner<
+          handler,
+          error_method_type, 
+          decltype(&error_method_type::operator())>;
       using base_handler_type = typename first_functor_type::template handler<
-      typename base::template handler<handler,next_method_type,error_method_type>,
-      error_method_type>;
+      typename base::template handler<handler,next_proxy_type,error_proxy_type>,
+      error_proxy_type>;
     public:
       handler(
         const next_method_type & next_method,
         const error_method_type & error_method,
-        const _sequence_builder & builder
+        const _pipeline_runner & builder
       )
-      : base_handler_(*this, next_method, error_method, builder),
-        base_handler_type(base_handler_, error_method, builder.functor_)
+      : next_proxy_(this, next_method),
+        error_proxy_(this, error_method),
+        base_handler_(*this, next_proxy_, error_proxy_, builder),
+        base_handler_type(base_handler_, error_proxy_, builder.functor_)
       {
       }
     private:
       typename base::template handler<
         handler,
+        next_proxy_type,
+        error_proxy_type> base_handler_;
+      _auto_cleaner<
+        handler,
         next_method_type,
-        error_method_type> base_handler_;
+        decltype(&next_method_type::operator())> next_proxy_;
+      _auto_cleaner<
+        handler,
+        error_method_type, 
+        decltype(&error_method_type::operator())> error_proxy_;
     };
     
   private:
@@ -189,27 +223,30 @@ namespace vds {
     
     template <
       typename done_method_type,
-      typename error_method_type
+      typename error_method_type,
+      typename... arg_types
     >
     typename _pipeline_runner<functor_types...>::template handler<done_method_type, error_method_type>
     operator()(
       const done_method_type & done_method,
-      const error_method_type & error_method
+      const error_method_type & error_method,
+      arg_types... args
     )
     {
-      return typename _sequence_builder<functor_types...>::template handler<done_method_type, error_method_type>(
+      auto handler = new typename _pipeline_runner<functor_types...>::template handler<done_method_type, error_method_type>(
           done_method,
           error_method,
           this->builder_);
+      (*handler)(args...);
     }
   private:
-    _sequence_builder<functor_types...> builder_;
+    _pipeline_runner<functor_types...> builder_;
   };
   
   template<typename... functor_types>
-  inline _sequence<functor_types...>
-  sequence(functor_types... functors){
-    return _sequence<functor_types...>(functors...);
+  inline _pipeline<functor_types...>
+  pipeline(functor_types... functors){
+    return _pipeline<functor_types...>(functors...);
   }
 }
 

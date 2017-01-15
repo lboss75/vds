@@ -4,7 +4,7 @@
 #include <memory>
 
 namespace vds {
-
+/*
     class udp_socket
     {
     public:
@@ -52,6 +52,7 @@ namespace vds {
       std::shared_ptr<network_socket::system_resource> handle_;
 
     };
+    */
 }
 
 #endif//__UDP_SOCKET_H_

@@ -6,6 +6,8 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
+#include "read_socket_task.h"
+
 namespace vds {
   class input_network_stream
   {
@@ -27,11 +29,10 @@ namespace vds {
       }
       
       void operator()() const {
-        this->task_.schedule(network_manager_);        
+        this->task_.schedule();        
       }
       
     private:
-      network_manager * network_manager_;
       read_socket_task<
         next_method_type,
         error_method_type> task_;

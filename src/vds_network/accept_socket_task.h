@@ -2,6 +2,7 @@
 #define __VDS_NETWORK_ACCEPT_SOCKET_TASK_H_
 
 namespace vds {
+  class network_service;
   
   template<
     typename done_method_type,
@@ -13,7 +14,7 @@ namespace vds {
     accept_socket_task(
       done_method_type done,
       error_method_type on_error,
-      const std::string& address,
+      const std::string & address,
       int port      
     ) : done_method_(done), error_method_(on_error)
     {
@@ -70,12 +71,16 @@ namespace vds {
 #else
     if (0 > ::bind(this->s_, (struct sockaddr *)&addr, sizeof(addr))) {
         auto error = errno;
-        throw new c_exception("bind", error);
+        throw new std::system_error(
+          error,
+          std::system_category());
     }
 
     if (0 > ::listen(this->s_, SOMAXCONN)) {
         auto error = errno;
-        throw new c_exception("listen", error);
+        throw new std::system_error(
+          error,
+          std::system_category());
     }
 
     /* Set the socket to non-blocking, this is essential in event
@@ -84,13 +89,17 @@ namespace vds {
     auto flags = fcntl(this->s_, F_GETFL);
     if (0 > flags) {
         auto error = errno;
-        throw new c_exception("get server socket flags", error);
+        throw new std::system_error(
+          error,
+          std::system_category());
     }
 
     flags |= O_NONBLOCK;
     if (0 > fcntl(this->s_, F_SETFL, flags)) {
         auto error = errno;
-        throw new c_exception("set server socket to non-blocking", error);
+        throw new std::system_error(
+          error,
+          std::system_category());
     }
 
     /* We now have a listening socket, we create a read event to
@@ -105,7 +114,7 @@ namespace vds {
 
     }
     
-    void schedule(network_manager *)
+    void schedule(network_service *)
     {
 #ifndef _WIN32
       event_add(&this->ev_accept_, NULL);
@@ -144,13 +153,17 @@ namespace vds {
         auto flags = fcntl(sock, F_GETFL);
         if (0 > flags) {
           auto error = errno;
-          throw new c_exception("get socket flags", error);
+          throw new std::system_error(
+            error,
+            std::system_category());
         }
 
         flags |= O_NONBLOCK;
         if (0 > fcntl(sock, F_SETFL, flags)) {
           auto error = errno;
-          throw new c_exception("set server socket to non-blocking", error);
+          throw new std::system_error(
+            error,
+            std::system_category());
         }
         
         /*************************************************************/

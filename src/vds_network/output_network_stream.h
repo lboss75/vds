@@ -5,6 +5,7 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
+#include "write_socket_task.h"
 
 namespace vds {
   class output_network_stream
@@ -37,7 +38,7 @@ namespace vds {
         }
         else {
           this->task_.set_data(data, len);
-          this->task_.schedule(network_manager_);
+          this->task_.schedule();
         }
           
       }
@@ -49,7 +50,6 @@ namespace vds {
       
     private:
       const done_method_type & done_;
-      network_manager * network_manager_;
       write_socket_task<
         done_method_type,
         error_method_type> task_;

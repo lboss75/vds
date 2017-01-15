@@ -1,8 +1,7 @@
 #include "stdafx.h"
 #include "udp_socket.h"
 #include "windows_exception.h"
-#include "c_exception.h"
-
+/*
 vds::udp_socket::udp_socket(
   const service_provider & sp,
   vds::network_service* owner,
@@ -14,7 +13,7 @@ vds::udp_socket::udp_socket(
   const sockaddr_in & addr,
   const std::function< void(const udp_socket &, const sockaddr_in &, const void *, size_t) >& on_incoming_datagram,
   const error_handler_t & on_error,
-  size_t max_dgram_size /*= 4 * 1024*/)
+  size_t max_dgram_size /*= 4 * 1024* /)
 : handle_(new vds::network_socket::system_resource(s)), owner_(owner)
 {
 #ifdef  _WIN32
@@ -57,9 +56,9 @@ vds::udp_socket vds::udp_socket::bind(
         throw new c_exception("create UDP socket", error);
     }
     
-    /*************************************************************/
-    /* Allow socket descriptor to be reuseable                   */
-    /*************************************************************/
+    /************************************************************* /
+    /* Allow socket descriptor to be reuseable                   * /
+    /************************************************************* /
     int on = 1;
     if (0 > setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (char *)&on, sizeof(on))) {
         auto error = errno;
@@ -67,11 +66,11 @@ vds::udp_socket vds::udp_socket::bind(
         throw new c_exception("Allow socket descriptor to be reuseable", error);
     }
 
-    /*************************************************************/
-    /* Set socket to be nonblocking. All of the sockets for    */
-    /* the incoming connections will also be nonblocking since  */
-    /* they will inherit that state from the listening socket.   */
-    /*************************************************************/
+    /************************************************************* /
+    /* Set socket to be nonblocking. All of the sockets for    * /
+    /* the incoming connections will also be nonblocking since  * /
+    /* they will inherit that state from the listening socket.   * /
+    /************************************************************* /
     if (0 > ioctl(s, FIONBIO, (char *)&on)) {
         auto error = errno;
         close(s);
@@ -116,3 +115,4 @@ vds::udp_socket vds::udp_socket::bind(
       max_dgram_size);
 }
 
+*/

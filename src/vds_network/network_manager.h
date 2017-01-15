@@ -15,7 +15,7 @@ namespace vds {
     class inetwork_manager {
     public:
         inetwork_manager(network_service * owner);
-
+/*
         // connected_handler(const network_socket &)
         template <typename connected_handler>
         void start_server(
@@ -38,10 +38,11 @@ namespace vds {
             uint16_t port
         );
         
-          
+  */        
 
     private:
-        network_service * owner_;
+      friend class socket_server;
+      network_service * owner_;
     };
 
     class network_service : public iservice
@@ -55,17 +56,8 @@ namespace vds {
         void start(const service_provider &) override;
         void stop(const service_provider &) override;
         
-        template <typename data_handler>
-        void read_async(
-          data_handler on_data,
-          const error_handler_t & on_error,
-          network_socket * s,
-          void * data,
-          size_t size)
-        {
-          
-        }
     private:
+      /*
 #ifndef _WIN32
   template <typename data_handler>
   struct read_data {
@@ -89,7 +81,7 @@ namespace vds {
     }
 };
 #endif//_WIN32
-
+*/
         
 
     private:
@@ -98,7 +90,7 @@ namespace vds {
         friend class udp_socket;
         friend class server_socket;
 
-        std::list<server_socket> servers_;
+/*        std::list<server_socket> servers_;
 
         void write_async(
           const std::function<void(void)> & done,
@@ -268,9 +260,6 @@ namespace vds {
             error_handler_t on_error_;
         };
 
-        HANDLE handle_;
-        void thread_loop(const service_provider & provider);
-        void associate(SOCKET s);
 #else
         struct listen_data {
           u_int8_t * buffer_;
@@ -295,6 +284,13 @@ namespace vds {
         };
         
         std::list<std::unique_ptr<listen_data>> listen_udp_;
+#endif//_WIN32
+*/
+#ifdef _WIN32
+        HANDLE handle_;
+        void thread_loop(const service_provider & provider);
+        void associate(SOCKET s);
+#else
         bool dispatch_started_;
         void start_libevent_dispatch();
 #endif//_WIN32

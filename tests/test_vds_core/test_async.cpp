@@ -22,7 +22,7 @@ TEST(mt_tests, test_async) {
     {
         auto sp = registrator.build();
 
-        auto h = vds::sequence(
+        vds::sequence(
           test_async_object::sync_method(obj),
           test_async_object::async_method(sp, obj)
         )
@@ -35,9 +35,8 @@ TEST(mt_tests, test_async) {
             FAIL() << ex->what();
             delete ex;
             barrier.set();
-        });
-        
-        h(10);
+        },
+        10);
         
         barrier.wait();
     }

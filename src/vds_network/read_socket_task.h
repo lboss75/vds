@@ -4,6 +4,7 @@
 #include "socket_task.h"
 
 namespace vds {
+  class inetwork_manager;
   
   template<
     typename done_method_type,
@@ -12,7 +13,7 @@ namespace vds {
   class read_socket_task : public socket_task
   {
   public:
-    constexpr size_t BUFFER_SIZE = 1024;
+    constexpr static size_t BUFFER_SIZE = 1024;
     
 #ifdef _WIN32
     void process(DWORD dwBytesTransfered) override
@@ -23,7 +24,7 @@ namespace vds {
       );
     }
 #else//!_WIN32
-    void schedule(network_manager *)
+    void schedule()
     {
       event_set(
         &this->event_,
@@ -40,7 +41,7 @@ namespace vds {
   private:
     done_method_type done_method_;
     error_method_type error_method_;
-    uint_8 buffer_[BUFFER_SIZE];
+    u_int8_t buffer_[BUFFER_SIZE];
     
 #ifdef _WIN32
 #else//!_WIN32

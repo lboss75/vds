@@ -2,25 +2,9 @@
 #include "network_socket.h"
 #include "logger.h"
 #include "windows_exception.h"
-#include "c_exception.h"
 //////////////////////////////////////////////////////////////////////
-#ifndef _WIN32
-vds::network_socket::network_socket(network_service * owner, int s)
-#else
-vds::network_socket::network_socket(network_service * owner, SOCKET s)
-#endif
-    : owner_(owner), handle_(new system_resource(s))
-{
-#ifdef  _WIN32
-    owner->associate(s);
-#endif //  _WIN32
 
-}
-
-vds::network_socket::network_socket()
-{
-}
-
+/*
 void vds::network_socket::write_async(
   const std::function<void(void)> & done,
   const error_handler_t & on_error,
@@ -105,20 +89,20 @@ vds::server_socket::system_resource::system_resource(int af, int type)
         auto error = errno;
         throw new c_exception("create socket", error);
     }
-    /*************************************************************/
-    /* Allow socket descriptor to be reuseable                   */
-    /*************************************************************/
+    /************************************************************* /
+    /* Allow socket descriptor to be reuseable                   * /
+    /************************************************************* /
     int on = 1;
     if (0 > setsockopt(this->s_, SOL_SOCKET, SO_REUSEADDR, (char *)&on, sizeof(on))) {
         auto error = errno;
         throw new c_exception("Allow socket descriptor to be reuseable", error);
     }
 
-    /*************************************************************/
-    /* Set socket to be nonblocking. All of the sockets for    */
-    /* the incoming connections will also be nonblocking since  */
-    /* they will inherit that state from the listening socket.   */
-    /*************************************************************/
+    /************************************************************* /
+    /* Set socket to be nonblocking. All of the sockets for    * /
+    /* the incoming connections will also be nonblocking since   * /
+    /* they will inherit that state from the listening socket.   * /
+    /************************************************************* /
     if (0 > ioctl(this->s_, FIONBIO, (char *)&on)) {
         auto error = errno;
         throw new c_exception("Set socket to be nonblocking", error);
@@ -277,7 +261,7 @@ void vds::server_socket::system_resource::start(
     }
 
     /* Set the socket to non-blocking, this is essential in event
-    * based programming with libevent. */
+    * based programming with libevent. * /
 
     auto flags = fcntl(this->s_, F_GETFL);
     if (0 > flags) {
@@ -293,7 +277,7 @@ void vds::server_socket::system_resource::start(
 
     auto data = new accept_data { owner, on_connected, &this->ev_accept_ };
     /* We now have a listening socket, we create a read event to
-      * be notified when a client connects. */
+      * be notified when a client connects. * /
     event_set(&this->ev_accept_, this->s_, EV_READ | EV_PERSIST,
         [](int fd, short event, void *arg)
     {
@@ -309,7 +293,7 @@ void vds::server_socket::system_resource::start(
         }
         
         /* Set the socket to non-blocking, this is essential in event
-        * based programming with libevent. */
+        * based programming with libevent. * /
 
         auto flags = fcntl(sock, F_GETFL);
         if (0 > flags) {
@@ -323,11 +307,11 @@ void vds::server_socket::system_resource::start(
           throw new c_exception("set server socket to non-blocking", error);
         }
         
-        /*************************************************************/
-        /* Set socket to be nonblocking. All of the sockets for    */
-        /* the incoming connections will also be nonblocking since  */
-        /* they will inherit that state from the listening socket.   */
-        /*************************************************************/
+        /************************************************************* /
+        /* Set socket to be nonblocking. All of the sockets for    * /
+        /* the incoming connections will also be nonblocking since  * /
+        /* they will inherit that state from the listening socket.   * /
+        /************************************************************* /
         //int on = 1;
         //if (0 > ioctl(sock, FIONBIO, (char *)&on)) {
         //    auto error = errno;
@@ -353,3 +337,4 @@ void vds::server_socket::system_resource::stop()
 #endif
 }
 
+*/

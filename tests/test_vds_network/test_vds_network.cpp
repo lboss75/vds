@@ -9,6 +9,7 @@ public:
    
   template<
     typename done_method_type,
+    typename next_method_type,
     typename error_method_type
   >
   class handler
@@ -16,19 +17,28 @@ public:
   public:
     handler(
       const done_method_type & done,
+      const next_method_type & next,
       const error_method_type & on_error,
       const echo_server & owner)
     {
     }
     
-    void operator()(const network_socket & s) const {
+    void operator()(const vds::network_socket & s) const {
       std::cout << "new connection\n";
     
       //echo
-      auto p = vds::pipeline(
-        vds::network_stream(nm, s),//input
-        network_stream(nm, s)//output
-        );
+      vds::pipeline(
+        vds::input_network_stream(s),//input
+        vds::output_network_stream(s)//output
+        )
+      (
+       []() {
+       },
+       [](std::exception * ex) {
+         FAIL() << ex->what();
+         delete ex;
+       }
+      );
     }
   };
 };
@@ -37,13 +47,13 @@ class send_test
 {
 public:
   send_test(const std::string & testdata)
+  : data_(testdata)
   {
   }
 
   template<
     typename done_method_type,
-    typename error_method_type,
-    typename next_method_type
+    typename error_method_type
   >
   class handler
   {
@@ -51,38 +61,33 @@ public:
     handler(
       const done_method_type & done,
       const error_method_type & on_error,
-      const next_method_type & next,
       const send_test & owner)
+    : write_task_(done, on_error),
+      data_(owner.data_)
     {
     }
     
     void operator()(
       const vds::network_socket & socket
     ) {
-      socket.write_async(
-        this->done_,
-        this->on_error_,
-        sp,
+      this->write_task_.set_data(
         this->data_->c_str(),
         this->data_->length());
-      
-      this->next_();
+      this->write_task_.schedule();
     }
   private:
-    const done_method_type & done_;
-    const error_method_type & on_error_;
-    const next_method_type & next_;
+    vds::write_socket_task<done_method_type, error_method_type> write_task_;
     std::string data_;
   };
+  
+private:
+  std::string data_;
 };
 
 class read_for_newline
 {
 public:
-  read_for_newline(
-    const vds::service_provider & sp,
-    const char * input_buffer
-  ) : sp_(sp), input_buffer_(input_buffer)
+  read_for_newline()
   {
   }
   template<
@@ -95,8 +100,8 @@ public:
   public:
     handler(
       const done_method_type & done,
-      const error_method_type & on_error,
       const next_method_type & next,
+      const error_method_type & on_error,
       const read_for_newline & owner)
     : done_(done), on_error_(on_error),
     next_(next)
@@ -132,80 +137,62 @@ public:
     const error_method_type & on_error_;
     const next_method_type & next_;
     std::string buffer_;
-      
-    void process(
-      const char * data,
-      size_t len
-    ) {
-      if (len > 0) {
-          size_t start = 0;
-          while (start < len && data[start] != '\n') {
-              ++start;
-          }
-
-          this->buffer_ += std::string(data, start);
-
-          if (start < len) {
-              ++start;//skip \n
-              len -= start;
-              data += start;
-              
-              auto result = this->buffer_;
-              this->buffer_.clear();
-              
-              this->next_(result);
-          }
-          else {
-              done();
-          }
-      }
-      else {
-          done();
-      }
-    }
-    
   };
-  
-private:  
-  vds::service_provider sp_;
-  const char * input_buffer_;
 };
 
-std::function<void(const std::function<void(void)> &, const vds::error_handler_t & , const std::string &)>
-check_string(const std::string & value, const std::function<void(void)> & done_check) {
-  return [value, done_check](const std::function<void(void)> & done, const vds::error_handler_t & on_error, const std::string & data){
-    if (value == data) {
-      done_check();
+class check_result
+{
+public:
+  check_result(const std::string & data)
+  : data_(data)
+  {
+  }
+  
+  template<
+    typename done_method_type,
+    typename error_method_type,
+    typename next_method_type
+  >
+  class handler
+  {
+  public:
+    handler(
+      const done_method_type & done,
+      const next_method_type & next,
+      const error_method_type & on_error,
+      const check_result & owner)
+    : done_(done), on_error_(on_error),
+    next_(next), data_(owner.data_)
+    {
     }
-    else {
-      throw new std::runtime_error("invalid data: exprected '" + data + "', getted '" + value + "'");
+  
+    void operator()(
+      const std::string & data
+    )
+    {
+      if(this->data_ == data){
+        this->next_();
+      }
+      else {
+        ASSERT_EQ(this->data_, data);
+      }
     }
-  };
-}
-
-std::function<void(const std::function<void(void)> &, const vds::error_handler_t &)>
-check_result(
-  const vds::service_provider & sp,
-  const char * data,
-  const vds::network_socket & socket) {
-  return [sp, data, socket](const std::function<void(void)> & done, const vds::error_handler_t & on_error) {
-    std::shared_ptr<std::vector<uint8_t>> buffer(new std::vector<uint8_t>(1024));
-    vds::barrier done_event;
     
-    vds::pipeline(
-      [sp, socket, buffer](const std::function<void(size_t)> & done, const vds::error_handler_t & on_error) {
-          socket.read_async(done, on_error, sp, buffer->data(), buffer->size());
-      },
-      read_for_newline(sp, (const char *)buffer->data()),
-      check_string(data, [&done_event] {
-        done_event.set();
-      })
-        )([]() {}, on_error);
-
-    done_event.wait();
-    done();
+    void processed()
+    {
+      this->done_();
+    }
+    
+  private:
+    const done_method_type & done_;
+    const error_method_type & on_error_;
+    const next_method_type & next_;
+    std::string data_;
   };
-}
+  
+private:
+  std::string data_;
+};
 
 TEST(network_tests, test_server)
 {
@@ -227,63 +214,29 @@ TEST(network_tests, test_server)
         auto nm = sp.get<vds::inetwork_manager>();
         
         vds::pipeline(
-          socket_server("127.0.0.1", 8000),
+          vds::socket_server(sp, "127.0.0.1", 8000),
           echo_server()
-          [](
-            const std::function<void(void)> & done,
-            const std::function<void(std::exception *)> & on_error,
-            vds::network_socket & s) {
-            std::cout << "new connection\n";
-          
-            //echo
-            auto p = vds::pipeline(
-              network_stream(nm, s),//input
-              network_stream(nm, s)//output
-              );
-            
-            p([ns = std::move(s)]{
-            },
-            on_error);
-            
-            done();
-         )(
-           
+        )(
+          []() {
+          },
+          [](std::exception * ex){
+            FAIL() << ex->what();
+            delete ex;
+          }
         );
-
         
-        sp.get<vds::inetwork_manager>()
-          .start_server(sp, "127.0.0.1", 8000, 
-          [sp, &done, &error, nm](
-            const vds::network_socket & s) {
-            std::cout << "new connection\n";
-
-            std::shared_ptr<std::vector<uint8_t>> buffer(new std::vector<uint8_t>(1024));
-            vds::pipeline(
-              std::function<void(const std::function<void(size_t)> &, const vds::error_handler_t &)>(
-              [sp, s, buffer](const std::function<void(size_t)> & done, const vds::error_handler_t & on_error){
-                s.read_async(done, on_error, sp, buffer->data(), buffer->size());
-              }),
-              [sp, buffer, s](const std::function<void(void)> & done, const vds::error_handler_t & on_error, size_t readed) {
-                if (0 == readed) {//closed connection
-                }
-                else {
-                  std::cout << "readed " << readed << " bytes (" 
-                  << std::string((const char *)buffer->data(), readed) << ")\n";
-                    s.write_async(done, on_error, sp, buffer->data(), readed);
-                }
-            });
-        },
-          [](std::exception * ex) {
-        });
-
-        auto s = sp.get<vds::inetwork_manager>().connect("127.0.0.1", 8000);
         vds::sequence(
-          send_test(sp, "test\n", s),
-          check_result(sp, "test", s)
-        )([&done]{
+          vds::socket_connect(sp, "127.0.0.1", 8000),
+          send_test("test\n"),
+          read_for_newline(),
+          check_result(sp, "test")
+        )
+        ([]{
           done.set();
-        }, [](std::exception * ex) {
-
+        },
+        [](std::exception * ex) {
+          FAIL() << ex->what();
+          delete ex;
         });
     }
 
@@ -291,7 +244,7 @@ TEST(network_tests, test_server)
 
     registrator.shutdown();
 }
-
+/*
 TEST(network_tests, test_udp_server)
 {
     vds::service_registrator registrator([](std::exception * ex) {
@@ -355,7 +308,7 @@ TEST(network_tests, test_udp_server)
 
     registrator.shutdown();
 }
-
+*/
 int main(int argc, char **argv) {
     setlocale(LC_ALL, "Russian");
     ::testing::InitGoogleTest(&argc, argv);

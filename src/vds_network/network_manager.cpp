@@ -103,7 +103,7 @@ void vds::network_service::stop(const service_provider & sp)
         log(error("Unexpected error at stopping network service "));
     }
 }
-
+/*
 #ifndef _WIN32
 struct write_data {
     int s_;
@@ -396,13 +396,13 @@ void vds::network_service::start_listen(
  
 #endif//_WIN32
 }
-
+*/
 
 vds::inetwork_manager::inetwork_manager(network_service * owner)
     : owner_(owner)
 {
 }
-
+/*
 void vds::inetwork_manager::start_server(
   const service_provider & sp,
   const std::string & address,
@@ -623,8 +623,9 @@ void vds::network_service::read_task::process(DWORD dwBytesTransfered)
     this->done_(dwBytesTransfered);
     delete this;
 }
-
+*/
 //////////////////////////
+#ifdef _WIN32
 void vds::network_service::thread_loop(const service_provider & provider)
 {
     logger log(provider, "vds::network_service::thread_loop");
