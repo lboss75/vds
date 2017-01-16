@@ -7,7 +7,6 @@ All rights reserved
 #include "network_manager.h"
 #include "network_socket.h"
 #include "udp_socket.h"
-#include "windows_exception.h"
 #include "service_provider.h"
 #include "logger.h"
 #include <iostream>
@@ -108,6 +107,16 @@ void vds::network_service::stop(const service_provider & sp)
         log(error("Unexpected error at stopping network service "));
     }
 }
+
+#ifdef _WIN32
+void vds::network_service::associate(network_socket::SOCKET_HANDLE s)
+{
+  if (NULL == CreateIoCompletionPort((HANDLE)s, this->handle_, NULL, 0)) {
+    auto error = GetLastError();
+    throw new std::system_error(error, std::system_category(), "Associate with input/output completion port");
+  }
+}
+#endif//_WIN32
 /*
 #ifndef _WIN32
 struct write_data {
@@ -662,14 +671,6 @@ void vds::network_service::thread_loop(const service_provider & provider)
         catch (std::exception * ex) {
           log(error("IO Task error:") << *ex->what());
         }
-    }
-}
-
-void vds::network_service::associate(SOCKET s)
-{
-    if (NULL == CreateIoCompletionPort((HANDLE)s, this->handle_, NULL, 0)){
-        auto error = GetLastError();
-        throw new std::system_error(error, std::system_category(), "Associate with input/output completion port");
     }
 }
 

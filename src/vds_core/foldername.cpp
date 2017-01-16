@@ -6,7 +6,6 @@ All rights reserved
 #include "stdafx.h"
 #include "foldername.h"
 #include "filename.h"
-#include "windows_exception.h"
 
 vds::foldername::foldername(
   const vds::foldername& base,

@@ -61,7 +61,6 @@ namespace vds {
         auto errorCode = WSAGetLastError();
         if (WSA_IO_PENDING != errorCode) {
           throw new std::system_error(errorCode, std::system_category(), "WSASend failed");
-          throw new windows_exception("WSASend failed", errorCode);
         }
       }
     }

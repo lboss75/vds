@@ -47,6 +47,7 @@ namespace vds {
 
     private:
       friend class socket_server;
+      friend class socket_connect;
       network_service * owner_;
     };
 
@@ -60,7 +61,9 @@ namespace vds {
         void register_services(service_registrator &) override;
         void start(const service_provider &) override;
         void stop(const service_provider &) override;
-        
+#ifdef _WIN32
+        void associate(network_socket::SOCKET_HANDLE s);
+#endif
     private:
       /*
 #ifndef _WIN32
@@ -294,7 +297,6 @@ namespace vds {
 #ifdef _WIN32
         HANDLE handle_;
         void thread_loop(const service_provider & provider);
-        void associate(SOCKET s);
 #else
         bool dispatch_started_;
         void start_libevent_dispatch();

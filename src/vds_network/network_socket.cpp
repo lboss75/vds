@@ -6,7 +6,6 @@ All rights reserved
 #include "stdafx.h"
 #include "network_socket.h"
 #include "logger.h"
-#include "windows_exception.h"
 //////////////////////////////////////////////////////////////////////
 
 /*

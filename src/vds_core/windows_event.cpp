@@ -6,7 +6,6 @@ All rights reserved
 
 #include "stdafx.h"
 #include "windows_event.h"
-#include "windows_exception.h"
 
 #ifdef _WIN32
 vds::windows_event::system_resource::system_resource(BOOL bManualReset, BOOL bInitialState, LPCTSTR lpName, LPSECURITY_ATTRIBUTES lpEventAttributes)
@@ -14,7 +13,7 @@ vds::windows_event::system_resource::system_resource(BOOL bManualReset, BOOL bIn
     this->handle_ = CreateEvent(lpEventAttributes, bManualReset, bInitialState, lpName);
     if (NULL == this->handle_) {
         auto error = GetLastError();
-        throw new windows_exception("CreateEvent", error);
+        throw new std::system_error(error, std::system_category(), "CreateEvent");
     }
 }
 
@@ -34,7 +33,7 @@ void vds::windows_event::set()
 {
     if (!SetEvent(this->handle())) {
         auto error = GetLastError();
-        throw new windows_exception("SetEvent", error);
+        throw new std::system_error(error, std::system_category(), "SetEvent");
     }
 }
 
@@ -53,7 +52,7 @@ bool vds::windows_event::wait(DWORD timeout) const
     default:
         {
             auto error = GetLastError();
-            throw new windows_exception("WaitForSingleObject", error);
+            throw new std::system_error(error, std::system_category(), "WaitForSingleObject");
         }
     }
 }

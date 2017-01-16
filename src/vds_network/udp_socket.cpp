@@ -5,7 +5,6 @@ All rights reserved
 
 #include "stdafx.h"
 #include "udp_socket.h"
-#include "windows_exception.h"
 /*
 vds::udp_socket::udp_socket(
   const service_provider & sp,

@@ -6,7 +6,6 @@ All rights reserved
 #include "stdafx.h"
 #include "persistence.h"
 #include "foldername.h"
-#include "windows_exception.h"
 
 vds::foldername vds::persistence::current_user()
 {
@@ -21,7 +20,7 @@ vds::foldername vds::persistence::current_user()
     SHGFP_TYPE_CURRENT,
     result);
   if(NO_ERROR != error) {
-    throw new windows_exception("SHGetFolderPath", error);
+    throw new std::system_error(error, std::system_category(), "SHGetFolderPath");
   }
   
   return foldername(result);
@@ -41,7 +40,7 @@ vds::foldername vds::persistence::local_machine()
     SHGFP_TYPE_CURRENT,
     result);
   if(NO_ERROR != error) {
-    throw new windows_exception("SHGetFolderPath", error);
+    throw new std::system_error(error, std::system_category(), "SHGetFolderPath");
   }
   
   return foldername(result);

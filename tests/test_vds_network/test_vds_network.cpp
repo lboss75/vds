@@ -225,7 +225,7 @@ TEST(network_tests, test_server)
         );
         
         vds::sequence(
-          vds::socket_connect()
+          vds::socket_connect(sp)
         )
         ([&done](const vds::network_socket & s){
           

@@ -39,7 +39,7 @@ namespace vds {
 #ifdef _WIN32
       if (INVALID_SOCKET == s) {
         auto error = WSAGetLastError();
-        throw new windows_exception("create socket", error);
+        throw new std::system_error(error, std::system_category(), "create socket");
       }
 #else
       if (s < 0) {

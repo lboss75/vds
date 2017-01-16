@@ -15,7 +15,6 @@ All rights reserved
 #include "barrier.h"
 #include "pipeline.h"
 #include "app.h"
-#include "windows_exception.h"
 #include "func_utils.h"
 #include "command_line.h"
 #include "filename.h"
