@@ -1,5 +1,10 @@
-#ifndef __VDS_NETWORK_H_
-#define __VDS_NETWORK_H_
+#ifndef __VDS_NETWORK_VDS_NETWORK_H_
+#define __VDS_NETWORK_VDS_NETWORK_H_
+
+/*
+Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
+All rights reserved
+*/
 
 #ifndef _WIN32
 
@@ -21,10 +26,12 @@
 #include "input_network_stream.h"
 #include "output_network_stream.h"
 #include "socket_server.h"
+#include "socket_connect.h"
+
 
 #ifdef _WIN32
 #pragma comment(lib, "Ws2_32.lib")
 #endif
 
-#endif // !__VDS_NETWORK_H_
+#endif // __VDS_NETWORK_VDS_NETWORK_H_
 

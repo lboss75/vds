@@ -1,7 +1,13 @@
 #ifndef __VDS_NETWORK_READ_SOCKET_TASK_H_
 #define __VDS_NETWORK_READ_SOCKET_TASK_H_
 
+/*
+Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
+All rights reserved
+*/
+
 #include "socket_task.h"
+#include "network_socket.h"
 
 namespace vds {
   class inetwork_manager;
@@ -14,6 +20,15 @@ namespace vds {
   {
   public:
     constexpr static size_t BUFFER_SIZE = 1024;
+
+    read_socket_task(
+      done_method_type & done_method,
+      error_method_type & error_method,
+      const network_socket & s
+    ) : done_method_(done_method), error_method_(error_method),
+      s_(s.handle())
+    {
+    }
     
 #ifdef _WIN32
     void process(DWORD dwBytesTransfered) override
@@ -23,6 +38,10 @@ namespace vds {
         (size_t)dwBytesTransfered
       );
     }
+    void schedule()
+    {
+    }
+
 #else//!_WIN32
     void schedule()
     {
@@ -39,8 +58,9 @@ namespace vds {
 
     
   private:
-    done_method_type done_method_;
-    error_method_type error_method_;
+    network_socket::SOCKET_HANDLE s_;
+    done_method_type & done_method_;
+    error_method_type & error_method_;
     u_int8_t buffer_[BUFFER_SIZE];
     
 #ifdef _WIN32

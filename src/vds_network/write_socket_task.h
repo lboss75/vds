@@ -1,7 +1,13 @@
 #ifndef __VDS_NETWORK_WRITE_SOCKET_TASK_H_
 #define __VDS_NETWORK_WRITE_SOCKET_TASK_H_
 
+/*
+Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
+All rights reserved
+*/
+
 #include "socket_task.h"
+#include "network_socket.h"
 
 namespace vds {
   class network_service;
@@ -14,11 +20,22 @@ namespace vds {
   {
   public:
     write_socket_task(
-      const done_method_type & done_method,
-      const error_method_type & error_method)
+      done_method_type & done_method,
+      error_method_type & error_method,
+      const network_socket & s)
     : done_method_(done_method), error_method_(error_method),
-      data_(nullptr), data_size_(0)      
+      data_(nullptr), data_size_(0),
+      s_(s.handle())
     {
+    }
+
+    void set_data(
+      const void * data,
+      size_t size
+    )
+    {
+      this->data_ = static_cast<const u_int8_t *>(data);
+      this->data_size_ = size;
     }
    
 #ifdef _WIN32
@@ -37,12 +54,13 @@ namespace vds {
     
     void schedule()
     {
-      this->wsa_buf_.len = this->data_size_;
+      this->wsa_buf_.len = (ULONG)this->data_size_;
       this->wsa_buf_.buf = (CHAR *)this->data_;
 
       if (NOERROR != WSASend(this->s_, &this->wsa_buf_, 1, NULL, 0, &this->overlapped_, NULL)) {
         auto errorCode = WSAGetLastError();
         if (WSA_IO_PENDING != errorCode) {
+          throw new std::system_error(errorCode, std::system_category(), "WSASend failed");
           throw new windows_exception("WSASend failed", errorCode);
         }
       }
@@ -63,8 +81,8 @@ namespace vds {
 
     
   private:
-    done_method_type done_method_;
-    error_method_type error_method_;
+    done_method_type & done_method_;
+    error_method_type & error_method_;
     network_socket::SOCKET_HANDLE s_;
     const u_int8_t * data_;
     size_t data_size_;

@@ -1,5 +1,10 @@
-#ifndef __NETWORK_SOCKET_H_
-#define __NETWORK_SOCKET_H_
+#ifndef __VDS_NETWORK_NETWORK_SOCKET_H_
+#define __VDS_NETWORK_NETWORK_SOCKET_H_
+
+/*
+Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
+All rights reserved
+*/
 
 #ifndef _WIN32
 /* Libevent. */
@@ -26,8 +31,24 @@ namespace vds {
     : s_(-1)
 #endif
     {
-      
     }
+
+    network_socket(SOCKET_HANDLE s)
+      : s_(s)
+    {
+#ifdef _WIN32
+      if (INVALID_SOCKET == s) {
+        auto error = WSAGetLastError();
+        throw new windows_exception("create socket", error);
+      }
+#else
+      if (s < 0) {
+        auto error = errno;
+        throw new c_exception("create socket", error);
+      }
+#endif
+    }
+
     network_socket(const network_socket &) = delete;
     network_socket(network_socket &&);
     ~network_socket()
@@ -47,12 +68,11 @@ namespace vds {
       const network_socket &
     ) = delete;
 
-  private:
-    network_socket(SOCKET_HANDLE s)
-    : s_(s)
-    {
+    SOCKET_HANDLE handle() const {
+      return this->s_;
     }
-    
+
+  private:
     SOCKET_HANDLE s_;
   };
     /*
@@ -108,4 +128,4 @@ namespace vds {
     */
 }
 
-#endif//__NETWORK_SOCKET_H_
+#endif//__VDS_NETWORK_NETWORK_SOCKET_H_

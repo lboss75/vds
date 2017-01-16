@@ -25,18 +25,19 @@ void vds::foldername::folders(
   HANDLE hFind = FindFirstFile((this->value_ + "\\*.*").c_str(), &ff);
   if (hFind == INVALID_HANDLE_VALUE) {
     auto error = GetLastError();
-    throw new windows_exception("get folders of " + this->value_, error);
+    throw new std::system_error(error, std::system_category(), "get folders of " + this->value_);
   }
   else {
     try {
       do
       {
-        if(
+        if (
           FILE_ATTRIBUTE_DIRECTORY == (ff.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
           && nullptr == strstr("..", ff.cFileName)
-        ){
-          if (!callback(foldername(*this, ff.cFileName)) {
+          ) {
+          if (!callback(foldername(*this, ff.cFileName))) {
             break;
+          }
         }
       } while (FindNextFile(hFind, &ff));
     }
@@ -80,17 +81,18 @@ void vds::foldername::files(
   HANDLE hFind = FindFirstFile((this->value_ + "\\*.*").c_str(), &ff);
   if (hFind == INVALID_HANDLE_VALUE) {
     auto error = GetLastError();
-    throw new windows_exception("get folders of " + this->value_, error);
+    throw new std::system_error(error, std::system_category(), "get folders of " + this->value_);
   }
   else {
     try {
       do
       {
-        if(
+        if (
           FILE_ATTRIBUTE_DIRECTORY != (ff.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
-        ){
-          if (!callback(filename(*this, ff.cFileName)) {
+          ) {
+          if (!callback(filename(*this, ff.cFileName))) {
             break;
+          }
         }
       } while (FindNextFile(hFind, &ff));
     }

@@ -73,8 +73,8 @@ public:
       {
       public:
         handler(
-          const done_method_type & done,
-          const error_method_type & on_error,
+          done_method_type & done,
+          error_method_type & on_error,
           const async_method & owner
         )
         : owner_(owner.owner_), sp_(owner.sp_),
@@ -94,7 +94,7 @@ public:
         }
         
       private:
-        const error_method_type & on_error_;
+        error_method_type & on_error_;
         test_async_object & owner_;
         vds::service_provider & sp_;
         

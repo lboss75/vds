@@ -1,6 +1,11 @@
 #ifndef __VDS_NETWORK_SOCKET_TASK_H_
 #define __VDS_NETWORK_SOCKET_TASK_H_
 
+/*
+Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
+All rights reserved
+*/
+
 #include "network_socket.h"
 
 namespace vds {

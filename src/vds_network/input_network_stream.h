@@ -12,6 +12,10 @@ namespace vds {
   class input_network_stream
   {
   public:
+    input_network_stream(const network_socket & s)
+      : s_(s)
+    {
+    }
     
     template <
       typename next_method_type,
@@ -21,14 +25,14 @@ namespace vds {
     {
     public:
       handler(
-        const next_method_type & next,
-        const error_method_type & on_error,
+        next_method_type & next,
+        error_method_type & on_error,
         const input_network_stream & args)
-      : task_(next, on_error)
+      : task_(next, on_error, args.s_)
       {
       }
       
-      void operator()() const {
+      void operator()() {
         this->task_.schedule();        
       }
       
@@ -37,6 +41,8 @@ namespace vds {
         next_method_type,
         error_method_type> task_;
     };
+  private:
+    const network_socket & s_;
   };
 }
 

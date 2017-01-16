@@ -1,6 +1,11 @@
 #ifndef __VDS_NETWORK_ACCEPT_SOCKET_TASK_H_
 #define __VDS_NETWORK_ACCEPT_SOCKET_TASK_H_
 
+/*
+Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
+All rights reserved
+*/
+
 namespace vds {
   class network_service;
   
@@ -12,18 +17,21 @@ namespace vds {
   {
   public:
     accept_socket_task(
-      done_method_type done,
-      error_method_type on_error,
+      done_method_type & done,
+      error_method_type & on_error,
+      const service_provider & sp,
       const std::string & address,
       int port      
-    ) : done_method_(done), error_method_(on_error)
+    ) : done_method_(done), error_method_(on_error),
+      sp_(sp),
+      wait_accept_(this), wait_accept_task_(wait_accept_, on_error)
     {
 #ifdef _WIN32
       this->s_ = WSASocket(AF_INET, SOCK_STREAM, 0, NULL, 0, WSA_FLAG_OVERLAPPED);
 
       if (INVALID_SOCKET == this->s_) {
           auto error = WSAGetLastError();
-          throw new windows_exception("create socket", error);
+          throw new std::system_error(error, std::system_category(), "create socket");
       }
 #else
       this->s_ = socket(AF_INET, SOCK_STREAM, 0);
@@ -60,14 +68,15 @@ namespace vds {
 #ifdef _WIN32
     if (SOCKET_ERROR == ::bind(this->s_, (struct sockaddr *)&addr, sizeof(addr))) {
         auto error = WSAGetLastError();
-        throw new windows_exception("bind", error);
+        throw new std::system_error(error, std::system_category(), "bind");
     }
 
     if (SOCKET_ERROR == ::listen(this->s_, SOMAXCONN)) {
         auto error = WSAGetLastError();
-        throw new windows_exception("listen socket", error);
+        throw new std::system_error(error, std::system_category(), "listen socket");
     }
 
+    this->accept_event_.select(this->s_, FD_ACCEPT);
 #else
     if (0 > ::bind(this->s_, (struct sockaddr *)&addr, sizeof(addr))) {
         auto error = errno;
@@ -119,19 +128,16 @@ namespace vds {
 #ifndef _WIN32
       event_add(&this->ev_accept_, NULL);
 #else
-      this->sp_.async_task(
-        wait_accept(this),
-        this->error_method_
-      );
+      this->wait_accept_task_.schedule(this->sp_);
 #endif
     }
 
     
   private:
-    service_provider & sp_;
+    const service_provider & sp_;
     network_socket::SOCKET_HANDLE s_;
-    done_method_type done_method_;
-    error_method_type error_method_;
+    done_method_type & done_method_;
+    error_method_type & error_method_;
     
 #ifndef _WIN32
     static void wait_accept(int fd, short event, void *arg)
@@ -181,14 +187,51 @@ namespace vds {
     }
 
 #else
+    class windows_wsa_event
+    {
+    public:
+      windows_wsa_event()
+      {
+        this->handle_ = WSACreateEvent();
+        if (WSA_INVALID_EVENT == this->handle_) {
+          auto error = WSAGetLastError();
+          throw new std::system_error(error, std::system_category(), "WSACreateEvent");
+        }
+      }
+
+      ~windows_wsa_event()
+      {
+        if (WSA_INVALID_EVENT != this->handle_) {
+          WSACloseEvent(this->handle_);
+        }
+      }
+
+      void select(SOCKET s, long lNetworkEvents)
+      {
+        if (SOCKET_ERROR == WSAEventSelect(s, this->handle(), FD_ACCEPT)) {
+          auto error = WSAGetLastError();
+          throw new std::system_error(error, std::system_category(), "WSAEventSelect");
+        }
+      }
+
+      WSAEVENT handle() const {
+        return this->handle_;
+      }
+
+    private:
+      WSAEVENT handle_;
+    };
+
+    windows_wsa_event accept_event_;
+
     class wait_accept
     {
     public:
       wait_accept(accept_socket_task * owner)
       : owner_(owner)
       {
-        events[0] = owner->sp_.get_shutdown_event().windows_handle();
-        events[1] = owner->accept_event.handle();
+        this->events_[0] = owner->sp_.get_shutdown_event().windows_handle();
+        this->events_[1] = owner->accept_event_.handle();
       }
       
       void operator()()
@@ -198,7 +241,7 @@ namespace vds {
           WSANETWORKEVENTS WSAEvents;
           WSAEnumNetworkEvents(
             this->owner_->s_,
-            this->owner_->accept_event.handle(),
+            this->owner_->accept_event_.handle(),
             &WSAEvents);
           if ((WSAEvents.lNetworkEvents & FD_ACCEPT)
             && (0 == WSAEvents.iErrorCode[FD_ACCEPT_BIT])) {
@@ -206,10 +249,10 @@ namespace vds {
               sockaddr_in client_address;
               int client_address_length = sizeof(client_address);
 
-              auto socket = accept(this->s_, (sockaddr*)&client_address, &client_address_length);
+              auto socket = accept(this->owner_->s_, (sockaddr*)&client_address, &client_address_length);
               if (INVALID_SOCKET != socket) {
-                  network_socket s(owner, socket);
-                  this->owner_->next_(s);
+                  network_socket s(socket);
+                  this->owner_->done_method_(s);
               }
           }
         }
@@ -218,6 +261,9 @@ namespace vds {
       accept_socket_task * owner_;
       HANDLE events_[2];
     };
+
+    wait_accept wait_accept_;
+    async_task<wait_accept, error_method_type> wait_accept_task_;
 #endif
   };
 }

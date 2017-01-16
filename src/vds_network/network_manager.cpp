@@ -1,3 +1,8 @@
+/*
+Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
+All rights reserved
+*/
+
 #include "stdafx.h"
 #include "network_manager.h"
 #include "network_socket.h"
@@ -34,14 +39,14 @@ void vds::network_service::start(const service_provider & provider)
     WSADATA wsaData;
     if (NO_ERROR != WSAStartup(MAKEWORD(2, 2), &wsaData)) {
         auto error = WSAGetLastError();
-        throw new windows_exception("Initiates Winsock", error);
+        throw new std::system_error(error, std::system_category(), "Initiates Winsock");
     }
 
     this->handle_ = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0, 0);
 
     if (NULL == this->handle_) {
         auto error = WSAGetLastError();
-        throw new windows_exception("Create I/O completion port", error);
+        throw new std::system_error(error, std::system_category(), "Create I/O completion port");
     }
 
     //Create worker threads
@@ -431,7 +436,7 @@ vds::network_socket vds::inetwork_manager::connect(const std::string & address, 
 #ifdef _WIN32
     if (INVALID_SOCKET == s) {
         auto error = WSAGetLastError();
-        throw new windows_exception("create socket", error);
+        throw new std::system_error(error, std::system_category(), "create socket");
     }
 #else
     if (s < 0) {
@@ -453,7 +458,7 @@ vds::network_socket vds::inetwork_manager::connect(const std::string & address, 
         auto error = WSAGetLastError();
         if (WSAEWOULDBLOCK != error) {
             closesocket(s);
-            throw new windows_exception("connect", error);
+            throw new std::system_error(error, std::system_category(), "connect");
         }
     }
 #else
@@ -497,7 +502,7 @@ void vds::network_service::write_task::start()
         auto errorCode = WSAGetLastError();
         if (WSA_IO_PENDING != errorCode) {
             delete this;
-            throw new windows_exception("WSASend failed", errorCode);
+            throw new std::system_error(errorCode, std::system_category(), "WSASend failed");
         }
     }
 }
@@ -540,7 +545,7 @@ void vds::network_service::udp_write_task::start()
         auto errorCode = WSAGetLastError();
         if (WSA_IO_PENDING != errorCode) {
             delete this;
-            throw new windows_exception("WSASend failed", errorCode);
+            throw new std::system_error(errorCode, std::system_category(), "WSASend failed");
         }
     }
 }
@@ -580,7 +585,7 @@ void vds::network_service::udp_read_task::start()
         auto errorCode = WSAGetLastError();
         if (WSA_IO_PENDING != errorCode) {
             delete this;
-            throw new windows_exception("WSARecvFrom failed", errorCode);
+            throw new std::system_error(errorCode, std::system_category(), "WSARecvFrom failed");
         }
     }
 }
@@ -613,7 +618,7 @@ void vds::network_service::read_task::start()
         auto errorCode = WSAGetLastError();
         if (WSA_IO_PENDING != errorCode) {
             delete this;
-            throw new windows_exception("WSARecv failed", errorCode);
+            throw new std::system_error(errorCode, std::system_category(), "WSARecv failed");
         }
     }
 }
@@ -636,33 +641,26 @@ void vds::network_service::thread_loop(const service_provider & provider)
         OVERLAPPED * pOverlapped = NULL;
 
         if (!GetQueuedCompletionStatus(
-            this->handle_,
-            &dwBytesTransfered,
-            (PULONG_PTR)&lpContext,
-            &pOverlapped,
-            1000)) {
-            auto errorCode = GetLastError();
-            if (errorCode == WAIT_TIMEOUT) {
-                continue;
-            }
+          this->handle_,
+          &dwBytesTransfered,
+          (PULONG_PTR)&lpContext,
+          &pOverlapped,
+          1000)) {
+          auto errorCode = GetLastError();
+          if (errorCode == WAIT_TIMEOUT) {
+            continue;
+          }
 
-//            if (NULL != pOverlapped) {
-
-//            }
-            //else
-            {
-                std::unique_ptr<windows_exception> error_message(new windows_exception("GetQueuedCompletionStatus", errorCode));
-                log(error("") << *error_message.get());
-                return;
-            }
+          std::unique_ptr<std::system_error> error_message(new std::system_error(errorCode, std::system_category(), "GetQueuedCompletionStatus"));
+          log(error("") << *error_message.get());
+          return;
         }
 
         try {
-            io_task::from_overlapped(pOverlapped)->process(dwBytesTransfered);
+          socket_task::from_overlapped(pOverlapped)->process(dwBytesTransfered);
         }
         catch (std::exception * ex) {
-            provider.handle_error(ex);
-
+          log(error("IO Task error:") << *ex->what());
         }
     }
 }
@@ -671,7 +669,7 @@ void vds::network_service::associate(SOCKET s)
 {
     if (NULL == CreateIoCompletionPort((HANDLE)s, this->handle_, NULL, 0)){
         auto error = GetLastError();
-        throw new windows_exception("Associate with input/output completion port", error);
+        throw new std::system_error(error, std::system_category(), "Associate with input/output completion port");
     }
 }
 

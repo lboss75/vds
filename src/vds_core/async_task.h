@@ -23,13 +23,13 @@ namespace vds {
   {
   public:
     async_task(
-      const done_method_type & done,
-      const error_handler_type & on_error
+      done_method_type & done,
+      error_handler_type & on_error
     ) : done_(done), on_error_(on_error)
     {
     }
     
-    void schedule(service_provider & sp) const
+    void schedule(const service_provider & sp) const
     {
       sp.get<imt_service>().schedule(this);
     }
@@ -45,8 +45,8 @@ namespace vds {
     }
     
   private:
-    const done_method_type & done_;
-    const error_handler_type & on_error_;
+    done_method_type & done_;
+    error_handler_type & on_error_;
   };
 }
 

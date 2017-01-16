@@ -1,6 +1,11 @@
 #ifndef __VDS_NETWORK_SOCKET_SERVER_H_
 #define __VDS_NETWORK_SOCKET_SERVER_H_
 
+/*
+Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
+All rights reserved
+*/
+
 #include "accept_socket_task.h"
 
 namespace vds {
@@ -14,7 +19,7 @@ namespace vds {
       const std::string & address,
       int port)
     : network_service_(sp.get<inetwork_manager>().owner_),
-      address_(address), port_(port)
+      sp_(sp), address_(address), port_(port)
     {
     }
     
@@ -29,7 +34,7 @@ namespace vds {
         next_method_type next,
         error_method_type on_error,
         const socket_server & args)
-      : task_(next, on_error)
+      : task_(next, on_error, args.sp_, args.address_, args.port_)
       {
       }
       
@@ -42,6 +47,7 @@ namespace vds {
       accept_socket_task<next_method_type, error_method_type> task_;
     };
   private:
+    const service_provider & sp_;
     network_service * network_service_;
     std::string address_;
     int port_;

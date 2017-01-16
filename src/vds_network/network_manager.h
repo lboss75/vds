@@ -1,5 +1,10 @@
-#ifndef __NETWORK_MANAGER_H_
-#define __NETWORK_MANAGER_H_
+#ifndef __VDS_NETWORK_NETWORK_MANAGER_H_
+#define __VDS_NETWORK_NETWORK_MANAGER_H_
+
+/*
+Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
+All rights reserved
+*/
 
 #include <functional>
 #include <vector>
@@ -298,4 +303,4 @@ namespace vds {
     };
 }
 
-#endif//__NETWORK_MANAGER_H_
+#endif//__VDS_NETWORK_NETWORK_MANAGER_H_

@@ -18,7 +18,7 @@ namespace vds {
   public:
     _auto_cleaner(
       owner_type * owner,
-      const method_type & method)
+      method_type & method)
     : owner_(owner), method_(method)
     {
     }
@@ -31,7 +31,7 @@ namespace vds {
     
   private:
     owner_type * owner_;
-    const method_type & method_;
+    method_type & method_;
   };
   
   template<typename... functor_types>
@@ -55,8 +55,8 @@ namespace vds {
     {
     public:
       handler(
-        const done_method_type & done_method,
-        const error_method_type & error_method,
+        done_method_type & done_method,
+        error_method_type & error_method,
         const _sequence_builder & builder
       ): functor_type::template handler<
           done_method_type,
@@ -98,8 +98,8 @@ namespace vds {
       error_method_type>;
     public:
       handler(
-        const done_method_type & done_method,
-        const error_method_type & error_method,
+        done_method_type & done_method,
+        error_method_type & error_method,
         const _sequence_builder & builder
       )
       : base_handler_(done_method, error_method, builder),
@@ -130,16 +130,21 @@ namespace vds {
     >
     void
     operator()(
-      const done_method_type & done_method,
-      const error_method_type & error_method,
+      done_method_type & done_method,
+      error_method_type & error_method,
       arg_types... args
     )
     {
-      auto handler = new _sequence_runner<done_method_type, error_method_type>(
+      try {
+        auto handler = new _sequence_runner<done_method_type, error_method_type>(
           done_method,
           error_method,
           this->builder_);
-      (*handler)(args...);
+        (*handler)(args...);
+      }
+      catch (std::exception * ex) {
+        error_method(ex);
+      }
     }
     
   private:
@@ -178,8 +183,8 @@ namespace vds {
           error_proxy_type>;
     public:
       _sequence_runner(
-        const done_method_type & done_method,
-        const error_method_type & error_method,
+        done_method_type & done_method,
+        error_method_type & error_method,
         _sequence_builder<functor_types...> & builder
       ) : base(done_proxy_, error_proxy_, builder),
         done_proxy_(this, done_method),

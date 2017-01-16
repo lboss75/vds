@@ -5,12 +5,17 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
+
 #include "write_socket_task.h"
 
 namespace vds {
   class output_network_stream
   {
   public:
+    output_network_stream(const network_socket & s)
+      : s_(s)
+    {
+    }
     
     template <
       typename done_method_type,
@@ -21,18 +26,19 @@ namespace vds {
     {
     public:
       handler(
-        const done_method_type & done,
-        const next_method_type & next,
-        const error_method_type & on_error,
+        done_method_type & done,
+        next_method_type & next,
+        error_method_type & on_error,
         const output_network_stream & args)
-      : task_(done, on_error), done_(done)
+      : task_(done, on_error, args.s_),
+        done_(done), next_(next)
       {
       }
       
       void operator()(
         const void * data,
         size_t len
-      ) const {
+      ) {
         if(0 == len) {
           this->next_();
         }
@@ -43,17 +49,20 @@ namespace vds {
           
       }
       
-      void processed() const
+      void processed()
       {
         this->done_();
       }
       
     private:
-      const done_method_type & done_;
+      done_method_type & done_;
+      next_method_type & next_;
       write_socket_task<
         done_method_type,
         error_method_type> task_;
     };
+  private:
+    const network_socket & s_;
   };
 }
 

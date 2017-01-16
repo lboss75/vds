@@ -16,9 +16,9 @@ public:
   {
   public:
     handler(
-      const done_method_type & done,
-      const next_method_type & next,
-      const error_method_type & on_error,
+      done_method_type & done,
+      next_method_type & next,
+      error_method_type & on_error,
       const echo_server & owner)
     {
     }
@@ -46,8 +46,8 @@ public:
 class send_test
 {
 public:
-  send_test(const std::string & testdata)
-  : data_(testdata)
+  send_test(const vds::network_socket & s, const std::string & testdata)
+  : data_(testdata), s_(s)
   {
   }
 
@@ -59,20 +59,18 @@ public:
   {
   public:
     handler(
-      const done_method_type & done,
-      const error_method_type & on_error,
+      done_method_type & done,
+      error_method_type & on_error,
       const send_test & owner)
-    : write_task_(done, on_error),
+    : write_task_(done, on_error, owner.s_),
       data_(owner.data_)
     {
     }
     
-    void operator()(
-      const vds::network_socket & socket
-    ) {
+    void operator()() {
       this->write_task_.set_data(
-        this->data_->c_str(),
-        this->data_->length());
+        this->data_.c_str(),
+        this->data_.length());
       this->write_task_.schedule();
     }
   private:
@@ -81,6 +79,7 @@ public:
   };
   
 private:
+  const vds::network_socket & s_;
   std::string data_;
 };
 
@@ -92,16 +91,16 @@ public:
   }
   template<
     typename done_method_type,
-    typename error_method_type,
-    typename next_method_type
+    typename next_method_type,
+    typename error_method_type
   >
   class handler
   {
   public:
     handler(
-      const done_method_type & done,
-      const next_method_type & next,
-      const error_method_type & on_error,
+      done_method_type & done,
+      next_method_type & next,
+      error_method_type & on_error,
       const read_for_newline & owner)
     : done_(done), on_error_(on_error),
     next_(next)
@@ -127,15 +126,15 @@ public:
       }
       else {
         auto result = this->buffer_.substr(0, p - 1);
-        this->buffer_.remove(0, p + 1);
+        this->buffer_.erase(0, p + 1);
         this->next_(result);
       }
     }
     
   private:
-    const done_method_type & done_;
-    const error_method_type & on_error_;
-    const next_method_type & next_;
+    done_method_type & done_;
+    error_method_type & on_error_;
+    next_method_type & next_;
     std::string buffer_;
   };
 };
@@ -150,16 +149,16 @@ public:
   
   template<
     typename done_method_type,
-    typename error_method_type,
-    typename next_method_type
+    typename next_method_type,
+    typename error_method_type
   >
   class handler
   {
   public:
     handler(
-      const done_method_type & done,
-      const next_method_type & next,
-      const error_method_type & on_error,
+      done_method_type & done,
+      next_method_type & next,
+      error_method_type & on_error,
       const check_result & owner)
     : done_(done), on_error_(on_error),
     next_(next), data_(owner.data_)
@@ -184,9 +183,9 @@ public:
     }
     
   private:
-    const done_method_type & done_;
-    const error_method_type & on_error_;
-    const next_method_type & next_;
+    done_method_type & done_;
+    error_method_type & on_error_;
+    next_method_type & next_;
     std::string data_;
   };
   
@@ -226,18 +225,40 @@ TEST(network_tests, test_server)
         );
         
         vds::sequence(
-          vds::socket_connect(sp, "127.0.0.1", 8000),
-          send_test("test\n"),
-          read_for_newline(),
-          check_result(sp, "test")
+          vds::socket_connect()
         )
-        ([]{
-          done.set();
+        ([&done](const vds::network_socket & s){
+          
+          vds::sequence(
+            send_test(s, "test\n")
+          )(
+            []() {},
+            [](std::exception * ex) {
+              FAIL() << ex->what();
+              delete ex;
+          });
+
+          vds::pipeline(
+            vds::input_network_stream(s),
+            read_for_newline(),
+            check_result("test")
+          )
+          ([&done]() {
+            done.set();
+           },
+           [&done](std::exception * ex) {
+            FAIL() << ex->what();
+            delete ex;
+            done.set();
+          });
         },
-        [](std::exception * ex) {
+        [&done](std::exception * ex) {
           FAIL() << ex->what();
           delete ex;
-        });
+          done.set();
+        },
+        "127.0.0.1",
+        8000);
     }
 
     done.wait();

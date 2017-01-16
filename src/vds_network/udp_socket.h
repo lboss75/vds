@@ -1,5 +1,10 @@
-#ifndef __UDP_SOCKET_H_
-#define __UDP_SOCKET_H_
+#ifndef __VDS_NETWORK_UDP_SOCKET_H_
+#define __VDS_NETWORK_UDP_SOCKET_H_
+
+/*
+Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
+All rights reserved
+*/
 
 #include <memory>
 
@@ -55,4 +60,4 @@ namespace vds {
     */
 }
 
-#endif//__UDP_SOCKET_H_
+#endif//__VDS_NETWORK_UDP_SOCKET_H_
