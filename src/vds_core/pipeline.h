@@ -207,6 +207,63 @@ namespace vds {
         handler,
         error_method_type> error_proxy_;
     };
+    template <
+      typename next_method_type,
+      typename error_method_type
+    >
+    class func_handler 
+    : public first_functor_type::template handler<
+      typename base::template handler<
+        func_handler<next_method_type, error_method_type>,
+        auto_cleaner<
+          func_handler<next_method_type, error_method_type>,
+          next_method_type>,
+        auto_cleaner<
+          func_handler<next_method_type, error_method_type>,
+          error_method_type>>,
+      auto_cleaner<
+        func_handler<next_method_type, error_method_type>,
+        error_method_type>>
+    {
+      using next_proxy_type = 
+        auto_cleaner<
+          func_handler,
+          next_method_type>;
+      using error_proxy_type = 
+        auto_cleaner<
+          func_handler,
+          error_method_type>;
+      using base_handler_type = typename first_functor_type::template handler<
+      typename base::template handler<func_handler,next_proxy_type,error_proxy_type>,
+      error_proxy_type>;
+    public:
+      func_handler(
+        const next_method_type & next_method,
+        const error_method_type & error_method,
+        const _pipeline_runner & builder
+      )
+      : next_method_(next_method),
+        error_method_(error_method),
+        next_proxy_(this, next_method_),
+        error_proxy_(this, error_method_),
+        base_handler_(*this, next_proxy_, error_proxy_, builder),
+        base_handler_type(base_handler_, error_proxy_, builder.functor_)
+      {
+      }
+    private:
+      next_method_type next_method_;
+      error_method_type error_method_;
+      typename base::template handler<
+        func_handler,
+        next_proxy_type,
+        error_proxy_type> base_handler_;
+      auto_cleaner<
+        func_handler,
+        next_method_type> next_proxy_;
+      auto_cleaner<
+        func_handler,
+        error_method_type> error_proxy_;
+    };
     
   private:
     first_functor_type functor_;
@@ -234,6 +291,28 @@ namespace vds {
     {
       try {
         auto handler = new typename _pipeline_runner<functor_types...>::template handler<done_method_type, error_method_type>(
+          done_method,
+          error_method,
+          this->builder_);
+        (*handler)(args...);
+      }
+      catch (std::exception * ex) {
+        error_method(ex);
+      }
+    }
+    template <
+      typename done_method_type,
+      typename error_method_type,
+      typename... arg_types
+    >
+    void operator()(
+      const done_method_type & done_method,
+      const error_method_type & error_method,
+      arg_types... args
+    )
+    {
+      try {
+        auto handler = new typename _pipeline_runner<functor_types...>::template func_handler<done_method_type, error_method_type>(
           done_method,
           error_method,
           this->builder_);

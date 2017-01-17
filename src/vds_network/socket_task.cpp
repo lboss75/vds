@@ -12,7 +12,9 @@ vds::socket_task::socket_task()
 #endif//_WIN32
 }
 
+#ifdef _WIN32
 vds::socket_task::~socket_task()
 {
 
 }
+#endif//_WIN32

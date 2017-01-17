@@ -25,7 +25,7 @@ public:
     {
     }
     
-    void operator()(vds::network_socket & s) {
+    void operator()(vds::network_socket && s) {
       std::cout << "new connection\n";
 
       (new connection_handler<

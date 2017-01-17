@@ -24,8 +24,10 @@ namespace vds {
       int port      
     ) : done_method_(done), error_method_(on_error),
       sp_(sp),
-      network_service_(sp.get<inetwork_manager>().owner_),
-      wait_accept_(this), wait_accept_task_(wait_accept_, on_error)
+      network_service_(sp.get<inetwork_manager>().owner_)
+#ifdef _WIN32
+      , wait_accept_(this), wait_accept_task_(wait_accept_, on_error)
+#endif//_WIN32
     {
 #ifdef _WIN32
       this->s_ = WSASocket(AF_INET, SOCK_STREAM, 0, NULL, 0, WSA_FLAG_OVERLAPPED);
@@ -120,6 +122,8 @@ namespace vds {
       EV_READ | EV_PERSIST,
       &accept_socket_task::wait_accept,
       this);
+    event_add(&this->ev_accept_, NULL);
+    this->network_service_->start_libevent_dispatch();
 #endif
 
     }
@@ -142,6 +146,7 @@ namespace vds {
     error_method_type & error_method_;
     
 #ifndef _WIN32
+    event ev_accept_;
     static void wait_accept(int fd, short event, void *arg)
     {
         auto data = reinterpret_cast<accept_socket_task *>(arg);
@@ -171,7 +176,8 @@ namespace vds {
           auto error = errno;
           throw new std::system_error(
             error,
-            std::system_category());
+            std::system_category(),
+            "fcntl");
         }
         
         /*************************************************************/
@@ -185,7 +191,7 @@ namespace vds {
         //    throw new c_exception("Set socket to be nonblocking", error);
         //}
         
-        data->done_method_(network_socket(data->owner_, sock));
+        data->done_method_(network_socket(sock));
     }
 
 #else
@@ -255,7 +261,7 @@ namespace vds {
               if (INVALID_SOCKET != socket) {
                   network_socket s(socket);
                   this->owner_->network_service_->associate(socket);
-                  this->owner_->done_method_(s);
+                  this->owner_->done_method_(std::move(s));
               }
           }
         }

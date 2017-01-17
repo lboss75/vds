@@ -58,6 +58,7 @@ namespace vds {
         void thread_loop(const service_provider & provider);
 #else
         bool dispatch_started_;
+    public:
         void start_libevent_dispatch();
 #endif//_WIN32
         std::list<std::thread *> work_threads_;

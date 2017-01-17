@@ -39,7 +39,7 @@ namespace vds {
 #else
       if (s < 0) {
         auto error = errno;
-        throw new c_exception("create socket", error);
+        throw new std::system_error(error, std::system_category(), "create socket");
       }
 #endif
     }

@@ -56,6 +56,8 @@ void vds::network_service::start(const service_provider & provider)
 #else
     /* Initialize libevent. */
     event_init();
+    
+    //this->start_libevent_dispatch();
 #endif
 }
 
