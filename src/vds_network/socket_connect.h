@@ -75,8 +75,8 @@ namespace vds {
 
     private:
       network_service * network_service_;
-      const done_method_type & done_method_;
-      const error_method_type & error_method_;
+      done_method_type & done_method_;
+      error_method_type & error_method_;
       network_socket s_;
     };
   private:

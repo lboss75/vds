@@ -27,8 +27,8 @@ public:
       {
       public:
         handler(
-          const done_method_type & done,
-          const error_method_type & on_error,
+          done_method_type & done,
+          error_method_type & on_error,
           const sync_method & owner
         ): done_(done), on_error_(on_error),
         owner_(owner.owner_){
@@ -36,7 +36,7 @@ public:
         
         void operator () (
           int value
-        ) const
+        )
         {
           ASSERT_EQ(value, 10);
           ASSERT_EQ(this->owner_.state_, 0);
@@ -46,8 +46,8 @@ public:
         }
         
       private:
-        const done_method_type & done_;
-        const error_method_type & on_error_;
+        done_method_type & done_;
+        error_method_type & on_error_;
         test_async_object & owner_;
       };
       
@@ -86,7 +86,7 @@ public:
         
         void operator () (
           const std::string & value
-        ) const
+        )
         {
           ASSERT_EQ(this->owner_.state_, 1);
           
@@ -103,12 +103,12 @@ public:
         public:
           async_body(
             test_async_object & owner,
-            const done_method_type & done)
+            done_method_type & done)
           : owner_(owner), done_(done)
           {
           }
           
-          void operator()() const
+          void operator()()
           {
             ASSERT_EQ(this->owner_.state_, 1);
 
@@ -116,7 +116,7 @@ public:
             this->done_();
           }
         private:
-          const done_method_type & done_;
+          done_method_type & done_;
           test_async_object & owner_;
         };
         

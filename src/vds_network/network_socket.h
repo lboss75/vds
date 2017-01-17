@@ -50,16 +50,27 @@ namespace vds {
     }
 
     network_socket(const network_socket &) = delete;
-    network_socket(network_socket &&);
+
+    network_socket(network_socket && other)
+      : s_(other.detach())
+    {
+    }
     ~network_socket()
+    {
+      this->release();
+    }
+
+    void release()
     {
 #ifdef _WIN32
       if (INVALID_SOCKET != this->s_) {
         closesocket(this->s_);
+        this->s_ = INVALID_SOCKET;
       }
 #else
       if (0 <= this->s_) {
         shutdown(this->s_, 2);
+        this->s_ = -1;
       }
 #endif
     }
@@ -68,8 +79,38 @@ namespace vds {
       const network_socket &
     ) = delete;
 
+    network_socket & operator = (
+      network_socket && other
+      )
+    {
+      this->release();
+      this->s_ = other.detach();
+      return *this;
+    }
+
     SOCKET_HANDLE handle() const {
+#ifdef _WIN32
+      if (INVALID_SOCKET == this->s_) {
+#else
+      if (0 >= this->s_) {
+#endif
+        throw new std::logic_error("network_socket::handle without open socket");
+      }
       return this->s_;
+    }
+
+    SOCKET_HANDLE detach() {
+      auto result = this->s_;
+#ifdef _WIN32
+      if (INVALID_SOCKET != this->s_) {
+        this->s_ = INVALID_SOCKET;
+      }
+#else
+      if (0 <= this->s_) {
+        this->s_ = -1;
+      }
+#endif
+      return result;
     }
 
   private:

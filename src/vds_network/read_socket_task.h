@@ -38,8 +38,20 @@ namespace vds {
         (size_t)dwBytesTransfered
       );
     }
+
     void schedule()
     {
+      this->wsa_buf_.len = BUFFER_SIZE;
+      this->wsa_buf_.buf = (CHAR *)this->buffer_;
+
+      DWORD flags = 0;
+      DWORD numberOfBytesRecvd;
+      if (NOERROR != WSARecv(this->s_, &this->wsa_buf_, 1, &numberOfBytesRecvd, &flags, &this->overlapped_, NULL)) {
+        auto errorCode = WSAGetLastError();
+        if (WSA_IO_PENDING != errorCode) {
+          throw new std::system_error(errorCode, std::system_category(), "WSARecv failed");
+        }
+      }
     }
 
 #else//!_WIN32

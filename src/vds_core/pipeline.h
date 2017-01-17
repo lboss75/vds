@@ -162,29 +162,24 @@ namespace vds {
     : public first_functor_type::template handler<
       typename base::template handler<
         handler<next_method_type, error_method_type>,
-        _auto_cleaner<
+        auto_cleaner<
           handler<next_method_type, error_method_type>,
-          next_method_type,
-          decltype(&next_method_type::operator())>,
-        _auto_cleaner<
+          next_method_type>,
+        auto_cleaner<
           handler<next_method_type, error_method_type>,
-          error_method_type, 
-          decltype(&error_method_type::operator())>>,
-      _auto_cleaner<
+          error_method_type>>,
+      auto_cleaner<
         handler<next_method_type, error_method_type>,
-        error_method_type, 
-        decltype(&error_method_type::operator())>>
+        error_method_type>>
     {
       using next_proxy_type = 
-        _auto_cleaner<
+        auto_cleaner<
           handler,
-          next_method_type,
-          decltype(&next_method_type::operator())>;
+          next_method_type>;
       using error_proxy_type = 
-        _auto_cleaner<
+        auto_cleaner<
           handler,
-          error_method_type, 
-          decltype(&error_method_type::operator())>;
+          error_method_type>;
       using base_handler_type = typename first_functor_type::template handler<
       typename base::template handler<handler,next_proxy_type,error_proxy_type>,
       error_proxy_type>;
@@ -205,14 +200,12 @@ namespace vds {
         handler,
         next_proxy_type,
         error_proxy_type> base_handler_;
-      _auto_cleaner<
+      auto_cleaner<
         handler,
-        next_method_type,
-        decltype(&next_method_type::operator())> next_proxy_;
-      _auto_cleaner<
+        next_method_type> next_proxy_;
+      auto_cleaner<
         handler,
-        error_method_type, 
-        decltype(&error_method_type::operator())> error_proxy_;
+        error_method_type> error_proxy_;
     };
     
   private:

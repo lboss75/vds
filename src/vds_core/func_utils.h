@@ -13,7 +13,7 @@ namespace vds {
   class _auto_cleaner;
 
   template <typename owner_type, typename method_type, typename class_name, typename... arg_types>
-  class _auto_cleaner<owner_type, method_type, void(class_name::*)(arg_types...) const>
+  class _auto_cleaner<owner_type, method_type, void(class_name::*)(arg_types...)>
   {
   public:
     _auto_cleaner(
@@ -23,7 +23,7 @@ namespace vds {
     {
     }
     
-    void operator()(arg_types... args) const
+    void operator()(arg_types... args)
     {
       this->method_(args...);
       delete this->owner_;
@@ -33,7 +33,41 @@ namespace vds {
     owner_type * owner_;
     method_type & method_;
   };
-  
+
+  template <typename owner_type, typename method_type, typename class_name, typename... arg_types>
+  class _auto_cleaner<owner_type, method_type, void(class_name::*)(arg_types...) const >
+  {
+  public:
+    _auto_cleaner(
+      owner_type * owner,
+      const method_type & method)
+      : owner_(owner), method_(method)
+    {
+    }
+
+    void operator()(arg_types... args) const
+    {
+      this->method_(args...);
+      delete this->owner_;
+    }
+
+  private:
+    owner_type * owner_;
+    const method_type & method_;
+  };
+
+  template <typename owner_type, typename method_type>
+  class auto_cleaner : public _auto_cleaner<owner_type, method_type, decltype(&method_type::operator())>
+  {
+  public:
+    auto_cleaner(
+      owner_type * owner,
+      const method_type & method)
+      : _auto_cleaner(owner, method)
+    {
+    }
+  };
+
   template<typename... functor_types>
   class _sequence_builder;
   
@@ -157,25 +191,17 @@ namespace vds {
     class _sequence_runner
     : public _sequence_builder<functor_types...>
     ::template handler<
-        _auto_cleaner<
+        auto_cleaner<
           _sequence_runner<done_method_type, error_method_type>,
-          done_method_type,
-          decltype(&done_method_type::operator())>,
-        _auto_cleaner<
+          done_method_type>,
+        auto_cleaner<
           _sequence_runner<done_method_type, error_method_type>,
-          error_method_type, 
-          decltype(&error_method_type::operator())>>
+          error_method_type>
+      >
     {
-      using done_proxy_type = 
-        _auto_cleaner<
-          _sequence_runner,
-          done_method_type,
-          decltype(&done_method_type::operator())>;
-      using error_proxy_type = 
-        _auto_cleaner<
-          _sequence_runner,
-          error_method_type, 
-          decltype(&error_method_type::operator())>;
+      using done_proxy_type = typename auto_cleaner<_sequence_runner, done_method_type>;
+      using error_proxy_type = auto_cleaner<_sequence_runner, error_method_type>;
+
       using base = 
         typename _sequence_builder<functor_types...>
         ::template handler<
@@ -193,14 +219,8 @@ namespace vds {
       }      
       
     private:
-      _auto_cleaner<
-        _sequence_runner,
-        done_method_type,
-        decltype(&done_method_type::operator())> done_proxy_;
-      _auto_cleaner<
-        _sequence_runner,
-        error_method_type, 
-        decltype(&error_method_type::operator())> error_proxy_;
+      auto_cleaner<_sequence_runner, done_method_type> done_proxy_;
+      auto_cleaner<_sequence_runner, error_method_type> error_proxy_;
     };
     
   };

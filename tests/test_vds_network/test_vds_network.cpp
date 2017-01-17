@@ -20,27 +20,65 @@ public:
       next_method_type & next,
       error_method_type & on_error,
       const echo_server & owner)
+      : done_(done), next_(next),
+      on_error_(on_error)
     {
     }
     
-    void operator()(const vds::network_socket & s) const {
+    void operator()(vds::network_socket & s) {
       std::cout << "new connection\n";
-    
-      //echo
-      vds::pipeline(
-        vds::input_network_stream(s),//input
-        vds::output_network_stream(s)//output
-        )
-      (
-       []() {
-       },
-       [](std::exception * ex) {
-         FAIL() << ex->what();
-         delete ex;
-       }
-      );
+
+      (new connection_handler<
+        done_method_type,
+        next_method_type,
+        error_method_type>(
+        this->next_, this->on_error_, s))->start();
     }
+  private:
+    done_method_type & done_;
+    next_method_type & next_;
+    error_method_type & on_error_;
   };
+
+  template<
+    typename done_method_type,
+    typename next_method_type,
+    typename error_method_type
+  >
+  class connection_handler
+  {
+  public:
+    connection_handler(
+      next_method_type & next, 
+      error_method_type & error,
+      vds::network_socket & s
+    ) : s_(std::move(s)),
+      done_(this, next),
+      error_(this, error)
+    {
+    }
+
+    void start() {
+      vds::pipeline(
+        vds::input_network_stream(this->s_),//input
+        vds::output_network_stream(this->s_)//output
+      )
+      (
+        this->done_,
+        this->error_
+        );
+    }
+  private:
+    vds::auto_cleaner<
+      typename echo_server::connection_handler<done_method_type, next_method_type, error_method_type>,
+      next_method_type> done_;
+    vds::auto_cleaner<
+      typename echo_server::connection_handler<done_method_type, next_method_type, error_method_type>,
+      error_method_type> error_;
+
+    vds::network_socket s_;
+  };
+
 };
 
 class send_test
@@ -125,7 +163,7 @@ public:
         this->done_();
       }
       else {
-        auto result = this->buffer_.substr(0, p - 1);
+        auto result = this->buffer_.substr(0, p);
         this->buffer_.erase(0, p + 1);
         this->next_(result);
       }
@@ -193,6 +231,62 @@ private:
   std::string data_;
 };
 
+class socket_client
+{
+public:
+  socket_client()
+  {
+
+  }
+
+  template <
+    typename done_method_type,
+    typename error_method_type
+  >
+  class handler
+  {
+  public:
+    handler(
+      done_method_type & done_method,
+      error_method_type & error_method,
+      const socket_client & args
+    ): done_method_(done_method), error_method_(error_method)
+    {
+    }
+
+    void operator()(vds::network_socket & s)
+    {
+      std::cout << "server connected\n";
+      this->s_ = std::move(s);
+
+      vds::sequence(
+        send_test(this->s_, "test\n")
+      )(
+        []() {
+        std::cout << "test sent\n";
+      },
+        [](std::exception * ex) {
+        FAIL() << ex->what();
+        delete ex;
+      });
+
+      vds::pipeline(
+        vds::input_network_stream(this->s_),
+        read_for_newline(),
+        check_result("test")
+      )
+      (
+        this->done_method_,
+        this->error_method_
+      );
+    }
+  private:
+    vds::network_socket s_;
+    done_method_type & done_method_;
+    error_method_type & error_method_;
+  };
+};
+
 TEST(network_tests, test_server)
 {
     vds::service_registrator registrator;
@@ -217,6 +311,7 @@ TEST(network_tests, test_server)
           echo_server()
         )(
           []() {
+            std::cout << "server closed\n";
           },
           [](std::exception * ex){
             FAIL() << ex->what();
@@ -225,32 +320,12 @@ TEST(network_tests, test_server)
         );
         
         vds::sequence(
-          vds::socket_connect(sp)
+          vds::socket_connect(sp),
+          socket_client()
         )
-        ([&done](const vds::network_socket & s){
-          
-          vds::sequence(
-            send_test(s, "test\n")
-          )(
-            []() {},
-            [](std::exception * ex) {
-              FAIL() << ex->what();
-              delete ex;
-          });
-
-          vds::pipeline(
-            vds::input_network_stream(s),
-            read_for_newline(),
-            check_result("test")
-          )
-          ([&done]() {
-            done.set();
-           },
-           [&done](std::exception * ex) {
-            FAIL() << ex->what();
-            delete ex;
-            done.set();
-          });
+        ([&done]() {
+          std::cout << "check done\n";
+          done.set();
         },
         [&done](std::exception * ex) {
           FAIL() << ex->what();
@@ -259,9 +334,10 @@ TEST(network_tests, test_server)
         },
         "127.0.0.1",
         8000);
+
+        done.wait();
     }
 
-    done.wait();
 
     registrator.shutdown();
 }

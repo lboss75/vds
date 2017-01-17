@@ -48,6 +48,13 @@ namespace vds {
     private:
       friend class socket_server;
       friend class socket_connect;
+
+      template<
+        typename done_method_type,
+        typename error_method_type
+      >
+        friend  class accept_socket_task;
+
       network_service * owner_;
     };
 

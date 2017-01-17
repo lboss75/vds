@@ -24,6 +24,7 @@ namespace vds {
       int port      
     ) : done_method_(done), error_method_(on_error),
       sp_(sp),
+      network_service_(sp.get<inetwork_manager>().owner_),
       wait_accept_(this), wait_accept_task_(wait_accept_, on_error)
     {
 #ifdef _WIN32
@@ -123,7 +124,7 @@ namespace vds {
 
     }
     
-    void schedule(network_service *)
+    void schedule()
     {
 #ifndef _WIN32
       event_add(&this->ev_accept_, NULL);
@@ -135,6 +136,7 @@ namespace vds {
     
   private:
     const service_provider & sp_;
+    network_service * network_service_;
     network_socket::SOCKET_HANDLE s_;
     done_method_type & done_method_;
     error_method_type & error_method_;
@@ -252,6 +254,7 @@ namespace vds {
               auto socket = accept(this->owner_->s_, (sockaddr*)&client_address, &client_address_length);
               if (INVALID_SOCKET != socket) {
                   network_socket s(socket);
+                  this->owner_->network_service_->associate(socket);
                   this->owner_->done_method_(s);
               }
           }
