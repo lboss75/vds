@@ -45,8 +45,7 @@ namespace vds {
         else {
           this->task_.set_data(data, len);
           this->task_.schedule();
-        }
-          
+        }          
       }
       
       void processed()

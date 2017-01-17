@@ -13,6 +13,9 @@ All rights reserved
 #include <sys/poll.h>
 #include <sys/socket.h>
 
+/* Libevent. */
+#include <event.h>
+
 #endif
 
 #endif//__NETWORK_TYPES_H_

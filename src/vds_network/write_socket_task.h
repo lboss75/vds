@@ -38,6 +38,37 @@ namespace vds {
       this->data_size_ = size;
     }
    
+    void schedule()
+    {
+#ifdef _WIN32
+      this->wsa_buf_.len = (ULONG)this->data_size_;
+      this->wsa_buf_.buf = (CHAR *)this->data_;
+
+      if (NOERROR != WSASend(this->s_, &this->wsa_buf_, 1, NULL, 0, &this->overlapped_, NULL)) {
+        auto errorCode = WSAGetLastError();
+        if (WSA_IO_PENDING != errorCode) {
+          throw new std::system_error(errorCode, std::system_category(), "WSASend failed");
+        }
+      }
+#else//!_WIN32
+      event_set(
+        &this->event_,
+        this->s_,
+        EV_WRITE,
+        &write_socket_task::callback,
+        this);
+      // Schedule client event
+      event_add(&this->event_, NULL);
+#endif//_WIN32
+    }
+    
+  private:
+    done_method_type & done_method_;
+    error_method_type & error_method_;
+    network_socket::SOCKET_HANDLE s_;
+    const u_int8_t * data_;
+    size_t data_size_;
+    
 #ifdef _WIN32
     void process(DWORD dwBytesTransfered) override
     {
@@ -51,42 +82,6 @@ namespace vds {
         this->done_method_();
       }
     }
-    
-    void schedule()
-    {
-      this->wsa_buf_.len = (ULONG)this->data_size_;
-      this->wsa_buf_.buf = (CHAR *)this->data_;
-
-      if (NOERROR != WSASend(this->s_, &this->wsa_buf_, 1, NULL, 0, &this->overlapped_, NULL)) {
-        auto errorCode = WSAGetLastError();
-        if (WSA_IO_PENDING != errorCode) {
-          throw new std::system_error(errorCode, std::system_category(), "WSASend failed");
-        }
-      }
-    }
-#else//!_WIN32
-    void schedule()
-    {
-      event_set(
-        &this->event_,
-        this->s_,
-        EV_WRITE,
-        &write_socket_task::callback,
-        this);
-      // Schedule client event
-      event_add(&this->event_, NULL);
-    }
-#endif//_WIN32
-
-    
-  private:
-    done_method_type & done_method_;
-    error_method_type & error_method_;
-    network_socket::SOCKET_HANDLE s_;
-    const u_int8_t * data_;
-    size_t data_size_;
-    
-#ifdef _WIN32
 #else//!_WIN32
     static void callback(int fd, short event, void *arg)
     {

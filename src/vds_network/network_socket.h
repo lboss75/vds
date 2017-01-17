@@ -6,11 +6,6 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
-#ifndef _WIN32
-/* Libevent. */
-#include <event.h>
-#endif
-
 #include "mt_service.h"
 #include "network_types.h"
 
@@ -116,57 +111,6 @@ namespace vds {
   private:
     SOCKET_HANDLE s_;
   };
-    /*
-    class server_socket
-    {
-    public:
-      server_socket(
-        int af = AF_INET,
-        int type = SOCK_STREAM);
-
-      void start(
-          const service_provider & sp,
-          network_service * owner,
-          const std::string & address,
-          int port,
-          std::function<void(const network_socket&)> on_connected,
-          const error_handler_t & on_error,
-          int backlog = SOMAXCONN);
-
-        void stop();
-
-    private:
-        class system_resource : public std::enable_shared_from_this<system_resource>
-        {
-        public:
-            system_resource(int af = AF_INET, int type = SOCK_STREAM);
-            ~system_resource();
-
-            void start(
-                const service_provider & sp,
-                network_service * owner,
-                const std::string & address,
-                int port,
-                std::function<void(const network_socket&)> on_connected,
-                const error_handler_t & on_error,
-                int backlog = SOMAXCONN);
-
-            void stop();
-
-        private:
-#ifdef _WIN32
-            SOCKET s_;
-            async_result accept_thread_;
-#else
-	    / * The socket accept event. * /
-	    struct event ev_accept_;
-            int s_;
-#endif//_WIN32
-        };
-
-        std::shared_ptr<system_resource> handle_;
-    };
-    */
 }
 
 #endif//__VDS_NETWORK_NETWORK_SOCKET_H_

@@ -18,8 +18,7 @@ namespace vds {
       const service_provider & sp,
       const std::string & address,
       int port)
-    : //network_service_(sp.get<inetwork_manager>().owner_),
-      sp_(sp), address_(address), port_(port)
+    : sp_(sp), address_(address), port_(port)
     {
     }
     
@@ -47,7 +46,6 @@ namespace vds {
     };
   private:
     const service_provider & sp_;
-    //network_service * network_service_;
     std::string address_;
     int port_;
   };

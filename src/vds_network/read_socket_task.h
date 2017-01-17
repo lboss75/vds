@@ -30,17 +30,9 @@ namespace vds {
     {
     }
     
-#ifdef _WIN32
-    void process(DWORD dwBytesTransfered) override
-    {
-      this->done_method_(
-        this->buffer_,
-        (size_t)dwBytesTransfered
-      );
-    }
-
     void schedule()
     {
+#ifdef _WIN32
       this->wsa_buf_.len = BUFFER_SIZE;
       this->wsa_buf_.buf = (CHAR *)this->buffer_;
 
@@ -52,11 +44,7 @@ namespace vds {
           throw new std::system_error(errorCode, std::system_category(), "WSARecv failed");
         }
       }
-    }
-
 #else//!_WIN32
-    void schedule()
-    {
       event_set(
         &this->event_,
         this->s_,
@@ -65,10 +53,9 @@ namespace vds {
         this);
       // Schedule client event
       event_add(&this->event_, NULL);
-    }
 #endif//_WIN32
+    }
 
-    
   private:
     network_socket::SOCKET_HANDLE s_;
     done_method_type & done_method_;
@@ -76,6 +63,13 @@ namespace vds {
     u_int8_t buffer_[BUFFER_SIZE];
     
 #ifdef _WIN32
+    void process(DWORD dwBytesTransfered) override
+    {
+      this->done_method_(
+        this->buffer_,
+        (size_t)dwBytesTransfered
+      );
+    }
 #else//!_WIN32
     static void callback(int fd, short event, void *arg)
     {
