@@ -1,8 +1,6 @@
-// stdafx.cpp : source file that includes just the standard includes
-// test_vds_network.pch will be the pre-compiled header
-// stdafx.obj will contain the pre-compiled type information
+/*
+Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
+All rights reserved
+*/
 
 #include "stdafx.h"
-
-// TODO: reference any additional headers you need in STDAFX.H
-// and not in this file

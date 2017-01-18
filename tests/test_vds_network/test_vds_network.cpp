@@ -1,6 +1,7 @@
-// test_vds_network.cpp : Defines the entry point for the console application.
-//
-
+/*
+Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
+All rights reserved
+*/
 #include "stdafx.h"
 
 class echo_server

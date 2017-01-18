@@ -1,23 +1,15 @@
-// stdafx.h : include file for standard system include files,
-// or project specific include files that are used frequently, but
-// are changed infrequently
-//
+#ifndef __TEST_VDS_NETWORK_STDAFX_H_
+#define __TEST_VDS_NETWORK_STDAFX_H_
 
-#pragma once
-
-#define _WINSOCK_DEPRECATED_NO_WARNINGS
+/*
+Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
+All rights reserved
+*/
 
 #include "targetver.h"
 
 #include "gtest/gtest.h"
 
-#include <stdio.h>
-#include <functional>
-
-#ifndef _WIN32
-#include <arpa/inet.h>
-#endif
-
-
 #include "vds_network.h"
 
+#endif//__TEST_VDS_NETWORK_STDAFX_H_

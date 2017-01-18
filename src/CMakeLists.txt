@@ -1,3 +1,4 @@
 add_subdirectory(vds_core)
 add_subdirectory(vds_crypto)
 add_subdirectory(vds_network)
+add_subdirectory(vds_http)

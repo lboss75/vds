@@ -67,8 +67,9 @@ namespace vds {
     {
     }
     
-    void operator()() {
-      this->done_.processed();
+    template<typename... arg_types>
+    void operator()(arg_types... args) {
+      this->done_.processed(args);
     }
     
   private:
@@ -331,6 +332,69 @@ namespace vds {
   pipeline(functor_types... functors){
     return _pipeline<functor_types...>(functors...);
   }
+
+  //////////////////////////////////////////////////////////////////////////
+  template <typename... arg_types>
+  class for_each
+  {
+  public:
+
+    template<typename handler_args_type>
+    class _create_handler
+    {
+    public:
+      _create_handler(
+        const handler_args_type & handler_args)
+        : handler_args_(handler_args)
+      {
+      }
+
+      template <
+        typename done_method_type,
+        typename next_method_type,
+        typename error_method_type
+      >
+        class handler
+      {
+      public:
+        handler(
+          done_method_type & done_method,
+          next_method_type & next_method,
+          error_method_type & error_method,
+          const handler_args_type & handler_args
+        )
+          : done_method_(done_method),
+          error_mehtod_(error_method),
+          handler_args_(handler_args)
+        {
+        }
+
+        void operator()(arg_types... args)
+        {
+          (*new handler_args_type::handler<error_method_type>(
+              this->error_method_,
+              this->handler_args_,
+              args...))->start();
+
+          this->done_method_();
+        }
+
+      private:
+        handler_args_type handler_args_;
+        done_method_type & done_method_;
+        error_method_type & error_method_;
+      };
+    private:
+      const handler_args_type & handler_args_;
+    };
+
+    template<typename handler_args_type>
+    inline static _create_handler<handler_args_type> create_handler(const handler_args_type & args)
+    {
+      return _create_handler<handler_args_type>(args);
+    }
+
+  };
 }
 
 #endif // ! __VDS_CORE_PIPELINE_H_
