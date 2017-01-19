@@ -11,7 +11,6 @@ All rights reserved
 #include "vds_core.h"
 #include "vds_network.h"
 
-#include "http_server.h"
 
 
 #endif // __VDS_HTTP_STDAFX_H_

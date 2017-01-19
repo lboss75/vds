@@ -16,24 +16,35 @@ namespace vds {
   class http_middleware
   {
   public:
-    http_middleware(http_router * router)
+    http_middleware(const http_router & router)
     : router_(router){
     }
     
-    class context
+
+    template<
+      typename done_method_type,
+      typename next_method_type,
+      typename error_method_type
+    >
+    class handler
     {
     public:
-      context(const http_middleware & params)
-      : router_(params.router_) {
+      handler(
+        done_method_type & done_method,
+        next_method_type & next_method,
+        error_method_type & error_method,
+        const http_middleware & params)
+        : done_method_(done_method),
+        next_method_(next_method),
+        error_method_(error_method),
+        router_(params.router_)
+      {
       }
       
-      template<typename next_filter>
       void operator()(
-        const simple_done_handler_t & done,
-        const error_handler_t & on_error,
-        next_filter next,
-        const std::shared_ptr<http_request> & request
-        ) {
+        const http_request & request,
+        http_incoming_stream & incoming_stream
+      ) {
         std::shared_ptr<http_response> response(
           new http_response(
             [&next](
@@ -58,11 +69,14 @@ namespace vds {
         );
       }
     private:
-      http_router * router_;
+      done_method_type & done_method_;
+      next_method_type & next_method_;
+      error_method_type & error_method_;
+      const http_router & router_;
     };
     
   private:
-    http_router * router_;
+    const http_router & router_;
   };
 }
 

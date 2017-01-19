@@ -69,6 +69,25 @@ namespace vds {
     }
   };
 
+  template <typename owner_type>
+  class delete_this
+  {
+  public:
+    delete_this(
+      owner_type * owner)
+      : owner_(owner)
+    {
+    }
+
+    void operator()() const
+    {
+      delete this->owner_;
+    }
+
+  private:
+    owner_type * owner_;
+  };
+
   template<typename... functor_types>
   class _sequence_builder;
   

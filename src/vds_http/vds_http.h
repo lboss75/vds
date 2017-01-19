@@ -8,8 +8,8 @@ All rights reserved
 
 #include "vds_core.h"
 #include "vds_network.h"
-#include "http_server.h"
 #include "http_request.h"
 #include "http_router.h"
+#include "http_middleware.h"
 
 #endif // __VDS_HTTP_VDS_HTTP_H_

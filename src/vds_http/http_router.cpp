@@ -6,30 +6,24 @@ All rights reserved
 #include "stdafx.h"
 #include "http_router.h"
 #include "http_response.h"
+#include "http_outgoing_stream.h"
+#include "http_request.h"
 
 void vds::http_router::route(
-  const simple_done_handler_t & done,
-  const error_handler_t & on_error,
-  std::shared_ptr<http_request> request,
-  std::shared_ptr<http_response> response
+  const http_request & request,
+  http_incoming_stream & incoming_stream,
+  http_response & response,
+  http_outgoing_stream & outgoing_stream
 )
 {
-  auto p = this->static_.find(request->url());
+  auto p = this->static_.find(request.url());
   if(this->static_.end() != p){
-    response->set_result(200, "OK");
-    response->add_header("Content-Type", "text/html; charset=utf-8");
-    response->write_body(p->second);
-    response->complete(
-      done,
-      on_error
-    );
+    response.set_result(200, "OK");
+    response.add_header("Content-Type", "text/html; charset=utf-8");
+    outgoing_stream.set_body(p->second);
   }
   else {
-    response->set_result(404, "Not Found");
-    response->complete(
-      done,
-      on_error
-    );
+    response.set_result(404, "Not Found");
   }
 }
 

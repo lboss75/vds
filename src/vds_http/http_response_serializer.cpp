@@ -4,4 +4,6 @@ All rights reserved
 */
 
 #include "stdafx.h"
-#include "http_response_stream.h"
+#include "http_response_serializer.h"
+
+

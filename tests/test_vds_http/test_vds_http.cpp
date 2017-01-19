@@ -42,7 +42,7 @@ public:
         vds::input_network_stream(this->s_),
         vds::http_parser(),
         vds::http_middleware(this->router_),
-        vds::http_response_stream(),
+        vds::http_response_serializer(),
         vds::output_network_stream(this->s_)
       )
       (

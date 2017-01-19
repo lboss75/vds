@@ -9,15 +9,18 @@ All rights reserved
 namespace vds {
   class http_request;
   class http_response;
+  class http_incoming_stream;
+  class http_outgoing_stream;
   
   class http_router
   {
   public:
     void route(
-      const simple_done_handler_t & done,
-      const error_handler_t & on_error,
-      std::shared_ptr<http_request> request,
-      std::shared_ptr<http_response> response);
+      const http_request & request,
+      http_incoming_stream & incoming_stream,
+      http_response & response,
+      http_outgoing_stream & outgoing_stream
+      );
     
     void add_static(
       const std::string & url,

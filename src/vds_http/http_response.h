@@ -9,51 +9,41 @@ All rights reserved
 namespace vds {
   class http_request;
   
-  class http_response : public std::enable_shared_from_this<http_response>
+  class http_response
   {
   public:
     http_response(
-      const std::function<void(
-        const simple_done_handler_t & done,
-        const error_handler_t & on_error,
-        const std::shared_ptr<http_response> & response)> & complete_handler,
-      const std::shared_ptr<http_request> & request
+      const http_request & request
     );
     
     void set_result(int code, const std::string & comment) {
-      this->stream_ << "HTTP/1.0 " << code << " " << comment << "\n";
+      this->code_ = code;
+      this->comment_ = comment;
     }
     
     void add_header(const std::string & name, const std::string & value) {
-      this->stream_ << name << ":" << value << "\n";
+        this->headers_.push_back(name + ":" + value);
     }
-    
-    void write_body(const std::string & value) {
-      this->stream_ 
-      << "Content-Length: " << value.length() << "\n"
-      << "Connection: close\n\n"
-      << value << "\n";
+
+    int code() const
+    {
+      return this->code_;
     }
-    
-    void complete(
-      const simple_done_handler_t & done,
-      const error_handler_t & on_error){
-      this->complete_handler_(
-        done,
-        on_error,
-        this->shared_from_this());
+
+    const std::string & comment() const
+    {
+      return this->comment_;
     }
-    
-    std::string result() const {
-      return this->stream_.str();      
+
+    const std::list<std::string> headers() const
+    {
+      return this->headers_;
     }
-    
+
   private:
-    std::function<void(
-      const simple_done_handler_t & done,
-      const error_handler_t & on_error,
-      const std::shared_ptr<http_response> & response)> complete_handler_;
-    std::stringstream stream_;
+    int code_;
+    std::string comment_;
+    std::list<std::string> headers_;
   };
 }
 

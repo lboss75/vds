@@ -4,6 +4,4 @@ All rights reserved
 */
 
 #include "stdafx.h"
-#include "http_request.h"
-
-
+#include "http_outgoing_stream.h"
