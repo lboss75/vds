@@ -349,6 +349,7 @@ namespace vds {
       {
       }
 
+
       template <
         typename done_method_type,
         typename next_method_type,
@@ -361,17 +362,18 @@ namespace vds {
           done_method_type & done_method,
           next_method_type & next_method,
           error_method_type & error_method,
-          const handler_args_type & handler_args
+          const _create_handler & handler_args
         )
           : done_method_(done_method),
-          error_mehtod_(error_method),
-          handler_args_(handler_args)
+          next_method_(next_method),
+          error_method_(error_method),
+          handler_args_(handler_args.handler_args_)
         {
         }
 
         void operator()(arg_types... args)
         {
-          (*new handler_args_type::handler<error_method_type>(
+          (new handler_args_type::handler<error_method_type>(
               this->error_method_,
               this->handler_args_,
               args...))->start();
@@ -382,6 +384,7 @@ namespace vds {
       private:
         handler_args_type handler_args_;
         done_method_type & done_method_;
+        next_method_type & next_method_;
         error_method_type & error_method_;
       };
     private:

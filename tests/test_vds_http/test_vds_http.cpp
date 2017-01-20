@@ -100,13 +100,17 @@ TEST(http_tests, test_server)
         //Start client
         vds::http_request request("GET", "/");
         vds::http_outgoing_stream outgoing_stream;
+
+        std::string body;
+        vds::http_simple_response_reader response_reader(body);
+
         vds::barrier done;
         vds::sequence(
           vds::socket_connect(sp),
-          vds::http_send_request(request, outgoing_stream)
+          vds::http_send_request<vds::http_simple_response_reader>(request, outgoing_stream, response_reader)
         )
-        ([&done](const vds::http_response & response, const vds::http_outgoing_stream & outgoing_stream) {
-          ASSERT_EQ(outgoing_stream.body(), "<html><body>Hello World</body></html>");
+        ([&done, &body]() {
+          ASSERT_EQ(body, "<html><body>Hello World</body></html>");
           done.set();
         },
         [&done](std::exception * ex) {

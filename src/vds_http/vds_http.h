@@ -14,5 +14,8 @@ All rights reserved
 #include "http_incoming_stream.h"
 #include "http_outgoing_stream.h"
 #include "http_send_request.h"
+#include "http_simple_response_reader.h"
+#include "http_parser.h"
+#include "http_response_serializer.h"
 
 #endif // __VDS_HTTP_VDS_HTTP_H_

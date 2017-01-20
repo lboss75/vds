@@ -259,9 +259,8 @@ namespace vds {
 
               auto socket = accept(this->owner_->s_, (sockaddr*)&client_address, &client_address_length);
               if (INVALID_SOCKET != socket) {
-                  network_socket s(socket);
                   this->owner_->network_service_->associate(socket);
-                  this->owner_->done_method_(std::move(s));
+                  this->owner_->done_method_(network_socket(socket));
               }
           }
         }

@@ -5,53 +5,50 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
+#include "http_request_serializer.h"
 
 namespace vds {
   class http_request;
   class http_outgoing_stream;
 
+  template <typename response_handler_type>
   class http_send_request
   {
   public:
     http_send_request(
       http_request & request,
-      http_outgoing_stream & outgoing_stream
-    ) : request_(request), outgoing_stream_(outgoing_stream)
+      http_outgoing_stream & outgoing_stream,
+      response_handler_type & response_handler
+    ) : request_(request), outgoing_stream_(outgoing_stream),
+      response_handler_(response_handler)
     {
     }
 
     template<
-      typename next_method_type,
+      typename done_method_type,
       typename error_method_type
     >
     class handler
     {
     public:
       handler(
-        next_method_type & next_method,
+        done_method_type & done_method,
         error_method_type & error_method,
         const http_send_request & args)
         :
         request_(args.request_),
         outgoing_stream_(args.outgoing_stream_),
-        next_method_(next_method),
-        error_method_(error_method)
+        done_method_(done_method),
+        error_method_(error_method),
+        response_handler_(args.response_handler_)
       {
-        std::stringstream stream;
-        stream << this->request_.method() << " " << this->request_.url() << " " << this->request_.agent() <<"\n";
-        for (auto & header : this->request_.headers()) {
-          stream << header << "\n";
-        }
-
-        stream << "\n";
-        this->header_ = stream.str();
       }
 
-      void operator()(network_socket && s)
+      void operator()(const network_socket & s)
       {
         pipeline(
           http_request_serializer(this->request_, this->outgoing_stream_),
-          http_outgoing_stream(s)
+          output_network_stream(s)
         )
         (
           []() {},
@@ -60,20 +57,20 @@ namespace vds {
 
         pipeline(
           input_network_stream(s),
-          http_response_deserializer(),
-
-        this->write_task_.set_data(this->header_.c_str(), this->header_.length());
-        this->write_task_.schedule(s.handle());
+          this->response_handler_
+        )(
+          this->done_method_,
+          this->error_method_
+          );
       }
 
     private:
-      next_method_type & next_method_;
+      done_method_type & done_method_;
       error_method_type & error_method_;
 
       http_request & request_;
       http_outgoing_stream & outgoing_stream_;
-
-      write_socket_task<next_method_type, error_method_type> write_task_;
+      response_handler_type & response_handler_;
 
       std::string header_;
     };
@@ -81,6 +78,7 @@ namespace vds {
   private:
     http_request & request_;
     http_outgoing_stream & outgoing_stream_;
+    response_handler_type & response_handler_;
   };
 }
 

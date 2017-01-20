@@ -1,5 +1,5 @@
-#ifndef __VDS_HTTP_HTTP_RESPONSE_SERIALIZER_H_
-#define __VDS_HTTP_HTTP_RESPONSE_SERIALIZER_H_
+#ifndef __VDS_HTTP_HTTP_REQUEST_SERIALIZER_H_
+#define __VDS_HTTP_HTTP_REQUEST_SERIALIZER_H_
 
 /*
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
@@ -11,12 +11,18 @@ namespace vds {
   class http_response;
   class http_outgoing_stream;
 
-  class http_response_serializer
+  class http_request_serializer
   {
   public:
+    http_request_serializer(
+      http_request & request,
+      http_outgoing_stream & outgoing_stream
+    )
+      : request_(request), outgoing_stream_(outgoing_stream)
+    {
+    }
 
     template<
-      typename done_method_type,
       typename next_method_type,
       typename error_method_type
     >
@@ -24,54 +30,39 @@ namespace vds {
     {
     public:
       handler(
-        done_method_type & done_method,
         next_method_type & next_method,
         error_method_type & error_method,
-        const http_response_serializer & args)
-        : done_method_(done_method),
+        const http_request_serializer & args)
+        :
         next_method_(next_method),
         error_method_(error_method)
       {
-      }
-
-      void operator()(
-        const http_response & response,
-        const http_outgoing_stream & response_stream
-        )
-      {
         std::stringstream stream;
-        stream << "HTTP/1.0 " << response.code() << " " << response.comment() << "\n";
-        for (auto & header : response.headers()) {
+        stream << args.request_.method() << " " << args.request_.url() << " " << args.request_.agent() << "\n";
+        for (auto & header : args.request_.headers()) {
           stream << header << "\n";
         }
 
-        stream
-          << "Content-Length: " << response_stream.length() << "\n"
-          << "Connection: close\n\n";
-
-        this->buffer_ = stream.str();
-        response_stream.get_reader<next_method_type, error_method_type>(
-          this->next_method_,
-          this->error_method_,
-          this->body_stream_);
-        this->next_method_(this->buffer_.c_str(), this->buffer_.lenght());
+        stream << "\n";
+        this->header_ = stream.str();
       }
 
-      void processed()
+      void operator()()
       {
-        if(!this->body_stream_.read_async())
-          this->done_method_();
+        this->next_method_(this->header_.c_str(), this->header_.lenght());
       }
 
     private:
-      done_method_type & done_method_;
       next_method_type & next_method_;
       error_method_type & error_method_;
 
-      std::string buffer_;
-      http_stream_reader<next_method_type, error_method_type> body_stream_;
-    };    
+      std::string header_;
+    };
+
+  private:
+    http_request & request_;
+    http_outgoing_stream & outgoing_stream_;
   };
 }
 
-#endif // __VDS_HTTP_HTTP_RESPONSE_SERIALIZER_H_
+#endif // __VDS_HTTP_HTTP_REQUEST_SERIALIZER_H_
