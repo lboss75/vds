@@ -371,12 +371,12 @@ namespace vds {
         {
         }
 
-        void operator()(arg_types... args)
+        void operator()(arg_types&&... args)
         {
           (new handler_args_type::handler<error_method_type>(
               this->error_method_,
               this->handler_args_,
-              std::move(args)...))->start();
+              std::move<arg_types&&>(args)...))->start();
 
           this->done_method_();
         }
