@@ -11,5 +11,8 @@ All rights reserved
 #include "http_request.h"
 #include "http_router.h"
 #include "http_middleware.h"
+#include "http_incoming_stream.h"
+#include "http_outgoing_stream.h"
+#include "http_send_request.h"
 
 #endif // __VDS_HTTP_VDS_HTTP_H_

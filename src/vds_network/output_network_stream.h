@@ -30,7 +30,8 @@ namespace vds {
         next_method_type & next,
         error_method_type & on_error,
         const output_network_stream & args)
-      : task_(done, on_error, args.s_),
+      : task_(done, on_error),
+        s_(args.s_.handle()),
         done_(done), next_(next)
       {
       }
@@ -44,7 +45,7 @@ namespace vds {
         }
         else {
           this->task_.set_data(data, len);
-          this->task_.schedule();
+          this->task_.schedule(this->s_);
         }          
       }
       
@@ -54,6 +55,7 @@ namespace vds {
       }
       
     private:
+      network_socket::SOCKET_HANDLE s_;
       done_method_type & done_;
       next_method_type & next_;
       write_socket_task<

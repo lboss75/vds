@@ -99,14 +99,14 @@ TEST(http_tests, test_server)
         
         //Start client
         vds::http_request request("GET", "/");
-
+        vds::http_outgoing_stream outgoing_stream;
         vds::barrier done;
         vds::sequence(
           vds::socket_connect(sp),
-          vds::http_send_request(request)
+          vds::http_send_request(request, outgoing_stream)
         )
-        ([&done](const vds::http_response & response) {
-          ASSERT_EQ(response.body(), "<html><body>Hello World</body></html>");
+        ([&done](const vds::http_response & response, const vds::http_outgoing_stream & outgoing_stream) {
+          ASSERT_EQ(outgoing_stream.body(), "<html><body>Hello World</body></html>");
           done.set();
         },
         [&done](std::exception * ex) {

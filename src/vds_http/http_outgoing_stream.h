@@ -17,8 +17,14 @@ namespace vds {
     {
 
     }
+
+    const std::string & body() const {
+      return this->body_;
+    }
+
     
   private:
+    std::string body_;
   };
 }
 

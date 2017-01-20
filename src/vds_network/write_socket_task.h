@@ -21,11 +21,10 @@ namespace vds {
   public:
     write_socket_task(
       done_method_type & done_method,
-      error_method_type & error_method,
-      const network_socket & s)
+      error_method_type & error_method
+      )
     : done_method_(done_method), error_method_(error_method),
-      data_(nullptr), data_size_(0),
-      s_(s.handle())
+      data_(nullptr), data_size_(0)
     {
     }
 
@@ -37,10 +36,23 @@ namespace vds {
       this->data_ = static_cast<const u_int8_t *>(data);
       this->data_size_ = size;
     }
-   
+
+    void schedule(network_socket::SOCKET_HANDLE s)
+    {
+      this->s_ = s;
+      this->schedule();
+    }
+  
+  private:
+    done_method_type & done_method_;
+    error_method_type & error_method_;
+    network_socket::SOCKET_HANDLE s_;
+    const u_int8_t * data_;
+    size_t data_size_;
+
+#ifdef _WIN32
     void schedule()
     {
-#ifdef _WIN32
       this->wsa_buf_.len = (ULONG)this->data_size_;
       this->wsa_buf_.buf = (CHAR *)this->data_;
 
@@ -50,26 +62,8 @@ namespace vds {
           throw new std::system_error(errorCode, std::system_category(), "WSASend failed");
         }
       }
-#else//!_WIN32
-      event_set(
-        &this->event_,
-        this->s_,
-        EV_WRITE,
-        &write_socket_task::callback,
-        this);
-      // Schedule client event
-      event_add(&this->event_, NULL);
-#endif//_WIN32
     }
-    
-  private:
-    done_method_type & done_method_;
-    error_method_type & error_method_;
-    network_socket::SOCKET_HANDLE s_;
-    const u_int8_t * data_;
-    size_t data_size_;
-    
-#ifdef _WIN32
+
     void process(DWORD dwBytesTransfered) override
     {
       this->data_ += dwBytesTransfered;
@@ -83,6 +77,17 @@ namespace vds {
       }
     }
 #else//!_WIN32
+    void schedule()
+    {
+      event_set(
+        &this->event_,
+        this->s_,
+        EV_WRITE,
+        &write_socket_task::callback,
+        this);
+      // Schedule client event
+      event_add(&this->event_, NULL);
+    }
     static void callback(int fd, short event, void *arg)
     {
       auto pthis = reinterpret_cast<write_socket_task *>(arg);

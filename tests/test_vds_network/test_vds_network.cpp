@@ -3,7 +3,7 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 #include "stdafx.h"
-
+#include "network_socket.h"
 class echo_server
 {
 public:
@@ -101,7 +101,8 @@ public:
       done_method_type & done,
       error_method_type & on_error,
       const send_test & owner)
-    : write_task_(done, on_error, owner.s_),
+    : write_task_(done, on_error),
+      s_(owner.s_.handle()),
       data_(owner.data_)
     {
     }
@@ -110,9 +111,10 @@ public:
       this->write_task_.set_data(
         this->data_.c_str(),
         this->data_.length());
-      this->write_task_.schedule();
+      this->write_task_.schedule(this->s_);
     }
   private:
+    vds::network_socket::SOCKET_HANDLE s_;
     vds::write_socket_task<done_method_type, error_method_type> write_task_;
     std::string data_;
   };
