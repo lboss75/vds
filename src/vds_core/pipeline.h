@@ -376,7 +376,7 @@ namespace vds {
           (new handler_args_type::handler<error_method_type>(
               this->error_method_,
               this->handler_args_,
-              args...))->start();
+              std::move(args)...))->start();
 
           this->done_method_();
         }

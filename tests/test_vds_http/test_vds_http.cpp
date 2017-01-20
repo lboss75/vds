@@ -87,7 +87,7 @@ TEST(http_tests, test_server)
 
         vds::pipeline(
           vds::socket_server(sp, "127.0.0.1", 8000),
-          vds::for_each<vds::network_socket &&>::create_handler(test_http_pipeline(router))
+          vds::for_each<vds::network_socket&&>::create_handler(test_http_pipeline(router))
         )
         (
           []() {},
