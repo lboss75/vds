@@ -33,11 +33,20 @@ namespace vds {
         next_method_type & next,
         error_method_type & on_error,
         const socket_server & args)
-      : task_(next, on_error, args.sp_, args.address_, args.port_)
+      : task_(
+          next,
+          on_error,
+          args.sp_,
+          args.address_,
+          args.port_)
       {
       }
       
       void operator()() {
+        this->processed();
+      }
+      
+      void processed() {
         this->task_.schedule();        
       }
       

@@ -28,16 +28,18 @@ public:
     handler(
       error_method_type & error_method,
       const test_http_pipeline & owner,
-      vds::network_socket && s)
+      vds::network_socket & s)
       : error_handler_(this, error_method),
       done_handler_(this),
       router_(owner.router_),
-      s_(s)
+      s_(std::move(s))
     {
     }
 
     void start()
     {
+      std::cout << "New connection\n";
+      
       vds::pipeline(
         vds::input_network_stream(this->s_),
         vds::http_parser(),

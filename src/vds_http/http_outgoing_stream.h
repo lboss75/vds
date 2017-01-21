@@ -7,6 +7,7 @@ All rights reserved
 */
 
 #include "http_response.h"
+#include "http_stream_reader.h"
 
 namespace vds {
   
@@ -20,6 +21,27 @@ namespace vds {
 
     const std::string & body() const {
       return this->body_;
+    }
+    
+    size_t size() const {
+      return this->body_.size();
+    }
+    
+    template <
+      typename next_method_type, 
+      typename error_method_type
+    >
+    void get_reader(
+      next_method_type & next_method,
+      error_method_type & error_method,
+      http_stream_reader<
+        next_method_type,
+        error_method_type
+      > & body_stream)
+    {
+      body_stream.reset(
+        next_method,
+        error_method);
     }
 
     

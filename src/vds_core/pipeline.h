@@ -69,7 +69,7 @@ namespace vds {
     
     template<typename... arg_types>
     void operator()(arg_types... args) {
-      this->done_.processed(args);
+      this->done_.processed(args...);
     }
     
   private:
@@ -370,14 +370,20 @@ namespace vds {
           handler_args_(handler_args.handler_args_)
         {
         }
-
-        void operator()(arg_types&&... args)
+        
+        void operator()(
+          arg_types... args)
         {
-          (new handler_args_type::handler<error_method_type>(
+          (new typename handler_args_type::template handler<error_method_type>(
               this->error_method_,
               this->handler_args_,
-              std::move<arg_types&&>(args)...))->start();
+              args...))->start();
 
+          this->done_method_();
+        }
+        
+        void processed()
+        {
           this->done_method_();
         }
 

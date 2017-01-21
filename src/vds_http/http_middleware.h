@@ -8,6 +8,7 @@ All rights reserved
 
 #include "http_response.h"
 #include "http_router.h"
+#include "http_outgoing_stream.h"
 
 namespace vds {
   class http_router;
@@ -45,34 +46,31 @@ namespace vds {
         const http_request & request,
         http_incoming_stream & incoming_stream
       ) {
-        std::shared_ptr<http_response> response(
-          new http_response(
-            [&next](
-              const simple_done_handler_t & done,
-              const error_handler_t & on_error,
-              const std::shared_ptr<http_response> & response
-            ){
-              next(
-                done,
-                on_error,
-                response
-              );
-            },
-            request
-          ));
-        
-        this->router_->route(
-          done,
-          on_error,
+        this->response_.reset(request);
+        this->router_.route(
           request,
-          response
+          incoming_stream,
+          this->response_,
+          this->outgoing_stream_
         );
+        
+        this->next_method_(
+          this->response_,
+          this->outgoing_stream_);
       }
+      
+      void processed()
+      {
+        this->done_method_();
+      }
+      
     private:
       done_method_type & done_method_;
       next_method_type & next_method_;
       error_method_type & error_method_;
       const http_router & router_;
+      http_response response_;
+      http_outgoing_stream outgoing_stream_;
     };
     
   private:

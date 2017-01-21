@@ -18,6 +18,15 @@ namespace vds {
     {
       return false;
     }
+    
+    void reset(
+      next_method_type & next_method,
+      error_method_type & error_method
+    )
+    {
+      this->next_method_ = &next_method;
+      this->error_method_ = &error_method;
+    }
 
   private:
     next_method_type * next_method_;

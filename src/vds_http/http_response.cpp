@@ -5,3 +5,10 @@ All rights reserved
 
 #include "stdafx.h"
 #include "http_response.h"
+
+void vds::http_response::reset(
+  const vds::http_request& request
+)
+{
+
+}

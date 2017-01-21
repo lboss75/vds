@@ -49,7 +49,9 @@ namespace vds {
 
       void operator()()
       {
-        this->next_method_(this->header_.c_str(), this->header_.lenght());
+        this->next_method_(
+          this->header_.c_str(),
+          this->header_.size());
       }
 
     private:

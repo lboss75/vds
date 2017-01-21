@@ -20,7 +20,7 @@ namespace vds {
       http_incoming_stream & incoming_stream,
       http_response & response,
       http_outgoing_stream & outgoing_stream
-      );
+      ) const;
     
     void add_static(
       const std::string & url,

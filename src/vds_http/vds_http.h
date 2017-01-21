@@ -17,5 +17,6 @@ All rights reserved
 #include "http_simple_response_reader.h"
 #include "http_parser.h"
 #include "http_response_serializer.h"
+#include "http_response_parser.h"
 
 #endif // __VDS_HTTP_VDS_HTTP_H_

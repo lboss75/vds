@@ -6,6 +6,7 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 #include "http_request_serializer.h"
+#include "http_response_parser.h"
 
 namespace vds {
   class http_request;
@@ -47,7 +48,9 @@ namespace vds {
       void operator()(const network_socket & s)
       {
         pipeline(
-          http_request_serializer(this->request_, this->outgoing_stream_),
+          http_request_serializer(
+            this->request_,
+            this->outgoing_stream_),
           output_network_stream(s)
         )
         (
@@ -57,6 +60,7 @@ namespace vds {
 
         pipeline(
           input_network_stream(s),
+          http_response_parser(),
           this->response_handler_
         )(
           this->done_method_,

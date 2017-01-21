@@ -12,9 +12,24 @@ namespace vds {
   class http_response
   {
   public:
-    http_response(
+    static constexpr int HTTP_OK = 200;
+    
+    void reset(
       const http_request & request
     );
+    
+    void reset(
+      const std::string & protocol,
+      const std::string & code,
+      const std::string & comment,
+      const std::list<std::string> & headers 
+    )
+    {
+      this->protocol_ = protocol;
+      this->code_ = atoi(code.c_str());
+      this->comment_ = comment;
+      this->headers_ = headers;
+    }
     
     void set_result(int code, const std::string & comment) {
       this->code_ = code;
@@ -41,6 +56,7 @@ namespace vds {
     }
 
   private:
+    std::string protocol_;
     int code_;
     std::string comment_;
     std::list<std::string> headers_;

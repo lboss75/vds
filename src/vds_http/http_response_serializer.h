@@ -5,7 +5,10 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
+
 #include "http_stream_reader.h"
+#include "http_response.h"
+#include "http_outgoing_stream.h"
 
 namespace vds {
   class http_response;
@@ -36,7 +39,7 @@ namespace vds {
 
       void operator()(
         const http_response & response,
-        const http_outgoing_stream & response_stream
+        http_outgoing_stream & response_stream
         )
       {
         std::stringstream stream;
@@ -46,7 +49,7 @@ namespace vds {
         }
 
         stream
-          << "Content-Length: " << response_stream.length() << "\n"
+          << "Content-Length: " << response_stream.size() << "\n"
           << "Connection: close\n\n";
 
         this->buffer_ = stream.str();
@@ -54,13 +57,14 @@ namespace vds {
           this->next_method_,
           this->error_method_,
           this->body_stream_);
-        this->next_method_(this->buffer_.c_str(), this->buffer_.lenght());
+        this->next_method_(this->buffer_.c_str(), this->buffer_.size());
       }
 
       void processed()
       {
-        if(!this->body_stream_.read_async())
+        if(!this->body_stream_.read_async()) {          
           this->done_method_();
+        }
       }
 
     private:

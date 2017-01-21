@@ -1,26 +1,16 @@
-#ifndef __VDS_HTTP_HTTP_PARSER_H
-#define __VDS_HTTP_HTTP_PARSER_H
+#ifndef __VDS_HTTP_HTTP_RESPONSE_PARSER_H_
+#define __VDS_HTTP_HTTP_RESPONSE_PARSER_H_
 
-/*
-Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
-All rights reserved
-*/
-
-#include <string>
-#include <list>
-#include <string.h>
-
-#include "func_utils.h"
-#include "service_provider.h"
-#include "http_request.h"
 #include "http_incoming_stream.h"
 
 namespace vds {
-  class http_parser
+  class http_response_parser
   {
   public:
-    http_parser();
-
+    http_response_parser()
+    {
+    }
+    
     template<
       typename done_method_type,
       typename next_method_type,
@@ -33,21 +23,21 @@ namespace vds {
         done_method_type & done_method,
         next_method_type & next_method,
         error_method_type & error_method,
-        const http_parser & args)
-        : done_method_(done_method),
+        const http_response_parser & args
+      )
+      : done_method_(done_method),
         next_method_(next_method),
         error_method_(error_method),
         state_(STATE_PARSE_HEADER)
       {
       }
-    
       
-      void operator()(
-        const void * data,
-        size_t len
-      ) {
+      void operator()(const void * data, size_t len)
+      {
         if (0 == len) {
-          this->next_method_(this->request_, this->incoming_stream_);
+          this->next_method_(
+            this->response_,
+            this->incoming_stream_);
         }
         else {
           this->data_ = data;
@@ -107,7 +97,7 @@ namespace vds {
 
               this->headers_.pop_front();
 
-              this->request_.reset(
+              this->response_.reset(
                   items[0],
                   items[1],
                   items[2],
@@ -120,7 +110,7 @@ namespace vds {
               this->state_ = STATE_PARSE_BODY;
 
               this->next_method_(
-                this->request_,
+                this->response_,
                 this->incoming_stream_
               );
 
@@ -141,28 +131,28 @@ namespace vds {
 
         }
       }
-
+      
     private:
       done_method_type & done_method_;
       next_method_type & next_method_;
       error_method_type & error_method_;
-      
-      const void * data_;
-      size_t len_;
-
-      std::string parse_buffer_;
-      std::list<std::string> headers_;
       
       enum 
       {
         STATE_PARSE_HEADER,
         STATE_PARSE_BODY
       } state_;
+
+      const void * data_;
+      size_t len_;
+
+      std::string parse_buffer_;
+      std::list<std::string> headers_;
       
-      http_request request_;
+      http_response response_;
       http_incoming_stream incoming_stream_;
     };
   };
 }
 
-#endif // HTTP_PARSER_H
+#endif // __VDS_HTTP_HTTP_RESPONSE_PARSER_H_

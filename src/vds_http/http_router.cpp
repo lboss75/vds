@@ -14,7 +14,7 @@ void vds::http_router::route(
   http_incoming_stream & incoming_stream,
   http_response & response,
   http_outgoing_stream & outgoing_stream
-)
+) const
 {
   auto p = this->static_.find(request.url());
   if(this->static_.end() != p){

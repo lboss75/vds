@@ -11,7 +11,8 @@ namespace vds {
   class http_simple_response_reader
   {
   public:
-    http_simple_response_reader(std::string & body)
+    http_simple_response_reader(std::string & body_collector)
+    : body_collector_(body_collector)
     {
     }
 
@@ -27,50 +28,35 @@ namespace vds {
         done_method_type & done_method,
         next_method_type & next_method,
         error_method_type & error_method,
-        const http_request_serializer & args)
+        const http_simple_response_reader & args)
         : done_method_(done_method),
         next_method_(next_method),
-        error_method_(error_method)
+        error_method_(error_method),
+        body_collector_(args.body_collector_)
       {
       }
 
       void operator()(
         const http_response & response,
-        const http_outgoing_stream & response_stream
+        http_incoming_stream & response_stream
         )
       {
-        std::stringstream stream;
-        stream << "HTTP/1.0 " << response.code() << " " << response.comment() << "\n";
-        for (auto & header : response.headers()) {
-          stream << header << "\n";
+        if(http_response::HTTP_OK == response.code()){
         }
-
-        stream
-          << "Content-Length: " << response_stream.length() << "\n"
-          << "Connection: close\n\n";
-
-        this->buffer_ = stream.str();
-        response_stream.get_reader<next_method_type, error_method_type>(
-          this->next_method_,
-          this->error_method_,
-          this->body_stream_);
-        this->next_method_(this->buffer_.c_str(), this->buffer_.lenght());
       }
 
       void processed()
       {
-        if(!this->body_stream_.read_async())
-          this->done_method_();
       }
 
     private:
       done_method_type & done_method_;
       next_method_type & next_method_;
       error_method_type & error_method_;
-
-      std::string buffer_;
-      http_stream_reader<next_method_type, error_method_type> body_stream_;
+      std::string & body_collector_;
     };    
+  private:
+    std::string & body_collector_;
   };
 }
 
