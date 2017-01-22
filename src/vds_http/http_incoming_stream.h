@@ -20,6 +20,11 @@ namespace vds {
     {
     }
     
+    ~http_incoming_stream()
+    {
+        std::cout << "http_incoming_stream::~http_incoming_stream\n";
+    }
+    
     bool push_data(
       const void *& data,
       size_t & len)

@@ -5,13 +5,16 @@
 #include "http_incoming_stream.h"
 
 namespace vds {
+  template <typename done_method_type>
   class http_stream_reader
   {
   public:
     http_stream_reader(
+      done_method_type & done_method,
       http_incoming_stream & incoming_stream
     )
-    : incoming_stream_(incoming_stream)
+    : done_method_(done_method_),
+    incoming_stream_(incoming_stream)
     {
     }
     
@@ -30,61 +33,38 @@ namespace vds {
       : next_method_(next_method),
         error_method_(error_method),
         incoming_stream_(args.incoming_stream_),
-        wait_handler_(false)
+        done_method_(args.done_method_)
       {
         this->incoming_stream_.handler(this);
       }
       
+      ~handler()
+      {
+        this->incoming_stream_.handler(nullptr);
+        std::cout << "http_stream_reader::~handler\n";
+      }
+      
       void operator()()
       {
-        this->data_mutex_.lock();
-        
-        if(this->data_.empty()){
-          this->wait_handler_ = true;
-          this->data_mutex_.unlock();
-        }
-        else {  
-          std::pair<const void *, size_t> t = *this->data_.rbegin();
-          this->data_.pop_front();
-          this->data_mutex_.unlock();
-          
-          this->next_method_(t.first, t.second);
-        }
+        this->done_method_();
       }
       
       void push_data(
         const void * data,
         size_t len
-      ){
-        this->data_mutex_.lock();;
-        
-        this->data_.push_back(
-          std::pair<const void *, size_t>(
-            data, len));
-        
-        if(this->wait_handler_) {
-          this->wait_handler_ = false;
-          std::pair<const void *, size_t> t = *this->data_.rbegin();
-          this->data_.pop_front();
-          this->data_mutex_.unlock();
-          
-          this->next_method_(t.first, t.second);
-        }
-        else {
-          this->data_mutex_.unlock();
-        }
+      ) override
+      {
+        this->next_method_(data, len);
       }
       
     private:
       next_method_type & next_method_;
       error_method_type & error_method_;
+      done_method_type & done_method_;
       http_incoming_stream & incoming_stream_;
-      
-      std::mutex data_mutex_;
-      bool wait_handler_;
-      std::list<std::pair<const void *, size_t>> data_;
     };
   private:
+    done_method_type & done_method_;
     http_incoming_stream & incoming_stream_;
   };
 }

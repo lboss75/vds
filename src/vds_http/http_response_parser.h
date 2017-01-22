@@ -37,6 +37,11 @@ namespace vds {
       {
       }
       
+      ~handler()
+      {
+        std::cout << "http_response_parser::handler::~handler\n";
+      }
+      
       void operator()(const void * data, size_t len)
       {
         if (0 == len) {

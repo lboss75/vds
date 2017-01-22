@@ -34,6 +34,11 @@ namespace vds {
         error_method_(error_method)
       {
       }
+      
+      ~handler()
+      {
+        std::cout << "http_simple_response_reader::handler::~handler\n";
+      }
 
       void operator()(
         const http_response & response,
@@ -42,15 +47,15 @@ namespace vds {
       {
         if(http_response::HTTP_OK == response.code()){
           pipeline(
-            http_stream_reader(response_stream),
+            http_stream_reader<done_method_type>(
+              this->done_method_,
+              response_stream),
             stream_to_string()
           )
           (
            this->next_method_,
            this->error_method_
           );
-          
-          this->done_method_();
         }
       }
 
