@@ -105,15 +105,15 @@ TEST(http_tests, test_server)
         vds::http_request request("GET", "/");
         vds::http_outgoing_stream outgoing_stream;
 
-        std::string body;
-        vds::http_simple_response_reader response_reader(body);
+        
+        vds::http_simple_response_reader response_reader;
 
         vds::barrier done;
         vds::sequence(
           vds::socket_connect(sp),
           vds::http_send_request<vds::http_simple_response_reader>(request, outgoing_stream, response_reader)
         )
-        ([&done, &body]() {
+        ([&done](const std::string & body) {
           ASSERT_EQ(body, "<html><body>Hello World</body></html>");
           done.set();
         },

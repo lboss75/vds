@@ -14,9 +14,17 @@ namespace vds {
   class http_outgoing_stream
   {
   public:
+    http_outgoing_stream();
+    
     void set_body(const std::string & body)
     {
-
+      this->body_ = body;
+      this->is_simple_ = true;
+    }
+    
+    bool is_simple() const
+    {
+      return this->is_simple_;
     }
 
     const std::string & body() const {
@@ -27,25 +35,8 @@ namespace vds {
       return this->body_.size();
     }
     
-    template <
-      typename next_method_type, 
-      typename error_method_type
-    >
-    void get_reader(
-      next_method_type & next_method,
-      error_method_type & error_method,
-      http_stream_reader<
-        next_method_type,
-        error_method_type
-      > & body_stream)
-    {
-      body_stream.reset(
-        next_method,
-        error_method);
-    }
-
-    
   private:
+    bool is_simple_;
     std::string body_;
   };
 }

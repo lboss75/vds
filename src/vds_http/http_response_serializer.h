@@ -52,19 +52,17 @@ namespace vds {
           << "Content-Length: " << response_stream.size() << "\n"
           << "Connection: close\n\n";
 
+        if(response_stream.is_simple()){
+          stream << response_stream.body();
+        }
+        
         this->buffer_ = stream.str();
-        response_stream.get_reader<next_method_type, error_method_type>(
-          this->next_method_,
-          this->error_method_,
-          this->body_stream_);
         this->next_method_(this->buffer_.c_str(), this->buffer_.size());
       }
 
       void processed()
       {
-        if(!this->body_stream_.read_async()) {          
-          this->done_method_();
-        }
+        this->done_method_();
       }
 
     private:
@@ -73,7 +71,6 @@ namespace vds {
       error_method_type & error_method_;
 
       std::string buffer_;
-      http_stream_reader<next_method_type, error_method_type> body_stream_;
     };    
   };
 }

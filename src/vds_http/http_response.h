@@ -37,8 +37,10 @@ namespace vds {
     }
     
     void add_header(const std::string & name, const std::string & value) {
-        this->headers_.push_back(name + ":" + value);
+      this->headers_.push_back(name + ":" + value);
     }
+    
+    bool get_header(const std::string & name, std::string & value);
 
     int code() const
     {

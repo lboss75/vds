@@ -1,6 +1,11 @@
 #ifndef __VDS_HTTP_HTTP_RESPONSE_PARSER_H_
 #define __VDS_HTTP_HTTP_RESPONSE_PARSER_H_
 
+/*
+Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
+All rights reserved
+*/
+
 #include "http_incoming_stream.h"
 
 namespace vds {
@@ -49,8 +54,8 @@ namespace vds {
       
       void processed()
       {
-        if (STATE_PARSE_HEADER == this->state_) {
-          while (0 < this->len_) {
+        while (0 < this->len_) {
+          if (STATE_PARSE_HEADER == this->state_) {
             const char * p = (const char *)memchr(this->data_, '\n', this->len_);
             if (nullptr == p) {
               this->parse_buffer_ += std::string((const char *)this->data_, this->len_);
@@ -108,12 +113,21 @@ namespace vds {
               this->headers_.clear();
               
               this->state_ = STATE_PARSE_BODY;
+              
+              std::string content_length_header;
+              if(this->response_.get_header("Content-Length", content_length_header)){
+                this->incoming_stream_.limit(
+                  std::stoul(content_length_header));
+              }
+              else {
+                this->incoming_stream_.limit((size_t)-1);
+              }
 
               this->next_method_(
                 this->response_,
                 this->incoming_stream_
               );
-
+              
               return;
             }
             else {
@@ -124,12 +138,16 @@ namespace vds {
             this->data_ = p + 1;
             this->len_ -= size + 1;
           }
-
-          this->done_method_();
+          else {
+            if(!this->incoming_stream_.push_data(
+              this->data_,
+              this->len_)){
+              this->state_ = STATE_PARSE_HEADER;
+            }
+          }
         }
-        else {
 
-        }
+        this->done_method_();
       }
       
     private:

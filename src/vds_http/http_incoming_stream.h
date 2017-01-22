@@ -13,25 +13,71 @@ namespace vds {
   class http_incoming_stream
   {
   public:
-    
-    template <
-      typename next_method_type, 
-      typename error_method_type
-    >
-    void get_reader(
-      next_method_type & next_method,
-      error_method_type & error_method,
-      http_stream_reader<
-        next_method_type,
-        error_method_type
-      > & body_stream)
+    http_incoming_stream()
+    : handler_(nullptr),
+    size_limit_((size_t)-1),
+    readed_(0), final_(false)
     {
-      body_stream.reset(
-        next_method,
-        error_method);
+    }
+    
+    bool push_data(
+      const void *& data,
+      size_t & len)
+    {
+      size_t l = std::min(
+        this->size_limit_ -this->readed_,
+        len);
+      
+      if(0 == l){
+        this->final_ = true;
+      }
+      
+      this->handler_->push_data(
+        data,
+        l
+      );
+      
+      if(l == len){
+        data = nullptr;
+        len = 0;
+        return true;
+      } else {
+        data = reinterpret_cast<const u_int8_t *>(data) + l;
+        len = len - l;
+        return false;
+      }
     }
 
+   
+    class read_handler
+    {
+    public:
+      virtual ~read_handler()
+      {
+      }
+      
+      virtual void push_data(
+        const void * data,
+        size_t len
+      ) = 0;
+    };
+
+    void handler(read_handler * value)
+    {
+      this->handler_ = value;
+    }
+    
+    void limit(size_t size_limit)
+    {
+      this->size_limit_ = size_limit;
+    }
+    
   private:
+    size_t size_limit_;
+    size_t readed_;
+    bool final_;
+    
+    read_handler * handler_;
   };
 }
 
