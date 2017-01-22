@@ -37,6 +37,17 @@ namespace vds {
         l
       );
       
+      this->readed_ += l;
+      if(this->size_limit_ == this->readed_){
+        this->final_ = true;
+        if (0 < l) {
+          this->handler_->push_data(
+            nullptr,
+            0
+          );
+        }
+      }
+      
       if(l == len){
         data = nullptr;
         len = 0;
