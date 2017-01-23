@@ -33,6 +33,11 @@ namespace vds {
       error_method_(error_method)
       {        
       }
+
+      ~handler()
+      {
+        std::cout << "stream_to_string::handler::~handler\n";
+      }
       
       void operator()(const void * data, size_t len)
       {

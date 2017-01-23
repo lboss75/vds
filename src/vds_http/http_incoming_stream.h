@@ -29,7 +29,7 @@ namespace vds {
       const void *& data,
       size_t & len)
     {
-      size_t l = std::min(
+      size_t l = min(
         this->size_limit_ -this->readed_,
         len);
       

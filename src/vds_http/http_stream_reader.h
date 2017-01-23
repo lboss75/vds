@@ -13,7 +13,7 @@ namespace vds {
       done_method_type & done_method,
       http_incoming_stream & incoming_stream
     )
-    : done_method_(done_method_),
+    : done_method_(done_method),
     incoming_stream_(incoming_stream)
     {
     }
