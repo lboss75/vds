@@ -8,21 +8,14 @@ class echo_server
 {
 public:
    
-  template<
-    typename done_method_type,
-    typename next_method_type,
-    typename error_method_type
-  >
-  class handler
+  template<typename context_type>
+  class handler : public vds::sequence_step<context_type, void (void)>
   {
   public:
     handler(
-      done_method_type & done,
-      next_method_type & next,
-      error_method_type & on_error,
+      context_type & conext,
       const echo_server & owner)
-      : done_(done), next_(next),
-      on_error_(on_error)
+      : base(context)
     {
     }
     
@@ -30,19 +23,13 @@ public:
       std::cout << "new connection\n";
 
       (new connection_handler<
-        done_method_type,
-        next_method_type,
-        error_method_type>(
-        this->next_, this->on_error_, s))->start();
+        next_step_t,
+        error_method_t>(
+        this->next, this->error, s))->start();
     }
-  private:
-    done_method_type & done_;
-    next_method_type & next_;
-    error_method_type & on_error_;
   };
 
   template<
-    typename done_method_type,
     typename next_method_type,
     typename error_method_type
   >
@@ -54,7 +41,7 @@ public:
       error_method_type & error,
       vds::network_socket & s
     ) : s_(std::move(s)),
-      done_(this, next),
+      next_(this, next),
       error_(this, error)
     {
     }
@@ -65,17 +52,13 @@ public:
         vds::output_network_stream(this->s_)//output
       )
       (
-        this->done_,
+        this->next_,
         this->error_
         );
     }
   private:
-    vds::auto_cleaner<
-      typename echo_server::connection_handler<done_method_type, next_method_type, error_method_type>,
-      next_method_type> done_;
-    vds::auto_cleaner<
-      typename echo_server::connection_handler<done_method_type, next_method_type, error_method_type>,
-      error_method_type> error_;
+    vds::auto_cleaner<connection_handler, next_method_type> next_;
+    vds::auto_cleaner<connection_handler, error_method_type> error_;
 
     vds::network_socket s_;
   };
@@ -243,8 +226,7 @@ public:
   }
 
   template <
-    typename done_method_type,
-    typename error_method_type
+    typename context_type
   >
   class handler
   {

@@ -22,20 +22,16 @@ namespace vds {
     {
     }
     
-    template <
-      typename next_method_type,
-      typename error_method_type
-      >
-    class handler
+    template <typename context_type>
+    class handler : public sequence_step<context_type, void(network_socket &&)>
     {
     public:
-      handler(
-        next_method_type & next,
-        error_method_type & on_error,
+      handler(context_type & context,
         const socket_server & args)
-      : task_(
-          next,
-          on_error,
+      : base(context),
+        task_(
+          this->next,
+          this->error,
           args.sp_,
           args.address_,
           args.port_)
@@ -43,15 +39,11 @@ namespace vds {
       }
       
       void operator()() {
-        this->processed();
-      }
-      
-      void processed() {
         this->task_.schedule();        
       }
       
     private:
-      accept_socket_task<next_method_type, error_method_type> task_;
+      accept_socket_task<next_step_t, error_method_t> task_;
     };
   private:
     const service_provider & sp_;
