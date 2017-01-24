@@ -15,7 +15,7 @@ public:
     handler(
       context_type & context,
       const echo_server & owner)
-      : base(context)
+      : vds::sequence_step<context_type, void (void)>(context)
     {
     }
     
@@ -23,8 +23,8 @@ public:
       std::cout << "new connection\n";
 
       (new connection_handler<
-        next_step_t,
-        error_method_t>(
+        typename context_type::next_step_t,
+        typename context_type::error_method_t>(
         this->next, this->error, s))->start();
     }
   };
@@ -80,7 +80,7 @@ public:
     handler(
       context_type & context,
       const send_test & owner)
-    : base(context),
+    : vds::sequence_step<context_type, void(void)>(context),
       write_task_(*this, this->error),
       s_(owner.s_.handle()),
       data_(owner.data_)
@@ -100,7 +100,9 @@ public:
     }
   private:
     vds::network_socket::SOCKET_HANDLE s_;
-    vds::write_socket_task<handler, error_method_t> write_task_;
+    vds::write_socket_task<
+      handler,
+      typename context_type::error_method_t> write_task_;
     std::string data_;
 
   };
@@ -122,9 +124,9 @@ public:
   {
   public:
     handler(
-      context_type & conext,
+      context_type & context,
       const read_for_newline & owner)
-    : base(context)
+    : vds::sequence_step<context_type, void(const std::string &)>(context)
     {
     }
   
@@ -134,14 +136,7 @@ public:
     )
     {
       if(0 == len) {
-        if (this->buffer_.empty()) {
-          this->next(done, this->buffer_);
-        }
-        else {
-          this->next(
-            done.proxy<&handler::send_terminator<done_method>>,
-            this->buffer_);
-        }
+        this->next(this->buffer_);
       }
       else {
         this->buffer_.append(
@@ -150,7 +145,8 @@ public:
 
         auto p = this->buffer_.find('\n');
         if (std::string::npos == p) {
-          done();
+          this->prev();
+          return;
         }
         else {
           auto result = this->buffer_.substr(0, p);
@@ -191,7 +187,8 @@ public:
     handler(
       context_type & context,
       const check_result & owner)
-    : base(context), data_(owner.data_)
+    : vds::sequence_step<context_type, void(void)>(context),
+      data_(owner.data_)
     {
     }
   
@@ -230,7 +227,7 @@ public:
       context_type & context,
       const socket_client & args
     )
-      : base(context)
+      : vds::sequence_step<context_type, void(void)>(context)
     {
     }
 
@@ -284,13 +281,13 @@ TEST(network_tests, test_server)
         auto sp = registrator.build();
         auto nm = sp.get<vds::inetwork_manager>();
         
-        vds::sequence(
-          vds::socket_server(sp, "127.0.0.1", 8000),
-          echo_server()
-        )(
+        
+        auto done_server = vds::lambda_handler(
           []() {
             std::cout << "server closed\n";
-          },
+          }
+        );
+        auto error_server = vds::lambda_handler(
           [](std::exception * ex){
             FAIL() << ex->what();
             delete ex;
@@ -298,20 +295,37 @@ TEST(network_tests, test_server)
         );
         
         vds::sequence(
+          vds::socket_server(sp, "127.0.0.1", 8000),
+          echo_server()
+        )(
+            done_server,
+            error_server
+        );
+
+        auto done_client = vds::lambda_handler(
+          [&done]() {
+            std::cout << "check done\n";
+              done.set();
+          }
+        );
+        auto error_client = vds::lambda_handler(
+          [&done](std::exception * ex) {
+            FAIL() << ex->what();
+            delete ex;
+            done.set();
+          }
+        );
+
+        
+        vds::sequence(
           vds::socket_connect(sp),
           socket_client()
         )
-        ([&done]() {
-          std::cout << "check done\n";
-          done.set();
-        },
-        [&done](std::exception * ex) {
-          FAIL() << ex->what();
-          delete ex;
-          done.set();
-        },
-        "127.0.0.1",
-        8000);
+        (
+          done_client,
+          error_client,
+          "127.0.0.1",
+          8000);
 
         done.wait();
     }

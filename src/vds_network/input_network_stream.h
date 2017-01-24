@@ -25,7 +25,7 @@ namespace vds {
       handler(
         context_type & context,
         const input_network_stream & args)
-      : task_(this->next, error, args.s_)
+      : task_(this->next, this->error, args.s_)
       {
       }
       
@@ -40,7 +40,7 @@ namespace vds {
     private:
       read_socket_task<
         typename context_type::next_step_t,
-        error_method_t> task_;
+        typename context_type::error_method_t> task_;
     };
   private:
     const network_socket & s_;

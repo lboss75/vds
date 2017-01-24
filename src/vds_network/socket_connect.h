@@ -25,7 +25,7 @@ namespace vds {
         context_type & context,
         const socket_connect & owner
       )
-        : base(context),
+        : sequence_step<context_type, void (network_socket &)>(context),
         s_(
 #ifdef _WIN32
           WSASocket(PF_INET, SOCK_STREAM, 0, NULL, 0, WSA_FLAG_OVERLAPPED)

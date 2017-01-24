@@ -13,7 +13,7 @@ namespace vds {
   class inetwork_manager;
   
   template<
-    typename done_method_type,
+    typename next_method_type,
     typename error_method_type
   >
   class read_socket_task : public socket_task
@@ -22,15 +22,15 @@ namespace vds {
     constexpr static size_t BUFFER_SIZE = 1024;
 
     read_socket_task(
-      done_method_type & done_method,
+      next_method_type & next_method,
       error_method_type & error_method,
       const network_socket & s
-    ) : done_method_(done_method), error_method_(error_method),
+    ) : next_method_(next_method), error_method_(error_method),
       s_(s.handle())
     {
     }
     
-    void schedule()
+    void operator()()
     {
 #ifdef _WIN32
       this->wsa_buf_.len = BUFFER_SIZE;
@@ -58,14 +58,15 @@ namespace vds {
 
   private:
     network_socket::SOCKET_HANDLE s_;
-    done_method_type & done_method_;
+    next_method_type & next_method_;
     error_method_type & error_method_;
     u_int8_t buffer_[BUFFER_SIZE];
     
 #ifdef _WIN32
     void process(DWORD dwBytesTransfered) override
     {
-      this->done_method_(
+      this->next_method_(
+        *this,
         this->buffer_,
         (size_t)dwBytesTransfered
       );
@@ -84,7 +85,7 @@ namespace vds {
         return;
       }
       
-      pthis->done_method_(pthis->buffer_, len);
+      pthis->next_method_(*pthis, pthis->buffer_, len);
     }
 #endif//_WIN32
 

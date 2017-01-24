@@ -28,7 +28,7 @@ namespace vds {
     public:
       handler(context_type & context,
         const socket_server & args)
-      : base(context),
+      : sequence_step<context_type, void(network_socket &)>(context),
         task_(
           this->next,
           this->error,
@@ -43,7 +43,9 @@ namespace vds {
       }
       
     private:
-      accept_socket_task<next_step_t, error_method_t> task_;
+      accept_socket_task<
+        typename context_type::next_step_t,
+        typename context_type::error_method_t> task_;
     };
   private:
     const service_provider & sp_;
