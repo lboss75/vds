@@ -309,7 +309,7 @@ TEST(network_tests, test_server)
         auto sp = registrator.build();
         auto nm = sp.get<vds::inetwork_manager>();
         
-        vds::pipeline(
+        vds::sequence(
           vds::socket_server(sp, "127.0.0.1", 8000),
           echo_server()
         )(

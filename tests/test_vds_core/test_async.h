@@ -19,19 +19,15 @@ public:
       {
       }
       
-      template<
-        typename done_method_type,
-        typename error_method_type
-      >
-      class handler
+      template<typename context_type>
+      class handler : public vds::sequence_step<context_type, void(const std::string &)>
       {
       public:
         handler(
-          done_method_type & done,
-          error_method_type & on_error,
+          const context_type & context,
           const sync_method & owner
-        ): done_(done), on_error_(on_error),
-        owner_(owner.owner_){
+        ): base(context),
+          owner_(owner.owner_){
         }
         
         void operator () (
@@ -42,12 +38,10 @@ public:
           ASSERT_EQ(this->owner_.state_, 0);
 
           this->owner_.state_++;
-          this->done_("test");
+          this->next("test");
         }
         
       private:
-        done_method_type & done_;
-        error_method_type & on_error_;
         test_async_object & owner_;
       };
       
@@ -65,22 +59,18 @@ public:
       {
       }
       
-      template<
-        typename done_method_type,
-        typename error_method_type
-      >
-      class handler
+      template<typename context_type>
+      class handler : public vds::sequence_step<context_type, void(void)>
       {
       public:
         handler(
-          done_method_type & done,
-          error_method_type & on_error,
+          const context_type & context,
           const async_method & owner
         )
-        : owner_(owner.owner_), sp_(owner.sp_),
-        on_error_(on_error),
-        async_task_body_(owner.owner_, done),
-        async_task_(async_task_body_, on_error)
+        : base(context),
+          owner_(owner.owner_), sp_(owner.sp_),
+          async_task_body_(owner.owner_, next),
+          async_task_(async_task_body_, error)
         {
         }
         
@@ -94,7 +84,6 @@ public:
         }
         
       private:
-        error_method_type & on_error_;
         test_async_object & owner_;
         vds::service_provider & sp_;
         
@@ -103,8 +92,8 @@ public:
         public:
           async_body(
             test_async_object & owner,
-            done_method_type & done)
-          : owner_(owner), done_(done)
+            next_step_t & next)
+          : owner_(owner), next_(next)
           {
           }
           
@@ -113,15 +102,15 @@ public:
             ASSERT_EQ(this->owner_.state_, 1);
 
             this->owner_.state_++;
-            this->done_();
+            this->next_();
           }
         private:
-          done_method_type & done_;
+          next_step_t & next_;
           test_async_object & owner_;
         };
         
         async_body async_task_body_;
-        vds::async_task<async_body, error_method_type> async_task_;
+        vds::async_task<async_body, error_method_t> async_task_;
       };
       
     private:
