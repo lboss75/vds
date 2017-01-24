@@ -256,6 +256,11 @@ namespace vds {
     ) : sequence_step(step_context(prev, last, error), builder.functor_)
     {
     }
+
+    void processed()
+    {
+      sequence_step::processed();
+    }
   };
 
 
@@ -285,6 +290,12 @@ namespace vds {
     ) : sequence_step_t(step_context(prev, *this, error), builder.functor_),
       base_class(*this, last, error, builder)
     {
+    }
+
+    void processed()
+    {
+      sequence_step_t::processed();
+
     }
   };
   
@@ -356,6 +367,9 @@ namespace vds {
         error_proxy_(this, error_method)
       {
       }
+
+      void processed()
+      {}
 
     private:
       fake_holder fake_holder_;
