@@ -81,7 +81,7 @@ public:
       context_type & context,
       const send_test & owner)
     : base(context),
-      write_task_(this->done, this->error),
+      write_task_(*this, this->error),
       s_(owner.s_.handle()),
       data_(owner.data_)
     {
@@ -94,10 +94,15 @@ public:
       this->write_task_.schedule(this->s_);
     }
 
+    void processed()
+    {
+      this->next();
+    }
   private:
     vds::network_socket::SOCKET_HANDLE s_;
-    vds::write_socket_task<next_step_t, error_method_t> write_task_;
+    vds::write_socket_task<handler, error_method_t> write_task_;
     std::string data_;
+
   };
   
 private:
@@ -113,7 +118,7 @@ public:
   }
 
   template<typename context_type>
-  class handler : public vds::pipeline_filter<context_type, void(const std::string &)>
+  class handler : public vds::sequence_step<context_type, void(const std::string &)>
   {
   public:
     handler(
@@ -123,9 +128,7 @@ public:
     {
     }
   
-    template <typename done_method>
     void operator()(
-      done_method & done,
       const void * data,
       size_t len
     )
@@ -155,6 +158,11 @@ public:
           this->next(result);
         }
       }
+    }
+
+    void processed()
+    {
+
     }
     
   private:

@@ -18,21 +18,19 @@ namespace vds {
     }
     
     template <typename context_type>
-    class handler : public pipeline_filter<context_type, void(void)>
+    class handler : public sequence_step<context_type, void(void)>
     {
     public:
       handler(
         context_type & context,
         const output_network_stream & args)
       : base(context),
-        task_(done, on_error),
+        task_(*this, on_error),
         s_(args.s_.handle())
       {
       }
       
-      template <typename done_method_type>
       void operator()(
-        done_method_type & done,
         const void * data,
         size_t len
       ) {
@@ -44,10 +42,15 @@ namespace vds {
           this->task_.schedule(this->s_);
         }          
       }
+
+      void processed()
+      {
+        this->prev.processed();
+      }
       
     private:
       network_socket::SOCKET_HANDLE s_;
-      write_socket_task<error_method_t> task_;
+      write_socket_task<handler, error_method_t> task_;
     };
   private:
     const network_socket & s_;

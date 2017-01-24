@@ -10,44 +10,6 @@ All rights reserved
 
 namespace vds {
   ///////////////////////////////////////////////////////////
-  template <typename owner_type, typename target_type>
-  class done_method_manager
-  {
-  public:
-    done_method_manager(
-      owner_type & owner,
-      target_type & target)
-      : owner_(owner), target_(target)
-    {
-    }
-
-    template<void (target_type::*member_func)(owner_type & owner)>
-    class proxy_method
-    {
-    public:
-      void operator()()
-      {
-        auto owner = reinterpret_cast<done_method_manager *>(this);
-        (owner->target_->member_func)(owner->owner_, );
-      }
-    };
-
-    template<void (target_type::*member_func)(owner_type & owner)>
-    proxy_method<member_func> & proxy()
-    {
-      return *reinterpret_cast<proxy_method<member_func> *>(this);
-    }
-
-  private:
-    owner_type & owner_;
-    target_type & target_;
-  };
-
-
-  template <typename method_type, typename method_signature>
-  class _method_proxy;
-
-  ///////////////////////////////////////////////////////////
   template <typename method_type, typename method_signature>
   class _method_proxy;
 
@@ -63,6 +25,27 @@ namespace vds {
     void operator()(arg_types... args)
     {
       this->method_(args...);
+    }
+
+  private:
+    method_type & method_;
+  };
+  ///////////////////////////////////////////////////////////
+  template <typename method_type, typename method_signature>
+  class _processed_method_proxy;
+
+  template <typename method_type, typename class_name, typename... arg_types>
+  class _processed_method_proxy<method_type, void (class_name::*)(arg_types...)>
+  {
+  public:
+    _processed_method_proxy(method_type & method)
+      : method_(method)
+    {
+    }
+
+    void operator()(arg_types... args)
+    {
+      this->method_.processed(args...);
     }
 
   private:
@@ -106,7 +89,9 @@ namespace vds {
     sequence_step(
       const context_type & context
     )
-      : next(context.next_),
+      : 
+      prev(context.prev_),
+      next(context.next_),
       error(context.error_)
     {
     }
@@ -114,12 +99,19 @@ namespace vds {
     typedef _method_proxy<typename context_type::next_step_t, output_signature> next_step_t;
     typedef _method_proxy<typename context_type::error_method_t, void(std::exception *)> error_method_t;
 #else
-    typename context_type::next_step_t & next_step_t;
-    typename context_type::error_method_t & error_method_t;
+    typedef typename context_type::next_step_t & next_step_t;
 #endif
+    typedef _processed_method_proxy<typename context_type::prev_step_t, decltype(&context_type::prev_step_t::processed)> prev_step_t;
 
     next_step_t next;
     error_method_t error;
+    prev_step_t prev;
+
+    void processed()
+    {
+      this->prev();
+    }
+
   };
   ////////////////////////////////////////////////////////////////
 
@@ -269,7 +261,7 @@ namespace vds {
 
   template<typename prev_functor, typename last_functor, typename error_method_type, typename functor_type, typename... rest_functor_types>
   class _sequence_holder<prev_functor, last_functor, error_method_type, functor_type, rest_functor_types...>
-    : public _sequence_holder<
+    : private _sequence_holder<
        /*this class as prev_functor:*/_sequence_holder<prev_functor, last_functor, error_method_type, functor_type, rest_functor_types...>,
       last_functor, error_method_type, rest_functor_types...>,
     public functor_type::template handler<
@@ -334,6 +326,11 @@ namespace vds {
 
     class fake_holder
     {
+    public:
+      void processed()
+      {
+
+      }
     };
 
     template <
