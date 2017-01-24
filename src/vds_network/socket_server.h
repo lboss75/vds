@@ -23,7 +23,7 @@ namespace vds {
     }
     
     template <typename context_type>
-    class handler : public sequence_step<context_type, void(network_socket &&)>
+    class handler : public sequence_step<context_type, void(network_socket &)>
     {
     public:
       handler(context_type & context,

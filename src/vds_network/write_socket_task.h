@@ -13,32 +13,29 @@ namespace vds {
   class network_service;
   
   template<
-    typename done_method_type,
     typename error_method_type
   >
   class write_socket_task : public socket_task
   {
   public:
     write_socket_task(
-      done_method_type & done_method,
       error_method_type & error_method
       )
-    : done_method_(done_method), error_method_(error_method),
+    : error_method_(error_method),
       data_(nullptr), data_size_(0)
     {
     }
 
+    template <typename done_mehtod_type>
     void set_data(
+      done_mehtod_type & done,
+      network_socket::SOCKET_HANDLE s,
       const void * data,
       size_t size
     )
     {
       this->data_ = static_cast<const u_int8_t *>(data);
       this->data_size_ = size;
-    }
-
-    void schedule(network_socket::SOCKET_HANDLE s)
-    {
       this->s_ = s;
       this->schedule();
     }

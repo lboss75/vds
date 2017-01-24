@@ -17,19 +17,15 @@ namespace vds {
     {
     }
 
-    template <
-      typename done_method_type,
-      typename error_method_type
-    >
-    class handler
+    template <typename context_type>
+    class handler : public sequence_step<context_type, void (network_socket &)>
     {
     public:
       handler(
-        done_method_type & done_method,
-        error_method_type & error_method,
+        context_type & context,
         const socket_connect & owner
       )
-        : done_method_(done_method), error_method_(error_method),
+        : base(context),
         s_(
 #ifdef _WIN32
           WSASocket(PF_INET, SOCK_STREAM, 0, NULL, 0, WSA_FLAG_OVERLAPPED)
@@ -70,13 +66,11 @@ namespace vds {
           throw new std::system_error(error, std::system_category());
         }
 #endif
-        this->done_method_(this->s_);
+        this->next(this->s_);
       }
 
     private:
       network_service * network_service_;
-      done_method_type & done_method_;
-      error_method_type & error_method_;
       network_socket s_;
     };
   private:

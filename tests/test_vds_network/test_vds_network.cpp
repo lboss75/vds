@@ -13,13 +13,13 @@ public:
   {
   public:
     handler(
-      context_type & conext,
+      context_type & context,
       const echo_server & owner)
       : base(context)
     {
     }
     
-    void operator()(vds::network_socket && s) {
+    void operator()(vds::network_socket & s) {
       std::cout << "new connection\n";
 
       (new connection_handler<
@@ -47,7 +47,7 @@ public:
     }
 
     void start() {
-      vds::pipeline(
+      vds::sequence(
         vds::input_network_stream(this->s_),//input
         vds::output_network_stream(this->s_)//output
       )
@@ -73,32 +73,30 @@ public:
   {
   }
 
-  template<
-    typename done_method_type,
-    typename error_method_type
-  >
-  class handler
+  template<typename context_type>
+  class handler : public vds::sequence_step<context_type, void(void)>
   {
   public:
     handler(
-      done_method_type & done,
-      error_method_type & on_error,
+      context_type & context,
       const send_test & owner)
-    : write_task_(done, on_error),
+    : base(context),
+      write_task_(this->done, this->error),
       s_(owner.s_.handle()),
       data_(owner.data_)
     {
-    }
-    
-    void operator()() {
       this->write_task_.set_data(
         this->data_.c_str(),
         this->data_.length());
+    }
+    
+    void operator()() {
       this->write_task_.schedule(this->s_);
     }
+
   private:
     vds::network_socket::SOCKET_HANDLE s_;
-    vds::write_socket_task<done_method_type, error_method_type> write_task_;
+    vds::write_socket_task<next_step_t, error_method_t> write_task_;
     std::string data_;
   };
   
@@ -113,53 +111,60 @@ public:
   read_for_newline()
   {
   }
-  template<
-    typename done_method_type,
-    typename next_method_type,
-    typename error_method_type
-  >
-  class handler
+
+  template<typename context_type>
+  class handler : public vds::pipeline_filter<context_type, void(const std::string &)>
   {
   public:
     handler(
-      done_method_type & done,
-      next_method_type & next,
-      error_method_type & on_error,
+      context_type & conext,
       const read_for_newline & owner)
-    : done_(done), on_error_(on_error),
-    next_(next)
+    : base(context)
     {
     }
   
+    template <typename done_method>
     void operator()(
+      done_method & done,
       const void * data,
       size_t len
     )
     {
-      this->buffer_.append(
-        reinterpret_cast<const char *>(data),
-        len);
-      this->processed();
-    }
-    
-    void processed()
-    {
-      auto p = this->buffer_.find('\n');
-      if(std::string::npos == p) {
-        this->done_();
+      if(0 == len) {
+        if (this->buffer_.empty()) {
+          this->next(done, this->buffer_);
+        }
+        else {
+          this->next(
+            done.proxy<&handler::send_terminator<done_method>>,
+            this->buffer_);
+        }
       }
       else {
-        auto result = this->buffer_.substr(0, p);
-        this->buffer_.erase(0, p + 1);
-        this->next_(result);
+        this->buffer_.append(
+          reinterpret_cast<const char *>(data),
+          len);
+
+        auto p = this->buffer_.find('\n');
+        if (std::string::npos == p) {
+          done();
+        }
+        else {
+          auto result = this->buffer_.substr(0, p);
+          this->buffer_.erase(0, p + 1);
+          this->next(result);
+        }
       }
     }
     
   private:
-    done_method_type & done_;
-    error_method_type & on_error_;
-    next_method_type & next_;
     std::string buffer_;
+
+    template <typename done_method>
+    void send_terminator(done_method & done, handler & owner)
+    {
+      owner.next(done, std::string());
+    }
   };
 };
 
@@ -171,21 +176,14 @@ public:
   {
   }
   
-  template<
-    typename done_method_type,
-    typename next_method_type,
-    typename error_method_type
-  >
-  class handler
+  template<typename context_type>
+  class handler : public vds::sequence_step<context_type, void(void)>
   {
   public:
     handler(
-      done_method_type & done,
-      next_method_type & next,
-      error_method_type & on_error,
+      context_type & context,
       const check_result & owner)
-    : done_(done), on_error_(on_error),
-    next_(next), data_(owner.data_)
+    : base(context), data_(owner.data_)
     {
     }
   
@@ -194,22 +192,14 @@ public:
     )
     {
       if(this->data_ == data){
-        this->next_();
+        this->next();
       }
       else {
         ASSERT_EQ(this->data_, data);
       }
     }
     
-    void processed()
-    {
-      this->done_();
-    }
-    
   private:
-    done_method_type & done_;
-    error_method_type & on_error_;
-    next_method_type & next_;
     std::string data_;
   };
   
@@ -222,20 +212,17 @@ class socket_client
 public:
   socket_client()
   {
-
   }
 
-  template <
-    typename context_type
-  >
-  class handler
+  template <typename context_type>
+  class handler : public vds::sequence_step<context_type, void(void)>
   {
   public:
     handler(
-      done_method_type & done_method,
-      error_method_type & error_method,
+      context_type & context,
       const socket_client & args
-    ): done_method_(done_method), error_method_(error_method)
+    )
+      : base(context)
     {
     }
 
@@ -255,20 +242,18 @@ public:
         delete ex;
       });
 
-      vds::pipeline(
+      vds::sequence(
         vds::input_network_stream(this->s_),
         read_for_newline(),
         check_result("test")
       )
       (
-        this->done_method_,
-        this->error_method_
+        this->next,
+        this->error
       );
     }
   private:
     vds::network_socket s_;
-    done_method_type & done_method_;
-    error_method_type & error_method_;
   };
 };
 

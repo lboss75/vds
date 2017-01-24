@@ -17,31 +17,27 @@ namespace vds {
     {
     }
     
-    template <
-      typename done_method_type,
-      typename next_method_type,
-      typename error_method_type
-      >
-    class handler
+    template <typename context_type>
+    class handler : public pipeline_filter<context_type, void(void)>
     {
     public:
       handler(
-        done_method_type & done,
-        next_method_type & next,
-        error_method_type & on_error,
+        context_type & context,
         const output_network_stream & args)
-      : task_(done, on_error),
-        s_(args.s_.handle()),
-        done_(done), next_(next)
+      : base(context),
+        task_(done, on_error),
+        s_(args.s_.handle())
       {
       }
       
+      template <typename done_method_type>
       void operator()(
+        done_method_type & done,
         const void * data,
         size_t len
       ) {
         if(0 == len) {
-          this->next_();
+          this->next();
         }
         else {
           this->task_.set_data(data, len);
@@ -49,18 +45,9 @@ namespace vds {
         }          
       }
       
-      void processed()
-      {
-        this->done_();
-      }
-      
     private:
       network_socket::SOCKET_HANDLE s_;
-      done_method_type & done_;
-      next_method_type & next_;
-      write_socket_task<
-        done_method_type,
-        error_method_type> task_;
+      write_socket_task<error_method_t> task_;
     };
   private:
     const network_socket & s_;

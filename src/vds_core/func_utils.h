@@ -10,6 +10,44 @@ All rights reserved
 
 namespace vds {
   ///////////////////////////////////////////////////////////
+  template <typename owner_type, typename target_type>
+  class done_method_manager
+  {
+  public:
+    done_method_manager(
+      owner_type & owner,
+      target_type & target)
+      : owner_(owner), target_(target)
+    {
+    }
+
+    template<void (target_type::*member_func)(owner_type & owner)>
+    class proxy_method
+    {
+    public:
+      void operator()()
+      {
+        auto owner = reinterpret_cast<done_method_manager *>(this);
+        (owner->target_->member_func)(owner->owner_, );
+      }
+    };
+
+    template<void (target_type::*member_func)(owner_type & owner)>
+    proxy_method<member_func> & proxy()
+    {
+      return *reinterpret_cast<proxy_method<member_func> *>(this);
+    }
+
+  private:
+    owner_type & owner_;
+    target_type & target_;
+  };
+
+
+  template <typename method_type, typename method_signature>
+  class _method_proxy;
+
+  ///////////////////////////////////////////////////////////
   template <typename method_type, typename method_signature>
   class _method_proxy;
 
@@ -32,22 +70,26 @@ namespace vds {
   };
   ////////////////////////////////////////////////////////////////
   template <
+    typename prev_step_type,
     typename next_step_type,
     typename error_method_type
   >
   class sequence_step_context
   {
   public:
+    typedef prev_step_type prev_step_t;
     typedef next_step_type next_step_t;
     typedef error_method_type error_method_t;
 
     sequence_step_context(
+      prev_step_type & prev,
       next_step_t & next,
       error_method_t & error
-    ) : next_(next), error_(error)
+    ) : prev_(prev), next_(next), error_(error)
     {
     }
 
+    prev_step_t & prev_;
     next_step_t & next_;
     error_method_t & error_;
   };
@@ -112,7 +154,7 @@ namespace vds {
   public:
     _auto_cleaner(
       owner_type * owner,
-      const method_type & method)
+      method_type & method)
       : owner_(owner), method_(method)
     {
     }
@@ -125,7 +167,7 @@ namespace vds {
 
   private:
     owner_type * owner_;
-    const method_type & method_;
+    method_type & method_;
   };
 
   template <typename owner_type, typename method_type>
@@ -135,7 +177,7 @@ namespace vds {
   public:
     auto_cleaner(
       owner_type * owner,
-      const method_type & method)
+      method_type & method)
       : base(owner, method)
     {
     }
@@ -179,72 +221,80 @@ namespace vds {
     {
     }
 
-    template <
-      typename done_method_type,
-      typename error_method_type
-    >
-    class holder
-    {
-    public:
-      typedef typename functor_type::template handler<sequence_step_context<done_method_type, error_method_type>> sequence_step_t;
-
-      holder(
-        done_method_type & done_method,
-        error_method_type & error_method,
-        const _sequence_builder & args
-      ) : step(sequence_step_context<done_method_type, error_method_type>(done_method, error_method), args.functor_)
-      {
-      }
-
-      sequence_step_t step;
-    };
-
-  private:
     functor_type functor_;
   };
-  
+
   template<typename functor_type, typename... rest_functor_types>
   class _sequence_builder<functor_type, rest_functor_types...>
-  : public _sequence_builder<rest_functor_types...>
+    : public _sequence_builder<rest_functor_types...>
   {
-    using base_class = _sequence_builder<rest_functor_types...>;
+    using base = _sequence_builder<rest_functor_types...>;
   public:
+    typedef functor_type functor_t;
+
     _sequence_builder(const functor_type & functor, rest_functor_types... rest_functors)
-      : functor_(functor), base_class(std::move(rest_functors)...)
+      : functor_(functor), base(rest_functors...)
     {
     }
+
     _sequence_builder(functor_type && functor, rest_functor_types... rest_functors)
-    : functor_(functor), base_class(std::move(rest_functors)...)
+      : functor_(functor), base(rest_functors...)
     {
     }
 
-    template <
-      typename done_method_type,
-      typename error_method_type
-    >
-    class holder : public base_class::template holder<done_method_type, error_method_type>
-    {
-      using base = typename base_class::template holder<done_method_type, error_method_type>;
-    public:
-      typedef typename functor_type::template handler<sequence_step_context<
-        typename base::sequence_step_t, error_method_type>> sequence_step_t;
-
-      holder(
-        done_method_type & done_method,
-        error_method_type & error_method,
-        const _sequence_builder & args
-      ) : base(done_method, error_method, args),
-        step(sequence_step_context<base::sequence_step_t, error_method_type>(base::step, error_method), args.functor_)
-      {
-      }
-
-      sequence_step_t step;
-    };
-    
-  private:
     functor_type functor_;
   };
 
+
+  template<typename prev_functor, typename last_functor, typename error_method_type, typename... rest_functor_types>
+  class _sequence_holder;
+
+  template<typename prev_functor, typename last_functor, typename error_method_type, typename functor_type>
+  class _sequence_holder<prev_functor, last_functor, error_method_type, functor_type>
+    : public functor_type::template handler<sequence_step_context<prev_functor,last_functor, error_method_type>>
+  {
+    using step_context = sequence_step_context<prev_functor, last_functor, error_method_type>;
+    using sequence_step = typename functor_type::template handler<step_context>;
+  public:
+    _sequence_holder(
+      prev_functor & prev,
+      last_functor & last,
+      error_method_type & error,
+      const _sequence_builder<functor_type> & builder
+    ) : sequence_step(step_context(prev, last, error), builder.functor_)
+    {
+    }
+  };
+
+
+  template<typename prev_functor, typename last_functor, typename error_method_type, typename functor_type, typename... rest_functor_types>
+  class _sequence_holder<prev_functor, last_functor, error_method_type, functor_type, rest_functor_types...>
+    : public _sequence_holder<
+       /*this class as prev_functor:*/_sequence_holder<prev_functor, last_functor, error_method_type, functor_type, rest_functor_types...>,
+      last_functor, error_method_type, rest_functor_types...>,
+    public functor_type::template handler<
+      sequence_step_context<
+        prev_functor,
+        /*base class as next filter*/_sequence_holder<
+          /*this class as prev_functor:*/_sequence_holder<prev_functor, last_functor, error_method_type, functor_type, rest_functor_types...>,
+          last_functor, error_method_type, rest_functor_types...>,
+        error_method_type>>
+  {
+    using this_class = _sequence_holder<prev_functor, last_functor, error_method_type, functor_type, rest_functor_types...>;
+    using base_class = _sequence_holder<this_class, last_functor, error_method_type, rest_functor_types...>;
+    using step_context = sequence_step_context<prev_functor, base_class, error_method_type>;
+    using sequence_step_t = typename functor_type::template handler<step_context>;
+  public:
+    _sequence_holder(
+      prev_functor & prev,
+      last_functor & last,
+      error_method_type & error,
+      const _sequence_builder<functor_type, rest_functor_types...> & builder
+    ) : sequence_step_t(step_context(prev, *this, error), builder.functor_),
+      base_class(*this, last, error, builder)
+    {
+    }
+  };
   
   template<typename... functor_types>
   class _sequence
@@ -272,33 +322,7 @@ namespace vds {
           done_method,
           error_method,
           this->builder_);
-        handler->first_step()(args...);
-      }
-      catch (std::exception * ex) {
-        error_method(ex);
-      }
-    }
-    template <
-      typename done_method_type,
-      typename error_method_type,
-      typename... arg_types
-    >
-    void
-    operator()(
-      const done_method_type & done_method,
-      const error_method_type & error_method,
-      arg_types... args
-    )
-    {
-      try {
-        auto handler = new _sequence_func_runner<
-          done_method_type,
-          error_method_type
-        >(
-          done_method,
-          error_method,
-          this->builder_);
-        handler->first_step()(args...);
+        (*handler)(args...);
       }
       catch (std::exception * ex) {
         error_method(ex);
@@ -307,97 +331,39 @@ namespace vds {
     
   private:
     _sequence_builder<functor_types...> builder_;
-    
+
+    class fake_holder
+    {
+    };
+
     template <
       typename done_method_type,
       typename error_method_type
       >
     class _sequence_runner
-    : public _sequence_builder<functor_types...>
-    ::template holder<
-        auto_cleaner<
-          _sequence_runner<done_method_type, error_method_type>,
-          done_method_type>,
-        auto_cleaner<
-          _sequence_runner<done_method_type, error_method_type>,
-          error_method_type>
-      >
+    : public _sequence_holder<fake_holder, 
+        auto_cleaner<_sequence_runner<done_method_type, error_method_type>, done_method_type>,
+        auto_cleaner<_sequence_runner<done_method_type, error_method_type>, error_method_type>, functor_types...>
     {
       using done_proxy_type = auto_cleaner<_sequence_runner, done_method_type>;
       using error_proxy_type = auto_cleaner<_sequence_runner, error_method_type>;
 
-      using base = 
-        typename _sequence_builder<functor_types...>
-        ::template holder<
-          done_proxy_type,
-          error_proxy_type>;
+      using base = _sequence_holder<fake_holder, done_proxy_type, error_proxy_type, functor_types...>;
     public:
       _sequence_runner(
         done_method_type & done_method,
         error_method_type & error_method,
-        _sequence_builder<functor_types...> & builder
-      ) : base(done_proxy_, error_proxy_, builder),
+        const _sequence_builder<functor_types...> & builder
+      ) : base(fake_holder_, done_proxy_, error_proxy_, builder),
         done_proxy_(this, done_method),
         error_proxy_(this, error_method)
       {
       }
 
-      typename base::sequence_step_t & first_step()
-      {
-        return this->step;
-      }
-      
     private:
+      fake_holder fake_holder_;
       auto_cleaner<_sequence_runner, done_method_type> done_proxy_;
       auto_cleaner<_sequence_runner, error_method_type> error_proxy_;
-    };
-    
-    template <
-      typename done_method_type,
-      typename error_method_type
-      >
-    class _sequence_func_runner
-    : public _sequence_builder<functor_types...>
-    ::template holder<
-        auto_cleaner<
-          _sequence_func_runner<done_method_type, error_method_type>,
-          done_method_type>,
-        auto_cleaner<
-          _sequence_func_runner<done_method_type, error_method_type>,
-          error_method_type>
-      >
-    {
-      using done_proxy_type = auto_cleaner<_sequence_func_runner, done_method_type>;
-      using error_proxy_type = auto_cleaner<_sequence_func_runner, error_method_type>;
-
-      using base = 
-        typename _sequence_builder<functor_types...>
-        ::template holder<
-          done_proxy_type,
-          error_proxy_type>;
-    public:
-      _sequence_func_runner(
-        const done_method_type & done_method,
-        const error_method_type & error_method,
-        _sequence_builder<functor_types...> & builder
-      ) : base(done_proxy_, error_proxy_, builder),
-      done_method_(done_method),
-      error_method_(error_method),
-        done_proxy_(this, done_method_),
-        error_proxy_(this, error_method_)
-      {
-      }      
-
-      typename base::sequence_step_t & first_step()
-      {
-        return this->step;
-      }
-
-    private:
-      done_method_type done_method_;
-      error_method_type error_method_;
-      auto_cleaner<_sequence_func_runner, done_method_type> done_proxy_;
-      auto_cleaner<_sequence_func_runner, error_method_type> error_proxy_;
     };
   };
   
