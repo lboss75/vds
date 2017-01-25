@@ -26,7 +26,8 @@ namespace vds {
     class handler : public sequence_step<context_type, void(network_socket &)>
     {
     public:
-      handler(context_type & context,
+      handler(
+        const context_type & context,
         const socket_server & args)
       : sequence_step<context_type, void(network_socket &)>(context),
         task_(

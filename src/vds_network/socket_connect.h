@@ -22,7 +22,7 @@ namespace vds {
     {
     public:
       handler(
-        context_type & context,
+        const context_type & context,
         const socket_connect & owner
       )
         : sequence_step<context_type, void (network_socket &)>(context),

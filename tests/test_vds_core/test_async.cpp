@@ -6,7 +6,6 @@ All rights reserved
 #include "stdafx.h"
 #include "test_async.h"
 
-
 TEST(mt_tests, test_async) {
     vds::service_registrator registrator;
 
@@ -35,10 +34,10 @@ TEST(mt_tests, test_async) {
           });
         vds::sequence(
           test_async_object::sync_method(obj),
-          test_async_object::async_method(sp, obj),
-          done_handler
+          test_async_object::async_method(sp, obj)
         )
         (
+          done_handler,
           error_handler,
           10);
         

@@ -13,7 +13,7 @@ public:
   {
   public:
     handler(
-      context_type & context,
+      const context_type & context,
       const echo_server & owner)
       : vds::sequence_step<context_type, void (void)>(context)
     {
@@ -224,7 +224,7 @@ public:
   {
   public:
     handler(
-      context_type & context,
+      const context_type & context,
       const socket_client & args
     )
       : vds::sequence_step<context_type, void(void)>(context)
@@ -236,16 +236,24 @@ public:
       std::cout << "server connected\n";
       this->s_ = std::move(s);
 
+      auto done_handler = vds::lambda_handler(
+       []() {
+        std::cout << "test sent\n";
+        }
+      );
+      auto error_handler = vds::lambda_handler(
+        [](std::exception * ex) {
+          FAIL() << ex->what();
+          delete ex;
+        }
+      );
+      
       vds::sequence(
         send_test(this->s_, "test\n")
       )(
-        []() {
-        std::cout << "test sent\n";
-      },
-        [](std::exception * ex) {
-        FAIL() << ex->what();
-        delete ex;
-      });
+        done_handler,
+        error_handler
+      );
 
       vds::sequence(
         vds::input_network_stream(this->s_),

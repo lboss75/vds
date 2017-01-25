@@ -69,7 +69,14 @@ namespace vds {
     method_type & method_;
   };
   ////////////////////////////////////////////////////////////////
-  class _fake {};
+  class _fake
+  {
+  public:
+    void processed()
+    {
+    }    
+  };
+  
   template <
     typename next_step_type,
     typename error_method_type
@@ -84,11 +91,11 @@ namespace vds {
     sequence_first_step_context(
       next_step_t & next,
       error_method_t & error
-    ) : next_(next), error_(error)
+    ) : next_(next), error_(error), prev_(*(_fake*)nullptr)
     {
     }
 
-    prev_step_t prev_;
+    prev_step_t & prev_;
     next_step_t & next_;
     error_method_t & error_;
   };
@@ -142,7 +149,7 @@ namespace vds {
     typedef typename context_type::next_step_t & next_step_t;
     typedef typename context_type::error_method_t & error_method_t;
 #endif
-    typedef _processed_method_proxy<typename context_type::prev_step_t, void(void)> prev_step_t;
+    typedef typename context_type::prev_step_t & prev_step_t;
 
     next_step_t next;
     error_method_t error;
@@ -235,77 +242,268 @@ namespace vds {
     owner_type * owner_;
   };
   /////////////////////////
-  template<std::size_t index, typename error_method_type, typename enabled, typename... functor_types>
-  class _sequence_step_holder;
+  template<
+    std::size_t index,
+    typename tuple_type
+    >
+  using _functor_type_t = typename std::tuple_element<index, tuple_type>::type;
 
-  template<std::size_t index, typename error_method_type, typename... functor_types>
-  class _sequence_step_holder<
-    index,
-    error_method_type,
-    typename std::enable_if<index < sizeof...(functor_types)>::type,
-    functor_types...>
-  {
-  public:
-    typedef sequence_step_context<
-      typename _sequence_step_holder<index - 1, error_method_type, functor_types...>::processed_step_t,
-      typename _sequence_step_holder<index + 1, error_method_type, functor_types...>::step_handler_t,
-      error_method_type> step_context_t;
-      
-    typedef typename std::tuple_element<index, std::tuple<functor_types...>>::type functor_type;
-      
-    typedef typename functor_type::template handler<step_context_t> step_handler_t;
-    typedef _processed_method_proxy<step_handler_t, decltype(&step_handler_t::processed)> processed_step_t;
-  };
-
-  template<typename error_method_type, typename... functor_types>
-  class _sequence_step_holder<0, error_method_type, void, functor_types...>
-  {
-  public:
-    typedef sequence_first_step_context<
-      typename _sequence_step_holder<
-      1,
+  
+  template<
+    std::size_t index,
+    typename done_method_type,
+    typename error_method_type,
+    typename tuple_type,
+    typename enabled = void>
+  class _sequence_step_context;
+  
+  template<
+    std::size_t index,
+    typename done_method_type,
+    typename error_method_type,
+    typename tuple_type>
+  class _sequence_step_handler
+  : public _functor_type_t<index, tuple_type>::template handler<
+    _sequence_step_context<
+      index,
+      done_method_type,
       error_method_type,
-
-      functor_types...>::step_handler_t,
-      error_method_type> step_context_t;
-
-    typedef typename std::tuple_element<0, std::tuple<functor_types...>>::type functor_type;
-    typedef typename functor_type::template handler<step_context_t> step_handler_t;
-    typedef _processed_method_proxy<step_handler_t, decltype(&step_handler_t::processed)> processed_step_t;
+      tuple_type
+    >
+  >
+  {
+    using functor_type = _functor_type_t<index, tuple_type>;
+    using context_type = _sequence_step_context<
+        index,
+        done_method_type,
+        error_method_type,
+        tuple_type
+      >;
+    using base_class = typename functor_type::template handler<context_type>;
+  public:
+    _sequence_step_handler(
+      const context_type & context,
+      const functor_type & args
+    ) : base_class(context, args)
+    {
+    }    
   };
 
-  template<typename error_method_type, typename... functor_types>
-  class _sequence_step_holder<0, error_method_type, functor_types...>
+  template<
+    std::size_t index,
+    typename done_method_type,
+    typename error_method_type,
+    typename tuple_type>
+  class _sequence_processed_step
+  : public _processed_method_proxy<
+      _sequence_step_handler<index, done_method_type, error_method_type, tuple_type>,
+      decltype(&_sequence_step_handler<index, done_method_type, error_method_type, tuple_type>::processed)>
+  {
+    using base_class = _processed_method_proxy<
+      _sequence_step_handler<index, done_method_type, error_method_type, tuple_type>,
+      decltype(&_sequence_step_handler<index, done_method_type, error_method_type, tuple_type>::processed)>;
+  public:
+    _sequence_processed_step
+    (
+      _sequence_step_handler<index, done_method_type, error_method_type, tuple_type> & step
+    ) : base_class(step)
+    {
+    }
+  };
+  
+  template<
+    typename done_method_type,
+    typename error_method_type,
+    typename tuple_type>
+  class _sequence_step_context <
+    0,
+    done_method_type,
+    error_method_type,
+    tuple_type,
+    typename std::enable_if<0 < std::tuple_size<tuple_type>::value - 1>::type
+  > : public sequence_first_step_context<
+        _sequence_step_handler<
+          1,
+          done_method_type,
+          error_method_type,
+          tuple_type>,
+      error_method_type>
   {
   public:
-    typedef sequence_step_context<
-      typename _sequence_step_holder<1, error_method_type, functor_types...>::processed_step_t,
-      delete_this<_sequence_holder<0, error_method_type, functor_types...>>,
-      error_method_type> step_context_t;
+    using base_class = sequence_first_step_context<
+      _sequence_step_handler<
+        1,
+        done_method_type,
+        error_method_type,
+        tuple_type>,
+    error_method_type>;
 
-    typedef typename std::tuple_element<
-      sizeof...(functor_types)-1,
-      std::tuple<functor_types...>>::type functor_type;
-
-    typedef typename functor_type::template handler<step_context_t> step_handler_t;
-    typedef _processed_method_proxy<step_handler_t, decltype(&step_handler_t::processed)> processed_step_t;
+    _sequence_step_context(
+      typename base_class::next_step_t & next,
+      error_method_type & error_method
+    ) : base_class(next, error_method)
+    {
+    }
   };
 
-
-
-
-  template<typename error_method_type, typename... functor_types>
-  class _sequence_holder<0, error_method_type, functor_types...>
+  template<
+    std::size_t index,
+    typename done_method_type,
+    typename error_method_type,
+    typename tuple_type>
+  class _sequence_step_context <
+    index,
+    done_method_type,
+    error_method_type,
+    tuple_type,
+    typename std::enable_if<index < std::tuple_size<tuple_type>::value - 1>::type
+  > : public sequence_step_context<
+      _sequence_processed_step<
+        index - 1,
+        done_method_type,
+        error_method_type,
+        tuple_type>,
+      _sequence_step_handler<
+        index + 1,
+        done_method_type,
+        error_method_type,
+        tuple_type>,
+      error_method_type>
   {
-    using processed_step_t = typename _sequence_step_holder<sizeof...(functor_types)-1, error_method_type, functor_types...>::processed_step_t;
+    using base_class = sequence_step_context<
+      _sequence_processed_step<
+        index - 1,
+        done_method_type,
+        error_method_type,
+        tuple_type>,
+      _sequence_step_handler<
+        index + 1,
+        done_method_type,
+        error_method_type,
+        tuple_type>,
+      error_method_type>;
+  public:
+    _sequence_step_context(
+      typename base_class::prev_step_t & prev,
+      typename base_class::next_step_t & next,
+      error_method_type & error
+    ) : base_class(prev, next, error)
+    {
+    }
+  };
+  
+  template<
+    std::size_t index,
+    typename done_method_type,
+    typename error_method_type,
+    typename tuple_type>
+  class _sequence_step_context <
+    index,
+    done_method_type,
+    error_method_type,
+    tuple_type,
+    typename std::enable_if<index == std::tuple_size<tuple_type>::value - 1>::type
+  > : public sequence_step_context<
+      _sequence_processed_step<
+        index - 1,
+        done_method_type,
+        error_method_type,
+        tuple_type>,
+      done_method_type,
+      error_method_type>
+  {
+    using base_class = sequence_step_context<
+      _sequence_processed_step<
+        index - 1,
+        done_method_type,
+        error_method_type,
+        tuple_type>,
+      done_method_type,
+      error_method_type>;
+  public:
+    _sequence_step_context(
+      typename base_class::prev_step_t & prev,
+      typename base_class::next_step_t & next,
+      error_method_type & error
+    ): base_class(prev, next, error)
+    {
+    }
+  };
+  /////////////////////////////////////////
+  template<
+    std::size_t index,
+    typename done_method_type,
+    typename error_method_type,
+    typename tuple_type>
+  class _sequence_holder
+  : public _sequence_holder<index - 1, done_method_type, error_method_type, tuple_type>
+  {
+    using base_class = _sequence_holder<
+      index - 1,
+      done_method_type,
+      error_method_type,
+      tuple_type>;
+      
+    using step_context_t = _sequence_step_context<
+      std::tuple_size<tuple_type>::value - index,
+      done_method_type,
+      error_method_type,
+      tuple_type>;
+      
+    using processed_step_t = _sequence_processed_step<
+      std::tuple_size<tuple_type>::value - index - 1,
+      done_method_type,
+      error_method_type,
+      tuple_type>;
+  public:
+    _sequence_holder(
+      processed_step_t & prev,
+      done_method_type & done,
+      error_method_type & error_method,
+      const tuple_type & args
+    )
+      :
+      step(
+        step_context_t(prev, base_class::step, error_method),
+        std::get<std::tuple_size<tuple_type>::value - index>(args)),
+      processed(step),
+      base_class(processed, done, error_method, args)
+    {
+    }
+
+    _sequence_step_handler<
+      std::tuple_size<tuple_type>::value - index,
+      done_method_type,
+      error_method_type,
+      tuple_type> step;
+    _sequence_processed_step<
+      std::tuple_size<tuple_type>::value - index,
+      done_method_type,
+      error_method_type,
+      tuple_type> processed;
+  };
+  
+  template<typename done_method_type, typename error_method_type, typename tuple_type>
+  class _sequence_holder<
+    0,
+    done_method_type,
+    error_method_type,
+    tuple_type>
+  {
+    using processed_step_t = _sequence_processed_step<
+      std::tuple_size<tuple_type>::value - 1,
+      done_method_type,
+      error_method_type,
+      tuple_type>;
   public:
 
     _sequence_holder(
       processed_step_t & prev,
+      done_method_type & done,
       error_method_type & error_method,
-      const std::tuple<functor_types...> & args
+      const tuple_type & args
     )
-      : step(this)
+      : step(done)
     {
     }
 
@@ -313,66 +511,55 @@ namespace vds {
     {
     }
 
-    delete_this<_sequence_holder> step;
+    done_method_type & step;
   };
 
-
-  template<std::size_t index, typename error_method_type, typename... functor_types>
-  class _sequence_holder<index, error_method_type, functor_types...> : public _sequence_holder<index - 1, error_method_type, functor_types...>
-  {
-    using base_class = _sequence_holder<index - 1, error_method_type, functor_types...>;
-    using step_context_t = typename _sequence_step_holder<index, error_method_type, functor_types...>::step_context_t;
-    using processed_step_t = typename _sequence_step_holder<index + 1, error_method_type, functor_types...>::processed_step_t;
-  public:
-
-    _sequence_holder(
-      processed_step_t & prev,
-      error_method_type & error_method,
-      const std::tuple<functor_types...> & args
-    )
-      :
-      step(
-        step_context_t(prev, base_class::step, error_method),
-        std::get<sizeof...(functor_types)-index>(args)),
-      processed(step),
-      base_class(processed)
-    {
-    }
-
-    typename _sequence_step_holder<index, error_method_type, functor_types...>::step_handler_t step;
-    typename _sequence_step_holder<index, error_method_type, functor_types...>::processed_step_t processed;
-  };
-
-
-  
   ////////////////////
   
-  template<typename error_method_type, typename... functor_types>
+  template<
+    typename done_method_type,
+    typename error_method_type,
+    typename tuple_type>
   class _sequence_start_holder
-  : public _sequence_holder<sizeof...(functor_types) - 1, error_method_type, functor_types...>
+  : public _sequence_holder<
+    std::tuple_size<tuple_type>::value - 1,
+    done_method_type,
+    error_method_type,
+    tuple_type>
   {
-    using base_class = _sequence_holder<sizeof...(functor_types) - 1, error_method_type, functor_types...>;
-    using step_context_t = typename _sequence_start_holder<error_method_type, functor_types...>::step_context_t;
+    using base_class = _sequence_holder<
+      std::tuple_size<tuple_type>::value - 1,
+      done_method_type,
+      error_method_type,
+      tuple_type>;
   public:
+    using step_context_t = _sequence_step_context<
+      0,
+      done_method_type,
+      error_method_type,
+      tuple_type>;
     
     _sequence_start_holder(
+      done_method_type & done_method,
       error_method_type & error_method,
-      const std::tuple<functor_types...> & args
+      const tuple_type & args
     )
     : step(step_context_t(base_class::step, error_method), std::get<0>(args)),
       processed(step),
-      base_class(processed)      
+      base_class(processed, done_method, error_method, args)      
     {
     }
     
-    typename _sequence_step_holder<
-      sizeof...(functor_types) - 1,
+    _sequence_step_handler<
+      0,
+      done_method_type,
       error_method_type,
-      functor_types...>::step_handler_t step;
-    typename _sequence_step_holder<
-      sizeof...(functor_types) - 1,
+      tuple_type> step;
+    _sequence_processed_step<
+      0,
+      done_method_type,
       error_method_type,
-      functor_types...>::processed_step_t processed;
+      tuple_type> processed;
   };
   
 
@@ -381,25 +568,28 @@ namespace vds {
   {
   public:
     _sequence(functor_types... functors)
-    : builder_(std::make_tuple<functor_types...>(functors...))
+    : builder_(functors...)
     {
     }
     
     template <
+      typename done_method_type,
       typename error_method_type,
       typename... arg_types
     >
     void
     operator()(
+      done_method_type & done_method,
       error_method_type & error_method,
       arg_types... args
     )
     {
       try {
-        auto handler = new _sequence_runner<error_method_type>(
+        auto handler = new _sequence_runner<done_method_type, error_method_type>(
+          done_method,
           error_method,
           this->builder_);
-        (*handler)(args...);
+        handler->step(args...);
       }
       catch (std::exception * ex) {
         error_method(ex);
@@ -410,25 +600,35 @@ namespace vds {
     std::tuple<functor_types...> builder_;
 
     template <
+      typename done_method_type,
       typename error_method_type
       >
     class _sequence_runner
     : public _sequence_start_holder<
-      auto_cleaner<_sequence_runner<error_method_type>, error_method_type>,
-      functor_types...>
+        auto_cleaner<_sequence_runner<done_method_type, error_method_type>, done_method_type>,
+        auto_cleaner<_sequence_runner<done_method_type, error_method_type>, error_method_type>,
+        std::tuple<functor_types...>
+      >
     {
+      using done_proxy_type = auto_cleaner<_sequence_runner, done_method_type>;
       using error_proxy_type = auto_cleaner<_sequence_runner, error_method_type>;
-      using base_class = _sequence_start_holder<error_proxy_type, functor_types...>;
+      using base_class = _sequence_start_holder<
+        done_proxy_type,
+        error_proxy_type,
+        std::tuple<functor_types...>>;
     public:
       _sequence_runner(
+        done_method_type & done_method,
         error_method_type & error_method,
         const std::tuple<functor_types...> & builder
-      ) : base_class(error_proxy_, builder),
+      ) : base_class(done_proxy_, error_proxy_, builder),
+        done_proxy_(this, done_method),
         error_proxy_(this, error_method)
       {
       }
 
     private:
+      auto_cleaner<_sequence_runner, done_method_type> done_proxy_;
       auto_cleaner<_sequence_runner, error_method_type> error_proxy_;
     };
   };
