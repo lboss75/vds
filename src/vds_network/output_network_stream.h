@@ -22,10 +22,10 @@ namespace vds {
     {
     public:
       handler(
-        context_type & context,
+        const context_type & context,
         const output_network_stream & args)
       : sequence_step<context_type, void(void)>(context),
-        task_(*this, this->error),
+        task_(this->next, this->error),
         s_(args.s_.handle())
       {
       }
@@ -51,7 +51,7 @@ namespace vds {
     private:
       network_socket::SOCKET_HANDLE s_;
       write_socket_task<
-        handler,
+        typename context_type::next_step_t,
         typename context_type::error_method_t> task_;
     };
   private:

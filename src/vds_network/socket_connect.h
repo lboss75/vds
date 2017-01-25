@@ -68,6 +68,10 @@ namespace vds {
 #endif
         this->next(this->s_);
       }
+      
+      void processed()
+      {
+      }
 
     private:
       network_service * network_service_;

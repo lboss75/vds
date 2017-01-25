@@ -191,7 +191,8 @@ namespace vds {
         //    throw new c_exception("Set socket to be nonblocking", error);
         //}
         
-        data->done_method_(network_socket(sock));
+        network_socket s(sock);
+        data->done_method_(s);
     }
 
 #else

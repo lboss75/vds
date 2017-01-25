@@ -21,11 +21,13 @@ namespace vds {
     template <typename context_type>
     class handler : public sequence_step<context_type, void(const void * data, size_t len)>
     {
+      using base = sequence_step<context_type, void(const void * data, size_t len)>;
     public:
       handler(
-        context_type & context,
+        const context_type & context,
         const input_network_stream & args)
-      : task_(this->next, this->error, args.s_)
+      : base(context),
+        task_(this->next, this->error, args.s_)
       {
       }
       
@@ -34,7 +36,7 @@ namespace vds {
       }
 
       void processed() {
-        this->task_.schedule();
+        this->task_();
       }
       
     private:

@@ -85,7 +85,7 @@ namespace vds {
         return;
       }
       
-      pthis->next_method_(*pthis, pthis->buffer_, len);
+      pthis->next_method_(pthis->buffer_, len);
     }
 #endif//_WIN32
 

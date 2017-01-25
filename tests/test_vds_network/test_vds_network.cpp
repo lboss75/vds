@@ -124,7 +124,7 @@ public:
   {
   public:
     handler(
-      context_type & context,
+      const context_type & context,
       const read_for_newline & owner)
     : vds::sequence_step<context_type, void(const std::string &)>(context)
     {
@@ -156,10 +156,6 @@ public:
       }
     }
 
-    void processed()
-    {
-
-    }
     
   private:
     std::string buffer_;
@@ -185,7 +181,7 @@ public:
   {
   public:
     handler(
-      context_type & context,
+      const context_type & context,
       const check_result & owner)
     : vds::sequence_step<context_type, void(void)>(context),
       data_(owner.data_)
@@ -248,12 +244,13 @@ public:
         }
       );
       
-      vds::sequence(
-        send_test(this->s_, "test\n")
-      )(
-        done_handler,
-        error_handler
-      );
+      vds::write_socket_task<
+        decltype(done_handler),
+        decltype(error_handler)>
+        write_task(done_handler, error_handler);
+      const char data[] = "test\n";
+      write_task.set_data(data, sizeof(data) - 1);
+      write_task.schedule(this->s_.handle());
 
       vds::sequence(
         vds::input_network_stream(this->s_),
@@ -265,6 +262,11 @@ public:
         this->error
       );
     }
+    
+    void processed()
+    {
+    }
+    
   private:
     vds::network_socket s_;
   };

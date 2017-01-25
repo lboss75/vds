@@ -43,7 +43,7 @@ namespace vds {
     {
     }
 
-    void operator()(arg_types... args)
+    void operator()(arg_types... args) const
     {
       this->method_.processed(args...);
     }
@@ -107,7 +107,6 @@ namespace vds {
   class sequence_step_context
   {
   public:
-    typedef prev_step_type prev_step_t;
     typedef next_step_type next_step_t;
     typedef error_method_type error_method_t;
 
@@ -118,8 +117,14 @@ namespace vds {
     ) : prev_(prev), next_(next), error_(error)
     {
     }
+    
+    typedef
+    _processed_method_proxy<
+      prev_step_type, 
+      decltype(&prev_step_type::processed)>
+    prev_step_t;
 
-    prev_step_t & prev_;
+    prev_step_t prev_;
     next_step_t & next_;
     error_method_t & error_;
   };
@@ -149,7 +154,7 @@ namespace vds {
     typedef typename context_type::next_step_t & next_step_t;
     typedef typename context_type::error_method_t & error_method_t;
 #endif
-    typedef typename context_type::prev_step_t & prev_step_t;
+    typedef const typename context_type::prev_step_t & prev_step_t;
 
     next_step_t next;
     error_method_t error;
@@ -289,28 +294,7 @@ namespace vds {
     }    
   };
 
-  template<
-    std::size_t index,
-    typename done_method_type,
-    typename error_method_type,
-    typename tuple_type>
-  class _sequence_processed_step
-  : public _processed_method_proxy<
-      _sequence_step_handler<index, done_method_type, error_method_type, tuple_type>,
-      decltype(&_sequence_step_handler<index, done_method_type, error_method_type, tuple_type>::processed)>
-  {
-    using base_class = _processed_method_proxy<
-      _sequence_step_handler<index, done_method_type, error_method_type, tuple_type>,
-      decltype(&_sequence_step_handler<index, done_method_type, error_method_type, tuple_type>::processed)>;
-  public:
-    _sequence_processed_step
-    (
-      _sequence_step_handler<index, done_method_type, error_method_type, tuple_type> & step
-    ) : base_class(step)
-    {
-    }
-  };
-  
+ 
   template<
     typename done_method_type,
     typename error_method_type,
@@ -358,7 +342,7 @@ namespace vds {
     tuple_type,
     typename std::enable_if<index < std::tuple_size<tuple_type>::value - 1>::type
   > : public sequence_step_context<
-      _sequence_processed_step<
+      _sequence_step_handler<
         index - 1,
         done_method_type,
         error_method_type,
@@ -371,7 +355,7 @@ namespace vds {
       error_method_type>
   {
     using base_class = sequence_step_context<
-      _sequence_processed_step<
+      _sequence_step_handler<
         index - 1,
         done_method_type,
         error_method_type,
@@ -384,7 +368,11 @@ namespace vds {
       error_method_type>;
   public:
     _sequence_step_context(
-      typename base_class::prev_step_t & prev,
+      _sequence_step_handler<
+        index - 1,
+        done_method_type,
+        error_method_type,
+        tuple_type> & prev,
       typename base_class::next_step_t & next,
       error_method_type & error
     ) : base_class(prev, next, error)
@@ -404,7 +392,7 @@ namespace vds {
     tuple_type,
     typename std::enable_if<index == std::tuple_size<tuple_type>::value - 1>::type
   > : public sequence_step_context<
-      _sequence_processed_step<
+      _sequence_step_handler<
         index - 1,
         done_method_type,
         error_method_type,
@@ -413,7 +401,7 @@ namespace vds {
       error_method_type>
   {
     using base_class = sequence_step_context<
-      _sequence_processed_step<
+      _sequence_step_handler<
         index - 1,
         done_method_type,
         error_method_type,
@@ -422,7 +410,11 @@ namespace vds {
       error_method_type>;
   public:
     _sequence_step_context(
-      typename base_class::prev_step_t & prev,
+      _sequence_step_handler<
+        index - 1,
+        done_method_type,
+        error_method_type,
+        tuple_type> & prev,
       typename base_class::next_step_t & next,
       error_method_type & error
     ): base_class(prev, next, error)
@@ -450,7 +442,7 @@ namespace vds {
       error_method_type,
       tuple_type>;
       
-    using processed_step_t = _sequence_processed_step<
+    using processed_step_t = _sequence_step_handler<
       std::tuple_size<tuple_type>::value - index - 1,
       done_method_type,
       error_method_type,
@@ -466,8 +458,7 @@ namespace vds {
       step(
         step_context_t(prev, base_class::step, error_method),
         std::get<std::tuple_size<tuple_type>::value - index>(args)),
-      processed(step),
-      base_class(processed, done, error_method, args)
+      base_class(step, done, error_method, args)
     {
     }
 
@@ -476,11 +467,6 @@ namespace vds {
       done_method_type,
       error_method_type,
       tuple_type> step;
-    _sequence_processed_step<
-      std::tuple_size<tuple_type>::value - index,
-      done_method_type,
-      error_method_type,
-      tuple_type> processed;
   };
   
   template<typename done_method_type, typename error_method_type, typename tuple_type>
@@ -490,7 +476,7 @@ namespace vds {
     error_method_type,
     tuple_type>
   {
-    using processed_step_t = _sequence_processed_step<
+    using processed_step_t = _sequence_step_handler<
       std::tuple_size<tuple_type>::value - 1,
       done_method_type,
       error_method_type,
@@ -545,8 +531,7 @@ namespace vds {
       const tuple_type & args
     )
     : step(step_context_t(base_class::step, error_method), std::get<0>(args)),
-      processed(step),
-      base_class(processed, done_method, error_method, args)      
+      base_class(step, done_method, error_method, args)      
     {
     }
     
@@ -555,11 +540,6 @@ namespace vds {
       done_method_type,
       error_method_type,
       tuple_type> step;
-    _sequence_processed_step<
-      0,
-      done_method_type,
-      error_method_type,
-      tuple_type> processed;
   };
   
 

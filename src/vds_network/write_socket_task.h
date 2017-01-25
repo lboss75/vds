@@ -73,7 +73,7 @@ namespace vds {
         this->schedule();
       }
       else {
-        this->done_method_.processed();
+        this->done_method_();
       }
     }
 #else//!_WIN32
