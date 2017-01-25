@@ -26,7 +26,9 @@ public:
         handler(
           const context_type & context,
           const sync_method & owner
-        ): base(context),
+        ): vds::sequence_step<
+            context_type,
+            void(const std::string &)>(context),
           owner_(owner.owner_){
         }
         
@@ -67,10 +69,10 @@ public:
           const context_type & context,
           const async_method & owner
         )
-        : base(context),
+        : vds::sequence_step<context_type, void(void)>(context),
           owner_(owner.owner_), sp_(owner.sp_),
-          async_task_body_(owner.owner_, next),
-          async_task_(async_task_body_, error)
+          async_task_body_(owner.owner_, this->next),
+          async_task_(async_task_body_, this->error)
         {
         }
         
@@ -92,7 +94,7 @@ public:
         public:
           async_body(
             test_async_object & owner,
-            next_step_t & next)
+            typename context_type::next_step_t & next)
           : owner_(owner), next_(next)
           {
           }
@@ -105,12 +107,14 @@ public:
             this->next_();
           }
         private:
-          next_step_t & next_;
+          typename context_type::next_step_t & next_;
           test_async_object & owner_;
         };
         
         async_body async_task_body_;
-        vds::async_task<async_body, error_method_t> async_task_;
+        vds::async_task<
+          async_body,
+          typename context_type::error_method_t> async_task_;
       };
       
     private:

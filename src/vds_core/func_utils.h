@@ -241,22 +241,27 @@ namespace vds {
   {
   public:
     typedef sequence_step_context<
-      typename _sequence_step_holder<index - 1, error_method_type, functor_types...>::processed_step_t,
-      typename _sequence_step_holder<index + 1, error_method_type, functor_types...>::step_handler_t,
+      typename _sequence_step_holder<index + 1, error_method_type, functor_types...>::processed_step_t,
+      typename _sequence_step_holder<index - 1, error_method_type, functor_types...>::step_handler_t,
       error_method_type> step_context_t;
       
-    typedef typename std::tuple_element<index, std::tuple<functor_types...>>::type functor_type;
+    typedef typename std::tuple_element<
+      sizeof...(functor_types) - index,
+      std::tuple<functor_types...>>::type functor_type;
       
     typedef typename functor_type::template handler<step_context_t> step_handler_t;
     typedef _processed_method_proxy<step_handler_t, decltype(&step_handler_t::processed)> processed_step_t;
   };
   
   template<typename error_method_type, typename... functor_types>
-  class _sequence_step_holder<0, error_method_type, functor_types...>
+  class _sequence_step_start_holder
   {
   public:
     typedef sequence_first_step_context<
-      typename _sequence_step_holder<1, error_method_type, functor_types...>::step_handler_t,
+      typename _sequence_step_holder<
+        sizeof...(functor_types) - 1,
+        error_method_type,
+        functor_types...>::step_handler_t,
       error_method_type> step_context_t;
       
     typedef typename std::tuple_element<0, std::tuple<functor_types...>>::type functor_type;
@@ -265,13 +270,20 @@ namespace vds {
 
   };
   
+  //Final
+  template<typename error_method_type, typename... functor_types>
+  class _sequence_step_holder<0, error_method_type, functor_types...>
+  {
+  public:
+  };
+  
   ////////////////////
   template<std::size_t index, typename error_method_type, typename... functor_types>
-  class _sequence_holder : public _sequence_holder<index + 1, error_method_type, functor_types...>
+  class _sequence_holder : public _sequence_holder<index - 1, error_method_type, functor_types...>
   {
-    using base_class = _sequence_holder<index + 1, error_method_type, functor_types...>;
+    using base_class = _sequence_holder<index - 1, error_method_type, functor_types...>;
     using step_context_t = typename _sequence_step_holder<index, error_method_type, functor_types...>::step_context_t;
-    using processed_step_t = typename _sequence_step_holder<index - 1, error_method_type, functor_types...>::processed_step_t;
+    using processed_step_t = typename _sequence_step_holder<index + 1, error_method_type, functor_types...>::processed_step_t;
   public:
     
     _sequence_holder(
@@ -280,7 +292,9 @@ namespace vds {
       const std::tuple<functor_types...> & args
     )
     : 
-      step(step_context_t(prev, base_class::step, error_method), std::get<index>(args)),
+      step(
+        step_context_t(prev, base_class::step, error_method),
+        std::get<sizeof...(functor_types) - index>(args)),
       processed(step),
       base_class(processed)      
     {
@@ -291,14 +305,14 @@ namespace vds {
   };
   
   template<typename error_method_type, typename... functor_types>
-  class _sequence_holder<0, error_method_type, functor_types...>
-  : public _sequence_holder<1, error_method_type, functor_types...>
+  class _sequence_start_holder
+  : public _sequence_holder<sizeof...(functor_types) - 1, error_method_type, functor_types...>
   {
-    using base_class = _sequence_holder<1, error_method_type, functor_types...>;
-    using step_context_t = typename _sequence_step_holder<0, error_method_type, functor_types...>::step_context_t;
+    using base_class = _sequence_holder<sizeof...(functor_types) - 1, error_method_type, functor_types...>;
+    using step_context_t = typename _sequence_start_holder<error_method_type, functor_types...>::step_context_t;
   public:
     
-    _sequence_holder(
+    _sequence_start_holder(
       error_method_type & error_method,
       const std::tuple<functor_types...> & args
     )
@@ -308,16 +322,20 @@ namespace vds {
     {
     }
     
-    typename _sequence_step_holder<0, error_method_type, functor_types...>::step_handler_t step;
-    typename _sequence_step_holder<0, error_method_type, functor_types...>::processed_step_t processed;
+    typename _sequence_step_holder<
+      sizeof...(functor_types) - 1,
+      error_method_type,
+      functor_types...>::step_handler_t step;
+    typename _sequence_step_holder<
+      sizeof...(functor_types) - 1,
+      error_method_type,
+      functor_types...>::processed_step_t processed;
   };
+  
   template<typename error_method_type, typename... functor_types>
-  class _sequence_holder<
-    sizeof...(functor_types),
-    error_method_type,
-    functor_types...>
+  class _sequence_holder<0, error_method_type, functor_types...>
   {
-    using processed_step_t = typename _sequence_step_holder<sizeof...(functor_types) - 1, error_method_type, functor_types...>::processed_step_t;
+    using processed_step_t = typename _sequence_step_holder<0, error_method_type, functor_types...>::processed_step_t;
   public:
     
     _sequence_holder(
@@ -373,18 +391,17 @@ namespace vds {
       typename error_method_type
       >
     class _sequence_runner
-    : public _sequence_holder<
-      0,
+    : public _sequence_start_holder<
       auto_cleaner<_sequence_runner<error_method_type>, error_method_type>,
       functor_types...>
     {
       using error_proxy_type = auto_cleaner<_sequence_runner, error_method_type>;
-      using base_class = _sequence_holder<0, error_proxy_type, functor_types...>;
+      using base_class = _sequence_start_holder<error_proxy_type, functor_types...>;
     public:
       _sequence_runner(
         error_method_type & error_method,
         const std::tuple<functor_types...> & builder
-      ) : base(error_proxy_, builder),
+      ) : base_class(error_proxy_, builder),
         error_proxy_(this, error_method)
       {
       }

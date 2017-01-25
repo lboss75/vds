@@ -21,22 +21,26 @@ TEST(mt_tests, test_async) {
 
     {
         auto sp = registrator.build();
-
-        vds::sequence(
-          test_async_object::sync_method(obj),
-          test_async_object::async_method(sp, obj)
-        )
-        ([&obj, &barrier]() {
+        auto done_handler = vds::lambda_handler(
+         [&obj, &barrier]() {
             ASSERT_EQ(obj.state_, 2);
             obj.state_++;
             barrier.set();
-        },
-        [&barrier](std::exception * ex) {
-            FAIL() << ex->what();
-            delete ex;
-            barrier.set();
-        },
-        10);
+        });
+        auto error_handler = vds::lambda_handler(
+          [&barrier](std::exception * ex) {
+              FAIL() << ex->what();
+              delete ex;
+              barrier.set();
+          });
+        vds::sequence(
+          test_async_object::sync_method(obj),
+          test_async_object::async_method(sp, obj),
+          done_handler
+        )
+        (
+          error_handler,
+          10);
         
         barrier.wait();
     }
