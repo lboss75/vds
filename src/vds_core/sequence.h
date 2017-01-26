@@ -183,6 +183,77 @@ namespace vds {
   private:
     owner_type * owner_;
   };
+  //////////////////////////
+  class _suicide
+  {
+  public:
+    virtual ~_suicide()
+    {
+    }
+    void delete_this()
+    {
+      delete this;
+    }
+  };
+  template <typename method_type, typename method_signature>
+  class _auto_delete_trigger;
+
+  template <typename method_type, typename class_name, typename... arg_types>
+  class _auto_delete_trigger<method_type, void(class_name::*)(arg_types...)>
+  {
+  public:
+    _auto_delete_trigger(
+      _suicide * owner,
+      method_type & method)
+    : owner_(owner), method_(method)
+    {
+    }
+    
+    void operator()(arg_types... args)
+    {
+      this->method_(args...);
+      this->owner_->delete_this();
+    }
+    
+  private:
+    _suicide * owner_;
+    method_type & method_;
+  };
+
+  template <typename method_type, typename class_name, typename... arg_types>
+  class _auto_delete_trigger<method_type, void(class_name::*)(arg_types...) const >
+  {
+  public:
+    _auto_delete_trigger(
+      _suicide * owner,
+      method_type & method)
+      : owner_(owner), method_(method)
+    {
+    }
+
+    void operator()(arg_types... args) const
+    {
+      this->method_(args...);
+      this->owner_->delete_this();
+    }
+
+  private:
+    _suicide * owner_;
+    method_type & method_;
+  };
+
+  template <typename method_type>
+  class auto_delete_trigger : public _auto_delete_trigger<method_type, decltype(&method_type::operator())>
+  {
+    using base = _auto_delete_trigger<method_type, decltype(&method_type::operator())>;
+  public:
+    auto_delete_trigger(
+      _suicide * owner,
+      method_type & method)
+      : base(owner, method)
+    {
+    }
+  };
   /////////////////////////
 
   template<typename... functor_types>
@@ -225,7 +296,7 @@ namespace vds {
     template<
       typename done_method_type,
       typename error_method_type>
-    class _sequence_start_holder
+    class _sequence_start_holder : public _suicide
     {
     public:
       template <
@@ -437,10 +508,6 @@ namespace vds {
         {
         }
 
-        virtual ~_sequence_holder()
-        {
-        }
-
         done_method_type & step;
       };
       
@@ -470,12 +537,12 @@ namespace vds {
       >
     class _sequence_runner
     : public _sequence_start_holder<
-        auto_cleaner<_sequence_runner<done_method_type, error_method_type>, done_method_type>,
-        auto_cleaner<_sequence_runner<done_method_type, error_method_type>, error_method_type>
+        auto_delete_trigger<done_method_type>,
+        auto_delete_trigger<error_method_type>
       >
     {
-      using done_proxy_type = auto_cleaner<_sequence_runner, done_method_type>;
-      using error_proxy_type = auto_cleaner<_sequence_runner, error_method_type>;
+      using done_proxy_type = auto_delete_trigger<done_method_type>;
+      using error_proxy_type = auto_delete_trigger<error_method_type>;
       using base_class = _sequence_start_holder<
         done_proxy_type,
         error_proxy_type>;
@@ -491,8 +558,8 @@ namespace vds {
       }
 
     private:
-      auto_cleaner<_sequence_runner, done_method_type> done_proxy_;
-      auto_cleaner<_sequence_runner, error_method_type> error_proxy_;
+      auto_delete_trigger<done_method_type> done_proxy_;
+      auto_delete_trigger<error_method_type> error_proxy_;
     };
   };
   

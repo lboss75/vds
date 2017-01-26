@@ -39,6 +39,11 @@ namespace vds {
         response_handler_(args.response_handler_)
       {
       }
+      
+      ~handler()
+      {
+        std::cout << "http_send_request::handler::~handler\n";
+      }
 
       void operator()(const network_socket & s)
       {

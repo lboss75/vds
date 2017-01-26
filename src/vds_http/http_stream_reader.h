@@ -46,8 +46,8 @@ namespace vds {
       
       ~handler()
       {
-        this->incoming_stream_.handler(nullptr);
         std::cout << "http_stream_reader::~handler\n";
+        this->incoming_stream_.handler(nullptr);
       }
       
       void operator()()
