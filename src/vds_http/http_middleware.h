@@ -22,22 +22,24 @@ namespace vds {
     }
     
 
-    template<
-      typename done_method_type,
-      typename next_method_type,
-      typename error_method_type
+    template<typename context_type>
+    class handler : public sequence_step<context_type, 
+      void(
+        http_response & response,
+        http_outgoing_stream & outgoing_stream
+      )
     >
-    class handler
     {
+      using base_class = sequence_step<context_type, 
+      void(
+        http_response & response,
+        http_outgoing_stream & outgoing_stream
+      )>;
     public:
       handler(
-        done_method_type & done_method,
-        next_method_type & next_method,
-        error_method_type & error_method,
+        const context_type & context,
         const http_middleware & params)
-        : done_method_(done_method),
-        next_method_(next_method),
-        error_method_(error_method),
+        : base_class(context),
         router_(params.router_)
       {
       }
@@ -54,20 +56,12 @@ namespace vds {
           this->outgoing_stream_
         );
         
-        this->next_method_(
+        this->next(
           this->response_,
           this->outgoing_stream_);
       }
       
-      void processed()
-      {
-        this->done_method_();
-      }
-      
     private:
-      done_method_type & done_method_;
-      next_method_type & next_method_;
-      error_method_type & error_method_;
       const http_router & router_;
       http_response response_;
       http_outgoing_stream outgoing_stream_;

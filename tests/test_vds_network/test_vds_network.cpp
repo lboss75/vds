@@ -315,7 +315,7 @@ TEST(network_tests, test_server)
         auto done_client = vds::lambda_handler(
           [&done]() {
             std::cout << "check done\n";
-              done.set();
+            done.set();
           }
         );
         auto error_client = vds::lambda_handler(

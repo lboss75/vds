@@ -40,7 +40,7 @@ public:
     {
       std::cout << "New connection\n";
       
-      vds::pipeline(
+      vds::sequence(
         vds::input_network_stream(this->s_),
         vds::http_parser(),
         vds::http_middleware(this->router_),
@@ -89,16 +89,20 @@ TEST(http_tests, test_server)
 
         std::function<void(int)> f;
 
-        vds::pipeline(
-          vds::socket_server(sp, "127.0.0.1", 8000),
-          vds::for_each<vds::network_socket>::create_handler(test_http_pipeline(router))
-        )
-        (
-          []() {},
+        vds::empty_handler empty_handler;
+        auto server_error_handler = vds::lambda_handler(
           [](std::exception * ex) {
             FAIL() << ex->what();
             delete ex;
           }
+        );
+        vds::sequence(
+          vds::socket_server(sp, "127.0.0.1", 8000),
+          vds::for_each<vds::network_socket>::create_handler(test_http_pipeline(router))
+        )
+        (
+          empty_handler,
+          server_error_handler
         );
         
         //Start client
@@ -108,6 +112,21 @@ TEST(http_tests, test_server)
         vds::http_simple_response_reader response_reader;
 
         vds::barrier done;
+        
+        auto done_handler = vds::lambda_handler(
+          [&done](const std::string & body) {
+            ASSERT_EQ(body, "<html><body>Hello World</body></html>");
+            done.set();
+          }
+        );
+        
+        auto error_handler = vds::lambda_handler(
+          [&done](std::exception * ex) {
+            FAIL() << ex->what();
+            delete ex;
+            done.set();
+          }
+        );        
         vds::sequence(
           vds::socket_connect(sp),
           vds::http_send_request<
@@ -117,17 +136,12 @@ TEST(http_tests, test_server)
               outgoing_stream,
               response_reader)
         )
-        ([&done](const std::string & body) {
-          ASSERT_EQ(body, "<html><body>Hello World</body></html>");
-          done.set();
-        },
-        [&done](std::exception * ex) {
-          FAIL() << ex->what();
-          delete ex;
-          done.set();
-        },
-        "127.0.0.1",
-        8000);
+        (
+         done_handler,
+         error_handler,
+         "127.0.0.1",
+         8000
+        );
 
         //Wait
         done.wait();

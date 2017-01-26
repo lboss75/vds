@@ -19,21 +19,28 @@ namespace vds {
   public:
 
     template<
-      typename done_method_type,
-      typename next_method_type,
-      typename error_method_type
+      typename context_type
     >
-      class handler
+      class handler : public sequence_step<
+        context_type,
+        void(
+          const void * data,
+          size_t len
+        )
+      >
     {
+      using base_class = sequence_step<
+        context_type,
+        void(
+          const void * data,
+          size_t len
+        )
+      >;
     public:
       handler(
-        done_method_type & done_method,
-        next_method_type & next_method,
-        error_method_type & error_method,
+        const context_type & context,
         const http_response_serializer & args)
-        : done_method_(done_method),
-        next_method_(next_method),
-        error_method_(error_method)
+        : base_class(context)
       {
       }
 
@@ -57,19 +64,12 @@ namespace vds {
         }
         
         this->buffer_ = stream.str();
-        this->next_method_(this->buffer_.c_str(), this->buffer_.size());
-      }
-
-      void processed()
-      {
-        this->done_method_();
+        this->next(
+          this->buffer_.c_str(),
+          this->buffer_.size());
       }
 
     private:
-      done_method_type & done_method_;
-      next_method_type & next_method_;
-      error_method_type & error_method_;
-
       std::string buffer_;
     };    
   };

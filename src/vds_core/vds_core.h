@@ -21,6 +21,7 @@ All rights reserved
 #include "foldername.h"
 #include "async_task.h"
 #include "stream_to_string.h"
+#include "sequence.h"
 
 #endif // !__VDS_CORE_H_
 

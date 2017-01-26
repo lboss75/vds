@@ -17,22 +17,29 @@ namespace vds {
     }
     
     template<
-      typename done_method_type,
-      typename next_method_type,
-      typename error_method_type
+      typename context_type
     >
-    class handler
+    class handler : public sequence_step<
+      context_type,
+      void(
+        http_response & response,
+        http_incoming_stream & incoming_stream
+      )
+    >
     {
+      using base_class = sequence_step<
+        context_type,
+        void(
+          http_response & response,
+          http_incoming_stream & incoming_stream
+        )
+      >;
     public:
       handler(
-        done_method_type & done_method,
-        next_method_type & next_method,
-        error_method_type & error_method,
+        const context_type & context,
         const http_response_parser & args
       )
-      : done_method_(done_method),
-        next_method_(next_method),
-        error_method_(error_method),
+      : base_class(context),
         state_(STATE_PARSE_HEADER)
       {
       }
@@ -45,7 +52,7 @@ namespace vds {
       void operator()(const void * data, size_t len)
       {
         if (0 == len) {
-          this->next_method_(
+          this->next(
             this->response_,
             this->incoming_stream_);
         }
@@ -64,7 +71,7 @@ namespace vds {
             const char * p = (const char *)memchr(this->data_, '\n', this->len_);
             if (nullptr == p) {
               this->parse_buffer_ += std::string((const char *)this->data_, this->len_);
-              this->done_method_();
+              this->prev();
               return;
             }
 
@@ -128,7 +135,7 @@ namespace vds {
                 this->incoming_stream_.limit((size_t)-1);
               }
 
-              this->next_method_(
+              this->next(
                 this->response_,
                 this->incoming_stream_
               );
@@ -152,14 +159,10 @@ namespace vds {
           }
         }
 
-        this->done_method_();
+        this->prev();
       }
       
     private:
-      done_method_type & done_method_;
-      next_method_type & next_method_;
-      error_method_type & error_method_;
-      
       enum 
       {
         STATE_PARSE_HEADER,

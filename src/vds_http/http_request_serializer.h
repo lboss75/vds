@@ -23,19 +23,28 @@ namespace vds {
     }
 
     template<
-      typename next_method_type,
-      typename error_method_type
+      typename context_type
     >
-      class handler
+    class handler : public sequence_step<
+        context_type,
+        void (
+          const void * data,
+          size_t len
+        )
+      >
     {
+      using base_class = sequence_step<
+        context_type,
+        void (
+          const void * data,
+          size_t len
+        )
+      >;
     public:
       handler(
-        next_method_type & next_method,
-        error_method_type & error_method,
+        const context_type & context,
         const http_request_serializer & args)
-        :
-        next_method_(next_method),
-        error_method_(error_method)
+        : base_class(context)
       {
         std::stringstream stream;
         stream << args.request_.method() << " " << args.request_.url() << " " << args.request_.agent() << "\n";
@@ -49,15 +58,12 @@ namespace vds {
 
       void operator()()
       {
-        this->next_method_(
+        this->next(
           this->header_.c_str(),
           this->header_.size());
       }
 
     private:
-      next_method_type & next_method_;
-      error_method_type & error_method_;
-
       std::string header_;
     };
 

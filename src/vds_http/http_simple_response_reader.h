@@ -17,21 +17,16 @@ namespace vds {
     }
 
     template<
-      typename done_method_type,
-      typename next_method_type,
-      typename error_method_type
+      typename context_type
     >
-      class handler
+      class handler : public sequence_step<context_type, void(const std::string &)>
     {
+      using base_class = sequence_step<context_type, void(const std::string &)>;
     public:
       handler(
-        done_method_type & done_method,
-        next_method_type & next_method,
-        error_method_type & error_method,
+        const context_type & context,
         const http_simple_response_reader & args)
-        : done_method_(done_method),
-        next_method_(next_method),
-        error_method_(error_method)
+        : base_class(context)
       {
       }
       
@@ -41,33 +36,24 @@ namespace vds {
       }
 
       void operator()(
-        const http_response & response,
+        http_response & response,
         http_incoming_stream & response_stream
         )
       {
         if(http_response::HTTP_OK == response.code()){
-          pipeline(
-            http_stream_reader<done_method_type>(
-              this->done_method_,
+          sequence(
+            http_stream_reader<typename base_class::prev_step_t>(
+              this->prev,
               response_stream),
             stream_to_string()
           )
           (
-           this->next_method_,
-           this->error_method_
+           this->next,
+           this->error
           );
         }
       }
-
-      void processed()
-      {
-        this->done_method_();
-      }
-
     private:
-      done_method_type & done_method_;
-      next_method_type & next_method_;
-      error_method_type & error_method_;
     };    
   };
 }

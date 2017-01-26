@@ -31,4 +31,4 @@ namespace vds {
   };
 }
 
-#endif // HTTP_ROUTER_H
+#endif // __VDS_HTTP_HTTP_ROUTER_H_

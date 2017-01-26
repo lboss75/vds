@@ -19,19 +19,25 @@ namespace vds {
     }
     
     template<
-      typename next_method_type,
-      typename error_method_type
+      typename context_type
     >
-    class handler : public http_incoming_stream::read_handler
+    class handler
+    : public http_incoming_stream::read_handler,
+    public sequence_step<context_type, void(
+      const void * data,
+      size_t len)
+    >    
     {
+      using base_class = sequence_step<context_type,
+        void(
+          const void * data,
+          size_t len)>;
     public:
       handler(
-        next_method_type & next_method,
-        error_method_type & error_method,
+        const context_type & context,
         const http_stream_reader & args
       )
-      : next_method_(next_method),
-        error_method_(error_method),
+      : base_class(context),
         incoming_stream_(args.incoming_stream_),
         done_method_(args.done_method_)
       {
@@ -54,12 +60,10 @@ namespace vds {
         size_t len
       ) override
       {
-        this->next_method_(data, len);
+        this->next(data, len);
       }
       
     private:
-      next_method_type & next_method_;
-      error_method_type & error_method_;
       done_method_type & done_method_;
       http_incoming_stream & incoming_stream_;
     };

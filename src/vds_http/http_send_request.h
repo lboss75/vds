@@ -25,53 +25,46 @@ namespace vds {
     {
     }
 
-    template<
-      typename done_method_type,
-      typename error_method_type
-    >
-    class handler
+    template<typename context_type>
+    class handler : public sequence_step<context_type, void(const std::string &)>
     {
+      using base_class = sequence_step<context_type, void(const std::string &)>;
     public:
       handler(
-        done_method_type & done_method,
-        error_method_type & error_method,
+        const context_type & context,
         const http_send_request & args)
-        :
+        : base_class(context),
         request_(args.request_),
         outgoing_stream_(args.outgoing_stream_),
-        done_method_(done_method),
-        error_method_(error_method),
         response_handler_(args.response_handler_)
       {
       }
 
       void operator()(const network_socket & s)
       {
-        pipeline(
+        sequence(
           http_request_serializer(
             this->request_,
             this->outgoing_stream_),
           output_network_stream(s)
         )
         (
-          []() {},
-          this->error_method_
+          this->empty_handler_,
+          this->error
         );
 
-        pipeline(
+        sequence(
           input_network_stream(s),
           http_response_parser(),
           this->response_handler_
         )(
-          this->done_method_,
-          this->error_method_
-          );
+          this->next,
+          this->error
+        );
       }
 
     private:
-      done_method_type & done_method_;
-      error_method_type & error_method_;
-
+      empty_handler empty_handler_;
       http_request & request_;
       http_outgoing_stream & outgoing_stream_;
       response_handler_type & response_handler_;

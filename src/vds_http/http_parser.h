@@ -22,21 +22,28 @@ namespace vds {
     http_parser();
 
     template<
-      typename done_method_type,
-      typename next_method_type,
-      typename error_method_type
+      typename context_type
     >
-    class handler
+    class handler : public sequence_step<
+      context_type,
+      void(
+        http_request & request,
+        http_incoming_stream & incoming_stream
+      )
+    >
     {
+      using base_class = sequence_step<
+        context_type,
+        void(
+          http_request & request,
+          http_incoming_stream & incoming_stream
+        )
+      >;
     public:
       handler(
-        done_method_type & done_method,
-        next_method_type & next_method,
-        error_method_type & error_method,
+        const context_type & context,
         const http_parser & args)
-        : done_method_(done_method),
-        next_method_(next_method),
-        error_method_(error_method),
+        : base_class(context),
         state_(STATE_PARSE_HEADER)
       {
       }
@@ -47,7 +54,9 @@ namespace vds {
         size_t len
       ) {
         if (0 == len) {
-          this->next_method_(this->request_, this->incoming_stream_);
+          this->next(
+            this->request_,
+            this->incoming_stream_);
         }
         else {
           this->data_ = data;
@@ -64,7 +73,7 @@ namespace vds {
             const char * p = (const char *)memchr(this->data_, '\n', this->len_);
             if (nullptr == p) {
               this->parse_buffer_ += std::string((const char *)this->data_, this->len_);
-              this->done_method_();
+              this->prev();
               return;
             }
 
@@ -119,7 +128,7 @@ namespace vds {
               
               this->state_ = STATE_PARSE_BODY;
 
-              this->next_method_(
+              this->next(
                 this->request_,
                 this->incoming_stream_
               );
@@ -135,7 +144,7 @@ namespace vds {
             this->len_ -= size + 1;
           }
 
-          this->done_method_();
+          this->prev();
         }
         else {
 
@@ -143,10 +152,6 @@ namespace vds {
       }
 
     private:
-      done_method_type & done_method_;
-      next_method_type & next_method_;
-      error_method_type & error_method_;
-      
       const void * data_;
       size_t len_;
 
