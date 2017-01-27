@@ -67,12 +67,11 @@ void vds::network_service::start_libevent_dispatch()
   if(!this->dispatch_started_) {
     this->dispatch_started_ = true;
     
-    this->work_threads_.push_back(
-      new std::thread(
-        [] {
-          /* Start the libevent event loop. */
-          event_dispatch();
-      }));
+    this->libevent_future_ = std::async(std::launch::async,
+      [] {
+        /* Start the libevent event loop. */
+        event_dispatch();
+    });
   }
 }
 #endif
@@ -86,11 +85,14 @@ void vds::network_service::stop(const service_provider & sp)
         
 #ifndef _WIN32
         event_loopbreak();
-#endif
+        this->libevent_future_.wait_for(
+          std::chrono::seconds(5));
+#else
         for (auto p : this->work_threads_) {
             p->join();
             delete p;
         }
+#endif
         
 #ifdef _WIN32
 

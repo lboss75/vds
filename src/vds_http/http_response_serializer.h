@@ -68,6 +68,14 @@ namespace vds {
           this->buffer_.c_str(),
           this->buffer_.size());
       }
+      
+      void processed()
+      {
+        //Close connection
+        this->next(
+          nullptr,
+          0);
+      }
 
     private:
       std::string buffer_;

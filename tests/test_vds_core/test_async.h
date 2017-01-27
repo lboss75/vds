@@ -73,8 +73,7 @@ public:
         : base_class(context),
           owner_(owner.owner_),
           sp_(owner.sp_),
-          async_task_body_(owner.owner_, this->next),
-          async_task_(async_task_body_, this->error)
+          async_task_body_(owner.owner_, this->next)
         {
         }
         
@@ -84,7 +83,7 @@ public:
         {
           ASSERT_EQ(this->owner_.state_, 1);
           
-          this->async_task_.schedule(this->sp_);
+          std::async(std::launch::async, this->async_task_body_);
         }
         
       private:
@@ -114,9 +113,6 @@ public:
         };
         
         async_body async_task_body_;
-        vds::async_task<
-          async_body,
-          typename base_class::error_method_t> async_task_;
       };
       
     private:

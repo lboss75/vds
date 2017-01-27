@@ -11,7 +11,6 @@ All rights reserved
 #include <iostream>
  
 #include "service_provider.h"
-#include "mt_service.h"
 #include "logger.h"
 #include "command_line.h"
 #include "filename.h"
@@ -47,7 +46,7 @@ namespace vds{
     
     void register_services(service_registrator & registrator)
     {
-      registrator.add(mt_service_);
+      //registrator.add(mt_service_);
     }
     
     
@@ -69,7 +68,7 @@ namespace vds{
     
     
   private:
-    mt_service mt_service_;
+//    mt_service mt_service_;
   };
   
   template <typename app_impl>

@@ -33,6 +33,11 @@ namespace vds {
     {
       this->method_.check_alive();
     }
+    
+    method_type & method() const
+    {
+      return this->method_;
+    }
 
   private:
     method_type & method_;

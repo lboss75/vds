@@ -9,11 +9,9 @@ All rights reserved
 TEST(mt_tests, test_async) {
     vds::service_registrator registrator;
 
-    vds::mt_service mt;
     vds::console_logger logger;
 
     registrator.add(logger);
-    registrator.add(mt);
 
     test_async_object obj;
     vds::barrier barrier;

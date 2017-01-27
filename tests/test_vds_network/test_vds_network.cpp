@@ -279,11 +279,9 @@ TEST(network_tests, test_server)
     vds::service_registrator registrator;
 
     vds::network_service network_service;
-    vds::mt_service mt_service;
     vds::console_logger console_logger;
 
     registrator.add(console_logger);
-    registrator.add(mt_service);
     registrator.add(network_service);
 
     vds::barrier done;

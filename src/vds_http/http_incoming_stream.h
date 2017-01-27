@@ -14,10 +14,7 @@ namespace vds {
   {
   public:
     http_incoming_stream()
-    : 
-    size_limit_((size_t)-1),
-    readed_(0),
-    handler_(nullptr)
+    : handler_(nullptr)
     {
     }
     
@@ -26,25 +23,16 @@ namespace vds {
         std::cout << "http_incoming_stream::~http_incoming_stream\n";
     }
     
-    size_t push_data(
+    void push_data(
       const void * data,
       size_t len)
     {
-      size_t l = std::min(
-        this->size_limit_ -this->readed_,
-        len);
       
-      if(0 == l){
-        return l;
-      }
-      
-      this->readed_ += l;
       this->handler_->push_data(
         data,
-        l
+        len
       );
-    }
-
+    }    
    
     class read_handler
     {
@@ -64,14 +52,7 @@ namespace vds {
       this->handler_ = value;
     }
     
-    void limit(size_t size_limit)
-    {
-      this->size_limit_ = size_limit;
-    }
-    
   private:
-    size_t size_limit_;
-    size_t readed_;
     
     read_handler * handler_;
   };

@@ -25,4 +25,10 @@ All rights reserved
 
 #include "stddef.h"
 
+#include <vector>
+#include <list>
+#include <thread>
+#include <future>
+#include <chrono>
+
 #endif// __VDS_CORE_TARGETVER_H_

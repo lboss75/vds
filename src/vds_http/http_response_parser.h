@@ -128,12 +128,12 @@ namespace vds {
               
               std::string content_length_header;
               if(this->response_.get_header("Content-Length", content_length_header)){
-                this->incoming_stream_.limit(
-                  std::stoul(content_length_header));
+                this->size_limit_ = std::stoul(content_length_header);
               }
               else {
-                this->incoming_stream_.limit((size_t)-1);
+                this->size_limit_ = (size_t)-1;
               }
+              this->readed_ = 0;
 
               this->next(
                 this->response_,
@@ -151,19 +151,30 @@ namespace vds {
             this->len_ -= size + 1;
           }
           else {
-            size_t readed = this->incoming_stream_.push_data(
-              this->data_,
+            size_t l = std::min(
+              this->size_limit_ -this->readed_,
               this->len_);
-            if(readed == 0){
-              this->state_ = STATE_PARSE_HEADER;
-            } else {
-              this->data_ += readed;
-              this->len_ -= readed;
-            }
+            auto p = this->data_;
+            this->data_ = reinterpret_cast<const char *>(this->data_) + l;
+            this->len_ -= l;
+            this->readed_ += l;
+            this->incoming_stream_.push_data(
+              p,
+              l);
+            return;
           }
         }
-
-        this->prev();
+        
+        if(STATE_PARSE_BODY == this->state_
+          && this->readed_ == this->size_limit_) {
+            this->state_ = STATE_PARSE_HEADER;
+            this->incoming_stream_.push_data(
+              nullptr,
+              0);
+        }
+        else {
+          this->prev();
+        }
       }
       
     private:
@@ -181,6 +192,9 @@ namespace vds {
       
       http_response response_;
       http_incoming_stream incoming_stream_;
+      
+      size_t size_limit_;
+      size_t readed_;
     };
   };
 }

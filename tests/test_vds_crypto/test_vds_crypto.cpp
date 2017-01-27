@@ -11,11 +11,9 @@ TEST(test_vds_crypto, test_symmetric)
     vds::service_registrator registrator;
     
     vds::crypto_service crypto_service;
-    vds::mt_service mt_service;
     vds::console_logger console_logger;
 
     registrator.add(console_logger);
-    registrator.add(mt_service);
     registrator.add(crypto_service);
     {
       auto sp = registrator.build();
@@ -74,11 +72,9 @@ TEST(test_vds_crypto, test_sign)
   vds::service_registrator registrator;
 
   vds::crypto_service crypto_service;
-  vds::mt_service mt_service;
   vds::console_logger console_logger;
 
   registrator.add(console_logger);
-  registrator.add(mt_service);
   registrator.add(crypto_service);
   {
     auto sp = registrator.build();

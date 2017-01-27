@@ -413,6 +413,26 @@ namespace vds {
     method_type & value;
   };
   
+  template <typename method_type, typename method_signature>
+  class remove_auto_delete_trigger<
+    method_proxy<
+      auto_delete_trigger<
+        method_type
+      >,
+      method_signature
+    >
+  >
+  {
+  public:
+    typedef method_type type;
+    
+    remove_auto_delete_trigger(method_proxy<auto_delete_trigger<method_type>, method_signature> & val)
+    : value(val.method().method())
+    {
+    }
+    
+    method_type & value;
+  };
   
   /////////////////////////
 

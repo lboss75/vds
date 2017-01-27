@@ -56,12 +56,13 @@ namespace vds {
 #ifdef _WIN32
         HANDLE handle_;
         void thread_loop(const service_provider & provider);
+        std::list<std::thread *> work_threads_;
 #else
         bool dispatch_started_;
     public:
-        void start_libevent_dispatch();
+      std::future<void> libevent_future_;
+      void start_libevent_dispatch();
 #endif//_WIN32
-        std::list<std::thread *> work_threads_;
     };
 }
 
