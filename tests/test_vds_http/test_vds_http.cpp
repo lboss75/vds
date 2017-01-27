@@ -7,6 +7,16 @@ All rights reserved
 
 class test_http_pipeline
 {
+private:
+  class error_method_type
+  {
+  public:
+    void operator()(std::exception * ex)
+    {
+      FAIL() << ex->what();
+    }
+  };
+
 public:
   test_http_pipeline(
     const vds::http_router & router)
@@ -19,21 +29,17 @@ public:
 
   }
 
-  template <
-    typename error_method_type
-  >
   class handler
   {
   public:
     handler(
-      error_method_type & error_method,
       const test_http_pipeline & owner,
       vds::network_socket & s)
       :      
       s_(std::move(s)),
       router_(owner.router_),
       done_handler_(this),
-      error_handler_(this, error_method)
+      error_handler_(this, const_cast<test_http_pipeline &>(owner).error)
     {
     }
 
@@ -57,12 +63,13 @@ public:
     vds::network_socket s_;
     const vds::http_router & router_;
     vds::delete_this<handler> done_handler_;
+    
     vds::auto_cleaner<handler, error_method_type> error_handler_;
-
   };
 
 private:
   const vds::http_router & router_;
+  error_method_type error;
 };
 
 TEST(http_tests, test_server)

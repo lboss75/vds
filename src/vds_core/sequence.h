@@ -683,14 +683,17 @@ namespace vds {
         
         void operator ()(arg_types&... args)
         {
-          auto handler = new typename handler_args_type::template handler
-          <
-            typename context_type::error_method_t
-          >(
-            this->error_,
-            this->handler_args_,
-            args...);
-          handler->start();
+          try {
+            auto handler = new typename handler_args_type::handler
+            (
+              this->handler_args_,
+              args...);
+            handler->start();
+          }
+          catch(std::exception * ex) {
+            this->error_(ex);
+          }
+          
           this->prev();
         }
 
