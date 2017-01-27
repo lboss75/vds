@@ -27,7 +27,7 @@ namespace vds {
         const output_network_stream & args)
       : base_class(context),
         s_(args.s_.handle()),
-        task_(this->next, this->error)        
+        task_(this->prev, this->error)        
       {
       }
       
@@ -43,16 +43,11 @@ namespace vds {
           this->task_.schedule(this->s_);
         }          
       }
-
-      void processed()
-      {
-        this->prev.processed();
-      }
       
     private:
       network_socket::SOCKET_HANDLE s_;
       write_socket_task<
-        typename base_class::next_step_t,
+        typename base_class::prev_step_t,
         typename base_class::error_method_t> task_;
     };
   private:

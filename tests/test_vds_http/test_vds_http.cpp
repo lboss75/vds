@@ -95,19 +95,24 @@ TEST(http_tests, test_server)
 
         std::function<void(int)> f;
 
-        vds::empty_handler empty_handler;
+        auto server_done_handler = vds::lambda_handler(
+          []() {
+            std::cout << "Server has been closed\n";
+          }
+        );
         auto server_error_handler = vds::lambda_handler(
           [](std::exception * ex) {
             FAIL() << ex->what();
             delete ex;
           }
         );
+        
         vds::sequence(
           vds::socket_server(sp, "127.0.0.1", 8000),
           vds::for_each<vds::network_socket>::create_handler(test_http_pipeline(router))
         )
         (
-          empty_handler,
+          server_done_handler,
           server_error_handler
         );
         

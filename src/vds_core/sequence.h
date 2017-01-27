@@ -22,6 +22,11 @@ namespace vds {
     void (class_name::*)(arg_types...)>
   {
   public:
+    _processed_method_proxy(const _processed_method_proxy&) = delete;
+    _processed_method_proxy(_processed_method_proxy&&) = delete;
+    _processed_method_proxy & operator = (const _processed_method_proxy &) = delete;
+    _processed_method_proxy & operator = (_processed_method_proxy &&) = delete;
+
     _processed_method_proxy(method_type & method)
       : method_(method)
     {
@@ -31,6 +36,11 @@ namespace vds {
     {
       this->method_.check_alive();
       this->method_.processed(args...);
+    }
+    
+    void check_alive() const
+    {
+      this->method_.check_alive();
     }
 
   private:
@@ -46,6 +56,11 @@ namespace vds {
     void (class_name::*)(arg_types...) const>
   {
   public:
+    _processed_method_proxy(const _processed_method_proxy&) = delete;
+    _processed_method_proxy(_processed_method_proxy&&) = delete;
+    _processed_method_proxy & operator = (const _processed_method_proxy &) = delete;
+    _processed_method_proxy & operator = (_processed_method_proxy &&) = delete;
+    
     _processed_method_proxy(method_type & method)
       : method_(method)
     {
@@ -54,6 +69,11 @@ namespace vds {
     void operator()(arg_types... args)
     {
       this->method_.processed(args...);
+    }
+    
+    void check_alive() const
+    {
+      this->method_.check_alive();
     }
 
   private:
@@ -64,7 +84,17 @@ namespace vds {
   class _fake
   {
   public:
-    void operator()() const
+    static _fake & instance()
+    {
+      static _fake s_instance;
+      return s_instance;
+    }
+    void processed() const
+    {
+      throw new std::runtime_error("Logic invalid");
+    }
+    
+    void check_alive()
     {
     }    
   };
@@ -77,18 +107,23 @@ namespace vds {
     class sequence_step
   {
   public:
+    sequence_step(const sequence_step &) = delete;
+    sequence_step(sequence_step &&) = delete;
+    sequence_step & operator = (const sequence_step &) = delete;
+    sequence_step & operator = (sequence_step &&) = delete;
+    
     typedef sequence_step base;
 
     sequence_step(
       const context_type & context
     )
       : 
+#ifdef DEBUG
+      is_alive_sig_(0x37F49C0F),
+#endif
       prev(context.prev_),
       next(context.next_),
       error(context.error_)
-#ifdef DEBUG
-      , is_alive_sig_(0x37F49C0F)
-#endif
     {
     }
     
@@ -119,18 +154,30 @@ namespace vds {
     typedef typename context_type::next_step_t & next_step_t;
     typedef typename context_type::error_method_t & error_method_t;
 #endif
-    typedef const typename context_type::prev_step_t & prev_step_t;
+    typedef
+      _processed_method_proxy<
+        typename context_type::prev_step_t, 
+      decltype(&context_type::prev_step_t::processed)>
+        prev_step_t;
 
-    prev_step_t prev;
-    next_step_t next;
-    error_method_t error;
 #ifdef DEBUG
     int is_alive_sig_;
 #endif
+    prev_step_t prev;
+    next_step_t next;
+    error_method_t error;
 
     void processed()
     {
       this->prev();
+    }
+    
+    void validate()
+    {
+      this->check_alive();
+      this->prev.check_alive();
+      this->next.check_alive();
+      this->error.check_alive();      
     }
   };
   //////////////////////////////////////////////////////
@@ -275,6 +322,11 @@ namespace vds {
       this->owner_->check_alive();
     }
     
+    method_type & method() const
+    {
+      return this->method_;
+    }
+    
   private:
     _suicide * owner_;
     method_type & method_;
@@ -302,6 +354,11 @@ namespace vds {
       this->owner_->check_alive();
     }
     
+    method_type & method() const
+    {
+      return this->method_;
+    }
+    
   private:
     _suicide * owner_;
     method_type & method_;
@@ -318,7 +375,45 @@ namespace vds {
       : base(owner, method)
     {
     }
+    void validate()
+    {
+      this->check_alive();
+    }
   };
+  
+  template <typename method_type>
+  class remove_auto_delete_trigger
+  {
+  public:
+    typedef method_type type;
+    
+    remove_auto_delete_trigger(method_type & val)
+    : value(val)
+    {
+    }
+    
+    method_type & value;
+  };
+  
+  template <typename method_type>
+  class remove_auto_delete_trigger<
+    auto_delete_trigger<
+      method_type
+    >
+  >
+  {
+  public:
+    typedef method_type type;
+    
+    remove_auto_delete_trigger(auto_delete_trigger<method_type> & val)
+    : value(val.method())
+    {
+    }
+    
+    method_type & value;
+  };
+  
+  
   /////////////////////////
 
   template<typename... functor_types>
@@ -343,11 +438,15 @@ namespace vds {
     )
     {
       try {
-        auto handler = new _sequence_runner<done_method_type, error_method_type>(
-          done_method,
-          error_method,
+        auto handler = new _sequence_runner<
+          typename remove_auto_delete_trigger<done_method_type>::type,
+          typename remove_auto_delete_trigger<error_method_type>::type
+          >(
+          remove_auto_delete_trigger<done_method_type>(done_method).value,
+          remove_auto_delete_trigger<error_method_type>(error_method).value,
           this->builder_);
-        handler->step(args...);
+        handler->validate();
+        handler->holder_.step(args...);
       }
       catch (std::exception * ex) {
         error_method(ex);
@@ -361,7 +460,7 @@ namespace vds {
     template<
       typename done_method_type,
       typename error_method_type>
-    class _sequence_start_holder : public _suicide
+    class _sequence_start_holder
     {
     public:
       template <
@@ -371,24 +470,19 @@ namespace vds {
       class sequence_step_context
       {
       public:
+        typedef prev_step_type prev_step_t; 
         typedef next_step_type next_step_t;
         typedef error_method_type error_method_t;
 
         sequence_step_context(
-          prev_step_type & prev,
+          prev_step_t & prev,
           next_step_t & next,
           error_method_t & error
         ) : prev_(prev), next_(next), error_(error)
         {
         }
         
-        typedef
-        _processed_method_proxy<
-          prev_step_type, 
-          decltype(&prev_step_type::processed)>
-        prev_step_t;
-
-        prev_step_t prev_;
+        prev_step_t & prev_;
         next_step_t & next_;
         error_method_t & error_;
       };
@@ -405,7 +499,7 @@ namespace vds {
         _sequence_first_step_context(
           next_step_t & next,
           error_method_t & error
-        ) : prev_(*(_fake*)nullptr), next_(next), error_(error)
+        ) : prev_(_fake::instance()), next_(next), error_(error)
         {
         }
 
@@ -527,10 +621,8 @@ namespace vds {
 
       template<std::size_t index, bool dummy>
       class _sequence_holder
-      : public _sequence_holder<index - 1>
       {
-        using base_class = _sequence_holder<
-          index - 1>;
+        using holder_class = _sequence_holder<index - 1>;
           
         using step_context_t = _sequence_step_context<
           std::tuple_size<tuple_type>::value - index>;
@@ -545,14 +637,21 @@ namespace vds {
           const tuple_type & args
         )
           :
-          base_class(step, done, error_method, args),
+          holder_(step, done, error_method, args),
           step(
-            step_context_t(prev, base_class::step, error_method),
+            step_context_t(prev, holder_.step, error_method),
             std::get<std::tuple_size<tuple_type>::value - index>(args))
           
         {
         }
+        
+        void validate()
+        {
+          this->step.validate();
+          this->holder_.validate();
+        }
 
+        holder_class holder_;
         _sequence_step_handler<
           std::tuple_size<tuple_type>::value - index> step;
       };
@@ -573,6 +672,11 @@ namespace vds {
           : step(done)
         {
         }
+        
+        void validate()
+        {
+          this->step.validate();
+        }
 
         done_method_type & step;
       };
@@ -584,10 +688,16 @@ namespace vds {
         error_method_type & error_method,
         const tuple_type & args
       )
-      : holder_(step, done_method, error_method, args),
+      : 
+        holder_(step, done_method, error_method, args),        
         step(step_context_t(holder_.step, error_method), std::get<0>(args))
-        
       {
+      }
+      
+      void validate()
+      {
+        this->step.validate();
+        this->holder_.validate();
       }
       
       _sequence_holder<
@@ -602,31 +712,40 @@ namespace vds {
       typename done_method_type,
       typename error_method_type
       >
-    class _sequence_runner
-    : public _sequence_start_holder<
-        auto_delete_trigger<done_method_type>,
-        auto_delete_trigger<error_method_type>
-      >
+    class _sequence_runner : public _suicide
     {
       using done_proxy_type = auto_delete_trigger<done_method_type>;
       using error_proxy_type = auto_delete_trigger<error_method_type>;
-      using base_class = _sequence_start_holder<
+      using holder_class = _sequence_start_holder<
         done_proxy_type,
         error_proxy_type>;
     public:
+      _sequence_runner(const _sequence_runner &) = delete;
+      _sequence_runner(_sequence_runner&&) = delete;
+      _sequence_runner & operator = (const _sequence_runner &) = delete;
+      _sequence_runner & operator = (_sequence_runner&&) = delete;
+      
       _sequence_runner(
         done_method_type & done_method,
         error_method_type & error_method,
         const std::tuple<functor_types...> & builder
-      ) : base_class(done_proxy_, error_proxy_, builder),
+      ) : 
         done_proxy_(this, done_method),
-        error_proxy_(this, error_method)
+        error_proxy_(this, error_method),
+        holder_(done_proxy_, error_proxy_, builder)
       {
       }
+      
+      void validate()
+      {
+        this->done_proxy_.check_alive();
+        this->error_proxy_.check_alive();
+        holder_.validate();
+      }
 
-    private:
       auto_delete_trigger<done_method_type> done_proxy_;
       auto_delete_trigger<error_method_type> error_proxy_;
+      holder_class holder_;
     };
   };
   
@@ -657,11 +776,12 @@ namespace vds {
         handler(
           const context_type & context,
           const _create_handler & args
-        ) : prev(context.prev_), error_(context.error_),
-        handler_args_(args.handler_args_)
+        ) :
 #ifdef DEBUG
-        , is_alive_sig_(0x37F49C0F)
+        is_alive_sig_(0x37F49C0F),
 #endif
+        prev(context.prev_), error_(context.error_),
+        handler_args_(args.handler_args_)
         {
         }
     
@@ -683,6 +803,7 @@ namespace vds {
         
         void operator ()(arg_types&... args)
         {
+          std::cout << "for_each()\n";
           try {
             auto handler = new typename handler_args_type::handler
             (
@@ -699,16 +820,23 @@ namespace vds {
 
         void processed()
         {
+          std::cout << "for_each::processed()\n";
           this->prev();
         }
+        void validate()
+        {
+          this->prev.check_alive();
+          this->error_.check_alive();
+        }
       private:
-        typedef const typename context_type::prev_step_t & prev_step_t;
-        prev_step_t prev;
-        typename context_type::error_method_t & error_;
-        handler_args_type handler_args_;
 #ifdef DEBUG
         int is_alive_sig_;
 #endif
+        _processed_method_proxy<
+          typename context_type::prev_step_t, 
+          decltype(&context_type::prev_step_t::processed)> prev;
+        typename context_type::error_method_t & error_;
+        handler_args_type handler_args_;
       };
       
     private:

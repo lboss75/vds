@@ -44,6 +44,10 @@ namespace vds {
         this->task_.schedule();        
       }
       
+      void processed(){
+        this->task_.schedule();        
+      }
+      
     private:
       accept_socket_task<
         typename base_class::next_step_t,

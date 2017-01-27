@@ -62,6 +62,13 @@ namespace vds {
           this->header_.c_str(),
           this->header_.size());
       }
+      
+      void processed()
+      {
+        this->next(
+          nullptr,
+          0);
+      }
 
     private:
       std::string header_;

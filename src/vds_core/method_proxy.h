@@ -13,6 +13,11 @@ namespace vds {
   class method_proxy<method_type, void(arg_types...)>
   {
   public:
+    method_proxy(const method_proxy&) = delete;
+    method_proxy(method_proxy&&) = delete;
+    method_proxy & operator = (const method_proxy &) = delete;
+    method_proxy & operator = (method_proxy &&) = delete;
+    
     method_proxy(method_type & method)
       : method_(method)
     {
@@ -22,6 +27,11 @@ namespace vds {
     {
       this->method_.check_alive();
       this->method_(args...);
+    }
+    
+    void check_alive() const
+    {
+      this->method_.check_alive();
     }
 
   private:

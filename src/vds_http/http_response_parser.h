@@ -151,10 +151,14 @@ namespace vds {
             this->len_ -= size + 1;
           }
           else {
-            if(!this->incoming_stream_.push_data(
+            size_t readed = this->incoming_stream_.push_data(
               this->data_,
-              this->len_)){
+              this->len_);
+            if(readed == 0){
               this->state_ = STATE_PARSE_HEADER;
+            } else {
+              this->data_ += readed;
+              this->len_ -= readed;
             }
           }
         }

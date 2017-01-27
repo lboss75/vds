@@ -54,7 +54,7 @@ namespace vds {
           output_network_stream(s)
         )
         (
-          this->empty_handler_,
+          this->request_sent_handler_,
           this->error
         );
 
@@ -69,7 +69,19 @@ namespace vds {
       }
 
     private:
-      empty_handler empty_handler_;
+      class request_sent
+      {
+      public:
+        ~request_sent()
+        {
+        }
+        
+        void operator()()
+        {
+          std::cout << "request sent\n";
+        }
+      };
+      request_sent request_sent_handler_;
       http_request & request_;
       http_outgoing_stream & outgoing_stream_;
       response_handler_type & response_handler_;
