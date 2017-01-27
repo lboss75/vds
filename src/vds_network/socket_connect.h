@@ -26,13 +26,14 @@ namespace vds {
         const socket_connect & owner
       )
         : sequence_step<context_type, void (network_socket &)>(context),
+        network_service_(owner.network_service_),
         s_(
 #ifdef _WIN32
           WSASocket(PF_INET, SOCK_STREAM, 0, NULL, 0, WSA_FLAG_OVERLAPPED)
 #else
           socket(PF_INET, SOCK_STREAM, 0)
 #endif//_WIN32
-        ), network_service_(owner.network_service_)
+        )
       {
       }
 

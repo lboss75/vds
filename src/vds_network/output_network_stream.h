@@ -20,13 +20,14 @@ namespace vds {
     template <typename context_type>
     class handler : public sequence_step<context_type, void(void)>
     {
+      using base_class = sequence_step<context_type, void(void)>;
     public:
       handler(
         const context_type & context,
         const output_network_stream & args)
-      : sequence_step<context_type, void(void)>(context),
-        task_(this->next, this->error),
-        s_(args.s_.handle())
+      : base_class(context),
+        s_(args.s_.handle()),
+        task_(this->next, this->error)        
       {
       }
       
@@ -51,8 +52,8 @@ namespace vds {
     private:
       network_socket::SOCKET_HANDLE s_;
       write_socket_task<
-        typename context_type::next_step_t,
-        typename context_type::error_method_t> task_;
+        typename base_class::next_step_t,
+        typename base_class::error_method_t> task_;
     };
   private:
     const network_socket & s_;

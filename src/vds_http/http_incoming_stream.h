@@ -14,9 +14,10 @@ namespace vds {
   {
   public:
     http_incoming_stream()
-    : handler_(nullptr),
+    : 
     size_limit_((size_t)-1),
-    readed_(0), final_(false)
+    readed_(0), final_(false),
+    handler_(nullptr)
     {
     }
     

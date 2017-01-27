@@ -25,8 +25,8 @@ namespace vds {
       next_method_type & next_method,
       error_method_type & error_method,
       const network_socket & s
-    ) : next_method_(next_method), error_method_(error_method),
-      s_(s.handle())
+    ) : s_(s.handle()),
+    next_method_(next_method), error_method_(error_method)      
     {
     }
     

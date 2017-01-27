@@ -117,7 +117,7 @@ namespace vds {
     {
     public:
         gf_math() {
-            u_int8_t one[1] = { 1 };
+            //u_int8_t one[1] = { 1 };
             u_int8_t two[1] = { 2 };
 
             this->log2value_[0] = 1;

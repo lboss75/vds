@@ -41,8 +41,8 @@ namespace vds {
       
     private:
       read_socket_task<
-        typename context_type::next_step_t,
-        typename context_type::error_method_t> task_;
+        typename base::next_step_t,
+        typename base::error_method_t> task_;
     };
   private:
     const network_socket & s_;

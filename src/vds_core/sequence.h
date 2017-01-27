@@ -5,6 +5,7 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
+#include "method_proxy.h"
 
 namespace vds {
   //////////////////////////////////////////////////////
@@ -28,6 +29,7 @@ namespace vds {
 
     void operator()(arg_types... args) const
     {
+      this->method_.check_alive();
       this->method_.processed(args...);
     }
 
@@ -84,20 +86,47 @@ namespace vds {
       prev(context.prev_),
       next(context.next_),
       error(context.error_)
+#ifdef DEBUG
+      , is_alive_sig_(0x37F49C0F)
+#endif
     {
     }
-#if _DEBUG
-    typedef _method_proxy<typename context_type::next_step_t, output_signature> next_step_t;
-    typedef _method_proxy<typename context_type::error_method_t, void(std::exception *)> error_method_t;
+    
+#ifdef DEBUG
+    ~sequence_step()
+    {
+      this->is_alive_sig_ = 0x7F49C0F3;
+    }
+#endif
+
+    void check_alive() const
+    {
+#ifdef DEBUG
+      if(this->is_alive_sig_ != 0x37F49C0F){
+        throw new std::runtime_error("Memory is corrupted");
+      }
+#endif
+    }
+
+#ifdef DEBUG
+    typedef method_proxy<
+      typename context_type::next_step_t,
+      output_signature> next_step_t;
+    typedef method_proxy<
+      typename context_type::error_method_t,
+      void(std::exception *)> error_method_t;
 #else
     typedef typename context_type::next_step_t & next_step_t;
     typedef typename context_type::error_method_t & error_method_t;
 #endif
     typedef const typename context_type::prev_step_t & prev_step_t;
 
+    prev_step_t prev;
     next_step_t next;
     error_method_t error;
-    prev_step_t prev;
+#ifdef DEBUG
+    int is_alive_sig_;
+#endif
 
     void processed()
     {
@@ -187,13 +216,39 @@ namespace vds {
   class _suicide
   {
   public:
-    virtual ~_suicide()
+    _suicide()
+#ifdef DEBUG
+    : is_alive_sig_(0x37F49C0F)
+#endif
     {
     }
+    
+    virtual ~_suicide()
+    {
+#ifdef DEBUG
+      this->is_alive_sig_ = 0x7F49C0F3;
+#endif
+    }
+    
     void delete_this()
     {
       delete this;
     }
+    
+
+    void check_alive() const
+    {
+#ifdef DEBUG
+      if(this->is_alive_sig_ != 0x37F49C0F){
+        throw new std::runtime_error("Memory is corrupted");
+      }
+#endif
+    }
+    
+    private:
+#ifdef DEBUG
+      int is_alive_sig_;
+#endif
   };
   template <typename method_type, typename method_signature>
   class _auto_delete_trigger;
@@ -213,6 +268,11 @@ namespace vds {
     {
       this->method_(args...);
       this->owner_->delete_this();
+    }
+    
+    void check_alive() const
+    {
+      this->owner_->check_alive();
     }
     
   private:
@@ -237,6 +297,11 @@ namespace vds {
       this->owner_->delete_this();
     }
 
+    void check_alive() const
+    {
+      this->owner_->check_alive();
+    }
+    
   private:
     _suicide * owner_;
     method_type & method_;
@@ -340,7 +405,7 @@ namespace vds {
         _sequence_first_step_context(
           next_step_t & next,
           error_method_t & error
-        ) : next_(next), error_(error), prev_(*(_fake*)nullptr)
+        ) : prev_(*(_fake*)nullptr), next_(next), error_(error)
         {
         }
 
@@ -480,10 +545,11 @@ namespace vds {
           const tuple_type & args
         )
           :
+          base_class(step, done, error_method, args),
           step(
             step_context_t(prev, base_class::step, error_method),
-            std::get<std::tuple_size<tuple_type>::value - index>(args)),
-          base_class(step, done, error_method, args)
+            std::get<std::tuple_size<tuple_type>::value - index>(args))
+          
         {
         }
 
@@ -518,8 +584,9 @@ namespace vds {
         error_method_type & error_method,
         const tuple_type & args
       )
-      : step(step_context_t(holder_.step, error_method), std::get<0>(args)),
-        holder_(step, done_method, error_method, args)      
+      : holder_(step, done_method, error_method, args),
+        step(step_context_t(holder_.step, error_method), std::get<0>(args))
+        
       {
       }
       
@@ -592,7 +659,26 @@ namespace vds {
           const _create_handler & args
         ) : prev(context.prev_), error_(context.error_),
         handler_args_(args.handler_args_)
+#ifdef DEBUG
+        , is_alive_sig_(0x37F49C0F)
+#endif
         {
+        }
+    
+#ifdef DEBUG
+        ~handler()
+        {
+          this->is_alive_sig_ = 0x7F49C0F3;
+        }
+#endif
+
+        void check_alive() const
+        {
+#ifdef DEBUG
+          if(this->is_alive_sig_ != 0x37F49C0F){
+            throw new std::runtime_error("Memory is corrupted");
+          }
+#endif
         }
         
         void operator ()(arg_types&... args)
@@ -613,11 +699,13 @@ namespace vds {
           this->prev();
         }
       private:
-        typename context_type::error_method_t & error_;
-        
         typedef const typename context_type::prev_step_t & prev_step_t;
         prev_step_t prev;
+        typename context_type::error_method_t & error_;
         handler_args_type handler_args_;
+#ifdef DEBUG
+        int is_alive_sig_;
+#endif
       };
       
     private:

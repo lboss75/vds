@@ -44,7 +44,7 @@ TEST(test_vds_crypto, test_symmetric)
       
       int result_len = 0;
       while(l > 0){
-        auto n = std::rand();
+        size_t n = (size_t)std::rand();
         if (n < 1) {
           continue;
         }

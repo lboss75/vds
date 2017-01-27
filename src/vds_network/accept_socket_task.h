@@ -22,11 +22,13 @@ namespace vds {
       const service_provider & sp,
       const std::string & address,
       int port      
-    ) : done_method_(done), error_method_(on_error),
+    ) : 
       sp_(sp),
-      network_service_(sp.get<inetwork_manager>().owner_)
+      network_service_(sp.get<inetwork_manager>().owner_),
+      done_method_(done), error_method_(on_error)
 #ifdef _WIN32
-      , wait_accept_(this), wait_accept_task_(wait_accept_, on_error)
+      , wait_accept_(this),
+        wait_accept_task_(wait_accept_, on_error)
 #endif//_WIN32
     {
 #ifdef _WIN32

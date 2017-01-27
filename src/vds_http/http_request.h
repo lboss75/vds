@@ -22,7 +22,7 @@ namespace vds {
       const std::string & method,
       const std::string & url,
       const std::string & agent = "HTTP/1.0"
-      ): url_(url), method_(method), agent_(agent)
+      ): method_(method), url_(url), agent_(agent)
     {
 
     }

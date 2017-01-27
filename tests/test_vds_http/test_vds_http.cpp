@@ -29,10 +29,11 @@ public:
       error_method_type & error_method,
       const test_http_pipeline & owner,
       vds::network_socket & s)
-      : error_handler_(this, error_method),
-      done_handler_(this),
+      :      
+      s_(std::move(s)),
       router_(owner.router_),
-      s_(std::move(s))
+      done_handler_(this),
+      error_handler_(this, error_method)
     {
     }
 
@@ -75,8 +76,6 @@ TEST(http_tests, test_server)
     registrator.add(console_logger);
     registrator.add(mt_service);
     registrator.add(network_service);
-
-    std::exception * error = nullptr;
 
     {
         auto sp = registrator.build();

@@ -25,11 +25,12 @@ namespace vds {
     template <typename context_type>
     class handler : public sequence_step<context_type, void(network_socket &)>
     {
+      using base_class = sequence_step<context_type, void(network_socket &)>;
     public:
       handler(
         const context_type & context,
         const socket_server & args)
-      : sequence_step<context_type, void(network_socket &)>(context),
+      : base_class(context),
         task_(
           this->next,
           this->error,
@@ -45,8 +46,8 @@ namespace vds {
       
     private:
       accept_socket_task<
-        typename context_type::next_step_t,
-        typename context_type::error_method_t> task_;
+        typename base_class::next_step_t,
+        typename base_class::error_method_t> task_;
     };
   private:
     const service_provider & sp_;

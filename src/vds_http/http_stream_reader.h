@@ -38,8 +38,8 @@ namespace vds {
         const http_stream_reader & args
       )
       : base_class(context),
-        incoming_stream_(args.incoming_stream_),
-        done_method_(args.done_method_)
+        done_method_(args.done_method_),
+        incoming_stream_(args.incoming_stream_)
       {
         this->incoming_stream_.handler(this);
       }

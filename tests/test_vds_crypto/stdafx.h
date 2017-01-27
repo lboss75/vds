@@ -11,7 +11,9 @@ All rights reserved
 #include "vds_core.h"
 #include "vds_crypto.h"
 
+#ifdef _WIN32
 #pragma comment(lib, "ws2_32")
 #pragma comment(lib, "crypt32")
+#endif
 
 #endif // __VDS_TEST_CRYPTO_STDAFX_H_

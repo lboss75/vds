@@ -20,6 +20,7 @@ namespace vds {
 
     void operator()(arg_types... args)
     {
+      this->method_.check_alive();
       this->method_(args...);
     }
 

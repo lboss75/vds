@@ -11,11 +11,12 @@ public:
   template<typename context_type>
   class handler : public vds::sequence_step<context_type, void (void)>
   {
+    using base_class = vds::sequence_step<context_type, void (void)>;
   public:
     handler(
       const context_type & context,
       const echo_server & owner)
-      : vds::sequence_step<context_type, void (void)>(context)
+      : base_class(context)
     {
     }
     
@@ -23,8 +24,8 @@ public:
       std::cout << "new connection\n";
 
       (new connection_handler<
-        typename context_type::next_step_t,
-        typename context_type::error_method_t>(
+        typename base_class::next_step_t,
+        typename base_class::error_method_t>(
         this->next, this->error, s))->start();
     }
   };
@@ -40,9 +41,10 @@ public:
       next_method_type & next, 
       error_method_type & error,
       vds::network_socket & s
-    ) : s_(std::move(s)),
+    ) : 
       next_(this, next),
-      error_(this, error)
+      error_(this, error),
+      s_(std::move(s))
     {
     }
 
@@ -69,21 +71,22 @@ class send_test
 {
 public:
   send_test(const vds::network_socket & s, const std::string & testdata)
-  : data_(testdata), s_(s)
+  : s_(s), data_(testdata)
   {
   }
 
   template<typename context_type>
   class handler : public vds::sequence_step<context_type, void(void)>
   {
+    using base_class = vds::sequence_step<context_type, void(void)>;
   public:
     handler(
       context_type & context,
       const send_test & owner)
-    : vds::sequence_step<context_type, void(void)>(context),
-      write_task_(*this, this->error),
+    : base_class(context),
       s_(owner.s_.handle()),
-      data_(owner.data_)
+      data_(owner.data_),
+      write_task_(*this, this->error)
     {
       this->write_task_.set_data(
         this->data_.c_str(),
@@ -100,11 +103,10 @@ public:
     }
   private:
     vds::network_socket::SOCKET_HANDLE s_;
+    std::string data_;
     vds::write_socket_task<
       handler,
-      typename context_type::error_method_t> write_task_;
-    std::string data_;
-
+      typename base_class::error_method_t> write_task_;
   };
   
 private:
@@ -285,12 +287,9 @@ TEST(network_tests, test_server)
     registrator.add(network_service);
 
     vds::barrier done;
-    std::exception * error = nullptr;
 
     {
         auto sp = registrator.build();
-        auto nm = sp.get<vds::inetwork_manager>();
-        
         
         auto done_server = vds::lambda_handler(
           []() {
