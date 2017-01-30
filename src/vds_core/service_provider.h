@@ -51,9 +51,11 @@ namespace vds {
     class iservice
     {
     public:
-        virtual void register_services(service_registrator &) = 0;
-        virtual void start(const service_provider &) = 0;
-        virtual void stop(const service_provider &) = 0;
+      virtual ~iservice();
+
+      virtual void register_services(service_registrator &) = 0;
+      virtual void start(const service_provider &) = 0;
+      virtual void stop(const service_provider &) = 0;
     };
 
     class service_registrator

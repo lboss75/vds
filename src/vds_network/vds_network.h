@@ -6,6 +6,8 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
+#include "vds_core.h"
+
 #ifndef _WIN32
 
 #include <sys/socket.h>
@@ -19,8 +21,6 @@ All rights reserved
 
 #include <cstring>
 
-
-#include "vds_core.h"
 
 #include "network_manager.h"
 #include "input_network_stream.h"

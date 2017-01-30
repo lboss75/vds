@@ -26,10 +26,6 @@ namespace vds {
       sp_(sp),
       network_service_(sp.get<inetwork_manager>().owner_),
       done_method_(done), error_method_(on_error)
-#ifdef _WIN32
-      , wait_accept_(this),
-        wait_accept_task_(wait_accept_, on_error)
-#endif//_WIN32
     {
 #ifdef _WIN32
       this->s_ = WSASocket(AF_INET, SOCK_STREAM, 0, NULL, 0, WSA_FLAG_OVERLAPPED);
@@ -135,7 +131,33 @@ namespace vds {
 #ifndef _WIN32
       event_add(&this->ev_accept_, NULL);
 #else
-      this->wait_accept_task_.schedule(this->sp_);
+      this->wait_accept_task_ = std::async(std::launch::async,
+        [this]() {
+        HANDLE events[2];
+        events[0] = this->sp_.get_shutdown_event().windows_handle();
+        events[1] = this->accept_event_.handle();
+
+        auto result = WSAWaitForMultipleEvents(2, events, FALSE, INFINITE, FALSE);
+        if ((WAIT_OBJECT_0 + 1) == result) {
+          WSANETWORKEVENTS WSAEvents;
+          WSAEnumNetworkEvents(
+            this->s_,
+            this->accept_event_.handle(),
+            &WSAEvents);
+          if ((WSAEvents.lNetworkEvents & FD_ACCEPT)
+            && (0 == WSAEvents.iErrorCode[FD_ACCEPT_BIT])) {
+            //Process it
+            sockaddr_in client_address;
+            int client_address_length = sizeof(client_address);
+
+            auto socket = accept(this->s_, (sockaddr*)&client_address, &client_address_length);
+            if (INVALID_SOCKET != socket) {
+              this->network_service_->associate(socket);
+              this->done_method_(network_socket(socket));
+            }
+          }
+        }
+      });
 #endif
     }
 
@@ -234,47 +256,7 @@ namespace vds {
     };
 
     windows_wsa_event accept_event_;
-
-    class wait_accept
-    {
-    public:
-      wait_accept(accept_socket_task * owner)
-      : owner_(owner)
-      {
-        this->events_[0] = owner->sp_.get_shutdown_event().windows_handle();
-        this->events_[1] = owner->accept_event_.handle();
-      }
-      
-      void operator()()
-      {
-        auto result = WSAWaitForMultipleEvents(2, events_, FALSE, INFINITE, FALSE);
-        if ((WAIT_OBJECT_0 + 1) == result) {
-          WSANETWORKEVENTS WSAEvents;
-          WSAEnumNetworkEvents(
-            this->owner_->s_,
-            this->owner_->accept_event_.handle(),
-            &WSAEvents);
-          if ((WSAEvents.lNetworkEvents & FD_ACCEPT)
-            && (0 == WSAEvents.iErrorCode[FD_ACCEPT_BIT])) {
-              //Process it
-              sockaddr_in client_address;
-              int client_address_length = sizeof(client_address);
-
-              auto socket = accept(this->owner_->s_, (sockaddr*)&client_address, &client_address_length);
-              if (INVALID_SOCKET != socket) {
-                  this->owner_->network_service_->associate(socket);
-                  this->owner_->done_method_(network_socket(socket));
-              }
-          }
-        }
-      }
-    private:
-      accept_socket_task * owner_;
-      HANDLE events_[2];
-    };
-
-    wait_accept wait_accept_;
-    async_task<wait_accept, error_method_type> wait_accept_task_;
+    std::future<void> wait_accept_task_;
 #endif
   };
 }

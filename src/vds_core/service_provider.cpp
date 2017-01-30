@@ -6,6 +6,9 @@ All rights reserved
 #include "stdafx.h"
 #include "service_provider.h"
 
+vds::iservice::~iservice()
+{
+}
 
 vds::iservice_provider_impl::iservice_provider_impl()
 {

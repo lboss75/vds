@@ -66,7 +66,6 @@ namespace vds {
     void process(DWORD dwBytesTransfered) override
     {
       this->next_method_(
-        *this,
         this->buffer_,
         (size_t)dwBytesTransfered
       );

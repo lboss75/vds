@@ -151,6 +151,7 @@ namespace vds {
             this->len_ -= size + 1;
           }
           else {
+#undef min
             size_t l = std::min(
               this->size_limit_ -this->readed_,
               this->len_);
