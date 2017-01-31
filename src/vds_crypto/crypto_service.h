@@ -16,8 +16,6 @@ namespace vds {
     void register_services(service_registrator &) override;
     void start(const service_provider &) override;
     void stop(const service_provider &) override;
-    
-    
   };
 
 }

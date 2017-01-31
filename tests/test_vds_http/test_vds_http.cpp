@@ -159,6 +159,94 @@ TEST(http_tests, test_server)
     registrator.shutdown();
 }
 
+TEST(http_tests, test_https_server)
+{
+  vds::service_registrator registrator;
+
+  vds::network_service network_service;
+  vds::console_logger console_logger;
+
+  registrator.add(console_logger);
+  registrator.add(network_service);
+
+  {
+    auto sp = registrator.build();
+
+    //Start server
+    vds::http_router router;
+    router.add_static(
+      "/",
+      "<html><body>Hello World</body></html>");
+
+    std::function<void(int)> f;
+
+    auto server_done_handler = vds::lambda_handler(
+      []() {
+      std::cout << "Server has been closed\n";
+    }
+    );
+    auto server_error_handler = vds::lambda_handler(
+      [](std::exception * ex) {
+      FAIL() << ex->what();
+      delete ex;
+    }
+    );
+
+    vds::sequence(
+      vds::socket_server(sp, "127.0.0.1", 8000),
+      vds::for_each<vds::network_socket>::create_handler(test_http_pipeline(router))
+    )
+    (
+      server_done_handler,
+      server_error_handler
+      );
+
+    //Start client
+    vds::http_request request("GET", "/");
+    vds::http_outgoing_stream outgoing_stream;
+
+    vds::http_simple_response_reader response_reader;
+
+    vds::barrier done;
+
+    auto done_handler = vds::lambda_handler(
+      [&done](const std::string & body) {
+      ASSERT_EQ(body, "<html><body>Hello World</body></html>");
+      done.set();
+    }
+    );
+
+    auto error_handler = vds::lambda_handler(
+      [&done](std::exception * ex) {
+      FAIL() << ex->what();
+      delete ex;
+      done.set();
+    }
+    );
+    vds::sequence(
+      vds::socket_connect(sp),
+      vds::http_send_request<
+      vds::http_simple_response_reader
+      >(
+        request,
+        outgoing_stream,
+        response_reader)
+    )
+    (
+      done_handler,
+      error_handler,
+      "127.0.0.1",
+      8000
+      );
+
+    //Wait
+    done.wait();
+  }
+
+  registrator.shutdown();
+}
+
+
 int main(int argc, char **argv) {
     setlocale(LC_ALL, "Russian");
     ::testing::InitGoogleTest(&argc, argv);
