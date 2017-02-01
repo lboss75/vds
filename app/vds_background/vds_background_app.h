@@ -1,5 +1,5 @@
-#ifndef __VDS_BACKGROUND_APP_H_
-#define __VDS_BACKGROUND_APP_H_
+#ifndef __VDS_BACKGROUND_VDS_BACKGROUND_APP_H_
+#define __VDS_BACKGROUND_VDS_BACKGROUND_APP_H_
 
 /*
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
@@ -26,4 +26,4 @@ namespace vds {
   };
 }
 
-#endif // __VDS_BACKGROUND_APP_H_
+#endif // __VDS_BACKGROUND_VDS_BACKGROUND_APP_H_
