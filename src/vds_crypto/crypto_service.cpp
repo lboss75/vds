@@ -28,6 +28,8 @@ void vds::crypto_service::start(const service_provider &)
   /* Load config file, and other important initialisation */
   OPENSSL_config(NULL);
   
+  SSL_library_init();
+  
 }
 
 void vds::crypto_service::stop(const service_provider &)

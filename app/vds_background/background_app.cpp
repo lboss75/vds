@@ -9,9 +9,9 @@ All rights reserved
 
 vds::background_app::background_app()
   :
+  start_server_command_set_("Server start", "Start web server", "start", "server"),
   http_server_done_([this]() { this->http_server_closed(); }),
-  http_server_error_([this](std::exception * ex) { this->http_server_error(ex); }),
-  start_server_command_set_("Server start", "Start web server", "start", "server")
+  http_server_error_([this](std::exception * ex) { this->http_server_error(ex); })
 {
   this->router_.add_static(
     "/",
@@ -24,7 +24,7 @@ void vds::background_app::main(const service_provider & sp)
 
   sequence(
     socket_server(sp, "127.0.0.1", 8000),
-    vds::for_each<network_socket>::create_handler(socket_session(this->router_))
+    vds::for_each<network_socket>::create_handler(socket_session(this->router_, this->certificate_))
   )
   (
     this->http_server_done_,
@@ -47,6 +47,7 @@ void vds::background_app::register_services(vds::service_registrator& registrato
 {
   base_class::register_services(registrator);
   registrator.add(this->network_service_);
+  registrator.add(this->crypto_service_);
 }
 
 void vds::background_app::register_command_line(command_line & cmd_line)
@@ -75,8 +76,9 @@ vds::background_app::socket_session::handler::handler(
   const socket_session & owner,
   vds::network_socket & s)
 : s_(std::move(s)),
-  router_(owner.router_),
+  peer_(false),
   certificate_(owner.certificate_),
+  router_(owner.router_),
   done_handler_(this),
   error_handler_([this](std::exception *) {delete this; }),
   http_server_done_([this]() {}),

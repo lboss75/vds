@@ -51,6 +51,11 @@ namespace vds {
         return this->value_.c_str();
       }
       
+      const std::string & str() const
+      {
+        return this->value_;
+      }
+      
   private:
     std::string value_;
   };

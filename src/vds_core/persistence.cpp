@@ -10,7 +10,8 @@ All rights reserved
 vds::foldername vds::persistence::current_user()
 {
 #ifndef _WIN32
-  return foldername("~/.vds/data");
+  struct passwd *pw = getpwuid(getuid());
+  return foldername(pw->pw_dir);
 #else
   CHAR result[MAX_PATH + 1];
   auto error = SHGetFolderPathA(

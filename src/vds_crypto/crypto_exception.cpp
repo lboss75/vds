@@ -5,8 +5,9 @@ All rights reserved
 
 #include "stdafx.h"
 #include "crypto_exception.h"
+#include "string_format.h"
 
 vds::crypto_exception::crypto_exception(const std::string & message, int error_code)
-  : std::runtime_error(message)
+  : std::runtime_error(string_format("%s: %s", message.c_str(), ERR_error_string(ERR_get_error(), nullptr)))
 {
 }

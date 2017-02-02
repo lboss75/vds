@@ -7,6 +7,7 @@ All rights reserved
 */
 
 #include "json_object.h"
+#include "parse_error.h"
 
 namespace vds {
   class json_parser

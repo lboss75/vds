@@ -69,13 +69,20 @@ namespace vds {
       handler(
         const context_type & context,
         const ssl_input_stream & args
-      ) : data_(nullprt)
+      ) : base_class(context),
+	peer_(args.peer_),
+	data_(nullptr),
+	len_(0)
       {
         this->peer_.set_flush_output_done_handler(this);
       }
 
       void operator()(const void * data, size_t len)
       {
+	if(0 < this->len_){
+	  throw new std::runtime_error("State error");
+	}
+	
         this->data_ = data;
         this->len_ = len;
 
@@ -88,7 +95,7 @@ namespace vds {
           auto bytes = this->peer_.write_input(this->data_, this->len_);
 
           this->data_ = reinterpret_cast<const uint8_t *>(this->data_) + bytes;
-          this->len_ = len - bytes;
+          this->len_ -= bytes;
         }
 
         this->peer_.flush_output();
@@ -133,12 +140,14 @@ namespace vds {
     {
       using base_class = sequence_step<context_type, void(void *, size_t)>;
     public:
-      ssl_output_stream(
+      handler(
         const context_type & context,
         const ssl_output_stream & args
       )
         : base_class(context),
         peer_(args.peer_),
+        data_(nullptr),
+        len_(0),
         is_passthrough_(false)
       {
         this->peer_.set_flush_output_handler(this);
@@ -146,12 +155,23 @@ namespace vds {
 
       void operator()(const void * data, size_t len)
       {
-        this->peer_.write_output(data, len);
-        this->processed();
+	if(this->is_passthrough_ || 0 < this->len_){
+	  throw new std::runtime_error("State error");
+	}
+	
+	this->data_ = data;
+	this->len_ = len;
+	this->processed();
       }
 
       void processed()
       {
+	if(0 < this->len_){
+	  auto written = this->peer_.write_decoded(this->data_, this->len_);
+	  this->data_ = reinterpret_cast<const uint8_t *>(this->data_) + written;
+	  this->len_ -= written;
+	}
+	
         auto len = this->peer_.read_output(this->buffer_, BUFFER_SIZE);
         if (0 == len) {
           if (this->is_passthrough_) {
@@ -182,6 +202,8 @@ namespace vds {
 
     private:
       ssl_peer & peer_;
+      const void * data_;
+      size_t len_;
       bool is_passthrough_;
       static constexpr size_t BUFFER_SIZE = 1024;
       uint8_t buffer_[BUFFER_SIZE];

@@ -129,15 +129,19 @@ namespace vds {
   
   //http://www.codepool.biz/how-to-use-openssl-to-sign-certificate.html
   //openssl genrsa -out cakey.pem 2048
-  //openssl req - new - days 365 - x509 - key cakey.pem - out cacert.pem - nodes - subj / C = CA / ST = BC / L = Vancouver / O = Dynamsoft / OU = Dynamsoft / CN = Dynamsoft / emailAddress = support@dynamsoft.com
-  //openssl rsa - in cakey.pem - pubout - out ca_pub.key
+  //openssl req -new -days 365 -x509 -key cakey.pem -out cacert.pem
+  //- nodes - subj / C = CA / ST = BC / L = Vancouver / O = Dynamsoft / OU = Dynamsoft / CN = Dynamsoft / emailAddress = support@dynamsoft.com
+  //openssl rsa -in cakey.pem -pubout -out ca_pub.key
   class certificate
   {
   public:
+    certificate();
+    ~certificate();
+    
     void load(const filename & filename);
     void save(const filename & filename);
 
-    const X509 * cert() const
+    X509 * cert() const
     {
       return this->cert_;
     }

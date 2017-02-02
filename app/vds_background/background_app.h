@@ -24,6 +24,8 @@ namespace vds {
     command_line_set start_server_command_set_;
 
     network_service network_service_;
+    crypto_service crypto_service_;
+    
     http_router router_;
     certificate certificate_;
 

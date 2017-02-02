@@ -202,12 +202,35 @@ vds::asymmetric_public_key::~asymmetric_public_key()
 {
 }
 
+vds::certificate::certificate()
+: cert_(nullptr)
+{
+}
+
+vds::certificate::~certificate()
+{
+  if(nullptr != this->cert_){
+    X509_free(this->cert_);
+  }
+}
+
+
 void vds::certificate::load(const filename & filename)
 {
   auto in = BIO_new_file(filename.c_str(), "r");
+  if(nullptr == in){
+    auto error = ERR_get_error();
+    throw new crypto_exception("Failed to load certificate " + filename.str(), error);
+    
+  }
 
-  PEM_read_bio_X509(in, &this->cert_, NULL, NULL);
-
+  this->cert_ = PEM_read_bio_X509(in, NULL, NULL, NULL);
+  if(nullptr == this->cert_){
+    auto error = ERR_get_error();
+    BIO_free(in);
+    throw new crypto_exception("Failed to load certificate " + filename.str(), error);
+  }
+  
   BIO_free(in);
 }
 
