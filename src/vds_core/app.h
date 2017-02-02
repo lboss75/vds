@@ -46,16 +46,13 @@ namespace vds{
     
     void register_services(service_registrator & registrator)
     {
-      //registrator.add(mt_service_);
     }
     
     
   protected:
     void start()
     {
-      vds::service_registrator registrator([this](std::exception * ex) {
-        static_cast<app_impl *>(this)->on_exception(ex);
-      });
+      vds::service_registrator registrator;
 
       static_cast<app_impl *>(this)->register_services(registrator);
       
@@ -65,10 +62,6 @@ namespace vds{
       
       registrator.shutdown();
     }
-    
-    
-  private:
-//    mt_service mt_service_;
   };
   
   template <typename app_impl>
