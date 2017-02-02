@@ -472,7 +472,46 @@ namespace vds {
         error_method(ex);
       }
     }
-    
+
+    template <
+      typename done_method_type,
+      typename error_method_type
+    >
+    class prepared_sequence
+    {
+    public:
+      prepared_sequence(
+        done_method_type & done_method,
+        error_method_type & error_method,
+        const std::tuple<functor_types...> & builder
+      ) : holder_(done_method, error_method, builder)
+      {
+
+      }
+
+    private:
+      _sequence_start_holder<done_proxy_type, error_proxy_type> holder_;
+    };
+
+
+    template <
+      typename done_method_type,
+      typename error_method_type
+    >
+    prepared_sequence<done_method_type, error_method_type> *
+    prepare(
+        done_method_type & done_method,
+        error_method_type & error_method
+     )
+    {
+      auto handler = new prepared_sequence<done_method_type, error_method_type>(
+        done_method,
+        error_method,
+        this->builder_);
+      handler->validate();
+      return handler;
+    }
+
   private:
     using tuple_type = std::tuple<functor_types...>;
     tuple_type builder_;

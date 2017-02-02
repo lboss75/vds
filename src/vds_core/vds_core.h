@@ -20,6 +20,7 @@ All rights reserved
 #include "foldername.h"
 #include "stream_to_string.h"
 #include "sequence.h"
+#include "persistence.h"
 
 #endif // !__VDS_CORE_H_
 

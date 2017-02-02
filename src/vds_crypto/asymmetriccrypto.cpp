@@ -202,7 +202,7 @@ vds::asymmetric_public_key::~asymmetric_public_key()
 {
 }
 
-void vds::certificate::load(const std::string & filename)
+void vds::certificate::load(const filename & filename)
 {
   auto in = BIO_new_file(filename.c_str(), "r");
 
@@ -211,7 +211,7 @@ void vds::certificate::load(const std::string & filename)
   BIO_free(in);
 }
 
-void vds::certificate::save(const std::string & filename)
+void vds::certificate::save(const filename & filename)
 {
   auto out = BIO_new_file(filename.c_str(), "w");
   auto ret = PEM_write_bio_X509(out, this->cert_);

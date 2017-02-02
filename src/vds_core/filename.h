@@ -45,6 +45,11 @@ namespace vds {
       std::string name() const;
       std::string name_without_extension() const;
       std::string extension() const;
+
+      const char * c_str() const
+      {
+        return this->value_.c_str();
+      }
       
   private:
     std::string value_;

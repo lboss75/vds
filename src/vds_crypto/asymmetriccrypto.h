@@ -134,8 +134,13 @@ namespace vds {
   class certificate
   {
   public:
-    void load(const std::string & filename);
-    void save(const std::string & filename);
+    void load(const filename & filename);
+    void save(const filename & filename);
+
+    const X509 * cert() const
+    {
+      return this->cert_;
+    }
 
   private:
     X509 * cert_;

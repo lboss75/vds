@@ -20,9 +20,11 @@ vds::background_app::background_app()
 
 void vds::background_app::main(const service_provider & sp)
 {
-  vds::sequence(
-    vds::socket_server(sp, "127.0.0.1", 8000),
-    vds::for_each<vds::network_socket>::create_handler(socket_session(this->router_))
+  this->certificate_.load(filename(foldername(persistence::current_user(), ".vds"), "cacert.pem"));
+
+  sequence(
+    socket_server(sp, "127.0.0.1", 8000),
+    vds::for_each<network_socket>::create_handler(socket_session(this->router_))
   )
   (
     this->http_server_done_,
@@ -62,16 +64,23 @@ void vds::background_app::http_server_error(std::exception *)
 {
 }
 
-vds::background_app::socket_session::socket_session(const vds::http_router & router)
-  : router_(router)
+vds::background_app::socket_session::socket_session(
+  const vds::http_router & router,
+  const certificate & certificate)
+  : router_(router), certificate_(certificate)
 {
 }
 
-vds::background_app::socket_session::handler::handler(const socket_session & owner, vds::network_socket & s)
+vds::background_app::socket_session::handler::handler(
+  const socket_session & owner,
+  vds::network_socket & s)
 : s_(std::move(s)),
   router_(owner.router_),
+  certificate_(owner.certificate_),
   done_handler_(this),
-  error_handler_([this](std::exception *) {delete this; })
+  error_handler_([this](std::exception *) {delete this; }),
+  http_server_done_([this]() {}),
+  http_server_error_([this](std::exception *) {})
 {
 }
 
@@ -79,15 +88,19 @@ void vds::background_app::socket_session::handler::start()
 {
   std::cout << "New connection\n";
 
+  this->peer_.set_certificate(this->certificate_);
+
   vds::sequence(
-    vds::input_network_stream(this->s_),
-    vds::http_parser(),
-    vds::http_middleware(this->router_),
-    vds::http_response_serializer(),
-    vds::output_network_stream(this->s_)
+    input_network_stream(this->s_),
+    ssl_input_stream(this->peer_),
+    http_parser(),
+    http_middleware(this->router_),
+    http_response_serializer(),
+    ssl_output_stream(this->peer_),
+    output_network_stream(this->s_)
   )
   (
     this->done_handler_,
     this->error_handler_
-    );
+  );
 }

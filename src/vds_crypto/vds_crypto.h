@@ -14,5 +14,6 @@ All rights reserved
 #include "crypto_service.h"
 #include "symmetriccrypto.h"
 #include "asymmetriccrypto.h"
+#include "ssl_peer.h"
 
 #endif // __VDS_CRYPTO_VDS_CRYPTO_H_

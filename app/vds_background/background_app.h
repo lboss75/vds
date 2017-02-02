@@ -25,6 +25,7 @@ namespace vds {
 
     network_service network_service_;
     http_router router_;
+    certificate certificate_;
 
     std::function<void(void)> http_server_done_;
     std::function<void(std::exception *)> http_server_error_;
@@ -35,7 +36,9 @@ namespace vds {
     class socket_session
     {
     public:
-      socket_session(const http_router & router);
+      socket_session(
+        const http_router & router,
+        const certificate & certificate);
 
       class handler
       {
@@ -48,13 +51,19 @@ namespace vds {
 
       private:
         network_socket s_;
+        ssl_peer peer_;
+        const certificate & certificate_;
         const http_router & router_;
         delete_this<handler> done_handler_;
 
         std::function<void(std::exception *)> error_handler_;
+
+        std::function<void(void)> http_server_done_;
+        std::function<void(std::exception *)> http_server_error_;
       };
     private:
       const http_router & router_;
+      const certificate & certificate_;
     };
   };
 }
