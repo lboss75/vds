@@ -9,8 +9,8 @@ All rights reserved
 
 vds::asymmetric_private_key::asymmetric_private_key()
   : info_(vds::asymmetric_crypto::unknown()),
-  key_(nullptr),
-  ctx_(nullptr)
+  ctx_(nullptr),
+  key_(nullptr)
 {
 }
 

@@ -6,13 +6,13 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
+#include "http_request.h"
 #include "http_response.h"
 #include "http_router.h"
 #include "http_outgoing_stream.h"
 
 namespace vds {
   class http_router;
-  class http_request;
   
   class http_middleware
   {

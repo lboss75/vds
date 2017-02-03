@@ -119,6 +119,7 @@ namespace vds{
       }
       catch(std::exception * ex){
         static_cast<app_impl *>(this)->on_exception(ex);
+	return 1;
       }
     }
     
