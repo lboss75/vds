@@ -668,7 +668,6 @@ void vds::network_service::thread_loop(const service_provider & provider)
           log(error("") << *error_message.get());
           return;
         }
-
         try {
           socket_task::from_overlapped(pOverlapped)->process(dwBytesTransfered);
         }

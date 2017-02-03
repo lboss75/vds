@@ -28,6 +28,8 @@ namespace vds {
     
     http_router router_;
     certificate certificate_;
+    asymmetric_private_key private_key_;
+
 
     std::function<void(void)> http_server_done_;
     std::function<void(std::exception *)> http_server_error_;
@@ -40,7 +42,9 @@ namespace vds {
     public:
       socket_session(
         const http_router & router,
-        const certificate & certificate);
+        const certificate & certificate,
+        const asymmetric_private_key & private_key
+      );
 
       class handler
       {
@@ -55,6 +59,7 @@ namespace vds {
         network_socket s_;
         ssl_peer peer_;
         const certificate & certificate_;
+        const asymmetric_private_key & private_key_;
         const http_router & router_;
         delete_this<handler> done_handler_;
 
@@ -66,6 +71,8 @@ namespace vds {
     private:
       const http_router & router_;
       const certificate & certificate_;
+      const asymmetric_private_key & private_key_;
+
     };
   };
 }

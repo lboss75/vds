@@ -19,6 +19,7 @@ namespace vds {
   class asymmetric_crypto
   {
   public:
+    static const asymmetric_crypto_info & unknown();
     static const asymmetric_crypto_info & rsa2048();
     
   };
@@ -26,12 +27,18 @@ namespace vds {
   class asymmetric_private_key
   {
   public:
+    asymmetric_private_key();
     asymmetric_private_key(const asymmetric_crypto_info & info);
     ~asymmetric_private_key();
     
     void generate();
 
-    void load(const std::string & filename);
+    void load(const filename & filename);
+
+    EVP_PKEY * key() const
+    {
+      return this->key_;
+    }
         
   private:
     friend class asymmetric_sign;

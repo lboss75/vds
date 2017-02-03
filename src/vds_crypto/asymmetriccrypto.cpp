@@ -7,6 +7,13 @@ All rights reserved
 #include "asymmetriccrypto.h"
 #include "crypto_exception.h"
 
+vds::asymmetric_private_key::asymmetric_private_key()
+  : info_(vds::asymmetric_crypto::unknown()),
+  key_(nullptr),
+  ctx_(nullptr)
+{
+}
+
 vds::asymmetric_private_key::asymmetric_private_key(
   const vds::asymmetric_crypto_info & info)
 : info_(info), key_(nullptr)
@@ -38,17 +45,34 @@ void vds::asymmetric_private_key::generate()
   }
 }
 
-void vds::asymmetric_private_key::load(const std::string & filename)
+void vds::asymmetric_private_key::load(const filename & filename)
 {
-  auto in = BIO_new_file(filename.c_str(), "r");
+  auto in = BIO_new_file(filename.local_name().c_str(), "r");
+  if (nullptr == in) {
+    auto error = ERR_get_error();
+    throw new crypto_exception("Failed to private key " + filename.str(), error);
+  }
 
-  RSA *r = nullptr;
-  PEM_read_bio_RSAPrivateKey(in, &r, NULL, NULL);
+  RSA * r = PEM_read_bio_RSAPrivateKey(in, NULL, NULL, NULL);
+  if (nullptr == r) {
+    auto error = ERR_get_error();
+    throw new crypto_exception("Failed to private key " + filename.str(), error);
+  }
 
   this->key_ = EVP_PKEY_new();
   EVP_PKEY_assign_RSA(this->key_, r);
 
   BIO_free(in);
+}
+
+const vds::asymmetric_crypto_info & vds::asymmetric_crypto::unknown()
+{
+  static asymmetric_crypto_info result = {
+    EVP_PKEY_NONE,
+    -1
+  };
+
+  return result;
 }
 
 const vds::asymmetric_crypto_info & vds::asymmetric_crypto::rsa2048()
@@ -217,11 +241,10 @@ vds::certificate::~certificate()
 
 void vds::certificate::load(const filename & filename)
 {
-  auto in = BIO_new_file(filename.c_str(), "r");
+  auto in = BIO_new_file(filename.local_name().c_str(), "r");
   if(nullptr == in){
     auto error = ERR_get_error();
     throw new crypto_exception("Failed to load certificate " + filename.str(), error);
-    
   }
 
   this->cert_ = PEM_read_bio_X509(in, NULL, NULL, NULL);
@@ -236,7 +259,7 @@ void vds::certificate::load(const filename & filename)
 
 void vds::certificate::save(const filename & filename)
 {
-  auto out = BIO_new_file(filename.c_str(), "w");
+  auto out = BIO_new_file(filename.local_name().c_str(), "w");
   auto ret = PEM_write_bio_X509(out, this->cert_);
   BIO_free_all(out);
 

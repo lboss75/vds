@@ -26,8 +26,20 @@ namespace vds {
       error_method_type & error_method,
       const network_socket & s
     ) : s_(s.handle()),
-    next_method_(next_method), error_method_(error_method)      
+    next_method_(next_method), error_method_(error_method)
+#ifdef _DEBUG
+      , is_scheduled_(false)
+#endif // _DEBUG
     {
+    }
+
+    ~read_socket_task()
+    {
+#ifdef _DEBUG
+      if (this->is_scheduled_) {
+        throw new std::runtime_error("");
+      }
+#endif // _DEBUG
     }
     
     void operator()()
@@ -36,6 +48,12 @@ namespace vds {
       this->wsa_buf_.len = BUFFER_SIZE;
       this->wsa_buf_.buf = (CHAR *)this->buffer_;
 
+#ifdef _DEBUG
+      if (this->is_scheduled_) {
+        throw new std::exception();
+      }
+      this->is_scheduled_ = true;
+#endif
       DWORD flags = 0;
       DWORD numberOfBytesRecvd;
       if (NOERROR != WSARecv(this->s_, &this->wsa_buf_, 1, &numberOfBytesRecvd, &flags, &this->overlapped_, NULL)) {
@@ -61,10 +79,20 @@ namespace vds {
     next_method_type & next_method_;
     error_method_type & error_method_;
     u_int8_t buffer_[BUFFER_SIZE];
+#ifdef _DEBUG
+    bool is_scheduled_;
+#endif
     
 #ifdef _WIN32
     void process(DWORD dwBytesTransfered) override
     {
+#ifdef _DEBUG
+      if (!this->is_scheduled_) {
+        throw new std::exception();
+      }
+      this->is_scheduled_ = false;
+#endif
+
       this->next_method_(
         this->buffer_,
         (size_t)dwBytesTransfered

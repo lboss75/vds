@@ -110,7 +110,7 @@ namespace vds {
                 }
               }
 
-              if ((index + 1) != sizeof(items) / sizeof(items[0])) {
+              if (index < 1) {
                 throw new std::logic_error("Invalid request");
               }
 

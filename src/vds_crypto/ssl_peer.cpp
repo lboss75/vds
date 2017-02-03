@@ -7,16 +7,37 @@ All rights reserved
 #include "crypto_exception.h"
 #include "asymmetriccrypto.h"
 
-vds::ssl_peer::ssl_peer(bool is_client)
-  : is_client_(is_client), is_handshaking_(true)
+vds::ssl_peer::ssl_peer(bool is_client, const certificate * cert, const asymmetric_private_key * key)
+  : is_client_(is_client)
 {
-  this->ssl_ctx_ = SSL_CTX_new(SSLv23_method());
+  this->ssl_ctx_ = SSL_CTX_new(SSLv23_server_method());
   if(nullptr == this->ssl_ctx_){
     auto error = ERR_get_error();
     throw new crypto_exception("SSL_CTX_new failed", error);
   }
   
-  SSL_CTX_set_verify(this->ssl_ctx_, SSL_VERIFY_NONE, nullptr);
+  //SSL_CTX_set_verify(this->ssl_ctx_, SSL_VERIFY_NONE, nullptr);
+
+  //set_certificate_and_key
+  if (nullptr != cert) {
+    int result = SSL_CTX_use_certificate(this->ssl_ctx_, cert->cert());
+    if (0 >= result) {
+      int ssl_error = SSL_get_error(this->ssl_, result);
+      throw new crypto_exception("SSL_CTX_use_certificate", ssl_error);
+    }
+
+    result = SSL_CTX_use_PrivateKey(this->ssl_ctx_, key->key());
+    if (0 >= result) {
+      int ssl_error = SSL_get_error(this->ssl_, result);
+      throw new crypto_exception("SSL_CTX_use_PrivateKey", ssl_error);
+    }
+
+    result = SSL_CTX_check_private_key(this->ssl_ctx_);
+    if (0 >= result) {
+      int ssl_error = SSL_get_error(this->ssl_, result);
+      throw new crypto_exception("SSL_CTX_check_private_key", ssl_error);
+    }
+  }
 
   this->ssl_ = SSL_new(this->ssl_ctx_);
   if(nullptr == this->ssl_){
@@ -49,8 +70,6 @@ vds::ssl_peer::ssl_peer(bool is_client)
 
 size_t vds::ssl_peer::write_input(const void * data, size_t len)
 {
-  std::cout << "ssl_peer::write_input(" << len << ")\n";
-  
   int bytes = BIO_write(this->input_bio_, data, len);
   if (bytes <= 0) {
     if (!BIO_should_retry(this->input_bio_)) {
@@ -67,7 +86,6 @@ size_t vds::ssl_peer::write_input(const void * data, size_t len)
 size_t vds::ssl_peer::read_decoded(uint8_t * data, size_t len)
 {
   int bytes = SSL_read(this->ssl_, data, len);
-  std::cout << "ssl_peer::read_decoded(" << bytes << ")\n";
   if(0 <= bytes){
     return (size_t)bytes;
   }
@@ -81,7 +99,6 @@ size_t vds::ssl_peer::read_decoded(uint8_t * data, size_t len)
 
 size_t vds::ssl_peer::write_decoded(const void * data, size_t len)
 {
-  std::cout << "ssl_peer::write_decoded(" << len << ")\n";
   int bytes = SSL_write(this->ssl_, data, len);
   if (0 <= bytes) {
     return (size_t)bytes;
@@ -103,13 +120,12 @@ size_t vds::ssl_peer::write_decoded(const void * data, size_t len)
 
 size_t vds::ssl_peer::read_output(uint8_t * data, size_t len)
 {
+  if (!this->is_client_ && !BIO_pending(this->output_bio_)) {
+    return 0;
+  }
   int bytes = BIO_read(this->output_bio_, data, len);
-  std::cout << "ssl_peer::read_output(" << bytes << ")\n";
   if (bytes > 0) {
     return (size_t)bytes;
-  }
-  else if(BIO_should_retry(this->output_bio_)){
-    return 0;
   }
   else {
     int ssl_error = SSL_get_error(this->ssl_, bytes);
@@ -124,10 +140,5 @@ size_t vds::ssl_peer::read_output(uint8_t * data, size_t len)
 
     throw new crypto_exception("BIO_read", ssl_error);
   }
-}
-
-void vds::ssl_peer::set_certificate(const certificate & cert)
-{
-  SSL_CTX_use_certificate(this->ssl_ctx_, cert.cert());
 }
 

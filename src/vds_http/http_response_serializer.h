@@ -49,21 +49,27 @@ namespace vds {
         http_outgoing_stream & response_stream
         )
       {
-        std::stringstream stream;
-        stream << "HTTP/1.0 " << response.code() << " " << response.comment() << "\n";
-        for (auto & header : response.headers()) {
-          stream << header << "\n";
+        if (!response.empty()) {
+          std::stringstream stream;
+          stream << "HTTP/1.0 " << response.code() << " " << response.comment() << "\n";
+          for (auto & header : response.headers()) {
+            stream << header << "\n";
+          }
+
+          stream
+            << "Content-Length: " << response_stream.size() << "\n"
+            << "Connection: close\n\n";
+
+          if (response_stream.is_simple()) {
+            stream << response_stream.body();
+          }
+
+          this->buffer_ = stream.str();
+        }
+        else {
+          this->buffer_.clear();
         }
 
-        stream
-          << "Content-Length: " << response_stream.size() << "\n"
-          << "Connection: close\n\n";
-
-        if(response_stream.is_simple()){
-          stream << response_stream.body();
-        }
-        
-        this->buffer_ = stream.str();
         this->next(
           this->buffer_.c_str(),
           this->buffer_.size());

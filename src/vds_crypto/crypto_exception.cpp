@@ -8,6 +8,6 @@ All rights reserved
 #include "string_format.h"
 
 vds::crypto_exception::crypto_exception(const std::string & message, int error_code)
-  : std::runtime_error(string_format("%s: %s", message.c_str(), ERR_error_string(ERR_get_error(), nullptr)))
+  : std::runtime_error(string_format("%s: %s", message.c_str(), ERR_error_string(error_code, nullptr)))
 {
 }

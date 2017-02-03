@@ -16,4 +16,9 @@ All rights reserved
 #include "asymmetriccrypto.h"
 #include "ssl_peer.h"
 
+#ifdef _WIN32
+#pragma comment(lib, "crypt32.lib")
+#endif
+
+
 #endif // __VDS_CRYPTO_VDS_CRYPTO_H_

@@ -14,6 +14,8 @@ namespace vds {
   public:
     static constexpr int HTTP_OK = 200;
     
+    http_response();
+
     void reset(
       const http_request & request
     );
@@ -55,6 +57,11 @@ namespace vds {
     const std::list<std::string> headers() const
     {
       return this->headers_;
+    }
+
+    bool empty() const
+    {
+      return this->code_ < 0;
     }
 
   private:

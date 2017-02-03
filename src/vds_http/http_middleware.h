@@ -49,12 +49,14 @@ namespace vds {
         http_incoming_stream & incoming_stream
       ) {
         this->response_.reset(request);
-        this->router_.route(
-          request,
-          incoming_stream,
-          this->response_,
-          this->outgoing_stream_
-        );
+        if (!request.empty()) {
+          this->router_.route(
+            request,
+            incoming_stream,
+            this->response_,
+            this->outgoing_stream_
+          );
+        }
         
         this->next(
           this->response_,

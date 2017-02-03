@@ -6,10 +6,16 @@ All rights reserved
 #include "stdafx.h"
 #include "http_response.h"
 
+vds::http_response::http_response()
+  : code_(-1)
+{
+}
+
 void vds::http_response::reset(
   const vds::http_request& request
 )
 {
+  this->code_ = -1;
 }
 
 bool vds::http_response::get_header(

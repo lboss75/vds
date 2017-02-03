@@ -7,6 +7,7 @@ All rights reserved
 
 namespace vds {
   class certificate;
+  class asymmetric_private_key;
 
   class flush_output_handler
   {
@@ -22,15 +23,17 @@ namespace vds {
 
   class ssl_peer {
   public:
-    ssl_peer(bool is_client);
+    ssl_peer(
+      bool is_client,
+      const certificate * cert,
+      const asymmetric_private_key * key
+    );
 
     size_t write_input(const void * data, size_t len);
     size_t read_output(uint8_t * data, size_t len);
 
     size_t read_decoded(uint8_t * data, size_t len);
     size_t write_decoded(const void * data, size_t len);
-
-    void set_certificate(const certificate & cert);
 
     void flush_output() { this->flush_output_handler_->flush_output(); }
     void set_flush_output_handler(flush_output_handler * handler) { this->flush_output_handler_ = handler; }
@@ -44,7 +47,6 @@ namespace vds {
     BIO * output_bio_;
 
     bool is_client_;
-    bool is_handshaking_;
 
     flush_output_handler * flush_output_handler_;
     flush_output_done_handler * flush_output_done_handler_;
@@ -72,7 +74,8 @@ namespace vds {
       ) : base_class(context),
 	peer_(args.peer_),
 	data_(nullptr),
-	len_(0)
+	len_(0),
+        eof_(false)
       {
         this->peer_.set_flush_output_done_handler(this);
       }
@@ -82,6 +85,9 @@ namespace vds {
 	if(0 < this->len_){
 	  throw new std::runtime_error("State error");
 	}
+  if (0 == len) {
+    this->eof_ = true;
+        }
 	
         this->data_ = data;
         this->len_ = len;
@@ -98,18 +104,21 @@ namespace vds {
           this->len_ -= bytes;
         }
 
-        this->peer_.flush_output();
-      }
-
-      void flush_output_done() override
-      {
         auto bytes = this->peer_.read_decoded(this->buffer_, BUFFER_SIZE);
         if (bytes > 0) {
           this->next(this->buffer_, bytes);
         }
-        else {
-          this->prev();
+        else if (this->eof_) {
+          this->next(nullptr, 0);
         }
+        else {
+          this->peer_.flush_output();
+        }        
+      }
+
+      void flush_output_done() override
+      {
+        this->prev();
       }
 
     private:
@@ -120,6 +129,8 @@ namespace vds {
 
       static constexpr size_t BUFFER_SIZE = 1024;
       uint8_t buffer_[BUFFER_SIZE];
+
+      bool eof_;
     };
   private:
     ssl_peer & peer_;
@@ -148,7 +159,8 @@ namespace vds {
         peer_(args.peer_),
         data_(nullptr),
         len_(0),
-        is_passthrough_(false)
+        is_passthrough_(false),
+        eof_(false)
       {
         this->peer_.set_flush_output_handler(this);
       }
@@ -158,6 +170,9 @@ namespace vds {
 	if(this->is_passthrough_ || 0 < this->len_){
 	  throw new std::runtime_error("State error");
 	}
+  if (0 == len) {
+    this->eof_ = true;
+        }
 	
 	this->data_ = data;
 	this->len_ = len;
@@ -177,6 +192,9 @@ namespace vds {
           if (this->is_passthrough_) {
             this->is_passthrough_ = false;
             this->peer_.finish_flush_output();
+          }
+          else if (this->eof_) {
+            this->next(nullptr, 0);
           }
           else {
             this->prev();
@@ -207,6 +225,7 @@ namespace vds {
       bool is_passthrough_;
       static constexpr size_t BUFFER_SIZE = 1024;
       uint8_t buffer_[BUFFER_SIZE];
+      bool eof_;
     };
 
   private:

@@ -25,7 +25,20 @@ namespace vds {
       )
     : done_method_(done_method), error_method_(error_method),
       data_(nullptr), data_size_(0)
+#ifdef _DEBUG
+      , is_scheduled_(false)
+#endif
     {
+    }
+
+    ~write_socket_task()
+    {
+#ifdef _DEBUG
+      if (this->is_scheduled_) {
+        throw new std::exception();
+      }
+#endif
+
     }
 
     void set_data(
@@ -49,10 +62,19 @@ namespace vds {
     network_socket::SOCKET_HANDLE s_;
     const u_int8_t * data_;
     size_t data_size_;
+#ifdef _DEBUG
+    bool is_scheduled_;
+#endif
 
 #ifdef _WIN32
     void schedule()
     {
+#ifdef _DEBUG
+      if (this->is_scheduled_) {
+        throw new std::exception();
+      }
+      this->is_scheduled_ = true;
+#endif
       this->wsa_buf_.len = (ULONG)this->data_size_;
       this->wsa_buf_.buf = (CHAR *)this->data_;
 
@@ -66,6 +88,12 @@ namespace vds {
 
     void process(DWORD dwBytesTransfered) override
     {
+#ifdef _DEBUG
+      if (!this->is_scheduled_) {
+        throw new std::exception();
+      }
+      this->is_scheduled_ = false;
+#endif
       this->data_ += dwBytesTransfered;
       this->data_size_ -= dwBytesTransfered;
 

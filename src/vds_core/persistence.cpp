@@ -16,12 +16,16 @@ vds::foldername vds::persistence::current_user()
   CHAR result[MAX_PATH + 1];
   auto error = SHGetFolderPathA(
     NULL,
-    CSIDL_LOCAL_APPDATA,
+    CSIDL_PERSONAL,
     NULL,
     SHGFP_TYPE_CURRENT,
     result);
   if(NO_ERROR != error) {
     throw new std::system_error(error, std::system_category(), "SHGetFolderPath");
+  }
+
+  for(auto p = strchr(result, '\\'); nullptr != p; p = strchr(p + 1, '\\')) {
+    *p = '/';
   }
   
   return foldername(result);
@@ -43,7 +47,11 @@ vds::foldername vds::persistence::local_machine()
   if(NO_ERROR != error) {
     throw new std::system_error(error, std::system_category(), "SHGetFolderPath");
   }
-  
+
+  for (auto p = strchr(result, '\\'); nullptr != p; p = strchr(p + 1, '\\')) {
+    *p = '/';
+  }
+
   return foldername(result);
 #endif
 }

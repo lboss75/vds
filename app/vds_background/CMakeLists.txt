@@ -14,6 +14,7 @@ include_directories(${vds_network_SOURCE_DIR})
 include_directories(${vds_http_SOURCE_DIR})
 include_directories(${vds_parser_SOURCE_DIR})
 include_directories(${vds_crypto_SOURCE_DIR})
+include_directories(${OPENSSL_INCLUDE_DIR})
 
 FILE(GLOB HEADER_FILES *.h)
 FILE(GLOB SOURCE_FILES *.cpp)

@@ -234,35 +234,40 @@ public:
       std::cout << "server connected\n";
       this->s_ = std::move(s);
 
+      vds::barrier b;
       auto done_handler = vds::lambda_handler(
-       []() {
+       [&b]() {
         std::cout << "test sent\n";
+        b.set();
         }
       );
       auto error_handler = vds::lambda_handler(
-        [](std::exception * ex) {
+        [&b](std::exception * ex) {
           FAIL() << ex->what();
           delete ex;
-        }
+          b.set();
+      }
       );
       
       vds::write_socket_task<
         decltype(done_handler),
         decltype(error_handler)>
         write_task(done_handler, error_handler);
-      const char data[] = "test\n";
+      const char data[] = "test_test_test_test_test_test_test_test_test_test_test_test_test_test_test_\n";
       write_task.set_data(data, sizeof(data) - 1);
       write_task.schedule(this->s_.handle());
 
       vds::sequence(
         vds::input_network_stream(this->s_),
         read_for_newline(),
-        check_result("test")
+        check_result("test_test_test_test_test_test_test_test_test_test_test_test_test_test_test_")
       )
       (
         this->next,
         this->error
       );
+
+      b.wait();
     }
     
     void processed()

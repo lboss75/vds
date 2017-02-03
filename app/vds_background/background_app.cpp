@@ -21,10 +21,11 @@ vds::background_app::background_app()
 void vds::background_app::main(const service_provider & sp)
 {
   this->certificate_.load(filename(foldername(persistence::current_user(), ".vds"), "cacert.pem"));
+  this->private_key_.load(filename(foldername(persistence::current_user(), ".vds"), "cakey.pem"));
 
   sequence(
     socket_server(sp, "127.0.0.1", 8000),
-    vds::for_each<network_socket>::create_handler(socket_session(this->router_, this->certificate_))
+    vds::for_each<network_socket>::create_handler(socket_session(this->router_, this->certificate_, this->private_key_))
   )
   (
     this->http_server_done_,
@@ -67,8 +68,10 @@ void vds::background_app::http_server_error(std::exception *)
 
 vds::background_app::socket_session::socket_session(
   const vds::http_router & router,
-  const certificate & certificate)
-  : router_(router), certificate_(certificate)
+  const certificate & certificate,
+  const asymmetric_private_key & private_key)
+  : router_(router), certificate_(certificate),
+  private_key_(private_key)
 {
 }
 
@@ -76,8 +79,9 @@ vds::background_app::socket_session::handler::handler(
   const socket_session & owner,
   vds::network_socket & s)
 : s_(std::move(s)),
-  peer_(false),
+  peer_(false, &owner.certificate_, &owner.private_key_),
   certificate_(owner.certificate_),
+  private_key_(owner.private_key_),
   router_(owner.router_),
   done_handler_(this),
   error_handler_([this](std::exception *) {delete this; }),
@@ -89,8 +93,6 @@ vds::background_app::socket_session::handler::handler(
 void vds::background_app::socket_session::handler::start()
 {
   std::cout << "New connection\n";
-
-  this->peer_.set_certificate(this->certificate_);
 
   vds::sequence(
     input_network_stream(this->s_),
