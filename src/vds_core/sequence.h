@@ -823,7 +823,6 @@ namespace vds {
         
         void operator ()(arg_types&... args)
         {
-          std::cout << "for_each()\n";
           try {
             auto handler = new typename handler_args_type::handler
             (
@@ -840,7 +839,6 @@ namespace vds {
 
         void processed()
         {
-          std::cout << "for_each::processed()\n";
           this->prev();
         }
         void validate()

@@ -17,12 +17,7 @@ namespace vds {
     : handler_(nullptr)
     {
     }
-    
-    ~http_incoming_stream()
-    {
-        std::cout << "http_incoming_stream::~http_incoming_stream\n";
-    }
-    
+   
     void push_data(
       const void * data,
       size_t len)

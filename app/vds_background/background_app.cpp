@@ -92,8 +92,6 @@ vds::background_app::socket_session::handler::handler(
 
 void vds::background_app::socket_session::handler::start()
 {
-  std::cout << "New connection\n";
-
   vds::sequence(
     input_network_stream(this->s_),
     ssl_input_stream(this->peer_),
