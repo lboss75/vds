@@ -3,10 +3,13 @@ cmake_minimum_required(VERSION 2.6.2)
 
 if (UNIX)
 	find_package (OpenSSL REQUIRED)
+	set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../cmake")
 else()
 	set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../cmake")
 	find_package (OpenSSL REQUIRED)
 endif (UNIX)
+
+find_package (UPNP REQUIRED)
 
 
 include_directories(${vds_core_SOURCE_DIR})
@@ -14,7 +17,9 @@ include_directories(${vds_network_SOURCE_DIR})
 include_directories(${vds_http_SOURCE_DIR})
 include_directories(${vds_parser_SOURCE_DIR})
 include_directories(${vds_crypto_SOURCE_DIR})
+include_directories(${vds_upnp_SOURCE_DIR})
 include_directories(${OPENSSL_INCLUDE_DIR})
+include_directories(${UPNP_INCLUDE_DIR})
 
 FILE(GLOB HEADER_FILES *.h)
 FILE(GLOB SOURCE_FILES *.cpp)
@@ -29,5 +34,7 @@ target_link_libraries(
   vds_http
   vds_parser
   vds_crypto
+  vds_upnp
   ${OPENSSL_LIBRARIES}
+  ${UPNP_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT})

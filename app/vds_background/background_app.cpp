@@ -20,6 +20,9 @@ vds::background_app::background_app()
 
 void vds::background_app::main(const service_provider & sp)
 {
+  upnp_client upnp(sp);
+  upnp.open_port(100, 100);
+  
   this->certificate_.load(filename(foldername(persistence::current_user(), ".vds"), "cacert.pem"));
   this->private_key_.load(filename(foldername(persistence::current_user(), ".vds"), "cakey.pem"));
 

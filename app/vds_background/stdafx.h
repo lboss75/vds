@@ -9,5 +9,6 @@ All rights reserved
 #include "vds_http.h"
 #include "vds_parser.h"
 #include "vds_crypto.h"
+#include "vds_upnp.h"
 
 #endif // __VDS_BACKGROUND_STDAFX_H_
