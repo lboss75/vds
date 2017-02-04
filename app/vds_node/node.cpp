@@ -5,11 +5,11 @@ All rights reserved
 
 #include "stdafx.h"
 #include "vds_http.h"
-#include "vds_node_app.h"
+#include "node_app.h"
 
 int main(int argc, const char ** argv)
 {
-  vds::vds_node_app app;
+  vds::node_app app;
   
   return app.run(argc, argv);
 }

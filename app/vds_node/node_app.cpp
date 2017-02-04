@@ -4,9 +4,9 @@ All rights reserved
 */
 
 #include "stdafx.h"
-#include "vds_node_app.h"
+#include "node_app.h"
 
-vds::vds_node_app::vds_node_app()
+vds::node_app::node_app()
 :
 add_storage_cmd_set_(
   "Add new storage",
@@ -34,13 +34,13 @@ storage_path_(
 
 }
 
-void vds::vds_node_app::main(
+void vds::node_app::main(
   const vds::service_provider& sp)
 {
 
 }
 
-void vds::vds_node_app::register_command_line(vds::vds_command_line& cmd_line)
+void vds::node_app::register_command_line(vds::command_line& cmd_line)
 {
   cmd_line.add_command_set(this->add_storage_cmd_set_);
   this->add_storage_cmd_set_.required(this->storage_path_);
