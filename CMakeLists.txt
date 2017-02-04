@@ -4,8 +4,10 @@ project(vds)
 
 include(CMakeLists.inc)
 
-add_subdirectory(src)
+add_subdirectory(kernel)
+add_subdirectory(libs)
 add_subdirectory(app)
 add_subdirectory(tests)
+
 
 
