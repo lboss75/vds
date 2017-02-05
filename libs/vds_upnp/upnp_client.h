@@ -13,7 +13,17 @@ namespace vds {
     upnp_client(const service_provider & sp);
     ~upnp_client();
     
-    void open_port(uint16_t internal_port, uint16_t external_port);    
+    bool open_port(
+      uint16_t internal_port,
+      uint16_t external_port,
+      const std::string & protocol,
+      const std::string & description
+    );
+    
+    void close_port(
+      uint16_t external_port,
+      const std::string & protocol
+    );
     
   private:
     logger log_;

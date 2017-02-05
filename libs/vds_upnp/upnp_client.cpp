@@ -23,7 +23,12 @@ vds::upnp_client::~upnp_client()
 }
 
 
-void vds::upnp_client::open_port(uint16_t internal_port, uint16_t external_port)
+bool vds::upnp_client::open_port(
+  uint16_t internal_port,
+  uint16_t external_port,
+  const std::string & protocol,
+  const std::string & description
+)
 {
   this->log_(debug("Execute the UPNP discovery process"));
   
@@ -44,7 +49,44 @@ void vds::upnp_client::open_port(uint16_t internal_port, uint16_t external_port)
     }
     else {
       this->log_(debug("Found IGD ") << this->upnp_urls_.controlURL << " (status " << status << ")");
+      
+      int r = UPNP_AddPortMapping(
+				this->upnp_urls_.controlURL,
+				this->igd_data_.first.servicetype,
+				std::to_string(internal_port).c_str(),
+				std::to_string(external_port).c_str(),
+				this->lanaddr_,
+				description.c_str(),
+				protocol.c_str(),
+				0,
+				0);
+      if (r == UPNPCOMMAND_SUCCESS) {
+        this->log_(debug("Added mapping ") << protocol << " " << external_port << " to " << this->lanaddr_ << internal_port);
+        return true;
+      }
+      else {
+        this->log_(error("open_port failed with code ") << r << "(" << strupnperror(r) << ")");
+      }
     }
   }
+  
+  return false;
 }
 
+void vds::upnp_client::close_port(
+  uint16_t external_port,
+  const std::string& protocol)
+{
+  int r = UPNP_DeletePortMapping(
+    this->upnp_urls_.controlURL,
+    this->igd_data_.first.servicetype,
+    std::to_string(external_port).c_str(),
+    protocol.c_str(),
+    0);
+  if (r == UPNPCOMMAND_SUCCESS) {
+    this->log_(debug("Removed mapping ") << protocol << " " << external_port);
+  }
+  else {
+    this->log_(error("close_port failed with code ") << r << "(" << strupnperror(r) << ")");
+  }
+}
