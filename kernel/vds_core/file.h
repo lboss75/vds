@@ -17,10 +17,10 @@ namespace vds {
       : filename_(filename)
     {
 #ifndef _WIN32
-      this->handle_ = open(filename.c_str(), O_RDONLY);
+      this->handle_ = open(filename.local_name().c_str(), O_RDONLY);
       if (0 > this->handle_) {
         auto error = errno;
-        throw new c_exception("Unable to open file " + args.filename_.c_str(), error);
+        throw new std::system_error(error, std::system_category(), "Unable to open file " + this->filename_.str());
       }
 #else
       this->handle_ = _open(this->filename_.local_name().c_str(), _O_RDONLY);
@@ -45,7 +45,11 @@ namespace vds {
     {
       auto readed = ::read(this->handle_, this->buffer_, sizeof(this->buffer_));
       if (0 > readed) {
+#ifdef _WIN32
         auto error = GetLastError();
+#else
+        auto error = errno;
+#endif
         throw new std::system_error(error, std::system_category(), "Unable to read file " + this->filename_.str());
       }
 

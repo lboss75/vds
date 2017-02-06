@@ -13,13 +13,16 @@ All rights reserved
 #include <SDKDDKVer.h>
 #include <windows.h>
 #include <Shlobj.h>
+#include <io.h>
 
 #pragma comment(lib, "Shell32.lib")
 
 #else
 
 #include <sys/types.h>
-
+#include <fcntl.h>
+#include <unistd.h>
+ 
 #endif
 
 #include "stddef.h"
@@ -33,6 +36,5 @@ All rights reserved
 #include <stdio.h>
 #include <stdlib.h>
 #include <fcntl.h>
-#include <io.h>
 
 #endif// __VDS_CORE_TARGETVER_H_

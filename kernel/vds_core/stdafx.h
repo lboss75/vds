@@ -30,6 +30,8 @@ All rights reserved
 #include <dirent.h>
 #include <unistd.h>
 #include <pwd.h>
+#include <locale>
+#include <sys/stat.h>
 #else
 #include <io.h>
 #endif//_WIN32

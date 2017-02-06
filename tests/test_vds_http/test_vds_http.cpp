@@ -86,7 +86,7 @@ TEST(http_tests, test_server)
         auto sp = registrator.build();
 
         //Start server
-        vds::http_router router;
+        vds::http_router router(sp);
         router.add_static(
           "/",
           "<html><body>Hello World</body></html>");
@@ -173,7 +173,7 @@ TEST(http_tests, test_https_server)
     auto sp = registrator.build();
 
     //Start server
-    vds::http_router router;
+    vds::http_router router(sp);
     router.add_static(
       "/",
       "<html><body>Hello World</body></html>");
