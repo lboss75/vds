@@ -21,6 +21,7 @@ All rights reserved
 #include <set>
 #include <list>
 #include <string.h>
+#include <codecvt>
 
 #ifndef _WIN32
 #include <errno.h>

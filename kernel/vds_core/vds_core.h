@@ -6,8 +6,8 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
-#include "types.h"
 #include "targetver.h"
+#include "types.h"
 #include "func_utils.h"
 #include "service_provider.h"
 #include "logger.h"
@@ -21,6 +21,7 @@ All rights reserved
 #include "stream_to_string.h"
 #include "sequence.h"
 #include "persistence.h"
+#include "encoding.h"
 
 #endif // !__VDS_CORE_H_
 

@@ -36,4 +36,34 @@ inline size_t vds::types::get_type_id()
   return type_id;
 }
 
+#ifdef _WIN32
+
+namespace vds {
+
+  template <typename T>
+  class _com_release
+  {
+  public:
+    void operator()(T * p) {
+      p->Release();
+    }
+  };
+
+  template <typename T>
+  using com_ptr = std::unique_ptr<T, _com_release<T>>;
+
+  class _bstr_release
+  {
+  public:
+    void operator()(BSTR p) {
+      SysFreeString(p);
+    }
+  };
+
+  using bstr_ptr = std::unique_ptr<OLECHAR, _bstr_release>;
+}
+
+#endif
+
+
 #endif//__VDS_CORE_TYPES_H_

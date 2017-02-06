@@ -1,5 +1,6 @@
 
 if(WIN32)
+  include (CheckIncludeFileCXX)
   CHECK_INCLUDE_FILE_CXX(natupnp.h HAVE_NATIVE_NATUPNP)
   SET(UPNP_LIBRARIES)
 else()

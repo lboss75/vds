@@ -9,6 +9,8 @@ All rights reserved
 
 #ifdef _WIN32
 
+#include <natupnp.h>
+
 #else//_WIN32
 
 #include <miniupnpc.h>

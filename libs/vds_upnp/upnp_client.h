@@ -29,6 +29,8 @@ namespace vds {
     logger log_;
 
 #ifdef _WIN32
+    com_ptr<IUPnPNAT> nat_;
+    com_ptr<IStaticPortMappingCollection> port_mappings_;
 #else
     UPNPDev * devlist_;
     UPNPUrls upnp_urls_;

@@ -58,6 +58,12 @@ vds::iservice_provider_impl::iservice_factory * vds::scopped_service_provider::g
 vds::service_registrator::service_registrator()
     : impl_(new service_registrator_impl())
 {
+#ifdef _WIN32
+  auto error = CoInitializeEx(0, COINIT_APARTMENTTHREADED);
+  if (FAILED(error)) {
+    throw new std::system_error(error, std::system_category(), "Initialize COM failed");
+  }
+#endif//_WIN32
 }
 
 vds::service_provider vds::service_registrator::build() const

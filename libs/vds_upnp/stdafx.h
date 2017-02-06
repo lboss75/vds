@@ -7,8 +7,11 @@ All rights reserved
 */
 
 #include "vds_core.h"
+#include "vds_network.h"
 
 #ifdef _WIN32
+
+#include <natupnp.h>
 
 #else//_WIN32
 
