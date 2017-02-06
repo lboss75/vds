@@ -7,28 +7,59 @@ All rights reserved
 #include "background_app.h"
 #include "http_router.h"
 
+static void collect_wwwroot(
+  vds::http_router & router,
+  const vds::foldername & folder,
+  const std::string & root_folder
+)
+{
+  folder.files(
+    [&router, &root_folder](const vds::filename & fn) -> bool {
+    router.add_file(
+      root_folder + fn.name(),
+      fn
+    );
+
+    return true;
+  });
+
+  folder.folders(
+    [&router, &root_folder](const vds::foldername & fn) -> bool {
+    collect_wwwroot(router, fn, root_folder + fn.name() + "/");
+    return true;
+  });
+}
+
 vds::background_app::background_app()
   :
   start_server_command_set_("Server start", "Start web server", "start", "server"),
   http_server_done_([this]() { this->http_server_closed(); }),
   http_server_error_([this](std::exception * ex) { this->http_server_error(ex); })
 {
-  this->router_.add_static(
-    "/",
-    "<html><body>Hello World</body></html>");
 }
 
 void vds::background_app::main(const service_provider & sp)
 {
-  upnp_client upnp(sp);
-  upnp.open_port(8000, 8000, "TCP", "VDS Service");
+  this->router_.reset(new http_router(sp));
+
+  collect_wwwroot(
+    *this->router_,
+    foldername(foldername(persistence::current_user(), ".vds"), "wwwroot"),
+    "/");
+
+  this->router_->add_file(
+    "/",
+    filename(foldername(foldername(persistence::current_user(), ".vds"), "wwwroot"), "index.html"));
+
+  //upnp_client upnp(sp);
+  //upnp.open_port(8000, 8000, "TCP", "VDS Service");
   
   this->certificate_.load(filename(foldername(persistence::current_user(), ".vds"), "cacert.pem"));
   this->private_key_.load(filename(foldername(persistence::current_user(), ".vds"), "cakey.pem"));
 
   sequence(
     socket_server(sp, "127.0.0.1", 8000),
-    vds::for_each<network_socket>::create_handler(socket_session(this->router_, this->certificate_, this->private_key_))
+    vds::for_each<network_socket>::create_handler(socket_session(*this->router_, this->certificate_, this->private_key_))
   )
   (
     this->http_server_done_,

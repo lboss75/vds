@@ -15,7 +15,6 @@ namespace vds {
   public:
     http_request()
     {
-
     }
 
     http_request(
@@ -24,7 +23,7 @@ namespace vds {
       const std::string & agent = "HTTP/1.0"
       ): method_(method), url_(url), agent_(agent)
     {
-
+      this->parse_parameters();
     }
 
     void reset(
@@ -38,6 +37,8 @@ namespace vds {
       this->method_ = method;
       this->agent_ = agent;
       this->headers_ = headers;
+
+      this->parse_parameters();
     }
 
     void clear()
@@ -46,6 +47,7 @@ namespace vds {
       this->method_.clear();
       this->agent_.clear();
       this->headers_.clear();
+      this->parameters_.clear();
     }
 
     bool empty() const
@@ -68,11 +70,16 @@ namespace vds {
       return this->headers_;
     }
 
+    bool get_header(const std::string & name, std::string & value);
+
   private:
     std::string method_;
     std::string url_;
+    std::list<std::string> parameters_;
     std::string agent_;
     std::list<std::string> headers_;
+
+    void parse_parameters();
   };
 }
 

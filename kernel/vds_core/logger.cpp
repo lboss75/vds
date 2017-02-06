@@ -11,9 +11,9 @@ vds::logger::logger(const service_provider & sp, const std::string & name)
 {
 }
 
-void vds::logger::operator()(const log_record & record)
+void vds::logger::operator()(const log_record & record) const
 {
-    for (auto p : this->log_writer_) {
+    for (auto & p : this->log_writer_) {
         p.write(record);
     }
 }
@@ -23,7 +23,7 @@ vds::log_writer::log_writer(std::function<void(const log_record&)> impl)
 {
 }
 
-void vds::log_writer::write(const log_record & record)
+void vds::log_writer::write(const log_record & record) const
 {
     this->impl_(record);
 }

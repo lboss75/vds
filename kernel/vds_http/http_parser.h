@@ -68,8 +68,8 @@ namespace vds {
       
       void processed()
       {
-        if (STATE_PARSE_HEADER == this->state_) {
-          while (0 < this->len_) {
+        while (0 < this->len_) {
+          if (STATE_PARSE_HEADER == this->state_) {
             const char * p = (const char *)memchr(this->data_, '\n', this->len_);
             if (nullptr == p) {
               this->parse_buffer_ += std::string((const char *)this->data_, this->len_);
@@ -117,16 +117,26 @@ namespace vds {
               this->headers_.pop_front();
 
               this->request_.reset(
-                  items[0],
-                  items[1],
-                  items[2],
-                  this->headers_);
+                items[0],
+                items[1],
+                items[2],
+                this->headers_);
+
+              std::string content_length_header;
+              if (this->request_.get_header("Content-Length", content_length_header)) {
+                this->content_length_ = std::stoul(content_length_header);
+              }
+              else {
+                this->content_length_ = 0;
+              }
 
               this->data_ = p + 1;
               this->len_ -= size + 1;
               this->headers_.clear();
-              
-              this->state_ = STATE_PARSE_BODY;
+
+              if (0 < this->content_length_) {
+                this->state_ = STATE_PARSE_BODY;
+              }
 
               this->next(
                 this->request_,
@@ -143,12 +153,27 @@ namespace vds {
             this->data_ = p + 1;
             this->len_ -= size + 1;
           }
+          else {
+            auto size = this->len_;
+            if (size > this->content_length_) {
+              size = this->content_length_;
+            }
 
-          this->prev();
-        }
-        else {
+            if (0 < size) {
+              this->incoming_stream_.push_data(this->data_, size);
+            }
 
+            this->content_length_ -= size;
+            this->data_ = reinterpret_cast<const char *>(this->data_) + size;
+            this->len_ -= size;
+
+            if (0 == this->content_length_) {
+              this->state_ = STATE_PARSE_HEADER;
+            }
+          }
         }
+
+        this->prev();
       }
 
     private:
@@ -166,6 +191,7 @@ namespace vds {
       
       http_request request_;
       http_incoming_stream incoming_stream_;
+      size_t content_length_;
     };
   };
 }

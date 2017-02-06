@@ -15,6 +15,8 @@ namespace vds {
   class http_router
   {
   public:
+    http_router(const service_provider & sp);
+
     void route(
       const http_request & request,
       http_incoming_stream & incoming_stream,
@@ -25,9 +27,15 @@ namespace vds {
     void add_static(
       const std::string & url,
       const std::string & response);
-    
+
+    void add_file(
+      const std::string & url,
+      const filename & filename);
+
   private:
+    logger log_;
     std::map<std::string, std::string> static_;
+    std::map<std::string, filename> files_;
   };
 }
 

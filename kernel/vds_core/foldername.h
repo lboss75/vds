@@ -47,13 +47,17 @@ namespace vds {
       
       void folders(
         const std::function<bool(const foldername & name)> & callback
-      );
+      ) const;
 
       void files(
         const std::function<bool(const filename & name)> & callback
-      );
-      
+      ) const;
+
+      std::string relative_path(const filename & fn, bool allow_pass_border = false) const;
+      std::string name() const;
+
   private:
+    friend class filename;
     std::string value_;
   };
 }

@@ -116,7 +116,7 @@ namespace vds {
     {
     public:
         log_writer(std::function<void(const log_record &)> impl);
-        void write(const log_record & record);
+        void write(const log_record & record) const;
 
     private:
         std::function<void(const log_record &)> impl_;
@@ -126,7 +126,7 @@ namespace vds {
         public:
             logger(const service_provider & sp, const std::string & name);
 
-            void operator () (const log_record & record);
+            void operator () (const log_record & record) const;
 
         private:
             service_provider sp_;

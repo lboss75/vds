@@ -13,7 +13,6 @@ vds::filename::filename(
 
 std::string vds::filename::name() const
 {
-#ifndef _WIN32
   auto p = strrchr(this->value_.c_str(), '/');
   if(nullptr == p){
     return this->value_;
@@ -21,13 +20,31 @@ std::string vds::filename::name() const
   else {
     return p + 1;
   }
+}
+
+std::string vds::filename::extension() const
+{
+  auto name = this->name();
+  auto p = strrchr(name.c_str(), '.');
+  if (nullptr == p) {
+    return std::string();
+  }
+  else {
+    return p;
+  }
+}
+
+size_t vds::filename::length() const
+{
+#ifdef _WIN32
+  struct _stat64 stat_buf;
+  auto error = _stat64(this->value_.c_str(), &stat_buf);
 #else
-  auto p = strrchr(this->value_.c_str(), '/');
-  if(nullptr == p){
-    return this->value_;
+  struct stat stat_buf;
+  auto error = stat(this->value_.c_str(), &stat_buf);
+#endif
+  if (0 != error) {
+    throw new std::system_error(error, std::system_category(), "Failed get file lenght of file " + this->value_);
   }
-  else {
-    return p + 1;
-  }
-#endif//_WIN32
+  return (size_t)stat_buf.st_size;
 }

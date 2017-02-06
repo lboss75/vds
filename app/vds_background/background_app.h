@@ -26,7 +26,7 @@ namespace vds {
     network_service network_service_;
     crypto_service crypto_service_;
     
-    http_router router_;
+    std::unique_ptr<http_router> router_;
     certificate certificate_;
     asymmetric_private_key private_key_;
 

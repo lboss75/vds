@@ -62,7 +62,10 @@ namespace vds {
 #endif
       }
 
+      size_t length() const;
+
   private:
+    friend class foldername;
     std::string value_;
   };
 }

@@ -57,11 +57,14 @@ namespace vds {
           }
 
           stream
-            << "Content-Length: " << response_stream.size() << "\n"
-            << "Connection: close\n\n";
+            << "Content-Length: " << response_stream.size() << "\n\n";
+            //<< "Connection: close\n\n";
 
           if (response_stream.is_simple()) {
             stream << response_stream.body();
+          }
+          else {
+            this->stream_.reset(new read_file_stream(response_stream.file()));
           }
 
           this->buffer_ = stream.str();
@@ -77,14 +80,14 @@ namespace vds {
       
       void processed()
       {
-        //Close connection
-        this->next(
-          nullptr,
-          0);
+        if (!this->stream_ || !this->stream_->read(this->next)) {
+          this->prev();
+        }
       }
 
     private:
       std::string buffer_;
+      std::unique_ptr<read_file_stream> stream_;
     };    
   };
 }

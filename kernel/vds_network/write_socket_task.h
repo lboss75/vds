@@ -81,6 +81,7 @@ namespace vds {
       if (NOERROR != WSASend(this->s_, &this->wsa_buf_, 1, NULL, 0, &this->overlapped_, NULL)) {
         auto errorCode = WSAGetLastError();
         if (WSA_IO_PENDING != errorCode) {
+          this->is_scheduled_ = false;
           throw new std::system_error(errorCode, std::system_category(), "WSASend failed");
         }
       }
@@ -88,20 +89,25 @@ namespace vds {
 
     void process(DWORD dwBytesTransfered) override
     {
+      try {
 #ifdef _DEBUG
-      if (!this->is_scheduled_) {
-        throw new std::exception();
-      }
-      this->is_scheduled_ = false;
+        if (!this->is_scheduled_) {
+          throw new std::exception();
+        }
+        this->is_scheduled_ = false;
 #endif
-      this->data_ += dwBytesTransfered;
-      this->data_size_ -= dwBytesTransfered;
+        this->data_ += dwBytesTransfered;
+        this->data_size_ -= dwBytesTransfered;
 
-      if (this->data_size_ > 0) {
-        this->schedule();
+        if (this->data_size_ > 0) {
+          this->schedule();
+        }
+        else {
+          this->done_method_();
+        }
       }
-      else {
-        this->done_method_();
+      catch (std::exception * ex) {
+        this->error_method_(ex);
       }
     }
 #else//!_WIN32

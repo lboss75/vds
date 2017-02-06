@@ -21,7 +21,13 @@ namespace vds {
       this->body_ = body;
       this->is_simple_ = true;
     }
-    
+
+    void set_file(const filename & file)
+    {
+      this->file_ = file;
+      this->is_simple_ = false;
+    }
+
     bool is_simple() const
     {
       return this->is_simple_;
@@ -32,12 +38,17 @@ namespace vds {
     }
     
     size_t size() const {
-      return this->body_.size();
+      return this->is_simple_ ? this->body_.size() : this->file_.length();
     }
-    
+
+    const filename & file() const {
+      return this->file_;
+    }
+
   private:
     bool is_simple_;
     std::string body_;
+    filename file_;
   };
 }
 

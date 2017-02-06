@@ -17,7 +17,8 @@ vds::foldername::foldername(
 
 
 void vds::foldername::folders(
-  const std::function< bool(const foldername &) >& callback)
+  const std::function< bool(const foldername &) >& callback
+) const
 {
 #ifdef _WIN32
   WIN32_FIND_DATA ff;
@@ -73,7 +74,7 @@ void vds::foldername::folders(
 }
 
 void vds::foldername::files(
-  const std::function< bool (const filename &)>& callback)
+  const std::function< bool (const filename &)>& callback) const
 {
 #ifdef _WIN32
   WIN32_FIND_DATA ff;
@@ -124,4 +125,27 @@ void vds::foldername::files(
     closedir(d);
   }
 #endif
+}
+
+std::string vds::foldername::relative_path(const vds::filename & fn, bool allow_pass_border) const
+{
+  if (fn.value_.length() > this->value_.length()
+    && 0 == memcmp(fn.value_.c_str(), this->value_.c_str(), this->value_.length())
+    && '/' == fn.value_[this->value_.length()]
+    ) {
+    return fn.value_.substr(this->value_.length() + 1);
+  }
+
+  throw new std::runtime_error("Not implemented");
+}
+
+std::string vds::foldername::name() const
+{
+  auto p = strrchr(this->value_.c_str(), '/');
+  if (nullptr == p) {
+    return this->value_;
+  }
+  else {
+    return p + 1;
+  }
 }

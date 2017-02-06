@@ -22,6 +22,7 @@ All rights reserved
 #include "sequence.h"
 #include "persistence.h"
 #include "encoding.h"
+#include "file.h"
 
 #endif // !__VDS_CORE_H_
 

@@ -30,4 +30,9 @@ All rights reserved
 #include <future>
 #include <chrono>
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <fcntl.h>
+#include <io.h>
+
 #endif// __VDS_CORE_TARGETVER_H_
