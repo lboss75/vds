@@ -38,7 +38,7 @@ namespace vds {
       int on = 1;
       if (0 > setsockopt(this->s_, SOL_SOCKET, SO_REUSEADDR, (char *)&on, sizeof(on))) {
         auto error = errno;
-        close(s);
+        close(this->s_);
         throw new std::system_error(error, std::system_category(), "Allow socket descriptor to be reuseable");
       }
 
@@ -47,9 +47,9 @@ namespace vds {
       /* the incoming connections will also be nonblocking since  */
       /* they will inherit that state from the listening socket.   */
       /*************************************************************/
-      if (0 > ioctl(s, FIONBIO, (char *)&on)) {
+      if (0 > ioctl(this->s_, FIONBIO, (char *)&on)) {
         auto error = errno;
-        close(s);
+        close(this->s_);
         throw new std::system_error(error, std::system_category(), "Set socket to be nonblocking");
       }
 #endif
@@ -293,8 +293,10 @@ namespace vds {
 
     template <typename context_type>
     class handler
-      : public sequence_step<context_type, void(const sockaddr_in & from, const void * data, size_t len)>,
-      public socket_task
+      : public sequence_step<context_type, void(const sockaddr_in & from, const void * data, size_t len)>
+#ifdef _WIN32
+      , public socket_task
+#endif
     {
       using base_class = sequence_step<context_type, void(const sockaddr_in & from, const void * data, size_t len)>;
     public:
@@ -335,11 +337,11 @@ namespace vds {
             if (WSA_IO_PENDING != errorCode) {
               throw new std::system_error(errorCode, std::system_category(), "WSARecvFrom failed");
             }
+          }
 #else
-          event_set(&this->event_, this->socket_->s_, EV_READ, &handler::callback, this);
+          event_set(&this->event_, this->s_, EV_READ, &handler::callback, this);
           event_add(&this->event_, NULL);
 #endif
-          }
         }
       }
 
@@ -353,18 +355,19 @@ namespace vds {
   private:
     const service_provider & sp_;
     struct sockaddr_in addr_;
-    int addr_len_;
+    socklen_t addr_len_;
     char buffer_[4096];
 
 #ifndef _WIN32
+    network_socket::SOCKET_HANDLE s_;
     struct event event_;
     static void callback(int fd, short event, void *arg)
     {
       auto pthis = reinterpret_cast<handler *>(arg);
-      pthis->clientlen_ = sizeof(pthis->clientaddr_);
+      pthis->addr_len_ = sizeof(pthis->addr_);
 
       int len = recvfrom(fd, pthis->buffer_, sizeof(pthis->buffer_), 0,
-        (struct sockaddr *)&pthis->clientaddr_, &pthis->clientlen_
+        (struct sockaddr *)&pthis->addr_, &pthis->addr_len_
       );
 
       if (len < 0) {
@@ -372,7 +375,7 @@ namespace vds {
         throw new std::system_error(error, std::system_category(), "recvfrom");
       }
 
-      pthis->next(pthis->clientaddr_, pthis->buffer_, len);
+      pthis->next(pthis->addr_, pthis->buffer_, len);
     }
 #endif//_WIN32
 

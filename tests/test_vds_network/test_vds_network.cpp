@@ -387,8 +387,7 @@ TEST(network_tests, test_udp_server)
       auto error_client = vds::lambda_handler([](std::exception * ex) {
         FAIL() << "Client error " << ex->what();
       });
-
-      Sleep(5000);//Waiting start UDP server
+      std::this_thread::sleep_for(std::chrono::seconds(5));//Waiting start UDP server
 
       vds::udp_socket client_socket(sp);
       vds::sequence(
