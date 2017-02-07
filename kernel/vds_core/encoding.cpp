@@ -7,6 +7,6 @@ All rights reserved
 
 std::wstring vds::utf16::from_utf8(const std::string & original)
 {
-  std::wstring_convert<std::codecvt<wchar_t, char, std::mbstate_t>, wchar_t> convert;
+  std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>, wchar_t> convert;
   return convert.from_bytes(original);
 }

@@ -12,7 +12,6 @@ All rights reserved
 #include "func_utils.h"
 #include "service_provider.h"
 #include "network_socket.h"
-#include "udp_socket.h"
 
 namespace vds {
     class network_service;
@@ -24,6 +23,9 @@ namespace vds {
     private:
       friend class socket_server;
       friend class socket_connect;
+      friend class udp_server;
+      friend class udp_socket;
+      friend class udp_client;
 
       template<
         typename done_method_type,
