@@ -42,6 +42,9 @@ void vds::http_router::route(
     else if (".woff" == ext) {
       response.add_header("Content-Type", "application/font-woff");
     }
+    else if (".ttf" == ext) {
+      response.add_header("Content-Type", "application/font-tff");
+    }
     else {
       response.add_header("Content-Type", "text/html; charset=utf-8");
     }

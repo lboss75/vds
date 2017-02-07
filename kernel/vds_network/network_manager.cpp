@@ -672,7 +672,8 @@ void vds::network_service::thread_loop(const service_provider & provider)
           socket_task::from_overlapped(pOverlapped)->process(dwBytesTransfered);
         }
         catch (std::exception * ex) {
-          log(error("IO Task error:") << *ex->what());
+          log(error("IO Task error:") << ex->what());
+          delete ex;
         }
     }
 }

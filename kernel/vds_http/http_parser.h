@@ -19,7 +19,7 @@ namespace vds {
   class http_parser
   {
   public:
-    http_parser();
+    http_parser(const service_provider & sp);
 
     template<
       typename context_type
@@ -44,7 +44,8 @@ namespace vds {
         const context_type & context,
         const http_parser & args)
         : base_class(context),
-        state_(STATE_PARSE_HEADER)
+        state_(STATE_PARSE_HEADER),
+        sp_(args.sp_), log_(args.sp_, "HTTP Parser")
       {
       }
     
@@ -122,6 +123,14 @@ namespace vds {
                 items[2],
                 this->headers_);
 
+              //this->log_(
+              //  trace("Request url:") << this->request_.url()
+              //  << ", method:" << this->request_.method()
+              //  << ", agent:" << this->request_.agent());
+              //for (auto & p : this->headers_) {
+              //  this->log_(trace(p));
+              //}
+
               std::string content_length_header;
               if (this->request_.get_header("Content-Length", content_length_header)) {
                 this->content_length_ = std::stoul(content_length_header);
@@ -192,7 +201,12 @@ namespace vds {
       http_request request_;
       http_incoming_stream incoming_stream_;
       size_t content_length_;
+
+      const service_provider & sp_;
+      logger log_;
     };
+    private:
+      const service_provider & sp_;
   };
 }
 

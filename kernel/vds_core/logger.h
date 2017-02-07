@@ -77,6 +77,11 @@ namespace vds {
                     *this << text;
                 }
             }
+            trace(const std::string & text)
+              : log_record(ll_trace)
+            {
+              *this << text;
+            }
     };
 
     class debug : public log_record {

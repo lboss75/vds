@@ -59,6 +59,7 @@ namespace vds {
       if (NOERROR != WSARecv(this->s_, &this->wsa_buf_, 1, &numberOfBytesRecvd, &flags, &this->overlapped_, NULL)) {
         auto errorCode = WSAGetLastError();
         if (WSA_IO_PENDING != errorCode) {
+          this->is_scheduled_ = false;
           throw new std::system_error(errorCode, std::system_category(), "WSARecv failed");
         }
       }

@@ -59,7 +59,7 @@ void vds::background_app::main(const service_provider & sp)
 
   sequence(
     socket_server(sp, "127.0.0.1", 8000),
-    vds::for_each<network_socket>::create_handler(socket_session(*this->router_, this->certificate_, this->private_key_))
+    vds::for_each<network_socket>::create_handler(socket_session(sp, *this->router_, this->certificate_, this->private_key_))
   )
   (
     this->http_server_done_,
@@ -101,10 +101,11 @@ void vds::background_app::http_server_error(std::exception *)
 }
 
 vds::background_app::socket_session::socket_session(
+  const service_provider & sp,
   const vds::http_router & router,
   const certificate & certificate,
   const asymmetric_private_key & private_key)
-  : router_(router), certificate_(certificate),
+  : sp_(sp), router_(router), certificate_(certificate),
   private_key_(private_key)
 {
 }
@@ -112,7 +113,8 @@ vds::background_app::socket_session::socket_session(
 vds::background_app::socket_session::handler::handler(
   const socket_session & owner,
   vds::network_socket & s)
-: s_(std::move(s)),
+: sp_(owner.sp_),
+  s_(std::move(s)),
   peer_(false, &owner.certificate_, &owner.private_key_),
   certificate_(owner.certificate_),
   private_key_(owner.private_key_),
@@ -129,7 +131,7 @@ void vds::background_app::socket_session::handler::start()
   vds::sequence(
     input_network_stream(this->s_),
     ssl_input_stream(this->peer_),
-    http_parser(),
+    http_parser(this->sp_),
     http_middleware(this->router_),
     http_response_serializer(),
     ssl_output_stream(this->peer_),

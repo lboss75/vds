@@ -41,6 +41,7 @@ namespace vds {
     {
     public:
       socket_session(
+        const service_provider & sp,
         const http_router & router,
         const certificate & certificate,
         const asymmetric_private_key & private_key
@@ -56,6 +57,7 @@ namespace vds {
         void start();
 
       private:
+        const service_provider & sp_;
         network_socket s_;
         ssl_peer peer_;
         const certificate & certificate_;
@@ -69,6 +71,7 @@ namespace vds {
         std::function<void(std::exception *)> http_server_error_;
       };
     private:
+      const service_provider & sp_;
       const http_router & router_;
       const certificate & certificate_;
       const asymmetric_private_key & private_key_;

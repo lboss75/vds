@@ -23,7 +23,7 @@ namespace vds {
         throw new c_exception("Unable to open file " + args.filename_.c_str(), error);
       }
 #else
-      this->handle_ = _open(this->filename_.local_name().c_str(), _O_RDONLY);
+      this->handle_ = _open(this->filename_.local_name().c_str(), _O_RDONLY | _O_BINARY | _O_SEQUENTIAL);
       if (0 > this->handle_) {
         auto error = GetLastError();
         throw new std::system_error(error, std::system_category(), "Unable to open file " + this->filename_.str());
