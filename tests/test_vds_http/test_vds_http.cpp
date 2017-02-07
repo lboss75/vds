@@ -19,8 +19,9 @@ private:
 
 public:
   test_http_pipeline(
+    const vds::service_provider & sp,
     const vds::http_router & router)
-    : router_(router)
+    : sp_(sp), router_(router)
   {
   }
 
@@ -35,7 +36,8 @@ public:
     handler(
       const test_http_pipeline & owner,
       vds::network_socket & s)
-      :      
+      :
+      sp_(owner.sp_),
       s_(std::move(s)),
       router_(owner.router_),
       done_handler_(this),
@@ -49,7 +51,7 @@ public:
       
       vds::sequence(
         vds::input_network_stream(this->s_),
-        vds::http_parser(),
+        vds::http_parser(this->sp_),
         vds::http_middleware(this->router_),
         vds::http_response_serializer(),
         vds::output_network_stream(this->s_)
@@ -60,6 +62,7 @@ public:
       );
     }
   private:
+    const vds::service_provider & sp_;
     vds::network_socket s_;
     const vds::http_router & router_;
     vds::delete_this<handler> done_handler_;
@@ -68,6 +71,7 @@ public:
   };
 
 private:
+  const vds::service_provider & sp_;
   const vds::http_router & router_;
   error_method_type error;
 };
@@ -100,14 +104,14 @@ TEST(http_tests, test_server)
         );
         auto server_error_handler = vds::lambda_handler(
           [](std::exception * ex) {
-            FAIL() << ex->what();
-            delete ex;
+            std::unique_ptr<std::exception> ex_(ex);
+            FAIL() << ex_->what();
           }
         );
         
         vds::sequence(
           vds::socket_server(sp, "127.0.0.1", 8000),
-          vds::for_each<vds::network_socket>::create_handler(test_http_pipeline(router))
+          vds::for_each<vds::network_socket>::create_handler(test_http_pipeline(sp, router))
         )
         (
           server_done_handler,
@@ -131,9 +135,9 @@ TEST(http_tests, test_server)
         
         auto error_handler = vds::lambda_handler(
           [&done](std::exception * ex) {
-            FAIL() << ex->what();
-            delete ex;
+            std::unique_ptr<std::exception> ex_(ex);
             done.set();
+            FAIL() << ex_->what();
           }
         );        
         vds::sequence(
@@ -187,14 +191,14 @@ TEST(http_tests, test_https_server)
     );
     auto server_error_handler = vds::lambda_handler(
       [](std::exception * ex) {
-      FAIL() << ex->what();
-      delete ex;
+      std::unique_ptr<std::exception> ex_(ex);
+      FAIL() << ex_->what();
     }
     );
 
     vds::sequence(
       vds::socket_server(sp, "127.0.0.1", 8000),
-      vds::for_each<vds::network_socket>::create_handler(test_http_pipeline(router))
+      vds::for_each<vds::network_socket>::create_handler(test_http_pipeline(sp, router))
     )
     (
       server_done_handler,
@@ -218,9 +222,9 @@ TEST(http_tests, test_https_server)
 
     auto error_handler = vds::lambda_handler(
       [&done](std::exception * ex) {
-      FAIL() << ex->what();
-      delete ex;
+      std::unique_ptr<std::exception> ex_(ex);
       done.set();
+      FAIL() << ex_->what();
     }
     );
     vds::sequence(

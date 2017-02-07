@@ -29,6 +29,7 @@ All rights reserved
 #include "socket_connect.h"
 #include "network_socket.h"
 #include "dns.h"
+#include "udp_socket.h"
 
 #ifdef _WIN32
 #pragma comment(lib, "Ws2_32.lib")

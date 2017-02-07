@@ -21,8 +21,6 @@ public:
     }
     
     void operator()(vds::network_socket & s) {
-      std::cout << "new connection\n";
-
       (new connection_handler<
         typename base_class::next_step_t,
         typename base_class::error_method_t>(
@@ -231,13 +229,11 @@ public:
 
     void operator()(vds::network_socket & s)
     {
-      std::cout << "server connected\n";
       this->s_ = std::move(s);
 
       vds::barrier b;
       auto done_handler = vds::lambda_handler(
        [&b]() {
-        std::cout << "test sent\n";
         b.set();
         }
       );
@@ -296,7 +292,6 @@ TEST(network_tests, test_server)
         
         auto done_server = vds::lambda_handler(
           []() {
-            std::cout << "server closed\n";
           }
         );
         auto error_server = vds::lambda_handler(
@@ -316,7 +311,6 @@ TEST(network_tests, test_server)
 
         auto done_client = vds::lambda_handler(
           [&done]() {
-            std::cout << "check done\n";
             done.set();
           }
         );
@@ -345,71 +339,74 @@ TEST(network_tests, test_server)
 
     registrator.shutdown();
 }
-/*
+
 TEST(network_tests, test_udp_server)
 {
-    vds::service_registrator registrator([](std::exception * ex) {
-        FAIL() << ex->what();
-        delete ex;
-    });
+    vds::service_registrator registrator;
 
     vds::network_service network_service;
-    vds::mt_service mt_service;
     vds::console_logger console_logger;
 
     registrator.add(console_logger);
-    registrator.add(mt_service);
     registrator.add(network_service);
 
     vds::barrier done;
 
     {
-        auto sp = registrator.build();
-        sp.get<vds::inetwork_manager>().bind(sp, "127.0.0.1", 8000,
-            [sp, &done](const vds::udp_socket & s, const sockaddr_in & address, const void * buffer, size_t readed) {
-            std::cout << "new connection\n";
+      auto sp = registrator.build();
 
-            std::cout << "readed " << readed << " bytes ("
-                << std::string((const char *)buffer, readed) << ")\n";
+      auto done_server = vds::lambda_handler([](size_t size) {
+      });
 
-            s.write_async([](size_t) {}, [](std::exception *) {}, sp, address, buffer, readed);
-        }, [](std::exception *) {});
+      auto error_server = vds::lambda_handler([](std::exception * ex) {
+        FAIL() << "Client error " << ex->what();
+      });
 
-        auto s = sp.get<vds::inetwork_manager>().bind(sp, "127.0.0.1", 8001,
-            [&done](const vds::udp_socket &s, const sockaddr_in & addr, const void * data, size_t size)
-            {
-                if (std::string((const char *)data, size) == "test") {
-                    done.set();
-                }
-                else {
-                    FAIL() << "Invalid data readed " << std::string((const char *)data, size);
-                }
-            },
-          [](std::exception *) {}
+      vds::udp_socket server_socket(sp);
+      vds::sequence(
+        vds::udp_server(sp, server_socket, "127.0.0.1", 8001),
+        vds::udp_receive(sp, server_socket),
+        vds::udp_send(server_socket)
+      )
+      (
+        done_server,
+        error_server
         );
 
-        struct sockaddr_in serveraddr;
-        serveraddr.sin_family = AF_INET;
-        serveraddr.sin_addr.s_addr = inet_addr("127.0.0.1");
-        serveraddr.sin_port = htons(8000);
 
-        s.write_async(
-          [](size_t len) {
-            std::cout << "sent " << len << " bytes\n";
-          },
-          [](std::exception *) {},
-          sp,
-          serveraddr,
-          "test",
-          4);
-        
+      const char testdata[] = "testdata";
+      auto done_client = vds::lambda_handler([&done, &testdata](const sockaddr_in & addr, const void * data, size_t size) {
+        if (std::string((const char *)data, size) == testdata) {
+          done.set();
+        }
+        else {
+          FAIL() << "Invalid data readed " << std::string((const char *)data, size);
+        }
+      });
+
+      auto error_client = vds::lambda_handler([](std::exception * ex) {
+        FAIL() << "Client error " << ex->what();
+      });
+
+      Sleep(5000);//Waiting start UDP server
+
+      vds::udp_socket client_socket(sp);
+      vds::sequence(
+        vds::udp_client(sp, client_socket, "127.0.0.1", 8001, testdata, sizeof(testdata) - 1),
+        vds::udp_receive(sp, client_socket)
+      )
+      (
+        done_client,
+        error_client
+        );
+
       done.wait();
     }
 
 
     registrator.shutdown();
 }
-*/
+
 int main(int argc, char **argv) {
     setlocale(LC_ALL, "Russian");
     ::testing::InitGoogleTest(&argc, argv);
