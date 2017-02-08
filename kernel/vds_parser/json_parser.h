@@ -42,7 +42,8 @@ namespace vds {
         ) : base_class(context),
         stream_name_(args.stream_name_),
         parse_options_(args.parse_options_),
-        state_(ST_BOF), line_(1), column_(1),
+        state_(ST_BOF),
+        line_(1), column_(1),
         current_object_(nullptr)
       {
 
