@@ -42,12 +42,30 @@ namespace vds {
     std::string value_;
   };
   
-  struct json_property
+  class json_property : public json_value
   {
-    int line;
-    int column;
-    std::string name;
-    std::unique_ptr<json_value> value;
+  public:
+    json_property(int line, int column);
+
+    const std::string & name() const {
+      return this->name_;
+    }
+
+    json_value * value() const {
+      return this->value_.get();
+    }
+
+    void name(const std::string & value) {
+      this->name_ = value;
+    }
+
+    void value(json_value * val) {
+      this->value_.reset(val);
+    }
+
+  private:
+    std::string name_;
+    std::unique_ptr<json_value> value_;
   };
   
   class json_object : public json_value
@@ -57,9 +75,11 @@ namespace vds {
 
     void visit(const std::function<void(const json_property &)> & visitor) const;
     
+    void add_property(json_property * prop);
+
   private:
     friend class vjson_file_parser;
-    std::list<json_property> properties_;
+    std::list<std::unique_ptr<json_property>> properties_;
   };
   
   class json_array : public json_value

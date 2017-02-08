@@ -32,13 +32,23 @@ vds::json_object::json_object(
 
 void vds::json_object::visit(const std::function<void(const json_property&)>& visitor) const
 {
-  for (const json_property & property : this->properties_) {
-    visitor(property);
+  for (const auto & property : this->properties_) {
+    visitor(*property.get());
   }
+}
+
+void vds::json_object::add_property(json_property * prop)
+{
+  this->properties_.push_back(std::unique_ptr<json_property>(prop));
 }
 
 vds::json_array::json_array(int line, int column)
 : json_value(line, column)
 {
 
+}
+
+vds::json_property::json_property(int line, int column)
+  : json_value(line, column)
+{
 }

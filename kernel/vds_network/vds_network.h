@@ -8,7 +8,11 @@ All rights reserved
 
 #include "vds_core.h"
 
-#ifndef _WIN32
+#ifdef _WIN32
+
+#include <Ws2tcpip.h>
+
+#else
 
 #include <sys/socket.h>
 #include <unistd.h>
@@ -30,6 +34,7 @@ All rights reserved
 #include "network_socket.h"
 #include "dns.h"
 #include "udp_socket.h"
+#include "network_serializer.h"
 
 #ifdef _WIN32
 #pragma comment(lib, "Ws2_32.lib")

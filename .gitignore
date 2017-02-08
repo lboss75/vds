@@ -31,4 +31,10 @@
 # Build folder
 build/
 .kdev4/vds.git.kdev4
-
+clients/windows/Debug
+clients/windows/ipch
+clients/windows/x64
+clients/windows/vds_client/Debug
+clients/windows/vds_client/x64
+clients/windows/.vs
+*.filters
