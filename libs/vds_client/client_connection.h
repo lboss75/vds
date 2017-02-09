@@ -16,8 +16,8 @@ namespace vds {
       connection_handler_type * handler,
       const std::string & address,
       int port,
-      certificate client_certificate_,
-      asymmetric_private_key client_private_key_
+      certificate & client_certificate,
+      asymmetric_private_key & client_private_key
     )
       : 
       sp_(sp),
@@ -125,7 +125,7 @@ namespace vds {
           const connection & args
         ) : base_class(context),
           owner_(args.owner_),
-          peer_(true, args.owner_->cliend_)
+          peer_(true, &args.owner_->client_certificate_, &args.owner_->client_private_key_),
           done_count_(0),
           done_handler_(this),
           error_handler_(this)
