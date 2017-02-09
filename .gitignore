@@ -37,4 +37,5 @@ clients/windows/x64
 clients/windows/vds_client/Debug
 clients/windows/vds_client/x64
 clients/windows/.vs
+clients/windows/win_clients.VC.db
 *.filters

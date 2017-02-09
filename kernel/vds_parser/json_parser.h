@@ -40,6 +40,7 @@ namespace vds {
         const context_type & context,
         const json_parser & args
         ) : base_class(context),
+        data_(nullptr), len_(0),
         stream_name_(args.stream_name_),
         parse_options_(args.parse_options_),
         state_(ST_BOF),
@@ -54,8 +55,16 @@ namespace vds {
         size_t len
         )
       {
-        for (size_t i = 0ul; i < len; ++i, ++data) {
-          switch (*data) {
+        this->data_ = data;
+        this->len_ = len;
+
+        this->processed();
+      }
+
+      void processed()
+      {
+        for (; 0 < this->len_; this->len_--, this->data_++) {
+          switch (*this->data_) {
           case '\n':
             this->line_++;
             this->column_ = 1;
@@ -72,21 +81,23 @@ namespace vds {
 
           switch (this->state_) {
           case ST_BOF:
-            switch (*data) {
+            switch (*this->data_) {
             case '/':
               this->after_slesh();
               break;
 
             case '[':
               this->start_array();
+              this->root_object_.reset(this->current_object_);
               break;
 
             case '{':
               this->start_object();
+              this->root_object_.reset(this->current_object_);
               break;
 
             default:
-              if (isspace(*data)) {
+              if (isspace(*this->data_)) {
                 continue;
               }
 
@@ -94,11 +105,11 @@ namespace vds {
                 this->stream_name_,
                 this->line_,
                 this->column_,
-                std::string("Unexpected char ") + *data);
+                std::string("Unexpected char ") + *this->data_);
             }
             break;
           case ST_AFTER_SLESH:
-            switch (*data)
+            switch (*this->data_)
             {
             case '/':
               this->state_ = ST_INLINE_COMMENT;
@@ -108,11 +119,11 @@ namespace vds {
                 this->stream_name_,
                 this->line_,
                 this->column_,
-                std::string("Unexpected char ") + *data);
+                std::string("Unexpected char ") + *this->data_);
             }
             break;
           case ST_INLINE_COMMENT:
-            switch (*data)
+            switch (*this->data_)
             {
             case '\n':
               this->state_ = this->saved_states_.top();
@@ -123,9 +134,11 @@ namespace vds {
             };
             break;
           case ST_ARRAY:
-            switch (*data) {
+            switch (*this->data_) {
             case ']':
-              this->final_array();
+              if (this->final_array()) {
+                return;
+              }
               break;
 
             case '[':
@@ -146,12 +159,12 @@ namespace vds {
               break;
 
             default:
-              if (isspace(*data)) {
+              if (isspace(*this->data_)) {
                 continue;
               }
 
-              if (isdigit(*data)) {
-                this->buffer_ = *data;
+              if (isdigit(*this->data_)) {
+                this->buffer_ = *this->data_;
                 this->saved_states_.push(ST_ARRAY_ITEM);
                 this->state_ = ST_NUMBER;
                 continue;
@@ -161,14 +174,16 @@ namespace vds {
                 this->stream_name_,
                 this->line_,
                 this->column_,
-                std::string("Unexpected char ") + *data);
+                std::string("Unexpected char ") + *this->data_);
             };
             break;
 
           case ST_ARRAY_ITEM:
-            switch (*data) {
+            switch (*this->data_) {
             case ']':
-              this->final_array();
+              if (this->final_array()) {
+                return;
+              }
               break;
 
             case ',':
@@ -176,7 +191,7 @@ namespace vds {
               break;
 
             default:
-              if (isspace(*data)) {
+              if (isspace(*this->data_)) {
                 continue;
               }
 
@@ -184,19 +199,26 @@ namespace vds {
                 this->stream_name_,
                 this->line_,
                 this->column_,
-                std::string("Unexpected char ") + *data);
+                std::string("Unexpected char ") + *this->data_);
             }
             break;
 
           case ST_OBJECT:
-            switch (*data) {
+            switch (*this->data_) {
             case '\"':
+              this->saved_states_.push(ST_OBJECT_ITEM);
               this->saved_states_.push(ST_OBJECT_PROPERTY_NAME);
               this->state_ = ST_STRING;
               break;
 
+            case '}':
+              if (this->final_object()) {
+                return;
+              }
+              break;
+
             default:
-              if (isspace(*data)) {
+              if (isspace(*this->data_)) {
                 continue;
               }
 
@@ -204,14 +226,16 @@ namespace vds {
                 this->stream_name_,
                 this->line_,
                 this->column_,
-                std::string("Unexpected char ") + *data);
+                std::string("Unexpected char ") + *this->data_);
             }
             break;
 
           case ST_OBJECT_ITEM:
-            switch (*data) {
+            switch (*this->data_) {
             case '}':
-              this->final_object();
+              if (this->final_object()) {
+                return;
+              }
               break;
 
             case ',':
@@ -219,7 +243,7 @@ namespace vds {
               break;
 
             default:
-              if (isspace(*data)) {
+              if (isspace(*this->data_)) {
                 continue;
               }
 
@@ -227,12 +251,12 @@ namespace vds {
                 this->stream_name_,
                 this->line_,
                 this->column_,
-                std::string("Unexpected char ") + *data);
+                std::string("Unexpected char ") + *this->data_);
             }
             break;
 
           case ST_STRING:
-            switch (*data) {
+            switch (*this->data_) {
             case '\\':
               this->state_ = ST_STRING_BACKSLESH;
               break;
@@ -244,7 +268,7 @@ namespace vds {
                 this->start_property();
                 break;
 
-              case ST_OBJECT_PROPERTY_VALUE_FINISH:
+              case ST_OBJECT_ITEM:
                 this->final_string_property();
                 break;
 
@@ -263,28 +287,28 @@ namespace vds {
                   this->stream_name_,
                   this->line_,
                   this->column_,
-                  std::string("Unexpected char ") + *data);
+                  std::string("Unexpected char ") + *this->data_);
               }
               break;
             default:
-              this->buffer_ += *data;
+              this->buffer_ += *this->data_;
               break;
             }
             break;
 
           case ST_STRING_BACKSLESH:
-            this->buffer_ += *data;
+            this->buffer_ += *this->data_;
             this->state_ = ST_STRING;
             break;
 
           case ST_OBJECT_PROPERTY_NAME:
-            switch (*data) {
+            switch (*this->data_) {
             case ':':
               this->state_ = ST_OBJECT_PROPERTY_VALUE;
               break;
 
             default:
-              if (isspace(*data)) {
+              if (isspace(*this->data_)) {
                 continue;
               }
 
@@ -292,14 +316,13 @@ namespace vds {
                 this->stream_name_,
                 this->line_,
                 this->column_,
-                std::string("Unexpected char ") + *data);
+                std::string("Unexpected char ") + *this->data_);
             }
             break;
 
           case ST_OBJECT_PROPERTY_VALUE:
-            switch (*data) {
+            switch (*this->data_) {
             case '\"':
-              this->saved_states_.push(ST_OBJECT_PROPERTY_VALUE_FINISH);
               this->state_ = ST_STRING;
               break;
 
@@ -312,7 +335,7 @@ namespace vds {
               break;
 
             default:
-              if (isspace(*data)) {
+              if (isspace(*this->data_)) {
                 continue;
               }
 
@@ -320,30 +343,7 @@ namespace vds {
                 this->stream_name_,
                 this->line_,
                 this->column_,
-                std::string("Unexpected char ") + *data);
-            }
-            break;
-
-          case ST_OBJECT_PROPERTY_VALUE_FINISH:
-            switch (*data) {
-            case ',':
-              this->state_ = ST_OBJECT;
-              break;
-
-            case '}':
-              this->final_object();
-              break;
-
-            default:
-              if (isspace(*data)) {
-                continue;
-              }
-
-              throw new parse_error(
-                this->stream_name_,
-                this->line_,
-                this->column_,
-                std::string("Unexpected char ") + *data);
+                std::string("Unexpected char ") + *this->data_);
             }
             break;
 
@@ -352,7 +352,7 @@ namespace vds {
               this->stream_name_,
               this->line_,
               this->column_,
-              std::string("Unexpected char ") + *data);
+              std::string("Unexpected char ") + *this->data_);
           }
         }
 
@@ -368,9 +368,13 @@ namespace vds {
             "Unexpected end of data");
         }
 
+        this->prev();
       }
 
     private:
+      const char * data_;
+      size_t len_;
+
       std::string stream_name_;
       options parse_options_;
 
@@ -391,7 +395,7 @@ namespace vds {
 
         ST_OBJECT_PROPERTY_NAME,
         ST_OBJECT_PROPERTY_VALUE,
-        ST_OBJECT_PROPERTY_VALUE_FINISH,
+        //ST_OBJECT_PROPERTY_VALUE_FINISH,
 
         ST_STRING,
         ST_STRING_BACKSLESH,
@@ -433,10 +437,10 @@ namespace vds {
         switch (this->state_) {
         case ST_OBJECT_PROPERTY_VALUE:
           static_cast<json_property *>(this->current_object_)->value(new_object);
-          this->saved_states_.push(ST_OBJECT_ITEM);
           break;
 
         case ST_BOF:
+          this->saved_states_.push(ST_BOF);
           break;
 
         default:
@@ -451,21 +455,25 @@ namespace vds {
         this->state_ = ST_ARRAY;
       }
 
-      void final_array()
+      bool final_array()
       {
         this->state_ = this->saved_states_.top();
-        this->saved_states_.top();
+        this->saved_states_.pop();
 
         if (ST_BOF == this->state_) {
-          this->next(this->root_object_.release());
           if (!this->parse_options_.enable_multi_root_objects) {
             this->state_ = ST_EOF;
           }
+          this->len_--;
+          this->data_++;
+          this->next(this->root_object_.release());
+          return true;
         }
         else {
           this->current_object_ = this->current_path_.top();
           this->current_path_.pop();
         }
+        return false;
       }
 
       void start_object()
@@ -475,9 +483,9 @@ namespace vds {
         switch (this->state_) {
         case ST_OBJECT_PROPERTY_VALUE:
           static_cast<json_property *>(this->current_object_)->value(new_object);
-          this->saved_states_.push(ST_OBJECT_ITEM);
           break;
         case ST_BOF:
+          this->saved_states_.push(ST_BOF);
           break;
         default:
           throw new parse_error(
@@ -491,21 +499,25 @@ namespace vds {
         this->state_ = ST_OBJECT;
       }
 
-      void final_object()
+      bool final_object()
       {
         this->state_ = this->saved_states_.top();
-        this->saved_states_.top();
+        this->saved_states_.pop();
 
         if (ST_BOF == this->state_) {
-          this->next(this->root_object_.release());
           if (!this->parse_options_.enable_multi_root_objects) {
             this->state_ = ST_EOF;
           }
+          this->len_--;
+          this->data_++;
+          this->next(this->root_object_.release());
+          return true;
         }
         else {
           this->current_object_ = this->current_path_.top();
           this->current_path_.pop();
         }
+        return false;
       }
 
       void start_property()

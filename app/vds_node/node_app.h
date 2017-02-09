@@ -16,6 +16,8 @@ namespace vds {
     void main(const service_provider & sp);
     
     void register_command_line(command_line & cmd_line);
+    void register_services(service_registrator & registrator);
+
     
   private:
     command_line_set add_storage_cmd_set_;
@@ -23,6 +25,15 @@ namespace vds {
     command_line_set list_storage_cmd_set_;
     
     command_line_value storage_path_;
+
+    command_line_set node_install_cmd_set_;
+
+    command_line_value node_login_;
+    command_line_value node_password_;
+
+    client client_;
+
+
   };
 }
 

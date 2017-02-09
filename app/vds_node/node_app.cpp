@@ -29,6 +29,25 @@ list_storage_cmd_set_(
 storage_path_(
   "s", "storage",
   "Storage", "Path to the storage"
+),
+
+node_install_cmd_set_(
+  "Install Node",
+  "Install new node",
+  "install",
+  "node"
+),
+node_login_(
+  "l",
+  "login",
+  "Login",
+  "User login"
+),
+node_password_(
+  "p",
+  "password",
+  "Password",
+  "User password"
 )
 {
 
@@ -37,7 +56,9 @@ storage_path_(
 void vds::node_app::main(
   const vds::service_provider& sp)
 {
-
+  if (&this->node_install_cmd_set_ == this->current_command_set_) {
+    this->client_.node_install(this->node_login_.value(), this->node_password_.value());
+  }
 }
 
 void vds::node_app::register_command_line(vds::command_line& cmd_line)
@@ -45,4 +66,14 @@ void vds::node_app::register_command_line(vds::command_line& cmd_line)
   cmd_line.add_command_set(this->add_storage_cmd_set_);
   this->add_storage_cmd_set_.required(this->storage_path_);
 
+  cmd_line.add_command_set(this->node_install_cmd_set_);
+  this->node_install_cmd_set_.required(this->node_login_);
+  this->node_install_cmd_set_.required(this->node_password_);
+}
+
+void vds::node_app::register_services(service_registrator & registrator)
+{
+  if (&this->node_install_cmd_set_ == this->current_command_set_) {
+    registrator.add(this->client_);
+  }
 }

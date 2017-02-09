@@ -6,7 +6,8 @@ All rights reserved
 #include "stdafx.h"
 #include "test_json_parser.h"
 
-static const char data[] =
+
+static const char test_data[] =
 "\
   {\
     \"glossary\": {\
@@ -31,6 +32,9 @@ static const char data[] =
     }\
   }\
 ";
+
+
+//static const char test_data[] = "{\"glossary\":\"\"}";
 
 class test_json_parser_validate
 {
@@ -57,26 +61,39 @@ public:
       root_object->visit(
         [&prop_count](const vds::json_property & prop) {
         ++prop_count;
-        if ("title" == prop.name()) {
-          auto title_prop = dynamic_cast<vds::json_primitive *>(prop.value());
-          ASSERT_NE(nullptr, title_prop);
-          ASSERT_EQ("example glossary", title_prop->value());
-          }
-        else if ("GlossDiv" == prop.name()) {
-          auto glossdiv_prop = dynamic_cast<vds::json_object *>(prop.value());
-          ASSERT_NE(nullptr, glossdiv_prop);
+        if ("glossary" == prop.name()) {
+          auto glossary_object = dynamic_cast<vds::json_object *>(prop.value());
+          ASSERT_NE(nullptr, glossary_object);
+          int glossary_prop_count = 0;
+          glossary_object->visit(
+            [&glossary_prop_count](const vds::json_property & prop) {
+            ++glossary_prop_count;
+            if ("title" == prop.name()) {
+              auto title_prop = dynamic_cast<vds::json_primitive *>(prop.value());
+              ASSERT_NE(nullptr, title_prop);
+              ASSERT_EQ("example glossary", title_prop->value());
+            }
+            else if ("GlossDiv" == prop.name()) {
+              auto glossdiv_prop = dynamic_cast<vds::json_object *>(prop.value());
+              ASSERT_NE(nullptr, glossdiv_prop);
 
+            }
+            else {
+              FAIL() << "Invalid property " << prop.name();
+
+            }
           }
+          );
+        }
         else {
           FAIL() << "Invalid property " << prop.name();
-
         }
-        }
+      }
       );
 
-      ASSERT_EQ(2, prop_count);
+      ASSERT_EQ(1, prop_count);
 
-      this->next();
+      this->prev();
     }
   };
 };
@@ -87,8 +104,8 @@ TEST(test_json_parser, test_parser) {
   });
   auto error_handler = vds::lambda_handler(
     [](std::exception * ex) {
-        FAIL() << ex->what();
-    });
+    FAIL() << ex->what();
+  });
   vds::sequence(
     vds::json_parser("test"),
     test_json_parser_validate()
@@ -96,7 +113,7 @@ TEST(test_json_parser, test_parser) {
   (
     done_handler,
     error_handler,
-    data,
-    sizeof(data) - 1
-  );
+    test_data,
+    sizeof(test_data) - 1
+    );
 }

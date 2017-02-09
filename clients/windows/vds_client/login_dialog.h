@@ -7,7 +7,7 @@ public:
 
   bool show(HINSTANCE hInstance);
 
-  std::wstring file_name;
+  std::wstring login;
   std::wstring password;
 };
 
