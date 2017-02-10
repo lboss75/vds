@@ -48,14 +48,14 @@ namespace vds {
       void operator()(const network_socket & s)
       {
         sequence(
-          http_request_serializer(
-            this->request_,
-            this->outgoing_stream_),
+          http_request_serializer(),
           output_network_stream(s)
         )
         (
           this->request_sent_handler_,
-          this->error
+          this->error,
+          this->request_,
+          this->outgoing_stream_
         );
 
         sequence(

@@ -88,6 +88,7 @@ namespace vds {
     }
     
   private:
+    friend class itask_manager;
     task_manager::task_job_base * impl_;
     
     task_job(task_manager::task_job_base * impl)
@@ -107,7 +108,7 @@ namespace vds {
     template <typename handler_type>
     task_job create_job(handler_type & handler)
     {
-      return task_job(new task_manager::task_job_impl(this->owner_, handler));
+      return task_job(new task_manager::task_job_impl<handler_type>(this->owner_, handler));
     }
     
   private:

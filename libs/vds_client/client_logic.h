@@ -24,11 +24,10 @@ namespace vds {
     void connection_closed(client_connection<client_logic> * connection);
     void connection_error(client_connection<client_logic> * connection, std::exception * ex);
 
-    template <typename message_type>
-    task_job send_message(const message_type & message);
+    void node_install(const std::string & login, const std::string & password);
 
   private:
-    const service_provider & sp_;
+    service_provider sp_;
     certificate & client_certificate_;
     asymmetric_private_key & client_private_key_;
 
@@ -57,6 +56,10 @@ namespace vds {
       client_logic * owner_;
       message_type message_;
     };
+
+    template <typename message_type>
+    task_job send_message(const message_type & message);
+
   };
 
 

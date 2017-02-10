@@ -11,6 +11,7 @@ All rights reserved
 #include "vds_crypto.h"
 #include "vds_protocols.h"
 #include "vds_storage.h"
+#include "vds_http.h"
 
 
 #endif // __VDS_CLIENT_STDAFX_H_

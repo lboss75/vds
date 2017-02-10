@@ -14,14 +14,6 @@ namespace vds {
   class http_request_serializer
   {
   public:
-    http_request_serializer(
-      http_request & request,
-      http_outgoing_stream & outgoing_stream
-    )
-      : request_(request), outgoing_stream_(outgoing_stream)
-    {
-    }
-
     template<
       typename context_type
     >
@@ -46,37 +38,35 @@ namespace vds {
         const http_request_serializer & args)
         : base_class(context)
       {
-        std::stringstream stream;
-        stream << args.request_.method() << " " << args.request_.url() << " " << args.request_.agent() << "\n";
-        for (auto & header : args.request_.headers()) {
-          stream << header << "\n";
+      }
+
+      void operator()(
+        http_request & request,
+        http_outgoing_stream & outgoing_stream
+        )
+      {
+        if (request.empty()) {
+          this->next(nullptr, 0);
         }
+        else {
+          std::stringstream stream;
+          stream << request.method() << " " << request.url() << " " << request.agent() << "\n";
+          for (auto & header : request.headers()) {
+            stream << header << "\n";
+          }
 
-        stream << "\n";
-        this->header_ = stream.str();
-      }
+          stream << "\n";
+          this->header_ = stream.str();
 
-      void operator()()
-      {
-        this->next(
-          this->header_.c_str(),
-          this->header_.size());
-      }
-      
-      void processed()
-      {
-        this->next(
-          nullptr,
-          0);
+          this->next(
+            this->header_.c_str(),
+            this->header_.size());
+        }
       }
 
     private:
       std::string header_;
     };
-
-  private:
-    http_request & request_;
-    http_outgoing_stream & outgoing_stream_;
   };
 }
 

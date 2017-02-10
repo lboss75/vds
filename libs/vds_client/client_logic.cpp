@@ -58,6 +58,12 @@ void vds::client_logic::connection_error(client_connection<client_logic>* connec
   this->update_connection_pool();
 }
 
+void vds::client_logic::node_install(const std::string & login, const std::string & password)
+{
+  auto job = this->send_message(messages::ask_certificate_and_key(login));
+
+}
+
 void vds::client_logic::update_connection_pool()
 {
   if (!this->connection_queue_.empty()) {

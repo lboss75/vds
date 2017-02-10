@@ -73,7 +73,12 @@ void vds::node_app::register_command_line(vds::command_line& cmd_line)
 
 void vds::node_app::register_services(service_registrator & registrator)
 {
+  base_class::register_services(registrator);
+  
   if (&this->node_install_cmd_set_ == this->current_command_set_) {
+    registrator.add(this->task_manager_);
+    registrator.add(this->storage_service_);
+    registrator.add(this->network_service_);
     registrator.add(this->client_);
   }
 }

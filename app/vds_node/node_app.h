@@ -10,6 +10,7 @@ All rights reserved
 namespace vds {
   class node_app : public console_app<node_app>
   {
+    using base_class = console_app<node_app>;
   public:
     node_app();
     
@@ -33,6 +34,9 @@ namespace vds {
 
     client client_;
 
+    storage_service storage_service_;
+    task_manager task_manager_;
+    network_service network_service_;
 
   };
 }

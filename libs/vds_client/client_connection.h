@@ -73,7 +73,7 @@ namespace vds {
     }
 
   private:
-    const service_provider & sp_;
+    service_provider sp_;
     connection_handler_type * handler_;
     std::string address_;
     int port_;
@@ -125,6 +125,7 @@ namespace vds {
           const connection & args
         ) : base_class(context),
           owner_(args.owner_),
+          sp_(args.owner_->sp_),
           peer_(true, &args.owner_->client_certificate_, &args.owner_->client_private_key_),
           done_count_(0),
           done_handler_(this),
@@ -139,6 +140,7 @@ namespace vds {
           vds::sequence(
             input_network_stream(s),
             ssl_input_stream(this->peer_),
+            http_response_parser(),
             input_command_stream(this->owner_, this->peer_)
           )
           (
@@ -148,6 +150,7 @@ namespace vds {
 
           vds::sequence(
             output_command_stream(this->owner_, this->peer_),
+            http_request_serializer(),
             ssl_output_stream(this->peer_),
             output_network_stream(s)
           )
@@ -158,6 +161,7 @@ namespace vds {
         }
 
       private:
+        service_provider sp_;
         client_connection * owner_;
         ssl_peer peer_;
 
@@ -243,7 +247,9 @@ namespace vds {
         {
         }
 
-        void operator()(const void * data, size_t len)
+        void operator()(
+          http_response & response,
+          http_incoming_stream & incoming_stream)
         {
 
         }
@@ -265,9 +271,9 @@ namespace vds {
       }
 
       template <typename context_type>
-      class handler : public sequence_step<context_type, void(const void * data, size_t len)>
+      class handler : public sequence_step<context_type, void(http_request & request, http_outgoing_stream & outgoing_stream)>
       {
-        using base_class = sequence_step<context_type, void(const void * data, size_t len)>;
+        using base_class = sequence_step<context_type, void(http_request & request, http_outgoing_stream & outgoing_stream)>;
       public:
         handler(
           const context_type & context,

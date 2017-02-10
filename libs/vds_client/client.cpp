@@ -44,5 +44,5 @@ void vds::client::connection_error()
 
 void vds::client::node_install(const std::string & login, const std::string & password)
 {
-  //messages::ask_certificate_and_key(login)
+  this->logic_->node_install(login, password);
 }
