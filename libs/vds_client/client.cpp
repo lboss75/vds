@@ -11,6 +11,14 @@ vds::client::client()
 {
 }
 
+vds::client::~client()
+{
+}
+
+void vds::client::register_services(service_registrator &)
+{
+}
+
 void vds::client::start(const service_provider & sp)
 {
   //Load certificates
@@ -21,7 +29,20 @@ void vds::client::start(const service_provider & sp)
   this->logic_->start();
 }
 
-void vds::client::node_install(const std::string& login, const std::string& password)
+void vds::client::stop(const service_provider & sp)
 {
+  this->logic_->stop();
+}
 
+void vds::client::connection_closed()
+{
+}
+
+void vds::client::connection_error()
+{
+}
+
+void vds::client::node_install(const std::string & login, const std::string & password)
+{
+  //messages::ask_certificate_and_key(login)
 }

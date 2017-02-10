@@ -16,7 +16,7 @@ void vds::task_manager::work_thread()
       start = task->start_time();
     }
   }
-  
-  this->scheduled_changed_.wait_for(start);
+
+  this->scheduled_changed_.wait_until(lock, start);
 }
 

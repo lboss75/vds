@@ -19,9 +19,13 @@ namespace vds {
     );
 
     void start();
+    void stop();
 
     void connection_closed(client_connection<client_logic> * connection);
     void connection_error(client_connection<client_logic> * connection, std::exception * ex);
+
+    template <typename message_type>
+    task_job send_message(const message_type & message);
 
   private:
     const service_provider & sp_;
@@ -35,7 +39,35 @@ namespace vds {
     size_t connected_;
 
     void update_connection_pool();
+
+    template <typename message_type>
+    class send_message_job
+    {
+    public:
+      send_message_job(client_logic * owner, const message_type & message)
+        : owner_(owner), message_(message)
+      {
+      }
+
+      void operator()()
+      {
+      }
+
+    private:
+      client_logic * owner_;
+      message_type message_;
+    };
   };
+
+
+  template<typename message_type>
+  inline task_job client_logic::send_message(const message_type & message)
+  {
+    auto task_manager = this->sp_.get<itask_manager>();
+    auto job = task_manager.create_job(send_message_job<message_type>(this, message));
+    job.start();
+    return job;
+  }
 }
 
 

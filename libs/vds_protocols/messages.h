@@ -8,15 +8,20 @@ All rights reserved
 
 namespace vds {
   
-  inline network_serializer & ask_certificate_and_key(network_serializer & sr, const std::string & object_name)
+  class messages
   {
-    sr.start((uint16_t)1);
-    sr << object_name;
-    sr.final();
+  public:
+    class ask_certificate_and_key
+    {
+    public:
+      ask_certificate_and_key(
+        const std::string & object_name
+      );
 
-    return sr;
+    private:
+      std::string object_name_;
+    };
   };
-
 }
 
 

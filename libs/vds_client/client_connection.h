@@ -225,7 +225,10 @@ namespace vds {
     class input_command_stream
     {
     public:
-      input_command_stream(client_connection * owner, ssl_peer & peer);
+      input_command_stream(client_connection * owner, ssl_peer & peer)
+        : owner_(owner), peer_(peer)
+      {
+      }
 
       template <typename context_type>
       class handler : public sequence_step<context_type, void(void)>
@@ -235,7 +238,8 @@ namespace vds {
         handler(
           const context_type & context,
           const input_command_stream & args
-        ) : base_class(context)
+        ) : base_class(context),
+          owner_(args.owner_), peer_(args.peer_)
         {
         }
 
@@ -243,15 +247,22 @@ namespace vds {
         {
 
         }
-
+      private:
+        client_connection * owner_;
+        ssl_peer & peer_;
       };
-
+    private:
+      client_connection * owner_;
+      ssl_peer & peer_;
     };
 
     class output_command_stream
     {
     public:
-      output_command_stream(client_connection * owner, ssl_peer & peer);
+      output_command_stream(client_connection * owner, ssl_peer & peer)
+        : owner_(owner), peer_(peer)
+      {
+      }
 
       template <typename context_type>
       class handler : public sequence_step<context_type, void(const void * data, size_t len)>
@@ -261,15 +272,22 @@ namespace vds {
         handler(
           const context_type & context,
           const output_command_stream & args
-        ) : base_class(context)
+        ) : base_class(context),
+          owner_(args.owner_), peer_(args.peer_)
         {
         }
 
         void operator()()
         {
-
         }
+
+      private:
+        client_connection * owner_;
+        ssl_peer & peer_;
       };
+    private:
+      client_connection * owner_;
+      ssl_peer & peer_;
     };
   };
 }

@@ -36,6 +36,10 @@ void vds::client_logic::start()
   this->update_connection_pool();
 }
 
+void vds::client_logic::stop()
+{
+}
+
 void vds::client_logic::connection_closed(client_connection<client_logic> * connection)
 {
   this->connection_mutex_.lock();

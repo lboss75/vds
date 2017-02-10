@@ -23,6 +23,7 @@ All rights reserved
 #include "persistence.h"
 #include "encoding.h"
 #include "file.h"
+#include "task_manager.h"
 
 #endif // !__VDS_CORE_H_
 
