@@ -23,3 +23,14 @@ FILE(GLOB SOURCE_LIB *.cpp)
 ADD_MSVC_PRECOMPILED_HEADER("stdafx.h" "stdafx.cpp" SOURCE_LIB)
 
 add_library(vds_client STATIC ${SOURCE_LIB} ${HEADER_FILES})
+target_link_libraries(
+  vds_client
+  vds_core
+  vds_network
+  vds_http
+  vds_crypto
+  vds_protocols
+  vds_storage
+  ${OPENSSL_LIBRARIES}
+  ${CMAKE_THREAD_LIBS_INIT}
+  )

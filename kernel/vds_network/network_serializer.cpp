@@ -44,7 +44,7 @@ vds::network_serializer & vds::network_serializer::operator<<(uint32_t value)
 vds::network_serializer & vds::network_serializer::operator<<(const std::string & value)
 {
   (*this) << (uint16_t)value.length();
-  for (auto i = 0; i < value.length(); ++i) {
+  for (size_t i = 0; i < value.length(); ++i) {
     (*this) << (uint8_t)value[i];
   }
   return *this;

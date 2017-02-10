@@ -39,38 +39,7 @@ namespace vds {
 
     void update_connection_pool();
 
-    template <typename message_type>
-    class send_message_job
-    {
-    public:
-      send_message_job(client_logic * owner, const message_type & message)
-        : owner_(owner), message_(message)
-      {
-      }
-
-      void operator()()
-      {
-      }
-
-    private:
-      client_logic * owner_;
-      message_type message_;
-    };
-
-    template <typename message_type>
-    task_job send_message(const message_type & message);
-
   };
-
-
-  template<typename message_type>
-  inline task_job client_logic::send_message(const message_type & message)
-  {
-    auto task_manager = this->sp_.get<itask_manager>();
-    auto job = task_manager.create_job(send_message_job<message_type>(this, message));
-    job.start();
-    return job;
-  }
 }
 
 

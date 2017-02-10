@@ -105,6 +105,11 @@ namespace vds {
     {
     }
     
+    static itask_manager get(const service_provider & sp)
+    {
+      return sp.get<itask_manager>();
+    }
+    
     template <typename handler_type>
     task_job create_job(handler_type & handler)
     {

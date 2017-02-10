@@ -5,6 +5,10 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
+
+#include "service_provider.h"
+#include "task_manager.h"
+
 namespace vds {
 
   template <typename connection_handler_type>
@@ -71,6 +75,8 @@ namespace vds {
     {
       return this->connection_end_;
     }
+    
+    itask_manager get_task_manager() const;
 
   private:
     service_provider sp_;
@@ -124,8 +130,8 @@ namespace vds {
           const context_type & context,
           const connection & args
         ) : base_class(context),
-          owner_(args.owner_),
           sp_(args.owner_->sp_),
+          owner_(args.owner_),
           peer_(true, &args.owner_->client_certificate_, &args.owner_->client_private_key_),
           done_count_(0),
           done_handler_(this),
@@ -279,23 +285,57 @@ namespace vds {
           const context_type & context,
           const output_command_stream & args
         ) : base_class(context),
-          owner_(args.owner_), peer_(args.peer_)
+          owner_(args.owner_),
+          peer_(args.peer_),
+          timer_job_(std::bind(&handler::timer_job, this)),
+          request_("POST", "/vds/ping"),
+          ping_job_(this->owner_->get_task_manager().create_job(this->timer_job_))
         {
+        }
+        
+        ~handler()
+        {
+          this->ping_job_.destroy();
         }
 
         void operator()()
         {
+          this->processed();
+        }
+        
+        void processed()
+        {
+          this->ping_job_.schedule(
+            std::chrono::system_clock::now()
+            + std::chrono::seconds(1));
         }
 
       private:
+        std::chrono::time_point<std::chrono::system_clock> next_message_;
         client_connection * owner_;
         ssl_peer & peer_;
+        task_job ping_job_;
+        
+        std::function<void(void)> timer_job_;
+        http_request request_;
+        http_outgoing_stream outgoing_stream_;
+        
+        void timer_job()
+        {
+          this->next(this->request_, this->outgoing_stream_);
+        }
       };
     private:
       client_connection * owner_;
       ssl_peer & peer_;
     };
   };
+  
+  template <typename connection_handler_type>
+  itask_manager client_connection<connection_handler_type>::get_task_manager() const
+  {
+    return itask_manager::get(this->sp_);
+  }
 }
 
 
