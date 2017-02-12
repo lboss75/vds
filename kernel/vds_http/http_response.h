@@ -13,6 +13,7 @@ namespace vds {
   {
   public:
     static constexpr int HTTP_OK = 200;
+    static constexpr int HTTP_Internal_Server_Error = 500;
     
     http_response();
 
@@ -62,6 +63,10 @@ namespace vds {
     bool empty() const
     {
       return this->code_ < 0;
+    }
+    
+    void clear(){
+      this->code_ = -1;
     }
 
   private:

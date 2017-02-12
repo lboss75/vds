@@ -10,4 +10,6 @@ All rights reserved
 #include "vds_protocols.h"
 #include "vds_storage.h"
 
+#include "server_logic.h"
+
 #endif // __VDS_SERVER_VDS_SERVER_H_

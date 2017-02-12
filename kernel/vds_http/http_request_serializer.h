@@ -54,6 +54,12 @@ namespace vds {
           for (auto & header : request.headers()) {
             stream << header << "\n";
           }
+          
+          stream << "Content-Length:" << outgoing_stream.size() << "\n\n";
+          
+          if(outgoing_stream.is_simple()) {
+            stream << outgoing_stream.body();
+          }
 
           stream << "\n";
           this->header_ = stream.str();

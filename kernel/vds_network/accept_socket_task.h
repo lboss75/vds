@@ -113,15 +113,15 @@ namespace vds {
     }
 
     /* We now have a listening socket, we create a read event to
-      * be notified when a client connects. */
+      * be notified when a client connects. * /
     event_set(
       &this->ev_accept_,
       this->s_,
-      EV_READ | EV_PERSIST,
+      EV_READ,
       &accept_socket_task::wait_accept,
       this);
     event_add(&this->ev_accept_, NULL);
-    this->network_service_->start_libevent_dispatch();
+    this->network_service_->start_libevent_dispatch();*/
 #endif
 
     }
@@ -129,7 +129,14 @@ namespace vds {
     void schedule()
     {
 #ifndef _WIN32
-      event_add(&this->ev_accept_, NULL);
+    event_set(
+      &this->ev_accept_,
+      this->s_,
+      EV_READ,
+      &accept_socket_task::wait_accept,
+      this);
+    event_add(&this->ev_accept_, NULL);
+    this->network_service_->start_libevent_dispatch();
 #else
       this->wait_accept_task_ = std::async(std::launch::async,
         [this]() {
@@ -214,9 +221,11 @@ namespace vds {
         //    auto error = errno;
         //    throw new c_exception("Set socket to be nonblocking", error);
         //}
-        
-        network_socket s(sock);
-        data->done_method_(s);
+        std::async(std::launch::async, [data, sock](){
+          std::cout << "New connection\n";
+          network_socket s(sock);
+          data->done_method_(s);
+        });
     }
 
 #else

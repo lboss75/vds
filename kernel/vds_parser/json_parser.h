@@ -44,18 +44,18 @@ namespace vds {
         stream_name_(args.stream_name_),
         parse_options_(args.parse_options_),
         state_(ST_BOF),
-        line_(1), column_(1),
-        current_object_(nullptr)
+        current_object_(nullptr),
+        line_(1), column_(1)
       {
 
       }
 
       void operator()(
-        const char * data,
+        const void * data,
         size_t len
         )
       {
-        this->data_ = data;
+        this->data_ = (const char *)data;
         this->len_ = len;
 
         this->processed();

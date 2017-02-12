@@ -6,9 +6,6 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
-#include "service_provider.h"
-#include "task_manager.h"
-
 namespace vds {
 
   template <typename connection_handler_type>
@@ -25,6 +22,7 @@ namespace vds {
     )
       : 
       sp_(sp),
+      log_(sp, "Client connection"),
       handler_(handler),
       address_(address),
       port_(port),
@@ -80,6 +78,7 @@ namespace vds {
 
   private:
     service_provider sp_;
+    logger log_;
     connection_handler_type * handler_;
     std::string address_;
     int port_;
@@ -96,6 +95,7 @@ namespace vds {
 
     void connect_done(void)
     {
+      this->log_(debug("Connected to ") << this->address_ << ":" << this->port_);
       this->connection_end_ = std::chrono::system_clock::now();
       this->state_ = NONE;
       this->handler_->connection_closed(this);
@@ -103,6 +103,7 @@ namespace vds {
 
     void connect_error(std::exception * ex)
     {
+      this->log_(debug("Failed to connect ") << this->address_ << ":" << this->port_ << ":" << ex->what());
       this->connection_end_ = std::chrono::system_clock::now();
       this->state_ = CONNECT_ERROR;
       this->handler_->connection_error(this, ex);
@@ -211,6 +212,7 @@ namespace vds {
 
           void operator()(std::exception * ex)
           {
+            this->owner_->owner_->log_(error("stream ") << this->owner_->owner_->address_ << ":" << this->owner_->owner_->port_ << " error: " << ex->what());
             this->owner_->done_mutex_.lock();
             this->owner_->done_count_++;
             if (this->owner_->done_count_ == 2) {
@@ -288,8 +290,8 @@ namespace vds {
           owner_(args.owner_),
           peer_(args.peer_),
           timer_job_(std::bind(&handler::timer_job, this)),
-          request_("POST", "/vds/ping"),
-          ping_job_(this->owner_->get_task_manager().create_job(this->timer_job_))
+          ping_job_(itask_manager::get(this->owner_->sp_).create_job(this->timer_job_)),
+          request_("POST", "/vds/ping")
         {
         }
         
@@ -314,15 +316,22 @@ namespace vds {
         std::chrono::time_point<std::chrono::system_clock> next_message_;
         client_connection * owner_;
         ssl_peer & peer_;
-        task_job ping_job_;
         
         std::function<void(void)> timer_job_;
+        task_job ping_job_;
+        
         http_request request_;
         http_outgoing_stream outgoing_stream_;
         
         void timer_job()
         {
-          this->next(this->request_, this->outgoing_stream_);
+          try {
+            this->outgoing_stream_.set_body("{\"$type\":\"ping\"}");
+            this->next(this->request_, this->outgoing_stream_);
+          }
+          catch(std::exception * ex){
+            this->error(ex);
+          }
         }
       };
     private:
@@ -330,12 +339,6 @@ namespace vds {
       ssl_peer & peer_;
     };
   };
-  
-  template <typename connection_handler_type>
-  itask_manager client_connection<connection_handler_type>::get_task_manager() const
-  {
-    return itask_manager::get(this->sp_);
-  }
 }
 
 

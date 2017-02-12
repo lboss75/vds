@@ -39,6 +39,10 @@ namespace vds {
     void set_flush_output_handler(flush_output_handler * handler) { this->flush_output_handler_ = handler; }
     void set_flush_output_done_handler(flush_output_done_handler * handler) { this->flush_output_done_handler_ = handler; }
     void finish_flush_output() { this->flush_output_done_handler_->flush_output_done(); }
+    
+    bool is_client() const {
+      return this->is_client_;
+    }
 
   private:
     SSL_CTX *ssl_ctx_;
@@ -72,9 +76,9 @@ namespace vds {
         const context_type & context,
         const ssl_input_stream & args
       ) : base_class(context),
-	peer_(args.peer_),
-	data_(nullptr),
-	len_(0),
+        peer_(args.peer_),
+        data_(nullptr),
+        len_(0),
         eof_(false)
       {
         this->peer_.set_flush_output_done_handler(this);
@@ -82,13 +86,13 @@ namespace vds {
 
       void operator()(const void * data, size_t len)
       {
-	if(0 < this->len_){
-	  throw new std::runtime_error("State error");
-	}
-  if (0 == len) {
-    this->eof_ = true;
+        if(0 < this->len_){
+          throw new std::runtime_error("State error");
         }
-	
+        if (0 == len) {
+          this->eof_ = true;
+        }
+
         this->data_ = data;
         this->len_ = len;
 
@@ -167,26 +171,30 @@ namespace vds {
 
       void operator()(const void * data, size_t len)
       {
-	if(this->is_passthrough_ || 0 < this->len_){
-	  throw new std::runtime_error("State error");
-	}
-  if (0 == len) {
-    this->eof_ = true;
+        if(this->peer_.is_client()) {
+          this->processed();
         }
-	
-	this->data_ = data;
-	this->len_ = len;
-	this->processed();
+        if(this->is_passthrough_ || 0 < this->len_){
+          throw new std::runtime_error("State error");
+        }
+        
+        if (0 == len) {
+          this->eof_ = true;
+        }
+        
+        this->data_ = data;
+        this->len_ = len;
+        this->processed();
       }
 
       void processed()
       {
-	if(0 < this->len_){
-	  auto written = this->peer_.write_decoded(this->data_, this->len_);
-	  this->data_ = reinterpret_cast<const uint8_t *>(this->data_) + written;
-	  this->len_ -= written;
-	}
-	
+        if(0 < this->len_){
+          auto written = this->peer_.write_decoded(this->data_, this->len_);
+          this->data_ = reinterpret_cast<const uint8_t *>(this->data_) + written;
+          this->len_ -= written;
+        }
+        
         auto len = this->peer_.read_output(this->buffer_, BUFFER_SIZE);
         if (0 == len) {
           if (this->is_passthrough_) {

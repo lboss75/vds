@@ -113,7 +113,11 @@ namespace vds {
         return;
       }
       
-      pthis->next_method_(pthis->buffer_, len);
+      std::async(
+        std::launch::async,
+        [pthis, len](){
+          pthis->next_method_(pthis->buffer_, len);
+        });
     }
 #endif//_WIN32
 

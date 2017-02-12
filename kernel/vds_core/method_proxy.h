@@ -1,6 +1,11 @@
 #ifndef __VDS_CORE_METHOD_PROXY_H_
 #define __VDS_CORE_METHOD_PROXY_H_
 
+/*
+Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
+All rights reserved
+*/
+
 namespace vds {
   template <
     typename method_type,

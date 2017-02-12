@@ -15,8 +15,9 @@ void vds::task_manager::register_services(service_registrator & registrator)
   });
 }
 
-void vds::task_manager::start(const service_provider &)
+void vds::task_manager::start(const service_provider & sp)
 {
+  this->sp_ = sp;
 }
 
 void vds::task_manager::stop(const service_provider &)
@@ -25,16 +26,23 @@ void vds::task_manager::stop(const service_provider &)
 
 void vds::task_manager::work_thread()
 {
-  std::unique_lock<std::mutex> lock(this->scheduled_mutex_);
+  while(!this->sp_.get_shutdown_event().is_shuting_down()){
   
-  std::chrono::time_point<std::chrono::system_clock> start;
-  for(auto task : this->scheduled_){
-    if(start > task->start_time()){
-      start = task->start_time();
+    std::unique_lock<std::mutex> lock(this->scheduled_mutex_);
+    
+    auto now = std::chrono::system_clock::now();
+    for(auto task : this->scheduled_){
+      if(task->start_time() <= now){
+        this->scheduled_.remove(task);
+        std::thread([task](){
+          task->execute();
+        }).detach();
+        break;
+      }
     }
+    
+    this->scheduled_changed_.wait_for(lock, std::chrono::seconds(1));
   }
-
-  this->scheduled_changed_.wait_until(lock, start);
 }
 
 void vds::task_manager::task_job_base::start()
@@ -52,7 +60,7 @@ void vds::task_manager::task_job_base::schedule(const std::chrono::time_point<st
   this->owner_->scheduled_.push_back(this);
 
   if (need_execute) {
-    std::async(std::bind(&task_manager::work_thread, this->owner_));
+    std::thread(std::bind(&task_manager::work_thread, this->owner_)).detach();
   }
 }
 

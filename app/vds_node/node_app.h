@@ -37,7 +37,7 @@ namespace vds {
     storage_service storage_service_;
     task_manager task_manager_;
     network_service network_service_;
-
+    crypto_service crypto_service_;
   };
 }
 

@@ -142,7 +142,11 @@ namespace vds {
         event_add(&pthis->event_, NULL);
       }
       else {
-        pthis->done_method_();
+        std::async(
+          std::launch::async,
+          [pthis](){
+            pthis->done_method_();
+          });
       }
     }
 #endif//_WIN32

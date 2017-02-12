@@ -58,6 +58,10 @@ void vds::node_app::main(
 {
   if (&this->node_install_cmd_set_ == this->current_command_set_) {
     this->client_.node_install(this->node_login_.value(), this->node_password_.value());
+    
+    std::cout << "Enter command:\n";
+    std::string command;
+    std::cin >> command;
   }
 }
 
@@ -79,6 +83,7 @@ void vds::node_app::register_services(service_registrator & registrator)
     registrator.add(this->task_manager_);
     registrator.add(this->storage_service_);
     registrator.add(this->network_service_);
+    registrator.add(this->crypto_service_);
     registrator.add(this->client_);
   }
 }

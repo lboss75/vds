@@ -8,7 +8,7 @@ All rights reserved
 
 static vds::endpoint endpoints[] =
 {
-  vds::endpoint { "127.0.0.1", 8001 }
+  vds::endpoint { "127.0.0.1", 8050 }
 };
 
 vds::storage_cursor<vds::endpoint>::storage_cursor(istorage &)

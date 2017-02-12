@@ -11,6 +11,7 @@ namespace vds {
   class json_value
   {
   public:
+    json_value();
     json_value(int line, int column);
     virtual ~json_value();
 
@@ -22,14 +23,26 @@ namespace vds {
       return this->column_;
     }
     
+    std::string str() const
+    {
+      std::stringstream stream;
+      this->str(stream);
+      return stream.str();
+    }
+    
+    virtual void str(std::stringstream & stream) const = 0;
+    
   private:
     int line_;
     int column_;
+  protected:
+    static void escape(std::stringstream & stream, const std::string & value);
   };
   
   class json_primitive : public json_value
   {
   public:
+    json_primitive(const std::string & value);
     json_primitive(
       int line, int column,
       const std::string & value);
@@ -37,6 +50,8 @@ namespace vds {
     const std::string & value() const {
       return this->value_;
     }
+    
+    void str(std::stringstream & stream) const override;
     
   private:
     std::string value_;
@@ -46,6 +61,7 @@ namespace vds {
   {
   public:
     json_property(int line, int column);
+    json_property(const std::string & name, json_value * val);
 
     const std::string & name() const {
       return this->name_;
@@ -62,6 +78,8 @@ namespace vds {
     void value(json_value * val) {
       this->value_.reset(val);
     }
+    
+    void str(std::stringstream & stream) const override;
 
   private:
     std::string name_;
@@ -71,12 +89,14 @@ namespace vds {
   class json_object : public json_value
   {
   public:
+    json_object();
     json_object(int line, int column);
 
     void visit(const std::function<void(const json_property &)> & visitor) const;
     
     void add_property(json_property * prop);
 
+    void str(std::stringstream & stream) const override;
   private:
     friend class vjson_file_parser;
     std::list<std::unique_ptr<json_property>> properties_;
@@ -85,6 +105,7 @@ namespace vds {
   class json_array : public json_value
   {
   public:
+    json_array();
     json_array(
       int line,
       int column);
@@ -102,9 +123,12 @@ namespace vds {
       this->items_.push_back(std::unique_ptr<json_value>(item));
     }
     
+    void str(std::stringstream & stream) const override;
+    
   private:
     std::vector<std::unique_ptr<json_value>> items_;
   };
+  
   
 }
 

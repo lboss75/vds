@@ -66,7 +66,9 @@ void vds::client_logic::node_install(const std::string & login, const std::strin
 void vds::client_logic::update_connection_pool()
 {
   if (!this->connection_queue_.empty()) {
-    std::async([this]() {
+    std::async(
+      std::launch::async,
+      [this]() {
 
       std::chrono::time_point<std::chrono::system_clock> border
         = std::chrono::system_clock::now() - std::chrono::seconds(60);

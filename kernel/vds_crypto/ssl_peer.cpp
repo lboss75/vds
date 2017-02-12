@@ -16,7 +16,7 @@ vds::ssl_peer::ssl_peer(bool is_client, const certificate * cert, const asymmetr
     throw new crypto_exception("SSL_CTX_new failed", error);
   }
   
-  //SSL_CTX_set_verify(this->ssl_ctx_, SSL_VERIFY_NONE, nullptr);
+  SSL_CTX_set_verify(this->ssl_ctx_, SSL_VERIFY_NONE, nullptr);
 
   //set_certificate_and_key
   if (nullptr != cert) {

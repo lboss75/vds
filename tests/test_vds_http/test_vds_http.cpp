@@ -52,7 +52,7 @@ public:
       vds::sequence(
         vds::input_network_stream(this->s_),
         vds::http_parser(this->sp_),
-        vds::http_middleware(this->router_),
+        vds::http_middleware<vds::http_router>(this->router_),
         vds::http_response_serializer(),
         vds::output_network_stream(this->s_)
       )

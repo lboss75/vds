@@ -14,10 +14,11 @@ All rights reserved
 namespace vds {
   class http_router;
   
+  template <typename router_type>
   class http_middleware
   {
   public:
-    http_middleware(const http_router & router)
+    http_middleware(const router_type & router)
     : router_(router){
     }
     
@@ -40,7 +41,8 @@ namespace vds {
         const context_type & context,
         const http_middleware & params)
         : base_class(context),
-        router_(params.router_)
+        router_(params.router_),
+        http_error_handler_(this)
       {
       }
       
@@ -48,29 +50,63 @@ namespace vds {
         const http_request & request,
         http_incoming_stream & incoming_stream
       ) {
+        
         this->response_.reset(request);
         if (!request.empty()) {
-          this->router_.route(
-            request,
-            incoming_stream,
-            this->response_,
-            this->outgoing_stream_
-          );
+          try {
+            this->router_.route(
+              request,
+              incoming_stream,
+              this->response_,
+              this->outgoing_stream_,
+              this->prev,
+              this->next,
+              this->http_error_handler_
+            );
+          }
+          catch(std::exception * ex) {
+            this->http_error_handler_(ex);
+          }
         }
-        
-        this->next(
-          this->response_,
-          this->outgoing_stream_);
+        else {
+          this->next(
+            this->response_,
+            this->outgoing_stream_);
+        }
       }
       
     private:
-      const http_router & router_;
+      const router_type & router_;
       http_response response_;
       http_outgoing_stream outgoing_stream_;
+      
+      class http_error_handler
+      {
+      public:
+        http_error_handler(handler * owner)
+        : owner_(owner)
+        {
+        }
+        
+        void operator()(std::exception * ex)
+        {
+          this->owner_->response_.set_result(
+            http_response::HTTP_Internal_Server_Error,
+            ex->what());
+          this->owner_->outgoing_stream_.set_body(ex->what());
+          delete ex;
+          this->owner_->next(
+            this->owner_->response_,
+            this->owner_->outgoing_stream_);
+        }
+      private:
+        handler * owner_;
+      };
+      http_error_handler http_error_handler_;
     };
     
   private:
-    const http_router & router_;
+    const router_type & router_;
   };
 }
 

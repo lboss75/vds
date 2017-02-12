@@ -9,6 +9,7 @@ else()
 endif (UNIX)
 
 include_directories(${vds_core_SOURCE_DIR})
+include_directories(${vds_parser_SOURCE_DIR})
 include_directories(${vds_http_SOURCE_DIR})
 include_directories(${vds_network_SOURCE_DIR})
 include_directories(${vds_crypto_SOURCE_DIR})

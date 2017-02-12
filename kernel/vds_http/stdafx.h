@@ -10,7 +10,7 @@ All rights reserved
 
 #include "vds_core.h"
 #include "vds_network.h"
-
+#include "vds_parser.h"
 
 
 #endif // __VDS_HTTP_STDAFX_H_

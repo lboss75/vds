@@ -44,10 +44,12 @@ namespace vds {
       task_manager * owner_;      
     };
     
+    service_provider sp_;
     std::list<task_job_base *> scheduled_;
     std::condition_variable scheduled_changed_;
     std::mutex scheduled_mutex_;
     void work_thread();
+    
     
     template <typename handler_type>
     class task_job_impl : public task_job_base

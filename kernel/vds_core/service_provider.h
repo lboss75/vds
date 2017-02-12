@@ -21,29 +21,33 @@ namespace vds {
     class service_provider
     {
     public:
-        template <typename interface_type>
-        interface_type get() const;
+      service_provider()
+      {
+      }
+      
+      template <typename interface_type>
+      interface_type get() const;
 
-        template <typename interface_type>
-        bool enum_collection(const std::function<bool(interface_type)> & visiter, bool throwIfEmpty = true) const;
+      template <typename interface_type>
+      bool enum_collection(const std::function<bool(interface_type)> & visiter, bool throwIfEmpty = true) const;
 
-        template <typename interface_type>
-        std::list<interface_type> get_collection(bool throwIfEmpty = true)  const;
+      template <typename interface_type>
+      std::list<interface_type> get_collection(bool throwIfEmpty = true)  const;
 
-        service_provider create_scope() const;
+      service_provider create_scope() const;
 
-        void on_complete(const std::function<void(void)> & done) const;
+      void on_complete(const std::function<void(void)> & done) const;
 
-        const shutdown_event & get_shutdown_event() const;
+      const shutdown_event & get_shutdown_event() const;
 
     private:
-        friend class iservice_provider_impl;
-        friend class service_registrator_impl;
+      friend class iservice_provider_impl;
+      friend class service_registrator_impl;
 
-        service_provider(class iservice_provider_impl * impl);
-        service_provider(const std::shared_ptr<iservice_provider_impl> & impl);
+      service_provider(class iservice_provider_impl * impl);
+      service_provider(const std::shared_ptr<iservice_provider_impl> & impl);
 
-        std::shared_ptr<iservice_provider_impl> impl_;
+      std::shared_ptr<iservice_provider_impl> impl_;
     };
 
     class service_registrator;

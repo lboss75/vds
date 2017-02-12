@@ -51,7 +51,7 @@ void vds::http_router::route(
     outgoing_stream.set_file(pf->second);
     return;
   }
-
+  
   this->log_(debug("File not found: ") << request.url());
   response.set_result(404, "Not Found");
   outgoing_stream.set_body("<html><body>File not file</body></html>");
@@ -71,3 +71,5 @@ void vds::http_router::add_file(
 {
   this->files_[url] = filename;
 }
+
+

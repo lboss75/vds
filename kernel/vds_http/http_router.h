@@ -1,10 +1,10 @@
+#ifndef __VDS_HTTP_HTTP_ROUTER_H_
+#define __VDS_HTTP_HTTP_ROUTER_H_
+
 /*
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
-
-#ifndef __VDS_HTTP_HTTP_ROUTER_H_
-#define __VDS_HTTP_HTTP_ROUTER_H_
 
 namespace vds {
   class http_request;
@@ -31,7 +31,26 @@ namespace vds {
     void add_file(
       const std::string & url,
       const filename & filename);
-
+    
+        template<
+      typename prev_handler_type,
+      typename next_handler_type,
+      typename error_handler_type
+    >
+    void route(
+      const http_request & request,
+      http_incoming_stream & incoming_stream,
+      http_response & response,
+      http_outgoing_stream & outgoing_stream,
+      prev_handler_type & prev_handler,
+      next_handler_type & next_handler,
+      error_handler_type & error_handler
+    ) const
+    {
+      this->route(request, incoming_stream, response, outgoing_stream);
+      next_handler(response, outgoing_stream);      
+    }
+    
   private:
     logger log_;
     std::map<std::string, std::string> static_;

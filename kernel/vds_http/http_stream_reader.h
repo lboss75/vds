@@ -1,6 +1,11 @@
 #ifndef __VDS_HTTP_HTTP_STREAM_READER_H_
 #define __VDS_HTTP_HTTP_STREAM_READER_H_
 
+/*
+Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
+All rights reserved
+*/
+
 #include <vector>
 #include "http_incoming_stream.h"
 
