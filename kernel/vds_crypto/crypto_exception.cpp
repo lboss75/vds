@@ -8,6 +8,24 @@ All rights reserved
 #include "string_format.h"
 
 vds::crypto_exception::crypto_exception(const std::string & message, int error_code)
-  : std::runtime_error(string_format("%s: %s", message.c_str(), ERR_error_string(error_code, nullptr)))
+  : std::runtime_error(format_message(message, error_code))
 {
 }
+
+std::string vds::crypto_exception::format_message(const std::string& message, int error_code)
+{
+  auto result = string_format("%s: error %d", message.c_str(), error_code);
+  
+  while(SSL_ERROR_NONE != error_code){
+    char errorString[1024];
+    ERR_error_string_n(error_code, errorString, 1024);
+    
+    result += ", ";
+    result += errorString;
+    
+    error_code = ERR_get_error();
+  }
+  
+  return result;
+}
+

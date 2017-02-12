@@ -15,6 +15,8 @@ namespace vds {
   public:
     crypto_exception(const std::string & message, int error_code);
 
+  private:
+    static std::string format_message(const std::string & message, int error_code);
   };
 
 }

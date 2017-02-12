@@ -38,7 +38,7 @@ vds::ssl_peer::ssl_peer(bool is_client, const certificate * cert, const asymmetr
       throw new crypto_exception("SSL_CTX_check_private_key", ssl_error);
     }
   }
-
+  
   this->ssl_ = SSL_new(this->ssl_ctx_);
   if(nullptr == this->ssl_){
     auto error = ERR_get_error();
@@ -68,6 +68,29 @@ vds::ssl_peer::ssl_peer(bool is_client, const certificate * cert, const asymmetr
 
 }
 
+bool vds::ssl_peer::is_init_finished()
+{
+  return SSL_is_init_finished(this->ssl_);
+  /*
+  if (SSL_is_init_finished(this->ssl_)) {
+    return true;
+  }
+  
+  auto ssl_error = SSL_do_handshake(this->ssl_);
+  if (0 >= ssl_error) {
+    ssl_error = SSL_get_error(this->ssl_, ssl_error);
+    if (SSL_ERROR_WANT_READ == ssl_error) {
+      return false;
+    }
+    
+    throw new crypto_exception("SSL_do_handshake", ssl_error);
+  }
+  
+  return false;
+  //throw new std::logic_error("SSL_do_handshake failed");
+  */
+}
+
 size_t vds::ssl_peer::write_input(const void * data, size_t len)
 {
   int bytes = BIO_write(this->input_bio_, data, len);
@@ -89,7 +112,8 @@ size_t vds::ssl_peer::read_decoded(uint8_t * data, size_t len)
   if(0 <= bytes){
     return (size_t)bytes;
   }
-  
+  int ssl_error = SSL_get_error(this->ssl_, bytes);
+  auto b = SSL_is_init_finished(this->ssl_);
   //if (this->is_handshaking_ && SSL_is_init_finished(this->ssl_)) {
   //  this->is_handshaking_ = false;
   //}
@@ -120,9 +144,10 @@ size_t vds::ssl_peer::write_decoded(const void * data, size_t len)
 
 size_t vds::ssl_peer::read_output(uint8_t * data, size_t len)
 {
-  if (!this->is_client_ && !BIO_pending(this->output_bio_)) {
+  if(!this->is_client() && 0 >= BIO_pending(this->output_bio_)) {
     return 0;
   }
+  
   int bytes = BIO_read(this->output_bio_, data, len);
   if (bytes > 0) {
     return (size_t)bytes;
@@ -141,4 +166,5 @@ size_t vds::ssl_peer::read_output(uint8_t * data, size_t len)
     throw new crypto_exception("BIO_read", ssl_error);
   }
 }
+
 

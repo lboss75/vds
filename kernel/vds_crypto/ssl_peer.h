@@ -29,6 +29,8 @@ namespace vds {
       const asymmetric_private_key * key
     );
 
+    bool is_init_finished();
+    
     size_t write_input(const void * data, size_t len);
     size_t read_output(uint8_t * data, size_t len);
 
@@ -171,9 +173,6 @@ namespace vds {
 
       void operator()(const void * data, size_t len)
       {
-        if(this->peer_.is_client()) {
-          this->processed();
-        }
         if(this->is_passthrough_ || 0 < this->len_){
           throw new std::runtime_error("State error");
         }
@@ -189,12 +188,13 @@ namespace vds {
 
       void processed()
       {
-        if(0 < this->len_){
-          auto written = this->peer_.write_decoded(this->data_, this->len_);
-          this->data_ = reinterpret_cast<const uint8_t *>(this->data_) + written;
-          this->len_ -= written;
+        if(this->peer_.is_init_finished()) {
+          if(0 < this->len_){
+            auto written = this->peer_.write_decoded(this->data_, this->len_);
+            this->data_ = reinterpret_cast<const uint8_t *>(this->data_) + written;
+            this->len_ -= written;
+          }
         }
-        
         auto len = this->peer_.read_output(this->buffer_, BUFFER_SIZE);
         if (0 == len) {
           if (this->is_passthrough_) {

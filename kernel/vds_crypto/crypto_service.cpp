@@ -17,18 +17,20 @@ void vds::crypto_service::start(const service_provider &)
   RAND_seed(&rnd_seed, sizeof(rnd_seed));
 
 
+  SSL_library_init();
   SSL_load_error_strings();
 
   /* Load the human readable error strings for libcrypto */
   ERR_load_crypto_strings();
 
+  ERR_load_BIO_strings();
+  
   /* Load all digest and cipher algorithms */
   OpenSSL_add_all_algorithms();
 
   /* Load config file, and other important initialisation */
   OPENSSL_config(NULL);
   
-  SSL_library_init();
   
 }
 
