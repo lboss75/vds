@@ -11,7 +11,7 @@ TEST(test_vds_crypto, test_symmetric)
     vds::service_registrator registrator;
     
     vds::crypto_service crypto_service;
-    vds::console_logger console_logger;
+    vds::console_logger console_logger(vds::ll_trace);
 
     registrator.add(console_logger);
     registrator.add(crypto_service);
@@ -72,7 +72,7 @@ TEST(test_vds_crypto, test_sign)
   vds::service_registrator registrator;
 
   vds::crypto_service crypto_service;
-  vds::console_logger console_logger;
+  vds::console_logger console_logger(vds::ll_trace);
 
   registrator.add(console_logger);
   registrator.add(crypto_service);

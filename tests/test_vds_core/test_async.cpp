@@ -9,7 +9,7 @@ All rights reserved
 TEST(mt_tests, test_async) {
     vds::service_registrator registrator;
 
-    vds::console_logger logger;
+    vds::console_logger logger(vds::ll_trace);
 
     registrator.add(logger);
 

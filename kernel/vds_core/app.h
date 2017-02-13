@@ -69,8 +69,10 @@ namespace vds{
   {
   public:
     console_app()
-    : help_cmd_set_("Show help", "Show application help"),
-    help_cmd_switch_("h", "help", "Help", "Show help")
+    :
+      console_logger_(ll_trace),
+      help_cmd_set_("Show help", "Show application help"),
+      help_cmd_switch_("h", "help", "Help", "Show help")
     {
     }
     

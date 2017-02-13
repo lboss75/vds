@@ -9,18 +9,6 @@ namespace vds {
   class certificate;
   class asymmetric_private_key;
 
-  class flush_output_handler
-  {
-  public:
-    virtual void flush_output() = 0;
-  };
-
-  class flush_output_done_handler
-  {
-  public:
-    virtual void flush_output_done() = 0;
-  };
-
   class ssl_peer {
   public:
     ssl_peer(
@@ -28,23 +16,22 @@ namespace vds {
       const certificate * cert,
       const asymmetric_private_key * key
     );
-
-    bool is_init_finished();
-    
-    size_t write_input(const void * data, size_t len);
-    size_t read_output(uint8_t * data, size_t len);
-
-    size_t read_decoded(uint8_t * data, size_t len);
-    size_t write_decoded(const void * data, size_t len);
-
-    void flush_output() { this->flush_output_handler_->flush_output(); }
-    void set_flush_output_handler(flush_output_handler * handler) { this->flush_output_handler_ = handler; }
-    void set_flush_output_done_handler(flush_output_done_handler * handler) { this->flush_output_done_handler_ = handler; }
-    void finish_flush_output() { this->flush_output_done_handler_->flush_output_done(); }
     
     bool is_client() const {
       return this->is_client_;
     }
+
+    std::function<void(void)> input_done;
+    std::function<void(const void * data, size_t len)> decoded_output_done;
+
+    std::function<void(void)> decoded_input_done;
+    std::function<void(const void * data, size_t len)> output_done;
+
+    void write_input(const void * data, size_t len);
+    void read_decoded_output(void * data, size_t len);
+
+    void read_output(void * data, size_t len);
+    void write_decoded_output(const void * data, size_t len);
 
   private:
     SSL_CTX *ssl_ctx_;
@@ -54,8 +41,21 @@ namespace vds {
 
     bool is_client_;
 
-    flush_output_handler * flush_output_handler_;
-    flush_output_done_handler * flush_output_done_handler_;
+    const void * input_data_;
+    size_t input_len_;
+
+    void * output_data_;
+    size_t output_len_;
+
+    const void * decoded_input_data_;
+    size_t decoded_input_len_;
+
+    void * decoded_output_data_;
+    size_t decoded_output_len_;
+
+    std::mutex data_mutex_;
+
+    void work_circle();
   };
 
   class ssl_input_stream
@@ -67,76 +67,47 @@ namespace vds {
     }
 
     template < typename context_type >
-    class handler
-      : public sequence_step<context_type, void(void *, size_t)>,
-      private flush_output_done_handler
+    class handler : public sequence_step<context_type, void(const void *, size_t)>
 
     {
-      using base_class = sequence_step<context_type, void(void *, size_t)>;
+      using base_class = sequence_step<context_type, void(const void *, size_t)>;
     public:
       handler(
         const context_type & context,
         const ssl_input_stream & args
       ) : base_class(context),
-        peer_(args.peer_),
-        data_(nullptr),
-        len_(0),
-        eof_(false)
+        peer_(args.peer_)
       {
-        this->peer_.set_flush_output_done_handler(this);
+        this->peer_.input_done = [this]() {
+          this->prev();
+        };
+
+        this->peer_.decoded_output_done = [this](const void * data, size_t len) {
+          this->next(data, len);
+        };
+
+        this->peer_.read_decoded_output(this->buffer_, BUFFER_SIZE);
       }
 
       void operator()(const void * data, size_t len)
       {
-        if(0 < this->len_){
-          throw new std::runtime_error("State error");
-        }
         if (0 == len) {
-          this->eof_ = true;
+          this->next(nullptr, 0);
         }
-
-        this->data_ = data;
-        this->len_ = len;
-
-        this->processed();
+        else {
+          this->peer_.write_input(data, len);
+        }
       }
 
       void processed()
       {
-        if (0 < this->len_) {
-          auto bytes = this->peer_.write_input(this->data_, this->len_);
-
-          this->data_ = reinterpret_cast<const uint8_t *>(this->data_) + bytes;
-          this->len_ -= bytes;
-        }
-
-        auto bytes = this->peer_.read_decoded(this->buffer_, BUFFER_SIZE);
-        if (bytes > 0) {
-          this->next(this->buffer_, bytes);
-        }
-        else if (this->eof_) {
-          this->next(nullptr, 0);
-        }
-        else {
-          this->peer_.flush_output();
-        }        
-      }
-
-      void flush_output_done() override
-      {
-        this->prev();
+        this->peer_.read_decoded_output(this->buffer_, BUFFER_SIZE);
       }
 
     private:
       ssl_peer & peer_;
-
-      const void * data_;
-      size_t len_;
-
       static constexpr size_t BUFFER_SIZE = 1024;
       uint8_t buffer_[BUFFER_SIZE];
-
-      bool eof_;
     };
   private:
     ssl_peer & peer_;
@@ -151,89 +122,47 @@ namespace vds {
     }
 
     template < typename context_type >
-    class handler
-      : public sequence_step<context_type, void(void *, size_t)>,
-      private flush_output_handler
+    class handler : public sequence_step<context_type, void(const void *, size_t)>
     {
-      using base_class = sequence_step<context_type, void(void *, size_t)>;
+      using base_class = sequence_step<context_type, void(const void *, size_t)>;
     public:
       handler(
         const context_type & context,
         const ssl_output_stream & args
       )
         : base_class(context),
-        peer_(args.peer_),
-        data_(nullptr),
-        len_(0),
-        is_passthrough_(false),
-        eof_(false)
+        peer_(args.peer_)
       {
-        this->peer_.set_flush_output_handler(this);
+        this->peer_.decoded_input_done = [this]() {
+          this->prev();
+        };
+
+        this->peer_.output_done = [this](const void * data, size_t len) {
+          this->next(data, len);
+        };
+
+        this->peer_.read_output(this->buffer_, BUFFER_SIZE);
       }
 
       void operator()(const void * data, size_t len)
       {
-        if(this->is_passthrough_ || 0 < this->len_){
-          throw new std::runtime_error("State error");
-        }
-        
         if (0 == len) {
-          this->eof_ = true;
+          this->next(nullptr, 0);
         }
-        
-        this->data_ = data;
-        this->len_ = len;
-        this->processed();
+        else {
+          this->peer_.write_decoded_output(data, len);
+        }
       }
 
       void processed()
       {
-        if(this->peer_.is_init_finished()) {
-          if(0 < this->len_){
-            auto written = this->peer_.write_decoded(this->data_, this->len_);
-            this->data_ = reinterpret_cast<const uint8_t *>(this->data_) + written;
-            this->len_ -= written;
-          }
-        }
-        auto len = this->peer_.read_output(this->buffer_, BUFFER_SIZE);
-        if (0 == len) {
-          if (this->is_passthrough_) {
-            this->is_passthrough_ = false;
-            this->peer_.finish_flush_output();
-          }
-          else if (this->eof_) {
-            this->next(nullptr, 0);
-          }
-          else {
-            this->prev();
-          }
-        }
-        else {
-          this->next(this->buffer_, len);
-        }
-      }
-
-      void flush_output() override
-      {
-        this->is_passthrough_ = true;
-        auto len = this->peer_.read_output(this->buffer_, BUFFER_SIZE);
-        if (0 == len) {
-          this->is_passthrough_ = false;
-          this->peer_.finish_flush_output();
-        }
-        else {
-          this->next(this->buffer_, len);
-        }
+        this->peer_.read_output(this->buffer_, BUFFER_SIZE);
       }
 
     private:
       ssl_peer & peer_;
-      const void * data_;
-      size_t len_;
-      bool is_passthrough_;
       static constexpr size_t BUFFER_SIZE = 1024;
       uint8_t buffer_[BUFFER_SIZE];
-      bool eof_;
     };
 
   private:

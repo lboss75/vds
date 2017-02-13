@@ -95,7 +95,7 @@ namespace vds {
 
     void connect_done(void)
     {
-      this->log_(debug("Connected to ") << this->address_ << ":" << this->port_);
+      this->log_(ll_debug, "Connected to %s:%d", this->address_.c_str(), this->port_);
       this->connection_end_ = std::chrono::system_clock::now();
       this->state_ = NONE;
       this->handler_->connection_closed(this);
@@ -103,7 +103,7 @@ namespace vds {
 
     void connect_error(std::exception * ex)
     {
-      this->log_(debug("Failed to connect ") << this->address_ << ":" << this->port_ << ":" << ex->what());
+      this->log_(ll_debug, "Failed to connect %s:%d %s", this->address_.c_str(), this->port_, ex->what());
       this->connection_end_ = std::chrono::system_clock::now();
       this->state_ = CONNECT_ERROR;
       this->handler_->connection_error(this, ex);
@@ -143,7 +143,7 @@ namespace vds {
         void operator()(network_socket & s)
         {
           this->owner_->on_connected(s);
-
+          
           vds::sequence(
             input_network_stream(s),
             ssl_input_stream(this->peer_),
@@ -154,7 +154,7 @@ namespace vds {
             this->done_handler_,
             this->error_handler_
           );
-
+          
           vds::sequence(
             output_command_stream(this->owner_, this->peer_),
             http_request_serializer(),
@@ -212,7 +212,7 @@ namespace vds {
 
           void operator()(std::exception * ex)
           {
-            this->owner_->owner_->log_(error("stream ") << this->owner_->owner_->address_ << ":" << this->owner_->owner_->port_ << " error: " << ex->what());
+            this->owner_->owner_->log_(ll_error, "stream %s:%s error: %s", this->owner_->owner_->address_.c_str(), this->owner_->owner_->port_, ex->what());
             this->owner_->done_mutex_.lock();
             this->owner_->done_count_++;
             if (this->owner_->done_count_ == 2) {

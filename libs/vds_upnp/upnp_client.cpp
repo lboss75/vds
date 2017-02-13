@@ -41,7 +41,7 @@ bool vds::upnp_client::open_port(
   const std::string & description
 )
 {
-  this->log_(debug("Execute the UPNP discovery process"));
+  this->log_(ll_debug, "Execute the UPNP discovery process");
 
 #ifdef _WIN32
   void * nat;
@@ -52,7 +52,7 @@ bool vds::upnp_client::open_port(
     IID_IUPnPNAT,
     &nat);
   if(FAILED(hr)) {
-    this->log_(error("Failed to create instance of IUPnPNAT. Error:") << hr);
+    this->log_(ll_error, "Failed to create instance of IUPnPNAT. Error: %d", hr);
     throw new std::system_error(hr, std::system_category(), "Failed to create instance of IUPnPNAT");
   }
   this->nat_.reset((IUPnPNAT *)nat);
@@ -93,7 +93,7 @@ bool vds::upnp_client::open_port(
     }
   }
 
-  this->log_(error("Failed to add port mapping. Error code: ") << hr);
+  this->log_(ll_error, "Failed to add port mapping. Error code: %d", hr);
   return false;
 
 #else

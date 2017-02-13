@@ -81,7 +81,7 @@ TEST(http_tests, test_server)
     vds::service_registrator registrator;
 
     vds::network_service network_service;
-    vds::console_logger console_logger;
+    vds::console_logger console_logger(vds::ll_trace);
 
     registrator.add(console_logger);
     registrator.add(network_service);
@@ -168,7 +168,7 @@ TEST(http_tests, test_https_server)
   vds::service_registrator registrator;
 
   vds::network_service network_service;
-  vds::console_logger console_logger;
+  vds::console_logger console_logger(vds::ll_trace);
 
   registrator.add(console_logger);
   registrator.add(network_service);

@@ -280,7 +280,7 @@ TEST(network_tests, test_server)
     vds::service_registrator registrator;
 
     vds::network_service network_service;
-    vds::console_logger console_logger;
+    vds::console_logger console_logger(vds::ll_trace);
 
     registrator.add(console_logger);
     registrator.add(network_service);
@@ -316,9 +316,9 @@ TEST(network_tests, test_server)
         );
         auto error_client = vds::lambda_handler(
           [&done](std::exception * ex) {
-            FAIL() << ex->what();
-            delete ex;
-            done.set();
+          std::unique_ptr<std::exception> ex_(ex);
+          done.set();
+          FAIL() << ex_->what();
           }
         );
 
@@ -345,7 +345,7 @@ TEST(network_tests, test_udp_server)
     vds::service_registrator registrator;
 
     vds::network_service network_service;
-    vds::console_logger console_logger;
+    vds::console_logger console_logger(vds::ll_trace);
 
     registrator.add(console_logger);
     registrator.add(network_service);

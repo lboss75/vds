@@ -8,9 +8,11 @@ All rights reserved
 #include "asymmetriccrypto.h"
 
 vds::ssl_peer::ssl_peer(bool is_client, const certificate * cert, const asymmetric_private_key * key)
-  : is_client_(is_client)
+  : is_client_(is_client),
+  input_len_(0), output_len_(0), decoded_input_len_(0), decoded_output_len_(0)
+
 {
-  this->ssl_ctx_ = SSL_CTX_new(SSLv23_server_method());
+  this->ssl_ctx_ = SSL_CTX_new(is_client ? SSLv23_client_method() : SSLv23_server_method());
   if(nullptr == this->ssl_ctx_){
     auto error = ERR_get_error();
     throw new crypto_exception("SSL_CTX_new failed", error);
@@ -65,106 +67,140 @@ vds::ssl_peer::ssl_peer(bool is_client, const certificate * cert, const asymmetr
   else {
     SSL_set_accept_state(this->ssl_);
   }
-
 }
 
-bool vds::ssl_peer::is_init_finished()
+void vds::ssl_peer::write_input(const void * data, size_t len)
 {
-  return SSL_is_init_finished(this->ssl_);
-  /*
-  if (SSL_is_init_finished(this->ssl_)) {
-    return true;
+  if (0 != this->input_len_) {
+    throw new std::logic_error("vds::ssl_peer::write_input");
   }
-  
-  auto ssl_error = SSL_do_handshake(this->ssl_);
-  if (0 >= ssl_error) {
-    ssl_error = SSL_get_error(this->ssl_, ssl_error);
-    if (SSL_ERROR_WANT_READ == ssl_error) {
-      return false;
+
+  this->input_data_ = data;
+  this->input_len_ = len;
+
+  this->work_circle();;
+}
+
+void vds::ssl_peer::read_output(void * data, size_t len)
+{
+  if (0 != this->output_len_) {
+    throw new std::logic_error("vds::ssl_peer::read_output");
+  }
+
+  this->output_data_ = data;
+  this->output_len_ = len;
+
+  this->work_circle();
+}
+
+void vds::ssl_peer::read_decoded_output(void * data, size_t len)
+{
+  if (0 != this->decoded_output_len_) {
+    throw new std::logic_error("vds::ssl_peer::read_decoded_output");
+  }
+
+  this->decoded_output_data_ = data;
+  this->decoded_output_len_ = len;
+
+  this->work_circle();
+}
+
+void vds::ssl_peer::write_decoded_output(const void * data, size_t len)
+{
+  if (0 != this->decoded_input_len_) {
+    throw new std::logic_error("vds::ssl_peer::write_decoded_output");
+  }
+
+  this->decoded_input_data_ = data;
+  this->decoded_input_len_ = len;
+
+  this->work_circle();
+}
+
+void vds::ssl_peer::work_circle()
+{
+  if (0 < this->input_len_) {
+    int bytes = BIO_write(this->input_bio_, this->input_data_, this->input_len_);
+    if (bytes <= 0) {
+      if (!BIO_should_retry(this->input_bio_)) {
+        throw new std::runtime_error("BIO_write failed");
+      }
     }
-    
-    throw new crypto_exception("SSL_do_handshake", ssl_error);
-  }
-  
-  return false;
-  //throw new std::logic_error("SSL_do_handshake failed");
-  */
-}
+    else {
+      this->input_data_ = reinterpret_cast<const uint8_t *>(this->input_data_) + bytes;
+      this->input_len_ -= (size_t)bytes;
 
-size_t vds::ssl_peer::write_input(const void * data, size_t len)
-{
-  int bytes = BIO_write(this->input_bio_, data, len);
-  if (bytes <= 0) {
-    if (!BIO_should_retry(this->input_bio_)) {
-      throw new std::runtime_error("BIO_write failed");
+      if (this->input_len_ == 0) {
+        this->input_done();
+      }
     }
-
-    return len;
   }
-  else {
-    return (size_t)bytes;
-  }
-}
 
-size_t vds::ssl_peer::read_decoded(uint8_t * data, size_t len)
-{
-  int bytes = SSL_read(this->ssl_, data, len);
-  if(0 <= bytes){
-    return (size_t)bytes;
-  }
-  int ssl_error = SSL_get_error(this->ssl_, bytes);
-  auto b = SSL_is_init_finished(this->ssl_);
-  //if (this->is_handshaking_ && SSL_is_init_finished(this->ssl_)) {
-  //  this->is_handshaking_ = false;
-  //}
-
-  return 0;
-}
-
-size_t vds::ssl_peer::write_decoded(const void * data, size_t len)
-{
-  int bytes = SSL_write(this->ssl_, data, len);
-  if (0 <= bytes) {
-    return (size_t)bytes;
-  }
-  else {
-    int ssl_error = SSL_get_error(this->ssl_, bytes);
-    switch (ssl_error) {
-    case SSL_ERROR_NONE:
-    case SSL_ERROR_WANT_READ:
-    case SSL_ERROR_WANT_WRITE:
-    case SSL_ERROR_WANT_CONNECT:
-    case SSL_ERROR_WANT_ACCEPT:
-      return 0;
+  if (0 < this->decoded_input_len_) {
+    int bytes = SSL_write(this->ssl_, this->decoded_input_data_, this->decoded_input_len_);
+    if (0 > bytes) {
+      int ssl_error = SSL_get_error(this->ssl_, bytes);
+      switch (ssl_error) {
+      case SSL_ERROR_NONE:
+      case SSL_ERROR_WANT_READ:
+      case SSL_ERROR_WANT_WRITE:
+      case SSL_ERROR_WANT_CONNECT:
+      case SSL_ERROR_WANT_ACCEPT:
+        break;
+      default:
+        throw new crypto_exception("SSL_write", ssl_error);
+      }
     }
+    else {
+      this->decoded_input_data_ = reinterpret_cast<const uint8_t *>(this->decoded_input_data_) + bytes;
+      this->decoded_input_len_ -= (size_t)bytes;
 
-    throw new crypto_exception("SSL_write", ssl_error);
-  }
-}
-
-size_t vds::ssl_peer::read_output(uint8_t * data, size_t len)
-{
-  if(!this->is_client() && 0 >= BIO_pending(this->output_bio_)) {
-    return 0;
-  }
-  
-  int bytes = BIO_read(this->output_bio_, data, len);
-  if (bytes > 0) {
-    return (size_t)bytes;
-  }
-  else {
-    int ssl_error = SSL_get_error(this->ssl_, bytes);
-    switch (ssl_error) {
-    case SSL_ERROR_NONE:
-    case SSL_ERROR_WANT_READ:
-    case SSL_ERROR_WANT_WRITE:
-    case SSL_ERROR_WANT_CONNECT:
-    case SSL_ERROR_WANT_ACCEPT:
-      return 0;
+      if (this->decoded_input_len_ == 0) {
+        this->decoded_input_done();
+      }
     }
+  }
 
-    throw new crypto_exception("BIO_read", ssl_error);
+  if (0 < this->decoded_output_len_) {
+    int bytes = SSL_read(this->ssl_, this->decoded_output_data_, this->decoded_output_len_);
+    if (bytes <= 0) {
+      int ssl_error = SSL_get_error(this->ssl_, bytes);
+      switch (ssl_error) {
+      case SSL_ERROR_NONE:
+      case SSL_ERROR_WANT_READ:
+      case SSL_ERROR_WANT_WRITE:
+      case SSL_ERROR_WANT_CONNECT:
+      case SSL_ERROR_WANT_ACCEPT:
+        break;
+      default:
+        throw new crypto_exception("BIO_read", ssl_error);
+      }
+    }
+    else {
+      this->decoded_output_len_ = 0;
+      this->decoded_output_done(this->decoded_output_data_, bytes);
+    }
+  }
+
+  if (0 < this->output_len_ && BIO_pending(this->output_bio_)) {
+    int bytes = BIO_read(this->output_bio_, this->output_data_, this->output_len_);
+    if (bytes <= 0) {
+      int ssl_error = SSL_get_error(this->ssl_, bytes);
+      switch (ssl_error) {
+      case SSL_ERROR_NONE:
+      case SSL_ERROR_WANT_READ:
+      case SSL_ERROR_WANT_WRITE:
+      case SSL_ERROR_WANT_CONNECT:
+      case SSL_ERROR_WANT_ACCEPT:
+        break;
+      default:
+        throw new crypto_exception("BIO_read", ssl_error);
+      }
+    }
+    else {
+      this->output_len_ = 0;
+      this->output_done(this->output_data_, bytes);
+    }
   }
 }
-
 
