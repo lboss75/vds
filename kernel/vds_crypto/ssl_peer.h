@@ -21,19 +21,31 @@ namespace vds {
       return this->is_client_;
     }
 
-    std::function<void(void)> input_done;
-    std::function<void(const void * data, size_t len)> decoded_output_done;
-
-    std::function<void(void)> decoded_input_done;
-    std::function<void(const void * data, size_t len)> output_done;
-
-    void write_input(const void * data, size_t len);
-    void read_decoded_output(void * data, size_t len);
-
-    void read_output(void * data, size_t len);
-    void write_decoded_output(const void * data, size_t len);
-
   private:
+    friend class ssl_input_stream;
+    friend class ssl_output_stream;
+
+    class issl_input_stream
+    {
+    public:
+      virtual void input_done() = 0;
+      virtual void decoded_output_done(size_t len) = 0;
+
+      static constexpr size_t BUFFER_SIZE = 1024;
+      uint8_t buffer_[BUFFER_SIZE];
+    };
+
+    class issl_output_stream
+    {
+    public:
+      virtual void decoded_input_done() = 0;
+      virtual void output_done(size_t len) = 0;
+
+      static constexpr size_t BUFFER_SIZE = 1024;
+      uint8_t buffer_[BUFFER_SIZE];
+    };
+
+
     SSL_CTX *ssl_ctx_;
     SSL * ssl_;
     BIO * input_bio_;
@@ -44,18 +56,25 @@ namespace vds {
     const void * input_data_;
     size_t input_len_;
 
-    void * output_data_;
-    size_t output_len_;
-
     const void * decoded_input_data_;
     size_t decoded_input_len_;
 
-    void * decoded_output_data_;
-    size_t decoded_output_len_;
+    issl_input_stream * input_stream_;
+    issl_output_stream * output_stream_;
 
-    std::mutex data_mutex_;
+    bool input_stream_done_;
+    bool output_stream_done_;
+
+
+    void set_input_stream(issl_input_stream * stream);
+    void set_output_stream(issl_output_stream * stream);
+
+    void write_input(const void * data, size_t len);
+    void write_decoded_output(const void * data, size_t len);
 
     void work_circle();
+    void input_stream_processed();
+    void output_stream_processed();
   };
 
   class ssl_input_stream
@@ -67,47 +86,25 @@ namespace vds {
     }
 
     template < typename context_type >
-    class handler : public sequence_step<context_type, void(const void *, size_t)>
-
+    class handler
+      : public sequence_step<context_type, void(const void *, size_t)>,
+        public ssl_peer::issl_input_stream
     {
       using base_class = sequence_step<context_type, void(const void *, size_t)>;
     public:
       handler(
         const context_type & context,
         const ssl_input_stream & args
-      ) : base_class(context),
-        peer_(args.peer_)
-      {
-        this->peer_.input_done = [this]() {
-          this->prev();
-        };
+      );
 
-        this->peer_.decoded_output_done = [this](const void * data, size_t len) {
-          this->next(data, len);
-        };
+      void input_done() override;
+      void decoded_output_done(size_t len) override;
 
-        this->peer_.read_decoded_output(this->buffer_, BUFFER_SIZE);
-      }
-
-      void operator()(const void * data, size_t len)
-      {
-        if (0 == len) {
-          this->next(nullptr, 0);
-        }
-        else {
-          this->peer_.write_input(data, len);
-        }
-      }
-
-      void processed()
-      {
-        this->peer_.read_decoded_output(this->buffer_, BUFFER_SIZE);
-      }
+      void operator()(const void * data, size_t len);
+      void processed();
 
     private:
       ssl_peer & peer_;
-      static constexpr size_t BUFFER_SIZE = 1024;
-      uint8_t buffer_[BUFFER_SIZE];
     };
   private:
     ssl_peer & peer_;
@@ -122,53 +119,106 @@ namespace vds {
     }
 
     template < typename context_type >
-    class handler : public sequence_step<context_type, void(const void *, size_t)>
+    class handler
+      : public sequence_step<context_type, void(const void *, size_t)>,
+        public ssl_peer::issl_output_stream
     {
       using base_class = sequence_step<context_type, void(const void *, size_t)>;
     public:
       handler(
         const context_type & context,
         const ssl_output_stream & args
-      )
-        : base_class(context),
-        peer_(args.peer_)
-      {
-        this->peer_.decoded_input_done = [this]() {
-          this->prev();
-        };
+      );
 
-        this->peer_.output_done = [this](const void * data, size_t len) {
-          this->next(data, len);
-        };
 
-        this->peer_.read_output(this->buffer_, BUFFER_SIZE);
-      }
+      void decoded_input_done() override;
+      void output_done(size_t len) override;
 
-      void operator()(const void * data, size_t len)
-      {
-        if (0 == len) {
-          this->next(nullptr, 0);
-        }
-        else {
-          this->peer_.write_decoded_output(data, len);
-        }
-      }
-
-      void processed()
-      {
-        this->peer_.read_output(this->buffer_, BUFFER_SIZE);
-      }
+      void operator()(const void * data, size_t len);
+      void processed();
 
     private:
       ssl_peer & peer_;
-      static constexpr size_t BUFFER_SIZE = 1024;
-      uint8_t buffer_[BUFFER_SIZE];
     };
 
   private:
     ssl_peer & peer_;
   };
 
+  template<typename context_type>
+  inline ssl_input_stream::handler<context_type>::handler(const context_type & context, const ssl_input_stream & args)
+  : base_class(context),
+    peer_(args.peer_)
+  {
+    this->peer_.set_input_stream(this);
+  }
+
+  template<typename context_type>
+  inline void ssl_input_stream::handler<context_type>::input_done()
+  {
+    this->prev();
+  }
+
+  template<typename context_type>
+  inline void ssl_input_stream::handler<context_type>::decoded_output_done(size_t len)
+  {
+    this->next(this->buffer_, len);
+  }
+
+  template<typename context_type>
+  inline void ssl_input_stream::handler<context_type>::operator()(const void * data, size_t len)
+  {
+    if (0 == len) {
+      this->next(nullptr, 0);
+    }
+    else {
+      this->peer_.write_input(data, len);
+    }
+  }
+
+  template<typename context_type>
+  inline void ssl_input_stream::handler<context_type>::processed()
+  {
+    this->peer_.input_stream_processed();
+  }
+
+
+  template<typename context_type>
+  inline ssl_output_stream::handler<context_type>::handler(const context_type & context, const ssl_output_stream & args)
+  : base_class(context),
+    peer_(args.peer_)
+  {
+    this->peer_.set_output_stream(this);
+  }
+
+  template<typename context_type>
+  inline void ssl_output_stream::handler<context_type>::decoded_input_done()
+  {
+    this->prev();
+  }
+
+  template<typename context_type>
+  inline void ssl_output_stream::handler<context_type>::output_done(size_t len)
+  {
+    this->next(this->buffer_, len);
+  }
+
+  template<typename context_type>
+  inline void ssl_output_stream::handler<context_type>::operator()(const void * data, size_t len)
+  {
+    if (0 == len) {
+      this->next(nullptr, 0);
+    }
+    else {
+      this->peer_.write_decoded_output(data, len);
+    }
+  }
+
+  template<typename context_type>
+  inline void ssl_output_stream::handler<context_type>::processed()
+  {
+    this->peer_.output_stream_processed();
+  }
 }
 
 #endif//__VDS_CRYPTO_SSL_PEER_H_
