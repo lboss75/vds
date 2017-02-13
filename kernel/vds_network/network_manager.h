@@ -20,6 +20,10 @@ namespace vds {
     public:
         inetwork_manager(network_service * owner);
 
+        network_service * owner() const {
+          return this->owner_;
+        }
+        
     private:
       friend class socket_server;
       friend class socket_connect;

@@ -12,8 +12,10 @@ namespace vds {
   class output_network_stream
   {
   public:
-    output_network_stream(const network_socket & s)
-      : s_(s)
+    output_network_stream(
+      const service_provider & sp,
+      const network_socket & s)
+      : sp_(sp), s_(s)
     {
     }
     
@@ -27,7 +29,7 @@ namespace vds {
         const output_network_stream & args)
       : base_class(context),
         s_(args.s_.handle()),
-        task_(this->prev, this->error)        
+        task_(args.sp_, this->prev, this->error)        
       {
       }
       
@@ -50,7 +52,9 @@ namespace vds {
         typename base_class::prev_step_t,
         typename base_class::error_method_t> task_;
     };
+    
   private:
+    service_provider sp_;
     const network_socket & s_;
   };
 }

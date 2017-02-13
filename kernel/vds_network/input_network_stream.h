@@ -8,13 +8,16 @@ All rights reserved
 
 #include "read_socket_task.h"
 #include "pipeline_filter.h"
+#include "network_manager.h"
 
 namespace vds {
   class input_network_stream
   {
   public:
-    input_network_stream(const network_socket & s)
-      : s_(s)
+    input_network_stream(
+      const service_provider & sp,
+      const network_socket & s)
+      : sp_(sp), s_(s)
     {
     }
     
@@ -27,7 +30,7 @@ namespace vds {
         const context_type & context,
         const input_network_stream & args)
       : base(context),
-        task_(this->next, this->error, args.s_)
+        task_(args.sp_, this->next, this->error, args.s_)
       {
       }
       
@@ -45,6 +48,7 @@ namespace vds {
         typename base::error_method_t> task_;
     };
   private:
+    service_provider sp_;
     const network_socket & s_;
   };
 }

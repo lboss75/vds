@@ -61,7 +61,6 @@ namespace vds {
             stream << outgoing_stream.body();
           }
 
-          stream << "\n";
           this->header_ = stream.str();
 
           this->next(

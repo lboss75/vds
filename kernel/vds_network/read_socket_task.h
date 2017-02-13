@@ -22,10 +22,12 @@ namespace vds {
     constexpr static size_t BUFFER_SIZE = 1024;
 
     read_socket_task(
+      const service_provider & sp,
       next_method_type & next_method,
       error_method_type & error_method,
       const network_socket & s
-    ) : s_(s.handle()),
+    ) : network_service_(sp.get<inetwork_manager>().owner()),
+    s_(s.handle()),
     next_method_(next_method), error_method_(error_method)
 #ifdef _DEBUG
       , is_scheduled_(false)
@@ -72,10 +74,12 @@ namespace vds {
         this);
       // Schedule client event
       event_add(&this->event_, NULL);
+      this->network_service_->start_libevent_dispatch();
 #endif//_WIN32
     }
 
   private:
+    network_service * network_service_;
     network_socket::SOCKET_HANDLE s_;
     next_method_type & next_method_;
     error_method_type & error_method_;

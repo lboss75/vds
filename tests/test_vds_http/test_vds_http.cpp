@@ -50,11 +50,11 @@ public:
       std::cout << "New connection\n";
       
       vds::sequence(
-        vds::input_network_stream(this->s_),
+        vds::input_network_stream(this->sp_, this->s_),
         vds::http_parser(this->sp_),
         vds::http_middleware<vds::http_router>(this->router_),
         vds::http_response_serializer(),
-        vds::output_network_stream(this->s_)
+        vds::output_network_stream(this->sp_, this->s_)
       )
       (
         this->done_handler_,
@@ -62,7 +62,7 @@ public:
       );
     }
   private:
-    const vds::service_provider & sp_;
+    vds::service_provider sp_;
     vds::network_socket s_;
     const vds::http_router & router_;
     vds::delete_this<handler> done_handler_;
@@ -145,6 +145,7 @@ TEST(http_tests, test_server)
           vds::http_send_request<
             vds::http_simple_response_reader
             >(
+              sp,
               request,
               outgoing_stream,
               response_reader)
@@ -232,6 +233,7 @@ TEST(http_tests, test_https_server)
       vds::http_send_request<
       vds::http_simple_response_reader
       >(
+        sp,
         request,
         outgoing_stream,
         response_reader)

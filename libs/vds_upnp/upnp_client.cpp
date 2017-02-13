@@ -101,7 +101,7 @@ bool vds::upnp_client::open_port(
   int error_code;
   this->devlist_ = upnpDiscover(2000, NULL, NULL, 0, 0, &error_code);
   if(nullptr == this->devlist_) {
-    this->log_(error("No UPnP device found on the network. Error:") << error_code);
+    this->log_(ll_error, "No UPnP device found on the network. Error: %d", error_code);
   }
   else {
     auto status = UPNP_GetValidIGD(
@@ -111,10 +111,10 @@ bool vds::upnp_client::open_port(
       this->lanaddr_,
       sizeof(this->lanaddr_));
     if(0 == status){
-      this->log_(error("No IGD found"));
+      this->log_(ll_error, "No IGD found");
     }
     else {
-      this->log_(debug("Found IGD ") << this->upnp_urls_.controlURL << " (status " << status << ")");
+      this->log_(ll_debug, "Found IGD %s (status %d)", this->upnp_urls_.controlURL, status);
       
       int r = UPNP_AddPortMapping(
 				this->upnp_urls_.controlURL,
@@ -127,11 +127,11 @@ bool vds::upnp_client::open_port(
 				0,
 				0);
       if (r == UPNPCOMMAND_SUCCESS) {
-        this->log_(debug("Added mapping ") << protocol << " " << external_port << " to " << this->lanaddr_ << internal_port);
+        this->log_(ll_debug, "Added mapping %s %d to %s:%d", protocol.c_str(), external_port, this->lanaddr_, internal_port);
         return true;
       }
       else {
-        this->log_(error("open_port failed with code ") << r << "(" << strupnperror(r) << ")");
+        this->log_(ll_error, "open_port failed with code %d(%s)", r, strupnperror(r));
       }
     }
   }
@@ -161,10 +161,10 @@ void vds::upnp_client::close_port(
     protocol.c_str(),
     0);
   if (r == UPNPCOMMAND_SUCCESS) {
-    this->log_(debug("Removed mapping ") << protocol << " " << external_port);
+    this->log_(ll_debug, "Removed mapping %s %d", protocol.c_str(), external_port);
   }
   else {
-    this->log_(error("close_port failed with code ") << r << "(" << strupnperror(r) << ")");
+    this->log_(ll_error, "close_port failed with code %d(%s)", r, strupnperror(r));
   }
 #endif
 }

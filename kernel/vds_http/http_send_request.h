@@ -17,10 +17,12 @@ namespace vds {
   {
   public:
     http_send_request(
+      const service_provider & sp,
       http_request & request,
       http_outgoing_stream & outgoing_stream,
       response_handler_type & response_handler
-    ) : request_(request), outgoing_stream_(outgoing_stream),
+    ) : sp_(sp),
+      request_(request), outgoing_stream_(outgoing_stream),
       response_handler_(response_handler)
     {
     }
@@ -34,6 +36,7 @@ namespace vds {
         const context_type & context,
         const http_send_request & args)
         : base_class(context),
+        sp_(args.sp_),
         request_(args.request_),
         outgoing_stream_(args.outgoing_stream_),
         response_handler_(args.response_handler_)
@@ -49,7 +52,7 @@ namespace vds {
       {
         sequence(
           http_request_serializer(),
-          output_network_stream(s)
+          output_network_stream(this->sp_, s)
         )
         (
           this->request_sent_handler_,
@@ -59,7 +62,7 @@ namespace vds {
         );
 
         sequence(
-          input_network_stream(s),
+          input_network_stream(this->sp_, s),
           http_response_parser(),
           this->response_handler_
         )(
@@ -81,6 +84,8 @@ namespace vds {
           std::cout << "request sent\n";
         }
       };
+      
+      service_provider sp_;
       request_sent request_sent_handler_;
       http_request & request_;
       http_outgoing_stream & outgoing_stream_;
@@ -90,6 +95,7 @@ namespace vds {
     };
 
   private:
+    service_provider sp_;
     http_request & request_;
     http_outgoing_stream & outgoing_stream_;
     response_handler_type & response_handler_;

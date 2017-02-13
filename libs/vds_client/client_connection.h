@@ -145,7 +145,7 @@ namespace vds {
           this->owner_->on_connected(s);
           
           vds::sequence(
-            input_network_stream(s),
+            input_network_stream(this->sp_, s),
             ssl_input_stream(this->peer_),
             http_response_parser(),
             input_command_stream(this->owner_, this->peer_)
@@ -159,7 +159,7 @@ namespace vds {
             output_command_stream(this->owner_, this->peer_),
             http_request_serializer(),
             ssl_output_stream(this->peer_),
-            output_network_stream(s)
+            output_network_stream(this->sp_, s)
           )
           (
             this->done_handler_,
@@ -302,14 +302,17 @@ namespace vds {
 
         void operator()()
         {
-          this->processed();
+          this->ping_job_.schedule(
+            std::chrono::system_clock::now()
+            + std::chrono::seconds(1));
+          //this->processed();
         }
         
         void processed()
         {
-          this->ping_job_.schedule(
-            std::chrono::system_clock::now()
-            + std::chrono::seconds(1));
+          //this->ping_job_.schedule(
+          //  std::chrono::system_clock::now()
+          //  + std::chrono::seconds(1));
         }
 
       private:

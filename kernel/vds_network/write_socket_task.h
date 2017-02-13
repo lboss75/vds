@@ -20,10 +20,12 @@ namespace vds {
   {
   public:
     write_socket_task(
+      const service_provider & sp,
       done_method_type & done_method,
       error_method_type & error_method
       )
-    : done_method_(done_method), error_method_(error_method),
+    : network_service_(sp.get<inetwork_manager>().owner()),
+      done_method_(done_method), error_method_(error_method),
       data_(nullptr), data_size_(0)
 #ifdef _DEBUG
       , is_scheduled_(false)
@@ -57,6 +59,7 @@ namespace vds {
     }
   
   private:
+    network_service * network_service_;
     done_method_type & done_method_;
     error_method_type & error_method_;
     network_socket::SOCKET_HANDLE s_;
@@ -121,6 +124,8 @@ namespace vds {
         this);
       // Schedule client event
       event_add(&this->event_, NULL);
+      
+      this->network_service_->start_libevent_dispatch();
     }
     static void callback(int fd, short event, void *arg)
     {

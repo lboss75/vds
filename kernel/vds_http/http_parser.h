@@ -123,13 +123,16 @@ namespace vds {
                 items[2],
                 this->headers_);
 
-              //this->log_(
-              //  trace("Request url:") << this->request_.url()
-              //  << ", method:" << this->request_.method()
-              //  << ", agent:" << this->request_.agent());
-              //for (auto & p : this->headers_) {
-              //  this->log_(trace(p));
-              //}
+              this->log_(
+                ll_trace,
+                "Request url:%s, method: %s, agent:%s",
+                this->request_.url().c_str(),
+                this->request_.method().c_str(),
+                this->request_.agent().c_str());
+              
+              for (auto & p : this->headers_) {
+                this->log_(ll_trace, p);
+              }
 
               std::string content_length_header;
               if (this->request_.get_header("Content-Length", content_length_header)) {

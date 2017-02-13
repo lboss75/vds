@@ -133,13 +133,13 @@ vds::background_app::socket_session::handler::handler(
 void vds::background_app::socket_session::handler::start()
 {
   vds::sequence(
-    input_network_stream(this->s_),
+    input_network_stream(this->sp_, this->s_),
     ssl_input_stream(this->peer_),
     http_parser(this->sp_),
     http_middleware<server_logic>(this->router_),
     http_response_serializer(),
     ssl_output_stream(this->peer_),
-    output_network_stream(this->s_)
+    output_network_stream(this->sp_, this->s_)
   )
   (
     this->done_handler_,

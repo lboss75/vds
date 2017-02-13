@@ -64,7 +64,9 @@ namespace vds {
 
     bool input_stream_done_;
     bool output_stream_done_;
-
+    
+    std::mutex work_circle_mutex_;
+    int work_circle_queries_;
 
     void set_input_stream(issl_input_stream * stream);
     void set_output_stream(issl_output_stream * stream);
@@ -72,6 +74,7 @@ namespace vds {
     void write_input(const void * data, size_t len);
     void write_decoded_output(const void * data, size_t len);
 
+    void start_work_circle();
     void work_circle();
     void input_stream_processed();
     void output_stream_processed();
@@ -129,7 +132,6 @@ namespace vds {
         const context_type & context,
         const ssl_output_stream & args
       );
-
 
       void decoded_input_done() override;
       void output_done(size_t len) override;

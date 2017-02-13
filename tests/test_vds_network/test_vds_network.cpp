@@ -7,6 +7,10 @@ All rights reserved
 class echo_server
 {
 public:
+  echo_server(const vds::service_provider & sp)
+  : sp_(sp)
+  {
+  }
    
   template<typename context_type>
   class handler : public vds::sequence_step<context_type, void (void)>
@@ -16,7 +20,8 @@ public:
     handler(
       const context_type & context,
       const echo_server & owner)
-      : base_class(context)
+      : base_class(context),
+      sp_(owner.sp_)
     {
     }
     
@@ -24,8 +29,10 @@ public:
       (new connection_handler<
         typename base_class::next_step_t,
         typename base_class::error_method_t>(
-        this->next, this->error, s))->start();
+          this->sp_, this->next, this->error, s))->start();
     }
+  private:
+    vds::service_provider sp_;
   };
 
   template<
@@ -36,10 +43,11 @@ public:
   {
   public:
     connection_handler(
+      const vds::service_provider & sp,
       next_method_type & next, 
       error_method_type & error,
       vds::network_socket & s
-    ) : 
+    ) : sp_(sp),
       next_(this, next),
       error_(this, error),
       s_(std::move(s))
@@ -48,8 +56,8 @@ public:
 
     void start() {
       vds::sequence(
-        vds::input_network_stream(this->s_),//input
-        vds::output_network_stream(this->s_)//output
+        vds::input_network_stream(this->sp_, this->s_),//input
+        vds::output_network_stream(this->sp_, this->s_)//output
       )
       (
         this->next_,
@@ -57,12 +65,15 @@ public:
         );
     }
   private:
+    vds::service_provider sp_;
     vds::auto_cleaner<connection_handler, next_method_type> next_;
     vds::auto_cleaner<connection_handler, error_method_type> error_;
 
     vds::network_socket s_;
   };
-
+  
+private:
+  vds::service_provider sp_;
 };
 
 class send_test
@@ -211,7 +222,8 @@ private:
 class socket_client
 {
 public:
-  socket_client()
+  socket_client(const vds::service_provider & sp)
+  : sp_(sp)
   {
   }
 
@@ -223,7 +235,8 @@ public:
       const context_type & context,
       const socket_client & args
     )
-      : vds::sequence_step<context_type, void(void)>(context)
+      : vds::sequence_step<context_type, void(void)>(context),
+      sp_(args.sp_)
     {
     }
 
@@ -248,13 +261,13 @@ public:
       vds::write_socket_task<
         decltype(done_handler),
         decltype(error_handler)>
-        write_task(done_handler, error_handler);
+        write_task(this->sp_, done_handler, error_handler);
       const char data[] = "test_test_test_test_test_test_test_test_test_test_test_test_test_test_test_\n";
       write_task.set_data(data, sizeof(data) - 1);
       write_task.schedule(this->s_.handle());
 
       vds::sequence(
-        vds::input_network_stream(this->s_),
+        vds::input_network_stream(this->sp_, this->s_),
         read_for_newline(),
         check_result("test_test_test_test_test_test_test_test_test_test_test_test_test_test_test_")
       )
@@ -271,8 +284,12 @@ public:
     }
     
   private:
+    vds::service_provider sp_;
     vds::network_socket s_;
   };
+  
+private:
+  vds::service_provider sp_;
 };
 
 TEST(network_tests, test_server)
@@ -303,7 +320,7 @@ TEST(network_tests, test_server)
         
         vds::sequence(
           vds::socket_server(sp, "127.0.0.1", 8000),
-          echo_server()
+          echo_server(sp)
         )(
             done_server,
             error_server
@@ -325,7 +342,7 @@ TEST(network_tests, test_server)
         
         vds::sequence(
           vds::socket_connect(sp),
-          socket_client()
+          socket_client(sp)
         )
         (
           done_client,
