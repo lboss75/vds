@@ -30,6 +30,7 @@ target_link_libraries(
   vds_network
   vds_http
   vds_crypto
+  vds_parser
   vds_protocols
   vds_storage
   ${OPENSSL_LIBRARIES}
