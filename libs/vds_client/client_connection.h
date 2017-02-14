@@ -121,6 +121,7 @@ namespace vds {
       this->state_ = CONNECTED;
     }
 
+
     class connection
     {
     public:
@@ -163,7 +164,7 @@ namespace vds {
           );
           
           vds::sequence(
-            output_command_stream(this->owner_, this->peer_),
+            output_command_stream(this->owner_),
             http_request_serializer(),
             ssl_output_stream(this->peer_),
             output_network_stream(this->sp_, s)
@@ -175,12 +176,136 @@ namespace vds {
         }
 
       private:
-        service_provider sp_;
-        client_connection * owner_;
-        ssl_peer peer_;
+        class input_command_stream
+        {
+        public:
+          input_command_stream(client_connection * owner, ssl_peer & peer)
+            : owner_(owner), peer_(peer)
+          {
+          }
 
-        std::mutex done_mutex_;
-        int done_count_;
+          template <typename context_type>
+          class handler : public sequence_step<context_type, void(void)>
+          {
+            using base_class = sequence_step<context_type, void(void)>;
+          public:
+            handler(
+              const context_type & context,
+              const input_command_stream & args
+            ) : base_class(context),
+              owner_(args.owner_),
+              peer_(args.peer_),
+              json_handler_(std::bind(&handler::json_handler, this, std::placeholders::_1))
+            {
+            }
+
+            void operator()(
+              http_response & response,
+              http_incoming_stream & incoming_stream)
+            {
+              std::string content_type;
+              response.get_header("Content-Type:", content_type);
+
+              if ("application/json" == content_type) {
+                sequence(
+                  http_stream_reader<base_class::prev_step_t>(this->prev, incoming_stream),
+                  json_parser("ping response")
+                )
+                (
+                  this->json_handler_,
+                  this->error
+                  );
+              }
+            }
+          private:
+            client_connection * owner_;
+            ssl_peer & peer_;
+
+            std::function<void(json_value * request)> json_handler_;
+
+            void json_handler(json_value * request)
+            {
+              auto cert = this->peer_.get_peer_certificate();
+              this->owner_->log_.trace("Certificate subject %s", cert.subject().c_str());
+              this->owner_->log_.trace("Certificate issuer %s", cert.issuer().c_str());
+
+              this->prev();
+            }
+
+          };
+        private:
+          client_connection * owner_;
+          ssl_peer & peer_;
+        };
+
+        class output_command_stream
+        {
+        public:
+          output_command_stream(client_connection * owner)
+            : owner_(owner)
+          {
+          }
+
+          template <typename context_type>
+          class handler : public sequence_step<context_type, void(http_request & request, http_outgoing_stream & outgoing_stream)>
+          {
+            using base_class = sequence_step<context_type, void(http_request & request, http_outgoing_stream & outgoing_stream)>;
+          public:
+            handler(
+              const context_type & context,
+              const output_command_stream & args
+            ) : base_class(context),
+              owner_(args.owner_),
+              timer_job_(std::bind(&handler::timer_job, this)),
+              ping_job_(itask_manager::get(this->owner_->sp_).create_job(this->timer_job_)),
+              request_("POST", "/vds/ping")
+            {
+            }
+
+            ~handler()
+            {
+              this->ping_job_.destroy();
+            }
+
+            void operator()()
+            {
+              this->ping_job_.schedule(
+                std::chrono::system_clock::now()
+                + std::chrono::seconds(1));
+              //this->processed();
+            }
+
+            void processed()
+            {
+              this->ping_job_.schedule(
+                std::chrono::system_clock::now()
+                + std::chrono::seconds(1));
+            }
+
+          private:
+            std::chrono::time_point<std::chrono::system_clock> next_message_;
+            client_connection * owner_;
+
+            std::function<void(void)> timer_job_;
+            task_job ping_job_;
+
+            http_request request_;
+            http_outgoing_stream outgoing_stream_;
+
+            void timer_job()
+            {
+              try {
+                this->outgoing_stream_.set_body("{\"$type\":\"ping\"}");
+                this->next(this->request_, this->outgoing_stream_);
+              }
+              catch (std::exception * ex) {
+                this->error(ex);
+              }
+            }
+          };
+        private:
+          client_connection * owner_;
+        };
 
         class stream_done
         {
@@ -207,7 +332,6 @@ namespace vds {
           handler * owner_;
         };
 
-        stream_done done_handler_;
 
         class stream_error
         {
@@ -235,118 +359,19 @@ namespace vds {
           handler * owner_;
         };
 
+
+        service_provider sp_;
+        client_connection * owner_;
+        ssl_peer peer_;
+
+        std::mutex done_mutex_;
+        int done_count_;
+
+        stream_done done_handler_;
         stream_error error_handler_;
       };
     private:
       client_connection * owner_;
-    };
-
-    class input_command_stream
-    {
-    public:
-      input_command_stream(client_connection * owner, ssl_peer & peer)
-        : owner_(owner), peer_(peer)
-      {
-      }
-
-      template <typename context_type>
-      class handler : public sequence_step<context_type, void(void)>
-      {
-        using base_class = sequence_step<context_type, void(void)>;
-      public:
-        handler(
-          const context_type & context,
-          const input_command_stream & args
-        ) : base_class(context),
-          owner_(args.owner_), peer_(args.peer_)
-        {
-        }
-
-        void operator()(
-          http_response & response,
-          http_incoming_stream & incoming_stream)
-        {
-
-        }
-      private:
-        client_connection * owner_;
-        ssl_peer & peer_;
-      };
-    private:
-      client_connection * owner_;
-      ssl_peer & peer_;
-    };
-
-    class output_command_stream
-    {
-    public:
-      output_command_stream(client_connection * owner, ssl_peer & peer)
-        : owner_(owner), peer_(peer)
-      {
-      }
-
-      template <typename context_type>
-      class handler : public sequence_step<context_type, void(http_request & request, http_outgoing_stream & outgoing_stream)>
-      {
-        using base_class = sequence_step<context_type, void(http_request & request, http_outgoing_stream & outgoing_stream)>;
-      public:
-        handler(
-          const context_type & context,
-          const output_command_stream & args
-        ) : base_class(context),
-          owner_(args.owner_),
-          peer_(args.peer_),
-          timer_job_(std::bind(&handler::timer_job, this)),
-          ping_job_(itask_manager::get(this->owner_->sp_).create_job(this->timer_job_)),
-          request_("POST", "/vds/ping")
-        {
-        }
-        
-        ~handler()
-        {
-          this->ping_job_.destroy();
-        }
-
-        void operator()()
-        {
-          this->ping_job_.schedule(
-            std::chrono::system_clock::now()
-            + std::chrono::seconds(1));
-          //this->processed();
-        }
-        
-        void processed()
-        {
-          //this->ping_job_.schedule(
-          //  std::chrono::system_clock::now()
-          //  + std::chrono::seconds(1));
-        }
-
-      private:
-        std::chrono::time_point<std::chrono::system_clock> next_message_;
-        client_connection * owner_;
-        ssl_peer & peer_;
-        
-        std::function<void(void)> timer_job_;
-        task_job ping_job_;
-        
-        http_request request_;
-        http_outgoing_stream outgoing_stream_;
-        
-        void timer_job()
-        {
-          try {
-            this->outgoing_stream_.set_body("{\"$type\":\"ping\"}");
-            this->next(this->request_, this->outgoing_stream_);
-          }
-          catch(std::exception * ex){
-            this->error(ex);
-          }
-        }
-      };
-    private:
-      client_connection * owner_;
-      ssl_peer & peer_;
     };
   };
 }

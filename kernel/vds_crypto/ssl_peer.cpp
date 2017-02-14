@@ -7,6 +7,11 @@ All rights reserved
 #include "crypto_exception.h"
 #include "asymmetriccrypto.h"
 
+static int verify_callback(int prev, X509_STORE_CTX * ctx)
+{
+  return 1;
+}
+
 vds::ssl_peer::ssl_peer(bool is_client, const certificate * cert, const asymmetric_private_key * key)
   : is_client_(is_client),
   input_len_(0), decoded_input_len_(0),
@@ -21,7 +26,7 @@ vds::ssl_peer::ssl_peer(bool is_client, const certificate * cert, const asymmetr
     throw new crypto_exception("SSL_CTX_new failed", error);
   }
   
-  SSL_CTX_set_verify(this->ssl_ctx_, SSL_VERIFY_NONE, nullptr);
+  SSL_CTX_set_verify(this->ssl_ctx_, SSL_VERIFY_PEER, verify_callback);
 
   //set_certificate_and_key
   if (nullptr != cert) {
@@ -70,6 +75,17 @@ vds::ssl_peer::ssl_peer(bool is_client, const certificate * cert, const asymmetr
   else {
     SSL_set_accept_state(this->ssl_);
   }
+}
+
+vds::certificate vds::ssl_peer::get_peer_certificate() const
+{
+  auto cert = SSL_get_peer_certificate(this->ssl_);
+
+  if (nullptr == cert) {
+    return certificate();
+  }
+
+  return certificate(cert);
 }
 
 void vds::ssl_peer::set_input_stream(issl_input_stream * stream)
@@ -231,3 +247,4 @@ void vds::ssl_peer::output_stream_processed()
 {
   this->start_work_circle();
 }
+

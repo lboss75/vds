@@ -136,13 +136,18 @@ namespace vds {
   
   //http://www.codepool.biz/how-to-use-openssl-to-sign-certificate.html
   //openssl genrsa -out cakey.pem 2048
-  //openssl req -new -days 365 -x509 -key cakey.pem -out cacert.pem
-  //- nodes - subj / C = CA / ST = BC / L = Vancouver / O = Dynamsoft / OU = Dynamsoft / CN = Dynamsoft / emailAddress = support@dynamsoft.com
+  //openssl req -new -days 365 -x509 -key cakey.pem -out cacert.crt
   //openssl rsa -in cakey.pem -pubout -out ca_pub.key
+  //
+  // openssl genrsa -out user.key 2048
+  // openssl req -new -key user.key -out user.csr
+  // openssl x509 -req -days 730 -in user.csr -CA cacert.crt -CAkey cakey.pem -CAcreateserial -out user.crt
+
   class certificate
   {
   public:
     certificate();
+    certificate(X509 * cert);
     ~certificate();
     
     void load(const filename & filename);
@@ -152,6 +157,9 @@ namespace vds {
     {
       return this->cert_;
     }
+
+    std::string subject() const;
+    std::string issuer() const;
 
   private:
     X509 * cert_;

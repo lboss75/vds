@@ -43,7 +43,7 @@ namespace vds {
       template <typename... arg_types>
       void operator () (log_level level, const std::string & format, arg_types... args) const
       {
-        if (this->min_log_level() >= level) {
+        if (this->min_log_level() <= level) {
           (*this)(level, string_format(format, args...));
         }
       }
@@ -51,7 +51,7 @@ namespace vds {
       template <typename... arg_types>
       void trace(const std::string & format, arg_types... args) const
       {
-        if (this->min_log_level() >= ll_trace) {
+        if (this->min_log_level() <= ll_trace) {
           (*this)(ll_trace, string_format(format, args...));
         }
       }
@@ -59,7 +59,7 @@ namespace vds {
       template <typename... arg_types>
       void debug(const std::string & format, arg_types... args) const
       {
-        if (this->min_log_level() >= ll_debug) {
+        if (this->min_log_level() <= ll_debug) {
           (*this)(ll_debug, string_format(format, args...));
         }
       }
@@ -67,7 +67,7 @@ namespace vds {
       template <typename... arg_types>
       void info(const std::string & format, arg_types... args) const
       {
-        if (this->min_log_level() >= ll_info) {
+        if (this->min_log_level() <= ll_info) {
           (*this)(ll_info, string_format(format, args...));
         }
       }
@@ -75,7 +75,7 @@ namespace vds {
       template <typename... arg_types>
       void error(const std::string & format, arg_types... args) const
       {
-        if (this->min_log_level() >= ll_error) {
+        if (this->min_log_level() <= ll_error) {
           (*this)(ll_error, string_format(format, args...));
         }
       }

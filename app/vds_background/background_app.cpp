@@ -8,7 +8,7 @@ All rights reserved
 #include "http_router.h"
 
 static void collect_wwwroot(
-  vds::server_logic & router,
+  vds::http_router & router,
   const vds::foldername & folder,
   const std::string & root_folder
 )
@@ -40,7 +40,7 @@ vds::background_app::background_app()
 
 void vds::background_app::main(const service_provider & sp)
 {
-  this->router_.reset(new server_logic(sp));
+  this->router_.reset(new http_router(sp));
 
   collect_wwwroot(
     *this->router_,
@@ -54,7 +54,7 @@ void vds::background_app::main(const service_provider & sp)
   //upnp_client upnp(sp);
   //upnp.open_port(8000, 8000, "TCP", "VDS Service");
   
-  this->certificate_.load(filename(foldername(persistence::current_user(), ".vds"), "cacert.pem"));
+  this->certificate_.load(filename(foldername(persistence::current_user(), ".vds"), "cacert.crt"));
   this->private_key_.load(filename(foldername(persistence::current_user(), ".vds"), "cakey.pem"));
 
   sequence(
@@ -106,7 +106,7 @@ void vds::background_app::http_server_error(std::exception * ex)
 
 vds::background_app::socket_session::socket_session(
   const service_provider & sp,
-  const server_logic & router,
+  const http_router & router,
   const certificate & certificate,
   const asymmetric_private_key & private_key)
   : sp_(sp), router_(router), certificate_(certificate),
@@ -122,7 +122,7 @@ vds::background_app::socket_session::handler::handler(
   peer_(false, &owner.certificate_, &owner.private_key_),
   certificate_(owner.certificate_),
   private_key_(owner.private_key_),
-  router_(owner.router_),
+  server_logic_(owner.sp_, peer_, owner.router_),
   done_handler_(this),
   error_handler_([this](std::exception *) {delete this; }),
   http_server_done_([this]() {}),
@@ -136,7 +136,7 @@ void vds::background_app::socket_session::handler::start()
     input_network_stream(this->sp_, this->s_),
     ssl_input_stream(this->peer_),
     http_parser(this->sp_),
-    http_middleware<server_logic>(this->router_),
+    http_middleware<server_logic>(this->server_logic_),
     http_response_serializer(),
     ssl_output_stream(this->peer_),
     output_network_stream(this->sp_, this->s_)

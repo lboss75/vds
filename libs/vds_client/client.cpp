@@ -22,8 +22,8 @@ void vds::client::register_services(service_registrator &)
 void vds::client::start(const service_provider & sp)
 {
   //Load certificates
-  this->client_certificate_.load(filename(foldername(persistence::current_user(), ".vds"), "cacert.pem"));
-  this->client_private_key_.load(filename(foldername(persistence::current_user(), ".vds"), "cakey.pem"));
+  this->client_certificate_.load(filename(foldername(persistence::current_user(), ".vds"), "user.crt"));
+  this->client_private_key_.load(filename(foldername(persistence::current_user(), ".vds"), "user.key"));
 
   this->logic_.reset(new client_logic(sp, this->client_certificate_, this->client_private_key_));
   this->logic_->start();

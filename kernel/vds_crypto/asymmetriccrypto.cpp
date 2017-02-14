@@ -231,6 +231,11 @@ vds::certificate::certificate()
 {
 }
 
+vds::certificate::certificate(X509 * cert)
+  : cert_(cert)
+{
+}
+
 vds::certificate::~certificate()
 {
   if(nullptr != this->cert_){
@@ -267,4 +272,20 @@ void vds::certificate::save(const filename & filename)
     auto error = ERR_get_error();
     throw new crypto_exception("PEM_write_bio_X509", error);
   }
+}
+
+std::string vds::certificate::subject() const
+{
+  char result[1024];
+  X509_NAME_oneline(X509_get_subject_name(this->cert_), result, sizeof(result));
+
+  return result;
+}
+
+std::string vds::certificate::issuer() const
+{
+  char result[1024];
+  X509_NAME_oneline(X509_get_issuer_name(this->cert_), result, sizeof(result));
+
+  return result;
 }

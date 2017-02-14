@@ -45,6 +45,7 @@ namespace vds {
             http_response::HTTP_OK,
             "OK"
           );
+          this->response_.add_header("Content-Type:", "application/json");
           
           this->response_stream_.set_body(value->str());
         }

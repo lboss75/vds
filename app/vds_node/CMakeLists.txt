@@ -28,6 +28,7 @@ target_link_libraries(
   vds_crypto
   vds_network
   vds_http
+  vds_parser
   vds_protocols
   vds_storage
   vds_client

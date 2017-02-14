@@ -10,12 +10,16 @@ namespace vds {
   class server_json_api
   {
   public:
-    json_value * operator()(json_value * request) const
-    {
-      auto result = new json_object();
-      result->add_property(new json_property("successful", new json_primitive("true")));
-      return result;
-    }
+    server_json_api(
+      const service_provider & sp,
+      ssl_peer & peer
+    );
+
+    json_value * operator()(json_value * request) const;
+
+  private:
+    logger log_;
+    ssl_peer & peer_;
   };
 }
 

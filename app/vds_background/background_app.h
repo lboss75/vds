@@ -26,7 +26,7 @@ namespace vds {
     network_service network_service_;
     crypto_service crypto_service_;
     
-    std::unique_ptr<server_logic> router_;
+    std::unique_ptr<http_router> router_;
     certificate certificate_;
     asymmetric_private_key private_key_;
 
@@ -42,7 +42,7 @@ namespace vds {
     public:
       socket_session(
         const service_provider & sp,
-        const server_logic & router,
+        const http_router & router,
         const certificate & certificate,
         const asymmetric_private_key & private_key
       );
@@ -62,7 +62,7 @@ namespace vds {
         ssl_peer peer_;
         const certificate & certificate_;
         const asymmetric_private_key & private_key_;
-        const server_logic & router_;
+        server_logic server_logic_;
         delete_this<handler> done_handler_;
 
         std::function<void(std::exception *)> error_handler_;
@@ -72,7 +72,7 @@ namespace vds {
       };
     private:
       const service_provider & sp_;
-      const server_logic & router_;
+      const http_router & router_;
       const certificate & certificate_;
       const asymmetric_private_key & private_key_;
 

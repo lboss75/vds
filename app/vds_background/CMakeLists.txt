@@ -36,9 +36,9 @@ target_link_libraries(
   vds_core
   vds_network
   vds_http
-  vds_parser
   vds_crypto
   vds_upnp
+  vds_parser
   vds_protocols
   vds_storage
   vds_client

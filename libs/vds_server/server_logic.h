@@ -8,11 +8,13 @@ All rights reserved
 #include "server_json_api.h"
 
 namespace vds {
-  class server_logic : public http_router
+  class server_logic
   {
   public:
     server_logic(
-      const service_provider & sp
+      const service_provider & sp,
+      ssl_peer & peer,
+      const http_router & router
     );
     
     template<
@@ -43,7 +45,7 @@ namespace vds {
         );
       }
       else {
-        http_router::route<prev_handler_type, next_handler_type, error_handler_type>
+        this->router_.route<prev_handler_type, next_handler_type, error_handler_type>
         (
           request,
           incoming_stream,
@@ -57,6 +59,7 @@ namespace vds {
     }
   private:
     server_json_api server_json_api_;
+    const http_router & router_;
   };
 }
 

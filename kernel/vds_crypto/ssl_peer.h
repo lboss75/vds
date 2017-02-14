@@ -21,6 +21,8 @@ namespace vds {
       return this->is_client_;
     }
 
+    certificate get_peer_certificate() const;
+
   private:
     friend class ssl_input_stream;
     friend class ssl_output_stream;
@@ -100,6 +102,8 @@ namespace vds {
         const ssl_input_stream & args
       );
 
+      ~handler();
+
       void input_done() override;
       void decoded_output_done(size_t len) override;
 
@@ -153,6 +157,11 @@ namespace vds {
     peer_(args.peer_)
   {
     this->peer_.set_input_stream(this);
+  }
+
+  template<typename context_type>
+  inline ssl_input_stream::handler<context_type>::~handler()
+  {
   }
 
   template<typename context_type>
