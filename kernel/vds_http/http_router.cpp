@@ -16,7 +16,7 @@ vds::http_router::http_router(const service_provider & sp)
 
 void vds::http_router::route(
   const http_request & request,
-  http_incoming_stream & incoming_stream,
+  http_incoming_stream & /*incoming_stream*/,
   http_response & response,
   http_outgoing_stream & outgoing_stream
 ) const

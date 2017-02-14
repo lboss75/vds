@@ -59,7 +59,7 @@ void vds::network_serializer::start(uint16_t command_id)
 
 void vds::network_serializer::final()
 {
-  auto data = htonl(this->data_.size());
+  auto data = htonl((u_long)this->data_.size());
 
   this->data_[6] = (uint8_t)(0xFF & data);
 

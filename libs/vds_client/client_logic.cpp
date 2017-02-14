@@ -11,6 +11,7 @@ vds::client_logic::client_logic(
   certificate & client_certificate,
   asymmetric_private_key & client_private_key)
   : sp_(sp),
+  log_(sp, "VDS Client logic"),
   client_certificate_(client_certificate),
   client_private_key_(client_private_key),
   connected_(0)
@@ -42,6 +43,8 @@ void vds::client_logic::stop()
 
 void vds::client_logic::connection_closed(client_connection<client_logic> * connection)
 {
+  this->log_.error("Connection %s:%d has been closed", connection->address().c_str(), connection->port());
+
   this->connection_mutex_.lock();
   this->connected_--;
   this->connection_mutex_.unlock();
@@ -49,8 +52,10 @@ void vds::client_logic::connection_closed(client_connection<client_logic> * conn
   this->update_connection_pool();
 }
 
-void vds::client_logic::connection_error(client_connection<client_logic>* connection, std::exception * ex)
+void vds::client_logic::connection_error(client_connection<client_logic> * connection, std::exception * ex)
 {
+  this->log_.error("Connection %s:%d error %s", connection->address().c_str(), connection->port(), ex->what());
+
   this->connection_mutex_.lock();
   this->connected_--;
   this->connection_mutex_.unlock();

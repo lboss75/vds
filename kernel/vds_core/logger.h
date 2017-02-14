@@ -48,6 +48,38 @@ namespace vds {
         }
       }
 
+      template <typename... arg_types>
+      void trace(const std::string & format, arg_types... args) const
+      {
+        if (this->min_log_level() >= ll_trace) {
+          (*this)(ll_trace, string_format(format, args...));
+        }
+      }
+
+      template <typename... arg_types>
+      void debug(const std::string & format, arg_types... args) const
+      {
+        if (this->min_log_level() >= ll_debug) {
+          (*this)(ll_debug, string_format(format, args...));
+        }
+      }
+
+      template <typename... arg_types>
+      void info(const std::string & format, arg_types... args) const
+      {
+        if (this->min_log_level() >= ll_info) {
+          (*this)(ll_info, string_format(format, args...));
+        }
+      }
+
+      template <typename... arg_types>
+      void error(const std::string & format, arg_types... args) const
+      {
+        if (this->min_log_level() >= ll_error) {
+          (*this)(ll_error, string_format(format, args...));
+        }
+      }
+
       log_level min_log_level() const {
         return this->min_log_level_;
       }

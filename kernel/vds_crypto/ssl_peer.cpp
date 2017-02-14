@@ -122,7 +122,7 @@ void vds::ssl_peer::work_circle()
 {
   for(;;) {
     if (0 < this->input_len_) {
-      int bytes = BIO_write(this->input_bio_, this->input_data_, this->input_len_);
+      int bytes = BIO_write(this->input_bio_, this->input_data_, (int)this->input_len_);
       if (bytes <= 0) {
         if (!BIO_should_retry(this->input_bio_)) {
           throw new std::runtime_error("BIO_write failed");
@@ -139,7 +139,7 @@ void vds::ssl_peer::work_circle()
     }
 
     if (0 < this->decoded_input_len_) {
-      int bytes = SSL_write(this->ssl_, this->decoded_input_data_, this->decoded_input_len_);
+      int bytes = SSL_write(this->ssl_, this->decoded_input_data_, (int)this->decoded_input_len_);
       if (0 > bytes) {
         int ssl_error = SSL_get_error(this->ssl_, bytes);
         switch (ssl_error) {

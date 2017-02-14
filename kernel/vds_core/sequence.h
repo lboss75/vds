@@ -483,38 +483,15 @@ namespace vds {
     class _sequence_start_holder
     {
     public:
-      template <
-        typename prev_step_type,
-        typename next_step_type
-      >
-      class sequence_step_context
-      {
-      public:
-        typedef prev_step_type prev_step_t; 
-        typedef next_step_type next_step_t;
-        typedef error_method_type error_method_t;
+      template<std::size_t index, bool dummy = true>
+      class _sequence_step_handler;
 
-        sequence_step_context(
-          prev_step_t & prev,
-          next_step_t & next,
-          error_method_t & error
-        ) : prev_(prev), next_(next), error_(error)
-        {
-        }
-        
-        prev_step_t & prev_;
-        next_step_t & next_;
-        error_method_t & error_;
-      };
-      template <
-        typename next_step_type
-      >
       class _sequence_first_step_context
       {
       public:
         typedef _fake prev_step_t;
-        typedef next_step_type next_step_t;
-        typedef error_method_type error_method_t;
+        typedef _sequence_step_handler<1> next_step_t;
+        typedef auto_delete_trigger<error_method_type> error_method_t;
 
         _sequence_first_step_context(
           next_step_t & next,
@@ -543,7 +520,7 @@ namespace vds {
       template<std::size_t index, bool dummy = true>
       class _sequence_holder;
       
-      template<std::size_t index, bool dummy = true>
+      template<std::size_t index, bool dummy>
       class _sequence_step_handler
       : public _functor_type_t<index>::template handler<
         _sequence_step_context<
@@ -570,18 +547,14 @@ namespace vds {
         0,
         typename std::enable_if<0 < std::tuple_size<tuple_type>::value - 1>::type,
         dummy
-      > : public _sequence_first_step_context<
-          _sequence_step_handler<1>
-        >
+      > : public _sequence_first_step_context
       {
       public:
-        using base_class = _sequence_first_step_context<
-          _sequence_step_handler<
-            1>>;
+        using base_class = _sequence_first_step_context;
 
         _sequence_step_context(
           typename base_class::next_step_t & next,
-          error_method_type & error_method
+          auto_delete_trigger<error_method_type> & error_method
         ) : base_class(next, error_method)
         {
         }
@@ -592,51 +565,51 @@ namespace vds {
         index,
         typename std::enable_if<index < std::tuple_size<tuple_type>::value - 1>::type,
         dummy
-      > : public sequence_step_context<
-          _sequence_step_handler<
-            index - 1>,
-          _sequence_step_handler<
-            index + 1>
-          >
+      >
       {
-        using base_class = sequence_step_context<
-          _sequence_step_handler<
-            index - 1>,
-          _sequence_step_handler<
-            index + 1>>;
       public:
+        typedef _sequence_step_handler<index - 1> prev_step_t;
+        typedef _sequence_step_handler<index + 1> next_step_t;
+        typedef auto_delete_trigger<error_method_type> error_method_t;
+
         _sequence_step_context(
-          _sequence_step_handler<
-            index - 1> & prev,
-          typename base_class::next_step_t & next,
-          error_method_type & error
-        ) : base_class(prev, next, error)
+          prev_step_t & prev,
+          next_step_t & next,
+          error_method_t & error
+        ) : prev_(prev), next_(next), error_(error)
         {
         }
+
+        prev_step_t & prev_;
+        next_step_t & next_;
+        error_method_t & error_;
       };
-    
+
       template<std::size_t index, bool dummy>
       class _sequence_step_context <
         index,
         typename std::enable_if<index == std::tuple_size<tuple_type>::value - 1>::type,
         dummy
-      > : public sequence_step_context<
-          _sequence_step_handler<
-            index - 1>,
-          done_method_type>
+      >
       {
-        using base_class = sequence_step_context<
-          _sequence_step_handler<index - 1>,
-          done_method_type>;
       public:
+        typedef _sequence_step_handler<index - 1> prev_step_t;
+        typedef auto_delete_trigger<done_method_type> next_step_t;
+        typedef auto_delete_trigger<error_method_type> error_method_t;
+
+
         _sequence_step_context(
-          _sequence_step_handler<
-            index - 1> & prev,
-          typename base_class::next_step_t & next,
-          error_method_type & error
-        ): base_class(prev, next, error)
+          prev_step_t & prev,
+          next_step_t & next,
+          error_method_t & error
+        ) : prev_(prev), next_(next), error_(error)
         {
         }
+
+        prev_step_t & prev_;
+        next_step_t & next_;
+        error_method_t & error_;
+
       };
 
       template<std::size_t index, bool dummy>
@@ -652,8 +625,8 @@ namespace vds {
       public:
         _sequence_holder(
           processed_step_t & prev,
-          done_method_type & done,
-          error_method_type & error_method,
+          auto_delete_trigger<done_method_type> & done,
+          auto_delete_trigger<error_method_type> & error_method,
           const tuple_type & args
         )
           :
@@ -684,10 +657,10 @@ namespace vds {
       public:
 
         _sequence_holder(
-          processed_step_t & prev,
-          done_method_type & done,
-          error_method_type & error_method,
-          const tuple_type & args
+          processed_step_t & /*prev*/,
+          auto_delete_trigger<done_method_type> & done,
+          auto_delete_trigger<error_method_type> & /*error_method*/,
+          const tuple_type & /*args*/
         )
           : step(done)
         {
@@ -698,14 +671,14 @@ namespace vds {
           this->step.validate();
         }
 
-        done_method_type & step;
+        auto_delete_trigger<done_method_type> & step;
       };
       
       using step_context_t = _sequence_step_context<0>;
       
       _sequence_start_holder(
-        done_method_type & done_method,
-        error_method_type & error_method,
+        auto_delete_trigger<done_method_type> & done_method,
+        auto_delete_trigger<error_method_type> & error_method,
         const tuple_type & args
       )
       : 
@@ -736,9 +709,7 @@ namespace vds {
     {
       using done_proxy_type = auto_delete_trigger<done_method_type>;
       using error_proxy_type = auto_delete_trigger<error_method_type>;
-      using holder_class = _sequence_start_holder<
-        done_proxy_type,
-        error_proxy_type>;
+      using holder_class = _sequence_start_holder<done_method_type, error_method_type>;
     public:
       _sequence_runner(const _sequence_runner &) = delete;
       _sequence_runner(_sequence_runner&&) = delete;

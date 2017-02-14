@@ -63,6 +63,13 @@ namespace vds {
         this->port_
       );
     }
+    const std::string & address() const {
+      return this->address_;
+    }
+
+    int port() const {
+      return this->port_;
+    }
 
     const std::chrono::time_point<std::chrono::system_clock> & connection_start() const
     {

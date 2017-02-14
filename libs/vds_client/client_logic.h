@@ -28,6 +28,7 @@ namespace vds {
 
   private:
     service_provider sp_;
+    logger log_;
     certificate & client_certificate_;
     asymmetric_private_key & client_private_key_;
 
