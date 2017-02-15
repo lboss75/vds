@@ -222,13 +222,37 @@ namespace vds {
     );
 
     asymmetric_public_key public_key() const;
-
-    void verify() const;
+    
+    bool is_ca_cert() const;
+    
+    bool is_issued(const certificate & issuer) const;
 
   private:
     X509 * cert_;
 
     static bool add_ext(X509 * cert, int nid, const char *value);
+  };
+  
+  class certificate_store
+  {
+  public:
+    certificate_store();
+    ~certificate_store();
+
+    void add(const certificate & cert);
+    void load_locations(const std::string & location);
+    
+    struct verify_result
+    {
+      int error_code;
+      std::string error;
+      std::string issuer;
+    };
+    
+    verify_result verify(const certificate & cert) const;
+    
+  private:
+    X509_STORE * store_;
   };
 }
 

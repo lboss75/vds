@@ -90,7 +90,7 @@ TEST(test_certificates, test_symmetric)
         vds::certificate::create_options caudal_options;
         caudal_options.country = "RU";
         caudal_options.organization = "Test Org";
-        caudal_options.name = "Sub Cert";
+        caudal_options.name = "Caudal Cert";
         caudal_options.ca_certificate = &sub_certificate;
         caudal_options.ca_certificate_private_key = &sub_certificate_private_key;
 
@@ -108,8 +108,59 @@ TEST(test_certificates, test_symmetric)
       {
         vds::certificate caudal_certificate = vds::certificate::parse(caudal_certificate_text);
 
-        caudal_certificate.verify();
+        vds::certificate_store store;
+        
+        auto result = store.verify(caudal_certificate);
+        ASSERT_EQ(result.error_code, X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY);
+        ASSERT_EQ(result.issuer, "/C=RU/O=Test Org/CN=Sub Cert");
+        ASSERT_TRUE(caudal_certificate.is_ca_cert());
+      }
+      {
+        vds::certificate sub_certificate = vds::certificate::parse(sub_certificate_text);
+        vds::certificate caudal_certificate = vds::certificate::parse(caudal_certificate_text);
 
+        vds::certificate_store store;
+        store.add(sub_certificate);
+        
+        auto result = store.verify(caudal_certificate);
+        ASSERT_EQ(result.error_code, X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT);
+        ASSERT_EQ(result.issuer, "/C=RU/O=Test Org/CN=CA Cert");
+        ASSERT_TRUE(caudal_certificate.is_issued(sub_certificate));
+        ASSERT_TRUE(caudal_certificate.is_ca_cert());
+        ASSERT_TRUE(sub_certificate.is_ca_cert());
+      }
+      {
+        vds::certificate ca_certificate = vds::certificate::parse(ca_certificate_text);
+        vds::certificate caudal_certificate = vds::certificate::parse(caudal_certificate_text);
+
+        vds::certificate_store store;
+        store.add(ca_certificate);
+        
+        auto result = store.verify(caudal_certificate);
+        ASSERT_EQ(result.error_code, X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY);
+        ASSERT_EQ(result.issuer, "/C=RU/O=Test Org/CN=Sub Cert");
+        ASSERT_FALSE(caudal_certificate.is_issued(ca_certificate));
+        ASSERT_TRUE(caudal_certificate.is_ca_cert());
+        ASSERT_TRUE(ca_certificate.is_ca_cert());
+      }
+      {
+        vds::certificate ca_certificate = vds::certificate::parse(ca_certificate_text);
+        vds::certificate sub_certificate = vds::certificate::parse(sub_certificate_text);
+        vds::certificate caudal_certificate = vds::certificate::parse(caudal_certificate_text);
+
+        vds::certificate_store store;
+        store.add(sub_certificate);
+        store.add(ca_certificate);
+        
+        auto result = store.verify(caudal_certificate);
+        ASSERT_EQ(result.error_code, 0);
+        ASSERT_TRUE(caudal_certificate.is_issued(sub_certificate));
+        ASSERT_TRUE(sub_certificate.is_issued(ca_certificate));
+        ASSERT_FALSE(caudal_certificate.is_issued(ca_certificate));
+        ASSERT_TRUE(ca_certificate.is_issued(ca_certificate));
+        ASSERT_TRUE(caudal_certificate.is_ca_cert());
+        ASSERT_TRUE(sub_certificate.is_ca_cert());
+        ASSERT_TRUE(ca_certificate.is_ca_cert());
       }
     }
     registrator.shutdown();

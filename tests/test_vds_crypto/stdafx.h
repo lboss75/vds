@@ -11,6 +11,8 @@ All rights reserved
 #include "vds_core.h"
 #include "vds_crypto.h"
 
+#include <openssl/x509_vfy.h>
+
 #ifdef _WIN32
 #pragma comment(lib, "ws2_32")
 #pragma comment(lib, "crypt32")

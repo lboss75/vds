@@ -22,8 +22,8 @@ TEST(test_vds_crypto, test_symmetric)
       do
       {
         RAND_bytes((unsigned char *)&len, sizeof(len));
-        len %= 1024 * 1024 * 1024;
-      }while(len < 1024 || len > 1024 * 1024 * 1024);
+        len %= 32 * 1024 * 1024;
+      }while(len < 1024 || len > 32 * 1024 * 1024);
 
       std::unique_ptr<unsigned char> buffer(new unsigned char[len]);
       RAND_bytes(buffer.get(), len);

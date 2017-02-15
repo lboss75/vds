@@ -528,54 +528,16 @@ vds::asymmetric_public_key vds::certificate::public_key() const
   return asymmetric_public_key(key);
 }
 
-void vds::certificate::verify() const
+bool vds::certificate::is_ca_cert() const
 {
-  X509_STORE * store = nullptr;
-  X509_STORE_CTX * vrfy_ctx = nullptr;
-
-  try {
-
-    store = X509_STORE_new();
-    if (nullptr == store) {
-      auto error = ERR_get_error();
-      throw new crypto_exception("X509_get_pubkey", error);
-    }
-
-    vrfy_ctx = X509_STORE_CTX_new();
-    if (nullptr == store) {
-      auto error = ERR_get_error();
-      throw new crypto_exception("X509_get_pubkey", error);
-    }
-
-    X509_STORE_add_lookup();
-
-    X509_STORE_CTX_init(vrfy_ctx, store, this->cert_, NULL);
-
-
-    if (0 == X509_verify_cert(vrfy_ctx)) {
-      auto error_code = X509_STORE_CTX_get_error(vrfy_ctx);
-      auto error = X509_verify_cert_error_string(error_code);
-      auto error_cert = X509_STORE_CTX_get_current_cert(vrfy_ctx);
-      auto certsubject = X509_get_subject_name(error_cert);
-      throw "error";
-    }
-
-
-    X509_STORE_CTX_free(vrfy_ctx);
-    X509_STORE_free(store);
-  }
-  catch (...) {
-    if (nullptr != vrfy_ctx) {
-      X509_STORE_CTX_free(vrfy_ctx);
-    }
-
-    if (nullptr != store) {
-      X509_STORE_free(store);
-    }
-
-    throw;
-  }
+  return (0 < X509_check_ca(this->cert_));
 }
+
+bool vds::certificate::is_issued(const vds::certificate& issuer) const
+{
+  return (X509_V_OK == X509_check_issued(issuer.cert(), this->cert()));
+}
+
 
 bool vds::certificate::add_ext(X509 * cert, int nid, const char * value)
 {
@@ -584,7 +546,7 @@ bool vds::certificate::add_ext(X509 * cert, int nid, const char * value)
 
   X509V3_set_ctx(&ctx, cert, cert, NULL, NULL, 0);
 
-  X509_EXTENSION * ex = X509V3_EXT_conf_nid(NULL, &ctx, nid, value);
+  X509_EXTENSION * ex = X509V3_EXT_conf_nid(NULL, &ctx, nid, const_cast<char *>(value));
   if (nullptr == ex) {
     return false;
   }
@@ -599,3 +561,76 @@ vds::certificate_extension::certificate_extension()
   : base_nid(NID_netscape_comment)
 {
 }
+
+vds::certificate_store::certificate_store()
+: store_(X509_STORE_new())
+{
+  if (nullptr == this->store_) {
+    auto error = ERR_get_error();
+    throw new crypto_exception("X509_get_pubkey", error);
+  }
+}
+
+vds::certificate_store::~certificate_store()
+{
+  if (nullptr != this->store_) {
+    X509_STORE_free(this->store_);
+  }
+}
+
+void vds::certificate_store::add(const vds::certificate& cert)
+{
+  if(0 >= X509_STORE_add_cert(this->store_, cert.cert())){
+    auto error = ERR_get_error();
+    throw new crypto_exception("unable to add certificate to store", error);
+  }
+}
+
+
+void vds::certificate_store::load_locations(const std::string & location)
+{
+  if(0 >= X509_STORE_load_locations(this->store_, location.c_str(), NULL)){
+    auto error = ERR_get_error();
+    throw new crypto_exception("unable to load certificates at " + location + " to store", error);
+  }
+}
+
+vds::certificate_store::verify_result vds::certificate_store::verify(const vds::certificate& cert) const
+{
+  X509_STORE_CTX * vrfy_ctx = X509_STORE_CTX_new();
+  if (nullptr == vrfy_ctx) {
+    auto error = ERR_get_error();
+    throw new crypto_exception("X509_STORE_CTX_new", error);
+  }
+
+  try {
+
+    X509_STORE_CTX_init(vrfy_ctx, this->store_, cert.cert(), NULL);
+
+    verify_result result;
+    if (0 == X509_verify_cert(vrfy_ctx)) {
+      result.error_code = X509_STORE_CTX_get_error(vrfy_ctx);
+      result.error = X509_verify_cert_error_string(result.error_code);
+      auto error_cert = X509_STORE_CTX_get_current_cert(vrfy_ctx);
+      
+      char issuer[1024];
+      X509_NAME_oneline(X509_get_issuer_name(error_cert), issuer, sizeof(issuer));
+      
+      result.issuer = issuer;
+    }
+    else {
+      result.error_code = 0;
+    }
+
+    X509_STORE_CTX_free(vrfy_ctx);
+    
+    return result;
+  }
+  catch (...) {
+    X509_STORE_CTX_free(vrfy_ctx);
+
+    throw;
+  }
+}
+
+
