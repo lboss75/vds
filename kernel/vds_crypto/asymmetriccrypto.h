@@ -28,12 +28,18 @@ namespace vds {
   {
   public:
     asymmetric_private_key();
+    asymmetric_private_key(EVP_PKEY * key);
+    asymmetric_private_key(asymmetric_private_key && original);
     asymmetric_private_key(const asymmetric_crypto_info & info);
     ~asymmetric_private_key();
     
     void generate();
 
+    static asymmetric_private_key parse(const std::string & value);
+    std::string str() const;
+
     void load(const filename & filename);
+    void save(const filename & filename);
 
     EVP_PKEY * key() const
     {
@@ -52,8 +58,21 @@ namespace vds {
   class asymmetric_public_key
   {
   public:
+    asymmetric_public_key(EVP_PKEY * key);
+    asymmetric_public_key(asymmetric_public_key && original);
     asymmetric_public_key(const asymmetric_private_key & key);
     ~asymmetric_public_key();
+
+    EVP_PKEY * key() const
+    {
+      return this->key_;
+    }
+
+    static asymmetric_public_key parse(const std::string & format);
+    std::string str() const;
+
+    void load(const filename & filename);
+    void save(const filename & filename);
 
   private:
     friend class asymmetric_sign_verify;
@@ -142,14 +161,30 @@ namespace vds {
   // openssl genrsa -out user.key 2048
   // openssl req -new -key user.key -out user.csr
   // openssl x509 -req -days 730 -in user.csr -CA cacert.crt -CAkey cakey.pem -CAcreateserial -out user.crt
+  
+  struct certificate_extension
+  {
+    certificate_extension();
+
+    std::string oid;
+    std::string name;
+    std::string description;
+    std::string value;
+
+    int base_nid;
+  };
 
   class certificate
   {
   public:
     certificate();
+    certificate(certificate && original);
     certificate(X509 * cert);
     ~certificate();
-    
+
+    static certificate parse(const std::string & format);
+    std::string str() const;
+
     void load(const filename & filename);
     void save(const filename & filename);
 
@@ -161,8 +196,39 @@ namespace vds {
     std::string subject() const;
     std::string issuer() const;
 
+    class create_options
+    {
+    public:
+      create_options()
+        : ca_certificate(nullptr),
+          ca_certificate_private_key(nullptr)
+      {
+      }
+
+      std::string country;
+      std::string organization;
+      std::string name;
+
+      const certificate * ca_certificate;
+      const asymmetric_private_key * ca_certificate_private_key;
+
+      std::list<certificate_extension> extensions;
+    };
+
+    static certificate create_new(
+      const asymmetric_public_key & new_certificate_public_key,
+      const asymmetric_private_key & new_certificate_private_key,
+      const create_options & options
+    );
+
+    asymmetric_public_key public_key() const;
+
+    void verify() const;
+
   private:
     X509 * cert_;
+
+    static bool add_ext(X509 * cert, int nid, const char *value);
   };
 }
 

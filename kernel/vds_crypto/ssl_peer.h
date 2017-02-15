@@ -66,9 +66,11 @@ namespace vds {
 
     bool input_stream_done_;
     bool output_stream_done_;
-    
+
     std::mutex work_circle_mutex_;
     int work_circle_queries_;
+
+    bool enable_output_;
 
     void set_input_stream(issl_input_stream * stream);
     void set_output_stream(issl_output_stream * stream);

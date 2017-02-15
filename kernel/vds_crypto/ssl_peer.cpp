@@ -18,7 +18,8 @@ vds::ssl_peer::ssl_peer(bool is_client, const certificate * cert, const asymmetr
   input_stream_(nullptr), output_stream_(nullptr),
   input_stream_done_(false),
   output_stream_done_(false),
-  work_circle_queries_(0)
+  work_circle_queries_(0),
+  enable_output_(true)
 {
   this->ssl_ctx_ = SSL_CTX_new(is_client ? SSLv23_client_method() : SSLv23_server_method());
   if(nullptr == this->ssl_ctx_){
@@ -198,7 +199,7 @@ void vds::ssl_peer::work_circle()
       this->input_stream_->decoded_output_done(bytes);
     }
 
-    if (BIO_pending(this->output_bio_)) {
+    if (this->enable_output_ && BIO_pending(this->output_bio_)) {
       int bytes = BIO_read(this->output_bio_, this->output_stream_->buffer_, issl_output_stream::BUFFER_SIZE);
       if (bytes <= 0) {
         int ssl_error = SSL_get_error(this->ssl_, bytes);
@@ -214,6 +215,7 @@ void vds::ssl_peer::work_circle()
         }
       }
       else {
+        this->enable_output_ = false;
         this->output_stream_->output_done(bytes);
       }
     }
@@ -245,6 +247,10 @@ void vds::ssl_peer::input_stream_processed()
 
 void vds::ssl_peer::output_stream_processed()
 {
+  if (this->enable_output_) {
+    throw new std::logic_error("vds::ssl_peer::output_stream_processed failed");
+  }
+  this->enable_output_ = true;
   this->start_work_circle();
 }
 

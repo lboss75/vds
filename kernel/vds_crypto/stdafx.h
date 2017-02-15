@@ -16,6 +16,9 @@ All rights reserved
 #include <openssl/rand.h>
 #include <openssl/rsa.h>
 #include <openssl/x509.h>
+#include <openssl/x509v3.h>
+#include <openssl/x509_vfy.h>
 #include <openssl/ssl.h> 
+
 
 #endif // __VDS_CRYPTO_STDAFX_H_
