@@ -23,6 +23,7 @@ All rights reserved
 #include <exception>
 #include <string>
 #include <sstream>
+#include <iomanip>
 
 #include "vds_core.h"
 

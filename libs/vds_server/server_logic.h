@@ -38,15 +38,13 @@ namespace vds {
           json_parser("ping request"),
           http_json_api<server_json_api>(this->server_json_api_),
           http_json_formatter(response, outgoing_stream)
-        )
-        (
+        )(
           next_handler,
           error_handler
         );
       }
       else {
-        this->router_.route<prev_handler_type, next_handler_type, error_handler_type>
-        (
+        this->router_.route<prev_handler_type, next_handler_type, error_handler_type>(
           request,
           incoming_stream,
           response,

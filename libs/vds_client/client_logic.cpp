@@ -14,7 +14,8 @@ vds::client_logic::client_logic(
   log_(sp, "VDS Client logic"),
   client_certificate_(client_certificate),
   client_private_key_(client_private_key),
-  connected_(0)
+  connected_(0),
+  client_id_(0)
 {
 }
 
@@ -66,6 +67,21 @@ void vds::client_logic::connection_error(client_connection<client_logic> * conne
 void vds::client_logic::node_install(const std::string & login, const std::string & password)
 {
 
+}
+
+std::string vds::client_logic::get_messages()
+{
+  json_writer writer;
+
+  writer.start_array();
+
+  if (0 == this->client_id_) {
+    vsr_new_client_message().serialize(writer);
+  }
+
+  writer.end_array();
+
+  return writer.str();
 }
 
 void vds::client_logic::update_connection_pool()

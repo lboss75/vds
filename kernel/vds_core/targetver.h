@@ -33,6 +33,7 @@ All rights reserved
 #include <thread>
 #include <future>
 #include <chrono>
+#include <queue>
 
 #include <stdio.h>
 #include <stdlib.h>

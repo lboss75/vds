@@ -15,6 +15,7 @@ namespace vds {
         ll_trace,
         ll_debug,
         ll_info,
+        ll_warning,
         ll_error
     };
 
@@ -69,6 +70,14 @@ namespace vds {
       {
         if (this->min_log_level() <= ll_info) {
           (*this)(ll_info, string_format(format, args...));
+        }
+      }
+
+      template <typename... arg_types>
+      void warning(const std::string & format, arg_types... args) const
+      {
+        if (this->min_log_level() <= ll_warning) {
+          (*this)(ll_warning, string_format(format, args...));
         }
       }
 

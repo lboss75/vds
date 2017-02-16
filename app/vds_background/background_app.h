@@ -62,6 +62,7 @@ namespace vds {
         ssl_peer peer_;
         const certificate & certificate_;
         const asymmetric_private_key & private_key_;
+        client client_;
         server_logic server_logic_;
         delete_this<handler> done_handler_;
 

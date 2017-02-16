@@ -8,5 +8,6 @@ All rights reserved
 
 #include "parse_error.h"
 #include "json_parser.h"
+#include "json_writer.h"
 
 #endif//__vds_parser_h_

@@ -7,7 +7,8 @@ All rights reserved
 */
 
 namespace vds {
-  
+  class json_writer;
+
   class json_value
   {
   public:
@@ -23,20 +24,13 @@ namespace vds {
       return this->column_;
     }
     
-    std::string str() const
-    {
-      std::stringstream stream;
-      this->str(stream);
-      return stream.str();
-    }
+    std::string str() const;
     
-    virtual void str(std::stringstream & stream) const = 0;
+    virtual void str(json_writer & writer) const = 0;
     
   private:
     int line_;
     int column_;
-  protected:
-    static void escape(std::stringstream & stream, const std::string & value);
   };
   
   class json_primitive : public json_value
@@ -51,7 +45,7 @@ namespace vds {
       return this->value_;
     }
     
-    void str(std::stringstream & stream) const override;
+    void str(json_writer & writer) const override;
     
   private:
     std::string value_;
@@ -79,7 +73,7 @@ namespace vds {
       this->value_.reset(val);
     }
     
-    void str(std::stringstream & stream) const override;
+    void str(json_writer & writer) const override;
 
   private:
     std::string name_;
@@ -96,7 +90,9 @@ namespace vds {
     
     void add_property(json_property * prop);
 
-    void str(std::stringstream & stream) const override;
+    const json_value * get_property(const std::string & name) const;
+
+    void str(json_writer & writer) const override;
   private:
     friend class vjson_file_parser;
     std::list<std::unique_ptr<json_property>> properties_;
@@ -123,7 +119,7 @@ namespace vds {
       this->items_.push_back(std::unique_ptr<json_value>(item));
     }
     
-    void str(std::stringstream & stream) const override;
+    void str(json_writer & writer) const override;
     
   private:
     std::vector<std::unique_ptr<json_value>> items_;

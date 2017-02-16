@@ -26,11 +26,14 @@ namespace vds {
 
     void node_install(const std::string & login, const std::string & password);
 
+    std::string get_messages();
+
   private:
     service_provider sp_;
     logger log_;
     certificate & client_certificate_;
     asymmetric_private_key & client_private_key_;
+    int client_id_;
 
     std::vector<client_connection<client_logic> *> connection_queue_;
 

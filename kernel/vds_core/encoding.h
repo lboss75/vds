@@ -10,6 +10,8 @@ All rights reserved
 namespace vds {
   class utf8
   {
+  public:
+    static wchar_t next_char(const char *& utf8string, size_t & len);
 
   };
 

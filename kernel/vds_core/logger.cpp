@@ -58,6 +58,10 @@ void vds::console_logger::register_services(service_registrator & registrator)
           std::cout << "INFO: " << message << '\n';
           break;
 
+        case ll_warning:
+          std::cout << "WARNIG: " << message << '\n';
+          break;
+
         case ll_error:
           std::cout << "ERROR: " << message << '\n';
           break;

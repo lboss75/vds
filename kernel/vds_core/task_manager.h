@@ -73,7 +73,11 @@ namespace vds {
   class task_job
   {
   public:
-    
+    task_job()
+      : impl_(nullptr)
+    {
+    }
+
     void start()
     {
       this->impl_->start();

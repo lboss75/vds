@@ -362,7 +362,7 @@ namespace vds {
         void timer_job()
         {
           try {
-            this->outgoing_stream_.set_body("{\"$type\":\"ping\"}");
+            this->outgoing_stream_.set_body(this->owner_->handler_->get_messages());
             this->next(this->request_, this->outgoing_stream_);
           }
           catch (std::exception * ex) {

@@ -5,6 +5,7 @@ All rights reserved
 
 #include "stdafx.h"
 #include "json_object.h"
+#include "json_writer.h"
 
 vds::json_value::json_value()
 : line_(-1), column_(-1)
@@ -53,6 +54,17 @@ void vds::json_object::visit(const std::function<void(const json_property&)>& vi
   }
 }
 
+const vds::json_value * vds::json_object::get_property(const std::string & name) const
+{
+  for (const auto & property : this->properties_) {
+    if (property->name() == name) {
+      return property->value();
+    }
+  }
+
+  return nullptr;
+}
+
 void vds::json_object::add_property(json_property * prop)
 {
   this->properties_.push_back(std::unique_ptr<json_property>(prop));
@@ -79,79 +91,50 @@ vds::json_property::json_property(int line, int column)
 {
 }
 
-void vds::json_value::escape(std::stringstream& stream, const std::string & value)
+std::string vds::json_value::str() const
 {
-  stream << '\"';
-  for(auto ch : value){
-    if(isprint(ch)){
-      stream << ch;
-    }
-    else {
-      switch(ch){
-        case '\"':
-          stream << "\\\"";
-          break;
-        case '\n':
-          stream << "\\n";
-          break;
-        case '\r':
-          stream << "\\r";
-          break;
-        default:
-          throw new std::runtime_error("Not implemented");
-      }
-    }
-  }
-  stream << '\"';
+  json_writer writer;
+  this->str(writer);
+  return writer.str();
 }
 
-void vds::json_primitive::str(std::stringstream& stream) const
+void vds::json_primitive::str(json_writer & writer) const
 {
-  escape(stream, this->value_);
+  writer.write_string_value(this->value_);
 }
 
-void vds::json_property::str(std::stringstream& stream) const
+void vds::json_property::str(json_writer & writer) const
 {
-  escape(stream, this->name_);
-  stream << ':';
+  writer.start_property(this->name_);
   if(nullptr == this->value_){
-    stream << "null";
+    writer.write_null_value();
   }
   else {
-    this->value_->str(stream);
+    this->value_->str(writer);
   }
+
+  writer.end_property();
 }
 
-void vds::json_object::str(std::stringstream & stream) const
+void vds::json_object::str(json_writer & writer) const
 {
-  stream << '{';
-  bool bfirst = true;
+  writer.start_object();
   for(auto & p : this->properties_){
-    if(!bfirst){
-      stream << ',';
-    }
-    else {
-      bfirst = false;
-    }
-    p->str(stream);
+    p->str(writer);
   }
-  stream << '}';
+
+  writer.end_object();
 }
 
-void vds::json_array::str(std::stringstream& stream) const
+void vds::json_array::str(json_writer & writer) const
 {
-  stream << '[';
-  bool bfirst = true;
+  writer.start_array();
+
   for(auto & p : this->items_){
-    if(!bfirst){
-      stream << ',';
-    }
-    else {
-      bfirst = false;
-    }
-    p->str(stream);
+    p->str(writer);
   }
-  stream << ']';
+
+  writer.end_array();
 }
 
 
