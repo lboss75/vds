@@ -19,13 +19,15 @@ namespace vds {
   private:
     friend class iserver;
 
-    vsr_protocol::server vsr_server_protocol_;
+    std::unique_ptr<vsr_protocol::server> vsr_server_protocol_;
   };
   
   class iserver
   {
   public:
-    vsr_protocol::server & vsr_server_protocol() const { return this->owner_->vsr_server_protocol_;  }
+    iserver(server * owner);
+    
+    vsr_protocol::server * vsr_server_protocol() const { return this->owner_->vsr_server_protocol_.get();  }
 
   private:
     server * owner_;

@@ -15,8 +15,11 @@ vds::client::~client()
 {
 }
 
-void vds::client::register_services(service_registrator &)
+void vds::client::register_services(service_registrator & registrator)
 {
+  registrator.add_factory<vsr_protocol::iserver_queue>([this](bool &)->vsr_protocol::iserver_queue{
+    return vsr_protocol::iserver_queue(this);
+  });
 }
 
 void vds::client::start(const service_provider & sp)
@@ -45,4 +48,9 @@ void vds::client::connection_error()
 void vds::client::node_install(const std::string & login, const std::string & password)
 {
   this->logic_->node_install(login, password);
+}
+
+void vds::client::new_client()
+{
+
 }

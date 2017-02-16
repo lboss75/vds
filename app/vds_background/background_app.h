@@ -30,7 +30,11 @@ namespace vds {
     certificate certificate_;
     asymmetric_private_key private_key_;
 
-
+    task_manager task_manager_;
+    storage_service storage_;
+    client client_;
+    server server_;
+    
     std::function<void(void)> http_server_done_;
     std::function<void(std::exception *)> http_server_error_;
 

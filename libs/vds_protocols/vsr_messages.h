@@ -25,9 +25,9 @@ namespace vds {
 
   struct vsr_new_client_message_complete
   {
-    long client_id;
-    long current_primary_view;
-    long min_consensus;
+    size_t client_id;
+    size_t current_primary_view;
+    size_t server_count;
   };
 
 }

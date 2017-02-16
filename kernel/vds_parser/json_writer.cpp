@@ -52,7 +52,7 @@ void vds::json_writer::write_null_value()
     throw new std::runtime_error("Invalid json_writer state");
   }
 
-  this->stream_ << 'null';
+  this->stream_ << "null";
 }
 
 void vds::json_writer::start_property(const std::string & name)

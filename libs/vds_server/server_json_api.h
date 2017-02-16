@@ -6,8 +6,6 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
-#include "server.h"
-
 namespace vds {
   class server_json_api
   {
@@ -20,9 +18,9 @@ namespace vds {
     json_value * operator()(const json_value * request) const;
 
   private:
+    service_provider sp_;
     logger log_;
     ssl_peer & peer_;
-    iserver server_;
 
     void process(const vsr_new_client_message & message) const;
   };

@@ -5,14 +5,15 @@ All rights reserved
 
 #include "stdafx.h"
 #include "server_json_api.h"
+#include "server.h"
 
 vds::server_json_api::server_json_api(
   const service_provider & sp,
   ssl_peer & peer
 )
-: log_(sp, "Server JSON API"),
-  peer_(peer),
-  server_(sp.get<iserver>())
+: sp_(sp),
+  log_(sp, "Server JSON API"),
+  peer_(peer)
 {
 }
 
@@ -51,5 +52,5 @@ vds::json_value * vds::server_json_api::operator()(const json_value * request) c
 
 void vds::server_json_api::process(const vsr_new_client_message & message) const
 {
-  this->server_.vsr_server_protocol().new_client();
+  this->sp_.get<iserver>().vsr_server_protocol()->new_client();
 }

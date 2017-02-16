@@ -15,7 +15,9 @@ vds::client_logic::client_logic(
   client_certificate_(client_certificate),
   client_private_key_(client_private_key),
   connected_(0),
-  client_id_(0)
+  client_id_(0),
+  update_connection_pool_(std::bind(&client_logic::update_connection_pool, this)),
+  update_connection_pool_task_(sp.get<itask_manager>().create_job(update_connection_pool_))
 {
 }
 
@@ -35,7 +37,7 @@ void vds::client_logic::start()
         this->client_private_key_));
   }
 
-  this->update_connection_pool();
+  update_connection_pool_task_.schedule(std::chrono::system_clock::now() + std::chrono::seconds(5));
 }
 
 void vds::client_logic::stop()
@@ -94,11 +96,14 @@ void vds::client_logic::update_connection_pool()
       std::chrono::time_point<std::chrono::system_clock> border
         = std::chrono::system_clock::now() - std::chrono::seconds(60);
 
-      std::lock_guard<std::mutex> lock(this->connection_mutex_);
+      size_t try_count = 0;
+      this->connection_mutex_.lock();
       while (
         !this->sp_.get_shutdown_event().is_shuting_down()
         && this->connected_ < MAX_CONNECTIONS
+        && try_count++ < MAX_CONNECTIONS
         && this->connected_ < this->connection_queue_.size()) {
+        
 
         auto index = std::rand() % this->connection_queue_.size();
         auto connection = this->connection_queue_[index];
@@ -109,10 +114,16 @@ void vds::client_logic::update_connection_pool()
             && border > connection->connection_end()
             )
           ) {
+          
+          this->connection_mutex_.unlock();
           connection->connect();
+          this->connection_mutex_.lock();
+        
           this->connected_++;
         }
       }
+      
+      this->connection_mutex_.unlock();
     });
   }
 }

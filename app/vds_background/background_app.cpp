@@ -84,6 +84,13 @@ void vds::background_app::register_services(vds::service_registrator& registrato
   base_class::register_services(registrator);
   registrator.add(this->network_service_);
   registrator.add(this->crypto_service_);
+  registrator.add(this->task_manager_);
+  
+  if (&this->start_server_command_set_ == this->current_command_set_) {
+    registrator.add(this->storage_);
+    registrator.add(this->client_);
+    registrator.add(this->server_);
+  }
 }
 
 void vds::background_app::register_command_line(command_line & cmd_line)

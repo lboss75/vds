@@ -40,6 +40,9 @@ namespace vds {
     static constexpr size_t MAX_CONNECTIONS = 10;
     std::mutex connection_mutex_;
     size_t connected_;
+    
+    std::function<void(void)> update_connection_pool_;
+    task_job update_connection_pool_task_;
 
     void update_connection_pool();
 

@@ -11,7 +11,9 @@ All rights reserved
 
 namespace vds {
 
-  class client : public iservice
+  class client
+    : public iservice,
+      public vsr_protocol::server_queue
   {
   public:
     client();
@@ -27,6 +29,8 @@ namespace vds {
     void connection_error();
 
     void node_install(const std::string & login, const std::string & password);
+    
+    void new_client() override;
 
   private:
     certificate client_certificate_;
