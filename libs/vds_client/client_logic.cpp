@@ -17,7 +17,11 @@ vds::client_logic::client_logic(
   connected_(0),
   client_id_(0),
   update_connection_pool_(std::bind(&client_logic::update_connection_pool, this)),
-  update_connection_pool_task_(sp.get<itask_manager>().create_job(update_connection_pool_))
+  update_connection_pool_task_(sp.get<itask_manager>().create_job("update connection pool", update_connection_pool_))
+{
+}
+
+vds::client_logic::~client_logic()
 {
 }
 
@@ -126,4 +130,8 @@ void vds::client_logic::update_connection_pool()
       this->connection_mutex_.unlock();
     });
   }
+}
+
+void vds::client_logic::wait_for(const std::chrono::system_clock::duration & wait_timeout)
+{
 }

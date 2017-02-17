@@ -54,3 +54,8 @@ void vds::client::new_client()
 {
 
 }
+
+void vds::client::wait_for(const std::chrono::system_clock::duration & wait_timeout)
+{
+  this->logic_->wait_for(wait_timeout);
+}

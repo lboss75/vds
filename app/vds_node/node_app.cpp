@@ -57,7 +57,13 @@ void vds::node_app::main(
   const vds::service_provider& sp)
 {
   if (&this->node_install_cmd_set_ == this->current_command_set_) {
-    this->client_.node_install(this->node_login_.value(), this->node_password_.value());
+    std::cout << "Waiting to connect...\n";
+    this->client_.wait_for(std::chrono::seconds(5));
+
+    std::cout << "Send command...\n";
+    this->client_.node_install(
+      this->node_login_.value(),
+      this->node_password_.value());
     
     std::cout << "Enter command:\n";
     std::string command;

@@ -2,6 +2,7 @@
 #define __VDS_CORE_TASK_MANAGER_H_
 
 #include "service_provider.h"
+#include "debug.h"
 
 namespace vds {
  
@@ -19,8 +20,8 @@ namespace vds {
     class task_job_base
     {
     public:
-      task_job_base(task_manager * owner)
-      : owner_(owner)
+      task_job_base(const std::string & name, task_manager * owner)
+      : name_(name), owner_(owner)
       {
       }
       
@@ -41,6 +42,7 @@ namespace vds {
       
     private:
       std::chrono::time_point<std::chrono::system_clock> start_time_;
+      std::string name_;
       task_manager * owner_;      
     };
     
@@ -55,8 +57,8 @@ namespace vds {
     class task_job_impl : public task_job_base
     {
     public:
-      task_job_impl(task_manager * owner, handler_type & handler)
-      : task_job_base(owner), handler_(handler)
+      task_job_impl(const std::string & name, task_manager * owner, handler_type & handler)
+      : task_job_base(name, owner), handler_(handler)
       {
       }
       
@@ -66,6 +68,7 @@ namespace vds {
       }
       
     private:
+      lifetime_check ft_;
       handler_type & handler_;
     };
   };
@@ -112,9 +115,9 @@ namespace vds {
     }
     
     template <typename handler_type>
-    task_job create_job(handler_type & handler)
+    task_job create_job(const std::string & name, handler_type & handler)
     {
-      return task_job(new task_manager::task_job_impl<handler_type>(this->owner_, handler));
+      return task_job(new task_manager::task_job_impl<handler_type>(name, this->owner_, handler));
     }
     
   private:

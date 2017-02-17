@@ -401,7 +401,7 @@ namespace vds {
         ) : base_class(context),
           owner_(args.owner_),
           timer_job_(std::bind(&handler::timer_job, this)),
-          ping_job_(itask_manager::get(this->owner_->sp_).create_job(this->timer_job_)),
+          ping_job_(itask_manager::get(this->owner_->sp_).create_job("server ping", this->timer_job_)),
           request_("POST", "/vds/ping")
         {
         }

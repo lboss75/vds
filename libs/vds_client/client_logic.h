@@ -18,6 +18,8 @@ namespace vds {
       asymmetric_private_key & client_private_key
     );
 
+    ~client_logic();
+
     void start();
     void stop();
 
@@ -27,6 +29,8 @@ namespace vds {
     void node_install(const std::string & login, const std::string & password);
 
     std::string get_messages();
+
+    void wait_for(const std::chrono::system_clock::duration & wait_timeout);
 
   private:
     service_provider sp_;

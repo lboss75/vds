@@ -38,6 +38,9 @@ void vds::vsr_protocol::client::new_client_request_complete(const vsr_new_client
 
 void vds::vsr_protocol::client::client_id_assigned()
 {
+  for (auto & handler : this->initialize_complete_hanlders_) {
+    handler();
+  }
 }
 
 vds::vsr_protocol::server::server(const service_provider & sp)
@@ -46,7 +49,11 @@ vds::vsr_protocol::server::server(const service_provider & sp)
   get_client_id_timeout_(std::bind(&server::get_client_id_timeout, this)),
   last_request_number_(0),
   last_commit_number_(0),
-  get_client_id_task_(this->task_manager_.create_job(this->get_client_id_timeout_))
+  get_client_id_task_(this->task_manager_.create_job("VSR server client id waiting", this->get_client_id_timeout_))
+{
+}
+
+vds::vsr_protocol::server::~server()
 {
 }
 
@@ -72,4 +79,14 @@ void vds::vsr_protocol::server::get_client_id_timeout()
 
     this->client_id_assigned();
   }
+}
+
+vds::vsr_protocol::iclient::iclient(client * owner)
+  : owner_(owner)
+{
+}
+
+void vds::vsr_protocol::iclient::subscrible_initialize_complete(const std::function<void(void)>& handler)
+{
+  this->owner_->initialize_complete_hanlders_.push_back(handler);
 }
