@@ -45,6 +45,12 @@ namespace vds {
       return this->file_;
     }
 
+    void clear()
+    {
+      this->is_simple_ = true;
+      this->body_.clear();
+    }
+
   private:
     bool is_simple_;
     std::string body_;

@@ -32,7 +32,6 @@ namespace vds {
       
       ~handler()
       {
-        std::cout << "http_simple_response_reader::handler::~handler\n";
       }
 
       void operator()(

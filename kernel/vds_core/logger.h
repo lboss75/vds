@@ -19,12 +19,19 @@ namespace vds {
         ll_error
     };
 
+    struct log_record
+    {
+      log_level level;
+      std::string source;
+      std::string message;
+    };
+
     class log_writer
     {
     public:
-      log_writer(log_level level, const std::function<void(log_level level, const std::string & message)> & impl);
+      log_writer(log_level level, const std::function<void(const log_record & record)> & impl);
 
-      void write(log_level level, const std::string & message) const;
+      void write(const log_record & record) const;
 
       log_level level() const {
         return this->log_level_;
@@ -32,7 +39,7 @@ namespace vds {
 
     private:
       log_level log_level_;
-      std::function<void(log_level level, const std::string & message)> impl_;
+      std::function<void(const log_record & record)> impl_;
     };
 
     class logger {

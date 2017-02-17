@@ -45,13 +45,14 @@ vds::vsr_protocol::server::server(const service_provider & sp)
   log_(sp, "VSR server"),
   get_client_id_timeout_(std::bind(&server::get_client_id_timeout, this)),
   last_request_number_(0),
-  last_commit_number_(0)
+  last_commit_number_(0),
+  get_client_id_task_(this->task_manager_.create_job(this->get_client_id_timeout_))
 {
 }
 
 void vds::vsr_protocol::server::start()
 {
-  this->get_client_id_task_ = this->task_manager_.create_job(this->get_client_id_timeout_);
+  this->get_client_id_task_.schedule(std::chrono::system_clock::now() + std::chrono::seconds(10));
 }
 
 void vds::vsr_protocol::server::new_client()

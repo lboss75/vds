@@ -66,4 +66,6 @@ wchar_t vds::utf8::next_char(const char *& utf8string, size_t & len)
   else {
     throw new std::runtime_error("Invalid UTF8 string");
   }
+
+  return result;
 }

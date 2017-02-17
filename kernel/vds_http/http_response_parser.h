@@ -98,9 +98,8 @@ namespace vds {
               size_t index = 0;
               for (auto ch : request) {
                 if (isspace(ch)) {
-                  ++index;
-                  if (index > sizeof(items) / sizeof(items[0])) {
-                    throw new std::logic_error("Invalid request");
+                  if (index + 1 < sizeof(items) / sizeof(items[0])) {
+                    ++index;
                   }
                 }
                 else {
@@ -155,13 +154,21 @@ namespace vds {
             size_t l = std::min(
               this->size_limit_ -this->readed_,
               this->len_);
-            auto p = this->data_;
-            this->data_ = reinterpret_cast<const char *>(this->data_) + l;
-            this->len_ -= l;
-            this->readed_ += l;
-            this->incoming_stream_.push_data(
-              p,
-              l);
+            if (0 == l) {
+              this->state_ = STATE_PARSE_HEADER;
+              this->incoming_stream_.push_data(
+                nullptr,
+                0);
+            }
+            else {
+              auto p = this->data_;
+              this->data_ = reinterpret_cast<const char *>(this->data_) + l;
+              this->len_ -= l;
+              this->readed_ += l;
+              this->incoming_stream_.push_data(
+                p,
+                l);
+            }
             return;
           }
         }

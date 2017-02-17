@@ -22,11 +22,17 @@ namespace vds {
       const void * data,
       size_t len)
     {
-      
-      this->handler_->push_data(
-        data,
-        len
-      );
+      if (nullptr == this->handler_) {
+        if (0 < len) {
+          throw new std::logic_error("Read handler for http_incoming_stream have not set");
+        }
+      }
+      else {
+        this->handler_->push_data(
+          data,
+          len
+        );
+      }
     }    
    
     class read_handler

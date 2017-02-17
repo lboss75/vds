@@ -19,9 +19,9 @@ vds::server_json_api::server_json_api(
 
 vds::json_value * vds::server_json_api::operator()(const json_value * request) const
 {
-  auto cert = this->peer_.get_peer_certificate();
-  this->log_.trace("Certificate subject %s", cert.subject().c_str());
-  this->log_.trace("Certificate issuer %s", cert.issuer().c_str());
+  //auto cert = this->peer_.get_peer_certificate();
+  //this->log_.trace("Certificate subject %s", cert.subject().c_str());
+  //this->log_.trace("Certificate issuer %s", cert.issuer().c_str());
 
   auto request_tasks = dynamic_cast<const json_array *>(request);
   if (nullptr != request_tasks) {

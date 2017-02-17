@@ -55,10 +55,27 @@ namespace vds {
         size_t len
         )
       {
-        this->data_ = (const char *)data;
-        this->len_ = len;
+        if (0 == len) {
+          switch (this->state_) {
+          case ST_EOF:
+            break;
 
-        this->processed();
+          default:
+            throw new parse_error(
+              this->stream_name_,
+              this->line_,
+              this->column_,
+              "Unexpected end of data");
+          }
+
+          this->next(nullptr);
+        }
+        else {
+          this->data_ = (const char *)data;
+          this->len_ = len;
+
+          this->processed();
+        }
       }
 
       void processed()
@@ -356,18 +373,6 @@ namespace vds {
           }
         }
 
-        switch (this->state_) {
-        case ST_EOF:
-          break;
-
-        default:
-          throw new parse_error(
-            this->stream_name_,
-            this->line_,
-            this->column_,
-            "Unexpected end of data");
-        }
-
         this->prev();
       }
 
@@ -486,6 +491,10 @@ namespace vds {
           break;
         case ST_BOF:
           this->saved_states_.push(ST_BOF);
+          break;
+        case ST_ARRAY:
+          this->saved_states_.push(ST_ARRAY_ITEM);
+          this->current_path_.push(this->current_object_);
           break;
         default:
           throw new parse_error(

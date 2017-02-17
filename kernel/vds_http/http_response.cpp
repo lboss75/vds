@@ -16,6 +16,7 @@ void vds::http_response::reset(
 )
 {
   this->code_ = -1;
+  this->headers_.clear();
 }
 
 bool vds::http_response::get_header(

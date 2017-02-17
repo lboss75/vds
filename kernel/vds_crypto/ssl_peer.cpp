@@ -78,6 +78,10 @@ vds::ssl_peer::ssl_peer(bool is_client, const certificate * cert, const asymmetr
   }
 }
 
+vds::ssl_peer::~ssl_peer()
+{
+}
+
 vds::certificate vds::ssl_peer::get_peer_certificate() const
 {
   auto cert = SSL_get_peer_certificate(this->ssl_);
@@ -138,7 +142,7 @@ void vds::ssl_peer::start_work_circle()
 void vds::ssl_peer::work_circle()
 {
   for(;;) {
-    if (0 < this->input_len_) {
+    if (nullptr != this->input_stream_ && 0 < this->input_len_) {
       int bytes = BIO_write(this->input_bio_, this->input_data_, (int)this->input_len_);
       if (bytes <= 0) {
         if (!BIO_should_retry(this->input_bio_)) {

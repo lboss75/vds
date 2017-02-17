@@ -243,6 +243,85 @@ namespace vds {
       client_connection * owner_;
     };
     
+    class command_processor
+    {
+    public:
+      command_processor(client_connection * owner, ssl_peer & peer)
+        : owner_(owner), peer_(peer)
+      {
+      }
+
+      template <typename context_type>
+      class handler : public sequence_step<context_type, void(void)>
+      {
+        using base_class = sequence_step<context_type, void(void)>;
+      public:
+        handler(
+          const context_type & context,
+          const command_processor & args
+        ) : base_class(context),
+          owner_(args.owner_),
+          peer_(args.peer_)
+        {
+        }
+
+        void operator()(json_value * request)
+        {
+          if (nullptr == request) {
+            this->next();
+          }
+
+          //auto cert = this->peer_.get_peer_certificate();
+          //this->owner_->log_.trace("Certificate subject %s", cert.subject().c_str());
+          //this->owner_->log_.trace("Certificate issuer %s", cert.issuer().c_str());
+        }
+      private:
+        client_connection * owner_;
+        ssl_peer & peer_;
+      };
+    private:
+      client_connection * owner_;
+      ssl_peer & peer_;
+    };
+
+    class null_command_processor
+    {
+    public:
+      null_command_processor(client_connection * owner, ssl_peer & peer)
+        : owner_(owner), peer_(peer)
+      {
+      }
+
+      template <typename context_type>
+      class handler : public sequence_step<context_type, void(void)>
+      {
+        using base_class = sequence_step<context_type, void(void)>;
+      public:
+        handler(
+          const context_type & context,
+          const null_command_processor & args
+        ) : base_class(context),
+          owner_(args.owner_),
+          peer_(args.peer_)
+        {
+        }
+
+        void operator()(const void * data, size_t len)
+        {
+          if (0 == len) {
+            this->next();
+          }
+        }
+      private:
+        client_connection * owner_;
+        ssl_peer & peer_;
+      };
+    private:
+      client_connection * owner_;
+      ssl_peer & peer_;
+    };
+
+
     class input_command_stream
     {
     public:
@@ -261,8 +340,7 @@ namespace vds {
           const input_command_stream & args
         ) : base_class(context),
           owner_(args.owner_),
-          peer_(args.peer_),
-          json_handler_(std::bind(&handler::json_handler, this, std::placeholders::_1))
+          peer_(args.peer_)
         {
         }
 
@@ -271,34 +349,33 @@ namespace vds {
           http_incoming_stream & incoming_stream)
         {
           std::string content_type;
-          response.get_header("Content-Type:", content_type);
+          response.get_header("Content-Type", content_type);
 
           if ("application/json" == content_type) {
             sequence(
               http_stream_reader<typename base_class::prev_step_t>(this->prev, incoming_stream),
-              json_parser("ping response")
+              json_parser("ping response"),
+              command_processor(this->owner_, this->peer_)
             )
             (
-              this->json_handler_,
+              this->prev,
               this->error
               );
+          }
+          else {
+            sequence(
+              http_stream_reader<typename base_class::prev_step_t>(this->prev, incoming_stream),
+              null_command_processor(this->owner_, this->peer_)
+            )
+            (
+              this->prev,
+              this->error
+            );
           }
         }
       private:
         client_connection * owner_;
         ssl_peer & peer_;
-
-        std::function<void(json_value * request)> json_handler_;
-
-        void json_handler(json_value * request)
-        {
-          auto cert = this->peer_.get_peer_certificate();
-          this->owner_->log_.trace("Certificate subject %s", cert.subject().c_str());
-          this->owner_->log_.trace("Certificate issuer %s", cert.issuer().c_str());
-
-          this->prev();
-        }
-
       };
     private:
       client_connection * owner_;

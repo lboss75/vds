@@ -16,6 +16,8 @@ namespace vds {
       const certificate * cert,
       const asymmetric_private_key * key
     );
+
+    ~ssl_peer();
     
     bool is_client() const {
       return this->is_client_;
@@ -24,6 +26,7 @@ namespace vds {
     certificate get_peer_certificate() const;
 
   private:
+    lifetime_check lt_;
     friend class ssl_input_stream;
     friend class ssl_output_stream;
 
@@ -113,6 +116,7 @@ namespace vds {
       void processed();
 
     private:
+      lifetime_check lt_;
       ssl_peer & peer_;
     };
   private:
@@ -146,6 +150,7 @@ namespace vds {
       void processed();
 
     private:
+      lifetime_check lt_;
       ssl_peer & peer_;
     };
 
