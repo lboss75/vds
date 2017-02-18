@@ -141,7 +141,7 @@ namespace vds {
         ) : base_class(context),
           sp_(args.owner_->sp_),
           owner_(args.owner_),
-          peer_(true, &args.owner_->client_certificate_, &args.owner_->client_private_key_),
+          tunnel_(true, &args.owner_->client_certificate_, &args.owner_->client_private_key_),
           done_count_(0),
           done_handler_(this),
           error_handler_(this)
@@ -154,9 +154,9 @@ namespace vds {
           
           vds::sequence(
             input_network_stream(this->sp_, s),
-            ssl_input_stream(this->peer_),
+            ssl_input_stream(this->tunnel_),
             http_response_parser(),
-            input_command_stream(this->owner_, this->peer_)
+            input_command_stream(this->owner_, this->tunnel_)
           )
           (
             this->done_handler_,
@@ -166,7 +166,7 @@ namespace vds {
           vds::sequence(
             output_command_stream(this->owner_),
             http_request_serializer(),
-            ssl_output_stream(this->peer_),
+            ssl_output_stream(this->tunnel_),
             output_network_stream(this->sp_, s)
           )
           (
@@ -231,7 +231,7 @@ namespace vds {
 
         service_provider sp_;
         client_connection * owner_;
-        ssl_peer peer_;
+        ssl_tunnel tunnel_;
 
         std::mutex done_mutex_;
         int done_count_;
@@ -246,8 +246,8 @@ namespace vds {
     class command_processor
     {
     public:
-      command_processor(client_connection * owner, ssl_peer & peer)
-        : owner_(owner), peer_(peer)
+      command_processor(client_connection * owner, ssl_tunnel & tunnel)
+        : owner_(owner), tunnel_(tunnel)
       {
       }
 
@@ -261,7 +261,7 @@ namespace vds {
           const command_processor & args
         ) : base_class(context),
           owner_(args.owner_),
-          peer_(args.peer_)
+          tunnel_(args.tunnel_)
         {
         }
 
@@ -271,24 +271,24 @@ namespace vds {
             this->next();
           }
 
-          //auto cert = this->peer_.get_peer_certificate();
+          //auto cert = this->tunnel_.get_tunnel_certificate();
           //this->owner_->log_.trace("Certificate subject %s", cert.subject().c_str());
           //this->owner_->log_.trace("Certificate issuer %s", cert.issuer().c_str());
         }
       private:
         client_connection * owner_;
-        ssl_peer & peer_;
+        ssl_tunnel & tunnel_;
       };
     private:
       client_connection * owner_;
-      ssl_peer & peer_;
+      ssl_tunnel & tunnel_;
     };
 
     class null_command_processor
     {
     public:
-      null_command_processor(client_connection * owner, ssl_peer & peer)
-        : owner_(owner), peer_(peer)
+      null_command_processor(client_connection * owner, ssl_tunnel & tunnel)
+        : owner_(owner), tunnel_(tunnel)
       {
       }
 
@@ -302,7 +302,7 @@ namespace vds {
           const null_command_processor & args
         ) : base_class(context),
           owner_(args.owner_),
-          peer_(args.peer_)
+          tunnel_(args.tunnel_)
         {
         }
 
@@ -314,19 +314,19 @@ namespace vds {
         }
       private:
         client_connection * owner_;
-        ssl_peer & peer_;
+        ssl_tunnel & tunnel_;
       };
     private:
       client_connection * owner_;
-      ssl_peer & peer_;
+      ssl_tunnel & tunnel_;
     };
 
 
     class input_command_stream
     {
     public:
-      input_command_stream(client_connection * owner, ssl_peer & peer)
-        : owner_(owner), peer_(peer)
+      input_command_stream(client_connection * owner, ssl_tunnel & tunnel)
+        : owner_(owner), tunnel_(tunnel)
       {
       }
 
@@ -340,7 +340,7 @@ namespace vds {
           const input_command_stream & args
         ) : base_class(context),
           owner_(args.owner_),
-          peer_(args.peer_)
+          tunnel_(args.tunnel_)
         {
         }
 
@@ -355,7 +355,7 @@ namespace vds {
             sequence(
               http_stream_reader<typename base_class::prev_step_t>(this->prev, incoming_stream),
               json_parser("ping response"),
-              command_processor(this->owner_, this->peer_)
+              command_processor(this->owner_, this->tunnel_)
             )
             (
               this->prev,
@@ -365,7 +365,7 @@ namespace vds {
           else {
             sequence(
               http_stream_reader<typename base_class::prev_step_t>(this->prev, incoming_stream),
-              null_command_processor(this->owner_, this->peer_)
+              null_command_processor(this->owner_, this->tunnel_)
             )
             (
               this->prev,
@@ -375,11 +375,11 @@ namespace vds {
         }
       private:
         client_connection * owner_;
-        ssl_peer & peer_;
+        ssl_tunnel & tunnel_;
       };
     private:
       client_connection * owner_;
-      ssl_peer & peer_;
+      ssl_tunnel & tunnel_;
     };
 
     class output_command_stream

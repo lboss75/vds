@@ -1,5 +1,5 @@
-#ifndef __VDS_CRYPTO_SSL_PEER_H_
-#define __VDS_CRYPTO_SSL_PEER_H_
+#ifndef __VDS_CRYPTO_SSL_TUNNEL_H_
+#define __VDS_CRYPTO_SSL_TUNNEL_H_
 /*
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
@@ -9,15 +9,15 @@ namespace vds {
   class certificate;
   class asymmetric_private_key;
 
-  class ssl_peer {
+  class ssl_tunnel {
   public:
-    ssl_peer(
+    ssl_tunnel(
       bool is_client,
       const certificate * cert,
       const asymmetric_private_key * key
     );
 
-    ~ssl_peer();
+    ~ssl_tunnel();
     
     bool is_client() const {
       return this->is_client_;
@@ -90,15 +90,15 @@ namespace vds {
   class ssl_input_stream
   {
   public:
-    ssl_input_stream(ssl_peer & peer)
-      : peer_(peer)
+    ssl_input_stream(ssl_tunnel & tunnel)
+      : tunnel_(tunnel)
     {
     }
 
     template < typename context_type >
     class handler
       : public sequence_step<context_type, void(const void *, size_t)>,
-        public ssl_peer::issl_input_stream
+        public ssl_tunnel::issl_input_stream
     {
       using base_class = sequence_step<context_type, void(const void *, size_t)>;
     public:
@@ -117,24 +117,24 @@ namespace vds {
 
     private:
       lifetime_check lt_;
-      ssl_peer & peer_;
+      ssl_tunnel & tunnel_;
     };
   private:
-    ssl_peer & peer_;
+    ssl_tunnel & tunnel_;
   };
 
   class ssl_output_stream
   {
   public:
-    ssl_output_stream(ssl_peer & peer)
-      : peer_(peer)
+    ssl_output_stream(ssl_tunnel & tunnel)
+      : tunnel_(tunnel)
     {
     }
 
     template < typename context_type >
     class handler
       : public sequence_step<context_type, void(const void *, size_t)>,
-        public ssl_peer::issl_output_stream
+        public ssl_tunnel::issl_output_stream
     {
       using base_class = sequence_step<context_type, void(const void *, size_t)>;
     public:
@@ -151,19 +151,19 @@ namespace vds {
 
     private:
       lifetime_check lt_;
-      ssl_peer & peer_;
+      ssl_tunnel & tunnel_;
     };
 
   private:
-    ssl_peer & peer_;
+    ssl_tunnel & tunnel_;
   };
 
   template<typename context_type>
   inline ssl_input_stream::handler<context_type>::handler(const context_type & context, const ssl_input_stream & args)
   : base_class(context),
-    peer_(args.peer_)
+    tunnel_(args.tunnel_)
   {
-    this->peer_.set_input_stream(this);
+    this->tunnel_.set_input_stream(this);
   }
 
   template<typename context_type>
@@ -190,23 +190,23 @@ namespace vds {
       this->next(nullptr, 0);
     }
     else {
-      this->peer_.write_input(data, len);
+      this->tunnel_.write_input(data, len);
     }
   }
 
   template<typename context_type>
   inline void ssl_input_stream::handler<context_type>::processed()
   {
-    this->peer_.input_stream_processed();
+    this->tunnel_.input_stream_processed();
   }
 
 
   template<typename context_type>
   inline ssl_output_stream::handler<context_type>::handler(const context_type & context, const ssl_output_stream & args)
   : base_class(context),
-    peer_(args.peer_)
+    tunnel_(args.tunnel_)
   {
-    this->peer_.set_output_stream(this);
+    this->tunnel_.set_output_stream(this);
   }
 
   template<typename context_type>
@@ -228,15 +228,15 @@ namespace vds {
       this->next(nullptr, 0);
     }
     else {
-      this->peer_.write_decoded_output(data, len);
+      this->tunnel_.write_decoded_output(data, len);
     }
   }
 
   template<typename context_type>
   inline void ssl_output_stream::handler<context_type>::processed()
   {
-    this->peer_.output_stream_processed();
+    this->tunnel_.output_stream_processed();
   }
 }
 
-#endif//__VDS_CRYPTO_SSL_PEER_H_
+#endif//__VDS_CRYPTO_SSL_TUNNEL_H_

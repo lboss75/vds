@@ -13,7 +13,7 @@ namespace vds {
   public:
     server_logic(
       const service_provider & sp,
-      ssl_peer & peer,
+      ssl_tunnel & tunnel,
       const http_router & router
     );
     

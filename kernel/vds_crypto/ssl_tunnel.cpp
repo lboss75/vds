@@ -3,7 +3,7 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 #include "stdafx.h"
-#include "ssl_peer.h"
+#include "ssl_tunnel.h"
 #include "crypto_exception.h"
 #include "asymmetriccrypto.h"
 
@@ -12,7 +12,7 @@ static int verify_callback(int prev, X509_STORE_CTX * ctx)
   return 1;
 }
 
-vds::ssl_peer::ssl_peer(bool is_client, const certificate * cert, const asymmetric_private_key * key)
+vds::ssl_tunnel::ssl_tunnel(bool is_client, const certificate * cert, const asymmetric_private_key * key)
   : is_client_(is_client),
   input_len_(0), decoded_input_len_(0),
   input_stream_(nullptr), output_stream_(nullptr),
@@ -78,11 +78,11 @@ vds::ssl_peer::ssl_peer(bool is_client, const certificate * cert, const asymmetr
   }
 }
 
-vds::ssl_peer::~ssl_peer()
+vds::ssl_tunnel::~ssl_tunnel()
 {
 }
 
-vds::certificate vds::ssl_peer::get_peer_certificate() const
+vds::certificate vds::ssl_tunnel::get_peer_certificate() const
 {
   auto cert = SSL_get_peer_certificate(this->ssl_);
 
@@ -93,20 +93,20 @@ vds::certificate vds::ssl_peer::get_peer_certificate() const
   return certificate(cert);
 }
 
-void vds::ssl_peer::set_input_stream(issl_input_stream * stream)
+void vds::ssl_tunnel::set_input_stream(issl_input_stream * stream)
 {
   this->input_stream_ = stream;
 }
 
-void vds::ssl_peer::set_output_stream(issl_output_stream * stream)
+void vds::ssl_tunnel::set_output_stream(issl_output_stream * stream)
 {
   this->output_stream_ = stream;
 }
 
-void vds::ssl_peer::write_input(const void * data, size_t len)
+void vds::ssl_tunnel::write_input(const void * data, size_t len)
 {
   if (0 != this->input_len_) {
-    throw new std::logic_error("vds::ssl_peer::write_input");
+    throw new std::logic_error("vds::ssl_tunnel::write_input");
   }
 
   this->input_data_ = data;
@@ -115,10 +115,10 @@ void vds::ssl_peer::write_input(const void * data, size_t len)
   this->start_work_circle();
 }
 
-void vds::ssl_peer::write_decoded_output(const void * data, size_t len)
+void vds::ssl_tunnel::write_decoded_output(const void * data, size_t len)
 {
   if (0 != this->decoded_input_len_) {
-    throw new std::logic_error("vds::ssl_peer::write_decoded_output");
+    throw new std::logic_error("vds::ssl_tunnel::write_decoded_output");
   }
 
   this->decoded_input_data_ = data;
@@ -127,7 +127,7 @@ void vds::ssl_peer::write_decoded_output(const void * data, size_t len)
   this->start_work_circle();
 }
 
-void vds::ssl_peer::start_work_circle()
+void vds::ssl_tunnel::start_work_circle()
 {
   bool need_start;
   this->work_circle_mutex_.lock();
@@ -139,7 +139,7 @@ void vds::ssl_peer::start_work_circle()
   }
 }
 
-void vds::ssl_peer::work_circle()
+void vds::ssl_tunnel::work_circle()
 {
   for(;;) {
     if (nullptr != this->input_stream_ && 0 < this->input_len_) {
@@ -244,15 +244,15 @@ void vds::ssl_peer::work_circle()
   }
 }
 
-void vds::ssl_peer::input_stream_processed()
+void vds::ssl_tunnel::input_stream_processed()
 {
   this->start_work_circle();
 }
 
-void vds::ssl_peer::output_stream_processed()
+void vds::ssl_tunnel::output_stream_processed()
 {
   if (this->enable_output_) {
-    throw new std::logic_error("vds::ssl_peer::output_stream_processed failed");
+    throw new std::logic_error("vds::ssl_tunnel::output_stream_processed failed");
   }
   this->enable_output_ = true;
   this->start_work_circle();

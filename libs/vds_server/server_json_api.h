@@ -12,7 +12,7 @@ namespace vds {
   public:
     server_json_api(
       const service_provider & sp,
-      ssl_peer & peer
+      ssl_tunnel & tunnel
     );
 
     json_value * operator()(const json_value * request) const;
@@ -20,7 +20,7 @@ namespace vds {
   private:
     service_provider sp_;
     logger log_;
-    ssl_peer & peer_;
+    ssl_tunnel & tunnel_;
 
     void process(const vsr_new_client_message & message) const;
   };

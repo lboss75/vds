@@ -65,7 +65,7 @@ namespace vds {
       private:
         const service_provider & sp_;
         network_socket s_;
-        ssl_peer peer_;
+        ssl_tunnel tunnel_;
         const certificate & certificate_;
         const asymmetric_private_key & private_key_;
         client client_;

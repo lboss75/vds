@@ -9,17 +9,17 @@ All rights reserved
 
 vds::server_json_api::server_json_api(
   const service_provider & sp,
-  ssl_peer & peer
+  ssl_tunnel & tunnel
 )
 : sp_(sp),
   log_(sp, "Server JSON API"),
-  peer_(peer)
+  tunnel_(tunnel)
 {
 }
 
 vds::json_value * vds::server_json_api::operator()(const json_value * request) const
 {
-  //auto cert = this->peer_.get_peer_certificate();
+  //auto cert = this->tunnel_.get_tunnel_certificate();
   //this->log_.trace("Certificate subject %s", cert.subject().c_str());
   //this->log_.trace("Certificate issuer %s", cert.issuer().c_str());
 

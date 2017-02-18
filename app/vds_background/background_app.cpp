@@ -138,10 +138,10 @@ vds::background_app::socket_session::handler::handler(
   vds::network_socket & s)
 : sp_(owner.sp_),
   s_(std::move(s)),
-  peer_(false, &owner.certificate_, &owner.private_key_),
+  tunnel_(false, &owner.certificate_, &owner.private_key_),
   certificate_(owner.certificate_),
   private_key_(owner.private_key_),
-  server_logic_(owner.sp_, peer_, owner.router_),
+  server_logic_(owner.sp_, tunnel_, owner.router_),
   done_handler_(this),
   error_handler_([this](std::exception *) {delete this; }),
   http_server_done_([this]() {}),
@@ -153,11 +153,11 @@ void vds::background_app::socket_session::handler::start()
 {
   vds::sequence(
     input_network_stream(this->sp_, this->s_),
-    ssl_input_stream(this->peer_),
+    ssl_input_stream(this->tunnel_),
     http_parser(this->sp_),
     http_middleware<server_logic>(this->server_logic_),
     http_response_serializer(),
-    ssl_output_stream(this->peer_),
+    ssl_output_stream(this->tunnel_),
     output_network_stream(this->sp_, this->s_)
   )
   (

@@ -14,7 +14,7 @@ All rights reserved
 #include "crypto_service.h"
 #include "symmetriccrypto.h"
 #include "asymmetriccrypto.h"
-#include "ssl_peer.h"
+#include "ssl_tunnel.h"
 
 #ifdef _WIN32
 #pragma comment(lib, "crypt32.lib")
