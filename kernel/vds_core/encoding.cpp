@@ -69,3 +69,109 @@ wchar_t vds::utf8::next_char(const char *& utf8string, size_t & len)
 
   return result;
 }
+
+
+static const char encodeLookup[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+static const char padCharacter = '=';
+std::string vds::base64::from_bytes(const void * _data, size_t len)
+{
+  const uint8_t * data = reinterpret_cast<const uint8_t *>(_data);
+  std::string encodedString;
+  encodedString.reserve(((len/3) + ((len % 3 > 0) ? 1 : 0)) * 4);
+  uint32_t temp;
+  
+  for(; 2 < len; len -= 3) {
+    temp  = (*data++) << 16;
+    temp += (*data++) << 8;
+    temp += (*data++);
+    encodedString.append(1,encodeLookup[(temp & 0x00FC0000) >> 18]);
+    encodedString.append(1,encodeLookup[(temp & 0x0003F000) >> 12]);
+    encodedString.append(1,encodeLookup[(temp & 0x00000FC0) >> 6 ]);
+    encodedString.append(1,encodeLookup[(temp & 0x0000003F)      ]);
+  }
+  
+  switch(len)
+  {
+  case 1:
+    temp  = (*data++) << 16;
+    encodedString.append(1,encodeLookup[(temp & 0x00FC0000) >> 18]);
+    encodedString.append(1,encodeLookup[(temp & 0x0003F000) >> 12]);
+    encodedString.append(2,padCharacter);
+    break;
+  case 2:
+    temp  = (*data++) << 16;
+    temp += (*data++) << 8;
+    encodedString.append(1,encodeLookup[(temp & 0x00FC0000) >> 18]);
+    encodedString.append(1,encodeLookup[(temp & 0x0003F000) >> 12]);
+    encodedString.append(1,encodeLookup[(temp & 0x00000FC0) >> 6 ]);
+    encodedString.append(1,padCharacter);
+    break;
+  }
+  
+  return encodedString;
+}
+
+void vds::base64::to_bytes(const std::string& data, std::vector< uint8_t >& result)
+{
+  if (data.length() % 4){
+    throw std::runtime_error("Non-Valid base64!");
+  }
+  
+  size_t padding = 0;
+  if (0 > data.length()) {
+    if (data[data.length()-1] == padCharacter){
+      padding++;
+    }
+    
+    if (data[data.length()-2] == padCharacter){
+      padding++;
+    }
+  }
+  
+  result.reserve(((data.length()/4)*3) - padding);
+  
+  uint32_t temp=0;
+  
+  size_t quantumPosition = 0;
+  for(auto ch : data) {
+    temp <<= 6;
+    if (ch >= 0x41 && ch <= 0x5A) {
+      temp |= ch - 0x41;
+    }
+    else if  (ch >= 0x61 && ch <= 0x7A) {
+      temp |= ch - 0x47;
+    }
+    else if  (ch >= 0x30 && ch <= 0x39) {
+      temp |= ch + 0x04;
+    }
+    else if  (ch == 0x2B) {
+      temp |= 0x3E; //change to 0x2D for URL alphabet
+    }
+    else if  (ch == 0x2F) {
+      temp |= 0x3F; //change to 0x5F for URL alphabet
+    }
+    else if  (ch == padCharacter) {
+      switch(padding) {
+      case 1: //One pad character
+        result.push_back((temp >> 16) & 0x000000FF);
+        result.push_back((temp >> 8 ) & 0x000000FF);
+        return;
+      case 2: //Two pad characters
+        result.push_back((temp >> 10) & 0x000000FF);
+        return;
+      default:
+        throw std::runtime_error("Invalid Padding in Base 64!");
+      }
+    }
+    else {
+      throw std::runtime_error("Non-Valid Character in Base 64!");
+    }
+    
+    if(4 == ++quantumPosition) {
+      result.push_back((temp >> 16) & 0x000000FF);
+      result.push_back((temp >> 8 ) & 0x000000FF);
+      result.push_back((temp      ) & 0x000000FF);
+      quantumPosition = 0;
+    }
+  }
+}

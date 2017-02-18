@@ -195,6 +195,7 @@ namespace vds {
 
     std::string subject() const;
     std::string issuer() const;
+    std::string fingerprint(const hash_info & hash_algo = hash::sha256()) const;
 
     class create_options
     {

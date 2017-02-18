@@ -20,6 +20,13 @@ namespace vds {
   public:
     static std::wstring from_utf8(const std::string & original);
   };
+  
+  class base64
+  {
+  public:
+    static std::string from_bytes(const void * data, size_t len);
+    static void to_bytes(const std::string & data, std::vector<uint8_t> & result);
+  };
 }
 
 #endif//__VDS_CORE_ENCODING_H_

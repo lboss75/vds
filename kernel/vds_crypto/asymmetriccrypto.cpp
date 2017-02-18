@@ -444,6 +444,15 @@ std::string vds::certificate::issuer() const
   return result;
 }
 
+std::string vds::certificate::fingerprint(const vds::hash_info & hash_algo) const
+{
+  unsigned char md[EVP_MAX_MD_SIZE];
+  unsigned int n;
+  X509_digest(this->cert_, hash_algo.type, md, &n);
+  
+  return base64::from_bytes(md, n);
+}
+
 
 vds::certificate vds::certificate::create_new(
   const asymmetric_public_key & new_certificate_public_key,
@@ -498,13 +507,13 @@ vds::certificate vds::certificate::create_new(
     add_ext(x509, NID_netscape_comment, "example comment extension");
 
     if (nullptr == options.ca_certificate) {
-      if (!X509_sign(x509, new_certificate_private_key.key(), EVP_sha1())) {
+      if (!X509_sign(x509, new_certificate_private_key.key(), EVP_sha256())) {
         auto error = ERR_get_error();
         throw new crypto_exception("X509_new", error);
       }
     }
     else {
-      if (!X509_sign(x509, options.ca_certificate_private_key->key(), EVP_sha1())) {
+      if (!X509_sign(x509, options.ca_certificate_private_key->key(), EVP_sha256())) {
         auto error = ERR_get_error();
         throw new crypto_exception("X509_new", error);
       }
