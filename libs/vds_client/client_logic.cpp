@@ -15,9 +15,9 @@ vds::client_logic::client_logic(
   client_certificate_(client_certificate),
   client_private_key_(client_private_key),
   connected_(0),
-  client_id_(0),
   update_connection_pool_(std::bind(&client_logic::update_connection_pool, this)),
-  update_connection_pool_task_(sp.get<itask_manager>().create_job("update connection pool", update_connection_pool_))
+  update_connection_pool_task_(sp.get<itask_manager>().create_job("update connection pool", update_connection_pool_)),
+  vsr_client_(sp.get<vsr_protocol::iclient>())
 {
 }
 
@@ -41,7 +41,8 @@ void vds::client_logic::start()
         this->client_private_key_));
   }
 
-  update_connection_pool_task_.schedule(std::chrono::system_clock::now() + std::chrono::seconds(5));
+  this->update_connection_pool_task_.schedule(
+    std::chrono::system_clock::now() + std::chrono::seconds(5));
 }
 
 void vds::client_logic::stop()
@@ -81,9 +82,7 @@ std::string vds::client_logic::get_messages()
 
   writer.start_array();
 
-  if (0 == this->client_id_) {
-    vsr_new_client_message().serialize(writer);
-  }
+  this->vsr_client_.get_messages(writer);
 
   writer.end_array();
 
@@ -130,8 +129,7 @@ void vds::client_logic::update_connection_pool()
       this->connection_mutex_.unlock();
     });
   }
-}
-
-void vds::client_logic::wait_for(const std::chrono::system_clock::duration & wait_timeout)
-{
+  
+  this->update_connection_pool_task_.schedule(
+    std::chrono::system_clock::now() + std::chrono::seconds(5));
 }

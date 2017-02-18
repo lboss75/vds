@@ -30,14 +30,11 @@ namespace vds {
 
     std::string get_messages();
 
-    void wait_for(const std::chrono::system_clock::duration & wait_timeout);
-
   private:
     service_provider sp_;
     logger log_;
     certificate & client_certificate_;
     asymmetric_private_key & client_private_key_;
-    int client_id_;
 
     std::vector<client_connection<client_logic> *> connection_queue_;
 
@@ -47,6 +44,8 @@ namespace vds {
     
     std::function<void(void)> update_connection_pool_;
     task_job update_connection_pool_task_;
+    
+    vsr_protocol::iclient vsr_client_;
 
     void update_connection_pool();
 

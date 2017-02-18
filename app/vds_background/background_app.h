@@ -35,6 +35,8 @@ namespace vds {
     client client_;
     server server_;
     
+    barrier cliend_id_assigned_;
+    
     std::function<void(void)> http_server_done_;
     std::function<void(std::exception *)> http_server_error_;
 

@@ -144,11 +144,11 @@ namespace vds {
       Status status_;
       State state_;
       int view_id_;
-      std::map<int /* client_id * /, client_info> clients_;
+      std::map<int / * client_id * /, client_info> clients_;
 
       //The most recently received request, initially 0
       int op_number_;
-      std::map<int /*op_number* /, log_entry> log_;
+      std::map<int / *op_number* /, log_entry> log_;
 
       int current_view_number_;
       int last_request_number_;

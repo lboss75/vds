@@ -6,6 +6,21 @@ All rights reserved
 #include "stdafx.h"
 #include "vsr_protocol.h"
 
+vds::vsr_protocol::iclient::iclient(vds::vsr_protocol::client* owner)
+: owner_(owner)
+{
+}
+
+void vds::vsr_protocol::iclient::subscribe_client_id_assigned(const client_id_assigned_handler_t & handler)
+{
+  this->owner_->client_id_assigned_handlers_.push_back(handler);
+}
+
+void vds::vsr_protocol::iclient::get_messages(vds::json_writer& writer)
+{
+  this->owner_->get_messages(writer);
+}
+
 vds::vsr_protocol::client::client(const service_provider & sp)
 : sp_(sp),
   log_(sp, "VSR client"),
@@ -38,18 +53,34 @@ void vds::vsr_protocol::client::new_client_request_complete(const vsr_new_client
 
 void vds::vsr_protocol::client::client_id_assigned()
 {
-  for (auto & handler : this->initialize_complete_hanlders_) {
-    handler();
+  for (auto & handler : this->client_id_assigned_handlers_) {
+    handler(*this);
   }
 }
 
+void vds::vsr_protocol::client::get_messages(vds::json_writer& writer)
+{
+  if (0 == this->client_id_) {
+    vsr_new_client_message().serialize(writer);
+  }
+}
+
+vds::vsr_protocol::iserver::iserver(vds::vsr_protocol::server* owner)
+: owner_(owner)
+{
+}
+
+void vds::vsr_protocol::iserver::start_standalone()
+{
+  this->owner_->start_standalone();
+}
+
 vds::vsr_protocol::server::server(const service_provider & sp)
-: client(sp),
+: sp_(sp),
   log_(sp, "VSR server"),
-  get_client_id_timeout_(std::bind(&server::get_client_id_timeout, this)),
   last_request_number_(0),
   last_commit_number_(0),
-  get_client_id_task_(this->task_manager_.create_job("VSR server client id waiting", this->get_client_id_timeout_))
+  task_manager_(sp.get<itask_manager>())
 {
 }
 
@@ -59,34 +90,21 @@ vds::vsr_protocol::server::~server()
 
 void vds::vsr_protocol::server::start()
 {
-  this->get_client_id_task_.schedule(std::chrono::system_clock::now() + std::chrono::seconds(10));
 }
 
 void vds::vsr_protocol::server::new_client()
 {
 }
 
-void vds::vsr_protocol::server::get_client_id_timeout()
+void vds::vsr_protocol::server::start_standalone()
 {
   std::unique_lock<std::mutex> lock(this->lock_mutex_);
 
-  if (0 == this->client_id_) {
-    this->log_.warning("I am the first server!!!");
+  this->log_.warning("I am the first server!!!");
 
-    this->client_id_ = 1;
-    this->current_primary_view_ = this->client_id_;
-    this->server_count_ = 1;
+  this->client_id_ = 1;
+  this->current_primary_view_ = this->client_id_;
+  this->server_count_ = 1;
 
-    this->client_id_assigned();
-  }
-}
-
-vds::vsr_protocol::iclient::iclient(client * owner)
-  : owner_(owner)
-{
-}
-
-void vds::vsr_protocol::iclient::subscrible_initialize_complete(const std::function<void(void)>& handler)
-{
-  this->owner_->initialize_complete_hanlders_.push_back(handler);
+  //this->client_id_assigned();
 }

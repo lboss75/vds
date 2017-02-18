@@ -12,6 +12,10 @@ void vds::server::register_services(service_registrator& registrator)
   registrator.add_factory<iserver>([this](bool &)->iserver{
     return iserver(this);
   });
+  
+  registrator.add_factory<vsr_protocol::iserver>([this](bool &)->vsr_protocol::iserver{
+    return vsr_protocol::iserver(this->vsr_server_protocol_.get());
+  });
 }
 
 void vds::server::start(const service_provider& sp)

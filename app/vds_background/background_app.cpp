@@ -40,41 +40,53 @@ vds::background_app::background_app()
 
 void vds::background_app::main(const service_provider & sp)
 {
-  this->router_.reset(new http_router(sp));
+  if(this->current_command_set_ == &this->start_server_command_set_){
+    std::cout << "Waiting for network\n";
+    
+    sp.get<vsr_protocol::iclient>().subscribe_client_id_assigned([this](vsr_protocol::client & client){
+      this->cliend_id_assigned_.set();
+    });
+    
+    if(!this->cliend_id_assigned_.wait_for(std::chrono::seconds(5))){
+      sp.get<vsr_protocol::iserver>().start_standalone();
+    }
 
-  collect_wwwroot(
-    *this->router_,
-    foldername(foldername(persistence::current_user(), ".vds"), "wwwroot"),
-    "/");
+    this->router_.reset(new http_router(sp));
 
-  this->router_->add_file(
-    "/",
-    filename(foldername(foldername(persistence::current_user(), ".vds"), "wwwroot"), "index.html"));
+    collect_wwwroot(
+      *this->router_,
+      foldername(foldername(persistence::current_user(), ".vds"), "wwwroot"),
+      "/");
 
-  //upnp_client upnp(sp);
-  //upnp.open_port(8000, 8000, "TCP", "VDS Service");
-  
-  this->certificate_.load(filename(foldername(persistence::current_user(), ".vds"), "cacert.crt"));
-  this->private_key_.load(filename(foldername(persistence::current_user(), ".vds"), "cakey.pem"));
+    this->router_->add_file(
+      "/",
+      filename(foldername(foldername(persistence::current_user(), ".vds"), "wwwroot"), "index.html"));
 
-  sequence(
-    socket_server(sp, "127.0.0.1", 8050),
-    vds::for_each<network_socket>::create_handler(
-      socket_session(sp, *this->router_, this->certificate_, this->private_key_))
-  )
-  (
-    this->http_server_done_,
-    this->http_server_error_
-  );
+      //upnp_client upnp(sp);
+      //upnp.open_port(8000, 8000, "TCP", "VDS Service");
+      
+      this->certificate_.load(filename(foldername(persistence::current_user(), ".vds"), "cacert.crt"));
+      this->private_key_.load(filename(foldername(persistence::current_user(), ".vds"), "cakey.pem"));
 
-  for (;;) {
-    std::cout << "Enter command:\n";
+      sequence(
+        socket_server(sp, "127.0.0.1", 8050),
+        vds::for_each<network_socket>::create_handler(
+          socket_session(sp, *this->router_, this->certificate_, this->private_key_))
+      )
+      (
+        this->http_server_done_,
+        this->http_server_error_
+      );
 
-    std::string cmd;
-    std::cin >> cmd;
+    for (;;) {
+      std::cout << "Enter command:\n";
 
-    if ("exit" == cmd) {
-      break;
+      std::string cmd;
+      std::cin >> cmd;
+
+      if ("exit" == cmd) {
+        break;
+      }
     }
   }
 }

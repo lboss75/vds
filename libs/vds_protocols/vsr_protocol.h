@@ -39,9 +39,12 @@ namespace vds {
     {
     public:
       iclient(client * owner);
-
-      void subscrible_initialize_complete(const std::function<void(void)> & handler);
-
+      
+      using client_id_assigned_handler_t = std::function<void (client & sender)>;
+      void subscribe_client_id_assigned(const client_id_assigned_handler_t & handler);
+      
+      void get_messages(json_writer & writer);
+      
     private:
       client * owner_;
     };
@@ -55,25 +58,36 @@ namespace vds {
       void new_client_request_complete(const vsr_new_client_message_complete & response);
 
     private:
+      friend class iclient;
+      
       service_provider sp_;
       logger log_;
       size_t last_request_number_;
-
-    protected:
-      friend class iclient;
-
       size_t client_id_;
       size_t current_primary_view_;
       size_t server_count_;
       itask_manager task_manager_;
       iserver_queue server_queue_;
       std::mutex lock_mutex_;
-      std::list<std::function<void(void)>> initialize_complete_hanlders_;
+      std::list<iclient::client_id_assigned_handler_t> client_id_assigned_handlers_;
 
-      virtual void client_id_assigned();
+      void client_id_assigned();
+      void get_messages(json_writer & writer);
+    };
+    
+    class server;
+    class iserver
+    {
+    public:
+      iserver(server * owner);
+      
+      void start_standalone();
+      
+    private:
+      server * owner_;      
     };
 
-    class server : public client
+    class server
     {
     public:
       server(const service_provider & sp);
@@ -83,6 +97,8 @@ namespace vds {
       void new_client();
 
     private:
+      friend class iserver;
+      
       struct replica_connection
       {
 
@@ -101,16 +117,20 @@ namespace vds {
         recovering
       };
 
+      service_provider sp_;
       logger log_;
-      std::function<void(void)> get_client_id_timeout_;
-      task_job get_client_id_task_;
-
+      size_t last_request_number_;
+      size_t client_id_;
+      size_t current_primary_view_;
+      size_t server_count_;
+      itask_manager task_manager_;
+      std::mutex lock_mutex_;
+      
       std::map<long, replica_connection> replicas_;
       std::map<long, client_connection> clients_;
-      size_t last_request_number_;
       size_t last_commit_number_;
-
-      void get_client_id_timeout();
+      
+      void start_standalone();
     };
   };
 }

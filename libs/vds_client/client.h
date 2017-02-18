@@ -32,12 +32,11 @@ namespace vds {
     
     void new_client() override;
 
-    void wait_for(const std::chrono::system_clock::duration & wait_timeout);
-
   private:
     certificate client_certificate_;
     asymmetric_private_key client_private_key_;
     std::unique_ptr<client_logic> logic_;
+    std::unique_ptr<vsr_protocol::client> vsr_client_protocol_;
   };
 }
 

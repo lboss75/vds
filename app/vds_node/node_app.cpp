@@ -57,17 +57,21 @@ void vds::node_app::main(
   const vds::service_provider& sp)
 {
   if (&this->node_install_cmd_set_ == this->current_command_set_) {
-    std::cout << "Waiting to connect...\n";
-    this->client_.wait_for(std::chrono::seconds(5));
-
-    std::cout << "Send command...\n";
+    std::cout << "Waiting for network connection\n";
+    
+    sp.get<vsr_protocol::iclient>().subscribe_client_id_assigned([this](vsr_protocol::client & client){
+      this->cliend_id_assigned_.set();
+    });
+    
+    if(!this->cliend_id_assigned_.wait_for(std::chrono::seconds(5))){
+      throw new std::runtime_error("Connection failed");
+    }
+    
     this->client_.node_install(
       this->node_login_.value(),
       this->node_password_.value());
     
-    std::cout << "Enter command:\n";
-    std::string command;
-    std::cin >> command;
+    
   }
 }
 

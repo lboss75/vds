@@ -19,6 +19,22 @@ namespace vds {
 
         void set();
         void wait();
+        
+        template<typename _Rep, typename _Period>
+        bool wait_for(const std::chrono::duration<_Rep, _Period> & period)
+        {
+          std::unique_lock<std::mutex> lock(this->mutex_);
+
+          if (this->done_) {
+            return true;
+          }
+          
+          return this->cond_.wait_for(
+                lock,
+                period,
+                [this] { return this->done_; });
+        }
+
 
     private:
         std::mutex mutex_;

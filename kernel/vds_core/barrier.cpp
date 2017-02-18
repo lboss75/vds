@@ -33,4 +33,3 @@ void vds::barrier::wait()
     }
 }
 
-

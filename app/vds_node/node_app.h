@@ -38,6 +38,11 @@ namespace vds {
     task_manager task_manager_;
     network_service network_service_;
     crypto_service crypto_service_;
+    
+    barrier cliend_id_assigned_;
+    barrier command_wait_;
+   
+    void complete_operation_timeout();
   };
 }
 

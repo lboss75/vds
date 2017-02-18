@@ -27,7 +27,7 @@ wchar_t vds::utf8::next_char(const char *& utf8string, size_t & len)
       throw new std::runtime_error("Invalid UTF8 string");
     }
 
-    result = (wchar_t)(0x80 + ((0b00011111 & (uint8_t)utf8string[0]) << 6) | (0b00111111 & (uint8_t)utf8string[1]));
+    result = (wchar_t)(0x80 + (((0b00011111 & (uint8_t)utf8string[0]) << 6) | (0b00111111 & (uint8_t)utf8string[1])));
     utf8string += 2;
     len += 2;
   }
@@ -39,10 +39,10 @@ wchar_t vds::utf8::next_char(const char *& utf8string, size_t & len)
     }
 
     result = (wchar_t)(0x800
-      + ((0b00011111 & (uint8_t)utf8string[0]) << 12)
+      + (((0b00011111 & (uint8_t)utf8string[0]) << 12)
         | ((0b00111111 & (uint8_t)utf8string[1]) << 6)
         | (0b00111111 & (uint8_t)utf8string[2])
-      );
+      ));
     utf8string += 3;
     len += 3;
   }
@@ -55,11 +55,11 @@ wchar_t vds::utf8::next_char(const char *& utf8string, size_t & len)
     }
 
     result = (wchar_t)(0x10000
-      + ((0b00011111 & (uint8_t)utf8string[0]) << 18)
+      + (((0b00011111 & (uint8_t)utf8string[0]) << 18)
       | ((0b00111111 & (uint8_t)utf8string[1]) << 12)
       | ((0b00111111 & (uint8_t)utf8string[2]) << 6)
       | (0b00111111 & (uint8_t)utf8string[3])
-      );
+      ));
     utf8string += 4;
     len += 4;
   }
