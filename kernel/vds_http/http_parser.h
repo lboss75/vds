@@ -210,11 +210,11 @@ namespace vds {
       http_incoming_stream incoming_stream_;
       size_t content_length_;
 
-      const service_provider & sp_;
+      service_provider sp_;
       logger log_;
     };
     private:
-      const service_provider & sp_;
+      service_provider sp_;
   };
 }
 

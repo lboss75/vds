@@ -178,7 +178,7 @@ namespace vds {
       public:
         virtual ~property_holder_base();
         
-        virtual const void * get_value() const = 0;
+        virtual bool get_value(const void **) const = 0;
         virtual void set_value(const void *)  = 0;
       };
       
@@ -191,9 +191,10 @@ namespace vds {
         {
         }
         
-        const void * get_value() const override
+        bool get_value(const void ** result) const override
         {
-          return &this->value_;
+          *reinterpret_cast<const property_type **>(result) = &this->value_;
+          return true;
         }
         
         void set_value(const void * value) override
@@ -210,15 +211,14 @@ namespace vds {
       {
       public:
         property_func_holder(
-          const std::function<void (property_type & )> & value_func)
+          const std::function<bool (property_type & cache, const property_type ** result)> & value_func)
         : value_func_(value_func)
         {
         }
         
-        const void * get_value() const override
+        void get_value(const void ** result) const override
         {
-          this->value_func_(this->value_);
-          return &this->value_();
+          return this->value_func_(this->value_, reinterpret_cast<const property_type **>(result));
         }
         
         void set_value(const void * value) override
@@ -228,7 +228,7 @@ namespace vds {
         
       private:
         property_type value_;
-        std::function<void (property_type & )> value_func_;
+        std::function<bool (property_type & cache, const property_type ** result)> value_func_;
       };
       
       std::map<size_t, std::unique_ptr<property_holder_base>> holders_;
@@ -247,7 +247,7 @@ namespace vds {
       }
       
       template <typename property_type>
-      void add_property(const std::function<void (property_type &)> & property_func)
+      void add_property(const std::function<bool (property_type & cache, const property_type ** result)> & property_func)
       {
         auto p = this->holders_.find(types::get_type_id<property_type>());
         if(this->holders_.end() == p){
@@ -260,14 +260,14 @@ namespace vds {
       }
       
       template <typename property_type>
-      const property_type * get_property()
+      bool get_property(const property_type ** result)
       {
         auto p = this->holders_.find(types::get_type_id<property_type>());
         if(this->holders_.end() == p){
-          return nullptr;
+          return false;
         }
         
-        return reinterpret_cast<const property_type *>(p.second->get_value());
+        return p.second->get_value(reinterpret_cast<const void **>(result));
       }      
     };
     
@@ -292,9 +292,9 @@ namespace vds {
       }
       
       template <typename property_type>
-      const property_type * get_property()
+      bool get_property(const property_type ** result)
       {
-        return this->holder_->get_property<property_type>();
+        return this->holder_->get_property<property_type>(result);
       }
       
     private:
