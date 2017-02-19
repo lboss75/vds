@@ -70,8 +70,8 @@ void vds::background_app::main(const service_provider & sp)
 
       sequence(
         socket_server(sp, "127.0.0.1", 8050),
-        vds::for_each<network_socket>::create_handler(
-          socket_session(sp, *this->router_, this->certificate_, this->private_key_))
+        vds::for_each<const service_provider &, network_socket>::create_handler(
+          socket_session(*this->router_, this->certificate_, this->private_key_))
       )
       (
         this->http_server_done_,
@@ -124,24 +124,24 @@ void vds::background_app::http_server_error(std::exception * ex)
 }
 
 vds::background_app::socket_session::socket_session(
-  const service_provider & sp,
   const http_router & router,
   const certificate & certificate,
   const asymmetric_private_key & private_key)
-  : sp_(sp), router_(router), certificate_(certificate),
+  : router_(router), certificate_(certificate),
   private_key_(private_key)
 {
 }
 
 vds::background_app::socket_session::handler::handler(
   const socket_session & owner,
+  const service_provider & sp,
   vds::network_socket & s)
-: sp_(owner.sp_),
+: sp_(sp),
   s_(std::move(s)),
-  tunnel_(false, &owner.certificate_, &owner.private_key_),
+  tunnel_(sp, false, &owner.certificate_, &owner.private_key_),
   certificate_(owner.certificate_),
   private_key_(owner.private_key_),
-  server_logic_(owner.sp_, tunnel_, owner.router_),
+  server_logic_(sp, owner.router_),
   done_handler_(this),
   error_handler_([this](std::exception *) {delete this; }),
   http_server_done_([this]() {}),

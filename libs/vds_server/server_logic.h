@@ -13,7 +13,6 @@ namespace vds {
   public:
     server_logic(
       const service_provider & sp,
-      ssl_tunnel & tunnel,
       const http_router & router
     );
     
@@ -23,6 +22,7 @@ namespace vds {
       typename error_handler_type
     >
     void route(
+      const service_provider & scope,
       const http_request & request,
       http_incoming_stream & incoming_stream,
       http_response & response,
@@ -36,7 +36,7 @@ namespace vds {
         sequence(
           http_stream_reader<prev_handler_type>(prev_handler, incoming_stream),
           json_parser("ping request"),
-          http_json_api<server_json_api>(this->server_json_api_),
+          http_json_api<server_json_api>(scope, this->server_json_api_),
           http_json_formatter(response, outgoing_stream)
         )(
           next_handler,
@@ -45,6 +45,7 @@ namespace vds {
       }
       else {
         this->router_.route<prev_handler_type, next_handler_type, error_handler_type>(
+          scope,
           request,
           incoming_stream,
           response,

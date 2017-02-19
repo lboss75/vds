@@ -8,16 +8,16 @@ All rights reserved
 #include "server.h"
 
 vds::server_json_api::server_json_api(
-  const service_provider & sp,
-  ssl_tunnel & tunnel
+  const service_provider & sp
 )
 : sp_(sp),
-  log_(sp, "Server JSON API"),
-  tunnel_(tunnel)
+  log_(sp, "Server JSON API")
 {
 }
 
-vds::json_value * vds::server_json_api::operator()(const json_value * request) const
+vds::json_value * vds::server_json_api::operator()(
+  const service_provider & scope, 
+  const json_value * request) const
 {
   //auto cert = this->tunnel_.get_tunnel_certificate();
   //this->log_.trace("Certificate subject %s", cert.subject().c_str());

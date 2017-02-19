@@ -27,6 +27,7 @@ namespace vds {
     class handler : public sequence_step<
       context_type,
       void(
+        const service_provider & sp,
         http_request & request,
         http_incoming_stream & incoming_stream
       )
@@ -35,6 +36,7 @@ namespace vds {
       using base_class = sequence_step<
         context_type,
         void(
+          const service_provider & sp,
           http_request & request,
           http_incoming_stream & incoming_stream
         )
@@ -56,6 +58,7 @@ namespace vds {
       ) {
         if (0 == len) {
           this->next(
+            this->sp_,
             this->request_,
             this->incoming_stream_);
         }
@@ -150,7 +153,9 @@ namespace vds {
                 this->state_ = STATE_PARSE_BODY;
               }
 
+              auto sp = this->sp_.create_scope();
               this->next(
+                sp,
                 this->request_,
                 this->incoming_stream_
               );

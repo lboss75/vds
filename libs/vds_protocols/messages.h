@@ -21,6 +21,8 @@ namespace vds {
     private:
       std::string object_name_;
     };
+    
+    
   };
 }
 

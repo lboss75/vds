@@ -42,6 +42,9 @@ vds::scopped_service_provider::scopped_service_provider(
     const std::shared_ptr<vds::iservice_provider_impl> & parent)
     : parent_(parent)
 {
+  this->scopped_objects_[types::get_type_id<iscope_properties>()] = new object_holder<iscope_properties>(
+    iscope_properties(
+      new scope_properties_holder()));
 }
 
 const vds::shutdown_event & vds::scopped_service_provider::get_shutdown_event() const
@@ -51,7 +54,7 @@ const vds::shutdown_event & vds::scopped_service_provider::get_shutdown_event() 
 
 vds::iservice_provider_impl::iservice_factory * vds::scopped_service_provider::get_factory(size_t type)
 {
-    return this->parent_->get_factory(type);
+  return this->parent_->get_factory(type);
 }
 
 //////////////////////////////////////////////////////
@@ -151,3 +154,9 @@ vds::iservice_provider_impl::iservice_factory::~iservice_factory()
 vds::iservice_provider_impl::iobject_holder::~iobject_holder()
 {
 }
+//////////////////////////////////////////////////////////////
+vds::scope_properties_holder::property_holder_base::~property_holder_base()
+{
+}
+
+

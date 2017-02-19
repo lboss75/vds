@@ -25,7 +25,7 @@ public:
     {
     }
     
-    void operator()(vds::network_socket & s) {
+    void operator()(const vds::service_provider & sp, vds::network_socket & s) {
       (new connection_handler<
         typename base_class::next_step_t,
         typename base_class::error_method_t>(

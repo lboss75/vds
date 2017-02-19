@@ -12,6 +12,7 @@ namespace vds {
   class ssl_tunnel {
   public:
     ssl_tunnel(
+      const service_provider & scope,
       bool is_client,
       const certificate * cert,
       const asymmetric_private_key * key
@@ -156,6 +157,20 @@ namespace vds {
 
   private:
     ssl_tunnel & tunnel_;
+  };
+  
+  //scope property
+  class peer_certificate
+  {
+  public:
+    peer_certificate(const ssl_tunnel * owner);
+    
+    certificate get_peer_certificate() const;
+    
+    
+    
+  private:
+    const ssl_tunnel * owner_; 
   };
 
   template<typename context_type>

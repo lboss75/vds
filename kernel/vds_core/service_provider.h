@@ -166,6 +166,141 @@ namespace vds {
         std::list<std::function<void(void)>> done_handlers_;
     };
     /////////////////////////////////////////////////////////////////////////////////
+    class scope_properties_holder : public std::enable_shared_from_this<scope_properties_holder>
+    {
+    public:
+      
+    private:
+      friend class iscope_properties;
+      
+      class property_holder_base
+      {
+      public:
+        virtual ~property_holder_base();
+        
+        virtual const void * get_value() const = 0;
+        virtual void set_value(const void *)  = 0;
+      };
+      
+      template <typename property_type>
+      class property_holder : public property_holder_base
+      {
+      public:
+        property_holder(const property_type & value)
+        : value_(value)
+        {
+        }
+        
+        const void * get_value() const override
+        {
+          return &this->value_;
+        }
+        
+        void set_value(const void * value) override
+        {
+          this->value_ = *reinterpret_cast<const property_type *>(value);
+        }
+        
+      private:
+        property_type value_;
+      };
+      
+      template <typename property_type>
+      class property_func_holder : public property_holder_base
+      {
+      public:
+        property_func_holder(
+          const std::function<void (property_type & )> & value_func)
+        : value_func_(value_func)
+        {
+        }
+        
+        const void * get_value() const override
+        {
+          this->value_func_(this->value_);
+          return &this->value_();
+        }
+        
+        void set_value(const void * value) override
+        {
+          throw new std::logic_error("Invalid usage of scope properties based on lambda");
+        }
+        
+      private:
+        property_type value_;
+        std::function<void (property_type & )> value_func_;
+      };
+      
+      std::map<size_t, std::unique_ptr<property_holder_base>> holders_;
+      
+      template <typename property_type>
+      void add_property(const property_type & property)
+      {
+        auto p = this->holders_.find(types::get_type_id<property_type>());
+        if(this->holders_.end() == p){
+          this->holders_[types::get_type_id<property_type>()].reset(
+            new property_holder<property_type>(property));
+        }
+        else {
+          p->second->set_value(&property);
+        }
+      }
+      
+      template <typename property_type>
+      void add_property(const std::function<void (property_type &)> & property_func)
+      {
+        auto p = this->holders_.find(types::get_type_id<property_type>());
+        if(this->holders_.end() == p){
+          this->holders_[types::get_type_id<property_type>()].reset(
+            new property_func_holder<property_type>(property_func));
+        }
+        else {
+          throw new std::logic_error("Invalid usage of scope properties based on lambda");
+        }
+      }
+      
+      template <typename property_type>
+      const property_type * get_property()
+      {
+        auto p = this->holders_.find(types::get_type_id<property_type>());
+        if(this->holders_.end() == p){
+          return nullptr;
+        }
+        
+        return reinterpret_cast<const property_type *>(p.second->get_value());
+      }      
+    };
+    
+    class iscope_properties
+    {
+    public:
+      iscope_properties(scope_properties_holder * owner)
+      : holder_(owner)
+      {
+      }
+      
+      template <typename property_type>
+      void add_property(const property_type & property)
+      {
+        this->holder_->add_property<property_type>(property);
+      }
+      
+      template <typename property_type>
+      void add_property(const std::function<void (property_type &)> & property_func)
+      {
+        this->holder_->add_property<property_type>(property_func);
+      }
+      
+      template <typename property_type>
+      const property_type * get_property()
+      {
+        return this->holder_->get_property<property_type>();
+      }
+      
+    private:
+      std::shared_ptr<scope_properties_holder> holder_;
+    };
+
     class scopped_service_provider : public iservice_provider_impl
     {
     public:
@@ -179,7 +314,6 @@ namespace vds {
     private:
         std::shared_ptr<iservice_provider_impl> parent_;
     };
-
     /////////////////////////////////////////////////////////////////////////////////
     class service_registrator_impl : public iservice_provider_impl
     {

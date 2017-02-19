@@ -11,9 +11,10 @@ namespace vds {
   {
   public:
     http_json_api(
+      const service_provider & scope,
       const handler_type & handler
     )
-    : handler_(handler)
+    : scope_(scope), handler_(handler)
     {
     }
     
@@ -27,6 +28,7 @@ namespace vds {
         const http_json_api & args
       )
       : base_class(context),
+        scope_(args.scope_),
         handler_(args.handler_)
       {        
       }
@@ -35,7 +37,7 @@ namespace vds {
       {
         try
         {
-          this->response_.reset(this->handler_(request));
+          this->response_.reset(this->handler_(this->scope_, request));
         }
         catch(std::exception * ex)
         {
@@ -50,11 +52,13 @@ namespace vds {
       }
       
     private:
+      service_provider scope_;
       const handler_type & handler_;
       std::unique_ptr<json_value> response_;
     };
 
   private:
+    service_provider scope_;
     const handler_type & handler_;
   };
 };

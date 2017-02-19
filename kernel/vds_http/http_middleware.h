@@ -47,6 +47,7 @@ namespace vds {
       }
       
       void operator()(
+        const service_provider & sp,
         const http_request & request,
         http_incoming_stream & incoming_stream
       ) {
@@ -55,6 +56,7 @@ namespace vds {
         if (!request.empty()) {
           try {
             this->router_.route(
+              sp,
               request,
               incoming_stream,
               this->response_,

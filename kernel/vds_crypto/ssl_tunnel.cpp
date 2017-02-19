@@ -12,7 +12,11 @@ static int verify_callback(int prev, X509_STORE_CTX * ctx)
   return 1;
 }
 
-vds::ssl_tunnel::ssl_tunnel(bool is_client, const certificate * cert, const asymmetric_private_key * key)
+vds::ssl_tunnel::ssl_tunnel(
+  const service_provider & scope,
+  bool is_client,
+  const certificate * cert,
+  const asymmetric_private_key * key)
   : is_client_(is_client),
   input_len_(0), decoded_input_len_(0),
   input_stream_(nullptr), output_stream_(nullptr),
@@ -76,6 +80,8 @@ vds::ssl_tunnel::ssl_tunnel(bool is_client, const certificate * cert, const asym
   else {
     SSL_set_accept_state(this->ssl_);
   }
+  
+  scope.get<iscope_properties>().add_property(peer_certificate(this));
 }
 
 vds::ssl_tunnel::~ssl_tunnel()
@@ -258,3 +264,12 @@ void vds::ssl_tunnel::output_stream_processed()
   this->start_work_circle();
 }
 
+vds::peer_certificate::peer_certificate(const vds::ssl_tunnel* owner)
+: owner_(owner)
+{
+}
+
+vds::certificate vds::peer_certificate::get_peer_certificate() const
+{
+  return this->owner_->get_peer_certificate();
+}

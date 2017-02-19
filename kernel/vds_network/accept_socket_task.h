@@ -160,7 +160,8 @@ namespace vds {
             auto socket = accept(this->s_, (sockaddr*)&client_address, &client_address_length);
             if (INVALID_SOCKET != socket) {
               this->network_service_->associate(socket);
-              this->done_method_(network_socket(socket));
+              auto sp = this->sp_.create_scope();
+              this->done_method_(sp, network_socket(socket));
             }
           }
         }
@@ -223,8 +224,9 @@ namespace vds {
         //}
         std::async(std::launch::async, [data, sock](){
           std::cout << "New connection\n";
+          auto sp = data->sp_.create_scope();
           network_socket s(sock);
-          data->done_method_(s);
+          data->done_method_(sp, s);
         });
     }
 

@@ -11,16 +11,14 @@ namespace vds {
   {
   public:
     server_json_api(
-      const service_provider & sp,
-      ssl_tunnel & tunnel
+      const service_provider & sp
     );
 
-    json_value * operator()(const json_value * request) const;
+    json_value * operator()(const service_provider & scope, const json_value * request) const;
 
   private:
     service_provider sp_;
     logger log_;
-    ssl_tunnel & tunnel_;
 
     void process(const vsr_new_client_message & message) const;
   };

@@ -19,9 +19,8 @@ private:
 
 public:
   test_http_pipeline(
-    const vds::service_provider & sp,
     const vds::http_router & router)
-    : sp_(sp), router_(router)
+    : router_(router)
   {
   }
 
@@ -35,9 +34,10 @@ public:
   public:
     handler(
       const test_http_pipeline & owner,
+      const vds::service_provider & sp,
       vds::network_socket & s)
       :
-      sp_(owner.sp_),
+      sp_(sp),
       s_(std::move(s)),
       router_(owner.router_),
       done_handler_(this),
@@ -71,7 +71,6 @@ public:
   };
 
 private:
-  const vds::service_provider & sp_;
   const vds::http_router & router_;
   error_method_type error;
 };
@@ -111,7 +110,7 @@ TEST(http_tests, test_server)
         
         vds::sequence(
           vds::socket_server(sp, "127.0.0.1", 8000),
-          vds::for_each<vds::network_socket>::create_handler(test_http_pipeline(sp, router))
+          vds::for_each<const vds::service_provider &, vds::network_socket>::create_handler(test_http_pipeline(router))
         )
         (
           server_done_handler,
@@ -199,7 +198,7 @@ TEST(http_tests, test_https_server)
 
     vds::sequence(
       vds::socket_server(sp, "127.0.0.1", 8000),
-      vds::for_each<vds::network_socket>::create_handler(test_http_pipeline(sp, router))
+      vds::for_each<const vds::service_provider &, vds::network_socket>::create_handler(test_http_pipeline(router))
     )
     (
       server_done_handler,

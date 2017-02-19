@@ -38,6 +38,7 @@ namespace vds {
       typename error_handler_type
     >
     void route(
+      const service_provider & scope,
       const http_request & request,
       http_incoming_stream & incoming_stream,
       http_response & response,
