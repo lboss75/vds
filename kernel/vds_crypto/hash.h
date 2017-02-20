@@ -68,6 +68,10 @@ namespace vds {
     HMAC_CTX * ctx_;
     unsigned char * sig_;
     unsigned int sig_len_;
+    
+#ifndef _WIN32
+    HMAC_CTX hmac_ctx_;
+#endif
   };
 
 }

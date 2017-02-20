@@ -7,6 +7,16 @@ All rights reserved
 #include "server.h"
 #include "vsr_protocol.h"
 #include "node_manager.h"
+#include "user_manager.h"
+#include "cert_manager.h"
+
+vds::server::server()
+{
+}
+
+vds::server::~server()
+{
+}
 
 void vds::server::register_services(service_registrator& registrator)
 {

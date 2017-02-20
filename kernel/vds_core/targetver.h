@@ -34,6 +34,7 @@ All rights reserved
 #include <future>
 #include <chrono>
 #include <queue>
+#include <algorithm>
 
 #include <stdio.h>
 #include <stdlib.h>

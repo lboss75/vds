@@ -75,14 +75,23 @@ void vds::hash::final()
 vds::hmac::hmac(const std::string & key, const hash_info & info)
 : info_(info)
 {
+#ifdef _WIN32
   this->ctx_ = HMAC_CTX_new();
+#else
+  HMAC_CTX_init(&this->hmac_ctx_);
+  this->ctx_ = &this->hmac_ctx_;
+#endif
 
   HMAC_Init_ex(this->ctx_, key.c_str(), key.length(), info.type, NULL);
 }
 
 vds::hmac::~hmac()
 {
+#ifdef _WIN32
   HMAC_CTX_free(this->ctx_);
+#else
+  HMAC_CTX_cleanup(&this->hmac_ctx_);
+#endif
 }
 
 void vds::hmac::update(const void * data, size_t len)

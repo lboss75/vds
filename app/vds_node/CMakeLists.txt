@@ -3,6 +3,8 @@ cmake_minimum_required(VERSION 2.6.2)
 
 if (UNIX)
 	find_package (OpenSSL REQUIRED)
+  set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../cmake")
+  find_package (UUID REQUIRED)
 else()
 	set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../cmake")
 	find_package (OpenSSL REQUIRED)
@@ -32,6 +34,7 @@ target_link_libraries(
   vds_protocols
   vds_storage
   vds_client
+  ${UUID_LIBRARIES}
   ${OPENSSL_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT})
 
