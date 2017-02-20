@@ -1,13 +1,10 @@
 project(vds_background CXX C)
 cmake_minimum_required(VERSION 2.6.2)
 
-find_package(PkgConfig REQUIRED)
-pkg_search_module(UUID REQUIRED uuid)
-
 if (UNIX)
 	find_package (OpenSSL REQUIRED)
 	set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../cmake")
-  #find_package (UUID REQUIRED)
+  find_package (UUID REQUIRED)
 else()
 	set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../cmake")
 	find_package (OpenSSL REQUIRED)

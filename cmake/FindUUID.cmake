@@ -1,6 +1,6 @@
 
 find_path(UUID_INCLUDE_DIR uuid/uuid.h)
-find_library(UUID_LIBRARY NAMES uuid PATH)
+find_library(UUID_LIBRARY NAMES uuid PATHS /usr/lib/x86_64-linux-gnu)
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(
