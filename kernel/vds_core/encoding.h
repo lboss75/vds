@@ -19,6 +19,7 @@ namespace vds {
   {
   public:
     static std::wstring from_utf8(const std::string & original);
+    static std::string to_utf8(const std::wstring & original);
   };
   
   class base64

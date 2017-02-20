@@ -32,6 +32,7 @@ All rights reserved
 #include <pwd.h>
 #include <locale>
 #include <sys/stat.h>
+#include <uuid/uuid.h>
 #else
 #include <io.h>
 #endif//_WIN32

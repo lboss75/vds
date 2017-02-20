@@ -38,8 +38,8 @@ void vds::symmetric_key::generate()
   this->key_.reset(new unsigned char[this->crypto_info_.key_size()]);
   this->iv_.reset(new unsigned char[this->crypto_info_.iv_size()]);
   
-  RAND_bytes(this->key_.get(), this->crypto_info_.key_size());
-  RAND_bytes(this->iv_.get(), this->crypto_info_.iv_size());
+  RAND_bytes(this->key_.get(), (int)this->crypto_info_.key_size());
+  RAND_bytes(this->iv_.get(), (int)this->crypto_info_.iv_size());
 }
 
 vds::symmetric_encrypt::symmetric_encrypt(const vds::symmetric_key& key)
@@ -66,24 +66,25 @@ vds::symmetric_encrypt::~symmetric_encrypt()
   }
 }
 
-int vds::symmetric_encrypt::update(
-  const void* data, int len,
-  void* result_data, int result_data_len)
+size_t vds::symmetric_encrypt::update(
+  const void* data, size_t len,
+  void* result_data, size_t result_data_len)
 {
+  int result_len = (int)result_data_len;
   if(0 == len)
   {
     if(1 != EVP_EncryptFinal_ex(this->ctx_,
-      (unsigned char *)result_data, &result_data_len)) {
+      (unsigned char *)result_data, &result_len)) {
       throw new std::runtime_error("Crypt failed");
     }
   }
   else if(1 != EVP_EncryptUpdate(this->ctx_,
-    (unsigned char *)result_data, &result_data_len,
-    (const unsigned char *)data, len)){
+    (unsigned char *)result_data, &result_len,
+    (const unsigned char *)data, (int)len)){
     throw new std::runtime_error("Crypt failed");
   }
   
-  return result_data_len;
+  return (size_t)result_len;
 }
 
 vds::symmetric_decrypt::symmetric_decrypt(const vds::symmetric_key& key)
@@ -110,22 +111,23 @@ vds::symmetric_decrypt::~symmetric_decrypt()
   }
 }
 
-int vds::symmetric_decrypt::update(const void* data, int len, void* result_data, int result_data_len)
+size_t vds::symmetric_decrypt::update(const void* data, size_t len, void* result_data, size_t result_data_len)
 {
+  int result_len = (int)result_data_len;
   if(0 == len)
   {
     if(1 != EVP_DecryptFinal_ex(this->ctx_,
-      (unsigned char *)result_data, &result_data_len)) {
+      (unsigned char *)result_data, &result_len)) {
       throw new std::runtime_error("Decrypt failed");
     }
   }
   else if(1 != EVP_DecryptUpdate(this->ctx_,
-    (unsigned char *)result_data, &result_data_len,
-    (const unsigned char *)data, len)){
+    (unsigned char *)result_data, &result_len,
+    (const unsigned char *)data, (int)len)){
     throw new std::runtime_error("Decrypt failed");
   }
   
-  return result_data_len;
+  return (size_t)result_len;
 }
 
 

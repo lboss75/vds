@@ -144,6 +144,8 @@ namespace vds {
         const ssl_output_stream & args
       );
 
+      ~handler();
+
       void decoded_input_done() override;
       void output_done(size_t len) override;
 
@@ -184,6 +186,7 @@ namespace vds {
   template<typename context_type>
   inline ssl_input_stream::handler<context_type>::~handler()
   {
+    this->tunnel_.set_input_stream(nullptr);
   }
 
   template<typename context_type>
@@ -222,6 +225,12 @@ namespace vds {
     tunnel_(args.tunnel_)
   {
     this->tunnel_.set_output_stream(this);
+  }
+
+  template<typename context_type>
+  inline ssl_output_stream::handler<context_type>::~handler()
+  {
+    this->tunnel_.set_output_stream(nullptr);
   }
 
   template<typename context_type>

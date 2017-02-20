@@ -34,6 +34,11 @@ namespace vds {
     {
     }
 
+    ~client_connection()
+    {
+
+    }
+
     enum connection_state
     {
       NONE,
@@ -122,6 +127,10 @@ namespace vds {
       this->state_ = CONNECTED;
     }
 
+    void process_response(json_value * response)
+    {
+      this->handler_->process_response(this, response);
+    }
 
     class connection
     {
@@ -215,7 +224,7 @@ namespace vds {
 
           void operator()(std::exception * ex)
           {
-            this->owner_->owner_->log_(ll_error, "stream %s:%s error: %s", this->owner_->owner_->address_.c_str(), this->owner_->owner_->port_, ex->what());
+            this->owner_->owner_->log_(ll_error, "stream %s:%d error: %s", this->owner_->owner_->address_.c_str(), this->owner_->owner_->port_, ex->what());
             this->owner_->done_mutex_.lock();
             this->owner_->done_count_++;
             if (this->owner_->done_count_ == 2) {
@@ -268,10 +277,13 @@ namespace vds {
         {
         }
 
-        void operator()(json_value * request)
+        void operator()(json_value * response)
         {
-          if (nullptr == request) {
+          if (nullptr == response) {
             this->next();
+          }
+          else {
+            this->owner_->process_response(response);
           }
 
           //auto cert = this->tunnel_.get_tunnel_certificate();

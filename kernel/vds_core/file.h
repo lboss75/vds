@@ -82,12 +82,62 @@ namespace vds {
       handler(
         const context_type & context,
         const read_file & args
-        ) : base_class(context)
+        ) : base_class(context),
+        filename_(args.filename_)
       {
+#ifndef _WIN32
+        this->handle_ = open(this->filename_.local_name().c_str(), O_RDONLY);
+        if (0 > this->handle_) {
+          auto error = errno;
+          throw new std::system_error(error, std::system_category(), "Unable to open file " + this->filename_.str());
+        }
+#else
+        this->handle_ = _open(this->filename_.local_name().c_str(), _O_RDONLY | _O_BINARY | _O_SEQUENTIAL);
+        if (0 > this->handle_) {
+          auto error = GetLastError();
+          throw new std::system_error(error, std::system_category(), "Unable to open file " + this->filename_.str());
+        }
+#endif
       }
 
+      ~handler()
+      {
+        if (0 < this->handle_) {
+#ifndef _WIN32
+          close(this->handle_);
+#else
+          _close(this->handle_);
+#endif
+        }
+      }
+
+      void operator()()
+      {
+        this->processed();
+      }
+
+      void processed()
+      {
+        auto readed = ::read(this->handle_, this->buffer_, sizeof(this->buffer_));
+        if (0 > readed) {
+#ifdef _WIN32
+          auto error = GetLastError();
+#else
+          auto error = errno;
+#endif
+          throw new std::system_error(error, std::system_category(), "Unable to read file " + this->filename_.str());
+        }
+
+        if (0 < readed) {
+          this->next(this->buffer_, readed);
+        }
+        else {
+          this->next(nullptr, 0);
+        }
+      }
 
     private:
+      filename filename_;
       int handle_;
       char buffer_[4096];
     };

@@ -10,6 +10,7 @@ All rights reserved
 #include <openssl/evp.h>
 #include <openssl/err.h>
 #include <openssl/rand.h>
+#include <openssl/hmac.h>
 
 #include "crypto_service.h"
 #include "symmetriccrypto.h"

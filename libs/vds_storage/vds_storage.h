@@ -11,5 +11,8 @@ All rights reserved
 #include "storage_service.h"
 #include "storage_cursor.h"
 #include "endpoint.h"
+#include "cert.h"
+#include "node.h"
+#include "user.h"
 
 #endif // __VDS_STORAGE_VDS_STORAGE_H_

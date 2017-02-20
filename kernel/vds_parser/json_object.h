@@ -89,8 +89,10 @@ namespace vds {
     void visit(const std::function<void(const json_property &)> & visitor) const;
     
     void add_property(json_property * prop);
+    void add_property(const std::string & name, const std::string & value);
 
     const json_value * get_property(const std::string & name) const;
+    bool get_property_string(const std::string & name, std::string & value, bool throw_error = true) const;
 
     void str(json_writer & writer) const override;
   private:
@@ -110,7 +112,7 @@ namespace vds {
       return this->items_.size();
     }
     
-    const json_value * get(int index) const {
+    const json_value * get(size_t index) const {
       return this->items_[index].get();
     }
 

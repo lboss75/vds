@@ -493,6 +493,7 @@ namespace vds {
           this->saved_states_.push(ST_BOF);
           break;
         case ST_ARRAY:
+          static_cast<json_array *>(this->current_object_)->add(new_object);
           this->saved_states_.push(ST_ARRAY_ITEM);
           this->current_path_.push(this->current_object_);
           break;

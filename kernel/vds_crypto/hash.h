@@ -23,7 +23,7 @@ namespace vds {
 
     void update(
       const void * data,
-      int len);
+      size_t len);
 
     void final();
 
@@ -39,6 +39,33 @@ namespace vds {
     const hash_info & info_;
 
     EVP_MD_CTX * ctx_;
+    unsigned char * sig_;
+    unsigned int sig_len_;
+  };
+
+  class hmac
+  {
+  public:
+    hmac(const std::string & key, const hash_info & info = hash::sha256());
+    ~hmac();
+
+    void update(
+      const void * data,
+      size_t len);
+
+    void final();
+
+    const unsigned char * signature() const {
+      return this->sig_;
+    }
+
+    unsigned int signature_length() const {
+      return this->sig_len_;
+    }
+
+  private:
+    const hash_info & info_;
+    HMAC_CTX * ctx_;
     unsigned char * sig_;
     unsigned int sig_len_;
   };

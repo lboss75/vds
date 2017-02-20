@@ -65,10 +65,36 @@ const vds::json_value * vds::json_object::get_property(const std::string & name)
   return nullptr;
 }
 
+bool vds::json_object::get_property_string(const std::string & name, std::string & value, bool throw_error) const
+{
+  auto value_obj = this->get_property(name);
+  if (nullptr == value_obj) {
+    return false;
+  }
+
+  auto pvalue = dynamic_cast<const json_primitive *>(value_obj);
+  if (nullptr == pvalue) {
+    if (throw_error) {
+      throw new std::runtime_error("Invalid property " + name + " type: expected string");
+    }
+
+    return false;
+  }
+
+  value = pvalue->value();
+  return true;
+}
+
 void vds::json_object::add_property(json_property * prop)
 {
   this->properties_.push_back(std::unique_ptr<json_property>(prop));
 }
+
+void vds::json_object::add_property(const std::string & name, const std::string & value)
+{
+  this->add_property(new json_property(name, new json_primitive(value)));
+}
+
 
 vds::json_array::json_array()
 {

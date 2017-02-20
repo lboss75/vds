@@ -9,6 +9,10 @@ All rights reserved
 #include "server_logic.h"
 
 namespace vds {
+  class cert_manager;
+  class node_manager;
+  class user_manager;
+
   class server : public iservice
   {
   public:
@@ -20,6 +24,9 @@ namespace vds {
     friend class iserver;
 
     std::unique_ptr<vsr_protocol::server> vsr_server_protocol_;
+    std::unique_ptr<cert_manager> cert_manager_;
+    std::unique_ptr<node_manager> node_manager_;
+    std::unique_ptr<user_manager> user_manager_;
   };
   
   class iserver
@@ -27,7 +34,10 @@ namespace vds {
   public:
     iserver(server * owner);
     
-    vsr_protocol::server * vsr_server_protocol() const { return this->owner_->vsr_server_protocol_.get();  }
+    vsr_protocol::server * vsr_server_protocol() const { return this->owner_->vsr_server_protocol_.get(); }
+    cert_manager * get_cert_manager() const { return this->owner_->cert_manager_.get(); }
+    node_manager * get_node_manager() const { return this->owner_->node_manager_.get(); }
+    user_manager * get_user_manager() const { return this->owner_->user_manager_.get(); }
 
   private:
     server * owner_;

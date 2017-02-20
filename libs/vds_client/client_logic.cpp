@@ -71,22 +71,67 @@ void vds::client_logic::connection_error(client_connection<client_logic> * conne
   this->update_connection_pool();
 }
 
+void vds::client_logic::process_response(client_connection<client_logic>* connection, const json_value * response)
+{
+  auto tasks = dynamic_cast<const json_array *>(response);
+  if (nullptr != tasks) {
+    for (size_t i = 0; i < tasks->size(); ++i) {
+      auto task = dynamic_cast<const json_object *>(tasks->get(i));
+
+      if (nullptr != task) {
+        std::string task_type;
+        if (task->get_property_string("$type", task_type, false)) {
+          if (install_node_prepared::message_type == task_type) {
+
+            install_node_prepared message;
+            message.deserialize(task);
+            this->process(connection, message);
+          }
+        }
+      }
+    }
+  }
+}
+
 void vds::client_logic::node_install(const std::string & login, const std::string & password)
 {
+  hash password_hash(hash::sha256());
+  password_hash.update(password.c_str(), password.length());
+  password_hash.final();
 
+  this->install_node_prepare_message_.user_id = "login:" + login;
+  this->install_node_prepare_message_.password_hash = base64::from_bytes(password_hash.signature(), password_hash.signature_length());
+  this->install_node_prepare_message_.request_id = guid::new_guid_string();
+
+  std::unique_ptr<json_object> request(this->install_node_prepare_message_.serialize());
+
+  json_writer body;
+  request->str(body);
+
+  this->query_all(body.str());
 }
 
 std::string vds::client_logic::get_messages()
 {
-  json_writer writer;
+  std::string result("[");
 
-  writer.start_array();
+  bool bfirst = true;
 
-  this->vsr_client_.get_messages(writer);
+  std::unique_lock<std::mutex> lock(this->outgoing_queue_mutex_);
+  for (auto& message : this->outgoing_queue_) {
+    if (bfirst) {
+      bfirst = false;
+    }
+    else {
+      result += ',';
+    }
 
-  writer.end_array();
+    result += message;
+  }
 
-  return writer.str();
+  result += ']';
+
+  return result;
 }
 
 void vds::client_logic::update_connection_pool()
@@ -132,4 +177,21 @@ void vds::client_logic::update_connection_pool()
   
   this->update_connection_pool_task_.schedule(
     std::chrono::system_clock::now() + std::chrono::seconds(5));
+}
+
+void vds::client_logic::query_all(const std::string & message)
+{
+  std::unique_lock<std::mutex> lock(this->outgoing_queue_mutex_);
+  this->outgoing_queue_.push_back(message);
+}
+
+void vds::client_logic::process(client_connection<client_logic>* connection, const install_node_prepared & message)
+{
+  if (
+    this->install_node_prepare_message_.user_id != message.user_id
+    && this->install_node_prepare_message_.request_id != message.request_id) {
+    return;
+  }
+
+
 }

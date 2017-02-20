@@ -63,11 +63,11 @@ namespace vds {
     symmetric_encrypt(const symmetric_key & key);
     ~symmetric_encrypt();
     
-    int update(
+    size_t update(
       const void * data,
-      int len,
+      size_t len,
       void * result_data,
-      int result_data_len);
+      size_t result_data_len);
     
   private:
     EVP_CIPHER_CTX * ctx_;
@@ -79,11 +79,11 @@ namespace vds {
     symmetric_decrypt(const symmetric_key & key);
     ~symmetric_decrypt();
     
-    int update(
+    size_t update(
       const void * data,
-      int len,
+      size_t len,
       void * result_data,
-      int result_data_len);
+      size_t result_data_len);
     
   private:
     EVP_CIPHER_CTX * ctx_;

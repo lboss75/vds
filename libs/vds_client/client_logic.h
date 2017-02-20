@@ -26,6 +26,8 @@ namespace vds {
     void connection_closed(client_connection<client_logic> * connection);
     void connection_error(client_connection<client_logic> * connection, std::exception * ex);
 
+    void process_response(client_connection<client_logic> * connection, const json_value * response);
+
     void node_install(const std::string & login, const std::string & password);
 
     std::string get_messages();
@@ -44,11 +46,19 @@ namespace vds {
     
     std::function<void(void)> update_connection_pool_;
     task_job update_connection_pool_task_;
+
+    std::mutex outgoing_queue_mutex_;
+    std::list<std::string> outgoing_queue_;
     
     vsr_protocol::iclient vsr_client_;
 
+    install_node_prepare install_node_prepare_message_;
+
     void update_connection_pool();
 
+    void query_all(const std::string & message);
+
+    void process(client_connection<client_logic>* connection, const install_node_prepared & message);
   };
 }
 

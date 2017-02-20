@@ -25,6 +25,7 @@ All rights reserved
 #include "encoding.h"
 #include "file.h"
 #include "task_manager.h"
+#include "guid.h"
 
 #endif // !__VDS_CORE_H_
 

@@ -26,7 +26,7 @@ TEST(test_vds_crypto, test_symmetric)
       }while(len < 1024 || len > 32 * 1024 * 1024);
 
       std::unique_ptr<unsigned char> buffer(new unsigned char[len]);
-      RAND_bytes(buffer.get(), len);
+      RAND_bytes(buffer.get(), (int)len);
 
       vds::symmetric_key key(vds::symmetric_crypto::aes_256_cbc());
       key.generate();
@@ -40,7 +40,7 @@ TEST(test_vds_crypto, test_symmetric)
       auto p = buffer.get();
       auto l = len;
       
-      int result_len = 0;
+      size_t result_len = 0;
       while(l > 0){
         size_t n = (size_t)std::rand();
         if (n < 1) {

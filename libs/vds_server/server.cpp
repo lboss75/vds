@@ -6,6 +6,7 @@ All rights reserved
 #include "stdafx.h"
 #include "server.h"
 #include "vsr_protocol.h"
+#include "node_manager.h"
 
 void vds::server::register_services(service_registrator& registrator)
 {
@@ -22,6 +23,8 @@ void vds::server::start(const service_provider& sp)
 {
   this->vsr_server_protocol_.reset(new vsr_protocol::server(sp));
   this->vsr_server_protocol_->start();
+
+  this->node_manager_.reset(new node_manager(sp));
 }
 
 void vds::server::stop(const service_provider& sp)

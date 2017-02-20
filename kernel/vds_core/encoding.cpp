@@ -11,6 +11,37 @@ std::wstring vds::utf16::from_utf8(const std::string & original)
   return convert.from_bytes(original);
 }
 
+std::string vds::utf16::to_utf8(const std::wstring & original)
+{
+  std::string result;
+  result.reserve(original.length());
+
+  for (unsigned int ch : original) {
+    if (ch < 0x80) {
+      result += (char)ch;
+    }
+    else if (ch < 0x800) {
+      result += (char)(0b11000000 | 0b00011111 & ((ch - 0x80) >> 6));
+      result += (char)(0b10000000 | 0b00111111 & (ch - 0x80));
+    }
+    else if (ch < 0x10000) {
+      result += (char)(0b11000000 | 0b00011111 & ((ch - 0x800) >> 12));
+      result += (char)(0b10000000 | 0b00111111 & ((ch - 0x800) >> 6));
+      result += (char)(0b10000000 | 0b00111111 & (ch - 0x800));
+    }
+    else if (ch < 0x110000) {
+      result += (char)(0b11000000 | 0b00011111 & ((ch - 0x10000) >> 18));
+      result += (char)(0b10000000 | 0b00111111 & ((ch - 0x10000) >> 12));
+      result += (char)(0b10000000 | 0b00111111 & ((ch - 0x10000) >> 6));
+      result += (char)(0b10000000 | 0b00111111 & (ch - 0x10000));
+    }
+    else {
+      throw new std::runtime_error("Invalid UTF16 string");
+    }
+  }
+  return result;
+}
+
 wchar_t vds::utf8::next_char(const char *& utf8string, size_t & len)
 {
   if (len == 0) {
