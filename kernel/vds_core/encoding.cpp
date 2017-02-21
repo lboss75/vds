@@ -16,28 +16,8 @@ std::string vds::utf16::to_utf8(const std::wstring & original)
   std::string result;
   result.reserve(original.length());
 
-  for (unsigned int ch : original) {
-    if (ch < 0x80) {
-      result += (char)ch;
-    }
-    else if (ch < 0x800) {
-      result += (char)(0b11000000 | 0b00011111 & ((ch - 0x80) >> 6));
-      result += (char)(0b10000000 | 0b00111111 & (ch - 0x80));
-    }
-    else if (ch < 0x10000) {
-      result += (char)(0b11000000 | 0b00011111 & ((ch - 0x800) >> 12));
-      result += (char)(0b10000000 | 0b00111111 & ((ch - 0x800) >> 6));
-      result += (char)(0b10000000 | 0b00111111 & (ch - 0x800));
-    }
-    else if (ch < 0x110000) {
-      result += (char)(0b11000000 | 0b00011111 & ((ch - 0x10000) >> 18));
-      result += (char)(0b10000000 | 0b00111111 & ((ch - 0x10000) >> 12));
-      result += (char)(0b10000000 | 0b00111111 & ((ch - 0x10000) >> 6));
-      result += (char)(0b10000000 | 0b00111111 & (ch - 0x10000));
-    }
-    else {
-      throw new std::runtime_error("Invalid UTF16 string");
-    }
+  for (auto ch : original) {
+    utf8::add(result, ch);
   }
   return result;
 }
@@ -101,6 +81,31 @@ wchar_t vds::utf8::next_char(const char *& utf8string, size_t & len)
   return result;
 }
 
+void vds::utf8::add(std::string& result, wchar_t ch)
+{
+  if (ch < 0x80) {
+    result += (char)ch;
+  }
+  else if (ch < 0x800) {
+    result += (char)(0b11000000 | (0b00011111 & ((ch - 0x80) >> 6)));
+    result += (char)(0b10000000 | (0b00111111 & (ch - 0x80)));
+  }
+  else if (ch < 0x10000) {
+    result += (char)(0b11000000 | (0b00011111 & ((ch - 0x800) >> 12)));
+    result += (char)(0b10000000 | (0b00111111 & ((ch - 0x800) >> 6)));
+    result += (char)(0b10000000 | (0b00111111 & (ch - 0x800)));
+  }
+  else if (ch < 0x110000) {
+    result += (char)(0b11000000 | (0b00011111 & ((ch - 0x10000) >> 18)));
+    result += (char)(0b10000000 | (0b00111111 & ((ch - 0x10000) >> 12)));
+    result += (char)(0b10000000 | (0b00111111 & ((ch - 0x10000) >> 6)));
+    result += (char)(0b10000000 | (0b00111111 & (ch - 0x10000)));
+  }
+  else {
+    throw new std::runtime_error("Invalid UTF16 string");
+  }
+}
+
 
 static const char encodeLookup[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 static const char padCharacter = '=';
@@ -149,16 +154,13 @@ void vds::base64::to_bytes(const std::string& data, std::vector< uint8_t >& resu
   }
   
   size_t padding = 0;
-  if (0 > data.length()) {
-    if (data[data.length()-1] == padCharacter){
-      padding++;
-    }
+  if (0 < data.length() && data[data.length()-1] == padCharacter){
+    padding++;
     
-    if (data[data.length()-2] == padCharacter){
+    if (1 < data.length() && data[data.length()-2] == padCharacter){
       padding++;
     }
-  }
-  
+  }  
   result.reserve(((data.length()/4)*3) - padding);
   
   uint32_t temp=0;

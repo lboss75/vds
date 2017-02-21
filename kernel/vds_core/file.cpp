@@ -4,36 +4,37 @@
 vds::file::file(const filename & filename, file_mode mode)
   : filename_(filename)
 {
-#ifndef _WIN32
-  this->handle_ = open(filename.local_name().c_str(), O_RDONLY);
-  if (0 > this->handle_) {
-    auto error = errno;
-    throw new std::system_error(error, std::system_category(), "Unable to open file " + this->filename_.str());
-  }
-#else
   int oflags;
   switch (mode) {
   case open_read:
-    oflags =_O_RDONLY | O_BINARY | O_SEQUENTIAL;
+    oflags = O_RDONLY;
     break;
 
   case open_write:
-    oflags = O_WRONLY | O_BINARY | O_SEQUENTIAL;
+    oflags = O_WRONLY;
     break;
 
   case create_new:
-    oflags = O_WRONLY | O_BINARY | O_SEQUENTIAL | O_CREAT | O_EXCL;
+    oflags = O_WRONLY | O_CREAT | O_EXCL;
     break;
 
   case truncate:
-    oflags = O_WRONLY | O_BINARY | O_SEQUENTIAL | O_CREAT | O_TRUNC;
+    oflags = O_WRONLY | O_CREAT | O_TRUNC;
     break;
 
   default:
     throw new std::invalid_argument("Invalid mode for open file");
   }
 
-  this->handle_ = _open(this->filename_.local_name().c_str(), oflags, _S_IREAD | _S_IWRITE);
+#ifndef _WIN32
+  this->handle_ = open(filename.local_name().c_str(), oflags, S_IREAD | S_IWRITE);
+  if (0 > this->handle_) {
+    auto error = errno;
+    throw new std::system_error(error, std::system_category(), "Unable to open file " + this->filename_.str());
+  }
+#else
+
+  this->handle_ = _open(this->filename_.local_name().c_str(), oflags | O_BINARY | O_SEQUENTIAL, _S_IREAD | _S_IWRITE);
   if (0 > this->handle_) {
     auto error = GetLastError();
     throw new std::system_error(error, std::system_category(), "Unable to open file " + this->filename_.str());
@@ -78,7 +79,7 @@ void vds::file::write(const void * buffer, size_t buffer_len)
       throw new std::system_error(error, std::system_category(), "Unable to write file " + this->filename_.str());
     }
 
-    if (written == buffer_len) {
+    if ((size_t)written == buffer_len) {
       return;
     }
 

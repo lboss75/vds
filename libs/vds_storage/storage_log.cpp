@@ -58,13 +58,16 @@ void vds::storage_log::start()
   json_parser::options parser_options;
   parser_options.enable_multi_root_objects = true;
 
+  auto done_handler = lambda_handler([]() {});
+  auto error_handler = lambda_handler([](std::exception * ex) { throw ex; });
+  
   sequence(
     read_file(fn),
     json_parser(fn.name(), parser_options),
     process_log_line<storage_log>(this)
   )(
-    lambda_handler([]() {}),
-    lambda_handler([](std::exception * ex) { throw ex; })
+    done_handler,
+    error_handler
   );
 }
 
@@ -98,4 +101,12 @@ vds::certificate * vds::storage_log::parse_root_cert(const json_value * value)
   auto result = new certificate(certificate::parse(cert_body));
   this->certificates_[result->fingerprint()].reset(result);
   return result;
+}
+
+void vds::storage_log::apply_record(const json_value * value)
+{
+  if(this->is_empty_){
+    //already processed
+    this->is_empty_ = false;
+  }
 }

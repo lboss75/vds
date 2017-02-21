@@ -152,7 +152,11 @@ std::string vds::foldername::name() const
 
 void vds::foldername::create()
 {
+#ifdef _WIN32
   if (0 != _mkdir(this->local_name().c_str())) {
+#else
+  if (0 != mkdir(this->local_name().c_str(), S_IRWXU | S_IRWXG)) {
+#endif//_WIN32
     auto error = errno;
     if (EEXIST != error) {
       throw new std::system_error(error, std::system_category(), "create folder " + this->name());

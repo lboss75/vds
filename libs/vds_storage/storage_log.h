@@ -23,6 +23,7 @@ namespace vds {
     bool is_empty();
     certificate * get_cert(const std::string & fingerprint);
     certificate * parse_root_cert(const json_value * value);
+    void apply_record(const json_value * value);
 
   private:
     foldername commited_folder_;

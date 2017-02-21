@@ -78,6 +78,8 @@ namespace vds {
         if (!verifier.verify((const unsigned char *)sig_data.data(), sig_data.size())) {
           throw new std::runtime_error("Invalid log record");
         }
+        
+        this->owner_->apply_record(message);
       }
 
     private:

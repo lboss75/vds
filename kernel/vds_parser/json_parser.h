@@ -314,8 +314,298 @@ namespace vds {
             break;
 
           case ST_STRING_BACKSLESH:
-            this->buffer_ += *this->data_;
-            this->state_ = ST_STRING;
+            switch (*this->data_) {
+              case '\"':
+              case '\\':
+                this->buffer_ += *this->data_;
+                this->state_ = ST_STRING;
+                break;
+                
+              case 'n':
+                this->buffer_ += '\n';
+                this->state_ = ST_STRING;
+                break;
+                
+              case 'r':
+                this->buffer_ += '\r';
+                this->state_ = ST_STRING;
+                break;
+                
+              case 'b':
+                this->buffer_ += '\b';
+                this->state_ = ST_STRING;
+                break;
+                
+              case 't':
+                this->buffer_ += '\t';
+                this->state_ = ST_STRING;
+                break;
+                
+              case 'f':
+                this->buffer_ += '\f';
+                this->state_ = ST_STRING;
+                break;
+                
+              case 'x':
+                this->state_ = ST_STRING_SYMBOL_1;
+                break;
+                
+              default:
+                throw new parse_error(
+                  this->stream_name_,
+                  this->line_,
+                  this->column_,
+                  std::string("Unexpected char ") + *this->data_);
+            }
+            break;
+            
+          case ST_STRING_SYMBOL_1:
+            switch (*this->data_) {
+              case '0':
+              case '1':
+              case '2':
+              case '3':
+              case '4':
+              case '5':
+              case '6':
+              case '7':
+              case '8':
+              case '9':
+                this->num_buffer_ = *this->data_ - '0';
+                this->state_ = ST_STRING_SYMBOL_2;
+                break;
+                
+              case 'a':
+              case 'A':
+                this->num_buffer_ = 10;
+                this->state_ = ST_STRING_SYMBOL_2;
+                break;
+                
+              case 'b':
+              case 'B':
+                this->num_buffer_ = 11;
+                this->state_ = ST_STRING_SYMBOL_2;
+                break;
+                
+              case 'c':
+              case 'C':
+                this->num_buffer_ = 12;
+                this->state_ = ST_STRING_SYMBOL_2;
+                break;
+                
+              case 'd':
+              case 'D':
+                this->num_buffer_ = 13;
+                this->state_ = ST_STRING_SYMBOL_2;
+                break;
+                
+              case 'e':
+              case 'E':
+                this->num_buffer_ = 14;
+                this->state_ = ST_STRING_SYMBOL_2;
+                break;
+                
+              case 'f':
+              case 'F':
+                this->num_buffer_ = 15;
+                this->state_ = ST_STRING_SYMBOL_2;
+                break;
+                
+              default:
+                throw new parse_error(
+                  this->stream_name_,
+                  this->line_,
+                  this->column_,
+                  std::string("Unexpected char ") + *this->data_);
+            }
+            break;
+                
+          case ST_STRING_SYMBOL_2:
+            this->num_buffer_ <<= 4;
+            switch (*this->data_) {
+              case '0':
+              case '1':
+              case '2':
+              case '3':
+              case '4':
+              case '5':
+              case '6':
+              case '7':
+              case '8':
+              case '9':
+                this->num_buffer_ |= *this->data_ - '0';
+                this->state_ = ST_STRING_SYMBOL_3;
+                break;
+                
+              case 'a':
+              case 'A':
+                this->num_buffer_ |= 10;
+                this->state_ = ST_STRING_SYMBOL_3;
+                break;
+                
+              case 'b':
+              case 'B':
+                this->num_buffer_ |= 11;
+                this->state_ = ST_STRING_SYMBOL_3;
+                break;
+                
+              case 'c':
+              case 'C':
+                this->num_buffer_ |= 12;
+                this->state_ = ST_STRING_SYMBOL_3;
+                break;
+                
+              case 'd':
+              case 'D':
+                this->num_buffer_ |= 13;
+                this->state_ = ST_STRING_SYMBOL_3;
+                break;
+                
+              case 'e':
+              case 'E':
+                this->num_buffer_ |= 14;
+                this->state_ = ST_STRING_SYMBOL_3;
+                break;
+                
+              case 'f':
+              case 'F':
+                this->num_buffer_ |= 15;
+                this->state_ = ST_STRING_SYMBOL_3;
+                break;
+                
+              default:
+                throw new parse_error(
+                  this->stream_name_,
+                  this->line_,
+                  this->column_,
+                  std::string("Unexpected char ") + *this->data_);
+            }
+            break;
+
+                
+          case ST_STRING_SYMBOL_3:
+            this->num_buffer_ <<= 4;
+            switch (*this->data_) {
+              case '0':
+              case '1':
+              case '2':
+              case '3':
+              case '4':
+              case '5':
+              case '6':
+              case '7':
+              case '8':
+              case '9':
+                this->num_buffer_ |= *this->data_ - '0';
+                this->state_ = ST_STRING_SYMBOL_4;
+                break;
+                
+              case 'a':
+              case 'A':
+                this->num_buffer_ |= 10;
+                this->state_ = ST_STRING_SYMBOL_4;
+                break;
+                
+              case 'b':
+              case 'B':
+                this->num_buffer_ |= 11;
+                this->state_ = ST_STRING_SYMBOL_4;
+                break;
+                
+              case 'c':
+              case 'C':
+                this->num_buffer_ |= 12;
+                this->state_ = ST_STRING_SYMBOL_4;
+                break;
+                
+              case 'd':
+              case 'D':
+                this->num_buffer_ |= 13;
+                this->state_ = ST_STRING_SYMBOL_4;
+                break;
+                
+              case 'e':
+              case 'E':
+                this->num_buffer_ |= 14;
+                this->state_ = ST_STRING_SYMBOL_4;
+                break;
+                
+              case 'f':
+              case 'F':
+                this->num_buffer_ |= 15;
+                this->state_ = ST_STRING_SYMBOL_4;
+                break;
+                
+              default:
+                throw new parse_error(
+                  this->stream_name_,
+                  this->line_,
+                  this->column_,
+                  std::string("Unexpected char ") + *this->data_);
+            }
+            break;
+                
+          case ST_STRING_SYMBOL_4:
+            this->num_buffer_ <<= 4;
+            switch (*this->data_) {
+              case '0':
+              case '1':
+              case '2':
+              case '3':
+              case '4':
+              case '5':
+              case '6':
+              case '7':
+              case '8':
+              case '9':
+                this->num_buffer_ |= *this->data_ - '0';
+                this->state_ = ST_STRING;
+                break;
+                
+              case 'a':
+              case 'A':
+                this->num_buffer_ |= 10;
+                this->state_ = ST_STRING;
+                break;
+                
+              case 'b':
+              case 'B':
+                this->num_buffer_ |= 11;
+                this->state_ = ST_STRING;
+                break;
+                
+              case 'c':
+              case 'C':
+                this->num_buffer_ |= 12;
+                this->state_ = ST_STRING;
+                break;
+                
+              case 'd':
+              case 'D':
+                this->num_buffer_ |= 13;
+                this->state_ = ST_STRING;
+                break;
+                
+              case 'e':
+              case 'E':
+                this->num_buffer_ |= 14;
+                this->state_ = ST_STRING;
+                break;
+                
+              case 'f':
+              case 'F':
+                this->num_buffer_ |= 15;
+                this->state_ = ST_STRING;
+                break;
+                
+              default:
+                throw new parse_error(
+                  this->stream_name_,
+                  this->line_,
+                  this->column_,
+                  std::string("Unexpected char ") + *this->data_);
+            }
+            utf8::add(this->buffer_, (wchar_t)this->num_buffer_);
             break;
 
           case ST_OBJECT_PROPERTY_NAME:
@@ -404,6 +694,11 @@ namespace vds {
 
         ST_STRING,
         ST_STRING_BACKSLESH,
+        
+        ST_STRING_SYMBOL_1,
+        ST_STRING_SYMBOL_2,
+        ST_STRING_SYMBOL_3,
+        ST_STRING_SYMBOL_4,
 
         ST_EOF
       };
@@ -419,7 +714,7 @@ namespace vds {
       int column_;
 
       std::string buffer_;
-
+      uint32_t num_buffer_;
 
       void after_slesh()
       {

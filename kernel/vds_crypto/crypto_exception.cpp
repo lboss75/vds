@@ -10,6 +10,8 @@ All rights reserved
 vds::crypto_exception::crypto_exception(const std::string & message, int error_code)
   : std::runtime_error(format_message(message, error_code))
 {
+  std::string error = this->what();
+  std::cout << error << "\n";
 }
 
 std::string vds::crypto_exception::format_message(const std::string& message, int error_code)
