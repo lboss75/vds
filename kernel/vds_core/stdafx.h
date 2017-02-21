@@ -36,6 +36,7 @@ All rights reserved
 
 #else
 #include <io.h>
+#include <direct.h>
 #endif//_WIN32
 
 

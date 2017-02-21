@@ -7,5 +7,9 @@ All rights reserved
 */
 
 #include "vds_core.h"
+#include "vds_crypto.h"
+#include "vds_parser.h"
+
+#include <fstream>
 
 #endif // __VDS_STORAGE_STDAFX_H_

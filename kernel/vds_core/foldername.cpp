@@ -149,3 +149,13 @@ std::string vds::foldername::name() const
     return p + 1;
   }
 }
+
+void vds::foldername::create()
+{
+  if (0 != _mkdir(this->local_name().c_str())) {
+    auto error = errno;
+    if (EEXIST != error) {
+      throw new std::system_error(error, std::system_category(), "create folder " + this->name());
+    }
+  }
+}

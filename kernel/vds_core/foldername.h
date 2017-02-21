@@ -53,8 +53,22 @@ namespace vds {
         const std::function<bool(const filename & name)> & callback
       ) const;
 
+      void create();
+
       std::string relative_path(const filename & fn, bool allow_pass_border = false) const;
       std::string name() const;
+
+      std::string local_name() const
+      {
+#ifndef _WIN32
+        return this->value_;
+#else
+        auto result = this->value_;
+        std::replace(result.begin(), result.end(), '/', '\\');
+        return result;
+#endif
+      }
+
 
   private:
     friend class filename;

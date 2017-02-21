@@ -32,6 +32,8 @@ namespace vds {
     command_line_value node_login_;
     command_line_value node_password_;
 
+    command_line_set node_root_cmd_set_;
+
     client client_;
 
     storage_service storage_service_;

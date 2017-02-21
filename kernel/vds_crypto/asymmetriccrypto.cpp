@@ -66,17 +66,17 @@ void vds::asymmetric_private_key::generate()
   }
 }
 
-vds::asymmetric_private_key vds::asymmetric_private_key::parse(const std::string & value)
+vds::asymmetric_private_key vds::asymmetric_private_key::parse(const std::string & value, const std::string & password)
 {
   auto io = BIO_new_mem_buf((void*)value.c_str(), value.length());
-  auto key = PEM_read_bio_PrivateKey(io, 0, 0, 0);
+  auto key = PEM_read_bio_PrivateKey(io, 0, 0, password.empty() ? nullptr : (void *)password.c_str());
   return asymmetric_private_key(key);
 }
 
-std::string vds::asymmetric_private_key::str() const
+std::string vds::asymmetric_private_key::str(const std::string & password/* = std::string()*/) const
 {
   BIO * bio = BIO_new(BIO_s_mem());
-  PEM_write_bio_PrivateKey(bio, this->key_, NULL, NULL, 0, NULL, NULL);
+  PEM_write_bio_PrivateKey(bio, this->key_, NULL, NULL, 0, NULL, password.empty() ? nullptr : (void *)password.c_str());
 
   auto len = BIO_pending(bio);
   std::string result;
@@ -87,7 +87,7 @@ std::string vds::asymmetric_private_key::str() const
   return result;
 }
 
-void vds::asymmetric_private_key::load(const filename & filename)
+void vds::asymmetric_private_key::load(const filename & filename, const std::string & password/* = std::string()*/)
 {
   auto in = BIO_new_file(filename.local_name().c_str(), "r");
   if (nullptr == in) {
@@ -95,7 +95,7 @@ void vds::asymmetric_private_key::load(const filename & filename)
     throw new crypto_exception("Failed to private key " + filename.str(), error);
   }
 
-  RSA * r = PEM_read_bio_RSAPrivateKey(in, NULL, NULL, NULL);
+  RSA * r = PEM_read_bio_RSAPrivateKey(in, NULL, NULL, password.empty() ? nullptr : (void *)password.c_str());
   if (nullptr == r) {
     auto error = ERR_get_error();
     throw new crypto_exception("Failed to read file key " + filename.str(), error);
@@ -107,7 +107,7 @@ void vds::asymmetric_private_key::load(const filename & filename)
   BIO_free(in);
 }
 
-void vds::asymmetric_private_key::save(const filename & filename)
+void vds::asymmetric_private_key::save(const filename & filename, const std::string & password/* = std::string()*/)
 {
   auto outf = BIO_new_file(filename.local_name().c_str(), "w");
   if (nullptr == outf) {
@@ -115,7 +115,7 @@ void vds::asymmetric_private_key::save(const filename & filename)
     throw new crypto_exception("Failed create file key " + filename.str(), error);
   }
 
-  int r = PEM_write_bio_PrivateKey(outf, this->key_, NULL, NULL, 0, NULL, NULL);
+  int r = PEM_write_bio_PrivateKey(outf, this->key_, NULL, NULL, 0, NULL, password.empty() ? nullptr : (void *)password.c_str());
   if (0 == r) {
     auto error = ERR_get_error();
     throw new crypto_exception("Failed save private key " + filename.str(), error);
@@ -139,6 +139,16 @@ const vds::asymmetric_crypto_info & vds::asymmetric_crypto::rsa2048()
   static asymmetric_crypto_info result = {
     EVP_PKEY_RSA,
     2048
+  };
+
+  return result;
+}
+
+const vds::asymmetric_crypto_info & vds::asymmetric_crypto::rsa4096()
+{
+  static asymmetric_crypto_info result = {
+    EVP_PKEY_RSA,
+    4096
   };
 
   return result;

@@ -7,8 +7,80 @@ All rights reserved
 */
 
 #include "filename.h"
+#include "sequence.h"
 
 namespace vds {
+
+  class file
+  {
+  public:
+    enum file_mode
+    {
+      //Opens the file if it exists and seeks to the end of the file, or creates a new file.
+      append,
+
+      //Specifies that the operating system should open an existing file
+      open_read,
+
+      //Specifies that the operating system should open an existing file
+      open_write,
+
+      //Specifies that the operating system should open an existing file
+      open_read_and_write,
+
+      //Specifies that the operating system should open a file if it exists; otherwise, a new file should be created
+      open_or_create,
+
+      //Specifies that the operating system should create a new file
+      create,
+
+      //Specifies that the operating system should create a new file
+      create_new,
+
+      //Specifies that the operating system should open an existing file
+      truncate
+    };
+
+
+    file(const filename & filename, file_mode mode);
+    ~file();
+
+    size_t read(void * buffer, size_t buffer_len);
+    void write(const void * buffer, size_t buffer_len);
+
+  private:
+    filename filename_;
+    int handle_;
+  };
+
+  class output_text_stream
+  {
+  public:
+    output_text_stream(file & f);
+    ~output_text_stream();
+
+    void write(const std::string & value);
+    void flush();
+
+  private:
+    file & f_;
+    char buffer_[4096];
+    size_t written_;
+  };
+
+  class input_text_stream
+  {
+  public:
+    input_text_stream(file & f);
+
+    bool read_line(std::string & result);
+
+  private:
+    file & f_;
+    char buffer_[4096];
+    size_t offset_;
+    size_t readed_;
+  };
 
   class read_file_stream
   {

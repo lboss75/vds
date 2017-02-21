@@ -21,7 +21,7 @@ namespace vds {
   public:
     static const asymmetric_crypto_info & unknown();
     static const asymmetric_crypto_info & rsa2048();
-    
+    static const asymmetric_crypto_info & rsa4096();
   };
   
   class asymmetric_private_key
@@ -35,11 +35,11 @@ namespace vds {
     
     void generate();
 
-    static asymmetric_private_key parse(const std::string & value);
-    std::string str() const;
+    static asymmetric_private_key parse(const std::string & value, const std::string & password = std::string());
+    std::string str(const std::string & password = std::string()) const;
 
-    void load(const filename & filename);
-    void save(const filename & filename);
+    void load(const filename & filename, const std::string & password = std::string());
+    void save(const filename & filename, const std::string & password = std::string());
 
     EVP_PKEY * key() const
     {

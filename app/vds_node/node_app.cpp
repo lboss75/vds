@@ -41,14 +41,17 @@ node_login_(
   "l",
   "login",
   "Login",
-  "User login"
-),
+  "User login"),
 node_password_(
   "p",
   "password",
   "Password",
-  "User password"
-)
+  "User password"),
+  node_root_cmd_set_(
+    "Install Root node",
+    "Create infrastructure for root note",
+    "root",
+    "node")
 {
 
 }
@@ -63,13 +66,34 @@ void vds::node_app::main(
       this->node_login_.value(),
       this->node_password_.value());
 
-    sp.get<vsr_protocol::iclient>().subscribe_client_id_assigned([this](vsr_protocol::client & client){
+    sp.get<vsr_protocol::iclient>().subscribe_client_id_assigned([this](vsr_protocol::client & client) {
       this->cliend_id_assigned_.set();
     });
-    
-    if(!this->cliend_id_assigned_.wait_for(std::chrono::seconds(15))){
+
+    if (!this->cliend_id_assigned_.wait_for(std::chrono::seconds(15))) {
       throw new std::runtime_error("Connection failed");
     }
+  }
+  else if (&this->node_root_cmd_set_ == this->current_command_set_) {
+    std::cout << "Generating private key\n";
+    asymmetric_private_key key(asymmetric_crypto::rsa4096());
+    key.generate();
+
+    asymmetric_public_key pkey(key);
+
+    std::cout << "Creating certificate \n";
+    certificate::create_options options;
+    options.country = "RU";
+    options.organization = "IVySoft";
+    options.name = "Root Certificate";
+
+    certificate root_user = certificate::create_new(pkey, key, options);
+
+    storage_log log;
+    log.reset(root_user, key, this->node_password_.value());
+
+    log.start();
+
   }
 }
 
@@ -81,6 +105,10 @@ void vds::node_app::register_command_line(vds::command_line& cmd_line)
   cmd_line.add_command_set(this->node_install_cmd_set_);
   this->node_install_cmd_set_.required(this->node_login_);
   this->node_install_cmd_set_.required(this->node_password_);
+
+  cmd_line.add_command_set(this->node_root_cmd_set_);
+  this->node_root_cmd_set_.required(this->node_password_);
+
 }
 
 void vds::node_app::register_services(service_registrator & registrator)
@@ -93,5 +121,9 @@ void vds::node_app::register_services(service_registrator & registrator)
     registrator.add(this->network_service_);
     registrator.add(this->crypto_service_);
     registrator.add(this->client_);
+  }
+  else if (&this->node_root_cmd_set_ == this->current_command_set_) {
+    registrator.add(this->storage_service_);
+    registrator.add(this->crypto_service_);
   }
 }
