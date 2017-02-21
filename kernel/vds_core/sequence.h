@@ -472,6 +472,35 @@ namespace vds {
         error_method(ex);
       }
     }
+    
+    template <
+      typename done_method_type,
+      typename error_method_type,
+      typename... arg_types
+    >
+    void
+    operator()(
+      done_method_type && done_method,
+      error_method_type && error_method,
+      arg_types... args
+    )
+    {
+      error_method_type error_handler(error_method);
+      try {
+        auto handler = new _sequence_func_runner<
+          done_method_type,
+          error_method_type
+          >(
+          std::move(done_method),
+          std::move(error_method),
+          this->builder_);
+        handler->validate();
+        handler->holder_.step(args...);
+      }
+      catch (std::exception * ex) {
+        error_handler(ex);
+      }
+    }
 
   private:
     using tuple_type = std::tuple<functor_types...>;
@@ -734,6 +763,48 @@ namespace vds {
         holder_.validate();
       }
 
+      auto_delete_trigger<done_method_type> done_proxy_;
+      auto_delete_trigger<error_method_type> error_proxy_;
+      holder_class holder_;
+    };
+    
+    template <
+      typename done_method_type,
+      typename error_method_type
+      >
+    class _sequence_func_runner : public _suicide
+    {
+      using done_proxy_type = auto_delete_trigger<done_method_type>;
+      using error_proxy_type = auto_delete_trigger<error_method_type>;
+      using holder_class = _sequence_start_holder<done_method_type, error_method_type>;
+    public:
+      _sequence_func_runner(const _sequence_func_runner &) = delete;
+      _sequence_func_runner(_sequence_func_runner&&) = delete;
+      _sequence_func_runner & operator = (const _sequence_func_runner &) = delete;
+      _sequence_func_runner & operator = (_sequence_func_runner&&) = delete;
+      
+      _sequence_func_runner(
+        done_method_type && done_method,
+        error_method_type && error_method,
+        const std::tuple<functor_types...> & builder
+      ) : 
+        done_method_(done_method),
+        error_method_(error_method),
+        done_proxy_(this, done_method_),
+        error_proxy_(this, error_method_),
+        holder_(done_proxy_, error_proxy_, builder)
+      {
+      }
+      
+      void validate()
+      {
+        this->done_proxy_.check_alive();
+        this->error_proxy_.check_alive();
+        holder_.validate();
+      }
+
+      done_method_type done_method_;
+      error_method_type error_method_;
       auto_delete_trigger<done_method_type> done_proxy_;
       auto_delete_trigger<error_method_type> error_proxy_;
       holder_class holder_;

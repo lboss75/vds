@@ -61,17 +61,14 @@ void vds::storage_log::start()
   
   json_parser::options parser_options;
   parser_options.enable_multi_root_objects = true;
-
-  auto done_handler = lambda_handler([]() {});
-  auto error_handler = lambda_handler([](std::exception * ex) { throw ex; });
   
   sequence(
     read_file(fn),
     json_parser(fn.name(), parser_options),
     process_log_line<storage_log>(this)
   )(
-    done_handler,
-    error_handler
+    []() {},
+    [](std::exception * ex) { throw ex; }
   );
 }
 
