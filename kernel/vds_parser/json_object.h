@@ -76,6 +76,8 @@ namespace vds {
     void str(json_writer & writer) const override;
 
   private:
+    friend class json_object;
+    
     std::string name_;
     std::unique_ptr<json_value> value_;
   };
@@ -92,7 +94,9 @@ namespace vds {
     void add_property(const std::string & name, const std::string & value);
 
     const json_value * get_property(const std::string & name) const;
-    bool get_property_string(const std::string & name, std::string & value, bool throw_error = true) const;
+    bool get_property(const std::string & name, std::string & value, bool throw_error = true) const;
+    bool get_property(const std::string & name, int & value, bool throw_error = true) const;
+    std::unique_ptr<json_value> move_property(const std::string & name);
 
     void str(json_writer & writer) const override;
   private:

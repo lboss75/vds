@@ -93,9 +93,33 @@ void vds::node_app::main(
     log.reset(root_user, key, this->node_password_.value());
 
     log.start();
-
+    
+    this->node_install(log, root_user, key);
   }
 }
+
+void vds::node_app::node_install(storage_log& log, const certificate& user, const asymmetric_private_key& user_key)
+{
+    std::cout << "Generating node private key\n";
+  asymmetric_private_key key(asymmetric_crypto::rsa4096());
+  key.generate();
+
+  asymmetric_public_key pkey(key);
+
+  std::cout << "Creating node certificate \n";
+  certificate::create_options options;
+  options.country = "RU";
+  options.organization = "IVySoft";
+  options.name = "Node Certificate";
+  options.ca_certificate = &user;
+  options.ca_certificate_private_key = &user_key;
+
+  certificate node_cert = certificate::create_new(pkey, key, options);
+  
+  
+  
+}
+
 
 void vds::node_app::register_command_line(vds::command_line& cmd_line)
 {

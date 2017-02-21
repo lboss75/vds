@@ -22,9 +22,9 @@ vds::json_object * vds::install_node_prepare::serialize()
 
 void vds::install_node_prepare::deserialize(const json_object * souce)
 {
-  souce->get_property_string("u", this->user_id);
-  souce->get_property_string("p", this->password_hash);
-  souce->get_property_string("r", this->request_id);
+  souce->get_property("u", this->user_id);
+  souce->get_property("p", this->password_hash);
+  souce->get_property("r", this->request_id);
 }
 
 const char vds::install_node_prepared::message_type[] = "node prepared";
@@ -44,9 +44,9 @@ vds::json_object * vds::install_node_prepared::serialize() const
 
 void vds::install_node_prepared::deserialize(const json_object * source)
 {
-  source->get_property_string("u", this->user_id);
-  source->get_property_string("c", this->user_certificate);
-  source->get_property_string("k", this->user_private_key);
-  source->get_property_string("r", this->request_id);
-  source->get_property_string("s", this->new_certificate_serial);
+  source->get_property("u", this->user_id);
+  source->get_property("c", this->user_certificate);
+  source->get_property("k", this->user_private_key);
+  source->get_property("r", this->request_id);
+  source->get_property("s", this->new_certificate_serial);
 }

@@ -6,6 +6,7 @@ All rights reserved
 #include "stdafx.h"
 #include "storage_log.h"
 #include "process_log_line.h"
+#include "log_records.h"
 
 vds::storage_log::storage_log()
   : commited_folder_(foldername(persistence::current_user(), ".vds"), "commited"),
@@ -19,11 +20,11 @@ void vds::storage_log::reset(
   const std::string & password
 )
 {
-  std::unique_ptr<json_object> m(new json_object());
-  m->add_property("$i", "0");
-  m->add_property("$t", "certificate");
-  m->add_property("c", root_certificate.str());
-  m->add_property("k", private_key.str(password));
+  server_log_root_certificate message;
+  message.certificate_ = root_certificate.str();
+  message.private_key_ = private_key.str(password);
+  
+  std::unique_ptr<json_value> m(message.serialize());
 
   json_writer writer;
   m->str(writer);
@@ -39,16 +40,19 @@ void vds::storage_log::reset(
   s.final();
 
   this->commited_folder_.create();
+  
+  server_log_record record;
+  record.fingerprint_ = root_certificate.fingerprint();
+  record.signature_ = base64::from_bytes(s.signature(), s.signature_length());
+  record.message_ = std::move(m);
+  
+  json_writer record_writer;
+  record.serialize()->str(record_writer);
 
   file f(filename(this->commited_folder_, "checkpoint0.json").local_name(), file::truncate);
   output_text_stream os(f);
-  os.write("{\"f\":\"");
-  os.write(root_certificate.fingerprint());
-  os.write("\",\"s\":\"");
-  os.write(base64::from_bytes(s.signature(), s.signature_length()));
-  os.write("\",\"m\":");
-  os.write(message_body);
-  os.write("}\n");
+  os.write(record_writer.str());
+  os.write("\n");
 }
 
 void vds::storage_log::start()
@@ -88,17 +92,15 @@ vds::certificate * vds::storage_log::get_cert(const std::string & fingerprint)
 
 vds::certificate * vds::storage_log::parse_root_cert(const json_value * value)
 {
-  auto cert_obj = dynamic_cast<const json_object *>(value);
-  if (nullptr == cert_obj) {
-    return nullptr;
-  }
-
+  server_log_root_certificate message;
+  message.deserialize(value);
+  
   std::string cert_body;
-  if (!cert_obj->get_property_string("c", cert_body)) {
+  if (message.certificate_.empty() || message.private_key_.empty()) {
     return nullptr;
   }
 
-  auto result = new certificate(certificate::parse(cert_body));
+  auto result = new certificate(certificate::parse(message.certificate_));
   this->certificates_[result->fingerprint()].reset(result);
   return result;
 }
