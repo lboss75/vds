@@ -14,11 +14,23 @@ vds::storage_log::storage_log()
 }
 
 void vds::storage_log::reset(
-  const certificate & root_certificate,
-  const asymmetric_private_key & private_key,
   const std::string & password
 )
 {
+  asymmetric_private_key private_key(asymmetric_crypto::rsa4096());
+  private_key.generate();
+
+  asymmetric_public_key pkey(private_key);
+
+  std::cout << "Creating certificate \n";
+  certificate::create_options options;
+  options.country = "RU";
+  options.organization = "IVySoft";
+  options.name = "Root Certificate";
+
+  certificate root_certificate = certificate::create_new(pkey, private_key, options);
+
+
   std::unique_ptr<json_object> m(new json_object());
   m->add_property("$i", "0");
   m->add_property("$t", "certificate");

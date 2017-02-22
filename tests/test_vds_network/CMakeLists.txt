@@ -12,7 +12,6 @@ FILE(GLOB SOURCE_FILES *.cpp)
 ADD_MSVC_PRECOMPILED_HEADER("stdafx.h" "stdafx.cpp" SOURCE_FILES)
 add_executable(test_vds_network ${SOURCE_FILES} ${HEADER_FILES})
 include_directories(${vds_core_SOURCE_DIR})
-include_directories(${vds_mt_SOURCE_DIR})
 include_directories(${vds_network_SOURCE_DIR})
 target_link_libraries(test_vds_network vds_core vds_network ${GTEST_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ${EVENT_LIBRARY})
 add_test(
