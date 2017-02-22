@@ -16,6 +16,10 @@ All rights reserved
 #include "shutdown_event.h"
 #include "string_format.h"
 #include "types.h"
+#include "foldername.h"
+
+class mock_client;
+class mock_server;
 
 namespace vds {
     class service_provider
@@ -43,11 +47,17 @@ namespace vds {
     private:
       friend class iservice_provider_impl;
       friend class service_registrator_impl;
+      friend class persistence;
+      friend class mock_client;
+      friend class mock_server;
 
       service_provider(class iservice_provider_impl * impl);
       service_provider(const std::shared_ptr<iservice_provider_impl> & impl);
 
       std::shared_ptr<iservice_provider_impl> impl_;
+
+      foldername current_user_folder_;
+      foldername local_machine_folder_;
     };
 
     class service_registrator;

@@ -150,8 +150,29 @@ std::string vds::foldername::name() const
   }
 }
 
+vds::foldername vds::foldername::contains_folder() const
+{
+  auto p = strrchr(this->value_.c_str(), '/');
+  if (nullptr == p) {
+    return foldername();
+  }
+  else {
+    return foldername(this->value_.substr(0, p - this->value_.c_str()));
+  }
+}
+
+bool vds::foldername::exist() const
+{
+  return (0 == access(this->local_name().c_str(), 0));
+}
+
 void vds::foldername::create()
 {
+  auto contains_folder = this->contains_folder();
+  if (contains_folder != *this && !contains_folder.exist()) {
+    contains_folder.create();
+  }
+
 #ifdef _WIN32
   if (0 != _mkdir(this->local_name().c_str())) {
 #else

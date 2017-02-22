@@ -7,8 +7,12 @@ All rights reserved
 #include "persistence.h"
 #include "foldername.h"
 
-vds::foldername vds::persistence::current_user()
+vds::foldername vds::persistence::current_user(const service_provider & sp)
 {
+  if (!sp.current_user_folder_.empty()) {
+    return sp.current_user_folder_;
+  }
+
 #ifndef _WIN32
   struct passwd *pw = getpwuid(getuid());
   return foldername(pw->pw_dir);
@@ -32,8 +36,12 @@ vds::foldername vds::persistence::current_user()
 #endif
 }
 
-vds::foldername vds::persistence::local_machine()
+vds::foldername vds::persistence::local_machine(const service_provider & sp)
 {
+  if (!sp.local_machine_folder_.empty()) {
+    return sp.local_machine_folder_;
+  }
+
 #ifndef _WIN32
   return foldername("/etc/vds/data");
 #else

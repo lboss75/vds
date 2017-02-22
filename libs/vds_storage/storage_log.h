@@ -11,9 +11,11 @@ namespace vds {
   class storage_log
   {
   public:
-    storage_log();
+    storage_log(const service_provider & sp);
 
-    void reset(const std::string & root_password);
+    void reset(
+      const std::string & root_password,
+      const std::string & addresses);
 
     void start();
 
@@ -23,6 +25,7 @@ namespace vds {
     void apply_record(const json_value * value);
 
   private:
+    logger log_;
     foldername commited_folder_;
     bool is_empty_;
 

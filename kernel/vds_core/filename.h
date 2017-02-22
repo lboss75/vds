@@ -42,6 +42,8 @@ namespace vds {
         return this->value_ == other.value_;
       }
       
+      foldername contains_folder() const;
+
       std::string name() const;
       std::string name_without_extension() const;
       std::string extension() const;
@@ -63,6 +65,8 @@ namespace vds {
       }
 
       size_t length() const;
+
+      static filename current_process();
 
   private:
     friend class foldername;

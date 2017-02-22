@@ -146,18 +146,20 @@ void vds::json_writer::start_array()
   switch (this->state_)
   {
   case BOF:
-  case START_OBJECT:
-  case OBJECT_BODY:
+  //case START_OBJECT:
+  //case OBJECT_BODY:
   case PROPERTY:
+    this->state_path_.push(PROPERTY_END);
+    break;
   case START_ARRAY:
   case ARRAY_BODY:
+    this->state_path_.push(this->state_);
     break;
 
   default:
     throw new std::runtime_error("Invalid json_writer state");
   }
 
-  this->state_path_.push(this->state_);
   this->state_ = START_ARRAY;
 
   this->stream_ << '[';

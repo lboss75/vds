@@ -80,8 +80,11 @@ std::string vds::asymmetric_private_key::str(const std::string & password/* = st
 
   auto len = BIO_pending(bio);
   std::string result;
-  result.resize(len + 1);
-  BIO_read(bio, const_cast<char *>(result.data()), len);
+  result.resize(len);
+  if (len != BIO_read(bio, const_cast<char *>(result.data()), len)) {
+    auto error = ERR_get_error();
+    throw new crypto_exception("Failed to BIO_read", error);
+  }
   BIO_free_all(bio);
 
   return result;
@@ -320,8 +323,13 @@ std::string vds::asymmetric_public_key::str() const
 
   auto len = BIO_pending(bio);
   std::string result;
-  result.resize(len + 1);
-  BIO_read(bio, const_cast<char *>(result.data()), len);
+  result.resize(len);
+  if (len != BIO_read(bio, const_cast<char *>(result.data()), len)) {
+    auto error = ERR_get_error();
+    BIO_free_all(bio);
+    throw new crypto_exception("EVP_DigestInit_ex", error);
+  }
+
   BIO_free_all(bio);
 
   return result;
@@ -401,7 +409,7 @@ std::string vds::certificate::str() const
 
   auto len = BIO_pending(bio);
   std::string result;
-  result.resize(len + 1);
+  result.resize(len);
   BIO_read(bio, const_cast<char *>(result.data()), len);
   BIO_free_all(bio);
 

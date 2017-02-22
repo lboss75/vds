@@ -7,13 +7,14 @@ All rights reserved
 */
 
 #include "foldername.h"
+#include "service_provider.h"
 
 namespace vds {
   class persistence
   {
   public:
-    static foldername current_user();
-    static foldername local_machine();
+    static foldername current_user(const service_provider & sp);
+    static foldername local_machine(const service_provider & sp);
   };
 }
 

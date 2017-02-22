@@ -35,11 +35,34 @@ namespace vds {
   public:
     static const char message_type[];
     
-    int message_id_;
-    int previous_message_id_;
     std::string certificate_;
     std::string private_key_;
     
+    std::unique_ptr<json_object> serialize() const;
+    void deserialize(const json_value * source);
+  };
+
+  class server_log_batch
+  {
+  public:
+    static const char message_type[];
+
+    int message_id_;
+    int previous_message_id_;
+    std::unique_ptr<json_array> messages_;
+
+    std::unique_ptr<json_object> serialize();
+    void deserialize(json_value * source);
+  };
+
+  class server_log_new_server
+  {
+  public:
+    static const char message_type[];
+
+    std::string certificate_;
+    std::string addresses_;
+
     std::unique_ptr<json_object> serialize() const;
     void deserialize(const json_value * source);
   };

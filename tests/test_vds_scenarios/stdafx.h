@@ -12,6 +12,7 @@ All rights reserved
 #include "vds_crypto.h"
 #include "vds_upnp.h"
 #include "vds_server.h"
+#include "vds_storage.h"
 
 #include "gtest/gtest.h"
 

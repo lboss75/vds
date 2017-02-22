@@ -37,13 +37,28 @@ namespace vds {
         
         if (record.fingerprint_.empty()
           || record.signature_.empty()
-        ) {
+          || !record.message_
+          || nullptr == dynamic_cast<json_object *>(record.message_.get())
+          ) {
           throw new std::runtime_error("Invalid log record");
         }
 
+        std::string message_type;
+        if (!dynamic_cast<json_object *>(record.message_.get())->get_property("$type", message_type, false)
+          || server_log_batch::message_type != message_type) {
+          throw new std::runtime_error("Invalid log record");
+        }
+
+        json_writer writer;
+        record.message_->str(writer);
+        auto message_body = writer.str();
+
+        server_log_batch batch;
+        batch.deserialize(record.message_.get());
+
         certificate * sign_cert = nullptr;
         if (this->owner_->is_empty()) {
-          sign_cert = this->owner_->parse_root_cert(record.message_.get());
+          sign_cert = this->owner_->parse_root_cert(batch.messages_->get(0));
         }
         else {
           sign_cert = this->owner_->get_cert(record.fingerprint_);
@@ -52,11 +67,6 @@ namespace vds {
         if (record.fingerprint_ != sign_cert->fingerprint()) {
           throw new std::runtime_error("Invalid certificate");
         }
-
-        json_writer writer;
-        record.message_->str(writer);
-
-        auto message_body = writer.str();
 
         hash h(hash::sha256());
         h.update(message_body.c_str(), message_body.length());
@@ -73,7 +83,9 @@ namespace vds {
           throw new std::runtime_error("Invalid log record");
         }
         
-        this->owner_->apply_record(record.message_.get());
+        for (size_t i = this->owner_->is_empty() ? 1 : 0; i < batch.messages_->size(); ++i) {
+          this->owner_->apply_record(batch.messages_->get(i));
+        }
       }
 
     private:

@@ -8,14 +8,16 @@ All rights reserved
 #include "process_log_line.h"
 #include "log_records.h"
 
-vds::storage_log::storage_log()
-  : commited_folder_(foldername(persistence::current_user(), ".vds"), "commited"),
+vds::storage_log::storage_log(const service_provider & sp)
+: log_(sp, "Server log"),
+  commited_folder_(foldername(persistence::current_user(sp), ".vds"), "commited"),
   is_empty_(true)
 {
 }
 
 void vds::storage_log::reset(
-  const std::string & password
+  const std::string & password,
+  const std::string & addresses
 )
 {
   asymmetric_private_key private_key(asymmetric_crypto::rsa4096());
@@ -23,7 +25,7 @@ void vds::storage_log::reset(
 
   asymmetric_public_key pkey(private_key);
 
-  std::cout << "Creating certificate \n";
+  this->log_.info("Creating certificate");
   certificate::create_options options;
   options.country = "RU";
   options.organization = "IVySoft";
@@ -31,12 +33,38 @@ void vds::storage_log::reset(
 
   certificate root_certificate = certificate::create_new(pkey, private_key, options);
 
-
   server_log_root_certificate message;
   message.certificate_ = root_certificate.str();
   message.private_key_ = private_key.str(password);
-  
-  std::unique_ptr<json_value> m(message.serialize());
+
+  asymmetric_private_key server_private_key(asymmetric_crypto::rsa4096());
+  server_private_key.generate();
+
+  asymmetric_public_key server_pkey(server_private_key);
+
+  this->log_.info("Creating server certificate");
+  certificate::create_options server_options;
+  server_options.country = "RU";
+  server_options.organization = "IVySoft";
+  server_options.name = "Root Certificate";
+  server_options.ca_certificate = &root_certificate;
+  server_options.ca_certificate_private_key = &private_key;
+
+  certificate server_certificate = certificate::create_new(server_pkey, server_private_key, server_options);
+
+  server_log_new_server new_server_message;
+  new_server_message.certificate_ = server_certificate.str();
+  new_server_message.addresses_ = addresses;
+
+  server_log_batch batch;
+  batch.message_id_ = 0;
+  batch.previous_message_id_ = 0;
+  batch.messages_.reset(new json_array());
+
+  batch.messages_->add(message.serialize().release());
+  batch.messages_->add(new_server_message.serialize().release());
+   
+  std::unique_ptr<json_value> m(batch.serialize());
 
   json_writer writer;
   m->str(writer);
@@ -66,6 +94,7 @@ void vds::storage_log::reset(
   os.write(record_writer.str());
   os.write("\n");
 }
+
 
 void vds::storage_log::start()
 {

@@ -8,14 +8,33 @@ All rights reserved
 class mock_server
 {
 public:
+  mock_server(int index, int port);
 
+  void start();
+
+private:
+  int index_;
+  int port_;
+
+  vds::service_registrator registrator_;
+  vds::network_service network_service_;
+  vds::console_logger console_logger_;
+
+
+  void start_vds(const std::function<void(const vds::service_provider & sp)> & handler);
 };
 
 class mock_client
 {
 public:
-  static void init_root(int index, const std::string & root_password, int port);
+  mock_client(int index);
 
+  void init_root(const std::string & root_password, int port);
+
+private:
+  int index_;
+
+  void start_vds(const std::function<void(const vds::service_provider & sp)> & handler);
 };
 
 class vds_mock
@@ -28,7 +47,6 @@ private:
 
 
   static std::string generate_password(size_t min_len = 4, size_t max_len = 20);
-
 };
 
 #endif//__TEST_VDS_SCENARIOS_VDS_MOCK_H_

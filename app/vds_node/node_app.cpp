@@ -75,8 +75,8 @@ void vds::node_app::main(
     }
   }
   else if (&this->node_root_cmd_set_ == this->current_command_set_) {
-    storage_log log;
-    log.reset(this->node_password_.value());
+    storage_log log(sp);
+    log.reset(this->node_password_.value(), "127.0.0.1:8050");
   }
 }
 

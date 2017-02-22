@@ -32,7 +32,7 @@ void vds::node_manager::install_prepate(json_array * result, const install_node_
   foldername f(
     foldername(
       foldername(
-        persistence::current_user(),
+        persistence::current_user(this->sp_),
         ".vds"),
       "data"),
     user_folder_name);

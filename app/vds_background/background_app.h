@@ -25,64 +25,10 @@ namespace vds {
 
     network_service network_service_;
     crypto_service crypto_service_;
-    
-    std::unique_ptr<http_router> router_;
-    certificate certificate_;
-    asymmetric_private_key private_key_;
-
     task_manager task_manager_;
     storage_service storage_;
     client client_;
     server server_;
-    
-    barrier cliend_id_assigned_;
-    
-    std::function<void(void)> http_server_done_;
-    std::function<void(std::exception *)> http_server_error_;
-
-    void http_server_closed();
-    void http_server_error(std::exception *);
-
-    class socket_session
-    {
-    public:
-      socket_session(
-        const http_router & router,
-        const certificate & certificate,
-        const asymmetric_private_key & private_key
-      );
-
-      class handler
-      {
-      public:
-        handler(
-          const socket_session & owner,
-          const service_provider & sp,
-          network_socket & s);
-
-        void start();
-
-      private:
-        const service_provider & sp_;
-        network_socket s_;
-        ssl_tunnel tunnel_;
-        const certificate & certificate_;
-        const asymmetric_private_key & private_key_;
-        client client_;
-        server_logic server_logic_;
-        delete_this<handler> done_handler_;
-
-        std::function<void(std::exception *)> error_handler_;
-
-        std::function<void(void)> http_server_done_;
-        std::function<void(std::exception *)> http_server_error_;
-      };
-    private:
-      const http_router & router_;
-      const certificate & certificate_;
-      const asymmetric_private_key & private_key_;
-
-    };
   };
 }
 

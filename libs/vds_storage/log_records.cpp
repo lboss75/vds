@@ -55,14 +55,6 @@ std::unique_ptr<vds::json_object> vds::server_log_new_user_certificate::serializ
 {
   std::unique_ptr<json_object> result(new json_object());
   result->add_property("$type", message_type);
-  if(0 != this->message_id_){
-    result->add_property("i", std::to_string(this->message_id_));
-  }
-  
-  if(0 != this->previous_message_id_){
-    result->add_property("p", std::to_string(this->previous_message_id_));
-  }
-  
   result->add_property("c", this->certificate_);
   result->add_property("k", this->private_key_);
   
@@ -73,12 +65,57 @@ void vds::server_log_new_user_certificate::deserialize(const vds::json_value * s
 {
   auto s = dynamic_cast<const json_object *>(source);
   if(nullptr != s) {
-    s->get_property("i", this->message_id_);
-    s->get_property("p", this->previous_message_id_);
     s->get_property("c", this->certificate_);
     s->get_property("k", this->private_key_);
   }
 }
 
+const char vds::server_log_batch::message_type[] = "batch";
 
+std::unique_ptr<vds::json_object> vds::server_log_batch::serialize()
+{
+  std::unique_ptr<json_object> result(new json_object());
+  result->add_property("$type", message_type);
 
+  if (0 != this->message_id_) {
+    result->add_property("i", std::to_string(this->message_id_));
+  }
+
+  if (0 != this->previous_message_id_) {
+    result->add_property("p", std::to_string(this->previous_message_id_));
+  }
+
+  result->add_property(new json_property("m", this->messages_.release()));
+
+  return result;
+}
+
+void vds::server_log_batch::deserialize(json_value * source)
+{
+  auto s = dynamic_cast<json_object *>(source);
+  if (nullptr != s) {
+    s->get_property("i", this->message_id_);
+    s->get_property("p", this->previous_message_id_);
+    this->messages_.reset(dynamic_cast<json_array *>(s->move_property("m").get()));
+  }
+}
+
+const char vds::server_log_new_server::message_type[] = "new server";
+
+std::unique_ptr<vds::json_object> vds::server_log_new_server::serialize() const
+{
+  std::unique_ptr<json_object> result(new json_object());
+  result->add_property("$type", message_type);
+  result->add_property("c", this->certificate_);
+  result->add_property("a", this->addresses_);
+  return result;
+}
+
+void vds::server_log_new_server::deserialize(const json_value * source)
+{
+  auto s = dynamic_cast<const json_object *>(source);
+  if (nullptr != s) {
+    s->get_property("c", this->certificate_);
+    s->get_property("a", this->addresses_);
+  }
+}

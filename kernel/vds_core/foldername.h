@@ -36,11 +36,16 @@ namespace vds {
         return *this;
       }
       
-      bool operator==(const foldername& other) const
+      bool operator == (const foldername& other) const
       {
         return this->value_ == other.value_;
       }
-      
+
+      bool operator != (const foldername& other) const
+      {
+        return this->value_ != other.value_;
+      }
+
       const std::string & str() const {
         return this->value_;
       }
@@ -69,6 +74,11 @@ namespace vds {
 #endif
       }
 
+      bool empty() const { return this->value_.empty(); }
+
+      bool exist() const;
+
+      foldername contains_folder() const;
 
   private:
     friend class filename;

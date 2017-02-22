@@ -42,6 +42,8 @@ namespace vds {
     node_manager * get_node_manager() const { return this->owner_->node_manager_.get(); }
     user_manager * get_user_manager() const { return this->owner_->user_manager_.get(); }
 
+    void start_http_server();
+
   private:
     server * owner_;
   };
