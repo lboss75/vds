@@ -75,27 +75,33 @@ void vds::node_app::main(
     }
   }
   else if (&this->node_root_cmd_set_ == this->current_command_set_) {
-    std::cout << "Generating private key\n";
-    asymmetric_private_key key(asymmetric_crypto::rsa4096());
-    key.generate();
-
-    asymmetric_public_key pkey(key);
-
-    std::cout << "Creating certificate \n";
-    certificate::create_options options;
-    options.country = "RU";
-    options.organization = "IVySoft";
-    options.name = "Root Certificate";
-
-    certificate root_user = certificate::create_new(pkey, key, options);
-
     storage_log log;
-    log.reset(root_user, key, this->node_password_.value());
-
-    log.start();
-
+    log.reset(this->node_password_.value());
   }
 }
+
+void vds::node_app::node_install(storage_log& log, const certificate& user, const asymmetric_private_key& user_key)
+{
+    std::cout << "Generating node private key\n";
+  asymmetric_private_key key(asymmetric_crypto::rsa4096());
+  key.generate();
+
+  asymmetric_public_key pkey(key);
+
+  std::cout << "Creating node certificate \n";
+  certificate::create_options options;
+  options.country = "RU";
+  options.organization = "IVySoft";
+  options.name = "Node Certificate";
+  options.ca_certificate = &user;
+  options.ca_certificate_private_key = &user_key;
+
+  certificate node_cert = certificate::create_new(pkey, key, options);
+  
+  
+  
+}
+
 
 void vds::node_app::register_command_line(vds::command_line& cmd_line)
 {

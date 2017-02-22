@@ -37,41 +37,32 @@ void vds::node_manager::install_prepate(json_array * result, const install_node_
       "data"),
     user_folder_name);
 
-  auto error_handler = lambda_handler(
-    [](std::exception * ex) {
-    throw ex;
-  });
-
   install_node_prepared answer;
   answer.user_id = message.user_id;
   answer.request_id = message.request_id;
   answer.new_certificate_serial = std::to_string(std::rand());
 
-  auto collect_cert = lambda_handler(
-    [&answer](const std::string & body) {
-    answer.user_certificate = body;
-  });
-
   sequence(
     read_file(filename(f, "user.crt")),
     stream_to_string()
   )(
-    collect_cert,
-    error_handler
-  );
-
-  auto collect_key = lambda_handler(
     [&answer](const std::string & body) {
-    answer.user_private_key = body;
-  });
+      answer.user_certificate = body;
+    },
+    [](std::exception * ex) {
+      throw ex;
+    });
 
   sequence(
     read_file(filename(f, "user.pkey")),
     stream_to_string()
   )(
-    collect_key,
-    error_handler
-  );
+   [&answer](const std::string & body) {
+      answer.user_private_key = body;
+    },
+    [](std::exception * ex) {
+      throw ex;
+    });
 
   result->add(answer.serialize());
 }

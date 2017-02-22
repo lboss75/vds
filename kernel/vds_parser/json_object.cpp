@@ -65,7 +65,7 @@ const vds::json_value * vds::json_object::get_property(const std::string & name)
   return nullptr;
 }
 
-bool vds::json_object::get_property_string(const std::string & name, std::string & value, bool throw_error) const
+bool vds::json_object::get_property(const std::string & name, std::string & value, bool throw_error) const
 {
   auto value_obj = this->get_property(name);
   if (nullptr == value_obj) {
@@ -83,6 +83,28 @@ bool vds::json_object::get_property_string(const std::string & name, std::string
 
   value = pvalue->value();
   return true;
+}
+
+bool vds::json_object::get_property(const std::string& name, int& value, bool throw_error) const
+{
+  std::string v;
+  if(!this->get_property(name, value, throw_error)){
+    return false;
+  }
+  
+  value = std::atoi(v.c_str());
+  return true;
+}
+
+std::unique_ptr<vds::json_value> vds::json_object::move_property(const std::string & name)
+{
+  for (auto & property : this->properties_) {
+    if(property->name() == name){
+      return std::move(property->value_);
+    }
+  }
+  
+  return std::unique_ptr<vds::json_value>();
 }
 
 void vds::json_object::add_property(json_property * prop)

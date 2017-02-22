@@ -458,7 +458,10 @@ std::string vds::certificate::fingerprint(const vds::hash_info & hash_algo) cons
 {
   unsigned char md[EVP_MAX_MD_SIZE];
   unsigned int n;
-  X509_digest(this->cert_, hash_algo.type, md, &n);
+  if(!X509_digest(this->cert_, hash_algo.type, md, &n)){
+    auto error = ERR_get_error();
+    throw new crypto_exception("X509_digest", error);
+  }
   
   return base64::from_bytes(md, n);
 }

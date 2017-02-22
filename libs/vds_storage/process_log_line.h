@@ -6,6 +6,7 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
+#include "log_records.h"
 
 namespace vds {
   template <typename handler_type>
@@ -31,36 +32,29 @@ namespace vds {
       }
 
       void operator()(json_value * log_record) {
-        auto log_obj = dynamic_cast<json_object *>(log_record);
-        if (nullptr == log_obj) {
-          throw new std::runtime_error("Invalid log record");
-        }
-
-        auto message = log_obj->get_property("m");
-        std::string fingerprint;
-        if (!log_obj->get_property_string("f", fingerprint)) {
-          throw new std::runtime_error("Invalid log record");
-        }
-
-        std::string signature;
-        if (!log_obj->get_property_string("s", signature)) {
+        server_log_record record;
+        record.deserialize(log_record);
+        
+        if (record.fingerprint_.empty()
+          || record.signature_.empty()
+        ) {
           throw new std::runtime_error("Invalid log record");
         }
 
         certificate * sign_cert = nullptr;
         if (this->owner_->is_empty()) {
-          sign_cert = this->owner_->parse_root_cert(message);
+          sign_cert = this->owner_->parse_root_cert(record.message_.get());
         }
         else {
-          sign_cert = this->owner_->get_cert(fingerprint);
+          sign_cert = this->owner_->get_cert(record.fingerprint_);
         }
 
-        if (fingerprint != sign_cert->fingerprint()) {
+        if (record.fingerprint_ != sign_cert->fingerprint()) {
           throw new std::runtime_error("Invalid certificate");
         }
 
         json_writer writer;
-        message->str(writer);
+        record.message_->str(writer);
 
         auto message_body = writer.str();
 
@@ -74,10 +68,12 @@ namespace vds {
         verifier.update(h.signature(), h.signature_length());
 
         std::vector<uint8_t> sig_data;
-        base64::to_bytes(signature, sig_data);
+        base64::to_bytes(record.signature_, sig_data);
         if (!verifier.verify((const unsigned char *)sig_data.data(), sig_data.size())) {
           throw new std::runtime_error("Invalid log record");
         }
+        
+        this->owner_->apply_record(record.message_.get());
       }
 
     private:

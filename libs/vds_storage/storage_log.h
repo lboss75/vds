@@ -13,16 +13,14 @@ namespace vds {
   public:
     storage_log();
 
-    void reset(
-      const certificate & root_certificate,
-      const asymmetric_private_key & private_key,
-      const std::string & password);
+    void reset(const std::string & root_password);
 
     void start();
 
     bool is_empty();
     certificate * get_cert(const std::string & fingerprint);
     certificate * parse_root_cert(const json_value * value);
+    void apply_record(const json_value * value);
 
   private:
     foldername commited_folder_;

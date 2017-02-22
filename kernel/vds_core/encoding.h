@@ -12,6 +12,7 @@ namespace vds {
   {
   public:
     static wchar_t next_char(const char *& utf8string, size_t & len);
+    static void add(std::string & result, wchar_t ch);
 
   };
 

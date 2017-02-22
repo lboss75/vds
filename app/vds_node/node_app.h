@@ -45,6 +45,8 @@ namespace vds {
     barrier command_wait_;
    
     void complete_operation_timeout();
+    
+    void node_install(storage_log & log, const certificate & user, const asymmetric_private_key & user_key);
   };
 }
 

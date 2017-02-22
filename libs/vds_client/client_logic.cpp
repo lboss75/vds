@@ -80,7 +80,7 @@ void vds::client_logic::process_response(client_connection<client_logic>* connec
 
       if (nullptr != task) {
         std::string task_type;
-        if (task->get_property_string("$type", task_type, false)) {
+        if (task->get_property("$type", task_type, false)) {
           if (install_node_prepared::message_type == task_type) {
 
             install_node_prepared message;
