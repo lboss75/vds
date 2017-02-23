@@ -65,8 +65,8 @@ void vds::_server_http_api::start(const std::string & address, int port)
   //upnp_client upnp(sp);
   //upnp.open_port(8000, 8000, "TCP", "VDS Service");
 
-  this->certificate_.load(filename(foldername(persistence::current_user(this->sp_), ".vds"), "cacert.crt"));
-  this->private_key_.load(filename(foldername(persistence::current_user(this->sp_), ".vds"), "cakey.pem"));
+  this->certificate_.load(filename(foldername(persistence::current_user(this->sp_), ".vds"), "server.crt"));
+  this->private_key_.load(filename(foldername(persistence::current_user(this->sp_), ".vds"), "server.pkey"));
 
   sequence(
     socket_server(this->sp_, address.c_str(), port),

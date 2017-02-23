@@ -26,7 +26,8 @@ namespace vds {
       next_method_type & next_method,
       error_method_type & error_method,
       const network_socket & s
-    ) : network_service_(sp.get<inetwork_manager>().owner()),
+    ) : sp_(sp),
+    network_service_(sp.get<inetwork_manager>().owner()),
     s_(s.handle()),
     next_method_(next_method), error_method_(error_method)
 #ifdef _DEBUG
@@ -74,11 +75,12 @@ namespace vds {
         this);
       // Schedule client event
       event_add(&this->event_, NULL);
-      this->network_service_->start_libevent_dispatch();
+      this->network_service_->start_libevent_dispatch(this->sp_);
 #endif//_WIN32
     }
 
   private:
+    service_provider sp_;
     network_service * network_service_;
     network_socket::SOCKET_HANDLE s_;
     next_method_type & next_method_;

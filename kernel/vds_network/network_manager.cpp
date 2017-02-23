@@ -67,15 +67,20 @@ void vds::network_service::start(const service_provider & provider)
 }
 
 #ifndef _WIN32
-void vds::network_service::start_libevent_dispatch()
+void vds::network_service::start_libevent_dispatch(const service_provider & sp)
 {
   if(!this->dispatch_started_) {
     this->dispatch_started_ = true;
     
     this->libevent_future_ = std::async(std::launch::async,
-      [] {
-        /* Start the libevent event loop. */
-        event_dispatch();
+      [sp] {
+        timeval ten_sec;
+        memset(&ten_sec, 0, sizeof(ten_sec));
+        ten_sec.tv_sec = 10;
+        while(!sp.get_shutdown_event().is_shuting_down()){
+          event_loopexit(&ten_sec);
+          event_dispatch();
+        }
     });
   }
 }

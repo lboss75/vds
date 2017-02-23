@@ -24,7 +24,8 @@ namespace vds {
       done_method_type & done_method,
       error_method_type & error_method
       )
-    : network_service_(sp.get<inetwork_manager>().owner()),
+    : sp_(sp),
+      network_service_(sp.get<inetwork_manager>().owner()),
       done_method_(done_method), error_method_(error_method),
       data_(nullptr), data_size_(0)
 #ifdef _DEBUG
@@ -59,6 +60,7 @@ namespace vds {
     }
   
   private:
+    service_provider sp_;
     network_service * network_service_;
     done_method_type & done_method_;
     error_method_type & error_method_;
@@ -125,7 +127,7 @@ namespace vds {
       // Schedule client event
       event_add(&this->event_, NULL);
       
-      this->network_service_->start_libevent_dispatch();
+      this->network_service_->start_libevent_dispatch(this->sp_);
     }
     static void callback(int fd, short event, void *arg)
     {

@@ -26,6 +26,7 @@ namespace vds {
 
   private:
     logger log_;
+    foldername vds_folder_;
     foldername commited_folder_;
     bool is_empty_;
 

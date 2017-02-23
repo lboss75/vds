@@ -136,7 +136,7 @@ namespace vds {
       &accept_socket_task::wait_accept,
       this);
     event_add(&this->ev_accept_, NULL);
-    this->network_service_->start_libevent_dispatch();
+    this->network_service_->start_libevent_dispatch(this->sp_);
 #else
       this->wait_accept_task_ = std::async(std::launch::async,
         [this]() {

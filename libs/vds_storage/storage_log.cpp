@@ -10,6 +10,7 @@ All rights reserved
 
 vds::storage_log::storage_log(const service_provider & sp)
 : log_(sp, "Server log"),
+  vds_folder_(persistence::current_user(sp), ".vds"),
   commited_folder_(foldername(persistence::current_user(sp), ".vds"), "commited"),
   is_empty_(true)
 {
@@ -51,6 +52,10 @@ void vds::storage_log::reset(
   server_options.ca_certificate_private_key = &private_key;
 
   certificate server_certificate = certificate::create_new(server_pkey, server_private_key, server_options);
+  
+  server_certificate.save(filename(this->vds_folder_, "server.crt"));
+  server_private_key.save(filename(this->vds_folder_, "server.pkey"));
+
 
   server_log_new_server new_server_message;
   new_server_message.certificate_ = server_certificate.str();
