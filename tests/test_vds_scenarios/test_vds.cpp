@@ -8,7 +8,12 @@ All rights reserved
 
 TEST(test_vds, test_initial)
 {
-  vds_mock mock;
+  try{
+    vds_mock mock;
 
-  mock.start(10, 100);
+    mock.start(10, 100);
+  }
+  catch(std::exception * ex){
+    FAIL() << std::unique_ptr<std::exception>(ex)->what();
+  }
 }

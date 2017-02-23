@@ -19,6 +19,9 @@ private:
   vds::service_registrator registrator_;
   vds::network_service network_service_;
   vds::console_logger console_logger_;
+  vds::server server_;
+  vds::task_manager task_manager_;
+  vds::crypto_service crypto_service_;
 
 
   void start_vds(const std::function<void(const vds::service_provider & sp)> & handler);

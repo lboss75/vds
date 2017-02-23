@@ -106,7 +106,7 @@ void vds::storage_log::start()
   sequence(
     read_file(fn),
     json_parser(fn.name(), parser_options),
-    process_log_line<storage_log>(this)
+    process_log_line<storage_log>(fn.name(), this)
   )(
     []() {},
     [](std::exception * ex) { throw ex; }

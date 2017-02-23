@@ -8,10 +8,16 @@ All rights reserved
 #include "server_http_api.h"
 #include "_server_http_api.h"
 
-
-void vds::server_http_api::start(const service_provider & sp)
+vds::server_http_api::server_http_api(const service_provider& sp)
+: sp_(sp)
 {
-  this->impl_.reset(new _server_http_api(sp));
+}
+
+
+void vds::server_http_api::start(const std::string & address, int port)
+{
+  this->impl_.reset(new _server_http_api(this->sp_));
+  this->impl_->start(address, port);
 }
 
 /////////////////////////////
@@ -38,8 +44,12 @@ static void collect_wwwroot(
   });
 }
 
+vds::_server_http_api::_server_http_api(const service_provider& sp)
+: sp_(sp)
+{
+}
 
-void vds::_server_http_api::start()
+void vds::_server_http_api::start(const std::string & address, int port)
 {
   this->router_.reset(new http_router(this->sp_));
 
@@ -59,7 +69,7 @@ void vds::_server_http_api::start()
   this->private_key_.load(filename(foldername(persistence::current_user(this->sp_), ".vds"), "cakey.pem"));
 
   sequence(
-    socket_server(this->sp_, "127.0.0.1", 8050),
+    socket_server(this->sp_, address.c_str(), port),
     vds::for_each<const service_provider &, network_socket>::create_handler(
       socket_session(*this->router_, this->certificate_, this->private_key_))
   )

@@ -76,7 +76,7 @@ vds::filename vds::filename::current_process()
   return filename(buf);
 #else
   char buf[PATH_MAX];
-  auto bytes = MIN(readlink("/proc/self/exe" /*("/proc/" + std::str(getpid()) + "/exe").c_str()*/, buf, sizeof(buf)), sizeof(buf) - 1);
+  auto bytes = readlink("/proc/self/exe" /*("/proc/" + std::str(getpid()) + "/exe").c_str()*/, buf, sizeof(buf));
   if (bytes >= 0) {
     buf[bytes] = '\0';
   }

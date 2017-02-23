@@ -18,9 +18,6 @@ All rights reserved
 #include "types.h"
 #include "foldername.h"
 
-class mock_client;
-class mock_server;
-
 namespace vds {
     class service_provider
     {
@@ -43,7 +40,7 @@ namespace vds {
       void on_complete(const std::function<void(void)> & done) const;
 
       const shutdown_event & get_shutdown_event() const;
-
+      
     private:
       friend class iservice_provider_impl;
       friend class service_registrator_impl;
@@ -58,6 +55,11 @@ namespace vds {
 
       foldername current_user_folder_;
       foldername local_machine_folder_;
+
+      void set_root_folders(
+        const foldername & current_user_folder,
+        const foldername & local_machine_folder);
+
     };
 
     class service_registrator;
@@ -75,28 +77,34 @@ namespace vds {
     class service_registrator
     {
     public:
-        service_registrator();
+      service_registrator();
 
-        template <typename interface_type, typename implement_type>
-        void add_transient();
+      template <typename interface_type, typename implement_type>
+      void add_transient();
 
-        template <typename interface_type, typename implement_type>
-        void add_scoped();
+      template <typename interface_type, typename implement_type>
+      void add_scoped();
 
-        template <typename interface_type>
-        void add_factory(const std::function<interface_type(bool &)> & factory);
+      template <typename interface_type>
+      void add_factory(const std::function<interface_type(bool &)> & factory);
 
-        template <typename interface_type>
-        void add_collection_factory(const std::function<interface_type()> & factory);
+      template <typename interface_type>
+      void add_collection_factory(const std::function<interface_type()> & factory);
 
-        void add(iservice & service);
+      void add(iservice & service);
 
-        void shutdown();
+      void shutdown();
+      
+      void set_root_folders(
+        const foldername & current_user_folder,
+        const foldername & local_machine_folder);
 
-        service_provider build() const;
+      service_provider build() const;
 
     private:
-        std::shared_ptr<class service_registrator_impl> impl_;
+      std::shared_ptr<class service_registrator_impl> impl_;
+      foldername current_user_folder_;
+      foldername local_machine_folder_;
     };
 
     //////////////////////////////////////////////////////////////////////////////////
@@ -373,7 +381,10 @@ namespace vds {
             return this->shutdown_event_;
         }
 
-        service_provider build();
+        service_provider build(
+          const foldername & current_user_folder,
+          const foldername & local_machine_folder
+        );
 
     protected:
         iservice_factory * get_factory(size_t type) override

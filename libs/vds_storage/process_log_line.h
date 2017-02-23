@@ -13,8 +13,11 @@ namespace vds {
   class process_log_line
   {
   public:
-    process_log_line(handler_type * owner)
-      : owner_(owner)
+    process_log_line(
+      const std::string & stream_name,
+      handler_type * owner)
+      : stream_name_(stream_name),
+      owner_(owner)
     {
     }
 
@@ -27,6 +30,7 @@ namespace vds {
         const context_type & context,
         const process_log_line & args
       ) : base_class(context),
+        stream_name_(args.stream_name_),
         owner_(args.owner_)
       {
       }
@@ -40,13 +44,17 @@ namespace vds {
           || !record.message_
           || nullptr == dynamic_cast<json_object *>(record.message_.get())
           ) {
-          throw new std::runtime_error("Invalid log record");
+          throw new std::runtime_error("Invalid log record in the stream "
+            + this->stream_name_
+            + "(" + std::to_string(log_record->line()) + "," + std::to_string(log_record->column()) + ")");
         }
 
         std::string message_type;
         if (!dynamic_cast<json_object *>(record.message_.get())->get_property("$type", message_type, false)
           || server_log_batch::message_type != message_type) {
-          throw new std::runtime_error("Invalid log record");
+          throw new std::runtime_error("Invalid log record type " + message_type + " in the stream "
+            + this->stream_name_
+            + "(" + std::to_string(log_record->line()) + "," + std::to_string(log_record->column()) + ")");
         }
 
         json_writer writer;
@@ -65,7 +73,9 @@ namespace vds {
         }
 
         if (record.fingerprint_ != sign_cert->fingerprint()) {
-          throw new std::runtime_error("Invalid certificate");
+          throw new std::runtime_error("Invalid certificate in the stream "
+            + this->stream_name_
+            + "(" + std::to_string(log_record->line()) + "," + std::to_string(log_record->column()) + ")");
         }
 
         hash h(hash::sha256());
@@ -80,7 +90,9 @@ namespace vds {
         std::vector<uint8_t> sig_data;
         base64::to_bytes(record.signature_, sig_data);
         if (!verifier.verify((const unsigned char *)sig_data.data(), sig_data.size())) {
-          throw new std::runtime_error("Invalid log record");
+          throw new std::runtime_error("Invalid sign record in the stream "
+            + this->stream_name_
+            + "(" + std::to_string(log_record->line()) + "," + std::to_string(log_record->column()) + ")");
         }
         
         for (size_t i = this->owner_->is_empty() ? 1 : 0; i < batch.messages_->size(); ++i) {
@@ -89,10 +101,12 @@ namespace vds {
       }
 
     private:
+      std::string stream_name_;
       handler_type * owner_;
     };
 
   private:
+    std::string stream_name_;
     handler_type * owner_;
   };
 }

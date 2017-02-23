@@ -106,7 +106,11 @@ void vds::json_writer::start_object()
   //case START_OBJECT:
   //case OBJECT_BODY:
   case START_ARRAY:
+    this->state_path_.push(ARRAY_BODY);
+    break;
+    
   case ARRAY_BODY:
+    this->stream_ << ',';
     this->state_path_.push(ARRAY_BODY);
     break;
       

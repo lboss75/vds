@@ -88,7 +88,7 @@ bool vds::json_object::get_property(const std::string & name, std::string & valu
 bool vds::json_object::get_property(const std::string& name, int& value, bool throw_error) const
 {
   std::string v;
-  if(!this->get_property(name, value, throw_error)){
+  if(!this->get_property(name, v, throw_error)){
     return false;
   }
   

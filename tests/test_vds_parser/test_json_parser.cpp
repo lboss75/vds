@@ -99,21 +99,14 @@ public:
 };
 
 TEST(test_json_parser, test_parser) {
-  auto done_handler = vds::lambda_handler(
-    []() {
-  });
-  auto error_handler = vds::lambda_handler(
-    [](std::exception * ex) {
-    FAIL() << ex->what();
-  });
   vds::sequence(
     vds::json_parser("test"),
     test_json_parser_validate()
   )
   (
-    done_handler,
-    error_handler,
-    test_data,
-    sizeof(test_data) - 1
-    );
+    []() {},
+    [](std::exception * ex) { FAIL() << ex->what(); },
+   test_data,
+   sizeof(test_data) - 1
+  );
 }

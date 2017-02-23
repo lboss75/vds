@@ -69,9 +69,17 @@ vds::service_registrator::service_registrator()
 #endif//_WIN32
 }
 
+void vds::service_registrator::set_root_folders(
+  const vds::foldername& current_user_folder,
+  const vds::foldername& local_machine_folder)
+{
+  this->current_user_folder_ = current_user_folder;
+  this->local_machine_folder_ = local_machine_folder;
+}
+
 vds::service_provider vds::service_registrator::build() const
 {
-    return this->impl_->build();
+    return this->impl_->build(this->current_user_folder_, this->local_machine_folder_);
 }
 
 void vds::service_registrator::add(iservice & service)
@@ -94,6 +102,15 @@ vds::service_provider::service_provider(const std::shared_ptr<iservice_provider_
     : impl_(impl)
 {
 }
+
+void vds::service_provider::set_root_folders(
+  const vds::foldername& current_user_folder,
+  const vds::foldername& local_machine_folder)
+{
+  this->current_user_folder_ = current_user_folder;
+  this->local_machine_folder_ = local_machine_folder;
+}
+
 
 vds::service_provider vds::service_provider::create_scope() const
 {
@@ -136,9 +153,13 @@ void vds::service_registrator_impl::shutdown()
     }
 }
 
-vds::service_provider vds::service_registrator_impl::build()
+vds::service_provider vds::service_registrator_impl::build(
+  const foldername & current_user_folder,
+  const foldername & local_machine_folder
+)
 {
     service_provider result = this->create_scope();
+    result.set_root_folders(current_user_folder, local_machine_folder);
 
     for (auto service : this->services_) {
         service->start(result);

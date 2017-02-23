@@ -13,7 +13,7 @@ namespace vds {
   public:
     _server_http_api(const service_provider & sp);
 
-    void start();
+    void start(const std::string & address, int port);
 
   private:
     service_provider sp_;

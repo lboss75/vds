@@ -96,7 +96,14 @@ void vds::server_log_batch::deserialize(json_value * source)
   if (nullptr != s) {
     s->get_property("i", this->message_id_);
     s->get_property("p", this->previous_message_id_);
-    this->messages_.reset(dynamic_cast<json_array *>(s->move_property("m").get()));
+    
+    auto m = s->move_property("m");
+    if(m){
+      auto ma = dynamic_cast<json_array *>(m.get());
+      this->messages_.reset(ma);
+      m.release();
+    }
+    
   }
 }
 

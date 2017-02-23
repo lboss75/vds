@@ -53,16 +53,16 @@ void mock_client::start_vds(const std::function<void(const vds::service_provider
 
   vds::network_service network_service;
   vds::console_logger console_logger(vds::ll_trace);
+  vds::crypto_service crypto_service;
+  
+  auto folder = vds::foldername(vds::filename::current_process().contains_folder(), std::to_string(this->index_));
+  registrator.set_root_folders(folder, folder);
 
   registrator.add(console_logger);
   registrator.add(network_service);
+  registrator.add(crypto_service);
 
   auto sp = registrator.build();
-
-  auto folder = vds::foldername(vds::filename::current_process().contains_folder(), std::to_string(this->index_));
-
-  sp.current_user_folder_ = folder;
-  sp.local_machine_folder_ = folder;
 
   handler(sp);
 
@@ -78,23 +78,26 @@ mock_server::mock_server(int index, int port)
 
 void mock_server::start()
 {
-  this->start_vds([](const vds::service_provider & sp) {
-
+  this->start_vds([this](const vds::service_provider & sp) {
+    
+    sp.get<vds::iserver>().start_http_server("127.0.0.1", 8050 + this->index_);
 
   });
 }
 
 void mock_server::start_vds(const std::function<void(const vds::service_provider&sp)>& handler)
 {
+  auto folder = vds::foldername(vds::filename::current_process().contains_folder(), std::to_string(this->index_));
+  this->registrator_.set_root_folders(folder, folder);
+  
   this->registrator_.add(this->console_logger_);
   this->registrator_.add(this->network_service_);
+  this->registrator_.add(this->task_manager_);
+  this->registrator_.add(this->crypto_service_);
+  this->registrator_.add(this->server_);
 
   auto sp = this->registrator_.build();
 
-  auto folder = vds::foldername(vds::filename::current_process().contains_folder(), std::to_string(this->index_));
-
-  sp.current_user_folder_ = folder;
-  sp.local_machine_folder_ = folder;
 
   handler(sp);
 
