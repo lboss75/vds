@@ -33,10 +33,22 @@ namespace vds {
     void new_client() override;
 
   private:
+    friend class iclient;
     certificate client_certificate_;
     asymmetric_private_key client_private_key_;
     std::unique_ptr<client_logic> logic_;
     std::unique_ptr<vsr_protocol::client> vsr_client_protocol_;
+  };
+  
+  class iclient
+  {
+  public:
+    iclient(client * owner);
+    
+    void init_server(const std::string & root_password, const std::server & address, int port);
+    
+  private:
+    client * owner_;
   };
 }
 

@@ -23,9 +23,6 @@ private:
   vds::server server_;
   vds::task_manager task_manager_;
   vds::crypto_service crypto_service_;
-
-
-  void start_vds(const std::function<void(const vds::service_provider & sp)> & handler);
 };
 
 class mock_client
@@ -34,11 +31,12 @@ public:
   mock_client(int index);
 
   void init_root(const std::string & root_password, int port);
+  void init_server(const std::string & root_password, const std::server & address, int port);
 
 private:
   int index_;
 
-  void start_vds(const std::function<void(const vds::service_provider & sp)> & handler);
+  void start_vds(bool full_client, const std::function<void(const vds::service_provider & sp)> & handler);
 };
 
 class vds_mock

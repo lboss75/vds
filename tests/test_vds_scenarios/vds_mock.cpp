@@ -15,6 +15,10 @@ void vds_mock::start(int client_count, int server_count)
 
   mock_server server(0, first_port);
   server.start();
+  
+  mock_client client1(1);
+  client1.init_server(root_password, "127.0.0.1", first_port + 1);
+  
 }
 
 std::string vds_mock::generate_password(size_t min_len, size_t max_len)
@@ -39,7 +43,7 @@ mock_client::mock_client(int index)
 
 void mock_client::init_root(const std::string & root_password, int port)
 {
-  this->start_vds([root_password, port](const vds::service_provider&sp) {
+  this->start_vds(false, [root_password, port](const vds::service_provider&sp) {
 
     vds::storage_log log(sp);
     log.reset(root_password, "127.0.0.1:" + std::to_string(port));
@@ -47,13 +51,25 @@ void mock_client::init_root(const std::string & root_password, int port)
   });
 }
 
-void mock_client::start_vds(const std::function<void(const vds::service_provider&sp)> & handler)
+void mock_client::init_server(
+  const std::string& root_password,
+  const std::server& address,
+  int port)
+{
+  this->start_vds(true, [root_password, address, port](const vds::service_provider&sp) {
+    sp.get<vds::iclient>().init_server(root_password, address, port);
+  });
+}
+
+
+void mock_client::start_vds(bool full_client, const std::function<void(const vds::service_provider&sp)> & handler)
 {
   vds::service_registrator registrator;
 
   vds::network_service network_service;
   vds::console_logger console_logger(vds::ll_trace);
   vds::crypto_service crypto_service;
+  vds::client client;
   
   auto folder = vds::foldername(vds::filename::current_process().contains_folder(), std::to_string(this->index_));
   registrator.set_root_folders(folder, folder);
@@ -61,6 +77,10 @@ void mock_client::start_vds(const std::function<void(const vds::service_provider
   registrator.add(console_logger);
   registrator.add(network_service);
   registrator.add(crypto_service);
+  
+  if(full_client){
+    registrator.add(client);
+  }
 
   auto sp = registrator.build();
 
