@@ -18,7 +18,8 @@ vds::inetwork_manager::inetwork_manager(network_service * owner)
 
 vds::network_service::network_service()
 #ifndef _WIN32
-: dispatch_started_(false)
+: dispatch_started_(false), base_(nullptr)
+
 #endif
 {
 }
@@ -62,7 +63,7 @@ void vds::network_service::start(const service_provider & provider)
     /* Initialize libevent. */
     event_init();
     
-    //this->start_libevent_dispatch();
+    this->base_ = event_base_new();
 #endif
 }
 
@@ -73,13 +74,13 @@ void vds::network_service::start_libevent_dispatch(const service_provider & sp)
     this->dispatch_started_ = true;
     
     this->libevent_future_ = std::async(std::launch::async,
-      [sp] {
+      [this, sp] {
         timeval ten_sec;
         memset(&ten_sec, 0, sizeof(ten_sec));
         ten_sec.tv_sec = 10;
         while(!sp.get_shutdown_event().is_shuting_down()){
-          event_loopexit(&ten_sec);
-          event_dispatch();
+          event_base_loopexit(this->base_, &ten_sec);
+          event_base_dispatch(this->base_);
         }
     });
   }
@@ -95,7 +96,7 @@ void vds::network_service::stop(const service_provider & sp)
         
 #ifndef _WIN32
         do{
-          event_loopbreak();
+          event_base_loopbreak(this->base_);
         }
         while(std::future_status::ready != this->libevent_future_.wait_for(std::chrono::seconds(5)));
 #else

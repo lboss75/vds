@@ -118,14 +118,16 @@ namespace vds {
 #else//!_WIN32
     void schedule()
     {
-      event_set(
-        &this->event_,
-        this->s_,
-        EV_WRITE,
-        &write_socket_task::callback,
-        this);
+      if(nullptr == this->event_) {
+        this->event_ = event_new(
+          this->network_service_->base_,
+          this->s_,
+          EV_WRITE,
+          &write_socket_task::callback,
+          this);
+      }
       // Schedule client event
-      event_add(&this->event_, NULL);
+      event_add(this->event_, NULL);
       
       this->network_service_->start_libevent_dispatch(this->sp_);
     }
@@ -145,8 +147,8 @@ namespace vds {
       pthis->data_ += len;
       pthis->data_size_ -= len;
       if (0 < pthis->data_size_) {
-        event_set(&pthis->event_, pthis->s_, EV_WRITE, &write_socket_task::callback, pthis);
-        event_add(&pthis->event_, NULL);
+        //event_set(&pthis->event_, pthis->s_, EV_WRITE, &write_socket_task::callback, pthis);
+        event_add(pthis->event_, NULL);
       }
       else {
         std::async(

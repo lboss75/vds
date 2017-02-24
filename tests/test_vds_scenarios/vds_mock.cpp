@@ -78,15 +78,6 @@ mock_server::mock_server(int index, int port)
 
 void mock_server::start()
 {
-  this->start_vds([this](const vds::service_provider & sp) {
-    
-    sp.get<vds::iserver>().start_http_server("127.0.0.1", 8050 + this->index_);
-
-  });
-}
-
-void mock_server::start_vds(const std::function<void(const vds::service_provider&sp)>& handler)
-{
   auto folder = vds::foldername(vds::filename::current_process().contains_folder(), std::to_string(this->index_));
   this->registrator_.set_root_folders(folder, folder);
   
@@ -97,9 +88,11 @@ void mock_server::start_vds(const std::function<void(const vds::service_provider
   this->registrator_.add(this->server_);
 
   auto sp = this->registrator_.build();
+  
+  sp.get<vds::iserver>().start_http_server("127.0.0.1", 8050 + this->index_);
+}
 
-
-  handler(sp);
-
+void mock_server::stop()
+{
   this->registrator_.shutdown();
 }

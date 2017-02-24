@@ -67,7 +67,9 @@ namespace vds {
         bool dispatch_started_;
     public:
       std::future<void> libevent_future_;
+      event_base * base_;
       void start_libevent_dispatch(const service_provider & sp);
+    private:
 #endif//_WIN32
     };
 }

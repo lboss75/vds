@@ -11,6 +11,7 @@ public:
   mock_server(int index, int port);
 
   void start();
+  voif stop();
 
 private:
   int index_;

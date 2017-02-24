@@ -67,14 +67,16 @@ namespace vds {
         }
       }
 #else//!_WIN32
-      event_set(
-        &this->event_,
-        this->s_,
-        EV_READ,
-        &read_socket_task::callback,
-        this);
+      if(nullptr == this->event_) {
+        this->event_ = event_new(
+          this->network_service_->base_,
+          this->s_,
+          EV_READ,
+          &read_socket_task::callback,
+          this);
+      }
       // Schedule client event
-      event_add(&this->event_, NULL);
+      event_add(this->event_, NULL);
       this->network_service_->start_libevent_dispatch(this->sp_);
 #endif//_WIN32
     }

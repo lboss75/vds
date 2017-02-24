@@ -14,9 +14,9 @@ namespace vds {
   {
   public:
     socket_task();
-#ifdef _WIN32
     virtual ~socket_task();
-
+    
+#ifdef _WIN32
     virtual void process(DWORD dwBytesTransfered) = 0;
 
     static socket_task * from_overlapped(OVERLAPPED * pOverlapped) {
@@ -32,7 +32,7 @@ namespace vds {
     OVERLAPPED overlapped_;
     WSABUF wsa_buf_;
 #else//!_WIN32
-    struct event event_;
+    struct event * event_;
 #endif//_WIN32
   };
 }

@@ -26,6 +26,9 @@ namespace vds {
       sp_(sp),
       network_service_(sp.get<inetwork_manager>().owner_),
       done_method_(done), error_method_(on_error)
+#ifndef _WIN32
+      , ev_accept_(nullptr)
+#endif
     {
 #ifdef _WIN32
       this->s_ = WSASocket(AF_INET, SOCK_STREAM, 0, NULL, 0, WSA_FLAG_OVERLAPPED);
@@ -126,17 +129,26 @@ namespace vds {
 
     }
     
+    ~accept_socket_task()
+    {
+#ifndef _WIN32
+      event_free(this->ev_accept_);
+#endif
+    }
+    
     void schedule()
     {
 #ifndef _WIN32
-    event_set(
-      &this->ev_accept_,
-      this->s_,
-      EV_READ,
-      &accept_socket_task::wait_accept,
-      this);
-    event_add(&this->ev_accept_, NULL);
-    this->network_service_->start_libevent_dispatch(this->sp_);
+      if(nullptr == this->ev_accept_){
+        this->ev_accept_ = event_new(
+          this->network_service_->base_,
+          this->s_,
+          EV_READ,
+          &accept_socket_task::wait_accept,
+          this);
+      }
+      event_add(this->ev_accept_, NULL);
+      this->network_service_->start_libevent_dispatch(this->sp_);
 #else
       this->wait_accept_task_ = std::async(std::launch::async,
         [this]() {
@@ -178,7 +190,7 @@ namespace vds {
     error_method_type & error_method_;
     
 #ifndef _WIN32
-    event ev_accept_;
+    event * ev_accept_;
     static void wait_accept(int fd, short event, void *arg)
     {
         auto data = reinterpret_cast<accept_socket_task *>(arg);
