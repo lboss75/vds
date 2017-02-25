@@ -21,7 +21,6 @@ namespace vds {
     _https_pipeline(
       const service_provider & sp,
       https_pipeline * owner,
-      ihttps_pipeline_client* client,
       const std::string & address,
       int port,
       certificate * client_certificate,
@@ -31,22 +30,24 @@ namespace vds {
       
     void connect();
     
-    void push(json_value * request);
+    const std::string & address() const {
+      return this->address_;
+    }
+
+    int port() const {
+      return this->port_;
+    }
+
 
   private:
     service_provider sp_;
     https_pipeline * owner_;
     logger log_;
-    ihttps_pipeline_client * const client_;
     std::string address_;
     int port_;
     certificate * client_certificate_;
     asymmetric_private_key * client_private_key_;
     
-    std::mutex request_mutex_;
-    std::string request_data_;
-    std::function<void (const std::string & request)> request_callback_;
-
     void get_commands(const std::function<void (const std::string & request)> & callback);
 
     class connection
@@ -76,7 +77,7 @@ namespace vds {
 
         void operator()(network_socket & s)
         {
-          this->owner_->client_->on_connected(*this->owner_->owner_);
+          this->owner_->owner_->on_connected();
           
           vds::sequence(
             input_network_stream(this->sp_, s),
@@ -197,7 +198,7 @@ namespace vds {
             this->next();
           }
           else {
-            this->owner_->client_->on_response(*this->owner_->owner_, response);
+            this->owner_->owner_->on_response(response);
           }
 
           //auto cert = this->tunnel_.get_tunnel_certificate();

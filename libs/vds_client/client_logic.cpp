@@ -37,8 +37,8 @@ void vds::client_logic::start()
         this,
         endpoints.current().address(),
         endpoints.current().port(),
-        this->client_certificate_,
-        this->client_private_key_));
+        &this->client_certificate_,
+        &this->client_private_key_));
   }
 
   this->update_connection_pool_task_.schedule(

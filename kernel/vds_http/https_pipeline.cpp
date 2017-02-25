@@ -9,7 +9,6 @@ All rights reserved
 
 vds::https_pipeline::https_pipeline(
   const vds::service_provider & sp,
-  vds::ihttps_pipeline_client* client,
   const std::string & address,
   int port,
   certificate * client_certificate,
@@ -17,7 +16,6 @@ vds::https_pipeline::https_pipeline(
 : impl_(new _https_pipeline(
   sp,
   this,
-  client,
   address,
   port,
   client_certificate,
@@ -26,6 +24,14 @@ vds::https_pipeline::https_pipeline(
 }
 
 vds::https_pipeline::~https_pipeline()
+{
+}
+
+void vds::https_pipeline::on_connected()
+{
+}
+
+void vds::https_pipeline::on_error(std::exception* error)
 {
 }
 
@@ -39,11 +45,19 @@ void vds::https_pipeline::push(json_value* request)
   this->impl_->push(request);
 }
 
+const std::string & vds::https_pipeline::address() const
+{
+  return this->impl_->address();
+}
+
+int vds::https_pipeline::port() const
+{
+  return this->impl_->port();
+}
 //////////////////////////////////////////////////////////////////////////
 vds::_https_pipeline::_https_pipeline(
   const service_provider & sp,
   https_pipeline * owner,
-  ihttps_pipeline_client* client,
   const std::string & address,
   int port,
   certificate * client_certificate,
@@ -51,7 +65,6 @@ vds::_https_pipeline::_https_pipeline(
 : sp_(sp),
 owner_(owner),
 log_(sp, "HTTPS pipeline"),
-client_(client),
 address_(address),
 port_(port),
 client_certificate_(client_certificate),
@@ -67,8 +80,8 @@ void vds::_https_pipeline::connect()
     connection(sp, this)
   )
   (
-   [this](){ this->client_->on_connected(*this->owner_); },
-   [this](std::exception * ex) { this->client_->on_error(*this->owner_, ex); },
+   [this](){ this->owner_->on_connected(); },
+   [this](std::exception * ex) { this->owner_->on_error(ex); },
    this->address_,
    this->port_
   );

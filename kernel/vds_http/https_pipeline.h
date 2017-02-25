@@ -6,21 +6,11 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 namespace vds {
-  class https_pipeline;
-  class ihttps_pipeline_client
-  {
-  public:
-    virtual void on_connected(https_pipeline & pipeline) = 0;
-    virtual void on_response(https_pipeline & pipeline, json_value * response) = 0;
-    virtual void on_error(https_pipeline & pipeline, std::exception * error) = 0;
-  };
-  
   class https_pipeline
   {
   public:
     https_pipeline(
       const service_provider & sp,
-      ihttps_pipeline_client * client,
       const std::string & address,
       int port,
       certificate * client_certificate,
@@ -28,9 +18,20 @@ namespace vds {
     ~https_pipeline();
     
     void connect();
+   
+    const std::string & address() const;
+    int port() const;
     
-    void push(json_value * request);
-
+  protected:
+    friend class _https_pipeline;
+    
+    virtual void on_connected();
+    virtual void on_connection_closed();
+    virtual void on_error(std::exception * error);
+    
+    virtual void on_response(json_value * response) = 0;
+    virtual void get_commands(const std::function<void (const std::string & request)> & callback) = 0;
+    
   private:
     const std::unique_ptr<class _https_pipeline> impl_;
   };

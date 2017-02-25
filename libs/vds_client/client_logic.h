@@ -30,7 +30,9 @@ namespace vds {
 
     void node_install(const std::string & login, const std::string & password);
 
-    std::string get_messages();
+    void get_commands(
+      client_connection<client_logic *> & connection,
+      const std::function<void (const std::string & request)> & callback);
 
   private:
     service_provider sp_;
@@ -47,8 +49,7 @@ namespace vds {
     std::function<void(void)> update_connection_pool_;
     task_job update_connection_pool_task_;
 
-    std::mutex outgoing_queue_mutex_;
-    std::list<std::string> outgoing_queue_;
+    pipeline_queue<std::string, client_connection<client_logic>> outgoing_queue_;
     
     vsr_protocol::iclient vsr_client_;
 
