@@ -43,11 +43,12 @@ namespace vds {
   class iclient
   {
   public:
-    iclient(client * owner);
+    iclient(const service_provider & sp, client * owner);
     
-    void init_server(const std::string & root_password, const std::server & address, int port);
+    void init_server(const std::string & root_password, const std::string & address, int port);
     
   private:
+    service_provider sp_;
     client * owner_;
   };
 }

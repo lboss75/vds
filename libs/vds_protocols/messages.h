@@ -11,16 +11,6 @@ namespace vds {
   class messages
   {
   public:
-    class ask_certificate_and_key
-    {
-    public:
-      ask_certificate_and_key(
-        const std::string & object_name
-      );
-
-    private:
-      std::string object_name_;
-    };
     
     
   };

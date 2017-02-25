@@ -9,7 +9,7 @@ All rights reserved
 void vds::task_manager::register_services(service_registrator & registrator)
 {
   registrator.add_factory<itask_manager>(
-    [this](bool &)
+    [this](const service_provider &, bool &)
     {
       return itask_manager(this);
   });

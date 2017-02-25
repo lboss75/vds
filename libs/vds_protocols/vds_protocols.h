@@ -14,5 +14,6 @@ All rights reserved
 #include "vsr_messages.h"
 #include "vsr_protocol.h"
 #include "install_node_messages.h"
+#include "client_messages.h"
 
 #endif // __VDS_PROTOCOLS_VDS_PROTOCOLS_H_

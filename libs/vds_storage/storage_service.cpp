@@ -9,7 +9,7 @@ All rights reserved
 void vds::storage_service::register_services(service_registrator & registrator)
 {
   registrator.add_factory<istorage>(
-    [this](bool & ) {
+    [this](const service_provider &, bool & ) {
       return istorage(this);
   });
 }

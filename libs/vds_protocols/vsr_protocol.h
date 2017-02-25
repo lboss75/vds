@@ -30,6 +30,8 @@ namespace vds {
       
       void new_client() { this->owner_->new_client(); }
       
+      void add_task(std::unique_ptr<json_object> && message);
+      
     public:
       server_queue * owner_;
     };

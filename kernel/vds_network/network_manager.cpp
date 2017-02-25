@@ -31,8 +31,7 @@ vds::network_service::~network_service()
 
 void vds::network_service::register_services(service_registrator & registator)
 {
-    registator.add_factory<inetwork_manager>([this] (bool & is_scopped) {
-        is_scopped = true;
+    registator.add_factory<inetwork_manager>([this] (const service_provider &, bool & is_scopped) {
         return inetwork_manager(this);
     });
 }

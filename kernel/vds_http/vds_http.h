@@ -9,6 +9,7 @@ All rights reserved
 #include "vds_core.h"
 #include "vds_network.h"
 #include "vds_parser.h"
+#include "vds_crypto.h"
 
 #include "http_request.h"
 #include "http_router.h"
@@ -23,5 +24,6 @@ All rights reserved
 #include "http_stream_reader.h"
 #include "http_json_api.h"
 #include "http_json_formatter.h"
+#include "https_pipeline.h"
 
 #endif // __VDS_HTTP_VDS_HTTP_H_

@@ -17,16 +17,16 @@ vds::client::~client()
 
 void vds::client::register_services(service_registrator & registrator)
 {
-  registrator.add_factory<vsr_protocol::iserver_queue>([this](bool &)->vsr_protocol::iserver_queue{
+  registrator.add_factory<vsr_protocol::iserver_queue>([this](const service_provider &, bool &)->vsr_protocol::iserver_queue{
     return vsr_protocol::iserver_queue(this);
   });
   
-  registrator.add_factory<vsr_protocol::iclient>([this](bool &)->vsr_protocol::iclient{
+  registrator.add_factory<vsr_protocol::iclient>([this](const service_provider &, bool &)->vsr_protocol::iclient{
     return vsr_protocol::iclient(this->vsr_client_protocol_.get());
   });
   
-  registrator.add_factory<iclient>([this](bool &)->iclient{
-    return iclient(this);
+  registrator.add_factory<iclient>([this](const service_provider & sp, bool & is_scoped)->iclient{
+    return iclient(sp, this);
   });
 }
 
@@ -66,12 +66,19 @@ void vds::client::new_client()
 
 }
 
-vds::iclient::iclient(vds::client* owner)
-: owner_(owner)
+vds::iclient::iclient(const service_provider & sp, vds::client* owner)
+: sp_(sp), owner_(owner)
 {
 }
 
-void vds::iclient::init_server(const std::string& root_password, const std::server& address, int port)
+void vds::iclient::init_server(
+  const std::string& root_password,
+  const std::string& address,
+  int port)
 {
+  auto request_id = guid::new_guid_string();
+  client_messages::ask_certificate_and_key m(request_id, "login:root");
+  
+  this->sp_.get<vsr_protocol::iserver_queue>().add_task(m.serialize());  
 }
 

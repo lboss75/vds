@@ -44,7 +44,7 @@ vds::console_logger::console_logger(log_level level)
 
 void vds::console_logger::register_services(service_registrator & registrator)
 {
-    registrator.add_collection_factory<log_writer>([this]()->log_writer {
+    registrator.add_collection_factory<log_writer>([this](const service_provider &)->log_writer {
       return log_writer(this->level_, [](const log_record & record) {
         switch (record.level)
         {

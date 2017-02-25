@@ -79,17 +79,11 @@ namespace vds {
     public:
       service_registrator();
 
-      template <typename interface_type, typename implement_type>
-      void add_transient();
-
-      template <typename interface_type, typename implement_type>
-      void add_scoped();
+      template <typename interface_type>
+      void add_factory(const std::function<interface_type(const service_provider &, bool &)> & factory);
 
       template <typename interface_type>
-      void add_factory(const std::function<interface_type(bool &)> & factory);
-
-      template <typename interface_type>
-      void add_collection_factory(const std::function<interface_type()> & factory);
+      void add_collection_factory(const std::function<interface_type(const service_provider &)> & factory);
 
       void add(iservice & service);
 
@@ -115,13 +109,13 @@ namespace vds {
         ~iservice_provider_impl();
 
         template <typename interface_type>
-        interface_type get();
+        interface_type get(const service_provider & sp);
 
         template <typename interface_type>
-        bool enum_collection(const std::function<bool(interface_type)> & visiter, bool throwIfEmpty = true);
+        bool enum_collection(const service_provider &, const std::function<bool(interface_type)> & visiter, bool throwIfEmpty = true);
 
         template <typename interface_type>
-        std::list<interface_type> get_collection(bool throwIfEmpty = true);
+        std::list<interface_type> get_collection(const service_provider &, bool throwIfEmpty = true);
 
         service_provider create_scope();
 
@@ -139,26 +133,28 @@ namespace vds {
         template <typename interface_type>
         class service_factory : public iservice_factory {
         public:
-            service_factory(const std::function<interface_type(bool & ) > & factory)
+            service_factory(const std::function<interface_type(const service_provider &, bool & ) > & factory)
                 : factory_(factory) {
             }
 
-            interface_type get(bool & is_scoped) {
-                return this->factory_(is_scoped);
+            interface_type get(const service_provider & sp, bool & is_scoped) {
+                return this->factory_(sp, is_scoped);
             }
 
         private:
-            std::function<interface_type(bool & ) > factory_;
+            std::function<interface_type(const service_provider &, bool & ) > factory_;
         };
 
         template <typename interface_type>
         class service_collection_factory : public iservice_factory {
         public:
-            void add(const std::function<interface_type() > & factory);
-            bool enum_collection(const std::function<bool(interface_type)> & visiter);
+            void add(const std::function<interface_type(const service_provider &) > & factory);
+            bool enum_collection(
+              const service_provider & sp,
+              const std::function<bool(interface_type)> & visiter);
 
         private:
-            std::list<std::function<interface_type()>> factories_;
+            std::list<std::function<interface_type(const service_provider &)>> factories_;
         };
 
         virtual iservice_factory * get_factory(size_t type) = 0;
@@ -339,27 +335,13 @@ namespace vds {
         service_registrator_impl();
         ~service_registrator_impl();
 
-        template <typename interface_type, typename implement_type>
-        void add_transient() {
-            this->add_factory<interface_type>([] (bool & is_scoped) {
-                is_scoped = false;
-                return std::shared_ptr<interface_type>(new implement_type()); });
-        }
-
-        template <typename interface_type, typename implement_type>
-        void add_scoped() {
-            this->add_factory<interface_type>([](bool & is_scoped) {
-                is_scoped = true;
-                return std::shared_ptr<interface_type>(new implement_type()); });
-        }
-
         template <typename interface_type>
-        void add_factory(const std::function<interface_type(bool &)> & factory) {
+        void add_factory(const std::function<interface_type(const service_provider &, bool &)> & factory) {
             this->factory_[types::get_type_id<interface_type>()] = new service_factory<interface_type>(factory);
         }
 
         template <typename interface_type>
-        void add_collection_factory(const std::function<interface_type()> & factory) {
+        void add_collection_factory(const std::function<interface_type(const service_provider &)> & factory) {
             service_collection_factory<interface_type> * collection;
 
             auto p = this->factory_.find(types::get_type_id<std::list<interface_type>>());
@@ -406,43 +388,36 @@ namespace vds {
     template<typename interface_type>
     inline interface_type service_provider::get() const
     {
-        return this->impl_->get<interface_type>();
+        return this->impl_->get<interface_type>(*this);
     }
 
     template<typename interface_type>
     inline bool service_provider::enum_collection(const std::function<bool(interface_type)>& visiter, bool throwIfEmpty) const
     {
-        return this->impl_->enum_collection<interface_type>(visiter, throwIfEmpty);
+        return this->impl_->enum_collection<interface_type>(*this, visiter, throwIfEmpty);
     }
 
     template<typename interface_type>
     inline std::list<interface_type> service_provider::get_collection(bool throwIfEmpty) const
     {
-        return this->impl_->get_collection<interface_type>(throwIfEmpty);
+        return this->impl_->get_collection<interface_type>(*this, throwIfEmpty);
     }
 
-    template<typename interface_type, typename implement_type>
-    inline void service_registrator::add_transient()
-    {
-        this->impl_->add_transient<interface_type, implement_type>();
-    }
-    template<typename interface_type, typename implement_type>
-    inline void service_registrator::add_scoped()
-    {
-        return this->impl_->add_scoped<interface_type, implement_type>();
-    }
     template<typename interface_type>
-    inline void service_registrator::add_factory(const std::function<interface_type(bool &)>& factory)
+    inline void service_registrator::add_factory(
+      const std::function<interface_type(const service_provider &, bool &)>& factory)
     {
         this->impl_->add_factory<interface_type>(factory);
     }
+    
     template<typename interface_type>
-    inline void service_registrator::add_collection_factory(const std::function<interface_type()>& factory)
+    inline void service_registrator::add_collection_factory(const std::function<interface_type(const service_provider &)>& factory)
     {
         this->impl_->add_collection_factory<interface_type>(factory);
     }
+    
     template<typename interface_type>
-    inline interface_type iservice_provider_impl::get()
+    inline interface_type iservice_provider_impl::get(const service_provider & sp)
     {
         std::lock_guard<std::recursive_mutex> lock(this->m_);
 
@@ -462,7 +437,7 @@ namespace vds {
         }
 
         bool is_scopped = false;
-        auto result = static_cast<service_factory<interface_type> *>(factory)->get(is_scopped);
+        auto result = static_cast<service_factory<interface_type> *>(factory)->get(sp, is_scopped);
         if (is_scopped) {
             this->scopped_objects_[type_id] = new object_holder<interface_type>(result);
         }
@@ -470,7 +445,10 @@ namespace vds {
         return result;
     }
     template<typename interface_type>
-    inline bool iservice_provider_impl::enum_collection(const std::function<bool(interface_type)>& visiter, bool throwIfEmpty)
+    inline bool iservice_provider_impl::enum_collection(
+      const service_provider & sp,
+      const std::function<bool(interface_type)>& visiter,
+      bool throwIfEmpty)
     {
         auto factory = this->get_factory(types::get_type_id<std::list<interface_type>>());
         if (nullptr == factory) {
@@ -485,14 +463,18 @@ namespace vds {
             return false;
         }
         else {
-            return static_cast<service_collection_factory<interface_type> *>(factory)->enum_collection(visiter);
+            return static_cast<service_collection_factory<interface_type> *>(factory)->enum_collection(sp, visiter);
         }
     }
     template<typename interface_type>
-    inline std::list<interface_type> iservice_provider_impl::get_collection(bool throwIfEmpty)
+    inline std::list<interface_type> iservice_provider_impl::get_collection(
+      const service_provider & sp,
+      bool throwIfEmpty)
     {
         std::list<interface_type> result;
-        this->enum_collection<interface_type>([&result](interface_type value) -> bool {
+        this->enum_collection<interface_type>(
+          sp,
+          [&result](interface_type value) -> bool {
             result.push_back(value);
             return true;
         }, throwIfEmpty);
@@ -501,15 +483,18 @@ namespace vds {
     }
 
     template<typename interface_type>
-    inline void iservice_provider_impl::service_collection_factory<interface_type>::add(const std::function<interface_type()>& factory)
+    inline void iservice_provider_impl::service_collection_factory<interface_type>::add(
+      const std::function<interface_type(const service_provider & sp)>& factory)
     {
         this->factories_.push_back(factory);
     }
     template<typename interface_type>
-    inline bool iservice_provider_impl::service_collection_factory<interface_type>::enum_collection(const std::function<bool(interface_type)>& visiter)
+    inline bool iservice_provider_impl::service_collection_factory<interface_type>::enum_collection(
+      const service_provider & sp, 
+      const std::function<bool(interface_type)>& visiter)
     {
         for (auto p : this->factories_) {
-            if (!visiter(p())) {
+            if (!visiter(p(sp))) {
                 return false;
             }
         }
