@@ -65,7 +65,15 @@ namespace vds {
       return this->connection_end_;
     }
     
-    itask_manager get_task_manager() const;
+    bool filter_messages(std::list<std::string> & messages, std::list<std::string> & target)
+    {
+      for(auto & m : messages){
+        target.push_back(m);
+      }
+      
+      messages.clear();
+      return !target.empty();
+    }
 
   protected:
     void on_connected() override
