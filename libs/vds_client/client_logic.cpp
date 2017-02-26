@@ -8,16 +8,15 @@ All rights reserved
 
 vds::client_logic::client_logic(
   const service_provider & sp,
-  certificate & client_certificate,
-  asymmetric_private_key & client_private_key)
+  certificate * client_certificate,
+  asymmetric_private_key * client_private_key)
   : sp_(sp),
   log_(sp, "VDS Client logic"),
   client_certificate_(client_certificate),
   client_private_key_(client_private_key),
   connected_(0),
   update_connection_pool_(std::bind(&client_logic::update_connection_pool, this)),
-  update_connection_pool_task_(sp.get<itask_manager>().create_job("update connection pool", update_connection_pool_)),
-  vsr_client_(sp.get<vsr_protocol::iclient>())
+  update_connection_pool_task_(sp.get<itask_manager>().create_job("update connection pool", update_connection_pool_))
 {
 }
 
@@ -32,13 +31,14 @@ void vds::client_logic::start()
   storage_cursor<endpoint> endpoints(storage);
   while (endpoints.read()) {
     this->connection_queue_.push_back(
-      new client_connection<client_logic>(
-        this->sp_,
-        this,
-        endpoints.current().address(),
-        endpoints.current().port(),
-        &this->client_certificate_,
-        &this->client_private_key_));
+      std::unique_ptr<client_connection<client_logic>>(
+        new client_connection<client_logic>(
+          this->sp_,
+          this,
+          endpoints.current().address(),
+          endpoints.current().port(),
+          this->client_certificate_,
+          this->client_private_key_)));
   }
 
   this->update_connection_pool_task_.schedule(
@@ -49,9 +49,9 @@ void vds::client_logic::stop()
 {
 }
 
-void vds::client_logic::connection_closed(client_connection<client_logic> * connection)
+void vds::client_logic::connection_closed(client_connection<client_logic>& connection)
 {
-  this->log_.error("Connection %s:%d has been closed", connection->address().c_str(), connection->port());
+  this->log_.error("Connection %s:%d has been closed", connection.address().c_str(), connection.port());
 
   this->connection_mutex_.lock();
   this->connected_--;
@@ -60,9 +60,9 @@ void vds::client_logic::connection_closed(client_connection<client_logic> * conn
   this->update_connection_pool();
 }
 
-void vds::client_logic::connection_error(client_connection<client_logic> * connection, std::exception * ex)
+void vds::client_logic::connection_error(client_connection<client_logic>& connection, std::exception * ex)
 {
-  this->log_.error("Connection %s:%d error %s", connection->address().c_str(), connection->port(), ex->what());
+  this->log_.error("Connection %s:%d error %s", connection.address().c_str(), connection.port(), ex->what());
 
   this->connection_mutex_.lock();
   this->connected_--;
@@ -71,7 +71,7 @@ void vds::client_logic::connection_error(client_connection<client_logic> * conne
   this->update_connection_pool();
 }
 
-void vds::client_logic::process_response(client_connection<client_logic>* connection, const json_value * response)
+void vds::client_logic::process_response(client_connection<client_logic>& connection, const json_value * response)
 {
   auto tasks = dynamic_cast<const json_array *>(response);
   if (nullptr != tasks) {
@@ -80,19 +80,15 @@ void vds::client_logic::process_response(client_connection<client_logic>* connec
 
       if (nullptr != task) {
         std::string task_type;
-        if (task->get_property("$type", task_type, false)) {
+        if (task->get_property("$t", task_type, false)) {
           if (install_node_prepared::message_type == task_type) {
-
-            install_node_prepared message;
-            message.deserialize(task);
-            this->process(connection, message);
           }
         }
       }
     }
   }
 }
-
+/*
 void vds::client_logic::node_install(const std::string & login, const std::string & password)
 {
   hash password_hash(hash::sha256());
@@ -110,7 +106,13 @@ void vds::client_logic::node_install(const std::string & login, const std::strin
 
   this->query_all(body.str());
 }
+*/
 
+void vds::client_logic::get_commands(vds::client_connection<vds::client_logic> & connection)
+{
+  this->outgoing_queue_.get(connection);
+}
+/*
 std::string vds::client_logic::get_messages()
 {
   std::string result("[");
@@ -133,7 +135,7 @@ std::string vds::client_logic::get_messages()
 
   return result;
 }
-
+*/
 void vds::client_logic::update_connection_pool()
 {
   if (!this->connection_queue_.empty()) {
@@ -154,7 +156,7 @@ void vds::client_logic::update_connection_pool()
         
 
         auto index = std::rand() % this->connection_queue_.size();
-        auto connection = this->connection_queue_[index];
+        auto& connection = this->connection_queue_[index];
         if (
           client_connection<client_logic>::NONE == connection->state()
           || (
@@ -179,12 +181,7 @@ void vds::client_logic::update_connection_pool()
     std::chrono::system_clock::now() + std::chrono::seconds(5));
 }
 
-void vds::client_logic::query_all(const std::string & message)
-{
-  std::unique_lock<std::mutex> lock(this->outgoing_queue_mutex_);
-  this->outgoing_queue_.push_back(message);
-}
-
+/*
 void vds::client_logic::process(client_connection<client_logic>* connection, const install_node_prepared & message)
 {
   if (
@@ -195,3 +192,4 @@ void vds::client_logic::process(client_connection<client_logic>* connection, con
 
 
 }
+*/

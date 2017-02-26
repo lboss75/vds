@@ -37,8 +37,7 @@ namespace vds {
     int port() const {
       return this->port_;
     }
-
-
+    
   private:
     service_provider sp_;
     https_pipeline * owner_;
@@ -48,8 +47,8 @@ namespace vds {
     certificate * client_certificate_;
     asymmetric_private_key * client_private_key_;
     
-    void get_commands(const std::function<void (const std::string & request)> & callback);
-
+    void get_commands();
+    
     class connection
     {
     public:
@@ -345,11 +344,7 @@ namespace vds {
 
         void processed()
         {
-          this->owner_->get_commands(
-            [this](const std::string & request) {
-              this->outgoing_stream_.set_body(request);
-              this->next(this->request_, this->outgoing_stream_);
-            });
+          this->owner_->owner_->get_commands();
         }
 
       private:

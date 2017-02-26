@@ -40,11 +40,6 @@ void vds::https_pipeline::connect()
   this->impl_->connect();
 }
 
-void vds::https_pipeline::push(json_value* request)
-{
-  this->impl_->push(request);
-}
-
 const std::string & vds::https_pipeline::address() const
 {
   return this->impl_->address();
@@ -86,7 +81,7 @@ void vds::_https_pipeline::connect()
    this->port_
   );
 }
-
+/*
 void vds::_https_pipeline::push(json_value* request)
 {
   json_writer writer;
@@ -109,8 +104,9 @@ void vds::_https_pipeline::push(json_value* request)
   
   request_callback(request_data);
 }
-
-void vds::_https_pipeline::get_commands(const std::function<void (const std::string & request)> & callback)
+*/
+/*
+void vds::_https_pipeline::get_commands()
 {
   std::string request_data;
   {
@@ -129,7 +125,7 @@ void vds::_https_pipeline::get_commands(const std::function<void (const std::str
   
   callback(request_data);
 }
-
+*/
 
 vds::_https_pipeline::connection::connection(
   const service_provider & sp,

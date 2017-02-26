@@ -39,7 +39,7 @@ void vds::client::start(const service_provider & sp)
   this->vsr_client_protocol_.reset(new vsr_protocol::client(sp));
   this->vsr_client_protocol_->start();
   
-  this->logic_.reset(new client_logic(sp, this->client_certificate_, this->client_private_key_));
+  this->logic_.reset(new client_logic(sp, &this->client_certificate_, &this->client_private_key_));
   this->logic_->start();
 }
 

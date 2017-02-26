@@ -25,10 +25,10 @@ namespace vds {
       this->try_to_run();
     }
     
-    void get(target_type * target, std::list<message_type> & messages)
+    void get(target_type & target)
     {
       std::unique_lock<std::mutex> lock(this->message_mutex_);
-      this->callbacks_.push_back(new callback_handler(target, messages));
+      this->callbacks_.push_back(std::unique_ptr<callback_handler>(new callback_handler(target)));
       this->try_to_run();
     }
     
@@ -36,24 +36,24 @@ namespace vds {
     struct callback_handler
     {
       callback_handler(
-        target_type * target)
+        target_type & target)
       : target_(target)
       {
       }
       
       bool filter_messages(std::list<message_type> & messages)
       {
-        return this->target_->filter_messages(
+        return this->target_.filter_messages(
           messages,
           this->messages_);
       }
       
       void run()
       {
-        this->target_->run(this->messages_);
+        this->target_.run(this->messages_);
       }
       
-      target_type * target_;
+      target_type & target_;
       std::list<message_type> messages_;
     };
     
@@ -70,7 +70,7 @@ namespace vds {
       for(auto & c : this->callbacks_){
         if(c->filter_messages(this->messages_)){
           this->callbacks_.remove(c);
-          c->run(messages);
+          c->run();
           return true;
         }
       }

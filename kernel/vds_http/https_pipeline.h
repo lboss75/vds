@@ -21,7 +21,7 @@ namespace vds {
    
     const std::string & address() const;
     int port() const;
-    
+   
   protected:
     friend class _https_pipeline;
     
@@ -30,7 +30,7 @@ namespace vds {
     virtual void on_error(std::exception * error);
     
     virtual void on_response(json_value * response) = 0;
-    virtual void get_commands(const std::function<void (const std::string & request)> & callback) = 0;
+    virtual void get_commands() = 0;
     
   private:
     const std::unique_ptr<class _https_pipeline> impl_;

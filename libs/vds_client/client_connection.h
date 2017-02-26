@@ -75,7 +75,7 @@ namespace vds {
     
     void on_connection_closed() override
     {
-      this->log_(ll_debug, "Connection to %s:%d closed", this->address().c_str(), this->port());
+      this->log_(ll_debug, "Connection to %s:%d has been closed", this->address().c_str(), this->port());
       this->connection_end_ = std::chrono::system_clock::now();
       this->state_ = NONE;
       this->handler_->connection_closed(this);
@@ -92,6 +92,11 @@ namespace vds {
       this->connection_end_ = std::chrono::system_clock::now();
       this->state_ = CONNECT_ERROR;
       this->handler_->connection_error(this, ex);
+    }
+    
+    void get_commands()
+    {
+      this->handler_->get_commands(*this);
     }
     
   private:
