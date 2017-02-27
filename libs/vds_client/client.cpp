@@ -95,26 +95,32 @@ void vds::iclient::init_server(
 
   this->owner_->logic_->add_task(writer.str());
 
+  std::string error;
   std::string cert_body;
   std::string pkey_body;
   if (!this->owner_->logic_->wait_for(
     std::chrono::seconds(20),
     client_messages::certificate_and_key_response::message_type,
-    [&request_id, &cert_body, &pkey_body](const json_object * value) -> bool {
+    [&request_id, &error, &cert_body, &pkey_body](const json_object * value) -> bool {
     client_messages::certificate_and_key_response message(value);
     if (request_id != message.request_id()) {
       return false;
     }
 
     if (!message.error().empty()) {
-      throw new std::runtime_error(message.error());
+      error = message.error();
     }
-
-    cert_body = message.certificate_body();
-    pkey_body = message.private_key_body();
+    else {
+      cert_body = message.certificate_body();
+      pkey_body = message.private_key_body();
+    }
     return true;
   })) {
-    throw new std::exception("Timeout at getting user certificate");
+    throw new std::runtime_error("Timeout at getting user certificate");
+  }
+  
+  if (!error.empty()) {
+    throw new std::runtime_error(error);
   }
 
   this->log_(ll_trace, "Register new server");
@@ -145,22 +151,24 @@ void vds::iclient::init_server(
 
   this->owner_->logic_->add_task(register_message_writer.str());
 
+  
   if (!this->owner_->logic_->wait_for(
     std::chrono::seconds(20),
     client_messages::register_server_response::message_type,
-    [&request_id](const json_object * value) -> bool {
+    [&request_id, &error](const json_object * value) -> bool {
     client_messages::register_server_response message(value);
     if (request_id != message.request_id()) {
       return false;
     }
 
-    if (!message.error().empty()) {
-      throw new std::runtime_error(message.error());
-    }
-
+    error = message.error();
     return true;
   })) {
-    throw new std::exception("Timeout at registering new server");
+    throw new std::runtime_error("Timeout at registering new server");
+  }
+  
+  if (!error.empty()) {
+    throw new std::runtime_error(error);
   }
 
   server_certificate.save(filename(foldername(persistence::current_user(this->sp_), ".vds"), "server.crt"));

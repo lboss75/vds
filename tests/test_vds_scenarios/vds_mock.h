@@ -18,6 +18,7 @@ private:
   int port_;
 
   vds::service_registrator registrator_;
+  vds::mt_service mt_service_;
   vds::network_service network_service_;
   vds::console_logger console_logger_;
   vds::server server_;

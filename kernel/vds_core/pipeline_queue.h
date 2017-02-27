@@ -7,6 +7,7 @@ All rights reserved
 */
 
 #include "sequence.h"
+#include "mt_service.h"
 
 namespace vds {
 
@@ -14,7 +15,8 @@ namespace vds {
   class pipeline_queue
   {
   public:
-    pipeline_queue()
+    pipeline_queue(const service_provider & sp)
+    : mt_service_(sp.get<imt_service>())
     {
     }
     
@@ -60,6 +62,7 @@ namespace vds {
     std::mutex message_mutex_;
     std::list<message_type> messages_;
     std::list<std::unique_ptr<callback_handler>> callbacks_;
+    imt_service mt_service_;
     
     bool try_to_run()
     {
@@ -72,7 +75,7 @@ namespace vds {
           callback_handler * s = c.release();
           this->callbacks_.remove(c);
 
-          std::async(std::launch::async, [s]() { std::unique_ptr<callback_handler>(s)->run(); });
+          this->mt_service_.async([s]() { std::unique_ptr<callback_handler>(s)->run(); });
 
           return true;
         }

@@ -27,6 +27,7 @@ All rights reserved
 #include "task_manager.h"
 #include "guid.h"
 #include "pipeline_queue.h"
+#include "mt_service.h"
 
 #endif // !__VDS_CORE_H_
 

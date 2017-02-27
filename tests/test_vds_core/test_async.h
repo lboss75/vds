@@ -82,8 +82,7 @@ public:
         )
         {
           ASSERT_EQ(this->owner_.state_, 1);
-          
-          std::async(std::launch::async, this->async_task_body_);
+          vds::imt_service::async(this->sp_, this->async_task_body_);
         }
         
       private:

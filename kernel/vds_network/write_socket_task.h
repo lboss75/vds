@@ -151,8 +151,7 @@ namespace vds {
         event_add(pthis->event_, NULL);
       }
       else {
-        std::async(
-          std::launch::async,
+        imt_service::async(pthis->sp_,
           [pthis](){
             pthis->done_method_();
           });

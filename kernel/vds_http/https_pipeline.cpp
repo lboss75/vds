@@ -96,51 +96,6 @@ void vds::_https_pipeline::connect()
    this->port_
   );
 }
-/*
-void vds::_https_pipeline::push(json_value* request)
-{
-  json_writer writer;
-  request->str(writer);
-  
-  std::function<void (const std::string & request)> request_callback;
-  std::string request_data;
-  
-  {
-    std::unique_lock<std::mutex> lock(this->request_mutex_);
-    this->request_data_ += writer.str();
-    
-    if(this->request_callback_){
-      request_callback.swap(this->request_callback_);
-      request_data = this->request_data_;
-      
-      this->request_data_.clear();
-    }
-  }
-  
-  request_callback(request_data);
-}
-*/
-/*
-void vds::_https_pipeline::get_commands()
-{
-  std::string request_data;
-  {
-    std::unique_lock<std::mutex> lock(this->request_mutex_);
-    
-    if(!this->request_data_.empty()){
-      request_data = this->request_data_;
-      this->request_data_.clear();
-    }
-    else {
-      this->request_callback_ = callback;
-      return;
-    }
-      
-  }
-  
-  callback(request_data);
-}
-*/
 
 vds::_https_pipeline::connection::connection(
   const service_provider & sp,

@@ -66,6 +66,7 @@ void mock_client::start_vds(bool full_client, const std::function<void(const vds
 {
   vds::service_registrator registrator;
 
+  vds::mt_service mt_service;
   vds::network_service network_service;
   vds::console_logger console_logger(vds::ll_trace);
   vds::crypto_service crypto_service;
@@ -76,6 +77,7 @@ void mock_client::start_vds(bool full_client, const std::function<void(const vds
   auto folder = vds::foldername(vds::filename::current_process().contains_folder(), std::to_string(this->index_));
   registrator.set_root_folders(folder, folder);
 
+  registrator.add(mt_service);
   registrator.add(console_logger);
   registrator.add(network_service);
   registrator.add(crypto_service);
@@ -112,6 +114,7 @@ void mock_server::start()
   auto folder = vds::foldername(vds::filename::current_process().contains_folder(), std::to_string(this->index_));
   this->registrator_.set_root_folders(folder, folder);
   
+  this->registrator_.add(this->mt_service_);
   this->registrator_.add(this->console_logger_);
   this->registrator_.add(this->network_service_);
   this->registrator_.add(this->task_manager_);

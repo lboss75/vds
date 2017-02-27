@@ -121,9 +121,7 @@ namespace vds {
         return;
       }
       
-      std::async(
-        std::launch::async,
-        [pthis, len](){
+      imt_service::async(pthis->sp_, [pthis, len](){
           pthis->next_method_(pthis->buffer_, len);
         });
     }

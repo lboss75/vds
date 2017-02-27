@@ -17,7 +17,8 @@ vds::client_logic::client_logic(
   filter_last_index_(0),
   connected_(0),
   update_connection_pool_(std::bind(&client_logic::update_connection_pool, this)),
-  update_connection_pool_task_(sp.get<itask_manager>().create_job("update connection pool", update_connection_pool_))
+  update_connection_pool_task_(sp.get<itask_manager>().create_job("update connection pool", update_connection_pool_)),
+  outgoing_queue_(sp)
 {
 }
 
@@ -115,7 +116,8 @@ void vds::client_logic::node_install(const std::string & login, const std::strin
 
 void vds::client_logic::get_commands(vds::client_connection<vds::client_logic> & connection)
 {
-  this->outgoing_queue_.get(connection);
+  this->sp_.get<imt_service>().async(
+    [this, &connection](){ this->outgoing_queue_.get(connection); });
 }
 
 void vds::client_logic::add_task(const std::string & message)
