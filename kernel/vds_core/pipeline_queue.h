@@ -69,9 +69,11 @@ namespace vds {
       
       for(auto & c : this->callbacks_){
         if(c->filter_messages(this->messages_)){
-          std::unique_ptr<callback_handler> s = std::move(c);
+          callback_handler * s = c.release();
           this->callbacks_.remove(c);
-          s->run();
+
+          std::async(std::launch::async, [s]() { std::unique_ptr<callback_handler>(s)->run(); });
+
           return true;
         }
       }
