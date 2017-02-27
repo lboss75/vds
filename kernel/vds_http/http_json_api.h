@@ -42,9 +42,9 @@ namespace vds {
         catch(std::exception * ex)
         {
           auto response = new json_object();
-          response->add_property(new json_property("$type", new json_primitive(typeid(ex).name())));
-          response->add_property(new json_property("$result", new json_primitive("exception")));
-          response->add_property(new json_property("message", new json_primitive(ex->what())));
+          response->add_property("$t", typeid(ex).name());
+          response->add_property("r", "exception");
+          response->add_property("m", ex->what());
           this->response_.reset(response);
         }
         

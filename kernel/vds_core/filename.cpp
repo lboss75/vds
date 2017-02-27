@@ -88,3 +88,8 @@ vds::filename vds::filename::current_process()
   return filename(buf);
 #endif
 }
+
+bool vds::filename::exists() const
+{
+  return (0 == access(this->local_name().c_str(), 0));
+}

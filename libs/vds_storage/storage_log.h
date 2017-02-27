@@ -8,6 +8,8 @@ All rights reserved
 
 
 namespace vds {
+  class server_log_root_certificate;
+
   class storage_log
   {
   public:
@@ -24,6 +26,12 @@ namespace vds {
     certificate * parse_root_cert(const json_value * value);
     void apply_record(const json_value * value);
 
+    bool get_cert_and_key(
+      const std::string & object_name,
+      const std::string & password_hash,
+      std::string & cert_body,
+      std::string & key_body);
+
   private:
     logger log_;
     foldername vds_folder_;
@@ -32,6 +40,15 @@ namespace vds {
 
     std::map<std::string, std::unique_ptr<certificate>> certificates_;
 
+    struct cert_and_key
+    {
+      std::string cert_body;
+      std::string key_body;
+    };
+
+    std::map<std::string, std::map<std::string, cert_and_key>> cert_and_keys_;
+
+    void process(const server_log_root_certificate & message);
   };
 }
 

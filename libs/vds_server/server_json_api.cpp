@@ -33,19 +33,14 @@ vds::json_value * vds::server_json_api::operator()(
 
       auto task_object = dynamic_cast<const json_object *>(task);
       if (nullptr != task_object) {
-        auto task_type = task_object->get_property("$type");
+        auto task_type = task_object->get_property("$t");
         if (nullptr != task_type) {
           auto task_type_value = dynamic_cast<const json_primitive *>(task_type);
           if (nullptr != task_type_value) {
             auto task_type_name = task_type_value->value();
 
-            if (vsr_new_client_message::message_type == task_type_name) {
-              this->process(result.get(), vsr_new_client_message::deserialize(task_object));
-            }
-            else if (install_node_prepare::message_type == task_type_name) {
-              install_node_prepare message;
-              message.deserialize(task_object);
-              this->process(result.get(), message);
+            if (client_messages::certificate_and_key_request::message_type == task_type_name) {
+              this->process(result.get(), client_messages::certificate_and_key_request(task_object));
             }
             else {
               this->log_.warning("Invalid request type %s", task_type_name.c_str());
@@ -59,12 +54,14 @@ vds::json_value * vds::server_json_api::operator()(
   return result.release();
 }
 
-void vds::server_json_api::process(json_array * result, const vsr_new_client_message & message) const
+void vds::server_json_api::process(json_array * result, const client_messages::certificate_and_key_request & message) const
 {
-  this->sp_.get<iserver>().vsr_server_protocol()->new_client();
-}
-
-void vds::server_json_api::process(json_array * result, const install_node_prepare & message) const
-{
-  this->sp_.get<iserver>().get_node_manager()->install_prepate(result, message);
+  std::string cert_body;
+  std::string key_body;
+  if (this->sp_.get<iserver>().get_storage_log()->get_cert_and_key(message.object_name(), message.password_hash(), cert_body, key_body)) {
+    result->add(client_messages::certificate_and_key_response(message.request_id(), cert_body, key_body).serialize());
+  }
+  else {
+    result->add(client_messages::certificate_and_key_response(message.request_id(), "Invalid username or password").serialize());
+  }
 }

@@ -27,6 +27,10 @@ static void collect_wwwroot(
   const std::string & root_folder
 )
 {
+  if (!folder.exist()) {
+    return;
+  }
+
   folder.files(
     [&router, &root_folder](const vds::filename & fn) -> bool {
     router.add_file(

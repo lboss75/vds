@@ -22,6 +22,13 @@ void vds::task_manager::start(const service_provider & sp)
 
 void vds::task_manager::stop(const service_provider &)
 {
+  try {
+    if (this->work_thread_.valid()) {
+      this->work_thread_.get();
+    }
+  }
+  catch (...) {
+  }
 }
 
 void vds::task_manager::work_thread()
@@ -55,12 +62,12 @@ void vds::task_manager::task_job_base::schedule(const std::chrono::time_point<st
   this->start_time_ = start;
 
   std::unique_lock<std::mutex> lock(this->owner_->scheduled_mutex_);
-
-  auto need_execute = this->owner_->scheduled_.empty();
   this->owner_->scheduled_.push_back(this);
 
-  if (need_execute) {
-    std::thread(std::bind(&task_manager::work_thread, this->owner_)).detach();
+  if (!this->owner_->work_thread_.valid()) {
+    this->owner_->work_thread_ = std::async(std::launch::async, [this]() {
+      this->owner_->work_thread();
+    });
   }
 }
 

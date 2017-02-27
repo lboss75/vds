@@ -47,6 +47,8 @@ namespace vds {
     node_manager * get_node_manager() const { return this->owner_->node_manager_.get(); }
     user_manager * get_user_manager() const { return this->owner_->user_manager_.get(); }
 
+    storage_log * get_storage_log() const { return this->owner_->storage_log_.get(); }
+
     void start_http_server(const std::string & address, int port);
 
   private:

@@ -24,7 +24,8 @@ namespace vds {
       : base_class(sp, address, port, client_certificate, client_private_key),
       sp_(sp),
       log_(sp, "Client connection"),
-      handler_(handler)
+      handler_(handler),
+      state_(NONE)
     {
     }
 
@@ -75,9 +76,30 @@ namespace vds {
       return !target.empty();
     }
 
+    void run(std::list<std::string> & messages)
+    {
+      std::ostringstream stream;
+      stream << "[";
+      bool first = true;
+      for (auto & p : messages) {
+        if (first) {
+          first = false;
+        }
+        else {
+          stream << ",";
+        }
+
+        stream << p;
+      }
+      stream << "]";
+
+      base_class::run(stream.str());
+    }
+
   protected:
     void on_connected() override
     {
+      this->log_(ll_debug, "Connected to %s:%d", this->address().c_str(), this->port());
       this->state_ = CONNECTED;
     }
     
@@ -86,12 +108,12 @@ namespace vds {
       this->log_(ll_debug, "Connection to %s:%d has been closed", this->address().c_str(), this->port());
       this->connection_end_ = std::chrono::system_clock::now();
       this->state_ = NONE;
-      this->handler_->connection_closed(this);
+      this->handler_->connection_closed(*this);
     }
 
     void on_response(json_value * response) override
     {
-      this->handler_->process_response(this, response);
+      this->handler_->process_response(*this, response);
     }
     
     void on_error(std::exception * ex) override
@@ -99,7 +121,7 @@ namespace vds {
       this->log_(ll_debug, "Failed to connect %s:%d %s", this->address().c_str(), this->port(), ex->what());
       this->connection_end_ = std::chrono::system_clock::now();
       this->state_ = CONNECT_ERROR;
-      this->handler_->connection_error(this, ex);
+      this->handler_->connection_error(*this, ex);
     }
     
     void get_commands()

@@ -12,7 +12,7 @@ vds::json_object * vds::install_node_prepare::serialize()
 {
   std::unique_ptr<json_object> result(new json_object());
 
-  result->add_property("$type", message_type);
+  result->add_property("$t", message_type);
   result->add_property("u", this->user_id);
   result->add_property("p", this->password_hash);
   result->add_property("r", this->request_id);
@@ -32,7 +32,7 @@ vds::json_object * vds::install_node_prepared::serialize() const
 {
   std::unique_ptr<json_object> result(new json_object());
 
-  result->add_property("$type", message_type);
+  result->add_property("$t", message_type);
   result->add_property("u", this->user_id);
   result->add_property("c", this->user_certificate);
   result->add_property("k", this->user_private_key);

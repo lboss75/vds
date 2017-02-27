@@ -18,7 +18,7 @@ namespace vds {
     {
     }
     
-    void push(message_type & message)
+    void push(const message_type & message)
     {
       std::unique_lock<std::mutex> lock(this->message_mutex_);
       this->messages_.push_back(message);
@@ -69,8 +69,9 @@ namespace vds {
       
       for(auto & c : this->callbacks_){
         if(c->filter_messages(this->messages_)){
+          std::unique_ptr<callback_handler> s = std::move(c);
           this->callbacks_.remove(c);
-          c->run();
+          s->run();
           return true;
         }
       }

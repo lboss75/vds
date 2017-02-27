@@ -28,8 +28,6 @@ namespace vds {
     void connection_closed();
     void connection_error();
 
-    void node_install(const std::string & login, const std::string & password);
-    
     void new_client() override;
 
   private:
@@ -45,10 +43,13 @@ namespace vds {
   public:
     iclient(const service_provider & sp, client * owner);
     
-    void init_server(const std::string & root_password, const std::string & address, int port);
+    void init_server(
+      const std::string & user_login,
+      const std::string & user_password);
     
   private:
     service_provider sp_;
+    logger log_;
     client * owner_;
   };
 }

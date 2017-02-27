@@ -11,7 +11,7 @@ const char vds::vsr_new_client_message::message_type[] = "vsr_new_client";
 void vds::vsr_new_client_message::serialize(json_writer & writer) const
 {
   writer.start_object();
-  writer.write_property("$type", message_type);
+  writer.write_property("$t", message_type);
   writer.end_object();
 }
 

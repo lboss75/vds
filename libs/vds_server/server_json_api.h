@@ -20,8 +20,7 @@ namespace vds {
     service_provider sp_;
     logger log_;
 
-    void process(json_array * result, const vsr_new_client_message & message) const;
-    void process(json_array * result, const install_node_prepare & message) const;
+    void process(json_array * result, const client_messages::certificate_and_key_request & message) const;
   };
 }
 

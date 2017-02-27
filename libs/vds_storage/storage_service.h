@@ -12,10 +12,7 @@ namespace vds {
   class istorage
   {
   public:
-    istorage(storage_service * owner)
-      : owner_(owner)
-    {
-    }
+    istorage(storage_service * owner);
 
   private:
     storage_service * owner_;

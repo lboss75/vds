@@ -50,7 +50,7 @@ namespace vds {
         }
 
         std::string message_type;
-        if (!dynamic_cast<json_object *>(record.message_.get())->get_property("$type", message_type, false)
+        if (!dynamic_cast<json_object *>(record.message_.get())->get_property("$t", message_type, false)
           || server_log_batch::message_type != message_type) {
           throw new std::runtime_error("Invalid log record type " + message_type + " in the stream "
             + this->stream_name_
@@ -95,7 +95,7 @@ namespace vds {
             + "(" + std::to_string(log_record->line()) + "," + std::to_string(log_record->column()) + ")");
         }
         
-        for (size_t i = this->owner_->is_empty() ? 1 : 0; i < batch.messages_->size(); ++i) {
+        for (size_t i = 0; i < batch.messages_->size(); ++i) {
           this->owner_->apply_record(batch.messages_->get(i));
         }
       }

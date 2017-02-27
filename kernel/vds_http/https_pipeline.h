@@ -31,6 +31,8 @@ namespace vds {
     
     virtual void on_response(json_value * response) = 0;
     virtual void get_commands() = 0;
+
+    void run(const std::string & body);
     
   private:
     const std::unique_ptr<class _https_pipeline> impl_;

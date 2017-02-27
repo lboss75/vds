@@ -22,7 +22,7 @@ void vds::foldername::folders(
 {
 #ifdef _WIN32
   WIN32_FIND_DATA ff;
-  HANDLE hFind = FindFirstFile((this->value_ + "\\*.*").c_str(), &ff);
+  HANDLE hFind = FindFirstFile((this->local_name() + "\\*.*").c_str(), &ff);
   if (hFind == INVALID_HANDLE_VALUE) {
     auto error = GetLastError();
     throw new std::system_error(error, std::system_category(), "get folders of " + this->value_);
@@ -48,7 +48,7 @@ void vds::foldername::folders(
     FindClose(hFind);
   }
 #else
-  DIR * d = opendir(this->value_.c_str());
+  DIR * d = opendir(this->local_name().c_str());
   if (d) {
     try{
       struct dirent *dir;
@@ -78,7 +78,7 @@ void vds::foldername::files(
 {
 #ifdef _WIN32
   WIN32_FIND_DATA ff;
-  HANDLE hFind = FindFirstFile((this->value_ + "\\*.*").c_str(), &ff);
+  HANDLE hFind = FindFirstFile((this->local_name() + "\\*.*").c_str(), &ff);
   if (hFind == INVALID_HANDLE_VALUE) {
     auto error = GetLastError();
     throw new std::system_error(error, std::system_category(), "get folders of " + this->value_);
@@ -103,7 +103,7 @@ void vds::foldername::files(
     FindClose(hFind);
   }
 #else
-  DIR * d = opendir(this->value_.c_str());
+  DIR * d = opendir(this->local_name().c_str());
   if (d) {
     try{
       struct dirent *dir;

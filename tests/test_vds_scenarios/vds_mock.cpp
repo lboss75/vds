@@ -53,11 +53,11 @@ void mock_client::init_root(const std::string & root_password, int port)
 
 void mock_client::init_server(
   const std::string& root_password,
-  const std::server& address,
+  const std::string& address,
   int port)
 {
   this->start_vds(true, [root_password, address, port](const vds::service_provider&sp) {
-    sp.get<vds::iclient>().init_server(root_password, address, port);
+    sp.get<vds::iclient>().init_server("root", root_password);
   });
 }
 
@@ -70,21 +70,32 @@ void mock_client::start_vds(bool full_client, const std::function<void(const vds
   vds::console_logger console_logger(vds::ll_trace);
   vds::crypto_service crypto_service;
   vds::client client;
-  
+  vds::task_manager task_manager;
+  vds::storage_service storage;
+
   auto folder = vds::foldername(vds::filename::current_process().contains_folder(), std::to_string(this->index_));
   registrator.set_root_folders(folder, folder);
 
   registrator.add(console_logger);
   registrator.add(network_service);
   registrator.add(crypto_service);
+  registrator.add(task_manager);
+  registrator.add(storage);
   
   if(full_client){
     registrator.add(client);
   }
 
   auto sp = registrator.build();
+  try {
+    handler(sp);
+  }
+  catch (...) {
+    try { registrator.shutdown(); }
+    catch (...) {}
 
-  handler(sp);
+    throw;
+  }
 
   registrator.shutdown();
 }

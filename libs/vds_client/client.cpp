@@ -33,13 +33,24 @@ void vds::client::register_services(service_registrator & registrator)
 void vds::client::start(const service_provider & sp)
 {
   //Load certificates
-  this->client_certificate_.load(filename(foldername(persistence::current_user(sp), ".vds"), "user.crt"));
-  this->client_private_key_.load(filename(foldername(persistence::current_user(sp), ".vds"), "user.key"));
+  certificate * client_certificate = nullptr;
+  asymmetric_private_key * client_private_key = nullptr;
+
+  filename cert_name(foldername(persistence::current_user(sp), ".vds"), "client.crt");
+  filename pkey_name(foldername(persistence::current_user(sp), ".vds"), "client.pkey");
+
+  if (cert_name.exists()) {
+    this->client_certificate_.load(cert_name);
+    this->client_private_key_.load(pkey_name);
+
+    client_certificate = &this->client_certificate_;
+    client_private_key = &this->client_private_key_;
+  }
 
   this->vsr_client_protocol_.reset(new vsr_protocol::client(sp));
   this->vsr_client_protocol_->start();
   
-  this->logic_.reset(new client_logic(sp, &this->client_certificate_, &this->client_private_key_));
+  this->logic_.reset(new client_logic(sp, client_certificate, client_private_key));
   this->logic_->start();
 }
 
@@ -56,10 +67,6 @@ void vds::client::connection_error()
 {
 }
 
-void vds::client::node_install(const std::string & login, const std::string & password)
-{
-  this->logic_->node_install(login, password);
-}
 
 void vds::client::new_client()
 {
@@ -67,18 +74,96 @@ void vds::client::new_client()
 }
 
 vds::iclient::iclient(const service_provider & sp, vds::client* owner)
-: sp_(sp), owner_(owner)
+: sp_(sp), log_(sp, "Client"), owner_(owner)
 {
 }
 
 void vds::iclient::init_server(
-  const std::string& root_password,
-  const std::string& address,
-  int port)
+  const std::string& user_login,
+  const std::string& user_password)
 {
+  this->log_(ll_trace, "Authenticating user %s", user_login.c_str());
+  hash ph(hash::sha256());
+  ph.update(user_password.c_str(), user_password.length());
+  ph.final();
+
   auto request_id = guid::new_guid_string();
-  client_messages::ask_certificate_and_key m(request_id, "login:root");
-  
-  this->sp_.get<vsr_protocol::iserver_queue>().add_task(m.serialize());  
+  client_messages::certificate_and_key_request m(request_id, "login:" + user_login, base64::from_bytes(ph.signature(), ph.signature_length()));
+
+  json_writer writer;
+  m.serialize()->str(writer);
+
+  this->owner_->logic_->add_task(writer.str());
+
+  std::string cert_body;
+  std::string pkey_body;
+  if (!this->owner_->logic_->wait_for(
+    std::chrono::seconds(20),
+    client_messages::certificate_and_key_response::message_type,
+    [&request_id, &cert_body, &pkey_body](const json_object * value) -> bool {
+    client_messages::certificate_and_key_response message(value);
+    if (request_id != message.request_id()) {
+      return false;
+    }
+
+    if (!message.error().empty()) {
+      throw new std::runtime_error(message.error());
+    }
+
+    cert_body = message.certificate_body();
+    pkey_body = message.private_key_body();
+    return true;
+  })) {
+    throw new std::exception("Timeout at getting user certificate");
+  }
+
+  this->log_(ll_trace, "Register new server");
+  certificate user_certificate = certificate::parse(cert_body);
+  asymmetric_private_key user_private_key = asymmetric_private_key::parse(pkey_body, user_password);
+
+  asymmetric_private_key private_key(asymmetric_crypto::rsa4096());
+  private_key.generate();
+
+  asymmetric_public_key pkey(private_key);
+
+  certificate::create_options options;
+  options.country = "RU";
+  options.organization = "IVySoft";
+  options.name = "Server Certificate";
+  options.ca_certificate = &user_certificate;
+  options.ca_certificate_private_key = &user_private_key;
+
+  certificate server_certificate = certificate::create_new(pkey, private_key, options);
+
+  request_id = guid::new_guid_string();
+  client_messages::register_server_request register_message(
+    request_id,
+    server_certificate.str());
+
+  json_writer register_message_writer;
+  register_message.serialize()->str(register_message_writer);
+
+  this->owner_->logic_->add_task(register_message_writer.str());
+
+  if (!this->owner_->logic_->wait_for(
+    std::chrono::seconds(20),
+    client_messages::register_server_response::message_type,
+    [&request_id](const json_object * value) -> bool {
+    client_messages::register_server_response message(value);
+    if (request_id != message.request_id()) {
+      return false;
+    }
+
+    if (!message.error().empty()) {
+      throw new std::runtime_error(message.error());
+    }
+
+    return true;
+  })) {
+    throw new std::exception("Timeout at registering new server");
+  }
+
+  server_certificate.save(filename(foldername(persistence::current_user(this->sp_), ".vds"), "server.crt"));
+  private_key.save(filename(foldername(persistence::current_user(this->sp_), ".vds"), "server.pkey"));
 }
 

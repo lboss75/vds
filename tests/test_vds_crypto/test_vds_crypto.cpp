@@ -87,7 +87,7 @@ TEST(test_vds_crypto, test_sign)
     } while (len < 1024 || len > 1024 * 1024 * 1024);
 
     std::unique_ptr<unsigned char> buffer(new unsigned char[len]);
-    RAND_bytes(buffer.get(), len);
+    RAND_bytes(buffer.get(), (int)len);
 
     vds::asymmetric_private_key key(vds::asymmetric_crypto::rsa2048());
     key.generate();

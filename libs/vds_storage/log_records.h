@@ -14,7 +14,7 @@ namespace vds {
     std::string signature_;
     std::unique_ptr<json_value> message_;
     
-    std::unique_ptr<json_object> serialize();
+    std::unique_ptr<json_value> serialize();
     void deserialize(json_value * source);
   };
   
@@ -22,12 +22,24 @@ namespace vds {
   {
   public:
     static const char message_type[];
+
+    server_log_root_certificate(
+      const std::string & certificate,
+      const std::string & private_key,
+      const std::string & password_hash);
+
+    server_log_root_certificate(const json_value * source);
     
+    const std::string & certificate() const { return this->certificate_; }
+    const std::string & private_key() const { return this->private_key_; }
+    const std::string & password_hash() const { return this->password_hash_; }
+
+    std::unique_ptr<json_value> serialize() const;
+
+  private:
     std::string certificate_;
     std::string private_key_;
-    
-    std::unique_ptr<json_object> serialize() const;
-    void deserialize(const json_value * source);
+    std::string password_hash_;
   };
   
   class server_log_new_user_certificate
@@ -38,7 +50,7 @@ namespace vds {
     std::string certificate_;
     std::string private_key_;
     
-    std::unique_ptr<json_object> serialize() const;
+    std::unique_ptr<json_value> serialize() const;
     void deserialize(const json_value * source);
   };
 
@@ -51,7 +63,7 @@ namespace vds {
     int previous_message_id_;
     std::unique_ptr<json_array> messages_;
 
-    std::unique_ptr<json_object> serialize();
+    std::unique_ptr<json_value> serialize();
     void deserialize(json_value * source);
   };
 
@@ -63,7 +75,7 @@ namespace vds {
     std::string certificate_;
     std::string addresses_;
 
-    std::unique_ptr<json_object> serialize() const;
+    std::unique_ptr<json_value> serialize() const;
     void deserialize(const json_value * source);
   };
 }

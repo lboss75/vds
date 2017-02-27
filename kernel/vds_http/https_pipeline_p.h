@@ -38,7 +38,11 @@ namespace vds {
       return this->port_;
     }
     
+    void run(const std::string & body);
+
   private:
+    class ioutput_command_stream;
+
     service_provider sp_;
     https_pipeline * owner_;
     logger log_;
@@ -46,8 +50,7 @@ namespace vds {
     int port_;
     certificate * client_certificate_;
     asymmetric_private_key * client_private_key_;
-    
-    void get_commands();
+    ioutput_command_stream * output_command_stream_;
     
     class connection
     {
@@ -311,6 +314,11 @@ namespace vds {
       ssl_tunnel & tunnel_;
     };
 
+    class ioutput_command_stream
+    {
+    public:
+      virtual void run(const std::string & body) = 0;
+    };
     class output_command_stream
     {
     public:
@@ -320,7 +328,9 @@ namespace vds {
       }
 
       template <typename context_type>
-      class handler : public sequence_step<context_type, void(http_request & request, http_outgoing_stream & outgoing_stream)>
+      class handler
+        : public sequence_step<context_type, void(http_request & request, http_outgoing_stream & outgoing_stream)>,
+          public ioutput_command_stream
       {
         using base_class = sequence_step<context_type, void(http_request & request, http_outgoing_stream & outgoing_stream)>;
       public:
@@ -331,6 +341,7 @@ namespace vds {
           owner_(args.owner_),
           request_("POST", "/vds/client_api")
         {
+          this->owner_->output_command_stream_ = this;
         }
 
         ~handler()
@@ -345,6 +356,12 @@ namespace vds {
         void processed()
         {
           this->owner_->owner_->get_commands();
+        }
+
+        void run(const std::string & body) override
+        {
+          outgoing_stream_.set_body(body);
+          this->next(this->request_, this->outgoing_stream_);
         }
 
       private:

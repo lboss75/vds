@@ -6,6 +6,11 @@ All rights reserved
 #include "stdafx.h"
 #include "storage_service.h"
 
+vds::istorage::istorage(storage_service * owner)
+  : owner_(owner)
+{
+}
+
 void vds::storage_service::register_services(service_registrator & registrator)
 {
   registrator.add_factory<istorage>(

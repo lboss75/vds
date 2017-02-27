@@ -124,7 +124,12 @@ namespace vds {
     {
       this->items_.push_back(std::unique_ptr<json_value>(item));
     }
-    
+
+    void add(std::unique_ptr<json_value> && item)
+    {
+      this->items_.push_back(std::move(item));
+    }
+
     void str(json_writer & writer) const override;
     
   private:

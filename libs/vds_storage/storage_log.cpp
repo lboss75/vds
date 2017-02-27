@@ -34,9 +34,9 @@ void vds::storage_log::reset(
 
   certificate root_certificate = certificate::create_new(pkey, private_key, options);
 
-  server_log_root_certificate message;
-  message.certificate_ = root_certificate.str();
-  message.private_key_ = private_key.str(password);
+  hash ph(hash::sha256());
+  ph.update(password.c_str(), password.length());
+  ph.final();
 
   asymmetric_private_key server_private_key(asymmetric_crypto::rsa4096());
   server_private_key.generate();
@@ -52,7 +52,7 @@ void vds::storage_log::reset(
   server_options.ca_certificate_private_key = &private_key;
 
   certificate server_certificate = certificate::create_new(server_pkey, server_private_key, server_options);
-  
+  this->vds_folder_.create();
   server_certificate.save(filename(this->vds_folder_, "server.crt"));
   server_private_key.save(filename(this->vds_folder_, "server.pkey"));
 
@@ -66,7 +66,11 @@ void vds::storage_log::reset(
   batch.previous_message_id_ = 0;
   batch.messages_.reset(new json_array());
 
-  batch.messages_->add(message.serialize().release());
+  batch.messages_->add(
+    server_log_root_certificate(
+      root_certificate.str(),
+      private_key.str(password),
+      base64::from_bytes(ph.signature(), ph.signature_length())).serialize());
   batch.messages_->add(new_server_message.serialize().release());
    
   std::unique_ptr<json_value> m(batch.serialize());
@@ -135,17 +139,14 @@ vds::certificate * vds::storage_log::get_cert(const std::string & fingerprint)
 
 vds::certificate * vds::storage_log::parse_root_cert(const json_value * value)
 {
-  server_log_root_certificate message;
-  message.deserialize(value);
+  server_log_root_certificate message(value);
   
   std::string cert_body;
-  if (message.certificate_.empty() || message.private_key_.empty()) {
+  if (message.certificate().empty() || message.private_key().empty()) {
     return nullptr;
   }
 
-  auto result = new certificate(certificate::parse(message.certificate_));
-  this->certificates_[result->fingerprint()].reset(result);
-  return result;
+  return new certificate(certificate::parse(message.certificate()));
 }
 
 void vds::storage_log::apply_record(const json_value * value)
@@ -154,4 +155,48 @@ void vds::storage_log::apply_record(const json_value * value)
     //already processed
     this->is_empty_ = false;
   }
+
+  auto value_obj = dynamic_cast<const json_object *>(value);
+  if (nullptr != value_obj) {
+    std::string record_type;
+    if (value_obj->get_property("$t", record_type, false) && !record_type.empty()) {
+      if (server_log_root_certificate::message_type == record_type) {
+        this->process(server_log_root_certificate(value_obj));
+      }
+      else {
+        this->log_(log_level::ll_warning, "Invalid server log record type %s", record_type.c_str());
+      }
+    }
+    else {
+      this->log_(log_level::ll_warning, "Invalid server log record: the record has not type attribute");
+    }
+  }
+  else {
+    this->log_(log_level::ll_warning, "Invalid server log record: the record in not object");
+  }
+}
+
+bool vds::storage_log::get_cert_and_key(const std::string & object_name, const std::string & password_hash, std::string & cert_body, std::string & key_body)
+{
+  auto p = this->cert_and_keys_.find(object_name);
+  if (this->cert_and_keys_.end() == p) {
+    return false;
+  }
+
+  auto p1 = p->second.find(password_hash);
+  if (p->second.end() == p1) {
+    return false;
+  }
+
+  cert_body = p1->second.cert_body;
+  key_body = p1->second.key_body;
+  return true;
+}
+
+void vds::storage_log::process(const server_log_root_certificate & message)
+{
+  auto cert = new certificate(certificate::parse(message.certificate()));
+  this->certificates_[cert->fingerprint()].reset(cert);
+
+  this->cert_and_keys_["login:root"][message.password_hash()] = { message.certificate(), message.private_key() };
 }

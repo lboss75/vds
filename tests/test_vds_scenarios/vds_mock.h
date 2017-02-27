@@ -11,7 +11,7 @@ public:
   mock_server(int index, int port);
 
   void start();
-  voif stop();
+  void stop();
 
 private:
   int index_;
@@ -31,7 +31,7 @@ public:
   mock_client(int index);
 
   void init_root(const std::string & root_password, int port);
-  void init_server(const std::string & root_password, const std::server & address, int port);
+  void init_server(const std::string & root_password, const std::string & address, int port);
 
 private:
   int index_;

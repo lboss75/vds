@@ -31,7 +31,11 @@ void vds::https_pipeline::on_connected()
 {
 }
 
-void vds::https_pipeline::on_error(std::exception* error)
+void vds::https_pipeline::on_connection_closed()
+{
+}
+
+void vds::https_pipeline::on_error(std::exception* /*error*/)
 {
 }
 
@@ -49,6 +53,12 @@ int vds::https_pipeline::port() const
 {
   return this->impl_->port();
 }
+
+void vds::https_pipeline::run(const std::string & body)
+{
+  this->impl_->run(body);
+}
+
 //////////////////////////////////////////////////////////////////////////
 vds::_https_pipeline::_https_pipeline(
   const service_provider & sp,
@@ -63,7 +73,12 @@ log_(sp, "HTTPS pipeline"),
 address_(address),
 port_(port),
 client_certificate_(client_certificate),
-client_private_key_(client_private_key)
+client_private_key_(client_private_key),
+output_command_stream_(nullptr)
+{
+}
+
+vds::_https_pipeline::~_https_pipeline()
 {
 }
 
@@ -135,3 +150,7 @@ owner_(owner)
 {
 }
 
+void vds::_https_pipeline::run(const std::string & body)
+{
+  this->output_command_stream_->run(body);
+}

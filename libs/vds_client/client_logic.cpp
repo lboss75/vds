@@ -14,6 +14,7 @@ vds::client_logic::client_logic(
   log_(sp, "VDS Client logic"),
   client_certificate_(client_certificate),
   client_private_key_(client_private_key),
+  filter_last_index_(0),
   connected_(0),
   update_connection_pool_(std::bind(&client_logic::update_connection_pool, this)),
   update_connection_pool_task_(sp.get<itask_manager>().create_job("update connection pool", update_connection_pool_))
@@ -41,12 +42,14 @@ void vds::client_logic::start()
           this->client_private_key_)));
   }
 
-  this->update_connection_pool_task_.schedule(
-    std::chrono::system_clock::now() + std::chrono::seconds(5));
+  this->update_connection_pool();
 }
 
 void vds::client_logic::stop()
 {
+  if (this->update_connection_pool_feature_.valid()) {
+    this->update_connection_pool_feature_.get();
+  }
 }
 
 void vds::client_logic::connection_closed(client_connection<client_logic>& connection)
@@ -81,7 +84,9 @@ void vds::client_logic::process_response(client_connection<client_logic>& connec
       if (nullptr != task) {
         std::string task_type;
         if (task->get_property("$t", task_type, false)) {
-          if (install_node_prepared::message_type == task_type) {
+          std::unique_lock<std::mutex> lock(this->filters_mutex_);
+          for (auto & f : this->filters_[task_type]) {
+            f.second(task);
           }
         }
       }
@@ -112,6 +117,12 @@ void vds::client_logic::get_commands(vds::client_connection<vds::client_logic> &
 {
   this->outgoing_queue_.get(connection);
 }
+
+void vds::client_logic::add_task(const std::string & message)
+{
+  this->outgoing_queue_.push(message);
+}
+
 /*
 std::string vds::client_logic::get_messages()
 {
@@ -139,7 +150,10 @@ std::string vds::client_logic::get_messages()
 void vds::client_logic::update_connection_pool()
 {
   if (!this->connection_queue_.empty()) {
-    std::async(
+    if (this->update_connection_pool_feature_.valid()) {
+      this->update_connection_pool_feature_.get();
+    }
+    this->update_connection_pool_feature_ = std::async(
       std::launch::async,
       [this]() {
 

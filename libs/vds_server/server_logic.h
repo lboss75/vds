@@ -32,10 +32,10 @@ namespace vds {
       error_handler_type & error_handler
     ) const
     {
-      if("/vds/ping" == request.url()){
+      if("/vds/client_api" == request.url()){
         sequence(
           http_stream_reader<prev_handler_type>(prev_handler, incoming_stream),
-          json_parser("ping request"),
+          json_parser("client_api"),
           http_json_api<server_json_api>(scope, this->server_json_api_),
           http_json_formatter(response, outgoing_stream)
         )(

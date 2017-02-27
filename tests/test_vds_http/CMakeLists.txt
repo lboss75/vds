@@ -20,6 +20,7 @@ include_directories(${vds_network_SOURCE_DIR})
 include_directories(${vds_parser_SOURCE_DIR})
 include_directories(${vds_http_SOURCE_DIR})
 include_directories(${vds_crypto_SOURCE_DIR})
+include_directories(${OPENSSL_INCLUDE_DIR})
 target_link_libraries(
   test_vds_http
   vds_core

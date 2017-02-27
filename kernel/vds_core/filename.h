@@ -68,6 +68,8 @@ namespace vds {
 
       static filename current_process();
 
+      bool exists() const;
+
   private:
     friend class foldername;
     std::string value_;
