@@ -25,7 +25,6 @@ target_link_libraries(
   vds_network
   vds_crypto
   vds_parser
-  vds_protocols
   ${OPENSSL_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT}
   )

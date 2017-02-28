@@ -28,7 +28,7 @@ namespace vds {
   private:
     friend class iserver;
 
-    std::unique_ptr<vsr_protocol::server> vsr_server_protocol_;
+    std::unique_ptr<consensus_protocol::server> consensus_server_protocol_;
     std::unique_ptr<cert_manager> cert_manager_;
     std::unique_ptr<node_manager> node_manager_;
     std::unique_ptr<user_manager> user_manager_;
@@ -42,7 +42,7 @@ namespace vds {
   public:
     iserver(server * owner);
     
-    vsr_protocol::server * vsr_server_protocol() const { return this->owner_->vsr_server_protocol_.get(); }
+    consensus_protocol::server * consensus_server_protocol() const { return this->owner_->consensus_server_protocol_.get(); }
     cert_manager * get_cert_manager() const { return this->owner_->cert_manager_.get(); }
     node_manager * get_node_manager() const { return this->owner_->node_manager_.get(); }
     user_manager * get_user_manager() const { return this->owner_->user_manager_.get(); }

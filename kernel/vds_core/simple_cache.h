@@ -13,11 +13,11 @@ namespace vds {
   public:
     typedef std::list<std::pair<key_type, value_type>> data_type;
 
-    data_type::iterator find(const key_type & key)
+    typename data_type::iterator find(const key_type & key)
     {
       for (data_type::iterator p = this->data_.begin(); p != this->data_.end(); ++p) {
         if (p->first == key) {
-          this->data_.splice(this->data_.begin()(), this->data_, p);
+          this->data_.splice(this->data_.begin(), this->data_, p);
           return this->data_.begin();
         }
       }
@@ -25,7 +25,7 @@ namespace vds {
       return this->data_.end();
     }
 
-    data_type::iterator end()
+    typename data_type::iterator end()
     {
       return this->data_.end();
     }
@@ -43,7 +43,7 @@ namespace vds {
         }
       }
       else {
-        p->secound = value;
+        p->second = value;
       }
     }
 

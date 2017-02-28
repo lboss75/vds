@@ -6,7 +6,7 @@ All rights reserved
 #include "stdafx.h"
 #include "server.h"
 #include "server_http_api.h"
-#include "_server_http_api.h"
+#include "server_http_api_p.h"
 
 vds::server_http_api::server_http_api(const service_provider& sp)
 : sp_(sp)

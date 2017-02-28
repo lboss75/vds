@@ -13,6 +13,15 @@ vds::node_manager::node_manager(const service_provider & sp)
 {
 }
 
+vds::node_manager::~node_manager()
+{
+}
+
+bool vds::node_manager::register_server(const service_provider & scope, const std::string & node_certificate, std::string & error)
+{
+  return this->impl_->register_server(scope, node_certificate, error);
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 vds::_node_manager::_node_manager(const service_provider & sp)
   : sp_(sp),
@@ -41,7 +50,7 @@ bool vds::_node_manager::register_server(const service_provider & scope, const s
 
   this->states_.set(node_certificate, _node_manager::pending);
 
-  scope.get<iserver>()->register_server(node_certificate);
+  scope.get<iserver>().consensus_server_protocol()->register_server(node_certificate);
   return false;
 }
 

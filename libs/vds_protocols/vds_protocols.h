@@ -11,8 +11,8 @@ All rights reserved
 #include "vds_parser.h"
 
 #include "messages.h"
-#include "vsr_messages.h"
-#include "vsr_protocol.h"
+#include "consensus_messages.h"
+#include "consensus_protocol.h"
 #include "install_node_messages.h"
 #include "client_messages.h"
 

@@ -11,9 +11,7 @@ All rights reserved
 
 namespace vds {
 
-  class client
-    : public iservice,
-      public vsr_protocol::server_queue
+  class client : public iservice
   {
   public:
     client();
@@ -28,14 +26,11 @@ namespace vds {
     void connection_closed();
     void connection_error();
 
-    void new_client() override;
-
   private:
     friend class iclient;
     certificate client_certificate_;
     asymmetric_private_key client_private_key_;
     std::unique_ptr<client_logic> logic_;
-    std::unique_ptr<vsr_protocol::client> vsr_client_protocol_;
   };
   
   class iclient

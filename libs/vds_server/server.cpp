@@ -1,3 +1,4 @@
+#include "..\vds_protocols\consensus_protocol.h"
 /*
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
@@ -5,12 +6,12 @@ All rights reserved
 
 #include "stdafx.h"
 #include "server.h"
-#include "vsr_protocol.h"
+#include "consensus_protocol.h"
 #include "node_manager.h"
 #include "user_manager.h"
 #include "cert_manager.h"
 #include "server_http_api.h"
-#include "_server_http_api.h"
+#include "server_http_api_p.h"
 
 vds::server::server()
 {
@@ -25,10 +26,6 @@ void vds::server::register_services(service_registrator& registrator)
   registrator.add_factory<iserver>([this](const service_provider &, bool &)->iserver{
     return iserver(this);
   });
-  
-  registrator.add_factory<vsr_protocol::iserver>([this](const service_provider &, bool &)->vsr_protocol::iserver{
-    return vsr_protocol::iserver(this->vsr_server_protocol_.get());
-  });
 }
 
 void vds::server::start(const service_provider& sp)
@@ -36,8 +33,8 @@ void vds::server::start(const service_provider& sp)
   this->storage_log_.reset(new storage_log(sp));
   this->storage_log_->start();
   
-  this->vsr_server_protocol_.reset(new vsr_protocol::server(sp));
-  this->vsr_server_protocol_->start();
+  this->consensus_server_protocol_.reset(new consensus_protocol::server(sp, *this->storage_log_));
+  this->consensus_server_protocol_->start();
 
   this->node_manager_.reset(new node_manager(sp));
   this->server_http_api_.reset(new server_http_api(sp));
