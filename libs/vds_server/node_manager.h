@@ -8,22 +8,18 @@ All rights reserved
 
 
 namespace vds {
-  class json_array;
-  class install_node_prepare;
+  class _node_manager;
 
   class node_manager
   {
   public:
     node_manager(const service_provider & sp);
+    ~node_manager();
 
-    void install_prepate(json_array * result, const install_node_prepare & message);
+    bool register_server(const service_provider & scope, const std::string & node_certificate, std::string & error);
 
   private:
-    service_provider sp_;
-    logger log_;
-
-    std::mutex mutex_;
-    std::list<std::string> processed_requests_;
+    std::unique_ptr<_node_manager> impl_;
   };
 }
 

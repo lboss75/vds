@@ -28,6 +28,7 @@ All rights reserved
 #include "guid.h"
 #include "pipeline_queue.h"
 #include "mt_service.h"
+#include "simple_cache.h"
 
 #endif // !__VDS_CORE_H_
 

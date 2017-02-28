@@ -1,5 +1,5 @@
-#ifndef __VDS_SERVER_SERVER_HTTP_API_PRIVATE_H_
-#define __VDS_SERVER_SERVER_HTTP_API_PRIVATE_H_
+#ifndef __VDS_SERVER_SERVER_HTTP_API_P_H_
+#define __VDS_SERVER_SERVER_HTTP_API_P_H_
 
 /*
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
@@ -65,4 +65,4 @@ namespace vds {
   };
 }
 
-#endif // __VDS_SERVER_SERVER_HTTP_API_PRIVATE_H_
+#endif // __VDS_SERVER_SERVER_HTTP_API_P_H_

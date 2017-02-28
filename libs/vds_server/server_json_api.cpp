@@ -5,18 +5,39 @@ All rights reserved
 
 #include "stdafx.h"
 #include "server_json_api.h"
+#include "server_json_api_p.h"
 #include "server.h"
 #include "node_manager.h"
 
 vds::server_json_api::server_json_api(
   const service_provider & sp
 )
-: sp_(sp),
-  log_(sp, "Server JSON API")
+: impl_(new _server_json_api(sp, this))
+{
+}
+
+vds::server_json_api::~server_json_api()
 {
 }
 
 vds::json_value * vds::server_json_api::operator()(
+  const service_provider & scope,
+  const json_value * request) const
+{
+  return this->impl_->operator()(scope, request);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+vds::_server_json_api::_server_json_api(
+  const service_provider & sp,
+  server_json_api * owner
+)
+  : log_(sp, "Server JSON API"),
+  owner_(owner)
+{
+}
+
+vds::json_value * vds::_server_json_api::operator()(
   const service_provider & scope, 
   const json_value * request) const
 {
@@ -40,10 +61,13 @@ vds::json_value * vds::server_json_api::operator()(
             auto task_type_name = task_type_value->value();
 
             if (client_messages::certificate_and_key_request::message_type == task_type_name) {
-              this->process(result.get(), client_messages::certificate_and_key_request(task_object));
+              this->process(scope, result.get(), client_messages::certificate_and_key_request(task_object));
+            }
+            else if (client_messages::register_server_request::message_type == task_type_name) {
+              this->process(scope, result.get(), client_messages::register_server_request(task_object));
             }
             else {
-              this->log_.warning("Invalid request type %s", task_type_name.c_str());
+              this->log_.warning("Invalid request type \'%s\'", task_type_name.c_str());
             }
           }
         }
@@ -54,14 +78,22 @@ vds::json_value * vds::server_json_api::operator()(
   return result.release();
 }
 
-void vds::server_json_api::process(json_array * result, const client_messages::certificate_and_key_request & message) const
+void vds::_server_json_api::process(const service_provider & scope, json_array * result, const client_messages::certificate_and_key_request & message) const
 {
   std::string cert_body;
   std::string key_body;
-  if (this->sp_.get<iserver>().get_storage_log()->get_cert_and_key(message.object_name(), message.password_hash(), cert_body, key_body)) {
+  if (scope.get<iserver>().get_storage_log()->get_cert_and_key(message.object_name(), message.password_hash(), cert_body, key_body)) {
     result->add(client_messages::certificate_and_key_response(message.request_id(), cert_body, key_body).serialize());
   }
   else {
     result->add(client_messages::certificate_and_key_response(message.request_id(), "Invalid username or password").serialize());
+  }
+}
+
+void vds::_server_json_api::process(const service_provider & scope, json_array * result, const client_messages::register_server_request & message) const
+{
+  std::string error;
+  if (scope.get<iserver>().get_node_manager()->register_server(scope, message.certificate_body(), error)) {
+    result->add(client_messages::register_server_response(message.request_id(), error).serialize());
   }
 }

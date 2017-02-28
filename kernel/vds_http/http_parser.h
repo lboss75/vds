@@ -177,15 +177,18 @@ namespace vds {
             }
 
             if (0 < size) {
-              this->incoming_stream_.push_data(this->data_, size);
-            }
+              auto p = this->data_;
 
-            this->content_length_ -= size;
-            this->data_ = reinterpret_cast<const char *>(this->data_) + size;
-            this->len_ -= size;
+              this->content_length_ -= size;
+              this->data_ = reinterpret_cast<const char *>(this->data_) + size;
+              this->len_ -= size;
 
-            if (0 == this->content_length_) {
-              this->state_ = STATE_PARSE_HEADER;
+              if (0 == this->content_length_) {
+                this->state_ = STATE_PARSE_HEADER;
+              }
+
+              this->incoming_stream_.push_data(p, size);
+              return;
             }
           }
         }

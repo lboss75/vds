@@ -7,6 +7,8 @@ All rights reserved
 */
 
 namespace vds {
+  class _server_json_api;
+
   class server_json_api
   {
   public:
@@ -14,13 +16,12 @@ namespace vds {
       const service_provider & sp
     );
 
+    ~server_json_api();
+
     json_value * operator()(const service_provider & scope, const json_value * request) const;
 
   private:
-    service_provider sp_;
-    logger log_;
-
-    void process(json_array * result, const client_messages::certificate_and_key_request & message) const;
+    std::unique_ptr<_server_json_api> impl_;
   };
 }
 
