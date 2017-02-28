@@ -25,14 +25,17 @@ vds::consensus_protocol::server::~server()
 
 void vds::consensus_protocol::server::start()
 {
+  this->impl_->start();
 }
 
 void vds::consensus_protocol::server::stop()
 {
+  this->impl_->stop();
 }
 
 void vds::consensus_protocol::server::register_server(const std::string & certificate_body)
 {
+  this->impl_->register_server(certificate_body);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -62,4 +65,10 @@ void vds::consensus_protocol::_server::start()
 void vds::consensus_protocol::_server::stop()
 {
 
+}
+
+void vds::consensus_protocol::_server::register_server(const std::string & certificate_body)
+{
+  //server_log_new_server(certificate_body).serialize()->str();
+    
 }

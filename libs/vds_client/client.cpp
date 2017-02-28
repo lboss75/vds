@@ -78,29 +78,26 @@ void vds::iclient::init_server(
   json_writer writer;
   m.serialize()->str(writer);
 
-  this->owner_->logic_->add_task(writer.str());
-
   std::string error;
   std::string cert_body;
   std::string pkey_body;
-  if (!this->owner_->logic_->wait_for(
-    std::chrono::seconds(20),
-    client_messages::certificate_and_key_response::message_type,
-    [&request_id, &error, &cert_body, &pkey_body](const json_object * value) -> bool {
-    client_messages::certificate_and_key_response message(value);
-    if (request_id != message.request_id()) {
-      return false;
-    }
+  if (!this->owner_->logic_->add_task_and_wait<client_messages::certificate_and_key_response>(
+    writer.str(),
+    [&request_id, &error, &cert_body, &pkey_body](
+      const client_messages::certificate_and_key_response & message) -> bool {
+      if (request_id != message.request_id()) {
+        return false;
+      }
 
-    if (!message.error().empty()) {
-      error = message.error();
-    }
-    else {
-      cert_body = message.certificate_body();
-      pkey_body = message.private_key_body();
-    }
-    return true;
-  })) {
+      if (!message.error().empty()) {
+        error = message.error();
+      }
+      else {
+        cert_body = message.certificate_body();
+        pkey_body = message.private_key_body();
+      }
+      return true;
+    })) {
     throw new std::runtime_error("Timeout at getting user certificate");
   }
   
@@ -134,20 +131,15 @@ void vds::iclient::init_server(
   json_writer register_message_writer;
   register_message.serialize()->str(register_message_writer);
 
-  this->owner_->logic_->add_task(register_message_writer.str());
+  if(!this->owner_->logic_->add_task_and_wait<client_messages::register_server_response>(
+    register_message_writer.str(),
+    [&request_id, &error](const client_messages::register_server_response & message) -> bool {
+      if (request_id != message.request_id()) {
+        return false;
+      }
 
-  
-  if (!this->owner_->logic_->wait_for(
-    std::chrono::seconds(20),
-    client_messages::register_server_response::message_type,
-    [&request_id, &error](const json_object * value) -> bool {
-    client_messages::register_server_response message(value);
-    if (request_id != message.request_id()) {
-      return false;
-    }
-
-    error = message.error();
-    return true;
+      error = message.error();
+      return true;
   })) {
     throw new std::runtime_error("Timeout at registering new server");
   }

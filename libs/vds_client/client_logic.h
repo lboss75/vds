@@ -70,6 +70,26 @@ namespace vds {
       return result;
     }
 
+    template <typename response_type>
+    bool add_task_and_wait(
+      const std::string & request,
+      const std::function<bool(const response_type & response)> & filter) {
+      for(size_t try_count = 0; try_count < 4; ++try_count){
+        this->add_task(request);
+  
+        if (this->wait_for(
+          std::chrono::seconds(5),
+          response_type::message_type,
+          [filter](const json_object * value) -> bool {
+            response_type message(value);
+            return filter(message);
+          })){
+          return true;
+        }
+      }
+      
+      return false;
+    }
 
   private:
     service_provider sp_;

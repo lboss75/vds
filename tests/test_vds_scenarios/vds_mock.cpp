@@ -16,8 +16,14 @@ void vds_mock::start(int client_count, int server_count)
   mock_server server(0, first_port);
   server.start();
   
-  mock_client client1(1);
-  client1.init_server(root_password, "127.0.0.1", first_port + 1);
+  try{
+    mock_client client1(1);
+    client1.init_server(root_password, "127.0.0.1", first_port + 1);
+  }
+  catch(...){
+    server.stop();
+    throw;
+  }
   
 }
 

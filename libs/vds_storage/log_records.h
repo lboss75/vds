@@ -71,12 +71,18 @@ namespace vds {
   {
   public:
     static const char message_type[];
+    
+    server_log_new_server(
+      const std::string & certificate);
+    
+    server_log_new_server(const json_value * source);
 
-    std::string certificate_;
-    std::string addresses_;
-
+    const std::string & certificate() const { return this->certificate_; }
+    
     std::unique_ptr<json_value> serialize() const;
-    void deserialize(const json_value * source);
+    
+  private:
+    std::string certificate_;    
   };
 }
 

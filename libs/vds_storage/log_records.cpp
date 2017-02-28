@@ -118,23 +118,31 @@ void vds::server_log_batch::deserialize(json_value * source)
     
   }
 }
-
+//////////////////////////////////////////////////////////////////////
 const char vds::server_log_new_server::message_type[] = "new server";
+
+vds::server_log_new_server::server_log_new_server(
+  const std::string& certificate)
+: certificate_(certificate)
+{
+}
+
+
+vds::server_log_new_server::server_log_new_server(
+  const vds::json_value* source)
+{
+  auto s = dynamic_cast<const json_object *>(source);
+  if (nullptr != s) {
+    s->get_property("c", this->certificate_);
+  }
+}
+
 
 std::unique_ptr<vds::json_value> vds::server_log_new_server::serialize() const
 {
   std::unique_ptr<json_object> result(new json_object());
   result->add_property("$t", message_type);
   result->add_property("c", this->certificate_);
-  result->add_property("a", this->addresses_);
   return std::unique_ptr<vds::json_value>(result.release());
 }
 
-void vds::server_log_new_server::deserialize(const json_value * source)
-{
-  auto s = dynamic_cast<const json_object *>(source);
-  if (nullptr != s) {
-    s->get_property("c", this->certificate_);
-    s->get_property("a", this->addresses_);
-  }
-}

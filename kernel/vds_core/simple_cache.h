@@ -15,7 +15,7 @@ namespace vds {
 
     typename data_type::iterator find(const key_type & key)
     {
-      for (data_type::iterator p = this->data_.begin(); p != this->data_.end(); ++p) {
+      for (typename data_type::iterator p = this->data_.begin(); p != this->data_.end(); ++p) {
         if (p->first == key) {
           this->data_.splice(this->data_.begin(), this->data_, p);
           return this->data_.begin();

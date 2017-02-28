@@ -24,7 +24,8 @@ namespace vds {
 
       void start();
       void stop();
-
+      
+      void register_server(const std::string & certificate_body);
     private:
       service_provider sp_;
       logger log_;

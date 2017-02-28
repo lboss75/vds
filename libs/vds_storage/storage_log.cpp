@@ -98,9 +98,7 @@ void vds::_storage_log::reset(
   server_private_key.save(filename(this->vds_folder_, "server.pkey"));
 
 
-  server_log_new_server new_server_message;
-  new_server_message.certificate_ = server_certificate.str();
-  new_server_message.addresses_ = addresses;
+  server_log_new_server new_server_message(server_certificate.str());
 
   server_log_batch batch;
   batch.message_id_ = 0;

@@ -25,7 +25,7 @@ namespace vds {
   class storage_cursor<node> : public _simple_storage_cursor<node>
   {
   public:
-    storage_cursor(istorage & storage);
+    storage_cursor(const istorage & storage);
   };
 
 }

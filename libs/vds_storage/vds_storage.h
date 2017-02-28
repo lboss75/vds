@@ -18,5 +18,6 @@ All rights reserved
 #include "user.h"
 #include "storage_log.h"
 #include "process_log_line.h"
+#include "log_records.h"
 
 #endif // __VDS_STORAGE_VDS_STORAGE_H_
