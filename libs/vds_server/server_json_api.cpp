@@ -80,14 +80,16 @@ vds::json_value * vds::_server_json_api::operator()(
 
 void vds::_server_json_api::process(const service_provider & scope, json_array * result, const client_messages::certificate_and_key_request & message) const
 {
-  std::string cert_body;
-  std::string key_body;
-  if (scope.get<iserver>().get_storage_log()->get_cert_and_key(message.object_name(), message.password_hash(), cert_body, key_body)) {
-    result->add(client_messages::certificate_and_key_response(message.request_id(), cert_body, key_body).serialize());
+  storage_cursor<cert> cert_reader(scope.get<istorage>());
+  while (cert_reader.read()) {
+    if (cert_reader.current().object_name() == message.object_name()
+      && cert_reader.current().password_hash() == message.password_hash()) {
+      result->add(client_messages::certificate_and_key_response(message.request_id(), cert_reader.current().certificate(), cert_reader.current().private_key()).serialize());
+      return;
+    }
   }
-  else {
-    result->add(client_messages::certificate_and_key_response(message.request_id(), "Invalid username or password").serialize());
-  }
+
+  result->add(client_messages::certificate_and_key_response(message.request_id(), "Invalid username or password").serialize());
 }
 
 void vds::_server_json_api::process(const service_provider & scope, json_array * result, const client_messages::register_server_request & message) const

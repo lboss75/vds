@@ -14,10 +14,14 @@ vds::server_http_api::server_http_api(const service_provider& sp)
 }
 
 
-void vds::server_http_api::start(const std::string & address, int port)
+void vds::server_http_api::start(
+  const std::string & address,
+  int port,
+  certificate & certificate,
+  asymmetric_private_key & private_key)
 {
   this->impl_.reset(new _server_http_api(this->sp_));
-  this->impl_->start(address, port);
+  this->impl_->start(address, port, certificate, private_key);
 }
 
 /////////////////////////////
@@ -53,7 +57,11 @@ vds::_server_http_api::_server_http_api(const service_provider& sp)
 {
 }
 
-void vds::_server_http_api::start(const std::string & address, int port)
+void vds::_server_http_api::start(
+  const std::string & address,
+  int port,
+  certificate & certificate,
+  asymmetric_private_key & private_key)
 {
   this->router_.reset(new http_router(this->sp_));
 
@@ -69,13 +77,10 @@ void vds::_server_http_api::start(const std::string & address, int port)
   //upnp_client upnp(sp);
   //upnp.open_port(8000, 8000, "TCP", "VDS Service");
 
-  this->certificate_.load(filename(foldername(persistence::current_user(this->sp_), ".vds"), "server.crt"));
-  this->private_key_.load(filename(foldername(persistence::current_user(this->sp_), ".vds"), "server.pkey"));
-
   sequence(
     socket_server(this->sp_, address.c_str(), port),
     vds::for_each<const service_provider &, network_socket>::create_handler(
-      socket_session(*this->router_, this->certificate_, this->private_key_))
+      socket_session(*this->router_, certificate, private_key))
   )
   (
     []() {

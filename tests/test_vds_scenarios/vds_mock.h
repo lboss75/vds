@@ -24,6 +24,7 @@ private:
   vds::server server_;
   vds::task_manager task_manager_;
   vds::crypto_service crypto_service_;
+  vds::storage_service storage_;
 };
 
 class mock_client

@@ -21,6 +21,7 @@ namespace vds {
 
     
   private:
+    std::list<endpoint> endpoints_;
     command_line_set add_storage_cmd_set_;
     command_line_set remove_storage_cmd_set_;
     command_line_set list_storage_cmd_set_;

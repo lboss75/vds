@@ -16,7 +16,11 @@ namespace vds {
     server_http_api(const service_provider & sp);
 
 
-    void start(const std::string & address, int port);
+    void start(
+      const std::string & address,
+      int port,
+      certificate & certificate,
+      asymmetric_private_key & private_key);
 
   private:
     service_provider sp_;

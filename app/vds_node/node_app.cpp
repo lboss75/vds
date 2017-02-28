@@ -51,9 +51,9 @@ node_password_(
     "Install Root node",
     "Create infrastructure for root note",
     "root",
-    "node")
+    "node"),
+  client_(this->endpoints_)
 {
-
 }
 
 void vds::node_app::main(

@@ -15,7 +15,8 @@ namespace vds {
     client_logic(
       const service_provider & sp,
       certificate * client_certificate,
-      asymmetric_private_key * client_private_key
+      asymmetric_private_key * client_private_key,
+      const std::list<endpoint> & endpoints
     );
 
     ~client_logic();
@@ -75,6 +76,7 @@ namespace vds {
     logger log_;
     certificate * client_certificate_;
     asymmetric_private_key * client_private_key_;
+    const std::list<endpoint> & endpoints_;
 
     std::mutex filters_mutex_;
     size_t filter_last_index_;

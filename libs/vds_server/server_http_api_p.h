@@ -13,14 +13,16 @@ namespace vds {
   public:
     _server_http_api(const service_provider & sp);
 
-    void start(const std::string & address, int port);
+    void start(
+      const std::string & address,
+      int port,
+      certificate & certificate,
+      asymmetric_private_key & private_key);
 
   private:
     service_provider sp_;
 
     std::unique_ptr<http_router> router_;
-    certificate certificate_;
-    asymmetric_private_key private_key_;
 
 
     class socket_session

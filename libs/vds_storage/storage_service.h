@@ -8,11 +8,14 @@ All rights reserved
 
 namespace vds {
   class storage_service;
+  class storage_log;
 
   class istorage
   {
   public:
     istorage(storage_service * owner);
+
+    storage_log & get_storage_log() const;
 
   private:
     storage_service * owner_;
@@ -21,10 +24,17 @@ namespace vds {
   class storage_service : public iservice
   {
   public:
+    storage_service();
+    ~storage_service();
+
     // Inherited via iservice
     void register_services(service_registrator &) override;
     void start(const service_provider &) override;
     void stop(const service_provider &) override;
+
+  private:
+    friend class istorage;
+    std::unique_ptr<storage_log> storage_log_;
   };
 }
 

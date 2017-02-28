@@ -5,18 +5,59 @@ All rights reserved
 
 #include "stdafx.h"
 #include "storage_log.h"
+#include "storage_log_p.h"
 #include "process_log_line.h"
 #include "log_records.h"
+#include "cert.h"
+#include "node.h"
 
 vds::storage_log::storage_log(const service_provider & sp)
-: log_(sp, "Server log"),
+  : impl_(new _storage_log(sp, this))
+{
+}
+
+vds::storage_log::~storage_log()
+{
+}
+
+void vds::storage_log::reset(
+  const std::string & root_password,
+  const std::string & addresses)
+{
+  this->impl_->reset(root_password, addresses);
+}
+
+void vds::storage_log::start()
+{
+  this->impl_->start();
+}
+
+void vds::storage_log::stop()
+{
+  this->impl_->stop();
+}
+
+bool vds::storage_log::is_empty() const
+{
+  return this->impl_->is_empty();
+}
+
+vds::_storage_log * vds::storage_log::operator->() const
+{
+  return this->impl_.get();
+}
+
+///////////////////////////////////////////////////////////////////////////////
+vds::_storage_log::_storage_log(const service_provider & sp, storage_log * owner)
+: owner_(owner),
+  log_(sp, "Server log"),
   vds_folder_(persistence::current_user(sp), ".vds"),
   commited_folder_(foldername(persistence::current_user(sp), ".vds"), "commited"),
   is_empty_(true)
 {
 }
 
-void vds::storage_log::reset(
+void vds::_storage_log::reset(
   const std::string & password,
   const std::string & addresses
 )
@@ -105,7 +146,7 @@ void vds::storage_log::reset(
 }
 
 
-void vds::storage_log::start()
+void vds::_storage_log::start()
 {
   filename fn(this->commited_folder_, "checkpoint0.json");
   
@@ -115,29 +156,34 @@ void vds::storage_log::start()
   sequence(
     read_file(fn),
     json_parser(fn.name(), parser_options),
-    process_log_line<storage_log>(fn.name(), this)
+    process_log_line<_storage_log>(fn.name(), this)
   )(
     []() {},
     [](std::exception * ex) { throw ex; }
   );
 }
 
-bool vds::storage_log::is_empty()
+void vds::_storage_log::stop()
+{
+}
+
+
+bool vds::_storage_log::is_empty()
 {
   return this->is_empty_;
 }
 
-vds::certificate * vds::storage_log::get_cert(const std::string & fingerprint)
+vds::certificate * vds::_storage_log::get_cert(const std::string & fingerprint)
 {
-  auto p = this->certificates_.find(fingerprint);
-  if (this->certificates_.end() == p) {
+  auto p = this->loaded_certificates_.find(fingerprint);
+  if (this->loaded_certificates_.end() == p) {
     return nullptr;
   }
 
   return p->second.get();
 }
 
-vds::certificate * vds::storage_log::parse_root_cert(const json_value * value)
+vds::certificate * vds::_storage_log::parse_root_cert(const json_value * value)
 {
   server_log_root_certificate message(value);
   
@@ -149,7 +195,7 @@ vds::certificate * vds::storage_log::parse_root_cert(const json_value * value)
   return new certificate(certificate::parse(message.certificate()));
 }
 
-void vds::storage_log::apply_record(const json_value * value)
+void vds::_storage_log::apply_record(const json_value * value)
 {
   if(this->is_empty_){
     //already processed
@@ -176,27 +222,10 @@ void vds::storage_log::apply_record(const json_value * value)
   }
 }
 
-bool vds::storage_log::get_cert_and_key(const std::string & object_name, const std::string & password_hash, std::string & cert_body, std::string & key_body)
-{
-  auto p = this->cert_and_keys_.find(object_name);
-  if (this->cert_and_keys_.end() == p) {
-    return false;
-  }
-
-  auto p1 = p->second.find(password_hash);
-  if (p->second.end() == p1) {
-    return false;
-  }
-
-  cert_body = p1->second.cert_body;
-  key_body = p1->second.key_body;
-  return true;
-}
-
-void vds::storage_log::process(const server_log_root_certificate & message)
+void vds::_storage_log::process(const server_log_root_certificate & message)
 {
   auto cert = new certificate(certificate::parse(message.certificate()));
-  this->certificates_[cert->fingerprint()].reset(cert);
+  this->loaded_certificates_[cert->fingerprint()].reset(cert);
 
-  this->cert_and_keys_["login:root"][message.password_hash()] = { message.certificate(), message.private_key() };
+  this->certificates_.push_back(vds::cert("login:root", message.certificate(), message.private_key(), message.password_hash()));
 }

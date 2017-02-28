@@ -23,6 +23,8 @@ namespace vds {
   private:
     command_line_set start_server_command_set_;
 
+    std::list<endpoint> endpoints_;
+
     network_service network_service_;
     crypto_service crypto_service_;
     task_manager task_manager_;

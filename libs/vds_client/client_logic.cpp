@@ -9,11 +9,13 @@ All rights reserved
 vds::client_logic::client_logic(
   const service_provider & sp,
   certificate * client_certificate,
-  asymmetric_private_key * client_private_key)
+  asymmetric_private_key * client_private_key,
+  const std::list<endpoint> & endpoints)
   : sp_(sp),
   log_(sp, "VDS Client logic"),
   client_certificate_(client_certificate),
   client_private_key_(client_private_key),
+  endpoints_(endpoints),
   filter_last_index_(0),
   connected_(0),
   update_connection_pool_(std::bind(&client_logic::update_connection_pool, this)),
@@ -28,17 +30,14 @@ vds::client_logic::~client_logic()
 
 void vds::client_logic::start()
 {
-  auto storage = this->sp_.get<istorage>();
-
-  storage_cursor<endpoint> endpoints(storage);
-  while (endpoints.read()) {
+  for (auto & endpoint : this->endpoints_) {
     this->connection_queue_.push_back(
       std::unique_ptr<client_connection<client_logic>>(
         new client_connection<client_logic>(
           this->sp_,
           this,
-          endpoints.current().address(),
-          endpoints.current().port(),
+          endpoint.address(),
+          endpoint.port(),
           this->client_certificate_,
           this->client_private_key_)));
   }
@@ -48,7 +47,7 @@ void vds::client_logic::start()
 
 void vds::client_logic::stop()
 {
-  if (this->update_connection_pool_feature_.valid()) {
+  if (std::future_status::ready != this->update_connection_pool_feature_.wait_for(std::chrono::seconds(0))) {
     this->update_connection_pool_feature_.get();
   }
 }
@@ -152,45 +151,46 @@ std::string vds::client_logic::get_messages()
 void vds::client_logic::update_connection_pool()
 {
   if (!this->connection_queue_.empty()) {
-    if (this->update_connection_pool_feature_.valid()) {
-      this->update_connection_pool_feature_.get();
-    }
-    this->update_connection_pool_feature_ = std::async(
-      std::launch::async,
-      [this]() {
+    if (
+      !this->update_connection_pool_feature_.valid()
+      || std::future_status::ready == this->update_connection_pool_feature_.wait_for(std::chrono::seconds(0))) {
+      this->update_connection_pool_feature_ = std::async(
+        std::launch::async,
+        [this]() {
 
-      std::chrono::time_point<std::chrono::system_clock> border
-        = std::chrono::system_clock::now() - std::chrono::seconds(60);
+        std::chrono::time_point<std::chrono::system_clock> border
+          = std::chrono::system_clock::now() - std::chrono::seconds(60);
 
-      size_t try_count = 0;
-      this->connection_mutex_.lock();
-      while (
-        !this->sp_.get_shutdown_event().is_shuting_down()
-        && this->connected_ < MAX_CONNECTIONS
-        && try_count++ < MAX_CONNECTIONS
-        && this->connected_ < this->connection_queue_.size()) {
-        
+        size_t try_count = 0;
+        this->connection_mutex_.lock();
+        while (
+          !this->sp_.get_shutdown_event().is_shuting_down()
+          && this->connected_ < MAX_CONNECTIONS
+          && try_count++ < MAX_CONNECTIONS
+          && this->connected_ < this->connection_queue_.size()) {
 
-        auto index = std::rand() % this->connection_queue_.size();
-        auto& connection = this->connection_queue_[index];
-        if (
-          client_connection<client_logic>::NONE == connection->state()
-          || (
-            client_connection<client_logic>::CONNECT_ERROR == connection->state()
-            && border > connection->connection_end()
-            )
-          ) {
-          
-          this->connection_mutex_.unlock();
-          connection->connect();
-          this->connection_mutex_.lock();
-        
-          this->connected_++;
+
+          auto index = std::rand() % this->connection_queue_.size();
+          auto& connection = this->connection_queue_[index];
+          if (
+            client_connection<client_logic>::NONE == connection->state()
+            || (
+              client_connection<client_logic>::CONNECT_ERROR == connection->state()
+              && border > connection->connection_end()
+              )
+            ) {
+
+            this->connection_mutex_.unlock();
+            connection->connect();
+            this->connection_mutex_.lock();
+
+            this->connected_++;
+          }
         }
-      }
-      
-      this->connection_mutex_.unlock();
-    });
+
+        this->connection_mutex_.unlock();
+      });
+    }
   }
   
   this->update_connection_pool_task_.schedule(

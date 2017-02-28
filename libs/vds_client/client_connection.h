@@ -49,6 +49,8 @@ namespace vds {
 
     void connect()
     {
+      this->log_(ll_debug, "Connecting to %s:%d", this->address().c_str(), this->port());
+
       this->state_ = CONNECTING;
       this->connection_start_ = std::chrono::system_clock::now();
       

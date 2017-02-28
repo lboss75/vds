@@ -64,15 +64,21 @@ void mock_client::init_server(
 
 void mock_client::start_vds(bool full_client, const std::function<void(const vds::service_provider&sp)> & handler)
 {
+  std::list<vds::endpoint> endpoints;
+  endpoints.push_back(vds::endpoint("127.0.0.1", 8050));
+
+  if (0 < this->index_) {
+    endpoints.push_back(vds::endpoint("127.0.0.1", 8050 + this->index_));
+  }
+
   vds::service_registrator registrator;
 
   vds::mt_service mt_service;
   vds::network_service network_service;
   vds::console_logger console_logger(vds::ll_trace);
   vds::crypto_service crypto_service;
-  vds::client client;
+  vds::client client(endpoints);
   vds::task_manager task_manager;
-  vds::storage_service storage;
 
   auto folder = vds::foldername(vds::filename::current_process().contains_folder(), std::to_string(this->index_));
   registrator.set_root_folders(folder, folder);
@@ -82,7 +88,6 @@ void mock_client::start_vds(bool full_client, const std::function<void(const vds
   registrator.add(network_service);
   registrator.add(crypto_service);
   registrator.add(task_manager);
-  registrator.add(storage);
   
   if(full_client){
     registrator.add(client);
@@ -120,6 +125,7 @@ void mock_server::start()
   this->registrator_.add(this->task_manager_);
   this->registrator_.add(this->crypto_service_);
   this->registrator_.add(this->server_);
+  this->registrator_.add(this->storage_);
 
   auto sp = this->registrator_.build();
   

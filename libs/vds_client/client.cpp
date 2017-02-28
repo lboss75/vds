@@ -7,7 +7,8 @@ All rights reserved
 #include "client.h"
 #include "client_connection.h"
 
-vds::client::client()
+vds::client::client(const std::list<endpoint> & endpoints)
+  : endpoints_(endpoints)
 {
 }
 
@@ -39,7 +40,7 @@ void vds::client::start(const service_provider & sp)
     client_private_key = &this->client_private_key_;
   }
 
-  this->logic_.reset(new client_logic(sp, client_certificate, client_private_key));
+  this->logic_.reset(new client_logic(sp, client_certificate, client_private_key, this->endpoints_));
   this->logic_->start();
 }
 

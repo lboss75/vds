@@ -17,7 +17,11 @@ namespace vds {
     class server
     {
     public:
-      server(const service_provider & sp, storage_log & storage);
+      server(
+        const service_provider & sp,
+        storage_log & storage,
+        certificate & certificate,
+        asymmetric_private_key & private_key);
       ~server();
 
       void start();

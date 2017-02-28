@@ -30,10 +30,13 @@ void vds::server::register_services(service_registrator& registrator)
 
 void vds::server::start(const service_provider& sp)
 {
+  this->certificate_.load(filename(foldername(persistence::current_user(sp), ".vds"), "server.crt"));
+  this->private_key_.load(filename(foldername(persistence::current_user(sp), ".vds"), "server.pkey"));
+
   this->storage_log_.reset(new storage_log(sp));
   this->storage_log_->start();
   
-  this->consensus_server_protocol_.reset(new consensus_protocol::server(sp, *this->storage_log_));
+  this->consensus_server_protocol_.reset(new consensus_protocol::server(sp, *this->storage_log_, this->certificate_, this->private_key_));
   this->consensus_server_protocol_->start();
 
   this->node_manager_.reset(new node_manager(sp));
@@ -53,5 +56,5 @@ vds::iserver::iserver(vds::server* owner)
 
 void vds::iserver::start_http_server(const std::string & address, int port)
 {
-  this->owner_->server_http_api_->start(address, port);
+  this->owner_->server_http_api_->start(address, port, this->owner_->certificate_, this->owner_->private_key_);
 }

@@ -9,7 +9,8 @@ All rights reserved
 
 vds::background_app::background_app()
   :
-  start_server_command_set_("Server start", "Start web server", "start", "server")
+  start_server_command_set_("Server start", "Start web server", "start", "server"),
+  client_(this->endpoints_)
 {
 }
 

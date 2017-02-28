@@ -28,6 +28,9 @@ namespace vds {
   private:
     friend class iserver;
 
+    certificate certificate_;
+    asymmetric_private_key private_key_;
+
     std::unique_ptr<consensus_protocol::server> consensus_server_protocol_;
     std::unique_ptr<cert_manager> cert_manager_;
     std::unique_ptr<node_manager> node_manager_;

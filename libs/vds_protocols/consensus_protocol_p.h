@@ -18,15 +18,27 @@ namespace vds {
       _server(
         const service_provider & sp,
         storage_log & storage,
-        server * owner);
+        server * owner,
+        certificate & certificate,
+        asymmetric_private_key & private_key);
 
       void start();
       void stop();
 
-    public:
+    private:
+      service_provider sp_;
       logger log_;
       storage_log & storage_;
       server * const owner_;
+      certificate & certificate_;
+      asymmetric_private_key & private_key_;
+
+      struct node_info
+      {
+
+      };
+
+      std::map<std::string, node_info> nodes_;
     };
   }
 }
