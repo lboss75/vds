@@ -31,15 +31,24 @@ vds::client_logic::~client_logic()
 void vds::client_logic::start()
 {
   for (auto & endpoint : this->endpoints_) {
-    this->connection_queue_.push_back(
-      std::unique_ptr<client_connection<client_logic>>(
-        new client_connection<client_logic>(
-          this->sp_,
-          this,
-          endpoint.address(),
-          endpoint.port(),
-          this->client_certificate_,
-          this->client_private_key_)));
+    url_parser::parse_addresses(endpoint.addresses(),
+      [this](const std::string & protocol, const std::string & address)->bool {
+      if ("https" == protocol) {
+        auto url = url_parser::parse_http_address(address);
+        if (protocol == url.protocol) {
+          this->connection_queue_.push_back(
+            std::unique_ptr<client_connection<client_logic>>(
+              new client_connection<client_logic>(
+                this->sp_,
+                this,
+                url.server,
+                std::atoi(url.port.c_str()),
+                this->client_certificate_,
+                this->client_private_key_)));
+        }
+      }
+      return true;
+    });
   }
 
   this->update_connection_pool();

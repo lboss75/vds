@@ -10,8 +10,11 @@ All rights reserved
 namespace vds {
   class storage_log;
   class server_log_root_certificate;
+  class server_log_new_server;
+  class server_log_new_endpoint;
   class cert;
   class node;
+  class endpoint;
 
   class _storage_log
   {
@@ -34,6 +37,12 @@ namespace vds {
 
     const std::list<cert> & get_certificates() const { return this->certificates_; }
     const std::list<node> & get_nodes() const { return this->nodes_; }
+    const std::list<endpoint> & get_endpoints() const { return this->endpoints_; }
+
+    size_t minimal_consensus() const { return this->minimal_consensus_; }
+
+    void add_record(const std::string & record);
+    size_t new_message_id();
 
   private:
     storage_log * const owner_;
@@ -41,13 +50,20 @@ namespace vds {
     foldername vds_folder_;
     foldername commited_folder_;
     bool is_empty_;
+    size_t minimal_consensus_;
 
     std::list<cert> certificates_;
     std::list<node> nodes_;
+    std::list<endpoint> endpoints_;
 
     std::map<std::string, std::unique_ptr<certificate>> loaded_certificates_;
+    certificate_store certificate_store_;
+
+    size_t last_message_id_;
 
     void process(const server_log_root_certificate & message);
+    void process(const server_log_new_server & message);
+    void process(const server_log_new_endpoint & message);
   };
 }
 

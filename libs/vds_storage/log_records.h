@@ -84,6 +84,24 @@ namespace vds {
   private:
     std::string certificate_;    
   };
+
+  class server_log_new_endpoint
+  {
+  public:
+    static const char message_type[];
+
+    server_log_new_endpoint(
+      const std::string & addresses);
+
+    server_log_new_endpoint(const json_value * source);
+
+    const std::string & addresses() const { return this->addresses_; }
+
+    std::unique_ptr<json_value> serialize() const;
+
+  private:
+    std::string addresses_;
+  };
 }
 
 #endif // __VDS_STORAGE_LOG_RECORDS_H_

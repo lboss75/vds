@@ -65,5 +65,4 @@ namespace vds {
 
 #endif
 
-
 #endif//__VDS_CORE_TYPES_H_

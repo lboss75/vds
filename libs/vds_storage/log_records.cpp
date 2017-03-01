@@ -145,4 +145,32 @@ std::unique_ptr<vds::json_value> vds::server_log_new_server::serialize() const
   result->add_property("c", this->certificate_);
   return std::unique_ptr<vds::json_value>(result.release());
 }
+//////////////////////////////////////////////////////////////////////
+const char vds::server_log_new_endpoint::message_type[] = "new endpoint";
+
+vds::server_log_new_endpoint::server_log_new_endpoint(
+  const std::string & addresses)
+  : addresses_(addresses)
+{
+}
+
+
+vds::server_log_new_endpoint::server_log_new_endpoint(
+  const vds::json_value* source)
+{
+  auto s = dynamic_cast<const json_object *>(source);
+  if (nullptr != s) {
+    s->get_property("a", this->addresses_);
+  }
+}
+
+
+std::unique_ptr<vds::json_value> vds::server_log_new_endpoint::serialize() const
+{
+  std::unique_ptr<json_object> result(new json_object());
+  result->add_property("$t", message_type);
+  result->add_property("a", this->addresses_);
+  return std::unique_ptr<vds::json_value>(result.release());
+}
+
 

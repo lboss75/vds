@@ -18,7 +18,7 @@ namespace vds {
 
     void reset(
       const std::string & root_password,
-      const std::string & addresses);
+      const std::string & address);
 
     void start();
     void stop();
@@ -27,6 +27,11 @@ namespace vds {
 
     _storage_log * operator -> () const;
 
+    size_t minimal_consensus() const;
+
+    void add_record(const std::string & record);
+
+    size_t new_message_id();
   private:
     std::unique_ptr<_storage_log> impl_;
   };

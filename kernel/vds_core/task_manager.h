@@ -73,6 +73,26 @@ namespace vds {
       lifetime_check ft_;
       handler_type & handler_;
     };
+
+    template <typename class_name>
+    class task_job_class_impl : public task_job_base
+    {
+    public:
+      task_job_class_impl(const std::string & name, task_manager * owner, class_name * handler_class, void (class_name::*handler)())
+        : task_job_base(name, owner), handler_class_(handler_class), handler_(handler)
+      {
+      }
+
+      void execute() override
+      {
+        (this->handler_class_->*handler_)();
+      }
+
+    private:
+      lifetime_check ft_;
+      class_name * handler_class_;
+      void (class_name::*handler_)();
+    };
   };
   
   class task_job
@@ -121,7 +141,13 @@ namespace vds {
     {
       return task_job(new task_manager::task_job_impl<handler_type>(name, this->owner_, handler));
     }
-    
+
+    template <typename class_name>
+    task_job create_job(const std::string & name, class_name * owner, void (class_name::*handler)())
+    {
+      return task_job(new task_manager::task_job_class_impl<class_name>(name, this->owner_, owner, handler));
+    }
+
   private:
     task_manager * owner_;
   };

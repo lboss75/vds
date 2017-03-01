@@ -14,6 +14,7 @@ namespace vds {
   class node
   {
   public:
+    node(const std::string & id);
 
     const std::string & id() const { return this->id_; }
 

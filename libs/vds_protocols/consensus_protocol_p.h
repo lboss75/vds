@@ -34,12 +34,34 @@ namespace vds {
       certificate & certificate_;
       asymmetric_private_key & private_key_;
 
+      std::mutex messages_to_lead_mutex_;
+      std::condition_variable messages_to_lead_cond_;
+      std::list<std::unique_ptr<json_value>> messages_to_lead_;
+
+      task_job check_leader_task_job_;
+
       struct node_info
       {
 
       };
 
       std::map<std::string, node_info> nodes_;
+
+      enum state
+      {
+        none,
+        leader,
+        candidate,
+        follower
+      };
+      state state_;
+      size_t leader_check_timer_;
+
+      void leader_check();
+
+      void become_leader();
+
+      void flush_messages_to_lead();
     };
   }
 }

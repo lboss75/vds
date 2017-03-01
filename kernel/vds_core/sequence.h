@@ -433,8 +433,36 @@ namespace vds {
     
     method_type & value;
   };
-  
-  /////////////////////////
+  ///////////////////////////////////////////////
+  template <typename... argument_types>
+  class _sequence_starter
+  {
+  public:
+
+    template <typename context_type>
+    class handler : public sequence_step<context_type, void(argument_types...)>
+    {
+      using base_class = sequence_step<context_type, void(argument_types...)>;
+    public:
+      handler(
+        const base_class & context,
+        const _sequence_starter & args)
+        : base_class(context)
+      {
+      }
+
+      void operator()(argument_types... args)
+      {
+        this->next(args...);
+      }
+
+      void processed() const
+      {
+        this->next(argument_types()...);
+      }
+    };
+  };
+  ///////////////////////////////////////////////
 
   template<typename... functor_types>
   class _sequence
@@ -460,7 +488,8 @@ namespace vds {
       try {
         auto handler = new _sequence_runner<
           typename remove_auto_delete_trigger<done_method_type>::type,
-          typename remove_auto_delete_trigger<error_method_type>::type
+          typename remove_auto_delete_trigger<error_method_type>::type,
+          arg_types...
           >(
           remove_auto_delete_trigger<done_method_type>(done_method).value,
           remove_auto_delete_trigger<error_method_type>(error_method).value,
@@ -489,7 +518,8 @@ namespace vds {
       try {
         auto handler = new _sequence_func_runner<
           done_method_type,
-          error_method_type
+          error_method_type,
+          arg_types...
           >(
           std::move(done_method),
           std::move(error_method),
@@ -508,9 +538,11 @@ namespace vds {
 
     template<
       typename done_method_type,
-      typename error_method_type>
+      typename error_method_type,
+      typename... arg_types>
     class _sequence_start_holder
     {
+      using tuple_type = std::tuple<_sequence_starter<arg_types...>, functor_types...>;
     public:
       template<std::size_t index, bool dummy = true>
       class _sequence_step_handler;
@@ -708,11 +740,11 @@ namespace vds {
       _sequence_start_holder(
         auto_delete_trigger<done_method_type> & done_method,
         auto_delete_trigger<error_method_type> & error_method,
-        const tuple_type & args
+        const std::tuple<functor_types...> & args
       )
       : 
         holder_(step, done_method, error_method, args),        
-        step(step_context_t(holder_.step, error_method), std::get<0>(args))
+        step(step_context_t(holder_.step, error_method), _sequence_starter<arg_types...>())
       {
       }
       
@@ -732,13 +764,14 @@ namespace vds {
     
     template <
       typename done_method_type,
-      typename error_method_type
-      >
+      typename error_method_type,
+      typename... arg_types>
     class _sequence_runner : public _suicide
     {
+      using tuple_type = std::tuple<_sequence_starter<arg_types...>, functor_types...>;
       using done_proxy_type = auto_delete_trigger<done_method_type>;
       using error_proxy_type = auto_delete_trigger<error_method_type>;
-      using holder_class = _sequence_start_holder<done_method_type, error_method_type>;
+      using holder_class = _sequence_start_holder<done_method_type, error_method_type, arg_types...>;
     public:
       _sequence_runner(const _sequence_runner &) = delete;
       _sequence_runner(_sequence_runner&&) = delete;
@@ -770,13 +803,14 @@ namespace vds {
     
     template <
       typename done_method_type,
-      typename error_method_type
+      typename error_method_type,
+      typename... arg_types
       >
     class _sequence_func_runner : public _suicide
     {
       using done_proxy_type = auto_delete_trigger<done_method_type>;
       using error_proxy_type = auto_delete_trigger<error_method_type>;
-      using holder_class = _sequence_start_holder<done_method_type, error_method_type>;
+      using holder_class = _sequence_start_holder<done_method_type, error_method_type, arg_types...>;
     public:
       _sequence_func_runner(const _sequence_func_runner &) = delete;
       _sequence_func_runner(_sequence_func_runner&&) = delete;

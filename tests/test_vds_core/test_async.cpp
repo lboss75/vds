@@ -10,8 +10,10 @@ TEST(mt_tests, test_async) {
     vds::service_registrator registrator;
 
     vds::console_logger logger(vds::ll_trace);
+    vds::mt_service mt_service;
 
     registrator.add(logger);
+    registrator.add(mt_service);
 
     test_async_object obj;
     vds::barrier barrier;

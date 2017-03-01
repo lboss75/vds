@@ -93,7 +93,7 @@ public:
 
       ASSERT_EQ(1, prop_count);
 
-      this->prev();
+      //this->prev();
     }
   };
 };

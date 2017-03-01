@@ -9,6 +9,13 @@ All rights reserved
 #include "storage_log.h"
 #include "storage_log_p.h"
 
+vds::node::node(const std::string & id)
+  : id_(id)
+{
+}
+
+
+
 vds::storage_cursor<vds::node>::storage_cursor(const istorage & storage)
   : _simple_storage_cursor<node>(storage.get_storage_log()->get_nodes())
 {

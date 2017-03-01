@@ -52,7 +52,7 @@ void mock_client::init_root(const std::string & root_password, int port)
   this->start_vds(false, [root_password, port](const vds::service_provider&sp) {
 
     vds::storage_log log(sp);
-    log.reset(root_password, "127.0.0.1:" + std::to_string(port));
+    log.reset(root_password, "https://127.0.0.1:" + std::to_string(port));
 
   });
 }
@@ -71,11 +71,7 @@ void mock_client::init_server(
 void mock_client::start_vds(bool full_client, const std::function<void(const vds::service_provider&sp)> & handler)
 {
   std::list<vds::endpoint> endpoints;
-  endpoints.push_back(vds::endpoint("127.0.0.1", 8050));
-
-  if (0 < this->index_) {
-    endpoints.push_back(vds::endpoint("127.0.0.1", 8050 + this->index_));
-  }
+  endpoints.push_back(vds::endpoint("https://127.0.0.1:8050"));
 
   vds::service_registrator registrator;
 
@@ -130,8 +126,8 @@ void mock_server::start()
   this->registrator_.add(this->network_service_);
   this->registrator_.add(this->task_manager_);
   this->registrator_.add(this->crypto_service_);
-  this->registrator_.add(this->server_);
   this->registrator_.add(this->storage_);
+  this->registrator_.add(this->server_);
 
   auto sp = this->registrator_.build();
   

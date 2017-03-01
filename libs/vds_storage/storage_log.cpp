@@ -10,6 +10,7 @@ All rights reserved
 #include "log_records.h"
 #include "cert.h"
 #include "node.h"
+#include "endpoint.h"
 
 vds::storage_log::storage_log(const service_provider & sp)
   : impl_(new _storage_log(sp, this))
@@ -47,13 +48,24 @@ vds::_storage_log * vds::storage_log::operator->() const
   return this->impl_.get();
 }
 
+size_t vds::storage_log::minimal_consensus() const
+{
+  return this->impl_->minimal_consensus();
+}
+
+void vds::storage_log::add_record(const std::string & record)
+{
+  return this->impl_->add_record(record);
+}
 ///////////////////////////////////////////////////////////////////////////////
 vds::_storage_log::_storage_log(const service_provider & sp, storage_log * owner)
 : owner_(owner),
   log_(sp, "Server log"),
   vds_folder_(persistence::current_user(sp), ".vds"),
   commited_folder_(foldername(persistence::current_user(sp), ".vds"), "commited"),
-  is_empty_(true)
+  is_empty_(true),
+  minimal_consensus_(0),
+  last_message_id_(0)
 {
 }
 
@@ -88,7 +100,7 @@ void vds::_storage_log::reset(
   certificate::create_options server_options;
   server_options.country = "RU";
   server_options.organization = "IVySoft";
-  server_options.name = "Root Certificate";
+  server_options.name = "Root Server Certificate";
   server_options.ca_certificate = &root_certificate;
   server_options.ca_certificate_private_key = &private_key;
 
@@ -97,8 +109,6 @@ void vds::_storage_log::reset(
   server_certificate.save(filename(this->vds_folder_, "server.crt"));
   server_private_key.save(filename(this->vds_folder_, "server.pkey"));
 
-
-  server_log_new_server new_server_message(server_certificate.str());
 
   server_log_batch batch;
   batch.message_id_ = 0;
@@ -110,14 +120,12 @@ void vds::_storage_log::reset(
       root_certificate.str(),
       private_key.str(password),
       base64::from_bytes(ph.signature(), ph.signature_length())).serialize());
-  batch.messages_->add(new_server_message.serialize().release());
-   
+  batch.messages_->add(server_log_new_server(server_certificate.str()).serialize().release());
+  batch.messages_->add(server_log_new_endpoint(addresses).serialize().release());
+
   std::unique_ptr<json_value> m(batch.serialize());
 
-  json_writer writer;
-  m->str(writer);
-
-  auto message_body = writer.str();
+  auto message_body = m->str();
 
   hash h(hash::sha256());
   h.update(message_body.c_str(), message_body.length());
@@ -134,12 +142,9 @@ void vds::_storage_log::reset(
   record.signature_ = base64::from_bytes(s.signature(), s.signature_length());
   record.message_ = std::move(m);
   
-  json_writer record_writer;
-  record.serialize()->str(record_writer);
-
   file f(filename(this->commited_folder_, "checkpoint0.json").local_name(), file::truncate);
   output_text_stream os(f);
-  os.write(record_writer.str());
+  os.write(record.serialize()->str());
   os.write("\n");
 }
 
@@ -207,6 +212,12 @@ void vds::_storage_log::apply_record(const json_value * value)
       if (server_log_root_certificate::message_type == record_type) {
         this->process(server_log_root_certificate(value_obj));
       }
+      else if (server_log_new_server::message_type == record_type) {
+        this->process(server_log_new_server(value_obj));
+      }
+      else if (server_log_new_endpoint::message_type == record_type) {
+        this->process(server_log_new_endpoint(value_obj));
+      }
       else {
         this->log_(log_level::ll_warning, "Invalid server log record type %s", record_type.c_str());
       }
@@ -223,7 +234,51 @@ void vds::_storage_log::apply_record(const json_value * value)
 void vds::_storage_log::process(const server_log_root_certificate & message)
 {
   auto cert = new certificate(certificate::parse(message.certificate()));
+  this->certificate_store_.add(*cert);
   this->loaded_certificates_[cert->fingerprint()].reset(cert);
 
   this->certificates_.push_back(vds::cert("login:root", message.certificate(), message.private_key(), message.password_hash()));
+}
+
+void vds::_storage_log::process(const server_log_new_server & message)
+{
+  auto cert = new certificate(certificate::parse(message.certificate()));
+  auto result = this->certificate_store_.verify(*cert);
+
+  if (result.error_code != 0) {
+    throw new std::runtime_error("Invalid certificate");
+  }
+
+  this->certificate_store_.add(*cert);
+  this->loaded_certificates_[cert->fingerprint()].reset(cert);
+
+  this->nodes_.push_back(node(cert->fingerprint()));
+}
+
+void vds::_storage_log::process(const server_log_new_endpoint & message)
+{
+  this->endpoints_.push_back(message.addresses());
+}
+
+void vds::_storage_log::add_record(const std::string & record)
+{
+  sequence(
+    json_parser("Record"),
+    process_log_line<_storage_log>("Record", this)
+  )(
+    [this, &record]() {
+    file f(filename(this->commited_folder_, "checkpoint0.json").local_name(), file::append);
+    output_text_stream os(f);
+    os.write(record);
+    os.write("\n");
+  },
+    [](std::exception * ex) { throw ex; },
+    record.c_str(),
+    record.length()
+  );
+}
+
+size_t vds::_storage_log::new_message_id()
+{
+  return this->last_message_id_++;
 }

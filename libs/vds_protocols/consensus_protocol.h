@@ -12,8 +12,18 @@ namespace vds {
   class storage_log;
 
   namespace consensus_protocol {
-    class _server;
 
+    class server_gateway
+    {
+    public:
+
+      size_t server_count() const;
+
+      void send(const std::list<std::string> & target_ids, const std::string & message);
+      void broadcast(const std::string & message);
+    };
+
+    class _server;
     class server
     {
     public:
