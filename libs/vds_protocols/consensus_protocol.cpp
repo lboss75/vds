@@ -90,14 +90,14 @@ void vds::consensus_protocol::_server::leader_check()
 {
   switch (this->state_) {
   case none:
-    if (this->leader_check_timer_++ > 5) {
+    if (this->leader_check_timer_++ > 2) {
       this->state_ = candidate;
       this->leader_check_timer_ = 0;
     }
     break;
 
   case candidate:
-    if (this->leader_check_timer_++ > 5) {
+    if (this->leader_check_timer_++ > 2) {
       std::unique_lock<std::mutex> lock(this->messages_to_lead_mutex_);
       this->state_ = leader;
       this->leader_check_timer_ = 0;
@@ -114,11 +114,15 @@ void vds::consensus_protocol::_server::leader_check()
   default:
     throw new std::runtime_error("Invalid consensus protocol state");
   }
+  
+  this->check_leader_task_job_.schedule(std::chrono::system_clock::now() + std::chrono::seconds(1));
 }
 
 void vds::consensus_protocol::_server::become_leader()
 {
-  this->flush_messages_to_lead();
+  this->sp_.get<imt_service>().async([this]() {
+    this->flush_messages_to_lead();
+  });
 }
 
 void vds::consensus_protocol::_server::flush_messages_to_lead()
