@@ -445,7 +445,7 @@ namespace vds {
       using base_class = sequence_step<context_type, void(argument_types...)>;
     public:
       handler(
-        const base_class & context,
+        const context_type & context,
         const _sequence_starter & args)
         : base_class(context)
       {
@@ -456,7 +456,7 @@ namespace vds {
         this->next(args...);
       }
 
-      void processed() const
+      void processed()
       {
         this->next(argument_types()...);
       }
@@ -688,13 +688,13 @@ namespace vds {
           processed_step_t & prev,
           auto_delete_trigger<done_method_type> & done,
           auto_delete_trigger<error_method_type> & error_method,
-          const tuple_type & args
+          const std::tuple<functor_types...> & args
         )
           :
           holder_(step, done, error_method, args),
           step(
             step_context_t(prev, holder_.step, error_method),
-            std::get<std::tuple_size<tuple_type>::value - index>(args))
+            std::get<std::tuple_size<tuple_type>::value - index - 1>(args))
           
         {
         }
@@ -721,7 +721,7 @@ namespace vds {
           processed_step_t & /*prev*/,
           auto_delete_trigger<done_method_type> & done,
           auto_delete_trigger<error_method_type> & /*error_method*/,
-          const tuple_type & /*args*/
+          const std::tuple<functor_types...> & /*args*/
         )
           : step(done)
         {

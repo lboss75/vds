@@ -57,6 +57,12 @@ void vds::storage_log::add_record(const std::string & record)
 {
   return this->impl_->add_record(record);
 }
+
+size_t vds::storage_log::new_message_id()
+{
+  return this->impl_->new_message_id();
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 vds::_storage_log::_storage_log(const service_provider & sp, storage_log * owner)
 : owner_(owner),
