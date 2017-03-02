@@ -14,12 +14,16 @@ namespace vds {
   class node
   {
   public:
-    node(const std::string & id);
+    node(
+      const std::string & id,
+      const std::string & certificate);
 
     const std::string & id() const { return this->id_; }
+    const std::string & certificate() const { return this->certificate_; }
 
   private:
     std::string id_;
+    std::string certificate_;
   };
 
   template <>

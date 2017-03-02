@@ -24,7 +24,7 @@ void vds_mock::start(int client_count, int server_count)
     server.stop();
     throw;
   }
-  
+  server.stop();
 }
 
 std::string vds_mock::generate_password(size_t min_len, size_t max_len)
@@ -83,6 +83,7 @@ void mock_client::start_vds(bool full_client, const std::function<void(const vds
   vds::task_manager task_manager;
 
   auto folder = vds::foldername(vds::filename::current_process().contains_folder(), std::to_string(this->index_));
+  folder.create();
   registrator.set_root_folders(folder, folder);
 
   registrator.add(mt_service);
@@ -119,6 +120,8 @@ mock_server::mock_server(int index, int port)
 void mock_server::start()
 {
   auto folder = vds::foldername(vds::filename::current_process().contains_folder(), std::to_string(this->index_));
+  folder.create();
+  
   this->registrator_.set_root_folders(folder, folder);
   
   this->registrator_.add(this->mt_service_);

@@ -148,7 +148,10 @@ void vds::iclient::init_server(
     throw new std::runtime_error(error);
   }
 
-  server_certificate.save(filename(foldername(persistence::current_user(this->sp_), ".vds"), "server.crt"));
-  private_key.save(filename(foldername(persistence::current_user(this->sp_), ".vds"), "server.pkey"));
+  foldername root_folder(persistence::current_user(this->sp_), ".vds");
+  root_folder.create();
+  
+  server_certificate.save(filename(root_folder, "server.crt"));
+  private_key.save(filename(root_folder, "server.pkey"));
 }
 

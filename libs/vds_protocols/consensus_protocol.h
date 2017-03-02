@@ -29,7 +29,6 @@ namespace vds {
     public:
       server(
         const service_provider & sp,
-        storage_log & storage,
         certificate & certificate,
         asymmetric_private_key & private_key);
       ~server();

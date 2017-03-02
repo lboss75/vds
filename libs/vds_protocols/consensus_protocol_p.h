@@ -17,7 +17,6 @@ namespace vds {
     public:
       _server(
         const service_provider & sp,
-        storage_log & storage,
         server * owner,
         certificate & certificate,
         asymmetric_private_key & private_key);
@@ -29,7 +28,6 @@ namespace vds {
     private:
       service_provider sp_;
       logger log_;
-      storage_log & storage_;
       server * const owner_;
       certificate & certificate_;
       asymmetric_private_key & private_key_;

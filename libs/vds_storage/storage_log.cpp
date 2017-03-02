@@ -251,7 +251,8 @@ void vds::_storage_log::process(const server_log_new_server & message)
   this->certificate_store_.add(*cert);
   this->loaded_certificates_[cert->fingerprint()].reset(cert);
 
-  this->nodes_.push_back(node(cert->fingerprint()));
+  this->nodes_.push_back(node(cert->fingerprint(), message.certificate()));
+  this->log_(ll_trace, "add node %s", cert->fingerprint().c_str());
 }
 
 void vds::_storage_log::process(const server_log_new_endpoint & message)

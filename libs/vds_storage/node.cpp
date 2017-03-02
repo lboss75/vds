@@ -9,8 +9,11 @@ All rights reserved
 #include "storage_log.h"
 #include "storage_log_p.h"
 
-vds::node::node(const std::string & id)
-  : id_(id)
+vds::node::node(
+  const std::string & id,
+  const std::string & certificate)
+  : id_(id),
+  certificate_(certificate)
 {
 }
 

@@ -5,6 +5,7 @@ All rights reserved
 
 #include "stdafx.h"
 #include "task_manager.h"
+#include "mt_service.h"
 
 void vds::task_manager::register_services(service_registrator & registrator)
 {
@@ -41,9 +42,9 @@ void vds::task_manager::work_thread()
     for(auto task : this->scheduled_){
       if(task->start_time() <= now){
         this->scheduled_.remove(task);
-        std::thread([task](){
+        this->sp_.get<imt_service>().async([task](){
           task->execute();
-        }).detach();
+        });
         break;
       }
     }

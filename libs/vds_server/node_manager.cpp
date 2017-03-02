@@ -37,7 +37,18 @@ bool vds::_node_manager::register_server(const service_provider & scope, const s
   if (this->states_.end() != p) {
     switch(p->second){
     case _node_manager::pending:
+    {
+      storage_cursor<node> node_cursor(scope.get<istorage>());
+      while(node_cursor.read()){
+        this->log_(ll_trace, "have node %s", node_cursor.current().id().c_str());
+        if(node_cursor.current().certificate() == node_certificate){
+          p->second = _node_manager::complete;
+          return true;
+        }
+      }
+      
       return false;
+    }
     case _node_manager::error:
       error = "failed";
       return true;

@@ -32,10 +32,7 @@ void vds::server::start(const service_provider& sp)
   this->certificate_.load(filename(foldername(persistence::current_user(sp), ".vds"), "server.crt"));
   this->private_key_.load(filename(foldername(persistence::current_user(sp), ".vds"), "server.pkey"));
 
-  this->storage_log_.reset(new storage_log(sp));
-  this->storage_log_->start();
-  
-  this->consensus_server_protocol_.reset(new consensus_protocol::server(sp, *this->storage_log_, this->certificate_, this->private_key_));
+  this->consensus_server_protocol_.reset(new consensus_protocol::server(sp, this->certificate_, this->private_key_));
   this->consensus_server_protocol_->start();
 
   this->node_manager_.reset(new node_manager(sp));

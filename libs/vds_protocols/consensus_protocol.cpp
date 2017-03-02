@@ -11,10 +11,9 @@ All rights reserved
 
 vds::consensus_protocol::server::server(
   const service_provider & sp,
-  storage_log & storage,
   certificate & certificate,
   asymmetric_private_key & private_key)
-  : impl_(new _server(sp, storage, this, certificate, private_key))
+  : impl_(new _server(sp, this, certificate, private_key))
 {
 }
 
@@ -41,13 +40,11 @@ void vds::consensus_protocol::server::register_server(const std::string & certif
 ///////////////////////////////////////////////////////////////////////////////
 vds::consensus_protocol::_server::_server(
   const service_provider & sp,
-  storage_log & storage,
   server * owner,
   certificate & certificate,
   asymmetric_private_key & private_key)
   : sp_(sp),
   log_(sp, "Consensus Server"),
-  storage_(storage),
   owner_(owner),
   certificate_(certificate),
   private_key_(private_key),
@@ -127,7 +124,11 @@ void vds::consensus_protocol::_server::become_leader()
 
 void vds::consensus_protocol::_server::flush_messages_to_lead()
 {
-  std::unique_ptr<server_log_batch> batch(new server_log_batch(this->storage_.new_message_id()));
+  std::unique_ptr<server_log_batch> batch(
+    new server_log_batch(
+      this->sp_.get<istorage>()
+      .get_storage_log()
+      .new_message_id()));
 
   {
     std::unique_lock<std::mutex> lock(this->messages_to_lead_mutex_);
@@ -156,5 +157,5 @@ void vds::consensus_protocol::_server::flush_messages_to_lead()
   server_log_record record(std::move(batch));
   record.add_signature(this->certificate_.fingerprint(), base64::from_bytes(s.signature(), s.signature_length()));
 
-  this->storage_.add_record(record.serialize()->str());
+  this->sp_.get<istorage>().get_storage_log().add_record(record.serialize()->str());
 }
