@@ -27,6 +27,7 @@ namespace vds {
     std::string str() const;
     
     virtual void str(json_writer & writer) const = 0;
+    virtual std::unique_ptr<json_value> clone() const = 0;
     
   private:
     int line_;
@@ -46,7 +47,8 @@ namespace vds {
     }
     
     void str(json_writer & writer) const override;
-    
+    std::unique_ptr<json_value> clone() const override;
+
   private:
     std::string value_;
   };
@@ -74,6 +76,7 @@ namespace vds {
     }
     
     void str(json_writer & writer) const override;
+    std::unique_ptr<json_value> clone() const override;
 
   private:
     friend class json_object;
@@ -96,9 +99,11 @@ namespace vds {
     const json_value * get_property(const std::string & name) const;
     bool get_property(const std::string & name, std::string & value, bool throw_error = true) const;
     bool get_property(const std::string & name, int & value, bool throw_error = true) const;
-    std::unique_ptr<json_value> move_property(const std::string & name);
+    bool get_property(const std::string & name, size_t & value, bool throw_error = true) const;
 
     void str(json_writer & writer) const override;
+    std::unique_ptr<json_value> clone() const override;
+
   private:
     friend class vjson_file_parser;
     std::list<std::unique_ptr<json_property>> properties_;
@@ -131,7 +136,8 @@ namespace vds {
     }
 
     void str(json_writer & writer) const override;
-    
+    std::unique_ptr<json_value> clone() const override;
+
   private:
     std::vector<std::unique_ptr<json_value>> items_;
   };

@@ -35,7 +35,6 @@ vds::json_primitive::json_primitive(
 {
 }
 
-
 vds::json_object::json_object(
 )
 {
@@ -96,15 +95,15 @@ bool vds::json_object::get_property(const std::string& name, int& value, bool th
   return true;
 }
 
-std::unique_ptr<vds::json_value> vds::json_object::move_property(const std::string & name)
+bool vds::json_object::get_property(const std::string & name, size_t & value, bool throw_error) const
 {
-  for (auto & property : this->properties_) {
-    if(property->name() == name){
-      return std::move(property->value_);
-    }
+  std::string v;
+  if (!this->get_property(name, v, throw_error)) {
+    return false;
   }
-  
-  return std::unique_ptr<vds::json_value>();
+
+  value = (size_t)std::atol(v.c_str());
+  return true;
 }
 
 void vds::json_object::add_property(json_property * prop)
@@ -151,6 +150,11 @@ void vds::json_primitive::str(json_writer & writer) const
   writer.write_string_value(this->value_);
 }
 
+std::unique_ptr<vds::json_value> vds::json_primitive::clone() const
+{
+  return std::unique_ptr<json_value>(new json_primitive(this->value_));
+}
+
 void vds::json_property::str(json_writer & writer) const
 {
   writer.start_property(this->name_);
@@ -164,6 +168,14 @@ void vds::json_property::str(json_writer & writer) const
   writer.end_property();
 }
 
+std::unique_ptr<vds::json_value> vds::json_property::clone() const
+{
+  return std::unique_ptr<json_value>(
+    new json_property(
+      this->name_,
+      (nullptr == this->value_) ? nullptr : this->value_->clone().release()));
+}
+
 void vds::json_object::str(json_writer & writer) const
 {
   writer.start_object();
@@ -172,6 +184,17 @@ void vds::json_object::str(json_writer & writer) const
   }
 
   writer.end_object();
+}
+
+std::unique_ptr<vds::json_value> vds::json_object::clone() const
+{
+  std::unique_ptr<json_object> s(new json_object());
+
+  for (auto& p : this->properties_) {
+    s->add_property(static_cast<json_property *>(p->clone().release()));
+  }
+
+  return std::unique_ptr<json_value>(s.release());
 }
 
 void vds::json_array::str(json_writer & writer) const
@@ -183,6 +206,17 @@ void vds::json_array::str(json_writer & writer) const
   }
 
   writer.end_array();
+}
+
+std::unique_ptr<vds::json_value> vds::json_array::clone() const
+{
+  std::unique_ptr<json_array> s(new json_array());
+
+  for (auto& i : this->items_) {
+    s->add(i->clone().release());
+  }
+
+  return std::unique_ptr<json_value>(s.release());
 }
 
 

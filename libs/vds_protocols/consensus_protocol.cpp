@@ -127,8 +127,7 @@ void vds::consensus_protocol::_server::become_leader()
 
 void vds::consensus_protocol::_server::flush_messages_to_lead()
 {
-  server_log_batch batch;
-  batch.messages_.reset(new json_array());
+  std::unique_ptr<server_log_batch> batch(new server_log_batch(this->storage_.new_message_id()));
 
   {
     std::unique_lock<std::mutex> lock(this->messages_to_lead_mutex_);
@@ -138,16 +137,13 @@ void vds::consensus_protocol::_server::flush_messages_to_lead()
     }
 
     for (auto& message : this->messages_to_lead_) {
-      batch.messages_->add(std::move(message));
+      batch->add(std::move(message));
     }
 
     this->messages_to_lead_.clear();
   }
-  batch.message_id_ = this->storage_.new_message_id();
 
-  std::unique_ptr<json_value> m(batch.serialize());
-
-  auto message_body = m->str();
+  auto message_body = batch->serialize()->str();
 
   hash h(hash::sha256());
   h.update(message_body.c_str(), message_body.length());
@@ -157,10 +153,8 @@ void vds::consensus_protocol::_server::flush_messages_to_lead()
   s.update(h.signature(), h.signature_length());
   s.final();
 
-  server_log_record record;
-  record.fingerprint_ = this->certificate_.fingerprint();
-  record.signature_ = base64::from_bytes(s.signature(), s.signature_length());
-  record.message_ = std::move(m);
+  server_log_record record(std::move(batch));
+  record.add_signature(this->certificate_.fingerprint(), base64::from_bytes(s.signature(), s.signature_length()));
 
   this->storage_.add_record(record.serialize()->str());
 }

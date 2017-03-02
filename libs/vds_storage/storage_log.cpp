@@ -115,23 +115,18 @@ void vds::_storage_log::reset(
   server_certificate.save(filename(this->vds_folder_, "server.crt"));
   server_private_key.save(filename(this->vds_folder_, "server.pkey"));
 
+  std::unique_ptr<server_log_batch> batch(new server_log_batch((size_t)0u));
 
-  server_log_batch batch;
-  batch.message_id_ = 0;
-  batch.previous_message_id_ = 0;
-  batch.messages_.reset(new json_array());
-
-  batch.messages_->add(
+  batch->add(
     server_log_root_certificate(
       root_certificate.str(),
       private_key.str(password),
       base64::from_bytes(ph.signature(), ph.signature_length())).serialize());
-  batch.messages_->add(server_log_new_server(server_certificate.str()).serialize().release());
-  batch.messages_->add(server_log_new_endpoint(addresses).serialize().release());
 
-  std::unique_ptr<json_value> m(batch.serialize());
+  batch->add(server_log_new_server(server_certificate.str()).serialize());
+  batch->add(server_log_new_endpoint(addresses).serialize());
 
-  auto message_body = m->str();
+  auto message_body = batch->serialize()->str();
 
   hash h(hash::sha256());
   h.update(message_body.c_str(), message_body.length());
@@ -143,10 +138,8 @@ void vds::_storage_log::reset(
 
   this->commited_folder_.create();
   
-  server_log_record record;
-  record.fingerprint_ = root_certificate.fingerprint();
-  record.signature_ = base64::from_bytes(s.signature(), s.signature_length());
-  record.message_ = std::move(m);
+  server_log_record record(std::move(batch));
+  record.add_signature(root_certificate.fingerprint(), base64::from_bytes(s.signature(), s.signature_length()));
   
   file f(filename(this->commited_folder_, "checkpoint0.json").local_name(), file::truncate);
   output_text_stream os(f);

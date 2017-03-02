@@ -60,6 +60,12 @@ namespace vds {
           case ST_EOF:
             break;
 
+          case ST_BOF:
+            if (this->parse_options_.enable_multi_root_objects) {
+              break;
+            }
+            //break;
+
           default:
             throw new parse_error(
               this->stream_name_,

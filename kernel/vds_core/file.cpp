@@ -6,6 +6,10 @@ vds::file::file(const filename & filename, file_mode mode)
 {
   int oflags;
   switch (mode) {
+  case append:
+    oflags = O_WRONLY | O_CREAT | O_APPEND;
+    break;
+
   case open_read:
     oflags = O_RDONLY;
     break;
