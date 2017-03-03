@@ -8,9 +8,8 @@ All rights reserved
 
 namespace vds {
 
-  class client_messages
+  namespace client_messages
   {
-  public:
     class certificate_and_key_request
     {
     public:

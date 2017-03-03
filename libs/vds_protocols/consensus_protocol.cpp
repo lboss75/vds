@@ -8,12 +8,14 @@ All rights reserved
 #include "consensus_protocol_p.h"
 #include "node.h"
 #include "storage_service.h"
+#include "consensus_messages.h"
 
 vds::consensus_protocol::server::server(
   const service_provider & sp,
   certificate & certificate,
-  asymmetric_private_key & private_key)
-  : impl_(new _server(sp, this, certificate, private_key))
+  asymmetric_private_key & private_key,
+  iserver_gateway & server_gateway)
+  : impl_(new _server(sp, this, certificate, private_key, server_gateway))
 {
 }
 
@@ -37,17 +39,23 @@ void vds::consensus_protocol::server::register_server(const std::string & certif
   this->impl_->register_server(certificate_body);
 }
 
+void vds::consensus_protocol::server::process(const service_provider & scope, json_array * result, const vds::consensus_messages::consensus_message_who_is_leader & message)
+{
+  this->impl_->process(scope, result, message);
+}
 ///////////////////////////////////////////////////////////////////////////////
 vds::consensus_protocol::_server::_server(
   const service_provider & sp,
   server * owner,
   certificate & certificate,
-  asymmetric_private_key & private_key)
+  asymmetric_private_key & private_key,
+  iserver_gateway & server_gateway)
   : sp_(sp),
   log_(sp, "Consensus Server"),
   owner_(owner),
   certificate_(certificate),
   private_key_(private_key),
+  server_gateway_(server_gateway),
   check_leader_task_job_(sp.get<itask_manager>().create_job("Leader checking", this, &_server::leader_check)),
   state_(none),
   leader_check_timer_(0)
@@ -61,8 +69,9 @@ void vds::consensus_protocol::_server::start()
     this->nodes_[node_reader.current().id()] = { };
   }
 
-  this->check_leader_task_job_.schedule(std::chrono::system_clock::now() + std::chrono::seconds(1));
+  this->server_gateway_.broadcast(consensus_messages::consensus_message_who_is_leader(this->certificate_.fingerprint()).serialize()->str());
 
+  this->check_leader_task_job_.schedule(std::chrono::system_clock::now() + std::chrono::seconds(1));
 }
 
 void vds::consensus_protocol::_server::stop()
@@ -72,7 +81,6 @@ void vds::consensus_protocol::_server::stop()
 
 void vds::consensus_protocol::_server::register_server(const std::string & certificate_body)
 {
-
   std::unique_lock<std::mutex> lock(this->messages_to_lead_mutex_);
   this->messages_to_lead_.push_back(server_log_new_server(certificate_body).serialize());
 
@@ -80,6 +88,17 @@ void vds::consensus_protocol::_server::register_server(const std::string & certi
     this->sp_.get<imt_service>().async([this]() {
       this->flush_messages_to_lead();
     });
+  }
+}
+
+void vds::consensus_protocol::_server::process(const service_provider & scope, json_array * result, const consensus_messages::consensus_message_who_is_leader & message)
+{
+  switch (this->state_) {
+  case leader:
+    break;
+
+  case follower:
+    break;
   }
 }
 
@@ -157,5 +176,5 @@ void vds::consensus_protocol::_server::flush_messages_to_lead()
   server_log_record record(std::move(batch));
   record.add_signature(this->certificate_.fingerprint(), base64::from_bytes(s.signature(), s.signature_length()));
 
-  this->sp_.get<istorage>().get_storage_log().add_record(record.serialize()->str());
+  this->sp_.get<istorage>().get_storage_log().add_record(record.serialize(false)->str());
 }

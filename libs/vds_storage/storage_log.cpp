@@ -63,6 +63,11 @@ size_t vds::storage_log::new_message_id()
   return this->impl_->new_message_id();
 }
 
+const std::list<vds::endpoint>& vds::storage_log::get_endpoints() const
+{
+  return this->impl_->get_endpoints();
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 vds::_storage_log::_storage_log(const service_provider & sp, storage_log * owner)
 : owner_(owner),
@@ -143,7 +148,7 @@ void vds::_storage_log::reset(
   
   file f(filename(this->commited_folder_, "checkpoint0.json").local_name(), file::truncate);
   output_text_stream os(f);
-  os.write(record.serialize()->str());
+  os.write(record.serialize(false)->str());
   os.write("\n");
 }
 

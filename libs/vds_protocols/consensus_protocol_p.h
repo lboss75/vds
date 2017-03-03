@@ -19,18 +19,23 @@ namespace vds {
         const service_provider & sp,
         server * owner,
         certificate & certificate,
-        asymmetric_private_key & private_key);
+        asymmetric_private_key & private_key,
+        iserver_gateway & server_gateway);
 
       void start();
       void stop();
       
       void register_server(const std::string & certificate_body);
+
+      void process(const service_provider & scope, json_array * result, const vds::consensus_messages::consensus_message_who_is_leader & message);
+
     private:
       service_provider sp_;
       logger log_;
       server * const owner_;
       certificate & certificate_;
       asymmetric_private_key & private_key_;
+      iserver_gateway & server_gateway_;
 
       std::mutex messages_to_lead_mutex_;
       std::condition_variable messages_to_lead_cond_;

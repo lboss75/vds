@@ -7,11 +7,20 @@ All rights reserved
 */
 namespace vds {
   class _server_connection
+    : public consensus_protocol::iserver_gateway
   {
   public:
-      _server_connection();
-      ~_server_connection();
+    _server_connection(
+      const service_provider & sp,
+      server_connection * owner);
+    ~_server_connection();
 
+    void send(const std::list<std::string> & target_ids, const std::string & message) override;
+    void broadcast(const std::string & message) override;
+
+  private:
+    service_provider sp_;
+    server_connection * owner_;
   };
 }
 

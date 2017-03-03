@@ -9,6 +9,7 @@ All rights reserved
 
 namespace vds {
   class _storage_log;
+  class endpoint;
 
   class storage_log
   {
@@ -32,6 +33,8 @@ namespace vds {
     void add_record(const std::string & record);
 
     size_t new_message_id();
+    const std::list<endpoint> & get_endpoints() const;
+
   private:
     std::unique_ptr<_storage_log> impl_;
   };

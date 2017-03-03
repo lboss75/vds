@@ -11,6 +11,7 @@ All rights reserved
 #include "cert_manager.h"
 #include "server_http_api.h"
 #include "server_http_api_p.h"
+#include "server_connection.h"
 
 vds::server::server()
 {
@@ -32,11 +33,16 @@ void vds::server::start(const service_provider& sp)
   this->certificate_.load(filename(foldername(persistence::current_user(sp), ".vds"), "server.crt"));
   this->private_key_.load(filename(foldername(persistence::current_user(sp), ".vds"), "server.pkey"));
 
-  this->consensus_server_protocol_.reset(new consensus_protocol::server(sp, this->certificate_, this->private_key_));
+  this->server_connection_.reset(new server_connection(sp));
+
+  this->consensus_server_protocol_.reset(new consensus_protocol::server(sp, this->certificate_, this->private_key_, this->server_connection_->get_server_gateway()));
   this->consensus_server_protocol_->start();
 
   this->node_manager_.reset(new node_manager(sp));
   this->server_http_api_.reset(new server_http_api(sp));
+
+  this->client_logic_.reset(new client_logic(sp, &this->certificate_, &this->private_key_, sp.get<istorage>().get_storage_log().get_endpoints()));
+  this->client_logic_->start();
 }
 
 void vds::server::stop(const service_provider& sp)

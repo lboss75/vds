@@ -50,6 +50,8 @@ namespace vds {
   class server_log_record
   {
   public:
+    static const char message_type[];
+
     server_log_record(std::unique_ptr<server_log_batch> && message);
     server_log_record(const json_value * source);
 
@@ -60,7 +62,7 @@ namespace vds {
       const std::string & fingerprint,
       const std::string & signature);
 
-    std::unique_ptr<json_value> serialize() const;
+    std::unique_ptr<json_value> serialize(bool add_type_property) const;
 
   private:
     std::unique_ptr<server_log_batch> message_;

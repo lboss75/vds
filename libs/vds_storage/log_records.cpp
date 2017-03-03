@@ -6,6 +6,8 @@ All rights reserved
 #include "stdafx.h"
 #include "log_records.h"
 
+const char vds::server_log_record::message_type[] = "server log";
+
 vds::server_log_record::server_log_record(std::unique_ptr<server_log_batch> && message)
 : message_(std::move(message))
 {
@@ -31,9 +33,12 @@ void vds::server_log_record::add_signature(const std::string & fingerprint, cons
   this->signatures_.push_back(server_log_sign(fingerprint, signature));
 }
 
-std::unique_ptr<vds::json_value> vds::server_log_record::serialize() const
+std::unique_ptr<vds::json_value> vds::server_log_record::serialize(bool add_type_property) const
 {
   std::unique_ptr<json_object> result(new json_object());
+  if (add_type_property) {
+    result->add_property("$t", message_type);
+  }
   result->add_property(new json_property("m", this->message_->serialize().release()));
 
   std::unique_ptr<json_array> signatures(new json_array());

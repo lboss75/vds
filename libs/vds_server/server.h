@@ -14,6 +14,8 @@ namespace vds {
   class user_manager;
   class server_http_api;
   class storage_log;
+  class client_logic;
+  class server_connection;
 
   class server : public iservice
   {
@@ -31,12 +33,16 @@ namespace vds {
     certificate certificate_;
     asymmetric_private_key private_key_;
 
+    std::unique_ptr<server_connection> server_connection_;
+
     std::unique_ptr<consensus_protocol::server> consensus_server_protocol_;
     std::unique_ptr<cert_manager> cert_manager_;
     std::unique_ptr<node_manager> node_manager_;
     std::unique_ptr<user_manager> user_manager_;
     
     std::unique_ptr<server_http_api> server_http_api_;
+
+    std::unique_ptr<client_logic> client_logic_;
   };
   
   class iserver
@@ -48,6 +54,7 @@ namespace vds {
     cert_manager * get_cert_manager() const { return this->owner_->cert_manager_.get(); }
     node_manager * get_node_manager() const { return this->owner_->node_manager_.get(); }
     user_manager * get_user_manager() const { return this->owner_->user_manager_.get(); }
+    client_logic * get_client_logic() const { return this->owner_->client_logic_.get(); }
 
     void start_http_server(const std::string & address, int port);
 

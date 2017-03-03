@@ -66,6 +66,9 @@ vds::json_value * vds::_server_json_api::operator()(
             else if (client_messages::register_server_request::message_type == task_type_name) {
               this->process(scope, result.get(), client_messages::register_server_request(task_object));
             }
+            else if (consensus_messages::consensus_message_who_is_leader::message_type == task_type_name) {
+              scope.get<iserver>().consensus_server_protocol()->process(scope, result.get(), consensus_messages::consensus_message_who_is_leader(task_object));
+            }
             else {
               this->log_.warning("Invalid request type \'%s\'", task_type_name.c_str());
             }

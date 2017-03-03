@@ -8,6 +8,42 @@ All rights reserved
 
 namespace vds {
   namespace consensus_messages {
+    class consensus_message_who_is_leader
+    {
+    public:
+      static const char message_type[];
+
+      consensus_message_who_is_leader(
+        const std::string & source_id);
+
+      consensus_message_who_is_leader(const json_value * value);
+
+      std::unique_ptr<json_value> serialize() const;
+
+      const std::string & source_id() const { return this->source_id_; }
+
+    private:
+      std::string source_id_;
+    };
+
+    class consensus_message_i_am_leader
+    {
+    public:
+      static const char message_type[];
+
+      consensus_message_i_am_leader(
+        const std::string & leader_id);
+
+      consensus_message_i_am_leader(const json_value * value);
+
+      std::unique_ptr<json_value> serialize() const;
+
+      const std::string & leader_id() const { return this->leader_id_; }
+
+    private:
+      std::string leader_id_;
+    };
+
   }
 }
 
