@@ -5,26 +5,54 @@ All rights reserved
 #include "stdafx.h"
 #include "vds_mock.h"
 
-void vds_mock::start(int client_count, int server_count)
+vds_mock::vds_mock()
+{
+}
+
+vds_mock::~vds_mock()
+{
+  this->stop();
+}
+
+void vds_mock::start(size_t server_count)
 {
   auto root_password = generate_password();
   int first_port = 8050;
 
-  mock_client client(0);
-  client.init_root(root_password, first_port);
 
-  mock_server server(0, first_port);
-  server.start();
-  
-  try{
-    mock_client client1(1);
-    client1.init_server(root_password, "127.0.0.1", first_port + 1);
+  for (size_t i = 0; i < server_count; ++i) {
+    mock_client client(i);
+    if (0 == i) {
+      client.init_root(root_password, first_port);
+    }
+    else {
+      client.init_server(root_password, "127.0.0.1", first_port + 1);
+    }
+
+    std::unique_ptr<mock_server> server(new mock_server(i, first_port + 1));
+    try {
+      server->start();
+    }
+    catch (...) {
+      try {
+        server->stop();
+      }
+      catch (...) {
+      }
+
+      throw;
+    }
+
+    this->servers_.push_back(std::move(server));
   }
-  catch(...){
-    server.stop();
-    throw;
+}
+
+void vds_mock::stop()
+{
+  while (!this->servers_.empty()) {
+    (*this->servers_.begin())->stop();
+    this->servers_.pop_front();
   }
-  server.stop();
 }
 
 std::string vds_mock::generate_password(size_t min_len, size_t max_len)

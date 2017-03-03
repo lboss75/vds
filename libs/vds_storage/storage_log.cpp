@@ -151,18 +151,19 @@ void vds::_storage_log::reset(
 void vds::_storage_log::start()
 {
   filename fn(this->commited_folder_, "checkpoint0.json");
-  
-  json_parser::options parser_options;
-  parser_options.enable_multi_root_objects = true;
-  
-  sequence(
-    read_file(fn),
-    json_parser(fn.name(), parser_options),
-    process_log_line<_storage_log>(fn.name(), this)
-  )(
-    []() {},
-    [](std::exception * ex) { throw ex; }
-  );
+  if (fn.exists()) {
+    json_parser::options parser_options;
+    parser_options.enable_multi_root_objects = true;
+
+    sequence(
+      read_file(fn),
+      json_parser(fn.name(), parser_options),
+      process_log_line<_storage_log>(fn.name(), this)
+    )(
+      []() {},
+      [](std::exception * ex) { throw ex; }
+    );
+  }
 }
 
 void vds::_storage_log::stop()

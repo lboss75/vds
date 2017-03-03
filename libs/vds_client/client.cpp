@@ -153,5 +153,25 @@ void vds::iclient::init_server(
   
   server_certificate.save(filename(root_folder, "server.crt"));
   private_key.save(filename(root_folder, "server.pkey"));
+
+
+  this->log_(ll_trace, "Register new user");
+  asymmetric_private_key local_user_private_key(asymmetric_crypto::rsa4096());
+  local_user_private_key.generate();
+
+  asymmetric_public_key local_user_pkey(local_user_private_key);
+
+  certificate::create_options local_user_options;
+  local_user_options.country = "RU";
+  local_user_options.organization = "IVySoft";
+  local_user_options.name = "Local User Certificate";
+  local_user_options.ca_certificate = &user_certificate;
+  local_user_options.ca_certificate_private_key = &user_private_key;
+
+  certificate local_user_certificate = certificate::create_new(local_user_pkey, local_user_private_key, local_user_options);
+
+  user_certificate.save(filename(root_folder, "owner.crt"));
+  local_user_certificate.save(filename(root_folder, "user.crt"));
+  local_user_private_key.save(filename(root_folder, "user.pkey"));
 }
 

@@ -44,11 +44,15 @@ private:
 class vds_mock
 {
 public:
-  void start(int client_count, int server_count);
+  vds_mock();
+  ~vds_mock();
+
+  void start(size_t server_count);
+  void stop();
 
 private:
   std::list<std::unique_ptr<mock_client>> clients_;
-
+  std::list<std::unique_ptr<mock_server>> servers_;
 
   static std::string generate_password(size_t min_len = 4, size_t max_len = 20);
 };

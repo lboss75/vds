@@ -11,7 +11,11 @@ TEST(test_vds, test_initial)
   try{
     vds_mock mock;
 
-    mock.start(10, 100);
+    mock.start(20);
+
+
+
+    mock.stop();
   }
   catch(std::exception * ex){
     FAIL() << std::unique_ptr<std::exception>(ex)->what();

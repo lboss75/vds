@@ -107,7 +107,6 @@ namespace vds {
       std::string request_id_;
       std::string error_;
     };
-
   };
 }
 
