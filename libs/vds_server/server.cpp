@@ -43,8 +43,8 @@ void vds::server::start(const service_provider& sp)
   this->node_manager_.reset(new node_manager(sp));
   this->server_http_api_.reset(new server_http_api(sp));
 
-  this->client_logic_.reset(new client_logic(sp, &this->certificate_, &this->private_key_, sp.get<istorage>().get_storage_log().get_endpoints()));
-  this->client_logic_->start();
+  //this->client_logic_.reset(new client_logic(sp, &this->certificate_, &this->private_key_, sp.get<istorage>().get_storage_log().get_endpoints()));
+  //this->client_logic_->start();
 }
 
 void vds::server::stop(const service_provider& sp)

@@ -9,8 +9,7 @@ All rights reserved
 
 vds::background_app::background_app()
   :
-  start_server_command_set_("Server start", "Start web server", "start", "server"),
-  client_(this->endpoints_)
+  start_server_command_set_("Server start", "Start web server", "start", "server")
 {
 }
 
@@ -40,7 +39,6 @@ void vds::background_app::register_services(vds::service_registrator& registrato
   
   if (&this->start_server_command_set_ == this->current_command_set_) {
     registrator.add(this->storage_);
-    registrator.add(this->client_);
     registrator.add(this->server_);
   }
 }

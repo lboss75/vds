@@ -6,22 +6,26 @@ All rights reserved
 #include "stdafx.h"
 #include "client_logic.h"
 
+const char * vds::client_logic::endpoints_[] = {
+  "https://127.0.0.1:8550",
+  nullptr
+};
+
 vds::client_logic::client_logic(
   const service_provider & sp,
   certificate * client_certificate,
-  asymmetric_private_key * client_private_key,
-  const std::list<endpoint> & endpoints)
+  asymmetric_private_key * client_private_key)
   : sp_(sp),
   log_(sp, "VDS Client logic"),
   client_certificate_(client_certificate),
   client_private_key_(client_private_key),
-  endpoints_(endpoints),
   filter_last_index_(0),
   connected_(0),
   update_connection_pool_(std::bind(&client_logic::update_connection_pool, this)),
   update_connection_pool_task_(sp.get<itask_manager>().create_job("update connection pool", update_connection_pool_)),
   outgoing_queue_(sp)
 {
+  
 }
 
 vds::client_logic::~client_logic()
@@ -30,8 +34,8 @@ vds::client_logic::~client_logic()
 
 void vds::client_logic::start()
 {
-  for (auto & endpoint : this->endpoints_) {
-    url_parser::parse_addresses(endpoint.addresses(),
+  for (auto p = endpoints_; nullptr != *p; ++p) {
+    url_parser::parse_addresses(*p,
       [this](const std::string & protocol, const std::string & address)->bool {
       if ("https" == protocol) {
         auto url = url_parser::parse_http_address(address);

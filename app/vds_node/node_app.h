@@ -21,7 +21,6 @@ namespace vds {
 
     
   private:
-    std::list<endpoint> endpoints_;
     command_line_set add_storage_cmd_set_;
     command_line_set remove_storage_cmd_set_;
     command_line_set list_storage_cmd_set_;
@@ -37,7 +36,6 @@ namespace vds {
 
     client client_;
 
-    storage_service storage_service_;
     task_manager task_manager_;
     network_service network_service_;
     crypto_service crypto_service_;
@@ -47,7 +45,7 @@ namespace vds {
    
     void complete_operation_timeout();
     
-    void node_install(storage_log & log, const certificate & user, const asymmetric_private_key & user_key);
+    //void node_install(storage_log & log, const certificate & user, const asymmetric_private_key & user_key);
   };
 }
 

@@ -29,7 +29,6 @@ namespace vds {
     crypto_service crypto_service_;
     task_manager task_manager_;
     storage_service storage_;
-    client client_;
     server server_;
   };
 }

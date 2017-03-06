@@ -14,7 +14,6 @@ namespace vds {
   class user_manager;
   class server_http_api;
   class storage_log;
-  class client_logic;
   class server_connection;
 
   class server : public iservice
@@ -41,8 +40,6 @@ namespace vds {
     std::unique_ptr<user_manager> user_manager_;
     
     std::unique_ptr<server_http_api> server_http_api_;
-
-    std::unique_ptr<client_logic> client_logic_;
     std::unique_ptr<connection_manager> connection_manager_;
   };
   
@@ -52,12 +49,11 @@ namespace vds {
     iserver(server * owner);
     
     consensus_protocol::server & consensus_server_protocol() const { return *this->owner_->consensus_server_protocol_.get(); }
-    cert_manager & cert_manager() const { return *this->owner_->cert_manager_.get(); }
-    node_manager & node_manager() const { return *this->owner_->node_manager_.get(); }
-    user_manager & user_manager() const { return *this->owner_->user_manager_.get(); }
-    client_logic & client_logic() const { return *this->owner_->client_logic_.get(); }
+    cert_manager & get_cert_manager() const { return *this->owner_->cert_manager_.get(); }
+    node_manager & get_node_manager() const { return *this->owner_->node_manager_.get(); }
+    user_manager & get_user_manager() const { return *this->owner_->user_manager_.get(); }
 
-    connection_manager & connection_manager() const { return *this->owner_->connection_manager_.get(); }
+    connection_manager & get_connection_manager() const { return *this->owner_->connection_manager_.get(); }
 
     void start_http_server(const std::string & address, int port);
 

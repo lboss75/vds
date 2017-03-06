@@ -10,7 +10,6 @@ All rights reserved
 #include "vds_network.h"
 #include "vds_crypto.h"
 #include "vds_protocols.h"
-#include "vds_storage.h"
 #include "vds_http.h"
 
 #include "client.h"

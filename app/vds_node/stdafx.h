@@ -8,6 +8,5 @@ All rights reserved
 
 #include "vds_core.h"
 #include "vds_client.h"
-#include "vds_storage.h"
 
 #endif//__VDS_NODE_STDAFX_H_

@@ -13,6 +13,7 @@ All rights reserved
 #include "vds_upnp.h"
 #include "vds_server.h"
 #include "vds_storage.h"
+#include "vds_client.h"
 
 #include "gtest/gtest.h"
 

@@ -98,16 +98,13 @@ void mock_client::init_server(
 
 void mock_client::start_vds(bool full_client, const std::function<void(const vds::service_provider&sp)> & handler)
 {
-  std::list<vds::endpoint> endpoints;
-  endpoints.push_back(vds::endpoint("https://127.0.0.1:8050"));
-
   vds::service_registrator registrator;
 
   vds::mt_service mt_service;
   vds::network_service network_service;
   vds::console_logger console_logger(vds::ll_trace);
   vds::crypto_service crypto_service;
-  vds::client client(endpoints);
+  vds::client client;
   vds::task_manager task_manager;
 
   auto folder = vds::foldername(vds::filename::current_process().contains_folder(), std::to_string(this->index_));

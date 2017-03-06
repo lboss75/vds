@@ -22,5 +22,6 @@ add_library(vds_http STATIC ${SOURCE_LIB} ${HEADER_FILES})
 target_link_libraries(
   vds_http
   vds_core
+  vds_crypto
   vds_network
   ${OPENSSL_LIBRARIES})

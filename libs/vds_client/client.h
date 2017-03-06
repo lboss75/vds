@@ -14,7 +14,7 @@ namespace vds {
   class client : public iservice
   {
   public:
-    client(const std::list<endpoint> & endpoints);
+    client();
     ~client();
 
     // Inherited via iservice
@@ -30,7 +30,6 @@ namespace vds {
     friend class iclient;
     certificate client_certificate_;
     asymmetric_private_key client_private_key_;
-    const std::list<endpoint> & endpoints_;
     std::unique_ptr<client_logic> logic_;
   };
   

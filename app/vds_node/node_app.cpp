@@ -51,8 +51,7 @@ node_password_(
     "Install Root node",
     "Create infrastructure for root note",
     "root",
-    "node"),
-  client_(this->endpoints_)
+    "node")
 {
 }
 
@@ -75,11 +74,11 @@ void vds::node_app::main(
     //}
   }
   else if (&this->node_root_cmd_set_ == this->current_command_set_) {
-    storage_log log(sp);
-    log.reset(this->node_password_.value(), "127.0.0.1:8050");
+    //storage_log log(sp);
+    //log.reset(this->node_password_.value(), "127.0.0.1:8050");
   }
 }
-
+/*
 void vds::node_app::node_install(storage_log& log, const certificate& user, const asymmetric_private_key& user_key)
 {
     std::cout << "Generating node private key\n";
@@ -101,7 +100,7 @@ void vds::node_app::node_install(storage_log& log, const certificate& user, cons
   
   
 }
-
+*/
 
 void vds::node_app::register_command_line(vds::command_line& cmd_line)
 {
@@ -123,13 +122,11 @@ void vds::node_app::register_services(service_registrator & registrator)
   
   if (&this->node_install_cmd_set_ == this->current_command_set_) {
     registrator.add(this->task_manager_);
-    registrator.add(this->storage_service_);
     registrator.add(this->network_service_);
     registrator.add(this->crypto_service_);
     registrator.add(this->client_);
   }
   else if (&this->node_root_cmd_set_ == this->current_command_set_) {
-    registrator.add(this->storage_service_);
     registrator.add(this->crypto_service_);
   }
 }
