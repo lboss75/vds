@@ -26,11 +26,14 @@ namespace vds {
     void start(const service_provider &) override;
     void stop(const service_provider &) override;
     
+    void set_port(size_t port);
+    
   private:
     friend class iserver;
 
     certificate certificate_;
     asymmetric_private_key private_key_;
+    size_t port_;
 
     std::unique_ptr<server_connection> server_connection_;
 
@@ -54,8 +57,6 @@ namespace vds {
     user_manager & get_user_manager() const { return *this->owner_->user_manager_.get(); }
 
     connection_manager & get_connection_manager() const { return *this->owner_->connection_manager_.get(); }
-
-    void start_http_server(const std::string & address, int port);
 
   private:
     server * owner_;

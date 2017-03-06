@@ -14,6 +14,7 @@ All rights reserved
 #include "server_connection.h"
 
 vds::server::server()
+: port_(8050)
 {
 }
 
@@ -42,6 +43,7 @@ void vds::server::start(const service_provider& sp)
 
   this->node_manager_.reset(new node_manager(sp));
   this->server_http_api_.reset(new server_http_api(sp));
+  this->server_http_api_->start("127.0.0.1", this->port_, this->certificate_, this->private_key_);
 
   //this->client_logic_.reset(new client_logic(sp, &this->certificate_, &this->private_key_, sp.get<istorage>().get_storage_log().get_endpoints()));
   //this->client_logic_->start();
@@ -52,6 +54,11 @@ void vds::server::stop(const service_provider& sp)
 
 }
 
+void vds::server::set_port(size_t port)
+{
+  this->port_ = port;
+}
+
 vds::iserver::iserver(vds::server* owner)
 : owner_(owner)
 {
@@ -60,5 +67,4 @@ vds::iserver::iserver(vds::server* owner)
 
 void vds::iserver::start_http_server(const std::string & address, int port)
 {
-  this->owner_->server_http_api_->start(address, port, this->owner_->certificate_, this->owner_->private_key_);
 }

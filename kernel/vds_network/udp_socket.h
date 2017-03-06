@@ -11,7 +11,6 @@ All rights reserved
 #include "socket_task.h"
 
 namespace vds {
-
   class udp_socket
   {
   public:
@@ -384,6 +383,119 @@ private:
   const service_provider & sp_;
   udp_socket & socket_;
   };
+  
+  template<typename handler_class>
+  class _run_udp_server
+  {
+  public:
+    _run_udp_server(handler_class & owner)
+    : owner_(owner)
+    {
+    }
+    
+    template <typename context_type>
+    class handler : public sequence_step<context_type, void(void)>
+    {
+      using base_class = sequence_step<context_type, void(void)>;
+    public:
+      handler(
+        const context_type & context,
+        const _run_udp_server & args)
+      : base_class(context),
+      owner_(args.owner_)
+      {
+      }
+      
+      void operator()()
+      {
+        sequence(
+          udp_receive(),
+          simple_step<
+            void(const sockaddr_in & from, const void * data, size_t len),
+            void()>(
+            [this](const std::function<void(void)> & done, const sockaddr_in & from, const void * data, size_t len){
+              this->owner_->input_message(from, data, len);
+            })
+        )(
+          this->owner_.read_closed(),
+          this->owner_.read_error()
+        );
+        
+        sequence(
+          read_handler(this->owner_),
+          udp_send(),
+        )(
+          this->owner_.read_closed(),
+          this->owner_.read_error()
+        );
+      }
+      
+    private:
+      handler_class & owner_;
+    };
+    
+    class write_handler
+    {
+    public:
+      class handler
+      {
+      public:
+        void operator()(const sockaddr_in & from, const void * data, size_t len)
+        {
+        }
+      };
+    };
+  private:
+    handler_class & owner_;
+  };
+  
+  template<typename handler_class>
+  inline void run_udp_server(
+    handler_class & handler,
+    const std::function<void(void)> & done_handler,
+    const std::function<void(std::exception *)> & error_handler)
+  {
+    sequence(
+      udp_server(),
+      _run_udp_server<handler_class>(handler)
+    )
+    (
+     [&handler]() { handler.udp_server_done(); },
+     [&handler](std::exception * ex) { handler.udp_server_error(ex);}
+    );
+  }
+
+  template<typename handler_class>
+  inline void run_udp_server(
+    const std::function<void(void)> & done_handler,
+    const std::function<void(std::exception *)> & error_handler)
+  {
+    sequence(
+      udp_server(),
+      _run_udp_server<handler_class>()
+    )
+    (
+     done_handler,
+     error_handler
+    );
+  }
+  
+  template<typename handler_class, typename done_handler_type, typename error_handler_type>
+  inline void run_udp_server(
+    done_handler_type & done_handler,
+    error_handler_type & error_handler)
+  {
+    sequence(
+      udp_server(),
+      _run_udp_server<handler_class>()
+    )
+    (
+     done_handler,
+     error_handler
+    );
+  }
+  
+  
 }
 
 #endif//__VDS_NETWORK_UDP_SOCKET_H_

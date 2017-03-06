@@ -156,10 +156,10 @@ void mock_server::start()
   this->registrator_.add(this->crypto_service_);
   this->registrator_.add(this->storage_);
   this->registrator_.add(this->server_);
+  
+  this->server_.set_port(8050 + this->index_);
 
   auto sp = this->registrator_.build();
-  
-  sp.get<vds::iserver>().start_http_server("127.0.0.1", 8050 + this->index_);
 }
 
 void mock_server::stop()
