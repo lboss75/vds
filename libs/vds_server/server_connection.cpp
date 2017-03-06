@@ -15,12 +15,9 @@ vds::server_connection::server_connection(const service_provider & sp)
 
 vds::server_connection::~server_connection()
 {
+  delete this->impl_;
 }
 
-vds::consensus_protocol::iserver_gateway & vds::server_connection::get_server_gateway() const
-{
-  return *this->impl_.get();
-}
 
 ///////////////////////////////////////////////////////////////////////////////////
 vds::_server_connection::_server_connection(
@@ -34,12 +31,11 @@ vds::_server_connection::~_server_connection()
 {
 }
 
-void vds::_server_connection::send(const std::list<std::string>& target_ids, const std::string & message)
+void vds::_server_connection::get_delivery_metrics(std::map<std::string, size_t> & metrics)
 {
 }
 
-void vds::_server_connection::broadcast(const std::string & message)
+void vds::_server_connection::send(const std::string & from_address, std::list<std::string> & to_address, const std::string &  body)
 {
-  this->sp_.get<iserver>().get_client_logic()->add_task(message);
 }
 

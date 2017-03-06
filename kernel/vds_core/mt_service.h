@@ -36,7 +36,13 @@ namespace vds {
     }
     
     void async(const std::function<void(void)> & handler);
-    
+
+    template <typename class_name>
+    void async(void (class_name::*handler)(), class_name * owner)
+    {
+      this->async(std::bind(handler, owner));
+    }
+
     static void async(const service_provider & sp, const std::function<void(void)> & handler)
     {
       sp.get<imt_service>().async(handler);

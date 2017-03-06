@@ -33,9 +33,11 @@ void vds::server::start(const service_provider& sp)
   this->certificate_.load(filename(foldername(persistence::current_user(sp), ".vds"), "server.crt"));
   this->private_key_.load(filename(foldername(persistence::current_user(sp), ".vds"), "server.pkey"));
 
+  this->connection_manager_.reset(new connection_manager(sp, this->certificate_.fingerprint()));
+
   this->server_connection_.reset(new server_connection(sp));
 
-  this->consensus_server_protocol_.reset(new consensus_protocol::server(sp, this->certificate_, this->private_key_, this->server_connection_->get_server_gateway()));
+  this->consensus_server_protocol_.reset(new consensus_protocol::server(sp, this->certificate_, this->private_key_, *this->connection_manager_));
   this->consensus_server_protocol_->start();
 
   this->node_manager_.reset(new node_manager(sp));

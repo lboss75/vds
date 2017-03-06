@@ -9,19 +9,21 @@ All rights reserved
 #include "node.h"
 #include "storage_service.h"
 #include "consensus_messages.h"
+#include "connection_manager.h"
 
 vds::consensus_protocol::server::server(
   const service_provider & sp,
   certificate & certificate,
   asymmetric_private_key & private_key,
-  iserver_gateway & server_gateway)
-  : impl_(new _server(sp, this, certificate, private_key, server_gateway))
+  connection_manager & connection_manager)
+  : impl_(new _server(sp, this, certificate, private_key, connection_manager))
 {
 }
 
 
 vds::consensus_protocol::server::~server()
 {
+  delete this->impl_;
 }
 
 void vds::consensus_protocol::server::start()
@@ -39,7 +41,7 @@ void vds::consensus_protocol::server::register_server(const std::string & certif
   this->impl_->register_server(certificate_body);
 }
 
-void vds::consensus_protocol::server::process(const service_provider & scope, json_array * result, const vds::consensus_messages::consensus_message_who_is_leader & message)
+void vds::consensus_protocol::server::process(const service_provider & scope, json_array & result, const vds::consensus_messages::consensus_message_who_is_leader & message)
 {
   this->impl_->process(scope, result, message);
 }
@@ -49,13 +51,13 @@ vds::consensus_protocol::_server::_server(
   server * owner,
   certificate & certificate,
   asymmetric_private_key & private_key,
-  iserver_gateway & server_gateway)
+  connection_manager & connection_manager)
   : sp_(sp),
   log_(sp, "Consensus Server"),
   owner_(owner),
   certificate_(certificate),
   private_key_(private_key),
-  server_gateway_(server_gateway),
+  connection_manager_(connection_manager),
   check_leader_task_job_(sp.get<itask_manager>().create_job("Leader checking", this, &_server::leader_check)),
   state_(none),
   leader_check_timer_(0)
@@ -69,7 +71,7 @@ void vds::consensus_protocol::_server::start()
     this->nodes_[node_reader.current().id()] = { };
   }
 
-  this->server_gateway_.broadcast(consensus_messages::consensus_message_who_is_leader(this->certificate_.fingerprint()).serialize()->str());
+  this->connection_manager_.broadcast(consensus_messages::consensus_message_who_is_leader(this->certificate_.fingerprint()).serialize()->str());
 
   this->check_leader_task_job_.schedule(std::chrono::system_clock::now() + std::chrono::seconds(1));
 }
@@ -91,13 +93,15 @@ void vds::consensus_protocol::_server::register_server(const std::string & certi
   }
 }
 
-void vds::consensus_protocol::_server::process(const service_provider & scope, json_array * result, const consensus_messages::consensus_message_who_is_leader & message)
+void vds::consensus_protocol::_server::process(const service_provider & scope, json_array & result, const consensus_messages::consensus_message_who_is_leader & message)
 {
   switch (this->state_) {
   case leader:
+    result.add(consensus_messages::consensus_message_current_leader(this->certificate_.fingerprint()).serialize());
     break;
 
   case follower:
+    result.add(consensus_messages::consensus_message_current_leader(this->leader_).serialize());
     break;
   }
 }
@@ -106,6 +110,7 @@ void vds::consensus_protocol::_server::leader_check()
 {
   switch (this->state_) {
   case none:
+
     if (this->leader_check_timer_++ > 2) {
       this->state_ = candidate;
       this->leader_check_timer_ = 0;

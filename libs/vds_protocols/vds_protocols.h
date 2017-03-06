@@ -16,5 +16,6 @@ All rights reserved
 #include "consensus_protocol.h"
 #include "install_node_messages.h"
 #include "client_messages.h"
+#include "connection_manager.h"
 
 #endif // __VDS_PROTOCOLS_VDS_PROTOCOLS_H_

@@ -67,7 +67,7 @@ vds::json_value * vds::_server_json_api::operator()(
               this->process(scope, result.get(), client_messages::register_server_request(task_object));
             }
             else if (consensus_messages::consensus_message_who_is_leader::message_type == task_type_name) {
-              scope.get<iserver>().consensus_server_protocol()->process(scope, result.get(), consensus_messages::consensus_message_who_is_leader(task_object));
+              scope.get<iserver>().consensus_server_protocol().process(scope, *result, consensus_messages::consensus_message_who_is_leader(task_object));
             }
             else {
               this->log_.warning("Invalid request type \'%s\'", task_type_name.c_str());
@@ -98,7 +98,7 @@ void vds::_server_json_api::process(const service_provider & scope, json_array *
 void vds::_server_json_api::process(const service_provider & scope, json_array * result, const client_messages::register_server_request & message) const
 {
   std::string error;
-  if (scope.get<iserver>().get_node_manager()->register_server(scope, message.certificate_body(), error)) {
+  if (scope.get<iserver>().node_manager().register_server(scope, message.certificate_body(), error)) {
     result->add(client_messages::register_server_response(message.request_id(), error).serialize());
   }
 }

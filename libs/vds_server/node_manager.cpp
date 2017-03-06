@@ -61,7 +61,7 @@ bool vds::_node_manager::register_server(const service_provider & scope, const s
 
   this->states_.set(node_certificate, _node_manager::pending);
 
-  scope.get<iserver>().consensus_server_protocol()->register_server(node_certificate);
+  scope.get<iserver>().consensus_server_protocol().register_server(node_certificate);
   return false;
 }
 

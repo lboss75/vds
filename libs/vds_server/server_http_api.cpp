@@ -13,7 +13,6 @@ vds::server_http_api::server_http_api(const service_provider& sp)
 {
 }
 
-
 void vds::server_http_api::start(
   const std::string & address,
   int port,

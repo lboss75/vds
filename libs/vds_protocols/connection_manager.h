@@ -10,6 +10,7 @@ namespace vds {
   
   struct connection_message
   {
+    bool is_broadcast;
     std::string from_address;
     std::list<std::string> to_address;
     std::string body;
@@ -19,13 +20,8 @@ namespace vds {
   class iconnection_channel
   {
   public:
-    struct target_metric
-    {
-      iconnection_channel * channel;
-      size_t metric;
-    };
-    
-    virtual void update_target_metrics(std::map<std::string, target_metric> & metrics) = 0;
+    virtual void get_delivery_metrics(std::map<std::string, size_t> & metrics) = 0;
+    virtual void send(const std::string & from_address, std::list<std::string> & to_address, const std::string &  body) = 0;
   };
   
   class _connection_manager;
@@ -33,14 +29,19 @@ namespace vds {
   class connection_manager
   {
   public:
-    connection_manager(const service_provider & sp);
+    connection_manager(
+      const service_provider & sp,
+      const std::string & from_address);
     ~connection_manager();
     
     void ready_to_get_messages(iconnection_channel * target);
-    
+    void remove_target(iconnection_channel * target);
+
+    void send(const std::list<std::string> & to_address, const std::string &  body);
+    void broadcast(const std::string &  body);
 
   private:
-    std::unique_ptr<_connection_manager> impl_;
+    _connection_manager * const impl_;
   };
 }
 #endif // __VDS_PROTOCOLS_CONNECTION_MANAGER_H_

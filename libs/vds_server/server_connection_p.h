@@ -5,9 +5,11 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
+
 namespace vds {
-  class _server_connection
-    : public consensus_protocol::iserver_gateway
+  class server_connection;
+
+  class _server_connection : public iconnection_channel
   {
   public:
     _server_connection(
@@ -15,8 +17,8 @@ namespace vds {
       server_connection * owner);
     ~_server_connection();
 
-    void send(const std::list<std::string> & target_ids, const std::string & message) override;
-    void broadcast(const std::string & message) override;
+    void get_delivery_metrics(std::map<std::string, size_t> & metrics) override;
+    void send(const std::string & from_address, std::list<std::string> & to_address, const std::string &  body) override;
 
   private:
     service_provider sp_;

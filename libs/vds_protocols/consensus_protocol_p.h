@@ -9,6 +9,8 @@ All rights reserved
 #include "consensus_messages.h"
 
 namespace vds {
+  class connection_manager;
+
   namespace consensus_protocol {
     class server;
 
@@ -20,14 +22,14 @@ namespace vds {
         server * owner,
         certificate & certificate,
         asymmetric_private_key & private_key,
-        iserver_gateway & server_gateway);
+        connection_manager & connection_manager);
 
       void start();
       void stop();
       
       void register_server(const std::string & certificate_body);
 
-      void process(const service_provider & scope, json_array * result, const vds::consensus_messages::consensus_message_who_is_leader & message);
+      void process(const service_provider & scope, json_array & result, const vds::consensus_messages::consensus_message_who_is_leader & message);
 
     private:
       service_provider sp_;
@@ -35,7 +37,7 @@ namespace vds {
       server * const owner_;
       certificate & certificate_;
       asymmetric_private_key & private_key_;
-      iserver_gateway & server_gateway_;
+      connection_manager & connection_manager_;
 
       std::mutex messages_to_lead_mutex_;
       std::condition_variable messages_to_lead_cond_;
@@ -59,6 +61,7 @@ namespace vds {
       };
       state state_;
       size_t leader_check_timer_;
+      std::string leader_;
 
       void leader_check();
 

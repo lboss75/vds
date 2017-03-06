@@ -10,19 +10,13 @@ All rights reserved
 
 namespace vds {
   class storage_log;
+  class connection_manager;
 
   namespace consensus_messages {
     class consensus_message_who_is_leader;
   }
 
   namespace consensus_protocol {
-
-    class iserver_gateway
-    {
-    public:
-      virtual void send(const std::list<std::string> & target_ids, const std::string & message) = 0;
-      virtual void broadcast(const std::string & message) = 0;
-    };
 
     class _server;
     class server
@@ -32,7 +26,7 @@ namespace vds {
         const service_provider & sp,
         certificate & certificate,
         asymmetric_private_key & private_key,
-        iserver_gateway & server_gateway);
+        connection_manager & connection_manager);
       ~server();
 
       void start();
@@ -40,10 +34,10 @@ namespace vds {
 
       void register_server(const std::string & certificate_body);
 
-      void process(const service_provider & scope, json_array * result, const consensus_messages::consensus_message_who_is_leader & message);
+      void process(const service_provider & scope, json_array & result, const consensus_messages::consensus_message_who_is_leader & message);
 
     private:
-      std::unique_ptr<_server> impl_;
+      _server * const impl_;
     };
   }
 }

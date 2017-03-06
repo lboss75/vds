@@ -31,14 +31,14 @@ std::unique_ptr<vds::json_value> vds::consensus_messages::consensus_message_who_
   return std::unique_ptr<json_value>(result.release());
 }
 //////////////////////////////////////////////////////////////////////////////////////////////////////
-const char vds::consensus_messages::consensus_message_i_am_leader::message_type[] = "i am leader";
+const char vds::consensus_messages::consensus_message_current_leader::message_type[] = "i am leader";
 
-vds::consensus_messages::consensus_message_i_am_leader::consensus_message_i_am_leader(const std::string & leader_id)
+vds::consensus_messages::consensus_message_current_leader::consensus_message_current_leader(const std::string & leader_id)
   : leader_id_(leader_id)
 {
 }
 
-vds::consensus_messages::consensus_message_i_am_leader::consensus_message_i_am_leader(const json_value * value)
+vds::consensus_messages::consensus_message_current_leader::consensus_message_current_leader(const json_value * value)
 {
   auto s = dynamic_cast<const json_object *> (value);
   if (nullptr != s) {
@@ -46,7 +46,7 @@ vds::consensus_messages::consensus_message_i_am_leader::consensus_message_i_am_l
   }
 }
 
-std::unique_ptr<vds::json_value> vds::consensus_messages::consensus_message_i_am_leader::serialize() const
+std::unique_ptr<vds::json_value> vds::consensus_messages::consensus_message_current_leader::serialize() const
 {
   std::unique_ptr<json_object> result(new json_object());
 

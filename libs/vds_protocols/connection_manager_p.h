@@ -12,21 +12,26 @@ namespace vds {
   class _connection_manager
   {
   public:
-      _connection_manager(
-        const service_provider & sp,
-        connection_manager * owner);
-      ~_connection_manager();
+    _connection_manager(
+      const service_provider & sp,
+      connection_manager * owner,
+      const std::string & from_address);
+    ~_connection_manager();
+
+    void ready_to_get_messages(iconnection_channel * target);
+    void send(const std::list<std::string> & to_address, const std::string &  body);
+    void broadcast(const std::string &  body);
 
   private:
     service_provider sp_;
     connection_manager * const owner_;
+    std::string from_address_;
     
     std::mutex connection_channels_mutex_;
     std::list<iconnection_channel *> connection_channels_;
     
     std::mutex messages_mutex_;
     std::list<connection_message> messages_;
-    std::condition_variable messages_cond_;
     
     void work_thread();
   };

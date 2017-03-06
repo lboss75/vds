@@ -26,15 +26,15 @@ namespace vds {
       std::string source_id_;
     };
 
-    class consensus_message_i_am_leader
+    class consensus_message_current_leader
     {
     public:
       static const char message_type[];
 
-      consensus_message_i_am_leader(
+      consensus_message_current_leader(
         const std::string & leader_id);
 
-      consensus_message_i_am_leader(const json_value * value);
+      consensus_message_current_leader(const json_value * value);
 
       std::unique_ptr<json_value> serialize() const;
 
