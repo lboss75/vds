@@ -11,9 +11,7 @@ TEST(test_vds, test_initial)
   try{
     vds_mock mock;
 
-    mock.start(20);
-
-
+    mock.start(2);
 
     mock.stop();
   }

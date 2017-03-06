@@ -7,7 +7,7 @@ All rights reserved
 #include "client_logic.h"
 
 const char * vds::client_logic::endpoints_[] = {
-  "https://127.0.0.1:8550",
+  "https://127.0.0.1:8050",
   nullptr
 };
 
