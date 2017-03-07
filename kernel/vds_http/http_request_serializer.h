@@ -41,24 +41,24 @@ namespace vds {
       }
 
       void operator()(
-        http_request & request,
-        http_outgoing_stream & outgoing_stream
+        http_request * request,
+        http_outgoing_stream * outgoing_stream
         )
       {
-        if (request.empty()) {
+        if (nullptr == request || request->empty()) {
           this->next(nullptr, 0);
         }
         else {
           std::stringstream stream;
-          stream << request.method() << " " << request.url() << " " << request.agent() << "\n";
-          for (auto & header : request.headers()) {
+          stream << request->method() << " " << request->url() << " " << request->agent() << "\n";
+          for (auto & header : request->headers()) {
             stream << header << "\n";
           }
           
-          stream << "Content-Length:" << outgoing_stream.size() << "\n\n";
+          stream << "Content-Length:" << outgoing_stream->size() << "\n\n";
           
-          if(outgoing_stream.is_simple()) {
-            stream << outgoing_stream.body();
+          if(outgoing_stream->is_simple()) {
+            stream << outgoing_stream->body();
           }
 
           this->header_ = stream.str();

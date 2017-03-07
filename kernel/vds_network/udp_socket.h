@@ -421,14 +421,14 @@ private:
       {
         sequence(
           udp_receive(this->sp_, this->s_),
-          create_step<write_handler>::with(&this->owner_)
+          create_step<write_handler>::with(this->owner_)
         )(          
           this->multi_handler_.on_done(),
           this->multi_handler_.on_error()
         );
         
         sequence(
-          create_step<read_handler>::with(&this->owner_),
+          create_step<read_handler>::with(this->owner_),
           udp_send(this->s_)
         )(
           this->multi_handler_.on_done(),
@@ -446,11 +446,13 @@ private:
     template <typename context_type>
     class write_handler : public sequence_step<context_type, void(void)>
     {
+      using base_class = sequence_step<context_type, void(void)>;
     public:
       write_handler(
         const context_type & context,
-        handler_class * owner
-        ) : owner_(*owner) {
+        handler_class & owner)
+      : base_class(context),
+        owner_(owner) {
 
       }
 
@@ -466,11 +468,13 @@ private:
     template <typename context_type>
     class read_handler : public sequence_step<context_type, void(const sockaddr_in & from, const void * data, size_t len)>
     {
+      using base_class = sequence_step<context_type, void(const sockaddr_in & from, const void * data, size_t len)>;
     public:
       read_handler(
         const context_type & context,
-        handler_class * owner
-      ) : owner_(*owner) {
+        handler_class & owner
+      ) : base_class(context),
+      owner_(owner) {
       }
 
       void operator()()

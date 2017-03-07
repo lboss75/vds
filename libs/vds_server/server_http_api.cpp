@@ -78,7 +78,7 @@ void vds::_server_http_api::start(
 
   sequence(
     socket_server(this->sp_, address.c_str(), port),
-    vds::for_each<const service_provider &, network_socket>::create_handler(
+    vds::for_each<const service_provider &, network_socket &>::create_handler(
       socket_session(*this->router_, certificate, private_key))
   )
   (

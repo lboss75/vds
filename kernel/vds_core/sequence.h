@@ -33,10 +33,10 @@ namespace vds {
     {
     }
 
-    void operator()(arg_types... args) const
+    void operator()(arg_types&&... args) const
     {
       this->method_.check_alive();
-      this->method_.processed(args...);
+      this->method_.processed(std::forward<arg_types>(args)...);
     }
     
     void check_alive() const
@@ -67,9 +67,9 @@ namespace vds {
     {
     }
 
-    void operator()(arg_types... args)
+    void operator()(arg_types&&... args)
     {
-      this->method_.processed(args...);
+      this->method_.processed(std::forward<arg_types>(args)...);
     }
     
     void check_alive() const
@@ -197,7 +197,7 @@ namespace vds {
     
     void operator()(arg_types... args)
     {
-      this->method_(args...);
+      this->method_(std::forward<arg_types>(args)...);
       delete this->owner_;
     }
     
@@ -219,7 +219,7 @@ namespace vds {
 
     void operator()(arg_types... args) const
     {
-      this->method_(args...);
+      this->method_(std::forward<arg_types>(args)...);
       delete this->owner_;
     }
 
@@ -313,7 +313,7 @@ namespace vds {
     
     void operator()(arg_types... args)
     {
-      this->method_(args...);
+      this->method_(std::forward<arg_types>(args)...);
       this->owner_->delete_this();
     }
     
@@ -345,7 +345,7 @@ namespace vds {
 
     void operator()(arg_types... args) const
     {
-      this->method_(args...);
+      this->method_(std::forward<arg_types>(args)...);
       this->owner_->delete_this();
     }
 
@@ -451,9 +451,9 @@ namespace vds {
       {
       }
 
-      void operator()(argument_types... args)
+      void operator()(argument_types&&... args)
       {
-        this->next(args...);
+        this->next(std::forward<argument_types>(args)...);
       }
 
       void processed()
@@ -468,8 +468,8 @@ namespace vds {
   class _sequence
   {
   public:
-    _sequence(functor_types... functors)
-    : builder_(functors...)
+    _sequence(functor_types&&... functors)
+    : builder_(std::forward<functor_types>(functors)...)
     {
     }
     
@@ -482,7 +482,7 @@ namespace vds {
     operator()(
       done_method_type & done_method,
       error_method_type & error_method,
-      arg_types... args
+      arg_types&&... args
     )
     {
       try {
@@ -495,7 +495,7 @@ namespace vds {
           remove_auto_delete_trigger<error_method_type>(error_method).value,
           this->builder_);
         handler->validate();
-        handler->holder_.step(args...);
+        handler->holder_.step(std::forward<arg_types>(args)...);
       }
       catch (std::exception * ex) {
         error_method(ex);
@@ -511,7 +511,7 @@ namespace vds {
     operator()(
       done_method_type && done_method,
       error_method_type && error_method,
-      arg_types... args
+      arg_types&&... args
     )
     {
       error_method_type error_handler(error_method);
@@ -525,7 +525,7 @@ namespace vds {
           std::move(error_method),
           this->builder_);
         handler->validate();
-        handler->holder_.step(args...);
+        handler->holder_.step(std::forward<arg_types>(args)...);
       }
       catch (std::exception * ex) {
         error_handler(ex);
@@ -569,7 +569,7 @@ namespace vds {
       template<
         std::size_t index
         >
-      using _functor_type_t = typename std::tuple_element<index, tuple_type>::type;
+      using _functor_type_t = typename std::remove_reference<typename std::tuple_element<index, tuple_type>::type>::type;
 
       
       template<
@@ -847,8 +847,8 @@ namespace vds {
   
   template<typename... functor_types>
   inline _sequence<functor_types...>
-  sequence(functor_types... functors){
-    return _sequence<functor_types...>(functors...);
+  sequence(functor_types&&... functors){
+    return _sequence<functor_types...>(std::forward<functor_types>(functors)...);
   }
   
   template <typename... arg_types>
@@ -897,13 +897,13 @@ namespace vds {
 #endif
         }
         
-        void operator ()(arg_types&... args)
+        void operator ()(arg_types... args)
         {
           try {
             auto handler = new typename handler_args_type::handler
             (
               this->handler_args_,
-              args...);
+              std::forward<arg_types>(args)...);
             handler->start();
           }
           catch(std::exception * ex) {
@@ -1051,9 +1051,9 @@ namespace vds {
       {
       }
 
-      void operator()(argument_types... arguments)
+      void operator()(argument_types&&... arguments)
       {
-        this->handler_(prev_handler_type(this->prev), next_handler_type(this->next), arguments);
+        this->handler_(prev_handler_type(this->prev), next_handler_type(this->next), std::forward(arguments)...);
       }
 
     private:
@@ -1074,8 +1074,8 @@ namespace vds {
   class _step_container
   {
   public:
-    _step_container(argument_types... args)
-      : args_(std::make_tuple(args...))
+    _step_container(argument_types&&... args)
+      : args_(std::forward<argument_types>(args)...)
     {
     }
 
@@ -1123,9 +1123,9 @@ namespace vds {
   struct create_step
   {
     template <typename... argument_types>
-    static _step_container<handler_class, argument_types...> with(argument_types... args)
+    static _step_container<handler_class, argument_types...> with(argument_types&&... args)
     {
-      return _step_container<handler_class, argument_types...>(args...);
+      return _step_container<handler_class, argument_types...>(std::forward<argument_types&&>(args)...);
     }
   };
 }

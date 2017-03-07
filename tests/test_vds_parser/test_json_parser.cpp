@@ -106,7 +106,7 @@ TEST(test_json_parser, test_parser) {
   (
     []() {},
     [](std::exception * ex) { FAIL() << ex->what(); },
-   test_data,
+   (const char *)test_data,
    sizeof(test_data) - 1
   );
 }

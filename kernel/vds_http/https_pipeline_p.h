@@ -277,15 +277,20 @@ namespace vds {
         }
 
         void operator()(
-          http_response & response,
-          http_incoming_stream & incoming_stream)
+          http_response * response,
+          http_incoming_stream * incoming_stream)
         {
+          if(nullptr == response){
+            this->next();
+            return;
+          }
+          
           std::string content_type;
-          response.get_header("Content-Type", content_type);
+          response->get_header("Content-Type", content_type);
 
           if ("application/json" == content_type) {
             sequence(
-              http_stream_reader<typename base_class::prev_step_t>(this->prev, incoming_stream),
+              http_stream_reader<typename base_class::prev_step_t>(this->prev, *incoming_stream),
               json_parser("client response"),
               command_processor(this->owner_, this->tunnel_)
             )
@@ -296,7 +301,7 @@ namespace vds {
           }
           else {
             sequence(
-              http_stream_reader<typename base_class::prev_step_t>(this->prev, incoming_stream),
+              http_stream_reader<typename base_class::prev_step_t>(this->prev, *incoming_stream),
               null_command_processor(this->owner_, this->tunnel_)
             )
             (
@@ -329,10 +334,10 @@ namespace vds {
 
       template <typename context_type>
       class handler
-        : public sequence_step<context_type, void(http_request & request, http_outgoing_stream & outgoing_stream)>,
+        : public sequence_step<context_type, void(http_request * request, http_outgoing_stream * outgoing_stream)>,
           public ioutput_command_stream
       {
-        using base_class = sequence_step<context_type, void(http_request & request, http_outgoing_stream & outgoing_stream)>;
+        using base_class = sequence_step<context_type, void(http_request * request, http_outgoing_stream * outgoing_stream)>;
       public:
         handler(
           const context_type & context,
@@ -361,7 +366,7 @@ namespace vds {
         void run(const std::string & body) override
         {
           outgoing_stream_.set_body(body);
-          this->next(this->request_, this->outgoing_stream_);
+          this->next(&this->request_, &this->outgoing_stream_);
         }
 
       private:

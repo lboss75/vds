@@ -57,8 +57,8 @@ namespace vds {
         (
           this->request_sent_handler_,
           this->error,
-          this->request_,
-          this->outgoing_stream_
+          &this->request_,
+          &this->outgoing_stream_
         );
 
         sequence(

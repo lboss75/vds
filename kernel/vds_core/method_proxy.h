@@ -31,7 +31,7 @@ namespace vds {
     void operator()(arg_types... args)
     {
       this->method_.check_alive();
-      this->method_(args...);
+      this->method_(std::forward<arg_types>(args)...);
     }
     
     void check_alive() const

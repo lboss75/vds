@@ -35,15 +35,20 @@ namespace vds {
       }
 
       void operator()(
-        http_response & response,
-        http_incoming_stream & response_stream
+        http_response * response,
+        http_incoming_stream * response_stream
         )
       {
-        if(http_response::HTTP_OK == response.code()){
+        if(nullptr == response){
+          this->next(std::string());
+          return;
+        }
+        
+        if(http_response::HTTP_OK == response->code()){
           sequence(
             http_stream_reader<typename base_class::prev_step_t>(
               this->prev,
-              response_stream),
+              *response_stream),
             stream_to_string()
           )
           (

@@ -22,16 +22,16 @@ namespace vds {
     class handler : public sequence_step<
       context_type,
       void(
-        http_response & response,
-        http_incoming_stream & incoming_stream
+        http_response * response,
+        http_incoming_stream * incoming_stream
       )
     >
     {
       using base_class = sequence_step<
         context_type,
         void(
-          http_response & response,
-          http_incoming_stream & incoming_stream
+          http_response * response,
+          http_incoming_stream * incoming_stream
         )
       >;
     public:
@@ -53,8 +53,8 @@ namespace vds {
       {
         if (0 == len) {
           this->next(
-            this->response_,
-            this->incoming_stream_);
+            nullptr,
+            nullptr);
         }
         else {
           this->data_ = data;
@@ -135,8 +135,8 @@ namespace vds {
               this->readed_ = 0;
 
               this->next(
-                this->response_,
-                this->incoming_stream_
+                &this->response_,
+                &this->incoming_stream_
               );
               
               return;

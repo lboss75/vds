@@ -35,7 +35,7 @@ namespace vds {
     
     void operator()(arg_types... args)
     {
-      this->functor_(args...);
+      this->functor_(std::forward<arg_types>(args)...);
     }
     
   private:
@@ -53,7 +53,7 @@ namespace vds {
     
     void operator()(arg_types... args)
     {
-      this->functor_(args...);
+      this->functor_(std::forward<arg_types>(args)...);
     }
     
   private:

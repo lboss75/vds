@@ -110,7 +110,7 @@ TEST(http_tests, test_server)
         
         vds::sequence(
           vds::socket_server(sp, "127.0.0.1", 8000),
-          vds::for_each<const vds::service_provider &, vds::network_socket>::create_handler(test_http_pipeline(router))
+          vds::for_each<const vds::service_provider &, vds::network_socket &>::create_handler(test_http_pipeline(router))
         )
         (
           server_done_handler,
@@ -152,7 +152,7 @@ TEST(http_tests, test_server)
         (
          done_handler,
          error_handler,
-         "127.0.0.1",
+         (const char *)"127.0.0.1",
          8000
         );
 
@@ -198,7 +198,7 @@ TEST(http_tests, test_https_server)
 
     vds::sequence(
       vds::socket_server(sp, "127.0.0.1", 8000),
-      vds::for_each<const vds::service_provider &, vds::network_socket>::create_handler(test_http_pipeline(router))
+      vds::for_each<const vds::service_provider &, vds::network_socket &>::create_handler(test_http_pipeline(router))
     )
     (
       server_done_handler,
@@ -240,7 +240,7 @@ TEST(http_tests, test_https_server)
     (
       done_handler,
       error_handler,
-      "127.0.0.1",
+      (const char *)"127.0.0.1",
       8000
       );
 
