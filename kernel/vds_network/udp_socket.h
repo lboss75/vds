@@ -421,14 +421,14 @@ private:
       {
         sequence(
           udp_receive(this->sp_, this->s_),
-          create_step<write_handler>::with(this->owner_)
+          create_step<write_handler>::with(&this->owner_)
         )(          
           this->multi_handler_.on_done(),
           this->multi_handler_.on_error()
         );
         
         sequence(
-          create_step<read_handler>::with(this->owner_),
+          create_step<read_handler>::with(&this->owner_),
           udp_send(this->s_)
         )(
           this->multi_handler_.on_done(),
@@ -449,8 +449,8 @@ private:
     public:
       write_handler(
         const context_type & context,
-        handler_class & owner
-        ) : owner_(owner) {
+        handler_class * owner
+        ) : owner_(*owner) {
 
       }
 
@@ -469,8 +469,8 @@ private:
     public:
       read_handler(
         const context_type & context,
-        handler_class & owner
-      ) : owner_(owner) {
+        handler_class * owner
+      ) : owner_(*owner) {
       }
 
       void operator()()

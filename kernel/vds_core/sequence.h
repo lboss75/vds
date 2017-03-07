@@ -1074,7 +1074,7 @@ namespace vds {
   class _step_container
   {
   public:
-    _step_container(argument_types&... args)
+    _step_container(argument_types... args)
       : args_(std::make_tuple(args...))
     {
     }
@@ -1123,7 +1123,7 @@ namespace vds {
   struct create_step
   {
     template <typename... argument_types>
-    static _step_container<handler_class, argument_types...> with(argument_types&... args)
+    static _step_container<handler_class, argument_types...> with(argument_types... args)
     {
       return _step_container<handler_class, argument_types...>(args...);
     }
