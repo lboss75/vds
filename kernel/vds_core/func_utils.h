@@ -8,6 +8,20 @@ All rights reserved
 
 namespace vds {
   template <typename functor_type, typename functor_signature>
+  struct _functor_info;
+
+  template <typename functor_type, typename class_name, typename... arg_types>
+  struct _functor_info<functor_type, void (class_name::*)(arg_types...)>
+  {
+    typedef void signature(arg_types...);
+  };
+
+  template <typename functor_type>
+  struct functor_info : public _functor_info<functor_type, decltype(&functor_type::operator())>
+  {};
+
+
+  template <typename functor_type, typename functor_signature>
   class _lambda_handler;
   
   template <typename functor_type, typename class_name, typename... arg_types>

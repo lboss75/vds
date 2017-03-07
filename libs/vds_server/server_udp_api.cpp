@@ -39,5 +39,5 @@ vds::_server_udp_api::~_server_udp_api()
 
 void vds::_server_udp_api::start(const std::string& address, size_t port)
 {
-  run_udp_server<_server_udp_api>(this->s_, address, port, this);
+  run_udp_server(this->sp_, this->s_, address, port, *this);
 }

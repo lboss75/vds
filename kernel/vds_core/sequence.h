@@ -6,6 +6,7 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 #include "method_proxy.h"
+#include "func_utils.h"
 
 namespace vds {
   //////////////////////////////////////////////////////
@@ -79,7 +80,6 @@ namespace vds {
   private:
     method_type & method_;
   };
-  //////////////////////////////////////////////////////
   //////////////////////////////////////////////////////
   class _fake
   {
@@ -942,6 +942,190 @@ namespace vds {
     -> _create_handler<handler_args_type>
     {
       return _create_handler<handler_args_type>(handler_args);
+    }
+  };
+
+  class multi_handler
+  {
+  public:
+    multi_handler(
+      size_t count,
+      const std::function<void(std::list<std::exception *> & errors)> & target)
+      : target_(target),
+      count_(count),
+      done_(this),
+      error_(this)
+    {
+    }
+
+    class done_handler
+    {
+    public:
+      done_handler(multi_handler * owner)
+        : owner_(owner)
+      {
+      }
+
+      void operator()()
+      {
+        this->owner_->done();
+      }
+
+    private:
+      multi_handler * owner_;
+    };
+
+    done_handler & on_done() { return this->done_; }
+
+    class error_handler
+    {
+    public:
+      error_handler(multi_handler * owner)
+        : owner_(owner)
+      {
+      }
+
+      void operator()(std::exception * ex)
+      {
+        this->owner_->error(ex);
+      }
+
+    private:
+      multi_handler * owner_;
+    };
+
+    error_handler & on_error() { return this->error_; }
+
+  protected:
+    std::function<void(std::list<std::exception *> & errors)> target_;
+    std::list<std::exception *> errors_;
+
+    size_t count_;
+    done_handler done_;
+    error_handler error_;
+
+    std::mutex data_mutex_;
+
+    void done()
+    {
+      std::lock_guard<std::mutex> lock(this->data_mutex_);
+
+      if (0 == --this->count_) {
+        this->target_(this->errors_);
+      }
+    }
+
+    void error(std::exception * ex)
+    {
+      std::lock_guard<std::mutex> lock(this->data_mutex_);
+      this->errors_.push_back(ex);
+
+      if (0 == --this->count_) {
+        this->target_(this->errors_);
+      }
+    }
+  };
+
+  template<typename handler_type, typename handler_signature>
+  class _simple_step;
+
+  template<typename handler_type, typename class_name, typename prev_handler_type, typename next_handler_type, typename... argument_types>
+  class _simple_step<handler_type, void (class_name::*)(const prev_handler_type & prev, const next_handler_type & next, argument_types... arguments)>
+  {
+  public:
+    _simple_step(const handler_type & handler)
+      : handler_(handler)
+    {
+    }
+
+    template<typename context_type>
+    class handler : public sequence_step<context_type, typename functor_info<next_handler_type>::signature>
+    {
+      using base_class = sequence_step<context_type, typename functor_info<next_handler_type>::signature>;
+    public:
+      handler(
+        const context_type & context,
+        const _simple_step & args)
+      : base_class(context),
+        handler_(args.handler_)
+      {
+      }
+
+      void operator()(argument_types... arguments)
+      {
+        this->handler_(prev_handler_type(this->prev), next_handler_type(this->next), arguments);
+      }
+
+    private:
+      handler_type handler_;
+    };
+
+  private:
+    handler_type handler_;
+  };
+
+  template<typename handler_type>
+  inline _simple_step<handler_type, decltype(&handler_type::operator())> simple_step(const handler_type & handler)
+  {
+    return _simple_step<handler_type, decltype(&handler_type::operator())>(handler);
+  }
+
+  template <template<typename> typename handler_class, typename... argument_types>
+  class _step_container
+  {
+  public:
+    _step_container(argument_types&... args)
+      : args_(std::make_tuple(args...))
+    {
+    }
+
+    template <typename context_type, size_t current_num, size_t... nums>
+    class handler_builder : public handler_builder<context_type, current_num - 1, nums..., current_num - 1>
+    {
+    public:
+      handler_builder(
+        const context_type & context,
+        const std::tuple<argument_types...> & args)
+        : handler_builder<context_type, current_num - 1, nums..., current_num - 1>(context, args)
+      {
+      }
+    };
+
+    template <typename context_type, size_t... nums>
+    class handler_builder<context_type, 0, nums...> : public handler_class<context_type>
+    {
+    public:
+      handler_builder(
+        const context_type & context,
+        const std::tuple<argument_types...> & args)
+        : handler_class<context_type>(context, std::get<nums>(args)...)
+      {
+      }
+    };
+
+    template <typename context_type>
+    class handler : public handler_builder<context_type, sizeof...(argument_types)>
+    {
+    public:
+      handler(
+      const context_type & context,
+      const _step_container & args)
+        : handler_builder<context_type, sizeof...(argument_types)>(context, args.args_)
+      {
+      }
+    };
+
+  private:
+    std::tuple<argument_types...> args_;
+  };
+
+  template <template<typename> typename handler_class>
+  struct create_step
+  {
+    template <typename... argument_types>
+    static _step_container<handler_class, argument_types...> with(argument_types&... args)
+    {
+      return _step_container<handler_class, argument_types...>(args...);
     }
   };
 }

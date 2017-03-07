@@ -241,10 +241,10 @@ namespace vds {
 
     template <typename context_type>
     class handler
-      : public sequence_step<context_type, void(size_t)>,
+      : public sequence_step<context_type, void(void)>,
       public socket_task
     {
-      using base_class = sequence_step<context_type, void(size_t)>;
+      using base_class = sequence_step<context_type, void(void)>;
     public:
       handler(
         const context_type & context,
@@ -271,7 +271,12 @@ namespace vds {
 #ifdef _WIN32
       void process(DWORD dwBytesTransfered) override
       {
-        this->next((size_t)dwBytesTransfered);
+        if (this->wsa_buf_.len != (size_t)dwBytesTransfered) {
+          this->error(new std::runtime_error("Invalid sent UDP data"));
+          return;
+        }
+
+        this->prev();
       }
 #endif
     };
@@ -388,8 +393,11 @@ private:
   class _run_udp_server
   {
   public:
-    _run_udp_server(handler_class & owner)
-    : owner_(owner)
+    _run_udp_server(
+      const service_provider & sp,
+      udp_socket & s,
+      handler_class & owner)
+    : sp_(sp), s_(s), owner_(owner)
     {
     }
     
@@ -402,62 +410,96 @@ private:
         const context_type & context,
         const _run_udp_server & args)
       : base_class(context),
-      owner_(args.owner_)
+        sp_(args.sp_),
+        s_(args.s_),
+        owner_(args.owner_),
+        multi_handler_(2, [this](std::list<std::exception *> & errors) { this->owner_.socket_closed(errors); })
       {
       }
       
       void operator()()
       {
         sequence(
-          udp_receive(),
-          simple_step<
-            void(const sockaddr_in & from, const void * data, size_t len),
-            void()>(
-            [this](const std::function<void(void)> & done, const sockaddr_in & from, const void * data, size_t len){
-              this->owner_->input_message(from, data, len);
-            })
-        )(
-          this->owner_.read_closed(),
-          this->owner_.read_error()
+          udp_receive(this->sp_, this->s_),
+          create_step<write_handler>::with(this->owner_)
+        )(          
+          this->multi_handler_.on_done(),
+          this->multi_handler_.on_error()
         );
         
         sequence(
-          read_handler(this->owner_),
-          udp_send(),
+          create_step<read_handler>::with(this->owner_),
+          udp_send(this->s_)
         )(
-          this->owner_.read_closed(),
-          this->owner_.read_error()
+          this->multi_handler_.on_done(),
+          this->multi_handler_.on_error()
         );
       }
       
     private:
+      service_provider sp_;
+      udp_socket & s_;
       handler_class & owner_;
+      multi_handler multi_handler_;
     };
     
-    class write_handler
+    template <typename context_type>
+    class write_handler : public sequence_step<context_type, void(void)>
     {
     public:
-      class handler
+      write_handler(
+        const context_type & context,
+        handler_class & owner
+        ) : owner_(owner) {
+
+      }
+
+      void operator()(const sockaddr_in & from, const void * data, size_t len)
       {
-      public:
-        void operator()(const sockaddr_in & from, const void * data, size_t len)
-        {
-        }
-      };
+        this->owner_.input_message(from, data, len);
+      }
+
+    private:
+      handler_class & owner_;
     };
+
+    template <typename context_type>
+    class read_handler : public sequence_step<context_type, void(const sockaddr_in & from, const void * data, size_t len)>
+    {
+    public:
+      read_handler(
+        const context_type & context,
+        handler_class & owner
+      ) : owner_(owner) {
+      }
+
+      void operator()()
+      {
+        this->owner_.get_message(this->next);
+      }
+
+    private:
+      handler_class & owner_;
+    };
+
   private:
+    service_provider sp_;
+    udp_socket & s_;
     handler_class & owner_;
   };
+
   
   template<typename handler_class>
   inline void run_udp_server(
-    handler_class & handler,
-    const std::function<void(void)> & done_handler,
-    const std::function<void(std::exception *)> & error_handler)
+    const service_provider & sp,
+    udp_socket & s,
+    const std::string & address,
+    size_t port,
+    handler_class & handler)
   {
     sequence(
-      udp_server(),
-      _run_udp_server<handler_class>(handler)
+      udp_server(sp, s, address, port),
+      _run_udp_server<handler_class>(sp, s, handler)
     )
     (
      [&handler]() { handler.udp_server_done(); },
@@ -467,11 +509,15 @@ private:
 
   template<typename handler_class>
   inline void run_udp_server(
+    const service_provider & sp,
+    udp_socket & s,
+    const std::string & address,
+    size_t port,
     const std::function<void(void)> & done_handler,
     const std::function<void(std::exception *)> & error_handler)
   {
     sequence(
-      udp_server(),
+      udp_server(sp, s, address, port),
       _run_udp_server<handler_class>()
     )
     (
@@ -482,11 +528,15 @@ private:
   
   template<typename handler_class, typename done_handler_type, typename error_handler_type>
   inline void run_udp_server(
+    const service_provider & sp,
+    udp_socket & s,
+    const std::string & address,
+    size_t port,
     done_handler_type & done_handler,
     error_handler_type & error_handler)
   {
     sequence(
-      udp_server(),
+      udp_server(sp, s, address, port),
       _run_udp_server<handler_class>()
     )
     (

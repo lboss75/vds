@@ -64,7 +64,3 @@ vds::iserver::iserver(vds::server* owner)
 {
 
 }
-
-void vds::iserver::start_http_server(const std::string & address, int port)
-{
-}
