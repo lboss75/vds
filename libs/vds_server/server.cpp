@@ -12,6 +12,7 @@ All rights reserved
 #include "server_http_api.h"
 #include "server_http_api_p.h"
 #include "server_connection.h"
+#include "server_udp_api.h"
 
 vds::server::server()
 : port_(8050)
@@ -44,6 +45,10 @@ void vds::server::start(const service_provider& sp)
   this->node_manager_.reset(new node_manager(sp));
   this->server_http_api_.reset(new server_http_api(sp));
   this->server_http_api_->start("127.0.0.1", this->port_, this->certificate_, this->private_key_);
+  
+  this->server_udp_api_.reset(new server_udp_api(sp, this->certificate_, this->private_key_));
+  this->server_udp_api_->start("127.0.0.1", this->port_);
+  
 
   //this->client_logic_.reset(new client_logic(sp, &this->certificate_, &this->private_key_, sp.get<istorage>().get_storage_log().get_endpoints()));
   //this->client_logic_->start();

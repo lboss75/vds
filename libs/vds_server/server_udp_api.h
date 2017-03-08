@@ -12,10 +12,16 @@ namespace vds {
   class server_udp_api
   {
   public:
-    server_udp_api(const service_provider & sp);
+    server_udp_api(
+      const service_provider & sp,
+      certificate & certificate,
+      asymmetric_private_key & private_key);
+    
     ~server_udp_api();
     
-    void start(const std::string & address, size_t port);
+    void start(
+      const std::string & address,
+      size_t port);
     void stop();
 
   private:

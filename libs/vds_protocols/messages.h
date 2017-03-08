@@ -8,6 +8,7 @@ All rights reserved
 
 namespace vds {
   
+  
   class messages
   {
   public:

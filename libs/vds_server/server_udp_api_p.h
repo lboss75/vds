@@ -11,7 +11,11 @@ namespace vds {
   class _server_udp_api
   {
   public:
-    _server_udp_api(const service_provider & sp, server_udp_api * owner);
+    _server_udp_api(
+      const service_provider & sp,
+      server_udp_api * owner,
+      certificate & certificate,
+      asymmetric_private_key & private_key);
     ~_server_udp_api();
       
     void start(const std::string & address, size_t port);
@@ -29,6 +33,8 @@ namespace vds {
   private:
     service_provider sp_;
     server_udp_api * const owner_;
+    certificate & certificate_;
+    asymmetric_private_key & private_key_;
     udp_socket s_;
   };
 }

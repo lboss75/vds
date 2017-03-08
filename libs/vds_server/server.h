@@ -15,6 +15,7 @@ namespace vds {
   class server_http_api;
   class storage_log;
   class server_connection;
+  class server_udp_api;
 
   class server : public iservice
   {
@@ -43,6 +44,7 @@ namespace vds {
     std::unique_ptr<user_manager> user_manager_;
     
     std::unique_ptr<server_http_api> server_http_api_;
+    std::unique_ptr<server_udp_api> server_udp_api_;
     std::unique_ptr<connection_manager> connection_manager_;
   };
   
