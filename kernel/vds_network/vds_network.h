@@ -35,6 +35,7 @@ All rights reserved
 #include "dns.h"
 #include "udp_socket.h"
 #include "network_serializer.h"
+#include "peer_network.h"
 
 #ifdef _WIN32
 #pragma comment(lib, "Ws2_32.lib")

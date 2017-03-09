@@ -17,7 +17,6 @@ namespace vds {
 
   private:
     class _peer_network * impl_;
-
   };
 }
 
