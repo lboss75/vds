@@ -6,6 +6,8 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
+#include "server.h"
+
 namespace vds {
   class server_udp_api;
   class _server_udp_api
@@ -28,7 +30,9 @@ namespace vds {
     void input_message(const sockaddr_in & from, const void * data, size_t len);
 
     template <typename next_step_type>
-    void get_message(next_step_type & next);
+    void get_message(next_step_type & next)
+    {
+    }
 
   private:
     service_provider sp_;
@@ -36,6 +40,13 @@ namespace vds {
     certificate & certificate_;
     asymmetric_private_key & private_key_;
     udp_socket s_;
+
+    struct udp_client
+    {
+
+    };
+
+    void update_upd_connection_pool();
   };
 }
 

@@ -17,22 +17,17 @@ namespace vds {
       
     };
     
-    class hello_message
+    struct hello_message
     {
-    public:
-      hello_message(
-        const std::string & fingerprint
-      );
-      
-      hello_message(
-        vds::network_deserializer & s
-      );
-      
-      void serialize(vds::network_serializer & s) const;
-            
-      
-    private:
-      std::string fingerprint_;
+      std::string from_server_id;
+      std::string to_url;
+    };
+
+    struct welcome_message
+    {
+      std::string from_server_id;
+      std::string client_url;
+      std::string crypto_key;
     };
   }
 }

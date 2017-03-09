@@ -28,6 +28,21 @@ namespace vds {
   private:
     service_provider sp_;
     server_connection * owner_;
+
+    struct endpoint_info
+    {
+    };
+
+    struct active_connection
+    {
+    };
+
+    std::map<std::string, active_connection> active_connections_;
+
+
+
+
+    void init_connection(const std::string & address, uint16_t port);
   };
 }
 

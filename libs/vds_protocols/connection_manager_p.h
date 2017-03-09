@@ -18,7 +18,12 @@ namespace vds {
       const std::string & from_address);
     ~_connection_manager();
 
+    void start();
+    void stop();
+
     void ready_to_get_messages(iconnection_channel * target);
+    void remove_target(iconnection_channel * target);
+
     void send(const std::list<std::string> & to_address, const std::string &  body);
     void broadcast(const std::string &  body);
 
@@ -34,6 +39,33 @@ namespace vds {
     std::list<connection_message> messages_;
     
     void work_thread();
+
+    struct exist_connection
+    {
+      std::string client_id;
+      std::string client_uri;
+
+      std::string server_id;
+      std::string server_uri;
+    };
+
+    struct direct_connection
+    {
+      std::string server_id;
+      std::string server_uri;
+      std::chrono::steady_clock last_usage;
+      iconnection_channel * connection;
+    };
+
+    std::mutex exist_connections_mutex_;
+    std::list<exist_connection> exist_connections_;
+
+    std::mutex direct_connections_mutex_;
+    std::list<direct_connection> direct_connections_;
+
+    void connect_by_id(const std::string & server_id);
+    void connect_by_uri(const std::string & server_uri);
+
   };
 }
 

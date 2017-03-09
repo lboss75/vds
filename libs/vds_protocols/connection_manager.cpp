@@ -24,6 +24,11 @@ void vds::connection_manager::ready_to_get_messages(iconnection_channel * target
   this->impl_->ready_to_get_messages(target);
 }
 
+void vds::connection_manager::remove_target(iconnection_channel * target)
+{
+  this->impl_->remove_target(target);
+}
+
 void vds::connection_manager::send(const std::list<std::string>& to_address, const std::string & body)
 {
   this->impl_->send(to_address, body);
@@ -52,6 +57,12 @@ void vds::_connection_manager::ready_to_get_messages(iconnection_channel * targe
 {
   std::lock_guard<std::mutex> lock(this->connection_channels_mutex_);
   this->connection_channels_.push_back(target);
+}
+
+void vds::_connection_manager::remove_target(iconnection_channel * target)
+{
+  std::lock_guard<std::mutex> lock(this->connection_channels_mutex_);
+  this->connection_channels_.remove(target);
 }
 
 void vds::_connection_manager::send(const std::list<std::string>& to_address, const std::string & body)
@@ -138,5 +149,32 @@ void vds::_connection_manager::work_thread()
       std::this_thread::sleep_for(std::chrono::seconds(1));
     }
   }
+}
+
+void vds::_connection_manager::connect_by_id(const std::string & server_id)
+{
+  {
+    std::lock_guard<std::mutex> lock(this->direct_connections_mutex_);
+
+    for (auto& c : this->direct_connections_) {
+      if (server_id == c.server_id) {
+        return;
+      }
+    }
+  }
+
+  {
+    std::lock_guard<std::mutex> lock(this->exist_connections_mutex_);
+
+    for (auto& c : this->exist_connections_) {
+      if (server_id == c.server_id) {
+        this->connect_by_uri(c.server_uri);
+      }
+    }
+  }
+}
+
+void vds::_connection_manager::connect_by_uri(const std::string & server_uri)
+{
 }
 

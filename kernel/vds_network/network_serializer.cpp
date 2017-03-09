@@ -91,7 +91,7 @@ vds::network_serializer& vds::network_serializer::push_data(const void* data, si
 {
   this->data_.push_back(5);
   *this << (uint32_t)len;
-  this->data_.push_back(data, len);
+  this->data_.insert(this->data_.end(), (const uint8_t *)data, (const uint8_t *)data + len);
   
   return *this;
 }

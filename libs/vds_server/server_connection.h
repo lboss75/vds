@@ -13,6 +13,10 @@ namespace vds {
     server_connection(const service_provider & sp);
     ~server_connection();
 
+    void start();
+    void stop();
+
+
   private:
     class _server_connection * const impl_;
   };

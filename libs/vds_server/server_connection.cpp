@@ -39,3 +39,8 @@ void vds::_server_connection::send(const std::string & from_address, std::list<s
 {
 }
 
+void vds::_server_connection::init_connection(const std::string & address, uint16_t port)
+{
+
+}
+

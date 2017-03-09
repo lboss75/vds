@@ -9,7 +9,7 @@ All rights reserved
 namespace vds {
 
   namespace server_messages {
-    
+
   }
 }
 

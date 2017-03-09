@@ -45,7 +45,7 @@ namespace vds {
     //4 byte
     network_deserializer & operator >> (uint32_t & value);
 
-    network_deserializer & operator >> (const std::string & value);
+    network_deserializer & operator >> (std::string & value);
 
     network_deserializer & read_data(std::vector<uint8_t> & data);
 
