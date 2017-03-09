@@ -3,6 +3,7 @@
 
 #include "service_provider.h"
 #include "debug.h"
+#include "events.h"
 
 namespace vds {
  
@@ -136,20 +137,37 @@ namespace vds {
       return sp.get<itask_manager>();
     }
     
-    template <typename handler_type>
-    task_job create_job(const std::string & name, handler_type & handler)
+    template<typename _Rep, typename _Period>
+    void wait_for(
+      const std::chrono::duration<_Rep, _Period> & period,
+      event_handler<> & timeout_handler)
     {
-      return task_job(new task_manager::task_job_impl<handler_type>(name, this->owner_, handler));
     }
-
-    template <typename class_name>
-    task_job create_job(const std::string & name, class_name * owner, void (class_name::*handler)())
+    
+    template<typename _Rep, typename _Period, typename... event_data_types>
+    void wait_for(
+      const std::chrono::duration<_Rep, _Period> & period,
+      event_source<event_data_types...> & source,
+      event_handler<event_data_types...> & handler,
+      event_handler<> & timeout_handler)
     {
-      return task_job(new task_manager::task_job_class_impl<class_name>(name, this->owner_, owner, handler));
+      auto proxy = new handler_proxy(handler, timeout_handler);
+      source += *proxy;
+      this->wait_for<_Rep, _Period>(period, *proxy);      
     }
 
   private:
     task_manager * owner_;
+    
+    template<typename... event_data_types>
+    class handler_proxy
+    {
+    public:
+      void operator()(event_data_types... args)
+      {
+      }
+    };
+    
   };
 
 }
