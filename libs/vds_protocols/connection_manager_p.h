@@ -25,7 +25,8 @@ namespace vds {
     void remove_target(iconnection_channel * target);
 
     void send(const std::list<std::string> & to_address, const std::string &  body);
-    void broadcast(const std::string &  body);
+
+    peer_network & get_peer_network();
 
   private:
     service_provider sp_;
@@ -37,6 +38,8 @@ namespace vds {
     
     std::mutex messages_mutex_;
     std::list<connection_message> messages_;
+
+    std::unique_ptr<peer_network> peer_network_;
     
     void work_thread();
 

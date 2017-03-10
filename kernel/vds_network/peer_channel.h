@@ -10,7 +10,19 @@ namespace vds {
   class peer_channel
   {
   public:
-    
+    peer_channel(class _peer_channel * impl);
+    ~peer_channel();
+
+    enum formatter_type
+    {
+      binary,
+      json
+    };
+
+    formatter_type get_formatter_type() const;
+
+    void broadcast(const void * data, size_t len);
+    void broadcast(const std::string & data);
 
   private:
     class _peer_channel * const impl_;

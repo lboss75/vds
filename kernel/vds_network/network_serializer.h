@@ -27,6 +27,8 @@ namespace vds {
     void start(uint8_t command_id);
     void final();
 
+    const std::vector<uint8_t> & data() const;
+
   private:
     std::vector<uint8_t> data_;
   };

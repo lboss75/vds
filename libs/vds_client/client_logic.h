@@ -108,8 +108,7 @@ namespace vds {
     std::mutex connection_mutex_;
     size_t connected_;
     
-    std::function<void(void)> update_connection_pool_;
-    task_job update_connection_pool_task_;
+    event_handler<> update_connection_pool_task_;
 
     pipeline_queue<std::string, client_connection<client_logic>> outgoing_queue_;
     

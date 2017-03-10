@@ -12,11 +12,13 @@ namespace vds {
   class _peer_channel
   {
   public:
-    _peer_channel(peer_channel* owner);
-    ~_peer_channel();
+    _peer_channel();
+    virtual ~_peer_channel();
 
   private:
-    class peer_channel * const owner_;
+    friend class peer_channel;
+
+    class peer_channel * owner_;
   };
 }
 

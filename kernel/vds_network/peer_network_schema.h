@@ -12,13 +12,16 @@ namespace vds {
   class peer_network_schema
   {
   public:
-    peer_network_schema();
-    
+    ~peer_network_schema();
+
     const std::string & schema() const;
     
-    std::unique_ptr<peer_channel> open_channel(const std::string & address);
+    event_source<peer_channel *> & open_channel(const std::string & address);
+
+    static std::unique_ptr<peer_network_schema> udp_schema(const service_provider & sp);
 
   private:
+    peer_network_schema(class _peer_network_schema * impl);
     class _peer_network_schema * const impl_;
   };
 }

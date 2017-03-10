@@ -38,31 +38,34 @@ void vds::task_manager::work_thread()
   
     std::unique_lock<std::mutex> lock(this->scheduled_mutex_);
     
-    auto now = std::chrono::system_clock::now();
+    std::chrono::steady_clock::duration timeout = std::chrono::seconds(5);
+    auto now = std::chrono::steady_clock::now();
     for(auto task : this->scheduled_){
       if(task->start_time() <= now){
         this->scheduled_.remove(task);
         this->sp_.get<imt_service>().async([task](){
-          task->execute();
+          (*task)();
+          delete task;
         });
         break;
       }
+      else {
+        auto delta = task->start_time() - now;
+        if (timeout > delta) {
+          timeout = delta;
+        }
+      }
     }
     
-    this->scheduled_changed_.wait_for(lock, std::chrono::seconds(1));
+    this->scheduled_changed_.wait_for(lock, timeout);
   }
 }
 
-void vds::task_manager::task_job_base::start()
-{
-  this->schedule(std::chrono::system_clock::now());
-}
-
-void vds::task_manager::task_job_base::schedule(const std::chrono::time_point<std::chrono::system_clock>& start)
+void vds::task_manager::task_job::schedule(const std::chrono::time_point<std::chrono::steady_clock>& start)
 {
   this->start_time_ = start;
 
-  std::unique_lock<std::mutex> lock(this->owner_->scheduled_mutex_);
+  std::lock_guard<std::mutex> lock(this->owner_->scheduled_mutex_);
   this->owner_->scheduled_.push_back(this);
 
   if (!this->owner_->work_thread_.valid()) {
@@ -72,8 +75,14 @@ void vds::task_manager::task_job_base::schedule(const std::chrono::time_point<st
   }
 }
 
-void vds::task_manager::task_job_base::destroy()
+vds::event_source<>& vds::itask_manager::wait_for(const std::chrono::steady_clock::duration & period)
 {
-  std::unique_lock<std::mutex> lock(this->owner_->scheduled_mutex_);
-  this->owner_->scheduled_.remove(this);
+  return this->schedule(std::chrono::steady_clock::now() + period);
+}
+
+vds::event_source<>&  vds::itask_manager::schedule(const std::chrono::time_point<std::chrono::steady_clock>& start)
+{
+  auto result = new task_manager::task_job(this->owner_);
+  result->schedule(start);
+  return *result;
 }

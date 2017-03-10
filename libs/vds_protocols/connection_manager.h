@@ -38,7 +38,14 @@ namespace vds {
     void remove_target(iconnection_channel * target);
 
     void send(const std::list<std::string> & to_address, const std::string &  body);
-    void broadcast(const std::string &  body);
+
+    template <typename message_type>
+    void broadcast(const message_type & message)
+    {
+      this->get_peer_network().broadcast<message_type>(message);
+    }
+
+    peer_network & get_peer_network();
 
   private:
     _connection_manager * const impl_;

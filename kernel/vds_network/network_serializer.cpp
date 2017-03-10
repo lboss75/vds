@@ -87,6 +87,11 @@ void vds::network_serializer::final()
   this->data_[8] = (uint8_t)(0xFF & data);
 }
 
+const std::vector<uint8_t>& vds::network_serializer::data() const
+{
+  return this->data_;
+}
+
 vds::network_serializer& vds::network_serializer::push_data(const void* data, size_t len)
 {
   this->data_.push_back(5);

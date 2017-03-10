@@ -44,7 +44,7 @@ vds::_server_udp_api::_server_udp_api(
 
 vds::_server_udp_api::~_server_udp_api()
 {
-  this->sp_.get<iserver>().get_connection_manager().remove_target(this);
+  //this->sp_.get<iserver>().get_connection_manager().remove_target(this);
 }
 
 void vds::_server_udp_api::start(const std::string& address, size_t port)
@@ -77,14 +77,3 @@ void vds::_server_udp_api::update_upd_connection_pool()
 
 }
 
-void vds::_server_udp_api::get_delivery_metrics(
-  std::map<std::string, size_t>& metrics)
-{
-}
-
-void vds::_server_udp_api::send(
-  const std::string & from_address,
-  std::list<std::string>& to_address,
-  const std::string & body)
-{
-}

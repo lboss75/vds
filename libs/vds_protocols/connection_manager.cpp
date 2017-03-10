@@ -34,10 +34,11 @@ void vds::connection_manager::send(const std::list<std::string>& to_address, con
   this->impl_->send(to_address, body);
 }
 
-void vds::connection_manager::broadcast(const std::string & body)
+vds::peer_network & vds::connection_manager::get_peer_network()
 {
-  this->impl_->broadcast(body);
+  return this->impl_->get_peer_network();  
 }
+
 
 vds::_connection_manager::_connection_manager(
   const service_provider & sp,
@@ -45,7 +46,8 @@ vds::_connection_manager::_connection_manager(
   const std::string & from_address)
   : sp_(sp),
   owner_(owner),
-  from_address_(from_address)
+  from_address_(from_address),
+  peer_network_(new peer_network(sp))
 {
 }
 
@@ -76,16 +78,9 @@ void vds::_connection_manager::send(const std::list<std::string>& to_address, co
   }
 }
 
-void vds::_connection_manager::broadcast(const std::string & body)
+vds::peer_network & vds::_connection_manager::get_peer_network()
 {
-  std::lock_guard<std::mutex> messages_lock(this->messages_mutex_);
-  auto need_to_run = this->messages_.empty();
-
-  this->messages_.push_back(connection_message{ true, this->from_address_, std::list<std::string>(), body });
-
-  if (need_to_run) {
-    this->sp_.get<imt_service>().async(&_connection_manager::work_thread, this);
-  }
+  return *this->peer_network_.get();
 }
 
 void vds::_connection_manager::work_thread()

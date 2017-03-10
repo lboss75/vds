@@ -21,8 +21,7 @@ vds::client_logic::client_logic(
   client_private_key_(client_private_key),
   filter_last_index_(0),
   connected_(0),
-  update_connection_pool_(std::bind(&client_logic::update_connection_pool, this)),
-  update_connection_pool_task_(sp.get<itask_manager>().create_job("update connection pool", update_connection_pool_)),
+  update_connection_pool_task_(std::bind(&client_logic::update_connection_pool, this)),
   outgoing_queue_(sp)
 {
   
@@ -206,8 +205,7 @@ void vds::client_logic::update_connection_pool()
     }
   }
   
-  this->update_connection_pool_task_.schedule(
-    std::chrono::system_clock::now() + std::chrono::seconds(5));
+  this->sp_.get<itask_manager>().wait_for(std::chrono::seconds(5)) += this->update_connection_pool_task_;
 }
 
 /*

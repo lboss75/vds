@@ -6,3 +6,12 @@ All rights reserved
 #include "peer_channel.h"
 #include "peer_channel_p.h"
 
+vds::peer_channel::peer_channel(_peer_channel * impl)
+  : impl_(impl)
+{
+}
+
+vds::peer_channel::~peer_channel()
+{
+  delete this->impl_;
+}

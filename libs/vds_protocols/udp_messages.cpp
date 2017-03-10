@@ -6,6 +6,7 @@ All rights reserved
 #include "stdafx.h"
 #include "udp_messages.h"
 
+/*
 void vds::udp_messages::hello_message::serialize(vds::network_serializer& s) const
 {
   s.start(hello_message_id);
@@ -22,3 +23,4 @@ vds::udp_messages::hello_message::hello_message(vds::network_deserializer& s)
   
   s.final();
 }
+*/

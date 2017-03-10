@@ -6,15 +6,63 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 #include "peer_network_schema.h"
+#include "peer_channel_p.h"
+#include "udp_socket.h"
+
 namespace vds {
   class _peer_network_schema
   {
   public:
-    _peer_network_schema(peer_network_schema* owner);
-    ~_peer_network_schema();
+    _peer_network_schema(
+      const service_provider & sp,
+      const std::string & schema);
+    virtual ~_peer_network_schema();
+
+    const std::string & schema() const;
+
+    event_source<peer_channel *> & open_channel(const std::string & address);
+
+  protected:
+    virtual std::unique_ptr<event_source<peer_channel *>> _open_channel(const std::string & address) = 0;
 
   private:
-      peer_network_schema * const owner_;
+    friend class peer_network_schema;
+
+    service_provider sp_;
+    std::string schema_;
+    peer_network_schema * owner_;
+
+    std::mutex peer_channels_mutex_;
+    simple_cache<std::string, std::unique_ptr<event_source<peer_channel *>>> peer_channels_;
+  };
+
+  class _udp_network_schema : public _peer_network_schema
+  {
+  public:
+    _udp_network_schema(
+      const service_provider & sp
+    );
+    
+  protected:
+    std::unique_ptr<event_source<peer_channel *>>  _open_channel(const std::string & address) override;
+
+  private:
+
+    class upd_peer_channel : public _peer_channel
+    {
+    public:
+      upd_peer_channel(
+        const service_provider & sp,
+        _udp_network_schema * owner);
+      ~upd_peer_channel();
+
+
+    private:
+      udp_socket s_;
+      _udp_network_schema * owner_;
+    };
+
+    std::unique_ptr<peer_channel> channel_;
   };
 }
 

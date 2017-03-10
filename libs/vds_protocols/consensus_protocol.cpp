@@ -58,7 +58,7 @@ vds::consensus_protocol::_server::_server(
   certificate_(certificate),
   private_key_(private_key),
   connection_manager_(connection_manager),
-  check_leader_task_job_(sp.get<itask_manager>().create_job("Leader checking", this, &_server::leader_check)),
+  check_leader_task_job_(std::bind(&_server::leader_check, this)),
   state_(none),
   leader_check_timer_(0)
 {
@@ -71,14 +71,13 @@ void vds::consensus_protocol::_server::start()
     this->nodes_[node_reader.current().id()] = { };
   }
 
-  this->connection_manager_.broadcast(consensus_messages::consensus_message_who_is_leader(this->certificate_.fingerprint()).serialize()->str());
+  this->connection_manager_.broadcast(consensus_messages::consensus_message_who_is_leader(this->certificate_.fingerprint()));
 
-  this->check_leader_task_job_.schedule(std::chrono::system_clock::now() + std::chrono::seconds(1));
+  this->sp_.get<itask_manager>().wait_for(std::chrono::seconds(1)) += this->check_leader_task_job_;
 }
 
 void vds::consensus_protocol::_server::stop()
 {
-  this->check_leader_task_job_.destroy();
 }
 
 void vds::consensus_protocol::_server::register_server(const std::string & certificate_body)
@@ -136,7 +135,7 @@ void vds::consensus_protocol::_server::leader_check()
     throw new std::runtime_error("Invalid consensus protocol state");
   }
   
-  this->check_leader_task_job_.schedule(std::chrono::system_clock::now() + std::chrono::seconds(1));
+  this->sp_.get<itask_manager>().wait_for(std::chrono::seconds(1)) += this->check_leader_task_job_;
 }
 
 void vds::consensus_protocol::_server::become_leader()

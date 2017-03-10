@@ -30,7 +30,7 @@ namespace vds {
       return this->data_.end();
     }
 
-    void set(const key_type & key, const value_type & value)
+    value_type & set(const key_type & key, const value_type & value)
     {
       auto p = this->find(key);
       if (this->data_.end() == p) {
@@ -41,9 +41,31 @@ namespace vds {
             this->data_.pop_back();
           }
         }
+        return this->data_.begin()->second;
       }
       else {
         p->second = value;
+        return p->second;
+      }
+    }
+
+    value_type & set(const key_type & key, value_type && value)
+    {
+      auto p = this->find(key);
+      if (this->data_.end() == p) {
+        this->data_.push_front(std::pair<key_type, value_type>(key, std::move(value)));
+
+        if (this->data_.size() > max_count) {
+          while (this->data_.size() > (max_count - remove_count)) {
+            this->data_.pop_back();
+          }
+        }
+
+        return this->data_.begin()->second;
+      }
+      else {
+        p->second = std::move(value);
+        return p->second;
       }
     }
 
