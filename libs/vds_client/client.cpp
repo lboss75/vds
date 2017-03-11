@@ -116,7 +116,7 @@ void vds::iclient::init_server(
   certificate::create_options options;
   options.country = "RU";
   options.organization = "IVySoft";
-  options.name = "Server Certificate";
+  options.name = "Server Certificate " + guid::new_guid_string();  
   options.ca_certificate = &user_certificate;
   options.ca_certificate_private_key = &user_private_key;
 

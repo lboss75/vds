@@ -71,7 +71,8 @@ void vds::consensus_protocol::_server::start()
     this->nodes_[node_reader.current().id()] = { };
   }
 
-  this->connection_manager_.broadcast(consensus_messages::consensus_message_who_is_leader(this->certificate_.fingerprint()));
+  this->connection_manager_.broadcast(
+    consensus_messages::consensus_message_who_is_leader(this->certificate_.fingerprint()));
 
   this->sp_.get<itask_manager>().wait_for(std::chrono::seconds(1)) += this->check_leader_task_job_;
 }
@@ -110,18 +111,22 @@ void vds::consensus_protocol::_server::leader_check()
   switch (this->state_) {
   case none:
 
-    if (this->leader_check_timer_++ > 2) {
+    if (2 < this->leader_check_timer_++) {
       this->state_ = candidate;
       this->leader_check_timer_ = 0;
+      this->connection_manager_.broadcast(
+        consensus_messages::consensus_message_leader_candidate(this->certificate_.fingerprint()));
     }
     break;
 
   case candidate:
-    if (this->leader_check_timer_++ > 2) {
+    if (2 < this->leader_check_timer_++) {
       std::unique_lock<std::mutex> lock(this->messages_to_lead_mutex_);
       this->state_ = leader;
       this->leader_check_timer_ = 0;
       this->become_leader();
+      this->connection_manager_.broadcast(
+        consensus_messages::consensus_message_new_leader(this->certificate_.fingerprint()));
     }
     break;
 
