@@ -110,7 +110,7 @@ vds::_server_http_api::socket_session::handler::handler(
   tunnel_(sp, false, &owner.certificate_, &owner.private_key_),
   certificate_(owner.certificate_),
   private_key_(owner.private_key_),
-  server_logic_(sp, owner.router_),
+  server_http_handler_(sp, owner.router_),
   done_handler_(this),
   error_handler_([this](std::exception *) {delete this; }),
   http_server_done_([this]() {}),
@@ -124,7 +124,7 @@ void vds::_server_http_api::socket_session::handler::start()
     input_network_stream(this->sp_, this->s_),
     ssl_input_stream(this->tunnel_),
     http_parser(this->sp_),
-    http_middleware<server_logic>(this->server_logic_),
+    http_middleware<server_http_handler>(this->server_http_handler_),
     http_response_serializer(),
     ssl_output_stream(this->tunnel_),
     output_network_stream(this->sp_, this->s_)
@@ -134,3 +134,11 @@ void vds::_server_http_api::socket_session::handler::start()
     this->error_handler_
     );
 }
+
+vds::_server_http_api::server_http_handler::server_http_handler(
+  const service_provider & sp,
+  const http_router & router)
+: server_json_api_(sp), router_(router)
+{  
+}
+

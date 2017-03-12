@@ -144,7 +144,7 @@ void vds::_storage_log::reset(
   this->commited_folder_.create();
   
   server_log_record record(std::move(batch));
-  record.add_signature(root_certificate.fingerprint(), base64::from_bytes(s.signature(), s.signature_length()));
+  record.add_signature(root_certificate.subject(), s.signature());
   
   file f(filename(this->commited_folder_, "checkpoint0.json").local_name(), file::truncate);
   output_text_stream os(f);
@@ -240,7 +240,7 @@ void vds::_storage_log::process(const server_log_root_certificate & message)
 {
   auto cert = new certificate(certificate::parse(message.certificate()));
   this->certificate_store_.add(*cert);
-  this->loaded_certificates_[cert->fingerprint()].reset(cert);
+  this->loaded_certificates_[cert->subject()].reset(cert);
 
   this->certificates_.push_back(vds::cert("login:root", message.certificate(), message.private_key(), message.password_hash()));
 }
@@ -255,10 +255,10 @@ void vds::_storage_log::process(const server_log_new_server & message)
   }
 
   this->certificate_store_.add(*cert);
-  this->loaded_certificates_[cert->fingerprint()].reset(cert);
+  this->loaded_certificates_[cert->subject()].reset(cert);
 
-  this->nodes_.push_back(node(cert->fingerprint(), message.certificate()));
-  this->log_(ll_trace, "add node %s", cert->fingerprint().c_str());
+  this->nodes_.push_back(node(cert->subject(), message.certificate()));
+  this->log_(ll_trace, "add node %s", cert->subject().c_str());
 }
 
 void vds::_storage_log::process(const server_log_new_endpoint & message)

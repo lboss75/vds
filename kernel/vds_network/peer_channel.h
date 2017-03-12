@@ -19,12 +19,22 @@ namespace vds {
       json
     };
 
-    formatter_type get_formatter_type() const;
-
-    void broadcast(const void * data, size_t len);
+    formatter_type get_formatter_type() const { return this->formatter_type_; }
+    
+    enum channel_direction
+    {
+      client,
+      server
+    };
+    
+    channel_direction get_channel_direction() const { return this->channel_direction_; }
+    
+    void broadcast(const data_buffer & data);
     void broadcast(const std::string & data);
 
   private:
+    formatter_type formatter_type_;
+    channel_direction channel_direction_;
     class _peer_channel * const impl_;
   };
 }

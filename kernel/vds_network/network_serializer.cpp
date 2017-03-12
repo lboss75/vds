@@ -131,6 +131,8 @@ uint8_t vds::network_deserializer::start()
   
   this->data_ += 8;
   this->len_ -= 8;
+  
+  return result;
 }
 
 void vds::network_deserializer::final()

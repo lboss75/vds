@@ -183,7 +183,7 @@ void vds::consensus_protocol::_server::flush_messages_to_lead()
   s.final();
 
   server_log_record record(std::move(batch));
-  record.add_signature(this->certificate_.fingerprint(), base64::from_bytes(s.signature(), s.signature_length()));
+  record.add_signature(this->certificate_.subject(), s.signature());
 
   this->sp_.get<istorage>().get_storage_log().add_record(record.serialize(false)->str());
 }

@@ -48,18 +48,25 @@ namespace vds {
 
   private:
 
-    class upd_peer_channel : public _peer_channel
+    class udp_peer_channel : public _peer_channel
     {
     public:
-      upd_peer_channel(
+      udp_peer_channel(
         const service_provider & sp,
+        peer_channel::channel_direction direction,
         _udp_network_schema * owner);
-      ~upd_peer_channel();
+      ~udp_peer_channel();
 
+      peer_channel::formatter_type get_formatter_type() const override;
+      peer_channel::channel_direction get_channel_direction() const override;
+
+      void broadcast(const data_buffer & data) override;
+      void broadcast(const std::string & data) override;
 
     private:
       udp_socket s_;
       _udp_network_schema * owner_;
+      peer_channel::channel_direction channel_direction_;
     };
 
     std::unique_ptr<peer_channel> channel_;

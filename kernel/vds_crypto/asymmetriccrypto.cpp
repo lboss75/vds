@@ -158,7 +158,7 @@ const vds::asymmetric_crypto_info & vds::asymmetric_crypto::rsa4096()
 }
 
 vds::asymmetric_sign::asymmetric_sign(const hash_info & hash_info, const asymmetric_private_key & key)
-  : md_(nullptr), sig_(nullptr)
+  : md_(nullptr)
 {
   this->ctx_ = EVP_MD_CTX_create();
   if (nullptr == this->ctx_) {
@@ -185,10 +185,6 @@ vds::asymmetric_sign::asymmetric_sign(const hash_info & hash_info, const asymmet
 
 vds::asymmetric_sign::~asymmetric_sign()
 {
-  if (nullptr != this->sig_) {
-    OPENSSL_free(this->sig_);
-  }
-
   if (this->ctx_) {
     EVP_MD_CTX_destroy(this->ctx_);
   }
@@ -210,22 +206,27 @@ void vds::asymmetric_sign::final()
     throw new crypto_exception("EVP_DigestSignFinal", error);
   }
 
-  this->sig_ = (unsigned char *)OPENSSL_malloc(req);
-  if (nullptr == this->sig_) {
+  auto sig = (unsigned char *)OPENSSL_malloc(req);
+  if (nullptr == sig) {
     auto error = ERR_get_error();
     throw new crypto_exception("OPENSSL_malloc", error);
   }
 
-  this->sig_len_ = req;
-  if (1 != EVP_DigestSignFinal(this->ctx_, this->sig_, &this->sig_len_)) {
+  auto len = req;
+  if (1 != EVP_DigestSignFinal(this->ctx_, sig, &len)) {
     auto error = ERR_get_error();
+    OPENSSL_free(sig);
     throw new crypto_exception("EVP_DigestSignFinal", error);
   }
 
-  if (this->sig_len_ != req) {
+  if (len != req) {
     auto error = ERR_get_error();
+    OPENSSL_free(sig);
     throw new crypto_exception("EVP_DigestSignFinal", error);
   }
+  
+  this->sig_.reset(sig, len);
+  OPENSSL_free(sig);
 }
 
 vds::asymmetric_sign_verify::asymmetric_sign_verify(const hash_info & hash_info, const asymmetric_public_key & key)
@@ -269,9 +270,9 @@ void vds::asymmetric_sign_verify::update(const void * data, int len)
   }
 }
 
-bool vds::asymmetric_sign_verify::verify(const unsigned char * sig, size_t sig_len)
+bool vds::asymmetric_sign_verify::verify(const data_buffer & sig)
 {
-  return 1 == EVP_DigestVerifyFinal(this->ctx_, const_cast<unsigned char *>(sig), sig_len);
+  return 1 == EVP_DigestVerifyFinal(this->ctx_, const_cast<unsigned char *>(sig.data()), sig.size());
 }
 
 vds::asymmetric_public_key::asymmetric_public_key(EVP_PKEY * key)
@@ -462,7 +463,7 @@ std::string vds::certificate::issuer() const
   return result;
 }
 
-std::string vds::certificate::fingerprint(const vds::hash_info & hash_algo) const
+vds::data_buffer vds::certificate::fingerprint(const vds::hash_info & hash_algo) const
 {
   unsigned char md[EVP_MAX_MD_SIZE];
   unsigned int n;
@@ -471,7 +472,7 @@ std::string vds::certificate::fingerprint(const vds::hash_info & hash_algo) cons
     throw new crypto_exception("X509_digest", error);
   }
   
-  return base64::from_bytes(md, n);
+  return data_buffer(md, n);
 }
 
 

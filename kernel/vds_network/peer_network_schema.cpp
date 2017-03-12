@@ -63,7 +63,7 @@ vds::event_source<vds::peer_channel *> & vds::_peer_network_schema::open_channel
 //////////////////////////////////////////////////
 vds::_udp_network_schema::_udp_network_schema(const service_provider & sp)
   : _peer_network_schema(sp, "udp"),
-  channel_(new peer_channel(new upd_peer_channel(sp, this)))
+  channel_(new peer_channel(new udp_peer_channel(sp, peer_channel::channel_direction::client, this)))
 {
 }
 
@@ -74,15 +74,33 @@ std::unique_ptr<vds::event_source<vds::peer_channel *>> vds::_udp_network_schema
   }));
 }
 ////////////////////////////////////////////////////
-vds::_udp_network_schema::upd_peer_channel::upd_peer_channel(
+vds::_udp_network_schema::udp_peer_channel::udp_peer_channel(
   const service_provider & sp,
+  peer_channel::channel_direction direction,
   _udp_network_schema * owner)
-  : s_(sp), owner_(owner)
+  : s_(sp), owner_(owner),
+  channel_direction_(direction)
 {
 }
 
-vds::_udp_network_schema::upd_peer_channel::~upd_peer_channel()
+vds::_udp_network_schema::udp_peer_channel::~udp_peer_channel()
 {
 }
 
+vds::peer_channel::formatter_type vds::_udp_network_schema::udp_peer_channel::get_formatter_type() const
+{
+  return vds::peer_channel::formatter_type::binary;
+}
 
+vds::peer_channel::channel_direction vds::_udp_network_schema::udp_peer_channel::get_channel_direction() const
+{
+  return this->channel_direction_;
+}
+
+void vds::_udp_network_schema::udp_peer_channel::broadcast(const data_buffer & data)
+{
+}
+
+void vds::_udp_network_schema::udp_peer_channel::broadcast(const std::string & data)
+{
+}

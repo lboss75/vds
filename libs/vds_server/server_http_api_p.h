@@ -23,6 +23,59 @@ namespace vds {
     service_provider sp_;
 
     std::unique_ptr<http_router> router_;
+    
+    class server_http_handler
+    {
+    public:
+      server_http_handler(
+        const service_provider & sp,
+        const http_router & router
+      );
+      
+      template<
+        typename prev_handler_type,
+        typename next_handler_type,
+        typename error_handler_type
+      >
+      void route(
+        const service_provider & scope,
+        const http_request & request,
+        http_incoming_stream & incoming_stream,
+        http_response & response,
+        http_outgoing_stream & outgoing_stream,
+        prev_handler_type & prev_handler,
+        next_handler_type & next_handler,
+        error_handler_type & error_handler
+      ) const
+      {
+        if("/vds/client_api" == request.url()){
+          sequence(
+            http_stream_reader<prev_handler_type>(prev_handler, incoming_stream),
+            json_parser("client_api"),
+            http_json_api<server_json_api>(scope, this->server_json_api_),
+            http_json_formatter(response, outgoing_stream)
+          )(
+            next_handler,
+            error_handler
+          );
+        }
+        else {
+          this->router_.route<prev_handler_type, next_handler_type, error_handler_type>(
+            scope,
+            request,
+            incoming_stream,
+            response,
+            outgoing_stream,
+            prev_handler,
+            next_handler,
+            error_handler
+          );
+        }
+      }
+    private:
+      server_json_api server_json_api_;
+      const http_router & router_;
+    };
 
 
     class socket_session
@@ -50,7 +103,7 @@ namespace vds {
         ssl_tunnel tunnel_;
         const certificate & certificate_;
         const asymmetric_private_key & private_key_;
-        server_logic server_logic_;
+        server_http_handler server_http_handler_;
         delete_this<handler> done_handler_;
 
         std::function<void(std::exception *)> error_handler_;

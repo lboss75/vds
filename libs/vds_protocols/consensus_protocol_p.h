@@ -61,7 +61,7 @@ namespace vds {
       };
       state state_;
       size_t leader_check_timer_;
-      std::string leader_;
+      data_buffer leader_;
 
       void leader_check();
 

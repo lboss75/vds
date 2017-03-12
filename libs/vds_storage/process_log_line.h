@@ -61,10 +61,10 @@ namespace vds {
             sign_cert = this->owner_->parse_root_cert(record.message()->get_messages()->get(0));
           }
           else {
-            sign_cert = this->owner_->get_cert(s.fingerprint());
+            sign_cert = this->owner_->get_cert(s.subject());
           }
 
-          if (s.fingerprint() != sign_cert->fingerprint()) {
+          if (s.subject() != sign_cert->subject()) {
             throw new std::runtime_error("Invalid certificate in the stream "
               + this->stream_name_
               + "(" + std::to_string(log_record->line()) + "," + std::to_string(log_record->column()) + ")");
@@ -74,9 +74,7 @@ namespace vds {
           asymmetric_sign_verify verifier(hash::sha256(), cert_public_key);
           verifier.update(h.signature(), h.signature_length());
 
-          std::vector<uint8_t> sig_data;
-          base64::to_bytes(s.signature(), sig_data);
-          if (!verifier.verify((const unsigned char *)sig_data.data(), sig_data.size())) {
+          if (!verifier.verify(s.signature())) {
             throw new std::runtime_error("Invalid sign record in the stream "
               + this->stream_name_
               + "(" + std::to_string(log_record->line()) + "," + std::to_string(log_record->column()) + ")");

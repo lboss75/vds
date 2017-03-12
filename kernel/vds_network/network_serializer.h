@@ -23,6 +23,8 @@ namespace vds {
     network_serializer & operator << (const std::string & value);
     
     network_serializer & push_data(const void * data, size_t len);
+    
+    network_serializer & operator << (const data_buffer & data);
 
     void start(uint8_t command_id);
     void final();
@@ -48,6 +50,8 @@ namespace vds {
     network_deserializer & operator >> (uint32_t & value);
 
     network_deserializer & operator >> (std::string & value);
+    
+    network_deserializer & operator >> (data_buffer & data);
 
     network_deserializer & read_data(std::vector<uint8_t> & data);
 

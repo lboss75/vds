@@ -95,19 +95,14 @@ namespace vds {
 
     void final();
 
-    const unsigned char * signature() const {
+    const data_buffer & signature() const {
       return this->sig_;
-    }
-
-    size_t signature_length() const {
-      return this->sig_len_;
     }
 
   private:
     EVP_MD_CTX * ctx_;
     const EVP_MD * md_;
-    unsigned char * sig_;
-    size_t sig_len_;
+    data_buffer sig_;
   };
 
   class asymmetric_sign_verify
@@ -124,8 +119,7 @@ namespace vds {
       int len);
 
     bool verify(
-      const unsigned char * sig,
-      size_t sig_len
+      const data_buffer & sig
     );
 
   private:
@@ -195,7 +189,7 @@ namespace vds {
 
     std::string subject() const;
     std::string issuer() const;
-    std::string fingerprint(const hash_info & hash_algo = hash::sha256()) const;
+    data_buffer fingerprint(const hash_info & hash_algo = hash::sha256()) const;
 
     class create_options
     {

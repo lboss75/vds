@@ -32,19 +32,19 @@ namespace vds {
   {
   public:
     server_log_sign(
-      const std::string & fingerprint,
-      const std::string & signature);
+      const std::string & subject,
+      const data_buffer & signature);
 
     server_log_sign(const json_value * source);
 
-    const std::string & fingerprint() const { return this->fingerprint_; }
-    const std::string & signature() const { return this->signature_; }
+    const std::string & subject() const { return this->subject_; }
+    const data_buffer & signature() const { return this->signature_; }
 
     std::unique_ptr<json_value> serialize() const;
 
   private:
-    std::string fingerprint_;
-    std::string signature_;
+    std::string subject_;
+    data_buffer signature_;
   };
 
   class server_log_record
@@ -59,8 +59,8 @@ namespace vds {
     const std::list<server_log_sign> & signatures() const { return this->signatures_; }
 
     void add_signature(
-      const std::string & fingerprint,
-      const std::string & signature);
+      const std::string & subject,
+      const data_buffer & signature);
 
     std::unique_ptr<json_value> serialize(bool add_type_property) const;
 

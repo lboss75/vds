@@ -15,16 +15,20 @@ namespace vds {
       static const char message_type[];
 
       consensus_message_who_is_leader(
-        const std::string & source_id);
+        const data_buffer & source_id);
+      
+      consensus_message_who_is_leader(
+        data_buffer && source_id);
 
       consensus_message_who_is_leader(const json_value * value);
 
       std::unique_ptr<json_value> serialize() const;
+      void serialize(network_serializer & s) const;
 
-      const std::string & source_id() const { return this->source_id_; }
+      const data_buffer & source_id() const { return this->source_id_; }
 
     private:
-      std::string source_id_;
+      data_buffer source_id_;
     };
     
     class consensus_message_leader_candidate
@@ -33,16 +37,20 @@ namespace vds {
       static const char message_type[];
 
       consensus_message_leader_candidate(
-        const std::string & source_id);
+        const data_buffer & source_id);
+      
+      consensus_message_leader_candidate(
+        data_buffer && source_id);
 
       consensus_message_leader_candidate(const json_value * value);
 
       std::unique_ptr<json_value> serialize() const;
+      void serialize(network_serializer & s) const;
 
-      const std::string & source_id() const { return this->source_id_; }
+      const data_buffer & source_id() const { return this->source_id_; }
 
     private:
-      std::string source_id_;
+      data_buffer source_id_;
     };
     
     class consensus_message_new_leader
@@ -51,16 +59,17 @@ namespace vds {
       static const char message_type[];
 
       consensus_message_new_leader(
-        const std::string & leader_id);
+        const data_buffer & leader_id);
 
       consensus_message_new_leader(const json_value * value);
 
+      void serialize(network_serializer & s) const;
       std::unique_ptr<json_value> serialize() const;
 
-      const std::string & leader_id() const { return this->leader_id_; }
+      const data_buffer & leader_id() const { return this->leader_id_; }
 
     private:
-      std::string leader_id_;
+      data_buffer leader_id_;
     };
 
     class consensus_message_current_leader
@@ -69,16 +78,19 @@ namespace vds {
       static const char message_type[];
 
       consensus_message_current_leader(
-        const std::string & leader_id);
+        data_buffer && leader_id);
+      
+      consensus_message_current_leader(
+        const data_buffer & leader_id);
 
       consensus_message_current_leader(const json_value * value);
 
       std::unique_ptr<json_value> serialize() const;
 
-      const std::string & leader_id() const { return this->leader_id_; }
+      const data_buffer & leader_id() const { return this->leader_id_; }
 
     private:
-      std::string leader_id_;
+      data_buffer leader_id_;
     };
 
   }

@@ -115,7 +115,7 @@ TEST(test_vds_crypto, test_sign)
       l -= n;
     }
 
-    auto result = sverify.verify(sign.signature(), sign.signature_length());
+    auto result = sverify.verify(sign.signature());
 
     ASSERT_EQ(result, true);
   }

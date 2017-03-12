@@ -147,7 +147,7 @@ std::string vds::base64::from_bytes(const void * _data, size_t len)
   return encodedString;
 }
 
-void vds::base64::to_bytes(const std::string& data, std::vector< uint8_t >& result)
+vds::data_buffer vds::base64::to_bytes(const std::string& data)
 {
   if (data.length() % 4){
     throw std::runtime_error("Non-Valid base64!");
@@ -160,7 +160,9 @@ void vds::base64::to_bytes(const std::string& data, std::vector< uint8_t >& resu
     if (1 < data.length() && data[data.length()-2] == padCharacter){
       padding++;
     }
-  }  
+  }
+  
+  std::vector< uint8_t > result;
   result.reserve(((data.length()/4)*3) - padding);
   
   uint32_t temp=0;
@@ -188,10 +190,10 @@ void vds::base64::to_bytes(const std::string& data, std::vector< uint8_t >& resu
       case 1: //One pad character
         result.push_back((temp >> 16) & 0x000000FF);
         result.push_back((temp >> 8 ) & 0x000000FF);
-        return;
+        return data_buffer(result);
       case 2: //Two pad characters
         result.push_back((temp >> 10) & 0x000000FF);
-        return;
+        return data_buffer(result);
       default:
         throw std::runtime_error("Invalid Padding in Base 64!");
       }
@@ -207,4 +209,6 @@ void vds::base64::to_bytes(const std::string& data, std::vector< uint8_t >& resu
       quantumPosition = 0;
     }
   }
+  
+  return data_buffer(result);
 }

@@ -14,6 +14,12 @@ namespace vds {
   public:
     _peer_channel();
     virtual ~_peer_channel();
+    
+    virtual peer_channel::formatter_type get_formatter_type() const = 0;
+    virtual peer_channel::channel_direction get_channel_direction() const = 0;
+    virtual void broadcast(const data_buffer & data) = 0;
+    virtual void broadcast(const std::string & data) = 0;
+
 
   private:
     friend class peer_channel;

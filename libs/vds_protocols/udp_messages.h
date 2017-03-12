@@ -10,13 +10,6 @@ namespace vds {
 
   namespace udp_messages {
     
-    enum message_identification
-    {
-      invalid_message_id = 0,
-      hello_message_id = 'h'
-      
-    };
-    
     struct hello_message
     {
       std::string from_server_id;

@@ -6,7 +6,7 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
-
+#include "types.h"
 namespace vds {
   class utf8
   {
@@ -27,7 +27,7 @@ namespace vds {
   {
   public:
     static std::string from_bytes(const void * data, size_t len);
-    static void to_bytes(const std::string & data, std::vector<uint8_t> & result);
+    static data_buffer to_bytes(const std::string & data);
   };
 }
 

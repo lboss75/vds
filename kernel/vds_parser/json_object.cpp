@@ -106,6 +106,18 @@ bool vds::json_object::get_property(const std::string & name, size_t & value, bo
   return true;
 }
 
+bool vds::json_object::get_property(const std::string& name, data_buffer& value, bool throw_error) const
+{
+  std::string v;
+  if (!this->get_property(name, v, throw_error)) {
+    return false;
+  }
+
+  value = base64::to_bytes(v);
+  return true;
+}
+
+
 void vds::json_object::add_property(json_property * prop)
 {
   this->properties_.push_back(std::unique_ptr<json_property>(prop));
@@ -116,6 +128,10 @@ void vds::json_object::add_property(const std::string & name, const std::string 
   this->add_property(new json_property(name, new json_primitive(value)));
 }
 
+void vds::json_object::add_property(const std::string& name, const data_buffer& value)
+{
+  this->add_property(name, base64::from_bytes(value.data(), value.size()));
+}
 
 vds::json_array::json_array()
 {

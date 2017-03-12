@@ -71,7 +71,7 @@ void vds::iclient::init_server(
   ph.update(user_password.c_str(), user_password.length());
   ph.final();
 
-  auto request_id = guid::new_guid_string();
+  auto request_id = guid::new_guid().str();
   client_messages::certificate_and_key_request m(request_id, "login:" + user_login, base64::from_bytes(ph.signature(), ph.signature_length()));
 
   json_writer writer;
@@ -116,13 +116,13 @@ void vds::iclient::init_server(
   certificate::create_options options;
   options.country = "RU";
   options.organization = "IVySoft";
-  options.name = "Server Certificate " + guid::new_guid_string();  
+  options.name = "Server Certificate " + guid::new_guid().str();  
   options.ca_certificate = &user_certificate;
   options.ca_certificate_private_key = &user_private_key;
 
   certificate server_certificate = certificate::create_new(pkey, private_key, options);
 
-  request_id = guid::new_guid_string();
+  request_id = guid::new_guid().str();
   client_messages::register_server_request register_message(
     request_id,
     server_certificate.str());

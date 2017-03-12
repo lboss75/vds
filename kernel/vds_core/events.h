@@ -213,7 +213,7 @@ namespace vds {
 
       this->subscribers_mutex_.lock();
       for (auto s : this->subscribers_) {
-        auto & p = processed.find(s);
+        auto p = processed.find(s);
         if (processed.end() != p
           && !p->second) {
           p->second = true;
@@ -293,7 +293,7 @@ namespace vds {
     this->proxies_.push_back(new proxy<event_data_types...>(this, source, handler));
     this->count_--;
     if (0 == this->count_ && this->state_ == ready_to_destroy) {
-      this->proxies_mutex_.unlock()
+      this->proxies_mutex_.unlock();
       delete this;
     }
     else {

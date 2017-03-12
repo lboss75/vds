@@ -28,9 +28,11 @@ vds::server_log_record::server_log_record(const json_value * source)
   }
 }
 
-void vds::server_log_record::add_signature(const std::string & fingerprint, const std::string & signature)
+void vds::server_log_record::add_signature(
+  const std::string & subject,
+  const data_buffer & signature)
 {
-  this->signatures_.push_back(server_log_sign(fingerprint, signature));
+  this->signatures_.push_back(server_log_sign(subject, signature));
 }
 
 std::unique_ptr<vds::json_value> vds::server_log_record::serialize(bool add_type_property) const
@@ -200,8 +202,10 @@ std::unique_ptr<vds::json_value> vds::server_log_new_endpoint::serialize() const
 }
 
 //////////////////////////////////////////////////////////////////////
-vds::server_log_sign::server_log_sign(const std::string & fingerprint, const std::string & signature)
-  : fingerprint_(fingerprint), signature_(signature)
+vds::server_log_sign::server_log_sign(
+  const std::string & subject,
+  const data_buffer & signature)
+  : subject_(subject), signature_(signature)
 {
 }
 
@@ -209,7 +213,7 @@ vds::server_log_sign::server_log_sign(const json_value * source)
 {
   auto s = dynamic_cast<const json_object *>(source);
   if (nullptr != s) {
-    s->get_property("f", this->fingerprint_);
+    s->get_property("n", this->subject_);
     s->get_property("s", this->signature_);
   }
 }
@@ -217,7 +221,7 @@ vds::server_log_sign::server_log_sign(const json_value * source)
 std::unique_ptr<vds::json_value> vds::server_log_sign::serialize() const
 {
   std::unique_ptr<json_object> result(new json_object());
-  result->add_property("f", this->fingerprint_);
+  result->add_property("n", this->subject_);
   result->add_property("s", this->signature_);
   return std::unique_ptr<vds::json_value>(result.release());
 }

@@ -7,7 +7,14 @@ All rights reserved
 */
 
 namespace vds {
-  
+  enum message_identification
+  {
+    invalid_message_id = 0,
+    hello_message_id = 'h',
+    who_is_leader_message_id = 'w',
+    leader_candidate_message_id = 'c'
+  };
+
   
   class messages
   {
