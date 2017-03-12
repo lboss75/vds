@@ -9,6 +9,8 @@ All rights reserved
 #include "network_serializer.h"
 
 namespace vds {
+  class _peer_network;
+  
   class peer_network
   {
   public:
@@ -66,7 +68,8 @@ namespace vds {
     _handle_message<message_type> handle_message();
 
   private:
-    class _peer_network * impl_;
+    friend class _peer_network;
+    _peer_network * impl_;
     
     class message_handler_base
     {
