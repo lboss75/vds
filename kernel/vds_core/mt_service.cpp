@@ -60,6 +60,7 @@ void vds::_mt_service::start()
 void vds::_mt_service::stop()
 {
   for(auto & t : this->work_threads_){
+    this->cond_.notify_all();
     t.join();
   }
 }

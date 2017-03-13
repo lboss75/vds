@@ -6,6 +6,8 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
+#include "server_json_api.h"
+#include "server_json_client_api.h"
 
 namespace vds {
   class _server_http_api
@@ -52,7 +54,7 @@ namespace vds {
           sequence(
             http_stream_reader<prev_handler_type>(prev_handler, incoming_stream),
             json_parser("client_api"),
-            http_json_api<server_json_api>(scope, this->server_json_api_),
+            http_json_api<server_json_client_api>(scope, this->server_json_client_api_),
             http_json_formatter(response, outgoing_stream)
           )(
             next_handler,
@@ -74,6 +76,7 @@ namespace vds {
       }
     private:
       server_json_api server_json_api_;
+      server_json_client_api server_json_client_api_;
       const http_router & router_;
     };
 

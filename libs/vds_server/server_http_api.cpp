@@ -138,7 +138,9 @@ void vds::_server_http_api::socket_session::handler::start()
 vds::_server_http_api::server_http_handler::server_http_handler(
   const service_provider & sp,
   const http_router & router)
-: server_json_api_(sp), router_(router)
+: server_json_api_(sp),
+  server_json_client_api_(sp),
+  router_(router)
 {  
 }
 

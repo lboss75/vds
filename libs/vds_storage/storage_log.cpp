@@ -94,7 +94,7 @@ void vds::_storage_log::reset(
   certificate::create_options options;
   options.country = "RU";
   options.organization = "IVySoft";
-  options.name = "Root Certificate";
+  options.name = "Certificate " + guid::new_guid().str();
 
   certificate root_certificate = certificate::create_new(pkey, private_key, options);
 
@@ -111,7 +111,7 @@ void vds::_storage_log::reset(
   certificate::create_options server_options;
   server_options.country = "RU";
   server_options.organization = "IVySoft";
-  server_options.name = "Root Server Certificate";
+  server_options.name = "Certificate " + guid::new_guid().str();
   server_options.ca_certificate = &root_certificate;
   server_options.ca_certificate_private_key = &private_key;
 
@@ -181,9 +181,9 @@ bool vds::_storage_log::is_empty()
   return this->is_empty_;
 }
 
-vds::certificate * vds::_storage_log::get_cert(const std::string & fingerprint)
+vds::certificate * vds::_storage_log::get_cert(const std::string & subject)
 {
-  auto p = this->loaded_certificates_.find(fingerprint);
+  auto p = this->loaded_certificates_.find(subject);
   if (this->loaded_certificates_.end() == p) {
     return nullptr;
   }

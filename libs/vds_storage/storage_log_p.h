@@ -31,7 +31,7 @@ namespace vds {
     void stop();
 
     bool is_empty();
-    certificate * get_cert(const std::string & fingerprint);
+    certificate * get_cert(const std::string & subject);
     certificate * parse_root_cert(const json_value * value);
     void apply_record(const json_value * value);
 
