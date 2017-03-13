@@ -47,7 +47,7 @@ std::string vds::guid::str()
   
 #ifdef WIN32
   OLECHAR * bstrGuid;
-  StringFromCLSID((const GUID *)this->data(), &bstrGuid);
+  StringFromCLSID(*(const GUID *)this->data(), &bstrGuid);
 
   std::string result = utf16::to_utf8(bstrGuid);
 
