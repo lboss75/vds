@@ -38,7 +38,7 @@ namespace vds {
   class network_deserializer
   {
   public:
-    network_deserializer(const uint8_t * data, size_t len);
+    network_deserializer(const void * data, size_t len);
     
     //1 byte
     network_deserializer & operator >> (uint8_t & value);

@@ -32,14 +32,19 @@ namespace vds {
     template <typename next_step_type>
     void get_message(next_step_type & next)
     {
+      
     }
 
   private:
     service_provider sp_;
+    logger log_;
     server_udp_api * const owner_;
     certificate & certificate_;
     asymmetric_private_key & private_key_;
     udp_socket s_;
+    
+    event_handler<void(certificate * cert)> on_download_certificate_;
+    void on_download_certificate(certificate * cert);
 
     struct udp_client
     {

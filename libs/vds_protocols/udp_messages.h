@@ -9,11 +9,33 @@ All rights reserved
 namespace vds {
 
   namespace udp_messages {
-    
-    struct hello_message
+    enum message_identification
     {
-      std::string from_server_id;
-      std::string to_url;
+      hello_message_id = 1,
+      welcome_message_id = 2,
+      command_message_id = 3
+    };
+    
+    class hello_message
+    {
+    public:
+      hello_message(
+        const std::string & source_certificate,
+        uint32_t generation_id,
+        const std::string & to_url);
+      
+      hello_message(network_deserializer& s);
+      
+      const std::string & source_certificate() const { return this->from_server_id_; }
+      uint32_t generation_id() const { return this->generation_id_; }
+      const std::string & to_url() const { return this->to_url_; }
+      
+      void serialize(network_serializer& s) const;
+      
+    private:
+      std::string source_certificate_;
+      uint32_t generation_id_;
+      std::string to_url_;
     };
 
     struct welcome_message

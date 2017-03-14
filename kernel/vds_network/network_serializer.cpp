@@ -107,8 +107,8 @@ vds::network_serializer& vds::network_serializer::operator<<(const data_buffer &
   return *this;
 }
 /////////////////////////////////////////////////////////
-vds::network_deserializer::network_deserializer(const uint8_t* data, size_t len)
-: data_(data), len_(len)
+vds::network_deserializer::network_deserializer(const void * data, size_t len)
+: data_((const uint8_t *)data), len_(len)
 {
 }
 
