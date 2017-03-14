@@ -7,5 +7,6 @@ All rights reserved
 */
 
 #include "vds_core.h"
+#include "vds_crypto.h"
 
 #endif//__VDS_DATA_STDAFX_H_

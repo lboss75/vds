@@ -7,6 +7,7 @@ All rights reserved
 */
 
 #include "vds_core.h"
+#include "vds_crypto.h"
 
 #include "gf.h"
 #include "chunk.h"
