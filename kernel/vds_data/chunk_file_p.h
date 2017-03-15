@@ -16,8 +16,8 @@ namespace vds {
     data_buffer data;
 
     void read(
-      const asymmetric_public_key & key,
-      const filename & fn);
+      const filename & fn,
+      const asymmetric_public_key & key);
 
     void write(
       const filename & fn,
@@ -25,34 +25,32 @@ namespace vds {
 
   };
 
-  class _chunk_replica_file
+  struct _chunk_replica_file
   {
-  public:
+    guid source_id;
+    uint64_t index;
+    data_buffer data;
 
-  private:
-    guid source_id_;
-    uint64_t index_;
-    data_buffer data_;
-
-    uint16_t replica_;
-    guid signer_id_;
-    data_buffer data_sign_;
+    uint16_t replica;
+    guid signer_id;
+    data_buffer data_sign;
   };
 
-  class _chunk_log_file
+  struct _chunk_log_file
   {
-  public:
+    guid record_id;
+    std::vector<guid> parents;
 
-  private:
-    guid channel_id_;
+    guid source_id;
+    std::string data;
 
-    guid record_id_;
-    std::vector<guid> parents_;
+    void read(
+      file & fn,
+      const asymmetric_public_key & key);
 
-    guid source_id_;
-    std::string data_;
-
-    data_buffer data_sign_;
+    void write(
+      file & fn,
+      const asymmetric_private_key & key);
   };
 
 

@@ -16,7 +16,7 @@ namespace vds {
     guid(guid && other);
     
     static guid new_guid();
-    
+
     std::string str();
     
   private:
