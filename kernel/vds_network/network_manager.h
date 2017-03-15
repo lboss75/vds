@@ -53,6 +53,7 @@ namespace vds {
 #ifdef _WIN32
         void associate(network_socket::SOCKET_HANDLE s);
 #endif
+        static std::string to_string(const sockaddr_in & from);
     private:
         friend class inetwork_manager;
         friend class network_socket;

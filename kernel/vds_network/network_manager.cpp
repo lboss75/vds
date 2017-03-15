@@ -168,3 +168,12 @@ void vds::network_service::thread_loop(const service_provider & provider)
 
 #endif//_WIN32
 
+std::string vds::network_service::to_string(const sockaddr_in & from)
+{
+  char buffer[20];
+  int len = sizeof(buffer);
+
+  inet_ntop(from.sin_family, &(from.sin_addr), buffer, len);
+  
+  return buffer;
+}
