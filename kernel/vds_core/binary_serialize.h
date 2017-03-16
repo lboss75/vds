@@ -4,7 +4,11 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
+
+#include "types.h"
+
 namespace vds {
+
   class binary_serializer
   {
   public:
@@ -14,12 +18,17 @@ namespace vds {
     //2 byte
     binary_serializer & operator << (uint16_t value);
 
-    //4 byte
+    //4 bytes
     binary_serializer & operator << (uint32_t value);
+
+    //8 bytes
+    binary_serializer & operator << (uint64_t value);
+
+    binary_serializer & write_number(uint64_t value);
 
     binary_serializer & operator << (const std::string & value);
     
-    binary_serializer & push_data(const void * data, size_t len);
+    binary_serializer & push_data(const void * data, size_t size, bool serialize_size = true);
     
     binary_serializer & operator << (const data_buffer & data);
 
