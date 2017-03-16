@@ -26,7 +26,9 @@ namespace vds {
     friend class event_source<event_data_types...>;
 
     std::function<void(event_data_types...)> target_;
-    
+
+    std::mutex this_mutex_;
+
     std::mutex sources_mutex_;
     std::list<event_source<event_data_types...>*> sources_;
   };
@@ -112,15 +114,18 @@ namespace vds {
     for (;;) {
       event_source<event_data_types...> * source;
 
+      this->this_mutex_.lock();
       this->sources_mutex_.lock();
       if (this->sources_.empty()) {
         this->sources_mutex_.unlock();
+        this->this_mutex_.unlock();
         return;
       }
 
       source = *this->sources_.begin();
       this->sources_.pop_front();
       this->sources_mutex_.unlock();
+      this->this_mutex_.unlock();
 
       *source -= *this;
     }
@@ -128,12 +133,12 @@ namespace vds {
   template<typename ...event_data_types>
   inline void event_handler<event_data_types...>::lock()
   {
-    this->sources_mutex_.lock();
+    this->this_mutex_.lock();
   }
   template<typename ...event_data_types>
   inline void event_handler<event_data_types...>::unlock()
   {
-    this->sources_mutex_.unlock();
+    this->this_mutex_.unlock();
   }
   template<typename ...event_data_types>
   inline void event_handler<event_data_types...>::operator()(event_data_types ...args)
@@ -168,9 +173,9 @@ namespace vds {
   template<typename ...event_data_types>
   inline event_source<event_data_types...> & event_source<event_data_types...>::operator+=(event_handler<event_data_types...>& handler)
   {
-    handler.lock();
+    handler.sources_mutex_.lock();
     handler.sources_.push_back(this);
-    handler.unlock();
+    handler.sources_mutex_.unlock();
 
     this->subscribers_mutex_.lock();
     this->subscribers_.push_back(&handler);
@@ -185,9 +190,9 @@ namespace vds {
   template<typename ...event_data_types>
   inline event_source<event_data_types...> & event_source<event_data_types...>::operator-=(event_handler<event_data_types...>& handler)
   {
-    handler.lock();
+    handler.sources_mutex_.lock();
     handler.sources_.remove(this);
-    handler.unlock();
+    handler.sources_mutex_.unlock();
 
     this->subscribers_mutex_.lock();
     this->subscribers_.remove(&handler);
