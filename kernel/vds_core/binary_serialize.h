@@ -52,6 +52,9 @@ namespace vds {
     //4 byte
     binary_deserializer & operator >> (uint32_t value);
 
+    //8 byte
+    binary_deserializer & operator >> (uint64_t value);
+
     binary_deserializer & operator >> (const std::string & value);
    
     binary_deserializer & operator >> (const data_buffer & data);

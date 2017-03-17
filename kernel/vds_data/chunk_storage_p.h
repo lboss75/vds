@@ -9,31 +9,24 @@ All rights reserved
 #include "chunk_file.h"
 
 namespace vds {
-  struct _chunk_file
+  class _chunk_file
   {
-    guid source_id;
-    uint64_t index;
-    data_buffer data;
+  public:
+    _chunk_file(
+      const guid & source_id,
+      const uint64_t & index,
+      const uint16_t & replica,
+      const data_buffer & data);
 
-    void read(
-      const filename & fn,
-      const asymmetric_public_key & key);
+    _chunk_file(binary_deserializer & s);
 
-    void write(
-      const filename & fn,
-      const asymmetric_private_key & key);
+    binary_serializer & serialize(binary_serializer & s);
 
-  };
-
-  struct _chunk_replica_file
-  {
-    guid source_id;
-    uint64_t index;
-    data_buffer data;
-
-    uint16_t replica;
-    guid signer_id;
-    data_buffer data_sign;
+  private:
+    guid source_id_;
+    uint64_t index_;
+    uint16_t replica_;
+    data_buffer data_;
   };
 
   struct _chunk_log_file
@@ -61,8 +54,7 @@ namespace vds {
       const guid & source_id);
 
     //
-    uint64_t add_data(const void * data, size_t size);
-    void add_replica(data_buffer & data);
+    uint64_t generate_replica(binary_deserializer & s, size_t replica, const void * data, size_t size);
 
     void get_local_replicas(const guid & source_id, uint64_t object_id, std::list<uint16_t> & result);
 
@@ -78,7 +70,7 @@ namespace vds {
 
     foldername data_folder_;
 
-    _chunk_file last_chunk_file_;
+    uint64_t last_chunk_file_;
   };
 
 }

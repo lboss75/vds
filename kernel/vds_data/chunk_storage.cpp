@@ -9,102 +9,28 @@ All rights reserved
 
 static const char magic[] = "VDSC";
 
-void vds::_chunk_file::read(
-  const filename & fn,
-  const asymmetric_public_key & key)
+vds::_chunk_file::_chunk_file(
+  const guid & source_id,
+  const uint64_t & index,
+  const uint16_t & replica,
+  const data_buffer & data)
+  : source_id_(source_id),
+  index_(index),
+  replica_(replica),
+  data_(data)
 {
-  file f(fn, file::open_read);
-
-  char magic_data[sizeof(magic) - 1];
-  if (sizeof(magic_data) != f.read(&magic_data, sizeof(magic_data))
-    || 0 != memcmp(magic_data, magic, sizeof(magic_data))) {
-    throw new std::runtime_error("File corrupted " + fn.name());
-  }
-
-  asymmetric_sign_verify v(hash::sha256(), key);
-
-  //
-  v.update(magic_data, sizeof(magic_data));
-
-  //
-  if (sizeof(this->source_id) != f.read(&this->source_id, sizeof(this->source_id))) {
-    throw new std::runtime_error("File corrupted " + fn.name());
-  }
-
-  v.update(&this->source_id, sizeof(this->source_id));
-
-  //
-  if (sizeof(this->index) != f.read(&this->index, sizeof(this->index))) {
-    throw new std::runtime_error("File corrupted " + fn.name());
-  }
-
-  v.update(&this->index, sizeof(this->index));
-
-  //
-  uint32_t size;
-  if (sizeof(size) != f.read(&size, sizeof(size))) {
-    throw new std::runtime_error("File corrupted " + fn.name());
-  }
-
-  v.update(&size, sizeof(size));
-
-  std::vector<uint8_t> data(size);
-  if (size != f.read(data.data(), size)) {
-    throw new std::runtime_error("File corrupted " + fn.name());
-  }
-
-  this->data.reset(data.data(), size);
-
-  v.update(data.data(), size);
-
-  //
-  uint16_t len;
-  if (sizeof(len) != f.read(&len, sizeof(len))) {
-    throw new std::runtime_error("File corrupted " + fn.name());
-  }
-  data.resize(len);
-  if (len != f.read(data.data(), len)) {
-    throw new std::runtime_error("File corrupted " + fn.name());
-  }
-
-  if (!v.verify(data_buffer(data.data(), len))) {
-    throw new std::runtime_error("File corrupted " + fn.name());
-  }
 }
 
-void vds::_chunk_file::write(
-  const filename & fn,
-  const asymmetric_private_key & key)
+vds::_chunk_file::_chunk_file(binary_deserializer & s)
 {
-  asymmetric_sign sign(hash::sha256(), key);
-  file f(fn, file::create_new);
-
-  //
-  sign.update(magic, sizeof(magic) - 1);
-  f.write(magic, sizeof(magic) - 1);
-
-  //
-  sign.update(&this->source_id, sizeof(this->source_id));
-  f.write(&this->source_id, sizeof(this->source_id));
-
-  //
-  sign.update(&this->index, sizeof(this->index));
-  f.write(&this->index, sizeof(this->index));
-
-  uint32_t size = (uint32_t)this->data.size();
-  sign.update(&size, sizeof(size));
-  f.write(&size, sizeof(size));
-
-  //
-  sign.update(this->data.data(), size);
-  f.write(this->data.data(), size);
-
-  sign.final();
-
-  uint16_t len = (uint16_t)sign.signature().size();
-  f.write(&len, sizeof(len));
-  f.write(sign.signature().data(), len);
+  s >> this->source_id_ >> this->index_ >> this->replica_ >> this->data_;
 }
+
+vds::binary_serializer & vds::_chunk_file::serialize(binary_serializer & s)
+{
+  return s << this->source_id_ << this->index_ << this->replica_ << this->data_;
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////
 void vds::_chunk_log_file::read(file & f, const asymmetric_public_key & key)
 {
@@ -194,10 +120,14 @@ vds::_chunk_server::_chunk_server(
 
 uint64_t vds::_chunk_server::add_data(const void * data, size_t size)
 {
-  this->last_chunk_file_.index++;
-  this->last_chunk_file_.data.reset(data, size);
+  this->last_chunk_file_++;
 
-  this->last_chunk_file_.write(
+  foldername fn(this->data_folder_, std::to_string(this->last_chunk_file_));
+  fn.create();
+
+  for (uint64_t replica = 1; replica < 1000; ++replica) {
+
+  }
     filename(this->data_folder_, std::to_string(this->last_chunk_file_.index)),
     this->key_);
 

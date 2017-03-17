@@ -7,6 +7,7 @@ include_directories(
 
 add_subdirectory(test_vds_core)
 add_subdirectory(test_vds_crypto)
+add_subdirectory(test_vds_data)
 add_subdirectory(test_vds_network)
 add_subdirectory(test_vds_http)
 add_subdirectory(test_vds_parser)

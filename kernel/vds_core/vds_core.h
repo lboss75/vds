@@ -29,6 +29,7 @@ All rights reserved
 #include "pipeline_queue.h"
 #include "mt_service.h"
 #include "simple_cache.h"
+#include "binary_serialize.h"
 
 #endif // !__VDS_CORE_H_
 

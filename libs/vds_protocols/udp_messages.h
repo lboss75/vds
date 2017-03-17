@@ -26,7 +26,7 @@ namespace vds {
       
       hello_message(network_deserializer& s);
       
-      const std::string & source_certificate() const { return this->from_server_id_; }
+      const std::string & source_certificate() const { return this->source_certificate_; }
       uint32_t generation_id() const { return this->generation_id_; }
       const std::string & to_url() const { return this->to_url_; }
       
