@@ -61,6 +61,8 @@ namespace vds {
         {
           return this->multipliers_;
         }
+
+        void write(binary_serializer & s, const void * data, size_t size);
         
     private:        
         cell_type k_;
@@ -149,6 +151,35 @@ vds::chunk_generator<cell_type>::chunk_generator(cell_type k, cell_type n)
     : k_(k), n_(n)
 {
     chunk<cell_type>::generate_multipliers(this->multipliers_, k, n);
+}
+
+template<typename cell_type>
+inline void vds::chunk_generator<cell_type>::write(binary_serializer & s, const void * data, size_t size)
+{
+  s << (uint32_t)(sizeof(cell_type) * ((size + sizeof(cell_type) - 1) / sizeof(cell_type)));
+
+  for (size_t i = 0; i < (size + sizeof(cell_type) - 1)/sizeof(cell_type); i += this->k_) {
+    cell_type value = 0;
+    for (cell_type j = 0; j < this->k_; ++j) {
+      if (i + j < len) {
+        cell_type data_item = 0;
+        for (size_t offset = 0; offset < sizeof(cell_type); ++offset) {
+          data_item <<= 8;
+          if (i * sizeof(cell_type) + j < size) {
+            data_item |= ((const uint8_t *)data)[i * sizeof(cell_type) + j];
+          }
+          else {
+            break;
+          }
+        }
+        value = math_.add(
+          value,
+          math_.mul(generator.multipliers_[j], data_item));
+      }
+    }
+
+    s << value;
+  }
 }
 
 

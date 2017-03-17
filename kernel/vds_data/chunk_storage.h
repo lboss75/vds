@@ -1,5 +1,5 @@
-#ifndef __VDS_DATA_CHUNK_FILE_H_
-#define __VDS_DATA_CHUNK_FILE_H_
+#ifndef __VDS_DATA_CHUNK_STORAGE_H_
+#define __VDS_DATA_CHUNK_STORAGE_H_
 
 /*
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
@@ -7,30 +7,27 @@ All rights reserved
 */
 
 namespace vds {
-  class _chunk_file;
-  class _chunk_file_creator;
+  class _chunk_storage;
 
-  class chunk_server
+  class chunk_storage
   {
   public:
-    chunk_server(
-      const guid & server_id, 
-      asymmetric_private_key & key,
-      const foldername & root_folder
-    );
+    chunk_storage(
+      const guid & source_id,
+      uint16_t min_horcrux
+      );
+    ~chunk_storage();
 
-    //
-    uint64_t add_data(const void * data, size_t size);
-    void add_replica(data_buffer & data);
-
-    void get_local_replicas(const guid & source_id, uint64_t object_id, std::list<uint16_t> & result);
-
-    data_buffer load_data(const guid & source_id, uint64_t object_id, uint16_t replica);
-
-    void subscribe_log(event_handler<const std::string &> & handler);
+    void generate_replica(
+      binary_serializer & s,
+      uint64_t index,
+      uint16_t replica,
+      const void * data,
+      size_t size);
 
   private:
+    _chunk_storage * impl_;
   };
 }
 
-#endif//__VDS_DATA_CHUNK_FILE_H_
+#endif//__VDS_DATA_CHUNK_STORAGE_H_
