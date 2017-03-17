@@ -109,6 +109,20 @@ namespace vds {
     return result;
   }
 
+  template <>
+  inline const gf<16>::DataType & gf<16>::get_polynomial()
+  {
+    static u_int8_t result[2] = { 0x05, 0x80 }; /* X^16 + X^15 + X^2 + 1 */
+    return result;
+  }
+
+  template <>
+  inline const gf<32>::DataType & gf<32>::get_polynomial()
+  {
+    static u_int8_t result[4] = { 0xB7, 0x1D, 0xC1, 0x04 }; /* X^32 + X^26 + X^23 + X^22 + X^16 + X^12 + X^11 + X^10 + X^8  + X^7  + X^5  + X^4  + X^2 + X + 1 */
+    return result;
+  }
+
   template <typename value_type>
   class gf_math;
 

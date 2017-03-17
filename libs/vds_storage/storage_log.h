@@ -35,6 +35,9 @@ namespace vds {
     size_t new_message_id();
     const std::list<endpoint> & get_endpoints() const;
 
+
+
+
   private:
     std::unique_ptr<_storage_log> impl_;
   };
