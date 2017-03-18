@@ -9,7 +9,6 @@ All rights reserved
 #include "vds_core.h"
 #include "vds_crypto.h"
 #include "vds_parser.h"
-#include "vds_data.h"
 
 #include "storage_service.h"
 #include "storage_cursor.h"
@@ -19,5 +18,6 @@ All rights reserved
 #include "user.h"
 #include "storage_log.h"
 #include "log_records.h"
+#include "server_certificate.h"
 
 #endif // __VDS_STORAGE_VDS_STORAGE_H_

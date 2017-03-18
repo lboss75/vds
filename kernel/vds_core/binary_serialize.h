@@ -33,7 +33,12 @@ namespace vds {
     binary_serializer & operator << (const data_buffer & data);
 
     const std::vector<uint8_t> & data() const;
+    
+    uint8_t operator[](size_t index) const;
+    uint8_t & operator[](size_t index);
 
+    size_t size() const { return this->data_.size(); }
+    
   private:
     std::vector<uint8_t> data_;
   };
@@ -42,25 +47,31 @@ namespace vds {
   {
   public:
     binary_deserializer(const void * data, size_t len);
+    binary_deserializer(const std::vector<uint8_t> & data);
     
     //1 byte
-    binary_deserializer & operator >> (uint8_t value);
+    binary_deserializer & operator >> (uint8_t & value);
 
     //2 byte
-    binary_deserializer & operator >> (uint16_t value);
+    binary_deserializer & operator >> (uint16_t & value);
 
     //4 byte
-    binary_deserializer & operator >> (uint32_t value);
+    binary_deserializer & operator >> (uint32_t & value);
 
     //8 byte
-    binary_deserializer & operator >> (uint64_t value);
+    binary_deserializer & operator >> (uint64_t & value);
 
-    binary_deserializer & operator >> (const std::string & value);
+    binary_deserializer & operator >> (std::string & value);
    
-    binary_deserializer & operator >> (const data_buffer & data);
+    binary_deserializer & operator >> (data_buffer & data);
+    
+    uint64_t read_number();
+    
+    size_t size() const { return this->len_; }
 
   private:
-    std::vector<uint8_t> data_;
+    const uint8_t * data_;
+    size_t len_;
   };
 }
 

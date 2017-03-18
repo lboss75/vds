@@ -43,7 +43,7 @@ namespace vds {
     asymmetric_private_key & private_key_;
     udp_socket s_;
     
-    event_handler<void(certificate * cert)> on_download_certificate_;
+    event_handler<certificate *> on_download_certificate_;
     void on_download_certificate(certificate * cert);
 
     struct udp_client
@@ -52,6 +52,8 @@ namespace vds {
     };
 
     void update_upd_connection_pool();
+    
+    void send_welcome();
   };
 }
 

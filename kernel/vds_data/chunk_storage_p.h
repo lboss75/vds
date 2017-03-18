@@ -6,31 +6,10 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
-#include "chunk_storage.h"
 #include "chunk.h"
+#include "chunk_storage.h"
 
 namespace vds {
-  class _chunk_file
-  {
-  public:
-    _chunk_file(
-      const guid & source_id,
-      const uint64_t & index,
-      const uint16_t & replica,
-      const data_buffer & data);
-
-    _chunk_file(binary_deserializer & s);
-
-    binary_serializer & serialize(binary_serializer & s);
-
-  private:
-    guid source_id_;
-    uint64_t index_;
-    uint16_t replica_;
-    data_buffer data_;
-  };
-
-
   class _chunk_storage
   {
   public:
@@ -46,6 +25,10 @@ namespace vds {
       uint16_t replica,
       const void * data,
       size_t size);
+    
+    void restore_data(
+      binary_serializer & s,
+      const std::list<chunk_storage::horcrux> & chunks);
 
   private:
     chunk_storage * owner_;

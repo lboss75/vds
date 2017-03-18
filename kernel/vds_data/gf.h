@@ -44,7 +44,8 @@ namespace vds {
       copy(a, this->data_);
       copy(b, right.data_);
 
-      u_int8_t data[ArraySize] = { 0 };
+      u_int8_t data[ArraySize];
+      memset(data, 0, sizeof(data));
 
       //
       for (size_t i = 0; i < m; ++i) {
@@ -112,14 +113,14 @@ namespace vds {
   template <>
   inline const gf<16>::DataType & gf<16>::get_polynomial()
   {
-    static u_int8_t result[2] = { 0x05, 0x80 }; /* X^16 + X^15 + X^2 + 1 */
+    static u_int8_t result[2] = { 0x0B, 0x10 };
     return result;
   }
 
   template <>
   inline const gf<32>::DataType & gf<32>::get_polynomial()
   {
-    static u_int8_t result[4] = { 0xB7, 0x1D, 0xC1, 0x04 }; /* X^32 + X^26 + X^23 + X^22 + X^16 + X^12 + X^11 + X^10 + X^8  + X^7  + X^5  + X^4  + X^2 + X + 1 */
+    static u_int8_t result[4] = { 0x07, 0x00, 0x40, 0x00 }; 
     return result;
   }
 
@@ -131,6 +132,7 @@ namespace vds {
   {
   public:
     gf_math() {
+      memset(this->value2log_, 0, sizeof(this->value2log_));
       //u_int8_t one[1] = { 1 };
       u_int8_t two[1] = { 2 };
 
@@ -143,7 +145,7 @@ namespace vds {
         u_int8_t value = k.data()[0];
 
         this->log2value_[log] = value;
-        assert(this->value2log_.end() == this->value2log_.find(value));
+        assert(0 == this->value2log_[value]);
         this->value2log_[value] = log;
 
         k = k * v;
@@ -155,10 +157,10 @@ namespace vds {
         return 0;
       }
 
-      auto log_left = this->value2log_.at(left);
-      auto log_right = this->value2log_.at(right);
+      auto log_left = this->value2log_[left];
+      auto log_right = this->value2log_[right];
 
-      return this->log2value_.at((log_left + log_right) % 255);
+      return this->log2value_[(log_left + log_right) % 255];
     }
 
     u_int8_t div(u_int8_t left, u_int8_t right) const {
@@ -166,13 +168,13 @@ namespace vds {
         return 0;
       }
 
-      int dif = (int)this->value2log_.at(left) - (int)this->value2log_.at(right);
+      int dif = (int)this->value2log_[left] - (int)this->value2log_[right];
       while (dif < 0) {
         dif += 255;
       }
 
 
-      return this->log2value_.at(dif % 255);
+      return this->log2value_[dif % 255];
     }
 
     u_int8_t add(u_int8_t left, u_int8_t right) const {
@@ -183,9 +185,72 @@ namespace vds {
       return left ^ right;
     }
   private:
-    std::map<u_int8_t, u_int8_t> value2log_;
-    std::map<u_int8_t, u_int8_t> log2value_;
+    u_int8_t value2log_[0x100];
+    u_int8_t log2value_[0x100];
   };
+  
+  template <>
+  class gf_math<uint16_t>
+  {
+  public:
+    gf_math() {
+      memset(this->value2log_, 0, sizeof(this->value2log_));
+      
+      uint8_t two[2] = { 2, 0 };
+
+      this->log2value_[0] = 1;
+      this->value2log_[1] = 0;
+
+      gf<16> k(two);
+      gf<16> v(two);
+      for (uint16_t log = 1; log < 0xFFFF; ++log) {
+        uint16_t value = (k.data()[1] << 8) | k.data()[0];
+
+        this->log2value_[log] = value;
+        assert(0 == this->value2log_[value]);
+        this->value2log_[value] = log;
+
+        k = k * v;
+      }
+    }
+
+    uint16_t mul(uint16_t left, uint16_t right) const {
+      if (left == 0 || right == 0) {
+        return 0;
+      }
+
+      auto log_left = this->value2log_[left];
+      auto log_right = this->value2log_[right];
+
+      return this->log2value_[(log_left + log_right) % 0xFFFF];
+    }
+
+    uint16_t div(uint16_t left, uint16_t right) const {
+      if (left == 0 || right == 0) {
+        return 0;
+      }
+
+      int dif = (int)this->value2log_[left] - (int)this->value2log_[right];
+      while (dif < 0) {
+        dif += 0xFFFF;
+      }
+
+
+      return this->log2value_[dif % 0xFFFF];
+    }
+
+    uint16_t add(uint16_t left, uint16_t right) const {
+      return left ^ right;
+    }
+
+    uint16_t sub(uint16_t left, uint16_t right) const {
+      return left ^ right;
+    }
+  private:
+    uint16_t value2log_[0x10000];
+    uint16_t log2value_[0x10000];
+  };
+
   template<unsigned int m>
   inline void gf<m>::copy(DataType & a, const DataType & b)
   {

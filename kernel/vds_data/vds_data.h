@@ -10,6 +10,7 @@ All rights reserved
 
 #include "gf.h"
 #include "chunk.h"
+#include "chunk_storage.h"
 
 #endif // !__VDS_DATA_VDS_DATA_H_
 

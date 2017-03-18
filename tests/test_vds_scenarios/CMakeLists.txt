@@ -37,6 +37,7 @@ add_executable(test_vds_scenarios ${SOURCE_FILES} ${HEADER_FILES})
 target_link_libraries(
   test_vds_scenarios
   vds_core
+  vds_data
   vds_network
   vds_http
   vds_crypto

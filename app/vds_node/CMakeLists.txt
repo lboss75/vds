@@ -26,6 +26,7 @@ add_executable(vds_node ${SOURCE_FILES} ${HEADER_FILES})
 target_link_libraries(
   vds_node
   vds_core
+  vds_data
   vds_crypto
   vds_network
   vds_http

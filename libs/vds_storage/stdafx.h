@@ -9,6 +9,7 @@ All rights reserved
 #include "vds_core.h"
 #include "vds_crypto.h"
 #include "vds_parser.h"
+#include "vds_data.h"
 
 #include <fstream>
 

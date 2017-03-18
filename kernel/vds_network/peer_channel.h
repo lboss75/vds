@@ -7,6 +7,8 @@ All rights reserved
 */
 
 namespace vds {
+  class _peer_channel;
+  
   class peer_channel
   {
   public:
@@ -35,7 +37,7 @@ namespace vds {
   private:
     formatter_type formatter_type_;
     channel_direction channel_direction_;
-    class _peer_channel * const impl_;
+    _peer_channel * const impl_;
   };
 }
 

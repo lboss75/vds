@@ -76,7 +76,8 @@ vds::_storage_log::_storage_log(const service_provider & sp, storage_log * owner
   commited_folder_(foldername(persistence::current_user(sp), ".vds"), "commited"),
   is_empty_(true),
   minimal_consensus_(0),
-  last_message_id_(0)
+  last_message_id_(0),
+  chunk_storage_(guid::new_guid(), 1000)
 {
 }
 

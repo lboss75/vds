@@ -77,13 +77,13 @@ namespace vds{
     data_buffer(const void * data, size_t len)
     : data_(new uint8_t[len]), len_(len)
     {
-      memcpy(const_cast<uint8_t *>(this->data_), data, len);
+      memcpy(this->data_, data, len);
     }
     
     data_buffer(const data_buffer & other)
     : data_(new uint8_t[other.len_]), len_(other.len_)
     {
-      memcpy(const_cast<uint8_t *>(this->data_), other.data_, other.len_);
+      memcpy(this->data_, other.data_, other.len_);
     }
     
     data_buffer(data_buffer&& other)
@@ -96,7 +96,7 @@ namespace vds{
     data_buffer(const std::vector<uint8_t> & data)
     : data_(new uint8_t[data.size()]), len_(data.size())
     {
-      memcpy(const_cast<uint8_t *>(this->data_), data.data(), data.size());
+      memcpy(this->data_, data.data(), data.size());
     }
     
     ~data_buffer()
@@ -109,10 +109,15 @@ namespace vds{
     
     void reset(const void * data, size_t len)
     {
+      this->resize(len);
+      memcpy(this->data_, data, len);
+    }
+    
+    void resize(size_t len)
+    {
       delete this->data_;
       this->data_ = new uint8_t[len];
       this->len_ = len;
-      memcpy(const_cast<uint8_t *>(this->data_), data, len);
     }
     
     data_buffer & operator = (data_buffer && other)
@@ -138,8 +143,19 @@ namespace vds{
       || 0 != memcmp(this->data_, other.data_, this->len_);
     }
     
+    uint8_t & operator[](size_t index)
+    {
+      return this->data_[index];
+    }
+    
+    uint8_t operator[](size_t index) const
+    {
+      return this->data_[index];
+    }
+    
+    
   private:
-    const uint8_t * data_;
+    uint8_t * data_;
     size_t len_;
   };
 }

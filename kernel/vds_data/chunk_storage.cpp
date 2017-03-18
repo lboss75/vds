@@ -7,26 +7,14 @@ All rights reserved
 #include "chunk_storage.h"
 #include "chunk_storage_p.h"
 
-vds::_chunk_file::_chunk_file(
-  const guid & source_id,
-  const uint64_t & index,
-  const uint16_t & replica,
-  const data_buffer & data)
-  : source_id_(source_id),
-  index_(index),
-  replica_(replica),
-  data_(data)
+vds::chunk_storage::horcrux::horcrux(binary_deserializer& s)
 {
+  s >> this->source_id_ >> this->index_ >> this->replica_ >> this->size_ >> this->data_;
 }
 
-vds::_chunk_file::_chunk_file(binary_deserializer & s)
+vds::chunk_storage::horcrux::horcrux(binary_deserializer&& s)
 {
-  s >> this->source_id_ >> this->index_ >> this->replica_ >> this->data_;
-}
-
-vds::binary_serializer & vds::_chunk_file::serialize(binary_serializer & s)
-{
-  return s << this->source_id_ << this->index_ << this->replica_ << this->data_;
+  s >> this->source_id_ >> this->index_ >> this->replica_ >> this->size_>> this->data_;
 }
 
 vds::chunk_storage::chunk_storage(const guid & source_id, uint16_t min_horcrux)
@@ -48,7 +36,14 @@ void vds::chunk_storage::generate_replica(
 {
   this->impl_->generate_replica(s, index, replica, data, size);
 }
-///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void vds::chunk_storage::restore_data(
+  binary_serializer & s,
+  const std::list<horcrux> & chunks)
+{
+  this->impl_->restore_data(s, chunks);
+}
+/////////////////////////////////////////////////////////////////////////////////////
 vds::_chunk_storage::_chunk_storage(
   chunk_storage * owner,
   const guid & source_id,
@@ -77,7 +72,34 @@ void vds::_chunk_storage::generate_replica(
     generator = p->second.get();
   }
 
-  s << this->source_id_ << index << replica;
+  s << this->source_id_ << index << replica << (uint16_t)size;
   generator->write(s, data, size);
+}
+
+void vds::_chunk_storage::restore_data(
+  binary_serializer & s,
+  const std::list<chunk_storage::horcrux> & chunks)
+{
+  if(this->min_horcrux_ != chunks.size()){
+    throw new std::runtime_error("Error at restoring data");
+  }
+  
+  const auto source_id = chunks.begin()->source_id();
+  const auto size = chunks.begin()->data().size();
+  std::vector<uint16_t> replicas;
+  std::vector<const data_buffer *> datas;
+  
+  for(auto & p : chunks){
+    if(source_id != p.source_id()
+      || size != p.data().size()){
+      throw new std::runtime_error("Error at restoring data");
+    }
+    
+    replicas.push_back(p.replica());
+    datas.push_back(&p.data());
+  }
+  
+  chunk_restore<uint16_t> restore(this->min_horcrux_, replicas.data());
+  restore.restore(s, datas, size);
 }
 

@@ -569,7 +569,6 @@ bool vds::certificate::is_issued(const vds::certificate& issuer) const
   return (X509_V_OK == X509_check_issued(issuer.cert(), this->cert()));
 }
 
-
 bool vds::certificate::add_ext(X509 * cert, int nid, const char * value)
 {
   X509V3_CTX ctx;
@@ -587,6 +586,43 @@ bool vds::certificate::add_ext(X509 * cert, int nid, const char * value)
 
   return true;
 }
+
+int vds::certificate::extension_count() const
+{
+  return X509_get_ext_count(this->cert_);
+}
+
+int vds::certificate::extension_by_NID(int nid) const
+{
+  return X509_get_ext_by_NID(this->cert_, nid,-1);
+}
+
+vds::certificate_extension vds::certificate::get_extension(int index) const
+{
+  certificate_extension result;
+  
+  X509_EXTENSION * ext = X509_get_ext(this->cert_, index);
+  if(nullptr != ext){
+    result.base_nid = OBJ_obj2nid(ext->object);
+    
+    char buf[256];
+    OBJ_obj2txt(buf, sizeof(buf), ext->object, 0);
+    result.name = buf;
+    
+    BIO *bio = BIO_new(BIO_s_mem());
+    if(!X509V3_EXT_print(bio, ext, 0, 0)){
+      M_ASN1_OCTET_STRING_print(bio, ext->value);
+    }
+    
+    auto len = BIO_read(bio, buf, sizeof(buf));
+    BIO_free(bio);
+    
+    result.value.assign(buf, len);
+  }
+  
+  return result;
+}
+
 
 vds::certificate_extension::certificate_extension()
   : base_nid(NID_netscape_comment)

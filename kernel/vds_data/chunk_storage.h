@@ -8,7 +8,7 @@ All rights reserved
 
 namespace vds {
   class _chunk_storage;
-
+  
   class chunk_storage
   {
   public:
@@ -24,6 +24,31 @@ namespace vds {
       uint16_t replica,
       const void * data,
       size_t size);
+    
+    
+    class horcrux
+    {
+    public:
+      horcrux(binary_deserializer & s);
+      horcrux(binary_deserializer && s);
+      
+      const guid & source_id() const { return this->source_id_; }
+      uint64_t index() const { return this->index_; }
+      uint16_t replica() const { return this->replica_; }
+      uint16_t size() const { return this->size_; }
+      const data_buffer & data() const { return this->data_; }
+      
+    private:
+      guid source_id_;
+      uint64_t index_;
+      uint16_t replica_;
+      uint16_t size_;
+      data_buffer data_;
+    };
+    
+    void restore_data(
+      binary_serializer & s,
+      const std::list<horcrux> & chunks);
 
   private:
     _chunk_storage * impl_;

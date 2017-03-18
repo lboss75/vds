@@ -34,6 +34,7 @@ add_executable(vds_background ${SOURCE_FILES} ${HEADER_FILES})
 target_link_libraries(
   vds_background
   vds_core
+  vds_data
   vds_network
   vds_http
   vds_crypto

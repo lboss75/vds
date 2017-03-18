@@ -66,6 +66,10 @@ namespace vds {
     
     template <typename message_type>
     _handle_message<message_type> handle_message();
+    
+    void register_client_channel(
+      const guid & server_id,
+      peer_channel * channel);
 
   private:
     friend class _peer_network;

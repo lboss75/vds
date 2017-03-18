@@ -46,6 +46,7 @@ namespace vds {
     std::unique_ptr<server_http_api> server_http_api_;
     std::unique_ptr<server_udp_api> server_udp_api_;
     std::unique_ptr<connection_manager> connection_manager_;
+    std::unique_ptr<peer_network> peer_network_;
   };
   
   class iserver
@@ -57,6 +58,7 @@ namespace vds {
     cert_manager & get_cert_manager() const { return *this->owner_->cert_manager_.get(); }
     node_manager & get_node_manager() const { return *this->owner_->node_manager_.get(); }
     user_manager & get_user_manager() const { return *this->owner_->user_manager_.get(); }
+    peer_network & get_peer_network() const { return *this->owner_->peer_network_.get(); }
 
     connection_manager & get_connection_manager() const { return *this->owner_->connection_manager_.get(); }
 

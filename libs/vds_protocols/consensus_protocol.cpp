@@ -103,6 +103,10 @@ void vds::consensus_protocol::_server::process(const service_provider & scope, j
   case follower:
     result.add(consensus_messages::consensus_message_current_leader(this->leader_).serialize());
     break;
+    
+  case none:
+  case candidate:
+    break;
   }
 }
 

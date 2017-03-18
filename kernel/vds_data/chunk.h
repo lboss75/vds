@@ -83,6 +83,12 @@ namespace vds {
           const chunk<cell_type> ** chunks
         );
             
+        void restore(
+          binary_serializer & s,
+          const std::vector<const data_buffer *> & chunks,
+          size_t size
+        );
+        
         const std::vector<std::vector<cell_type>> & multipliers() const
         {
           return this->multipliers_;
@@ -156,30 +162,31 @@ vds::chunk_generator<cell_type>::chunk_generator(cell_type k, cell_type n)
 template<typename cell_type>
 inline void vds::chunk_generator<cell_type>::write(binary_serializer & s, const void * data, size_t size)
 {
-  s << (uint32_t)(sizeof(cell_type) * ((size + sizeof(cell_type) - 1) / sizeof(cell_type)));
+  uint64_t expected_size = ((size + sizeof(cell_type) * this->k_ - 1)/ sizeof(cell_type) / this->k_) * sizeof(cell_type);
+  s.write_number(expected_size);
+  auto start = s.size();
 
-  for (size_t i = 0; i < (size + sizeof(cell_type) - 1)/sizeof(cell_type); i += this->k_) {
+  for (size_t i = 0; i < size; i += sizeof(cell_type) * this->k_) {
     cell_type value = 0;
     for (cell_type j = 0; j < this->k_; ++j) {
-      if (i + j < len) {
-        cell_type data_item = 0;
-        for (size_t offset = 0; offset < sizeof(cell_type); ++offset) {
-          data_item <<= 8;
-          if (i * sizeof(cell_type) + j < size) {
-            data_item |= ((const uint8_t *)data)[i * sizeof(cell_type) + j];
-          }
-          else {
-            break;
-          }
+      cell_type data_item = 0;
+      for (size_t offset = 0; offset < sizeof(cell_type); ++offset) {
+        data_item <<= 8;
+        if (i + sizeof(cell_type) * j + offset < size) {
+          data_item |= ((const uint8_t *)data)[i + sizeof(cell_type) * j + offset];
         }
-        value = math_.add(
-          value,
-          math_.mul(generator.multipliers_[j], data_item));
       }
+      
+      value = chunk<cell_type>::math_.add(
+        value,
+        chunk<cell_type>::math_.mul(this->multipliers_[j], data_item));
     }
 
     s << value;
   }
+  
+  auto final = s.size();
+  assert(expected_size == final - start);
 }
 
 
@@ -223,14 +230,19 @@ vds::chunk_restore<cell_type>::chunk_restore(cell_type k, const cell_type * n)
             }
         }
     }
-
+    //         j:  c:
+    //i:   m0  m1  x -> (m2*x - m1*y)/(m2 * m0)
+    //     0   m2  y ->
+    
+    //     1   0   (m2*x - m1*y)/(m2*m0)
+    //
     //reverse
     for (cell_type i = 0; i < k; ++i) {
-        cell_type m0 = left.at(i).at(i);
-        assert(m0 != 0);
         for (cell_type j = i + 1; j < k; ++j) {
             cell_type m1 = left.at(i).at(j);
             if(m1 != 0) {
+              cell_type m0 = left.at(i).at(i);
+              assert(m0 != 0);
               cell_type m2 = left.at(j).at(j);
               assert(m2 != 0);
               for (cell_type c = 0; c < k; ++c) {
@@ -240,9 +252,11 @@ vds::chunk_restore<cell_type>::chunk_restore(cell_type k, const cell_type * n)
                           chunk<cell_type>::math_.mul(m1, left.at(j).at(c))
                           ),
                           chunk<cell_type>::math_.mul(m2, m0));
-                  if(c <= i) {
-                    assert(left.at(i).at(c) == ((c == i) ? 1 : 0));
+                  
+                  if(c <= j){
+                    assert(((c == i) ? 1 : 0) == left.at(i).at(c));
                   }
+                  
                   this->multipliers_.at(i).at(c) = chunk<cell_type>::math_.div(
                       chunk<cell_type>::math_.sub(
                           chunk<cell_type>::math_.mul(m2, this->multipliers_.at(i).at(c)),
@@ -253,6 +267,9 @@ vds::chunk_restore<cell_type>::chunk_restore(cell_type k, const cell_type * n)
             }
         }
         if (i == k - 1){//fix last row
+          cell_type m0 = left.at(i).at(i);
+          if(1 != m0){
+            assert(m0 != 0);
             for (cell_type c = 0; c < k; ++c) {
                 left.at(i).at(c) = chunk<cell_type>::math_.div(left.at(i).at(c),m0);
                 if(c <= i) {
@@ -261,7 +278,21 @@ vds::chunk_restore<cell_type>::chunk_restore(cell_type k, const cell_type * n)
                 this->multipliers_.at(i).at(c) = chunk<cell_type>::math_.div(
                     this->multipliers_.at(i).at(c), m0);
             }
+          }
         }
+    }
+    
+    //validate
+    for (cell_type i = 0; i < k; ++i) {
+      for (cell_type c = 0; c < k; ++c) {
+        auto value = left.at(i).at(c);
+        if(i == c){
+          assert(1 == value);
+        }
+        else {
+          assert(0 == value);
+        }
+      }
     }
 }
 
@@ -270,17 +301,42 @@ inline void vds::chunk_restore<cell_type>::restore(
   std::vector<cell_type>& result,
   const chunk<cell_type>** chunks)
 {
-    for (size_t index = 0; index < chunks[0]->data_.size(); ++index) {
-        for (cell_type i = 0; i < this->k_; ++i) {
-            cell_type value = 0;
-            for (cell_type j = 0; j < this->k_; ++j) {
-                value = chunk<cell_type>::math_.add(value, 
-                    chunk<cell_type>::math_.mul(
-                      this->multipliers_.at(i).at(j), chunks[j]->data_[index]));
-            }
-            result.push_back(value);
-        }
+  for (size_t index = 0; index < chunks[0]->data_.size(); ++index) {
+    for (cell_type i = 0; i < this->k_; ++i) {
+      cell_type value = 0;
+      for (cell_type j = 0; j < this->k_; ++j) {
+        value = chunk<cell_type>::math_.add(value, 
+          chunk<cell_type>::math_.mul(
+            this->multipliers_.at(i).at(j), chunks[j]->data_[index]));
+      }
+      result.push_back(value);
     }
+  }
+}
+
+template<typename cell_type>
+inline void vds::chunk_restore<cell_type>::restore(
+  binary_serializer & s,
+  const std::vector<const data_buffer *> & chunks,
+  size_t size)
+{
+  for (size_t index = 0; index < size; index += sizeof(cell_type)) {
+    for (cell_type i = 0; i < this->k_; ++i) {
+      cell_type value = 0;
+      for (cell_type j = 0; j < this->k_; ++j) {
+        cell_type cell = 0;
+        for(int offset = 0; offset < sizeof(cell_type); ++offset){
+          cell <<= 8;
+          cell |= (*chunks[j])[index + offset];
+        }
+        value = chunk<cell_type>::math_.add(value, 
+            chunk<cell_type>::math_.mul(
+              this->multipliers_.at(i).at(j),
+              cell));
+      }
+      s << value;
+    }
+  }
 }
 
 #endif//__VDS_DATA_CHUNK_H_

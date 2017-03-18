@@ -32,7 +32,7 @@ namespace vds {
     const std::vector<uint8_t> & data() const;
 
   private:
-    std::vector<uint8_t> data_;
+    binary_serializer data_;
   };
   
   class network_deserializer
@@ -48,6 +48,9 @@ namespace vds {
 
     //4 byte
     network_deserializer & operator >> (uint32_t & value);
+    
+    //4 byte
+    network_deserializer & operator >> (uint64_t & value);
 
     network_deserializer & operator >> (std::string & value);
     
@@ -59,8 +62,7 @@ namespace vds {
     void final();
 
   private:
-    const uint8_t * data_;
-    size_t len_;
+    binary_deserializer data_;
   };
 }
 

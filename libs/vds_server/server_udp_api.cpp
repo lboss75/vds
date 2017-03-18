@@ -5,6 +5,8 @@ All rights reserved
 #include "stdafx.h"
 #include "server_udp_api.h"
 #include "server_udp_api_p.h"
+#include "crypto_exception.h"
+#include "cert_manager.h"
 
 vds::server_udp_api::server_udp_api(
   const service_provider& sp,
@@ -39,7 +41,8 @@ vds::_server_udp_api::_server_udp_api(
   owner_(owner),
   certificate_(certificate),
   private_key_(private_key),
-  s_(sp)
+  s_(sp),
+  on_download_certificate_(std::bind(&_server_udp_api::on_download_certificate, this, std::placeholders::_1))
 {
 }
 
@@ -55,7 +58,7 @@ void vds::_server_udp_api::start(const std::string& address, size_t port)
 
 void vds::_server_udp_api::stop()
 {
-  this->sp_.get<peer_network>().remove_client_channel(this);
+  //this->sp_.get<peer_network>().remove_client_channel(this);
 }
 
 void vds::_server_udp_api::udp_server_done()
@@ -78,7 +81,7 @@ void vds::_server_udp_api::input_message(const sockaddr_in & from, const void * 
     switch(cmd) {
       case udp_messages::message_identification::hello_message_id:
       {
-        hello_message msg(s);
+        udp_messages::hello_message msg(s);
         
         auto server = this->sp_.get<iserver>();
         auto cert_manager = server.get_cert_manager();
@@ -88,8 +91,9 @@ void vds::_server_udp_api::input_message(const sockaddr_in & from, const void * 
           this->send_welcome();
         }
         
-        server.get_peer_network().register_client_channel(msg.from_server_id(),
-          this);        
+        //server.get_peer_network().register_client_channel(
+        //  server_certificate::server_id(cert),
+        //  this);        
         
         break;
       }
@@ -98,13 +102,13 @@ void vds::_server_udp_api::input_message(const sockaddr_in & from, const void * 
       {
         guid client_id;
         uint64_t generation_id;
-        buffer_data mac_key;
+        data_buffer mac_key;
         
         s >> client_id >> generation_id >> mac_key;
         
-        this->sp_.get<peer_network>().register_client_channel(
-          client_id,
-          this);
+        //this->sp_.get<peer_network>().register_client_channel(
+        //  client_id,
+        //  this);
         break;
       }
       
@@ -112,20 +116,18 @@ void vds::_server_udp_api::input_message(const sockaddr_in & from, const void * 
       {
         guid client_id;
         uint64_t generation_id;
-        buffer_data command_data;
-        buffer_data sing_data;
+        data_buffer command_data;
+        data_buffer sign_data;
         
         s >> client_id >> generation_id >> command_data >> sign_data;
-        
-        
+                
         break;
       }
     }    
   }
   catch(std::exception * ex){
     std::unique_ptr<std::exception> _ex(ex);
-    std::exception * ex
-    this->log_.waring("%s in datagram from %s", ex->what(), network_service::to_string(from).c_str());
+    this->log_.warning("%s in datagram from %s", ex->what(), network_service::to_string(from).c_str());
   }
 }
 
@@ -134,7 +136,11 @@ void vds::_server_udp_api::update_upd_connection_pool()
 
 }
 
-void vds::_server_json_api::on_download_certificate(certificate * cert)
+void vds::_server_udp_api::on_download_certificate(certificate * cert)
 {
   
+}
+
+void vds::_server_udp_api::send_welcome()
+{
 }

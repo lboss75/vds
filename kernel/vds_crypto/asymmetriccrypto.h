@@ -221,6 +221,10 @@ namespace vds {
     bool is_ca_cert() const;
     
     bool is_issued(const certificate & issuer) const;
+    
+    int extension_count() const;
+    int extension_by_NID(int nid) const;
+    certificate_extension get_extension(int index) const;
 
   private:
     X509 * cert_;
