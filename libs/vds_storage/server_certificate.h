@@ -10,6 +10,7 @@ namespace vds {
   class server_certificate
   {
   public:
+    
     static std::string server_id(const certificate & cert);
   };
 }

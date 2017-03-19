@@ -66,6 +66,59 @@ namespace vds {
     void process(const server_log_root_certificate & message);
     void process(const server_log_new_server & message);
     void process(const server_log_new_endpoint & message);
+    
+    void save_object(const file_container & fc);
+    
+    class replica_generator
+    {
+    public:
+      replica_generator(
+        uint16_t replica,
+        uint16_t min_horcrux
+      );
+      
+      void write(const void * data, size_t len)
+      {
+        
+      }
+    };
+    
+    template<typename context_type>
+    class generate_replicas : public sequence_step<context_type, void(void)>
+    {
+      using base_class = sequence_step<context_type, void(void)>;
+    public:
+      generate_replicas(
+        const context_type & context,
+        uint16_t min_horcrux,
+        uint16_t horcrux_count)
+      : base_class(context)
+      {
+        for(uint16_t i = 0; i < horcrux_count; ++i){
+          generators_.push_back(
+            std::unique_ptr<replica_generator>(
+              new replica_generator(
+                i,
+                min_horcrux)));
+        }
+      }
+      
+      void operator()(const void * data, size_t len)
+      {
+        for(auto& p : this->generators_){
+          p->write(data, len);
+        }
+        if(0 == len){
+          this->next();
+        }
+        else {
+          this->prev();
+        }
+      }
+      
+    private:
+      std::list<std::unique_ptr<replica_generator>> generators_;
+    };
   };
 }
 

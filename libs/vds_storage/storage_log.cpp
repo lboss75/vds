@@ -11,6 +11,8 @@ All rights reserved
 #include "cert.h"
 #include "node.h"
 #include "endpoint.h"
+#include "certificate_authority.h"
+#include "certificate_authority_p.h"
 
 vds::storage_log::storage_log(const service_provider & sp)
   : impl_(new _storage_log(sp, this))
@@ -86,43 +88,34 @@ void vds::_storage_log::reset(
   const std::string & addresses
 )
 {
+  this->log_.info("Creating certificate");
+  
   asymmetric_private_key private_key(asymmetric_crypto::rsa4096());
   private_key.generate();
+  
+  certificate root_certificate = _certificate_authority::create_root_user(private_key);
 
-  asymmetric_public_key pkey(private_key);
+  this->log_.info("Creating server certificate");
+  asymmetric_private_key server_private_key(asymmetric_crypto::rsa4096());
+  server_private_key.generate();
+  
+  certificate server_certificate = certificate_authority::create_server(server_private_key, root_certificate, private_key);
+  
+  this->vds_folder_.create();
+  server_certificate.save(filename(this->vds_folder_, "server.crt"));
+  server_private_key.save(filename(this->vds_folder_, "server.pkey"));
+  
+  this->save_object(
+    file_container()
+      .add("certificate", root_certificate.str())
+      .add("private_key", private_key.str()));
 
-  this->log_.info("Creating certificate");
-  certificate::create_options options;
-  options.country = "RU";
-  options.organization = "IVySoft";
-  options.name = "Certificate " + guid::new_guid().str();
-
-  certificate root_certificate = certificate::create_new(pkey, private_key, options);
+  std::unique_ptr<server_log_batch> batch(new server_log_batch((size_t)0u));
 
   hash ph(hash::sha256());
   ph.update(password.c_str(), password.length());
   ph.final();
-
-  asymmetric_private_key server_private_key(asymmetric_crypto::rsa4096());
-  server_private_key.generate();
-
-  asymmetric_public_key server_pkey(server_private_key);
-
-  this->log_.info("Creating server certificate");
-  certificate::create_options server_options;
-  server_options.country = "RU";
-  server_options.organization = "IVySoft";
-  server_options.name = "Certificate " + guid::new_guid().str();
-  server_options.ca_certificate = &root_certificate;
-  server_options.ca_certificate_private_key = &private_key;
-
-  certificate server_certificate = certificate::create_new(server_pkey, server_private_key, server_options);
-  this->vds_folder_.create();
-  server_certificate.save(filename(this->vds_folder_, "server.crt"));
-  server_private_key.save(filename(this->vds_folder_, "server.pkey"));
-
-  std::unique_ptr<server_log_batch> batch(new server_log_batch((size_t)0u));
-
+  
   batch->add(
     server_log_root_certificate(
       root_certificate.str(),
@@ -289,3 +282,19 @@ size_t vds::_storage_log::new_message_id()
 {
   return this->last_message_id_++;
 }
+
+
+void vds::_storage_log::save_object(const file_container & fc)
+{
+  sequence(
+    fc,
+    inflate(),
+    create_step<generate_replicas>::with()
+  )(
+    []{},
+    [](std::exception * ex) {
+      throw ex;
+    }
+  );
+}
+
