@@ -92,6 +92,18 @@ void vds::file::write(const void * buffer, size_t buffer_len)
   }
 }
 
+size_t vds::file::length() const
+{
+  struct stat buffer;
+  if (0 != fstat(this->handle_, &buffer)) {
+    auto error = errno;
+    throw new std::system_error(error, std::system_category(), "Unable to get file size");
+  }
+
+  return buffer.st_size;
+}
+
+
 vds::output_text_stream::output_text_stream(file & f)
   : f_(f), written_(0)
 {

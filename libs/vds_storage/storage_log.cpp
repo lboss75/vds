@@ -79,7 +79,8 @@ vds::_storage_log::_storage_log(const service_provider & sp, storage_log * owner
   is_empty_(true),
   minimal_consensus_(0),
   last_message_id_(0),
-  chunk_storage_(guid::new_guid(), 1000)
+  chunk_storage_(guid::new_guid(), 1000),
+  chunk_manager_(sp)
 {
 }
 
@@ -99,13 +100,13 @@ void vds::_storage_log::reset(
   asymmetric_private_key server_private_key(asymmetric_crypto::rsa4096());
   server_private_key.generate();
   
-  certificate server_certificate = certificate_authority::create_server(server_private_key, root_certificate, private_key);
+  certificate server_certificate = certificate_authority::create_server(root_certificate, private_key, server_private_key);
   
   this->vds_folder_.create();
   server_certificate.save(filename(this->vds_folder_, "server.crt"));
   server_private_key.save(filename(this->vds_folder_, "server.pkey"));
   
-  this->save_object(
+  auto  user_cert_id = this->save_object(
     file_container()
       .add("certificate", root_certificate.str())
       .add("private_key", private_key.str()));
@@ -284,17 +285,20 @@ size_t vds::_storage_log::new_message_id()
 }
 
 
-void vds::_storage_log::save_object(const file_container & fc)
+uint64_t vds::_storage_log::save_object(const file_container & fc)
 {
+  uint64_t index = this->chunk_manager_.start_stream();
   sequence(
     fc,
     inflate(),
-    create_step<generate_replicas>::with()
+    create_step<chunk_manager_writer>::with<chunk_manager &, uint64_t>(this->chunk_manager_, index)
   )(
     []{},
     [](std::exception * ex) {
       throw ex;
     }
   );
+
+  return index;
 }
 

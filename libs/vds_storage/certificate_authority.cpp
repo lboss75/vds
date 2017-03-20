@@ -9,7 +9,7 @@ All rights reserved
 
 vds::certificate vds::certificate_authority::create_server(
   const certificate & user_certificate,
-  const certificate & user_private_key,
+  const asymmetric_private_key & user_private_key,
   const asymmetric_private_key& server_private_key)
 {
   asymmetric_public_key pkey(server_private_key);
@@ -24,7 +24,7 @@ vds::certificate vds::certificate_authority::create_server(
 }
 
 
-vds::certificate vds::certificate_authority::create_root_user(const asymmetric_private_key & private_key)
+vds::certificate vds::_certificate_authority::create_root_user(const asymmetric_private_key & private_key)
 {
   asymmetric_public_key pkey(private_key);
 

@@ -1123,9 +1123,9 @@ namespace vds {
   struct create_step
   {
     template <typename... argument_types>
-    static _step_container<handler_class, argument_types...> with(argument_types&&... args)
+    static _step_container<handler_class, argument_types...> with(argument_types... args)
     {
-      return _step_container<handler_class, argument_types...>(std::forward<argument_types&&>(args)...);
+      return _step_container<handler_class, argument_types...>(std::forward<argument_types>(args)...);
     }
   };
 }

@@ -603,15 +603,15 @@ vds::certificate_extension vds::certificate::get_extension(int index) const
   
   X509_EXTENSION * ext = X509_get_ext(this->cert_, index);
   if(nullptr != ext){
-    result.base_nid = OBJ_obj2nid(ext->object);
+    //TODO: result.base_nid = OBJ_obj2nid(ext);
     
     char buf[256];
-    OBJ_obj2txt(buf, sizeof(buf), ext->object, 0);
+    //OBJ_obj2txt(buf, sizeof(buf), ext, 0);
     result.name = buf;
     
     BIO *bio = BIO_new(BIO_s_mem());
     if(!X509V3_EXT_print(bio, ext, 0, 0)){
-      M_ASN1_OCTET_STRING_print(bio, ext->value);
+      //TODO: M_ASN1_OCTET_STRING_print(bio, ext);
     }
     
     auto len = BIO_read(bio, buf, sizeof(buf));

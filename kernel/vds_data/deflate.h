@@ -6,18 +6,16 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
-#include "zlib.h"
-
 namespace vds {
+  class _deflate;
+  class _deflate_handler;
 
   //Compress data
   class deflate
   {
   public:
-    deflate(int compression_level = Z_DEFAULT_COMPRESSION)
-      : compression_level_(compression_level)
-    {
-    }
+    deflate();
+    deflate(int compression_level);
 
     template <typename context_type>
     class handler : public sequence_step<context_type, void(const void *, size_t)>
@@ -27,66 +25,53 @@ namespace vds {
       handler(
         const context_type & context,
         const deflate & args
-      ) : base_class(context), eof_(false)
+      ) : base_class(context), handler_(args.create_handler())
       {
-        memset(&this->strm_, 0, sizeof(z_stream));
-        if (Z_OK != deflateInit(&this->strm_, args.compression_level_)) {
-          throw new std::runtime_error("deflateInit failed");
-        }
+      }
+
+      ~handler()
+      {
+        delete_handler(this->handler_);
       }
 
       void operator()(const void * data, size_t len) {
-        if (0 == len) {
-          this->eof_ = true;
+        void * to_push;
+        size_t to_push_len;
+        if (!push_data(this->handler_, data, len, to_push, to_push_len)) {
+          this->prev();
         }
-        this->strm_.next_in = data;
-        this->strm_.avail_in = len;
-        this->strm_.next_out = this->buffer_;
-        this->strm_.avail_out = CHUNK_SIZE;
-        if (Z_STREAM_ERROR != ::deflate(&this->strm_, this->eof_ ? Z_FINISH : Z_NO_FLUSH)) {
-          throw new std::runtime_error("deflate failed");
+        else {
+          this->next(
+            to_push,
+            to_push_len);
         }
-
-        this->next(
-          this->buffer_,
-          CHUNK_SIZE - this->strm_.avail_out
-        );
       }
 
       void processed()
       {
-        if (0 == this->strm_.avail_out) {
-          if (Z_STREAM_ERROR != ::deflate(&this->strm_, this->eof_ ? Z_FINISH : Z_NO_FLUSH)) {
-            throw new std::runtime_error("deflate failed");
-          }
-
-          this->next(
-            this->buffer_,
-            CHUNK_SIZE - this->strm_.avail_out
-          );
+        void * to_push;
+        size_t to_push_len;
+        if (!data_processed(this->handler_, to_push, to_push_len)) {
+          this->prev();
         }
         else {
-          if (0 != this->strm_.avail_in) {
-            throw new std::runtime_error("deflate failed");
-          }
-
-          if (!this->eof_) {
-            this->prev();
-          }
-          else {
-            deflateEnd(&this->strm_);
-          }
+          this->next(
+            to_push,
+            to_push_len);
         }
       }
 
     private:
-      static constexpr size_t CHUNK_SIZE;
-      unsigned char buffer_[CHUNK_SIZE];
-      z_stream strm_;
-      bool eof_;
+      _deflate_handler * handler_;
     };
+
   private:
     int compression_level_;
+
+    _deflate_handler * create_handler();
+    static void delete_handler(_deflate_handler * handler);
+    static bool push_data(_deflate_handler * handler, const void * data, size_t size, const void *& to_push, size_t & to_push_len);
+    static bool data_processed(_deflate_handler * handler, const void *& to_push, size_t & to_push_len);
   };
 }
 

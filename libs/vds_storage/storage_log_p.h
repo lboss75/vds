@@ -6,6 +6,7 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
+#include "chunk_manager.h"
 
 namespace vds {
   class storage_log;
@@ -62,12 +63,13 @@ namespace vds {
     size_t last_message_id_;
 
     chunk_storage chunk_storage_;
+    chunk_manager chunk_manager_;
 
     void process(const server_log_root_certificate & message);
     void process(const server_log_new_server & message);
     void process(const server_log_new_endpoint & message);
     
-    void save_object(const file_container & fc);
+    uint64_t save_object(const file_container & fc);
     
     class replica_generator
     {

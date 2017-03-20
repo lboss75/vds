@@ -1,9 +1,9 @@
+/*
+Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
+All rights reserved
+*/
+
+#include "stdafx.h"
 #include "compressed_archive.h"
 #include "compressed_archive_p.h"
 
-compressed_archivePrivate::compressed_archivePrivate(compressed_archive* q) : q(q)
-{
-}
-compressed_archivePrivate::~compressed_archivePrivate()
-{
-}

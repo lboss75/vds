@@ -48,6 +48,8 @@ namespace vds {
     size_t read(void * buffer, size_t buffer_len);
     void write(const void * buffer, size_t buffer_len);
 
+    size_t length() const;
+
   private:
     filename filename_;
     int handle_;

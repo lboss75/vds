@@ -20,5 +20,7 @@ All rights reserved
 #include <openssl/x509_vfy.h>
 #include <openssl/ssl.h> 
 #include <openssl/hmac.h>
+#include <openssl/objects.h>
+#include <openssl/asn1.h>
 
 #endif // __VDS_CRYPTO_STDAFX_H_

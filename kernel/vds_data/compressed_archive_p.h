@@ -10,11 +10,13 @@ namespace vds {
   class _compressed_archive
   {
   public:
-      compressed_archivePrivate(compressed_archive* q);
-      virtual ~compressed_archivePrivate();
+    _compressed_archive(compressed_archive* owner);
+      virtual ~_compressed_archive();
+
+
 
   private:
-      class compressed_archive* const q;
+      compressed_archive * const owner_;
   };
 }
 #endif // __VDS_DATA_COMPRESSED_ARCHIVE_P_H_

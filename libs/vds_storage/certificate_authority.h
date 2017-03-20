@@ -17,7 +17,7 @@ namespace vds {
     
     static certificate create_server(
       const certificate & user_certificate,
-      const certificate & user_private_key,
+      const asymmetric_private_key & user_private_key,
       const asymmetric_private_key& server_private_key);
 
   private:

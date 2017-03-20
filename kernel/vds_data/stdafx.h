@@ -8,5 +8,7 @@ All rights reserved
 
 #include "vds_core.h"
 
+#include "zlib.h"
+
 
 #endif//__VDS_DATA_STDAFX_H_

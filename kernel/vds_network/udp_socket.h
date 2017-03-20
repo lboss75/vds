@@ -421,14 +421,14 @@ private:
       {
         sequence(
           udp_receive(this->sp_, this->s_),
-          create_step<write_handler>::with(this->owner_)
+          create_step<write_handler>::with<handler_class &>(this->owner_)
         )(          
           this->multi_handler_.on_done(),
           this->multi_handler_.on_error()
         );
         
         sequence(
-          create_step<read_handler>::with(this->owner_),
+          create_step<read_handler>::with<handler_class &>(this->owner_),
           udp_send(this->s_)
         )(
           this->multi_handler_.on_done(),
