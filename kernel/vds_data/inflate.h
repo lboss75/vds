@@ -15,7 +15,6 @@ namespace vds {
   {
   public:
     inflate();
-    inflate(int compression_level);
 
     template <typename context_type>
     class handler : public sequence_step<context_type, void(const void *, size_t)>
@@ -61,8 +60,6 @@ namespace vds {
     };
 
   private:
-    int compression_level_;
-
     _inflate_handler * create_handler() const;
     static void delete_handler(_inflate_handler * handler);
     static bool push_data(_inflate_handler * handler, const void * data, size_t size, const void *& to_push, size_t & to_push_len);

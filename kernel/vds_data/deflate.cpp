@@ -17,9 +17,9 @@ vds::deflate::deflate(int compression_level)
 {
 }
 
-vds::_deflate_handler * vds::deflate::create_handler()
+vds::_deflate_handler * vds::deflate::create_handler() const
 {
-  return nullptr;
+  return new _deflate_handler(this->compression_level_);
 }
 
 void vds::deflate::delete_handler(_deflate_handler * handler)

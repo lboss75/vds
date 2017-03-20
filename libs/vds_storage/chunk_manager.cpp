@@ -33,6 +33,17 @@ void vds::chunk_manager::finish_stream(uint64_t id)
 }
 
 //////////////////////////////////////////////////////////////////////
+vds::_chunk_manager::_chunk_manager(
+  const service_provider & sp,
+  chunk_manager * owner)
+: owner_(owner)
+{
+}
+
+vds::_chunk_manager::~_chunk_manager()
+{
+}
+
 uint64_t vds::_chunk_manager::start_stream()
 {
   std::lock_guard<std::mutex> lock(this->file_mutex_);

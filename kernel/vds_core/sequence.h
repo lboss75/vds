@@ -1080,13 +1080,13 @@ namespace vds {
     }
 
     template <typename context_type, size_t current_num, size_t... nums>
-    class handler_builder : public handler_builder<context_type, current_num - 1, nums..., current_num - 1>
+    class handler_builder : public handler_builder<context_type, current_num - 1, current_num - 1, nums...>
     {
     public:
       handler_builder(
         const context_type & context,
         const std::tuple<argument_types...> & args)
-        : handler_builder<context_type, current_num - 1, nums..., current_num - 1>(context, args)
+        : handler_builder<context_type, current_num - 1, current_num - 1, nums...>(context, args)
       {
       }
     };
@@ -1123,9 +1123,9 @@ namespace vds {
   struct create_step
   {
     template <typename... argument_types>
-    static _step_container<handler_class, argument_types...> with(argument_types... args)
+    static _step_container<handler_class, argument_types...> with(argument_types&&... args)
     {
-      return _step_container<handler_class, argument_types...>(std::forward<argument_types>(args)...);
+      return _step_container<handler_class, argument_types...>(std::forward<argument_types&&>(args)...);
     }
   };
 }

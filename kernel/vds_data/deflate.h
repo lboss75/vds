@@ -68,7 +68,7 @@ namespace vds {
   private:
     int compression_level_;
 
-    _deflate_handler * create_handler();
+    _deflate_handler * create_handler() const;
     static void delete_handler(_deflate_handler * handler);
     static bool push_data(_deflate_handler * handler, const void * data, size_t size, const void *& to_push, size_t & to_push_len);
     static bool data_processed(_deflate_handler * handler, const void *& to_push, size_t & to_push_len);

@@ -8,18 +8,12 @@ All rights reserved
 #include "inflate_p.h"
 
 vds::inflate::inflate()
-  : compression_level_(Z_DEFAULT_COMPRESSION)
-{
-}
-
-vds::inflate::inflate(int compression_level)
-  : compression_level_(compression_level)
 {
 }
 
 vds::_inflate_handler * vds::inflate::create_handler() const
 {
-  return new vds::_inflate_handler(this->compression_level_);
+  return new vds::_inflate_handler();
 }
 
 void vds::inflate::delete_handler(_inflate_handler * handler)
@@ -37,11 +31,11 @@ bool vds::inflate::data_processed(_inflate_handler * handler, const void *& to_p
   return handler->processed(to_push, to_push_len);
 }
 ///////////////////////////////////////////////
-vds::_inflate_handler::_inflate_handler(int compression_level)
+vds::_inflate_handler::_inflate_handler()
 : eof_(false)
 {
   memset(&this->strm_, 0, sizeof(z_stream));
-  if (Z_OK != inflateInit(&this->strm_, args.compression_level_)) {
+  if (Z_OK != inflateInit(&this->strm_)) {
     throw new std::runtime_error("inflateInit failed");
   }
 }

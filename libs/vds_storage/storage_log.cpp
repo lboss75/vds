@@ -291,7 +291,7 @@ uint64_t vds::_storage_log::save_object(const file_container & fc)
   sequence(
     fc,
     inflate(),
-    create_step<chunk_manager_writer>::with<chunk_manager &, uint64_t>(this->chunk_manager_, index)
+    create_step<chunk_manager_writer>::with(this->chunk_manager_, index)
   )(
     []{},
     [](std::exception * ex) {

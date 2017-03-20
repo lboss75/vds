@@ -13,7 +13,7 @@ namespace vds {
   class _inflate_handler
   {
   public:
-    _inflate_handler(int compression_level);
+    _inflate_handler();
 
     bool push_data(const void * data, size_t len, const void *& next_data, size_t & next_len);
     bool processed(const void *& next_data, size_t & next_len);
