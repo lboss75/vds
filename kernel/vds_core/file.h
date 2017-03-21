@@ -223,6 +223,50 @@ namespace vds {
   private:
     filename filename_;
   };
+  
+  class write_file
+  {
+  public:
+    write_file(
+      const filename & filename,
+      file::file_mode mode)
+    : filename_(filename),
+    mode_(mode)
+    {
+    }
+    
+    template <typename context_type>
+    class handler : public sequence_step<context_type, void(void)>
+    {
+      using base_class = sequence_step<context_type, void(void)>;
+    public:
+      handler(
+        const context_type & context,
+        const write_file & args
+        ) : base_class(context),
+        f_(args.filename_, args.mode_)
+      {
+      }
+      
+      void operator()(const void * data, size_t size)
+      {
+        if(0 == size){
+          this->f_.close();
+          this->next();
+        }
+        else {
+          this->f_.write(data, size);
+        }
+      }
+      
+    private:
+      file f_;
+    };
+    
+  private:
+    filename filename_;
+    file::file_mode mode_;
+  };
 }
 
 #endif//__VDS_CORE_FILE_H_

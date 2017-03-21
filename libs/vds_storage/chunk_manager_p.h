@@ -17,9 +17,8 @@ namespace vds {
       chunk_manager * owner);
     ~_chunk_manager();
 
-    uint64_t start_stream();
-    void add_stream(uint64_t id, const void * data, size_t len);
-    void finish_stream(uint64_t id);
+    void add(const filename & fn, std::list<uint64_t> & parts);
+    uint64_t add(const data_buffer & data);
 
   private:
     chunk_manager * owner_;
@@ -28,6 +27,14 @@ namespace vds {
     uint64_t last_index_;
     uint64_t last_chunk_;
     file output_file_;
+    
+    foldername tmp_folder_;
+    std::mutex tmp_folder_mutex_;
+    uint64_t last_tmp_file_index_;
+    
+    foldername obj_folder_;
+    std::mutex obj_folder_mutex_;
+    uint64_t last_obj_file_index_;
 
     enum chunk_block_type
     {

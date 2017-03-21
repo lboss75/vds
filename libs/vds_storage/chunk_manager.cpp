@@ -44,6 +44,33 @@ vds::_chunk_manager::~_chunk_manager()
 {
 }
 
+uint64_t vds::_chunk_manager::add(const data_buffer& data)
+{
+  this->tmp_folder_mutex_.lock();
+  auto tmp_index = this->last_tmp_file_index_++;
+  this->tmp_folder_mutex_.unlock();
+  
+  filename fn(this->tmp_folder_, std::to_string(tmp_index));
+  sequence(
+    inflate(),
+    write_file(fn, file::create_new)       
+  )
+  (
+   []() {},
+   [](std::exception * ex) { throw ex; },
+   data.data(),
+   data.size());
+  
+  this->obj_folder_mutex_.lock();
+  auto index = this->last_obj_file_index_++;
+  this->obj_folder_mutex_.unlock();
+  
+  filename target_file(this->obj_folder_, std::to_string(index));
+  file::move(fn, target_file);
+  
+  return index;
+}
+
 uint64_t vds::_chunk_manager::start_stream()
 {
   std::lock_guard<std::mutex> lock(this->file_mutex_);
