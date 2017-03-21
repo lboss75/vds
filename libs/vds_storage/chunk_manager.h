@@ -15,9 +15,8 @@ namespace vds {
     chunk_manager(const service_provider & sp);
     ~chunk_manager();
 
-    uint64_t start_stream();
-    void add_stream(uint64_t id, const void * data, size_t len);
-    void finish_stream(uint64_t id);
+    uint64_t add(const filename & fn);
+    uint64_t add(const file_container & container);
 
   private:
     _chunk_manager * impl_;

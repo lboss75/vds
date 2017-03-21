@@ -42,9 +42,13 @@ namespace vds {
     };
 
 
+    file();
     file(const filename & filename, file_mode mode);
     ~file();
 
+    void open(const filename & filename, file_mode mode);
+    void close();
+    
     size_t read(void * buffer, size_t buffer_len);
     void write(const void * buffer, size_t buffer_len);
 

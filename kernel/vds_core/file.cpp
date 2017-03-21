@@ -1,9 +1,39 @@
 #include "stdafx.h"
 #include "file.h"
 
-vds::file::file(const filename & filename, file_mode mode)
-  : filename_(filename)
+vds::file::file()
+: handle_(0)
 {
+}
+
+
+vds::file::file(const filename & filename, file_mode mode)
+: handle_(0)
+{
+  this->open(filename, mode);
+}
+
+vds::file::~file()
+{
+  this->close();
+}
+
+void vds::file::close()
+{
+  if(0 != this->handle_){
+#ifndef _WIN32
+    ::close(this->handle_);
+#else
+    ::_close(this->handle_);
+#endif
+    this->handle_ = 0;
+  }
+}
+  
+void vds::file::open(const vds::filename& filename, vds::file::file_mode mode)
+{
+  this->filename_ = filename;
+  
   int oflags;
   switch (mode) {
   case append:
@@ -31,14 +61,14 @@ vds::file::file(const filename & filename, file_mode mode)
   }
 
 #ifndef _WIN32
-  this->handle_ = open(filename.local_name().c_str(), oflags, S_IREAD | S_IWRITE);
+  this->handle_ = ::open(filename.local_name().c_str(), oflags, S_IREAD | S_IWRITE);
   if (0 > this->handle_) {
     auto error = errno;
     throw new std::system_error(error, std::system_category(), "Unable to open file " + this->filename_.str());
   }
 #else
 
-  this->handle_ = _open(this->filename_.local_name().c_str(), oflags | O_BINARY | O_SEQUENTIAL, _S_IREAD | _S_IWRITE);
+  this->handle_ = ::_open(this->filename_.local_name().c_str(), oflags | O_BINARY | O_SEQUENTIAL, _S_IREAD | _S_IWRITE);
   if (0 > this->handle_) {
     auto error = GetLastError();
     throw new std::system_error(error, std::system_category(), "Unable to open file " + this->filename_.str());
@@ -46,14 +76,6 @@ vds::file::file(const filename & filename, file_mode mode)
 #endif
 }
 
-vds::file::~file()
-{
-#ifndef _WIN32
-  close(this->handle_);
-#else
-  _close(this->handle_);
-#endif
-}
 
 size_t vds::file::read(void * buffer, size_t buffer_len)
 {
