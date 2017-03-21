@@ -212,3 +212,11 @@ bool vds::input_text_stream::read_line(std::string & result)
     }
   }
 }
+
+void vds::file::move(const vds::filename& source, const vds::filename& target)
+{
+  if(rename(target.local_name().c_str(), source.local_name().c_str())){
+    auto error = errno;
+    throw new std::system_error(error, std::system_category(), "Rename file " + source.name() + " to " + target.name());
+  }
+}

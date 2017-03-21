@@ -32,6 +32,15 @@ void vds::chunk_manager::finish_stream(uint64_t id)
   this->impl_->finish_stream(id);
 }
 
+uint64_t vds::chunk_manager::add(const data_buffer& data)
+{
+  return this->impl_->add(data);
+}
+
+void vds::chunk_manager::add(const filename& fn, std::list< uint64_t >& parts)
+{
+  this->impl_->add(fn, parts);
+}
 //////////////////////////////////////////////////////////////////////
 vds::_chunk_manager::_chunk_manager(
   const service_provider & sp,
@@ -42,6 +51,21 @@ vds::_chunk_manager::_chunk_manager(
 
 vds::_chunk_manager::~_chunk_manager()
 {
+}
+
+void vds::_chunk_manager::add(const filename& fn, std::list<uint64_t>& parts)
+{
+  uint8_t buffer[5 * 1024 * 1024 * 1024];
+  
+  file f(fn, file::open_read);
+  for(;;){
+    auto readed = f.read(buffer, sizeof(buffer));
+    if(0 == readed){
+      break;
+    }
+    
+    parts.push_back(this->add(data_buffer(buffer, readed));
+  }
 }
 
 uint64_t vds::_chunk_manager::add(const data_buffer& data)
@@ -61,12 +85,21 @@ uint64_t vds::_chunk_manager::add(const data_buffer& data)
    data.data(),
    data.size());
   
+  auto flen = file::length(fn);
+  
   this->obj_folder_mutex_.lock();
   auto index = this->last_obj_file_index_++;
+  this->obj_size_ += flen;
   this->obj_folder_mutex_.unlock();
   
   filename target_file(this->obj_folder_, std::to_string(index));
   file::move(fn, target_file);
+  
+  this->obj_folder_mutex_.lock();
+  if(max_obj_size_ < this->obj_size_){
+    this->generate_chunk();
+  }
+  this->obj_folder_mutex_.unlock();
   
   return index;
 }

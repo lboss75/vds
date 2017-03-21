@@ -35,6 +35,9 @@ namespace vds {
     foldername obj_folder_;
     std::mutex obj_folder_mutex_;
     uint64_t last_obj_file_index_;
+    uint64_t obj_size_;
+    
+    static constexpr uint64_t  max_obj_size_ = 1024 * 1024 * 1024;
 
     enum chunk_block_type
     {
