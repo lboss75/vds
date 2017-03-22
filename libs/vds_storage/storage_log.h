@@ -10,11 +10,14 @@ All rights reserved
 namespace vds {
   class _storage_log;
   class endpoint;
+  class istorage;
 
   class storage_log
   {
   public:
-    storage_log(const service_provider & sp);
+    storage_log(
+      const service_provider & sp,
+      const std::string & current_server_id);
     ~storage_log();
 
     void reset(
@@ -40,6 +43,15 @@ namespace vds {
 
   private:
     std::unique_ptr<_storage_log> impl_;
+  };
+  
+  class istorage
+  {
+  public:
+    storage_log & get_storage_log() const { return *this->owner_; }
+  private:
+    storage_log * owner_;
+    
   };
 }
 

@@ -88,7 +88,10 @@ void vds::_server_json_client_api::process(const service_provider & scope, json_
   while (cert_reader.read()) {
     if (cert_reader.current().object_name() == message.object_name()
       && cert_reader.current().password_hash() == message.password_hash()) {
-      result->add(client_messages::certificate_and_key_response(message.request_id(), cert_reader.current().certificate(), cert_reader.current().private_key()).serialize());
+      result->add(client_messages::certificate_and_key_response(
+        message.request_id(),
+        cert_reader.current().certificate(),
+        cert_reader.current().private_key()).serialize());
       return;
     }
   }

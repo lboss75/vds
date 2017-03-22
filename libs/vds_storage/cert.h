@@ -16,20 +16,20 @@ namespace vds {
   public:
     cert(
       const std::string & object_name,
-      const std::string & certificate,
-      const std::string & private_key,
+      const std::string & source_server_id,
+      uint64_t object_id,
       const std::string & password_hash);
 
 
     const std::string & object_name() const { return this->object_name_; }
-    const std::string & certificate() const { return this->certificate_; }
-    const std::string & private_key() const { return this->private_key_; }
+    const std::string & source_server_id() const { return this->source_server_id_; }
+    uint64_t object_id() const { return this->object_id_; }
     const std::string & password_hash() const { return this->password_hash_; }
 
   private:
     std::string object_name_;
-    std::string certificate_;
-    std::string private_key_;
+    std::string source_server_id_;
+    uint64_t object_id_;
     std::string password_hash_;
   };
 

@@ -47,7 +47,7 @@ vds::_chunk_manager::~_chunk_manager()
 
 void vds::_chunk_manager::add(const filename& fn, std::list<uint64_t>& parts)
 {
-  uint8_t buffer[5 * 1024 * 1024 * 1024];
+  uint8_t buffer[(size_t)5 * 1024 * 1024 * 1024];
   
   file f(fn, file::open_read);
   for(;;){

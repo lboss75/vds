@@ -22,6 +22,7 @@ namespace vds {
   public:
     _storage_log(
       const service_provider & sp,
+      const std::string & current_server_id,
       storage_log * owner);
 
     void reset(
@@ -34,7 +35,7 @@ namespace vds {
     bool is_empty();
     certificate * get_cert(const std::string & subject);
     certificate * parse_root_cert(const json_value * value);
-    void apply_record(const json_value * value);
+    void apply_record(const std::string & source_server_id, const json_value * value);
 
     const std::list<cert> & get_certificates() const { return this->certificates_; }
     const std::list<node> & get_nodes() const { return this->nodes_; }
@@ -48,6 +49,7 @@ namespace vds {
     void register_server(const std::string & server_certificate);
 
   private:
+    std::string current_server_id_;
     storage_log * const owner_;
     logger log_;
     foldername vds_folder_;
@@ -62,6 +64,7 @@ namespace vds {
     std::list<cert> certificates_;
     std::list<node> nodes_;
     std::list<endpoint> endpoints_;
+    
 
     std::map<std::string, std::unique_ptr<certificate>> loaded_certificates_;
     certificate_store certificate_store_;
@@ -71,9 +74,9 @@ namespace vds {
     chunk_storage chunk_storage_;
     chunk_manager chunk_manager_;
 
-    void process(const server_log_root_certificate & message);
-    void process(const server_log_new_server & message);
-    void process(const server_log_new_endpoint & message);
+    void process(const std::string & source_server_id, const server_log_root_certificate & message);
+    void process(const std::string & source_server_id, const server_log_new_server & message);
+    void process(const std::string & source_server_id, const server_log_new_endpoint & message);
     
     uint64_t save_object(const file_container & fc);
 

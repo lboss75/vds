@@ -7,7 +7,6 @@ All rights reserved
 #include "consensus_protocol.h"
 #include "consensus_protocol_p.h"
 #include "node.h"
-#include "storage_service.h"
 #include "consensus_messages.h"
 #include "connection_manager.h"
 

@@ -14,8 +14,10 @@ All rights reserved
 #include "certificate_authority.h"
 #include "certificate_authority_p.h"
 
-vds::storage_log::storage_log(const service_provider & sp)
-  : impl_(new _storage_log(sp, this))
+vds::storage_log::storage_log(
+  const service_provider & sp,
+  const std::string & current_server_id)
+  : impl_(new _storage_log(sp, current_server_id, this))
 {
 }
 
@@ -76,8 +78,12 @@ void vds::storage_log::register_server(const std::string & server_certificate)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-vds::_storage_log::_storage_log(const service_provider & sp, storage_log * owner)
-: owner_(owner),
+vds::_storage_log::_storage_log(
+  const service_provider & sp,
+  const std::string & current_server_id,
+  storage_log * owner)
+: current_server_id_(current_server_id),
+  owner_(owner),
   log_(sp, "Server log"),
   vds_folder_(persistence::current_user(sp), ".vds"),
   local_log_folder_(foldername(persistence::current_user(sp), ".vds"), "local_log"),
@@ -156,7 +162,7 @@ void vds::_storage_log::start()
       json_parser("Record " + std::to_string(p.first))
     )(
       [this](json_value * record) {
-      this->apply_record(record);
+      this->apply_record(this->current_server_id_, record);
       delete record;
     },
       [](std::exception * ex) {
@@ -218,7 +224,7 @@ vds::certificate * vds::_storage_log::parse_root_cert(const json_value * value)
   return nullptr;
 }
 
-void vds::_storage_log::apply_record(const json_value * value)
+void vds::_storage_log::apply_record(const std::string & source_server_id, const json_value * value)
 {
   if(this->is_empty_){
     //already processed
@@ -230,13 +236,13 @@ void vds::_storage_log::apply_record(const json_value * value)
     std::string record_type;
     if (value_obj->get_property("$t", record_type, false) && !record_type.empty()) {
       if (server_log_root_certificate::message_type == record_type) {
-        this->process(server_log_root_certificate(value_obj));
+        this->process(source_server_id, server_log_root_certificate(value_obj));
       }
       else if (server_log_new_server::message_type == record_type) {
-        this->process(server_log_new_server(value_obj));
+        this->process(source_server_id, server_log_new_server(value_obj));
       }
       else if (server_log_new_endpoint::message_type == record_type) {
-        this->process(server_log_new_endpoint(value_obj));
+        this->process(source_server_id, server_log_new_endpoint(value_obj));
       }
       else {
         this->log_(log_level::ll_warning, "Invalid server log record type %s", record_type.c_str());
@@ -251,16 +257,16 @@ void vds::_storage_log::apply_record(const json_value * value)
   }
 }
 
-void vds::_storage_log::process(const server_log_root_certificate & message)
+void vds::_storage_log::process(const std::string & source_server_id, const server_log_root_certificate & message)
 {
   //auto cert = new certificate(certificate::parse(message.certificate()));
   //this->certificate_store_.add(*cert);
   //this->loaded_certificates_[cert->subject()].reset(cert);
 
-  //this->certificates_.push_back(vds::cert("login:root", message.certificate(), message.private_key(), message.password_hash()));
+  this->certificates_.push_back(vds::cert("login:root", source_server_id,  message.user_cert(), message.password_hash()));
 }
 
-void vds::_storage_log::process(const server_log_new_server & message)
+void vds::_storage_log::process(const std::string & source_server_id, const server_log_new_server & message)
 {
   //auto cert = new certificate(certificate::parse(message.certificate()));
   //auto result = this->certificate_store_.verify(*cert);
@@ -276,7 +282,7 @@ void vds::_storage_log::process(const server_log_new_server & message)
   //this->log_(ll_trace, "add node %s", cert->subject().c_str());
 }
 
-void vds::_storage_log::process(const server_log_new_endpoint & message)
+void vds::_storage_log::process(const std::string & source_server_id, const server_log_new_endpoint & message)
 {
   this->endpoints_.push_back(message.addresses());
 }

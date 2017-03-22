@@ -7,7 +7,6 @@ All rights reserved
 #include "endpoint.h"
 #include "storage_log.h"
 #include "storage_log_p.h"
-#include "storage_service.h"
 
 vds::storage_cursor<vds::endpoint>::storage_cursor(const istorage & storage)
   : _simple_storage_cursor<endpoint>(storage.get_storage_log()->get_endpoints())

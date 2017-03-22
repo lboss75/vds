@@ -10,7 +10,6 @@ All rights reserved
 #include "vds_crypto.h"
 #include "vds_parser.h"
 
-#include "storage_service.h"
 #include "storage_cursor.h"
 #include "endpoint.h"
 #include "cert.h"
