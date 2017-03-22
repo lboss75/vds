@@ -68,7 +68,8 @@ bool vds::_deflate_handler::push_data(
   this->strm_.avail_in = len;
   this->strm_.next_out = this->buffer_;
   this->strm_.avail_out = CHUNK_SIZE;
-  if (Z_STREAM_ERROR != ::deflate(&this->strm_, this->eof_ ? Z_FINISH : Z_NO_FLUSH)) {
+  auto error = ::deflate(&this->strm_, this->eof_ ? Z_FINISH : Z_NO_FLUSH);
+  if (Z_OK != error) {
     throw new std::runtime_error("deflate failed");
   }
 
@@ -85,7 +86,10 @@ bool vds::_deflate_handler::push_data(
 bool vds::_deflate_handler::processed(const void *& next_data, size_t & next_len)
 {
   if (0 == this->strm_.avail_out) {
-    if (Z_STREAM_ERROR != ::deflate(&this->strm_, this->eof_ ? Z_FINISH : Z_NO_FLUSH)) {
+    this->strm_.next_out = this->buffer_;
+    this->strm_.avail_out = CHUNK_SIZE;
+    auto error = ::deflate(&this->strm_, this->eof_ ? Z_FINISH : Z_NO_FLUSH);
+    if (0 > error) {
       throw new std::runtime_error("deflate failed");
     }
 
@@ -104,8 +108,8 @@ bool vds::_deflate_handler::processed(const void *& next_data, size_t & next_len
     else {
       deflateEnd(&this->strm_);
 
-      next_data = this->buffer_;
-      next_len = CHUNK_SIZE - this->strm_.avail_out;
+      next_data = nullptr;
+      next_len = 0;
       return true;
     }
   }

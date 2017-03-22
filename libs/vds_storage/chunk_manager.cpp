@@ -17,21 +17,6 @@ vds::chunk_manager::~chunk_manager()
   delete this->impl_;
 }
 
-uint64_t vds::chunk_manager::start_stream()
-{
-  return this->start_stream();
-}
-
-void vds::chunk_manager::add_stream(uint64_t id, const void * data, size_t len)
-{
-  this->impl_->add_stream(id, data, len);
-}
-
-void vds::chunk_manager::finish_stream(uint64_t id)
-{
-  this->impl_->finish_stream(id);
-}
-
 uint64_t vds::chunk_manager::add(const data_buffer& data)
 {
   return this->impl_->add(data);
@@ -45,8 +30,15 @@ void vds::chunk_manager::add(const filename& fn, std::list< uint64_t >& parts)
 vds::_chunk_manager::_chunk_manager(
   const service_provider & sp,
   chunk_manager * owner)
-: owner_(owner)
+: owner_(owner),
+  tmp_folder_(foldername(persistence::current_user(sp), ".vds"), "tmp"),
+  last_tmp_file_index_(0),
+  obj_folder_(foldername(persistence::current_user(sp), ".vds"), "objects"),
+  last_obj_file_index_(0),
+  obj_size_(0)
 {
+  this->tmp_folder_.create();
+  this->obj_folder_.create();
 }
 
 vds::_chunk_manager::~_chunk_manager()
@@ -64,7 +56,7 @@ void vds::_chunk_manager::add(const filename& fn, std::list<uint64_t>& parts)
       break;
     }
     
-    parts.push_back(this->add(data_buffer(buffer, readed));
+    parts.push_back(this->add(data_buffer(buffer, readed)));
   }
 }
 
@@ -76,7 +68,7 @@ uint64_t vds::_chunk_manager::add(const data_buffer& data)
   
   filename fn(this->tmp_folder_, std::to_string(tmp_index));
   sequence(
-    inflate(),
+    deflate(),
     write_file(fn, file::create_new)       
   )
   (
@@ -102,50 +94,6 @@ uint64_t vds::_chunk_manager::add(const data_buffer& data)
   this->obj_folder_mutex_.unlock();
   
   return index;
-}
-
-uint64_t vds::_chunk_manager::start_stream()
-{
-  std::lock_guard<std::mutex> lock(this->file_mutex_);
-  
-  uint8_t marker = (uint8_t)cbt_start_stream;
-  this->output_file_.write(&marker, sizeof(marker));
-
-  uint64_t id_marker = (uint64_t)this->last_index_++;
-  this->output_file_.write(&id_marker, sizeof(id_marker));
-
-  return id_marker;
-}
-
-void vds::_chunk_manager::add_stream(uint64_t id, const void * data, size_t len)
-{
-  std::lock_guard<std::mutex> lock(this->file_mutex_);
-
-  uint8_t marker = (uint8_t)cbt_add_stream;
-  this->output_file_.write(&marker, sizeof(marker));
-
-  uint64_t id_marker = (uint64_t)id;
-  this->output_file_.write(&id_marker, sizeof(id_marker));
-
-  uint64_t len_marker = (uint64_t)len;
-  this->output_file_.write(&len_marker, sizeof(len_marker));
-
-  this->output_file_.write(data, len);
-
-  if (output_file_max_size < this->output_file_.length()) {
-    this->generate_chunk();
-  }
-}
-
-void vds::_chunk_manager::finish_stream(uint64_t id)
-{
-  std::lock_guard<std::mutex> lock(this->file_mutex_);
-
-  uint8_t marker = (uint8_t)cbt_finish_stream;
-  this->output_file_.write(&marker, sizeof(marker));
-
-  uint64_t id_marker = (uint64_t)id;
-  this->output_file_.write(&id_marker, sizeof(id_marker));
 }
 
 void vds::_chunk_manager::generate_chunk()

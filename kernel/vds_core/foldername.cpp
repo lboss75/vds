@@ -6,6 +6,7 @@ All rights reserved
 #include "stdafx.h"
 #include "foldername.h"
 #include "filename.h"
+#include "file.h"
 
 vds::foldername::foldername(
   const vds::foldername& base,
@@ -126,6 +127,31 @@ void vds::foldername::files(
   }
 #endif
 }
+
+void vds::foldername::delete_folder(bool recurcive) const
+{
+  if (!this->exist()) {
+    return;
+  }
+
+  if (recurcive) {
+    this->folders([](const foldername & f) -> bool{
+      f.delete_folder(true);
+      return true;
+    });
+
+    this->files([](const filename & f) -> bool {
+      file::delete_file(f);
+      return true;
+    });
+  }
+
+  if (0 != rmdir(this->local_name().c_str())) {
+    auto err = errno;
+    throw new std::system_error(errno, std::system_category(), "Unable to delete folder " + this->name());
+  }
+}
+
 
 std::string vds::foldername::relative_path(const vds::filename & fn, bool allow_pass_border) const
 {

@@ -59,8 +59,12 @@ namespace vds {
       ) const;
 
       void create();
+      void delete_folder(bool recurcive) const;
 
       std::string relative_path(const filename & fn, bool allow_pass_border = false) const;
+
+      const std::string & full_name() const { return this->value_; }
+
       std::string name() const;
 
       std::string local_name() const

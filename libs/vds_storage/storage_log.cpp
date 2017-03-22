@@ -70,12 +70,18 @@ const std::list<vds::endpoint>& vds::storage_log::get_endpoints() const
   return this->impl_->get_endpoints();
 }
 
+void vds::storage_log::register_server(const std::string & server_certificate)
+{
+  this->impl_->register_server(server_certificate);
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 vds::_storage_log::_storage_log(const service_provider & sp, storage_log * owner)
 : owner_(owner),
   log_(sp, "Server log"),
   vds_folder_(persistence::current_user(sp), ".vds"),
-  commited_folder_(foldername(persistence::current_user(sp), ".vds"), "commited"),
+  local_log_folder_(foldername(persistence::current_user(sp), ".vds"), "local_log"),
+  local_log_index_(0),
   is_empty_(true),
   minimal_consensus_(0),
   last_message_id_(0),
@@ -89,6 +95,8 @@ void vds::_storage_log::reset(
   const std::string & addresses
 )
 {
+  this->local_log_folder_.create();
+
   this->log_.info("Creating certificate");
   
   asymmetric_private_key private_key(asymmetric_crypto::rsa4096());
@@ -108,49 +116,59 @@ void vds::_storage_log::reset(
   
   auto  user_cert_id = this->save_object(
     file_container()
-      .add("certificate", root_certificate.str())
-      .add("private_key", private_key.str()));
-
-  std::unique_ptr<server_log_batch> batch(new server_log_batch((size_t)0u));
+      .add("c", root_certificate.str())
+      .add("k", private_key.str(password)));
 
   hash ph(hash::sha256());
   ph.update(password.c_str(), password.length());
   ph.final();
-  
-  batch->add(
+
+  this->add_to_local_log(
     server_log_root_certificate(
-      root_certificate.str(),
-      private_key.str(password),
-      base64::from_bytes(ph.signature(), ph.signature_length())).serialize());
+      user_cert_id,
+      base64::from_bytes(ph.signature(), ph.signature_length())).serialize().get());
 
-  batch->add(server_log_new_server(server_certificate.str()).serialize());
-  batch->add(server_log_new_endpoint(addresses).serialize());
+  auto  sert_cert_id = this->save_object(
+    file_container()
+    .add("c", server_certificate.str()));
 
-  auto message_body = batch->serialize()->str();
-
-  hash h(hash::sha256());
-  h.update(message_body.c_str(), message_body.length());
-  h.final();
-
-  asymmetric_sign s(hash::sha256(), private_key);
-  s.update(h.signature(), h.signature_length());
-  s.final();
-
-  this->commited_folder_.create();
-  
-  server_log_record record(std::move(batch));
-  record.add_signature(root_certificate.subject(), s.signature());
-  
-  file f(filename(this->commited_folder_, "checkpoint0.json").local_name(), file::truncate);
-  output_text_stream os(f);
-  os.write(record.serialize(false)->str());
-  os.write("\n");
+  this->add_to_local_log(server_log_new_server(sert_cert_id).serialize().get());
+  this->add_to_local_log(server_log_new_endpoint(addresses).serialize().get());
 }
 
 
 void vds::_storage_log::start()
 {
-  filename fn(this->commited_folder_, "checkpoint0.json");
+  std::map<uint64_t, filename> local_records;
+  this->local_log_folder_.files(
+    [&local_records](const filename & fn) -> bool {
+    uint64_t index = std::atoll(fn.name().c_str());
+    if (std::to_string(index) == fn.name()) {
+      local_records[index] = fn;
+    }
+    return true;
+  });
+
+  for (auto & p : local_records) {
+
+    sequence(
+      read_file(p.second),
+      json_parser("Record " + std::to_string(p.first))
+    )(
+      [this](json_value * record) {
+      this->apply_record(record);
+      delete record;
+    },
+      [](std::exception * ex) {
+      throw ex;
+    });
+
+    if (this->local_log_index_ < p.first) {
+      this->local_log_index_ = p.first + 1;
+    }
+  }
+  /*
+  filename fn(this->local_log_folder_, "server_log.json");
   if (fn.exists()) {
     json_parser::options parser_options;
     parser_options.enable_multi_root_objects = true;
@@ -164,6 +182,7 @@ void vds::_storage_log::start()
       [](std::exception * ex) { throw ex; }
     );
   }
+  */
 }
 
 void vds::_storage_log::stop()
@@ -190,12 +209,13 @@ vds::certificate * vds::_storage_log::parse_root_cert(const json_value * value)
 {
   server_log_root_certificate message(value);
   
-  std::string cert_body;
-  if (message.certificate().empty() || message.private_key().empty()) {
-    return nullptr;
-  }
+  //std::string cert_body;
+  //if (message.certificate().empty() || message.private_key().empty()) {
+  //  return nullptr;
+  //}
 
-  return new certificate(certificate::parse(message.certificate()));
+  //return new certificate(certificate::parse(message.certificate()));
+  return nullptr;
 }
 
 void vds::_storage_log::apply_record(const json_value * value)
@@ -233,27 +253,27 @@ void vds::_storage_log::apply_record(const json_value * value)
 
 void vds::_storage_log::process(const server_log_root_certificate & message)
 {
-  auto cert = new certificate(certificate::parse(message.certificate()));
-  this->certificate_store_.add(*cert);
-  this->loaded_certificates_[cert->subject()].reset(cert);
+  //auto cert = new certificate(certificate::parse(message.certificate()));
+  //this->certificate_store_.add(*cert);
+  //this->loaded_certificates_[cert->subject()].reset(cert);
 
-  this->certificates_.push_back(vds::cert("login:root", message.certificate(), message.private_key(), message.password_hash()));
+  //this->certificates_.push_back(vds::cert("login:root", message.certificate(), message.private_key(), message.password_hash()));
 }
 
 void vds::_storage_log::process(const server_log_new_server & message)
 {
-  auto cert = new certificate(certificate::parse(message.certificate()));
-  auto result = this->certificate_store_.verify(*cert);
+  //auto cert = new certificate(certificate::parse(message.certificate()));
+  //auto result = this->certificate_store_.verify(*cert);
 
-  if (result.error_code != 0) {
-    throw new std::runtime_error("Invalid certificate");
-  }
+  //if (result.error_code != 0) {
+  //  throw new std::runtime_error("Invalid certificate");
+  //}
 
-  this->certificate_store_.add(*cert);
-  this->loaded_certificates_[cert->subject()].reset(cert);
+  //this->certificate_store_.add(*cert);
+  //this->loaded_certificates_[cert->subject()].reset(cert);
 
-  this->nodes_.push_back(node(cert->subject(), message.certificate()));
-  this->log_(ll_trace, "add node %s", cert->subject().c_str());
+  //this->nodes_.push_back(node(cert->subject(), message.certificate()));
+  //this->log_(ll_trace, "add node %s", cert->subject().c_str());
 }
 
 void vds::_storage_log::process(const server_log_new_endpoint & message)
@@ -263,20 +283,20 @@ void vds::_storage_log::process(const server_log_new_endpoint & message)
 
 void vds::_storage_log::add_record(const std::string & record)
 {
-  sequence(
-    json_parser("Record"),
-    process_log_line<_storage_log>("Record", this)
-  )(
-    [this, &record]() {
-    file f(filename(this->commited_folder_, "checkpoint0.json").local_name(), file::append);
-    output_text_stream os(f);
-    os.write(record);
-    os.write("\n");
-  },
-    [](std::exception * ex) { throw ex; },
-    record.c_str(),
-    record.length()
-  );
+  //sequence(
+  //  json_parser("Record"),
+  //  process_log_line<_storage_log>("Record", this)
+  //)(
+  //  [this, &record]() {
+  //  file f(filename(this->commited_folder_, "checkpoint0.json").local_name(), file::append);
+  //  output_text_stream os(f);
+  //  os.write(record);
+  //  os.write("\n");
+  //},
+  //  [](std::exception * ex) { throw ex; },
+  //  record.c_str(),
+  //  record.length()
+  //);
 }
 
 size_t vds::_storage_log::new_message_id()
@@ -284,21 +304,28 @@ size_t vds::_storage_log::new_message_id()
   return this->last_message_id_++;
 }
 
+void vds::_storage_log::register_server(const std::string & server_certificate)
+{
+  auto id = this->save_object(file_container().add("c", server_certificate));
+
+  this->add_to_local_log(server_log_new_server(id).serialize().get());
+}
+
 
 uint64_t vds::_storage_log::save_object(const file_container & fc)
 {
-  uint64_t index = this->chunk_manager_.start_stream();
-  sequence(
-    fc,
-    inflate(),
-    create_step<chunk_manager_writer>::with(this->chunk_manager_, index)
-  )(
-    []{},
-    [](std::exception * ex) {
-      throw ex;
-    }
-  );
+  binary_serializer s;
+  fc.serialize(s);
 
-  return index;
+  return this->chunk_manager_.add(s.data());
+}
+
+void vds::_storage_log::add_to_local_log(const json_value * record)
+{
+  std::lock_guard<std::mutex> lock(this->local_log_mutex_);
+
+  file f(filename(this->local_log_folder_, std::to_string(this->local_log_index_++)).local_name(), file::create_new);
+  output_text_stream os(f);
+  os.write(record->str());
 }
 

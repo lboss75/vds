@@ -45,11 +45,17 @@ namespace vds {
     void add_record(const std::string & record);
     size_t new_message_id();
 
+    void register_server(const std::string & server_certificate);
+
   private:
     storage_log * const owner_;
     logger log_;
     foldername vds_folder_;
-    foldername commited_folder_;
+
+    std::mutex local_log_mutex_;
+    foldername local_log_folder_;
+    uint64_t local_log_index_;
+
     bool is_empty_;
     size_t minimal_consensus_;
 
@@ -70,6 +76,8 @@ namespace vds {
     void process(const server_log_new_endpoint & message);
     
     uint64_t save_object(const file_container & fc);
+
+    void add_to_local_log(const json_value * record);
     
     class replica_generator
     {

@@ -57,11 +57,9 @@ std::unique_ptr<vds::json_value> vds::server_log_record::serialize(bool add_type
 const char vds::server_log_root_certificate::message_type[] = "root";
 
 vds::server_log_root_certificate::server_log_root_certificate(
-  const std::string & certificate,
-  const std::string & private_key,
+  uint64_t user_cert,
   const std::string & password_hash)
-  : certificate_(certificate),
-  private_key_(private_key),
+  : user_cert_(user_cert),
   password_hash_(password_hash)
 {
 }
@@ -70,8 +68,7 @@ vds::server_log_root_certificate::server_log_root_certificate(const json_value *
 {
   auto s = dynamic_cast<const json_object *>(source);
   if (nullptr != s) {
-    s->get_property("c", this->certificate_);
-    s->get_property("k", this->private_key_);
+    s->get_property("u", this->user_cert_);
     s->get_property("h", this->password_hash_);
   }
 }
@@ -81,8 +78,7 @@ std::unique_ptr<vds::json_value> vds::server_log_root_certificate::serialize() c
   std::unique_ptr<json_object> result(new json_object());
   result->add_property("$t", message_type);
   
-  result->add_property("c", this->certificate_);
-  result->add_property("k", this->private_key_);
+  result->add_property("u", this->user_cert_);
   result->add_property("h", this->password_hash_);
   
   return std::unique_ptr<vds::json_value>(result.release());
@@ -94,18 +90,21 @@ std::unique_ptr<vds::json_value> vds::server_log_new_user_certificate::serialize
 {
   std::unique_ptr<json_object> result(new json_object());
   result->add_property("$t", message_type);
-  result->add_property("c", this->certificate_);
-  result->add_property("k", this->private_key_);
+  result->add_property("u", this->user_cert_);
   
   return std::unique_ptr<vds::json_value>(result.release());
+}
+
+vds::server_log_new_user_certificate::server_log_new_user_certificate(uint64_t user_cert)
+  : user_cert_(user_cert)
+{
 }
 
 vds::server_log_new_user_certificate::server_log_new_user_certificate(const vds::json_value * source)
 {
   auto s = dynamic_cast<const json_object *>(source);
   if(nullptr != s) {
-    s->get_property("c", this->certificate_);
-    s->get_property("k", this->private_key_);
+    s->get_property("u", this->user_cert_);
   }
 }
 
@@ -150,8 +149,8 @@ std::unique_ptr<vds::json_value> vds::server_log_batch::serialize() const
 const char vds::server_log_new_server::message_type[] = "new server";
 
 vds::server_log_new_server::server_log_new_server(
-  const std::string& certificate)
-: certificate_(certificate)
+  uint64_t cert_id)
+: cert_id_(cert_id)
 {
 }
 
@@ -161,7 +160,7 @@ vds::server_log_new_server::server_log_new_server(
 {
   auto s = dynamic_cast<const json_object *>(source);
   if (nullptr != s) {
-    s->get_property("c", this->certificate_);
+    s->get_property("c", this->cert_id_);
   }
 }
 
@@ -170,7 +169,7 @@ std::unique_ptr<vds::json_value> vds::server_log_new_server::serialize() const
 {
   std::unique_ptr<json_object> result(new json_object());
   result->add_property("$t", message_type);
-  result->add_property("c", this->certificate_);
+  result->add_property("c", this->cert_id_);
   return std::unique_ptr<vds::json_value>(result.release());
 }
 //////////////////////////////////////////////////////////////////////

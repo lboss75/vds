@@ -53,8 +53,12 @@ namespace vds {
     void write(const void * buffer, size_t buffer_len);
 
     size_t length() const;
-    
+
+    static size_t length(const filename & fn);
+
     static void move(const filename & source, const filename & target);
+    static void delete_file(const filename & fn);
+    static std::string read_all_text(const filename & fn);
 
   private:
     filename filename_;
@@ -258,6 +262,7 @@ namespace vds {
         }
         else {
           this->f_.write(data, size);
+          this->prev();
         }
       }
       

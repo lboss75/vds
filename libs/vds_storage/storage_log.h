@@ -35,7 +35,7 @@ namespace vds {
     size_t new_message_id();
     const std::list<endpoint> & get_endpoints() const;
 
-
+    void register_server(const std::string & server_certificate);
 
 
   private:

@@ -36,11 +36,6 @@ void vds::consensus_protocol::server::stop()
   this->impl_->stop();
 }
 
-void vds::consensus_protocol::server::register_server(const std::string & certificate_body)
-{
-  this->impl_->register_server(certificate_body);
-}
-
 void vds::consensus_protocol::server::process(const service_provider & scope, json_array & result, const vds::consensus_messages::consensus_message_who_is_leader & message)
 {
   this->impl_->process(scope, result, message);
@@ -81,17 +76,6 @@ void vds::consensus_protocol::_server::stop()
 {
 }
 
-void vds::consensus_protocol::_server::register_server(const std::string & certificate_body)
-{
-  std::unique_lock<std::mutex> lock(this->messages_to_lead_mutex_);
-  this->messages_to_lead_.push_back(server_log_new_server(certificate_body).serialize());
-
-  if (leader == this->state_) {
-    this->sp_.get<imt_service>().async([this]() {
-      this->flush_messages_to_lead();
-    });
-  }
-}
 
 void vds::consensus_protocol::_server::process(const service_provider & scope, json_array & result, const consensus_messages::consensus_message_who_is_leader & message)
 {

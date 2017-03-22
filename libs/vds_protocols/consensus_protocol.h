@@ -32,8 +32,6 @@ namespace vds {
       void start();
       void stop();
 
-      void register_server(const std::string & certificate_body);
-
       void process(const service_provider & scope, json_array & result, const consensus_messages::consensus_message_who_is_leader & message);
 
     private:

@@ -95,16 +95,16 @@ bool vds::json_object::get_property(const std::string& name, int& value, bool th
   return true;
 }
 
-bool vds::json_object::get_property(const std::string & name, size_t & value, bool throw_error) const
-{
-  std::string v;
-  if (!this->get_property(name, v, throw_error)) {
-    return false;
-  }
-
-  value = (size_t)std::atol(v.c_str());
-  return true;
-}
+//bool vds::json_object::get_property(const std::string & name, size_t & value, bool throw_error) const
+//{
+//  std::string v;
+//  if (!this->get_property(name, v, throw_error)) {
+//    return false;
+//  }
+//
+//  value = (size_t)std::atol(v.c_str());
+//  return true;
+//}
 
 bool vds::json_object::get_property(const std::string& name, data_buffer& value, bool throw_error) const
 {
@@ -117,10 +117,59 @@ bool vds::json_object::get_property(const std::string& name, data_buffer& value,
   return true;
 }
 
+bool vds::json_object::get_property(const std::string & name, uint8_t & value, bool throw_error) const
+{
+  std::string v;
+  if (!this->get_property(name, v, throw_error)) {
+    return false;
+  }
+
+  value = (uint8_t)std::atol(v.c_str());
+  return true;
+}
+
+bool vds::json_object::get_property(const std::string & name, uint16_t & value, bool throw_error) const
+{
+  std::string v;
+  if (!this->get_property(name, v, throw_error)) {
+    return false;
+  }
+
+  value = (uint16_t)std::atol(v.c_str());
+  return true;
+}
+
+bool vds::json_object::get_property(const std::string & name, uint32_t & value, bool throw_error) const
+{
+  std::string v;
+  if (!this->get_property(name, v, throw_error)) {
+    return false;
+  }
+
+  value = (uint32_t)std::atol(v.c_str());
+  return true;
+}
+
+bool vds::json_object::get_property(const std::string & name, uint64_t & value, bool throw_error) const
+{
+  std::string v;
+  if (!this->get_property(name, v, throw_error)) {
+    return false;
+  }
+
+  value = (uint64_t)std::atol(v.c_str());
+  return true;
+}
+
 
 void vds::json_object::add_property(json_property * prop)
 {
   this->properties_.push_back(std::unique_ptr<json_property>(prop));
+}
+
+void vds::json_object::add_property(const std::string & name, uint64_t value)
+{
+  this->add_property(new json_property(name, new json_primitive(std::to_string(value))));
 }
 
 void vds::json_object::add_property(const std::string & name, const std::string & value)

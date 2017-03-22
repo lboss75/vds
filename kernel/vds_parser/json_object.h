@@ -94,14 +94,19 @@ namespace vds {
     void visit(const std::function<void(const json_property &)> & visitor) const;
     
     void add_property(json_property * prop);
+    void add_property(const std::string & name, uint64_t value);
     void add_property(const std::string & name, const std::string & value);
     void add_property(const std::string & name, const data_buffer & value);
 
     const json_value * get_property(const std::string & name) const;
     bool get_property(const std::string & name, std::string & value, bool throw_error = true) const;
     bool get_property(const std::string & name, int & value, bool throw_error = true) const;
-    bool get_property(const std::string & name, size_t & value, bool throw_error = true) const;
+    //bool get_property(const std::string & name, size_t & value, bool throw_error = true) const;
     bool get_property(const std::string & name, data_buffer & value, bool throw_error = true) const;
+    bool get_property(const std::string & name, uint8_t & value, bool throw_error = true) const;
+    bool get_property(const std::string & name, uint16_t & value, bool throw_error = true) const;
+    bool get_property(const std::string & name, uint32_t & value, bool throw_error = true) const;
+    bool get_property(const std::string & name, uint64_t & value, bool throw_error = true) const;
 
     void str(json_writer & writer) const override;
     std::unique_ptr<json_value> clone() const override;

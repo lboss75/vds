@@ -35,7 +35,7 @@ namespace vds {
       }
 
       void operator()(const void * data, size_t len) {
-        void * to_push;
+        const void * to_push;
         size_t to_push_len;
         if (!push_data(this->handler_, data, len, to_push, to_push_len)) {
           this->prev();
@@ -49,7 +49,7 @@ namespace vds {
 
       void processed()
       {
-        void * to_push;
+        const void * to_push;
         size_t to_push_len;
         if (!data_processed(this->handler_, to_push, to_push_len)) {
           this->prev();

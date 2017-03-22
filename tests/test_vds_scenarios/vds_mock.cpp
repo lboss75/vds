@@ -108,6 +108,7 @@ void mock_client::start_vds(bool full_client, const std::function<void(const vds
   vds::task_manager task_manager;
 
   auto folder = vds::foldername(vds::filename::current_process().contains_folder(), std::to_string(this->index_));
+  folder.delete_folder(true);
   folder.create();
   registrator.set_root_folders(folder, folder);
 

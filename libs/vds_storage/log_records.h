@@ -75,21 +75,18 @@ namespace vds {
     static const char message_type[];
 
     server_log_root_certificate(
-      const std::string & certificate,
-      const std::string & private_key,
+      uint64_t user_cert,
       const std::string & password_hash);
 
     server_log_root_certificate(const json_value * source);
     
-    const std::string & certificate() const { return this->certificate_; }
-    const std::string & private_key() const { return this->private_key_; }
+    uint64_t user_cert() const { return this->user_cert_; }
     const std::string & password_hash() const { return this->password_hash_; }
 
     std::unique_ptr<json_value> serialize() const;
 
   private:
-    std::string certificate_;
-    std::string private_key_;
+    uint64_t user_cert_;
     std::string password_hash_;
   };
   
@@ -98,20 +95,16 @@ namespace vds {
   public:
     static const char message_type[];
 
-    server_log_new_user_certificate(
-      const std::string & certificate,
-      const std::string & private_key);
+    server_log_new_user_certificate(uint64_t user_cert);
 
     server_log_new_user_certificate(const json_value * source);
 
-    const std::string & certificate() const { return this->certificate_; }
-    const std::string & private_key() const { return this->private_key_; }
+    uint64_t user_cert() const { return this->user_cert_; }
 
     std::unique_ptr<json_value> serialize() const;
 
   private:
-    std::string certificate_;
-    std::string private_key_;
+    uint64_t user_cert_;
   };
 
   class server_log_new_server
@@ -119,17 +112,15 @@ namespace vds {
   public:
     static const char message_type[];
     
-    server_log_new_server(
-      const std::string & certificate);
-    
+    server_log_new_server(uint64_t cert_id_);
     server_log_new_server(const json_value * source);
 
-    const std::string & certificate() const { return this->certificate_; }
+    uint64_t cert_id() const { return this->cert_id_; }
     
     std::unique_ptr<json_value> serialize() const;
     
   private:
-    std::string certificate_;    
+    uint64_t cert_id_;
   };
 
   class server_log_new_endpoint

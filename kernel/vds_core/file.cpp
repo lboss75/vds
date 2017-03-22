@@ -119,12 +119,22 @@ size_t vds::file::length() const
   struct stat buffer;
   if (0 != fstat(this->handle_, &buffer)) {
     auto error = errno;
-    throw new std::system_error(error, std::system_category(), "Unable to get file size");
+    throw new std::system_error(error, std::system_category(), "Unable to get file size of " + this->filename_.name());
   }
 
   return buffer.st_size;
 }
 
+size_t vds::file::length(const filename & fn)
+{
+  struct stat buffer;
+  if (0 != stat(fn.local_name().c_str(), &buffer)) {
+    auto error = errno;
+    throw new std::system_error(error, std::system_category(), "Unable to get file size of " + fn.name());
+  }
+
+  return buffer.st_size;
+}
 
 vds::output_text_stream::output_text_stream(file & f)
   : f_(f), written_(0)
@@ -215,8 +225,34 @@ bool vds::input_text_stream::read_line(std::string & result)
 
 void vds::file::move(const vds::filename& source, const vds::filename& target)
 {
-  if(rename(target.local_name().c_str(), source.local_name().c_str())){
+  if(rename(source.local_name().c_str(), target.local_name().c_str())){
     auto error = errno;
     throw new std::system_error(error, std::system_category(), "Rename file " + source.name() + " to " + target.name());
   }
+}
+
+void vds::file::delete_file(const filename & fn)
+{
+  if (0 != remove(fn.local_name().c_str())) {
+    auto err = errno;
+    throw new std::system_error(errno, std::system_category(), "Unable to delete folder " + fn.name());
+  }
+}
+
+std::string vds::file::read_all_text(const filename & fn)
+{
+  file f(fn, file::file_mode::open_read);
+
+  std::string result;
+  char buffer[1024];
+  for (;;) {
+    auto readed = f.read(buffer, sizeof(buffer));
+    if (0 == readed) {
+      break;
+    }
+
+    result.append(buffer, readed);
+  }
+
+  return result;
 }

@@ -44,6 +44,7 @@ namespace vds {
       
       foldername contains_folder() const;
 
+      const std::string & full_name() const { return this->value_; }
       std::string name() const;
       std::string name_without_extension() const;
       std::string extension() const;
