@@ -131,15 +131,18 @@ namespace vds {
     static const char message_type[];
 
     server_log_new_endpoint(
+      const guid & server_id,
       const std::string & addresses);
 
     server_log_new_endpoint(const json_value * source);
 
+    const guid & server_id() const { return this->server_id_; }
     const std::string & addresses() const { return this->addresses_; }
 
     std::unique_ptr<json_value> serialize() const;
 
   private:
+    guid server_id_;
     std::string addresses_;
   };
 }

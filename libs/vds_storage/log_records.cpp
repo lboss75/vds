@@ -177,8 +177,9 @@ std::unique_ptr<vds::json_value> vds::server_log_new_server::serialize() const
 const char vds::server_log_new_endpoint::message_type[] = "new endpoint";
 
 vds::server_log_new_endpoint::server_log_new_endpoint(
+  const guid & server_id,
   const std::string & addresses)
-  : addresses_(addresses)
+  : server_id_(server_id), addresses_(addresses)
 {
 }
 

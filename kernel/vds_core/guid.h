@@ -19,6 +19,9 @@ namespace vds {
 
     std::string str() const;
     
+    guid & operator = (const guid & original);
+    guid & operator = (guid && original);
+    
   private:
     guid(const void * data, size_t len);
   };

@@ -129,6 +129,13 @@ namespace vds{
       other.len_ = 0;
       
       return *this;
+    }
+    
+    data_buffer & operator = (const data_buffer & other)
+    {
+      this->reset(other.data(), other.size());
+      
+      return *this;
     }    
     
     bool operator == (const data_buffer & other) const

@@ -6,7 +6,7 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
-#include "storage_cursor.h"
+#include "storage_object_id.h"
 
 namespace vds {
   class istorage;
@@ -29,14 +29,6 @@ namespace vds {
     full_storage_object_id object_id_;
     std::string password_hash_;
   };
-
-  template <>
-  class storage_cursor<cert> : public _simple_storage_cursor<cert>
-  {
-  public:
-    storage_cursor(const istorage & storage);
-  };
-
 }
 
 #endif // __VDS_STORAGE_CERT_H_

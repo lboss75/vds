@@ -60,3 +60,16 @@ std::string vds::guid::str() const
   return s;
 #endif
 }
+
+vds::guid& vds::guid::operator = (vds::guid&& original)
+{
+  data_buffer::operator=(std::move(original));
+  return *this;
+}
+
+vds::guid& vds::guid::operator=(const vds::guid& original)
+{
+  data_buffer::operator=(original);
+  return *this;
+}
+

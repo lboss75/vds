@@ -73,11 +73,6 @@ size_t vds::storage_log::new_message_id()
   return this->impl_->new_message_id();
 }
 
-const std::list<vds::endpoint>& vds::storage_log::get_endpoints() const
-{
-  return this->impl_->get_endpoints();
-}
-
 void vds::storage_log::register_server(const std::string & server_certificate)
 {
   this->impl_->register_server(server_certificate);
@@ -155,7 +150,7 @@ void vds::_storage_log::reset(
     .add("c", server_certificate.str()));
 
   this->add_to_local_log(server_log_new_server(sert_cert_id).serialize().get());
-  this->add_to_local_log(server_log_new_endpoint(addresses).serialize().get());
+  this->add_to_local_log(server_log_new_endpoint(server_id, addresses).serialize().get());
 }
 
 
@@ -221,12 +216,7 @@ bool vds::_storage_log::is_empty()
 
 vds::certificate * vds::_storage_log::get_cert(const std::string & subject)
 {
-  auto p = this->loaded_certificates_.find(subject);
-  if (this->loaded_certificates_.end() == p) {
-    return nullptr;
-  }
-
-  return p->second.get();
+  return nullptr;
 }
 
 vds::certificate * vds::_storage_log::parse_root_cert(const json_value * value)
@@ -281,7 +271,7 @@ void vds::_storage_log::process(const guid & source_server_id, const server_log_
   //this->certificate_store_.add(*cert);
   //this->loaded_certificates_[cert->subject()].reset(cert);
 
-  this->certificates_.push_back(
+  this->db_.add_cert(
     vds::cert(
       "login:root",
       full_storage_object_id(
@@ -308,7 +298,6 @@ void vds::_storage_log::process(const guid & source_server_id, const server_log_
 
 void vds::_storage_log::process(const guid & source_server_id, const server_log_new_endpoint & message)
 {
-  this->endpoints_.push_back(message.addresses());
 }
 
 void vds::_storage_log::add_record(const std::string & record)
@@ -351,7 +340,7 @@ vds::storage_object_id vds::_storage_log::save_object(const file_container & fc)
   sign.update(s.data().data(), s.data().size());
   sign.final();
 
-  return vds::storage_object_id(this->current_server_id_, this->chunk_manager_.add(s.data()), sign.signature());
+  return vds::storage_object_id(this->chunk_manager_.add(s.data()), sign.signature());
 }
 
 void vds::_storage_log::add_to_local_log(const json_value * record)

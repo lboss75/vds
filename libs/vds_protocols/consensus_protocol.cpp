@@ -59,7 +59,7 @@ vds::consensus_protocol::_server::_server(
 }
 
 void vds::consensus_protocol::_server::start()
-{
+{/*
   storage_cursor<node> node_reader(this->sp_.get<istorage>());
   while (node_reader.read()) {
     this->nodes_[node_reader.current().id()] = { };
@@ -69,6 +69,7 @@ void vds::consensus_protocol::_server::start()
     consensus_messages::consensus_message_who_is_leader(this->certificate_.fingerprint()));
 
   this->sp_.get<itask_manager>().wait_for(std::chrono::seconds(1)) += this->check_leader_task_job_;
+  */
 }
 
 void vds::consensus_protocol::_server::stop()

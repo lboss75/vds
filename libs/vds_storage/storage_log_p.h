@@ -41,10 +41,6 @@ namespace vds {
     certificate * parse_root_cert(const json_value * value);
     void apply_record(const guid & source_server_id, const json_value * value);
 
-    const std::list<cert> & get_certificates() const { return this->certificates_; }
-    const std::list<node> & get_nodes() const { return this->nodes_; }
-    const std::list<endpoint> & get_endpoints() const { return this->endpoints_; }
-
     size_t minimal_consensus() const { return this->minimal_consensus_; }
 
     void add_record(const std::string & record);
@@ -67,14 +63,6 @@ namespace vds {
 
     bool is_empty_;
     size_t minimal_consensus_;
-
-    std::list<cert> certificates_;
-    std::list<node> nodes_;
-    std::list<endpoint> endpoints_;
-    
-
-    std::map<std::string, std::unique_ptr<certificate>> loaded_certificates_;
-    certificate_store certificate_store_;
 
     size_t last_message_id_;
 

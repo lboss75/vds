@@ -55,9 +55,19 @@ void vds::_server_database::start()
 
 
   if (1 > db_version) {
-    this->db_.execute("CREATE TABLE modules(id VARCHAR(64) PRIMARY KEY NOT NULL, version INTEGER NOT NULL, installed DATETIME NOT NULL)");
+    this->db_.execute("CREATE TABLE module(\
+    id VARCHAR(64) PRIMARY KEY NOT NULL,\
+    version INTEGER NOT NULL,\
+    installed DATETIME NOT NULL)");
 
+    this->db_.execute(
+      "CREATE TABLE cert(\
+      object_name VARCHAR(64) PRIMARY KEY NOT NULL,\
+      source_server_id VARCHAR(64) NOT NULL,\
+      object_index INTEGER NOT NULL,\
+      signature VARCHAR(64) NOT NULL,\
+      password_hash VARCHAR(64) NOT NULL)");
 
-    this->db_.execute("INSERT INTO modules(id, version, installed) VALUES('kernel', 1, datetime('now'))");
+    this->db_.execute("INSERT INTO module(id, version, installed) VALUES('kernel', 1, datetime('now'))");
   }
 }

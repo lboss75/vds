@@ -9,6 +9,7 @@ All rights reserved
 
 namespace vds {
   class _server_database;
+  class cert;
 
   class server_database
   {
@@ -18,6 +19,9 @@ namespace vds {
 
     void start();
     void stop();
+    
+    void add_cert(const cert & result);
+    bool find_cert(const std::string & object_name, cert & result);
 
   private:
     _server_database * const impl_;

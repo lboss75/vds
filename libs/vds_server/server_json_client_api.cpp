@@ -82,21 +82,28 @@ vds::json_value * vds::_server_json_client_api::operator()(
   return result.release();
 }
 
-void vds::_server_json_client_api::process(const service_provider & scope, json_array * result, const client_messages::certificate_and_key_request & message) const
+void vds::_server_json_client_api::process(
+  const service_provider & scope,
+  json_array * result,
+  const client_messages::certificate_and_key_request & message) const
 {
-  storage_cursor<cert> cert_reader(scope.get<istorage>());
-  while (cert_reader.read()) {
-    if (cert_reader.current().object_name() == message.object_name()
-      && cert_reader.current().password_hash() == message.password_hash()) {
+  cert c;
+  if(!scope.get<istorage>().find_cert(message.object_name())
+    || c.password_hash() != message.password_hash()){
+    result->add(client_messages::certificate_and_key_response(message.request_id(), "Invalid username or password").serialize());
+  }
+  
+  scope.get<istorage>().get_object(
+    c.object_id(),
+    [](const data_buffer & buffer) {
+      file_container fc(buffer);
+      
       result->add(client_messages::certificate_and_key_response(
         message.request_id(),
-        cert_reader.current().certificate(),
-        cert_reader.current().private_key()).serialize());
-      return;
-    }
-  }
-
-  result->add(client_messages::certificate_and_key_response(message.request_id(), "Invalid username or password").serialize());
+        certificate::parse(fc.get("c")),
+        asymmetric_private_key::parse(fc.get("k"))).serialize());
+    });
+    
 }
 
 void vds::_server_json_client_api::process(const service_provider & scope, json_array * result, const client_messages::register_server_request & message) const

@@ -6,8 +6,6 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
-#include "storage_cursor.h"
-
 namespace vds {
   class istorage;
 
@@ -15,24 +13,16 @@ namespace vds {
   {
   public:
     node(
-      const std::string & id,
+      const guid & id,
       const std::string & certificate);
 
-    const std::string & id() const { return this->id_; }
+    const guid & id() const { return this->id_; }
     const std::string & certificate() const { return this->certificate_; }
 
   private:
-    std::string id_;
+    guid id_;
     std::string certificate_;
   };
-
-  template <>
-  class storage_cursor<node> : public _simple_storage_cursor<node>
-  {
-  public:
-    storage_cursor(const istorage & storage);
-  };
-
 }
 
 #endif // __VDS_STORAGE_NODE_H_

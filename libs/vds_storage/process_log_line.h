@@ -72,7 +72,7 @@ namespace vds {
 
           auto cert_public_key = sign_cert->public_key();
           asymmetric_sign_verify verifier(hash::sha256(), cert_public_key);
-          verifier.update(h.signature(), h.signature_length());
+          verifier.update(h.signature().data(), h.signature().size());
 
           if (!verifier.verify(s.signature())) {
             throw new std::runtime_error("Invalid sign record in the stream "
