@@ -45,20 +45,20 @@ std::string vds::filename::extension() const
   }
 }
 
-size_t vds::filename::length() const
-{
-#ifdef _WIN32
-  struct _stat64 stat_buf;
-  auto error = _stat64(this->value_.c_str(), &stat_buf);
-#else
-  struct stat stat_buf;
-  auto error = stat(this->value_.c_str(), &stat_buf);
-#endif
-  if (0 != error) {
-    throw new std::system_error(error, std::system_category(), "Failed get file lenght of file " + this->value_);
-  }
-  return (size_t)stat_buf.st_size;
-}
+//size_t vds::filename::length() const
+//{
+//#ifdef _WIN32
+//  struct _stat64 stat_buf;
+//  auto error = _stat64(this->value_.c_str(), &stat_buf);
+//#else
+//  struct stat stat_buf;
+//  auto error = stat(this->value_.c_str(), &stat_buf);
+//#endif
+//  if (0 != error) {
+//    throw new std::system_error(error, std::system_category(), "Failed get file lenght of file " + this->value_);
+//  }
+//  return (size_t)stat_buf.st_size;
+//}
 
 vds::filename vds::filename::current_process()
 {
@@ -89,7 +89,3 @@ vds::filename vds::filename::current_process()
 #endif
 }
 
-bool vds::filename::exists() const
-{
-  return (0 == access(this->local_name().c_str(), 0));
-}

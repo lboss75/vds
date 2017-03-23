@@ -65,12 +65,8 @@ namespace vds {
 #endif
       }
 
-      size_t length() const;
 
       static filename current_process();
-
-      bool exists() const;
-
   private:
     friend class foldername;
     std::string value_;

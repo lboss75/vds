@@ -94,6 +94,7 @@ namespace vds {
     void visit(const std::function<void(const json_property &)> & visitor) const;
     
     void add_property(json_property * prop);
+    void add_property(const std::string & name, std::unique_ptr<json_value> && value);
     void add_property(const std::string & name, uint64_t value);
     void add_property(const std::string & name, const std::string & value);
     void add_property(const std::string & name, const data_buffer & value);

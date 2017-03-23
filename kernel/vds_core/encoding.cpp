@@ -147,6 +147,11 @@ std::string vds::base64::from_bytes(const void * _data, size_t len)
   return encodedString;
 }
 
+std::string vds::base64::from_bytes(const data_buffer & data)
+{
+  return from_bytes(data.data(), data.size());
+}
+
 vds::data_buffer vds::base64::to_bytes(const std::string& data)
 {
   if (data.length() % 4){

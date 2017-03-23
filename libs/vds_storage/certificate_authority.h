@@ -16,6 +16,7 @@ namespace vds {
     ~certificate_authority();
     
     static certificate create_server(
+      const guid & server_id,
       const certificate & user_certificate,
       const asymmetric_private_key & user_private_key,
       const asymmetric_private_key& server_private_key);

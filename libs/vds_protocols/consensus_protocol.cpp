@@ -166,7 +166,7 @@ void vds::consensus_protocol::_server::flush_messages_to_lead()
   h.final();
 
   asymmetric_sign s(hash::sha256(), this->private_key_);
-  s.update(h.signature(), h.signature_length());
+  s.update(h.signature().data(), h.signature().size());
   s.final();
 
   server_log_record record(std::move(batch));

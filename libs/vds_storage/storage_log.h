@@ -17,7 +17,9 @@ namespace vds {
   public:
     storage_log(
       const service_provider & sp,
-      const std::string & current_server_id);
+      const guid & current_server_id,
+      const certificate & server_certificate,
+      const asymmetric_private_key & server_private_key);
     ~storage_log();
 
     void reset(

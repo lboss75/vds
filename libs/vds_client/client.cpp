@@ -31,7 +31,7 @@ void vds::client::start(const service_provider & sp)
   filename cert_name(foldername(persistence::current_user(sp), ".vds"), "client.crt");
   filename pkey_name(foldername(persistence::current_user(sp), ".vds"), "client.pkey");
 
-  if (cert_name.exists()) {
+  if (file::exists(cert_name)) {
     this->client_certificate_.load(cert_name);
     this->client_private_key_.load(pkey_name);
 
@@ -72,7 +72,7 @@ void vds::iclient::init_server(
   ph.final();
 
   auto request_id = guid::new_guid().str();
-  client_messages::certificate_and_key_request m(request_id, "login:" + user_login, base64::from_bytes(ph.signature(), ph.signature_length()));
+  client_messages::certificate_and_key_request m(request_id, "login:" + user_login, base64::from_bytes(ph.signature()));
 
   json_writer writer;
   m.serialize()->str(writer);

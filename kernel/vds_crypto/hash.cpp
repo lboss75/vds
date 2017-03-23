@@ -18,7 +18,7 @@ const vds::hash_info & vds::hash::sha256()
 }
 
 vds::hash::hash(const hash_info & info)
-  : info_(info), sig_(nullptr)
+  : info_(info)
 {
   this->ctx_ = EVP_MD_CTX_create();
 
@@ -36,10 +36,6 @@ vds::hash::hash(const hash_info & info)
 
 vds::hash::~hash()
 {
-  if (nullptr != this->sig_) {
-    OPENSSL_free(this->sig_);
-  }
-
   if (nullptr != this->ctx_) {
     EVP_MD_CTX_destroy(this->ctx_);
   }
@@ -55,19 +51,15 @@ void vds::hash::update(const void * data, size_t len)
 
 void vds::hash::final()
 {
-  this->sig_len_ = (unsigned int)EVP_MD_size(this->info_.type);
-  this->sig_ = (unsigned char *)OPENSSL_malloc(this->sig_len_);
-  if (nullptr == this->sig_) {
-    throw new std::runtime_error("out of memory");
-  }
+  auto len = (unsigned int)EVP_MD_size(this->info_.type);
+  this->sig_.resize(len);
 
-  auto len = this->sig_len_;
-  if (1 != EVP_DigestFinal_ex(this->ctx_, this->sig_, &len)) {
+  if (1 != EVP_DigestFinal_ex(this->ctx_, (unsigned char *)this->sig_.data(), &len)) {
     auto error = ERR_get_error();
     throw new crypto_exception("EVP_DigestFinal_ex", error);
   }
 
-  if (len != this->sig_len_) {
+  if (len != this->sig_.size()) {
     throw new std::runtime_error("len != this->sig_len_");
   }
 }
@@ -104,19 +96,14 @@ void vds::hmac::update(const void * data, size_t len)
 
 void vds::hmac::final()
 {
-  this->sig_len_ = (unsigned int)EVP_MD_size(this->info_.type);
-  this->sig_ = (unsigned char *)OPENSSL_malloc(this->sig_len_);
-  if (nullptr == this->sig_) {
-    throw new std::runtime_error("out of memory");
-  }
-
-  auto len = this->sig_len_;
-  if (1 != HMAC_Final(this->ctx_, this->sig_, &len)) {
+  auto len = (unsigned int)EVP_MD_size(this->info_.type);
+  this->sig_.resize(len);
+  if (1 != HMAC_Final(this->ctx_, (unsigned char *)this->sig_.data(), &len)) {
     auto error = ERR_get_error();
     throw new crypto_exception("HMAC_Final", error);
   }
 
-  if (len != this->sig_len_) {
+  if (len != this->sig_.size()) {
     throw new std::runtime_error("len != this->sig_len_");
   }
 }

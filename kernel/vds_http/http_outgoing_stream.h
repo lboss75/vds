@@ -38,7 +38,7 @@ namespace vds {
     }
     
     size_t size() const {
-      return this->is_simple_ ? this->body_.size() : this->file_.length();
+      return this->is_simple_ ? this->body_.size() : file::length(this->file_);
     }
 
     const filename & file() const {

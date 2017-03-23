@@ -136,6 +136,11 @@ size_t vds::file::length(const filename & fn)
   return buffer.st_size;
 }
 
+bool vds::file::exists(const filename & fn)
+{
+  return (0 == access(fn.local_name().c_str(), 0));
+}
+
 vds::output_text_stream::output_text_stream(file & f)
   : f_(f), written_(0)
 {

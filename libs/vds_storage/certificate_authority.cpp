@@ -8,6 +8,7 @@ All rights reserved
 #include "certificate_authority_p.h"
 
 vds::certificate vds::certificate_authority::create_server(
+  const guid & server_id,
   const certificate & user_certificate,
   const asymmetric_private_key & user_private_key,
   const asymmetric_private_key& server_private_key)
@@ -16,7 +17,7 @@ vds::certificate vds::certificate_authority::create_server(
   certificate::create_options server_options;
   server_options.country = "RU";
   server_options.organization = "IVySoft";
-  server_options.name = "Certificate " + guid::new_guid().str();
+  server_options.name = "Certificate " + server_id.str();
   server_options.ca_certificate = &user_certificate;
   server_options.ca_certificate_private_key = &user_private_key;
 

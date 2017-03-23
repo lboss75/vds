@@ -7,6 +7,8 @@ All rights reserved
 */
 
 #include "chunk_manager.h"
+#include "server_database.h"
+#include "storage_object_id.h"
 
 namespace vds {
   class storage_log;
@@ -22,7 +24,9 @@ namespace vds {
   public:
     _storage_log(
       const service_provider & sp,
-      const std::string & current_server_id,
+      const guid & current_server_id,
+      const certificate & server_certificate,
+      const asymmetric_private_key & server_private_key,
       storage_log * owner);
 
     void reset(
@@ -35,7 +39,7 @@ namespace vds {
     bool is_empty();
     certificate * get_cert(const std::string & subject);
     certificate * parse_root_cert(const json_value * value);
-    void apply_record(const std::string & source_server_id, const json_value * value);
+    void apply_record(const guid & source_server_id, const json_value * value);
 
     const std::list<cert> & get_certificates() const { return this->certificates_; }
     const std::list<node> & get_nodes() const { return this->nodes_; }
@@ -49,7 +53,10 @@ namespace vds {
     void register_server(const std::string & server_certificate);
 
   private:
-    std::string current_server_id_;
+    server_database db_;
+    asymmetric_private_key current_server_key_;
+
+    guid current_server_id_;
     storage_log * const owner_;
     logger log_;
     foldername vds_folder_;
@@ -74,11 +81,11 @@ namespace vds {
     chunk_storage chunk_storage_;
     chunk_manager chunk_manager_;
 
-    void process(const std::string & source_server_id, const server_log_root_certificate & message);
-    void process(const std::string & source_server_id, const server_log_new_server & message);
-    void process(const std::string & source_server_id, const server_log_new_endpoint & message);
+    void process(const guid & source_server_id, const server_log_root_certificate & message);
+    void process(const guid & source_server_id, const server_log_new_server & message);
+    void process(const guid & source_server_id, const server_log_new_endpoint & message);
     
-    uint64_t save_object(const file_container & fc);
+    storage_object_id save_object(const file_container & fc);
 
     void add_to_local_log(const json_value * record);
     

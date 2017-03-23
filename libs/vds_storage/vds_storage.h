@@ -19,5 +19,6 @@ All rights reserved
 #include "log_records.h"
 #include "server_certificate.h"
 #include "certificate_authority.h"
+#include "server_database.h"
 
 #endif // __VDS_STORAGE_VDS_STORAGE_H_

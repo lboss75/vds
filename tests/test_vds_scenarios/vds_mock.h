@@ -23,7 +23,6 @@ private:
   vds::console_logger console_logger_;
   vds::task_manager task_manager_;
   vds::crypto_service crypto_service_;
-  vds::storage_service storage_;
   vds::server server_;
 };
 

@@ -6,6 +6,8 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
+#include "storage_object_id.h"
+
 namespace vds {
   
   class server_log_batch
@@ -75,18 +77,18 @@ namespace vds {
     static const char message_type[];
 
     server_log_root_certificate(
-      uint64_t user_cert,
+      const storage_object_id & user_cert,
       const std::string & password_hash);
 
     server_log_root_certificate(const json_value * source);
     
-    uint64_t user_cert() const { return this->user_cert_; }
+    const storage_object_id & user_cert() const { return this->user_cert_; }
     const std::string & password_hash() const { return this->password_hash_; }
 
     std::unique_ptr<json_value> serialize() const;
 
   private:
-    uint64_t user_cert_;
+    storage_object_id user_cert_;
     std::string password_hash_;
   };
   
@@ -112,15 +114,15 @@ namespace vds {
   public:
     static const char message_type[];
     
-    server_log_new_server(uint64_t cert_id_);
+    server_log_new_server(const storage_object_id & cert_id_);
     server_log_new_server(const json_value * source);
 
-    uint64_t cert_id() const { return this->cert_id_; }
+    const storage_object_id & cert_id() const { return this->cert_id_; }
     
     std::unique_ptr<json_value> serialize() const;
     
   private:
-    uint64_t cert_id_;
+    storage_object_id cert_id_;
   };
 
   class server_log_new_endpoint

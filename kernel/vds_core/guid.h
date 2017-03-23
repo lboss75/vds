@@ -17,7 +17,7 @@ namespace vds {
     
     static guid new_guid();
 
-    std::string str();
+    std::string str() const;
     
   private:
     guid(const void * data, size_t len);

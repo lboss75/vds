@@ -16,8 +16,14 @@ All rights reserved
 
 vds::storage_log::storage_log(
   const service_provider & sp,
-  const std::string & current_server_id)
-  : impl_(new _storage_log(sp, current_server_id, this))
+  const guid & current_server_id,
+  const certificate & server_certificate,
+  const asymmetric_private_key & server_private_key)
+  : impl_(new _storage_log(sp,
+    current_server_id,
+    server_certificate,
+    server_private_key,
+    this))
 {
 }
 
@@ -80,9 +86,12 @@ void vds::storage_log::register_server(const std::string & server_certificate)
 ///////////////////////////////////////////////////////////////////////////////
 vds::_storage_log::_storage_log(
   const service_provider & sp,
-  const std::string & current_server_id,
+  const guid & current_server_id,
+  const certificate & server_certificate,
+  const asymmetric_private_key & server_private_key,
   storage_log * owner)
-: current_server_id_(current_server_id),
+: db_(sp),
+  current_server_id_(current_server_id),
   owner_(owner),
   log_(sp, "Server log"),
   vds_folder_(persistence::current_user(sp), ".vds"),
@@ -101,6 +110,8 @@ void vds::_storage_log::reset(
   const std::string & addresses
 )
 {
+  this->db_.start();
+
   this->local_log_folder_.create();
 
   this->log_.info("Creating certificate");
@@ -112,9 +123,14 @@ void vds::_storage_log::reset(
 
   this->log_.info("Creating server certificate");
   asymmetric_private_key server_private_key(asymmetric_crypto::rsa4096());
-  server_private_key.generate();
+  this->current_server_key_.generate();
   
-  certificate server_certificate = certificate_authority::create_server(root_certificate, private_key, server_private_key);
+  auto server_id = guid::new_guid();
+  certificate server_certificate = certificate_authority::create_server(
+    server_id,
+    root_certificate,
+    private_key,
+    server_private_key);
   
   this->vds_folder_.create();
   server_certificate.save(filename(this->vds_folder_, "server.crt"));
@@ -132,7 +148,7 @@ void vds::_storage_log::reset(
   this->add_to_local_log(
     server_log_root_certificate(
       user_cert_id,
-      base64::from_bytes(ph.signature(), ph.signature_length())).serialize().get());
+      base64::from_bytes(ph.signature())).serialize().get());
 
   auto  sert_cert_id = this->save_object(
     file_container()
@@ -145,6 +161,8 @@ void vds::_storage_log::reset(
 
 void vds::_storage_log::start()
 {
+  this->db_.start();
+
   std::map<uint64_t, filename> local_records;
   this->local_log_folder_.files(
     [&local_records](const filename & fn) -> bool {
@@ -224,7 +242,7 @@ vds::certificate * vds::_storage_log::parse_root_cert(const json_value * value)
   return nullptr;
 }
 
-void vds::_storage_log::apply_record(const std::string & source_server_id, const json_value * value)
+void vds::_storage_log::apply_record(const guid & source_server_id, const json_value * value)
 {
   if(this->is_empty_){
     //already processed
@@ -257,16 +275,22 @@ void vds::_storage_log::apply_record(const std::string & source_server_id, const
   }
 }
 
-void vds::_storage_log::process(const std::string & source_server_id, const server_log_root_certificate & message)
+void vds::_storage_log::process(const guid & source_server_id, const server_log_root_certificate & message)
 {
   //auto cert = new certificate(certificate::parse(message.certificate()));
   //this->certificate_store_.add(*cert);
   //this->loaded_certificates_[cert->subject()].reset(cert);
 
-  this->certificates_.push_back(vds::cert("login:root", source_server_id,  message.user_cert(), message.password_hash()));
+  this->certificates_.push_back(
+    vds::cert(
+      "login:root",
+      full_storage_object_id(
+        source_server_id,
+        message.user_cert()),
+      message.password_hash()));
 }
 
-void vds::_storage_log::process(const std::string & source_server_id, const server_log_new_server & message)
+void vds::_storage_log::process(const guid & source_server_id, const server_log_new_server & message)
 {
   //auto cert = new certificate(certificate::parse(message.certificate()));
   //auto result = this->certificate_store_.verify(*cert);
@@ -282,7 +306,7 @@ void vds::_storage_log::process(const std::string & source_server_id, const serv
   //this->log_(ll_trace, "add node %s", cert->subject().c_str());
 }
 
-void vds::_storage_log::process(const std::string & source_server_id, const server_log_new_endpoint & message)
+void vds::_storage_log::process(const guid & source_server_id, const server_log_new_endpoint & message)
 {
   this->endpoints_.push_back(message.addresses());
 }
@@ -318,12 +342,16 @@ void vds::_storage_log::register_server(const std::string & server_certificate)
 }
 
 
-uint64_t vds::_storage_log::save_object(const file_container & fc)
+vds::storage_object_id vds::_storage_log::save_object(const file_container & fc)
 {
   binary_serializer s;
   fc.serialize(s);
 
-  return this->chunk_manager_.add(s.data());
+  asymmetric_sign sign(hash::sha256(), this->current_server_key_);
+  sign.update(s.data().data(), s.data().size());
+  sign.final();
+
+  return vds::storage_object_id(this->current_server_id_, this->chunk_manager_.add(s.data()), sign.signature());
 }
 
 void vds::_storage_log::add_to_local_log(const json_value * record)

@@ -55,6 +55,7 @@ namespace vds {
     size_t length() const;
 
     static size_t length(const filename & fn);
+    static bool exists(const filename & fn);
 
     static void move(const filename & source, const filename & target);
     static void delete_file(const filename & fn);

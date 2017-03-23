@@ -167,6 +167,11 @@ void vds::json_object::add_property(json_property * prop)
   this->properties_.push_back(std::unique_ptr<json_property>(prop));
 }
 
+void vds::json_object::add_property(const std::string & name, std::unique_ptr<json_value> && value)
+{
+  this->add_property(new json_property(name, value.release()));
+}
+
 void vds::json_object::add_property(const std::string & name, uint64_t value)
 {
   this->add_property(new json_property(name, new json_primitive(std::to_string(value))));

@@ -68,7 +68,7 @@ void vds::asymmetric_private_key::generate()
 
 vds::asymmetric_private_key vds::asymmetric_private_key::parse(const std::string & value, const std::string & password)
 {
-  auto io = BIO_new_mem_buf((void*)value.c_str(), value.length());
+  auto io = BIO_new_mem_buf((void*)value.c_str(), (int)value.length());
   auto key = PEM_read_bio_PrivateKey(io, 0, 0, password.empty() ? nullptr : (void *)password.c_str());
   return asymmetric_private_key(key);
 }
@@ -312,7 +312,7 @@ vds::asymmetric_public_key::~asymmetric_public_key()
 
 vds::asymmetric_public_key vds::asymmetric_public_key::parse(const std::string & value)
 {
-  auto io = BIO_new_mem_buf((void*)value.c_str(), value.length());
+  auto io = BIO_new_mem_buf((void*)value.c_str(), (int)value.length());
   auto key = PEM_read_bio_PUBKEY(io, 0, 0, 0);
   return asymmetric_public_key(key);
 }
@@ -398,7 +398,7 @@ vds::certificate::~certificate()
 
 vds::certificate vds::certificate::parse(const std::string & value)
 {
-  auto io = BIO_new_mem_buf((void*)value.c_str(), value.length());
+  auto io = BIO_new_mem_buf((void*)value.c_str(), (int)value.length());
   auto cert = PEM_read_bio_X509(io, 0, 0, 0);
   return certificate(cert);
 }

@@ -27,6 +27,7 @@ namespace vds {
   {
   public:
     static std::string from_bytes(const void * data, size_t len);
+    static std::string from_bytes(const data_buffer & data);
     static data_buffer to_bytes(const std::string & data);
   };
 }
