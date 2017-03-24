@@ -38,6 +38,19 @@ std::unique_ptr<vds::cert> vds::server_database::find_cert(const std::string & o
   return this->impl_->find_cert(object_name);
 }
 
+void vds::server_database::add_object(
+  const guid & server_id,
+  uint64_t index,
+  const data_buffer & signature)
+{
+  this->impl_->add_object(server_id, index, signature);
+}
+
+uint64_t vds::server_database::last_object_index(const guid& server_id)
+{
+  return this->impl_->last_object_index(server_id);
+}
+
 ////////////////////////////////////////////////////////
 vds::_server_database::_server_database(const service_provider & sp, server_database * owner)
   : sp_(sp),
@@ -77,6 +90,13 @@ void vds::_server_database::start()
     id VARCHAR(64) PRIMARY KEY NOT NULL,\
     version INTEGER NOT NULL,\
     installed DATETIME NOT NULL)");
+
+    this->db_.execute(
+      "CREATE TABLE objects(\
+      server_id VARCHAR(64) NOT NULL,\
+      object_index INTEGER NOT NULL,\
+      signature VARCHAR(64) NOT NULL,\
+      CONSTRAINT pk_objects PRIMARY KEY (server_id, object_index, signature))");
 
     this->db_.execute(
       "CREATE TABLE cert(\
@@ -131,6 +151,34 @@ std::unique_ptr<vds::cert> vds::_server_database::find_cert(const std::string & 
       
       return false; },
     object_name);
+  
+  return result;
+}
+
+void vds::_server_database::add_object(
+  const guid & server_id,
+  uint64_t index,
+  const data_buffer & signature)
+{
+  this->add_object_statement_.execute(
+    this->db_,
+    "INSERT INTO objects(server_id, object_index, signature) VALUES (@server_id, @object_index, @signature)",
+    server_id,
+    index,
+    signature);
+}
+
+uint64_t vds::_server_database::last_object_index(const guid& server_id)
+{
+  uint64_t result = 0;
+  this->last_object_index_query_.query(
+    this->db_,
+    "SELECT MAX(object_index) FROM objects WHERE server_id=@server_id",
+    [&result](sql_statement & st)->bool{
+      st.get_value(0, result);
+      return false;
+    },
+    server_id);
   
   return result;
 }

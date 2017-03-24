@@ -161,6 +161,8 @@ void vds::_storage_log::reset(
 void vds::_storage_log::start()
 {
   this->db_.start();
+  this->chunk_manager_.set_next_index(
+    this->db_.last_object_index(this->current_server_id_));
 
   std::map<uint64_t, filename> local_records;
   this->local_log_folder_.files(
@@ -343,7 +345,10 @@ vds::storage_object_id vds::_storage_log::save_object(const object_container & f
   sign.update(s.data().data(), s.data().size());
   sign.final();
 
-  return vds::storage_object_id(this->chunk_manager_.add(s.data()), sign.signature());
+  auto index = this->chunk_manager_.add(s.data());
+  auto signature = sign.signature();
+  this->db_.add_object(this->current_server_id_, index, signature);
+  return vds::storage_object_id(index, signature);
 }
 
 void vds::_storage_log::add_to_local_log(const json_value * record)

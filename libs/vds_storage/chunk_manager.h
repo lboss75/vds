@@ -22,6 +22,8 @@ namespace vds {
 
     void add(const filename & fn, std::list<uint64_t> & parts);
     uint64_t add(const data_buffer & data);
+    
+    void set_next_index(uint64_t next_index);
 
   private:
     _chunk_manager * impl_;

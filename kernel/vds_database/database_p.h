@@ -15,7 +15,7 @@ namespace vds {
   {
   public:
     _sql_statement(sqlite3 * db, const std::string & sql)
-      : db_(db), stmt_(nullptr), eof_(false)
+      : db_(db), stmt_(nullptr), state_(bof_state)
     {
       if (SQLITE_OK != sqlite3_prepare_v2(db, sql.c_str(), -1, &this->stmt_, nullptr)) {
         throw new std::runtime_error(sqlite3_errmsg(db));
@@ -31,38 +31,45 @@ namespace vds {
 
     void set_parameter(int index, uint64_t value)
     {
+      this->reset();
+      
       sqlite3_bind_int64(this->stmt_, index, value);
-      this->eof_ = false;
     }
 
     void set_parameter(int index, const std::string & value)
     {
+      this->reset();
+      
       sqlite3_bind_text(this->stmt_, index, value.c_str(), -1, SQLITE_TRANSIENT);
-      this->eof_ = false;
     }
 
     void set_parameter(int index, const guid & value)
     {
+      this->reset();
+      
       this->set_parameter(index, value.str());
     }
 
     void set_parameter(int index, const data_buffer & value)
     {
+      this->reset();
+      
       this->set_parameter(index, base64::from_bytes(value));
     }
 
     bool execute()
     {
-      if (this->eof_) {
+      if (eof_state == this->state_) {
         return false;
       }
 
       switch (sqlite3_step(this->stmt_)) {
       case SQLITE_ROW:
+        this->state_ = read_state;
         return true;
 
       case SQLITE_DONE:
-        this->eof_ = true;
+        this->state_ = eof_state;
         return true;
 
       default:
@@ -72,12 +79,16 @@ namespace vds {
 
     bool get_value(int index, uint64_t & value)
     {
+      assert(read_state == this->state_);
+      
       value = sqlite3_column_int64(this->stmt_, index);
       return true;
     }
 
     bool get_value(int index, std::string & value)
     {
+      assert(read_state == this->state_);
+      
       auto v = (const char *)sqlite3_column_text(this->stmt_, index);
       if(nullptr == v){
         return false;
@@ -89,6 +100,8 @@ namespace vds {
 
     bool get_value(int index, guid & value)
     {
+      assert(read_state == this->state_);
+      
       std::string v;
       if (!this->get_value(index, v)) {
         return false;
@@ -100,6 +113,8 @@ namespace vds {
 
     bool get_value(int index, data_buffer & value)
     {
+      assert(read_state == this->state_);
+      
       std::string v;
       if (!this->get_value(index, v)) {
         return false;
@@ -113,7 +128,23 @@ namespace vds {
   private:
     sqlite3 * db_;
     sqlite3_stmt * stmt_;
-    bool eof_;
+    
+    enum state_enum
+    {
+      bof_state,
+      read_state,
+      eof_state,
+    };
+    
+    state_enum state_;
+    
+    void reset()
+    {
+      if(bof_state != this->state_){
+        sqlite3_reset(this->stmt_);
+        this->state_ = bof_state;
+      }
+    }
   };
 
 

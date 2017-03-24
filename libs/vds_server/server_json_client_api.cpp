@@ -115,7 +115,10 @@ void vds::_server_json_client_api::process(
   }
 }
 
-void vds::_server_json_client_api::process(const service_provider & scope, json_array * result, const client_messages::register_server_request & message) const
+void vds::_server_json_client_api::process(
+  const service_provider & scope,
+  json_array * result,
+  const client_messages::register_server_request & message) const
 {
   std::string error;
   if (scope.get<iserver>().get_node_manager().register_server(scope, message.certificate_body(), error)) {

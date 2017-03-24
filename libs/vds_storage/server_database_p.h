@@ -21,6 +21,15 @@ namespace vds {
 
     void add_cert(const cert & record);
     std::unique_ptr<cert> find_cert(const std::string & object_name);
+    
+    void add_object(
+      const guid & server_id,
+      uint64_t index,
+      const data_buffer & signature);
+    
+    uint64_t last_object_index(
+      const guid & server_id);
+
 
   private:
     service_provider sp_;
@@ -36,6 +45,14 @@ namespace vds {
       
     prepared_query<
       const std::string & /* object_name */> find_cert_query_;
+      
+    prepared_statement<
+      const guid & /*server_id*/,
+      uint64_t /*index*/,
+      const data_buffer & /*signature*/> add_object_statement_;
+      
+    prepared_query<
+      const guid & /*server_id*/> last_object_index_query_;
   };
 
 }

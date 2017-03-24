@@ -8,6 +8,6 @@ All rights reserved
 
 #include "vds_core.h"
 
-
+#include <assert.h>
 
 #endif//__VDS_DATABASE_STDAFX_H_

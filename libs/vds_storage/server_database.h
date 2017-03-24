@@ -22,6 +22,14 @@ namespace vds {
     
     void add_cert(const cert & record);
     std::unique_ptr<cert> find_cert(const std::string & object_name) const;
+    
+    void add_object(
+      const guid & server_id,
+      uint64_t index,
+      const data_buffer & signature);
+    
+    uint64_t last_object_index(
+      const guid & server_id);
 
   private:
     _server_database * const impl_;

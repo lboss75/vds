@@ -29,6 +29,12 @@ void vds::chunk_manager::add(const filename& fn, std::list< uint64_t >& parts)
 {
   this->impl_->add(fn, parts);
 }
+
+void vds::chunk_manager::set_next_index(uint64_t next_index)
+{
+  this->impl_->set_next_index(next_index);
+}
+
 //////////////////////////////////////////////////////////////////////
 vds::_chunk_manager::_chunk_manager(
   const service_provider & sp,
@@ -103,4 +109,9 @@ uint64_t vds::_chunk_manager::add(const data_buffer& data)
 void vds::_chunk_manager::generate_chunk()
 {
   throw new std::runtime_error("Not implemented");
+}
+
+void vds::_chunk_manager::set_next_index(uint64_t next_index)
+{
+  this->last_obj_file_index_ = next_index;
 }
