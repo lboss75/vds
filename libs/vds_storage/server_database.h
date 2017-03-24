@@ -20,8 +20,8 @@ namespace vds {
     void start();
     void stop();
     
-    void add_cert(const cert & result);
-    bool find_cert(const std::string & object_name, cert & result);
+    void add_cert(const cert & record);
+    std::unique_ptr<cert> find_cert(const std::string & object_name) const;
 
   private:
     _server_database * const impl_;

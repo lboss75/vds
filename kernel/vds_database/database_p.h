@@ -41,6 +41,16 @@ namespace vds {
       this->eof_ = false;
     }
 
+    void set_parameter(int index, const guid & value)
+    {
+      this->set_parameter(index, value.str());
+    }
+
+    void set_parameter(int index, const data_buffer & value)
+    {
+      this->set_parameter(index, base64::from_bytes(value));
+    }
+
     bool execute()
     {
       if (this->eof_) {
@@ -69,6 +79,28 @@ namespace vds {
     bool get_value(int index, std::string & value)
     {
       value = (const char *)sqlite3_column_text(this->stmt_, index);
+      return true;
+    }
+
+    bool get_value(int index, guid & value)
+    {
+      std::string v;
+      if (!this->get_value(index, v)) {
+        return false;
+      }
+
+      value = guid::parse(v);
+      return true;
+    }
+
+    bool get_value(int index, data_buffer & value)
+    {
+      std::string v;
+      if (!this->get_value(index, v)) {
+        return false;
+      }
+
+      value = base64::to_bytes(v);
       return true;
     }
 

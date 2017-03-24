@@ -73,3 +73,19 @@ vds::guid& vds::guid::operator=(const vds::guid& original)
   return *this;
 }
 
+vds::guid vds::guid::parse(const std::string & value)
+{
+#ifdef WIN32
+  GUID result;
+  HRESULT hr = IIDFromString(utf16::from_utf8(value).c_str(), &result);
+  if (S_OK != hr) {
+    throw new std::system_error(hr, std::system_category(), "Invalid GUID " + value);
+  }
+
+  return guid(&result, sizeof(result));
+#else
+  char s[37];
+  uuid_unparse(*(const uuid_t *)this->data(), s);
+  return s;
+#endif
+}

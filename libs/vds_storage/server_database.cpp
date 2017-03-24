@@ -6,6 +6,7 @@ All rights reserved
 #include "stdafx.h"
 #include "server_database.h"
 #include "server_database_p.h"
+#include "cert.h"
 
 vds::server_database::server_database(const service_provider & sp)
   : impl_(new _server_database(sp, this))
@@ -25,6 +26,16 @@ void vds::server_database::start()
 void vds::server_database::stop()
 {
   this->stop();
+}
+
+void vds::server_database::add_cert(const cert & record)
+{
+  this->impl_->add_cert(record);
+}
+
+std::unique_ptr<vds::cert> vds::server_database::find_cert(const std::string & object_name) const
+{
+  return this->impl_->find_cert(object_name);
 }
 
 ////////////////////////////////////////////////////////
@@ -70,4 +81,22 @@ void vds::_server_database::start()
 
     this->db_.execute("INSERT INTO module(id, version, installed) VALUES('kernel', 1, datetime('now'))");
   }
+}
+
+void vds::_server_database::add_cert(const cert & record)
+{
+  if (!this->add_cert_statement_) {
+    this->add_cert_statement_.reset(
+      new sql_statement(
+        this->db_.parse(
+          "INSERT INTO cert(object_name, source_server_id, object_index, signature, password_hash)\
+           VALUES (?object_name, ?source_server_id, ?object_index, ?signature, ?password_hash)")));
+  }
+
+  this->add_cert_statement_->set_parameter(0, record.object_name());
+  this->add_cert_statement_->set_parameter(1, record.object_id().source_server_id());
+  this->add_cert_statement_->set_parameter(2, record.object_id().index());
+  this->add_cert_statement_->set_parameter(3, record.object_id().signature());
+  this->add_cert_statement_->set_parameter(4, record.password_hash());
+
 }

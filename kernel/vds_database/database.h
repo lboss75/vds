@@ -19,11 +19,15 @@ namespace vds {
 
     void set_parameter(int index, int value);
     void set_parameter(int index, const std::string & value);
+    void set_parameter(int index, const guid & value);
+    void set_parameter(int index, const data_buffer & value);
 
     bool execute();
 
     bool get_value(int index, int & value);
     bool get_value(int index, std::string & value);
+    bool get_value(int index, guid & value);
+    bool get_value(int index, data_buffer & value);
 
   private:
     _sql_statement * impl_;

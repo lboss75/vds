@@ -112,7 +112,7 @@ namespace vds{
       this->resize(len);
       memcpy(this->data_, data, len);
     }
-    
+
     void resize(size_t len)
     {
       delete this->data_;

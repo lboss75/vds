@@ -18,7 +18,8 @@ namespace vds {
     static guid new_guid();
 
     std::string str() const;
-    
+    static guid parse(const std::string & value);
+
     guid & operator = (const guid & original);
     guid & operator = (guid && original);
     

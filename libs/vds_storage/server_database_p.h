@@ -19,10 +19,15 @@ namespace vds {
     void start();
     void stop();
 
+    void add_cert(const cert & record);
+    std::unique_ptr<cert> find_cert(const std::string & object_name) const;
+
   private:
     service_provider sp_;
     server_database * owner_;
     database db_;
+
+    std::unique_ptr<sql_statement> add_cert_statement_;
   };
 
 }
