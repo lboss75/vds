@@ -58,6 +58,8 @@ namespace vds {
     private:
       _inflate_handler * handler_;
     };
+    
+    static data_buffer inflate_buffer(const data_buffer & data);
 
   private:
     _inflate_handler * create_handler() const;

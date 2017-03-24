@@ -78,18 +78,18 @@ namespace vds {
 
     server_log_root_certificate(
       const storage_object_id & user_cert,
-      const std::string & password_hash);
+      const data_buffer & password_hash);
 
     server_log_root_certificate(const json_value * source);
     
     const storage_object_id & user_cert() const { return this->user_cert_; }
-    const std::string & password_hash() const { return this->password_hash_; }
+    const data_buffer & password_hash() const { return this->password_hash_; }
 
     std::unique_ptr<json_value> serialize() const;
 
   private:
     storage_object_id user_cert_;
-    std::string password_hash_;
+    data_buffer password_hash_;
   };
   
   class server_log_new_user_certificate

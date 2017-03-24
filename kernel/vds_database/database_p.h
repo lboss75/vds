@@ -15,7 +15,7 @@ namespace vds {
   {
   public:
     _sql_statement(sqlite3 * db, const std::string & sql)
-      : db_(db), stmt_(nullptr)
+      : db_(db), stmt_(nullptr), eof_(false)
     {
       if (SQLITE_OK != sqlite3_prepare_v2(db, sql.c_str(), -1, &this->stmt_, nullptr)) {
         throw new std::runtime_error(sqlite3_errmsg(db));
@@ -78,7 +78,12 @@ namespace vds {
 
     bool get_value(int index, std::string & value)
     {
-      value = (const char *)sqlite3_column_text(this->stmt_, index);
+      auto v = (const char *)sqlite3_column_text(this->stmt_, index);
+      if(nullptr == v){
+        return false;
+      }
+      
+      value = v;
       return true;
     }
 

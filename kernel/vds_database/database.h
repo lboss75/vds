@@ -25,7 +25,7 @@ namespace vds {
     template <typename... argument_types>
     void set_parameters(argument_types... arguments)
     {
-      this->set_parameters_(0, arguments...);
+      this->set_parameters_(1, arguments...);
     }
     
     bool execute();

@@ -52,7 +52,7 @@ vds::_server_database::~_server_database()
 
 void vds::_server_database::start()
 {
-  int db_version;
+  uint64_t db_version;
 
   filename db_filename(foldername(persistence::current_user(this->sp_), ".vds"), "local.db");
 
@@ -62,6 +62,13 @@ void vds::_server_database::start()
   }
   else {
     this->db_.open(db_filename);
+    
+    auto st = this->db_.parse("SELECT version FROM module WHERE id='kernel'");
+    if(!st.execute()){
+      throw new std::runtime_error("Database has been corrupted");
+    }
+    
+    st.get_value(0, db_version);
   }
 
 
@@ -88,7 +95,7 @@ void vds::_server_database::add_cert(const cert & record)
   this->add_cert_statement_.execute(
     this->db_,
     "INSERT INTO cert(object_name, source_server_id, object_index, signature, password_hash)\
-      VALUES (?object_name, ?source_server_id, ?object_index, ?signature, ?password_hash)",
+      VALUES (@object_name, @source_server_id, @object_index, @signature, @password_hash)",
 
     record.object_name(),
     record.object_id().source_server_id(),
@@ -102,22 +109,20 @@ std::unique_ptr<vds::cert> vds::_server_database::find_cert(const std::string & 
   std::unique_ptr<cert> result;
   this->find_cert_query_.query(
     this->db_,
-    "SELECT object_name, source_server_id, object_index, signature, password_hash\
+    "SELECT source_server_id, object_index, signature, password_hash\
      FROM cert\
-     WHERE object_name=?object_name",
-    [&result](sql_statement & st)->bool{
+     WHERE object_name=@object_name",
+    [&result, object_name](sql_statement & st)->bool{
       
-      std::string object_name;
       guid source_id;
       uint64_t index;
       data_buffer signature;
-      std::string password_hash;
+      data_buffer password_hash;
       
-      st.get_value(0, object_name);
-      st.get_value(1, source_id);
-      st.get_value(2, index);
-      st.get_value(3, signature);
-      st.get_value(4, password_hash);
+      st.get_value(0, source_id);
+      st.get_value(1, index);
+      st.get_value(2, signature);
+      st.get_value(3, password_hash);
 
       result.reset(new cert(
         object_name,

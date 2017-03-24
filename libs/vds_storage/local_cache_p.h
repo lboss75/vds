@@ -6,7 +6,28 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
+#include "local_cache.h"
+
 namespace vds {
+  class _local_cache
+  {
+  public:
+    _local_cache(
+      const service_provider & sp,
+      local_cache * owner);
+    ~_local_cache();
+    
+    std::unique_ptr<data_buffer> get_object(
+      const full_storage_object_id& object_id);
+    
+    filename get_object_filename(
+      const guid & server_id,
+      uint64_t index);
+  
+  private:
+    local_cache * owner_;
+    foldername root_folder_;
+  };
 }
 
 #endif // __VDS_STORAGE_LOCAL_CACHE_P_H_

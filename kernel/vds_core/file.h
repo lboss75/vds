@@ -8,6 +8,7 @@ All rights reserved
 
 #include "filename.h"
 #include "sequence.h"
+#include "data_buffer.h"
 
 namespace vds {
 
@@ -60,6 +61,7 @@ namespace vds {
     static void move(const filename & source, const filename & target);
     static void delete_file(const filename & fn);
     static std::string read_all_text(const filename & fn);
+    static data_buffer read_all(const filename & fn);
 
   private:
     filename filename_;

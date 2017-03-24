@@ -97,6 +97,7 @@ vds::_storage_log::_storage_log(
   const asymmetric_private_key & server_private_key,
   storage_log * owner)
 : db_(sp),
+  local_cache_(sp),
   server_certificate_(server_certificate),
   current_server_key_(server_private_key),
   current_server_id_(current_server_id),
@@ -109,7 +110,7 @@ vds::_storage_log::_storage_log(
   minimal_consensus_(0),
   last_message_id_(0),
   chunk_storage_(guid::new_guid(), 1000),
-  chunk_manager_(sp)
+  chunk_manager_(sp, current_server_id, local_cache_)
 {
 }
 
@@ -124,7 +125,6 @@ void vds::_storage_log::reset(
 
   this->local_log_folder_.create();
   this->vds_folder_.create();
-
   
   this->server_certificate_.save(filename(this->vds_folder_, "server.crt"));
   this->current_server_key_.save(filename(this->vds_folder_, "server.pkey"));
@@ -133,7 +133,7 @@ void vds::_storage_log::reset(
     object_container()
       .add("c", root_certificate.str())
       .add("k", private_key.str(password)));
-
+  
   hash ph(hash::sha256());
   ph.update(password.c_str(), password.length());
   ph.final();
@@ -141,7 +141,7 @@ void vds::_storage_log::reset(
   this->add_to_local_log(
     server_log_root_certificate(
       user_cert_id,
-      base64::from_bytes(ph.signature())).serialize().get());
+      ph.signature()).serialize().get());
 
   auto  sert_cert_id = this->save_object(
     object_container()
@@ -149,6 +149,12 @@ void vds::_storage_log::reset(
 
   this->add_to_local_log(server_log_new_server(sert_cert_id).serialize().get());
   this->add_to_local_log(server_log_new_endpoint(this->current_server_id_, addresses).serialize().get());
+  
+  this->db_.add_cert(
+    cert(
+      "login::root",
+      full_storage_object_id(this->current_server_id_, user_cert_id),
+      ph.signature()));
 }
 
 
@@ -328,7 +334,6 @@ void vds::_storage_log::register_server(const std::string & server_certificate)
   this->add_to_local_log(server_log_new_server(id).serialize().get());
 }
 
-
 vds::storage_object_id vds::_storage_log::save_object(const object_container & fc)
 {
   binary_serializer s;
@@ -357,5 +362,5 @@ std::unique_ptr<vds::cert> vds::_storage_log::find_cert(const std::string & obje
 
 std::unique_ptr<vds::data_buffer> vds::_storage_log::get_object(const vds::full_storage_object_id& object_id)
 {
-  return std::unique_ptr<vds::data_buffer>();
+  return this->local_cache_.get_object(object_id);
 }

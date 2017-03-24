@@ -6,6 +6,7 @@ All rights reserved
 */
 
 #include "types.h"
+#include "data_buffer.h"
 
 namespace vds {
 

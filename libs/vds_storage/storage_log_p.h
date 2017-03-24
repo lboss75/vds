@@ -9,6 +9,7 @@ All rights reserved
 #include "chunk_manager.h"
 #include "server_database.h"
 #include "storage_object_id.h"
+#include "local_cache.h"
 
 namespace vds {
   class storage_log;
@@ -55,6 +56,7 @@ namespace vds {
 
   private:
     server_database db_;
+    local_cache local_cache_;
 
     const certificate & server_certificate_;
     const asymmetric_private_key & current_server_key_;

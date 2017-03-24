@@ -30,6 +30,7 @@ All rights reserved
 #include "mt_service.h"
 #include "simple_cache.h"
 #include "binary_serialize.h"
+#include "data_buffer.h"
 
 #endif // !__VDS_CORE_H_
 

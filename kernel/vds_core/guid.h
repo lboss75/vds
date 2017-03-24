@@ -5,7 +5,8 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
-#include "types.h"
+
+#include "data_buffer.h"
 
 namespace vds {
   class guid : public data_buffer

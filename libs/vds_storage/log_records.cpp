@@ -59,7 +59,7 @@ const char vds::server_log_root_certificate::message_type[] = "root";
 
 vds::server_log_root_certificate::server_log_root_certificate(
   const storage_object_id & user_cert,
-  const std::string & password_hash)
+  const data_buffer & password_hash)
   : user_cert_(user_cert),
   password_hash_(password_hash)
 {

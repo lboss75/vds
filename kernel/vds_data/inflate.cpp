@@ -13,7 +13,7 @@ vds::inflate::inflate()
 
 vds::_inflate_handler * vds::inflate::create_handler() const
 {
-  return new vds::_inflate_handler();
+  return new _inflate_handler();
 }
 
 void vds::inflate::delete_handler(_inflate_handler * handler)
@@ -30,6 +30,38 @@ bool vds::inflate::data_processed(_inflate_handler * handler, const void *& to_p
 {
   return handler->processed(to_push, to_push_len);
 }
+
+vds::data_buffer vds::inflate::inflate_buffer(const data_buffer & data)
+{
+  data_buffer result;
+  
+  _inflate_handler handler;
+  
+  const void * to_push;
+  size_t to_push_len;
+  if(handler.push_data(data.data(), data.size(), to_push, to_push_len)){
+    while(0 != to_push_len){
+      result.add(to_push, to_push_len);
+      
+      if (!handler.processed(to_push, to_push_len)) {
+        if(handler.push_data(nullptr, 0, to_push, to_push_len)){
+          while(0 != to_push_len){
+            result.add(to_push, to_push_len);
+            
+            if (!handler.processed(to_push, to_push_len)) {
+              break;
+            }
+          }
+        }
+        
+        break;
+      }
+    }
+  }
+  
+  return result;
+}
+
 ///////////////////////////////////////////////
 vds::_inflate_handler::_inflate_handler()
 : eof_(false)
@@ -53,7 +85,7 @@ bool vds::_inflate_handler::push_data(const void * data, size_t len, const void 
   if (Z_STREAM_END == result) {
     this->eof_ = true;
   }
-  else if (Z_STREAM_ERROR != result) {
+  else if (Z_OK != result) {
     throw new std::runtime_error("inflate failed");
   }
 
@@ -65,12 +97,14 @@ bool vds::_inflate_handler::push_data(const void * data, size_t len, const void 
 bool vds::_inflate_handler::processed(const void *& next_data, size_t & next_len)
 {
   if (0 == this->strm_.avail_out) {
-
+    this->strm_.next_out = this->buffer_;
+    this->strm_.avail_out = CHUNK_SIZE;
+ 
     auto result = ::inflate(&this->strm_, this->eof_ ? Z_FINISH : Z_NO_FLUSH);
     if (Z_STREAM_END == result) {
       this->eof_ = true;
     }
-    else if (Z_STREAM_ERROR != result) {
+    else if (Z_OK != result) {
       throw new std::runtime_error("inflate failed");
     }
 
@@ -89,8 +123,8 @@ bool vds::_inflate_handler::processed(const void *& next_data, size_t & next_len
     else {
       inflateEnd(&this->strm_);
 
-      next_data = this->buffer_;
-      next_len = CHUNK_SIZE - this->strm_.avail_out;
+      next_data = nullptr;
+      next_len = 0;
       return true;
     }
   }

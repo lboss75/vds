@@ -14,6 +14,8 @@ namespace vds {
   public:
     _chunk_manager(
       const service_provider & sp,
+      const guid & server_id,
+      local_cache & cache,
       chunk_manager * owner);
     ~_chunk_manager();
 
@@ -22,6 +24,8 @@ namespace vds {
 
   private:
     chunk_manager * owner_;
+    guid server_id_;
+    local_cache & cache_;
 
     std::mutex file_mutex_;
     uint64_t last_index_;
@@ -32,7 +36,6 @@ namespace vds {
     std::mutex tmp_folder_mutex_;
     uint64_t last_tmp_file_index_;
     
-    foldername obj_folder_;
     std::mutex obj_folder_mutex_;
     uint64_t last_obj_file_index_;
     uint64_t obj_size_;

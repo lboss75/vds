@@ -5,7 +5,8 @@ All rights reserved
 #include "stdafx.h"
 #include "server_certificate.h"
 
-std::string vds::server_certificate::server_id(const vds::certificate& cert)
+vds::guid vds::server_certificate::server_id(const vds::certificate& cert)
 {
-  return cert.subject();
+  auto subject = cert.subject();
+  return guid::parse(subject.substr(31));
 }

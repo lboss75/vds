@@ -47,6 +47,8 @@ namespace vds {
     std::unique_ptr<server_udp_api> server_udp_api_;
     std::unique_ptr<connection_manager> connection_manager_;
     std::unique_ptr<peer_network> peer_network_;
+    
+    std::unique_ptr<storage_log> storage_log_;
   };
   
   class iserver

@@ -261,3 +261,15 @@ std::string vds::file::read_all_text(const filename & fn)
 
   return result;
 }
+
+vds::data_buffer vds::file::read_all(const vds::filename& fn)
+{
+  file f(fn, file::file_mode::open_read);
+  
+  vds::data_buffer result;
+  result.resize(f.length());
+  
+  f.read((void *)result.data(), result.size());
+  
+  return result;
+}

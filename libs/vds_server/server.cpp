@@ -28,12 +28,23 @@ void vds::server::register_services(service_registrator& registrator)
   registrator.add_factory<iserver>([this](const service_provider &, bool &)->iserver{
     return iserver(this);
   });
+  
+  registrator.add_factory<istorage>([this](const service_provider &, bool &)->istorage{
+    return istorage(this->storage_log_.get());
+  });
 }
 
 void vds::server::start(const service_provider& sp)
 {
   this->certificate_.load(filename(foldername(persistence::current_user(sp), ".vds"), "server.crt"));
   this->private_key_.load(filename(foldername(persistence::current_user(sp), ".vds"), "server.pkey"));
+  
+  this->storage_log_.reset(new storage_log(
+    sp,
+    server_certificate::server_id(this->certificate_),
+    this->certificate_,
+    this->private_key_));
+  this->storage_log_->start();
 
   this->connection_manager_.reset(new connection_manager(sp, this->certificate_.subject()));
 

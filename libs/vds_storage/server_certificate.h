@@ -11,7 +11,7 @@ namespace vds {
   {
   public:
     
-    static std::string server_id(const certificate & cert);
+    static guid server_id(const certificate & cert);
   };
 }
 

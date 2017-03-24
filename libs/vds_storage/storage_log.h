@@ -57,7 +57,13 @@ namespace vds {
   class istorage
   {
   public:
+    istorage(storage_log * owner)
+    : owner_(owner)
+    {      
+    }
+    
     storage_log & get_storage_log() const { return *this->owner_; }
+    
   private:
     storage_log * owner_;
     

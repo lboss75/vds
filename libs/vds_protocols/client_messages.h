@@ -18,7 +18,7 @@ namespace vds {
       certificate_and_key_request(
         const std::string & request_id,
         const std::string & object_name,
-        const std::string & password_hash
+        const data_buffer & password_hash
       );
       
       certificate_and_key_request(const json_value *);
@@ -26,12 +26,12 @@ namespace vds {
 
       const std::string & request_id() const { return this->request_id_;  }
       const std::string & object_name() const { return this->object_name_; }
-      const std::string & password_hash() const { return this->password_hash_; }
+      const data_buffer & password_hash() const { return this->password_hash_; }
 
     private:
       std::string request_id_;
       std::string object_name_;
-      std::string password_hash_;
+      data_buffer password_hash_;
     };
 
     class certificate_and_key_response
