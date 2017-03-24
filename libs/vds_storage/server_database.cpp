@@ -85,18 +85,47 @@ void vds::_server_database::start()
 
 void vds::_server_database::add_cert(const cert & record)
 {
-  if (!this->add_cert_statement_) {
-    this->add_cert_statement_.reset(
-      new sql_statement(
-        this->db_.parse(
-          "INSERT INTO cert(object_name, source_server_id, object_index, signature, password_hash)\
-           VALUES (?object_name, ?source_server_id, ?object_index, ?signature, ?password_hash)")));
-  }
+  this->add_cert_statement_.execute(
+    this->db_,
+    "INSERT INTO cert(object_name, source_server_id, object_index, signature, password_hash)\
+      VALUES (?object_name, ?source_server_id, ?object_index, ?signature, ?password_hash)",
 
-  this->add_cert_statement_->set_parameter(0, record.object_name());
-  this->add_cert_statement_->set_parameter(1, record.object_id().source_server_id());
-  this->add_cert_statement_->set_parameter(2, record.object_id().index());
-  this->add_cert_statement_->set_parameter(3, record.object_id().signature());
-  this->add_cert_statement_->set_parameter(4, record.password_hash());
+    record.object_name(),
+    record.object_id().source_server_id(),
+    record.object_id().index(),
+    record.object_id().signature(),
+    record.password_hash());
+}
 
+std::unique_ptr<vds::cert> vds::_server_database::find_cert(const std::string & object_name)
+{
+  std::unique_ptr<cert> result;
+  this->find_cert_query_.query(
+    this->db_,
+    "SELECT object_name, source_server_id, object_index, signature, password_hash\
+     FROM cert\
+     WHERE object_name=?object_name",
+    [&result](sql_statement & st)->bool{
+      
+      std::string object_name;
+      guid source_id;
+      uint64_t index;
+      data_buffer signature;
+      std::string password_hash;
+      
+      st.get_value(0, object_name);
+      st.get_value(1, source_id);
+      st.get_value(2, index);
+      st.get_value(3, signature);
+      st.get_value(4, password_hash);
+
+      result.reset(new cert(
+        object_name,
+        full_storage_object_id(source_id, index, signature),
+        password_hash));
+      
+      return false; },
+    object_name);
+  
+  return result;
 }

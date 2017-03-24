@@ -84,8 +84,8 @@ vds::guid vds::guid::parse(const std::string & value)
 
   return guid(&result, sizeof(result));
 #else
-  char s[37];
-  uuid_unparse(*(const uuid_t *)this->data(), s);
-  return s;
+  uuid_t result;
+  uuid_parse(value.c_str(), result);
+  return guid(&result, sizeof(result));
 #endif
 }

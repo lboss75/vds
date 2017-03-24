@@ -26,6 +26,7 @@ vds::storage_object_id::storage_object_id(
 {
 }
 
+
 vds::storage_object_id::storage_object_id(const json_value * source)
 {
   auto s = dynamic_cast<const json_object *>(source);
@@ -68,6 +69,15 @@ const char vds::full_storage_object_id::message_type[] = "full object id";
 vds::full_storage_object_id::full_storage_object_id()
 {
 }
+
+vds::full_storage_object_id::full_storage_object_id(
+  const full_storage_object_id & original)
+: storage_object_id(original),
+  source_server_id_(original.source_server_id_)
+{
+
+}
+
 
 vds::full_storage_object_id::full_storage_object_id(const json_value* source)
 : storage_object_id(source)

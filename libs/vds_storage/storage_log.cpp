@@ -80,6 +80,15 @@ void vds::storage_log::register_server(const std::string & server_certificate)
   this->impl_->register_server(server_certificate);
 }
 
+std::unique_ptr<vds::cert> vds::storage_log::find_cert(const std::string & object_name) const
+{
+  return this->impl_->find_cert(object_name);
+}
+
+std::unique_ptr<vds::data_buffer> vds::storage_log::get_object(const vds::full_storage_object_id& object_id)
+{
+  return this->impl_->get_object(object_id);
+}
 ///////////////////////////////////////////////////////////////////////////////
 vds::_storage_log::_storage_log(
   const service_provider & sp,
@@ -341,3 +350,12 @@ void vds::_storage_log::add_to_local_log(const json_value * record)
   os.write(record->str());
 }
 
+std::unique_ptr<vds::cert> vds::_storage_log::find_cert(const std::string & object_name) const
+{
+  return this->db_.find_cert(object_name);
+}
+
+std::unique_ptr<vds::data_buffer> vds::_storage_log::get_object(const vds::full_storage_object_id& object_id)
+{
+  return std::unique_ptr<vds::data_buffer>();
+}

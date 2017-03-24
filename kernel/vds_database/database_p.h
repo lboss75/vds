@@ -29,9 +29,9 @@ namespace vds {
       }
     }
 
-    void set_parameter(int index, int value)
+    void set_parameter(int index, uint64_t value)
     {
-      sqlite3_bind_int(this->stmt_, index, value);
+      sqlite3_bind_int64(this->stmt_, index, value);
       this->eof_ = false;
     }
 
@@ -70,9 +70,9 @@ namespace vds {
       }
     }
 
-    bool get_value(int index, int & value)
+    bool get_value(int index, uint64_t & value)
     {
-      value = sqlite3_column_int(this->stmt_, index);
+      value = sqlite3_column_int64(this->stmt_, index);
       return true;
     }
 

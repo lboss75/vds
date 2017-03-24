@@ -2,7 +2,6 @@ project(vds_database CXX C)
 cmake_minimum_required(VERSION 2.6.2)
 
 include_directories(${vds_core_SOURCE_DIR})
-include_directories(${SQLITE3_INCLUDE_DIRS} )
 
 FILE(GLOB HEADER_FILES *.h)
 FILE(GLOB SOURCE_LIB *.cpp)
@@ -21,4 +20,6 @@ add_library(vds_database
 target_link_libraries(
   vds_database
   vds_core
+  ${PTHREAD_LIB}
+  ${CMAKE_DL_LIBS}
   ${CMAKE_THREAD_LIBS_INIT})

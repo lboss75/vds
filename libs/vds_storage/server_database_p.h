@@ -9,7 +9,7 @@ All rights reserved
 #include "server_database.h"
 
 namespace vds {
-
+  
   class _server_database
   {
   public:
@@ -20,14 +20,22 @@ namespace vds {
     void stop();
 
     void add_cert(const cert & record);
-    std::unique_ptr<cert> find_cert(const std::string & object_name) const;
+    std::unique_ptr<cert> find_cert(const std::string & object_name);
 
   private:
     service_provider sp_;
     server_database * owner_;
     database db_;
 
-    std::unique_ptr<sql_statement> add_cert_statement_;
+    prepared_statement<
+      const std::string & /* object_name */,
+      const guid & /* source_id */,
+      uint64_t /* index */,
+      const data_buffer & /* signature */,
+      const std::string & /*password_hash*/> add_cert_statement_;
+      
+    prepared_query<
+      const std::string & /* object_name */> find_cert_query_;
   };
 
 }
