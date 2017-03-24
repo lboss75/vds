@@ -108,6 +108,11 @@ uint8_t vds::binary_serializer::operator[](size_t index) const
 }
 
 ///////////////////////////////////////////////////////////////////////////
+vds::binary_deserializer::binary_deserializer(const data_buffer & data)
+  : data_(data.data()), len_(data.size())
+{
+}
+
 vds::binary_deserializer::binary_deserializer(const void* data, size_t len)
 : data_((const uint8_t *)data), len_(len)
 {

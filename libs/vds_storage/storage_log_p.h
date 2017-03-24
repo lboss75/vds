@@ -30,6 +30,8 @@ namespace vds {
       storage_log * owner);
 
     void reset(
+      const certificate & root_certificate,
+      const asymmetric_private_key & private_key,
       const std::string & root_password,
       const std::string & addresses);
 
@@ -48,9 +50,14 @@ namespace vds {
 
     void register_server(const std::string & server_certificate);
 
+    std::unique_ptr<cert> find_cert(const std::string & object_name) const;
+    std::unique_ptr<data_buffer> get_object(const full_storage_object_id & object_id);
+
   private:
     server_database db_;
-    asymmetric_private_key current_server_key_;
+
+    const certificate & server_certificate_;
+    const asymmetric_private_key & current_server_key_;
 
     guid current_server_id_;
     storage_log * const owner_;
@@ -73,7 +80,7 @@ namespace vds {
     void process(const guid & source_server_id, const server_log_new_server & message);
     void process(const guid & source_server_id, const server_log_new_endpoint & message);
     
-    storage_object_id save_object(const file_container & fc);
+    storage_object_id save_object(const object_container & fc);
 
     void add_to_local_log(const json_value * record);
     

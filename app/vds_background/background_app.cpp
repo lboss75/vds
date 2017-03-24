@@ -38,7 +38,6 @@ void vds::background_app::register_services(vds::service_registrator& registrato
   registrator.add(this->task_manager_);
   
   if (&this->start_server_command_set_ == this->current_command_set_) {
-    registrator.add(this->storage_);
     registrator.add(this->server_);
   }
 }

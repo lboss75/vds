@@ -46,6 +46,7 @@ namespace vds {
   class binary_deserializer
   {
   public:
+    binary_deserializer(const data_buffer & data);
     binary_deserializer(const void * data, size_t len);
     binary_deserializer(const std::vector<uint8_t> & data);
     

@@ -39,7 +39,7 @@ namespace vds {
     std::string str(const std::string & password = std::string()) const;
 
     void load(const filename & filename, const std::string & password = std::string());
-    void save(const filename & filename, const std::string & password = std::string());
+    void save(const filename & filename, const std::string & password = std::string()) const;
 
     EVP_PKEY * key() const
     {
@@ -180,7 +180,7 @@ namespace vds {
     std::string str() const;
 
     void load(const filename & filename);
-    void save(const filename & filename);
+    void save(const filename & filename) const;
 
     X509 * cert() const
     {

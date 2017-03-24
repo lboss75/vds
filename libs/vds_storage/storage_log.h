@@ -11,6 +11,8 @@ namespace vds {
   class _storage_log;
   class endpoint;
   class istorage;
+  class cert;
+  class full_storage_object_id;
 
   class storage_log
   {
@@ -23,6 +25,8 @@ namespace vds {
     ~storage_log();
 
     void reset(
+      const certificate & root_certificate,
+      const asymmetric_private_key & private_key,
       const std::string & root_password,
       const std::string & address);
 
@@ -42,6 +46,9 @@ namespace vds {
 
     void register_server(const std::string & server_certificate);
 
+    std::unique_ptr<cert> find_cert(const std::string & object_name) const;
+
+    std::unique_ptr<data_buffer> get_object(const full_storage_object_id & object_id);
 
   private:
     std::unique_ptr<_storage_log> impl_;

@@ -87,23 +87,32 @@ void vds::_server_json_client_api::process(
   json_array * result,
   const client_messages::certificate_and_key_request & message) const
 {
-  cert c;
-  if(!scope.get<istorage>().find_cert(message.object_name())
-    || c.password_hash() != message.password_hash()){
+  auto cert = scope
+    .get<istorage>()
+    .get_storage_log()
+    .find_cert(message.object_name());
+
+  if (!cert
+    || cert->password_hash() != message.password_hash()) {
     result->add(client_messages::certificate_and_key_response(message.request_id(), "Invalid username or password").serialize());
   }
-  
-  scope.get<istorage>().get_object(
-    c.object_id(),
-    [](const data_buffer & buffer) {
-      file_container fc(buffer);
-      
-      result->add(client_messages::certificate_and_key_response(
+
+  std::unique_ptr<data_buffer> buffer = scope
+    .get<istorage>()
+    .get_storage_log()
+    .get_object(cert->object_id());
+
+
+  if (buffer) {
+    binary_deserializer s(*buffer);
+    object_container obj_cont(s);
+
+    result->add(
+      client_messages::certificate_and_key_response(
         message.request_id(),
-        certificate::parse(fc.get("c")),
-        asymmetric_private_key::parse(fc.get("k"))).serialize());
-    });
-    
+        obj_cont.get("c"),
+        obj_cont.get("k")).serialize());
+  }
 }
 
 void vds::_server_json_client_api::process(const service_provider & scope, json_array * result, const client_messages::register_server_request & message) const

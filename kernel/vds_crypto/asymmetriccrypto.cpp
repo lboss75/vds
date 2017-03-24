@@ -110,7 +110,7 @@ void vds::asymmetric_private_key::load(const filename & filename, const std::str
   BIO_free(in);
 }
 
-void vds::asymmetric_private_key::save(const filename & filename, const std::string & password/* = std::string()*/)
+void vds::asymmetric_private_key::save(const filename & filename, const std::string & password/* = std::string()*/) const
 {
   auto outf = BIO_new_file(filename.local_name().c_str(), "w");
   if (nullptr == outf) {
@@ -435,7 +435,7 @@ void vds::certificate::load(const filename & filename)
   BIO_free(in);
 }
 
-void vds::certificate::save(const filename & filename)
+void vds::certificate::save(const filename & filename) const
 {
   auto out = BIO_new_file(filename.local_name().c_str(), "w");
   auto ret = PEM_write_bio_X509(out, this->cert_);

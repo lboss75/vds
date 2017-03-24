@@ -79,8 +79,32 @@ void mock_client::init_root(const std::string & root_password, int port)
 {
   this->start_vds(false, [root_password, port](const vds::service_provider&sp) {
 
-    vds::storage_log log(sp);
-    log.reset(root_password, "https://127.0.0.1:" + std::to_string(port));
+    vds::asymmetric_private_key private_key(vds::asymmetric_crypto::rsa4096());
+    private_key.generate();
+
+    vds::certificate root_certificate = vds::_certificate_authority::create_root_user(private_key);
+
+    vds::asymmetric_private_key server_private_key(vds::asymmetric_crypto::rsa4096());
+    server_private_key.generate();
+
+    vds::guid current_server_id = vds::guid::new_guid();
+    vds::certificate server_certificate = vds::certificate_authority::create_server(
+      current_server_id,
+      root_certificate,
+      private_key,
+      server_private_key);
+
+    vds::storage_log log(
+      sp,
+      current_server_id,
+      server_certificate,
+      server_private_key);
+
+    log.reset(
+      root_certificate,
+      private_key,
+      root_password,
+      "https://127.0.0.1:" + std::to_string(port));
 
   });
 }
@@ -155,7 +179,6 @@ void mock_server::start()
   this->registrator_.add(this->network_service_);
   this->registrator_.add(this->task_manager_);
   this->registrator_.add(this->crypto_service_);
-  this->registrator_.add(this->storage_);
   this->registrator_.add(this->server_);
   
   this->server_.set_port(8050 + this->index_);

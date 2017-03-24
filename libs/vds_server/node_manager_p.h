@@ -20,15 +20,6 @@ namespace vds {
     logger log_;
 
     std::mutex states_mutex_;
-
-    enum state
-    {
-      pending,
-      error,
-      complete
-    };
-
-    simple_cache<std::string, state, 10, 3> states_;
   };
 }
 

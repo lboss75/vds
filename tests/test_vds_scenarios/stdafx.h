@@ -15,6 +15,8 @@ All rights reserved
 #include "vds_storage.h"
 #include "vds_client.h"
 
+#include "certificate_authority_p.h"
+
 #include "gtest/gtest.h"
 
 #endif//__TEST_VDS_SCENARIOS_STDAFX_H_
