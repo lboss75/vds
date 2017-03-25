@@ -61,7 +61,7 @@ void vds::server::start(const service_provider& sp)
   this->server_udp_api_->start("127.0.0.1", this->port_);
   
   this->peer_network_.reset(new peer_network(sp));
-  //this->peer_network_->start();
+  this->peer_network_->start();
   
 
   //this->client_logic_.reset(new client_logic(sp, &this->certificate_, &this->private_key_, sp.get<istorage>().get_storage_log().get_endpoints()));

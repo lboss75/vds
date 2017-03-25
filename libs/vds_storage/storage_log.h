@@ -49,6 +49,13 @@ namespace vds {
     std::unique_ptr<cert> find_cert(const std::string & object_name) const;
 
     std::unique_ptr<data_buffer> get_object(const full_storage_object_id & object_id);
+    
+    void add_endpoint(
+      const std::string & endpoint_id,
+      const std::string & addresses);
+
+    void get_endpoints(std::map<std::string, std::string> & addresses);
+
 
   private:
     std::unique_ptr<_storage_log> impl_;

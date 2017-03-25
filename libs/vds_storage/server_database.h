@@ -30,6 +30,12 @@ namespace vds {
     
     uint64_t last_object_index(
       const guid & server_id);
+    
+    void add_endpoint(
+      const std::string & endpoint_id,
+      const std::string & addresses);
+
+    void get_endpoints(std::map<std::string, std::string> & addresses);
 
   private:
     _server_database * const impl_;

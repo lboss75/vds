@@ -17,6 +17,12 @@ namespace vds {
     ~node_manager();
 
     bool register_server(const service_provider & scope, const std::string & node_certificate, std::string & error);
+    
+    void add_endpoint(
+      const std::string & endpoint_id,
+      const std::string & addresses);
+
+    void get_endpoints(std::map<std::string, std::string> & addresses);
 
   private:
     std::unique_ptr<_node_manager> impl_;

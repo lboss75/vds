@@ -14,12 +14,17 @@ namespace vds {
     _node_manager(const service_provider & sp);
 
     bool register_server(const service_provider & scope, const std::string & node_certificate, std::string & error);
+    
+    void add_endpoint(
+      const std::string & endpoint_id,
+      const std::string & addresses);
+
+    void get_endpoints(std::map<std::string, std::string> & addresses);
+
 
   private:
     service_provider sp_;
     logger log_;
-
-    std::mutex states_mutex_;
   };
 }
 

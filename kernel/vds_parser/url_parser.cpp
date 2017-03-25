@@ -34,16 +34,16 @@ bool vds::url_parser::parse_address(
   return handler(address.substr(0, p), address);
 }
 
-vds::url_parser::http_address vds::url_parser::parse_http_address(const std::string & address)
+vds::url_parser::network_address vds::url_parser::parse_network_address(const std::string & address)
 {
-  vds::url_parser::http_address result;
+  vds::url_parser::network_address result;
 
   auto p = address.find(':');
   if (std::string::npos == p
     || p + 2 > address.length()
     || '/' != address[p + 1]
     || '/' != address[p + 2]) {
-    return vds::url_parser::http_address();
+    return vds::url_parser::network_address();
   }
 
   result.protocol = address.substr(0, p);

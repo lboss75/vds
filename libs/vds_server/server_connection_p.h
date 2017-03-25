@@ -16,6 +16,10 @@ namespace vds {
       const service_provider & sp,
       server_connection * owner);
     ~_server_connection();
+    
+    void start();
+    void stop();
+
 
     void get_delivery_metrics(
       std::map<std::string, size_t> & metrics) override;
@@ -27,7 +31,9 @@ namespace vds {
 
   private:
     service_provider sp_;
+    logger log_;
     server_connection * owner_;
+    udp_socket client_udp_socket_;
 
     struct endpoint_info
     {
@@ -43,6 +49,9 @@ namespace vds {
 
 
     void init_connection(const std::string & address, uint16_t port);
+    
+    void open_udp_session(const std::string & address);
+    void open_https_session(const std::string & address);
   };
 }
 

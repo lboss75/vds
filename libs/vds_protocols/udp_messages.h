@@ -20,7 +20,7 @@ namespace vds {
     {
     public:
       hello_message(
-        const std::string & source_certificate,
+        const guid & server_id,
         uint32_t generation_id,
         const std::string & to_url);
       

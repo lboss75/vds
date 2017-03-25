@@ -51,6 +51,16 @@ uint64_t vds::server_database::last_object_index(const guid& server_id)
   return this->impl_->last_object_index(server_id);
 }
 
+void vds::server_database::add_endpoint(const std::string& endpoint_id, const std::string& addresses)
+{
+  this->impl_->add_endpoint(endpoint_id, addresses);
+}
+
+void vds::server_database::get_endpoints(std::map<std::string, std::string>& addresses)
+{
+  this->impl_->get_endpoints(addresses);
+}
+
 ////////////////////////////////////////////////////////
 vds::_server_database::_server_database(const service_provider & sp, server_database * owner)
   : sp_(sp),
@@ -105,8 +115,14 @@ void vds::_server_database::start()
       object_index INTEGER NOT NULL,\
       signature VARCHAR(64) NOT NULL,\
       password_hash VARCHAR(64) NOT NULL)");
+    
+    this->db_.execute(
+      "CREATE TABLE endpoints(\
+      endpoint_id VARCHAR(64) PRIMARY KEY NOT NULL,\
+      addresses TEXT NOT NULL)");
 
     this->db_.execute("INSERT INTO module(id, version, installed) VALUES('kernel', 1, datetime('now'))");
+    this->db_.execute("INSERT INTO endpoints(iendpoint_id, addresses) VALUES('default', 'udp://127.0.0.1:8050,https://127.0.0.1:8050')");
   }
 }
 
@@ -181,4 +197,28 @@ uint64_t vds::_server_database::last_object_index(const guid& server_id)
     server_id);
   
   return result;
+}
+void vds::_server_database::add_endpoints(
+  const std::string & endpoint_id,
+  const std::string & addresses)
+{
+  this->add_endpoint_statement_.execute(
+    this->db_,
+    "INSERT INTO endpoints(endpoint_id, addresses) VALUES (@endpoint_id, @addresses)",
+    endpoint_id,
+    addresses);
+}
+
+void vds::_server_database::get_endpoints(std::map<std::string, std::string>& result)
+{
+  this->last_object_index_query_.query(
+    this->db_,
+    "SELECT endpoint_id, addresses FROM endpoints",
+    [&result](sql_statement & st)->bool{
+      std::string endpoint_id;
+      std::string addresses;
+      st.get_value(0, endpoint_id);
+      st.get_value(1, addresses);
+      return true;
+    });
 }

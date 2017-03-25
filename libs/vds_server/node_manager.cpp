@@ -22,6 +22,18 @@ bool vds::node_manager::register_server(const service_provider & scope, const st
   return this->impl_->register_server(scope, node_certificate, error);
 }
 
+void vds::node_manager::add_endpoint(
+  const std::string & endpoint_id,
+  const std::string & addresses)
+{
+  this->impl_->add_endpoint(endpoint_id, addresses);
+}
+
+void vds::node_manager::get_endpoints(std::map<std::string, std::string> & addresses)
+{
+  this->impl_->get_endpoints(addresses);
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 vds::_node_manager::_node_manager(const service_provider & sp)
   : sp_(sp),
@@ -35,3 +47,14 @@ bool vds::_node_manager::register_server(const service_provider & scope, const s
   return true;
 }
 
+void vds::_node_manager::add_endpoint(
+  const std::string & endpoint_id,
+  const std::string & addresses)
+{
+  scope.get<istorage>().get_storage_log().add_endpoint(endpoint_id, addresses);
+}
+
+void vds::_node_manager::get_endpoints(std::map<std::string, std::string> & addresses)
+{
+  scope.get<istorage>().get_storage_log().get_endpoints(addresses);
+}

@@ -21,7 +21,7 @@ namespace vds {
       const std::function<bool(const std::string & protocol, const std::string & address)> & handler);
 
 
-    struct http_address
+    struct network_address
     {
       std::string protocol;
       std::string server;
@@ -29,7 +29,7 @@ namespace vds {
       std::string path;
     };
 
-    static http_address parse_http_address(
+    static network_address parse_network_address(
       const std::string & address);
   };
 }

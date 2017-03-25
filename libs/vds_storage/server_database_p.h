@@ -29,7 +29,12 @@ namespace vds {
     
     uint64_t last_object_index(
       const guid & server_id);
+    
+    void add_endpoint(
+      const std::string & endpoint_id,
+      const std::string & addresses);
 
+    void get_endpoints(std::map<std::string, std::string> & addresses);
 
   private:
     service_provider sp_;
@@ -53,6 +58,12 @@ namespace vds {
       
     prepared_query<
       const guid & /*server_id*/> last_object_index_query_;
+      
+    prepared_query<
+      const std::string & /*endpoint_id*/,
+      const std::string & /*addresses*/> add_endpoint_statement_;
+      
+    prepared_query<> get_endpoints_query_;
   };
 
 }

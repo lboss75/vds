@@ -89,6 +89,19 @@ std::unique_ptr<vds::data_buffer> vds::storage_log::get_object(const vds::full_s
 {
   return this->impl_->get_object(object_id);
 }
+
+void vds::storage_log::add_endpoint(
+  const std::string & endpoint_id,
+  const std::string & addresses)
+{
+  this->impl_->add_endpoint(endpoint_id, addresses);
+}
+
+void vds::storage_log::get_endpoints(std::map<std::string, std::string> & addresses)
+{
+  this->impl_->get_endpoints(addresses);
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 vds::_storage_log::_storage_log(
   const service_provider & sp,
@@ -368,4 +381,16 @@ std::unique_ptr<vds::cert> vds::_storage_log::find_cert(const std::string & obje
 std::unique_ptr<vds::data_buffer> vds::_storage_log::get_object(const vds::full_storage_object_id& object_id)
 {
   return this->local_cache_.get_object(object_id);
+}
+
+void vds::_storage_log::add_endpoint(
+  const std::string & endpoint_id,
+  const std::string & addresses)
+{
+  this->db_.add_endpoint(endpoint_id, addresses);
+}
+
+void vds::_storage_log::get_endpoints(std::map<std::string, std::string> & addresses)
+{
+  this->db_.get_endpoints(addresses);
 }
