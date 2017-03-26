@@ -198,7 +198,7 @@ uint64_t vds::_server_database::last_object_index(const guid& server_id)
   
   return result;
 }
-void vds::_server_database::add_endpoints(
+void vds::_server_database::add_endpoint(
   const std::string & endpoint_id,
   const std::string & addresses)
 {
@@ -211,7 +211,7 @@ void vds::_server_database::add_endpoints(
 
 void vds::_server_database::get_endpoints(std::map<std::string, std::string>& result)
 {
-  this->last_object_index_query_.query(
+  this->get_endpoints_query_.query(
     this->db_,
     "SELECT endpoint_id, addresses FROM endpoints",
     [&result](sql_statement & st)->bool{

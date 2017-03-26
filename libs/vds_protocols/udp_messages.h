@@ -20,21 +20,21 @@ namespace vds {
     {
     public:
       hello_message(
-        const guid & server_id,
-        uint32_t generation_id,
+        const std::string & source_certificate,
+        uint32_t session_id,
         const std::string & to_url);
       
       hello_message(network_deserializer& s);
       
       const std::string & source_certificate() const { return this->source_certificate_; }
-      uint32_t generation_id() const { return this->generation_id_; }
+      uint32_t session_id() const { return this->session_id_; }
       const std::string & to_url() const { return this->to_url_; }
       
       void serialize(network_serializer& s) const;
       
     private:
       std::string source_certificate_;
-      uint32_t generation_id_;
+      uint32_t session_id_;
       std::string to_url_;
     };
 

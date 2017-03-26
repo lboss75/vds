@@ -59,7 +59,7 @@ namespace vds {
     prepared_query<
       const guid & /*server_id*/> last_object_index_query_;
       
-    prepared_query<
+    prepared_statement<
       const std::string & /*endpoint_id*/,
       const std::string & /*addresses*/> add_endpoint_statement_;
       

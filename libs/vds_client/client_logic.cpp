@@ -37,7 +37,7 @@ void vds::client_logic::start()
     url_parser::parse_addresses(*p,
       [this](const std::string & protocol, const std::string & address)->bool {
       if ("https" == protocol) {
-        auto url = url_parser::parse_http_address(address);
+        auto url = url_parser::parse_network_address(address);
         if (protocol == url.protocol) {
           this->connection_queue_.push_back(
             std::unique_ptr<client_connection<client_logic>>(

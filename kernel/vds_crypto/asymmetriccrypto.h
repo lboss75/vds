@@ -134,11 +134,15 @@ namespace vds {
       const asymmetric_public_key & key
     );
     
-    int update(
+    size_t update(
       const void * data,
-      int len,
-      void * result_data,
-      int result_data_len);
+      size_t len,
+      void * result_buffer,
+      size_t result_buffer_len);
+    
+    size_t final(
+      void * result_buffer,
+      size_t result_buffer_len);
   };
   
   class asymmetric_decrypt

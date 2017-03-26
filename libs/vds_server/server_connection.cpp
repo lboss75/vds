@@ -47,6 +47,17 @@ vds::_server_connection::~_server_connection()
 
 void vds::_server_connection::start()
 {
+  sequence(
+    udp_receive(this->sp_, this->client_udp_socket_),
+    server_udp_client_api(this)    
+  )
+  (
+   [](){},
+   [](std::exception * ex) {
+     delete ex;
+   }
+  );
+  
   std::map<std::string, std::string> endpoints;
   this->sp_.get<iserver>().get_node_manager().get_endpoints(endpoints);
   
