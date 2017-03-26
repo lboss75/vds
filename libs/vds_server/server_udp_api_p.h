@@ -32,8 +32,11 @@ namespace vds {
     template <typename next_step_type>
     void get_message(next_step_type & next)
     {
-      
+      this->message_queue_.get(next);
     }
+    
+    void open_udp_session(const std::string & address);
+
 
   private:
     service_provider sp_;
@@ -45,6 +48,10 @@ namespace vds {
     
     event_handler<certificate *> on_download_certificate_;
     void on_download_certificate(certificate * cert);
+    
+    uint32_t out_session_id_;
+    
+    pipeline<std::string, uint16_t, data_buffer> message_queue_;
 
     struct udp_client
     {

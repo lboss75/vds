@@ -474,16 +474,43 @@ private:
         const context_type & context,
         handler_class & owner
       ) : base_class(context),
-      owner_(owner) {
+        owner_(owner),
+        handler_(*this)
+      {
       }
 
       void operator()()
       {
-        this->owner_.get_message(this->next);
+        this->owner_.get_message(this->handler_);
       }
 
     private:
       handler_class & owner_;
+      
+      class handler
+      {
+      public:
+        handler(read_handler & owner)
+        : owner_(owner)
+        {
+        }
+        
+        void operator()(const std::string & address, uint16_t port, const data_buffer & data)
+        {
+          this->data_ = data;
+          this->from_.sin_family = AF_INET;
+          this->from_.sin_addr.s_addr = inet_addr(address.c_str());
+          this->from_.sin_port = htons(port);
+
+          this->owner_.next(this->from_, this->data_.data(), this->data_.size());
+        }
+        
+      private:
+        read_handler & owner_;
+        sockaddr_in from_;
+        data_buffer data_;
+      };
+      handler handler_;
     };
 
   private:

@@ -76,6 +76,33 @@ namespace vds {
     {
     }
   };
+  
+  template<typename target_type, typename tuple_type, std::size_t current_num, std::size_t... nums>
+  class _call_with : public _call_with<target_type, tuple_type, current_num - 1, current_num - 1, nums...>
+  {
+    using base_class = _call_with<target_type, tuple_type, current_num - 1, current_num - 1, nums...>;
+  public:
+    _call_with(target_type & target, const tuple_type & arguments)
+    : base_class(target, arguments)
+    {
+    }
+  };
+  
+  template<typename target_type, typename tuple_type, std::size_t... nums>
+  class _call_with<target_type, tuple_type, 0, nums...>
+  {
+  public:
+    _call_with(target_type & target, const tuple_type & arguments)
+    {
+      target(std::get<nums>(arguments)...);
+    }
+  };
+  
+  template<typename target_type, typename tuple_type>
+  inline void call_with(target_type & target, const tuple_type & arguments)
+  {
+    _call_with<target_type, tuple_type, std::tuple_size<tuple_type>::value>(target, arguments);
+  }
 }
 
 #endif//__VDS_CORE_FUNC_UTILS_H_

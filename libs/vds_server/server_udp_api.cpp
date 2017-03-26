@@ -30,6 +30,12 @@ void vds::server_udp_api::stop()
 {
   this->impl_->stop();
 }
+
+void vds::server_udp_api::open_udp_session(const std::string & address)
+{
+  this->impl_->open_udp_session(address);
+}
+
 /////////////////////////////////////////////////////////////////
 vds::_server_udp_api::_server_udp_api(
   const service_provider & sp,
@@ -42,7 +48,9 @@ vds::_server_udp_api::_server_udp_api(
   certificate_(certificate),
   private_key_(private_key),
   s_(sp),
-  on_download_certificate_(std::bind(&_server_udp_api::on_download_certificate, this, std::placeholders::_1))
+  on_download_certificate_(std::bind(&_server_udp_api::on_download_certificate, this, std::placeholders::_1)),
+  out_session_id_(0),
+  message_queue_(sp)
 {
 }
 
@@ -143,4 +151,22 @@ void vds::_server_udp_api::on_download_certificate(certificate * cert)
 
 void vds::_server_udp_api::send_welcome()
 {
+}
+
+void vds::_server_udp_api::open_udp_session(const std::string & address)
+{
+  auto network_address = url_parser::parse_network_address(address);
+  assert("udp" == network_address.protocol);
+  
+  network_serializer s;
+  
+  udp_messages::hello_message(
+    this->certificate_.str(),
+    ++(this->out_session_id_),
+    address).serialize(s);
+  
+  this->message_queue_.push(
+    network_address.server,
+    (uint16_t)std::atoi(network_address.port.c_str()),
+    data_buffer(s.data()));
 }

@@ -8,12 +8,14 @@ All rights reserved
 
 namespace vds {
   class server_connection;
+  class server_udp_api;
 
   class _server_connection : private iconnection_channel
   {
   public:
     _server_connection(
       const service_provider & sp,
+      server_udp_api * udp_api,
       server_connection * owner);
     ~_server_connection();
     
@@ -32,8 +34,8 @@ namespace vds {
   private:
     service_provider sp_;
     logger log_;
+    server_udp_api * udp_api_;
     server_connection * owner_;
-    udp_socket client_udp_socket_;
 
     struct endpoint_info
     {

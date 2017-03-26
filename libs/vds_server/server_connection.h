@@ -7,10 +7,16 @@ All rights reserved
 */
 
 namespace vds {
+  class _server_connection;
+  class server_udp_api;
+  
   class server_connection
   {
   public:
-    server_connection(const service_provider & sp);
+    server_connection(
+      const service_provider & sp,
+      server_udp_api * udp_api);
+    
     ~server_connection();
 
     void start();
@@ -18,7 +24,7 @@ namespace vds {
 
 
   private:
-    class _server_connection * const impl_;
+    _server_connection * const impl_;
   };
 }
 

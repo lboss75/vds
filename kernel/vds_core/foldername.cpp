@@ -148,7 +148,7 @@ void vds::foldername::delete_folder(bool recurcive) const
 
   if (0 != rmdir(this->local_name().c_str())) {
     auto err = errno;
-    throw new std::system_error(errno, std::system_category(), "Unable to delete folder " + this->name());
+    throw new std::system_error(err, std::system_category(), "Unable to delete folder " + this->name());
   }
 }
 

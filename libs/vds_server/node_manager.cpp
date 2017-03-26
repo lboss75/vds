@@ -51,10 +51,10 @@ void vds::_node_manager::add_endpoint(
   const std::string & endpoint_id,
   const std::string & addresses)
 {
-  scope.get<istorage>().get_storage_log().add_endpoint(endpoint_id, addresses);
+  this->sp_.get<istorage>().get_storage_log().add_endpoint(endpoint_id, addresses);
 }
 
 void vds::_node_manager::get_endpoints(std::map<std::string, std::string> & addresses)
 {
-  scope.get<istorage>().get_storage_log().get_endpoints(addresses);
+  this->sp_.get<istorage>().get_storage_log().get_endpoints(addresses);
 }

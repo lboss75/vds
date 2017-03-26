@@ -31,6 +31,7 @@ All rights reserved
 #include "simple_cache.h"
 #include "binary_serialize.h"
 #include "data_buffer.h"
+#include "pipeline.h"
 
 #endif // !__VDS_CORE_H_
 

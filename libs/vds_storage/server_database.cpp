@@ -122,7 +122,7 @@ void vds::_server_database::start()
       addresses TEXT NOT NULL)");
 
     this->db_.execute("INSERT INTO module(id, version, installed) VALUES('kernel', 1, datetime('now'))");
-    this->db_.execute("INSERT INTO endpoints(iendpoint_id, addresses) VALUES('default', 'udp://127.0.0.1:8050,https://127.0.0.1:8050')");
+    this->db_.execute("INSERT INTO endpoints(endpoint_id, addresses) VALUES('default', 'udp://127.0.0.1:8050,https://127.0.0.1:8050')");
   }
 }
 
@@ -198,6 +198,7 @@ uint64_t vds::_server_database::last_object_index(const guid& server_id)
   
   return result;
 }
+
 void vds::_server_database::add_endpoint(
   const std::string & endpoint_id,
   const std::string & addresses)

@@ -325,7 +325,7 @@ inline void vds::chunk_restore<cell_type>::restore(
       cell_type value = 0;
       for (cell_type j = 0; j < this->k_; ++j) {
         cell_type cell = 0;
-        for(int offset = 0; offset < sizeof(cell_type); ++offset){
+        for(size_t offset = 0; offset < sizeof(cell_type); ++offset){
           cell <<= 8;
           cell |= (*chunks[j])[index + offset];
         }

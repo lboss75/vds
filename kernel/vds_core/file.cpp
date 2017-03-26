@@ -240,7 +240,7 @@ void vds::file::delete_file(const filename & fn)
 {
   if (0 != remove(fn.local_name().c_str())) {
     auto err = errno;
-    throw new std::system_error(errno, std::system_category(), "Unable to delete folder " + fn.name());
+    throw new std::system_error(err, std::system_category(), "Unable to delete folder " + fn.name());
   }
 }
 

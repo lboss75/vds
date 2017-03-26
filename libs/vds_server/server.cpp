@@ -48,8 +48,6 @@ void vds::server::start(const service_provider& sp)
 
   this->connection_manager_.reset(new connection_manager(sp, this->certificate_.subject()));
 
-  this->server_connection_.reset(new server_connection(sp));
-
   this->consensus_server_protocol_.reset(new consensus_protocol::server(sp, this->certificate_, this->private_key_, *this->connection_manager_));
   this->consensus_server_protocol_->start();
 
@@ -60,8 +58,11 @@ void vds::server::start(const service_provider& sp)
   this->server_udp_api_.reset(new server_udp_api(sp, this->certificate_, this->private_key_));
   this->server_udp_api_->start("127.0.0.1", this->port_);
   
+  this->server_connection_.reset(new server_connection(sp, this->server_udp_api_.get()));
+  this->server_connection_->start();
+  
   this->peer_network_.reset(new peer_network(sp));
-  this->peer_network_->start();
+  //this->peer_network_->start();
   
 
   //this->client_logic_.reset(new client_logic(sp, &this->certificate_, &this->private_key_, sp.get<istorage>().get_storage_log().get_endpoints()));

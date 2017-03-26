@@ -23,6 +23,8 @@ namespace vds {
       const std::string & address,
       size_t port);
     void stop();
+    
+    void open_udp_session(const std::string & address);
 
   private:
       _server_udp_api * const impl_;
