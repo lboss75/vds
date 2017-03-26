@@ -95,8 +95,13 @@ void vds::_server_udp_api::input_message(const sockaddr_in & from, const void * 
         auto cert_manager = server.get_cert_manager();
         
         auto cert = certificate::parse(msg.source_certificate());
-        if(cert_manager.validate(cert, this->on_download_certificate_)){
-          this->send_welcome();
+        if(cert_manager.validate(cert)){
+          auto session_id = ++this->in_last_session_;
+          
+          session_data * session = new session_data(session_id);
+          
+          binary_serializer s;
+          s << session_id << this->server_id_ << session->key_;
         }
         
         //server.get_peer_network().register_client_channel(

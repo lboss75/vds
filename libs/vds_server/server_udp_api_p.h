@@ -46,10 +46,16 @@ namespace vds {
     asymmetric_private_key & private_key_;
     udp_socket s_;
     
-    event_handler<certificate *> on_download_certificate_;
-    void on_download_certificate(certificate * cert);
     
     uint32_t out_session_id_;
+    
+    struct session_data
+    {
+      guid server_id_;
+      symmetric_key key_;
+    };
+    std::map<uint32_t, std::unique_ptr<session_data>> in_sessions_;
+    uint32_t in_last_session_;
     
     pipeline<std::string, uint16_t, data_buffer> message_queue_;
 
