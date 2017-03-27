@@ -5,25 +5,28 @@ All rights reserved
 
 #include "stdafx.h"
 #include "symmetriccrypto.h"
+#include "symmetriccrypto_p.h"
 
-vds::symmetric_crypto_info::symmetric_crypto_info(const EVP_CIPHER* cipher)
-: cipher_(cipher)
+////////////////////////////////////////////////////////////////////////////
+vds::symmetric_crypto_info::symmetric_crypto_info(_symmetric_crypto_info * impl)
+: impl_(impl)
 {
 }
 
 size_t vds::symmetric_crypto_info::key_size() const
 {
-  return EVP_CIPHER_key_length(this->cipher_);
+  return this->impl_->key_size();
 }
 
 size_t vds::symmetric_crypto_info::iv_size() const
 {
-  return EVP_CIPHER_iv_length(this->cipher_);
+  return this->impl_->iv_size();
 }
 
 const vds::symmetric_crypto_info& vds::symmetric_crypto::aes_256_cbc()
 {
-  static symmetric_crypto_info result(EVP_aes_256_cbc());
+  static _symmetric_crypto_info _result(EVP_aes_256_cbc());
+  static symmetric_crypto_info result(&_result);
   
   return result;
 }
@@ -43,6 +46,68 @@ void vds::symmetric_key::generate()
 }
 
 vds::symmetric_encrypt::symmetric_encrypt(const vds::symmetric_key& key)
+: impl_(new _symmetric_encrypt(key))
+{
+}
+
+vds::symmetric_encrypt::~symmetric_encrypt()
+{
+  delete this->impl_;
+}
+
+size_t vds::symmetric_encrypt::update(
+  const void* data, size_t len,
+  void* result_data, size_t result_data_len)
+{
+  return this->impl_->update(data, len, result_data, result_data_len);
+}
+
+vds::symmetric_decrypt::symmetric_decrypt(const vds::symmetric_key& key)
+: impl_(new _symmetric_decrypt(key))
+{
+}
+
+vds::symmetric_decrypt::~symmetric_decrypt()
+{
+  delete this->impl_;
+}
+
+size_t vds::symmetric_decrypt::update(const void* data, size_t len, void* result_data, size_t result_data_len)
+{
+  return this->impl_->update(data, len, result_data, result_data_len);
+}
+////////////////////////////////////////////////////////////////////////////
+vds::_symmetric_crypto_info::_symmetric_crypto_info(const EVP_CIPHER* cipher)
+: cipher_(cipher)
+{
+}
+
+size_t vds::_symmetric_crypto_info::key_size() const
+{
+  return EVP_CIPHER_key_length(this->cipher_);
+}
+
+size_t vds::_symmetric_crypto_info::iv_size() const
+{
+  return EVP_CIPHER_iv_length(this->cipher_);
+}
+
+
+vds::_symmetric_key::_symmetric_key(const vds::symmetric_crypto_info& crypto_info)
+: crypto_info_(crypto_info)
+{
+}
+
+void vds::_symmetric_key::generate()
+{
+  this->key_.reset(new unsigned char[this->crypto_info_.key_size()]);
+  this->iv_.reset(new unsigned char[this->crypto_info_.iv_size()]);
+  
+  RAND_bytes(this->key_.get(), (int)this->crypto_info_.key_size());
+  RAND_bytes(this->iv_.get(), (int)this->crypto_info_.iv_size());
+}
+
+vds::_symmetric_encrypt::_symmetric_encrypt(const vds::symmetric_key& key)
 : ctx_(EVP_CIPHER_CTX_new())
 {
   if(nullptr == this->ctx_){
@@ -51,7 +116,7 @@ vds::symmetric_encrypt::symmetric_encrypt(const vds::symmetric_key& key)
   
   if(1 != EVP_EncryptInit_ex(
     this->ctx_,
-    key.crypto_info_.cipher(),
+    key.crypto_info_.impl_->cipher(),
     nullptr,
     key.key(),
     key.iv())) {
@@ -59,14 +124,14 @@ vds::symmetric_encrypt::symmetric_encrypt(const vds::symmetric_key& key)
   }
 }
 
-vds::symmetric_encrypt::~symmetric_encrypt()
+vds::_symmetric_encrypt::~_symmetric_encrypt()
 {
   if(nullptr != this->ctx_){
     EVP_CIPHER_CTX_free(this->ctx_);
   }
 }
 
-size_t vds::symmetric_encrypt::update(
+size_t vds::_symmetric_encrypt::update(
   const void* data, size_t len,
   void* result_data, size_t result_data_len)
 {
@@ -87,7 +152,7 @@ size_t vds::symmetric_encrypt::update(
   return (size_t)result_len;
 }
 
-vds::symmetric_decrypt::symmetric_decrypt(const vds::symmetric_key& key)
+vds::_symmetric_decrypt::_symmetric_decrypt(const vds::symmetric_key& key)
 : ctx_(EVP_CIPHER_CTX_new())
 {
   if(nullptr == this->ctx_){
@@ -96,7 +161,7 @@ vds::symmetric_decrypt::symmetric_decrypt(const vds::symmetric_key& key)
   
   if(1 != EVP_DecryptInit_ex(
     this->ctx_,
-    key.crypto_info_.cipher(),
+    key.crypto_info_.impl_->cipher(),
     nullptr,
     key.key(),
     key.iv())) {
@@ -104,14 +169,14 @@ vds::symmetric_decrypt::symmetric_decrypt(const vds::symmetric_key& key)
   }
 }
 
-vds::symmetric_decrypt::~symmetric_decrypt()
+vds::_symmetric_decrypt::~_symmetric_decrypt()
 {
   if(nullptr != this->ctx_){
     EVP_CIPHER_CTX_free(this->ctx_);
   }
 }
 
-size_t vds::symmetric_decrypt::update(const void* data, size_t len, void* result_data, size_t result_data_len)
+size_t vds::_symmetric_decrypt::update(const void* data, size_t len, void* result_data, size_t result_data_len)
 {
   int result_len = (int)result_data_len;
   if(0 == len)

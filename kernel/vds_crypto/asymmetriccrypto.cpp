@@ -5,32 +5,80 @@ All rights reserved
 
 #include "stdafx.h"
 #include "asymmetriccrypto.h"
+#include "asymmetriccrypto_p.h"
 #include "crypto_exception.h"
-
+#include "hash_p.h"
+///////////////////////////////////////////////////////////////////////
 vds::asymmetric_private_key::asymmetric_private_key()
+: impl_(new _asymmetric_private_key())
+{
+}
+
+vds::asymmetric_private_key::asymmetric_private_key(asymmetric_private_key && original)
+: impl_(original.impl_)
+{
+  original.impl_ = nullptr;
+}
+
+vds::asymmetric_private_key::asymmetric_private_key(
+  const vds::asymmetric_crypto_info & info)
+: impl_(new _asymmetric_private_key(info))
+{
+}
+
+vds::asymmetric_private_key::asymmetric_private_key(_asymmetric_private_key * impl)
+: impl_(impl)
+{
+}
+
+vds::asymmetric_private_key::~asymmetric_private_key()
+{
+  delete this->impl_;
+}
+
+void vds::asymmetric_private_key::generate()
+{
+  this->generate();
+}
+
+vds::asymmetric_private_key vds::asymmetric_private_key::parse(const std::string & value, const std::string & password)
+{
+  auto io = BIO_new_mem_buf((void*)value.c_str(), (int)value.length());
+  auto key = PEM_read_bio_PrivateKey(io, 0, 0, password.empty() ? nullptr : (void *)password.c_str());
+  return asymmetric_private_key(new _asymmetric_private_key(key));
+}
+
+std::string vds::asymmetric_private_key::str(const std::string & password/* = std::string()*/) const
+{
+  return this->impl_->str(password);
+}
+
+void vds::asymmetric_private_key::load(const filename & filename, const std::string & password/* = std::string()*/)
+{
+  this->impl_->load(filename, password);
+}
+
+void vds::asymmetric_private_key::save(const filename & filename, const std::string & password/* = std::string()*/) const
+{
+  this->impl_->save(filename, password);
+}
+
+///////////////////////////////////////////////////////////////////////
+vds::_asymmetric_private_key::_asymmetric_private_key()
   : info_(vds::asymmetric_crypto::unknown()),
   ctx_(nullptr),
   key_(nullptr)
 {
 }
 
-vds::asymmetric_private_key::asymmetric_private_key(EVP_PKEY * key)
+vds::_asymmetric_private_key::_asymmetric_private_key(EVP_PKEY * key)
   : info_(vds::asymmetric_crypto::unknown()),
   ctx_(nullptr),
   key_(key)
 {
 }
 
-vds::asymmetric_private_key::asymmetric_private_key(asymmetric_private_key && original)
-: info_(original.info_),
-  ctx_(original.ctx_),
-  key_(original.key_)
-{
-  original.ctx_ = nullptr;
-  original.key_ = nullptr;
-}
-
-vds::asymmetric_private_key::asymmetric_private_key(
+vds::_asymmetric_private_key::_asymmetric_private_key(
   const vds::asymmetric_crypto_info & info)
 : info_(info), key_(nullptr)
 {
@@ -40,7 +88,7 @@ vds::asymmetric_private_key::asymmetric_private_key(
   }
 }
 
-vds::asymmetric_private_key::~asymmetric_private_key()
+vds::_asymmetric_private_key::~_asymmetric_private_key()
 {
   if (nullptr != this->ctx_) {
     EVP_PKEY_CTX_free(this->ctx_);
@@ -51,7 +99,7 @@ vds::asymmetric_private_key::~asymmetric_private_key()
 }
 
 
-void vds::asymmetric_private_key::generate()
+void vds::_asymmetric_private_key::generate()
 {
   if (0 >= EVP_PKEY_keygen_init(this->ctx_)) {
     throw new std::runtime_error("Unable to init RSA context");
@@ -66,14 +114,7 @@ void vds::asymmetric_private_key::generate()
   }
 }
 
-vds::asymmetric_private_key vds::asymmetric_private_key::parse(const std::string & value, const std::string & password)
-{
-  auto io = BIO_new_mem_buf((void*)value.c_str(), (int)value.length());
-  auto key = PEM_read_bio_PrivateKey(io, 0, 0, password.empty() ? nullptr : (void *)password.c_str());
-  return asymmetric_private_key(key);
-}
-
-std::string vds::asymmetric_private_key::str(const std::string & password/* = std::string()*/) const
+std::string vds::_asymmetric_private_key::str(const std::string & password/* = std::string()*/) const
 {
   BIO * bio = BIO_new(BIO_s_mem());
   PEM_write_bio_PrivateKey(bio, this->key_, NULL, NULL, 0, NULL, password.empty() ? nullptr : (void *)password.c_str());
@@ -90,7 +131,7 @@ std::string vds::asymmetric_private_key::str(const std::string & password/* = st
   return result;
 }
 
-void vds::asymmetric_private_key::load(const filename & filename, const std::string & password/* = std::string()*/)
+void vds::_asymmetric_private_key::load(const filename & filename, const std::string & password/* = std::string()*/)
 {
   auto in = BIO_new_file(filename.local_name().c_str(), "r");
   if (nullptr == in) {
@@ -110,7 +151,7 @@ void vds::asymmetric_private_key::load(const filename & filename, const std::str
   BIO_free(in);
 }
 
-void vds::asymmetric_private_key::save(const filename & filename, const std::string & password/* = std::string()*/) const
+void vds::_asymmetric_private_key::save(const filename & filename, const std::string & password/* = std::string()*/) const
 {
   auto outf = BIO_new_file(filename.local_name().c_str(), "w");
   if (nullptr == outf) {
@@ -126,7 +167,7 @@ void vds::asymmetric_private_key::save(const filename & filename, const std::str
 
   BIO_free(outf);
 }
-
+////////////////////////////////////////////////////////////////////////////////
 const vds::asymmetric_crypto_info & vds::asymmetric_crypto::unknown()
 {
   static asymmetric_crypto_info result = {
@@ -158,6 +199,27 @@ const vds::asymmetric_crypto_info & vds::asymmetric_crypto::rsa4096()
 }
 
 vds::asymmetric_sign::asymmetric_sign(const hash_info & hash_info, const asymmetric_private_key & key)
+: impl_(new _asymmetric_sign(hash_info, key))
+{
+}
+
+vds::asymmetric_sign::~asymmetric_sign()
+{
+  delete this->impl_;
+}
+
+void vds::asymmetric_sign::update(const void * data, int len)
+{
+  this->impl_->update(data, len);
+}
+
+void vds::asymmetric_sign::final()
+{
+  this->impl_->final();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+vds::_asymmetric_sign::_asymmetric_sign(const hash_info & hash_info, const asymmetric_private_key & key)
   : md_(nullptr)
 {
   this->ctx_ = EVP_MD_CTX_create();
@@ -177,20 +239,20 @@ vds::asymmetric_sign::asymmetric_sign(const hash_info & hash_info, const asymmet
     throw new crypto_exception("EVP_DigestInit_ex", error);
   }
 
-  if (1 != EVP_DigestSignInit(this->ctx_, NULL, this->md_, NULL, key.key_)){
+  if (1 != EVP_DigestSignInit(this->ctx_, NULL, this->md_, NULL, key.impl_->key_)){
     auto error = ERR_get_error();
     throw new crypto_exception("EVP_DigestInit_ex", error);
   }
 }
 
-vds::asymmetric_sign::~asymmetric_sign()
+vds::_asymmetric_sign::~_asymmetric_sign()
 {
   if (this->ctx_) {
     EVP_MD_CTX_destroy(this->ctx_);
   }
 }
 
-void vds::asymmetric_sign::update(const void * data, int len)
+void vds::_asymmetric_sign::update(const void * data, int len)
 {
   if (1 != EVP_DigestSignUpdate(this->ctx_, data, len)) {
     auto error = ERR_get_error();
@@ -198,7 +260,7 @@ void vds::asymmetric_sign::update(const void * data, int len)
   }
 }
 
-void vds::asymmetric_sign::final()
+void vds::_asymmetric_sign::final()
 {
   size_t req = 0;
   if(1 != EVP_DigestSignFinal(this->ctx_, NULL, &req) || req <= 0) {
@@ -228,8 +290,29 @@ void vds::asymmetric_sign::final()
   this->sig_.reset(sig, len);
   OPENSSL_free(sig);
 }
-
+///////////////////////////////////////////////////////////////
 vds::asymmetric_sign_verify::asymmetric_sign_verify(const hash_info & hash_info, const asymmetric_public_key & key)
+: impl_(new _asymmetric_sign_verify(hash_info, key))
+{
+}
+
+vds::asymmetric_sign_verify::~asymmetric_sign_verify()
+{
+  delete this->impl_;
+}
+
+void vds::asymmetric_sign_verify::update(const void * data, int len)
+{
+  this->impl_->update(data, len);
+}
+
+bool vds::asymmetric_sign_verify::verify(const data_buffer & sig)
+{
+  return this->impl_->verify(sig);
+}
+
+///////////////////////////////////////////////////////////////
+vds::_asymmetric_sign_verify::_asymmetric_sign_verify(const hash_info & hash_info, const asymmetric_public_key & key)
   : md_(nullptr)
 {
   this->ctx_ = EVP_MD_CTX_create();
@@ -249,20 +332,20 @@ vds::asymmetric_sign_verify::asymmetric_sign_verify(const hash_info & hash_info,
     throw new crypto_exception("EVP_DigestInit_ex", error);
   }
 
-  if (1 != EVP_DigestVerifyInit(this->ctx_, NULL, this->md_, NULL, key.key_)) {
+  if (1 != EVP_DigestVerifyInit(this->ctx_, NULL, this->md_, NULL, key.impl_->key_)) {
     auto error = ERR_get_error();
     throw new crypto_exception("EVP_DigestInit_ex", error);
   }
 }
 
-vds::asymmetric_sign_verify::~asymmetric_sign_verify()
+vds::_asymmetric_sign_verify::~_asymmetric_sign_verify()
 {
   if (this->ctx_) {
     EVP_MD_CTX_destroy(this->ctx_);
   }
 }
 
-void vds::asymmetric_sign_verify::update(const void * data, int len)
+void vds::_asymmetric_sign_verify::update(const void * data, int len)
 {
   if (1 != EVP_DigestVerifyUpdate(this->ctx_, data, len)) {
     auto error = ERR_get_error();
@@ -270,30 +353,73 @@ void vds::asymmetric_sign_verify::update(const void * data, int len)
   }
 }
 
-bool vds::asymmetric_sign_verify::verify(const data_buffer & sig)
+bool vds::_asymmetric_sign_verify::verify(const data_buffer & sig)
 {
   return 1 == EVP_DigestVerifyFinal(this->ctx_, const_cast<unsigned char *>(sig.data()), sig.size());
 }
-
-vds::asymmetric_public_key::asymmetric_public_key(EVP_PKEY * key)
-  : info_(asymmetric_crypto::unknown()), key_(key)
+//////////////////////////////////////////////////////////////////////
+vds::asymmetric_public_key::asymmetric_public_key(_asymmetric_public_key * impl)
+: impl_(impl)
 {
 }
 
 vds::asymmetric_public_key::asymmetric_public_key(asymmetric_public_key && original)
-  : info_(original.info_), key_(original.key_)
+  : impl_(original.impl_)
 {
-  original.key_ = nullptr;
+  original.impl_ = nullptr;
 }
 
 vds::asymmetric_public_key::asymmetric_public_key(const asymmetric_private_key & key)
-  : info_(key.info_), key_(nullptr)
+  : impl_(new _asymmetric_public_key(key))
 {
-  auto len = i2d_PUBKEY(key.key_, NULL);
+}
+
+vds::asymmetric_public_key::~asymmetric_public_key()
+{
+  delete this->impl_;
+}
+
+vds::asymmetric_public_key vds::asymmetric_public_key::parse(const std::string & value)
+{
+  auto io = BIO_new_mem_buf((void*)value.c_str(), (int)value.length());
+  auto key = PEM_read_bio_PUBKEY(io, 0, 0, 0);
+  return asymmetric_public_key(new _asymmetric_public_key(key));
+}
+
+std::string vds::asymmetric_public_key::str() const
+{
+  return this->impl_->str();
+}
+
+void vds::asymmetric_public_key::load(const filename & filename)
+{
+  this->impl_->load(filename);
+}
+
+void vds::asymmetric_public_key::save(const filename & filename)
+{
+  this->impl_->save(filename);
+}
+
+vds::data_buffer vds::asymmetric_public_key::encrypt(const data_buffer & data)
+{
+  return this->encrypt(data);
+}
+
+//////////////////////////////////////////////////////////////////////
+vds::_asymmetric_public_key::_asymmetric_public_key(EVP_PKEY * key)
+  : info_(asymmetric_crypto::unknown()), key_(key)
+{
+}
+
+vds::_asymmetric_public_key::_asymmetric_public_key(const asymmetric_private_key & key)
+  : info_(key.impl_->info_), key_(nullptr)
+{
+  auto len = i2d_PUBKEY(key.impl_->key_, NULL);
   unsigned char * buf = (unsigned char *)OPENSSL_malloc(len);
 
   unsigned char * p = buf;
-  len = i2d_PUBKEY(key.key_, &p);
+  len = i2d_PUBKEY(key.impl_->key_, &p);
 
   const unsigned char * p1 = buf;
   this->key_ = d2i_PUBKEY(NULL, &p1, len);
@@ -306,18 +432,12 @@ vds::asymmetric_public_key::asymmetric_public_key(const asymmetric_private_key &
   }
 }
 
-vds::asymmetric_public_key::~asymmetric_public_key()
+vds::_asymmetric_public_key::~_asymmetric_public_key()
 {
 }
 
-vds::asymmetric_public_key vds::asymmetric_public_key::parse(const std::string & value)
-{
-  auto io = BIO_new_mem_buf((void*)value.c_str(), (int)value.length());
-  auto key = PEM_read_bio_PUBKEY(io, 0, 0, 0);
-  return asymmetric_public_key(key);
-}
 
-std::string vds::asymmetric_public_key::str() const
+std::string vds::_asymmetric_public_key::str() const
 {
   BIO * bio = BIO_new(BIO_s_mem());
   PEM_write_bio_PUBKEY(bio, this->key_);
@@ -336,7 +456,7 @@ std::string vds::asymmetric_public_key::str() const
   return result;
 }
 
-void vds::asymmetric_public_key::load(const filename & filename)
+void vds::_asymmetric_public_key::load(const filename & filename)
 {
   auto in = BIO_new_file(filename.local_name().c_str(), "r");
   if (nullptr == in) {
@@ -356,7 +476,7 @@ void vds::asymmetric_public_key::load(const filename & filename)
   BIO_free(in);
 }
 
-void vds::asymmetric_public_key::save(const filename & filename)
+void vds::_asymmetric_public_key::save(const filename & filename) const
 {
   auto outf = BIO_new_file(filename.local_name().c_str(), "w");
   if (nullptr == outf) {
@@ -373,44 +493,130 @@ void vds::asymmetric_public_key::save(const filename & filename)
   BIO_free(outf);
 }
 
-vds::data_buffer vds::asymmetric_public_key::encrypt(const data_buffer & data)
+vds::data_buffer vds::_asymmetric_public_key::encrypt(const data_buffer & data)
 {
-  RSA * rsa = createRSA(key, 1);
-  int result = RSA_public_encrypt(data_len, data, encrypted, rsa, padding);
-  return result;
+  return data;
+}
+/////////////////////////////////////////////////////////////////////////////
+vds::certificate::certificate()
+: impl_(new _certificate())
+{
 }
 
-vds::certificate::certificate()
-: cert_(nullptr)
+vds::certificate::certificate(_certificate * impl)
+: impl_(impl)
 {
 }
 
 vds::certificate::certificate(certificate && original)
-  : cert_(original.cert_)
+  : impl_(original.impl_)
 {
-  original.cert_ = nullptr;
-}
-
-vds::certificate::certificate(X509 * cert)
-  : cert_(cert)
-{
+  original.impl_ = nullptr;
 }
 
 vds::certificate::~certificate()
 {
-  if(nullptr != this->cert_){
-    X509_free(this->cert_);
-  }
+  delete this->impl_;
 }
 
 vds::certificate vds::certificate::parse(const std::string & value)
 {
   auto io = BIO_new_mem_buf((void*)value.c_str(), (int)value.length());
   auto cert = PEM_read_bio_X509(io, 0, 0, 0);
-  return certificate(cert);
+  return certificate(new _certificate(cert));
 }
 
 std::string vds::certificate::str() const
+{
+  return this->impl_->str();
+}
+
+void vds::certificate::load(const filename & filename)
+{
+  this->impl_->load(filename);
+}
+
+void vds::certificate::save(const filename & filename) const
+{
+  this->impl_->save(filename);
+}
+
+std::string vds::certificate::subject() const
+{
+  return this->impl_->subject();
+}
+
+std::string vds::certificate::issuer() const
+{
+  return this->impl_->issuer();
+}
+
+vds::data_buffer vds::certificate::fingerprint(const vds::hash_info & hash_algo) const
+{
+  return this->impl_->fingerprint(hash_algo);
+}
+
+vds::certificate vds::certificate::create_new(
+  const asymmetric_public_key & new_certificate_public_key,
+  const asymmetric_private_key & new_certificate_private_key,
+  const create_options & options
+)
+{
+  return _certificate::create_new(
+    new_certificate_public_key,
+    new_certificate_private_key,
+    options);
+}
+
+vds::asymmetric_public_key vds::certificate::public_key() const
+{
+  return this->impl_->public_key();
+}
+
+bool vds::certificate::is_ca_cert() const
+{
+  return this->impl_->is_ca_cert();
+}
+
+bool vds::certificate::is_issued(const vds::certificate& issuer) const
+{
+  return this->impl_->is_issued(issuer);
+}
+
+int vds::certificate::extension_count() const
+{
+  return this->impl_->extension_count();
+}
+
+int vds::certificate::extension_by_NID(int nid) const
+{
+  return this->impl_->extension_by_NID(nid);
+}
+
+vds::certificate_extension vds::certificate::get_extension(int index) const
+{
+  return this->impl_->get_extension(index);
+}
+
+/////////////////////////////////////////////////////////////////////////////
+vds::_certificate::_certificate()
+: cert_(nullptr)
+{
+}
+
+vds::_certificate::_certificate(X509 * cert)
+  : cert_(cert)
+{
+}
+
+vds::_certificate::~_certificate()
+{
+  if(nullptr != this->cert_){
+    X509_free(this->cert_);
+  }
+}
+
+std::string vds::_certificate::str() const
 {
   BIO * bio = BIO_new(BIO_s_mem());
   PEM_write_bio_X509(bio, this->cert_);
@@ -424,7 +630,7 @@ std::string vds::certificate::str() const
   return result;
 }
 
-void vds::certificate::load(const filename & filename)
+void vds::_certificate::load(const filename & filename)
 {
   auto in = BIO_new_file(filename.local_name().c_str(), "r");
   if(nullptr == in){
@@ -442,7 +648,7 @@ void vds::certificate::load(const filename & filename)
   BIO_free(in);
 }
 
-void vds::certificate::save(const filename & filename) const
+void vds::_certificate::save(const filename & filename) const
 {
   auto out = BIO_new_file(filename.local_name().c_str(), "w");
   auto ret = PEM_write_bio_X509(out, this->cert_);
@@ -454,7 +660,7 @@ void vds::certificate::save(const filename & filename) const
   }
 }
 
-std::string vds::certificate::subject() const
+std::string vds::_certificate::subject() const
 {
   char result[1024];
   X509_NAME_oneline(X509_get_subject_name(this->cert_), result, sizeof(result));
@@ -462,7 +668,7 @@ std::string vds::certificate::subject() const
   return result;
 }
 
-std::string vds::certificate::issuer() const
+std::string vds::_certificate::issuer() const
 {
   char result[1024];
   X509_NAME_oneline(X509_get_issuer_name(this->cert_), result, sizeof(result));
@@ -470,7 +676,7 @@ std::string vds::certificate::issuer() const
   return result;
 }
 
-vds::data_buffer vds::certificate::fingerprint(const vds::hash_info & hash_algo) const
+vds::data_buffer vds::_certificate::fingerprint(const vds::hash_info & hash_algo) const
 {
   unsigned char md[EVP_MAX_MD_SIZE];
   unsigned int n;
@@ -483,10 +689,10 @@ vds::data_buffer vds::certificate::fingerprint(const vds::hash_info & hash_algo)
 }
 
 
-vds::certificate vds::certificate::create_new(
+vds::certificate vds::_certificate::create_new(
   const asymmetric_public_key & new_certificate_public_key,
   const asymmetric_private_key & new_certificate_private_key,
-  const create_options & options
+  const certificate::create_options & options
 )
 {
   X509 * x509 = X509_new();
@@ -506,7 +712,7 @@ vds::certificate vds::certificate::create_new(
     ASN1_INTEGER_set(X509_get_serialNumber(x509), 1);
     X509_gmtime_adj(X509_get_notBefore(x509), 0);
     X509_gmtime_adj(X509_get_notAfter(x509), (long)60 * 60 * 24 * 365);
-    X509_set_pubkey(x509, new_certificate_public_key.key());
+    X509_set_pubkey(x509, new_certificate_public_key.impl_->key());
 
     auto name = X509_get_subject_name(x509);
     X509_NAME_add_entry_by_txt(name, "C", MBSTRING_ASC, (const unsigned char *)options.country.c_str(), -1, -1, 0);
@@ -523,7 +729,7 @@ vds::certificate vds::certificate::create_new(
       X509_set_issuer_name(x509, name);
     }
     else {
-      X509_set_issuer_name(x509, X509_get_subject_name(options.ca_certificate->cert()));
+      X509_set_issuer_name(x509, X509_get_subject_name(options.ca_certificate->impl_->cert()));
     }
 
     /* Add various extensions: standard extensions */
@@ -536,19 +742,19 @@ vds::certificate vds::certificate::create_new(
     add_ext(x509, NID_netscape_comment, "example comment extension");
 
     if (nullptr == options.ca_certificate) {
-      if (!X509_sign(x509, new_certificate_private_key.key(), EVP_sha256())) {
+      if (!X509_sign(x509, new_certificate_private_key.impl_->key(), EVP_sha256())) {
         auto error = ERR_get_error();
         throw new crypto_exception("X509_new", error);
       }
     }
     else {
-      if (!X509_sign(x509, options.ca_certificate_private_key->key(), EVP_sha256())) {
+      if (!X509_sign(x509, options.ca_certificate_private_key->impl_->key(), EVP_sha256())) {
         auto error = ERR_get_error();
         throw new crypto_exception("X509_new", error);
       }
     }
 
-    return certificate(x509);
+    return certificate(new _certificate(x509));
   }
   catch (...) {
     X509_free(x509);
@@ -556,28 +762,28 @@ vds::certificate vds::certificate::create_new(
   }
 }
 
-vds::asymmetric_public_key vds::certificate::public_key() const
+vds::asymmetric_public_key vds::_certificate::public_key() const
 {
   auto key = X509_get_pubkey(this->cert_);
   if (nullptr == key) {
     auto error = ERR_get_error();
     throw new crypto_exception("X509_get_pubkey", error);
   }
-  return asymmetric_public_key(key);
+  return asymmetric_public_key(new _asymmetric_public_key(key));
 }
 
 
-bool vds::certificate::is_ca_cert() const
+bool vds::_certificate::is_ca_cert() const
 {
   return (0 < X509_check_ca(this->cert_));
 }
 
-bool vds::certificate::is_issued(const vds::certificate& issuer) const
+bool vds::_certificate::is_issued(const vds::certificate& issuer) const
 {
-  return (X509_V_OK == X509_check_issued(issuer.cert(), this->cert()));
+  return (X509_V_OK == X509_check_issued(issuer.impl_->cert(), this->cert()));
 }
 
-bool vds::certificate::add_ext(X509 * cert, int nid, const char * value)
+bool vds::_certificate::add_ext(X509 * cert, int nid, const char * value)
 {
   X509V3_CTX ctx;
   X509V3_set_ctx_nodb(&ctx);
@@ -595,17 +801,17 @@ bool vds::certificate::add_ext(X509 * cert, int nid, const char * value)
   return true;
 }
 
-int vds::certificate::extension_count() const
+int vds::_certificate::extension_count() const
 {
   return X509_get_ext_count(this->cert_);
 }
 
-int vds::certificate::extension_by_NID(int nid) const
+int vds::_certificate::extension_by_NID(int nid) const
 {
   return X509_get_ext_by_NID(this->cert_, nid,-1);
 }
 
-vds::certificate_extension vds::certificate::get_extension(int index) const
+vds::certificate_extension vds::_certificate::get_extension(int index) const
 {
   certificate_extension result;
   
@@ -636,8 +842,35 @@ vds::certificate_extension::certificate_extension()
   : base_nid(NID_netscape_comment)
 {
 }
-
+//////////////////////////////////////////////////////////
 vds::certificate_store::certificate_store()
+: impl_(new _certificate_store())
+{
+}
+
+vds::certificate_store::~certificate_store()
+{
+  delete this->impl_;
+}
+
+void vds::certificate_store::add(const vds::certificate& cert)
+{
+  this->impl_->add(cert);
+}
+
+
+void vds::certificate_store::load_locations(const std::string & location)
+{
+  this->impl_->load_locations(location);
+}
+
+vds::certificate_store::verify_result vds::certificate_store::verify(const vds::certificate& cert) const
+{
+  return this->impl_->verify(cert);
+}
+
+//////////////////////////////////////////////////////////
+vds::_certificate_store::_certificate_store()
 : store_(X509_STORE_new())
 {
   if (nullptr == this->store_) {
@@ -646,23 +879,23 @@ vds::certificate_store::certificate_store()
   }
 }
 
-vds::certificate_store::~certificate_store()
+vds::_certificate_store::~_certificate_store()
 {
   if (nullptr != this->store_) {
     X509_STORE_free(this->store_);
   }
 }
 
-void vds::certificate_store::add(const vds::certificate& cert)
+void vds::_certificate_store::add(const vds::certificate& cert)
 {
-  if(0 >= X509_STORE_add_cert(this->store_, cert.cert())){
+  if(0 >= X509_STORE_add_cert(this->store_, cert.impl_->cert())){
     auto error = ERR_get_error();
     throw new crypto_exception("unable to add certificate to store", error);
   }
 }
 
 
-void vds::certificate_store::load_locations(const std::string & location)
+void vds::_certificate_store::load_locations(const std::string & location)
 {
   if(0 >= X509_STORE_load_locations(this->store_, location.c_str(), NULL)){
     auto error = ERR_get_error();
@@ -670,7 +903,7 @@ void vds::certificate_store::load_locations(const std::string & location)
   }
 }
 
-vds::certificate_store::verify_result vds::certificate_store::verify(const vds::certificate& cert) const
+vds::certificate_store::verify_result vds::_certificate_store::verify(const vds::certificate& cert) const
 {
   X509_STORE_CTX * vrfy_ctx = X509_STORE_CTX_new();
   if (nullptr == vrfy_ctx) {
@@ -680,9 +913,9 @@ vds::certificate_store::verify_result vds::certificate_store::verify(const vds::
 
   try {
 
-    X509_STORE_CTX_init(vrfy_ctx, this->store_, cert.cert(), NULL);
+    X509_STORE_CTX_init(vrfy_ctx, this->store_, cert.impl_->cert(), NULL);
 
-    verify_result result;
+    certificate_store::verify_result result;
     if (0 == X509_verify_cert(vrfy_ctx)) {
       result.error_code = X509_STORE_CTX_get_error(vrfy_ctx);
       result.error = X509_verify_cert_error_string(result.error_code);

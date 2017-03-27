@@ -7,6 +7,11 @@ All rights reserved
 */
 
 namespace vds {
+  struct hash_info
+  {
+    int id;
+    const EVP_MD * type;
+  };
   class _hash
   {
   public:
@@ -35,8 +40,8 @@ namespace vds {
   class _hmac
   {
   public:
-    hmac(const std::string & key, const hash_info & info = hash::sha256());
-    ~hmac();
+    _hmac(const std::string & key, const hash_info & info = hash::sha256());
+    ~_hmac();
 
     void update(
       const void * data,

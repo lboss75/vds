@@ -9,6 +9,12 @@ All rights reserved
 #include "hash.h"
 
 namespace vds {
+  class _asymmetric_sign;
+  class _asymmetric_sign_verify;
+  class _asymmetric_public_key;
+  class _certificate;
+  class _ssl_tunnel;
+  class _certificate_store;
   
   struct asymmetric_crypto_info
   {
@@ -42,6 +48,13 @@ namespace vds {
     void save(const filename & filename, const std::string & password = std::string()) const;
 
   private:
+    friend class _asymmetric_sign;
+    friend class _asymmetric_public_key;
+    friend class _certificate;
+    friend class _ssl_tunnel;
+    
+    asymmetric_private_key(_asymmetric_private_key * impl);
+    
     _asymmetric_private_key * impl_;
   };
 
@@ -62,10 +75,13 @@ namespace vds {
     data_buffer encrypt(const data_buffer & data);
 
   private:
+    asymmetric_public_key(_asymmetric_public_key * impl);
+    
+    friend class _asymmetric_sign_verify;
+    friend class _certificate;
     _asymmetric_public_key * impl_;
   };
 
-  class _asymmetric_sign;
   class asymmetric_sign
   {
   public:
@@ -185,6 +201,12 @@ namespace vds {
     certificate_extension get_extension(int index) const;
 
   private:
+    friend class _certificate;
+    friend class _ssl_tunnel;
+    friend class _certificate_store;
+    
+    certificate(_certificate * impl);
+    
     _certificate * impl_;
   };
   

@@ -6,9 +6,12 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
-#include "asymmetric_private_key.h"
+#include "asymmetriccrypto.h"
 
 namespace vds {
+  class _asymmetric_sign;
+  class _asymmetric_public_key;
+  class _asymmetric_sign_verify;
 
   class _asymmetric_private_key
   {
@@ -34,8 +37,8 @@ namespace vds {
     data_buffer decrypt(const data_buffer & data);
 
   private:
-    friend class asymmetric_sign;
-    friend class asymmetric_public_key;
+    friend class _asymmetric_sign;
+    friend class _asymmetric_public_key;
 
     const asymmetric_crypto_info & info_;
     EVP_PKEY_CTX * ctx_;
@@ -59,12 +62,13 @@ namespace vds {
     std::string str() const;
 
     void load(const filename & filename);
-    void save(const filename & filename);
+    void save(const filename & filename) const;
 
     data_buffer encrypt(const data_buffer & data);
 
   private:
-    friend class asymmetric_sign_verify;
+    friend class _asymmetric_sign_verify;
+    
     const asymmetric_crypto_info & info_;
     EVP_PKEY * key_;
   };
@@ -72,11 +76,11 @@ namespace vds {
   class _asymmetric_sign
   {
   public:
-    asymmetric_sign(
+    _asymmetric_sign(
       const hash_info & hash_info,
       const asymmetric_private_key & key
     );
-    ~asymmetric_sign();
+    ~_asymmetric_sign();
 
     void update(
       const void * data,
@@ -149,29 +153,10 @@ namespace vds {
     std::string issuer() const;
     data_buffer fingerprint(const hash_info & hash_algo = hash::sha256()) const;
 
-    class create_options
-    {
-    public:
-      create_options()
-        : ca_certificate(nullptr),
-          ca_certificate_private_key(nullptr)
-      {
-      }
-
-      std::string country;
-      std::string organization;
-      std::string name;
-
-      const certificate * ca_certificate;
-      const asymmetric_private_key * ca_certificate_private_key;
-
-      std::list<certificate_extension> extensions;
-    };
-
     static certificate create_new(
       const asymmetric_public_key & new_certificate_public_key,
       const asymmetric_private_key & new_certificate_private_key,
-      const create_options & options
+      const certificate::create_options & options
     );
 
     asymmetric_public_key public_key() const;
@@ -193,20 +178,13 @@ namespace vds {
   class _certificate_store
   {
   public:
-    certificate_store();
-    ~certificate_store();
+    _certificate_store();
+    ~_certificate_store();
 
     void add(const certificate & cert);
     void load_locations(const std::string & location);
     
-    struct verify_result
-    {
-      int error_code;
-      std::string error;
-      std::string issuer;
-    };
-    
-    verify_result verify(const certificate & cert) const;
+    certificate_store::verify_result verify(const certificate & cert) const;
     
   private:
     X509_STORE * store_;

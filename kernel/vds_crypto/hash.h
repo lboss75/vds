@@ -7,12 +7,9 @@ All rights reserved
 */
 
 namespace vds {
-  struct hash_info
-  {
-    int id;
-    const EVP_MD * type;
-  };
+  struct hash_info;
 
+  class _hash;
   class hash
   {
   public:
@@ -27,17 +24,13 @@ namespace vds {
 
     void final();
 
-    const data_buffer & signature() const {
-      return this->sig_;
-    }
+    const data_buffer & signature() const;
 
   private:
-    const hash_info & info_;
-
-    EVP_MD_CTX * ctx_;
-    data_buffer sig_;
+    _hash * impl_;
   };
 
+  class _hmac;
   class hmac
   {
   public:
@@ -50,18 +43,10 @@ namespace vds {
 
     void final();
 
-    const data_buffer signature() const {
-      return this->sig_;
-    }
+    const data_buffer signature() const;
 
   private:
-    const hash_info & info_;
-    HMAC_CTX * ctx_;
-    data_buffer sig_;
-    
-#ifndef _WIN32
-    HMAC_CTX hmac_ctx_;
-#endif
+    _hmac * impl_;
   };
 
 }

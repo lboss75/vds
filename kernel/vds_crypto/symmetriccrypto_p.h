@@ -1,5 +1,5 @@
-#ifndef __VDS_CRYPTO_SYMMETRICCRYPTO_H_
-#define __VDS_CRYPTO_SYMMETRICCRYPTO_H_
+#ifndef __VDS_CRYPTO_SYMMETRICCRYPTO_P_H_
+#define __VDS_CRYPTO_SYMMETRICCRYPTO_P_H_
 
 /*
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
@@ -20,6 +20,7 @@ namespace vds {
     const EVP_CIPHER * cipher() const {
       return this->cipher_;
     }
+    
     size_t key_size() const;
     size_t iv_size() const;
     
@@ -60,8 +61,8 @@ namespace vds {
   class _symmetric_encrypt
   {
   public:
-    symmetric_encrypt(const symmetric_key & key);
-    ~symmetric_encrypt();
+    _symmetric_encrypt(const symmetric_key & key);
+    ~_symmetric_encrypt();
     
     size_t update(
       const void * data,
@@ -91,4 +92,4 @@ namespace vds {
   
 }
 
-#endif // __SYMMETRICCRYPTO_H_
+#endif // __VDS_CRYPTO_SYMMETRICCRYPTO_P_H_

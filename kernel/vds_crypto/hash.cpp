@@ -5,6 +5,7 @@ All rights reserved
 
 #include "stdafx.h"
 #include "hash.h"
+#include "hash_p.h"
 #include "crypto_exception.h"
 
 const vds::hash_info & vds::hash::sha256()
@@ -16,8 +17,29 @@ const vds::hash_info & vds::hash::sha256()
 
   return result;
 }
-
+///////////////////////////////////////////////////////////////
 vds::hash::hash(const hash_info & info)
+: impl_(new _hash(info))
+{
+}
+
+vds::hash::~hash()
+{
+  delete this->impl_;
+}
+
+void vds::hash::update(const void * data, size_t len)
+{
+  this->impl_->update(data, len);
+}
+
+void vds::hash::final()
+{
+  this->impl_->final();
+}
+
+///////////////////////////////////////////////////////////////
+vds::_hash::_hash(const hash_info & info)
   : info_(info)
 {
   this->ctx_ = EVP_MD_CTX_create();
@@ -34,14 +56,14 @@ vds::hash::hash(const hash_info & info)
 
 }
 
-vds::hash::~hash()
+vds::_hash::~_hash()
 {
   if (nullptr != this->ctx_) {
     EVP_MD_CTX_destroy(this->ctx_);
   }
 }
 
-void vds::hash::update(const void * data, size_t len)
+void vds::_hash::update(const void * data, size_t len)
 {
   if (1 != EVP_DigestUpdate(this->ctx_, data, len)) {
     auto error = ERR_get_error();
@@ -49,7 +71,7 @@ void vds::hash::update(const void * data, size_t len)
   }
 }
 
-void vds::hash::final()
+void vds::_hash::final()
 {
   auto len = (unsigned int)EVP_MD_size(this->info_.type);
   this->sig_.resize(len);
@@ -63,8 +85,29 @@ void vds::hash::final()
     throw new std::runtime_error("len != this->sig_len_");
   }
 }
-
+///////////////////////////////////////////////////////////////
 vds::hmac::hmac(const std::string & key, const hash_info & info)
+: impl_(new _hmac(key, info))
+{
+}
+
+vds::hmac::~hmac()
+{
+  delete this->impl_;
+}
+
+void vds::hmac::update(const void * data, size_t len)
+{
+  this->impl_->update(data, len);
+}
+
+void vds::hmac::final()
+{
+  this->impl_->final();
+}
+///////////////////////////////////////////////////////////////
+
+vds::_hmac::_hmac(const std::string & key, const hash_info & info)
 : info_(info)
 {
 #ifdef _WIN32
@@ -77,7 +120,7 @@ vds::hmac::hmac(const std::string & key, const hash_info & info)
   HMAC_Init_ex(this->ctx_, key.c_str(), key.length(), info.type, NULL);
 }
 
-vds::hmac::~hmac()
+vds::_hmac::~_hmac()
 {
 #ifdef _WIN32
   HMAC_CTX_free(this->ctx_);
@@ -86,7 +129,7 @@ vds::hmac::~hmac()
 #endif
 }
 
-void vds::hmac::update(const void * data, size_t len)
+void vds::_hmac::update(const void * data, size_t len)
 {
   if (1 != HMAC_Update(this->ctx_, reinterpret_cast<const unsigned char*>(data), len)) {
     auto error = ERR_get_error();
@@ -94,7 +137,7 @@ void vds::hmac::update(const void * data, size_t len)
   }
 }
 
-void vds::hmac::final()
+void vds::_hmac::final()
 {
   auto len = (unsigned int)EVP_MD_size(this->info_.type);
   this->sig_.resize(len);

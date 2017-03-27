@@ -31,6 +31,7 @@ namespace vds {
     lifetime_check lt_;
     friend class ssl_input_stream;
     friend class ssl_output_stream;
+    friend class _ssl_tunnel;
 
     class issl_input_stream
     {
@@ -166,8 +167,6 @@ namespace vds {
     peer_certificate(const ssl_tunnel * owner);
     
     certificate get_peer_certificate() const;
-    
-    
     
   private:
     const ssl_tunnel * owner_; 
