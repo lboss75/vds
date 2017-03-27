@@ -6,33 +6,37 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
+#include "symmetriccrypto.h"
+
 namespace vds {
   class symmetric_encrypt;
   class symmetric_decrypt;
     
-  class _symmetric_crypto_info;
-  class symmetric_crypto_info
+  class _symmetric_crypto_info
   {
   public:
-    symmetric_crypto_info(const EVP_CIPHER * cipher);
+    _symmetric_crypto_info(const EVP_CIPHER * cipher);
     
+    const EVP_CIPHER * cipher() const {
+      return this->cipher_;
+    }
     size_t key_size() const;
     size_t iv_size() const;
     
   private:
-    _symmetric_crypto_info * impl_;
+    const EVP_CIPHER * cipher_;
   };
   
-  class symmetric_crypto
+  class _symmetric_crypto
   {
   public:
     static const symmetric_crypto_info & aes_256_cbc();
   };
   
-  class symmetric_key
+  class _symmetric_key
   {
   public:
-    symmetric_key(const symmetric_crypto_info & crypto_info);
+    _symmetric_key(const symmetric_crypto_info & crypto_info);
     
     void generate();
     
@@ -53,8 +57,7 @@ namespace vds {
     std::unique_ptr<unsigned char> iv_;
   };
   
-  class _symmetric_encrypt;
-  class symmetric_encrypt
+  class _symmetric_encrypt
   {
   public:
     symmetric_encrypt(const symmetric_key & key);
@@ -67,15 +70,14 @@ namespace vds {
       size_t result_data_len);
     
   private:
-    _symmetric_encrypt * impl_;
+    EVP_CIPHER_CTX * ctx_;
   };
   
-  class _symmetric_decrypt;
-  class symmetric_decrypt
+  class _symmetric_decrypt
   {
   public:
-    symmetric_decrypt(const symmetric_key & key);
-    ~symmetric_decrypt();
+    _symmetric_decrypt(const symmetric_key & key);
+    ~_symmetric_decrypt();
     
     size_t update(
       const void * data,
@@ -84,7 +86,7 @@ namespace vds {
       size_t result_data_len);
     
   private:
-    _symmetric_decrypt * impl_;
+    EVP_CIPHER_CTX * ctx_;
   };
   
 }

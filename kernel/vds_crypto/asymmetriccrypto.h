@@ -24,11 +24,11 @@ namespace vds {
     static const asymmetric_crypto_info & rsa4096();
   };
   
+  class _asymmetric_private_key;
   class asymmetric_private_key
   {
   public:
     asymmetric_private_key();
-    asymmetric_private_key(EVP_PKEY * key);
     asymmetric_private_key(asymmetric_private_key && original);
     asymmetric_private_key(const asymmetric_crypto_info & info);
     ~asymmetric_private_key();
@@ -41,32 +41,17 @@ namespace vds {
     void load(const filename & filename, const std::string & password = std::string());
     void save(const filename & filename, const std::string & password = std::string()) const;
 
-    EVP_PKEY * key() const
-    {
-      return this->key_;
-    }
-        
   private:
-    friend class asymmetric_sign;
-    friend class asymmetric_public_key;
-
-    const asymmetric_crypto_info & info_;
-    EVP_PKEY_CTX * ctx_;
-    EVP_PKEY * key_;
+    _asymmetric_private_key * impl_;
   };
 
+  class _asymmetric_public_key;
   class asymmetric_public_key
   {
   public:
-    asymmetric_public_key(EVP_PKEY * key);
     asymmetric_public_key(asymmetric_public_key && original);
     asymmetric_public_key(const asymmetric_private_key & key);
     ~asymmetric_public_key();
-
-    EVP_PKEY * key() const
-    {
-      return this->key_;
-    }
 
     static asymmetric_public_key parse(const std::string & format);
     std::string str() const;
@@ -74,12 +59,13 @@ namespace vds {
     void load(const filename & filename);
     void save(const filename & filename);
 
+    data_buffer encrypt(const data_buffer & data);
+
   private:
-    friend class asymmetric_sign_verify;
-    const asymmetric_crypto_info & info_;
-    EVP_PKEY * key_;
+    _asymmetric_public_key * impl_;
   };
 
+  class _asymmetric_sign;
   class asymmetric_sign
   {
   public:
@@ -95,16 +81,13 @@ namespace vds {
 
     void final();
 
-    const data_buffer & signature() const {
-      return this->sig_;
-    }
+    const data_buffer & signature() const;
 
   private:
-    EVP_MD_CTX * ctx_;
-    const EVP_MD * md_;
-    data_buffer sig_;
+    _asymmetric_sign * impl_;
   };
 
+  class _asymmetric_sign_verify;
   class asymmetric_sign_verify
   {
   public:
@@ -123,54 +106,9 @@ namespace vds {
     );
 
   private:
-    EVP_MD_CTX * ctx_;
-    const EVP_MD * md_;
+    _asymmetric_sign_verify * impl_;
   };
   
-  class asymmetric_encrypt
-  {
-  public:
-    asymmetric_encrypt(
-      const asymmetric_public_key & key
-    );
-    
-    size_t update(
-      const void * data,
-      size_t len,
-      void * result_buffer,
-      size_t result_buffer_len);
-    
-    size_t final(
-      void * result_buffer,
-      size_t result_buffer_len);
-
-    template <typename context_type>
-    class handler : public sequence_step<context_type, void(const void * data, size_t len)>
-    {
-      using base_class = sequence_step<context_type, void(const void * data, size_t len)>;
-    public:
-      handler(
-        const context_type & context,
-        const asymmetric_encrypt & key)
-        : base_class(context)
-      {
-      }
-
-      void operator()(const void * data, size_t len)
-      {
-
-      }
-
-    private:
-      asymmetric_encrypt encrypt_;
-    };
-  };
-  
-  class asymmetric_decrypt
-  {
-  public:
-    asymmetric_decrypt(const asymmetric_private_key & key);
-  };
   
   //http://www.codepool.biz/how-to-use-openssl-to-sign-certificate.html
   //openssl genrsa -out cakey.pem 2048
@@ -193,12 +131,12 @@ namespace vds {
     int base_nid;
   };
 
+  class _certificate;
   class certificate
   {
   public:
     certificate();
     certificate(certificate && original);
-    certificate(X509 * cert);
     ~certificate();
 
     static certificate parse(const std::string & format);
@@ -206,11 +144,6 @@ namespace vds {
 
     void load(const filename & filename);
     void save(const filename & filename) const;
-
-    X509 * cert() const
-    {
-      return this->cert_;
-    }
 
     std::string subject() const;
     std::string issuer() const;
@@ -252,11 +185,10 @@ namespace vds {
     certificate_extension get_extension(int index) const;
 
   private:
-    X509 * cert_;
-
-    static bool add_ext(X509 * cert, int nid, const char *value);
+    _certificate * impl_;
   };
   
+  class _certificate_store;
   class certificate_store
   {
   public:
@@ -276,7 +208,7 @@ namespace vds {
     verify_result verify(const certificate & cert) const;
     
   private:
-    X509_STORE * store_;
+    _certificate_store * impl_;
   };
 }
 

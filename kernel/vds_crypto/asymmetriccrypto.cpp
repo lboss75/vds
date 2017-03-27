@@ -373,6 +373,13 @@ void vds::asymmetric_public_key::save(const filename & filename)
   BIO_free(outf);
 }
 
+vds::data_buffer vds::asymmetric_public_key::encrypt(const data_buffer & data)
+{
+  RSA * rsa = createRSA(key, 1);
+  int result = RSA_public_encrypt(data_len, data, encrypted, rsa, padding);
+  return result;
+}
+
 vds::certificate::certificate()
 : cert_(nullptr)
 {
@@ -558,6 +565,7 @@ vds::asymmetric_public_key vds::certificate::public_key() const
   }
   return asymmetric_public_key(key);
 }
+
 
 bool vds::certificate::is_ca_cert() const
 {

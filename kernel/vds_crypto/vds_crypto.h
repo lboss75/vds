@@ -6,12 +6,6 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
-#include <openssl/conf.h>
-#include <openssl/evp.h>
-#include <openssl/err.h>
-#include <openssl/rand.h>
-#include <openssl/hmac.h>
-
 #include "crypto_service.h"
 #include "symmetriccrypto.h"
 #include "asymmetriccrypto.h"

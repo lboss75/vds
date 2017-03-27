@@ -1,25 +1,26 @@
-#ifndef __VDS_CRYPTO_SSL_TUNNEL_H_
-#define __VDS_CRYPTO_SSL_TUNNEL_H_
+#ifndef __VDS_CRYPTO_SSL_TUNNEL_P_H_
+#define __VDS_CRYPTO_SSL_TUNNEL_P_H_
 /*
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
+#include "ssl_tunnel.h"
+
 namespace vds {
   class certificate;
   class asymmetric_private_key;
 
-  class _ssl_tunnel;
-  class ssl_tunnel {
+  class _ssl_tunnel {
   public:
-    ssl_tunnel(
+    _ssl_tunnel(
       const service_provider & scope,
       bool is_client,
       const certificate * cert,
       const asymmetric_private_key * key
     );
 
-    ~ssl_tunnel();
+    ~_ssl_tunnel();
     
     bool is_client() const {
       return this->is_client_;
@@ -53,7 +54,10 @@ namespace vds {
     };
 
 
-    _ssl_tunnel * impl_;
+    SSL_CTX *ssl_ctx_;
+    SSL * ssl_;
+    BIO * input_bio_;
+    BIO * output_bio_;
 
     bool is_client_;
 
