@@ -49,8 +49,13 @@ namespace vds {
     
     uint32_t out_session_id_;
     
-    struct session_data
+    class session_data
     {
+    public:
+      session_data(
+        const guid & server_id);
+
+    private:
       guid server_id_;
       symmetric_key key_;
     };

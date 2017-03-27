@@ -54,6 +54,7 @@ namespace vds {
         void associate(network_socket::SOCKET_HANDLE s);
 #endif
         static std::string to_string(const sockaddr_in & from);
+        static std::string get_ip_address_string(const sockaddr_in & from);
     private:
         friend class inetwork_manager;
         friend class network_socket;

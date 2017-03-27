@@ -170,10 +170,15 @@ void vds::network_service::thread_loop(const service_provider & provider)
 
 std::string vds::network_service::to_string(const sockaddr_in & from)
 {
+  return get_ip_address_string(from) + ":" + std::to_string(from.sin_port);
+}
+
+std::string vds::network_service::get_ip_address_string(const sockaddr_in & from)
+{
   char buffer[20];
   int len = sizeof(buffer);
 
   inet_ntop(from.sin_family, &(from.sin_addr), buffer, len);
-  
+
   return buffer;
 }

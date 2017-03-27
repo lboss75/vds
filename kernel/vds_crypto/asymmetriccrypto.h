@@ -143,6 +143,27 @@ namespace vds {
     size_t final(
       void * result_buffer,
       size_t result_buffer_len);
+
+    template <typename context_type>
+    class handler : public sequence_step<context_type, void(const void * data, size_t len)>
+    {
+      using base_class = sequence_step<context_type, void(const void * data, size_t len)>;
+    public:
+      handler(
+        const context_type & context,
+        const asymmetric_encrypt & key)
+        : base_class(context)
+      {
+      }
+
+      void operator()(const void * data, size_t len)
+      {
+
+      }
+
+    private:
+      asymmetric_encrypt encrypt_;
+    };
   };
   
   class asymmetric_decrypt

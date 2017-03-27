@@ -48,7 +48,6 @@ vds::_server_udp_api::_server_udp_api(
   certificate_(certificate),
   private_key_(private_key),
   s_(sp),
-  on_download_certificate_(std::bind(&_server_udp_api::on_download_certificate, this, std::placeholders::_1)),
   out_session_id_(0),
   message_queue_(sp)
 {
@@ -98,10 +97,29 @@ void vds::_server_udp_api::input_message(const sockaddr_in & from, const void * 
         if(cert_manager.validate(cert)){
           auto session_id = ++this->in_last_session_;
           
-          session_data * session = new session_data(session_id);
+          auto server_id = server_certificate::server_id(cert);
+          session_data * session = new session_data(server_id);
           
           binary_serializer s;
-          s << session_id << this->server_id_ << session->key_;
+          s << session_id << server_certificate::server_id(this->certificate_) << session->key();
+
+          sequence(
+            asymmetric_encrypt(cert.public_key()),
+            collect_data()
+          )
+          (
+            [this, &s, from](const data_buffer & data) {
+            this->message_queue_.push(
+              network_service::get_ip_address_string(from),
+              from.sin_port,
+              message_identification::welcome_message(data).serialize());
+          },
+            [](std::exception * ex) {
+
+          },
+            s.data(),
+            s.size());
+
         }
         
         //server.get_peer_network().register_client_channel(
