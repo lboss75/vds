@@ -9,6 +9,7 @@ All rights reserved
 #include "vds_core.h"
 
 #include <time.h>
+#include <assert.h>
 
 #include <openssl/conf.h>
 #include <openssl/evp.h>

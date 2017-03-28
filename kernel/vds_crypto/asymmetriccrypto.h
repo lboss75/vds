@@ -47,6 +47,8 @@ namespace vds {
     void load(const filename & filename, const std::string & password = std::string());
     void save(const filename & filename, const std::string & password = std::string()) const;
 
+    data_buffer decrypt(const data_buffer & data);
+
   private:
     friend class _asymmetric_sign;
     friend class _asymmetric_public_key;
@@ -87,8 +89,7 @@ namespace vds {
   public:
     asymmetric_sign(
       const hash_info & hash_info,
-      const asymmetric_private_key & key
-    );
+      const asymmetric_private_key & key);
     ~asymmetric_sign();
 
     void update(
@@ -98,6 +99,11 @@ namespace vds {
     void final();
 
     const data_buffer & signature() const;
+
+    static data_buffer signature(
+      const hash_info & hash_info,
+      const asymmetric_private_key & key,
+      const data_buffer & data);
 
   private:
     _asymmetric_sign * impl_;

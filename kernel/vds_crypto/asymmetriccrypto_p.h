@@ -7,6 +7,7 @@ All rights reserved
 */
 
 #include "asymmetriccrypto.h"
+#include "crypto_exception.h"
 
 namespace vds {
   class _asymmetric_sign;
@@ -34,7 +35,35 @@ namespace vds {
       return this->key_;
     }
 
-    data_buffer decrypt(const data_buffer & data);
+    data_buffer decrypt(const data_buffer & data)
+    {
+      int keylen = EVP_PKEY_size(this->key_);
+      data_buffer result;
+
+      auto p = data.data();
+      auto l = data.size();
+
+      std::unique_ptr<uint8_t> buffer(new uint8_t[keylen]);
+      while (l > 0) {
+        auto n = l;
+        if (n > keylen) {
+          n = keylen;
+        }
+
+        auto len = RSA_private_decrypt(n, p, buffer.get(), EVP_PKEY_get1_RSA(this->key_), RSA_PKCS1_PADDING);
+        if (0 > len) {
+          auto error = ERR_get_error();
+          throw new crypto_exception("RSA_private_decrypt failed", error);
+        }
+
+        result.add(buffer.get(), len);
+
+        p += n;
+        l -= n;
+      }
+
+      return result;
+    }
 
   private:
     friend class _asymmetric_sign;
@@ -64,7 +93,35 @@ namespace vds {
     void load(const filename & filename);
     void save(const filename & filename) const;
 
-    data_buffer encrypt(const data_buffer & data);
+    data_buffer encrypt(const data_buffer & data)
+    {
+      int keylen = EVP_PKEY_size(this->key_);
+      data_buffer result;
+
+      auto p = data.data();
+      auto l = data.size();
+
+      std::unique_ptr<uint8_t> buffer(new uint8_t[keylen]);
+      while (l > 0) {
+        auto n = l;
+        if (n > keylen) {
+          n = keylen;
+        }
+
+        auto len = RSA_public_encrypt(n, p, buffer.get(), EVP_PKEY_get1_RSA(this->key_), RSA_PKCS1_PADDING);
+        if (0 > len) {
+          auto error = ERR_get_error();
+          throw new crypto_exception("RSA_private_encrypt failed", error);
+        }
+
+        result.add(buffer.get(), len);
+
+        p += n;
+        l -= n;
+      }
+
+      return result;
+    }
 
   private:
     friend class _asymmetric_sign_verify;

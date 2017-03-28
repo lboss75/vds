@@ -38,8 +38,18 @@ namespace vds {
       std::string to_url_;
     };
 
-    struct welcome_message
+    class welcome_message
     {
+    public:
+      welcome_message(
+        const guid & server_id,
+        const data_buffer & key_crypted,
+        const data_buffer & crypted_info,
+        const data_buffer & sign);
+
+      void serialize(network_serializer& s) const;
+
+    private:
       std::string from_server_id;
       std::string client_url;
       std::string crypto_key;

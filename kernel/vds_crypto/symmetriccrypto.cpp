@@ -23,6 +23,11 @@ size_t vds::symmetric_crypto_info::iv_size() const
   return this->impl_->iv_size();
 }
 
+size_t vds::symmetric_crypto_info::block_size() const
+{
+  return this->impl_->block_size();
+}
+
 const vds::symmetric_crypto_info& vds::symmetric_crypto::aes_256_cbc()
 {
   static _symmetric_crypto_info _result(EVP_aes_256_cbc());
@@ -36,6 +41,15 @@ vds::symmetric_key::symmetric_key(const vds::symmetric_crypto_info& crypto_info)
 {
 }
 
+vds::symmetric_key::symmetric_key(const symmetric_key & origin)
+  : crypto_info_(origin.crypto_info_),
+  key_(new unsigned char[origin.crypto_info_.key_size()]),
+  iv_(new unsigned char[origin.crypto_info_.iv_size()])
+{
+  memcpy(this->key_.get(), origin.key_.get(), origin.crypto_info_.key_size());
+  memcpy(this->iv_.get(), origin.iv_.get(), origin.crypto_info_.iv_size());
+}
+
 void vds::symmetric_key::generate()
 {
   this->key_.reset(new unsigned char[this->crypto_info_.key_size()]);
@@ -45,37 +59,32 @@ void vds::symmetric_key::generate()
   RAND_bytes(this->iv_.get(), (int)this->crypto_info_.iv_size());
 }
 
+size_t vds::symmetric_key::block_size() const
+{
+  return this->crypto_info_.block_size();
+}
+
 vds::symmetric_encrypt::symmetric_encrypt(const vds::symmetric_key& key)
-: impl_(new _symmetric_encrypt(key))
+: key_(key)
 {
 }
 
-vds::symmetric_encrypt::~symmetric_encrypt()
+vds::_symmetric_encrypt * vds::symmetric_encrypt::create_implementation()  const
 {
-  delete this->impl_;
+  return new vds::_symmetric_encrypt(this->key_);
 }
 
-size_t vds::symmetric_encrypt::update(
-  const void* data, size_t len,
-  void* result_data, size_t result_data_len)
+bool vds::symmetric_encrypt::data_update(_symmetric_encrypt * impl, const void * data, size_t len, void * result_data, size_t & result_data_len)
 {
-  return this->impl_->update(data, len, result_data, result_data_len);
+  return impl->update(data, len, result_data, result_data_len);
 }
 
-vds::symmetric_decrypt::symmetric_decrypt(const vds::symmetric_key& key)
-: impl_(new _symmetric_decrypt(key))
+bool vds::symmetric_encrypt::data_processed(_symmetric_encrypt * impl, void * result_data, size_t & result_data_len)
 {
+  return impl->processed(result_data, result_data_len);
 }
 
-vds::symmetric_decrypt::~symmetric_decrypt()
-{
-  delete this->impl_;
-}
 
-size_t vds::symmetric_decrypt::update(const void* data, size_t len, void* result_data, size_t result_data_len)
-{
-  return this->impl_->update(data, len, result_data, result_data_len);
-}
 ////////////////////////////////////////////////////////////////////////////
 vds::_symmetric_crypto_info::_symmetric_crypto_info(const EVP_CIPHER* cipher)
 : cipher_(cipher)
@@ -107,92 +116,22 @@ void vds::_symmetric_key::generate()
   RAND_bytes(this->iv_.get(), (int)this->crypto_info_.iv_size());
 }
 
-vds::_symmetric_encrypt::_symmetric_encrypt(const vds::symmetric_key& key)
-: ctx_(EVP_CIPHER_CTX_new())
+vds::symmetric_decrypt::symmetric_decrypt(const symmetric_key & key)
+  : key_(key)
 {
-  if(nullptr == this->ctx_){
-    throw new std::runtime_error("Create crypto context failed");
-  }
-  
-  if(1 != EVP_EncryptInit_ex(
-    this->ctx_,
-    key.crypto_info_.impl_->cipher(),
-    nullptr,
-    key.key(),
-    key.iv())) {
-    throw new std::runtime_error("Create crypto context failed");
-  }
 }
 
-vds::_symmetric_encrypt::~_symmetric_encrypt()
+vds::_symmetric_decrypt * vds::symmetric_decrypt::create_implementation() const
 {
-  if(nullptr != this->ctx_){
-    EVP_CIPHER_CTX_free(this->ctx_);
-  }
+  return new _symmetric_decrypt(this->key_);
 }
 
-size_t vds::_symmetric_encrypt::update(
-  const void* data, size_t len,
-  void* result_data, size_t result_data_len)
+bool vds::symmetric_decrypt::data_update(_symmetric_decrypt * impl, const void * data, size_t len, void * result_data, size_t & result_data_len)
 {
-  int result_len = (int)result_data_len;
-  if(0 == len)
-  {
-    if(1 != EVP_EncryptFinal_ex(this->ctx_,
-      (unsigned char *)result_data, &result_len)) {
-      throw new std::runtime_error("Crypt failed");
-    }
-  }
-  else if(1 != EVP_EncryptUpdate(this->ctx_,
-    (unsigned char *)result_data, &result_len,
-    (const unsigned char *)data, (int)len)){
-    throw new std::runtime_error("Crypt failed");
-  }
-  
-  return (size_t)result_len;
+  return impl->update(data, len, result_data, result_data_len);
 }
 
-vds::_symmetric_decrypt::_symmetric_decrypt(const vds::symmetric_key& key)
-: ctx_(EVP_CIPHER_CTX_new())
+bool vds::symmetric_decrypt::data_processed(_symmetric_decrypt * impl, void * result_data, size_t & result_data_len)
 {
-  if(nullptr == this->ctx_){
-    throw new std::runtime_error("Create crypto context failed");
-  }
-  
-  if(1 != EVP_DecryptInit_ex(
-    this->ctx_,
-    key.crypto_info_.impl_->cipher(),
-    nullptr,
-    key.key(),
-    key.iv())) {
-    throw new std::runtime_error("Create crypto context failed");
-  }
+  return impl->processed(result_data, result_data_len);
 }
-
-vds::_symmetric_decrypt::~_symmetric_decrypt()
-{
-  if(nullptr != this->ctx_){
-    EVP_CIPHER_CTX_free(this->ctx_);
-  }
-}
-
-size_t vds::_symmetric_decrypt::update(const void* data, size_t len, void* result_data, size_t result_data_len)
-{
-  int result_len = (int)result_data_len;
-  if(0 == len)
-  {
-    if(1 != EVP_DecryptFinal_ex(this->ctx_,
-      (unsigned char *)result_data, &result_len)) {
-      throw new std::runtime_error("Decrypt failed");
-    }
-  }
-  else if(1 != EVP_DecryptUpdate(this->ctx_,
-    (unsigned char *)result_data, &result_len,
-    (const unsigned char *)data, (int)len)){
-    throw new std::runtime_error("Decrypt failed");
-  }
-  
-  return (size_t)result_len;
-}
-
-

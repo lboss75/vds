@@ -53,11 +53,13 @@ namespace vds {
     {
     public:
       session_data(
-        const guid & server_id);
+        const guid & server_id,
+        const symmetric_key & session_key);
 
+      const symmetric_key & session_key() const { return this->session_key_; }
     private:
       guid server_id_;
-      symmetric_key key_;
+      symmetric_key session_key_;
     };
     std::map<uint32_t, std::unique_ptr<session_data>> in_sessions_;
     uint32_t in_last_session_;

@@ -38,7 +38,7 @@ vds::asymmetric_private_key::~asymmetric_private_key()
 
 void vds::asymmetric_private_key::generate()
 {
-  this->generate();
+  this->impl_->generate();
 }
 
 vds::asymmetric_private_key vds::asymmetric_private_key::parse(const std::string & value, const std::string & password)
@@ -61,6 +61,11 @@ void vds::asymmetric_private_key::load(const filename & filename, const std::str
 void vds::asymmetric_private_key::save(const filename & filename, const std::string & password/* = std::string()*/) const
 {
   this->impl_->save(filename, password);
+}
+
+vds::data_buffer vds::asymmetric_private_key::decrypt(const data_buffer & data)
+{
+  return this->impl_->decrypt(data);
 }
 
 ///////////////////////////////////////////////////////////////////////
@@ -217,6 +222,13 @@ void vds::asymmetric_sign::final()
 {
   this->impl_->final();
 }
+
+const vds::data_buffer & vds::asymmetric_sign::signature() const
+{
+  return this->impl_->signature();
+}
+
+
 
 ////////////////////////////////////////////////////////////////////////////////
 vds::_asymmetric_sign::_asymmetric_sign(const hash_info & hash_info, const asymmetric_private_key & key)
@@ -403,7 +415,7 @@ void vds::asymmetric_public_key::save(const filename & filename)
 
 vds::data_buffer vds::asymmetric_public_key::encrypt(const data_buffer & data)
 {
-  return this->encrypt(data);
+  return this->impl_->encrypt(data);
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -493,10 +505,6 @@ void vds::_asymmetric_public_key::save(const filename & filename) const
   BIO_free(outf);
 }
 
-vds::data_buffer vds::_asymmetric_public_key::encrypt(const data_buffer & data)
-{
-  return data;
-}
 /////////////////////////////////////////////////////////////////////////////
 vds::certificate::certificate()
 : impl_(new _certificate())

@@ -95,31 +95,46 @@ void vds::_server_udp_api::input_message(const sockaddr_in & from, const void * 
         
         auto cert = certificate::parse(msg.source_certificate());
         if(cert_manager.validate(cert)){
+
+          symmetric_key session_key(symmetric_crypto::aes_256_cbc());
+          session_key.generate();
+
+          binary_serializer key_data;
+          session_key.serialize(key_data);
+
+          auto key_crypted = this->certificate_.public_key().encrypt(key_data.data());
+
           auto session_id = ++this->in_last_session_;
           
           auto server_id = server_certificate::server_id(cert);
-          session_data * session = new session_data(server_id);
+          auto session = new session_data(server_id, session_key);
           
           binary_serializer s;
-          s << session_id << server_certificate::server_id(this->certificate_) << session->key();
+          s << session_id;
 
-          sequence(
-            asymmetric_encrypt(cert.public_key()),
-            collect_data()
-          )
-          (
-            [this, &s, from](const data_buffer & data) {
-            this->message_queue_.push(
-              network_service::get_ip_address_string(from),
-              from.sin_port,
-              message_identification::welcome_message(data).serialize());
-          },
-            [](std::exception * ex) {
+          auto crypted_data = symmetric_encrypt::encrypt(session_key, s.data());
 
-          },
-            s.data(),
-            s.size());
+          binary_serializer to_sign;
+          to_sign
+            << server_certificate::server_id(this->certificate_)
+            << key_crypted
+            << crypted_data;
 
+          network_serializer message_data;
+          udp_messages::welcome_message(
+            server_certificate::server_id(this->certificate_),
+            key_crypted,
+            crypted_data,
+            asymmetric_sign::signature(
+              hash::sha256(),
+              this->private_key_,
+              to_sign.data()))
+            .serialize(message_data);
+
+          this->message_queue_.push(
+            network_service::get_ip_address_string(from),
+            from.sin_port,
+            message_data.data());
         }
         
         //server.get_peer_network().register_client_channel(
@@ -165,11 +180,6 @@ void vds::_server_udp_api::input_message(const sockaddr_in & from, const void * 
 void vds::_server_udp_api::update_upd_connection_pool()
 {
 
-}
-
-void vds::_server_udp_api::on_download_certificate(certificate * cert)
-{
-  
 }
 
 void vds::_server_udp_api::send_welcome()

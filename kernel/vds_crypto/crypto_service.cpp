@@ -45,3 +45,8 @@ void vds::crypto_service::stop(const service_provider &)
   /* Remove error strings */
   ERR_free_strings();
 }
+
+void vds::crypto_service::rand_bytes(void * buffer, size_t buffer_size)
+{
+  RAND_bytes((unsigned char *)buffer, (int)buffer_size);
+}

@@ -6,6 +6,103 @@ All rights reserved
 #include "stdafx.h"
 #include "test_vds_crypto.h"
 
+template <typename context_type>
+class random_reader : public vds::sequence_step<context_type, void(const void *, size_t)>
+{
+  using base_class = vds::sequence_step<context_type, void(const void *, size_t)>;
+public:
+  random_reader(
+    const context_type & context,
+    const void * data,
+    size_t len)
+    : base_class(context),
+    data_(reinterpret_cast<const uint8_t *>(data)),
+    len_(len)
+  {
+  }
+
+  void operator()()
+  {
+    this->processed();
+  }
+
+  void processed()
+  {
+    if (0 == this->len_) {
+      this->next(nullptr, 0);
+      return;
+    }
+
+    for(;;){
+      size_t n = (size_t)std::rand();
+      if (n < 1) {
+        continue;
+      }
+
+      if (n > this->len_) {
+        n = this->len_;
+      }
+
+      auto p = this->data_;
+      auto l = this->len_;
+
+      this->data_ += n;
+      this->len_ -= n;
+
+      this->next(p, l);
+
+      break;
+    }
+  }
+
+private:
+  const uint8_t * data_;
+  size_t len_;
+};
+
+template <typename context_type>
+class compare_data : public vds::sequence_step<context_type, void()>
+{
+  using base_class = vds::sequence_step<context_type, void()>;
+public:
+  compare_data(
+    const context_type & context,
+    const void * data,
+    size_t len)
+    : base_class(context),
+    data_(reinterpret_cast<const uint8_t *>(data)),
+    len_(len)
+  {
+  }
+
+  void operator()(const void * data, size_t len)
+  {
+    if (0 == len) {
+      ASSERT_EQ(this->len_, 0);
+      this->next();
+    }
+
+    const uint8_t * p = reinterpret_cast<const uint8_t *>(data);
+    while (0 < len) {
+      auto l = len;
+      if (l > this->len_) {
+        l = this->len_;
+      }
+      ASSERT_EQ(memcmp(this->data_, p, l), 0);
+
+      p += l;
+      len -= l;
+
+      this->data_ += l;
+      this->len_ -= l;
+    }
+  }
+
+private:
+  const uint8_t * data_;
+  size_t len_;
+};
+
 TEST(test_vds_crypto, test_symmetric)
 {
     vds::service_registrator registrator;
@@ -21,51 +118,71 @@ TEST(test_vds_crypto, test_symmetric)
       size_t len;
       do
       {
-        RAND_bytes((unsigned char *)&len, sizeof(len));
+        vds::crypto_service::rand_bytes(&len, sizeof(len));
         len %= 32 * 1024 * 1024;
       }while(len < 1024 || len > 32 * 1024 * 1024);
 
       std::unique_ptr<unsigned char> buffer(new unsigned char[len]);
-      RAND_bytes(buffer.get(), (int)len);
+      vds::crypto_service::rand_bytes(buffer.get(), (int)len);
 
       vds::symmetric_key key(vds::symmetric_crypto::aes_256_cbc());
       key.generate();
 
-      std::vector<unsigned char> result(len);
-      vds::symmetric_encrypt encrypt(key);
-
-      std::vector<unsigned char> decypted(len);
-      vds::symmetric_decrypt decrypt(key);
-      
-      auto p = buffer.get();
-      auto l = len;
-      
-      size_t result_len = 0;
-      while(l > 0){
-        size_t n = (size_t)std::rand();
-        if (n < 1) {
-          continue;
-        }
-        if(n > l) {
-          n = l;
-        }
-        result_len += encrypt.update(p, n, result.data() + result_len, result.size() - result_len);
-        p += n;
-        l -= n;
-      }
-      result_len += encrypt.update(nullptr, 0, result.data() + result_len, result.size() - result_len);
-      
-      auto decypted_len = decrypt.update(result.data(), result_len, decypted.data(), decypted.size());
-      decypted_len += decrypt.update(nullptr, 0, decypted.data() + decypted_len, decypted.size() - decypted_len);
-    
-      ASSERT_EQ(decypted_len, len);
-      for(size_t i = 0; i < len; ++i) {
-        ASSERT_EQ(decypted[i], buffer.get()[i]);
-      }
+      sequence(
+        vds::create_step<random_reader>::with(buffer.get(), (int)len),
+        vds::symmetric_encrypt(key),
+        vds::symmetric_decrypt(key),
+        vds::create_step<compare_data>::with(buffer.get(), (int)len)
+      )(
+        []() {
+      },
+        [](std::exception * ex) {
+        GTEST_FAIL() << ex->what();
+      });
     }
     registrator.shutdown();
     
 }
+
+TEST(test_vds_crypto, test_asymmetric)
+{
+  vds::service_registrator registrator;
+
+  vds::crypto_service crypto_service;
+  vds::console_logger console_logger(vds::ll_trace);
+
+  registrator.add(console_logger);
+  registrator.add(crypto_service);
+  {
+    auto sp = registrator.build();
+
+    size_t len;
+    do
+    {
+      vds::crypto_service::rand_bytes(&len, sizeof(len));
+      len %= 128 * 1024;
+    } while (len < 8 || len > 128 * 1024);
+
+    vds::data_buffer buffer;
+    buffer.resize(len);
+    vds::crypto_service::rand_bytes(const_cast<uint8_t *>(buffer.data()), (int)len);
+
+    vds::asymmetric_private_key private_key(vds::asymmetric_crypto::rsa2048());
+    private_key.generate();
+
+    vds::asymmetric_public_key public_key(private_key);
+
+    auto result = private_key.decrypt(public_key.encrypt(buffer));
+
+    ASSERT_EQ(result.size(), buffer.size());
+    for (size_t i = 0; i < buffer.size(); ++i) {
+      ASSERT_EQ(result[i], buffer[i]);
+    }
+  }
+  registrator.shutdown();
+
+}
+
 
 TEST(test_vds_crypto, test_sign)
 {
@@ -82,12 +199,12 @@ TEST(test_vds_crypto, test_sign)
     size_t len;
     do
     {
-      RAND_bytes((unsigned char *)&len, sizeof(len));
+      vds::crypto_service::rand_bytes(&len, sizeof(len));
       len %= 1024 * 1024 * 1024;
     } while (len < 1024 || len > 1024 * 1024 * 1024);
 
     std::unique_ptr<unsigned char> buffer(new unsigned char[len]);
-    RAND_bytes(buffer.get(), (int)len);
+    vds::crypto_service::rand_bytes(buffer.get(), (int)len);
 
     vds::asymmetric_private_key key(vds::asymmetric_crypto::rsa2048());
     key.generate();
