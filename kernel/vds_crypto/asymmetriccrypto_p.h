@@ -37,17 +37,17 @@ namespace vds {
 
     data_buffer decrypt(const data_buffer & data)
     {
-      int keylen = EVP_PKEY_size(this->key_);
+      int blocksize = RSA_size(EVP_PKEY_get1_RSA(this->key_));
       data_buffer result;
 
       auto p = data.data();
       auto l = data.size();
 
-      std::unique_ptr<uint8_t> buffer(new uint8_t[keylen]);
+      std::unique_ptr<uint8_t> buffer(new uint8_t[RSA_size(EVP_PKEY_get1_RSA(this->key_))]);
       while (l > 0) {
         auto n = l;
-        if (n > keylen) {
-          n = keylen;
+        if (n > blocksize) {
+          n = blocksize;
         }
 
         auto len = RSA_private_decrypt(n, p, buffer.get(), EVP_PKEY_get1_RSA(this->key_), RSA_PKCS1_PADDING);
@@ -95,17 +95,17 @@ namespace vds {
 
     data_buffer encrypt(const data_buffer & data)
     {
-      int keylen = EVP_PKEY_size(this->key_);
+      int blocksize = RSA_size(EVP_PKEY_get1_RSA(this->key_)) - 11;// EVP_PKEY_size(this->key_);
       data_buffer result;
 
       auto p = data.data();
       auto l = data.size();
 
-      std::unique_ptr<uint8_t> buffer(new uint8_t[keylen]);
+      std::unique_ptr<uint8_t> buffer(new uint8_t[RSA_size(EVP_PKEY_get1_RSA(this->key_))]);
       while (l > 0) {
         auto n = l;
-        if (n > keylen) {
-          n = keylen;
+        if (n > blocksize) {
+          n = blocksize;
         }
 
         auto len = RSA_public_encrypt(n, p, buffer.get(), EVP_PKEY_get1_RSA(this->key_), RSA_PKCS1_PADDING);

@@ -64,6 +64,12 @@ size_t vds::symmetric_key::block_size() const
   return this->crypto_info_.block_size();
 }
 
+void vds::symmetric_key::serialize(vds::binary_serializer& s)
+{
+  s.push_data(this->key_.get(), (int)this->crypto_info_.key_size());
+  s.push_data(this->iv_.get(), (int)this->crypto_info_.iv_size());
+}
+
 vds::symmetric_encrypt::symmetric_encrypt(const vds::symmetric_key& key)
 : key_(key)
 {

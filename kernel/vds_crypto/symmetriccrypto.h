@@ -171,7 +171,7 @@ namespace vds {
 
       void processed()
       {
-        sizet_t out_size = sizeof(this->buffer);
+        size_t out_size = sizeof(this->buffer);
         if (data_processed(this->impl_, this->buffer, out_size))
         {
           this->next(this->buffer, out_size);

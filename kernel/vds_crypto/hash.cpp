@@ -38,6 +38,12 @@ void vds::hash::final()
   this->impl_->final();
 }
 
+const vds::data_buffer& vds::hash::signature() const
+{
+  return this->impl_->signature();
+
+}
+
 ///////////////////////////////////////////////////////////////
 vds::_hash::_hash(const hash_info & info)
   : info_(info)

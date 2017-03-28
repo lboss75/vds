@@ -149,6 +149,10 @@ vds::_ssl_tunnel::_ssl_tunnel(
   scope.get<iscope_properties>().add_property(peer_certificate(this->owner_));
 }
 
+vds::_ssl_tunnel::~_ssl_tunnel()
+{
+}
+
 vds::certificate vds::_ssl_tunnel::get_peer_certificate() const
 {
   auto cert = SSL_get_peer_certificate(this->ssl_);
