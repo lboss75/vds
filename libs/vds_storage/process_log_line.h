@@ -50,9 +50,6 @@ namespace vds {
         }
 
         auto message_body = record.message()->serialize()->str();
-        hash h(hash::sha256());
-        h.update(message_body.c_str(), message_body.length());
-        h.final();
 
         size_t sign_count = 0;
         for (auto & s : record.signatures()) {
@@ -71,10 +68,13 @@ namespace vds {
           }
 
           auto cert_public_key = sign_cert->public_key();
-          asymmetric_sign_verify verifier(hash::sha256(), cert_public_key);
-          verifier.update(h.signature().data(), h.signature().size());
-
-          if (!verifier.verify(s.signature())) {
+          
+          if (!asymmetric_sign_verify::verify(
+            hash::sha256(),
+            cert_public_key,
+            s.signature(),
+            message_body.c_str(),
+            message_body.length())) {
             throw new std::runtime_error("Invalid sign record in the stream "
               + this->stream_name_
               + "(" + std::to_string(log_record->line()) + "," + std::to_string(log_record->column()) + ")");

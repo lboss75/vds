@@ -178,7 +178,14 @@ namespace vds {
       _asymmetric_sign_verify * impl_;
       data_buffer signature_;
     };
-
+    
+    static bool verify(
+      const hash_info & hash_info,
+      const asymmetric_public_key & key,
+      const data_buffer & signature,
+      const void * data,
+      size_t data_size);
+    
   private:
     const hash_info & hash_info_;
     asymmetric_public_key key_;

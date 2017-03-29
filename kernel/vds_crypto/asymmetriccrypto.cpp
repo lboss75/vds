@@ -328,6 +328,18 @@ bool vds::asymmetric_sign_verify::data_final(_asymmetric_sign_verify * impl, con
   return impl->verify(signature);
 }
 
+bool vds::asymmetric_sign_verify::verify(
+  const vds::hash_info& hash_info,
+  const vds::asymmetric_public_key& key,
+  const data_buffer& signature,
+  const void* data,
+  size_t data_size)
+{
+  _asymmetric_sign_verify s(hash_info, key);
+  s.update(data, data_size);
+  return s.verify(signature);
+}
+
 ///////////////////////////////////////////////////////////////
 vds::_asymmetric_sign_verify::_asymmetric_sign_verify(const hash_info & hash_info, const asymmetric_public_key & key)
   : md_(nullptr)
