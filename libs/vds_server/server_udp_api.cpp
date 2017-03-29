@@ -80,7 +80,7 @@ void vds::_server_udp_api::socket_closed(std::list<std::exception *> errors)
 {
 }
 
-void vds::_server_udp_api::input_message(const sockaddr_in & from, const void * data, size_t len)
+void vds::_server_udp_api::input_message(const sockaddr_in * from, const void * data, size_t len)
 {
   try{
     network_deserializer s(data, len);
@@ -139,8 +139,8 @@ void vds::_server_udp_api::input_message(const sockaddr_in & from, const void * 
             .serialize(message_data);
 
           this->message_queue_.push(
-            network_service::get_ip_address_string(from),
-            from.sin_port,
+            network_service::get_ip_address_string(*from),
+            from->sin_port,
             message_data.data());
         }
         
@@ -180,7 +180,7 @@ void vds::_server_udp_api::input_message(const sockaddr_in & from, const void * 
   }
   catch(std::exception * ex){
     std::unique_ptr<std::exception> _ex(ex);
-    this->log_.warning("%s in datagram from %s", ex->what(), network_service::to_string(from).c_str());
+    this->log_.warning("%s in datagram from %s", ex->what(), network_service::to_string(*from).c_str());
   }
 }
 

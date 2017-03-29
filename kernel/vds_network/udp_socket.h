@@ -144,98 +144,13 @@ namespace vds {
     int port_;
   };
 
-  class udp_client
-  {
-  public:
-    udp_client(
-      const service_provider & sp,
-      udp_socket & socket,
-      const std::string & address,
-      int port,
-      const void * data,
-      size_t len
-    ) : sp_(sp), socket_(socket),
-      owner_(sp.get<inetwork_manager>().owner_),
-      address_(address), port_(port),
-      data_(data), len_(len)
-    {
-    }
-
-    template <typename context_type>
-    class handler
-      : public sequence_step<context_type, void(void)>,
-      public socket_task
-    {
-      using base_class = sequence_step<context_type, void(void)>;
-    public:
-      handler(
-        const context_type & context,
-        const udp_client & args
-      ) : base_class(context),
-        address_(args.address_),
-        port_(args.port_)
-      {
-        this->s_ = args.socket_.handle();
-#ifdef _WIN32
-        this->wsa_buf_.len = args.len_;
-        this->wsa_buf_.buf = (CHAR *)args.data_;
-#endif
-      }
-
-      void operator()()
-      {
-#ifdef _WIN32
-        struct sockaddr_in addr;
-        addr.sin_family = AF_INET;
-        addr.sin_addr.s_addr = inet_addr(this->address_.c_str());
-        addr.sin_port = htons(this->port_);
-
-        if (NOERROR != WSASendTo(
-          this->s_,
-          &this->wsa_buf_,
-          1,
-          NULL,
-          0,
-          (const sockaddr *)&addr,
-          sizeof(addr),
-          &this->overlapped_,
-          NULL)) {
-          auto errorCode = WSAGetLastError();
-          if (WSA_IO_PENDING != errorCode) {
-            throw new std::system_error(errorCode, std::system_category(), "WSASend failed");
-          }
-        }
-#endif
-      }
-#ifdef _WIN32
-      void process(DWORD dwBytesTransfered) override
-      {
-        this->next();
-      }
-#endif
-    private:
-      std::string address_;
-      int port_;
-    };
-
-
-  private:
-    const service_provider & sp_;
-    udp_socket & socket_;
-    network_service * owner_;
-    std::string address_;
-    int port_;
-    const void * data_;
-    size_t len_;
-  };
-
   class udp_send
   {
   public:
     udp_send(
-      udp_socket & socket
-    )
-      : socket_(socket)
+      const service_provider & sp,
+      udp_socket & socket)
+      : sp_(sp), socket_(socket)
     {
     }
 
@@ -249,23 +164,43 @@ namespace vds {
       handler(
         const context_type & context,
         const udp_send & args
-      ) : base_class(context)
+      ) : base_class(context), sp_(args.sp_)
+#ifndef _WIN32
+      , network_service_(args.sp_.get<inetwork_manager>().owner())
+#endif
       {
         this->s_ = args.socket_.handle();
       }
 
-      void operator()(const sockaddr_in & to, const void * data, size_t len)
+      void operator()(const sockaddr_in * to, const void * data, size_t len)
       {
 #ifdef _WIN32
         this->wsa_buf_.len = len;
         this->wsa_buf_.buf = (CHAR *)data;
 
-        if (NOERROR != WSASendTo(this->s_, &this->wsa_buf_, 1, NULL, 0, (const sockaddr *)&to, sizeof(to), &this->overlapped_, NULL)) {
+        if (NOERROR != WSASendTo(this->s_, &this->wsa_buf_, 1, NULL, 0, (const sockaddr *)to, sizeof(*to), &this->overlapped_, NULL)) {
           auto errorCode = WSAGetLastError();
           if (WSA_IO_PENDING != errorCode) {
             throw new std::system_error(errorCode, std::system_category(), "WSASend failed");
           }
         }
+#else
+        this->to_ = to;
+        this->data_ = (const unsigned char *)data;
+        this->data_size_ = len;
+        
+        if(nullptr == this->event_) {
+          this->event_ = event_new(
+            this->network_service_->base_,
+            this->s_,
+            EV_WRITE,
+            &callback,
+            this);
+        }
+        // Schedule client event
+        event_add(this->event_, NULL);
+        
+        this->network_service_->start_libevent_dispatch(this->sp_);
 #endif
       }
 #ifdef _WIN32
@@ -279,9 +214,47 @@ namespace vds {
         this->prev();
       }
 #endif
-    };
 
+    private:
+      service_provider sp_;
+      network_socket::SOCKET_HANDLE s_;
+    
+#ifndef _WIN32
+      const sockaddr_in * to_;
+      const unsigned char * data_;
+      size_t data_size_;
+      network_service * network_service_;
+      
+      static void callback(int fd, short event, void *arg)
+      {
+        auto pthis = reinterpret_cast<handler *>(arg);
+        int len = sendto(fd, pthis->data_, pthis->data_size_, 0, (sockaddr *)pthis->to_, sizeof(*pthis->to_));
+        if (len < 0) {
+          int error = errno;
+          pthis->error(
+            new std::system_error(
+              error,
+              std::generic_category()));
+          return;
+        }
+        
+        pthis->data_ += len;
+        pthis->data_size_ -= len;
+        if (0 < pthis->data_size_) {
+          //event_set(&pthis->event_, pthis->s_, EV_WRITE, &write_socket_task::callback, pthis);
+          event_add(pthis->event_, NULL);
+        }
+        else {
+          imt_service::async(pthis->sp_,
+            [pthis](){
+              pthis->prev();
+            });
+        }
+      }
+#endif//_WIN32
+    };
   private:
+    service_provider sp_;
     udp_socket & socket_;
   };
 
@@ -297,12 +270,12 @@ namespace vds {
 
     template <typename context_type>
     class handler
-      : public sequence_step<context_type, void(const sockaddr_in & from, const void * data, size_t len)>
+      : public sequence_step<context_type, void(const sockaddr_in * from, const void * data, size_t len)>
 #ifdef _WIN32
       , public socket_task
 #endif
     {
-      using base_class = sequence_step<context_type, void(const sockaddr_in & from, const void * data, size_t len)>;
+      using base_class = sequence_step<context_type, void(const sockaddr_in * from, const void * data, size_t len)>;
     public:
       handler(
         const context_type & context,
@@ -352,7 +325,7 @@ namespace vds {
 #ifdef _WIN32
     void process(DWORD dwBytesTransfered) override
     {
-      this->next(this->addr_, this->buffer_, (size_t)dwBytesTransfered);
+      this->next(&this->addr_, this->buffer_, (size_t)dwBytesTransfered);
     }
 #endif
 
@@ -379,7 +352,7 @@ namespace vds {
         throw new std::system_error(error, std::system_category(), "recvfrom");
       }
 
-      pthis->next(pthis->addr_, pthis->buffer_, len);
+      pthis->next(&pthis->addr_, pthis->buffer_, len);
     }
 #endif//_WIN32
 
@@ -429,7 +402,7 @@ private:
         
         sequence(
           create_step<read_handler>::with(this->owner_),
-          udp_send(this->s_)
+          udp_send(this->sp_, this->s_)
         )(
           this->multi_handler_.on_done(),
           this->multi_handler_.on_error()
@@ -456,7 +429,7 @@ private:
 
       }
 
-      void operator()(const sockaddr_in & from, const void * data, size_t len)
+      void operator()(const sockaddr_in * from, const void * data, size_t len)
       {
         this->owner_.input_message(from, data, len);
       }
@@ -466,9 +439,9 @@ private:
     };
 
     template <typename context_type>
-    class read_handler : public sequence_step<context_type, void(const sockaddr_in & from, const void * data, size_t len)>
+    class read_handler : public sequence_step<context_type, void(const sockaddr_in * from, const void * data, size_t len)>
     {
-      using base_class = sequence_step<context_type, void(const sockaddr_in & from, const void * data, size_t len)>;
+      using base_class = sequence_step<context_type, void(const sockaddr_in * from, const void * data, size_t len)>;
     public:
       read_handler(
         const context_type & context,
@@ -502,7 +475,7 @@ private:
           this->from_.sin_addr.s_addr = inet_addr(address.c_str());
           this->from_.sin_port = htons(port);
 
-          this->owner_.next(this->from_, this->data_.data(), this->data_.size());
+          this->owner_.next(&this->from_, this->data_.data(), this->data_.size());
         }
         
       private:
@@ -575,8 +548,6 @@ private:
      error_handler
     );
   }
-  
-  
 }
 
 #endif//__VDS_NETWORK_UDP_SOCKET_H_

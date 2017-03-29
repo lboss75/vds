@@ -296,10 +296,12 @@ TEST(network_tests, test_server)
 {
     vds::service_registrator registrator;
 
+    vds::mt_service mt_service;
     vds::network_service network_service;
     vds::console_logger console_logger(vds::ll_trace);
 
     registrator.add(console_logger);
+    registrator.add(mt_service);
     registrator.add(network_service);
 
     vds::barrier done;
@@ -362,9 +364,11 @@ TEST(network_tests, test_udp_server)
     vds::service_registrator registrator;
 
     vds::network_service network_service;
+    vds::mt_service mt_service;
     vds::console_logger console_logger(vds::ll_trace);
 
     registrator.add(console_logger);
+    registrator.add(mt_service);
     registrator.add(network_service);
 
     vds::barrier done;
@@ -383,7 +387,7 @@ TEST(network_tests, test_udp_server)
       vds::sequence(
         vds::udp_server(sp, server_socket, "127.0.0.1", 8001),
         vds::udp_receive(sp, server_socket),
-        vds::udp_send(server_socket)
+        vds::udp_send(sp, server_socket)
       )
       (
         done_server,
@@ -406,14 +410,22 @@ TEST(network_tests, test_udp_server)
       });
       std::this_thread::sleep_for(std::chrono::seconds(5));//Waiting start UDP server
 
+      struct sockaddr_in addr;
+      addr.sin_family = AF_INET;
+      addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+      addr.sin_port = htons(8001);
+
       vds::udp_socket client_socket(sp);
       vds::sequence(
-        vds::udp_client(sp, client_socket, "127.0.0.1", 8001, testdata, sizeof(testdata) - 1),
+        vds::udp_send(sp, client_socket),
         vds::udp_receive(sp, client_socket)
       )
       (
         done_client,
-        error_client
+        error_client,
+        &addr,
+        (const void *)testdata,
+        sizeof(testdata) - 1
         );
 
       done.wait();

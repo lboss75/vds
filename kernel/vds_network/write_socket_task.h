@@ -134,27 +134,35 @@ namespace vds {
     static void callback(int fd, short event, void *arg)
     {
       auto pthis = reinterpret_cast<write_socket_task *>(arg);
-      int len = write(fd, pthis->data_, pthis->data_size_);
-      if (len < 0) {
-        int error = errno;
-        pthis->error_method_(
-          new std::system_error(
-            error,
-            std::system_category()));
-        return;
+      try {
+        int len = write(fd, pthis->data_, pthis->data_size_);
+        if (len < 0) {
+          int error = errno;
+          pthis->error_method_(
+            new std::system_error(
+              error,
+              std::system_category()));
+          return;
+        }
+        
+        pthis->data_ += len;
+        pthis->data_size_ -= len;
+        if (0 < pthis->data_size_) {
+          //event_set(&pthis->event_, pthis->s_, EV_WRITE, &write_socket_task::callback, pthis);
+          event_add(pthis->event_, NULL);
+        }
+        else {
+          imt_service::async(pthis->sp_,
+            [pthis](){
+              pthis->done_method_();
+            });
+        }
       }
-      
-      pthis->data_ += len;
-      pthis->data_size_ -= len;
-      if (0 < pthis->data_size_) {
-        //event_set(&pthis->event_, pthis->s_, EV_WRITE, &write_socket_task::callback, pthis);
-        event_add(pthis->event_, NULL);
+      catch(std::exception * ex){
+        pthis->error_method_(ex);
       }
-      else {
-        imt_service::async(pthis->sp_,
-          [pthis](){
-            pthis->done_method_();
-          });
+      catch(...){
+        pthis->error_method_(new std::runtime_error("Unexpected error at write socket"));
       }
     }
 #endif//_WIN32

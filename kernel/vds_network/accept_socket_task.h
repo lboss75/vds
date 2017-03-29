@@ -193,8 +193,9 @@ namespace vds {
     event * ev_accept_;
     static void wait_accept(int fd, short event, void *arg)
     {
-        auto data = reinterpret_cast<accept_socket_task *>(arg);
-
+      auto data = reinterpret_cast<accept_socket_task *>(arg);
+      
+      try {
         sockaddr_in client_addr;
         socklen_t   len = 0;
 
@@ -240,6 +241,13 @@ namespace vds {
           network_socket s(sock);
           data->done_method_(sp, s);
         });
+      }
+      catch(std::exception * ex){
+        data->error_method_(ex);
+      }
+      catch(...){
+        data->error_method_(new std::runtime_error("Unexpected error at wait_accept"));
+      }
     }
 
 #else

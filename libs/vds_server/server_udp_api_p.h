@@ -27,7 +27,7 @@ namespace vds {
     void udp_server_done();
     void udp_server_error(std::exception * ex);
     void socket_closed(std::list<std::exception *> errors);
-    void input_message(const sockaddr_in & from, const void * data, size_t len);
+    void input_message(const sockaddr_in * from, const void * data, size_t len);
 
     template <typename next_step_type>
     void get_message(next_step_type & next)
