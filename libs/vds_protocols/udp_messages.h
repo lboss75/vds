@@ -50,9 +50,10 @@ namespace vds {
       void serialize(network_serializer& s) const;
 
     private:
-      std::string from_server_id;
-      std::string client_url;
-      std::string crypto_key;
+      guid server_id_;
+      data_buffer key_crypted_;
+      data_buffer crypted_info_;
+      data_buffer sign_;
     };
   }
 }

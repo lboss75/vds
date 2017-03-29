@@ -112,7 +112,14 @@ void vds::_server_udp_api::input_message(const sockaddr_in & from, const void * 
           binary_serializer s;
           s << session_id;
 
-          auto crypted_data = symmetric_encrypt::encrypt(session_key, s.data());
+          data_buffer crypted_data;
+          sequence(
+            symmetric_encrypt(session_key),
+            collect_data(crypted_data))(
+              []() {},
+              [](std::exception * ex) { throw ex; },
+              s.data().data(),
+              s.data().size());
 
           binary_serializer to_sign;
           to_sign
@@ -202,4 +209,10 @@ void vds::_server_udp_api::open_udp_session(const std::string & address)
     network_address.server,
     (uint16_t)std::atoi(network_address.port.c_str()),
     data_buffer(s.data()));
+}
+
+
+vds::_server_udp_api::session_data::session_data(const guid & server_id, const symmetric_key & session_key)
+  : server_id_(server_id), session_key_(session_key)
+{
 }

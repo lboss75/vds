@@ -14,10 +14,9 @@ vds::asymmetric_private_key::asymmetric_private_key()
 {
 }
 
-vds::asymmetric_private_key::asymmetric_private_key(asymmetric_private_key && original)
-: impl_(original.impl_)
+vds::asymmetric_private_key::asymmetric_private_key(const asymmetric_private_key & original)
+  : impl_(original.impl_)
 {
-  original.impl_ = nullptr;
 }
 
 vds::asymmetric_private_key::asymmetric_private_key(
@@ -33,7 +32,6 @@ vds::asymmetric_private_key::asymmetric_private_key(_asymmetric_private_key * im
 
 vds::asymmetric_private_key::~asymmetric_private_key()
 {
-  delete this->impl_;
 }
 
 void vds::asymmetric_private_key::generate()
@@ -204,31 +202,35 @@ const vds::asymmetric_crypto_info & vds::asymmetric_crypto::rsa4096()
 }
 
 vds::asymmetric_sign::asymmetric_sign(const hash_info & hash_info, const asymmetric_private_key & key)
-: impl_(new _asymmetric_sign(hash_info, key))
+: hash_info_(hash_info), key_(key)
 {
 }
 
-vds::asymmetric_sign::~asymmetric_sign()
+vds::_asymmetric_sign * vds::asymmetric_sign::create_implementation() const
 {
-  delete this->impl_;
+  return new _asymmetric_sign(this->hash_info_, this->key_);
 }
 
-void vds::asymmetric_sign::update(const void * data, int len)
+void vds::asymmetric_sign::data_update(_asymmetric_sign * impl, const void * data, int len)
 {
-  this->impl_->update(data, len);
+  impl->update(data, len);
 }
 
-void vds::asymmetric_sign::final()
+void vds::asymmetric_sign::data_final(_asymmetric_sign * impl, data_buffer & result)
 {
-  this->impl_->final();
+  impl->final();
+  result = impl->signature();
 }
 
-const vds::data_buffer & vds::asymmetric_sign::signature() const
+vds::data_buffer vds::asymmetric_sign::signature(
+  const hash_info & hash_info,
+  const asymmetric_private_key & key,
+  const data_buffer & data)
 {
-  return this->impl_->signature();
+  _asymmetric_sign s(hash_info, key);
+  s.update(data.data(), data.size());
+  return s.signature();
 }
-
-
 
 ////////////////////////////////////////////////////////////////////////////////
 vds::_asymmetric_sign::_asymmetric_sign(const hash_info & hash_info, const asymmetric_private_key & key)
@@ -303,24 +305,27 @@ void vds::_asymmetric_sign::final()
   OPENSSL_free(sig);
 }
 ///////////////////////////////////////////////////////////////
-vds::asymmetric_sign_verify::asymmetric_sign_verify(const hash_info & hash_info, const asymmetric_public_key & key)
-: impl_(new _asymmetric_sign_verify(hash_info, key))
+vds::asymmetric_sign_verify::asymmetric_sign_verify(
+  const hash_info & hash_info,
+  const asymmetric_public_key & key,
+  const data_buffer & sign)
+: hash_info_(hash_info), key_(key), signature_(sign)
 {
 }
 
-vds::asymmetric_sign_verify::~asymmetric_sign_verify()
+vds::_asymmetric_sign_verify * vds::asymmetric_sign_verify::create_implementation() const
 {
-  delete this->impl_;
+  return new _asymmetric_sign_verify(this->hash_info_, this->key_);
 }
 
-void vds::asymmetric_sign_verify::update(const void * data, int len)
+void vds::asymmetric_sign_verify::data_update(_asymmetric_sign_verify * impl, const void * data, int len)
 {
-  this->impl_->update(data, len);
+  impl->update(data, len);
 }
 
-bool vds::asymmetric_sign_verify::verify(const data_buffer & sig)
+bool vds::asymmetric_sign_verify::data_final(_asymmetric_sign_verify * impl, const data_buffer & signature)
 {
-  return this->impl_->verify(sig);
+  return impl->verify(signature);
 }
 
 ///////////////////////////////////////////////////////////////
@@ -375,10 +380,9 @@ vds::asymmetric_public_key::asymmetric_public_key(_asymmetric_public_key * impl)
 {
 }
 
-vds::asymmetric_public_key::asymmetric_public_key(asymmetric_public_key && original)
+vds::asymmetric_public_key::asymmetric_public_key(const asymmetric_public_key & original)
   : impl_(original.impl_)
 {
-  original.impl_ = nullptr;
 }
 
 vds::asymmetric_public_key::asymmetric_public_key(const asymmetric_private_key & key)
@@ -388,7 +392,6 @@ vds::asymmetric_public_key::asymmetric_public_key(const asymmetric_private_key &
 
 vds::asymmetric_public_key::~asymmetric_public_key()
 {
-  delete this->impl_;
 }
 
 vds::asymmetric_public_key vds::asymmetric_public_key::parse(const std::string & value)

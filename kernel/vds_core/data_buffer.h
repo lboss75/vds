@@ -6,6 +6,8 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
+#include "sequence.h"
+
 namespace vds{
   class data_buffer
   {
@@ -116,6 +118,45 @@ namespace vds{
   private:
     uint8_t * data_;
     size_t len_;
+  };
+
+  class collect_data
+  {
+  public:
+    collect_data(data_buffer & target)
+      : target_(target)
+    {
+    }
+
+    template <typename context_type>
+    class handler : public sequence_step<context_type, void(void)>
+    {
+      using base_class = sequence_step<context_type, void(void)>;
+    public:
+      handler(
+        const context_type & context,
+        const collect_data & args)
+        : base_class(context), target_(args.target_)
+      {
+      }
+
+      void operator ()(const void * data, size_t len)
+      {
+        if (0 == len) {
+          this->next();
+        }
+        else {
+          this->target_.add(data, len);
+          this->prev();
+        }
+      }
+
+    private:
+      data_buffer & target_;
+    };
+
+  private:
+    data_buffer & target_;
   };
 }
 

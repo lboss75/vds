@@ -72,8 +72,6 @@ namespace vds {
   public:
     symmetric_encrypt(const symmetric_key & key);
 
-    static data_buffer encrypt(const symmetric_key & key, const data_buffer & data);
-
     template <typename context_type>
     class handler : public sequence_step<context_type, void(const void *, size_t)>
     {
@@ -85,7 +83,6 @@ namespace vds {
         : base_class(context),
         impl_(args.create_implementation())
       {
-
       }
 
       void operator()(const void * data, size_t size)

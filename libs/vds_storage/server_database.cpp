@@ -25,7 +25,7 @@ void vds::server_database::start()
 
 void vds::server_database::stop()
 {
-  this->stop();
+  this->impl_->stop();
 }
 
 void vds::server_database::add_cert(const cert & record)
@@ -126,6 +126,11 @@ void vds::_server_database::start()
   }
 }
 
+void vds::_server_database::stop()
+{
+  this->db_.close();
+}
+
 void vds::_server_database::add_cert(const cert & record)
 {
   this->add_cert_statement_.execute(
@@ -189,7 +194,7 @@ uint64_t vds::_server_database::last_object_index(const guid& server_id)
   uint64_t result = 0;
   this->last_object_index_query_.query(
     this->db_,
-    "SELECT MAX(object_index) FROM objects WHERE server_id=@server_id",
+    "SELECT MAX(object_index)+1 FROM objects WHERE server_id=@server_id",
     [&result](sql_statement & st)->bool{
       st.get_value(0, result);
       return false;
@@ -220,6 +225,8 @@ void vds::_server_database::get_endpoints(std::map<std::string, std::string>& re
       std::string addresses;
       st.get_value(0, endpoint_id);
       st.get_value(1, addresses);
+
+      result.insert(std::pair<std::string, std::string>(endpoint_id, addresses));
       return true;
     });
 }

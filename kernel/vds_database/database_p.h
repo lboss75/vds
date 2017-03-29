@@ -59,11 +59,6 @@ namespace vds {
 
     bool execute()
     {
-      if(before_eof == this->state_) {
-        this->state_ = eof_state;
-        return false;
-      }
-      
       if (eof_state == this->state_) {
         return false;
       }
@@ -74,8 +69,8 @@ namespace vds {
         return true;
 
       case SQLITE_DONE:
-        this->state_ = before_eof;
-        return true;
+        this->state_ = eof_state;
+        return false;
 
       default:
         throw new std::runtime_error(sqlite3_errmsg(this->db_));
@@ -84,7 +79,7 @@ namespace vds {
 
     bool get_value(int index, uint64_t & value)
     {
-      assert(read_state == this->state_ || before_eof == this->state_);
+      assert(read_state == this->state_);
       
       value = sqlite3_column_int64(this->stmt_, index);
       return true;
@@ -92,7 +87,7 @@ namespace vds {
 
     bool get_value(int index, std::string & value)
     {
-      assert(read_state == this->state_ || before_eof == this->state_);
+      assert(read_state == this->state_);
       
       auto v = (const char *)sqlite3_column_text(this->stmt_, index);
       if(nullptr == v){
@@ -105,7 +100,7 @@ namespace vds {
 
     bool get_value(int index, guid & value)
     {
-      assert(read_state == this->state_ || before_eof == this->state_);
+      assert(read_state == this->state_);
       
       std::string v;
       if (!this->get_value(index, v)) {
@@ -118,7 +113,7 @@ namespace vds {
 
     bool get_value(int index, data_buffer & value)
     {
-      assert(read_state == this->state_ || before_eof == this->state_);
+      assert(read_state == this->state_);
       
       std::string v;
       if (!this->get_value(index, v)) {
@@ -138,7 +133,6 @@ namespace vds {
     {
       bof_state,
       read_state,
-      before_eof,
       eof_state,
     };
     

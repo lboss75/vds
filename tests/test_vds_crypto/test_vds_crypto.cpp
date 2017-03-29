@@ -49,7 +49,7 @@ public:
       this->data_ += n;
       this->len_ -= n;
 
-      this->next(p, l);
+      this->next(p, n);
 
       break;
     }
@@ -200,8 +200,8 @@ TEST(test_vds_crypto, test_sign)
     do
     {
       vds::crypto_service::rand_bytes(&len, sizeof(len));
-      len %= 1024 * 1024 * 1024;
-    } while (len < 1024 || len > 1024 * 1024 * 1024);
+      len %= 16 * 1024 * 1024;
+    } while (len < 1024 || len > 16 * 1024 * 1024);
 
     std::unique_ptr<unsigned char> buffer(new unsigned char[len]);
     vds::crypto_service::rand_bytes(buffer.get(), (int)len);
@@ -209,32 +209,45 @@ TEST(test_vds_crypto, test_sign)
     vds::asymmetric_private_key key(vds::asymmetric_crypto::rsa2048());
     key.generate();
 
-    vds::asymmetric_sign sign(vds::hash::sha256(), key);
+    vds::data_buffer sign;
+    vds::sequence(
+      vds::create_step<random_reader>::with(buffer.get(), (int)len),
+      vds::asymmetric_sign(vds::hash::sha256(), key))
+      (
+        [&sign](const void * data, size_t len) { sign.reset(data, len); },
+        [](std::exception * ex) { FAIL() << ex->what(); });
+
 
     vds::asymmetric_public_key pkey(key);
-    vds::asymmetric_sign_verify sverify(vds::hash::sha256(), pkey);
 
-    sign.update(buffer.get(), len);
-    sign.final();
+    
+    bool unchanged_result;
+    vds::sequence(
+      vds::create_step<random_reader>::with(buffer.get(), (int)len),
+      vds::asymmetric_sign_verify(vds::hash::sha256(), pkey, sign))
+      (
+        [&unchanged_result](bool result) { unchanged_result = result; },
+        [](std::exception * ex) { FAIL() << ex->what(); });
 
-    auto p = buffer.get();
-    auto l = len;
-    while(l > 0) {
-      size_t n = (size_t)std::rand();
-      if (n < 1) {
-        continue;
-      }
-      if(n > l) {
-        n = l;
-      }
-      sverify.update(p, n);
-      p += n;
-      l -= n;
-    }
+    size_t index;
+    do
+    {
+      vds::crypto_service::rand_bytes(&index, sizeof(index));
+      index %= len;
+    } while (index >= len);
 
-    auto result = sverify.verify(sign.signature());
+    const_cast<unsigned char *>(buffer.get())[index]++;
 
-    ASSERT_EQ(result, true);
+    bool changed_result;
+    vds::sequence(
+      vds::create_step<random_reader>::with(buffer.get(), (int)len),
+      vds::asymmetric_sign_verify(vds::hash::sha256(), pkey, sign))
+      (
+        [&changed_result](bool result) { changed_result = result; },
+        [](std::exception * ex) { FAIL() << ex->what(); });
+
+    ASSERT_EQ(unchanged_result, true);
+    ASSERT_EQ(changed_result, false);
   }
 
   registrator.shutdown();

@@ -178,14 +178,16 @@ void vds::_storage_log::start()
     this->db_.last_object_index(this->current_server_id_));
 
   std::map<uint64_t, filename> local_records;
-  this->local_log_folder_.files(
-    [&local_records](const filename & fn) -> bool {
-    uint64_t index = std::atoll(fn.name().c_str());
-    if (std::to_string(index) == fn.name()) {
-      local_records[index] = fn;
-    }
-    return true;
-  });
+  if (this->local_log_folder_.exist()) {
+    this->local_log_folder_.files(
+      [&local_records](const filename & fn) -> bool {
+      uint64_t index = std::atoll(fn.name().c_str());
+      if (std::to_string(index) == fn.name()) {
+        local_records[index] = fn;
+      }
+      return true;
+    });
+  }
 
   for (auto & p : local_records) {
 
@@ -201,7 +203,7 @@ void vds::_storage_log::start()
       throw ex;
     });
 
-    if (this->local_log_index_ < p.first) {
+    if (this->local_log_index_ <= p.first) {
       this->local_log_index_ = p.first + 1;
     }
   }
@@ -354,12 +356,8 @@ vds::storage_object_id vds::_storage_log::save_object(const object_container & f
   binary_serializer s;
   fc.serialize(s);
 
-  asymmetric_sign sign(hash::sha256(), this->current_server_key_);
-  sign.update(s.data().data(), s.data().size());
-  sign.final();
-
   auto index = this->chunk_manager_.add(s.data());
-  auto signature = sign.signature();
+  auto signature = asymmetric_sign::signature(hash::sha256(), this->current_server_key_, s.data());
   this->db_.add_object(this->current_server_id_, index, signature);
   return vds::storage_object_id(index, signature);
 }
@@ -368,7 +366,7 @@ void vds::_storage_log::add_to_local_log(const json_value * record)
 {
   std::lock_guard<std::mutex> lock(this->local_log_mutex_);
 
-  file f(filename(this->local_log_folder_, std::to_string(this->local_log_index_++)).local_name(), file::create_new);
+  file f(filename(this->local_log_folder_, std::to_string(this->local_log_index_++)), file::create_new);
   output_text_stream os(f);
   os.write(record->str());
 }

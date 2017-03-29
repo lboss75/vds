@@ -232,7 +232,7 @@ void vds::file::move(const vds::filename& source, const vds::filename& target)
 {
   if(rename(source.local_name().c_str(), target.local_name().c_str())){
     auto error = errno;
-    throw new std::system_error(error, std::system_category(), "Rename file " + source.name() + " to " + target.name());
+    throw new std::system_error(error, std::generic_category(), "Rename file " + source.full_name() + " to " + target.full_name());
   }
 }
 

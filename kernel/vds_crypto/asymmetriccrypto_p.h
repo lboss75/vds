@@ -14,7 +14,7 @@ namespace vds {
   class _asymmetric_public_key;
   class _asymmetric_sign_verify;
 
-  class _asymmetric_private_key
+  class _asymmetric_private_key : public std::enable_shared_from_this<_asymmetric_private_key>
   {
   public:
     _asymmetric_private_key();
@@ -74,11 +74,10 @@ namespace vds {
     EVP_PKEY * key_;
   };
 
-  class _asymmetric_public_key
+  class _asymmetric_public_key : public std::enable_shared_from_this<_asymmetric_public_key>
   {
   public:
     _asymmetric_public_key(EVP_PKEY * key);
-    _asymmetric_public_key(asymmetric_public_key && original);
     _asymmetric_public_key(const asymmetric_private_key & key);
     ~_asymmetric_public_key();
 

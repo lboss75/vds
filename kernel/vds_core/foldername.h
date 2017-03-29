@@ -21,7 +21,7 @@ namespace vds {
       {
       }
       
-      foldername(const std::string & str)
+      explicit foldername(const std::string & str)
       : value_(str)
       {
       }

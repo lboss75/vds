@@ -35,7 +35,7 @@ namespace vds {
   {
   public:
     asymmetric_private_key();
-    asymmetric_private_key(asymmetric_private_key && original);
+    asymmetric_private_key(const asymmetric_private_key & original);
     asymmetric_private_key(const asymmetric_crypto_info & info);
     ~asymmetric_private_key();
     
@@ -57,14 +57,14 @@ namespace vds {
     
     asymmetric_private_key(_asymmetric_private_key * impl);
     
-    _asymmetric_private_key * impl_;
+    std::shared_ptr<_asymmetric_private_key> impl_;
   };
 
   class _asymmetric_public_key;
   class asymmetric_public_key
   {
   public:
-    asymmetric_public_key(asymmetric_public_key && original);
+    asymmetric_public_key(const asymmetric_public_key & original);
     asymmetric_public_key(const asymmetric_private_key & key);
     ~asymmetric_public_key();
 
@@ -81,7 +81,7 @@ namespace vds {
     
     friend class _asymmetric_sign_verify;
     friend class _certificate;
-    _asymmetric_public_key * impl_;
+    std::shared_ptr<_asymmetric_public_key> impl_;
   };
 
   class asymmetric_sign
@@ -90,15 +90,36 @@ namespace vds {
     asymmetric_sign(
       const hash_info & hash_info,
       const asymmetric_private_key & key);
-    ~asymmetric_sign();
 
-    void update(
-      const void * data,
-      int len);
+    template <typename context_type>
+    class handler : public sequence_step<context_type, void(const void *, size_t)>
+    {
+      using base_class = sequence_step<context_type, void(const void *, size_t)>;
+    public:
+      handler(
+        const context_type & context,
+        const asymmetric_sign & args)
+        : base_class(context),
+        impl_(args.create_implementation())
+      {
+      }
 
-    void final();
+      void operator()(const void * data, size_t size)
+      {
+        if (0 == size) {
+          data_final(this->impl_, this->signature_);
+          this->next(this->signature_.data(), this->signature_.size());
+        }
+        else {
+          data_update(this->impl_, data, size);
+          this->prev();
+        }
+      }
 
-    const data_buffer & signature() const;
+    private:
+      _asymmetric_sign * impl_;
+      data_buffer signature_;
+    };
 
     static data_buffer signature(
       const hash_info & hash_info,
@@ -106,7 +127,16 @@ namespace vds {
       const data_buffer & data);
 
   private:
-    _asymmetric_sign * impl_;
+    const hash_info & hash_info_;
+    asymmetric_private_key key_;
+    _asymmetric_sign * create_implementation() const;
+
+    static void data_update(
+      _asymmetric_sign * impl,
+      const void * data,
+      int len);
+
+    static void data_final(_asymmetric_sign * impl, data_buffer & result);
   };
 
   class _asymmetric_sign_verify;
@@ -115,20 +145,56 @@ namespace vds {
   public:
     asymmetric_sign_verify(
       const hash_info & hash_info,
-      const asymmetric_public_key & key
-    );
-    ~asymmetric_sign_verify();
+      const asymmetric_public_key & key,
+      const data_buffer & sign);
 
-    void update(
+    template <typename context_type>
+    class handler : public sequence_step<context_type, void(bool)>
+    {
+      using base_class = sequence_step<context_type, void(bool)>;
+    public:
+      handler(
+        const context_type & context,
+        const asymmetric_sign_verify & args)
+        : base_class(context),
+        impl_(args.create_implementation()),
+        signature_(args.signature_)
+      {
+      }
+
+      void operator()(const void * data, size_t size)
+      {
+        if (0 == size) {
+          auto result = data_final(this->impl_, this->signature_);
+          this->next(result);
+        }
+        else {
+          data_update(this->impl_, data, size);
+          this->prev();
+        }
+      }
+
+    private:
+      _asymmetric_sign_verify * impl_;
+      data_buffer signature_;
+    };
+
+  private:
+    const hash_info & hash_info_;
+    asymmetric_public_key key_;
+    data_buffer signature_;
+
+    _asymmetric_sign_verify * create_implementation() const;
+
+    static void data_update(
+      _asymmetric_sign_verify * impl,
       const void * data,
       int len);
 
-    bool verify(
-      const data_buffer & sig
-    );
+    static bool data_final(
+      _asymmetric_sign_verify * impl,
+      const data_buffer & signature);
 
-  private:
-    _asymmetric_sign_verify * impl_;
   };
   
   

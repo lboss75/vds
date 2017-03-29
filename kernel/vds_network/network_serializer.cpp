@@ -98,7 +98,7 @@ uint8_t vds::network_deserializer::start()
     throw new std::runtime_error("Invalid binary message format");
   }
   
-  uint16_t result;
+  uint8_t result;
   this->data_ >> result;
   
   uint32_t len;

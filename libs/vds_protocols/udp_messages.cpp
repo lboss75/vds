@@ -28,3 +28,20 @@ void vds::udp_messages::hello_message::serialize(network_serializer & s) const
   s << this->source_certificate_ << this->session_id_ << this->to_url_;
   s.final();
 }
+
+vds::udp_messages::welcome_message::welcome_message(
+  const guid & server_id,
+  const data_buffer & key_crypted,
+  const data_buffer & crypted_info,
+  const data_buffer & sign)
+  : server_id_(server_id),
+  key_crypted_(key_crypted),
+  crypted_info_(crypted_info),
+  sign_(sign)
+{
+}
+
+void vds::udp_messages::welcome_message::serialize(network_serializer & s) const
+{
+  s << this->server_id_ << this->key_crypted_ << this->crypted_info_ << this->sign_;
+}

@@ -26,7 +26,7 @@ namespace vds {
         const std::string & relative);
       
       
-      filename(const std::string & filepath)
+      explicit filename(const std::string & filepath)
       : value_(filepath)
       {
       }

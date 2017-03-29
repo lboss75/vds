@@ -140,38 +140,38 @@ void vds::consensus_protocol::_server::become_leader()
 
 void vds::consensus_protocol::_server::flush_messages_to_lead()
 {
-  std::unique_ptr<server_log_batch> batch(
-    new server_log_batch(
-      this->sp_.get<istorage>()
-      .get_storage_log()
-      .new_message_id()));
+  //std::unique_ptr<server_log_batch> batch(
+  //  new server_log_batch(
+  //    this->sp_.get<istorage>()
+  //    .get_storage_log()
+  //    .new_message_id()));
 
-  {
-    std::unique_lock<std::mutex> lock(this->messages_to_lead_mutex_);
+  //{
+  //  std::unique_lock<std::mutex> lock(this->messages_to_lead_mutex_);
 
-    if (this->messages_to_lead_.empty()) {
-      return;
-    }
+  //  if (this->messages_to_lead_.empty()) {
+  //    return;
+  //  }
 
-    for (auto& message : this->messages_to_lead_) {
-      batch->add(std::move(message));
-    }
+  //  for (auto& message : this->messages_to_lead_) {
+  //    batch->add(std::move(message));
+  //  }
 
-    this->messages_to_lead_.clear();
-  }
+  //  this->messages_to_lead_.clear();
+  //}
 
-  auto message_body = batch->serialize()->str();
+  //auto message_body = batch->serialize()->str();
 
-  hash h(hash::sha256());
-  h.update(message_body.c_str(), message_body.length());
-  h.final();
+  //hash h(hash::sha256());
+  //h.update(message_body.c_str(), message_body.length());
+  //h.final();
 
-  asymmetric_sign s(hash::sha256(), this->private_key_);
-  s.update(h.signature().data(), h.signature().size());
-  s.final();
+  //asymmetric_sign s(hash::sha256(), this->private_key_);
+  //s.update(h.signature().data(), h.signature().size());
+  //s.final();
 
-  server_log_record record(std::move(batch));
-  record.add_signature(this->certificate_.subject(), s.signature());
+  //server_log_record record(std::move(batch));
+  //record.add_signature(this->certificate_.subject(), s.signature());
 
-  this->sp_.get<istorage>().get_storage_log().add_record(record.serialize(false)->str());
+  //this->sp_.get<istorage>().get_storage_log().add_record(record.serialize(false)->str());
 }
