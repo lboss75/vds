@@ -40,6 +40,7 @@ namespace vds {
   public:
     symmetric_key(const symmetric_crypto_info & crypto_info);
     symmetric_key(const symmetric_crypto_info & crypto_info, binary_deserializer & s);
+    symmetric_key(const symmetric_crypto_info & crypto_info, binary_deserializer && s);
     symmetric_key(const symmetric_key & origin);
     
     void generate();

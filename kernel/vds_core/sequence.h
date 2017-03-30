@@ -451,9 +451,9 @@ namespace vds {
       {
       }
 
-      void operator()(argument_types&&... args)
+      void operator()(argument_types... args)
       {
-        this->next(std::forward<argument_types>(args)...);
+        this->next(args...);
       }
 
       void processed()
@@ -482,7 +482,7 @@ namespace vds {
     operator()(
       done_method_type & done_method,
       error_method_type & error_method,
-      arg_types&&... args
+      arg_types... args
     )
     {
       try {
@@ -495,7 +495,7 @@ namespace vds {
           remove_auto_delete_trigger<error_method_type>(error_method).value,
           this->builder_);
         handler->validate();
-        handler->holder_.step(std::forward<arg_types>(args)...);
+        handler->holder_.step(args...);
       }
       catch (std::exception * ex) {
         error_method(ex);
@@ -511,7 +511,7 @@ namespace vds {
     operator()(
       done_method_type && done_method,
       error_method_type && error_method,
-      arg_types&&... args
+      arg_types... args
     )
     {
       error_method_type error_handler(error_method);
@@ -525,7 +525,7 @@ namespace vds {
           std::move(error_method),
           this->builder_);
         handler->validate();
-        handler->holder_.step(std::forward<arg_types>(args)...);
+        handler->holder_.step(args...);
       }
       catch (std::exception * ex) {
         error_handler(ex);

@@ -44,7 +44,6 @@ public:
       }
 
       auto p = this->data_;
-      auto l = this->len_;
 
       this->data_ += n;
       this->len_ -= n;
