@@ -34,6 +34,18 @@ public:
   void init_root(const std::string & root_password, int port);
   void init_server(const std::string & root_password, const std::string & address, int port);
 
+  void upload_file(
+    const std::string & login,
+    const std::string & password,
+    const std::string & name,
+    const void * data,
+    size_t data_size);
+
+  vds::data_buffer download_data(
+    const std::string & login,
+    const std::string & password,
+    const std::string & name);
+
 private:
   int index_;
 
@@ -49,9 +61,14 @@ public:
   void start(size_t server_count);
   void stop();
 
+  void upload_file(size_t client_index, const std::string & name, const void * data, size_t data_size);
+  vds::data_buffer download_data(size_t client_index, const std::string & name);
+
 private:
-  std::list<std::unique_ptr<mock_client>> clients_;
-  std::list<std::unique_ptr<mock_server>> servers_;
+  std::vector<std::unique_ptr<mock_client>> clients_;
+  std::vector<std::unique_ptr<mock_server>> servers_;
+
+  std::string root_password_;
 
   static std::string generate_password(size_t min_len = 4, size_t max_len = 20);
 };

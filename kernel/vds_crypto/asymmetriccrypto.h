@@ -279,6 +279,8 @@ namespace vds {
     int extension_by_NID(int nid) const;
     certificate_extension get_extension(int index) const;
 
+    certificate & operator = (certificate && original);
+
   private:
     friend class _certificate;
     friend class _ssl_tunnel;

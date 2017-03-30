@@ -106,6 +106,72 @@ namespace vds {
       std::string request_id_;
       std::string error_;
     };
+    //////////////////////////////////////////////////////////////
+    class put_file_message
+    {
+    public:
+      static const char message_type[];
+
+      put_file_message(const json_value *);
+      std::unique_ptr<json_value> serialize() const;
+
+      put_file_message(
+        const std::string & request_id,
+        const std::string & user_login,
+        const std::string & datagram);
+
+      const std::string & request_id() const { return this->request_id_; }
+      const std::string & user_login() const { return this->user_login_; }
+      const std::string & datagram() const { return this->datagram_; }
+
+    private:
+      std::string request_id_;
+      std::string user_login_;
+      std::string datagram_;
+    };
+
+    class get_file_message_request
+    {
+    public:
+      static const char message_type[];
+
+      get_file_message_request(const json_value *);
+      std::unique_ptr<json_value> serialize() const;
+
+      get_file_message_request(
+        const std::string & request_id,
+        const std::string & user_login);
+
+      const std::string & request_id() const { return this->request_id_; }
+      const std::string & user_login() const { return this->user_login_; }
+
+    private:
+      std::string request_id_;
+      std::string user_login_;
+    };
+
+    class get_file_message_response
+    {
+    public:
+      static const char message_type[];
+
+      get_file_message_response(const json_value *);
+      std::unique_ptr<json_value> serialize() const;
+
+      get_file_message_response(
+        const std::string & request_id,
+        const std::string & error,
+        const std::string & datagram);
+
+      const std::string & request_id() const { return this->request_id_; }
+      const std::string & error() const { return this->error_; }
+      const std::string & datagram() const { return this->datagram_; }
+
+    private:
+      std::string request_id_;
+      std::string error_;
+      std::string datagram_;
+    };
   };
 }
 

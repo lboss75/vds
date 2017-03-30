@@ -20,6 +20,8 @@ namespace vds {
     //4 byte
     network_serializer & operator << (uint32_t value);
 
+    network_serializer & operator << (uint64_t value);
+
     network_serializer & operator << (const std::string & value);
     
     network_serializer & push_data(const void * data, size_t len);

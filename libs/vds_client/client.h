@@ -41,11 +41,30 @@ namespace vds {
     void init_server(
       const std::string & user_login,
       const std::string & user_password);
-    
+
+    void upload_file(
+      const std::string & login,
+      const std::string & password,
+      const std::string & name,
+      const void * data,
+      size_t data_size);
+
+    data_buffer download_data(
+      const std::string & login,
+      const std::string & password,
+      const std::string & name);
+
   private:
     service_provider sp_;
     logger log_;
     client * owner_;
+
+
+    void authenticate(
+      const std::string & login,
+      const std::string & password,
+      certificate & user_certificate,
+      asymmetric_private_key & user_private_key);
   };
 }
 

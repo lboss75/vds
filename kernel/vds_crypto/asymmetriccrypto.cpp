@@ -621,6 +621,14 @@ vds::certificate_extension vds::certificate::get_extension(int index) const
   return this->impl_->get_extension(index);
 }
 
+vds::certificate & vds::certificate::operator = (certificate && original)
+{
+  delete this->impl_;
+  this->impl_ = original.impl_;
+  original.impl_ = nullptr;
+  return *this;
+}
+
 /////////////////////////////////////////////////////////////////////////////
 vds::_certificate::_certificate()
 : cert_(nullptr)

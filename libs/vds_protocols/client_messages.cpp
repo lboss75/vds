@@ -147,4 +147,98 @@ std::unique_ptr<vds::json_value> vds::client_messages::register_server_response:
 
   return std::unique_ptr<vds::json_value>(result.release());
 }
+////////////////////////////////////////////////////////////////////////////////////
+const char vds::client_messages::put_file_message::message_type[] = "put file";
+vds::client_messages::put_file_message::put_file_message(const json_value * value)
+{
+  auto s = dynamic_cast<const json_object *>(value);
+  if (nullptr != s) {
+    s->get_property("r", this->request_id_);
+    s->get_property("u", this->user_login_);
+    s->get_property("d", this->datagram_);
+  }
+}
 
+std::unique_ptr<vds::json_value> vds::client_messages::put_file_message::serialize() const
+{
+  std::unique_ptr<json_object> s(new json_object());
+  s->add_property("$t", message_type);
+
+  s->add_property("r", this->request_id_);
+  s->add_property("u", this->user_login_);
+  s->add_property("d", this->datagram_);
+
+  return std::unique_ptr<vds::json_value>(s.release());
+}
+
+vds::client_messages::put_file_message::put_file_message(
+  const std::string & request_id,
+  const std::string & user_login,
+  const std::string & datagram)
+  : request_id_(request_id),
+  user_login_(user_login),
+  datagram_(datagram)
+{
+}
+
+const char vds::client_messages::get_file_message_request::message_type[] = "get file";
+vds::client_messages::get_file_message_request::get_file_message_request(const json_value * value)
+{
+  auto s = dynamic_cast<const json_object *>(value);
+  if (nullptr != s) {
+    s->get_property("r", this->request_id_);
+    s->get_property("u", this->user_login_);
+  }
+}
+
+std::unique_ptr<vds::json_value> vds::client_messages::get_file_message_request::serialize() const
+{
+  std::unique_ptr<json_object> s(new json_object());
+  s->add_property("$t", message_type);
+
+  s->add_property("r", this->request_id_);
+  s->add_property("u", this->user_login_);
+
+  return std::unique_ptr<vds::json_value>(s.release());
+}
+
+vds::client_messages::get_file_message_request::get_file_message_request(
+  const std::string & request_id,
+  const std::string & user_login)
+  : request_id_(request_id),
+  user_login_(user_login)
+{
+}
+
+const char vds::client_messages::get_file_message_response::message_type[] = "get file response";
+vds::client_messages::get_file_message_response::get_file_message_response(const json_value * value)
+{
+  auto s = dynamic_cast<const json_object *>(value);
+  if (nullptr != s) {
+    s->get_property("r", this->request_id_);
+    s->get_property("e", this->error_);
+    s->get_property("d", this->datagram_);
+  }
+}
+
+std::unique_ptr<vds::json_value> vds::client_messages::get_file_message_response::serialize() const
+{
+  std::unique_ptr<json_object> s(new json_object());
+  s->add_property("$t", message_type);
+
+  s->add_property("r", this->request_id_);
+  s->add_property("e", this->error_);
+  s->add_property("d", this->datagram_);
+
+  return std::unique_ptr<vds::json_value>(s.release());
+}
+
+vds::client_messages::get_file_message_response::get_file_message_response(
+  const std::string & request_id,
+  const std::string & error,
+  const std::string & datagram)
+: request_id_(request_id),
+  error_(error),
+  datagram_(datagram)
+{
+}

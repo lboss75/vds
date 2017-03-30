@@ -90,6 +90,9 @@ namespace vds {
       return false;
     }
 
+    void put_file(const std::string & user_login, const data_buffer & data);
+    data_buffer download_file(const std::string & user_login);
+
   private:
     service_provider sp_;
     logger log_;

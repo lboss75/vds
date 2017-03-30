@@ -220,3 +220,44 @@ void vds::client_logic::process(client_connection<client_logic>* connection, con
 
 }
 */
+
+void vds::client_logic::put_file(
+  const std::string & user_login,
+  const data_buffer & data)
+{
+  this->add_task(
+    client_messages::put_file_message(
+      guid::new_guid().str(),
+      user_login,
+      base64::from_bytes(data)).serialize()->str());
+}
+
+vds::data_buffer vds::client_logic::download_file(const std::string & user_login)
+{
+  auto request_id = guid::new_guid().str();
+  std::string error;
+  std::string datagram;
+
+  if (!this->add_task_and_wait<client_messages::get_file_message_response>(
+    client_messages::get_file_message_request(
+      request_id,
+      user_login).serialize()->str(),
+    [request_id, &error, &datagram](const client_messages::get_file_message_response & response)->bool {
+    if (request_id != response.request_id()) {
+      return false;
+    }
+
+    error = response.error();
+    datagram = response.datagram();
+    return true;
+
+  })) {
+    throw new std::runtime_error("Timeout at registering new server");
+  }
+
+  if (!error.empty()) {
+    throw new std::runtime_error(error);
+  }
+
+  return base64::to_bytes(datagram);
+}

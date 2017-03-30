@@ -396,7 +396,7 @@ TEST(network_tests, test_udp_server)
 
 
       const char testdata[] = "testdata";
-      auto done_client = vds::lambda_handler([&done, &testdata](const sockaddr_in & addr, const void * data, size_t size) {
+      auto done_client = vds::lambda_handler([&done, &testdata](const sockaddr_in * addr, const void * data, size_t size) {
         if (std::string((const char *)data, size) == testdata) {
           done.set();
         }

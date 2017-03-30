@@ -16,17 +16,17 @@ vds_mock::~vds_mock()
 
 void vds_mock::start(size_t server_count)
 {
-  auto root_password = generate_password();
+  this->root_password_ = generate_password();
   int first_port = 8050;
 
 
   for (size_t i = 0; i < server_count; ++i) {
     mock_client client(i);
     if (0 == i) {
-      client.init_root(root_password, first_port);
+      client.init_root(this->root_password_, first_port);
     }
     else {
-      client.init_server(root_password, "127.0.0.1", first_port + 1);
+      client.init_server(this->root_password_, "127.0.0.1", first_port + 1);
     }
 
     std::unique_ptr<mock_server> server(new mock_server(i, first_port + 1));
@@ -49,10 +49,19 @@ void vds_mock::start(size_t server_count)
 
 void vds_mock::stop()
 {
-  while (!this->servers_.empty()) {
-    (*this->servers_.begin())->stop();
-    this->servers_.pop_front();
+  for(auto & p : this->servers_) {
+    p->stop();
   }
+}
+
+void vds_mock::upload_file(size_t client_index, const std::string & name, const void * data, size_t data_size)
+{
+  this->clients_[client_index]->upload_file("root", this->root_password_, name, data, data_size);
+}
+
+vds::data_buffer vds_mock::download_data(size_t client_index, const std::string & name)
+{
+  return this->clients_[client_index]->download_data("root", this->root_password_, name);
 }
 
 std::string vds_mock::generate_password(size_t min_len, size_t max_len)
@@ -117,6 +126,22 @@ void mock_client::init_server(
   this->start_vds(true, [root_password, address, port](const vds::service_provider&sp) {
     sp.get<vds::iclient>().init_server("root", root_password);
   });
+}
+
+void mock_client::upload_file(const std::string & login, const std::string & password, const std::string & name, const void * data, size_t data_size)
+{
+  this->start_vds(true, [login, password, name, data, data_size](const vds::service_provider&sp) {
+    sp.get<vds::iclient>().upload_file(login, password, name, data, data_size);
+  });
+}
+
+vds::data_buffer mock_client::download_data(const std::string & login, const std::string & password, const std::string & name)
+{
+  vds::data_buffer result;
+  this->start_vds(true, [&result, login, password, name](const vds::service_provider&sp) {
+    result = sp.get<vds::iclient>().download_data(login, password, name);
+  });
+  return result;
 }
 
 
