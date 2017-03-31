@@ -376,7 +376,7 @@ TEST(network_tests, test_udp_server)
     {
       auto sp = registrator.build();
 
-      auto done_server = vds::lambda_handler([](size_t size) {
+      auto done_server = vds::lambda_handler([]() {
       });
 
       auto error_server = vds::lambda_handler([](std::exception * ex) {

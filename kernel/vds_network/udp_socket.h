@@ -174,6 +174,11 @@ namespace vds {
 
       void operator()(const sockaddr_in * to, const void * data, size_t len)
       {
+        if(0 == len){
+          this->next();
+          return;
+        }
+        
 #ifdef _WIN32
         this->wsa_buf_.len = len;
         this->wsa_buf_.buf = (CHAR *)data;
@@ -234,7 +239,8 @@ namespace vds {
           pthis->error(
             new std::system_error(
               error,
-              std::generic_category()));
+              std::generic_category(),
+              "Send to " + network_service::to_string(*pthis->to_)));
           return;
         }
         
@@ -245,10 +251,8 @@ namespace vds {
           event_add(pthis->event_, NULL);
         }
         else {
-          imt_service::async(pthis->sp_,
-            [pthis](){
-              pthis->prev();
-            });
+          imt_service::async(pthis->sp_, 
+            [pthis](){ pthis->prev(); });
         }
       }
 #endif//_WIN32
