@@ -287,6 +287,9 @@ namespace vds {
       ) : base_class(context),
         sp_(args.sp_),
         addr_len_(sizeof(addr_))
+#ifndef _WIN32
+      , network_service_(args.sp_.get<inetwork_manager>().owner())
+#endif
       {
         this->s_ = args.socket_.handle();
       }
@@ -320,8 +323,18 @@ namespace vds {
             }
           }
 #else
-          event_set(&this->event_, this->s_, EV_READ, &handler::callback, this);
-          event_add(&this->event_, NULL);
+          if(nullptr == this->event_) {
+            this->event_ = event_new(
+              this->network_service_->base_,
+              this->s_,
+              EV_READ,
+              &callback,
+              this);
+          }
+          // Schedule client event
+          event_add(this->event_, NULL);
+          
+          this->network_service_->start_libevent_dispatch(this->sp_);
 #endif
         }
       }
@@ -341,7 +354,8 @@ namespace vds {
 
 #ifndef _WIN32
     network_socket::SOCKET_HANDLE s_;
-    struct event event_;
+    struct event * event_;
+    network_service * network_service_;
     static void callback(int fd, short event, void *arg)
     {
       auto pthis = reinterpret_cast<handler *>(arg);
