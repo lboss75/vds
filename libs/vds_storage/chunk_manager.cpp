@@ -20,14 +20,14 @@ vds::chunk_manager::~chunk_manager()
   delete this->impl_;
 }
 
-uint64_t vds::chunk_manager::add(const data_buffer& data)
+std::future<vds::chunk_manager::object_index> vds::chunk_manager::add(const data_buffer& data)
 {
   return this->impl_->add(data);
 }
 
-void vds::chunk_manager::add(const filename& fn, std::list< uint64_t >& parts)
+std::future<vds::chunk_manager::file_map> vds::chunk_manager::add(const filename& fn)
 {
-  this->impl_->add(fn, parts);
+  return this->impl_->add(fn);
 }
 
 void vds::chunk_manager::set_next_index(uint64_t next_index)
@@ -56,7 +56,7 @@ vds::_chunk_manager::~_chunk_manager()
 {
 }
 
-void vds::_chunk_manager::add(const filename& fn, std::list<uint64_t>& parts)
+void vds::_chunk_manager::add(const filename& fn, vds::chunk_manager::file_map & result)
 {
   uint8_t buffer[(size_t)5 * 1024 * 1024 * 1024];
   
@@ -71,12 +71,26 @@ void vds::_chunk_manager::add(const filename& fn, std::list<uint64_t>& parts)
   }
 }
 
-uint64_t vds::_chunk_manager::add(const data_buffer& data)
+std::future<vds::chunk_manager::object_index> vds::_chunk_manager::add(const data_buffer& data)
 {
+  auto result_promise = std::make_shared<std::promise<vds::chunk_manager::object_index>>();
+
   this->tmp_folder_mutex_.lock();
   auto tmp_index = this->last_tmp_file_index_++;
   this->tmp_folder_mutex_.unlock();
-  
+
+  sequence(
+    deflate(),
+    collect_data()
+  )(
+    [](const void * data, size_t size) {
+
+  },
+    [](std::exception * ex) { throw ex; },
+    data.data(),
+    data.size()
+    );
+
   filename fn(this->tmp_folder_, std::to_string(tmp_index));
   sequence(
     deflate(),
@@ -84,7 +98,7 @@ uint64_t vds::_chunk_manager::add(const data_buffer& data)
   )
   (
    []() {},
-   [](std::exception * ex) { throw ex; },
+    [result_promise](std::exception * ex) { result_promise->set_exception(std::make_exception_ptr(*ex)); delete ex; },
    data.data(),
    data.size());
   

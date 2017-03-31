@@ -123,27 +123,27 @@ namespace vds{
   class collect_data
   {
   public:
-    collect_data(data_buffer & target)
-      : target_(target)
+    collect_data()
     {
     }
 
     template <typename context_type>
-    class handler : public sequence_step<context_type, void(void)>
+    class handler : public sequence_step<context_type, void(const void *, size_t)>
     {
-      using base_class = sequence_step<context_type, void(void)>;
+      using base_class = sequence_step<context_type, void(const void *, size_t)>;
+
     public:
       handler(
         const context_type & context,
         const collect_data & args)
-        : base_class(context), target_(args.target_)
+        : base_class(context)
       {
       }
 
       void operator ()(const void * data, size_t len)
       {
         if (0 == len) {
-          this->next();
+          this->next(this->target_.data(), this->target_.size());
         }
         else {
           this->target_.add(data, len);
@@ -152,11 +152,8 @@ namespace vds{
       }
 
     private:
-      data_buffer & target_;
+      data_buffer target_;
     };
-
-  private:
-    data_buffer & target_;
   };
 }
 

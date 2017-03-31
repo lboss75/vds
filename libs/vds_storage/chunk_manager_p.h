@@ -19,8 +19,8 @@ namespace vds {
       chunk_manager * owner);
     ~_chunk_manager();
 
-    void add(const filename & fn, std::list<uint64_t> & parts);
-    uint64_t add(const data_buffer & data);
+    std::future<chunk_manager::file_map> add(const filename & fn);
+    std::future<chunk_manager::object_index> add(const data_buffer & data);
     
     void set_next_index(uint64_t next_index);
 

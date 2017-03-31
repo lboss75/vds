@@ -49,7 +49,7 @@ public:
 private:
   int index_;
 
-  void start_vds(bool full_client, const std::function<void(const vds::service_provider & sp)> & handler);
+  void start_vds(bool full_client, const std::function<void(const vds::service_provider & sp)> & handler, bool clear_folder);
 };
 
 class vds_mock
@@ -65,7 +65,6 @@ public:
   vds::data_buffer download_data(size_t client_index, const std::string & name);
 
 private:
-  std::vector<std::unique_ptr<mock_client>> clients_;
   std::vector<std::unique_ptr<mock_server>> servers_;
 
   std::string root_password_;

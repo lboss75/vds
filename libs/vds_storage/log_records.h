@@ -145,6 +145,79 @@ namespace vds {
     guid server_id_;
     std::string addresses_;
   };
+  //
+  class server_log_put_file
+  {
+  public:
+    static const char message_type[];
+
+    class file_part
+    {
+    public:
+      file_part(
+        uint64_t index,
+        uint32_t length,
+        const data_buffer & signature);
+
+      uint64_t index() const { return this->index_; }
+      uint32_t length() const { return this->length_; }
+      const data_buffer & signature() const { return this->signature_; }
+
+    private:
+      uint64_t index_;
+      uint32_t length_;
+      data_buffer signature_;
+    };
+
+    const std::string & user_login() const { return this->user_login_; }
+    const std::string & name() const { return this->name_; }
+    const std::list<file_part> & parts() const { return this->parts_; }
+
+  private:
+    std::string user_login_;
+    std::string name_;
+    std::list<file_part> parts_;
+  };
+
+  class server_log_create_chunk
+  {
+  public:
+
+  private:
+    uint64_t chunk_index_;
+    std::list<uint64_t> parts_;
+  };
+
+  class server_log_copy_chunk_replica
+  {
+  public:
+
+  private:
+    guid source_id_;
+    uint64_t chunk_index_;
+    uint64_t chunk_replica_;
+  };
+
+  class server_log_build_chunk
+  {
+  public:
+
+  private:
+    guid source_id_;
+    uint64_t chunk_index_;
+    uint64_t chunk_replica_;
+  };
+
+  class server_log_delete_chunk
+  {
+  public:
+
+  private:
+    guid source_id_;
+    uint64_t chunk_index_;
+    uint64_t chunk_replica_;
+  };
+
 }
 
 #endif // __VDS_STORAGE_LOG_RECORDS_H_

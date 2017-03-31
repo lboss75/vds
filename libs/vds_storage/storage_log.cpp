@@ -102,6 +102,10 @@ void vds::storage_log::get_endpoints(std::map<std::string, std::string> & addres
   this->impl_->get_endpoints(addresses);
 }
 
+void vds::storage_log::save_file(const std::string & user_login, const filename & tmp_file)
+{
+  this->impl_->save_file(user_login, tmp_file);
+}
 ///////////////////////////////////////////////////////////////////////////////
 vds::_storage_log::_storage_log(
   const service_provider & sp,
@@ -391,4 +395,16 @@ void vds::_storage_log::add_endpoint(
 void vds::_storage_log::get_endpoints(std::map<std::string, std::string> & addresses)
 {
   this->db_.get_endpoints(addresses);
+}
+
+void vds::_storage_log::save_file(const std::string & user_login, const filename & tmp_file)
+{
+  chunk_manager::file_map fm;
+  this->chunk_manager_.add(tmp_file, fm);
+
+  /*
+  auto signature = asymmetric_sign::signature(hash::sha256(), this->current_server_key_, s.data());
+  this->db_.add_object(this->current_server_id_, index, signature);
+  return vds::storage_object_id(index, signature);
+  */
 }

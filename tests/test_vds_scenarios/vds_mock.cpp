@@ -56,12 +56,14 @@ void vds_mock::stop()
 
 void vds_mock::upload_file(size_t client_index, const std::string & name, const void * data, size_t data_size)
 {
-  this->clients_[client_index]->upload_file("root", this->root_password_, name, data, data_size);
+  mock_client client(client_index);
+  client.upload_file("root", this->root_password_, name, data, data_size);
 }
 
 vds::data_buffer vds_mock::download_data(size_t client_index, const std::string & name)
 {
-  return this->clients_[client_index]->download_data("root", this->root_password_, name);
+  mock_client client(client_index);
+  return client.download_data("root", this->root_password_, name);
 }
 
 std::string vds_mock::generate_password(size_t min_len, size_t max_len)
@@ -115,7 +117,7 @@ void mock_client::init_root(const std::string & root_password, int port)
       root_password,
       "https://127.0.0.1:" + std::to_string(port));
 
-  });
+  }, true);
 }
 
 void mock_client::init_server(
@@ -125,14 +127,14 @@ void mock_client::init_server(
 {
   this->start_vds(true, [root_password, address, port](const vds::service_provider&sp) {
     sp.get<vds::iclient>().init_server("root", root_password);
-  });
+  }, true);
 }
 
 void mock_client::upload_file(const std::string & login, const std::string & password, const std::string & name, const void * data, size_t data_size)
 {
   this->start_vds(true, [login, password, name, data, data_size](const vds::service_provider&sp) {
     sp.get<vds::iclient>().upload_file(login, password, name, data, data_size);
-  });
+  }, false);
 }
 
 vds::data_buffer mock_client::download_data(const std::string & login, const std::string & password, const std::string & name)
@@ -140,12 +142,12 @@ vds::data_buffer mock_client::download_data(const std::string & login, const std
   vds::data_buffer result;
   this->start_vds(true, [&result, login, password, name](const vds::service_provider&sp) {
     result = sp.get<vds::iclient>().download_data(login, password, name);
-  });
+  }, false);
   return result;
 }
 
 
-void mock_client::start_vds(bool full_client, const std::function<void(const vds::service_provider&sp)> & handler)
+void mock_client::start_vds(bool full_client, const std::function<void(const vds::service_provider&sp)> & handler, bool clear_folder)
 {
   vds::service_registrator registrator;
 
@@ -157,7 +159,9 @@ void mock_client::start_vds(bool full_client, const std::function<void(const vds
   vds::task_manager task_manager;
 
   auto folder = vds::foldername(vds::filename::current_process().contains_folder(), std::to_string(this->index_));
-  folder.delete_folder(true);
+  if (clear_folder) {
+    folder.delete_folder(true);
+  }
   folder.create();
   registrator.set_root_folders(folder, folder);
 

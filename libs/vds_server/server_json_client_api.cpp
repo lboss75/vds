@@ -70,8 +70,12 @@ vds::json_value * vds::_server_json_client_api::operator()(
             else if (consensus_messages::consensus_message_who_is_leader::message_type == task_type_name) {
               scope.get<iserver>().consensus_server_protocol().process(scope, *result, consensus_messages::consensus_message_who_is_leader(task_object));
             }
+            else if (client_messages::put_file_message::message_type == task_type_name) {
+              this->process(scope, result.get(), client_messages::put_file_message(task_object));
+            }
             else {
               this->log_.warning("Invalid request type \'%s\'", task_type_name.c_str());
+              throw new std::runtime_error("Invalid request type " + task_type_name);
             }
           }
         }
@@ -124,4 +128,16 @@ void vds::_server_json_client_api::process(
   if (scope.get<iserver>().get_node_manager().register_server(scope, message.certificate_body(), error)) {
     result->add(client_messages::register_server_response(message.request_id(), error).serialize());
   }
+}
+
+void vds::_server_json_client_api::process(const service_provider & scope, json_array * result, const client_messages::put_file_message & message) const
+{
+  scope
+    .get<istorage>()
+    .get_storage_log()
+    .save_file(
+      message.user_login,
+      base64::to_bytes(message.datagram));
+
+  result->add(client_messages::put_file_message_response(message.request_id(), std::string()).serialize());
 }

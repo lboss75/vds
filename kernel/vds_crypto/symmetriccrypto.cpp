@@ -79,8 +79,10 @@ void vds::symmetric_key::serialize(vds::binary_serializer& s)
   s.push_data(this->iv_.get(), (int)this->crypto_info_.iv_size());
 }
 
-vds::symmetric_encrypt::symmetric_encrypt(const vds::symmetric_key& key)
-: key_(key)
+vds::symmetric_encrypt::symmetric_encrypt(
+  const service_provider & sp,
+  const vds::symmetric_key& key)
+: sp_(sp), key_(key)
 {
 }
 
@@ -131,8 +133,10 @@ void vds::_symmetric_key::generate()
   RAND_bytes(this->iv_.get(), (int)this->crypto_info_.iv_size());
 }
 
-vds::symmetric_decrypt::symmetric_decrypt(const symmetric_key & key)
-  : key_(key)
+vds::symmetric_decrypt::symmetric_decrypt(
+  const service_provider & sp,
+  const symmetric_key & key)
+  : sp_(sp), key_(key)
 {
 }
 

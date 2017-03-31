@@ -17,7 +17,7 @@ vds::client::~client()
 
 void vds::client::register_services(service_registrator & registrator)
 {
-  registrator.add_factory<iclient>([this](const service_provider & sp, bool & is_scoped)->iclient{
+  registrator.add_factory<iclient>([this](const service_provider & sp, bool & is_scoped)->iclient {
     return iclient(sp, this);
   });
 }
@@ -58,7 +58,7 @@ void vds::client::connection_error()
 
 
 vds::iclient::iclient(const service_provider & sp, vds::client* owner)
-: sp_(sp), log_(sp, "Client"), owner_(owner)
+  : sp_(sp), log_(sp, "Client"), owner_(owner)
 {
 }
 
@@ -80,7 +80,7 @@ void vds::iclient::init_server(
   certificate::create_options options;
   options.country = "RU";
   options.organization = "IVySoft";
-  options.name = "Certificate " + guid::new_guid().str();  
+  options.name = "Certificate " + guid::new_guid().str();
   options.ca_certificate = &user_certificate;
   options.ca_certificate_private_key = &user_private_key;
 
@@ -95,26 +95,26 @@ void vds::iclient::init_server(
   register_message.serialize()->str(register_message_writer);
 
   std::string error;
-  if(!this->owner_->logic_->add_task_and_wait<client_messages::register_server_response>(
+  if (!this->owner_->logic_->add_task_and_wait<client_messages::register_server_response>(
     register_message_writer.str(),
     [&request_id, &error](const client_messages::register_server_response & message) -> bool {
-      if (request_id != message.request_id()) {
-        return false;
-      }
+    if (request_id != message.request_id()) {
+      return false;
+    }
 
-      error = message.error();
-      return true;
+    error = message.error();
+    return true;
   })) {
     throw new std::runtime_error("Timeout at registering new server");
   }
-  
+
   if (!error.empty()) {
     throw new std::runtime_error(error);
   }
 
   foldername root_folder(persistence::current_user(this->sp_), ".vds");
   root_folder.create();
-  
+
   server_certificate.save(filename(root_folder, "server.crt"));
   private_key.save(filename(root_folder, "server.pkey"));
 
@@ -160,30 +160,31 @@ void vds::iclient::upload_file(
 
   auto key_crypted = user_certificate.public_key().encrypt(key_data.data());
 
-  data_buffer crypted_data;
   sequence(
-    symmetric_encrypt(transaction_key),
-    collect_data(crypted_data))(
-      []() {},
-      [](std::exception * ex) { throw ex; },
-      data,
-      data_size);
+    symmetric_encrypt(this->sp_, transaction_key),
+    collect_data())(
+      [this, key_crypted, user_private_key, user_login](const void * data, size_t data_size) {
 
-  binary_serializer to_sign;
-  to_sign << key_crypted << crypted_data;
+    binary_serializer to_sign;
+    to_sign << key_crypted;
+    to_sign.push_data(data, data_size);
 
-  binary_serializer datagram;
-  datagram
-    << key_crypted
-    << crypted_data
-    << asymmetric_sign::signature(
+    binary_serializer datagram;
+    datagram << key_crypted;
+    datagram.push_data(data, data_size);
+    datagram << asymmetric_sign::signature(
       hash::sha256(),
       user_private_key,
       to_sign.data());
 
 
-  this->log_(ll_trace, "Upload file");
-  this->owner_->logic_->put_file(user_login, datagram.data());
+    this->log_(ll_trace, "Upload file");
+    this->owner_->logic_->put_file(user_login, datagram.data());
+  },
+      [](std::exception * ex) { throw ex; },
+    data,
+    data_size);
+
 }
 
 vds::data_buffer vds::iclient::download_data(
@@ -225,15 +226,17 @@ vds::data_buffer vds::iclient::download_data(
     symmetric_crypto::aes_256_cbc(),
     binary_deserializer(user_private_key.decrypt(key_crypted)));
 
+  barrier b;
   data_buffer result;
   sequence(
-    symmetric_decrypt(transaction_key),
-    collect_data(result))(
-      []() {},
+    symmetric_decrypt(this->sp_, transaction_key),
+    collect_data())(
+      [&result, &b](const void * data, size_t size) {result.reset(data, size); b.set(); },
       [](std::exception * ex) { throw ex; },
       crypted_data.data(),
       crypted_data.size());
 
+  b.wait();
   return result;
 }
 

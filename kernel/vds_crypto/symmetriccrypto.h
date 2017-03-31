@@ -71,7 +71,9 @@ namespace vds {
   class symmetric_encrypt
   {
   public:
-    symmetric_encrypt(const symmetric_key & key);
+    symmetric_encrypt(
+      const service_provider & sp,
+      const symmetric_key & key);
 
     template <typename context_type>
     class handler : public sequence_step<context_type, void(const void *, size_t)>
@@ -82,6 +84,8 @@ namespace vds {
         const context_type & context,
         const symmetric_encrypt & args)
         : base_class(context),
+        sp_(args.sp_),
+        processed_(0),
         impl_(args.create_implementation())
       {
       }
@@ -101,6 +105,12 @@ namespace vds {
 
       void processed()
       {
+        if (1000 < this->processed_++) {
+          this->processed_ = 0;
+          imt_service::async(this->sp_, [this]() { this->processed(); });
+          return;
+        }
+
         size_t out_size = sizeof(this->buffer);
         if (data_processed(this->impl_, this->buffer, out_size))
         {
@@ -113,11 +123,14 @@ namespace vds {
       }
 
     private:
+      service_provider sp_;
+      int processed_;
       _symmetric_encrypt * impl_;
       uint8_t buffer[1024];
     };
     
   private:
+    service_provider sp_;
     symmetric_key key_;
     _symmetric_encrypt * create_implementation() const;
 
@@ -137,7 +150,9 @@ namespace vds {
   class symmetric_decrypt
   {
   public:
-    symmetric_decrypt(const symmetric_key & key);
+    symmetric_decrypt(
+      const service_provider & sp, 
+      const symmetric_key & key);
 
 
     template <typename context_type>
@@ -149,9 +164,10 @@ namespace vds {
         const context_type & context,
         const symmetric_decrypt & args)
         : base_class(context),
+        sp_(args.sp_),
+        processed_(0),
         impl_(args.create_implementation())
       {
-
       }
 
       void operator()(const void * data, size_t size)
@@ -169,6 +185,12 @@ namespace vds {
 
       void processed()
       {
+        if (1000 < this->processed_++) {
+          this->processed_ = 0;
+          imt_service::async(this->sp_, [this]() { this->processed(); });
+          return;
+        }
+
         size_t out_size = sizeof(this->buffer);
         if (data_processed(this->impl_, this->buffer, out_size))
         {
@@ -181,11 +203,14 @@ namespace vds {
       }
 
     private:
+      service_provider sp_;
+      int processed_;
       _symmetric_decrypt * impl_;
       uint8_t buffer[1024];
     };
 
   private:
+    service_provider sp_;
     symmetric_key key_;
     _symmetric_decrypt * create_implementation() const;
 

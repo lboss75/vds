@@ -463,11 +463,37 @@ namespace vds {
     };
   };
   ///////////////////////////////////////////////
+  template<typename... functor_types>
+  class _sequence_info_base;
 
   template<typename... functor_types>
-  class _sequence
+  class _sequence_info;
+
+  template<typename first_functor_type, typename... functor_types>
+  class _sequence_info_base<first_functor_type, functor_types...>
+    : public _sequence_info_base<functor_types...>
   {
   public:
+
+  };
+
+
+  template<typename first_functor_type, typename... functor_types>
+  class _sequence_info<first_functor_type, functor_types...>
+    : public _sequence_info_base<first_functor_type, functor_types...>
+  {
+  public:
+
+  };
+
+
+  template<typename... functor_types>
+  class _sequence : public _sequence_info<functor_types...>
+  {
+  public:
+    typedef std::tuple<> result_type;
+    typedef std::packaged_task<result_type(arguments_types...)> task_type;
+
     _sequence(functor_types&&... functors)
     : builder_(std::forward<functor_types>(functors)...)
     {
@@ -846,7 +872,7 @@ namespace vds {
   };
   
   template<typename... functor_types>
-  inline _sequence<functor_types...>
+  inline typename _sequence<functor_types...>::task_type
   sequence(functor_types&&... functors){
     return _sequence<functor_types...>(std::forward<functor_types>(functors)...);
   }

@@ -20,8 +20,34 @@ namespace vds {
       local_cache & cache);
     ~chunk_manager();
 
-    void add(const filename & fn, std::list<uint64_t> & parts);
-    uint64_t add(const data_buffer & data);
+    class file_map
+    {
+    public:
+      struct item
+      {
+        uint64_t index_;
+
+        item(uint64_t index)
+          : index_(index)
+        {
+        }
+      };
+
+      void push_back(const item & v);
+
+    private:
+      std::list<item> items_;
+    };
+
+    std::future<file_map> add(const filename & fn);
+
+    struct object_index
+    {
+      uint64_t index;
+      data_buffer signature;
+    };
+
+    std::future<object_index> add(const data_buffer & data);
     
     void set_next_index(uint64_t next_index);
 

@@ -56,7 +56,9 @@ namespace vds {
 
     void get_endpoints(std::map<std::string, std::string> & addresses);
 
-
+    void save_file(
+      const std::string & user_login,
+      const filename & tmp_file);
   private:
     std::unique_ptr<_storage_log> impl_;
   };

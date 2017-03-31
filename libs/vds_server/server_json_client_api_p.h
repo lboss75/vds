@@ -24,6 +24,7 @@ namespace vds {
 
     void process(const service_provider & scope, json_array * result, const client_messages::certificate_and_key_request & message) const;
     void process(const service_provider & scope, json_array * result, const client_messages::register_server_request & message) const;
+    void process(const service_provider & scope, json_array * result, const client_messages::put_file_message & message) const;
   };
 }
 

@@ -225,11 +225,29 @@ void vds::client_logic::put_file(
   const std::string & user_login,
   const data_buffer & data)
 {
-  this->add_task(
+  auto request_id = guid::new_guid().str();
+  std::string error;
+
+  if(!this->add_task_and_wait<client_messages::put_file_message_response>(
     client_messages::put_file_message(
-      guid::new_guid().str(),
+      request_id,
       user_login,
-      base64::from_bytes(data)).serialize()->str());
+      base64::from_bytes(data)).serialize()->str(),
+    [request_id, &error](const client_messages::put_file_message_response & response)->bool {
+    if (request_id != response.request_id()) {
+      return false;
+    }
+
+    error = response.error();
+    return true;
+
+  })) {
+    throw new std::runtime_error("Timeout at registering new server");
+  }
+
+  if (!error.empty()) {
+    throw new std::runtime_error(error);
+  }
 }
 
 vds::data_buffer vds::client_logic::download_file(const std::string & user_login)

@@ -60,6 +60,10 @@ namespace vds {
 
     void get_endpoints(std::map<std::string, std::string> & addresses);
 
+    void save_file(
+      const std::string & user_login,
+      const filename & tmp_file);
+
   private:
     server_database db_;
     local_cache local_cache_;
