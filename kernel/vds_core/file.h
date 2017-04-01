@@ -7,7 +7,7 @@ All rights reserved
 */
 
 #include "filename.h"
-#include "sequence.h"
+#include "dataflow.h"
 #include "data_buffer.h"
 
 namespace vds {
@@ -156,46 +156,24 @@ namespace vds {
   class read_file
   {
   public:
-    read_file(const filename & filename)
-      : filename_(filename)
+    read_file(const filename & filename, size_t buffer_size = 4 * 1024)
+      : filename_(filename),
+      buffer_size_(buffer_size)
     {
     }
 
     template <typename context_type>
-    class handler : public sequence_step<context_type, void(const void *, size_t)>
+    class handler : public dataflow_step<context_type, void(const void *, size_t)>
     {
-      using base_class = sequence_step<context_type, void(const void *, size_t)>;
+      using base_class = dataflow_step<context_type, void(const void *, size_t)>;
     public:
       handler(
         const context_type & context,
         const read_file & args
         ) : base_class(context),
-        filename_(args.filename_)
+        f_(args.filename_, file::open_read)
       {
-#ifndef _WIN32
-        this->handle_ = open(this->filename_.local_name().c_str(), O_RDONLY);
-        if (0 > this->handle_) {
-          auto error = errno;
-          throw new std::system_error(error, std::system_category(), "Unable to open file " + this->filename_.str());
-        }
-#else
-        this->handle_ = _open(this->filename_.local_name().c_str(), _O_RDONLY | _O_BINARY | _O_SEQUENTIAL);
-        if (0 > this->handle_) {
-          auto error = GetLastError();
-          throw new std::system_error(error, std::system_category(), "Unable to open file " + this->filename_.str());
-        }
-#endif
-      }
-
-      ~handler()
-      {
-        if (0 < this->handle_) {
-#ifndef _WIN32
-          close(this->handle_);
-#else
-          _close(this->handle_);
-#endif
-        }
+        this->buffer_.resize(args.buffer_size_);
       }
 
       void operator()()
@@ -205,18 +183,10 @@ namespace vds {
 
       void processed()
       {
-        auto readed = ::read(this->handle_, this->buffer_, sizeof(this->buffer_));
-        if (0 > readed) {
-#ifdef _WIN32
-          auto error = GetLastError();
-#else
-          auto error = errno;
-#endif
-          throw new std::system_error(error, std::system_category(), "Unable to read file " + this->filename_.str());
-        }
-
+        auto readed = this->f_.read(this->buffer_.data(), this->buffer_.size());
+        
         if (0 < readed) {
-          this->next(this->buffer_, readed);
+          this->next(this->buffer_.data(), readed);
         }
         else {
           this->next(nullptr, 0);
@@ -224,13 +194,13 @@ namespace vds {
       }
 
     private:
-      filename filename_;
-      int handle_;
-      char buffer_[4096];
+      file f_;
+      data_buffer buffer_;
     };
 
   private:
     filename filename_;
+    size_t buffer_size_;
   };
   
   class write_file
@@ -245,9 +215,9 @@ namespace vds {
     }
     
     template <typename context_type>
-    class handler : public sequence_step<context_type, void(void)>
+    class handler : public dataflow_step<context_type, void(void)>
     {
-      using base_class = sequence_step<context_type, void(void)>;
+      using base_class = dataflow_step<context_type, void(void)>;
     public:
       handler(
         const context_type & context,

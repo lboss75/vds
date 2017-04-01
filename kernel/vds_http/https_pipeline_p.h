@@ -60,9 +60,9 @@ namespace vds {
         _https_pipeline * owner);
 
       template <typename context_type>
-      class handler : public sequence_step<context_type, void(void)>
+      class handler : public dataflow_step<context_type, void(void)>
       {
-        using base_class = sequence_step<context_type, void(void)>;
+        using base_class = dataflow_step<context_type, void(void)>;
       public:
         handler(
           const context_type & context,
@@ -81,7 +81,7 @@ namespace vds {
         {
           this->owner_->owner_->on_connected();
           
-          vds::sequence(
+          vds::dataflow(
             input_network_stream(this->sp_, s),
             ssl_input_stream(this->tunnel_),
             http_response_parser(),
@@ -92,7 +92,7 @@ namespace vds {
             this->error_handler_
           );
           
-          vds::sequence(
+          vds::dataflow(
             output_command_stream(this->owner_),
             http_request_serializer(),
             ssl_output_stream(this->tunnel_),
@@ -139,9 +139,13 @@ namespace vds {
           {
           }
 
-          void operator()(std::exception * ex)
+          void operator()(std::exception_ptr ex)
           {
-            this->owner_->owner_->log_(ll_error, "stream %s:%d error: %s", this->owner_->owner_->address_.c_str(), this->owner_->owner_->port_, ex->what());
+            this->owner_->owner_->log_(ll_error, 
+              "stream %s:%d error: %s",
+              this->owner_->owner_->address_.c_str(),
+              this->owner_->owner_->port_,
+              exception_what(ex));
             this->owner_->done_mutex_.lock();
             this->owner_->done_count_++;
             if (this->owner_->done_count_ == 2) {
@@ -181,9 +185,9 @@ namespace vds {
       }
 
       template <typename context_type>
-      class handler : public sequence_step<context_type, void(void)>
+      class handler : public dataflow_step<context_type, void(void)>
       {
-        using base_class = sequence_step<context_type, void(void)>;
+        using base_class = dataflow_step<context_type, void(void)>;
       public:
         handler(
           const context_type & context,
@@ -225,9 +229,9 @@ namespace vds {
       }
 
       template <typename context_type>
-      class handler : public sequence_step<context_type, void(void)>
+      class handler : public dataflow_step<context_type, void(void)>
       {
-        using base_class = sequence_step<context_type, void(void)>;
+        using base_class = dataflow_step<context_type, void(void)>;
       public:
         handler(
           const context_type & context,
@@ -263,9 +267,9 @@ namespace vds {
       }
 
       template <typename context_type>
-      class handler : public sequence_step<context_type, void(void)>
+      class handler : public dataflow_step<context_type, void(void)>
       {
-        using base_class = sequence_step<context_type, void(void)>;
+        using base_class = dataflow_step<context_type, void(void)>;
       public:
         handler(
           const context_type & context,
@@ -289,7 +293,7 @@ namespace vds {
           response->get_header("Content-Type", content_type);
 
           if ("application/json" == content_type) {
-            sequence(
+            dataflow(
               http_stream_reader<typename base_class::prev_step_t>(this->prev, *incoming_stream),
               json_parser("client response"),
               command_processor(this->owner_, this->tunnel_)
@@ -300,7 +304,7 @@ namespace vds {
               );
           }
           else {
-            sequence(
+            dataflow(
               http_stream_reader<typename base_class::prev_step_t>(this->prev, *incoming_stream),
               null_command_processor(this->owner_, this->tunnel_)
             )
@@ -334,10 +338,10 @@ namespace vds {
 
       template <typename context_type>
       class handler
-        : public sequence_step<context_type, void(http_request * request, http_outgoing_stream * outgoing_stream)>,
+        : public dataflow_step<context_type, void(http_request * request, http_outgoing_stream * outgoing_stream)>,
           public ioutput_command_stream
       {
-        using base_class = sequence_step<context_type, void(http_request * request, http_outgoing_stream * outgoing_stream)>;
+        using base_class = dataflow_step<context_type, void(http_request * request, http_outgoing_stream * outgoing_stream)>;
       public:
         handler(
           const context_type & context,

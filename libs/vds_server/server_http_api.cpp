@@ -76,7 +76,7 @@ void vds::_server_http_api::start(
   //upnp_client upnp(sp);
   //upnp.open_port(8000, 8000, "TCP", "VDS Service");
 
-  sequence(
+  dataflow(
     socket_server(this->sp_, address.c_str(), port),
     vds::for_each<const service_provider &, network_socket &>::create_handler(
       socket_session(*this->router_, certificate, private_key))
@@ -85,9 +85,8 @@ void vds::_server_http_api::start(
     []() {
       std::cout << "HTTP server closed\n";
     },
-    [] (std::exception * ex) {
-      std::cout << "Server error: " << ex->what() << "\n";
-      delete ex;
+    [] (std::exception_ptr ex) {
+      std::cout << "Server error: " << exception_what(ex) << "\n";
     }
   );
 }
@@ -112,15 +111,15 @@ vds::_server_http_api::socket_session::handler::handler(
   private_key_(owner.private_key_),
   server_http_handler_(sp, owner.router_),
   done_handler_(this),
-  error_handler_([this](std::exception *) {delete this; }),
+  error_handler_([this](std::exception_ptr) {delete this; }),
   http_server_done_([this]() {}),
-  http_server_error_([this](std::exception *) {})
+  http_server_error_([this](std::exception_ptr) {})
 {
 }
 
 void vds::_server_http_api::socket_session::handler::start()
 {
-  vds::sequence(
+  vds::dataflow(
     input_network_stream(this->sp_, this->s_),
     ssl_input_stream(this->tunnel_),
     http_parser(this->sp_),

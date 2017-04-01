@@ -71,7 +71,7 @@ namespace vds {
     error_handler_t final_error_;
 
     void execute_continue();
-    bool throw_error(std::exception *);
+    bool throw_error(std::exception_ptr);
 
     bool execute_step();
 

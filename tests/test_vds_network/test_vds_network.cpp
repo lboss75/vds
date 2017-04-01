@@ -13,9 +13,9 @@ public:
   }
    
   template<typename context_type>
-  class handler : public vds::sequence_step<context_type, void (void)>
+  class handler : public vds::dataflow_step<context_type, void (void)>
   {
-    using base_class = vds::sequence_step<context_type, void (void)>;
+    using base_class = vds::dataflow_step<context_type, void (void)>;
   public:
     handler(
       const context_type & context,
@@ -55,7 +55,7 @@ public:
     }
 
     void start() {
-      vds::sequence(
+      vds::dataflow(
         vds::input_network_stream(this->sp_, this->s_),//input
         vds::output_network_stream(this->sp_, this->s_)//output
       )
@@ -85,9 +85,9 @@ public:
   }
 
   template<typename context_type>
-  class handler : public vds::sequence_step<context_type, void(void)>
+  class handler : public vds::dataflow_step<context_type, void(void)>
   {
-    using base_class = vds::sequence_step<context_type, void(void)>;
+    using base_class = vds::dataflow_step<context_type, void(void)>;
   public:
     handler(
       context_type & context,
@@ -131,13 +131,13 @@ public:
   }
 
   template<typename context_type>
-  class handler : public vds::sequence_step<context_type, void(const std::string &)>
+  class handler : public vds::dataflow_step<context_type, void(const std::string &)>
   {
   public:
     handler(
       const context_type & context,
       const read_for_newline & owner)
-    : vds::sequence_step<context_type, void(const std::string &)>(context)
+    : vds::dataflow_step<context_type, void(const std::string &)>(context)
     {
     }
   
@@ -188,13 +188,13 @@ public:
   }
   
   template<typename context_type>
-  class handler : public vds::sequence_step<context_type, void(void)>
+  class handler : public vds::dataflow_step<context_type, void(void)>
   {
   public:
     handler(
       const context_type & context,
       const check_result & owner)
-    : vds::sequence_step<context_type, void(void)>(context),
+    : vds::dataflow_step<context_type, void(void)>(context),
       data_(owner.data_)
     {
     }
@@ -228,14 +228,14 @@ public:
   }
 
   template <typename context_type>
-  class handler : public vds::sequence_step<context_type, void(void)>
+  class handler : public vds::dataflow_step<context_type, void(void)>
   {
   public:
     handler(
       const context_type & context,
       const socket_client & args
     )
-      : vds::sequence_step<context_type, void(void)>(context),
+      : vds::dataflow_step<context_type, void(void)>(context),
       sp_(args.sp_)
     {
     }
@@ -266,7 +266,7 @@ public:
       write_task.set_data(data, sizeof(data) - 1);
       write_task.schedule(this->s_.handle());
 
-      vds::sequence(
+      vds::dataflow(
         vds::input_network_stream(this->sp_, this->s_),
         read_for_newline(),
         check_result("test_test_test_test_test_test_test_test_test_test_test_test_test_test_test_")
@@ -314,13 +314,12 @@ TEST(network_tests, test_server)
           }
         );
         auto error_server = vds::lambda_handler(
-          [](std::exception * ex){
-            FAIL() << ex->what();
-            delete ex;
+          [](std::exception_ptr ex){
+            FAIL() << vds::exception_what(ex);
           }
         );
         
-        vds::sequence(
+        vds::dataflow(
           vds::socket_server(sp, "127.0.0.1", 8000),
           echo_server(sp)
         )(
@@ -334,15 +333,14 @@ TEST(network_tests, test_server)
           }
         );
         auto error_client = vds::lambda_handler(
-          [&done](std::exception * ex) {
-          std::unique_ptr<std::exception> ex_(ex);
+          [&done](std::exception_ptr ex) {
           done.set();
-          FAIL() << ex_->what();
+          FAIL() << vds::exception_what(ex);
           }
         );
 
         
-        vds::sequence(
+        vds::dataflow(
           vds::socket_connect(sp),
           socket_client(sp)
         )
@@ -384,7 +382,7 @@ TEST(network_tests, test_udp_server)
       });
 
       vds::udp_socket server_socket(sp);
-      vds::sequence(
+      vds::dataflow(
         vds::udp_server(sp, server_socket, "127.0.0.1", 8001),
         vds::udp_receive(sp, server_socket),
         vds::udp_send(sp, server_socket)
@@ -416,7 +414,7 @@ TEST(network_tests, test_udp_server)
       addr.sin_port = htons(8001);
 
       vds::udp_socket client_socket(sp);
-      vds::sequence(
+      vds::dataflow(
         vds::udp_send(sp, client_socket),
         vds::udp_receive(sp, client_socket)
       )

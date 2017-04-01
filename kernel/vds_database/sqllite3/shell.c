@@ -2045,8 +2045,8 @@ static int dump_callback(void *pArg, int nArg, char **azArg, char **azCol){
   zType = azArg[1];
   zSql = azArg[2];
 
-  if( strcmp(zTable, "sqlite_sequence")==0 ){
-    zPrepStmt = "DELETE FROM sqlite_sequence;\n";
+  if( strcmp(zTable, "sqlite_dataflow")==0 ){
+    zPrepStmt = "DELETE FROM sqlite_dataflow;\n";
   }else if( sqlite3_strglob("sqlite_stat?", zTable)==0 ){
     raw_printf(p->out, "ANALYZE sqlite_master;\n");
   }else if( strncmp(zTable, "sqlite_", 7)==0 ){
@@ -3147,7 +3147,7 @@ static int shellNomemError(void){
 **
 ** Globbing rules:
 **
-**      '*'       Matches any sequence of zero or more characters.
+**      '*'       Matches any dataflow of zero or more characters.
 **
 **      '?'       Matches exactly one character.
 **
@@ -3156,7 +3156,7 @@ static int shellNomemError(void){
 **
 **     [^...]     Matches one character not in the enclosed list.
 **
-**      '#'       Matches any sequence of one or more digits with an
+**      '#'       Matches any dataflow of one or more digits with an
 **                optional + or - sign in front
 **
 **      ' '       Any span of whitespace matches any other span of
@@ -3276,10 +3276,10 @@ int shellDeleteFile(const char *zFilename){
 **
 ** If either of the named tables or columns do not exist, this function
 ** returns an empty string. An empty string is also returned if both tables 
-** and columns exist but have the same default collation sequence. Or,
-** if both exist but the default collation sequences are different, this
+** and columns exist but have the same default collation dataflow. Or,
+** if both exist but the default collation dataflows are different, this
 ** function returns the string " COLLATE <parent-collation>", where
-** <parent-collation> is the default collation sequence of the parent column.
+** <parent-collation> is the default collation dataflow of the parent column.
 */
 static void shellFkeyCollateClause(
   sqlite3_context *pCtx, 
@@ -3739,11 +3739,11 @@ static int do_meta_command(char *zLine, ShellState *p){
     if( nArg==1 ){
       run_schema_dump_query(p,
         "SELECT name, type, sql FROM sqlite_master "
-        "WHERE sql NOT NULL AND type=='table' AND name!='sqlite_sequence'"
+        "WHERE sql NOT NULL AND type=='table' AND name!='sqlite_dataflow'"
       );
       run_schema_dump_query(p,
         "SELECT name, type, sql FROM sqlite_master "
-        "WHERE name=='sqlite_sequence'"
+        "WHERE name=='sqlite_dataflow'"
       );
       run_table_dump_query(p,
         "SELECT sql FROM sqlite_master "

@@ -20,40 +20,29 @@ TEST(mt_tests, test_async) {
 
     {
         auto sp = registrator.build();
-        auto t = vds::sequence(
+        vds::dataflow(
           test_async_object::sync_method(obj),
           test_async_object::async_method(sp, obj)
-        );
-
-        auto f = t.get_feature();
-
-        t(10);
-
-        f.get();
-
-        ASSERT_EQ(obj.state_, 2);
+        )
+        (
+         [&obj, &barrier]() {
+            ASSERT_EQ(obj.state_, 2);
+            obj.state_++;
+            barrier.set();
+          },
+          [&barrier](std::exception_ptr ex) {
+              FAIL() << vds::exception_what(ex);
+              barrier.set();
+          },
+          10);
+        
+        barrier.wait();
     }
 
     ASSERT_EQ(obj.state_, 3);
 
     registrator.shutdown();
 }
-
-class test
-{
-public:
-
-  template<typename context_type, void(const void *, size_t)>
-  class handler
-  {
-  public:
-
-    void operator()(int value)
-    {
-    }
-  };
-};
-
 
 test_async_object::test_async_object()
     : state_(0)

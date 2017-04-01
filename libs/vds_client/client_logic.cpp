@@ -75,9 +75,9 @@ void vds::client_logic::connection_closed(client_connection<client_logic>& conne
   this->update_connection_pool();
 }
 
-void vds::client_logic::connection_error(client_connection<client_logic>& connection, std::exception * ex)
+void vds::client_logic::connection_error(client_connection<client_logic>& connection, std::exception_ptr ex)
 {
-  this->log_.error("Connection %s:%d error %s", connection.address().c_str(), connection.port(), ex->what());
+  this->log_.error("Connection %s:%d error %s", connection.address().c_str(), connection.port(), exception_what(ex));
 
   this->connection_mutex_.lock();
   this->connected_--;

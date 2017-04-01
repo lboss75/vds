@@ -195,7 +195,7 @@ void vds::_storage_log::start()
 
   for (auto & p : local_records) {
 
-    sequence(
+    dataflow(
       read_file(p.second),
       json_parser("Record " + std::to_string(p.first))
     )(
@@ -203,8 +203,8 @@ void vds::_storage_log::start()
       this->apply_record(this->current_server_id_, record);
       delete record;
     },
-      [](std::exception * ex) {
-      throw ex;
+      [](std::exception_ptr ex) {
+        std::rethrow_exception(ex);
     });
 
     if (this->local_log_index_ <= p.first) {
@@ -217,7 +217,7 @@ void vds::_storage_log::start()
     json_parser::options parser_options;
     parser_options.enable_multi_root_objects = true;
 
-    sequence(
+    dataflow(
       read_file(fn),
       json_parser(fn.name(), parser_options),
       process_log_line<_storage_log>(fn.name(), this)
@@ -327,7 +327,7 @@ void vds::_storage_log::process(const guid & source_server_id, const server_log_
 
 void vds::_storage_log::add_record(const std::string & record)
 {
-  //sequence(
+  //dataflow(
   //  json_parser("Record"),
   //  process_log_line<_storage_log>("Record", this)
   //)(

@@ -99,9 +99,9 @@ namespace vds {
 
     template <typename context_type>
     class handler
-      : public sequence_step<context_type, void(void)>
+      : public dataflow_step<context_type, void(void)>
     {
-      using base_class = sequence_step<context_type, void(void)>;
+      using base_class = dataflow_step<context_type, void(void)>;
     public:
       handler(
         const context_type & context,
@@ -156,10 +156,10 @@ namespace vds {
 
     template <typename context_type>
     class handler
-      : public sequence_step<context_type, void(void)>,
+      : public dataflow_step<context_type, void(void)>,
       public socket_task
     {
-      using base_class = sequence_step<context_type, void(void)>;
+      using base_class = dataflow_step<context_type, void(void)>;
     public:
       handler(
         const context_type & context,
@@ -274,12 +274,12 @@ namespace vds {
 
     template <typename context_type>
     class handler
-      : public sequence_step<context_type, void(const sockaddr_in * from, const void * data, size_t len)>
+      : public dataflow_step<context_type, void(const sockaddr_in * from, const void * data, size_t len)>
 #ifdef _WIN32
       , public socket_task
 #endif
     {
-      using base_class = sequence_step<context_type, void(const sockaddr_in * from, const void * data, size_t len)>;
+      using base_class = dataflow_step<context_type, void(const sockaddr_in * from, const void * data, size_t len)>;
     public:
       handler(
         const context_type & context,
@@ -393,9 +393,9 @@ private:
     }
     
     template <typename context_type>
-    class handler : public sequence_step<context_type, void(void)>
+    class handler : public dataflow_step<context_type, void(void)>
     {
-      using base_class = sequence_step<context_type, void(void)>;
+      using base_class = dataflow_step<context_type, void(void)>;
     public:
       handler(
         const context_type & context,
@@ -404,13 +404,13 @@ private:
         sp_(args.sp_),
         s_(args.s_),
         owner_(args.owner_),
-        multi_handler_(2, [this](std::list<std::exception *> & errors) { this->owner_.socket_closed(errors); })
+        multi_handler_(2, [this](std::list<std::exception_ptr> & errors) { this->owner_.socket_closed(errors); })
       {
       }
       
       void operator()()
       {
-        sequence(
+        dataflow(
           udp_receive(this->sp_, this->s_),
           create_step<write_handler>::with(this->owner_)
         )(          
@@ -418,7 +418,7 @@ private:
           this->multi_handler_.on_error()
         );
         
-        sequence(
+        dataflow(
           create_step<read_handler>::with(this->owner_),
           udp_send(this->sp_, this->s_)
         )(
@@ -435,9 +435,9 @@ private:
     };
     
     template <typename context_type>
-    class write_handler : public sequence_step<context_type, void(void)>
+    class write_handler : public dataflow_step<context_type, void(void)>
     {
-      using base_class = sequence_step<context_type, void(void)>;
+      using base_class = dataflow_step<context_type, void(void)>;
     public:
       write_handler(
         const context_type & context,
@@ -457,9 +457,9 @@ private:
     };
 
     template <typename context_type>
-    class read_handler : public sequence_step<context_type, void(const sockaddr_in * from, const void * data, size_t len)>
+    class read_handler : public dataflow_step<context_type, void(const sockaddr_in * from, const void * data, size_t len)>
     {
-      using base_class = sequence_step<context_type, void(const sockaddr_in * from, const void * data, size_t len)>;
+      using base_class = dataflow_step<context_type, void(const sockaddr_in * from, const void * data, size_t len)>;
     public:
       read_handler(
         const context_type & context,
@@ -519,13 +519,13 @@ private:
     size_t port,
     handler_class & handler)
   {
-    sequence(
+    dataflow(
       udp_server(sp, s, address, port),
       _run_udp_server<handler_class>(sp, s, handler)
     )
     (
      [&handler]() { handler.udp_server_done(); },
-     [&handler](std::exception * ex) { handler.udp_server_error(ex);}
+     [&handler](std::exception_ptr ex) { handler.udp_server_error(ex);}
     );
   }
 
@@ -536,9 +536,9 @@ private:
     const std::string & address,
     size_t port,
     const std::function<void(void)> & done_handler,
-    const std::function<void(std::exception *)> & error_handler)
+    const std::function<void(std::exception_ptr)> & error_handler)
   {
-    sequence(
+    dataflow(
       udp_server(sp, s, address, port),
       _run_udp_server<handler_class>()
     )
@@ -557,7 +557,7 @@ private:
     done_handler_type & done_handler,
     error_handler_type & error_handler)
   {
-    sequence(
+    dataflow(
       udp_server(sp, s, address, port),
       _run_udp_server<handler_class>()
     )

@@ -111,19 +111,23 @@ namespace vds {
     static void callback(int fd, short event, void *arg)
     {
       auto pthis = reinterpret_cast<read_socket_task *>(arg);
-      int len = read(fd, pthis->buffer_, BUFFER_SIZE);
-      if (len < 0) {
-        int error = errno;
-        pthis->error_method_(
-          new std::system_error(
-            error,
-            std::system_category()));
-        return;
+      try {
+        int len = read(fd, pthis->buffer_, BUFFER_SIZE);
+        if (len < 0) {
+          int error = errno;
+          throw
+            std::system_error(
+              error,
+            std::system_category());
+        }
+        
+        imt_service::async(pthis->sp_, [pthis, len](){
+            pthis->next_method_(pthis->buffer_, len);
+          });
       }
-      
-      imt_service::async(pthis->sp_, [pthis, len](){
-          pthis->next_method_(pthis->buffer_, len);
-        });
+      catch(...){
+        pthis->error_method_(std::current_exception());
+      }
     }
 #endif//_WIN32
 

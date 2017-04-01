@@ -41,9 +41,9 @@ class test_json_parser_validate
 public:
 
   template<typename context_type>
-  class handler : public vds::sequence_step<context_type, void(void)>
+  class handler : public vds::dataflow_step<context_type, void(void)>
   {
-    using base_class = vds::sequence_step<context_type, void(void)>;
+    using base_class = vds::dataflow_step<context_type, void(void)>;
   public:
     handler(
       const context_type & context,
@@ -99,13 +99,13 @@ public:
 };
 
 TEST(test_json_parser, test_parser) {
-  vds::sequence(
+  vds::dataflow(
     vds::json_parser("test"),
     test_json_parser_validate()
   )
   (
     []() {},
-    [](std::exception * ex) { FAIL() << ex->what(); },
+    [](std::exception_ptr ex) { FAIL() << vds::exception_what(ex); },
    (const char *)test_data,
    sizeof(test_data) - 1
   );

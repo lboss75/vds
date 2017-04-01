@@ -119,6 +119,8 @@ namespace vds {
     private:
       log_level level_;
     };
+    
+  std::string exception_what(std::exception_ptr ex);
 }
 
 #endif//__VDS_CORE_LOGGER_H_

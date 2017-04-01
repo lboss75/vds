@@ -35,7 +35,7 @@ void vds::https_pipeline::on_connection_closed()
 {
 }
 
-void vds::https_pipeline::on_error(std::exception* /*error*/)
+void vds::https_pipeline::on_error(std::exception_ptr /*error*/)
 {
 }
 
@@ -85,13 +85,13 @@ vds::_https_pipeline::~_https_pipeline()
 void vds::_https_pipeline::connect()
 {
   auto sp = this->sp_.create_scope();
-  sequence(
+  dataflow(
     socket_connect(sp),
     connection(sp, this)
   )
   (
    [this](){ this->owner_->on_connected(); },
-   [this](std::exception * ex) { this->owner_->on_error(ex); },
+   [this](std::exception_ptr ex) { this->owner_->on_error(ex); },
    this->address_,
    this->port_
   );

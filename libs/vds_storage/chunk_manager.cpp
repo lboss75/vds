@@ -20,14 +20,20 @@ vds::chunk_manager::~chunk_manager()
   delete this->impl_;
 }
 
-std::future<vds::chunk_manager::object_index> vds::chunk_manager::add(const data_buffer& data)
+void vds::chunk_manager::add(
+  const std::function<void (chunk_manager::file_map) > & done,
+  const error_handler & on_error,
+  const filename & fn)
 {
-  return this->impl_->add(data);
+  this->impl_->add(done, on_error, fn);
 }
 
-std::future<vds::chunk_manager::file_map> vds::chunk_manager::add(const filename& fn)
+void vds::chunk_manager::add(
+  const std::function<void (chunk_manager::object_index) > & done,
+  const error_handler & on_error,
+  const data_buffer& data)
 {
-  return this->impl_->add(fn);
+  this->impl_->add(done, on_error, data);
 }
 
 void vds::chunk_manager::set_next_index(uint64_t next_index)
@@ -56,68 +62,92 @@ vds::_chunk_manager::~_chunk_manager()
 {
 }
 
-void vds::_chunk_manager::add(const filename& fn, vds::chunk_manager::file_map & result)
+void vds::_chunk_manager::add(
+  const std::function<void (vds::chunk_manager::file_map) > & done,
+  const error_handler & on_error,
+  const filename & fn)
 {
-  uint8_t buffer[(size_t)5 * 1024 * 1024 * 1024];
-  
-  file f(fn, file::open_read);
-  for(;;){
-    auto readed = f.read(buffer, sizeof(buffer));
-    if(0 == readed){
-      break;
-    }
-    
-    parts.push_back(this->add(data_buffer(buffer, readed)));
-  }
+  dataflow(
+    read_file(fn, (size_t)5 * 1024 * 1024 * 1024),
+    task_step([this](
+      const std::function<void (void) > & done,
+      const error_handler & on_error,
+      const std::function<void(void)> & prev,
+      const void * data, size_t size){
+      if(0 == size){
+        done();
+        return;
+      }
+      
+      this->add(
+        [prev](vds::chunk_manager::object_index){
+          prev();
+        },
+        on_error,
+        data_buffer(data, size));
+    })(
+    [](){},
+    on_error);
 }
 
-std::future<vds::chunk_manager::object_index> vds::_chunk_manager::add(const data_buffer& data)
+void vds::_chunk_manager::add(
+  const std::function<void (vds::chunk_manager::object_index) > & done,
+  const error_handler & on_error,
+  const data_buffer& data)
 {
-  auto result_promise = std::make_shared<std::promise<vds::chunk_manager::object_index>>();
-
-  this->tmp_folder_mutex_.lock();
-  auto tmp_index = this->last_tmp_file_index_++;
-  this->tmp_folder_mutex_.unlock();
-
-  sequence(
-    deflate(),
-    collect_data()
-  )(
-    [](const void * data, size_t size) {
-
-  },
-    [](std::exception * ex) { throw ex; },
+  auto steps = async_task(
+    [](const std::function<void (const void * data, size_t size)> & done,
+       const error_handler & on_error,
+       const void * data, size_t size){
+      dataflow(
+        deflate(),
+        collect_data()
+      )(
+        done,
+        on_error,
+        data,
+        size
+      );
+    })
+  ->then(
+    [this](const std::function<void (const void * data, size_t size)> & done,
+       const error_handler & on_error,
+       const void * deflated_data, size_t deflated_size){
+      
+      this->tmp_folder_mutex_.lock();
+      auto tmp_index = this->last_tmp_file_index_++;
+      this->tmp_folder_mutex_.unlock();
+      
+      filename fn(this->tmp_folder_, std::to_string(tmp_index));
+      file f(fn, file::create_new);
+      f.write(deflated_data, deflated_size);
+      f.close();
+      
+      this->obj_folder_mutex_.lock();
+      auto index = this->last_obj_file_index_++;
+      this->obj_size_ += flen;
+      this->obj_folder_mutex_.unlock();
+      
+      file::move(fn, this->cache_.get_object_filename(this->server_id_, index));
+      
+      this->obj_folder_mutex_.lock();
+      if(max_obj_size_ < this->obj_size_){
+        this->generate_chunk();
+      }
+      this->obj_folder_mutex_.unlock();
+      
+      return index;
+    });
+  
+  steps->invoke(
+    [steps, done]{
+      done();
+    },
+    [steps, on_error](){
+      on_error();
+    },
     data.data(),
-    data.size()
-    );
-
-  filename fn(this->tmp_folder_, std::to_string(tmp_index));
-  sequence(
-    deflate(),
-    write_file(fn, file::create_new)       
-  )
-  (
-   []() {},
-    [result_promise](std::exception * ex) { result_promise->set_exception(std::make_exception_ptr(*ex)); delete ex; },
-   data.data(),
-   data.size());
-  
-  auto flen = file::length(fn);
-  
-  this->obj_folder_mutex_.lock();
-  auto index = this->last_obj_file_index_++;
-  this->obj_size_ += flen;
-  this->obj_folder_mutex_.unlock();
-  
-  file::move(fn, this->cache_.get_object_filename(this->server_id_, index));
-  
-  this->obj_folder_mutex_.lock();
-  if(max_obj_size_ < this->obj_size_){
-    this->generate_chunk();
-  }
-  this->obj_folder_mutex_.unlock();
-  
-  return index;
+    data.size());
 }
 
 void vds::_chunk_manager::generate_chunk()

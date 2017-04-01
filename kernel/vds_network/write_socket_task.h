@@ -111,8 +111,8 @@ namespace vds {
           this->done_method_();
         }
       }
-      catch (std::exception * ex) {
-        this->error_method_(ex);
+      catch (...) {
+        this->error_method_(std::current_exception());
       }
     }
 #else//!_WIN32
@@ -158,11 +158,8 @@ namespace vds {
             });
         }
       }
-      catch(std::exception * ex){
-        pthis->error_method_(ex);
-      }
       catch(...){
-        pthis->error_method_(new std::runtime_error("Unexpected error at write socket"));
+        pthis->error_method_(std::current_exception());
       }
     }
 #endif//_WIN32

@@ -32,9 +32,9 @@ namespace vds {
     }
 
     template <typename context_type>
-    class handler : public sequence_step<context_type, void(json_value *)>
+    class handler : public dataflow_step<context_type, void(json_value *)>
     {
-      using base_class = sequence_step<context_type, void(json_value *)>;
+      using base_class = dataflow_step<context_type, void(json_value *)>;
     public:
       handler(
         const context_type & context,

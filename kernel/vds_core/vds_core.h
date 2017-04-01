@@ -20,7 +20,7 @@ All rights reserved
 #include "filename.h"
 #include "foldername.h"
 #include "stream_to_string.h"
-#include "sequence.h"
+#include "dataflow.h"
 #include "persistence.h"
 #include "encoding.h"
 #include "file.h"
@@ -32,6 +32,7 @@ All rights reserved
 #include "binary_serialize.h"
 #include "data_buffer.h"
 #include "pipeline.h"
+#include "async_task.h"
 
 #endif // !__VDS_CORE_H_
 

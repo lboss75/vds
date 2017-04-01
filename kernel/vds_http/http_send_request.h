@@ -28,9 +28,9 @@ namespace vds {
     }
 
     template<typename context_type>
-    class handler : public sequence_step<context_type, void(const std::string &)>
+    class handler : public dataflow_step<context_type, void(const std::string &)>
     {
-      using base_class = sequence_step<context_type, void(const std::string &)>;
+      using base_class = dataflow_step<context_type, void(const std::string &)>;
     public:
       handler(
         const context_type & context,
@@ -50,7 +50,7 @@ namespace vds {
 
       void operator()(const network_socket & s)
       {
-        sequence(
+        dataflow(
           http_request_serializer(),
           output_network_stream(this->sp_, s)
         )
@@ -61,7 +61,7 @@ namespace vds {
           &this->outgoing_stream_
         );
 
-        sequence(
+        dataflow(
           input_network_stream(this->sp_, s),
           http_response_parser(),
           this->response_handler_

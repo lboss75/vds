@@ -27,7 +27,7 @@ namespace vds {
     
     virtual void on_connected();
     virtual void on_connection_closed();
-    virtual void on_error(std::exception * error);
+    virtual void on_error(std::exception_ptr error);
     
     virtual void on_response(json_value * response) = 0;
     virtual void get_commands() = 0;

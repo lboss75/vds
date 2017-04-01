@@ -17,7 +17,7 @@ namespace vds {
     template<
       typename context_type
     >
-    class handler : public sequence_step<
+    class handler : public dataflow_step<
         context_type,
         void (
           const void * data,
@@ -25,7 +25,7 @@ namespace vds {
         )
       >
     {
-      using base_class = sequence_step<
+      using base_class = dataflow_step<
         context_type,
         void (
           const void * data,

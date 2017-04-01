@@ -6,7 +6,7 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
-#include "sequence.h"
+#include "dataflow.h"
 
 namespace vds {
   
@@ -20,12 +20,12 @@ namespace vds {
     template <
       typename conext_type
     >
-    class handler : public sequence_step<
+    class handler : public dataflow_step<
       conext_type,
       void(const std::string &)
     >    
     {
-      using base_class = sequence_step<
+      using base_class = dataflow_step<
         conext_type,
         void(const std::string &)
       > ;

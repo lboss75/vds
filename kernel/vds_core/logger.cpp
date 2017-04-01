@@ -80,3 +80,23 @@ void vds::console_logger::stop(const service_provider &)
 {
 }
 
+std::string vds::exception_what(std::exception_ptr ex)
+{
+  std::string result;
+  try{
+    std::rethrow_exception(ex);
+  }
+  catch(std::exception * exp) {
+    result = exp->what();
+    delete exp;
+  }
+  catch(const std::exception & exp) {
+    result = exp.what();
+  }
+  catch(...) {
+    result = "Unknown error";
+  }
+  
+  return result;
+
+}

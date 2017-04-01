@@ -25,8 +25,8 @@ namespace vds {
 
     //UDP server handlers
     void udp_server_done();
-    void udp_server_error(std::exception * ex);
-    void socket_closed(std::list<std::exception *> errors);
+    void udp_server_error(std::exception_ptr ex);
+    void socket_closed(std::list<std::exception_ptr> errors);
     void input_message(const sockaddr_in * from, const void * data, size_t len);
 
     template <typename next_step_type>

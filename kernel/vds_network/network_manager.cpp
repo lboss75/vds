@@ -114,12 +114,8 @@ void vds::network_service::stop(const service_provider & sp)
         WSACleanup();
 #endif
     }
-    catch (const std::exception * ex) {
-        log(ll_error, "Failed stop network service %s", ex->what());
-        delete ex;
-    }
     catch (...) {
-        log(ll_error, "Unexpected error at stopping network service ");
+        log(ll_error, "Failed stop network service %s", exception_what(std::current_exception()).c_str());
     }
 }
 
@@ -159,9 +155,8 @@ void vds::network_service::thread_loop(const service_provider & provider)
         try {
           socket_task::from_overlapped(pOverlapped)->process(dwBytesTransfered);
         }
-        catch (std::exception * ex) {
-          log(ll_error, "IO Task error: %s", ex->what());
-          delete ex;
+        catch (...) {
+          log(ll_error, "IO Task error: %s", exception_what(std::current_exception()).c_str());
         }
     }
 }

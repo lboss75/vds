@@ -31,7 +31,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
       return 1;
     }
 
-    vds::sequence(
+    vds::dataflow(
       vds::read_file(dlg.file_name),
       vds::json_parser(dlg.file_name)
     )

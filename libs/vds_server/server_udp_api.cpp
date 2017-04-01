@@ -72,11 +72,11 @@ void vds::_server_udp_api::udp_server_done()
 {
 }
 
-void vds::_server_udp_api::udp_server_error(std::exception * ex)
+void vds::_server_udp_api::udp_server_error(std::exception_ptr ex)
 {
 }
 
-void vds::_server_udp_api::socket_closed(std::list<std::exception *> errors)
+void vds::_server_udp_api::socket_closed(std::list<std::exception_ptr> errors)
 {
 }
 
@@ -114,11 +114,11 @@ void vds::_server_udp_api::input_message(const sockaddr_in * from, const void * 
 
           barrier b;
           data_buffer crypted_data;
-          sequence(
+          dataflow(
             symmetric_encrypt(this->sp_, session_key),
             collect_data())(
               [&crypted_data, &b](const void * data, size_t size) { crypted_data.reset(data, size); b.set(); },
-              [](std::exception * ex) { throw ex; },
+              [](std::exception_ptr ex) { std::rethrow_exception(ex); },
               s.data().data(),
               s.data().size());
           b.wait();

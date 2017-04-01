@@ -25,7 +25,7 @@ namespace vds {
 
     void connected(client_connection<client_logic> & connection);
     void connection_closed(client_connection<client_logic> & connection);
-    void connection_error(client_connection<client_logic> & connection, std::exception * ex);
+    void connection_error(client_connection<client_logic> & connection, std::exception_ptr ex);
 
     void process_response(client_connection<client_logic> & connection, const json_value * response);
 

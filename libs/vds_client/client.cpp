@@ -160,7 +160,7 @@ void vds::iclient::upload_file(
 
   auto key_crypted = user_certificate.public_key().encrypt(key_data.data());
 
-  sequence(
+  dataflow(
     symmetric_encrypt(this->sp_, transaction_key),
     collect_data())(
       [this, key_crypted, user_private_key, user_login](const void * data, size_t data_size) {
@@ -181,7 +181,7 @@ void vds::iclient::upload_file(
     this->log_(ll_trace, "Upload file");
     this->owner_->logic_->put_file(user_login, datagram.data());
   },
-      [](std::exception * ex) { throw ex; },
+      [](std::exception_ptr ex) { std::rethrow_exception(ex); },
     data,
     data_size);
 
@@ -228,11 +228,11 @@ vds::data_buffer vds::iclient::download_data(
 
   barrier b;
   data_buffer result;
-  sequence(
+  dataflow(
     symmetric_decrypt(this->sp_, transaction_key),
     collect_data())(
       [&result, &b](const void * data, size_t size) {result.reset(data, size); b.set(); },
-      [](std::exception * ex) { throw ex; },
+      [](std::exception_ptr ex) { std::rethrow_exception(ex); },
       crypted_data.data(),
       crypted_data.size());
 

@@ -2385,7 +2385,7 @@ SQLITE_API int sqlite3_busy_timeout(sqlite3*, int ms);
 ** The sqlite3_get_table() interface is implemented as a wrapper around
 ** [sqlite3_exec()].  The sqlite3_get_table() routine does not have access
 ** to any internal data structures of SQLite.  It uses only the public
-** interface defined here.  As a consequence, errors that occur in the
+** interface defined here.  As a condataflow, errors that occur in the
 ** wrapper layer outside of the internal [sqlite3_exec()] call are not
 ** reflected in subsequent calls to [sqlite3_errcode()] or
 ** [sqlite3_errmsg()].
@@ -3180,12 +3180,12 @@ SQLITE_API void sqlite3_progress_handler(sqlite3*, int, int(*)(void*), void*);
 **          An error. "readonly" is not a valid option for the "mode" parameter.
 ** </table>
 **
-** ^URI hexadecimal escape sequences (%HH) are supported within the path and
-** query components of a URI. A hexadecimal escape sequence consists of a
+** ^URI hexadecimal escape dataflows (%HH) are supported within the path and
+** query components of a URI. A hexadecimal escape dataflow consists of a
 ** percent sign - "%" - followed by exactly two hexadecimal digits 
 ** specifying an octet value. ^Before the path or query components of a
 ** URI filename are interpreted, they are encoded using UTF-8 and all 
-** hexadecimal escape sequences replaced by a single byte containing the
+** hexadecimal escape dataflows replaced by a single byte containing the
 ** corresponding octet. If this process generates an invalid UTF-8 encoding,
 ** the results are undefined.
 **
@@ -5056,13 +5056,13 @@ SQLITE_API int sqlite3_create_collation16(
 ** CAPI3REF: Collation Needed Callbacks
 ** METHOD: sqlite3
 **
-** ^To avoid having to register all collation sequences before a database
+** ^To avoid having to register all collation dataflows before a database
 ** can be used, a single callback function may be registered with the
 ** [database connection] to be invoked whenever an undefined collation
-** sequence is required.
+** dataflow is required.
 **
 ** ^If the function is registered using the sqlite3_collation_needed() API,
-** then it is passed the names of undefined collation sequences as strings
+** then it is passed the names of undefined collation dataflows as strings
 ** encoded in UTF-8. ^If sqlite3_collation_needed16() is used,
 ** the names are passed as UTF-16 in machine native byte order.
 ** ^A call to either function replaces the existing collation-needed callback.
@@ -5072,8 +5072,8 @@ SQLITE_API int sqlite3_create_collation16(
 ** sqlite3_collation_needed16().  The second argument is the database
 ** connection.  The third argument is one of [SQLITE_UTF8], [SQLITE_UTF16BE],
 ** or [SQLITE_UTF16LE], indicating the most desirable form of the collation
-** sequence function required.  The fourth parameter is the name of the
-** required collation sequence.)^
+** dataflow function required.  The fourth parameter is the name of the
+** required collation dataflow.)^
 **
 ** The callback function should register the desired collation using
 ** [sqlite3_create_collation()], [sqlite3_create_collation16()], or
@@ -5413,7 +5413,7 @@ SQLITE_API void *sqlite3_rollback_hook(sqlite3*, void(*)(void *), void*);
 ** ^In the case of an update, this is the [rowid] after the update takes place.
 **
 ** ^(The update hook is not invoked when internal system tables are
-** modified (i.e. sqlite_master and sqlite_sequence).)^
+** modified (i.e. sqlite_master and sqlite_dataflow).)^
 ** ^The update hook is not invoked when [WITHOUT ROWID] tables are modified.
 **
 ** ^In the current implementation, the update hook
@@ -5611,7 +5611,7 @@ SQLITE_API SQLITE_DEPRECATED void sqlite3_soft_heap_limit(int N);
 ** <tr><th> Parameter <th> Output<br>Type <th>  Description
 **
 ** <tr><td> 5th <td> const char* <td> Data type
-** <tr><td> 6th <td> const char* <td> Name of default collation sequence
+** <tr><td> 6th <td> const char* <td> Name of default collation dataflow
 ** <tr><td> 7th <td> int         <td> True if column has a NOT NULL constraint
 ** <tr><td> 8th <td> int         <td> True if column is part of the PRIMARY KEY
 ** <tr><td> 9th <td> int         <td> True if column is [AUTOINCREMENT]
@@ -5619,7 +5619,7 @@ SQLITE_API SQLITE_DEPRECATED void sqlite3_soft_heap_limit(int N);
 ** </blockquote>)^
 **
 ** ^The memory pointed to by the character pointers returned for the
-** declaration type and collation sequence is valid until the next
+** declaration type and collation dataflow is valid until the next
 ** call to any SQLite API function.
 **
 ** ^If the specified table is actually a view, an [error code] is returned.
@@ -5633,7 +5633,7 @@ SQLITE_API SQLITE_DEPRECATED void sqlite3_soft_heap_limit(int N);
 **
 ** <pre>
 **     data type: "INTEGER"
-**     collation sequence: "BINARY"
+**     collation dataflow: "BINARY"
 **     not null: 0
 **     primary key: 1
 **     auto increment: 0
@@ -5649,7 +5649,7 @@ SQLITE_API int sqlite3_table_column_metadata(
   const char *zTableName,     /* Table name */
   const char *zColumnName,    /* Column name */
   char const **pzDataType,    /* OUTPUT: Declared data type */
-  char const **pzCollSeq,     /* OUTPUT: Collation sequence name */
+  char const **pzCollSeq,     /* OUTPUT: Collation dataflow name */
   int *pNotNull,              /* OUTPUT: True if NOT NULL constraint exists */
   int *pPrimaryKey,           /* OUTPUT: True if column part of PK */
   int *pAutoinc               /* OUTPUT: True if column is auto-increment */
@@ -10353,7 +10353,7 @@ struct Fts5ExtensionApi {
 **
 **   It is an error to specify the FTS5_TOKEN_COLOCATED flag the first time
 **   xToken() is called. Multiple synonyms may be specified for a single token
-**   by making multiple calls to xToken(FTS5_TOKEN_COLOCATED) in sequence. 
+**   by making multiple calls to xToken(FTS5_TOKEN_COLOCATED) in dataflow. 
 **   There is no limit to the number of synonyms that may be provided for a
 **   single token.
 **

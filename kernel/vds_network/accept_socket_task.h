@@ -242,11 +242,8 @@ namespace vds {
           data->done_method_(sp, s);
         });
       }
-      catch(std::exception * ex){
-        data->error_method_(ex);
-      }
       catch(...){
-        data->error_method_(new std::runtime_error("Unexpected error at wait_accept"));
+        data->error_method_(std::current_exception());
       }
     }
 

@@ -14,6 +14,7 @@ namespace vds {
   struct _functor_info<functor_type, void (class_name::*)(arg_types...)>
   {
     typedef void signature(arg_types...);
+    typedef std::tuple<arg_types...> arguments_typle;
   };
 
   template <typename functor_type>

@@ -19,9 +19,9 @@ namespace vds {
     }
     
     template <typename context_type>
-    class handler : public sequence_step<context_type, void (json_value * response)>
+    class handler : public dataflow_step<context_type, void (json_value * response)>
     {
-      using base_class = sequence_step<context_type, void (json_value * response)>;
+      using base_class = dataflow_step<context_type, void (json_value * response)>;
     public:
       handler(
         const context_type & context,
@@ -39,12 +39,12 @@ namespace vds {
         {
           this->response_.reset(this->handler_(this->scope_, request));
         }
-        catch(std::exception * ex)
+        catch(...)
         {
           auto response = new json_object();
-          response->add_property("$t", typeid(ex).name());
+          response->add_property("$t", typeid(std::current_exception()).name());
           response->add_property("r", "exception");
-          response->add_property("m", ex->what());
+          response->add_property("m", exception_what(std::current_exception()));
           this->response_.reset(response);
         }
         

@@ -19,9 +19,9 @@ namespace vds {
     template<
       typename context_type
     >
-      class handler : public sequence_step<context_type, void(const std::string &)>
+      class handler : public dataflow_step<context_type, void(const std::string &)>
     {
-      using base_class = sequence_step<context_type, void(const std::string &)>;
+      using base_class = dataflow_step<context_type, void(const std::string &)>;
     public:
       handler(
         const context_type & context,
@@ -45,7 +45,7 @@ namespace vds {
         }
         
         if(http_response::HTTP_OK == response->code()){
-          sequence(
+          dataflow(
             http_stream_reader<typename base_class::prev_step_t>(
               this->prev,
               *response_stream),

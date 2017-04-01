@@ -111,9 +111,9 @@ namespace vds {
     };
     
     template<typename context_type>
-    class generate_replicas : public sequence_step<context_type, void(void)>
+    class generate_replicas : public dataflow_step<context_type, void(void)>
     {
-      using base_class = sequence_step<context_type, void(void)>;
+      using base_class = dataflow_step<context_type, void(void)>;
     public:
       generate_replicas(
         const context_type & context,

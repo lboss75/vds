@@ -118,9 +118,9 @@ namespace vds {
       this->handler_->process_response(*this, response);
     }
     
-    void on_error(std::exception * ex) override
+    void on_error(std::exception_ptr ex) override
     {
-      this->log_(ll_debug, "Failed to connect %s:%d %s", this->address().c_str(), this->port(), ex->what());
+      this->log_(ll_debug, "Failed to connect %s:%d %s", this->address().c_str(), this->port(), exception_what(ex).c_str());
       this->connection_end_ = std::chrono::system_clock::now();
       this->state_ = CONNECT_ERROR;
       this->handler_->connection_error(*this, ex);

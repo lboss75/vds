@@ -21,11 +21,11 @@ namespace vds {
     }
     
     template <typename context_type>
-    class handler : public sequence_step<context_type, void(
+    class handler : public dataflow_step<context_type, void(
       http_response & response,
       http_outgoing_stream & response_stream)>
     {
-      using base_class = sequence_step<context_type, void(
+      using base_class = dataflow_step<context_type, void(
         http_response & response,
         http_outgoing_stream & response_stream)>;
     public:

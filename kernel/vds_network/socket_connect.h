@@ -1,4 +1,4 @@
-﻿#ifndef __VDS_NETWORK_SOCKET_CONNECT_H_
+#ifndef __VDS_NETWORK_SOCKET_CONNECT_H_
 #define __VDS_NETWORK_SOCKET_CONNECT_H_
 
 /*
@@ -18,14 +18,14 @@ namespace vds {
     }
 
     template <typename context_type>
-    class handler : public sequence_step<context_type, void (network_socket &)>
+    class handler : public dataflow_step<context_type, void (network_socket &)>
     {
     public:
       handler(
         const context_type & context,
         const socket_connect & owner
       )
-        : sequence_step<context_type, void (network_socket &)>(context),
+        : dataflow_step<context_type, void (network_socket &)>(context),
         network_service_(owner.network_service_),
         s_(
 #ifdef _WIN32

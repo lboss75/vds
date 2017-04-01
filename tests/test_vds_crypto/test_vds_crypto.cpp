@@ -7,9 +7,9 @@ All rights reserved
 #include "test_vds_crypto.h"
 
 template <typename context_type>
-class random_reader : public vds::sequence_step<context_type, void(const void *, size_t)>
+class random_reader : public vds::dataflow_step<context_type, void(const void *, size_t)>
 {
-  using base_class = vds::sequence_step<context_type, void(const void *, size_t)>;
+  using base_class = vds::dataflow_step<context_type, void(const void *, size_t)>;
 public:
   random_reader(
     const context_type & context,
@@ -60,9 +60,9 @@ private:
 };
 
 template <typename context_type>
-class compare_data : public vds::sequence_step<context_type, void()>
+class compare_data : public vds::dataflow_step<context_type, void()>
 {
-  using base_class = vds::sequence_step<context_type, void()>;
+  using base_class = vds::dataflow_step<context_type, void()>;
 public:
   compare_data(
     const context_type & context,
@@ -127,7 +127,7 @@ TEST(test_vds_crypto, test_symmetric)
       vds::symmetric_key key(vds::symmetric_crypto::aes_256_cbc());
       key.generate();
 
-      sequence(
+      dataflow(
         vds::create_step<random_reader>::with(buffer.get(), (int)len),
         vds::symmetric_encrypt(sp, key),
         vds::symmetric_decrypt(sp, key),
@@ -135,8 +135,8 @@ TEST(test_vds_crypto, test_symmetric)
       )(
         []() {
       },
-        [](std::exception * ex) {
-        GTEST_FAIL() << ex->what();
+        [](std::exception_ptr ex) {
+        GTEST_FAIL() << vds::exception_what(ex);
       });
     }
     registrator.shutdown();
@@ -209,24 +209,24 @@ TEST(test_vds_crypto, test_sign)
     key.generate();
 
     vds::data_buffer sign;
-    vds::sequence(
+    vds::dataflow(
       vds::create_step<random_reader>::with(buffer.get(), (int)len),
       vds::asymmetric_sign(vds::hash::sha256(), key))
       (
         [&sign](const void * data, size_t len) { sign.reset(data, len); },
-        [](std::exception * ex) { FAIL() << ex->what(); });
+        [](std::exception_ptr ex) { FAIL() << vds::exception_what(ex); });
 
 
     vds::asymmetric_public_key pkey(key);
 
     
     bool unchanged_result;
-    vds::sequence(
+    vds::dataflow(
       vds::create_step<random_reader>::with(buffer.get(), (int)len),
       vds::asymmetric_sign_verify(vds::hash::sha256(), pkey, sign))
       (
         [&unchanged_result](bool result) { unchanged_result = result; },
-        [](std::exception * ex) { FAIL() << ex->what(); });
+        [](std::exception_ptr ex) { FAIL() << vds::exception_what(ex); });
 
     size_t index;
     do
@@ -238,12 +238,12 @@ TEST(test_vds_crypto, test_sign)
     const_cast<unsigned char *>(buffer.get())[index]++;
 
     bool changed_result;
-    vds::sequence(
+    vds::dataflow(
       vds::create_step<random_reader>::with(buffer.get(), (int)len),
       vds::asymmetric_sign_verify(vds::hash::sha256(), pkey, sign))
       (
         [&changed_result](bool result) { changed_result = result; },
-        [](std::exception * ex) { FAIL() << ex->what(); });
+        [](std::exception_ptr ex) { FAIL() << vds::exception_what(ex); });
 
     ASSERT_EQ(unchanged_result, true);
     ASSERT_EQ(changed_result, false);

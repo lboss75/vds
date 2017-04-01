@@ -17,9 +17,9 @@ namespace vds {
     inflate();
 
     template <typename context_type>
-    class handler : public sequence_step<context_type, void(const void *, size_t)>
+    class handler : public dataflow_step<context_type, void(const void *, size_t)>
     {
-      using base_class = sequence_step<context_type, void(const void *, size_t)>;
+      using base_class = dataflow_step<context_type, void(const void *, size_t)>;
     public:
       handler(
         const context_type & context,

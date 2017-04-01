@@ -20,13 +20,13 @@ public:
       }
       
       template<typename context_type>
-      class handler : public vds::sequence_step<context_type, void(const std::string &)>
+      class handler : public vds::dataflow_step<context_type, void(const std::string &)>
       {
       public:
         handler(
           const context_type & context,
           const sync_method & owner
-        ): vds::sequence_step<
+        ): vds::dataflow_step<
             context_type,
             void(const std::string &)>(context),
           owner_(owner.owner_){
@@ -62,9 +62,9 @@ public:
       }
       
       template<typename context_type>
-      class handler : public vds::sequence_step<context_type, void(void)>
+      class handler : public vds::dataflow_step<context_type, void(void)>
       {
-        using base_class = vds::sequence_step<context_type, void(void)>;
+        using base_class = vds::dataflow_step<context_type, void(void)>;
       public:
         handler(
           const context_type & context,

@@ -28,12 +28,12 @@ namespace vds {
     >
     class handler
     : public http_incoming_stream::read_handler,
-    public sequence_step<context_type, void(
+    public dataflow_step<context_type, void(
       const void * data,
       size_t len)
     >    
     {
-      using base_class = sequence_step<context_type,
+      using base_class = dataflow_step<context_type,
         void(
           const void * data,
           size_t len)>;

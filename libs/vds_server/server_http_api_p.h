@@ -51,7 +51,7 @@ namespace vds {
       ) const
       {
         if("/vds/client_api" == request.url()){
-          sequence(
+          dataflow(
             http_stream_reader<prev_handler_type>(prev_handler, incoming_stream),
             json_parser("client_api"),
             http_json_api<server_json_client_api>(scope, this->server_json_client_api_),
@@ -109,10 +109,10 @@ namespace vds {
         server_http_handler server_http_handler_;
         delete_this<handler> done_handler_;
 
-        std::function<void(std::exception *)> error_handler_;
+        std::function<void(std::exception_ptr)> error_handler_;
 
         std::function<void(void)> http_server_done_;
-        std::function<void(std::exception *)> http_server_error_;
+        std::function<void(std::exception_ptr)> http_server_error_;
       };
     private:
       const http_router & router_;

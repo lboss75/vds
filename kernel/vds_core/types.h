@@ -10,13 +10,14 @@ All rights reserved
 
 #include <stdint.h>
 
-typedef uint8_t u_int8_t;
-typedef uint16_t u_int16_t;
-typedef uint32_t u_int32_t;
+//typedef uint8_t u_int8_t;
+//typedef uint16_t u_int16_t;
+//typedef uint32_t u_int32_t;
 
 #endif
 
 #include <cstring>
+#include <functional>
 
 namespace vds {
   class types {
@@ -27,6 +28,8 @@ namespace vds {
   private:
     static size_t g_last_type_id;
   };
+  
+  typedef std::function<void (std::exception_ptr)> error_handler;
 }
 
 template<typename interface_type>

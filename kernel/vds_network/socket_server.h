@@ -23,9 +23,9 @@ namespace vds {
     }
     
     template <typename context_type>
-    class handler : public sequence_step<context_type, void(const service_provider &, network_socket &)>
+    class handler : public dataflow_step<context_type, void(const service_provider &, network_socket &)>
     {
-      using base_class = sequence_step<context_type, void(const service_provider &,network_socket &)>;
+      using base_class = dataflow_step<context_type, void(const service_provider &,network_socket &)>;
     public:
       handler(
         const context_type & context,

@@ -92,9 +92,9 @@ namespace vds {
       const asymmetric_private_key & key);
 
     template <typename context_type>
-    class handler : public sequence_step<context_type, void(const void *, size_t)>
+    class handler : public dataflow_step<context_type, void(const void *, size_t)>
     {
-      using base_class = sequence_step<context_type, void(const void *, size_t)>;
+      using base_class = dataflow_step<context_type, void(const void *, size_t)>;
     public:
       handler(
         const context_type & context,
@@ -149,9 +149,9 @@ namespace vds {
       const data_buffer & sign);
 
     template <typename context_type>
-    class handler : public sequence_step<context_type, void(bool)>
+    class handler : public dataflow_step<context_type, void(bool)>
     {
-      using base_class = sequence_step<context_type, void(bool)>;
+      using base_class = dataflow_step<context_type, void(bool)>;
     public:
       handler(
         const context_type & context,

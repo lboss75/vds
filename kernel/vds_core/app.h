@@ -90,10 +90,9 @@ namespace vds{
       registrator.add(console_logger_);
     }
     
-    void on_exception(std::exception * ex)
+    void on_exception(std::exception_ptr ex)
     {
-      std::cerr << ex->what();
-      delete ex;
+      std::cerr << exception_what(ex);
       exit(1);
     }
    
@@ -127,8 +126,8 @@ namespace vds{
         static_cast<app_impl *>(this)->start();
         return 0;
       }
-      catch(std::exception * ex){
-        static_cast<app_impl *>(this)->on_exception(ex);
+      catch(...){
+        static_cast<app_impl *>(this)->on_exception(std::current_exception());
 	return 1;
       }
     }

@@ -24,14 +24,14 @@ namespace vds {
     
 
     template<typename context_type>
-    class handler : public sequence_step<context_type, 
+    class handler : public dataflow_step<context_type, 
       void(
         http_response & response,
         http_outgoing_stream & outgoing_stream
       )
     >
     {
-      using base_class = sequence_step<context_type, 
+      using base_class = dataflow_step<context_type, 
       void(
         http_response & response,
         http_outgoing_stream & outgoing_stream
@@ -66,8 +66,8 @@ namespace vds {
               this->http_error_handler_
             );
           }
-          catch(std::exception * ex) {
-            this->http_error_handler_(ex);
+          catch(...) {
+            this->http_error_handler_(std::current_exception());
           }
         }
         else {
@@ -90,13 +90,12 @@ namespace vds {
         {
         }
         
-        void operator()(std::exception * ex)
+        void operator()(std::exception_ptr ex)
         {
           this->owner_->response_.set_result(
             http_response::HTTP_Internal_Server_Error,
-            ex->what());
-          this->owner_->outgoing_stream_.set_body(ex->what());
-          delete ex;
+            exception_what(ex));
+          this->owner_->outgoing_stream_.set_body(exception_what(ex));
           this->owner_->next(
             this->owner_->response_,
             this->owner_->outgoing_stream_);

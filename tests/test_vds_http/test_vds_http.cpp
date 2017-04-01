@@ -49,7 +49,7 @@ public:
     {
       std::cout << "New connection\n";
       
-      vds::sequence(
+      vds::dataflow(
         vds::input_network_stream(this->sp_, this->s_),
         vds::http_parser(this->sp_),
         vds::http_middleware<vds::http_router>(this->router_),
@@ -108,7 +108,7 @@ TEST(http_tests, test_server)
           }
         );
         
-        vds::sequence(
+        vds::dataflow(
           vds::socket_server(sp, "127.0.0.1", 8000),
           vds::for_each<const vds::service_provider &, vds::network_socket &>::create_handler(test_http_pipeline(router))
         )
@@ -139,7 +139,7 @@ TEST(http_tests, test_server)
             FAIL() << ex_->what();
           }
         );        
-        vds::sequence(
+        vds::dataflow(
           vds::socket_connect(sp),
           vds::http_send_request<
             vds::http_simple_response_reader
@@ -196,7 +196,7 @@ TEST(http_tests, test_https_server)
     }
     );
 
-    vds::sequence(
+    vds::dataflow(
       vds::socket_server(sp, "127.0.0.1", 8000),
       vds::for_each<const vds::service_provider &, vds::network_socket &>::create_handler(test_http_pipeline(router))
     )
@@ -227,7 +227,7 @@ TEST(http_tests, test_https_server)
       FAIL() << ex_->what();
     }
     );
-    vds::sequence(
+    vds::dataflow(
       vds::socket_connect(sp),
       vds::http_send_request<
       vds::http_simple_response_reader
