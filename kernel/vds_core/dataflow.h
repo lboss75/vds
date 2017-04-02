@@ -518,12 +518,42 @@ namespace vds {
       error_method_type error_handler(error_method);
       try {
         auto handler = new _dataflow_func_runner<
-          done_method_type,
-          error_method_type,
+          typename std::remove_reference<done_method_type>::type,
+          typename std::remove_reference<error_method_type>::type,
           arg_types...
           >(
           std::move(done_method),
           std::move(error_method),
+          this->builder_);
+        handler->validate();
+        handler->holder_.step(args...);
+      }
+      catch (...) {
+        error_handler(std::current_exception());
+      }
+    }
+    
+    template <
+      typename done_method_type,
+      typename error_method_type,
+      typename... arg_types
+    >
+    void
+    operator()(
+      const done_method_type & done_method,
+      const error_method_type & error_method,
+      arg_types... args
+    )
+    {
+      error_method_type error_handler(error_method);
+      try {
+        auto handler = new _dataflow_func_runner<
+          done_method_type,
+          error_method_type,
+          arg_types...
+          >(
+          done_method,
+          error_method,
           this->builder_);
         handler->validate();
         handler->holder_.step(args...);
@@ -821,6 +851,19 @@ namespace vds {
       _dataflow_func_runner(
         done_method_type && done_method,
         error_method_type && error_method,
+        const std::tuple<functor_types...> & builder
+      ) : 
+        done_method_(done_method),
+        error_method_(error_method),
+        done_proxy_(this, done_method_),
+        error_proxy_(this, error_method_),
+        holder_(done_proxy_, error_proxy_, builder)
+      {
+      }
+      
+      _dataflow_func_runner(
+        const done_method_type & done_method,
+        const error_method_type & error_method,
         const std::tuple<functor_types...> & builder
       ) : 
         done_method_(done_method),
@@ -1134,7 +1177,11 @@ namespace vds {
   class _task_step;
   
   template<typename result_signature, typename class_name, typename... arg_types>
-  class _task_step<bool(class_name::*)(const std::function<result_signature> & done, const error_handler & on_error, const std::function<void(void)> & prev, arg_types...)>
+  class _task_step<void(class_name::*)(
+    const std::function<result_signature> & done,
+    const error_handler & on_error,
+    const std::function<void(void)> & prev,
+    arg_types...)>
   {
   public:
     using functor_type = std::function<void(
@@ -1175,7 +1222,11 @@ namespace vds {
   };
   
   template<typename result_signature, typename class_name, typename... arg_types>
-  class _task_step<bool(class_name::*)(const std::function<result_signature> & done, const error_handler & on_error, const std::function<void(void)> & prev, arg_types...) const>
+  class _task_step<void(class_name::*)(
+    const std::function<result_signature> & done,
+    const error_handler & on_error,
+    const std::function<void(void)> & prev,
+    arg_types...) const>
   {
   public:
     using functor_type = std::function<void(
@@ -1204,7 +1255,11 @@ namespace vds {
       
       void operator()(arg_types... args)
       {
-        this->target_(this->prev, this->error, this->prev, args...);
+        this->target_(
+          func_utils::to_function(this->next),
+          func_utils::to_function(this->error),
+          func_utils::to_function(this->prev),
+          args...);
       }
       
     private:

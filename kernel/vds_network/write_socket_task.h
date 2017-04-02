@@ -138,11 +138,9 @@ namespace vds {
         int len = write(fd, pthis->data_, pthis->data_size_);
         if (len < 0) {
           int error = errno;
-          pthis->error_method_(
-            new std::system_error(
+          throw std::system_error(
               error,
-              std::system_category()));
-          return;
+              std::system_category());
         }
         
         pthis->data_ += len;

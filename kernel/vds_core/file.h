@@ -183,7 +183,7 @@ namespace vds {
 
       void processed()
       {
-        auto readed = this->f_.read(this->buffer_.data(), this->buffer_.size());
+        auto readed = this->f_.read(const_cast<uint8_t *>(this->buffer_.data()), this->buffer_.size());
         
         if (0 < readed) {
           this->next(this->buffer_.data(), readed);

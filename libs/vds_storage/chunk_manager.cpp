@@ -70,7 +70,7 @@ void vds::_chunk_manager::add(
   dataflow(
     read_file(fn, (size_t)5 * 1024 * 1024 * 1024),
     task_step([this](
-      const std::function<void (void) > & done,
+      const std::function<void(void) > & done,
       const error_handler & on_error,
       const std::function<void(void)> & prev,
       const void * data, size_t size){
@@ -85,7 +85,8 @@ void vds::_chunk_manager::add(
         },
         on_error,
         data_buffer(data, size));
-    })(
+    }))
+  (
     [](){},
     on_error);
 }
@@ -110,9 +111,10 @@ void vds::_chunk_manager::add(
       );
     })
   ->then(
-    [this](const std::function<void (const void * data, size_t size)> & done,
-       const error_handler & on_error,
-       const void * deflated_data, size_t deflated_size){
+    [this](
+      const std::function<void (vds::chunk_manager::object_index)> & done,
+      const error_handler & on_error,
+      const void * deflated_data, size_t deflated_size){
       
       this->tmp_folder_mutex_.lock();
       auto tmp_index = this->last_tmp_file_index_++;
@@ -125,7 +127,7 @@ void vds::_chunk_manager::add(
       
       this->obj_folder_mutex_.lock();
       auto index = this->last_obj_file_index_++;
-      this->obj_size_ += flen;
+      this->obj_size_ += deflated_size;
       this->obj_folder_mutex_.unlock();
       
       file::move(fn, this->cache_.get_object_filename(this->server_id_, index));
@@ -136,15 +138,15 @@ void vds::_chunk_manager::add(
       }
       this->obj_folder_mutex_.unlock();
       
-      return index;
+      done(chunk_manager::object_index {index});
     });
   
   steps->invoke(
-    [steps, done]{
-      done();
+    [steps, done](chunk_manager::object_index index){
+      done(index);
     },
-    [steps, on_error](){
-      on_error();
+    [steps, on_error](std::exception_ptr ex){
+      on_error(ex);
     },
     data.data(),
     data.size());

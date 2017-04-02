@@ -15,8 +15,37 @@ namespace vds {
   {
     typedef void signature(arg_types...);
     typedef std::tuple<arg_types...> arguments_typle;
+    typedef std::function<signature> function_type;
+    
+    static std::function<signature> to_function(functor_type & f)
+    {
+      return std::function<signature>([&f](arg_types... args){ f(args...);});
+    }
+    static std::function<signature> to_function(functor_type && f)
+    {
+      return std::function<signature>(f);
+    }
   };
 
+  template <typename functor_type, typename class_name, typename... arg_types>
+  struct _functor_info<functor_type, void (class_name::*)(arg_types...) const>
+  {
+    typedef void signature(arg_types...);
+    typedef std::tuple<arg_types...> arguments_typle;
+    typedef std::function<signature> function_type;
+    
+   
+    static std::function<signature> to_function(functor_type & f)
+    {
+      return std::function<signature>([&f](arg_types ...args){ f(args...);});
+    }
+    
+    static std::function<signature> to_function(functor_type && f)
+    {
+      return std::function<signature>(f);
+    }
+  };
+  
   template <typename functor_type>
   struct functor_info : public _functor_info<functor_type, decltype(&functor_type::operator())>
   {};
@@ -104,6 +133,17 @@ namespace vds {
   {
     _call_with<target_type, tuple_type, std::tuple_size<tuple_type>::value>(target, arguments);
   }
+  
+  class func_utils
+  {
+  public:
+    template <typename functor>
+    static inline typename functor_info<functor>::function_type to_function(functor & f)
+    {
+      return functor_info<functor>::to_function(f);
+    }
+    
+  };
 }
 
 #endif//__VDS_CORE_FUNC_UTILS_H_
