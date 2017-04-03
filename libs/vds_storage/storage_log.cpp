@@ -155,29 +155,37 @@ vds::async_task<void(void)> vds::_storage_log::reset(
     object_container()
       .add("c", root_certificate.str())
       .add("k", private_key.str(password)))
-    .then([](const std::function<void(void)> & done, const error_handler & on_error, const vds::storage_object_id & user_cert_id) {
+    .then([this, ph_signature = ph.signature(), addresses](
+        const std::function<void(void)> & done,
+        const error_handler & on_error,
+        const vds::storage_object_id & user_cert_id) {
+ 
+      this->add_to_local_log(
+        server_log_root_certificate(
+          user_cert_id,
+          ph_signature).serialize().get());
 
+      this->save_object(
+        object_container()
+        .add("c", this->server_certificate_.str()))
+      .then([this, user_cert_id, addresses, ph_signature](
+        const std::function<void(void)> & done,
+        const error_handler & on_error,
+        const vds::storage_object_id & sert_cert_id) {
+
+        this->add_to_local_log(server_log_new_server(sert_cert_id).serialize().get());
+        this->add_to_local_log(server_log_new_endpoint(this->current_server_id_, addresses).serialize().get());
+        
+        this->db_.add_cert(
+          cert(
+            "login::root",
+            full_storage_object_id(this->current_server_id_, user_cert_id),
+            ph_signature));
+        
+        done();
+        
+      }).wait(done, on_error);
     });
-  });
-  
-
-  this->add_to_local_log(
-    server_log_root_certificate(
-      user_cert_id,
-      ph.signature()).serialize().get());
-
-  auto  sert_cert_id = this->save_object(
-    object_container()
-    .add("c", this->server_certificate_.str()));
-
-  this->add_to_local_log(server_log_new_server(sert_cert_id).serialize().get());
-  this->add_to_local_log(server_log_new_endpoint(this->current_server_id_, addresses).serialize().get());
-  
-  this->db_.add_cert(
-    cert(
-      "login::root",
-      full_storage_object_id(this->current_server_id_, user_cert_id),
-      ph.signature()));
 }
 
 

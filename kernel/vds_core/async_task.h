@@ -25,6 +25,11 @@ namespace vds {
   {
     typedef done_method done_method_type;
   };
+  
+  template <typename functor>
+  struct async_task_arguments : public _async_task_arguments<decltype(&functor::operator())>
+  {
+  };
   ////////////////////////////////////////////////////////////////
   template <typename signature>
   class async_task;
@@ -57,11 +62,11 @@ namespace vds {
     template <typename functor>
     auto
       then(const functor & next_method, typename std::enable_if<std::is_void<typename functor_info<functor>::result_type>::value>::type * = nullptr)
-      -> async_task<typename functor_info<typename _async_task_arguments<functor>::done_method_type>::signature>
+      -> async_task<typename functor_info<typename async_task_arguments<functor>::done_method_type>::signature>
     {
       auto p = this->impl_;
-      return async_task<typename functor_info<typename _async_task_arguments<functor>::done_method_type>::signature>(
-        [p, next_method](const typename _async_task_arguments<functor>::done_method_type & done, const error_handler & on_error)->void {
+      return async_task<typename functor_info<typename async_task_arguments<functor>::done_method_type>::signature>(
+        [p, next_method](const typename async_task_arguments<functor>::done_method_type & done, const error_handler & on_error)->void {
         p->wait([next_method, done, on_error](arguments_types... args) {
           next_method(done, on_error, args...);
         }, on_error);
