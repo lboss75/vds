@@ -377,8 +377,8 @@ TEST(network_tests, test_udp_server)
       auto done_server = vds::lambda_handler([]() {
       });
 
-      auto error_server = vds::lambda_handler([](std::exception * ex) {
-        FAIL() << "Client error " << ex->what();
+      auto error_server = vds::lambda_handler([](std::exception_ptr ex) {
+        FAIL() << "Client error " << vds::exception_what(ex);
       });
 
       vds::udp_socket server_socket(sp);

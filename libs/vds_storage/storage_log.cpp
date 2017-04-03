@@ -364,20 +364,31 @@ size_t vds::_storage_log::new_message_id()
 
 void vds::_storage_log::register_server(const std::string & server_certificate)
 {
-  auto id = this->save_object(object_container().add("c", server_certificate));
-
-  this->add_to_local_log(server_log_new_server(id).serialize().get());
+  this->save_object(object_container().add("c", server_certificate))
+  .wait([this](const vds::storage_object_id & id){
+    this->add_to_local_log(server_log_new_server(id).serialize().get());
+  },
+    [](std::exception_ptr ex){
+    }
+  );
 }
 
-vds::storage_object_id vds::_storage_log::save_object(const object_container & fc)
+vds::async_task<void (const vds::storage_object_id &)>
+vds::_storage_log::save_object(const object_container & fc)
 {
   binary_serializer s;
   fc.serialize(s);
 
-  auto index = this->chunk_manager_.add(s.data());
   auto signature = asymmetric_sign::signature(hash::sha256(), this->current_server_key_, s.data());
-  this->db_.add_object(this->current_server_id_, index, signature);
-  return vds::storage_object_id(index, signature);
+  
+  return this->chunk_manager_.add(s.data())
+    .then([this, signature](
+      const std::function<void(const storage_object_id &)> & done,
+      const error_handler & on_error, 
+      const chunk_manager::object_index & index){
+    this->db_.add_object(this->current_server_id_, index, signature);
+    done(vds::storage_object_id(index, signature));
+    });
 }
 
 void vds::_storage_log::add_to_local_log(const json_value * record)
