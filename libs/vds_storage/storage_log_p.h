@@ -30,7 +30,7 @@ namespace vds {
       const asymmetric_private_key & server_private_key,
       storage_log * owner);
 
-    void reset(
+    async_task<void(void)> reset(
       const certificate & root_certificate,
       const asymmetric_private_key & private_key,
       const std::string & root_password,
@@ -92,7 +92,12 @@ namespace vds {
     void process(const guid & source_server_id, const server_log_new_server & message);
     void process(const guid & source_server_id, const server_log_new_endpoint & message);
     
-    storage_object_id save_object(const object_container & fc);
+    void save_object(
+      const std::function<void (storage_object_id)> & done,
+      const std::function<void(std::exception_ptr)> & on_error,
+      const object_container & fc);
+
+    async_task<void(storage_object_id)> save_object(const object_container & fc);
 
     void add_to_local_log(const json_value * record);
     

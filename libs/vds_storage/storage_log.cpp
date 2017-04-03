@@ -31,13 +31,13 @@ vds::storage_log::~storage_log()
 {
 }
 
-void vds::storage_log::reset(
+vds::async_task<void(void)> vds::storage_log::reset(
   const vds::certificate & root_certificate,
   const asymmetric_private_key & private_key,
   const std::string & root_password,
   const std::string & addresses)
 {
-  this->impl_->reset(root_certificate, private_key, root_password, addresses);
+  return this->impl_->reset(root_certificate, private_key, root_password, addresses);
 }
 
 void vds::storage_log::start()
@@ -131,7 +131,7 @@ vds::_storage_log::_storage_log(
 {
 }
 
-void vds::_storage_log::reset(
+vds::async_task<void(void)> vds::_storage_log::reset(
   const certificate & root_certificate,
   const asymmetric_private_key & private_key,
   const std::string & password,
@@ -146,14 +146,20 @@ void vds::_storage_log::reset(
   this->server_certificate_.save(filename(this->vds_folder_, "server.crt"));
   this->current_server_key_.save(filename(this->vds_folder_, "server.pkey"));
   
-  auto  user_cert_id = this->save_object(
-    object_container()
-      .add("c", root_certificate.str())
-      .add("k", private_key.str(password)));
-  
   hash ph(hash::sha256());
   ph.update(password.c_str(), password.length());
   ph.final();
+
+
+  return this->save_object(
+    object_container()
+      .add("c", root_certificate.str())
+      .add("k", private_key.str(password)))
+    .then([](const std::function<void(void)> & done, const error_handler & on_error, const vds::storage_object_id & user_cert_id) {
+
+    });
+  });
+  
 
   this->add_to_local_log(
     server_log_root_certificate(

@@ -403,8 +403,8 @@ TEST(network_tests, test_udp_server)
         }
       });
 
-      auto error_client = vds::lambda_handler([](std::exception * ex) {
-        FAIL() << "Client error " << ex->what();
+      auto error_client = vds::lambda_handler([](std::exception_ptr ex) {
+        FAIL() << "Client error " << vds::exception_what(ex);
       });
       std::this_thread::sleep_for(std::chrono::seconds(5));//Waiting start UDP server
 

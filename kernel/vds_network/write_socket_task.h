@@ -49,7 +49,7 @@ namespace vds {
       size_t size
     )
     {
-      this->data_ = static_cast<const u_int8_t *>(data);
+      this->data_ = static_cast<const uint8_t *>(data);
       this->data_size_ = size;
     }
 
@@ -65,7 +65,7 @@ namespace vds {
     done_method_type & done_method_;
     error_method_type & error_method_;
     network_socket::SOCKET_HANDLE s_;
-    const u_int8_t * data_;
+    const uint8_t * data_;
     size_t data_size_;
 #ifdef _DEBUG
     bool is_scheduled_;

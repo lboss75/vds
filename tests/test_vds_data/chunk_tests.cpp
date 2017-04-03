@@ -42,9 +42,9 @@ TEST(chunk_tests, test_chunks) {
     vds::chunk_generator<uint8_t> g2(3, r2);
     vds::chunk_generator<uint8_t> g3(3, r3);
     
-    vds::chunk<u_int8_t> c1(g1, data, size);
-    vds::chunk<u_int8_t> c2(g2, data, size);
-    vds::chunk<u_int8_t> c3(g3, data, size);
+    vds::chunk<uint8_t> c1(g1, data, size);
+    vds::chunk<uint8_t> c2(g2, data, size);
+    vds::chunk<uint8_t> c3(g3, data, size);
 
     std::vector<uint8_t> result;
     uint8_t ns[] = { (uint8_t)r1, (uint8_t)r2, (uint8_t)r3 };
@@ -93,9 +93,9 @@ TEST(chunk_tests, test_chunks16) {
     vds::chunk_generator<uint16_t> g2(3, r2);
     vds::chunk_generator<uint16_t> g3(3, r3);
     
-    vds::chunk<u_int16_t> c1(g1, data, size);
-    vds::chunk<u_int16_t> c2(g2, data, size);
-    vds::chunk<u_int16_t> c3(g3, data, size);
+    vds::chunk<uint16_t> c1(g1, data, size);
+    vds::chunk<uint16_t> c2(g2, data, size);
+    vds::chunk<uint16_t> c3(g3, data, size);
 
     std::vector<uint16_t> result;
     uint16_t ns[] = { (uint16_t)r1, (uint16_t)r2, (uint16_t)r3 };

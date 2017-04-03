@@ -39,7 +39,7 @@ namespace vds {
 
       void operator()(
         const std::string & address,
-        u_int16_t port
+        uint16_t port
       )
       {
         // Connexion setting for local connexion 

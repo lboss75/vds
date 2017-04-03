@@ -39,7 +39,7 @@ TEST(gf_tests, test_mul) {
 
 
 TEST(gf_tests, test_math) {
-    vds::gf_math<u_int8_t> math;
+    vds::gf_math<uint8_t> math;
 
     for (int i = 0; i < 1000; ++i) {
         uint8_t x = std::rand() & 0xFF;

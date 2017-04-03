@@ -87,7 +87,7 @@ namespace vds {
     network_socket::SOCKET_HANDLE s_;
     next_method_type & next_method_;
     error_method_type & error_method_;
-    u_int8_t buffer_[BUFFER_SIZE];
+    uint8_t buffer_[BUFFER_SIZE];
 #ifdef _DEBUG
     bool is_scheduled_;
 #endif

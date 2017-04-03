@@ -10,12 +10,13 @@ namespace vds {
   template <typename functor_type, typename functor_signature>
   struct _functor_info;
 
-  template <typename functor_type, typename class_name, typename... arg_types>
-  struct _functor_info<functor_type, void (class_name::*)(arg_types...)>
+  template <typename functor_type, typename result, typename class_name, typename... arg_types>
+  struct _functor_info<functor_type, result (class_name::*)(arg_types...)>
   {
-    typedef void signature(arg_types...);
+    typedef result signature(arg_types...);
     typedef std::tuple<arg_types...> arguments_typle;
     typedef std::function<signature> function_type;
+    typedef result result_type;
     
     static std::function<signature> to_function(functor_type & f)
     {
@@ -27,14 +28,14 @@ namespace vds {
     }
   };
 
-  template <typename functor_type, typename class_name, typename... arg_types>
-  struct _functor_info<functor_type, void (class_name::*)(arg_types...) const>
+  template <typename functor_type, typename result, typename class_name, typename... arg_types>
+  struct _functor_info<functor_type, result(class_name::*)(arg_types...) const>
   {
-    typedef void signature(arg_types...);
+    typedef result signature(arg_types...);
     typedef std::tuple<arg_types...> arguments_typle;
     typedef std::function<signature> function_type;
-    
-   
+    typedef result result_type;
+
     static std::function<signature> to_function(functor_type & f)
     {
       return std::function<signature>([&f](arg_types ...args){ f(args...);});

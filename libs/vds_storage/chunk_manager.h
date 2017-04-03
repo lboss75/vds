@@ -20,42 +20,30 @@ namespace vds {
       local_cache & cache);
     ~chunk_manager();
 
-    class file_map
-    {
-    public:
-      struct item
-      {
-        uint64_t index_;
-
-        item(uint64_t index)
-          : index_(index)
-        {
-        }
-      };
-
-      void push_back(const item & v);
-
-    private:
-      std::list<item> items_;
-    };
-
-    std::future<file_map> add(const filename & fn);
-
     struct object_index
     {
       uint64_t index;
+
+      uint32_t original_lenght;
+      data_buffer original_hash;
+
+      uint32_t target_lenght;
       data_buffer signature;
     };
 
-    void add(
-      const std::function<void (chunk_manager::file_map) > & done,
-      const error_handler & on_error,
-      const filename & fn);
+    class file_map
+    {
+    public:
+      void add(const object_index & item);
+
+    private:
+      std::list<object_index> items_;
+    };
+
+
+    async_task<void(const file_map &)> add(const filename & fn);
     
-    void add(
-      const std::function<void (chunk_manager::object_index) > & done,
-      const error_handler & on_error,
-      const data_buffer& data);
+    async_task<void(const object_index &)> add(const data_buffer & data);
     
     void set_next_index(uint64_t next_index);
 

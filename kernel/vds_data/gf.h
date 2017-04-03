@@ -14,11 +14,11 @@ namespace vds {
   template <unsigned int m>
   class gf
   {
-    constexpr static u_int8_t hi_bit_mask = (1 << ((m - 1) % 8));
+    constexpr static uint8_t hi_bit_mask = (1 << ((m - 1) % 8));
     constexpr static size_t hi_bit_index = (m - 1) / 8;
   public:
     constexpr static size_t ArraySize = (m + 7) / 8;
-    typedef u_int8_t DataType[(m + 7) / 8];
+    typedef uint8_t DataType[(m + 7) / 8];
 
     gf(const gf & left, const gf & right) {
       for (size_t i = 0; i < sizeof(this->data_); ++i) {
@@ -39,12 +39,12 @@ namespace vds {
     }
 
     gf operator * (const gf & right) const {
-      u_int8_t a[ArraySize];
-      u_int8_t b[ArraySize];
+      uint8_t a[ArraySize];
+      uint8_t b[ArraySize];
       copy(a, this->data_);
       copy(b, right.data_);
 
-      u_int8_t data[ArraySize];
+      uint8_t data[ArraySize];
       memset(data, 0, sizeof(data));
 
       //
@@ -99,28 +99,28 @@ namespace vds {
   template <>
   inline const gf<3>::DataType & gf<3>::get_polynomial()
   {
-    static u_int8_t result[1] = { 0x0b }; /* x^3 + x + 1 */
+    static uint8_t result[1] = { 0x0b }; /* x^3 + x + 1 */
     return result;
   }
 
   template <>
   inline const gf<8>::DataType & gf<8>::get_polynomial()
   {
-    static u_int8_t result[1] = { 0x1D }; /* x^8 + x^4 + x^3 + x^2 + 1 */
+    static uint8_t result[1] = { 0x1D }; /* x^8 + x^4 + x^3 + x^2 + 1 */
     return result;
   }
 
   template <>
   inline const gf<16>::DataType & gf<16>::get_polynomial()
   {
-    static u_int8_t result[2] = { 0x0B, 0x10 };
+    static uint8_t result[2] = { 0x0B, 0x10 };
     return result;
   }
 
   template <>
   inline const gf<32>::DataType & gf<32>::get_polynomial()
   {
-    static u_int8_t result[4] = { 0x07, 0x00, 0x40, 0x00 }; 
+    static uint8_t result[4] = { 0x07, 0x00, 0x40, 0x00 }; 
     return result;
   }
 
@@ -128,21 +128,21 @@ namespace vds {
   class gf_math;
 
   template <>
-  class gf_math<u_int8_t>
+  class gf_math<uint8_t>
   {
   public:
     gf_math() {
       memset(this->value2log_, 0, sizeof(this->value2log_));
-      //u_int8_t one[1] = { 1 };
-      u_int8_t two[1] = { 2 };
+      //uint8_t one[1] = { 1 };
+      uint8_t two[1] = { 2 };
 
       this->log2value_[0] = 1;
       this->value2log_[1] = 0;
 
       gf<8> k(two);
       gf<8> v(two);
-      for (u_int8_t log = 1; log < 255; ++log) {
-        u_int8_t value = k.data()[0];
+      for (uint8_t log = 1; log < 255; ++log) {
+        uint8_t value = k.data()[0];
 
         this->log2value_[log] = value;
         assert(0 == this->value2log_[value]);
@@ -152,7 +152,7 @@ namespace vds {
       }
     }
 
-    u_int8_t mul(u_int8_t left, u_int8_t right) const {
+    uint8_t mul(uint8_t left, uint8_t right) const {
       if (left == 0 || right == 0) {
         return 0;
       }
@@ -163,7 +163,7 @@ namespace vds {
       return this->log2value_[(log_left + log_right) % 255];
     }
 
-    u_int8_t div(u_int8_t left, u_int8_t right) const {
+    uint8_t div(uint8_t left, uint8_t right) const {
       if (left == 0 || right == 0) {
         return 0;
       }
@@ -177,16 +177,16 @@ namespace vds {
       return this->log2value_[dif % 255];
     }
 
-    u_int8_t add(u_int8_t left, u_int8_t right) const {
+    uint8_t add(uint8_t left, uint8_t right) const {
       return left ^ right;
     }
 
-    u_int8_t sub(u_int8_t left, u_int8_t right) const {
+    uint8_t sub(uint8_t left, uint8_t right) const {
       return left ^ right;
     }
   private:
-    u_int8_t value2log_[0x100];
-    u_int8_t log2value_[0x100];
+    uint8_t value2log_[0x100];
+    uint8_t log2value_[0x100];
   };
   
   template <>

@@ -19,15 +19,11 @@ namespace vds {
       chunk_manager * owner);
     ~_chunk_manager();
 
-    void add(
-      const std::function<void (chunk_manager::file_map) > & done,
-      const error_handler & on_error,
-      const filename & fn);
+    async_task<void(const chunk_manager::file_map &)>
+      add(const filename & fn);
     
-    void add(
-      const std::function<void (chunk_manager::object_index) > & done,
-      const error_handler & on_error,
-      const data_buffer& data);
+    async_task<void(const chunk_manager::object_index &)>
+      add(const data_buffer& data);
     
     void set_next_index(uint64_t next_index);
 
