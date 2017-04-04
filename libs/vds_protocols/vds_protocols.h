@@ -18,5 +18,7 @@ All rights reserved
 #include "client_messages.h"
 #include "connection_manager.h"
 #include "udp_messages.h"
+#include "server_to_client_api.h"
+
 
 #endif // __VDS_PROTOCOLS_VDS_PROTOCOLS_H_
