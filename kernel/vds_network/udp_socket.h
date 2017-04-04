@@ -211,12 +211,16 @@ namespace vds {
 #ifdef _WIN32
       void process(DWORD dwBytesTransfered) override
       {
-        if (this->wsa_buf_.len != (size_t)dwBytesTransfered) {
-          this->error(new std::runtime_error("Invalid sent UDP data"));
-          return;
-        }
+        try {
+          if (this->wsa_buf_.len != (size_t)dwBytesTransfered) {
+            throw std::runtime_error("Invalid sent UDP data");
+          }
 
-        this->prev();
+          this->prev();
+        }
+        catch (...) {
+          this->error(std::current_exception());
+        }
       }
 #endif
 

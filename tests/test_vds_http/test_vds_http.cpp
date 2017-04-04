@@ -11,9 +11,9 @@ private:
   class error_method_type
   {
   public:
-    void operator()(std::exception * ex)
+    void operator()(std::exception_ptr ex)
     {
-      FAIL() << ex->what();
+      FAIL() << vds::exception_what(ex);
     }
   };
 
@@ -102,9 +102,8 @@ TEST(http_tests, test_server)
           }
         );
         auto server_error_handler = vds::lambda_handler(
-          [](std::exception * ex) {
-            std::unique_ptr<std::exception> ex_(ex);
-            FAIL() << ex_->what();
+          [](std::exception_ptr ex) {
+            FAIL() << vds::exception_what(ex);
           }
         );
         
@@ -133,10 +132,9 @@ TEST(http_tests, test_server)
         );
         
         auto error_handler = vds::lambda_handler(
-          [&done](std::exception * ex) {
-            std::unique_ptr<std::exception> ex_(ex);
+          [&done](std::exception_ptr ex) {
             done.set();
-            FAIL() << ex_->what();
+            FAIL() << vds::exception_what(ex);
           }
         );        
         vds::dataflow(
@@ -190,9 +188,8 @@ TEST(http_tests, test_https_server)
     }
     );
     auto server_error_handler = vds::lambda_handler(
-      [](std::exception * ex) {
-      std::unique_ptr<std::exception> ex_(ex);
-      FAIL() << ex_->what();
+      [](std::exception_ptr ex) {
+      FAIL() << vds::exception_what(ex);
     }
     );
 
@@ -221,10 +218,9 @@ TEST(http_tests, test_https_server)
     );
 
     auto error_handler = vds::lambda_handler(
-      [&done](std::exception * ex) {
-      std::unique_ptr<std::exception> ex_(ex);
+      [&done](std::exception_ptr ex) {
       done.set();
-      FAIL() << ex_->what();
+      FAIL() << vds::exception_what(ex);
     }
     );
     vds::dataflow(

@@ -40,10 +40,9 @@ std::unique_ptr<vds::cert> vds::server_database::find_cert(const std::string & o
 
 void vds::server_database::add_object(
   const guid & server_id,
-  uint64_t index,
-  const data_buffer & signature)
+  const chunk_manager::object_index & index)
 {
-  this->impl_->add_object(server_id, index, signature);
+  this->impl_->add_object(server_id, index);
 }
 
 uint64_t vds::server_database::last_object_index(const guid& server_id)
@@ -105,6 +104,9 @@ void vds::_server_database::start()
       "CREATE TABLE objects(\
       server_id VARCHAR(64) NOT NULL,\
       object_index INTEGER NOT NULL,\
+      original_lenght INTEGER NOT NULL,\
+      original_hash VARCHAR(64) NOT NULL,\
+      target_lenght INTEGER NOT NULL, \
       signature VARCHAR(64) NOT NULL,\
       CONSTRAINT pk_objects PRIMARY KEY (server_id, object_index, signature))");
 
@@ -178,15 +180,17 @@ std::unique_ptr<vds::cert> vds::_server_database::find_cert(const std::string & 
 
 void vds::_server_database::add_object(
   const guid & server_id,
-  uint64_t index,
-  const data_buffer & signature)
+  const chunk_manager::object_index & index)
 {
   this->add_object_statement_.execute(
     this->db_,
-    "INSERT INTO objects(server_id, object_index, signature) VALUES (@server_id, @object_index, @signature)",
+    "INSERT INTO objects(server_id, object_index, original_lenght, original_hash, target_lenght, signature) VALUES (@server_id, @object_index, @original_lenght, @original_hash, @target_lenght, @signature)",
     server_id,
-    index,
-    signature);
+    index.index,
+    index.original_lenght,
+    index.original_hash,
+    index.target_lenght,
+    index.signature);
 }
 
 uint64_t vds::_server_database::last_object_index(const guid& server_id)

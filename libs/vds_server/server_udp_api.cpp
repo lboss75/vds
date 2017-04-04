@@ -180,9 +180,8 @@ void vds::_server_udp_api::input_message(const sockaddr_in * from, const void * 
       }
     }    
   }
-  catch(std::exception * ex){
-    std::unique_ptr<std::exception> _ex(ex);
-    this->log_.warning("%s in datagram from %s", ex->what(), network_service::to_string(*from).c_str());
+  catch(...){
+    this->log_.warning("%s in datagram from %s", exception_what(std::current_exception()).c_str(), network_service::to_string(*from).c_str());
   }
 }
 

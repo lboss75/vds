@@ -24,8 +24,7 @@ namespace vds {
     
     void add_object(
       const guid & server_id,
-      uint64_t index,
-      const data_buffer & signature);
+      const chunk_manager::object_index & index);
     
     uint64_t last_object_index(
       const guid & server_id);
@@ -54,6 +53,9 @@ namespace vds {
     prepared_statement<
       const guid & /*server_id*/,
       uint64_t /*index*/,
+      uint32_t /*original_lenght*/,
+      const data_buffer & /*original_hash*/,
+      uint32_t /*target_lenght*/,
       const data_buffer & /*signature*/> add_object_statement_;
       
     prepared_query<

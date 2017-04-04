@@ -48,7 +48,9 @@ namespace vds {
     template <typename functor>
     auto
     then(const functor & next_method, typename std::enable_if<!std::is_void<typename functor_info<functor>::result_type>::value>::type * = nullptr)
+#ifndef _WIN32
       -> typename functor_info<functor>::result_type
+#endif// _WIN32
     {
       using new_task_type = typename functor_info<functor>::result_type;
       auto p = this->impl_;
@@ -62,7 +64,9 @@ namespace vds {
     template <typename functor>
     auto
       then(const functor & next_method, typename std::enable_if<std::is_void<typename functor_info<functor>::result_type>::value>::type * = nullptr)
+#ifndef _WIN32
       -> async_task<typename functor_info<typename async_task_arguments<functor>::done_method_type>::signature>
+#endif// _WIN32
     {
       auto p = this->impl_;
       return async_task<typename functor_info<typename async_task_arguments<functor>::done_method_type>::signature>(

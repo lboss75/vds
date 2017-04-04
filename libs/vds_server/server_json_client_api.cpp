@@ -132,6 +132,7 @@ void vds::_server_json_client_api::process(
 
 void vds::_server_json_client_api::process(const service_provider & scope, json_array * result, const client_messages::put_file_message & message) const
 {
+  /*
   scope
     .get<istorage>()
     .get_storage_log()
@@ -140,4 +141,5 @@ void vds::_server_json_client_api::process(const service_provider & scope, json_
       base64::to_bytes(message.datagram));
 
   result->add(client_messages::put_file_message_response(message.request_id(), std::string()).serialize());
+  */
 }

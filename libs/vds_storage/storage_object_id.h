@@ -8,6 +8,7 @@ All rights reserved
 
 
 namespace vds {
+
   class storage_object_id
   {
   public:

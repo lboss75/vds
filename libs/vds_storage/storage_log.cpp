@@ -379,15 +379,14 @@ vds::_storage_log::save_object(const object_container & fc)
   binary_serializer s;
   fc.serialize(s);
 
-  auto signature = asymmetric_sign::signature(hash::sha256(), this->current_server_key_, s.data());
-  
+ 
   return this->chunk_manager_.add(s.data())
-    .then([this, signature](
+    .then([this](
       const std::function<void(const storage_object_id &)> & done,
       const error_handler & on_error, 
       const chunk_manager::object_index & index){
-    this->db_.add_object(this->current_server_id_, index, signature);
-    done(vds::storage_object_id(index, signature));
+    this->db_.add_object(this->current_server_id_, index);
+    done(vds::storage_object_id(index.index, index.signature));
     });
 }
 
@@ -424,8 +423,8 @@ void vds::_storage_log::get_endpoints(std::map<std::string, std::string> & addre
 
 void vds::_storage_log::save_file(const std::string & user_login, const filename & tmp_file)
 {
-  chunk_manager::file_map fm;
-  this->chunk_manager_.add(tmp_file, fm);
+  //chunk_manager::file_map fm;
+  //this->chunk_manager_.add(tmp_file, fm);
 
   /*
   auto signature = asymmetric_sign::signature(hash::sha256(), this->current_server_key_, s.data());

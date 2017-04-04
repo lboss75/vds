@@ -6,6 +6,7 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
+#include "chunk_manager.h"
 
 namespace vds {
   class _server_database;
@@ -25,8 +26,7 @@ namespace vds {
     
     void add_object(
       const guid & server_id,
-      uint64_t index,
-      const data_buffer & signature);
+      const chunk_manager::object_index & index);
     
     uint64_t last_object_index(
       const guid & server_id);

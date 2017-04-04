@@ -251,9 +251,8 @@ public:
         }
       );
       auto error_handler = vds::lambda_handler(
-        [&b](std::exception * ex) {
-          FAIL() << ex->what();
-          delete ex;
+        [&b](std::exception_ptr ex) {
+          FAIL() << vds::exception_what(ex);
           b.set();
       }
       );

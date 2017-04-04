@@ -152,3 +152,7 @@ void vds::_chunk_manager::set_next_index(uint64_t next_index)
 {
   this->last_obj_file_index_ = next_index;
 }
+
+void vds::chunk_manager::file_map::add(const object_index & item)
+{
+}

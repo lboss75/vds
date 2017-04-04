@@ -225,14 +225,24 @@ void vds::client_logic::put_file(
   const std::string & user_login,
   const data_buffer & data)
 {
+  
+  foldername tmp(persistence::current_user(this->sp_), "tmp");
+  tmp.create();
+
   auto request_id = guid::new_guid().str();
+
+  filename tmpfile(tmp, request_id);
+  file f(tmpfile, file::create_new);
+  f.write(data.data(), data.size());
+  f.close();
+
   std::string error;
 
   if(!this->add_task_and_wait<client_messages::put_file_message_response>(
     client_messages::put_file_message(
       request_id,
       user_login,
-      base64::from_bytes(data)).serialize()->str(),
+      tmpfile).serialize()->str(),
     [request_id, &error](const client_messages::put_file_message_response & response)->bool {
     if (request_id != response.request_id()) {
       return false;
@@ -266,7 +276,7 @@ vds::data_buffer vds::client_logic::download_file(const std::string & user_login
     }
 
     error = response.error();
-    datagram = response.datagram();
+    //datagram = response.datagram();
     return true;
 
   })) {

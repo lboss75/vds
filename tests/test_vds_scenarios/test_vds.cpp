@@ -33,7 +33,7 @@ TEST(test_vds, test_initial)
     ASSERT_EQ(len, result.size());
     ASSERT_EQ(memcmp(buffer.get(), result.data(), len), 0);
   }
-  catch(std::exception * ex){
-    FAIL() << std::unique_ptr<std::exception>(ex)->what();
+  catch(...){
+    FAIL() << vds::exception_what(std::current_exception());
   }
 }
