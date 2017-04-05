@@ -20,14 +20,12 @@ namespace vds {
       const storage_object_id & original);
 
     storage_object_id(
-      uint64_t index,
-      const data_buffer & signature);
+      uint64_t index);
 
     storage_object_id(
       const json_value * source);
 
     uint64_t index() const { return this->index_; }
-    const data_buffer & signature() const { return this->signature_; }
 
     storage_object_id & operator = (storage_object_id && original);
 
@@ -35,7 +33,6 @@ namespace vds {
 
   private:
     uint64_t index_;
-    data_buffer signature_;
     
   protected:
     void serialize(json_object * result, bool write_type) const;
@@ -53,8 +50,7 @@ namespace vds {
 
     full_storage_object_id(
       const guid & source_server_id,
-      uint64_t index,
-      const data_buffer & signature);
+      uint64_t index);
     
     full_storage_object_id(
       const guid & source_server_id,

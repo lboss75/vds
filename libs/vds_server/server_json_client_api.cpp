@@ -180,6 +180,7 @@ vds::_server_json_client_api::process(
   const service_provider & scope,
   const client_messages::put_file_message & message)
 {
+  throw std::runtime_error("Not implemented");
   /*
   scope
     .get<istorage>()

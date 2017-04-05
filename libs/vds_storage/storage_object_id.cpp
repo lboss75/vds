@@ -13,33 +13,27 @@ vds::storage_object_id::storage_object_id()
 }
 
 vds::storage_object_id::storage_object_id(const storage_object_id & original)
-: index_(original.index_),
-  signature_(original.signature_)
+: index_(original.index_)
 {
 }
 
 vds::storage_object_id::storage_object_id(
-  uint64_t index,
-  const data_buffer & signature)
-: index_(index),
-  signature_(signature)
+  uint64_t index)
+: index_(index)
 {
 }
-
 
 vds::storage_object_id::storage_object_id(const json_value * source)
 {
   auto s = dynamic_cast<const json_object *>(source);
   if (nullptr != s) {
     s->get_property("i", this->index_);
-    s->get_property("g", this->signature_);
   }
 }
 
 vds::storage_object_id & vds::storage_object_id::operator=(storage_object_id && original)
 {
   this->index_ = original.index_;
-  this->signature_ = std::move(original.signature_);
 
   return *this;
 }
@@ -60,7 +54,6 @@ void vds::storage_object_id::serialize(vds::json_object* s, bool write_type) con
   }
 
   s->add_property("i", this->index_);
-  s->add_property("g", this->signature_);
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -90,9 +83,8 @@ vds::full_storage_object_id::full_storage_object_id(const json_value* source)
 
 vds::full_storage_object_id::full_storage_object_id(
   const guid& source_server_id,
-  uint64_t index,
-  const data_buffer& signature)
-: storage_object_id(index, signature),
+  uint64_t index)
+: storage_object_id(index),
   source_server_id_(source_server_id)
 {
 }

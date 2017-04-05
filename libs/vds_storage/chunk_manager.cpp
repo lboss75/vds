@@ -149,7 +149,7 @@ vds::_chunk_manager::add(
           original_lenght,
           std::move(original_hash),
           deflated_size,
-          asymmetric_sign::signature(hash::sha256(), this->private_key_, deflated_data, deflated_size)));
+          hash::signature(hash::sha256(), deflated_data, deflated_size)));
       });
 }
 
@@ -172,11 +172,11 @@ vds::chunk_manager::object_index::object_index(
   uint32_t original_lenght,
   const vds::data_buffer & original_hash,
   uint32_t target_lenght,
-  const vds::data_buffer& signature)
+  const vds::data_buffer& target_hash)
 : index_(index),
   original_lenght_(original_lenght),
   original_hash_(original_hash),
   target_lenght_(target_lenght),
-  signature_(signature)
+  target_hash_(target_hash)
 {
 }

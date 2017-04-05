@@ -29,20 +29,20 @@ namespace vds {
         uint32_t original_lenght,
         const data_buffer & original_hash,
         uint32_t target_lenght,
-        const data_buffer & signature);
+        const data_buffer & target_hash);
       
       uint64_t index() const { return this->index_; }
       uint32_t original_lenght() const { return this->original_lenght_; }
       const data_buffer & original_hash() const { return this->original_hash_; }
       uint32_t target_lenght() const { return this->target_lenght_; }
-      const data_buffer & signature() const { return this->signature_; }
+      const data_buffer & target_hash() const { return this->target_hash_; }
       
     private:
       uint64_t index_;
       uint32_t original_lenght_;
       data_buffer original_hash_;
       uint32_t target_lenght_;
-      data_buffer signature_;
+      data_buffer target_hash_;
     };
 
     class file_map

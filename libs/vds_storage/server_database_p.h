@@ -44,7 +44,6 @@ namespace vds {
       const std::string & /* object_name */,
       const guid & /* source_id */,
       uint64_t /* index */,
-      const data_buffer & /* signature */,
       const data_buffer & /*password_hash*/> add_cert_statement_;
       
     prepared_query<

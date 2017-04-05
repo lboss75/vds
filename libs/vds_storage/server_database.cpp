@@ -107,15 +107,14 @@ void vds::_server_database::start()
       original_lenght INTEGER NOT NULL,\
       original_hash VARCHAR(64) NOT NULL,\
       target_lenght INTEGER NOT NULL, \
-      signature VARCHAR(64) NOT NULL,\
-      CONSTRAINT pk_objects PRIMARY KEY (server_id, object_index, signature))");
+      target_hash VARCHAR(64) NOT NULL,\
+      CONSTRAINT pk_objects PRIMARY KEY (server_id, object_index))");
 
     this->db_.execute(
       "CREATE TABLE cert(\
       object_name VARCHAR(64) PRIMARY KEY NOT NULL,\
       source_server_id VARCHAR(64) NOT NULL,\
       object_index INTEGER NOT NULL,\
-      signature VARCHAR(64) NOT NULL,\
       password_hash VARCHAR(64) NOT NULL)");
     
     this->db_.execute(
@@ -137,13 +136,12 @@ void vds::_server_database::add_cert(const cert & record)
 {
   this->add_cert_statement_.execute(
     this->db_,
-    "INSERT INTO cert(object_name, source_server_id, object_index, signature, password_hash)\
-      VALUES (@object_name, @source_server_id, @object_index, @signature, @password_hash)",
+    "INSERT INTO cert(object_name, source_server_id, object_index, password_hash)\
+      VALUES (@object_name, @source_server_id, @object_index, @password_hash)",
 
     record.object_name(),
     record.object_id().source_server_id(),
     record.object_id().index(),
-    record.object_id().signature(),
     record.password_hash());
 }
 
@@ -152,24 +150,22 @@ std::unique_ptr<vds::cert> vds::_server_database::find_cert(const std::string & 
   std::unique_ptr<cert> result;
   this->find_cert_query_.query(
     this->db_,
-    "SELECT source_server_id, object_index, signature, password_hash\
+    "SELECT source_server_id, object_index, password_hash\
      FROM cert\
      WHERE object_name=@object_name",
     [&result, object_name](sql_statement & st)->bool{
       
       guid source_id;
       uint64_t index;
-      data_buffer signature;
       data_buffer password_hash;
       
       st.get_value(0, source_id);
       st.get_value(1, index);
-      st.get_value(2, signature);
-      st.get_value(3, password_hash);
+      st.get_value(2, password_hash);
 
       result.reset(new cert(
         object_name,
-        full_storage_object_id(source_id, index, signature),
+        full_storage_object_id(source_id, index),
         password_hash));
       
       return false; },
@@ -184,13 +180,14 @@ void vds::_server_database::add_object(
 {
   this->add_object_statement_.execute(
     this->db_,
-    "INSERT INTO objects(server_id, object_index, original_lenght, original_hash, target_lenght, signature) VALUES (@server_id, @object_index, @original_lenght, @original_hash, @target_lenght, @signature)",
+    "INSERT INTO objects(server_id, object_index, original_lenght, original_hash, target_lenght, target_hash)\
+    VALUES (@server_id, @object_index, @original_lenght, @original_hash, @target_lenght, @target_hash)",
     server_id,
     index.index(),
     index.original_lenght(),
     index.original_hash(),
     index.target_lenght(),
-    index.signature());
+    index.target_hash());
 }
 
 uint64_t vds::_server_database::last_object_index(const guid& server_id)
