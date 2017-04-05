@@ -29,6 +29,36 @@ namespace vds {
     size_t message_id_;
     std::unique_ptr<json_array> messages_;
   };
+  
+  class server_log_new_object
+  {
+  public:
+    static const char message_type[];
+    
+    server_log_new_object(
+      const json_value * source);
+    
+    server_log_new_object(
+      uint64_t index,
+      uint32_t original_lenght,
+      const data_buffer & original_hash,
+      uint32_t target_lenght,
+      const data_buffer & target_hash);
+    
+    uint64_t index() const { return this->index_; }
+    uint32_t original_lenght() const { return this->original_lenght_; }
+    const data_buffer & original_hash() const { return this->original_hash_; }
+    uint32_t target_lenght() const { return this->target_lenght_; }
+    const data_buffer & target_hash() const { return this->target_hash_; }
+    
+    std::unique_ptr<json_value> serialize(bool add_type_property = true) const;
+  private:
+    uint64_t index_;
+    uint32_t original_lenght_;
+    data_buffer original_hash_;
+    uint32_t target_lenght_;
+    data_buffer target_hash_;
+  };
 
   class server_log_sign
   {

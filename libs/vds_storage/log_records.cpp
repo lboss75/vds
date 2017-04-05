@@ -54,7 +54,55 @@ std::unique_ptr<vds::json_value> vds::server_log_record::serialize(bool add_type
   
   return std::unique_ptr<vds::json_value>(result.release());
 }
+////////////////////////////////////////////////////////////////////////
+const char vds::server_log_new_object::message_type[] = "new object";
 
+vds::server_log_new_object::server_log_new_object(
+  uint64_t index,
+  uint32_t original_lenght,
+  const vds::data_buffer & original_hash,
+  uint32_t target_lenght,
+  const vds::data_buffer& target_hash)
+: index_(index),
+  original_lenght_(original_lenght),
+  original_hash_(original_hash),
+  target_lenght_(target_lenght),
+  target_hash_(target_hash)
+{
+}
+
+vds::server_log_new_object::server_log_new_object(
+  const vds::json_value* source)
+{
+  auto s = dynamic_cast<const json_object *>(source);
+  if (nullptr != s) {
+    s->get_property("i", this->index_);
+    s->get_property("l", this->original_lenght_);
+    s->get_property("h", this->original_hash_);
+    s->get_property("tl", this->target_lenght_);
+    s->get_property("th", this->target_hash_);
+  }
+}
+
+std::unique_ptr<vds::json_value> vds::server_log_new_object::serialize(bool add_type_property) const
+{
+  std::unique_ptr<json_object> result(new json_object());
+  if (add_type_property) {
+    result->add_property("$t", message_type);
+  }  
+  
+  result->add_property("i", this->index_);
+  result->add_property("l", this->original_lenght_);
+  result->add_property("h", this->original_hash_);
+  result->add_property("tl", this->target_lenght_);
+  result->add_property("th", this->target_hash_);
+
+  return std::unique_ptr<vds::json_value>(result.release());
+}
+
+
+
+////////////////////////////////////////////////////////////////////////
 const char vds::server_log_root_certificate::message_type[] = "root";
 
 vds::server_log_root_certificate::server_log_root_certificate(

@@ -380,12 +380,14 @@ vds::_storage_log::save_object(const object_container & fc)
   fc.serialize(s);
 
  
-  return this->chunk_manager_.add(s.data())
+  return this->chunk_manager_
+    .add(s.data())
     .then([this](
       const std::function<void(const storage_object_id &)> & done,
       const error_handler & on_error, 
-      const chunk_manager::object_index & index){
+      const server_log_new_object & index){
     this->db_.add_object(this->current_server_id_, index);
+    this->add_to_local_log(index.serialize().get());
     done(vds::storage_object_id(index.index()));
     });
 }

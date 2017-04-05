@@ -24,7 +24,7 @@ namespace vds {
     
     void add_object(
       const guid & server_id,
-      const chunk_manager::object_index & index);
+      const server_log_new_object & index);
     
     uint64_t last_object_index(
       const guid & server_id);

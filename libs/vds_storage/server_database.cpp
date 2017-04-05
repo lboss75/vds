@@ -40,7 +40,7 @@ std::unique_ptr<vds::cert> vds::server_database::find_cert(const std::string & o
 
 void vds::server_database::add_object(
   const guid & server_id,
-  const chunk_manager::object_index & index)
+  const server_log_new_object & index)
 {
   this->impl_->add_object(server_id, index);
 }
@@ -176,7 +176,7 @@ std::unique_ptr<vds::cert> vds::_server_database::find_cert(const std::string & 
 
 void vds::_server_database::add_object(
   const guid & server_id,
-  const chunk_manager::object_index & index)
+  const server_log_new_object & index)
 {
   this->add_object_statement_.execute(
     this->db_,

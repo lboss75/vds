@@ -28,7 +28,7 @@ vds::chunk_manager::add(
   return this->impl_->add(fn);
 }
 
-vds::async_task<const vds::chunk_manager::object_index &>
+vds::async_task<const vds::server_log_new_object &>
 vds::chunk_manager::add(
   const data_buffer& data)
 {
@@ -84,7 +84,7 @@ vds::_chunk_manager::add(
       }
 
       this->add(data_buffer(data, size)).wait(
-        [prev, result](chunk_manager::object_index index) {
+        [prev, result](const server_log_new_object & index) {
         result->add(index);
         prev();
       },
@@ -96,7 +96,7 @@ vds::_chunk_manager::add(
   });
 }
 
-vds::async_task<const vds::chunk_manager::object_index &>
+vds::async_task<const vds::server_log_new_object &>
 vds::_chunk_manager::add(
   const data_buffer& data)
 {
@@ -117,7 +117,7 @@ vds::_chunk_manager::add(
     original_lenght = data.size(),
     original_hash = hash::signature(hash::sha256(), data)
     ](
-      const std::function<void(const vds::chunk_manager::object_index &)> & done,
+      const std::function<void(const vds::server_log_new_object &)> & done,
       const error_handler & on_error,
       const void * deflated_data,
       size_t deflated_size) {
@@ -144,7 +144,7 @@ vds::_chunk_manager::add(
         }
         this->obj_folder_mutex_.unlock();
 
-        done(chunk_manager::object_index(
+        done(server_log_new_object(
           index,
           original_lenght,
           std::move(original_hash),
@@ -163,20 +163,7 @@ void vds::_chunk_manager::set_next_index(uint64_t next_index)
   this->last_obj_file_index_ = next_index;
 }
 
-void vds::chunk_manager::file_map::add(const object_index & item)
+void vds::chunk_manager::file_map::add(const server_log_new_object & item)
 {
 }
 
-vds::chunk_manager::object_index::object_index(
-  uint64_t index,
-  uint32_t original_lenght,
-  const vds::data_buffer & original_hash,
-  uint32_t target_lenght,
-  const vds::data_buffer& target_hash)
-: index_(index),
-  original_lenght_(original_lenght),
-  original_hash_(original_hash),
-  target_lenght_(target_lenght),
-  target_hash_(target_hash)
-{
-}
