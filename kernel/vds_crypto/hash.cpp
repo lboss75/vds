@@ -44,6 +44,15 @@ const vds::data_buffer& vds::hash::signature() const
 
 }
 
+const vds::data_buffer& vds::hash::signature(const vds::hash_info& info, const data_buffer& data)
+{
+  hash h(info);
+  h.update(data.data(), data.size());
+  h.final();
+  
+  return h.signature();
+}
+
 ///////////////////////////////////////////////////////////////
 vds::_hash::_hash(const hash_info & info)
   : info_(info)

@@ -10,8 +10,9 @@ All rights reserved
 vds::chunk_manager::chunk_manager(
   const service_provider & sp,
   const guid & server_id,
+  const asymmetric_private_key & private_key,
   local_cache & cache)
-  : impl_(new _chunk_manager(sp, server_id, cache, this))
+  : impl_(new _chunk_manager(sp, server_id, private_key, cache, this))
 {
 }
 
@@ -43,9 +44,11 @@ void vds::chunk_manager::set_next_index(uint64_t next_index)
 vds::_chunk_manager::_chunk_manager(
   const service_provider & sp,
   const guid & server_id,
+  const asymmetric_private_key & private_key,
   local_cache & cache,
   chunk_manager * owner)
 : owner_(owner),
+  private_key_(private_key),
   server_id_(server_id),
   cache_(cache),
   tmp_folder_(foldername(persistence::current_user(sp), ".vds"), "tmp"),
@@ -110,12 +113,15 @@ vds::_chunk_manager::add(
       );
     })
   .then(
-    [this](const void * deflated_data, size_t deflated_size) {
-      return create_async_task(
-        [this, deflated_data, deflated_size](
-          const std::function<void(const vds::chunk_manager::object_index &)> & done,
-          const error_handler & on_error) {
-
+    [this,
+    original_lenght = data.size(),
+    original_hash = hash::signature(hash::sha256(), data)
+    ](
+      const std::function<void(const vds::chunk_manager::object_index &)> & done,
+      const error_handler & on_error,
+      const void * deflated_data,
+      size_t deflated_size) {
+      
         this->tmp_folder_mutex_.lock();
         auto tmp_index = this->last_tmp_file_index_++;
         this->tmp_folder_mutex_.unlock();
@@ -138,9 +144,13 @@ vds::_chunk_manager::add(
         }
         this->obj_folder_mutex_.unlock();
 
-        done(chunk_manager::object_index{ index });
+        done(chunk_manager::object_index(
+          index,
+          original_lenght,
+          std::move(original_hash),
+          deflated_size,
+          asymmetric_sign::signature(hash::sha256(), this->private_key_, deflated_data, deflated_size)));
       });
-    });
 }
 
 void vds::_chunk_manager::generate_chunk()
@@ -154,5 +164,19 @@ void vds::_chunk_manager::set_next_index(uint64_t next_index)
 }
 
 void vds::chunk_manager::file_map::add(const object_index & item)
+{
+}
+
+vds::chunk_manager::object_index::object_index(
+  uint64_t index,
+  uint32_t original_lenght,
+  const vds::data_buffer & original_hash,
+  uint32_t target_lenght,
+  const vds::data_buffer& signature)
+: index_(index),
+  original_lenght_(original_lenght),
+  original_hash_(original_hash),
+  target_lenght_(target_lenght),
+  signature_(signature)
 {
 }

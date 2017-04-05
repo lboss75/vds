@@ -186,11 +186,11 @@ void vds::_server_database::add_object(
     this->db_,
     "INSERT INTO objects(server_id, object_index, original_lenght, original_hash, target_lenght, signature) VALUES (@server_id, @object_index, @original_lenght, @original_hash, @target_lenght, @signature)",
     server_id,
-    index.index,
-    index.original_lenght,
-    index.original_hash,
-    index.target_lenght,
-    index.signature);
+    index.index(),
+    index.original_lenght(),
+    index.original_hash(),
+    index.target_lenght(),
+    index.signature());
 }
 
 uint64_t vds::_server_database::last_object_index(const guid& server_id)

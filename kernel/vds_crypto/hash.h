@@ -25,6 +25,8 @@ namespace vds {
     void final();
 
     const data_buffer & signature() const;
+    
+    static const data_buffer & signature(const hash_info & info, const data_buffer & data);
 
   private:
     _hash * impl_;

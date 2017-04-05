@@ -227,10 +227,25 @@ vds::data_buffer vds::asymmetric_sign::signature(
   const asymmetric_private_key & key,
   const data_buffer & data)
 {
+  return signature(
+    hash_info,
+    key,
+    data.data(),
+    data.size());
+}
+
+vds::data_buffer vds::asymmetric_sign::signature(
+  const vds::hash_info& hash_info,
+  const vds::asymmetric_private_key& key,
+  const void* data,
+  size_t data_size)
+{
   _asymmetric_sign s(hash_info, key);
-  s.update(data.data(), data.size());
+  s.update(data, data_size);
+  s.final();
   return s.signature();
 }
+
 
 ////////////////////////////////////////////////////////////////////////////////
 vds::_asymmetric_sign::_asymmetric_sign(const hash_info & hash_info, const asymmetric_private_key & key)

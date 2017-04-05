@@ -15,6 +15,7 @@ namespace vds {
     _chunk_manager(
       const service_provider & sp,
       const guid & server_id,
+      const asymmetric_private_key & private_key,
       local_cache & cache,
       chunk_manager * owner);
     ~_chunk_manager();
@@ -28,6 +29,7 @@ namespace vds {
     void set_next_index(uint64_t next_index);
 
   private:
+    const asymmetric_private_key & private_key_;
     chunk_manager * owner_;
     guid server_id_;
     local_cache & cache_;

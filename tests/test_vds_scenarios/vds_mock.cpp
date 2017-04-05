@@ -111,11 +111,21 @@ void mock_client::init_root(const std::string & root_password, int port)
       server_certificate,
       server_private_key);
 
+    vds::barrier b;
     log.reset(
       root_certificate,
       private_key,
       root_password,
-      "https://127.0.0.1:" + std::to_string(port));
+      "https://127.0.0.1:" + std::to_string(port))
+    .wait(
+      [&b](){
+        b.set();
+      },
+      [&b](std::exception_ptr ex) {
+        FAIL() << vds::exception_what(ex);
+        b.set();
+      });
+    b.wait();
 
   }, true);
 }

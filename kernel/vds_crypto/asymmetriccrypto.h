@@ -126,6 +126,12 @@ namespace vds {
       const asymmetric_private_key & key,
       const data_buffer & data);
 
+    static data_buffer signature(
+      const hash_info & hash_info,
+      const asymmetric_private_key & key,
+      const void * data,
+      size_t data_size);
+    
   private:
     const hash_info & hash_info_;
     asymmetric_private_key key_;

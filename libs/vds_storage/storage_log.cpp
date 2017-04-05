@@ -127,7 +127,7 @@ vds::_storage_log::_storage_log(
   minimal_consensus_(0),
   last_message_id_(0),
   chunk_storage_(guid::new_guid(), 1000),
-  chunk_manager_(sp, current_server_id, local_cache_)
+  chunk_manager_(sp, current_server_id, this->current_server_key_, local_cache_)
 {
 }
 
@@ -386,7 +386,7 @@ vds::_storage_log::save_object(const object_container & fc)
       const error_handler & on_error, 
       const chunk_manager::object_index & index){
     this->db_.add_object(this->current_server_id_, index);
-    done(vds::storage_object_id(index.index, index.signature));
+    done(vds::storage_object_id(index.index(), index.signature()));
     });
 }
 

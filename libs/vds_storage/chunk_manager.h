@@ -17,18 +17,32 @@ namespace vds {
     chunk_manager(
       const service_provider & sp,
       const guid & server_id,
+      const asymmetric_private_key & private_key,
       local_cache & cache);
     ~chunk_manager();
 
     struct object_index
     {
-      uint64_t index;
-
-      uint32_t original_lenght;
-      data_buffer original_hash;
-
-      uint32_t target_lenght;
-      data_buffer signature;
+    public:
+      object_index(
+        uint64_t index,
+        uint32_t original_lenght,
+        const data_buffer & original_hash,
+        uint32_t target_lenght,
+        const data_buffer & signature);
+      
+      uint64_t index() const { return this->index_; }
+      uint32_t original_lenght() const { return this->original_lenght_; }
+      const data_buffer & original_hash() const { return this->original_hash_; }
+      uint32_t target_lenght() const { return this->target_lenght_; }
+      const data_buffer & signature() const { return this->signature_; }
+      
+    private:
+      uint64_t index_;
+      uint32_t original_lenght_;
+      data_buffer original_hash_;
+      uint32_t target_lenght_;
+      data_buffer signature_;
     };
 
     class file_map
