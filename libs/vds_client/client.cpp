@@ -62,93 +62,103 @@ vds::iclient::iclient(const service_provider & sp, vds::client* owner)
 {
 }
 
-void vds::iclient::init_server(
+vds::async_task<>
+vds::iclient::init_server(
   const std::string& user_login,
   const std::string& user_password)
 {
-  certificate user_certificate;
-  asymmetric_private_key user_private_key;
-  this->authenticate(user_login, user_password, user_certificate, user_private_key);
+  return 
+    this->authenticate(user_login, user_password)
+    .then([this](
+      const std::function<void(void)> & done,
+      const error_handler & on_error,
+      const certificate& user_certificate,
+      const asymmetric_private_key& user_private_key){
 
-  this->log_(ll_trace, "Register new server");
+        this->log_(ll_trace, "Register new server");
 
-  asymmetric_private_key private_key(asymmetric_crypto::rsa4096());
-  private_key.generate();
+        asymmetric_private_key private_key(asymmetric_crypto::rsa4096());
+        private_key.generate();
 
-  asymmetric_public_key pkey(private_key);
+        asymmetric_public_key pkey(private_key);
 
-  certificate::create_options options;
-  options.country = "RU";
-  options.organization = "IVySoft";
-  options.name = "Certificate " + guid::new_guid().str();
-  options.ca_certificate = &user_certificate;
-  options.ca_certificate_private_key = &user_private_key;
+        certificate::create_options options;
+        options.country = "RU";
+        options.organization = "IVySoft";
+        options.name = "Certificate " + guid::new_guid().str();
+        options.ca_certificate = &user_certificate;
+        options.ca_certificate_private_key = &user_private_key;
 
-  certificate server_certificate = certificate::create_new(pkey, private_key, options);
+        certificate server_certificate = certificate::create_new(pkey, private_key, options);
 
-  auto request_id = guid::new_guid().str();
-  client_messages::register_server_request register_message(
-    request_id,
-    server_certificate.str());
+        auto request_id = guid::new_guid().str();
+        client_messages::register_server_request register_message(
+          request_id,
+          server_certificate.str());
 
-  json_writer register_message_writer;
-  register_message.serialize()->str(register_message_writer);
+        json_writer register_message_writer;
+        register_message.serialize()->str(register_message_writer);
 
-  std::string error;
-  if (!this->owner_->logic_->add_task_and_wait<client_messages::register_server_response>(
-    register_message_writer.str(),
-    [&request_id, &error](const client_messages::register_server_response & message) -> bool {
-    if (request_id != message.request_id()) {
-      return false;
-    }
+        std::string error;
+        if (!this->owner_->logic_->add_task_and_wait<client_messages::register_server_response>(
+          register_message_writer.str(),
+          [&request_id, &error](const client_messages::register_server_response & message) -> bool {
+          if (request_id != message.request_id()) {
+            return false;
+          }
 
-    error = message.error();
-    return true;
-  })) {
-    throw new std::runtime_error("Timeout at registering new server");
-  }
+          error = message.error();
+          return true;
+        })) {
+          throw new std::runtime_error("Timeout at registering new server");
+        }
 
-  if (!error.empty()) {
-    throw new std::runtime_error(error);
-  }
+        if (!error.empty()) {
+          throw new std::runtime_error(error);
+        }
 
-  foldername root_folder(persistence::current_user(this->sp_), ".vds");
-  root_folder.create();
+        foldername root_folder(persistence::current_user(this->sp_), ".vds");
+        root_folder.create();
 
-  server_certificate.save(filename(root_folder, "server.crt"));
-  private_key.save(filename(root_folder, "server.pkey"));
+        server_certificate.save(filename(root_folder, "server.crt"));
+        private_key.save(filename(root_folder, "server.pkey"));
 
 
-  this->log_(ll_trace, "Register new user");
-  asymmetric_private_key local_user_private_key(asymmetric_crypto::rsa4096());
-  local_user_private_key.generate();
+        this->log_(ll_trace, "Register new user");
+        asymmetric_private_key local_user_private_key(asymmetric_crypto::rsa4096());
+        local_user_private_key.generate();
 
-  asymmetric_public_key local_user_pkey(local_user_private_key);
+        asymmetric_public_key local_user_pkey(local_user_private_key);
 
-  certificate::create_options local_user_options;
-  local_user_options.country = "RU";
-  local_user_options.organization = "IVySoft";
-  local_user_options.name = "Local User Certificate";
-  local_user_options.ca_certificate = &user_certificate;
-  local_user_options.ca_certificate_private_key = &user_private_key;
+        certificate::create_options local_user_options;
+        local_user_options.country = "RU";
+        local_user_options.organization = "IVySoft";
+        local_user_options.name = "Local User Certificate";
+        local_user_options.ca_certificate = &user_certificate;
+        local_user_options.ca_certificate_private_key = &user_private_key;
 
-  certificate local_user_certificate = certificate::create_new(local_user_pkey, local_user_private_key, local_user_options);
+        certificate local_user_certificate = certificate::create_new(local_user_pkey, local_user_private_key, local_user_options);
 
-  user_certificate.save(filename(root_folder, "owner.crt"));
-  local_user_certificate.save(filename(root_folder, "user.crt"));
-  local_user_private_key.save(filename(root_folder, "user.pkey"));
+        user_certificate.save(filename(root_folder, "owner.crt"));
+        local_user_certificate.save(filename(root_folder, "user.crt"));
+        local_user_private_key.save(filename(root_folder, "user.pkey"));
+    });
 }
 
-void vds::iclient::upload_file(
+vds::async_task<> vds::iclient::upload_file(
   const std::string & user_login,
   const std::string & user_password,
   const std::string & name,
   const void * data,
   size_t data_size)
 {
-  certificate user_certificate;
-  asymmetric_private_key user_private_key;
-  this->authenticate(user_login, user_password, user_certificate, user_private_key);
+  return 
+    this->authenticate(user_login, user_password)
+    .then([this, user_login, data, data_size](
+      const std::function<void(void)> & done,
+      const error_handler & on_error,
+      const certificate& user_certificate,
+      const asymmetric_private_key& user_private_key){
 
   this->log_(ll_trace, "Crypting data");
 
@@ -185,105 +195,94 @@ void vds::iclient::upload_file(
     data,
     data_size);
 
+  });
 }
 
-vds::data_buffer vds::iclient::download_data(
+vds::async_task<vds::data_buffer &&>
+vds::iclient::download_data(
   const std::string & user_login,
   const std::string & user_password,
   const std::string & name)
 {
-  certificate user_certificate;
-  asymmetric_private_key user_private_key;
-  this->authenticate(user_login, user_password, user_certificate, user_private_key);
+  return this->authenticate(
+    user_login,
+    user_password)
+  .then([this, user_login](
+    const std::function<void(vds::data_buffer&&)>& done,
+    const error_handler & on_error,
+    const certificate& user_certificate,
+    const asymmetric_private_key& user_private_key){
 
-  this->log_(ll_trace, "Download file");
-  auto datagram_data = this->owner_->logic_->download_file(user_login);
+    this->log_(ll_trace, "Download file");
+    auto datagram_data = this->owner_->logic_->download_file(user_login);
 
-  this->log_(ll_trace, "Decrypting data");
-  data_buffer key_crypted;
-  data_buffer crypted_data;
-  data_buffer signature;
+    this->log_(ll_trace, "Decrypting data");
+    data_buffer key_crypted;
+    data_buffer crypted_data;
+    data_buffer signature;
 
-  binary_deserializer datagram(datagram_data);
-  datagram
-    >> key_crypted
-    >> crypted_data
-    >> signature;
+    binary_deserializer datagram(datagram_data);
+    datagram
+      >> key_crypted
+      >> crypted_data
+      >> signature;
 
-  binary_serializer to_sign;
-  to_sign << key_crypted << crypted_data;
+    binary_serializer to_sign;
+    to_sign << key_crypted << crypted_data;
 
-  if (!asymmetric_sign_verify::verify(
-    hash::sha256(),
-    user_certificate.public_key(),
-    signature,
-    to_sign.data().data(),
-    to_sign.data().size())) {
-    throw new std::runtime_error("Invalid data");
-  }
+    if (!asymmetric_sign_verify::verify(
+      hash::sha256(),
+      user_certificate.public_key(),
+      signature,
+      to_sign.data().data(),
+      to_sign.data().size())) {
+      throw new std::runtime_error("Invalid data");
+    }
 
-  symmetric_key transaction_key(
-    symmetric_crypto::aes_256_cbc(),
-    binary_deserializer(user_private_key.decrypt(key_crypted)));
+    symmetric_key transaction_key(
+      symmetric_crypto::aes_256_cbc(),
+      binary_deserializer(user_private_key.decrypt(key_crypted)));
 
-  barrier b;
-  data_buffer result;
-  dataflow(
-    symmetric_decrypt(this->sp_, transaction_key),
-    collect_data())(
-      [&result, &b](const void * data, size_t size) {result.reset(data, size); b.set(); },
-      [](std::exception_ptr ex) { std::rethrow_exception(ex); },
-      crypted_data.data(),
-      crypted_data.size());
+    barrier b;
+    data_buffer result;
+    dataflow(
+      symmetric_decrypt(this->sp_, transaction_key),
+      collect_data())(
+        [&result, &b](const void * data, size_t size) {result.reset(data, size); b.set(); },
+        [](std::exception_ptr ex) { std::rethrow_exception(ex); },
+        crypted_data.data(),
+        crypted_data.size());
 
-  b.wait();
-  return result;
+    b.wait();
+    done(std::move(result));
+  });
 }
 
-void vds::iclient::authenticate(
+vds::async_task<
+  const vds::certificate & /*user_certificate*/,
+  const vds::asymmetric_private_key & /*user_private_key*/>
+  
+  vds::iclient::authenticate(
   const std::string & user_login,
-  const std::string & user_password,
-  certificate & user_certificate,
-  asymmetric_private_key & user_private_key)
+  const std::string & user_password)
 {
   this->log_(ll_trace, "Authenticating user %s", user_login.c_str());
+  
   hash ph(hash::sha256());
   ph.update(user_password.c_str(), user_password.length());
   ph.final();
 
-  auto request_id = guid::new_guid().str();
-  client_messages::certificate_and_key_request m(request_id, "login:" + user_login, ph.signature());
-
-  json_writer writer;
-  m.serialize()->str(writer);
-
-  std::string error;
-  std::string cert_body;
-  std::string pkey_body;
-  if (!this->owner_->logic_->add_task_and_wait<client_messages::certificate_and_key_response>(
-    writer.str(),
-    [&request_id, &error, &cert_body, &pkey_body](
-      const client_messages::certificate_and_key_response & message) -> bool {
-    if (request_id != message.request_id()) {
-      return false;
-    }
-
-    if (!message.error().empty()) {
-      error = message.error();
-    }
-    else {
-      cert_body = message.certificate_body();
-      pkey_body = message.private_key_body();
-    }
-    return true;
-  })) {
-    throw new std::runtime_error("Timeout at getting user certificate");
-  }
-
-  if (!error.empty()) {
-    throw new std::runtime_error(error);
-  }
-
-  user_certificate = certificate::parse(cert_body);
-  user_private_key = asymmetric_private_key::parse(pkey_body, user_password);
+  return this->owner_->logic_->send_request<client_messages::certificate_and_key_response>(
+    client_messages::certificate_and_key_request(
+      "login:" + user_login,
+      ph.signature()).serialize())
+  .then([user_password](const std::function<void(
+    const certificate & /*user_certificate*/,
+    const asymmetric_private_key & /*user_private_key*/)> & done,
+    const error_handler & on_error,
+    const client_messages::certificate_and_key_response & response){
+      done(
+        certificate::parse(response.certificate_body()),
+        asymmetric_private_key::parse(response.private_key_body(), user_password));
+  });
 }

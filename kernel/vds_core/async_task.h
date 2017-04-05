@@ -31,15 +31,16 @@ namespace vds {
   {
   };
   ////////////////////////////////////////////////////////////////
-  template <typename signature>
-  class async_task;
-
   template <typename... arguments_types>
-  class async_task<void(arguments_types... args)>
+  class async_task
   {
   public:
     typedef void signature(arguments_types... args);
 
+    async_task()
+    {
+    }
+    
     async_task(const std::function<void(const std::function<void(arguments_types... args)> &, const error_handler &)> & target)
       : impl_(std::make_shared<_async_task>(target))
     {
@@ -65,11 +66,11 @@ namespace vds {
     auto
       then(const functor & next_method, typename std::enable_if<std::is_void<typename functor_info<functor>::result_type>::value>::type * = nullptr)
 #ifndef _WIN32
-      -> async_task<typename functor_info<typename async_task_arguments<functor>::done_method_type>::signature>
+      -> typename functor_info<typename async_task_arguments<functor>::done_method_type>::template build_type<async_task>::type
 #endif// _WIN32
     {
       auto p = this->impl_;
-      return async_task<typename functor_info<typename async_task_arguments<functor>::done_method_type>::signature>(
+      return typename functor_info<typename async_task_arguments<functor>::done_method_type>::template build_type<async_task>::type(
         [p, next_method](const typename async_task_arguments<functor>::done_method_type & done, const error_handler & on_error)->void {
         p->wait([next_method, done, on_error](arguments_types... args) {
           next_method(done, on_error, args...);
@@ -80,6 +81,12 @@ namespace vds {
     void wait(const std::function<void(arguments_types... args)> & done, const error_handler & on_error)
     {
       this->impl_->wait(done, on_error);
+    }
+    
+    async_task & operator = (const async_task & other)
+    {
+      this->impl_ = other.impl_;
+      return *this;
     }
 
   private:
@@ -107,9 +114,9 @@ namespace vds {
   inline
     auto
     create_async_task(const functor & f) ->
-    async_task<typename functor_info<typename _async_task_arguments<decltype(&functor::operator())>::done_method_type>::signature>
+    typename functor_info<typename _async_task_arguments<decltype(&functor::operator())>::done_method_type>::template build_type<async_task>::type
   {
-    return async_task<typename functor_info<typename _async_task_arguments<decltype(&functor::operator())>::done_method_type>::signature>(f);
+    return typename functor_info<typename _async_task_arguments<decltype(&functor::operator())>::done_method_type>::template build_type<async_task>::type(f);
   }
 }
 

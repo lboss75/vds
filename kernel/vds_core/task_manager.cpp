@@ -86,3 +86,11 @@ vds::event_source<>&  vds::itask_manager::schedule(const std::chrono::time_point
   result->schedule(start);
   return *result;
 }
+
+void vds::itask_manager::wait_for(
+  const std::chrono::steady_clock::duration& period,
+  const std::function<void(void)>& callback)
+{
+  auto result = new task_manager::task_job(this->owner_, callback);
+  result->schedule(std::chrono::steady_clock::now() + period);
+}

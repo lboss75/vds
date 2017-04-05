@@ -89,6 +89,43 @@ namespace vds {
       
       return false;
     }
+    
+    template <typename response_type>
+    async_task<const response_type & /*response*/>
+    send_request(
+      std::unique_ptr<json_value> && message,
+      const std::chrono::steady_clock::duration & request_timeout = std::chrono::seconds(10))
+    {
+      std::unique_ptr<json_value> m = std::move(message);
+      auto s = dynamic_cast<json_object *>(m.get());
+      if(nullptr == s){
+        throw std::runtime_error("Invalid argument");
+      }
+      
+      auto request_id = guid::new_guid().str();
+      s->add_property("$r", request_id);
+      
+      auto task = s->json_value::str();
+      
+      return create_async_task(
+        [this, task, request_id, request_timeout](
+          const std::function<void (const response_type & response)> & done,
+          const error_handler & on_error){
+          std::lock_guard<std::mutex> lock(this->requests_mutex_);
+          this->requests_.set(request_id, request_info {
+            [done](const json_value * response) { done(response_type(response)); },
+            on_error });
+          this->add_task(task);
+          
+          this->sp_.get<itask_manager>().wait_for(
+            request_timeout,
+            [this, request_id](){
+              this->cancel_request(request_id);
+            });
+        });
+    }
+    
+    void cancel_request(const std::string & request_id);
 
     void put_file(const std::string & user_login, const data_buffer & data);
     data_buffer download_file(const std::string & user_login);
@@ -116,6 +153,15 @@ namespace vds {
     pipeline_queue<std::string, client_connection<client_logic>> outgoing_queue_;
     
     void update_connection_pool();
+    
+    struct request_info
+    {
+      std::function<void (const json_value * response)> done;
+      error_handler on_error;
+    };
+    
+    std::mutex requests_mutex_;
+    simple_cache<std::string, request_info> requests_;    
   };
 }
 

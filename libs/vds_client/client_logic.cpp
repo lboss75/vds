@@ -94,6 +94,16 @@ void vds::client_logic::process_response(client_connection<client_logic>& connec
       auto task = dynamic_cast<const json_object *>(tasks->get(i));
 
       if (nullptr != task) {
+        std::string request_id;
+        if(task->get_property("$r", request_id)){
+          std::lock_guard<std::mutex> lock(this->requests_mutex_);
+          auto p = this->requests_.find(request_id);
+          if(this->requests_.end() != p){
+            p->second.done(task);
+            this->requests_.remove(request_id);            
+          }
+        }
+        
         std::string task_type;
         if (task->get_property("$t", task_type, false)) {
           std::unique_lock<std::mutex> lock(this->filters_mutex_);
@@ -105,6 +115,13 @@ void vds::client_logic::process_response(client_connection<client_logic>& connec
     }
   }
 }
+
+void vds::client_logic::cancel_request(const std::string& request_id)
+{
+  std::lock_guard<std::mutex> lock(this->requests_mutex_);
+  this->requests_.remove(request_id);
+}
+
 /*
 void vds::client_logic::node_install(const std::string & login, const std::string & password)
 {

@@ -141,7 +141,19 @@ vds::data_buffer mock_client::download_data(const std::string & login, const std
 {
   vds::data_buffer result;
   this->start_vds(true, [&result, login, password, name](const vds::service_provider&sp) {
-    result = sp.get<vds::iclient>().download_data(login, password, name);
+    vds::barrier b;
+    
+    sp.get<vds::iclient>().download_data(login, password, name)
+    .wait(
+      [&result, &b](vds::data_buffer && data){ result = std::move(data); b.set();},
+      [&result, &b](std::exception_ptr ex) {
+        b.set();
+        FAIL() << vds::exception_what(ex);
+        
+      }
+    );
+    
+    b.wait();
   }, false);
   return result;
 }

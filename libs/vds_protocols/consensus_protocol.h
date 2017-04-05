@@ -32,7 +32,9 @@ namespace vds {
       void start();
       void stop();
 
-      void process(const service_provider & scope, json_array & result, const consensus_messages::consensus_message_who_is_leader & message);
+      async_task<const json_value *>
+      process(const service_provider & scope,
+              const consensus_messages::consensus_message_who_is_leader & message);
 
     private:
       _server * const impl_;

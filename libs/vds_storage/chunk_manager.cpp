@@ -20,14 +20,14 @@ vds::chunk_manager::~chunk_manager()
   delete this->impl_;
 }
 
-vds::async_task<void(const vds::chunk_manager::file_map &)>
+vds::async_task<const vds::chunk_manager::file_map &>
 vds::chunk_manager::add(
   const filename & fn)
 {
   return this->impl_->add(fn);
 }
 
-vds::async_task<void(const vds::chunk_manager::object_index &)>
+vds::async_task<const vds::chunk_manager::object_index &>
 vds::chunk_manager::add(
   const data_buffer& data)
 {
@@ -60,7 +60,7 @@ vds::_chunk_manager::~_chunk_manager()
 {
 }
 
-vds::async_task<void(const vds::chunk_manager::file_map &)>
+vds::async_task<const vds::chunk_manager::file_map &>
 vds::_chunk_manager::add(
   const filename & fn)
 {
@@ -93,7 +93,7 @@ vds::_chunk_manager::add(
   });
 }
 
-vds::async_task<void(const vds::chunk_manager::object_index &)>
+vds::async_task<const vds::chunk_manager::object_index &>
 vds::_chunk_manager::add(
   const data_buffer& data)
 {

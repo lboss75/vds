@@ -20,7 +20,14 @@ namespace vds {
     class task_job : public event_source<>
     {
     public:
-      task_job(task_manager * owner)
+      task_job(
+        task_manager * owner,
+        const std::function<void(void)> & handler)
+      : owner_(owner), handler_(handler)
+      {
+      }
+      task_job(
+        task_manager * owner)
       : owner_(owner)
       {
       }
@@ -36,9 +43,20 @@ namespace vds {
         return this->start_time_;
       }
       
+      void operator()()
+      {
+        if(this->handler_){
+          this->handler_();
+        }
+        else {
+          event_source<>::operator()();
+        }
+      }
+      
     private:
       std::chrono::time_point<std::chrono::steady_clock> start_time_;
-      task_manager * owner_;      
+      task_manager * owner_;
+      std::function<void(void)> handler_;
     };
     
     service_provider sp_;
@@ -66,6 +84,8 @@ namespace vds {
     
     event_source<> & wait_for(const std::chrono::steady_clock::duration & period);
     event_source<> & schedule(const std::chrono::time_point<std::chrono::steady_clock> & start);
+    
+    void wait_for(const std::chrono::steady_clock::duration & period, const std::function<void(void)> & callback);
 
   private:
     task_manager * owner_;

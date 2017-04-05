@@ -237,26 +237,29 @@ namespace vds {
       static void callback(int fd, short event, void *arg)
       {
         auto pthis = reinterpret_cast<handler *>(arg);
-        int len = sendto(fd, pthis->data_, pthis->data_size_, 0, (sockaddr *)pthis->to_, sizeof(*pthis->to_));
-        if (len < 0) {
-          int error = errno;
-          pthis->error(
-            new std::system_error(
-              error,
-              std::generic_category(),
-              "Send to " + network_service::to_string(*pthis->to_)));
-          return;
+        try {
+          int len = sendto(fd, pthis->data_, pthis->data_size_, 0, (sockaddr *)pthis->to_, sizeof(*pthis->to_));
+          if (len < 0) {
+            int error = errno;
+            throw std::system_error(
+                error,
+                std::generic_category(),
+                "Send to " + network_service::to_string(*pthis->to_));
+          }
+          
+          pthis->data_ += len;
+          pthis->data_size_ -= len;
+          if (0 < pthis->data_size_) {
+            //event_set(&pthis->event_, pthis->s_, EV_WRITE, &write_socket_task::callback, pthis);
+            event_add(pthis->event_, NULL);
+          }
+          else {
+            imt_service::async(pthis->sp_, 
+              [pthis](){ pthis->prev(); });
+          }
         }
-        
-        pthis->data_ += len;
-        pthis->data_size_ -= len;
-        if (0 < pthis->data_size_) {
-          //event_set(&pthis->event_, pthis->s_, EV_WRITE, &write_socket_task::callback, pthis);
-          event_add(pthis->event_, NULL);
-        }
-        else {
-          imt_service::async(pthis->sp_, 
-            [pthis](){ pthis->prev(); });
+        catch(...){
+          pthis->error(std::current_exception());
         }
       }
 #endif//_WIN32

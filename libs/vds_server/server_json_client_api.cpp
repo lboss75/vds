@@ -40,7 +40,7 @@ vds::_server_json_client_api::_server_json_client_api(
 
 vds::json_value * vds::_server_json_client_api::operator()(
   const service_provider & scope, 
-  const json_value * request) const
+  const json_value * request)
 {
   //auto cert = this->tunnel_.get_tunnel_certificate();
   //this->log_.trace("Certificate subject %s", cert.subject().c_str());
@@ -55,28 +55,68 @@ vds::json_value * vds::_server_json_client_api::operator()(
 
       auto task_object = dynamic_cast<const json_object *>(task);
       if (nullptr != task_object) {
-        auto task_type = task_object->get_property("$t");
-        if (nullptr != task_type) {
-          auto task_type_value = dynamic_cast<const json_primitive *>(task_type);
-          if (nullptr != task_type_value) {
-            auto task_type_name = task_type_value->value();
+        std::string request_id;
+        if(task_object->get_property("$r", request_id)){
+          bool need_start;
+          this->task_mutex_.lock();
+          auto p = this->tasks_.find(request_id);
+          if(this->tasks_.end() == p){
+            need_start = true;
+            this->tasks_.set(request_id, task_info());
+          }
+          else {
+            need_start = false;
+            if(p->second.result){
+              result->add(p->second.result->clone());
+            }
+          }
+          this->task_mutex_.unlock();
+          
+          if(need_start){
+            std::string task_type_name;
+            task_object->get_property("$t", task_type_name);
+              
+            async_task<const json_value *> task;
 
             if (client_messages::certificate_and_key_request::message_type == task_type_name) {
-              this->process(scope, result.get(), client_messages::certificate_and_key_request(task_object));
+              task = this->process(scope, client_messages::certificate_and_key_request(task_object));
             }
             else if (client_messages::register_server_request::message_type == task_type_name) {
-              this->process(scope, result.get(), client_messages::register_server_request(task_object));
+              task = this->process(scope, client_messages::register_server_request(task_object));
             }
             else if (consensus_messages::consensus_message_who_is_leader::message_type == task_type_name) {
-              scope.get<iserver>().consensus_server_protocol().process(scope, *result, consensus_messages::consensus_message_who_is_leader(task_object));
+              task = scope.get<iserver>().consensus_server_protocol().process(scope, consensus_messages::consensus_message_who_is_leader(task_object));
             }
             else if (client_messages::put_file_message::message_type == task_type_name) {
-              this->process(scope, result.get(), client_messages::put_file_message(task_object));
+              task = this->process(scope, client_messages::put_file_message(task_object));
             }
             else {
               this->log_.warning("Invalid request type \'%s\'", task_type_name.c_str());
               throw new std::runtime_error("Invalid request type " + task_type_name);
             }
+            
+            task.wait(
+              [this, request_id](const json_value * task_result){
+                this->task_mutex_.lock();
+                auto p = this->tasks_.find(request_id);
+                p->second.result = task_result->clone();
+                this->task_mutex_.unlock();
+              },
+              [this, request_id](std::exception_ptr ex) {
+                this->task_mutex_.lock();
+                auto p = this->tasks_.find(request_id);
+                p->second.error = ex;
+                this->task_mutex_.unlock();
+              });
+            
+            this->task_mutex_.lock();
+            p = this->tasks_.find(request_id);
+            if(this->tasks_.end() != p){
+              if(p->second.result){
+                result->add(p->second.result->clone());
+              }
+            }
+            this->task_mutex_.unlock();
           }
         }
       }
@@ -86,51 +126,59 @@ vds::json_value * vds::_server_json_client_api::operator()(
   return result.release();
 }
 
-void vds::_server_json_client_api::process(
+vds::async_task<const vds::json_value *>
+vds::_server_json_client_api::process(
   const service_provider & scope,
-  json_array * result,
-  const client_messages::certificate_and_key_request & message) const
+  const client_messages::certificate_and_key_request & message)
 {
-  auto cert = scope
-    .get<istorage>()
-    .get_storage_log()
-    .find_cert(message.object_name());
+  return create_async_task(
+    [scope, message](const std::function<void(const json_value *)> & done, const error_handler & on_error){
+      auto cert = scope
+        .get<istorage>()
+        .get_storage_log()
+        .find_cert(message.object_name());
 
-  if (!cert
-    || cert->password_hash() != message.password_hash()) {
-    result->add(client_messages::certificate_and_key_response(message.request_id(), "Invalid username or password").serialize());
-  }
+      if (!cert
+        || cert->password_hash() != message.password_hash()) {
+        throw std::runtime_error("Invalid username or password");
+      }
 
-  std::unique_ptr<data_buffer> buffer = scope
-    .get<istorage>()
-    .get_storage_log()
-    .get_object(cert->object_id());
+      std::unique_ptr<data_buffer> buffer = scope
+        .get<istorage>()
+        .get_storage_log()
+        .get_object(cert->object_id());
 
 
-  if (buffer) {
-    binary_deserializer s(*buffer);
-    object_container obj_cont(s);
+      if (buffer) {
+        binary_deserializer s(*buffer);
+        object_container obj_cont(s);
 
-    result->add(
-      client_messages::certificate_and_key_response(
-        message.request_id(),
-        obj_cont.get("c"),
-        obj_cont.get("k")).serialize());
-  }
+        done(
+          client_messages::certificate_and_key_response(
+            obj_cont.get("c"),
+            obj_cont.get("k")).serialize().get());
+      }
+    });
 }
 
-void vds::_server_json_client_api::process(
+vds::async_task<const vds::json_value *>
+vds::_server_json_client_api::process(
   const service_provider & scope,
-  json_array * result,
-  const client_messages::register_server_request & message) const
+  const client_messages::register_server_request & message)
 {
-  std::string error;
-  if (scope.get<iserver>().get_node_manager().register_server(scope, message.certificate_body(), error)) {
-    result->add(client_messages::register_server_response(message.request_id(), error).serialize());
-  }
+  return create_async_task(
+    [scope, message](const std::function<void(const json_value *)> & done, const error_handler & on_error){
+      std::string error;
+      if (scope.get<iserver>().get_node_manager().register_server(scope, message.certificate_body(), error)) {
+        done(client_messages::register_server_response(message.request_id(), error).serialize().get());
+      }
+    });
 }
 
-void vds::_server_json_client_api::process(const service_provider & scope, json_array * result, const client_messages::put_file_message & message) const
+vds::async_task<const vds::json_value *>
+vds::_server_json_client_api::process(
+  const service_provider & scope,
+  const client_messages::put_file_message & message)
 {
   /*
   scope

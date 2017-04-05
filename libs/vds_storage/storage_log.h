@@ -24,7 +24,7 @@ namespace vds {
       const asymmetric_private_key & server_private_key);
     ~storage_log();
 
-    async_task<void(void)> reset(
+    async_task<> reset(
       const certificate & root_certificate,
       const asymmetric_private_key & private_key,
       const std::string & root_password,

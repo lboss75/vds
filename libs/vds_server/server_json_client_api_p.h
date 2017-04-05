@@ -16,15 +16,24 @@ namespace vds {
       server_json_client_api * owner
     );
     
-    json_value * operator()(const service_provider & scope, const json_value * request) const;
+    json_value * operator()(const service_provider & scope, const json_value * request);
 
   private:
     logger log_;
     server_json_client_api * const owner_;
+    
+    struct task_info
+    {
+      std::unique_ptr<json_value> result;
+      std::exception_ptr error;
+    };
+    
+    std::mutex task_mutex_;
+    simple_cache<std::string, task_info> tasks_;
 
-    void process(const service_provider & scope, json_array * result, const client_messages::certificate_and_key_request & message) const;
-    void process(const service_provider & scope, json_array * result, const client_messages::register_server_request & message) const;
-    void process(const service_provider & scope, json_array * result, const client_messages::put_file_message & message) const;
+    async_task<const json_value *> process(const service_provider & scope, const client_messages::certificate_and_key_request & message);
+    async_task<const json_value *> process(const service_provider & scope, const client_messages::register_server_request & message);
+    async_task<const json_value *> process(const service_provider & scope, const client_messages::put_file_message & message);
   };
 }
 

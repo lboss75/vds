@@ -31,7 +31,7 @@ vds::storage_log::~storage_log()
 {
 }
 
-vds::async_task<void(void)> vds::storage_log::reset(
+vds::async_task<> vds::storage_log::reset(
   const vds::certificate & root_certificate,
   const asymmetric_private_key & private_key,
   const std::string & root_password,
@@ -131,7 +131,7 @@ vds::_storage_log::_storage_log(
 {
 }
 
-vds::async_task<void(void)> vds::_storage_log::reset(
+vds::async_task<> vds::_storage_log::reset(
   const certificate & root_certificate,
   const asymmetric_private_key & private_key,
   const std::string & password,
@@ -373,7 +373,7 @@ void vds::_storage_log::register_server(const std::string & server_certificate)
   );
 }
 
-vds::async_task<void (const vds::storage_object_id &)>
+vds::async_task<const vds::storage_object_id &>
 vds::_storage_log::save_object(const object_container & fc)
 {
   binary_serializer s;

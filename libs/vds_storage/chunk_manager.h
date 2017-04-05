@@ -41,9 +41,9 @@ namespace vds {
     };
 
 
-    async_task<void(const file_map &)> add(const filename & fn);
+    async_task<const file_map &> add(const filename & fn);
     
-    async_task<void(const object_index &)> add(const data_buffer & data);
+    async_task<const object_index &> add(const data_buffer & data);
     
     void set_next_index(uint64_t next_index);
 

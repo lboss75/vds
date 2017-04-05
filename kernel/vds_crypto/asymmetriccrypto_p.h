@@ -37,7 +37,7 @@ namespace vds {
 
     data_buffer decrypt(const data_buffer & data)
     {
-      int blocksize = RSA_size(EVP_PKEY_get1_RSA(this->key_));
+      size_t blocksize = (size_t)RSA_size(EVP_PKEY_get1_RSA(this->key_));
       data_buffer result;
 
       auto p = data.data();

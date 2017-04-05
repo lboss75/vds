@@ -38,18 +38,18 @@ namespace vds {
   public:
     iclient(const service_provider & sp, client * owner);
     
-    void init_server(
+    async_task<> init_server(
       const std::string & user_login,
       const std::string & user_password);
 
-    void upload_file(
+    async_task<> upload_file(
       const std::string & login,
       const std::string & password,
       const std::string & name,
       const void * data,
       size_t data_size);
 
-    data_buffer download_data(
+    async_task<data_buffer &&> download_data(
       const std::string & login,
       const std::string & password,
       const std::string & name);
@@ -60,11 +60,12 @@ namespace vds {
     client * owner_;
 
 
-    void authenticate(
+    async_task<
+      const certificate & /*user_certificate*/,
+      const asymmetric_private_key & /*user_private_key*/>
+    authenticate(
       const std::string & login,
-      const std::string & password,
-      certificate & user_certificate,
-      asymmetric_private_key & user_private_key);
+      const std::string & password);
   };
 }
 

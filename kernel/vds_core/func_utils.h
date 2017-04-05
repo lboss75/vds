@@ -14,6 +14,13 @@ namespace vds {
   struct _functor_info<functor_type, result (class_name::*)(arg_types...)>
   {
     typedef result signature(arg_types...);
+    
+    template<template<typename...> typename target_template>
+    struct build_type
+    {
+      typedef target_template<arg_types...> type;
+    };
+    
     typedef std::tuple<arg_types...> arguments_typle;
     typedef std::function<signature> function_type;
     typedef result result_type;
@@ -35,6 +42,12 @@ namespace vds {
     typedef std::tuple<arg_types...> arguments_typle;
     typedef std::function<signature> function_type;
     typedef result result_type;
+    
+    template<template<typename...> typename target_template>
+    struct build_type
+    {
+      typedef target_template<arg_types...> type;
+    };
 
     static std::function<signature> to_function(functor_type & f)
     {

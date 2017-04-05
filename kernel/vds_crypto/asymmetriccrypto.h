@@ -47,7 +47,7 @@ namespace vds {
     void load(const filename & filename, const std::string & password = std::string());
     void save(const filename & filename, const std::string & password = std::string()) const;
 
-    data_buffer decrypt(const data_buffer & data);
+    data_buffer decrypt(const data_buffer & data) const;
 
   private:
     friend class _asymmetric_sign;

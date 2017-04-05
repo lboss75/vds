@@ -68,6 +68,14 @@ namespace vds {
         return p->second;
       }
     }
+    
+    void remove(const key_type & key)
+    {
+      this->data_.remove_if(
+        [key](const std::pair<key_type, value_type> & item){
+          return item.first == key;
+      });
+    }
 
   private:
     data_type data_;

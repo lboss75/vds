@@ -35,9 +35,12 @@ void vds::consensus_protocol::server::stop()
   this->impl_->stop();
 }
 
-void vds::consensus_protocol::server::process(const service_provider & scope, json_array & result, const vds::consensus_messages::consensus_message_who_is_leader & message)
+vds::async_task<const vds::json_value *>
+vds::consensus_protocol::server::process(
+  const service_provider & scope,
+  const vds::consensus_messages::consensus_message_who_is_leader & message)
 {
-  this->impl_->process(scope, result, message);
+  return this->impl_->process(scope, message);
 }
 ///////////////////////////////////////////////////////////////////////////////
 vds::consensus_protocol::_server::_server(
@@ -77,8 +80,13 @@ void vds::consensus_protocol::_server::stop()
 }
 
 
-void vds::consensus_protocol::_server::process(const service_provider & scope, json_array & result, const consensus_messages::consensus_message_who_is_leader & message)
+vds::async_task<const vds::json_value *>
+vds::consensus_protocol::_server::process(
+  const service_provider & scope,
+  const consensus_messages::consensus_message_who_is_leader & message)
 {
+  throw std::runtime_error("Not implemented");
+  /*
   switch (this->state_) {
   case leader:
     result.add(consensus_messages::consensus_message_current_leader(this->certificate_.fingerprint()).serialize());
@@ -91,7 +99,7 @@ void vds::consensus_protocol::_server::process(const service_provider & scope, j
   case none:
   case candidate:
     break;
-  }
+  }*/
 }
 
 void vds::consensus_protocol::_server::leader_check()

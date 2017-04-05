@@ -61,7 +61,7 @@ void vds::asymmetric_private_key::save(const filename & filename, const std::str
   this->impl_->save(filename, password);
 }
 
-vds::data_buffer vds::asymmetric_private_key::decrypt(const data_buffer & data)
+vds::data_buffer vds::asymmetric_private_key::decrypt(const data_buffer & data) const
 {
   return this->impl_->decrypt(data);
 }
