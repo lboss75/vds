@@ -6,7 +6,6 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
-
 namespace vds {
   class _storage_log;
   class endpoint;
@@ -23,12 +22,6 @@ namespace vds {
       const certificate & server_certificate,
       const asymmetric_private_key & server_private_key);
     ~storage_log();
-
-    async_task<> reset(
-      const certificate & root_certificate,
-      const asymmetric_private_key & private_key,
-      const std::string & root_password,
-      const std::string & address);
 
     void start();
     void stop();
@@ -77,10 +70,15 @@ namespace vds {
       const std::string & user_login,
       const std::string & name,
       const filename & tmp_file);
+    
+    async_task<> reset(
+      const certificate & root_certificate,
+      const asymmetric_private_key & private_key,
+      const std::string & root_password,
+      const std::string & address);
 
   private:
     storage_log * owner_;
-    
   };
 }
 

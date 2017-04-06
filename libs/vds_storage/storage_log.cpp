@@ -32,15 +32,6 @@ vds::storage_log::~storage_log()
 {
 }
 
-vds::async_task<> vds::storage_log::reset(
-  const vds::certificate & root_certificate,
-  const asymmetric_private_key & private_key,
-  const std::string & root_password,
-  const std::string & addresses)
-{
-  return this->impl_->reset(root_certificate, private_key, root_password, addresses);
-}
-
 void vds::storage_log::start()
 {
   this->impl_->start();
@@ -116,6 +107,16 @@ vds::async_task<> vds::istorage_log::save_file(
 {
   return this->owner_->impl_->save_file(version_id, user_login, name, tmp_file);
 }
+
+vds::async_task<> vds::istorage_log::reset(
+  const vds::certificate & root_certificate,
+  const asymmetric_private_key & private_key,
+  const std::string & root_password,
+  const std::string & addresses)
+{
+  return this->owner_->impl_->reset(root_certificate, private_key, root_password, addresses);
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 vds::_storage_log::_storage_log(
   const service_provider & sp,

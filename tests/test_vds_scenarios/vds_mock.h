@@ -14,7 +14,6 @@ public:
   void stop();
 
   void init_root(const std::string & root_password, int port);
-  void init_server(const std::string & root_password, const std::string & address, int port);
   
 private:
   int index_;
@@ -46,6 +45,8 @@ public:
     const std::string & password,
     const std::string & name);
 
+  void init_server(const std::string & root_password, const std::string & address, int port);
+  
 private:
   int index_;
 

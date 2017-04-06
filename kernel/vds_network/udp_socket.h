@@ -295,8 +295,8 @@ namespace vds {
         sp_(args.sp_),
         addr_len_(sizeof(addr_))
 #ifndef _WIN32
-      , network_service_(args.sp_.get<inetwork_manager>().owner()),
-      event_(nullptr)
+      , event_(nullptr)
+      , network_service_(args.sp_.get<inetwork_manager>().owner())
 #endif
       {
         this->s_ = args.socket_.handle();
