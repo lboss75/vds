@@ -91,7 +91,7 @@ void mock_client::init_server(
   const std::string& address,
   int port)
 {
-  this->start_vds(false, [root_password, address, port](const vds::service_provider&sp) {
+  this->start_vds(true, [root_password, address, port](const vds::service_provider&sp) {
     vds::barrier b;
     sp
       .get<vds::iclient>()
@@ -276,7 +276,9 @@ void mock_server::init_root(const std::string & root_password, int port)
 
 void mock_server::start()
 {
-  auto folder = vds::foldername(vds::filename::current_process().contains_folder(), std::to_string(this->index_));
+  auto folder = vds::foldername(
+    vds::foldername(vds::filename::current_process().contains_folder(), "servers"),
+    std::to_string(this->index_));
   folder.create();
   
   this->registrator_.set_root_folders(folder, folder);
