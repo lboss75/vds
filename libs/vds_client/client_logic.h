@@ -127,7 +127,10 @@ namespace vds {
     
     void cancel_request(const std::string & request_id);
 
-    void put_file(const std::string & user_login, const data_buffer & data);
+    async_task<> put_file(
+      const std::string & user_login,
+      const std::string & name,
+      const data_buffer & data);
     data_buffer download_file(const std::string & user_login);
 
   private:

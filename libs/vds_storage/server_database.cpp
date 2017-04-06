@@ -28,38 +28,49 @@ void vds::server_database::stop()
   this->impl_->stop();
 }
 
-void vds::server_database::add_cert(const cert & record)
+vds::iserver_database::iserver_database(server_database * owner)
+  : owner_(owner)
 {
-  this->impl_->add_cert(record);
 }
 
-std::unique_ptr<vds::cert> vds::server_database::find_cert(const std::string & object_name) const
+void vds::iserver_database::add_cert(const cert & record)
 {
-  return this->impl_->find_cert(object_name);
+  this->owner_->impl_->add_cert(record);
 }
 
-void vds::server_database::add_object(
+std::unique_ptr<vds::cert> vds::iserver_database::find_cert(const std::string & object_name) const
+{
+  return this->owner_->impl_->find_cert(object_name);
+}
+
+void vds::iserver_database::add_object(
   const guid & server_id,
   const server_log_new_object & index)
 {
-  this->impl_->add_object(server_id, index);
+  this->owner_->impl_->add_object(server_id, index);
 }
 
-uint64_t vds::server_database::last_object_index(const guid& server_id)
+void vds::iserver_database::add_file(
+  const guid & server_id,
+  const server_log_file_map & fm)
 {
-  return this->impl_->last_object_index(server_id);
+  this->owner_->impl_->add_file(server_id, fm);
 }
 
-void vds::server_database::add_endpoint(const std::string& endpoint_id, const std::string& addresses)
+uint64_t vds::iserver_database::last_object_index(const guid& server_id)
 {
-  this->impl_->add_endpoint(endpoint_id, addresses);
+  return this->owner_->impl_->last_object_index(server_id);
 }
 
-void vds::server_database::get_endpoints(std::map<std::string, std::string>& addresses)
+void vds::iserver_database::add_endpoint(const std::string& endpoint_id, const std::string& addresses)
 {
-  this->impl_->get_endpoints(addresses);
+  this->owner_->impl_->add_endpoint(endpoint_id, addresses);
 }
 
+void vds::iserver_database::get_endpoints(std::map<std::string, std::string>& addresses)
+{
+  this->owner_->impl_->get_endpoints(addresses);
+}
 ////////////////////////////////////////////////////////
 vds::_server_database::_server_database(const service_provider & sp, server_database * owner)
   : sp_(sp),
@@ -231,3 +242,4 @@ void vds::_server_database::get_endpoints(std::map<std::string, std::string>& re
       return true;
     });
 }
+

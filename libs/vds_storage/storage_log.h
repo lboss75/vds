@@ -10,7 +10,7 @@ All rights reserved
 namespace vds {
   class _storage_log;
   class endpoint;
-  class istorage;
+  class istorage_log;
   class cert;
   class full_storage_object_id;
 
@@ -33,46 +33,50 @@ namespace vds {
     void start();
     void stop();
 
-    bool is_empty() const;
+  private:
+    friend class istorage_log;
+    _storage_log * const impl_;
+  };
+  
+  class istorage_log
+  {
+  public:
+    istorage_log(storage_log * owner)
+    : owner_(owner)
+    {      
+    }
 
-    _storage_log * operator -> () const;
+    const guid & current_server_id() const;
+    const certificate & server_certificate() const;
+    const asymmetric_private_key & server_private_key() const;
+    
+    bool is_empty() const;
 
     size_t minimal_consensus() const;
 
     void add_record(const std::string & record);
+    void add_to_local_log(const json_value * record);
 
     size_t new_message_id();
     const std::list<endpoint> & get_endpoints() const;
 
-    void register_server(const std::string & server_certificate);
+    vds::async_task<> register_server(const std::string & server_certificate);
 
     std::unique_ptr<cert> find_cert(const std::string & object_name) const;
 
     std::unique_ptr<data_buffer> get_object(const full_storage_object_id & object_id);
-    
+
     void add_endpoint(
       const std::string & endpoint_id,
       const std::string & addresses);
 
     void get_endpoints(std::map<std::string, std::string> & addresses);
 
-    void save_file(
+    async_task<> save_file(
       const std::string & user_login,
+      const std::string & name,
       const filename & tmp_file);
-  private:
-    std::unique_ptr<_storage_log> impl_;
-  };
-  
-  class istorage
-  {
-  public:
-    istorage(storage_log * owner)
-    : owner_(owner)
-    {      
-    }
-    
-    storage_log & get_storage_log() const { return *this->owner_; }
-    
+
   private:
     storage_log * owner_;
     

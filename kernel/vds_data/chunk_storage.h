@@ -18,13 +18,9 @@ namespace vds {
       );
     ~chunk_storage();
 
-    void generate_replica(
-      binary_serializer & s,
-      uint64_t index,
-      uint16_t replica,
-      const void * data,
-      size_t size);
-    
+    void start();
+    void stop();
+
     
     class horcrux
     {
@@ -45,13 +41,32 @@ namespace vds {
       uint16_t size_;
       data_buffer data_;
     };
-    
-    void restore_data(
-      binary_serializer & s,
-      const std::list<horcrux> & chunks);
+   
 
   private:
-    _chunk_storage * impl_;
+    friend class ichunk_storage;
+
+    _chunk_storage * const impl_;
+  };
+
+  class ichunk_storage
+  {
+  public:
+    ichunk_storage(chunk_storage * owner);
+
+    void generate_replica(
+      binary_serializer & s,
+      uint64_t index,
+      uint16_t replica,
+      const void * data,
+      size_t size);
+
+    void restore_data(
+      binary_serializer & s,
+      const std::list<chunk_storage::horcrux> & chunks);
+
+  private:
+    chunk_storage * const owner_;
   };
 }
 

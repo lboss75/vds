@@ -65,7 +65,7 @@ bool vds::_deflate_handler::push_data(
     this->eof_ = true;
   }
   this->strm_.next_in = (Bytef *)data;
-  this->strm_.avail_in = len;
+  this->strm_.avail_in = (uInt)len;
   this->strm_.next_out = this->buffer_;
   this->strm_.avail_out = CHUNK_SIZE;
   auto error = ::deflate(&this->strm_, this->eof_ ? Z_FINISH : Z_NO_FLUSH);

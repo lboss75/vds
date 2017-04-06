@@ -15,32 +15,31 @@ namespace vds {
   class chunk_manager
   {
   public:
-    chunk_manager(
-      const service_provider & sp,
-      const guid & server_id,
-      const asymmetric_private_key & private_key,
-      local_cache & cache);
+    chunk_manager(const service_provider & sp);
     ~chunk_manager();
 
+    void start();
+    void stop();
 
-    class file_map
-    {
-    public:
-      void add(const server_log_new_object & item);
+  private:
+    friend class ichunk_manager;
+    _chunk_manager * const impl_;
+  };
 
-    private:
-      std::list<server_log_new_object> items_;
-    };
+  class ichunk_manager
+  {
+  public:
+    ichunk_manager(chunk_manager * owner);
 
-
-    async_task<const file_map &> add(const filename & fn);
-    
+    async_task<const server_log_file_map &> add(
+      const std::string & user_login,
+      const std::string & name,
+      const filename & fn);
     async_task<const server_log_new_object &> add(const data_buffer & data);
-    
     void set_next_index(uint64_t next_index);
 
   private:
-    _chunk_manager * impl_;
+    chunk_manager * const owner_;
   };
 }
 

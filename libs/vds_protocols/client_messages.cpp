@@ -69,10 +69,8 @@ std::unique_ptr<vds::json_value> vds::client_messages::certificate_and_key_respo
 const char vds::client_messages::register_server_request::message_type[] = "register server";
 
 vds::client_messages::register_server_request::register_server_request(
-  const std::string & request_id,
   const std::string & certificate_body)
-  : request_id_(request_id),
-  certificate_body_(certificate_body)
+  : certificate_body_(certificate_body)
 {
 }
 
@@ -80,7 +78,6 @@ vds::client_messages::register_server_request::register_server_request(const vds
 {
   auto s = dynamic_cast<const json_object *>(value);
   if (nullptr != s) {
-    s->get_property("r", this->request_id_);
     s->get_property("c", this->certificate_body_);
   }
 }
@@ -89,7 +86,6 @@ std::unique_ptr<vds::json_value> vds::client_messages::register_server_request::
 {
   std::unique_ptr<json_object> result(new json_object());
   result->add_property("$t", message_type);
-  result->add_property("r", this->request_id_);
   result->add_property("c", this->certificate_body_);
 
   return std::unique_ptr<vds::json_value>(result.release());
@@ -97,11 +93,7 @@ std::unique_ptr<vds::json_value> vds::client_messages::register_server_request::
 ///////////////////////////////////////////////////////////////////////////////
 const char vds::client_messages::register_server_response::message_type[] = "certificate and key";
 
-vds::client_messages::register_server_response::register_server_response(
-  const std::string & request_id,
-  const std::string & error)
-  : request_id_(request_id),
-  error_(error)
+vds::client_messages::register_server_response::register_server_response()
 {
 }
 
@@ -109,8 +101,6 @@ vds::client_messages::register_server_response::register_server_response(const v
 {
   auto s = dynamic_cast<const json_object *>(value);
   if (nullptr != s) {
-    s->get_property("r", this->request_id_);
-    s->get_property("e", this->error_);
   }
 }
 
@@ -118,11 +108,6 @@ std::unique_ptr<vds::json_value> vds::client_messages::register_server_response:
 {
   std::unique_ptr<json_object> result(new json_object());
   result->add_property("$t", message_type);
-  result->add_property("r", this->request_id_);
-
-  if (!this->error_.empty()) {
-    result->add_property("e", this->error_);
-  }
 
   return std::unique_ptr<vds::json_value>(result.release());
 }
@@ -132,7 +117,7 @@ vds::client_messages::put_file_message::put_file_message(const json_value * valu
 {
   auto s = dynamic_cast<const json_object *>(value);
   if (nullptr != s) {
-    s->get_property("r", this->request_id_);
+    s->get_property("n", this->name_);
     s->get_property("u", this->user_login_);
 
     std::string v;
@@ -147,7 +132,7 @@ std::unique_ptr<vds::json_value> vds::client_messages::put_file_message::seriali
   std::unique_ptr<json_object> s(new json_object());
   s->add_property("$t", message_type);
 
-  s->add_property("r", this->request_id_);
+  s->add_property("n", this->name_);
   s->add_property("u", this->user_login_);
   s->add_property("f", this->tmp_file_.full_name());
 
@@ -155,10 +140,10 @@ std::unique_ptr<vds::json_value> vds::client_messages::put_file_message::seriali
 }
 
 vds::client_messages::put_file_message::put_file_message(
-  const std::string & request_id,
   const std::string & user_login,
+  const std::string & name,
   const filename & tmp_file)
-  : request_id_(request_id),
+  : name_(name),
   user_login_(user_login),
   tmp_file_(tmp_file)
 {
@@ -169,8 +154,6 @@ vds::client_messages::put_file_message_response::put_file_message_response(const
 {
   auto s = dynamic_cast<const json_object *>(value);
   if (nullptr != s) {
-    s->get_property("r", this->request_id_);
-    s->get_property("e", this->error_);
   }
 }
 
@@ -179,17 +162,10 @@ std::unique_ptr<vds::json_value> vds::client_messages::put_file_message_response
   std::unique_ptr<json_object> s(new json_object());
   s->add_property("$t", message_type);
 
-  s->add_property("r", this->request_id_);
-  s->add_property("e", this->error_);
-
   return std::unique_ptr<vds::json_value>(s.release());
 }
 
-vds::client_messages::put_file_message_response::put_file_message_response(
-  const std::string & request_id,
-  const std::string & error)
-  : request_id_(request_id),
-  error_(error)
+vds::client_messages::put_file_message_response::put_file_message_response()
 {
 }
 

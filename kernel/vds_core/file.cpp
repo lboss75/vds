@@ -236,11 +236,11 @@ void vds::file::move(const vds::filename& source, const vds::filename& target)
   }
 }
 
-void vds::file::delete_file(const filename & fn)
+void vds::file::delete_file(const filename & fn, bool ignore_error /*= false*/)
 {
-  if (0 != remove(fn.local_name().c_str())) {
+  if (0 != remove(fn.local_name().c_str()) && !ignore_error) {
     auto err = errno;
-    throw new std::system_error(err, std::system_category(), "Unable to delete folder " + fn.name());
+    throw new std::system_error(err, std::generic_category(), "Unable to delete file " + fn.full_name());
   }
 }
 

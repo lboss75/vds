@@ -44,14 +44,14 @@ const vds::data_buffer& vds::hash::signature() const
 
 }
 
-const vds::data_buffer& vds::hash::signature(
+vds::data_buffer vds::hash::signature(
   const vds::hash_info& info,
   const data_buffer& data)
 {
   return signature(info, data.data(), data.size());
 }
 
-const vds::data_buffer& vds::hash::signature(
+vds::data_buffer vds::hash::signature(
   const vds::hash_info& info,
   const void * data,
   size_t data_size)

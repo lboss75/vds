@@ -19,7 +19,8 @@ namespace vds {
   class cert;
   class node;
   class endpoint;
-
+  class ichunk_storage;
+  
   class _storage_log
   {
   public:
@@ -49,24 +50,33 @@ namespace vds {
     void add_record(const std::string & record);
     size_t new_message_id();
 
-    void register_server(const std::string & server_certificate);
+    vds::async_task<> register_server(const std::string & server_certificate);
 
-    std::unique_ptr<cert> find_cert(const std::string & object_name) const;
+    std::unique_ptr<cert> find_cert(const std::string & object_name);
     std::unique_ptr<data_buffer> get_object(const full_storage_object_id & object_id);
-    
+
     void add_endpoint(
       const std::string & endpoint_id,
       const std::string & addresses);
 
     void get_endpoints(std::map<std::string, std::string> & addresses);
 
-    void save_file(
+    async_task<> save_file(
       const std::string & user_login,
+      const std::string & name,
       const filename & tmp_file);
 
+    const guid & current_server_id() const { return this->current_server_id_; }
+    const certificate & server_certificate() const { return this->server_certificate_; }
+    const asymmetric_private_key & server_private_key() const { return this->current_server_key_; }
+    void add_to_local_log(const json_value * record);
+
   private:
-    server_database db_;
-    local_cache local_cache_;
+    service_provider sp_;
+    lazy_service<iserver_database> db_;
+    lazy_service<ilocal_cache> local_cache_;
+    lazy_service<ichunk_storage> chunk_storage_;
+    lazy_service<ichunk_manager> chunk_manager_;
 
     const certificate & server_certificate_;
     const asymmetric_private_key & current_server_key_;
@@ -84,9 +94,6 @@ namespace vds {
     size_t minimal_consensus_;
 
     size_t last_message_id_;
-
-    chunk_storage chunk_storage_;
-    chunk_manager chunk_manager_;
 
     void process(const guid & source_server_id, const server_log_root_certificate & message);
     void process(const guid & source_server_id, const server_log_new_server & message);

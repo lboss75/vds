@@ -99,7 +99,12 @@ void vds::client_logic::process_response(client_connection<client_logic>& connec
           std::lock_guard<std::mutex> lock(this->requests_mutex_);
           auto p = this->requests_.find(request_id);
           if(this->requests_.end() != p){
-            p->second.done(task);
+            imt_service::async(this->sp_,
+              [
+                done = p->second.done,
+                result = task->clone().release()](){
+              done(std::unique_ptr<json_value>(result).get());
+            });
             this->requests_.remove(request_id);            
           }
         }
@@ -238,11 +243,11 @@ void vds::client_logic::process(client_connection<client_logic>* connection, con
 }
 */
 
-void vds::client_logic::put_file(
+vds::async_task<> vds::client_logic::put_file(
   const std::string & user_login,
+  const std::string & name,
   const data_buffer & data)
-{
-  
+{  
   foldername tmp(persistence::current_user(this->sp_), "tmp");
   tmp.create();
 
@@ -253,28 +258,17 @@ void vds::client_logic::put_file(
   f.write(data.data(), data.size());
   f.close();
 
-  std::string error;
-
-  if(!this->add_task_and_wait<client_messages::put_file_message_response>(
+  return this->send_request<client_messages::put_file_message_response>(
     client_messages::put_file_message(
-      request_id,
       user_login,
-      tmpfile).serialize()->str(),
-    [request_id, &error](const client_messages::put_file_message_response & response)->bool {
-    if (request_id != response.request_id()) {
-      return false;
-    }
-
-    error = response.error();
-    return true;
-
-  })) {
-    throw new std::runtime_error("Timeout at registering new server");
-  }
-
-  if (!error.empty()) {
-    throw new std::runtime_error(error);
-  }
+      name,
+      tmpfile).serialize())
+    .then([](
+      const std::function<void(void)> & done,
+      const error_handler & on_error,
+      const client_messages::put_file_message_response & response) {
+    done();
+  });
 }
 
 vds::data_buffer vds::client_logic::download_file(const std::string & user_login)

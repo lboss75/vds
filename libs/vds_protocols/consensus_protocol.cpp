@@ -82,8 +82,8 @@ void vds::consensus_protocol::_server::stop()
 
 vds::async_task<const vds::json_value *>
 vds::consensus_protocol::_server::process(
-  const service_provider & scope,
-  const consensus_messages::consensus_message_who_is_leader & message)
+  const service_provider & /*scope*/,
+  const consensus_messages::consensus_message_who_is_leader & /*message*/)
 {
   throw std::runtime_error("Not implemented");
   /*

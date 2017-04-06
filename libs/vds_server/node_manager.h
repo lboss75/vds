@@ -16,7 +16,7 @@ namespace vds {
     node_manager(const service_provider & sp);
     ~node_manager();
 
-    bool register_server(const service_provider & scope, const std::string & node_certificate, std::string & error);
+    vds::async_task<> register_server(const service_provider & scope, const std::string & node_certificate);
     
     void add_endpoint(
       const std::string & endpoint_id,

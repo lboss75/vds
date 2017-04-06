@@ -29,8 +29,8 @@ void vds::server::register_services(service_registrator& registrator)
     return iserver(this);
   });
   
-  registrator.add_factory<istorage>([this](const service_provider &, bool &)->istorage{
-    return istorage(this->storage_log_.get());
+  registrator.add_factory<istorage_log>([this](const service_provider &, bool &)->istorage_log{
+    return istorage_log(this->storage_log_.get());
   });
 }
 
@@ -44,24 +44,22 @@ void vds::server::start(const service_provider& sp)
     server_certificate::server_id(this->certificate_),
     this->certificate_,
     this->private_key_));
-  this->storage_log_->start();
+
 
   this->connection_manager_.reset(new connection_manager(sp, this->certificate_.subject()));
-
   this->consensus_server_protocol_.reset(new consensus_protocol::server(sp, this->certificate_, this->private_key_, *this->connection_manager_));
-  this->consensus_server_protocol_->start();
-
   this->node_manager_.reset(new node_manager(sp));
   this->server_http_api_.reset(new server_http_api(sp));
-  this->server_http_api_->start("127.0.0.1", this->port_, this->certificate_, this->private_key_);
-  
   this->server_udp_api_.reset(new server_udp_api(sp, this->certificate_, this->private_key_));
-  this->server_udp_api_->start("127.0.0.1", this->port_);
-  
   this->server_connection_.reset(new server_connection(sp, this->server_udp_api_.get()));
-  this->server_connection_->start();
-  
   this->peer_network_.reset(new peer_network(sp));
+
+  this->storage_log_->start();
+  this->consensus_server_protocol_->start();
+  this->server_connection_->start();
+  this->server_http_api_->start("127.0.0.1", this->port_, this->certificate_, this->private_key_);
+  this->server_udp_api_->start("127.0.0.1", this->port_);
+
   //this->peer_network_->start();
   
 

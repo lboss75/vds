@@ -151,7 +151,7 @@ namespace vds {
   class _database
   {
   public:
-    _database(const service_provider & sp, database * owner)
+    _database(const service_provider & /*sp*/, database * /*owner*/)
       : db_(nullptr)
     {
     }

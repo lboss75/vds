@@ -7,8 +7,6 @@ All rights reserved
 */
 
 namespace vds {
-  class istorage;
-
   class endpoint
   {
   public:

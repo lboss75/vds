@@ -16,16 +16,29 @@ namespace vds {
   public:
     local_cache(const service_provider & sp);
     ~local_cache();
-    
+
+    void start();
+    void stop();
+      
+  private:
+    friend class ilocal_cache;
+    _local_cache * impl_;
+  };
+
+  class ilocal_cache
+  {
+  public:
+    ilocal_cache(local_cache * owner);
+
     std::unique_ptr<data_buffer> get_object(
       const full_storage_object_id& object_id);
-    
+
     filename get_object_filename(
       const guid & server_id,
       uint64_t index);
-  
+
   private:
-    _local_cache * impl_;
+    local_cache * owner_;
   };
 }
 

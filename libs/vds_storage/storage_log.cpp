@@ -13,6 +13,7 @@ All rights reserved
 #include "endpoint.h"
 #include "certificate_authority.h"
 #include "certificate_authority_p.h"
+#include "chunk_storage.h"
 
 vds::storage_log::storage_log(
   const service_provider & sp,
@@ -50,61 +51,69 @@ void vds::storage_log::stop()
   this->impl_->stop();
 }
 
-bool vds::storage_log::is_empty() const
+const vds::guid & vds::istorage_log::current_server_id() const
 {
-  return this->impl_->is_empty();
+  return this->owner_->impl_->current_server_id();
 }
 
-vds::_storage_log * vds::storage_log::operator->() const
+bool vds::istorage_log::is_empty() const
 {
-  return this->impl_.get();
+  return this->owner_->impl_->is_empty();
 }
 
-size_t vds::storage_log::minimal_consensus() const
+size_t vds::istorage_log::minimal_consensus() const
 {
-  return this->impl_->minimal_consensus();
+  return this->owner_->impl_->minimal_consensus();
 }
 
-void vds::storage_log::add_record(const std::string & record)
+void vds::istorage_log::add_record(const std::string & record)
 {
-  return this->impl_->add_record(record);
+  return this->owner_->impl_->add_record(record);
 }
 
-size_t vds::storage_log::new_message_id()
+void vds::istorage_log::add_to_local_log(const json_value * record)
 {
-  return this->impl_->new_message_id();
+  this->owner_->impl_->add_to_local_log(record);
 }
 
-void vds::storage_log::register_server(const std::string & server_certificate)
+size_t vds::istorage_log::new_message_id()
 {
-  this->impl_->register_server(server_certificate);
+  return this->owner_->impl_->new_message_id();
 }
 
-std::unique_ptr<vds::cert> vds::storage_log::find_cert(const std::string & object_name) const
+vds::async_task<> vds::istorage_log::register_server(const std::string & server_certificate)
 {
-  return this->impl_->find_cert(object_name);
+  return this->owner_->impl_->register_server(server_certificate);
 }
 
-std::unique_ptr<vds::data_buffer> vds::storage_log::get_object(const vds::full_storage_object_id& object_id)
+std::unique_ptr<vds::cert> vds::istorage_log::find_cert(const std::string & object_name) const
 {
-  return this->impl_->get_object(object_id);
+  return this->owner_->impl_->find_cert(object_name);
 }
 
-void vds::storage_log::add_endpoint(
+std::unique_ptr<vds::data_buffer> vds::istorage_log::get_object(const vds::full_storage_object_id& object_id)
+{
+  return this->owner_->impl_->get_object(object_id);
+}
+
+void vds::istorage_log::add_endpoint(
   const std::string & endpoint_id,
   const std::string & addresses)
 {
-  this->impl_->add_endpoint(endpoint_id, addresses);
+  this->owner_->impl_->add_endpoint(endpoint_id, addresses);
 }
 
-void vds::storage_log::get_endpoints(std::map<std::string, std::string> & addresses)
+void vds::istorage_log::get_endpoints(std::map<std::string, std::string> & addresses)
 {
-  this->impl_->get_endpoints(addresses);
+  this->owner_->impl_->get_endpoints(addresses);
 }
 
-void vds::storage_log::save_file(const std::string & user_login, const filename & tmp_file)
+vds::async_task<> vds::istorage_log::save_file(
+  const std::string & user_login,
+  const std::string & name,
+  const filename & tmp_file)
 {
-  this->impl_->save_file(user_login, tmp_file);
+  return this->owner_->impl_->save_file(user_login, name, tmp_file);
 }
 ///////////////////////////////////////////////////////////////////////////////
 vds::_storage_log::_storage_log(
@@ -113,8 +122,7 @@ vds::_storage_log::_storage_log(
   const certificate & server_certificate,
   const asymmetric_private_key & server_private_key,
   storage_log * owner)
-: db_(sp),
-  local_cache_(sp),
+: sp_(sp),
   server_certificate_(server_certificate),
   current_server_key_(server_private_key),
   current_server_id_(current_server_id),
@@ -125,9 +133,7 @@ vds::_storage_log::_storage_log(
   local_log_index_(0),
   is_empty_(true),
   minimal_consensus_(0),
-  last_message_id_(0),
-  chunk_storage_(guid::new_guid(), 1000),
-  chunk_manager_(sp, current_server_id, this->current_server_key_, local_cache_)
+  last_message_id_(0)
 {
 }
 
@@ -138,8 +144,6 @@ vds::async_task<> vds::_storage_log::reset(
   const std::string & addresses
 )
 {
-  this->db_.start();
-
   this->local_log_folder_.create();
   this->vds_folder_.create();
   
@@ -176,7 +180,7 @@ vds::async_task<> vds::_storage_log::reset(
         this->add_to_local_log(server_log_new_server(sert_cert_id).serialize().get());
         this->add_to_local_log(server_log_new_endpoint(this->current_server_id_, addresses).serialize().get());
         
-        this->db_.add_cert(
+        this->db_.get(this->sp_).add_cert(
           cert(
             "login::root",
             full_storage_object_id(this->current_server_id_, user_cert_id),
@@ -191,10 +195,6 @@ vds::async_task<> vds::_storage_log::reset(
 
 void vds::_storage_log::start()
 {
-  this->db_.start();
-  this->chunk_manager_.set_next_index(
-    this->db_.last_object_index(this->current_server_id_));
-
   std::map<uint64_t, filename> local_records;
   if (this->local_log_folder_.exist()) {
     this->local_log_folder_.files(
@@ -310,7 +310,7 @@ void vds::_storage_log::process(const guid & source_server_id, const server_log_
   //this->certificate_store_.add(*cert);
   //this->loaded_certificates_[cert->subject()].reset(cert);
 
-  this->db_.add_cert(
+  this->db_.get(this->sp_).add_cert(
     vds::cert(
       "login:root",
       full_storage_object_id(
@@ -362,15 +362,18 @@ size_t vds::_storage_log::new_message_id()
   return this->last_message_id_++;
 }
 
-void vds::_storage_log::register_server(const std::string & server_certificate)
+vds::async_task<> vds::_storage_log::register_server(const std::string & server_certificate)
 {
-  this->save_object(object_container().add("c", server_certificate))
-  .wait([this](const vds::storage_object_id & id){
-    this->add_to_local_log(server_log_new_server(id).serialize().get());
-  },
-    [](std::exception_ptr ex){
-    }
-  );
+  return 
+    this->save_object(object_container().add("c", server_certificate))
+    .then(
+      [this](
+        const std::function<void(void)> & done,
+        const error_handler & on_error,
+        const vds::storage_object_id & id){
+        this->add_to_local_log(server_log_new_server(id).serialize().get());
+        done();
+      });
 }
 
 vds::async_task<const vds::storage_object_id &>
@@ -378,15 +381,14 @@ vds::_storage_log::save_object(const object_container & fc)
 {
   binary_serializer s;
   fc.serialize(s);
-
  
   return this->chunk_manager_
+    .get(this->sp_)
     .add(s.data())
     .then([this](
       const std::function<void(const storage_object_id &)> & done,
       const error_handler & on_error, 
       const server_log_new_object & index){
-    this->db_.add_object(this->current_server_id_, index);
     this->add_to_local_log(index.serialize().get());
     done(vds::storage_object_id(index.index()));
     });
@@ -401,32 +403,41 @@ void vds::_storage_log::add_to_local_log(const json_value * record)
   os.write(record->str());
 }
 
-std::unique_ptr<vds::cert> vds::_storage_log::find_cert(const std::string & object_name) const
+std::unique_ptr<vds::cert> vds::_storage_log::find_cert(const std::string & object_name)
 {
-  return this->db_.find_cert(object_name);
+  return this->db_.get(this->sp_).find_cert(object_name);
 }
 
 std::unique_ptr<vds::data_buffer> vds::_storage_log::get_object(const vds::full_storage_object_id& object_id)
 {
-  return this->local_cache_.get_object(object_id);
+  return this->local_cache_.get(this->sp_).get_object(object_id);
 }
 
 void vds::_storage_log::add_endpoint(
   const std::string & endpoint_id,
   const std::string & addresses)
 {
-  this->db_.add_endpoint(endpoint_id, addresses);
+  this->db_.get(this->sp_).add_endpoint(endpoint_id, addresses);
 }
 
 void vds::_storage_log::get_endpoints(std::map<std::string, std::string> & addresses)
 {
-  this->db_.get_endpoints(addresses);
+  this->db_.get(this->sp_).get_endpoints(addresses);
 }
 
-void vds::_storage_log::save_file(const std::string & user_login, const filename & tmp_file)
+vds::async_task<> vds::_storage_log::save_file(const std::string & user_login, const std::string & name, const filename & tmp_file)
 {
-  //chunk_manager::file_map fm;
-  //this->chunk_manager_.add(tmp_file, fm);
+  return this->chunk_manager_
+    .get(this->sp_)
+    .add(user_login, name, tmp_file)
+    .then([this](
+      const std::function<void(void)> & done,
+      const error_handler & on_error,
+      const server_log_file_map & fm) {
+        this->db_.get(this->sp_).add_file(this->current_server_id_, fm);
+        this->add_to_local_log(fm.serialize().get());
+        done();
+  });
 
   /*
   auto signature = asymmetric_sign::signature(hash::sha256(), this->current_server_key_, s.data());

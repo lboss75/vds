@@ -10,7 +10,7 @@ All rights reserved
 #include "client_logic.h"
 
 namespace vds {
-
+  class _client;
   class client : public iservice
   {
   public:
@@ -28,15 +28,19 @@ namespace vds {
 
   private:
     friend class iclient;
+    friend class _client;
+
     certificate client_certificate_;
     asymmetric_private_key client_private_key_;
     std::unique_ptr<client_logic> logic_;
+
+    std::unique_ptr<_client> impl_;
   };
   
   class iclient
   {
   public:
-    iclient(const service_provider & sp, client * owner);
+    iclient(client * owner);
     
     async_task<> init_server(
       const std::string & user_login,
@@ -55,17 +59,7 @@ namespace vds {
       const std::string & name);
 
   private:
-    service_provider sp_;
-    logger log_;
     client * owner_;
-
-
-    async_task<
-      const certificate & /*user_certificate*/,
-      const asymmetric_private_key & /*user_private_key*/>
-    authenticate(
-      const std::string & login,
-      const std::string & password);
   };
 }
 

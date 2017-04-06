@@ -136,7 +136,7 @@ TEST(chunk_tests, test_chunks_storage) {
       }
       
       vds::binary_serializer s;
-      storage.generate_replica(s, 0, replica, data, size);
+      vds::ichunk_storage(&storage).generate_replica(s, 0, replica, data, size);
       
       processed_horcruxes[replica] = true;
       vds::binary_deserializer ds(s.data());
@@ -145,7 +145,7 @@ TEST(chunk_tests, test_chunks_storage) {
     }
 
     vds::binary_serializer result;
-    storage.restore_data(result, horcruxes);
+    vds::ichunk_storage(&storage).restore_data(result, horcruxes);
 
     ASSERT_LE(size, result.size());
     for (int i = 0; i < size; ++i) {

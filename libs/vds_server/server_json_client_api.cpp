@@ -97,9 +97,12 @@ vds::json_value * vds::_server_json_client_api::operator()(
             
             task.wait(
               [this, request_id](const json_value * task_result){
+                auto obj = task_result->clone();
+                dynamic_cast<json_object *>(obj.get())->add_property("$r", request_id);
+
                 this->task_mutex_.lock();
                 auto p = this->tasks_.find(request_id);
-                p->second.result = task_result->clone();
+                p->second.result = std::move(obj);
                 this->task_mutex_.unlock();
               },
               [this, request_id](std::exception_ptr ex) {
@@ -134,8 +137,7 @@ vds::_server_json_client_api::process(
   return create_async_task(
     [scope, message](const std::function<void(const json_value *)> & done, const error_handler & on_error){
       auto cert = scope
-        .get<istorage>()
-        .get_storage_log()
+        .get<istorage_log>()
         .find_cert(message.object_name());
 
       if (!cert
@@ -144,8 +146,7 @@ vds::_server_json_client_api::process(
       }
 
       std::unique_ptr<data_buffer> buffer = scope
-        .get<istorage>()
-        .get_storage_log()
+        .get<istorage_log>()
         .get_object(cert->object_id());
 
 
@@ -168,11 +169,14 @@ vds::_server_json_client_api::process(
 {
   return create_async_task(
     [scope, message](const std::function<void(const json_value *)> & done, const error_handler & on_error){
-      std::string error;
-      if (scope.get<iserver>().get_node_manager().register_server(scope, message.certificate_body(), error)) {
-        done(client_messages::register_server_response(message.request_id(), error).serialize().get());
-      }
-    });
+      scope
+        .get<iserver>()
+        .get_node_manager()
+        .register_server(scope, message.certificate_body())
+        .wait(
+          [done]() { done(client_messages::register_server_response().serialize().get()); },
+          on_error);
+      });
 }
 
 vds::async_task<const vds::json_value *>
@@ -180,15 +184,13 @@ vds::_server_json_client_api::process(
   const service_provider & scope,
   const client_messages::put_file_message & message)
 {
-  throw std::runtime_error("Not implemented");
-  /*
-  scope
-    .get<istorage>()
-    .get_storage_log()
+  return scope
+    .get<istorage_log>()
     .save_file(
-      message.user_login,
-      base64::to_bytes(message.datagram));
-
-  result->add(client_messages::put_file_message_response(message.request_id(), std::string()).serialize());
-  */
+      message.user_login(),
+      message.name(),
+      message.tmp_file())
+    .then([](const std::function<void(const vds::json_value *)> & done, const error_handler & on_error) {
+    done(client_messages::put_file_message_response().serialize().get());
+  });
 }

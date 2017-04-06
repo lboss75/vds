@@ -58,18 +58,15 @@ namespace vds {
       static const char message_type[];
 
       register_server_request(
-        const std::string & request_id,
         const std::string & certificate_body
       );
 
       register_server_request(const json_value *);
       std::unique_ptr<json_value> serialize() const;
 
-      const std::string & request_id() const { return this->request_id_; }
       const std::string & certificate_body() const { return this->certificate_body_; }
 
     private:
-      std::string request_id_;
       std::string certificate_body_;
     };
 
@@ -78,20 +75,10 @@ namespace vds {
     public:
       static const char message_type[];
 
-      register_server_response(
-        const std::string & request_id,
-        const std::string & error
-      );
-
+      register_server_response();
       register_server_response(const json_value *);
+
       std::unique_ptr<json_value> serialize() const;
-
-      const std::string & request_id() const { return this->request_id_; }
-      const std::string & error() const { return this->error_; }
-
-    private:
-      std::string request_id_;
-      std::string error_;
     };
     //////////////////////////////////////////////////////////////
     class put_file_message
@@ -103,17 +90,17 @@ namespace vds {
       std::unique_ptr<json_value> serialize() const;
 
       put_file_message(
-        const std::string & request_id,
         const std::string & user_login,
+        const std::string & name,
         const filename & tmp_file);
 
-      const std::string & request_id() const { return this->request_id_; }
       const std::string & user_login() const { return this->user_login_; }
+      const std::string & name() const { return this->name_; }
       const filename & tmp_file() const { return this->tmp_file_; }
 
     private:
-      std::string request_id_;
       std::string user_login_;
+      std::string name_;
       filename tmp_file_;
     };
 
@@ -125,16 +112,7 @@ namespace vds {
       put_file_message_response(const json_value *);
       std::unique_ptr<json_value> serialize() const;
 
-      put_file_message_response(
-        const std::string & request_id,
-        const std::string & error);
-
-      const std::string & request_id() const { return this->request_id_; }
-      const std::string & error() const { return this->error_; }
-
-    private:
-      std::string request_id_;
-      std::string error_;
+      put_file_message_response();
     };
 
     class get_file_message_request

@@ -275,3 +275,49 @@ std::unique_ptr<vds::json_value> vds::server_log_sign::serialize() const
   return std::unique_ptr<vds::json_value>(result.release());
 }
 
+//////////////////////////////////////////////////////////////////////
+const char vds::server_log_file_map::message_type[] = "file";
+
+vds::server_log_file_map::server_log_file_map(const std::string & user_login, const std::string & name)
+  : user_login_(user_login), name_(name)
+{
+}
+
+vds::server_log_file_map::server_log_file_map(const json_value * source)
+{
+  auto s = dynamic_cast<const json_object *>(source);
+  if (nullptr != s) {
+    s->get_property("u", this->user_login_);
+    s->get_property("n", this->name_);
+
+    auto items = dynamic_cast<const json_array *>(s->get_property("i"));
+    if (nullptr != items) {
+      for (size_t i = 0; i < items->size(); ++i) {
+        this->add(server_log_new_object(items->get(i)));
+      }
+    }
+  }
+}
+
+void vds::server_log_file_map::add(const server_log_new_object & item)
+{
+  this->items_.push_back(item);
+}
+
+std::unique_ptr<vds::json_value> vds::server_log_file_map::serialize(bool add_type_property) const
+{
+  std::unique_ptr<json_object> result(new json_object());
+  if (add_type_property) {
+    result->add_property("$t", message_type);
+  }
+  result->add_property("u", this->user_login_);
+  result->add_property("n", this->name_);
+
+  std::unique_ptr<json_array> items(new json_array());
+  for (auto & p : this->items_) {
+    items->add(p.serialize(false));
+  }
+  result->add_property(new json_property("i", items.release()));
+
+  return std::unique_ptr<vds::json_value>(result.release());
+}

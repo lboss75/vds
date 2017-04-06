@@ -20,17 +20,31 @@ namespace vds {
 
     void start();
     void stop();
-    
+
+  private:
+    friend class iserver_database;
+    _server_database * const impl_;
+  };
+
+  class iserver_database
+  {
+  public:
+    iserver_database(server_database * owner);
+
     void add_cert(const cert & record);
     std::unique_ptr<cert> find_cert(const std::string & object_name) const;
-    
+
     void add_object(
       const guid & server_id,
       const server_log_new_object & index);
-    
+
+    void add_file(
+      const guid & server_id,
+      const server_log_file_map & fm);
+
     uint64_t last_object_index(
       const guid & server_id);
-    
+
     void add_endpoint(
       const std::string & endpoint_id,
       const std::string & addresses);
@@ -38,9 +52,8 @@ namespace vds {
     void get_endpoints(std::map<std::string, std::string> & addresses);
 
   private:
-    _server_database * const impl_;
+    server_database * const owner_;
   };
-
 }
 
 #endif // __VDS_STORAGE_SERVER_DATABASE_H_

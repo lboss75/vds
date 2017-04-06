@@ -9,8 +9,6 @@ All rights reserved
 #include "storage_object_id.h"
 
 namespace vds {
-  class istorage;
-
   class cert
   {
   public:

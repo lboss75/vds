@@ -169,7 +169,7 @@ void vds::_connection_manager::connect_by_id(const std::string & server_id)
   }
 }
 
-void vds::_connection_manager::connect_by_uri(const std::string & server_uri)
+void vds::_connection_manager::connect_by_uri(const std::string & /*server_uri*/)
 {
 }
 

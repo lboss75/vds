@@ -27,21 +27,35 @@ vds::chunk_storage::~chunk_storage()
   delete this->impl_;
 }
 
-void vds::chunk_storage::generate_replica(
+void vds::chunk_storage::start()
+{
+}
+
+void vds::chunk_storage::stop()
+{
+}
+
+/////////////////////////////////////////////////////////////////////////////////////
+vds::ichunk_storage::ichunk_storage(chunk_storage * owner)
+  : owner_(owner)
+{
+}
+
+void vds::ichunk_storage::generate_replica(
   binary_serializer & s,
   uint64_t index,
   uint16_t replica,
   const void * data,
   size_t size)
 {
-  this->impl_->generate_replica(s, index, replica, data, size);
+  this->owner_->impl_->generate_replica(s, index, replica, data, size);
 }
 
-void vds::chunk_storage::restore_data(
+void vds::ichunk_storage::restore_data(
   binary_serializer & s,
-  const std::list<horcrux> & chunks)
+  const std::list<chunk_storage::horcrux> & chunks)
 {
-  this->impl_->restore_data(s, chunks);
+  this->owner_->impl_->restore_data(s, chunks);
 }
 /////////////////////////////////////////////////////////////////////////////////////
 vds::_chunk_storage::_chunk_storage(

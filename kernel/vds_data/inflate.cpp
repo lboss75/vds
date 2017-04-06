@@ -78,7 +78,7 @@ bool vds::_inflate_handler::push_data(const void * data, size_t len, const void 
     this->eof_ = true;
   }
   this->strm_.next_in = (Bytef *)data;
-  this->strm_.avail_in = len;
+  this->strm_.avail_in = (uInt)len;
   this->strm_.next_out = this->buffer_;
   this->strm_.avail_out = CHUNK_SIZE;
   auto result = ::inflate(&this->strm_, Z_NO_FLUSH);

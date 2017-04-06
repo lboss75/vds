@@ -35,6 +35,10 @@ namespace vds {
 
     void get_endpoints(std::map<std::string, std::string> & addresses);
 
+    void add_file(
+      const guid & server_id,
+      const server_log_file_map & fm);
+
   private:
     service_provider sp_;
     server_database * owner_;

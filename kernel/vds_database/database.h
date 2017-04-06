@@ -46,7 +46,7 @@ namespace vds {
       this->set_parameters_(index + 1, arguments...);
     }
     
-    void set_parameters_(int index)
+    void set_parameters_(int /*index*/)
     {
     }
     

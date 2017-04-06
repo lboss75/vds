@@ -136,14 +136,39 @@ void mock_client::init_server(
   int port)
 {
   this->start_vds(true, [root_password, address, port](const vds::service_provider&sp) {
-    sp.get<vds::iclient>().init_server("root", root_password);
+    vds::barrier b;
+    sp
+      .get<vds::iclient>()
+      .init_server("root", root_password)
+      .wait(
+        [&b]() {
+        b.set();
+      },
+          [&b](std::exception_ptr ex) {
+        FAIL() << vds::exception_what(ex);
+        b.set();
+      });
+    b.wait();
   }, true);
 }
 
 void mock_client::upload_file(const std::string & login, const std::string & password, const std::string & name, const void * data, size_t data_size)
 {
   this->start_vds(true, [login, password, name, data, data_size](const vds::service_provider&sp) {
-    sp.get<vds::iclient>().upload_file(login, password, name, data, data_size);
+    vds::barrier b;
+    sp
+      .get<vds::iclient>()
+      .upload_file(login, password, name, data, data_size)
+      .wait(
+        [&b]() {
+          b.set(); 
+        },
+        [&b](std::exception_ptr ex) {
+          b.set();
+          FAIL() << vds::exception_what(ex);
+      });
+
+    b.wait();
   }, false);
 }
 

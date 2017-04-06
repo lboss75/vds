@@ -48,19 +48,11 @@ namespace vds {
 
     template <typename functor>
     auto
-    then(const functor & next_method, typename std::enable_if<!std::is_void<typename functor_info<functor>::result_type>::value>::type * = nullptr)
+      then(const functor & next_method, typename std::enable_if<!std::is_void<typename functor_info<functor>::result_type>::value>::type * = nullptr)
 #ifndef _WIN32
       -> typename functor_info<functor>::result_type
 #endif// _WIN32
-    {
-      using new_task_type = typename functor_info<functor>::result_type;
-      auto p = this->impl_;
-      return new_task_type([p, next_method](const std::function<typename new_task_type::signature> & done, const error_handler & on_error)->void {
-        p->wait([next_method, done, on_error](arguments_types... args) {
-          next_method(args...).wait(done, on_error);
-        }, on_error);
-      });
-    }
+      ;
 
     template <typename functor>
     auto
@@ -68,15 +60,7 @@ namespace vds {
 #ifndef _WIN32
       -> typename functor_info<typename async_task_arguments<functor>::done_method_type>::template build_type<async_task>::type
 #endif// _WIN32
-    {
-      auto p = this->impl_;
-      return typename functor_info<typename async_task_arguments<functor>::done_method_type>::template build_type<async_task>::type(
-        [p, next_method](const typename async_task_arguments<functor>::done_method_type & done, const error_handler & on_error)->void {
-        p->wait([next_method, done, on_error](arguments_types... args) {
-          next_method(done, on_error, args...);
-        }, on_error);
-      });
-    }
+      ;
 
     void wait(const std::function<void(arguments_types... args)> & done, const error_handler & on_error)
     {
@@ -101,7 +85,12 @@ namespace vds {
 
       void wait(const std::function<void(arguments_types... args)> & done, const error_handler & on_error)
       {
-        this->target_(done, on_error);
+        try {
+          this->target_(done, on_error);
+        }
+        catch (...) {
+          on_error(std::current_exception());
+        }
       }
 
     private:
@@ -117,6 +106,49 @@ namespace vds {
     typename functor_info<typename _async_task_arguments<decltype(&functor::operator())>::done_method_type>::template build_type<async_task>::type
   {
     return typename functor_info<typename _async_task_arguments<decltype(&functor::operator())>::done_method_type>::template build_type<async_task>::type(f);
+  }
+
+  template<typename ...arguments_types>
+  template<typename functor>
+  inline auto async_task<arguments_types...>::then(const functor & next_method, typename std::enable_if<!std::is_void<typename functor_info<functor>::result_type>::value>::type *)
+#ifndef _WIN32
+    -> typename functor_info<functor>::result_type
+#endif// _WIN32
+  {
+    using new_task_type = typename functor_info<functor>::result_type;
+    auto p = this->impl_;
+    return new_task_type([p, next_method](const std::function<typename new_task_type::signature> & done, const error_handler & on_error)->void {
+      p->wait([next_method, done, on_error](arguments_types... args) {
+        try {
+          next_method(args...).wait(done, on_error);
+        }
+        catch (...) {
+          on_error(std::current_exception());
+        }
+      }, on_error);
+    });
+  }
+
+  template<typename ...arguments_types>
+  template<typename functor>
+  inline auto async_task<arguments_types...>::then(const functor & next_method, typename std::enable_if<std::is_void<typename functor_info<functor>::result_type>::value>::type *)
+#ifndef _WIN32
+    -> typename functor_info<typename async_task_arguments<functor>::done_method_type>::template build_type<async_task>::type
+#endif// _WIN32
+  {
+    auto p = this->impl_;
+    return typename functor_info<typename async_task_arguments<functor>::done_method_type>::template build_type<::vds::async_task>::type(
+      [p, next_method](const typename async_task_arguments<functor>::done_method_type & done, const error_handler & on_error)->void {
+      p->wait([next_method, done, on_error](arguments_types... args) {
+        try {
+          next_method(done, on_error, args...);
+        }
+        catch (...) {
+          on_error(std::current_exception());
+        }
+      }, on_error);
+
+    });
   }
 }
 

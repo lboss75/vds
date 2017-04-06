@@ -16,7 +16,7 @@ vds::mt_service::~mt_service()
 
 void vds::mt_service::register_services(vds::service_registrator& registrator)
 {
-  registrator.add_factory<imt_service>([this](const service_provider & sp, bool &)->imt_service{
+  registrator.add_factory<imt_service>([this](const service_provider & /*sp*/, bool &)->imt_service{
     return imt_service(this);
   });
 }

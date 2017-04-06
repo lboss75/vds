@@ -62,6 +62,38 @@ namespace vds {
 
     };
 
+    template <typename interface_type>
+    class lazy_service
+    {
+    public:
+      interface_type & get(const service_provider & sp)
+      {
+        if (!this->ptr_) {
+          std::lock_guard<std::mutex> lock(this->ptr_mutex_);
+          if (!this->ptr_) {
+            this->ptr_.reset(new holder(sp));
+          }
+        }
+
+        return this->ptr_->impl_;
+      }
+
+    private:
+      std::mutex ptr_mutex_;
+
+      struct holder
+      {
+        interface_type impl_;
+
+        holder(const service_provider & sp)
+          : impl_(sp.get<interface_type>())
+        {
+        }
+      };
+      std::unique_ptr<holder> ptr_;
+    };
+
+
     class service_registrator;
 
     class iservice

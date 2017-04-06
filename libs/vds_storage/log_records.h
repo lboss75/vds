@@ -60,6 +60,28 @@ namespace vds {
     data_buffer target_hash_;
   };
 
+  class server_log_file_map
+  {
+  public:
+    static const char message_type[];
+
+    server_log_file_map(
+      const std::string & user_login,
+      const std::string & name);
+
+    server_log_file_map(
+      const json_value * source);
+
+    void add(const server_log_new_object & item);
+    std::unique_ptr<json_value> serialize(bool add_type_property = true) const;
+
+  private:
+    std::string user_login_;
+    std::string name_;
+    std::list<server_log_new_object> items_;
+  };
+
+
   class server_log_sign
   {
   public:

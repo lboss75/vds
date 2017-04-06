@@ -59,7 +59,7 @@ namespace vds {
     static bool exists(const filename & fn);
 
     static void move(const filename & source, const filename & target);
-    static void delete_file(const filename & fn);
+    static void delete_file(const filename & fn, bool ignore_error = false);
     static std::string read_all_text(const filename & fn);
     static data_buffer read_all(const filename & fn);
 
