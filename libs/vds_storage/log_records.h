@@ -66,6 +66,7 @@ namespace vds {
     static const char message_type[];
 
     server_log_file_map(
+      const std::string & version_id,
       const std::string & user_login,
       const std::string & name);
 
@@ -75,7 +76,13 @@ namespace vds {
     void add(const server_log_new_object & item);
     std::unique_ptr<json_value> serialize(bool add_type_property = true) const;
 
+    const std::string & version_id() const { return this->version_id_; }
+    const std::string & user_login() const { return this->user_login_; }
+    const std::string & name() const { return this->name_; }
+    const std::list<server_log_new_object> & items() const { return this->items_; }
+    
   private:
+    std::string version_id_;
     std::string user_login_;
     std::string name_;
     std::list<server_log_new_object> items_;

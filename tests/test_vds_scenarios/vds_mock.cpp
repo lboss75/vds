@@ -21,16 +21,14 @@ void vds_mock::start(size_t server_count)
 
 
   for (size_t i = 0; i < server_count; ++i) {
-    mock_client client(i);
-    if (0 == i) {
-      client.init_root(this->root_password_, first_port);
-    }
-    else {
-      client.init_server(this->root_password_, "127.0.0.1", first_port + 1);
-    }
-
     std::unique_ptr<mock_server> server(new mock_server(i, first_port + 1));
     try {
+      if (0 == i) {
+        server->init_root(this->root_password_, first_port);
+      }
+      else {
+        server->init_server(this->root_password_, "127.0.0.1", first_port + 1);
+      }
       server->start();
     }
     catch (...) {
@@ -86,72 +84,6 @@ mock_client::mock_client(int index)
 {
 }
 
-void mock_client::init_root(const std::string & root_password, int port)
-{
-  this->start_vds(false, [root_password, port](const vds::service_provider&sp) {
-
-    vds::asymmetric_private_key private_key(vds::asymmetric_crypto::rsa4096());
-    private_key.generate();
-
-    vds::certificate root_certificate = vds::_certificate_authority::create_root_user(private_key);
-
-    vds::asymmetric_private_key server_private_key(vds::asymmetric_crypto::rsa4096());
-    server_private_key.generate();
-
-    vds::guid current_server_id = vds::guid::new_guid();
-    vds::certificate server_certificate = vds::certificate_authority::create_server(
-      current_server_id,
-      root_certificate,
-      private_key,
-      server_private_key);
-
-    vds::storage_log log(
-      sp,
-      current_server_id,
-      server_certificate,
-      server_private_key);
-
-    vds::barrier b;
-    log.reset(
-      root_certificate,
-      private_key,
-      root_password,
-      "https://127.0.0.1:" + std::to_string(port))
-    .wait(
-      [&b](){
-        b.set();
-      },
-      [&b](std::exception_ptr ex) {
-        FAIL() << vds::exception_what(ex);
-        b.set();
-      });
-    b.wait();
-
-  }, true);
-}
-
-void mock_client::init_server(
-  const std::string& root_password,
-  const std::string& address,
-  int port)
-{
-  this->start_vds(true, [root_password, address, port](const vds::service_provider&sp) {
-    vds::barrier b;
-    sp
-      .get<vds::iclient>()
-      .init_server("root", root_password)
-      .wait(
-        [&b]() {
-        b.set();
-      },
-          [&b](std::exception_ptr ex) {
-        FAIL() << vds::exception_what(ex);
-        b.set();
-      });
-    b.wait();
-  }, true);
-}
-
 void mock_client::upload_file(const std::string & login, const std::string & password, const std::string & name, const void * data, size_t data_size)
 {
   this->start_vds(true, [login, password, name, data, data_size](const vds::service_provider&sp) {
@@ -160,7 +92,7 @@ void mock_client::upload_file(const std::string & login, const std::string & pas
       .get<vds::iclient>()
       .upload_file(login, password, name, data, data_size)
       .wait(
-        [&b]() {
+        [&b](const std::string& /*version_id*/) {
           b.set(); 
         },
         [&b](std::exception_ptr ex) {
@@ -205,7 +137,7 @@ void mock_client::start_vds(bool full_client, const std::function<void(const vds
   vds::client client;
   vds::task_manager task_manager;
 
-  auto folder = vds::foldername(vds::filename::current_process().contains_folder(), std::to_string(this->index_));
+  auto folder = vds::foldername(vds::foldername(vds::filename::current_process().contains_folder(), "clients"), std::to_string(this->index_));
   if (clear_folder) {
     folder.delete_folder(true);
   }
@@ -241,6 +173,137 @@ mock_server::mock_server(int index, int port)
   port_(port),
   console_logger_(vds::ll_trace)
 {
+}
+
+void mock_server::init_root(const std::string & root_password, int port)
+{
+  vds::service_registrator registrator;
+
+  vds::mt_service mt_service;
+  vds::network_service network_service;
+  vds::console_logger console_logger(vds::ll_trace);
+  vds::crypto_service crypto_service;
+  vds::client client;
+  vds::task_manager task_manager;
+  vds::server server(true);
+
+  auto folder = vds::foldername(vds::foldername(vds::filename::current_process().contains_folder(), "servers"), std::to_string(0));
+  folder.delete_folder(true);
+  vds::foldername(folder, ".vds").create();
+  registrator.set_root_folders(folder, folder);
+
+  registrator.add(mt_service);
+  registrator.add(console_logger);
+  registrator.add(network_service);
+  registrator.add(crypto_service);
+  registrator.add(task_manager);
+  registrator.add(server);
+
+  try {
+    auto sp = registrator.build();
+    
+    vds::asymmetric_private_key private_key(vds::asymmetric_crypto::rsa4096());
+    private_key.generate();
+
+    vds::certificate root_certificate = vds::_certificate_authority::create_root_user(private_key);
+
+    vds::asymmetric_private_key server_private_key(vds::asymmetric_crypto::rsa4096());
+    server_private_key.generate();
+
+    vds::guid current_server_id = vds::guid::new_guid();
+    vds::certificate server_certificate = vds::certificate_authority::create_server(
+      current_server_id,
+      root_certificate,
+      private_key,
+      server_private_key);
+    
+    server_certificate.save(vds::filename(vds::foldername(folder, ".vds"), "server.crt"));
+    server_private_key.save(vds::filename(vds::foldername(folder, ".vds"), "server.pkey"));
+    
+    server.start(sp);
+
+    vds::storage_log log(
+      sp,
+      current_server_id,
+      server_certificate,
+      server_private_key);
+
+    vds::barrier b;
+    log.reset(
+      root_certificate,
+      private_key,
+      root_password,
+      "https://127.0.0.1:" + std::to_string(port))
+    .wait(
+      [&b](){
+        b.set();
+      },
+      [&b](std::exception_ptr ex) {
+        FAIL() << vds::exception_what(ex);
+        b.set();
+      });
+    b.wait();
+  }
+  catch (...) {
+    try { registrator.shutdown(); }
+    catch (...) {}
+
+    throw;
+  }
+
+  registrator.shutdown();
+}
+
+void mock_server::init_server(
+  const std::string& root_password,
+  const std::string& address,
+  int port)
+{
+  vds::service_registrator registrator;
+
+  vds::mt_service mt_service;
+  vds::network_service network_service;
+  vds::console_logger console_logger(vds::ll_trace);
+  vds::crypto_service crypto_service;
+  vds::client client;
+  vds::task_manager task_manager;
+
+  auto folder = vds::foldername(vds::filename::current_process().contains_folder(), std::to_string(0));
+  folder.delete_folder(true);
+  folder.create();
+  registrator.set_root_folders(folder, folder);
+
+  registrator.add(mt_service);
+  registrator.add(console_logger);
+  registrator.add(network_service);
+  registrator.add(crypto_service);
+  registrator.add(task_manager);
+
+  try {
+    auto sp = registrator.build();
+    
+    vds::barrier b;
+    sp
+      .get<vds::iclient>()
+      .init_server("root", root_password)
+      .wait(
+        [&b]() {
+        b.set();
+      },
+          [&b](std::exception_ptr ex) {
+        FAIL() << vds::exception_what(ex);
+        b.set();
+      });
+    b.wait();
+  }
+  catch (...) {
+    try { registrator.shutdown(); }
+    catch (...) {}
+
+    throw;
+  }
+
+  registrator.shutdown();
 }
 
 void mock_server::start()

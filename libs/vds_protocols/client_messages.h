@@ -112,7 +112,12 @@ namespace vds {
       put_file_message_response(const json_value *);
       std::unique_ptr<json_value> serialize() const;
 
-      put_file_message_response();
+      put_file_message_response(const std::string & version_id);
+      
+      const std::string & version_id() const { return this->version_id_; }
+      
+    private:
+      std::string version_id_;
     };
 
     class get_file_message_request

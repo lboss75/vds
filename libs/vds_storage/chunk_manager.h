@@ -32,10 +32,13 @@ namespace vds {
     ichunk_manager(chunk_manager * owner);
 
     async_task<const server_log_file_map &> add(
+      const std::string & version_id,
       const std::string & user_login,
       const std::string & name,
       const filename & fn);
+    
     async_task<const server_log_new_object &> add(const data_buffer & data);
+    
     void set_next_index(uint64_t next_index);
 
   private:

@@ -18,7 +18,7 @@ namespace vds {
       const std::string & user_login,
       const std::string & user_password);
 
-    async_task<> upload_file(
+    async_task<const std::string& /*version_id*/> upload_file(
       const std::string & login,
       const std::string & password,
       const std::string & name,

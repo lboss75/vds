@@ -150,10 +150,12 @@ vds::client_messages::put_file_message::put_file_message(
 }
 
 const char vds::client_messages::put_file_message_response::message_type[] = "put file response";
+
 vds::client_messages::put_file_message_response::put_file_message_response(const json_value * value)
 {
   auto s = dynamic_cast<const json_object *>(value);
   if (nullptr != s) {
+    s->get_property("i", this->version_id_);
   }
 }
 
@@ -161,11 +163,13 @@ std::unique_ptr<vds::json_value> vds::client_messages::put_file_message_response
 {
   std::unique_ptr<json_object> s(new json_object());
   s->add_property("$t", message_type);
-
+  s->add_property("i", this->version_id_);
   return std::unique_ptr<vds::json_value>(s.release());
 }
 
-vds::client_messages::put_file_message_response::put_file_message_response()
+vds::client_messages::put_file_message_response::put_file_message_response(
+  const std::string & version_id)
+: version_id_(version_id)
 {
 }
 

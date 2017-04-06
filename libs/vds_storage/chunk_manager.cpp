@@ -35,11 +35,12 @@ vds::ichunk_manager::ichunk_manager(chunk_manager * owner)
 
 vds::async_task<const vds::server_log_file_map &>
 vds::ichunk_manager::add(
+  const std::string & version_id,
   const std::string & user_login,
   const std::string & name,
   const filename & fn)
 {
-  return this->owner_->impl_->add(user_login, name, fn);
+  return this->owner_->impl_->add(version_id, user_login, name, fn);
 }
 
 vds::async_task<const vds::server_log_new_object &>
@@ -74,11 +75,12 @@ vds::_chunk_manager::~_chunk_manager()
 
 vds::async_task<const vds::server_log_file_map &>
 vds::_chunk_manager::add(
+  const std::string & version_id,
   const std::string & user_login,
   const std::string & name,
   const filename & fn)
 {
-  auto result = std::make_shared<server_log_file_map>(user_login, name);
+  auto result = std::make_shared<server_log_file_map>(version_id, user_login, name);
 
   return create_async_task(
     [this, fn, result](const std::function<void(const server_log_file_map &)> & done, const error_handler & on_error) {

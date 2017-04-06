@@ -13,6 +13,9 @@ public:
   void start();
   void stop();
 
+  void init_root(const std::string & root_password, int port);
+  void init_server(const std::string & root_password, const std::string & address, int port);
+  
 private:
   int index_;
   int port_;
@@ -30,9 +33,6 @@ class mock_client
 {
 public:
   mock_client(int index);
-
-  void init_root(const std::string & root_password, int port);
-  void init_server(const std::string & root_password, const std::string & address, int port);
 
   void upload_file(
     const std::string & login,

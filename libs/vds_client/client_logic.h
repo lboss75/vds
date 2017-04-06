@@ -127,7 +127,7 @@ namespace vds {
     
     void cancel_request(const std::string & request_id);
 
-    async_task<> put_file(
+    async_task<const std::string& /*version_id*/> put_file(
       const std::string & user_login,
       const std::string & name,
       const data_buffer & data);

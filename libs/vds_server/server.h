@@ -20,7 +20,7 @@ namespace vds {
   class server : public iservice
   {
   public:
-    server();
+    server(bool for_init = false);
     ~server();
     
     void register_services(service_registrator &) override;
@@ -30,6 +30,7 @@ namespace vds {
     void set_port(size_t port);
     
   private:
+    bool for_init_;
     friend class iserver;
 
     certificate certificate_;
@@ -49,6 +50,9 @@ namespace vds {
     std::unique_ptr<peer_network> peer_network_;
     
     std::unique_ptr<storage_log> storage_log_;
+    std::unique_ptr<chunk_manager> chunk_manager_;
+    std::unique_ptr<server_database> server_database_;
+    std::unique_ptr<local_cache> local_cache_;
   };
   
   class iserver

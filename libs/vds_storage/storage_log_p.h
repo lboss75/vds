@@ -62,6 +62,7 @@ namespace vds {
     void get_endpoints(std::map<std::string, std::string> & addresses);
 
     async_task<> save_file(
+      const std::string & version_id,
       const std::string & user_login,
       const std::string & name,
       const filename & tmp_file);
@@ -103,8 +104,6 @@ namespace vds {
     save_object(
       const object_container & fc);
 
-    void add_to_local_log(const json_value * record);
-    
     class replica_generator
     {
     public:

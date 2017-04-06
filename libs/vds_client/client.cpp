@@ -71,7 +71,7 @@ vds::async_task<> vds::iclient::init_server(
   return this->owner_->impl_->init_server(user_login, user_password);
 }
 
-vds::async_task<> vds::iclient::upload_file(
+vds::async_task<const std::string& /*version_id*/> vds::iclient::upload_file(
   const std::string & login,
   const std::string & password,
   const std::string & name,
@@ -165,7 +165,7 @@ vds::_client::init_server(
   });
 }
 
-vds::async_task<> vds::_client::upload_file(
+vds::async_task<const std::string& /*version_id*/> vds::_client::upload_file(
   const std::string & user_login,
   const std::string & user_password,
   const std::string & name,
@@ -175,7 +175,7 @@ vds::async_task<> vds::_client::upload_file(
   return
     this->authenticate(user_login, user_password)
     .then([this, user_login, name, data, data_size](
-      const std::function<void(void)> & done,
+      const std::function<void(const std::string& /*version_id*/)> & done,
       const error_handler & on_error,
       const certificate& user_certificate,
       const asymmetric_private_key& user_private_key) {
@@ -209,7 +209,10 @@ vds::async_task<> vds::_client::upload_file(
 
 
       this->log_(ll_trace, "Upload file");
-      this->owner_->logic_->put_file(user_login, name, datagram.data())
+      this->owner_->logic_->put_file(
+        user_login,
+        name,
+        datagram.data())
         .wait(done, on_error);
     //},
     //    [](std::exception_ptr ex) { std::rethrow_exception(ex); },

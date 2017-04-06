@@ -184,13 +184,16 @@ vds::_server_json_client_api::process(
   const service_provider & scope,
   const client_messages::put_file_message & message)
 {
+  auto version_id = guid::new_guid().str();
+  
   return scope
     .get<istorage_log>()
     .save_file(
+      version_id,
       message.user_login(),
       message.name(),
       message.tmp_file())
-    .then([](const std::function<void(const vds::json_value *)> & done, const error_handler & on_error) {
-    done(client_messages::put_file_message_response().serialize().get());
+    .then([version_id](const std::function<void(const vds::json_value *)> & done, const error_handler & on_error) {
+    done(client_messages::put_file_message_response(version_id).serialize().get());
   });
 }

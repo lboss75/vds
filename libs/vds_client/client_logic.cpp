@@ -243,7 +243,7 @@ void vds::client_logic::process(client_connection<client_logic>* connection, con
 }
 */
 
-vds::async_task<> vds::client_logic::put_file(
+vds::async_task<const std::string& /*version_id*/> vds::client_logic::put_file(
   const std::string & user_login,
   const std::string & name,
   const data_buffer & data)
@@ -251,9 +251,8 @@ vds::async_task<> vds::client_logic::put_file(
   foldername tmp(persistence::current_user(this->sp_), "tmp");
   tmp.create();
 
-  auto request_id = guid::new_guid().str();
-
-  filename tmpfile(tmp, request_id);
+  auto version_id = guid::new_guid().str();
+  filename tmpfile(tmp, version_id);
   file f(tmpfile, file::create_new);
   f.write(data.data(), data.size());
   f.close();
@@ -264,10 +263,10 @@ vds::async_task<> vds::client_logic::put_file(
       name,
       tmpfile).serialize())
     .then([](
-      const std::function<void(void)> & done,
+      const std::function<void(const std::string& /*version_id*/)> & done,
       const error_handler & on_error,
       const client_messages::put_file_message_response & response) {
-    done();
+    done(response.version_id());
   });
 }
 

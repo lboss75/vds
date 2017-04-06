@@ -109,11 +109,12 @@ void vds::istorage_log::get_endpoints(std::map<std::string, std::string> & addre
 }
 
 vds::async_task<> vds::istorage_log::save_file(
+  const std::string & version_id,
   const std::string & user_login,
   const std::string & name,
   const filename & tmp_file)
 {
-  return this->owner_->impl_->save_file(user_login, name, tmp_file);
+  return this->owner_->impl_->save_file(version_id, user_login, name, tmp_file);
 }
 ///////////////////////////////////////////////////////////////////////////////
 vds::_storage_log::_storage_log(
@@ -146,9 +147,6 @@ vds::async_task<> vds::_storage_log::reset(
 {
   this->local_log_folder_.create();
   this->vds_folder_.create();
-  
-  this->server_certificate_.save(filename(this->vds_folder_, "server.crt"));
-  this->current_server_key_.save(filename(this->vds_folder_, "server.pkey"));
   
   hash ph(hash::sha256());
   ph.update(password.c_str(), password.length());
@@ -425,11 +423,15 @@ void vds::_storage_log::get_endpoints(std::map<std::string, std::string> & addre
   this->db_.get(this->sp_).get_endpoints(addresses);
 }
 
-vds::async_task<> vds::_storage_log::save_file(const std::string & user_login, const std::string & name, const filename & tmp_file)
+vds::async_task<> vds::_storage_log::save_file(
+  const std::string & version_id,
+  const std::string & user_login,
+  const std::string & name,
+  const filename & tmp_file)
 {
   return this->chunk_manager_
     .get(this->sp_)
-    .add(user_login, name, tmp_file)
+    .add(version_id, user_login, name, tmp_file)
     .then([this](
       const std::function<void(void)> & done,
       const error_handler & on_error,

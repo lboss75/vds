@@ -112,7 +112,7 @@ void vds::_server_database::start()
     installed DATETIME NOT NULL)");
 
     this->db_.execute(
-      "CREATE TABLE objects(\
+      "CREATE TABLE object(\
       server_id VARCHAR(64) NOT NULL,\
       object_index INTEGER NOT NULL,\
       original_lenght INTEGER NOT NULL,\
@@ -129,12 +129,25 @@ void vds::_server_database::start()
       password_hash VARCHAR(64) NOT NULL)");
     
     this->db_.execute(
-      "CREATE TABLE endpoints(\
+      "CREATE TABLE endpoint(\
       endpoint_id VARCHAR(64) PRIMARY KEY NOT NULL,\
       addresses TEXT NOT NULL)");
 
+    this->db_.execute(
+      "CREATE TABLE file(\
+      version_id VARCHAR(64) PRIMARY KEY NOT NULL,\
+      server_id VARCHAR(64) NOT NULL,\
+      user_login VARCHAR(64) NOT NULL,\
+      name TEXT NOT NULL)");
+    
+    this->db_.execute(
+      "CREATE TABLE file_map(\
+      version_id VARCHAR(64) NOT NULL,\
+      object_index INTEGER NOT NULL,\
+      CONSTRAINT pk_file_map PRIMARY KEY (version_id, object_index))");
+    
     this->db_.execute("INSERT INTO module(id, version, installed) VALUES('kernel', 1, datetime('now'))");
-    this->db_.execute("INSERT INTO endpoints(endpoint_id, addresses) VALUES('default', 'udp://127.0.0.1:8050,https://127.0.0.1:8050')");
+    this->db_.execute("INSERT INTO endpoint(endpoint_id, addresses) VALUES('default', 'udp://127.0.0.1:8050,https://127.0.0.1:8050')");
   }
 }
 
@@ -191,7 +204,7 @@ void vds::_server_database::add_object(
 {
   this->add_object_statement_.execute(
     this->db_,
-    "INSERT INTO objects(server_id, object_index, original_lenght, original_hash, target_lenght, target_hash)\
+    "INSERT INTO object(server_id, object_index, original_lenght, original_hash, target_lenght, target_hash)\
     VALUES (@server_id, @object_index, @original_lenght, @original_hash, @target_lenght, @target_hash)",
     server_id,
     index.index(),
@@ -206,7 +219,7 @@ uint64_t vds::_server_database::last_object_index(const guid& server_id)
   uint64_t result = 0;
   this->last_object_index_query_.query(
     this->db_,
-    "SELECT MAX(object_index)+1 FROM objects WHERE server_id=@server_id",
+    "SELECT MAX(object_index)+1 FROM object WHERE server_id=@server_id",
     [&result](sql_statement & st)->bool{
       st.get_value(0, result);
       return false;
@@ -222,7 +235,7 @@ void vds::_server_database::add_endpoint(
 {
   this->add_endpoint_statement_.execute(
     this->db_,
-    "INSERT INTO endpoints(endpoint_id, addresses) VALUES (@endpoint_id, @addresses)",
+    "INSERT INTO endpoint(endpoint_id, addresses) VALUES (@endpoint_id, @addresses)",
     endpoint_id,
     addresses);
 }
@@ -231,7 +244,7 @@ void vds::_server_database::get_endpoints(std::map<std::string, std::string>& re
 {
   this->get_endpoints_query_.query(
     this->db_,
-    "SELECT endpoint_id, addresses FROM endpoints",
+    "SELECT endpoint_id, addresses FROM endpoint",
     [&result](sql_statement & st)->bool{
       std::string endpoint_id;
       std::string addresses;
@@ -243,3 +256,25 @@ void vds::_server_database::get_endpoints(std::map<std::string, std::string>& re
     });
 }
 
+void vds::_server_database::add_file(
+  const guid & server_id,
+  const server_log_file_map & fm)
+{
+    this->add_file_statement_.execute(
+      this->db_,
+      "INSERT INTO file(version_id,server_id,user_login,name)\
+      VALUES(@version_id,@server_id,@user_login,@name)",
+      fm.version_id(),
+      server_id,
+      fm.user_login(),
+      fm.name());
+    
+    for(auto & item : fm.items()){
+      this->add_file_map_statement_.execute(
+        this->db_,
+        "INSERT INTO file_map(version_id,object_index)\
+        VALUES(@version_id,@object_index)",
+        fm.version_id(),
+        item.index());
+    }
+}

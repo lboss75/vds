@@ -22,6 +22,7 @@ namespace vds {
 
     async_task<const server_log_file_map &>
       add(
+        const std::string & version_id,
         const std::string & user_login,
         const std::string & name,
         const filename & fn);

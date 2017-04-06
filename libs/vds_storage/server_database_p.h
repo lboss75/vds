@@ -69,6 +69,16 @@ namespace vds {
       const std::string & /*addresses*/> add_endpoint_statement_;
       
     prepared_query<> get_endpoints_query_;
+    
+    prepared_statement<
+      const std::string & /*version_id*/,
+      const guid & /*server_id*/,
+      const std::string & /*user_login*/,
+      const std::string & /*name*/> add_file_statement_;
+      
+    prepared_statement<
+      const std::string & /*version_id*/,
+      uint64_t /*index*/> add_file_map_statement_;
   };
 
 }
