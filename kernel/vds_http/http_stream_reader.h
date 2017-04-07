@@ -72,12 +72,6 @@ namespace vds {
         this->done_method_();
       }
       
-      void validate()
-      {
-        this->done_method_.check_alive();
-        base_class::validate();
-      }
-      
     private:
       done_method_type & done_method_;
       http_incoming_stream & incoming_stream_;

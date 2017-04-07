@@ -85,7 +85,7 @@ vds::_chunk_manager::add(
   return create_async_task(
     [this, fn, result](const std::function<void(const server_log_file_map &)> & done, const error_handler & on_error) {
     dataflow(
-      read_file(fn, (size_t)5 * 1024 * 1024 * 1024),
+      read_file(fn, (size_t)5 * 1024 * 1024),
       task_step([this, result](
         const std::function<void(void) > & done,
         const error_handler & on_error,

@@ -22,7 +22,7 @@ void vds_mock::start(size_t server_count)
 
   for (size_t i = 0; i < server_count; ++i) {
     if(0 < i){
-      mock_client client(0);
+      mock_client client(i);
       client.init_server(this->root_password_, "127.0.0.1", first_port + 1);
     }
     
@@ -91,15 +91,21 @@ void mock_client::init_server(
   const std::string& address,
   int port)
 {
-  this->start_vds(true, [root_password, address, port](const vds::service_provider&sp) {
+  this->start_vds(true, [root_password, address, port, this](const vds::service_provider&sp) {
     vds::barrier b;
     sp
       .get<vds::iclient>()
       .init_server("root", root_password)
       .wait(
-        [&b]() {
-        b.set();
-      },
+        [&b, this](
+          const vds::certificate & server_certificate,
+          const vds::asymmetric_private_key & private_key) {
+            auto root_folder = vds::foldername(vds::foldername(vds::foldername(vds::filename::current_process().contains_folder(), "servers"), std::to_string(this->index_)), ".vds");
+            root_folder.create();
+            server_certificate.save(vds::filename(root_folder, "server.crt"));
+            private_key.save(vds::filename(root_folder, "server.pkey"));
+          b.set();
+        },
           [&b](std::exception_ptr ex) {
         FAIL() << vds::exception_what(ex);
         b.set();

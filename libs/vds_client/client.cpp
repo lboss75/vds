@@ -64,7 +64,10 @@ vds::iclient::iclient(vds::client* owner)
 {
 }
 
-vds::async_task<> vds::iclient::init_server(
+vds::async_task<
+  const vds::certificate & /*server_certificate*/,
+  const vds::asymmetric_private_key & /*private_key*/>
+  vds::iclient::init_server(
   const std::string & user_login,
   const std::string & user_password)
 {
@@ -92,7 +95,9 @@ vds::_client::_client(const service_provider & sp, vds::client* owner)
 }
 
 
-vds::async_task<>
+vds::async_task<
+  const vds::certificate & /*server_certificate*/,
+  const vds::asymmetric_private_key & /*private_key*/>
 vds::_client::init_server(
   const std::string& user_login,
   const std::string& user_password)
@@ -100,7 +105,9 @@ vds::_client::init_server(
   return
     this->authenticate(user_login, user_password)
     .then([this](
-      const std::function<void(void)> & done,
+      const std::function<void(
+        const certificate & /*server_certificate*/,
+        const asymmetric_private_key & /*private_key*/)> & done,
       const error_handler & on_error,
       const certificate& user_certificate,
       const asymmetric_private_key& user_private_key) {
@@ -122,10 +129,7 @@ vds::_client::init_server(
     certificate server_certificate = certificate::create_new(pkey, private_key, options);
     foldername root_folder(persistence::current_user(this->sp_), ".vds");
     root_folder.create();
-
-    server_certificate.save(filename(root_folder, "server.crt"));
-    private_key.save(filename(root_folder, "server.pkey"));
-
+    
     this->log_(ll_trace, "Register new user");
     asymmetric_private_key local_user_private_key(asymmetric_crypto::rsa4096());
     local_user_private_key.generate();
@@ -152,13 +156,12 @@ vds::_client::init_server(
         const error_handler & on_error,
         const client_messages::register_server_response & response) {
       done();
-    }).wait(done,
+    }).wait(
+      [server_cert = server_certificate.str(), private_key, done]() { done(certificate::parse(server_cert), private_key); },
       [on_error, root_folder](std::exception_ptr ex) {
 
       file::delete_file(filename(root_folder, "user.crt"), true);
       file::delete_file(filename(root_folder, "user.pkey"), true);
-      file::delete_file(filename(root_folder, "server.crt"), true);
-      file::delete_file(filename(root_folder, "server.pkey"), true);
 
       on_error(ex);
     });

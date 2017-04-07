@@ -8,6 +8,7 @@ All rights reserved
 #include "method_proxy.h"
 #include "func_utils.h"
 #include "types.h"
+#include "deferred_callback.h"
 
 namespace vds {
   //////////////////////////////////////////////////////
@@ -122,7 +123,8 @@ namespace vds {
 #ifdef DEBUG
       is_alive_sig_(0x37F49C0F),
 #endif
-      prev(context.prev_),
+      prev_proxy_(context.prev_),
+      prev(context.deferred_context_, this->prev_proxy_),
       next(context.next_),
       error(context.error_)
     {
@@ -159,7 +161,10 @@ namespace vds {
       _processed_method_proxy<
         typename context_type::prev_step_t, 
       decltype(&context_type::prev_step_t::processed)>
-        prev_step_t;
+        prev_step_real_t;
+    typedef
+      deferred_callback<prev_step_real_t>
+      prev_step_t;
 
 #ifdef DEBUG
     int is_alive_sig_;
@@ -176,10 +181,13 @@ namespace vds {
     void validate()
     {
       this->check_alive();
-      this->prev.check_alive();
+      this->prev_proxy_.check_alive();
       this->next.check_alive();
       this->error.check_alive();      
     }
+
+  private:
+    prev_step_real_t prev_proxy_;
   };
   //////////////////////////////////////////////////////
   template <typename owner_type, typename method_type, typename method_signature>
@@ -586,12 +594,17 @@ namespace vds {
         typedef auto_delete_trigger<error_method_type> error_method_t;
 
         _dataflow_first_step_context(
+          deferred_context & context,
           next_step_t & next,
           error_method_t & error
-        ) : prev_(_fake::instance()), next_(next), error_(error)
+        ) : deferred_context_(context),
+          prev_(_fake::instance()),
+          next_(next),
+          error_(error)
         {
         }
 
+        deferred_context & deferred_context_;
         prev_step_t & prev_;
         next_step_t & next_;
         error_method_t & error_;
@@ -645,9 +658,10 @@ namespace vds {
         using base_class = _dataflow_first_step_context;
 
         _dataflow_step_context(
+          deferred_context & context,
           typename base_class::next_step_t & next,
           auto_delete_trigger<error_method_type> & error_method
-        ) : base_class(next, error_method)
+        ) : base_class(context, next, error_method)
         {
         }
       };
@@ -665,13 +679,16 @@ namespace vds {
         typedef auto_delete_trigger<error_method_type> error_method_t;
 
         _dataflow_step_context(
+          deferred_context & context,
           prev_step_t & prev,
           next_step_t & next,
           error_method_t & error
-        ) : prev_(prev), next_(next), error_(error)
+        ) : deferred_context_(context),
+          prev_(prev), next_(next), error_(error)
         {
         }
 
+        deferred_context & deferred_context_;
         prev_step_t & prev_;
         next_step_t & next_;
         error_method_t & error_;
@@ -691,13 +708,18 @@ namespace vds {
 
 
         _dataflow_step_context(
+          deferred_context & context,
           prev_step_t & prev,
           next_step_t & next,
           error_method_t & error
-        ) : prev_(prev), next_(next), error_(error)
+        ) : deferred_context_(context),
+          prev_(prev),
+          next_(next),
+          error_(error)
         {
         }
 
+        deferred_context & deferred_context_;
         prev_step_t & prev_;
         next_step_t & next_;
         error_method_t & error_;
@@ -716,17 +738,17 @@ namespace vds {
           std::tuple_size<tuple_type>::value - index - 1>;
       public:
         _dataflow_holder(
+          deferred_context & context,
           processed_step_t & prev,
           auto_delete_trigger<done_method_type> & done,
           auto_delete_trigger<error_method_type> & error_method,
           const std::tuple<functor_types...> & args
         )
           :
-          holder_(step, done, error_method, args),
+          holder_(context, step, done, error_method, args),
           step(
-            step_context_t(prev, holder_.step, error_method),
+            step_context_t(context, prev, holder_.step, error_method),
             std::get<std::tuple_size<tuple_type>::value - index - 1>(args))
-          
         {
         }
         
@@ -749,6 +771,7 @@ namespace vds {
       public:
 
         _dataflow_holder(
+          deferred_context & context,
           processed_step_t & /*prev*/,
           auto_delete_trigger<done_method_type> & done,
           auto_delete_trigger<error_method_type> & /*error_method*/,
@@ -769,13 +792,14 @@ namespace vds {
       using step_context_t = _dataflow_step_context<0>;
       
       _dataflow_start_holder(
+        deferred_context & context,
         auto_delete_trigger<done_method_type> & done_method,
         auto_delete_trigger<error_method_type> & error_method,
         const std::tuple<functor_types...> & args
       )
       : 
-        holder_(step, done_method, error_method, args),        
-        step(step_context_t(holder_.step, error_method), _dataflow_starter<arg_types...>())
+        holder_(context, step, done_method, error_method, args),        
+        step(step_context_t(context, holder_.step, error_method), _dataflow_starter<arg_types...>())
       {
       }
       
@@ -814,9 +838,10 @@ namespace vds {
         error_method_type & error_method,
         const std::tuple<functor_types...> & builder
       ) : 
+        context_(new deferred_context()),
         done_proxy_(this, done_method),
         error_proxy_(this, error_method),
-        holder_(done_proxy_, error_proxy_, builder)
+        holder_(*this->context_, done_proxy_, error_proxy_, builder)
       {
       }
       
@@ -827,6 +852,7 @@ namespace vds {
         holder_.validate();
       }
 
+      std::shared_ptr<deferred_context> context_;
       auto_delete_trigger<done_method_type> done_proxy_;
       auto_delete_trigger<error_method_type> error_proxy_;
       holder_class holder_;
@@ -852,12 +878,13 @@ namespace vds {
         done_method_type && done_method,
         error_method_type && error_method,
         const std::tuple<functor_types...> & builder
-      ) : 
+      ) :
+        context_(new deferred_context()),
         done_method_(done_method),
         error_method_(error_method),
         done_proxy_(this, done_method_),
         error_proxy_(this, error_method_),
-        holder_(done_proxy_, error_proxy_, builder)
+        holder_(*this->context_, done_proxy_, error_proxy_, builder)
       {
       }
       
@@ -866,11 +893,12 @@ namespace vds {
         const error_method_type & error_method,
         const std::tuple<functor_types...> & builder
       ) : 
+        context_(new deferred_context()),
         done_method_(done_method),
         error_method_(error_method),
         done_proxy_(this, done_method_),
         error_proxy_(this, error_method_),
-        holder_(done_proxy_, error_proxy_, builder)
+        holder_(*this->context_, done_proxy_, error_proxy_, builder)
       {
       }
       
@@ -881,6 +909,7 @@ namespace vds {
         holder_.validate();
       }
 
+      std::shared_ptr<deferred_context> context_;
       done_method_type done_method_;
       error_method_type error_method_;
       auto_delete_trigger<done_method_type> done_proxy_;

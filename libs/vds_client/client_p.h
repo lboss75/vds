@@ -14,7 +14,10 @@ namespace vds {
   public:
     _client(const service_provider & sp, client * owner);
     
-    async_task<> init_server(
+    async_task<
+      const vds::certificate & /*server_certificate*/,
+      const vds::asymmetric_private_key & /*private_key*/>
+      init_server(
       const std::string & user_login,
       const std::string & user_password);
 
