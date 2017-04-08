@@ -97,13 +97,13 @@ namespace vds {
     void add_property(const std::string & name, std::unique_ptr<json_value> && value);
     void add_property(const std::string & name, uint64_t value);
     void add_property(const std::string & name, const std::string & value);
-    void add_property(const std::string & name, const data_buffer & value);
+    void add_property(const std::string & name, const const_data_buffer & value);
 
     const json_value * get_property(const std::string & name) const;
     bool get_property(const std::string & name, std::string & value, bool throw_error = true) const;
     bool get_property(const std::string & name, int & value, bool throw_error = true) const;
     //bool get_property(const std::string & name, size_t & value, bool throw_error = true) const;
-    bool get_property(const std::string & name, data_buffer & value, bool throw_error = true) const;
+    bool get_property(const std::string & name, const_data_buffer & value, bool throw_error = true) const;
     bool get_property(const std::string & name, uint8_t & value, bool throw_error = true) const;
     bool get_property(const std::string & name, uint16_t & value, bool throw_error = true) const;
     bool get_property(const std::string & name, uint32_t & value, bool throw_error = true) const;

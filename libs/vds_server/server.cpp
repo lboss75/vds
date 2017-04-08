@@ -84,7 +84,7 @@ void vds::server::start(const service_provider& sp)
   this->server_http_api_->start("127.0.0.1", this->port_, this->certificate_, this->private_key_)
   .wait(
     [log = logger(sp, "HTTP Server API")](){log.trace("Server closed");},
-    [log = logger(sp, "HTTP Server API")](std::exception_ptr ex){log.trace("Server error");});
+    [log = logger(sp, "HTTP Server API")](std::exception_ptr ex){log.trace("Server error %s", exception_what(ex).c_str());});
   
   this->server_udp_api_->start("127.0.0.1", this->port_);
 

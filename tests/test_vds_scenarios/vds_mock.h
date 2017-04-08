@@ -40,7 +40,7 @@ public:
     const void * data,
     size_t data_size);
 
-  vds::data_buffer download_data(
+  vds::const_data_buffer download_data(
     const std::string & login,
     const std::string & password,
     const std::string & name);
@@ -63,7 +63,7 @@ public:
   void stop();
 
   void upload_file(size_t client_index, const std::string & name, const void * data, size_t data_size);
-  vds::data_buffer download_data(size_t client_index, const std::string & name);
+  vds::const_data_buffer download_data(size_t client_index, const std::string & name);
 
 private:
   std::vector<std::unique_ptr<mock_server>> servers_;

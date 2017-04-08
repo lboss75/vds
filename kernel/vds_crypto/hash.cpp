@@ -38,20 +38,20 @@ void vds::hash::final()
   this->impl_->final();
 }
 
-const vds::data_buffer& vds::hash::signature() const
+const vds::const_data_buffer& vds::hash::signature() const
 {
   return this->impl_->signature();
 
 }
 
-vds::data_buffer vds::hash::signature(
+vds::const_data_buffer vds::hash::signature(
   const vds::hash_info& info,
-  const data_buffer& data)
+  const const_data_buffer& data)
 {
   return signature(info, data.data(), data.size());
 }
 
-vds::data_buffer vds::hash::signature(
+vds::const_data_buffer vds::hash::signature(
   const vds::hash_info& info,
   const void * data,
   size_t data_size)
@@ -98,16 +98,18 @@ void vds::_hash::update(const void * data, size_t len)
 void vds::_hash::final()
 {
   auto len = (unsigned int)EVP_MD_size(this->info_.type);
-  this->sig_.resize(len);
+  std::vector<unsigned char> buffer(len);
 
-  if (1 != EVP_DigestFinal_ex(this->ctx_, (unsigned char *)this->sig_.data(), &len)) {
+  if (1 != EVP_DigestFinal_ex(this->ctx_, buffer.data(), &len)) {
     auto error = ERR_get_error();
     throw new crypto_exception("EVP_DigestFinal_ex", error);
   }
 
-  if (len != this->sig_.size()) {
+  if (len != buffer.size()) {
     throw new std::runtime_error("len != this->sig_len_");
   }
+  
+  this->sig_.reset(buffer.data(), buffer.size());  
 }
 ///////////////////////////////////////////////////////////////
 vds::hmac::hmac(const std::string & key, const hash_info & info)
@@ -164,13 +166,15 @@ void vds::_hmac::update(const void * data, size_t len)
 void vds::_hmac::final()
 {
   auto len = (unsigned int)EVP_MD_size(this->info_.type);
-  this->sig_.resize(len);
-  if (1 != HMAC_Final(this->ctx_, (unsigned char *)this->sig_.data(), &len)) {
+  std::vector<unsigned char> buffer(len);
+  if (1 != HMAC_Final(this->ctx_, buffer.data(), &len)) {
     auto error = ERR_get_error();
     throw new crypto_exception("HMAC_Final", error);
   }
 
-  if (len != this->sig_.size()) {
+  if (len != buffer.size()) {
     throw new std::runtime_error("len != this->sig_len_");
   }
+  
+  this->sig_.reset(buffer.data(), buffer.size());
 }

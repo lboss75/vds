@@ -31,9 +31,9 @@ void vds::udp_messages::hello_message::serialize(network_serializer & s) const
 
 vds::udp_messages::welcome_message::welcome_message(
   const guid & server_id,
-  const data_buffer & key_crypted,
-  const data_buffer & crypted_info,
-  const data_buffer & sign)
+  const const_data_buffer & key_crypted,
+  const const_data_buffer & crypted_info,
+  const const_data_buffer & sign)
   : server_id_(server_id),
   key_crypted_(key_crypted),
   crypted_info_(crypted_info),

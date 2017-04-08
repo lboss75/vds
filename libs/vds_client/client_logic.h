@@ -130,8 +130,8 @@ namespace vds {
     async_task<const std::string& /*version_id*/> put_file(
       const std::string & user_login,
       const std::string & name,
-      const data_buffer & data);
-    data_buffer download_file(const std::string & user_login);
+      const const_data_buffer & data);
+    const_data_buffer download_file(const std::string & user_login);
 
   private:
     service_provider sp_;

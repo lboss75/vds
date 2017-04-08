@@ -32,7 +32,7 @@ vds::ilocal_cache::ilocal_cache(local_cache * owner)
 {
 }
 
-std::unique_ptr<vds::data_buffer> vds::ilocal_cache::get_object(
+std::unique_ptr<vds::const_data_buffer> vds::ilocal_cache::get_object(
   const full_storage_object_id& object_id)
 {
   return this->owner_->impl_->get_object(object_id);
@@ -57,7 +57,7 @@ vds::_local_cache::~_local_cache()
 {
 }
 
-std::unique_ptr<vds::data_buffer> vds::_local_cache::get_object(
+std::unique_ptr<vds::const_data_buffer> vds::_local_cache::get_object(
   const full_storage_object_id& object_id)
 {
   filename fn(
@@ -66,11 +66,11 @@ std::unique_ptr<vds::data_buffer> vds::_local_cache::get_object(
 
   
   if(!file::exists(fn)){
-    return std::unique_ptr<data_buffer>();
+    return std::unique_ptr<const_data_buffer>();
   }
   
-  return std::unique_ptr<data_buffer>(
-    new data_buffer(
+  return std::unique_ptr<const_data_buffer>(
+    new const_data_buffer(
       inflate::inflate_buffer(
         file::read_all(fn))));
 }

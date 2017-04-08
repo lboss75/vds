@@ -24,13 +24,13 @@ namespace vds {
 
     void final();
 
-    const data_buffer & signature() const;
+    const const_data_buffer & signature() const;
     
-    static data_buffer signature(
+    static const_data_buffer signature(
       const hash_info & info,
-      const data_buffer & data);
+      const const_data_buffer & data);
 
-    static data_buffer signature(
+    static const_data_buffer signature(
       const hash_info & info,
       const void * data,
       size_t data_size);
@@ -52,7 +52,7 @@ namespace vds {
 
     void final();
 
-    const data_buffer signature() const;
+    const const_data_buffer signature() const;
 
   private:
     _hmac * impl_;

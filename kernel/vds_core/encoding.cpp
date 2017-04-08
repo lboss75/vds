@@ -147,12 +147,12 @@ std::string vds::base64::from_bytes(const void * _data, size_t len)
   return encodedString;
 }
 
-std::string vds::base64::from_bytes(const data_buffer & data)
+std::string vds::base64::from_bytes(const const_data_buffer & data)
 {
   return from_bytes(data.data(), data.size());
 }
 
-vds::data_buffer vds::base64::to_bytes(const std::string& data)
+vds::const_data_buffer vds::base64::to_bytes(const std::string& data)
 {
   if (data.length() % 4){
     throw std::runtime_error("Non-Valid base64!");
@@ -195,10 +195,10 @@ vds::data_buffer vds::base64::to_bytes(const std::string& data)
       case 1: //One pad character
         result.push_back((temp >> 16) & 0x000000FF);
         result.push_back((temp >> 8 ) & 0x000000FF);
-        return data_buffer(result);
+        return const_data_buffer(result);
       case 2: //Two pad characters
         result.push_back((temp >> 10) & 0x000000FF);
-        return data_buffer(result);
+        return const_data_buffer(result);
       default:
         throw std::runtime_error("Invalid Padding in Base 64!");
       }
@@ -215,5 +215,5 @@ vds::data_buffer vds::base64::to_bytes(const std::string& data)
     }
   }
   
-  return data_buffer(result);
+  return const_data_buffer(result);
 }

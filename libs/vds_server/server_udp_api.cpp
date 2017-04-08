@@ -113,7 +113,7 @@ void vds::_server_udp_api::input_message(const sockaddr_in * from, const void * 
           s << session_id;
 
           barrier b;
-          data_buffer crypted_data;
+          const_data_buffer crypted_data;
           dataflow(
             symmetric_encrypt(this->sp_, session_key),
             collect_data())(
@@ -157,7 +157,7 @@ void vds::_server_udp_api::input_message(const sockaddr_in * from, const void * 
       {
         guid client_id;
         uint64_t generation_id;
-        data_buffer mac_key;
+        const_data_buffer mac_key;
         
         s >> client_id >> generation_id >> mac_key;
         
@@ -171,8 +171,8 @@ void vds::_server_udp_api::input_message(const sockaddr_in * from, const void * 
       {
         guid client_id;
         uint64_t generation_id;
-        data_buffer command_data;
-        data_buffer sign_data;
+        const_data_buffer command_data;
+        const_data_buffer sign_data;
         
         s >> client_id >> generation_id >> command_data >> sign_data;
                 
@@ -209,7 +209,7 @@ void vds::_server_udp_api::open_udp_session(const std::string & address)
   this->message_queue_.push(
     network_address.server,
     (uint16_t)std::atoi(network_address.port.c_str()),
-    data_buffer(s.data()));
+    const_data_buffer(s.data()));
 }
 
 

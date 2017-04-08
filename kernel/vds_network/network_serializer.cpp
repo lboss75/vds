@@ -76,7 +76,7 @@ vds::network_serializer& vds::network_serializer::push_data(const void* data, si
   return *this;
 }
 
-vds::network_serializer& vds::network_serializer::operator<<(const data_buffer & data)
+vds::network_serializer& vds::network_serializer::operator<<(const const_data_buffer & data)
 {
   this->push_data(data.data(), data.size());
   return *this;
@@ -225,7 +225,7 @@ vds::network_deserializer& vds::network_deserializer::read_data(std::vector< uin
   return *this;
 }
 
-vds::network_deserializer& vds::network_deserializer::operator>>(data_buffer& data)
+vds::network_deserializer& vds::network_deserializer::operator>>(const_data_buffer& data)
 {
   this->data_ >> data;
   

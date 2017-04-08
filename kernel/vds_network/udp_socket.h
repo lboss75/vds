@@ -494,7 +494,7 @@ private:
         {
         }
         
-        void operator()(const std::string & address, uint16_t port, const data_buffer & data)
+        void operator()(const std::string & address, uint16_t port, const const_data_buffer & data)
         {
           this->data_ = data;
           this->from_.sin_family = AF_INET;
@@ -507,7 +507,7 @@ private:
       private:
         read_handler & owner_;
         sockaddr_in from_;
-        data_buffer data_;
+        const_data_buffer data_;
       };
       handler handler_;
     };

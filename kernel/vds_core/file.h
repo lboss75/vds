@@ -8,7 +8,7 @@ All rights reserved
 
 #include "filename.h"
 #include "dataflow.h"
-#include "data_buffer.h"
+#include "const_data_buffer.h"
 
 namespace vds {
 
@@ -61,7 +61,7 @@ namespace vds {
     static void move(const filename & source, const filename & target);
     static void delete_file(const filename & fn, bool ignore_error = false);
     static std::string read_all_text(const filename & fn);
-    static data_buffer read_all(const filename & fn);
+    static const_data_buffer read_all(const filename & fn);
 
   private:
     filename filename_;
@@ -183,7 +183,7 @@ namespace vds {
 
       void processed()
       {
-        auto readed = this->f_.read(const_cast<uint8_t *>(this->buffer_.data()), this->buffer_.size());
+        auto readed = this->f_.read(this->buffer_.data(), this->buffer_.size());
         
         if (0 < readed) {
           this->next(this->buffer_.data(), readed);
@@ -195,7 +195,7 @@ namespace vds {
 
     private:
       file f_;
-      data_buffer buffer_;
+      std::vector<uint8_t> buffer_;
     };
 
   private:

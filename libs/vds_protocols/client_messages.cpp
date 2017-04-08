@@ -10,7 +10,7 @@ const char vds::client_messages::certificate_and_key_request::message_type[] = "
 
 vds::client_messages::certificate_and_key_request::certificate_and_key_request(
   const std::string & object_name,
-  const data_buffer & password_hash)
+  const const_data_buffer & password_hash)
 : object_name_(object_name),
   password_hash_(password_hash)
 {

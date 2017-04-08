@@ -32,14 +32,14 @@ namespace vds {
       uint64_t index() const { return this->index_; }
       uint16_t replica() const { return this->replica_; }
       uint16_t size() const { return this->size_; }
-      const data_buffer & data() const { return this->data_; }
+      const const_data_buffer & data() const { return this->data_; }
       
     private:
       guid source_id_;
       uint64_t index_;
       uint16_t replica_;
       uint16_t size_;
-      data_buffer data_;
+      const_data_buffer data_;
     };
    
 

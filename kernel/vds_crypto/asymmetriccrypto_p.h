@@ -35,10 +35,10 @@ namespace vds {
       return this->key_;
     }
 
-    data_buffer decrypt(const data_buffer & data)
+    const_data_buffer decrypt(const const_data_buffer & data)
     {
       size_t blocksize = (size_t)RSA_size(EVP_PKEY_get1_RSA(this->key_));
-      data_buffer result;
+      std::vector<uint8_t> result;
 
       auto p = data.data();
       auto l = data.size();
@@ -56,13 +56,13 @@ namespace vds {
           throw new crypto_exception("RSA_private_decrypt failed", error);
         }
 
-        result.add(buffer.get(), len);
+        result.insert(result.end(), buffer.get(), buffer.get() + len);
 
         p += n;
         l -= n;
       }
 
-      return result;
+      return const_data_buffer(result.data(), result.size());
     }
 
   private:
@@ -92,13 +92,13 @@ namespace vds {
     void load(const filename & filename);
     void save(const filename & filename) const;
 
-    data_buffer encrypt(const data_buffer & data)
+    const_data_buffer encrypt(const void * data, size_t data_size)
     {
       size_t blocksize = (size_t)RSA_size(EVP_PKEY_get1_RSA(this->key_)) - 11;// EVP_PKEY_size(this->key_);
-      data_buffer result;
+      std::vector<uint8_t> result;
 
-      auto p = data.data();
-      auto l = data.size();
+      auto p = reinterpret_cast<const uint8_t *>(data);
+      auto l = data_size;
 
       std::unique_ptr<uint8_t> buffer(new uint8_t[RSA_size(EVP_PKEY_get1_RSA(this->key_))]);
       while (l > 0) {
@@ -113,13 +113,13 @@ namespace vds {
           throw new crypto_exception("RSA_private_encrypt failed", error);
         }
 
-        result.add(buffer.get(), len);
+        result.insert(result.end(), buffer.get(), buffer.get() + len);
 
         p += n;
         l -= n;
       }
 
-      return result;
+      return const_data_buffer(result.data(), result.size());
     }
 
   private:
@@ -144,14 +144,14 @@ namespace vds {
 
     void final();
 
-    const data_buffer & signature() const {
+    const const_data_buffer & signature() const {
       return this->sig_;
     }
 
   private:
     EVP_MD_CTX * ctx_;
     const EVP_MD * md_;
-    data_buffer sig_;
+    const_data_buffer sig_;
   };
 
   class _asymmetric_sign_verify
@@ -168,7 +168,7 @@ namespace vds {
       int len);
 
     bool verify(
-      const data_buffer & sig
+      const const_data_buffer & sig
     );
 
   private:
@@ -207,7 +207,7 @@ namespace vds {
 
     std::string subject() const;
     std::string issuer() const;
-    data_buffer fingerprint(const hash_info & hash_algo = hash::sha256()) const;
+    const_data_buffer fingerprint(const hash_info & hash_algo = hash::sha256()) const;
 
     static certificate create_new(
       const asymmetric_public_key & new_certificate_public_key,

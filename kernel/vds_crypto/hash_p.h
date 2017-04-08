@@ -26,7 +26,7 @@ namespace vds {
 
     void final();
 
-    const data_buffer & signature() const {
+    const const_data_buffer & signature() const {
       return this->sig_;
     }
 
@@ -34,7 +34,7 @@ namespace vds {
     const hash_info & info_;
 
     EVP_MD_CTX * ctx_;
-    data_buffer sig_;
+    const_data_buffer sig_;
   };
 
   class _hmac
@@ -49,14 +49,14 @@ namespace vds {
 
     void final();
 
-    const data_buffer signature() const {
+    const const_data_buffer signature() const {
       return this->sig_;
     }
 
   private:
     const hash_info & info_;
     HMAC_CTX * ctx_;
-    data_buffer sig_;
+    const_data_buffer sig_;
     
 #ifndef _WIN32
     HMAC_CTX hmac_ctx_;

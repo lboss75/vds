@@ -246,7 +246,7 @@ void vds::client_logic::process(client_connection<client_logic>* connection, con
 vds::async_task<const std::string& /*version_id*/> vds::client_logic::put_file(
   const std::string & user_login,
   const std::string & name,
-  const data_buffer & data)
+  const const_data_buffer & data)
 {  
   foldername tmp(persistence::current_user(this->sp_), "tmp");
   tmp.create();
@@ -270,7 +270,7 @@ vds::async_task<const std::string& /*version_id*/> vds::client_logic::put_file(
   });
 }
 
-vds::data_buffer vds::client_logic::download_file(const std::string & user_login)
+vds::const_data_buffer vds::client_logic::download_file(const std::string & user_login)
 {
   auto request_id = guid::new_guid().str();
   std::string error;

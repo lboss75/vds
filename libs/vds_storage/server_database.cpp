@@ -181,7 +181,7 @@ std::unique_ptr<vds::cert> vds::_server_database::find_cert(const std::string & 
       
       guid source_id;
       uint64_t index;
-      data_buffer password_hash;
+      const_data_buffer password_hash;
       
       st.get_value(0, source_id);
       st.get_value(1, index);

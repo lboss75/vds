@@ -262,14 +262,13 @@ std::string vds::file::read_all_text(const filename & fn)
   return result;
 }
 
-vds::data_buffer vds::file::read_all(const vds::filename& fn)
+vds::const_data_buffer vds::file::read_all(const vds::filename& fn)
 {
   file f(fn, file::file_mode::open_read);
   
-  vds::data_buffer result;
-  result.resize(f.length());
+  std::vector<uint8_t> buffer(f.length());
   
-  f.read((void *)result.data(), result.size());
+  f.read(buffer.data(), buffer.size());
   
-  return result;
+  return const_data_buffer(buffer.data(), buffer.size());
 }

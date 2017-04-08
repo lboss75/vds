@@ -30,7 +30,7 @@ All rights reserved
 #include "mt_service.h"
 #include "simple_cache.h"
 #include "binary_serialize.h"
-#include "data_buffer.h"
+#include "const_data_buffer.h"
 #include "pipeline.h"
 #include "async_task.h"
 

@@ -28,7 +28,7 @@ namespace vds {
         const filename & fn);
     
     async_task<const server_log_new_object &>
-      add(const data_buffer& data);
+      add(const const_data_buffer& data);
     
     void set_next_index(uint64_t next_index);
 

@@ -45,7 +45,7 @@ vds::ichunk_manager::add(
 
 vds::async_task<const vds::server_log_new_object &>
 vds::ichunk_manager::add(
-  const data_buffer& data)
+  const const_data_buffer& data)
 {
   return this->owner_->impl_->add(data);
 }
@@ -96,7 +96,7 @@ vds::_chunk_manager::add(
         return;
       }
 
-      this->add(data_buffer(data, size)).wait(
+      this->add(const_data_buffer(data, size)).wait(
         [prev, result](const server_log_new_object & index) {
         result->add(index);
         prev();
@@ -111,7 +111,7 @@ vds::_chunk_manager::add(
 
 vds::async_task<const vds::server_log_new_object &>
 vds::_chunk_manager::add(
-  const data_buffer& data)
+  const const_data_buffer& data)
 {
   return create_async_task(
     [data](const std::function<void (const void * data, size_t size)> & done, const error_handler & on_error){

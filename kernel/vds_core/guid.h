@@ -6,10 +6,10 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
-#include "data_buffer.h"
+#include "const_data_buffer.h"
 
 namespace vds {
-  class guid : public data_buffer
+  class guid : public const_data_buffer
   {
   public:
     guid();

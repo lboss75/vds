@@ -6,7 +6,7 @@ All rights reserved
 */
 
 #include "types.h"
-#include "data_buffer.h"
+#include "const_data_buffer.h"
 
 namespace vds {
 
@@ -31,7 +31,7 @@ namespace vds {
     
     binary_serializer & push_data(const void * data, size_t size, bool serialize_size = true);
     
-    binary_serializer & operator << (const data_buffer & data);
+    binary_serializer & operator << (const const_data_buffer & data);
 
     const std::vector<uint8_t> & data() const;
     
@@ -47,7 +47,7 @@ namespace vds {
   class binary_deserializer
   {
   public:
-    binary_deserializer(const data_buffer & data);
+    binary_deserializer(const const_data_buffer & data);
     binary_deserializer(const void * data, size_t len);
     binary_deserializer(const std::vector<uint8_t> & data);
     
@@ -65,7 +65,7 @@ namespace vds {
 
     binary_deserializer & operator >> (std::string & value);
    
-    binary_deserializer & operator >> (data_buffer & data);
+    binary_deserializer & operator >> (const_data_buffer & data);
     
     uint64_t read_number();
     

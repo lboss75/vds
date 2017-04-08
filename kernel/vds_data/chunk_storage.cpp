@@ -101,7 +101,7 @@ void vds::_chunk_storage::restore_data(
   const auto source_id = chunks.begin()->source_id();
   const auto size = chunks.begin()->data().size();
   std::vector<uint16_t> replicas;
-  std::vector<const data_buffer *> datas;
+  std::vector<const const_data_buffer *> datas;
   
   for(auto & p : chunks){
     if(source_id != p.source_id()

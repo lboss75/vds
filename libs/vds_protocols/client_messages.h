@@ -17,18 +17,18 @@ namespace vds {
       
       certificate_and_key_request(
         const std::string & object_name,
-        const data_buffer & password_hash
+        const const_data_buffer & password_hash
       );
       
       certificate_and_key_request(const json_value *);
       std::unique_ptr<json_value> serialize() const;
 
       const std::string & object_name() const { return this->object_name_; }
-      const data_buffer & password_hash() const { return this->password_hash_; }
+      const const_data_buffer & password_hash() const { return this->password_hash_; }
 
     private:
       std::string object_name_;
-      data_buffer password_hash_;
+      const_data_buffer password_hash_;
     };
 
     class certificate_and_key_response

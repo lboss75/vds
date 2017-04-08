@@ -20,7 +20,7 @@ namespace vds {
     void set_parameter(int index, uint64_t value);
     void set_parameter(int index, const std::string & value);
     void set_parameter(int index, const guid & value);
-    void set_parameter(int index, const data_buffer & value);
+    void set_parameter(int index, const const_data_buffer & value);
 
     template <typename... argument_types>
     void set_parameters(argument_types... arguments)
@@ -33,7 +33,7 @@ namespace vds {
     bool get_value(int index, uint64_t & value);
     bool get_value(int index, std::string & value);
     bool get_value(int index, guid & value);
-    bool get_value(int index, data_buffer & value);
+    bool get_value(int index, const_data_buffer & value);
     
 
   private:

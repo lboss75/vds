@@ -11,7 +11,7 @@ All rights reserved
 vds::cert::cert(
   const std::string & object_name,
   const full_storage_object_id & object_id,
-  const data_buffer & password_hash)
+  const const_data_buffer & password_hash)
   : object_name_(object_name),
   object_id_(object_id),
   password_hash_(password_hash)

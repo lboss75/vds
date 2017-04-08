@@ -61,7 +61,7 @@ void vds::asymmetric_private_key::save(const filename & filename, const std::str
   this->impl_->save(filename, password);
 }
 
-vds::data_buffer vds::asymmetric_private_key::decrypt(const data_buffer & data) const
+vds::const_data_buffer vds::asymmetric_private_key::decrypt(const const_data_buffer & data) const
 {
   return this->impl_->decrypt(data);
 }
@@ -216,16 +216,16 @@ void vds::asymmetric_sign::data_update(_asymmetric_sign * impl, const void * dat
   impl->update(data, len);
 }
 
-void vds::asymmetric_sign::data_final(_asymmetric_sign * impl, data_buffer & result)
+void vds::asymmetric_sign::data_final(_asymmetric_sign * impl, const_data_buffer & result)
 {
   impl->final();
   result = impl->signature();
 }
 
-vds::data_buffer vds::asymmetric_sign::signature(
+vds::const_data_buffer vds::asymmetric_sign::signature(
   const hash_info & hash_info,
   const asymmetric_private_key & key,
-  const data_buffer & data)
+  const const_data_buffer & data)
 {
   return signature(
     hash_info,
@@ -234,7 +234,7 @@ vds::data_buffer vds::asymmetric_sign::signature(
     data.size());
 }
 
-vds::data_buffer vds::asymmetric_sign::signature(
+vds::const_data_buffer vds::asymmetric_sign::signature(
   const vds::hash_info& hash_info,
   const vds::asymmetric_private_key& key,
   const void* data,
@@ -323,7 +323,7 @@ void vds::_asymmetric_sign::final()
 vds::asymmetric_sign_verify::asymmetric_sign_verify(
   const hash_info & hash_info,
   const asymmetric_public_key & key,
-  const data_buffer & sign)
+  const const_data_buffer & sign)
 : hash_info_(hash_info), key_(key), signature_(sign)
 {
 }
@@ -338,7 +338,7 @@ void vds::asymmetric_sign_verify::data_update(_asymmetric_sign_verify * impl, co
   impl->update(data, len);
 }
 
-bool vds::asymmetric_sign_verify::data_final(_asymmetric_sign_verify * impl, const data_buffer & signature)
+bool vds::asymmetric_sign_verify::data_final(_asymmetric_sign_verify * impl, const const_data_buffer & signature)
 {
   return impl->verify(signature);
 }
@@ -346,7 +346,7 @@ bool vds::asymmetric_sign_verify::data_final(_asymmetric_sign_verify * impl, con
 bool vds::asymmetric_sign_verify::verify(
   const vds::hash_info& hash_info,
   const vds::asymmetric_public_key& key,
-  const data_buffer& signature,
+  const const_data_buffer& signature,
   const void* data,
   size_t data_size)
 {
@@ -397,7 +397,7 @@ void vds::_asymmetric_sign_verify::update(const void * data, int len)
   }
 }
 
-bool vds::_asymmetric_sign_verify::verify(const data_buffer & sig)
+bool vds::_asymmetric_sign_verify::verify(const const_data_buffer & sig)
 {
   return 1 == EVP_DigestVerifyFinal(this->ctx_, const_cast<unsigned char *>(sig.data()), sig.size());
 }
@@ -443,9 +443,14 @@ void vds::asymmetric_public_key::save(const filename & filename)
   this->impl_->save(filename);
 }
 
-vds::data_buffer vds::asymmetric_public_key::encrypt(const data_buffer & data)
+vds::const_data_buffer vds::asymmetric_public_key::encrypt(const const_data_buffer & data)
 {
-  return this->impl_->encrypt(data);
+  return this->impl_->encrypt(data.data(), data.size());
+}
+
+vds::const_data_buffer vds::asymmetric_public_key::encrypt(const void * data, size_t data_size)
+{
+  return this->impl_->encrypt(data, data_size);
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -589,7 +594,7 @@ std::string vds::certificate::issuer() const
   return this->impl_->issuer();
 }
 
-vds::data_buffer vds::certificate::fingerprint(const vds::hash_info & hash_algo) const
+vds::const_data_buffer vds::certificate::fingerprint(const vds::hash_info & hash_algo) const
 {
   return this->impl_->fingerprint(hash_algo);
 }
@@ -722,7 +727,7 @@ std::string vds::_certificate::issuer() const
   return result;
 }
 
-vds::data_buffer vds::_certificate::fingerprint(const vds::hash_info & hash_algo) const
+vds::const_data_buffer vds::_certificate::fingerprint(const vds::hash_info & hash_algo) const
 {
   unsigned char md[EVP_MAX_MD_SIZE];
   unsigned int n;
@@ -731,7 +736,7 @@ vds::data_buffer vds::_certificate::fingerprint(const vds::hash_info & hash_algo
     throw new crypto_exception("X509_digest", error);
   }
   
-  return data_buffer(md, n);
+  return const_data_buffer(md, n);
 }
 
 

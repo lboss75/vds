@@ -43,17 +43,17 @@ namespace vds {
     public:
       welcome_message(
         const guid & server_id,
-        const data_buffer & key_crypted,
-        const data_buffer & crypted_info,
-        const data_buffer & sign);
+        const const_data_buffer & key_crypted,
+        const const_data_buffer & crypted_info,
+        const const_data_buffer & sign);
 
       void serialize(network_serializer& s) const;
 
     private:
       guid server_id_;
-      data_buffer key_crypted_;
-      data_buffer crypted_info_;
-      data_buffer sign_;
+      const_data_buffer key_crypted_;
+      const_data_buffer crypted_info_;
+      const_data_buffer sign_;
     };
   }
 }

@@ -7,7 +7,7 @@ All rights reserved
 */
 
 #include "types.h"
-#include "data_buffer.h"
+#include "const_data_buffer.h"
 
 namespace vds {
   class utf8
@@ -29,8 +29,8 @@ namespace vds {
   {
   public:
     static std::string from_bytes(const void * data, size_t len);
-    static std::string from_bytes(const data_buffer & data);
-    static data_buffer to_bytes(const std::string & data);
+    static std::string from_bytes(const const_data_buffer & data);
+    static const_data_buffer to_bytes(const std::string & data);
   };
 }
 

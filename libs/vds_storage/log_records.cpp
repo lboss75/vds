@@ -31,7 +31,7 @@ vds::server_log_record::server_log_record(const json_value * source)
 
 void vds::server_log_record::add_signature(
   const std::string & subject,
-  const data_buffer & signature)
+  const const_data_buffer & signature)
 {
   this->signatures_.push_back(server_log_sign(subject, signature));
 }
@@ -60,9 +60,9 @@ const char vds::server_log_new_object::message_type[] = "new object";
 vds::server_log_new_object::server_log_new_object(
   uint64_t index,
   uint32_t original_lenght,
-  const vds::data_buffer & original_hash,
+  const vds::const_data_buffer & original_hash,
   uint32_t target_lenght,
-  const vds::data_buffer& target_hash)
+  const vds::const_data_buffer& target_hash)
 : index_(index),
   original_lenght_(original_lenght),
   original_hash_(original_hash),
@@ -107,7 +107,7 @@ const char vds::server_log_root_certificate::message_type[] = "root";
 
 vds::server_log_root_certificate::server_log_root_certificate(
   const storage_object_id & user_cert,
-  const data_buffer & password_hash)
+  const const_data_buffer & password_hash)
   : user_cert_(user_cert),
   password_hash_(password_hash)
 {
@@ -253,7 +253,7 @@ std::unique_ptr<vds::json_value> vds::server_log_new_endpoint::serialize() const
 //////////////////////////////////////////////////////////////////////
 vds::server_log_sign::server_log_sign(
   const std::string & subject,
-  const data_buffer & signature)
+  const const_data_buffer & signature)
   : subject_(subject), signature_(signature)
 {
 }

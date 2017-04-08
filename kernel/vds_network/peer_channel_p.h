@@ -17,7 +17,7 @@ namespace vds {
     
     virtual peer_channel::formatter_type get_formatter_type() const = 0;
     virtual peer_channel::channel_direction get_channel_direction() const = 0;
-    virtual void broadcast(const data_buffer & data) = 0;
+    virtual void broadcast(const const_data_buffer & data) = 0;
     virtual void broadcast(const std::string & data) = 0;
 
 

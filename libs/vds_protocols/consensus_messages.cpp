@@ -10,13 +10,13 @@ All rights reserved
 const char vds::consensus_messages::consensus_message_who_is_leader::message_type[] = "who is leader";
 
 vds::consensus_messages::consensus_message_who_is_leader::consensus_message_who_is_leader(
-  const data_buffer & source_id)
+  const const_data_buffer & source_id)
   : source_id_(source_id)
 {
 }
 
 vds::consensus_messages::consensus_message_who_is_leader::consensus_message_who_is_leader(
-  data_buffer && source_id)
+  const_data_buffer && source_id)
   : source_id_(std::move(source_id))
 {
 }
@@ -49,13 +49,13 @@ void vds::consensus_messages::consensus_message_who_is_leader::serialize(vds::ne
 const char vds::consensus_messages::consensus_message_leader_candidate::message_type[] = "leader candidate";
 
 vds::consensus_messages::consensus_message_leader_candidate::consensus_message_leader_candidate(
-  const data_buffer & source_id)
+  const const_data_buffer & source_id)
 : source_id_(source_id)
 {
 }
 
 vds::consensus_messages::consensus_message_leader_candidate::consensus_message_leader_candidate(
-  data_buffer && source_id)
+  const_data_buffer && source_id)
 : source_id_(std::move(source_id))
 {
 }
@@ -91,13 +91,13 @@ void vds::consensus_messages::consensus_message_leader_candidate::serialize(vds:
 const char vds::consensus_messages::consensus_message_current_leader::message_type[] = "i am leader";
 
 vds::consensus_messages::consensus_message_current_leader::consensus_message_current_leader(
-  const data_buffer & leader_id)
+  const const_data_buffer & leader_id)
   : leader_id_(leader_id)
 {
 }
 
 vds::consensus_messages::consensus_message_current_leader::consensus_message_current_leader(
-  data_buffer && leader_id)
+  const_data_buffer && leader_id)
   : leader_id_(std::move(leader_id))
 {
 }
@@ -123,7 +123,7 @@ std::unique_ptr<vds::json_value> vds::consensus_messages::consensus_message_curr
 const char vds::consensus_messages::consensus_message_new_leader::message_type[] = "new leader";
 
 vds::consensus_messages::consensus_message_new_leader::consensus_message_new_leader(
-  const vds::data_buffer& leader_id)
+  const vds::const_data_buffer& leader_id)
   : leader_id_(leader_id)
 {
 

@@ -64,7 +64,7 @@ namespace vds {
     std::map<uint32_t, std::unique_ptr<session_data>> in_sessions_;
     uint32_t in_last_session_;
     
-    pipeline<std::string, uint16_t, data_buffer> message_queue_;
+    pipeline<std::string, uint16_t, const_data_buffer> message_queue_;
 
     struct udp_client
     {

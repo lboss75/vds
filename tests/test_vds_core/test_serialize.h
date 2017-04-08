@@ -139,14 +139,14 @@ public:
   
   virtual void deserialize(vds::binary_deserializer& s)
   {
-    vds::data_buffer data;
+    vds::const_data_buffer data;
     s >> data;
     
     ASSERT_EQ(data, this->data_);
   }
   
 private:
-  vds::data_buffer data_;
+  vds::const_data_buffer data_;
 };
 
 

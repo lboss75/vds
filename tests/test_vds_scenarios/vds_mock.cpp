@@ -60,7 +60,7 @@ void vds_mock::upload_file(size_t client_index, const std::string & name, const 
   client.upload_file("root", this->root_password_, name, data, data_size);
 }
 
-vds::data_buffer vds_mock::download_data(size_t client_index, const std::string & name)
+vds::const_data_buffer vds_mock::download_data(size_t client_index, const std::string & name)
 {
   mock_client client(client_index);
   return client.download_data("root", this->root_password_, name);
@@ -135,15 +135,15 @@ void mock_client::upload_file(const std::string & login, const std::string & pas
   }, false);
 }
 
-vds::data_buffer mock_client::download_data(const std::string & login, const std::string & password, const std::string & name)
+vds::const_data_buffer mock_client::download_data(const std::string & login, const std::string & password, const std::string & name)
 {
-  vds::data_buffer result;
+  vds::const_data_buffer result;
   this->start_vds(true, [&result, login, password, name](const vds::service_provider&sp) {
     vds::barrier b;
     
     sp.get<vds::iclient>().download_data(login, password, name)
     .wait(
-      [&result, &b](vds::data_buffer && data){ result = std::move(data); b.set();},
+      [&result, &b](vds::const_data_buffer && data){ result = std::move(data); b.set();},
       [&result, &b](std::exception_ptr ex) {
         b.set();
         FAIL() << vds::exception_what(ex);

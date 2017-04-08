@@ -30,7 +30,7 @@ namespace vds {
   public:
     ilocal_cache(local_cache * owner);
 
-    std::unique_ptr<data_buffer> get_object(
+    std::unique_ptr<const_data_buffer> get_object(
       const full_storage_object_id& object_id);
 
     filename get_object_filename(

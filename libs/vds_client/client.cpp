@@ -84,7 +84,7 @@ vds::async_task<const std::string& /*version_id*/> vds::iclient::upload_file(
   return this->owner_->impl_->upload_file(login, password, name, data, data_size);
 }
 
-vds::async_task<vds::data_buffer&&> vds::iclient::download_data(const std::string & login, const std::string & password, const std::string & name)
+vds::async_task<vds::const_data_buffer&&> vds::iclient::download_data(const std::string & login, const std::string & password, const std::string & name)
 {
   return this->owner_->impl_->download_data(login, password, name);
 }
@@ -225,7 +225,7 @@ vds::async_task<const std::string& /*version_id*/> vds::_client::upload_file(
   });
 }
 
-vds::async_task<vds::data_buffer &&>
+vds::async_task<vds::const_data_buffer &&>
 vds::_client::download_data(
   const std::string & user_login,
   const std::string & user_password,
@@ -235,7 +235,7 @@ vds::_client::download_data(
     user_login,
     user_password)
     .then([this, user_login](
-      const std::function<void(vds::data_buffer&&)>& done,
+      const std::function<void(vds::const_data_buffer&&)>& done,
       const error_handler & on_error,
       const certificate& user_certificate,
       const asymmetric_private_key& user_private_key) {
@@ -244,9 +244,9 @@ vds::_client::download_data(
     auto datagram_data = this->owner_->logic_->download_file(user_login);
 
     this->log_(ll_trace, "Decrypting data");
-    data_buffer key_crypted;
-    data_buffer crypted_data;
-    data_buffer signature;
+    const_data_buffer key_crypted;
+    const_data_buffer crypted_data;
+    const_data_buffer signature;
 
     binary_deserializer datagram(datagram_data);
     datagram
@@ -271,7 +271,7 @@ vds::_client::download_data(
       binary_deserializer(user_private_key.decrypt(key_crypted)));
 
     barrier b;
-    data_buffer result;
+    const_data_buffer result;
     dataflow(
       symmetric_decrypt(this->sp_, transaction_key),
       collect_data())(

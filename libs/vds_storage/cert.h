@@ -15,17 +15,17 @@ namespace vds {
     cert(
       const std::string & object_name,
       const full_storage_object_id & object_id,
-      const data_buffer & password_hash);
+      const const_data_buffer & password_hash);
 
 
     const std::string & object_name() const { return this->object_name_; }
     const full_storage_object_id & object_id() const { return this->object_id_; }
-    const data_buffer & password_hash() const { return this->password_hash_; }
+    const const_data_buffer & password_hash() const { return this->password_hash_; }
 
   private:
     std::string object_name_;
     full_storage_object_id object_id_;
-    data_buffer password_hash_;
+    const_data_buffer password_hash_;
   };
 }
 

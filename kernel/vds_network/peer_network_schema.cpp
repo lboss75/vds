@@ -97,7 +97,7 @@ vds::peer_channel::channel_direction vds::_udp_network_schema::udp_peer_channel:
   return this->channel_direction_;
 }
 
-void vds::_udp_network_schema::udp_peer_channel::broadcast(const data_buffer & data)
+void vds::_udp_network_schema::udp_peer_channel::broadcast(const const_data_buffer & data)
 {
 }
 

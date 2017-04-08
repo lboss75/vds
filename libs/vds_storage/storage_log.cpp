@@ -82,7 +82,7 @@ std::unique_ptr<vds::cert> vds::istorage_log::find_cert(const std::string & obje
   return this->owner_->impl_->find_cert(object_name);
 }
 
-std::unique_ptr<vds::data_buffer> vds::istorage_log::get_object(const vds::full_storage_object_id& object_id)
+std::unique_ptr<vds::const_data_buffer> vds::istorage_log::get_object(const vds::full_storage_object_id& object_id)
 {
   return this->owner_->impl_->get_object(object_id);
 }
@@ -407,7 +407,7 @@ std::unique_ptr<vds::cert> vds::_storage_log::find_cert(const std::string & obje
   return this->db_.get(this->sp_).find_cert(object_name);
 }
 
-std::unique_ptr<vds::data_buffer> vds::_storage_log::get_object(const vds::full_storage_object_id& object_id)
+std::unique_ptr<vds::const_data_buffer> vds::_storage_log::get_object(const vds::full_storage_object_id& object_id)
 {
   return this->local_cache_.get(this->sp_).get_object(object_id);
 }

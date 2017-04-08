@@ -85,7 +85,7 @@ namespace vds {
             
         void restore(
           binary_serializer & s,
-          const std::vector<const data_buffer *> & chunks,
+          const std::vector<const const_data_buffer *> & chunks,
           size_t size
         );
         
@@ -317,7 +317,7 @@ inline void vds::chunk_restore<cell_type>::restore(
 template<typename cell_type>
 inline void vds::chunk_restore<cell_type>::restore(
   binary_serializer & s,
-  const std::vector<const data_buffer *> & chunks,
+  const std::vector<const const_data_buffer *> & chunks,
   size_t size)
 {
   for (size_t index = 0; index < size; index += sizeof(cell_type)) {

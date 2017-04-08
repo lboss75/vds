@@ -30,7 +30,7 @@ void vds::peer_channel::broadcast(const std::string& data)
 
 }
 
-void vds::peer_channel::broadcast(const data_buffer& data)
+void vds::peer_channel::broadcast(const const_data_buffer& data)
 {
   if(formatter_type::binary != this->formatter_type_){
     throw new std::runtime_error("Invalid message format");

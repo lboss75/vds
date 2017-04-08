@@ -162,16 +162,15 @@ TEST(test_vds_crypto, test_asymmetric)
       len %= 128 * 1024;
     } while (len < 8 || len > 128 * 1024);
 
-    vds::data_buffer buffer;
-    buffer.resize(len);
-    vds::crypto_service::rand_bytes(const_cast<uint8_t *>(buffer.data()), (int)len);
+    std::vector<uint8_t> buffer(len);
+    vds::crypto_service::rand_bytes(buffer.data(), (int)len);
 
     vds::asymmetric_private_key private_key(vds::asymmetric_crypto::rsa2048());
     private_key.generate();
 
     vds::asymmetric_public_key public_key(private_key);
 
-    auto result = private_key.decrypt(public_key.encrypt(buffer));
+    auto result = private_key.decrypt(public_key.encrypt(buffer.data(), buffer.size()));
 
     ASSERT_EQ(result.size(), buffer.size());
     for (size_t i = 0; i < buffer.size(); ++i) {
@@ -208,7 +207,7 @@ TEST(test_vds_crypto, test_sign)
     vds::asymmetric_private_key key(vds::asymmetric_crypto::rsa2048());
     key.generate();
 
-    vds::data_buffer sign;
+    vds::const_data_buffer sign;
     vds::dataflow(
       vds::create_step<random_reader>::with(buffer.get(), (int)len),
       vds::asymmetric_sign(vds::hash::sha256(), key))

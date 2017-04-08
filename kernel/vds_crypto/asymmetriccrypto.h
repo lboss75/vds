@@ -47,7 +47,7 @@ namespace vds {
     void load(const filename & filename, const std::string & password = std::string());
     void save(const filename & filename, const std::string & password = std::string()) const;
 
-    data_buffer decrypt(const data_buffer & data) const;
+    const_data_buffer decrypt(const const_data_buffer & data) const;
 
   private:
     friend class _asymmetric_sign;
@@ -74,7 +74,8 @@ namespace vds {
     void load(const filename & filename);
     void save(const filename & filename);
 
-    data_buffer encrypt(const data_buffer & data);
+    const_data_buffer encrypt(const const_data_buffer & data);
+    const_data_buffer encrypt(const void * data, size_t data_size);
 
   private:
     asymmetric_public_key(_asymmetric_public_key * impl);
@@ -118,15 +119,15 @@ namespace vds {
 
     private:
       _asymmetric_sign * impl_;
-      data_buffer signature_;
+      const_data_buffer signature_;
     };
 
-    static data_buffer signature(
+    static const_data_buffer signature(
       const hash_info & hash_info,
       const asymmetric_private_key & key,
-      const data_buffer & data);
+      const const_data_buffer & data);
 
-    static data_buffer signature(
+    static const_data_buffer signature(
       const hash_info & hash_info,
       const asymmetric_private_key & key,
       const void * data,
@@ -142,7 +143,7 @@ namespace vds {
       const void * data,
       int len);
 
-    static void data_final(_asymmetric_sign * impl, data_buffer & result);
+    static void data_final(_asymmetric_sign * impl, const_data_buffer & result);
   };
 
   class _asymmetric_sign_verify;
@@ -152,7 +153,7 @@ namespace vds {
     asymmetric_sign_verify(
       const hash_info & hash_info,
       const asymmetric_public_key & key,
-      const data_buffer & sign);
+      const const_data_buffer & sign);
 
     template <typename context_type>
     class handler : public dataflow_step<context_type, void(bool)>
@@ -182,20 +183,20 @@ namespace vds {
 
     private:
       _asymmetric_sign_verify * impl_;
-      data_buffer signature_;
+      const_data_buffer signature_;
     };
     
     static bool verify(
       const hash_info & hash_info,
       const asymmetric_public_key & key,
-      const data_buffer & signature,
+      const const_data_buffer & signature,
       const void * data,
       size_t data_size);
     
   private:
     const hash_info & hash_info_;
     asymmetric_public_key key_;
-    data_buffer signature_;
+    const_data_buffer signature_;
 
     _asymmetric_sign_verify * create_implementation() const;
 
@@ -206,7 +207,7 @@ namespace vds {
 
     static bool data_final(
       _asymmetric_sign_verify * impl,
-      const data_buffer & signature);
+      const const_data_buffer & signature);
 
   };
   
@@ -248,7 +249,7 @@ namespace vds {
 
     std::string subject() const;
     std::string issuer() const;
-    data_buffer fingerprint(const hash_info & hash_algo = hash::sha256()) const;
+    const_data_buffer fingerprint(const hash_info & hash_algo = hash::sha256()) const;
 
     class create_options
     {

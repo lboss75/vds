@@ -31,9 +31,9 @@ bool vds::inflate::data_processed(_inflate_handler * handler, const void *& to_p
   return handler->processed(to_push, to_push_len);
 }
 
-vds::data_buffer vds::inflate::inflate_buffer(const data_buffer & data)
+vds::const_data_buffer vds::inflate::inflate_buffer(const const_data_buffer & data)
 {
-  data_buffer result;
+  std::vector<uint8_t> result;
   
   _inflate_handler handler;
   
@@ -41,12 +41,18 @@ vds::data_buffer vds::inflate::inflate_buffer(const data_buffer & data)
   size_t to_push_len;
   if(handler.push_data(data.data(), data.size(), to_push, to_push_len)){
     while(0 != to_push_len){
-      result.add(to_push, to_push_len);
+      result.insert(
+        result.end(),
+        reinterpret_cast<const uint8_t *>(to_push),
+        reinterpret_cast<const uint8_t *>(to_push) + to_push_len);
       
       if (!handler.processed(to_push, to_push_len)) {
         if(handler.push_data(nullptr, 0, to_push, to_push_len)){
           while(0 != to_push_len){
-            result.add(to_push, to_push_len);
+            result.insert(
+              result.end(),
+              reinterpret_cast<const uint8_t *>(to_push),
+              reinterpret_cast<const uint8_t *>(to_push) + to_push_len);
             
             if (!handler.processed(to_push, to_push_len)) {
               break;
@@ -59,7 +65,7 @@ vds::data_buffer vds::inflate::inflate_buffer(const data_buffer & data)
     }
   }
   
-  return result;
+  return const_data_buffer(result.data(), result.size());
 }
 
 ///////////////////////////////////////////////

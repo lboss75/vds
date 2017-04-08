@@ -145,7 +145,7 @@ vds::_server_json_client_api::process(
         throw std::runtime_error("Invalid username or password");
       }
 
-      std::unique_ptr<data_buffer> buffer = scope
+      std::unique_ptr<const_data_buffer> buffer = scope
         .get<istorage_log>()
         .get_object(cert->object_id());
 

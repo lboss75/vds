@@ -31,7 +31,7 @@ namespace vds {
     
     channel_direction get_channel_direction() const { return this->channel_direction_; }
     
-    void broadcast(const data_buffer & data);
+    void broadcast(const const_data_buffer & data);
     void broadcast(const std::string & data);
 
   private:

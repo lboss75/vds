@@ -87,7 +87,7 @@ vds::binary_serializer & vds::binary_serializer::push_data(const void * data, si
   return *this;
 }
 
-vds::binary_serializer& vds::binary_serializer::operator << (const data_buffer& data)
+vds::binary_serializer& vds::binary_serializer::operator << (const const_data_buffer& data)
 {
   return this->push_data(data.data(), data.size(), true);
 }
@@ -108,7 +108,7 @@ uint8_t vds::binary_serializer::operator[](size_t index) const
 }
 
 ///////////////////////////////////////////////////////////////////////////
-vds::binary_deserializer::binary_deserializer(const data_buffer & data)
+vds::binary_deserializer::binary_deserializer(const const_data_buffer & data)
   : data_(data.data()), len_(data.size())
 {
 }
@@ -210,15 +210,17 @@ vds::binary_deserializer& vds::binary_deserializer::operator>>(std::string& valu
 }
 
 
-vds::binary_deserializer& vds::binary_deserializer::operator>>(vds::data_buffer& data)
+vds::binary_deserializer& vds::binary_deserializer::operator>>(vds::const_data_buffer& data)
 {
   auto len = this->read_number();
-  data.resize(len);
+  std::vector<uint8_t> buffer(len);
   for(uint64_t i = 0; i < len; ++i){
     uint8_t ch;
     *this >> ch;
-    data[i] = ch;
+    buffer[i] = ch;
   }
+  
+  data.reset(buffer.data(), len);
 
   return *this;
 }

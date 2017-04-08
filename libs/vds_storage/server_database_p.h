@@ -33,11 +33,17 @@ namespace vds {
       const std::string & endpoint_id,
       const std::string & addresses);
 
-    void get_endpoints(std::map<std::string, std::string> & addresses);
+    void get_endpoints(
+      std::map<std::string, std::string> & addresses);
 
     void add_file(
       const guid & server_id,
       const server_log_file_map & fm);
+    
+    void add_log_record(
+      const guid & server_id,
+      const std::string & record,
+      const const_data_buffer & signature);
 
   private:
     service_provider sp_;
@@ -48,7 +54,7 @@ namespace vds {
       const std::string & /* object_name */,
       const guid & /* source_id */,
       uint64_t /* index */,
-      const data_buffer & /*password_hash*/> add_cert_statement_;
+      const const_data_buffer & /*password_hash*/> add_cert_statement_;
       
     prepared_query<
       const std::string & /* object_name */> find_cert_query_;
@@ -57,9 +63,9 @@ namespace vds {
       const guid & /*server_id*/,
       uint64_t /*index*/,
       uint32_t /*original_lenght*/,
-      const data_buffer & /*original_hash*/,
+      const const_data_buffer & /*original_hash*/,
       uint32_t /*target_lenght*/,
-      const data_buffer & /*signature*/> add_object_statement_;
+      const const_data_buffer & /*signature*/> add_object_statement_;
       
     prepared_query<
       const guid & /*server_id*/> last_object_index_query_;

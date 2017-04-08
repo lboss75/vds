@@ -41,23 +41,23 @@ namespace vds {
     server_log_new_object(
       uint64_t index,
       uint32_t original_lenght,
-      const data_buffer & original_hash,
+      const const_data_buffer & original_hash,
       uint32_t target_lenght,
-      const data_buffer & target_hash);
+      const const_data_buffer & target_hash);
     
     uint64_t index() const { return this->index_; }
     uint32_t original_lenght() const { return this->original_lenght_; }
-    const data_buffer & original_hash() const { return this->original_hash_; }
+    const const_data_buffer & original_hash() const { return this->original_hash_; }
     uint32_t target_lenght() const { return this->target_lenght_; }
-    const data_buffer & target_hash() const { return this->target_hash_; }
+    const const_data_buffer & target_hash() const { return this->target_hash_; }
     
     std::unique_ptr<json_value> serialize(bool add_type_property = true) const;
   private:
     uint64_t index_;
     uint32_t original_lenght_;
-    data_buffer original_hash_;
+    const_data_buffer original_hash_;
     uint32_t target_lenght_;
-    data_buffer target_hash_;
+    const_data_buffer target_hash_;
   };
 
   class server_log_file_map
@@ -94,18 +94,18 @@ namespace vds {
   public:
     server_log_sign(
       const std::string & subject,
-      const data_buffer & signature);
+      const const_data_buffer & signature);
 
     server_log_sign(const json_value * source);
 
     const std::string & subject() const { return this->subject_; }
-    const data_buffer & signature() const { return this->signature_; }
+    const const_data_buffer & signature() const { return this->signature_; }
 
     std::unique_ptr<json_value> serialize() const;
 
   private:
     std::string subject_;
-    data_buffer signature_;
+    const_data_buffer signature_;
   };
 
   class server_log_record
@@ -121,7 +121,7 @@ namespace vds {
 
     void add_signature(
       const std::string & subject,
-      const data_buffer & signature);
+      const const_data_buffer & signature);
 
     std::unique_ptr<json_value> serialize(bool add_type_property) const;
 
@@ -137,18 +137,18 @@ namespace vds {
 
     server_log_root_certificate(
       const storage_object_id & user_cert,
-      const data_buffer & password_hash);
+      const const_data_buffer & password_hash);
 
     server_log_root_certificate(const json_value * source);
     
     const storage_object_id & user_cert() const { return this->user_cert_; }
-    const data_buffer & password_hash() const { return this->password_hash_; }
+    const const_data_buffer & password_hash() const { return this->password_hash_; }
 
     std::unique_ptr<json_value> serialize() const;
 
   private:
     storage_object_id user_cert_;
-    data_buffer password_hash_;
+    const_data_buffer password_hash_;
   };
   
   class server_log_new_user_certificate
@@ -216,16 +216,16 @@ namespace vds {
       file_part(
         uint64_t index,
         uint32_t length,
-        const data_buffer & signature);
+        const const_data_buffer & signature);
 
       uint64_t index() const { return this->index_; }
       uint32_t length() const { return this->length_; }
-      const data_buffer & signature() const { return this->signature_; }
+      const const_data_buffer & signature() const { return this->signature_; }
 
     private:
       uint64_t index_;
       uint32_t length_;
-      data_buffer signature_;
+      const_data_buffer signature_;
     };
 
     const std::string & user_login() const { return this->user_login_; }

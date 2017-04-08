@@ -10,8 +10,8 @@ namespace vds {
   class server_to_client_api
   {
   public:
-    async_task<const std::string & /*certificate_body*/, const data_buffer & /*private_key_body*/>
-    get_certificate_and_key(const std::string & object_name, const data_buffer & password_hash);
+    async_task<const std::string & /*certificate_body*/, const const_data_buffer & /*private_key_body*/>
+    get_certificate_and_key(const std::string & object_name, const const_data_buffer & password_hash);
     
   };
 

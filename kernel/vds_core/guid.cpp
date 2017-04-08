@@ -11,17 +11,17 @@ vds::guid::guid()
 }
 
 vds::guid::guid(const vds::guid& other)
-: data_buffer(other)
+: const_data_buffer(other)
 {
 }
 
 vds::guid::guid(vds::guid&& other)
-: data_buffer(std::move(other))
+: const_data_buffer(std::move(other))
 {
 }
 
 vds::guid::guid(const void* data, size_t len)
-: data_buffer(data, len)
+: const_data_buffer(data, len)
 {
 }
 
@@ -63,13 +63,13 @@ std::string vds::guid::str() const
 
 vds::guid& vds::guid::operator = (vds::guid&& original)
 {
-  data_buffer::operator=(std::move(original));
+  const_data_buffer::operator=(std::move(original));
   return *this;
 }
 
 vds::guid& vds::guid::operator=(const vds::guid& original)
 {
-  data_buffer::operator=(original);
+  const_data_buffer::operator=(original);
   return *this;
 }
 

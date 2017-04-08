@@ -50,7 +50,7 @@ namespace vds {
       this->set_parameter(index, value.str());
     }
 
-    void set_parameter(int index, const data_buffer & value)
+    void set_parameter(int index, const const_data_buffer & value)
     {
       this->reset();
       
@@ -111,7 +111,7 @@ namespace vds {
       return true;
     }
 
-    bool get_value(int index, data_buffer & value)
+    bool get_value(int index, const_data_buffer & value)
     {
       assert(read_state == this->state_);
       
