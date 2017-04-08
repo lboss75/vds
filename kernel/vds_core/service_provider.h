@@ -39,6 +39,7 @@ namespace vds {
 
       void on_complete(const std::function<void(void)> & done) const;
 
+      shutdown_event & get_shutdown_event();
       const shutdown_event & get_shutdown_event() const;
       
     private:
@@ -152,7 +153,7 @@ namespace vds {
         service_provider create_scope();
 
         void on_complete(const std::function<void(void)> & done);
-        virtual const shutdown_event & get_shutdown_event() const = 0;
+        virtual shutdown_event & get_shutdown_event() = 0;
 
     protected:
         friend class scopped_service_provider;
@@ -353,7 +354,7 @@ namespace vds {
         scopped_service_provider(
           const std::shared_ptr<iservice_provider_impl> & parent);
 
-        const shutdown_event & get_shutdown_event() const override;
+        shutdown_event & get_shutdown_event() override;
     protected:
         iservice_factory * get_factory(size_t type) override;
 
@@ -391,7 +392,7 @@ namespace vds {
         void add(iservice & service);
         void shutdown();
 
-        const shutdown_event & get_shutdown_event() const {
+        shutdown_event & get_shutdown_event() {
             return this->shutdown_event_;
         }
 

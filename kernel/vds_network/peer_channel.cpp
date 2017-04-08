@@ -7,9 +7,10 @@ All rights reserved
 #include "peer_channel_p.h"
 
 vds::peer_channel::peer_channel(_peer_channel * impl)
-  : impl_(impl),
+  : 
   formatter_type_(impl->get_formatter_type()),
-  channel_direction_(impl->get_channel_direction())
+  channel_direction_(impl->get_channel_direction()),
+  impl_(impl)
 {
   this->impl_->owner_ = this;
 }

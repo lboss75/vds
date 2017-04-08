@@ -143,8 +143,9 @@ vds::client_messages::put_file_message::put_file_message(
   const std::string & user_login,
   const std::string & name,
   const filename & tmp_file)
-  : name_(name),
+  : 
   user_login_(user_login),
+  name_(name),
   tmp_file_(tmp_file)
 {
 }

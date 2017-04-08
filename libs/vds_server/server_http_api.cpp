@@ -13,14 +13,14 @@ vds::server_http_api::server_http_api(const service_provider& sp)
 {
 }
 
-void vds::server_http_api::start(
+vds::async_task<> vds::server_http_api::start(
   const std::string & address,
   int port,
   certificate & certificate,
   asymmetric_private_key & private_key)
 {
   this->impl_.reset(new _server_http_api(this->sp_));
-  this->impl_->start(address, port, certificate, private_key);
+  return this->impl_->start(address, port, certificate, private_key);
 }
 
 /////////////////////////////
@@ -56,7 +56,7 @@ vds::_server_http_api::_server_http_api(const service_provider& sp)
 {
 }
 
-void vds::_server_http_api::start(
+vds::async_task<> vds::_server_http_api::start(
   const std::string & address,
   int port,
   certificate & certificate,
@@ -76,19 +76,17 @@ void vds::_server_http_api::start(
   //upnp_client upnp(sp);
   //upnp.open_port(8000, 8000, "TCP", "VDS Service");
 
-  dataflow(
-    socket_server(this->sp_, address.c_str(), port),
-    vds::for_each<const service_provider &, network_socket &>::create_handler(
-      socket_session(*this->router_, certificate, private_key))
-  )
-  (
-    []() {
-      std::cout << "HTTP server closed\n";
-    },
-    [] (std::exception_ptr ex) {
-      std::cout << "Server error: " << exception_what(ex) << "\n";
-    }
-  );
+  return create_async_task(
+    [this, address, port, &certificate, &private_key](
+      const std::function<void(void)> & done,
+      const error_handler & on_error){
+      dataflow(
+        socket_server(this->sp_, address.c_str(), port),
+        vds::for_each<const service_provider &, network_socket &>::create_handler(
+          socket_session(*this->router_, certificate, private_key))
+      )
+      (done, on_error);
+    });
 }
 
 vds::_server_http_api::socket_session::socket_session(

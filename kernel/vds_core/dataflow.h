@@ -169,6 +169,7 @@ namespace vds {
 #ifdef DEBUG
     int is_alive_sig_;
 #endif
+    prev_step_real_t prev_proxy_;
     prev_step_t prev;
     next_step_t next;
     error_method_t error;
@@ -185,9 +186,6 @@ namespace vds {
       this->next.check_alive();
       this->error.check_alive();      
     }
-
-  private:
-    prev_step_real_t prev_proxy_;
   };
   //////////////////////////////////////////////////////
   template <typename owner_type, typename method_type, typename method_signature>

@@ -47,7 +47,7 @@ vds::scopped_service_provider::scopped_service_provider(
       new scope_properties_holder()));
 }
 
-const vds::shutdown_event & vds::scopped_service_provider::get_shutdown_event() const
+vds::shutdown_event & vds::scopped_service_provider::get_shutdown_event()
 {
     return this->parent_->get_shutdown_event();
 }
@@ -122,11 +122,15 @@ void vds::service_provider::on_complete(const std::function<void(void)>& done) c
     this->impl_->on_complete(done);
 }
 
-const vds::shutdown_event & vds::service_provider::get_shutdown_event() const
+vds::shutdown_event & vds::service_provider::get_shutdown_event()
 {
     return this->impl_->get_shutdown_event();
 }
 
+const vds::shutdown_event & vds::service_provider::get_shutdown_event() const
+{
+    return this->impl_->get_shutdown_event();
+}
 
 //////////////////////////////////////////////////////
 vds::service_registrator_impl::service_registrator_impl()

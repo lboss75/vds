@@ -16,7 +16,7 @@ namespace vds {
     server_http_api(const service_provider & sp);
 
 
-    void start(
+    async_task<> start(
       const std::string & address,
       int port,
       certificate & certificate,

@@ -27,7 +27,7 @@ namespace vds {
 
     std::function<void(event_data_types...)> target_;
 
-    std::mutex this_mutex_;
+    std::recursive_mutex this_mutex_;
 
     std::mutex sources_mutex_;
     std::list<event_source<event_data_types...>*> sources_;

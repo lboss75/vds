@@ -38,4 +38,5 @@ void vds::shutdown_event::set()
 #else
     this->is_shuting_down_ = true;
 #endif
+    (*this)();
 }

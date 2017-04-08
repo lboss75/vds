@@ -81,7 +81,11 @@ void vds::server::start(const service_provider& sp)
   this->consensus_server_protocol_->start();
   
   this->server_connection_->start();
-  this->server_http_api_->start("127.0.0.1", this->port_, this->certificate_, this->private_key_);
+  this->server_http_api_->start("127.0.0.1", this->port_, this->certificate_, this->private_key_)
+  .wait(
+    [log = logger(sp, "HTTP Server API")](){log.trace("Server closed");},
+    [log = logger(sp, "HTTP Server API")](std::exception_ptr ex){log.trace("Server error");});
+  
   this->server_udp_api_->start("127.0.0.1", this->port_);
 
   //this->peer_network_->start();
