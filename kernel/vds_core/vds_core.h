@@ -33,6 +33,7 @@ All rights reserved
 #include "const_data_buffer.h"
 #include "pipeline.h"
 #include "async_task.h"
+#include "shutdown_exception.h"
 
 #endif // !__VDS_CORE_H_
 

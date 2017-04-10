@@ -27,12 +27,11 @@ namespace vds {
       network_service_(sp.get<inetwork_manager>().owner_),
       done_method_(done), error_method_(on_error),
       shutdown_handler_(
-        [this](){ 
-          try {
-            throw std::runtime_error("Shooting down");
-          } catch(...) {
-            this->error_method_(std::current_exception());
-          }})
+        [this]() {
+      imt_service::async(this->sp_, [this]() {
+        this->error_method_(std::make_exception_ptr(shutdown_exception()));
+      });
+    })
 #ifndef _WIN32
       , ev_accept_(nullptr)
 #endif
@@ -144,8 +143,11 @@ namespace vds {
       
 #ifndef _WIN32
       event_free(this->ev_accept_);
-#endif
       close(this->s_);
+#else
+      closesocket(this->s_);
+      this->wait_accept_task_.join();
+#endif
     }
     
     void schedule()
@@ -162,34 +164,39 @@ namespace vds {
       event_add(this->ev_accept_, NULL);
       this->network_service_->start_libevent_dispatch(this->sp_);
 #else
-      this->wait_accept_task_ = std::async(std::launch::async,
-        [this]() {
-        HANDLE events[2];
-        events[0] = this->sp_.get_shutdown_event().windows_handle();
-        events[1] = this->accept_event_.handle();
+      if (!this->wait_accept_task_.joinable()) {
+        this->wait_accept_task_ = std::thread(
+          [this]() {
+          HANDLE events[2];
+          events[0] = this->sp_.get_shutdown_event().windows_handle();
+          events[1] = this->accept_event_.handle();
 
-        auto result = WSAWaitForMultipleEvents(2, events, FALSE, INFINITE, FALSE);
-        if ((WAIT_OBJECT_0 + 1) == result) {
-          WSANETWORKEVENTS WSAEvents;
-          WSAEnumNetworkEvents(
-            this->s_,
-            this->accept_event_.handle(),
-            &WSAEvents);
-          if ((WSAEvents.lNetworkEvents & FD_ACCEPT)
-            && (0 == WSAEvents.iErrorCode[FD_ACCEPT_BIT])) {
-            //Process it
-            sockaddr_in client_address;
-            int client_address_length = sizeof(client_address);
+          for(;;){
+            auto result = WSAWaitForMultipleEvents(2, events, FALSE, INFINITE, FALSE);
+            if ((WAIT_OBJECT_0 + 1) != result) {
+              break;
+            }
+            WSANETWORKEVENTS WSAEvents;
+            WSAEnumNetworkEvents(
+              this->s_,
+              this->accept_event_.handle(),
+              &WSAEvents);
+            if ((WSAEvents.lNetworkEvents & FD_ACCEPT)
+              && (0 == WSAEvents.iErrorCode[FD_ACCEPT_BIT])) {
+              //Process it
+              sockaddr_in client_address;
+              int client_address_length = sizeof(client_address);
 
-            auto socket = accept(this->s_, (sockaddr*)&client_address, &client_address_length);
-            if (INVALID_SOCKET != socket) {
-              this->network_service_->associate(socket);
-              auto sp = this->sp_.create_scope();
-              this->done_method_(sp, network_socket(socket));
+              auto socket = accept(this->s_, (sockaddr*)&client_address, &client_address_length);
+              if (INVALID_SOCKET != socket) {
+                this->network_service_->associate(socket);
+                auto sp = this->sp_.create_scope();
+                this->done_method_(sp, network_socket(socket));
+              }
             }
           }
-        }
-      });
+        });
+      }
 #endif
     }
 
@@ -296,7 +303,7 @@ namespace vds {
     };
 
     windows_wsa_event accept_event_;
-    std::future<void> wait_accept_task_;
+    std::thread wait_accept_task_;
 #endif
   };
 }
