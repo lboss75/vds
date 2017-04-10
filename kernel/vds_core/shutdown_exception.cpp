@@ -7,6 +7,6 @@ All rights reserved
 #include "shutdown_exception.h"
 
 vds::shutdown_exception::shutdown_exception()
-  : std::exception("Shutdown")
+  : std::runtime_error("Shutdown")
 {
 }

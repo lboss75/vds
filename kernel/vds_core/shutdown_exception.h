@@ -10,7 +10,7 @@ All rights reserved
 #include <exception>
 
 namespace vds {
-  class shutdown_exception : public std::exception
+  class shutdown_exception : public std::runtime_error
   {
   public:
     shutdown_exception();
