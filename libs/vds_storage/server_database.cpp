@@ -278,3 +278,62 @@ void vds::_server_database::add_file(
         item.index());
     }
 }
+
+/////////////////////////////////////////////
+
+vds::server_log_record
+  vds::_server_database::add_local_record(
+    const server_log_record::record_id & record_id,
+    const json_value * message,
+    const_data_buffer & signature)
+{
+  std::list<server_log_record::record_id> parents;
+
+  //Collect parents
+  this->log_parents_query_.query(
+    this->db_,
+    "SELECT source_id,source_index FROM server_log WHERE is_tail=1",
+    [&parents](sql_statement & reader)->bool {
+
+      guid source_id;
+      uint64_t source_index;
+      reader.get_value(0, source_id);
+      reader.get_value(1, source_index);
+
+      parents.push_back(server_log_record::record_id{ source_id, source_index });
+      return true;
+  });
+
+  //Sign message
+  server_log_record result(record_id, parents, message);
+  std::string body = server_log_record(record_id, parents, message).serialize(false)->str();
+  signature = asymmetric_sign::signature(hash::sha256(), this->private_key_, body.c_str(), body.length());
+
+  //Register message
+  this->add_server_log_statement_.execute(
+    this->db_,
+    "INSERT INTO server_log (source_id,source_index,message,signature,is_tail,is_processed)\
+    VALUES (@source_id,@source_index,@message,@signature,1,1)",
+    record_id.source_id,
+    record_id.index,
+    body,
+    signature);
+
+  //update tails & create links
+  for (auto& p : parents) {
+    this->update_server_log_tail_statement_.execute(
+      this->db_,
+      "UPDATE server_log SET is_tail=0 WHERE source_id=@source_id AND source_index=@source_index",
+      p.source_id,
+      p.index);
+
+    this->add_server_log_link_statement_.execute(
+      this->db_,
+      "INSERT INTO server_log_link (source_id,source_index,target_id,target_index)\
+       VALUES (@source_id,@source_index,@target_id,@target_index)",
+      p.source_id,
+      p.index,
+      record_id.source_id,
+      record_id.index);
+  }
+}

@@ -113,11 +113,23 @@ namespace vds {
   public:
     static const char message_type[];
 
+    struct record_id
+    {
+      guid source_id;
+      uint64_t index;
+    };
+
+
     server_log_record(std::unique_ptr<server_log_batch> && message);
     server_log_record(const json_value * source);
 
     const server_log_batch * message() const { return this->message_.get(); }
     const std::list<server_log_sign> & signatures() const { return this->signatures_; }
+
+    const record_id & id() const { return this->id_; }
+    const std::list<record_id> parents() const { return this->parents_; }
+    void add_parent(const guid & source_id, uint64_t index);
+
 
     void add_signature(
       const std::string & subject,
@@ -126,6 +138,9 @@ namespace vds {
     std::unique_ptr<json_value> serialize(bool add_type_property) const;
 
   private:
+    record_id id_;
+    std::list<record_id> parents_;
+
     std::unique_ptr<server_log_batch> message_;
     std::list<server_log_sign> signatures_;
   };

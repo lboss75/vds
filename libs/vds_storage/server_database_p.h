@@ -45,10 +45,20 @@ namespace vds {
       const std::string & record,
       const const_data_buffer & signature);
 
+    server_log_record
+      add_local_record(
+        const server_log_record::record_id & record_id,
+        const json_value * message,
+        const_data_buffer & signature);
+      bool have_log_record(const server_log_record::record_id & id);
+
+
   private:
     service_provider sp_;
     server_database * owner_;
     database db_;
+
+    std::mutex operation_mutex_;
 
     prepared_statement<
       const std::string & /* object_name */,
@@ -85,6 +95,23 @@ namespace vds {
     prepared_statement<
       const std::string & /*version_id*/,
       uint64_t /*index*/> add_file_map_statement_;
+
+    prepared_query<> log_parents_query_;
+    prepared_statement<
+      const guid & /*source_id*/,
+      uint64_t /*source_index*/> update_server_log_tail_statement_;
+
+    prepared_statement<
+      const guid & /*source_id*/,
+      uint64_t /*source_index*/,
+      const guid & /* target_id*/,
+      uint64_t /* target_index*/> add_server_log_link_statement_;
+
+    prepared_statement<
+      const guid & /*source_id*/,
+      uint64_t /*source_index*/,
+      const std::string & /* body */,
+      const const_data_buffer & /* signature */> add_server_log_statement_;
   };
 
 }
