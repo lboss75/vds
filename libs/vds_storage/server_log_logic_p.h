@@ -13,7 +13,10 @@ namespace vds {
   class _server_log_logic
   {
   public:
-    void add_record(const server_log_record & record);
+    //return: true to process record
+    bool add_record(const server_log_record & record);
+
+    void record_processed(const server_log_record::record_id & id);
 
   private:
     service_provider sp_;

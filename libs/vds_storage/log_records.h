@@ -118,31 +118,23 @@ namespace vds {
       guid source_id;
       uint64_t index;
     };
-
-
-    server_log_record(std::unique_ptr<server_log_batch> && message);
+    
+    server_log_record(const record_id & id, const std::list<record_id> & parents, const json_value * message);
     server_log_record(const json_value * source);
 
-    const server_log_batch * message() const { return this->message_.get(); }
-    const std::list<server_log_sign> & signatures() const { return this->signatures_; }
+    const json_value * message() const { return this->message_.get(); }
 
     const record_id & id() const { return this->id_; }
     const std::list<record_id> parents() const { return this->parents_; }
     void add_parent(const guid & source_id, uint64_t index);
 
 
-    void add_signature(
-      const std::string & subject,
-      const const_data_buffer & signature);
-
     std::unique_ptr<json_value> serialize(bool add_type_property) const;
 
   private:
     record_id id_;
     std::list<record_id> parents_;
-
-    std::unique_ptr<server_log_batch> message_;
-    std::list<server_log_sign> signatures_;
+    std::unique_ptr<json_value> message_;
   };
   
   class server_log_root_certificate
@@ -188,15 +180,15 @@ namespace vds {
   public:
     static const char message_type[];
     
-    server_log_new_server(const storage_object_id & cert_id_);
+    server_log_new_server(const std::string & certificate);
     server_log_new_server(const json_value * source);
 
-    const storage_object_id & cert_id() const { return this->cert_id_; }
+    const std::string & certificate () const { return this->certificate_; }
     
     std::unique_ptr<json_value> serialize() const;
     
   private:
-    storage_object_id cert_id_;
+    std::string certificate_;
   };
 
   class server_log_new_endpoint

@@ -79,6 +79,8 @@ namespace vds {
     lazy_service<ichunk_storage> chunk_storage_;
     lazy_service<ichunk_manager> chunk_manager_;
 
+    event_source<server_log_record & /*record*/, const const_data_buffer & /*signature*/> new_local_record_event_;
+
     const certificate & server_certificate_;
     const asymmetric_private_key & current_server_key_;
 
@@ -88,7 +90,6 @@ namespace vds {
     foldername vds_folder_;
 
     std::mutex local_log_mutex_;
-    foldername local_log_folder_;
     uint64_t local_log_index_;
 
     bool is_empty_;

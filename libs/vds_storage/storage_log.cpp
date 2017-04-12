@@ -47,6 +47,11 @@ const vds::guid & vds::istorage_log::current_server_id() const
   return this->owner_->impl_->current_server_id();
 }
 
+const vds::asymmetric_private_key & vds::istorage_log::server_private_key() const
+{
+  return this->owner_->impl_->server_private_key();
+}
+
 bool vds::istorage_log::is_empty() const
 {
   return this->owner_->impl_->is_empty();
@@ -131,7 +136,6 @@ vds::_storage_log::_storage_log(
   owner_(owner),
   log_(sp, "Server log"),
   vds_folder_(persistence::current_user(sp), ".vds"),
-  local_log_folder_(foldername(persistence::current_user(sp), ".vds"), "local_log"),
   local_log_index_(0),
   is_empty_(true),
   minimal_consensus_(0),
@@ -146,7 +150,6 @@ vds::async_task<> vds::_storage_log::reset(
   const std::string & addresses
 )
 {
-  this->local_log_folder_.create();
   this->vds_folder_.create();
   
   hash ph(hash::sha256());
@@ -168,78 +171,23 @@ vds::async_task<> vds::_storage_log::reset(
           user_cert_id,
           ph_signature).serialize().get());
 
-      this->save_object(
-        object_container()
-        .add("c", this->server_certificate_.str()))
-      .then([this, user_cert_id, addresses, ph_signature](
-        const std::function<void(void)> & done,
-        const error_handler & on_error,
-        const vds::storage_object_id & sert_cert_id) {
-
-        this->add_to_local_log(server_log_new_server(sert_cert_id).serialize().get());
-        this->add_to_local_log(server_log_new_endpoint(this->current_server_id_, addresses).serialize().get());
+      this->add_to_local_log(server_log_new_server(this->server_certificate_.str()).serialize().get());
+      this->add_to_local_log(server_log_new_endpoint(this->current_server_id_, addresses).serialize().get());
         
-        this->db_.get(this->sp_).add_cert(
-          cert(
-            "login::root",
-            full_storage_object_id(this->current_server_id_, user_cert_id),
-            ph_signature));
+      this->db_.get(this->sp_).add_cert(
+        cert(
+          "login:root",
+          full_storage_object_id(this->current_server_id_, user_cert_id),
+          ph_signature));
         
-        done();
-        
-      }).wait(done, on_error);
+      done();
     });
 }
 
 
 void vds::_storage_log::start()
 {
-  std::map<uint64_t, filename> local_records;
-  if (this->local_log_folder_.exist()) {
-    this->local_log_folder_.files(
-      [&local_records](const filename & fn) -> bool {
-      uint64_t index = std::atoll(fn.name().c_str());
-      if (std::to_string(index) == fn.name()) {
-        local_records[index] = fn;
-      }
-      return true;
-    });
-  }
-
-  for (auto & p : local_records) {
-
-    dataflow(
-      read_file(p.second),
-      json_parser("Record " + std::to_string(p.first))
-    )(
-      [this](json_value * record) {
-      this->apply_record(this->current_server_id_, record);
-      delete record;
-    },
-      [](std::exception_ptr ex) {
-        std::rethrow_exception(ex);
-    });
-
-    if (this->local_log_index_ <= p.first) {
-      this->local_log_index_ = p.first + 1;
-    }
-  }
-  /*
-  filename fn(this->local_log_folder_, "server_log.json");
-  if (fn.exists()) {
-    json_parser::options parser_options;
-    parser_options.enable_multi_root_objects = true;
-
-    dataflow(
-      read_file(fn),
-      json_parser(fn.name(), parser_options),
-      process_log_line<_storage_log>(fn.name(), this)
-    )(
-      []() {},
-      [](std::exception * ex) { throw ex; }
-    );
-  }
-  */
+  this->local_log_index_ = this->db_.get(this->sp_).get_server_log_max_index(this->current_server_id_) + 1;
 }
 
 void vds::_storage_log::stop()
@@ -363,16 +311,13 @@ size_t vds::_storage_log::new_message_id()
 
 vds::async_task<> vds::_storage_log::register_server(const std::string & server_certificate)
 {
-  return 
-    this->save_object(object_container().add("c", server_certificate))
-    .then(
-      [this](
-        const std::function<void(void)> & done,
-        const error_handler & on_error,
-        const vds::storage_object_id & id){
-        this->add_to_local_log(server_log_new_server(id).serialize().get());
-        done();
-      });
+  return create_async_task(
+    [this, server_certificate](
+      const std::function<void(void)> & done,
+      const error_handler & on_error) {
+    this->add_to_local_log(server_log_new_server(server_certificate).serialize().get());
+    done();
+  });
 }
 
 vds::async_task<const vds::storage_object_id &>
@@ -397,9 +342,17 @@ void vds::_storage_log::add_to_local_log(const json_value * record)
 {
   std::lock_guard<std::mutex> lock(this->local_log_mutex_);
 
-  file f(filename(this->local_log_folder_, std::to_string(this->local_log_index_++)), file::create_new);
-  output_text_stream os(f);
-  os.write(record->str());
+  const_data_buffer signature;
+  auto result = this->db_
+    .get(this->sp_)
+    .add_local_record(
+      server_log_record::record_id{
+        this->current_server_id_,
+        this->local_log_index_++ },
+      record,
+      signature);
+
+  this->new_local_record_event_(result, signature);
 }
 
 std::unique_ptr<vds::cert> vds::_storage_log::find_cert(const std::string & object_name)

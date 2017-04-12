@@ -51,16 +51,31 @@ namespace vds {
 
     void get_endpoints(std::map<std::string, std::string> & addresses);
 
-    server_log_record
-      add_local_record(
-        const server_log_record::record_id & record_id,
-        const json_value * message,
-        const_data_buffer & signature);
+    uint64_t get_server_log_max_index(const guid & id);
+
+    server_log_record add_local_record(
+      const server_log_record::record_id & record_id,
+      const json_value * message,
+      const_data_buffer & signature);
 
     //return: true - saved, false - already exists
     bool save_record(const server_log_record & record);
 
     bool have_log_record(const server_log_record::record_id & id);
+    bool have_processed_log_record(const server_log_record::record_id & id);
+
+
+    enum class server_log_state
+    {
+      not_found = 0,
+      stored = 1, //Just stored
+      front = 2, //Stored + all parents processed
+      processed = 3, //+ Processed
+      tail = 4 //
+    };
+    server_log_state log_record_state(const server_log_record::record_id & id);
+
+    bool get_front_record(server_log_record & record);
 
   private:
     server_database * const owner_;

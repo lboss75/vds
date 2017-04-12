@@ -12,6 +12,7 @@ namespace vds {
   class istorage_log;
   class cert;
   class full_storage_object_id;
+  class server_log_record;
 
   class storage_log
   {
@@ -58,6 +59,8 @@ namespace vds {
     std::unique_ptr<cert> find_cert(const std::string & object_name) const;
 
     std::unique_ptr<const_data_buffer> get_object(const full_storage_object_id & object_id);
+
+    event_source<const server_log_record & /*record*/, const const_data_buffer & /*signature*/> & new_local_record_event();
 
     void add_endpoint(
       const std::string & endpoint_id,

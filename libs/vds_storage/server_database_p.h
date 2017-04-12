@@ -9,6 +9,7 @@ All rights reserved
 #include "server_database.h"
 
 namespace vds {
+  class istorage_log;
   
   class _server_database
   {
@@ -39,24 +40,22 @@ namespace vds {
     void add_file(
       const guid & server_id,
       const server_log_file_map & fm);
-    
-    void add_log_record(
-      const guid & server_id,
-      const std::string & record,
-      const const_data_buffer & signature);
 
-    server_log_record
-      add_local_record(
-        const server_log_record::record_id & record_id,
-        const json_value * message,
-        const_data_buffer & signature);
-      bool have_log_record(const server_log_record::record_id & id);
+    server_log_record add_local_record(
+      const server_log_record::record_id & record_id,
+      const json_value * message,
+      const_data_buffer & signature);
 
+    bool save_record(const server_log_record & record, const const_data_buffer & signature);
+    void processed_record(const server_log_record::record_id & id);
+
+    uint64_t get_server_log_max_index(const guid & id);
 
   private:
     service_provider sp_;
     server_database * owner_;
     database db_;
+    lazy_service<istorage_log> storage_log_;
 
     std::mutex operation_mutex_;
 
@@ -72,9 +71,9 @@ namespace vds {
     prepared_statement<
       const guid & /*server_id*/,
       uint64_t /*index*/,
-      uint32_t /*original_lenght*/,
+      uint64_t /*original_lenght*/,
       const const_data_buffer & /*original_hash*/,
-      uint32_t /*target_lenght*/,
+      uint64_t /*target_lenght*/,
       const const_data_buffer & /*signature*/> add_object_statement_;
       
     prepared_query<
@@ -96,22 +95,67 @@ namespace vds {
       const std::string & /*version_id*/,
       uint64_t /*index*/> add_file_map_statement_;
 
-    prepared_query<> log_parents_query_;
-    prepared_statement<
-      const guid & /*source_id*/,
-      uint64_t /*source_index*/> update_server_log_tail_statement_;
+
+    /// Server log
+    std::mutex server_log_mutex_;
 
     prepared_statement<
       const guid & /*source_id*/,
       uint64_t /*source_index*/,
       const guid & /* target_id*/,
-      uint64_t /* target_index*/> add_server_log_link_statement_;
+      uint64_t /* target_index*/> server_log_add_link_statement_;
 
     prepared_statement<
       const guid & /*source_id*/,
       uint64_t /*source_index*/,
       const std::string & /* body */,
-      const const_data_buffer & /* signature */> add_server_log_statement_;
+      const const_data_buffer & /* signature */,
+      int /*state*/> server_log_add_statement_;
+
+    void add_server_log(
+      const guid & source_id,
+      uint64_t source_index,
+      const std::string & body,
+      const const_data_buffer & signature,
+      iserver_database::server_log_state state);
+
+    prepared_query<> get_server_log_tails_query_;
+
+    prepared_statement<
+      const guid & /*source_id*/,
+      uint64_t /*source_index*/,
+      int /*state*/> server_log_update_state_statement_;
+
+    void server_log_update_state(
+      const server_log_record::record_id & record_id,
+      iserver_database::server_log_state state);
+
+    prepared_query<
+      const guid & /*source_id*/,
+      uint64_t /*source_index*/> server_log_get_state_query_;
+
+    iserver_database::server_log_state server_log_get_state(
+      const server_log_record::record_id & record_id);
+
+    prepared_query<
+      const guid & /*source_id*/,
+      uint64_t /*source_index*/> server_log_get_parents_query_;
+
+    void server_log_get_parents(
+      const server_log_record::record_id & record_id,
+      std::list<server_log_record::record_id> & parents);
+
+    prepared_query<
+      const guid & /*source_id*/,
+      uint64_t /*source_index*/> server_log_get_followers_query_;
+
+    void server_log_get_followers(
+      const server_log_record::record_id & record_id,
+      std::list<server_log_record::record_id> & parents);
+
+    prepared_query<
+      const guid & /*source_id*/> get_server_log_max_index_query_;
+
   };
 
 }

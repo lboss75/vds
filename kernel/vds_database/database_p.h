@@ -29,6 +29,13 @@ namespace vds {
       }
     }
 
+    void set_parameter(int index, int value)
+    {
+      this->reset();
+
+      sqlite3_bind_int(this->stmt_, index, value);
+    }
+
     void set_parameter(int index, uint64_t value)
     {
       this->reset();
@@ -75,6 +82,14 @@ namespace vds {
       default:
         throw new std::runtime_error(sqlite3_errmsg(this->db_));
       }
+    }
+
+    bool get_value(int index, int & value)
+    {
+      assert(read_state == this->state_);
+
+      value = sqlite3_column_int(this->stmt_, index);
+      return true;
     }
 
     bool get_value(int index, uint64_t & value)

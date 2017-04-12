@@ -52,6 +52,11 @@ vds::sql_statement::~sql_statement()
   delete this->impl_;
 }
 
+void vds::sql_statement::set_parameter(int index, int value)
+{
+  this->impl_->set_parameter(index, value);
+}
+
 void vds::sql_statement::set_parameter(int index, uint64_t value)
 {
   this->impl_->set_parameter(index, value);
@@ -75,6 +80,11 @@ void vds::sql_statement::set_parameter(int index, const const_data_buffer & valu
 bool vds::sql_statement::execute()
 {
   return this->impl_->execute();
+}
+
+bool vds::sql_statement::get_value(int index, int & value)
+{
+  return this->impl_->get_value(index, value);
 }
 
 bool vds::sql_statement::get_value(int index, uint64_t & value)

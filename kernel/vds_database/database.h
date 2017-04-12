@@ -17,6 +17,7 @@ namespace vds {
     sql_statement(sql_statement && original);
     ~sql_statement();
 
+    void set_parameter(int index, int value);
     void set_parameter(int index, uint64_t value);
     void set_parameter(int index, const std::string & value);
     void set_parameter(int index, const guid & value);
@@ -30,6 +31,7 @@ namespace vds {
     
     bool execute();
 
+    bool get_value(int index, int & value);
     bool get_value(int index, uint64_t & value);
     bool get_value(int index, std::string & value);
     bool get_value(int index, guid & value);
