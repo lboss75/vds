@@ -356,7 +356,7 @@ vds::server_log_record
     record_id.index,
     body,
     signature,
-    iserver_database::server_log_state::processed);
+    iserver_database::server_log_state::tail);
 
   //update tails & create links
   for (auto& p : parents) {
@@ -423,7 +423,7 @@ void vds::_server_database::server_log_update_state(const server_log_record::rec
 {
   this->server_log_update_state_statement_.execute(
     this->db_,
-    "UPDATE server_log SET state=@state WHERE source_id=@source_id AND source_index=@source_index",
+    "UPDATE server_log SET state=?3 WHERE source_id=?1 AND source_index=?2",
     record_id.source_id,
     record_id.index,
     (int)state);

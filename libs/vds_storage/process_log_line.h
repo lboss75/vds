@@ -9,6 +9,7 @@ All rights reserved
 #include "log_records.h"
 
 namespace vds {
+  /*
   template <typename handler_type>
   class process_log_line
   {
@@ -49,7 +50,7 @@ namespace vds {
             + "(" + std::to_string(log_record->line()) + "," + std::to_string(log_record->column()) + ")");
         }
 
-        auto message_body = record.message()->serialize()->str();
+        auto message_body = record.message()->str();
 
         size_t sign_count = 0;
         for (auto & s : record.signatures()) {
@@ -100,6 +101,7 @@ namespace vds {
     std::string stream_name_;
     handler_type * owner_;
   };
+  */
 }
 
 #endif // __VDS_STORAGE_PROCESS_LOG_LINE_H_

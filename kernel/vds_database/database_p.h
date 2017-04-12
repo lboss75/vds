@@ -14,9 +14,10 @@ namespace vds {
   class _sql_statement
   {
   public:
-    _sql_statement(sqlite3 * db, const std::string & sql)
-      : db_(db), stmt_(nullptr), state_(bof_state)
+    _sql_statement(const service_provider & sp, sqlite3 * db, const std::string & sql)
+      : /*sp_(sp), */db_(db), stmt_(nullptr), /*log_(sp, "SQL"), query_(sql),*/ state_(bof_state)
     {
+      //this->log_.trace("Parse %s", sql.c_str());
       if (SQLITE_OK != sqlite3_prepare_v2(db, sql.c_str(), -1, &this->stmt_, nullptr)) {
         throw new std::runtime_error(sqlite3_errmsg(db));
       }
@@ -66,16 +67,14 @@ namespace vds {
 
     bool execute()
     {
-      if (eof_state == this->state_) {
-        return false;
-      }
-
       switch (sqlite3_step(this->stmt_)) {
       case SQLITE_ROW:
+        //this->log_.trace("Step %s", this->query_.c_str());
         this->state_ = read_state;
         return true;
 
       case SQLITE_DONE:
+        //this->log_.trace("Done %s", this->query_.c_str());
         this->state_ = eof_state;
         return false;
 
@@ -141,8 +140,11 @@ namespace vds {
 
 
   private:
+    //service_provider sp_;
     sqlite3 * db_;
     sqlite3_stmt * stmt_;
+    //logger log_;
+    //std::string query_;
     
     enum state_enum
     {
@@ -166,8 +168,8 @@ namespace vds {
   class _database
   {
   public:
-    _database(const service_provider & /*sp*/, database * /*owner*/)
-      : db_(nullptr)
+    _database(const service_provider & sp, database * /*owner*/)
+      : sp_(sp), db_(nullptr)
     {
     }
 
@@ -207,10 +209,11 @@ namespace vds {
 
     sql_statement parse(const std::string & sql)
     {
-      return sql_statement(new _sql_statement(this->db_, sql));
+      return sql_statement(new _sql_statement(this->sp_, this->db_, sql));
     }
 
   private:
+    service_provider sp_;
     sqlite3 * db_;
   };
 }

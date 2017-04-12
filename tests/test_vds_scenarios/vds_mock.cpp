@@ -16,6 +16,12 @@ vds_mock::~vds_mock()
 
 void vds_mock::start(size_t server_count)
 {
+  auto servers_folder = vds::foldername(vds::filename::current_process().contains_folder(), "servers");
+  servers_folder.delete_folder(true);
+  
+  auto clients_folder = vds::foldername(vds::filename::current_process().contains_folder(), "clients");
+  clients_folder.delete_folder(true);
+            
   this->root_password_ = generate_password();
   int first_port = 8050;
 
