@@ -355,6 +355,15 @@ bool vds::asymmetric_sign_verify::verify(
   return s.verify(signature);
 }
 
+bool vds::asymmetric_sign_verify::verify(
+  const hash_info & hash_info,
+  const asymmetric_public_key & key,
+  const const_data_buffer & signature,
+  const const_data_buffer & data)
+{
+  return verify(hash_info, key, signature, data.data(), data.size());
+}
+
 ///////////////////////////////////////////////////////////////
 vds::_asymmetric_sign_verify::_asymmetric_sign_verify(const hash_info & hash_info, const asymmetric_public_key & key)
   : md_(nullptr)

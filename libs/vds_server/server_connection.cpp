@@ -52,7 +52,7 @@ vds::_server_connection::~_server_connection()
 void vds::_server_connection::start()
 {
   std::map<std::string, std::string> endpoints;
-  this->sp_.get<iserver>().get_node_manager().get_endpoints(endpoints);
+  this->sp_.get<node_manager>().get_endpoints(endpoints);
   
   for (auto & p : endpoints) {
     this->log_.info("Connecting to %s", p.first.c_str());

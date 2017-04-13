@@ -192,7 +192,13 @@ namespace vds {
       const const_data_buffer & signature,
       const void * data,
       size_t data_size);
-    
+
+    static bool verify(
+      const hash_info & hash_info,
+      const asymmetric_public_key & key,
+      const const_data_buffer & signature,
+      const const_data_buffer & data);
+
   private:
     const hash_info & hash_info_;
     asymmetric_public_key key_;

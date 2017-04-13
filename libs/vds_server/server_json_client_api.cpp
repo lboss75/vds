@@ -84,9 +84,9 @@ vds::json_value * vds::_server_json_client_api::operator()(
             else if (client_messages::register_server_request::message_type == task_type_name) {
               task = this->process(scope, client_messages::register_server_request(task_object));
             }
-            else if (consensus_messages::consensus_message_who_is_leader::message_type == task_type_name) {
-              task = scope.get<iserver>().consensus_server_protocol().process(scope, consensus_messages::consensus_message_who_is_leader(task_object));
-            }
+            //TODO: else if (consensus_messages::consensus_message_who_is_leader::message_type == task_type_name) {
+            //  task = scope.get<iserver>().consensus_server_protocol().process(scope, consensus_messages::consensus_message_who_is_leader(task_object));
+            //}
             else if (client_messages::put_file_message::message_type == task_type_name) {
               task = this->process(scope, client_messages::put_file_message(task_object));
             }
@@ -170,8 +170,7 @@ vds::_server_json_client_api::process(
   return create_async_task(
     [scope, message](const std::function<void(const json_value *)> & done, const error_handler & on_error){
       scope
-        .get<iserver>()
-        .get_node_manager()
+        .get<node_manager>()
         .register_server(scope, message.certificate_body())
         .wait(
           [done]() { done(client_messages::register_server_response().serialize().get()); },

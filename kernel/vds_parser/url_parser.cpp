@@ -17,6 +17,9 @@ bool vds::url_parser::parse_addresses(
     if (!parse_address(item, handler)) {
       return false;
     }
+
+    start = p + 1;
+    p = addresses.find(';', start);
   }
 
   return parse_address(addresses.substr(start), handler);

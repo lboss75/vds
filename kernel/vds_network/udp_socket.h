@@ -457,7 +457,16 @@ private:
 
       void operator()(const sockaddr_in * from, const void * data, size_t len)
       {
-        this->owner_.input_message(from, data, len);
+        if (0 == len) {
+          this->next();
+        }
+        else {
+          this->owner_
+            .input_message(from, data, len)
+            .wait(
+              [this]() { this->prev(); },
+              [this](std::exception_ptr ex) { this->error(ex); });
+        }
       }
 
     private:

@@ -8,12 +8,12 @@ All rights reserved
 
 
 namespace vds {
+  class server;
   class _node_manager;
 
   class node_manager
   {
   public:
-    node_manager(const service_provider & sp);
     ~node_manager();
 
     vds::async_task<> register_server(const service_provider & scope, const std::string & node_certificate);
@@ -25,7 +25,11 @@ namespace vds {
     void get_endpoints(std::map<std::string, std::string> & addresses);
 
   private:
-    std::unique_ptr<_node_manager> impl_;
+    friend class server;
+
+    node_manager(_node_manager * impl);
+
+    _node_manager * const impl_;
   };
 }
 

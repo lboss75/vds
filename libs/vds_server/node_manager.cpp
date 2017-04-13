@@ -8,8 +8,8 @@ All rights reserved
 #include "node_manager_p.h"
 #include "server.h"
 
-vds::node_manager::node_manager(const service_provider & sp)
-  : impl_(new _node_manager(sp))
+vds::node_manager::node_manager(_node_manager * impl)
+  : impl_(impl)
 {
 }
 

@@ -30,7 +30,7 @@ namespace vds {
       uint32_t session_id() const { return this->session_id_; }
       const std::string & to_url() const { return this->to_url_; }
       
-      void serialize(network_serializer& s) const;
+      const_data_buffer serialize() const;
       
     private:
       std::string source_certificate_;
@@ -42,17 +42,23 @@ namespace vds {
     {
     public:
       welcome_message(
-        const guid & server_id,
+        const std::string & server_certificate,
         const const_data_buffer & key_crypted,
-        const const_data_buffer & crypted_info,
+        const const_data_buffer & crypted_data,
         const const_data_buffer & sign);
 
-      void serialize(network_serializer& s) const;
+      welcome_message(network_deserializer& s);
+      const_data_buffer serialize() const;
+
+      const std::string & server_certificate() const { return this->server_certificate_; }
+      const const_data_buffer & key_crypted() const { return this->key_crypted_; }
+      const const_data_buffer & crypted_data() const { return this->crypted_data_; }
+      const const_data_buffer & sign() const { return this->sign_; }
 
     private:
-      guid server_id_;
+      std::string server_certificate_;
       const_data_buffer key_crypted_;
-      const_data_buffer crypted_info_;
+      const_data_buffer crypted_data_;
       const_data_buffer sign_;
     };
   }

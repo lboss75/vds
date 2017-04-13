@@ -227,6 +227,17 @@ vds::network_deserializer& vds::network_deserializer::read_data(std::vector< uin
 
 vds::network_deserializer& vds::network_deserializer::operator>>(const_data_buffer& data)
 {
+  if (1 > this->data_.size()) {
+    throw new std::runtime_error("Invalid binary message format");
+  }
+
+  uint8_t ct;
+  this->data_ >> ct;
+
+  if (5 != ct) {
+    throw new std::runtime_error("Invalid binary message format");
+  }
+
   this->data_ >> data;
   
   return *this;
