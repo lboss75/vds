@@ -89,3 +89,27 @@ vds::guid vds::guid::parse(const std::string & value)
   return guid(&result, sizeof(result));
 #endif
 }
+
+bool vds::guid::operator == (const guid & other) const
+{
+  return this->size() == other.size()
+    && 0 == memcmp(this->data(), other.data(), this->size());
+}
+
+bool vds::guid::operator != (const guid & other) const
+{
+  return this->size() != other.size()
+    || 0 != memcmp(this->data(), other.data(), this->size());
+}
+
+bool vds::guid::operator < (const guid & other) const
+{
+  return this->size() == other.size()
+    && 0 > memcmp(this->data(), other.data(), this->size());
+}
+
+bool vds::guid::operator > (const guid & other) const
+{
+  return this->size() == other.size()
+    && 0 < memcmp(this->data(), other.data(), this->size());
+}

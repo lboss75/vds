@@ -103,7 +103,7 @@ vds::async_task<> vds::_server_udp_api::input_message(const sockaddr_in * from, 
           binary_serializer key_data;
           session_key.serialize(key_data);
 
-          auto key_crypted = this->certificate_.public_key().encrypt(key_data.data());
+          auto key_crypted = cert.public_key().encrypt(key_data.data());
 
           auto session_id = ++this->in_last_session_;
           
@@ -121,7 +121,7 @@ vds::async_task<> vds::_server_udp_api::input_message(const sockaddr_in * from, 
 
                 binary_serializer to_sign;
                 to_sign
-                  << server_certificate::server_id(this->certificate_)
+                  << this->certificate_.str()
                   << key_crypted
                   << crypted_data;
 
@@ -174,7 +174,11 @@ vds::async_task<> vds::_server_udp_api::input_message(const sockaddr_in * from, 
           msg.sign(),
           to_sign.data())) {
 
-          this->log_.debug("welcome from %s has been accepted", network_service::to_string(*from).c_str());
+          this->log_.debug(
+            "welcome from %s has been accepted",
+            network_service::to_string(*from).c_str());
+          
+          
         }
 
         done();

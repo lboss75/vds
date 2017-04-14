@@ -24,6 +24,11 @@ namespace vds {
     guid & operator = (const guid & original);
     guid & operator = (guid && original);
     
+    bool operator == (const guid & other) const;
+    bool operator != (const guid & other) const;
+    bool operator < (const guid & other) const;
+    bool operator > (const guid & other) const;
+    
   private:
     guid(const void * data, size_t len);
   };

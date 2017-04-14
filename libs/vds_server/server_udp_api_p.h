@@ -61,8 +61,7 @@ namespace vds {
       guid server_id_;
       symmetric_key session_key_;
     };
-    std::map<uint32_t, std::unique_ptr<session_data>> in_sessions_;
-    uint32_t in_last_session_;
+    std::map<guid, std::unique_ptr<session_data>> in_sessions_;
     
     pipeline<std::string, uint16_t, const_data_buffer> message_queue_;
 
