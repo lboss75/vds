@@ -112,7 +112,7 @@ void vds::_server::start(const service_provider& sp)
   this->consensus_server_protocol_.reset(new consensus_protocol::server(sp, this->certificate_, this->private_key_, *this->connection_manager_));
   this->node_manager_.reset(new _node_manager(sp));
   this->server_http_api_.reset(new server_http_api(sp));
-  this->server_udp_api_.reset(new server_udp_api(sp, this->certificate_, this->private_key_));
+  this->server_udp_api_.reset(new server_udp_api(sp));
   this->server_connection_.reset(new server_connection(sp, this->server_udp_api_.get()));
   this->peer_network_.reset(new peer_network(sp));
   this->local_cache_.reset(new local_cache(sp));

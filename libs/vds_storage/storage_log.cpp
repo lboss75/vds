@@ -47,6 +47,11 @@ const vds::guid & vds::istorage_log::current_server_id() const
   return this->owner_->impl_->current_server_id();
 }
 
+const vds::certificate & vds::istorage_log::server_certificate() const
+{
+  return this->owner_->impl_->server_certificate();
+}
+
 const vds::asymmetric_private_key & vds::istorage_log::server_private_key() const
 {
   return this->owner_->impl_->server_private_key();

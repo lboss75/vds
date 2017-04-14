@@ -157,7 +157,6 @@ namespace vds {
         const symmetric_decrypt & args)
         : base_class(context),
         sp_(args.sp_),
-        processed_(0),
         impl_(args.create_implementation())
       {
       }
@@ -177,12 +176,6 @@ namespace vds {
 
       void processed()
       {
-        if (1000 < this->processed_++) {
-          this->processed_ = 0;
-          imt_service::async(this->sp_, [this]() { this->processed(); });
-          return;
-        }
-
         size_t out_size = sizeof(this->buffer);
         if (data_processed(this->impl_, this->buffer, out_size))
         {
@@ -196,7 +189,6 @@ namespace vds {
 
     private:
       service_provider sp_;
-      int processed_;
       _symmetric_decrypt * impl_;
       uint8_t buffer[1024];
     };

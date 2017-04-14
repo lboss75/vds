@@ -151,7 +151,7 @@ namespace vds {
       this->len_ -= n;
 
       result_data_len = len;
-      return true;
+      return 0 != result_data_len;
     }
 
   private:
@@ -246,7 +246,7 @@ namespace vds {
       this->len_ -= n;
 
       result_data_len = len;
-      return true;
+      return 0 != result_data_len;
     }
 
   private:

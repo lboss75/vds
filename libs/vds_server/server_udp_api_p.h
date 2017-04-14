@@ -15,9 +15,7 @@ namespace vds {
   public:
     _server_udp_api(
       const service_provider & sp,
-      server_udp_api * owner,
-      certificate & certificate,
-      asymmetric_private_key & private_key);
+      server_udp_api * owner);
     ~_server_udp_api();
       
     void start(const std::string & address, size_t port);
@@ -42,20 +40,31 @@ namespace vds {
     service_provider sp_;
     logger log_;
     server_udp_api * const owner_;
-    certificate & certificate_;
-    asymmetric_private_key & private_key_;
     udp_socket s_;
+    lazy_service<istorage_log> storage_log_;
     
     class out_session_data
     {
     public:
       out_session_data(
-        const std::string & server,
-        uint16_t port);
+        const std::string & original_server,
+        uint16_t original_port);
+
+      void init_session(
+        uint32_t external_session_id,
+        const std::string & real_server,
+        uint16_t real_port,
+        certificate && cert,
+        symmetric_key && session_key);
 
     private:
-      std::string server_;
-      uint16_t port_;
+      std::string original_server_;
+      uint16_t original_port_;
+      uint32_t external_session_id_;
+      std::string real_server_;
+      uint16_t real_port_;
+      std::unique_ptr<certificate> cert_;
+      std::unique_ptr<symmetric_key> session_key_;
     };
     std::map<uint32_t, std::unique_ptr<out_session_data>> out_sessions_;
     

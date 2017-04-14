@@ -13,9 +13,7 @@ namespace vds {
   {
   public:
     server_udp_api(
-      const service_provider & sp,
-      certificate & certificate,
-      asymmetric_private_key & private_key);
+      const service_provider & sp);
     
     ~server_udp_api();
     
