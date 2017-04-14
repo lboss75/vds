@@ -53,7 +53,7 @@ namespace vds {
       return this->iv_.get();
     }
 
-    void serialize(binary_serializer & s);
+    void serialize(binary_serializer & s) const;
 
     size_t block_size() const;
     

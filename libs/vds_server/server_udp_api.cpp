@@ -48,7 +48,6 @@ vds::_server_udp_api::_server_udp_api(
   certificate_(certificate),
   private_key_(private_key),
   s_(sp),
-  out_session_id_(0),
   message_queue_(sp)
 {
 }
@@ -96,29 +95,36 @@ vds::async_task<> vds::_server_udp_api::input_message(const sockaddr_in * from, 
         
         auto cert = certificate::parse(msg.source_certificate());
         if(cert_manager.validate(cert)){
-
           symmetric_key session_key(symmetric_crypto::aes_256_cbc());
           session_key.generate();
-
+          
+          auto server_id = server_certificate::server_id(cert);
+          
+          uint32_t session_id;
+          for(;;){
+            session_id = (uint32_t)std::rand();
+            if(this->in_sessions_.end() == this->in_sessions_.find(session_id)){
+              break;
+            }
+          }
+          this->in_sessions_[session_id].reset(new in_session_data(server_id, session_key));
+          
+          binary_serializer s;
+          s
+            << msg.session_id()
+            << session_id;
+            
           binary_serializer key_data;
           session_key.serialize(key_data);
 
           auto key_crypted = cert.public_key().encrypt(key_data.data());
-
-          auto session_id = ++this->in_last_session_;
-          
-          auto server_id = server_certificate::server_id(cert);
-          auto session = new session_data(server_id, session_key);
-          
-          binary_serializer s;
-          s << session_id;
-
+                    
           dataflow(
             symmetric_encrypt(this->sp_, session_key),
             collect_data())(
-              [this, done, key_crypted, from](const void * data, size_t size) {
+              [this, done, from, session_key, key_crypted](const void * data, size_t size) {
                 const_data_buffer crypted_data(data, size);
-
+                
                 binary_serializer to_sign;
                 to_sign
                   << this->certificate_.str()
@@ -166,6 +172,8 @@ vds::async_task<> vds::_server_udp_api::input_message(const sockaddr_in * from, 
         to_sign
           << msg.server_certificate()
           << msg.key_crypted()
+          << msg.in_session_id()
+          << msg.out_session_id()
           << msg.crypted_data();
 
         if (asymmetric_sign_verify::verify(
@@ -217,15 +225,26 @@ void vds::_server_udp_api::open_udp_session(const std::string & address)
   auto network_address = url_parser::parse_network_address(address);
   assert("udp" == network_address.protocol);
   
-  auto data = udp_messages::hello_message(
-    this->certificate_.str(),
-    ++(this->out_session_id_),
-    address).serialize();
+  auto server = network_address.server;
+  auto port = (uint16_t)std::atoi(network_address.port.c_str());
   
-  this->message_queue_.push(
-    network_address.server,
-    (uint16_t)std::atoi(network_address.port.c_str()),
-    const_data_buffer(data));
+  for(;;){
+    auto session_id = (uint32_t)std::rand();
+    if(this->out_sessions_.end() == this->out_sessions_.find(session_id)){
+      
+      this->out_sessions_[session_id] = new out_session_data(server, port);
+  
+      auto data = udp_messages::hello_message(
+        this->certificate_.str(),
+        session_id,
+        address).serialize();
+      
+      this->message_queue_.push(
+        network_address.server,
+        (uint16_t)std::atoi(network_address.port.c_str()),
+        const_data_buffer(data));
+    }
+  }
 }
 
 

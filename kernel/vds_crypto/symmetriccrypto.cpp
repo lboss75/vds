@@ -73,7 +73,7 @@ vds::symmetric_key::symmetric_key(const vds::symmetric_crypto_info& crypto_info,
   s.pop_data(this->iv_.get(), (int)this->crypto_info_.iv_size());
 }
 
-void vds::symmetric_key::serialize(vds::binary_serializer& s)
+void vds::symmetric_key::serialize(vds::binary_serializer& s) const
 {
   s.push_data(this->key_.get(), (int)this->crypto_info_.key_size());
   s.push_data(this->iv_.get(), (int)this->crypto_info_.iv_size());

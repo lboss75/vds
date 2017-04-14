@@ -46,13 +46,24 @@ namespace vds {
     asymmetric_private_key & private_key_;
     udp_socket s_;
     
-    
-    uint32_t out_session_id_;
-    
-    class session_data
+    class out_session_data
     {
     public:
-      session_data(
+      out_session_data(
+        const std::string & server,
+        uint16_t port);
+
+    private:
+      std::string server_;
+      uint16_t port_;
+    };
+    std::map<uint32_t, std::unique_ptr<out_session_data>> out_sessions_;
+    
+    
+    class in_session_data
+    {
+    public:
+      in_session_data(
         const guid & server_id,
         const symmetric_key & session_key);
 
@@ -61,7 +72,7 @@ namespace vds {
       guid server_id_;
       symmetric_key session_key_;
     };
-    std::map<guid, std::unique_ptr<session_data>> in_sessions_;
+    std::map<uint32_t, std::unique_ptr<in_session_data>> in_sessions_;
     
     pipeline<std::string, uint16_t, const_data_buffer> message_queue_;
 
