@@ -172,8 +172,6 @@ vds::async_task<> vds::_server_udp_api::input_message(const sockaddr_in * from, 
         to_sign
           << msg.server_certificate()
           << msg.key_crypted()
-          << msg.in_session_id()
-          << msg.out_session_id()
           << msg.crypted_data();
 
         if (asymmetric_sign_verify::verify(
@@ -232,7 +230,7 @@ void vds::_server_udp_api::open_udp_session(const std::string & address)
     auto session_id = (uint32_t)std::rand();
     if(this->out_sessions_.end() == this->out_sessions_.find(session_id)){
       
-      this->out_sessions_[session_id] = new out_session_data(server, port);
+      this->out_sessions_[session_id].reset(new out_session_data(server, port));
   
       auto data = udp_messages::hello_message(
         this->certificate_.str(),
@@ -248,7 +246,9 @@ void vds::_server_udp_api::open_udp_session(const std::string & address)
 }
 
 
-vds::_server_udp_api::session_data::session_data(const guid & server_id, const symmetric_key & session_key)
+vds::_server_udp_api::in_session_data::in_session_data(
+  const guid & server_id,
+  const symmetric_key & session_key)
   : server_id_(server_id), session_key_(session_key)
 {
 }
