@@ -5,6 +5,7 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
+#include <assert.h>
 
 #include "vds_core.h"
 #include "vds_network.h"

@@ -14,18 +14,18 @@ namespace vds {
   public:
     _connection_manager(
       const vds::service_provider& sp,
-      connection_manager * owner);
+      connection_manager * owner,
+      const std::string & server_addresses);
     ~_connection_manager();
 
     void start();
     void stop();
     
-    async_task<> start_server(const std::string& address);
-
   private:
     service_provider sp_;
     connection_manager * const owner_;
     logger log_;
+    std::string server_addresses_;
         
     async_task<> start_udp_server(const url_parser::network_address& address);
     async_task<> start_https_server(const url_parser::network_address& address);
@@ -45,6 +45,8 @@ namespace vds {
       {
         this->message_queue_.get(next);
       }
+      
+      void open_udp_session(const std::string & address);
 
     private:
       _connection_manager * owner_;
@@ -94,6 +96,8 @@ namespace vds {
       
       std::map<uint32_t, std::unique_ptr<in_session_data>> in_sessions_;      
     };
+    
+    std::unique_ptr<udp_server> udp_server_;
   };
 }
 

@@ -9,7 +9,8 @@ All rights reserved
 #include "udp_messages.h"
 #include "node_manager.h"
 
-vds::connection_manager::connection_manager()
+vds::connection_manager::connection_manager(const std::string & server_addresses)
+: server_addresses_(server_addresses)
 {
 }
 
@@ -26,7 +27,7 @@ void vds::connection_manager::register_services(vds::service_registrator & regis
 
 void vds::connection_manager::start(const vds::service_provider& sp)
 {
-  this->impl_.reset(new _connection_manager(sp, this));
+  this->impl_.reset(new _connection_manager(sp, this, this->server_addresses_));
   this->impl_->start();
 }
 
@@ -41,17 +42,15 @@ vds::iconnection_manager::iconnection_manager(vds::_connection_manager* owner)
 {
 }
 
-vds::async_task<> vds::iconnection_manager::start_server(const std::string& address)
-{
-  return this->owner_->start_server(address);
-}
 //////////////////////////////////////////////////////
 vds::_connection_manager::_connection_manager(
   const vds::service_provider& sp,
-  connection_manager * owner)
+  connection_manager * owner,
+  const std::string & server_addresses)
 : sp_(sp),
   owner_(owner),
-  log_(sp, "Connection manager")
+  log_(sp, "Connection manager"),
+  server_addresses_(server_addresses)
 {
 }
 
@@ -61,6 +60,27 @@ vds::_connection_manager::~_connection_manager()
 
 void vds::_connection_manager::start()
 {
+  url_parser::parse_addresses(this->server_addresses_,
+    [this](const std::string & protocol, const std::string & address) -> bool {
+      if("udp" == protocol){
+        auto na = url_parser::parse_network_address(address);
+        this->start_udp_server(na).wait(
+          [this](){this->log_.info("UPD Servers stopped");},
+          [this](std::exception_ptr ex){this->log_.error("UPD Server error: %s", exception_what(ex));}
+        );
+      }
+      else if ("https" == protocol) {
+        auto na = url_parser::parse_network_address(address);
+        this->start_https_server(na).wait(
+          [this](){this->log_.info("HTTOS Servers stopped");},
+          [this](std::exception_ptr ex){this->log_.error("HTTPS Server error: %s", exception_what(ex));}
+        );
+      }
+    
+      return true;
+  });
+  
+  
   std::map<std::string, std::string> endpoints;
   this->sp_.get<node_manager>().get_endpoints(endpoints);
   
@@ -70,10 +90,10 @@ void vds::_connection_manager::start()
     url_parser::parse_addresses(p.second,
       [this](const std::string & protocol, const std::string & address) -> bool {
         if("udp" == protocol){
-          this->udp_api_->open_udp_session(address);
+          this->udp_server_->open_udp_session(address);
         }
         else if ("https" == protocol) {
-          this->open_https_session(address);
+          //this->open_https_session(address);
         }
       
         return true;
@@ -98,7 +118,8 @@ vds::async_task<> vds::_connection_manager::start_server(const std::string& addr
 
 vds::async_task<> vds::_connection_manager::start_udp_server(const url_parser::network_address& address)
 {
-  return (new udp_server(this))->start(address);
+  this->udp_server_.reset(new udp_server(this));
+  return this->udp_server_->start(address);
 }
 
 vds::async_task<> vds::_connection_manager::start_https_server(const url_parser::network_address& address)
@@ -296,7 +317,7 @@ vds::async_task<> vds::_connection_manager::udp_server::input_message(
     }    
   });
 }
-/*
+
 void vds::_connection_manager::udp_server::open_udp_session(const std::string & address)
 {
   auto network_address = url_parser::parse_network_address(address);
@@ -325,7 +346,7 @@ void vds::_connection_manager::udp_server::open_udp_session(const std::string & 
     }
   }
 }
-*/
+
 vds::_connection_manager::udp_server::in_session_data::in_session_data(
   const guid & server_id,
   const symmetric_key & session_key)
