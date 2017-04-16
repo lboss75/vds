@@ -7,48 +7,31 @@ All rights reserved
 */
 
 namespace vds {
-  
-  struct connection_message
-  {
-    bool is_broadcast;
-    std::string from_address;
-    std::list<std::string> to_address;
-    std::string body;
-  };
-  
-
-  class iconnection_channel
-  {
-  public:
-    virtual void get_delivery_metrics(std::map<std::string, size_t> & metrics) = 0;
-    virtual void send(const std::string & from_address, std::list<std::string> & to_address, const std::string &  body) = 0;
-  };
-  
   class _connection_manager;
 
-  class connection_manager
+  class connection_manager : public iservice
   {
   public:
-    connection_manager(
-      const service_provider & sp,
-      const std::string & from_address);
+    connection_manager();
     ~connection_manager();
     
-    void ready_to_get_messages(iconnection_channel * target);
-    void remove_target(iconnection_channel * target);
-
-    void send(const std::list<std::string> & to_address, const std::string &  body);
-
-    template <typename message_type>
-    void broadcast(const message_type & message)
-    {
-      this->get_peer_network().broadcast<message_type>(message);
-    }
-
-    peer_network & get_peer_network();
+    void register_services(service_registrator &) override;
+    void start(const service_provider &) override;
+    void stop(const service_provider &) override;
 
   private:
-    _connection_manager * const impl_;
+    std::unique_ptr<_connection_manager> impl_;
+  };
+  
+  class iconnection_manager
+  {
+  public:
+    iconnection_manager(_connection_manager * owner);
+    
+    async_task<> start_server(const std::string & address);
+    
+  private:
+    _connection_manager * const owner_;
   };
 }
 #endif // __VDS_PROTOCOLS_CONNECTION_MANAGER_H_

@@ -1,5 +1,5 @@
-#ifndef __VDS_SERVER_NODE_MANAGER_H_
-#define __VDS_SERVER_NODE_MANAGER_H_
+#ifndef __VDS_PROTOCOLS_NODE_MANAGER_H_
+#define __VDS_PROTOCOLS_NODE_MANAGER_H_
 
 /*
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
@@ -33,4 +33,4 @@ namespace vds {
   };
 }
 
-#endif // __VDS_SERVER_NODE_MANAGER_H_
+#endif // __VDS_PROTOCOLS_NODE_MANAGER_H_

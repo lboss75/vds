@@ -529,21 +529,24 @@ private:
 
   
   template<typename handler_class>
-  inline void run_udp_server(
+  inline async_task<> run_udp_server(
     const service_provider & sp,
     udp_socket & s,
     const std::string & address,
     size_t port,
     handler_class & handler)
   {
-    dataflow(
-      udp_server(sp, s, address, port),
-      _run_udp_server<handler_class>(sp, s, handler)
-    )
-    (
-     [&handler]() { handler.udp_server_done(); },
-     [&handler](std::exception_ptr ex) { handler.udp_server_error(ex);}
-    );
+    return create_async_task(
+      [sp, &s, address, port, &handler] (const std::function<void(void)> & done, const error_handler & on_error){
+        dataflow(
+          udp_server(sp, s, address, port),
+          _run_udp_server<handler_class>(sp, s, handler)
+        )
+        (
+          done,
+          on_error
+        );
+      });
   }
 
   template<typename handler_class>

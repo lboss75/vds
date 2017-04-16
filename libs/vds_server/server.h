@@ -32,7 +32,7 @@ namespace vds {
     iserver(server * owner);
 
   private:
-    server * owner_;
+    server * const owner_;
   };
 }
 

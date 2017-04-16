@@ -51,39 +51,9 @@ vds::_server_connection::~_server_connection()
 
 void vds::_server_connection::start()
 {
-  std::map<std::string, std::string> endpoints;
-  this->sp_.get<node_manager>().get_endpoints(endpoints);
-  
-  for (auto & p : endpoints) {
-    this->log_.info("Connecting to %s", p.first.c_str());
-    
-    url_parser::parse_addresses(p.second,
-      [this](const std::string & protocol, const std::string & address) -> bool {
-        if("udp" == protocol){
-          this->udp_api_->open_udp_session(address);
-        }
-        else if ("https" == protocol) {
-          this->open_https_session(address);
-        }
-      
-        return true;
-    });
-  }
 }
 
 void vds::_server_connection::stop()
-{
-}
-
-void vds::_server_connection::get_delivery_metrics(
-  std::map<std::string, size_t> & metrics)
-{
-}
-  
-void vds::_server_connection::send(
-  const std::string & from_address,
-  std::list<std::string> & to_address,
-  const std::string &  body)
 {
 }
 

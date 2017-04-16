@@ -17,13 +17,9 @@ namespace vds {
     
     ~server_udp_api();
     
-    void start(
-      const std::string & address,
-      size_t port);
+    void start();
     void stop();
     
-    void open_udp_session(const std::string & address);
-
   private:
       _server_udp_api * const impl_;
   };
