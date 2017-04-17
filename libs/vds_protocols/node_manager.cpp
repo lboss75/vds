@@ -6,7 +6,7 @@ All rights reserved
 #include "stdafx.h"
 #include "node_manager.h"
 #include "node_manager_p.h"
-#include "server.h"
+
 
 vds::node_manager::node_manager(_node_manager * impl)
   : impl_(impl)

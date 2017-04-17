@@ -10,7 +10,7 @@ namespace vds {
   class server_connection;
   class server_udp_api;
 
-  class _server_connection : private iconnection_channel
+  class _server_connection
   {
   public:
     _server_connection(
@@ -23,13 +23,6 @@ namespace vds {
     void stop();
 
 
-    void get_delivery_metrics(
-      std::map<std::string, size_t> & metrics) override;
-      
-    void send(
-      const std::string & from_address,
-      std::list<std::string> & to_address,
-      const std::string &  body) override;
 
   private:
     service_provider sp_;

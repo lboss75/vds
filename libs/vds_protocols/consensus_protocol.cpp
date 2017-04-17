@@ -110,8 +110,8 @@ void vds::consensus_protocol::_server::leader_check()
     if (2 < this->leader_check_timer_++) {
       this->state_ = candidate;
       this->leader_check_timer_ = 0;
-      this->connection_manager_.broadcast(
-        consensus_messages::consensus_message_leader_candidate(this->certificate_.fingerprint()));
+//       this->connection_manager_.broadcast(
+//         consensus_messages::consensus_message_leader_candidate(this->certificate_.fingerprint()));
     }
     break;
 
@@ -121,8 +121,8 @@ void vds::consensus_protocol::_server::leader_check()
       this->state_ = leader;
       this->leader_check_timer_ = 0;
       this->become_leader();
-      this->connection_manager_.broadcast(
-        consensus_messages::consensus_message_new_leader(this->certificate_.fingerprint()));
+//       this->connection_manager_.broadcast(
+//         consensus_messages::consensus_message_new_leader(this->certificate_.fingerprint()));
     }
     break;
 
