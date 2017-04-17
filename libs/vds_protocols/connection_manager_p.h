@@ -14,18 +14,18 @@ namespace vds {
   public:
     _connection_manager(
       const vds::service_provider& sp,
-      connection_manager * owner,
-      const std::string & server_addresses);
+      connection_manager * owner);
     ~_connection_manager();
 
     void start();
     void stop();
+
+    void start_servers(const std::string & server_addresses);
     
   private:
     service_provider sp_;
     connection_manager * const owner_;
     logger log_;
-    std::string server_addresses_;
         
     async_task<> start_udp_server(const url_parser::network_address& address);
     async_task<> start_https_server(const url_parser::network_address& address);

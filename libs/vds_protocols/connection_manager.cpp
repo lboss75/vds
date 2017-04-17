@@ -9,8 +9,7 @@ All rights reserved
 #include "udp_messages.h"
 #include "node_manager.h"
 
-vds::connection_manager::connection_manager(const std::string & server_addresses)
-: server_addresses_(server_addresses)
+vds::connection_manager::connection_manager()
 {
 }
 
@@ -27,7 +26,7 @@ void vds::connection_manager::register_services(vds::service_registrator & regis
 
 void vds::connection_manager::start(const vds::service_provider& sp)
 {
-  this->impl_.reset(new _connection_manager(sp, this, this->server_addresses_));
+  this->impl_.reset(new _connection_manager(sp, this));
   this->impl_->start();
 }
 
@@ -36,6 +35,12 @@ void vds::connection_manager::stop(const vds::service_provider&)
   this->impl_->stop();
   this->impl_.reset();
 }
+
+void vds::connection_manager::start_servers(const std::string & server_addresses)
+{
+  this->impl_->start_servers(server_addresses);
+}
+
 //////////////////////////////////////////////////////
 vds::iconnection_manager::iconnection_manager(vds::_connection_manager* owner)
 : owner_(owner)
@@ -45,12 +50,11 @@ vds::iconnection_manager::iconnection_manager(vds::_connection_manager* owner)
 //////////////////////////////////////////////////////
 vds::_connection_manager::_connection_manager(
   const vds::service_provider& sp,
-  connection_manager * owner,
-  const std::string & server_addresses)
+  connection_manager * owner)
 : sp_(sp),
   owner_(owner),
   log_(sp, "Connection manager"),
-  server_addresses_(server_addresses)
+  udp_server_(new udp_server(this))
 {
 }
 
@@ -60,27 +64,6 @@ vds::_connection_manager::~_connection_manager()
 
 void vds::_connection_manager::start()
 {
-  url_parser::parse_addresses(this->server_addresses_,
-    [this](const std::string & protocol, const std::string & address) -> bool {
-      if("udp" == protocol){
-        auto na = url_parser::parse_network_address(address);
-        this->start_udp_server(na).wait(
-          [this](){this->log_.info("UPD Servers stopped");},
-          [this](std::exception_ptr ex){this->log_.error("UPD Server error: %s", exception_what(ex));}
-        );
-      }
-      else if ("https" == protocol) {
-        auto na = url_parser::parse_network_address(address);
-        this->start_https_server(na).wait(
-          [this](){this->log_.info("HTTOS Servers stopped");},
-          [this](std::exception_ptr ex){this->log_.error("HTTPS Server error: %s", exception_what(ex));}
-        );
-      }
-    
-      return true;
-  });
-  
-  
   std::map<std::string, std::string> endpoints;
   this->sp_.get<node_manager>().get_endpoints(endpoints);
   
@@ -101,10 +84,37 @@ void vds::_connection_manager::start()
   }
 }
 
+void vds::_connection_manager::stop()
+{
+}
+
+void vds::_connection_manager::start_servers(const std::string & server_addresses)
+{
+  url_parser::parse_addresses(server_addresses,
+    [this](const std::string & protocol, const std::string & address) -> bool {
+    if ("udp" == protocol) {
+      auto na = url_parser::parse_network_address(address);
+      this->start_udp_server(na).wait(
+        [this]() {this->log_.info("UPD Servers stopped"); },
+        [this](std::exception_ptr ex) {this->log_.error("UPD Server error: %s", exception_what(ex)); }
+      );
+    }
+    else if ("https" == protocol) {
+      auto na = url_parser::parse_network_address(address);
+      this->start_https_server(na).wait(
+        [this]() {this->log_.info("HTTOS Servers stopped"); },
+        [this](std::exception_ptr ex) {this->log_.error("HTTPS Server error: %s", exception_what(ex)); }
+      );
+    }
+
+    return true;
+  });
+
+}
+
 
 vds::async_task<> vds::_connection_manager::start_udp_server(const url_parser::network_address& address)
 {
-  this->udp_server_.reset(new udp_server(this));
   return this->udp_server_->start(address);
 }
 
@@ -133,6 +143,10 @@ vds::async_task<> vds::_connection_manager::udp_server::start(
     address.server,
     (uint16_t)std::atoi(address.port.c_str()),
     *this);
+}
+
+void vds::_connection_manager::udp_server::socket_closed(std::list<std::exception_ptr> errors)
+{
 }
 
 vds::async_task<> vds::_connection_manager::udp_server::input_message(

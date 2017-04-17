@@ -12,15 +12,16 @@ namespace vds {
   class connection_manager : public iservice
   {
   public:
-    connection_manager(const std::string & server_addresses);
+    connection_manager();
     ~connection_manager();
     
     void register_services(service_registrator &) override;
     void start(const service_provider &) override;
     void stop(const service_provider &) override;
 
+    void start_servers(const std::string & server_addresses);
+
   private:
-    std::string server_addresses_;
     std::unique_ptr<_connection_manager> impl_;
   };
   

@@ -122,7 +122,7 @@ void vds::_server::start(const service_provider& sp)
   this->local_cache_->start();
   this->chunk_manager_->start();
 
-  this->consensus_server_protocol_->start();
+  //this->consensus_server_protocol_->start();
 
   this->server_connection_->start();
   this->server_http_api_->start("127.0.0.1", this->port_, this->certificate_, this->private_key_)

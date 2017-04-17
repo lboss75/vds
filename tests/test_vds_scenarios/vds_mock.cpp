@@ -301,10 +301,13 @@ void mock_server::start()
   this->registrator_.add(this->task_manager_);
   this->registrator_.add(this->crypto_service_);
   this->registrator_.add(this->server_);
-  
+  this->registrator_.add(this->connection_manager_);
+
   this->server_.set_port(8050 + this->index_);
 
   auto sp = this->registrator_.build();
+
+  this->connection_manager_.start_servers("udp://127.0.0.1:" + std::to_string(8050 + this->index_));
 }
 
 void mock_server::stop()
