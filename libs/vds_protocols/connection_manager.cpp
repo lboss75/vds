@@ -101,20 +101,6 @@ void vds::_connection_manager::start()
   }
 }
 
-vds::async_task<> vds::_connection_manager::start_server(const std::string& address)
-{
-  auto network = url_parser::parse_network_address(address);
-  if("udp" == network.protocol){
-    return this->start_udp_server(network);
-  }
-  else if ("https" == network.protocol) {
-    return this->start_https_server(network);
-  }
-  else {
-    throw std::runtime_error("Unexpected protocol at start server by address '" + address + "'");
-  }
-}
-
 
 vds::async_task<> vds::_connection_manager::start_udp_server(const url_parser::network_address& address)
 {

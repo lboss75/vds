@@ -43,3 +43,11 @@ vds::_server_udp_api::~_server_udp_api()
 {
 }
 
+void vds::_server_udp_api::start()
+{
+}
+
+void vds::_server_udp_api::stop()
+{
+}
+
