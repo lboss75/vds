@@ -102,7 +102,7 @@ void vds::_connection_manager::start_servers(const std::string & server_addresse
     else if ("https" == protocol) {
       auto na = url_parser::parse_network_address(address);
       this->start_https_server(na).wait(
-        [this]() {this->log_.info("HTTOS Servers stopped"); },
+        [this]() {this->log_.info("HTTPS Servers stopped"); },
         [this](std::exception_ptr ex) {this->log_.error("HTTPS Server error: %s", exception_what(ex)); }
       );
     }
