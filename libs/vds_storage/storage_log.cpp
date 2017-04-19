@@ -132,9 +132,9 @@ vds::async_task<> vds::istorage_log::reset(
   return this->owner_->impl_->reset(root_certificate, private_key, root_password, addresses);
 }
 
-void vds::istorage_log::apply_record(const server_log_record & record, const const_data_buffer & signature)
+bool vds::istorage_log::apply_record(const server_log_record & record, const const_data_buffer & signature)
 {
-  this->owner_->impl_->apply_record(record, signature);
+  return this->owner_->impl_->apply_record(record, signature);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -370,9 +370,9 @@ void vds::_storage_log::add_to_local_log(const json_value * record)
   this->new_local_record_event_(result, signature);
 }
 
-void vds::_storage_log::apply_record(const server_log_record & record, const const_data_buffer & signature)
+bool vds::_storage_log::apply_record(const server_log_record & record, const const_data_buffer & signature)
 {
-  this->db_
+  return this->db_
     .get(this->sp_)
     .save_record(record, signature);
 }

@@ -74,7 +74,7 @@ namespace vds {
     const asymmetric_private_key & server_private_key() const { return this->current_server_key_; }
     void add_to_local_log(const json_value * record);
 
-    void apply_record(
+    bool apply_record(
       const server_log_record & record,
       const const_data_buffer & signature);
 

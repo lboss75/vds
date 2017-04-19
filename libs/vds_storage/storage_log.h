@@ -80,7 +80,7 @@ namespace vds {
       const std::string & root_password,
       const std::string & address);
 
-    void apply_record(
+    bool apply_record(
       const server_log_record & record,
       const const_data_buffer & signature);
 

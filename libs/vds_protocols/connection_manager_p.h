@@ -104,16 +104,33 @@ namespace vds {
       {
       public:
         in_session_data(
+          const std::string & server,
+          uint16_t port,
+          uint32_t session_id,
           const guid & server_id,
           const symmetric_key & session_key);
 
+        const std::string & server() const { return this->server_; }
+        uint16_t port() const { return this->port_; }
+        uint32_t session_id() const { return this->session_id_; }
+        const guid & server_id() const { return this->server_id_;}
         const symmetric_key & session_key() const { return this->session_key_; }
+        
       private:
+        std::string server_;
+        uint16_t port_;
+        uint32_t session_id_;
         guid server_id_;
         symmetric_key session_key_;
       };
       std::mutex in_sessions_mutex_;
       std::map<uint32_t, std::unique_ptr<in_session_data>> in_sessions_;
+      
+      void for_each_connection(const std::function<void(
+        uint32_t session_id,
+        const symmetric_key & session_key,
+        const std::string & server,
+        uint16_t port)> & callback);
     };
     
     std::unique_ptr<udp_server> udp_server_;

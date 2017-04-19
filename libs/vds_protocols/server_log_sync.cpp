@@ -73,7 +73,10 @@ void vds::_server_log_sync::on_new_local_record(
 
 void vds::_server_log_sync::on_record_broadcast(const server_log_record_broadcast & message)
 {
-  this->sp_.get<istorage_log>().apply_record(message.record(), message.signature());
+  if(this->sp_.get<istorage_log>().apply_record(message.record(), message.signature())){
+    this->connection_manager_.get(this->sp_)
+      .broadcast(server_log_record_broadcast(message.record(), message.signature()));
+  }
 }
 
 //////////////////////////////////////////////////

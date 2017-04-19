@@ -38,7 +38,7 @@ vds::binary_deserializer & vds::operator >> (binary_deserializer & b, server_log
     json_parser("Message"),
     json_require_once())(
       [&record](json_value * body) {
-    record.message_ = body->clone();
+    record.message_.reset(body);
   },
       [](std::exception_ptr ex) {},
     message.c_str(),

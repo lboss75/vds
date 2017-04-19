@@ -203,7 +203,12 @@ vds::async_task<> vds::_connection_manager::udp_server::input_message(
             break;
           }
         }
-        this->in_sessions_[session_id].reset(new in_session_data(server_id, session_key));
+        this->in_sessions_[session_id].reset(new in_session_data(
+          network_service::get_ip_address_string(*from),
+          ntohs(from->sin_port),
+          msg.session_id(),
+          server_id,
+          session_key));
 
         binary_serializer s;
         s
@@ -419,37 +424,74 @@ void vds::_connection_manager::udp_server::broadcast(
   binary_serializer message_data;
   message_data << message_type_id << binary_form;
   
-  for (auto & p : this->out_sessions_) {
-    if (!p.second->session_key()) {
-      continue;
-    }
-
+  this->for_each_connection([this, &message_data](
+    uint32_t session_id, 
+    const symmetric_key & session_key,
+    const std::string & server,
+    uint16_t port){
     dataflow(
-      symmetric_encrypt(*p.second->session_key()),
+      symmetric_encrypt(session_key),
       collect_data())(
-      [this, &message_data, &p](const void * crypted_data, size_t size) {
+      [this, &message_data, session_id, server, port](const void * crypted_data, size_t size) {
         network_serializer s;
         s.start(udp_messages::command_message_id);
-        s << p.first;
+        s << session_id;
         s.push_data(crypted_data, size);
         s << hash::signature(hash::sha256(), message_data.data());
         s.final();
 
         this->message_queue_.push(
-          p.second->original_server(),
-          p.second->original_port(),
+          server,
+          port,
           s.data());
       },
       [](std::exception_ptr ex) {},
       message_data.data().data(),
       message_data.data().size());
-  }
+  });
 }
 
+void vds::_connection_manager::udp_server::for_each_connection(
+  const std::function<void(
+    uint32_t session_id,
+    const symmetric_key & session_key,
+    const std::string & server,
+    uint16_t port)> & callback)
+{
+ for (auto & p : this->out_sessions_) {
+    if (!p.second->session_key()) {
+      continue;
+    }
+    
+    callback(
+      p.first,
+      *p.second->session_key(),
+      p.second->original_server(),
+      p.second->original_port());
+ }
+ 
+ for (auto & p : this->in_sessions_) {
+    
+    callback(
+      p.second->session_id(),
+      p.second->session_key(),
+      p.second->server(),
+      p.second->port());
+ }
+}
+
+
 vds::_connection_manager::udp_server::in_session_data::in_session_data(
+  const std::string & server,
+  uint16_t port,
+  uint32_t session_id,
   const guid & server_id,
   const symmetric_key & session_key)
-  : server_id_(server_id), session_key_(session_key)
+: server_(server),
+  port_(port),
+  session_id_(session_id),
+  server_id_(server_id),
+  session_key_(session_key)
 {
 }
 

@@ -890,6 +890,7 @@ namespace vds {
         else {
           if (!this->result_) {
             this->result_.reset(item);
+            this->prev();
           }
           else {
             delete item;
