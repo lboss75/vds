@@ -336,7 +336,7 @@ vds::async_task<> vds::_connection_manager::udp_server::input_message(
         s.final();
 
         std::lock_guard<std::mutex> lock(this->out_sessions_mutex_);
-        auto& p = this->out_sessions_.find(session_id);
+        auto p = this->out_sessions_.find(session_id);
         if (this->out_sessions_.end() != p) {
           dataflow(
             symmetric_decrypt(*p->second->session_key()),
@@ -350,16 +350,25 @@ vds::async_task<> vds::_connection_manager::udp_server::input_message(
               const_data_buffer binary_form;
               d >> message_type_id >> binary_form;
 
-              auto& h = this->owner_->input_message_handlers_.find(message_type_id);
+              auto h = this->owner_->input_message_handlers_.find(message_type_id);
               if (this->owner_->input_message_handlers_.end() != h) {
                 h->second(binary_form);
               }
+              else {
+                this->log_.debug("Handler for message %d not found", message_type_id);
+              }
+            }
+            else {
+              this->log_.debug("Invalid data hash");
             }
           },
             [](std::exception_ptr ex) {
           },
             crypted_data.data(),
             crypted_data.size());
+        }
+        else {
+          this->log_.debug("Session %d not found", session_id);
         }
       }
       catch (...) {
@@ -403,8 +412,13 @@ void vds::_connection_manager::udp_server::open_udp_session(const std::string & 
   }
 }
 
-void vds::_connection_manager::udp_server::broadcast(uint32_t message_type_id, const const_data_buffer & binary_form)
+void vds::_connection_manager::udp_server::broadcast(
+  uint32_t message_type_id,
+  const const_data_buffer & binary_form)
 {
+  binary_serializer message_data;
+  message_data << message_type_id << binary_form;
+  
   for (auto & p : this->out_sessions_) {
     if (!p.second->session_key()) {
       continue;
@@ -413,12 +427,12 @@ void vds::_connection_manager::udp_server::broadcast(uint32_t message_type_id, c
     dataflow(
       symmetric_encrypt(*p.second->session_key()),
       collect_data())(
-      [this, &binary_form, &p](const void * crypted_data, size_t size) {
+      [this, &message_data, &p](const void * crypted_data, size_t size) {
         network_serializer s;
         s.start(udp_messages::command_message_id);
-        s << p.second->external_session_id();
+        s << p.first;
         s.push_data(crypted_data, size);
-        s << hash::signature(hash::sha256(), binary_form);
+        s << hash::signature(hash::sha256(), message_data.data());
         s.final();
 
         this->message_queue_.push(
@@ -427,8 +441,8 @@ void vds::_connection_manager::udp_server::broadcast(uint32_t message_type_id, c
           s.data());
       },
       [](std::exception_ptr ex) {},
-      binary_form.data(),
-      binary_form.size());
+      message_data.data().data(),
+      message_data.data().size());
   }
 }
 
