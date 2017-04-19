@@ -30,9 +30,27 @@ namespace vds {
   public:
     iconnection_manager(_connection_manager * owner);
     
-   
+    template<typename message_type>
+    void broadcast(const message_type & message)
+    {
+      binary_serializer b;
+      message.serialize(b);
+
+      this->broadcast(
+        message_type::message_type_id,
+        b.data(),
+        message.serialize()->str());
+    }
+
+    event_source<const const_data_buffer &> & incoming_message(uint32_t message_type_id);
+
   private:
     _connection_manager * const owner_;
+
+    void broadcast(
+      uint32_t message_type_id,
+      const const_data_buffer & binary_form,
+      const std::string & json_form);
   };
 }
 #endif // __VDS_PROTOCOLS_CONNECTION_MANAGER_H_

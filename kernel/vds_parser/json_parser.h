@@ -47,7 +47,6 @@ namespace vds {
         current_object_(nullptr),
         line_(1), column_(1)
       {
-
       }
 
       void operator()(
@@ -854,13 +853,55 @@ namespace vds {
 
         this->buffer_.clear();
       }
-
-
     };
     
   private:
     std::string stream_name_;
     options parse_options_;
+  };
+
+  class json_require_once
+  {
+  public:
+
+    template <typename context_type>
+    class handler : public dataflow_step<context_type, void(json_value *)>
+    {
+      using base_class = dataflow_step<context_type, void(json_value *)>;
+    public:
+      handler(
+        const context_type & context,
+        const json_require_once & args
+      ) : base_class(context)
+      {
+
+      }
+
+      void operator()(json_value * item)
+      {
+        if (nullptr == item) {
+          if (!this->result_) {
+            this->error(std::make_exception_ptr(std::runtime_error("JSON object is required")));
+          }
+          else {
+            this->next(this->result_.release());
+          }
+        }
+        else {
+          if (!this->result_) {
+            this->result_.reset(item);
+          }
+          else {
+            delete item;
+            this->error(std::make_exception_ptr(std::runtime_error("Only one JSON object has expected")));
+          }
+        }
+      }
+
+    private:
+      std::unique_ptr<json_value> result_;
+    };
+
   };
 }
 

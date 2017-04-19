@@ -129,8 +129,8 @@ TEST(test_vds_crypto, test_symmetric)
 
       dataflow(
         vds::create_step<random_reader>::with(buffer.get(), (int)len),
-        vds::symmetric_encrypt(sp, key),
-        vds::symmetric_decrypt(sp, key),
+        vds::symmetric_encrypt(key),
+        vds::symmetric_decrypt(key),
         vds::create_step<compare_data>::with(buffer.get(), (int)len)
       )(
         []() {

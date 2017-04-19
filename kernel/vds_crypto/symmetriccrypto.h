@@ -72,7 +72,6 @@ namespace vds {
   {
   public:
     symmetric_encrypt(
-      const service_provider & sp,
       const symmetric_key & key);
 
     template <typename context_type>
@@ -84,7 +83,6 @@ namespace vds {
         const context_type & context,
         const symmetric_encrypt & args)
         : base_class(context),
-        sp_(args.sp_),
         impl_(args.create_implementation())
       {
       }
@@ -116,7 +114,6 @@ namespace vds {
       }
 
     private:
-      service_provider sp_;
       _symmetric_encrypt * impl_;
       uint8_t buffer[1024];
     };
@@ -143,7 +140,6 @@ namespace vds {
   {
   public:
     symmetric_decrypt(
-      const service_provider & sp, 
       const symmetric_key & key);
 
 
@@ -156,7 +152,6 @@ namespace vds {
         const context_type & context,
         const symmetric_decrypt & args)
         : base_class(context),
-        sp_(args.sp_),
         impl_(args.create_implementation())
       {
       }
@@ -188,13 +183,11 @@ namespace vds {
       }
 
     private:
-      service_provider sp_;
       _symmetric_decrypt * impl_;
       uint8_t buffer[1024];
     };
 
   private:
-    service_provider sp_;
     symmetric_key key_;
     _symmetric_decrypt * create_implementation() const;
 

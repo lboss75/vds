@@ -9,6 +9,45 @@ All rights reserved
 
 const char vds::server_log_record::message_type[] = "server log";
 
+vds::server_log_record::server_log_record()
+{
+}
+
+vds::server_log_record::server_log_record(const server_log_record & origin)
+: id_(origin.id_),
+  parents_(origin.parents_),
+  message_(origin.message_->clone())
+{
+}
+
+vds::binary_deserializer & vds::operator >> (binary_deserializer & b, server_log_record & record)
+{
+  b >> record.id_.source_id >> record.id_.index;
+
+  auto parent_count = b.read_number();
+  for (decltype(parent_count) i = 0; i < parent_count; ++i) {
+    server_log_record::record_id item;
+    b >> item.source_id >> item.index;
+    record.parents_.push_back(item);
+  }
+
+  std::string message;
+  b >> message;
+
+  dataflow(
+    json_parser("Message"),
+    json_require_once())(
+      [&record](json_value * body) {
+    record.message_ = body->clone();
+  },
+      [](std::exception_ptr ex) {},
+    message.c_str(),
+    message.length());
+
+  return b;
+}
+
+
 vds::server_log_record::server_log_record(
   const record_id & id,
   const std::list<record_id> & parents,
@@ -54,6 +93,19 @@ void vds::server_log_record::add_parent(
 {
   this->parents_.push_back(record_id { source_id, index });
 }
+
+void vds::server_log_record::serialize(binary_serializer & b) const
+{
+  b << this->id_.source_id << this->id_.index;
+
+  b.write_number(this->parents_.size());
+  for (auto & p : this->parents_) {
+    b << p.source_id << p.index;
+  }
+
+  b << this->message_->str();
+}
+
 
 std::unique_ptr<vds::json_value> vds::server_log_record::serialize(bool add_type_property) const
 {
@@ -356,3 +408,4 @@ std::unique_ptr<vds::json_value> vds::server_log_file_map::serialize(bool add_ty
 
   return std::unique_ptr<vds::json_value>(result.release());
 }
+

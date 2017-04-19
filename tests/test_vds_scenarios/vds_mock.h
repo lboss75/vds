@@ -27,6 +27,7 @@ private:
   vds::crypto_service crypto_service_;
   vds::server server_;
   vds::connection_manager connection_manager_;
+  vds::server_log_sync server_log_sync_;
 };
 
 class mock_client

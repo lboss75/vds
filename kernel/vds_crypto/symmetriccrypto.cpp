@@ -80,9 +80,8 @@ void vds::symmetric_key::serialize(vds::binary_serializer& s) const
 }
 
 vds::symmetric_encrypt::symmetric_encrypt(
-  const service_provider & sp,
   const vds::symmetric_key& key)
-: sp_(sp), key_(key)
+: key_(key)
 {
 }
 
@@ -100,7 +99,6 @@ bool vds::symmetric_encrypt::data_processed(_symmetric_encrypt * impl, void * re
 {
   return impl->processed(result_data, result_data_len);
 }
-
 
 ////////////////////////////////////////////////////////////////////////////
 vds::_symmetric_crypto_info::_symmetric_crypto_info(const EVP_CIPHER* cipher)
@@ -134,9 +132,8 @@ void vds::_symmetric_key::generate()
 }
 
 vds::symmetric_decrypt::symmetric_decrypt(
-  const service_provider & sp,
   const symmetric_key & key)
-  : sp_(sp), key_(key)
+  : key_(key)
 {
 }
 

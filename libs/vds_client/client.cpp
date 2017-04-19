@@ -273,7 +273,7 @@ vds::_client::download_data(
     barrier b;
     const_data_buffer result;
     dataflow(
-      symmetric_decrypt(this->sp_, transaction_key),
+      symmetric_decrypt(transaction_key),
       collect_data())(
         [&result, &b](const void * data, size_t size) {result.reset(data, size); b.set(); },
         [](std::exception_ptr ex) { std::rethrow_exception(ex); },

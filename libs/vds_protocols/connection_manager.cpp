@@ -8,6 +8,7 @@ All rights reserved
 #include "connection_manager_p.h"
 #include "udp_messages.h"
 #include "node_manager.h"
+#include "messages.h"
 
 vds::connection_manager::connection_manager()
 {
@@ -45,6 +46,16 @@ void vds::connection_manager::start_servers(const std::string & server_addresses
 vds::iconnection_manager::iconnection_manager(vds::_connection_manager* owner)
 : owner_(owner)
 {
+}
+
+vds::event_source<const vds::const_data_buffer&>& vds::iconnection_manager::incoming_message(uint32_t message_type_id)
+{
+  return this->owner_->incoming_message(message_type_id);
+}
+
+void vds::iconnection_manager::broadcast(uint32_t message_type_id, const const_data_buffer & binary_form, const std::string & json_form)
+{
+  this->owner_->broadcast(message_type_id, binary_form, json_form);
 }
 
 //////////////////////////////////////////////////////
@@ -112,6 +123,18 @@ void vds::_connection_manager::start_servers(const std::string & server_addresse
 
 }
 
+void vds::_connection_manager::broadcast(uint32_t message_type_id, const const_data_buffer & binary_form, const std::string & json_form)
+{
+  if (this->udp_server_) {
+    this->udp_server_->broadcast(message_type_id, binary_form);
+  }
+}
+
+vds::event_source<const vds::const_data_buffer&>& vds::_connection_manager::incoming_message(uint32_t message_type_id)
+{
+  return this->input_message_handlers_[message_type_id];
+}
+
 
 vds::async_task<> vds::_connection_manager::start_udp_server(const url_parser::network_address& address)
 {
@@ -154,167 +177,200 @@ vds::async_task<> vds::_connection_manager::udp_server::input_message(
   const void * data,
   size_t len)
 {
-  return create_async_task([this, from, data, len](const std::function<void(void)> & done, const error_handler & on_error){
+  return create_async_task([this, from, data, len](const std::function<void(void)> & done, const error_handler & on_error) {
     network_deserializer s(data, len);
     auto cmd = s.start();
-    switch(cmd) {
-      case udp_messages::message_identification::hello_message_id:
+    switch (cmd) {
+    case udp_messages::message_identification::hello_message_id:
+    {
+      this->log_.debug("hello from %s", network_service::to_string(*from).c_str());
+      udp_messages::hello_message msg(s);
+
+      //auto cert_manager = this->sp_.get<vds::cert_manager>();
+
+      auto cert = certificate::parse(msg.source_certificate());
+      //if(cert_manager.validate(cert))
       {
-        this->log_.debug("hello from %s", network_service::to_string(*from).c_str());
-        udp_messages::hello_message msg(s);
-        
-        //auto cert_manager = this->sp_.get<vds::cert_manager>();
-        
-        auto cert = certificate::parse(msg.source_certificate());
-        //if(cert_manager.validate(cert))
-        {
-          symmetric_key session_key(symmetric_crypto::aes_256_cbc());
-          session_key.generate();
-          
-          auto server_id = server_certificate::server_id(cert);
-          
-          uint32_t session_id;
-          for(;;){
-            session_id = (uint32_t)std::rand();
-            if(this->in_sessions_.end() == this->in_sessions_.find(session_id)){
-              break;
-            }
+        symmetric_key session_key(symmetric_crypto::aes_256_cbc());
+        session_key.generate();
+
+        auto server_id = server_certificate::server_id(cert);
+
+        uint32_t session_id;
+        for (;;) {
+          session_id = (uint32_t)std::rand();
+          if (this->in_sessions_.end() == this->in_sessions_.find(session_id)) {
+            break;
           }
-          this->in_sessions_[session_id].reset(new in_session_data(server_id, session_key));
-          
-          binary_serializer s;
-          s
-            << msg.session_id()
-            << session_id;
-            
-          binary_serializer key_data;
-          session_key.serialize(key_data);
-
-          auto key_crypted = cert.public_key().encrypt(key_data.data());
-                    
-          dataflow(
-            symmetric_encrypt(this->sp_, session_key),
-            collect_data())(
-              [this, done, from, session_key, key_crypted](const void * data, size_t size) {
-                const_data_buffer crypted_data(data, size);
-
-                auto server_log = this->storage_log_.get(this->sp_);
-                
-                binary_serializer to_sign;
-                to_sign
-                  << server_log.server_certificate().str()
-                  << key_crypted
-                  << crypted_data;
-
-                auto message_data = udp_messages::welcome_message(
-                  server_log.server_certificate().str(),
-                  key_crypted,
-                  crypted_data,
-                  asymmetric_sign::signature(
-                    hash::sha256(),
-                    server_log.server_private_key(),
-                    to_sign.data()))
-                  .serialize();
-
-                this->message_queue_.push(
-                  network_service::get_ip_address_string(*from),
-                  ntohs(from->sin_port),
-                  message_data);
-
-                done();
-              },
-              on_error,
-              s.data().data(),
-              s.data().size());
         }
-        
-        //server.get_peer_network().register_client_channel(
-        //  server_certificate::server_id(cert),
-        //  this);        
-        
-        break;
-      }
-      
-      case udp_messages::message_identification::welcome_message_id:
-      {
-        this->log_.debug("welcome from %s", network_service::to_string(*from).c_str());
+        this->in_sessions_[session_id].reset(new in_session_data(server_id, session_key));
 
-        udp_messages::welcome_message msg(s);
+        binary_serializer s;
+        s
+          << msg.session_id()
+          << session_id;
 
-        auto cert = certificate::parse(msg.server_certificate());
+        binary_serializer key_data;
+        session_key.serialize(key_data);
 
-        binary_serializer to_sign;
-        to_sign
-          << msg.server_certificate()
-          << msg.key_crypted()
-          << msg.crypted_data();
+        auto key_crypted = cert.public_key().encrypt(key_data.data());
 
-        if (asymmetric_sign_verify::verify(
-          hash::sha256(),
-          cert.public_key(),
-          msg.sign(),
-          to_sign.data())) {
+        dataflow(
+          symmetric_encrypt(session_key),
+          collect_data())(
+            [this, done, from, session_key, key_crypted](const void * data, size_t size) {
+          const_data_buffer crypted_data(data, size);
 
-          this->log_.debug(
-            "welcome from %s has been accepted",
-            network_service::to_string(*from).c_str());
-          
-          auto storage_log = this->sp_.get<istorage_log>();
-          auto key_data = storage_log.server_private_key().decrypt(msg.key_crypted());
+          auto server_log = this->storage_log_.get(this->sp_);
 
-          symmetric_key session_key(symmetric_crypto::aes_256_cbc(), binary_deserializer(key_data));
-          dataflow(
-            symmetric_decrypt(this->sp_, session_key),
-            collect_data())(
-              [this, done, &session_key, &cert, from](const void * data, size_t size) {
-                uint32_t in_session_id;
-                uint32_t out_session_id;
+          binary_serializer to_sign;
+          to_sign
+            << server_log.server_certificate().str()
+            << key_crypted
+            << crypted_data;
 
-                binary_deserializer s(data, size);
-                s >> out_session_id >> in_session_id;
+          auto message_data = udp_messages::welcome_message(
+            server_log.server_certificate().str(),
+            key_crypted,
+            crypted_data,
+            asymmetric_sign::signature(
+              hash::sha256(),
+              server_log.server_private_key(),
+              to_sign.data()))
+            .serialize();
 
-                auto p = this->out_sessions_.find(out_session_id);
-                if (this->out_sessions_.end() != p) {
-                  p->second->init_session(
-                    in_session_id,
-                    network_service::get_ip_address_string(*from),
-                    ntohs(from->sin_port),
-                    std::move(cert),
-                    std::move(session_key));
+          this->message_queue_.push(
+            network_service::get_ip_address_string(*from),
+            ntohs(from->sin_port),
+            message_data);
 
-//                   this->sp_.get<iconnection_manager>()
-//                     .register_channel(
-//                     );
-                }
-                
-                done();
-              },
-              on_error,
-              msg.crypted_data().data(),
-              msg.crypted_data().size());
-        }
-        else {
           done();
-        }
-
-        break;
+        },
+            on_error,
+          s.data().data(),
+          s.data().size());
       }
-      
-      case udp_messages::message_identification::command_message_id:
-      {
-        this->log_.debug("command from %s", network_service::to_string(*from).c_str());
 
-        guid client_id;
-        uint64_t generation_id;
-        const_data_buffer command_data;
-        const_data_buffer sign_data;
-        
-        s >> client_id >> generation_id >> command_data >> sign_data;
+      //server.get_peer_network().register_client_channel(
+      //  server_certificate::server_id(cert),
+      //  this);        
+
+      break;
+    }
+
+    case udp_messages::message_identification::welcome_message_id:
+    {
+      this->log_.debug("welcome from %s", network_service::to_string(*from).c_str());
+
+      udp_messages::welcome_message msg(s);
+
+      auto cert = certificate::parse(msg.server_certificate());
+
+      binary_serializer to_sign;
+      to_sign
+        << msg.server_certificate()
+        << msg.key_crypted()
+        << msg.crypted_data();
+
+      if (asymmetric_sign_verify::verify(
+        hash::sha256(),
+        cert.public_key(),
+        msg.sign(),
+        to_sign.data())) {
+
+        this->log_.debug(
+          "welcome from %s has been accepted",
+          network_service::to_string(*from).c_str());
+
+        auto storage_log = this->sp_.get<istorage_log>();
+        auto key_data = storage_log.server_private_key().decrypt(msg.key_crypted());
+
+        symmetric_key session_key(symmetric_crypto::aes_256_cbc(), binary_deserializer(key_data));
+        dataflow(
+          symmetric_decrypt(session_key),
+          collect_data())(
+            [this, done, &session_key, &cert, from](const void * data, size_t size) {
+          uint32_t in_session_id;
+          uint32_t out_session_id;
+
+          binary_deserializer s(data, size);
+          s >> out_session_id >> in_session_id;
+
+          auto p = this->out_sessions_.find(out_session_id);
+          if (this->out_sessions_.end() != p) {
+            p->second->init_session(
+              in_session_id,
+              network_service::get_ip_address_string(*from),
+              ntohs(from->sin_port),
+              std::move(cert),
+              std::move(session_key));
+
+            //                   this->sp_.get<iconnection_manager>()
+            //                     .register_channel(
+            //                     );
+          }
+
+          done();
+        },
+            on_error,
+          msg.crypted_data().data(),
+          msg.crypted_data().size());
+      }
+      else {
         done();
-                
-        break;
       }
-    }    
+
+      break;
+    }
+
+    case udp_messages::message_identification::command_message_id:
+    {
+      this->log_.debug("command from %s", network_service::to_string(*from).c_str());
+
+      try {
+
+        uint32_t session_id;
+        const_data_buffer crypted_data;
+        const_data_buffer data_hash;
+        s >> session_id >> crypted_data >> data_hash;
+        s.final();
+
+        std::lock_guard<std::mutex> lock(this->out_sessions_mutex_);
+        auto& p = this->out_sessions_.find(session_id);
+        if (this->out_sessions_.end() != p) {
+          dataflow(
+            symmetric_decrypt(*p->second->session_key()),
+            collect_data()
+          )(
+            [this, &data_hash](const void * data, size_t size) {
+            if (hash::signature(hash::sha256(), data, size) == data_hash) {
+
+              binary_deserializer d(data, size);
+              uint32_t message_type_id;
+              const_data_buffer binary_form;
+              d >> message_type_id >> binary_form;
+
+              auto& h = this->owner_->input_message_handlers_.find(message_type_id);
+              if (this->owner_->input_message_handlers_.end() != h) {
+                h->second(binary_form);
+              }
+            }
+          },
+            [](std::exception_ptr ex) {
+          },
+            crypted_data.data(),
+            crypted_data.size());
+        }
+      }
+      catch (...) {
+        this->log_.debug("Error at processing command");
+        on_error(std::current_exception());
+      }
+
+      done();
+      break;
+    }
+    }
   });
 }
 
@@ -344,6 +400,35 @@ void vds::_connection_manager::udp_server::open_udp_session(const std::string & 
 
       return;
     }
+  }
+}
+
+void vds::_connection_manager::udp_server::broadcast(uint32_t message_type_id, const const_data_buffer & binary_form)
+{
+  for (auto & p : this->out_sessions_) {
+    if (!p.second->session_key()) {
+      continue;
+    }
+
+    dataflow(
+      symmetric_encrypt(*p.second->session_key()),
+      collect_data())(
+      [this, &binary_form, &p](const void * crypted_data, size_t size) {
+        network_serializer s;
+        s.start(udp_messages::command_message_id);
+        s << p.second->external_session_id();
+        s.push_data(crypted_data, size);
+        s << hash::signature(hash::sha256(), binary_form);
+        s.final();
+
+        this->message_queue_.push(
+          p.second->original_server(),
+          p.second->original_port(),
+          s.data());
+      },
+      [](std::exception_ptr ex) {},
+      binary_form.data(),
+      binary_form.size());
   }
 }
 

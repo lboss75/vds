@@ -55,6 +55,8 @@ namespace vds {
     std::unique_ptr<cert> find_cert(const std::string & object_name);
     std::unique_ptr<const_data_buffer> get_object(const full_storage_object_id & object_id);
 
+    event_source<const server_log_record & /*record*/, const const_data_buffer & /*signature*/> & new_local_record_event() { return this->new_local_record_event_; }
+
     void add_endpoint(
       const std::string & endpoint_id,
       const std::string & addresses);
@@ -72,6 +74,10 @@ namespace vds {
     const asymmetric_private_key & server_private_key() const { return this->current_server_key_; }
     void add_to_local_log(const json_value * record);
 
+    void apply_record(
+      const server_log_record & record,
+      const const_data_buffer & signature);
+
   private:
     service_provider sp_;
     lazy_service<iserver_database> db_;
@@ -79,7 +85,7 @@ namespace vds {
     lazy_service<ichunk_storage> chunk_storage_;
     lazy_service<ichunk_manager> chunk_manager_;
 
-    event_source<server_log_record & /*record*/, const const_data_buffer & /*signature*/> new_local_record_event_;
+    event_source<const server_log_record & /*record*/, const const_data_buffer & /*signature*/> new_local_record_event_;
 
     const certificate & server_certificate_;
     const asymmetric_private_key & current_server_key_;

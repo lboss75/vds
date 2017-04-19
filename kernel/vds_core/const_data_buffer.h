@@ -9,6 +9,8 @@ All rights reserved
 #include "dataflow.h"
 
 namespace vds{
+  class binary_serializer;
+
   class const_data_buffer
   {
   public:
@@ -92,6 +94,8 @@ namespace vds{
     {
       return this->data_[index];
     }
+
+    void serialize(binary_serializer & s) const;
     
   private:
     uint8_t * data_;

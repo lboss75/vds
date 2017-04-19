@@ -59,7 +59,9 @@ namespace vds {
       const_data_buffer & signature);
 
     //return: true - saved, false - already exists
-    bool save_record(const server_log_record & record);
+    bool save_record(
+      const server_log_record & record,
+      const const_data_buffer & signature);
 
     bool have_log_record(const server_log_record::record_id & id);
     bool have_processed_log_record(const server_log_record::record_id & id);

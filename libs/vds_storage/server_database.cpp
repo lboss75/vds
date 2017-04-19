@@ -84,6 +84,11 @@ vds::server_log_record vds::iserver_database::add_local_record(
 {
   return this->owner_->impl_->add_local_record(record_id, message, signature);
 }
+
+bool vds::iserver_database::save_record(const server_log_record & record, const const_data_buffer & signature)
+{
+  return this->owner_->impl_->save_record(record, signature);
+}
 ////////////////////////////////////////////////////////
 vds::_server_database::_server_database(const service_provider & sp, server_database * owner)
   : sp_(sp),

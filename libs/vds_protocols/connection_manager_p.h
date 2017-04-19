@@ -22,6 +22,12 @@ namespace vds {
 
     void start_servers(const std::string & server_addresses);
     
+    void broadcast(
+      uint32_t message_type_id,
+      const const_data_buffer & binary_form,
+      const std::string & json_form);
+
+    event_source<const const_data_buffer &> & incoming_message(uint32_t message_type_id);
   private:
     service_provider sp_;
     connection_manager * const owner_;
@@ -48,6 +54,10 @@ namespace vds {
       
       void open_udp_session(const std::string & address);
 
+      void broadcast(
+        uint32_t message_type_id,
+        const const_data_buffer & binary_form);
+
     private:
       _connection_manager * owner_;
       service_provider sp_;
@@ -70,6 +80,14 @@ namespace vds {
           certificate && cert,
           symmetric_key && session_key);
 
+        const std::string & original_server() const { return this->original_server_; }
+        uint16_t original_port() const { return this->original_port_; }
+        uint32_t external_session_id() const { return this->external_session_id_; }
+        const std::string & real_server() const { return this->real_server_; }
+        uint16_t real_port() const { return this->real_port_; }
+        const certificate * cert() const { return this->cert_.get(); }
+        const symmetric_key * session_key() const { return this->session_key_.get(); }
+
       private:
         std::string original_server_;
         uint16_t original_port_;
@@ -79,6 +97,7 @@ namespace vds {
         std::unique_ptr<certificate> cert_;
         std::unique_ptr<symmetric_key> session_key_;
       };
+      std::mutex out_sessions_mutex_;
       std::map<uint32_t, std::unique_ptr<out_session_data>> out_sessions_;
       
       class in_session_data
@@ -93,11 +112,12 @@ namespace vds {
         guid server_id_;
         symmetric_key session_key_;
       };
-      
-      std::map<uint32_t, std::unique_ptr<in_session_data>> in_sessions_;      
+      std::mutex in_sessions_mutex_;
+      std::map<uint32_t, std::unique_ptr<in_session_data>> in_sessions_;
     };
     
     std::unique_ptr<udp_server> udp_server_;
+    std::map<uint32_t, event_source<const const_data_buffer &>> input_message_handlers_;
   };
 }
 

@@ -302,6 +302,7 @@ void mock_server::start()
   this->registrator_.add(this->crypto_service_);
   this->registrator_.add(this->server_);
   this->registrator_.add(this->connection_manager_);
+  this->registrator_.add(this->server_log_sync_);
 
   this->server_.set_port(8050 + this->index_);
 

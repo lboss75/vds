@@ -97,6 +97,11 @@ std::unique_ptr<vds::const_data_buffer> vds::istorage_log::get_object(const vds:
   return this->owner_->impl_->get_object(object_id);
 }
 
+vds::event_source<const vds::server_log_record&, const vds::const_data_buffer&>& vds::istorage_log::new_local_record_event()
+{
+  return this->owner_->impl_->new_local_record_event();
+}
+
 void vds::istorage_log::add_endpoint(
   const std::string & endpoint_id,
   const std::string & addresses)
@@ -125,6 +130,11 @@ vds::async_task<> vds::istorage_log::reset(
   const std::string & addresses)
 {
   return this->owner_->impl_->reset(root_certificate, private_key, root_password, addresses);
+}
+
+void vds::istorage_log::apply_record(const server_log_record & record, const const_data_buffer & signature)
+{
+  this->owner_->impl_->apply_record(record, signature);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -358,6 +368,13 @@ void vds::_storage_log::add_to_local_log(const json_value * record)
       signature);
 
   this->new_local_record_event_(result, signature);
+}
+
+void vds::_storage_log::apply_record(const server_log_record & record, const const_data_buffer & signature)
+{
+  this->db_
+    .get(this->sp_)
+    .save_record(record, signature);
 }
 
 std::unique_ptr<vds::cert> vds::_storage_log::find_cert(const std::string & object_name)

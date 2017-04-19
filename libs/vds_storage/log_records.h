@@ -118,8 +118,16 @@ namespace vds {
       guid source_id;
       uint64_t index;
     };
-    
-    server_log_record(const record_id & id, const std::list<record_id> & parents, const json_value * message);
+
+    server_log_record();
+
+    server_log_record(
+      const server_log_record & origin);
+
+    server_log_record(
+      const record_id & id,
+      const std::list<record_id> & parents,
+      const json_value * message);
     server_log_record(const json_value * source);
 
     const json_value * message() const { return this->message_.get(); }
@@ -128,14 +136,18 @@ namespace vds {
     const std::list<record_id> parents() const { return this->parents_; }
     void add_parent(const guid & source_id, uint64_t index);
 
-
+    void serialize(binary_serializer & b) const;
     std::unique_ptr<json_value> serialize(bool add_type_property) const;
 
   private:
+    friend binary_deserializer & operator >> (binary_deserializer & s, server_log_record & record);
+
     record_id id_;
     std::list<record_id> parents_;
     std::unique_ptr<json_value> message_;
   };
+
+  binary_deserializer & operator >> (binary_deserializer & s, server_log_record & record);
   
   class server_log_root_certificate
   {
