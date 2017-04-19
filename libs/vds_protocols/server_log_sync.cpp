@@ -54,6 +54,7 @@ vds::_server_log_sync::~_server_log_sync()
 void vds::_server_log_sync::start()
 {
   this->sp_.get<istorage_log>().new_local_record_event() += this->new_local_record_;
+  this->sp_.get<iconnection_manager>().incoming_message(message_identification::server_log_record_broadcast_message_id) += this->record_broadcast_;
 }
 
 void vds::_server_log_sync::stop()
@@ -76,7 +77,7 @@ void vds::_server_log_sync::on_record_broadcast(const server_log_record_broadcas
 
 //////////////////////////////////////////////////
 const char vds::_server_log_sync::server_log_record_broadcast::message_type[] = "server log";
-const uint32_t vds::_server_log_sync::server_log_record_broadcast::message_type_id = (uint32_t)message_identification::server_log_record_broadcast_message_id;
+const uint32_t vds::_server_log_sync::server_log_record_broadcast::message_type_id = message_identification::server_log_record_broadcast_message_id;
 
 vds::_server_log_sync::server_log_record_broadcast::server_log_record_broadcast(
   const server_log_record & record,

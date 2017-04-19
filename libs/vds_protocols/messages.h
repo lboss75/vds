@@ -7,7 +7,7 @@ All rights reserved
 */
 
 namespace vds {
-  enum class message_identification
+  enum class message_identification : uint32_t
   {
     invalid_message_id = 0,
     hello_message_id = 'h',
