@@ -8,7 +8,16 @@ All rights reserved
 
 namespace vds {
   class connection_manager;
-  
+
+  class connection_session
+  {
+  public:
+    virtual void send_to(
+      uint32_t message_type_id,
+      const std::function<const_data_buffer(void)> & get_binary,
+      const std::function<std::string(void)> & get_json) const = 0;
+  };
+
   class _connection_manager
   {
   public:
@@ -24,10 +33,20 @@ namespace vds {
     
     void broadcast(
       uint32_t message_type_id,
-      const const_data_buffer & binary_form,
-      const std::string & json_form);
+      const std::function<const_data_buffer(void)> & get_binary,
+      const std::function<std::string(void)> & get_json);
 
-    event_source<const const_data_buffer &> & incoming_message(uint32_t message_type_id);
+    event_source<const connection_session &, const const_data_buffer &> & incoming_message(uint32_t message_type_id);
+
+    void send_to(
+      const connection_session & session,
+      uint32_t message_type_id,
+      const std::function<const_data_buffer(void)> & get_binary,
+      const std::function<std::string(void)> & get_json)
+    {
+      session.send_to(message_type_id, get_binary, get_json);
+    }
+
   private:
     service_provider sp_;
     connection_manager * const owner_;
@@ -56,7 +75,8 @@ namespace vds {
 
       void broadcast(
         uint32_t message_type_id,
-        const const_data_buffer & binary_form);
+        const std::function<const_data_buffer(void)> & get_binary,
+        const std::function<std::string(void)> & get_json);
 
     private:
       _connection_manager * owner_;
@@ -66,75 +86,116 @@ namespace vds {
       lazy_service<istorage_log> storage_log_;
       pipeline<std::string, uint16_t, const_data_buffer> message_queue_;
 
-      class out_session_data
+      class hello_request
       {
       public:
-        out_session_data(
-          const std::string & original_server,
-          uint16_t original_port);
+        hello_request();
 
-        void init_session(
+        hello_request(
+          uint32_t session_id,
+          const std::string & server,
+          uint16_t port);
+
+        uint32_t session_id() const { return this->session_id_; }
+        const std::string & server() const { return this->server_; }
+        uint16_t port() const { return this->port_; }
+
+      private:
+        uint32_t session_id_;
+        std::string server_;
+        uint16_t port_;
+      };
+
+      std::mutex hello_requests_mutex_;
+      std::map<uint32_t, hello_request> hello_requests_;
+
+      class session : public connection_session
+      {
+      public:
+        session(
+          udp_server * owner,
+          uint32_t session_id,
+          const std::string & server,
+          uint16_t port,
+          uint32_t external_session_id,
+          const guid & partner_id,
+          const symmetric_key & session_key);
+
+        virtual ~session();
+
+        uint32_t session_id() const { return this->session_id_; }
+        const std::string & server() const { return this->server_; }
+        uint16_t port() const { return this->port_; }
+        uint32_t external_session_id() const { return this->external_session_id_; }
+        const guid & partner_id() const { return this->partner_id_; }
+        const symmetric_key & session_key() const { return this->session_key_; }
+
+        void send_to(
+          uint32_t message_type_id,
+          const std::function<const_data_buffer(void)> & get_binary,
+          const std::function<std::string(void)> & get_json) const override;
+
+      private:
+        udp_server * const owner_;
+        uint32_t session_id_;
+        std::string server_;
+        uint16_t port_;
+        uint32_t external_session_id_;
+        guid partner_id_;
+        symmetric_key session_key_;
+      };
+
+      class outgoing_session : public session
+      {
+      public:
+        outgoing_session(
+          udp_server * owner,
+          const hello_request & original_request,
           uint32_t external_session_id,
           const std::string & real_server,
           uint16_t real_port,
           certificate && cert,
-          symmetric_key && session_key);
-
-        const std::string & original_server() const { return this->original_server_; }
-        uint16_t original_port() const { return this->original_port_; }
-        uint32_t external_session_id() const { return this->external_session_id_; }
-        const std::string & real_server() const { return this->real_server_; }
-        uint16_t real_port() const { return this->real_port_; }
-        const certificate * cert() const { return this->cert_.get(); }
-        const symmetric_key * session_key() const { return this->session_key_.get(); }
-
-      private:
-        std::string original_server_;
-        uint16_t original_port_;
-        uint32_t external_session_id_;
-        std::string real_server_;
-        uint16_t real_port_;
-        std::unique_ptr<certificate> cert_;
-        std::unique_ptr<symmetric_key> session_key_;
-      };
-      std::mutex out_sessions_mutex_;
-      std::map<uint32_t, std::unique_ptr<out_session_data>> out_sessions_;
-      
-      class in_session_data
-      {
-      public:
-        in_session_data(
-          const std::string & server,
-          uint16_t port,
-          uint32_t session_id,
-          const guid & server_id,
           const symmetric_key & session_key);
 
-        const std::string & server() const { return this->server_; }
-        uint16_t port() const { return this->port_; }
-        uint32_t session_id() const { return this->session_id_; }
-        const guid & server_id() const { return this->server_id_;}
-        const symmetric_key & session_key() const { return this->session_key_; }
-        
+        const std::string & real_server() const { return this->real_server_; }
+        uint16_t real_port() const { return this->real_port_; }
+        const certificate & cert() const { return this->cert_; }
+
       private:
-        std::string server_;
-        uint16_t port_;
-        uint32_t session_id_;
-        guid server_id_;
-        symmetric_key session_key_;
+        std::string real_server_;
+        uint16_t real_port_;
+        certificate cert_;
       };
-      std::mutex in_sessions_mutex_;
-      std::map<uint32_t, std::unique_ptr<in_session_data>> in_sessions_;
       
-      void for_each_connection(const std::function<void(
-        uint32_t session_id,
-        const symmetric_key & session_key,
+      class incoming_session : public session
+      {
+      public:
+        incoming_session(
+          udp_server * owner,
+          uint32_t session_id,
+          const std::string & server,
+          uint16_t port,
+          uint32_t external_session_id,
+          const guid & server_id,
+          const symmetric_key & session_key);
+      };
+
+      std::shared_mutex sessions_mutex_;
+      std::map<uint32_t, std::unique_ptr<session>> sessions_;
+
+      const incoming_session & register_incoming_session(
         const std::string & server,
-        uint16_t port)> & callback);
+        uint16_t port,
+        uint32_t external_session_id,
+        const guid & server_id);
+      
+      void for_each_sessions(const std::function<void(const session &)> & callback);
+      void process_timer_jobs();
     };
     
     std::unique_ptr<udp_server> udp_server_;
-    std::map<uint32_t, event_source<const const_data_buffer &>> input_message_handlers_;
+    std::map<uint32_t, event_source<const connection_session & , const const_data_buffer &>> input_message_handlers_;
+
   };
 }
 

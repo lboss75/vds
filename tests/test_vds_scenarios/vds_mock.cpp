@@ -169,7 +169,7 @@ void mock_client::start_vds(bool full_client, const std::function<void(const vds
 
   vds::mt_service mt_service;
   vds::network_service network_service;
-  vds::console_logger console_logger(vds::ll_trace);
+  vds::file_logger logger(vds::ll_trace);
   vds::crypto_service crypto_service;
   vds::client client;
   vds::task_manager task_manager;
@@ -182,7 +182,7 @@ void mock_client::start_vds(bool full_client, const std::function<void(const vds
   registrator.set_root_folders(folder, folder);
 
   registrator.add(mt_service);
-  registrator.add(console_logger);
+  registrator.add(logger);
   registrator.add(network_service);
   registrator.add(crypto_service);
   registrator.add(task_manager);
@@ -208,7 +208,7 @@ void mock_client::start_vds(bool full_client, const std::function<void(const vds
 mock_server::mock_server(int index, int port)
   : index_(index),
   port_(port),
-  console_logger_(vds::ll_trace)
+  logger_(vds::ll_trace)
 {
 }
 
@@ -218,7 +218,7 @@ void mock_server::init_root(const std::string & root_password, int port)
 
   vds::mt_service mt_service;
   vds::network_service network_service;
-  vds::console_logger console_logger(vds::ll_trace);
+  vds::file_logger logger(vds::ll_trace);
   vds::crypto_service crypto_service;
   vds::client client;
   vds::task_manager task_manager;
@@ -230,7 +230,7 @@ void mock_server::init_root(const std::string & root_password, int port)
   registrator.set_root_folders(folder, folder);
 
   registrator.add(mt_service);
-  registrator.add(console_logger);
+  registrator.add(logger);
   registrator.add(network_service);
   registrator.add(crypto_service);
   registrator.add(task_manager);
@@ -296,7 +296,7 @@ void mock_server::start()
   this->registrator_.set_root_folders(folder, folder);
   
   this->registrator_.add(this->mt_service_);
-  this->registrator_.add(this->console_logger_);
+  this->registrator_.add(this->logger_);
   this->registrator_.add(this->network_service_);
   this->registrator_.add(this->task_manager_);
   this->registrator_.add(this->crypto_service_);

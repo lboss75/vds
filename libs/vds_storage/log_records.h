@@ -130,6 +130,11 @@ namespace vds {
       const json_value * message);
     server_log_record(const json_value * source);
 
+    void reset(
+      const record_id & id,
+      const std::list<record_id> & parents,
+      json_value * message);
+
     const json_value * message() const { return this->message_.get(); }
 
     const record_id & id() const { return this->id_; }

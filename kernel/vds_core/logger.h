@@ -119,7 +119,23 @@ namespace vds {
     private:
       log_level level_;
     };
-    
+
+    class file;
+    class file_logger : public iservice
+    {
+    public:
+      file_logger(log_level level);
+
+      void register_services(service_registrator &) override;
+      void start(const service_provider & sp) override;
+      void stop(const service_provider & sp) override;
+
+    private:
+      log_level level_;
+      std::mutex file_mutext_;
+      std::unique_ptr<file> f_;
+    };
+
   std::string exception_what(std::exception_ptr ex);
 }
 

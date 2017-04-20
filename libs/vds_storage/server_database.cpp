@@ -89,6 +89,14 @@ bool vds::iserver_database::save_record(const server_log_record & record, const 
 {
   return this->owner_->impl_->save_record(record, signature);
 }
+void vds::iserver_database::get_unknown_records(std::list<server_log_record::record_id>& result)
+{
+  this->owner_->impl_->get_unknown_records(result);
+}
+bool vds::iserver_database::get_record(const server_log_record::record_id & id, server_log_record & result_record, const_data_buffer & result_signature)
+{
+  return this->owner_->impl_->get_record(id, result_record, result_signature);
+}
 ////////////////////////////////////////////////////////
 vds::_server_database::_server_database(const service_provider & sp, server_database * owner)
   : sp_(sp),
@@ -367,10 +375,7 @@ vds::server_log_record
   for (auto& p : parents) {
     this->server_log_update_state(p, iserver_database::server_log_state::processed);
 
-    this->server_log_add_link_statement_.execute(
-      this->db_,
-      "INSERT INTO server_log_link (parent_id,parent_index,follower_id,follower_index)\
-       VALUES (@parent_id,@parent_index,@follower_id,@follower_index)",
+    this->server_log_add_link(
       p.source_id,
       p.index,
       record_id.source_id,
@@ -403,7 +408,31 @@ bool vds::_server_database::save_record(
   }
 
   this->add_server_log(record.id().source_id, record.id().index, record.message()->str(), signature, state);
+  for (auto& p : record.parents()) {
+    this->server_log_add_link(
+      p.source_id,
+      p.index,
+      record.id().source_id,
+      record.id().index);
+  }
+
   return true;
+}
+
+void vds::_server_database::server_log_add_link(
+  const guid & source_id,
+  uint64_t source_index,
+  const guid & target_id,
+  uint64_t target_index)
+{
+  this->server_log_add_link_statement_.execute(
+    this->db_,
+    "INSERT INTO server_log_link (parent_id,parent_index,follower_id,follower_index)\
+       VALUES (@parent_id,@parent_index,@follower_id,@follower_index)",
+    source_id,
+    source_index,
+    target_id,
+    target_index);
 }
 
 void vds::_server_database::add_server_log(
@@ -575,6 +604,76 @@ uint64_t vds::_server_database::get_server_log_max_index(const guid & id)
       return false;
     },
     id);
+
+  return result;
+}
+
+void vds::_server_database::get_unknown_records(std::list<server_log_record::record_id>& result)
+{
+  this->get_unknown_records_query_.query(
+    this->db_,
+    "SELECT parent_id,parent_index \
+     FROM server_log_link \
+     WHERE NOT EXISTS (\
+      SELECT * \
+      FROM server_log \
+      WHERE server_log.source_id=server_log_link.parent_id\
+       AND server_log.source_index=server_log_link.parent_index)",
+    [&result](sql_statement & st)->bool {
+
+    server_log_record::record_id item;
+
+    st.get_value(0, item.source_id);
+    st.get_value(1, item.index);
+
+    result.push_back(item);
+
+    return false;
+  });
+}
+
+bool vds::_server_database::get_record(
+  const server_log_record::record_id & id,
+  server_log_record & result_record,
+  const_data_buffer & result_signature)
+{
+  bool result = false;
+
+  std::string message;
+
+  this->server_log_get_query_.query(
+    this->db_,
+    "SELECT message, signature FROM  server_log WHERE source_id=@source_id AND source_index=@source_index",
+    [&result, &message, &result_signature](sql_statement & st)->bool {
+
+      st.get_value(0, message);
+      st.get_value(1, result_signature);
+
+      result = true;
+
+      return false;
+    },
+    id.source_id,
+    id.index);
+
+  if (result) {
+    std::list<server_log_record::record_id> parents;
+    this->server_log_get_parents(id, parents);
+
+    dataflow(
+      json_parser("Message body"),
+      json_require_once()
+    )(
+      [&id, &result_record, &parents](json_value * message) {
+        result_record.reset(
+          id,
+          parents,
+          message);
+      },
+      [](std::exception_ptr ex) { std::rethrow_exception(ex); },
+      message.c_str(),
+      message.length());
+  }
 
   return result;
 }

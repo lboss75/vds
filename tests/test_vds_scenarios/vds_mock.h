@@ -22,7 +22,7 @@ private:
   vds::service_registrator registrator_;
   vds::mt_service mt_service_;
   vds::network_service network_service_;
-  vds::console_logger console_logger_;
+  vds::file_logger logger_;
   vds::task_manager task_manager_;
   vds::crypto_service crypto_service_;
   vds::server server_;

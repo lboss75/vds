@@ -14,7 +14,8 @@ namespace vds {
     who_is_leader_message_id = 'w',
     leader_candidate_message_id = 'c',
 
-    server_log_record_broadcast_message_id = 'l'
+    server_log_record_broadcast_message_id = 'l',
+    server_log_get_records_broadcast_message_id = 'r',
   };
 
   

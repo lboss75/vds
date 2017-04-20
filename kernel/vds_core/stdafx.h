@@ -39,5 +39,6 @@ All rights reserved
 #include <direct.h>
 #endif//_WIN32
 
+#include <iomanip>
 
 #endif//__VDS_CORE_STDAFX_H_

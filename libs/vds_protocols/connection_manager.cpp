@@ -48,14 +48,26 @@ vds::iconnection_manager::iconnection_manager(vds::_connection_manager* owner)
 {
 }
 
-vds::event_source<const vds::const_data_buffer&>& vds::iconnection_manager::incoming_message(uint32_t message_type_id)
+vds::event_source<const vds::connection_session &, const vds::const_data_buffer&>& vds::iconnection_manager::incoming_message(uint32_t message_type_id)
 {
   return this->owner_->incoming_message(message_type_id);
 }
 
-void vds::iconnection_manager::broadcast(uint32_t message_type_id, const const_data_buffer & binary_form, const std::string & json_form)
+void vds::iconnection_manager::broadcast(
+  uint32_t message_type_id,
+  const std::function<const_data_buffer(void)> & get_binary,
+  const std::function<std::string(void)> & get_json)
 {
-  this->owner_->broadcast(message_type_id, binary_form, json_form);
+  this->owner_->broadcast(message_type_id, get_binary, get_json);
+}
+
+void vds::iconnection_manager::send_to(
+  const connection_session & session,
+  uint32_t message_type_id,
+  const std::function<const_data_buffer(void)> & get_binary,
+  const std::function<std::string(void)> & get_json)
+{
+  this->owner_->send_to(session, message_type_id, get_binary, get_json);
 }
 
 //////////////////////////////////////////////////////
@@ -123,14 +135,17 @@ void vds::_connection_manager::start_servers(const std::string & server_addresse
 
 }
 
-void vds::_connection_manager::broadcast(uint32_t message_type_id, const const_data_buffer & binary_form, const std::string & json_form)
+void vds::_connection_manager::broadcast(
+  uint32_t message_type_id,
+  const std::function<const_data_buffer(void)> & get_binary,
+  const std::function<std::string(void)> & get_json)
 {
   if (this->udp_server_) {
-    this->udp_server_->broadcast(message_type_id, binary_form);
+    this->udp_server_->broadcast(message_type_id, get_binary, get_json);
   }
 }
 
-vds::event_source<const vds::const_data_buffer&>& vds::_connection_manager::incoming_message(uint32_t message_type_id)
+vds::event_source<const vds::connection_session & , const vds::const_data_buffer&>& vds::_connection_manager::incoming_message(uint32_t message_type_id)
 {
   return this->input_message_handlers_[message_type_id];
 }
@@ -160,6 +175,11 @@ vds::_connection_manager::udp_server::udp_server(
 vds::async_task<> vds::_connection_manager::udp_server::start(
   const url_parser::network_address& address)
 {
+
+  this->sp_.get<itask_manager>().wait_for(std::chrono::seconds(5), [this]() {
+    this->process_timer_jobs();
+  });
+
   return run_udp_server<vds::_connection_manager::udp_server>(
     this->owner_->sp_,
     this->s_,
@@ -171,6 +191,7 @@ vds::async_task<> vds::_connection_manager::udp_server::start(
 void vds::_connection_manager::udp_server::socket_closed(std::list<std::exception_ptr> errors)
 {
 }
+
 
 vds::async_task<> vds::_connection_manager::udp_server::input_message(
   const sockaddr_in * from,
@@ -191,39 +212,26 @@ vds::async_task<> vds::_connection_manager::udp_server::input_message(
       auto cert = certificate::parse(msg.source_certificate());
       //if(cert_manager.validate(cert))
       {
-        symmetric_key session_key(symmetric_crypto::aes_256_cbc());
-        session_key.generate();
-
-        auto server_id = server_certificate::server_id(cert);
-
-        uint32_t session_id;
-        for (;;) {
-          session_id = (uint32_t)std::rand();
-          if (this->in_sessions_.end() == this->in_sessions_.find(session_id)) {
-            break;
-          }
-        }
-        this->in_sessions_[session_id].reset(new in_session_data(
+        auto session = this->register_incoming_session(
           network_service::get_ip_address_string(*from),
           ntohs(from->sin_port),
           msg.session_id(),
-          server_id,
-          session_key));
+          server_certificate::server_id(cert));
 
         binary_serializer s;
         s
           << msg.session_id()
-          << session_id;
+          << session.session_id();
 
         binary_serializer key_data;
-        session_key.serialize(key_data);
+        session.session_key().serialize(key_data);
 
         auto key_crypted = cert.public_key().encrypt(key_data.data());
 
         dataflow(
-          symmetric_encrypt(session_key),
+          symmetric_encrypt(session.session_key()),
           collect_data())(
-            [this, done, from, session_key, key_crypted](const void * data, size_t size) {
+            [this, done, from, &session, key_crypted](const void * data, size_t size) {
           const_data_buffer crypted_data(data, size);
 
           auto server_log = this->storage_log_.get(this->sp_);
@@ -301,18 +309,21 @@ vds::async_task<> vds::_connection_manager::udp_server::input_message(
           binary_deserializer s(data, size);
           s >> out_session_id >> in_session_id;
 
-          auto p = this->out_sessions_.find(out_session_id);
-          if (this->out_sessions_.end() != p) {
-            p->second->init_session(
+          std::lock_guard<std::mutex> lock_hello(this->hello_requests_mutex_);
+          auto p = this->hello_requests_.find(out_session_id);
+          if (this->hello_requests_.end() != p) {
+            std::unique_lock<std::shared_mutex>(this->sessions_mutex_);
+
+            this->sessions_[out_session_id].reset(new outgoing_session(
+              this,
+              p->second,
               in_session_id,
               network_service::get_ip_address_string(*from),
               ntohs(from->sin_port),
               std::move(cert),
-              std::move(session_key));
+              std::move(session_key)));
 
-            //                   this->sp_.get<iconnection_manager>()
-            //                     .register_channel(
-            //                     );
+            this->hello_requests_.erase(p);
           }
 
           done();
@@ -340,14 +351,14 @@ vds::async_task<> vds::_connection_manager::udp_server::input_message(
         s >> session_id >> crypted_data >> data_hash;
         s.final();
 
-        std::lock_guard<std::mutex> lock(this->out_sessions_mutex_);
-        auto p = this->out_sessions_.find(session_id);
-        if (this->out_sessions_.end() != p) {
+        std::shared_lock<std::shared_mutex> lock(this->sessions_mutex_);
+        auto p = this->sessions_.find(session_id);
+        if (this->sessions_.end() != p) {
           dataflow(
-            symmetric_decrypt(*p->second->session_key()),
+            symmetric_decrypt(p->second->session_key()),
             collect_data()
           )(
-            [this, &data_hash](const void * data, size_t size) {
+            [this, &data_hash, session = p->second.get()](const void * data, size_t size) {
             if (hash::signature(hash::sha256(), data, size) == data_hash) {
 
               binary_deserializer d(data, size);
@@ -357,7 +368,7 @@ vds::async_task<> vds::_connection_manager::udp_server::input_message(
 
               auto h = this->owner_->input_message_handlers_.find(message_type_id);
               if (this->owner_->input_message_handlers_.end() != h) {
-                h->second(binary_form);
+                h->second(*session, binary_form);
               }
               else {
                 this->log_.debug("Handler for message %d not found", message_type_id);
@@ -396,11 +407,14 @@ void vds::_connection_manager::udp_server::open_udp_session(const std::string & 
   auto server = network_address.server;
   auto port = (uint16_t)std::atoi(network_address.port.c_str());
   
+  std::lock_guard<std::mutex> lock_hello(this->hello_requests_mutex_);
+  std::shared_lock<std::shared_mutex> lock_sessions(this->sessions_mutex_);
   for(;;){
     auto session_id = (uint32_t)std::rand();
-    if(this->out_sessions_.end() == this->out_sessions_.find(session_id)){
-      
-      this->out_sessions_[session_id].reset(new out_session_data(server, port));
+    if(this->hello_requests_.end() == this->hello_requests_.find(session_id)
+      && this->sessions_.end() == this->sessions_.find(session_id)
+      ){
+      this->hello_requests_[session_id] = hello_request(session_id, server, port);
   
       auto data = udp_messages::hello_message(
         this->storage_log_.get(this->sp_).server_certificate().str(),
@@ -408,8 +422,8 @@ void vds::_connection_manager::udp_server::open_udp_session(const std::string & 
         address).serialize();
       
       this->message_queue_.push(
-        network_address.server,
-        (uint16_t)std::atoi(network_address.port.c_str()),
+        server,
+        port,
         const_data_buffer(data));
 
       return;
@@ -419,100 +433,175 @@ void vds::_connection_manager::udp_server::open_udp_session(const std::string & 
 
 void vds::_connection_manager::udp_server::broadcast(
   uint32_t message_type_id,
-  const const_data_buffer & binary_form)
+  const std::function<const_data_buffer(void)> & get_binary,
+  const std::function<std::string(void)> & get_json)
 {
-  binary_serializer message_data;
-  message_data << message_type_id << binary_form;
-  
-  this->for_each_connection([this, &message_data](
-    uint32_t session_id, 
-    const symmetric_key & session_key,
-    const std::string & server,
-    uint16_t port){
-    dataflow(
-      symmetric_encrypt(session_key),
-      collect_data())(
-      [this, &message_data, session_id, server, port](const void * crypted_data, size_t size) {
-        network_serializer s;
-        s.start(udp_messages::command_message_id);
-        s << session_id;
-        s.push_data(crypted_data, size);
-        s << hash::signature(hash::sha256(), message_data.data());
-        s.final();
-
-        this->message_queue_.push(
-          server,
-          port,
-          s.data());
-      },
-      [](std::exception_ptr ex) {},
-      message_data.data().data(),
-      message_data.data().size());
+  this->for_each_sessions([this, message_type_id, &get_binary, &get_json](const session & session){
+    session.send_to(message_type_id, get_binary, get_json);
   });
 }
 
-void vds::_connection_manager::udp_server::for_each_connection(
-  const std::function<void(
-    uint32_t session_id,
-    const symmetric_key & session_key,
-    const std::string & server,
-    uint16_t port)> & callback)
-{
- for (auto & p : this->out_sessions_) {
-    if (!p.second->session_key()) {
-      continue;
-    }
-    
-    callback(
-      p.first,
-      *p.second->session_key(),
-      p.second->original_server(),
-      p.second->original_port());
- }
- 
- for (auto & p : this->in_sessions_) {
-    
-    callback(
-      p.second->session_id(),
-      p.second->session_key(),
-      p.second->server(),
-      p.second->port());
- }
-}
-
-
-vds::_connection_manager::udp_server::in_session_data::in_session_data(
+vds::_connection_manager::udp_server::session::session(
+  udp_server * owner,
+  uint32_t session_id,
   const std::string & server,
   uint16_t port,
-  uint32_t session_id,
-  const guid & server_id,
+  uint32_t external_session_id,
+  const guid & partner_id,
   const symmetric_key & session_key)
-: server_(server),
-  port_(port),
+: owner_(owner),
   session_id_(session_id),
-  server_id_(server_id),
+  server_(server),
+  port_(port),
+  external_session_id_(external_session_id),
+  partner_id_(partner_id),
   session_key_(session_key)
 {
 }
 
-vds::_connection_manager::udp_server::out_session_data::out_session_data(
-  const std::string & original_server,
-  uint16_t original_port)
-: original_server_(original_server),
-  original_port_(original_port)
+vds::_connection_manager::udp_server::session::~session()
 {
 }
 
-void vds::_connection_manager::udp_server::out_session_data::init_session(
+void vds::_connection_manager::udp_server::session::send_to(
+  uint32_t message_type_id,
+  const std::function<const_data_buffer(void)> & get_binary,
+  const std::function<std::string(void)> & get_json) const
+{
+  binary_serializer message_data;
+  message_data << message_type_id << get_binary();
+
+  dataflow(
+    symmetric_encrypt(this->session_key()),
+    collect_data())(
+      [this, &message_data](const void * crypted_data, size_t size) {
+        network_serializer s;
+        s.start(udp_messages::command_message_id);
+        s << this->external_session_id();
+        s.push_data(crypted_data, size);
+        s << hash::signature(hash::sha256(), message_data.data());
+        s.final();
+
+        this->owner_->message_queue_.push(
+          this->server(),
+          this->port(),
+          s.data());
+      },
+      [](std::exception_ptr ex) { std::rethrow_exception(ex); },
+      message_data.data().data(),
+      message_data.data().size());
+}
+
+const vds::_connection_manager::udp_server::incoming_session & 
+vds::_connection_manager::udp_server::register_incoming_session(
+  const std::string & server,
+  uint16_t port,
+  uint32_t external_session_id,
+  const guid & server_id)
+{
+  symmetric_key session_key(symmetric_crypto::aes_256_cbc());
+  session_key.generate();
+
+  std::unique_lock<std::shared_mutex> lock(this->sessions_mutex_);
+
+  uint32_t session_id;
+  for (;;) {
+    session_id = (uint32_t)std::rand();
+    if (this->sessions_.end() == this->sessions_.find(session_id)) {
+      break;
+    }
+  }
+
+  auto result = new incoming_session(
+    this,
+    session_id,
+    server,
+    port,
+    external_session_id,
+    server_id,
+    session_key);
+
+  this->sessions_[session_id].reset(result);
+
+  return *result;
+}
+
+void vds::_connection_manager::udp_server::for_each_sessions(
+  const std::function<void(const session & session)> & callback)
+{
+  std::shared_lock<std::shared_mutex> lock(this->sessions_mutex_);
+  for (auto & p : this->sessions_) {
+    callback(*p.second);
+  }
+}
+
+void vds::_connection_manager::udp_server::process_timer_jobs()
+{
+  std::unique_lock<std::mutex> lock(this->hello_requests_mutex_);
+  for (auto & p : this->hello_requests_) {
+    this->log_.debug("Reconect with %s:%d", p.second.server().c_str(), p.second.port());
+
+    auto data = udp_messages::hello_message(
+      this->storage_log_.get(this->sp_).server_certificate().str(),
+      p.first,
+      "udp://" + p.second.server() + ":" + std::to_string(p.second.port())).serialize();
+
+    this->message_queue_.push(
+      p.second.server(),
+      p.second.port(),
+      const_data_buffer(data));
+  }
+
+  this->sp_.get<itask_manager>().wait_for(std::chrono::seconds(5), [this]() {
+    this->process_timer_jobs();
+  });
+}
+
+vds::_connection_manager::udp_server::hello_request::hello_request()
+{
+}
+
+vds::_connection_manager::udp_server::hello_request::hello_request(
+  uint32_t session_id,
+  const std::string & server,
+  uint16_t port)
+: session_id_(session_id),
+  server_(server),
+  port_(port)
+{
+}
+
+vds::_connection_manager::udp_server::outgoing_session::outgoing_session(
+  udp_server * owner,
+  const hello_request & original_request,
   uint32_t external_session_id,
   const std::string & real_server,
   uint16_t real_port,
   certificate && cert,
-  symmetric_key && session_key)
+  const symmetric_key & session_key)
+: session(
+  owner,
+  original_request.session_id(),
+  original_request.server(),
+  original_request.port(),
+  external_session_id,
+  server_certificate::server_id(cert),
+  session_key),
+  real_server_(real_server),
+  real_port_(real_port),
+  cert_(std::move(cert))
 {
-  this->external_session_id_ = external_session_id;
-  this->real_server_ = real_server;
-  this->real_port_ = real_port_;
-  this->cert_.reset(new certificate(std::move(cert)));
-  this->session_key_.reset(new symmetric_key(std::move(session_key)));
 }
+
+vds::_connection_manager::udp_server::incoming_session::incoming_session(
+  udp_server * owner,
+  uint32_t session_id,
+  const std::string & server,
+  uint16_t port,
+  uint32_t external_session_id,
+  const guid & server_id,
+  const symmetric_key & session_key)
+: session(owner, session_id, server, port, external_session_id, server_id, session_key)
+{
+}
+

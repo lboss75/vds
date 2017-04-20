@@ -87,6 +87,16 @@ vds::server_log_record::server_log_record(const json_value * source)
   }
 }
 
+void vds::server_log_record::reset(
+  const record_id & id,
+  const std::list<record_id>& parents,
+  json_value * message)
+{
+  this->id_ = id;
+  this->parents_ = parents;
+  this->message_.reset(message);
+}
+
 void vds::server_log_record::add_parent(
   const guid & source_id,
   uint64_t index)

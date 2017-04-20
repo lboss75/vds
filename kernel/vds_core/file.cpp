@@ -119,7 +119,7 @@ size_t vds::file::length() const
   struct stat buffer;
   if (0 != fstat(this->handle_, &buffer)) {
     auto error = errno;
-    throw new std::system_error(error, std::system_category(), "Unable to get file size of " + this->filename_.name());
+    throw new std::system_error(error, std::generic_category(), "Unable to get file size of " + this->filename_.name());
   }
 
   return buffer.st_size;
@@ -139,6 +139,27 @@ size_t vds::file::length(const filename & fn)
 bool vds::file::exists(const filename & fn)
 {
   return (0 == access(fn.local_name().c_str(), 0));
+}
+
+void vds::file::flush()
+{
+#ifdef _WIN32
+  HANDLE h = (HANDLE)_get_osfhandle(this->handle_);
+  if (INVALID_HANDLE_VALUE == h) {
+    throw new std::system_error(EBADF, std::generic_category(), "Unable to flush file " + this->filename_.full_name());
+  }
+
+  if (!FlushFileBuffers(h)) {
+    auto err = GetLastError();
+    throw new std::system_error(EBADF, std::system_category(), "Unable to flush file " + this->filename_.full_name());
+  }
+
+#else
+  if (0 != ::fsync(this->handle_)) {
+    auto error = errno;
+    throw new std::system_error(error, std::generic_category(), "Unable to flush file " + this->filename_.full_name());
+  }
+#endif
 }
 
 vds::output_text_stream::output_text_stream(file & f)

@@ -63,10 +63,6 @@ namespace vds {
       const server_log_record & record,
       const const_data_buffer & signature);
 
-    bool have_log_record(const server_log_record::record_id & id);
-    bool have_processed_log_record(const server_log_record::record_id & id);
-
-
     enum class server_log_state
     {
       not_found = 0,
@@ -75,9 +71,13 @@ namespace vds {
       processed = 3, //+ Processed
       tail = 4 //
     };
-    server_log_state log_record_state(const server_log_record::record_id & id);
 
-    bool get_front_record(server_log_record & record);
+    void get_unknown_records(std::list<server_log_record::record_id> & result);
+
+    bool get_record(
+      const server_log_record::record_id & id,
+      server_log_record & result_record,
+      const_data_buffer & result_signature);
 
   private:
     server_database * const owner_;

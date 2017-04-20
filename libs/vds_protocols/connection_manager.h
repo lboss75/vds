@@ -25,6 +25,8 @@ namespace vds {
     std::unique_ptr<_connection_manager> impl_;
   };
   
+  class connection_session;
+
   class iconnection_manager
   {
   public:
@@ -33,24 +35,41 @@ namespace vds {
     template<typename message_type>
     void broadcast(const message_type & message)
     {
-      binary_serializer b;
-      message.serialize(b);
-
       this->broadcast(
         message_type::message_type_id,
-        b.data(),
-        message.serialize()->str());
+        [&message]() { binary_serializer b; message.serialize(b); return b.data(); },
+        [&message]() { return message.serialize()->str(); });
     }
 
-    event_source<const const_data_buffer &> & incoming_message(uint32_t message_type_id);
+    template<typename message_type>
+    void send_to(
+      const connection_session & session,
+      const message_type & message)
+    {
+      this->send_to(
+        session,
+        message_type::message_type_id,
+        [&message]() { binary_serializer b; message.serialize(b); return b.data(); },
+        [&message]() { return message.serialize()->str(); });
+    }
+
+    event_source<
+      const connection_session &,
+      const const_data_buffer &> & incoming_message(uint32_t message_type_id);
 
   private:
     _connection_manager * const owner_;
 
     void broadcast(
       uint32_t message_type_id,
-      const const_data_buffer & binary_form,
-      const std::string & json_form);
+      const std::function<const_data_buffer (void)> & get_binary,
+      const std::function<std::string(void)> & get_json);
+
+    void send_to(
+      const connection_session & session,
+      uint32_t message_type_id,
+      const std::function<const_data_buffer(void)> & get_binary,
+      const std::function<std::string(void)> & get_json);
   };
 }
 #endif // __VDS_PROTOCOLS_CONNECTION_MANAGER_H_

@@ -51,6 +51,13 @@ namespace vds {
 
     uint64_t get_server_log_max_index(const guid & id);
 
+    void get_unknown_records(std::list<server_log_record::record_id> & result);
+
+    bool get_record(
+      const server_log_record::record_id & id,
+      server_log_record & result_record,
+      const_data_buffer & result_signature);
+
   private:
     service_provider sp_;
     server_database * owner_;
@@ -105,6 +112,13 @@ namespace vds {
       const guid & /* target_id*/,
       uint64_t /* target_index*/> server_log_add_link_statement_;
 
+    void server_log_add_link(
+      const guid & source_id,
+      uint64_t source_index,
+      const guid & target_id,
+      uint64_t target_index);
+
+
     prepared_statement<
       const guid & /*source_id*/,
       uint64_t /*source_index*/,
@@ -156,6 +170,11 @@ namespace vds {
     prepared_query<
       const guid & /*source_id*/> get_server_log_max_index_query_;
 
+    prepared_query<> get_unknown_records_query_;
+
+    prepared_query<
+      const guid & /*source_id*/,
+      uint64_t /*source_index*/> server_log_get_query_;
   };
 
 }
