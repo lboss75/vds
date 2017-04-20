@@ -58,6 +58,10 @@ namespace vds {
       server_log_record & result_record,
       const_data_buffer & result_signature);
 
+    bool get_front_record(
+      server_log_record & result_record,
+      const_data_buffer & result_signature);
+    
   private:
     service_provider sp_;
     server_database * owner_;
@@ -175,6 +179,14 @@ namespace vds {
     prepared_query<
       const guid & /*source_id*/,
       uint64_t /*source_index*/> server_log_get_query_;
+      
+    prepared_query<
+      int /*state*/> get_record_by_state_query_;
+      
+    bool get_record_by_state(
+      iserver_database::server_log_state state,
+      server_log_record & result_record,
+      const_data_buffer & result_signature);
   };
 
 }

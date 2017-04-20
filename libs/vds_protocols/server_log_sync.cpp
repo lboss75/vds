@@ -82,7 +82,7 @@ void vds::_server_log_sync::on_new_local_record(
 
 void vds::_server_log_sync::on_record_broadcast(const server_log_record_broadcast & message)
 {
-  if(this->storage_log_.get(this->sp_).apply_record(message.record(), message.signature())){
+  if(this->server_database_.get(this->sp_).save_record(message.record(), message.signature())){
     this->log_.debug("Got %s:%d", message.record().id().source_id.str().c_str(), message.record().id().index);
 
     this->connection_manager_.get(this->sp_)

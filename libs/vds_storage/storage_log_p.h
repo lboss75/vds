@@ -74,7 +74,7 @@ namespace vds {
     const asymmetric_private_key & server_private_key() const { return this->current_server_key_; }
     void add_to_local_log(const json_value * record);
 
-    bool apply_record(
+    void apply_record(
       const server_log_record & record,
       const const_data_buffer & signature);
 
@@ -161,6 +161,8 @@ namespace vds {
     private:
       std::list<std::unique_ptr<replica_generator>> generators_;
     };
+    
+    void process_timer_jobs();
   };
 }
 

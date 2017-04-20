@@ -9,7 +9,7 @@ All rights reserved
 namespace vds {
   class connection_manager;
 
-  class connection_session
+  class connection_session : public std::enable_shared_from_this<connection_session>
   {
   public:
     virtual void send_to(
@@ -180,8 +180,8 @@ namespace vds {
           const symmetric_key & session_key);
       };
 
-      std::shared_mutex sessions_mutex_;
-      std::map<uint32_t, std::unique_ptr<session>> sessions_;
+      std::mutex sessions_mutex_;
+      std::map<uint32_t, std::shared_ptr<session>> sessions_;
 
       const incoming_session & register_incoming_session(
         const std::string & server,

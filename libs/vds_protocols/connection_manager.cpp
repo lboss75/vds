@@ -312,7 +312,7 @@ vds::async_task<> vds::_connection_manager::udp_server::input_message(
           std::lock_guard<std::mutex> lock_hello(this->hello_requests_mutex_);
           auto p = this->hello_requests_.find(out_session_id);
           if (this->hello_requests_.end() != p) {
-            std::unique_lock<std::shared_mutex>(this->sessions_mutex_);
+            std::unique_lock<std::mutex> lock(this->sessions_mutex_);
 
             this->sessions_[out_session_id].reset(new outgoing_session(
               this,
@@ -351,14 +351,14 @@ vds::async_task<> vds::_connection_manager::udp_server::input_message(
         s >> session_id >> crypted_data >> data_hash;
         s.final();
 
-        std::shared_lock<std::shared_mutex> lock(this->sessions_mutex_);
+        std::unique_lock<std::mutex> lock(this->sessions_mutex_);
         auto p = this->sessions_.find(session_id);
         if (this->sessions_.end() != p) {
           dataflow(
             symmetric_decrypt(p->second->session_key()),
             collect_data()
           )(
-            [this, &data_hash, session = p->second.get()](const void * data, size_t size) {
+            [this, &data_hash, session = p->second](const void * data, size_t size) {
             if (hash::signature(hash::sha256(), data, size) == data_hash) {
 
               binary_deserializer d(data, size);
@@ -368,7 +368,11 @@ vds::async_task<> vds::_connection_manager::udp_server::input_message(
 
               auto h = this->owner_->input_message_handlers_.find(message_type_id);
               if (this->owner_->input_message_handlers_.end() != h) {
-                h->second(*session, binary_form);
+                imt_service::async(
+                  this->sp_, 
+                  [session, &handler = h->second, binary_data = std::move(binary_form)](){
+                    handler(*session, binary_data);
+                });
               }
               else {
                 this->log_.debug("Handler for message %d not found", message_type_id);
@@ -408,7 +412,7 @@ void vds::_connection_manager::udp_server::open_udp_session(const std::string & 
   auto port = (uint16_t)std::atoi(network_address.port.c_str());
   
   std::lock_guard<std::mutex> lock_hello(this->hello_requests_mutex_);
-  std::shared_lock<std::shared_mutex> lock_sessions(this->sessions_mutex_);
+  std::unique_lock<std::mutex> lock_sessions(this->sessions_mutex_);
   for(;;){
     auto session_id = (uint32_t)std::rand();
     if(this->hello_requests_.end() == this->hello_requests_.find(session_id)
@@ -502,7 +506,7 @@ vds::_connection_manager::udp_server::register_incoming_session(
   symmetric_key session_key(symmetric_crypto::aes_256_cbc());
   session_key.generate();
 
-  std::unique_lock<std::shared_mutex> lock(this->sessions_mutex_);
+  std::unique_lock<std::mutex> lock(this->sessions_mutex_);
 
   uint32_t session_id;
   for (;;) {
@@ -529,7 +533,7 @@ vds::_connection_manager::udp_server::register_incoming_session(
 void vds::_connection_manager::udp_server::for_each_sessions(
   const std::function<void(const session & session)> & callback)
 {
-  std::shared_lock<std::shared_mutex> lock(this->sessions_mutex_);
+  std::unique_lock<std::mutex> lock(this->sessions_mutex_);
   for (auto & p : this->sessions_) {
     callback(*p.second);
   }

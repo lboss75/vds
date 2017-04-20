@@ -132,9 +132,9 @@ vds::async_task<> vds::istorage_log::reset(
   return this->owner_->impl_->reset(root_certificate, private_key, root_password, addresses);
 }
 
-bool vds::istorage_log::apply_record(const server_log_record & record, const const_data_buffer & signature)
+void vds::istorage_log::apply_record(const server_log_record & record, const const_data_buffer & signature)
 {
-  return this->owner_->impl_->apply_record(record, signature);
+  this->owner_->impl_->apply_record(record, signature);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -203,6 +203,9 @@ vds::async_task<> vds::_storage_log::reset(
 void vds::_storage_log::start()
 {
   this->local_log_index_ = this->db_.get(this->sp_).get_server_log_max_index(this->current_server_id_) + 1;
+  this->sp_.get<itask_manager>().wait_for(std::chrono::seconds(5), [this](){
+    this->process_timer_jobs();
+  });
 }
 
 void vds::_storage_log::stop()
@@ -370,11 +373,24 @@ void vds::_storage_log::add_to_local_log(const json_value * record)
   this->new_local_record_event_(result, signature);
 }
 
-bool vds::_storage_log::apply_record(const server_log_record & record, const const_data_buffer & signature)
+void vds::_storage_log::apply_record(const server_log_record & record, const const_data_buffer & signature)
 {
-  return this->db_
-    .get(this->sp_)
-    .save_record(record, signature);
+  this->log_.debug("Apply record %s:%d", record.id().source_id.str().c_str(), record.id().index);
+  
+  const json_object * obj = dynamic_cast<const json_object *>(record.message());
+  if(nullptr == obj){
+    //this->db_.get(this->sp_).delete_record(record.id());
+    return;
+  }
+  
+  auto tt = record.message()->str();
+  
+  std::string message_type;
+  obj->get_property("$t", message_type);
+  
+  
+  
+  this->db_.get(this->sp_).processed_record(record.id());
 }
 
 std::unique_ptr<vds::cert> vds::_storage_log::find_cert(const std::string & object_name)
@@ -423,3 +439,17 @@ vds::async_task<> vds::_storage_log::save_file(
   return vds::storage_object_id(index, signature);
   */
 }
+
+void vds::_storage_log::process_timer_jobs()
+{
+  server_log_record record;
+  const_data_buffer signature;
+  while(this->db_.get(this->sp_).get_front_record(record, signature)){
+    this->apply_record(record, signature);
+  }
+  
+  this->sp_.get<itask_manager>().wait_for(std::chrono::seconds(5), [this](){
+    this->process_timer_jobs();
+  });
+}
+

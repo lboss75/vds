@@ -78,6 +78,13 @@ namespace vds {
       const server_log_record::record_id & id,
       server_log_record & result_record,
       const_data_buffer & result_signature);
+    
+    bool get_front_record(
+      server_log_record & result_record,
+      const_data_buffer & result_signature);
+
+    void processed_record(
+      const server_log_record::record_id & id);
 
   private:
     server_database * const owner_;

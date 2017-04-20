@@ -89,14 +89,32 @@ bool vds::iserver_database::save_record(const server_log_record & record, const 
 {
   return this->owner_->impl_->save_record(record, signature);
 }
+
 void vds::iserver_database::get_unknown_records(std::list<server_log_record::record_id>& result)
 {
   this->owner_->impl_->get_unknown_records(result);
 }
-bool vds::iserver_database::get_record(const server_log_record::record_id & id, server_log_record & result_record, const_data_buffer & result_signature)
+
+bool vds::iserver_database::get_record(
+  const server_log_record::record_id & id,
+  server_log_record & result_record,
+  const_data_buffer & result_signature)
 {
   return this->owner_->impl_->get_record(id, result_record, result_signature);
 }
+
+bool vds::iserver_database::get_front_record(
+  server_log_record & result_record,
+  const_data_buffer & result_signature)
+{
+  return this->owner_->impl_->get_front_record(result_record, result_signature);
+}
+
+void vds::iserver_database::processed_record(const server_log_record::record_id & id)
+{
+  this->owner_->impl_->processed_record(id);
+}
+
 ////////////////////////////////////////////////////////
 vds::_server_database::_server_database(const service_provider & sp, server_database * owner)
   : sp_(sp),
@@ -367,7 +385,7 @@ vds::server_log_record
   this->add_server_log(
     record_id.source_id,
     record_id.index,
-    body,
+    message->str(),
     signature,
     iserver_database::server_log_state::tail);
 
@@ -541,7 +559,7 @@ void vds::_server_database::processed_record(const server_log_record::record_id 
   for (auto& p : parents) {
     auto parent_state = this->server_log_get_state(p);
     if (iserver_database::server_log_state::tail == parent_state) {
-      this->server_log_update_state(id, iserver_database::server_log_state::processed);
+      this->server_log_update_state(p, iserver_database::server_log_state::processed);
       break;
     }
     else if (iserver_database::server_log_state::processed != parent_state) {
@@ -556,6 +574,8 @@ void vds::_server_database::processed_record(const server_log_record::record_id 
     this->server_log_update_state(id, iserver_database::server_log_state::tail);
   }
   else {
+    this->server_log_update_state(id, iserver_database::server_log_state::processed);
+    
     for (auto& f : followers) {
       auto state = this->server_log_get_state(f);
       switch (state) {
@@ -564,12 +584,12 @@ void vds::_server_database::processed_record(const server_log_record::record_id 
         std::list<server_log_record::record_id> parents;
         this->server_log_get_parents(f, parents);
 
-        bool is_tail = true;
+        auto new_state = iserver_database::server_log_state::front;
         for (auto& p : parents) {
-          auto state = this->server_log_get_state(f);
+          auto state = this->server_log_get_state(p);
           if (iserver_database::server_log_state::stored == state
             || iserver_database::server_log_state::front == state) {
-            is_tail = false;
+            new_state = iserver_database::server_log_state::stored;
             break;
           }
 
@@ -578,8 +598,8 @@ void vds::_server_database::processed_record(const server_log_record::record_id 
           }
         }
 
-        if (is_tail) {
-          this->server_log_update_state(f, iserver_database::server_log_state::tail);
+        if (state != new_state) {
+          this->server_log_update_state(f, new_state);
         }
 
         break;
@@ -676,4 +696,62 @@ bool vds::_server_database::get_record(
   }
 
   return result;
+}
+
+bool vds::_server_database::get_front_record(
+  server_log_record & result_record,
+  const_data_buffer & result_signature)
+{
+  return this->get_record_by_state(
+    iserver_database::server_log_state::front,
+    result_record,
+    result_signature);    
+}
+
+bool vds::_server_database::get_record_by_state(
+  iserver_database::server_log_state state,
+  server_log_record & result_record,
+  const_data_buffer & result_signature)
+{
+  bool result = false;
+
+  server_log_record::record_id id;
+  std::string message;
+
+  this->get_record_by_state_query_.query(
+    this->db_,
+    "SELECT source_id,source_index,message,signature FROM  server_log WHERE state=@state LIMIT 1",
+    [&result, &id, &message, &result_signature](sql_statement & st)->bool {
+
+      st.get_value(0, id.source_id);
+      st.get_value(1, id.index);
+      st.get_value(2, message);
+      st.get_value(3, result_signature);
+
+      result = true;
+
+      return false;
+    },
+    (int)state);
+
+  if (result) {
+    std::list<server_log_record::record_id> parents;
+    this->server_log_get_parents(id, parents);
+
+    dataflow(
+      json_parser("Message body"),
+      json_require_once()
+    )(
+      [&id, &result_record, &parents](json_value * message) {
+        result_record.reset(
+          id,
+          parents,
+          message);
+      },
+      [](std::exception_ptr ex) { std::rethrow_exception(ex); },
+      message.c_str(),
+      message.length());
+  }
+
+  return result;  
 }
