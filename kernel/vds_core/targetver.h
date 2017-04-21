@@ -18,6 +18,10 @@ All rights reserved
 
 #pragma comment(lib, "Shell32.lib")
 
+#ifdef _MSC_VER
+#pragma warning(disable : 4503)
+#endif
+
 #else
 
 #include <sys/types.h>

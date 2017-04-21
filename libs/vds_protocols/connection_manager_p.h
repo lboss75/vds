@@ -180,7 +180,7 @@ namespace vds {
           const symmetric_key & session_key);
       };
 
-      std::mutex sessions_mutex_;
+      std::shared_mutex sessions_mutex_;
       std::map<uint32_t, std::shared_ptr<session>> sessions_;
 
       const incoming_session & register_incoming_session(
