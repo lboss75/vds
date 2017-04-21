@@ -115,6 +115,11 @@ void vds::iserver_database::processed_record(const server_log_record::record_id 
   this->owner_->impl_->processed_record(id);
 }
 
+void vds::iserver_database::delete_record(const server_log_record::record_id & id)
+{
+  this->owner_->impl_->delete_record(id);
+}
+
 ////////////////////////////////////////////////////////
 vds::_server_database::_server_database(const service_provider & sp, server_database * owner)
   : sp_(sp),
@@ -706,6 +711,11 @@ bool vds::_server_database::get_front_record(
     iserver_database::server_log_state::front,
     result_record,
     result_signature);    
+}
+
+void vds::_server_database::delete_record(const server_log_record::record_id & id)
+{
+  throw std::runtime_error("Not implemented");
 }
 
 bool vds::_server_database::get_record_by_state(

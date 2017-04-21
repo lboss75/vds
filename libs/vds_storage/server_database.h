@@ -86,6 +86,9 @@ namespace vds {
     void processed_record(
       const server_log_record::record_id & id);
 
+    void delete_record(
+      const server_log_record::record_id & id);
+
   private:
     server_database * const owner_;
   };

@@ -61,7 +61,9 @@ namespace vds {
     bool get_front_record(
       server_log_record & result_record,
       const_data_buffer & result_signature);
-    
+
+    void delete_record(
+      const server_log_record::record_id & id);
   private:
     service_provider sp_;
     server_database * owner_;

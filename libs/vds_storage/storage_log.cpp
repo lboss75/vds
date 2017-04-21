@@ -132,9 +132,12 @@ vds::async_task<> vds::istorage_log::reset(
   return this->owner_->impl_->reset(root_certificate, private_key, root_password, addresses);
 }
 
-void vds::istorage_log::apply_record(const server_log_record & record, const const_data_buffer & signature)
+void vds::istorage_log::apply_record(
+  const server_log_record & record,
+  const const_data_buffer & signature,
+  bool check_signature /*= true*/)
 {
-  this->owner_->impl_->apply_record(record, signature);
+  this->owner_->impl_->apply_record(record, signature, check_signature);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -373,21 +376,38 @@ void vds::_storage_log::add_to_local_log(const json_value * record)
   this->new_local_record_event_(result, signature);
 }
 
-void vds::_storage_log::apply_record(const server_log_record & record, const const_data_buffer & signature)
+void vds::_storage_log::apply_record(const server_log_record & record, const const_data_buffer & signature, bool check_signature /*= true*/)
 {
   this->log_.debug("Apply record %s:%d", record.id().source_id.str().c_str(), record.id().index);
-  
+ 
   const json_object * obj = dynamic_cast<const json_object *>(record.message());
   if(nullptr == obj){
-    //this->db_.get(this->sp_).delete_record(record.id());
+    this->log_.error("Wrong messsage in the record %s:%d", record.id().source_id.str().c_str(), record.id().index);
+    this->db_.get(this->sp_).delete_record(record.id());
     return;
   }
   
-  auto tt = record.message()->str();
-  
   std::string message_type;
-  obj->get_property("$t", message_type);
+  if (!obj->get_property("$t", message_type)) {
+    this->log_.error("Missing messsage type in the record %s:%d", record.id().source_id.str().c_str(), record.id().index);
+    this->db_.get(this->sp_).delete_record(record.id());
+    return;
+  }
   
+  if (server_log_new_object::message_type == message_type) {
+    server_log_new_object msg(obj);
+
+    this->db_.get(this->sp_).add_object(record.id().source_id, msg);
+  }
+  else {
+    this->log_.error("Enexpected messsage type %s in the record %s:%d",
+      message_type.c_str(),
+      record.id().source_id.str().c_str(),
+      record.id().index);
+
+    this->db_.get(this->sp_).delete_record(record.id());
+    return;
+  }
   
   
   this->db_.get(this->sp_).processed_record(record.id());

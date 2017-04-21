@@ -82,7 +82,8 @@ namespace vds {
 
     void apply_record(
       const server_log_record & record,
-      const const_data_buffer & signature);
+      const const_data_buffer & signature,
+      bool check_signature = true);
 
   private:
     storage_log * owner_;
