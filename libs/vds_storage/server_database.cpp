@@ -195,10 +195,6 @@ void vds::_server_database::start()
       object_index INTEGER NOT NULL,\
       CONSTRAINT pk_file_map PRIMARY KEY (version_id, object_index))");
 
-    //is_tail = 1 if not exists followers
-    //is_processed = 1 if processed
-    //is_linked = 1 if all parents linked
-
     this->db_.execute(
       "CREATE TABLE server_log(\
       source_id VARCHAR(64) NOT NULL,\
