@@ -259,21 +259,11 @@ void mock_server::init_root(const std::string & root_password, int port)
     
     server.start(sp);
     
-    vds::barrier b;
     sp.get<vds::istorage_log>().reset(
       root_certificate,
       private_key,
       root_password,
-      "https://127.0.0.1:" + std::to_string(port))
-    .wait(
-      [&b](){
-        b.set();
-      },
-      [&b](std::exception_ptr ex) {
-        FAIL() << vds::exception_what(ex);
-        b.set();
-      });
-    b.wait();
+      "https://127.0.0.1:" + std::to_string(port));
   }
   catch (...) {
     try { registrator.shutdown(); }

@@ -16,7 +16,7 @@ namespace vds {
   class server_log_root_certificate;
   class server_log_new_server;
   class server_log_new_endpoint;
-  class cert;
+  class cert_record;
   class node;
   class endpoint;
   class ichunk_storage;
@@ -31,7 +31,7 @@ namespace vds {
       const asymmetric_private_key & server_private_key,
       storage_log * owner);
 
-    async_task<> reset(
+    void reset(
       const certificate & root_certificate,
       const asymmetric_private_key & private_key,
       const std::string & root_password,
@@ -40,19 +40,13 @@ namespace vds {
     void start();
     void stop();
 
-    bool is_empty();
-    certificate * get_cert(const std::string & subject);
-    certificate * parse_root_cert(const json_value * value);
-    void apply_record(const guid & source_server_id, const json_value * value);
-
     size_t minimal_consensus() const { return this->minimal_consensus_; }
 
-    void add_record(const std::string & record);
     size_t new_message_id();
 
     vds::async_task<> register_server(const std::string & server_certificate);
 
-    std::unique_ptr<cert> find_cert(const std::string & object_name);
+    std::unique_ptr<cert_record> find_cert(const std::string & object_name);
     std::unique_ptr<const_data_buffer> get_object(const full_storage_object_id & object_id);
 
     event_source<const server_log_record & /*record*/, const const_data_buffer & /*signature*/> & new_local_record_event() { return this->new_local_record_event_; }
@@ -104,10 +98,6 @@ namespace vds {
 
     size_t last_message_id_;
 
-    void process(const guid & source_server_id, const server_log_root_certificate & message);
-    void process(const guid & source_server_id, const server_log_new_server & message);
-    void process(const guid & source_server_id, const server_log_new_endpoint & message);
-    
     async_task<const storage_object_id &>
     save_object(
       const object_container & fc);

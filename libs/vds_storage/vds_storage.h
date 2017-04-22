@@ -11,7 +11,7 @@ All rights reserved
 #include "vds_parser.h"
 
 #include "endpoint.h"
-#include "cert.h"
+#include "cert_record.h"
 #include "node.h"
 #include "user.h"
 #include "storage_log.h"

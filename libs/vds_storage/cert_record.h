@@ -1,32 +1,33 @@
-#ifndef __VDS_STORAGE_CERT_H_
-#define __VDS_STORAGE_CERT_H_
+#ifndef __VDS_STORAGE_CERT_RECORD_H_
+#define __VDS_STORAGE_CERT_RECORD_H_
 
 /*
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
-#include "storage_object_id.h"
-
 namespace vds {
-  class cert
+  class cert_record
   {
   public:
-    cert(
+    cert_record(
       const std::string & object_name,
-      const full_storage_object_id & object_id,
+      const std::string & cert_body,
+      const std::string & cert_key,
       const const_data_buffer & password_hash);
 
 
     const std::string & object_name() const { return this->object_name_; }
-    const full_storage_object_id & object_id() const { return this->object_id_; }
+    const std::string & cert_body() const { return this->cert_body_; }
+    const std::string & cert_key() const { return this->cert_key_; }
     const const_data_buffer & password_hash() const { return this->password_hash_; }
 
   private:
     std::string object_name_;
-    full_storage_object_id object_id_;
+    std::string cert_body_;
+    std::string cert_key_;
     const_data_buffer password_hash_;
   };
 }
 
-#endif // __VDS_STORAGE_CERT_H_
+#endif // __VDS_STORAGE_CERT_RECORD_H_

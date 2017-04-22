@@ -165,9 +165,6 @@ vds::_chunk_manager::add(
           deflated_size,
           hash::signature(hash::sha256(), deflated_data, deflated_size));
 
-        this->db_.get(this->sp_).add_object(
-          this->storage_log_.get(this->sp_).current_server_id(),
-          result);
         this->storage_log_.get(this->sp_).add_to_local_log(result.serialize().get());
         done(result);
       });

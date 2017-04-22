@@ -15,10 +15,9 @@ namespace vds {
   public:
     static const char message_type[];
 
-    server_log_batch(size_t message_id);
+    server_log_batch();
     server_log_batch(const json_value * source);
 
-    size_t message_id() const { return this->message_id_; }
     const json_array * get_messages() const { return this->messages_.get(); }
 
     void add(std::unique_ptr<json_value> && item);
@@ -26,7 +25,6 @@ namespace vds {
     std::unique_ptr<json_value> serialize() const;
 
   private:
-    size_t message_id_;
     std::unique_ptr<json_array> messages_;
   };
   
@@ -160,18 +158,21 @@ namespace vds {
     static const char message_type[];
 
     server_log_root_certificate(
-      const storage_object_id & user_cert,
+      const std::string & user_cert,
+      const std::string & user_private_key,
       const const_data_buffer & password_hash);
 
     server_log_root_certificate(const json_value * source);
     
-    const storage_object_id & user_cert() const { return this->user_cert_; }
+    const std::string & user_cert() const { return this->user_cert_; }
+    const std::string & user_private_key() const { return this->user_private_key_; }
     const const_data_buffer & password_hash() const { return this->password_hash_; }
 
     std::unique_ptr<json_value> serialize() const;
 
   private:
-    storage_object_id user_cert_;
+    std::string user_cert_;
+    std::string user_private_key_;
     const_data_buffer password_hash_;
   };
   

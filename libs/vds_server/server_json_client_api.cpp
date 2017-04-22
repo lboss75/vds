@@ -145,20 +145,10 @@ vds::_server_json_client_api::process(
         throw std::runtime_error("Invalid username or password");
       }
 
-      std::unique_ptr<const_data_buffer> buffer = scope
-        .get<istorage_log>()
-        .get_object(cert->object_id());
-
-
-      if (buffer) {
-        binary_deserializer s(*buffer);
-        object_container obj_cont(s);
-
-        done(
-          client_messages::certificate_and_key_response(
-            obj_cont.get("c"),
-            obj_cont.get("k")).serialize().get());
-      }
+      done(
+        client_messages::certificate_and_key_response(
+          cert->cert_body(),
+          cert->cert_key()).serialize().get());
     });
 }
 

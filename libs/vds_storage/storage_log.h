@@ -10,7 +10,7 @@ namespace vds {
   class _storage_log;
   class endpoint;
   class istorage_log;
-  class cert;
+  class cert_record;
   class full_storage_object_id;
   class server_log_record;
 
@@ -44,11 +44,8 @@ namespace vds {
     const certificate & server_certificate() const;
     const asymmetric_private_key & server_private_key() const;
     
-    bool is_empty() const;
-
     size_t minimal_consensus() const;
 
-    void add_record(const std::string & record);
     void add_to_local_log(const json_value * record);
 
     size_t new_message_id();
@@ -56,7 +53,7 @@ namespace vds {
 
     vds::async_task<> register_server(const std::string & server_certificate);
 
-    std::unique_ptr<cert> find_cert(const std::string & object_name) const;
+    std::unique_ptr<cert_record> find_cert(const std::string & object_name) const;
 
     std::unique_ptr<const_data_buffer> get_object(const full_storage_object_id & object_id);
 
@@ -74,7 +71,7 @@ namespace vds {
       const std::string & name,
       const filename & tmp_file);
     
-    async_task<> reset(
+    void reset(
       const certificate & root_certificate,
       const asymmetric_private_key & private_key,
       const std::string & root_password,

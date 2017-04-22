@@ -195,9 +195,11 @@ std::unique_ptr<vds::json_value> vds::server_log_new_object::serialize(bool add_
 const char vds::server_log_root_certificate::message_type[] = "root";
 
 vds::server_log_root_certificate::server_log_root_certificate(
-  const storage_object_id & user_cert,
+  const std::string & user_cert,
+  const std::string & user_private_key,
   const const_data_buffer & password_hash)
   : user_cert_(user_cert),
+  user_private_key_(user_private_key),
   password_hash_(password_hash)
 {
 }
@@ -206,7 +208,8 @@ vds::server_log_root_certificate::server_log_root_certificate(const json_value *
 {
   auto s = dynamic_cast<const json_object *>(source);
   if (nullptr != s) {
-    this->user_cert_ = storage_object_id(s->get_property("u"));
+    s->get_property("c", this->user_cert_);
+    s->get_property("k", this->user_private_key_);
     s->get_property("h", this->password_hash_);
   }
 }
@@ -216,7 +219,8 @@ std::unique_ptr<vds::json_value> vds::server_log_root_certificate::serialize() c
   std::unique_ptr<json_object> result(new json_object());
   result->add_property("$t", message_type);
   
-  result->add_property("u", this->user_cert_.serialize(false));
+  result->add_property("c", this->user_cert_);
+  result->add_property("k", this->user_private_key_);
   result->add_property("h", this->password_hash_);
   
   return std::unique_ptr<vds::json_value>(result.release());
@@ -248,9 +252,8 @@ vds::server_log_new_user_certificate::server_log_new_user_certificate(const vds:
 
 const char vds::server_log_batch::message_type[] = "batch";
 
-vds::server_log_batch::server_log_batch(size_t message_id)
-  : message_id_(message_id),
-  messages_(new json_array())
+vds::server_log_batch::server_log_batch()
+ : messages_(new json_array())
 {
 }
 
@@ -258,9 +261,7 @@ vds::server_log_batch::server_log_batch(const json_value * source)
 {
   auto s = dynamic_cast<const json_object *>(source);
   if (nullptr != s) {
-    s->get_property("i", this->message_id_);
-
-    auto m = s->get_property("m");
+     auto m = s->get_property("m");
     auto ma = dynamic_cast<const json_array *>(m);
     if(nullptr != ma){
       this->messages_.reset(static_cast<json_array *>(ma->clone().release()));
@@ -277,7 +278,6 @@ std::unique_ptr<vds::json_value> vds::server_log_batch::serialize() const
 {
   std::unique_ptr<json_object> result(new json_object());
   result->add_property("$t", message_type);
-  result->add_property("i", std::to_string(this->message_id_));
   result->add_property(new json_property("m", this->messages_->clone().release()));
 
   return std::unique_ptr<vds::json_value>(result.release());

@@ -10,7 +10,7 @@ All rights reserved
 
 namespace vds {
   class _server_database;
-  class cert;
+  class cert_record;
 
   class server_database
   {
@@ -31,8 +31,8 @@ namespace vds {
   public:
     iserver_database(server_database * owner);
 
-    void add_cert(const cert & record);
-    std::unique_ptr<cert> find_cert(const std::string & object_name) const;
+    void add_cert(const cert_record & record);
+    std::unique_ptr<cert_record> find_cert(const std::string & object_name) const;
 
     void add_object(
       const guid & server_id,

@@ -6,7 +6,7 @@ All rights reserved
 #include "stdafx.h"
 #include "server_database.h"
 #include "server_database_p.h"
-#include "cert.h"
+#include "cert_record.h"
 #include "storage_log.h"
 
 vds::server_database::server_database(const service_provider & sp)
@@ -34,12 +34,12 @@ vds::iserver_database::iserver_database(server_database * owner)
 {
 }
 
-void vds::iserver_database::add_cert(const cert & record)
+void vds::iserver_database::add_cert(const cert_record & record)
 {
   this->owner_->impl_->add_cert(record);
 }
 
-std::unique_ptr<vds::cert> vds::iserver_database::find_cert(const std::string & object_name) const
+std::unique_ptr<vds::cert_record> vds::iserver_database::find_cert(const std::string & object_name) const
 {
   return this->owner_->impl_->find_cert(object_name);
 }
@@ -173,8 +173,8 @@ void vds::_server_database::start()
     this->db_.execute(
       "CREATE TABLE cert(\
       object_name VARCHAR(64) PRIMARY KEY NOT NULL,\
-      source_server_id VARCHAR(64) NOT NULL,\
-      object_index INTEGER NOT NULL,\
+      body TEXT NOT NULL,\
+      key TEXT NOT NULL,\
       password_hash VARCHAR(64) NOT NULL)");
     
     this->db_.execute(
@@ -227,40 +227,41 @@ void vds::_server_database::stop()
   this->db_.close();
 }
 
-void vds::_server_database::add_cert(const cert & record)
+void vds::_server_database::add_cert(const cert_record & record)
 {
   this->add_cert_statement_.execute(
     this->db_,
-    "INSERT INTO cert(object_name, source_server_id, object_index, password_hash)\
-      VALUES (@object_name, @source_server_id, @object_index, @password_hash)",
+    "INSERT INTO cert(object_name, body, key, password_hash)\
+      VALUES (@object_name, @body, @key, @password_hash)",
 
     record.object_name(),
-    record.object_id().source_server_id(),
-    record.object_id().index(),
+    record.cert_body(),
+    record.cert_key(),
     record.password_hash());
 }
 
-std::unique_ptr<vds::cert> vds::_server_database::find_cert(const std::string & object_name)
+std::unique_ptr<vds::cert_record> vds::_server_database::find_cert(const std::string & object_name)
 {
-  std::unique_ptr<cert> result;
+  std::unique_ptr<cert_record> result;
   this->find_cert_query_.query(
     this->db_,
-    "SELECT source_server_id, object_index, password_hash\
+    "SELECT body, key, password_hash\
      FROM cert\
      WHERE object_name=@object_name",
     [&result, object_name](sql_statement & st)->bool{
       
-      guid source_id;
-      uint64_t index;
+      std::string body;
+      std::string key;
       const_data_buffer password_hash;
       
-      st.get_value(0, source_id);
-      st.get_value(1, index);
+      st.get_value(0, body);
+      st.get_value(1, key);
       st.get_value(2, password_hash);
 
-      result.reset(new cert(
+      result.reset(new cert_record(
         object_name,
-        full_storage_object_id(source_id, index),
+        body,
+        key,
         password_hash));
       
       return false; },
@@ -365,7 +366,8 @@ vds::server_log_record
   //Collect parents
   this->get_server_log_tails_query_.query(
     this->db_,
-    ("SELECT source_id,source_index FROM server_log WHERE state=" + std::to_string((int)iserver_database::server_log_state::tail)).c_str(),
+    ("SELECT source_id,source_index FROM server_log WHERE state="
+      + std::to_string((int)iserver_database::server_log_state::tail)).c_str(),
     [&parents](sql_statement & reader)->bool {
 
       guid source_id;
@@ -392,7 +394,7 @@ vds::server_log_record
     record_id.index,
     message->str(),
     signature,
-    iserver_database::server_log_state::tail);
+    iserver_database::server_log_state::front);
 
   //update tails & create links
   for (auto& p : parents) {
