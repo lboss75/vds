@@ -97,6 +97,7 @@ namespace vds {
     size_t minimal_consensus_;
 
     size_t last_message_id_;
+    std::mutex record_state_mutex_;
 
     async_task<const storage_object_id &>
     save_object(

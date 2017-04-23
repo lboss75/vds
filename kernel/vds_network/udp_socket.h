@@ -164,7 +164,8 @@ namespace vds {
       handler(
         const context_type & context,
         const udp_send & args
-      ) : base_class(context), sp_(args.sp_)
+      ) : base_class(context), sp_(args.sp_),
+        log_(args.sp_, "UDP Send")
 #ifndef _WIN32
       , network_service_(args.sp_.get<inetwork_manager>().owner())
 #endif
@@ -226,6 +227,7 @@ namespace vds {
 
     private:
       service_provider sp_;
+      logger log_;
       network_socket::SOCKET_HANDLE s_;
     
 #ifndef _WIN32
@@ -238,6 +240,8 @@ namespace vds {
       {
         auto pthis = reinterpret_cast<handler *>(arg);
         try {
+          pthis->log_.trace("Send %d bytes to %s", pthis->data_size_, network_service::to_string(*pthis->to_).c_str());
+          
           int len = sendto(fd, pthis->data_, pthis->data_size_, 0, (sockaddr *)pthis->to_, sizeof(*pthis->to_));
           if (len < 0) {
             int error = errno;
@@ -293,6 +297,7 @@ namespace vds {
         const udp_receive & args
       ) : base_class(context),
         sp_(args.sp_),
+        log_(args.sp_, "UDP Receive"),
         addr_len_(sizeof(addr_))
 #ifndef _WIN32
       , event_(nullptr)
@@ -356,6 +361,7 @@ namespace vds {
 
   private:
     const service_provider & sp_;
+    logger log_;
     struct sockaddr_in addr_;
     socklen_t addr_len_;
     char buffer_[4096];
@@ -372,6 +378,8 @@ namespace vds {
       int len = recvfrom(fd, pthis->buffer_, sizeof(pthis->buffer_), 0,
         (struct sockaddr *)&pthis->addr_, &pthis->addr_len_
       );
+      
+      pthis->log_.trace("Receive %d bytes from %s", len, network_service::to_string(pthis->addr_).c_str());
 
       if (len < 0) {
         int error = errno;

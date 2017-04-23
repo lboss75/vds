@@ -242,6 +242,8 @@ void vds::_storage_log::add_to_local_log(const json_value * message)
 void vds::_storage_log::apply_record(const server_log_record & record, const const_data_buffer & signature, bool check_signature /*= true*/)
 {
   this->log_.debug("Apply record %s:%d", record.id().source_id.str().c_str(), record.id().index);
+  
+  std::lock_guard<std::mutex> lock(this->record_state_mutex_);
  
   const json_object * obj = dynamic_cast<const json_object *>(record.message());
   if(nullptr == obj){
@@ -360,6 +362,8 @@ vds::async_task<> vds::_storage_log::save_file(
 
 void vds::_storage_log::process_timer_jobs()
 {
+  std::lock_guard<std::mutex> lock(this->record_state_mutex_);
+
   server_log_record record;
   const_data_buffer signature;
   while(this->db_.get(this->sp_).get_front_record(record, signature)){
