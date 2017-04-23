@@ -120,6 +120,11 @@ void vds::iserver_database::delete_record(const server_log_record::record_id & i
   this->owner_->impl_->delete_record(id);
 }
 
+vds::iserver_database::server_log_state vds::iserver_database::get_record_state(const server_log_record::record_id & id)
+{
+  return this->owner_->impl_->server_log_get_state(id);
+}
+
 ////////////////////////////////////////////////////////
 vds::_server_database::_server_database(const service_provider & sp, server_database * owner)
   : sp_(sp),

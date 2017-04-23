@@ -153,7 +153,6 @@ vds::const_data_buffer mock_client::download_data(const std::string & login, con
       [&result, &b](std::exception_ptr ex) {
         b.set();
         FAIL() << vds::exception_what(ex);
-        
       }
     );
     

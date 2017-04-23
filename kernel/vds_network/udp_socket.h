@@ -364,7 +364,7 @@ namespace vds {
     logger log_;
     struct sockaddr_in addr_;
     socklen_t addr_len_;
-    char buffer_[4096];
+    char buffer_[4 * 4096];
 
 #ifndef _WIN32
     network_socket::SOCKET_HANDLE s_;

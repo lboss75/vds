@@ -71,6 +71,8 @@ namespace vds {
       processed = 3, //+ Processed
       tail = 4 //
     };
+    
+    server_log_state get_record_state(const server_log_record::record_id & id);
 
     void get_unknown_records(std::list<server_log_record::record_id> & result);
 

@@ -90,14 +90,14 @@ namespace vds {
     logger log_;
     foldername vds_folder_;
 
-    std::mutex local_log_mutex_;
-    uint64_t local_log_index_;
 
     bool is_empty_;
     size_t minimal_consensus_;
 
     size_t last_message_id_;
+    
     std::mutex record_state_mutex_;
+    uint64_t local_log_index_;
 
     async_task<const storage_object_id &>
     save_object(

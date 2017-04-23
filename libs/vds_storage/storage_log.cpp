@@ -223,7 +223,7 @@ vds::_storage_log::save_object(const object_container & fc)
 
 void vds::_storage_log::add_to_local_log(const json_value * message)
 {
-  std::lock_guard<std::mutex> lock(this->local_log_mutex_);
+  std::lock_guard<std::mutex> lock(this->record_state_mutex_);
 
   const_data_buffer signature;
   auto result = this->db_
@@ -239,11 +239,16 @@ void vds::_storage_log::add_to_local_log(const json_value * message)
   this->new_local_record_event_(result, signature);
 }
 
-void vds::_storage_log::apply_record(const server_log_record & record, const const_data_buffer & signature, bool check_signature /*= true*/)
+void vds::_storage_log::apply_record(
+  const server_log_record & record,
+  const const_data_buffer & signature,
+  bool check_signature /*= true*/)
 {
   this->log_.debug("Apply record %s:%d", record.id().source_id.str().c_str(), record.id().index);
-  
-  std::lock_guard<std::mutex> lock(this->record_state_mutex_);
+  auto state = this->db_.get(this->sp_).get_record_state(record.id());
+  if(iserver_database::server_log_state::front != state){
+    throw std::runtime_error("Invalid server state");
+  }
  
   const json_object * obj = dynamic_cast<const json_object *>(record.message());
   if(nullptr == obj){

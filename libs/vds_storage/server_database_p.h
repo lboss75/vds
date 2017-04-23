@@ -64,6 +64,9 @@ namespace vds {
 
     void delete_record(
       const server_log_record::record_id & id);
+    
+    iserver_database::server_log_state server_log_get_state(
+      const server_log_record::record_id & record_id);
   private:
     service_provider sp_;
     server_database * owner_;
@@ -153,9 +156,6 @@ namespace vds {
     prepared_query<
       const guid & /*source_id*/,
       uint64_t /*source_index*/> server_log_get_state_query_;
-
-    iserver_database::server_log_state server_log_get_state(
-      const server_log_record::record_id & record_id);
 
     prepared_query<
       const guid & /*source_id*/,
