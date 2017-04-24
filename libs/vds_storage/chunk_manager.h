@@ -36,6 +36,10 @@ namespace vds {
       const std::string & user_login,
       const std::string & name,
       const filename & fn);
+
+    async_task<const filename&> get_file(
+      const guid & server_id,
+      const std::string & version_id);
     
     async_task<const server_log_new_object &> add(const const_data_buffer & data);
     

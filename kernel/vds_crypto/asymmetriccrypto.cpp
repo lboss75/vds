@@ -560,15 +560,13 @@ vds::certificate::certificate(_certificate * impl)
 {
 }
 
-vds::certificate::certificate(certificate && original)
+vds::certificate::certificate(const certificate & original)
   : impl_(original.impl_)
 {
-  original.impl_ = nullptr;
 }
 
 vds::certificate::~certificate()
 {
-  delete this->impl_;
 }
 
 vds::certificate vds::certificate::parse(const std::string & value)
@@ -650,11 +648,9 @@ vds::certificate_extension vds::certificate::get_extension(int index) const
   return this->impl_->get_extension(index);
 }
 
-vds::certificate & vds::certificate::operator = (certificate && original)
+vds::certificate & vds::certificate::operator = (const certificate & original)
 {
-  delete this->impl_;
   this->impl_ = original.impl_;
-  original.impl_ = nullptr;
   return *this;
 }
 

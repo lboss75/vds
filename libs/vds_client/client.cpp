@@ -234,54 +234,58 @@ vds::_client::download_data(
   return this->authenticate(
     user_login,
     user_password)
-    .then([this, user_login](
-      const std::function<void(vds::const_data_buffer&&)>& done,
-      const error_handler & on_error,
-      const certificate& user_certificate,
-      const asymmetric_private_key& user_private_key) {
+    .then(
+      [this, user_login, name](
+        const std::function<void(const_data_buffer&&)>& done,
+        const error_handler & on_error,
+        const certificate& user_certificate,
+        const asymmetric_private_key& user_private_key) {
 
-    this->log_(ll_trace, "Download file");
-    auto datagram_data = this->owner_->logic_->download_file(user_login);
+    this->log_(ll_trace, "Downloading file");
+    this->owner_->logic_->download_file(user_login, name).wait(
+      [this, done, user_certificate = certificate::parse(user_certificate.str()), user_private_key](const const_data_buffer& datagram_data) {
 
-    this->log_(ll_trace, "Decrypting data");
-    const_data_buffer key_crypted;
-    const_data_buffer crypted_data;
-    const_data_buffer signature;
+      this->log_(ll_trace, "Decrypting data");
+      const_data_buffer key_crypted;
+      const_data_buffer crypted_data;
+      const_data_buffer signature;
 
-    binary_deserializer datagram(datagram_data);
-    datagram
-      >> key_crypted
-      >> crypted_data
-      >> signature;
+      binary_deserializer datagram(datagram_data);
+      datagram
+        >> key_crypted
+        >> crypted_data
+        >> signature;
 
-    binary_serializer to_sign;
-    to_sign << key_crypted << crypted_data;
+      binary_serializer to_sign;
+      to_sign << key_crypted << crypted_data;
 
-    if (!asymmetric_sign_verify::verify(
-      hash::sha256(),
-      user_certificate.public_key(),
-      signature,
-      to_sign.data().data(),
-      to_sign.data().size())) {
-      throw new std::runtime_error("Invalid data");
-    }
+      if (!asymmetric_sign_verify::verify(
+        hash::sha256(),
+        user_certificate.public_key(),
+        signature,
+        to_sign.data().data(),
+        to_sign.data().size())) {
+        throw new std::runtime_error("Invalid data");
+      }
 
-    symmetric_key transaction_key(
-      symmetric_crypto::aes_256_cbc(),
-      binary_deserializer(user_private_key.decrypt(key_crypted)));
+      symmetric_key transaction_key(
+        symmetric_crypto::aes_256_cbc(),
+        binary_deserializer(user_private_key.decrypt(key_crypted)));
 
-    barrier b;
-    const_data_buffer result;
-    dataflow(
-      symmetric_decrypt(transaction_key),
-      collect_data())(
-        [&result, &b](const void * data, size_t size) {result.reset(data, size); b.set(); },
-        [](std::exception_ptr ex) { std::rethrow_exception(ex); },
-        crypted_data.data(),
-        crypted_data.size());
+      barrier b;
+      const_data_buffer result;
+      dataflow(
+        symmetric_decrypt(transaction_key),
+        collect_data())(
+          [&result, &b](const void * data, size_t size) {result.reset(data, size); b.set(); },
+          [](std::exception_ptr ex) { std::rethrow_exception(ex); },
+          crypted_data.data(),
+          crypted_data.size());
 
-    b.wait();
-    done(std::move(result));
+      b.wait();
+      done(std::move(result));
+    },
+      on_error);
   });
 }
 

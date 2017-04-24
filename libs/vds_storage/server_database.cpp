@@ -58,6 +58,11 @@ void vds::iserver_database::add_file(
   this->owner_->impl_->add_file(server_id, fm);
 }
 
+void vds::iserver_database::get_file_versions(const std::string & user_login, const std::string & name, std::list<server_log_file_version>& result)
+{
+  this->owner_->impl_->get_file_versions(user_login, name, result);
+}
+
 uint64_t vds::iserver_database::last_object_index(const guid& server_id)
 {
   return this->owner_->impl_->last_object_index(server_id);
@@ -350,6 +355,29 @@ void vds::_server_database::add_file(
         fm.version_id(),
         item.index());
     }
+}
+
+void vds::_server_database::get_file_versions(
+  const std::string & user_login,
+  const std::string & name,
+  std::list<server_log_file_version> & result)
+{
+  this->get_file_versions_query_.query(
+    this->db_,
+    "SELECT version_id,server_id FROM file\
+     WHERE user_login=@user_login AND name=@name",
+    [&result](sql_statement & reader)->bool {
+
+     std::string version_id;
+     guid server_id;
+    reader.get_value(0, version_id);
+    reader.get_value(1, server_id);
+
+    result.push_back(server_log_file_version(version_id, server_id));
+    return true;
+  },
+    user_login,
+    name);
 }
 
 /////////////////////////////////////////////

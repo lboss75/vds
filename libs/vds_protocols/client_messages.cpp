@@ -179,8 +179,8 @@ vds::client_messages::get_file_message_request::get_file_message_request(const j
 {
   auto s = dynamic_cast<const json_object *>(value);
   if (nullptr != s) {
-    s->get_property("r", this->request_id_);
     s->get_property("u", this->user_login_);
+    s->get_property("n", this->name_);
   }
 }
 
@@ -189,17 +189,18 @@ std::unique_ptr<vds::json_value> vds::client_messages::get_file_message_request:
   std::unique_ptr<json_object> s(new json_object());
   s->add_property("$t", message_type);
 
-  s->add_property("r", this->request_id_);
   s->add_property("u", this->user_login_);
+  s->add_property("n", this->name_);
 
   return std::unique_ptr<vds::json_value>(s.release());
 }
 
 vds::client_messages::get_file_message_request::get_file_message_request(
-  const std::string & request_id,
-  const std::string & user_login)
-  : request_id_(request_id),
-  user_login_(user_login)
+  const std::string & user_login,
+  const std::string & name)
+: user_login_(user_login),
+  name_(name)
+
 {
 }
 
@@ -208,9 +209,6 @@ vds::client_messages::get_file_message_response::get_file_message_response(const
 {
   auto s = dynamic_cast<const json_object *>(value);
   if (nullptr != s) {
-    s->get_property("r", this->request_id_);
-    s->get_property("e", this->error_);
-
     std::string v;
     if (s->get_property("f", v)) {
       this->tmp_file_ = filename(v);
@@ -222,20 +220,13 @@ std::unique_ptr<vds::json_value> vds::client_messages::get_file_message_response
 {
   std::unique_ptr<json_object> s(new json_object());
   s->add_property("$t", message_type);
-
-  s->add_property("r", this->request_id_);
-  s->add_property("e", this->error_);
   s->add_property("f", this->tmp_file_.full_name());
 
   return std::unique_ptr<vds::json_value>(s.release());
 }
 
 vds::client_messages::get_file_message_response::get_file_message_response(
-  const std::string & request_id,
-  const std::string & error,
   const filename & tmp_file)
-: request_id_(request_id),
-  error_(error),
-  tmp_file_(tmp_file)
+: tmp_file_(tmp_file)
 {
 }

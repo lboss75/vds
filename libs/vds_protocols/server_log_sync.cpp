@@ -64,6 +64,10 @@ void vds::_server_log_sync::start()
 
   this->sp_.get<iconnection_manager>().incoming_message(
     (uint32_t)server_log_get_records_broadcast::message_type_id) += this->get_records_broadcast_;
+
+  this->sp_.get<itask_manager>().wait_for(std::chrono::seconds(5), [this]() {
+    this->process_timer_jobs();
+  });
 }
 
 void vds::_server_log_sync::stop()
@@ -118,6 +122,15 @@ void vds::_server_log_sync::require_unknown_records()
     this->connection_manager_.get(this->sp_)
       .broadcast(server_log_get_records_broadcast(unknown_records));
   }
+}
+
+void vds::_server_log_sync::process_timer_jobs()
+{
+  this->require_unknown_records();
+
+  this->sp_.get<itask_manager>().wait_for(std::chrono::seconds(5), [this]() {
+    this->process_timer_jobs();
+  });
 }
 
 //////////////////////////////////////////////////

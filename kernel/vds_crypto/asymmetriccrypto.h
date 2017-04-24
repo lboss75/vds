@@ -244,7 +244,7 @@ namespace vds {
   {
   public:
     certificate();
-    certificate(certificate && original);
+    certificate(const certificate & original);
     ~certificate();
 
     static certificate parse(const std::string & format);
@@ -292,7 +292,7 @@ namespace vds {
     int extension_by_NID(int nid) const;
     certificate_extension get_extension(int index) const;
 
-    certificate & operator = (certificate && original);
+    certificate & operator = (const certificate & original);
 
   private:
     friend class _certificate;
@@ -301,7 +301,7 @@ namespace vds {
     
     certificate(_certificate * impl);
     
-    _certificate * impl_;
+    std::shared_ptr<_certificate> impl_;
   };
   
   class _certificate_store;

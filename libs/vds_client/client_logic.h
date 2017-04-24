@@ -131,7 +131,10 @@ namespace vds {
       const std::string & user_login,
       const std::string & name,
       const const_data_buffer & data);
-    const_data_buffer download_file(const std::string & user_login);
+
+    async_task<const const_data_buffer & /*datagram*/> download_file(
+      const std::string & user_login,
+      const std::string & name);
 
   private:
     service_provider sp_;

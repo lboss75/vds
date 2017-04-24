@@ -35,6 +35,7 @@ All rights reserved
 #include "pipeline.h"
 #include "async_task.h"
 #include "shutdown_exception.h"
+#include "circular_buffer.h"
 
 #endif // !__VDS_CORE_H_
 

@@ -94,6 +94,7 @@ namespace vds {
     void on_server_log_get_records_broadcast(const connection_session & session, const server_log_get_records_broadcast & message);
 
     void require_unknown_records();
+    void process_timer_jobs();
   };
 
 }

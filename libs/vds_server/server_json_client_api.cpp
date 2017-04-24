@@ -90,6 +90,9 @@ vds::json_value * vds::_server_json_client_api::operator()(
             else if (client_messages::put_file_message::message_type == task_type_name) {
               task = this->process(scope, client_messages::put_file_message(task_object));
             }
+            else if (client_messages::get_file_message_request::message_type == task_type_name) {
+              task = this->process(scope, client_messages::get_file_message_request(task_object));
+            }
             else {
               this->log_.warning("Invalid request type \'%s\'", task_type_name.c_str());
               throw new std::runtime_error("Invalid request type " + task_type_name);
@@ -184,5 +187,17 @@ vds::_server_json_client_api::process(
       message.tmp_file())
     .then([version_id](const std::function<void(const vds::json_value *)> & done, const error_handler & on_error) {
     done(client_messages::put_file_message_response(version_id).serialize().get());
+  });
+}
+
+vds::async_task<const vds::json_value*> vds::_server_json_client_api::process(const service_provider & scope, const client_messages::get_file_message_request & message)
+{
+  return scope
+    .get<istorage_log>()
+    .get_file(
+      message.user_login(),
+      message.name())
+    .then([](const std::function<void(const vds::json_value *)> & done, const error_handler & on_error, const filename & tmp_file) {
+    done(client_messages::get_file_message_response(tmp_file).serialize().get());
   });
 }

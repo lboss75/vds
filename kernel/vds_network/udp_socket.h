@@ -298,7 +298,7 @@ namespace vds {
       ) : base_class(context),
         sp_(args.sp_),
         log_(args.sp_, "UDP Receive"),
-        addr_len_(sizeof(addr_))
+        buffer_(this)
 #ifndef _WIN32
       , event_(nullptr)
       , network_service_(args.sp_.get<inetwork_manager>().owner())
@@ -309,15 +309,27 @@ namespace vds {
 
       void operator()()
       {
-        this->processed();
+        this->buffer_.start();
       }
 
       void processed()
       {
         if (!this->sp_.get_shutdown_event().is_shuting_down()) {
+          this->buffer_.dequeue();
+        }
+      }
+
+      void data_require(uint8_t * data, uint32_t data_size){
+        if (!this->sp_.get_shutdown_event().is_shuting_down()) {
 #ifdef _WIN32
-          this->wsa_buf_.len = sizeof(this->buffer_);
-          this->wsa_buf_.buf = this->buffer_;
+          auto addr = (struct sockaddr *)data;
+          data += sizeof(sockaddr_in);
+          auto addr_len = (INT *)data;
+          *addr_len = sizeof(sockaddr_in);
+          data += sizeof(INT);
+
+          this->wsa_buf_.len = data_size - sizeof(sockaddr_in) - sizeof(INT);
+          this->wsa_buf_.buf = (CHAR *)data;
 
           DWORD flags = 0;
           DWORD numberOfBytesRecvd;
@@ -327,8 +339,8 @@ namespace vds {
             1,
             &numberOfBytesRecvd,
             &flags,
-            (struct sockaddr*)&this->addr_,
-            &this->addr_len_,
+            addr,
+            addr_len,
             &this->overlapped_, NULL)) {
             auto errorCode = WSAGetLastError();
             if (WSA_IO_PENDING != errorCode) {
@@ -355,16 +367,25 @@ namespace vds {
 #ifdef _WIN32
     void process(DWORD dwBytesTransfered) override
     {
-      this->next(&this->addr_, this->buffer_, (size_t)dwBytesTransfered);
+      this->buffer_.queue((uint32_t)(dwBytesTransfered + sizeof(sockaddr_in) + sizeof(INT)));
     }
 #endif
+
+    void push_data(const uint8_t * data, uint32_t data_size)
+    {
+      auto addr = (struct sockaddr_in *)data;
+      data += sizeof(sockaddr_in);
+      auto addr_len = (INT *)data;
+      data += sizeof(INT);
+
+      this->next(addr, data, data_size - sizeof(sockaddr_in) - sizeof(INT));
+    }
 
   private:
     const service_provider & sp_;
     logger log_;
-    struct sockaddr_in addr_;
-    socklen_t addr_len_;
-    char buffer_[4 * 4096];
+
+    circular_buffer<handler, 1 * 1024 * 1024, 8 * 1024> buffer_;
 
 #ifndef _WIN32
     network_socket::SOCKET_HANDLE s_;

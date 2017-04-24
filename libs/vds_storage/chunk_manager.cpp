@@ -43,6 +43,13 @@ vds::ichunk_manager::add(
   return this->owner_->impl_->add(version_id, user_login, name, fn);
 }
 
+vds::async_task<const vds::filename&> vds::ichunk_manager::get_file(
+  const guid & server_id, 
+  const std::string & version_id)
+{
+  return this->owner_->impl_->get_file(server_id, version_id);
+}
+
 vds::async_task<const vds::server_log_new_object &>
 vds::ichunk_manager::add(
   const const_data_buffer& data)
@@ -168,6 +175,19 @@ vds::_chunk_manager::add(
         this->storage_log_.get(this->sp_).add_to_local_log(result.serialize().get());
         done(result);
       });
+}
+
+vds::async_task<const vds::filename&> vds::_chunk_manager::get_file(
+  const guid & server_id,
+  const std::string & version_id)
+{
+  std::list<uint64_t> indexes;
+  this->db_.get(this->sp_).get_file_version_map(server_id, version_id, indexes);
+
+  return async_task::for_each(indexes,
+    [this, server_id](uint64_t index){
+      return this->get_object(server_id, index);
+  });
 }
 
 void vds::_chunk_manager::generate_chunk()

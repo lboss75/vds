@@ -86,6 +86,20 @@ namespace vds {
     std::list<server_log_new_object> items_;
   };
 
+  class server_log_file_version
+  {
+  public:
+    server_log_file_version(
+      const std::string & version_id,
+      const guid & server_id);
+
+    const std::string & version_id() const { return this->version_id_; }
+    const guid & server_id() const { return this->server_id_; }
+
+  private:
+    std::string version_id_;
+    guid server_id_;
+  };
 
   class server_log_sign
   {

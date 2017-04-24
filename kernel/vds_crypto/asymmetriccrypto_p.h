@@ -186,7 +186,7 @@ namespace vds {
   // openssl req -new -key user.key -out user.csr
   // openssl x509 -req -days 730 -in user.csr -CA cacert.crt -CAkey cakey.pem -CAcreateserial -out user.crt
   
-  class _certificate
+  class _certificate : public std::enable_shared_from_this<_certificate>
   {
   public:
     _certificate();

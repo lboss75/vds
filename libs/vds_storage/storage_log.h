@@ -70,7 +70,11 @@ namespace vds {
       const std::string & user_login,
       const std::string & name,
       const filename & tmp_file);
-    
+
+    async_task<const filename &> get_file(
+      const std::string & user_login,
+      const std::string & name);
+
     void reset(
       const certificate & root_certificate,
       const asymmetric_private_key & private_key,

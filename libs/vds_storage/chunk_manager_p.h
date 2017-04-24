@@ -29,6 +29,10 @@ namespace vds {
     
     async_task<const server_log_new_object &>
       add(const const_data_buffer& data);
+
+    async_task<const filename&> get_file(
+      const guid & server_id,
+      const std::string & version_id);
     
     void set_next_index(uint64_t next_index);
 

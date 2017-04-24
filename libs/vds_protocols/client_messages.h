@@ -129,15 +129,15 @@ namespace vds {
       std::unique_ptr<json_value> serialize() const;
 
       get_file_message_request(
-        const std::string & request_id,
-        const std::string & user_login);
+        const std::string & user_login,
+        const std::string & name);
 
-      const std::string & request_id() const { return this->request_id_; }
       const std::string & user_login() const { return this->user_login_; }
+      const std::string & name() const { return this->name_; }
 
     private:
-      std::string request_id_;
       std::string user_login_;
+      std::string name_;
     };
 
     class get_file_message_response
@@ -149,17 +149,11 @@ namespace vds {
       std::unique_ptr<json_value> serialize() const;
 
       get_file_message_response(
-        const std::string & request_id,
-        const std::string & error,
         const filename & tmp_file);
 
-      const std::string & request_id() const { return this->request_id_; }
-      const std::string & error() const { return this->error_; }
       const filename & tmp_file() const { return this->tmp_file_; }
 
     private:
-      std::string request_id_;
-      std::string error_;
       filename tmp_file_;
     };
   };

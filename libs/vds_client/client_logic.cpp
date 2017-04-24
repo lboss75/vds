@@ -270,32 +270,23 @@ vds::async_task<const std::string& /*version_id*/> vds::client_logic::put_file(
   });
 }
 
-vds::const_data_buffer vds::client_logic::download_file(const std::string & user_login)
+vds::async_task<const vds::const_data_buffer & /*datagram*/> vds::client_logic::download_file(
+  const std::string & user_login,
+  const std::string & name)
 {
   auto request_id = guid::new_guid().str();
   std::string error;
   std::string datagram;
 
-  if (!this->add_task_and_wait<client_messages::get_file_message_response>(
+  return this->send_request<client_messages::get_file_message_response>(
     client_messages::get_file_message_request(
-      request_id,
-      user_login).serialize()->str(),
-    [request_id, &error, &datagram](const client_messages::get_file_message_response & response)->bool {
-    if (request_id != response.request_id()) {
-      return false;
-    }
-
-    error = response.error();
-    //datagram = response.datagram();
-    return true;
-
-  })) {
-    throw new std::runtime_error("Timeout at registering new server");
-  }
-
-  if (!error.empty()) {
-    throw new std::runtime_error(error);
-  }
-
-  return base64::to_bytes(datagram);
+      user_login,
+      name).serialize())
+    .then([](
+      const std::function<void(const vds::const_data_buffer & /*datagram*/)> & done,
+      const error_handler & on_error,
+      const client_messages::get_file_message_response & response) {
+    
+    done(file::read_all(response.tmp_file()));
+  });
 }
