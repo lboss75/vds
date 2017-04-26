@@ -10,24 +10,6 @@ All rights reserved
 #include "node_manager.h"
 #include "messages.h"
 
-static std::vector<DWORD> locks;
-static std::mutex lock_mutex;
-
-class debug_lock
-{
-public:
-  debug_lock()
-  {
-    std::lock_guard<std::mutex> lock(lock_mutex);
-    locks.push_back(GetCurrentThreadId());
-  }
-  ~debug_lock()
-  {
-    std::lock_guard<std::mutex> lock(lock_mutex);
-    locks.erase(std::remove(locks.begin(), locks.end(), GetCurrentThreadId()), locks.end());
-  }
-};
-
 vds::connection_manager::connection_manager()
 {
 }
@@ -335,7 +317,6 @@ vds::async_task<> vds::_connection_manager::udp_server::input_message(
           auto p = this->hello_requests_.find(out_session_id);
           if (this->hello_requests_.end() != p) {
             std::unique_lock<std::shared_mutex> lock(this->sessions_mutex_);
-            debug_lock lll;
 
             this->sessions_[out_session_id].reset(new outgoing_session(
               this,
@@ -372,7 +353,6 @@ vds::async_task<> vds::_connection_manager::udp_server::input_message(
         this->log_.debug("command from %s", network_service::to_string(*from).c_str());
 
         std::shared_lock<std::shared_mutex> lock(this->sessions_mutex_);
-        debug_lock lll;
 
         auto p = this->sessions_.find(session_id);
         if (this->sessions_.end() != p) {
@@ -432,8 +412,7 @@ void vds::_connection_manager::udp_server::open_udp_session(const std::string & 
   
   std::lock_guard<std::mutex> lock_hello(this->hello_requests_mutex_);
   std::unique_lock<std::shared_mutex> lock_sessions(this->sessions_mutex_);
-  debug_lock lll;
-
+  
   for(;;){
     auto session_id = (uint32_t)std::rand();
     if(this->hello_requests_.end() == this->hello_requests_.find(session_id)
@@ -528,7 +507,6 @@ vds::_connection_manager::udp_server::register_incoming_session(
   session_key.generate();
 
   std::unique_lock<std::shared_mutex> lock(this->sessions_mutex_);
-  debug_lock lll;
 
   uint32_t session_id;
   for (;;) {
@@ -556,7 +534,6 @@ void vds::_connection_manager::udp_server::for_each_sessions(
   const std::function<void(const session & session)> & callback)
 {
   std::shared_lock<std::shared_mutex> lock(this->sessions_mutex_);
-  debug_lock lll;
 
   for (auto & p : this->sessions_) {
     callback(*p.second);

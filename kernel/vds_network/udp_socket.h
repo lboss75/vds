@@ -348,6 +348,15 @@ namespace vds {
             }
           }
 #else
+          this->addr_ = (struct sockaddr *)data;
+          data += sizeof(sockaddr_in);
+          this->addr_len_ = (socklen_t *)data;
+          *this->addr_len_ = sizeof(sockaddr_in);
+          data += sizeof(socklen_t);
+
+          this->data_len_ = data_size - sizeof(sockaddr_in) - sizeof(socklen_t);
+          this->data_ = data;
+          
           if(nullptr == this->event_) {
             this->event_ = event_new(
               this->network_service_->base_,
@@ -373,12 +382,22 @@ namespace vds {
 
     void push_data(const uint8_t * data, uint32_t data_size)
     {
+#ifdef _WIN32
       auto addr = (struct sockaddr_in *)data;
       data += sizeof(sockaddr_in);
-      auto addr_len = (INT *)data;
+      //auto addr_len = (INT *)data;
       data += sizeof(INT);
-
+      
       this->next(addr, data, data_size - sizeof(sockaddr_in) - sizeof(INT));
+#else
+      auto addr = (struct sockaddr_in *)data;
+      data += sizeof(sockaddr_in);
+      //auto addr_len = (socklen_t *)data;
+      data += sizeof(socklen_t);
+      
+      this->next(addr, data, data_size - sizeof(sockaddr_in) - sizeof(socklen_t));
+#endif
+
     }
 
   private:
@@ -391,23 +410,25 @@ namespace vds {
     network_socket::SOCKET_HANDLE s_;
     struct event * event_;
     network_service * network_service_;
+    
+    struct sockaddr * addr_;
+    socklen_t * addr_len_;
+    void * data_;
+    size_t data_len_;
+    
     static void callback(int fd, short event, void *arg)
     {
       auto pthis = reinterpret_cast<handler *>(arg);
-      pthis->addr_len_ = sizeof(pthis->addr_);
-
-      int len = recvfrom(fd, pthis->buffer_, sizeof(pthis->buffer_), 0,
-        (struct sockaddr *)&pthis->addr_, &pthis->addr_len_
-      );
       
-      pthis->log_.trace("Receive %d bytes from %s", len, network_service::to_string(pthis->addr_).c_str());
-
+      int len = recvfrom(fd, pthis->data_, pthis->data_len_, 0,
+        pthis->addr_, pthis->addr_len_);
+      
       if (len < 0) {
         int error = errno;
         throw new std::system_error(error, std::system_category(), "recvfrom");
       }
-
-      pthis->next(&pthis->addr_, pthis->buffer_, len);
+      
+      pthis->buffer_.queue((uint32_t)(len + sizeof(sockaddr_in) + sizeof(socklen_t)));
     }
 #endif//_WIN32
 
