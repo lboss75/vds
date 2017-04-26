@@ -52,7 +52,7 @@ static void collect_wwwroot(
 }
 
 vds::_server_http_api::_server_http_api(const service_provider& sp)
-: sp_(sp)
+: sp_(sp), log_(sp, "HTTP API")
 {
 }
 
@@ -80,8 +80,9 @@ vds::async_task<> vds::_server_http_api::start(
     [this, address, port, &certificate, &private_key](
       const std::function<void(void)> & done,
       const error_handler & on_error){
+      this->log_.debug("Start HTTP sever %s:%d", address.c_str(), port);
       dataflow(
-        socket_server(this->sp_, address.c_str(), port),
+        socket_server(this->sp_, address, port),
         vds::for_each<const service_provider &, network_socket &>::create_handler(
           socket_session(*this->router_, certificate, private_key))
       )

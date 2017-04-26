@@ -6,17 +6,14 @@ All rights reserved
 #include "stdafx.h"
 #include "client_logic.h"
 
-const char * vds::client_logic::endpoints_[] = {
-  "https://127.0.0.1:8050",
-  nullptr
-};
-
 vds::client_logic::client_logic(
   const service_provider & sp,
+  const std::string & server_address,
   certificate * client_certificate,
   asymmetric_private_key * client_private_key)
   : sp_(sp),
   log_(sp, "VDS Client logic"),
+  server_address_(server_address),
   client_certificate_(client_certificate),
   client_private_key_(client_private_key),
   filter_last_index_(0),
@@ -33,26 +30,24 @@ vds::client_logic::~client_logic()
 
 void vds::client_logic::start()
 {
-  for (auto p = endpoints_; nullptr != *p; ++p) {
-    url_parser::parse_addresses(*p,
-      [this](const std::string & protocol, const std::string & address)->bool {
-      if ("https" == protocol) {
-        auto url = url_parser::parse_network_address(address);
-        if (protocol == url.protocol) {
-          this->connection_queue_.push_back(
-            std::unique_ptr<client_connection<client_logic>>(
-              new client_connection<client_logic>(
-                this->sp_,
-                this,
-                url.server,
-                std::atoi(url.port.c_str()),
-                this->client_certificate_,
-                this->client_private_key_)));
-        }
+  url_parser::parse_addresses(this->server_address_,
+    [this](const std::string & protocol, const std::string & address)->bool {
+    if ("https" == protocol) {
+      auto url = url_parser::parse_network_address(address);
+      if (protocol == url.protocol) {
+        this->connection_queue_.push_back(
+          std::unique_ptr<client_connection<client_logic>>(
+            new client_connection<client_logic>(
+              this->sp_,
+              this,
+              url.server,
+              std::atoi(url.port.c_str()),
+              this->client_certificate_,
+              this->client_private_key_)));
       }
-      return true;
-    });
-  }
+    }
+    return true;
+  });
 
   this->process_timer_tasks();
 }
@@ -77,7 +72,7 @@ void vds::client_logic::connection_closed(client_connection<client_logic>& conne
 
 void vds::client_logic::connection_error(client_connection<client_logic>& connection, std::exception_ptr ex)
 {
-  this->log_.error("Connection %s:%d error %s", connection.address().c_str(), connection.port(), exception_what(ex));
+  this->log_.error("Connection %s:%d error %s", connection.address().c_str(), connection.port(), exception_what(ex).c_str());
 
   this->connection_mutex_.lock();
   this->connected_--;

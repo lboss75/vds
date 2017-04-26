@@ -97,7 +97,29 @@ void mock_client::init_server(
   const std::string& address,
   int port)
 {
-  this->start_vds(true, [root_password, address, port, this](const vds::service_provider&sp) {
+  vds::service_registrator registrator;
+
+  vds::mt_service mt_service;
+  vds::network_service network_service;
+  vds::file_logger logger(vds::ll_trace);
+  vds::crypto_service crypto_service;
+  vds::client client("https://127.0.0.1:8050");
+  vds::task_manager task_manager;
+
+  auto folder = vds::foldername(vds::foldername(vds::filename::current_process().contains_folder(), "clients"), std::to_string(this->index_));
+  folder.delete_folder(true);
+  folder.create();
+  registrator.set_root_folders(folder, folder);
+
+  registrator.add(mt_service);
+  registrator.add(logger);
+  registrator.add(network_service);
+  registrator.add(crypto_service);
+  registrator.add(task_manager);
+  registrator.add(client);
+
+  auto sp = registrator.build();
+  try {
     vds::barrier b;
     sp
       .get<vds::iclient>()
@@ -117,8 +139,15 @@ void mock_client::init_server(
         b.set();
       });
     b.wait();
-  },
-  true);
+  }
+  catch (...) {
+    try { registrator.shutdown(); }
+    catch (...) {}
+
+    throw;
+  }
+
+  registrator.shutdown();
 }
 
 void mock_client::upload_file(const std::string & login, const std::string & password, const std::string & name, const void * data, size_t data_size)
@@ -170,7 +199,7 @@ void mock_client::start_vds(bool full_client, const std::function<void(const vds
   vds::network_service network_service;
   vds::file_logger logger(vds::ll_trace);
   vds::crypto_service crypto_service;
-  vds::client client;
+  vds::client client("https://127.0.0.1:" + std::to_string(8050 + this->index_));
   vds::task_manager task_manager;
 
   auto folder = vds::foldername(vds::foldername(vds::filename::current_process().contains_folder(), "clients"), std::to_string(this->index_));
@@ -219,7 +248,7 @@ void mock_server::init_root(const std::string & root_password, int port)
   vds::network_service network_service;
   vds::file_logger logger(vds::ll_trace);
   vds::crypto_service crypto_service;
-  vds::client client;
+  vds::client client("https://127.0.0.1:" + std::to_string(port));
   vds::task_manager task_manager;
   vds::server server(true);
 
@@ -256,6 +285,7 @@ void mock_server::init_root(const std::string & root_password, int port)
     server_certificate.save(vds::filename(vds::foldername(folder, ".vds"), "server.crt"));
     server_private_key.save(vds::filename(vds::foldername(folder, ".vds"), "server.pkey"));
     
+    server.set_port(port);
     server.start(sp);
     
     sp.get<vds::istorage_log>().reset(

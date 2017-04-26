@@ -64,7 +64,7 @@ namespace vds {
         // Connect 
         if (0 > ::connect(this->s_.handle(), (struct sockaddr *)&addr, sizeof(addr))) {
           auto error = errno;
-          throw new std::system_error(error, std::system_category());
+          throw std::system_error(error, std::generic_category());
         }
 #endif
         this->next(this->s_);

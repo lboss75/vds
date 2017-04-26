@@ -23,6 +23,7 @@ namespace vds {
 
   private:
     service_provider sp_;
+    logger log_;
 
     std::unique_ptr<http_router> router_;
     
