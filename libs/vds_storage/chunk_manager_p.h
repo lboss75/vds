@@ -20,20 +20,12 @@ namespace vds {
       chunk_manager * owner);
     ~_chunk_manager();
 
-    async_task<const server_log_file_map &>
-      add(
-        const std::string & version_id,
-        const std::string & user_login,
-        const std::string & name,
-        const filename & fn);
     
     async_task<const server_log_new_object &>
       add(const const_data_buffer& data);
 
-    async_task<const filename&> get_file(
-      const guid & server_id,
-      const std::string & version_id);
-    
+    const_data_buffer get(const guid & server_id, uint64_t index);
+
     void set_next_index(uint64_t next_index);
 
     void start();

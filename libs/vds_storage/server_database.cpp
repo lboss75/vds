@@ -63,6 +63,11 @@ void vds::iserver_database::get_file_versions(const std::string & user_login, co
   this->owner_->impl_->get_file_versions(user_login, name, result);
 }
 
+void vds::iserver_database::get_file_version_map(const guid & server_id, const std::string & version_id, std::list<uint64_t>& result_indexes)
+{
+  this->owner_->impl_->get_file_version_map(server_id, version_id, result_indexes);
+}
+
 uint64_t vds::iserver_database::last_object_index(const guid& server_id)
 {
   return this->owner_->impl_->last_object_index(server_id);
@@ -203,6 +208,7 @@ void vds::_server_database::start()
       "CREATE TABLE file_map(\
       version_id VARCHAR(64) NOT NULL,\
       object_index INTEGER NOT NULL,\
+      order_num INTEGER NOT NULL,\
       CONSTRAINT pk_file_map PRIMARY KEY (version_id, object_index))");
 
     this->db_.execute(
@@ -347,13 +353,15 @@ void vds::_server_database::add_file(
       fm.user_login(),
       fm.name());
     
+    int index = 0;
     for(auto & item : fm.items()){
       this->add_file_map_statement_.execute(
         this->db_,
-        "INSERT INTO file_map(version_id,object_index)\
-        VALUES(@version_id,@object_index)",
+        "INSERT INTO file_map(version_id,object_index,order_num)\
+        VALUES(@version_id,@object_index,@order_num)",
         fm.version_id(),
-        item.index());
+        item.index(),
+        index++);
     }
 }
 
@@ -378,6 +386,24 @@ void vds::_server_database::get_file_versions(
   },
     user_login,
     name);
+}
+
+void vds::_server_database::get_file_version_map(const guid & server_id, const std::string & version_id, std::list<uint64_t>& result_indexes)
+{
+  this->get_file_version_map_query_.query(
+    this->db_,
+    "SELECT object_index FROM file_map\
+     WHERE version_id=@version_id\
+     ORDER BY order_num",
+    [&result_indexes](sql_statement & reader)->bool {
+
+    uint64_t index;
+    reader.get_value(0, index);
+
+    result_indexes.push_back(index);
+    return true;
+  },
+    version_id);
 }
 
 /////////////////////////////////////////////

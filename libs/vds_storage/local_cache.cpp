@@ -47,7 +47,8 @@ vds::filename vds::ilocal_cache::get_object_filename(const vds::guid& server_id,
 vds::_local_cache::_local_cache(
   const service_provider& sp,
   local_cache * owner)
-: owner_(owner),
+: sp_(sp),
+  owner_(owner),
   root_folder_(foldername(persistence::current_user(sp), ".vds"), "local_cache")
 {
   this->root_folder_.create();

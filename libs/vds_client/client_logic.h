@@ -94,7 +94,7 @@ namespace vds {
     async_task<const response_type & /*response*/>
     send_request(
       std::unique_ptr<json_value> && message,
-      const std::chrono::steady_clock::duration & request_timeout = std::chrono::seconds(10))
+      const std::chrono::steady_clock::duration & request_timeout = std::chrono::seconds(60))
     {
       std::unique_ptr<json_value> m = std::move(message);
       auto s = dynamic_cast<json_object *>(m.get());
@@ -113,6 +113,7 @@ namespace vds {
           const error_handler & on_error){
           std::lock_guard<std::mutex> lock(this->requests_mutex_);
           this->requests_.set(request_id, request_info {
+            task,
             [done](const json_value * response) { done(response_type(response)); },
             on_error });
           this->add_task(task);
@@ -154,14 +155,16 @@ namespace vds {
     std::mutex connection_mutex_;
     size_t connected_;
     
-    event_handler<> update_connection_pool_task_;
+    bool messages_sent_;
+    event_handler<> timer_task_;
 
     pipeline_queue<std::string, client_connection<client_logic>> outgoing_queue_;
     
-    void update_connection_pool();
+    void process_timer_tasks();
     
     struct request_info
     {
+      std::string task;
       std::function<void (const json_value * response)> done;
       error_handler on_error;
     };

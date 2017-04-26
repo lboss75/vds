@@ -111,6 +111,9 @@ bool vds::_inflate_handler::processed(const void *& next_data, size_t & next_len
       this->eof_ = true;
     }
     else if (Z_OK != result) {
+      if (Z_BUF_ERROR == result) {
+        return false;
+      }
       throw new std::runtime_error("inflate failed");
     }
 

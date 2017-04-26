@@ -24,8 +24,8 @@ void vds::task_manager::start(const service_provider & sp)
 void vds::task_manager::stop(const service_provider &)
 {
   try {
-    if (this->work_thread_.valid()) {
-      this->work_thread_.get();
+    if (this->work_thread_.joinable()) {
+      this->work_thread_.join();
     }
   }
   catch (...) {
@@ -68,8 +68,8 @@ void vds::task_manager::task_job::schedule(const std::chrono::time_point<std::ch
   std::lock_guard<std::mutex> lock(this->owner_->scheduled_mutex_);
   this->owner_->scheduled_.push_back(this);
 
-  if (!this->owner_->work_thread_.valid()) {
-    this->owner_->work_thread_ = std::async(std::launch::async, [this]() {
+  if (!this->owner_->work_thread_.joinable()) {
+    this->owner_->work_thread_ = std::thread([this]() {
       this->owner_->work_thread();
     });
   }

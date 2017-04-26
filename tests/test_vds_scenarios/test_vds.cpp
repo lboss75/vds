@@ -26,7 +26,7 @@ TEST(test_vds, test_initial)
 
     mock.upload_file(3, "test data", buffer.get(), len);
     
-    std::cout << "Waiting to sync logs\n";
+    //Waiting to sync logs
     std::this_thread::sleep_for(std::chrono::seconds(10));
 
     auto result = mock.download_data(4, "test data");

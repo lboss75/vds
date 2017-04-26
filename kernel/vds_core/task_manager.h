@@ -63,7 +63,7 @@ namespace vds {
     std::list<task_job *> scheduled_;
     std::condition_variable scheduled_changed_;
     std::mutex scheduled_mutex_;
-    std::future<void> work_thread_;
+    std::thread work_thread_;
 
     void work_thread();
   };

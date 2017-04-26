@@ -21,10 +21,10 @@ vds::client_logic::client_logic(
   client_private_key_(client_private_key),
   filter_last_index_(0),
   connected_(0),
-  update_connection_pool_task_(std::bind(&client_logic::update_connection_pool, this)),
-  outgoing_queue_(sp)
-{
-  
+  timer_task_(std::bind(&client_logic::process_timer_tasks, this)),
+  outgoing_queue_(sp),
+  messages_sent_(false)
+{  
 }
 
 vds::client_logic::~client_logic()
@@ -54,7 +54,7 @@ void vds::client_logic::start()
     });
   }
 
-  this->update_connection_pool();
+  this->process_timer_tasks();
 }
 
 void vds::client_logic::stop()
@@ -72,7 +72,7 @@ void vds::client_logic::connection_closed(client_connection<client_logic>& conne
   this->connected_--;
   this->connection_mutex_.unlock();
 
-  this->update_connection_pool();
+  this->process_timer_tasks();
 }
 
 void vds::client_logic::connection_error(client_connection<client_logic>& connection, std::exception_ptr ex)
@@ -83,7 +83,7 @@ void vds::client_logic::connection_error(client_connection<client_logic>& connec
   this->connected_--;
   this->connection_mutex_.unlock();
 
-  this->update_connection_pool();
+  this->process_timer_tasks();
 }
 
 void vds::client_logic::process_response(client_connection<client_logic>& connection, const json_value * response)
@@ -124,6 +124,14 @@ void vds::client_logic::process_response(client_connection<client_logic>& connec
 void vds::client_logic::cancel_request(const std::string& request_id)
 {
   std::lock_guard<std::mutex> lock(this->requests_mutex_);
+  auto p = this->requests_.find(request_id);
+  if (this->requests_.end() != p) {
+    imt_service::async(this->sp_,
+      [on_error = p->second.on_error](){
+      on_error(std::make_exception_ptr(std::runtime_error("Timeout")));
+    });
+  }
+
   this->requests_.remove(request_id);
 }
 
@@ -150,7 +158,10 @@ void vds::client_logic::node_install(const std::string & login, const std::strin
 void vds::client_logic::get_commands(vds::client_connection<vds::client_logic> & connection)
 {
   this->sp_.get<imt_service>().async(
-    [this, &connection](){ this->outgoing_queue_.get(connection); });
+    [this, &connection](){ 
+    if (this->outgoing_queue_.get(connection)) {
+      this->messages_sent_ = true;
+    }});
 }
 
 void vds::client_logic::add_task(const std::string & message)
@@ -182,7 +193,7 @@ std::string vds::client_logic::get_messages()
   return result;
 }
 */
-void vds::client_logic::update_connection_pool()
+void vds::client_logic::process_timer_tasks()
 {
   if (!this->connection_queue_.empty()) {
     if (
@@ -226,8 +237,18 @@ void vds::client_logic::update_connection_pool()
       });
     }
   }
+
+  if (!this->messages_sent_) {
+    std::lock_guard<std::mutex> lock(this->requests_mutex_);
+    for (decltype(this->requests_)::data_type::const_iterator r = this->requests_.begin(); r != this->requests_.end(); ++r) {
+      this->add_task(r->second.task);
+    }
+  }
+  else {
+    this->messages_sent_ = false;
+  }
   
-  this->sp_.get<itask_manager>().wait_for(std::chrono::seconds(5)) += this->update_connection_pool_task_;
+  this->sp_.get<itask_manager>().wait_for(std::chrono::seconds(5)) += this->timer_task_;
 }
 
 /*

@@ -47,6 +47,11 @@ namespace vds {
       session.send_to(message_type_id, get_binary, get_json);
     }
 
+    async_task<> download_object(
+      const guid & server_id,
+      uint64_t index,
+      const filename & target_file);
+
   private:
     service_provider sp_;
     connection_manager * const owner_;

@@ -21,5 +21,6 @@ All rights reserved
 #include "server_to_client_api.h"
 #include "node_manager.h"
 #include "server_log_sync.h"
+#include "file_manager.h"
 
 #endif // __VDS_PROTOCOLS_VDS_PROTOCOLS_H_

@@ -421,3 +421,10 @@ std::unique_ptr<vds::json_value> vds::server_log_file_map::serialize(bool add_ty
   return std::unique_ptr<vds::json_value>(result.release());
 }
 
+vds::server_log_file_version::server_log_file_version(
+  const std::string & version_id,
+  const guid & server_id)
+: version_id_(version_id),
+  server_id_(server_id)
+{
+}

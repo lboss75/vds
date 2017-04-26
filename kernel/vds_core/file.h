@@ -52,6 +52,7 @@ namespace vds {
     
     size_t read(void * buffer, size_t buffer_len);
     void write(const void * buffer, size_t buffer_len);
+    void write(const const_data_buffer & buf) { this->write(buf.data(), buf.size()); }
 
     size_t length() const;
 
@@ -248,6 +249,46 @@ namespace vds {
   private:
     filename filename_;
     file::file_mode mode_;
+  };
+
+  class append_to_file
+  {
+  public:
+    append_to_file(file & target)
+      : target_(target)
+    {
+    }
+
+    template <typename context_type>
+    class handler : public dataflow_step<context_type, void(void)>
+    {
+      using base_class = dataflow_step<context_type, void(void)>;
+    public:
+      handler(
+        const context_type & context,
+        const append_to_file & args
+      ) : base_class(context),
+        target_(args.target_)
+      {
+      }
+
+      void operator()(const void * data, size_t size)
+      {
+        if (0 == size) {
+          this->next();
+        }
+        else {
+          this->target_.write(data, size);
+          this->prev();
+        }
+      }
+
+    private:
+      file & target_;
+    };
+
+  private:
+    file & target_;
   };
 }
 

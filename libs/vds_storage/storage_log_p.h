@@ -57,16 +57,6 @@ namespace vds {
 
     void get_endpoints(std::map<std::string, std::string> & addresses);
 
-    async_task<> save_file(
-      const std::string & version_id,
-      const std::string & user_login,
-      const std::string & name,
-      const filename & tmp_file);
-
-    async_task<const filename &> get_file(
-      const std::string & user_login,
-      const std::string & name);
-
 
     const guid & current_server_id() const { return this->current_server_id_; }
     const certificate & server_certificate() const { return this->server_certificate_; }

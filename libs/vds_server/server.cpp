@@ -16,6 +16,8 @@ All rights reserved
 #include "server_udp_api.h"
 #include "node_manager.h"
 #include "node_manager_p.h"
+#include "file_manager.h"
+#include "file_manager_p.h"
 
 vds::server::server(bool for_init)
 : for_init_(for_init), impl_(new _server(this))
@@ -53,6 +55,10 @@ void vds::server::register_services(service_registrator& registrator)
 
   registrator.add_factory<node_manager>([this](const service_provider &, bool &)->node_manager {
     return node_manager(this->impl_->node_manager_.get());
+  });
+
+  registrator.add_factory<file_manager>([this](const service_provider &, bool &)->file_manager {
+    return file_manager(this->impl_->file_manager_.get());
   });
 
   registrator.add_factory<cert_manager>([this](const service_provider &, bool &)->cert_manager {
@@ -116,6 +122,7 @@ void vds::_server::start(const service_provider& sp)
   //this->peer_network_.reset(new peer_network(sp));
   this->local_cache_.reset(new local_cache(sp));
   this->chunk_manager_.reset(new chunk_manager(sp));
+  this->file_manager_.reset(new _file_manager(sp));
 
   this->server_database_->start();
   this->storage_log_->start();

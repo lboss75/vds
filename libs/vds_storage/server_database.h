@@ -47,6 +47,11 @@ namespace vds {
       const std::string & name,
       std::list<server_log_file_version> & result);
 
+    void get_file_version_map(
+      const guid & server_id,
+      const std::string & version_id,
+      std::list<uint64_t> & result_indexes);
+
     uint64_t last_object_index(
       const guid & server_id);
 

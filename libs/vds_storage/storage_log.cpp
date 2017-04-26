@@ -104,20 +104,6 @@ void vds::istorage_log::get_endpoints(std::map<std::string, std::string> & addre
   this->owner_->impl_->get_endpoints(addresses);
 }
 
-vds::async_task<> vds::istorage_log::save_file(
-  const std::string & version_id,
-  const std::string & user_login,
-  const std::string & name,
-  const filename & tmp_file)
-{
-  return this->owner_->impl_->save_file(version_id, user_login, name, tmp_file);
-}
-
-vds::async_task<const vds::filename&> vds::istorage_log::get_file(const std::string & user_login, const std::string & name)
-{
-  return this->owner_->impl_->get_file(user_login, name);
-}
-
 void vds::istorage_log::reset(
   const vds::certificate & root_certificate,
   const asymmetric_private_key & private_key,
@@ -346,45 +332,13 @@ void vds::_storage_log::get_endpoints(std::map<std::string, std::string> & addre
   this->db_.get(this->sp_).get_endpoints(addresses);
 }
 
-vds::async_task<> vds::_storage_log::save_file(
-  const std::string & version_id,
-  const std::string & user_login,
-  const std::string & name,
-  const filename & tmp_file)
-{
-  return this->chunk_manager_
-    .get(this->sp_)
-    .add(version_id, user_login, name, tmp_file)
-    .then([this](
-      const std::function<void(void)> & done,
-      const error_handler & on_error,
-      const server_log_file_map & fm) {
-        this->add_to_local_log(fm.serialize().get());
-        done();
-  });
 
   /*
   auto signature = asymmetric_sign::signature(hash::sha256(), this->current_server_key_, s.data());
   this->db_.add_object(this->current_server_id_, index, signature);
   return vds::storage_object_id(index, signature);
   */
-}
 
-vds::async_task<const vds::filename&> vds::_storage_log::get_file(const std::string & user_login, const std::string & name)
-{
-  std::list<server_log_file_version> versions;
-  this->db_.get(this->sp_).get_file_versions(user_login, name, versions);
-
-  if (versions.empty()) {
-    throw std::runtime_error("File not found");
-    return;
-  }
-
-  auto top_version = *versions.begin();
-  this->chunk_manager_
-    .get(this->sp_)
-    .get_file(top_version.server_id(), top_version.version_id());
-}
 
 void vds::_storage_log::process_timer_jobs()
 {

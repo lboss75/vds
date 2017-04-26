@@ -185,25 +185,25 @@ vds::async_task<const std::string& /*version_id*/> vds::_client::upload_file(
 
     this->log_(ll_trace, "Crypting data");
 
-    //symmetric_key transaction_key(symmetric_crypto::aes_256_cbc());
-    //transaction_key.generate();
+    symmetric_key transaction_key(symmetric_crypto::aes_256_cbc());
+    transaction_key.generate();
 
-    //binary_serializer key_data;
-    //transaction_key.serialize(key_data);
+    binary_serializer key_data;
+    transaction_key.serialize(key_data);
 
-    //auto key_crypted = user_certificate.public_key().encrypt(key_data.data());
+    auto key_crypted = user_certificate.public_key().encrypt(key_data.data());
 
-    //dataflow(
-    //  symmetric_encrypt(this->sp_, transaction_key),
-    //  collect_data())(
-    //    [this, key_crypted, user_private_key, user_login, name, done, on_error](const void * data, size_t data_size) {
+    dataflow(
+      symmetric_encrypt(transaction_key),
+      collect_data())(
+        [this, key_crypted, user_private_key, user_login, name, done, on_error](const void * data, size_t data_size) {
 
       binary_serializer to_sign;
-      //to_sign << key_crypted;
+      to_sign << key_crypted;
       to_sign.push_data(data, data_size);
 
       binary_serializer datagram;
-      //datagram << key_crypted;
+      datagram << key_crypted;
       datagram.push_data(data, data_size);
       datagram << asymmetric_sign::signature(
         hash::sha256(),
@@ -217,10 +217,10 @@ vds::async_task<const std::string& /*version_id*/> vds::_client::upload_file(
         name,
         datagram.data())
         .wait(done, on_error);
-    //},
-    //    [](std::exception_ptr ex) { std::rethrow_exception(ex); },
-    //  data,
-    //  data_size);
+    },
+        [](std::exception_ptr ex) { std::rethrow_exception(ex); },
+      data,
+      data_size);
 
   });
 }

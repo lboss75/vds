@@ -71,6 +71,11 @@ vds::event_source<const vds::connection_session &, const vds::const_data_buffer&
   return this->owner_->incoming_message(message_type_id);
 }
 
+vds::async_task<> vds::iconnection_manager::download_object(const guid & server_id, uint64_t index, const filename & target_file)
+{
+  return this->owner_->download_object(server_id, index, target_file);
+}
+
 void vds::iconnection_manager::broadcast(
   uint32_t message_type_id,
   const std::function<const_data_buffer(void)> & get_binary,
@@ -168,6 +173,11 @@ vds::event_source<const vds::connection_session & , const vds::const_data_buffer
   return this->input_message_handlers_[message_type_id];
 }
 
+
+vds::async_task<> vds::_connection_manager::download_object(const guid & server_id, uint64_t index, const filename & target_file)
+{
+  throw std::runtime_error("Not implemented");
+}
 
 vds::async_task<> vds::_connection_manager::start_udp_server(const url_parser::network_address& address)
 {
@@ -398,12 +408,14 @@ vds::async_task<> vds::_connection_manager::udp_server::input_message(
         else {
           this->log_.debug("Session %d not found", session_id);
         }
-        done();
       }
       catch (...) {
         this->log_.debug("Error at processing command");
         on_error(std::current_exception());
+        return;
       }
+
+      done();
       break;
     }
     }

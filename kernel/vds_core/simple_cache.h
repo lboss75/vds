@@ -25,6 +25,16 @@ namespace vds {
       return this->data_.end();
     }
 
+    typename data_type::const_iterator begin() const
+    {
+      return this->data_.begin();
+    }
+
+    typename data_type::const_iterator end() const
+    {
+      return this->data_.end();
+    }
+
     typename data_type::iterator end()
     {
       return this->data_.end();

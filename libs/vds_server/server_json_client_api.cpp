@@ -8,6 +8,7 @@ All rights reserved
 #include "server_json_client_api_p.h"
 #include "server.h"
 #include "node_manager.h"
+#include "file_manager.h"
 
 vds::server_json_client_api::server_json_client_api(
   const service_provider & sp
@@ -179,22 +180,25 @@ vds::_server_json_client_api::process(
   auto version_id = guid::new_guid().str();
   
   return scope
-    .get<istorage_log>()
-    .save_file(
+    .get<file_manager>()
+    .put_file(
       version_id,
       message.user_login(),
       message.name(),
       message.tmp_file())
     .then([version_id](const std::function<void(const vds::json_value *)> & done, const error_handler & on_error) {
+
     done(client_messages::put_file_message_response(version_id).serialize().get());
   });
 }
 
-vds::async_task<const vds::json_value*> vds::_server_json_client_api::process(const service_provider & scope, const client_messages::get_file_message_request & message)
+vds::async_task<const vds::json_value*> vds::_server_json_client_api::process(
+  const service_provider & scope,
+  const client_messages::get_file_message_request & message)
 {
   return scope
-    .get<istorage_log>()
-    .get_file(
+    .get<file_manager>()
+    .download_file(
       message.user_login(),
       message.name())
     .then([](const std::function<void(const vds::json_value *)> & done, const error_handler & on_error, const filename & tmp_file) {

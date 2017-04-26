@@ -33,28 +33,16 @@ vds::ichunk_manager::ichunk_manager(chunk_manager * owner)
 {
 }
 
-vds::async_task<const vds::server_log_file_map &>
-vds::ichunk_manager::add(
-  const std::string & version_id,
-  const std::string & user_login,
-  const std::string & name,
-  const filename & fn)
-{
-  return this->owner_->impl_->add(version_id, user_login, name, fn);
-}
-
-vds::async_task<const vds::filename&> vds::ichunk_manager::get_file(
-  const guid & server_id, 
-  const std::string & version_id)
-{
-  return this->owner_->impl_->get_file(server_id, version_id);
-}
-
 vds::async_task<const vds::server_log_new_object &>
 vds::ichunk_manager::add(
   const const_data_buffer& data)
 {
   return this->owner_->impl_->add(data);
+}
+
+vds::const_data_buffer vds::ichunk_manager::get(const guid & server_id, uint64_t index)
+{
+  return this->owner_->impl_->get(server_id, index);
 }
 
 void vds::ichunk_manager::set_next_index(uint64_t next_index)
@@ -78,42 +66,6 @@ vds::_chunk_manager::_chunk_manager(
 
 vds::_chunk_manager::~_chunk_manager()
 {
-}
-
-vds::async_task<const vds::server_log_file_map &>
-vds::_chunk_manager::add(
-  const std::string & version_id,
-  const std::string & user_login,
-  const std::string & name,
-  const filename & fn)
-{
-  auto result = std::make_shared<server_log_file_map>(version_id, user_login, name);
-
-  return create_async_task(
-    [this, fn, result](const std::function<void(const server_log_file_map &)> & done, const error_handler & on_error) {
-    dataflow(
-      read_file(fn, (size_t)5 * 1024 * 1024),
-      task_step([this, result](
-        const std::function<void(void) > & done,
-        const error_handler & on_error,
-        const std::function<void(void)> & prev,
-        const void * data, size_t size) {
-      if (0 == size) {
-        done();
-        return;
-      }
-
-      this->add(const_data_buffer(data, size)).wait(
-        [prev, result](const server_log_new_object & index) {
-        result->add(index);
-        prev();
-      },
-        on_error);
-    }))
-        (
-          [done, result]() { done(*result); },
-          on_error);
-  });
 }
 
 vds::async_task<const vds::server_log_new_object &>
@@ -177,17 +129,11 @@ vds::_chunk_manager::add(
       });
 }
 
-vds::async_task<const vds::filename&> vds::_chunk_manager::get_file(
+vds::const_data_buffer vds::_chunk_manager::get(
   const guid & server_id,
-  const std::string & version_id)
+  uint64_t index)
 {
-  std::list<uint64_t> indexes;
-  this->db_.get(this->sp_).get_file_version_map(server_id, version_id, indexes);
-
-  return async_task::for_each(indexes,
-    [this, server_id](uint64_t index){
-      return this->get_object(server_id, index);
-  });
+  return inflate::inflate_buffer(file::read_all(this->cache_.get(this->sp_).get_object_filename(server_id, index)));
 }
 
 void vds::_chunk_manager::generate_chunk()

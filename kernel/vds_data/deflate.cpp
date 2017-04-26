@@ -69,7 +69,7 @@ bool vds::_deflate_handler::push_data(
   this->strm_.next_out = this->buffer_;
   this->strm_.avail_out = CHUNK_SIZE;
   auto error = ::deflate(&this->strm_, this->eof_ ? Z_FINISH : Z_NO_FLUSH);
-  if (Z_OK != error) {
+  if (Z_OK != error && (!this->eof_ || Z_STREAM_END != error)) {
     throw new std::runtime_error("deflate failed");
   }
 

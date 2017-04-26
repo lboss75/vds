@@ -27,11 +27,11 @@ namespace vds {
       this->try_to_run();
     }
     
-    void get(target_type & target)
+    bool get(target_type & target)
     {
       std::unique_lock<std::mutex> lock(this->message_mutex_);
       this->callbacks_.push_back(std::unique_ptr<callback_handler>(new callback_handler(target)));
-      this->try_to_run();
+      return this->try_to_run();
     }
     
   private:

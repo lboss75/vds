@@ -46,6 +46,11 @@ namespace vds {
       const std::string & name,
       std::list<server_log_file_version> & result);
 
+    void get_file_version_map(
+      const guid & server_id,
+      const std::string & version_id,
+      std::list<uint64_t> & result_indexes);
+
 
     server_log_record add_local_record(
       const server_log_record::record_id & record_id,
@@ -115,11 +120,15 @@ namespace vds {
       
     prepared_statement<
       const std::string & /*version_id*/,
-      uint64_t /*index*/> add_file_map_statement_;
+      uint64_t /*index*/,
+      int /*order*/> add_file_map_statement_;
 
     prepared_query<
       const std::string & /*user_login*/,
       const std::string & /*name*/> get_file_versions_query_;
+
+    prepared_query<
+      const std::string & /*version_id*/> get_file_version_map_query_;
 
     /// Server log
     std::mutex server_log_mutex_;

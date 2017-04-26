@@ -49,7 +49,6 @@ namespace vds {
     void add_to_local_log(const json_value * record);
 
     size_t new_message_id();
-    const std::list<endpoint> & get_endpoints() const;
 
     vds::async_task<> register_server(const std::string & server_certificate);
 
@@ -64,16 +63,6 @@ namespace vds {
       const std::string & addresses);
 
     void get_endpoints(std::map<std::string, std::string> & addresses);
-
-    async_task<> save_file(
-      const std::string & version_id,
-      const std::string & user_login,
-      const std::string & name,
-      const filename & tmp_file);
-
-    async_task<const filename &> get_file(
-      const std::string & user_login,
-      const std::string & name);
 
     void reset(
       const certificate & root_certificate,

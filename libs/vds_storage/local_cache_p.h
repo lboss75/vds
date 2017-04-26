@@ -25,6 +25,7 @@ namespace vds {
       uint64_t index);
   
   private:
+    service_provider sp_;
     local_cache * owner_;
     foldername root_folder_;
   };

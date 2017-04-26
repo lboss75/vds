@@ -1,0 +1,44 @@
+#ifndef __VDS_PROTOCOLS_FILE_MANAGER_P_H_
+#define __VDS_PROTOCOLS_FILE_MANAGER_P_H_
+
+/*
+Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
+All rights reserved
+*/
+
+
+namespace vds {
+  class iconnection_manager;
+
+  class _file_manager
+  {
+  public:
+    _file_manager(const service_provider & sp);
+
+    async_task<> put_file(
+      const std::string & version_id,
+      const std::string & user_login,
+      const std::string & name,
+      const filename & fn);
+
+    async_task<const filename&> download_file(
+      const std::string & user_login,
+      const std::string & name);
+
+    async_task<const filename&> download_file(
+      const guid & server_id,
+      const std::string & version_id);
+
+
+  private:
+    service_provider sp_;
+
+    lazy_service<ilocal_cache> cache_;
+    lazy_service<iserver_database> db_;
+    lazy_service<iconnection_manager> connection_manager_;
+    lazy_service<ichunk_manager> chunk_manager_;
+    lazy_service<istorage_log> storage_log_;
+  };
+}
+
+#endif // __VDS_PROTOCOLS_FILE_MANAGER_P_H_
