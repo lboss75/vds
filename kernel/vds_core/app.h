@@ -56,19 +56,19 @@ namespace vds{
 
       static_cast<app_impl *>(this)->register_services(registrator);
       
-      auto sp = registrator.build();
+      auto sp = registrator.build("application");
       try {
         static_cast<app_impl *>(this)->main(sp);
       }
       catch (...) {
         try {
-          registrator.shutdown();
+          registrator.shutdown(sp);
         }
         catch (...) { }        
         throw;
       }     
       
-      registrator.shutdown();
+      registrator.shutdown(sp);
     }
   };
   

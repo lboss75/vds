@@ -176,7 +176,7 @@ namespace vds {
       ) : base_class(context), sp_(args.sp_),
         log_(args.sp_, "UDP Send")
 #ifndef _WIN32
-      , network_service_(args.sp_.get<inetwork_manager>().owner())
+      , network_service_((network_service *)&args.sp_.get<inetwork_manager>())
 #endif
       {
         this->s_ = args.socket_.handle();
@@ -310,7 +310,7 @@ namespace vds {
         buffer_(this)
 #ifndef _WIN32
       , event_(nullptr)
-      , network_service_(args.sp_.get<inetwork_manager>().owner())
+      , network_service_((network_service *)&args.sp_.get<inetwork_manager>())
 #endif
       {
         this->s_ = args.socket_.handle();

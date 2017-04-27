@@ -5,7 +5,7 @@ All rights reserved
 
 #include "stdafx.h"
 #include "service_provider.h"
-#include "service_provider_p.h"
+/*#include "service_provider_p.h"
 
 vds::service_provider::service_provider(std::shared_ptr<_service_provider> && impl)
   : impl_(impl)
@@ -94,3 +94,4 @@ void vds::service_registrator::add_service(size_t type_id, void * service)
 {
   this->impl_->add_service(type_id, service);
 }
+*/

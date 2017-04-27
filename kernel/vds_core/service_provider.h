@@ -57,7 +57,7 @@ namespace vds {
     template <typename property_type>
     void set_property(property_scope scope, property_type * value)
     {
-      this->set_property(property_scope scope, types::get_type_id<property_type>(), value);
+      this->set_property(scope, types::get_type_id<property_type>(), value);
     }
 
   private:

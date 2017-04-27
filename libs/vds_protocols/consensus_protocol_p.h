@@ -44,8 +44,6 @@ namespace vds {
       std::condition_variable messages_to_lead_cond_;
       std::list<std::unique_ptr<json_value>> messages_to_lead_;
 
-      event_handler<> check_leader_task_job_;
-
       struct node_info
       {
 

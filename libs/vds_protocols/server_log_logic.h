@@ -16,9 +16,6 @@ namespace vds {
 
     void add_record(const server_log_record & record);
 
-
-    event_source<const server_log_record::record_id &> record_not_found;
-
   private:
   };
 }

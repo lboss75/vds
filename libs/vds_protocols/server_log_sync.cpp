@@ -35,19 +35,9 @@ void vds::server_log_sync::stop(const service_provider&)
 vds::_server_log_sync::_server_log_sync(
   const service_provider & sp,
   server_log_sync * owner)
-: sp_(sp), log_(sp, "Server Log Sync"), owner_(owner),
-  new_local_record_(
-    [this](const server_log_record & record, const const_data_buffer & signature){
-      this->on_new_local_record(record, signature);
-    }),
-  record_broadcast_(
-    [this](const connection_session & /*session*/, const const_data_buffer & data) {
-      this->on_record_broadcast(server_log_record_broadcast(data));
-    }),
-  get_records_broadcast_(
-    [this](const connection_session & session, const const_data_buffer & data) {
-      this->on_server_log_get_records_broadcast(session, server_log_get_records_broadcast(data));
-    })
+: sp_(sp),
+  log_(sp, "Server Log Sync"),
+  owner_(owner)
 {
 }
 
@@ -57,22 +47,16 @@ vds::_server_log_sync::~_server_log_sync()
 
 void vds::_server_log_sync::start()
 {
-  this->sp_.get<istorage_log>().new_local_record_event() += this->new_local_record_;
-
-  this->sp_.get<iconnection_manager>().incoming_message(
-    (uint32_t)message_identification::server_log_record_broadcast_message_id) += this->record_broadcast_;
-
-  this->sp_.get<iconnection_manager>().incoming_message(
-    (uint32_t)server_log_get_records_broadcast::message_type_id) += this->get_records_broadcast_;
-
-  this->sp_.get<itask_manager>().wait_for(std::chrono::seconds(5), [this]() {
+  this->timer_.start(
+    this->sp_,
+    std::chrono::seconds(5), [this]() {
     this->process_timer_jobs();
   });
 }
 
 void vds::_server_log_sync::stop()
 {
-  this->sp_.get<istorage_log>().new_local_record_event() -= this->new_local_record_;
+  this->timer_.stop(this->sp_);
 }
 
 void vds::_server_log_sync::on_new_local_record(
@@ -80,16 +64,16 @@ void vds::_server_log_sync::on_new_local_record(
   const const_data_buffer & signature)
 {
   this->log_.debug("Broadcast %s:%d", record.id().source_id.str().c_str(), record.id().index);
-  this->connection_manager_.get(this->sp_)
+  this->sp_.get<iconnection_manager>()
     .broadcast(server_log_record_broadcast(record, signature));
 }
 
 void vds::_server_log_sync::on_record_broadcast(const server_log_record_broadcast & message)
 {
-  if(this->server_database_.get(this->sp_).save_record(message.record(), message.signature())){
+  if(this->sp_.get<iserver_database>().save_record(message.record(), message.signature())){
     this->log_.debug("Got %s:%d", message.record().id().source_id.str().c_str(), message.record().id().index);
 
-    this->connection_manager_.get(this->sp_)
+    this->sp_.get<iconnection_manager>()
       .broadcast(server_log_record_broadcast(message.record(), message.signature()));
     this->require_unknown_records();
   }
@@ -100,9 +84,9 @@ void vds::_server_log_sync::on_server_log_get_records_broadcast(const connection
   for (auto p : message.unknown_records()) {
     server_log_record record;
     const_data_buffer signature;
-      if(this->server_database_.get(this->sp_).get_record(p, record, signature)) {
+      if(this->sp_.get<iserver_database>().get_record(p, record, signature)) {
         this->log_.debug("Provided %s:%d", record.id().source_id.str().c_str(), record.id().index);
-        this->connection_manager_.get(this->sp_)
+        this->sp_.get<iconnection_manager>()
           .send_to(session, server_log_record_broadcast(record, signature));
       }
   }
@@ -111,7 +95,7 @@ void vds::_server_log_sync::on_server_log_get_records_broadcast(const connection
 void vds::_server_log_sync::require_unknown_records()
 {
   std::list<server_log_record::record_id> unknown_records;
-  this->server_database_.get(this->sp_).get_unknown_records(unknown_records);
+  this->sp_.get<iserver_database>().get_unknown_records(unknown_records);
 
   if (!unknown_records.empty()) {
 
@@ -119,7 +103,7 @@ void vds::_server_log_sync::require_unknown_records()
       this->log_.debug("Require %s:%d", p.source_id.str().c_str(), p.index);
     }
 
-    this->connection_manager_.get(this->sp_)
+    this->sp_.get<iconnection_manager>()
       .broadcast(server_log_get_records_broadcast(unknown_records));
   }
 }
@@ -127,10 +111,6 @@ void vds::_server_log_sync::require_unknown_records()
 void vds::_server_log_sync::process_timer_jobs()
 {
   this->require_unknown_records();
-
-  this->sp_.get<itask_manager>().wait_for(std::chrono::seconds(5), [this]() {
-    this->process_timer_jobs();
-  });
 }
 
 //////////////////////////////////////////////////

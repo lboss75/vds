@@ -55,7 +55,6 @@ vds::consensus_protocol::_server::_server(
   certificate_(certificate),
   private_key_(private_key),
   connection_manager_(connection_manager),
-  check_leader_task_job_(std::bind(&_server::leader_check, this)),
   state_(none),
   leader_check_timer_(0)
 {
@@ -135,8 +134,6 @@ void vds::consensus_protocol::_server::leader_check()
   default:
     throw new std::runtime_error("Invalid consensus protocol state");
   }
-  
-  this->sp_.get<itask_manager>().wait_for(std::chrono::seconds(1)) += this->check_leader_task_job_;
 }
 
 void vds::consensus_protocol::_server::become_leader()

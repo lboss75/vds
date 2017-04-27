@@ -24,20 +24,12 @@ namespace vds {
       int port      
     ) : 
       sp_(sp),
-      network_service_(sp.get<inetwork_manager>().owner_),
-      done_method_(done), error_method_(on_error),
-      shutdown_handler_(
-        [this]() {
-      imt_service::async(this->sp_, [this]() {
-        this->error_method_(std::make_exception_ptr(shutdown_exception()));
-      });
-    })
+      network_service_((network_service *)&sp.get<inetwork_manager>()),
+      done_method_(done), error_method_(on_error)
 #ifndef _WIN32
       , ev_accept_(nullptr)
 #endif
     {
-      this->sp_.get_shutdown_event() += shutdown_handler_;
-      
 #ifdef _WIN32
       this->s_ = WSASocket(AF_INET, SOCK_STREAM, 0, NULL, 0, WSA_FLAG_OVERLAPPED);
 
@@ -139,8 +131,6 @@ namespace vds {
     
     ~accept_socket_task()
     {
-      this->sp_.get_shutdown_event() -= shutdown_handler_;
-      
 #ifndef _WIN32
       event_free(this->ev_accept_);
       close(this->s_);
@@ -207,7 +197,6 @@ namespace vds {
     network_socket::SOCKET_HANDLE s_;
     done_method_type & done_method_;
     error_method_type & error_method_;
-    event_handler<> shutdown_handler_;
 #ifndef _WIN32
     event * ev_accept_;
     static void wait_accept(int fd, short event, void *arg)

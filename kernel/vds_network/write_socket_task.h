@@ -25,7 +25,7 @@ namespace vds {
       error_method_type & error_method
       )
     : sp_(sp),
-      network_service_(sp.get<inetwork_manager>().owner()),
+      network_service_((network_service *)&sp.get<inetwork_manager>()),
       done_method_(done_method), error_method_(error_method),
       data_(nullptr), data_size_(0)
 #ifdef _DEBUG

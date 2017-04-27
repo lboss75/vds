@@ -8,7 +8,7 @@ All rights reserved
 
 namespace vds {
   class _server_log_sync;
-  class server_log_sync : public iservice
+  class server_log_sync : public iservice_factory
   {
   public:
     server_log_sync();

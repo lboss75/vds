@@ -18,8 +18,6 @@ namespace vds {
     void add(const std::string & name, const std::string & body);
     void add(const std::string & name, const filename & file);
     
-    event_source<const filename & /*filename*/> chunk_ready;
-
   private:
     _compressed_archive * const impl_;
   };

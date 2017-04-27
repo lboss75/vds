@@ -82,7 +82,6 @@ namespace vds {
     service_provider sp_;
     server_database * owner_;
     database db_;
-    lazy_service<istorage_log> storage_log_;
 
     std::mutex operation_mutex_;
 

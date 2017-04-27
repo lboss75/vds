@@ -147,7 +147,7 @@ void mock_client::init_server(
     throw;
   }
 
-  registrator.shutdown();
+  registrator.shutdown(sp);
 }
 
 void mock_client::upload_file(const std::string & login, const std::string & password, const std::string & name, const void * data, size_t data_size)

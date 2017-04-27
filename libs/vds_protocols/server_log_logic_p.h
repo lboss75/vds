@@ -20,10 +20,7 @@ namespace vds {
 
   private:
     service_provider sp_;
-    lazy_service<iserver_database> db_;
     server_log_record::record_id current_id_;
-
-
   };
 }
 

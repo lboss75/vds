@@ -8,6 +8,52 @@ All rights reserved
 #include "mt_service.h"
 #include "shutdown_event.h"
 
+void vds::timer::start(
+  const vds::service_provider& sp,
+  const std::chrono::steady_clock::duration & period,
+  const std::function< void(void) >& callback)
+{
+  this->period_ = period;
+  this->handler_ = callback;
+  
+  this->schedule(sp);  
+}
+
+void vds::timer::stop(const vds::service_provider& sp)
+{
+  auto manager = static_cast<task_manager *>(&sp.get<itask_manager>());
+  
+  std::lock_guard<std::mutex> lock(manager->scheduled_mutex_);
+  manager->scheduled_.erase(
+    manager->scheduled_.begin(),
+    std::remove(
+      manager->scheduled_.begin(), manager->scheduled_.end(), this));
+}
+
+void vds::timer::execute(const vds::service_provider& sp)
+{
+  this->handler_();
+  this->schedule(sp);
+}
+
+void vds::timer::schedule(const vds::service_provider& sp)
+{
+  auto manager = static_cast<task_manager *>(&sp.get<itask_manager>());
+  
+  this->start_time_ = std::chrono::steady_clock::now() + this->period_;
+
+  std::lock_guard<std::mutex> lock(manager->scheduled_mutex_);
+  manager->scheduled_.push_back(this);
+
+  if (!manager->work_thread_.joinable()) {
+    manager->work_thread_ = std::thread([manager]() {
+      manager->work_thread();
+    });
+  }
+}
+
+
+
 void vds::task_manager::register_services(service_registrator & registrator)
 {
   registrator.add_service<itask_manager>(this);
@@ -38,16 +84,15 @@ void vds::task_manager::work_thread()
     std::chrono::steady_clock::duration timeout = std::chrono::seconds(5);
     auto now = std::chrono::steady_clock::now();
     for(auto task : this->scheduled_){
-      if(task->start_time() <= now){
+      if(task->start_time_ <= now){
         this->scheduled_.remove(task);
-        this->sp_.get<imt_service>().async([task](){
-          (*task)();
-          delete task;
+        this->sp_.get<imt_service>().async([this, task](){
+          task->execute(this->sp_);
         });
         break;
       }
       else {
-        auto delta = task->start_time() - now;
+        auto delta = task->start_time_ - now;
         if (timeout > delta) {
           timeout = delta;
         }
@@ -56,38 +101,4 @@ void vds::task_manager::work_thread()
     
     this->scheduled_changed_.wait_for(lock, timeout);
   }
-}
-
-void vds::task_manager::task_job::schedule(const std::chrono::time_point<std::chrono::steady_clock>& start)
-{
-  this->start_time_ = start;
-
-  std::lock_guard<std::mutex> lock(this->owner_->scheduled_mutex_);
-  this->owner_->scheduled_.push_back(this);
-
-  if (!this->owner_->work_thread_.joinable()) {
-    this->owner_->work_thread_ = std::thread([this]() {
-      this->owner_->work_thread();
-    });
-  }
-}
-
-vds::event_source<>& vds::itask_manager::wait_for(const std::chrono::steady_clock::duration & period)
-{
-  return this->schedule(std::chrono::steady_clock::now() + period);
-}
-
-vds::event_source<>&  vds::itask_manager::schedule(const std::chrono::time_point<std::chrono::steady_clock>& start)
-{
-  auto result = new task_manager::task_job((task_manager *)this);
-  result->schedule(start);
-  return *result;
-}
-
-void vds::itask_manager::wait_for(
-  const std::chrono::steady_clock::duration& period,
-  const std::function<void(void)>& callback)
-{
-  auto result = new task_manager::task_job((task_manager *)this, callback);
-  result->schedule(std::chrono::steady_clock::now() + period);
 }

@@ -7,10 +7,9 @@ All rights reserved
 */
 
 #include "windows_event.h"
-#include "events.h"
 
 namespace vds {
-    class shutdown_event : public event_source<>
+    class shutdown_event
     {
     public:
         shutdown_event();

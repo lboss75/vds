@@ -27,7 +27,7 @@ namespace vds {
       error_method_type & error_method,
       const network_socket & s
     ) : sp_(sp),
-    network_service_(sp.get<inetwork_manager>().owner()),
+    network_service_((network_service *)&sp.get<inetwork_manager>()),
     s_(s.handle()),
     next_method_(next_method), error_method_(error_method)
 #ifdef _DEBUG

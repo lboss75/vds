@@ -34,10 +34,6 @@ namespace vds {
         [&message]() { return message.serialize()->str(); });
     }
 
-    event_source<
-      const connection_session &,
-      const const_data_buffer &> & incoming_message(uint32_t message_type_id);
-
     async_task<> download_object(
       const guid & server_id,
       uint64_t index,

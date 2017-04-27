@@ -25,23 +25,8 @@ namespace vds {
     service_provider sp_;
     logger log_;
     server_log_sync * const owner_;
+    timer timer_;
     
-    event_handler<
-      const server_log_record & /*record*/,
-      const const_data_buffer & /*signature*/> new_local_record_;
-
-    event_handler<
-      const connection_session & /* session */,
-      const const_data_buffer & /*binary_form */> record_broadcast_;
-
-    event_handler<
-      const connection_session & /* session */,
-      const const_data_buffer & /*binary_form */> get_records_broadcast_;
-
-    lazy_service<iconnection_manager> connection_manager_;
-    lazy_service<istorage_log> storage_log_;
-    lazy_service<iserver_database> server_database_;
-
     void on_new_local_record(const server_log_record & record, const const_data_buffer & signature);
 
     class server_log_record_broadcast
