@@ -5,183 +5,92 @@ All rights reserved
 
 #include "stdafx.h"
 #include "service_provider.h"
+#include "service_provider_p.h"
 
-vds::iservice::~iservice()
+vds::service_provider::service_provider(std::shared_ptr<_service_provider> && impl)
+  : impl_(impl)
 {
 }
 
-vds::iservice_provider_impl::iservice_provider_impl()
+vds::service_provider vds::service_provider::create_scope(const std::string & name) const
+{
+  return this->impl_->create_scope(this, name);
+}
+
+uint64_t vds::service_provider::id() const
+{
+  return this->impl_->id();
+}
+
+const std::string & vds::service_provider::name() const
+{
+  return this->impl_->name();
+}
+
+const std::string & vds::service_provider::full_name() const
+{
+  return this->impl_->full_name();
+}
+
+vds::shutdown_event & vds::service_provider::get_shutdown_event() const
+{
+  return this->get_shutdown_event();
+}
+
+void * vds::service_provider::get(size_t type_id) const
+{
+  return this->impl_->get(type_id);
+}
+
+const vds::service_provider::property_holder * vds::service_provider::get_property(property_scope scope, size_t type_id) const
+{
+  return this->impl_->get_property(scope, type_id);
+}
+
+void vds::service_provider::set_property(property_scope scope, size_t type_id, property_holder * value)
+{
+  this->impl_->set_property(scope, type_id, value);
+}
+
+//////////////////////////////////////
+std::atomic_size_t vds::_service_provider::s_last_id_;
+
+vds::service_provider vds::_service_registrator::build(
+  const std::shared_ptr<_service_registrator> & pthis,
+  const std::string & name) const
+{
+  return service_provider(
+    std::make_shared<_service_provider>(
+      pthis, std::shared_ptr<_service_provider>(), name));
+}
+
+//////////////////////////////////////
+
+vds::service_provider::property_holder::~property_holder()
 {
 }
 
-vds::iservice_provider_impl::~iservice_provider_impl()
-{
-    for (auto handler : this->done_handlers_) {
-        handler();
-    }
-
-    for (auto p : this->scopped_objects_) {
-        delete p.second;
-    }
-}
-
-void vds::iservice_provider_impl::on_complete(const std::function<void(void)>& done)
-{
-    this->done_handlers_.push_back(done);
-}
-
-vds::service_provider vds::iservice_provider_impl::create_scope()
-{
-    return service_provider(
-      new scopped_service_provider(
-        this->shared_from_this()));
-}
-
-//////////////////////////////////////////////////////
-vds::scopped_service_provider::scopped_service_provider(
-    const std::shared_ptr<vds::iservice_provider_impl> & parent)
-    : parent_(parent)
-{
-  this->scopped_objects_[types::get_type_id<iscope_properties>()] = new object_holder<iscope_properties>(
-    iscope_properties(
-      new scope_properties_holder()));
-}
-
-vds::shutdown_event & vds::scopped_service_provider::get_shutdown_event()
-{
-    return this->parent_->get_shutdown_event();
-}
-
-vds::iservice_provider_impl::iservice_factory * vds::scopped_service_provider::get_factory(size_t type)
-{
-  return this->parent_->get_factory(type);
-}
-
-//////////////////////////////////////////////////////
 vds::service_registrator::service_registrator()
-    : impl_(new service_registrator_impl())
-{
-#ifdef _WIN32
-  auto error = CoInitializeEx(0, COINIT_APARTMENTTHREADED);
-  if (FAILED(error)) {
-    throw new std::system_error(error, std::system_category(), "Initialize COM failed");
-  }
-#endif//_WIN32
-}
-
-void vds::service_registrator::set_root_folders(
-  const vds::foldername& current_user_folder,
-  const vds::foldername& local_machine_folder)
-{
-  this->current_user_folder_ = current_user_folder;
-  this->local_machine_folder_ = local_machine_folder;
-}
-
-vds::service_provider vds::service_registrator::build() const
-{
-    return this->impl_->build(this->current_user_folder_, this->local_machine_folder_);
-}
-
-void vds::service_registrator::add(iservice & service)
-{
-    service.register_services(*this);
-    this->impl_->add(service);
-}
-
-void vds::service_registrator::shutdown()
-{
-    this->impl_->shutdown();
-}
-//////////////////////////////////////////////////////
-vds::service_provider::service_provider(iservice_provider_impl * impl)
-    : impl_(impl)
+  : impl_(std::make_shared<_service_registrator>())
 {
 }
 
-vds::service_provider::service_provider(const std::shared_ptr<iservice_provider_impl>& impl)
-    : impl_(impl)
+void vds::service_registrator::add(iservice_factory & factory)
 {
+  this->impl_->add(&factory);
 }
 
-void vds::service_provider::set_root_folders(
-  const vds::foldername& current_user_folder,
-  const vds::foldername& local_machine_folder)
+void vds::service_registrator::shutdown(service_provider & sp)
 {
-  this->current_user_folder_ = current_user_folder;
-  this->local_machine_folder_ = local_machine_folder;
+  this->impl_->shutdown(sp);
 }
 
-
-vds::service_provider vds::service_provider::create_scope() const
+vds::service_provider vds::service_registrator::build(const std::string & name) const
 {
-    return this->impl_->create_scope();
+  return this->impl_->build(this->impl_, name);
 }
 
-void vds::service_provider::on_complete(const std::function<void(void)>& done) const
+void vds::service_registrator::add_service(size_t type_id, void * service)
 {
-    this->impl_->on_complete(done);
+  this->impl_->add_service(type_id, service);
 }
-
-vds::shutdown_event & vds::service_provider::get_shutdown_event()
-{
-    return this->impl_->get_shutdown_event();
-}
-
-const vds::shutdown_event & vds::service_provider::get_shutdown_event() const
-{
-    return this->impl_->get_shutdown_event();
-}
-
-//////////////////////////////////////////////////////
-vds::service_registrator_impl::service_registrator_impl()
-{
-}
-
-vds::service_registrator_impl::~service_registrator_impl()
-{
-}
-
-void vds::service_registrator_impl::add(iservice & service)
-{
-    this->services_.push_back(&service);
-}
-
-void vds::service_registrator_impl::shutdown()
-{
-    service_provider result(this->shared_from_this());
-
-    this->shutdown_event_.set();
-    while (!this->services_.empty()) {
-        this->services_.front()->stop(result);
-        this->services_.pop_front();
-    }
-}
-
-vds::service_provider vds::service_registrator_impl::build(
-  const foldername & current_user_folder,
-  const foldername & local_machine_folder
-)
-{
-    service_provider result = this->create_scope();
-    result.set_root_folders(current_user_folder, local_machine_folder);
-
-    for (auto service : this->services_) {
-        service->start(result);
-    }
-
-    return result;
-}
-
-vds::iservice_provider_impl::iservice_factory::~iservice_factory()
-{
-}
-
-vds::iservice_provider_impl::iobject_holder::~iobject_holder()
-{
-}
-//////////////////////////////////////////////////////////////
-vds::scope_properties_holder::property_holder_base::~property_holder_base()
-{
-}
-
-

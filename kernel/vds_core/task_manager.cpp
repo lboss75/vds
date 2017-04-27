@@ -6,14 +6,11 @@ All rights reserved
 #include "stdafx.h"
 #include "task_manager.h"
 #include "mt_service.h"
+#include "shutdown_event.h"
 
 void vds::task_manager::register_services(service_registrator & registrator)
 {
-  registrator.add_factory<itask_manager>(
-    [this](const service_provider &, bool &)
-    {
-      return itask_manager(this);
-  });
+  registrator.add_service<itask_manager>(this);
 }
 
 void vds::task_manager::start(const service_provider & sp)
@@ -82,7 +79,7 @@ vds::event_source<>& vds::itask_manager::wait_for(const std::chrono::steady_cloc
 
 vds::event_source<>&  vds::itask_manager::schedule(const std::chrono::time_point<std::chrono::steady_clock>& start)
 {
-  auto result = new task_manager::task_job(this->owner_);
+  auto result = new task_manager::task_job((task_manager *)this);
   result->schedule(start);
   return *result;
 }
@@ -91,6 +88,6 @@ void vds::itask_manager::wait_for(
   const std::chrono::steady_clock::duration& period,
   const std::function<void(void)>& callback)
 {
-  auto result = new task_manager::task_job(this->owner_, callback);
+  auto result = new task_manager::task_job((task_manager *)this, callback);
   result->schedule(std::chrono::steady_clock::now() + period);
 }

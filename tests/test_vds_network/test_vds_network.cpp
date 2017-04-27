@@ -293,67 +293,66 @@ private:
 
 TEST(network_tests, test_server)
 {
-    vds::service_registrator registrator;
+  vds::service_registrator registrator;
 
-    vds::mt_service mt_service;
-    vds::network_service network_service;
-    vds::console_logger console_logger(vds::ll_trace);
+  vds::mt_service mt_service;
+  vds::network_service network_service;
+  vds::console_logger console_logger(vds::ll_trace);
 
-    registrator.add(console_logger);
-    registrator.add(mt_service);
-    registrator.add(network_service);
+  registrator.add(console_logger);
+  registrator.add(mt_service);
+  registrator.add(network_service);
 
-    vds::barrier done;
+  vds::barrier done;
 
-    {
-        auto sp = registrator.build();
-        
-        auto done_server = vds::lambda_handler(
-          []() {
-          }
-        );
-        auto error_server = vds::lambda_handler(
-          [](std::exception_ptr ex){
-            FAIL() << vds::exception_what(ex);
-          }
-        );
-        
-        vds::dataflow(
-          vds::socket_server(sp, "127.0.0.1", 8000),
-          echo_server(sp)
-        )(
-            done_server,
-            error_server
-        );
+  {
+    auto sp = registrator.build("network_tests::test_server");
 
-        auto done_client = vds::lambda_handler(
-          [&done]() {
-            done.set();
-          }
-        );
-        auto error_client = vds::lambda_handler(
-          [&done](std::exception_ptr ex) {
-          done.set();
-          FAIL() << vds::exception_what(ex);
-          }
-        );
-
-        
-        vds::dataflow(
-          vds::socket_connect(sp),
-          socket_client(sp)
-        )
-        (
-          done_client,
-          error_client,
-          "127.0.0.1",
-          8000);
-
-        done.wait();
+    auto done_server = vds::lambda_handler(
+      []() {
     }
+    );
+    auto error_server = vds::lambda_handler(
+      [](std::exception_ptr ex) {
+      FAIL() << vds::exception_what(ex);
+    }
+    );
+
+    vds::dataflow(
+      vds::socket_server(sp, "127.0.0.1", 8000),
+      echo_server(sp)
+    )(
+      done_server,
+      error_server
+      );
+
+    auto done_client = vds::lambda_handler(
+      [&done]() {
+      done.set();
+    }
+    );
+    auto error_client = vds::lambda_handler(
+      [&done](std::exception_ptr ex) {
+      done.set();
+      FAIL() << vds::exception_what(ex);
+    }
+    );
 
 
-    registrator.shutdown();
+    vds::dataflow(
+      vds::socket_connect(sp),
+      socket_client(sp)
+    )
+    (
+      done_client,
+      error_client,
+      "127.0.0.1",
+      8000);
+
+    done.wait();
+
+    registrator.shutdown(sp);
+  }
 }
 
 TEST(network_tests, test_udp_server)
@@ -371,7 +370,7 @@ TEST(network_tests, test_udp_server)
     vds::barrier done;
 
     {
-      auto sp = registrator.build();
+      auto sp = registrator.build("network_tests.test_udp_server");
 
       auto done_server = vds::lambda_handler([]() {
       });
@@ -426,10 +425,9 @@ TEST(network_tests, test_udp_server)
         );
 
       done.wait();
+
+      registrator.shutdown(sp);
     }
-
-
-    registrator.shutdown();
 }
 
 int main(int argc, char **argv) {

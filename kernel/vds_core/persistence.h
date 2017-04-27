@@ -10,6 +10,14 @@ All rights reserved
 #include "service_provider.h"
 
 namespace vds {
+
+  class persistence_values : public service_provider::property_holder
+  {
+  public:
+    foldername current_user_;
+    foldername local_machine_;
+  };
+
   class persistence
   {
   public:

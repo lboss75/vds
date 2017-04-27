@@ -11,11 +11,6 @@ All rights reserved
 #include "logger.h"
 #include <iostream>
 
-vds::inetwork_manager::inetwork_manager(network_service * owner)
-  : owner_(owner)
-{
-}
-
 vds::network_service::network_service()
 #ifndef _WIN32
 : dispatch_started_(false), base_(nullptr)
@@ -31,9 +26,7 @@ vds::network_service::~network_service()
 
 void vds::network_service::register_services(service_registrator & registator)
 {
-    registator.add_factory<inetwork_manager>([this] (const service_provider &, bool & is_scopped) {
-        return inetwork_manager(this);
-    });
+    registator.add_service<inetwork_manager>(this);
 }
 
 void vds::network_service::start(const service_provider & provider)

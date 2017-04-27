@@ -16,7 +16,7 @@ TEST(test_certificates, test_symmetric)
     registrator.add(console_logger);
     registrator.add(crypto_service);
     {
-      auto sp = registrator.build();
+      auto sp = registrator.build("test_symmetric");
 
       //Generate CA certificate
       std::string ca_certificate_text;
@@ -162,7 +162,7 @@ TEST(test_certificates, test_symmetric)
         ASSERT_TRUE(sub_certificate.is_ca_cert());
         ASSERT_TRUE(ca_certificate.is_ca_cert());
       }
+      registrator.shutdown(sp);
     }
-    registrator.shutdown();
     
 }

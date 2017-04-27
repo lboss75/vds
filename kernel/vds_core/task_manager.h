@@ -6,8 +6,22 @@
 #include "events.h"
 
 namespace vds {
- 
-  class task_manager : public iservice
+
+  class itask_manager
+  {
+  public:
+    static itask_manager get(const service_provider & sp)
+    {
+      return sp.get<itask_manager>();
+    }
+
+    event_source<> & wait_for(const std::chrono::steady_clock::duration & period);
+    event_source<> & schedule(const std::chrono::time_point<std::chrono::steady_clock> & start);
+
+    void wait_for(const std::chrono::steady_clock::duration & period, const std::function<void(void)> & callback);
+  };
+
+  class task_manager : public iservice_factory, public itask_manager
   {
   public:
     void register_services(service_registrator &) override;
@@ -69,27 +83,6 @@ namespace vds {
   };
   
  
-  class itask_manager
-  {
-  public:
-    itask_manager(task_manager * owner)
-    : owner_(owner)
-    {
-    }
-    
-    static itask_manager get(const service_provider & sp)
-    {
-      return sp.get<itask_manager>();
-    }
-    
-    event_source<> & wait_for(const std::chrono::steady_clock::duration & period);
-    event_source<> & schedule(const std::chrono::time_point<std::chrono::steady_clock> & start);
-    
-    void wait_for(const std::chrono::steady_clock::duration & period, const std::function<void(void)> & callback);
-
-  private:
-    task_manager * owner_;
-  };
 
 }
 

@@ -112,7 +112,7 @@ TEST(test_vds_crypto, test_symmetric)
     registrator.add(console_logger);
     registrator.add(crypto_service);
     {
-      auto sp = registrator.build();
+      auto sp = registrator.build("test_symmetric");
       
       size_t len;
       do
@@ -138,9 +138,9 @@ TEST(test_vds_crypto, test_symmetric)
         [](std::exception_ptr ex) {
         GTEST_FAIL() << vds::exception_what(ex);
       });
+
+      registrator.shutdown(sp);
     }
-    registrator.shutdown();
-    
 }
 
 TEST(test_vds_crypto, test_asymmetric)
@@ -153,7 +153,7 @@ TEST(test_vds_crypto, test_asymmetric)
   registrator.add(console_logger);
   registrator.add(crypto_service);
   {
-    auto sp = registrator.build();
+    auto sp = registrator.build("test_asymmetric");
 
     size_t len;
     do
@@ -176,9 +176,9 @@ TEST(test_vds_crypto, test_asymmetric)
     for (size_t i = 0; i < buffer.size(); ++i) {
       ASSERT_EQ(result[i], buffer[i]);
     }
-  }
-  registrator.shutdown();
 
+    registrator.shutdown(sp);
+  }
 }
 
 
@@ -192,7 +192,7 @@ TEST(test_vds_crypto, test_sign)
   registrator.add(console_logger);
   registrator.add(crypto_service);
   {
-    auto sp = registrator.build();
+    auto sp = registrator.build("test_sign");
     
     size_t len;
     do
@@ -246,9 +246,9 @@ TEST(test_vds_crypto, test_sign)
 
     ASSERT_EQ(unchanged_result, true);
     ASSERT_EQ(changed_result, false);
-  }
 
-  registrator.shutdown();
+    registrator.shutdown(sp);
+  }
 }
 
 int main(int argc, char **argv) {

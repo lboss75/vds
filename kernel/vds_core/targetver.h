@@ -34,6 +34,7 @@ All rights reserved
 
 #include <vector>
 #include <list>
+#include <map>
 #include <thread>
 #include <future>
 #include <chrono>

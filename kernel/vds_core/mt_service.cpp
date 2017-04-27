@@ -5,6 +5,7 @@ All rights reserved
 #include "stdafx.h"
 #include "mt_service.h"
 #include "mt_service_p.h"
+#include "shutdown_event.h"
 
 vds::mt_service::mt_service()
 {
@@ -16,9 +17,7 @@ vds::mt_service::~mt_service()
 
 void vds::mt_service::register_services(vds::service_registrator& registrator)
 {
-  registrator.add_factory<imt_service>([this](const service_provider & /*sp*/, bool &)->imt_service{
-    return imt_service(this);
-  });
+  registrator.add_service<imt_service>(this);
 }
 
 void vds::mt_service::start(const vds::service_provider& sp)
@@ -34,7 +33,7 @@ void vds::mt_service::stop(const vds::service_provider&)
 
 void vds::imt_service::async(const std::function<void(void)>& handler)
 {
-  this->owner_->impl_->async(handler);
+  ((mt_service *)this)->impl_->async(handler);
 }
 
 vds::_mt_service::_mt_service(const service_provider & sp)

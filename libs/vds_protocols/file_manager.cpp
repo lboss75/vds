@@ -46,6 +46,7 @@ vds::_file_manager::_file_manager(const service_provider & sp)
 
 vds::async_task<>
 vds::_file_manager::put_file(
+  const service_provider & sp,
   const std::string & version_id,
   const std::string & user_login,
   const std::string & name,
@@ -54,7 +55,7 @@ vds::_file_manager::put_file(
   auto result = std::make_shared<server_log_file_map>(version_id, user_login, name);
 
   return create_async_task(
-    [this, fn, result](const std::function<void(void)> & done, const error_handler & on_error) {
+    [this, sp, fn, result](const std::function<void(void)> & done, const error_handler & on_error) {
     dataflow(
       read_file(fn, (size_t)5 * 1024 * 1024),
       task_step([this, result](
@@ -67,7 +68,7 @@ vds::_file_manager::put_file(
         return;
       }
 
-      this->chunk_manager_.get(this->sp_).add(const_data_buffer(data, size)).wait(
+      sp.get<ichunk_manager>().add(const_data_buffer(data, size)).wait(
         [prev, result](const server_log_new_object & index) {
         result->add(index);
         prev();
@@ -75,8 +76,8 @@ vds::_file_manager::put_file(
         on_error);
     }))
         (
-          [this, done, result]() {
-            this->storage_log_.get(this->sp_).add_to_local_log(result->serialize().get());
+          [this, sp, done, result]() {
+            sp.get<istorage_log>().add_to_local_log(result->serialize().get());
             done();
           },
           on_error);

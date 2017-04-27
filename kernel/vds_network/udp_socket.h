@@ -14,7 +14,16 @@ namespace vds {
   class udp_socket
   {
   public:
-    udp_socket(const service_provider & sp)
+    udp_socket()
+#ifdef _WIN32
+      : s_(INVALID_SOCKET)
+#else
+      : s_(-1)
+#endif
+    {
+    }
+
+    void create(const service_provider & sp)
     {
 #ifdef _WIN32
       this->s_ = WSASocket(AF_INET, SOCK_DGRAM, IPPROTO_UDP, NULL, 0, WSA_FLAG_OVERLAPPED);
@@ -23,7 +32,7 @@ namespace vds {
         throw new std::system_error(error, std::system_category(), "create socket");
       }
 
-      sp.get<inetwork_manager>().owner_->associate(this->s_);
+      ((network_service &)sp.get<inetwork_manager>()).associate(this->s_);
 #else
       this->s_ = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
       if (0 > this->s_) {
@@ -92,7 +101,7 @@ namespace vds {
       const std::string & address,
       int port
     ) : sp_(sp), socket_(socket),
-      owner_(sp.get<inetwork_manager>().owner_),
+      owner_((network_service *)&sp.get<inetwork_manager>()),
       address_(address), port_(port)
     {
     }

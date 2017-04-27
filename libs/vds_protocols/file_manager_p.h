@@ -13,31 +13,24 @@ namespace vds {
   class _file_manager
   {
   public:
-    _file_manager(const service_provider & sp);
+    _file_manager();
 
     async_task<> put_file(
+      const service_provider & sp,
       const std::string & version_id,
       const std::string & user_login,
       const std::string & name,
       const filename & fn);
 
     async_task<const filename&> download_file(
+      const service_provider & sp,
       const std::string & user_login,
       const std::string & name);
 
     async_task<const filename&> download_file(
+      const service_provider & sp,
       const guid & server_id,
       const std::string & version_id);
-
-
-  private:
-    service_provider sp_;
-
-    lazy_service<ilocal_cache> cache_;
-    lazy_service<iserver_database> db_;
-    lazy_service<iconnection_manager> connection_manager_;
-    lazy_service<ichunk_manager> chunk_manager_;
-    lazy_service<istorage_log> storage_log_;
   };
 }
 

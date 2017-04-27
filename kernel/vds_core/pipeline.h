@@ -14,11 +14,7 @@ namespace vds {
   class pipeline
   {
   public:
-    pipeline(const service_provider & sp)
-    : queue_(sp)
-    {
-    }
-    
+   
     void push(argument_types... arguments)
     {
       this->queue_.push(std::tuple<argument_types...>(arguments...));

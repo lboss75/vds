@@ -13,7 +13,7 @@ namespace vds {
   {
   public:
     socket_connect(const service_provider & sp)
-      : network_service_(sp.get<inetwork_manager>().owner_)
+      : network_service_((network_service *)&sp.get<inetwork_manager>())
     {
     }
 

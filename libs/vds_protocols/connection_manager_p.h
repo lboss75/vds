@@ -18,18 +18,20 @@ namespace vds {
       const std::function<std::string(void)> & get_json) const = 0;
   };
 
-  class _connection_manager
+  class _connection_manager : public iconnection_manager
   {
   public:
     _connection_manager(
-      const vds::service_provider& sp,
       connection_manager * owner);
+
     ~_connection_manager();
 
-    void start();
-    void stop();
+    void start(const vds::service_provider& sp);
+    void stop(const vds::service_provider& sp);
 
-    void start_servers(const std::string & server_addresses);
+    void start_servers(
+      const vds::service_provider& sp,
+      const std::string & server_addresses);
     
     void broadcast(
       uint32_t message_type_id,
@@ -53,22 +55,31 @@ namespace vds {
       const filename & target_file);
 
   private:
-    service_provider sp_;
     connection_manager * const owner_;
-    logger log_;
         
-    async_task<> start_udp_server(const url_parser::network_address& address);
-    async_task<> start_https_server(const url_parser::network_address& address);
+    async_task<> start_udp_server(
+      const vds::service_provider& sp,
+      const url_parser::network_address& address);
+    async_task<> start_https_server(
+      const vds::service_provider& sp,
+      const url_parser::network_address& address);
     
     class udp_server
     {
     public:
       udp_server(_connection_manager * owner);
-      async_task<> start(const url_parser::network_address& address);
+
+      async_task<> start(
+        const service_provider & sp,
+        const url_parser::network_address& address);
       
       //UDP server handlers
       void socket_closed(std::list<std::exception_ptr> errors);
-      async_task<> input_message(const sockaddr_in * from, const void * data, size_t len);
+      async_task<> input_message(
+        const vds::service_provider& sp,
+        const sockaddr_in * from,
+        const void * data,
+        size_t len);
       
       template <typename next_step_type>
       void get_message(next_step_type & next)
@@ -76,7 +87,9 @@ namespace vds {
         this->message_queue_.get(next);
       }
       
-      void open_udp_session(const std::string & address);
+      void open_udp_session(
+        const service_provider & sp,
+        const std::string & address);
 
       void broadcast(
         uint32_t message_type_id,
@@ -85,10 +98,7 @@ namespace vds {
 
     private:
       _connection_manager * owner_;
-      service_provider sp_;
       udp_socket s_;
-      logger log_;
-      lazy_service<istorage_log> storage_log_;
       pipeline<std::string, uint16_t, const_data_buffer> message_queue_;
 
       class hello_request
@@ -195,7 +205,7 @@ namespace vds {
         const guid & server_id);
       
       void for_each_sessions(const std::function<void(const session &)> & callback);
-      void process_timer_jobs();
+      void process_timer_jobs(const service_provider & sp);
     };
     
     std::unique_ptr<udp_server> udp_server_;

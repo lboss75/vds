@@ -10,8 +10,27 @@ All rights reserved
 
 namespace vds {
   class _mt_service;
-  
-  class mt_service : public iservice
+
+  class imt_service
+  {
+  public:
+
+    void async(const std::function<void(void)> & handler);
+
+    template <typename class_name>
+    void async(void (class_name::*handler)(), class_name * owner)
+    {
+      this->async(std::bind(handler, owner));
+    }
+
+    static void async(const service_provider & sp, const std::function<void(void)> & handler)
+    {
+      sp.get<imt_service>().async(handler);
+    }
+  };
+
+
+  class mt_service : public iservice_factory, public imt_service
   {
   public:
     mt_service();
@@ -27,30 +46,6 @@ namespace vds {
     std::unique_ptr<_mt_service> impl_;
   };
   
-  class imt_service
-  {
-  public:
-    imt_service(mt_service * owner)
-    : owner_(owner)
-    {
-    }
-    
-    void async(const std::function<void(void)> & handler);
-
-    template <typename class_name>
-    void async(void (class_name::*handler)(), class_name * owner)
-    {
-      this->async(std::bind(handler, owner));
-    }
-
-    static void async(const service_provider & sp, const std::function<void(void)> & handler)
-    {
-      sp.get<imt_service>().async(handler);
-    }
-    
-  private:
-    mt_service * owner_;
-  };
 }
 
 #endif // __VDS_CORE_MT_SERVICE_H_

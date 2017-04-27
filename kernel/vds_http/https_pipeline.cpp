@@ -84,7 +84,7 @@ vds::_https_pipeline::~_https_pipeline()
 
 void vds::_https_pipeline::connect()
 {
-  auto sp = this->sp_.create_scope();
+  auto sp = this->sp_.create_scope("_https_pipeline");
   dataflow(
     socket_connect(sp),
     connection(sp, this)

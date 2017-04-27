@@ -36,6 +36,7 @@ All rights reserved
 #include "async_task.h"
 #include "shutdown_exception.h"
 #include "circular_buffer.h"
+#include "shutdown_event.h"
 
 #endif // !__VDS_CORE_H_
 

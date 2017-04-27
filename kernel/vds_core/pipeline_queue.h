@@ -15,23 +15,19 @@ namespace vds {
   class pipeline_queue
   {
   public:
-    pipeline_queue(const service_provider & sp)
-    : mt_service_(sp.get<imt_service>())
-    {
-    }
-    
-    void push(const message_type & message)
+   
+    void push(const service_provider & sp, const message_type & message)
     {
       std::unique_lock<std::mutex> lock(this->message_mutex_);
       this->messages_.push_back(message);
-      this->try_to_run();
+      this->try_to_run(sp);
     }
     
-    bool get(target_type & target)
+    bool get(const service_provider & sp, target_type & target)
     {
       std::unique_lock<std::mutex> lock(this->message_mutex_);
       this->callbacks_.push_back(std::unique_ptr<callback_handler>(new callback_handler(target)));
-      return this->try_to_run();
+      return this->try_to_run(sp);
     }
     
   private:
@@ -62,9 +58,8 @@ namespace vds {
     std::mutex message_mutex_;
     std::list<message_type> messages_;
     std::list<std::unique_ptr<callback_handler>> callbacks_;
-    imt_service mt_service_;
     
-    bool try_to_run()
+    bool try_to_run(const service_provider & sp)
     {
       if(this->messages_.empty() || this->callbacks_.empty()){
         return false;
@@ -75,7 +70,7 @@ namespace vds {
           callback_handler * s = c.release();
           this->callbacks_.remove(c);
 
-          this->mt_service_.async([s]() { std::unique_ptr<callback_handler>(s)->run(); });
+          imt_service::async(sp, [s]() { std::unique_ptr<callback_handler>(s)->run(); });
 
           return true;
         }

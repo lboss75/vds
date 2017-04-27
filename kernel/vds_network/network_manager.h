@@ -18,29 +18,10 @@ namespace vds {
 
     class inetwork_manager {
     public:
-        inetwork_manager(network_service * owner);
 
-        network_service * owner() const {
-          return this->owner_;
-        }
-        
-    private:
-      friend class socket_server;
-      friend class socket_connect;
-      friend class udp_server;
-      friend class udp_socket;
-      friend class udp_client;
-
-      template<
-        typename done_method_type,
-        typename error_method_type
-      >
-        friend  class accept_socket_task;
-
-      network_service * owner_;
     };
 
-    class network_service : public iservice
+    class network_service : public iservice_factory, public inetwork_manager
     {
     public:
         network_service();
@@ -56,7 +37,6 @@ namespace vds {
         static std::string to_string(const sockaddr_in & from);
         static std::string get_ip_address_string(const sockaddr_in & from);
     private:
-        friend class inetwork_manager;
         friend class network_socket;
         friend class udp_socket;
         friend class server_socket;

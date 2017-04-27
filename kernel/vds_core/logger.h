@@ -29,9 +29,9 @@ namespace vds {
     class log_writer
     {
     public:
-      log_writer(log_level level, const std::function<void(const log_record & record)> & impl);
+      log_writer(log_level level);
 
-      void write(const log_record & record) const;
+      virtual void write(const log_record & record) = 0;
 
       log_level level() const {
         return this->log_level_;
@@ -39,7 +39,6 @@ namespace vds {
 
     private:
       log_level log_level_;
-      std::function<void(const log_record & record)> impl_;
     };
 
     class logger {
@@ -103,36 +102,40 @@ namespace vds {
     private:
       service_provider sp_;
       std::string name_;
-      std::list<log_writer> log_writer_;
+      log_writer & log_writer_;
       log_level min_log_level_;
     };
 
-    class console_logger : public iservice
+    class console_logger : public iservice_factory, public log_writer
     {
     public:
       console_logger(log_level level);
 
+      //iservice_factory
       void register_services(service_registrator &) override;
       void start(const service_provider &) override;
       void stop(const service_provider &) override;
 
-    private:
-      log_level level_;
+      //log_writer
+      void write(const log_record & record) override;
     };
 
     class file;
-    class file_logger : public iservice
+    class file_logger : public iservice_factory, public log_writer
     {
     public:
       file_logger(log_level level);
 
+      //iservice_factory
       void register_services(service_registrator &) override;
       void start(const service_provider & sp) override;
       void stop(const service_provider & sp) override;
 
+      //log_writer
+      void write(const log_record & record) override;
+
     private:
-      log_level level_;
-      std::mutex file_mutext_;
+      std::mutex file_mutex_;
       std::unique_ptr<file> f_;
     };
 

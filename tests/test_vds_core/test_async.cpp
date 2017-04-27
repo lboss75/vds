@@ -19,29 +19,29 @@ TEST(mt_tests, test_async) {
     vds::barrier barrier;
 
     {
-        auto sp = registrator.build();
-        vds::dataflow(
-          test_async_object::sync_method(obj),
-          test_async_object::async_method(sp, obj)
-        )
-        (
-         [&obj, &barrier]() {
-            ASSERT_EQ(obj.state_, 2);
-            obj.state_++;
-            barrier.set();
-          },
-          [&barrier](std::exception_ptr ex) {
-              FAIL() << vds::exception_what(ex);
-              barrier.set();
-          },
-          10);
-        
-        barrier.wait();
+      auto sp = registrator.build("test_async");
+      vds::dataflow(
+        test_async_object::sync_method(obj),
+        test_async_object::async_method(sp, obj)
+      )
+      (
+        [&obj, &barrier]() {
+        ASSERT_EQ(obj.state_, 2);
+        obj.state_++;
+        barrier.set();
+      },
+        [&barrier](std::exception_ptr ex) {
+        FAIL() << vds::exception_what(ex);
+        barrier.set();
+      },
+        10);
+
+      barrier.wait();
+
+      ASSERT_EQ(obj.state_, 3);
+
+      registrator.shutdown(sp);
     }
-
-    ASSERT_EQ(obj.state_, 3);
-
-    registrator.shutdown();
 }
 
 test_async_object::test_async_object()

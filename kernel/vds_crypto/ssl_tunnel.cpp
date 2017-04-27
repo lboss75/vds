@@ -146,7 +146,7 @@ vds::_ssl_tunnel::_ssl_tunnel(
     SSL_set_accept_state(this->ssl_);
   }
   
-  scope.get<iscope_properties>().add_property(peer_certificate(this->owner_));
+  //scope.get<iscope_properties>().add_property(peer_certificate(this->owner_));
 }
 
 vds::_ssl_tunnel::~_ssl_tunnel()

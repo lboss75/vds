@@ -10,7 +10,7 @@ All rights reserved
 
 namespace vds {
 
-  class crypto_service : public iservice
+  class crypto_service : public iservice_factory
   {
   public:
     void register_services(service_registrator &) override;

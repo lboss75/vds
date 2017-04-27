@@ -119,7 +119,6 @@ namespace vds {
     };
     
   private:
-    service_provider sp_;
     symmetric_key key_;
     _symmetric_encrypt * create_implementation() const;
 

@@ -9,8 +9,9 @@ All rights reserved
 
 vds::foldername vds::persistence::current_user(const service_provider & sp)
 {
-  if (!sp.current_user_folder_.empty()) {
-    return sp.current_user_folder_;
+  auto props = sp.get_property<persistence_values>(service_provider::property_scope::root_scope);
+  if (nullptr != props && !props->current_user_.empty()) {
+    return props->current_user_;
   }
 
 #ifndef _WIN32
@@ -38,8 +39,9 @@ vds::foldername vds::persistence::current_user(const service_provider & sp)
 
 vds::foldername vds::persistence::local_machine(const service_provider & sp)
 {
-  if (!sp.local_machine_folder_.empty()) {
-    return sp.local_machine_folder_;
+  auto props = sp.get_property<persistence_values>(service_provider::property_scope::root_scope);
+  if (nullptr != props && !props->local_machine_.empty()) {
+    return props->local_machine_;
   }
 
 #ifndef _WIN32
