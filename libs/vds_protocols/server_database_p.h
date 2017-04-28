@@ -79,6 +79,7 @@ namespace vds {
       const server_log_record::record_id & id);
 
     uint64_t get_server_log_max_index(
+      const service_provider & sp,
       const guid & id);
 
     void get_unknown_records(
@@ -163,6 +164,7 @@ namespace vds {
       uint64_t /* target_index*/> server_log_add_link_statement_;
 
     void server_log_add_link(
+      const service_provider & sp,
       const guid & source_id,
       uint64_t source_index,
       const guid & target_id,
@@ -177,6 +179,7 @@ namespace vds {
       int /*state*/> server_log_add_statement_;
 
     void add_server_log(
+      const service_provider & sp,
       const guid & source_id,
       uint64_t source_index,
       const std::string & body,
@@ -191,6 +194,7 @@ namespace vds {
       int /*state*/> server_log_update_state_statement_;
 
     void server_log_update_state(
+      const service_provider & sp,
       const server_log_record::record_id & record_id,
       iserver_database::server_log_state state);
 
@@ -203,6 +207,7 @@ namespace vds {
       uint64_t /*source_index*/> server_log_get_parents_query_;
 
     void server_log_get_parents(
+      const service_provider & sp,
       const server_log_record::record_id & record_id,
       std::list<server_log_record::record_id> & parents);
 
@@ -211,6 +216,7 @@ namespace vds {
       uint64_t /*source_index*/> server_log_get_followers_query_;
 
     void server_log_get_followers(
+      const service_provider & sp,
       const server_log_record::record_id & record_id,
       std::list<server_log_record::record_id> & parents);
 

@@ -19,7 +19,7 @@ vds::server_log_record::server_log_record(const server_log_record & origin)
   message_(origin.message_->clone())
 {
 }
-
+/*
 vds::binary_deserializer & vds::operator >> (binary_deserializer & b, server_log_record & record)
 {
   b >> record.id_.source_id >> record.id_.index;
@@ -37,17 +37,17 @@ vds::binary_deserializer & vds::operator >> (binary_deserializer & b, server_log
   dataflow(
     json_parser("Message"),
     json_require_once())(
-      [&record](json_value * body) {
-    record.message_.reset(body);
-  },
-      [](std::exception_ptr ex) {},
+      [&record](const service_provider & sp, json_value * body) {
+        record.message_.reset(body);
+      },
+      [](const service_provider & sp, std::exception_ptr ex) {},
     sp,
     message.c_str(),
     message.length());
 
   return b;
 }
-
+*/
 
 vds::server_log_record::server_log_record(
   const record_id & id,

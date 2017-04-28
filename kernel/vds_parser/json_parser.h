@@ -50,6 +50,7 @@ namespace vds {
       }
 
       void operator()(
+        const service_provider & sp,
         const void * data,
         size_t len
         )
@@ -73,17 +74,17 @@ namespace vds {
               "Unexpected end of data");
           }
 
-          this->next(nullptr);
+          this->next(sp, nullptr);
         }
         else {
           this->data_ = (const char *)data;
           this->len_ = len;
 
-          this->processed();
+          this->processed(sp);
         }
       }
 
-      void processed()
+      void processed(const service_provider & sp)
       {
         for (; 0 < this->len_; this->len_--, this->data_++) {
           switch (*this->data_) {
@@ -158,7 +159,7 @@ namespace vds {
           case ST_ARRAY:
             switch (*this->data_) {
             case ']':
-              if (this->final_array()) {
+              if (this->final_array(sp)) {
                 return;
               }
               break;
@@ -203,7 +204,7 @@ namespace vds {
           case ST_ARRAY_ITEM:
             switch (*this->data_) {
             case ']':
-              if (this->final_array()) {
+              if (this->final_array(sp)) {
                 return;
               }
               break;
@@ -234,7 +235,7 @@ namespace vds {
               break;
 
             case '}':
-              if (this->final_object()) {
+              if (this->final_object(sp)) {
                 return;
               }
               break;
@@ -255,7 +256,7 @@ namespace vds {
           case ST_OBJECT_ITEM:
             switch (*this->data_) {
             case '}':
-              if (this->final_object()) {
+              if (this->final_object(sp)) {
                 return;
               }
               break;
@@ -668,7 +669,7 @@ namespace vds {
           }
         }
 
-        this->prev();
+        this->prev(sp);
       }
 
     private:
@@ -760,7 +761,7 @@ namespace vds {
         this->state_ = ST_ARRAY;
       }
 
-      bool final_array()
+      bool final_array(const service_provider & sp)
       {
         this->state_ = this->saved_states_.top();
         this->saved_states_.pop();
@@ -771,7 +772,7 @@ namespace vds {
           }
           this->len_--;
           this->data_++;
-          this->next(this->root_object_.release());
+          this->next(sp, this->root_object_.release());
           return true;
         }
         else {
@@ -809,7 +810,7 @@ namespace vds {
         this->state_ = ST_OBJECT;
       }
 
-      bool final_object()
+      bool final_object(const service_provider & sp)
       {
         this->state_ = this->saved_states_.top();
         this->saved_states_.pop();
@@ -820,7 +821,7 @@ namespace vds {
           }
           this->len_--;
           this->data_++;
-          this->next(this->root_object_.release());
+          this->next(sp, this->root_object_.release());
           return true;
         }
         else {
@@ -877,24 +878,24 @@ namespace vds {
 
       }
 
-      void operator()(json_value * item)
+      void operator()(const service_provider & sp, json_value * item)
       {
         if (nullptr == item) {
           if (!this->result_) {
-            this->error(std::make_exception_ptr(std::runtime_error("JSON object is required")));
+            this->error(sp, std::make_exception_ptr(std::runtime_error("JSON object is required")));
           }
           else {
-            this->next(this->result_.release());
+            this->next(sp, this->result_.release());
           }
         }
         else {
           if (!this->result_) {
             this->result_.reset(item);
-            this->prev();
+            this->prev(sp);
           }
           else {
             delete item;
-            this->error(std::make_exception_ptr(std::runtime_error("Only one JSON object has expected")));
+            this->error(sp, std::make_exception_ptr(std::runtime_error("Only one JSON object has expected")));
           }
         }
       }

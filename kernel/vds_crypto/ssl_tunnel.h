@@ -83,8 +83,8 @@ namespace vds {
 
     void start_work_circle();
     void work_circle();
-    void input_stream_processed();
-    void output_stream_processed();
+    void input_stream_processed(const service_provider & sp);
+    void output_stream_processed(const service_provider & sp);
   };
 
   class ssl_input_stream
@@ -199,10 +199,13 @@ namespace vds {
   }
 
   template<typename context_type>
-  inline void ssl_input_stream::handler<context_type>::operator()(const void * data, size_t len)
+  inline void ssl_input_stream::handler<context_type>::operator()(
+    const service_provider & sp,
+    const void * data,
+    size_t len)
   {
     if (0 == len) {
-      this->next(nullptr, 0);
+      this->next(sp, nullptr, 0);
     }
     else {
       this->tunnel_.write_input(data, len);
@@ -210,9 +213,9 @@ namespace vds {
   }
 
   template<typename context_type>
-  inline void ssl_input_stream::handler<context_type>::processed()
+  inline void ssl_input_stream::handler<context_type>::processed(const service_provider & sp)
   {
-    this->tunnel_.input_stream_processed();
+    this->tunnel_.input_stream_processed(sp);
   }
 
 
@@ -243,10 +246,10 @@ namespace vds {
   }
 
   template<typename context_type>
-  inline void ssl_output_stream::handler<context_type>::operator()(const void * data, size_t len)
+  inline void ssl_output_stream::handler<context_type>::operator()(const service_provider & sp, const void * data, size_t len)
   {
     if (0 == len) {
-      this->next(nullptr, 0);
+      this->next(sp, nullptr, 0);
     }
     else {
       this->tunnel_.write_decoded_output(data, len);
@@ -254,9 +257,9 @@ namespace vds {
   }
 
   template<typename context_type>
-  inline void ssl_output_stream::handler<context_type>::processed()
+  inline void ssl_output_stream::handler<context_type>::processed(const service_provider & sp)
   {
-    this->tunnel_.output_stream_processed();
+    this->tunnel_.output_stream_processed(sp);
   }
 }
 

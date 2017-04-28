@@ -38,9 +38,11 @@ void vds::iserver_database::add_cert(
 
 std::unique_ptr<vds::cert_record> vds::iserver_database::find_cert(
   const service_provider & sp,
-  const std::string & object_name) const
+  const std::string & object_name)
 {
-  return static_cast<const _server_database *>(this)->find_cert(sp, object_name);
+  return static_cast<_server_database *>(this)->find_cert(
+    sp,
+    object_name);
 }
 
 void vds::iserver_database::add_object(
@@ -157,7 +159,7 @@ void vds::iserver_database::delete_record(
   const service_provider & sp,
   const server_log_record::record_id & id)
 {
-  static_cast<_server_database *>(this)->delete_record(id);
+  static_cast<_server_database *>(this)->delete_record(sp, id);
 }
 
 vds::iserver_database::server_log_state vds::iserver_database::get_record_state(
@@ -182,7 +184,7 @@ void vds::_server_database::start(const service_provider & sp)
   this->db_.start(sp);
   uint64_t db_version;
 
-  filename db_filename(foldername(persistence::current_user(this->sp_), ".vds"), "local.db");
+  filename db_filename(foldername(persistence::current_user(sp), ".vds"), "local.db");
 
   if (!file::exists(db_filename)) {
     db_version = 0;
@@ -265,12 +267,14 @@ void vds::_server_database::start(const service_provider & sp)
   }
 }
 
-void vds::_server_database::stop()
+void vds::_server_database::stop(const service_provider & sp)
 {
   this->db_.close();
 }
 
-void vds::_server_database::add_cert(const cert_record & record)
+void vds::_server_database::add_cert(
+  const service_provider & sp,
+  const cert_record & record)
 {
   this->add_cert_statement_.execute(
     this->db_,
@@ -283,7 +287,9 @@ void vds::_server_database::add_cert(const cert_record & record)
     record.password_hash());
 }
 
-std::unique_ptr<vds::cert_record> vds::_server_database::find_cert(const std::string & object_name)
+std::unique_ptr<vds::cert_record> vds::_server_database::find_cert(
+  const service_provider & sp,
+  const std::string & object_name)
 {
   std::unique_ptr<cert_record> result;
   this->find_cert_query_.query(
@@ -314,6 +320,7 @@ std::unique_ptr<vds::cert_record> vds::_server_database::find_cert(const std::st
 }
 
 void vds::_server_database::add_object(
+  const service_provider & sp,
   const guid & server_id,
   const server_log_new_object & index)
 {
@@ -329,7 +336,9 @@ void vds::_server_database::add_object(
     index.target_hash());
 }
 
-uint64_t vds::_server_database::last_object_index(const guid& server_id)
+uint64_t vds::_server_database::last_object_index(
+  const service_provider & sp,
+  const guid& server_id)
 {
   uint64_t result = 0;
   this->last_object_index_query_.query(
@@ -345,6 +354,7 @@ uint64_t vds::_server_database::last_object_index(const guid& server_id)
 }
 
 void vds::_server_database::add_endpoint(
+  const service_provider & sp,
   const std::string & endpoint_id,
   const std::string & addresses)
 {
@@ -372,6 +382,7 @@ void vds::_server_database::get_endpoints(std::map<std::string, std::string>& re
 }
 
 void vds::_server_database::add_file(
+  const service_provider & sp,
   const guid & server_id,
   const server_log_file_map & fm)
 {
@@ -397,6 +408,7 @@ void vds::_server_database::add_file(
 }
 
 void vds::_server_database::get_file_versions(
+  const service_provider & sp,
   const std::string & user_login,
   const std::string & name,
   std::list<server_log_file_version> & result)
@@ -419,7 +431,11 @@ void vds::_server_database::get_file_versions(
     name);
 }
 
-void vds::_server_database::get_file_version_map(const guid & server_id, const std::string & version_id, std::list<uint64_t>& result_indexes)
+void vds::_server_database::get_file_version_map(
+  const service_provider & sp,
+  const guid & server_id,
+  const std::string & version_id,
+  std::list<uint64_t>& result_indexes)
 {
   this->get_file_version_map_query_.query(
     this->db_,
@@ -441,6 +457,7 @@ void vds::_server_database::get_file_version_map(const guid & server_id, const s
 
 vds::server_log_record
   vds::_server_database::add_local_record(
+    const service_provider & sp,
     const server_log_record::record_id & record_id,
     const json_value * message,
     const_data_buffer & signature)
@@ -470,12 +487,13 @@ vds::server_log_record
   std::string body = server_log_record(record_id, parents, message).serialize(false)->str();
   signature = asymmetric_sign::signature(
     hash::sha256(),
-    this->sp_.get<istorage_log>().server_private_key(),
+    sp.get<istorage_log>().server_private_key(),
     body.c_str(),
     body.length());
 
   //Register message
   this->add_server_log(
+    sp,
     record_id.source_id,
     record_id.index,
     message->str(),
@@ -484,9 +502,13 @@ vds::server_log_record
 
   //update tails & create links
   for (auto& p : parents) {
-    this->server_log_update_state(p, iserver_database::server_log_state::processed);
+    this->server_log_update_state(
+      sp,
+      p,
+      iserver_database::server_log_state::processed);
 
     this->server_log_add_link(
+      sp,
       p.source_id,
       p.index,
       record_id.source_id,
@@ -497,19 +519,20 @@ vds::server_log_record
 }
 
 bool vds::_server_database::save_record(
+  const service_provider & sp,
   const server_log_record & record,
   const const_data_buffer & signature)
 {
   std::lock_guard<std::mutex> lock(this->server_log_mutex_);
   
-  auto state = this->server_log_get_state(record.id());
+  auto state = this->server_log_get_state(sp, record.id());
   if (state != iserver_database::server_log_state::not_found) {
     return false;
   }
 
   state = iserver_database::server_log_state::front;
   for (auto& p : record.parents()) {
-    auto parent_state = this->server_log_get_state(p);
+    auto parent_state = this->server_log_get_state(sp, p);
     if(iserver_database::server_log_state::not_found == parent_state
       || iserver_database::server_log_state::stored == parent_state
       || iserver_database::server_log_state::front == parent_state) {
@@ -518,9 +541,17 @@ bool vds::_server_database::save_record(
     }
   }
 
-  this->add_server_log(record.id().source_id, record.id().index, record.message()->str(), signature, state);
+  this->add_server_log(
+    sp,
+    record.id().source_id,
+    record.id().index,
+    record.message()->str(),
+    signature,
+    state);
+  
   for (auto& p : record.parents()) {
     this->server_log_add_link(
+      sp,
       p.source_id,
       p.index,
       record.id().source_id,
@@ -531,6 +562,7 @@ bool vds::_server_database::save_record(
 }
 
 void vds::_server_database::server_log_add_link(
+  const service_provider & sp,
   const guid & source_id,
   uint64_t source_index,
   const guid & target_id,
@@ -547,6 +579,7 @@ void vds::_server_database::server_log_add_link(
 }
 
 void vds::_server_database::add_server_log(
+  const service_provider & sp,
   const guid & source_id,
   uint64_t source_index,
   const std::string & body,
@@ -564,7 +597,10 @@ void vds::_server_database::add_server_log(
     (int)state);
 }
 
-void vds::_server_database::server_log_update_state(const server_log_record::record_id & record_id, iserver_database::server_log_state state)
+void vds::_server_database::server_log_update_state(
+  const service_provider & sp,
+  const server_log_record::record_id & record_id,
+  iserver_database::server_log_state state)
 {
   this->server_log_update_state_statement_.execute(
     this->db_,
@@ -575,7 +611,9 @@ void vds::_server_database::server_log_update_state(const server_log_record::rec
 }
 
 vds::iserver_database::server_log_state
-vds::_server_database::server_log_get_state(const server_log_record::record_id & record_id)
+vds::_server_database::server_log_get_state(
+  const service_provider & sp,
+  const server_log_record::record_id & record_id)
 {
   vds::iserver_database::server_log_state result = iserver_database::server_log_state::not_found;
 
@@ -598,6 +636,7 @@ vds::_server_database::server_log_get_state(const server_log_record::record_id &
 }
 
 void vds::_server_database::server_log_get_parents(
+  const service_provider & sp,
   const server_log_record::record_id & record_id,
   std::list<server_log_record::record_id>& parents)
 {
@@ -621,6 +660,7 @@ void vds::_server_database::server_log_get_parents(
 }
 
 void vds::_server_database::server_log_get_followers(
+  const service_provider & sp,
   const server_log_record::record_id & record_id,
   std::list<server_log_record::record_id>& followers)
 {
@@ -643,16 +683,18 @@ void vds::_server_database::server_log_get_followers(
     record_id.index);
 }
 
-void vds::_server_database::processed_record(const server_log_record::record_id & id)
+void vds::_server_database::processed_record(
+  const service_provider & sp,
+  const server_log_record::record_id & id)
 {
   std::lock_guard<std::mutex> lock(this->server_log_mutex_);
 
   std::list<server_log_record::record_id> parents;
-  this->server_log_get_parents(id, parents);
+  this->server_log_get_parents(sp, id, parents);
   for (auto& p : parents) {
-    auto parent_state = this->server_log_get_state(p);
+    auto parent_state = this->server_log_get_state(sp, p);
     if (iserver_database::server_log_state::tail == parent_state) {
-      this->server_log_update_state(p, iserver_database::server_log_state::processed);
+      this->server_log_update_state(sp, p, iserver_database::server_log_state::processed);
       break;
     }
     else if (iserver_database::server_log_state::processed != parent_state) {
@@ -661,25 +703,25 @@ void vds::_server_database::processed_record(const server_log_record::record_id 
   }
 
   std::list<server_log_record::record_id> followers;
-  this->server_log_get_followers(id, followers);
+  this->server_log_get_followers(sp, id, followers);
 
   if (0 == followers.size()) {
-    this->server_log_update_state(id, iserver_database::server_log_state::tail);
+    this->server_log_update_state(sp, id, iserver_database::server_log_state::tail);
   }
   else {
-    this->server_log_update_state(id, iserver_database::server_log_state::processed);
+    this->server_log_update_state(sp, id, iserver_database::server_log_state::processed);
     
     for (auto& f : followers) {
-      auto state = this->server_log_get_state(f);
+      auto state = this->server_log_get_state(sp, f);
       switch (state) {
       case iserver_database::server_log_state::stored:
       {
         std::list<server_log_record::record_id> parents;
-        this->server_log_get_parents(f, parents);
+        this->server_log_get_parents(sp, f, parents);
 
         auto new_state = iserver_database::server_log_state::front;
         for (auto& p : parents) {
-          auto state = this->server_log_get_state(p);
+          auto state = this->server_log_get_state(sp, p);
           if (iserver_database::server_log_state::stored == state
             || iserver_database::server_log_state::front == state) {
             new_state = iserver_database::server_log_state::stored;
@@ -692,7 +734,7 @@ void vds::_server_database::processed_record(const server_log_record::record_id 
         }
 
         if (state != new_state) {
-          this->server_log_update_state(f, new_state);
+          this->server_log_update_state(sp, f, new_state);
         }
 
         break;
@@ -704,7 +746,9 @@ void vds::_server_database::processed_record(const server_log_record::record_id 
   }
 }
 
-uint64_t vds::_server_database::get_server_log_max_index(const guid & id)
+uint64_t vds::_server_database::get_server_log_max_index(
+  const service_provider & sp,
+  const guid & id)
 {
   uint64_t result = 0;
 
@@ -721,7 +765,9 @@ uint64_t vds::_server_database::get_server_log_max_index(const guid & id)
   return result;
 }
 
-void vds::_server_database::get_unknown_records(std::list<server_log_record::record_id>& result)
+void vds::_server_database::get_unknown_records(
+  const service_provider & sp,
+  std::list<server_log_record::record_id>& result)
 {
   this->get_unknown_records_query_.query(
     this->db_,
@@ -746,6 +792,7 @@ void vds::_server_database::get_unknown_records(std::list<server_log_record::rec
 }
 
 bool vds::_server_database::get_record(
+  const service_provider & sp,
   const server_log_record::record_id & id,
   server_log_record & result_record,
   const_data_buffer & result_signature)
@@ -771,19 +818,20 @@ bool vds::_server_database::get_record(
 
   if (result) {
     std::list<server_log_record::record_id> parents;
-    this->server_log_get_parents(id, parents);
+    this->server_log_get_parents(sp, id, parents);
 
     dataflow(
       json_parser("Message body"),
       json_require_once()
     )(
-      [&id, &result_record, &parents](json_value * message) {
+      [&id, &result_record, &parents](const service_provider & sp, json_value * message) {
         result_record.reset(
           id,
           parents,
           message);
       },
-      [](std::exception_ptr ex) { std::rethrow_exception(ex); },
+      [](const service_provider & sp, std::exception_ptr ex) { std::rethrow_exception(ex); },
+      sp,
       message.c_str(),
       message.length());
   }
@@ -792,21 +840,26 @@ bool vds::_server_database::get_record(
 }
 
 bool vds::_server_database::get_front_record(
+  const service_provider & sp,
   server_log_record & result_record,
   const_data_buffer & result_signature)
 {
   return this->get_record_by_state(
+    sp,
     iserver_database::server_log_state::front,
     result_record,
     result_signature);    
 }
 
-void vds::_server_database::delete_record(const server_log_record::record_id & id)
+void vds::_server_database::delete_record(
+  const service_provider & sp,
+  const server_log_record::record_id & id)
 {
   throw std::runtime_error("Not implemented");
 }
 
 bool vds::_server_database::get_record_by_state(
+  const service_provider & sp,
   iserver_database::server_log_state state,
   server_log_record & result_record,
   const_data_buffer & result_signature)
@@ -834,19 +887,25 @@ bool vds::_server_database::get_record_by_state(
 
   if (result) {
     std::list<server_log_record::record_id> parents;
-    this->server_log_get_parents(id, parents);
+    this->server_log_get_parents(sp, id, parents);
 
     dataflow(
       json_parser("Message body"),
       json_require_once()
     )(
-      [&id, &result_record, &parents](json_value * message) {
+      [&id, &result_record, &parents](
+        const service_provider & sp,
+        json_value * message) {
         result_record.reset(
           id,
           parents,
           message);
       },
-      [](std::exception_ptr ex) { std::rethrow_exception(ex); },
+      [](const service_provider & sp,
+         std::exception_ptr ex) {
+        std::rethrow_exception(ex); 
+      },
+      sp,
       message.c_str(),
       message.length());
   }

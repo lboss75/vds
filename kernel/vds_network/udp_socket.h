@@ -247,7 +247,8 @@ namespace vds {
       {
         auto pthis = reinterpret_cast<handler *>(arg);
         try {
-          psp.get<logger>().trace("Send %d bytes to %s", pthis->data_size_, network_service::to_string(*pthis->to_).c_str());
+          logger::get(pthis->sp_).trace(pthis->sp_,
+            "Send %d bytes to %s", pthis->data_size_, network_service::to_string(*pthis->to_).c_str());
           
           int len = sendto(fd, pthis->data_, pthis->data_size_, 0, (sockaddr *)pthis->to_, sizeof(*pthis->to_));
           if (len < 0) {
@@ -315,18 +316,18 @@ namespace vds {
 
       void operator()(const service_provider & sp)
       {
-        this->buffer_.start();
+        this->buffer_.start(sp);
       }
 
       void processed(const service_provider & sp)
       {
         if (!this->sp_.get_shutdown_event().is_shuting_down()) {
-          this->buffer_.dequeue();
+          this->buffer_.dequeue(sp);
         }
       }
 
-      void data_require(uint8_t * data, uint32_t data_size){
-        if (!this->sp_.get_shutdown_event().is_shuting_down()) {
+      void data_require(const vds::service_provider & sp, uint8_t * data, uint32_t data_size){
+        if (!sp.get_shutdown_event().is_shuting_down()) {
 #ifdef _WIN32
           auto addr = (struct sockaddr *)data;
           data += sizeof(sockaddr_in);
@@ -386,7 +387,7 @@ namespace vds {
     }
 #endif
 
-    void push_data(const uint8_t * data, uint32_t data_size)
+    void push_data(const service_provider & sp, const uint8_t * data, uint32_t data_size)
     {
 #ifdef _WIN32
       auto addr = (struct sockaddr_in *)data;
@@ -394,14 +395,14 @@ namespace vds {
       //auto addr_len = (INT *)data;
       data += sizeof(INT);
       
-      this->next(addr, data, data_size - sizeof(sockaddr_in) - sizeof(INT));
+      this->next(sp, addr, data, data_size - sizeof(sockaddr_in) - sizeof(INT));
 #else
       auto addr = (struct sockaddr_in *)data;
       data += sizeof(sockaddr_in);
       //auto addr_len = (socklen_t *)data;
       data += sizeof(socklen_t);
       
-      this->next(addr, data, data_size - sizeof(sockaddr_in) - sizeof(socklen_t));
+      this->next(sp, addr, data, data_size - sizeof(sockaddr_in) - sizeof(socklen_t));
 #endif
 
     }
@@ -432,7 +433,7 @@ namespace vds {
         throw new std::system_error(error, std::system_category(), "recvfrom");
       }
       
-      pthis->buffer_.queue((uint32_t)(len + sizeof(sockaddr_in) + sizeof(socklen_t)));
+      pthis->buffer_.queue(pthis->sp_, (uint32_t)(len + sizeof(sockaddr_in) + sizeof(socklen_t)));
     }
 #endif//_WIN32
 
@@ -466,7 +467,10 @@ private:
         sp_(args.sp_),
         s_(args.s_),
         owner_(args.owner_),
-        multi_handler_(2, [this](std::list<std::exception_ptr> & errors) { this->owner_.socket_closed(this->sp_, errors); })
+        multi_handler_(2, [this](
+          const service_provider & sp,
+          std::list<std::exception_ptr> & errors) { 
+          this->owner_.socket_closed(sp, errors); })
       {
       }
       
@@ -520,8 +524,8 @@ private:
           this->owner_
             .input_message(sp, from, data, len)
             .wait(
-              [this](const service_provider & sp) { this->prev(); },
-              [this](const service_provider & sp, std::exception_ptr ex) { this->error(ex); },
+              [this](const service_provider & sp) { this->prev(sp); },
+              [this](const service_provider & sp, std::exception_ptr ex) { this->error(sp, ex); },
               sp);
         }
       }
@@ -563,14 +567,14 @@ private:
         {
         }
         
-        void operator()(const std::string & address, uint16_t port, const const_data_buffer & data)
+        void operator()(const service_provider & sp, const std::string & address, uint16_t port, const const_data_buffer & data)
         {
           this->data_ = data;
           this->from_.sin_family = AF_INET;
           this->from_.sin_addr.s_addr = inet_addr(address.c_str());
           this->from_.sin_port = htons(port);
 
-          this->owner_.next(&this->from_, this->data_.data(), this->data_.size());
+          this->owner_.next(sp, &this->from_, this->data_.data(), this->data_.size());
         }
         
       private:
@@ -597,7 +601,10 @@ private:
     handler_class & handler)
   {
     return create_async_task(
-      [&s, address, port, &handler] (const std::function<void(const service_provider & sp)> & done, const error_handler & on_error, const service_provider & sp){
+      [&s, address, port, &handler] (
+        const std::function<void(const service_provider & sp)> & done,
+        const error_handler & on_error,
+        const service_provider & sp){
         dataflow(
           udp_server(sp, s, address, port),
           _run_udp_server<handler_class>(sp, s, handler)

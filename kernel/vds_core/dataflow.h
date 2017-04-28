@@ -156,7 +156,7 @@ namespace vds {
     > next_step_t;
     typedef method_proxy<
       typename context_type::error_method_t,
-      void(std::exception_ptr)> error_method_t;
+      void(const service_provider & sp, std::exception_ptr)> error_method_t;
 #else
     typedef typename context_type::next_step_t & next_step_t;
     typedef typename context_type::error_method_t & error_method_t;
@@ -510,7 +510,7 @@ namespace vds {
         handler->holder_.step(sp, args...);
       }
       catch (...) {
-        error_method(std::current_exception());
+        error_method(sp, std::current_exception());
       }
     }
     
@@ -541,7 +541,7 @@ namespace vds {
         handler->holder_.step(sp, args...);
       }
       catch (...) {
-        error_handler(std::current_exception());
+        error_handler(sp, std::current_exception());
       }
     }
     
@@ -1028,7 +1028,7 @@ namespace vds {
   public:
     multi_handler(
       size_t count,
-      const std::function<void(std::list<std::exception_ptr> & errors)> & target)
+      const std::function<void(const service_provider & sp, std::list<std::exception_ptr> & errors)> & target)
       : target_(target),
       count_(count),
       done_(this),
@@ -1044,9 +1044,9 @@ namespace vds {
       {
       }
 
-      void operator()()
+      void operator()(const service_provider & sp)
       {
-        this->owner_->done();
+        this->owner_->done(sp);
       }
 
     private:
@@ -1063,9 +1063,9 @@ namespace vds {
       {
       }
 
-      void operator()(std::exception_ptr ex)
+      void operator()(const service_provider & sp, std::exception_ptr ex)
       {
-        this->owner_->error(ex);
+        this->owner_->error(sp, ex);
       }
 
     private:
@@ -1075,7 +1075,7 @@ namespace vds {
     error_handler & on_error() { return this->error_; }
 
   protected:
-    std::function<void(std::list<std::exception_ptr> & errors)> target_;
+    std::function<void(const service_provider & sp, std::list<std::exception_ptr> & errors)> target_;
     std::list<std::exception_ptr> errors_;
 
     size_t count_;
@@ -1084,22 +1084,22 @@ namespace vds {
 
     std::mutex data_mutex_;
 
-    void done()
+    void done(const service_provider & sp)
     {
       std::lock_guard<std::mutex> lock(this->data_mutex_);
 
       if (0 == --this->count_) {
-        this->target_(this->errors_);
+        this->target_(sp, this->errors_);
       }
     }
 
-    void error(std::exception_ptr ex)
+    void error(const service_provider & sp, std::exception_ptr ex)
     {
       std::lock_guard<std::mutex> lock(this->data_mutex_);
       this->errors_.push_back(ex);
 
       if (0 == --this->count_) {
-        this->target_(this->errors_);
+        this->target_(sp, this->errors_);
       }
     }
   };
@@ -1259,14 +1259,14 @@ namespace vds {
   class _task_step<void(class_name::*)(
     const std::function<result_signature> & done,
     const error_handler & on_error,
-    const std::function<void(void)> & prev,
+    const std::function<void(const service_provider &)> & prev,
     arg_types...) const>
   {
   public:
     using functor_type = std::function<void(
       const std::function<result_signature> & done,
       const error_handler & on_error,
-      const std::function<void(void)> & prev,
+      const std::function<void(const service_provider &)> & prev,
       arg_types ...)>;
     _task_step(
       const functor_type & target)

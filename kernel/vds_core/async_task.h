@@ -112,7 +112,7 @@ namespace vds {
     auto
       then(const functor & next_method, typename std::enable_if<!std::is_void<typename functor_info<functor>::result_type>::value>::type * = nullptr)
 #ifndef _WIN32
-      -> typename functor_info<functor>::result_type
+      -> typename async_task_functor_info<functor>::result_type
 #endif// _WIN32
       ;
 
@@ -120,7 +120,7 @@ namespace vds {
     auto
       then(const functor & next_method, typename std::enable_if<std::is_void<typename functor_info<functor>::result_type>::value>::type * = nullptr)
 #ifndef _WIN32
-      -> typename functor_info<typename async_task_arguments<functor>::done_method_type>::template build_type<async_task>::type
+      -> typename async_task_functor_info<typename async_task_arguments<functor>::done_method_type>::template build_type<async_task>::type
 #endif// _WIN32
       ;
 
@@ -181,9 +181,11 @@ namespace vds {
 
   template<typename ...arguments_types>
   template<typename functor>
-  inline auto async_task<arguments_types...>::then(const functor & next_method, typename std::enable_if<!std::is_void<typename functor_info<functor>::result_type>::value>::type *)
+  inline auto async_task<arguments_types...>::then(
+    const functor & next_method,
+    typename std::enable_if<!std::is_void<typename functor_info<functor>::result_type>::value>::type *)
 #ifndef _WIN32
-    -> typename functor_info<functor>::result_type
+    -> typename async_task_functor_info<functor>::result_type
 #endif// _WIN32
   {
     using new_task_type = typename functor_info<functor>::result_type;
@@ -207,7 +209,7 @@ namespace vds {
     const functor & next_method,
     typename std::enable_if<std::is_void<typename functor_info<functor>::result_type>::value>::type *)
 #ifndef _WIN32
-    -> typename functor_info<typename async_task_arguments<functor>::done_method_type>::template build_type<async_task>::type
+    -> typename async_task_functor_info<typename async_task_arguments<functor>::done_method_type>::template build_type<async_task>::type
 #endif// _WIN32
   {
     auto p = this->impl_;
@@ -217,7 +219,7 @@ namespace vds {
         const error_handler & on_error,
         const service_provider & sp)->void {
       p->wait(
-        [sp, next_method, done, on_error](const vds::service_provider & sp, arguments_types... args) {
+        [next_method, done, on_error](const vds::service_provider & sp, arguments_types... args) {
         try {
           next_method(done, on_error, sp, args...);
         }

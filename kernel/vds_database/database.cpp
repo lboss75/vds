@@ -6,8 +6,8 @@ All rights reserved
 #include "database.h"
 #include "database_p.h"
 
-vds::database::database(const service_provider & sp)
-  : impl_(new _database(sp, this))
+vds::database::database()
+  : impl_(new _database(this))
 {
 }
 

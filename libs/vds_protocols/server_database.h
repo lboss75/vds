@@ -34,7 +34,7 @@ namespace vds {
 
     std::unique_ptr<cert_record> find_cert(
       const service_provider & sp, 
-      const std::string & object_name) const;
+      const std::string & object_name);
 
     void add_object(
       const service_provider & sp,
@@ -71,7 +71,9 @@ namespace vds {
       const service_provider & sp,
       std::map<std::string, std::string> & addresses);
 
-    uint64_t get_server_log_max_index(const guid & id);
+    uint64_t get_server_log_max_index(
+      const service_provider & sp,
+      const guid & id);
 
     server_log_record add_local_record(
       const service_provider & sp,

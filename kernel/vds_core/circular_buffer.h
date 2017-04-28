@@ -19,12 +19,12 @@ namespace vds {
     {
     }
 
-    void start()
+    void start(const service_provider & sp)
     {
-      this->query_data();
+      this->query_data(sp);
     }
 
-    void dequeue() {
+    void dequeue(const service_provider & sp) {
       std::unique_lock<std::mutex> lock(this->buffer_mutex_);
       this->data_in_process_ = false;
       if (this->front_ < this->back_) {
@@ -39,13 +39,13 @@ namespace vds {
       }
 
       if (!this->data_queried_) {
-        this->query_data();
+        this->query_data(sp);
       }
 
-      this->push_data(lock);
+      this->push_data(sp, lock);
     }
 
-    void queue(uint32_t len) {
+    void queue(const service_provider & sp, uint32_t len) {
       std::unique_lock<std::mutex> lock(this->buffer_mutex_);
 
       this->data_queried_ = false;
@@ -54,7 +54,7 @@ namespace vds {
         *(uint32_t *)(this->buffer_ + this->back_) = len;
         this->back_ += len + 4;
 
-        this->query_data();
+        this->query_data(sp);
       }
       else {
         if (this->front_ == this->back_ && !this->data_queried_ && !this->data_in_process_) {
@@ -67,7 +67,7 @@ namespace vds {
           *(uint32_t *)(this->buffer_ + this->second_) = len;
           this->second_ += len + 4;
 
-          this->query_data();
+          this->query_data(sp);
         }
         else {
           throw std::runtime_error("Invalid logic");
@@ -75,7 +75,7 @@ namespace vds {
       }
 
       if (!this->data_in_process_) {
-        this->push_data(lock);
+        this->push_data(sp, lock);
       }
     }
 
@@ -95,7 +95,7 @@ namespace vds {
     // to read    [...2...]       [...1...]
     // to write            [..2..]         [...1...]
 
-    bool push_data(std::unique_lock<std::mutex> & lock)
+    bool push_data(const service_provider & sp, std::unique_lock<std::mutex> & lock)
     {
       assert(this->data_in_process_ == false);
 
@@ -106,26 +106,26 @@ namespace vds {
         auto p = this->buffer_ + this->front_ + 4;
         lock.unlock();
 
-        this->owner_->push_data(p, len);
+        this->owner_->push_data(sp, p, len);
         return true;
       }
 
       return false;
     }
 
-    bool query_data()
+    bool query_data(const service_provider & sp)
     {
       assert(this->data_queried_ == false);
 
       if (this->back_ + min_buffer_size + 4 < buffer_size) {
         this->data_queried_ = true;
-        owner_->data_require(this->buffer_ + this->back_ + 4, buffer_size - this->back_ - 4);
+        owner_->data_require(sp, this->buffer_ + this->back_ + 4, buffer_size - this->back_ - 4);
         return true;
       }
 
       if (this->second_ + min_buffer_size + 4 < this->front_) {
         this->data_queried_ = true;
-        owner_->data_require(this->buffer_ + this->second_ + 4, this->front_ - this->second_ - 4);
+        owner_->data_require(sp, this->buffer_ + this->second_ + 4, this->front_ - this->second_ - 4);
         return true;
       }
 

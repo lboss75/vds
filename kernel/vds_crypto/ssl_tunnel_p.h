@@ -68,8 +68,8 @@ namespace vds {
 
     void start_work_circle();
     void work_circle();
-    void input_stream_processed();
-    void output_stream_processed();
+    void input_stream_processed(const service_provider & sp);
+    void output_stream_processed(const service_provider & sp);
   };
 }
 

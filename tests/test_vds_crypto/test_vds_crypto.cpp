@@ -21,15 +21,15 @@ public:
   {
   }
 
-  void operator()(const service_provider & sp)
+  void operator()(const vds::service_provider & sp)
   {
     this->processed(sp);
   }
 
-  void processed(const service_provider & sp)
+  void processed(const vds::service_provider & sp)
   {
     if (0 == this->len_) {
-      this->next(nullptr, 0);
+      this->next(sp, nullptr, 0);
       return;
     }
 
@@ -48,7 +48,7 @@ public:
       this->data_ += n;
       this->len_ -= n;
 
-      this->next(p, n);
+      this->next(sp, p, n);
 
       break;
     }
@@ -212,8 +212,8 @@ TEST(test_vds_crypto, test_sign)
       vds::create_step<random_reader>::with(buffer.get(), (int)len),
       vds::asymmetric_sign(vds::hash::sha256(), key))
       (
-        [&sign](const void * data, size_t len) { sign.reset(data, len); },
-        [](std::exception_ptr ex) { FAIL() << vds::exception_what(ex); },
+        [&sign](const vds::service_provider & sp, const void * data, size_t len) { sign.reset(data, len); },
+        [](const vds::service_provider & sp, std::exception_ptr ex) { FAIL() << vds::exception_what(ex); },
         sp);
 
 
@@ -225,8 +225,8 @@ TEST(test_vds_crypto, test_sign)
       vds::create_step<random_reader>::with(buffer.get(), (int)len),
       vds::asymmetric_sign_verify(vds::hash::sha256(), pkey, sign))
       (
-        [&unchanged_result](bool result) { unchanged_result = result; },
-        [](std::exception_ptr ex) { FAIL() << vds::exception_what(ex); },
+        [&unchanged_result](const vds::service_provider & sp, bool result) { unchanged_result = result; },
+        [](const vds::service_provider & sp, std::exception_ptr ex) { FAIL() << vds::exception_what(ex); },
         sp);
 
     size_t index;
@@ -243,8 +243,8 @@ TEST(test_vds_crypto, test_sign)
       vds::create_step<random_reader>::with(buffer.get(), (int)len),
       vds::asymmetric_sign_verify(vds::hash::sha256(), pkey, sign))
       (
-        [&changed_result](bool result) { changed_result = result; },
-        [](std::exception_ptr ex) { FAIL() << vds::exception_what(ex); },
+        [&changed_result](const vds::service_provider & sp, bool result) { changed_result = result; },
+        [](const vds::service_provider & sp, std::exception_ptr ex) { FAIL() << vds::exception_what(ex); },
         sp);
 
     ASSERT_EQ(unchanged_result, true);

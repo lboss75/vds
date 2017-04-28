@@ -104,6 +104,11 @@ namespace vds {
       log_level min_log_level() const {
         return this->min_log_level_;
       }
+      
+      static logger & get(service_provider & sp)
+      {
+        return sp.get<logger>();
+      }
 
     private:
       log_writer & log_writer_;

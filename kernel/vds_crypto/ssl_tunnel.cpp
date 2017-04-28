@@ -54,14 +54,14 @@ void vds::ssl_tunnel::write_decoded_output(const void * data, size_t len)
   this->impl_->write_decoded_output(data, len);
 }
 
-void vds::ssl_tunnel::input_stream_processed()
+void vds::ssl_tunnel::input_stream_processed(const service_provider & sp)
 {
-  this->impl_->input_stream_processed();
+  this->impl_->input_stream_processed(sp);
 }
 
-void vds::ssl_tunnel::output_stream_processed()
+void vds::ssl_tunnel::output_stream_processed(const service_provider & sp)
 {
-  this->impl_->output_stream_processed();
+  this->impl_->output_stream_processed(sp);
 }
 
 vds::peer_certificate::peer_certificate(const vds::ssl_tunnel* owner)
@@ -315,12 +315,12 @@ void vds::_ssl_tunnel::work_circle()
   }
 }
 
-void vds::_ssl_tunnel::input_stream_processed()
+void vds::_ssl_tunnel::input_stream_processed(const service_provider & sp)
 {
   this->start_work_circle();
 }
 
-void vds::_ssl_tunnel::output_stream_processed()
+void vds::_ssl_tunnel::output_stream_processed(const service_provider & sp)
 {
   if (this->enable_output_) {
     throw new std::logic_error("vds::ssl_tunnel::output_stream_processed failed");

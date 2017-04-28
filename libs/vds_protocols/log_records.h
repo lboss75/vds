@@ -164,8 +164,6 @@ namespace vds {
     std::unique_ptr<json_value> message_;
   };
 
-  binary_deserializer & operator >> (binary_deserializer & s, server_log_record & record);
-  
   class server_log_root_certificate
   {
   public:

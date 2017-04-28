@@ -54,7 +54,10 @@ TEST(code_tests, test_async_task1) {
   vds::service_provider & sp = *(vds::service_provider *)nullptr;
 
   auto t = step1(10).then(
-    [](const std::function<void(const vds::service_provider & sp, const std::string &)> & done, const vds::error_handler & on_error, const vds::service_provider & sp, const std::string & v)->void {
+    [](const std::function<void(const vds::service_provider & sp, const std::string &)> & done,
+       const vds::error_handler & on_error,
+       const vds::service_provider & sp,
+       const std::string & v)->void {
     done(sp, "result" + v);
   });
 
@@ -65,7 +68,8 @@ TEST(code_tests, test_async_task1) {
     },
     [](const vds::service_provider & sp, std::exception_ptr ex) {
     FAIL() << vds::exception_what(ex);
-  }, sp);
+  },
+  sp);
 
   ASSERT_EQ(test_result, "result10");
 }

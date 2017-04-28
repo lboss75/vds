@@ -493,7 +493,10 @@ void vds::_connection_manager::udp_server::session::send_to(
   dataflow(
     symmetric_encrypt(this->session_key()),
     collect_data())(
-      [this, sp, &message_data](const void * crypted_data, size_t size) {
+      [this, sp, &message_data](
+        const service_provider & sp,
+        const void * crypted_data,
+        size_t size) {
         network_serializer s;
         s.start(udp_messages::command_message_id);
         s << this->external_session_id();
@@ -507,7 +510,9 @@ void vds::_connection_manager::udp_server::session::send_to(
           this->port(),
           s.data());
       },
-      [](std::exception_ptr ex) { std::rethrow_exception(ex); },
+      [](const service_provider & sp,
+         std::exception_ptr ex) {
+        std::rethrow_exception(ex); },
       sp,
       message_data.data().data(),
       message_data.data().size());

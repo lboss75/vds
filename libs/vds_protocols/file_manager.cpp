@@ -61,9 +61,9 @@ vds::_file_manager::put_file(
     dataflow(
       read_file(fn, (size_t)5 * 1024 * 1024),
       task_step([this, sp, result](
-        const std::function<void(void) > & done,
+        const std::function<void(const service_provider &) > & done,
         const error_handler & on_error,
-        const std::function<void(void)> & prev,
+        const std::function<void(const service_provider &)> & prev,
         const void * data, size_t size) {
       if (0 == size) {
         done();

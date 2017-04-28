@@ -30,7 +30,7 @@ TEST(mt_tests, test_async) {
         obj.state_++;
         barrier.set();
       },
-        [&barrier](std::exception_ptr ex) {
+        [&barrier](const vds::service_provider & sp, std::exception_ptr ex) {
         FAIL() << vds::exception_what(ex);
         barrier.set();
       },

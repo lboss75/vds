@@ -69,7 +69,7 @@ void vds::_server_log_sync::on_record_broadcast(
   const service_provider & sp,
   const server_log_record_broadcast & message)
 {
-  if(sp.get<iserver_database>().save_record(message.record(), message.signature())){
+  if(sp.get<iserver_database>().save_record(sp, message.record(), message.signature())){
     sp.get<logger>().debug(sp, "Got %s:%d", message.record().id().source_id.str().c_str(), message.record().id().index);
 
     sp.get<iconnection_manager>()
@@ -86,7 +86,7 @@ void vds::_server_log_sync::on_server_log_get_records_broadcast(
   for (auto p : message.unknown_records()) {
     server_log_record record;
     const_data_buffer signature;
-      if(sp.get<iserver_database>().get_record(p, record, signature)) {
+      if(sp.get<iserver_database>().get_record(sp, p, record, signature)) {
         sp.get<logger>().debug(sp, "Provided %s:%d", record.id().source_id.str().c_str(), record.id().index);
         sp.get<iconnection_manager>().send_to(sp, session, server_log_record_broadcast(record, signature));
       }
@@ -97,7 +97,7 @@ void vds::_server_log_sync::require_unknown_records(
   const service_provider & sp)
 {
   std::list<server_log_record::record_id> unknown_records;
-  sp.get<iserver_database>().get_unknown_records(unknown_records);
+  sp.get<iserver_database>().get_unknown_records(sp, unknown_records);
 
   if (!unknown_records.empty()) {
 
