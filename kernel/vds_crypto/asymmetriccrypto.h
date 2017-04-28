@@ -105,15 +105,15 @@ namespace vds {
       {
       }
 
-      void operator()(const void * data, size_t size)
+      void operator()(const service_provider & sp, const void * data, size_t size)
       {
         if (0 == size) {
           data_final(this->impl_, this->signature_);
-          this->next(this->signature_.data(), this->signature_.size());
+          this->next(sp, this->signature_.data(), this->signature_.size());
         }
         else {
           data_update(this->impl_, data, size);
-          this->prev();
+          this->prev(sp);
         }
       }
 
@@ -169,15 +169,15 @@ namespace vds {
       {
       }
 
-      void operator()(const void * data, size_t size)
+      void operator()(const service_provider & sp, const void * data, size_t size)
       {
         if (0 == size) {
           auto result = data_final(this->impl_, this->signature_);
-          this->next(result);
+          this->next(sp, result);
         }
         else {
           data_update(this->impl_, data, size);
-          this->prev();
+          this->prev(sp);
         }
       }
 

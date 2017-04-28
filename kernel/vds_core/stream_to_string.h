@@ -42,16 +42,16 @@ namespace vds {
         std::cout << "stream_to_string::handler::~handler\n";
       }
       
-      void operator()(const void * data, size_t len)
+      void operator()(const service_provider & sp, const void * data, size_t len)
       {
         if(0 == len){
-          this->next(this->body_);
+          this->next(sp, this->body_);
         }
         else {
           this->body_.append(
             reinterpret_cast<const char *>(data),
             len);
-          this->prev();
+          this->prev(sp);
         }
       }
       

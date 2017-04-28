@@ -38,7 +38,7 @@ namespace vds {
       {
       }
       
-      void operator()(json_value * value)
+      void operator()(const service_provider & sp, json_value * value)
       {
         if(nullptr != value){
           this->response_.set_result(
@@ -53,6 +53,7 @@ namespace vds {
           this->response_.clear();
         }
         this->next(
+          sp,
           this->response_,
           this->response_stream_);
       }

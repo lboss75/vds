@@ -179,20 +179,20 @@ namespace vds {
         this->buffer_.resize(args.buffer_size_);
       }
 
-      void operator()()
+      void operator()(const service_provider & sp)
       {
-        this->processed();
+        this->processed(sp);
       }
 
-      void processed()
+      void processed(const service_provider & sp)
       {
         auto readed = this->f_.read(this->buffer_.data(), this->buffer_.size());
         
         if (0 < readed) {
-          this->next(this->buffer_.data(), readed);
+          this->next(sp, this->buffer_.data(), readed);
         }
         else {
-          this->next(nullptr, 0);
+          this->next(sp, nullptr, 0);
         }
       }
 
@@ -230,15 +230,15 @@ namespace vds {
       {
       }
       
-      void operator()(const void * data, size_t size)
+      void operator()(const service_provider & sp, const void * data, size_t size)
       {
         if(0 == size){
           this->f_.close();
-          this->next();
+          this->next(sp);
         }
         else {
           this->f_.write(data, size);
-          this->prev();
+          this->prev(sp);
         }
       }
       
@@ -272,14 +272,14 @@ namespace vds {
       {
       }
 
-      void operator()(const void * data, size_t size)
+      void operator()(const service_provider & sp, const void * data, size_t size)
       {
         if (0 == size) {
-          this->next();
+          this->next(sp);
         }
         else {
           this->target_.write(data, size);
-          this->prev();
+          this->prev(sp);
         }
       }
 

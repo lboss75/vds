@@ -112,8 +112,8 @@ namespace vds {
       void input_done() override;
       void decoded_output_done(size_t len) override;
 
-      void operator()(const void * data, size_t len);
-      void processed();
+      void operator()(const service_provider & sp, const void * data, size_t len);
+      void processed(const service_provider & sp);
 
     private:
       lifetime_check lt_;
@@ -148,8 +148,8 @@ namespace vds {
       void decoded_input_done() override;
       void output_done(size_t len) override;
 
-      void operator()(const void * data, size_t len);
-      void processed();
+      void operator()(const service_provider & sp, const void * data, size_t len);
+      void processed(const service_provider & sp);
 
     private:
       lifetime_check lt_;

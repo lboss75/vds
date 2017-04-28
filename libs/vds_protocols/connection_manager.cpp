@@ -118,16 +118,16 @@ void vds::_connection_manager::start_servers(
     if ("udp" == protocol) {
       auto na = url_parser::parse_network_address(address);
       this->start_udp_server(sp, na).wait(
-        [this, sp]() {sp.get<logger>().info(sp, "UPD Servers stopped"); },
-        [this, sp](std::exception_ptr ex) {sp.get<logger>().info(sp, "UPD Server error: %s", exception_what(ex)); }
-      );
+        [this](const service_provider & sp) {sp.get<logger>().info(sp, "UPD Servers stopped"); },
+        [this](const service_provider & sp, std::exception_ptr ex) {sp.get<logger>().info(sp, "UPD Server error: %s", exception_what(ex)); },
+        sp);
     }
     else if ("https" == protocol) {
       auto na = url_parser::parse_network_address(address);
       this->start_https_server(sp, na).wait(
-        [this, sp]() {sp.get<logger>().info(sp, "HTTPS Servers stopped"); },
-        [this, sp](std::exception_ptr ex) { sp.get<logger>().info(sp, "HTTPS Server error: %s", exception_what(ex)); }
-      );
+        [this](const service_provider & sp) {sp.get<logger>().info(sp, "HTTPS Servers stopped"); },
+        [this](const service_provider & sp, std::exception_ptr ex) { sp.get<logger>().info(sp, "HTTPS Server error: %s", exception_what(ex)); },
+        sp);
     }
 
     return true;
@@ -213,7 +213,7 @@ vds::async_task<> vds::_connection_manager::udp_server::input_message(
   const void * data,
   size_t len)
 {
-  return create_async_task([this, sp, from, data, len](const std::function<void(void)> & done, const error_handler & on_error) {
+  return create_async_task([this, from, data, len](const std::function<void(const service_provider & sp)> & done, const error_handler & on_error, const service_provider & sp) {
     network_deserializer s(data, len);
     auto cmd = s.start();
     switch (cmd) {
@@ -246,7 +246,7 @@ vds::async_task<> vds::_connection_manager::udp_server::input_message(
         dataflow(
           symmetric_encrypt(session.session_key()),
           collect_data())(
-            [this, sp, done, from, &session, key_crypted](const void * data, size_t size) {
+            [this, done, from, &session, key_crypted](const service_provider & sp, const void * data, size_t size) {
           const_data_buffer crypted_data(data, size);
 
           auto server_log = sp.get<istorage_log>();
@@ -272,9 +272,10 @@ vds::async_task<> vds::_connection_manager::udp_server::input_message(
             network_service::get_ip_address_string(*from),
             ntohs(from->sin_port),
             message_data);
-          done();
+          done(sp);
         },
-            on_error,
+          on_error,
+          sp,
           b.data().data(),
           b.data().size());
       }
@@ -313,7 +314,7 @@ vds::async_task<> vds::_connection_manager::udp_server::input_message(
         dataflow(
           symmetric_decrypt(session_key),
           collect_data())(
-            [this, done, &session_key, &cert, from](const void * data, size_t size) {
+            [this, done, &session_key, &cert, from](const service_provider & sp, const void * data, size_t size) {
           uint32_t in_session_id;
           uint32_t out_session_id;
 
@@ -337,7 +338,7 @@ vds::async_task<> vds::_connection_manager::udp_server::input_message(
             this->hello_requests_.erase(p);
           }
 
-          done();
+          done(sp);
         },
             on_error,
           sp,
@@ -368,7 +369,7 @@ vds::async_task<> vds::_connection_manager::udp_server::input_message(
             symmetric_decrypt(p->second->session_key()),
             collect_data()
           )(
-            [this, sp, &data_hash, session = p->second](const void * data, size_t size) {
+            [this, &data_hash, session = p->second](const service_provider & sp, const void * data, size_t size) {
             if (hash::signature(hash::sha256(), data, size) == data_hash) {
 
               binary_deserializer d(data, size);
@@ -388,11 +389,11 @@ vds::async_task<> vds::_connection_manager::udp_server::input_message(
               sp.get<logger>().debug(sp, "Invalid data hash");
             }
           },
-            [](std::exception_ptr ex) {
+            [](const service_provider & sp, std::exception_ptr ex) {
           },
+            sp,
             crypted_data.data(),
-            crypted_data.size(),
-            sp);
+            crypted_data.size());
         }
         else {
           sp.get<logger>().debug(sp, "Session %d not found", session_id);
@@ -400,11 +401,11 @@ vds::async_task<> vds::_connection_manager::udp_server::input_message(
       }
       catch (...) {
         sp.get<logger>().debug(sp, "Error at processing command");
-        on_error(std::current_exception());
+        on_error(sp, std::current_exception());
         return;
       }
 
-      done();
+      done(sp);
       break;
     }
     }

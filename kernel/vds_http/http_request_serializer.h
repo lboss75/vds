@@ -41,12 +41,13 @@ namespace vds {
       }
 
       void operator()(
+        const service_provider & sp,
         http_request * request,
         http_outgoing_stream * outgoing_stream
         )
       {
         if (nullptr == request || request->empty()) {
-          this->next(nullptr, 0);
+          this->next(sp, nullptr, 0);
         }
         else {
           std::stringstream stream;
@@ -64,6 +65,7 @@ namespace vds {
           this->header_ = stream.str();
 
           this->next(
+            sp,
             this->header_.c_str(),
             this->header_.size());
         }

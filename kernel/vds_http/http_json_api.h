@@ -33,7 +33,7 @@ namespace vds {
       {        
       }
       
-      void operator()(json_value * request)
+      void operator()(const service_provider & sp, json_value * request)
       {
         try
         {
@@ -48,7 +48,7 @@ namespace vds {
           this->response_.reset(response);
         }
         
-        this->next(this->response_.get());
+        this->next(sp, this->response_.get());
       }
       
     private:

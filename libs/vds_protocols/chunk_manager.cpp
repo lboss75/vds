@@ -72,7 +72,7 @@ vds::_chunk_manager::add(
   const const_data_buffer& data)
 {
   return create_async_task(
-    [data, sp](const std::function<void (const void * data, size_t size)> & done, const error_handler & on_error){
+    [data](const std::function<void (const service_provider & sp, const void * data, size_t size)> & done, const error_handler & on_error, const service_provider & sp){
       dataflow(
         deflate(),
         collect_data()
@@ -90,8 +90,9 @@ vds::_chunk_manager::add(
     original_lenght = data.size(),
     original_hash = hash::signature(hash::sha256(), data)
     ](
-      const std::function<void(const vds::server_log_new_object &)> & done,
+      const std::function<void(const service_provider & sp, const vds::server_log_new_object &)> & done,
       const error_handler & on_error,
+      const service_provider & sp,
       const void * deflated_data,
       size_t deflated_size) {
       
@@ -126,7 +127,7 @@ vds::_chunk_manager::add(
           hash::signature(hash::sha256(), deflated_data, deflated_size));
 
         sp.get<istorage_log>().add_to_local_log(sp, result.serialize().get());
-        done(result);
+        done(sp, result);
       });
 }
 

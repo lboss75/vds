@@ -87,29 +87,29 @@ namespace vds {
       {
       }
 
-      void operator()(const void * data, size_t size)
+      void operator()(const service_provider & sp, const void * data, size_t size)
       {
         size_t out_size = sizeof(this->buffer);
         if (data_update(this->impl_, data, size, this->buffer, out_size))
         {
-          this->next(this->buffer, out_size);
+          this->next(sp, this->buffer, out_size);
         }
         else
         {
-          this->prev();
+          this->prev(sp);
         }
       }
 
-      void processed()
+      void processed(const service_provider & sp)
       {
         size_t out_size = sizeof(this->buffer);
         if (data_processed(this->impl_, this->buffer, out_size))
         {
-          this->next(this->buffer, out_size);
+          this->next(sp, this->buffer, out_size);
         }
         else
         {
-          this->prev();
+          this->prev(sp);
         }
       }
 
@@ -155,29 +155,29 @@ namespace vds {
       {
       }
 
-      void operator()(const void * data, size_t size)
+      void operator()(const service_provider & sp, const void * data, size_t size)
       {
         size_t out_size = sizeof(this->buffer);
         if (data_update(this->impl_, data, size, this->buffer, out_size))
         {
-          this->next(this->buffer, out_size);
+          this->next(sp, this->buffer, out_size);
         }
         else
         {
-          this->prev();
+          this->prev(sp);
         }
       }
 
-      void processed()
+      void processed(const service_provider & sp)
       {
         size_t out_size = sizeof(this->buffer);
         if (data_processed(this->impl_, this->buffer, out_size))
         {
-          this->next(this->buffer, out_size);
+          this->next(sp, this->buffer, out_size);
         }
         else
         {
-          this->prev();
+          this->prev(sp);
         }
       }
 

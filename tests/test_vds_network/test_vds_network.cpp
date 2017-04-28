@@ -29,7 +29,7 @@ public:
       (new connection_handler<
         typename base_class::next_step_t,
         typename base_class::error_method_t>(
-          this->sp_, this->next, this->error, s))->start();
+          sp, this->next, this->error, s))->start();
     }
   private:
     vds::service_provider sp_;
@@ -102,13 +102,13 @@ public:
         this->data_.length());
     }
     
-    void operator()() {
+    void operator()(const vds::service_provider & sp) {
       this->write_task_.schedule(this->s_);
     }
 
-    void processed()
+    void processed(const vds::service_provider & sp)
     {
-      this->next();
+      this->next(sp);
     }
   private:
     vds::network_socket::SOCKET_HANDLE s_;
@@ -142,12 +142,13 @@ public:
     }
   
     void operator()(
+      const service_provider & sp,
       const void * data,
       size_t len
     )
     {
       if(0 == len) {
-        this->next(this->buffer_);
+        this->next(sp, this->buffer_);
       }
       else {
         this->buffer_.append(
@@ -156,13 +157,13 @@ public:
 
         auto p = this->buffer_.find('\n');
         if (std::string::npos == p) {
-          this->prev();
+          this->prev(sp);
           return;
         }
         else {
           auto result = this->buffer_.substr(0, p);
           this->buffer_.erase(0, p + 1);
-          this->next(result);
+          this->next(sp, result);
         }
       }
     }
@@ -200,11 +201,12 @@ public:
     }
   
     void operator()(
+      const service_provider & sp,
       const std::string & data
     )
     {
       if(this->data_ == data){
-        this->next();
+        this->next(sp);
       }
       else {
         ASSERT_EQ(this->data_, data);
@@ -240,18 +242,18 @@ public:
     {
     }
 
-    void operator()(vds::network_socket & s)
+    void operator()(const service_provider & sp, vds::network_socket & s)
     {
       this->s_ = std::move(s);
 
       vds::barrier b;
       auto done_handler = vds::lambda_handler(
-       [&b]() {
+       [&b](const service_provider & sp) {
         b.set();
         }
       );
       auto error_handler = vds::lambda_handler(
-        [&b](std::exception_ptr ex) {
+        [&b](const service_provider & sp, std::exception_ptr ex) {
           FAIL() << vds::exception_what(ex);
           b.set();
       }
@@ -266,19 +268,20 @@ public:
       write_task.schedule(this->s_.handle());
 
       vds::dataflow(
-        vds::input_network_stream(this->sp_, this->s_),
+        vds::input_network_stream(sp, this->s_),
         read_for_newline(),
         check_result("test_test_test_test_test_test_test_test_test_test_test_test_test_test_test_")
       )
       (
         this->next,
-        this->error
+        this->error,
+        sp
       );
 
       b.wait();
     }
     
-    void processed()
+    void processed(const service_provider & sp)
     {
     }
     
@@ -374,10 +377,10 @@ TEST(network_tests, test_udp_server)
     {
       auto sp = registrator.build("network_tests.test_udp_server");
 
-      auto done_server = vds::lambda_handler([]() {
+      auto done_server = vds::lambda_handler([](const vds::service_provider & sp) {
       });
 
-      auto error_server = vds::lambda_handler([](std::exception_ptr ex) {
+      auto error_server = vds::lambda_handler([](const vds::service_provider & sp, std::exception_ptr ex) {
         FAIL() << "Client error " << vds::exception_what(ex);
       });
 
@@ -394,7 +397,7 @@ TEST(network_tests, test_udp_server)
 
 
       const char testdata[] = "testdata";
-      auto done_client = vds::lambda_handler([&done, &testdata](const sockaddr_in * addr, const void * data, size_t size) {
+      auto done_client = vds::lambda_handler([&done, &testdata](const vds::service_provider & sp, const sockaddr_in * addr, const void * data, size_t size) {
         if (std::string((const char *)data, size) == testdata) {
           done.set();
         }
@@ -403,7 +406,7 @@ TEST(network_tests, test_udp_server)
         }
       });
 
-      auto error_client = vds::lambda_handler([](std::exception_ptr ex) {
+      auto error_client = vds::lambda_handler([](const vds::service_provider & sp, std::exception_ptr ex) {
         FAIL() << "Client error " << vds::exception_what(ex);
       });
       std::this_thread::sleep_for(std::chrono::seconds(5));//Waiting start UDP server

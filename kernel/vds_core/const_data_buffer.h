@@ -122,16 +122,16 @@ namespace vds{
       {
       }
 
-      void operator ()(const void * data, size_t len)
+      void operator ()(const service_provider & sp, const void * data, size_t len)
       {
         if (0 == len) {
-          this->next(this->buffer_.data(), this->buffer_.size());
+          this->next(sp, this->buffer_.data(), this->buffer_.size());
         }
         else {
           this->buffer_.insert(this->buffer_.end(),
             reinterpret_cast<const uint8_t *>(data),
             reinterpret_cast<const uint8_t *>(data) + len);
-          this->prev();
+          this->prev(sp);
         }
       }
 

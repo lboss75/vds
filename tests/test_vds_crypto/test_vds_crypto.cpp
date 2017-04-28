@@ -21,12 +21,12 @@ public:
   {
   }
 
-  void operator()()
+  void operator()(const service_provider & sp)
   {
-    this->processed();
+    this->processed(sp);
   }
 
-  void processed()
+  void processed(const service_provider & sp)
   {
     if (0 == this->len_) {
       this->next(nullptr, 0);
@@ -74,11 +74,11 @@ public:
   {
   }
 
-  void operator()(const void * data, size_t len)
+  void operator()(const vds::service_provider & sp, const void * data, size_t len)
   {
     if (0 == len) {
       ASSERT_EQ(this->len_, 0);
-      this->next();
+      this->next(sp);
     }
 
     const uint8_t * p = reinterpret_cast<const uint8_t *>(data);

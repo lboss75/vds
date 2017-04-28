@@ -52,7 +52,7 @@ public:
     {
     }
 
-    void operator()(vds::json_value * root)
+    void operator()(const vds::service_provider & sp, vds::json_value * root)
     {
       auto root_object = dynamic_cast<vds::json_object *>(root);
       ASSERT_NE(nullptr, root_object);

@@ -572,7 +572,7 @@ namespace vds {
         handler->holder_.step(sp, args...);
       }
       catch (...) {
-        error_handler(std::current_exception());
+        error_handler(sp, std::current_exception());
       }
     }
 

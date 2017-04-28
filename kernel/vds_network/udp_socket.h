@@ -135,9 +135,9 @@ namespace vds {
         }
       }
 
-      void operator()()
+      void operator()(const service_provider & sp)
       {
-        this->next();
+        this->next(sp);
       }
 
 
@@ -181,10 +181,10 @@ namespace vds {
         this->s_ = args.socket_.handle();
       }
 
-      void operator()(const sockaddr_in * to, const void * data, size_t len)
+      void operator()(const service_provider & sp, const sockaddr_in * to, const void * data, size_t len)
       {
         if(0 == len){
-          this->next();
+          this->next(sp);
           return;
         }
         
@@ -313,12 +313,12 @@ namespace vds {
         this->s_ = args.socket_.handle();
       }
 
-      void operator()()
+      void operator()(const service_provider & sp)
       {
         this->buffer_.start();
       }
 
-      void processed()
+      void processed(const service_provider & sp)
       {
         if (!this->sp_.get_shutdown_event().is_shuting_down()) {
           this->buffer_.dequeue();
@@ -407,7 +407,7 @@ namespace vds {
     }
 
   private:
-    const service_provider & sp_;
+    service_provider sp_;
     circular_buffer<handler, 1 * 1024 * 1024, 8 * 1024> buffer_;
 
 #ifndef _WIN32
@@ -470,22 +470,24 @@ private:
       {
       }
       
-      void operator()()
+      void operator()(const service_provider & sp)
       {
         dataflow(
-          udp_receive(this->sp_, this->s_),
-          create_step<write_handler>::with(this->owner_, this->sp_)
+          udp_receive(sp, this->s_),
+          create_step<write_handler>::with(this->owner_)
         )(          
           this->multi_handler_.on_done(),
-          this->multi_handler_.on_error()
+          this->multi_handler_.on_error(),
+          sp
         );
         
         dataflow(
-          create_step<read_handler>::with(this->owner_, this->sp_),
-          udp_send(this->sp_, this->s_)
+          create_step<read_handler>::with(this->owner_, sp),
+          udp_send(sp, this->s_)
         )(
           this->multi_handler_.on_done(),
-          this->multi_handler_.on_error()
+          this->multi_handler_.on_error(),
+          sp
         );
       }
       
@@ -503,31 +505,29 @@ private:
     public:
       write_handler(
         const context_type & context,
-        handler_class & owner,
-        const service_provider & sp)
+        handler_class & owner)
       : base_class(context),
-        owner_(owner),
-        sp_(sp){
-
+        owner_(owner)
+      {
       }
 
-      void operator()(const sockaddr_in * from, const void * data, size_t len)
+      void operator()(const service_provider & sp, const sockaddr_in * from, const void * data, size_t len)
       {
         if (0 == len) {
-          this->next();
+          this->next(sp);
         }
         else {
           this->owner_
-            .input_message(this->sp_, from, data, len)
+            .input_message(sp, from, data, len)
             .wait(
-              [this]() { this->prev(); },
-              [this](std::exception_ptr ex) { this->error(ex); });
+              [this](const service_provider & sp) { this->prev(); },
+              [this](const service_provider & sp, std::exception_ptr ex) { this->error(ex); },
+              sp);
         }
       }
 
     private:
       handler_class & owner_;
-      service_provider sp_;
     };
 
     template <typename context_type>
@@ -546,7 +546,7 @@ private:
       {
       }
 
-      void operator()()
+      void operator()(const service_provider & sp)
       {
         this->owner_.get_message(this->sp_, this->handler_);
       }
@@ -597,14 +597,15 @@ private:
     handler_class & handler)
   {
     return create_async_task(
-      [sp, &s, address, port, &handler] (const std::function<void(void)> & done, const error_handler & on_error){
+      [&s, address, port, &handler] (const std::function<void(const service_provider & sp)> & done, const error_handler & on_error, const service_provider & sp){
         dataflow(
           udp_server(sp, s, address, port),
           _run_udp_server<handler_class>(sp, s, handler)
         )
         (
           done,
-          on_error
+          on_error,
+          sp
         );
       });
   }

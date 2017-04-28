@@ -53,12 +53,13 @@ namespace vds {
     
       
       void operator()(
+        const service_provider & sp,
         const void * data,
         size_t len
       ) {
         if (0 == len) {
           this->next(
-            this->sp_,
+            sp,
             this->request_,
             this->incoming_stream_);
         }
@@ -66,11 +67,11 @@ namespace vds {
           this->data_ = data;
           this->len_ = len;
 
-          this->processed();
+          this->processed(sp);
         }
       }
       
-      void processed()
+      void processed(const service_provider & sp)
       {
         while (0 < this->len_) {
           if (STATE_PARSE_HEADER == this->state_) {
