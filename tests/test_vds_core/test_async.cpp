@@ -25,7 +25,7 @@ TEST(mt_tests, test_async) {
         test_async_object::async_method(sp, obj)
       )
       (
-        [&obj, &barrier]() {
+        [&obj, &barrier](const vds::service_provider & sp) {
         ASSERT_EQ(obj.state_, 2);
         obj.state_++;
         barrier.set();
@@ -34,6 +34,7 @@ TEST(mt_tests, test_async) {
         FAIL() << vds::exception_what(ex);
         barrier.set();
       },
+        sp,
         10);
 
       barrier.wait();

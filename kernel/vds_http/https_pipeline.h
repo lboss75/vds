@@ -10,14 +10,13 @@ namespace vds {
   {
   public:
     https_pipeline(
-      const service_provider & sp,
       const std::string & address,
       int port,
       certificate * client_certificate,
       asymmetric_private_key * client_private_key);
     ~https_pipeline();
     
-    void connect();
+    void connect(const service_provider & sp);
    
     const std::string & address() const;
     int port() const;

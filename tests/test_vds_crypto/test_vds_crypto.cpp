@@ -133,11 +133,11 @@ TEST(test_vds_crypto, test_symmetric)
         vds::symmetric_decrypt(key),
         vds::create_step<compare_data>::with(buffer.get(), (int)len)
       )(
-        []() {
-      },
+        []() {},
         [](std::exception_ptr ex) {
-        GTEST_FAIL() << vds::exception_what(ex);
-      });
+          GTEST_FAIL() << vds::exception_what(ex);
+        },
+        sp);
 
       registrator.shutdown(sp);
     }
@@ -213,7 +213,8 @@ TEST(test_vds_crypto, test_sign)
       vds::asymmetric_sign(vds::hash::sha256(), key))
       (
         [&sign](const void * data, size_t len) { sign.reset(data, len); },
-        [](std::exception_ptr ex) { FAIL() << vds::exception_what(ex); });
+        [](std::exception_ptr ex) { FAIL() << vds::exception_what(ex); },
+        sp);
 
 
     vds::asymmetric_public_key pkey(key);
@@ -225,7 +226,8 @@ TEST(test_vds_crypto, test_sign)
       vds::asymmetric_sign_verify(vds::hash::sha256(), pkey, sign))
       (
         [&unchanged_result](bool result) { unchanged_result = result; },
-        [](std::exception_ptr ex) { FAIL() << vds::exception_what(ex); });
+        [](std::exception_ptr ex) { FAIL() << vds::exception_what(ex); },
+        sp);
 
     size_t index;
     do
@@ -242,7 +244,8 @@ TEST(test_vds_crypto, test_sign)
       vds::asymmetric_sign_verify(vds::hash::sha256(), pkey, sign))
       (
         [&changed_result](bool result) { changed_result = result; },
-        [](std::exception_ptr ex) { FAIL() << vds::exception_what(ex); });
+        [](std::exception_ptr ex) { FAIL() << vds::exception_what(ex); },
+        sp);
 
     ASSERT_EQ(unchanged_result, true);
     ASSERT_EQ(changed_result, false);

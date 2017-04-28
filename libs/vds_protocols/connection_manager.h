@@ -14,9 +14,10 @@ namespace vds {
   {
   public:
     template<typename message_type>
-    void broadcast(const message_type & message)
+    void broadcast(const service_provider & sp, const message_type & message)
     {
       this->broadcast(
+        sp,
         message_type::message_type_id,
         [&message]() { binary_serializer b; message.serialize(b); return b.data(); },
         [&message]() { return message.serialize()->str(); });
@@ -24,10 +25,12 @@ namespace vds {
 
     template<typename message_type>
     void send_to(
+      const service_provider & sp,
       const connection_session & session,
       const message_type & message)
     {
       this->send_to(
+        sp,
         session,
         message_type::message_type_id,
         [&message]() { binary_serializer b; message.serialize(b); return b.data(); },
@@ -35,17 +38,20 @@ namespace vds {
     }
 
     async_task<> download_object(
+      const service_provider & sp,
       const guid & server_id,
       uint64_t index,
       const filename & target_file);
 
   private:
     void broadcast(
+      const service_provider & sp,
       uint32_t message_type_id,
       const std::function<const_data_buffer(void)> & get_binary,
       const std::function<std::string(void)> & get_json);
 
     void send_to(
+      const service_provider & sp,
       const connection_session & session,
       uint32_t message_type_id,
       const std::function<const_data_buffer(void)> & get_binary,

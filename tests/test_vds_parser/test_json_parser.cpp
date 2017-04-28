@@ -106,6 +106,7 @@ TEST(test_json_parser, test_parser) {
   (
     []() {},
     [](std::exception_ptr ex) { FAIL() << vds::exception_what(ex); },
+    *(vds::service_provider *)nullptr,
    (const char *)test_data,
    sizeof(test_data) - 1
   );

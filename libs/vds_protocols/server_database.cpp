@@ -9,8 +9,8 @@ All rights reserved
 #include "cert_record.h"
 #include "storage_log.h"
 
-vds::server_database::server_database(const service_provider & sp)
-  : impl_(new _server_database(sp, this))
+vds::server_database::server_database()
+  : impl_(new _server_database(this))
 {
 }
 
@@ -19,127 +19,157 @@ vds::server_database::~server_database()
   delete this->impl_;
 }
 
-void vds::server_database::start()
+void vds::server_database::start(const service_provider & sp)
 {
-  this->impl_->start();
+  this->impl_->start(sp);
 }
 
-void vds::server_database::stop()
+void vds::server_database::stop(const service_provider & sp)
 {
-  this->impl_->stop();
+  this->impl_->stop(sp);
 }
 
-vds::iserver_database::iserver_database(server_database * owner)
-  : owner_(owner)
+void vds::iserver_database::add_cert(
+  const service_provider & sp,
+  const cert_record & record)
 {
+  static_cast<_server_database *>(this)->add_cert(sp, record);
 }
 
-void vds::iserver_database::add_cert(const cert_record & record)
+std::unique_ptr<vds::cert_record> vds::iserver_database::find_cert(
+  const service_provider & sp,
+  const std::string & object_name) const
 {
-  this->owner_->impl_->add_cert(record);
-}
-
-std::unique_ptr<vds::cert_record> vds::iserver_database::find_cert(const std::string & object_name) const
-{
-  return this->owner_->impl_->find_cert(object_name);
+  return static_cast<const _server_database *>(this)->find_cert(sp, object_name);
 }
 
 void vds::iserver_database::add_object(
+  const service_provider & sp,
   const guid & server_id,
   const server_log_new_object & index)
 {
-  this->owner_->impl_->add_object(server_id, index);
+  static_cast<_server_database *>(this)->add_object(sp, server_id, index);
 }
 
 void vds::iserver_database::add_file(
+  const service_provider & sp,
   const guid & server_id,
   const server_log_file_map & fm)
 {
-  this->owner_->impl_->add_file(server_id, fm);
+  static_cast<_server_database *>(this)->add_file(sp, server_id, fm);
 }
 
-void vds::iserver_database::get_file_versions(const std::string & user_login, const std::string & name, std::list<server_log_file_version>& result)
+void vds::iserver_database::get_file_versions(
+  const service_provider & sp,
+  const std::string & user_login,
+  const std::string & name,
+  std::list<server_log_file_version>& result)
 {
-  this->owner_->impl_->get_file_versions(user_login, name, result);
+  static_cast<_server_database *>(this)->get_file_versions(sp, user_login, name, result);
 }
 
-void vds::iserver_database::get_file_version_map(const guid & server_id, const std::string & version_id, std::list<uint64_t>& result_indexes)
+void vds::iserver_database::get_file_version_map(
+  const service_provider & sp, 
+  const guid & server_id,
+  const std::string & version_id,
+  std::list<uint64_t>& result_indexes)
 {
-  this->owner_->impl_->get_file_version_map(server_id, version_id, result_indexes);
+  static_cast<_server_database *>(this)->get_file_version_map(sp, server_id, version_id, result_indexes);
 }
 
-uint64_t vds::iserver_database::last_object_index(const guid& server_id)
+uint64_t vds::iserver_database::last_object_index(
+  const service_provider & sp, 
+  const guid& server_id)
 {
-  return this->owner_->impl_->last_object_index(server_id);
+  return static_cast<_server_database *>(this)->last_object_index(sp, server_id);
 }
 
-void vds::iserver_database::add_endpoint(const std::string& endpoint_id, const std::string& addresses)
+void vds::iserver_database::add_endpoint(
+  const service_provider & sp,
+  const std::string& endpoint_id,
+  const std::string& addresses)
 {
-  this->owner_->impl_->add_endpoint(endpoint_id, addresses);
+  static_cast<_server_database *>(this)->add_endpoint(sp, endpoint_id, addresses);
 }
 
-void vds::iserver_database::get_endpoints(std::map<std::string, std::string>& addresses)
+void vds::iserver_database::get_endpoints(
+  const service_provider & sp,
+  std::map<std::string, std::string>& addresses)
 {
-  this->owner_->impl_->get_endpoints(addresses);
+  static_cast<_server_database *>(this)->get_endpoints(addresses);
 }
-uint64_t vds::iserver_database::get_server_log_max_index(const guid & id)
+uint64_t vds::iserver_database::get_server_log_max_index(
+  const service_provider & sp,
+  const guid & id)
 {
-  return this->owner_->impl_->get_server_log_max_index(id);
+  return static_cast<_server_database *>(this)->get_server_log_max_index(sp, id);
 }
 
 vds::server_log_record vds::iserver_database::add_local_record(
+  const service_provider & sp,
   const server_log_record::record_id & record_id,
   const json_value * message,
   const_data_buffer & signature)
 {
-  return this->owner_->impl_->add_local_record(record_id, message, signature);
+  return static_cast<_server_database *>(this)->add_local_record(sp, record_id, message, signature);
 }
 
-bool vds::iserver_database::save_record(const server_log_record & record, const const_data_buffer & signature)
+bool vds::iserver_database::save_record(
+  const service_provider & sp,
+  const server_log_record & record,
+  const const_data_buffer & signature)
 {
-  return this->owner_->impl_->save_record(record, signature);
+  return static_cast<_server_database *>(this)->save_record(sp, record, signature);
 }
 
-void vds::iserver_database::get_unknown_records(std::list<server_log_record::record_id>& result)
+void vds::iserver_database::get_unknown_records(
+  const service_provider & sp,
+  std::list<server_log_record::record_id>& result)
 {
-  this->owner_->impl_->get_unknown_records(result);
+  static_cast<_server_database *>(this)->get_unknown_records(sp, result);
 }
 
 bool vds::iserver_database::get_record(
+  const service_provider & sp,
   const server_log_record::record_id & id,
   server_log_record & result_record,
   const_data_buffer & result_signature)
 {
-  return this->owner_->impl_->get_record(id, result_record, result_signature);
+  return static_cast<_server_database *>(this)->get_record(sp, id, result_record, result_signature);
 }
 
 bool vds::iserver_database::get_front_record(
+  const service_provider & sp,
   server_log_record & result_record,
   const_data_buffer & result_signature)
 {
-  return this->owner_->impl_->get_front_record(result_record, result_signature);
+  return static_cast<_server_database *>(this)->get_front_record(sp, result_record, result_signature);
 }
 
-void vds::iserver_database::processed_record(const server_log_record::record_id & id)
+void vds::iserver_database::processed_record(
+  const service_provider & sp,
+  const server_log_record::record_id & id)
 {
-  this->owner_->impl_->processed_record(id);
+  static_cast<_server_database *>(this)->processed_record(sp, id);
 }
 
-void vds::iserver_database::delete_record(const server_log_record::record_id & id)
+void vds::iserver_database::delete_record(
+  const service_provider & sp,
+  const server_log_record::record_id & id)
 {
-  this->owner_->impl_->delete_record(id);
+  static_cast<_server_database *>(this)->delete_record(id);
 }
 
-vds::iserver_database::server_log_state vds::iserver_database::get_record_state(const server_log_record::record_id & id)
+vds::iserver_database::server_log_state vds::iserver_database::get_record_state(
+  const service_provider & sp,
+  const server_log_record::record_id & id)
 {
-  return this->owner_->impl_->server_log_get_state(id);
+  return static_cast<_server_database *>(this)->server_log_get_state(sp, id);
 }
 
 ////////////////////////////////////////////////////////
-vds::_server_database::_server_database(const service_provider & sp, server_database * owner)
-  : sp_(sp),
-  owner_(owner),
-  db_(sp)
+vds::_server_database::_server_database(server_database * owner)
+: owner_(owner)
 {
 }
 
@@ -147,8 +177,9 @@ vds::_server_database::~_server_database()
 {
 }
 
-void vds::_server_database::start()
+void vds::_server_database::start(const service_provider & sp)
 {
+  this->db_.start(sp);
   uint64_t db_version;
 
   filename db_filename(foldername(persistence::current_user(this->sp_), ".vds"), "local.db");

@@ -33,14 +33,14 @@ public:
         }
         
         void operator () (
-          int value
-        )
+          const vds::service_provider & sp,
+          int value)
         {
           ASSERT_EQ(value, 10);
           ASSERT_EQ(this->owner_.state_, 0);
 
           this->owner_.state_++;
-          this->next("test");
+          this->next(sp, "test");
         }
         
       private:
@@ -78,6 +78,7 @@ public:
         }
         
         void operator () (
+          const vds::service_provider & sp,
           const std::string & value
         )
         {
@@ -104,7 +105,7 @@ public:
             ASSERT_EQ(this->owner_.state_, 1);
 
             this->owner_.state_++;
-            this->next_();
+            this->next_(*(vds::service_provider *)nullptr);
           }
         private:
           typename base_class::next_step_t & next_;

@@ -41,6 +41,7 @@ vds::binary_deserializer & vds::operator >> (binary_deserializer & b, server_log
     record.message_.reset(body);
   },
       [](std::exception_ptr ex) {},
+    sp,
     message.c_str(),
     message.length());
 

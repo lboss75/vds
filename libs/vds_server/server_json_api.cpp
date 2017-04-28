@@ -42,8 +42,8 @@ vds::json_value * vds::_server_json_api::operator()(
   const json_value * request) const
 {
   //auto cert = this->tunnel_.get_tunnel_certificate();
-  //this->log_.trace("Certificate subject %s", cert.subject().c_str());
-  //this->log_.trace("Certificate issuer %s", cert.issuer().c_str());
+  //sp.get<logger>().trace("Certificate subject %s", cert.subject().c_str());
+  //sp.get<logger>().trace("Certificate issuer %s", cert.issuer().c_str());
 
   std::unique_ptr<json_array> result(new json_array());
 
@@ -63,7 +63,7 @@ vds::json_value * vds::_server_json_api::operator()(
             if(false) {
             }
             else {
-              this->log_.warning("Invalid request type \'%s\'", task_type_name.c_str());
+              sp.get<logger>().warning("Invalid request type \'%s\'", task_type_name.c_str());
             }
           }
         }

@@ -18,14 +18,13 @@ namespace vds {
     {
     public:
       _server(
-        const service_provider & sp,
         server * owner,
         certificate & certificate,
         asymmetric_private_key & private_key,
         connection_manager & connection_manager);
 
-      void start();
-      void stop();
+      void start(const service_provider & sp);
+      void stop(const service_provider & sp);
       
       async_task<const json_value *>
       process(
@@ -33,8 +32,6 @@ namespace vds {
         const vds::consensus_messages::consensus_message_who_is_leader & message);
 
     private:
-      service_provider sp_;
-      logger log_;
       server * const owner_;
       certificate & certificate_;
       asymmetric_private_key & private_key_;

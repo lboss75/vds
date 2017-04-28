@@ -11,11 +11,10 @@ All rights reserved
 #include "connection_manager.h"
 
 vds::consensus_protocol::server::server(
-  const service_provider & sp,
   certificate & certificate,
   asymmetric_private_key & private_key,
   connection_manager & connection_manager)
-  : impl_(new _server(sp, this, certificate, private_key, connection_manager))
+  : impl_(new _server(this, certificate, private_key, connection_manager))
 {
 }
 
@@ -25,14 +24,14 @@ vds::consensus_protocol::server::~server()
   delete this->impl_;
 }
 
-void vds::consensus_protocol::server::start()
+void vds::consensus_protocol::server::start(const service_provider & sp)
 {
-  this->impl_->start();
+  this->impl_->start(sp);
 }
 
-void vds::consensus_protocol::server::stop()
+void vds::consensus_protocol::server::stop(const service_provider & sp)
 {
-  this->impl_->stop();
+  this->impl_->stop(sp);
 }
 
 vds::async_task<const vds::json_value *>
@@ -44,14 +43,11 @@ vds::consensus_protocol::server::process(
 }
 ///////////////////////////////////////////////////////////////////////////////
 vds::consensus_protocol::_server::_server(
-  const service_provider & sp,
   server * owner,
   certificate & certificate,
   asymmetric_private_key & private_key,
   connection_manager & connection_manager)
-  : sp_(sp),
-  log_(sp, "Consensus Server"),
-  owner_(owner),
+: owner_(owner),
   certificate_(certificate),
   private_key_(private_key),
   connection_manager_(connection_manager),
@@ -60,7 +56,7 @@ vds::consensus_protocol::_server::_server(
 {
 }
 
-void vds::consensus_protocol::_server::start()
+void vds::consensus_protocol::_server::start(const service_provider & sp)
 {/*
   storage_cursor<node> node_reader(this->sp_.get<istorage>());
   while (node_reader.read()) {
@@ -74,7 +70,7 @@ void vds::consensus_protocol::_server::start()
   */
 }
 
-void vds::consensus_protocol::_server::stop()
+void vds::consensus_protocol::_server::stop(const service_provider & sp)
 {
 }
 
@@ -138,9 +134,9 @@ void vds::consensus_protocol::_server::leader_check()
 
 void vds::consensus_protocol::_server::become_leader()
 {
-  this->sp_.get<imt_service>().async([this]() {
-    this->flush_messages_to_lead();
-  });
+  //this->sp_.get<imt_service>().async([this]() {
+  //  this->flush_messages_to_lead();
+  //});
 }
 
 void vds::consensus_protocol::_server::flush_messages_to_lead()

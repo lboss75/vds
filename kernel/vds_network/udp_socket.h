@@ -173,8 +173,7 @@ namespace vds {
       handler(
         const context_type & context,
         const udp_send & args
-      ) : base_class(context), sp_(args.sp_),
-        log_(args.sp_, "UDP Send")
+      ) : base_class(context), sp_(args.sp_)
 #ifndef _WIN32
       , network_service_((network_service *)&args.sp_.get<inetwork_manager>())
 #endif
@@ -236,7 +235,6 @@ namespace vds {
 
     private:
       service_provider sp_;
-      logger log_;
       network_socket::SOCKET_HANDLE s_;
     
 #ifndef _WIN32
@@ -249,7 +247,7 @@ namespace vds {
       {
         auto pthis = reinterpret_cast<handler *>(arg);
         try {
-          pthis->log_.trace("Send %d bytes to %s", pthis->data_size_, network_service::to_string(*pthis->to_).c_str());
+          psp.get<logger>().trace("Send %d bytes to %s", pthis->data_size_, network_service::to_string(*pthis->to_).c_str());
           
           int len = sendto(fd, pthis->data_, pthis->data_size_, 0, (sockaddr *)pthis->to_, sizeof(*pthis->to_));
           if (len < 0) {
@@ -306,7 +304,6 @@ namespace vds {
         const udp_receive & args
       ) : base_class(context),
         sp_(args.sp_),
-        log_(args.sp_, "UDP Receive"),
         buffer_(this)
 #ifndef _WIN32
       , event_(nullptr)
@@ -411,8 +408,6 @@ namespace vds {
 
   private:
     const service_provider & sp_;
-    logger log_;
-
     circular_buffer<handler, 1 * 1024 * 1024, 8 * 1024> buffer_;
 
 #ifndef _WIN32
@@ -471,7 +466,7 @@ private:
         sp_(args.sp_),
         s_(args.s_),
         owner_(args.owner_),
-        multi_handler_(2, [this](std::list<std::exception_ptr> & errors) { this->owner_.socket_closed(errors); })
+        multi_handler_(2, [this](std::list<std::exception_ptr> & errors) { this->owner_.socket_closed(this->sp_, errors); })
       {
       }
       
@@ -479,14 +474,14 @@ private:
       {
         dataflow(
           udp_receive(this->sp_, this->s_),
-          create_step<write_handler>::with(this->owner_)
+          create_step<write_handler>::with(this->owner_, this->sp_)
         )(          
           this->multi_handler_.on_done(),
           this->multi_handler_.on_error()
         );
         
         dataflow(
-          create_step<read_handler>::with(this->owner_),
+          create_step<read_handler>::with(this->owner_, this->sp_),
           udp_send(this->sp_, this->s_)
         )(
           this->multi_handler_.on_done(),
@@ -508,9 +503,11 @@ private:
     public:
       write_handler(
         const context_type & context,
-        handler_class & owner)
+        handler_class & owner,
+        const service_provider & sp)
       : base_class(context),
-        owner_(owner) {
+        owner_(owner),
+        sp_(sp){
 
       }
 
@@ -521,7 +518,7 @@ private:
         }
         else {
           this->owner_
-            .input_message(from, data, len)
+            .input_message(this->sp_, from, data, len)
             .wait(
               [this]() { this->prev(); },
               [this](std::exception_ptr ex) { this->error(ex); });
@@ -530,6 +527,7 @@ private:
 
     private:
       handler_class & owner_;
+      service_provider sp_;
     };
 
     template <typename context_type>
@@ -539,20 +537,23 @@ private:
     public:
       read_handler(
         const context_type & context,
-        handler_class & owner
-      ) : base_class(context),
+        handler_class & owner,
+        const service_provider & sp)
+      : base_class(context),
         owner_(owner),
+        sp_(sp),
         handler_(*this)
       {
       }
 
       void operator()()
       {
-        this->owner_.get_message(this->handler_);
+        this->owner_.get_message(this->sp_, this->handler_);
       }
 
     private:
       handler_class & owner_;
+      service_provider sp_;
       
       class handler
       {

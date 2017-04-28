@@ -13,6 +13,7 @@ namespace vds {
   {
   public:
     virtual void send_to(
+      const service_provider & sp,
       uint32_t message_type_id,
       const std::function<const_data_buffer(void)> & get_binary,
       const std::function<std::string(void)> & get_json) const = 0;
@@ -34,22 +35,23 @@ namespace vds {
       const std::string & server_addresses);
     
     void broadcast(
+      const service_provider & sp,
       uint32_t message_type_id,
       const std::function<const_data_buffer(void)> & get_binary,
       const std::function<std::string(void)> & get_json);
 
-    event_source<const connection_session &, const const_data_buffer &> & incoming_message(uint32_t message_type_id);
-
     void send_to(
+      const service_provider & sp,
       const connection_session & session,
       uint32_t message_type_id,
       const std::function<const_data_buffer(void)> & get_binary,
       const std::function<std::string(void)> & get_json)
     {
-      session.send_to(message_type_id, get_binary, get_json);
+      session.send_to(sp, message_type_id, get_binary, get_json);
     }
 
     async_task<> download_object(
+      const service_provider & sp,
       const guid & server_id,
       uint64_t index,
       const filename & target_file);
@@ -72,9 +74,15 @@ namespace vds {
       async_task<> start(
         const service_provider & sp,
         const url_parser::network_address& address);
-      
+
+      void stop(
+        const service_provider & sp);
+
       //UDP server handlers
-      void socket_closed(std::list<std::exception_ptr> errors);
+      void socket_closed(
+        const service_provider & sp,
+        std::list<std::exception_ptr> errors);
+
       async_task<> input_message(
         const vds::service_provider& sp,
         const sockaddr_in * from,
@@ -82,9 +90,9 @@ namespace vds {
         size_t len);
       
       template <typename next_step_type>
-      void get_message(next_step_type & next)
+      void get_message(const service_provider & sp, next_step_type & next)
       {
-        this->message_queue_.get(next);
+        this->message_queue_.get(sp, next);
       }
       
       void open_udp_session(
@@ -92,6 +100,7 @@ namespace vds {
         const std::string & address);
 
       void broadcast(
+        const service_provider & sp,
         uint32_t message_type_id,
         const std::function<const_data_buffer(void)> & get_binary,
         const std::function<std::string(void)> & get_json);
@@ -100,6 +109,7 @@ namespace vds {
       _connection_manager * owner_;
       udp_socket s_;
       pipeline<std::string, uint16_t, const_data_buffer> message_queue_;
+      timer process_timer_;
 
       class hello_request
       {
@@ -146,6 +156,7 @@ namespace vds {
         const symmetric_key & session_key() const { return this->session_key_; }
 
         void send_to(
+          const service_provider & sp,
           uint32_t message_type_id,
           const std::function<const_data_buffer(void)> & get_binary,
           const std::function<std::string(void)> & get_json) const override;
@@ -209,8 +220,6 @@ namespace vds {
     };
     
     std::unique_ptr<udp_server> udp_server_;
-    std::map<uint32_t, event_source<const connection_session & , const const_data_buffer &>> input_message_handlers_;
-
   };
 }
 

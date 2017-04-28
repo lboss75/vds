@@ -61,7 +61,7 @@ void vds::client_logic::stop()
 
 void vds::client_logic::connection_closed(client_connection<client_logic>& connection)
 {
-  this->log_.error("Connection %s:%d has been closed", connection.address().c_str(), connection.port());
+  sp.get<logger>().info(sp, "Connection %s:%d has been closed", connection.address().c_str(), connection.port());
 
   this->connection_mutex_.lock();
   this->connected_--;
@@ -72,7 +72,7 @@ void vds::client_logic::connection_closed(client_connection<client_logic>& conne
 
 void vds::client_logic::connection_error(client_connection<client_logic>& connection, std::exception_ptr ex)
 {
-  this->log_.error("Connection %s:%d error %s", connection.address().c_str(), connection.port(), exception_what(ex).c_str());
+  sp.get<logger>().info(sp, "Connection %s:%d error %s", connection.address().c_str(), connection.port(), exception_what(ex).c_str());
 
   this->connection_mutex_.lock();
   this->connected_--;

@@ -86,10 +86,10 @@ TEST(http_tests, test_server)
     registrator.add(network_service);
 
     {
-        auto sp = registrator.build();
+        auto sp = registrator.build("test_server");
 
         //Start server
-        vds::http_router router(sp);
+        vds::http_router router;
         router.add_static(
           "/",
           "<html><body>Hello World</body></html>");
@@ -156,9 +156,8 @@ TEST(http_tests, test_server)
 
         //Wait
         done.wait();
+        registrator.shutdown(sp);
     }
-
-    registrator.shutdown();
 }
 
 TEST(http_tests, test_https_server)
@@ -172,10 +171,10 @@ TEST(http_tests, test_https_server)
   registrator.add(network_service);
 
   {
-    auto sp = registrator.build();
+    auto sp = registrator.build("test_https_server");
 
     //Start server
-    vds::http_router router(sp);
+    vds::http_router router;
     router.add_static(
       "/",
       "<html><body>Hello World</body></html>");
@@ -242,9 +241,10 @@ TEST(http_tests, test_https_server)
 
     //Wait
     done.wait();
+
+    registrator.shutdown(sp);
   }
 
-  registrator.shutdown();
 }
 
 

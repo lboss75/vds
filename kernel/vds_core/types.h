@@ -20,6 +20,8 @@ All rights reserved
 #include <functional>
 
 namespace vds {
+  class service_provider;
+
   class types {
   public:
     template <typename interface_type>
@@ -29,7 +31,7 @@ namespace vds {
     static size_t g_last_type_id;
   };
   
-  typedef std::function<void (std::exception_ptr)> error_handler;
+  typedef std::function<void (const service_provider &, std::exception_ptr)> error_handler;
 }
 
 template<typename interface_type>

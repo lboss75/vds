@@ -43,31 +43,32 @@ void vds::connection_manager::start_servers(
 
 //////////////////////////////////////////////////////
 
-vds::event_source<const vds::connection_session &, const vds::const_data_buffer&>& vds::iconnection_manager::incoming_message(uint32_t message_type_id)
+vds::async_task<> vds::iconnection_manager::download_object(
+  const service_provider & sp,
+  const guid & server_id,
+  uint64_t index,
+  const filename & target_file)
 {
-  return static_cast<_connection_manager *>(this)->incoming_message(message_type_id);
-}
-
-vds::async_task<> vds::iconnection_manager::download_object(const guid & server_id, uint64_t index, const filename & target_file)
-{
-  return static_cast<_connection_manager *>(this)->download_object(server_id, index, target_file);
+  return static_cast<_connection_manager *>(this)->download_object(sp, server_id, index, target_file);
 }
 
 void vds::iconnection_manager::broadcast(
+  const service_provider & sp,
   uint32_t message_type_id,
   const std::function<const_data_buffer(void)> & get_binary,
   const std::function<std::string(void)> & get_json)
 {
-  static_cast<_connection_manager *>(this)->broadcast(message_type_id, get_binary, get_json);
+  static_cast<_connection_manager *>(this)->broadcast(sp, message_type_id, get_binary, get_json);
 }
 
 void vds::iconnection_manager::send_to(
+  const service_provider & sp,
   const connection_session & session,
   uint32_t message_type_id,
   const std::function<const_data_buffer(void)> & get_binary,
   const std::function<std::string(void)> & get_json)
 {
-  static_cast<_connection_manager *>(this)->send_to(session, message_type_id, get_binary, get_json);
+  static_cast<_connection_manager *>(this)->send_to(sp, session, message_type_id, get_binary, get_json);
 }
 
 //////////////////////////////////////////////////////
@@ -85,10 +86,10 @@ vds::_connection_manager::~_connection_manager()
 void vds::_connection_manager::start(const vds::service_provider& sp)
 {
   std::map<std::string, std::string> endpoints;
-  sp.get<node_manager>().get_endpoints(endpoints);
+  sp.get<node_manager>().get_endpoints(sp, endpoints);
   
   for (auto & p : endpoints) {
-    sp.get<logger>().info("Connecting to %s", p.first.c_str());
+    sp.get<logger>().info(sp, "Connecting to %s", p.first.c_str());
     
     url_parser::parse_addresses(p.second,
       [this, sp](const std::string & protocol, const std::string & address) -> bool {
@@ -117,15 +118,15 @@ void vds::_connection_manager::start_servers(
     if ("udp" == protocol) {
       auto na = url_parser::parse_network_address(address);
       this->start_udp_server(sp, na).wait(
-        [this, sp]() {sp.get<logger>().info("UPD Servers stopped"); },
-        [this, sp](std::exception_ptr ex) {sp.get<logger>().error("UPD Server error: %s", exception_what(ex)); }
+        [this, sp]() {sp.get<logger>().info(sp, "UPD Servers stopped"); },
+        [this, sp](std::exception_ptr ex) {sp.get<logger>().info(sp, "UPD Server error: %s", exception_what(ex)); }
       );
     }
     else if ("https" == protocol) {
       auto na = url_parser::parse_network_address(address);
       this->start_https_server(sp, na).wait(
-        [this, sp]() {sp.get<logger>().info("HTTPS Servers stopped"); },
-        [this, sp](std::exception_ptr ex) { sp.get<logger>().error("HTTPS Server error: %s", exception_what(ex)); }
+        [this, sp]() {sp.get<logger>().info(sp, "HTTPS Servers stopped"); },
+        [this, sp](std::exception_ptr ex) { sp.get<logger>().info(sp, "HTTPS Server error: %s", exception_what(ex)); }
       );
     }
 
@@ -135,22 +136,21 @@ void vds::_connection_manager::start_servers(
 }
 
 void vds::_connection_manager::broadcast(
+  const service_provider & sp,
   uint32_t message_type_id,
   const std::function<const_data_buffer(void)> & get_binary,
   const std::function<std::string(void)> & get_json)
 {
   if (this->udp_server_) {
-    this->udp_server_->broadcast(message_type_id, get_binary, get_json);
+    this->udp_server_->broadcast(sp, message_type_id, get_binary, get_json);
   }
 }
 
-vds::event_source<const vds::connection_session & , const vds::const_data_buffer&>& vds::_connection_manager::incoming_message(uint32_t message_type_id)
-{
-  return this->input_message_handlers_[message_type_id];
-}
-
-
-vds::async_task<> vds::_connection_manager::download_object(const guid & server_id, uint64_t index, const filename & target_file)
+vds::async_task<> vds::_connection_manager::download_object(
+  const service_provider & sp,
+  const guid & server_id,
+  uint64_t index,
+  const filename & target_file)
 {
   throw std::runtime_error("Not implemented");
 }
@@ -180,9 +180,12 @@ vds::async_task<> vds::_connection_manager::udp_server::start(
   const service_provider & sp,
   const url_parser::network_address& address)
 {
-  sp.get<itask_manager>().wait_for(std::chrono::seconds(5), [this, sp]() {
-    this->process_timer_jobs(sp);
-  });
+  this->process_timer_.start(
+    sp,
+    std::chrono::seconds(5),
+    [this, sp]() {
+      this->process_timer_jobs(sp);
+    });
 
   return run_udp_server<vds::_connection_manager::udp_server>(
     sp,
@@ -192,7 +195,14 @@ vds::async_task<> vds::_connection_manager::udp_server::start(
     *this);
 }
 
-void vds::_connection_manager::udp_server::socket_closed(std::list<std::exception_ptr> errors)
+void vds::_connection_manager::udp_server::stop(const service_provider & sp)
+{
+  this->process_timer_.stop(sp);
+}
+
+void vds::_connection_manager::udp_server::socket_closed(
+  const service_provider & sp,
+  std::list<std::exception_ptr> errors)
 {
 }
 
@@ -210,7 +220,7 @@ vds::async_task<> vds::_connection_manager::udp_server::input_message(
     case udp_messages::message_identification::hello_message_id:
     {
       udp_messages::hello_message msg(s);
-      sp.get<logger>().debug("hello from %s", network_service::to_string(*from).c_str());
+      sp.get<logger>().debug(sp, "hello from %s", network_service::to_string(*from).c_str());
 
       //auto cert_manager = this->sp_.get<vds::cert_manager>();
 
@@ -258,6 +268,7 @@ vds::async_task<> vds::_connection_manager::udp_server::input_message(
             .serialize();
 
           this->message_queue_.push(
+            sp,
             network_service::get_ip_address_string(*from),
             ntohs(from->sin_port),
             message_data);
@@ -274,7 +285,7 @@ vds::async_task<> vds::_connection_manager::udp_server::input_message(
     case udp_messages::message_identification::welcome_message_id:
     {
       udp_messages::welcome_message msg(s);
-      sp.get<logger>().debug("welcome from %s", network_service::to_string(*from).c_str());
+      sp.get<logger>().debug(sp, "welcome from %s", network_service::to_string(*from).c_str());
 
       auto cert = certificate::parse(msg.server_certificate());
 
@@ -291,6 +302,7 @@ vds::async_task<> vds::_connection_manager::udp_server::input_message(
         to_sign.data())) {
 
         sp.get<logger>().debug(
+          sp,
           "welcome from %s has been accepted",
           network_service::to_string(*from).c_str());
 
@@ -328,6 +340,7 @@ vds::async_task<> vds::_connection_manager::udp_server::input_message(
           done();
         },
             on_error,
+          sp,
           msg.crypted_data().data(),
           msg.crypted_data().size());
       }
@@ -345,7 +358,7 @@ vds::async_task<> vds::_connection_manager::udp_server::input_message(
         s >> session_id >> crypted_data >> data_hash;
         s.final();
 
-        sp.get<logger>().debug("command from %s", network_service::to_string(*from).c_str());
+        sp.get<logger>().debug(sp, "command from %s", network_service::to_string(*from).c_str());
 
         std::shared_lock<std::shared_mutex> lock(this->sessions_mutex_);
 
@@ -363,29 +376,30 @@ vds::async_task<> vds::_connection_manager::udp_server::input_message(
               const_data_buffer binary_form;
               d >> message_type_id >> binary_form;
 
-              auto h = this->owner_->input_message_handlers_.find(message_type_id);
-              if (this->owner_->input_message_handlers_.end() != h) {
-                h->second(*session, binary_form);
-              }
-              else {
-                sp.get<logger>().debug("Handler for message %d not found", message_type_id);
-              }
+              //TODO: auto h = this->owner_->input_message_handlers_.find(message_type_id);
+              //if (this->owner_->input_message_handlers_.end() != h) {
+                //h->second(*session, binary_form);
+              //}
+              //else {
+                sp.get<logger>().debug(sp, "Handler for message %d not found", message_type_id);
+              //}
             }
             else {
-              sp.get<logger>().debug("Invalid data hash");
+              sp.get<logger>().debug(sp, "Invalid data hash");
             }
           },
             [](std::exception_ptr ex) {
           },
             crypted_data.data(),
-            crypted_data.size());
+            crypted_data.size(),
+            sp);
         }
         else {
-          sp.get<logger>().debug("Session %d not found", session_id);
+          sp.get<logger>().debug(sp, "Session %d not found", session_id);
         }
       }
       catch (...) {
-        sp.get<logger>().debug("Error at processing command");
+        sp.get<logger>().debug(sp, "Error at processing command");
         on_error(std::current_exception());
         return;
       }
@@ -423,6 +437,7 @@ void vds::_connection_manager::udp_server::open_udp_session(
         address).serialize();
       
       this->message_queue_.push(
+        sp,
         server,
         port,
         const_data_buffer(data));
@@ -433,12 +448,13 @@ void vds::_connection_manager::udp_server::open_udp_session(
 }
 
 void vds::_connection_manager::udp_server::broadcast(
+  const service_provider & sp,
   uint32_t message_type_id,
   const std::function<const_data_buffer(void)> & get_binary,
   const std::function<std::string(void)> & get_json)
 {
-  this->for_each_sessions([this, message_type_id, &get_binary, &get_json](const session & session){
-    session.send_to(message_type_id, get_binary, get_json);
+  this->for_each_sessions([this, sp, message_type_id, &get_binary, &get_json](const session & session){
+    session.send_to(sp, message_type_id, get_binary, get_json);
   });
 }
 
@@ -465,6 +481,7 @@ vds::_connection_manager::udp_server::session::~session()
 }
 
 void vds::_connection_manager::udp_server::session::send_to(
+  const service_provider & sp,
   uint32_t message_type_id,
   const std::function<const_data_buffer(void)> & get_binary,
   const std::function<std::string(void)> & get_json) const
@@ -475,7 +492,7 @@ void vds::_connection_manager::udp_server::session::send_to(
   dataflow(
     symmetric_encrypt(this->session_key()),
     collect_data())(
-      [this, &message_data](const void * crypted_data, size_t size) {
+      [this, sp, &message_data](const void * crypted_data, size_t size) {
         network_serializer s;
         s.start(udp_messages::command_message_id);
         s << this->external_session_id();
@@ -484,11 +501,13 @@ void vds::_connection_manager::udp_server::session::send_to(
         s.final();
 
         this->owner_->message_queue_.push(
+          sp,
           this->server(),
           this->port(),
           s.data());
       },
       [](std::exception_ptr ex) { std::rethrow_exception(ex); },
+      sp,
       message_data.data().data(),
       message_data.data().size());
 }
@@ -541,7 +560,7 @@ void vds::_connection_manager::udp_server::process_timer_jobs(const service_prov
 {
   std::unique_lock<std::mutex> lock(this->hello_requests_mutex_);
   for (auto & p : this->hello_requests_) {
-    sp.get<logger>().debug("Reconect with %s:%d", p.second.server().c_str(), p.second.port());
+    sp.get<logger>().debug(sp, "Reconect with %s:%d", p.second.server().c_str(), p.second.port());
 
     auto data = udp_messages::hello_message(
       sp.get<istorage_log>().server_certificate().str(),
@@ -549,14 +568,11 @@ void vds::_connection_manager::udp_server::process_timer_jobs(const service_prov
       "udp://" + p.second.server() + ":" + std::to_string(p.second.port())).serialize();
 
     this->message_queue_.push(
+      sp,
       p.second.server(),
       p.second.port(),
       const_data_buffer(data));
   }
-
-  sp.get<itask_manager>().wait_for(std::chrono::seconds(5), [this, sp]() {
-    this->process_timer_jobs(sp);
-  });
 }
 
 vds::_connection_manager::udp_server::hello_request::hello_request()

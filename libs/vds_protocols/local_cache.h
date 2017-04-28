@@ -1,5 +1,5 @@
-#ifndef __VDS_STORAGE_LOCAL_CACHE_H_
-#define __VDS_STORAGE_LOCAL_CACHE_H_
+#ifndef __VDS_PROTOCOLS_LOCAL_CACHE_H_
+#define __VDS_PROTOCOLS_LOCAL_CACHE_H_
 
 /*
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
@@ -42,4 +42,4 @@ namespace vds {
   };
 }
 
-#endif // __VDS_STORAGE_LOCAL_CACHE_H_
+#endif // __VDS_PROTOCOLS_LOCAL_CACHE_H_

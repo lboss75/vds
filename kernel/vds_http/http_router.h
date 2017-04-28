@@ -15,9 +15,10 @@ namespace vds {
   class http_router
   {
   public:
-    http_router(const service_provider & sp);
+    http_router();
 
     void route(
+      const service_provider & sp,
       const http_request & request,
       http_incoming_stream & incoming_stream,
       http_response & response,
@@ -48,12 +49,11 @@ namespace vds {
       error_handler_type & error_handler
     ) const
     {
-      this->route(request, incoming_stream, response, outgoing_stream);
+      this->route(scope, request, incoming_stream, response, outgoing_stream);
       next_handler(response, outgoing_stream);      
     }
     
   private:
-    logger log_;
     std::map<std::string, std::string> static_;
     std::map<std::string, filename> files_;
   };

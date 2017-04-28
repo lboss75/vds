@@ -19,7 +19,6 @@ namespace vds {
   {
   public:
     _https_pipeline(
-      const service_provider & sp,
       https_pipeline * owner,
       const std::string & address,
       int port,
@@ -28,7 +27,7 @@ namespace vds {
     
     ~_https_pipeline();
       
-    void connect();
+    void connect(const service_provider & sp);
     
     const std::string & address() const {
       return this->address_;
@@ -43,9 +42,7 @@ namespace vds {
   private:
     class ioutput_command_stream;
 
-    service_provider sp_;
     https_pipeline * owner_;
-    logger log_;
     std::string address_;
     int port_;
     certificate * client_certificate_;
@@ -141,7 +138,8 @@ namespace vds {
 
           void operator()(std::exception_ptr ex)
           {
-            this->owner_->owner_->log_(ll_error, 
+            this->owner_->sp_.get<logger>().error(
+              this->owner_->sp_,
               "stream %s:%d error: %s",
               this->owner_->owner_->address_.c_str(),
               this->owner_->owner_->port_,

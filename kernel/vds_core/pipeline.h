@@ -10,20 +10,22 @@ All rights reserved
 #include "func_utils.h"
 
 namespace vds {
+  class service_provider;
+
   template <typename... argument_types>
   class pipeline
   {
   public:
    
-    void push(argument_types... arguments)
+    void push(const service_provider & sp, argument_types... arguments)
     {
-      this->queue_.push(std::tuple<argument_types...>(arguments...));
+      this->queue_.push(sp, std::tuple<argument_types...>(arguments...));
     }
     
     template <typename target_type>
-    void get(target_type & target)
+    void get(const service_provider & sp, target_type & target)
     {
-      this->queue_.get(this->proxy_type_builder_.get<target_type>(target));
+      this->queue_.get(sp, this->proxy_type_builder_.get<target_type>(target));
     }
     
   private:

@@ -80,7 +80,7 @@ vds::async_task<> vds::_server_http_api::start(
     [this, address, port, &certificate, &private_key](
       const std::function<void(void)> & done,
       const error_handler & on_error){
-      this->log_.debug("Start HTTP sever %s:%d", address.c_str(), port);
+      sp.get<logger>().debug(sp, "Start HTTP sever %s:%d", address.c_str(), port);
       dataflow(
         socket_server(this->sp_, address, port),
         vds::for_each<const service_provider &, network_socket &>::create_handler(

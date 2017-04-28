@@ -64,19 +64,19 @@ namespace vds {
         this->target_(args...);
       }
       else {
-        this->args_ = std::make_tuple(args...);
+        this->args_.reset(new std::tuple<arg_types...>(args...));
         this->schedule();
       }
     }
 
     void execute() override
     {
-      call_with<functor_type, std::tuple<arg_types...>>(this->target_, this->args_);
+      call_with<functor_type, std::tuple<arg_types...>>(this->target_, *this->args_);
     }
 
   private:
     functor_type & target_;
-    std::tuple<arg_types...> args_;
+    std::unique_ptr<std::tuple<arg_types...>> args_;
   };
 
   template <typename functor_type, typename class_name, typename... arg_types>
@@ -95,19 +95,19 @@ namespace vds {
         this->target_(args...);
       }
       else {
-        this->args_ = std::make_tuple(args...);
+        this->args_.reset(new std::tuple<arg_types...>(args...));
         this->schedule();
       }
     }
 
     void execute() override
     {
-      call_with<functor_type, std::tuple<arg_types...>>(this->target_, this->args_);
+      call_with<functor_type, std::tuple<arg_types...>>(this->target_, *this->args_);
     }
 
   private:
     functor_type & target_;
-    std::tuple<arg_types...> args_;
+    std::unique_ptr<std::tuple<arg_types...>> args_;
   };
 
   template <typename functor_type>

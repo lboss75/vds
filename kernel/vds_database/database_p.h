@@ -17,7 +17,7 @@ namespace vds {
     _sql_statement(const service_provider & sp, sqlite3 * db, const std::string & sql)
       : /*sp_(sp), */db_(db), stmt_(nullptr), /*log_(sp, "SQL"), query_(sql),*/ state_(bof_state)
     {
-      //this->log_.trace("Parse %s", sql.c_str());
+      //sp.get<logger>().trace("Parse %s", sql.c_str());
       if (SQLITE_OK != sqlite3_prepare_v2(db, sql.c_str(), -1, &this->stmt_, nullptr)) {
         throw new std::runtime_error(sqlite3_errmsg(db));
       }
@@ -69,12 +69,12 @@ namespace vds {
     {
       switch (sqlite3_step(this->stmt_)) {
       case SQLITE_ROW:
-        //this->log_.trace("Step %s", this->query_.c_str());
+        //sp.get<logger>().trace("Step %s", this->query_.c_str());
         this->state_ = read_state;
         return true;
 
       case SQLITE_DONE:
-        //this->log_.trace("Done %s", this->query_.c_str());
+        //sp.get<logger>().trace("Done %s", this->query_.c_str());
         this->state_ = eof_state;
         return false;
 

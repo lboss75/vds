@@ -13,21 +13,22 @@ namespace vds {
   {
   public:
     _server_log_sync(
-      const service_provider & sp,
       server_log_sync * owner);
     
     ~_server_log_sync();
     
-    void start();
-    void stop();
+    void start(const service_provider & sp);
+    void stop(const service_provider & sp);
 
   private:
-    service_provider sp_;
-    logger log_;
+    friend class _storage_log;
     server_log_sync * const owner_;
     timer timer_;
     
-    void on_new_local_record(const server_log_record & record, const const_data_buffer & signature);
+    void on_new_local_record(
+      const service_provider & sp,
+      const server_log_record & record,
+      const const_data_buffer & signature);
 
     class server_log_record_broadcast
     {
@@ -75,11 +76,16 @@ namespace vds {
     };
 
 
-    void on_record_broadcast(const server_log_record_broadcast & message);
-    void on_server_log_get_records_broadcast(const connection_session & session, const server_log_get_records_broadcast & message);
+    void on_record_broadcast(
+      const service_provider & sp,
+      const server_log_record_broadcast & message);
+    void on_server_log_get_records_broadcast(
+      const service_provider & sp,
+      const connection_session & session,
+      const server_log_get_records_broadcast & message);
 
-    void require_unknown_records();
-    void process_timer_jobs();
+    void require_unknown_records(const service_provider & sp);
+    void process_timer_jobs(const service_provider & sp);
   };
 
 }

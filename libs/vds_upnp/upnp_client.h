@@ -10,10 +10,11 @@ namespace vds {
   class upnp_client
   {
   public:
-    upnp_client(const service_provider & sp);
+    upnp_client();
     ~upnp_client();
     
     bool open_port(
+      const service_provider & sp,
       uint16_t internal_port,
       uint16_t external_port,
       const std::string & protocol,
@@ -21,12 +22,12 @@ namespace vds {
     );
     
     void close_port(
+      const service_provider & sp,
       uint16_t external_port,
       const std::string & protocol
     );
     
   private:
-    logger log_;
 
 #ifdef _WIN32
     com_ptr<IUPnPNAT> nat_;

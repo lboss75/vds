@@ -323,7 +323,8 @@ TEST(network_tests, test_server)
       echo_server(sp)
     )(
       done_server,
-      error_server
+      error_server,
+      sp
       );
 
     auto done_client = vds::lambda_handler(
@@ -346,6 +347,7 @@ TEST(network_tests, test_server)
     (
       done_client,
       error_client,
+      sp,
       "127.0.0.1",
       8000);
 
@@ -379,7 +381,7 @@ TEST(network_tests, test_udp_server)
         FAIL() << "Client error " << vds::exception_what(ex);
       });
 
-      vds::udp_socket server_socket(sp);
+      vds::udp_socket server_socket;
       vds::dataflow(
         vds::udp_server(sp, server_socket, "127.0.0.1", 8001),
         vds::udp_receive(sp, server_socket),
@@ -387,8 +389,8 @@ TEST(network_tests, test_udp_server)
       )
       (
         done_server,
-        error_server
-        );
+        error_server,
+        sp);
 
 
       const char testdata[] = "testdata";
@@ -411,7 +413,7 @@ TEST(network_tests, test_udp_server)
       addr.sin_addr.s_addr = inet_addr("127.0.0.1");
       addr.sin_port = htons(8001);
 
-      vds::udp_socket client_socket(sp);
+      vds::udp_socket client_socket;
       vds::dataflow(
         vds::udp_send(sp, client_socket),
         vds::udp_receive(sp, client_socket)
@@ -419,6 +421,7 @@ TEST(network_tests, test_udp_server)
       (
         done_client,
         error_client,
+        sp,
         &addr,
         (const void *)testdata,
         sizeof(testdata) - 1

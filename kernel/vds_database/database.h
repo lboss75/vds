@@ -57,9 +57,10 @@ namespace vds {
   class database
   {
   public:
-    database(const service_provider & sp);
+    database();
     ~database();
 
+    void start(const service_provider & sp);
     void open(const filename & fn);
     void close();
 

@@ -81,10 +81,8 @@ void vds::network_service::start_libevent_dispatch(const service_provider & sp)
 
 void vds::network_service::stop(const service_provider & sp)
 {
-    logger log(sp, "vds::network_service::stop");
-
     try {
-        log(ll_trace, "Stopping network service");
+      sp.get<logger>().trace(sp, "Stopping network service");
         
 #ifndef _WIN32
         do{
@@ -108,7 +106,7 @@ void vds::network_service::stop(const service_provider & sp)
 #endif
     }
     catch (...) {
-        log(ll_error, "Failed stop network service %s", exception_what(std::current_exception()).c_str());
+      sp.get<logger>().error(sp, "Failed stop network service %s", exception_what(std::current_exception()).c_str());
     }
 }
 
@@ -121,11 +119,9 @@ void vds::network_service::associate(network_socket::SOCKET_HANDLE s)
   }
 }
 
-void vds::network_service::thread_loop(const service_provider & provider)
+void vds::network_service::thread_loop(const service_provider & sp)
 {
-    logger log(provider, "vds::network_service::thread_loop");
-
-    while (!provider.get_shutdown_event().is_shuting_down()) {
+    while (!sp.get_shutdown_event().is_shuting_down()) {
         DWORD dwBytesTransfered = 0;
         void * lpContext = NULL;
         OVERLAPPED * pOverlapped = NULL;
@@ -142,14 +138,14 @@ void vds::network_service::thread_loop(const service_provider & provider)
           }
 
           std::unique_ptr<std::system_error> error_message(new std::system_error(errorCode, std::system_category(), "GetQueuedCompletionStatus"));
-          log(ll_error, error_message->what());
+          sp.get<logger>().error(sp, error_message->what());
           return;
         }
         try {
           socket_task::from_overlapped(pOverlapped)->process(dwBytesTransfered);
         }
         catch (...) {
-          log(ll_error, "IO Task error: %s", exception_what(std::current_exception()).c_str());
+          sp.get<logger>().error(sp, "IO Task error: %s", exception_what(std::current_exception()).c_str());
         }
     }
 }

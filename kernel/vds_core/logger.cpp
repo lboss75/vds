@@ -9,19 +9,14 @@ All rights reserved
 #include "persistence.h"
 #include "string_format.h"
 
-vds::logger::logger(const service_provider & sp, const std::string & name)
-: sp_(sp), name_(name), log_writer_(sp.get<log_writer>()), min_log_level_(ll_error)
+void vds::logger::operator()(
+  const service_provider & sp,
+  log_level level,
+  const std::string & message) const
 {
-  if (this->min_log_level_ > this->log_writer_.level()) {
-    this->min_log_level_ = this->log_writer_.level();
-  }
-}
+  log_record record{ level, sp.name(), message };
 
-void vds::logger::operator()(log_level level, const std::string & message) const
-{
-  log_record record{ level, this->name_, message };
-
-    this->log_writer_.write(record);
+  this->log_writer_.write(sp, record);
 }
 /////////////////////////////////////////////////////////
 vds::log_writer::log_writer(log_level level)
@@ -48,7 +43,7 @@ void vds::console_logger::stop(const service_provider &)
 {
 }
 
-void vds::console_logger::write(const log_record & record)
+void vds::console_logger::write(const service_provider & sp, const log_record & record)
 {
   switch (record.level)
   {
@@ -119,7 +114,9 @@ void vds::file_logger::stop(const service_provider &)
   this->f_.reset();
 }
 
-void vds::file_logger::write(const log_record & record)
+void vds::file_logger::write(
+  const service_provider & sp,
+  const log_record & record)
 {
   std::string level_str;
   switch (record.level) {

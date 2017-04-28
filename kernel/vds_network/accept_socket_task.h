@@ -6,8 +6,9 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
+#include "network_manager.h"
+
 namespace vds {
-  class network_service;
   
   template<
     typename done_method_type,
@@ -180,7 +181,7 @@ namespace vds {
               auto socket = accept(this->s_, (sockaddr*)&client_address, &client_address_length);
               if (INVALID_SOCKET != socket) {
                 this->network_service_->associate(socket);
-                auto sp = this->sp_.create_scope();
+                auto sp = this->sp_.create_scope("Connection from " + network_service::to_string(client_address));
                 this->done_method_(sp, network_socket(socket));
               }
             }
@@ -245,7 +246,7 @@ namespace vds {
         //}
         imt_service::async(data->sp_, [data, sock](){
           std::cout << "New connection\n";
-          auto sp = data->sp_.create_scope();
+          auto sp = data->sp_.create_scope("Connection from " + network_service::to_string(client_address));
           network_socket s(sock);
           data->done_method_(sp, s);
         });

@@ -1,5 +1,5 @@
-#ifndef __VDS_STORAGE_SERVER_DATABASE_P_H_
-#define __VDS_STORAGE_SERVER_DATABASE_P_H_
+#ifndef __VDS_PROTOCOLS_SERVER_DATABASE_P_H_
+#define __VDS_PROTOCOLS_SERVER_DATABASE_P_H_
 
 /*
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
@@ -11,26 +11,34 @@ All rights reserved
 namespace vds {
   class istorage_log;
   
-  class _server_database
+  class _server_database : public iserver_database
   {
   public:
-    _server_database(const service_provider & sp, server_database * owner);
+    _server_database(server_database * owner);
     ~_server_database();
 
-    void start();
-    void stop();
+    void start(const service_provider & sp);
+    void stop(const service_provider & sp);
 
-    void add_cert(const cert_record & record);
-    std::unique_ptr<cert_record> find_cert(const std::string & object_name);
+    void add_cert(
+      const service_provider & sp,
+      const cert_record & record);
+
+    std::unique_ptr<cert_record> find_cert(
+      const service_provider & sp,
+      const std::string & object_name);
     
     void add_object(
+      const service_provider & sp,
       const guid & server_id,
       const server_log_new_object & index);
     
     uint64_t last_object_index(
+      const service_provider & sp,
       const guid & server_id);
     
     void add_endpoint(
+      const service_provider & sp,
       const std::string & endpoint_id,
       const std::string & addresses);
 
@@ -38,48 +46,64 @@ namespace vds {
       std::map<std::string, std::string> & addresses);
 
     void add_file(
+      const service_provider & sp,
       const guid & server_id,
       const server_log_file_map & fm);
 
     void get_file_versions(
+      const service_provider & sp,
       const std::string & user_login,
       const std::string & name,
       std::list<server_log_file_version> & result);
 
     void get_file_version_map(
+      const service_provider & sp,
       const guid & server_id,
       const std::string & version_id,
       std::list<uint64_t> & result_indexes);
 
 
     server_log_record add_local_record(
+      const service_provider & sp,
       const server_log_record::record_id & record_id,
       const json_value * message,
       const_data_buffer & signature);
 
-    bool save_record(const server_log_record & record, const const_data_buffer & signature);
-    void processed_record(const server_log_record::record_id & id);
+    bool save_record(
+      const service_provider & sp,
+      const server_log_record & record,
+      const const_data_buffer & signature);
 
-    uint64_t get_server_log_max_index(const guid & id);
+    void processed_record(
+      const service_provider & sp,
+      const server_log_record::record_id & id);
 
-    void get_unknown_records(std::list<server_log_record::record_id> & result);
+    uint64_t get_server_log_max_index(
+      const guid & id);
+
+    void get_unknown_records(
+      const service_provider & sp,
+      std::list<server_log_record::record_id> & result);
 
     bool get_record(
+      const service_provider & sp,
       const server_log_record::record_id & id,
       server_log_record & result_record,
       const_data_buffer & result_signature);
 
     bool get_front_record(
+      const service_provider & sp,
       server_log_record & result_record,
       const_data_buffer & result_signature);
 
     void delete_record(
+      const service_provider & sp,
       const server_log_record::record_id & id);
     
     iserver_database::server_log_state server_log_get_state(
+      const service_provider & sp,
       const server_log_record::record_id & record_id);
   private:
-    service_provider sp_;
     server_database * owner_;
     database db_;
 
@@ -203,6 +227,7 @@ namespace vds {
       int /*state*/> get_record_by_state_query_;
       
     bool get_record_by_state(
+      const service_provider & sp,
       iserver_database::server_log_state state,
       server_log_record & result_record,
       const_data_buffer & result_signature);
@@ -210,4 +235,4 @@ namespace vds {
 
 }
 
-#endif // __VDS_STORAGE_SERVER_DATABASE_P_H_
+#endif // __VDS_PROTOCOLS_SERVER_DATABASE_P_H_

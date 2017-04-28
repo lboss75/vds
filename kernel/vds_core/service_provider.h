@@ -45,7 +45,8 @@ namespace vds {
     enum class property_scope
     {
       root_scope,
-      local_scope
+      local_scope,
+      any_scope
     };
 
     template <typename property_type>

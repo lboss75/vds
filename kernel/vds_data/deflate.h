@@ -38,10 +38,11 @@ namespace vds {
         const void * to_push;
         size_t to_push_len;
         if (!push_data(this->handler_, data, len, to_push, to_push_len)) {
-          this->prev();
+          this->prev(sp);
         }
         else {
           this->next(
+            sp,
             to_push,
             to_push_len);
         }

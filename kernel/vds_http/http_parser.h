@@ -47,7 +47,7 @@ namespace vds {
         const http_parser & args)
         : base_class(context),
         state_(STATE_PARSE_HEADER),
-        sp_(args.sp_), log_(args.sp_, "HTTP Parser")
+        sp_(args.sp_)
       {
       }
     
@@ -126,15 +126,15 @@ namespace vds {
                 items[2],
                 this->headers_);
 
-              this->log_(
-                ll_trace,
+              this->sp_.get<logger>().trace(
+                this->sp_,
                 "Request url:%s, method: %s, agent:%s",
                 this->request_.url().c_str(),
                 this->request_.method().c_str(),
                 this->request_.agent().c_str());
               
               for (auto & p : this->headers_) {
-                this->log_(ll_trace, p);
+                this->sp_.get<logger>().trace(this->sp_, p);
               }
 
               std::string content_length_header;
@@ -153,7 +153,7 @@ namespace vds {
                 this->state_ = STATE_PARSE_BODY;
               }
 
-              auto sp = this->sp_.create_scope();
+              auto sp = this->sp_.create_scope("HTTP Request");
               this->next(
                 sp,
                 this->request_,
@@ -214,7 +214,6 @@ namespace vds {
       size_t content_length_;
 
       service_provider sp_;
-      logger log_;
     };
     private:
       service_provider sp_;

@@ -9,12 +9,12 @@ All rights reserved
 #include "http_outgoing_stream.h"
 #include "http_request.h"
 
-vds::http_router::http_router(const service_provider & sp)
-  : log_(sp, "HTTP Router")
+vds::http_router::http_router()
 {
 }
 
 void vds::http_router::route(
+  const service_provider & sp,
   const http_request & request,
   http_incoming_stream & /*incoming_stream*/,
   http_response & response,
@@ -52,7 +52,7 @@ void vds::http_router::route(
     return;
   }
   
-  this->log_(ll_debug, "File not found: %s", request.url().c_str());
+  sp.get<logger>().debug(sp, "File not found: %s", request.url().c_str());
   response.set_result(404, "Not Found");
   outgoing_stream.set_body("<html><body>File not file</body></html>");
 }

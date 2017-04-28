@@ -8,8 +8,8 @@ All rights reserved
 #include "chunk_manager_p.h"
 #include "storage_log.h"
 
-vds::chunk_manager::chunk_manager(const service_provider & sp)
-  : impl_(new _chunk_manager(sp, this))
+vds::chunk_manager::chunk_manager()
+  : impl_(new _chunk_manager(this))
 {
 }
 
@@ -18,50 +18,48 @@ vds::chunk_manager::~chunk_manager()
   delete this->impl_;
 }
 
-void vds::chunk_manager::start()
+void vds::chunk_manager::start(const service_provider & sp)
 {
-  this->impl_->start();
+  this->impl_->start(sp);
 }
 
-void vds::chunk_manager::stop()
+void vds::chunk_manager::stop(const service_provider & sp)
 {
-  this->impl_->stop();
+  this->impl_->stop(sp);
 }
 
-vds::ichunk_manager::ichunk_manager(chunk_manager * owner)
-  : owner_(owner)
-{
-}
 
 vds::async_task<const vds::server_log_new_object &>
 vds::ichunk_manager::add(
+  const service_provider & sp,
   const const_data_buffer& data)
 {
-  return this->owner_->impl_->add(data);
+  return static_cast<_chunk_manager *>(this)->add(sp, data);
 }
 
-vds::const_data_buffer vds::ichunk_manager::get(const guid & server_id, uint64_t index)
+vds::const_data_buffer vds::ichunk_manager::get(
+  const service_provider & sp,
+  const guid & server_id, uint64_t index)
 {
-  return this->owner_->impl_->get(server_id, index);
+  return static_cast<_chunk_manager *>(this)->get(sp, server_id, index);
 }
 
-void vds::ichunk_manager::set_next_index(uint64_t next_index)
+void vds::ichunk_manager::set_next_index(
+  const service_provider & sp,
+  uint64_t next_index)
 {
-  this->owner_->impl_->set_next_index(next_index);
+  static_cast<_chunk_manager *>(this)->set_next_index(sp, next_index);
 }
 
 //////////////////////////////////////////////////////////////////////
 vds::_chunk_manager::_chunk_manager(
-  const service_provider & sp,
   chunk_manager * owner)
-: sp_(sp),
+:
   owner_(owner),
-  tmp_folder_(foldername(persistence::current_user(sp), ".vds"), "tmp"),
   last_tmp_file_index_(0),
   last_obj_file_index_(0),
   obj_size_(0)
 {
-  this->tmp_folder_.create();
 }
 
 vds::_chunk_manager::~_chunk_manager()
@@ -70,22 +68,25 @@ vds::_chunk_manager::~_chunk_manager()
 
 vds::async_task<const vds::server_log_new_object &>
 vds::_chunk_manager::add(
+  const service_provider & sp,
   const const_data_buffer& data)
 {
   return create_async_task(
-    [data](const std::function<void (const void * data, size_t size)> & done, const error_handler & on_error){
+    [data, sp](const std::function<void (const void * data, size_t size)> & done, const error_handler & on_error){
       dataflow(
         deflate(),
         collect_data()
       )(
         done,
         on_error,
+        sp,
         data.data(),
         data.size()
       );
     })
   .then(
     [this,
+    sp,
     original_lenght = data.size(),
     original_hash = hash::signature(hash::sha256(), data)
     ](
@@ -108,12 +109,12 @@ vds::_chunk_manager::add(
         this->obj_size_ += deflated_size;
         this->obj_folder_mutex_.unlock();
 
-        file::move(fn, this->cache_.get(this->sp_)
-          .get_object_filename(this->storage_log_.get(this->sp_).current_server_id(), index));
+        file::move(fn, sp.get<ilocal_cache>()
+          .get_object_filename(sp.get<istorage_log>().current_server_id(), index));
 
         this->obj_folder_mutex_.lock();
         if (max_obj_size_ < this->obj_size_) {
-          this->generate_chunk();
+          this->generate_chunk(sp);
         }
         this->obj_folder_mutex_.unlock();
 
@@ -124,34 +125,42 @@ vds::_chunk_manager::add(
           deflated_size,
           hash::signature(hash::sha256(), deflated_data, deflated_size));
 
-        this->storage_log_.get(this->sp_).add_to_local_log(result.serialize().get());
+        sp.get<istorage_log>().add_to_local_log(sp, result.serialize().get());
         done(result);
       });
 }
 
 vds::const_data_buffer vds::_chunk_manager::get(
+  const service_provider & sp,
   const guid & server_id,
   uint64_t index)
 {
-  return inflate::inflate_buffer(file::read_all(this->cache_.get(this->sp_).get_object_filename(server_id, index)));
+  return inflate::inflate_buffer(file::read_all(sp.get<ilocal_cache>().get_object_filename(server_id, index)));
 }
 
-void vds::_chunk_manager::generate_chunk()
+void vds::_chunk_manager::generate_chunk(const service_provider & sp)
 {
   throw new std::runtime_error("Not implemented");
 }
 
-void vds::_chunk_manager::set_next_index(uint64_t next_index)
+void vds::_chunk_manager::set_next_index(const service_provider & sp, uint64_t next_index)
 {
   this->last_obj_file_index_ = next_index;
 }
 
-void vds::_chunk_manager::start()
+void vds::_chunk_manager::start(const service_provider & sp)
 {
-  this->set_next_index(this->db_.get(this->sp_).last_object_index(this->storage_log_.get(this->sp_).current_server_id()));
+  this->tmp_folder_ = foldername(foldername(persistence::current_user(sp), ".vds"), "tmp");
+  this->tmp_folder_.create();
+
+  this->set_next_index(
+    sp,
+    sp.get<iserver_database>().last_object_index(
+      sp,
+      sp.get<istorage_log>().current_server_id()));
 }
 
-void vds::_chunk_manager::stop()
+void vds::_chunk_manager::stop(const service_provider & sp)
 {
 }
 

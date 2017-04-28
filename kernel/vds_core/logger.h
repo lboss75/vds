@@ -31,7 +31,7 @@ namespace vds {
     public:
       log_writer(log_level level);
 
-      virtual void write(const log_record & record) = 0;
+      virtual void write(const service_provider & sp, const log_record & record) = 0;
 
       log_level level() const {
         return this->log_level_;
@@ -43,55 +43,61 @@ namespace vds {
 
     class logger {
     public:
-      logger(const service_provider & sp, const std::string & name);
+      logger(log_writer & log_writer, log_level min_log_level)
+        : log_writer_(log_writer), min_log_level_(min_log_level)
+      {
+      }
 
-      void operator () (log_level level, const std::string & message) const;
+      void operator () (
+        const service_provider & sp,
+        log_level level,
+        const std::string & message) const;
 
       template <typename... arg_types>
-      void operator () (log_level level, const std::string & format, arg_types... args) const
+      void operator () (const service_provider & sp, log_level level, const std::string & format, arg_types... args) const
       {
         if (this->min_log_level() <= level) {
-          (*this)(level, string_format(format, args...));
+          (*this)(sp, level, string_format(format, args...));
         }
       }
 
       template <typename... arg_types>
-      void trace(const std::string & format, arg_types... args) const
+      void trace(const service_provider & sp, const std::string & format, arg_types... args) const
       {
         if (this->min_log_level() <= ll_trace) {
-          (*this)(ll_trace, string_format(format, args...));
+          (*this)(sp, ll_trace, string_format(format, args...));
         }
       }
 
       template <typename... arg_types>
-      void debug(const std::string & format, arg_types... args) const
+      void debug(const service_provider & sp, const std::string & format, arg_types... args) const
       {
         if (this->min_log_level() <= ll_debug) {
-          (*this)(ll_debug, string_format(format, args...));
+          (*this)(sp, ll_debug, string_format(format, args...));
         }
       }
 
       template <typename... arg_types>
-      void info(const std::string & format, arg_types... args) const
+      void info(const service_provider & sp, const std::string & format, arg_types... args) const
       {
         if (this->min_log_level() <= ll_info) {
-          (*this)(ll_info, string_format(format, args...));
+          (*this)(sp, ll_info, string_format(format, args...));
         }
       }
 
       template <typename... arg_types>
-      void warning(const std::string & format, arg_types... args) const
+      void warning(const service_provider & sp, const std::string & format, arg_types... args) const
       {
         if (this->min_log_level() <= ll_warning) {
-          (*this)(ll_warning, string_format(format, args...));
+          (*this)(sp, ll_warning, string_format(format, args...));
         }
       }
 
       template <typename... arg_types>
-      void error(const std::string & format, arg_types... args) const
+      void error(const service_provider & sp, const std::string & format, arg_types... args) const
       {
         if (this->min_log_level() <= ll_error) {
-          (*this)(ll_error, string_format(format, args...));
+          (*this)(sp, ll_error, string_format(format, args...));
         }
       }
 
@@ -100,8 +106,6 @@ namespace vds {
       }
 
     private:
-      service_provider sp_;
-      std::string name_;
       log_writer & log_writer_;
       log_level min_log_level_;
     };
@@ -117,7 +121,7 @@ namespace vds {
       void stop(const service_provider &) override;
 
       //log_writer
-      void write(const log_record & record) override;
+      void write(const service_provider & sp, const log_record & record) override;
     };
 
     class file;
@@ -132,7 +136,7 @@ namespace vds {
       void stop(const service_provider & sp) override;
 
       //log_writer
-      void write(const log_record & record) override;
+      void write(const service_provider & sp, const log_record & record) override;
 
     private:
       std::mutex file_mutex_;

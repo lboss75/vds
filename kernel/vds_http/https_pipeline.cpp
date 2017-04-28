@@ -8,13 +8,11 @@ All rights reserved
 #include "https_pipeline_p.h"
 
 vds::https_pipeline::https_pipeline(
-  const vds::service_provider & sp,
   const std::string & address,
   int port,
   certificate * client_certificate,
   asymmetric_private_key * client_private_key)
 : impl_(new _https_pipeline(
-  sp,
   this,
   address,
   port,
@@ -39,9 +37,9 @@ void vds::https_pipeline::on_error(std::exception_ptr /*error*/)
 {
 }
 
-void vds::https_pipeline::connect()
+void vds::https_pipeline::connect(const service_provider & sp)
 {
-  this->impl_->connect();
+  this->impl_->connect(sp);
 }
 
 const std::string & vds::https_pipeline::address() const
@@ -61,20 +59,17 @@ void vds::https_pipeline::run(const std::string & body)
 
 //////////////////////////////////////////////////////////////////////////
 vds::_https_pipeline::_https_pipeline(
-  const service_provider & sp,
   https_pipeline * owner,
   const std::string & address,
   int port,
   certificate * client_certificate,
   asymmetric_private_key * client_private_key)
-: sp_(sp),
-owner_(owner),
-log_(sp, "HTTPS pipeline"),
-address_(address),
-port_(port),
-client_certificate_(client_certificate),
-client_private_key_(client_private_key),
-output_command_stream_(nullptr)
+: owner_(owner),
+  address_(address),
+  port_(port),
+  client_certificate_(client_certificate),
+  client_private_key_(client_private_key),
+  output_command_stream_(nullptr)
 {
 }
 
@@ -82,9 +77,9 @@ vds::_https_pipeline::~_https_pipeline()
 {
 }
 
-void vds::_https_pipeline::connect()
+void vds::_https_pipeline::connect(const service_provider & parent_scope)
 {
-  auto sp = this->sp_.create_scope("_https_pipeline");
+  auto sp = parent_scope.create_scope("_https_pipeline");
   dataflow(
     socket_connect(sp),
     connection(sp, this)
@@ -92,6 +87,7 @@ void vds::_https_pipeline::connect()
   (
    [this](){ this->owner_->on_connected(); },
    [this](std::exception_ptr ex) { this->owner_->on_error(ex); },
+   sp,
    this->address_,
    this->port_
   );

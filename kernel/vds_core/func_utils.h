@@ -156,7 +156,16 @@ namespace vds {
     {
       return functor_info<functor>::to_function(f);
     }
-    
+  };
+
+  template <typename first_parameter_type, typename func_signature>
+  class add_first_parameter;
+  
+  template <typename first_parameter_type, typename result_type, typename... argument_types>
+  class add_first_parameter<first_parameter_type, result_type(argument_types...)>
+  {
+  public:
+    typedef result_type type(first_parameter_type, argument_types...);
   };
 }
 

@@ -11,6 +11,8 @@ All rights reserved
 #include "deferred_callback.h"
 
 namespace vds {
+  class service_provider;
+
   //////////////////////////////////////////////////////
   template <
     typename method_type,
@@ -91,7 +93,8 @@ namespace vds {
       static _fake s_instance;
       return s_instance;
     }
-    void processed() const
+
+    void processed(const service_provider & sp) const
     {
       throw new std::runtime_error("Logic invalid");
     }
@@ -149,7 +152,8 @@ namespace vds {
 #ifdef DEBUG
     typedef method_proxy<
       typename context_type::next_step_t,
-      output_signature> next_step_t;
+      typename add_first_parameter<const service_provider &, output_signature>::type
+    > next_step_t;
     typedef method_proxy<
       typename context_type::error_method_t,
       void(std::exception_ptr)> error_method_t;
@@ -174,9 +178,9 @@ namespace vds {
     next_step_t next;
     error_method_t error;
 
-    void processed()
+    void processed(const service_provider & sp)
     {
-      this->prev();
+      this->prev(sp);
     }
     
     void validate()
@@ -458,14 +462,14 @@ namespace vds {
       {
       }
 
-      void operator()(argument_types... args)
+      void operator()(const service_provider & sp, argument_types... args)
       {
-        this->next(args...);
+        this->next(sp, args...);
       }
 
-      void processed()
+      void processed(const service_provider & sp)
       {
-        this->next(argument_types()...);
+        this->next(sp, argument_types()...);
       }
     };
   };
@@ -489,6 +493,7 @@ namespace vds {
     operator()(
       done_method_type & done_method,
       error_method_type & error_method,
+      const service_provider & sp,
       arg_types... args
     )
     {
@@ -502,7 +507,7 @@ namespace vds {
           remove_auto_delete_trigger<error_method_type>(error_method).value,
           this->builder_);
         handler->validate();
-        handler->holder_.step(args...);
+        handler->holder_.step(sp, args...);
       }
       catch (...) {
         error_method(std::current_exception());
@@ -518,6 +523,7 @@ namespace vds {
     operator()(
       done_method_type && done_method,
       error_method_type && error_method,
+      const service_provider & sp,
       arg_types... args
     )
     {
@@ -532,7 +538,7 @@ namespace vds {
           std::move(error_method),
           this->builder_);
         handler->validate();
-        handler->holder_.step(args...);
+        handler->holder_.step(sp, args...);
       }
       catch (...) {
         error_handler(std::current_exception());
@@ -548,6 +554,7 @@ namespace vds {
     operator()(
       const done_method_type & done_method,
       const error_method_type & error_method,
+      const service_provider & sp,
       arg_types... args
     )
     {
@@ -562,7 +569,7 @@ namespace vds {
           error_method,
           this->builder_);
         handler->validate();
-        handler->holder_.step(args...);
+        handler->holder_.step(sp, args...);
       }
       catch (...) {
         error_handler(std::current_exception());
@@ -984,9 +991,9 @@ namespace vds {
           this->prev();
         }
 
-        void processed()
+        void processed(const service_provider & sp)
         {
-          this->prev();
+          this->prev(sp);
         }
         void validate()
         {
@@ -1122,9 +1129,9 @@ namespace vds {
       {
       }
 
-      void operator()(argument_types&&... arguments)
+      void operator()(const service_provider & sp, argument_types&&... arguments)
       {
-        this->handler_(prev_handler_type(this->prev), next_handler_type(this->next), std::forward(arguments)...);
+        this->handler_(sp, prev_handler_type(this->prev), next_handler_type(this->next), std::forward(arguments)...);
       }
 
     private:
@@ -1235,9 +1242,9 @@ namespace vds {
       {
       }
       
-      void operator()(arg_types... args)
+      void operator()(const service_provider & sp, arg_types... args)
       {
-        this->target_(this->prev, this->error, this->prev, args...);
+        this->target_(sp, this->prev, this->error, this->prev, args...);
       }
       
     private:
@@ -1280,9 +1287,10 @@ namespace vds {
       {
       }
       
-      void operator()(arg_types... args)
+      void operator()(const service_provider & sp, arg_types... args)
       {
         this->target_(
+          sp,
           func_utils::to_function(this->next),
           func_utils::to_function(this->error),
           func_utils::to_function(this->prev),

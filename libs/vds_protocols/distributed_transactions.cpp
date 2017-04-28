@@ -23,7 +23,7 @@ void vds::distributed_transactions::server_code::process_request(request_message
   entry.op_number = this->op_number_;
   entry.message = request.op;
 
-  this->log_.push(entry);
+  sp.get<logger>().push(entry);
 
   //
   prepare_message prepare;
@@ -41,7 +41,7 @@ void vds::distributed_transactions::server_code::process_prepare(prepare_message
     this->requery_log(this->last_unbroken_op_number_ + 1);
   }
 
-  this->log_[prepare.request_number] = prepare.client_message;
+  sp.get<logger>()[prepare.request_number] = prepare.client_message;
 
   //TODO
   if (this->last_unbroken_op_number_ + 1 == prepare.request_number) {
@@ -58,12 +58,12 @@ void vds::distributed_transactions::server_code::process_prepare(prepare_message
 
 void vds::distributed_transactions::server_code::process_prepare_ok(prepare_ok_message prepare_ok)
 {
-  this->log_[prepare_ok.request_number].commit_count++;
+  sp.get<logger>()[prepare_ok.request_number].commit_count++;
 
-  if (this->log_[prepare_ok.request_number].commit_count > this->min_commit_count_) {
+  if (sp.get<logger>()[prepare_ok.request_number].commit_count > this->min_commit_count_) {
     reply_message reply;
     reply.current_view_number = this->current_view_number_;
-    reply.request_number = this->log_[prepare_ok.request_number].request_number;
+    reply.request_number = sp.get<logger>()[prepare_ok.request_number].request_number;
     reply.result = "";
 
     this->last_commit_number_++;

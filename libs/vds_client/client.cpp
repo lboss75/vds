@@ -113,7 +113,7 @@ vds::_client::init_server(
       const certificate& user_certificate,
       const asymmetric_private_key& user_private_key) {
 
-    this->log_(ll_trace, "Register new server");
+    sp.get<logger>()(ll_trace, "Register new server");
 
     asymmetric_private_key private_key(asymmetric_crypto::rsa4096());
     private_key.generate();
@@ -131,7 +131,7 @@ vds::_client::init_server(
     foldername root_folder(persistence::current_user(this->sp_), ".vds");
     root_folder.create();
     
-    this->log_(ll_trace, "Register new user");
+    sp.get<logger>()(ll_trace, "Register new user");
     asymmetric_private_key local_user_private_key(asymmetric_crypto::rsa4096());
     local_user_private_key.generate();
 
@@ -184,7 +184,7 @@ vds::async_task<const std::string& /*version_id*/> vds::_client::upload_file(
       const certificate& user_certificate,
       const asymmetric_private_key& user_private_key) {
 
-    this->log_(ll_trace, "Crypting data");
+    sp.get<logger>()(ll_trace, "Crypting data");
 
     symmetric_key transaction_key(symmetric_crypto::aes_256_cbc());
     transaction_key.generate();
@@ -212,7 +212,7 @@ vds::async_task<const std::string& /*version_id*/> vds::_client::upload_file(
         to_sign.data());
 
 
-      this->log_(ll_trace, "Upload file");
+      sp.get<logger>()(ll_trace, "Upload file");
       this->owner_->logic_->put_file(
         user_login,
         name,
@@ -242,11 +242,11 @@ vds::_client::download_data(
         const certificate& user_certificate,
         const asymmetric_private_key& user_private_key) {
 
-    this->log_(ll_trace, "Downloading file");
+    sp.get<logger>()(ll_trace, "Downloading file");
     this->owner_->logic_->download_file(user_login, name).wait(
       [this, done, user_certificate = certificate::parse(user_certificate.str()), user_private_key](const const_data_buffer& datagram_data) {
 
-      this->log_(ll_trace, "Decrypting data");
+      sp.get<logger>()(ll_trace, "Decrypting data");
       const_data_buffer key_crypted;
       const_data_buffer crypted_data;
       const_data_buffer signature;
@@ -298,7 +298,7 @@ vds::async_task<
     const std::string & user_login,
     const std::string & user_password)
 {
-  this->log_(ll_trace, "Authenticating user %s", user_login.c_str());
+  sp.get<logger>()(ll_trace, "Authenticating user %s", user_login.c_str());
 
   hash ph(hash::sha256());
   ph.update(user_password.c_str(), user_password.length());

@@ -15,16 +15,19 @@ namespace vds {
   {
   public:
     async_task<> put_file(
+      const service_provider & sp,
       const std::string & version_id,
       const std::string & user_login,
       const std::string & name,
       const filename & fn);
 
     async_task<const filename&> download_file(
+      const service_provider & sp,
       const std::string & user_login,
       const std::string & name);
 
     async_task<const filename&> download_file(
+      const service_provider & sp,
       const guid & server_id,
       const std::string & version_id);
 
