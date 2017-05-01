@@ -19,7 +19,7 @@ namespace vds {
    
     void push(const service_provider & sp, argument_types... arguments)
     {
-      this->queue_.push(sp, std::tuple<argument_types...>(arguments...));
+      this->queue_.push(sp, std::tuple<const service_provider &, argument_types...>(sp, arguments...));
     }
     
     template <typename target_type>
@@ -29,7 +29,7 @@ namespace vds {
     }
     
   private:
-    using message_type = std::tuple<argument_types...>;
+    using message_type = std::tuple<const service_provider &, argument_types...>;
     
     class imessage_sender
     {

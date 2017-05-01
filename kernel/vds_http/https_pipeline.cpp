@@ -25,15 +25,15 @@ vds::https_pipeline::~https_pipeline()
 {
 }
 
-void vds::https_pipeline::on_connected()
+void vds::https_pipeline::on_connected(const service_provider & sp)
 {
 }
 
-void vds::https_pipeline::on_connection_closed()
+void vds::https_pipeline::on_connection_closed(const service_provider & sp)
 {
 }
 
-void vds::https_pipeline::on_error(std::exception_ptr /*error*/)
+void vds::https_pipeline::on_error(const service_provider & sp, std::exception_ptr /*error*/)
 {
 }
 
@@ -52,9 +52,9 @@ int vds::https_pipeline::port() const
   return this->impl_->port();
 }
 
-void vds::https_pipeline::run(const std::string & body)
+void vds::https_pipeline::run(const service_provider & sp, const std::string & body)
 {
-  this->impl_->run(body);
+  this->impl_->run(sp, body);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -85,8 +85,8 @@ void vds::_https_pipeline::connect(const service_provider & parent_scope)
     connection(sp, this)
   )
   (
-   [this](){ this->owner_->on_connected(); },
-   [this](std::exception_ptr ex) { this->owner_->on_error(ex); },
+   [this](const service_provider & sp){ this->owner_->on_connected(sp); },
+   [this](const service_provider & sp, std::exception_ptr ex) { this->owner_->on_error(sp, ex); },
    sp,
    this->address_,
    this->port_
@@ -101,7 +101,7 @@ owner_(owner)
 {
 }
 
-void vds::_https_pipeline::run(const std::string & body)
+void vds::_https_pipeline::run(const service_provider & sp, const std::string & body)
 {
-  this->output_command_stream_->run(body);
+  this->output_command_stream_->run(sp, body);
 }

@@ -12,10 +12,7 @@ namespace vds {
   class server_json_client_api
   {
   public:
-    server_json_client_api(
-      const service_provider & sp
-    );
-
+    server_json_client_api();
     ~server_json_client_api();
 
     json_value * operator()(const service_provider & scope, const json_value * request) const;

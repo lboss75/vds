@@ -12,13 +12,12 @@ namespace vds {
   class server_udp_api
   {
   public:
-    server_udp_api(
-      const service_provider & sp);
+    server_udp_api();
     
     ~server_udp_api();
     
-    void start();
-    void stop();
+    void start(const service_provider & sp);
+    void stop(const service_provider & sp);
     
   private:
       _server_udp_api * const impl_;

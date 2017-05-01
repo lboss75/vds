@@ -53,10 +53,10 @@ namespace vds {
       this->data_size_ = size;
     }
 
-    void schedule(network_socket::SOCKET_HANDLE s)
+    void schedule(const service_provider & sp, network_socket::SOCKET_HANDLE s)
     {
       this->s_ = s;
-      this->schedule();
+      this->schedule(sp);
     }
   
   private:
@@ -72,7 +72,7 @@ namespace vds {
 #endif
 
 #ifdef _WIN32
-    void schedule()
+    void schedule(const service_provider & sp)
     {
 #ifdef _DEBUG
       if (this->is_scheduled_) {
@@ -105,18 +105,18 @@ namespace vds {
         this->data_size_ -= dwBytesTransfered;
 
         if (this->data_size_ > 0) {
-          this->schedule();
+          this->schedule(this->sp_);
         }
         else {
-          this->done_method_();
+          this->done_method_(this->sp_);
         }
       }
       catch (...) {
-        this->error_method_(std::current_exception());
+        this->error_method_(this->sp_, std::current_exception());
       }
     }
 #else//!_WIN32
-    void schedule()
+    void schedule(const service_provider & sp)
     {
       if(nullptr == this->event_) {
         this->event_ = event_new(
@@ -129,7 +129,7 @@ namespace vds {
       // Schedule client event
       event_add(this->event_, NULL);
       
-      this->network_service_->start_libevent_dispatch(this->sp_);
+      this->network_service_->start_libevent_dispatch(sp);
     }
     static void callback(int fd, short event, void *arg)
     {
@@ -152,12 +152,12 @@ namespace vds {
         else {
           imt_service::async(pthis->sp_,
             [pthis](){
-              pthis->done_method_();
+              pthis->done_method_(pthis->sp_);
             });
         }
       }
       catch(...){
-        pthis->error_method_(std::current_exception());
+        pthis->error_method_(pthis->sp_, std::current_exception());
       }
     }
 #endif//_WIN32

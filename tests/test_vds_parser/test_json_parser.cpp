@@ -104,8 +104,8 @@ TEST(test_json_parser, test_parser) {
     test_json_parser_validate()
   )
   (
-    []() {},
-    [](std::exception_ptr ex) { FAIL() << vds::exception_what(ex); },
+    [](const vds::service_provider & /*sp*/) {},
+    [](const vds::service_provider & /*sp*/, std::exception_ptr ex) { FAIL() << vds::exception_what(ex); },
     *(vds::service_provider *)nullptr,
    (const char *)test_data,
    sizeof(test_data) - 1

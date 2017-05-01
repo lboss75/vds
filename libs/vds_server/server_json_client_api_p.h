@@ -12,14 +12,12 @@ namespace vds {
   {
   public:
     _server_json_client_api(
-      const service_provider & sp,
       server_json_client_api * owner
     );
     
     json_value * operator()(const service_provider & scope, const json_value * request);
 
   private:
-    logger log_;
     server_json_client_api * const owner_;
     
     struct task_info

@@ -29,7 +29,7 @@ public:
       (new connection_handler<
         typename base_class::next_step_t,
         typename base_class::error_method_t>(
-          sp, this->next, this->error, s))->start();
+          sp, this->next, this->error, s))->start(sp);
     }
   private:
     vds::service_provider sp_;
@@ -54,15 +54,15 @@ public:
     {
     }
 
-    void start() {
+    void start(const vds::service_provider & sp) {
       vds::dataflow(
-        vds::input_network_stream(this->sp_, this->s_),//input
-        vds::output_network_stream(this->sp_, this->s_)//output
+        vds::input_network_stream(sp, this->s_),//input
+        vds::output_network_stream(sp, this->s_)//output
       )
       (
         this->next_,
-        this->error_
-        );
+        this->error_,
+        sp);
     }
   private:
     vds::service_provider sp_;
@@ -142,7 +142,7 @@ public:
     }
   
     void operator()(
-      const service_provider & sp,
+      const vds::service_provider & sp,
       const void * data,
       size_t len
     )
@@ -201,7 +201,7 @@ public:
     }
   
     void operator()(
-      const service_provider & sp,
+      const vds::service_provider & sp,
       const std::string & data
     )
     {
@@ -242,18 +242,18 @@ public:
     {
     }
 
-    void operator()(const service_provider & sp, vds::network_socket & s)
+    void operator()(const vds::service_provider & sp, vds::network_socket & s)
     {
       this->s_ = std::move(s);
 
       vds::barrier b;
       auto done_handler = vds::lambda_handler(
-       [&b](const service_provider & sp) {
+       [&b](const vds::service_provider & sp) {
         b.set();
         }
       );
       auto error_handler = vds::lambda_handler(
-        [&b](const service_provider & sp, std::exception_ptr ex) {
+        [&b](const vds::service_provider & sp, std::exception_ptr ex) {
           FAIL() << vds::exception_what(ex);
           b.set();
       }
@@ -265,7 +265,7 @@ public:
         write_task(this->sp_, done_handler, error_handler);
       const char data[] = "test_test_test_test_test_test_test_test_test_test_test_test_test_test_test_\n";
       write_task.set_data(data, sizeof(data) - 1);
-      write_task.schedule(this->s_.handle());
+      write_task.schedule(sp, this->s_.handle());
 
       vds::dataflow(
         vds::input_network_stream(sp, this->s_),
@@ -281,7 +281,7 @@ public:
       b.wait();
     }
     
-    void processed(const service_provider & sp)
+    void processed(const vds::service_provider & sp)
     {
     }
     
@@ -312,11 +312,11 @@ TEST(network_tests, test_server)
     auto sp = registrator.build("network_tests::test_server");
 
     auto done_server = vds::lambda_handler(
-      []() {
+      [](const vds::service_provider & sp) {
     }
     );
     auto error_server = vds::lambda_handler(
-      [](std::exception_ptr ex) {
+      [](const vds::service_provider & sp, std::exception_ptr ex) {
       FAIL() << vds::exception_what(ex);
     }
     );
@@ -331,12 +331,12 @@ TEST(network_tests, test_server)
       );
 
     auto done_client = vds::lambda_handler(
-      [&done]() {
+      [&done](const vds::service_provider & sp) {
       done.set();
     }
     );
     auto error_client = vds::lambda_handler(
-      [&done](std::exception_ptr ex) {
+      [&done](const vds::service_provider & sp, std::exception_ptr ex) {
       done.set();
       FAIL() << vds::exception_what(ex);
     }

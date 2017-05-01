@@ -10,10 +10,8 @@ All rights reserved
 #include "node_manager.h"
 #include "file_manager.h"
 
-vds::server_json_client_api::server_json_client_api(
-  const service_provider & sp
-)
-: impl_(new _server_json_client_api(sp, this))
+vds::server_json_client_api::server_json_client_api()
+: impl_(new _server_json_client_api(this))
 {
 }
 
@@ -31,16 +29,14 @@ vds::json_value * vds::server_json_client_api::operator()(
 
 ///////////////////////////////////////////////////////////////////////////////
 vds::_server_json_client_api::_server_json_client_api(
-  const service_provider & sp,
   server_json_client_api * owner
 )
-  : log_(sp, "Server JSON Client API"),
-  owner_(owner)
+: owner_(owner)
 {
 }
 
 vds::json_value * vds::_server_json_client_api::operator()(
-  const service_provider & scope, 
+  const service_provider & sp, 
   const json_value * request)
 {
   //auto cert = this->tunnel_.get_tunnel_certificate();
@@ -80,19 +76,19 @@ vds::json_value * vds::_server_json_client_api::operator()(
             async_task<const json_value *> task;
 
             if (client_messages::certificate_and_key_request::message_type == task_type_name) {
-              task = this->process(scope, client_messages::certificate_and_key_request(task_object));
+              task = this->process(sp, client_messages::certificate_and_key_request(task_object));
             }
             else if (client_messages::register_server_request::message_type == task_type_name) {
-              task = this->process(scope, client_messages::register_server_request(task_object));
+              task = this->process(sp, client_messages::register_server_request(task_object));
             }
             //TODO: else if (consensus_messages::consensus_message_who_is_leader::message_type == task_type_name) {
             //  task = scope.get<iserver>().consensus_server_protocol().process(scope, consensus_messages::consensus_message_who_is_leader(task_object));
             //}
             else if (client_messages::put_file_message::message_type == task_type_name) {
-              task = this->process(scope, client_messages::put_file_message(task_object));
+              task = this->process(sp, client_messages::put_file_message(task_object));
             }
             else if (client_messages::get_file_message_request::message_type == task_type_name) {
-              task = this->process(scope, client_messages::get_file_message_request(task_object));
+              task = this->process(sp, client_messages::get_file_message_request(task_object));
             }
             else {
               sp.get<logger>().warning("Invalid request type \'%s\'", task_type_name.c_str());

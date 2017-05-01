@@ -35,6 +35,7 @@ namespace vds {
     friend class ssl_output_stream;
     friend class ssl_tunnel;
 
+    service_provider sp_;
     SSL_CTX *ssl_ctx_;
     SSL * ssl_;
     BIO * input_bio_;

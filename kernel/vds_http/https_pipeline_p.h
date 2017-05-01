@@ -37,7 +37,7 @@ namespace vds {
       return this->port_;
     }
     
-    void run(const std::string & body);
+    void run(const service_provider & sp, const std::string & body);
 
   private:
     class ioutput_command_stream;
@@ -74,31 +74,32 @@ namespace vds {
         {
         }
 
-        void operator()(network_socket & s)
+        void operator()(const service_provider & sp, network_socket & s)
         {
-          this->owner_->owner_->on_connected();
+          this->owner_->owner_->on_connected(sp);
           
           vds::dataflow(
-            input_network_stream(this->sp_, s),
+            input_network_stream(sp, s),
             ssl_input_stream(this->tunnel_),
             http_response_parser(),
             input_command_stream(this->owner_, this->tunnel_)
           )
           (
             this->done_handler_,
-            this->error_handler_
+            this->error_handler_,
+            sp
           );
           
           vds::dataflow(
             output_command_stream(this->owner_),
             http_request_serializer(),
             ssl_output_stream(this->tunnel_),
-            output_network_stream(this->sp_, s)
+            output_network_stream(sp, s)
           )
           (
             this->done_handler_,
-            this->error_handler_
-          );
+            this->error_handler_,
+            sp);
         }
 
       private:
@@ -110,13 +111,13 @@ namespace vds {
           {
           }
 
-          void operator()()
+          void operator()(const service_provider & sp)
           {
             this->owner_->done_mutex_.lock();
             this->owner_->done_count_++;
             if (this->owner_->done_count_ == 2) {
               this->owner_->done_mutex_.unlock();
-              this->owner_->next();
+              this->owner_->next(sp);
             }
             else {
               this->owner_->done_mutex_.unlock();
@@ -136,10 +137,10 @@ namespace vds {
           {
           }
 
-          void operator()(std::exception_ptr ex)
+          void operator()(const service_provider & sp, std::exception_ptr ex)
           {
-            this->owner_->sp_.get<logger>().error(
-              this->owner_->sp_,
+            sp.get<logger>().error(
+              sp,
               "stream %s:%d error: %s",
               this->owner_->owner_->address_.c_str(),
               this->owner_->owner_->port_,
@@ -148,7 +149,7 @@ namespace vds {
             this->owner_->done_count_++;
             if (this->owner_->done_count_ == 2) {
               this->owner_->done_mutex_.unlock();
-              this->owner_->error(ex);
+              this->owner_->error(sp, ex);
             }
             else {
               this->owner_->done_mutex_.unlock();
@@ -196,13 +197,13 @@ namespace vds {
         {
         }
 
-        void operator()(json_value * response)
+        void operator()(const service_provider & sp, json_value * response)
         {
           if (nullptr == response) {
-            this->next();
+            this->next(sp);
           }
           else {
-            this->owner_->owner_->on_response(response);
+            this->owner_->owner_->on_response(sp, response);
           }
 
           //auto cert = this->tunnel_.get_tunnel_certificate();
@@ -240,10 +241,10 @@ namespace vds {
         {
         }
 
-        void operator()(const void * data, size_t len)
+        void operator()(const service_provider & sp, const void * data, size_t len)
         {
           if (0 == len) {
-            this->next();
+            this->next(sp);
           }
         }
       private:
@@ -279,11 +280,12 @@ namespace vds {
         }
 
         void operator()(
+          const service_provider & sp,
           http_response * response,
           http_incoming_stream * incoming_stream)
         {
           if(nullptr == response){
-            this->next();
+            this->next(sp);
             return;
           }
           
@@ -298,8 +300,8 @@ namespace vds {
             )
             (
               this->prev,
-              this->error
-              );
+              this->error,
+              sp);
           }
           else {
             dataflow(
@@ -308,8 +310,8 @@ namespace vds {
             )
             (
               this->prev,
-              this->error
-            );
+              this->error,
+              sp);
           }
         }
       private:
@@ -324,7 +326,7 @@ namespace vds {
     class ioutput_command_stream
     {
     public:
-      virtual void run(const std::string & body) = 0;
+      virtual void run(const service_provider & sp, const std::string & body) = 0;
     };
     class output_command_stream
     {
@@ -355,20 +357,20 @@ namespace vds {
         {
         }
 
-        void operator()()
+        void operator()(const service_provider & sp)
         {
-          this->processed();
+          this->processed(sp);
         }
 
-        void processed()
+        void processed(const service_provider & sp)
         {
-          this->owner_->owner_->get_commands();
+          this->owner_->owner_->get_commands(sp);
         }
 
-        void run(const std::string & body) override
+        void run(const service_provider & sp, const std::string & body) override
         {
           outgoing_stream_.set_body(body);
-          this->next(&this->request_, &this->outgoing_stream_);
+          this->next(sp, &this->request_, &this->outgoing_stream_);
         }
 
       private:

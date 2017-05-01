@@ -34,12 +34,12 @@ namespace vds {
       {
       }
       
-      void operator()() {
-        this->processed();        
+      void operator()(const service_provider & sp) {
+        this->processed(sp);        
       }
 
-      void processed() {
-        this->task_();
+      void processed(const service_provider & sp) {
+        this->task_(sp);
       }
       
     private:

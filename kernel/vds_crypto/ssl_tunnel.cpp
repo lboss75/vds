@@ -81,7 +81,8 @@ vds::_ssl_tunnel::_ssl_tunnel(
   bool is_client,
   const certificate * cert,
   const asymmetric_private_key * key)
-  : owner_(owner),
+: sp_(scope),
+  owner_(owner),
   is_client_(is_client),
   input_len_(0), decoded_input_len_(0),
   input_stream_(nullptr), output_stream_(nullptr),
@@ -271,7 +272,7 @@ void vds::_ssl_tunnel::work_circle()
       }
     }
     else {
-      this->input_stream_->decoded_output_done(bytes);
+      this->input_stream_->decoded_output_done(this->sp_, bytes);
     }
 
     if (this->enable_output_ && BIO_pending(this->output_bio_)) {
@@ -291,18 +292,18 @@ void vds::_ssl_tunnel::work_circle()
       }
       else {
         this->enable_output_ = false;
-        this->output_stream_->output_done(bytes);
+        this->output_stream_->output_done(this->sp_, bytes);
       }
     }
 
     if (this->input_stream_done_ && this->input_stream_ != nullptr) {
       this->input_stream_done_ = false;
-      this->input_stream_->input_done();
+      this->input_stream_->input_done(this->sp_);
     }
 
     if (this->output_stream_done_ && this->output_stream_ != nullptr) {
       this->output_stream_done_ = false;
-      this->output_stream_->decoded_input_done();
+      this->output_stream_->decoded_input_done(this->sp_);
     }
     
     bool need_stop;

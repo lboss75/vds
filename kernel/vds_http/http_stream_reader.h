@@ -54,22 +54,23 @@ namespace vds {
         this->incoming_stream_.handler(nullptr);
       }
       
-      void operator()()
+      void operator()(const service_provider & sp)
       {
-        this->done_method_();
+        this->done_method_(sp);
       }
       
       void push_data(
+        const service_provider & sp, 
         const void * data,
         size_t len
       ) override
       {
-        this->next(data, len);
+        this->next(sp, data, len);
       }
       
-      void processed()
+      void processed(const service_provider & sp)
       {
-        this->done_method_();
+        this->done_method_(sp);
       }
       
     private:

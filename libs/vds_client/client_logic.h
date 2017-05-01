@@ -13,7 +13,6 @@ namespace vds {
   {
   public:
     client_logic(
-      const service_provider & sp,
       const std::string & server_address,
       certificate * client_certificate,
       asymmetric_private_key * client_private_key
@@ -21,79 +20,34 @@ namespace vds {
 
     ~client_logic();
 
-    void start();
-    void stop();
+    void start(const service_provider & sp);
+    void stop(const service_provider & sp);
 
-    void connected(client_connection<client_logic> & connection);
-    void connection_closed(client_connection<client_logic> & connection);
-    void connection_error(client_connection<client_logic> & connection, std::exception_ptr ex);
+    void connected(const service_provider & sp, client_connection<client_logic> & connection);
+    void connection_closed(const service_provider & sp, client_connection<client_logic> & connection);
+    void connection_error(
+      const service_provider & sp,
+      client_connection<client_logic> & connection,
+      std::exception_ptr ex);
 
-    void process_response(client_connection<client_logic> & connection, const json_value * response);
+    void process_response(
+      const service_provider & sp,
+      client_connection<client_logic> & connection,
+      const json_value * response);
 
-    void get_commands(client_connection<client_logic> & connection);
+    void get_commands(
+      const service_provider & sp,
+      client_connection<client_logic> & connection);
 
-    void add_task(const std::string & message);
+    void add_task(
+      const service_provider & sp,
+      const std::string & message);
 
-    template<typename _Rep, typename _Period>
-    bool wait_for(
-      const std::chrono::duration<_Rep, _Period> & period,
-      const std::string & task_type,
-      const std::function<bool(const json_object * value)> & filter) {
-
-      int index;
-      barrier b;
-      {
-        std::unique_lock<std::mutex> lock(this->filters_mutex_);
-        index = this->filter_last_index_++;
-        try {
-          this->filters_[task_type][index] = [&filter, &b](const json_object * value) -> bool {
-            if (filter(value)) {
-              b.set();
-              return true;
-            }
-            else {
-              return false;
-            }
-          };
-        }
-        catch (...) {
-          this->filters_[task_type].erase(index);
-          throw;
-        }
-      }
-
-      auto result = b.wait_for(period);
-
-      std::unique_lock<std::mutex> lock(this->filters_mutex_);
-      this->filters_[task_type].erase(index);
-
-      return result;
-    }
-
-    template <typename response_type>
-    bool add_task_and_wait(
-      const std::string & request,
-      const std::function<bool(const response_type & response)> & filter) {
-      for(size_t try_count = 0; try_count < 4; ++try_count){
-        this->add_task(request);
-  
-        if (this->wait_for(
-          std::chrono::seconds(5),
-          response_type::message_type,
-          [filter](const json_object * value) -> bool {
-            response_type message(value);
-            return filter(message);
-          })){
-          return true;
-        }
-      }
-      
-      return false;
-    }
-    
+   
     template <typename response_type>
     async_task<const response_type & /*response*/>
     send_request(
+      const service_provider & sp,
       std::unique_ptr<json_value> && message,
       const std::chrono::steady_clock::duration & request_timeout = std::chrono::seconds(60))
     {
@@ -109,45 +63,44 @@ namespace vds {
       auto task = s->json_value::str();
       
       return create_async_task(
-        [this, task, request_id, request_timeout](
-          const std::function<void (const response_type & response)> & done,
+        [this, sp, task, request_id, request_timeout](
+          const std::function<void (const service_provider & sp, const response_type & response)> & done,
           const error_handler & on_error){
           std::lock_guard<std::mutex> lock(this->requests_mutex_);
           this->requests_.set(request_id, request_info {
             task,
-            [done](const json_value * response) { done(response_type(response)); },
+            [done](const service_provider & sp, const json_value * response) { done(sp, response_type(response)); },
             on_error });
-          this->add_task(task);
+          this->add_task(sp, task);
           
-          this->sp_.get<itask_manager>().wait_for(
-            request_timeout,
-            [this, request_id](){
-              this->cancel_request(request_id);
+          auto t = std::make_shared<timer>();
+          t->start(sp, request_timeout,
+            [this, sp, t, request_id](){
+              t->stop(sp);
+              this->cancel_request(sp, request_id);              
             });
         });
     }
     
-    void cancel_request(const std::string & request_id);
+    void cancel_request(
+      const service_provider & sp,
+      const std::string & request_id);
 
     async_task<const std::string& /*version_id*/> put_file(
+      const service_provider & sp,
       const std::string & user_login,
       const std::string & name,
       const const_data_buffer & data);
 
     async_task<const const_data_buffer & /*datagram*/> download_file(
+      const service_provider & sp,
       const std::string & user_login,
       const std::string & name);
 
   private:
-    service_provider sp_;
-    logger log_;
     std::string server_address_;
     certificate * client_certificate_;
     asymmetric_private_key * client_private_key_;
-
-    std::mutex filters_mutex_;
-    size_t filter_last_index_;
-    std::map<std::string, std::map<size_t, std::function<bool(const json_object * value)>>> filters_;
 
     std::vector<std::unique_ptr<client_connection<client_logic>>> connection_queue_;
     std::future<void> update_connection_pool_feature_;
@@ -157,16 +110,16 @@ namespace vds {
     size_t connected_;
     
     bool messages_sent_;
-    event_handler<> timer_task_;
 
     pipeline_queue<std::string, client_connection<client_logic>> outgoing_queue_;
     
-    void process_timer_tasks();
+    timer process_timer_;
+    void process_timer_tasks(const service_provider & sp);
     
     struct request_info
     {
       std::string task;
-      std::function<void (const json_value * response)> done;
+      std::function<void (const service_provider & sp, const json_value * response)> done;
       error_handler on_error;
     };
     

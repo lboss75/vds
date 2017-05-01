@@ -186,7 +186,8 @@ void vds::_storage_log::start(const service_provider & sp)
 {
   this->vds_folder_ = foldername(persistence::current_user(sp), ".vds");
 
-  this->local_log_index_ = sp.get<iserver_database>().get_server_log_max_index(this->current_server_id_) + 1;
+  this->local_log_index_ = sp.get<iserver_database>()
+  .get_server_log_max_index(sp, this->current_server_id_) + 1;
 
   this->process_timer_.start(sp, std::chrono::seconds(5), [this, sp](){
     this->process_timer_jobs(sp);
@@ -209,11 +210,12 @@ vds::async_task<> vds::_storage_log::register_server(
   const std::string & server_certificate)
 {
   return create_async_task(
-    [this, sp, server_certificate](
-      const std::function<void(void)> & done,
-      const error_handler & on_error) {
+    [this, server_certificate](
+      const std::function<void(const service_provider & sp)> & done,
+      const error_handler & on_error,
+      const service_provider & sp) {
     this->add_to_local_log(sp, server_log_new_server(server_certificate).serialize().get());
-    done();
+    done(sp);
   });
 }
 
@@ -228,10 +230,11 @@ vds::_storage_log::save_object(
   return sp.get<ichunk_manager>()
     .add(sp, s.data())
     .then([this](
-      const std::function<void(const storage_object_id &)> & done,
-      const error_handler & on_error, 
+      const std::function<void(const service_provider & sp, const storage_object_id &)> & done,
+      const error_handler & on_error,
+      const service_provider & sp,
       const server_log_new_object & index){
-    done(vds::storage_object_id(index.index()));
+    done(sp, vds::storage_object_id(index.index()));
     });
 }
 
@@ -244,6 +247,7 @@ void vds::_storage_log::add_to_local_log(
   const_data_buffer signature;
   auto result = sp.get<iserver_database>()
     .add_local_record(
+      sp,
       server_log_record::record_id{
         this->current_server_id_,
         this->local_log_index_++ },
@@ -262,7 +266,7 @@ void vds::_storage_log::apply_record(
   bool check_signature /*= true*/)
 {
   sp.get<logger>().debug(sp, "Apply record %s:%d", record.id().source_id.str().c_str(), record.id().index);
-  auto state = sp.get<iserver_database>().get_record_state(record.id());
+  auto state = sp.get<iserver_database>().get_record_state(sp, record.id());
   if(iserver_database::server_log_state::front != state){
     throw std::runtime_error("Invalid server state");
   }
@@ -270,7 +274,7 @@ void vds::_storage_log::apply_record(
   const json_object * obj = dynamic_cast<const json_object *>(record.message());
   if(nullptr == obj){
     sp.get<logger>().info(sp, "Wrong messsage in the record %s:%d", record.id().source_id.str().c_str(), record.id().index);
-    sp.get<iserver_database>().delete_record(record.id());
+    sp.get<iserver_database>().delete_record(sp, record.id());
     return;
   }
   
@@ -278,7 +282,7 @@ void vds::_storage_log::apply_record(
     std::string message_type;
     if (!obj->get_property("$t", message_type)) {
       sp.get<logger>().info(sp, "Missing messsage type in the record %s:%d", record.id().source_id.str().c_str(), record.id().index);
-      sp.get<iserver_database>().delete_record(record.id());
+      sp.get<iserver_database>().delete_record(sp, record.id());
       return;
     }
     
@@ -289,12 +293,13 @@ void vds::_storage_log::apply_record(
         record.id().source_id.str().c_str(),
         msg.index());
 
-      sp.get<iserver_database>().add_object(record.id().source_id, msg);
+      sp.get<iserver_database>().add_object(sp, record.id().source_id, msg);
     }
     else if(server_log_root_certificate::message_type == message_type){
       server_log_root_certificate msg(obj);
       
       sp.get<iserver_database>().add_cert(
+        sp,
         vds::cert_record(
           "login:root",
           msg.user_cert(),
@@ -307,6 +312,7 @@ void vds::_storage_log::apply_record(
       server_log_new_endpoint msg(obj);
       
       sp.get<iserver_database>().add_endpoint(
+        sp,
         msg.server_id().str(),
         msg.addresses());
     }
@@ -314,6 +320,7 @@ void vds::_storage_log::apply_record(
       server_log_file_map msg(obj);
       
       sp.get<iserver_database>().add_file(
+        sp,
         record.id().source_id,
         msg);
     }
@@ -323,24 +330,24 @@ void vds::_storage_log::apply_record(
         record.id().source_id.str().c_str(),
         record.id().index);
 
-      sp.get<iserver_database>().delete_record(record.id());
+      sp.get<iserver_database>().delete_record(sp, record.id());
       return;
     }
   }
   catch(...){
     sp.get<logger>().info(sp, "%s", exception_what(std::current_exception()).c_str());
-    sp.get<iserver_database>().delete_record(record.id());
+    sp.get<iserver_database>().delete_record(sp, record.id());
     return;
   }
   
-  sp.get<iserver_database>().processed_record(record.id());
+  sp.get<iserver_database>().processed_record(sp, record.id());
 }
 
 std::unique_ptr<vds::cert_record> vds::_storage_log::find_cert(
   const service_provider & sp,
   const std::string & object_name) const
 {
-  return sp.get<iserver_database>().find_cert(object_name);
+  return sp.get<iserver_database>().find_cert(sp, object_name);
 }
 
 std::unique_ptr<vds::const_data_buffer> vds::_storage_log::get_object(
@@ -355,7 +362,7 @@ void vds::_storage_log::add_endpoint(
   const std::string & endpoint_id,
   const std::string & addresses)
 {
-  sp.get<iserver_database>().add_endpoint(endpoint_id, addresses);
+  sp.get<iserver_database>().add_endpoint(sp, endpoint_id, addresses);
 }
 
 void vds::_storage_log::get_endpoints(
@@ -379,7 +386,7 @@ void vds::_storage_log::process_timer_jobs(const service_provider & sp)
 
   server_log_record record;
   const_data_buffer signature;
-  while(sp.get<iserver_database>().get_front_record(record, signature)){
+  while(sp.get<iserver_database>().get_front_record(sp, record, signature)){
     this->apply_record(sp, record, signature);
   }
 }

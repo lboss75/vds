@@ -9,7 +9,7 @@ All rights reserved
 namespace vds {
   class _server;
 
-  class server : public iservice
+  class server : public iservice_factory
   {
   public:
     server(bool for_init = false);

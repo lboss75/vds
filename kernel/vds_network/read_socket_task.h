@@ -45,7 +45,7 @@ namespace vds {
 #endif // _DEBUG
     }
     
-    void operator()()
+    void operator()(const service_provider & sp)
     {
 #ifdef _WIN32
       this->wsa_buf_.len = BUFFER_SIZE;
@@ -122,11 +122,11 @@ namespace vds {
         }
         
         imt_service::async(pthis->sp_, [pthis, len](){
-            pthis->next_method_(pthis->buffer_, len);
+            pthis->next_method_(pthis->sp_, pthis->buffer_, len);
           });
       }
       catch(...){
-        pthis->error_method_(std::current_exception());
+        pthis->error_method_(pthis->sp_, std::current_exception());
       }
     }
 #endif//_WIN32

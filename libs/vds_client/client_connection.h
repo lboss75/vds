@@ -47,14 +47,14 @@ namespace vds {
       return this->state_;
     }
 
-    void connect()
+    void connect(const service_provider & sp)
     {
       sp.get<logger>()(ll_debug, "Connecting to %s:%d", this->address().c_str(), this->port());
 
       this->state_ = CONNECTING;
       this->connection_start_ = std::chrono::system_clock::now();
       
-      base_class::connect();
+      base_class::connect(sp);
     }
    
 
@@ -99,13 +99,13 @@ namespace vds {
     }
 
   protected:
-    void on_connected() override
+    void on_connected(const service_provider & sp) override
     {
       sp.get<logger>()(ll_debug, "Connected to %s:%d", this->address().c_str(), this->port());
       this->state_ = CONNECTED;
     }
     
-    void on_connection_closed() override
+    void on_connection_closed(const service_provider & sp) override
     {
       sp.get<logger>()(ll_debug, "Connection to %s:%d has been closed", this->address().c_str(), this->port());
       this->connection_end_ = std::chrono::system_clock::now();
@@ -113,22 +113,22 @@ namespace vds {
       this->handler_->connection_closed(*this);
     }
 
-    void on_response(json_value * response) override
+    void on_response(const service_provider & sp, json_value * response) override
     {
-      this->handler_->process_response(*this, response);
+      this->handler_->process_response(sp, *this, response);
     }
     
-    void on_error(std::exception_ptr ex) override
+    void on_error(const service_provider & sp, std::exception_ptr ex) override
     {
       sp.get<logger>()(ll_debug, "Failed to connect %s:%d %s", this->address().c_str(), this->port(), exception_what(ex).c_str());
       this->connection_end_ = std::chrono::system_clock::now();
       this->state_ = CONNECT_ERROR;
-      this->handler_->connection_error(*this, ex);
+      this->handler_->connection_error(sp, *this, ex);
     }
     
-    void get_commands()
+    void get_commands(const service_provider & sp)
     {
-      this->handler_->get_commands(*this);
+      this->handler_->get_commands(sp, *this);
     }
     
   private:

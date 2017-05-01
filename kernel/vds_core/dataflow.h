@@ -1208,20 +1208,32 @@ namespace vds {
   };
   
   template<typename signature>
+  class _remove_first_parameter_service_provider;
+  
+  template<typename result_type, typename... arg_types>
+  class _remove_first_parameter_service_provider<result_type(const service_provider & sp, arg_types... args)>
+  {
+  public:
+    typedef result_type type(arg_types... );
+  };
+  
+  template<typename signature>
   class _task_step;
   
   template<typename result_signature, typename class_name, typename... arg_types>
   class _task_step<void(class_name::*)(
+    const service_provider & sp,
     const std::function<result_signature> & done,
     const error_handler & on_error,
-    const std::function<void(void)> & prev,
+    const std::function<void(const service_provider & sp)> & prev,
     arg_types...)>
   {
   public:
     using functor_type = std::function<void(
+      const service_provider & sp,
       const std::function<result_signature> & done,
       const error_handler & on_error,
-      const std::function<void(void)> & prev,
+      const std::function<void(const service_provider & sp)> & prev,
       arg_types ...)>;
     _task_step(
       const functor_type & target)
@@ -1230,9 +1242,9 @@ namespace vds {
     }
     
     template<typename context_type>
-    class handler : public dataflow_step<context_type, result_signature>
+    class handler : public dataflow_step<context_type, typename _remove_first_parameter_service_provider<result_signature>::type>
     {
-      using base_class = dataflow_step<context_type, result_signature>;
+      using base_class = dataflow_step<context_type, typename _remove_first_parameter_service_provider<result_signature>::type>;
     public:
       handler(
         const context_type & context,
@@ -1257,6 +1269,7 @@ namespace vds {
   
   template<typename result_signature, typename class_name, typename... arg_types>
   class _task_step<void(class_name::*)(
+    const service_provider & sp,
     const std::function<result_signature> & done,
     const error_handler & on_error,
     const std::function<void(const service_provider &)> & prev,
@@ -1264,6 +1277,7 @@ namespace vds {
   {
   public:
     using functor_type = std::function<void(
+      const service_provider & sp,
       const std::function<result_signature> & done,
       const error_handler & on_error,
       const std::function<void(const service_provider &)> & prev,
@@ -1275,9 +1289,9 @@ namespace vds {
     }
     
     template<typename context_type>
-    class handler : public dataflow_step<context_type, result_signature>
+    class handler : public dataflow_step<context_type, typename _remove_first_parameter_service_provider<result_signature>::type>
     {
-      using base_class = dataflow_step<context_type, result_signature>;
+      using base_class = dataflow_step<context_type, typename _remove_first_parameter_service_provider<result_signature>::type>;
     public:
       handler(
         const context_type & context,

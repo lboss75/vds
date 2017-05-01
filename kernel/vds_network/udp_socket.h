@@ -267,11 +267,11 @@ namespace vds {
           }
           else {
             imt_service::async(pthis->sp_, 
-              [pthis](){ pthis->prev(); });
+              [pthis](){ pthis->prev(pthis->sp_); });
           }
         }
         catch(...){
-          pthis->error(std::current_exception());
+          pthis->error(pthis->sp_, std::current_exception());
         }
       }
 #endif//_WIN32
@@ -567,7 +567,11 @@ private:
         {
         }
         
-        void operator()(const service_provider & sp, const std::string & address, uint16_t port, const const_data_buffer & data)
+        void operator()(
+          const service_provider & sp,
+          const std::string & address,
+          uint16_t port,
+          const const_data_buffer & data)
         {
           this->data_ = data;
           this->from_.sin_family = AF_INET;

@@ -38,6 +38,7 @@ namespace vds {
       }
 
       void operator()(
+        const service_provider & sp,
         const std::string & address,
         uint16_t port
       )
@@ -67,10 +68,10 @@ namespace vds {
           throw std::system_error(error, std::generic_category());
         }
 #endif
-        this->next(this->s_);
+        this->next(sp, this->s_);
       }
       
-      void processed()
+      void processed(const service_provider & sp)
       {
       }
 

@@ -57,30 +57,34 @@ vds::_file_manager::put_file(
   auto result = std::make_shared<server_log_file_map>(version_id, user_login, name);
 
   return create_async_task(
-    [this, sp, fn, result](const std::function<void(void)> & done, const error_handler & on_error) {
+    [this, fn, result](const std::function<void(const service_provider & sp)> & done, const error_handler & on_error, const service_provider & sp) {
     dataflow(
       read_file(fn, (size_t)5 * 1024 * 1024),
-      task_step([this, sp, result](
+      task_step([this, result](
+        const service_provider & sp,
         const std::function<void(const service_provider &) > & done,
         const error_handler & on_error,
         const std::function<void(const service_provider &)> & prev,
         const void * data, size_t size) {
       if (0 == size) {
-        done();
+        done(sp);
         return;
       }
 
       sp.get<ichunk_manager>().add(sp, const_data_buffer(data, size)).wait(
-        [prev, result](const server_log_new_object & index) {
-        result->add(index);
-        prev();
-      },
-        on_error);
+        [prev, result](
+          const service_provider & sp,
+          const server_log_new_object & index) {
+          result->add(index);
+          prev(sp);
+        },
+        on_error,
+        sp);
     }))
         (
-          [this, sp, done, result]() {
+          [this, done, result](const service_provider & sp) {
             sp.get<istorage_log>().add_to_local_log(sp, result->serialize().get());
-            done();
+            done(sp);
           },
           on_error,
           sp);
@@ -129,31 +133,32 @@ public:
   {
   }
 
-  void get_object_done(uint64_t index, const vds::filename & fn)
+  void get_object_done(const vds::service_provider & sp, uint64_t index, const vds::filename & fn)
   {
     std::lock_guard<std::mutex> lock(this->data_mutex_);
     this->results_[index] = fn;
 
-    this->try_complete();
+    this->try_complete(sp);
   }
 
-  void get_object_error(std::exception_ptr ex)
+  void get_object_error(const vds::service_provider & sp, std::exception_ptr ex)
   {
     std::lock_guard<std::mutex> lock(this->data_mutex_);
     this->errors_.push_back(ex);
 
-    this->try_complete();
+    this->try_complete(sp);
   }
 
   void wait(
-    const std::function<void(std::map<uint64_t, vds::filename> & result)> & done,
+    const vds::service_provider & sp,
+    const std::function<void(const vds::service_provider & sp, std::map<uint64_t, vds::filename> & result)> & done,
     const vds::error_handler & on_error)
   {
     std::lock_guard<std::mutex> lock(this->data_mutex_);
     this->done_ = done;
     this->on_error_ = on_error;
 
-    this->try_complete();
+    this->try_complete(sp);
   }
 
 private:
@@ -164,10 +169,10 @@ private:
   std::map<uint64_t, vds::filename> results_;
   std::list<std::exception_ptr> errors_;
 
-  std::function<void(std::map<uint64_t, vds::filename> & result)> done_;
+  std::function<void(const vds::service_provider & sp, std::map<uint64_t, vds::filename> & result)> done_;
   vds::error_handler on_error_;
 
-  void try_complete()
+  void try_complete(const vds::service_provider & sp)
   {
     if (this->count_ == this->results_.size() + this->errors_.size()) {
       if (!this->done_) {
@@ -175,10 +180,10 @@ private:
       }
 
       if (!this->errors_.empty()) {
-        this->on_error_(*this->errors_.begin());
+        this->on_error_(sp, *this->errors_.begin());
       }
       else {
-        this->done_(this->results_);
+        this->done_(sp, this->results_);
       }
     }
   }
@@ -202,23 +207,26 @@ vds::async_task<const vds::filename&> vds::_file_manager::download_file(
     auto fn = sp.get<ilocal_cache>().get_object_filename(server_id, index);
 
     if (file::exists(fn)) {
-      result->get_object_done(index, fn);
+      result->get_object_done(sp, index, fn);
     }
     else {
       sp.get<iconnection_manager>()
         .download_object(sp, server_id, index, fn)
         .wait(
-          [result, index, fn]() { result->get_object_done(index, fn); },
-          [result](std::exception_ptr ex) {result->get_object_error(ex); }
+          [result, index, fn](const service_provider & sp) { result->get_object_done(sp, index, fn); },
+          [result](const service_provider & sp, std::exception_ptr ex) {result->get_object_error(sp, ex); },
+          sp
       );
     }
   }
 
-  return create_async_task([this, sp, result, indexes, version_id](
-    const std::function<void(const vds::filename &)> & done,
-    const error_handler & on_error) {
+  return create_async_task([this, result, indexes, version_id](
+    const std::function<void(const service_provider & sp, const vds::filename &)> & done,
+    const error_handler & on_error,
+    const service_provider & sp) {
     result->wait(
-      [this, sp, done, on_error, indexes, version_id](std::map<uint64_t, vds::filename> & result) {
+      sp,
+      [this, done, on_error, indexes, version_id](const service_provider & sp, std::map<uint64_t, vds::filename> & result) {
         foldername tmp(persistence::current_user(sp), "tmp");
         tmp.create();
 
@@ -231,8 +239,8 @@ vds::async_task<const vds::filename&> vds::_file_manager::download_file(
             read_file(result[index]),
             inflate(),
             append_to_file(f))(
-              [&b]() { b.set(); },
-              [&b, on_error](std::exception_ptr ex) { b.set(); on_error(ex); },
+              [&b](const service_provider & sp) { b.set(); },
+              [&b, on_error](const service_provider & sp, std::exception_ptr ex) { b.set(); on_error(sp, ex); },
               sp);
 
           b.wait();
@@ -240,7 +248,7 @@ vds::async_task<const vds::filename&> vds::_file_manager::download_file(
 
         f.close();
 
-        done(tmpfile);
+        done(sp, tmpfile);
       },
       on_error);
   });

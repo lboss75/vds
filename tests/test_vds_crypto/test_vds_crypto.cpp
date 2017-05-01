@@ -133,8 +133,8 @@ TEST(test_vds_crypto, test_symmetric)
         vds::symmetric_decrypt(key),
         vds::create_step<compare_data>::with(buffer.get(), (int)len)
       )(
-        []() {},
-        [](std::exception_ptr ex) {
+        [](const vds::service_provider &) {},
+        [](const vds::service_provider &, std::exception_ptr ex) {
           GTEST_FAIL() << vds::exception_what(ex);
         },
         sp);

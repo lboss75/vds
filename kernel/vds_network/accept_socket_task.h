@@ -141,7 +141,7 @@ namespace vds {
 #endif
     }
     
-    void schedule()
+    void schedule(const service_provider & sp)
     {
 #ifndef _WIN32
       if(nullptr == this->ev_accept_){
@@ -251,7 +251,7 @@ namespace vds {
         });
       }
       catch(...){
-        data->error_method_(std::current_exception());
+        data->error_method_(data->sp_, std::current_exception());
       }
     }
 

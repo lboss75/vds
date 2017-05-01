@@ -34,15 +34,16 @@ namespace vds {
       }
       
       void operator()(
+        const service_provider & sp,
         const void * data,
         size_t len
       ) {
         if(0 == len) {
-          this->next();
+          this->next(sp);
         }
         else {
           this->task_.set_data(data, len);
-          this->task_.schedule(this->s_);
+          this->task_.schedule(sp, this->s_);
         }          
       }
       

@@ -7,38 +7,32 @@ All rights reserved
 #include "client_logic.h"
 
 vds::client_logic::client_logic(
-  const service_provider & sp,
   const std::string & server_address,
   certificate * client_certificate,
   asymmetric_private_key * client_private_key)
-  : sp_(sp),
-  log_(sp, "VDS Client logic"),
-  server_address_(server_address),
+: server_address_(server_address),
   client_certificate_(client_certificate),
   client_private_key_(client_private_key),
-  filter_last_index_(0),
-  connected_(0),
-  timer_task_(std::bind(&client_logic::process_timer_tasks, this)),
-  outgoing_queue_(sp),
+  connected_(0),  
   messages_sent_(false)
-{  
+{
 }
 
 vds::client_logic::~client_logic()
 {
 }
 
-void vds::client_logic::start()
+void vds::client_logic::start(const service_provider & sp)
 {
   url_parser::parse_addresses(this->server_address_,
-    [this](const std::string & protocol, const std::string & address)->bool {
+    [this, sp](const std::string & protocol, const std::string & address)->bool {
     if ("https" == protocol) {
       auto url = url_parser::parse_network_address(address);
       if (protocol == url.protocol) {
         this->connection_queue_.push_back(
           std::unique_ptr<client_connection<client_logic>>(
             new client_connection<client_logic>(
-              this->sp_,
+              sp,
               this,
               url.server,
               std::atoi(url.port.c_str()),
@@ -49,17 +43,20 @@ void vds::client_logic::start()
     return true;
   });
 
-  this->process_timer_tasks();
+  this->process_timer_.start(
+    sp,
+    std::chrono::seconds(5),
+    [this, sp](){ this->process_timer_tasks(sp); });
 }
 
-void vds::client_logic::stop()
+void vds::client_logic::stop(const service_provider & sp)
 {
   if (std::future_status::ready != this->update_connection_pool_feature_.wait_for(std::chrono::seconds(0))) {
     this->update_connection_pool_feature_.get();
   }
 }
 
-void vds::client_logic::connection_closed(client_connection<client_logic>& connection)
+void vds::client_logic::connection_closed(const service_provider & sp, client_connection<client_logic>& connection)
 {
   sp.get<logger>().info(sp, "Connection %s:%d has been closed", connection.address().c_str(), connection.port());
 
@@ -67,10 +64,10 @@ void vds::client_logic::connection_closed(client_connection<client_logic>& conne
   this->connected_--;
   this->connection_mutex_.unlock();
 
-  this->process_timer_tasks();
+  this->process_timer_tasks(sp);
 }
 
-void vds::client_logic::connection_error(client_connection<client_logic>& connection, std::exception_ptr ex)
+void vds::client_logic::connection_error(const service_provider & sp, client_connection<client_logic>& connection, std::exception_ptr ex)
 {
   sp.get<logger>().info(sp, "Connection %s:%d error %s", connection.address().c_str(), connection.port(), exception_what(ex).c_str());
 
@@ -78,10 +75,13 @@ void vds::client_logic::connection_error(client_connection<client_logic>& connec
   this->connected_--;
   this->connection_mutex_.unlock();
 
-  this->process_timer_tasks();
+  this->process_timer_tasks(sp);
 }
 
-void vds::client_logic::process_response(client_connection<client_logic>& connection, const json_value * response)
+void vds::client_logic::process_response(
+  const service_provider & sp,
+  client_connection<client_logic>& connection,
+  const json_value * response)
 {
   auto tasks = dynamic_cast<const json_array *>(response);
   if (nullptr != tasks) {
@@ -94,21 +94,15 @@ void vds::client_logic::process_response(client_connection<client_logic>& connec
           std::lock_guard<std::mutex> lock(this->requests_mutex_);
           auto p = this->requests_.find(request_id);
           if(this->requests_.end() != p){
-            imt_service::async(this->sp_,
+            imt_service::async(sp,
               [
                 done = p->second.done,
-                result = task->clone().release()](){
-              done(std::unique_ptr<json_value>(result).get());
+                result = task->clone().release(),
+                sp
+              ](){
+              done(sp, std::unique_ptr<json_value>(result).get());
             });
             this->requests_.remove(request_id);            
-          }
-        }
-        
-        std::string task_type;
-        if (task->get_property("$t", task_type, false)) {
-          std::unique_lock<std::mutex> lock(this->filters_mutex_);
-          for (auto & f : this->filters_[task_type]) {
-            f.second(task);
           }
         }
       }
@@ -116,14 +110,14 @@ void vds::client_logic::process_response(client_connection<client_logic>& connec
   }
 }
 
-void vds::client_logic::cancel_request(const std::string& request_id)
+void vds::client_logic::cancel_request(const service_provider & sp, const std::string& request_id)
 {
   std::lock_guard<std::mutex> lock(this->requests_mutex_);
   auto p = this->requests_.find(request_id);
   if (this->requests_.end() != p) {
-    imt_service::async(this->sp_,
-      [on_error = p->second.on_error](){
-      on_error(std::make_exception_ptr(std::runtime_error("Timeout")));
+    imt_service::async(sp,
+      [sp, on_error = p->second.on_error](){
+      on_error(sp, std::make_exception_ptr(std::runtime_error("Timeout")));
     });
   }
 
@@ -150,18 +144,18 @@ void vds::client_logic::node_install(const std::string & login, const std::strin
 }
 */
 
-void vds::client_logic::get_commands(vds::client_connection<vds::client_logic> & connection)
+void vds::client_logic::get_commands(const service_provider & sp, vds::client_connection<vds::client_logic> & connection)
 {
-  this->sp_.get<imt_service>().async(
+  sp.get<imt_service>().async(
     [this, &connection](){ 
-    if (this->outgoing_queue_.get(connection)) {
+    if (this->outgoing_queue_.get(sp, connection)) {
       this->messages_sent_ = true;
     }});
 }
 
-void vds::client_logic::add_task(const std::string & message)
+void vds::client_logic::add_task(const service_provider & sp, const std::string & message)
 {
-  this->outgoing_queue_.push(message);
+  this->outgoing_queue_.push(sp, message);
 }
 
 /*
@@ -188,7 +182,7 @@ std::string vds::client_logic::get_messages()
   return result;
 }
 */
-void vds::client_logic::process_timer_tasks()
+void vds::client_logic::process_timer_tasks(const service_provider & sp)
 {
   if (!this->connection_queue_.empty()) {
     if (
@@ -204,7 +198,7 @@ void vds::client_logic::process_timer_tasks()
         size_t try_count = 0;
         this->connection_mutex_.lock();
         while (
-          !this->sp_.get_shutdown_event().is_shuting_down()
+          !sp.get_shutdown_event().is_shuting_down()
           && this->connected_ < MAX_CONNECTIONS
           && try_count++ < MAX_CONNECTIONS
           && this->connected_ < this->connection_queue_.size()) {
@@ -221,7 +215,7 @@ void vds::client_logic::process_timer_tasks()
             ) {
 
             this->connection_mutex_.unlock();
-            connection->connect();
+            connection->connect(sp);
             this->connection_mutex_.lock();
 
             this->connected_++;
@@ -236,14 +230,12 @@ void vds::client_logic::process_timer_tasks()
   if (!this->messages_sent_) {
     std::lock_guard<std::mutex> lock(this->requests_mutex_);
     for (decltype(this->requests_)::data_type::const_iterator r = this->requests_.begin(); r != this->requests_.end(); ++r) {
-      this->add_task(r->second.task);
+      this->add_task(sp, r->second.task);
     }
   }
   else {
     this->messages_sent_ = false;
   }
-  
-  this->sp_.get<itask_manager>().wait_for(std::chrono::seconds(5)) += this->timer_task_;
 }
 
 /*
@@ -260,6 +252,7 @@ void vds::client_logic::process(client_connection<client_logic>* connection, con
 */
 
 vds::async_task<const std::string& /*version_id*/> vds::client_logic::put_file(
+  const service_provider & sp,
   const std::string & user_login,
   const std::string & name,
   const const_data_buffer & data)
@@ -287,6 +280,7 @@ vds::async_task<const std::string& /*version_id*/> vds::client_logic::put_file(
 }
 
 vds::async_task<const vds::const_data_buffer & /*datagram*/> vds::client_logic::download_file(
+  const service_provider & sp,
   const std::string & user_login,
   const std::string & name)
 {

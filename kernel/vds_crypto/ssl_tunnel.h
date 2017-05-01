@@ -36,8 +36,8 @@ namespace vds {
     class issl_input_stream
     {
     public:
-      virtual void input_done() = 0;
-      virtual void decoded_output_done(size_t len) = 0;
+      virtual void input_done(const service_provider & sp) = 0;
+      virtual void decoded_output_done(const service_provider & sp, size_t len) = 0;
 
       static constexpr size_t BUFFER_SIZE = 1024;
       uint8_t buffer_[BUFFER_SIZE];
@@ -46,8 +46,8 @@ namespace vds {
     class issl_output_stream
     {
     public:
-      virtual void decoded_input_done() = 0;
-      virtual void output_done(size_t len) = 0;
+      virtual void decoded_input_done(const service_provider & sp) = 0;
+      virtual void output_done(const service_provider & sp, size_t len) = 0;
 
       static constexpr size_t BUFFER_SIZE = 1024;
       uint8_t buffer_[BUFFER_SIZE];
@@ -109,8 +109,8 @@ namespace vds {
 
       ~handler();
 
-      void input_done() override;
-      void decoded_output_done(size_t len) override;
+      void input_done(const service_provider & sp) override;
+      void decoded_output_done(const service_provider & sp, size_t len) override;
 
       void operator()(const service_provider & sp, const void * data, size_t len);
       void processed(const service_provider & sp);
@@ -145,8 +145,8 @@ namespace vds {
 
       ~handler();
 
-      void decoded_input_done() override;
-      void output_done(size_t len) override;
+      void decoded_input_done(const service_provider & sp) override;
+      void output_done(const service_provider & sp, size_t len) override;
 
       void operator()(const service_provider & sp, const void * data, size_t len);
       void processed(const service_provider & sp);
@@ -187,15 +187,15 @@ namespace vds {
   }
 
   template<typename context_type>
-  inline void ssl_input_stream::handler<context_type>::input_done()
+  inline void ssl_input_stream::handler<context_type>::input_done(const service_provider & sp)
   {
-    this->prev();
+    this->prev(sp);
   }
 
   template<typename context_type>
-  inline void ssl_input_stream::handler<context_type>::decoded_output_done(size_t len)
+  inline void ssl_input_stream::handler<context_type>::decoded_output_done(const service_provider & sp, size_t len)
   {
-    this->next(this->buffer_, len);
+    this->next(sp, this->buffer_, len);
   }
 
   template<typename context_type>
@@ -234,15 +234,15 @@ namespace vds {
   }
 
   template<typename context_type>
-  inline void ssl_output_stream::handler<context_type>::decoded_input_done()
+  inline void ssl_output_stream::handler<context_type>::decoded_input_done(const service_provider & sp)
   {
-    this->prev();
+    this->prev(sp);
   }
 
   template<typename context_type>
-  inline void ssl_output_stream::handler<context_type>::output_done(size_t len)
+  inline void ssl_output_stream::handler<context_type>::output_done(const service_provider & sp, size_t len)
   {
-    this->next(this->buffer_, len);
+    this->next(sp, this->buffer_, len);
   }
 
   template<typename context_type>

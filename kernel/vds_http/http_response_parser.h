@@ -49,10 +49,11 @@ namespace vds {
         std::cout << "http_response_parser::handler::~handler\n";
       }
       
-      void operator()(const void * data, size_t len)
+      void operator()(const service_provider & sp, const void * data, size_t len)
       {
         if (0 == len) {
           this->next(
+            sp,
             nullptr,
             nullptr);
         }
@@ -60,18 +61,18 @@ namespace vds {
           this->data_ = data;
           this->len_ = len;
 
-          this->processed();
+          this->processed(sp);
         }
       }
       
-      void processed()
+      void processed(const service_provider & sp)
       {
         while (0 < this->len_) {
           if (STATE_PARSE_HEADER == this->state_) {
             const char * p = (const char *)memchr(this->data_, '\n', this->len_);
             if (nullptr == p) {
               this->parse_buffer_ += std::string((const char *)this->data_, this->len_);
-              this->prev();
+              this->prev(sp);
               return;
             }
 
@@ -135,6 +136,7 @@ namespace vds {
               this->readed_ = 0;
 
               this->next(
+                sp,
                 &this->response_,
                 &this->incoming_stream_
               );
@@ -157,6 +159,7 @@ namespace vds {
             if (0 == l) {
               this->state_ = STATE_PARSE_HEADER;
               this->incoming_stream_.push_data(
+                sp,
                 nullptr,
                 0);
             }
@@ -166,6 +169,7 @@ namespace vds {
               this->len_ -= l;
               this->readed_ += l;
               this->incoming_stream_.push_data(
+                sp,
                 p,
                 l);
             }
@@ -177,11 +181,12 @@ namespace vds {
           && this->readed_ == this->size_limit_) {
             this->state_ = STATE_PARSE_HEADER;
             this->incoming_stream_.push_data(
+              sp,
               nullptr,
               0);
         }
         else {
-          this->prev();
+          this->prev(sp);
         }
       }
       

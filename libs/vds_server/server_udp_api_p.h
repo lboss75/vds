@@ -14,16 +14,13 @@ namespace vds {
   {
   public:
     _server_udp_api(
-      const service_provider & sp,
       server_udp_api * owner);
     ~_server_udp_api();
       
-    void start();
-    void stop();
+    void start(const service_provider & sp);
+    void stop(const service_provider & sp);
 
   private:
-    service_provider sp_;
-    logger log_;
     server_udp_api * const owner_;
   };
 }
