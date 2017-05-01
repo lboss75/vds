@@ -45,6 +45,7 @@ namespace vds {
       }
 
       void operator()(
+        const service_provider & sp,
         const http_response & response,
         http_outgoing_stream & response_stream
         )
@@ -72,14 +73,15 @@ namespace vds {
           this->buffer_.clear();
         }
         this->next(
+          sp,
           this->buffer_.c_str(),
           this->buffer_.size());
       }
       
-      void processed()
+      void processed(const service_provider & sp)
       {
         if (!this->stream_ || !this->stream_->read(this->next)) {
-          this->prev();
+          this->prev(sp);
         }
       }
 

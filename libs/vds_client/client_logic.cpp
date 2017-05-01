@@ -32,7 +32,6 @@ void vds::client_logic::start(const service_provider & sp)
         this->connection_queue_.push_back(
           std::unique_ptr<client_connection<client_logic>>(
             new client_connection<client_logic>(
-              sp,
               this,
               url.server,
               std::atoi(url.port.c_str()),
@@ -147,7 +146,7 @@ void vds::client_logic::node_install(const std::string & login, const std::strin
 void vds::client_logic::get_commands(const service_provider & sp, vds::client_connection<vds::client_logic> & connection)
 {
   sp.get<imt_service>().async(
-    [this, &connection](){ 
+    [this, sp, &connection](){ 
     if (this->outgoing_queue_.get(sp, connection)) {
       this->messages_sent_ = true;
     }});
@@ -190,7 +189,7 @@ void vds::client_logic::process_timer_tasks(const service_provider & sp)
       || std::future_status::ready == this->update_connection_pool_feature_.wait_for(std::chrono::seconds(0))) {
       this->update_connection_pool_feature_ = std::async(
         std::launch::async,
-        [this]() {
+        [this, sp]() {
 
         std::chrono::time_point<std::chrono::system_clock> border
           = std::chrono::system_clock::now() - std::chrono::seconds(60);
@@ -257,7 +256,7 @@ vds::async_task<const std::string& /*version_id*/> vds::client_logic::put_file(
   const std::string & name,
   const const_data_buffer & data)
 {  
-  foldername tmp(persistence::current_user(this->sp_), "tmp");
+  foldername tmp(persistence::current_user(sp), "tmp");
   tmp.create();
 
   auto version_id = guid::new_guid().str();
@@ -267,15 +266,17 @@ vds::async_task<const std::string& /*version_id*/> vds::client_logic::put_file(
   f.close();
 
   return this->send_request<client_messages::put_file_message_response>(
+    sp,
     client_messages::put_file_message(
       user_login,
       name,
       tmpfile).serialize())
     .then([](
-      const std::function<void(const std::string& /*version_id*/)> & done,
+      const std::function<void(const service_provider & sp, const std::string& /*version_id*/)> & done,
       const error_handler & on_error,
+      const service_provider & sp, 
       const client_messages::put_file_message_response & response) {
-    done(response.version_id());
+    done(sp, response.version_id());
   });
 }
 
@@ -289,14 +290,16 @@ vds::async_task<const vds::const_data_buffer & /*datagram*/> vds::client_logic::
   std::string datagram;
 
   return this->send_request<client_messages::get_file_message_response>(
+    sp,
     client_messages::get_file_message_request(
       user_login,
       name).serialize())
     .then([](
-      const std::function<void(const vds::const_data_buffer & /*datagram*/)> & done,
+      const std::function<void(const service_provider & sp, const vds::const_data_buffer & /*datagram*/)> & done,
       const error_handler & on_error,
+      const service_provider & sp,
       const client_messages::get_file_message_response & response) {
     
-    done(file::read_all(response.tmp_file()));
+    done(sp, file::read_all(response.tmp_file()));
   });
 }

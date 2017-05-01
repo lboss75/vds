@@ -36,8 +36,14 @@ namespace vds {
     public:
       virtual ~imessage_sender() {}
       
-      virtual bool filter_messages(std::list<message_type> & source, std::list<message_type> & target) = 0;
-      virtual void run(std::list<message_type> & messages) = 0;
+      virtual bool filter_messages(
+        const service_provider & sp,
+        std::list<message_type> & source,
+        std::list<message_type> & target) = 0;
+        
+      virtual void run(
+        const service_provider & sp,
+        std::list<message_type> & messages) = 0;
     };
     
     template <typename target_type>
@@ -49,7 +55,10 @@ namespace vds {
       {
       }
       
-      bool filter_messages(std::list<message_type> & source, std::list<message_type> & target) override
+      bool filter_messages(
+        const service_provider & sp,
+        std::list<message_type> & source,
+        std::list<message_type> & target) override
       {
         auto message = *source.begin();
         source.pop_front();
@@ -57,7 +66,9 @@ namespace vds {
         return true;
       }
       
-      void run(std::list<message_type> & messages) override
+      void run(
+        const service_provider & sp, 
+        std::list<message_type> & messages) override
       {
         call_with(target_, *messages.begin());
       }

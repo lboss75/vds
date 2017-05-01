@@ -13,17 +13,17 @@ namespace vds {
   class server_http_api
   {
   public:
-    server_http_api(const service_provider & sp);
+    server_http_api();
 
 
     async_task<> start(
+      const service_provider & sp,
       const std::string & address,
       int port,
       certificate & certificate,
       asymmetric_private_key & private_key);
 
   private:
-    service_provider sp_;
     std::unique_ptr<_server_http_api> impl_;
   };
 }

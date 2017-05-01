@@ -14,7 +14,6 @@ namespace vds {
   class _ssl_tunnel {
   public:
     _ssl_tunnel(
-      const service_provider & scope,
       ssl_tunnel * owner,
       bool is_client,
       const certificate * cert,
@@ -35,7 +34,6 @@ namespace vds {
     friend class ssl_output_stream;
     friend class ssl_tunnel;
 
-    service_provider sp_;
     SSL_CTX *ssl_ctx_;
     SSL * ssl_;
     BIO * input_bio_;
@@ -64,11 +62,11 @@ namespace vds {
     void set_input_stream(ssl_tunnel::issl_input_stream * stream);
     void set_output_stream(ssl_tunnel::issl_output_stream * stream);
 
-    void write_input(const void * data, size_t len);
-    void write_decoded_output(const void * data, size_t len);
+    void write_input(const service_provider & sp, const void * data, size_t len);
+    void write_decoded_output(const service_provider & sp, const void * data, size_t len);
 
-    void start_work_circle();
-    void work_circle();
+    void start_work_circle(const service_provider & sp);
+    void work_circle(const service_provider & sp);
     void input_stream_processed(const service_provider & sp);
     void output_stream_processed(const service_provider & sp);
   };

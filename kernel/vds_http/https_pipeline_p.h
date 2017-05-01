@@ -53,7 +53,6 @@ namespace vds {
     {
     public:
       connection(
-        const service_provider & sp,
         _https_pipeline * owner);
 
       template <typename context_type>
@@ -65,9 +64,8 @@ namespace vds {
           const context_type & context,
           const connection & args
         ) : base_class(context),
-          sp_(args.sp_),
           owner_(args.owner_),
-          tunnel_(args.sp_, true, args.owner_->client_certificate_, args.owner_->client_private_key_),
+          tunnel_(true, args.owner_->client_certificate_, args.owner_->client_private_key_),
           done_count_(0),
           done_handler_(this),
           error_handler_(this)
@@ -160,7 +158,6 @@ namespace vds {
           handler * owner_;
         };
         
-        service_provider sp_;
         _https_pipeline * owner_;
         ssl_tunnel tunnel_;
 
@@ -171,7 +168,6 @@ namespace vds {
         stream_error error_handler_;
       };
     private:
-      service_provider sp_;
       _https_pipeline * owner_;
     };
     

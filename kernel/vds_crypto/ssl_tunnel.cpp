@@ -16,11 +16,10 @@ static int verify_callback(int prev, X509_STORE_CTX * ctx)
 
 ////////////////////////////////////////////////////////////////
 vds::ssl_tunnel::ssl_tunnel(
-  const service_provider & scope,
   bool is_client,
   const certificate * cert,
   const asymmetric_private_key * key)
-: impl_(new _ssl_tunnel(scope, this, is_client, cert, key))
+: impl_(new _ssl_tunnel(this, is_client, cert, key))
 {
 }
 
@@ -44,14 +43,14 @@ void vds::ssl_tunnel::set_output_stream(issl_output_stream * stream)
   this->impl_->set_output_stream(stream);
 }
 
-void vds::ssl_tunnel::write_input(const void * data, size_t len)
+void vds::ssl_tunnel::write_input(const service_provider & sp, const void * data, size_t len)
 {
-  this->impl_->write_input(data, len);
+  this->impl_->write_input(sp, data, len);
 }
 
-void vds::ssl_tunnel::write_decoded_output(const void * data, size_t len)
+void vds::ssl_tunnel::write_decoded_output(const service_provider & sp, const void * data, size_t len)
 {
-  this->impl_->write_decoded_output(data, len);
+  this->impl_->write_decoded_output(sp, data, len);
 }
 
 void vds::ssl_tunnel::input_stream_processed(const service_provider & sp)
@@ -76,13 +75,11 @@ vds::certificate vds::peer_certificate::get_peer_certificate() const
 
 ////////////////////////////////////////////////////////////////
 vds::_ssl_tunnel::_ssl_tunnel(
-  const service_provider & scope,
   ssl_tunnel * owner,
   bool is_client,
   const certificate * cert,
   const asymmetric_private_key * key)
-: sp_(scope),
-  owner_(owner),
+: owner_(owner),
   is_client_(is_client),
   input_len_(0), decoded_input_len_(0),
   input_stream_(nullptr), output_stream_(nullptr),
@@ -175,7 +172,7 @@ void vds::_ssl_tunnel::set_output_stream(ssl_tunnel::issl_output_stream * stream
   this->output_stream_ = stream;
 }
 
-void vds::_ssl_tunnel::write_input(const void * data, size_t len)
+void vds::_ssl_tunnel::write_input(const service_provider & sp, const void * data, size_t len)
 {
   if (0 != this->input_len_) {
     throw new std::logic_error("vds::ssl_tunnel::write_input");
@@ -184,10 +181,10 @@ void vds::_ssl_tunnel::write_input(const void * data, size_t len)
   this->input_data_ = data;
   this->input_len_ = len;
 
-  this->start_work_circle();
+  this->start_work_circle(sp);
 }
 
-void vds::_ssl_tunnel::write_decoded_output(const void * data, size_t len)
+void vds::_ssl_tunnel::write_decoded_output(const service_provider & sp, const void * data, size_t len)
 {
   if (0 != this->decoded_input_len_) {
     throw new std::logic_error("vds::ssl_tunnel::write_decoded_output");
@@ -196,10 +193,10 @@ void vds::_ssl_tunnel::write_decoded_output(const void * data, size_t len)
   this->decoded_input_data_ = data;
   this->decoded_input_len_ = len;
 
-  this->start_work_circle();
+  this->start_work_circle(sp);
 }
 
-void vds::_ssl_tunnel::start_work_circle()
+void vds::_ssl_tunnel::start_work_circle(const service_provider & sp)
 {
   bool need_start;
   this->work_circle_mutex_.lock();
@@ -207,11 +204,11 @@ void vds::_ssl_tunnel::start_work_circle()
   this->work_circle_mutex_.unlock();
   
   if(need_start){
-    this->work_circle();
+    this->work_circle(sp);
   }
 }
 
-void vds::_ssl_tunnel::work_circle()
+void vds::_ssl_tunnel::work_circle(const service_provider & sp)
 {
   for(;;) {
     if (nullptr != this->input_stream_ && 0 < this->input_len_) {
@@ -272,7 +269,7 @@ void vds::_ssl_tunnel::work_circle()
       }
     }
     else {
-      this->input_stream_->decoded_output_done(this->sp_, bytes);
+      this->input_stream_->decoded_output_done(sp, bytes);
     }
 
     if (this->enable_output_ && BIO_pending(this->output_bio_)) {
@@ -292,18 +289,18 @@ void vds::_ssl_tunnel::work_circle()
       }
       else {
         this->enable_output_ = false;
-        this->output_stream_->output_done(this->sp_, bytes);
+        this->output_stream_->output_done(sp, bytes);
       }
     }
 
     if (this->input_stream_done_ && this->input_stream_ != nullptr) {
       this->input_stream_done_ = false;
-      this->input_stream_->input_done(this->sp_);
+      this->input_stream_->input_done(sp);
     }
 
     if (this->output_stream_done_ && this->output_stream_ != nullptr) {
       this->output_stream_done_ = false;
-      this->output_stream_->decoded_input_done(this->sp_);
+      this->output_stream_->decoded_input_done(sp);
     }
     
     bool need_stop;
@@ -318,7 +315,7 @@ void vds::_ssl_tunnel::work_circle()
 
 void vds::_ssl_tunnel::input_stream_processed(const service_provider & sp)
 {
-  this->start_work_circle();
+  this->start_work_circle(sp);
 }
 
 void vds::_ssl_tunnel::output_stream_processed(const service_provider & sp)
@@ -327,5 +324,5 @@ void vds::_ssl_tunnel::output_stream_processed(const service_provider & sp)
     throw new std::logic_error("vds::ssl_tunnel::output_stream_processed failed");
   }
   this->enable_output_ = true;
-  this->start_work_circle();
+  this->start_work_circle(sp);
 }

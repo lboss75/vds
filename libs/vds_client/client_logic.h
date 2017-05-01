@@ -65,7 +65,8 @@ namespace vds {
       return create_async_task(
         [this, sp, task, request_id, request_timeout](
           const std::function<void (const service_provider & sp, const response_type & response)> & done,
-          const error_handler & on_error){
+          const error_handler & on_error,
+          const service_provider & sp){
           std::lock_guard<std::mutex> lock(this->requests_mutex_);
           this->requests_.set(request_id, request_info {
             task,

@@ -29,7 +29,7 @@ namespace vds {
     std::mutex task_mutex_;
     simple_cache<std::string, task_info> tasks_;
 
-    async_task<const json_value *> process(const service_provider & scope, const client_messages::certificate_and_key_request & message);
+    vds::async_task< const vds::json_value* > process(const vds::service_provider& sp, const vds::client_messages::certificate_and_key_request& message);
     async_task<const json_value *> process(const service_provider & scope, const client_messages::register_server_request & message);
     async_task<const json_value *> process(const service_provider & scope, const client_messages::put_file_message & message);
     async_task<const json_value *> process(const service_provider & scope, const client_messages::get_file_message_request & message);

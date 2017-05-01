@@ -82,7 +82,7 @@ void vds::_https_pipeline::connect(const service_provider & parent_scope)
   auto sp = parent_scope.create_scope("_https_pipeline");
   dataflow(
     socket_connect(sp),
-    connection(sp, this)
+    connection(this)
   )
   (
    [this](const service_provider & sp){ this->owner_->on_connected(sp); },
@@ -94,10 +94,8 @@ void vds::_https_pipeline::connect(const service_provider & parent_scope)
 }
 
 vds::_https_pipeline::connection::connection(
-  const service_provider & sp,
   _https_pipeline * owner)
-: sp_(sp),
-owner_(owner)
+: owner_(owner)
 {
 }
 

@@ -91,12 +91,12 @@ vds::json_value * vds::_server_json_client_api::operator()(
               task = this->process(sp, client_messages::get_file_message_request(task_object));
             }
             else {
-              sp.get<logger>().warning("Invalid request type \'%s\'", task_type_name.c_str());
-              throw new std::runtime_error("Invalid request type " + task_type_name);
+              sp.get<logger>().warning(sp, "Invalid request type \'%s\'", task_type_name.c_str());
+              throw std::runtime_error("Invalid request type " + task_type_name);
             }
             
             task.wait(
-              [this, request_id](const json_value * task_result){
+              [this, request_id](const service_provider & sp, const json_value * task_result){
                 auto obj = task_result->clone();
                 dynamic_cast<json_object *>(obj.get())->add_property("$r", request_id);
 
@@ -105,12 +105,13 @@ vds::json_value * vds::_server_json_client_api::operator()(
                 p->second.result = std::move(obj);
                 this->task_mutex_.unlock();
               },
-              [this, request_id](std::exception_ptr ex) {
+              [this, request_id](const service_provider & sp, std::exception_ptr ex) {
                 this->task_mutex_.lock();
                 auto p = this->tasks_.find(request_id);
                 p->second.error = ex;
                 this->task_mutex_.unlock();
-              });
+              },
+              sp);
             
             this->task_mutex_.lock();
             p = this->tasks_.find(request_id);
@@ -131,14 +132,14 @@ vds::json_value * vds::_server_json_client_api::operator()(
 
 vds::async_task<const vds::json_value *>
 vds::_server_json_client_api::process(
-  const service_provider & scope,
+  const service_provider & sp,
   const client_messages::certificate_and_key_request & message)
 {
   return create_async_task(
-    [scope, message](const std::function<void(const json_value *)> & done, const error_handler & on_error){
-      auto cert = scope
+    [message](const std::function<void(const service_provider & sp, const json_value *)> & done, const error_handler & on_error, const service_provider & sp){
+      auto cert = sp
         .get<istorage_log>()
-        .find_cert(message.object_name());
+        .find_cert(sp, message.object_name());
 
       if (!cert
         || cert->password_hash() != message.password_hash()) {
@@ -146,6 +147,7 @@ vds::_server_json_client_api::process(
       }
 
       done(
+        sp,
         client_messages::certificate_and_key_response(
           cert->cert_body(),
           cert->cert_key()).serialize().get());
@@ -154,50 +156,57 @@ vds::_server_json_client_api::process(
 
 vds::async_task<const vds::json_value *>
 vds::_server_json_client_api::process(
-  const service_provider & scope,
+  const service_provider & sp,
   const client_messages::register_server_request & message)
 {
   return create_async_task(
-    [scope, message](const std::function<void(const json_value *)> & done, const error_handler & on_error){
-      scope
+    [sp, message](const std::function<void(const service_provider & sp, const json_value *)> & done, const error_handler & on_error, const service_provider & sp){
+      sp
         .get<node_manager>()
-        .register_server(scope, message.certificate_body())
+        .register_server(sp, message.certificate_body())
         .wait(
-          [done]() { done(client_messages::register_server_response().serialize().get()); },
-          on_error);
+          [done](const service_provider & sp) { done(sp, client_messages::register_server_response().serialize().get()); },
+          on_error,
+          sp);
       });
 }
 
 vds::async_task<const vds::json_value *>
 vds::_server_json_client_api::process(
-  const service_provider & scope,
+  const service_provider & sp,
   const client_messages::put_file_message & message)
 {
   auto version_id = guid::new_guid().str();
   
-  return scope
+  return sp
     .get<file_manager>()
     .put_file(
+      sp,
       version_id,
       message.user_login(),
       message.name(),
       message.tmp_file())
-    .then([version_id](const std::function<void(const vds::json_value *)> & done, const error_handler & on_error) {
+    .then([version_id](const std::function<void(const service_provider & sp, const vds::json_value *)> & done, const error_handler & on_error, const service_provider & sp) {
 
-    done(client_messages::put_file_message_response(version_id).serialize().get());
+    done(sp, client_messages::put_file_message_response(version_id).serialize().get());
   });
 }
 
 vds::async_task<const vds::json_value*> vds::_server_json_client_api::process(
-  const service_provider & scope,
+  const service_provider & sp,
   const client_messages::get_file_message_request & message)
 {
-  return scope
+  return sp
     .get<file_manager>()
     .download_file(
+      sp,
       message.user_login(),
       message.name())
-    .then([](const std::function<void(const vds::json_value *)> & done, const error_handler & on_error, const filename & tmp_file) {
-    done(client_messages::get_file_message_response(tmp_file).serialize().get());
+    .then([](
+      const std::function<void(const service_provider & sp, const vds::json_value *)> & done,
+      const error_handler & on_error,
+      const service_provider & sp,
+      const filename & tmp_file) {
+    done(sp, client_messages::get_file_message_response(tmp_file).serialize().get());
   });
 }

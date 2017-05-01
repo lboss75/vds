@@ -13,7 +13,6 @@ namespace vds {
   class ssl_tunnel {
   public:
     ssl_tunnel(
-      const service_provider & scope,
       bool is_client,
       const certificate * cert,
       const asymmetric_private_key * key
@@ -78,8 +77,8 @@ namespace vds {
     void set_input_stream(issl_input_stream * stream);
     void set_output_stream(issl_output_stream * stream);
 
-    void write_input(const void * data, size_t len);
-    void write_decoded_output(const void * data, size_t len);
+    void write_input(const service_provider & sp, const void * data, size_t len);
+    void write_decoded_output(const service_provider & sp, const void * data, size_t len);
 
     void start_work_circle();
     void work_circle();
@@ -208,7 +207,7 @@ namespace vds {
       this->next(sp, nullptr, 0);
     }
     else {
-      this->tunnel_.write_input(data, len);
+      this->tunnel_.write_input(sp, data, len);
     }
   }
 
@@ -252,7 +251,7 @@ namespace vds {
       this->next(sp, nullptr, 0);
     }
     else {
-      this->tunnel_.write_decoded_output(data, len);
+      this->tunnel_.write_decoded_output(sp, data, len);
     }
   }
 

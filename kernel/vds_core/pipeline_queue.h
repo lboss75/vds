@@ -39,16 +39,17 @@ namespace vds {
       {
       }
       
-      bool filter_messages(std::list<message_type> & messages)
+      bool filter_messages(const service_provider & sp, std::list<message_type> & messages)
       {
         return this->target_.filter_messages(
+          sp,
           messages,
           this->messages_);
       }
       
-      void run()
+      void run(const service_provider & sp)
       {
-        this->target_.run(this->messages_);
+        this->target_.run(sp, this->messages_);
       }
       
       target_type & target_;
@@ -66,11 +67,11 @@ namespace vds {
       }
       
       for(auto & c : this->callbacks_){
-        if(c->filter_messages(this->messages_)){
+        if(c->filter_messages(sp, this->messages_)){
           callback_handler * s = c.release();
           this->callbacks_.remove(c);
 
-          imt_service::async(sp, [s]() { std::unique_ptr<callback_handler>(s)->run(); });
+          imt_service::async(sp, [s, sp]() { std::unique_ptr<callback_handler>(s)->run(sp); });
 
           return true;
         }

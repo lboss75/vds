@@ -11,7 +11,7 @@ All rights reserved
 
 namespace vds {
   class _client;
-  class client : public iservice
+  class client : public iservice_factory
   {
   public:
     client(const std::string & server_address);

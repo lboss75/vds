@@ -13,25 +13,22 @@ namespace vds {
   class _server_http_api
   {
   public:
-    _server_http_api(const service_provider & sp);
+    _server_http_api();
 
     async_task<> start(
+      const service_provider & sp,
       const std::string & address,
       int port,
       certificate & certificate,
       asymmetric_private_key & private_key);
 
   private:
-    service_provider sp_;
-    logger log_;
-
     std::unique_ptr<http_router> router_;
     
     class server_http_handler
     {
     public:
       server_http_handler(
-        const service_provider & sp,
         const http_router & router
       );
       
@@ -96,13 +93,11 @@ namespace vds {
       public:
         handler(
           const socket_session & owner,
-          const service_provider & sp,
           network_socket & s);
 
-        void start();
+        void start(const service_provider & sp);
 
       private:
-        const service_provider & sp_;
         network_socket s_;
         ssl_tunnel tunnel_;
         const certificate & certificate_;
@@ -110,10 +105,10 @@ namespace vds {
         server_http_handler server_http_handler_;
         delete_this<handler> done_handler_;
 
-        std::function<void(std::exception_ptr)> error_handler_;
+        std::function<void(const service_provider & sp, std::exception_ptr)> error_handler_;
 
-        std::function<void(void)> http_server_done_;
-        std::function<void(std::exception_ptr)> http_server_error_;
+        std::function<void(const service_provider & sp)> http_server_done_;
+        std::function<void(const service_provider & sp, std::exception_ptr)> http_server_error_;
       };
     private:
       const http_router & router_;
