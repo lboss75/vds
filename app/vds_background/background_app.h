@@ -7,8 +7,6 @@ All rights reserved
 */
 
 namespace vds {
-  class vrt_object;
-
   class background_app : public console_app<background_app>
   {
     using base_class = console_app<background_app>;

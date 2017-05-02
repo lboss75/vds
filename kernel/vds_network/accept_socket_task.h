@@ -146,14 +146,14 @@ namespace vds {
 #ifndef _WIN32
       if(nullptr == this->ev_accept_){
         this->ev_accept_ = event_new(
-          this->network_service_->base_,
+          ((network_service &)sp.get<inetwork_manager>()).base_,
           this->s_,
           EV_READ,
           &accept_socket_task::wait_accept,
           this);
       }
       event_add(this->ev_accept_, NULL);
-      this->network_service_->start_libevent_dispatch(this->sp_);
+      ((network_service &)sp.get<inetwork_manager>()).start_libevent_dispatch(this->sp_);
 #else
       if (!this->wait_accept_task_.joinable()) {
         this->wait_accept_task_ = std::thread(

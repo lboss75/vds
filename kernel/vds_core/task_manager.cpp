@@ -8,11 +8,28 @@ All rights reserved
 #include "mt_service.h"
 #include "shutdown_event.h"
 
+vds::timer::timer()
+: sp_(service_provider::empty())
+{
+}
+
+
+vds::task_manager::task_manager()
+: sp_(service_provider::empty())
+{
+}
+
+vds::task_manager::~task_manager()
+{
+}
+
+
 void vds::timer::start(
   const vds::service_provider& sp,
   const std::chrono::steady_clock::duration & period,
   const std::function< void(void) >& callback)
 {
+  this->sp_ = sp;
   this->period_ = period;
   this->handler_ = callback;
   

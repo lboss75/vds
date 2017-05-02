@@ -6,6 +6,7 @@ All rights reserved
 #include "server_log_sync.h"
 #include "server_log_sync_p.h"
 #include "messages.h"
+#include "server_database.h"
 
 vds::server_log_sync::server_log_sync()
 : impl_(new _server_log_sync(this))

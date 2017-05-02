@@ -19,7 +19,10 @@ namespace vds {
   class _node_manager;
   class _chunk_manager;
   class _cert_manager;
+  class _local_cache;
+  class _server_database;
   class _server_http_api;
+  class _storage_log;
 
   class _server : public iserver
   {

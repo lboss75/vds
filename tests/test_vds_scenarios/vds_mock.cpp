@@ -241,13 +241,13 @@ void mock_client::start_vds(bool full_client, const std::function<void(const vds
     handler(sp);
   }
   catch (...) {
-    try { registrator.shutdown(); }
+    try { registrator.shutdown(sp); }
     catch (...) {}
 
     throw;
   }
 
-  registrator.shutdown();
+  registrator.shutdown(sp);
 }
 
 mock_server::mock_server(int index, int port)

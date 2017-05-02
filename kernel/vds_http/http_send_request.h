@@ -49,7 +49,7 @@ namespace vds {
       {
         dataflow(
           http_request_serializer(),
-          output_network_stream(sp, s)
+          output_network_stream(s)
         )
         (
           this->request_sent_handler_,
@@ -60,7 +60,7 @@ namespace vds {
         );
 
         dataflow(
-          input_network_stream(sp, s),
+          input_network_stream(s),
           http_response_parser(),
           this->response_handler_
         )(

@@ -141,7 +141,6 @@ TEST(http_tests, test_server)
           vds::http_send_request<
             vds::http_simple_response_reader
             >(
-              sp,
               request,
               outgoing_stream,
               response_reader)
@@ -194,7 +193,7 @@ TEST(http_tests, test_https_server)
 
     vds::dataflow(
       vds::socket_server(sp, "127.0.0.1", 8000),
-      vds::for_each<const vds::service_provider &, vds::network_socket &>::create_handler(test_http_pipeline(router))
+      vds::for_each<vds::network_socket &>::create_handler(test_http_pipeline(router))
     )
     (
       server_done_handler,
@@ -223,11 +222,10 @@ TEST(http_tests, test_https_server)
     }
     );
     vds::dataflow(
-      vds::socket_connect(sp),
+      vds::socket_connect(),
       vds::http_send_request<
       vds::http_simple_response_reader
       >(
-        sp,
         request,
         outgoing_stream,
         response_reader)

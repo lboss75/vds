@@ -38,13 +38,13 @@ target_link_libraries(
   test_vds_scenarios
   vds_core
   vds_data
+  vds_database
   vds_network
   vds_http
   vds_crypto
   vds_upnp
   vds_parser
   vds_protocols
-  vds_storage
   vds_client
   vds_server
   ${UUID_LIBRARIES}

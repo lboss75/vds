@@ -7,6 +7,10 @@ All rights reserved
 #include "file_manager.h"
 #include "file_manager_p.h"
 #include "connection_manager.h"
+#include "log_records.h"
+#include "chunk_manager.h"
+#include "storage_log.h"
+#include "server_database.h"
 
 vds::async_task<>
 vds::file_manager::put_file(

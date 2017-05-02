@@ -26,6 +26,7 @@ All rights reserved
 #include "cert_manager_p.h"
 #include "server_connection_p.h"
 #include "server_udp_api_p.h"
+#include "server_certificate.h"
 
 vds::server::server(bool for_init)
 : for_init_(for_init), impl_(new _server(this))

@@ -16,7 +16,6 @@ include_directories(${vds_data_SOURCE_DIR})
 include_directories(${vds_http_SOURCE_DIR})
 include_directories(${vds_parser_SOURCE_DIR})
 include_directories(${vds_protocols_SOURCE_DIR})
-include_directories(${vds_storage_SOURCE_DIR})
 include_directories(${vds_database_SOURCE_DIR})
 include_directories(${OPENSSL_INCLUDE_DIR})
 
@@ -37,7 +36,6 @@ target_link_libraries(
   vds_upnp
   vds_parser
   vds_protocols
-  vds_storage
   ${UUID_LIBRARIES}
   ${OPENSSL_LIBRARIES}
   ${UPNP_LIBRARIES}

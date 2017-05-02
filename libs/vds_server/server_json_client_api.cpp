@@ -9,6 +9,8 @@ All rights reserved
 #include "server.h"
 #include "node_manager.h"
 #include "file_manager.h"
+#include "storage_log.h"
+#include "cert_record.h"
 
 vds::server_json_client_api::server_json_client_api()
 : impl_(new _server_json_client_api(this))

@@ -35,12 +35,13 @@ namespace vds {
       }
 
       void operator()(
+        const service_provider & sp,
         http_response * response,
         http_incoming_stream * response_stream
         )
       {
         if(nullptr == response){
-          this->next(std::string());
+          this->next(sp, std::string());
           return;
         }
         
@@ -53,7 +54,8 @@ namespace vds {
           )
           (
            this->next,
-           this->error
+           this->error,
+           sp
           );
         }
       }

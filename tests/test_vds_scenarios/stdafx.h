@@ -12,7 +12,6 @@ All rights reserved
 #include "vds_crypto.h"
 #include "vds_upnp.h"
 #include "vds_server.h"
-#include "vds_storage.h"
 #include "vds_client.h"
 
 #include "certificate_authority_p.h"

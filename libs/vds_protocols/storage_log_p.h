@@ -10,6 +10,7 @@ All rights reserved
 #include "server_database.h"
 #include "storage_object_id.h"
 #include "local_cache.h"
+#include "storage_log.h"
 
 namespace vds {
   class server_log_root_certificate;

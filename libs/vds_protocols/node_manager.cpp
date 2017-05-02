@@ -6,8 +6,7 @@ All rights reserved
 #include "stdafx.h"
 #include "node_manager.h"
 #include "node_manager_p.h"
-
-
+#include "storage_log.h"
 
 vds::async_task<> vds::node_manager::register_server(
   const service_provider & scope,

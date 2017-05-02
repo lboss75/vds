@@ -9,6 +9,8 @@ All rights reserved
 #include "udp_messages.h"
 #include "node_manager.h"
 #include "messages.h"
+#include "server_certificate.h"
+#include "storage_log.h"
 
 vds::connection_manager::connection_manager()
   : impl_(new _connection_manager(this))

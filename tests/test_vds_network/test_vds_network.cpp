@@ -29,7 +29,7 @@ public:
       (new connection_handler<
         typename base_class::next_step_t,
         typename base_class::error_method_t>(
-          sp, this->next, this->error, s))->start(sp);
+          this->next, this->error, s))->start(sp);
     }
   private:
     vds::service_provider sp_;

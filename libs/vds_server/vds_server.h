@@ -8,7 +8,6 @@ All rights reserved
 
 #include "vds_core.h"
 #include "vds_protocols.h"
-#include "vds_storage.h"
 #include "vds_parser.h"
 
 #include "server.h"

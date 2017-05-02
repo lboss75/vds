@@ -9,6 +9,8 @@ namespace vds {
   class timer
   {
   public:
+    timer();
+    
     void start(
       const service_provider & sp,
       const std::chrono::steady_clock::duration & period,
@@ -18,6 +20,7 @@ namespace vds {
     
   private:
     friend class task_manager;
+    service_provider sp_;
     std::chrono::steady_clock::duration period_;
     std::chrono::time_point<std::chrono::steady_clock> start_time_;
     std::function<void(void)> handler_;
@@ -46,7 +49,6 @@ namespace vds {
    
     service_provider sp_;
     std::list<timer *> scheduled_;
-    
     std::condition_variable scheduled_changed_;
     std::mutex scheduled_mutex_;
     std::thread work_thread_;

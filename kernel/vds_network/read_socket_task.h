@@ -70,7 +70,7 @@ namespace vds {
 #else//!_WIN32
       if(nullptr == this->event_) {
         this->event_ = event_new(
-          this->network_service_->base_,
+          ((network_service &)sp.get<inetwork_manager>()).base_,
           this->s_,
           EV_READ,
           &read_socket_task::callback,
@@ -78,7 +78,7 @@ namespace vds {
       }
       // Schedule client event
       event_add(this->event_, NULL);
-      this->network_service_->start_libevent_dispatch(this->sp_);
+      ((network_service &)sp.get<inetwork_manager>()).start_libevent_dispatch(sp);
 #endif//_WIN32
     }
 
