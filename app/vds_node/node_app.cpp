@@ -51,7 +51,8 @@ node_password_(
     "Install Root node",
     "Create infrastructure for root note",
     "root",
-    "node")
+    "node"),
+  client_("https://127.0.0.1:8050")
 {
 }
 

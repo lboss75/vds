@@ -43,11 +43,10 @@ public:
   {
   public:
     connection_handler(
-      const vds::service_provider & sp,
       next_method_type & next, 
       error_method_type & error,
       vds::network_socket & s
-    ) : sp_(sp),
+    ) : 
       next_(this, next),
       error_(this, error),
       s_(std::move(s))
@@ -56,8 +55,8 @@ public:
 
     void start(const vds::service_provider & sp) {
       vds::dataflow(
-        vds::input_network_stream(sp, this->s_),//input
-        vds::output_network_stream(sp, this->s_)//output
+        vds::input_network_stream(this->s_),//input
+        vds::output_network_stream(this->s_)//output
       )
       (
         this->next_,
@@ -65,7 +64,6 @@ public:
         sp);
     }
   private:
-    vds::service_provider sp_;
     vds::auto_cleaner<connection_handler, next_method_type> next_;
     vds::auto_cleaner<connection_handler, error_method_type> error_;
 
@@ -266,7 +264,7 @@ public:
       write_task.schedule(sp, this->s_.handle());
 
       vds::dataflow(
-        vds::input_network_stream(sp, this->s_),
+        vds::input_network_stream(this->s_),
         read_for_newline(),
         check_result("test_test_test_test_test_test_test_test_test_test_test_test_test_test_test_")
       )

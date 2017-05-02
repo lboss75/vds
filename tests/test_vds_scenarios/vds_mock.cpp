@@ -131,6 +131,7 @@ void mock_client::init_server(
       .init_server(sp, "root", root_password)
       .wait(
         [&b, this](
+          const vds::service_provider & sp,
           const vds::certificate & server_certificate,
           const vds::asymmetric_private_key & private_key) {
             auto root_folder = vds::foldername(vds::foldername(vds::foldername(vds::filename::current_process().contains_folder(), "servers"), std::to_string(this->index_)), ".vds");
@@ -139,14 +140,14 @@ void mock_client::init_server(
             private_key.save(vds::filename(root_folder, "server.pkey"));
           b.set();
         },
-          [&b](std::exception_ptr ex) {
-        FAIL() << vds::exception_what(ex);
-        b.set();
-      });
+          [&b](const vds::service_provider & sp, std::exception_ptr ex) {
+          FAIL() << vds::exception_what(ex);
+          b.set();
+        }, sp);
     b.wait();
   }
   catch (...) {
-    try { registrator.shutdown(); }
+    try { registrator.shutdown(sp); }
     catch (...) {}
 
     throw;
@@ -155,21 +156,27 @@ void mock_client::init_server(
   registrator.shutdown(sp);
 }
 
-void mock_client::upload_file(const std::string & login, const std::string & password, const std::string & name, const void * data, size_t data_size)
+void mock_client::upload_file(
+  const std::string & login,
+  const std::string & password,
+  const std::string & name,
+  const void * data,
+  size_t data_size)
 {
   this->start_vds(true, [login, password, name, data, data_size](const vds::service_provider&sp) {
     vds::barrier b;
     sp
       .get<vds::iclient>()
-      .upload_file(login, password, name, data, data_size)
+      .upload_file(sp, login, password, name, data, data_size)
       .wait(
-        [&b](const std::string& /*version_id*/) {
+        [&b](const vds::service_provider&sp, const std::string& /*version_id*/) {
           b.set(); 
         },
-        [&b](std::exception_ptr ex) {
+        [&b](const vds::service_provider&sp, std::exception_ptr ex) {
           b.set();
           FAIL() << vds::exception_what(ex);
-      });
+        },
+        sp);
 
     b.wait();
   }, false);
@@ -181,14 +188,14 @@ vds::const_data_buffer mock_client::download_data(const std::string & login, con
   this->start_vds(true, [&result, login, password, name](const vds::service_provider&sp) {
     vds::barrier b;
     
-    sp.get<vds::iclient>().download_data(login, password, name)
+    sp.get<vds::iclient>().download_data(sp, login, password, name)
     .wait(
-      [&result, &b](vds::const_data_buffer && data){ result = std::move(data); b.set();},
-      [&result, &b](std::exception_ptr ex) {
+      [&result, &b](const vds::service_provider & sp, vds::const_data_buffer && data){ result = std::move(data); b.set();},
+      [&result, &b](const vds::service_provider & sp, std::exception_ptr ex) {
         b.set();
         FAIL() << vds::exception_what(ex);
-      }
-    );
+      },
+      sp);
     
     b.wait();
   }, false);
@@ -212,7 +219,6 @@ void mock_client::start_vds(bool full_client, const std::function<void(const vds
     folder.delete_folder(true);
   }
   folder.create();
-  registrator.set_root_folders(folder, folder);
 
   registrator.add(mt_service);
   registrator.add(logger);
@@ -224,7 +230,13 @@ void mock_client::start_vds(bool full_client, const std::function<void(const vds
     registrator.add(client);
   }
 
-  auto sp = registrator.build();
+  auto sp = registrator.build("mock client");
+
+  auto root_folders = new vds::persistence_values();
+  root_folders->current_user_ = folder;
+  root_folders->local_machine_ = folder;
+  sp.set_property<vds::persistence_values>(vds::service_provider::property_scope::root_scope, root_folders);
+
   try {
     handler(sp);
   }
@@ -261,7 +273,6 @@ void mock_server::init_root(const std::string & root_password, int port)
   auto folder = vds::foldername(vds::foldername(vds::filename::current_process().contains_folder(), "servers"), std::to_string(0));
   folder.delete_folder(true);
   vds::foldername(folder, ".vds").create();
-  registrator.set_root_folders(folder, folder);
 
   registrator.add(mt_service);
   registrator.add(logger);
@@ -270,9 +281,13 @@ void mock_server::init_root(const std::string & root_password, int port)
   registrator.add(task_manager);
   registrator.add(server);
 
+  auto sp = registrator.build("mock server");
   try {
-    auto sp = registrator.build();
-    
+    auto root_folders = new vds::persistence_values();
+    root_folders->current_user_ = folder;
+    root_folders->local_machine_ = folder;
+    sp.set_property<vds::persistence_values>(vds::service_provider::property_scope::root_scope, root_folders);
+
     vds::asymmetric_private_key private_key(vds::asymmetric_crypto::rsa4096());
     private_key.generate();
 
@@ -295,19 +310,20 @@ void mock_server::init_root(const std::string & root_password, int port)
     server.start(sp);
     
     sp.get<vds::istorage_log>().reset(
+      sp,
       root_certificate,
       private_key,
       root_password,
       "https://127.0.0.1:" + std::to_string(port));
   }
   catch (...) {
-    try { registrator.shutdown(); }
+    try { registrator.shutdown(sp); }
     catch (...) {}
 
     throw;
   }
 
-  registrator.shutdown();
+  registrator.shutdown(sp);
 }
 
 
@@ -318,8 +334,7 @@ void mock_server::start()
     std::to_string(this->index_));
   folder.create();
   
-  this->registrator_.set_root_folders(folder, folder);
-  
+ 
   this->registrator_.add(this->mt_service_);
   this->registrator_.add(this->logger_);
   this->registrator_.add(this->network_service_);
@@ -331,7 +346,11 @@ void mock_server::start()
 
   this->server_.set_port(8050 + this->index_);
 
-  this->sp_ = this->registrator_.build();
+  this->sp_ = this->registrator_.build("mock server");
+  auto root_folders = new vds::persistence_values();
+  root_folders->current_user_ = folder;
+  root_folders->local_machine_ = folder;
+  this->sp_.set_property<vds::persistence_values>(vds::service_provider::property_scope::root_scope, root_folders);
 
   this->connection_manager_.start_servers(this->sp_, "udp://127.0.0.1:" + std::to_string(8050 + this->index_));
 }

@@ -81,7 +81,7 @@ void vds::_https_pipeline::connect(const service_provider & parent_scope)
 {
   auto sp = parent_scope.create_scope("_https_pipeline");
   dataflow(
-    socket_connect(sp),
+    socket_connect(),
     connection(this)
   )
   (

@@ -137,7 +137,7 @@ TEST(http_tests, test_server)
           }
         );        
         vds::dataflow(
-          vds::socket_connect(sp),
+          vds::socket_connect(),
           vds::http_send_request<
             vds::http_simple_response_reader
             >(
