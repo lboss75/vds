@@ -160,7 +160,7 @@ vds::_server_database::~_server_database()
 
 void vds::_server_database::start(const service_provider & sp)
 {
-  this->db_.start(sp);
+  //this->db_.start(sp);
   uint64_t db_version;
 
   filename db_filename(foldername(persistence::current_user(sp), ".vds"), "local.db");

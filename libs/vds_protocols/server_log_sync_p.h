@@ -42,7 +42,9 @@ namespace vds {
         const server_log_record & record,
         const const_data_buffer & signature);
 
-      server_log_record_broadcast(const const_data_buffer & data);
+      server_log_record_broadcast(
+        const service_provider & sp,
+        const const_data_buffer & data);
 
       void serialize(binary_serializer & b) const;
       std::unique_ptr<json_value> serialize() const;

@@ -19,16 +19,18 @@ vds::server_log_record::server_log_record(const server_log_record & origin)
   message_(origin.message_->clone())
 {
 }
-/*
-vds::binary_deserializer & vds::operator >> (binary_deserializer & b, server_log_record & record)
+
+vds::binary_deserializer & vds::server_log_record::deserialize(
+  const service_provider & sp,
+  binary_deserializer & b)
 {
-  b >> record.id_.source_id >> record.id_.index;
+  b >> this->id_.source_id >> this->id_.index;
 
   auto parent_count = b.read_number();
   for (decltype(parent_count) i = 0; i < parent_count; ++i) {
     server_log_record::record_id item;
     b >> item.source_id >> item.index;
-    record.parents_.push_back(item);
+    this->parents_.push_back(item);
   }
 
   std::string message;
@@ -37,8 +39,8 @@ vds::binary_deserializer & vds::operator >> (binary_deserializer & b, server_log
   dataflow(
     json_parser("Message"),
     json_require_once())(
-      [&record](const service_provider & sp, json_value * body) {
-        record.message_.reset(body);
+      [this](const service_provider & sp, json_value * body) {
+        this->message_.reset(body);
       },
       [](const service_provider & sp, std::exception_ptr ex) {},
     sp,
@@ -47,7 +49,7 @@ vds::binary_deserializer & vds::operator >> (binary_deserializer & b, server_log
 
   return b;
 }
-*/
+
 
 vds::server_log_record::server_log_record(
   const record_id & id,

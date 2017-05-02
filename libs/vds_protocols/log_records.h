@@ -153,12 +153,11 @@ namespace vds {
     const std::list<record_id> parents() const { return this->parents_; }
     void add_parent(const guid & source_id, uint64_t index);
 
+    binary_deserializer & deserialize(const service_provider & sp, binary_deserializer & b);
     void serialize(binary_serializer & b) const;
     std::unique_ptr<json_value> serialize(bool add_type_property) const;
 
   private:
-    friend binary_deserializer & operator >> (binary_deserializer & s, server_log_record & record);
-
     record_id id_;
     std::list<record_id> parents_;
     std::unique_ptr<json_value> message_;

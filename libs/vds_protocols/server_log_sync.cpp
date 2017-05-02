@@ -128,10 +128,13 @@ vds::_server_log_sync::server_log_record_broadcast::server_log_record_broadcast(
 {
 }
 
-vds::_server_log_sync::server_log_record_broadcast::server_log_record_broadcast(const const_data_buffer & data)
+vds::_server_log_sync::server_log_record_broadcast::server_log_record_broadcast(
+  const service_provider & sp,
+  const const_data_buffer & data)
 {
   binary_deserializer s(data);
-  s >> this->record_ >> this->signature_;
+  this->record_.deserialize(sp, s);
+  s >> this->signature_;
 }
 
 void vds::_server_log_sync::server_log_record_broadcast::serialize(binary_serializer & b) const

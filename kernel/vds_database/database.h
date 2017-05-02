@@ -60,7 +60,7 @@ namespace vds {
     database();
     ~database();
 
-    void start(const service_provider & sp);
+    //void start(const service_provider & sp);
     void open(const filename & fn);
     void close();
 
