@@ -48,11 +48,11 @@ public:
       std::cout << "New connection\n";
       
       vds::dataflow(
-        vds::input_network_stream(sp, this->s_),
+        vds::input_network_stream(this->s_),
         vds::http_parser(sp),
         vds::http_middleware<vds::http_router>(this->router_),
         vds::http_response_serializer(),
-        vds::output_network_stream(sp, this->s_)
+        vds::output_network_stream(this->s_)
       )
       (
         [this](const vds::service_provider & sp) { this->done_handler_(); },

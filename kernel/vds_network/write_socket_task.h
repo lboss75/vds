@@ -20,12 +20,10 @@ namespace vds {
   {
   public:
     write_socket_task(
-      const service_provider & sp,
       done_method_type & done_method,
       error_method_type & error_method
       )
-    : sp_(sp),
-      network_service_((network_service *)&sp.get<inetwork_manager>()),
+    : sp_(service_provider::empty()),
       done_method_(done_method), error_method_(error_method),
       data_(nullptr), data_size_(0)
 #ifdef _DEBUG
@@ -55,13 +53,13 @@ namespace vds {
 
     void schedule(const service_provider & sp, network_socket::SOCKET_HANDLE s)
     {
+      this->sp_ = sp;
       this->s_ = s;
       this->schedule(sp);
     }
   
   private:
     service_provider sp_;
-    network_service * network_service_;
     done_method_type & done_method_;
     error_method_type & error_method_;
     network_socket::SOCKET_HANDLE s_;

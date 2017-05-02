@@ -12,6 +12,11 @@ vds::service_provider::service_provider(std::shared_ptr<_service_provider> && im
 {
 }
 
+vds::service_provider vds::service_provider::empty()
+{
+  return service_provider(std::shared_ptr<_service_provider>());
+}
+
 vds::service_provider vds::service_provider::create_scope(const std::string & name) const
 {
   return this->impl_->create_scope(this, name);

@@ -17,6 +17,8 @@ namespace vds {
   {
   public:
 
+    static service_provider empty();
+
     template <typename service_type>
     service_type & get() const
     {

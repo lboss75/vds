@@ -18,6 +18,7 @@ public:
 private:
   int index_;
   int port_;
+  vds::service_provider sp_;
 
   vds::service_registrator registrator_;
   vds::mt_service mt_service_;

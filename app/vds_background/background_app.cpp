@@ -8,8 +8,7 @@ All rights reserved
 #include "http_router.h"
 
 vds::background_app::background_app()
-  :
-  start_server_command_set_("Server start", "Start web server", "start", "server")
+: start_server_command_set_("Server start", "Start web server", "start", "server")
 {
 }
 

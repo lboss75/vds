@@ -67,7 +67,7 @@ namespace vds {
             );
           }
           catch(...) {
-            this->http_error_handler_(std::current_exception());
+            this->http_error_handler_(sp, std::current_exception());
           }
         }
         else {

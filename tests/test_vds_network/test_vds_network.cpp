@@ -224,8 +224,7 @@ private:
 class socket_client
 {
 public:
-  socket_client(const vds::service_provider & sp)
-  : sp_(sp)
+  socket_client()
   {
   }
 
@@ -237,8 +236,7 @@ public:
       const context_type & context,
       const socket_client & args
     )
-      : vds::dataflow_step<context_type, void(void)>(context),
-      sp_(args.sp_)
+      : vds::dataflow_step<context_type, void(void)>(context)
     {
     }
 
@@ -262,7 +260,7 @@ public:
       vds::write_socket_task<
         decltype(done_handler),
         decltype(error_handler)>
-        write_task(this->sp_, done_handler, error_handler);
+        write_task(done_handler, error_handler);
       const char data[] = "test_test_test_test_test_test_test_test_test_test_test_test_test_test_test_\n";
       write_task.set_data(data, sizeof(data) - 1);
       write_task.schedule(sp, this->s_.handle());
@@ -286,12 +284,8 @@ public:
     }
     
   private:
-    vds::service_provider sp_;
     vds::network_socket s_;
   };
-  
-private:
-  vds::service_provider sp_;
 };
 
 TEST(network_tests, test_server)
@@ -344,8 +338,8 @@ TEST(network_tests, test_server)
 
 
     vds::dataflow(
-      vds::socket_connect(sp),
-      socket_client(sp)
+      vds::socket_connect(),
+      socket_client()
     )
     (
       done_client,

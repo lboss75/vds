@@ -23,9 +23,8 @@ namespace vds {
       const service_provider & sp,
       const std::string & address,
       int port      
-    ) : 
-      sp_(sp),
-      network_service_((network_service *)&sp.get<inetwork_manager>()),
+    ) :
+      sp_(service_provider::empty()),
       done_method_(done), error_method_(on_error)
 #ifndef _WIN32
       , ev_accept_(nullptr)
@@ -143,6 +142,7 @@ namespace vds {
     
     void schedule(const service_provider & sp)
     {
+      this->sp_ = sp;
 #ifndef _WIN32
       if(nullptr == this->ev_accept_){
         this->ev_accept_ = event_new(
@@ -157,7 +157,7 @@ namespace vds {
 #else
       if (!this->wait_accept_task_.joinable()) {
         this->wait_accept_task_ = std::thread(
-          [this]() {
+          [this, sp]() {
           HANDLE events[2];
           events[0] = this->sp_.get_shutdown_event().windows_handle();
           events[1] = this->accept_event_.handle();
@@ -180,7 +180,7 @@ namespace vds {
 
               auto socket = accept(this->s_, (sockaddr*)&client_address, &client_address_length);
               if (INVALID_SOCKET != socket) {
-                this->network_service_->associate(socket);
+                ((network_service &)sp.get<inetwork_manager>()).associate(socket);
                 auto sp = this->sp_.create_scope("Connection from " + network_service::to_string(client_address));
                 this->done_method_(sp, network_socket(socket));
               }
@@ -194,7 +194,7 @@ namespace vds {
     
   private:
     service_provider sp_;
-    network_service * network_service_;
+    //network_service * network_service_;
     network_socket::SOCKET_HANDLE s_;
     done_method_type & done_method_;
     error_method_type & error_method_;

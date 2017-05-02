@@ -109,7 +109,6 @@ void mock_client::init_server(
   auto folder = vds::foldername(vds::foldername(vds::filename::current_process().contains_folder(), "clients"), std::to_string(this->index_));
   folder.delete_folder(true);
   folder.create();
-  registrator.set_root_folders(folder, folder);
 
   registrator.add(mt_service);
   registrator.add(logger);
@@ -118,12 +117,18 @@ void mock_client::init_server(
   registrator.add(task_manager);
   registrator.add(client);
 
-  auto sp = registrator.build();
+  auto sp = registrator.build("mock client");
+
+  auto root_folders = new vds::persistence_values();
+  root_folders->current_user_ = folder;
+  root_folders->local_machine_ = folder;
+  sp.set_property<vds::persistence_values>(vds::service_provider::property_scope::root_scope, root_folders);
+
   try {
     vds::barrier b;
     sp
       .get<vds::iclient>()
-      .init_server("root", root_password)
+      .init_server(sp, "root", root_password)
       .wait(
         [&b, this](
           const vds::certificate & server_certificate,
@@ -236,6 +241,7 @@ void mock_client::start_vds(bool full_client, const std::function<void(const vds
 mock_server::mock_server(int index, int port)
   : index_(index),
   port_(port),
+  sp_(vds::service_provider::empty()),
   logger_(vds::ll_trace)
 {
 }
@@ -325,12 +331,12 @@ void mock_server::start()
 
   this->server_.set_port(8050 + this->index_);
 
-  auto sp = this->registrator_.build();
+  this->sp_ = this->registrator_.build();
 
-  this->connection_manager_.start_servers("udp://127.0.0.1:" + std::to_string(8050 + this->index_));
+  this->connection_manager_.start_servers(this->sp_, "udp://127.0.0.1:" + std::to_string(8050 + this->index_));
 }
 
 void mock_server::stop()
 {
-  this->registrator_.shutdown();
+  this->registrator_.shutdown(this->sp_);
 }

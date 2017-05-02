@@ -77,7 +77,7 @@ namespace vds {
           this->owner_->owner_->on_connected(sp);
           
           vds::dataflow(
-            input_network_stream(sp, s),
+            input_network_stream(s),
             ssl_input_stream(this->tunnel_),
             http_response_parser(),
             input_command_stream(this->owner_, this->tunnel_)
@@ -92,7 +92,7 @@ namespace vds {
             output_command_stream(this->owner_),
             http_request_serializer(),
             ssl_output_stream(this->tunnel_),
-            output_network_stream(sp, s)
+            output_network_stream(s)
           )
           (
             this->done_handler_,

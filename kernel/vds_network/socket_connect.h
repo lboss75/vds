@@ -12,8 +12,7 @@ namespace vds {
   class socket_connect
   {
   public:
-    socket_connect(const service_provider & sp)
-      : network_service_((network_service *)&sp.get<inetwork_manager>())
+    socket_connect()
     {
     }
 
@@ -26,7 +25,6 @@ namespace vds {
         const socket_connect & owner
       )
         : dataflow_step<context_type, void (network_socket &)>(context),
-        network_service_(owner.network_service_),
         s_(
 #ifdef _WIN32
           WSASocket(PF_INET, SOCK_STREAM, 0, NULL, 0, WSA_FLAG_OVERLAPPED)
@@ -60,7 +58,7 @@ namespace vds {
           }
         }
 
-        this->network_service_->associate(this->s_.handle());
+        ((network_service *)&sp.get<inetwork_manager>())->associate(this->s_.handle());
 #else
         // Connect 
         if (0 > ::connect(this->s_.handle(), (struct sockaddr *)&addr, sizeof(addr))) {
@@ -76,11 +74,9 @@ namespace vds {
       }
 
     private:
-      network_service * network_service_;
       network_socket s_;
     };
   private:
-    network_service * network_service_;
   };
 }
 

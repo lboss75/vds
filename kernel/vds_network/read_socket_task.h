@@ -22,13 +22,12 @@ namespace vds {
     constexpr static size_t BUFFER_SIZE = 1024;
 
     read_socket_task(
-      const service_provider & sp,
       next_method_type & next_method,
       error_method_type & error_method,
       const network_socket & s
-    ) : sp_(sp),
-    network_service_((network_service *)&sp.get<inetwork_manager>()),
-    s_(s.handle()),
+    ) :
+      sp_(service_provider::empty()),
+      s_(s.handle()),
     next_method_(next_method), error_method_(error_method)
 #ifdef _DEBUG
       , is_scheduled_(false)
@@ -47,6 +46,8 @@ namespace vds {
     
     void operator()(const service_provider & sp)
     {
+      this->sp_ = sp;
+
 #ifdef _WIN32
       this->wsa_buf_.len = BUFFER_SIZE;
       this->wsa_buf_.buf = (CHAR *)this->buffer_;
@@ -83,7 +84,6 @@ namespace vds {
 
   private:
     service_provider sp_;
-    network_service * network_service_;
     network_socket::SOCKET_HANDLE s_;
     next_method_type & next_method_;
     error_method_type & error_method_;

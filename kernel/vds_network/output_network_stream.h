@@ -13,9 +13,8 @@ namespace vds {
   {
   public:
     output_network_stream(
-      const service_provider & sp,
       const network_socket & s)
-      : sp_(sp), s_(s)
+      : s_(s)
     {
     }
     
@@ -29,7 +28,7 @@ namespace vds {
         const output_network_stream & args)
       : base_class(context),
         s_(args.s_.handle()),
-        task_(args.sp_, this->prev, this->error)        
+        task_(this->prev, this->error)        
       {
       }
       
@@ -55,7 +54,6 @@ namespace vds {
     };
     
   private:
-    service_provider sp_;
     const network_socket & s_;
   };
 }

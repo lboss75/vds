@@ -323,11 +323,12 @@ vds::async_task<
     client_messages::certificate_and_key_request(
       "login:" + user_login,
       ph.signature()).serialize())
-    .then([user_password, sp](const std::function<void(
+    .then([user_password](const std::function<void(
       const service_provider & /*sp*/,
       const certificate & /*user_certificate*/,
       const asymmetric_private_key & /*user_private_key*/)> & done,
       const error_handler & on_error,
+      const service_provider & sp,
       const client_messages::certificate_and_key_response & response) {
     done(
       sp,

@@ -39,7 +39,7 @@ namespace vds {
       typename error_handler_type
     >
     void route(
-      const service_provider & scope,
+      const service_provider & sp,
       const http_request & request,
       http_incoming_stream & incoming_stream,
       http_response & response,
@@ -49,8 +49,8 @@ namespace vds {
       error_handler_type & error_handler
     ) const
     {
-      this->route(scope, request, incoming_stream, response, outgoing_stream);
-      next_handler(response, outgoing_stream);      
+      this->route(sp, request, incoming_stream, response, outgoing_stream);
+      next_handler(sp, response, outgoing_stream);      
     }
     
   private:

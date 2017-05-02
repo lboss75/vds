@@ -9,7 +9,7 @@ All rights reserved
 
 vds::foldername vds::persistence::current_user(const service_provider & sp)
 {
-  auto props = sp.get_property<persistence_values>(service_provider::property_scope::root_scope);
+  auto props = sp.get_property<persistence_values>(service_provider::property_scope::any_scope);
   if (nullptr != props && !props->current_user_.empty()) {
     return props->current_user_;
   }
@@ -39,7 +39,7 @@ vds::foldername vds::persistence::current_user(const service_provider & sp)
 
 vds::foldername vds::persistence::local_machine(const service_provider & sp)
 {
-  auto props = sp.get_property<persistence_values>(service_provider::property_scope::root_scope);
+  auto props = sp.get_property<persistence_values>(service_provider::property_scope::any_scope);
   if (nullptr != props && !props->local_machine_.empty()) {
     return props->local_machine_;
   }

@@ -34,6 +34,9 @@ namespace vds {
   class task_manager : public iservice_factory, public itask_manager
   {
   public:
+    task_manager();
+    ~task_manager();
+
     void register_services(service_registrator &) override;
     void start(const service_provider &) override;
     void stop(const service_provider &) override;

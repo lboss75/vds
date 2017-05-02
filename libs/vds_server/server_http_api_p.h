@@ -38,7 +38,7 @@ namespace vds {
         typename error_handler_type
       >
       void route(
-        const service_provider & scope,
+        const service_provider & sp,
         const http_request & request,
         http_incoming_stream & incoming_stream,
         http_response & response,
@@ -52,16 +52,17 @@ namespace vds {
           dataflow(
             http_stream_reader<prev_handler_type>(prev_handler, incoming_stream),
             json_parser("client_api"),
-            http_json_api<server_json_client_api>(scope, this->server_json_client_api_),
+            http_json_api<server_json_client_api>(sp, this->server_json_client_api_),
             http_json_formatter(response, outgoing_stream)
           )(
             next_handler,
-            error_handler
+            error_handler,
+            sp
           );
         }
         else {
           this->router_.route<prev_handler_type, next_handler_type, error_handler_type>(
-            scope,
+            sp,
             request,
             incoming_stream,
             response,
@@ -103,9 +104,6 @@ namespace vds {
         const certificate & certificate_;
         const asymmetric_private_key & private_key_;
         server_http_handler server_http_handler_;
-        delete_this<handler> done_handler_;
-
-        std::function<void(const service_provider & sp, std::exception_ptr)> error_handler_;
 
         std::function<void(const service_provider & sp)> http_server_done_;
         std::function<void(const service_provider & sp, std::exception_ptr)> http_server_error_;
