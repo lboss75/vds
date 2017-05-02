@@ -72,6 +72,7 @@ namespace vds {
         }
         else {
           this->next(
+            sp,
             this->response_,
             this->outgoing_stream_);
         }
@@ -90,13 +91,14 @@ namespace vds {
         {
         }
         
-        void operator()(std::exception_ptr ex)
+        void operator()(const service_provider & sp, std::exception_ptr ex)
         {
           this->owner_->response_.set_result(
             http_response::HTTP_Internal_Server_Error,
             exception_what(ex));
           this->owner_->outgoing_stream_.set_body(exception_what(ex));
           this->owner_->next(
+            sp,
             this->owner_->response_,
             this->owner_->outgoing_stream_);
         }

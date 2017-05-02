@@ -12,7 +12,6 @@ All rights reserved
 #include "local_cache.h"
 
 namespace vds {
-  class storage_log;
   class server_log_root_certificate;
   class server_log_new_server;
   class server_log_new_endpoint;
@@ -27,8 +26,7 @@ namespace vds {
     _storage_log(
       const guid & current_server_id,
       const certificate & server_certificate,
-      const asymmetric_private_key & server_private_key,
-      storage_log * owner);
+      const asymmetric_private_key & server_private_key);
 
     void reset(
       const service_provider & sp,
@@ -84,7 +82,6 @@ namespace vds {
     const asymmetric_private_key & current_server_key_;
 
     guid current_server_id_;
-    storage_log * const owner_;
     foldername vds_folder_;
 
 

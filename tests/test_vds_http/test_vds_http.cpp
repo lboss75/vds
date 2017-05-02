@@ -34,10 +34,8 @@ public:
   public:
     handler(
       const test_http_pipeline & owner,
-      const vds::service_provider & sp,
       vds::network_socket & s)
       :
-      sp_(sp),
       s_(std::move(s)),
       router_(owner.router_),
       done_handler_(this),
@@ -45,25 +43,24 @@ public:
     {
     }
 
-    void start()
+    void start(const vds::service_provider & sp)
     {
       std::cout << "New connection\n";
       
       vds::dataflow(
-        vds::input_network_stream(this->sp_, this->s_),
-        vds::http_parser(this->sp_),
+        vds::input_network_stream(sp, this->s_),
+        vds::http_parser(sp),
         vds::http_middleware<vds::http_router>(this->router_),
         vds::http_response_serializer(),
-        vds::output_network_stream(this->sp_, this->s_)
+        vds::output_network_stream(sp, this->s_)
       )
       (
-        this->done_handler_,
-        this->error_handler_,
-        this->sp_
+        [this](const vds::service_provider & sp) { this->done_handler_(); },
+        [this](const vds::service_provider & sp, std::exception_ptr ex) { this->error_handler_(ex); },
+        sp
       );
     }
   private:
-    vds::service_provider sp_;
     vds::network_socket s_;
     const vds::http_router & router_;
     vds::delete_this<handler> done_handler_;
@@ -98,23 +95,24 @@ TEST(http_tests, test_server)
         std::function<void(int)> f;
 
         auto server_done_handler = vds::lambda_handler(
-          []() {
+          [](const vds::service_provider & sp) {
             std::cout << "Server has been closed\n";
           }
         );
         auto server_error_handler = vds::lambda_handler(
-          [](std::exception_ptr ex) {
+          [](const vds::service_provider & sp, std::exception_ptr ex) {
             FAIL() << vds::exception_what(ex);
           }
         );
         
         vds::dataflow(
           vds::socket_server(sp, "127.0.0.1", 8000),
-          vds::for_each<const vds::service_provider &, vds::network_socket &>::create_handler(test_http_pipeline(router))
+          vds::for_each<vds::network_socket &>::create_handler(test_http_pipeline(router))
         )
         (
           server_done_handler,
-          server_error_handler
+          server_error_handler,
+          sp
         );
         
         //Start client
@@ -126,14 +124,14 @@ TEST(http_tests, test_server)
         vds::barrier done;
         
         auto done_handler = vds::lambda_handler(
-          [&done](const std::string & body) {
+          [&done](const vds::service_provider & sp, const std::string & body) {
             ASSERT_EQ(body, "<html><body>Hello World</body></html>");
             done.set();
           }
         );
         
         auto error_handler = vds::lambda_handler(
-          [&done](std::exception_ptr ex) {
+          [&done](const vds::service_provider & sp, std::exception_ptr ex) {
             done.set();
             FAIL() << vds::exception_what(ex);
           }
@@ -151,6 +149,7 @@ TEST(http_tests, test_server)
         (
          done_handler,
          error_handler,
+         sp,
          (const char *)"127.0.0.1",
          8000
         );
@@ -183,12 +182,12 @@ TEST(http_tests, test_https_server)
     std::function<void(int)> f;
 
     auto server_done_handler = vds::lambda_handler(
-      []() {
+      [](const vds::service_provider & sp) {
       std::cout << "Server has been closed\n";
     }
     );
     auto server_error_handler = vds::lambda_handler(
-      [](std::exception_ptr ex) {
+      [](const vds::service_provider & sp, std::exception_ptr ex) {
       FAIL() << vds::exception_what(ex);
     }
     );
@@ -199,8 +198,8 @@ TEST(http_tests, test_https_server)
     )
     (
       server_done_handler,
-      server_error_handler
-      );
+      server_error_handler,
+      sp);
 
     //Start client
     vds::http_request request("GET", "/");
@@ -211,14 +210,14 @@ TEST(http_tests, test_https_server)
     vds::barrier done;
 
     auto done_handler = vds::lambda_handler(
-      [&done](const std::string & body) {
+      [&done](const vds::service_provider & sp, const std::string & body) {
       ASSERT_EQ(body, "<html><body>Hello World</body></html>");
       done.set();
     }
     );
 
     auto error_handler = vds::lambda_handler(
-      [&done](std::exception_ptr ex) {
+      [&done](const vds::service_provider & sp, std::exception_ptr ex) {
       done.set();
       FAIL() << vds::exception_what(ex);
     }
@@ -236,6 +235,7 @@ TEST(http_tests, test_https_server)
     (
       done_handler,
       error_handler,
+      sp,
       (const char *)"127.0.0.1",
       8000
       );

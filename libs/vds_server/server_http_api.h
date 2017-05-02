@@ -8,23 +8,15 @@ All rights reserved
 
 
 namespace vds {
-  class _server_http_api;
-
   class server_http_api
   {
   public:
-    server_http_api();
-
-
     async_task<> start(
       const service_provider & sp,
       const std::string & address,
       int port,
       certificate & certificate,
       asymmetric_private_key & private_key);
-
-  private:
-    std::unique_ptr<_server_http_api> impl_;
   };
 }
 

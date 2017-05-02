@@ -15,7 +15,7 @@ namespace vds {
   class _chunk_manager : public ichunk_manager
   {
   public:
-    _chunk_manager(chunk_manager * owner);
+    _chunk_manager();
     ~_chunk_manager();
 
     
@@ -36,8 +36,6 @@ namespace vds {
     void stop(const service_provider & sp);
 
   private:
-    chunk_manager * owner_;
-
     std::mutex file_mutex_;
     uint64_t last_index_;
     uint64_t last_chunk_;

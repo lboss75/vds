@@ -80,7 +80,7 @@ namespace vds {
       
       void processed(const service_provider & sp)
       {
-        if (!this->stream_ || !this->stream_->read(this->next)) {
+        if (!this->stream_ || !this->stream_->read(sp, this->next)) {
           this->prev(sp);
         }
       }

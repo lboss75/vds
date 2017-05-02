@@ -10,7 +10,7 @@ All rights reserved
 namespace vds {
   class iconnection_manager;
 
-  class _file_manager
+  class _file_manager : public file_manager
   {
   public:
     _file_manager();

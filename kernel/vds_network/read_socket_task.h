@@ -63,7 +63,7 @@ namespace vds {
         auto errorCode = WSAGetLastError();
         if (WSA_IO_PENDING != errorCode) {
           this->is_scheduled_ = false;
-          throw new std::system_error(errorCode, std::system_category(), "WSARecv failed");
+          throw std::system_error(errorCode, std::system_category(), "WSARecv failed");
         }
       }
 #else//!_WIN32
@@ -97,12 +97,13 @@ namespace vds {
     {
 #ifdef _DEBUG
       if (!this->is_scheduled_) {
-        throw new std::exception();
+        throw std::exception();
       }
       this->is_scheduled_ = false;
 #endif
 
       this->next_method_(
+        this->sp_,
         this->buffer_,
         (size_t)dwBytesTransfered
       );

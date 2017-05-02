@@ -41,16 +41,16 @@ namespace vds {
   class iclient
   {
   public:
-    iclient(client * owner);
-    
     async_task<
       const vds::certificate & /*server_certificate*/,
       const vds::asymmetric_private_key & /*private_key*/>
       init_server(
-      const std::string & user_login,
-      const std::string & user_password);
+        const service_provider & sp,
+        const std::string & user_login,
+        const std::string & user_password);
 
     async_task<const std::string& /*version_id*/> upload_file(
+      const service_provider & sp,
       const std::string & login,
       const std::string & password,
       const std::string & name,
@@ -58,12 +58,10 @@ namespace vds {
       size_t data_size);
 
     async_task<const_data_buffer &&> download_data(
+      const service_provider & sp,
       const std::string & login,
       const std::string & password,
       const std::string & name);
-
-  private:
-    client * owner_;
   };
 }
 

@@ -17,31 +17,6 @@ All rights reserved
 #include "server_log_sync.h"
 #include "server_log_sync_p.h"
 
-vds::storage_log::storage_log(
-  const guid & current_server_id,
-  const certificate & server_certificate,
-  const asymmetric_private_key & server_private_key)
-  : impl_(new _storage_log(
-    current_server_id,
-    server_certificate,
-    server_private_key,
-    this))
-{
-}
-
-vds::storage_log::~storage_log()
-{
-}
-
-void vds::storage_log::start(const service_provider & sp)
-{
-  this->impl_->start(sp);
-}
-
-void vds::storage_log::stop(const service_provider & sp)
-{
-  this->impl_->stop(sp);
-}
 
 const vds::guid & vds::istorage_log::current_server_id() const
 {
@@ -143,12 +118,10 @@ void vds::istorage_log::apply_record(
 vds::_storage_log::_storage_log(
   const guid & current_server_id,
   const certificate & server_certificate,
-  const asymmetric_private_key & server_private_key,
-  storage_log * owner)
+  const asymmetric_private_key & server_private_key)
 : server_certificate_(server_certificate),
   current_server_key_(server_private_key),
   current_server_id_(current_server_id),
-  owner_(owner),
   local_log_index_(0),
   is_empty_(true),
   minimal_consensus_(0),
@@ -354,7 +327,7 @@ std::unique_ptr<vds::const_data_buffer> vds::_storage_log::get_object(
   const service_provider & sp,
   const vds::full_storage_object_id& object_id)
 {
-  return sp.get<ilocal_cache>().get_object(object_id);
+  return sp.get<ilocal_cache>().get_object(sp, object_id);
 }
 
 void vds::_storage_log::add_endpoint(

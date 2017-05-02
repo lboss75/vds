@@ -8,19 +8,11 @@ All rights reserved
 
 namespace vds {
   class server_json_api;
-  class _server_json_api
+  class _server_json_api : public server_json_api
   {
   public:
-    _server_json_api(
-      const service_provider & sp,
-      server_json_api * owner
-    );
-    
     json_value * operator()(const service_provider & scope, const json_value * request) const;
 
-  private:
-    logger log_;
-    server_json_api * const owner_;
   };
 }
 

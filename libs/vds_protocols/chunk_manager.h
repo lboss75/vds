@@ -12,19 +12,6 @@ All rights reserved
 namespace vds {
   class _chunk_manager;
   
-  class chunk_manager
-  {
-  public:
-    chunk_manager();
-    ~chunk_manager();
-
-    void start(const service_provider & sp);
-    void stop(const service_provider & sp);
-
-  private:
-    _chunk_manager * const impl_;
-  };
-
   class ichunk_manager
   {
   public:

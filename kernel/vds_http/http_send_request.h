@@ -17,12 +17,10 @@ namespace vds {
   {
   public:
     http_send_request(
-      const service_provider & sp,
       http_request & request,
       http_outgoing_stream & outgoing_stream,
-      response_handler_type & response_handler
-    ) : sp_(sp),
-      request_(request), outgoing_stream_(outgoing_stream),
+      response_handler_type & response_handler)
+    : request_(request), outgoing_stream_(outgoing_stream),
       response_handler_(response_handler)
     {
     }
@@ -36,7 +34,6 @@ namespace vds {
         const context_type & context,
         const http_send_request & args)
         : base_class(context),
-        sp_(args.sp_),
         request_(args.request_),
         outgoing_stream_(args.outgoing_stream_),
         response_handler_(args.response_handler_)
@@ -48,26 +45,28 @@ namespace vds {
         std::cout << "http_send_request::handler::~handler\n";
       }
 
-      void operator()(const network_socket & s)
+      void operator()(const service_provider & sp, const network_socket & s)
       {
         dataflow(
           http_request_serializer(),
-          output_network_stream(this->sp_, s)
+          output_network_stream(sp, s)
         )
         (
           this->request_sent_handler_,
           this->error,
+          sp,
           &this->request_,
           &this->outgoing_stream_
         );
 
         dataflow(
-          input_network_stream(this->sp_, s),
+          input_network_stream(sp, s),
           http_response_parser(),
           this->response_handler_
         )(
           this->next,
-          this->error
+          this->error,
+          sp
         );
       }
 
@@ -79,13 +78,12 @@ namespace vds {
         {
         }
         
-        void operator()()
+        void operator()(const service_provider & sp)
         {
           std::cout << "request sent\n";
         }
       };
       
-      service_provider sp_;
       request_sent request_sent_handler_;
       http_request & request_;
       http_outgoing_stream & outgoing_stream_;
@@ -95,7 +93,6 @@ namespace vds {
     };
 
   private:
-    service_provider sp_;
     http_request & request_;
     http_outgoing_stream & outgoing_stream_;
     response_handler_type & response_handler_;

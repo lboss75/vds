@@ -225,10 +225,10 @@ namespace vds {
             throw std::runtime_error("Invalid sent UDP data");
           }
 
-          this->prev();
+          this->prev(this->sp_);
         }
         catch (...) {
-          this->error(std::current_exception());
+          this->error(this->sp_, std::current_exception());
         }
       }
 #endif
@@ -383,7 +383,7 @@ namespace vds {
 #ifdef _WIN32
     void process(DWORD dwBytesTransfered) override
     {
-      this->buffer_.queue((uint32_t)(dwBytesTransfered + sizeof(sockaddr_in) + sizeof(INT)));
+      this->buffer_.queue(this->sp_, (uint32_t)(dwBytesTransfered + sizeof(sockaddr_in) + sizeof(INT)));
     }
 #endif
 

@@ -9,24 +9,25 @@ All rights reserved
 #include "local_cache.h"
 
 namespace vds {
-  class _local_cache
+  class _local_cache : public ilocal_cache
   {
   public:
-    _local_cache(
-      const service_provider & sp,
-      local_cache * owner);
+    _local_cache();
     ~_local_cache();
+
+    void start(const service_provider & sp);
+    void stop(const service_provider & sp);
     
     std::unique_ptr<const_data_buffer> get_object(
+      const service_provider & sp,
       const full_storage_object_id& object_id);
     
     filename get_object_filename(
+      const service_provider & sp,
       const guid & server_id,
       uint64_t index);
   
   private:
-    service_provider sp_;
-    local_cache * owner_;
     foldername root_folder_;
   };
 }

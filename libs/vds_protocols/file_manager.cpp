@@ -8,11 +8,6 @@ All rights reserved
 #include "file_manager_p.h"
 #include "connection_manager.h"
 
-vds::file_manager::file_manager(_file_manager * impl)
-: impl_(impl)
-{
-}
-
 vds::async_task<>
 vds::file_manager::put_file(
   const service_provider & sp,
@@ -21,7 +16,7 @@ vds::file_manager::put_file(
   const std::string & name,
   const filename & fn)
 {
-  return this->impl_->put_file(sp, version_id, user_login, name, fn);
+  return static_cast<_file_manager *>(this)->put_file(sp, version_id, user_login, name, fn);
 }
 
 vds::async_task<const vds::filename&> vds::file_manager::download_file(
@@ -29,7 +24,7 @@ vds::async_task<const vds::filename&> vds::file_manager::download_file(
   const std::string & user_login,
   const std::string & name)
 {
-  return this->impl_->download_file(sp, user_login, name);
+  return static_cast<_file_manager *>(this)->download_file(sp, user_login, name);
 }
 
 vds::async_task<const vds::filename&> vds::file_manager::download_file(
@@ -37,7 +32,7 @@ vds::async_task<const vds::filename&> vds::file_manager::download_file(
   const guid & server_id,
   const std::string & version_id)
 {
-  return this->impl_->download_file(sp, server_id, version_id);
+  return static_cast<_file_manager *>(this)->download_file(sp, server_id, version_id);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -57,7 +52,10 @@ vds::_file_manager::put_file(
   auto result = std::make_shared<server_log_file_map>(version_id, user_login, name);
 
   return create_async_task(
-    [this, fn, result](const std::function<void(const service_provider & sp)> & done, const error_handler & on_error, const service_provider & sp) {
+    [this, fn, result](
+      const std::function<void(const service_provider & sp)> & done,
+      const error_handler & on_error,
+      const service_provider & sp) {
     dataflow(
       read_file(fn, (size_t)5 * 1024 * 1024),
       task_step([this, result](
@@ -204,7 +202,7 @@ vds::async_task<const vds::filename&> vds::_file_manager::download_file(
 
   auto result = std::make_shared<get_file_results>(indexes.size());
   for (auto index : indexes) {
-    auto fn = sp.get<ilocal_cache>().get_object_filename(server_id, index);
+    auto fn = sp.get<ilocal_cache>().get_object_filename(sp, server_id, index);
 
     if (file::exists(fn)) {
       result->get_object_done(sp, index, fn);

@@ -13,13 +13,15 @@ namespace vds {
   class node_manager;
   class user_manager;
   class server_http_api;
-  class storage_log;
   class server_connection;
   class server_udp_api;
 
   class _node_manager;
+  class _chunk_manager;
+  class _cert_manager;
+  class _server_http_api;
 
-  class _server
+  class _server : public iserver
   {
   public:
     _server(server * owner);
@@ -39,22 +41,19 @@ namespace vds {
     asymmetric_private_key private_key_;
     size_t port_;
 
-    std::unique_ptr<server_connection> server_connection_;
-
     std::unique_ptr<consensus_protocol::server> consensus_server_protocol_;
-    std::unique_ptr<cert_manager> cert_manager_;
+    std::unique_ptr<_cert_manager> cert_manager_;
     std::unique_ptr<_node_manager> node_manager_;
     std::unique_ptr<user_manager> user_manager_;
     std::unique_ptr<_file_manager> file_manager_;
 
-    std::unique_ptr<server_http_api> server_http_api_;
-    std::unique_ptr<server_udp_api> server_udp_api_;
+    std::unique_ptr<_server_http_api> server_http_api_;
     //std::unique_ptr<peer_network> peer_network_;
     
-    std::unique_ptr<storage_log> storage_log_;
-    std::unique_ptr<chunk_manager> chunk_manager_;
-    std::unique_ptr<server_database> server_database_;
-    std::unique_ptr<local_cache> local_cache_;
+    std::unique_ptr<_storage_log> storage_log_;
+    std::unique_ptr<_chunk_manager> chunk_manager_;
+    std::unique_ptr<_server_database> server_database_;
+    std::unique_ptr<_local_cache> local_cache_;
   };
 }
 

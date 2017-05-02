@@ -27,7 +27,6 @@ namespace vds {
     class handler : public dataflow_step<
       context_type,
       void(
-        const service_provider & sp,
         http_request & request,
         http_incoming_stream & incoming_stream
       )
@@ -36,7 +35,6 @@ namespace vds {
       using base_class = dataflow_step<
         context_type,
         void(
-          const service_provider & sp,
           http_request & request,
           http_incoming_stream & incoming_stream
         )
@@ -78,7 +76,7 @@ namespace vds {
             const char * p = (const char *)memchr(this->data_, '\n', this->len_);
             if (nullptr == p) {
               this->parse_buffer_ += std::string((const char *)this->data_, this->len_);
-              this->prev();
+              this->prev(sp);
               return;
             }
 
@@ -188,13 +186,13 @@ namespace vds {
                 this->state_ = STATE_PARSE_HEADER;
               }
 
-              this->incoming_stream_.push_data(p, size);
+              this->incoming_stream_.push_data(sp, p, size);
               return;
             }
           }
         }
 
-        this->prev();
+        this->prev(sp);
       }
 
     private:

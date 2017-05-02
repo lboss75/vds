@@ -8,9 +8,6 @@ All rights reserved
 #include "server_http_api.h"
 #include "server_http_api_p.h"
 
-vds::server_http_api::server_http_api()
-{
-}
 
 vds::async_task<> vds::server_http_api::start(
   const service_provider & sp,
@@ -19,8 +16,8 @@ vds::async_task<> vds::server_http_api::start(
   certificate & certificate,
   asymmetric_private_key & private_key)
 {
-  this->impl_.reset(new _server_http_api());
-  return this->impl_->start(sp, address, port, certificate, private_key);
+  return static_cast<_server_http_api *>(this)->start(
+    sp, address, port, certificate, private_key);
 }
 
 /////////////////////////////

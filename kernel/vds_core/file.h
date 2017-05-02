@@ -131,7 +131,7 @@ namespace vds {
     }
 
     template<typename next_step_t>
-    bool read(next_step_t & next)
+    bool read(const service_provider & sp, next_step_t & next)
     {
       auto readed = ::read(this->handle_, this->buffer_, sizeof(this->buffer_));
       if (0 > readed) {
@@ -144,7 +144,7 @@ namespace vds {
       }
 
       if (0 < readed) {
-        next(this->buffer_, readed);
+        next(sp, this->buffer_, readed);
       }
       
       return (0 < readed);

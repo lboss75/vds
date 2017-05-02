@@ -10,7 +10,7 @@ All rights reserved
 #include "server_json_client_api.h"
 
 namespace vds {
-  class _server_http_api
+  class _server_http_api : public server_http_api
   {
   public:
     _server_http_api();

@@ -9,7 +9,6 @@ All rights reserved
 #include "consensus_messages.h"
 
 namespace vds {
-  class storage_log;
   class connection_manager;
 
   namespace consensus_messages {

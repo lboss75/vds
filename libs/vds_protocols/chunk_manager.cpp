@@ -8,27 +8,6 @@ All rights reserved
 #include "chunk_manager_p.h"
 #include "storage_log.h"
 
-vds::chunk_manager::chunk_manager()
-  : impl_(new _chunk_manager(this))
-{
-}
-
-vds::chunk_manager::~chunk_manager()
-{
-  delete this->impl_;
-}
-
-void vds::chunk_manager::start(const service_provider & sp)
-{
-  this->impl_->start(sp);
-}
-
-void vds::chunk_manager::stop(const service_provider & sp)
-{
-  this->impl_->stop(sp);
-}
-
-
 vds::async_task<const vds::server_log_new_object &>
 vds::ichunk_manager::add(
   const service_provider & sp,
@@ -52,11 +31,8 @@ void vds::ichunk_manager::set_next_index(
 }
 
 //////////////////////////////////////////////////////////////////////
-vds::_chunk_manager::_chunk_manager(
-  chunk_manager * owner)
-:
-  owner_(owner),
-  last_tmp_file_index_(0),
+vds::_chunk_manager::_chunk_manager()
+: last_tmp_file_index_(0),
   last_obj_file_index_(0),
   obj_size_(0)
 {
@@ -111,7 +87,7 @@ vds::_chunk_manager::add(
         this->obj_folder_mutex_.unlock();
 
         file::move(fn, sp.get<ilocal_cache>()
-          .get_object_filename(sp.get<istorage_log>().current_server_id(), index));
+          .get_object_filename(sp, sp.get<istorage_log>().current_server_id(), index));
 
         this->obj_folder_mutex_.lock();
         if (max_obj_size_ < this->obj_size_) {
@@ -136,7 +112,8 @@ vds::const_data_buffer vds::_chunk_manager::get(
   const guid & server_id,
   uint64_t index)
 {
-  return inflate::inflate_buffer(file::read_all(sp.get<ilocal_cache>().get_object_filename(server_id, index)));
+  return inflate::inflate_buffer(
+    file::read_all(sp.get<ilocal_cache>().get_object_filename(sp, server_id, index)));
 }
 
 void vds::_chunk_manager::generate_chunk(const service_provider & sp)

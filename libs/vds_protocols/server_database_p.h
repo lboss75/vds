@@ -7,6 +7,7 @@ All rights reserved
 */
 
 #include "server_database.h"
+#include "database.h"
 
 namespace vds {
   class istorage_log;
@@ -14,7 +15,7 @@ namespace vds {
   class _server_database : public iserver_database
   {
   public:
-    _server_database(server_database * owner);
+    _server_database();
     ~_server_database();
 
     void start(const service_provider & sp);
@@ -105,7 +106,6 @@ namespace vds {
       const service_provider & sp,
       const server_log_record::record_id & record_id);
   private:
-    server_database * owner_;
     database db_;
 
     std::mutex operation_mutex_;

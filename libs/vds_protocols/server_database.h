@@ -12,19 +12,6 @@ namespace vds {
   class _server_database;
   class cert_record;
 
-  class server_database
-  {
-  public:
-    server_database();
-    ~server_database();
-
-    void start(const service_provider & sp);
-    void stop(const service_provider & sp);
-
-  private:
-    _server_database * const impl_;
-  };
-
   class iserver_database
   {
   public:

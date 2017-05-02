@@ -13,23 +13,7 @@ namespace vds {
   class cert_record;
   class full_storage_object_id;
   class server_log_record;
-
-  class storage_log
-  {
-  public:
-    storage_log(
-      const guid & current_server_id,
-      const certificate & server_certificate,
-      const asymmetric_private_key & server_private_key);
-    ~storage_log();
-
-    void start(const service_provider & sp);
-    void stop(const service_provider & sp);
-
-  private:
-    friend class istorage_log;
-    _storage_log * const impl_;
-  };
+  class server;
   
   class istorage_log
   {

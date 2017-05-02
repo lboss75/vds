@@ -975,20 +975,20 @@ namespace vds {
 #endif
         }
         
-        void operator ()(arg_types... args)
+        void operator ()(const service_provider & sp, arg_types... args)
         {
           try {
             auto handler = new typename handler_args_type::handler
             (
               this->handler_args_,
               std::forward<arg_types>(args)...);
-            handler->start();
+            handler->start(sp);
           }
           catch(...) {
-            this->error_(std::current_exception());
+            this->error_(sp, std::current_exception());
           }
           
-          this->prev();
+          this->prev(sp);
         }
 
         void processed(const service_provider & sp)

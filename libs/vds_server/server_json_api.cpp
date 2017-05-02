@@ -9,33 +9,15 @@ All rights reserved
 #include "server.h"
 #include "node_manager.h"
 
-vds::server_json_api::server_json_api(
-  const service_provider & sp
-)
-: impl_(new _server_json_api(sp, this))
-{
-}
-
-vds::server_json_api::~server_json_api()
-{
-}
 
 vds::json_value * vds::server_json_api::operator()(
   const service_provider & scope,
   const json_value * request) const
 {
-  return this->impl_->operator()(scope, request);
+  return static_cast<const _server_json_api *>(this)->operator()(scope, request);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-vds::_server_json_api::_server_json_api(
-  const service_provider & sp,
-  server_json_api * owner
-)
-  : log_(sp, "Server JSON API"),
-  owner_(owner)
-{
-}
 
 vds::json_value * vds::_server_json_api::operator()(
   const service_provider & scope, 
@@ -63,7 +45,7 @@ vds::json_value * vds::_server_json_api::operator()(
             if(false) {
             }
             else {
-              sp.get<logger>().warning("Invalid request type \'%s\'", task_type_name.c_str());
+              scope.get<logger>().warning(scope, "Invalid request type \'%s\'", task_type_name.c_str());
             }
           }
         }

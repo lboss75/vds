@@ -29,10 +29,7 @@ namespace vds {
   class iserver
   {
   public:
-    iserver(server * owner);
 
-  private:
-    server * const owner_;
   };
 }
 

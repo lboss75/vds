@@ -19,9 +19,7 @@ vds::client::~client()
 
 void vds::client::register_services(service_registrator & registrator)
 {
-  registrator.add_factory<iclient>([this](const service_provider & sp, bool & is_scoped)->iclient {
-    return iclient(this);
-  });
+  registrator.add_service<iclient>(this->impl_.get());
 }
 
 void vds::client::start(const service_provider & sp)
@@ -41,15 +39,15 @@ void vds::client::start(const service_provider & sp)
     client_private_key = &this->client_private_key_;
   }
 
-  this->logic_.reset(new client_logic(sp, this->server_address_, client_certificate, client_private_key));
-  this->logic_->start();
+  this->logic_.reset(new client_logic(this->server_address_, client_certificate, client_private_key));
+  this->logic_->start(sp);
 
-  this->impl_.reset(new _client(sp, this));
+  this->impl_.reset(new _client(this));
 }
 
 void vds::client::stop(const service_provider & sp)
 {
-  this->logic_->stop();
+  this->logic_->stop(sp);
 }
 
 void vds::client::connection_closed()
@@ -60,38 +58,39 @@ void vds::client::connection_error()
 {
 }
 
-vds::iclient::iclient(vds::client* owner)
-  : owner_(owner)
-{
-}
-
 vds::async_task<
   const vds::certificate & /*server_certificate*/,
   const vds::asymmetric_private_key & /*private_key*/>
   vds::iclient::init_server(
+  const service_provider & sp,
   const std::string & user_login,
   const std::string & user_password)
 {
-  return this->owner_->impl_->init_server(user_login, user_password);
+  return static_cast<_client *>(this)->init_server(sp, user_login, user_password);
 }
 
 vds::async_task<const std::string& /*version_id*/> vds::iclient::upload_file(
+  const service_provider & sp,
   const std::string & login,
   const std::string & password,
   const std::string & name,
   const void * data,
   size_t data_size)
 {
-  return this->owner_->impl_->upload_file(login, password, name, data, data_size);
+  return static_cast<_client *>(this)->upload_file(sp, login, password, name, data, data_size);
 }
 
-vds::async_task<vds::const_data_buffer&&> vds::iclient::download_data(const std::string & login, const std::string & password, const std::string & name)
+vds::async_task<vds::const_data_buffer&&> vds::iclient::download_data(
+  const service_provider & sp,
+  const std::string & login,
+  const std::string & password,
+  const std::string & name)
 {
-  return this->owner_->impl_->download_data(login, password, name);
+  return static_cast<_client *>(this)->download_data(sp, login, password, name);
 }
 
-vds::_client::_client(const service_provider & sp, vds::client* owner)
-  : sp_(sp), log_(sp, "Client"), owner_(owner)
+vds::_client::_client(vds::client* owner)
+: owner_(owner)
 {
 }
 
@@ -100,20 +99,23 @@ vds::async_task<
   const vds::certificate & /*server_certificate*/,
   const vds::asymmetric_private_key & /*private_key*/>
 vds::_client::init_server(
+  const service_provider & sp,
   const std::string& user_login,
   const std::string& user_password)
 {
   return
-    this->authenticate(user_login, user_password)
+    this->authenticate(sp, user_login, user_password)
     .then([this](
       const std::function<void(
+        const service_provider & sp,
         const certificate & /*server_certificate*/,
         const asymmetric_private_key & /*private_key*/)> & done,
       const error_handler & on_error,
+      const service_provider & sp,
       const certificate& user_certificate,
       const asymmetric_private_key& user_private_key) {
 
-    sp.get<logger>()(ll_trace, "Register new server");
+    sp.get<logger>().trace(sp, "Register new server");
 
     asymmetric_private_key private_key(asymmetric_crypto::rsa4096());
     private_key.generate();
@@ -128,10 +130,10 @@ vds::_client::init_server(
     options.ca_certificate_private_key = &user_private_key;
 
     certificate server_certificate = certificate::create_new(pkey, private_key, options);
-    foldername root_folder(persistence::current_user(this->sp_), ".vds");
+    foldername root_folder(persistence::current_user(sp), ".vds");
     root_folder.create();
     
-    sp.get<logger>()(ll_trace, "Register new user");
+    sp.get<logger>().trace(sp, "Register new user");
     asymmetric_private_key local_user_private_key(asymmetric_crypto::rsa4096());
     local_user_private_key.generate();
 
@@ -151,25 +153,29 @@ vds::_client::init_server(
     local_user_private_key.save(filename(root_folder, "user.pkey"));
 
     this->owner_->logic_->send_request<client_messages::register_server_response>(
+      sp,
       client_messages::register_server_request(
         server_certificate.str()).serialize())
-      .then([this](const std::function<void(void)> & done,
+      .then([this](const std::function<void(const service_provider & sp)> & done,
         const error_handler & on_error,
+        const service_provider & sp,
         const client_messages::register_server_response & response) {
-      done();
+      done(sp);
     }).wait(
-      [server_cert = server_certificate.str(), private_key, done]() { done(certificate::parse(server_cert), private_key); },
-      [on_error, root_folder](std::exception_ptr ex) {
+      [server_cert = server_certificate.str(), private_key, done](const service_provider & sp) { done(sp, certificate::parse(server_cert), private_key); },
+      [on_error, root_folder](const service_provider & sp, std::exception_ptr ex) {
 
-      file::delete_file(filename(root_folder, "user.crt"), true);
-      file::delete_file(filename(root_folder, "user.pkey"), true);
+        file::delete_file(filename(root_folder, "user.crt"), true);
+        file::delete_file(filename(root_folder, "user.pkey"), true);
 
-      on_error(ex);
-    });
+        on_error(sp, ex);
+      },
+      sp);
   });
 }
 
 vds::async_task<const std::string& /*version_id*/> vds::_client::upload_file(
+  const service_provider & sp,
   const std::string & user_login,
   const std::string & user_password,
   const std::string & name,
@@ -177,14 +183,15 @@ vds::async_task<const std::string& /*version_id*/> vds::_client::upload_file(
   size_t data_size)
 {
   return
-    this->authenticate(user_login, user_password)
+    this->authenticate(sp, user_login, user_password)
     .then([this, user_login, name, data, data_size](
-      const std::function<void(const std::string& /*version_id*/)> & done,
+      const std::function<void(const service_provider & sp, const std::string& /*version_id*/)> & done,
       const error_handler & on_error,
+      const service_provider & sp,
       const certificate& user_certificate,
       const asymmetric_private_key& user_private_key) {
 
-    sp.get<logger>()(ll_trace, "Crypting data");
+    sp.get<logger>().trace(sp, "Crypting data");
 
     symmetric_key transaction_key(symmetric_crypto::aes_256_cbc());
     transaction_key.generate();
@@ -197,7 +204,7 @@ vds::async_task<const std::string& /*version_id*/> vds::_client::upload_file(
     dataflow(
       symmetric_encrypt(transaction_key),
       collect_data())(
-        [this, key_crypted, user_private_key, user_login, name, done, on_error](const void * data, size_t data_size) {
+        [this, key_crypted, user_private_key, user_login, name, done, on_error](const service_provider & sp, const void * data, size_t data_size) {
 
       binary_serializer to_sign;
       to_sign << key_crypted;
@@ -212,14 +219,16 @@ vds::async_task<const std::string& /*version_id*/> vds::_client::upload_file(
         to_sign.data());
 
 
-      sp.get<logger>()(ll_trace, "Upload file");
+      sp.get<logger>().trace(sp, "Upload file");
       this->owner_->logic_->put_file(
+        sp,
         user_login,
         name,
         datagram.data())
-        .wait(done, on_error);
+        .wait(done, on_error, sp);
     },
-        [](std::exception_ptr ex) { std::rethrow_exception(ex); },
+        [](const service_provider & sp, std::exception_ptr ex) { std::rethrow_exception(ex); },
+      sp,
       data,
       data_size);
 
@@ -228,25 +237,28 @@ vds::async_task<const std::string& /*version_id*/> vds::_client::upload_file(
 
 vds::async_task<vds::const_data_buffer &&>
 vds::_client::download_data(
+  const service_provider & sp,
   const std::string & user_login,
   const std::string & user_password,
   const std::string & name)
 {
   return this->authenticate(
+    sp,
     user_login,
     user_password)
     .then(
       [this, user_login, name](
-        const std::function<void(const_data_buffer&&)>& done,
+        const std::function<void(const service_provider & sp, const_data_buffer&&)>& done,
         const error_handler & on_error,
+        const service_provider & sp,
         const certificate& user_certificate,
         const asymmetric_private_key& user_private_key) {
 
-    sp.get<logger>()(ll_trace, "Downloading file");
-    this->owner_->logic_->download_file(user_login, name).wait(
-      [this, done, user_certificate = certificate::parse(user_certificate.str()), user_private_key](const const_data_buffer& datagram_data) {
+    sp.get<logger>().trace(sp, "Downloading file");
+    this->owner_->logic_->download_file(sp, user_login, name).wait(
+      [this, done, user_certificate = certificate::parse(user_certificate.str()), user_private_key](const service_provider & sp, const const_data_buffer& datagram_data) {
 
-      sp.get<logger>()(ll_trace, "Decrypting data");
+      sp.get<logger>().trace(sp, "Decrypting data");
       const_data_buffer key_crypted;
       const_data_buffer crypted_data;
       const_data_buffer signature;
@@ -278,42 +290,47 @@ vds::_client::download_data(
       dataflow(
         symmetric_decrypt(transaction_key),
         collect_data())(
-          [&result, &b](const void * data, size_t size) {result.reset(data, size); b.set(); },
-          [](std::exception_ptr ex) { std::rethrow_exception(ex); },
+          [&result, &b](const service_provider & sp, const void * data, size_t size) {result.reset(data, size); b.set(); },
+          [](const service_provider & sp, std::exception_ptr ex) { std::rethrow_exception(ex); },
+          sp,
           crypted_data.data(),
           crypted_data.size());
 
       b.wait();
-      done(std::move(result));
+      done(sp, std::move(result));
     },
-      on_error);
+      on_error,
+      sp);
   });
 }
 
 vds::async_task<
   const vds::certificate & /*user_certificate*/,
   const vds::asymmetric_private_key & /*user_private_key*/>
-
   vds::_client::authenticate(
+    const service_provider & sp,
     const std::string & user_login,
     const std::string & user_password)
 {
-  sp.get<logger>()(ll_trace, "Authenticating user %s", user_login.c_str());
+  sp.get<logger>().trace(sp, "Authenticating user %s", user_login.c_str());
 
   hash ph(hash::sha256());
   ph.update(user_password.c_str(), user_password.length());
   ph.final();
 
   return this->owner_->logic_->send_request<client_messages::certificate_and_key_response>(
+    sp,
     client_messages::certificate_and_key_request(
       "login:" + user_login,
       ph.signature()).serialize())
-    .then([user_password](const std::function<void(
+    .then([user_password, sp](const std::function<void(
+      const service_provider & /*sp*/,
       const certificate & /*user_certificate*/,
       const asymmetric_private_key & /*user_private_key*/)> & done,
       const error_handler & on_error,
       const client_messages::certificate_and_key_response & response) {
     done(
+      sp,
       certificate::parse(response.certificate_body()),
       asymmetric_private_key::parse(response.private_key_body(), user_password));
   });

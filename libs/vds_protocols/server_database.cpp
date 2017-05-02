@@ -9,26 +9,6 @@ All rights reserved
 #include "cert_record.h"
 #include "storage_log.h"
 
-vds::server_database::server_database()
-  : impl_(new _server_database(this))
-{
-}
-
-vds::server_database::~server_database()
-{
-  delete this->impl_;
-}
-
-void vds::server_database::start(const service_provider & sp)
-{
-  this->impl_->start(sp);
-}
-
-void vds::server_database::stop(const service_provider & sp)
-{
-  this->impl_->stop(sp);
-}
-
 void vds::iserver_database::add_cert(
   const service_provider & sp,
   const cert_record & record)
@@ -170,8 +150,7 @@ vds::iserver_database::server_log_state vds::iserver_database::get_record_state(
 }
 
 ////////////////////////////////////////////////////////
-vds::_server_database::_server_database(server_database * owner)
-: owner_(owner)
+vds::_server_database::_server_database()
 {
 }
 

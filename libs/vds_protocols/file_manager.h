@@ -34,9 +34,6 @@ namespace vds {
 
   private:
     friend class server;
-    file_manager(_file_manager * impl);
-
-    _file_manager * const impl_;
   };
 }
 
