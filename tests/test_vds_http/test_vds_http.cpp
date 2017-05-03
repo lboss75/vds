@@ -34,9 +34,9 @@ public:
   public:
     handler(
       const test_http_pipeline & owner,
-      vds::network_socket * s)
+      vds::network_socket & s)
       :
-      s_(std::move(*s)),
+      s_(std::move(s)),
       router_(owner.router_),
       done_handler_(this),
       error_handler_(this, const_cast<test_http_pipeline &>(owner).error)
@@ -105,9 +105,12 @@ TEST(http_tests, test_server)
           }
         );
         
+        test_http_pipeline pipeline(router);
         vds::dataflow(
           vds::socket_server(sp, "127.0.0.1", 8000),
-          vds::for_each<vds::network_socket *>::create_handler(test_http_pipeline(router))
+          vds::create_socket_session([&pipeline](const vds::service_provider & sp, vds::network_socket & s){
+            (new test_http_pipeline::handler(pipeline, s))->start(sp);
+          })
         )
         (
           server_done_handler,
@@ -191,9 +194,12 @@ TEST(http_tests, test_https_server)
     }
     );
 
+    test_http_pipeline pipeline(router);
     vds::dataflow(
       vds::socket_server(sp, "127.0.0.1", 8000),
-      vds::for_each<vds::network_socket *>::create_handler(test_http_pipeline(router))
+      vds::create_socket_session([&pipeline](const vds::service_provider & sp, vds::network_socket & s){
+        (new test_http_pipeline::handler(pipeline, s))->start(sp);
+      })
     )
     (
       server_done_handler,

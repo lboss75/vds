@@ -58,6 +58,45 @@ namespace vds {
     std::string address_;
     int port_;
   };
+  
+  class create_socket_session
+  {
+  public:
+    create_socket_session(
+      const std::function<void(const service_provider & sp, network_socket & s)> & create_session)
+    : create_session_(create_session)
+    {
+    }
+    
+    template <typename context_type>
+    class handler : public dataflow_step<context_type, void(void)>
+    {
+      using base_class = dataflow_step<context_type, void(void)>;
+    public:
+      handler(
+        const context_type & context,
+        const create_socket_session & args)
+      : base_class(context),
+        create_session_(args.create_session_)
+      {
+      }
+      
+      void operator()(const service_provider & sp, network_socket * s)
+      {
+        if(nullptr == s){
+          this->next(sp);
+        }
+        else {
+          this->create_session_(sp, *s);
+        }
+      }
+      
+    private:
+      std::function<void(const service_provider & sp, network_socket & s)> create_session_;
+    };
+  private:
+    std::function<void(const service_provider & sp, network_socket & s)> create_session_;
+  };
 }
 
 #endif // __VDS_NETWORK_SOCKET_SERVER_H_

@@ -156,9 +156,9 @@ namespace vds {
 
   private:
     EVP_CIPHER_CTX * ctx_;
-    bool eof_;
     const uint8_t * data_;
     size_t len_;
+    bool eof_;
     size_t block_size_;
   };
   

@@ -127,7 +127,14 @@ namespace vds {
     this->network_service_->start_libevent_dispatch();*/
 #endif
 
-      static_cast<network_service *>(sp.get<inetwork_manager>())->register_server_socket(this->s_);
+      sp.get_shutdown_event().then_shuting_down([this, sp](){
+#ifdef _WIN32
+        closesocket(this->s_);
+#else
+        shutdown(this->s_, 2);
+#endif
+        this->done_method_(sp, nullptr);
+      });
     }
     
     ~accept_socket_task()
