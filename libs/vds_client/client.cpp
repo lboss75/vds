@@ -9,7 +9,9 @@ All rights reserved
 #include "client_connection.h"
 
 vds::client::client(const std::string & server_address)
-: server_address_(server_address)
+: server_address_(server_address),
+  impl_(new _client(this)),
+  logic_(new client_logic())
 {
 }
 
@@ -39,10 +41,8 @@ void vds::client::start(const service_provider & sp)
     client_private_key = &this->client_private_key_;
   }
 
-  this->logic_.reset(new client_logic(this->server_address_, client_certificate, client_private_key));
-  this->logic_->start(sp);
+  this->logic_->start(sp, this->server_address_, client_certificate, client_private_key);
 
-  this->impl_.reset(new _client(this));
 }
 
 void vds::client::stop(const service_provider & sp)
@@ -115,7 +115,7 @@ vds::_client::init_server(
       const certificate& user_certificate,
       const asymmetric_private_key& user_private_key) {
 
-    sp.get<logger>().trace(sp, "Register new server");
+    sp.get<logger>()->trace(sp, "Register new server");
 
     asymmetric_private_key private_key(asymmetric_crypto::rsa4096());
     private_key.generate();
@@ -133,7 +133,7 @@ vds::_client::init_server(
     foldername root_folder(persistence::current_user(sp), ".vds");
     root_folder.create();
     
-    sp.get<logger>().trace(sp, "Register new user");
+    sp.get<logger>()->trace(sp, "Register new user");
     asymmetric_private_key local_user_private_key(asymmetric_crypto::rsa4096());
     local_user_private_key.generate();
 
@@ -191,7 +191,7 @@ vds::async_task<const std::string& /*version_id*/> vds::_client::upload_file(
       const certificate& user_certificate,
       const asymmetric_private_key& user_private_key) {
 
-    sp.get<logger>().trace(sp, "Crypting data");
+    sp.get<logger>()->trace(sp, "Crypting data");
 
     symmetric_key transaction_key(symmetric_crypto::aes_256_cbc());
     transaction_key.generate();
@@ -219,7 +219,7 @@ vds::async_task<const std::string& /*version_id*/> vds::_client::upload_file(
         to_sign.data());
 
 
-      sp.get<logger>().trace(sp, "Upload file");
+      sp.get<logger>()->trace(sp, "Upload file");
       this->owner_->logic_->put_file(
         sp,
         user_login,
@@ -254,11 +254,11 @@ vds::_client::download_data(
         const certificate& user_certificate,
         const asymmetric_private_key& user_private_key) {
 
-    sp.get<logger>().trace(sp, "Downloading file");
+    sp.get<logger>()->trace(sp, "Downloading file");
     this->owner_->logic_->download_file(sp, user_login, name).wait(
       [this, done, user_certificate = certificate::parse(user_certificate.str()), user_private_key](const service_provider & sp, const const_data_buffer& datagram_data) {
 
-      sp.get<logger>().trace(sp, "Decrypting data");
+      sp.get<logger>()->trace(sp, "Decrypting data");
       const_data_buffer key_crypted;
       const_data_buffer crypted_data;
       const_data_buffer signature;
@@ -312,7 +312,7 @@ vds::async_task<
     const std::string & user_login,
     const std::string & user_password)
 {
-  sp.get<logger>().trace(sp, "Authenticating user %s", user_login.c_str());
+  sp.get<logger>()->trace(sp, "Authenticating user %s", user_login.c_str());
 
   hash ph(hash::sha256());
   ph.update(user_password.c_str(), user_password.length());

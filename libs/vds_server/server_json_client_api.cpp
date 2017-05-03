@@ -93,7 +93,7 @@ vds::json_value * vds::_server_json_client_api::operator()(
               task = this->process(sp, client_messages::get_file_message_request(task_object));
             }
             else {
-              sp.get<logger>().warning(sp, "Invalid request type \'%s\'", task_type_name.c_str());
+              sp.get<logger>()->warning(sp, "Invalid request type \'%s\'", task_type_name.c_str());
               throw std::runtime_error("Invalid request type " + task_type_name);
             }
             
@@ -140,8 +140,7 @@ vds::_server_json_client_api::process(
   return create_async_task(
     [message](const std::function<void(const service_provider & sp, const json_value *)> & done, const error_handler & on_error, const service_provider & sp){
       auto cert = sp
-        .get<istorage_log>()
-        .find_cert(sp, message.object_name());
+        .get<istorage_log>()->find_cert(sp, message.object_name());
 
       if (!cert
         || cert->password_hash() != message.password_hash()) {
@@ -163,9 +162,7 @@ vds::_server_json_client_api::process(
 {
   return create_async_task(
     [sp, message](const std::function<void(const service_provider & sp, const json_value *)> & done, const error_handler & on_error, const service_provider & sp){
-      sp
-        .get<node_manager>()
-        .register_server(sp, message.certificate_body())
+      sp.get<node_manager>()->register_server(sp, message.certificate_body())
         .wait(
           [done](const service_provider & sp) { done(sp, client_messages::register_server_response().serialize().get()); },
           on_error,
@@ -180,9 +177,7 @@ vds::_server_json_client_api::process(
 {
   auto version_id = guid::new_guid().str();
   
-  return sp
-    .get<file_manager>()
-    .put_file(
+  return sp.get<file_manager>()->put_file(
       sp,
       version_id,
       message.user_login(),
@@ -198,9 +193,7 @@ vds::async_task<const vds::json_value*> vds::_server_json_client_api::process(
   const service_provider & sp,
   const client_messages::get_file_message_request & message)
 {
-  return sp
-    .get<file_manager>()
-    .download_file(
+  return sp.get<file_manager>()->download_file(
       sp,
       message.user_login(),
       message.name())

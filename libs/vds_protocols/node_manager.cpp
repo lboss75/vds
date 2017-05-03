@@ -39,7 +39,7 @@ vds::async_task<> vds::_node_manager::register_server(
   const service_provider & sp,
   const std::string & node_certificate)
 {
-  return sp.get<istorage_log>().register_server(sp, node_certificate);
+  return sp.get<istorage_log>()->register_server(sp, node_certificate);
 }
 
 void vds::_node_manager::add_endpoint(
@@ -47,12 +47,12 @@ void vds::_node_manager::add_endpoint(
   const std::string & endpoint_id,
   const std::string & addresses)
 {
-  sp.get<istorage_log>().add_endpoint(sp, endpoint_id, addresses);
+  sp.get<istorage_log>()->add_endpoint(sp, endpoint_id, addresses);
 }
 
 void vds::_node_manager::get_endpoints(
   const service_provider & sp,
   std::map<std::string, std::string> & addresses)
 {
-  sp.get<istorage_log>().get_endpoints(sp, addresses);
+  sp.get<istorage_log>()->get_endpoints(sp, addresses);
 }

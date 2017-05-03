@@ -10,7 +10,8 @@ All rights reserved
 #include "log_records.h"
 
 namespace vds {
-  
+  class server_log_sync;
+
   class _server_log_sync
   {
   public:
@@ -24,6 +25,8 @@ namespace vds {
 
   private:
     friend class _storage_log;
+    friend class _connection_manager;
+
     server_log_sync * const owner_;
     timer timer_;
     
@@ -89,7 +92,7 @@ namespace vds {
       const server_log_get_records_broadcast & message);
 
     void require_unknown_records(const service_provider & sp);
-    void process_timer_jobs(const service_provider & sp);
+    bool process_timer_jobs(const service_provider & sp);
   };
 
 }

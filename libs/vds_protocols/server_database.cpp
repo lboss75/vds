@@ -466,7 +466,7 @@ vds::server_log_record
   std::string body = server_log_record(record_id, parents, message).serialize(false)->str();
   signature = asymmetric_sign::signature(
     hash::sha256(),
-    sp.get<istorage_log>().server_private_key(),
+    sp.get<istorage_log>()->server_private_key(),
     body.c_str(),
     body.length());
 

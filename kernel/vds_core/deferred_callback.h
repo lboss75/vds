@@ -52,6 +52,7 @@ namespace vds {
   class _deferred_callback<functor_type, void (class_name::*)(arg_types...)>
     : public _deferred_callback_base
   {
+    using tuple_type = std::tuple<typename std::remove_reference<arg_types>::type...>;
   public:
     _deferred_callback(deferred_context & context, functor_type & target)
       : _deferred_callback_base(context), target_(target)
@@ -64,25 +65,26 @@ namespace vds {
         this->target_(args...);
       }
       else {
-        this->args_.reset(new std::tuple<arg_types...>(args...));
+        this->args_.reset(new tuple_type(args...));
         this->schedule();
       }
     }
 
     void execute() override
     {
-      call_with<functor_type, std::tuple<arg_types...>>(this->target_, *this->args_);
+      call_with<functor_type, tuple_type>(this->target_, *this->args_);
     }
 
   private:
     functor_type & target_;
-    std::unique_ptr<std::tuple<arg_types...>> args_;
+    std::unique_ptr<tuple_type> args_;
   };
 
   template <typename functor_type, typename class_name, typename... arg_types>
   class _deferred_callback<functor_type, void (class_name::*)(arg_types...) const>
     : public _deferred_callback_base
   {
+    using tuple_type = std::tuple<typename std::remove_reference<arg_types>::type...>;
   public:
     _deferred_callback(deferred_context & context, functor_type & target)
       : _deferred_callback_base(context), target_(target)
@@ -95,19 +97,19 @@ namespace vds {
         this->target_(args...);
       }
       else {
-        this->args_.reset(new std::tuple<arg_types...>(args...));
+        this->args_.reset(new tuple_type(args...));
         this->schedule();
       }
     }
 
     void execute() override
     {
-      call_with<functor_type, std::tuple<arg_types...>>(this->target_, *this->args_);
+      call_with<functor_type, tuple_type>(this->target_, *this->args_);
     }
 
   private:
     functor_type & target_;
-    std::unique_ptr<std::tuple<arg_types...>> args_;
+    std::unique_ptr<tuple_type> args_;
   };
 
   template <typename functor_type>

@@ -73,7 +73,7 @@ vds::_file_manager::put_file(
         return;
       }
 
-      sp.get<ichunk_manager>().add(sp, const_data_buffer(data, size)).wait(
+      sp.get<ichunk_manager>()->add(sp, const_data_buffer(data, size)).wait(
         [prev, result](
           const service_provider & sp,
           const server_log_new_object & index) {
@@ -85,7 +85,7 @@ vds::_file_manager::put_file(
     }))
         (
           [this, done, result](const service_provider & sp) {
-            sp.get<istorage_log>().add_to_local_log(sp, result->serialize().get());
+            sp.get<istorage_log>()->add_to_local_log(sp, result->serialize().get());
             done(sp);
           },
           on_error,
@@ -116,7 +116,7 @@ vds::async_task<const vds::filename&> vds::_file_manager::download_file(
   const std::string & name)
 {
   std::list<server_log_file_version> versions;
-  sp.get<iserver_database>().get_file_versions(sp, user_login, name, versions);
+  sp.get<iserver_database>()->get_file_versions(sp, user_login, name, versions);
 
   if (versions.empty()) {
     throw std::runtime_error("File not found");
@@ -198,7 +198,7 @@ vds::async_task<const vds::filename&> vds::_file_manager::download_file(
   const std::string & version_id)
 {
   std::list<uint64_t> indexes;
-  sp.get<iserver_database>().get_file_version_map(sp, server_id, version_id, indexes);
+  sp.get<iserver_database>()->get_file_version_map(sp, server_id, version_id, indexes);
 
   if (indexes.empty()) {
     throw std::runtime_error("File '" + version_id + "' not found");
@@ -206,14 +206,14 @@ vds::async_task<const vds::filename&> vds::_file_manager::download_file(
 
   auto result = std::make_shared<get_file_results>(indexes.size());
   for (auto index : indexes) {
-    auto fn = sp.get<ilocal_cache>().get_object_filename(sp, server_id, index);
+    auto fn = sp.get<ilocal_cache>()->get_object_filename(sp, server_id, index);
 
     if (file::exists(fn)) {
       result->get_object_done(sp, index, fn);
     }
     else {
       sp.get<iconnection_manager>()
-        .download_object(sp, server_id, index, fn)
+        ->download_object(sp, server_id, index, fn)
         .wait(
           [result, index, fn](const service_provider & sp) { result->get_object_done(sp, index, fn); },
           [result](const service_provider & sp, std::exception_ptr ex) {result->get_object_error(sp, ex); },

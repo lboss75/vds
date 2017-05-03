@@ -6,14 +6,8 @@ All rights reserved
 #include "stdafx.h"
 #include "client_logic.h"
 
-vds::client_logic::client_logic(
-  const std::string & server_address,
-  certificate * client_certificate,
-  asymmetric_private_key * client_private_key)
-: server_address_(server_address),
-  client_certificate_(client_certificate),
-  client_private_key_(client_private_key),
-  connected_(0),  
+vds::client_logic::client_logic()
+: connected_(0),  
   messages_sent_(false)
 {
 }
@@ -22,8 +16,16 @@ vds::client_logic::~client_logic()
 {
 }
 
-void vds::client_logic::start(const service_provider & sp)
+void vds::client_logic::start(
+  const service_provider & sp,
+  const std::string & server_address,
+  certificate * client_certificate,
+  asymmetric_private_key * client_private_key)
 {
+  this->server_address_ = server_address;
+  this->client_certificate_ = client_certificate;
+  this->client_private_key_ = client_private_key;
+
   url_parser::parse_addresses(this->server_address_,
     [this, sp](const std::string & protocol, const std::string & address)->bool {
     if ("https" == protocol) {
@@ -45,7 +47,7 @@ void vds::client_logic::start(const service_provider & sp)
   this->process_timer_.start(
     sp,
     std::chrono::seconds(5),
-    [this, sp](){ this->process_timer_tasks(sp); });
+    [this, sp](){ return this->process_timer_tasks(sp); });
 }
 
 void vds::client_logic::stop(const service_provider & sp)
@@ -57,7 +59,7 @@ void vds::client_logic::stop(const service_provider & sp)
 
 void vds::client_logic::connection_closed(const service_provider & sp, client_connection<client_logic>& connection)
 {
-  sp.get<logger>().info(sp, "Connection %s:%d has been closed", connection.address().c_str(), connection.port());
+  sp.get<logger>()->info(sp, "Connection %s:%d has been closed", connection.address().c_str(), connection.port());
 
   this->connection_mutex_.lock();
   this->connected_--;
@@ -68,7 +70,7 @@ void vds::client_logic::connection_closed(const service_provider & sp, client_co
 
 void vds::client_logic::connection_error(const service_provider & sp, client_connection<client_logic>& connection, std::exception_ptr ex)
 {
-  sp.get<logger>().info(sp, "Connection %s:%d error %s", connection.address().c_str(), connection.port(), exception_what(ex).c_str());
+  sp.get<logger>()->info(sp, "Connection %s:%d error %s", connection.address().c_str(), connection.port(), exception_what(ex).c_str());
 
   this->connection_mutex_.lock();
   this->connected_--;
@@ -145,7 +147,7 @@ void vds::client_logic::node_install(const std::string & login, const std::strin
 
 void vds::client_logic::get_commands(const service_provider & sp, vds::client_connection<vds::client_logic> & connection)
 {
-  sp.get<imt_service>().async(
+  sp.get<imt_service>()->async(
     [this, sp, &connection](){ 
     if (this->outgoing_queue_.get(sp, connection)) {
       this->messages_sent_ = true;
@@ -181,7 +183,7 @@ std::string vds::client_logic::get_messages()
   return result;
 }
 */
-void vds::client_logic::process_timer_tasks(const service_provider & sp)
+bool vds::client_logic::process_timer_tasks(const service_provider & sp)
 {
   if (!this->connection_queue_.empty()) {
     if (
@@ -235,6 +237,8 @@ void vds::client_logic::process_timer_tasks(const service_provider & sp)
   else {
     this->messages_sent_ = false;
   }
+
+  return true;
 }
 
 /*

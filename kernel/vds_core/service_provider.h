@@ -20,14 +20,14 @@ namespace vds {
     static service_provider empty();
 
     template <typename service_type>
-    service_type & get() const
+    service_type * get(bool throw_error = true) const
     {
       auto result = (service_type *)this->get(types::get_type_id<service_type>());
-      if (nullptr == result) {
+      if (throw_error && nullptr == result) {
         throw std::runtime_error(std::string("Service ") + typeid(service_type).name() + " not found");
       }
 
-      return *result;
+      return result;
     }
 
     service_provider create_scope(const std::string & name) const;
@@ -100,12 +100,25 @@ namespace vds {
 
     void shutdown(service_provider & sp);
 
-    service_provider build(const std::string & name) const;
+    service_provider build(const std::string & name);
+    void start(const service_provider & sp);
 
   private:
+    friend class _service_registrator;
     std::shared_ptr<_service_registrator> impl_;
 
     void add_service(size_t type_id, void * service);
+  };
+
+  class unhandled_exception_handler : public service_provider::property_holder
+  {
+  public:
+    unhandled_exception_handler(const std::function<void(const service_provider & sp, std::exception_ptr ex)> & handler)
+      : on_error(handler)
+    {
+    }
+
+    std::function<void(const service_provider & sp, std::exception_ptr ex)> on_error;
   };
 }
 

@@ -58,7 +58,7 @@ namespace vds {
           }
         }
 
-        ((network_service *)&sp.get<inetwork_manager>())->associate(this->s_.handle());
+        ((network_service *)sp.get<inetwork_manager>())->associate(this->s_.handle());
 #else
         // Connect 
         if (0 > ::connect(this->s_.handle(), (struct sockaddr *)&addr, sizeof(addr))) {

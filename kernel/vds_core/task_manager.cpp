@@ -27,7 +27,7 @@ vds::task_manager::~task_manager()
 void vds::timer::start(
   const vds::service_provider& sp,
   const std::chrono::steady_clock::duration & period,
-  const std::function< void(void) >& callback)
+  const std::function< bool(void) >& callback)
 {
   this->sp_ = sp;
   this->period_ = period;
@@ -38,7 +38,7 @@ void vds::timer::start(
 
 void vds::timer::stop(const vds::service_provider& sp)
 {
-  auto manager = static_cast<task_manager *>(&sp.get<itask_manager>());
+  auto manager = static_cast<task_manager *>(sp.get<itask_manager>());
   
   std::lock_guard<std::mutex> lock(manager->scheduled_mutex_);
   manager->scheduled_.erase(
@@ -49,13 +49,22 @@ void vds::timer::stop(const vds::service_provider& sp)
 
 void vds::timer::execute(const vds::service_provider& sp)
 {
-  this->handler_();
-  this->schedule(sp);
+  try {
+    if (this->handler_()) {
+      this->schedule(sp);
+    }
+  }
+  catch (...) {
+    auto p = sp.get_property<unhandled_exception_handler>(service_provider::property_scope::any_scope);
+    if (nullptr != p) {
+      p->on_error(sp, std::current_exception());
+    }
+  }
 }
 
 void vds::timer::schedule(const vds::service_provider& sp)
 {
-  auto manager = static_cast<task_manager *>(&sp.get<itask_manager>());
+  auto manager = static_cast<task_manager *>(sp.get<itask_manager>());
   
   this->start_time_ = std::chrono::steady_clock::now() + this->period_;
 
@@ -103,7 +112,7 @@ void vds::task_manager::work_thread()
     for(auto task : this->scheduled_){
       if(task->start_time_ <= now){
         this->scheduled_.remove(task);
-        this->sp_.get<imt_service>().async([this, task](){
+        this->sp_.get<imt_service>()->async([this, task](){
           task->execute(this->sp_);
         });
         break;

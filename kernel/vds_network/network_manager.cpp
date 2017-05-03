@@ -36,14 +36,14 @@ void vds::network_service::start(const service_provider & provider)
     WSADATA wsaData;
     if (NO_ERROR != WSAStartup(MAKEWORD(2, 2), &wsaData)) {
         auto error = WSAGetLastError();
-        throw new std::system_error(error, std::system_category(), "Initiates Winsock");
+        throw std::system_error(error, std::system_category(), "Initiates Winsock");
     }
 
     this->handle_ = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0, 0);
 
     if (NULL == this->handle_) {
         auto error = WSAGetLastError();
-        throw new std::system_error(error, std::system_category(), "Create I/O completion port");
+        throw std::system_error(error, std::system_category(), "Create I/O completion port");
     }
 
     //Create worker threads
@@ -82,7 +82,7 @@ void vds::network_service::start_libevent_dispatch(const service_provider & sp)
 void vds::network_service::stop(const service_provider & sp)
 {
     try {
-      sp.get<logger>().trace(sp, "Stopping network service");
+      sp.get<logger>()->trace(sp, "Stopping network service");
         
 #ifndef _WIN32
         do{
@@ -106,7 +106,7 @@ void vds::network_service::stop(const service_provider & sp)
 #endif
     }
     catch (...) {
-      sp.get<logger>().error(sp, "Failed stop network service %s", exception_what(std::current_exception()).c_str());
+      sp.get<logger>()->error(sp, "Failed stop network service %s", exception_what(std::current_exception()).c_str());
     }
 }
 
@@ -115,7 +115,7 @@ void vds::network_service::associate(network_socket::SOCKET_HANDLE s)
 {
   if (NULL == CreateIoCompletionPort((HANDLE)s, this->handle_, NULL, 0)) {
     auto error = GetLastError();
-    throw new std::system_error(error, std::system_category(), "Associate with input/output completion port");
+    throw std::system_error(error, std::system_category(), "Associate with input/output completion port");
   }
 }
 
@@ -138,14 +138,24 @@ void vds::network_service::thread_loop(const service_provider & sp)
           }
 
           std::unique_ptr<std::system_error> error_message(new std::system_error(errorCode, std::system_category(), "GetQueuedCompletionStatus"));
-          sp.get<logger>().error(sp, error_message->what());
+          sp.get<logger>()->error(sp, error_message->what());
           return;
         }
         try {
           socket_task::from_overlapped(pOverlapped)->process(dwBytesTransfered);
         }
         catch (...) {
-          sp.get<logger>().error(sp, "IO Task error: %s", exception_what(std::current_exception()).c_str());
+          auto p = sp.get_property<unhandled_exception_handler>(
+            service_provider::property_scope::any_scope);
+          if (nullptr != p) {
+            p->on_error(sp, std::current_exception());
+          }
+          else {
+            sp.get<logger>()->error(
+              sp,
+              "IO Task error: %s",
+              exception_what(std::current_exception()).c_str());
+          }
         }
     }
 }

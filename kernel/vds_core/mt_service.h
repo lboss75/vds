@@ -25,7 +25,7 @@ namespace vds {
 
     static void async(const service_provider & sp, const std::function<void(void)> & handler)
     {
-      sp.get<imt_service>().async(handler);
+      sp.get<imt_service>()->async(handler);
     }
   };
 

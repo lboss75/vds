@@ -216,7 +216,7 @@ namespace vds {
         const guid & server_id);
       
       void for_each_sessions(const std::function<void(const session &)> & callback);
-      void process_timer_jobs(const service_provider & sp);
+      bool process_timer_jobs(const service_provider & sp);
     };
     
     std::unique_ptr<udp_server> udp_server_;

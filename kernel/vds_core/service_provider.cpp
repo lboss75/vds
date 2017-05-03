@@ -39,7 +39,7 @@ const std::string & vds::service_provider::full_name() const
 
 vds::shutdown_event & vds::service_provider::get_shutdown_event() const
 {
-  return this->get_shutdown_event();
+  return this->impl_->get_shutdown_event();
 }
 
 void * vds::service_provider::get(size_t type_id) const
@@ -61,12 +61,24 @@ void vds::service_provider::set_property(property_scope scope, size_t type_id, p
 std::atomic_size_t vds::_service_provider::s_last_id_;
 
 vds::service_provider vds::_service_registrator::build(
-  const std::shared_ptr<_service_registrator> & pthis,
-  const std::string & name) const
+  service_registrator & owner,
+  const std::string & name)
 {
-  return service_provider(
+  auto sp = service_provider(
     std::make_shared<_service_provider>(
-      pthis, std::shared_ptr<_service_provider>(), name));
+      owner.impl_, std::shared_ptr<_service_provider>(), name));
+  for (auto factory : this->factories_) {
+    factory->register_services(owner);
+  }
+
+  return sp;
+}
+
+void vds::_service_registrator::start(const service_provider & sp)
+{
+  for (auto factory : this->factories_) {
+    factory->start(sp);
+  }
 }
 
 //////////////////////////////////////
@@ -90,9 +102,14 @@ void vds::service_registrator::shutdown(service_provider & sp)
   this->impl_->shutdown(sp);
 }
 
-vds::service_provider vds::service_registrator::build(const std::string & name) const
+vds::service_provider vds::service_registrator::build(const std::string & name)
 {
-  return this->impl_->build(this->impl_, name);
+  return this->impl_->build(*this, name);
+}
+
+void vds::service_registrator::start(const service_provider & sp)
+{
+  this->impl_->start(sp);
 }
 
 void vds::service_registrator::add_service(size_t type_id, void * service)

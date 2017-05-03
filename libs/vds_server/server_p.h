@@ -49,10 +49,7 @@ namespace vds {
     std::unique_ptr<_node_manager> node_manager_;
     std::unique_ptr<user_manager> user_manager_;
     std::unique_ptr<_file_manager> file_manager_;
-
     std::unique_ptr<_server_http_api> server_http_api_;
-    //std::unique_ptr<peer_network> peer_network_;
-    
     std::unique_ptr<_storage_log> storage_log_;
     std::unique_ptr<_chunk_manager> chunk_manager_;
     std::unique_ptr<_server_database> server_database_;

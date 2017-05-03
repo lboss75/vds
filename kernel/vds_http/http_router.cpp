@@ -52,7 +52,7 @@ void vds::http_router::route(
     return;
   }
   
-  sp.get<logger>().debug(sp, "File not found: %s", request.url().c_str());
+  sp.get<logger>()->debug(sp, "File not found: %s", request.url().c_str());
   response.set_result(404, "Not Found");
   outgoing_stream.set_body("<html><body>File not file</body></html>");
 }

@@ -28,8 +28,8 @@ All rights reserved
 #include "server_udp_api_p.h"
 #include "server_certificate.h"
 
-vds::server::server(bool for_init)
-: for_init_(for_init), impl_(new _server(this))
+vds::server::server()
+: impl_(new _server(this))
 {
 }
 
@@ -61,11 +61,6 @@ void vds::server::register_services(service_registrator& registrator)
 
 void vds::server::start(const service_provider& sp)
 {
-  if(this->for_init_){
-    this->for_init_ = false;
-    return;
-  }
-  
   this->impl_->start(sp);
 }
 
@@ -83,7 +78,14 @@ void vds::server::set_port(size_t port)
 /////////////////////////////////////////////////////////////////////////////////////////////
 
 vds::_server::_server(server * owner)
-  : owner_(owner)
+  : owner_(owner),
+  storage_log_(new _storage_log()),
+  server_database_(new _server_database()),
+  node_manager_(new _node_manager()),
+  server_http_api_(new _server_http_api()),
+  local_cache_(new _local_cache()),
+  chunk_manager_(new _chunk_manager()),
+  file_manager_(new _file_manager())
 {
 }
 
@@ -96,46 +98,29 @@ void vds::_server::start(const service_provider& sp)
   this->certificate_.load(filename(foldername(persistence::current_user(sp), ".vds"), "server.crt"));
   this->private_key_.load(filename(foldername(persistence::current_user(sp), ".vds"), "server.pkey"));
 
-  this->storage_log_.reset(new _storage_log(
+  this->server_database_->start(sp);
+  this->storage_log_->start(
+    sp,
     server_certificate::server_id(this->certificate_),
     this->certificate_,
-    this->private_key_));
-  this->server_database_.reset(new _server_database());
-
-  //this->consensus_server_protocol_.reset(new consensus_protocol::server(sp, this->certificate_, this->private_key_, *this->connection_manager_));
-  this->node_manager_.reset(new _node_manager());
-  this->server_http_api_.reset(new _server_http_api());
-  //this->server_udp_api_.reset(new server_udp_api(sp));
-  //this->peer_network_.reset(new peer_network(sp));
-  this->local_cache_.reset(new _local_cache());
-  this->chunk_manager_.reset(new _chunk_manager());
-  this->file_manager_.reset(new _file_manager());
-
-  this->server_database_->start(sp);
-  this->storage_log_->start(sp);
+    this->private_key_);
   this->local_cache_->start(sp);
   this->chunk_manager_->start(sp);
 
-  //this->consensus_server_protocol_->start();
-
   this->server_http_api_->start(sp, "127.0.0.1", this->port_, this->certificate_, this->private_key_)
     .wait(
-      [](const service_provider& sp){sp.get<logger>().trace(sp, "Server closed"); },
-      [](const service_provider& sp, std::exception_ptr ex){sp.get<logger>().trace(sp, "Server error %s", exception_what(ex).c_str()); },
+      [](const service_provider& sp) {sp.get<logger>()->trace(sp, "Server closed"); },
+      [](const service_provider& sp, std::exception_ptr ex) {sp.get<logger>()->trace(sp, "Server error %s", exception_what(ex).c_str()); },
       sp);
-
-  //this->server_udp_api_->start("127.0.0.1", this->port_);
-
-  //this->peer_network_->start();
-
-
-  //this->client_logic_.reset(new client_logic(sp, &this->certificate_, &this->private_key_, sp.get<istorage>().get_storage_log().get_endpoints()));
-  //this->client_logic_->start();
 }
 
 void vds::_server::stop(const service_provider& sp)
 {
-
+  this->server_http_api_->stop(sp);
+  this->chunk_manager_->stop(sp);
+  this->local_cache_->stop(sp);
+  this->storage_log_->stop(sp);
+  this->server_database_->stop(sp);
 }
 
 void vds::_server::set_port(size_t port)

@@ -12,7 +12,7 @@ namespace vds {
   class server : public iservice_factory
   {
   public:
-    server(bool for_init = false);
+    server();
     ~server();
     
     void register_services(service_registrator &) override;
@@ -22,7 +22,6 @@ namespace vds {
     void set_port(size_t port);
     
   private:
-    bool for_init_;
     _server * const impl_;
   };
   

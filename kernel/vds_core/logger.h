@@ -105,7 +105,7 @@ namespace vds {
         return this->min_log_level_;
       }
       
-      static logger & get(service_provider & sp)
+      static logger * get(service_provider & sp)
       {
         return sp.get<logger>();
       }
@@ -115,7 +115,7 @@ namespace vds {
       log_level min_log_level_;
     };
 
-    class console_logger : public iservice_factory, public log_writer
+    class console_logger : public iservice_factory, public log_writer, public logger
     {
     public:
       console_logger(log_level level);
@@ -130,7 +130,7 @@ namespace vds {
     };
 
     class file;
-    class file_logger : public iservice_factory, public log_writer
+    class file_logger : public iservice_factory, public log_writer, public logger
     {
     public:
       file_logger(log_level level);

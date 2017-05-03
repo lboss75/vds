@@ -180,7 +180,7 @@ namespace vds {
 
               auto socket = accept(this->s_, (sockaddr*)&client_address, &client_address_length);
               if (INVALID_SOCKET != socket) {
-                ((network_service &)sp.get<inetwork_manager>()).associate(socket);
+                static_cast<network_service *>(sp.get<inetwork_manager>())->associate(socket);
                 auto sp = this->sp_.create_scope("Connection from " + network_service::to_string(client_address));
                 this->done_method_(sp, network_socket(socket));
               }

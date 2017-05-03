@@ -78,7 +78,7 @@ vds::async_task<> vds::_server_http_api::start(
       const std::function<void(const service_provider & sp)> & done,
       const error_handler & on_error,
       const service_provider & sp){
-      sp.get<logger>().debug(sp, "Start HTTP sever %s:%d", address.c_str(), port);
+      sp.get<logger>()->debug(sp, "Start HTTP sever %s:%d", address.c_str(), port);
       dataflow(
         socket_server(sp, address, port),
         vds::for_each<network_socket &>::create_handler(
@@ -86,6 +86,10 @@ vds::async_task<> vds::_server_http_api::start(
       )
       (done, on_error, sp);
     });
+}
+
+void vds::_server_http_api::stop(const service_provider & sp)
+{
 }
 
 vds::_server_http_api::socket_session::socket_session(

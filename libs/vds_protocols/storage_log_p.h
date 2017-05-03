@@ -24,10 +24,8 @@ namespace vds {
   class _storage_log : public istorage_log
   {
   public:
-    _storage_log(
-      const guid & current_server_id,
-      const certificate & server_certificate,
-      const asymmetric_private_key & server_private_key);
+    _storage_log();
+    ~_storage_log();
 
     void reset(
       const service_provider & sp,
@@ -36,7 +34,11 @@ namespace vds {
       const std::string & root_password,
       const std::string & addresses);
 
-    void start(const service_provider & sp);
+    void start(
+      const service_provider & sp,
+      const guid & current_server_id,
+      const certificate & server_certificate,
+      const asymmetric_private_key & server_private_key);
     void stop(const service_provider & sp);
 
     size_t minimal_consensus() const { return this->minimal_consensus_; }
@@ -79,8 +81,8 @@ namespace vds {
       bool check_signature = true);
 
   private:
-    const certificate & server_certificate_;
-    const asymmetric_private_key & current_server_key_;
+    certificate server_certificate_;
+    asymmetric_private_key current_server_key_;
 
     guid current_server_id_;
     foldername vds_folder_;
@@ -151,7 +153,7 @@ namespace vds {
     };
     
     timer process_timer_;
-    void process_timer_jobs(const service_provider & sp);
+    bool process_timer_jobs(const service_provider & sp);
   };
 }
 

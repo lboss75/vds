@@ -22,6 +22,8 @@ namespace vds {
       certificate & certificate,
       asymmetric_private_key & private_key);
 
+    void stop(const service_provider & sp);
+
   private:
     std::unique_ptr<http_router> router_;
     

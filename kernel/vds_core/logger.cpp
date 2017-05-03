@@ -26,13 +26,13 @@ vds::log_writer::log_writer(log_level level)
 
 /////////////////////////////////////////////////////////
 vds::console_logger::console_logger(log_level level)
-: log_writer(level)
+: log_writer(level), logger(*this, level)
 {
 }
 
 void vds::console_logger::register_services(service_registrator & registrator)
 {
-  registrator.add_service<log_writer>(this);
+  registrator.add_service<logger>(this);
 }
 
 void vds::console_logger::start(const service_provider &)
@@ -92,13 +92,13 @@ std::string vds::exception_what(std::exception_ptr ex)
 /////////////////////////////////////////////////////////
 
 vds::file_logger::file_logger(log_level level)
-: log_writer(level)
+: log_writer(level), logger(*this, level)
 {
 }
 
 void vds::file_logger::register_services(service_registrator & registrator)
 {
-  registrator.add_service<log_writer>(this);
+  registrator.add_service<logger>(this);
 }
 
 void vds::file_logger::start(const service_provider & sp)

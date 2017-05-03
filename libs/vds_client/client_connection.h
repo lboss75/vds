@@ -46,7 +46,7 @@ namespace vds {
 
     void connect(const service_provider & sp)
     {
-      sp.get<logger>().debug(sp, "Connecting to %s:%d", this->address().c_str(), this->port());
+      sp.get<logger>()->debug(sp, "Connecting to %s:%d", this->address().c_str(), this->port());
 
       this->state_ = CONNECTING;
       this->connection_start_ = std::chrono::system_clock::now();
@@ -103,13 +103,13 @@ namespace vds {
   protected:
     void on_connected(const service_provider & sp) override
     {
-      sp.get<logger>().debug(sp, "Connected to %s:%d", this->address().c_str(), this->port());
+      sp.get<logger>()->debug(sp, "Connected to %s:%d", this->address().c_str(), this->port());
       this->state_ = CONNECTED;
     }
     
     void on_connection_closed(const service_provider & sp) override
     {
-      sp.get<logger>().debug(sp, "Connection to %s:%d has been closed", this->address().c_str(), this->port());
+      sp.get<logger>()->debug(sp, "Connection to %s:%d has been closed", this->address().c_str(), this->port());
       this->connection_end_ = std::chrono::system_clock::now();
       this->state_ = NONE;
       this->handler_->connection_closed(sp, *this);
@@ -122,7 +122,7 @@ namespace vds {
     
     void on_error(const service_provider & sp, std::exception_ptr ex) override
     {
-      sp.get<logger>().debug(sp, "Failed to connect %s:%d %s", this->address().c_str(), this->port(), exception_what(ex).c_str());
+      sp.get<logger>()->debug(sp, "Failed to connect %s:%d %s", this->address().c_str(), this->port(), exception_what(ex).c_str());
       this->connection_end_ = std::chrono::system_clock::now();
       this->state_ = CONNECT_ERROR;
       this->handler_->connection_error(sp, *this, ex);

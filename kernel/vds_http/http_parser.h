@@ -125,7 +125,7 @@ namespace vds {
                 items[2],
                 this->headers_);
 
-              sp.get<logger>().trace(
+              sp.get<logger>()->trace(
                 sp,
                 "Request url:%s, method: %s, agent:%s",
                 this->request_.url().c_str(),
@@ -133,7 +133,7 @@ namespace vds {
                 this->request_.agent().c_str());
               
               for (auto & p : this->headers_) {
-                sp.get<logger>().trace(sp, p);
+                sp.get<logger>()->trace(sp, p);
               }
 
               std::string content_length_header;

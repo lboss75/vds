@@ -137,7 +137,7 @@ namespace vds {
 
           void operator()(const service_provider & sp, std::exception_ptr ex)
           {
-            sp.get<logger>().error(
+            sp.get<logger>()->error(
               sp,
               "stream %s:%d error: %s",
               this->owner_->owner_->address_.c_str(),

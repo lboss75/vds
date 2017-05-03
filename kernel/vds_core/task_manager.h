@@ -14,7 +14,7 @@ namespace vds {
     void start(
       const service_provider & sp,
       const std::chrono::steady_clock::duration & period,
-      const std::function<void(void)> & callback);
+      const std::function<bool(void)> & callback);
     
     void stop(const vds::service_provider& sp);
     
@@ -23,7 +23,7 @@ namespace vds {
     service_provider sp_;
     std::chrono::steady_clock::duration period_;
     std::chrono::time_point<std::chrono::steady_clock> start_time_;
-    std::function<void(void)> handler_;
+    std::function<bool(void)> handler_;
     
     void execute(const service_provider& sp);
     void schedule(const service_provider& sp);

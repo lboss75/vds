@@ -86,8 +86,9 @@ vds::_chunk_manager::add(
         this->obj_size_ += deflated_size;
         this->obj_folder_mutex_.unlock();
 
-        file::move(fn, sp.get<ilocal_cache>()
-          .get_object_filename(sp, sp.get<istorage_log>().current_server_id(), index));
+        file::move(fn,
+          sp.get<ilocal_cache>()->get_object_filename(
+            sp, sp.get<istorage_log>()->current_server_id(), index));
 
         this->obj_folder_mutex_.lock();
         if (max_obj_size_ < this->obj_size_) {
@@ -102,7 +103,7 @@ vds::_chunk_manager::add(
           deflated_size,
           hash::signature(hash::sha256(), deflated_data, deflated_size));
 
-        sp.get<istorage_log>().add_to_local_log(sp, result.serialize().get());
+        sp.get<istorage_log>()->add_to_local_log(sp, result.serialize().get());
         done(sp, result);
       });
 }
@@ -113,7 +114,7 @@ vds::const_data_buffer vds::_chunk_manager::get(
   uint64_t index)
 {
   return inflate::inflate_buffer(
-    file::read_all(sp.get<ilocal_cache>().get_object_filename(sp, server_id, index)));
+    file::read_all(sp.get<ilocal_cache>()->get_object_filename(sp, server_id, index)));
 }
 
 void vds::_chunk_manager::generate_chunk(const service_provider & sp)
@@ -133,9 +134,9 @@ void vds::_chunk_manager::start(const service_provider & sp)
 
   this->set_next_index(
     sp,
-    sp.get<iserver_database>().last_object_index(
+    sp.get<iserver_database>()->last_object_index(
       sp,
-      sp.get<istorage_log>().current_server_id()));
+      sp.get<istorage_log>()->current_server_id()));
 }
 
 void vds::_chunk_manager::stop(const service_provider & sp)

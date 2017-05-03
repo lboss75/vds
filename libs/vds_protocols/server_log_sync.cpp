@@ -17,8 +17,9 @@ vds::server_log_sync::~server_log_sync()
 {
 }
 
-void vds::server_log_sync::register_services(service_registrator&)
+void vds::server_log_sync::register_services(service_registrator& registrator)
 {
+  registrator.add_service<_server_log_sync>(this->impl_.get());
 }
 
 void vds::server_log_sync::start(const service_provider& sp)
@@ -47,7 +48,7 @@ void vds::_server_log_sync::start(const service_provider & sp)
   this->timer_.start(
     sp,
     std::chrono::seconds(5), [this, sp]() {
-      this->process_timer_jobs(sp);
+      return this->process_timer_jobs(sp);
   });
 }
 
@@ -61,20 +62,18 @@ void vds::_server_log_sync::on_new_local_record(
   const server_log_record & record,
   const const_data_buffer & signature)
 {
-  sp.get<logger>().debug(sp, "Broadcast %s:%d", record.id().source_id.str().c_str(), record.id().index);
-  sp.get<iconnection_manager>()
-    .broadcast(sp, server_log_record_broadcast(record, signature));
+  sp.get<logger>()->debug(sp, "Broadcast %s:%d", record.id().source_id.str().c_str(), record.id().index);
+  sp.get<iconnection_manager>()->broadcast(sp, server_log_record_broadcast(record, signature));
 }
 
 void vds::_server_log_sync::on_record_broadcast(
   const service_provider & sp,
   const server_log_record_broadcast & message)
 {
-  if(sp.get<iserver_database>().save_record(sp, message.record(), message.signature())){
-    sp.get<logger>().debug(sp, "Got %s:%d", message.record().id().source_id.str().c_str(), message.record().id().index);
+  if(sp.get<iserver_database>()->save_record(sp, message.record(), message.signature())){
+    sp.get<logger>()->debug(sp, "Got %s:%d", message.record().id().source_id.str().c_str(), message.record().id().index);
 
-    sp.get<iconnection_manager>()
-      .broadcast(sp, server_log_record_broadcast(message.record(), message.signature()));
+    sp.get<iconnection_manager>()->broadcast(sp, server_log_record_broadcast(message.record(), message.signature()));
     this->require_unknown_records(sp);
   }
 }
@@ -87,9 +86,9 @@ void vds::_server_log_sync::on_server_log_get_records_broadcast(
   for (auto p : message.unknown_records()) {
     server_log_record record;
     const_data_buffer signature;
-      if(sp.get<iserver_database>().get_record(sp, p, record, signature)) {
-        sp.get<logger>().debug(sp, "Provided %s:%d", record.id().source_id.str().c_str(), record.id().index);
-        sp.get<iconnection_manager>().send_to(sp, session, server_log_record_broadcast(record, signature));
+      if(sp.get<iserver_database>()->get_record(sp, p, record, signature)) {
+        sp.get<logger>()->debug(sp, "Provided %s:%d", record.id().source_id.str().c_str(), record.id().index);
+        sp.get<iconnection_manager>()->send_to(sp, session, server_log_record_broadcast(record, signature));
       }
   }
 }
@@ -98,22 +97,22 @@ void vds::_server_log_sync::require_unknown_records(
   const service_provider & sp)
 {
   std::list<server_log_record::record_id> unknown_records;
-  sp.get<iserver_database>().get_unknown_records(sp, unknown_records);
+  sp.get<iserver_database>()->get_unknown_records(sp, unknown_records);
 
   if (!unknown_records.empty()) {
 
     for (auto& p : unknown_records) {
-      sp.get<logger>().debug(sp, "Require %s:%d", p.source_id.str().c_str(), p.index);
+      sp.get<logger>()->debug(sp, "Require %s:%d", p.source_id.str().c_str(), p.index);
     }
 
-    sp.get<iconnection_manager>()
-      .broadcast(sp, server_log_get_records_broadcast(unknown_records));
+    sp.get<iconnection_manager>()->broadcast(sp, server_log_get_records_broadcast(unknown_records));
   }
 }
 
-void vds::_server_log_sync::process_timer_jobs(const service_provider & sp)
+bool vds::_server_log_sync::process_timer_jobs(const service_provider & sp)
 {
   this->require_unknown_records(sp);
+  return true;
 }
 
 //////////////////////////////////////////////////

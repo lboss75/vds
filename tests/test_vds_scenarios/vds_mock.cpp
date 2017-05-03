@@ -100,11 +100,11 @@ void mock_client::init_server(
   vds::service_registrator registrator;
 
   vds::mt_service mt_service;
-  vds::network_service network_service;
   vds::file_logger logger(vds::ll_trace);
   vds::crypto_service crypto_service;
   vds::client client("https://127.0.0.1:8050");
   vds::task_manager task_manager;
+  vds::network_service network_service;
 
   auto folder = vds::foldername(vds::foldername(vds::filename::current_process().contains_folder(), "clients"), std::to_string(this->index_));
   folder.delete_folder(true);
@@ -112,23 +112,23 @@ void mock_client::init_server(
 
   registrator.add(mt_service);
   registrator.add(logger);
-  registrator.add(network_service);
   registrator.add(crypto_service);
   registrator.add(task_manager);
   registrator.add(client);
+  registrator.add(network_service);
 
-  auto sp = registrator.build("mock client");
+  auto sp = registrator.build("mock client on port " + std::to_string(port));
 
   auto root_folders = new vds::persistence_values();
   root_folders->current_user_ = folder;
   root_folders->local_machine_ = folder;
   sp.set_property<vds::persistence_values>(vds::service_provider::property_scope::root_scope, root_folders);
-
+  
   try {
+    registrator.start(sp);
+
     vds::barrier b;
-    sp
-      .get<vds::iclient>()
-      .init_server(sp, "root", root_password)
+    sp.get<vds::iclient>()->init_server(sp, "root", root_password)
       .wait(
         [&b, this](
           const vds::service_provider & sp,
@@ -165,9 +165,7 @@ void mock_client::upload_file(
 {
   this->start_vds(true, [login, password, name, data, data_size](const vds::service_provider&sp) {
     vds::barrier b;
-    sp
-      .get<vds::iclient>()
-      .upload_file(sp, login, password, name, data, data_size)
+    sp.get<vds::iclient>()->upload_file(sp, login, password, name, data, data_size)
       .wait(
         [&b](const vds::service_provider&sp, const std::string& /*version_id*/) {
           b.set(); 
@@ -188,7 +186,7 @@ vds::const_data_buffer mock_client::download_data(const std::string & login, con
   this->start_vds(true, [&result, login, password, name](const vds::service_provider&sp) {
     vds::barrier b;
     
-    sp.get<vds::iclient>().download_data(sp, login, password, name)
+    sp.get<vds::iclient>()->download_data(sp, login, password, name)
     .wait(
       [&result, &b](const vds::service_provider & sp, vds::const_data_buffer && data){ result = std::move(data); b.set();},
       [&result, &b](const vds::service_provider & sp, std::exception_ptr ex) {
@@ -268,7 +266,7 @@ void mock_server::init_root(const std::string & root_password, int port)
   vds::crypto_service crypto_service;
   vds::client client("https://127.0.0.1:" + std::to_string(port));
   vds::task_manager task_manager;
-  vds::server server(true);
+  vds::server server;
 
   auto folder = vds::foldername(vds::foldername(vds::filename::current_process().contains_folder(), "servers"), std::to_string(0));
   folder.delete_folder(true);
@@ -281,7 +279,13 @@ void mock_server::init_root(const std::string & root_password, int port)
   registrator.add(task_manager);
   registrator.add(server);
 
-  auto sp = registrator.build("mock server");
+  auto sp = registrator.build("mock server::init_root");
+  sp.set_property<vds::unhandled_exception_handler>(
+    vds::service_provider::property_scope::any_scope,
+    new vds::unhandled_exception_handler(
+      [](const vds::service_provider & sp, std::exception_ptr ex) {
+        GTEST_FAIL() << vds::exception_what(ex) << " at " << sp.full_name();
+      }));
   try {
     auto root_folders = new vds::persistence_values();
     root_folders->current_user_ = folder;
@@ -307,9 +311,10 @@ void mock_server::init_root(const std::string & root_password, int port)
     server_private_key.save(vds::filename(vds::foldername(folder, ".vds"), "server.pkey"));
     
     server.set_port(port);
-    server.start(sp);
-    
-    sp.get<vds::istorage_log>().reset(
+
+    registrator.start(sp);
+
+    sp.get<vds::istorage_log>()->reset(
       sp,
       root_certificate,
       private_key,
@@ -346,11 +351,12 @@ void mock_server::start()
 
   this->server_.set_port(8050 + this->index_);
 
-  this->sp_ = this->registrator_.build("mock server");
+  this->sp_ = this->registrator_.build("mock server[" + std::to_string(this->index_) + "]");
   auto root_folders = new vds::persistence_values();
   root_folders->current_user_ = folder;
   root_folders->local_machine_ = folder;
   this->sp_.set_property<vds::persistence_values>(vds::service_provider::property_scope::root_scope, root_folders);
+  this->registrator_.start(this->sp_);
 
   this->connection_manager_.start_servers(this->sp_, "udp://127.0.0.1:" + std::to_string(8050 + this->index_));
 }

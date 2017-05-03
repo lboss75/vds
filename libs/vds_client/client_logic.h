@@ -12,15 +12,16 @@ namespace vds {
   class client_logic
   {
   public:
-    client_logic(
-      const std::string & server_address,
-      certificate * client_certificate,
-      asymmetric_private_key * client_private_key
-    );
+    client_logic();
 
     ~client_logic();
 
-    void start(const service_provider & sp);
+    void start(
+      const service_provider & sp,
+      const std::string & server_address,
+      certificate * client_certificate,
+      asymmetric_private_key * client_private_key);
+
     void stop(const service_provider & sp);
 
     void connected(const service_provider & sp, client_connection<client_logic> & connection);
@@ -79,6 +80,7 @@ namespace vds {
             [this, sp, t, request_id](){
               t->stop(sp);
               this->cancel_request(sp, request_id);              
+              return false;
             });
         });
     }
@@ -115,7 +117,7 @@ namespace vds {
     pipeline_queue<std::string, client_connection<client_logic>> outgoing_queue_;
     
     timer process_timer_;
-    void process_timer_tasks(const service_provider & sp);
+    bool process_timer_tasks(const service_provider & sp);
     
     struct request_info
     {

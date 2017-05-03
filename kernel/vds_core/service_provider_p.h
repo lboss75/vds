@@ -52,8 +52,11 @@ namespace vds {
     shutdown_event & get_shutdown_event() { return this->shutdown_event_; }
 
     service_provider build(
-      const std::shared_ptr<_service_registrator> & pthis,
-      const std::string & name) const;
+      service_registrator & owner,
+      const std::string & name);
+
+    void start(
+      const service_provider & sp);
 
   private:
     shutdown_event shutdown_event_;

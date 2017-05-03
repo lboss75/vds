@@ -32,7 +32,7 @@ namespace vds {
         throw new std::system_error(error, std::system_category(), "create socket");
       }
 
-      ((network_service &)sp.get<inetwork_manager>()).associate(this->s_);
+      static_cast<network_service *>(sp.get<inetwork_manager>())->associate(this->s_);
 #else
       this->s_ = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
       if (0 > this->s_) {
@@ -101,7 +101,7 @@ namespace vds {
       const std::string & address,
       int port
     ) : sp_(sp), socket_(socket),
-      owner_((network_service *)&sp.get<inetwork_manager>()),
+      owner_(static_cast<network_service *>(sp.get<inetwork_manager>())),
       address_(address), port_(port)
     {
     }
@@ -521,12 +521,13 @@ private:
           this->next(sp);
         }
         else {
+          auto scope = sp.create_scope("UDP message from " + network_service::to_string(*from));
           this->owner_
-            .input_message(sp, from, data, len)
+            .input_message(scope, from, data, len)
             .wait(
               [this](const service_provider & sp) { this->prev(sp); },
               [this](const service_provider & sp, std::exception_ptr ex) { this->error(sp, ex); },
-              sp);
+              scope);
         }
       }
 
