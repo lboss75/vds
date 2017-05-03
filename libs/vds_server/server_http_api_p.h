@@ -96,7 +96,7 @@ namespace vds {
       public:
         handler(
           const socket_session & owner,
-          network_socket & s);
+          network_socket * s);
 
         void start(const service_provider & sp);
 

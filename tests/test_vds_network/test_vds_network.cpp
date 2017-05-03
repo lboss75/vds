@@ -25,7 +25,7 @@ public:
     {
     }
     
-    void operator()(const vds::service_provider & sp, vds::network_socket & s) {
+    void operator()(const vds::service_provider & sp, vds::network_socket * s) {
       (new connection_handler<
         typename base_class::next_step_t,
         typename base_class::error_method_t>(
@@ -45,11 +45,11 @@ public:
     connection_handler(
       next_method_type & next, 
       error_method_type & error,
-      vds::network_socket & s
+      vds::network_socket * s
     ) : 
       next_(this, next),
       error_(this, error),
-      s_(std::move(s))
+      s_(std::move(*s))
     {
     }
 

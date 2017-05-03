@@ -72,7 +72,8 @@ namespace vds {
 
     void execute() override
     {
-      call_with<functor_type, tuple_type>(this->target_, *this->args_);
+      std::unique_ptr<tuple_type> args = std::move(this->args_);
+      call_with<functor_type, tuple_type>(this->target_, *args);
     }
 
   private:
@@ -104,7 +105,8 @@ namespace vds {
 
     void execute() override
     {
-      call_with<functor_type, tuple_type>(this->target_, *this->args_);
+      std::unique_ptr<tuple_type> args = std::move(this->args_);
+      call_with<functor_type, tuple_type>(this->target_, *args);
     }
 
   private:

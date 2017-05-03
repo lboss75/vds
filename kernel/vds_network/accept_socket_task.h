@@ -59,7 +59,7 @@ namespace vds {
       /*************************************************************/
       if (0 > ioctl(this->s_, FIONBIO, (char *)&on)) {
           auto error = errno;
-          throw new std::system_error(error, std::system_category());
+          throw std::system_error(error, std::system_category());
       }
 #endif
       //bind to address
@@ -72,12 +72,12 @@ namespace vds {
 #ifdef _WIN32
     if (SOCKET_ERROR == ::bind(this->s_, (struct sockaddr *)&addr, sizeof(addr))) {
         auto error = WSAGetLastError();
-        throw new std::system_error(error, std::system_category(), "bind");
+        throw std::system_error(error, std::system_category(), "bind");
     }
 
     if (SOCKET_ERROR == ::listen(this->s_, SOMAXCONN)) {
         auto error = WSAGetLastError();
-        throw new std::system_error(error, std::system_category(), "listen socket");
+        throw std::system_error(error, std::system_category(), "listen socket");
     }
 
     this->accept_event_.select(this->s_, FD_ACCEPT);
@@ -110,7 +110,7 @@ namespace vds {
     flags |= O_NONBLOCK;
     if (0 > fcntl(this->s_, F_SETFL, flags)) {
         auto error = errno;
-        throw new std::system_error(
+        throw std::system_error(
           error,
           std::system_category());
     }
@@ -127,6 +127,7 @@ namespace vds {
     this->network_service_->start_libevent_dispatch();*/
 #endif
 
+      static_cast<network_service *>(sp.get<inetwork_manager>())->register_server_socket(this->s_);
     }
     
     ~accept_socket_task()
@@ -146,14 +147,14 @@ namespace vds {
 #ifndef _WIN32
       if(nullptr == this->ev_accept_){
         this->ev_accept_ = event_new(
-          ((network_service &)sp.get<inetwork_manager>()).base_,
+          static_cast<network_service *>(sp.get<inetwork_manager>())->base_,
           this->s_,
           EV_READ,
           &accept_socket_task::wait_accept,
           this);
       }
       event_add(this->ev_accept_, NULL);
-      ((network_service &)sp.get<inetwork_manager>()).start_libevent_dispatch(this->sp_);
+      static_cast<network_service *>(sp.get<inetwork_manager>())->start_libevent_dispatch(sp);
 #else
       if (!this->wait_accept_task_.joinable()) {
         this->wait_accept_task_ = std::thread(
@@ -228,7 +229,7 @@ namespace vds {
         flags |= O_NONBLOCK;
         if (0 > fcntl(sock, F_SETFL, flags)) {
           auto error = errno;
-          throw new std::system_error(
+          throw std::system_error(
             error,
             std::system_category(),
             "fcntl");
@@ -247,7 +248,7 @@ namespace vds {
         auto sp = data->sp_.create_scope("Connection from " + network_service::to_string(client_addr));
         imt_service::async(sp, [sp, data, sock](){
           network_socket s(sock);
-          data->done_method_(sp, s);
+          data->done_method_(sp, &s);
         });
       }
       catch(...){

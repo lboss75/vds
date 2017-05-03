@@ -175,7 +175,7 @@ namespace vds {
         const udp_send & args
       ) : base_class(context), sp_(args.sp_)
 #ifndef _WIN32
-      , network_service_((network_service *)&args.sp_.get<inetwork_manager>())
+      , network_service_(static_cast<network_service *>(args.sp_.get<inetwork_manager>()))
 #endif
       {
         this->s_ = args.socket_.handle();
@@ -247,7 +247,7 @@ namespace vds {
       {
         auto pthis = reinterpret_cast<handler *>(arg);
         try {
-          logger::get(pthis->sp_).trace(pthis->sp_,
+          logger::get(pthis->sp_)->trace(pthis->sp_,
             "Send %d bytes to %s", pthis->data_size_, network_service::to_string(*pthis->to_).c_str());
           
           int len = sendto(fd, pthis->data_, pthis->data_size_, 0, (sockaddr *)pthis->to_, sizeof(*pthis->to_));
@@ -308,7 +308,7 @@ namespace vds {
         buffer_(this)
 #ifndef _WIN32
       , event_(nullptr)
-      , network_service_((network_service *)&args.sp_.get<inetwork_manager>())
+      , network_service_(static_cast<network_service *>(args.sp_.get<inetwork_manager>()))
 #endif
       {
         this->s_ = args.socket_.handle();

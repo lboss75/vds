@@ -59,6 +59,21 @@ void vds::network_service::start(const service_provider & provider)
 #endif
 }
 
+void vds::network_service::register_server_socket(vds::network_socket::SOCKET_HANDLE s)
+{
+  this->server_sockets_.push_back(s);
+}
+
+void vds::network_service::unregister_server_socket(vds::network_socket::SOCKET_HANDLE s)
+{
+  this->server_sockets_.erase(
+    std::remove(
+      this->server_sockets_.begin(), this->server_sockets_.end(), s),
+    this->server_sockets_.end());
+}
+
+
+
 #ifndef _WIN32
 void vds::network_service::start_libevent_dispatch(const service_provider & sp)
 {
@@ -83,6 +98,14 @@ void vds::network_service::stop(const service_provider & sp)
 {
     try {
       sp.get<logger>()->trace(sp, "Stopping network service");
+      
+      for(auto s : this->server_sockets_) {
+#ifdef _WIN32
+        closesocket(s);
+#else
+        shutdown(s, 2);
+#endif
+      }
         
 #ifndef _WIN32
         do{

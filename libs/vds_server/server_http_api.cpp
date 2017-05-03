@@ -81,7 +81,7 @@ vds::async_task<> vds::_server_http_api::start(
       sp.get<logger>()->debug(sp, "Start HTTP sever %s:%d", address.c_str(), port);
       dataflow(
         socket_server(sp, address, port),
-        vds::for_each<network_socket &>::create_handler(
+        vds::for_each<network_socket *>::create_handler(
           socket_session(*this->router_, certificate, private_key))
       )
       (done, on_error, sp);
@@ -103,8 +103,8 @@ vds::_server_http_api::socket_session::socket_session(
 
 vds::_server_http_api::socket_session::handler::handler(
   const socket_session & owner,
-  vds::network_socket & s)
-: s_(std::move(s)),
+  vds::network_socket * s)
+: s_(std::move(*s)),
   tunnel_(false, &owner.certificate_, &owner.private_key_),
   certificate_(owner.certificate_),
   private_key_(owner.private_key_),

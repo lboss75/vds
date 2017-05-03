@@ -118,7 +118,7 @@ namespace vds {
     {
       if(nullptr == this->event_) {
         this->event_ = event_new(
-          ((network_service &)sp.get<inetwork_manager>()).base_,
+          static_cast<network_service *>(sp.get<inetwork_manager>())->base_,
           this->s_,
           EV_WRITE,
           &write_socket_task::callback,
@@ -127,7 +127,7 @@ namespace vds {
       // Schedule client event
       event_add(this->event_, NULL);
       
-      ((network_service &)sp.get<inetwork_manager>()).start_libevent_dispatch(sp);
+      static_cast<network_service *>(sp.get<inetwork_manager>())->start_libevent_dispatch(sp);
     }
     static void callback(int fd, short event, void *arg)
     {
