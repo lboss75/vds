@@ -141,8 +141,8 @@ void mock_client::init_server(
           b.set();
         },
           [&b](const vds::service_provider & sp, std::exception_ptr ex) {
-          FAIL() << vds::exception_what(ex);
-          b.set();
+            b.set();
+            FAIL() << vds::exception_what(ex);
         }, sp);
     b.wait();
   }
