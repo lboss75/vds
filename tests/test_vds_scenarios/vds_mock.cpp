@@ -234,6 +234,7 @@ void mock_client::start_vds(bool full_client, const std::function<void(const vds
   root_folders->current_user_ = folder;
   root_folders->local_machine_ = folder;
   sp.set_property<vds::persistence_values>(vds::service_provider::property_scope::root_scope, root_folders);
+  registrator.start(sp);
 
   try {
     handler(sp);

@@ -93,6 +93,10 @@ namespace vds {
 
     void require_unknown_records(const service_provider & sp);
     bool process_timer_jobs(const service_provider & sp);
+
+    void ensure_record_exists(
+      const service_provider & sp,
+      const server_log_record::record_id & record_id);
   };
 
 }

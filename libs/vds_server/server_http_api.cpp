@@ -81,7 +81,7 @@ vds::async_task<> vds::_server_http_api::start(
       sp.get<logger>()->debug(sp, "Start HTTP sever %s:%d", address.c_str(), port);
       dataflow(
         socket_server(sp, address, port),
-        create_socket_session([this, args = socket_session(*this->router_, certificate, private_key)](const service_provider & sp, network_socket & s){
+        create_socket_session([args = socket_session(*router_, certificate, private_key)](const service_provider & sp, network_socket & s){
           (new socket_session::handler(args, s))->start(sp);
         })
       )

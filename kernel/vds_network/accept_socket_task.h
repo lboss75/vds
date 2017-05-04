@@ -190,7 +190,7 @@ namespace vds {
               if (INVALID_SOCKET != socket) {
                 static_cast<network_service *>(sp.get<inetwork_manager>())->associate(socket);
                 auto sp = this->sp_.create_scope("Connection from " + network_service::to_string(client_address));
-                this->done_method_(sp, network_socket(socket));
+                this->done_method_(sp, &network_socket(socket));
               }
             }
           }

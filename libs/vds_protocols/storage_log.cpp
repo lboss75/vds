@@ -114,6 +114,11 @@ void vds::istorage_log::apply_record(
     check_signature);
 }
 
+vds::server_log_record::record_id vds::istorage_log::get_last_applied_record(const service_provider & sp)
+{
+  return static_cast<_storage_log *>(this)->get_last_applied_record(sp);
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 vds::_storage_log::_storage_log()
 : local_log_index_(0),
@@ -320,6 +325,12 @@ void vds::_storage_log::apply_record(
   }
   
   sp.get<iserver_database>()->processed_record(sp, record.id());
+  this->last_applied_record_ = record.id();
+}
+
+vds::server_log_record::record_id vds::_storage_log::get_last_applied_record(const service_provider & sp)
+{
+  return this->last_applied_record_;
 }
 
 std::unique_ptr<vds::cert_record> vds::_storage_log::find_cert(

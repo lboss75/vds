@@ -24,10 +24,13 @@ TEST(test_vds, test_initial)
     std::unique_ptr<unsigned char> buffer(new unsigned char[len]);
     vds::crypto_service::rand_bytes(buffer.get(), (int)len);
 
+    //Waiting to sync logs
+    std::this_thread::sleep_for(std::chrono::seconds(60));
+
     mock.upload_file(3, "test data", buffer.get(), len);
     
     //Waiting to sync logs
-    std::this_thread::sleep_for(std::chrono::seconds(10));
+    std::this_thread::sleep_for(std::chrono::seconds(60));
 
     auto result = mock.download_data(4, "test data");
 

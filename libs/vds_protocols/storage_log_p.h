@@ -80,13 +80,16 @@ namespace vds {
       const const_data_buffer & signature,
       bool check_signature = true);
 
+    server_log_record::record_id get_last_applied_record(
+      const service_provider & sp);
+
   private:
     certificate server_certificate_;
     asymmetric_private_key current_server_key_;
 
     guid current_server_id_;
     foldername vds_folder_;
-
+    server_log_record::record_id last_applied_record_;
 
     bool is_empty_;
     size_t minimal_consensus_;

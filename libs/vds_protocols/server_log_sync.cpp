@@ -115,6 +115,15 @@ bool vds::_server_log_sync::process_timer_jobs(const service_provider & sp)
   return true;
 }
 
+void vds::_server_log_sync::ensure_record_exists(const service_provider & sp, const server_log_record::record_id & record_id)
+{
+  if (iserver_database::server_log_state::not_found == sp.get<iserver_database>()->get_record_state(sp, record_id)) {
+    std::list<server_log_record::record_id> unknown_records;
+    unknown_records.push_back(record_id);
+    sp.get<iconnection_manager>()->broadcast(sp, server_log_get_records_broadcast(unknown_records));
+  }
+}
+
 //////////////////////////////////////////////////
 const char vds::_server_log_sync::server_log_record_broadcast::message_type[] = "server log";
 const uint32_t vds::_server_log_sync::server_log_record_broadcast::message_type_id = (uint32_t)message_identification::server_log_record_broadcast_message_id;

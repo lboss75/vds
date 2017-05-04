@@ -72,6 +72,9 @@ void vds::timer::schedule(const vds::service_provider& sp)
   manager->scheduled_.push_back(this);
 
   if (!manager->work_thread_.joinable()) {
+    if (!manager->sp_) {
+      throw std::runtime_error("Invalid task_manager state");
+    }
     manager->work_thread_ = std::thread([manager]() {
       manager->work_thread();
     });

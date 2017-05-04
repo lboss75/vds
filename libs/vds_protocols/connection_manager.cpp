@@ -242,10 +242,13 @@ vds::async_task<> vds::_connection_manager::udp_server::input_message(
           msg.session_id(),
           server_certificate::server_id(cert));
 
+        auto last_record_id = sp.get<istorage_log>()->get_last_applied_record(sp);
         binary_serializer b;
         b
           << msg.session_id()
-          << session.session_id();
+          << session.session_id()
+          << last_record_id.source_id
+          << last_record_id.index;
 
         binary_serializer key_data;
         session.session_key().serialize(key_data);
@@ -327,8 +330,9 @@ vds::async_task<> vds::_connection_manager::udp_server::input_message(
           uint32_t in_session_id;
           uint32_t out_session_id;
 
+          server_log_record::record_id last_record_id;
           binary_deserializer s(data, size);
-          s >> out_session_id >> in_session_id;
+          s >> out_session_id >> in_session_id >> last_record_id.source_id >> last_record_id.index;
 
           std::lock_guard<std::mutex> lock_hello(this->hello_requests_mutex_);
           auto p = this->hello_requests_.find(out_session_id);
@@ -347,6 +351,7 @@ vds::async_task<> vds::_connection_manager::udp_server::input_message(
             this->hello_requests_.erase(p);
           }
 
+          sp.get<_server_log_sync>()->ensure_record_exists(sp, last_record_id);
           done(sp);
         },
             on_error,

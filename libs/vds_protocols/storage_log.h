@@ -6,6 +6,8 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
+#include "log_records.h"
+
 namespace vds {
   class _storage_log;
   class endpoint;
@@ -63,6 +65,9 @@ namespace vds {
       const server_log_record & record,
       const const_data_buffer & signature,
       bool check_signature = true);
+
+    server_log_record::record_id get_last_applied_record(
+      const service_provider & sp);
   };
 }
 

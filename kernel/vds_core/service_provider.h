@@ -63,6 +63,10 @@ namespace vds {
       this->set_property(scope, types::get_type_id<property_type>(), value);
     }
 
+    bool operator ! () const
+    {
+      return !this->impl_;
+    }
   private:
     friend class _service_provider;
     friend class _service_registrator;
