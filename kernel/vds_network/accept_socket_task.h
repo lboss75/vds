@@ -214,7 +214,7 @@ namespace vds {
       
       try {
         sockaddr_in client_addr;
-        socklen_t   len = 0;
+        socklen_t   len = sizeof(client_addr);
 
         // Accept incoming connection
         int sock = accept(fd, reinterpret_cast<sockaddr *>(&client_addr), &len);
