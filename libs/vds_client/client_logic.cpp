@@ -84,6 +84,8 @@ void vds::client_logic::process_response(
   client_connection<client_logic>& connection,
   const json_value * response)
 {
+  sp.get<logger>()->trace(sp, "Response %s", response->str().c_str());
+  
   auto tasks = dynamic_cast<const json_array *>(response);
   if (nullptr != tasks) {
     for (size_t i = 0; i < tasks->size(); ++i) {

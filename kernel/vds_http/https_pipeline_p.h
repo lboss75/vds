@@ -365,6 +365,7 @@ namespace vds {
 
         void run(const service_provider & sp, const std::string & body) override
         {
+          sp.get<logger>()->trace(sp, "Send message %s", body.c_str());
           outgoing_stream_.set_body(body);
           this->next(sp, &this->request_, &this->outgoing_stream_);
         }

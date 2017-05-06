@@ -128,7 +128,7 @@ namespace vds {
       this->handler_->connection_error(sp, *this, ex);
     }
     
-    void get_commands(const service_provider & sp)
+    void get_commands(const service_provider & sp) override
     {
       this->handler_->get_commands(sp, *this);
     }

@@ -28,6 +28,7 @@ void vds_mock::start(size_t server_count)
 
   for (size_t i = 0; i < server_count; ++i) {
     if(0 < i){
+      std::cout << "Initing server " << i << "\n";
       mock_client client(i);
       client.init_server(this->root_password_, "127.0.0.1", first_port + 1);
     }
@@ -35,11 +36,14 @@ void vds_mock::start(size_t server_count)
     std::unique_ptr<mock_server> server(new mock_server(i, first_port + 1));
     try {
       if (0 == i) {
+        std::cout << "Initing root\n";
         server->init_root(this->root_password_, first_port);
       }
+      std::cout << "Starring server " << i << "\n";
       server->start();
     }
     catch (...) {
+      std::cout << "Error...\n";
       try {
         server->stop();
       }

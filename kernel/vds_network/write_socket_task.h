@@ -132,6 +132,7 @@ namespace vds {
     static void callback(int fd, short event, void *arg)
     {
       auto pthis = reinterpret_cast<write_socket_task *>(arg);
+      logger::get(pthis->sp_)->trace(pthis->sp_, "write %d bytes", pthis->data_size_);
       try {
         int len = write(fd, pthis->data_, pthis->data_size_);
         if (len < 0) {

@@ -122,6 +122,7 @@ namespace vds {
             std::system_category());
         }
         
+        logger::get(pthis->sp_)->trace(pthis->sp_, "Receive %d bytes", len);
         imt_service::async(pthis->sp_, [pthis, len](){
             pthis->next_method_(pthis->sp_, pthis->buffer_, len);
           });

@@ -88,6 +88,7 @@ namespace vds {
         }
         else {
           this->create_session_(sp, *s);
+          this->prev(sp);
         }
       }
       
