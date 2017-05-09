@@ -20,7 +20,6 @@ All rights reserved
 #include "command_line.h"
 #include "filename.h"
 #include "foldername.h"
-#include "stream_to_string.h"
 #include "dataflow.h"
 #include "persistence.h"
 #include "encoding.h"

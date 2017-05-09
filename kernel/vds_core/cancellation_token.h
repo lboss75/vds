@@ -10,14 +10,33 @@ namespace vds {
   class cancellation_token_source;
   class _cancellation_token;
   
+  class cancellation_subscriber
+  {
+  public:
+    cancellation_subscriber();
+    
+    void destroy();
+    
+  private:
+    int index_;
+    std::shared_ptr<_cancellation_token> owner_;
+    
+    cancellation_subscriber(
+      int index,
+      const std::shared_ptr<_cancellation_token> & owner);
+    
+    friend class _cancellation_token;
+  };
+  
   class cancellation_token
   {
   public:
+    cancellation_token(cancellation_token && );
     ~cancellation_token();
     
     bool is_cancellation_requested() const;
     
-    void then_cancellation_requested(
+    cancellation_subscriber then_cancellation_requested(
       const std::function<void(void)> & callback);
     
   private:

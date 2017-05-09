@@ -26,7 +26,7 @@ namespace vds {
     >
     class handler : public dataflow_step<
       context_type,
-      void(
+      bool(
         http_request & request,
         http_incoming_stream & incoming_stream
       )
@@ -34,7 +34,7 @@ namespace vds {
     {
       using base_class = dataflow_step<
         context_type,
-        void(
+        bool(
           http_request & request,
           http_incoming_stream & incoming_stream
         )
@@ -50,13 +50,13 @@ namespace vds {
       }
     
       
-      void operator()(
+      bool operator()(
         const service_provider & sp,
         const void * data,
         size_t len
       ) {
         if (0 == len) {
-          this->next(
+          return this->next(
             sp,
             this->request_,
             this->incoming_stream_);
@@ -65,19 +65,44 @@ namespace vds {
           this->data_ = data;
           this->len_ = len;
 
-          this->processed(sp);
+          return this->continue_process(sp);
         }
       }
       
       void processed(const service_provider & sp)
+      {
+        if(this->continue_process(sp)){
+          this->prev();
+        }
+      }
+
+    private:
+      const void * data_;
+      size_t len_;
+
+      std::string parse_buffer_;
+      std::list<std::string> headers_;
+      
+      enum 
+      {
+        STATE_PARSE_HEADER,
+        STATE_PARSE_BODY
+      } state_;
+      
+      http_request request_;
+      http_incoming_stream incoming_stream_;
+      size_t content_length_;
+
+      service_provider sp_;
+
+      bool continue_process(const service_provider & sp)
       {
         while (0 < this->len_) {
           if (STATE_PARSE_HEADER == this->state_) {
             const char * p = (const char *)memchr(this->data_, '\n', this->len_);
             if (nullptr == p) {
               this->parse_buffer_ += std::string((const char *)this->data_, this->len_);
-              this->prev(sp);
-              return;
+              return true;
             }
 
             auto size = p - (const char *)this->data_;
@@ -93,7 +118,7 @@ namespace vds {
 
             if (0 == this->parse_buffer_.length()) {
               if (this->headers_.empty()) {
-                throw new std::logic_error("Invalid request");
+                throw std::logic_error("Invalid request");
               }
 
               auto request = *this->headers_.begin();
@@ -105,7 +130,7 @@ namespace vds {
                 if (isspace(ch)) {
                   ++index;
                   if (index > sizeof(items) / sizeof(items[0])) {
-                    throw new std::logic_error("Invalid request");
+                    throw std::logic_error("Invalid request");
                   }
                 }
                 else {
@@ -114,7 +139,7 @@ namespace vds {
               }
 
               if (index < 1) {
-                throw new std::logic_error("Invalid request");
+                throw std::logic_error("Invalid request");
               }
 
               this->headers_.pop_front();
@@ -153,13 +178,14 @@ namespace vds {
               }
 
               auto sp = this->sp_.create_scope("HTTP Request");
-              this->next(
+              if(!this->next(
                 sp,
                 this->request_,
                 this->incoming_stream_
-              );
-
-              return;
+              )){
+                return false;
+              }
+              continue;
             }
             else {
               this->headers_.push_back(this->parse_buffer_);
@@ -187,32 +213,13 @@ namespace vds {
               }
 
               this->incoming_stream_.push_data(sp, p, size);
-              return;
+              return false;
             }
           }
         }
 
-        this->prev(sp);
+        return true;
       }
-
-    private:
-      const void * data_;
-      size_t len_;
-
-      std::string parse_buffer_;
-      std::list<std::string> headers_;
-      
-      enum 
-      {
-        STATE_PARSE_HEADER,
-        STATE_PARSE_BODY
-      } state_;
-      
-      http_request request_;
-      http_incoming_stream incoming_stream_;
-      size_t content_length_;
-
-      service_provider sp_;
     };
     private:
       service_provider sp_;

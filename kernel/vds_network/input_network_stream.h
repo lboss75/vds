@@ -21,9 +21,9 @@ namespace vds {
     }
     
     template <typename context_type>
-    class handler : public dataflow_step<context_type, void(const void * data, size_t len)>
+    class handler : public dataflow_step<context_type, bool(const void * data, size_t len)>
     {
-      using base = dataflow_step<context_type, void(const void * data, size_t len)>;
+      using base = dataflow_step<context_type, bool(const void * data, size_t len)>;
     public:
       handler(
         const context_type & context,
@@ -33,8 +33,9 @@ namespace vds {
       {
       }
       
-      void operator()(const service_provider & sp) {
-        this->processed(sp);        
+      bool operator()(const service_provider & sp) {
+        this->processed(sp);
+        return false;        
       }
 
       void processed(const service_provider & sp) {

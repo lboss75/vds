@@ -21,11 +21,11 @@ namespace vds {
     }
     
     template <typename context_type>
-    class handler : public dataflow_step<context_type, void(
+    class handler : public dataflow_step<context_type, bool(
       http_response & response,
       http_outgoing_stream & response_stream)>
     {
-      using base_class = dataflow_step<context_type, void(
+      using base_class = dataflow_step<context_type, bool(
         http_response & response,
         http_outgoing_stream & response_stream)>;
     public:
@@ -38,7 +38,7 @@ namespace vds {
       {
       }
       
-      void operator()(const service_provider & sp, json_value * value)
+      bool operator()(const service_provider & sp, json_value * value)
       {
         if(nullptr != value){
           this->response_.set_result(
@@ -52,7 +52,7 @@ namespace vds {
         else {
           this->response_.clear();
         }
-        this->next(
+        return this->next(
           sp,
           this->response_,
           this->response_stream_);

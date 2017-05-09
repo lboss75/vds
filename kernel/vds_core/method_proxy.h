@@ -14,8 +14,9 @@ namespace vds {
 
   template <
     typename method_type,
+    typename result_type,
     typename... arg_types>
-  class method_proxy<method_type, void(arg_types...)>
+  class method_proxy<method_type, result_type(arg_types...)>
   {
   public:
     method_proxy(const method_proxy&) = delete;
@@ -28,10 +29,10 @@ namespace vds {
     {
     }
 
-    void operator()(arg_types... args)
+    result_type operator()(arg_types... args)
     {
       this->method_.check_alive();
-      this->method_(std::forward<arg_types>(args)...);
+      return this->method_(std::forward<arg_types>(args)...);
     }
     
     void check_alive() const

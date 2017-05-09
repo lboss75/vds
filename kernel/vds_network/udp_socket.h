@@ -108,9 +108,9 @@ namespace vds {
 
     template <typename context_type>
     class handler
-      : public dataflow_step<context_type, void(void)>
+      : public dataflow_step<context_type, bool(void)>
     {
-      using base_class = dataflow_step<context_type, void(void)>;
+      using base_class = dataflow_step<context_type, bool(void)>;
     public:
       handler(
         const context_type & context,
@@ -135,9 +135,9 @@ namespace vds {
         }
       }
 
-      void operator()(const service_provider & sp)
+      bool operator()(const service_provider & sp)
       {
-        this->next(sp);
+        return this->next(sp);
       }
 
 
@@ -165,10 +165,10 @@ namespace vds {
 
     template <typename context_type>
     class handler
-      : public dataflow_step<context_type, void(void)>,
+      : public dataflow_step<context_type, bool(void)>,
       public socket_task
     {
-      using base_class = dataflow_step<context_type, void(void)>;
+      using base_class = dataflow_step<context_type, bool(void)>;
     public:
       handler(
         const context_type & context,
@@ -181,11 +181,10 @@ namespace vds {
         this->s_ = args.socket_.handle();
       }
 
-      void operator()(const service_provider & sp, const sockaddr_in * to, const void * data, size_t len)
+      bool operator()(const service_provider & sp, const sockaddr_in * to, const void * data, size_t len)
       {
         if(0 == len){
-          this->next(sp);
-          return;
+          return this->next(sp);
         }
         
 #ifdef _WIN32
@@ -195,7 +194,7 @@ namespace vds {
         if (NOERROR != WSASendTo(this->s_, &this->wsa_buf_, 1, NULL, 0, (const sockaddr *)to, sizeof(*to), &this->overlapped_, NULL)) {
           auto errorCode = WSAGetLastError();
           if (WSA_IO_PENDING != errorCode) {
-            throw new std::system_error(errorCode, std::system_category(), "WSASend failed");
+            throw std::system_error(errorCode, std::system_category(), "WSASend failed");
           }
         }
 #else
@@ -216,6 +215,7 @@ namespace vds {
         
         this->network_service_->start_libevent_dispatch(this->sp_);
 #endif
+        return false;
       }
 #ifdef _WIN32
       void process(DWORD dwBytesTransfered) override
@@ -293,12 +293,12 @@ namespace vds {
 
     template <typename context_type>
     class handler
-      : public dataflow_step<context_type, void(const sockaddr_in * from, const void * data, size_t len)>
+      : public dataflow_step<context_type, bool(const sockaddr_in * from, const void * data, size_t len)>
 #ifdef _WIN32
       , public socket_task
 #endif
     {
-      using base_class = dataflow_step<context_type, void(const sockaddr_in * from, const void * data, size_t len)>;
+      using base_class = dataflow_step<context_type, bool(const sockaddr_in * from, const void * data, size_t len)>;
     public:
       handler(
         const context_type & context,
@@ -314,9 +314,10 @@ namespace vds {
         this->s_ = args.socket_.handle();
       }
 
-      void operator()(const service_provider & sp)
+      bool operator()(const service_provider & sp)
       {
         this->buffer_.start(sp);
+        return false;
       }
 
       void processed(const service_provider & sp)
@@ -351,7 +352,7 @@ namespace vds {
             &this->overlapped_, NULL)) {
             auto errorCode = WSAGetLastError();
             if (WSA_IO_PENDING != errorCode) {
-              throw new std::system_error(errorCode, std::system_category(), "WSARecvFrom failed");
+              throw std::system_error(errorCode, std::system_category(), "WSARecvFrom failed");
             }
           }
 #else
@@ -456,9 +457,9 @@ private:
     }
     
     template <typename context_type>
-    class handler : public dataflow_step<context_type, void(void)>
+    class handler : public dataflow_step<context_type, bool(void)>
     {
-      using base_class = dataflow_step<context_type, void(void)>;
+      using base_class = dataflow_step<context_type, bool(void)>;
     public:
       handler(
         const context_type & context,
@@ -474,7 +475,7 @@ private:
       {
       }
       
-      void operator()(const service_provider & sp)
+      bool operator()(const service_provider & sp)
       {
         dataflow(
           udp_receive(sp, this->s_),
@@ -493,6 +494,8 @@ private:
           this->multi_handler_.on_error(),
           sp
         );
+        
+        return false;
       }
       
     private:
@@ -503,9 +506,9 @@ private:
     };
     
     template <typename context_type>
-    class write_handler : public dataflow_step<context_type, void(void)>
+    class write_handler : public dataflow_step<context_type, bool(void)>
     {
-      using base_class = dataflow_step<context_type, void(void)>;
+      using base_class = dataflow_step<context_type, bool(void)>;
     public:
       write_handler(
         const context_type & context,
@@ -515,10 +518,10 @@ private:
       {
       }
 
-      void operator()(const service_provider & sp, const sockaddr_in * from, const void * data, size_t len)
+      bool operator()(const service_provider & sp, const sockaddr_in * from, const void * data, size_t len)
       {
         if (0 == len) {
-          this->next(sp);
+          return this->next(sp);
         }
         else {
           auto scope = sp.create_scope("UDP message from " + network_service::to_string(*from));
@@ -528,6 +531,7 @@ private:
               [this](const service_provider & sp) { this->prev(sp); },
               [this](const service_provider & sp, std::exception_ptr ex) { this->error(sp, ex); },
               scope);
+          return false;
         }
       }
 
@@ -536,9 +540,9 @@ private:
     };
 
     template <typename context_type>
-    class read_handler : public dataflow_step<context_type, void(const sockaddr_in * from, const void * data, size_t len)>
+    class read_handler : public dataflow_step<context_type, bool(const sockaddr_in * from, const void * data, size_t len)>
     {
-      using base_class = dataflow_step<context_type, void(const sockaddr_in * from, const void * data, size_t len)>;
+      using base_class = dataflow_step<context_type, bool(const sockaddr_in * from, const void * data, size_t len)>;
     public:
       read_handler(
         const context_type & context,
@@ -551,9 +555,10 @@ private:
       {
       }
 
-      void operator()(const service_provider & sp)
+      bool operator()(const service_provider & sp)
       {
         this->owner_.get_message(this->sp_, this->handler_);
+        return false;
       }
 
     private:

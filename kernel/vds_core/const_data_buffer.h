@@ -108,11 +108,16 @@ namespace vds{
     collect_data()
     {
     }
+    
+    using incoming_item_type = uint8_t;
+    using outgoint_item_type = uint8_t;
+    static const size_t buffer_size = 1024;
+    static const size_t min_buffer_size = 1;
 
     template <typename context_type>
-    class handler : public dataflow_step<context_type, void(const void *, size_t)>
+    class handler : public dataflow_target<context_type>
     {
-      using base_class = dataflow_step<context_type, void(const void *, size_t)>;
+      using base_class = dataflow_target<context_type>;
 
     public:
       handler(
@@ -122,16 +127,18 @@ namespace vds{
       {
       }
 
-      void operator ()(const service_provider & sp, const void * data, size_t len)
+      bool operator ()(const service_provider & sp, const void * data, size_t len)
       {
         if (0 == len) {
-          this->next(sp, this->buffer_.data(), this->buffer_.size());
+          if(this->next(sp, this->buffer_.data(), this->buffer_.size())){
+            throw std::logic_error("Invalid logic");
+          }
         }
         else {
           this->buffer_.insert(this->buffer_.end(),
             reinterpret_cast<const uint8_t *>(data),
             reinterpret_cast<const uint8_t *>(data) + len);
-          this->prev(sp);
+          return true;
         }
       }
 

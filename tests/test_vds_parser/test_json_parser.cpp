@@ -41,9 +41,9 @@ class test_json_parser_validate
 public:
 
   template<typename context_type>
-  class handler : public vds::dataflow_step<context_type, void(void)>
+  class handler : public vds::dataflow_step<context_type, bool(void)>
   {
-    using base_class = vds::dataflow_step<context_type, void(void)>;
+    using base_class = vds::dataflow_step<context_type, bool(void)>;
   public:
     handler(
       const context_type & context,
@@ -52,10 +52,12 @@ public:
     {
     }
 
-    void operator()(const vds::service_provider & sp, vds::json_value * root)
+    bool operator()(const vds::service_provider & sp, vds::json_value * root)
     {
       auto root_object = dynamic_cast<vds::json_object *>(root);
-      ASSERT_NE(nullptr, root_object);
+      if(nullptr == root_object) {
+        throw std::runtime_error("Test test");
+      }
 
       int prop_count = 0;
       root_object->visit(
@@ -91,9 +93,12 @@ public:
       }
       );
 
-      ASSERT_EQ(1, prop_count);
+      if(1 != prop_count){
+        throw std::runtime_error("test failed");
+      }
 
       //this->prev();
+      return true;
     }
   };
 };

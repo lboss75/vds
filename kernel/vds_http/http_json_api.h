@@ -19,9 +19,9 @@ namespace vds {
     }
     
     template <typename context_type>
-    class handler : public dataflow_step<context_type, void (json_value * response)>
+    class handler : public dataflow_step<context_type, bool (json_value * response)>
     {
-      using base_class = dataflow_step<context_type, void (json_value * response)>;
+      using base_class = dataflow_step<context_type, bool (json_value * response)>;
     public:
       handler(
         const context_type & context,
@@ -33,7 +33,7 @@ namespace vds {
       {        
       }
       
-      void operator()(const service_provider & sp, json_value * request)
+      bool operator()(const service_provider & sp, json_value * request)
       {
         try
         {
@@ -48,7 +48,7 @@ namespace vds {
           this->response_.reset(response);
         }
         
-        this->next(sp, this->response_.get());
+        return this->next(sp, this->response_.get());
       }
       
     private:

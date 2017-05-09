@@ -23,9 +23,9 @@ namespace vds {
     }
     
     template <typename context_type>
-    class handler : public dataflow_step<context_type, void(network_socket *)>
+    class handler : public dataflow_step<context_type, bool(network_socket *)>
     {
-      using base_class = dataflow_step<context_type, void(network_socket *)>;
+      using base_class = dataflow_step<context_type, bool(network_socket *)>;
     public:
       handler(
         const context_type & context,
@@ -40,8 +40,9 @@ namespace vds {
       {
       }
       
-      void operator()(const service_provider & sp) {
-        this->task_.schedule(sp);        
+      bool operator()(const service_provider & sp) {
+        this->task_.schedule(sp);
+        return false;        
       }
       
       void processed(const service_provider & sp){
@@ -69,9 +70,9 @@ namespace vds {
     }
     
     template <typename context_type>
-    class handler : public dataflow_step<context_type, void(void)>
+    class handler : public dataflow_step<context_type, bool(void)>
     {
-      using base_class = dataflow_step<context_type, void(void)>;
+      using base_class = dataflow_step<context_type, bool(void)>;
     public:
       handler(
         const context_type & context,
@@ -81,14 +82,16 @@ namespace vds {
       {
       }
       
-      void operator()(const service_provider & sp, network_socket * s)
+      bool operator()(
+        const service_provider & sp,
+        network_socket * s)
       {
         if(nullptr == s){
-          this->next(sp);
+          return this->next(sp);
         }
         else {
           this->create_session_(sp, *s);
-          this->prev(sp);
+          return true;
         }
       }
       

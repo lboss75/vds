@@ -19,9 +19,9 @@ namespace vds {
     }
     
     template <typename context_type>
-    class handler : public dataflow_step<context_type, void(void)>
+    class handler : public dataflow_step<context_type, bool(void)>
     {
-      using base_class = dataflow_step<context_type, void(void)>;
+      using base_class = dataflow_step<context_type, bool(void)>;
     public:
       handler(
         const context_type & context,
@@ -32,17 +32,18 @@ namespace vds {
       {
       }
       
-      void operator()(
+      bool operator()(
         const service_provider & sp,
         const void * data,
         size_t len
       ) {
         if(0 == len) {
-          this->next(sp);
+          return this->next(sp);
         }
         else {
           this->task_.set_data(data, len);
           this->task_.schedule(sp, this->s_);
+          return false;
         }          
       }
       

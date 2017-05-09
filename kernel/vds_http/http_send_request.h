@@ -26,9 +26,9 @@ namespace vds {
     }
 
     template<typename context_type>
-    class handler : public dataflow_step<context_type, void(const std::string &)>
+    class handler : public dataflow_step<context_type, bool(const std::string &)>
     {
-      using base_class = dataflow_step<context_type, void(const std::string &)>;
+      using base_class = dataflow_step<context_type, bool(const std::string &)>;
     public:
       handler(
         const context_type & context,
@@ -45,7 +45,7 @@ namespace vds {
         std::cout << "http_send_request::handler::~handler\n";
       }
 
-      void operator()(const service_provider & sp, const network_socket & s)
+      bool operator()(const service_provider & sp, const network_socket & s)
       {
         dataflow(
           http_request_serializer(),
@@ -68,6 +68,8 @@ namespace vds {
           this->error,
           sp
         );
+        
+        return false;
       }
 
     private:

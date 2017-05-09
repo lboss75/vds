@@ -17,9 +17,9 @@ namespace vds {
     inflate();
 
     template <typename context_type>
-    class handler : public dataflow_step<context_type, void(const void *, size_t)>
+    class handler : public dataflow_step<context_type, bool(const void *, size_t)>
     {
-      using base_class = dataflow_step<context_type, void(const void *, size_t)>;
+      using base_class = dataflow_step<context_type, bool(const void *, size_t)>;
     public:
       handler(
         const context_type & context,
@@ -28,32 +28,55 @@ namespace vds {
       {
       }
 
-      void operator()(const service_provider & sp, const void * data, size_t len) {
+      bool operator()(const service_provider & sp, const void * data, size_t len) {
         const void * to_push;
         size_t to_push_len;
         if (!push_data(this->handler_, data, len, to_push, to_push_len)) {
-          this->prev(sp);
+          return true;
         }
         else {
-          this->next(
+          if(this->next(
             sp,
             to_push,
-            to_push_len);
+            to_push_len)){
+            return true;
+          }
+          
+          for(;;){
+            const void * to_push;
+            size_t to_push_len;
+            if (!data_processed(this->handler_, to_push, to_push_len)) {
+              return true;
+            }
+            else {
+              if(!this->next(
+                sp,
+                to_push,
+                to_push_len)){
+                return false;
+              }
+            }
+          }
         }
       }
 
       void processed(const service_provider & sp)
       {
-        const void * to_push;
-        size_t to_push_len;
-        if (!data_processed(this->handler_, to_push, to_push_len)) {
-          this->prev(sp);
-        }
-        else {
-          this->next(
-            sp,
-            to_push,
-            to_push_len);
+        for(;;){
+          const void * to_push;
+          size_t to_push_len;
+          if (!data_processed(this->handler_, to_push, to_push_len)) {
+            this->prev(sp);
+            return;
+          }
+          else {
+            if(!this->next(
+              sp,
+              to_push,
+              to_push_len)){
+              return;
+            }
+          }
         }
       }
 

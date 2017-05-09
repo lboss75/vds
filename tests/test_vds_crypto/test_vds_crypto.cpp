@@ -7,9 +7,9 @@ All rights reserved
 #include "test_vds_crypto.h"
 
 template <typename context_type>
-class random_reader : public vds::dataflow_step<context_type, void(const void *, size_t)>
+class random_reader : public vds::dataflow_step<context_type, bool(const void *, size_t)>
 {
-  using base_class = vds::dataflow_step<context_type, void(const void *, size_t)>;
+  using base_class = vds::dataflow_step<context_type, bool(const void *, size_t)>;
 public:
   random_reader(
     const context_type & context,
@@ -21,48 +21,61 @@ public:
   {
   }
 
-  void operator()(const vds::service_provider & sp)
+  bool operator()(const vds::service_provider & sp)
   {
-    this->processed(sp);
+    return this->continue_process(sp);
   }
 
   void processed(const vds::service_provider & sp)
   {
-    if (0 == this->len_) {
-      this->next(sp, nullptr, 0);
-      return;
-    }
-
+    if(this->continue_process(sp)){
+      this->prev(sp);
+    }    
+  }
+  
+private:
+  bool continue_process(const vds::service_provider & sp)
+  {
     for(;;){
-      size_t n = (size_t)std::rand();
-      if (n < 1) {
-        continue;
+      if (0 == this->len_) {
+        if(this->next(sp, nullptr, 0)){
+          continue;
+        }
+        return false;
       }
 
-      if (n > this->len_) {
-        n = this->len_;
+      for(;;){
+        size_t n = (size_t)std::rand();
+        if (n < 1) {
+          continue;
+        }
+
+        if (n > this->len_) {
+          n = this->len_;
+        }
+
+        auto p = this->data_;
+
+        this->data_ += n;
+        this->len_ -= n;
+
+        if(this->next(sp, p, n)){
+          break;
+        }
+
+        return false;
       }
-
-      auto p = this->data_;
-
-      this->data_ += n;
-      this->len_ -= n;
-
-      this->next(sp, p, n);
-
-      break;
     }
   }
 
-private:
   const uint8_t * data_;
   size_t len_;
 };
 
 template <typename context_type>
-class compare_data : public vds::dataflow_step<context_type, void()>
+class compare_data : public vds::dataflow_step<context_type, bool(void)>
 {
-  using base_class = vds::dataflow_step<context_type, void()>;
+  using base_class = vds::dataflow_step<context_type, bool(void)>;
 public:
   compare_data(
     const context_type & context,
@@ -74,11 +87,13 @@ public:
   {
   }
 
-  void operator()(const vds::service_provider & sp, const void * data, size_t len)
+  bool operator()(const vds::service_provider & sp, const void * data, size_t len)
   {
     if (0 == len) {
-      ASSERT_EQ(this->len_, 0);
-      this->next(sp);
+      if(0 != this->len_){
+        throw std::runtime_error("compare_data error");
+      }
+      return this->next(sp);
     }
 
     const uint8_t * p = reinterpret_cast<const uint8_t *>(data);
@@ -87,7 +102,10 @@ public:
       if (l > this->len_) {
         l = this->len_;
       }
-      ASSERT_EQ(memcmp(this->data_, p, l), 0);
+      
+      if(0 != memcmp(this->data_, p, l)){
+        throw std::runtime_error("compare_data error");
+      }
 
       p += l;
       len -= l;
@@ -95,6 +113,8 @@ public:
       this->data_ += l;
       this->len_ -= l;
     }
+    
+    return false;
   }
 
 private:

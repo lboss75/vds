@@ -96,10 +96,10 @@ namespace vds {
 
     template < typename context_type >
     class handler
-      : public dataflow_step<context_type, void(const void *, size_t)>,
+      : public dataflow_step<context_type, bool(const void *, size_t)>,
         public ssl_tunnel::issl_input_stream
     {
-      using base_class = dataflow_step<context_type, void(const void *, size_t)>;
+      using base_class = dataflow_step<context_type, bool(const void *, size_t)>;
     public:
       handler(
         const context_type & context,
@@ -111,7 +111,7 @@ namespace vds {
       void input_done(const service_provider & sp) override;
       void decoded_output_done(const service_provider & sp, size_t len) override;
 
-      void operator()(const service_provider & sp, const void * data, size_t len);
+      bool operator()(const service_provider & sp, const void * data, size_t len);
       void processed(const service_provider & sp);
 
     private:
@@ -132,10 +132,10 @@ namespace vds {
 
     template < typename context_type >
     class handler
-      : public dataflow_step<context_type, void(const void *, size_t)>,
+      : public dataflow_step<context_type, bool(const void *, size_t)>,
         public ssl_tunnel::issl_output_stream
     {
-      using base_class = dataflow_step<context_type, void(const void *, size_t)>;
+      using base_class = dataflow_step<context_type, bool(const void *, size_t)>;
     public:
       handler(
         const context_type & context,
@@ -147,7 +147,7 @@ namespace vds {
       void decoded_input_done(const service_provider & sp) override;
       void output_done(const service_provider & sp, size_t len) override;
 
-      void operator()(const service_provider & sp, const void * data, size_t len);
+      bool operator()(const service_provider & sp, const void * data, size_t len);
       void processed(const service_provider & sp);
 
     private:
@@ -198,16 +198,17 @@ namespace vds {
   }
 
   template<typename context_type>
-  inline void ssl_input_stream::handler<context_type>::operator()(
+  inline bool ssl_input_stream::handler<context_type>::operator()(
     const service_provider & sp,
     const void * data,
     size_t len)
   {
     if (0 == len) {
-      this->next(sp, nullptr, 0);
+      return this->next(sp, nullptr, 0);
     }
     else {
       this->tunnel_.write_input(sp, data, len);
+      return false;
     }
   }
 
@@ -245,13 +246,14 @@ namespace vds {
   }
 
   template<typename context_type>
-  inline void ssl_output_stream::handler<context_type>::operator()(const service_provider & sp, const void * data, size_t len)
+  inline bool ssl_output_stream::handler<context_type>::operator()(const service_provider & sp, const void * data, size_t len)
   {
     if (0 == len) {
-      this->next(sp, nullptr, 0);
+      return this->next(sp, nullptr, 0);
     }
     else {
       this->tunnel_.write_decoded_output(sp, data, len);
+      return false;
     }
   }
 

@@ -119,9 +119,9 @@ namespace vds {
     };
     
     template<typename context_type>
-    class generate_replicas : public dataflow_step<context_type, void(void)>
+    class generate_replicas : public dataflow_step<context_type, bool(void)>
     {
-      using base_class = dataflow_step<context_type, void(void)>;
+      using base_class = dataflow_step<context_type, bool(void)>;
     public:
       generate_replicas(
         const context_type & context,
@@ -138,16 +138,16 @@ namespace vds {
         }
       }
       
-      void operator()(const void * data, size_t len)
+      bool operator()(const void * data, size_t len)
       {
         for(auto& p : this->generators_){
           p->write(data, len);
         }
         if(0 == len){
-          this->next();
+          return this->next();
         }
         else {
-          this->prev();
+          return true;
         }
       }
       

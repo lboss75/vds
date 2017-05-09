@@ -19,7 +19,7 @@ namespace vds {
     >
     class handler : public dataflow_step<
         context_type,
-        void (
+        bool (
           const void * data,
           size_t len
         )
@@ -27,7 +27,7 @@ namespace vds {
     {
       using base_class = dataflow_step<
         context_type,
-        void (
+        bool (
           const void * data,
           size_t len
         )
@@ -40,14 +40,14 @@ namespace vds {
       {
       }
 
-      void operator()(
+      bool operator()(
         const service_provider & sp,
         http_request * request,
         http_outgoing_stream * outgoing_stream
         )
       {
         if (nullptr == request || request->empty()) {
-          this->next(sp, nullptr, 0);
+          return this->next(sp, nullptr, 0);
         }
         else {
           std::stringstream stream;
@@ -64,7 +64,7 @@ namespace vds {
 
           this->header_ = stream.str();
 
-          this->next(
+          return this->next(
             sp,
             this->header_.c_str(),
             this->header_.size());

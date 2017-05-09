@@ -19,9 +19,9 @@ namespace vds {
     template<
       typename context_type
     >
-      class handler : public dataflow_step<context_type, void(const std::string &)>
+      class handler : public dataflow_step<context_type, bool(const std::string &)>
     {
-      using base_class = dataflow_step<context_type, void(const std::string &)>;
+      using base_class = dataflow_step<context_type, bool(const std::string &)>;
     public:
       handler(
         const context_type & context,
@@ -34,15 +34,14 @@ namespace vds {
       {
       }
 
-      void operator()(
+      bool operator()(
         const service_provider & sp,
         http_response * response,
         http_incoming_stream * response_stream
         )
       {
         if(nullptr == response){
-          this->next(sp, std::string());
-          return;
+          return this->next(sp, std::string());
         }
         
         if(http_response::HTTP_OK == response->code()){
@@ -53,11 +52,18 @@ namespace vds {
             stream_to_string()
           )
           (
-           this->next,
+            [this](const service_provider & sp, const std::string & value){
+              if(this->next(sp, value)){
+                this->prev(sp);
+              }
+            },
            this->error,
            sp
           );
+          
+          return false;
         }
+        return true;
       }
     private:
     };    

@@ -56,9 +56,9 @@ namespace vds {
         _https_pipeline * owner);
 
       template <typename context_type>
-      class handler : public dataflow_step<context_type, void(void)>
+      class handler : public dataflow_step<context_type, bool(void)>
       {
-        using base_class = dataflow_step<context_type, void(void)>;
+        using base_class = dataflow_step<context_type, bool(void)>;
       public:
         handler(
           const context_type & context,
@@ -72,7 +72,7 @@ namespace vds {
         {
         }
 
-        void operator()(const service_provider & sp, network_socket & s)
+        bool operator()(const service_provider & sp, network_socket & s)
         {
           this->owner_->owner_->on_connected(sp);
           
@@ -98,6 +98,8 @@ namespace vds {
             this->done_handler_,
             this->error_handler_,
             sp);
+          
+          return false;
         }
 
       private:
@@ -180,9 +182,9 @@ namespace vds {
       }
 
       template <typename context_type>
-      class handler : public dataflow_step<context_type, void(void)>
+      class handler : public dataflow_step<context_type, bool(void)>
       {
-        using base_class = dataflow_step<context_type, void(void)>;
+        using base_class = dataflow_step<context_type, bool(void)>;
       public:
         handler(
           const context_type & context,
@@ -193,13 +195,13 @@ namespace vds {
         {
         }
 
-        void operator()(const service_provider & sp, json_value * response)
+        bool operator()(const service_provider & sp, json_value * response)
         {
           if (nullptr == response) {
-            this->next(sp);
+            return this->next(sp);
           }
           else {
-            this->owner_->owner_->on_response(sp, response);
+            return this->owner_->owner_->on_response(sp, response);
           }
 
           //auto cert = this->tunnel_.get_tunnel_certificate();
@@ -224,9 +226,9 @@ namespace vds {
       }
 
       template <typename context_type>
-      class handler : public dataflow_step<context_type, void(void)>
+      class handler : public dataflow_step<context_type, bool(void)>
       {
-        using base_class = dataflow_step<context_type, void(void)>;
+        using base_class = dataflow_step<context_type, bool(void)>;
       public:
         handler(
           const context_type & context,
@@ -237,11 +239,13 @@ namespace vds {
         {
         }
 
-        void operator()(const service_provider & sp, const void * data, size_t len)
+        bool operator()(const service_provider & sp, const void * data, size_t len)
         {
           if (0 == len) {
             this->next(sp);
           }
+          
+          return true;
         }
       private:
         _https_pipeline * owner_;
@@ -262,9 +266,9 @@ namespace vds {
       }
 
       template <typename context_type>
-      class handler : public dataflow_step<context_type, void(void)>
+      class handler : public dataflow_step<context_type, bool(void)>
       {
-        using base_class = dataflow_step<context_type, void(void)>;
+        using base_class = dataflow_step<context_type, bool(void)>;
       public:
         handler(
           const context_type & context,
@@ -275,14 +279,13 @@ namespace vds {
         {
         }
 
-        void operator()(
+        bool operator()(
           const service_provider & sp,
           http_response * response,
           http_incoming_stream * incoming_stream)
         {
           if(nullptr == response){
-            this->next(sp);
-            return;
+            return this->next(sp);
           }
           
           std::string content_type;
@@ -309,6 +312,8 @@ namespace vds {
               this->error,
               sp);
           }
+          
+          return false;
         }
       private:
         _https_pipeline * owner_;
@@ -334,10 +339,10 @@ namespace vds {
 
       template <typename context_type>
       class handler
-        : public dataflow_step<context_type, void(http_request * request, http_outgoing_stream * outgoing_stream)>,
+        : public dataflow_step<context_type, bool(http_request * request, http_outgoing_stream * outgoing_stream)>,
           public ioutput_command_stream
       {
-        using base_class = dataflow_step<context_type, void(http_request * request, http_outgoing_stream * outgoing_stream)>;
+        using base_class = dataflow_step<context_type, bool(http_request * request, http_outgoing_stream * outgoing_stream)>;
       public:
         handler(
           const context_type & context,
@@ -353,9 +358,10 @@ namespace vds {
         {
         }
 
-        void operator()(const service_provider & sp)
+        bool operator()(const service_provider & sp)
         {
           this->processed(sp);
+          return false;
         }
 
         void processed(const service_provider & sp)

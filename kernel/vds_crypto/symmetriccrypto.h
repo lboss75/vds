@@ -75,9 +75,9 @@ namespace vds {
       const symmetric_key & key);
 
     template <typename context_type>
-    class handler : public dataflow_step<context_type, void(const void *, size_t)>
+    class handler : public dataflow_step<context_type, bool(const void *, size_t)>
     {
-      using base_class = dataflow_step<context_type, void(const void *, size_t)>;
+      using base_class = dataflow_step<context_type, bool(const void *, size_t)>;
     public:
       handler(
         const context_type & context,
@@ -87,30 +87,49 @@ namespace vds {
       {
       }
 
-      void operator()(const service_provider & sp, const void * data, size_t size)
+      bool operator()(const service_provider & sp, const void * data, size_t size)
       {
         size_t out_size = sizeof(this->buffer);
         if (data_update(this->impl_, data, size, this->buffer, out_size))
         {
-          this->next(sp, this->buffer, out_size);
+          if(this->next(sp, this->buffer, out_size)){
+            for(;;){
+              out_size = sizeof(this->buffer);
+              if (data_processed(this->impl_, this->buffer, out_size))
+              {
+                if(!this->next(sp, this->buffer, out_size)){
+                  break;
+                }
+              }
+              else
+              {
+                return true;
+              }
+            }
+          }
+          
+          return false;
         }
         else
         {
-          this->prev(sp);
+          return true;
         }
       }
 
       void processed(const service_provider & sp)
       {
-        size_t out_size = sizeof(this->buffer);
-        if (data_processed(this->impl_, this->buffer, out_size))
-        {
-          this->next(sp, this->buffer, out_size);
+        for(;;){
+          size_t out_size = sizeof(this->buffer);
+          if (!data_processed(this->impl_, this->buffer, out_size)){
+            break;
+          }
+          
+          if(!this->next(sp, this->buffer, out_size)){
+            return;
+          }
         }
-        else
-        {
-          this->prev(sp);
-        }
+        
+        this->prev(sp);
       }
 
     private:
@@ -143,9 +162,9 @@ namespace vds {
 
 
     template <typename context_type>
-    class handler : public dataflow_step<context_type, void(const void *, size_t)>
+    class handler : public dataflow_step<context_type, bool(const void *, size_t)>
     {
-      using base_class = dataflow_step<context_type, void(const void *, size_t)>;
+      using base_class = dataflow_step<context_type, bool(const void *, size_t)>;
     public:
       handler(
         const context_type & context,
@@ -155,30 +174,47 @@ namespace vds {
       {
       }
 
-      void operator()(const service_provider & sp, const void * data, size_t size)
+      bool operator()(const service_provider & sp, const void * data, size_t size)
       {
         size_t out_size = sizeof(this->buffer);
         if (data_update(this->impl_, data, size, this->buffer, out_size))
         {
-          this->next(sp, this->buffer, out_size);
+          if(this->next(sp, this->buffer, out_size)){
+            for(;;){
+              out_size = sizeof(this->buffer);
+              if (data_processed(this->impl_, this->buffer, out_size)){
+                if(!this->next(sp, this->buffer, out_size)){
+                  break;
+                }
+              }
+              else
+              {
+                return true;
+              }
+            }
+          }
+          return false;
         }
         else
         {
-          this->prev(sp);
+          return true;
         }
       }
 
       void processed(const service_provider & sp)
       {
-        size_t out_size = sizeof(this->buffer);
-        if (data_processed(this->impl_, this->buffer, out_size))
-        {
-          this->next(sp, this->buffer, out_size);
+        for(;;){
+          size_t out_size = sizeof(this->buffer);
+          if (!data_processed(this->impl_, this->buffer, out_size)){
+            break;
+          }
+          
+          if(!this->next(sp, this->buffer, out_size)){
+            return;
+          }
         }
-        else
-        {
-          this->prev(sp);
-        }
+        
+        this->prev(sp);
       }
 
     private:

@@ -32,9 +32,9 @@ namespace vds {
     }
 
     template <typename context_type>
-    class handler : public dataflow_step<context_type, void(json_value *)>
+    class handler : public dataflow_step<context_type, bool(json_value *)>
     {
-      using base_class = dataflow_step<context_type, void(json_value *)>;
+      using base_class = dataflow_step<context_type, bool(json_value *)>;
     public:
       handler(
         const context_type & context,
@@ -49,7 +49,7 @@ namespace vds {
       {
       }
 
-      void operator()(
+      bool operator()(
         const service_provider & sp,
         const void * data,
         size_t len
@@ -67,24 +67,32 @@ namespace vds {
             //break;
 
           default:
-            throw new parse_error(
+            throw parse_error(
               this->stream_name_,
               this->line_,
               this->column_,
               "Unexpected end of data");
           }
 
-          this->next(sp, nullptr);
+          return this->next(sp, nullptr);
         }
         else {
           this->data_ = (const char *)data;
           this->len_ = len;
 
-          this->processed(sp);
+          return this->continue_process(sp);
         }
       }
 
       void processed(const service_provider & sp)
+      {
+        if(this->continue_process(sp)){
+          this->prev(sp);
+        }
+      }
+      
+    private:
+      bool continue_process(const service_provider & sp)
       {
         for (; 0 < this->len_; this->len_--, this->data_++) {
           switch (*this->data_) {
@@ -124,7 +132,7 @@ namespace vds {
                 continue;
               }
 
-              throw new parse_error(
+              throw parse_error(
                 this->stream_name_,
                 this->line_,
                 this->column_,
@@ -138,7 +146,7 @@ namespace vds {
               this->state_ = ST_INLINE_COMMENT;
               break;
             default:
-              throw new parse_error(
+              throw parse_error(
                 this->stream_name_,
                 this->line_,
                 this->column_,
@@ -160,7 +168,7 @@ namespace vds {
             switch (*this->data_) {
             case ']':
               if (this->final_array(sp)) {
-                return;
+                return true;
               }
               break;
 
@@ -193,7 +201,7 @@ namespace vds {
                 continue;
               }
 
-              throw new parse_error(
+              throw parse_error(
                 this->stream_name_,
                 this->line_,
                 this->column_,
@@ -205,7 +213,7 @@ namespace vds {
             switch (*this->data_) {
             case ']':
               if (this->final_array(sp)) {
-                return;
+                return true;
               }
               break;
 
@@ -218,7 +226,7 @@ namespace vds {
                 continue;
               }
 
-              throw new parse_error(
+              throw parse_error(
                 this->stream_name_,
                 this->line_,
                 this->column_,
@@ -236,7 +244,7 @@ namespace vds {
 
             case '}':
               if (this->final_object(sp)) {
-                return;
+                return true;
               }
               break;
 
@@ -245,7 +253,7 @@ namespace vds {
                 continue;
               }
 
-              throw new parse_error(
+              throw parse_error(
                 this->stream_name_,
                 this->line_,
                 this->column_,
@@ -257,7 +265,7 @@ namespace vds {
             switch (*this->data_) {
             case '}':
               if (this->final_object(sp)) {
-                return;
+                return true;
               }
               break;
 
@@ -357,7 +365,7 @@ namespace vds {
                 break;
                 
               default:
-                throw new parse_error(
+                throw parse_error(
                   this->stream_name_,
                   this->line_,
                   this->column_,
@@ -480,7 +488,7 @@ namespace vds {
                 break;
                 
               default:
-                throw new parse_error(
+                throw parse_error(
                   this->stream_name_,
                   this->line_,
                   this->column_,
@@ -625,7 +633,7 @@ namespace vds {
                 continue;
               }
 
-              throw new parse_error(
+              throw parse_error(
                 this->stream_name_,
                 this->line_,
                 this->column_,
@@ -652,7 +660,7 @@ namespace vds {
                 continue;
               }
 
-              throw new parse_error(
+              throw parse_error(
                 this->stream_name_,
                 this->line_,
                 this->column_,
@@ -661,7 +669,7 @@ namespace vds {
             break;
 
           default:
-            throw new parse_error(
+            throw parse_error(
               this->stream_name_,
               this->line_,
               this->column_,
@@ -669,7 +677,7 @@ namespace vds {
           }
         }
 
-        this->prev(sp);
+        return true;
       }
 
     private:
@@ -866,9 +874,9 @@ namespace vds {
   public:
 
     template <typename context_type>
-    class handler : public dataflow_step<context_type, void(json_value *)>
+    class handler : public dataflow_step<context_type, bool(json_value *)>
     {
-      using base_class = dataflow_step<context_type, void(json_value *)>;
+      using base_class = dataflow_step<context_type, bool(json_value *)>;
     public:
       handler(
         const context_type & context,
@@ -878,24 +886,26 @@ namespace vds {
 
       }
 
-      void operator()(const service_provider & sp, json_value * item)
+      bool operator()(const service_provider & sp, json_value * item)
       {
         if (nullptr == item) {
           if (!this->result_) {
             this->error(sp, std::make_exception_ptr(std::runtime_error("JSON object is required")));
+            return false;
           }
           else {
-            this->next(sp, this->result_.release());
+            return this->next(sp, this->result_.release());
           }
         }
         else {
           if (!this->result_) {
             this->result_.reset(item);
-            this->prev(sp);
+            return true;
           }
           else {
             delete item;
             this->error(sp, std::make_exception_ptr(std::runtime_error("Only one JSON object has expected")));
+            return false;
           }
         }
       }

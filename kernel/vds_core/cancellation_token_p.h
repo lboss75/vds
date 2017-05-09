@@ -13,7 +13,7 @@ namespace vds {
   {
   public:
     _cancellation_token()
-    : is_cancellation_requested_(false)
+    : is_cancellation_requested_(false), last_callback_(0)
     {
     }
     
@@ -22,16 +22,26 @@ namespace vds {
       return this->is_cancellation_requested_;
     }
     
-    void then_cancellation_requested(
+    cancellation_subscriber then_cancellation_requested(
+      const std::shared_ptr<_cancellation_token> & pthis,
       const std::function<void(void)> & callback)
     {
       std::lock_guard<std::mutex> lock(this->callbacks_mutex_);
       if(this->is_cancellation_requested_){
         callback();
+        return cancellation_subscriber();
       }
       else {
-        this->callbacks_.push_back(callback);
+        auto index = ++(this->last_callback_);
+        this->callbacks_[index] = callback;
+        return cancellation_subscriber(index, pthis);
       }
+    }
+    
+    void remove_callback(int index)
+    {
+      std::lock_guard<std::mutex> lock(this->callbacks_mutex_);
+      this->callbacks_.erase(index);
     }
     
     void cancel()
@@ -39,7 +49,7 @@ namespace vds {
       std::lock_guard<std::mutex> lock(this->callbacks_mutex_);
       this->is_cancellation_requested_ = true;
       for(auto & callback : this->callbacks_) {
-        callback();
+        callback.second();
       }
       
       this->callbacks_.clear();
@@ -48,7 +58,8 @@ namespace vds {
   private:
     bool is_cancellation_requested_;
     std::mutex callbacks_mutex_;
-    std::list<std::function<void(void)>> callbacks_;
+    int last_callback_;
+    std::map<int, std::function<void(void)>> callbacks_;
   };
 }
 

@@ -25,14 +25,14 @@ namespace vds {
 
     template<typename context_type>
     class handler : public dataflow_step<context_type, 
-      void(
+      bool(
         http_response & response,
         http_outgoing_stream & outgoing_stream
       )
     >
     {
       using base_class = dataflow_step<context_type, 
-      void(
+      bool(
         http_response & response,
         http_outgoing_stream & outgoing_stream
       )>;
@@ -46,7 +46,7 @@ namespace vds {
       {
       }
       
-      void operator()(
+      bool operator()(
         const service_provider & sp,
         const http_request & request,
         http_incoming_stream & incoming_stream
@@ -55,7 +55,7 @@ namespace vds {
         this->response_.reset(request);
         if (!request.empty()) {
           try {
-            this->router_.route(
+            return this->router_.route(
               sp,
               request,
               incoming_stream,
@@ -68,10 +68,11 @@ namespace vds {
           }
           catch(...) {
             this->http_error_handler_(sp, std::current_exception());
+            return false;
           }
         }
         else {
-          this->next(
+          return this->next(
             sp,
             this->response_,
             this->outgoing_stream_);

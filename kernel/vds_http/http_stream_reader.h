@@ -28,13 +28,13 @@ namespace vds {
     >
     class handler
     : public http_incoming_stream::read_handler,
-    public dataflow_step<context_type, void(
+    public dataflow_step<context_type, bool(
       const void * data,
       size_t len)
     >    
     {
       using base_class = dataflow_step<context_type,
-        void(
+        bool(
           const void * data,
           size_t len)>;
     public:
@@ -54,9 +54,12 @@ namespace vds {
         this->incoming_stream_.handler(nullptr);
       }
       
-      void operator()(const service_provider & sp)
+      bool operator()(const service_provider & sp)
       {
-        this->done_method_(sp);
+        while(this->done_method_(sp)){
+        }
+        
+        return false;
       }
       
       void push_data(
@@ -70,7 +73,8 @@ namespace vds {
       
       void processed(const service_provider & sp)
       {
-        this->done_method_(sp);
+        while(this->done_method_(sp)){
+        }        
       }
       
     private:

@@ -93,9 +93,9 @@ namespace vds {
       const asymmetric_private_key & key);
 
     template <typename context_type>
-    class handler : public dataflow_step<context_type, void(const void *, size_t)>
+    class handler : public dataflow_step<context_type, bool(const void *, size_t)>
     {
-      using base_class = dataflow_step<context_type, void(const void *, size_t)>;
+      using base_class = dataflow_step<context_type, bool(const void *, size_t)>;
     public:
       handler(
         const context_type & context,
@@ -105,15 +105,15 @@ namespace vds {
       {
       }
 
-      void operator()(const service_provider & sp, const void * data, size_t size)
+      bool operator()(const service_provider & sp, const void * data, size_t size)
       {
         if (0 == size) {
           data_final(this->impl_, this->signature_);
-          this->next(sp, this->signature_.data(), this->signature_.size());
+          return this->next(sp, this->signature_.data(), this->signature_.size());
         }
         else {
           data_update(this->impl_, data, size);
-          this->prev(sp);
+          return true;
         }
       }
 
@@ -156,9 +156,9 @@ namespace vds {
       const const_data_buffer & sign);
 
     template <typename context_type>
-    class handler : public dataflow_step<context_type, void(bool)>
+    class handler : public dataflow_step<context_type, bool(bool)>
     {
-      using base_class = dataflow_step<context_type, void(bool)>;
+      using base_class = dataflow_step<context_type, bool(bool)>;
     public:
       handler(
         const context_type & context,
@@ -169,15 +169,15 @@ namespace vds {
       {
       }
 
-      void operator()(const service_provider & sp, const void * data, size_t size)
+      bool operator()(const service_provider & sp, const void * data, size_t size)
       {
         if (0 == size) {
           auto result = data_final(this->impl_, this->signature_);
-          this->next(sp, result);
+          return this->next(sp, result);
         }
         else {
           data_update(this->impl_, data, size);
-          this->prev(sp);
+          return false;
         }
       }
 

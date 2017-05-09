@@ -28,7 +28,7 @@ namespace vds {
     virtual void on_connection_closed(const service_provider & sp);
     virtual void on_error(const service_provider & sp, std::exception_ptr error);
     
-    virtual void on_response(const service_provider & sp, json_value * response) = 0;
+    virtual bool on_response(const service_provider & sp, json_value * response) = 0;
     virtual void get_commands(const service_provider & sp) = 0;
 
     void run(const service_provider & sp, const std::string & body);

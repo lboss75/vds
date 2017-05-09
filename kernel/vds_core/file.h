@@ -165,10 +165,11 @@ namespace vds {
     {
     }
 
+    using outgoing_item_type = uint8_t;
     template <typename context_type>
-    class handler : public dataflow_step<context_type, void(const void *, size_t)>
+    class handler : public dataflow_source<context_type>
     {
-      using base_class = dataflow_step<context_type, void(const void *, size_t)>;
+      using base_class = dataflow_source<context_type>;
     public:
       handler(
         const context_type & context,
@@ -179,26 +180,24 @@ namespace vds {
         this->buffer_.resize(args.buffer_size_);
       }
 
-      void operator()(const service_provider & sp)
+      void get_data(const service_provider & sp, uint8_t * buffer, size_t buffer_size)
       {
-        this->processed(sp);
-      }
-
-      void processed(const service_provider & sp)
-      {
-        auto readed = this->f_.read(this->buffer_.data(), this->buffer_.size());
-        
-        if (0 < readed) {
-          this->next(sp, this->buffer_.data(), readed);
-        }
-        else {
-          this->next(sp, nullptr, 0);
+        for(;;){
+          auto readed = this->f_.read(buffer, buffer_size);
+          if(0 < readed){
+            if(!this->target_->push_data(sp, readed, buffer, buffer_size)){
+              return;
+            }              
+          }
+          else {
+            this->target_->final_data(sp);
+            return;
+          }
         }
       }
 
     private:
       file f_;
-      std::vector<uint8_t> buffer_;
     };
 
   private:
@@ -217,10 +216,11 @@ namespace vds {
     {
     }
     
+    using incoming_item_type = uint8_t;
     template <typename context_type>
-    class handler : public dataflow_step<context_type, void(void)>
+    class handler : public dataflow_target<context_type>
     {
-      using base_class = dataflow_step<context_type, void(void)>;
+      using base_class = dataflow_target<context_type>;
     public:
       handler(
         const context_type & context,
@@ -229,17 +229,16 @@ namespace vds {
         f_(args.filename_, args.mode_)
       {
       }
-      
-      void operator()(const service_provider & sp, const void * data, size_t size)
+      bool push_data(const service_provider & sp, const incoming_item_type * data, size_t size)
       {
-        if(0 == size){
-          this->f_.close();
-          this->next(sp);
-        }
-        else {
-          this->f_.write(data, size);
-          this->prev(sp);
-        }
+        this->f_.write(data, size);
+        return true;
+      }
+      
+      bool final_data(const service_provider & sp)
+      {
+        this->f_.close();
+        return true;
       }
       
     private:
@@ -259,10 +258,12 @@ namespace vds {
     {
     }
 
+    using incoming_item_type = uint8_t;
+    
     template <typename context_type>
-    class handler : public dataflow_step<context_type, void(void)>
+    class handler : public dataflow_target<context_type>
     {
-      using base_class = dataflow_step<context_type, void(void)>;
+      using base_class = dataflow_target<context_type>;
     public:
       handler(
         const context_type & context,
@@ -272,15 +273,16 @@ namespace vds {
       {
       }
 
-      void operator()(const service_provider & sp, const void * data, size_t size)
+      bool push_data(const service_provider & sp, const incoming_item_type * data, size_t size)
       {
-        if (0 == size) {
-          this->next(sp);
-        }
-        else {
-          this->target_.write(data, size);
-          this->prev(sp);
-        }
+        this->f_.write(data, size);
+        return true;
+      }
+      
+      bool final_data(const service_provider & sp)
+      {
+        this->f_.close();
+        return true;
       }
 
     private:

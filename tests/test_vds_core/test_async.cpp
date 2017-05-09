@@ -20,9 +20,13 @@ TEST(mt_tests, test_async) {
 
     {
       auto sp = registrator.build("test_async");
+      registrator.start(sp);
+      
       vds::dataflow(
+        test_async_object::source_method(obj),
         test_async_object::sync_method(obj),
-        test_async_object::async_method(sp, obj)
+        test_async_object::async_method(obj),
+        test_async_object::target_method(obj)
       )
       (
         [&obj, &barrier](const vds::service_provider & sp) {
@@ -34,8 +38,8 @@ TEST(mt_tests, test_async) {
         FAIL() << vds::exception_what(ex);
         barrier.set();
       },
-        sp,
-        10);
+        sp
+      );
 
       barrier.wait();
 

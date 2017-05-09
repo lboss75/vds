@@ -40,6 +40,7 @@ All rights reserved
 #include <chrono>
 #include <queue>
 #include <algorithm>
+#include <stack>
 
 #include <stdio.h>
 #include <stdlib.h>

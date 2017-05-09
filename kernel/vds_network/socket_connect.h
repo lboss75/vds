@@ -17,7 +17,7 @@ namespace vds {
     }
 
     template <typename context_type>
-    class handler : public dataflow_step<context_type, void (network_socket &)>
+    class handler : public dataflow_step<context_type, bool (network_socket &)>
     {
     public:
       handler(
@@ -35,7 +35,7 @@ namespace vds {
       {
       }
 
-      void operator()(
+      bool operator()(
         const service_provider & sp,
         const std::string & address,
         uint16_t port
@@ -54,7 +54,7 @@ namespace vds {
           // WSAEWOULDBLOCK whichis actually not one 
           auto error = WSAGetLastError();
           if (WSAEWOULDBLOCK != error) {
-            throw new std::system_error(error, std::system_category(), "connect");
+            throw std::system_error(error, std::system_category(), "connect");
           }
         }
 
@@ -66,11 +66,12 @@ namespace vds {
           throw std::system_error(error, std::generic_category());
         }
 #endif
-        this->next(sp, this->s_);
+        return this->next(sp, this->s_);
       }
       
       void processed(const service_provider & sp)
       {
+        throw std::logic_error("socket error");
       }
 
     private:

@@ -21,7 +21,7 @@ namespace vds {
     >
     class handler : public dataflow_step<
       context_type,
-      void(
+      bool(
         http_response * response,
         http_incoming_stream * incoming_stream
       )
@@ -29,7 +29,7 @@ namespace vds {
     {
       using base_class = dataflow_step<
         context_type,
-        void(
+        bool(
           http_response * response,
           http_incoming_stream * incoming_stream
         )
@@ -49,10 +49,10 @@ namespace vds {
         std::cout << "http_response_parser::handler::~handler\n";
       }
       
-      void operator()(const service_provider & sp, const void * data, size_t len)
+      bool operator()(const service_provider & sp, const void * data, size_t len)
       {
         if (0 == len) {
-          this->next(
+          return this->next(
             sp,
             nullptr,
             nullptr);
@@ -61,19 +61,45 @@ namespace vds {
           this->data_ = data;
           this->len_ = len;
 
-          this->processed(sp);
+          return this->continue_process(sp);
         }
       }
       
       void processed(const service_provider & sp)
+      {
+        if(this->continue_process(sp)){
+          this->prev(sp);
+        }
+      }
+
+      
+    private:
+      enum 
+      {
+        STATE_PARSE_HEADER,
+        STATE_PARSE_BODY
+      } state_;
+
+      const void * data_;
+      size_t len_;
+
+      std::string parse_buffer_;
+      std::list<std::string> headers_;
+      
+      http_response response_;
+      http_incoming_stream incoming_stream_;
+      
+      size_t size_limit_;
+      size_t readed_;
+      
+      bool continue_process(const service_provider & sp)
       {
         while (0 < this->len_) {
           if (STATE_PARSE_HEADER == this->state_) {
             const char * p = (const char *)memchr(this->data_, '\n', this->len_);
             if (nullptr == p) {
               this->parse_buffer_ += std::string((const char *)this->data_, this->len_);
-              this->prev(sp);
-              return;
+              return false;
             }
 
             auto size = p - (const char *)this->data_;
@@ -89,7 +115,7 @@ namespace vds {
 
             if (0 == this->parse_buffer_.length()) {
               if (this->headers_.empty()) {
-                throw new std::logic_error("Invalid request");
+                throw std::logic_error("Invalid request");
               }
 
               auto request = *this->headers_.begin();
@@ -109,7 +135,7 @@ namespace vds {
               }
 
               if ((index + 1) != sizeof(items) / sizeof(items[0])) {
-                throw new std::logic_error("Invalid request");
+                throw std::logic_error("Invalid request");
               }
 
               this->headers_.pop_front();
@@ -135,13 +161,14 @@ namespace vds {
               }
               this->readed_ = 0;
 
-              this->next(
+              if(this->next(
                 sp,
                 &this->response_,
-                &this->incoming_stream_
-              );
+                &this->incoming_stream_)){
+                continue;
+              }
               
-              return;
+              return true;
             }
             else {
               this->headers_.push_back(this->parse_buffer_);
@@ -173,7 +200,7 @@ namespace vds {
                 p,
                 l);
             }
-            return;
+            return false;
           }
         }
         
@@ -184,30 +211,12 @@ namespace vds {
               sp,
               nullptr,
               0);
+          return false;
         }
         else {
-          this->prev(sp);
+          return true;
         }
       }
-      
-    private:
-      enum 
-      {
-        STATE_PARSE_HEADER,
-        STATE_PARSE_BODY
-      } state_;
-
-      const void * data_;
-      size_t len_;
-
-      std::string parse_buffer_;
-      std::list<std::string> headers_;
-      
-      http_response response_;
-      http_incoming_stream incoming_stream_;
-      
-      size_t size_limit_;
-      size_t readed_;
     };
   };
 }

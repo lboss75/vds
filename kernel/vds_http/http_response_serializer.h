@@ -23,7 +23,7 @@ namespace vds {
     >
       class handler : public dataflow_step<
         context_type,
-        void(
+        bool(
           const void * data,
           size_t len
         )
@@ -31,7 +31,7 @@ namespace vds {
     {
       using base_class = dataflow_step<
         context_type,
-        void(
+        bool(
           const void * data,
           size_t len
         )
@@ -44,7 +44,7 @@ namespace vds {
       {
       }
 
-      void operator()(
+      bool operator()(
         const service_provider & sp,
         const http_response & response,
         http_outgoing_stream & response_stream
@@ -72,10 +72,15 @@ namespace vds {
         else {
           this->buffer_.clear();
         }
-        this->next(
+        
+        if(!this->next(
           sp,
           this->buffer_.c_str(),
-          this->buffer_.size());
+          this->buffer_.size())){
+          return false;
+        }
+        
+        return (!this->stream_ || !this->stream_->read(sp, this->next));
       }
       
       void processed(const service_provider & sp)

@@ -13,9 +13,9 @@ public:
   }
    
   template<typename context_type>
-  class handler : public vds::dataflow_step<context_type, void (void)>
+  class handler : public vds::dataflow_step<context_type, bool (void)>
   {
-    using base_class = vds::dataflow_step<context_type, void (void)>;
+    using base_class = vds::dataflow_step<context_type, bool (void)>;
   public:
     handler(
       const context_type & context,
@@ -25,11 +25,12 @@ public:
     {
     }
     
-    void operator()(const vds::service_provider & sp, vds::network_socket * s) {
+    bool operator()(const vds::service_provider & sp, vds::network_socket * s) {
       (new connection_handler<
         typename base_class::next_step_t,
         typename base_class::error_method_t>(
           this->next, this->error, s))->start(sp);
+      return true;
     }
   private:
     vds::service_provider sp_;
@@ -83,9 +84,9 @@ public:
   }
 
   template<typename context_type>
-  class handler : public vds::dataflow_step<context_type, void(void)>
+  class handler : public vds::dataflow_step<context_type, bool(void)>
   {
-    using base_class = vds::dataflow_step<context_type, void(void)>;
+    using base_class = vds::dataflow_step<context_type, bool(void)>;
   public:
     handler(
       context_type & context,
@@ -100,13 +101,15 @@ public:
         this->data_.length());
     }
     
-    void operator()(const vds::service_provider & sp) {
+    bool operator()(const vds::service_provider & sp) {
       this->write_task_.schedule(this->s_);
+      return false;
     }
 
     void processed(const vds::service_provider & sp)
     {
-      this->next(sp);
+      while(this->next(sp)){
+      }
     }
   private:
     vds::network_socket::SOCKET_HANDLE s_;
@@ -129,24 +132,24 @@ public:
   }
 
   template<typename context_type>
-  class handler : public vds::dataflow_step<context_type, void(const std::string &)>
+  class handler : public vds::dataflow_step<context_type, bool(const std::string &)>
   {
   public:
     handler(
       const context_type & context,
       const read_for_newline & owner)
-    : vds::dataflow_step<context_type, void(const std::string &)>(context)
+    : vds::dataflow_step<context_type, bool(const std::string &)>(context)
     {
     }
   
-    void operator()(
+    bool operator()(
       const vds::service_provider & sp,
       const void * data,
       size_t len
     )
     {
       if(0 == len) {
-        this->next(sp, this->buffer_);
+        return this->next(sp, this->buffer_);
       }
       else {
         this->buffer_.append(
@@ -155,13 +158,12 @@ public:
 
         auto p = this->buffer_.find('\n');
         if (std::string::npos == p) {
-          this->prev(sp);
-          return;
+          return true;
         }
         else {
           auto result = this->buffer_.substr(0, p);
           this->buffer_.erase(0, p + 1);
-          this->next(sp, result);
+          return this->next(sp, result);
         }
       }
     }
@@ -187,7 +189,7 @@ public:
   }
   
   template<typename context_type>
-  class handler : public vds::dataflow_step<context_type, void(void)>
+  class handler : public vds::dataflow_step<context_type, bool(void)>
   {
   public:
     handler(
@@ -198,13 +200,13 @@ public:
     {
     }
   
-    void operator()(
+    bool operator()(
       const vds::service_provider & sp,
       const std::string & data
     )
     {
       if(this->data_ == data){
-        this->next(sp);
+        return this->next(sp);
       }
       else {
         ASSERT_EQ(this->data_, data);
@@ -227,18 +229,18 @@ public:
   }
 
   template <typename context_type>
-  class handler : public vds::dataflow_step<context_type, void(void)>
+  class handler : public vds::dataflow_step<context_type, bool(void)>
   {
   public:
     handler(
       const context_type & context,
       const socket_client & args
     )
-      : vds::dataflow_step<context_type, void(void)>(context)
+      : vds::dataflow_step<context_type, bool(void)>(context)
     {
     }
 
-    void operator()(const vds::service_provider & sp, vds::network_socket & s)
+    bool operator()(const vds::service_provider & sp, vds::network_socket & s)
     {
       this->s_ = std::move(s);
 
@@ -275,6 +277,7 @@ public:
       );
 
       b.wait();
+      return true;
     }
     
     void processed(const vds::service_provider & sp)

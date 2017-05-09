@@ -29,7 +29,7 @@ static vds::async_task<const std::string &> step3(int v)
 {
   return vds::create_async_task(
     [v](const std::function<void(const vds::service_provider &, const std::string &)> & done, const vds::error_handler & on_error, const vds::service_provider & sp) {
-      step3_saved_done = [sp, done, v](){done(sp, std::to_string(v));};
+      step3_saved_done = [&sp, done, v](){done(sp, std::to_string(v));};
   });
 }
 
