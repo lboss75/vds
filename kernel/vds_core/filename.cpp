@@ -1,4 +1,6 @@
 #include "stdafx.h"
+#include <string.h>
+#include <system_error>
 #include "targetver.h"
 #include "filename.h"
 #include "foldername.h"
@@ -76,14 +78,14 @@ vds::filename vds::filename::current_process()
 
   return filename(buf);
 #else
-  char buf[PATH_MAX];
+  char buf[256];
   auto bytes = readlink("/proc/self/exe" /*("/proc/" + std::str(getpid()) + "/exe").c_str()*/, buf, sizeof(buf));
   if (bytes >= 0) {
     buf[bytes] = '\0';
   }
   else {
     auto error = errno;
-    throw new std::system_error(error, std::system_category(), "Failed get current process ffilename");
+    throw std::system_error(error, std::system_category(), "Failed get current process ffilename");
   }
 
   return filename(buf);

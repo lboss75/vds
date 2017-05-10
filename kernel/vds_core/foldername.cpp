@@ -5,7 +5,14 @@ All rights reserved
 
 #include "stdafx.h"
 #include "targetver.h"
+
+#ifdef _WIN32
 #include <direct.h>
+#else
+#include <dirent.h>
+#include <sys/stat.h>
+#endif
+
 #include "foldername.h"
 #include "filename.h"
 #include "file.h"

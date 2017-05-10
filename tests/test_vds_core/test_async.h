@@ -29,7 +29,7 @@ public:
         handler(
           const context_type & context,
           const source_method & owner)
-        : vds::dataflow_source<context_type>(context),
+        : vds::sync_dataflow_source<context_type, handler<context_type>>(context),
           owner_(owner.owner_), written_(0)
         {
         }
@@ -83,7 +83,7 @@ public:
         handler(
           const context_type & context,
           const sync_method & owner)
-        : vds::dataflow_filter<context_type, handler<context_type>>(context),
+        : vds::sync_dataflow_filter<context_type, handler<context_type>>(context),
           owner_(owner.owner_)
         {
         }
@@ -192,7 +192,7 @@ public:
         {
         }
         
-        size_t push_data(
+        size_t sync_push_data(
           const vds::service_provider & sp,
           const bool * values,
           size_t count)
@@ -206,7 +206,7 @@ public:
           }
           return count;
         }
-        
+       
       private:
         test_async_object & owner_;
       };

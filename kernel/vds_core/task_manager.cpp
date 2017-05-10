@@ -4,6 +4,7 @@ All rights reserved
 */
 
 #include "stdafx.h"
+#include <algorithm>
 #include "task_manager.h"
 #include "mt_service.h"
 #include "shutdown_event.h"

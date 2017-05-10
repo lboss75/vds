@@ -1,4 +1,5 @@
 #include "stdafx.h"
+#include <sys/stat.h>
 #include "file.h"
 
 vds::file::file()

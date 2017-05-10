@@ -1,6 +1,11 @@
 #ifndef __VDS_CORE_TASK_MANAGER_H_
 #define __VDS_CORE_TASK_MANAGER_H_
 
+#include <chrono>
+#include <list>
+#include <condition_variable>
+#include <thread>
+
 #include "service_provider.h"
 #include "debug.h"
 

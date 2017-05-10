@@ -9,6 +9,9 @@ All rights reserved
 #include <list>
 #include <mutex>
 #include <queue>
+#include <thread>
+#include <condition_variable>
+
 #include "service_provider.h"
 
 namespace vds {

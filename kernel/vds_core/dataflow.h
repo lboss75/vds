@@ -98,6 +98,11 @@ namespace vds {
       this->target_->start(sp);
     }
 
+    void final_data(const service_provider & sp)
+    {
+      this->target_->final_data(sp);
+    }
+    
   private:
     outgoing_queue_type * target_;
   };
@@ -134,6 +139,11 @@ namespace vds {
       this->target_->start(sp);
     }
 
+    void final_data(const service_provider & sp)
+    {
+      this->target_->final_data(sp);
+    }
+    
   private:
     outgoing_queue_type * target_;
   };
@@ -222,6 +232,11 @@ namespace vds {
     void start(const service_provider & sp)
     {
       this->target_->start(sp);
+    }
+    
+    void final_data(const service_provider & sp)
+    {
+      this->target_->final_data(sp);
     }
 
   private:
@@ -317,6 +332,11 @@ namespace vds {
     void start(const service_provider & sp)
     {
       this->target_->start(sp);
+    }
+
+    void final_data(const service_provider & sp)
+    {
+      this->target_->final_data(sp);
     }
 
     //bool process_data(const vds::service_provider & sp)
@@ -536,7 +556,6 @@ namespace vds {
             throw std::runtime_error("Logic error");
           }
           this->data_queried_ = false;
-          std::cout << "queue.push_data[" << index << "]: data_queried_=1->0,data_in_process_=" << data_in_process_ << "\n";
           if (this->back_ + MIN_BUFFER_SIZE < BUFFER_SIZE) {
             this->back_ += count;
           }
@@ -561,7 +580,6 @@ namespace vds {
           
           if (this->back_ + MIN_BUFFER_SIZE < BUFFER_SIZE) {
             this->data_queried_ = true;
-            std::cout << "queue.push_data[" << index << "]: data_queried_=0->1,data_in_process_=" << data_in_process_ << "\n";
             buffer = this->buffer_ + this->back_;
             buffer_len = BUFFER_SIZE - this->back_;
             return true;
@@ -569,7 +587,6 @@ namespace vds {
 
           if (this->second_ + MIN_BUFFER_SIZE < this->front_) {
             this->data_queried_ = true;
-            std::cout << "queue.push_data[" << index << "]: data_queried_=0->1,data_in_process_=" << data_in_process_ << "\n";
             buffer = this->buffer_ + this->second_;
             buffer_len = this->front_ - this->second_;
             return true;
@@ -604,13 +621,12 @@ namespace vds {
         this->front_ += readed;
         if (this->front_ < this->back_) {
           this->data_in_process_ = true;
-          std::cout << "queue.continue_read[" << index << "]: data_queried_=" << data_queried_ << ",data_in_process_=0->1\n";
           buffer = this->buffer_ + this->front_;
           buffer_len = this->back_ - this->front_;
           return true;
         }
+        
         this->data_in_process_ = false;
-        std::cout << "queue.continue_read[" << index << "]: data_queried_=" << data_queried_ << ",data_in_process_=1->0\n";
 
         if (!this->data_queried_) {
           this->query_data(sp);
@@ -658,7 +674,6 @@ namespace vds {
 
         if (this->front_ < this->back_) {
           this->data_in_process_ = true;
-          std::cout << "queue.continue_read[" << index << "]: data_queried_=" << data_queried_ << ",data_in_process_=0->1\n";
           auto p = this->buffer_ + this->front_;
           auto l = this->back_ - this->front_;
           
@@ -666,8 +681,14 @@ namespace vds {
             incoming_item_type * buffer = p;
             size_t len = l;
             size_t readed;
-            while(this->target_->push_data(sp, buffer, len, readed)
-              && this->continue_read(sp, readed, buffer, len)){
+            while(this->target_->push_data(sp, buffer, len, readed)){
+              if(0 == readed){
+                this->target_->final_data(sp);
+                break;
+              }
+              if(!this->continue_read(sp, readed, buffer, len)){
+                break;
+              }
             }
           });
 
@@ -685,15 +706,21 @@ namespace vds {
 
         if (this->back_ + MIN_BUFFER_SIZE < BUFFER_SIZE) {
           this->data_queried_ = true;
-          std::cout << "queue.query_data[" << index << "]: data_queried_=0->1,data_in_process_=" << data_in_process_ << "\n";
           auto p = this->buffer_ + this->back_;
           auto l = BUFFER_SIZE - this->back_;
           imt_service::async(sp, [this, sp, p, l](){
+            incoming_item_type * buffer = p;
+            size_t len = l;
             size_t readed;
-            if(this->source_->get_data(sp, p, l, readed)){
-              std::lock_guard<std::mutex> lock(this->buffer_mutex_);
-              this->back_ += readed;
-              this->query_data(sp);
+            while(this->source_->get_data(sp, buffer, len, readed)){
+              if(0 == readed){
+                this->target_->final_data(sp);
+                break;
+              }
+              
+              if(!this->push_data(sp, readed, buffer, len)) {
+                break;
+              }
             }
           });
           return true;
@@ -701,7 +728,6 @@ namespace vds {
 
         if (this->second_ + MIN_BUFFER_SIZE < this->front_) {
           this->data_queried_ = true;
-          std::cout << "queue.query_data[" << index << "]: data_queried_=0->1,data_in_process_=" << data_in_process_ << "\n";
           auto p = this->buffer_ + this->second_;
           auto l = this->front_ - this->second_;
           
@@ -811,12 +837,20 @@ namespace vds {
         const final_context & ctx,
         const _functor_type_t<std::tuple_size<tuple_type>::value - 1> & args)
       : base_class(ctx, args),
-        source_(ctx.source_)
+        source_(ctx.source_),
+        common_data_(ctx.common_data_)
       {
       }
       
+      void final_data(const service_provider & sp)
+      {
+        this->common_data_->step_finish(sp, std::tuple_size<tuple_type>::value - 1);
+      }
+
+      
     private:
       incoming_queue_type * source_;
+      common_data * common_data_;
     };
     
     class starter
@@ -845,7 +879,7 @@ namespace vds {
       
       void final_data(const service_provider & sp)
       {
-        cancellation_source_.cancel();
+        //cancellation_source_.cancel();
       }
 
       void step_finish(const service_provider & sp, size_t index) override
@@ -860,7 +894,7 @@ namespace vds {
         this->final_mutex_.lock();
         if (!this->error_) {
           this->error_ = error;
-          cancellation_source_.cancel();
+          //cancellation_source_.cancel();
         }
         this->done_steps_.emplace(index);
         this->try_finish(sp);
