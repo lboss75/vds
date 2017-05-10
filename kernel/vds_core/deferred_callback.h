@@ -6,6 +6,8 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 #include <stack>
+#include <memory>
+#include <mutex>
 #include "func_utils.h"
 
 namespace vds {

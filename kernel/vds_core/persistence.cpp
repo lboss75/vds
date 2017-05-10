@@ -4,6 +4,7 @@ All rights reserved
 */
 
 #include "stdafx.h"
+#include <system_error>
 #include "persistence.h"
 #include "foldername.h"
 
@@ -26,7 +27,7 @@ vds::foldername vds::persistence::current_user(const service_provider & sp)
     SHGFP_TYPE_CURRENT,
     result);
   if(NO_ERROR != error) {
-    throw new std::system_error(error, std::system_category(), "SHGetFolderPath");
+    throw std::system_error(error, std::system_category(), "SHGetFolderPath");
   }
 
   for(auto p = strchr(result, '\\'); nullptr != p; p = strchr(p + 1, '\\')) {

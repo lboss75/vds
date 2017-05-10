@@ -6,6 +6,8 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
+#include <stdexcept>
+
 namespace vds {
   class lifetime_check {
   public:
@@ -29,7 +31,7 @@ namespace vds {
         || this->signature_[1] != 'I'
         || this->signature_[2] != 'F'
         || this->signature_[3] != 'E') {
-        throw new std::runtime_error("Object disposed");
+        throw std::runtime_error("Object disposed");
       }
     }
 

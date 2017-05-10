@@ -5,7 +5,7 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
-
+#include <vector>
 #include "dataflow.h"
 
 namespace vds{
@@ -115,9 +115,9 @@ namespace vds{
     static const size_t min_buffer_size = 1;
 
     template <typename context_type>
-    class handler : public dataflow_target<context_type>
+    class handler : public sync_dataflow_target<context_type, handler<context_type>>
     {
-      using base_class = dataflow_target<context_type>;
+      using base_class = sync_dataflow_target<context_type, handler<context_type>>;
 
     public:
       handler(
@@ -127,19 +127,10 @@ namespace vds{
       {
       }
 
-      bool operator ()(const service_provider & sp, const void * data, size_t len)
+      size_t sync_push_data(const service_provider & sp, uint8_t * data, size_t len)
       {
-        if (0 == len) {
-          if(this->next(sp, this->buffer_.data(), this->buffer_.size())){
-            throw std::logic_error("Invalid logic");
-          }
-        }
-        else {
-          this->buffer_.insert(this->buffer_.end(),
-            reinterpret_cast<const uint8_t *>(data),
-            reinterpret_cast<const uint8_t *>(data) + len);
-          return true;
-        }
+        this->buffer_.insert(this->buffer_.end(), data, data + len);
+        return len;
       }
 
     private:

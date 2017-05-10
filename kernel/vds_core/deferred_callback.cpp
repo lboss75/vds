@@ -4,6 +4,7 @@ All rights reserved
 */
 
 #include "stdafx.h"
+#include <assert.h>
 #include "deferred_callback.h"
 
 vds::_deferred_callback_base::_deferred_callback_base(deferred_context & context)

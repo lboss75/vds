@@ -8,6 +8,7 @@ All rights reserved
 
 
 #include <exception>
+#include <stdexcept>
 
 namespace vds {
   class shutdown_exception : public std::runtime_error

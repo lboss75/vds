@@ -6,6 +6,8 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
+#include <mutex>
+#include <map>
 
 namespace vds {
   class _cancellation_token

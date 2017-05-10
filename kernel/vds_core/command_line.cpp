@@ -3,6 +3,8 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 #include "stdafx.h"
+#include <iostream>
+#include <set>
 #include "command_line.h"
 ///////////////////////////////////////
 //              vds_command_item

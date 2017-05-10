@@ -5,6 +5,8 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
+#include <functional>
+#include <tuple>
 
 namespace vds {
   template <typename functor_type, typename functor_signature>

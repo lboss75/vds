@@ -1,58 +1,249 @@
 #ifndef __VDS_CORE_DATAFLOW_H_
 #define __VDS_CORE_DATAFLOW_H_
-#include "mt_service.h"
 
-#include <assert.h>
+#include <set>
+#include <mutex>
 #include "cancellation_token.h"
 #include "shutdown_event.h"
+#include "mt_service.h"
 
 /*
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 namespace vds {
-  template <typename context_type>
-  class dataflow_target
+  template <typename context_type, typename implementation_type>
+  class sync_dataflow_target
   {
   public:
+    using incoming_item_type = typename context_type::incoming_item_type;
     using incoming_queue_type = typename context_type::incoming_queue_type;
-    dataflow_target(const context_type & context)
+    sync_dataflow_target(const context_type & context)
     : source_(context.source_),
       terminator_(context.terminator_)
     {
     }
     
-    dataflow_target(const dataflow_target &) = delete;
-    dataflow_target(dataflow_target&&) = delete;
-    dataflow_target & operator = (const dataflow_target &) = delete;
-    dataflow_target & operator = (dataflow_target&&) = delete;
+    sync_dataflow_target(const sync_dataflow_target &) = delete;
+    sync_dataflow_target(sync_dataflow_target&&) = delete;
+    sync_dataflow_target & operator = (const sync_dataflow_target &) = delete;
+    sync_dataflow_target & operator = (sync_dataflow_target&&) = delete;
     
+    bool push_data(
+      const vds::service_provider & sp,
+      const bool * values,
+      size_t count,
+      size_t & written)
+    {
+      written = static_cast<implementation_type *>(this)->sync_push_data(sp, values, count);
+      return true;
+    }
+
+  private:
     incoming_queue_type * source_;
     typename context_type::terminator_type * terminator_;
   };
 
-  template <typename context_type>
-  class dataflow_source
+  template <typename context_type, typename implementation_type>
+  class async_dataflow_target
+  {
+  public:
+    using incoming_queue_type = typename context_type::incoming_queue_type;
+    async_dataflow_target(const context_type & context)
+      : source_(context.source_),
+      terminator_(context.terminator_)
+    {
+    }
+
+    async_dataflow_target(const async_dataflow_target &) = delete;
+    async_dataflow_target(async_dataflow_target&&) = delete;
+    async_dataflow_target & operator = (const async_dataflow_target &) = delete;
+    async_dataflow_target & operator = (async_dataflow_target&&) = delete;
+
+  private:
+    incoming_queue_type * source_;
+    typename context_type::terminator_type * terminator_;
+  };
+
+  template <typename context_type, typename implementation_type>
+  class sync_dataflow_source
   {
   public:
     
+    using outgoing_item_type = typename context_type::outgoing_item_type;
     using outgoing_queue_type = typename context_type::outgoing_queue_type;
     
-    dataflow_source(const context_type & context)
+    sync_dataflow_source(const context_type & context)
     : target_(context.target_)
     {
     }
     
-    dataflow_source(const dataflow_source &) = delete;
-    dataflow_source(dataflow_source&&) = delete;
-    dataflow_source & operator = (const dataflow_source &) = delete;
-    dataflow_source & operator = (dataflow_source&&) = delete;
+    sync_dataflow_source(const sync_dataflow_source &) = delete;
+    sync_dataflow_source(sync_dataflow_source&&) = delete;
+    sync_dataflow_source & operator = (const sync_dataflow_source &) = delete;
+    sync_dataflow_source & operator = (sync_dataflow_source&&) = delete;
     
+    bool get_data(
+      const service_provider & sp,
+      outgoing_item_type * buffer,
+      size_t buffer_size,
+      size_t & readed)
+    {
+      readed = static_cast<implementation_type *>(this)->sync_get_data(sp, buffer, buffer_size);
+      return true;
+    }
+
+    void start(const service_provider & sp)
+    {
+      this->target_->start(sp);
+    }
+
+  private:
     outgoing_queue_type * target_;
   };
+
+  template <typename context_type, typename implementation_type>
+  class async_dataflow_source
+  {
+  public:
+    using outgoing_item_type = typename context_type::outgoing_item_type;
+    using outgoing_queue_type = typename context_type::outgoing_queue_type;
+
+    async_dataflow_source(const context_type & context)
+      : target_(context.target_)
+    {
+    }
+
+    async_dataflow_source(const async_dataflow_source &) = delete;
+    async_dataflow_source(async_dataflow_source&&) = delete;
+    async_dataflow_source & operator = (const async_dataflow_source &) = delete;
+    async_dataflow_source & operator = (async_dataflow_source&&) = delete;
+
+    bool get_data(
+      const service_provider & sp,
+      outgoing_item_type * buffer,
+      size_t buffer_size,
+      size_t & readed)
+    {
+      static_cast<implementation_type *>(this)->async_get_data(sp, buffer, buffer_size);
+      return false;
+    }
+
+    void start(const service_provider & sp)
+    {
+      this->target_->start(sp);
+    }
+
+  private:
+    outgoing_queue_type * target_;
+  };
+
+  template <typename context_type, typename implementation_type>
+  class sync_dataflow_filter
+  {
+  public:
+    using incoming_item_type = typename context_type::incoming_item_type;
+    using outgoing_item_type = typename context_type::outgoing_item_type;
+
+    using incoming_queue_type = typename context_type::incoming_queue_type;
+    using outgoing_queue_type = typename context_type::outgoing_queue_type;
+
+    sync_dataflow_filter(const context_type & context)
+      : source_(context.source_),
+      target_(context.target_),
+      cancel_token_(context.cancel_token_),
+      waiting_get_data_(true),
+      waiting_push_data_(true)
+    {
+    }
+
+    bool get_data(
+      const vds::service_provider & sp,
+      outgoing_item_type * buffer,
+      size_t buffer_size,
+      size_t & written)
+    {
+      std::lock_guard<std::recursive_mutex> lock(this->data_mutex_);
+      if (!this->waiting_get_data_) {
+        throw std::runtime_error("Logic error");
+      }
+      this->waiting_get_data_ = false;
+
+      this->output_buffer_ = buffer;
+      this->output_buffer_size_ = buffer_size;
+
+      if (this->waiting_push_data_) {
+        return false;
+      }
+
+      size_t readed;
+      static_cast<implementation_type *>(this)->sync_process_data(sp, readed, written);
+
+      this->waiting_push_data_ = true;
+      if (this->source_->continue_read(sp, readed, this->input_buffer_, this->input_buffer_size_)) {
+        this->waiting_push_data_ = false;
+      }
+
+      return true;
+    }
+
+    bool push_data(
+      const vds::service_provider & sp,
+      incoming_item_type * buffer,
+      size_t buffer_size,
+      size_t & readed)
+    {
+      std::lock_guard<std::recursive_mutex> lock(this->data_mutex_);
+
+      if (!this->waiting_push_data_) {
+        throw std::runtime_error("Logic error");
+      }
+      this->waiting_push_data_ = false;
+
+      this->input_buffer_ = buffer;
+      this->input_buffer_size_ = buffer_size;
+
+      if (this->waiting_get_data_) {
+        return false;
+      }
+
+      size_t written;
+      static_cast<implementation_type *>(this)->sync_process_data(sp, readed, written);
+
+      this->waiting_get_data_ = true;
+
+      if (this->target_->push_data(sp, written, this->output_buffer_, this->output_buffer_size_)) {
+        this->waiting_get_data_ = false;
+      }
+
+      return true;
+    }
+
+    void start(const service_provider & sp)
+    {
+      this->target_->start(sp);
+    }
+
+  private:
+    incoming_queue_type * source_;
+    outgoing_queue_type * target_;
+    cancellation_token & cancel_token_;
+
+  protected:
+    std::recursive_mutex data_mutex_;
+
+    bool waiting_get_data_;
+    incoming_item_type * input_buffer_;
+    size_t input_buffer_size_;
+
+    bool waiting_push_data_;
+    outgoing_item_type * output_buffer_;
+    size_t output_buffer_size_;
+  };
+
   
   template <typename context_type, typename implementation_type>
-  class dataflow_filter
+  class async_dataflow_filter
   {
   public:
     
@@ -62,7 +253,7 @@ namespace vds {
     using incoming_queue_type = typename context_type::incoming_queue_type;
     using outgoing_queue_type = typename context_type::outgoing_queue_type;
     
-    dataflow_filter(const context_type & context)
+    async_dataflow_filter(const context_type & context)
     : source_(context.source_),
       target_(context.target_),
       cancel_token_(context.cancel_token_),
@@ -75,43 +266,66 @@ namespace vds {
     bool get_data(
       const vds::service_provider & sp,
       outgoing_item_type * buffer,
-      size_t buffer_size)
+      size_t buffer_size,
+      size_t & readed)
     {
       std::lock_guard<std::recursive_mutex> lock(this->data_mutex_);
-      assert(this->waiting_get_data_);
+      if (!this->waiting_get_data_) {
+        throw std::runtime_error("Logic error");
+      }
+
       this->waiting_get_data_ = false;
-      
+
       this->output_buffer_ = buffer;
       this->output_buffer_size_ = buffer_size;
       
-      return this->try_to_process(sp);
+      if (this->waiting_push_data_ || this->process_data_called_) {
+        return false;
+      }
+
+      this->process_data_called_ = true;
+      static_cast<implementation_type *>(this)->async_process_data(sp);
+
+      return false;
     }
     
     bool push_data(
       const vds::service_provider & sp,
       incoming_item_type * buffer,
       size_t buffer_size,
-      size_t & readed)
+      size_t & written)
     {
       std::lock_guard<std::recursive_mutex> lock(this->data_mutex_);
       
-      assert(this->waiting_push_data_);
+      if(!this->waiting_push_data_) {
+        throw std::runtime_error("Logic error");
+      }
       this->waiting_push_data_ = false;
-      
+
       this->input_buffer_ = buffer;
       this->input_buffer_size_ = buffer_size;
       
-      return this->try_to_process(sp);
+      if (this->waiting_get_data_ || this->process_data_called_) {
+        return false;
+      }
+
+      this->process_data_called_ = true;
+      static_cast<implementation_type *>(this)->async_process_data(sp);
+
+      return false;
     }
 
-    
+    void start(const service_provider & sp)
+    {
+      this->target_->start(sp);
+    }
+
     //bool process_data(const vds::service_provider & sp)
-    
+  private:
     incoming_queue_type * source_;
     outgoing_queue_type * target_;
     cancellation_token & cancel_token_;
-    
-  protected:
+
     std::recursive_mutex data_mutex_;
     
     bool waiting_get_data_;
@@ -123,47 +337,31 @@ namespace vds {
     size_t output_buffer_size_;
     
     bool process_data_called_;
-    
-    bool try_to_process(const vds::service_provider & sp)
-    {
-      if(this->waiting_get_data_
-        || this->waiting_push_data_
-        || this->process_data_called_){
-        return false;
-      }
-      
-      while(!this->cancel_token_.is_cancellation_requested()
-        && !sp.get_shutdown_event().is_shuting_down()){
-        this->process_data_called_ = true;
-        if(!static_cast<implementation_type *>(this)->process_data(sp)){
-          return false;
-        }
-        this->process_data_called_ = false;
-      
-        if(0 == this->input_buffer_size_){
-          return true;
-        }
-        
-        if(0 == this->output_buffer_size_){
-        }      
-      }
-    }
-    
+
+  protected:
     bool processed(
       const vds::service_provider & sp,
       size_t input_processed,
       size_t output_processed)
     {
-      assert(input_processed <= this->input_buffer_size_);
-      
-      this->waiting_get_data_ = true;
+      std::lock_guard<std::recursive_mutex> lock(this->data_mutex_);
+
+      if(input_processed > this->input_buffer_size_ || output_processed > this->output_buffer_size_) {
+        throw std::runtime_error("Logic error");
+      }
+
+      if (this->waiting_push_data_ || this->waiting_get_data_) {
+        throw std::runtime_error("Logic error");
+      }
+
+      this->waiting_push_data_ = true;
       if(this->source_->continue_read(sp, input_processed, this->input_buffer_, this->input_buffer_size_)){
-        this->waiting_get_data_ = false;
+        this->waiting_push_data_ = false;
       }
       
-      this->waiting_push_data_ = true;
+      this->waiting_get_data_ = true;
       if(this->target_->push_data(sp, output_processed, this->output_buffer_, this->output_buffer_size_)){
-        this->waiting_push_data_ = false;
+        this->waiting_get_data_ = false;
       }
       
       return !this->waiting_get_data_ && !this->waiting_push_data_;
@@ -208,11 +406,9 @@ namespace vds {
       
       cancellation_token_source cancellation_source_;
       cancellation_token cancellation_token_;
-      
-      void on_error(const service_provider & sp, std::exception_ptr error)
-      {
-        this->cancellation_source_.cancel();
-      }
+
+      virtual void step_finish(const service_provider & sp, size_t index) = 0;
+      virtual void step_error(const service_provider & sp, size_t index, std::exception_ptr error) = 0;
     };
     
     template<
@@ -265,6 +461,7 @@ namespace vds {
     class context
     {
     public:
+      static constexpr std::size_t INDEX = index;
       using incoming_item_type = typename _functor_type_t<index>::incoming_item_type;
       using outgoing_item_type = typename _functor_type_t<index>::outgoing_item_type;
       using incoming_queue_type = queue_stream<index - 1>;
@@ -290,6 +487,7 @@ namespace vds {
     class context<0, enabled, dummy>
     {
     public:
+      using outgoing_item_type = typename _functor_type_t<0>::outgoing_item_type;
       using outgoing_queue_type = queue_stream<0>;
       
       context(common_data * data, outgoing_queue_type * target)
@@ -335,8 +533,11 @@ namespace vds {
       {
         try {
           std::lock_guard<std::mutex> lock(this->buffer_mutex_);
-
+          if(!this->data_queried_) {
+            throw std::runtime_error("Logic error");
+          }
           this->data_queried_ = false;
+          std::cout << "queue.push_data[" << index << "]: data_queried_=1->0,data_in_process_=" << data_in_process_ << "\n";
           if (this->back_ + MIN_BUFFER_SIZE < BUFFER_SIZE) {
             this->back_ += count;
           }
@@ -361,6 +562,7 @@ namespace vds {
           
           if (this->back_ + MIN_BUFFER_SIZE < BUFFER_SIZE) {
             this->data_queried_ = true;
+            std::cout << "queue.push_data[" << index << "]: data_queried_=0->1,data_in_process_=" << data_in_process_ << "\n";
             buffer = this->buffer_ + this->back_;
             buffer_len = BUFFER_SIZE - this->back_;
             return true;
@@ -368,6 +570,7 @@ namespace vds {
 
           if (this->second_ + MIN_BUFFER_SIZE < this->front_) {
             this->data_queried_ = true;
+            std::cout << "queue.push_data[" << index << "]: data_queried_=0->1,data_in_process_=" << data_in_process_ << "\n";
             buffer = this->buffer_ + this->second_;
             buffer_len = this->front_ - this->second_;
             return true;
@@ -377,7 +580,7 @@ namespace vds {
           return false;
         }
         catch(...){
-          this->common_data_->on_error(sp, std::current_exception());
+          this->common_data_->step_error(sp, index, std::current_exception());
           return false;
         }
       }
@@ -396,15 +599,24 @@ namespace vds {
         size_t & buffer_len)
       {
         std::lock_guard<std::mutex> lock(this->buffer_mutex_);
-        assert(this->data_in_process_ == true);
+        if(!this->data_in_process_) {
+          throw std::runtime_error("Logic error");
+        }
         this->front_ += readed;
         if (this->front_ < this->back_) {
           this->data_in_process_ = true;
+          std::cout << "queue.continue_read[" << index << "]: data_queried_=" << data_queried_ << ",data_in_process_=0->1\n";
           buffer = this->buffer_ + this->front_;
           buffer_len = this->back_ - this->front_;
           return true;
         }
         this->data_in_process_ = false;
+        std::cout << "queue.continue_read[" << index << "]: data_queried_=" << data_queried_ << ",data_in_process_=1->0\n";
+
+        if (!this->data_queried_) {
+          this->query_data(sp);
+        }
+
         return false;
       }
       
@@ -441,10 +653,13 @@ namespace vds {
       
       bool push_data(const service_provider & sp)
       {
-        assert(this->data_in_process_ == false);
+        if(this->data_in_process_) {
+          throw std::runtime_error("Logic error");
+        }
 
         if (this->front_ < this->back_) {
           this->data_in_process_ = true;
+          std::cout << "queue.continue_read[" << index << "]: data_queried_=" << data_queried_ << ",data_in_process_=0->1\n";
           auto p = this->buffer_ + this->front_;
           auto l = this->back_ - this->front_;
           
@@ -465,14 +680,20 @@ namespace vds {
       
       bool query_data(const service_provider & sp)
       {
-        assert(this->data_queried_ == false);
+        if(this->data_queried_) {
+          throw std::runtime_error("Logic error");
+        }
 
         if (this->back_ + MIN_BUFFER_SIZE < BUFFER_SIZE) {
           this->data_queried_ = true;
+          std::cout << "queue.query_data[" << index << "]: data_queried_=0->1,data_in_process_=" << data_in_process_ << "\n";
           auto p = this->buffer_ + this->back_;
           auto l = BUFFER_SIZE - this->back_;
           imt_service::async(sp, [this, sp, p, l](){
-            if(this->source_->get_data(sp, p, l)){
+            size_t readed;
+            if(this->source_->get_data(sp, p, l, readed)){
+              std::lock_guard<std::mutex> lock(this->buffer_mutex_);
+              this->back_ += readed;
               this->query_data(sp);
             }
           });
@@ -481,12 +702,15 @@ namespace vds {
 
         if (this->second_ + MIN_BUFFER_SIZE < this->front_) {
           this->data_queried_ = true;
+          std::cout << "queue.query_data[" << index << "]: data_queried_=0->1,data_in_process_=" << data_in_process_ << "\n";
           auto p = this->buffer_ + this->second_;
           auto l = this->front_ - this->second_;
           
           imt_service::async(sp, [this, sp, p, l](){
-            if(this->source_->get_data(sp, p, l)){
-              this->query_data(sp);
+            if(this->source_->get_data(sp, p, l, readed)){
+              std::lock_guard<std::mutex> lock(this->buffer_mutex_);
+              this->second_ += readed;
+              this->query_data(sp, readed);
             }
           });
           return true;
@@ -514,7 +738,7 @@ namespace vds {
       
       void start(const service_provider & sp)
       {
-        this->step_.target_->start(sp);
+        this->step_.start(sp);
         base_class::start(sp);
       }
       
@@ -541,7 +765,7 @@ namespace vds {
       
       void start(const service_provider & sp)
       {
-        this->step_.target_->start(sp);
+        this->step_.start(sp);
       }
       
       step_type<0> * step(){
@@ -555,6 +779,7 @@ namespace vds {
     class final_context
     {
     public:
+      using incoming_item_type = typename _functor_type_t<std::tuple_size<tuple_type>::value - 1>::incoming_item_type;
       using incoming_queue_type = queue_stream<std::tuple_size<tuple_type>::value - 2>;
       using terminator_type = starter;
       
@@ -620,9 +845,27 @@ namespace vds {
       
       void final_data(const service_provider & sp)
       {
-        this->done_(sp);
-        this->pthis_.reset();
+        cancellation_source_.cancel();
       }
+
+      void step_finish(const service_provider & sp, size_t index) override
+      {
+        this->final_mutex_.lock();
+        this->done_steps_.emplace(index);
+        this->try_finish(sp);
+      }
+
+      void step_error(const service_provider & sp, size_t index, std::exception_ptr error) override
+      {
+        this->final_mutex_.lock();
+        if (!this->error_) {
+          this->error_ = error;
+          cancellation_source_.cancel();
+        }
+        this->done_steps_.emplace(index);
+        this->try_finish(sp);
+      }
+
 
     private:
       std::function<void(const service_provider & sp)> done_;
@@ -630,9 +873,29 @@ namespace vds {
       final_step_type step_;
       queue_stream<std::tuple_size<tuple_type>::value - 2> queue_;
       std::shared_ptr<starter> pthis_;
+
+      std::mutex final_mutex_;
+      std::set<size_t> done_steps_;
+      std::exception_ptr error_;
+
+      void try_finish(const service_provider & sp)
+      {
+        if (std::tuple_size<tuple_type>::value > this->done_steps_.size()) {
+          this->final_mutex_.unlock();
+          return;
+        }
+        this->final_mutex_.unlock();
+
+        if (!this->error_) {
+          this->done_(sp);
+        }
+        else {
+          this->on_error_(sp, this->error_);
+        }
+
+        this->pthis_.reset();
+      }
     };
-    
-    bool is_stopping_;
   };
   
   template <typename... functor_types>

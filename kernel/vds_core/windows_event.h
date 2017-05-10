@@ -7,6 +7,7 @@ All rights reserved
 */
 
 #ifdef _WIN32
+#include "targetver.h"
 #include <memory>
 #include <string>
 

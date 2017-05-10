@@ -32,18 +32,18 @@ All rights reserved
 
 #include "stddef.h"
 
-#include <vector>
-#include <list>
-#include <map>
-#include <thread>
-#include <future>
-#include <chrono>
-#include <queue>
-#include <algorithm>
-#include <stack>
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <fcntl.h>
+//#include <vector>
+//#include <list>
+//#include <map>
+//#include <thread>
+//#include <future>
+//#include <chrono>
+//#include <queue>
+//#include <algorithm>
+//#include <stack>
+//
+//#include <stdio.h>
+//#include <stdlib.h>
+//#include <fcntl.h>
 
 #endif// __VDS_CORE_TARGETVER_H_

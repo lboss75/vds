@@ -55,7 +55,7 @@ vds::binary_serializer & vds::binary_serializer::write_number(uint64_t value)
     value >>= 8;
   } while (0 != value);
   
-  this->data_.push_back(0x80 | data.size());
+  this->data_.push_back((uint8_t)(0x80 | data.size()));
   for(auto p = data.rbegin(); data.rend() != p; ++p){
     this->data_.push_back(*p);
   }

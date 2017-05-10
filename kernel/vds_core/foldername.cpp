@@ -4,6 +4,8 @@ All rights reserved
 */
 
 #include "stdafx.h"
+#include "targetver.h"
+#include <direct.h>
 #include "foldername.h"
 #include "filename.h"
 #include "file.h"

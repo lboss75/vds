@@ -7,6 +7,8 @@ All rights reserved
 */
 
 #include <sstream>
+#include <mutex>
+#include <memory>
 #include "service_provider.h"
 #include "string_format.h"
 

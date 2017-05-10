@@ -1,4 +1,5 @@
 #include "stdafx.h"
+#include "targetver.h"
 #include "filename.h"
 #include "foldername.h"
 

@@ -6,18 +6,15 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
+#include "targetver.h"
+
 #if defined(_WIN32)
-
 #include <stdint.h>
-
-//typedef uint8_t u_int8_t;
-//typedef uint16_t u_int16_t;
-//typedef uint32_t u_int32_t;
-
 #endif
 
 #include <cstring>
 #include <functional>
+#include <memory>
 
 namespace vds {
   class service_provider;

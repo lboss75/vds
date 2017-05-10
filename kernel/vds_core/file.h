@@ -6,6 +6,9 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
+#include "targetver.h"
+#include <fcntl.h>
+
 #include "filename.h"
 #include "dataflow.h"
 #include "const_data_buffer.h"
@@ -159,41 +162,28 @@ namespace vds {
   class read_file
   {
   public:
-    read_file(const filename & filename, size_t buffer_size = 4 * 1024)
-      : filename_(filename),
-      buffer_size_(buffer_size)
+    read_file(const filename & filename)
+      : filename_(filename)
     {
     }
 
     using outgoing_item_type = uint8_t;
     template <typename context_type>
-    class handler : public dataflow_source<context_type>
+    class handler : public sync_dataflow_source<context_type, handler<context_type>>
     {
-      using base_class = dataflow_source<context_type>;
+      using base_class = sync_dataflow_source<context_type, handler<context_type>>;
     public:
       handler(
         const context_type & context,
         const read_file & args
         ) : base_class(context),
-        f_(args.filename_, file::open_read)
+            f_(args.filename_, file::open_read)
       {
-        this->buffer_.resize(args.buffer_size_);
       }
 
-      void get_data(const service_provider & sp, uint8_t * buffer, size_t buffer_size)
+      size_t sync_get_data(const service_provider & sp, uint8_t * buffer, size_t buffer_size)
       {
-        for(;;){
-          auto readed = this->f_.read(buffer, buffer_size);
-          if(0 < readed){
-            if(!this->target_->push_data(sp, readed, buffer, buffer_size)){
-              return;
-            }              
-          }
-          else {
-            this->target_->final_data(sp);
-            return;
-          }
-        }
+        return this->f_.read(buffer, buffer_size);
       }
 
     private:
@@ -202,7 +192,6 @@ namespace vds {
 
   private:
     filename filename_;
-    size_t buffer_size_;
   };
   
   class write_file
@@ -218,9 +207,9 @@ namespace vds {
     
     using incoming_item_type = uint8_t;
     template <typename context_type>
-    class handler : public dataflow_target<context_type>
+    class handler : public sync_dataflow_target<context_type, handler<context_type>>
     {
-      using base_class = dataflow_target<context_type>;
+      using base_class = sync_dataflow_target<context_type, handler<context_type>>;
     public:
       handler(
         const context_type & context,
@@ -229,16 +218,16 @@ namespace vds {
         f_(args.filename_, args.mode_)
       {
       }
-      bool push_data(const service_provider & sp, const incoming_item_type * data, size_t size)
+
+      size_t sync_push_data(const service_provider & sp, const incoming_item_type * data, size_t size)
       {
         this->f_.write(data, size);
-        return true;
+        return size;
       }
       
-      bool final_data(const service_provider & sp)
+      void final_data(const service_provider & sp)
       {
         this->f_.close();
-        return true;
       }
       
     private:
@@ -261,9 +250,9 @@ namespace vds {
     using incoming_item_type = uint8_t;
     
     template <typename context_type>
-    class handler : public dataflow_target<context_type>
+    class handler : public sync_dataflow_target<context_type, handler<context_type>>
     {
-      using base_class = dataflow_target<context_type>;
+      using base_class = sync_dataflow_target<context_type, handler<context_type>>;
     public:
       handler(
         const context_type & context,
@@ -273,16 +262,15 @@ namespace vds {
       {
       }
 
-      bool push_data(const service_provider & sp, const incoming_item_type * data, size_t size)
+      size_t sync_push_data(const service_provider & sp, const incoming_item_type * data, size_t size)
       {
         this->f_.write(data, size);
-        return true;
+        return size;
       }
-      
-      bool final_data(const service_provider & sp)
+
+      void final_data(const service_provider & sp)
       {
         this->f_.close();
-        return true;
       }
 
     private:

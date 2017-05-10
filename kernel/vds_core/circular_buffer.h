@@ -6,6 +6,9 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
+#include <mutex>
+#include "service_provider.h"
+
 namespace vds {
 
   template <typename owner_class, uint32_t buffer_size, uint32_t min_buffer_size>

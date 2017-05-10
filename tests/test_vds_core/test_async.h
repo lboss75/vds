@@ -5,6 +5,7 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
+#include "dataflow.h"
 
 class test_async_object
 {
@@ -22,7 +23,7 @@ public:
       static constexpr size_t MIN_BUFFER_SIZE = 1;
       
       template<typename context_type>
-      class handler : public vds::dataflow_source<context_type>
+      class handler : public vds::sync_dataflow_source<context_type, handler<context_type>>
       {
       public:
         handler(
@@ -37,39 +38,21 @@ public:
         {
         }
         
-        bool get_data(
+        size_t sync_get_data(
           const vds::service_provider & sp,
           int * buffer,
           size_t buffer_size)
         {
           std::cout << "source_method::get_data(" << buffer_size << ")\n";
-          for(;;){
-            size_t count = 0;
-            while(this->written_ < 2000 && count < buffer_size){
-              *buffer++ = this->written_;
-              ++count;
-              this->written_++;
-            }
-            
-            if(count > 0){
-              std::cout << "source_method::get_data->push_data " << count << "\n";
-              if(!this->target_->push_data(sp, count, buffer, buffer_size)){
-                std::cout << "source_method::get_data->push_data returns false\n";
-                return false;
-              }
-              std::cout << "source_method::get_data->push_data returns buffer " << buffer_size << "\n";
-              
-              continue;
-            }
-            
-            if(10000 == this->written_){
-              std::cout << "source_method::get_data->final_data\n";
-              this->target_->final_data(sp);
-            }
-            
-            std::cout << "source_method::get_data return false\n";
-            return false;
+
+          size_t count = 0;
+          while(this->written_ < 2000 && count < buffer_size){
+            *buffer++ = this->written_;
+            ++count;
+            this->written_++;
           }
+            
+          return count;
         }
         
       private:
@@ -94,7 +77,7 @@ public:
       static constexpr size_t MIN_BUFFER_SIZE = 1;
       
       template<typename context_type>
-      class handler : public vds::dataflow_filter<context_type, handler<context_type>>
+      class handler : public vds::sync_dataflow_filter<context_type, handler<context_type>>
       {
       public:
         handler(
@@ -105,25 +88,18 @@ public:
         {
         }
         
-        bool process_data(const vds::service_provider & sp)
+        void sync_process_data(const vds::service_provider & sp, size_t & input_readed, size_t & output_written)
         {
-          std::cout << "sync_method::process_data(input = " << this->input_buffer_size_ << ", output = " << this->output_buffer_size_ << ")\n";
-          for(;;){
-            auto n = (this->input_buffer_size_ < this->output_buffer_size_)
-              ? this->input_buffer_size_
-              : this->output_buffer_size_;
+          auto n = (this->input_buffer_size_ < this->output_buffer_size_)
+            ? this->input_buffer_size_
+            : this->output_buffer_size_;
             
-            for(size_t i = 0; i < n; ++i){
-              this->output_buffer_[i] = std::to_string(this->input_buffer_[i]);
-            }
-            
-            std::cout << "sync_method::process_data>processed(" << n << ")\n";
-            if(!this->processed(sp, n, n)){
-              std::cout << "sync_method::process_data>processed returns false\n";
-              return false;
-            }
-            std::cout << "sync_method::process_data continue with (input = " << this->input_buffer_size_ << ", output = " << this->output_buffer_size_ << ")\n";
+          for(size_t i = 0; i < n; ++i){
+            this->output_buffer_[i] = std::to_string(this->input_buffer_[i]);
           }
+            
+          input_readed = n;
+          output_written = n;
         }
         
       private:
@@ -149,9 +125,9 @@ public:
       static constexpr size_t MIN_BUFFER_SIZE = 1;
       
       template<typename context_type>
-      class handler : public vds::dataflow_filter<context_type, handler<context_type>>
+      class handler : public vds::async_dataflow_filter<context_type, handler<context_type>>
       {
-        using base_class = vds::dataflow_filter<context_type, handler<context_type>>;
+        using base_class = vds::async_dataflow_filter<context_type, handler<context_type>>;
       public:
         handler(
           const context_type & context,
@@ -162,10 +138,9 @@ public:
         {
         }
         
-        bool process_data(const vds::service_provider & sp)
+        void async_process_data(const vds::service_provider & sp, size_t & input_readed, size_t & output_written)
         {
           vds::imt_service::async(sp, [this, sp](){
-            std::cout << "async_method::process_data(input = " << this->input_buffer_size_ << ", output = " << this->output_buffer_size_ << ")\n";
             for(;;){
               auto n = (this->input_buffer_size_ < this->output_buffer_size_)
                 ? this->input_buffer_size_
@@ -175,16 +150,11 @@ public:
                 this->output_buffer_[i] = (this->input_buffer_[i] == std::to_string(i));
               }
               
-              std::cout << "async_method::process_data>processed(" << n << ")\n";
               if(!this->processed(sp, n, n)){
-                std::cout << "async_method::process_data>processed returns false\n";
                 break;
               }
-              std::cout << "async_method::process_data continue with (input = " << this->input_buffer_size_ << ", output = " << this->output_buffer_size_ << ")\n";
             }
           });
-          
-          return false;
         }
         
       private:
@@ -209,9 +179,9 @@ public:
       static constexpr size_t MIN_BUFFER_SIZE = 1;
       
       template<typename context_type>
-      class handler : public vds::dataflow_target<context_type>
+      class handler : public vds::sync_dataflow_target<context_type, handler<context_type>>
       {
-        using base_class = vds::dataflow_target<context_type>;
+        using base_class = vds::sync_dataflow_target<context_type, handler<context_type>>;
       public:
         handler(
           const context_type & context,
@@ -222,7 +192,7 @@ public:
         {
         }
         
-        bool push_data(
+        size_t push_data(
           const vds::service_provider & sp,
           const bool * values,
           size_t count)
@@ -234,19 +204,7 @@ public:
               throw std::runtime_error("test failed");
             }
           }
-          
-          return true;
-        }
-        
-        void final_data()
-        {
-          std::cout << "target_method::final_data\n";
-          
-          if(!this->is_done_) {
-            throw std::runtime_error("test failed");
-          }
-          
-          this->terminator_->final_data();
+          return count;
         }
         
       private:

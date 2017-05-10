@@ -1,6 +1,8 @@
 #ifndef TEST_SERIALIZE_H
 #define TEST_SERIALIZE_H
 
+#include "binary_serialize.h"
+
 class serialize_step
 {
 public:
