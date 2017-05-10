@@ -228,15 +228,14 @@ namespace vds {
     incoming_queue_type * source_;
     outgoing_queue_type * target_;
     cancellation_token & cancel_token_;
+    std::recursive_mutex data_mutex_;
+    bool waiting_get_data_;
+    bool waiting_push_data_;
 
   protected:
-    std::recursive_mutex data_mutex_;
-
-    bool waiting_get_data_;
     incoming_item_type * input_buffer_;
     size_t input_buffer_size_;
 
-    bool waiting_push_data_;
     outgoing_item_type * output_buffer_;
     size_t output_buffer_size_;
   };
@@ -329,16 +328,16 @@ namespace vds {
     std::recursive_mutex data_mutex_;
     
     bool waiting_get_data_;
-    incoming_item_type * input_buffer_;
-    size_t input_buffer_size_;
-    
     bool waiting_push_data_;
-    outgoing_item_type * output_buffer_;
-    size_t output_buffer_size_;
-    
     bool process_data_called_;
 
   protected:
+    incoming_item_type * input_buffer_;
+    size_t input_buffer_size_;
+
+    outgoing_item_type * output_buffer_;
+    size_t output_buffer_size_;
+
     bool processed(
       const vds::service_provider & sp,
       size_t input_processed,
@@ -707,10 +706,11 @@ namespace vds {
           auto l = this->front_ - this->second_;
           
           imt_service::async(sp, [this, sp, p, l](){
+            size_t readed;
             if(this->source_->get_data(sp, p, l, readed)){
               std::lock_guard<std::mutex> lock(this->buffer_mutex_);
               this->second_ += readed;
-              this->query_data(sp, readed);
+              this->query_data(sp);
             }
           });
           return true;

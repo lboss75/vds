@@ -138,7 +138,7 @@ public:
         {
         }
         
-        void async_process_data(const vds::service_provider & sp, size_t & input_readed, size_t & output_written)
+        void async_process_data(const vds::service_provider & sp)
         {
           vds::imt_service::async(sp, [this, sp](){
             for(;;){
