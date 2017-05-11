@@ -782,6 +782,8 @@ namespace vds {
               auto scope = sp.create_scope("step(" + std::to_string(i) + ")");
 
               if (!this->source_->get_data(scope, buffer, len, readed)) {
+                this->data_queried_ = false;
+                this->data_queried_stack_ = sp.full_name();
                 break;
               }
 
@@ -813,6 +815,8 @@ namespace vds {
               auto scope = sp.create_scope("step(" + std::to_string(i) + ")");
 
               if (!this->source_->get_data(scope, buffer, len, readed)) {
+                this->data_queried_ = false;
+                this->data_queried_stack_ = sp.full_name();
                 break;
               }
 
