@@ -5,9 +5,12 @@ All rights reserved
 
 #include "stdafx.h"
 #include <system_error>
-#include <pwd.h>
 #include "persistence.h"
 #include "foldername.h"
+
+#ifndef WIN32
+#include <pwd.h>
+#endif
 
 vds::foldername vds::persistence::current_user(const service_provider & sp)
 {

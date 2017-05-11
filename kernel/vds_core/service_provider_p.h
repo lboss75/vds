@@ -76,7 +76,7 @@ namespace vds {
       const std::string & name)
     : id_(++s_last_id_),
       name_(name),
-      full_name_((parent ? (parent->full_name_ + "\n") : std::string()) + name),
+      full_name_((parent ? (parent->full_name_ + "\n") : std::string()) + "[" + std::to_string(id_) + "]" + name),
       parent_(parent),
       service_registrator_(service_registrator)
     {

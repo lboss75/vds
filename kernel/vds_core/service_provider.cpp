@@ -4,6 +4,7 @@ All rights reserved
 */
 
 #include "stdafx.h"
+#include <iostream>
 #include "service_provider.h"
 #include "service_provider_p.h"
 
@@ -19,6 +20,7 @@ vds::service_provider vds::service_provider::empty()
 
 vds::service_provider vds::service_provider::create_scope(const std::string & name) const
 {
+  std::cout << "create_scope " << name << "\n";
   return this->impl_->create_scope(this, name);
 }
 

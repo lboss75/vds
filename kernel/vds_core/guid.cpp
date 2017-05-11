@@ -3,9 +3,12 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 #include "stdafx.h"
-#include <uuid/uuid.h>
 #include "guid.h"
 #include "encoding.h"
+
+#ifndef WIN32
+#include <uuid/uuid.h>
+#endif
 
 vds::guid::guid()
 {
