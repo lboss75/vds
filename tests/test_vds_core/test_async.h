@@ -193,18 +193,17 @@ public:
         }
         
         size_t sync_push_data(
-          const vds::service_provider & sp,
-          const bool * values,
-          size_t count)
+          const vds::service_provider & sp)
         {
-          std::cout << "target_method::push_data(" << count << ")\n";
-          for(size_t i = 0; i < count; ++i) {
-            if(true != values[i]) {
+          std::cout << "target_method::push_data(" << this->input_buffer_size_ << ")\n";
+          for(size_t i = 0; i < this->input_buffer_size_; ++i) {
+            if(true != this->input_buffer_[i]) {
               std::cout << "target_method::push_data test failed\n";
               throw std::runtime_error("test failed");
             }
           }
-          return count;
+          
+          return this->input_buffer_size_;
         }
        
       private:

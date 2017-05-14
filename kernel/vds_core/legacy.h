@@ -21,6 +21,8 @@ All rights reserved
 #if __cplusplus_version <=  201402L
 
 //#pragma message ("Using legacy code")
+#include <mutex>
+#include <condition_variable>
 
 namespace std {
   class shared_mutex

@@ -5,7 +5,7 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
-
+#include <stack>
 #include "json_object.h"
 #include "parse_error.h"
 
@@ -31,16 +31,20 @@ namespace vds {
     {
     }
 
+    using incoming_item_type = char;
+    using outgoing_item_type = json_value *;
+    static constexpr size_t BUFFER_SIZE = 1024;
+    static constexpr size_t MIN_BUFFER_SIZE = 1;
+
     template <typename context_type>
-    class handler : public dataflow_step<context_type, bool(json_value *)>
+    class handler : public sync_dataflow_filter<context_type, handler<context_type>>
     {
-      using base_class = dataflow_step<context_type, bool(json_value *)>;
+      using base_class = sync_dataflow_filter<context_type, handler<context_type>>;
     public:
       handler(
         const context_type & context,
         const json_parser & args
         ) : base_class(context),
-        data_(nullptr), len_(0),
         stream_name_(args.stream_name_),
         parse_options_(args.parse_options_),
         state_(ST_BOF),
@@ -49,53 +53,14 @@ namespace vds {
       {
       }
 
-      bool operator()(
+      void sync_process_data(
         const service_provider & sp,
-        const void * data,
-        size_t len
-        )
+        size_t & input_readed,
+        size_t & output_written)
       {
-        if (0 == len) {
-          switch (this->state_) {
-          case ST_EOF:
-            break;
-
-          case ST_BOF:
-            if (this->parse_options_.enable_multi_root_objects) {
-              break;
-            }
-            //break;
-
-          default:
-            throw parse_error(
-              this->stream_name_,
-              this->line_,
-              this->column_,
-              "Unexpected end of data");
-          }
-
-          return this->next(sp, nullptr);
-        }
-        else {
-          this->data_ = (const char *)data;
-          this->len_ = len;
-
-          return this->continue_process(sp);
-        }
-      }
-
-      void processed(const service_provider & sp)
-      {
-        if(this->continue_process(sp)){
-          this->prev(sp);
-        }
-      }
-      
-    private:
-      bool continue_process(const service_provider & sp)
-      {
-        for (; 0 < this->len_; this->len_--, this->data_++) {
-          switch (*this->data_) {
+        output_written = 0;
+        for (input_readed = 0; input_readed < this->input_buffer_size_; ++input_readed) {
+          switch (this->input_buffer_[input_readed]) {
           case '\n':
             this->line_++;
             this->column_ = 1;
@@ -112,7 +77,7 @@ namespace vds {
 
           switch (this->state_) {
           case ST_BOF:
-            switch (*this->data_) {
+            switch (this->input_buffer_[input_readed]) {
             case '/':
               this->after_slesh();
               break;
@@ -128,7 +93,7 @@ namespace vds {
               break;
 
             default:
-              if (isspace(*this->data_)) {
+              if (isspace(this->input_buffer_[input_readed])) {
                 continue;
               }
 
@@ -136,11 +101,11 @@ namespace vds {
                 this->stream_name_,
                 this->line_,
                 this->column_,
-                std::string("Unexpected char ") + *this->data_);
+                std::string("Unexpected char ") + this->input_buffer_[input_readed]);
             }
             break;
           case ST_AFTER_SLESH:
-            switch (*this->data_)
+            switch (this->input_buffer_[input_readed])
             {
             case '/':
               this->state_ = ST_INLINE_COMMENT;
@@ -150,11 +115,11 @@ namespace vds {
                 this->stream_name_,
                 this->line_,
                 this->column_,
-                std::string("Unexpected char ") + *this->data_);
+                std::string("Unexpected char ") + this->input_buffer_[input_readed]);
             }
             break;
           case ST_INLINE_COMMENT:
-            switch (*this->data_)
+            switch (this->input_buffer_[input_readed])
             {
             case '\n':
               this->state_ = this->saved_states_.top();
@@ -165,7 +130,7 @@ namespace vds {
             };
             break;
           case ST_ARRAY:
-            switch (*this->data_) {
+            switch (this->input_buffer_[input_readed]) {
             case ']':
               if (this->final_array(sp)) {
                 return true;
@@ -190,12 +155,12 @@ namespace vds {
               break;
 
             default:
-              if (isspace(*this->data_)) {
+              if (isspace(this->input_buffer_[input_readed])) {
                 continue;
               }
 
-              if (isdigit(*this->data_)) {
-                this->buffer_ = *this->data_;
+              if (isdigit(this->input_buffer_[input_readed])) {
+                this->buffer_ = this->input_buffer_[input_readed];
                 this->saved_states_.push(ST_ARRAY_ITEM);
                 this->state_ = ST_NUMBER;
                 continue;
@@ -205,12 +170,12 @@ namespace vds {
                 this->stream_name_,
                 this->line_,
                 this->column_,
-                std::string("Unexpected char ") + *this->data_);
+                std::string("Unexpected char ") + this->input_buffer_[input_readed]);
             };
             break;
 
           case ST_ARRAY_ITEM:
-            switch (*this->data_) {
+            switch (this->input_buffer_[input_readed]) {
             case ']':
               if (this->final_array(sp)) {
                 return true;
@@ -222,7 +187,7 @@ namespace vds {
               break;
 
             default:
-              if (isspace(*this->data_)) {
+              if (isspace(this->input_buffer_[input_readed])) {
                 continue;
               }
 
@@ -230,12 +195,12 @@ namespace vds {
                 this->stream_name_,
                 this->line_,
                 this->column_,
-                std::string("Unexpected char ") + *this->data_);
+                std::string("Unexpected char ") + this->input_buffer_[input_readed]);
             }
             break;
 
           case ST_OBJECT:
-            switch (*this->data_) {
+            switch (this->input_buffer_[input_readed]) {
             case '\"':
               this->saved_states_.push(ST_OBJECT_ITEM);
               this->saved_states_.push(ST_OBJECT_PROPERTY_NAME);
@@ -679,11 +644,39 @@ namespace vds {
 
         return true;
       }
+      
+      void final_data(
+        const service_provider & sp)
+      {
+        switch (this->state_) {
+        case ST_EOF:
+          break;
+
+        case ST_BOF:
+          if (this->parse_options_.enable_multi_root_objects) {
+            break;
+          }
+          //break;
+
+        default:
+          throw parse_error(
+            this->stream_name_,
+            this->line_,
+            this->column_,
+            "Unexpected end of data");
+        }
+        
+        this->target_->final_data(sp);
+      }
+
+      void processed(const service_provider & sp)
+      {
+        if(this->continue_process(sp)){
+          this->prev(sp);
+        }
+      }
 
     private:
-      const char * data_;
-      size_t len_;
-
       std::string stream_name_;
       options parse_options_;
 

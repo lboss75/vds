@@ -60,8 +60,9 @@ namespace vds {
       if (nullptr == this->input_buffer_) {
         this->waiting_push_data_ = true;
         if (!this->source_->start(sp, this->input_buffer_, this->input_buffer_size_)) {
-          return false;
+          return;
         }
+        
         this->waiting_push_data_ = false;
       }
 
@@ -72,8 +73,6 @@ namespace vds {
         if (this->source_->continue_read(sp, readed, this->input_buffer_, this->input_buffer_size_)) {
           this->waiting_push_data_ = false;
         }
-
-
       }
     }
 
@@ -211,6 +210,7 @@ namespace vds {
       if (!this->waiting_get_data_) {
         throw std::runtime_error("Logic error");
       }
+      
       this->waiting_get_data_ = false;
 
       this->output_buffer_ = buffer;
@@ -339,13 +339,12 @@ namespace vds {
       size_t buffer_size,
       size_t & readed)
     {
-      std::lock_guard<std::recursive_mutex> lock(this->data_mutex_);
+      std::lock_guard<std::mutex> lock(this->data_mutex_);
       if (!this->waiting_get_data_) {
         throw std::runtime_error("Logic error");
       }
 
       this->waiting_get_data_ = false;
-      this->waiting_get_data_stack_ = sp.full_name();
 
       this->output_buffer_ = buffer;
       this->output_buffer_size_ = buffer_size;
@@ -362,12 +361,11 @@ namespace vds {
         this->waiting_push_data_ = false;
 
         if (0 == this->input_buffer_size_) {
-          written = 0;
+          readed = 0;
           return true;
         }
 
         this->process_data_called_ = true;
-        this->process_data_called_stack_ = sp.full_name();
         static_cast<implementation_type *>(this)->async_process_data(sp);
       }
 
@@ -380,13 +378,12 @@ namespace vds {
       size_t buffer_size,
       size_t & written)
     {
-      std::lock_guard<std::recursive_mutex> lock(this->data_mutex_);
+      std::lock_guard<std::mutex> lock(this->data_mutex_);
 
       if (!this->waiting_push_data_) {
         throw std::runtime_error("Logic error");
       }
       this->waiting_push_data_ = false;
-      this->waiting_push_data_stack_ = sp.full_name();
 
       this->input_buffer_ = buffer;
       this->input_buffer_size_ = buffer_size;
@@ -400,6 +397,41 @@ namespace vds {
       static_cast<implementation_type *>(this)->async_process_data(sp);
 
       return false;
+    }
+    
+    bool processed(const service_provider & sp, size_t readed, size_t written)
+    {
+      std::lock_guard<std::mutex> lock(this->data_mutex_);
+
+      if (this->waiting_get_data_) {
+        throw std::runtime_error("Logic error");
+      }
+      if (this->waiting_push_data_) {
+        throw std::runtime_error("Logic error");
+      }
+      
+      if (!this->process_data_called_) {
+        throw std::runtime_error("Logic error");
+      }
+      this->process_data_called_ = false;
+      
+      this->waiting_get_data_ = true;
+      if(this->target_->push_data(sp, readed, this->output_buffer_, this->output_buffer_size_)){
+        this->waiting_get_data_ = false;
+      }
+      
+      this->waiting_push_data_ = true;
+      if(this->source_->continue_read(sp, written, this->input_buffer_, this->input_buffer_size_)){
+        this->waiting_push_data_ = false;
+      }
+      
+      if(!this->waiting_get_data_ && !this->waiting_push_data_){
+        this->process_data_called_ = true;
+        return true;
+      }
+      else {
+        return false;
+      }
     }
 
     void final_data(const service_provider & sp)
@@ -585,25 +617,17 @@ namespace vds {
       
       //from source
       bool push_data(
-        const service_provider & scope,
+        const service_provider & sp,
         size_t count,
         incoming_item_type *& buffer,
         size_t & buffer_len)
       {
-        auto sp = scope.create_scope("dataflow.queue[" + std::to_string(index) + "].push_data()");
         try {
           std::lock_guard<std::mutex> lock(this->buffer_mutex_);
           if(!this->data_queried_) {
             throw std::runtime_error("Logic error");
           }
           this->data_queried_ = false;
-          this->data_queried_stack_ = sp.full_name();
-
-          if (this->data_final_ && !this->data_in_process_) {
-            this->common_data_->step_finish(sp, index);
-            this->target_->final_data(sp);
-            return false;
-          }
 
           if (this->back_ + MIN_BUFFER_SIZE < BUFFER_SIZE) {
             this->back_ += count;
@@ -624,28 +648,26 @@ namespace vds {
           }
 
           if (!this->data_in_process_) {
-            this->push_data(sp);
+            incoming_item_type * read_buffer;
+            size_t read_len;
+            if(this->get_read_buffer(read_buffer, read_len)){
+              this->data_in_process_ = true;
+              size_t readed;
+              if(this->target_->push_data(sp, read_buffer, read_len, readed)){
+                this->data_in_process_ = false;
+                
+                this->front_ += readed;
+                
+                if (this->front_ == this->back_) {
+                  this->front_ = 0;
+                  this->back_ = this->second_;
+                  this->second_ = 0;
+                }
+              }
+            }
           }
           
-          if (this->back_ + MIN_BUFFER_SIZE < BUFFER_SIZE) {
-            this->data_queried_ = true;
-            this->data_queried_stack_ = sp.full_name();
-
-            buffer = this->buffer_ + this->back_;
-            buffer_len = BUFFER_SIZE - this->back_;
-            return true;
-          }
-
-          if (this->second_ + MIN_BUFFER_SIZE < this->front_) {
-            this->data_queried_ = true;
-            this->data_queried_stack_ = sp.full_name();
-
-            buffer = this->buffer_ + this->second_;
-            buffer_len = this->front_ - this->second_;
-            return true;
-          }
-          
-          return false;
+          return this->get_write_buffer(buffer, buffer_len);
         }
         catch(...){
           this->common_data_->step_error(sp, index, std::current_exception());
@@ -670,22 +692,47 @@ namespace vds {
       }
       
       //from target
+      bool start(
+        const service_provider & sp,
+        outgoing_item_type *& buffer,
+        size_t & readed)
+      {
+        std::lock_guard<std::mutex> lock(this->buffer_mutex_);
+        
+        if(this->data_in_process_ || this->data_queried_) {
+          throw std::runtime_error("Logic error");
+        }
+
+        size_t buffer_len;
+        if(!this->get_write_buffer(buffer, buffer_len)){
+          throw std::runtime_error("Logic error");
+        }
+        
+        this->data_queried_ = true;
+        if(this->source_->get_data(sp, buffer, buffer_len, readed)){
+          this->back_ += readed;
+          this->data_queried_ = false;
+          this->data_in_process_ = true;
+          return true;
+        }
+        return false;
+      }
+      
       bool continue_read(
-        const service_provider & scope,
+        const service_provider & sp,
         size_t readed,
         outgoing_item_type *& buffer,
         size_t & buffer_len)
       {
-        auto sp = scope.create_scope("dataflow.queue[" + std::to_string(index) + "].continue_read()");
-
         std::lock_guard<std::mutex> lock(this->buffer_mutex_);
         if(!this->data_in_process_) {
           throw std::runtime_error("Logic error");
         }
+        
         this->front_ += readed;
+        
         if (this->front_ < this->back_) {
           this->data_in_process_ = true;
-          this->data_in_process_stack_ = sp.full_name();
 
           buffer = this->buffer_ + this->front_;
           buffer_len = this->back_ - this->front_;
@@ -693,13 +740,6 @@ namespace vds {
         }
 
         this->data_in_process_ = false;
-        this->data_in_process_stack_ = sp.full_name();
-
-        if (this->data_final_ && this->data_queried_) {
-          this->common_data_->step_finish(sp, index);
-          this->target_->final_data(sp);
-          return false;
-        }
 
         if (this->data_queried_) {
           return false;
@@ -710,28 +750,14 @@ namespace vds {
           this->back_ = this->second_;
           this->second_ = 0;
         }
-
-        if (this->back_ + MIN_BUFFER_SIZE < BUFFER_SIZE) {
-          this->data_queried_ = true;
-          this->data_queried_stack_ = sp.full_name();
-
-          buffer = this->buffer_ + this->back_;
-          if (!this->source_->get_data(scope, buffer, BUFFER_SIZE - this->back_, buffer_len)) {
-            return false;
-          }
-
-          return true;
+        
+        if(!this->get_write_buffer(buffer, buffer_len)){
+          return false;
         }
-
-        if (this->second_ + MIN_BUFFER_SIZE < this->front_) {
-          this->data_queried_ = true;
-          this->data_queried_stack_ = sp.full_name();
-
-          buffer = this->buffer_ + this->second_;
-          if (!this->source_->get_data(scope, buffer, this->front_ - this->second_, buffer_len)) {
-            return false;
-          }
-
+        
+        this->data_queried_ = true;
+        if(this->source_->get_data(sp, buffer, buffer_len, readed)){
+          this->data_queried_ = false;
           return true;
         }
 
@@ -764,7 +790,7 @@ namespace vds {
       // to read    [...2...]       [...1...]
       // to write            [..2..]         [...1...]
 
-      bool get_write_buffer(incoming_item_type * result_buffer, size_t result_len)
+      bool get_write_buffer(incoming_item_type *& result_buffer, size_t & result_len)
       {
         if (this->back_ + MIN_BUFFER_SIZE < BUFFER_SIZE) {
           result_buffer = this->buffer_ + this->back_;
@@ -781,7 +807,7 @@ namespace vds {
         return false;
       }
 
-      bool get_read_buffer(incoming_item_type * result_buffer, size_t result_len)
+      bool get_read_buffer(incoming_item_type *& result_buffer, size_t & result_len)
       {
         if (this->front_ < this->back_) {
           result_buffer = this->buffer_ + this->front_;
@@ -809,12 +835,6 @@ namespace vds {
       {
       }
       
-      void start(const service_provider & sp)
-      {
-        this->step_.start(sp);
-        base_class::start(sp);
-      }
-      
       step_type<index> * step(){
         return &this->step_;
       }
@@ -834,11 +854,6 @@ namespace vds {
         tuple_type & args)
       : step_(context<0>(data, queue), std::get<0>(args))
       {
-      }
-      
-      void start(const service_provider & sp)
-      {
-        this->step_.start(sp);
       }
       
       step_type<0> * step(){
@@ -923,7 +938,7 @@ namespace vds {
       void start(const std::shared_ptr<starter> pthis, const service_provider & sp)
       {
         this->pthis_ = pthis;
-        base_class::start(sp);
+        this->step_.start(sp);
       }
       
       void final_data(const service_provider & sp)
