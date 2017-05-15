@@ -32,8 +32,6 @@ TEST(mt_tests, test_async) {
       )
       (
         [&obj, &barrier](const vds::service_provider & sp) {
-        ASSERT_EQ(obj.state_, 2);
-        obj.state_++;
         barrier.set();
       },
         [&barrier](const vds::service_provider & sp, std::exception_ptr ex) {
@@ -45,13 +43,10 @@ TEST(mt_tests, test_async) {
 
       barrier.wait();
 
-      ASSERT_EQ(obj.state_, 3);
-
       registrator.shutdown(sp);
     }
 }
 
 test_async_object::test_async_object()
-    : state_(0)
 {
 }

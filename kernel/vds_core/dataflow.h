@@ -43,12 +43,16 @@ namespace vds {
       }
 
       this->waiting_push_data_ = false;
-      written = static_cast<implementation_type *>(this)->sync_push_data(sp);
-      return true;
-    }
+      this->input_buffer_ = values;
+      this->input_buffer_size_ = count;
 
-    void final_data(const service_provider & sp)
-    {
+      written = static_cast<implementation_type *>(this)->sync_push_data(sp);
+      if (0 == written && 0 == count) {
+        this->common_data_->step_finish(sp, context_type::INDEX);
+        return true;
+      }
+      this->waiting_push_data_ = true;
+      return true;
     }
 
     void start(const service_provider & sp)
@@ -103,10 +107,6 @@ namespace vds {
     async_dataflow_target & operator = (const async_dataflow_target &) = delete;
     async_dataflow_target & operator = (async_dataflow_target&&) = delete;
 
-    void final_data(const service_provider & sp)
-    {
-    }
-
   private:
     incoming_queue_type * source_;
     common_data_type * common_data_;
@@ -137,6 +137,9 @@ namespace vds {
       size_t & readed)
     {
       readed = static_cast<implementation_type *>(this)->sync_get_data(sp, buffer, buffer_size);
+      if (0 == readed) {
+        this->common_data_->step_finish(sp, context_type::INDEX);
+      }
       return true;
     }
 
@@ -234,17 +237,25 @@ namespace vds {
       }
 
       size_t readed;
-      static_cast<implementation_type *>(this)->sync_process_data(sp, readed, written);
-
-      this->waiting_push_data_ = true;
-      if (this->source_->continue_read(sp, readed, this->input_buffer_, this->input_buffer_size_)) {
-        this->waiting_push_data_ = false;
+      if (!static_cast<implementation_type *>(this)->sync_process_data(sp, readed, written)
+        || (0 == this->input_buffer_size_ && 0 == readed && 0 == written)) {
+        this->final_data_ = true;
+        this->common_data_->step_finish(sp, context_type::INDEX);
       }
 
+      if (0 != this->input_buffer_size_) {
+        this->waiting_push_data_ = true;
+        if (this->source_->continue_read(sp, readed, this->input_buffer_, this->input_buffer_size_)) {
+          this->waiting_push_data_ = false;
+        }
+      }
       if (this->waiting_get_data_) {
         throw std::runtime_error("Logic error");
       }
-      this->waiting_get_data_ = true;
+
+      if (!this->final_data_) {
+        this->waiting_get_data_ = true;
+      }
 
       return true;
     }
@@ -279,17 +290,6 @@ namespace vds {
       this->waiting_push_data_ = true;
 
       return true;
-    }
-   
-    void final_data(const service_provider & sp)
-    {
-      std::lock_guard<std::recursive_mutex> lock(this->data_mutex_);
-
-      if (this->final_data_) {
-        throw std::runtime_error("Logic error");
-      }
-      this->final_data_ = true;
-      this->target_->final_data(sp);
     }
 
   private:
@@ -401,7 +401,7 @@ namespace vds {
     
     bool processed(const service_provider & sp, size_t readed, size_t written)
     {
-      std::lock_guard<std::mutex> lock(this->data_mutex_);
+      std::unique_lock<std::mutex> lock(this->data_mutex_);
 
       if (this->waiting_get_data_) {
         throw std::runtime_error("Logic error");
@@ -419,7 +419,16 @@ namespace vds {
       if(this->target_->push_data(sp, readed, this->output_buffer_, this->output_buffer_size_)){
         this->waiting_get_data_ = false;
       }
-      
+
+      if (0 == readed && 0 == written) {
+        if (0 != this->input_buffer_size_) {
+          throw std::runtime_error("Logic error");
+        }
+        lock.unlock();
+        this->common_data_->step_finish(sp, context_type::INDEX);
+        return false;
+      }
+
       this->waiting_push_data_ = true;
       if(this->source_->continue_read(sp, written, this->input_buffer_, this->input_buffer_size_)){
         this->waiting_push_data_ = false;
@@ -432,11 +441,6 @@ namespace vds {
       else {
         return false;
       }
-    }
-
-    void final_data(const service_provider & sp)
-    {
-      this->target_->final_data(sp);
     }
 
   private:
@@ -665,29 +669,27 @@ namespace vds {
                 }
               }
             }
+            else if (0 == count) {
+              this->data_final_ = true;
+
+              size_t readed;
+              if (this->target_->push_data(sp, nullptr, 0, readed)) {
+
+              }
+              return true;
+            }
           }
           
-          return this->get_write_buffer(buffer, buffer_len);
+          if (!this->get_write_buffer(buffer, buffer_len)) {
+            return false;
+          }
+
+          this->data_queried_ = true;
+          return true;
         }
         catch(...){
           this->common_data_->step_error(sp, index, std::current_exception());
           return false;
-        }
-      }
-      
-      void final_data(const service_provider & sp)
-      {
-        std::lock_guard<std::mutex> lock(this->buffer_mutex_);
-        if (this->data_final_) {
-          throw std::runtime_error("Logic error");
-        }
-
-        this->data_final_ = true;
-        this->data_final_stack_ = sp.full_name();
-
-        if (!this->data_queried_ && !this->data_in_process_) {
-          this->common_data_->step_finish(sp, index);
-          this->target_->final_data(sp);
         }
       }
       
@@ -758,6 +760,28 @@ namespace vds {
         this->data_queried_ = true;
         if(this->source_->get_data(sp, buffer, buffer_len, readed)){
           this->data_queried_ = false;
+
+          if (0 == readed) {
+            this->data_final_ = true;
+            buffer_len = 0;
+            return true;
+          }
+
+          if (this->back_ + MIN_BUFFER_SIZE < BUFFER_SIZE) {
+            this->back_ += readed;
+          }
+          else if (this->second_ + MIN_BUFFER_SIZE < this->front_) {
+            this->second_ += readed;
+          }
+          else {
+            throw std::runtime_error("Logic error");
+          }
+
+          if (!this->get_read_buffer(buffer, buffer_len)) {
+            throw std::runtime_error("Logic error");
+          }
+
+          this->data_in_process_ = true;
           return true;
         }
 
@@ -906,12 +930,6 @@ namespace vds {
       {
       }
       
-      void final_data(const service_provider & sp)
-      {
-        this->common_data_->step_finish(sp, std::tuple_size<tuple_type>::value - 1);
-      }
-
-      
     private:
       incoming_queue_type * source_;
       common_data * common_data_;
@@ -939,11 +957,6 @@ namespace vds {
       {
         this->pthis_ = pthis;
         this->step_.start(sp);
-      }
-      
-      void final_data(const service_provider & sp)
-      {
-        //cancellation_source_.cancel();
       }
 
       void step_finish(const service_provider & sp, size_t index) override
@@ -1003,6 +1016,64 @@ namespace vds {
     return _dataflow<functor_types...>(std::forward<functor_types>(functors)...);
   }
   
+  template<typename item_type>
+  class dataflow_require_once
+  {
+  public:
+    dataflow_require_once(item_type * result)
+      : result_(result)
+    {
+    }
+
+    using incoming_item_type = item_type;
+    static constexpr size_t BUFFER_SIZE = 1;
+    static constexpr size_t MIN_BUFFER_SIZE = 1;
+
+    template<typename context_type>
+    class handler : public vds::sync_dataflow_target<context_type, handler<context_type>>
+    {
+      using base_class = vds::sync_dataflow_target<context_type, handler<context_type>>;
+    public:
+      handler(
+        const context_type & context,
+        const dataflow_require_once & owner
+      )
+        : base_class(context),
+        completed_(false),
+        result_(owner.result_)
+      {
+      }
+
+      size_t sync_push_data(
+        const vds::service_provider & sp)
+      {
+        if (!this->completed_) {
+          if (1 < this->input_buffer_size_) {
+            this->error(std::runtime_error("Require only one item"));
+          }
+          else if(1 == this->input_buffer_size_){
+            this->completed_ = true;
+            this->result_ = *this->input_buffer_;
+          }
+          else {
+            this->error(std::runtime_error("Require one item"));
+          }
+        }
+        else if (0 < this->input_buffer_size_) {
+          this->error(std::runtime_error("Require only one item"));
+        }
+
+        return this->input_buffer_size_;
+      }
+
+    private:
+      bool completed_;
+      item_type * result_;
+    };
+
+  private:
+    item_type * result_;
+  };
 }
 
 #endif // __VDS_CORE_DATAFLOW_H_

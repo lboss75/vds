@@ -16,31 +16,17 @@ namespace vds {
     {
     }
 
-    template <typename context_type>
-    class handler : public dataflow_step<context_type, bool (network_socket &)>
+    async_task<network_socket &> connect(const std::string & address, uint16_t port)
     {
-    public:
-      handler(
-        const context_type & context,
-        const socket_connect & owner
-      )
-        : dataflow_step<context_type, void (network_socket &)>(context),
-        s_(
+      return create_async_task([address, port](const std::function<void(const service_provider & sp, network_socket &)> & done, const error_handler & on_error, const service_provider & sp){
+        network_socket s(
 #ifdef _WIN32
           WSASocket(PF_INET, SOCK_STREAM, 0, NULL, 0, WSA_FLAG_OVERLAPPED)
 #else
           socket(PF_INET, SOCK_STREAM, 0)
 #endif//_WIN32
-        )
-      {
-      }
+        );
 
-      bool operator()(
-        const service_provider & sp,
-        const std::string & address,
-        uint16_t port
-      )
-      {
         // Connexion setting for local connexion 
         struct sockaddr_in addr;
         addr.sin_family = AF_INET;
@@ -49,16 +35,17 @@ namespace vds {
 
 #ifdef _WIN32
         // Connect 
-        if (SOCKET_ERROR == ::connect(this->s_.handle(), (struct sockaddr *)&addr, sizeof(addr))) {
+        if (SOCKET_ERROR == ::connect(s.handle(), (struct sockaddr *)&addr, sizeof(addr))) {
           // As we are in non-blocking mode we'll always have the error 
           // WSAEWOULDBLOCK whichis actually not one 
           auto error = WSAGetLastError();
           if (WSAEWOULDBLOCK != error) {
-            throw std::system_error(error, std::system_category(), "connect");
+            on_error(sp, std::make_exception_ptr(std::system_error(error, std::system_category(), "connect")));
+            return;
           }
         }
 
-        ((network_service *)sp.get<inetwork_manager>())->associate(this->s_.handle());
+        ((network_service *)sp.get<inetwork_manager>())->associate(s.handle());
 #else
         // Connect 
         if (0 > ::connect(this->s_.handle(), (struct sockaddr *)&addr, sizeof(addr))) {
@@ -66,18 +53,9 @@ namespace vds {
           throw std::system_error(error, std::generic_category());
         }
 #endif
-        return this->next(sp, this->s_);
-      }
-      
-      void processed(const service_provider & sp)
-      {
-        throw std::logic_error("socket error");
-      }
-
-    private:
-      network_socket s_;
-    };
-  private:
+        done(sp, s);
+      });
+    }
   };
 }
 

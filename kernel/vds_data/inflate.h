@@ -16,10 +16,15 @@ namespace vds {
   public:
     inflate();
 
+    using incoming_item_type = uint8_t;
+    using outgoing_item_type = uint8_t;
+    static constexpr size_t BUFFER_SIZE = 1024;
+    static constexpr size_t MIN_BUFFER_SIZE = 10;
+
     template <typename context_type>
-    class handler : public dataflow_step<context_type, bool(const void *, size_t)>
+    class handler : public vds::sync_dataflow_filter<context_type, handler<context_type>>
     {
-      using base_class = dataflow_step<context_type, bool(const void *, size_t)>;
+      using base_class = vds::sync_dataflow_filter<context_type, handler<context_type>>;
     public:
       handler(
         const context_type & context,
@@ -28,7 +33,8 @@ namespace vds {
       {
       }
 
-      bool operator()(const service_provider & sp, const void * data, size_t len) {
+      bool sync_process_data(const vds::service_provider & sp, size_t & input_readed, size_t & output_written)
+      {
         const void * to_push;
         size_t to_push_len;
         if (!push_data(this->handler_, data, len, to_push, to_push_len)) {
@@ -55,26 +61,6 @@ namespace vds {
                 to_push_len)){
                 return false;
               }
-            }
-          }
-        }
-      }
-
-      void processed(const service_provider & sp)
-      {
-        for(;;){
-          const void * to_push;
-          size_t to_push_len;
-          if (!data_processed(this->handler_, to_push, to_push_len)) {
-            this->prev(sp);
-            return;
-          }
-          else {
-            if(!this->next(
-              sp,
-              to_push,
-              to_push_len)){
-              return;
             }
           }
         }

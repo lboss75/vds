@@ -21,85 +21,17 @@ namespace vds {
     : sp_(sp), address_(address), port_(port)
     {
     }
-    
-    template <typename context_type>
-    class handler : public dataflow_step<context_type, bool(network_socket *)>
+
+
+    template<typename target_class>
+    void start(target_class callback)
     {
-      using base_class = dataflow_step<context_type, bool(network_socket *)>;
-    public:
-      handler(
-        const context_type & context,
-        const socket_server & args)
-      : base_class(context),
-        task_(
-          this->next,
-          this->error,
-          args.sp_,
-          args.address_,
-          args.port_)
-      {
-      }
-      
-      bool operator()(const service_provider & sp) {
-        this->task_.schedule(sp);
-        return false;        
-      }
-      
-      void processed(const service_provider & sp){
-        this->task_.schedule(sp);        
-      }
-      
-    private:
-      accept_socket_task<
-        typename base_class::next_step_t,
-        typename base_class::error_method_t> task_;
-    };
+    }
+    
   private:
     const service_provider & sp_;
     std::string address_;
     int port_;
-  };
-  
-  class create_socket_session
-  {
-  public:
-    create_socket_session(
-      const std::function<void(const service_provider & sp, network_socket & s)> & create_session)
-    : create_session_(create_session)
-    {
-    }
-    
-    template <typename context_type>
-    class handler : public dataflow_step<context_type, bool(void)>
-    {
-      using base_class = dataflow_step<context_type, bool(void)>;
-    public:
-      handler(
-        const context_type & context,
-        const create_socket_session & args)
-      : base_class(context),
-        create_session_(args.create_session_)
-      {
-      }
-      
-      bool operator()(
-        const service_provider & sp,
-        network_socket * s)
-      {
-        if(nullptr == s){
-          return this->next(sp);
-        }
-        else {
-          this->create_session_(sp, *s);
-          return true;
-        }
-      }
-      
-    private:
-      std::function<void(const service_provider & sp, network_socket & s)> create_session_;
-    };
-  private:
-    std::function<void(const service_provider & sp, network_socket & s)> create_session_;
   };
 }
 

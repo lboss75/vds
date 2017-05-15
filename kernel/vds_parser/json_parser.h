@@ -861,53 +861,6 @@ namespace vds {
     std::string stream_name_;
     options parse_options_;
   };
-
-  class json_require_once
-  {
-  public:
-
-    template <typename context_type>
-    class handler : public dataflow_step<context_type, bool(json_value *)>
-    {
-      using base_class = dataflow_step<context_type, bool(json_value *)>;
-    public:
-      handler(
-        const context_type & context,
-        const json_require_once & args
-      ) : base_class(context)
-      {
-
-      }
-
-      bool operator()(const service_provider & sp, json_value * item)
-      {
-        if (nullptr == item) {
-          if (!this->result_) {
-            this->error(sp, std::make_exception_ptr(std::runtime_error("JSON object is required")));
-            return false;
-          }
-          else {
-            return this->next(sp, this->result_.release());
-          }
-        }
-        else {
-          if (!this->result_) {
-            this->result_.reset(item);
-            return true;
-          }
-          else {
-            delete item;
-            this->error(sp, std::make_exception_ptr(std::runtime_error("Only one JSON object has expected")));
-            return false;
-          }
-        }
-      }
-
-    private:
-      std::unique_ptr<json_value> result_;
-    };
-
-  };
 }
 
 #endif // __VDS_PARSER_JSON_PARSER_H_

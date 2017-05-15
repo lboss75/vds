@@ -91,7 +91,7 @@ namespace vds {
   private:
     network_socket::SOCKET_HANDLE s_;
   };
-
+  /*
   class udp_server
   {
   public:
@@ -664,6 +664,7 @@ private:
      error_handler
     );
   }
+  */
 }
 
 #endif//__VDS_NETWORK_UDP_SOCKET_H_

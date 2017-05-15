@@ -84,26 +84,33 @@ public:
           const context_type & context,
           const sync_method & owner)
         : vds::sync_dataflow_filter<context_type, handler<context_type>>(context),
-          owner_(owner.owner_)
+          owner_(owner.owner_),
+          offset_(0)
         {
         }
         
-        void sync_process_data(const vds::service_provider & sp, size_t & input_readed, size_t & output_written)
+        bool sync_process_data(const vds::service_provider & sp, size_t & input_readed, size_t & output_written)
         {
           auto n = (this->input_buffer_size_ < this->output_buffer_size_)
             ? this->input_buffer_size_
             : this->output_buffer_size_;
             
           for(size_t i = 0; i < n; ++i){
+            if (this->offset_++ != this->input_buffer_[i]) {
+              throw std::runtime_error("Login error");
+            }
+
             this->output_buffer_[i] = std::to_string(this->input_buffer_[i]);
           }
             
           input_readed = n;
           output_written = n;
+          return true;
         }
         
       private:
         test_async_object & owner_;
+        int offset_;
       };
       
     private:
@@ -134,7 +141,7 @@ public:
           const async_method & owner
         )
         : base_class(context),
-          owner_(owner.owner_)
+          owner_(owner.owner_), offset_(0)
         {
         }
         
@@ -146,8 +153,11 @@ public:
                 ? this->input_buffer_size_
                 : this->output_buffer_size_;
               
-              for(size_t i = 0; i < n; ++i){
-                this->output_buffer_[i] = (this->input_buffer_[i] == std::to_string(i));
+              for(size_t i = 0; i < n; ++i, this->offset_++){
+                this->output_buffer_[i] = (this->input_buffer_[i] == std::to_string(this->offset_));
+                if (!this->output_buffer_[i]) {
+                  throw std::runtime_error("Test error");
+                }
               }
               
               if(!this->processed(sp, n, n)){
@@ -158,6 +168,7 @@ public:
         }
         
       private:
+        size_t offset_;
         test_async_object & owner_;
       };
       
@@ -195,10 +206,8 @@ public:
         size_t sync_push_data(
           const vds::service_provider & sp)
         {
-          std::cout << "target_method::push_data(" << this->input_buffer_size_ << ")\n";
           for(size_t i = 0; i < this->input_buffer_size_; ++i) {
             if(true != this->input_buffer_[i]) {
-              std::cout << "target_method::push_data test failed\n";
               throw std::runtime_error("test failed");
             }
           }
@@ -212,7 +221,6 @@ public:
     private:
       test_async_object & owner_;
     };
-    int state_;
 };
 
 

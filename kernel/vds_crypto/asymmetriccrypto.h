@@ -90,36 +90,42 @@ namespace vds {
   public:
     asymmetric_sign(
       const hash_info & hash_info,
-      const asymmetric_private_key & key);
+      const asymmetric_private_key & key,
+      const_data_buffer & signature);
 
-    template <typename context_type>
-    class handler : public dataflow_step<context_type, bool(const void *, size_t)>
+    using incoming_item_type = uint8_t;
+    static constexpr size_t BUFFER_SIZE = 1024;
+    static constexpr size_t MIN_BUFFER_SIZE = 10;
+
+    template<typename context_type>
+    class handler : public vds::sync_dataflow_target<context_type, handler<context_type>>
     {
-      using base_class = dataflow_step<context_type, bool(const void *, size_t)>;
+      using base_class = vds::sync_dataflow_target<context_type, handler<context_type>>;
     public:
       handler(
         const context_type & context,
-        const asymmetric_sign & args)
+        const asymmetric_sign & owner
+      )
         : base_class(context),
-        impl_(args.create_implementation())
+        owner_(owner.owner_), offset_(0)
       {
       }
 
-      bool operator()(const service_provider & sp, const void * data, size_t size)
+      size_t sync_push_data(const vds::service_provider & sp)
       {
-        if (0 == size) {
+        if (0 == this->input_buffer_size_) {
           data_final(this->impl_, this->signature_);
-          return this->next(sp, this->signature_.data(), this->signature_.size());
+          return 0;
         }
         else {
-          data_update(this->impl_, data, size);
-          return true;
+          data_update(this->impl_, this->input_buffer_, this->input_buffer_size_);
+          return this->input_buffer_size_;
         }
       }
 
     private:
       _asymmetric_sign * impl_;
-      const_data_buffer signature_;
+      const_data_buffer & signature_;
     };
 
     static const_data_buffer signature(
@@ -136,14 +142,18 @@ namespace vds {
   private:
     const hash_info & hash_info_;
     asymmetric_private_key key_;
+    const_data_buffer & signature_;
+
     _asymmetric_sign * create_implementation() const;
 
     static void data_update(
       _asymmetric_sign * impl,
-      const void * data,
+      const uint8_t * data,
       int len);
 
-    static void data_final(_asymmetric_sign * impl, const_data_buffer & result);
+    static void data_final(
+      _asymmetric_sign * impl,
+      const_data_buffer & result);
   };
 
   class _asymmetric_sign_verify;
