@@ -33,7 +33,10 @@ namespace vds {
       {
       }
 
-      bool sync_process_data(const vds::service_provider & sp, size_t & input_readed, size_t & output_written)
+      bool sync_process_data(
+        const vds::service_provider & sp,
+        size_t & input_readed,
+        size_t & output_written)
       {
         const void * to_push;
         size_t to_push_len;

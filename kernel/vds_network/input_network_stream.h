@@ -36,7 +36,7 @@ namespace vds {
         const input_network_stream & args)
       : base(context),
         sp_(service_provider::empty()),
-        s_(s.handle())
+        s_(args.s_.handle())
 #ifdef _DEBUG
         , is_scheduled_(false)
 #endif // _DEBUG
@@ -81,7 +81,7 @@ namespace vds {
             static_cast<network_service *>(sp.get<inetwork_manager>())->base_,
             this->s_,
             EV_READ,
-            &read_socket_task::callback,
+            &handler::callback,
             this);
         }
         // Schedule client event
@@ -111,7 +111,7 @@ namespace vds {
 #else//!_WIN32
       static void callback(int fd, short event, void *arg)
       {
-        auto pthis = reinterpret_cast<read_socket_task *>(arg);
+        auto pthis = reinterpret_cast<handler *>(arg);
         try {
           int len = read(fd, pthis->buffer_, BUFFER_SIZE);
           if (len < 0) {

@@ -8,6 +8,7 @@ All rights reserved
 
 #include <functional>
 #include <vector>
+#include <future>
 
 #include "func_utils.h"
 #include "service_provider.h"

@@ -33,8 +33,7 @@ namespace vds {
         const context_type & context,
         const output_network_stream & args)
       : base_class(context),
-        s_(args.s_.handle()),
-        task_(this->prev, this->error)        
+        s_(args.s_.handle())
       {
       }
       
@@ -64,7 +63,7 @@ namespace vds {
             static_cast<network_service *>(sp.get<inetwork_manager>())->base_,
             this->s_,
             EV_WRITE,
-            &write_socket_task::callback,
+            &handler::callback,
             this);
         }
         // Schedule client event
@@ -106,7 +105,7 @@ namespace vds {
 
       static void callback(int fd, short event, void *arg)
       {
-        auto pthis = reinterpret_cast<write_socket_task *>(arg);
+        auto pthis = reinterpret_cast<handler *>(arg);
         logger::get(pthis->sp_)->trace(pthis->sp_, "write %d bytes", pthis->data_size_);
         try {
           int len = write(fd, pthis->data_, pthis->data_size_);

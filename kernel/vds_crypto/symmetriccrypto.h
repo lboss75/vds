@@ -74,10 +74,15 @@ namespace vds {
     symmetric_encrypt(
       const symmetric_key & key);
 
-    template <typename context_type>
-    class handler : public dataflow_step<context_type, bool(const void *, size_t)>
+    using incoming_item_type = uint8_t;
+    using outgoing_item_type = uint8_t;
+    static constexpr size_t BUFFER_SIZE = 1024;
+    static constexpr size_t MIN_BUFFER_SIZE = 32;
+    
+    template<typename context_type>
+    class handler : public vds::sync_dataflow_filter<context_type, handler<context_type>>
     {
-      using base_class = dataflow_step<context_type, bool(const void *, size_t)>;
+      using base_class = vds::sync_dataflow_filter<context_type, handler<context_type>>;
     public:
       handler(
         const context_type & context,
@@ -87,33 +92,16 @@ namespace vds {
       {
       }
 
-      bool operator()(const service_provider & sp, const void * data, size_t size)
+      bool sync_process_data(const vds::service_provider & sp, size_t & input_readed, size_t & output_written)
       {
-        size_t out_size = sizeof(this->buffer);
-        if (data_update(this->impl_, data, size, this->buffer, out_size))
-        {
-          if(this->next(sp, this->buffer, out_size)){
-            for(;;){
-              out_size = sizeof(this->buffer);
-              if (data_processed(this->impl_, this->buffer, out_size))
-              {
-                if(!this->next(sp, this->buffer, out_size)){
-                  break;
-                }
-              }
-              else
-              {
-                return true;
-              }
-            }
-          }
+        data_update(
+          this->impl_,
+          this->input_buffer_,
+          this->input_buffer_size_,
+          this->output_buffer_,
+          this->output_buffer_size_);
           
-          return false;
-        }
-        else
-        {
-          return true;
-        }
+        return true;
       }
 
       void processed(const service_provider & sp)
@@ -134,7 +122,6 @@ namespace vds {
 
     private:
       _symmetric_encrypt * impl_;
-      uint8_t buffer[1024];
     };
     
   private:
@@ -161,10 +148,15 @@ namespace vds {
       const symmetric_key & key);
 
 
-    template <typename context_type>
-    class handler : public dataflow_step<context_type, bool(const void *, size_t)>
+    using incoming_item_type = uint8_t;
+    using outgoing_item_type = uint8_t;
+    static constexpr size_t BUFFER_SIZE = 1024;
+    static constexpr size_t MIN_BUFFER_SIZE = 32;
+    
+    template<typename context_type>
+    class handler : public vds::sync_dataflow_filter<context_type, handler<context_type>>
     {
-      using base_class = dataflow_step<context_type, bool(const void *, size_t)>;
+      using base_class = vds::sync_dataflow_filter<context_type, handler<context_type>>;
     public:
       handler(
         const context_type & context,

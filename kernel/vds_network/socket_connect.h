@@ -48,9 +48,9 @@ namespace vds {
         ((network_service *)sp.get<inetwork_manager>())->associate(s.handle());
 #else
         // Connect 
-        if (0 > ::connect(this->s_.handle(), (struct sockaddr *)&addr, sizeof(addr))) {
+        if (0 > ::connect(s.handle(), (struct sockaddr *)&addr, sizeof(addr))) {
           auto error = errno;
-          throw std::system_error(error, std::generic_category());
+          on_error(sp, std::make_exception_ptr(std::system_error(error, std::generic_category())));
         }
 #endif
         done(sp, s);
