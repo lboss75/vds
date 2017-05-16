@@ -92,32 +92,19 @@ namespace vds {
       {
       }
 
-      bool sync_process_data(const vds::service_provider & sp, size_t & input_readed, size_t & output_written)
+      void sync_process_data(
+        const vds::service_provider & sp,
+        size_t & input_readed,
+        size_t & output_written)
       {
         data_update(
           this->impl_,
           this->input_buffer_,
           this->input_buffer_size_,
           this->output_buffer_,
-          this->output_buffer_size_);
-          
-        return true;
-      }
-
-      void processed(const service_provider & sp)
-      {
-        for(;;){
-          size_t out_size = sizeof(this->buffer);
-          if (!data_processed(this->impl_, this->buffer, out_size)){
-            break;
-          }
-          
-          if(!this->next(sp, this->buffer, out_size)){
-            return;
-          }
-        }
-        
-        this->prev(sp);
+          this->output_buffer_size_,
+          input_readed,
+          output_written);
       }
 
     private:
@@ -128,17 +115,14 @@ namespace vds {
     symmetric_key key_;
     _symmetric_encrypt * create_implementation() const;
 
-    static bool data_update(
+    static void data_update(
       _symmetric_encrypt * impl,
-      const void * data,
-      size_t len,
-      void * result_data,
-      size_t & result_data_len);
-
-    static bool data_processed(
-      _symmetric_encrypt * impl,
-      void * result_data,
-      size_t & result_data_len);
+      const uint8_t * input_buffer,
+      size_t input_buffer_size,
+      uint8_t * output_buffer,
+      size_t output_buffer_size,
+      size_t & input_readed,
+      size_t & output_written);
   };
   
   class symmetric_decrypt
@@ -166,69 +150,37 @@ namespace vds {
       {
       }
 
-      bool operator()(const service_provider & sp, const void * data, size_t size)
+      void sync_process_data(
+        const vds::service_provider & sp,
+        size_t & input_readed,
+        size_t & output_written)
       {
-        size_t out_size = sizeof(this->buffer);
-        if (data_update(this->impl_, data, size, this->buffer, out_size))
-        {
-          if(this->next(sp, this->buffer, out_size)){
-            for(;;){
-              out_size = sizeof(this->buffer);
-              if (data_processed(this->impl_, this->buffer, out_size)){
-                if(!this->next(sp, this->buffer, out_size)){
-                  break;
-                }
-              }
-              else
-              {
-                return true;
-              }
-            }
-          }
-          return false;
-        }
-        else
-        {
-          return true;
-        }
-      }
-
-      void processed(const service_provider & sp)
-      {
-        for(;;){
-          size_t out_size = sizeof(this->buffer);
-          if (!data_processed(this->impl_, this->buffer, out_size)){
-            break;
-          }
-          
-          if(!this->next(sp, this->buffer, out_size)){
-            return;
-          }
-        }
-        
-        this->prev(sp);
+        data_update(
+          this->impl_,
+          this->input_buffer_,
+          this->input_buffer_size_,
+          this->output_buffer_,
+          this->output_buffer_size_,
+          input_readed,
+          output_written);
       }
 
     private:
       _symmetric_decrypt * impl_;
-      uint8_t buffer[1024];
     };
 
   private:
     symmetric_key key_;
+
     _symmetric_decrypt * create_implementation() const;
-
-    static bool data_update(
+    static void data_update(
       _symmetric_decrypt * impl,
-      const void * data,
-      size_t len,
-      void * result_data,
-      size_t & result_data_len);
-
-    static bool data_processed(
-      _symmetric_decrypt * impl,
-      void * result_data,
-      size_t & result_data_len);
+      const uint8_t * input_buffer,
+      size_t input_buffer_size,
+      uint8_t * output_buffer,
+      size_t output_buffer_size,
+      size_t & input_readed,
+      size_t & output_written);
   };
   
 }

@@ -25,7 +25,7 @@ namespace vds {
     {
       if (nullptr == this->handler_) {
         if (0 < len) {
-          throw new std::logic_error("Read handler for http_incoming_stream have not set");
+          throw std::logic_error("Read handler for http_incoming_stream have not set");
         }
       }
       else {

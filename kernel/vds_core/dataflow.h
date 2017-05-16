@@ -88,6 +88,11 @@ namespace vds {
   protected:
     incoming_item_type * input_buffer_;
     size_t input_buffer_size_;
+
+    void on_error(const service_provider & sp, std::exception_ptr ex)
+    {
+      this->common_data_->step_error(sp, context_type::INDEX, ex);
+    }
   };
 
   template <typename context_type, typename implementation_type>
@@ -237,8 +242,9 @@ namespace vds {
       }
 
       size_t readed;
-      if (!static_cast<implementation_type *>(this)->sync_process_data(sp, readed, written)
-        || (0 == this->input_buffer_size_ && 0 == readed && 0 == written)) {
+      static_cast<implementation_type *>(this)->sync_process_data(sp, readed, written);
+
+      if(0 == this->input_buffer_size_ && 0 == readed && 0 == written) {
         this->final_data_ = true;
         this->common_data_->step_finish(sp, context_type::INDEX);
       }
@@ -332,6 +338,8 @@ namespace vds {
       input_buffer_(nullptr)
     {
     }
+
+    //virtual void async_process_data(const service_provider & sp) = 0;
 
     bool get_data(
       const service_provider & sp,

@@ -35,7 +35,7 @@ void vds::foldername::folders(
   HANDLE hFind = FindFirstFile((this->local_name() + "\\*.*").c_str(), &ff);
   if (hFind == INVALID_HANDLE_VALUE) {
     auto error = GetLastError();
-    throw new std::system_error(error, std::system_category(), "get folders of " + this->value_);
+    throw std::system_error(error, std::system_category(), "get folders of " + this->value_);
   }
   else {
     try {
@@ -91,7 +91,7 @@ void vds::foldername::files(
   HANDLE hFind = FindFirstFile((this->local_name() + "\\*.*").c_str(), &ff);
   if (hFind == INVALID_HANDLE_VALUE) {
     auto error = GetLastError();
-    throw new std::system_error(error, std::system_category(), "get folders of " + this->value_);
+    throw std::system_error(error, std::system_category(), "get folders of " + this->value_);
   }
   else {
     try {
@@ -157,7 +157,7 @@ void vds::foldername::delete_folder(bool recurcive) const
 
   if (0 != rmdir(this->local_name().c_str())) {
     auto err = errno;
-    throw new std::system_error(err, std::system_category(), "Unable to delete folder " + this->name());
+    throw std::system_error(err, std::system_category(), "Unable to delete folder " + this->name());
   }
 }
 
@@ -171,7 +171,7 @@ std::string vds::foldername::relative_path(const vds::filename & fn, bool allow_
     return fn.value_.substr(this->value_.length() + 1);
   }
 
-  throw new std::runtime_error("Not implemented");
+  throw std::runtime_error("Not implemented");
 }
 
 std::string vds::foldername::name() const
@@ -215,7 +215,7 @@ void vds::foldername::create()
 #endif//_WIN32
     auto error = errno;
     if (EEXIST != error) {
-      throw new std::system_error(error, std::system_category(), "create folder " + this->name());
+      throw std::system_error(error, std::system_category(), "create folder " + this->name());
     }
   }
 }

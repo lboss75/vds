@@ -6,47 +6,43 @@ All rights reserved
 #include "stdafx.h"
 #include "test_vds_crypto.h"
 
-template <typename context_type>
-class random_reader : public vds::dataflow_step<context_type, bool(const void *, size_t)>
+class random_reader
 {
-  using base_class = vds::dataflow_step<context_type, bool(const void *, size_t)>;
 public:
   random_reader(
-    const context_type & context,
     const void * data,
     size_t len)
-    : base_class(context),
-    data_(reinterpret_cast<const uint8_t *>(data)),
+  : data_(reinterpret_cast<const uint8_t *>(data)),
     len_(len)
   {
   }
 
-  bool operator()(const vds::service_provider & sp)
-  {
-    return this->continue_process(sp);
-  }
+  using outgoing_item_type = uint8_t;
+  static constexpr size_t BUFFER_SIZE = 1024;
+  static constexpr size_t MIN_BUFFER_SIZE = 1;
 
-  void processed(const vds::service_provider & sp)
+  template<typename context_type>
+  class handler : public vds::sync_dataflow_source<context_type, handler<context_type>>
   {
-    if(this->continue_process(sp)){
-      this->prev(sp);
-    }    
-  }
-  
-private:
-  bool continue_process(const vds::service_provider & sp)
-  {
-    for(;;){
-      if (0 == this->len_) {
-        if(this->next(sp, nullptr, 0)){
-          continue;
-        }
-        return false;
-      }
+    using base_class = vds::sync_dataflow_source<context_type, handler<context_type>>;
+  public:
+    handler(
+      const context_type & context,
+      const random_reader & args)
+      : base_class(context),
+      data_(args.data_),
+      len_(args.len_)
+    {
+    }
 
-      for(;;){
+    size_t sync_get_data(
+      const vds::service_provider & sp,
+      uint8_t * buffer,
+      size_t buffer_size)
+    {
+      for (;;) {
         size_t n = (size_t)std::rand();
-        if (n < 1) {
+        if (n < 1 || n > buffer_size) {
           continue;
         }
 
@@ -54,69 +50,83 @@ private:
           n = this->len_;
         }
 
-        auto p = this->data_;
+        memcpy(buffer, this->data_, n);
 
         this->data_ += n;
         this->len_ -= n;
 
-        if(this->next(sp, p, n)){
-          break;
-        }
-
-        return false;
+        return n;
       }
     }
-  }
 
+  private:
+    const uint8_t * data_;
+    size_t len_;
+  };
+
+private:
   const uint8_t * data_;
   size_t len_;
 };
 
-template <typename context_type>
-class compare_data : public vds::dataflow_step<context_type, bool(void)>
+class compare_data
 {
-  using base_class = vds::dataflow_step<context_type, bool(void)>;
 public:
   compare_data(
-    const context_type & context,
     const void * data,
     size_t len)
-    : base_class(context),
-    data_(reinterpret_cast<const uint8_t *>(data)),
+    : data_(reinterpret_cast<const uint8_t *>(data)),
     len_(len)
   {
   }
 
-  bool operator()(const vds::service_provider & sp, const void * data, size_t len)
+  using incoming_item_type = uint8_t;
+  static constexpr size_t BUFFER_SIZE = 1024;
+  static constexpr size_t MIN_BUFFER_SIZE = 1;
+
+  template<typename context_type>
+  class handler : public vds::sync_dataflow_target<context_type, handler<context_type>>
   {
-    if (0 == len) {
-      if(0 != this->len_){
-        throw std::runtime_error("compare_data error");
-      }
-      return this->next(sp);
+    using base_class = vds::sync_dataflow_target<context_type, handler<context_type>>;
+  public:
+    handler(
+      const context_type & context,
+      const compare_data & args)
+      : base_class(context),
+      data_(args.data_),
+      len_(args.len_)
+    {
     }
 
-    const uint8_t * p = reinterpret_cast<const uint8_t *>(data);
-    while (0 < len) {
-      auto l = len;
-      if (l > this->len_) {
-        l = this->len_;
-      }
-      
-      if(0 != memcmp(this->data_, p, l)){
-        throw std::runtime_error("compare_data error");
+    size_t sync_push_data(
+      const vds::service_provider & sp)
+    {
+      if (0 == this->input_buffer_size_) {
+        if (0 != this->len_) {
+          this->on_error(sp, std::make_exception_ptr(std::runtime_error("compare_data error")));
+        }
+        return 0;
       }
 
-      p += l;
-      len -= l;
+      if (this->len_ < this->input_buffer_size_) {
+        this->on_error(sp, std::make_exception_ptr(std::runtime_error("compare_data error")));
+        return 0;
+      }
 
-      this->data_ += l;
-      this->len_ -= l;
+      if (0 != memcmp(this->data_, this->input_buffer_, this->input_buffer_size_)) {
+        this->on_error(sp, std::make_exception_ptr(std::runtime_error("compare_data error")));
+      }
+
+      this->data_ += this->input_buffer_size_;
+      this->len_ -= this->input_buffer_size_;
+
+      return this->input_buffer_size_;
     }
-    
-    return false;
-  }
 
+  private:
+    const uint8_t * data_;
+    size_t len_;
+  };
 private:
   const uint8_t * data_;
   size_t len_;
@@ -148,10 +158,10 @@ TEST(test_vds_crypto, test_symmetric)
       key.generate();
 
       dataflow(
-        vds::create_step<random_reader>::with(buffer.get(), (int)len),
+        random_reader(buffer.get(), (int)len),
         vds::symmetric_encrypt(key),
         vds::symmetric_decrypt(key),
-        vds::create_step<compare_data>::with(buffer.get(), (int)len)
+        compare_data(buffer.get(), (int)len)
       )(
         [](const vds::service_provider &) {},
         [](const vds::service_provider &, std::exception_ptr ex) {
@@ -213,6 +223,7 @@ TEST(test_vds_crypto, test_sign)
   registrator.add(crypto_service);
   {
     auto sp = registrator.build("test_sign");
+    registrator.start(sp);
     
     size_t len;
     do
@@ -229,10 +240,10 @@ TEST(test_vds_crypto, test_sign)
 
     vds::const_data_buffer sign;
     vds::dataflow(
-      vds::create_step<random_reader>::with(buffer.get(), (int)len),
-      vds::asymmetric_sign(vds::hash::sha256(), key))
+      random_reader(buffer.get(), (int)len),
+      vds::asymmetric_sign(vds::hash::sha256(), key, sign))
       (
-        [&sign](const vds::service_provider & sp, const void * data, size_t len) { sign.reset(data, len); },
+        [&sign](const vds::service_provider & sp) { },
         [](const vds::service_provider & sp, std::exception_ptr ex) { FAIL() << vds::exception_what(ex); },
         sp);
 
@@ -240,12 +251,11 @@ TEST(test_vds_crypto, test_sign)
     vds::asymmetric_public_key pkey(key);
 
     
-    bool unchanged_result;
     vds::dataflow(
-      vds::create_step<random_reader>::with(buffer.get(), (int)len),
+      random_reader(buffer.get(), (int)len),
       vds::asymmetric_sign_verify(vds::hash::sha256(), pkey, sign))
       (
-        [&unchanged_result](const vds::service_provider & sp, bool result) { unchanged_result = result; },
+        [](const vds::service_provider & sp) { },
         [](const vds::service_provider & sp, std::exception_ptr ex) { FAIL() << vds::exception_what(ex); },
         sp);
 
@@ -260,15 +270,12 @@ TEST(test_vds_crypto, test_sign)
 
     bool changed_result;
     vds::dataflow(
-      vds::create_step<random_reader>::with(buffer.get(), (int)len),
+      random_reader(buffer.get(), (int)len),
       vds::asymmetric_sign_verify(vds::hash::sha256(), pkey, sign))
       (
-        [&changed_result](const vds::service_provider & sp, bool result) { changed_result = result; },
+        [](const vds::service_provider & sp) { },
         [](const vds::service_provider & sp, std::exception_ptr ex) { FAIL() << vds::exception_what(ex); },
         sp);
-
-    ASSERT_EQ(unchanged_result, true);
-    ASSERT_EQ(changed_result, false);
 
     registrator.shutdown(sp);
   }

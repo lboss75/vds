@@ -60,7 +60,7 @@ vds::foldername vds::persistence::local_machine(const service_provider & sp)
     SHGFP_TYPE_CURRENT,
     result);
   if(NO_ERROR != error) {
-    throw new std::system_error(error, std::system_category(), "SHGetFolderPath");
+    throw std::system_error(error, std::system_category(), "SHGetFolderPath");
   }
 
   for (auto p = strchr(result, '\\'); nullptr != p; p = strchr(p + 1, '\\')) {

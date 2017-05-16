@@ -74,7 +74,7 @@ bool vds::json_object::get_property(const std::string & name, std::string & valu
   auto pvalue = dynamic_cast<const json_primitive *>(value_obj);
   if (nullptr == pvalue) {
     if (throw_error) {
-      throw new std::runtime_error("Invalid property " + name + " type: expected string");
+      throw std::runtime_error("Invalid property " + name + " type: expected string");
     }
 
     return false;

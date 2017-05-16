@@ -90,14 +90,16 @@ vds::_symmetric_encrypt * vds::symmetric_encrypt::create_implementation()  const
   return new vds::_symmetric_encrypt(this->key_);
 }
 
-bool vds::symmetric_encrypt::data_update(_symmetric_encrypt * impl, const void * data, size_t len, void * result_data, size_t & result_data_len)
+void vds::symmetric_encrypt::data_update(
+  _symmetric_encrypt * impl,
+  const uint8_t * data,
+  size_t len,
+  uint8_t * result_data,
+  size_t result_data_len,
+  size_t & input_readed,
+  size_t & output_written)
 {
-  return impl->update(data, len, result_data, result_data_len);
-}
-
-bool vds::symmetric_encrypt::data_processed(_symmetric_encrypt * impl, void * result_data, size_t & result_data_len)
-{
-  return impl->processed(result_data, result_data_len);
+  impl->update(data, len, result_data, result_data_len, input_readed, output_written);
 }
 
 ////////////////////////////////////////////////////////////////////////////
@@ -142,12 +144,15 @@ vds::_symmetric_decrypt * vds::symmetric_decrypt::create_implementation() const
   return new _symmetric_decrypt(this->key_);
 }
 
-bool vds::symmetric_decrypt::data_update(_symmetric_decrypt * impl, const void * data, size_t len, void * result_data, size_t & result_data_len)
+void vds::symmetric_decrypt::data_update(
+  _symmetric_decrypt * impl,
+  const uint8_t * data,
+  size_t len,
+  uint8_t * result_data,
+  size_t result_data_len,
+  size_t & input_readed,
+  size_t & output_written)
 {
-  return impl->update(data, len, result_data, result_data_len);
+  impl->update(data, len, result_data, result_data_len, input_readed, output_written);
 }
 
-bool vds::symmetric_decrypt::data_processed(_symmetric_decrypt * impl, void * result_data, size_t & result_data_len)
-{
-  return impl->processed(result_data, result_data_len);
-}

@@ -58,21 +58,21 @@ void vds::file::open(const vds::filename& filename, vds::file::file_mode mode)
     break;
 
   default:
-    throw new std::invalid_argument("Invalid mode for open file");
+    throw std::invalid_argument("Invalid mode for open file");
   }
 
 #ifndef _WIN32
   this->handle_ = ::open(filename.local_name().c_str(), oflags, S_IREAD | S_IWRITE);
   if (0 > this->handle_) {
     auto error = errno;
-    throw new std::system_error(error, std::system_category(), "Unable to open file " + this->filename_.str());
+    throw std::system_error(error, std::system_category(), "Unable to open file " + this->filename_.str());
   }
 #else
 
   this->handle_ = ::_open(this->filename_.local_name().c_str(), oflags | O_BINARY | O_SEQUENTIAL, _S_IREAD | _S_IWRITE);
   if (0 > this->handle_) {
     auto error = GetLastError();
-    throw new std::system_error(error, std::system_category(), "Unable to open file " + this->filename_.str());
+    throw std::system_error(error, std::system_category(), "Unable to open file " + this->filename_.str());
   }
 #endif
 }
@@ -87,7 +87,7 @@ size_t vds::file::read(void * buffer, size_t buffer_len)
 #else
     auto error = errno;
 #endif
-    throw new std::system_error(error, std::system_category(), "Unable to read file " + this->filename_.str());
+    throw std::system_error(error, std::system_category(), "Unable to read file " + this->filename_.str());
   }
 
   return (size_t)readed;
@@ -103,7 +103,7 @@ void vds::file::write(const void * buffer, size_t buffer_len)
 #else
       auto error = errno;
 #endif
-      throw new std::system_error(error, std::system_category(), "Unable to write file " + this->filename_.str());
+      throw std::system_error(error, std::system_category(), "Unable to write file " + this->filename_.str());
     }
 
     if ((size_t)written == buffer_len) {
@@ -120,7 +120,7 @@ size_t vds::file::length() const
   struct stat buffer;
   if (0 != fstat(this->handle_, &buffer)) {
     auto error = errno;
-    throw new std::system_error(error, std::generic_category(), "Unable to get file size of " + this->filename_.name());
+    throw std::system_error(error, std::generic_category(), "Unable to get file size of " + this->filename_.name());
   }
 
   return buffer.st_size;
@@ -131,7 +131,7 @@ size_t vds::file::length(const filename & fn)
   struct stat buffer;
   if (0 != stat(fn.local_name().c_str(), &buffer)) {
     auto error = errno;
-    throw new std::system_error(error, std::system_category(), "Unable to get file size of " + fn.name());
+    throw std::system_error(error, std::system_category(), "Unable to get file size of " + fn.name());
   }
 
   return buffer.st_size;
@@ -147,18 +147,18 @@ void vds::file::flush()
 #ifdef _WIN32
   HANDLE h = (HANDLE)_get_osfhandle(this->handle_);
   if (INVALID_HANDLE_VALUE == h) {
-    throw new std::system_error(EBADF, std::generic_category(), "Unable to flush file " + this->filename_.full_name());
+    throw std::system_error(EBADF, std::generic_category(), "Unable to flush file " + this->filename_.full_name());
   }
 
   if (!FlushFileBuffers(h)) {
     auto err = GetLastError();
-    throw new std::system_error(EBADF, std::system_category(), "Unable to flush file " + this->filename_.full_name());
+    throw std::system_error(EBADF, std::system_category(), "Unable to flush file " + this->filename_.full_name());
   }
 
 #else
   if (0 != ::fsync(this->handle_)) {
     auto error = errno;
-    throw new std::system_error(error, std::generic_category(), "Unable to flush file " + this->filename_.full_name());
+    throw std::system_error(error, std::generic_category(), "Unable to flush file " + this->filename_.full_name());
   }
 #endif
 }
@@ -254,7 +254,7 @@ void vds::file::move(const vds::filename& source, const vds::filename& target)
 {
   if(rename(source.local_name().c_str(), target.local_name().c_str())){
     auto error = errno;
-    throw new std::system_error(error, std::generic_category(), "Rename file " + source.full_name() + " to " + target.full_name());
+    throw std::system_error(error, std::generic_category(), "Rename file " + source.full_name() + " to " + target.full_name());
   }
 }
 
@@ -262,7 +262,7 @@ void vds::file::delete_file(const filename & fn, bool ignore_error /*= false*/)
 {
   if (0 != remove(fn.local_name().c_str()) && !ignore_error) {
     auto err = errno;
-    throw new std::system_error(err, std::generic_category(), "Unable to delete file " + fn.full_name());
+    throw std::system_error(err, std::generic_category(), "Unable to delete file " + fn.full_name());
   }
 }
 

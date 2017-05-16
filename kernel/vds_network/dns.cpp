@@ -21,13 +21,13 @@ std::string vds::dns::hostname()
 #ifdef _WIN32
   error = WSAGetLastError();
 #endif
-  throw new std::system_error(error, std::system_category(), "Retrieve the standard host name for the local computer failed");
+  throw std::system_error(error, std::system_category(), "Retrieve the standard host name for the local computer failed");
 }
 
 vds::dns_address_info::dns_address_info(const std::string & hostname)
 {
   auto error = getaddrinfo(hostname.c_str(), NULL, NULL, &this->first_);
   if (0 != error) {
-    throw new std::system_error(error, std::system_category(), "Retrieve the addresses by the host name " + hostname);
+    throw std::system_error(error, std::system_category(), "Retrieve the addresses by the host name " + hostname);
   }
 }

@@ -21,24 +21,11 @@ namespace vds {
   public:
     http_parser(const service_provider & sp);
 
-    template<
-      typename context_type
-    >
-    class handler : public dataflow_step<
-      context_type,
-      bool(
-        http_request & request,
-        http_incoming_stream & incoming_stream
-      )
-    >
+    template<typename context_type>
+    class handler : public async_dataflow_filter<context_type, handler<context_type>>
     {
-      using base_class = dataflow_step<
-        context_type,
-        bool(
-          http_request & request,
-          http_incoming_stream & incoming_stream
-        )
-      >;
+      using base_class = async_dataflow_filter<context_type, handler<context_type>>;
+
     public:
       handler(
         const context_type & context,
@@ -48,56 +35,11 @@ namespace vds {
         sp_(args.sp_)
       {
       }
-    
-      
-      bool operator()(
-        const service_provider & sp,
-        const void * data,
-        size_t len
-      ) {
-        if (0 == len) {
-          return this->next(
-            sp,
-            this->request_,
-            this->incoming_stream_);
-        }
-        else {
-          this->data_ = data;
-          this->len_ = len;
 
-          return this->continue_process(sp);
-        }
-      }
-      
-      void processed(const service_provider & sp)
+
+      void async_process_data(const service_provider & sp)
       {
-        if(this->continue_process(sp)){
-          this->prev();
-        }
-      }
-
-    private:
-      const void * data_;
-      size_t len_;
-
-      std::string parse_buffer_;
-      std::list<std::string> headers_;
-      
-      enum 
-      {
-        STATE_PARSE_HEADER,
-        STATE_PARSE_BODY
-      } state_;
-      
-      http_request request_;
-      http_incoming_stream incoming_stream_;
-      size_t content_length_;
-
-      service_provider sp_;
-
-      bool continue_process(const service_provider & sp)
-      {
-        while (0 < this->len_) {
+        while (0 < this->input_buffer_size_) {
           if (STATE_PARSE_HEADER == this->state_) {
             const char * p = (const char *)memchr(this->data_, '\n', this->len_);
             if (nullptr == p) {
@@ -156,7 +98,7 @@ namespace vds {
                 this->request_.url().c_str(),
                 this->request_.method().c_str(),
                 this->request_.agent().c_str());
-              
+
               for (auto & p : this->headers_) {
                 sp.get<logger>()->trace(sp, p);
               }
@@ -178,11 +120,11 @@ namespace vds {
               }
 
               auto sp = this->sp_.create_scope("HTTP Request");
-              if(!this->next(
+              if (!this->next(
                 sp,
                 this->request_,
                 this->incoming_stream_
-              )){
+              )) {
                 return false;
               }
               continue;
@@ -220,7 +162,20 @@ namespace vds {
 
         return true;
       }
+
+    private:
+      std::string parse_buffer_;
+      std::list<std::string> headers_;
+
+      enum
+      {
+        STATE_PARSE_HEADER,
+        STATE_PARSE_BODY
+      } state_;
+
+      size_t content_length_;
     };
+
     private:
       service_provider sp_;
   };

@@ -53,7 +53,7 @@ namespace vds {
         auto len = RSA_private_decrypt(n, p, buffer.get(), EVP_PKEY_get1_RSA(this->key_), RSA_PKCS1_PADDING);
         if (0 > len) {
           auto error = ERR_get_error();
-          throw new crypto_exception("RSA_private_decrypt failed", error);
+          throw crypto_exception("RSA_private_decrypt failed", error);
         }
 
         result.insert(result.end(), buffer.get(), buffer.get() + len);
@@ -110,7 +110,7 @@ namespace vds {
         auto len = RSA_public_encrypt(n, p, buffer.get(), EVP_PKEY_get1_RSA(this->key_), RSA_PKCS1_PADDING);
         if (0 > len) {
           auto error = ERR_get_error();
-          throw new crypto_exception("RSA_private_encrypt failed", error);
+          throw crypto_exception("RSA_private_encrypt failed", error);
         }
 
         result.insert(result.end(), buffer.get(), buffer.get() + len);

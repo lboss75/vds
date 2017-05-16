@@ -95,7 +95,7 @@ void vds::_chunk_storage::restore_data(
   const std::list<chunk_storage::horcrux> & chunks)
 {
   if(this->min_horcrux_ != chunks.size()){
-    throw new std::runtime_error("Error at restoring data");
+    throw std::runtime_error("Error at restoring data");
   }
   
   const auto source_id = chunks.begin()->source_id();
@@ -106,7 +106,7 @@ void vds::_chunk_storage::restore_data(
   for(auto & p : chunks){
     if(source_id != p.source_id()
       || size != p.data().size()){
-      throw new std::runtime_error("Error at restoring data");
+      throw std::runtime_error("Error at restoring data");
     }
     
     replicas.push_back(p.replica());

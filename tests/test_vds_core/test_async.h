@@ -43,8 +43,6 @@ public:
           int * buffer,
           size_t buffer_size)
         {
-          std::cout << "source_method::get_data(" << buffer_size << ")\n";
-
           size_t count = 0;
           while(this->written_ < 2000 && count < buffer_size){
             *buffer++ = this->written_;

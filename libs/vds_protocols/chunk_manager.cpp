@@ -119,7 +119,7 @@ vds::const_data_buffer vds::_chunk_manager::get(
 
 void vds::_chunk_manager::generate_chunk(const service_provider & sp)
 {
-  throw new std::runtime_error("Not implemented");
+  throw std::runtime_error("Not implemented");
 }
 
 void vds::_chunk_manager::set_next_index(const service_provider & sp, uint64_t next_index)

@@ -18,7 +18,7 @@ namespace vds {
       : db_(db), stmt_(nullptr), state_(bof_state)
     {
       if (SQLITE_OK != sqlite3_prepare_v2(db, sql.c_str(), -1, &this->stmt_, nullptr)) {
-        throw new std::runtime_error(sqlite3_errmsg(db));
+        throw std::runtime_error(sqlite3_errmsg(db));
       }
     }
 
@@ -76,7 +76,7 @@ namespace vds {
         return false;
 
       default:
-        throw new std::runtime_error(sqlite3_errmsg(this->db_));
+        throw std::runtime_error(sqlite3_errmsg(this->db_));
       }
     }
 
@@ -180,7 +180,7 @@ namespace vds {
       auto error = sqlite3_open(fn.local_name().c_str(), &this->db_);
 
       if (SQLITE_OK != error) {
-        throw new std::runtime_error(sqlite3_errmsg(this->db_));
+        throw std::runtime_error(sqlite3_errmsg(this->db_));
       }
     }
 
@@ -200,7 +200,7 @@ namespace vds {
         std::string error_message(zErrMsg);
         sqlite3_free(zErrMsg);
 
-        throw new std::runtime_error(error_message);
+        throw std::runtime_error(error_message);
       }
     }
 

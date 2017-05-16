@@ -52,13 +52,13 @@ int vds::command_line_value::try_parse(
   }
   
   if(argv[1][0] == '-'){
-    throw new command_line_item_error(
+    throw command_line_item_error(
       "Value is required",
       this->name());
   }
   
   if(!this->value_.empty()){
-    throw new command_line_item_error(
+    throw command_line_item_error(
       "Value already has been specified",
       this->name());
   }
@@ -142,7 +142,7 @@ int vds::command_line_values::try_parse(
   }
   
   if(argv[1][0] == '-'){
-    throw new command_line_item_error(
+    throw command_line_item_error(
       "Value is required",
       this->name());
   }
@@ -220,7 +220,7 @@ int vds::command_line_switch::try_parse(
   }
   
   if(this->value_){
-    throw new command_line_item_error(
+    throw command_line_item_error(
       "Switch already has been specified",
       this->name());
   }
@@ -352,7 +352,7 @@ int vds::command_line_set::try_parse(
     
     if(!bgood){
       if(argc <= 0){
-        throw new std::runtime_error("logic error");
+        throw std::runtime_error("logic error");
       }
       
       return argc;
@@ -370,7 +370,7 @@ int vds::command_line_set::try_parse(
     }
   }
   
-  throw new std::runtime_error("error");
+  throw std::runtime_error("error");
 }
 
 void vds::command_line_set::print_usage(std::map<std::string, const command_line_item *> & items) const
@@ -440,7 +440,7 @@ const vds::command_line_set* vds::command_line::parse(
     return nullptr;
   }
   
-  throw new std::runtime_error(best_error);
+  throw std::runtime_error(best_error);
 }
 
 void vds::command_line::add_command_set(vds::command_line_set& item)

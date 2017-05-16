@@ -74,7 +74,7 @@ vds::_inflate_handler::_inflate_handler()
 {
   memset(&this->strm_, 0, sizeof(z_stream));
   if (Z_OK != inflateInit(&this->strm_)) {
-    throw new std::runtime_error("inflateInit failed");
+    throw std::runtime_error("inflateInit failed");
   }
 }
 
@@ -92,7 +92,7 @@ bool vds::_inflate_handler::push_data(const void * data, size_t len, const void 
     this->eof_ = true;
   }
   else if (Z_OK != result) {
-    throw new std::runtime_error("inflate failed");
+    throw std::runtime_error("inflate failed");
   }
 
   next_data = this->buffer_;
@@ -114,7 +114,7 @@ bool vds::_inflate_handler::processed(const void *& next_data, size_t & next_len
       if (Z_BUF_ERROR == result) {
         return false;
       }
-      throw new std::runtime_error("inflate failed");
+      throw std::runtime_error("inflate failed");
     }
 
     next_data = this->buffer_;
@@ -123,7 +123,7 @@ bool vds::_inflate_handler::processed(const void *& next_data, size_t & next_len
   }
   else {
     if (0 != this->strm_.avail_in) {
-      throw new std::runtime_error("inflate failed");
+      throw std::runtime_error("inflate failed");
     }
 
     if (!this->eof_) {

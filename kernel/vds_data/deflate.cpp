@@ -51,7 +51,7 @@ vds::_deflate_handler::_deflate_handler(
 {
   memset(&this->strm_, 0, sizeof(z_stream));
   if (Z_OK != deflateInit(&this->strm_, compression_level)) {
-    throw new std::runtime_error("deflateInit failed");
+    throw std::runtime_error("deflateInit failed");
   }
 }
 
@@ -70,7 +70,7 @@ bool vds::_deflate_handler::push_data(
   this->strm_.avail_out = CHUNK_SIZE;
   auto error = ::deflate(&this->strm_, this->eof_ ? Z_FINISH : Z_NO_FLUSH);
   if (Z_OK != error && (!this->eof_ || Z_STREAM_END != error)) {
-    throw new std::runtime_error("deflate failed");
+    throw std::runtime_error("deflate failed");
   }
 
   if (CHUNK_SIZE != this->strm_.avail_out) {
@@ -90,7 +90,7 @@ bool vds::_deflate_handler::processed(const void *& next_data, size_t & next_len
     this->strm_.avail_out = CHUNK_SIZE;
     auto error = ::deflate(&this->strm_, this->eof_ ? Z_FINISH : Z_NO_FLUSH);
     if (0 > error) {
-      throw new std::runtime_error("deflate failed");
+      throw std::runtime_error("deflate failed");
     }
 
     next_data = this->buffer_;
@@ -99,7 +99,7 @@ bool vds::_deflate_handler::processed(const void *& next_data, size_t & next_len
   }
   else {
     if (0 != this->strm_.avail_in) {
-      throw new std::runtime_error("deflate failed");
+      throw std::runtime_error("deflate failed");
     }
 
     if (!this->eof_) {

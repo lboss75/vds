@@ -52,7 +52,7 @@ void vds::network_serializer::final()
   this->data_ << (uint8_t)0;
   
   if (0xFFFF < this->data_.size()) {
-    throw new std::runtime_error("Data too long for datagram communication");
+    throw std::runtime_error("Data too long for datagram communication");
   }
 
   uint16_t data = (uint16_t)this->data_.size();
@@ -100,7 +100,7 @@ uint8_t vds::network_deserializer::start()
     || (uint8_t)'D' != magic2
     || (uint8_t)'S' != magic3
     || (uint8_t)'M' != magic4){
-    throw new std::runtime_error("Invalid binary message format");
+    throw std::runtime_error("Invalid binary message format");
   }
   
   uint8_t result;
@@ -110,7 +110,7 @@ uint8_t vds::network_deserializer::start()
   this->data_ >> len;
   
   if(len != this->data_.size() + 7){
-    throw new std::runtime_error("Invalid binary message format");
+    throw std::runtime_error("Invalid binary message format");
   }
  
   return result;
@@ -119,28 +119,28 @@ uint8_t vds::network_deserializer::start()
 void vds::network_deserializer::final()
 {
   if(1 != this->data_.size()){
-    throw new std::runtime_error("Invalid binary message format");
+    throw std::runtime_error("Invalid binary message format");
   }
   
   uint8_t ct;
   this->data_ >> ct;
   
   if(0 != ct){
-    throw new std::runtime_error("Invalid binary message format");
+    throw std::runtime_error("Invalid binary message format");
   }
 }
 
 vds::network_deserializer& vds::network_deserializer::operator>> (uint8_t& value)
 {
   if(2 > this->data_.size()){
-    throw new std::runtime_error("Invalid binary message format");
+    throw std::runtime_error("Invalid binary message format");
   }
   
   uint8_t ct;
   this->data_ >> ct;
   
   if(1 != ct){
-    throw new std::runtime_error("Invalid binary message format");
+    throw std::runtime_error("Invalid binary message format");
   }
   
   this->data_ >> value;
@@ -151,14 +151,14 @@ vds::network_deserializer& vds::network_deserializer::operator>> (uint8_t& value
 vds::network_deserializer& vds::network_deserializer::operator>> (uint16_t& value)
 {
   if(3 > this->data_.size()){
-    throw new std::runtime_error("Invalid binary message format");
+    throw std::runtime_error("Invalid binary message format");
   }
   
   uint8_t ct;
   this->data_ >> ct;
   
   if(2 != ct){
-    throw new std::runtime_error("Invalid binary message format");
+    throw std::runtime_error("Invalid binary message format");
   }
   
   this->data_ >> value;
@@ -170,14 +170,14 @@ vds::network_deserializer& vds::network_deserializer::operator>> (uint16_t& valu
 vds::network_deserializer& vds::network_deserializer::operator>>(uint32_t& value)
 {
   if(5 > this->data_.size()){
-    throw new std::runtime_error("Invalid binary message format");
+    throw std::runtime_error("Invalid binary message format");
   }
   
   uint8_t ct;
   this->data_ >> ct;
   
   if(4 != ct){
-    throw new std::runtime_error("Invalid binary message format");
+    throw std::runtime_error("Invalid binary message format");
   }
   
   this->data_ >> value;
@@ -188,14 +188,14 @@ vds::network_deserializer& vds::network_deserializer::operator>>(uint32_t& value
 vds::network_deserializer& vds::network_deserializer::operator>>(uint64_t& value)
 {
   if (9 > this->data_.size()) {
-    throw new std::runtime_error("Invalid binary message format");
+    throw std::runtime_error("Invalid binary message format");
   }
 
   uint8_t ct;
   this->data_ >> ct;
 
   if (8 != ct) {
-    throw new std::runtime_error("Invalid binary message format");
+    throw std::runtime_error("Invalid binary message format");
   }
 
   this->data_ >> value;
@@ -205,14 +205,14 @@ vds::network_deserializer& vds::network_deserializer::operator>>(uint64_t& value
 vds::network_deserializer& vds::network_deserializer::operator>>(std::string& value)
 {
   if(5 > this->data_.size()){
-    throw new std::runtime_error("Invalid binary message format");
+    throw std::runtime_error("Invalid binary message format");
   }
   
   uint8_t ct;
   this->data_ >> ct;
   
   if(3 != ct){
-    throw new std::runtime_error("Invalid binary message format");
+    throw std::runtime_error("Invalid binary message format");
   }
   
   this->data_ >> value;
@@ -228,14 +228,14 @@ vds::network_deserializer& vds::network_deserializer::read_data(std::vector< uin
 vds::network_deserializer& vds::network_deserializer::operator>>(const_data_buffer& data)
 {
   if (1 > this->data_.size()) {
-    throw new std::runtime_error("Invalid binary message format");
+    throw std::runtime_error("Invalid binary message format");
   }
 
   uint8_t ct;
   this->data_ >> ct;
 
   if (5 != ct) {
-    throw new std::runtime_error("Invalid binary message format");
+    throw std::runtime_error("Invalid binary message format");
   }
 
   this->data_ >> data;

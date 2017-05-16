@@ -83,7 +83,7 @@ vds::guid vds::guid::parse(const std::string & value)
   GUID result;
   HRESULT hr = IIDFromString(utf16::from_utf8(value).c_str(), &result);
   if (S_OK != hr) {
-    throw new std::system_error(hr, std::system_category(), "Invalid GUID " + value);
+    throw std::system_error(hr, std::system_category(), "Invalid GUID " + value);
   }
 
   return guid(&result, sizeof(result));

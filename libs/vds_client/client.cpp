@@ -278,7 +278,7 @@ vds::_client::download_data(
         signature,
         to_sign.data().data(),
         to_sign.data().size())) {
-        throw new std::runtime_error("Invalid data");
+        throw std::runtime_error("Invalid data");
       }
 
       symmetric_key transaction_key(

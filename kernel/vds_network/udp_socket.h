@@ -29,7 +29,7 @@ namespace vds {
       this->s_ = WSASocket(AF_INET, SOCK_DGRAM, IPPROTO_UDP, NULL, 0, WSA_FLAG_OVERLAPPED);
       if (INVALID_SOCKET == this->s_) {
         auto error = WSAGetLastError();
-        throw new std::system_error(error, std::system_category(), "create socket");
+        throw std::system_error(error, std::system_category(), "create socket");
       }
 
       static_cast<network_service *>(sp.get<inetwork_manager>())->associate(this->s_);
@@ -37,7 +37,7 @@ namespace vds {
       this->s_ = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
       if (0 > this->s_) {
         auto error = errno;
-        throw new std::system_error(error, std::system_category(), "create socket");
+        throw std::system_error(error, std::system_category(), "create socket");
       }
 
       /*************************************************************/
@@ -47,7 +47,7 @@ namespace vds {
       if (0 > setsockopt(this->s_, SOL_SOCKET, SO_REUSEADDR, (char *)&on, sizeof(on))) {
         auto error = errno;
         close(this->s_);
-        throw new std::system_error(error, std::system_category(), "Allow socket descriptor to be reuseable");
+        throw std::system_error(error, std::system_category(), "Allow socket descriptor to be reuseable");
       }
 
       /*************************************************************/
@@ -58,7 +58,7 @@ namespace vds {
       if (0 > ioctl(this->s_, FIONBIO, (char *)&on)) {
         auto error = errno;
         close(this->s_);
-        throw new std::system_error(error, std::system_category(), "Set socket to be nonblocking");
+        throw std::system_error(error, std::system_category(), "Set socket to be nonblocking");
       }
 #endif
     }
@@ -131,7 +131,7 @@ namespace vds {
 #else
           auto error = errno;
 #endif
-          throw new std::system_error(error, std::system_category(), "bind socket");
+          throw std::system_error(error, std::system_category(), "bind socket");
         }
       }
 
@@ -431,7 +431,7 @@ namespace vds {
       
       if (len < 0) {
         int error = errno;
-        throw new std::system_error(error, std::system_category(), "recvfrom");
+        throw std::system_error(error, std::system_category(), "recvfrom");
       }
       
       pthis->buffer_.queue(pthis->sp_, (uint32_t)(len + sizeof(sockaddr_in) + sizeof(socklen_t)));

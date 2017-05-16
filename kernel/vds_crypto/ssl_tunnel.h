@@ -20,248 +20,224 @@ namespace vds {
 
     ~ssl_tunnel();
     
-    bool is_client() const {
-      return this->is_client_;
-    }
+    bool is_client() const;
 
-    certificate get_peer_certificate() const;
+    void set_async_push_crypted_handler(
+      const std::function<void(const vds::service_provider & sp, size_t readed)> & handler);
+
+    void push_crypted(
+      const vds::service_provider & sp,
+      const uint8_t * buffer,
+      size_t buffer_size);
+
+    void set_async_get_crypted_handler(
+      const std::function<void(const vds::service_provider & sp, size_t written)> & handler);
+
+    void get_crypted(
+      const vds::service_provider & sp,
+      uint8_t * buffer,
+      size_t buffer_size);
+
+    void set_async_push_decrypted_handler(
+      const std::function<void(const vds::service_provider & sp, size_t readed)> & handler);
+
+    void push_decrypted(
+      const vds::service_provider & sp,
+      const uint8_t * buffer,
+      size_t buffer_size);
+
+    void set_async_get_decrypted_handler(
+      const std::function<void(const vds::service_provider & sp, size_t written)> & handler);
+
+    void get_decrypted(
+      const vds::service_provider & sp,
+      uint8_t * buffer,
+      size_t buffer_size);
 
   private:
-    lifetime_check lt_;
-    friend class ssl_input_stream;
-    friend class ssl_output_stream;
-    friend class _ssl_tunnel;
+    _ssl_tunnel * const impl_;
 
-    class issl_input_stream
-    {
-    public:
-      virtual void input_done(const service_provider & sp) = 0;
-      virtual void decoded_output_done(const service_provider & sp, size_t len) = 0;
-
-      static constexpr size_t BUFFER_SIZE = 1024;
-      uint8_t buffer_[BUFFER_SIZE];
-    };
-
-    class issl_output_stream
-    {
-    public:
-      virtual void decoded_input_done(const service_provider & sp) = 0;
-      virtual void output_done(const service_provider & sp, size_t len) = 0;
-
-      static constexpr size_t BUFFER_SIZE = 1024;
-      uint8_t buffer_[BUFFER_SIZE];
-    };
-
-
-    _ssl_tunnel * impl_;
-
-    bool is_client_;
-
-    const void * input_data_;
-    size_t input_len_;
-
-    const void * decoded_input_data_;
-    size_t decoded_input_len_;
-
-    issl_input_stream * input_stream_;
-    issl_output_stream * output_stream_;
-
-    bool input_stream_done_;
-    bool output_stream_done_;
-
-    std::mutex work_circle_mutex_;
-    int work_circle_queries_;
-
-    bool enable_output_;
-
-    void set_input_stream(issl_input_stream * stream);
-    void set_output_stream(issl_output_stream * stream);
-
-    void write_input(const service_provider & sp, const void * data, size_t len);
-    void write_decoded_output(const service_provider & sp, const void * data, size_t len);
-
-    void start_work_circle();
-    void work_circle();
-    void input_stream_processed(const service_provider & sp);
-    void output_stream_processed(const service_provider & sp);
   };
 
-  class ssl_input_stream
+  class ssl_tunnel_input_crypted
   {
   public:
-    ssl_input_stream(ssl_tunnel & tunnel)
-      : tunnel_(tunnel)
+    ssl_tunnel_input_crypted(ssl_tunnel & tunnel)
+    : tunnel_(tunnel)
     {
     }
 
-    template < typename context_type >
-    class handler
-      : public dataflow_step<context_type, bool(const void *, size_t)>,
-        public ssl_tunnel::issl_input_stream
+    using incoming_item_type = int;
+    static constexpr size_t BUFFER_SIZE = 1024;
+    static constexpr size_t MIN_BUFFER_SIZE = 1024;
+
+    template<typename context_type>
+    class handler : public async_dataflow_target<context_type, handler<context_type>>
     {
-      using base_class = dataflow_step<context_type, bool(const void *, size_t)>;
+      using base_class = async_dataflow_target<context_type, handler<context_type>>;
     public:
       handler(
         const context_type & context,
-        const ssl_input_stream & args
-      );
+        const ssl_tunnel_input_crypted & args)
+      : base_class(context),
+        tunnel_(args.tunnel_)
+      {
+        this->tunnel_.set_async_push_crypted_handler(
+          [this](const vds::service_provider & sp, size_t readed) {
+          this->processed(sp, readed);
+        });
+      }
 
-      ~handler();
-
-      void input_done(const service_provider & sp) override;
-      void decoded_output_done(const service_provider & sp, size_t len) override;
-
-      bool operator()(const service_provider & sp, const void * data, size_t len);
-      void processed(const service_provider & sp);
-
-    private:
-      lifetime_check lt_;
-      ssl_tunnel & tunnel_;
-    };
-  private:
-    ssl_tunnel & tunnel_;
-  };
-
-  class ssl_output_stream
-  {
-  public:
-    ssl_output_stream(ssl_tunnel & tunnel)
-      : tunnel_(tunnel)
-    {
-    }
-
-    template < typename context_type >
-    class handler
-      : public dataflow_step<context_type, bool(const void *, size_t)>,
-        public ssl_tunnel::issl_output_stream
-    {
-      using base_class = dataflow_step<context_type, bool(const void *, size_t)>;
-    public:
-      handler(
-        const context_type & context,
-        const ssl_output_stream & args
-      );
-
-      ~handler();
-
-      void decoded_input_done(const service_provider & sp) override;
-      void output_done(const service_provider & sp, size_t len) override;
-
-      bool operator()(const service_provider & sp, const void * data, size_t len);
-      void processed(const service_provider & sp);
+      void async_push_data(const vds::service_provider & sp)
+      {
+        this->tunnel_.push_crypted(
+          sp,
+          this->input_buffer_,
+          this->input_buffer_size_);
+      }
 
     private:
-      lifetime_check lt_;
       ssl_tunnel & tunnel_;
     };
 
   private:
     ssl_tunnel & tunnel_;
   };
-  
-  //scope property
-  class peer_certificate
+
+  class ssl_tunnel_output_crypted
   {
   public:
-    peer_certificate(const ssl_tunnel * owner);
-    
-    certificate get_peer_certificate() const;
-    
+    ssl_tunnel_output_crypted(ssl_tunnel & tunnel)
+      : tunnel_(tunnel)
+    {
+    }
+
+    using outgoing_item_type = int;
+    static constexpr size_t BUFFER_SIZE = 1024;
+    static constexpr size_t MIN_BUFFER_SIZE = 1;
+
+    template<typename context_type>
+    class handler : public async_dataflow_source<context_type, handler<context_type>>
+    {
+      using base_class = async_dataflow_source<context_type, handler<context_type>>;
+    public:
+      handler(
+        const context_type & context,
+        const ssl_tunnel_output_crypted & args)
+        : base_class(context),
+        tunnel_(args.tunnel_)
+      {
+        this->tunnel_.set_async_get_crypted_handler(
+          [this](const vds::service_provider & sp, size_t written) {
+          this->processed(sp, written);
+        });
+      }
+
+      void async_get_data(const vds::service_provider & sp)
+      {
+        this->tunnel_.get_crypted(
+          sp,
+          this->output_buffer_,
+          this->output_buffer_size_);
+      }
+
+    private:
+      ssl_tunnel & tunnel_;
+    };
+
   private:
-    const ssl_tunnel * owner_; 
+    ssl_tunnel & tunnel_;
   };
 
-  template<typename context_type>
-  inline ssl_input_stream::handler<context_type>::handler(const context_type & context, const ssl_input_stream & args)
-  : base_class(context),
-    tunnel_(args.tunnel_)
+  class ssl_tunnel_input_decrypted
   {
-    this->tunnel_.set_input_stream(this);
-  }
-
-  template<typename context_type>
-  inline ssl_input_stream::handler<context_type>::~handler()
-  {
-    this->tunnel_.set_input_stream(nullptr);
-  }
-
-  template<typename context_type>
-  inline void ssl_input_stream::handler<context_type>::input_done(const service_provider & sp)
-  {
-    this->prev(sp);
-  }
-
-  template<typename context_type>
-  inline void ssl_input_stream::handler<context_type>::decoded_output_done(const service_provider & sp, size_t len)
-  {
-    this->next(sp, this->buffer_, len);
-  }
-
-  template<typename context_type>
-  inline bool ssl_input_stream::handler<context_type>::operator()(
-    const service_provider & sp,
-    const void * data,
-    size_t len)
-  {
-    if (0 == len) {
-      return this->next(sp, nullptr, 0);
+  public:
+    ssl_tunnel_input_decrypted(ssl_tunnel & tunnel)
+      : tunnel_(tunnel)
+    {
     }
-    else {
-      this->tunnel_.write_input(sp, data, len);
-      return false;
+
+    using incoming_item_type = int;
+    static constexpr size_t BUFFER_SIZE = 1024;
+    static constexpr size_t MIN_BUFFER_SIZE = 1024;
+
+    template<typename context_type>
+    class handler : public async_dataflow_target<context_type, handler<context_type>>
+    {
+      using base_class = async_dataflow_target<context_type, handler<context_type>>;
+    public:
+      handler(
+        const context_type & context,
+        const ssl_tunnel_input_decrypted & args)
+      : base_class(context),
+        tunnel_(args.tunnel_)
+      {
+        this->tunnel_.set_async_push_decrypted_handler(
+          [this](const vds::service_provider & sp, size_t readed) {
+          this->processed(sp, readed);
+        });
+      }
+
+      void async_push_data(const vds::service_provider & sp)
+      {
+        this->tunnel_.push_decrypted(
+          sp,
+          this->input_buffer_,
+          this->input_buffer_size_);
+      }
+
+    private:
+      ssl_tunnel & tunnel_;
+    };
+
+  private:
+    ssl_tunnel & tunnel_;
+  };
+
+  class ssl_tunnel_output_decrypted
+  {
+  public:
+    ssl_tunnel_output_decrypted(ssl_tunnel & tunnel)
+      : tunnel_(tunnel)
+    {
     }
-  }
 
-  template<typename context_type>
-  inline void ssl_input_stream::handler<context_type>::processed(const service_provider & sp)
-  {
-    this->tunnel_.input_stream_processed(sp);
-  }
+    using outgoing_item_type = int;
+    static constexpr size_t BUFFER_SIZE = 1024;
+    static constexpr size_t MIN_BUFFER_SIZE = 1;
 
+    template<typename context_type>
+    class handler : public async_dataflow_source<context_type, handler<context_type>>
+    {
+      using base_class = async_dataflow_source<context_type, handler<context_type>>;
+    public:
+      handler(
+        const context_type & context,
+        const ssl_tunnel_output_decrypted & args)
+        : base_class(context),
+        tunnel_(args.tunnel_)
+      {
+        this->tunnel_.set_async_get_decrypted_handler(
+          [this](const vds::service_provider & sp, size_t written) {
+          this->processed(sp, written);
+        });
+      }
 
-  template<typename context_type>
-  inline ssl_output_stream::handler<context_type>::handler(const context_type & context, const ssl_output_stream & args)
-  : base_class(context),
-    tunnel_(args.tunnel_)
-  {
-    this->tunnel_.set_output_stream(this);
-  }
+      void async_get_data(const vds::service_provider & sp)
+      {
+        this->tunnel_.get_decrypted(
+          sp,
+          this->output_buffer_,
+          this->output_buffer_size_);
+      }
 
-  template<typename context_type>
-  inline ssl_output_stream::handler<context_type>::~handler()
-  {
-    this->tunnel_.set_output_stream(nullptr);
-  }
+    private:
+      ssl_tunnel & tunnel_;
+    };
 
-  template<typename context_type>
-  inline void ssl_output_stream::handler<context_type>::decoded_input_done(const service_provider & sp)
-  {
-    this->prev(sp);
-  }
-
-  template<typename context_type>
-  inline void ssl_output_stream::handler<context_type>::output_done(const service_provider & sp, size_t len)
-  {
-    this->next(sp, this->buffer_, len);
-  }
-
-  template<typename context_type>
-  inline bool ssl_output_stream::handler<context_type>::operator()(const service_provider & sp, const void * data, size_t len)
-  {
-    if (0 == len) {
-      return this->next(sp, nullptr, 0);
-    }
-    else {
-      this->tunnel_.write_decoded_output(sp, data, len);
-      return false;
-    }
-  }
-
-  template<typename context_type>
-  inline void ssl_output_stream::handler<context_type>::processed(const service_provider & sp)
-  {
-    this->tunnel_.output_stream_processed(sp);
-  }
+  private:
+    ssl_tunnel & tunnel_;
+  };
 }
 
 #endif//__VDS_CRYPTO_SSL_TUNNEL_H_

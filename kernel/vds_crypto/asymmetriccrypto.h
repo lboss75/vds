@@ -107,7 +107,8 @@ namespace vds {
         const asymmetric_sign & owner
       )
         : base_class(context),
-        owner_(owner.owner_), offset_(0)
+          impl_(owner.create_implementation()),
+          signature_(owner.signature_)
       {
       }
 
@@ -165,10 +166,14 @@ namespace vds {
       const asymmetric_public_key & key,
       const const_data_buffer & sign);
 
-    template <typename context_type>
-    class handler : public dataflow_step<context_type, bool(bool)>
+    using incoming_item_type = uint8_t;
+    static constexpr size_t BUFFER_SIZE = 1024;
+    static constexpr size_t MIN_BUFFER_SIZE = 10;
+
+    template<typename context_type>
+    class handler : public vds::sync_dataflow_target<context_type, handler<context_type>>
     {
-      using base_class = dataflow_step<context_type, bool(bool)>;
+      using base_class = vds::sync_dataflow_target<context_type, handler<context_type>>;
     public:
       handler(
         const context_type & context,
@@ -179,15 +184,17 @@ namespace vds {
       {
       }
 
-      bool operator()(const service_provider & sp, const void * data, size_t size)
+      size_t sync_push_data(const vds::service_provider & sp)
       {
-        if (0 == size) {
-          auto result = data_final(this->impl_, this->signature_);
-          return this->next(sp, result);
+        if (0 == this->input_buffer_size_) {
+          if (!data_final(this->impl_, this->signature_)) {
+            this->on_error(sp, std::make_exception_ptr(std::runtime_error("Validate error")));
+          }
+          return 0;
         }
         else {
-          data_update(this->impl_, data, size);
-          return false;
+          data_update(this->impl_, this->input_buffer_, this->input_buffer_size_);
+          return this->input_buffer_size_;
         }
       }
 

@@ -243,7 +243,7 @@ namespace vds {
                 continue;
               }
 
-              throw new parse_error(
+              throw parse_error(
                 this->stream_name_,
                 this->line_,
                 this->column_,
@@ -279,7 +279,7 @@ namespace vds {
                 break;
 
               default:
-                throw new parse_error(
+                throw parse_error(
                   this->stream_name_,
                   this->line_,
                   this->column_,
@@ -391,7 +391,7 @@ namespace vds {
                 break;
                 
               default:
-                throw new parse_error(
+                throw parse_error(
                   this->stream_name_,
                   this->line_,
                   this->column_,
@@ -516,7 +516,7 @@ namespace vds {
                 break;
                 
               default:
-                throw new parse_error(
+                throw parse_error(
                   this->stream_name_,
                   this->line_,
                   this->column_,
@@ -578,7 +578,7 @@ namespace vds {
                 break;
                 
               default:
-                throw new parse_error(
+                throw parse_error(
                   this->stream_name_,
                   this->line_,
                   this->column_,
@@ -726,7 +726,7 @@ namespace vds {
       void after_slesh()
       {
         if (!this->parse_options_.enable_inline_comments) {
-          throw new parse_error(
+          throw parse_error(
             this->stream_name_,
             this->line_,
             this->column_,
@@ -751,7 +751,7 @@ namespace vds {
           break;
 
         default:
-          throw new parse_error(
+          throw parse_error(
             this->stream_name_,
             this->line_,
             this->column_,
@@ -800,7 +800,7 @@ namespace vds {
           this->current_path_.push(this->current_object_);
           break;
         default:
-          throw new parse_error(
+          throw parse_error(
             this->stream_name_,
             this->line_,
             this->column_,

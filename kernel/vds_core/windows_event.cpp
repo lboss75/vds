@@ -13,7 +13,7 @@ vds::windows_event::system_resource::system_resource(BOOL bManualReset, BOOL bIn
     this->handle_ = CreateEvent(lpEventAttributes, bManualReset, bInitialState, lpName);
     if (NULL == this->handle_) {
         auto error = GetLastError();
-        throw new std::system_error(error, std::system_category(), "CreateEvent");
+        throw std::system_error(error, std::system_category(), "CreateEvent");
     }
 }
 
@@ -33,7 +33,7 @@ void vds::windows_event::set()
 {
     if (!SetEvent(this->handle())) {
         auto error = GetLastError();
-        throw new std::system_error(error, std::system_category(), "SetEvent");
+        throw std::system_error(error, std::system_category(), "SetEvent");
     }
 }
 
@@ -52,7 +52,7 @@ bool vds::windows_event::wait(DWORD timeout) const
     default:
         {
             auto error = GetLastError();
-            throw new std::system_error(error, std::system_category(), "WaitForSingleObject");
+            throw std::system_error(error, std::system_category(), "WaitForSingleObject");
         }
     }
 }

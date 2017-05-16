@@ -126,7 +126,7 @@ vds::binary_deserializer::binary_deserializer(const std::vector<uint8_t> & data)
 vds::binary_deserializer& vds::binary_deserializer::operator>>(uint8_t & value)
 {
   if(1 > this->len_){
-    throw new std::runtime_error("Invalid data");
+    throw std::runtime_error("Invalid data");
   }
   
   value = *this->data_++;
@@ -138,7 +138,7 @@ vds::binary_deserializer& vds::binary_deserializer::operator>>(uint8_t & value)
 vds::binary_deserializer& vds::binary_deserializer::operator>>(uint16_t& value)
 {
   if(2 > this->len_){
-    throw new std::runtime_error("Invalid data");
+    throw std::runtime_error("Invalid data");
   }
   
   value = *this->data_++;
@@ -153,7 +153,7 @@ vds::binary_deserializer& vds::binary_deserializer::operator>>(uint16_t& value)
 vds::binary_deserializer& vds::binary_deserializer::operator>>(uint32_t& value)
 {
   if(4 > this->len_){
-    throw new std::runtime_error("Invalid data");
+    throw std::runtime_error("Invalid data");
   }
   
   value = *this->data_++;
@@ -172,7 +172,7 @@ vds::binary_deserializer& vds::binary_deserializer::operator>>(uint32_t& value)
 vds::binary_deserializer& vds::binary_deserializer::operator>>(uint64_t& value)
 {
   if(8 > this->len_){
-    throw new std::runtime_error("Invalid data");
+    throw std::runtime_error("Invalid data");
   }
   
   value = *this->data_++;
@@ -230,7 +230,7 @@ void vds::binary_deserializer::pop_data(void* data, size_t& size, bool serialize
   if(serialize_size){
     auto len = this->read_number();
     if(size < len){
-      throw new std::runtime_error("Buffer too small");
+      throw std::runtime_error("Buffer too small");
     }
     size = len;
   }

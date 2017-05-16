@@ -58,7 +58,7 @@ std::string vds::filename::extension() const
 //  auto error = stat(this->value_.c_str(), &stat_buf);
 //#endif
 //  if (0 != error) {
-//    throw new std::system_error(error, std::system_category(), "Failed get file lenght of file " + this->value_);
+//    throw std::system_error(error, std::system_category(), "Failed get file lenght of file " + this->value_);
 //  }
 //  return (size_t)stat_buf.st_size;
 //}
@@ -69,7 +69,7 @@ vds::filename vds::filename::current_process()
   char buf[MAX_PATH + 1];
   if (!GetModuleFileName(NULL, buf, MAX_PATH)) {
     auto error = GetLastError();
-    throw new std::system_error(error, std::system_category(), "Failed get current process ffilename");
+    throw std::system_error(error, std::system_category(), "Failed get current process ffilename");
   }
 
   for (auto p = strchr(buf, '\\'); nullptr != p; p = strchr(p + 1, '\\')) {

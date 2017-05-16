@@ -35,13 +35,13 @@ namespace vds {
 
       if (INVALID_SOCKET == this->s_) {
           auto error = WSAGetLastError();
-          throw new std::system_error(error, std::system_category(), "create socket");
+          throw std::system_error(error, std::system_category(), "create socket");
       }
 #else
       this->s_ = socket(AF_INET, SOCK_STREAM, 0);
       if (this->s_ < 0) {
           auto error = errno;
-          throw new std::system_error(error, std::system_category());
+          throw std::system_error(error, std::system_category());
       }
       /*************************************************************/
       /* Allow socket descriptor to be reuseable                   */
@@ -49,7 +49,7 @@ namespace vds {
       int on = 1;
       if (0 > setsockopt(this->s_, SOL_SOCKET, SO_REUSEADDR, (char *)&on, sizeof(on))) {
           auto error = errno;
-          throw new std::system_error(error, std::system_category());
+          throw std::system_error(error, std::system_category());
       }
 
       /*************************************************************/
@@ -84,14 +84,14 @@ namespace vds {
 #else
     if (0 > ::bind(this->s_, (struct sockaddr *)&addr, sizeof(addr))) {
         auto error = errno;
-        throw new std::system_error(
+        throw std::system_error(
           error,
           std::system_category());
     }
 
     if (0 > ::listen(this->s_, SOMAXCONN)) {
         auto error = errno;
-        throw new std::system_error(
+        throw std::system_error(
           error,
           std::system_category());
     }
@@ -102,7 +102,7 @@ namespace vds {
     auto flags = fcntl(this->s_, F_GETFL);
     if (0 > flags) {
         auto error = errno;
-        throw new std::system_error(
+        throw std::system_error(
           error,
           std::system_category());
     }
@@ -228,7 +228,7 @@ namespace vds {
         auto flags = fcntl(sock, F_GETFL);
         if (0 > flags) {
           auto error = errno;
-          throw new std::system_error(
+          throw std::system_error(
             error,
             std::system_category());
         }
@@ -250,7 +250,7 @@ namespace vds {
         //int on = 1;
         //if (0 > ioctl(sock, FIONBIO, (char *)&on)) {
         //    auto error = errno;
-        //    throw new c_exception("Set socket to be nonblocking", error);
+        //    throw c_exception("Set socket to be nonblocking", error);
         //}
         auto sp = data->sp_.create_scope("Connection from " + network_service::to_string(client_addr));
         imt_service::async(sp, [sp, data, sock](){
@@ -272,7 +272,7 @@ namespace vds {
         this->handle_ = WSACreateEvent();
         if (WSA_INVALID_EVENT == this->handle_) {
           auto error = WSAGetLastError();
-          throw new std::system_error(error, std::system_category(), "WSACreateEvent");
+          throw std::system_error(error, std::system_category(), "WSACreateEvent");
         }
       }
 
@@ -287,7 +287,7 @@ namespace vds {
       {
         if (SOCKET_ERROR == WSAEventSelect(s, this->handle(), FD_ACCEPT)) {
           auto error = WSAGetLastError();
-          throw new std::system_error(error, std::system_category(), "WSAEventSelect");
+          throw std::system_error(error, std::system_category(), "WSAEventSelect");
         }
       }
 

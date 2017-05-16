@@ -33,12 +33,12 @@ namespace vds {
 #ifdef _WIN32
       if (INVALID_SOCKET == s) {
         auto error = WSAGetLastError();
-        throw new std::system_error(error, std::system_category(), "create socket");
+        throw std::system_error(error, std::system_category(), "create socket");
       }
 #else
       if (s < 0) {
         auto error = errno;
-        throw new std::system_error(error, std::system_category(), "create socket");
+        throw std::system_error(error, std::system_category(), "create socket");
       }
 #endif
     }
@@ -88,7 +88,7 @@ namespace vds {
 #else
       if (0 >= this->s_) {
 #endif
-        throw new std::logic_error("network_socket::handle without open socket");
+        throw std::logic_error("network_socket::handle without open socket");
       }
       return this->s_;
     }

@@ -39,7 +39,7 @@ namespace vds {
     {
 #ifdef _DEBUG
       if (this->is_scheduled_) {
-        throw new std::runtime_error("");
+        throw std::runtime_error("");
       }
 #endif // _DEBUG
     }
@@ -54,7 +54,7 @@ namespace vds {
 
 #ifdef _DEBUG
       if (this->is_scheduled_) {
-        throw new std::exception();
+        throw std::exception();
       }
       this->is_scheduled_ = true;
 #endif

@@ -71,7 +71,7 @@ void vds::node_app::main(
     //});
 
     //if (!this->cliend_id_assigned_.wait_for(std::chrono::seconds(15))) {
-    //  throw new std::runtime_error("Connection failed");
+    //  throw std::runtime_error("Connection failed");
     //}
   }
   else if (&this->node_root_cmd_set_ == this->current_command_set_) {

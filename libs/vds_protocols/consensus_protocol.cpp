@@ -128,7 +128,7 @@ void vds::consensus_protocol::_server::leader_check()
     break;
 
   default:
-    throw new std::runtime_error("Invalid consensus protocol state");
+    throw std::runtime_error("Invalid consensus protocol state");
   }
 }
 

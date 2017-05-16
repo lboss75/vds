@@ -45,7 +45,7 @@ namespace vds {
         server_log_record record(log_record);
         
         if (nullptr == record.message()) {
-          throw new std::runtime_error("Invalid log record in the stream "
+          throw std::runtime_error("Invalid log record in the stream "
             + this->stream_name_
             + "(" + std::to_string(log_record->line()) + "," + std::to_string(log_record->column()) + ")");
         }
@@ -63,7 +63,7 @@ namespace vds {
           }
 
           if (s.subject() != sign_cert->subject()) {
-            throw new std::runtime_error("Invalid certificate in the stream "
+            throw std::runtime_error("Invalid certificate in the stream "
               + this->stream_name_
               + "(" + std::to_string(log_record->line()) + "," + std::to_string(log_record->column()) + ")");
           }
@@ -76,7 +76,7 @@ namespace vds {
             s.signature(),
             message_body.c_str(),
             message_body.length())) {
-            throw new std::runtime_error("Invalid sign record in the stream "
+            throw std::runtime_error("Invalid sign record in the stream "
               + this->stream_name_
               + "(" + std::to_string(log_record->line()) + "," + std::to_string(log_record->column()) + ")");
           }

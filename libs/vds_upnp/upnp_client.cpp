@@ -54,7 +54,7 @@ bool vds::upnp_client::open_port(
     &nat);
   if(FAILED(hr)) {
     sp.get<logger>()->error(sp, "Failed to create instance of IUPnPNAT. Error: %d", hr);
-    throw new std::system_error(hr, std::system_category(), "Failed to create instance of IUPnPNAT");
+    throw std::system_error(hr, std::system_category(), "Failed to create instance of IUPnPNAT");
   }
   this->nat_.reset((IUPnPNAT *)nat);
 
@@ -153,7 +153,7 @@ void vds::upnp_client::close_port(
   );
 
   if (FAILED(hr)) {
-    throw new std::system_error(hr, std::system_category(), "Failed to remove port mapping");
+    throw std::system_error(hr, std::system_category(), "Failed to remove port mapping");
   }
 #else
   int r = UPNP_DeletePortMapping(

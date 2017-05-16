@@ -113,13 +113,13 @@ namespace vds {
       this->handle_ = open(filename.local_name().c_str(), O_RDONLY);
       if (0 > this->handle_) {
         auto error = errno;
-        throw new std::system_error(error, std::system_category(), "Unable to open file " + this->filename_.str());
+        throw std::system_error(error, std::system_category(), "Unable to open file " + this->filename_.str());
       }
 #else
       this->handle_ = _open(this->filename_.local_name().c_str(), _O_RDONLY | _O_BINARY | _O_SEQUENTIAL);
       if (0 > this->handle_) {
         auto error = GetLastError();
-        throw new std::system_error(error, std::system_category(), "Unable to open file " + this->filename_.str());
+        throw std::system_error(error, std::system_category(), "Unable to open file " + this->filename_.str());
       }
 #endif
     }
@@ -143,7 +143,7 @@ namespace vds {
 #else
         auto error = errno;
 #endif
-        throw new std::system_error(error, std::system_category(), "Unable to read file " + this->filename_.str());
+        throw std::system_error(error, std::system_category(), "Unable to read file " + this->filename_.str());
       }
 
       if (0 < readed) {

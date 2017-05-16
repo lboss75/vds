@@ -174,7 +174,7 @@ void vds::_server_database::start(const service_provider & sp)
     
     auto st = this->db_.parse("SELECT version FROM module WHERE id='kernel'");
     if(!st.execute()){
-      throw new std::runtime_error("Database has been corrupted");
+      throw std::runtime_error("Database has been corrupted");
     }
     
     st.get_value(0, db_version);
@@ -677,7 +677,7 @@ void vds::_server_database::processed_record(
       break;
     }
     else if (iserver_database::server_log_state::processed != parent_state) {
-      throw new std::runtime_error("Invalid state");
+      throw std::runtime_error("Invalid state");
     }
   }
 

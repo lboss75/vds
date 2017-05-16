@@ -30,7 +30,7 @@ void vds::json_writer::write_string_value(const std::string & value)
     break;
 
   default:
-    throw new std::runtime_error("Invalid json_writer state");
+    throw std::runtime_error("Invalid json_writer state");
   }
 
   this->write_string(value);
@@ -49,7 +49,7 @@ void vds::json_writer::write_null_value()
     break;
 
   default:
-    throw new std::runtime_error("Invalid json_writer state");
+    throw std::runtime_error("Invalid json_writer state");
   }
 
   this->stream_ << "null";
@@ -66,7 +66,7 @@ void vds::json_writer::start_property(const std::string & name)
     this->stream_ << ',';
     break;
   default:
-    throw new std::runtime_error("Invalid json_writer state");
+    throw std::runtime_error("Invalid json_writer state");
   }
 
   this->state_path_.push(this->state_);
@@ -84,7 +84,7 @@ void vds::json_writer::end_property()
     break;
 
   default:
-    throw new std::runtime_error("Invalid json_writer state");
+    throw std::runtime_error("Invalid json_writer state");
   }
 
   this->state_ = this->state_path_.top();
@@ -119,7 +119,7 @@ void vds::json_writer::start_object()
     break;
 
   default:
-    throw new std::runtime_error("Invalid json_writer state");
+    throw std::runtime_error("Invalid json_writer state");
   }
 
   this->state_ = START_OBJECT;
@@ -136,7 +136,7 @@ void vds::json_writer::end_object()
     break;
 
   default:
-    throw new std::runtime_error("Invalid json_writer state");
+    throw std::runtime_error("Invalid json_writer state");
   }
 
   this->state_ = this->state_path_.top();
@@ -161,7 +161,7 @@ void vds::json_writer::start_array()
     break;
 
   default:
-    throw new std::runtime_error("Invalid json_writer state");
+    throw std::runtime_error("Invalid json_writer state");
   }
 
   this->state_ = START_ARRAY;
@@ -178,7 +178,7 @@ void vds::json_writer::end_array()
     break;
 
   default:
-    throw new std::runtime_error("Invalid json_writer state");
+    throw std::runtime_error("Invalid json_writer state");
   }
 
   this->state_ = this->state_path_.top();
