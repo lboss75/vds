@@ -19,136 +19,93 @@ namespace vds {
   class http_parser
   {
   public:
-    http_parser(const service_provider & sp);
+    http_parser();
+
+    using incoming_item_type = uint8_t;
+    using outgoing_item_type = std::shared_ptr<http_message>;
+    static constexpr size_t BUFFER_SIZE = 1024;
+    static constexpr size_t MIN_BUFFER_SIZE = 1;
 
     template<typename context_type>
-    class handler : public async_dataflow_filter<context_type, handler<context_type>>
+    class handler : public sync_dataflow_filter<context_type, handler<context_type>>
     {
-      using base_class = async_dataflow_filter<context_type, handler<context_type>>;
+      using base_class = sync_dataflow_target<context_type, handler<context_type>>;
 
     public:
       handler(
         const context_type & context,
         const http_parser & args)
         : base_class(context),
-        state_(STATE_PARSE_HEADER),
-        sp_(args.sp_)
+        state_(STATE_PARSE_HEADER)
       {
       }
 
 
-      void async_process_data(const service_provider & sp)
+      void sync_process_data(const service_provider & sp, size_t & readed, size_t & written)
       {
-        while (0 < this->input_buffer_size_) {
+        readed = 0;
+        written = 0;
+        while (0 < this->input_buffer_size_ && written < this->output_buffer_size_) {
           if (STATE_PARSE_HEADER == this->state_) {
-            const char * p = (const char *)memchr(this->data_, '\n', this->len_);
+            const char * p = (const char *)memchr(this->input_buffer_, '\n', this->input_buffer_size_);
             if (nullptr == p) {
-              this->parse_buffer_ += std::string((const char *)this->data_, this->len_);
-              return true;
+              this->parse_buffer_ += std::string((const char *)this->input_buffer_, this->input_buffer_size_);
+              readed += this->input_buffer_size_;
+              return;
             }
 
-            auto size = p - (const char *)this->data_;
+            auto size = p - (const char *)this->input_buffer_;
 
             if (size > 0) {
-              if ('\r' == reinterpret_cast<const char *>(this->data_)[size - 1]) {
-                this->parse_buffer_ += std::string((const char *)this->data_, size - 1);
+              if ('\r' == reinterpret_cast<const char *>(this->input_buffer_)[size - 1]) {
+                this->parse_buffer_ += std::string((const char *)this->input_buffer_, size - 1);
               }
               else {
-                this->parse_buffer_ += std::string((const char *)this->data_, size);
+                this->parse_buffer_ += std::string((const char *)this->input_buffer_, size);
               }
             }
+            this->input_buffer_ = p + 1;
+            this->input_buffer_size_ -= size + 1;
 
             if (0 == this->parse_buffer_.length()) {
               if (this->headers_.empty()) {
                 throw std::logic_error("Invalid request");
               }
 
-              auto request = *this->headers_.begin();
-
-              std::string items[3];
-
-              size_t index = 0;
-              for (auto ch : request) {
-                if (isspace(ch)) {
-                  ++index;
-                  if (index > sizeof(items) / sizeof(items[0])) {
-                    throw std::logic_error("Invalid request");
-                  }
-                }
-                else {
-                  items[index] += ch;
-                }
-              }
-
-              if (index < 1) {
-                throw std::logic_error("Invalid request");
-              }
-
-              this->headers_.pop_front();
-
-              this->request_.reset(
-                items[0],
-                items[1],
-                items[2],
-                this->headers_);
-
-              sp.get<logger>()->trace(
-                sp,
-                "Request url:%s, method: %s, agent:%s",
-                this->request_.url().c_str(),
-                this->request_.method().c_str(),
-                this->request_.agent().c_str());
-
-              for (auto & p : this->headers_) {
-                sp.get<logger>()->trace(sp, p);
-              }
+              this->current_message_ = std::make_shared<http_message>(this->headers_);
+              this->output_buffer_[written++] = this->current_message_;
 
               std::string content_length_header;
-              if (this->request_.get_header("Content-Length", content_length_header)) {
+              if (this->current_message_.get_header("Content-Length", content_length_header)) {
                 this->content_length_ = std::stoul(content_length_header);
               }
               else {
                 this->content_length_ = 0;
               }
 
-              this->data_ = p + 1;
-              this->len_ -= size + 1;
               this->headers_.clear();
 
               if (0 < this->content_length_) {
                 this->state_ = STATE_PARSE_BODY;
               }
-
-              auto sp = this->sp_.create_scope("HTTP Request");
-              if (!this->next(
-                sp,
-                this->request_,
-                this->incoming_stream_
-              )) {
-                return false;
-              }
-              continue;
             }
             else {
               this->headers_.push_back(this->parse_buffer_);
               this->parse_buffer_.clear();
             }
-
-            this->data_ = p + 1;
-            this->len_ -= size + 1;
           }
           else {
-            auto size = this->len_;
+            auto size = this->input_buffer_size_;
             if (size > this->content_length_) {
               size = this->content_length_;
             }
 
             if (0 < size) {
-              auto p = this->data_;
+              auto p = this->input_buffer_;
 
               this->content_length_ -= size;
-              this->data_ = reinterpret_cast<const char *>(this->data_) + size;
-              this->len_ -= size;
+              this->input_buffer_ += size;
+              this->input_buffer_size_ -= size;
 
               if (0 == this->content_length_) {
                 this->state_ = STATE_PARSE_HEADER;
@@ -174,6 +131,8 @@ namespace vds {
       } state_;
 
       size_t content_length_;
+      
+      std::shared_ptr<http_message> current_message_;
     };
 
     private:

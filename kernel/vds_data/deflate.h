@@ -43,7 +43,7 @@ namespace vds {
       {
         const void * to_push;
         size_t to_push_len;
-        if (!push_data(this->handler_, data, len, to_push, to_push_len)) {
+        if (!push_data(this->handler_, this->input_buffer_, this->input_buffer_size_, to_push, to_push_len)) {
           return true;
         }
         else {
