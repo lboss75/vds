@@ -38,6 +38,8 @@ namespace vds {
       size_t count,
       size_t & written)
     {
+      std::lock_guard<std::mutex> lock(this->state_mutex_);
+
       if (!this->waiting_push_data_) {
         throw std::runtime_error("Logic error");
       }
@@ -57,6 +59,7 @@ namespace vds {
 
     void start(const service_provider & sp)
     {
+      std::lock_guard<std::mutex> lock(this->state_mutex_);
       if (this->waiting_push_data_) {
         throw std::runtime_error("Logic error");
       }
@@ -70,20 +73,35 @@ namespace vds {
         this->waiting_push_data_ = false;
       }
 
-      for(;;){
+      while(!this->common_data_->cancellation_token_.is_cancellation_requested()) {
         auto readed = static_cast<implementation_type *>(this)->sync_push_data(sp);
+
+        if (0 == this->input_buffer_size_ && 0 == readed) {
+          this->common_data_->step_finish(sp, context_type::INDEX);
+          break;
+        }
 
         this->waiting_push_data_ = true;
         if (this->source_->continue_read(sp, readed, this->input_buffer_, this->input_buffer_size_)) {
           this->waiting_push_data_ = false;
         }
+        else {
+          break;
+        }
       }
+    }
+
+    void cancel(const service_provider & sp)
+    {
+      std::lock_guard<std::mutex> lock(this->state_mutex_);
+      this->common_data_->step_finish(sp, context_type::INDEX);
     }
 
   private:
     incoming_queue_type * source_;
     common_data_type * common_data_;
     bool waiting_push_data_;
+    std::mutex state_mutex_;
 
   protected:
     incoming_item_type * input_buffer_;
@@ -141,6 +159,7 @@ namespace vds {
       size_t buffer_size,
       size_t & readed)
     {
+      std::lock_guard<std::mutex> lock(this->state_mutex_);
       readed = static_cast<implementation_type *>(this)->sync_get_data(sp, buffer, buffer_size);
       if (0 == readed) {
         this->common_data_->step_finish(sp, context_type::INDEX);
@@ -148,9 +167,16 @@ namespace vds {
       return true;
     }
 
+    void cancel(const service_provider & sp)
+    {
+      std::lock_guard<std::mutex> lock(this->state_mutex_);
+      this->common_data_->step_finish(sp, context_type::INDEX);
+    }
+
   private:
     outgoing_queue_type * target_;
     common_data_type * common_data_;
+    std::mutex state_mutex_;
   };
 
   template <typename context_type, typename implementation_type>
@@ -177,13 +203,21 @@ namespace vds {
       size_t buffer_size,
       size_t & readed)
     {
+      std::lock_guard<std::mutex> lock(this->state_mutex_);
       static_cast<implementation_type *>(this)->async_get_data(sp, buffer, buffer_size);
       return false;
+    }
+
+    void cancel(const service_provider & sp)
+    {
+      std::lock_guard<std::mutex> lock(this->state_mutex_);
+      this->common_data_->step_finish(sp, context_type::INDEX);
     }
 
   private:
     outgoing_queue_type * target_;
     common_data_type * common_data_;
+    std::mutex state_mutex_;
   };
 
   template <typename context_type, typename implementation_type>
@@ -241,20 +275,41 @@ namespace vds {
         }
       }
 
-      size_t readed;
-      static_cast<implementation_type *>(this)->sync_process_data(sp, readed, written);
+      while(!this->final_data_ && !this->common_data_->cancellation_token_.is_cancellation_requested()) {
 
-      if(0 == this->input_buffer_size_ && 0 == readed && 0 == written) {
-        this->final_data_ = true;
-        this->common_data_->step_finish(sp, context_type::INDEX);
-      }
+        size_t readed;
+        try {
+          static_cast<implementation_type *>(this)->sync_process_data(sp, readed, written);
+        }
+        catch (...) {
+          this->common_data_->step_error(sp, context_type::INDEX, std::current_exception());
+          return false;
+        }
 
-      if (0 != this->input_buffer_size_) {
-        this->waiting_push_data_ = true;
-        if (this->source_->continue_read(sp, readed, this->input_buffer_, this->input_buffer_size_)) {
-          this->waiting_push_data_ = false;
+        if (0 == this->input_buffer_size_ && 0 == readed && 0 == written) {
+          this->final_data_ = true;
+          this->common_data_->step_finish(sp, context_type::INDEX);
+          break;
+        }
+
+        if (0 != this->input_buffer_size_) {
+          this->waiting_push_data_ = true;
+          if (this->source_->continue_read(sp, readed, this->input_buffer_, this->input_buffer_size_)) {
+            this->waiting_push_data_ = false;
+          }
+          else if(0 == written){
+            return false;
+          }
+          else {
+            break;
+          }
+        }
+
+        if (0 < written) {
+          break;
         }
       }
+
       if (this->waiting_get_data_) {
         throw std::runtime_error("Logic error");
       }
@@ -296,6 +351,12 @@ namespace vds {
       this->waiting_push_data_ = true;
 
       return true;
+    }
+
+    void cancel(const service_provider & sp)
+    {
+      std::lock_guard<std::mutex> lock(this->data_mutex_);
+      this->common_data_->step_finish(sp, context_type::INDEX);
     }
 
   private:
@@ -449,6 +510,12 @@ namespace vds {
       else {
         return false;
       }
+    }
+
+    void cancel(const service_provider & sp)
+    {
+      std::lock_guard<std::mutex> lock(this->data_mutex_);
+      this->common_data_->step_finish(sp, context_type::INDEX);
     }
 
   private:
@@ -870,7 +937,13 @@ namespace vds {
       step_type<index> * step(){
         return &this->step_;
       }
-      
+
+      void cancel(const service_provider & sp)
+      {
+        base_class::cancel(sp);
+        this->step_.cancel(sp);
+      }
+     
     private:
       queue_stream<index - 1> queue_;
       step_type<index> step_;
@@ -891,7 +964,12 @@ namespace vds {
       step_type<0> * step(){
         return &this->step_;
       }
-      
+
+      void cancel(const service_provider & sp)
+      {
+        this->step_.cancel(sp);
+      }
+
     private:
       step_type<0> step_;
     };
@@ -963,6 +1041,9 @@ namespace vds {
 
       void start(const std::shared_ptr<starter> pthis, const service_provider & sp)
       {
+        this->handler_token_ = sp.get_shutdown_event().then_shuting_down([this]() {
+          this->cancellation_source_.cancel();
+        });
         this->pthis_ = pthis;
         this->step_.start(sp);
       }
@@ -976,13 +1057,11 @@ namespace vds {
 
       void step_error(const service_provider & sp, size_t index, std::exception_ptr error) override
       {
-        this->final_mutex_.lock();
+        std::lock_guard<std::mutex> lock(this->final_mutex_);
         if (!this->error_) {
           this->error_ = error;
-          //cancellation_source_.cancel();
+          this->cancellation_source_.cancel();
         }
-        this->done_steps_.emplace(index);
-        this->try_finish(sp);
       }
 
 
@@ -991,6 +1070,7 @@ namespace vds {
       error_handler on_error_;
       final_step_type step_;
       queue_stream<std::tuple_size<tuple_type>::value - 2> queue_;
+      cancellation_subscriber handler_token_;
       std::shared_ptr<starter> pthis_;
 
       std::mutex final_mutex_;
@@ -1005,6 +1085,8 @@ namespace vds {
         }
         this->final_mutex_.unlock();
 
+        this->handler_token_.destroy();
+
         if (!this->error_) {
           this->done_(sp);
         }
@@ -1012,7 +1094,9 @@ namespace vds {
           this->on_error_(sp, this->error_);
         }
 
-        this->pthis_.reset();
+        imt_service::async(sp, [this]() {
+          this->pthis_.reset();
+        });
       }
     };
   };

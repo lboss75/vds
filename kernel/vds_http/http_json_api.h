@@ -5,6 +5,8 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
+
+/*
 namespace vds {
   template <typename handler_type>
   class http_json_api
@@ -62,5 +64,6 @@ namespace vds {
     const handler_type & handler_;
   };
 };
+*/
 
 #endif // __VDS_HTTP_HTTP_JSON_API_H_

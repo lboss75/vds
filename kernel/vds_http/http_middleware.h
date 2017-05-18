@@ -5,7 +5,7 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
-
+/*
 #include "http_request.h"
 #include "http_response.h"
 #include "http_router.h"
@@ -113,5 +113,5 @@ namespace vds {
     const router_type & router_;
   };
 }
-
+*/
 #endif // __VDS_HTTP_HTTP_MIDDLEWARE_H_

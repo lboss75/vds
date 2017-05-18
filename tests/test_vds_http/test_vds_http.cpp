@@ -85,26 +85,14 @@ TEST(http_tests, test_server)
 
     {
         auto sp = registrator.build("test_server");
+        registrator.start(sp);
 
         //Start server
         vds::http_router router;
         router.add_static(
           "/",
           "<html><body>Hello World</body></html>");
-
-        std::function<void(int)> f;
-
-        auto server_done_handler = vds::lambda_handler(
-          [](const vds::service_provider & sp) {
-            std::cout << "Server has been closed\n";
-          }
-        );
-        auto server_error_handler = vds::lambda_handler(
-          [](const vds::service_provider & sp, std::exception_ptr ex) {
-            FAIL() << vds::exception_what(ex);
-          }
-        );
-        
+       
         test_http_pipeline pipeline(router);
         vds::dataflow(
           vds::socket_server(sp, "127.0.0.1", 8000),
@@ -113,9 +101,13 @@ TEST(http_tests, test_server)
           })
         )
         (
-          server_done_handler,
-          server_error_handler,
-          sp
+          [](const vds::service_provider & sp) {
+            std::cout << "Server has been closed\n";
+          },
+          [](const vds::service_provider & sp, std::exception_ptr ex) {
+            FAIL() << vds::exception_what(ex);
+          },
+           sp
         );
         
         //Start client

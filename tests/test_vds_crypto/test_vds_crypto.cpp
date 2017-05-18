@@ -135,14 +135,17 @@ private:
 TEST(test_vds_crypto, test_symmetric)
 {
     vds::service_registrator registrator;
+    vds::mt_service mt_service;
     
     vds::crypto_service crypto_service;
     vds::console_logger console_logger(vds::ll_trace);
 
+    registrator.add(mt_service);
     registrator.add(console_logger);
     registrator.add(crypto_service);
     {
       auto sp = registrator.build("test_symmetric");
+      registrator.start(sp);
       
       size_t len;
       do
@@ -157,19 +160,26 @@ TEST(test_vds_crypto, test_symmetric)
       vds::symmetric_key key(vds::symmetric_crypto::aes_256_cbc());
       key.generate();
 
+      vds::barrier b;
+      std::exception_ptr error;
       dataflow(
         random_reader(buffer.get(), (int)len),
         vds::symmetric_encrypt(key),
         vds::symmetric_decrypt(key),
         compare_data(buffer.get(), (int)len)
       )(
-        [](const vds::service_provider &) {},
-        [](const vds::service_provider &, std::exception_ptr ex) {
-          GTEST_FAIL() << vds::exception_what(ex);
+        [&b](const vds::service_provider &) {b.set(); },
+        [&b, &error](const vds::service_provider &, std::exception_ptr ex) {
+          error = ex;
+          b.set();
         },
         sp);
 
+      b.wait();
       registrator.shutdown(sp);
+      if (error) {
+        GTEST_FAIL() << vds::exception_what(error);
+      }
     }
 }
 
@@ -215,10 +225,12 @@ TEST(test_vds_crypto, test_asymmetric)
 TEST(test_vds_crypto, test_sign)
 {
   vds::service_registrator registrator;
+  vds::mt_service mt_service;
 
   vds::crypto_service crypto_service;
   vds::console_logger console_logger(vds::ll_trace);
 
+  registrator.add(mt_service);
   registrator.add(console_logger);
   registrator.add(crypto_service);
   {
@@ -268,16 +280,24 @@ TEST(test_vds_crypto, test_sign)
 
     const_cast<unsigned char *>(buffer.get())[index]++;
 
-    bool changed_result;
+    vds::barrier b;
+    std::exception_ptr error;
     vds::dataflow(
       random_reader(buffer.get(), (int)len),
       vds::asymmetric_sign_verify(vds::hash::sha256(), pkey, sign))
       (
-        [](const vds::service_provider & sp) { },
-        [](const vds::service_provider & sp, std::exception_ptr ex) { FAIL() << vds::exception_what(ex); },
+        [&b](const vds::service_provider & sp) { b.set(); },
+        [&b, &error](const vds::service_provider & sp, std::exception_ptr ex) { error = ex; b.set(); },
         sp);
 
+    b.wait();
+
     registrator.shutdown(sp);
+
+    if (!error) {
+      GTEST_FAIL() << "Sign failed";
+    }
+
   }
 }
 

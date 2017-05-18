@@ -116,7 +116,7 @@ namespace vds {
         input_readed = n;
         output_written = len;
       }
-      else {
+      else if (!this->eof_) {
         this->eof_ = true;
 
         int buf_len = (output_buffer_size > INT_MAX) ? INT_MAX : (int)output_buffer_size;
@@ -127,6 +127,10 @@ namespace vds {
 
         input_readed = 0;
         output_written = buf_len;
+      }
+      else {
+        input_readed = 0;
+        output_written = 0;
       }
     }
 
@@ -187,7 +191,7 @@ namespace vds {
         input_readed = n;
         output_written = len;
       }
-      else {
+      else if(!this->eof_) {
         this->eof_ = true;
 
         int buf_len = (result_data_len > INT_MAX) ? INT_MAX : (int)result_data_len;
@@ -198,6 +202,10 @@ namespace vds {
 
         input_readed = 0;
         output_written = buf_len;
+      }
+      else {
+        input_readed = 0;
+        output_written = 0;
       }
     }
 

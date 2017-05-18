@@ -5,7 +5,7 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
-
+/*
 #include "http_stream_reader.h"
 #include "http_response.h"
 #include "http_outgoing_stream.h"
@@ -96,5 +96,5 @@ namespace vds {
     };    
   };
 }
-
+*/
 #endif // __VDS_HTTP_HTTP_RESPONSE_SERIALIZER_H_

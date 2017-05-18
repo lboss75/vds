@@ -5,6 +5,8 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
+
+/*
 #include "http_response.h"
 #include "http_outgoing_stream.h"
 
@@ -67,5 +69,6 @@ namespace vds {
     http_outgoing_stream & response_stream_;
   };
 }
+*/
 
 #endif // HTTP_JSON_FORMATTER_H

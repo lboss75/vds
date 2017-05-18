@@ -5,6 +5,7 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
+/*
 #include "https_pipeline.h"
 #include "http_response.h"
 #include "http_incoming_stream.h"
@@ -387,5 +388,5 @@ namespace vds {
     };
   };
 }
-
+*/
 #endif // __VDS_HTTP_HTTPS_PIPELINE_P_H_

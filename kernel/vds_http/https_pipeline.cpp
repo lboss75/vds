@@ -4,6 +4,7 @@ All rights reserved
 */
 
 #include "stdafx.h"
+/*
 #include "https_pipeline.h"
 #include "https_pipeline_p.h"
 
@@ -33,7 +34,7 @@ void vds::https_pipeline::on_connection_closed(const service_provider & sp)
 {
 }
 
-void vds::https_pipeline::on_error(const service_provider & sp, std::exception_ptr /*error*/)
+void vds::https_pipeline::on_error(const service_provider & sp, std::exception_ptr /*error* /)
 {
 }
 
@@ -103,3 +104,4 @@ void vds::_https_pipeline::run(const service_provider & sp, const std::string & 
 {
   this->output_command_stream_->run(sp, body);
 }
+*/

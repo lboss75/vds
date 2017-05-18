@@ -5,7 +5,7 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
-
+/*
 #include <vector>
 #include "http_incoming_stream.h"
 
@@ -86,5 +86,5 @@ namespace vds {
     http_incoming_stream & incoming_stream_;
   };
 }
-
+*/
 #endif//__VDS_HTTP_HTTP_STREAM_READER_H_

@@ -5,6 +5,7 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
+/*
 #include "http_request_serializer.h"
 #include "http_response_parser.h"
 
@@ -100,5 +101,5 @@ namespace vds {
     response_handler_type & response_handler_;
   };
 }
-
+*/
 #endif // __VDS_HTTP_HTTP_SEND_REQUEST_H_

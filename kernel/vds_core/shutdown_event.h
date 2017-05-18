@@ -19,10 +19,10 @@ namespace vds {
     bool is_shuting_down() const { return this->token_.is_cancellation_requested(); }
 
     void set();
-    void then_shuting_down(
+    auto then_shuting_down(
       const std::function<void(void)> & callback)
     {
-      this->token_.then_cancellation_requested(callback);
+      return this->token_.then_cancellation_requested(callback);
     }
 
 
