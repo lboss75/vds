@@ -25,9 +25,9 @@ namespace vds {
     template<typename context_type>
     class handler
       : public socket_task,
-        public vds::sync_dataflow_target<context_type, handler<context_type>>
+        public vds::async_dataflow_target<context_type, handler<context_type>>
     {
-      using base_class = vds::sync_dataflow_target<context_type, handler<context_type>>;
+      using base_class = vds::async_dataflow_target<context_type, handler<context_type>>;
     public:
       handler(
         const context_type & context,
@@ -37,7 +37,7 @@ namespace vds {
       {
       }
       
-      size_t sync_push_data(
+      void sync_push_data(
         const vds::service_provider & sp)
       {        
 #ifdef _DEBUG

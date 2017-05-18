@@ -12,8 +12,7 @@ All rights reserved
 
 #include "func_utils.h"
 #include "service_provider.h"
-#include "http_request.h"
-#include "http_incoming_stream.h"
+#include "http_message.h"
 
 namespace vds {
   class http_parser
@@ -40,7 +39,6 @@ namespace vds {
       {
       }
 
-
       void sync_process_data(const service_provider & sp, size_t & readed, size_t & written)
       {
         readed = 0;
@@ -61,7 +59,7 @@ namespace vds {
                 this->parse_buffer_ += std::string((const char *)this->input_buffer_, size - 1);
               }
               else {
-                this->parse_buffer_ += std::string((const char *)this->input_buffer_, size);
+                this->parse_buffer_.append((const char *)this->input_buffer_, size);
               }
             }
             this->input_buffer_ = p + 1;
@@ -72,21 +70,25 @@ namespace vds {
                 throw std::logic_error("Invalid request");
               }
 
-              this->current_message_ = std::make_shared<http_message>(this->headers_);
-              this->output_buffer_[written++] = this->current_message_;
-
               std::string content_length_header;
               if (this->current_message_.get_header("Content-Length", content_length_header)) {
                 this->content_length_ = std::stoul(content_length_header);
+                
+                if(this->content_length_ > 100 * 1024 * 1024){
+                  this->on_error(sp, std::make_exception_ptr(std::runtime_error("request too long")));
+                  return;
+                }
               }
               else {
                 this->content_length_ = 0;
               }
 
-              this->headers_.clear();
-
               if (0 < this->content_length_) {
                 this->state_ = STATE_PARSE_BODY;
+              }
+              else {
+                this->output_buffer_[written++] = std::make_shared<http_message>(this->headers_, this->parse_buffer_);
+                this->headers_.clear();
               }
             }
             else {
@@ -101,23 +103,23 @@ namespace vds {
             }
 
             if (0 < size) {
-              auto p = this->input_buffer_;
+              
+              this->parse_buffer_.append((const char *)this->input_buffer_, size);
 
               this->content_length_ -= size;
               this->input_buffer_ += size;
               this->input_buffer_size_ -= size;
+              readed += size;
 
               if (0 == this->content_length_) {
+                this->output_buffer_[written++] = std::make_shared<http_message>(this->headers_, this->parse_buffer_);
+                this->headers_.clear();
+                
                 this->state_ = STATE_PARSE_HEADER;
               }
-
-              this->incoming_stream_.push_data(sp, p, size);
-              return false;
             }
           }
         }
-
-        return true;
       }
 
     private:
@@ -131,8 +133,6 @@ namespace vds {
       } state_;
 
       size_t content_length_;
-      
-      std::shared_ptr<http_message> current_message_;
     };
 
     private:

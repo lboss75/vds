@@ -7,8 +7,3 @@ All rights reserved
 #include "http_parser.h"
 #include "http_router.h"
 
-vds::http_parser::http_parser(const service_provider & sp)
-  : sp_(sp)
-{
-}
-
