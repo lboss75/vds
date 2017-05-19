@@ -67,6 +67,10 @@ namespace vds {
 #endif
       }
 
+      bool empty() const
+      {
+        return this->value_.empty();
+      }
 
       static filename current_process();
   private:

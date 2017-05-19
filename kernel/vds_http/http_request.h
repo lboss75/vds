@@ -8,14 +8,13 @@ All rights reserved
 
 #include <memory>
 #include <list>
+#include "http_message.h"
 
 namespace vds {
   class http_request
   {
   public:
-    http_request()
-    {
-    }
+    http_request(const std::shared_ptr<http_message> & message);
 
     http_request(
       const std::string & method,
@@ -23,36 +22,11 @@ namespace vds {
       const std::string & agent = "HTTP/1.0"
       ): method_(method), url_(url), agent_(agent)
     {
+      std::list<std::string> headers;
+      headers.push_back(method + " " + url + " " + agent);
+
+      this->message_ = std::make_shared<http_message>(headers, "");
       this->parse_parameters();
-    }
-
-    void reset(
-      const std::string & method,
-      const std::string & url,
-      const std::string & agent,
-      const std::list<std::string> & headers 
-    )
-    {
-      this->url_ = url;
-      this->method_ = method;
-      this->agent_ = agent;
-      this->headers_ = headers;
-
-      this->parse_parameters();
-    }
-
-    void clear()
-    {
-      this->url_.clear();
-      this->method_.clear();
-      this->agent_.clear();
-      this->headers_.clear();
-      this->parameters_.clear();
-    }
-
-    bool empty() const
-    {
-      return this->url_.empty() && this->method_.empty();
     }
 
     const std::string & url() const {
@@ -67,17 +41,19 @@ namespace vds {
     }
 
     const std::list<std::string> & headers() {
-      return this->headers_;
+      return this->message_->headers();
     }
 
-    bool get_header(const std::string & name, std::string & value);
+    bool get_header(const std::string & name, std::string & value) {
+      return this->message_->get_header(name, value);
+    }
 
   private:
+    std::shared_ptr<http_message> message_;
     std::string method_;
     std::string url_;
     std::list<std::string> parameters_;
     std::string agent_;
-    std::list<std::string> headers_;
 
     void parse_parameters();
   };

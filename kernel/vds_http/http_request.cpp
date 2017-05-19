@@ -6,20 +6,41 @@ All rights reserved
 #include "stdafx.h"
 #include "http_request.h"
 
-bool vds::http_request::get_header(const std::string & name, std::string & value)
+vds::http_request::http_request(const std::shared_ptr<http_message>& message)
+  : message_(message)
 {
-  for (auto& p : this->headers_) {
-    //Start with
-    if (
-      p.size() > name.size()
-      && p[name.size()] == ':'
-      && !p.compare(0, name.size(), name)) {
-      value = p.substr(name.size() + 1);
-      return true;
+  if (0 == message->headers().size()) {
+    throw std::runtime_error("Invalid HTTP Request");
+  }
+
+  int index = 0;
+  for (auto ch : *(message->headers().begin())) {
+    if (isspace(ch)) {
+      if (index < 2) {
+        ++index;
+      }
+      else {
+        this->agent_ += ch;
+      }
+    }
+    else {
+      switch (index) {
+      case 0:
+        this->method_ += ch;
+        break;
+
+      case 1:
+        this->url_ += ch;
+        break;
+
+      case 2:
+        this->agent_ += ch;
+        break;
+      }
     }
   }
 
-  return false;
+  this->parse_parameters();
 }
 
 void vds::http_request::parse_parameters()
@@ -32,5 +53,3 @@ void vds::http_request::parse_parameters()
     this->url_.erase(p - this->url_.c_str());
   }
 }
-
-

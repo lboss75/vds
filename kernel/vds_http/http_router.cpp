@@ -13,25 +13,23 @@ vds::http_router::http_router()
 {
 }
 
-void vds::http_router::route(
+std::shared_ptr<vds::http_message> vds::http_router::route(
   const service_provider & sp,
-  const http_request & request,
-  http_incoming_stream & /*incoming_stream*/,
-  http_response & response,
-  http_outgoing_stream & outgoing_stream
-) const
+  const std::shared_ptr<http_message> & message)
 {
+  http_request request(message);
+
   auto p = this->static_.find(request.url());
   if(this->static_.end() != p){
-    response.set_result(200, "OK");
+    http_response response(http_response::HTTP_OK, "OK", p->second);
     response.add_header("Content-Type", "text/html; charset=utf-8");
-    outgoing_stream.set_body(p->second);
-    return;
+    return response.create_message();
   }
 
   auto pf = this->files_.find(request.url());
   if (this->files_.end() != pf) {
-    response.set_result(200, "OK");
+    http_response response(http_response::HTTP_OK, "OK", pf->second);
+
     auto ext = pf->second.extension();
     if (".js" == ext) {
       response.add_header("Content-Type", "application/javascript; charset=utf-8");
@@ -48,13 +46,12 @@ void vds::http_router::route(
     else {
       response.add_header("Content-Type", "text/html; charset=utf-8");
     }
-    outgoing_stream.set_file(pf->second);
-    return;
+
+    return response.create_message();
   }
   
   sp.get<logger>()->debug(sp, "File not found: %s", request.url().c_str());
-  response.set_result(404, "Not Found");
-  outgoing_stream.set_body("<html><body>File not file</body></html>");
+  return http_response(http_response::HTTP_Not_Found, "Not Found", "<html><body>File not file</body></html>").create_message();;
 }
 
 void vds::http_router::add_static(

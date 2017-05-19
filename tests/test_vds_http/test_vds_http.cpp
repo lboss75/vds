@@ -37,9 +37,7 @@ public:
       vds::network_socket & s)
       :
       s_(std::move(s)),
-      router_(owner.router_),
-      done_handler_(this),
-      error_handler_(this, const_cast<test_http_pipeline &>(owner).error)
+      router_(owner.router_)
     {
     }
 
@@ -49,7 +47,7 @@ public:
       
       vds::dataflow(
         vds::input_network_stream(this->s_),
-        vds::http_parser(sp),
+        vds::http_parser(),
         vds::http_middleware<vds::http_router>(this->router_),
         vds::http_response_serializer(),
         vds::output_network_stream(this->s_)
@@ -63,9 +61,6 @@ public:
   private:
     vds::network_socket s_;
     const vds::http_router & router_;
-    vds::delete_this<handler> done_handler_;
-    
-    vds::auto_cleaner<handler, error_method_type> error_handler_;
   };
 
 private:

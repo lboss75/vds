@@ -87,7 +87,7 @@ public:
         {
         }
         
-        bool sync_process_data(const vds::service_provider & sp, size_t & input_readed, size_t & output_written)
+        void sync_process_data(const vds::service_provider & sp, size_t & input_readed, size_t & output_written)
         {
           auto n = (this->input_buffer_size_ < this->output_buffer_size_)
             ? this->input_buffer_size_
@@ -103,7 +103,6 @@ public:
             
           input_readed = n;
           output_written = n;
-          return true;
         }
         
       private:

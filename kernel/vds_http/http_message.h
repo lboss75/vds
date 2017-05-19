@@ -9,6 +9,8 @@ All rights reserved
 #include <memory>
 #include <list>
 
+#include "filename.h"
+
 namespace vds {
   class http_message
   {
@@ -17,7 +19,12 @@ namespace vds {
     : headers_(headers), body_(body)
     {
     }
-    
+
+    http_message(const std::list<std::string> & headers, const filename & body)
+      : headers_(headers), file_(body)
+    {
+    }
+
     const std::list<std::string> & headers() {
       return this->headers_;
     }
@@ -28,10 +35,14 @@ namespace vds {
       return this->body_;
     }
 
-    
+    const filename & file() const {
+      return this->file_;
+    }
+
   private:
     std::list<std::string> headers_;
     std::string body_;
+    filename file_;
   };
 }
 #endif // __VDS_HTTP_HTTP_MESSAGE_H_

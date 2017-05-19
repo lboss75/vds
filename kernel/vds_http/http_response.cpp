@@ -6,34 +6,52 @@ All rights reserved
 #include "stdafx.h"
 #include "http_response.h"
 
-vds::http_response::http_response()
-  : code_(-1)
+vds::http_response::http_response(
+  int code,
+  const std::string & comment)
+: protocol_("HTTP/1.0"), code_(code), comment_(comment)
 {
 }
 
-void vds::http_response::reset(
-  const vds::http_request& request
-)
+vds::http_response::http_response(
+  int code,
+  const std::string & comment,
+  const std::string & body)
+: protocol_("HTTP/1.0"), code_(code), comment_(comment), body_(body)
 {
-  this->code_ = -1;
-  this->headers_.clear();
 }
 
-bool vds::http_response::get_header(
-  const std::string& name,
-  std::string& value)
+vds::http_response::http_response(
+  int code,
+  const std::string & comment,
+  const filename & fn)
+  : protocol_("HTTP/1.0"), code_(code), comment_(comment), file_(fn)
 {
-  for(auto& p : this->headers_){
-    //Start with
-    if(
-      p.size() > name.size()
-      && p[name.size()] == ':'
-      && !p.compare(0, name.size(), name)){
-      value = p.substr(name.size() + 1);
-      return true;
-    }
+}
+
+std::shared_ptr<vds::http_message> vds::http_response::create_message() const
+{
+  std::list<std::string> headers(this->headers_);
+
+  std::stringstream stream;
+  stream << this->protocol_ << " " << this->code_ << " " << this->comment_;
+  headers.push_front(stream.str());
+
+  if (!this->file_.empty()) {
+    headers.push_back("Content-Length: " + std::to_string(file::length(this->file_)));
   }
-  
-  return false;
+  else {
+    headers.push_back("Content-Length: " + std::to_string(this->body_.length()));
+  }
+
+
+  if (!this->file_.empty()) {
+    return std::make_shared<http_message>(headers, this->file_);
+  }
+  else {
+    return std::make_shared<http_message>(headers, this->body_);
+  }
 }
+
+
 

@@ -5,11 +5,9 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
-/*
-#include "http_request.h"
-#include "http_response.h"
+
+#include "http_message.h"
 #include "http_router.h"
-#include "http_outgoing_stream.h"
 
 namespace vds {
   class http_router;
@@ -23,95 +21,54 @@ namespace vds {
     }
     
 
+    using incoming_item_type = std::shared_ptr<http_message>;
+    using outgoing_item_type = std::shared_ptr<http_message>;
+    static constexpr size_t BUFFER_SIZE = 10;
+    static constexpr size_t MIN_BUFFER_SIZE = 10;
+
     template<typename context_type>
-    class handler : public dataflow_step<context_type, 
-      bool(
-        http_response & response,
-        http_outgoing_stream & outgoing_stream
-      )
-    >
+    class handler : public vds::sync_dataflow_filter<context_type, handler<context_type>>
     {
-      using base_class = dataflow_step<context_type, 
-      bool(
-        http_response & response,
-        http_outgoing_stream & outgoing_stream
-      )>;
+      using base_class = vds::sync_dataflow_filter<context_type, handler<context_type>>;
+
     public:
       handler(
         const context_type & context,
         const http_middleware & params)
-        : base_class(context),
-        router_(params.router_),
-        http_error_handler_(this)
+      : base_class(context),
+        router_(params.router_)
       {
       }
       
-      bool operator()(
-        const service_provider & sp,
-        const http_request & request,
-        http_incoming_stream & incoming_stream
-      ) {
-        
-        this->response_.reset(request);
-        if (!request.empty()) {
+      void sync_process_data(const vds::service_provider & sp, size_t & input_readed, size_t & output_written)
+      {
+        auto n = (this->input_buffer_size_ < this->output_buffer_size_)
+          ? this->input_buffer_size_
+          : this->output_buffer_size_;
+
+        for (size_t i = 0; i < n; ++i) {
           try {
-            return this->router_.route(
-              sp,
-              request,
-              incoming_stream,
-              this->response_,
-              this->outgoing_stream_,
-              this->prev,
-              this->next,
-              this->http_error_handler_
-            );
+            this->output_buffer_[i] = this->router_.route(sp, this->input_buffer_[i]);
           }
           catch(...) {
-            this->http_error_handler_(sp, std::current_exception());
-            return false;
+            std::list<std::string> headers;
+            //std::string body = exception_what(std:: )
+            //auto result = std::make_shared<http_message>();
+            //this->output_buffer_[i] = this->http_error_handler_(sp, std::current_exception());
           }
         }
-        else {
-          return this->next(
-            sp,
-            this->response_,
-            this->outgoing_stream_);
-        }
+
+        input_readed = n;
+        output_written = n;
       }
       
     private:
       const router_type & router_;
-      http_response response_;
-      http_outgoing_stream outgoing_stream_;
-      
-      class http_error_handler
-      {
-      public:
-        http_error_handler(handler * owner)
-        : owner_(owner)
-        {
-        }
-        
-        void operator()(const service_provider & sp, std::exception_ptr ex)
-        {
-          this->owner_->response_.set_result(
-            http_response::HTTP_Internal_Server_Error,
-            exception_what(ex));
-          this->owner_->outgoing_stream_.set_body(exception_what(ex));
-          this->owner_->next(
-            sp,
-            this->owner_->response_,
-            this->owner_->outgoing_stream_);
-        }
-      private:
-        handler * owner_;
-      };
-      http_error_handler http_error_handler_;
     };
     
   private:
     const router_type & router_;
   };
 }
-*/
+
 #endif // __VDS_HTTP_HTTP_MIDDLEWARE_H_

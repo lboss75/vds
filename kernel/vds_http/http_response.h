@@ -6,45 +6,34 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
+#include "http_message.h"
+
 namespace vds {
-  class http_request;
-  
   class http_response
   {
   public:
     static constexpr int HTTP_OK = 200;
     static constexpr int HTTP_Internal_Server_Error = 500;
-    
-    http_response();
+    static constexpr int HTTP_Not_Found = 404;
 
-    void reset(
-      const http_request & request
-    );
-    
-    void reset(
-      const std::string & protocol,
-      const std::string & code,
+    http_response(
+      int code,
+      const std::string & comment);
+
+    http_response(
+      int code,
       const std::string & comment,
-      const std::list<std::string> & headers 
-    )
-    {
-      this->protocol_ = protocol;
-      this->code_ = atoi(code.c_str());
-      this->comment_ = comment;
-      this->headers_ = headers;
-    }
-    
-    void set_result(int code, const std::string & comment) {
-      this->code_ = code;
-      this->comment_ = comment;
-    }
-    
+      const std::string & body);
+
+    http_response(
+      int code,
+      const std::string & comment,
+      const filename & body);
+
     void add_header(const std::string & name, const std::string & value) {
       this->headers_.push_back(name + ":" + value);
     }
     
-    bool get_header(const std::string & name, std::string & value);
-
     int code() const
     {
       return this->code_;
@@ -55,24 +44,15 @@ namespace vds {
       return this->comment_;
     }
 
-    const std::list<std::string> headers() const
-    {
-      return this->headers_;
-    }
-
-    bool empty() const
-    {
-      return this->code_ < 0;
-    }
-    
-    void clear(){
-      this->code_ = -1;
-    }
+    std::shared_ptr<http_message> create_message() const;
 
   private:
     std::string protocol_;
     int code_;
     std::string comment_;
+    std::string body_;
+    filename file_;
+
     std::list<std::string> headers_;
   };
 }

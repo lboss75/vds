@@ -19,11 +19,11 @@ namespace vds {
     {
     }
 
-    async_task<size_t /*written*/> write_async(const void * data, size_t data_size)
+    async_task<> write_async(const void * data, size_t data_size)
     {
       return create_async_task(
         [this, data, data_size](
-          const std::function<void(const service_provider & sp, size_t written)> & done,
+          const std::function<void(const service_provider & sp)> & done,
           const error_handler & on_error,
           const service_provider & sp) {
 
@@ -57,10 +57,9 @@ namespace vds {
     std::function<void(void)> continue_write_;
     std::function<void(void)> continue_read_;
 
-
     void continue_write(
       const service_provider & sp,
-      const std::function<void(const service_provider & sp, size_t written)> & done,
+      const std::function<void(const service_provider & sp)> & done,
       const void * data,
       size_t data_size)
     {
@@ -71,7 +70,12 @@ namespace vds {
           len = data_size;
         }
         memcpy(this->buffer_ + this->front_, data, len);
-        done(sp, len);
+        if (len == data_size) {
+          done(sp);
+        }
+        else {
+          this->continue_write_ = std::bind(&async_stream::continue_write, this, sp, done, reinterpret_cast<const uint8_t *>(data) + len, data_size - len);
+        }
       }
       else if (this->second_ < this->front_) {
         auto len = this->front_ - this->second_;
@@ -79,10 +83,15 @@ namespace vds {
           len = data_size;
         }
         memcpy(this->buffer_ + this->second_, data, len);
-        done(sp, len);
+        if (len == data_size) {
+          done(sp);
+        }
+        else {
+          this->continue_write_ = std::bind(&async_stream::continue_write, this, sp, done, reinterpret_cast<const uint8_t *>(data) + len, data_size - len);
+        }
       }
       else {
-        this->continue_write_ = std::bind(this, &async_stream::continue_write, sp, done, data, data_size);
+        this->continue_write_ = std::bind(&async_stream::continue_write, this, sp, done, data, data_size);
 
         if (this->continue_read_) {
           imt_service::async(sp, this->continue_read_);
@@ -107,7 +116,7 @@ namespace vds {
         done(sp, len);
       }
       else {
-        this->continue_read_ = std::bind(this, &async_stream::continue_read, sp, done, buffer, buffer_size);
+        this->continue_read_ = std::bind(&async_stream::continue_read, this, sp, done, buffer, buffer_size);
 
         if (this->continue_write_) {
           imt_service::async(sp, this->continue_write_);
