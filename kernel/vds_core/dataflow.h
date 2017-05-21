@@ -1166,6 +1166,58 @@ namespace vds {
   private:
     item_type * result_;
   };
+  
+  template<typename item_type>
+  class dataflow_arguments
+  {
+  public:
+    dataflow_arguments(const item_type * data, size_t count)
+    : data_(data), count_(count)
+    {
+    }
+    
+    using outgoing_item_type = item_type;
+    static constexpr size_t BUFFER_SIZE = 1;
+    static constexpr size_t MIN_BUFFER_SIZE = 1;
+    
+    template<typename context_type>
+    class handler : public vds::sync_dataflow_source<context_type, handler<context_type>>
+    {
+    public:
+      handler(
+        const context_type & context,
+        const dataflow_arguments & args)
+      : vds::sync_dataflow_source<context_type, handler<context_type>>(context),
+        data_(args.data_), count_(args.count_), written_(0)
+      {
+      }
+      
+      ~handler()
+      {
+      }
+      
+      size_t sync_get_data(const vds::service_provider & sp)
+      {
+        size_t count = 0;
+        while(0 < this->count_ && 0 < this->input_buffer_size_){
+          *this->input_buffer_++ = *this->data_++;
+          this->count_--;
+          this->input_buffer_size_--;
+          ++count;
+        }
+          
+        return count;
+      }
+      
+    private:
+      const item_type * data_;
+      size_t count_;
+      size_t written_;
+    };
+  private:
+    const item_type * data_;
+    size_t count_;
+  };
 }
 
 #endif // __VDS_CORE_DATAFLOW_H_

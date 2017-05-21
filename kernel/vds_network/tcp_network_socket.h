@@ -5,6 +5,9 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
+#include <memory>
+#include "dataflow.h"
+#include "async_task.h"
 
 namespace vds {
   class _tcp_network_socket;
@@ -16,6 +19,17 @@ namespace vds {
   public:
     tcp_network_socket();
     ~tcp_network_socket();
+    
+    static async_task<tcp_network_socket> connect(
+      const service_provider & sp,
+      const std::string & server,
+      const uint16_t port);
+    
+    async_task<size_t/*written*/> write_async(
+      const service_provider & sp,
+      const void * data,
+      const size_t data_size);
+      
     
   private:
     std::shared_ptr<_tcp_network_socket> impl_;

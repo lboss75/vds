@@ -47,6 +47,11 @@ namespace vds {
     bool get_header(const std::string & name, std::string & value) {
       return this->message_->get_header(name, value);
     }
+    
+    std::shared_ptr<http_message> get_message() const {
+      return this->message_;
+    }
+    
 
   private:
     std::shared_ptr<http_message> message_;

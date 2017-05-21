@@ -10,7 +10,7 @@ All rights reserved
 #include "http_message.h"
 
 namespace vds {
-  class http_response_serializer
+  class http_serializer
   {
   public:
 
@@ -26,7 +26,7 @@ namespace vds {
     public:
       handler(
         const context_type & context,
-        const http_response_serializer & args)
+        const http_serializer & args)
         : base_class(context), state_(StateEnum::STATE_BOF)
       {
       }
@@ -36,13 +36,6 @@ namespace vds {
         std::lock_guard<std::mutex> lock(this->state_mutex_);
 
         this->continue_process(sp);
-      }
-      
-      void processed(const service_provider & sp)
-      {
-        if (!this->stream_ || !this->stream_->read(sp, this->next)) {
-          this->prev(sp);
-        }
       }
 
     private:
