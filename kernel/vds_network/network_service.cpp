@@ -4,32 +4,67 @@ All rights reserved
 */
 
 #include "stdafx.h"
-#include "network_manager.h"
-#include "network_socket.h"
+#include "network_service.h"
+#include "network_service_p.h"
+#include "tcp_network_socket.h"
 #include "udp_socket.h"
 #include "service_provider.h"
 #include "logger.h"
 #include <iostream>
 
 vds::network_service::network_service()
+: impl_(new _network_service())
+{
+}
+
+vds::network_service::~network_service()
+{
+  delete this->impl_;
+}
+
+void vds::network_service::register_services(service_registrator & registator)
+{
+    registator.add_service<inetwork_service>(this->impl_);
+}
+
+void vds::network_service::start(const service_provider & sp)
+{
+  this->impl_->start(sp);
+}
+
+void vds::network_service::stop(const service_provider & sp)
+{
+  this->impl_->stop(sp);
+}
+
+std::string vds::network_service::to_string(const sockaddr_in & from)
+{
+  return get_ip_address_string(from) + ":" + std::to_string(ntohs(from.sin_port));
+}
+
+std::string vds::network_service::get_ip_address_string(const sockaddr_in & from)
+{
+  char buffer[20];
+  int len = sizeof(buffer);
+
+  inet_ntop(from.sin_family, &(from.sin_addr), buffer, len);
+
+  return buffer;
+}
+/////////////////////////////////////////////////////////////////////////////
+vds::_network_service::_network_service()
 #ifndef _WIN32
 : dispatch_started_(false), base_(nullptr)
-
 #endif
 {
 }
 
 
-vds::network_service::~network_service()
+vds::_network_service::~_network_service()
 {
 }
 
-void vds::network_service::register_services(service_registrator & registator)
-{
-    registator.add_service<inetwork_manager>(this);
-}
-
-void vds::network_service::start(const service_provider & provider)
+void vds::_network_service::start(const service_provider & provider)
 {
 #ifdef _WIN32
     //Initialize Winsock
@@ -60,7 +95,7 @@ void vds::network_service::start(const service_provider & provider)
 }
 
 #ifndef _WIN32
-void vds::network_service::start_libevent_dispatch(const service_provider & sp)
+void vds::_network_service::start_libevent_dispatch(const service_provider & sp)
 {
   if(!this->dispatch_started_) {
     this->dispatch_started_ = true;
@@ -79,7 +114,7 @@ void vds::network_service::start_libevent_dispatch(const service_provider & sp)
 }
 #endif
 
-void vds::network_service::stop(const service_provider & sp)
+void vds::_network_service::stop(const service_provider & sp)
 {
     try {
       sp.get<logger>()->trace(sp, "Stopping network service");
@@ -111,7 +146,7 @@ void vds::network_service::stop(const service_provider & sp)
 }
 
 #ifdef _WIN32
-void vds::network_service::associate(network_socket::SOCKET_HANDLE s)
+void vds::_network_service::associate(network_socket::SOCKET_HANDLE s)
 {
   if (NULL == CreateIoCompletionPort((HANDLE)s, this->handle_, NULL, 0)) {
     auto error = GetLastError();
@@ -119,7 +154,7 @@ void vds::network_service::associate(network_socket::SOCKET_HANDLE s)
   }
 }
 
-void vds::network_service::thread_loop(const service_provider & sp)
+void vds::_network_service::thread_loop(const service_provider & sp)
 {
     while (!sp.get_shutdown_event().is_shuting_down()) {
         DWORD dwBytesTransfered = 0;
@@ -162,17 +197,3 @@ void vds::network_service::thread_loop(const service_provider & sp)
 
 #endif//_WIN32
 
-std::string vds::network_service::to_string(const sockaddr_in & from)
-{
-  return get_ip_address_string(from) + ":" + std::to_string(ntohs(from.sin_port));
-}
-
-std::string vds::network_service::get_ip_address_string(const sockaddr_in & from)
-{
-  char buffer[20];
-  int len = sizeof(buffer);
-
-  inet_ntop(from.sin_family, &(from.sin_addr), buffer, len);
-
-  return buffer;
-}

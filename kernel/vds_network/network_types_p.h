@@ -1,5 +1,5 @@
-#ifndef __NETWORK_TYPES_H_
-#define __NETWORK_TYPES_H_
+#ifndef __NETWORK_TYPES_P_H_
+#define __NETWORK_TYPES_P_H_
 
 /*
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
@@ -18,4 +18,12 @@ All rights reserved
 
 #endif
 
-#endif//__NETWORK_TYPES_H_
+#ifdef _WIN32
+typedef SOCKET SOCKET_HANDLE;
+#else
+typedef int SOCKET_HANDLE;
+#define INVALID_SOCKET (-1)
+#endif
+
+
+#endif//__NETWORK_TYPES_P_H_

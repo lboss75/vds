@@ -27,7 +27,7 @@ namespace vds {
       handler(
         const context_type & context,
         const http_response_serializer & args)
-        : base_class(context), state_(STATE_BOF)
+        : base_class(context), state_(StateEnum::STATE_BOF)
       {
       }
 
@@ -60,8 +60,8 @@ namespace vds {
       {
         for (;;) {
           switch (this->state_) {
-          case BOF:
-            this->state_ = STATE_WRITE_HEADERS;
+          case StateEnum::BOF:
+            this->state_ = StateEnum::STATE_WRITE_HEADERS;
             auto message = this->input_buffer_[0];
 
             std::stringstream stream;
@@ -85,7 +85,7 @@ namespace vds {
               },
               sp);
             break;
-          case WRITE_HEADERS:
+          case StateEnum::WRITE_HEADERS:
               buffer_.read_async(sp, this->output_buffer_, this->output_buffer_size_).wait(
                 [this](const service_provider & sp, size_t readed) {
 
@@ -96,7 +96,7 @@ namespace vds {
                   }
                 }
                 else {
-                  this->state_ = STATE_BOF;
+                  this->state_ = StateEnum::STATE_BOF;
                   if (this->processed(sp, 1, 0)) {
                     this->continue_process(sp);
                   }

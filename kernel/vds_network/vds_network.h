@@ -6,8 +6,7 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
-#include "vds_core.h"
-#include "vds_parser.h"
+#include "targetver.h"
 
 #ifdef _WIN32
 
@@ -25,17 +24,6 @@ All rights reserved
 #endif
 
 #include <cstring>
-
-
-#include "network_manager.h"
-#include "input_network_stream.h"
-#include "output_network_stream.h"
-#include "socket_server.h"
-#include "socket_connect.h"
-#include "network_socket.h"
-#include "dns.h"
-#include "udp_socket.h"
-#include "network_serializer.h"
 
 #ifdef _WIN32
 #pragma comment(lib, "Ws2_32.lib")

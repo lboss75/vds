@@ -6,36 +6,31 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
-#include "socket_task.h"
-#include "network_socket.h"
+#include "socket_task_p.h"
+#include "network_service_p.h"
 
 namespace vds {
   class inetwork_manager;
   
-  template<
-    typename next_method_type,
-    typename error_method_type
-  >
-  class read_socket_task : public socket_task
+  class _read_socket_task : public _socket_task
   {
   public:
     constexpr static size_t BUFFER_SIZE = 1024;
 
-    read_socket_task(
-      next_method_type & next_method,
-      error_method_type & error_method,
-      const network_socket & s
-    ) :
-      sp_(service_provider::empty()),
-      s_(s.handle()),
-    next_method_(next_method), error_method_(error_method)
+    _read_socket_task(
+      const std::function<void(const service_provider & sp, size_t readed)> & readed_method,
+      const error_handler & error_method,
+      SOCKET_HANDLE s)
+    : sp_(service_provider::empty()),
+      s_(s),
+      readed_method_(readed_method), error_method_(error_method)
 #ifdef _DEBUG
       , is_scheduled_(false)
 #endif // _DEBUG
     {
     }
 
-    ~read_socket_task()
+    ~_read_socket_task()
     {
 #ifdef _DEBUG
       if (this->is_scheduled_) {
@@ -44,19 +39,21 @@ namespace vds {
 #endif // _DEBUG
     }
     
-    void operator()(const service_provider & sp)
+    void read_async(const service_provider & sp, void * buffer, size_t buffer_size)
     {
       this->sp_ = sp;
 
 #ifdef _WIN32
-      this->wsa_buf_.len = BUFFER_SIZE;
-      this->wsa_buf_.buf = (CHAR *)this->buffer_;
+      this->wsa_buf_.len = buffer_size;
+      this->wsa_buf_.buf = (CHAR *)buffer;
 
 #ifdef _DEBUG
       if (this->is_scheduled_) {
         throw std::exception();
       }
       this->is_scheduled_ = true;
+      this->buffer_ = buffer;
+      this->buffer_size_ = buffer_size;
 #endif
       DWORD flags = 0;
       DWORD numberOfBytesRecvd;
@@ -70,24 +67,28 @@ namespace vds {
 #else//!_WIN32
       if(nullptr == this->event_) {
         this->event_ = event_new(
-          static_cast<network_service *>(sp.get<inetwork_manager>())->base_,
+          static_cast<_network_service *>(sp.get<inetwork_service>())->base_,
           this->s_,
           EV_READ,
-          &read_socket_task::callback,
+          &_read_socket_task::callback,
           this);
       }
       // Schedule client event
       event_add(this->event_, NULL);
-      static_cast<network_service *>(sp.get<inetwork_manager>())->start_libevent_dispatch(sp);
+      static_cast<_network_service *>(sp.get<inetwork_service>())->start_libevent_dispatch(sp);
 #endif//_WIN32
     }
 
   private:
     service_provider sp_;
-    network_socket::SOCKET_HANDLE s_;
-    next_method_type & next_method_;
-    error_method_type & error_method_;
-    uint8_t buffer_[BUFFER_SIZE];
+    SOCKET_HANDLE s_;
+    std::function<void(const service_provider & sp, size_t readed)> readed_method_;
+    error_handler  error_method_;
+#ifndef _WIN32
+    void * buffer_;
+    size_t buffer_size_;
+#endif
+    
 #ifdef _DEBUG
     bool is_scheduled_;
 #endif
@@ -102,18 +103,17 @@ namespace vds {
       this->is_scheduled_ = false;
 #endif
 
-      this->next_method_(
+      this->readed_method_(
         this->sp_,
-        this->buffer_,
         (size_t)dwBytesTransfered
       );
     }
 #else//!_WIN32
     static void callback(int fd, short event, void *arg)
     {
-      auto pthis = reinterpret_cast<read_socket_task *>(arg);
+      auto pthis = reinterpret_cast<_read_socket_task *>(arg);
       try {
-        int len = read(fd, pthis->buffer_, BUFFER_SIZE);
+        int len = read(fd, pthis->buffer_, pthis->buffer_size_);
         if (len < 0) {
           int error = errno;
           throw
@@ -122,19 +122,16 @@ namespace vds {
             std::system_category());
         }
         
-        logger::get(pthis->sp_)->trace(pthis->sp_, "Receive %d bytes", len);
         imt_service::async(pthis->sp_, [pthis, len](){
-            pthis->next_method_(pthis->sp_, pthis->buffer_, len);
-          });
+          pthis->readed_method_(pthis->sp_, len);
+        });
       }
       catch(...){
         pthis->error_method_(pthis->sp_, std::current_exception());
       }
     }
 #endif//_WIN32
-
   };
-
 }
 
 #endif // __VDS_NETWORK_READ_SOCKET_TASK_H_

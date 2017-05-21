@@ -4,69 +4,9 @@ All rights reserved
 */
 
 #include "stdafx.h"
-
-class test_http_pipeline
-{
-private:
-  class error_method_type
-  {
-  public:
-    void operator()(std::exception_ptr ex)
-    {
-      FAIL() << vds::exception_what(ex);
-    }
-  };
-
-public:
-  test_http_pipeline(
-    const vds::http_router & router)
-    : router_(router)
-  {
-  }
-
-  ~test_http_pipeline()
-  {
-
-  }
-
-  class handler
-  {
-  public:
-    handler(
-      const test_http_pipeline & owner,
-      vds::network_socket & s)
-      :
-      s_(std::move(s)),
-      router_(owner.router_)
-    {
-    }
-
-    void start(const vds::service_provider & sp)
-    {
-      std::cout << "New connection\n";
-      
-      vds::dataflow(
-        vds::input_network_stream(this->s_),
-        vds::http_parser(),
-        vds::http_middleware<vds::http_router>(this->router_),
-        vds::http_response_serializer(),
-        vds::output_network_stream(this->s_)
-      )
-      (
-        [this](const vds::service_provider & sp) { this->done_handler_(); },
-        [this](const vds::service_provider & sp, std::exception_ptr ex) { this->error_handler_(ex); },
-        sp
-      );
-    }
-  private:
-    vds::network_socket s_;
-    const vds::http_router & router_;
-  };
-
-private:
-  const vds::http_router & router_;
-  error_method_type error;
-};
+#include "tcp_network_socket.h"
+#include "network_service.h"
+#include "tcp_socket_server.h"
 
 TEST(http_tests, test_server)
 {
@@ -88,14 +28,26 @@ TEST(http_tests, test_server)
           "/",
           "<html><body>Hello World</body></html>");
        
-        test_http_pipeline pipeline(router);
-        vds::dataflow(
-          vds::socket_server(sp, "127.0.0.1", 8000),
-          vds::create_socket_session([&pipeline](const vds::service_provider & sp, vds::network_socket & s){
-            (new test_http_pipeline::handler(pipeline, s))->start(sp);
+        vds::tcp_socket_server server;
+        server.start(
+          sp,
+          "127.0.0.1",
+          8000,
+          [&router](const vds::service_provider & sp, const vds::tcp_network_socket & s){
+            vds::dataflow(
+              vds::read_tcp_network_socket(s),
+              vds::http_parser(),
+              vds::http_middleware<vds::http_router>(router),
+              vds::http_response_serializer(),
+              vds::write_tcp_network_socket(s)
+            )
+            (
+              [this](const vds::service_provider & sp) { },
+              [this](const vds::service_provider & sp, std::exception_ptr ex) { },
+              sp
+            );
           })
-        )
-        (
+        .wait(
           [](const vds::service_provider & sp) {
             std::cout << "Server has been closed\n";
           },
