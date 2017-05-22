@@ -7,40 +7,49 @@ All rights reserved
 */
 
 #include "async_task.h"
+#include "network_types_p.h"
+#include "network_service_p.h"
+#include "tcp_network_socket_p.h"
 
 namespace vds {
-  class _socket_server
+  class _tcp_socket_server
   {
   public:
-    socket_server()
+    _tcp_socket_server()
+    : s_(INVALID_SOCKET)
 #ifndef _WIN32
-      : ev_accept_(nullptr)
+      , ev_accept_(nullptr), sp_(service_provider::empty())
 #endif
     {
     }
     
-    ~socket_server()
+    ~_tcp_socket_server()
     {
 #ifndef _WIN32
-      event_free(this->ev_accept_);
+      if(nullptr != this->ev_accept_){
+        event_free(this->ev_accept_);
+      }
       close(this->s_);
 #else
       closesocket(this->s_);
-      this->wait_accept_task_.join();
 #endif
+      if(this->wait_accept_task_.joinable()){
+        this->wait_accept_task_.join();
+      }
     }
 
     async_task<> start(
       const service_provider & sp,
       const std::string & address,
-      int port)
+      int port,
+      const std::function<void(const service_provider & sp, const tcp_network_socket & s)> & new_connection)
     {
-      return create_async_task([this](
+      return create_async_task([this, address, port, new_connection](
         const std::function<void (const service_provider & sp)> & done,
         const error_handler & on_error,
         const service_provider & sp) {
           this->wait_accept_task_ = std::thread(
-            [this, done, on_error, sp]() {
+            [this, done, on_error, sp, address, port, new_connection]() {
 #ifdef _WIN32
               auto s = WSASocket(AF_INET, SOCK_STREAM, 0, NULL, 0, WSA_FLAG_OVERLAPPED);
 
@@ -97,7 +106,7 @@ namespace vds {
                   if (INVALID_SOCKET != socket) {
                     static_cast<network_service *>(sp.get<inetwork_manager>())->associate(socket);
                     auto sp = this->sp_.create_scope("Connection from " + network_service::to_string(client_address));
-                    static_cast<implementation_class *>(this)->new_session(sp, socket);
+                    new_connection(sp, socket);
                   }
                 }
               }
@@ -181,26 +190,40 @@ namespace vds {
 
               sp.get_shutdown_event().then_shuting_down([this, sp, done](){
                 shutdown(this->s_, 2);
-                done(sp);
               });
+              this->sp_ = sp;
+              this->done_ = done;
+              this->on_error_ = on_error;
+              this->new_connection_ = new_connection;
               this->ev_accept_ = event_new(
-                static_cast<network_service *>(sp.get<inetwork_manager>())->base_,
+                static_cast<_network_service *>(sp.get<inetwork_service>())->base_,
                 this->s_,
                 EV_READ,
-                &accept_socket_task::wait_accept,
+                &_tcp_socket_server::wait_accept,
                 this);
               event_add(this->ev_accept_, NULL);
-              static_cast<network_service *>(sp.get<inetwork_manager>())->start_libevent_dispatch(sp);
+              static_cast<_network_service *>(sp.get<inetwork_service>())->start_libevent_dispatch(sp);
 #endif
-            })});
+            });
+      });
+    }
+    
+    void stop(const service_provider & sp)
+    {
     }
     
   private:
+    SOCKET_HANDLE s_;
+    std::thread wait_accept_task_;
 #ifndef _WIN32
+    std::function<void(const service_provider & sp, const tcp_network_socket & s)> new_connection_;
     event * ev_accept_;
+    service_provider sp_;
+    std::function<void (const service_provider & sp)> done_;
+    error_handler on_error_;
     static void wait_accept(int fd, short event, void *arg)
     {
-      auto data = reinterpret_cast<accept_socket_task *>(arg);
+      auto data = reinterpret_cast<_tcp_socket_server *>(arg);
       
       try {
         sockaddr_in client_addr;
@@ -209,7 +232,8 @@ namespace vds {
         // Accept incoming connection
         int sock = accept(fd, reinterpret_cast<sockaddr *>(&client_addr), &len);
         if (sock < 1) {
-            return;
+          data->done_(data->sp_);
+          return;
         }
         
         /* Set the socket to non-blocking, this is essential in event
@@ -244,12 +268,11 @@ namespace vds {
         //}
         auto sp = data->sp_.create_scope("Connection from " + network_service::to_string(client_addr));
         imt_service::async(sp, [sp, data, sock](){
-          network_socket s(sock);
-          data->done_method_(sp, &s);
+          data->new_connection_(sp, _tcp_network_socket::from_handle(sock));
         });
       }
       catch(...){
-        data->error_method_(data->sp_, std::current_exception());
+        data->on_error_(data->sp_, std::current_exception());
       }
     }
 
@@ -290,7 +313,6 @@ namespace vds {
     };
 
     windows_wsa_event accept_event_;
-    std::thread wait_accept_task_;
 #endif
   };
 }

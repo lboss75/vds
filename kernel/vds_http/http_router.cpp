@@ -15,7 +15,7 @@ vds::http_router::http_router()
 
 std::shared_ptr<vds::http_message> vds::http_router::route(
   const service_provider & sp,
-  const std::shared_ptr<http_message> & message)
+  const std::shared_ptr<http_message> & message) const
 {
   http_request request(message);
 

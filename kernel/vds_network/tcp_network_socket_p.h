@@ -7,6 +7,7 @@ All rights reserved
 */
 
 #include "network_types_p.h"
+#include "tcp_network_socket.h"
 
 namespace vds {
   class _tcp_network_socket
@@ -59,6 +60,11 @@ namespace vds {
         throw std::logic_error("network_socket::handle without open socket");
       }
       return this->s_;
+    }
+    
+    static tcp_network_socket from_handle(SOCKET_HANDLE handle)
+    {
+      return tcp_network_socket(std::make_shared<_tcp_network_socket>(handle));
     }
 
   private:

@@ -38,7 +38,7 @@ namespace vds {
 
     }
     
-    void write_async(const service_provider & sp, void * buffer, size_t buffer_size)
+    void write_async(const service_provider & sp, const void * buffer, size_t buffer_size)
     {
       this->sp_ = sp;
       

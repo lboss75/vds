@@ -13,129 +13,6 @@ All rights reserved
 */
 namespace vds {
   template <typename context_type, typename implementation_type>
-  class sync_dataflow_target
-  {
-  public:
-    using common_data_type = typename context_type::common_data_type;
-    using incoming_item_type = typename context_type::incoming_item_type;
-    using incoming_queue_type = typename context_type::incoming_queue_type;
-    sync_dataflow_target(const context_type & context)
-      : source_(context.source_),
-      common_data_(context.common_data_),
-      waiting_push_data_(false),
-      input_buffer_(nullptr)
-    {
-    }
-    
-    sync_dataflow_target(const sync_dataflow_target &) = delete;
-    sync_dataflow_target(sync_dataflow_target&&) = delete;
-    sync_dataflow_target & operator = (const sync_dataflow_target &) = delete;
-    sync_dataflow_target & operator = (sync_dataflow_target&&) = delete;
-    
-    bool push_data(
-      const service_provider & sp,
-      incoming_item_type * values,
-      size_t count,
-      size_t & written)
-    {
-      std::lock_guard<std::mutex> lock(this->state_mutex_);
-
-      if (!this->waiting_push_data_) {
-        throw std::runtime_error("Logic error");
-      }
-
-      this->waiting_push_data_ = false;
-      this->input_buffer_ = values;
-      this->input_buffer_size_ = count;
-
-      written = static_cast<implementation_type *>(this)->sync_push_data(sp);
-      if (0 == written && 0 == count) {
-        this->common_data_->step_finish(sp, context_type::INDEX);
-        return true;
-      }
-      this->waiting_push_data_ = true;
-      return true;
-    }
-
-    void start(const service_provider & sp)
-    {
-      std::lock_guard<std::mutex> lock(this->state_mutex_);
-      if (this->waiting_push_data_) {
-        throw std::runtime_error("Logic error");
-      }
-
-      if (nullptr == this->input_buffer_) {
-        this->waiting_push_data_ = true;
-        if (!this->source_->start(sp, this->input_buffer_, this->input_buffer_size_)) {
-          return;
-        }
-        
-        this->waiting_push_data_ = false;
-      }
-
-      while(!this->common_data_->cancellation_token_.is_cancellation_requested()) {
-        auto readed = static_cast<implementation_type *>(this)->sync_push_data(sp);
-
-        if (0 == this->input_buffer_size_ && 0 == readed) {
-          this->common_data_->step_finish(sp, context_type::INDEX);
-          break;
-        }
-
-        this->waiting_push_data_ = true;
-        if (this->source_->continue_read(sp, readed, this->input_buffer_, this->input_buffer_size_)) {
-          this->waiting_push_data_ = false;
-        }
-        else {
-          break;
-        }
-      }
-    }
-
-    void cancel(const service_provider & sp)
-    {
-      std::lock_guard<std::mutex> lock(this->state_mutex_);
-      this->common_data_->step_finish(sp, context_type::INDEX);
-    }
-
-  private:
-    incoming_queue_type * source_;
-    common_data_type * common_data_;
-    bool waiting_push_data_;
-    std::mutex state_mutex_;
-
-  protected:
-    incoming_item_type * input_buffer_;
-    size_t input_buffer_size_;
-
-    void on_error(const service_provider & sp, std::exception_ptr ex)
-    {
-      this->common_data_->step_error(sp, context_type::INDEX, ex);
-    }
-  };
-
-  template <typename context_type, typename implementation_type>
-  class async_dataflow_target
-  {
-  public:
-    using common_data_type = typename context_type::common_data_type;
-    using incoming_queue_type = typename context_type::incoming_queue_type;
-    async_dataflow_target(const context_type & context)
-      : source_(context.source_),
-        common_data_(context.common_data_)
-    {
-    }
-
-    async_dataflow_target(const async_dataflow_target &) = delete;
-    async_dataflow_target(async_dataflow_target&&) = delete;
-    async_dataflow_target & operator = (const async_dataflow_target &) = delete;
-    async_dataflow_target & operator = (async_dataflow_target&&) = delete;
-
-  private:
-    incoming_queue_type * source_;
-    common_data_type * common_data_;
-  };
-
-  template <typename context_type, typename implementation_type>
   class sync_dataflow_source
   {
   public:
@@ -160,7 +37,9 @@ namespace vds {
       size_t & readed)
     {
       std::lock_guard<std::mutex> lock(this->state_mutex_);
-      readed = static_cast<implementation_type *>(this)->sync_get_data(sp, buffer, buffer_size);
+      this->output_buffer_ = buffer;
+      this->output_buffer_size_ = buffer_size;
+      readed = static_cast<implementation_type *>(this)->sync_get_data(sp);
       if (0 == readed) {
         this->common_data_->step_finish(sp, context_type::INDEX);
       }
@@ -177,6 +56,15 @@ namespace vds {
     outgoing_queue_type * target_;
     common_data_type * common_data_;
     std::mutex state_mutex_;
+    
+  protected:
+    outgoing_item_type * output_buffer_;
+    size_t output_buffer_size_;
+    
+    void error(const service_provider & sp, std::exception_ptr ex)
+    {
+      this->common_data_->step_error(sp, context_type::INDEX, ex);
+    }
   };
 
   template <typename context_type, typename implementation_type>
@@ -204,7 +92,9 @@ namespace vds {
       size_t & readed)
     {
       std::lock_guard<std::mutex> lock(this->state_mutex_);
-      static_cast<implementation_type *>(this)->async_get_data(sp, buffer, buffer_size);
+      this->output_buffer_ = buffer;
+      this->output_buffer_size_ = buffer_size;
+      static_cast<implementation_type *>(this)->async_get_data(sp);
       return false;
     }
 
@@ -218,6 +108,28 @@ namespace vds {
     outgoing_queue_type * target_;
     common_data_type * common_data_;
     std::mutex state_mutex_;
+    
+  protected:
+    outgoing_item_type * output_buffer_;
+    size_t output_buffer_size_;
+    
+    bool processed(
+      const service_provider & sp,
+      size_t written)
+    {
+      std::lock_guard<std::mutex> lock(this->state_mutex_);
+      if(0 == written){
+        this->common_data_->step_finish(sp, context_type::INDEX);
+        return false;
+      }
+      
+      return this->target_->push_data(sp, written, this->output_buffer_, this->output_buffer_size_);
+    }
+    
+    void error(const service_provider & sp, std::exception_ptr ex)
+    {
+      this->common_data_->step_error(sp, context_type::INDEX, ex);
+    }
   };
 
   template <typename context_type, typename implementation_type>
@@ -375,6 +287,11 @@ namespace vds {
 
     outgoing_item_type * output_buffer_;
     size_t output_buffer_size_;
+
+    void error(const service_provider & sp, std::exception_ptr ex)
+    {
+      this->common_data_->step_error(sp, context_type::INDEX, ex);
+    }
   };
 
   
@@ -462,7 +379,6 @@ namespace vds {
       }
 
       this->process_data_called_ = true;
-      this->process_data_called_stack_ = sp.full_name();
       static_cast<implementation_type *>(this)->async_process_data(sp);
 
       return false;
@@ -534,6 +450,207 @@ namespace vds {
 
     outgoing_item_type * output_buffer_;
     size_t output_buffer_size_;
+
+    void error(const service_provider & sp, std::exception_ptr ex)
+    {
+      this->common_data_->step_error(sp, context_type::INDEX, ex);
+    }
+  };
+  
+  template <typename context_type, typename implementation_type>
+  class sync_dataflow_target
+  {
+  public:
+    using common_data_type = typename context_type::common_data_type;
+    using incoming_item_type = typename context_type::incoming_item_type;
+    using incoming_queue_type = typename context_type::incoming_queue_type;
+    sync_dataflow_target(const context_type & context)
+      : source_(context.source_),
+      common_data_(context.common_data_),
+      waiting_push_data_(false),
+      input_buffer_(nullptr)
+    {
+    }
+    
+    sync_dataflow_target(const sync_dataflow_target &) = delete;
+    sync_dataflow_target(sync_dataflow_target&&) = delete;
+    sync_dataflow_target & operator = (const sync_dataflow_target &) = delete;
+    sync_dataflow_target & operator = (sync_dataflow_target&&) = delete;
+    
+    bool push_data(
+      const service_provider & sp,
+      incoming_item_type * values,
+      size_t count,
+      size_t & written)
+    {
+      std::lock_guard<std::mutex> lock(this->state_mutex_);
+
+      if (!this->waiting_push_data_) {
+        throw std::runtime_error("Logic error");
+      }
+
+      this->waiting_push_data_ = false;
+      this->input_buffer_ = values;
+      this->input_buffer_size_ = count;
+
+      written = static_cast<implementation_type *>(this)->sync_push_data(sp);
+      if (0 == written && 0 == count) {
+        this->common_data_->step_finish(sp, context_type::INDEX);
+        return true;
+      }
+      this->waiting_push_data_ = true;
+      return true;
+    }
+
+    void start(const service_provider & sp)
+    {
+      std::lock_guard<std::mutex> lock(this->state_mutex_);
+      if (this->waiting_push_data_) {
+        throw std::runtime_error("Logic error");
+      }
+
+      if (nullptr == this->input_buffer_) {
+        this->waiting_push_data_ = true;
+        if (!this->source_->start(sp, this->input_buffer_, this->input_buffer_size_)) {
+          return;
+        }
+        
+        this->waiting_push_data_ = false;
+      }
+
+      while(!this->common_data_->cancellation_token_.is_cancellation_requested()) {
+        auto readed = static_cast<implementation_type *>(this)->sync_push_data(sp);
+
+        if (0 == this->input_buffer_size_ && 0 == readed) {
+          this->common_data_->step_finish(sp, context_type::INDEX);
+          break;
+        }
+
+        this->waiting_push_data_ = true;
+        if (this->source_->continue_read(sp, readed, this->input_buffer_, this->input_buffer_size_)) {
+          this->waiting_push_data_ = false;
+        }
+        else {
+          break;
+        }
+      }
+    }
+
+    void cancel(const service_provider & sp)
+    {
+      std::lock_guard<std::mutex> lock(this->state_mutex_);
+      this->common_data_->step_finish(sp, context_type::INDEX);
+    }
+
+  private:
+    incoming_queue_type * source_;
+    common_data_type * common_data_;
+    bool waiting_push_data_;
+    std::mutex state_mutex_;
+
+  protected:
+    incoming_item_type * input_buffer_;
+    size_t input_buffer_size_;
+
+    void error(const service_provider & sp, std::exception_ptr ex)
+    {
+      this->common_data_->step_error(sp, context_type::INDEX, ex);
+    }
+  };
+
+  template <typename context_type, typename implementation_type>
+  class async_dataflow_target
+  {
+  public:
+    using common_data_type = typename context_type::common_data_type;
+    using incoming_queue_type = typename context_type::incoming_queue_type;
+    using incoming_item_type = typename context_type::incoming_item_type;
+    async_dataflow_target(const context_type & context)
+      : source_(context.source_),
+        common_data_(context.common_data_)
+    {
+    }
+
+    async_dataflow_target(const async_dataflow_target &) = delete;
+    async_dataflow_target(async_dataflow_target&&) = delete;
+    async_dataflow_target & operator = (const async_dataflow_target &) = delete;
+    async_dataflow_target & operator = (async_dataflow_target&&) = delete;
+
+    bool push_data(
+      const service_provider & sp,
+      incoming_item_type * values,
+      size_t count,
+      size_t & written)
+    {
+      std::lock_guard<std::mutex> lock(this->state_mutex_);
+
+      if (!this->waiting_push_data_) {
+        throw std::runtime_error("Logic error");
+      }
+
+      this->waiting_push_data_ = false;
+      this->input_buffer_ = values;
+      this->input_buffer_size_ = count;
+
+      static_cast<implementation_type *>(this)->async_push_data(sp);
+      return false;
+    }
+
+    void start(const service_provider & sp)
+    {
+      std::lock_guard<std::mutex> lock(this->state_mutex_);
+      if (this->waiting_push_data_) {
+        throw std::runtime_error("Logic error");
+      }
+
+      if (nullptr == this->input_buffer_) {
+        this->waiting_push_data_ = true;
+        if (!this->source_->start(sp, this->input_buffer_, this->input_buffer_size_)) {
+          return;
+        }
+        
+        this->waiting_push_data_ = false;
+      }
+
+      static_cast<implementation_type *>(this)->async_push_data(sp);
+    }
+
+    void cancel(const service_provider & sp)
+    {
+      std::lock_guard<std::mutex> lock(this->state_mutex_);
+      this->common_data_->step_finish(sp, context_type::INDEX);
+    }
+
+  private:
+    incoming_queue_type * source_;
+    common_data_type * common_data_;
+    bool waiting_push_data_;
+    std::mutex state_mutex_;
+    
+  protected:
+    incoming_item_type * input_buffer_;
+    size_t input_buffer_size_;
+    
+    bool processed(const service_provider & sp, size_t written)
+    {
+      if (0 == written) {
+        this->common_data_->step_finish(sp, context_type::INDEX);
+        return false;
+      }
+      
+      this->waiting_push_data_ = true;
+      if(!this->source_->continue_read(sp, written, this->input_buffer_, this->input_buffer_size_)){
+        return false;
+      }
+      
+      this->waiting_push_data_ = false;
+      return true;
+    }
+    
+    void error(const service_provider & sp, std::exception_ptr ex)
+    {
+      this->common_data_->step_error(sp, context_type::INDEX, ex);
+    }
   };
 
   template <typename... functor_types>
@@ -1141,18 +1258,21 @@ namespace vds {
       {
         if (!this->completed_) {
           if (1 < this->input_buffer_size_) {
-            this->error(std::runtime_error("Require only one item"));
+            this->error(sp, std::make_exception_ptr(std::runtime_error("Require only one item")));
+            return 0;
           }
           else if(1 == this->input_buffer_size_){
             this->completed_ = true;
-            this->result_ = *this->input_buffer_;
+            *this->result_ = *this->input_buffer_;
           }
           else {
-            this->error(std::runtime_error("Require one item"));
+            this->error(sp, std::make_exception_ptr(std::runtime_error("Require one item")));
+            return 0;
           }
         }
         else if (0 < this->input_buffer_size_) {
-          this->error(std::runtime_error("Require only one item"));
+          this->error(sp, std::make_exception_ptr(std::runtime_error("Require only one item")));
+          return 0;
         }
 
         return this->input_buffer_size_;
@@ -1199,10 +1319,10 @@ namespace vds {
       size_t sync_get_data(const vds::service_provider & sp)
       {
         size_t count = 0;
-        while(0 < this->count_ && 0 < this->input_buffer_size_){
-          *this->input_buffer_++ = *this->data_++;
+        while(0 < this->count_ && 0 < this->output_buffer_size_){
+          *this->output_buffer_++ = *this->data_++;
           this->count_--;
-          this->input_buffer_size_--;
+          this->output_buffer_size_--;
           ++count;
         }
           

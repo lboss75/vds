@@ -25,13 +25,11 @@ namespace vds {
       const std::string & server,
       const uint16_t port);
     
-    async_task<size_t/*written*/> write_async(
-      const service_provider & sp,
-      const void * data,
-      const size_t data_size);
-      
+    _tcp_network_socket * operator -> () const { return this->impl_.get(); }
     
   private:
+    friend class _tcp_network_socket;
+    tcp_network_socket(const std::shared_ptr<_tcp_network_socket> & impl);
     std::shared_ptr<_tcp_network_socket> impl_;
   };
   
@@ -61,14 +59,14 @@ namespace vds {
             this->processed(sp, readed);
           },
           [this](const vds::service_provider & sp, std::exception_ptr ex){
-            this->on_error(sp, ex);
+            this->error(sp, ex);
           }))
       {
       }
       
       void async_get_data(const vds::service_provider & sp)
       {
-        this->reader_.read_async(sp, this->input_buffer_, this->input_buffer_size_);
+        read_async(sp, this->reader_, this->output_buffer_, this->output_buffer_size_);
       }
       
     private:
@@ -81,6 +79,12 @@ namespace vds {
       const std::function<void(const service_provider & sp, size_t readed)> & readed_method,
       const error_handler & error_method) const;
       
+    static void read_async(
+      const service_provider & sp,
+      _read_socket_task * reader,
+      void * buffer,
+      size_t buffer_size);
+    
     static void destroy_reader(_read_socket_task * reader);
     
   };
@@ -92,7 +96,7 @@ namespace vds {
     {
     }
     
-    using outgoing_item_type = uint8_t;
+    using incoming_item_type = uint8_t;
     static constexpr size_t BUFFER_SIZE = 1024;
     static constexpr size_t MIN_BUFFER_SIZE = 1024;
     
@@ -110,14 +114,14 @@ namespace vds {
             this->processed(sp, written);
           },
           [this](const vds::service_provider & sp, std::exception_ptr ex){
-            this->on_error(sp, ex);
+            this->error(sp, ex);
           }))
       {
       }
       
       void async_push_data(const vds::service_provider & sp)
       {
-        this->writer_.write_async(sp, this->input_buffer_, this->input_buffer_size_);
+        write_async(sp, this->writer_, this->input_buffer_, this->input_buffer_size_);
       }
       
     private:
@@ -129,6 +133,12 @@ namespace vds {
     _write_socket_task * create_writer(
       const std::function<void(const service_provider & sp, size_t written)> & write_method,
       const error_handler & error_method) const;
+      
+    static void write_async(
+      const service_provider & sp,
+      _write_socket_task * writer,
+      const void * buffer,
+      size_t buffer_size);
       
     static void destroy_writer(_write_socket_task * writer);
     

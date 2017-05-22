@@ -7,3 +7,6 @@ All rights reserved
 #include "http_parser.h"
 #include "http_router.h"
 
+vds::http_parser::http_parser()
+{
+}

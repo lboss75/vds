@@ -28,14 +28,14 @@ namespace vds {
     template<typename context_type>
     class handler : public sync_dataflow_filter<context_type, handler<context_type>>
     {
-      using base_class = sync_dataflow_target<context_type, handler<context_type>>;
+      using base_class = sync_dataflow_filter<context_type, handler<context_type>>;
 
     public:
       handler(
         const context_type & context,
         const http_parser & args)
         : base_class(context),
-        state_(STATE_PARSE_HEADER)
+          state_(StateEnum::STATE_PARSE_HEADER)
       {
       }
 
@@ -44,8 +44,8 @@ namespace vds {
         readed = 0;
         written = 0;
         while (0 < this->input_buffer_size_ && written < this->output_buffer_size_) {
-          if (STATE_PARSE_HEADER == this->state_) {
-            const char * p = (const char *)memchr(this->input_buffer_, '\n', this->input_buffer_size_);
+          if (StateEnum::STATE_PARSE_HEADER == this->state_) {
+            char * p = (char *)memchr(this->input_buffer_, '\n', this->input_buffer_size_);
             if (nullptr == p) {
               this->parse_buffer_ += std::string((const char *)this->input_buffer_, this->input_buffer_size_);
               readed += this->input_buffer_size_;
@@ -62,20 +62,24 @@ namespace vds {
                 this->parse_buffer_.append((const char *)this->input_buffer_, size);
               }
             }
-            this->input_buffer_ = p + 1;
+            this->input_buffer_ = (uint8_t *)(p + 1);
             this->input_buffer_size_ -= size + 1;
 
             if (0 == this->parse_buffer_.length()) {
               if (this->headers_.empty()) {
                 throw std::logic_error("Invalid request");
               }
+              
+              auto current_message = std::make_shared<http_message>(this->headers_, this->parse_buffer_);
+              this->output_buffer_[written++] = current_message;
+              this->headers_.clear();
 
               std::string content_length_header;
-              if (this->current_message_.get_header("Content-Length", content_length_header)) {
+              if (current_message->get_header("Content-Length", content_length_header)) {
                 this->content_length_ = std::stoul(content_length_header);
                 
                 if(this->content_length_ > 100 * 1024 * 1024){
-                  this->on_error(sp, std::make_exception_ptr(std::runtime_error("request too long")));
+                  this->error(sp, std::make_exception_ptr(std::runtime_error("request too long")));
                   return;
                 }
               }
@@ -84,11 +88,7 @@ namespace vds {
               }
 
               if (0 < this->content_length_) {
-                this->state_ = STATE_PARSE_BODY;
-              }
-              else {
-                this->output_buffer_[written++] = std::make_shared<http_message>(this->headers_, this->parse_buffer_);
-                this->headers_.clear();
+                this->state_ = StateEnum::STATE_PARSE_BODY;
               }
             }
             else {
@@ -115,7 +115,7 @@ namespace vds {
                 this->output_buffer_[written++] = std::make_shared<http_message>(this->headers_, this->parse_buffer_);
                 this->headers_.clear();
                 
-                this->state_ = STATE_PARSE_HEADER;
+                this->state_ = StateEnum::STATE_PARSE_HEADER;
               }
             }
           }
@@ -126,17 +126,15 @@ namespace vds {
       std::string parse_buffer_;
       std::list<std::string> headers_;
 
-      enum
+      enum class StateEnum
       {
         STATE_PARSE_HEADER,
         STATE_PARSE_BODY
-      } state_;
+      };
+      StateEnum state_;
 
       size_t content_length_;
     };
-
-    private:
-      service_provider sp_;
   };
 }
 

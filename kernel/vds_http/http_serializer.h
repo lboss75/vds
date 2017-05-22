@@ -53,17 +53,18 @@ namespace vds {
       {
         for (;;) {
           switch (this->state_) {
-          case StateEnum::BOF:
+          case StateEnum::STATE_BOF:
+          {
             this->state_ = StateEnum::STATE_WRITE_HEADERS;
             auto message = this->input_buffer_[0];
 
             std::stringstream stream;
-            for (auto & header : message.headers()) {
+            for (auto & header : message->headers()) {
               stream << header << "\n";
             }
 
-            stream << "Content-Length: " << message.body().length() << "\n\n";
-            stream << message.body();
+            stream << "Content-Length: " << message->body().length() << "\n\n";
+            stream << message->body();
 
             auto data = std::make_shared<std::string>(stream.str());
             this->buffer_.write_async(data.get(), data->length()).wait(
@@ -74,11 +75,13 @@ namespace vds {
                 }
               },
               [data, this](const service_provider & sp, std::exception_ptr ex) {
-                this->on_error(sp, ex);
+                this->error(sp, ex);
               },
               sp);
             break;
-          case StateEnum::WRITE_HEADERS:
+          }
+          case StateEnum::STATE_WRITE_HEADERS:
+          {
               buffer_.read_async(sp, this->output_buffer_, this->output_buffer_size_).wait(
                 [this](const service_provider & sp, size_t readed) {
 
@@ -96,11 +99,12 @@ namespace vds {
                 }
               },
               [this](const service_provider & sp, std::exception_ptr ex) {
-                this->on_error(sp, ex);
+                this->error(sp, ex);
               },
               sp);
             return;
             break;
+          }
           }
         }
       }

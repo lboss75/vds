@@ -112,7 +112,7 @@ TEST(http_tests, test_server)
         registrator.shutdown(sp);
     }
 }
-
+/*
 TEST(http_tests, test_https_server)
 {
   vds::service_registrator registrator;
@@ -192,7 +192,7 @@ TEST(http_tests, test_https_server)
   }
 
 }
-
+*/
 
 int main(int argc, char **argv) {
     setlocale(LC_ALL, "Russian");
