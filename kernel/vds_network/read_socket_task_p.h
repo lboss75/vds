@@ -52,8 +52,6 @@ namespace vds {
         throw std::exception();
       }
       this->is_scheduled_ = true;
-      this->buffer_ = buffer;
-      this->buffer_size_ = buffer_size;
 #endif
       DWORD flags = 0;
       DWORD numberOfBytesRecvd;
@@ -65,6 +63,8 @@ namespace vds {
         }
       }
 #else//!_WIN32
+      this->buffer_ = buffer;
+      this->buffer_size_ = buffer_size;
       if(nullptr == this->event_) {
         this->event_ = event_new(
           static_cast<_network_service *>(sp.get<inetwork_service>())->base_,

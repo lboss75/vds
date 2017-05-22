@@ -19,9 +19,11 @@ TEST(http_tests, test_server)
 {
     vds::service_registrator registrator;
 
+    vds::mt_service mt_service;
     vds::network_service network_service;
     vds::console_logger console_logger(vds::ll_trace);
 
+    registrator.add(mt_service);
     registrator.add(console_logger);
     registrator.add(network_service);
 
@@ -35,6 +37,7 @@ TEST(http_tests, test_server)
           "/",
           "<html><body>Hello World</body></html>");
        
+        vds::barrier b;
         vds::tcp_socket_server server;
         server.start(
           sp,
@@ -55,14 +58,18 @@ TEST(http_tests, test_server)
             );
           })
         .wait(
-          [](const vds::service_provider & sp) {
-            std::cout << "Server has been closed\n";
+          [&b](const vds::service_provider & sp) {
+            std::cout << "Server has been started\n";
+            b.set();
           },
-          [](const vds::service_provider & sp, std::exception_ptr ex) {
+          [&b](const vds::service_provider & sp, std::exception_ptr ex) {
             FAIL() << vds::exception_what(ex);
+            b.set();
           },
            sp
         );
+        b.wait();
+        b.reset();
         
         std::shared_ptr<vds::http_message> response;
         
@@ -103,11 +110,12 @@ TEST(http_tests, test_server)
              );
           })
         .wait(
-          [](const vds::service_provider & sp) { std::cout << "Request sent\n"; },
-          [](const vds::service_provider & sp, std::exception_ptr ex) { std::cout << "Request error\n"; },
+          [&b](const vds::service_provider & sp) { std::cout << "Request sent\n"; b.set();},
+          [&b](const vds::service_provider & sp, std::exception_ptr ex) { std::cout << "Request error\n"; b.set(); },
           sp
         );
 
+        b.wait();
         //Wait
         registrator.shutdown(sp);
     }

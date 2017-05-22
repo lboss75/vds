@@ -32,10 +32,10 @@ namespace vds {
       close(this->s_);
 #else
       closesocket(this->s_);
-#endif
       if(this->wait_accept_task_.joinable()){
         this->wait_accept_task_.join();
       }
+#endif
     }
 
     async_task<> start(
@@ -48,10 +48,11 @@ namespace vds {
         const std::function<void (const service_provider & sp)> & done,
         const error_handler & on_error,
         const service_provider & sp) {
+        
+#ifdef _WIN32
           this->wait_accept_task_ = std::thread(
             [this, done, on_error, sp, address, port, new_connection]() {
-#ifdef _WIN32
-              auto s = WSASocket(AF_INET, SOCK_STREAM, 0, NULL, 0, WSA_FLAG_OVERLAPPED);
+              this->s_ = WSASocket(AF_INET, SOCK_STREAM, 0, NULL, 0, WSA_FLAG_OVERLAPPED);
 
               if (INVALID_SOCKET == s) {
                 auto error = WSAGetLastError();
@@ -65,7 +66,7 @@ namespace vds {
               addr.sin_addr.s_addr = htonl(INADDR_ANY);
               addr.sin_port = htons(port);
 
-              if (SOCKET_ERROR == ::bind(s, (struct sockaddr *)&addr, sizeof(addr))) {
+              if (SOCKET_ERROR == ::bind(this->s_, (struct sockaddr *)&addr, sizeof(addr))) {
                   auto error = WSAGetLastError();
                   throw std::system_error(error, std::system_category(), "bind");
               }
@@ -110,101 +111,99 @@ namespace vds {
                   }
                 }
               }
-#else
-              auto s = socket(AF_INET, SOCK_STREAM, 0);
-              if (s < 0) {
-                auto error = errno;
-                throw std::system_error(error, std::system_category());
-              }
-              
-              /*************************************************************/
-              /* Allow socket descriptor to be reuseable                   */
-              /*************************************************************/
-              int on = 1;
-              if (0 > setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (char *)&on, sizeof(on))) {
-                auto error = errno;
-                close(s);
-                throw std::system_error(error, std::system_category());
-              }
-
-              /*************************************************************/
-              /* Set socket to be nonblocking. All of the sockets for    */
-              /* the incoming connections will also be nonblocking since  */
-              /* they will inherit that state from the listening socket.   */
-              /*************************************************************/
-              if (0 > ioctl(s, FIONBIO, (char *)&on)) {
-                auto error = errno;
-                close(s);
-                throw std::system_error(error, std::system_category());
-              }
-              
-              //bind to address
-              sockaddr_in addr;
-              memset(&addr, 0, sizeof(addr));
-              addr.sin_family = AF_INET;
-              addr.sin_addr.s_addr = htonl(INADDR_ANY);
-              addr.sin_port = htons(port);
-              if (0 > ::bind(s, (struct sockaddr *)&addr, sizeof(addr))) {
-                  auto error = errno;
-                  throw std::system_error(
-                    error,
-                    std::system_category());
-              }
-
-              if (0 > ::listen(this->s_, SOMAXCONN)) {
-                  auto error = errno;
-                  throw std::system_error(
-                    error,
-                    std::system_category());
-              }
-
-              /* Set the socket to non-blocking, this is essential in event
-              * based programming with libevent. */
-
-              auto flags = fcntl(this->s_, F_GETFL);
-              if (0 > flags) {
-                  auto error = errno;
-                  throw std::system_error(
-                    error,
-                    std::system_category());
-              }
-
-              flags |= O_NONBLOCK;
-              if (0 > fcntl(s, F_SETFL, flags)) {
-                  auto error = errno;
-                  throw std::system_error(
-                    error,
-                    std::system_category());
-              }
-
-              /* We now have a listening socket, we create a read event to
-                * be notified when a client connects. * /
-              event_set(
-                &this->ev_accept_,
-                this->s_,
-                EV_READ,
-                &accept_socket_task::wait_accept,
-                this);
-              event_add(&this->ev_accept_, NULL);
-              this->network_service_->start_libevent_dispatch();*/
-
-              sp.get_shutdown_event().then_shuting_down([this, sp, done](){
-                shutdown(this->s_, 2);
-              });
-              this->sp_ = sp;
-              this->done_ = done;
-              this->on_error_ = on_error;
-              this->new_connection_ = new_connection;
-              this->ev_accept_ = event_new(
-                static_cast<_network_service *>(sp.get<inetwork_service>())->base_,
-                this->s_,
-                EV_READ,
-                &_tcp_socket_server::wait_accept,
-                this);
-              event_add(this->ev_accept_, NULL);
-              static_cast<_network_service *>(sp.get<inetwork_service>())->start_libevent_dispatch(sp);
-#endif
             });
+#else
+            this->s_ = socket(AF_INET, SOCK_STREAM, 0);
+            if (this->s_ < 0) {
+              auto error = errno;
+              on_error(sp, std::make_exception_ptr(std::system_error(error, std::system_category())));
+              return;
+            }
+            
+            /*************************************************************/
+            /* Allow socket descriptor to be reuseable                   */
+            /*************************************************************/
+            int on = 1;
+            if (0 > setsockopt(this->s_, SOL_SOCKET, SO_REUSEADDR, (char *)&on, sizeof(on))) {
+              auto error = errno;
+              on_error(sp, std::make_exception_ptr(std::system_error(error, std::system_category())));
+              return;
+            }
+
+            /*************************************************************/
+            /* Set socket to be nonblocking. All of the sockets for    */
+            /* the incoming connections will also be nonblocking since  */
+            /* they will inherit that state from the listening socket.   */
+            /*************************************************************/
+            if (0 > ioctl(this->s_, FIONBIO, (char *)&on)) {
+              auto error = errno;
+              on_error(sp, std::make_exception_ptr(std::system_error(error, std::system_category())));
+              return;
+            }
+            
+            //bind to address
+            sockaddr_in addr;
+            memset(&addr, 0, sizeof(addr));
+            addr.sin_family = AF_INET;
+            addr.sin_addr.s_addr = htonl(INADDR_ANY);
+            addr.sin_port = htons(port);
+            if (0 > ::bind(this->s_, (struct sockaddr *)&addr, sizeof(addr))) {
+              auto error = errno;
+              on_error(sp, std::make_exception_ptr(std::system_error(error, std::system_category())));
+              return;
+            }
+
+            if (0 > ::listen(this->s_, SOMAXCONN)) {
+              auto error = errno;
+              on_error(sp, std::make_exception_ptr(std::system_error(error, std::system_category())));
+              return;
+            }
+
+            /* Set the socket to non-blocking, this is essential in event
+            * based programming with libevent. */
+
+            auto flags = fcntl(this->s_, F_GETFL);
+            if (0 > flags) {
+              auto error = errno;
+              on_error(sp, std::make_exception_ptr(std::system_error(error, std::system_category())));
+              return;
+            }
+
+            flags |= O_NONBLOCK;
+            if (0 > fcntl(this->s_, F_SETFL, flags)) {
+              auto error = errno;
+              on_error(sp, std::make_exception_ptr(std::system_error(error, std::system_category())));
+              return;
+            }
+
+            /* We now have a listening socket, we create a read event to
+              * be notified when a client connects. * /
+            event_set(
+              &this->ev_accept_,
+              this->s_,
+              EV_READ,
+              &accept_socket_task::wait_accept,
+              this);
+            event_add(&this->ev_accept_, NULL);
+            this->network_service_->start_libevent_dispatch();*/
+
+            sp.get_shutdown_event().then_shuting_down([this, sp, done](){
+              shutdown(this->s_, 2);
+            });
+            this->sp_ = sp;
+            this->done_ = done;
+            this->on_error_ = on_error;
+            this->new_connection_ = new_connection;
+            this->ev_accept_ = event_new(
+              static_cast<_network_service *>(sp.get<inetwork_service>())->base_,
+              this->s_,
+              EV_READ,
+              &_tcp_socket_server::wait_accept,
+              this);
+            event_add(this->ev_accept_, NULL);
+            static_cast<_network_service *>(sp.get<inetwork_service>())->start_libevent_dispatch(sp);
+            done(sp);
+#endif
       });
     }
     

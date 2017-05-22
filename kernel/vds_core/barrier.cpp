@@ -7,7 +7,7 @@ All rights reserved
 
 
 vds::barrier::barrier()
-    : done_(false)
+: done_(false)
 {
 }
 
@@ -33,3 +33,8 @@ void vds::barrier::wait()
     }
 }
 
+void vds::barrier::reset()
+{
+    std::unique_lock<std::mutex> lock(this->mutex_);
+    this->done_ = false;
+}

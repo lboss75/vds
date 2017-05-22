@@ -38,11 +38,12 @@ namespace vds {
   public:
     read_tcp_network_socket(
       const tcp_network_socket & s)
+    : s_(s)
     {
     }
     
     using outgoing_item_type = uint8_t;
-    static constexpr size_t BUFFER_SIZE = 1024;
+    static constexpr size_t BUFFER_SIZE = 4 * 1024;
     static constexpr size_t MIN_BUFFER_SIZE = 1024;
     
     template <typename context_type>
@@ -93,11 +94,12 @@ namespace vds {
   public:
     write_tcp_network_socket(
       const tcp_network_socket & s)
+    : s_(s)
     {
     }
     
     using incoming_item_type = uint8_t;
-    static constexpr size_t BUFFER_SIZE = 1024;
+    static constexpr size_t BUFFER_SIZE = 4 * 1024;
     static constexpr size_t MIN_BUFFER_SIZE = 1024;
     
     template <typename context_type>

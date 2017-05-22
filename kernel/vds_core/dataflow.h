@@ -400,9 +400,11 @@ namespace vds {
       }
       this->process_data_called_ = false;
       
-      this->waiting_get_data_ = true;
-      if(this->target_->push_data(sp, readed, this->output_buffer_, this->output_buffer_size_)){
-        this->waiting_get_data_ = false;
+      if (0 != written || 0 == readed) {
+        this->waiting_get_data_ = true;
+        if(this->target_->push_data(sp, written, this->output_buffer_, this->output_buffer_size_)){
+          this->waiting_get_data_ = false;
+        }
       }
 
       if (0 == readed && 0 == written) {
@@ -414,9 +416,11 @@ namespace vds {
         return false;
       }
 
-      this->waiting_push_data_ = true;
-      if(this->source_->continue_read(sp, written, this->input_buffer_, this->input_buffer_size_)){
-        this->waiting_push_data_ = false;
+      if(0 < readed){
+        this->waiting_push_data_ = true;
+        if(this->source_->continue_read(sp, readed, this->input_buffer_, this->input_buffer_size_)){
+          this->waiting_push_data_ = false;
+        }
       }
       
       if(!this->waiting_get_data_ && !this->waiting_push_data_){
@@ -1008,6 +1012,8 @@ namespace vds {
 
       bool get_write_buffer(incoming_item_type *& result_buffer, size_t & result_len)
       {
+        static_assert(MIN_BUFFER_SIZE < BUFFER_SIZE, "Buffer size is invalid");
+        
         if (this->back_ + MIN_BUFFER_SIZE < BUFFER_SIZE) {
           result_buffer = this->buffer_ + this->back_;
           result_len = BUFFER_SIZE - this->back_;

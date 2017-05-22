@@ -19,6 +19,7 @@ namespace vds {
 
         void set();
         void wait();
+        void reset();
         
         template<typename _Rep, typename _Period>
         bool wait_for(const std::chrono::duration<_Rep, _Period> & period)

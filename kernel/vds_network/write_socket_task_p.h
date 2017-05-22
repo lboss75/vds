@@ -61,6 +61,8 @@ namespace vds {
         }
       }
 #else
+      this->data_ = buffer;
+      this->data_size_ = buffer_size;
       if(nullptr == this->event_) {
         this->event_ = event_new(
           static_cast<_network_service *>(sp.get<inetwork_service>())->base_,
@@ -81,8 +83,12 @@ namespace vds {
     std::function<void(const service_provider & sp, size_t written)> written_method_;
     error_handler error_method_;
     SOCKET_HANDLE s_;
-    const uint8_t * data_;
+    
+#ifndef _WIN32
+    const void * data_;
     size_t data_size_;
+#endif
+    
 #ifdef _DEBUG
     bool is_scheduled_;
 #endif

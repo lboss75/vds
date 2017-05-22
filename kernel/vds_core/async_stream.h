@@ -66,12 +66,15 @@ namespace vds {
       std::unique_lock<std::mutex> lock(this->buffer_mutex_);
       if (this->back_ < sizeof(this->buffer_)) {
         auto len = sizeof(this->buffer_) - this->back_;
-        if (len < data_size) {
+        if (len > data_size) {
           len = data_size;
         }
         memcpy(this->buffer_ + this->front_, data, len);
+        this->back_ += len;
         if (len == data_size) {
-          done(sp);
+          mt_service::async(sp, [sp, done](){
+            done(sp);
+          });
         }
         else {
           this->continue_write_ = std::bind(&async_stream::continue_write, this, sp, done, reinterpret_cast<const uint8_t *>(data) + len, data_size - len);
@@ -79,12 +82,15 @@ namespace vds {
       }
       else if (this->second_ < this->front_) {
         auto len = this->front_ - this->second_;
-        if (len < data_size) {
+        if (len > data_size) {
           len = data_size;
         }
         memcpy(this->buffer_ + this->second_, data, len);
+        this->second_ += len;
         if (len == data_size) {
-          done(sp);
+          mt_service::async(sp, [sp, done](){
+            done(sp);
+          });
         }
         else {
           this->continue_write_ = std::bind(&async_stream::continue_write, this, sp, done, reinterpret_cast<const uint8_t *>(data) + len, data_size - len);
@@ -109,11 +115,19 @@ namespace vds {
 
       if (this->front_ < this->back_) {
         auto len = this->back_ - this->front_;
-        if (len < buffer_size) {
+        if (len > buffer_size) {
           len = buffer_size;
         }
         memcpy(this->buffer_ + this->front_, buffer, len);
-        done(sp, len);
+        this->front_ += len;
+        if(this->front_ == this->back_){
+          this->front_ = 0;
+          this->back_ = this->second_;
+          this->second_ = 0;
+        }          
+        mt_service::async(sp, [sp, done, len](){
+          done(sp, len);
+        });
       }
       else {
         this->continue_read_ = std::bind(&async_stream::continue_read, this, sp, done, buffer, buffer_size);

@@ -24,7 +24,7 @@ namespace vds {
     using incoming_item_type = std::shared_ptr<http_message>;
     using outgoing_item_type = std::shared_ptr<http_message>;
     static constexpr size_t BUFFER_SIZE = 10;
-    static constexpr size_t MIN_BUFFER_SIZE = 10;
+    static constexpr size_t MIN_BUFFER_SIZE = 1;
 
     template<typename context_type>
     class handler : public vds::sync_dataflow_filter<context_type, handler<context_type>>
