@@ -55,6 +55,7 @@ namespace vds {
         const context_type & context,
         const read_tcp_network_socket & args)
       : base_class(context),
+        s_(args.s_),
         reader_(args.create_reader(
           [this](const vds::service_provider & sp, size_t readed){
             this->processed(sp, readed);
@@ -71,6 +72,7 @@ namespace vds {
       }
       
     private:
+      tcp_network_socket s_;
       _read_socket_task * const reader_;      
     };
   private:
@@ -111,6 +113,7 @@ namespace vds {
         const context_type & context,
         const write_tcp_network_socket & args)
       : base_class(context),
+        s_(args.s_),
         writer_(args.create_writer(
           [this](const vds::service_provider & sp, size_t written){
             this->processed(sp, written);
@@ -127,7 +130,8 @@ namespace vds {
       }
       
     private:
-      _write_socket_task * const writer_;      
+      tcp_network_socket s_;
+      _write_socket_task * const writer_;
     };
   private:
     tcp_network_socket s_;

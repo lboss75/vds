@@ -52,8 +52,12 @@ TEST(http_tests, test_server)
               vds::write_tcp_network_socket(s)
             )
             (
-              [](const vds::service_provider & sp) { },
-              [](const vds::service_provider & sp, std::exception_ptr ex) { },
+              [](const vds::service_provider & sp) { 
+                std::cout << "HTTP processed\n";
+              },
+              [](const vds::service_provider & sp, std::exception_ptr ex) {
+                std::cout << "HTTP failed\n";
+              },
               sp
             );
           })

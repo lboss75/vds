@@ -15,7 +15,7 @@ namespace vds {
   {
   public:
     async_stream()
-      : second_(0), front_(0), back_(0)
+      : second_(0), front_(0), back_(0), eof_(false)
     {
     }
 
@@ -27,7 +27,14 @@ namespace vds {
           const error_handler & on_error,
           const service_provider & sp) {
 
-        this->continue_write(sp, done, data, data_size);
+          if(0 == data_size) {
+            this->eof_ = true;
+            if (this->continue_read_) {
+              imt_service::async(sp, this->continue_read_);
+            }
+          } else {
+            this->continue_write(sp, done, data, data_size);
+          }
       });
     }
 
@@ -49,6 +56,7 @@ namespace vds {
     uint32_t second_;
     uint32_t front_;
     uint32_t back_;
+    bool eof_;
 
     //            0    second   front    back   buffer_size
     // to read    [...2...]       [...1...]
@@ -129,7 +137,13 @@ namespace vds {
           done(sp, len);
         });
       }
+      else if(this->eof_){
+        mt_service::async(sp, [sp, done](){
+          done(sp, 0);
+        });
+      }
       else {
+        
         this->continue_read_ = std::bind(&async_stream::continue_read, this, sp, done, buffer, buffer_size);
 
         if (this->continue_write_) {
