@@ -20,16 +20,6 @@ namespace vds {
       int code,
       const std::string & comment);
 
-    http_response(
-      int code,
-      const std::string & comment,
-      const std::string & body);
-
-    http_response(
-      int code,
-      const std::string & comment,
-      const filename & body);
-
     void add_header(const std::string & name, const std::string & value) {
       this->headers_.push_back(name + ":" + value);
     }
@@ -50,8 +40,6 @@ namespace vds {
     std::string protocol_;
     int code_;
     std::string comment_;
-    std::string body_;
-    filename file_;
 
     std::list<std::string> headers_;
   };

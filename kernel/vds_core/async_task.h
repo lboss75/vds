@@ -7,7 +7,10 @@ All rights reserved
 */
 #include "types.h"
 #include <memory>
+#include <atomic>
+
 #include "func_utils.h"
+#include "service_provider.h"
 
 namespace vds {
   class service_provider;
@@ -127,7 +130,7 @@ namespace vds {
     void wait(
       const std::function<void(const service_provider & sp, arguments_types... args)> & done,
       const error_handler & on_error,
-      const service_provider & sp)
+      const service_provider & sp) const
     {
       this->impl_->wait(done, on_error, sp);
     }
@@ -228,6 +231,68 @@ namespace vds {
         }
       }, on_error, sp);
     });
+  }
+  
+  class _async_series
+  {
+  public:
+    _async_series(
+      const std::function<void(const service_provider & sp)> & done,
+      const error_handler & on_error,
+      const service_provider & sp,
+      size_t count)
+    : done_(done), on_error_(on_error), sp_(sp), count_(count)
+    {
+    }
+    
+    void run(std::initializer_list<async_task<>> args)
+    {
+      for(auto arg : args) {
+        arg.wait(
+          [this](const service_provider & sp) {
+            if(0 == --this->count_){
+              if(this->error_){
+                this->on_error_(sp, this->error_);
+              }
+              else {
+                this->done_(sp);
+              }
+              delete this;
+            }
+          },
+          [this](const service_provider & sp, std::exception_ptr ex) {
+            if(!this->error_){
+              this->error_ = ex;
+            }
+            if(0 == --this->count_){
+              if(this->error_){
+                this->on_error_(sp, this->error_);
+              }
+              else {
+                this->done_(sp);
+              }
+              delete this;
+            }
+          },
+          this->sp_);
+      }
+    }
+    
+  private:
+    std::function<void(const service_provider & sp)> done_;
+    error_handler on_error_;
+    service_provider sp_;
+    std::atomic_size_t count_;
+    std::exception_ptr error_;
+  };
+  
+  inline async_task<> async_series(std::initializer_list<async_task<>> args)
+  {
+    return create_async_task<>(
+      [args](const std::function<void(const service_provider & sp)> & done, const error_handler & on_error, const service_provider & sp){
+        auto runner = new _async_series(done, on_error, sp, args.size());
+        runner->run(args);
+      });
   }
 }
 

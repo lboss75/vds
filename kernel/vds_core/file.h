@@ -8,6 +8,8 @@ All rights reserved
 
 #include "targetver.h"
 #include <fcntl.h>
+#include <exception>
+#include <system_error>
 
 #include "filename.h"
 #include "dataflow.h"

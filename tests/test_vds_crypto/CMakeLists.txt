@@ -17,6 +17,7 @@ add_executable(test_vds_crypto ${SOURCE_FILES} ${HEADER_FILES})
 
 include_directories(${vds_core_SOURCE_DIR})
 include_directories(${vds_crypto_SOURCE_DIR})
+include_directories(${test_libs_SOURCE_DIR})
 include_directories(${OPENSSL_INCLUDE_DIR})
 
 target_link_libraries(test_vds_crypto vds_core vds_crypto ${GTEST_LIBRARIES} ${OPENSSL_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})

@@ -5,6 +5,7 @@ include_directories(
     ${GTEST_INCLUDE_DIRS}
 )
 
+add_subdirectory(test_libs)
 add_subdirectory(test_vds_core)
 add_subdirectory(test_vds_crypto)
 add_subdirectory(test_vds_data)

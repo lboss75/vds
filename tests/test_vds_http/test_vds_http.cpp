@@ -44,6 +44,22 @@ TEST(http_tests, test_server)
           "127.0.0.1",
           8000,
           [&router](const vds::service_provider & sp, const vds::tcp_network_socket & s){
+            auto stream = std::make_shared<vds::async_stream<std::shared_ptr<http_message>>();
+            vds::async_task::all(
+              create_async_task(
+                [s, stream](const std::function<void(vds::service_provider & sp)> & done, const error_handler & on_error, vds::service_provider & sp){
+                  vds::dataflow(
+                    vds::read_tcp_network_socket(s),
+                    vds::http_parser(
+                      [stream](vds::service_provider & sp, const std::shared_ptr<http_message> & request){
+                        vds::http_middleware<vds::http_router>(router).process(sp, request, stream);
+                                     
+                        vds::http_serializer(),
+                      }
+                    )
+                  )(done, on_error, sp);
+                }),
+                
             vds::dataflow(
               vds::read_tcp_network_socket(s),
               vds::http_parser(),

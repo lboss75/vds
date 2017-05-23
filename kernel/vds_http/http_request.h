@@ -25,7 +25,7 @@ namespace vds {
       std::list<std::string> headers;
       headers.push_back(method + " " + url + " " + agent);
 
-      this->message_ = std::make_shared<http_message>(headers, "");
+      this->message_ = std::make_shared<http_message>(headers);
       this->parse_parameters();
     }
 

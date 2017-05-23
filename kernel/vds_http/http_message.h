@@ -10,18 +10,14 @@ All rights reserved
 #include <list>
 
 #include "filename.h"
+#include "async_stream.h"
 
 namespace vds {
   class http_message
   {
   public:
-    http_message(const std::list<std::string> & headers, const std::string & body)
-    : headers_(headers), body_(body)
-    {
-    }
-
-    http_message(const std::list<std::string> & headers, const filename & body)
-      : headers_(headers), file_(body)
+    http_message(const std::list<std::string> & headers)
+    : headers_(headers)
     {
     }
 
@@ -31,18 +27,13 @@ namespace vds {
 
     bool get_header(const std::string & name, std::string & value);
     
-    const std::string & body() const {
+    async_stream<uint8_t> & body() {
       return this->body_;
-    }
-
-    const filename & file() const {
-      return this->file_;
     }
 
   private:
     std::list<std::string> headers_;
-    std::string body_;
-    filename file_;
+    async_stream<uint8_t> body_;
   };
 }
 #endif // __VDS_HTTP_HTTP_MESSAGE_H_
