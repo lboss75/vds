@@ -50,67 +50,69 @@ namespace vds {
         const service_provider & sp) {
         
 #ifdef _WIN32
-          this->wait_accept_task_ = std::thread(
-            [this, done, on_error, sp, address, port, new_connection]() {
-              this->s_ = WSASocket(AF_INET, SOCK_STREAM, 0, NULL, 0, WSA_FLAG_OVERLAPPED);
+        this->s_ = WSASocket(AF_INET, SOCK_STREAM, 0, NULL, 0, WSA_FLAG_OVERLAPPED);
 
-              if (INVALID_SOCKET == this->s_) {
-                auto error = WSAGetLastError();
-                throw std::system_error(error, std::system_category(), "create socket");
+        if (INVALID_SOCKET == this->s_) {
+          auto error = WSAGetLastError();
+          throw std::system_error(error, std::system_category(), "create socket");
+        }
+
+        //bind to address
+        sockaddr_in addr;
+        memset(&addr, 0, sizeof(addr));
+        addr.sin_family = AF_INET;
+        addr.sin_addr.s_addr = htonl(INADDR_ANY);
+        addr.sin_port = htons(port);
+
+        if (SOCKET_ERROR == ::bind(this->s_, (struct sockaddr *)&addr, sizeof(addr))) {
+          auto error = WSAGetLastError();
+          throw std::system_error(error, std::system_category(), "bind");
+        }
+
+        if (SOCKET_ERROR == ::listen(this->s_, SOMAXCONN)) {
+          auto error = WSAGetLastError();
+          throw std::system_error(error, std::system_category(), "listen socket");
+        }
+
+        this->accept_event_.select(this->s_, FD_ACCEPT);
+
+        sp.get_shutdown_event().then_shuting_down([this, sp]() {
+          closesocket(this->s_);
+        });
+
+        this->wait_accept_task_ = std::thread(
+          [this, sp, new_connection]() {
+
+            HANDLE events[2];
+            events[0] = sp.get_shutdown_event().windows_handle();
+            events[1] = this->accept_event_.handle();
+
+            for(;;){
+              auto result = WSAWaitForMultipleEvents(2, events, FALSE, INFINITE, FALSE);
+              if ((WAIT_OBJECT_0 + 1) != result) {
+                break;
               }
-              
-              //bind to address
-              sockaddr_in addr;
-              memset(&addr, 0, sizeof(addr));
-              addr.sin_family = AF_INET;
-              addr.sin_addr.s_addr = htonl(INADDR_ANY);
-              addr.sin_port = htons(port);
+              WSANETWORKEVENTS WSAEvents;
+              WSAEnumNetworkEvents(
+                this->s_,
+                this->accept_event_.handle(),
+                &WSAEvents);
+              if ((WSAEvents.lNetworkEvents & FD_ACCEPT)
+                && (0 == WSAEvents.iErrorCode[FD_ACCEPT_BIT])) {
+                //Process it
+                sockaddr_in client_address;
+                int client_address_length = sizeof(client_address);
 
-              if (SOCKET_ERROR == ::bind(this->s_, (struct sockaddr *)&addr, sizeof(addr))) {
-                  auto error = WSAGetLastError();
-                  throw std::system_error(error, std::system_category(), "bind");
-              }
-
-              if (SOCKET_ERROR == ::listen(this->s_, SOMAXCONN)) {
-                  auto error = WSAGetLastError();
-                  throw std::system_error(error, std::system_category(), "listen socket");
-              }
-
-              this->accept_event_.select(this->s_, FD_ACCEPT);
-              
-              sp.get_shutdown_event().then_shuting_down([this, sp](){
-                closesocket(this->s_);
-              });
-
-              HANDLE events[2];
-              events[0] = sp.get_shutdown_event().windows_handle();
-              events[1] = this->accept_event_.handle();
-
-              for(;;){
-                auto result = WSAWaitForMultipleEvents(2, events, FALSE, INFINITE, FALSE);
-                if ((WAIT_OBJECT_0 + 1) != result) {
-                  break;
+                auto socket = accept(this->s_, (sockaddr*)&client_address, &client_address_length);
+                if (INVALID_SOCKET != socket) {
+                  static_cast<_network_service *>(sp.get<inetwork_service>())->associate(socket);
+                  auto scope = sp.create_scope("Connection from " + network_service::to_string(client_address));
+                  new_connection(scope, _tcp_network_socket::from_handle(socket));
                 }
-                WSANETWORKEVENTS WSAEvents;
-                WSAEnumNetworkEvents(
-                  this->s_,
-                  this->accept_event_.handle(),
-                  &WSAEvents);
-                if ((WSAEvents.lNetworkEvents & FD_ACCEPT)
-                  && (0 == WSAEvents.iErrorCode[FD_ACCEPT_BIT])) {
-                  //Process it
-                  sockaddr_in client_address;
-                  int client_address_length = sizeof(client_address);
-
-                  auto socket = accept(this->s_, (sockaddr*)&client_address, &client_address_length);
-                  if (INVALID_SOCKET != socket) {
-                    static_cast<_network_service *>(sp.get<inetwork_service>())->associate(socket);
-                    auto scope = sp.create_scope("Connection from " + network_service::to_string(client_address));
-                    new_connection(scope, _tcp_network_socket::from_handle(socket));
-                  }
-                }
               }
-            });
+            }
+          });
+          done(sp);
 #else
             this->s_ = socket(AF_INET, SOCK_STREAM, 0);
             if (this->s_ < 0) {

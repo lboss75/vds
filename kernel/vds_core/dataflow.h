@@ -596,8 +596,10 @@ namespace vds {
     using incoming_queue_type = typename context_type::incoming_queue_type;
     using incoming_item_type = typename context_type::incoming_item_type;
     async_dataflow_target(const context_type & context)
-      : source_(context.source_),
-        common_data_(context.common_data_)
+    : source_(context.source_),
+      common_data_(context.common_data_),
+      waiting_push_data_(false),
+      input_buffer_(nullptr)
     {
     }
 

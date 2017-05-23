@@ -127,7 +127,7 @@ namespace vds {
         if (len > buffer_size) {
           len = buffer_size;
         }
-        memcpy(this->buffer_ + this->front_, buffer, len);
+        memcpy(buffer, this->buffer_ + this->front_, len);
         this->front_ += len;
         if(this->front_ == this->back_){
           this->front_ = 0;

@@ -18,8 +18,7 @@ namespace vds {
   public:
     http_middleware(const router_type & router)
     : router_(router){
-    }
-    
+    }    
 
     using incoming_item_type = std::shared_ptr<http_message>;
     using outgoing_item_type = std::shared_ptr<http_message>;

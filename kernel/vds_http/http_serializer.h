@@ -33,8 +33,6 @@ namespace vds {
 
       void async_process_data(const service_provider & sp)
       {
-        std::lock_guard<std::mutex> lock(this->state_mutex_);
-
         this->continue_process(sp);
       }
 
@@ -45,7 +43,6 @@ namespace vds {
         STATE_EOF
       };
 
-      std::mutex state_mutex_;
       StateEnum state_;
       async_stream buffer_;
 
@@ -67,9 +64,8 @@ namespace vds {
             stream << message->body();
 
             auto data = std::make_shared<std::string>(stream.str());
-            this->buffer_.write_async(data.get(), data->length()).wait(
+            this->buffer_.write_async(data->c_str(), data->length()).wait(
               [data, this](const service_provider & sp) {
-                std::lock_guard<std::mutex> lock(this->state_mutex_);
                 if (this->processed(sp, 1, 0)) {
                   this->continue_process(sp);
                 }
@@ -85,7 +81,6 @@ namespace vds {
               buffer_.read_async(sp, this->output_buffer_, this->output_buffer_size_).wait(
                 [this](const service_provider & sp, size_t readed) {
 
-                std::lock_guard<std::mutex> lock(this->state_mutex_);
                 if (0 < readed) {
                   if (this->processed(sp, 0, readed)) {
                     this->continue_process(sp);

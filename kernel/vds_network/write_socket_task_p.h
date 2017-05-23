@@ -21,7 +21,8 @@ namespace vds {
       SOCKET_HANDLE s)
     : sp_(service_provider::empty()),
       written_method_(written_method),
-      error_method_(error_method)
+      error_method_(error_method),
+      s_(s)
 #ifdef _DEBUG
       , is_scheduled_(false)
 #endif
