@@ -7,6 +7,7 @@ All rights reserved
 #include "test_async.h"
 #include "logger.h"
 #include "barrier.h"
+#include "mt_service.h"
 
 TEST(mt_tests, test_async) {
     vds::service_registrator registrator;

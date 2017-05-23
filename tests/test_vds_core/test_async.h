@@ -39,13 +39,12 @@ public:
         }
         
         size_t sync_get_data(
-          const vds::service_provider & sp,
-          int * buffer,
-          size_t buffer_size)
+          const vds::service_provider & sp)
         {
           size_t count = 0;
-          while(this->written_ < 2000 && count < buffer_size){
-            *buffer++ = this->written_;
+          auto p = this->output_buffer_;
+          while(this->written_ < 2000 && count < this->output_buffer_size_){
+            *p++ = this->written_;
             ++count;
             this->written_++;
           }

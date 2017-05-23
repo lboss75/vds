@@ -25,5 +25,5 @@ MACRO(ADD_MSVC_PRECOMPILED_HEADER PrecompiledHeader PrecompiledSource SourcesVar
                                            OBJECT_OUTPUTS "${PrecompiledBinary}")
     # Add precompiled header to SourcesVar
     LIST(APPEND ${SourcesVar} ${PrecompiledSource})
-  ENDIF(MSVC)
+  ENDIF(0)
 ENDMACRO(ADD_MSVC_PRECOMPILED_HEADER)

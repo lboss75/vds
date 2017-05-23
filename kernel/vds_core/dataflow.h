@@ -2,10 +2,9 @@
 #define __VDS_CORE_DATAFLOW_H_
 
 #include <set>
-#include <mutex>
 #include "cancellation_token.h"
 #include "shutdown_event.h"
-#include "mt_service.h"
+#include "service_provider.h"
 
 /*
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
@@ -36,7 +35,6 @@ namespace vds {
       size_t buffer_size,
       size_t & readed)
     {
-      std::lock_guard<std::mutex> lock(this->state_mutex_);
       this->output_buffer_ = buffer;
       this->output_buffer_size_ = buffer_size;
       readed = static_cast<implementation_type *>(this)->sync_get_data(sp);
@@ -48,14 +46,12 @@ namespace vds {
 
     void cancel(const service_provider & sp)
     {
-      std::lock_guard<std::mutex> lock(this->state_mutex_);
       this->common_data_->step_finish(sp, context_type::INDEX);
     }
 
   private:
     outgoing_queue_type * target_;
     common_data_type * common_data_;
-    std::mutex state_mutex_;
     
   protected:
     outgoing_item_type * output_buffer_;
@@ -91,7 +87,6 @@ namespace vds {
       size_t buffer_size,
       size_t & readed)
     {
-      std::lock_guard<std::mutex> lock(this->state_mutex_);
       this->output_buffer_ = buffer;
       this->output_buffer_size_ = buffer_size;
       static_cast<implementation_type *>(this)->async_get_data(sp);
@@ -100,14 +95,12 @@ namespace vds {
 
     void cancel(const service_provider & sp)
     {
-      std::lock_guard<std::mutex> lock(this->state_mutex_);
       this->common_data_->step_finish(sp, context_type::INDEX);
     }
 
   private:
     outgoing_queue_type * target_;
     common_data_type * common_data_;
-    std::mutex state_mutex_;
     
   protected:
     outgoing_item_type * output_buffer_;
@@ -117,7 +110,6 @@ namespace vds {
       const service_provider & sp,
       size_t written)
     {
-      std::lock_guard<std::mutex> lock(this->state_mutex_);
       if(0 == written){
         this->common_data_->step_finish(sp, context_type::INDEX);
         return false;
@@ -160,7 +152,6 @@ namespace vds {
       size_t buffer_size,
       size_t & written)
     {
-      std::lock_guard<std::mutex> lock(this->data_mutex_);
       if (!this->waiting_get_data_) {
         throw std::runtime_error("Logic error");
       }
@@ -180,6 +171,7 @@ namespace vds {
           return false;
         }
         this->waiting_push_data_ = false;
+        this->readed_ = 0;
 
         if (0 == this->input_buffer_size_) {
           written = 0;
@@ -187,7 +179,16 @@ namespace vds {
         }
       }
 
-      while(!this->final_data_ && !this->common_data_->cancellation_token_.is_cancellation_requested()) {
+      for (;;) {
+
+        if (0 == this->input_buffer_size_ && 0 < this->readed_) {
+          this->waiting_push_data_ = true;
+          if (!this->source_->continue_read(sp, this->readed_, this->input_buffer_, this->input_buffer_size_)) {
+            return false;
+          }
+          this->waiting_push_data_ = false;
+          this->readed_ = 0;
+        }
 
         size_t readed;
         try {
@@ -198,39 +199,42 @@ namespace vds {
           return false;
         }
 
-        if (0 == this->input_buffer_size_ && 0 == readed && 0 == written) {
-          this->final_data_ = true;
-          this->common_data_->step_finish(sp, context_type::INDEX);
-          break;
-        }
-
-        if (0 != this->input_buffer_size_) {
-          this->waiting_push_data_ = true;
-          if (this->source_->continue_read(sp, readed, this->input_buffer_, this->input_buffer_size_)) {
-            this->waiting_push_data_ = false;
+        if (0 < written) {
+          if (readed > this->input_buffer_size_) {
+            throw new std::runtime_error("Invalid login");
           }
-          else if(0 == written){
+          this->input_buffer_ += readed;
+          this->input_buffer_size_ -= readed;
+          this->readed_ += readed;
+
+          if (this->waiting_get_data_) {
+            throw std::runtime_error("Logic error");
+          }
+
+          this->waiting_get_data_ = true;
+          return true;
+        }
+        else {
+          if (0 == readed) {
+            if (0 != this->input_buffer_size_) {
+              throw new std::runtime_error("Invalid login");
+            }
+
+            this->final_data_ = true;
+            this->common_data_->step_finish(sp, context_type::INDEX);
+            return true;
+          }
+
+          this->waiting_push_data_ = true;
+          this->readed_ += readed;
+          if (!this->source_->continue_read(sp, this->readed_, this->input_buffer_, this->input_buffer_size_)) {
             return false;
           }
-          else {
-            break;
-          }
-        }
 
-        if (0 < written) {
-          break;
+          this->waiting_push_data_ = false;
+          this->readed_ = 0;
         }
       }
-
-      if (this->waiting_get_data_) {
-        throw std::runtime_error("Logic error");
-      }
-
-      if (!this->final_data_) {
-        this->waiting_get_data_ = true;
-      }
-
-      return true;
     }
 
     bool push_data(
@@ -239,7 +243,6 @@ namespace vds {
       size_t buffer_size,
       size_t & readed)
     {
-      std::lock_guard<std::mutex> lock(this->data_mutex_);
 
       if (!this->waiting_push_data_) {
         throw std::runtime_error("Logic error");
@@ -248,6 +251,7 @@ namespace vds {
 
       this->input_buffer_ = buffer;
       this->input_buffer_size_ = buffer_size;
+      this->readed_ = 0;
 
       if (this->waiting_get_data_) {
         return false;
@@ -267,7 +271,6 @@ namespace vds {
 
     void cancel(const service_provider & sp)
     {
-      std::lock_guard<std::mutex> lock(this->data_mutex_);
       this->common_data_->step_finish(sp, context_type::INDEX);
     }
 
@@ -275,8 +278,8 @@ namespace vds {
     incoming_queue_type * source_;
     outgoing_queue_type * target_;
     typename context_type::common_data_type * common_data_;
+    size_t readed_;
 
-    std::mutex data_mutex_;
     bool final_data_;
     bool waiting_get_data_;
     bool waiting_push_data_;
@@ -325,7 +328,6 @@ namespace vds {
       size_t buffer_size,
       size_t & readed)
     {
-      std::lock_guard<std::mutex> lock(this->data_mutex_);
       if (!this->waiting_get_data_) {
         throw std::runtime_error("Logic error");
       }
@@ -341,6 +343,7 @@ namespace vds {
 
       if (nullptr == this->input_buffer_) {
         this->waiting_push_data_ = true;
+        this->readed_ = 0;
         if (!this->source_->start(sp, this->input_buffer_, this->input_buffer_size_)) {
           return false;
         }
@@ -364,8 +367,6 @@ namespace vds {
       size_t buffer_size,
       size_t & written)
     {
-      std::lock_guard<std::mutex> lock(this->data_mutex_);
-
       if (!this->waiting_push_data_) {
         throw std::runtime_error("Logic error");
       }
@@ -373,6 +374,7 @@ namespace vds {
 
       this->input_buffer_ = buffer;
       this->input_buffer_size_ = buffer_size;
+      this->readed_ = 0;
 
       if (this->waiting_get_data_ || this->process_data_called_) {
         return false;
@@ -386,8 +388,6 @@ namespace vds {
     
     bool processed(const service_provider & sp, size_t readed, size_t written)
     {
-      std::unique_lock<std::mutex> lock(this->data_mutex_);
-
       if (this->waiting_get_data_) {
         throw std::runtime_error("Logic error");
       }
@@ -400,26 +400,57 @@ namespace vds {
       }
       this->process_data_called_ = false;
       
-      if (0 != written || 0 == readed) {
+      if (0 < readed) {
+        if (0 == written) {
+          this->waiting_push_data_ = true;
+          if (this->source_->continue_read(sp, this->readed_ + readed, this->input_buffer_, this->input_buffer_size_)) {
+            this->waiting_push_data_ = false;
+            this->readed_ = 0;
+          }
+        }
+        else {
+          if (this->input_buffer_size_ < readed) {
+            throw std::runtime_error("Login error");
+          }
+
+          this->input_buffer_ += readed;
+          this->input_buffer_size_ -= readed;
+          this->readed_ += readed;
+
+          this->waiting_get_data_ = true;
+          if (this->target_->push_data(sp, written, this->output_buffer_, this->output_buffer_size_)) {
+            this->waiting_get_data_ = false;
+
+            if (0 == this->input_buffer_size_) {
+              if (this->waiting_push_data_) {
+                throw std::runtime_error("Logic error");
+              }
+
+              this->waiting_push_data_ = true;
+              if (this->source_->continue_read(sp, this->readed_, this->input_buffer_, this->input_buffer_size_)) {
+                this->waiting_push_data_ = false;
+                this->readed_ = 0;
+              }
+            }
+          }
+        }
+      }
+      else {
+        if (0 == written) {
+          if (0 != this->input_buffer_size_) {
+            throw std::runtime_error("Logic error");
+          }
+
+          this->common_data_->step_finish(sp, context_type::INDEX);
+          this->waiting_push_data_ = true;
+        }
+
         this->waiting_get_data_ = true;
-        if(this->target_->push_data(sp, written, this->output_buffer_, this->output_buffer_size_)){
+        if (this->target_->push_data(sp, written, this->output_buffer_, this->output_buffer_size_)) {
           this->waiting_get_data_ = false;
         }
-      }
-
-      if (0 == readed && 0 == written) {
-        if (0 != this->input_buffer_size_) {
-          throw std::runtime_error("Logic error");
-        }
-        lock.unlock();
-        this->common_data_->step_finish(sp, context_type::INDEX);
-        return false;
-      }
-
-      if(0 < readed){
-        this->waiting_push_data_ = true;
-        if(this->source_->continue_read(sp, readed, this->input_buffer_, this->input_buffer_size_)){
-          this->waiting_push_data_ = false;
+        else {
+          return false;
         }
       }
       
@@ -434,7 +465,6 @@ namespace vds {
 
     void cancel(const service_provider & sp)
     {
-      std::lock_guard<std::mutex> lock(this->data_mutex_);
       this->common_data_->step_finish(sp, context_type::INDEX);
     }
 
@@ -443,10 +473,11 @@ namespace vds {
     outgoing_queue_type * target_;
     typename context_type::common_data_type * common_data_;
 
-    std::mutex data_mutex_;
     bool waiting_get_data_;
     bool waiting_push_data_;
     bool process_data_called_;
+
+    size_t readed_;
 
   protected:
     incoming_item_type * input_buffer_;
@@ -487,8 +518,6 @@ namespace vds {
       size_t count,
       size_t & written)
     {
-      std::lock_guard<std::mutex> lock(this->state_mutex_);
-
       if (!this->waiting_push_data_) {
         throw std::runtime_error("Logic error");
       }
@@ -500,7 +529,7 @@ namespace vds {
       written = static_cast<implementation_type *>(this)->sync_push_data(sp);
       if (0 == written && 0 == count) {
         this->common_data_->step_finish(sp, context_type::INDEX);
-        return true;
+        return false;
       }
       this->waiting_push_data_ = true;
       return true;
@@ -508,7 +537,6 @@ namespace vds {
 
     void start(const service_provider & sp)
     {
-      std::lock_guard<std::mutex> lock(this->state_mutex_);
       if (this->waiting_push_data_) {
         throw std::runtime_error("Logic error");
       }
@@ -542,7 +570,6 @@ namespace vds {
 
     void cancel(const service_provider & sp)
     {
-      std::lock_guard<std::mutex> lock(this->state_mutex_);
       this->common_data_->step_finish(sp, context_type::INDEX);
     }
 
@@ -550,7 +577,6 @@ namespace vds {
     incoming_queue_type * source_;
     common_data_type * common_data_;
     bool waiting_push_data_;
-    std::mutex state_mutex_;
 
   protected:
     incoming_item_type * input_buffer_;
@@ -586,8 +612,6 @@ namespace vds {
       size_t count,
       size_t & written)
     {
-      std::lock_guard<std::mutex> lock(this->state_mutex_);
-
       if (!this->waiting_push_data_) {
         throw std::runtime_error("Logic error");
       }
@@ -602,7 +626,6 @@ namespace vds {
 
     void start(const service_provider & sp)
     {
-      std::lock_guard<std::mutex> lock(this->state_mutex_);
       if (this->waiting_push_data_) {
         throw std::runtime_error("Logic error");
       }
@@ -621,7 +644,6 @@ namespace vds {
 
     void cancel(const service_provider & sp)
     {
-      std::lock_guard<std::mutex> lock(this->state_mutex_);
       this->common_data_->step_finish(sp, context_type::INDEX);
     }
 
@@ -629,7 +651,6 @@ namespace vds {
     incoming_queue_type * source_;
     common_data_type * common_data_;
     bool waiting_push_data_;
-    std::mutex state_mutex_;
     
   protected:
     incoming_item_type * input_buffer_;
@@ -823,7 +844,6 @@ namespace vds {
         size_t & buffer_len)
       {
         try {
-          std::lock_guard<std::mutex> lock(this->buffer_mutex_);
           if(!this->data_queried_) {
             throw std::runtime_error("Logic error");
           }
@@ -869,10 +889,7 @@ namespace vds {
               this->data_final_ = true;
 
               size_t readed;
-              if (this->target_->push_data(sp, nullptr, 0, readed)) {
-
-              }
-              return true;
+              return this->target_->push_data(sp, nullptr, 0, readed);
             }
           }
           
@@ -895,8 +912,7 @@ namespace vds {
         outgoing_item_type *& buffer,
         size_t & readed)
       {
-        std::lock_guard<std::mutex> lock(this->buffer_mutex_);
-        
+       
         if(this->data_in_process_ || this->data_queried_) {
           throw std::runtime_error("Logic error");
         }
@@ -922,7 +938,6 @@ namespace vds {
         outgoing_item_type *& buffer,
         size_t & buffer_len)
       {
-        std::lock_guard<std::mutex> lock(this->buffer_mutex_);
         if(!this->data_in_process_) {
           throw std::runtime_error("Logic error");
         }
@@ -996,7 +1011,6 @@ namespace vds {
       static constexpr size_t MIN_BUFFER_SIZE = (_functor_type_t<index>::MIN_BUFFER_SIZE > _functor_type_t<index + 1>::MIN_BUFFER_SIZE)
       ? _functor_type_t<index>::MIN_BUFFER_SIZE : _functor_type_t<index + 1>::MIN_BUFFER_SIZE;
       
-      std::mutex buffer_mutex_;
       incoming_item_type buffer_[BUFFER_SIZE];
       uint32_t second_;
       uint32_t front_;
@@ -1173,14 +1187,12 @@ namespace vds {
 
       void step_finish(const service_provider & sp, size_t index) override
       {
-        this->final_mutex_.lock();
         this->done_steps_.emplace(index);
         this->try_finish(sp);
       }
 
       void step_error(const service_provider & sp, size_t index, std::exception_ptr error) override
       {
-        std::lock_guard<std::mutex> lock(this->final_mutex_);
         if (!this->error_) {
           this->error_ = error;
           this->cancellation_source_.cancel();
@@ -1196,17 +1208,14 @@ namespace vds {
       cancellation_subscriber handler_token_;
       std::shared_ptr<starter> pthis_;
 
-      std::mutex final_mutex_;
       std::set<size_t> done_steps_;
       std::exception_ptr error_;
 
       void try_finish(const service_provider & sp)
       {
         if (std::tuple_size<tuple_type>::value > this->done_steps_.size()) {
-          this->final_mutex_.unlock();
           return;
         }
-        this->final_mutex_.unlock();
 
         this->handler_token_.destroy();
 
@@ -1217,9 +1226,7 @@ namespace vds {
           this->on_error_(sp, this->error_);
         }
 
-        imt_service::async(sp, [this]() {
-          this->pthis_.reset();
-        });
+        this->pthis_.reset();
       }
     };
   };

@@ -36,13 +36,11 @@ public:
     }
 
     size_t sync_get_data(
-      const vds::service_provider & sp,
-      uint8_t * buffer,
-      size_t buffer_size)
+      const vds::service_provider & sp)
     {
       for (;;) {
         size_t n = (size_t)std::rand();
-        if (n < 1 || n > buffer_size) {
+        if (n < 1 || n > this->output_buffer_size_) {
           continue;
         }
 
@@ -50,7 +48,7 @@ public:
           n = this->len_;
         }
 
-        memcpy(buffer, this->data_, n);
+        memcpy(this->output_buffer_, this->data_, n);
 
         this->data_ += n;
         this->len_ -= n;
@@ -103,18 +101,18 @@ public:
     {
       if (0 == this->input_buffer_size_) {
         if (0 != this->len_) {
-          this->on_error(sp, std::make_exception_ptr(std::runtime_error("compare_data error")));
+          this->error(sp, std::make_exception_ptr(std::runtime_error("compare_data error")));
         }
         return 0;
       }
 
       if (this->len_ < this->input_buffer_size_) {
-        this->on_error(sp, std::make_exception_ptr(std::runtime_error("compare_data error")));
+        this->error(sp, std::make_exception_ptr(std::runtime_error("compare_data error")));
         return 0;
       }
 
       if (0 != memcmp(this->data_, this->input_buffer_, this->input_buffer_size_)) {
-        this->on_error(sp, std::make_exception_ptr(std::runtime_error("compare_data error")));
+        this->error(sp, std::make_exception_ptr(std::runtime_error("compare_data error")));
       }
 
       this->data_ += this->input_buffer_size_;
