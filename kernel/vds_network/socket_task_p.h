@@ -20,7 +20,7 @@ namespace vds {
     virtual void process(DWORD dwBytesTransfered) = 0;
 
     static _socket_task * from_overlapped(OVERLAPPED * pOverlapped) {
-        return reinterpret_cast<_socket_task *>((uint8_t *)pOverlapped - offsetof(socket_task, overlapped_));
+        return reinterpret_cast<_socket_task *>((uint8_t *)pOverlapped - offsetof(_socket_task, overlapped_));
     }
 #else//!_WIN32
 #endif//_WIN32

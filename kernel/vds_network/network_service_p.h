@@ -12,6 +12,7 @@ All rights reserved
 
 #include "service_provider.h"
 #include "network_service.h"
+#include "network_types_p.h"
 
 namespace vds {
     class network_service;
@@ -27,7 +28,7 @@ namespace vds {
         void stop(const service_provider &);
         
 #ifdef _WIN32
-        void associate(network_socket::SOCKET_HANDLE s);
+        void associate(SOCKET_HANDLE s);
 #endif
         static std::string to_string(const sockaddr_in & from);
         static std::string get_ip_address_string(const sockaddr_in & from);

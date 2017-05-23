@@ -54,7 +54,7 @@ namespace vds {
             [this, done, on_error, sp, address, port, new_connection]() {
               this->s_ = WSASocket(AF_INET, SOCK_STREAM, 0, NULL, 0, WSA_FLAG_OVERLAPPED);
 
-              if (INVALID_SOCKET == s) {
+              if (INVALID_SOCKET == this->s_) {
                 auto error = WSAGetLastError();
                 throw std::system_error(error, std::system_category(), "create socket");
               }
@@ -80,11 +80,10 @@ namespace vds {
               
               sp.get_shutdown_event().then_shuting_down([this, sp](){
                 closesocket(this->s_);
-                this->done_method_(sp, nullptr);
               });
 
               HANDLE events[2];
-              events[0] = this->sp_.get_shutdown_event().windows_handle();
+              events[0] = sp.get_shutdown_event().windows_handle();
               events[1] = this->accept_event_.handle();
 
               for(;;){
@@ -94,7 +93,7 @@ namespace vds {
                 }
                 WSANETWORKEVENTS WSAEvents;
                 WSAEnumNetworkEvents(
-                  s,
+                  this->s_,
                   this->accept_event_.handle(),
                   &WSAEvents);
                 if ((WSAEvents.lNetworkEvents & FD_ACCEPT)
@@ -105,9 +104,9 @@ namespace vds {
 
                   auto socket = accept(this->s_, (sockaddr*)&client_address, &client_address_length);
                   if (INVALID_SOCKET != socket) {
-                    static_cast<network_service *>(sp.get<inetwork_manager>())->associate(socket);
-                    auto sp = this->sp_.create_scope("Connection from " + network_service::to_string(client_address));
-                    new_connection(sp, socket);
+                    static_cast<_network_service *>(sp.get<inetwork_service>())->associate(socket);
+                    auto scope = sp.create_scope("Connection from " + network_service::to_string(client_address));
+                    new_connection(scope, _tcp_network_socket::from_handle(socket));
                   }
                 }
               }

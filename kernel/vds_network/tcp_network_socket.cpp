@@ -59,7 +59,7 @@ vds::async_task< vds::tcp_network_socket > vds::tcp_network_socket::connect(
         }
       }
 
-      ((network_service *)sp.get<inetwork_manager>())->associate(s->handle());
+      static_cast<_network_service *>(sp.get<inetwork_service>())->associate(s->handle());
 #else
       // Connect 
       if (0 > ::connect(s->handle(), (struct sockaddr *)&addr, sizeof(addr))) {

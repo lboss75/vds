@@ -11,6 +11,7 @@ All rights reserved
 #include "service_provider.h"
 #include "logger.h"
 #include <iostream>
+#include "socket_task_p.h"
 
 vds::network_service::network_service()
 : impl_(new _network_service())
@@ -146,7 +147,7 @@ void vds::_network_service::stop(const service_provider & sp)
 }
 
 #ifdef _WIN32
-void vds::_network_service::associate(network_socket::SOCKET_HANDLE s)
+void vds::_network_service::associate(SOCKET_HANDLE s)
 {
   if (NULL == CreateIoCompletionPort((HANDLE)s, this->handle_, NULL, 0)) {
     auto error = GetLastError();
@@ -177,7 +178,7 @@ void vds::_network_service::thread_loop(const service_provider & sp)
           return;
         }
         try {
-          socket_task::from_overlapped(pOverlapped)->process(dwBytesTransfered);
+          _socket_task::from_overlapped(pOverlapped)->process(dwBytesTransfered);
         }
         catch (...) {
           auto p = sp.get_property<unhandled_exception_handler>(

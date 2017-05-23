@@ -54,16 +54,21 @@ namespace vds {
       handler(
         const context_type & context,
         const read_tcp_network_socket & args)
-      : base_class(context),
-        s_(args.s_),
-        reader_(args.create_reader(
-          [this](const vds::service_provider & sp, size_t readed){
-            this->processed(sp, readed);
-          },
-          [this](const vds::service_provider & sp, std::exception_ptr ex){
-            this->error(sp, ex);
-          }))
+        : base_class(context),
+        s_(args.s_)
       {
+        this->reader_ = args.create_reader(
+          [this](const vds::service_provider & sp, size_t readed) {
+          this->processed(sp, readed);
+        },
+          [this](const vds::service_provider & sp, std::exception_ptr ex) {
+          this->error(sp, ex);
+        });
+      }
+
+      ~handler()
+      {
+        destroy_reader(this->reader_);
       }
       
       void async_get_data(const vds::service_provider & sp)
@@ -73,7 +78,7 @@ namespace vds {
       
     private:
       tcp_network_socket s_;
-      _read_socket_task * const reader_;      
+      _read_socket_task * reader_;      
     };
   private:
     tcp_network_socket s_;
@@ -112,16 +117,21 @@ namespace vds {
       handler(
         const context_type & context,
         const write_tcp_network_socket & args)
-      : base_class(context),
-        s_(args.s_),
-        writer_(args.create_writer(
-          [this](const vds::service_provider & sp, size_t written){
-            this->processed(sp, written);
-          },
-          [this](const vds::service_provider & sp, std::exception_ptr ex){
-            this->error(sp, ex);
-          }))
+        : base_class(context),
+        s_(args.s_)
       {
+        this->writer_ = args.create_writer(
+          [this](const vds::service_provider & sp, size_t written) {
+          this->processed(sp, written);
+        },
+          [this](const vds::service_provider & sp, std::exception_ptr ex) {
+          this->error(sp, ex);
+        });
+      }
+
+      ~handler()
+      {
+        destroy_writer(this->writer_);
       }
       
       void async_push_data(const vds::service_provider & sp)
@@ -131,7 +141,7 @@ namespace vds {
       
     private:
       tcp_network_socket s_;
-      _write_socket_task * const writer_;
+      _write_socket_task * writer_;
     };
   private:
     tcp_network_socket s_;

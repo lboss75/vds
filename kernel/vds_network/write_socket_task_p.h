@@ -104,15 +104,7 @@ namespace vds {
         }
         this->is_scheduled_ = false;
 #endif
-        this->data_ += dwBytesTransfered;
-        this->data_size_ -= dwBytesTransfered;
-
-        if (this->data_size_ > 0) {
-          this->schedule(this->sp_);
-        }
-        else {
-          this->done_method_(this->sp_);
-        }
+        this->written_method_(this->sp_, dwBytesTransfered);
       }
       catch (...) {
         this->error_method_(this->sp_, std::current_exception());

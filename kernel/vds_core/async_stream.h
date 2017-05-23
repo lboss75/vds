@@ -8,6 +8,7 @@ All rights reserved
 
 #include "dataflow.h"
 #include "async_task.h"
+#include "mt_service.h"
 
 namespace vds {
 

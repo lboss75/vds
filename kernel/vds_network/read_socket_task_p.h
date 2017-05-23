@@ -10,7 +10,7 @@ All rights reserved
 #include "network_service_p.h"
 
 namespace vds {
-  class inetwork_manager;
+  class inetwork_service;
   
   class _read_socket_task : public _socket_task
   {
