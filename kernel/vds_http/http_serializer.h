@@ -27,81 +27,97 @@ namespace vds {
       handler(
         const context_type & context,
         const http_serializer & args)
-        : base_class(context), state_(StateEnum::STATE_BOF)
+        : base_class(context), eof_(false)
       {
       }
 
       void async_process_data(const service_provider & sp)
       {
+        if (0 == this->input_buffer_size_) {
+          this->eof_ = true;
+          this->processed(sp, 0, 0);
+          return;
+        }
+
+        auto message = this->input_buffer_[0];
+        mt_service::async(sp, [this, sp, message]() {
+
+          std::stringstream stream;
+          for (auto & header : message->headers()) {
+            stream << header << "\n";
+          }
+          stream << "\n";
+
+          auto data = std::make_shared<std::string>(stream.str());
+          this->buffer_.write_all_async(sp, (const uint8_t *)data->c_str(), data->length()).wait(
+            [this, data, message](const service_provider & sp) {
+            auto buffer = std::make_shared<std::vector<uint8_t>>(1024);
+            this->write_body(sp, message, buffer);
+          },
+            [this, data, message](const service_provider & sp, std::exception_ptr ex) {
+            this->error(sp, ex);
+          },
+            sp);
+        });
+
         this->continue_process(sp);
       }
 
     private:
-      enum class StateEnum {
-        STATE_BOF,
-        STATE_WRITE_HEADERS,
-        STATE_EOF
-      };
+      bool eof_;
+      async_stream<uint8_t> buffer_;
 
-      StateEnum state_;
-      async_stream buffer_;
+      void write_body(
+        const service_provider & sp,
+        const std::shared_ptr<http_message> & message,
+        const std::shared_ptr<std::vector<uint8_t>> & buffer)
+      {
+        message->body()->read_async(sp, buffer->data(), buffer->size())
+          .wait(
+            [this, message, buffer](const service_provider & sp, size_t readed) {
+          if (0 < readed) {
+            this->buffer_.write_all_async(sp, buffer->data(), readed).wait(
+              [this, message, buffer](const service_provider & sp) {
+              this->write_body(sp, message, buffer);
+            },
+              [this](const service_provider & sp, std::exception_ptr ex) {
+              this->error(sp, ex);
+            },
+              sp);
+          }
+          else {
+            this->buffer_.write_all_async(sp, nullptr, 0).wait(
+              [](const service_provider & sp) { },
+              [](const service_provider & sp, std::exception_ptr ex) {},
+              sp);
+          }
+        }, [this](const service_provider & sp, std::exception_ptr ex) {
+          this->error(sp, ex);
+        },
+          sp
+          );
+      }
 
       void continue_process(const service_provider & sp)
       {
-        for (;;) {
-          switch (this->state_) {
-          case StateEnum::STATE_BOF:
-          {
-            this->state_ = StateEnum::STATE_WRITE_HEADERS;
-            auto message = this->input_buffer_[0];
+        this->buffer_.read_async(sp, this->output_buffer_, this->output_buffer_size_).wait(
+          [this](const service_provider & sp, size_t readed) {
 
-            std::stringstream stream;
-            for (auto & header : message->headers()) {
-              stream << header << "\n";
+          if (0 < readed) {
+            if (this->processed(sp, 0, readed)) {
+              this->continue_process(sp);
             }
-
-            stream << "Content-Length: " << message->body().length() << "\n\n";
-            stream << message->body();
-
-            auto data = std::make_shared<std::string>(stream.str());
-            this->buffer_.write_async(data->c_str(), data->length()).wait(
-              [data, this](const service_provider & sp) {
-                if (this->processed(sp, 1, 0)) {
-                  this->continue_process(sp);
-                }
-              },
-              [data, this](const service_provider & sp, std::exception_ptr ex) {
-                this->error(sp, ex);
-              },
-              sp);
-            break;
           }
-          case StateEnum::STATE_WRITE_HEADERS:
-          {
-              buffer_.read_async(sp, this->output_buffer_, this->output_buffer_size_).wait(
-                [this](const service_provider & sp, size_t readed) {
-
-                if (0 < readed) {
-                  if (this->processed(sp, 0, readed)) {
-                    this->continue_process(sp);
-                  }
-                }
-                else {
-                  this->state_ = StateEnum::STATE_BOF;
-                  if (this->processed(sp, 1, 0)) {
-                    this->continue_process(sp);
-                  }
-                }
-              },
-              [this](const service_provider & sp, std::exception_ptr ex) {
-                this->error(sp, ex);
-              },
-              sp);
-            return;
-            break;
+          else {
+            if (this->processed(sp, 1, 0)) {
+              this->continue_process(sp);
+            }
           }
-          }
-        }
+        },
+          [this](const service_provider & sp, std::exception_ptr ex) {
+          this->error(sp, ex);
+        },
+          sp);
       }
     };
   };

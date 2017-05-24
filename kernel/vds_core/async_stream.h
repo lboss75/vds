@@ -29,9 +29,24 @@ namespace vds {
           const std::function<void(const service_provider & sp)> & done,
           const error_handler & on_error,
           const service_provider & sp) {
-          
+
+        if (0 == data_size) {
+          this->eof_ = true;
+
+          mt_service::async(sp, [sp, done]() {
+            done(sp);
+          });
+
+          if (this->continue_read_) {
+            std::function<void(void)> f;
+            this->continue_read_.swap(f);
+            mt_service::async(sp, f);
+          }
+        }
+        else {
           this->write_all(sp, done, data, data_size);
-        });
+        }
+      });
     }
     
     async_task<size_t> write_async(const service_provider & sp, const item_type * data, size_t data_size)
@@ -108,7 +123,7 @@ namespace vds {
           len = data_size;
         }
         
-        memcpy(this->buffer_ + this->back_, data, len);
+        std::copy(data, data + len, this->buffer_ + this->back_);
         this->back_ += len;
         
         mt_service::async(sp, [sp, done, len](){
@@ -126,7 +141,7 @@ namespace vds {
         if (len > data_size) {
           len = data_size;
         }
-        memcpy(this->buffer_ + this->second_, data, len);
+        std::copy(data, data + len, this->buffer_ + this->second_);
         this->second_ += len;
         
         mt_service::async(sp, [sp, done, len](){
@@ -173,7 +188,7 @@ namespace vds {
         if (len > buffer_size) {
           len = buffer_size;
         }
-        memcpy(buffer, this->buffer_ + this->front_, len);
+        std::copy(this->buffer_ + this->front_, this->buffer_ + this->front_ + len, buffer);
         this->front_ += len;
         
         if(this->front_ == this->back_){

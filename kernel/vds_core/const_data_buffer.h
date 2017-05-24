@@ -112,8 +112,8 @@ namespace vds{
     
     using incoming_item_type = uint8_t;
     using outgoint_item_type = uint8_t;
-    static const size_t buffer_size = 1024;
-    static const size_t min_buffer_size = 1;
+    static const size_t BUFFER_SIZE = 1024;
+    static const size_t MIN_BUFFER_SIZE = 1;
 
     template <typename context_type>
     class handler : public sync_dataflow_target<context_type, handler<context_type>>
@@ -129,10 +129,10 @@ namespace vds{
       {
       }
 
-      size_t sync_push_data(const service_provider & sp, uint8_t * data, size_t len)
+      size_t sync_push_data(const service_provider & sp)
       {
-        this->buffer_.insert(this->buffer_.end(), data, data + len);
-        return len;
+        this->buffer_.insert(this->buffer_.end(), this->input_buffer_, this->input_buffer_ + this->input_buffer_size_);
+        return this->input_buffer_size_;
       }
 
     private:

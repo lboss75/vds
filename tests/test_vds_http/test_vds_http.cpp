@@ -45,22 +45,21 @@ TEST(http_tests, test_server)
     "127.0.0.1",
     8000,
     [&router](const vds::service_provider & sp, const vds::tcp_network_socket & s) {
+    auto responses = new std::shared_ptr<vds::http_message>[1];
     auto stream = std::make_shared<vds::async_stream<std::shared_ptr<vds::http_message>>>();
     vds::async_series({
       vds::create_async_task(
-        [s, stream, &router](const std::function<void(const vds::service_provider & sp)> & done, const vds::error_handler & on_error, const vds::service_provider & sp) {
+        [s, stream, &router, responses](const std::function<void(const vds::service_provider & sp)> & done, const vds::error_handler & on_error, const vds::service_provider & sp) {
           vds::dataflow(
             vds::read_tcp_network_socket(s),
             vds::http_parser(
-              [stream, &router](const vds::service_provider & sp, const std::shared_ptr<vds::http_message> & request) {
-                auto response = vds::http_middleware<vds::http_router>(router).process(sp, request);
-                stream->write_all_async(sp, &response, 1)
+              [stream, &router, responses](const vds::service_provider & sp, const std::shared_ptr<vds::http_message> & request) {
+                responses[0] = vds::http_middleware<vds::http_router>(router).process(sp, request);
+                stream->write_all_async(sp, responses, 1)
                   .wait(
                   [](const vds::service_provider & sp) {
-
                   },
                   [](const vds::service_provider & sp, std::exception_ptr ex) {
-
                   },
                   sp);
               }
@@ -76,11 +75,14 @@ TEST(http_tests, test_server)
           )(done, on_error, sp);
         }) })
       .wait(
-        [](const vds::service_provider & sp) {
+        [responses](const vds::service_provider & sp) {
           std::cout << "Connection closed\n";
+          delete responses;
         },
-        [](const vds::service_provider & sp, std::exception_ptr ex) {
+        [responses](const vds::service_provider & sp, std::exception_ptr ex) {
+          delete responses;
           FAIL() << vds::exception_what(ex);
+
         },
           sp);
   })
@@ -138,7 +140,10 @@ TEST(http_tests, test_server)
                     vds::collect_data(*data)
                   )(
                     [data](const vds::service_provider & sp) {
+                      std::string b((const char *)data->data(), data->size());
+                      if ("<>" != b) {
 
+                      }
                     },
                     [](const vds::service_provider & sp, std::exception_ptr ex) {
                     },
@@ -148,13 +153,13 @@ TEST(http_tests, test_server)
                 })
           )(done, on_error, sp);
       })
-    })
-      .wait(
-        [&b](const vds::service_provider & sp) { std::cout << "Request sent\n"; b.set(); },
-        [&b](const vds::service_provider & sp, std::exception_ptr ex) { std::cout << "Request error\n"; b.set(); },
-        sp
-      );
-  });
+    }).wait(done, on_error, sp);
+  })
+  .wait(
+    [&b](const vds::service_provider & sp) { std::cout << "Request sent\n"; b.set(); },
+    [&b](const vds::service_provider & sp, std::exception_ptr ex) { std::cout << "Request error\n"; b.set(); },
+    sp
+  );
 
   b.wait();
   //Wait

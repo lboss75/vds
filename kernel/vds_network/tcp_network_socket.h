@@ -59,7 +59,9 @@ namespace vds {
       {
         this->reader_ = args.create_reader(
           [this](const vds::service_provider & sp, size_t readed) {
-          this->processed(sp, readed);
+          if (this->processed(sp, readed)) {
+            read_async(sp, this->reader_, this->output_buffer_, this->output_buffer_size_);
+          }
         },
           [this](const vds::service_provider & sp, std::exception_ptr ex) {
           this->error(sp, ex);
@@ -122,7 +124,9 @@ namespace vds {
       {
         this->writer_ = args.create_writer(
           [this](const vds::service_provider & sp, size_t written) {
-          this->processed(sp, written);
+          if (this->processed(sp, written)) {
+            write_async(sp, this->writer_, this->input_buffer_, this->input_buffer_size_);
+          }
         },
           [this](const vds::service_provider & sp, std::exception_ptr ex) {
           this->error(sp, ex);

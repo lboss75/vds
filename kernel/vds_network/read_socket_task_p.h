@@ -88,7 +88,7 @@ namespace vds {
     void * buffer_;
     size_t buffer_size_;
 #endif
-    
+
 #ifdef _DEBUG
     bool is_scheduled_;
 #endif
@@ -102,6 +102,8 @@ namespace vds {
       }
       this->is_scheduled_ = false;
 #endif
+
+      this->sp_.get<logger>()->debug(this->sp_, "TCP: Read [%s]", std::string((const char *)this->wsa_buf_.buf, dwBytesTransfered).c_str());
 
       this->readed_method_(
         this->sp_,

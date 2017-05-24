@@ -41,6 +41,7 @@ namespace vds {
     
     void write_async(const service_provider & sp, const void * buffer, size_t buffer_size)
     {
+      sp.get<logger>()->debug(sp, "TCP: Write [%s]", std::string((const char *)buffer, buffer_size).c_str());
       this->sp_ = sp;
       
 #ifdef _DEBUG

@@ -347,16 +347,15 @@ namespace vds {
           return false;
         }
         this->waiting_push_data_ = false;
-
-        if (0 == this->input_buffer_size_) {
-          readed = 0;
-          return true;
-        }
-
-        this->process_data_called_ = true;
-        static_cast<implementation_type *>(this)->async_process_data(sp);
       }
 
+      if (0 == this->input_buffer_size_) {
+        readed = 0;
+        return true;
+      }
+
+      this->process_data_called_ = true;
+      static_cast<implementation_type *>(this)->async_process_data(sp);
       return false;
     }
 
@@ -874,16 +873,17 @@ namespace vds {
             if(this->get_read_buffer(read_buffer, read_len)){
               this->data_in_process_ = true;
               size_t readed;
-              if(this->target_->push_data(sp, read_buffer, read_len, readed)){
-                this->data_in_process_ = false;
+              if (!this->target_->push_data(sp, read_buffer, read_len, readed)) {
+                return false;
+              }
+              this->data_in_process_ = false;
                 
-                this->front_ += readed;
+              this->front_ += readed;
                 
-                if (this->front_ == this->back_) {
-                  this->front_ = 0;
-                  this->back_ = this->second_;
-                  this->second_ = 0;
-                }
+              if (this->front_ == this->back_) {
+                this->front_ = 0;
+                this->back_ = this->second_;
+                this->second_ = 0;
               }
             }
             else if (0 == count) {

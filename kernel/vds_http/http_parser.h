@@ -131,8 +131,9 @@ namespace vds {
                 this->state_ = StateEnum::STATE_PARSE_HEADER;
               }
               
-              this->current_message_->body().write_async(
-                (const char *)this->input_buffer_ + readed,
+              this->current_message_->body()->write_all_async(
+                sp,
+                this->input_buffer_ + readed,
                 size)
               .wait(
                 [this, readed](const service_provider & sp){
@@ -148,6 +149,8 @@ namespace vds {
             }
           }
         }
+
+        this->processed(sp, readed);
       }
     };
   private:

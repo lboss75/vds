@@ -52,7 +52,7 @@ public:
           return 0;
         }
 
-        memcpy(this->output_buffer_, this->data_, n);
+        std::copy(this->data_, this->data_ + n, this->output_buffer_);
 
         this->data_ += n;
         this->len_ -= n;

@@ -25,16 +25,17 @@ std::shared_ptr<vds::http_message> vds::http_router::route(
     response.add_header("Content-Type", "text/html; charset=utf-8");
     response.add_header("Content-Length", std::to_string(p->second.length()));
     auto result = response.create_message();
-    result->body().write_all_async(sp, (const uint8_t *)p->second.c_str(), p->second.length())
+    result->body()->write_all_async(sp, (const uint8_t *)p->second.c_str(), p->second.length())
     .wait(
       [result](const service_provider & sp) {
-        result->body().write_async(sp, nullptr, 0).wait(
-          [](const service_provider & sp, size_t written){},
+        result->body()->write_all_async(sp, nullptr, 0).wait(
+          [](const service_provider & sp){},
           [](const service_provider & sp, std::exception_ptr ex){},
           sp);
       },
       [](const service_provider & sp, std::exception_ptr ex){},
       sp);
+    return result;
   }
 
   auto pf = this->files_.find(request.url());
