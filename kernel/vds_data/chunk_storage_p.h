@@ -35,7 +35,7 @@ namespace vds {
     guid source_id_;
     uint16_t min_horcrux_;
 
-    std::map<uint16_t, std::unique_ptr<chunk_generator<uint16_t>>> generators_;
+    std::unordered_map<uint16_t, std::unique_ptr<chunk_generator<uint16_t>>> generators_;
   };
 
 }

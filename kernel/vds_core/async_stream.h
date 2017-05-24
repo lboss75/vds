@@ -36,6 +36,10 @@ namespace vds {
     
     async_task<size_t> write_async(const service_provider & sp, const item_type * data, size_t data_size)
     {
+      if (this->continue_write_) {
+        throw std::runtime_error("Login error");
+      }
+
       return create_async_task(
         [this, data, data_size](
           const std::function<void(const service_provider & sp, size_t written)> & done,
@@ -44,6 +48,11 @@ namespace vds {
 
           if(0 == data_size) {
             this->eof_ = true;
+
+            mt_service::async(sp, [sp, done]() {
+              done(sp, 0);
+            });
+
             if(this->continue_read_){
               std::function<void(void)> f;
               this->continue_read_.swap(f);
@@ -57,6 +66,10 @@ namespace vds {
 
     async_task<size_t /*readed*/> read_async(const service_provider & sp, item_type * buffer, size_t buffer_size)
     {
+      if (this->continue_read_) {
+        throw std::runtime_error("Login error");
+      }
+
       return create_async_task(
         [this, buffer, buffer_size](
           const std::function<void(const service_provider & sp, size_t readed)> & done,
@@ -95,7 +108,7 @@ namespace vds {
           len = data_size;
         }
         
-        memcpy(this->buffer_ + this->front_, data, len);
+        memcpy(this->buffer_ + this->back_, data, len);
         this->back_ += len;
         
         mt_service::async(sp, [sp, done, len](){

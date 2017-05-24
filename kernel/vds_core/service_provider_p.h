@@ -5,7 +5,7 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
-#include <map>
+#include <unordered_map>
 #include <list>
 #include <atomic>
 
@@ -63,7 +63,7 @@ namespace vds {
 
   private:
     shutdown_event shutdown_event_;
-    std::map<size_t, void *> services_;
+    std::unordered_map<size_t, void *> services_;
     std::list<iservice_factory *> factories_;
   };
 
@@ -150,7 +150,7 @@ namespace vds {
     std::shared_ptr<_service_provider> parent_;
     std::shared_ptr<_service_registrator> service_registrator_;
 
-    std::map<size_t, std::unique_ptr<service_provider::property_holder>> properties_;
+    std::unordered_map<size_t, std::unique_ptr<service_provider::property_holder>> properties_;
   };
 };
 

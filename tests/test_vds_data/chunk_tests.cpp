@@ -124,7 +124,7 @@ TEST(chunk_tests, test_chunks_storage) {
     const uint16_t mix_horcrux = 800;
     vds::chunk_storage storage(vds::guid::new_guid(), mix_horcrux);
     std::list<vds::chunk_storage::horcrux> horcruxes;
-    std::map<uint16_t, bool> processed_horcruxes;
+    std::unordered_map<uint16_t, bool> processed_horcruxes;
     while(horcruxes.size() < mix_horcrux){
       uint16_t replica;
       for(;;) {

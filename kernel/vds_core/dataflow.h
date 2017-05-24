@@ -112,7 +112,6 @@ namespace vds {
     {
       if(0 == written){
         this->common_data_->step_finish(sp, context_type::INDEX);
-        return false;
       }
       
       return this->target_->push_data(sp, written, this->output_buffer_, this->output_buffer_size_);

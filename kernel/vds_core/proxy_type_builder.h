@@ -6,7 +6,7 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
-#include <map>
+#include <unordered_map>
 #include "types.h"
 
 namespace vds {
@@ -54,10 +54,10 @@ namespace vds {
         }
       }
     private:
-      std::map<const target_type *, std::unique_ptr<proxy_interface>> targets_;
+      std::unordered_map<const target_type *, std::unique_ptr<proxy_interface>> targets_;
     };
     
-    std::map<size_t, std::unique_ptr<iproxy_builder>> proxies_;
+    std::unordered_map<size_t, std::unique_ptr<iproxy_builder>> proxies_;
   };
 }
 

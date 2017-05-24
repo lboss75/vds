@@ -7,7 +7,7 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 #include <mutex>
-#include <map>
+#include <unordered_map>
 
 namespace vds {
   class _cancellation_token
@@ -61,7 +61,7 @@ namespace vds {
     bool is_cancellation_requested_;
     std::mutex callbacks_mutex_;
     int last_callback_;
-    std::map<int, std::function<void(void)>> callbacks_;
+    std::unordered_map<int, std::function<void(void)>> callbacks_;
   };
 }
 

@@ -21,7 +21,7 @@ namespace vds {
     std::string get(const std::string & name) const;
 
   private:
-    std::map<std::string, std::string> items_;
+    std::unordered_map<std::string, std::string> items_;
   };
 }
 

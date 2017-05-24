@@ -6,7 +6,7 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
-#include <map>
+#include <unordered_map>
 #include <string>
 #include <assert.h>
 
