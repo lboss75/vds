@@ -105,7 +105,8 @@ namespace vds{
   class collect_data
   {
   public:
-    collect_data()
+    collect_data(std::vector<uint8_t> & buffer)
+    : buffer_(buffer)
     {
     }
     
@@ -123,7 +124,8 @@ namespace vds{
       handler(
         const context_type & context,
         const collect_data & args)
-        : base_class(context)
+        : base_class(context),
+          buffer_(args.buffer_)
       {
       }
 
@@ -134,8 +136,10 @@ namespace vds{
       }
 
     private:
-      std::vector<uint8_t> buffer_;
+      std::vector<uint8_t> & buffer_;
     };
+  private:
+    std::vector<uint8_t> & buffer_;
   };
 }
 
