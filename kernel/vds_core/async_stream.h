@@ -125,16 +125,16 @@ namespace vds {
         
         std::copy(data, data + len, this->buffer_ + this->back_);
         this->back_ += len;
-        
-        mt_service::async(sp, [sp, done, len](){
-          done(sp, len);
-        });
-        
+       
         if(this->continue_read_){
           std::function<void(void)> f;
           this->continue_read_.swap(f);
           mt_service::async(sp, f);
         }
+
+        mt_service::async(sp, [sp, done, len]() {
+          done(sp, len);
+        });
       }
       else if (this->second_ < this->front_) {
         auto len = this->front_ - this->second_;
@@ -143,16 +143,16 @@ namespace vds {
         }
         std::copy(data, data + len, this->buffer_ + this->second_);
         this->second_ += len;
-        
-        mt_service::async(sp, [sp, done, len](){
-          done(sp, len);
-        });
-        
+       
         if(this->continue_read_){
           std::function<void(void)> f;
           this->continue_read_.swap(f);
           mt_service::async(sp, f);
         }
+
+        mt_service::async(sp, [sp, done, len]() {
+          done(sp, len);
+        });
       }
       else {
         this->continue_write_ = std::bind(&async_stream::continue_write, this, sp, done, data, data_size);
@@ -197,15 +197,15 @@ namespace vds {
           this->second_ = 0;
         }          
         
-        mt_service::async(sp, [sp, done, len](){
-          done(sp, len);
-        });
-        
         if(this->continue_write_){
           std::function<void(void)> f;
           this->continue_write_.swap(f);
           mt_service::async(sp, f);
         }
+
+        mt_service::async(sp, [sp, done, len]() {
+          done(sp, len);
+        });
       }
       else if(this->eof_){
         mt_service::async(sp, [sp, done](){
