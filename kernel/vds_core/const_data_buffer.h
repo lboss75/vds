@@ -131,8 +131,8 @@ namespace vds{
 
       size_t sync_push_data(const service_provider & sp)
       {
-        this->buffer_.insert(this->buffer_.end(), this->input_buffer_, this->input_buffer_ + this->input_buffer_size_);
-        return this->input_buffer_size_;
+        this->buffer_.insert(this->buffer_.end(), this->input_buffer(), this->input_buffer() + this->input_buffer_size());
+        return this->input_buffer_size();
       }
 
     private:

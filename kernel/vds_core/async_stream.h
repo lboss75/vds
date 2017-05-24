@@ -33,15 +33,15 @@ namespace vds {
         if (0 == data_size) {
           this->eof_ = true;
 
-          mt_service::async(sp, [sp, done]() {
-            done(sp);
-          });
-
           if (this->continue_read_) {
             std::function<void(void)> f;
             this->continue_read_.swap(f);
             mt_service::async(sp, f);
           }
+          
+          mt_service::async(sp, [sp, done]() {
+            done(sp);
+          });
         }
         else {
           this->write_all(sp, done, data, data_size);
@@ -64,15 +64,15 @@ namespace vds {
           if(0 == data_size) {
             this->eof_ = true;
 
-            mt_service::async(sp, [sp, done]() {
-              done(sp, 0);
-            });
-
             if(this->continue_read_){
               std::function<void(void)> f;
               this->continue_read_.swap(f);
               mt_service::async(sp, f);
             }
+            
+            mt_service::async(sp, [sp, done]() {
+              done(sp, 0);
+            });
           } else {
             this->continue_write(sp, done, data, data_size);
           }
@@ -254,7 +254,7 @@ namespace vds {
       
       void continue_get_data(const service_provider & sp)
       {
-        this->stream_->read_async(sp, this->output_buffer_, this->output_buffer_size_)
+        this->stream_->read_async(sp, this->output_buffer(), this->output_buffer_size())
         .wait(
           [this](const service_provider & sp, size_t readed){
             if(this->processed(sp, readed)){

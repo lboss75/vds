@@ -66,26 +66,26 @@ namespace vds {
       
       void continue_push_data(const service_provider & sp, size_t readed)
       {
-        while (readed < this->input_buffer_size_) {
+        while (readed < this->input_buffer_size()) {
           if (StateEnum::STATE_PARSE_HEADER == this->state_) {
-            char * p = (char *)memchr((const char *)this->input_buffer_ + readed, '\n', this->input_buffer_size_ - readed);
+            char * p = (char *)memchr((const char *)this->input_buffer() + readed, '\n', this->input_buffer_size() - readed);
             if (nullptr == p) {
-              this->parse_buffer_ += std::string((const char *)this->input_buffer_ + readed, this->input_buffer_size_ - readed);
-              if(!this->processed(sp, this->input_buffer_size_)){
+              this->parse_buffer_ += std::string((const char *)this->input_buffer() + readed, this->input_buffer_size() - readed);
+              if(!this->processed(sp, this->input_buffer_size())){
                 return;
               }
               readed = 0;
               continue;
             }
 
-            auto size = p - (const char *)this->input_buffer_ - readed;
+            auto size = p - (const char *)this->input_buffer() - readed;
 
             if (size > 0) {
-              if ('\r' == reinterpret_cast<const char *>(this->input_buffer_)[size + readed - 1]) {
-                this->parse_buffer_ += std::string((const char *)this->input_buffer_ + readed, size - 1);
+              if ('\r' == reinterpret_cast<const char *>(this->input_buffer())[size + readed - 1]) {
+                this->parse_buffer_ += std::string((const char *)this->input_buffer() + readed, size - 1);
               }
               else {
-                this->parse_buffer_.append((const char *)this->input_buffer_ + readed, size);
+                this->parse_buffer_.append((const char *)this->input_buffer() + readed, size);
               }
             }
             readed += size + 1;
@@ -120,7 +120,7 @@ namespace vds {
             }
           }
           else {
-            auto size = this->input_buffer_size_ - readed;
+            auto size = this->input_buffer_size() - readed;
             if (size > this->content_length_) {
               size = this->content_length_;
             }
@@ -133,7 +133,7 @@ namespace vds {
               
               this->current_message_->body()->write_all_async(
                 sp,
-                this->input_buffer_ + readed,
+                this->input_buffer() + readed,
                 size)
               .wait(
                 [this, readed](const service_provider & sp){

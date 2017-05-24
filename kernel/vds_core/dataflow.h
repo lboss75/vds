@@ -52,10 +52,13 @@ namespace vds {
   private:
     outgoing_queue_type * target_;
     common_data_type * common_data_;
-    
-  protected:
     outgoing_item_type * output_buffer_;
     size_t output_buffer_size_;
+    
+  protected:
+    outgoing_item_type * output_buffer() const { return this->output_buffer_; }
+    size_t output_buffer_size() { return this->output_buffer_size_; }
+    outgoing_item_type & output_buffer(size_t index) const { return this->output_buffer_[index]; }
     
     void error(const service_provider & sp, std::exception_ptr ex)
     {
@@ -101,10 +104,13 @@ namespace vds {
   private:
     outgoing_queue_type * target_;
     common_data_type * common_data_;
-    
-  protected:
     outgoing_item_type * output_buffer_;
     size_t output_buffer_size_;
+    
+  protected:
+    outgoing_item_type * output_buffer() const { return this->output_buffer_; }
+    size_t output_buffer_size() { return this->output_buffer_size_; }
+    outgoing_item_type & output_buffer(size_t index) const { return this->output_buffer_[index]; }
     
     bool processed(
       const service_provider & sp,
@@ -283,12 +289,19 @@ namespace vds {
     bool waiting_get_data_;
     bool waiting_push_data_;
 
-  protected:
     incoming_item_type * input_buffer_;
     size_t input_buffer_size_;
 
     outgoing_item_type * output_buffer_;
     size_t output_buffer_size_;
+  protected:
+    incoming_item_type * input_buffer() const { return this->input_buffer_; }
+    size_t input_buffer_size() const { return this->input_buffer_size_; }
+    incoming_item_type & input_buffer(size_t index) const { return this->input_buffer_[index];}
+    
+    outgoing_item_type * output_buffer() const { return this->output_buffer_; }
+    size_t output_buffer_size() { return this->output_buffer_size_; }
+    outgoing_item_type & output_buffer(size_t index) const { return this->output_buffer_[index]; }
 
     void error(const service_provider & sp, std::exception_ptr ex)
     {
@@ -477,13 +490,21 @@ namespace vds {
 
     size_t readed_;
 
-  protected:
     incoming_item_type * input_buffer_;
     size_t input_buffer_size_;
 
     outgoing_item_type * output_buffer_;
     size_t output_buffer_size_;
 
+  protected:
+    incoming_item_type * input_buffer() const { return this->input_buffer_; }
+    size_t input_buffer_size() const { return this->input_buffer_size_; }
+    incoming_item_type & input_buffer(size_t index) const { return this->input_buffer_[index];}
+    
+    outgoing_item_type * output_buffer() const { return this->output_buffer_; }
+    size_t output_buffer_size() { return this->output_buffer_size_; }
+    outgoing_item_type & output_buffer(size_t index) const { return this->output_buffer_[index]; }
+    
     void error(const service_provider & sp, std::exception_ptr ex)
     {
       this->common_data_->step_error(sp, context_type::INDEX, ex);
@@ -576,10 +597,14 @@ namespace vds {
     common_data_type * common_data_;
     bool waiting_push_data_;
 
-  protected:
     incoming_item_type * input_buffer_;
     size_t input_buffer_size_;
 
+  protected:
+    incoming_item_type * input_buffer() const { return this->input_buffer_; }
+    size_t input_buffer_size() const { return this->input_buffer_size_; }
+    incoming_item_type & input_buffer(size_t index) const { return this->input_buffer_[index];}
+    
     void error(const service_provider & sp, std::exception_ptr ex)
     {
       this->common_data_->step_error(sp, context_type::INDEX, ex);
@@ -652,9 +677,13 @@ namespace vds {
     common_data_type * common_data_;
     bool waiting_push_data_;
     
-  protected:
     incoming_item_type * input_buffer_;
     size_t input_buffer_size_;
+    
+  protected:
+    incoming_item_type * input_buffer() const { return this->input_buffer_; }
+    size_t input_buffer_size() const { return this->input_buffer_size_; }
+    incoming_item_type & input_buffer(size_t index) const { return this->input_buffer_[index];}
     
     bool processed(const service_provider & sp, size_t written)
     {
@@ -1333,10 +1362,9 @@ namespace vds {
       size_t sync_get_data(const vds::service_provider & sp)
       {
         size_t count = 0;
-        while(0 < this->count_ && 0 < this->output_buffer_size_){
-          *this->output_buffer_++ = *this->data_++;
+        while(0 < this->count_ && count < this->output_buffer_size()){
+          this->output_buffer(count) = *this->data_++;
           this->count_--;
-          this->output_buffer_size_--;
           ++count;
         }
           

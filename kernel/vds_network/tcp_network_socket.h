@@ -60,7 +60,7 @@ namespace vds {
         this->reader_ = args.create_reader(
           [this](const vds::service_provider & sp, size_t readed) {
           if (this->processed(sp, readed)) {
-            read_async(sp, this->reader_, this->output_buffer_, this->output_buffer_size_);
+            read_async(sp, this->reader_, this->output_buffer(), this->output_buffer_size());
           }
         },
           [this](const vds::service_provider & sp, std::exception_ptr ex) {
@@ -75,7 +75,7 @@ namespace vds {
       
       void async_get_data(const vds::service_provider & sp)
       {
-        read_async(sp, this->reader_, this->output_buffer_, this->output_buffer_size_);
+        read_async(sp, this->reader_, this->output_buffer(), this->output_buffer_size());
       }
       
     private:
@@ -125,7 +125,7 @@ namespace vds {
         this->writer_ = args.create_writer(
           [this](const vds::service_provider & sp, size_t written) {
           if (this->processed(sp, written)) {
-            write_async(sp, this->writer_, this->input_buffer_, this->input_buffer_size_);
+            write_async(sp, this->writer_, this->input_buffer(), this->input_buffer_size());
           }
         },
           [this](const vds::service_provider & sp, std::exception_ptr ex) {
@@ -140,7 +140,7 @@ namespace vds {
       
       void async_push_data(const vds::service_provider & sp)
       {
-        write_async(sp, this->writer_, this->input_buffer_, this->input_buffer_size_);
+        write_async(sp, this->writer_, this->input_buffer(), this->input_buffer_size());
       }
       
     private:

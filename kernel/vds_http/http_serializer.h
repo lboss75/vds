@@ -27,44 +27,54 @@ namespace vds {
       handler(
         const context_type & context,
         const http_serializer & args)
-        : base_class(context), eof_(false)
+        : base_class(context), state_(StateEnum::STATE_BOF)
       {
       }
 
       void async_process_data(const service_provider & sp)
       {
-        if (0 == this->input_buffer_size_) {
-          this->eof_ = true;
+        if (0 == this->input_buffer_size()) {
+          this->state_ = StateEnum::STATE_EOF;
           this->processed(sp, 0, 0);
           return;
         }
+        
+        if(StateEnum::STATE_BOF == this->state_){
+          this->state_ = StateEnum::STATE_BODY;
 
-        auto message = this->input_buffer_[0];
-        mt_service::async(sp, [this, sp, message]() {
+          auto message = this->input_buffer(0);
+          mt_service::async(sp, [this, sp, message]() {
 
-          std::stringstream stream;
-          for (auto & header : message->headers()) {
-            stream << header << "\n";
-          }
-          stream << "\n";
+            std::stringstream stream;
+            for (auto & header : message->headers()) {
+              stream << header << "\n";
+            }
+            stream << "\n";
 
-          auto data = std::make_shared<std::string>(stream.str());
-          this->buffer_.write_all_async(sp, (const uint8_t *)data->c_str(), data->length()).wait(
-            [this, data, message](const service_provider & sp) {
-            auto buffer = std::make_shared<std::vector<uint8_t>>(1024);
-            this->write_body(sp, message, buffer);
-          },
-            [this, data, message](const service_provider & sp, std::exception_ptr ex) {
-            this->error(sp, ex);
-          },
-            sp);
-        });
-
+            auto data = std::make_shared<std::string>(stream.str());
+            this->buffer_.write_all_async(sp, (const uint8_t *)data->c_str(), data->length()).wait(
+              [this, data, message](const service_provider & sp) {
+              auto buffer = std::make_shared<std::vector<uint8_t>>(1024);
+              this->write_body(sp, message, buffer);
+            },
+              [this, data, message](const service_provider & sp, std::exception_ptr ex) {
+              this->error(sp, ex);
+            },
+              sp);
+          });
+        }
+        
         this->continue_process(sp);
       }
 
     private:
-      bool eof_;
+      enum class StateEnum
+      {
+        STATE_BOF,
+        STATE_BODY,
+        STATE_EOF
+      };
+      StateEnum state_;
       async_stream<uint8_t> buffer_;
 
       void write_body(
@@ -100,7 +110,7 @@ namespace vds {
 
       void continue_process(const service_provider & sp)
       {
-        this->buffer_.read_async(sp, this->output_buffer_, this->output_buffer_size_).wait(
+        this->buffer_.read_async(sp, this->output_buffer(), this->output_buffer_size()).wait(
           [this](const service_provider & sp, size_t readed) {
 
           if (0 < readed) {
@@ -109,8 +119,9 @@ namespace vds {
             }
           }
           else {
+            this->state_ = StateEnum::STATE_BOF;
             if (this->processed(sp, 1, 0)) {
-              this->continue_process(sp);
+              this->async_process_data(sp);
             }
           }
         },
