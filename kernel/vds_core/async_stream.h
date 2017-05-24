@@ -22,6 +22,18 @@ namespace vds {
     {
     }
 
+    async_task<> write_all_async(const service_provider & sp, const item_type * data, size_t data_size)
+    {
+      return create_async_task(
+        [this, data, data_size](
+          const std::function<void(const service_provider & sp)> & done,
+          const error_handler & on_error,
+          const service_provider & sp) {
+          
+          this->write_all(sp, done, data, data_size);
+        });
+    }
+    
     async_task<size_t> write_async(const service_provider & sp, const item_type * data, size_t data_size)
     {
       return create_async_task(
@@ -73,7 +85,7 @@ namespace vds {
     void continue_write(
       const service_provider & sp,
       const std::function<void(const service_provider & sp, size_t len)> & done,
-      const void * data,
+      const item_type * data,
       size_t data_size)
     {
       std::unique_lock<std::mutex> lock(this->buffer_mutex_);
@@ -118,11 +130,27 @@ namespace vds {
         this->continue_write_ = std::bind(&async_stream::continue_write, this, sp, done, data, data_size);
       }
     }
+    
+    void write_all(
+      const service_provider & sp,
+      const std::function<void(const service_provider & sp)> & done,
+      const item_type * data,
+      size_t data_size)
+    {
+      this->continue_write(sp, [this, done, data, data_size](const service_provider & sp, size_t len){
+        if(len == data_size){
+          done(sp);
+        }
+        else {
+          this->write_all(sp, done, data + len, data_size - len);
+        }
+      }, data, data_size);
+    }
 
     void continue_read(
       const service_provider & sp,
       const std::function<void(const service_provider & sp, size_t readed)> & done,
-      void * buffer,
+      item_type * buffer,
       size_t buffer_size)
     {
       std::unique_lock<std::mutex> lock(this->buffer_mutex_);

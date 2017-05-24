@@ -39,10 +39,10 @@ TEST(test_vds_crypto, test_symmetric)
       vds::barrier b;
       std::exception_ptr error;
       dataflow(
-        random_reader(buffer.get(), (int)len),
+        random_reader<uint8_t>(buffer.get(), (int)len),
         vds::symmetric_encrypt(key),
         vds::symmetric_decrypt(key),
-        compare_data(buffer.get(), (int)len)
+        compare_data<uint8_t>(buffer.get(), (int)len)
       )(
         [&b](const vds::service_provider &) {b.set(); },
         [&b, &error](const vds::service_provider &, std::exception_ptr ex) {
@@ -128,7 +128,7 @@ TEST(test_vds_crypto, test_sign)
 
     vds::const_data_buffer sign;
     vds::dataflow(
-      random_reader(buffer.get(), (int)len),
+      random_reader<uint8_t>(buffer.get(), (int)len),
       vds::asymmetric_sign(vds::hash::sha256(), key, sign))
       (
         [&sign](const vds::service_provider & sp) { },
@@ -140,7 +140,7 @@ TEST(test_vds_crypto, test_sign)
 
     
     vds::dataflow(
-      random_reader(buffer.get(), (int)len),
+      random_reader<uint8_t>(buffer.get(), (int)len),
       vds::asymmetric_sign_verify(vds::hash::sha256(), pkey, sign))
       (
         [](const vds::service_provider & sp) { },
@@ -159,7 +159,7 @@ TEST(test_vds_crypto, test_sign)
     vds::barrier b;
     std::exception_ptr error;
     vds::dataflow(
-      random_reader(buffer.get(), (int)len),
+      random_reader<uint8_t>(buffer.get(), (int)len),
       vds::asymmetric_sign_verify(vds::hash::sha256(), pkey, sign))
       (
         [&b](const vds::service_provider & sp) { b.set(); },

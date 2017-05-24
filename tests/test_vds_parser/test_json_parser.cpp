@@ -39,11 +39,15 @@ static const char test_data[] =
 class test_json_parser_validate
 {
 public:
+  
+  using incoming_item_type = vds::json_value;
+  static constexpr size_t BUFFER_SIZE = 1024;
+  static constexpr size_t MIN_BUFFER_SIZE = 1;
 
   template<typename context_type>
-  class handler : public vds::dataflow_step<context_type, bool(void)>
+  class handler : public vds::sync_dataflow_target<context_type, handler<context_type>>
   {
-    using base_class = vds::dataflow_step<context_type, bool(void)>;
+    using base_class = vds::sync_dataflow_target<context_type, handler<context_type>>;
   public:
     handler(
       const context_type & context,
@@ -52,9 +56,9 @@ public:
     {
     }
 
-    bool operator()(const vds::service_provider & sp, vds::json_value * root)
+    size_t sync_push_data(const vds::service_provider & sp)
     {
-      auto root_object = dynamic_cast<vds::json_object *>(root);
+      auto root_object = dynamic_cast<vds::json_object *>(this->input_buffer_[0]);
       if(nullptr == root_object) {
         throw std::runtime_error("Test test");
       }
@@ -105,14 +109,13 @@ public:
 
 TEST(test_json_parser, test_parser) {
   vds::dataflow(
+    vds::dataflow_arguments<uint8_t>((const uint8_t *)test_data, sizeof(test_data) - 1),
     vds::json_parser("test"),
     test_json_parser_validate()
   )
   (
     [](const vds::service_provider & /*sp*/) {},
     [](const vds::service_provider & /*sp*/, std::exception_ptr ex) { FAIL() << vds::exception_what(ex); },
-    *(vds::service_provider *)nullptr,
-   (const char *)test_data,
-   sizeof(test_data) - 1
+    *(vds::service_provider *)nullptr
   );
 }
