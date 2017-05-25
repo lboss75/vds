@@ -114,12 +114,12 @@ namespace vds {
 
       size_t sync_push_data(const vds::service_provider & sp)
       {
-        if (0 == this->input_buffer_size_) {
+        if (0 == this->input_buffer_size()) {
           data_final(this->impl_, this->signature_);
           return 0;
         }
         else {
-          data_update(this->impl_, this->input_buffer_, this->input_buffer_size_);
+          data_update(this->impl_, this->input_buffer(), this->input_buffer_size());
           return this->input_buffer_size_;
         }
       }
