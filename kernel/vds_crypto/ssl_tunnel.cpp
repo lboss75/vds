@@ -27,6 +27,36 @@ vds::ssl_tunnel::~ssl_tunnel()
   delete this->impl_;
 }
 
+bool vds::ssl_tunnel::is_client() const
+{
+  return this->impl_->is_client();
+}
+
+std::shared_ptr<vds::async_stream<uint8_t>> vds::ssl_tunnel::crypted_input()
+{
+  return this->impl_->crypted_input();
+}
+
+std::shared_ptr<vds::async_stream<uint8_t>> vds::ssl_tunnel::crypted_output()
+{
+  return this->impl_->crypted_output();
+}
+
+std::shared_ptr<vds::async_stream<uint8_t>> vds::ssl_tunnel::decrypted_input()
+{
+  return this->impl_->decrypted_input();
+}
+
+std::shared_ptr<vds::async_stream<uint8_t>> vds::ssl_tunnel::decrypted_output()
+{
+  return this->impl_->decrypted_output();
+}
+
+void vds::ssl_tunnel::start(const service_provider & sp)
+{
+  this->impl_->start(sp);
+}
+
 ////////////////////////////////////////////////////////////////
 vds::_ssl_tunnel::_ssl_tunnel(
   ssl_tunnel * owner,
@@ -35,10 +65,16 @@ vds::_ssl_tunnel::_ssl_tunnel(
   const asymmetric_private_key * key)
 : owner_(owner),
   is_client_(is_client),
+  crypted_input_(new async_stream<uint8_t>()),
+  crypted_output_(new async_stream<uint8_t>()),
+  decrypted_input_(new async_stream<uint8_t>()),
+  decrypted_output_(new async_stream<uint8_t>()),
   crypted_output_data_size_(0),
   crypted_input_data_size_(0),
   decrypted_output_data_size_(0),
   decrypted_input_data_size_(0),
+  crypted_input_eof_(false),
+  decrypted_input_eof_(false),
   work_circle_continue_(false),
   work_circle_started_(false)
 {

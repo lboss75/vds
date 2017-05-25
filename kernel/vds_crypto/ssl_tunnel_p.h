@@ -29,74 +29,58 @@ namespace vds {
 
     certificate get_peer_certificate() const;
 
-    void set_async_push_crypted_handler(
-      const std::function<void(const vds::service_provider & sp, size_t readed)> & handler)
-    {
-      this->async_push_crypted_handler_ = handler;
-    }
+    std::shared_ptr<async_stream<uint8_t>> crypted_input() const { return this->crypted_input_; }
+    std::shared_ptr<async_stream<uint8_t>> crypted_output() const { return this->crypted_output_; }
 
-    void push_crypted(
-      const vds::service_provider & sp,
-      const uint8_t * buffer,
-      size_t buffer_size)
+    std::shared_ptr<async_stream<uint8_t>> decrypted_input() const { return this->decrypted_input_; }
+    std::shared_ptr<async_stream<uint8_t>> decrypted_output() const { return this->decrypted_output_; }
+
+    void start(const service_provider & sp)
     {
-      this->crypted_input_data_ = buffer;
-      this->crypted_input_data_size_ = buffer_size;
+      this->crypted_input_->read_async(sp, this->crypted_input_data_, sizeof(this->crypted_input_data_))
+        .wait([this](const service_provider & sp, size_t readed) {
+        if (0 < readed) {
+          this->work_circle_mutex_.lock();
+          this->crypted_input_data_size_ = readed;
+          this->work_circle_mutex_.unlock();
+
+          this->start_work_circle(sp);
+        }
+        else {
+          this->work_circle_mutex_.lock();
+          this->crypted_input_eof_ = true;
+          this->work_circle_mutex_.unlock();
+
+          this->start_work_circle(sp);
+        }
+      },
+          [this](const service_provider & sp, std::exception_ptr ex) {
+      },
+        sp);
+
+      this->decrypted_input_->read_async(sp, this->decrypted_input_data_, sizeof(this->decrypted_input_data_))
+        .wait([this](const service_provider & sp, size_t readed) {
+        if (0 < readed) {
+          this->work_circle_mutex_.lock();
+          this->decrypted_input_data_size_ = readed;
+          this->work_circle_mutex_.unlock();
+
+          this->start_work_circle(sp);
+        }
+        else {
+          this->work_circle_mutex_.lock();
+          this->decrypted_input_eof_ = true;
+          this->work_circle_mutex_.unlock();
+
+          this->start_work_circle(sp);
+        }
+      },
+          [this](const service_provider & sp, std::exception_ptr ex) {
+      },
+        sp);
 
       this->start_work_circle(sp);
     }
-
-    void set_async_get_crypted_handler(
-      const std::function<void(const vds::service_provider & sp, size_t written)> & handler)
-    {
-      this->async_get_crypted_handler_ = handler;
-    }
-
-    void get_crypted(
-      const vds::service_provider & sp,
-      uint8_t * buffer,
-      size_t buffer_size)
-    {
-      this->crypted_output_data_ = buffer;
-      this->crypted_output_data_size_ = buffer_size;
-
-      this->start_work_circle(sp);
-    }
-
-    void set_async_push_decrypted_handler(
-      const std::function<void(const vds::service_provider & sp, size_t readed)> & handler)
-    {
-      this->async_push_decrypted_handler_ = handler;
-    }
-
-    void push_decrypted(
-      const vds::service_provider & sp,
-      const uint8_t * buffer,
-      size_t buffer_size)
-    {
-      this->decrypted_input_data_ = buffer;
-      this->decrypted_input_data_size_ = buffer_size;
-
-      this->start_work_circle(sp);
-    }
-
-    void set_async_get_decrypted_handler(
-      const std::function<void(const vds::service_provider & sp, size_t written)> & handler)
-    {
-      this->async_get_decrypted_handler_ = handler;
-    }
-
-    void get_decrypted(
-      const vds::service_provider & sp,
-      uint8_t * buffer,
-      size_t buffer_size)
-    {
-      this->decrypted_output_data_ = buffer;
-      this->decrypted_output_data_size_ = buffer_size;
-
-      this->start_work_circle(sp);
-    }
-
 
   private:
     SSL_CTX *ssl_ctx_;
@@ -107,32 +91,36 @@ namespace vds {
     ssl_tunnel * owner_;
     bool is_client_;
 
-    uint8_t * crypted_output_data_;
+    uint8_t crypted_output_data_[1024];
     size_t crypted_output_data_size_;
 
-    const uint8_t * crypted_input_data_;
+    uint8_t crypted_input_data_[1024];
     size_t crypted_input_data_size_;
 
-
-    uint8_t * decrypted_output_data_;
+    uint8_t decrypted_output_data_[1024];
     size_t decrypted_output_data_size_;
 
-    const uint8_t * decrypted_input_data_;
+    uint8_t decrypted_input_data_[1024];
     size_t decrypted_input_data_size_;
+
+    bool crypted_input_eof_;
+    bool decrypted_input_eof_;
 
     std::mutex work_circle_mutex_;
     bool work_circle_continue_;
     bool work_circle_started_;
 
-    std::function<void(const vds::service_provider & sp, size_t readed)> async_push_crypted_handler_;
-    std::function<void(const vds::service_provider & sp, size_t written)> async_get_crypted_handler_;
-    std::function<void(const vds::service_provider & sp, size_t readed)> async_push_decrypted_handler_;
-    std::function<void(const vds::service_provider & sp, size_t written)> async_get_decrypted_handler_;
+    std::shared_ptr<async_stream<uint8_t>> crypted_input_;
+    std::shared_ptr<async_stream<uint8_t>> crypted_output_;
+
+    std::shared_ptr<async_stream<uint8_t>> decrypted_input_;
+    std::shared_ptr<async_stream<uint8_t>> decrypted_output_;
 
     void start_work_circle(const service_provider & sp)
     {
       this->work_circle_mutex_.lock();
       if (!this->work_circle_started_) {
+        this->work_circle_started_ = true;
         imt_service::async(sp, [this, sp]() {
           this->work_circle(sp);
         });
@@ -160,13 +148,33 @@ namespace vds {
             }
           }
           else {
+            assert(bytes == this->crypted_input_data_size_);
             this->crypted_input_data_size_ = 0;
 
             this->work_circle_mutex_.lock();
             this->work_circle_continue_ = true;
             this->work_circle_mutex_.unlock();
 
-            this->async_push_crypted_handler_(sp, (size_t)bytes);
+            this->crypted_input_->read_async(sp, this->crypted_input_data_, sizeof(this->crypted_input_data_))
+              .wait([this](const service_provider & sp, size_t readed) {
+                if (0 < readed) {
+                  this->work_circle_mutex_.lock();
+                  this->crypted_input_data_size_ = readed;
+                  this->work_circle_mutex_.unlock();
+
+                  this->start_work_circle(sp);
+                }
+                else {
+                  this->work_circle_mutex_.lock();
+                  this->crypted_input_eof_ = true;
+                  this->work_circle_mutex_.unlock();
+
+                  this->start_work_circle(sp);
+                }
+              },
+                [this](const service_provider & sp, std::exception_ptr ex) {
+              },
+                sp);
           }
         }
 
@@ -186,18 +194,38 @@ namespace vds {
             }
           }
           else {
+            assert(bytes == this->decrypted_input_data_size_);
             this->decrypted_input_data_size_ = 0;
 
             this->work_circle_mutex_.lock();
             this->work_circle_continue_ = true;
             this->work_circle_mutex_.unlock();
 
-            this->async_push_decrypted_handler_(sp, (size_t)bytes);
+            this->decrypted_input_->read_async(sp, this->decrypted_input_data_, sizeof(this->decrypted_input_data_))
+              .wait([this](const service_provider & sp, size_t readed) {
+              if (0 < readed) {
+                this->work_circle_mutex_.lock();
+                this->decrypted_input_data_size_ = readed;
+                this->work_circle_mutex_.unlock();
+
+                this->start_work_circle(sp);
+              }
+              else {
+                this->work_circle_mutex_.lock();
+                this->decrypted_input_eof_ = true;
+                this->work_circle_mutex_.unlock();
+
+                this->start_work_circle(sp);
+              }
+            },
+                [this](const service_provider & sp, std::exception_ptr ex) {
+            },
+              sp);
           }
         }
 
-        if (0 < decrypted_output_data_size_) {
-          int bytes = SSL_read(this->ssl_, this->decrypted_output_data_, (int)this->decrypted_output_data_size_);
+        if (0 == decrypted_output_data_size_) {
+          int bytes = SSL_read(this->ssl_, this->decrypted_output_data_, (int)sizeof(this->decrypted_output_data_));
           if (bytes <= 0) {
             int ssl_error = SSL_get_error(this->ssl_, bytes);
             switch (ssl_error) {
@@ -213,18 +241,28 @@ namespace vds {
             }
           }
           else {
-            this->decrypted_output_data_size_ = 0;
+            this->decrypted_output_data_size_ = bytes;
 
             this->work_circle_mutex_.lock();
             this->work_circle_continue_ = true;
             this->work_circle_mutex_.unlock();
 
-            this->async_get_decrypted_handler_(sp, (size_t)bytes);
+            this->decrypted_output_->write_all_async(sp, this->decrypted_output_data_, (size_t)bytes)
+              .wait([this](const service_provider & sp) {
+              this->work_circle_mutex_.lock();
+              this->decrypted_output_data_size_ = 0;
+              this->work_circle_mutex_.unlock();
+
+              this->start_work_circle(sp);
+            },
+                [this](const service_provider & sp, std::exception_ptr ex) {
+            },
+              sp);
           }
         }
 
-        if (0 < this->crypted_output_data_size_ && BIO_pending(this->output_bio_)) {
-          int bytes = BIO_read(this->output_bio_, this->crypted_output_data_, (int)this->crypted_output_data_size_);
+        if (0 == this->crypted_output_data_size_ && BIO_pending(this->output_bio_)) {
+          int bytes = BIO_read(this->output_bio_, this->crypted_output_data_, (int)sizeof(this->crypted_output_data_));
           if (bytes <= 0) {
             int ssl_error = SSL_get_error(this->ssl_, bytes);
             switch (ssl_error) {
@@ -239,28 +277,57 @@ namespace vds {
             }
           }
           else {
-            this->crypted_output_data_size_ = 0;
+            this->crypted_output_data_size_ = (size_t)bytes;
 
             this->work_circle_mutex_.lock();
             this->work_circle_continue_ = true;
             this->work_circle_mutex_.unlock();
 
-            this->async_get_crypted_handler_(sp, (int)bytes);
+            this->crypted_output_->write_all_async(sp, this->crypted_output_data_, (size_t)bytes)
+              .wait([this](const service_provider & sp) {
+              this->work_circle_mutex_.lock();
+              this->crypted_output_data_size_ = 0;
+              this->work_circle_mutex_.unlock();
+
+              this->start_work_circle(sp);
+            },
+                [this](const service_provider & sp, std::exception_ptr ex) {
+            },
+              sp);
           }
         }
 
         this->work_circle_mutex_.lock();
         if (!this->work_circle_continue_) {
           this->work_circle_started_ = false;
+
+          if (this->decrypted_input_eof_ && this->crypted_output_) {
+            auto tmp = this->crypted_output_;
+            this->crypted_output_.reset();
+
+            tmp->write_all_async(sp, nullptr, 0)
+              .wait([this](const service_provider & sp) {},
+                [this](const service_provider & sp, std::exception_ptr ex) {},
+                sp);
+          }
+
+          if (this->crypted_input_eof_ && this->decrypted_output_) {
+            auto tmp = this->decrypted_output_;
+            this->decrypted_output_.reset();
+
+            tmp->write_all_async(sp, nullptr, 0)
+              .wait(
+                [this](const service_provider & sp) {},
+                [this](const service_provider & sp, std::exception_ptr ex) {},
+                sp);
+          }
+
           this->work_circle_mutex_.unlock();
           break;
         }
         this->work_circle_mutex_.unlock();
       }
     }
-
-    void input_stream_processed(const service_provider & sp);
-    void output_stream_processed(const service_provider & sp);
   };
 }
 

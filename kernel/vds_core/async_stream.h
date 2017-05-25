@@ -309,7 +309,7 @@ namespace vds {
       
       void continue_push_data(const service_provider & sp)
       {
-        this->stream_->write_async(sp, this->input_buffer_, this->input_buffer_size_)
+        this->stream_->write_async(sp, this->input_buffer(), this->input_buffer_size())
         .wait(
           [this](const service_provider & sp, size_t written){
             if(this->processed(sp, written)){
