@@ -41,6 +41,7 @@ namespace vds {
     {
 #ifdef _WIN32
       if (INVALID_SOCKET != this->s_) {
+        shutdown(this->s_, SD_BOTH);
         closesocket(this->s_);
         this->s_ = INVALID_SOCKET;
       }

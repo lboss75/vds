@@ -182,14 +182,29 @@ TEST(http_tests, test_https_server)
           vds::dataflow(
             vds::read_tcp_network_socket(s),
             vds::stream_write<uint8_t>(client_crypto_tunnel->crypted_input())
-          )(done, on_error, sp.create_scope("Server SSL Input"));
+          )([done](const vds::service_provider & sp) {
+            sp.get<vds::logger>()->debug(sp, "Client crypted input closed");
+            done(sp);
+          },
+            [on_error](const vds::service_provider & sp, std::exception_ptr ex) {
+            sp.get<vds::logger>()->debug(sp, "Client crypted input error");
+            on_error(sp, ex);
+          },
+            sp.create_scope("Client SSL Input"));
         }),
         vds::create_async_task(
           [s, client_crypto_tunnel](const std::function<void(const vds::service_provider & sp)> & done, const vds::error_handler & on_error, const vds::service_provider & sp) {
           vds::dataflow(
             vds::stream_read<uint8_t>(client_crypto_tunnel->crypted_output()),
             vds::write_tcp_network_socket(s)
-          )(done, on_error, sp.create_scope("Server SSL Output"));
+          )([done](const vds::service_provider & sp) {
+            sp.get<vds::logger>()->debug(sp, "Client crypted output closed");
+            done(sp);
+          },
+            [on_error](const vds::service_provider & sp, std::exception_ptr ex) {
+            sp.get<vds::logger>()->debug(sp, "Client crypted output error");
+            on_error(sp, ex);
+          }, sp.create_scope("Client SSL Output"));
         }),
         vds::create_async_task(
           [s, &requests, client_crypto_tunnel](const std::function<void(const vds::service_provider & sp)> & done, const vds::error_handler & on_error, const vds::service_provider & sp) {
@@ -255,8 +270,14 @@ TEST(http_tests, test_https_server)
     client_crypto_tunnel->start(sp);
   })
     .wait(
-      [&b](const vds::service_provider & sp) { sp.get<vds::logger>()->debug(sp, "Request sent"); b.set(); },
-      [&b](const vds::service_provider & sp, std::exception_ptr ex) { sp.get<vds::logger>()->debug(sp, "Request error"); b.set(); },
+      [&b](const vds::service_provider & sp) {
+        sp.get<vds::logger>()->debug(sp, "Request sent");
+        b.set();
+      },
+      [&b](const vds::service_provider & sp, std::exception_ptr ex) {
+        sp.get<vds::logger>()->debug(sp, "Request error");
+        b.set();
+      },
       sp.create_scope("Client"));
 
   b.wait();

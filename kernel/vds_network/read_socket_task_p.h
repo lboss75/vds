@@ -113,7 +113,7 @@ namespace vds {
 
     void error(DWORD error_code) override
     {
-      if (ERROR_NETNAME_DELETED == error_code) {
+      if (ERROR_NETNAME_DELETED == error_code || ERROR_OPERATION_ABORTED == error_code) {
         this->process(0);
       }
       else {
