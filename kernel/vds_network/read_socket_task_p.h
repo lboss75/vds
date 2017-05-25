@@ -110,6 +110,17 @@ namespace vds {
         (size_t)dwBytesTransfered
       );
     }
+
+    void error(DWORD error_code) override
+    {
+      if (ERROR_NETNAME_DELETED == error_code) {
+        this->process(0);
+      }
+      else {
+        this->error_method_(this->sp_, std::make_exception_ptr(std::system_error(error_code, std::system_category(), "read from tcp socket")));
+      }
+    }
+
 #else//!_WIN32
     static void callback(int fd, short event, void *arg)
     {

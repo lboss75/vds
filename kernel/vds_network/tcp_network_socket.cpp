@@ -24,13 +24,13 @@ vds::tcp_network_socket::~tcp_network_socket()
 {  
 }
 
-vds::async_task< vds::tcp_network_socket > vds::tcp_network_socket::connect(
+vds::async_task< vds::tcp_network_socket && > vds::tcp_network_socket::connect(
   const vds::service_provider& sp,
   const std::string & server,
   const uint16_t port)
 {
   return create_async_task([server, port](
-    const std::function<void(const service_provider & sp, tcp_network_socket)> & done,
+    const std::function<void(const service_provider & sp, tcp_network_socket &&)> & done,
     const error_handler & on_error,
     const service_provider & sp){
       auto s = std::make_shared<_tcp_network_socket>(
@@ -69,6 +69,11 @@ vds::async_task< vds::tcp_network_socket > vds::tcp_network_socket::connect(
 #endif
       done(sp, tcp_network_socket(s));
     });
+}
+
+void vds::tcp_network_socket::close()
+{
+  this->impl_->close();
 }
 
 vds::_read_socket_task * vds::read_tcp_network_socket::create_reader(

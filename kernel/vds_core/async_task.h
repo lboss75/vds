@@ -8,6 +8,7 @@ All rights reserved
 #include "types.h"
 #include <memory>
 #include <atomic>
+#include <list>
 
 #include "func_utils.h"
 #include "service_provider.h"
@@ -224,7 +225,7 @@ namespace vds {
       p->wait(
         [next_method, done, on_error](const vds::service_provider & sp, arguments_types... args) {
         try {
-          next_method(done, on_error, sp, args...);
+          next_method(done, on_error, sp, std::forward<arguments_types>(args)...);
         }
         catch (...) {
           on_error(sp, std::current_exception());
@@ -245,35 +246,35 @@ namespace vds {
     {
     }
     
-    void run(std::initializer_list<async_task<>> args)
+    void run(const std::list<async_task<>> & args)
     {
-      for(auto arg : args) {
+      for (auto arg : args) {
         arg.wait(
           [this](const service_provider & sp) {
-            if(0 == --this->count_){
-              if(this->error_){
-                this->on_error_(sp, this->error_);
-              }
-              else {
-                this->done_(sp);
-              }
-              delete this;
+          if (0 == --this->count_) {
+            if (this->error_) {
+              this->on_error_(sp, this->error_);
             }
-          },
+            else {
+              this->done_(sp);
+            }
+            delete this;
+          }
+        },
           [this](const service_provider & sp, std::exception_ptr ex) {
-            if(!this->error_){
-              this->error_ = ex;
+          if (!this->error_) {
+            this->error_ = ex;
+          }
+          if (0 == --this->count_) {
+            if (this->error_) {
+              this->on_error_(sp, this->error_);
             }
-            if(0 == --this->count_){
-              if(this->error_){
-                this->on_error_(sp, this->error_);
-              }
-              else {
-                this->done_(sp);
-              }
-              delete this;
+            else {
+              this->done_(sp);
             }
-          },
+            delete this;
+          }
+        },
           this->sp_);
       }
     }
@@ -286,12 +287,21 @@ namespace vds {
     std::exception_ptr error_;
   };
   
-  inline async_task<> async_series(std::initializer_list<async_task<>> args)
+  template <typename... task_types>
+  inline void _empty_fake(task_types... args)
   {
+  }
+
+
+  template <typename... task_types>
+  inline async_task<> async_series(task_types... args)
+  {
+    auto steps = new std::list<async_task<>>({ args... });
     return create_async_task<>(
-      [args](const std::function<void(const service_provider & sp)> & done, const error_handler & on_error, const service_provider & sp){
-        auto runner = new _async_series(done, on_error, sp, args.size());
-        runner->run(args);
+      [steps](const std::function<void(const service_provider & sp)> & done, const error_handler & on_error, const service_provider & sp){
+        auto runner = new _async_series(done, on_error, sp, steps->size());
+        runner->run(*steps);
+        delete steps;
       });
   }
 }

@@ -23,20 +23,21 @@ namespace vds {
     {
 #ifdef _WIN32
       if (INVALID_SOCKET == s) {
-        auto error = WSAGetLastError();
-        throw std::system_error(error, std::system_category(), "create socket");
-      }
 #else
       if (s < 0) {
-        auto error = errno;
-        throw std::system_error(error, std::system_category(), "create socket");
-      }
 #endif
+        throw std::runtime_error("Invalid socket handle");
+      }
     }
 
     _tcp_network_socket(const _tcp_network_socket &) = delete;
 
     ~_tcp_network_socket()
+    {
+      this->close();
+    }
+
+    void close()
     {
 #ifdef _WIN32
       if (INVALID_SOCKET != this->s_) {

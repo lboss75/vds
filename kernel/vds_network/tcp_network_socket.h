@@ -20,12 +20,14 @@ namespace vds {
     tcp_network_socket();
     ~tcp_network_socket();
     
-    static async_task<tcp_network_socket> connect(
+    static async_task<tcp_network_socket &&> connect(
       const service_provider & sp,
       const std::string & server,
       const uint16_t port);
     
     _tcp_network_socket * operator -> () const { return this->impl_.get(); }
+
+    void close();
     
   private:
     friend class _tcp_network_socket;

@@ -18,6 +18,7 @@ namespace vds {
     
 #ifdef _WIN32
     virtual void process(DWORD dwBytesTransfered) = 0;
+    virtual void error(DWORD error_code) = 0;
 
     static _socket_task * from_overlapped(OVERLAPPED * pOverlapped) {
         return reinterpret_cast<_socket_task *>((uint8_t *)pOverlapped - offsetof(_socket_task, overlapped_));

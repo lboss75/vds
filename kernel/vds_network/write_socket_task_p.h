@@ -112,6 +112,11 @@ namespace vds {
         this->error_method_(this->sp_, std::current_exception());
       }
     }
+    void error(DWORD error_code) override
+    {
+      this->error_method_(this->sp_, std::make_exception_ptr(std::system_error(error_code, std::system_category(), "write to tcp socket")));
+    }
+
 #else//!_WIN32
     static void callback(int fd, short event, void *arg)
     {

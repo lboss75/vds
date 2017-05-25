@@ -37,7 +37,7 @@ namespace vds {
       handler(
         const context_type & context,
         const http_parser & args)
-      : base_class(context),
+        : base_class(context),
         message_callback_(args.message_callback_),
         state_(StateEnum::STATE_PARSE_HEADER)
       {
@@ -63,7 +63,7 @@ namespace vds {
       StateEnum state_;
 
       size_t content_length_;
-      
+
       void continue_push_data(const service_provider & sp, size_t readed)
       {
         while (readed < this->input_buffer_size()) {
@@ -71,7 +71,7 @@ namespace vds {
             char * p = (char *)memchr((const char *)this->input_buffer() + readed, '\n', this->input_buffer_size() - readed);
             if (nullptr == p) {
               this->parse_buffer_ += std::string((const char *)this->input_buffer() + readed, this->input_buffer_size() - readed);
-              if(!this->processed(sp, this->input_buffer_size())){
+              if (!this->processed(sp, this->input_buffer_size())) {
                 return;
               }
               readed = 0;
@@ -94,9 +94,9 @@ namespace vds {
               if (this->headers_.empty()) {
                 throw std::logic_error("Invalid request");
               }
-              
+
               auto current_message = std::make_shared<http_message>(this->headers_);
-              mt_service::async(sp, [sp, this, current_message](){
+              mt_service::async(sp, [sp, this, current_message]() {
                 this->message_callback_(sp, current_message);
               });
               this->current_message_ = current_message;
@@ -127,23 +127,39 @@ namespace vds {
 
             if (0 < size) {
               this->content_length_ -= size;
-              if (0 == this->content_length_) {
-                this->state_ = StateEnum::STATE_PARSE_HEADER;
-              }
-              
               this->current_message_->body()->write_all_async(
                 sp,
                 this->input_buffer() + readed,
                 size)
-              .wait(
-                [this, readed](const service_provider & sp){
-                  if(this->processed(sp, readed)){
+                .wait(
+                  [this, readed = readed + size](const service_provider & sp) {
+
+                if (0 == this->content_length_) {
+                  this->state_ = StateEnum::STATE_PARSE_HEADER;
+                  this->current_message_->body()->write_all_async(
+                    sp,
+                    nullptr,
+                    0)
+                    .wait(
+                      [this, readed](const service_provider & sp) {
+                    if (this->processed(sp, readed)) {
+                      this->continue_push_data(sp, readed);
+                    }
+                  },
+                      [this](const service_provider & sp, std::exception_ptr ex) {
+                    this->error(sp, ex);
+                  },
+                    sp);
+                }
+                else {
+                  if (this->processed(sp, readed)) {
                     this->continue_push_data(sp, readed);
                   }
-                },
-                [this](const service_provider & sp, std::exception_ptr ex){
-                  this->error(sp, ex);
-                },
+                }
+              },
+                  [this](const service_provider & sp, std::exception_ptr ex) {
+                this->error(sp, ex);
+              },
                 sp);
               return;
             }
