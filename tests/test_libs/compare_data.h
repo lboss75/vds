@@ -37,26 +37,26 @@ public:
     size_t sync_push_data(
       const vds::service_provider & sp)
     {
-      if (0 == this->input_buffer_size_) {
+      if (0 == this->input_buffer_size()) {
         if (0 != this->len_) {
           this->error(sp, std::make_exception_ptr(std::runtime_error("compare_data error")));
         }
         return 0;
       }
 
-      if (this->len_ < this->input_buffer_size_) {
+      if (this->len_ < this->input_buffer_size()) {
         this->error(sp, std::make_exception_ptr(std::runtime_error("compare_data error")));
         return 0;
       }
 
-      if (0 != memcmp(this->data_, this->input_buffer_, this->input_buffer_size_)) {
+      if (0 != memcmp(this->data_, this->input_buffer(), this->input_buffer_size())) {
         this->error(sp, std::make_exception_ptr(std::runtime_error("compare_data error")));
       }
 
-      this->data_ += this->input_buffer_size_;
-      this->len_ -= this->input_buffer_size_;
+      this->data_ += this->input_buffer_size();
+      this->len_ -= this->input_buffer_size();
 
-      return this->input_buffer_size_;
+      return this->input_buffer_size();
     }
 
   private:

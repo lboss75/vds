@@ -46,7 +46,7 @@ namespace vds{
     
     ~const_data_buffer()
     {
-      delete this->data_;
+      delete[] this->data_;
     }
     
     const uint8_t * data() const { return this->data_; }
@@ -54,7 +54,7 @@ namespace vds{
     
     void reset(const void * data, size_t len)
     {
-      delete this->data_;
+      delete[] this->data_;
       this->data_ = new uint8_t[len];
       this->len_ = len;
       memcpy(this->data_, data, len);
@@ -62,7 +62,7 @@ namespace vds{
 
     const_data_buffer & operator = (const_data_buffer && other)
     {
-      delete this->data_;
+      delete[] this->data_;
       this->data_ = other.data_;
       this->len_ = other.len_;
       other.data_ = nullptr;

@@ -43,8 +43,8 @@ public:
           const vds::service_provider & sp)
         {
           size_t count = 0;
-          auto p = this->output_buffer_;
-          while(this->written_ < 2000 && count < this->output_buffer_size_){
+          auto p = this->output_buffer();
+          while(this->written_ < 2000 && count < this->output_buffer_size()){
             *p++ = this->written_;
             ++count;
             this->written_++;
@@ -89,16 +89,16 @@ public:
         
         void sync_process_data(const vds::service_provider & sp, size_t & input_readed, size_t & output_written)
         {
-          auto n = (this->input_buffer_size_ < this->output_buffer_size_)
-            ? this->input_buffer_size_
-            : this->output_buffer_size_;
+          auto n = (this->input_buffer_size() < this->output_buffer_size())
+            ? this->input_buffer_size()
+            : this->output_buffer_size();
             
           for(size_t i = 0; i < n; ++i){
-            if (this->offset_++ != this->input_buffer_[i]) {
+            if (this->offset_++ != this->input_buffer(i)) {
               throw std::runtime_error("Login error");
             }
 
-            this->output_buffer_[i] = std::to_string(this->input_buffer_[i]);
+            this->output_buffer(i) = std::to_string(this->input_buffer(i));
           }
             
           input_readed = n;
@@ -146,13 +146,13 @@ public:
         {
           vds::imt_service::async(sp, [this, sp](){
             for(;;){
-              auto n = (this->input_buffer_size_ < this->output_buffer_size_)
-                ? this->input_buffer_size_
-                : this->output_buffer_size_;
+              auto n = (this->input_buffer_size() < this->output_buffer_size())
+                ? this->input_buffer_size()
+                : this->output_buffer_size();
               
               for(size_t i = 0; i < n; ++i, this->offset_++){
-                this->output_buffer_[i] = (this->input_buffer_[i] == std::to_string(this->offset_));
-                if (!this->output_buffer_[i]) {
+                this->output_buffer(i) = (this->input_buffer(i) == std::to_string(this->offset_));
+                if (!this->output_buffer(i)) {
                   throw std::runtime_error("Test error");
                 }
               }
@@ -203,13 +203,13 @@ public:
         size_t sync_push_data(
           const vds::service_provider & sp)
         {
-          for(size_t i = 0; i < this->input_buffer_size_; ++i) {
-            if(true != this->input_buffer_[i]) {
+          for(size_t i = 0; i < this->input_buffer_size(); ++i) {
+            if(true != this->input_buffer(i)) {
               throw std::runtime_error("test failed");
             }
           }
           
-          return this->input_buffer_size_;
+          return this->input_buffer_size();
         }
        
       private:

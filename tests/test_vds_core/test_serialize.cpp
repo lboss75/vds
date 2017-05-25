@@ -12,29 +12,29 @@ TEST(core_tests, test_serialize) {
       size = std::rand();
   }
   
-  std::list<serialize_step *> steps;
+  std::list<std::unique_ptr<serialize_step>> steps;
   for(int i = 0; i < size; ++i){
     switch(std::rand() % 7){
       case 0:
-        steps.push_back(new primitive_serialize_step<uint8_t>());
+        steps.push_back(std::unique_ptr<serialize_step>(new primitive_serialize_step<uint8_t>()));
         break;
       case 1:
-        steps.push_back(new primitive_serialize_step<uint16_t>());
+        steps.push_back(std::unique_ptr<serialize_step>(new primitive_serialize_step<uint16_t>()));
         break;
       case 2:
-        steps.push_back(new primitive_serialize_step<uint32_t>());
+        steps.push_back(std::unique_ptr<serialize_step>(new primitive_serialize_step<uint32_t>()));
         break;
       case 3:
-        steps.push_back(new primitive_serialize_step<uint64_t>());
+        steps.push_back(std::unique_ptr<serialize_step>(new primitive_serialize_step<uint64_t>()));
         break;
       case 4:
-        steps.push_back(new test_write_number());
+        steps.push_back(std::unique_ptr<serialize_step>(new test_write_number()));
         break;
       case 5:
-        steps.push_back(new test_write_string());
+        steps.push_back(std::unique_ptr<serialize_step>(new test_write_string()));
         break;
       case 6:
-        steps.push_back(new test_write_buffer());
+        steps.push_back(std::unique_ptr<serialize_step>(new test_write_buffer()));
         break;
     }
   }

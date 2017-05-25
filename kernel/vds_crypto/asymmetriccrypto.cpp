@@ -490,6 +490,9 @@ vds::_asymmetric_public_key::_asymmetric_public_key(const asymmetric_private_key
 
 vds::_asymmetric_public_key::~_asymmetric_public_key()
 {
+  if(nullptr != this->key_){
+    OPENSSL_free(this->key_);
+  }
 }
 
 

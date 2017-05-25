@@ -40,7 +40,7 @@ public:
     {
       for (;;) {
         size_t n = (size_t)std::rand();
-        if (n < 1 || n > this->output_buffer_size_) {
+        if (n < 1 || n > this->output_buffer_size()) {
           continue;
         }
 
@@ -52,7 +52,7 @@ public:
           return 0;
         }
 
-        std::copy(this->data_, this->data_ + n, this->output_buffer_);
+        std::copy(this->data_, this->data_ + n, this->output_buffer());
 
         this->data_ += n;
         this->len_ -= n;

@@ -25,7 +25,7 @@ TEST(mt_tests, test_async_stream) {
   vds::barrier b;
   std::exception_ptr err;
 
-  vds::async_series({
+  vds::async_series(
     vds::create_async_task(
       [&data, stream](
         const std::function<void(const vds::service_provider & sp)> & done,
@@ -52,7 +52,7 @@ TEST(mt_tests, test_async_stream) {
         });
       }
     )
-  })
+  )
     .wait(
       [&b](const vds::service_provider & sp) {
         b.set();
