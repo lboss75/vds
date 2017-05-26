@@ -39,8 +39,9 @@ namespace vds {
   {
   public:
     read_tcp_network_socket(
-      const tcp_network_socket & s)
-    : s_(s)
+      const tcp_network_socket & s,
+      const cancellation_token & cancel_token)
+    : s_(s), cancel_token_(cancel_token)
     {
     }
     
@@ -57,17 +58,18 @@ namespace vds {
         const context_type & context,
         const read_tcp_network_socket & args)
         : base_class(context),
-        s_(args.s_)
+        s_(args.s_), cancel_token_(args.cancel_token_)
       {
         this->reader_ = args.create_reader(
           [this](const vds::service_provider & sp, size_t readed) {
-          if (this->processed(sp, readed)) {
-            read_async(sp, this->reader_, this->output_buffer(), this->output_buffer_size());
-          }
-        },
+            if (this->processed(sp, readed)) {
+              read_async(sp, this->reader_, this->output_buffer(), this->output_buffer_size());
+            }
+          },
           [this](const vds::service_provider & sp, std::exception_ptr ex) {
           this->error(sp, ex);
-        });
+          },
+          this->cancel_token_);
       }
 
       ~handler()
@@ -82,14 +84,17 @@ namespace vds {
       
     private:
       tcp_network_socket s_;
-      _read_socket_task * reader_;      
+      cancellation_token cancel_token_;
+      _read_socket_task * reader_;
     };
   private:
     tcp_network_socket s_;
+    cancellation_token cancel_token_;
     
     _read_socket_task * create_reader(
       const std::function<void(const service_provider & sp, size_t readed)> & readed_method,
-      const error_handler & error_method) const;
+      const error_handler & error_method,
+      const cancellation_token & cancel_token) const;
       
     static void read_async(
       const service_provider & sp,
@@ -104,8 +109,9 @@ namespace vds {
   {
   public:
     write_tcp_network_socket(
-      const tcp_network_socket & s)
-    : s_(s)
+      const tcp_network_socket & s,
+      const cancellation_token & cancel_token)
+    : s_(s), cancel_token_(cancel_token)
     {
     }
     
@@ -122,7 +128,7 @@ namespace vds {
         const context_type & context,
         const write_tcp_network_socket & args)
         : base_class(context),
-        s_(args.s_)
+        s_(args.s_), cancel_token_(args.cancel_token_)
       {
         this->writer_ = args.create_writer(
           [this](const vds::service_provider & sp, size_t written) {
@@ -132,7 +138,8 @@ namespace vds {
         },
           [this](const vds::service_provider & sp, std::exception_ptr ex) {
           this->error(sp, ex);
-        });
+        },
+          this->cancel_token_);
       }
 
       ~handler()
@@ -147,14 +154,17 @@ namespace vds {
       
     private:
       tcp_network_socket s_;
+      cancellation_token cancel_token_;
       _write_socket_task * writer_;
     };
   private:
     tcp_network_socket s_;
+    cancellation_token cancel_token_;
     
     _write_socket_task * create_writer(
       const std::function<void(const service_provider & sp, size_t written)> & write_method,
-      const error_handler & error_method) const;
+      const error_handler & error_method,
+      const cancellation_token & cancel_token) const;
       
     static void write_async(
       const service_provider & sp,

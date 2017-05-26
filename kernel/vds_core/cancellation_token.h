@@ -34,6 +34,7 @@ namespace vds {
   class cancellation_token
   {
   public:
+    cancellation_token(const cancellation_token &);
     cancellation_token(cancellation_token && );
     ~cancellation_token();
     
@@ -57,7 +58,7 @@ namespace vds {
     
     cancellation_token token() const;
     
-    void cancel();
+    void cancel() const;
 
   private:
     std::shared_ptr<_cancellation_token> impl_;

@@ -27,6 +27,17 @@ void vds::cancellation_subscriber::destroy()
   }
 }
 
+vds::cancellation_token::cancellation_token(
+  const cancellation_token & original
+) : impl_(original.impl_)
+{
+}
+
+vds::cancellation_token::cancellation_token(
+  cancellation_token && original
+) : impl_(std::move(original.impl_))
+{
+}
 
 vds::cancellation_token::cancellation_token(
   const std::shared_ptr< _cancellation_token >& impl)
@@ -60,7 +71,7 @@ vds::cancellation_token_source::~cancellation_token_source()
 }
 
 
-void vds::cancellation_token_source::cancel()
+void vds::cancellation_token_source::cancel() const
 {
   this->impl_->cancel();
 }

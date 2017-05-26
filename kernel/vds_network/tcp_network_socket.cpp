@@ -78,9 +78,10 @@ void vds::tcp_network_socket::close()
 
 vds::_read_socket_task * vds::read_tcp_network_socket::create_reader(
   const std::function< void(const service_provider & sp, size_t readed) >& readed_method,
-  const error_handler& error_method) const
+  const error_handler& error_method,
+  const cancellation_token & cancel_token) const
 {
-  return new _read_socket_task(readed_method, error_method, this->s_->handle());
+  return new _read_socket_task(readed_method, error_method, this->s_->handle(), cancel_token);
 }
 
 void vds::read_tcp_network_socket::read_async(
@@ -100,9 +101,10 @@ void vds::read_tcp_network_socket::destroy_reader(vds::_read_socket_task* reader
 
 vds::_write_socket_task* vds::write_tcp_network_socket::create_writer(
   const std::function< void(const service_provider & sp, size_t written) >& write_method,
-  const error_handler& error_method) const
+  const error_handler& error_method,
+  const cancellation_token & cancel_token) const
 {
-  return new _write_socket_task(write_method, error_method, this->s_->handle());
+  return new _write_socket_task(write_method, error_method, this->s_->handle(), cancel_token);
 }
 
 void vds::write_tcp_network_socket::destroy_writer(vds::_write_socket_task* writer)

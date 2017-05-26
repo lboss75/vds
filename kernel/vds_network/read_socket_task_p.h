@@ -20,18 +20,25 @@ namespace vds {
     _read_socket_task(
       const std::function<void(const service_provider & sp, size_t readed)> & readed_method,
       const error_handler & error_method,
-      SOCKET_HANDLE s)
+      SOCKET_HANDLE s,
+      const cancellation_token & cancel_token)
     : sp_(service_provider::empty()),
       s_(s),
-      readed_method_(readed_method), error_method_(error_method)
+      readed_method_(readed_method),
+      error_method_(error_method),
+      cancel_token_(cancel_token)
 #ifdef _DEBUG
       , is_scheduled_(false)
 #endif // _DEBUG
     {
+      this->cancel_subscriber_ = this->cancel_token_.then_cancellation_requested([this]() {
+        shutdown(this->s_, SD_BOTH);
+      });
     }
 
     ~_read_socket_task()
     {
+      this->cancel_subscriber_.destroy();
 #ifdef _DEBUG
       if (this->is_scheduled_) {
         throw std::runtime_error("");
@@ -59,7 +66,14 @@ namespace vds {
         auto errorCode = WSAGetLastError();
         if (WSA_IO_PENDING != errorCode) {
           this->is_scheduled_ = false;
-          throw std::system_error(errorCode, std::system_category(), "WSARecv failed");
+
+          if (this->cancel_token_.is_cancellation_requested() && (WSAESHUTDOWN == errorCode)) {
+            this->readed_method_(this->sp_, 0);
+          }
+          else {
+            this->error_method_(this->sp_, std::make_exception_ptr(std::system_error(errorCode, std::system_category(), "read from tcp socket")));
+          }
+          return;
         }
       }
 #else//!_WIN32
@@ -84,6 +98,8 @@ namespace vds {
     SOCKET_HANDLE s_;
     std::function<void(const service_provider & sp, size_t readed)> readed_method_;
     error_handler  error_method_;
+    cancellation_token cancel_token_;
+    cancellation_subscriber cancel_subscriber_;
 #ifndef _WIN32
     void * buffer_;
     size_t buffer_size_;
@@ -113,7 +129,7 @@ namespace vds {
 
     void error(DWORD error_code) override
     {
-      if (ERROR_NETNAME_DELETED == error_code || ERROR_OPERATION_ABORTED == error_code) {
+      if (this->cancel_token_.is_cancellation_requested() && (WSAESHUTDOWN == error_code)) {
         this->process(0);
       }
       else {

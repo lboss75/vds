@@ -1,3 +1,6 @@
+#include "..\..\kernel\vds_network\udp_socket.h"
+#include "..\..\kernel\vds_network\udp_socket.h"
+#include "..\..\kernel\vds_network\udp_socket.h"
 /*
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved

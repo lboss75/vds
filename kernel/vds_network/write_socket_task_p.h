@@ -18,19 +18,26 @@ namespace vds {
     _write_socket_task(
       const std::function<void(const service_provider & sp, size_t written)> & written_method,
       const error_handler & error_method,
-      SOCKET_HANDLE s)
+      SOCKET_HANDLE s,
+      const cancellation_token & cancel_token)
     : sp_(service_provider::empty()),
       written_method_(written_method),
       error_method_(error_method),
-      s_(s)
+      s_(s),
+      cancel_token_(cancel_token)
 #ifdef _DEBUG
       , is_scheduled_(false)
 #endif
     {
+      this->cancel_subscriber_ = this->cancel_token_.then_cancellation_requested([this]() {
+        shutdown(this->s_, SD_BOTH);
+      });
     }
 
     ~_write_socket_task()
     {
+      this->cancel_subscriber_.destroy();
+
 #ifdef _DEBUG
       if (this->is_scheduled_) {
         throw std::exception();
@@ -41,9 +48,15 @@ namespace vds {
     
     void write_async(const service_provider & sp, const void * buffer, size_t buffer_size)
     {
-      sp.get<logger>()->debug(sp, "TCP: Write [%s]", std::string((const char *)buffer, buffer_size).c_str());
+      if (0 == buffer_size) {
+        mt_service::async(sp, [this, sp]() {
+          this->written_method_(sp, 0);
+        });
+        return;
+      }
+
       this->sp_ = sp;
-      
+
 #ifdef _DEBUG
       if (this->is_scheduled_) {
         throw std::exception();
@@ -85,7 +98,9 @@ namespace vds {
     std::function<void(const service_provider & sp, size_t written)> written_method_;
     error_handler error_method_;
     SOCKET_HANDLE s_;
-    
+    cancellation_token cancel_token_;
+    cancellation_subscriber cancel_subscriber_;
+
 #ifndef _WIN32
     const void * data_;
     size_t data_size_;

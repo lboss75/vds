@@ -20,6 +20,7 @@ All rights reserved
 
 #ifdef _WIN32
 typedef SOCKET SOCKET_HANDLE;
+typedef int socklen_t;
 #else
 typedef int SOCKET_HANDLE;
 #define INVALID_SOCKET (-1)
