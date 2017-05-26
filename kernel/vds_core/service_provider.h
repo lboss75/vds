@@ -67,6 +67,8 @@ namespace vds {
     {
       return !this->impl_;
     }
+    
+    void unhandled_exception(std::exception_ptr ex = std::current_exception());
   private:
     friend class _service_provider;
     friend class _service_registrator;

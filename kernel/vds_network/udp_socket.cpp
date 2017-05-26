@@ -6,6 +6,21 @@ vds::udp_datagram::udp_datagram()
 {
 }
 
+vds::udp_datagram::udp_datagram(vds::_udp_datagram* impl)
+  : impl_(impl)
+{
+}
+
+vds::udp_datagram::udp_datagram(
+  const std::string& server,
+  uint16_t port,
+  const void* data,
+  size_t data_size)
+: impl_(new _udp_datagram(server, port, data, data_size))
+{
+
+}
+
 void vds::udp_datagram::reset(const std::string & server, uint16_t port, const void * data, size_t data_size)
 {
   this->impl_.reset(new _udp_datagram(server, port, data, data_size));
@@ -40,12 +55,12 @@ vds::udp_socket::~udp_socket()
 {
 }
 
-vds::async_stream<vds::udp_datagram> & vds::udp_socket::incoming()
+std::shared_ptr<vds::async_stream<vds::udp_datagram>> vds::udp_socket::incoming()
 {
   return this->impl_->incoming();
 }
 
-vds::async_stream<vds::udp_datagram> & vds::udp_socket::outgoing()
+std::shared_ptr<vds::async_stream<vds::udp_datagram>> vds::udp_socket::outgoing()
 {
   return this->impl_->outgoing();
 }

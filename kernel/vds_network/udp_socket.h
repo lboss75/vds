@@ -19,6 +19,12 @@ namespace vds {
   public:
     udp_datagram();
 
+    udp_datagram(
+      const std::string & server,
+      uint16_t port,
+      const void * data,
+      size_t data_size);
+    
     void reset(
       const std::string & server,
       uint16_t port,
@@ -30,13 +36,12 @@ namespace vds {
 
     const void * data() const;
     size_t data_size() const;
+    
+    _udp_datagram * operator -> () const { return this->impl_.get(); }
 
   private:
     friend class _udp_datagram;
-    udp_datagram(_udp_datagram * impl)
-      : impl_(impl)
-    {
-    }
+    udp_datagram(_udp_datagram * impl);
 
     std::shared_ptr<_udp_datagram> impl_;
   };
@@ -47,8 +52,8 @@ namespace vds {
     udp_socket();
     ~udp_socket();
 
-    async_stream<udp_datagram> & incoming();
-    async_stream<udp_datagram> & outgoing();
+    std::shared_ptr<async_stream<udp_datagram>> incoming();
+    std::shared_ptr<async_stream<udp_datagram>> outgoing();
 
     void close();
 
