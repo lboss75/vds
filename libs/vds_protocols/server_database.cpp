@@ -90,7 +90,7 @@ uint64_t vds::iserver_database::get_server_log_max_index(
 vds::server_log_record vds::iserver_database::add_local_record(
   const service_provider & sp,
   const server_log_record::record_id & record_id,
-  const json_value * message,
+  const std::shared_ptr<json_value> & message,
   const_data_buffer & signature)
 {
   return static_cast<_server_database *>(this)->add_local_record(sp, record_id, message, signature);
@@ -868,25 +868,24 @@ bool vds::_server_database::get_record_by_state(
     std::list<server_log_record::record_id> parents;
     this->server_log_get_parents(sp, id, parents);
 
+    std::shared_ptr<json_value> body;
     dataflow(
+      dataflow_arguments<char>(message.c_str(), message.length()),
       json_parser("Message body"),
-      json_require_once()
+      dataflow_require_once<std::shared_ptr<json_value>>(&body)
     )(
-      [&id, &result_record, &parents](
-        const service_provider & sp,
-        json_value * message) {
+      [&id, &result_record, &parents, &body](
+        const service_provider & sp) {
         result_record.reset(
           id,
           parents,
-          message);
+          body);
       },
       [](const service_provider & sp,
          std::exception_ptr ex) {
         std::rethrow_exception(ex); 
       },
-      sp,
-      message.c_str(),
-      message.length());
+      sp);
   }
 
   return result;  

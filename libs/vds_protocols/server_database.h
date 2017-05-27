@@ -65,7 +65,7 @@ namespace vds {
     server_log_record add_local_record(
       const service_provider & sp,
       const server_log_record::record_id & record_id,
-      const json_value * message,
+      const std::shared_ptr<json_value> & message,
       const_data_buffer & signature);
 
     //return: true - saved, false - already exists

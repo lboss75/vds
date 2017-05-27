@@ -120,7 +120,7 @@ namespace vds {
         }
         else {
           data_update(this->impl_, this->input_buffer(), this->input_buffer_size());
-          return this->input_buffer_size_;
+          return this->input_buffer_size();
         }
       }
 
@@ -186,15 +186,15 @@ namespace vds {
 
       size_t sync_push_data(const vds::service_provider & sp)
       {
-        if (0 == this->input_buffer_size_) {
+        if (0 == this->input_buffer_size()) {
           if (!data_final(this->impl_, this->signature_)) {
             this->error(sp, std::make_exception_ptr(std::runtime_error("Validate error")));
           }
           return 0;
         }
         else {
-          data_update(this->impl_, this->input_buffer_, this->input_buffer_size_);
-          return this->input_buffer_size_;
+          data_update(this->impl_, this->input_buffer(), this->input_buffer_size());
+          return this->input_buffer_size();
         }
       }
 

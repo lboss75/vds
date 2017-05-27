@@ -7,6 +7,7 @@ All rights reserved
 */
 
 namespace vds {
+  class network_deserializer;
 
   namespace udp_messages {
     enum message_identification
