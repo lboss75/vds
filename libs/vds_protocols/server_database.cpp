@@ -438,7 +438,7 @@ vds::server_log_record
   vds::_server_database::add_local_record(
     const service_provider & sp,
     const server_log_record::record_id & record_id,
-    const json_value * message,
+    const std::shared_ptr<json_value> & message,
     const_data_buffer & signature)
 {
   std::lock_guard<std::mutex> lock(this->server_log_mutex_);
@@ -799,20 +799,20 @@ bool vds::_server_database::get_record(
     std::list<server_log_record::record_id> parents;
     this->server_log_get_parents(sp, id, parents);
 
+  std::shared_ptr<json_value> body;
     dataflow(
+      dataflow_arguments<char>(message.c_str(), message.length()),
       json_parser("Message body"),
-      json_require_once()
+      dataflow_require_once<std::shared_ptr<json_value>>(&body)
     )(
-      [&id, &result_record, &parents](const service_provider & sp, json_value * message) {
+      [&id, &result_record, &parents, &body](const service_provider & sp) {
         result_record.reset(
           id,
           parents,
-          message);
+          body);
       },
       [](const service_provider & sp, std::exception_ptr ex) { std::rethrow_exception(ex); },
-      sp,
-      message.c_str(),
-      message.length());
+      sp);
   }
 
   return result;

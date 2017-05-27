@@ -11,6 +11,7 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 namespace vds {
+  
   template <typename context_type, typename implementation_type>
   class sync_dataflow_source
   {

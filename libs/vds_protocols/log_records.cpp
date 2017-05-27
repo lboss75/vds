@@ -51,10 +51,10 @@ vds::binary_deserializer & vds::server_log_record::deserialize(
 vds::server_log_record::server_log_record(
   const record_id & id,
   const std::list<record_id> & parents,
-  const json_value * message)
+  const std::shared_ptr<json_value> & message)
 : id_(id),
   parents_(parents),
-  message_(message->clone())
+  message_(message)
 {
 }
 
@@ -90,11 +90,11 @@ vds::server_log_record::server_log_record(const json_value * source)
 void vds::server_log_record::reset(
   const record_id & id,
   const std::list<record_id>& parents,
-  json_value * message)
+  const std::shared_ptr<json_value> & message)
 {
   this->id_ = id;
   this->parents_ = parents;
-  this->message_.reset(message);
+  this->message_ = message;
 }
 
 void vds::server_log_record::add_parent(

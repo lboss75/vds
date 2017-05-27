@@ -132,9 +132,7 @@ namespace vds {
           case ST_ARRAY:
             switch (this->input_buffer(input_readed)) {
             case ']':
-              if (this->final_array(sp)) {
-                return true;
-              }
+              this->final_array(sp, input_readed, output_written);
               break;
 
             case '[':
@@ -177,9 +175,7 @@ namespace vds {
           case ST_ARRAY_ITEM:
             switch (this->input_buffer(input_readed)) {
             case ']':
-              if (this->final_array(sp)) {
-                return true;
-              }
+              this->final_array(sp, input_readed, output_written);
               break;
 
             case ',':
@@ -208,9 +204,7 @@ namespace vds {
               break;
 
             case '}':
-              if (this->final_object(sp)) {
-                return true;
-              }
+              this->final_object(sp, input_readed, output_written);
               break;
 
             default:
@@ -229,9 +223,7 @@ namespace vds {
           case ST_OBJECT_ITEM:
             switch (this->input_buffer(input_readed)) {
             case '}':
-              if (this->final_object(sp)) {
-                return true;
-              }
+              this->final_object(sp, input_readed, output_written);
               break;
 
             case ',':
@@ -641,8 +633,6 @@ namespace vds {
               std::string("Unexpected char ") + this->input_buffer(input_readed));
           }
         }
-
-        return true;
       }
       
       void final_data(
@@ -713,7 +703,7 @@ namespace vds {
       State state_;
       std::stack<State> saved_states_;
 
-      std::unique_ptr<json_value> root_object_;
+      std::shared_ptr<json_value> root_object_;
       std::stack<json_value *> current_path_;
       json_value * current_object_;
 
@@ -762,7 +752,10 @@ namespace vds {
         this->state_ = ST_ARRAY;
       }
 
-      bool final_array(const service_provider & sp)
+      void final_array(
+        const service_provider & sp,
+        size_t & input_readed,
+        size_t & output_written)
       {
         this->state_ = this->saved_states_.top();
         this->saved_states_.pop();
@@ -771,16 +764,14 @@ namespace vds {
           if (!this->parse_options_.enable_multi_root_objects) {
             this->state_ = ST_EOF;
           }
-          this->len_--;
-          this->data_++;
-          this->next(sp, this->root_object_.release());
-          return true;
+          
+          ++input_readed;
+          this->output_buffer(output_written++) = this->root_object_;
         }
         else {
           this->current_object_ = this->current_path_.top();
           this->current_path_.pop();
         }
-        return false;
       }
 
       void start_object()
@@ -811,7 +802,10 @@ namespace vds {
         this->state_ = ST_OBJECT;
       }
 
-      bool final_object(const service_provider & sp)
+      void final_object(
+        const service_provider & sp,
+        size_t & input_readed,
+        size_t & output_written)
       {
         this->state_ = this->saved_states_.top();
         this->saved_states_.pop();
@@ -820,16 +814,14 @@ namespace vds {
           if (!this->parse_options_.enable_multi_root_objects) {
             this->state_ = ST_EOF;
           }
-          this->len_--;
-          this->data_++;
-          this->next(sp, this->root_object_.release());
-          return true;
+          
+          ++input_readed;
+          this->output_buffer(output_written++) = this->root_object_;
         }
         else {
           this->current_object_ = this->current_path_.top();
           this->current_path_.pop();
         }
-        return false;
       }
 
       void start_property()
