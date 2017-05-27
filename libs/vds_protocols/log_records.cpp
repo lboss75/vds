@@ -36,20 +36,17 @@ vds::binary_deserializer & vds::server_log_record::deserialize(
   std::string message;
   b >> message;
 
+  std::shared_ptr<json_value> body;
   dataflow(
+    dataflow_arguments<char>(message.c_str(), message.length()),
     json_parser("Message"),
-    json_require_once())(
-      [this](const service_provider & sp, json_value * body) {
-        this->message_.reset(body);
-      },
-      [](const service_provider & sp, std::exception_ptr ex) {},
-    sp,
-    message.c_str(),
-    message.length());
+    dataflow_require_once<std::shared_ptr<json_value>>(&body))(
+      [this, &body](const service_provider & sp) { this->message_ = body; },
+      [](const service_provider & sp, std::exception_ptr ex) { std::rethrow_exception(ex);},
+    sp);
 
   return b;
 }
-
 
 vds::server_log_record::server_log_record(
   const record_id & id,

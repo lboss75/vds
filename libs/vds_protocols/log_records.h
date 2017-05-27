@@ -160,7 +160,7 @@ namespace vds {
   private:
     record_id id_;
     std::list<record_id> parents_;
-    std::unique_ptr<json_value> message_;
+    std::shared_ptr<json_value> message_;
   };
 
   class server_log_root_certificate

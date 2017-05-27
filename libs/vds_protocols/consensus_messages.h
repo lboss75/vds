@@ -7,6 +7,8 @@ All rights reserved
 */
 
 namespace vds {
+  class network_serializer;
+  
   namespace consensus_messages {
     
     class consensus_message_who_is_leader

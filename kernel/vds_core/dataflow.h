@@ -1300,25 +1300,25 @@ namespace vds {
         const vds::service_provider & sp)
       {
         if (!this->completed_) {
-          if (1 < this->input_buffer_size_) {
+          if (1 < this->input_buffer_size()) {
             this->error(sp, std::make_exception_ptr(std::runtime_error("Require only one item")));
             return 0;
           }
-          else if(1 == this->input_buffer_size_){
+          else if(1 == this->input_buffer_size()){
             this->completed_ = true;
-            *this->result_ = *this->input_buffer_;
+            *this->result_ = *this->input_buffer();
           }
           else {
             this->error(sp, std::make_exception_ptr(std::runtime_error("Require one item")));
             return 0;
           }
         }
-        else if (0 < this->input_buffer_size_) {
+        else if (0 < this->input_buffer_size()) {
           this->error(sp, std::make_exception_ptr(std::runtime_error("Require only one item")));
           return 0;
         }
 
-        return this->input_buffer_size_;
+        return this->input_buffer_size();
       }
 
     private:

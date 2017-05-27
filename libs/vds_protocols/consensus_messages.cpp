@@ -6,6 +6,7 @@ All rights reserved
 #include "stdafx.h"
 #include "consensus_messages.h"
 #include "messages.h"
+#include "network_serializer.h"
 
 const char vds::consensus_messages::consensus_message_who_is_leader::message_type[] = "who is leader";
 

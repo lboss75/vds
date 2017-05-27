@@ -103,57 +103,6 @@ namespace vds {
     save_object(
       const service_provider & sp,
       const object_container & fc);
-
-    class replica_generator
-    {
-    public:
-      replica_generator(
-        uint16_t replica,
-        uint16_t min_horcrux
-      );
-      
-      void write(const void * data, size_t len)
-      {
-        
-      }
-    };
-    
-    template<typename context_type>
-    class generate_replicas : public dataflow_step<context_type, bool(void)>
-    {
-      using base_class = dataflow_step<context_type, bool(void)>;
-    public:
-      generate_replicas(
-        const context_type & context,
-        uint16_t min_horcrux,
-        uint16_t horcrux_count)
-      : base_class(context)
-      {
-        for(uint16_t i = 0; i < horcrux_count; ++i){
-          generators_.push_back(
-            std::unique_ptr<replica_generator>(
-              new replica_generator(
-                i,
-                min_horcrux)));
-        }
-      }
-      
-      bool operator()(const void * data, size_t len)
-      {
-        for(auto& p : this->generators_){
-          p->write(data, len);
-        }
-        if(0 == len){
-          return this->next();
-        }
-        else {
-          return true;
-        }
-      }
-      
-    private:
-      std::list<std::unique_ptr<replica_generator>> generators_;
-    };
     
     timer process_timer_;
     bool process_timer_jobs(const service_provider & sp);
