@@ -67,7 +67,7 @@ std::string vds::guid::str() const
 
 vds::guid& vds::guid::operator = (vds::guid&& original)
 {
-  const_data_buffer::operator=(std::move(original));
+  const_data_buffer::operator=(original);
   return *this;
 }
 

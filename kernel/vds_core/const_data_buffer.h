@@ -15,93 +15,111 @@ namespace vds{
   {
   public:
     const_data_buffer()
-    : data_(nullptr), len_(0)
     {
     }
-    
+      
     const_data_buffer(const void * data, size_t len)
-    : data_(new uint8_t[len]), len_(len)
+    : impl_(new _const_data_buffer(data, len))
     {
-      memcpy(this->data_, data, len);
     }
-    
+      
     const_data_buffer(const const_data_buffer & other)
-    : data_(new uint8_t[other.len_]), len_(other.len_)
+    : impl_(other.impl_)
     {
-      memcpy(this->data_, other.data_, other.len_);
     }
-    
+      
     const_data_buffer(const_data_buffer&& other)
-    : data_(other.data_), len_(other.len_)
+    : impl_(std::move(other.impl_))
     {
-      other.data_ = nullptr;
-      other.len_ = 0;
     }
-    
+      
     const_data_buffer(const std::vector<uint8_t> & data)
-    : data_(new uint8_t[data.size()]), len_(data.size())
+    : impl_(new _const_data_buffer(data.data(), data.size()))
     {
-      memcpy(this->data_, data.data(), data.size());
     }
-    
-    ~const_data_buffer()
-    {
-      delete[] this->data_;
-    }
-    
-    const uint8_t * data() const { return this->data_; }
-    size_t size() const { return this->len_; }
-    
+      
+    const uint8_t * data() const { return this->impl_->data(); }
+    size_t size() const { return this->impl_->size(); }
+      
     void reset(const void * data, size_t len)
     {
-      delete[] this->data_;
-      this->data_ = new uint8_t[len];
-      this->len_ = len;
-      memcpy(this->data_, data, len);
+      this->impl_.reset(new _const_data_buffer(data, len));
     }
 
-    const_data_buffer & operator = (const_data_buffer && other)
+    const_data_buffer & operator = (const const_data_buffer & other)
     {
-      delete[] this->data_;
-      this->data_ = other.data_;
-      this->len_ = other.len_;
-      other.data_ = nullptr;
-      other.len_ = 0;
-      
+      this->impl_ = other.impl_;
       return *this;
     }
     
-    const_data_buffer & operator = (const const_data_buffer & other)
+    const_data_buffer & operator = (const_data_buffer && other)
     {
-      this->reset(other.data(), other.size());
-      
+      this->impl_ = std::move(other.impl_);
       return *this;
-    }    
-    
+    }
+     
     bool operator == (const const_data_buffer & other) const
     {
-      return this->len_ == other.len_
-      && 0 == memcmp(this->data_, other.data_, this->len_);
+      return *(this->impl_.get()) == *(other.impl_.get());
     }
     
     bool operator != (const const_data_buffer & other) const
     {
-      return this->len_ != other.len_
-      || 0 != memcmp(this->data_, other.data_, this->len_);
+      return *(this->impl_.get()) != *(other.impl_.get());
     }
     
     uint8_t operator[](size_t index) const
     {
-      return this->data_[index];
+      return (*(this->impl_.get()))[index];
     }
 
-    void serialize(binary_serializer & s) const;
-    
   private:
-    uint8_t * data_;
-    size_t len_;
-  };
+    class _const_data_buffer
+    {
+    public:
+      _const_data_buffer()
+      : data_(nullptr), len_(0)
+      {
+      }
+      
+      _const_data_buffer(const void * data, size_t len)
+      : data_(new uint8_t[len]), len_(len)
+      {
+        memcpy(this->data_, data, len);
+      }
+      
+      ~_const_data_buffer()
+      {
+        delete[] this->data_;
+      }
+      
+      const uint8_t * data() const { return this->data_; }
+      size_t size() const { return this->len_; }
+      
+      bool operator == (const _const_data_buffer & other) const
+      {
+        return this->len_ == other.len_
+        && 0 == memcmp(this->data_, other.data_, this->len_);
+      }
+      
+      bool operator != (const _const_data_buffer & other) const
+      {
+        return this->len_ != other.len_
+        || 0 != memcmp(this->data_, other.data_, this->len_);
+      }
+      
+      uint8_t operator[](size_t index) const
+      {
+        return this->data_[index];
+      }
 
+    private:
+      uint8_t * data_;
+      size_t len_;
+    };
+    std::shared_ptr<_const_data_buffer> impl_;
+  };
+  
   class collect_data
   {
   public:

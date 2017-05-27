@@ -5,6 +5,7 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
+#include "dataflow.h"
 
 namespace vds {
   class _deflate;
@@ -39,39 +40,18 @@ namespace vds {
         delete_handler(this->handler_);
       }
 
-      bool sync_process_data(const vds::service_provider & sp, size_t & input_readed, size_t & output_written)
+      void sync_process_data(const vds::service_provider & sp, size_t & input_readed, size_t & output_written)
       {
-        const void * to_push;
-        size_t to_push_len;
-        if (!push_data(this->handler_, this->input_buffer_, this->input_buffer_size_, to_push, to_push_len)) {
-          return true;
-        }
-        else {
-          if(this->next(
-            sp,
-            to_push,
-            to_push_len)){
-              for(;;){
-                const void * to_push;
-                size_t to_push_len;
-                if (!data_processed(this->handler_, to_push, to_push_len)) {
-                  return true;
-                }
-                else {
-                  if(!this->next(
-                    sp,
-                    to_push,
-                    to_push_len)){
-                    return false;
-                  }
-                }
-              }
-          }
-          
-          return false;
-        }
+        update_data(
+          this->handler_,
+          this->input_buffer(),
+          this->input_buffer_size(),
+          this->output_buffer(),
+          this->output_buffer_size(),
+          input_readed,
+          output_written);
       }
-
+      
     private:
       _deflate_handler * handler_;
     };
@@ -81,8 +61,14 @@ namespace vds {
 
     _deflate_handler * create_handler() const;
     static void delete_handler(_deflate_handler * handler);
-    static bool push_data(_deflate_handler * handler, const void * data, size_t size, const void *& to_push, size_t & to_push_len);
-    static bool data_processed(_deflate_handler * handler, const void *& to_push, size_t & to_push_len);
+    static void update_data(
+      _deflate_handler * handler,
+      const void * input_data,
+      size_t input_size,
+      void * output_data,
+      size_t output_size,
+      size_t & readed,
+      size_t & written);
   };
 }
 

@@ -59,19 +59,19 @@ namespace vds {
   private:
     connection_manager * const owner_;
         
-    async_task<> start_udp_server(
+    void start_udp_channel(
       const vds::service_provider& sp,
       const url_parser::network_address& address);
     async_task<> start_https_server(
       const vds::service_provider& sp,
       const url_parser::network_address& address);
     
-    class udp_server
+    class udp_channel
     {
     public:
-      udp_server(_connection_manager * owner);
+      udp_channel(_connection_manager * owner);
 
-      async_task<> start(
+      void start(
         const service_provider & sp,
         const url_parser::network_address& address);
 
@@ -107,6 +107,7 @@ namespace vds {
 
     private:
       _connection_manager * owner_;
+      udp_server server_;
       udp_socket s_;
       pipeline<std::string, uint16_t, const_data_buffer> message_queue_;
       timer process_timer_;
@@ -138,7 +139,7 @@ namespace vds {
       {
       public:
         session(
-          udp_server * owner,
+          udp_channel * owner,
           uint32_t session_id,
           const std::string & server,
           uint16_t port,
@@ -162,7 +163,7 @@ namespace vds {
           const std::function<std::string(void)> & get_json) const override;
 
       private:
-        udp_server * const owner_;
+        udp_channel * const owner_;
         uint32_t session_id_;
         std::string server_;
         uint16_t port_;
@@ -175,7 +176,7 @@ namespace vds {
       {
       public:
         outgoing_session(
-          udp_server * owner,
+          udp_channel * owner,
           const hello_request & original_request,
           uint32_t external_session_id,
           const std::string & real_server,
@@ -197,7 +198,7 @@ namespace vds {
       {
       public:
         incoming_session(
-          udp_server * owner,
+          udp_channel * owner,
           uint32_t session_id,
           const std::string & server,
           uint16_t port,
@@ -208,6 +209,7 @@ namespace vds {
 
       std::shared_mutex sessions_mutex_;
       std::map<uint32_t, std::shared_ptr<session>> sessions_;
+      udp_datagram input_message_;
 
       const incoming_session & register_incoming_session(
         const std::string & server,
@@ -217,9 +219,10 @@ namespace vds {
       
       void for_each_sessions(const std::function<void(const session &)> & callback);
       bool process_timer_jobs(const service_provider & sp);
+      void schedule_read(const service_provider & sp);
     };
     
-    std::unique_ptr<udp_server> udp_server_;
+    std::unique_ptr<udp_channel> udp_channel_;
   };
 }
 

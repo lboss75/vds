@@ -5,6 +5,7 @@ All rights reserved
 
 #include "stdafx.h"
 #include "udp_messages.h"
+#include "network_serializer.h"
 
 vds::udp_messages::hello_message::hello_message(network_deserializer& s)
 {

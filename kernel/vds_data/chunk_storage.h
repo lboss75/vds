@@ -6,6 +6,11 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
+#include <list>
+
+#include "guid.h"
+#include "binary_serialize.h"
+
 namespace vds {
   class _chunk_storage;
   

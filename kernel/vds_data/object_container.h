@@ -5,6 +5,9 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
+#include <unordered_map>
+
+#include "binary_serialize.h"
 
 namespace vds {
   class object_container

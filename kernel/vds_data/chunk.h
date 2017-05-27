@@ -7,7 +7,10 @@ All rights reserved
 */
 
 #include <assert.h>
+#include <vector>
+
 #include "gf.h"
+#include "binary_serialize.h"
 
 namespace vds {
     template<typename cell_type>

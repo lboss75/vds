@@ -148,7 +148,7 @@ vds::_server_log_sync::server_log_record_broadcast::server_log_record_broadcast(
 void vds::_server_log_sync::server_log_record_broadcast::serialize(binary_serializer & b) const
 {
   this->record_.serialize(b);
-  this->signature_.serialize(b);
+  b << this->signature_;
 }
 
 std::unique_ptr<vds::json_value> vds::_server_log_sync::server_log_record_broadcast::serialize() const

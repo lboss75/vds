@@ -9,6 +9,7 @@ All rights reserved
 #include <unordered_map>
 #include <string>
 #include <assert.h>
+#include <cstring>
 
 namespace vds {
   template <unsigned int m>

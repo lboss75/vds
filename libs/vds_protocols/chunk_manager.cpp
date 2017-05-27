@@ -47,30 +47,31 @@ vds::_chunk_manager::add(
   const service_provider & sp,
   const const_data_buffer& data)
 {
+  auto deflated_data = std::make_shared<std::vector<uint8_t>>();
   return create_async_task(
-    [data](const std::function<void (const service_provider & sp, const void * data, size_t size)> & done, const error_handler & on_error, const service_provider & sp){
+    [data, deflated_data](
+      const std::function<void (const service_provider & sp)> & done,
+      const error_handler & on_error,
+      const service_provider & sp){
       dataflow(
+        dataflow_arguments<uint8_t>(data.data(), data.size()),
         deflate(),
-        collect_data()
+        collect_data(*deflated_data)
       )(
         done,
         on_error,
-        sp,
-        data.data(),
-        data.size()
-      );
+        sp);
     })
   .then(
     [this,
     sp,
+    deflated_data,
     original_lenght = data.size(),
     original_hash = hash::signature(hash::sha256(), data)
     ](
       const std::function<void(const service_provider & sp, const vds::server_log_new_object &)> & done,
       const error_handler & on_error,
-      const service_provider & sp,
-      const void * deflated_data,
-      size_t deflated_size) {
+      const service_provider & sp) {
       
         this->tmp_folder_mutex_.lock();
         auto tmp_index = this->last_tmp_file_index_++;
@@ -78,12 +79,12 @@ vds::_chunk_manager::add(
 
         filename fn(this->tmp_folder_, std::to_string(tmp_index));
         file f(fn, file::create_new);
-        f.write(deflated_data, deflated_size);
+        f.write(deflated_data->data(), deflated_data->size());
         f.close();
 
         this->obj_folder_mutex_.lock();
         auto index = this->last_obj_file_index_++;
-        this->obj_size_ += deflated_size;
+        this->obj_size_ += deflated_data->size();
         this->obj_folder_mutex_.unlock();
 
         file::move(fn,
@@ -100,8 +101,8 @@ vds::_chunk_manager::add(
           index,
           original_lenght,
           std::move(original_hash),
-          deflated_size,
-          hash::signature(hash::sha256(), deflated_data, deflated_size));
+          deflated_data->size(),
+          hash::signature(hash::sha256(), deflated_data->data(), deflated_data->size()));
 
         sp.get<istorage_log>()->add_to_local_log(sp, result.serialize().get());
         done(sp, result);
