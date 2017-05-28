@@ -196,6 +196,43 @@ namespace vds {
     filename filename_;
   };
   
+  class file_range_read
+  {
+  public:
+    file_range_read(const filename & filename, size_t start_offset, size_t max_size)
+      : filename_(filename)
+    {
+    }
+
+    using outgoing_item_type = uint8_t;
+    template <typename context_type>
+    class handler : public sync_dataflow_source<context_type, handler<context_type>>
+    {
+      using base_class = sync_dataflow_source<context_type, handler<context_type>>;
+    public:
+      handler(
+        const context_type & context,
+        const read_file & args
+        ) : base_class(context),
+            f_(args.filename_, file::open_read)
+      {
+      }
+
+      size_t sync_get_data(const service_provider & sp, uint8_t * buffer, size_t buffer_size)
+      {
+        return this->f_.read(buffer, buffer_size);
+      }
+
+    private:
+      file f_;
+    };
+
+  private:
+    filename filename_;
+    size_t start_offset_;
+    size_t max_size_;
+  };
+  
   class write_file
   {
   public:
