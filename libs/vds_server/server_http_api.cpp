@@ -132,7 +132,7 @@ vds::async_task<std::shared_ptr<vds::http_message>> vds::_server_http_api::route
       )(
         [this, done, json_request](const service_provider & sp) {
 
-          done(sp, http_response::simple_text_response(sp, this->server_json_client_api_(sp, *json_request)->str());
+          done(sp, http_response::simple_text_response(sp, this->server_json_client_api_(sp, *json_request)->str()));
         },
         on_error, sp);
     });

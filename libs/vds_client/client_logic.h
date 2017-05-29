@@ -95,7 +95,7 @@ namespace vds {
     certificate * client_certificate_;
     asymmetric_private_key * client_private_key_;
 
-    //std::vector<std::unique_ptr<client_connection<client_logic>>> connection_queue_;
+    std::vector<std::unique_ptr<client_connection<client_logic>>> connection_queue_;
     std::future<void> update_connection_pool_feature_;
 
     static constexpr size_t MAX_CONNECTIONS = 10;

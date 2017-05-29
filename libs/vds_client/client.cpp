@@ -178,12 +178,11 @@ vds::async_task<const std::string& /*version_id*/> vds::_client::upload_file(
   const std::string & user_login,
   const std::string & user_password,
   const std::string & name,
-  const void * data,
-  size_t data_size)
+  const filename & fn)
 {
   return
     this->authenticate(sp, user_login, user_password)
-    .then([this, user_login, name, data, data_size](
+    .then([this, user_login, name, fn](
       const std::function<void(const service_provider & sp, const std::string& /*version_id*/)> & done,
       const error_handler & on_error,
       const service_provider & sp,

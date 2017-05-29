@@ -138,7 +138,9 @@ vds::_server_json_client_api::process(
   const client_messages::certificate_and_key_request & message)
 {
   return create_async_task(
-    [message](const std::function<void(const service_provider & sp, const json_value *)> & done, const error_handler & on_error, const service_provider & sp){
+    [message](const std::function<void(const service_provider & sp, std::shared_ptr<json_value>)> & done,
+              const error_handler & on_error,
+              const service_provider & sp){
       auto cert = sp
         .get<istorage_log>()->find_cert(sp, message.object_name());
 
@@ -151,26 +153,26 @@ vds::_server_json_client_api::process(
         sp,
         client_messages::certificate_and_key_response(
           cert->cert_body(),
-          cert->cert_key()).serialize().get());
+          cert->cert_key()).serialize());
     });
 }
 
-vds::async_task<const vds::json_value *>
+vds::async_task<std::shared_ptr<vds::json_value>>
 vds::_server_json_client_api::process(
   const service_provider & sp,
   const client_messages::register_server_request & message)
 {
   return create_async_task(
-    [sp, message](const std::function<void(const service_provider & sp, const json_value *)> & done, const error_handler & on_error, const service_provider & sp){
+    [sp, message](const std::function<void(const service_provider & sp, std::shared_ptr<json_value>)> & done, const error_handler & on_error, const service_provider & sp){
       sp.get<node_manager>()->register_server(sp, message.certificate_body())
         .wait(
-          [done](const service_provider & sp) { done(sp, client_messages::register_server_response().serialize().get()); },
+          [done](const service_provider & sp) { done(sp, client_messages::register_server_response().serialize()); },
           on_error,
           sp);
       });
 }
 
-vds::async_task<const vds::json_value *>
+vds::async_task<std::shared_ptr<vds::json_value>>
 vds::_server_json_client_api::process(
   const service_provider & sp,
   const client_messages::put_file_message & message)
@@ -183,13 +185,16 @@ vds::_server_json_client_api::process(
       message.user_login(),
       message.name(),
       message.tmp_file())
-    .then([version_id](const std::function<void(const service_provider & sp, const vds::json_value *)> & done, const error_handler & on_error, const service_provider & sp) {
+    .then(
+      [version_id](const std::function<void(const service_provider & sp, std::shared_ptr<vds::json_value>)> & done,
+                   const error_handler & on_error,
+                   const service_provider & sp) {
 
-    done(sp, client_messages::put_file_message_response(version_id).serialize().get());
+    done(sp, client_messages::put_file_message_response(version_id).serialize());
   });
 }
 
-vds::async_task<const vds::json_value*> vds::_server_json_client_api::process(
+vds::async_task<std::shared_ptr<vds::json_value>> vds::_server_json_client_api::process(
   const service_provider & sp,
   const client_messages::get_file_message_request & message)
 {
@@ -198,10 +203,10 @@ vds::async_task<const vds::json_value*> vds::_server_json_client_api::process(
       message.user_login(),
       message.name())
     .then([](
-      const std::function<void(const service_provider & sp, const vds::json_value *)> & done,
+      const std::function<void(const service_provider & sp, std::shared_ptr<json_value>)> & done,
       const error_handler & on_error,
       const service_provider & sp,
       const filename & tmp_file) {
-    done(sp, client_messages::get_file_message_response(tmp_file).serialize().get());
+    done(sp, client_messages::get_file_message_response(tmp_file).serialize());
   });
 }

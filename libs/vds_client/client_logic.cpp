@@ -57,31 +57,9 @@ void vds::client_logic::stop(const service_provider & sp)
   }
 }
 
-void vds::client_logic::connection_closed(const service_provider & sp, client_connection<client_logic>& connection)
-{
-  sp.get<logger>()->info(sp, "Connection %s:%d has been closed", connection.address().c_str(), connection.port());
-
-  this->connection_mutex_.lock();
-  this->connected_--;
-  this->connection_mutex_.unlock();
-
-  this->process_timer_tasks(sp);
-}
-
-void vds::client_logic::connection_error(const service_provider & sp, client_connection<client_logic>& connection, std::exception_ptr ex)
-{
-  sp.get<logger>()->info(sp, "Connection %s:%d error %s", connection.address().c_str(), connection.port(), exception_what(ex).c_str());
-
-  this->connection_mutex_.lock();
-  this->connected_--;
-  this->connection_mutex_.unlock();
-
-  this->process_timer_tasks(sp);
-}
-
 void vds::client_logic::process_response(
   const service_provider & sp,
-  client_connection<client_logic>& connection,
+  //client_connection<client_logic>& connection,
   const json_value * response)
 {
   sp.get<logger>()->trace(sp, "Response %s", response->str().c_str());
@@ -147,19 +125,6 @@ void vds::client_logic::node_install(const std::string & login, const std::strin
 }
 */
 
-void vds::client_logic::get_commands(const service_provider & sp, vds::client_connection<vds::client_logic> & connection)
-{
-  sp.get<imt_service>()->async(
-    [this, sp, &connection](){ 
-    if (this->outgoing_queue_.get(sp, connection)) {
-      this->messages_sent_ = true;
-    }});
-}
-
-void vds::client_logic::add_task(const service_provider & sp, const std::string & message)
-{
-  this->outgoing_queue_.push(sp, message);
-}
 
 /*
 std::string vds::client_logic::get_messages()
