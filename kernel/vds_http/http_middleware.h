@@ -23,14 +23,16 @@ namespace vds {
     {
     }
     
-    std::shared_ptr<http_message> process(const vds::service_provider & sp, const std::shared_ptr<http_message> & request)
+    async_task<std::shared_ptr<http_message>> process(const vds::service_provider & sp, const std::shared_ptr<http_message> & request)
     {
-      try {
-        return this->router_.route(sp, request);
-      }
-      catch (...) {
-        return http_response(http_response::HTTP_Internal_Server_Error, "ERROR").create_message();
-      }
+      return create_async_task([](const std::function<void(const vds::service_provider & sp, const std::shared_ptr<http_message> & response)> & done, const error_handler & on_error, const service_provider & sp) {
+        try {
+          this->router_.route(sp, request).wait(done, on_error, sp);
+        }
+        catch (...) {
+          done(sp, http_response(http_response::HTTP_Internal_Server_Error, "ERROR").create_message());
+        }
+      });
     }
 
   private:

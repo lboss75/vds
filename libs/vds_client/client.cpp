@@ -74,13 +74,12 @@ vds::async_task<const std::string& /*version_id*/> vds::iclient::upload_file(
   const std::string & login,
   const std::string & password,
   const std::string & name,
-  const void * data,
-  size_t data_size)
+  const filename & tmp_file)
 {
-  return static_cast<_client *>(this)->upload_file(sp, login, password, name, data, data_size);
+  return static_cast<_client *>(this)->upload_file(sp, login, password, name, tmp_file);
 }
 
-vds::async_task<vds::const_data_buffer&&> vds::iclient::download_data(
+vds::async_task<vds::filename> vds::iclient::download_data(
   const service_provider & sp,
   const std::string & login,
   const std::string & password,

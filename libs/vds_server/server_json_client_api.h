@@ -15,7 +15,7 @@ namespace vds {
     server_json_client_api();
     ~server_json_client_api();
 
-    json_value * operator()(const service_provider & scope, const json_value * request) const;
+    std::shared_ptr<json_value> operator()(const service_provider & scope, const std::shared_ptr<json_value> & request) const;
 
   private:
     _server_json_client_api * const impl_;

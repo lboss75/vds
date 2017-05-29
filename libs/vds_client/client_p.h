@@ -27,10 +27,9 @@ namespace vds {
       const std::string & login,
       const std::string & password,
       const std::string & name,
-      const void * data,
-      size_t data_size);
+      const filename & tmp_file);
 
-    async_task<const_data_buffer &&> download_data(
+    async_task<filename> download_data(
       const service_provider & sp,
       const std::string & login,
       const std::string & password,

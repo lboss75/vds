@@ -16,7 +16,7 @@ namespace vds {
   public:
     http_router();
 
-    std::shared_ptr<http_message> route(
+    async_task<std::shared_ptr<http_message>> route(
       const service_provider & sp,
       const std::shared_ptr<http_message> & request) const;
     

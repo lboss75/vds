@@ -36,6 +36,8 @@ namespace vds {
 
     std::shared_ptr<http_message> create_message() const;
 
+    static std::shared_ptr<http_message> simple_text_response(const service_provider & sp, const std::string & body);
+
   private:
     std::string protocol_;
     int code_;
