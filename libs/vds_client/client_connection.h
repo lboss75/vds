@@ -5,6 +5,7 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
+/*
 #include "https_pipeline.h"
 
 namespace vds {
@@ -143,5 +144,5 @@ namespace vds {
   };
 }
 
-
+*/
 #endif // __VDS_CLIENT_CLIENT_CONNECTION_H_

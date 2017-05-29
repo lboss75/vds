@@ -22,9 +22,9 @@ vds::server_json_client_api::~server_json_client_api()
   delete this->impl_;
 }
 
-vds::json_value * vds::server_json_client_api::operator()(
+std::shared_ptr<vds::json_value> vds::server_json_client_api::operator()(
   const service_provider & scope,
-  const json_value * request) const
+  const std::shared_ptr<json_value> & request) const
 {
   return this->impl_->operator()(scope, request);
 }
@@ -37,9 +37,9 @@ vds::_server_json_client_api::_server_json_client_api(
 {
 }
 
-vds::json_value * vds::_server_json_client_api::operator()(
+std::shared_ptr<vds::json_value> vds::_server_json_client_api::operator()(
   const service_provider & sp, 
-  const json_value * request)
+  const std::shared_ptr<json_value> & request)
 {
   //auto cert = this->tunnel_.get_tunnel_certificate();
   //sp.get<logger>().trace("Certificate subject %s", cert.subject().c_str());
@@ -48,7 +48,7 @@ vds::json_value * vds::_server_json_client_api::operator()(
 
   std::unique_ptr<json_array> result(new json_array());
 
-  auto request_tasks = dynamic_cast<const json_array *>(request);
+  auto request_tasks = dynamic_cast<const json_array *>(request.get());
   if (nullptr != request_tasks) {
     for (size_t i = 0; i < request_tasks->size(); ++i) {
       auto task = request_tasks->get(i);
@@ -76,7 +76,7 @@ vds::json_value * vds::_server_json_client_api::operator()(
             std::string task_type_name;
             task_object->get_property("$t", task_type_name);
               
-            async_task<const json_value *> task;
+            async_task<std::shared_ptr<json_value>> task;
 
             if (client_messages::certificate_and_key_request::message_type == task_type_name) {
               task = this->process(sp, client_messages::certificate_and_key_request(task_object));
@@ -99,13 +99,12 @@ vds::json_value * vds::_server_json_client_api::operator()(
             }
             
             task.wait(
-              [this, request_id](const service_provider & sp, const json_value * task_result){
-                auto obj = task_result->clone();
-                dynamic_cast<json_object *>(obj.get())->add_property("$r", request_id);
+              [this, request_id](const service_provider & sp, const std::shared_ptr<json_value> & task_result){
+                dynamic_cast<json_object *>(task_result.get())->add_property("$r", request_id);
 
                 this->task_mutex_.lock();
                 auto p = this->tasks_.find(request_id);
-                p->second.result = std::move(obj);
+                p->second.result = task_result;
                 this->task_mutex_.unlock();
               },
               [this, request_id](const service_provider & sp, std::exception_ptr ex) {
@@ -130,10 +129,10 @@ vds::json_value * vds::_server_json_client_api::operator()(
     }
   }
 
-  return result.release();
+  return result;
 }
 
-vds::async_task<const vds::json_value *>
+vds::async_task<std::shared_ptr<vds::json_value>>
 vds::_server_json_client_api::process(
   const service_provider & sp,
   const client_messages::certificate_and_key_request & message)

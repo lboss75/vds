@@ -218,7 +218,6 @@ namespace vds {
     static constexpr size_t BUFFER_SIZE = 4 * 1024;
     static constexpr size_t MIN_BUFFER_SIZE = 1024;
 
-    using outgoing_item_type = uint8_t;
     template <typename context_type>
     class handler : public sync_dataflow_source<context_type, handler<context_type>>
     {

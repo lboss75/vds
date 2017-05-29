@@ -23,9 +23,15 @@ namespace vds {
     {
     }
     
-    async_task<std::shared_ptr<http_message>> process(const vds::service_provider & sp, const std::shared_ptr<http_message> & request)
+    async_task<std::shared_ptr<http_message>> process(
+      const vds::service_provider & sp,
+      const std::shared_ptr<http_message> & request)
     {
-      return create_async_task([](const std::function<void(const vds::service_provider & sp, const std::shared_ptr<http_message> & response)> & done, const error_handler & on_error, const service_provider & sp) {
+      return create_async_task(
+        [this, request](
+          const std::function<void(const vds::service_provider & sp, const std::shared_ptr<http_message> & response)> & done,
+          const error_handler & on_error,
+          const service_provider & sp) {
         try {
           this->router_.route(sp, request).wait(done, on_error, sp);
         }

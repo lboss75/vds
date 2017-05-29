@@ -15,24 +15,24 @@ namespace vds {
       server_json_client_api * owner
     );
     
-    json_value * operator()(const service_provider & scope, const json_value * request);
+    std::shared_ptr<json_value> operator()(const service_provider & scope, const std::shared_ptr<json_value> & request);
 
   private:
     server_json_client_api * const owner_;
     
     struct task_info
     {
-      std::unique_ptr<json_value> result;
+      std::shared_ptr<json_value> result;
       std::exception_ptr error;
     };
     
     std::mutex task_mutex_;
     simple_cache<std::string, task_info> tasks_;
 
-    vds::async_task< const vds::json_value* > process(const vds::service_provider& sp, const vds::client_messages::certificate_and_key_request& message);
-    async_task<const json_value *> process(const service_provider & scope, const client_messages::register_server_request & message);
-    async_task<const json_value *> process(const service_provider & scope, const client_messages::put_file_message & message);
-    async_task<const json_value *> process(const service_provider & scope, const client_messages::get_file_message_request & message);
+    vds::async_task<std::shared_ptr<json_value>> process(const vds::service_provider& sp, const vds::client_messages::certificate_and_key_request& message);
+    async_task<std::shared_ptr<json_value>> process(const service_provider & scope, const client_messages::register_server_request & message);
+    async_task<std::shared_ptr<json_value>> process(const service_provider & scope, const client_messages::put_file_message & message);
+    async_task<std::shared_ptr<json_value>> process(const service_provider & scope, const client_messages::get_file_message_request & message);
   };
 }
 

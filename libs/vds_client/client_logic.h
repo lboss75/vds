@@ -25,21 +25,10 @@ namespace vds {
 
     void stop(const service_provider & sp);
 
-    void connected(const service_provider & sp, client_connection<client_logic> & connection);
-    void connection_closed(const service_provider & sp, client_connection<client_logic> & connection);
-    void connection_error(
-      const service_provider & sp,
-      client_connection<client_logic> & connection,
-      std::exception_ptr ex);
-
     void process_response(
       const service_provider & sp,
-      client_connection<client_logic> & connection,
+      //client_connection<client_logic> & connection,
       const json_value * response);
-
-    void get_commands(
-      const service_provider & sp,
-      client_connection<client_logic> & connection);
 
     void add_task(
       const service_provider & sp,
@@ -106,7 +95,7 @@ namespace vds {
     certificate * client_certificate_;
     asymmetric_private_key * client_private_key_;
 
-    std::vector<std::unique_ptr<client_connection<client_logic>>> connection_queue_;
+    //std::vector<std::unique_ptr<client_connection<client_logic>>> connection_queue_;
     std::future<void> update_connection_pool_feature_;
 
     static constexpr size_t MAX_CONNECTIONS = 10;
@@ -115,7 +104,7 @@ namespace vds {
     
     bool messages_sent_;
 
-    pipeline_queue<std::string, client_connection<client_logic>> outgoing_queue_;
+    //pipeline_queue<std::string, client_connection<client_logic>> outgoing_queue_;
     
     timer process_timer_;
     bool process_timer_tasks(const service_provider & sp);

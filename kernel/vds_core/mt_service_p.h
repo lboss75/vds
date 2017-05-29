@@ -42,7 +42,7 @@ namespace vds {
   {
   public:
     async_enabled_property(bool is_enabled)
-      : is_enabled_(is_enabled_)
+      : is_enabled_(is_enabled)
     {
     }
 
