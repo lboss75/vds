@@ -36,6 +36,26 @@ void vds::imt_service::async(const std::function<void(void)>& handler)
   ((mt_service *)this)->impl_->async(handler);
 }
 
+void vds::imt_service::enable_async(const service_provider & sp)
+{
+  sp.set_property<async_enabled_property>(service_provider::property_scope::any_scope, new async_enabled_property(true));
+}
+
+void vds::imt_service::disable_async(const service_provider & sp)
+{
+  sp.set_property<async_enabled_property>(service_provider::property_scope::any_scope, new async_enabled_property(false));
+}
+
+void vds::imt_service::async_enabled_check(const service_provider & sp)
+{
+  auto p = sp.get_property<async_enabled_property>(service_provider::property_scope::any_scope);
+  if (nullptr != p && p->is_enabled_){
+    return;
+  }
+
+  throw std::runtime_error("Async call is not enabled");
+}
+
 vds::_mt_service::_mt_service(const service_provider & sp)
 : sp_(sp)
 {

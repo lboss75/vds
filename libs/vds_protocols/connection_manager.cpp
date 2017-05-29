@@ -337,6 +337,7 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
         symmetric_key session_key(symmetric_crypto::aes_256_cbc(), binary_deserializer(key_data));
         auto data = std::make_shared<std::vector<uint8_t>>();
         dataflow(
+          dataflow_arguments<uint8_t>(msg.crypted_data().data(), msg.crypted_data().size()),
           symmetric_decrypt(session_key),
           collect_data(*data))(
             [this, done, &session_key, &cert, from, data](const service_provider & sp) {
@@ -368,9 +369,7 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
           done(sp);
         },
             on_error,
-          sp,
-          msg.crypted_data().data(),
-          msg.crypted_data().size());
+          sp);
       }
 
       break;
@@ -392,14 +391,16 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
 
         auto p = this->sessions_.find(session_id);
         if (this->sessions_.end() != p) {
+          auto data = std::make_shared<std::vector<uint8_t>>();
           dataflow(
+            dataflow_arguments<uint8_t>(crypted_data.data(), crypted_data.size()),
             symmetric_decrypt(p->second->session_key()),
-            collect_data()
+            collect_data(*data)
           )(
-            [this, &data_hash, session = p->second](const service_provider & sp, const void * data, size_t size) {
-            if (hash::signature(hash::sha256(), data, size) == data_hash) {
+            [this, &data_hash, session = p->second, data](const service_provider & sp) {
+            if (hash::signature(hash::sha256(), data->data(), data->size()) == data_hash) {
 
-              binary_deserializer d(data, size);
+              binary_deserializer d(data->data(), data->size());
               uint32_t message_type_id;
               const_data_buffer binary_form;
               d >> message_type_id >> binary_form;
@@ -428,10 +429,9 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
             }
           },
             [](const service_provider & sp, std::exception_ptr ex) {
+            sp.unhandled_exception(ex);
           },
-            sp,
-            crypted_data.data(),
-            crypted_data.size());
+            sp);
         }
         else {
           sp.get<logger>()->debug(sp, "Session %d not found", session_id);
@@ -528,17 +528,16 @@ void vds::_connection_manager::udp_channel::session::send_to(
   binary_serializer message_data;
   message_data << message_type_id << get_binary();
 
+  auto crypted_data = std::make_shared<std::vector<uint8_t>>();
   dataflow(
+    dataflow_arguments<uint8_t>(message_data.data().data(), message_data.data().size()),
     symmetric_encrypt(this->session_key()),
-    collect_data())(
-      [this, sp, &message_data](
-        const service_provider & sp,
-        const void * crypted_data,
-        size_t size) {
+    collect_data(*crypted_data))(
+      [this, sp, &message_data, crypted_data](const service_provider & sp) {
         network_serializer s;
         s.start(udp_messages::command_message_id);
         s << this->external_session_id();
-        s.push_data(crypted_data, size);
+        s.push_data(crypted_data->data(), crypted_data->size());
         s << hash::signature(hash::sha256(), message_data.data());
         s.final();
 
@@ -551,9 +550,7 @@ void vds::_connection_manager::udp_channel::session::send_to(
       [](const service_provider & sp,
          std::exception_ptr ex) {
         std::rethrow_exception(ex); },
-      sp,
-      message_data.data().data(),
-      message_data.data().size());
+      sp);
 }
 
 const vds::_connection_manager::udp_channel::incoming_session & 

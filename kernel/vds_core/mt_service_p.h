@@ -37,6 +37,18 @@ namespace vds {
     
     void work_thread();
   };
+
+  class async_enabled_property : public service_provider::property_holder
+  {
+  public:
+    async_enabled_property(bool is_enabled)
+      : is_enabled_(is_enabled_)
+    {
+    }
+
+    bool is_enabled_;
+  };
+
 }
 
 #endif // __VDS_CORE_MT_SERVICE_P_H_

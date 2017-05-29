@@ -99,10 +99,10 @@ namespace vds {
       {
         data_update(
           this->impl_,
-          this->input_buffer_,
-          this->input_buffer_size_,
-          this->output_buffer_,
-          this->output_buffer_size_,
+          this->input_buffer(),
+          this->input_buffer_size(),
+          this->output_buffer(),
+          this->output_buffer_size(),
           input_readed,
           output_written);
       }
@@ -157,10 +157,10 @@ namespace vds {
       {
         data_update(
           this->impl_,
-          this->input_buffer_,
-          this->input_buffer_size_,
-          this->output_buffer_,
-          this->output_buffer_size_,
+          this->input_buffer(),
+          this->input_buffer_size(),
+          this->output_buffer(),
+          this->output_buffer_size(),
           input_readed,
           output_written);
       }

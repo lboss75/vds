@@ -45,11 +45,14 @@ namespace vds {
         throw std::runtime_error("zlib error");
       }
 
+      written = output_size - this->strm_.avail_out;
+
       if (0 == this->strm_.avail_out) {
         readed = 0;
-        written = output_size - this->strm_.avail_out;
       }
       else {
+        readed = input_size;
+
         if(this->strm_.avail_in != 0){
           throw std::runtime_error("zlib error");
         }
@@ -60,9 +63,6 @@ namespace vds {
         else {
           this->state_ = StateEnum::STATE_NORMAL;
         }
-        
-        readed = input_size;
-        written = 0;
       }
     }
 

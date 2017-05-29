@@ -6,8 +6,7 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
-#include "vds_core.h"
-#include "vds_network.h"
+#include "targetver.h"
 
 #ifdef _WIN32
 

@@ -28,7 +28,7 @@ namespace vds {
 
     void add_to_local_log(
       const service_provider & sp,
-      const json_value * record);
+      const std::shared_ptr<json_value> & record);
 
     size_t new_message_id();
 

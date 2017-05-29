@@ -72,7 +72,7 @@ namespace vds {
     const asymmetric_private_key & server_private_key() const { return this->current_server_key_; }
     void add_to_local_log(
       const service_provider & sp,
-      const json_value * record);
+      const std::shared_ptr<json_value> & record);
 
     void apply_record(
       const service_provider & sp,
@@ -98,11 +98,6 @@ namespace vds {
     
     std::mutex record_state_mutex_;
     uint64_t local_log_index_;
-
-    async_task<const storage_object_id &>
-    save_object(
-      const service_provider & sp,
-      const object_container & fc);
     
     timer process_timer_;
     bool process_timer_jobs(const service_provider & sp);

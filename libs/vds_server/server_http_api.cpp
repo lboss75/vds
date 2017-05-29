@@ -21,32 +21,6 @@ vds::async_task<> vds::server_http_api::start(
 }
 
 /////////////////////////////
-static void collect_wwwroot(
-  vds::http_router & router,
-  const vds::foldername & folder,
-  const std::string & root_folder
-)
-{
-  if (!folder.exist()) {
-    return;
-  }
-
-  folder.files(
-    [&router, &root_folder](const vds::filename & fn) -> bool {
-    router.add_file(
-      root_folder + fn.name(),
-      fn
-    );
-
-    return true;
-  });
-
-  folder.folders(
-    [&router, &root_folder](const vds::foldername & fn) -> bool {
-    collect_wwwroot(router, fn, root_folder + fn.name() + "/");
-    return true;
-  });
-}
 
 vds::_server_http_api::_server_http_api()
 {
@@ -59,38 +33,106 @@ vds::async_task<> vds::_server_http_api::start(
   certificate & certificate,
   asymmetric_private_key & private_key)
 {
-  this->router_.reset(new http_router());
-
-  collect_wwwroot(
-    *this->router_,
-    foldername(foldername(persistence::current_user(sp), ".vds"), "wwwroot"),
-    "/");
-
-  this->router_->add_file(
-    "/",
-    filename(foldername(foldername(persistence::current_user(sp), ".vds"), "wwwroot"), "index.html"));
-
   //upnp_client upnp(sp);
   //upnp.open_port(8000, 8000, "TCP", "VDS Service");
 
-  return create_async_task(
-    [this, sp, address, port, &certificate, &private_key](
-      const std::function<void(const service_provider & sp)> & done,
-      const error_handler & on_error,
-      const service_provider & sp){
-      sp.get<logger>()->debug(sp, "Start HTTP sever %s:%d", address.c_str(), port);
+  this->server_.start(
+    sp,
+    address,
+    port,
+    [this, certificate, private_key](const service_provider & sp, const tcp_network_socket & s) {
+
+    auto crypto_tunnel = std::make_shared<ssl_tunnel>(false, &certificate, &private_key);
+
+    auto responses = new std::shared_ptr<http_message>[1];
+    auto stream = std::make_shared<async_stream<std::shared_ptr<http_message>>>();
+    async_series(
+      create_async_task(
+        [s, crypto_tunnel](const std::function<void(const service_provider & sp)> & done, const error_handler & on_error, const service_provider & sp) {
+          dataflow(
+            read_tcp_network_socket(s),
+            stream_write<uint8_t>(crypto_tunnel->crypted_input())
+          )(done, on_error, sp.create_scope("Server SSL Input"));
+        }),
+      create_async_task(
+        [s, crypto_tunnel](const std::function<void(const service_provider & sp)> & done, const error_handler & on_error, const service_provider & sp) {
+          dataflow(
+            stream_read<uint8_t>(crypto_tunnel->crypted_output()),
+            write_tcp_network_socket(s)
+          )(done, on_error, sp.create_scope("Server SSL Output"));
+        }),
+      create_async_task(
+        [this, s, stream, responses, crypto_tunnel](const std::function<void(const service_provider & sp)> & done, const error_handler & on_error, const service_provider & sp) {
+          dataflow(
+            stream_read<uint8_t>(crypto_tunnel->decrypted_output()),
+            http_parser(
+          [this, stream, &router, responses](const service_provider & sp, const std::shared_ptr<http_message> & request) {
+            responses[0] = this->middleware_.process(sp, request);
+            stream->write_all_async(sp, responses, 1)
+            .wait(
+              [](const service_provider & sp) {},
+              [](const service_provider & sp, std::exception_ptr ex) {},
+              sp);
+          }
+        )
+      )(done, on_error, sp);
+    }),
+      create_async_task(
+        [s, stream, crypto_tunnel](const std::function<void(const service_provider & sp)> & done, const error_handler & on_error, const service_provider & sp) {
       dataflow(
-        socket_server(sp, address, port),
-        create_socket_session([args = socket_session(*router_, certificate, private_key)](const service_provider & sp, network_socket & s){
-          (new socket_session::handler(args, s))->start(sp);
-        })
+        stream_read<std::shared_ptr<http_message>>(stream),
+        http_serializer(),
+        stream_write<uint8_t>(crypto_tunnel->decrypted_input())
+      )(done, on_error, sp);
+    })
       )
-      (done, on_error, sp);
-    });
+      .wait(
+        [responses, crypto_tunnel](const service_provider & sp) {
+      sp.get<logger>()->debug(sp, "Connection closed");
+      delete responses;
+    },
+        [responses](const service_provider & sp, std::exception_ptr ex) {
+      delete responses;
+      FAIL() << exception_what(ex);
+
+    },
+      sp);
+    crypto_tunnel->start(sp);
+  }).wait(
+    [&b](const service_provider & sp) {
+    sp.get<logger>()->debug(sp, "Server has been started");
+    b.set();
+  },
+    [&b](const service_provider & sp, std::exception_ptr ex) {
+    FAIL() << exception_what(ex);
+    b.set();
+  },
+    sp
+    );
+
 }
 
 void vds::_server_http_api::stop(const service_provider & sp)
 {
+}
+
+std::shared_ptr<vds::http_message> vds::_server_http_api::route(const service_provider & sp, const std::shared_ptr<http_message>& message) const
+{
+  http_request request(message);
+
+  if ("/vds/client_api" == request.url()) {
+    dataflow(
+      stream_read<uint8_t>(message->body()),
+      json_parser("client_api"),
+      dataflow_for_each([]() {
+      })
+      )(
+
+        );
+  }
+
+
+  return http_router::route(sp, message);
 }
 
 vds::_server_http_api::socket_session::socket_session(

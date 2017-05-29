@@ -8,9 +8,15 @@ All rights reserved
 
 #include "server_json_api.h"
 #include "server_json_client_api.h"
+#include "http_router.h"
+#include "tcp_network_socket.h"
+#include "tcp_socket_server.h"
+#include "http_middleware.h"
 
 namespace vds {
-  class _server_http_api : public server_http_api
+  class _server_http_api
+    : public server_http_api,
+      private http_router
   {
   public:
     _server_http_api();
@@ -24,9 +30,16 @@ namespace vds {
 
     void stop(const service_provider & sp);
 
+    //override http_router
+    std::shared_ptr<http_message> route(
+      const service_provider & sp,
+      const std::shared_ptr<http_message> & request) const;
+
   private:
-    std::unique_ptr<http_router> router_;
-    
+    tcp_socket_server server_;
+    http_middleware<_server_http_api> middleware_;
+    server_json_client_api server_json_client_api_;
+
     class server_http_handler
     {
     public:
@@ -96,12 +109,12 @@ namespace vds {
       public:
         handler(
           const socket_session & owner,
-          network_socket & s);
+          tcp_network_socket & s);
 
         void start(const service_provider & sp);
 
       private:
-        network_socket s_;
+        tcp_network_socket s_;
         ssl_tunnel tunnel_;
         const certificate & certificate_;
         const asymmetric_private_key & private_key_;

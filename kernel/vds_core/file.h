@@ -61,6 +61,8 @@ namespace vds {
 
     size_t length() const;
 
+    void seek(size_t position);
+
     static size_t length(const filename & fn);
     static bool exists(const filename & fn);
 
@@ -161,15 +163,18 @@ namespace vds {
     char buffer_[4096];
   };
 
-  class read_file
+  class file_read
   {
   public:
-    read_file(const filename & filename)
+    file_read(const filename & filename)
       : filename_(filename)
     {
     }
 
     using outgoing_item_type = uint8_t;
+    static constexpr size_t BUFFER_SIZE = 4 * 1024;
+    static constexpr size_t MIN_BUFFER_SIZE = 1024;
+
     template <typename context_type>
     class handler : public sync_dataflow_source<context_type, handler<context_type>>
     {
@@ -177,15 +182,20 @@ namespace vds {
     public:
       handler(
         const context_type & context,
-        const read_file & args
+        const file_read & args
         ) : base_class(context),
             f_(args.filename_, file::open_read)
       {
       }
 
-      size_t sync_get_data(const service_provider & sp, uint8_t * buffer, size_t buffer_size)
+      size_t sync_get_data(const service_provider & sp)
       {
-        return this->f_.read(buffer, buffer_size);
+        if (0 == this->output_buffer_size()) {
+          this->f_.close();
+        }
+        else {
+          return this->f_.read(this->output_buffer(), this->output_buffer_size());
+        }
       }
 
     private:
@@ -200,9 +210,13 @@ namespace vds {
   {
   public:
     file_range_read(const filename & filename, size_t start_offset, size_t max_size)
-      : filename_(filename)
+      : filename_(filename), start_offset_(start_offset), max_size_(max_size)
     {
     }
+
+    using outgoing_item_type = uint8_t;
+    static constexpr size_t BUFFER_SIZE = 4 * 1024;
+    static constexpr size_t MIN_BUFFER_SIZE = 1024;
 
     using outgoing_item_type = uint8_t;
     template <typename context_type>
@@ -212,19 +226,37 @@ namespace vds {
     public:
       handler(
         const context_type & context,
-        const read_file & args
-        ) : base_class(context),
-            f_(args.filename_, file::open_read)
+        const file_range_read & args)
+        : base_class(context),
+          f_(args.filename_, file::open_read),
+          start_offset_(args.start_offset_),
+          max_size_(args.max_size_)
       {
+        this->f_.seek(this->start_offset_);
       }
 
-      size_t sync_get_data(const service_provider & sp, uint8_t * buffer, size_t buffer_size)
+      size_t sync_get_data(const service_provider & sp)
       {
-        return this->f_.read(buffer, buffer_size);
+        if (0 == this->output_buffer_size()) {
+          this->f_.close();
+          return 0;
+        }
+        else {
+          auto n = this->output_buffer_size();
+          if (n > this->max_size_) {
+            n -= this->max_size_;
+          }
+
+          auto readed = this->f_.read(this->output_buffer(), n);
+          this->max_size_ -= readed;
+          return readed;
+        }
       }
 
     private:
       file f_;
+      size_t start_offset_;
+      size_t max_size_;
     };
 
   private:
@@ -233,10 +265,10 @@ namespace vds {
     size_t max_size_;
   };
   
-  class write_file
+  class file_write
   {
   public:
-    write_file(
+    file_write(
       const filename & filename,
       file::file_mode mode)
     : filename_(filename),
@@ -245,6 +277,9 @@ namespace vds {
     }
     
     using incoming_item_type = uint8_t;
+    static constexpr size_t BUFFER_SIZE = 4 * 1024;
+    static constexpr size_t MIN_BUFFER_SIZE = 1024;
+
     template <typename context_type>
     class handler : public sync_dataflow_target<context_type, handler<context_type>>
     {
@@ -252,21 +287,22 @@ namespace vds {
     public:
       handler(
         const context_type & context,
-        const write_file & args
+        const file_write & args
         ) : base_class(context),
         f_(args.filename_, args.mode_)
       {
       }
 
-      size_t sync_push_data(const service_provider & sp, const incoming_item_type * data, size_t size)
+      size_t sync_push_data(const service_provider & sp)
       {
-        this->f_.write(data, size);
-        return size;
-      }
-      
-      void final_data(const service_provider & sp)
-      {
-        this->f_.close();
+        if(0 == this->input_buffer_size()){
+          this->f_.close();
+        }
+        else {
+          this->f_.write(this->input_buffer(), this->input_buffer_size());
+        }
+
+        return this->input_buffer_size();
       }
       
     private:
@@ -278,16 +314,18 @@ namespace vds {
     file::file_mode mode_;
   };
 
-  class append_to_file
+  class file_append
   {
   public:
-    append_to_file(file & target)
+    file_append(file & target)
       : target_(target)
     {
     }
 
     using incoming_item_type = uint8_t;
-    
+    static constexpr size_t BUFFER_SIZE = 4 * 1024;
+    static constexpr size_t MIN_BUFFER_SIZE = 1024;
+
     template <typename context_type>
     class handler : public sync_dataflow_target<context_type, handler<context_type>>
     {
@@ -295,21 +333,19 @@ namespace vds {
     public:
       handler(
         const context_type & context,
-        const append_to_file & args
+        const file_append & args
       ) : base_class(context),
         target_(args.target_)
       {
       }
 
-      size_t sync_push_data(const service_provider & sp, const incoming_item_type * data, size_t size)
+      size_t sync_push_data(const service_provider & sp)
       {
-        this->f_.write(data, size);
-        return size;
-      }
+        if (0 != this->input_buffer_size()) {
+          this->target_.write(this->input_buffer(), this->input_buffer_size());
+        }
 
-      void final_data(const service_provider & sp)
-      {
-        this->f_.close();
+        return this->input_buffer_size();
       }
 
     private:

@@ -116,7 +116,7 @@ void vds::task_manager::work_thread()
     for(auto task : this->scheduled_){
       if(task->start_time_ <= now){
         this->scheduled_.remove(task);
-        this->sp_.get<imt_service>()->async([this, task](){
+        imt_service::async(this->sp_, [this, task](){
           task->execute(this->sp_);
         });
         break;

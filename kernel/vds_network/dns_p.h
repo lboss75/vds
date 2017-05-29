@@ -1,22 +1,25 @@
-#ifndef __VDS_NETWORK_DNS_H_
-#define __VDS_NETWORK_DNS_H_
+#ifndef __VDS_NETWORK_DNS_P_H_
+#define __VDS_NETWORK_DNS_P_H_
 
 /*
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
+#include "targetver.h"
+#include "network_types_p.h"
+
 namespace vds {
-  class dns
+  class _dns
   {
   public:
     static std::string hostname();
   };
 
-  class dns_address_info
+  class _dns_address_info
   {
   public:
-    dns_address_info(const std::string & hostname);
+    _dns_address_info(const std::string & hostname);
 
     addrinfo * first() const
     {
@@ -28,4 +31,4 @@ namespace vds {
   };
 }
 
-#endif//__VDS_NETWORK_DNS_H_
+#endif//__VDS_NETWORK_DNS_P_H_

@@ -131,10 +131,18 @@ size_t vds::file::length(const filename & fn)
   struct stat buffer;
   if (0 != stat(fn.local_name().c_str(), &buffer)) {
     auto error = errno;
-    throw std::system_error(error, std::system_category(), "Unable to get file size of " + fn.name());
+    throw std::system_error(error, std::generic_category(), "Unable to get file size of " + fn.name());
   }
 
   return buffer.st_size;
+}
+
+void vds::file::seek(size_t position)
+{
+  if (0 != lseek(this->handle_, position, SEEK_SET)) {
+    auto error = errno;
+    throw std::system_error(error, std::generic_category(), "Unable to seek file position of " + this->filename_.full_name());
+  }
 }
 
 bool vds::file::exists(const filename & fn)

@@ -5,6 +5,9 @@ All rights reserved
 
 #include "stdafx.h"
 #include "upnp_client.h"
+#include "logger.h"
+#include "dns_p.h"
+#include "encoding.h"
 
 vds::upnp_client::upnp_client()
 : 
@@ -75,7 +78,7 @@ bool vds::upnp_client::open_port(
     return false;
   }
   
-  dns_address_info addr(dns::hostname());
+  _dns_address_info addr(_dns::hostname());
   
   if (this->port_mappings_) {
     IStaticPortMapping * port_mapping = nullptr;

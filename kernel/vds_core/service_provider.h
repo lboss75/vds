@@ -58,7 +58,7 @@ namespace vds {
     }
 
     template <typename property_type>
-    void set_property(property_scope scope, property_type * value)
+    void set_property(property_scope scope, property_type * value) const
     {
       this->set_property(scope, types::get_type_id<property_type>(), value);
     }
@@ -79,7 +79,7 @@ namespace vds {
 
     void * get(size_t type_id) const;
     const property_holder * get_property(property_scope scope, size_t type_id) const;
-    void set_property(property_scope scope, size_t type_id, property_holder * value);
+    void set_property(property_scope scope, size_t type_id, property_holder * value) const;
   };
 
   class iservice_factory

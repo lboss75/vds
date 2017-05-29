@@ -19,10 +19,11 @@ namespace vds {
     ~_chunk_manager();
 
     
-    async_task<const server_log_new_object &>
+    async_task<>
       add(
         const service_provider & sp,
-        const const_data_buffer& data);
+        server_log_file_map & target,
+        const filename & fn);
 
     const_data_buffer get(
       const service_provider & sp,

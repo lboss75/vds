@@ -5,6 +5,8 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
+#include "service_provider.h"
+#include "types.h"
 
 namespace vds {
   class upnp_client

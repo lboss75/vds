@@ -53,7 +53,7 @@ const vds::service_provider::property_holder * vds::service_provider::get_proper
   return this->impl_->get_property(scope, type_id);
 }
 
-void vds::service_provider::set_property(property_scope scope, size_t type_id, property_holder * value)
+void vds::service_provider::set_property(property_scope scope, size_t type_id, property_holder * value) const
 {
   this->impl_->set_property(scope, type_id, value);
 }

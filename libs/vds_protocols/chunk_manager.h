@@ -8,6 +8,7 @@ All rights reserved
 
 #include "local_cache.h"
 #include "log_records.h"
+#include "filename.h"
 
 namespace vds {
   class _chunk_manager;
@@ -15,9 +16,10 @@ namespace vds {
   class ichunk_manager
   {
   public:
-    async_task<const server_log_new_object &> add(
+    async_task<> add(
       const service_provider & sp,
-      const const_data_buffer & data);
+      server_log_file_map & target,
+      const filename & fn);
 
     const_data_buffer get(
       const service_provider & sp,

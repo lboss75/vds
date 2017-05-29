@@ -4,9 +4,9 @@ All rights reserved
 */
 
 #include "stdafx.h"
-#include "dns.h"
+#include "dns_p.h"
 
-std::string vds::dns::hostname()
+std::string vds::_dns::hostname()
 {
 #ifdef _WIN32
   char result[MAX_PATH + 1];
@@ -24,7 +24,7 @@ std::string vds::dns::hostname()
   throw std::system_error(error, std::system_category(), "Retrieve the standard host name for the local computer failed");
 }
 
-vds::dns_address_info::dns_address_info(const std::string & hostname)
+vds::_dns_address_info::_dns_address_info(const std::string & hostname)
 {
   auto error = getaddrinfo(hostname.c_str(), NULL, NULL, &this->first_);
   if (0 != error) {

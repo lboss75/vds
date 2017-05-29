@@ -53,39 +53,17 @@ vds::_file_manager::put_file(
   const std::string & name,
   const filename & fn)
 {
-  auto result = std::make_shared<server_log_file_map>(version_id, user_login, name);
-
   return create_async_task(
-    [this, fn, result](
+    [this, fn, version_id, user_login, name](
       const std::function<void(const service_provider & sp)> & done,
       const error_handler & on_error,
       const service_provider & sp) {
-    dataflow(
-      read_file(fn, (size_t)5 * 1024 * 1024),
-      task_step([this, result](
-        const service_provider & sp,
-        const std::function<void(const service_provider &) > & done,
-        const error_handler & on_error,
-        const std::function<void(const service_provider &)> & prev,
-        const void * data, size_t size) {
-      if (0 == size) {
-        done(sp);
-        return;
-      }
 
-      sp.get<ichunk_manager>()->add(sp, const_data_buffer(data, size)).wait(
-        [prev, result](
-          const service_provider & sp,
-          const server_log_new_object & index) {
-          result->add(index);
-          prev(sp);
-        },
-        on_error,
-        sp);
-    }))
-        (
-          [this, done, result](const service_provider & sp) {
-            sp.get<istorage_log>()->add_to_local_log(sp, result->serialize().get());
+      server_log_file_map result(version_id, user_login, name);
+
+      sp.get<ichunk_manager>()->add(sp, result, fn).wait(
+          [this, done, &result](const service_provider & sp) {
+            sp.get<istorage_log>()->add_to_local_log(sp, result.serialize());
             done(sp);
           },
           on_error,
@@ -238,9 +216,9 @@ vds::async_task<const vds::filename&> vds::_file_manager::download_file(
         for (auto index : indexes) {
           barrier b;
           dataflow(
-            read_file(result[index]),
+            file_read(result[index]),
             inflate(),
-            append_to_file(f))(
+            file_append(f))(
               [&b](const service_provider & sp) { b.set(); },
               [&b, on_error](const service_provider & sp, std::exception_ptr ex) { b.set(); on_error(sp, ex); },
               sp);

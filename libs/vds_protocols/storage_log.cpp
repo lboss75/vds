@@ -40,7 +40,7 @@ size_t vds::istorage_log::minimal_consensus() const
 
 void vds::istorage_log::add_to_local_log(
   const service_provider & sp,
-  const json_value * record)
+  const std::shared_ptr<json_value> & record)
 {
   static_cast<_storage_log *>(this)->add_to_local_log(sp, record);
 }
@@ -152,9 +152,9 @@ void vds::_storage_log::reset(
     server_log_root_certificate(
       root_certificate.str(),
       private_key.str(password),
-      ph.signature()).serialize().get());
-  this->add_to_local_log(sp, server_log_new_server(this->server_certificate_.str()).serialize().get());
-  this->add_to_local_log(sp, server_log_new_endpoint(this->current_server_id_, addresses).serialize().get());
+      ph.signature()).serialize());
+  this->add_to_local_log(sp, server_log_new_server(this->server_certificate_.str()).serialize());
+  this->add_to_local_log(sp, server_log_new_endpoint(this->current_server_id_, addresses).serialize());
 }
 
 
@@ -197,32 +197,14 @@ vds::async_task<> vds::_storage_log::register_server(
       const std::function<void(const service_provider & sp)> & done,
       const error_handler & on_error,
       const service_provider & sp) {
-    this->add_to_local_log(sp, server_log_new_server(server_certificate).serialize().get());
+    this->add_to_local_log(sp, server_log_new_server(server_certificate).serialize());
     done(sp);
   });
 }
 
-vds::async_task<const vds::storage_object_id &>
-vds::_storage_log::save_object(
-  const service_provider & sp,
-  const object_container & fc)
-{
-  binary_serializer s;
-  fc.serialize(s);
- 
-  return sp.get<ichunk_manager>()->add(sp, s.data())
-    .then([this](
-      const std::function<void(const service_provider & sp, const storage_object_id &)> & done,
-      const error_handler & on_error,
-      const service_provider & sp,
-      const server_log_new_object & index){
-    done(sp, vds::storage_object_id(index.index()));
-    });
-}
-
 void vds::_storage_log::add_to_local_log(
   const service_provider & sp,
-  const json_value * message)
+  const std::shared_ptr<json_value> & message)
 {
   std::lock_guard<std::mutex> lock(this->record_state_mutex_);
 
@@ -255,7 +237,7 @@ void vds::_storage_log::apply_record(
     throw std::runtime_error("Invalid server state");
   }
  
-  const json_object * obj = dynamic_cast<const json_object *>(record.message());
+  const json_object * obj = dynamic_cast<const json_object *>(record.message().get());
   if(nullptr == obj){
     sp.get<logger>()->info(sp, "Wrong messsage in the record %s:%d", record.id().source_id.str().c_str(), record.id().index);
     sp.get<iserver_database>()->delete_record(sp, record.id());

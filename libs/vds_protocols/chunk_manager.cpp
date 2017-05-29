@@ -7,13 +7,15 @@ All rights reserved
 #include "chunk_manager.h"
 #include "chunk_manager_p.h"
 #include "storage_log.h"
+#include "hash.h"
 
-vds::async_task<const vds::server_log_new_object &>
+vds::async_task<>
 vds::ichunk_manager::add(
   const service_provider & sp,
-  const const_data_buffer& data)
+  server_log_file_map & target,
+  const filename & fn)
 {
-  return static_cast<_chunk_manager *>(this)->add(sp, data);
+  return static_cast<_chunk_manager *>(this)->add(sp, target, fn);
 }
 
 vds::const_data_buffer vds::ichunk_manager::get(
@@ -42,70 +44,77 @@ vds::_chunk_manager::~_chunk_manager()
 {
 }
 
-vds::async_task<const vds::server_log_new_object &>
+vds::async_task<>
 vds::_chunk_manager::add(
   const service_provider & sp,
-  const const_data_buffer& data)
+  server_log_file_map & target,
+  const filename & fn)
 {
-  auto deflated_data = std::make_shared<std::vector<uint8_t>>();
   return create_async_task(
-    [data, deflated_data](
+    [this, fn, &target](
       const std::function<void (const service_provider & sp)> & done,
       const error_handler & on_error,
       const service_provider & sp){
-      dataflow(
-        dataflow_arguments<uint8_t>(data.data(), data.size()),
-        deflate(),
-        collect_data(*deflated_data)
-      )(
-        done,
-        on_error,
-        sp);
-    })
-  .then(
-    [this,
-    sp,
-    deflated_data,
-    original_lenght = data.size(),
-    original_hash = hash::signature(hash::sha256(), data)
-    ](
-      const std::function<void(const service_provider & sp, const vds::server_log_new_object &)> & done,
-      const error_handler & on_error,
-      const service_provider & sp) {
-      
-        this->tmp_folder_mutex_.lock();
-        auto tmp_index = this->last_tmp_file_index_++;
-        this->tmp_folder_mutex_.unlock();
+        std::exception_ptr error;
 
-        filename fn(this->tmp_folder_, std::to_string(tmp_index));
-        file f(fn, file::create_new);
-        f.write(deflated_data->data(), deflated_data->size());
-        f.close();
+        constexpr size_t BLOCK_SIZE = 5 * 1024 * 1024;
+        auto file_size = file::length(fn);
+        for (decltype(file_size) offset = 0; offset < file_size; offset += BLOCK_SIZE) {
 
-        this->obj_folder_mutex_.lock();
-        auto index = this->last_obj_file_index_++;
-        this->obj_size_ += deflated_data->size();
-        this->obj_folder_mutex_.unlock();
+          this->tmp_folder_mutex_.lock();
+          auto tmp_index = this->last_tmp_file_index_++;
+          this->tmp_folder_mutex_.unlock();
 
-        file::move(fn,
-          sp.get<ilocal_cache>()->get_object_filename(
-            sp, sp.get<istorage_log>()->current_server_id(), index));
+          filename tmp_file(this->tmp_folder_, std::to_string(tmp_index));
 
-        this->obj_folder_mutex_.lock();
-        if (max_obj_size_ < this->obj_size_) {
-          this->generate_chunk(sp);
+          size_t original_lenght;
+          const_data_buffer original_hash;
+          size_t object_lenght;
+          const_data_buffer object_hash;
+
+          dataflow(
+            file_range_read(fn, offset, BLOCK_SIZE),
+            hash_filter(&original_lenght, &original_hash),
+            deflate(),
+            //crypt()
+            hash_filter(&object_lenght, &object_hash),
+            file_write(tmp_file, file::create_new)
+          )(
+            [this, tmp_file, &original_lenght, &original_hash, &object_lenght, &object_hash, &target](const service_provider & sp) {
+
+              this->obj_folder_mutex_.lock();
+              auto index = this->last_obj_file_index_++;
+              this->obj_folder_mutex_.unlock();
+
+              file::move(tmp_file,
+                sp.get<ilocal_cache>()->get_object_filename(
+                  sp, sp.get<istorage_log>()->current_server_id(), index));
+
+              auto result = server_log_new_object(
+                index,
+                original_lenght,
+                original_hash,
+                object_lenght,
+                object_hash);
+
+              sp.get<istorage_log>()->add_to_local_log(sp, result.serialize());
+              target.add(result);
+          },
+            [&error](const service_provider & sp, std::exception_ptr ex) {
+              error = ex;
+            },
+            sp);
+          if (error) {
+            break;
+          }
+        };
+
+        if (error) {
+          on_error(sp, error);
         }
-        this->obj_folder_mutex_.unlock();
-
-        auto result = server_log_new_object(
-          index,
-          original_lenght,
-          std::move(original_hash),
-          deflated_data->size(),
-          hash::signature(hash::sha256(), deflated_data->data(), deflated_data->size()));
-
-        sp.get<istorage_log>()->add_to_local_log(sp, result.serialize().get());
-        done(sp, result);
+        else {
+          done(sp);
+        }
       });
 }
 
