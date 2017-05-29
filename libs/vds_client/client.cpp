@@ -7,6 +7,7 @@ All rights reserved
 #include "client.h"
 #include "client_p.h"
 #include "client_connection.h"
+#include "deflate.h"
 
 vds::client::client(const std::string & server_address)
 : server_address_(server_address),
@@ -203,7 +204,7 @@ vds::async_task<const std::string& /*version_id*/> vds::_client::upload_file(
       file_read(fn),
       deflate(),
       symmetric_encrypt(transaction_key),
-      collect_data())(
+      file_write(tmp_file_name))(
         [this, key_crypted, user_private_key, user_login, name, done, on_error](const service_provider & sp, const void * data, size_t data_size) {
 
       binary_serializer to_sign;
