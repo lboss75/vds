@@ -200,6 +200,8 @@ vds::async_task<const std::string& /*version_id*/> vds::_client::upload_file(
     auto key_crypted = user_certificate.public_key().encrypt(key_data.data());
 
     dataflow(
+      file_read(fn),
+      deflate(),
       symmetric_encrypt(transaction_key),
       collect_data())(
         [this, key_crypted, user_private_key, user_login, name, done, on_error](const service_provider & sp, const void * data, size_t data_size) {
