@@ -5,6 +5,7 @@ All rights reserved
 
 #include "stdafx.h"
 #include "client_logic.h"
+#include "http_request.h"
 
 vds::client_logic::client_logic()
 : connected_(0),  
@@ -32,9 +33,8 @@ void vds::client_logic::start(
       auto url = url_parser::parse_network_address(address);
       if (protocol == url.protocol) {
         this->connection_queue_.push_back(
-          std::unique_ptr<client_connection<client_logic>>(
-            new client_connection<client_logic>(
-              this,
+          std::unique_ptr<client_connection>(
+            new client_connection(
               url.server,
               std::atoi(url.port.c_str()),
               this->client_certificate_,
@@ -153,8 +153,19 @@ std::string vds::client_logic::get_messages()
 
 void vds::client_logic::add_task(const service_provider & sp, const std::string & message)
 {
-  this->tasks_.write_all_async(sp, &message, 1)
-    .wait([](const service_provider & sp) {}, [](const service_provider & sp, std::exception_ptr ex) {}, sp);
+  std::lock_guard<std::mutex> lock(this->connection_mutex_);
+  
+  for (auto& connection : this->connection_queue_){
+    if (client_connection::STATE::CONNECTED == connection->state()) {
+      connection->outgoing_stream()->write_value_async(
+        sp,
+        http_request::simple_request(sp, "GET", "/client/api", message))
+      .wait(
+        [](const service_provider & sp) {},
+        [](const service_provider & sp, std::exception_ptr ex) {},
+        sp);      
+    }
+  }
 }
 
 bool vds::client_logic::process_timer_tasks(const service_provider & sp)
@@ -167,8 +178,8 @@ bool vds::client_logic::process_timer_tasks(const service_provider & sp)
         std::launch::async,
         [this, sp]() {
 
-        std::chrono::time_point<std::chrono::system_clock> border
-          = std::chrono::system_clock::now() - std::chrono::seconds(60);
+        std::chrono::time_point<std::chrono::steady_clock> border
+          = std::chrono::steady_clock::now() - std::chrono::seconds(60);
 
         size_t try_count = 0;
         this->connection_mutex_.lock();
@@ -182,9 +193,9 @@ bool vds::client_logic::process_timer_tasks(const service_provider & sp)
           auto index = std::rand() % this->connection_queue_.size();
           auto& connection = this->connection_queue_[index];
           if (
-            client_connection<client_logic>::NONE == connection->state()
+            client_connection::STATE::NONE == connection->state()
             || (
-              client_connection<client_logic>::CONNECT_ERROR == connection->state()
+              client_connection::STATE::CONNECT_ERROR == connection->state()
               && border > connection->connection_end()
               )
             ) {

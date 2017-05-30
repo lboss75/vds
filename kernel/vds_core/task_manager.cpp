@@ -91,7 +91,8 @@ void vds::task_manager::register_services(service_registrator & registrator)
 
 void vds::task_manager::start(const service_provider & sp)
 {
-  this->sp_ = sp;
+  this->sp_ = sp.create_scope("task_manager");
+  imt_service::enable_async(this->sp_);
 }
 
 void vds::task_manager::stop(const service_provider &)

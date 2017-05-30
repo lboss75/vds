@@ -7,6 +7,7 @@ All rights reserved
 */
 
 #include "async_task.h"
+#include "mt_service.h"
 #include "network_types_p.h"
 #include "network_service_p.h"
 #include "tcp_network_socket_p.h"
@@ -44,6 +45,7 @@ namespace vds {
       int port,
       const std::function<void(const service_provider & sp, const tcp_network_socket & s)> & new_connection)
     {
+      imt_service::async_enabled_check(sp);
       return create_async_task([this, address, port, new_connection](
         const std::function<void (const service_provider & sp)> & done,
         const error_handler & on_error,

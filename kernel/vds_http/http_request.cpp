@@ -53,3 +53,24 @@ void vds::http_request::parse_parameters()
     this->url_.erase(p - this->url_.c_str());
   }
 }
+
+std::shared_ptr<vds::http_message> vds::http_request::simple_request(
+  const service_provider & sp,
+  const std::string& method,
+  const std::string& url,
+  const std::string& body)
+{
+  std::list<std::string> headers;
+  headers.push_back(method + " " + url + " HTTP/1.0");
+  headers.push_back("Content-Type: text/html; charset=utf-8");
+  headers.push_back("Content-Length:" + std::to_string(body.length()));
+  
+  auto result = std::make_shared<http_message>(headers);
+
+  result->body()->write_all_async(sp, nullptr, 0).wait(
+    [](const service_provider & sp) {},
+    [](const service_provider & sp, std::exception_ptr ex) {},
+    sp);
+
+  return result;
+}

@@ -49,6 +49,16 @@ namespace vds {
       });
     }
     
+    async_task<> write_value_async(const service_provider & sp, const item_type & data)
+    {
+      return create_async_task([this, data](
+        const std::function<void(const service_provider & sp)> & done,
+        const error_handler & on_error,
+        const service_provider & sp){
+        this->write_all_async(sp, &data, 1).wait(done, on_error, sp);
+      });
+    }
+    
     async_task<size_t> write_async(const service_provider & sp, const item_type * data, size_t data_size)
     {
       if (this->continue_write_) {

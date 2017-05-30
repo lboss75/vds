@@ -52,6 +52,11 @@ namespace vds {
       return this->message_;
     }
     
+    static std::shared_ptr<http_message> simple_request(
+      const service_provider & sp,
+      const std::string & method,
+      const std::string & url,
+      const std::string & body);
 
   private:
     std::shared_ptr<http_message> message_;
