@@ -30,10 +30,6 @@ namespace vds {
       //client_connection<client_logic> & connection,
       const json_value * response);
 
-    void add_task(
-      const service_provider & sp,
-      const std::string & message);
-
    
     template <typename response_type>
     async_task<const response_type & /*response*/>
@@ -83,9 +79,10 @@ namespace vds {
       const service_provider & sp,
       const std::string & user_login,
       const std::string & name,
-      const const_data_buffer & data);
+      const const_data_buffer & meta_info,
+      const filename & tmp_file);
 
-    async_task<const const_data_buffer & /*datagram*/> download_file(
+    async_task<const_data_buffer /*meta_info*/, filename> download_file(
       const service_provider & sp,
       const std::string & user_login,
       const std::string & name);
@@ -105,7 +102,11 @@ namespace vds {
     bool messages_sent_;
 
     //pipeline_queue<std::string, client_connection<client_logic>> outgoing_queue_;
-    
+    async_stream<std::string> tasks_;
+    void add_task(
+      const service_provider & sp,
+      const std::string & message);
+
     timer process_timer_;
     bool process_timer_tasks(const service_provider & sp);
     

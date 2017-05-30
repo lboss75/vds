@@ -92,15 +92,18 @@ namespace vds {
       put_file_message(
         const std::string & user_login,
         const std::string & name,
+        const const_data_buffer & meta_info,
         const filename & tmp_file);
 
       const std::string & user_login() const { return this->user_login_; }
       const std::string & name() const { return this->name_; }
+      const const_data_buffer & meta_info() const { return this->meta_info_; }
       const filename & tmp_file() const { return this->tmp_file_; }
 
     private:
       std::string user_login_;
       std::string name_;
+      const_data_buffer meta_info_;
       filename tmp_file_;
     };
 
@@ -149,11 +152,14 @@ namespace vds {
       std::unique_ptr<json_value> serialize() const;
 
       get_file_message_response(
+        const const_data_buffer & meta_info,
         const filename & tmp_file);
 
+      const const_data_buffer & meta_info() const { return this->meta_info_; }
       const filename & tmp_file() const { return this->tmp_file_; }
 
     private:
+      const_data_buffer meta_info_;
       filename tmp_file_;
     };
   };

@@ -24,6 +24,26 @@ std::string vds::utf16::to_utf8(const std::wstring & original)
   return result;
 }
 
+size_t vds::utf8::char_size(char first_utf8_symbol)
+{
+  if (0 == (0b10000000 & (uint8_t)first_utf8_symbol)) {
+    return 1;
+  }
+  else if (0b11000000 == (0b11100000 & (uint8_t)first_utf8_symbol)) {
+    return 2;
+  }
+  else if (0b11100000 == (0b11110000 & (uint8_t)first_utf8_symbol)) {
+    return 3;
+  }
+  else if (0b11110000 == (0b11111000 & (uint8_t)first_utf8_symbol)) {
+    return 4;
+  }
+  else {
+    throw std::runtime_error("Invalid UTF8 string");
+  }
+}
+
+
 wchar_t vds::utf8::next_char(const char *& utf8string, size_t & len)
 {
   if (len == 0) {

@@ -41,25 +41,6 @@ void vds::_local_cache::stop(const service_provider& sp)
 {
 }
 
-std::unique_ptr<vds::const_data_buffer> vds::_local_cache::get_object(
-  const service_provider& sp,
-  const full_storage_object_id& object_id)
-{
-  filename fn(
-    foldername(this->root_folder_, object_id.source_server_id().str()),
-    std::to_string(object_id.index()));
-
-  
-  if(!file::exists(fn)){
-    return std::unique_ptr<const_data_buffer>();
-  }
-  
-  return std::unique_ptr<const_data_buffer>(
-    new const_data_buffer(
-      inflate::inflate_buffer(
-        file::read_all(fn))));
-}
-
 vds::filename vds::_local_cache::get_object_filename(
   const service_provider& sp, 
   const vds::guid& server_id,

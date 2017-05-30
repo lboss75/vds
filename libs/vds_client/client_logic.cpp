@@ -150,6 +150,13 @@ std::string vds::client_logic::get_messages()
   return result;
 }
 */
+
+void vds::client_logic::add_task(const service_provider & sp, const std::string & message)
+{
+  this->tasks_.write_all_async(sp, &message, 1)
+    .wait([](const service_provider & sp) {}, [](const service_provider & sp, std::exception_ptr ex) {}, sp);
+}
+
 bool vds::client_logic::process_timer_tasks(const service_provider & sp)
 {
   if (!this->connection_queue_.empty()) {
@@ -225,23 +232,21 @@ vds::async_task<const std::string& /*version_id*/> vds::client_logic::put_file(
   const service_provider & sp,
   const std::string & user_login,
   const std::string & name,
-  const const_data_buffer & data)
+  const const_data_buffer & meta_info,
+  const filename & tmp_file)
 {  
   foldername tmp(persistence::current_user(sp), "tmp");
   tmp.create();
 
   auto version_id = guid::new_guid().str();
-  filename tmpfile(tmp, version_id);
-  file f(tmpfile, file::create_new);
-  f.write(data.data(), data.size());
-  f.close();
 
   return this->send_request<client_messages::put_file_message_response>(
     sp,
     client_messages::put_file_message(
       user_login,
       name,
-      tmpfile).serialize())
+      meta_info,
+      tmp_file).serialize())
     .then([](
       const std::function<void(const service_provider & sp, const std::string& /*version_id*/)> & done,
       const error_handler & on_error,
@@ -251,7 +256,7 @@ vds::async_task<const std::string& /*version_id*/> vds::client_logic::put_file(
   });
 }
 
-vds::async_task<const vds::const_data_buffer & /*datagram*/> vds::client_logic::download_file(
+vds::async_task<vds::const_data_buffer /*meta_info*/, vds::filename> vds::client_logic::download_file(
   const service_provider & sp,
   const std::string & user_login,
   const std::string & name)
@@ -266,11 +271,11 @@ vds::async_task<const vds::const_data_buffer & /*datagram*/> vds::client_logic::
       user_login,
       name).serialize())
     .then([](
-      const std::function<void(const service_provider & sp, const vds::const_data_buffer & /*datagram*/)> & done,
+      const std::function<void(const service_provider & sp, const_data_buffer meta_info, filename tmp_file)> & done,
       const error_handler & on_error,
       const service_provider & sp,
       const client_messages::get_file_message_response & response) {
     
-    done(sp, file::read_all(response.tmp_file()));
+    done(sp, response.meta_info(), response.tmp_file());
   });
 }

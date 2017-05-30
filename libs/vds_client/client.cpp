@@ -80,17 +80,28 @@ vds::async_task<const std::string& /*version_id*/> vds::iclient::upload_file(
   return static_cast<_client *>(this)->upload_file(sp, login, password, name, tmp_file);
 }
 
-vds::async_task<vds::filename> vds::iclient::download_data(
+vds::async_task<> vds::iclient::download_data(
   const service_provider & sp,
   const std::string & login,
   const std::string & password,
-  const std::string & name)
+  const std::string & name,
+  const filename & target_file)
 {
-  return static_cast<_client *>(this)->download_data(sp, login, password, name);
+  return static_cast<_client *>(this)->download_data(sp, login, password, name, target_file);
 }
 
 vds::_client::_client(vds::client* owner)
-: owner_(owner)
+: owner_(owner), last_tmp_file_index_(0)
+{
+}
+
+void vds::_client::start(const service_provider & sp)
+{
+  this->tmp_folder_ = foldername(foldername(persistence::current_user(sp), ".vds"), "tmp");
+  this->tmp_folder_.create();
+}
+
+void vds::_client::stop(const service_provider & sp)
 {
 }
 
@@ -200,56 +211,59 @@ vds::async_task<const std::string& /*version_id*/> vds::_client::upload_file(
 
     auto key_crypted = user_certificate.public_key().encrypt(key_data.data());
 
+    this->tmp_folder_mutex_.lock();
+    auto tmp_index = this->last_tmp_file_index_++;
+    this->tmp_folder_mutex_.unlock();
+
+    filename tmp_file(this->tmp_folder_, std::to_string(tmp_index));
+
+    binary_serializer to_sign;
+    to_sign << key_crypted;
+
+    binary_serializer datagram;
+    datagram << key_crypted;
+    datagram << asymmetric_sign::signature(
+      hash::sha256(),
+      user_private_key,
+      to_sign.data());
+
     dataflow(
       file_read(fn),
       deflate(),
       symmetric_encrypt(transaction_key),
-      file_write(tmp_file_name))(
-        [this, key_crypted, user_private_key, user_login, name, done, on_error](const service_provider & sp, const void * data, size_t data_size) {
-
-      binary_serializer to_sign;
-      to_sign << key_crypted;
-      to_sign.push_data(data, data_size);
-
-      binary_serializer datagram;
-      datagram << key_crypted;
-      datagram.push_data(data, data_size);
-      datagram << asymmetric_sign::signature(
-        hash::sha256(),
-        user_private_key,
-        to_sign.data());
-
+      file_write(tmp_file, file::file_mode::create_new))(
+        [this, tmp_file, user_login, name, done, on_error, info = const_data_buffer(datagram.data())](const service_provider & sp) {
 
       sp.get<logger>()->trace(sp, "Upload file");
       this->owner_->logic_->put_file(
         sp,
         user_login,
         name,
-        datagram.data())
+        info,
+        tmp_file)
         .wait(done, on_error, sp);
     },
         [](const service_provider & sp, std::exception_ptr ex) { std::rethrow_exception(ex); },
-      sp,
-      data,
-      data_size);
+      sp);
 
   });
 }
 
-vds::async_task<vds::const_data_buffer &&>
+vds::async_task<>
 vds::_client::download_data(
   const service_provider & sp,
   const std::string & user_login,
   const std::string & user_password,
-  const std::string & name)
+  const std::string & name,
+  const filename & target_file)
 {
   return this->authenticate(
     sp,
     user_login,
     user_password)
     .then(
-      [this, user_login, name](
-        const std::function<void(const service_provider & sp, const_data_buffer&&)>& done,
+      [this, user_login, name, target_file](
+        const std::function<void(const service_provider & sp)>& done,
         const error_handler & on_error,
         const service_provider & sp,
         const certificate& user_certificate,
@@ -257,21 +271,20 @@ vds::_client::download_data(
 
     sp.get<logger>()->trace(sp, "Downloading file");
     this->owner_->logic_->download_file(sp, user_login, name).wait(
-      [this, done, user_certificate = certificate::parse(user_certificate.str()), user_private_key](const service_provider & sp, const const_data_buffer& datagram_data) {
+      [this, done, on_error, user_certificate = certificate::parse(user_certificate.str()), user_private_key, target_file]
+      (const service_provider & sp, const const_data_buffer & meta_info, const filename & tmp_file) {
 
       sp.get<logger>()->trace(sp, "Decrypting data");
       const_data_buffer key_crypted;
-      const_data_buffer crypted_data;
       const_data_buffer signature;
 
-      binary_deserializer datagram(datagram_data);
+      binary_deserializer datagram(meta_info);
       datagram
         >> key_crypted
-        >> crypted_data
         >> signature;
 
       binary_serializer to_sign;
-      to_sign << key_crypted << crypted_data;
+      to_sign << key_crypted;
 
       if (!asymmetric_sign_verify::verify(
         hash::sha256(),
@@ -286,19 +299,22 @@ vds::_client::download_data(
         symmetric_crypto::aes_256_cbc(),
         binary_deserializer(user_private_key.decrypt(key_crypted)));
 
-      barrier b;
-      const_data_buffer result;
+      std::exception_ptr error;
       dataflow(
+        file_read(tmp_file),
         symmetric_decrypt(transaction_key),
-        collect_data())(
-          [&result, &b](const service_provider & sp, const void * data, size_t size) {result.reset(data, size); b.set(); },
-          [](const service_provider & sp, std::exception_ptr ex) { std::rethrow_exception(ex); },
-          sp,
-          crypted_data.data(),
-          crypted_data.size());
+        deflate(),
+        file_write(target_file, file::file_mode::create_new))(
+          [](const service_provider & sp) { },
+          [&error](const service_provider & sp, std::exception_ptr ex) { error = ex; },
+          sp);
 
-      b.wait();
-      done(sp, std::move(result));
+      if (error) {
+        on_error(sp, error);
+      }
+      else {
+        done(sp);
+      }
     },
       on_error,
       sp);

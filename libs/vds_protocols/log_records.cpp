@@ -372,10 +372,12 @@ const char vds::server_log_file_map::message_type[] = "file";
 vds::server_log_file_map::server_log_file_map(
   const std::string & version_id,
   const std::string & user_login,
-  const std::string & name)
+  const std::string & name,
+  const const_data_buffer & meta_info)
 : version_id_(version_id),
   user_login_(user_login),
-  name_(name)
+  name_(name),
+  meta_info_(meta_info)
 {
 }
 
@@ -386,6 +388,7 @@ vds::server_log_file_map::server_log_file_map(const json_value * source)
     s->get_property("v", this->version_id_);
     s->get_property("u", this->user_login_);
     s->get_property("n", this->name_);
+    s->get_property("m", this->meta_info_);
 
     auto items = dynamic_cast<const json_array *>(s->get_property("i"));
     if (nullptr != items) {
@@ -411,6 +414,7 @@ std::unique_ptr<vds::json_value> vds::server_log_file_map::serialize(bool add_ty
   result->add_property("v", this->version_id_);
   result->add_property("u", this->user_login_);
   result->add_property("n", this->name_);
+  result->add_property("m", this->meta_info_);
 
   std::unique_ptr<json_array> items(new json_array());
   for (auto & p : this->items_) {

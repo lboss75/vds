@@ -50,13 +50,12 @@ void vds::iserver_database::get_file_versions(
   static_cast<_server_database *>(this)->get_file_versions(sp, user_login, name, result);
 }
 
-void vds::iserver_database::get_file_version_map(
+std::unique_ptr<vds::server_log_file_map> vds::iserver_database::get_file_version_map(
   const service_provider & sp, 
   const guid & server_id,
-  const std::string & version_id,
-  std::list<uint64_t>& result_indexes)
+  const std::string & version_id)
 {
-  static_cast<_server_database *>(this)->get_file_version_map(sp, server_id, version_id, result_indexes);
+  return static_cast<_server_database *>(this)->get_file_version_map(sp, server_id, version_id);
 }
 
 uint64_t vds::iserver_database::last_object_index(
@@ -410,26 +409,64 @@ void vds::_server_database::get_file_versions(
     name);
 }
 
-void vds::_server_database::get_file_version_map(
+std::unique_ptr<vds::server_log_file_map> vds::_server_database::get_file_version_map(
   const service_provider & sp,
   const guid & server_id,
-  const std::string & version_id,
-  std::list<uint64_t>& result_indexes)
+  const std::string & version_id)
 {
+  std::unique_ptr<server_log_file_map> result;
+
+  this->get_file_version_info_query_.query(
+    this->db_,
+    "SELECT user_login,server_id,name,meta_info FROM file\
+     WHERE version_id=@version_id",
+    [&result, version_id](sql_statement & reader)->bool {
+    std::string user_login;
+    guid server_id;
+    std::string name;
+    const_data_buffer meta_info;
+
+    reader.get_value(0, user_login);
+    reader.get_value(1, server_id);
+    reader.get_value(2, name);
+    reader.get_value(3, meta_info);
+
+    result.reset(new server_log_file_map(version_id, user_login, name, meta_info));
+    return false;
+    },
+    version_id);
+
+  if (!result) {
+    return result;
+  }
+
   this->get_file_version_map_query_.query(
     this->db_,
-    "SELECT object_index FROM file_map\
-     WHERE version_id=@version_id\
-     ORDER BY order_num",
-    [&result_indexes](sql_statement & reader)->bool {
+    "SELECT fm.object_index,ob.original_lenght,ob.original_hash,ob.target_lenght,ob.target_hash FROM file_map fm\
+     INNER JOIN object ob\
+     ON ob.object_index=fm.object_index\
+     WHERE ob.server_id=@server_id AND fm.version_id=@version_id\
+     ORDER BY fm.order_num",
+    [&result](sql_statement & reader)->bool {
 
     uint64_t index;
-    reader.get_value(0, index);
+    uint64_t original_lenght;
+    const_data_buffer original_hash;
+    uint64_t target_lenght;
+    const_data_buffer target_hash;
 
-    result_indexes.push_back(index);
+    reader.get_value(0, index);
+    reader.get_value(1, original_lenght);
+    reader.get_value(2, original_hash);
+    reader.get_value(3, target_lenght);
+    reader.get_value(4, target_hash);
+
+    result->add(server_log_new_object(index, original_lenght, original_hash, target_lenght, target_hash));
     return true;
   },
     version_id);
+
+  return result;
 }
 
 /////////////////////////////////////////////

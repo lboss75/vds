@@ -18,10 +18,7 @@ namespace vds {
     void start(const service_provider & sp);
     void stop(const service_provider & sp);
     
-    std::unique_ptr<const_data_buffer> get_object(
-      const service_provider & sp,
-      const full_storage_object_id& object_id);
-    
+   
     filename get_object_filename(
       const service_provider & sp,
       const guid & server_id,

@@ -18,12 +18,13 @@ vds::file_manager::put_file(
   const std::string & version_id,
   const std::string & user_login,
   const std::string & name,
+  const const_data_buffer & meta_info,
   const filename & fn)
 {
-  return static_cast<_file_manager *>(this)->put_file(sp, version_id, user_login, name, fn);
+  return static_cast<_file_manager *>(this)->put_file(sp, version_id, user_login, name, meta_info, fn);
 }
 
-vds::async_task<const vds::filename&> vds::file_manager::download_file(
+vds::async_task<vds::const_data_buffer /*meta_info*/, vds::filename> vds::file_manager::download_file(
   const service_provider & sp,
   const std::string & user_login,
   const std::string & name)
@@ -31,7 +32,7 @@ vds::async_task<const vds::filename&> vds::file_manager::download_file(
   return static_cast<_file_manager *>(this)->download_file(sp, user_login, name);
 }
 
-vds::async_task<const vds::filename&> vds::file_manager::download_file(
+vds::async_task<vds::const_data_buffer /*meta_info*/, vds::filename> vds::file_manager::download_file(
   const service_provider & sp,
   const guid & server_id,
   const std::string & version_id)
@@ -51,15 +52,16 @@ vds::_file_manager::put_file(
   const std::string & version_id,
   const std::string & user_login,
   const std::string & name,
+  const const_data_buffer & meta_info,
   const filename & fn)
 {
   return create_async_task(
-    [this, fn, version_id, user_login, name](
+    [this, fn, version_id, user_login, name, meta_info](
       const std::function<void(const service_provider & sp)> & done,
       const error_handler & on_error,
       const service_provider & sp) {
 
-      server_log_file_map result(version_id, user_login, name);
+      server_log_file_map result(version_id, user_login, name, meta_info);
 
       sp.get<ichunk_manager>()->add(sp, result, fn).wait(
           [this, done, &result](const service_provider & sp) {
@@ -88,7 +90,7 @@ vds::_file_manager::put_file(
 //    done();
 //  });
 
-vds::async_task<const vds::filename&> vds::_file_manager::download_file(
+vds::async_task<vds::const_data_buffer /*meta_info*/, vds::filename> vds::_file_manager::download_file(
   const service_provider & sp,
   const std::string & user_login,
   const std::string & name)
@@ -170,53 +172,52 @@ private:
 };
 
 
-vds::async_task<const vds::filename&> vds::_file_manager::download_file(
+vds::async_task<vds::const_data_buffer /*meta_info*/, vds::filename> vds::_file_manager::download_file(
   const service_provider & sp,
   const guid & server_id,
   const std::string & version_id)
 {
-  std::list<uint64_t> indexes;
-  sp.get<iserver_database>()->get_file_version_map(sp, server_id, version_id, indexes);
+  auto file_map = sp.get<iserver_database>()->get_file_version_map(sp, server_id, version_id);
 
-  if (indexes.empty()) {
+  if (!file_map) {
     throw std::runtime_error("File '" + version_id + "' not found");
   }
 
-  auto result = std::make_shared<get_file_results>(indexes.size());
-  for (auto index : indexes) {
-    auto fn = sp.get<ilocal_cache>()->get_object_filename(sp, server_id, index);
+  auto result = std::make_shared<get_file_results>(file_map->items().size());
+  for (auto & index : file_map->items()) {
+    auto fn = sp.get<ilocal_cache>()->get_object_filename(sp, server_id, index.index());
 
     if (file::exists(fn)) {
-      result->get_object_done(sp, index, fn);
+      result->get_object_done(sp, index.index(), fn);
     }
     else {
       sp.get<iconnection_manager>()
-        ->download_object(sp, server_id, index, fn)
+        ->download_object(sp, server_id, index.index(), fn)
         .wait(
-          [result, index, fn](const service_provider & sp) { result->get_object_done(sp, index, fn); },
+          [result, index, fn](const service_provider & sp) { result->get_object_done(sp, index.index(), fn); },
           [result](const service_provider & sp, std::exception_ptr ex) {result->get_object_error(sp, ex); },
           sp
       );
     }
   }
 
-  return create_async_task([this, result, indexes, version_id](
-    const std::function<void(const service_provider & sp, const vds::filename &)> & done,
+  return create_async_task([this, result, file_map = std::shared_ptr<server_log_file_map>(std::move(file_map)), version_id](
+    const std::function<void(const service_provider & sp, const_data_buffer meta_info, vds::filename)> & done,
     const error_handler & on_error,
     const service_provider & sp) {
     result->wait(
       sp,
-      [this, done, on_error, indexes, version_id](const service_provider & sp, std::map<uint64_t, vds::filename> & result) {
+      [this, done, on_error, file_map, version_id](const service_provider & sp, std::map<uint64_t, vds::filename> & result) {
         foldername tmp(persistence::current_user(sp), "tmp");
         tmp.create();
 
         filename tmpfile(tmp, version_id);
-        file f(tmpfile, file::create_new);
+        file f(tmpfile, file::file_mode::create_new);
 
-        for (auto index : indexes) {
+        for (auto & index : file_map->items()) {
           barrier b;
           dataflow(
-            file_read(result[index]),
+            file_read(result[index.index()]),
             inflate(),
             file_append(f))(
               [&b](const service_provider & sp) { b.set(); },
@@ -228,7 +229,7 @@ vds::async_task<const vds::filename&> vds::_file_manager::download_file(
 
         f.close();
 
-        done(sp, tmpfile);
+        done(sp, file_map->meta_info(), tmpfile);
       },
       on_error);
   });

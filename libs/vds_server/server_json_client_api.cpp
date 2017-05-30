@@ -184,6 +184,7 @@ vds::_server_json_client_api::process(
       version_id,
       message.user_login(),
       message.name(),
+      message.meta_info(),
       message.tmp_file())
     .then(
       [version_id](const std::function<void(const service_provider & sp, std::shared_ptr<vds::json_value>)> & done,
@@ -206,7 +207,8 @@ vds::async_task<std::shared_ptr<vds::json_value>> vds::_server_json_client_api::
       const std::function<void(const service_provider & sp, std::shared_ptr<json_value>)> & done,
       const error_handler & on_error,
       const service_provider & sp,
-      const filename & tmp_file) {
-    done(sp, client_messages::get_file_message_response(tmp_file).serialize());
+      const_data_buffer meta_info,
+      filename tmp_file) {
+    done(sp, client_messages::get_file_message_response(meta_info, tmp_file).serialize());
   });
 }

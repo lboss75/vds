@@ -119,6 +119,7 @@ vds::client_messages::put_file_message::put_file_message(const json_value * valu
   if (nullptr != s) {
     s->get_property("n", this->name_);
     s->get_property("u", this->user_login_);
+    s->get_property("m", this->meta_info_);
 
     std::string v;
     if (s->get_property("f", v)) {
@@ -133,6 +134,7 @@ std::unique_ptr<vds::json_value> vds::client_messages::put_file_message::seriali
   s->add_property("$t", message_type);
 
   s->add_property("n", this->name_);
+  s->add_property("m", this->meta_info_);
   s->add_property("u", this->user_login_);
   s->add_property("f", this->tmp_file_.full_name());
 
@@ -142,10 +144,12 @@ std::unique_ptr<vds::json_value> vds::client_messages::put_file_message::seriali
 vds::client_messages::put_file_message::put_file_message(
   const std::string & user_login,
   const std::string & name,
+  const const_data_buffer & meta_info,
   const filename & tmp_file)
   : 
   user_login_(user_login),
   name_(name),
+  meta_info_(meta_info),
   tmp_file_(tmp_file)
 {
 }
@@ -213,6 +217,7 @@ vds::client_messages::get_file_message_response::get_file_message_response(const
     if (s->get_property("f", v)) {
       this->tmp_file_ = filename(v);
     }
+    s->get_property("m", this->meta_info_);
   }
 }
 
@@ -221,12 +226,14 @@ std::unique_ptr<vds::json_value> vds::client_messages::get_file_message_response
   std::unique_ptr<json_object> s(new json_object());
   s->add_property("$t", message_type);
   s->add_property("f", this->tmp_file_.full_name());
+  s->add_property("m", this->meta_info_);
 
   return std::unique_ptr<vds::json_value>(s.release());
 }
 
 vds::client_messages::get_file_message_response::get_file_message_response(
+  const const_data_buffer & meta_info,
   const filename & tmp_file)
-: tmp_file_(tmp_file)
+: meta_info_(meta_info), tmp_file_(tmp_file)
 {
 }

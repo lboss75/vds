@@ -19,14 +19,15 @@ namespace vds {
       const std::string & version_id,
       const std::string & user_login,
       const std::string & name,
+      const const_data_buffer & meta_info,
       const filename & fn);
 
-    async_task<const filename&> download_file(
+    async_task<const_data_buffer /*meta_info*/, filename> download_file(
       const service_provider & sp,
       const std::string & user_login,
       const std::string & name);
 
-    async_task<const filename&> download_file(
+    async_task<const_data_buffer /*meta_info*/, filename> download_file(
       const service_provider & sp,
       const guid & server_id,
       const std::string & version_id);

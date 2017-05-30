@@ -127,6 +127,7 @@ vds::async_task<std::shared_ptr<vds::http_message>> vds::_server_http_api::route
       auto json_request = new std::shared_ptr<json_value>();
       dataflow(
         stream_read<uint8_t>(message->body()),
+        byte_to_char(),
         json_parser("client_api"),
         dataflow_require_once<std::shared_ptr<json_value>>(json_request)
       )(

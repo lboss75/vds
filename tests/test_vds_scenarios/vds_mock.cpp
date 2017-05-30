@@ -168,8 +168,23 @@ void mock_client::upload_file(
   size_t data_size)
 {
   this->start_vds(true, [login, password, name, data, data_size](const vds::service_provider&sp) {
+
+    vds::foldername tmp_folder(vds::persistence::current_user(sp), "tmp");
+    tmp_folder.create();
+    vds::filename tmp_file(tmp_folder, "source");
+
+    vds::dataflow(
+      vds::dataflow_arguments<uint8_t>((const uint8_t *)data, data_size),
+      vds::file_write(tmp_file, vds::file::file_mode::create_new)
+    )
+    (
+      [](const vds::service_provider & sp) {},
+      [](const vds::service_provider & sp, std::exception_ptr ex) {},
+      sp
+      );
+
     vds::barrier b;
-    sp.get<vds::iclient>()->upload_file(sp, login, password, name, data, data_size)
+    sp.get<vds::iclient>()->upload_file(sp, login, password, name, tmp_file)
       .wait(
         [&b](const vds::service_provider&sp, const std::string& /*version_id*/) {
           b.set(); 
@@ -186,20 +201,35 @@ void mock_client::upload_file(
 
 vds::const_data_buffer mock_client::download_data(const std::string & login, const std::string & password, const std::string & name)
 {
-  vds::const_data_buffer result;
+  std::vector<uint8_t> result;
   this->start_vds(true, [&result, login, password, name](const vds::service_provider&sp) {
     vds::barrier b;
     
-    sp.get<vds::iclient>()->download_data(sp, login, password, name)
+    vds::foldername tmp_folder(vds::persistence::current_user(sp), "tmp");
+    tmp_folder.create();
+    vds::filename tmp_file(tmp_folder, "target");
+
+    sp.get<vds::iclient>()->download_data(sp, login, password, name, tmp_file)
     .wait(
-      [&result, &b](const vds::service_provider & sp, vds::const_data_buffer && data){ result = std::move(data); b.set();},
-      [&result, &b](const vds::service_provider & sp, std::exception_ptr ex) {
+      [&b](const vds::service_provider & sp){ b.set();},
+      [&b](const vds::service_provider & sp, std::exception_ptr ex) {
         b.set();
         FAIL() << vds::exception_what(ex);
       },
       sp);
-    
+
     b.wait();
+
+    vds::dataflow(
+      vds::file_read(tmp_file),
+      vds::collect_data(result)
+    )
+    (
+      [](const vds::service_provider & sp) {},
+      [](const vds::service_provider & sp, std::exception_ptr ex) {},
+      sp
+      );
+
   }, false);
   return result;
 }

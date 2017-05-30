@@ -21,7 +21,7 @@ TEST(test_vds, test_initial)
       len %= 32 * 1024 * 1024;
     } while (len < 1024 || len > 32 * 1024 * 1024);
 
-    std::unique_ptr<unsigned char> buffer(new unsigned char[len]);
+    std::unique_ptr<uint8_t> buffer(new uint8_t[len]);
     vds::crypto_service::rand_bytes(buffer.get(), (int)len);
 
     //Waiting to sync logs

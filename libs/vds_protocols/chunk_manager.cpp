@@ -78,7 +78,7 @@ vds::_chunk_manager::add(
             deflate(),
             //crypt()
             hash_filter(&object_lenght, &object_hash),
-            file_write(tmp_file, file::create_new)
+            file_write(tmp_file, file::file_mode::create_new)
           )(
             [this, tmp_file, &original_lenght, &original_hash, &object_lenght, &object_hash, &target](const service_provider & sp) {
 
@@ -116,15 +116,6 @@ vds::_chunk_manager::add(
           done(sp);
         }
       });
-}
-
-vds::const_data_buffer vds::_chunk_manager::get(
-  const service_provider & sp,
-  const guid & server_id,
-  uint64_t index)
-{
-  return inflate::inflate_buffer(
-    file::read_all(sp.get<ilocal_cache>()->get_object_filename(sp, server_id, index)));
 }
 
 void vds::_chunk_manager::generate_chunk(const service_provider & sp)

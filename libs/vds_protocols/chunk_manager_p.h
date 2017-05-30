@@ -25,10 +25,6 @@ namespace vds {
         server_log_file_map & target,
         const filename & fn);
 
-    const_data_buffer get(
-      const service_provider & sp,
-      const guid & server_id, uint64_t index);
-
     void set_next_index(
       const service_provider & sp,
       uint64_t next_index);

@@ -5,6 +5,8 @@ All rights reserved
 #ifndef __TEST_VDS_SCENARIOS_VDS_MOCK_H_
 #define __TEST_VDS_SCENARIOS_VDS_MOCK_H_
 
+#include "network_service.h"
+
 class mock_server
 {
 public:

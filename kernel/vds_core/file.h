@@ -20,7 +20,7 @@ namespace vds {
   class file
   {
   public:
-    enum file_mode
+    enum class file_mode
     {
       //Opens the file if it exists and seeks to the end of the file, or creates a new file.
       append,
@@ -184,7 +184,7 @@ namespace vds {
         const context_type & context,
         const file_read & args
         ) : base_class(context),
-            f_(args.filename_, file::open_read)
+            f_(args.filename_, file::file_mode::open_read)
       {
       }
 
@@ -227,7 +227,7 @@ namespace vds {
         const context_type & context,
         const file_range_read & args)
         : base_class(context),
-          f_(args.filename_, file::open_read),
+          f_(args.filename_, file::file_mode::open_read),
           start_offset_(args.start_offset_),
           max_size_(args.max_size_)
       {

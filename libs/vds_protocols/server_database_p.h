@@ -57,12 +57,10 @@ namespace vds {
       const std::string & name,
       std::list<server_log_file_version> & result);
 
-    void get_file_version_map(
+    std::unique_ptr<server_log_file_map> get_file_version_map(
       const service_provider & sp,
       const guid & server_id,
-      const std::string & version_id,
-      std::list<uint64_t> & result_indexes);
-
+      const std::string & version_id);
 
     server_log_record add_local_record(
       const service_provider & sp,
@@ -150,6 +148,9 @@ namespace vds {
     prepared_query<
       const std::string & /*user_login*/,
       const std::string & /*name*/> get_file_versions_query_;
+
+    prepared_query<
+      const std::string & /*version_id*/> get_file_version_info_query_;
 
     prepared_query<
       const std::string & /*version_id*/> get_file_version_map_query_;

@@ -7,13 +7,17 @@ All rights reserved
 */
 
 #include "client.h"
+#include "foldername.h"
 
 namespace vds {
   class _client : public iclient
   {
   public:
     _client(client * owner);
-    
+
+    void start(const service_provider & sp);
+    void stop(const service_provider & sp);
+
     async_task<
       const vds::certificate & /*server_certificate*/,
       const vds::asymmetric_private_key & /*private_key*/>
@@ -29,14 +33,18 @@ namespace vds {
       const std::string & name,
       const filename & tmp_file);
 
-    async_task<filename> download_data(
+    async_task<> download_data(
       const service_provider & sp,
       const std::string & login,
       const std::string & password,
-      const std::string & name);
+      const std::string & name,
+      const filename & target_file);
 
   private:
     client * owner_;
+    foldername tmp_folder_;
+    std::mutex tmp_folder_mutex_;
+    size_t last_tmp_file_index_;
 
     async_task<
       const vds::certificate & /*user_certificate*/,

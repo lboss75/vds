@@ -66,7 +66,8 @@ namespace vds {
     server_log_file_map(
       const std::string & version_id,
       const std::string & user_login,
-      const std::string & name);
+      const std::string & name,
+      const const_data_buffer & meta_info);
 
     server_log_file_map(
       const json_value * source);
@@ -77,12 +78,14 @@ namespace vds {
     const std::string & version_id() const { return this->version_id_; }
     const std::string & user_login() const { return this->user_login_; }
     const std::string & name() const { return this->name_; }
+    const const_data_buffer & meta_info() const { return this->meta_info_; }
     const std::list<server_log_new_object> & items() const { return this->items_; }
     
   private:
     std::string version_id_;
     std::string user_login_;
     std::string name_;
+    const_data_buffer meta_info_;
     std::list<server_log_new_object> items_;
   };
 
