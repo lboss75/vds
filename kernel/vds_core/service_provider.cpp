@@ -23,7 +23,7 @@ vds::service_provider vds::service_provider::create_scope(const std::string & na
   return this->impl_->create_scope(this, name);
 }
 
-uint64_t vds::service_provider::id() const
+size_t vds::service_provider::id() const
 {
   return this->impl_->id();
 }

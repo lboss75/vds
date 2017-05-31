@@ -8,6 +8,7 @@ All rights reserved
 
 #include "socket_task_p.h"
 #include "network_service_p.h"
+#include "tcp_network_socket_p.h"
 
 namespace vds {
   class inetwork_service;
@@ -33,6 +34,7 @@ namespace vds {
     {
       this->cancel_subscriber_ = this->cancel_token_.then_cancellation_requested([this]() {
         shutdown(this->s_, SD_BOTH);
+        _tcp_network_socket(this->s_).close();
       });
     }
 
@@ -127,7 +129,7 @@ namespace vds {
 
     void error(DWORD error_code) override
     {
-      if (this->cancel_token_.is_cancellation_requested() && (WSAESHUTDOWN == error_code)) {
+      if (this->cancel_token_.is_cancellation_requested() && (WSAESHUTDOWN == error_code || ERROR_OPERATION_ABORTED == error_code)) {
         this->process(0);
       }
       else {

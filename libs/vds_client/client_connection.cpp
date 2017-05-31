@@ -79,7 +79,7 @@ void vds::client_connection::connect(const service_provider & sp)
       create_async_task(
         [this, s, client_crypto_tunnel](const std::function<void(const service_provider & sp)> & done, const error_handler & on_error, const service_provider & sp) {
       dataflow(
-        stream_read<std::shared_ptr<http_message>>(this->incoming_stream_),
+        stream_read<std::shared_ptr<http_message>>(this->outgoing_stream_),
         http_serializer(),
         stream_write<uint8_t>(client_crypto_tunnel->decrypted_input())
       )(

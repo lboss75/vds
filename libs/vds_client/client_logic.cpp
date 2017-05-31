@@ -155,7 +155,7 @@ void vds::client_logic::add_task(const service_provider & sp, const std::string 
 
       connection->outgoing_stream()->write_value_async(
         scope,
-        http_request::simple_request(scope, "GET", "/client/api", message))
+        http_request::simple_request(scope, "GET", "/vds/client_api", message))
       .wait(
         [](const service_provider & sp) {},
         [](const service_provider & sp, std::exception_ptr ex) {},
