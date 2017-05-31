@@ -17,6 +17,7 @@ TEST(test_certificates, test_symmetric)
     registrator.add(crypto_service);
     {
       auto sp = registrator.build("test_symmetric");
+      registrator.start(sp);
 
       //Generate CA certificate
       std::string ca_certificate_text;

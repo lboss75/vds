@@ -491,7 +491,7 @@ vds::_asymmetric_public_key::_asymmetric_public_key(const asymmetric_private_key
 vds::_asymmetric_public_key::~_asymmetric_public_key()
 {
   if(nullptr != this->key_){
-    OPENSSL_free(this->key_);
+    EVP_PKEY_free(this->key_);
   }
 }
 
@@ -771,7 +771,9 @@ vds::certificate vds::_certificate::create_new(
     ASN1_INTEGER_set(X509_get_serialNumber(x509), 1);
     X509_gmtime_adj(X509_get_notBefore(x509), 0);
     X509_gmtime_adj(X509_get_notAfter(x509), (long)60 * 60 * 24 * 365);
-    X509_set_pubkey(x509, new_certificate_public_key.impl_->key());
+    auto key = new_certificate_public_key.impl_->key();
+    EVP_PKEY_up_ref(key);
+    X509_set_pubkey(x509, key);
 
     auto name = X509_get_subject_name(x509);
     X509_NAME_add_entry_by_txt(name, "C", MBSTRING_ASC, (const unsigned char *)options.country.c_str(), -1, -1, 0);

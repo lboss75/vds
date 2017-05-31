@@ -32,6 +32,7 @@ TEST(http_tests, test_server)
 
   auto sp = registrator.build("test_server");
   registrator.start(sp);
+  vds::imt_service::enable_async(sp);
 
   //Start server
   vds::http_router router;
@@ -46,43 +47,46 @@ TEST(http_tests, test_server)
     "127.0.0.1",
     8000,
     [&router](const vds::service_provider & sp, const vds::tcp_network_socket & s) {
-    auto responses = new std::shared_ptr<vds::http_message>[1];
     auto stream = std::make_shared<vds::async_stream<std::shared_ptr<vds::http_message>>>();
+    vds::cancellation_token_source cancellation;
     vds::async_series(
       vds::create_async_task(
-        [s, stream, &router, responses](const std::function<void(const vds::service_provider & sp)> & done, const vds::error_handler & on_error, const vds::service_provider & sp) {
+        [s, stream, &router, &cancellation](
+          const std::function<void(const vds::service_provider & sp)> & done,
+          const vds::error_handler & on_error,
+          const vds::service_provider & sp) {
       vds::dataflow(
-        vds::read_tcp_network_socket(s),
+        vds::read_tcp_network_socket(s, cancellation.token()),
         vds::http_parser(
-          [stream, &router, responses](const vds::service_provider & sp, const std::shared_ptr<vds::http_message> & request) {
-        responses[0] = vds::http_middleware<vds::http_router>(router).process(sp, request);
-        stream->write_all_async(sp, responses, 1)
-          .wait(
-            [](const vds::service_provider & sp) {
-        },
-            [](const vds::service_provider & sp, std::exception_ptr ex) {
-        },
+          [stream, &router, on_error](const vds::service_provider & sp, const std::shared_ptr<vds::http_message> & request) {
+        vds::http_middleware<vds::http_router>(router).process(sp, request).wait(
+          [stream](const vds::service_provider & sp, const std::shared_ptr<vds::http_message> & response) {
+          stream->write_value_async(sp, response)
+            .wait(
+              [](const vds::service_provider & sp) {},
+              [](const vds::service_provider & sp, std::exception_ptr ex) {},
+              sp);
+          },
+          on_error,
           sp);
       }
         )
       )(done, on_error, sp);
     }),
       vds::create_async_task(
-        [s, stream](const std::function<void(const vds::service_provider & sp)> & done, const vds::error_handler & on_error, const vds::service_provider & sp) {
+        [s, stream, &cancellation](const std::function<void(const vds::service_provider & sp)> & done, const vds::error_handler & on_error, const vds::service_provider & sp) {
       vds::dataflow(
         vds::stream_read<std::shared_ptr<vds::http_message>>(stream),
         vds::http_serializer(),
-        vds::write_tcp_network_socket(s)
+        vds::write_tcp_network_socket(s, cancellation.token())
       )(done, on_error, sp);
     })
       )
       .wait(
-        [responses](const vds::service_provider & sp) {
+        [](const vds::service_provider & sp) {
       sp.get<vds::logger>()->debug(sp, "Connection closed");
-      delete responses;
     },
-        [responses](const vds::service_provider & sp, std::exception_ptr ex) {
-      delete responses;
+        [](const vds::service_provider & sp, std::exception_ptr ex) {
       FAIL() << vds::exception_what(ex);
 
     },
@@ -126,14 +130,14 @@ TEST(http_tests, test_server)
       [](const vds::service_provider & sp) {},
       [](const vds::service_provider & sp, std::exception_ptr ex) {},
       sp);
-
+    vds::cancellation_token_source cancellation;
     vds::async_series(
       vds::create_async_task(
-        [s, &requests](const std::function<void(const vds::service_provider & sp)> & done, const vds::error_handler & on_error, const vds::service_provider & sp) {
+        [s, &requests, &cancellation](const std::function<void(const vds::service_provider & sp)> & done, const vds::error_handler & on_error, const vds::service_provider & sp) {
       vds::dataflow(
         vds::dataflow_arguments<std::shared_ptr<vds::http_message>>(requests, 1),
         vds::http_serializer(),
-        vds::write_tcp_network_socket(s)
+        vds::write_tcp_network_socket(s, cancellation.token())
       )(
         [done](const vds::service_provider & sp) {
         sp.get<vds::logger>()->debug(sp, "Client writer closed");
@@ -147,20 +151,20 @@ TEST(http_tests, test_server)
 
     }),
       vds::create_async_task(
-        [s, &response, &answer](const std::function<void(const vds::service_provider & sp)> & done, const vds::error_handler & on_error, const vds::service_provider & sp) {
+        [s, &response, &answer, &cancellation](const std::function<void(const vds::service_provider & sp)> & done, const vds::error_handler & on_error, const vds::service_provider & sp) {
       vds::dataflow(
-        vds::read_tcp_network_socket(s),
+        vds::read_tcp_network_socket(s, cancellation.token()),
         vds::http_parser(
-          [&response, &answer, s, done, on_error](const vds::service_provider & sp, const std::shared_ptr<vds::http_message> & request) {
+          [&response, &answer, s, done, on_error, &cancellation](const vds::service_provider & sp, const std::shared_ptr<vds::http_message> & request) {
         response = request;
         auto data = std::make_shared<std::vector<uint8_t>>();
         vds::dataflow(
           vds::stream_read<uint8_t>(response->body()),
           vds::collect_data(*data)
         )(
-          [data, &answer, s, done](const vds::service_provider & sp) {
+          [data, &answer, s, done, &cancellation](const vds::service_provider & sp) {
           answer = std::string((const char *)data->data(), data->size());
-          vds::tcp_network_socket(s).close();
+          cancellation.cancel();
           done(sp);
         },
           [on_error](const vds::service_provider & sp, std::exception_ptr ex) {

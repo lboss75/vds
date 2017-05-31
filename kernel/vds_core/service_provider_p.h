@@ -107,7 +107,7 @@ namespace vds {
       while (pthis->parent_) {
         if (service_provider::property_scope::root_scope != scope) {
           auto p = pthis->properties_.find(type_id);
-          if (this->properties_.end() != p) {
+          if (pthis->properties_.end() != p) {
             return p->second.get();
           }
           else if (service_provider::property_scope::local_scope == scope) {

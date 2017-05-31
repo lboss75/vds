@@ -42,10 +42,8 @@ vds::async_task<> vds::_server_http_api::start(
     //upnp_client upnp(sp);
     //upnp.open_port(8000, 8000, "TCP", "VDS Service");
 
-    auto scope = sp.create_scope("Server HTTP API");
-    imt_service::enable_async(scope);
     this->server_.start(
-      scope,
+      sp,
       address,
       port,
       [this, certificate, private_key](const service_provider & sp, const tcp_network_socket & s) {

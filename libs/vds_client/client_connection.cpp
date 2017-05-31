@@ -8,11 +8,30 @@ All rights reserved
 #include "http_serializer.h"
 #include "http_parser.h"
 
+vds::client_connection::client_connection(const std::string & address, int port, certificate * client_certificate, asymmetric_private_key * client_private_key)
+: address_(address),
+  port_(port),
+  client_certificate_(client_certificate),
+  client_private_key_(client_private_key),
+  state_(STATE::NONE),
+  incoming_stream_(new async_stream<std::shared_ptr<http_message>>()),
+  outgoing_stream_(new async_stream<std::shared_ptr<http_message>>())
+{
+}
+
+vds::client_connection::~client_connection()
+{
+}
+
+
+
 void vds::client_connection::connect(const service_provider & sp)
 {
   this->state_ = STATE::CONNECTING;
   this->connection_start_ = std::chrono::steady_clock::now();
-  
+
+  auto scope = sp.create_scope("Client");
+  imt_service::enable_async(scope);
   tcp_network_socket::connect(
     sp,
     this->address_,
@@ -99,9 +118,8 @@ void vds::client_connection::connect(const service_provider & sp)
         sp.create_scope("Client reader"));
     })
       ).wait(
-        [done, client_crypto_tunnel](const service_provider & sp) {
+        [client_crypto_tunnel](const service_provider & sp) {
       sp.get<logger>()->debug(sp, "Client closed");
-      done(sp);
     },
         [on_error](const service_provider & sp, std::exception_ptr ex) {
       sp.get<logger>()->debug(sp, "Client error");
@@ -109,6 +127,9 @@ void vds::client_connection::connect(const service_provider & sp)
     },
       sp.create_scope("Client dataflow"));
     client_crypto_tunnel->start(sp);
+
+    done(sp);
+
   })
     .wait(
       [this](const service_provider & sp) {
@@ -119,5 +140,5 @@ void vds::client_connection::connect(const service_provider & sp)
         this->state_ = STATE::CONNECT_ERROR;
         sp.unhandled_exception(ex);        
       },
-    sp.create_scope("Client"));
+      scope);
 }

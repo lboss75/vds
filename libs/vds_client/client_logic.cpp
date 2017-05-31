@@ -75,14 +75,9 @@ void vds::client_logic::process_response(
           std::lock_guard<std::mutex> lock(this->requests_mutex_);
           auto p = this->requests_.find(request_id);
           if(this->requests_.end() != p){
-            imt_service::async(sp,
-              [
-                done = p->second.done,
-                result = task->clone().release(),
-                sp
-              ](){
-              done(sp, std::unique_ptr<json_value>(result).get());
-            });
+            auto item = p->second;
+
+            item->done(sp, task->clone());
             this->requests_.remove(request_id);            
           }
         }
@@ -96,13 +91,11 @@ void vds::client_logic::cancel_request(const service_provider & sp, const std::s
   std::lock_guard<std::mutex> lock(this->requests_mutex_);
   auto p = this->requests_.find(request_id);
   if (this->requests_.end() != p) {
-    imt_service::async(sp,
-      [sp, on_error = p->second.on_error](){
-      on_error(sp, std::make_exception_ptr(std::runtime_error("Timeout")));
-    });
-  }
+    auto item = p->second;
+    item->on_timeout(sp);
 
-  this->requests_.remove(request_id);
+    this->requests_.remove(request_id);
+  }
 }
 
 /*
@@ -157,13 +150,16 @@ void vds::client_logic::add_task(const service_provider & sp, const std::string 
   
   for (auto& connection : this->connection_queue_){
     if (client_connection::STATE::CONNECTED == connection->state()) {
+      auto scope = sp.create_scope("Call HTTP Client API");
+      imt_service::enable_async(scope);
+
       connection->outgoing_stream()->write_value_async(
-        sp,
-        http_request::simple_request(sp, "GET", "/client/api", message))
+        scope,
+        http_request::simple_request(scope, "GET", "/client/api", message))
       .wait(
         [](const service_provider & sp) {},
         [](const service_provider & sp, std::exception_ptr ex) {},
-        sp);      
+        scope);
     }
   }
 }
@@ -216,7 +212,10 @@ bool vds::client_logic::process_timer_tasks(const service_provider & sp)
   if (!this->messages_sent_) {
     std::lock_guard<std::mutex> lock(this->requests_mutex_);
     for (decltype(this->requests_)::data_type::const_iterator r = this->requests_.begin(); r != this->requests_.end(); ++r) {
-      this->add_task(sp, r->second.task);
+      auto task = r->second->task();
+      if (!task.empty()) {
+        this->add_task(sp, task);
+      }
     }
   }
   else {
@@ -289,4 +288,45 @@ vds::async_task<vds::const_data_buffer /*meta_info*/, vds::filename> vds::client
     
     done(sp, response.meta_info(), response.tmp_file());
   });
+}
+
+vds::client_logic::request_info::request_info(
+  const std::string & task,
+  const std::function<void(const service_provider & sp, const std::unique_ptr<json_value> & response)> & done,
+  const error_handler & on_error)
+: task_(task),
+  done_(done),
+  on_error_(on_error),
+  is_completed_(false)
+{
+}
+
+void vds::client_logic::request_info::done(const service_provider & sp, const std::unique_ptr<json_value>& response)
+{
+  std::lock_guard<std::mutex> task_lock(this->mutex_);
+  if (!this->is_completed_) {
+    this->is_completed_ = true;
+    this->done_(sp, response);
+  }
+}
+
+void vds::client_logic::request_info::on_timeout(const service_provider & sp)
+{
+  std::lock_guard<std::mutex> task_lock(this->mutex_);
+  if (!this->is_completed_) {
+    this->is_completed_ = true;
+    this->on_error_(sp, std::make_exception_ptr(std::runtime_error("Timeout")));
+  }
+}
+
+std::string vds::client_logic::request_info::task() const
+{
+  std::lock_guard<std::mutex> task_lock(this->mutex_);
+
+  if (!this->is_completed_) {
+    return this->task_;
+  }
+  else {
+    return std::string();
+  }
 }

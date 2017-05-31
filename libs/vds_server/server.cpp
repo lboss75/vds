@@ -107,11 +107,13 @@ void vds::_server::start(const service_provider& sp)
   this->local_cache_->start(sp);
   this->chunk_manager_->start(sp);
 
+  auto scope = sp.create_scope("Server HTTP API");
+  imt_service::enable_async(scope);
   this->server_http_api_->start(sp, "127.0.0.1", this->port_, this->certificate_, this->private_key_)
     .wait(
       [](const service_provider& sp) {sp.get<logger>()->trace(sp, "Server closed"); },
       [](const service_provider& sp, std::exception_ptr ex) {sp.get<logger>()->trace(sp, "Server error %s", exception_what(ex).c_str()); },
-      sp);
+      scope);
 }
 
 void vds::_server::stop(const service_provider& sp)

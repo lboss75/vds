@@ -55,10 +55,10 @@ namespace vds {
           const error_handler & on_error,
           const service_provider & sp){
           std::lock_guard<std::mutex> lock(this->requests_mutex_);
-          this->requests_.set(request_id, request_info {
+          this->requests_.set(request_id, std::make_shared<request_info>(
             task,
-            [done](const service_provider & sp, const json_value * response) { done(sp, response_type(response)); },
-            on_error });
+            [done](const service_provider & sp, const std::unique_ptr<json_value> & response) { done(sp, response_type(response.get())); },
+            on_error));
           this->add_task(sp, task);
           
           auto t = std::make_shared<timer>();
@@ -110,15 +110,29 @@ namespace vds {
     timer process_timer_;
     bool process_timer_tasks(const service_provider & sp);
     
-    struct request_info
+    class request_info : public std::enable_shared_from_this<request_info>
     {
-      std::string task;
-      std::function<void (const service_provider & sp, const json_value * response)> done;
-      error_handler on_error;
+    public:
+      request_info(
+        const std::string & task,
+        const std::function<void(const service_provider & sp, const std::unique_ptr<json_value> & response)> & done,
+        const error_handler & on_error);
+
+      void done(const service_provider & sp, const std::unique_ptr<json_value> & response);
+      void on_timeout(const service_provider & sp);
+      std::string task() const;
+
+    private:
+      std::string task_;
+      std::function<void(const service_provider & sp, const std::unique_ptr<json_value> & response)> done_;
+      error_handler on_error_;
+
+      mutable std::mutex mutex_;
+      bool is_completed_;
     };
     
     std::mutex requests_mutex_;
-    simple_cache<std::string, request_info> requests_;    
+    simple_cache<std::string, std::shared_ptr<request_info>> requests_;    
   };
 }
 

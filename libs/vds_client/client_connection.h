@@ -19,19 +19,9 @@ namespace vds {
       int port,
       certificate * client_certificate,
       asymmetric_private_key * client_private_key
-    )
-    : address_(address),
-      port_(port),
-      client_certificate_(client_certificate),
-      client_private_key_(client_private_key),
-      state_(STATE::NONE)
-    {
-    }
+    );
 
-    ~client_connection()
-    {
-
-    }
+    ~client_connection();
 
     enum class STATE
     {
