@@ -266,13 +266,30 @@ namespace vds {
       size_t written;
       static_cast<implementation_type *>(this)->sync_process_data(sp, readed, written);
 
+
+      if (0 < written) {
+        if (readed > this->input_buffer_size_) {
+          throw new std::runtime_error("Invalid login");
+        }
+      }
+      else {
+        if (0 == readed) {
+          if (0 != this->input_buffer_size_) {
+            throw new std::runtime_error("Invalid login");
+          }
+
+          this->final_data_ = true;
+          this->common_data_->step_finish(sp, context_type::INDEX);
+        }
+      }
+
       this->waiting_get_data_ = true;
       if (this->target_->push_data(sp, written, this->output_buffer_, this->output_buffer_size_)) {
         this->waiting_get_data_ = false;
       }
       this->waiting_push_data_ = true;
 
-      return true;
+      return !this->final_data_;
     }
 
     void cancel(const service_provider & sp)
@@ -874,6 +891,9 @@ namespace vds {
         size_t & buffer_len)
       {
         try {
+          if (0 == count && this->data_final_) {
+            return false;
+          }
           if(!this->data_queried_) {
             throw std::runtime_error("Logic error");
           }

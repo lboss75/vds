@@ -70,7 +70,7 @@ vds::server_log_record::server_log_record(const json_value * source)
     auto m = dynamic_cast<const json_array *>(s->get_property("p"));
     if(nullptr != m) {
       for (size_t i = 0; i < m->size(); ++i) {
-        auto item = dynamic_cast<const json_object *>(m->get(i));
+        auto item = dynamic_cast<const json_object *>(m->get(i).get());
         if (nullptr != item) {
           guid source_id;
           if (!item->get_property("s", this->id_.source_id, false)) {
@@ -130,12 +130,12 @@ std::unique_ptr<vds::json_value> vds::server_log_record::serialize(bool add_type
   if (!this->parents_.empty()) {
     std::unique_ptr<json_array> parents(new json_array());
     for (auto& p : this->parents_) {
-      std::unique_ptr<json_object> item(new json_object());
+      std::shared_ptr<json_object> item(new json_object());
       if (p.source_id == this->id_.source_id) {
         item->add_property("s", p.source_id);
       }
       item->add_property("i", p.index);
-      parents->add(item.release());
+      parents->add(item);
     }
 
     result->add_property(new json_property("p", parents.release()));
@@ -393,7 +393,7 @@ vds::server_log_file_map::server_log_file_map(const json_value * source)
     auto items = dynamic_cast<const json_array *>(s->get_property("i"));
     if (nullptr != items) {
       for (size_t i = 0; i < items->size(); ++i) {
-        this->add(server_log_new_object(items->get(i)));
+        this->add(server_log_new_object(items->get(i).get()));
       }
     }
   }

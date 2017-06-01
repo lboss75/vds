@@ -283,7 +283,7 @@ std::unique_ptr<vds::json_value> vds::json_array::clone() const
   std::unique_ptr<json_array> s(new json_array());
 
   for (auto& i : this->items_) {
-    s->add(i->clone().release());
+    s->add(i->clone());
   }
 
   return std::unique_ptr<json_value>(s.release());

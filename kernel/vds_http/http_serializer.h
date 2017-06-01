@@ -8,12 +8,12 @@ All rights reserved
 
 #include "async_stream.h"
 #include "http_message.h"
+#include "http_request.h"
 
 namespace vds {
   class http_serializer
   {
   public:
-
     using incoming_item_type = std::shared_ptr<http_message>;
     using outgoing_item_type = uint8_t;
     static constexpr size_t BUFFER_SIZE = 1024;
@@ -131,6 +131,64 @@ namespace vds {
           sp);
       }
     };
+  };
+
+  class json_to_http_channel
+  {
+  public:
+    json_to_http_channel(
+      const std::string & method,
+      const std::string & url)
+    : method_(method), url_(url)
+    {
+    }
+
+    using incoming_item_type = std::shared_ptr<json_value>;
+    using outgoing_item_type = std::shared_ptr<http_message>;
+    static constexpr size_t BUFFER_SIZE = 1024;
+    static constexpr size_t MIN_BUFFER_SIZE = 1;
+
+    template<typename context_type>
+    class handler : public sync_dataflow_filter<context_type, handler<context_type>>
+    {
+      using base_class = sync_dataflow_filter<context_type, handler<context_type>>;
+    public:
+      handler(
+        const context_type & context,
+        const json_to_http_channel & args)
+        : base_class(context), 
+          method_(args.method_),
+          url_(args.url_)
+      {
+      }
+
+      void sync_process_data(const vds::service_provider & sp, size_t & input_readed, size_t & output_written)
+      {
+        if (0 < this->input_buffer_size()) {
+          if (0 == this->output_buffer_size()) {
+            throw std::runtime_error("Logic error");
+          }
+
+          auto message = std::make_unique<json_array>();
+          for (size_t i = 0; i < this->input_buffer_size(); ++i) {
+            message->add(this->input_buffer(i));
+          }
+
+          this->output_buffer(0) = http_request::simple_request(sp, this->method_, this->url_, message->json_value::str());
+          output_written = 1;
+        }
+        else {
+          output_written = 0;
+        }
+        input_readed = this->input_buffer_size();        
+      }
+    private:
+      std::string method_;
+      std::string url_;
+    };
+  private:
+    std::string method_;
+    std::string url_;
   };
 }
 

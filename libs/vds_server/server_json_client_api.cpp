@@ -46,14 +46,14 @@ std::shared_ptr<vds::json_value> vds::_server_json_client_api::operator()(
   //sp.get<logger>().trace("Certificate issuer %s", cert.issuer().c_str());
   sp.get<logger>()->trace(sp, "JSON API %s", request->str().c_str());
 
-  std::unique_ptr<json_array> result(new json_array());
+  std::shared_ptr<json_array> result(new json_array());
 
   auto request_tasks = dynamic_cast<const json_array *>(request.get());
   if (nullptr != request_tasks) {
     for (size_t i = 0; i < request_tasks->size(); ++i) {
       auto task = request_tasks->get(i);
 
-      auto task_object = dynamic_cast<const json_object *>(task);
+      auto task_object = dynamic_cast<const json_object *>(task.get());
       if (nullptr != task_object) {
         std::string request_id;
         if(task_object->get_property("$r", request_id)){

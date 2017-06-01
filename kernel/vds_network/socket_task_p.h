@@ -27,8 +27,6 @@ namespace vds {
 #endif//_WIN32
 
   protected:
-    SOCKET_HANDLE s_;
-    
 #ifdef _WIN32
     OVERLAPPED overlapped_;
     WSABUF wsa_buf_;

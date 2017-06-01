@@ -28,6 +28,7 @@ TEST(network_tests, test_udp_server)
 
   auto sp = registrator.build("network_tests::test_udp_server");
   registrator.start(sp);
+  vds::imt_service::enable_async(sp);
 
   std::exception_ptr error;
   vds::udp_server server;
@@ -38,11 +39,13 @@ TEST(network_tests, test_udp_server)
       vds::stream_read<vds::udp_datagram>(server_socket.incoming()),
       vds::stream_write<vds::udp_datagram>(server_socket.outgoing())
     )(
-    [](const vds::service_provider & sp) {
+    [&server_socket](const vds::service_provider & sp) {
       sp.get<vds::logger>()->debug(sp, "Server closed");
+      server_socket.close();
     },
-      [&error](const vds::service_provider & sp, std::exception_ptr ex) {
+      [&error, &server_socket](const vds::service_provider & sp, std::exception_ptr ex) {
       error = ex;
+      server_socket.close();
     },
     sp);
 
@@ -53,14 +56,16 @@ TEST(network_tests, test_udp_server)
   auto client_socket = client.start(sp.create_scope("UDP client"));
   
   vds::udp_datagram response;
-  client_socket.outgoing()->read_async(sp, &response, 1)
+  client_socket.incoming()->read_async(sp, &response, 1)
   .wait(
-    [&b](const vds::service_provider & sp, size_t readed) {
+    [&b, &client_socket](const vds::service_provider & sp, size_t readed) {
         sp.get<vds::logger>()->debug(sp, "Client reader closed");
+        client_socket.close();
         b.set();
       },
-    [&b](const vds::service_provider & sp, std::exception_ptr ex) {
+    [&b, &client_socket](const vds::service_provider & sp, std::exception_ptr ex) {
         sp.get<vds::logger>()->debug(sp, "Client reader error");
+        client_socket.close();
         b.set();
       },
     sp.create_scope("Client reader"));
@@ -73,8 +78,10 @@ TEST(network_tests, test_udp_server)
     [](const vds::service_provider & sp) {
         sp.get<vds::logger>()->debug(sp, "Client writer closed");
       },
-    [](const vds::service_provider & sp, std::exception_ptr ex) {
+    [&error, &client_socket](const vds::service_provider & sp, std::exception_ptr ex) {
+        error = ex;
         sp.get<vds::logger>()->debug(sp, "Client writer error");
+        client_socket.close();
       },
     sp.create_scope("Client writer"));
 

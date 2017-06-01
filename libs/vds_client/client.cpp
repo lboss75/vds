@@ -165,8 +165,7 @@ vds::_client::init_server(
 
     this->owner_->logic_->send_request<client_messages::register_server_response>(
       sp,
-      client_messages::register_server_request(
-        server_certificate.str()).serialize())
+      client_messages::register_server_request(server_certificate.str()).serialize())
       .then([this](const std::function<void(const service_provider & sp)> & done,
         const error_handler & on_error,
         const service_provider & sp,

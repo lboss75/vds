@@ -168,7 +168,7 @@ namespace vds {
 
       void start(const service_provider & sp)
       {
-
+        this->read_async(sp);
       }
 
       std::shared_ptr<async_stream<udp_datagram>> stream()
@@ -197,7 +197,7 @@ namespace vds {
         DWORD flags = 0;
         DWORD numberOfBytesRecvd;
         if (NOERROR != WSARecvFrom(
-          this->s_,
+          this->owner_.handle(),
           &this->wsa_buf_,
           1,
           &numberOfBytesRecvd,
@@ -257,17 +257,15 @@ namespace vds {
 #endif//_WIN32
       void push_data(size_t readed)
       {
-        auto data = new udp_datagram[1];
-        data[0] = _udp_datagram::create(this->addr_, this->buffer_, readed);
-        this->target_->write_all_async(this->sp_, data, 1)
-          .wait([this, data](const service_provider & sp) {
-          this->read_async(sp);
-          delete data;
-        },
-            [data](const service_provider & sp, std::exception_ptr ex) {
-          delete data;
-        },
-          this->sp_);
+        this->target_->write_value_async(this->sp_, _udp_datagram::create(this->addr_, this->buffer_, readed))
+          .wait(
+            [this](const service_provider & sp) {
+              this->read_async(sp);
+            },
+            [](const service_provider & sp, std::exception_ptr ex) {
+              sp.unhandled_exception(ex);
+            },
+            this->sp_);
       }
     };
 
@@ -325,13 +323,7 @@ namespace vds {
         this->wsa_buf_.len = this->buffer_.data_size();
         this->wsa_buf_.buf = (CHAR *)this->buffer_.data();
 
-        sockaddr_in addr;
-        memset((char *)&addr, 0, sizeof(addr));
-        addr.sin_family = AF_INET;
-        addr.sin_port = htons(this->buffer_.port());
-        addr.sin_addr.s_addr = inet_addr(this->buffer_.server().c_str());;
-
-        if (NOERROR != WSASendTo(this->owner_.handle(), &this->wsa_buf_, 1, NULL, 0, (const sockaddr *)&addr, sizeof(addr), &this->overlapped_, NULL)) {
+        if (NOERROR != WSASendTo(this->owner_.handle(), &this->wsa_buf_, 1, NULL, 0, (const sockaddr *)this->buffer_->addr(), sizeof(sockaddr_in), &this->overlapped_, NULL)) {
           auto errorCode = WSAGetLastError();
           if (WSA_IO_PENDING != errorCode) {
             throw std::system_error(errorCode, std::system_category(), "WSASend failed");
@@ -443,6 +435,7 @@ namespace vds {
         throw std::system_error(error, std::system_category(), "bind socket");
       }
 
+      this->socket_->start(sp);
       return this->socket_;
     }
 
@@ -473,6 +466,22 @@ namespace vds {
     udp_socket start(const service_provider & sp)
     {
       this->socket_->create(sp);
+
+      sockaddr_in addr;
+      memset((char *)&addr, 0, sizeof(addr));
+      addr.sin_family = AF_INET;
+      addr.sin_port = htons(0);
+      addr.sin_addr.s_addr = htonl(INADDR_ANY);
+
+      if (0 > bind(this->socket_->handle(), (sockaddr *)&addr, sizeof(addr))) {
+#ifdef _WIN32
+        auto error = WSAGetLastError();
+#else
+        auto error = errno;
+#endif
+        throw std::system_error(error, std::system_category(), "bind socket");
+      }
+
       this->socket_->start(sp);
       return this->socket_;
     }

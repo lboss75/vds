@@ -145,8 +145,8 @@ void mock_client::init_server(
           b.set();
         },
           [&b](const vds::service_provider & sp, std::exception_ptr ex) {
+            sp.unhandled_exception(ex);
             b.set();
-            FAIL() << vds::exception_what(ex);
         }, sp);
     b.wait();
   }
@@ -179,7 +179,7 @@ void mock_client::upload_file(
     )
     (
       [](const vds::service_provider & sp) {},
-      [](const vds::service_provider & sp, std::exception_ptr ex) {},
+      [](const vds::service_provider & sp, std::exception_ptr ex) { sp.unhandled_exception(ex); },
       sp
       );
 
@@ -190,8 +190,8 @@ void mock_client::upload_file(
           b.set(); 
         },
         [&b](const vds::service_provider&sp, std::exception_ptr ex) {
+          sp.unhandled_exception(ex);
           b.set();
-          FAIL() << vds::exception_what(ex);
         },
         sp);
 
@@ -213,8 +213,8 @@ vds::const_data_buffer mock_client::download_data(const std::string & login, con
     .wait(
       [&b](const vds::service_provider & sp){ b.set();},
       [&b](const vds::service_provider & sp, std::exception_ptr ex) {
+        sp.unhandled_exception(ex);
         b.set();
-        FAIL() << vds::exception_what(ex);
       },
       sp);
 
@@ -226,7 +226,7 @@ vds::const_data_buffer mock_client::download_data(const std::string & login, con
     )
     (
       [](const vds::service_provider & sp) {},
-      [](const vds::service_provider & sp, std::exception_ptr ex) {},
+      [](const vds::service_provider & sp, std::exception_ptr ex) { sp.unhandled_exception(ex); },
       sp
       );
 

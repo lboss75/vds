@@ -9,7 +9,7 @@ All rights reserved
 namespace vds {
   class json_writer;
 
-  class json_value
+  class json_value : public std::enable_shared_from_this<json_value>
   {
   public:
     json_value();
@@ -129,13 +129,13 @@ namespace vds {
       return this->items_.size();
     }
     
-    const json_value * get(size_t index) const {
-      return this->items_[index].get();
+    const std::shared_ptr<json_value> & get(size_t index) const {
+      return this->items_[index];
     }
 
-    void add(json_value * item)
+    void add(const std::shared_ptr<json_value> & item)
     {
-      this->items_.push_back(std::unique_ptr<json_value>(item));
+      this->items_.push_back(item);
     }
 
     void add(std::unique_ptr<json_value> && item)
@@ -147,7 +147,7 @@ namespace vds {
     std::unique_ptr<json_value> clone() const override;
 
   private:
-    std::vector<std::unique_ptr<json_value>> items_;
+    std::vector<std::shared_ptr<json_value>> items_;
   };
   
   

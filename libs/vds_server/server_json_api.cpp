@@ -34,7 +34,7 @@ vds::json_value * vds::_server_json_api::operator()(
     for (size_t i = 0; i < request_tasks->size(); ++i) {
       auto task = request_tasks->get(i);
 
-      auto task_object = dynamic_cast<const json_object *>(task);
+      auto task_object = dynamic_cast<const json_object *>(task.get());
       if (nullptr != task_object) {
         auto task_type = task_object->get_property("$t");
         if (nullptr != task_type) {

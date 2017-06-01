@@ -24,6 +24,10 @@ namespace vds {
 
     async_task<> write_all_async(const service_provider & sp, const item_type * data, size_t data_size)
     {
+      if (0 == data_size && this->eof_) {
+        throw std::runtime_error("Logiñ error");
+      }
+
       return create_async_task(
         [this, data, data_size](
           const std::function<void(const service_provider & sp)> & done,
@@ -31,6 +35,9 @@ namespace vds {
           const service_provider & sp) {
 
         if (0 == data_size) {
+          if (this->eof_) {
+            throw std::runtime_error("Logiñ error");
+          }
           this->eof_ = true;
 
           if (this->continue_read_) {
@@ -72,6 +79,9 @@ namespace vds {
           const service_provider & sp) {
 
           if(0 == data_size) {
+            if (this->eof_) {
+              throw std::runtime_error("Login error");
+            }
             this->eof_ = true;
 
             if(this->continue_read_){
@@ -92,7 +102,7 @@ namespace vds {
     async_task<size_t /*readed*/> read_async(const service_provider & sp, item_type * buffer, size_t buffer_size)
     {
       if (this->continue_read_) {
-        throw std::runtime_error("Login error");
+        throw std::runtime_error("Logiñ error");
       }
 
       return create_async_task(

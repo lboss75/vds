@@ -143,7 +143,7 @@ namespace vds {
                     .wait(
                       [this, readed](const service_provider & sp) {
                     if (this->processed(sp, readed)) {
-                      this->continue_push_data(sp, readed);
+                      this->continue_push_data(sp, 0);
                     }
                   },
                       [this](const service_provider & sp, std::exception_ptr ex) {
@@ -153,7 +153,7 @@ namespace vds {
                 }
                 else {
                   if (this->processed(sp, readed)) {
-                    this->continue_push_data(sp, readed);
+                    this->continue_push_data(sp, 0);
                   }
                 }
               },

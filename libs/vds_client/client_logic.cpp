@@ -67,7 +67,7 @@ void vds::client_logic::process_response(
   auto tasks = dynamic_cast<const json_array *>(response);
   if (nullptr != tasks) {
     for (size_t i = 0; i < tasks->size(); ++i) {
-      auto task = dynamic_cast<const json_object *>(tasks->get(i));
+      auto task = dynamic_cast<const json_object *>(tasks->get(i).get());
 
       if (nullptr != task) {
         std::string request_id;
@@ -144,7 +144,7 @@ std::string vds::client_logic::get_messages()
 }
 */
 
-void vds::client_logic::add_task(const service_provider & sp, const std::string & message)
+void vds::client_logic::add_task(const service_provider & sp, const std::shared_ptr<json_value> & message)
 {
   std::lock_guard<std::mutex> lock(this->connection_mutex_);
   
@@ -153,12 +153,10 @@ void vds::client_logic::add_task(const service_provider & sp, const std::string 
       auto scope = sp.create_scope("Call HTTP Client API");
       imt_service::enable_async(scope);
 
-      connection->outgoing_stream()->write_value_async(
-        scope,
-        http_request::simple_request(scope, "GET", "/vds/client_api", message))
+      connection->outgoing_stream()->write_value_async(scope, message)
       .wait(
         [](const service_provider & sp) {},
-        [](const service_provider & sp, std::exception_ptr ex) {},
+        [](const service_provider & sp, std::exception_ptr ex) { sp.unhandled_exception(ex); },
         scope);
     }
   }
@@ -213,7 +211,7 @@ bool vds::client_logic::process_timer_tasks(const service_provider & sp)
     std::lock_guard<std::mutex> lock(this->requests_mutex_);
     for (decltype(this->requests_)::data_type::const_iterator r = this->requests_.begin(); r != this->requests_.end(); ++r) {
       auto task = r->second->task();
-      if (!task.empty()) {
+      if (task) {
         this->add_task(sp, task);
       }
     }
@@ -291,8 +289,8 @@ vds::async_task<vds::const_data_buffer /*meta_info*/, vds::filename> vds::client
 }
 
 vds::client_logic::request_info::request_info(
-  const std::string & task,
-  const std::function<void(const service_provider & sp, const std::unique_ptr<json_value> & response)> & done,
+  const std::shared_ptr<json_value> & task,
+  const std::function<void(const service_provider & sp, const std::shared_ptr<json_value> & response)> & done,
   const error_handler & on_error)
 : task_(task),
   done_(done),
@@ -301,7 +299,7 @@ vds::client_logic::request_info::request_info(
 {
 }
 
-void vds::client_logic::request_info::done(const service_provider & sp, const std::unique_ptr<json_value>& response)
+void vds::client_logic::request_info::done(const service_provider & sp, const std::shared_ptr<json_value>& response)
 {
   std::lock_guard<std::mutex> task_lock(this->mutex_);
   if (!this->is_completed_) {
@@ -319,7 +317,7 @@ void vds::client_logic::request_info::on_timeout(const service_provider & sp)
   }
 }
 
-std::string vds::client_logic::request_info::task() const
+std::shared_ptr<vds::json_value> vds::client_logic::request_info::task() const
 {
   std::lock_guard<std::mutex> task_lock(this->mutex_);
 
@@ -327,6 +325,6 @@ std::string vds::client_logic::request_info::task() const
     return this->task_;
   }
   else {
-    return std::string();
+    return std::shared_ptr<json_value>();
   }
 }

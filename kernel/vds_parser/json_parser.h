@@ -262,11 +262,12 @@ namespace vds {
 
               case ST_ARRAY_ITEM:
                 static_cast<json_array *>(this->current_object_)->add(
+                  std::shared_ptr<json_value>(
                   new json_primitive(
                     this->line_, this->column_,
                     this->buffer_
                   )
-                );
+                ));
                 this->buffer_.clear();
                 break;
 
@@ -765,7 +766,6 @@ namespace vds {
             this->state_ = ST_EOF;
           }
           
-          ++input_readed;
           this->output_buffer(output_written++) = this->root_object_;
         }
         else {
@@ -786,7 +786,7 @@ namespace vds {
           this->saved_states_.push(ST_BOF);
           break;
         case ST_ARRAY:
-          static_cast<json_array *>(this->current_object_)->add(new_object);
+          static_cast<json_array *>(this->current_object_)->add(new_object->shared_from_this());
           this->saved_states_.push(ST_ARRAY_ITEM);
           this->current_path_.push(this->current_object_);
           break;
@@ -815,7 +815,6 @@ namespace vds {
             this->state_ = ST_EOF;
           }
           
-          ++input_readed;
           this->output_buffer(output_written++) = this->root_object_;
         }
         else {

@@ -30,16 +30,24 @@ namespace vds {
       //client_connection<client_logic> & connection,
       const json_value * response);
 
-   
+    template <typename response_type>
+    async_task<const response_type & /*response*/>
+      send_request(
+        const service_provider & sp,
+        std::unique_ptr<json_value> && message,
+        const std::chrono::steady_clock::duration & request_timeout = std::chrono::seconds(60))
+    {
+      return this->send_request<response_type>(sp, std::shared_ptr<json_value>(message.release()), request_timeout);
+    }
+
     template <typename response_type>
     async_task<const response_type & /*response*/>
     send_request(
       const service_provider & sp,
-      std::unique_ptr<json_value> && message,
+      const std::shared_ptr<json_value> & message,
       const std::chrono::steady_clock::duration & request_timeout = std::chrono::seconds(60))
     {
-      std::unique_ptr<json_value> m = std::move(message);
-      auto s = dynamic_cast<json_object *>(m.get());
+      auto s = dynamic_cast<json_object *>(message.get());
       if(nullptr == s){
         throw std::runtime_error("Invalid argument");
       }
@@ -47,19 +55,17 @@ namespace vds {
       auto request_id = guid::new_guid().str();
       s->add_property("$r", request_id);
       
-      auto task = s->json_value::str();
-      
       return create_async_task(
-        [this, sp, task, request_id, request_timeout](
+        [this, sp, message, request_id, request_timeout](
           const std::function<void (const service_provider & sp, const response_type & response)> & done,
           const error_handler & on_error,
           const service_provider & sp){
           std::lock_guard<std::mutex> lock(this->requests_mutex_);
           this->requests_.set(request_id, std::make_shared<request_info>(
-            task,
-            [done](const service_provider & sp, const std::unique_ptr<json_value> & response) { done(sp, response_type(response.get())); },
+            message,
+            [done](const service_provider & sp, const std::shared_ptr<json_value> & response) { done(sp, response_type(response.get())); },
             on_error));
-          this->add_task(sp, task);
+          this->add_task(sp, message);
           
           auto t = std::make_shared<timer>();
           t->start(sp, request_timeout,
@@ -105,7 +111,7 @@ namespace vds {
     
     void add_task(
       const service_provider & sp,
-      const std::string & message);
+      const std::shared_ptr<json_value> & message);
 
     timer process_timer_;
     bool process_timer_tasks(const service_provider & sp);
@@ -114,17 +120,17 @@ namespace vds {
     {
     public:
       request_info(
-        const std::string & task,
-        const std::function<void(const service_provider & sp, const std::unique_ptr<json_value> & response)> & done,
+        const std::shared_ptr<json_value> & task,
+        const std::function<void(const service_provider & sp, const std::shared_ptr<json_value> & response)> & done,
         const error_handler & on_error);
 
-      void done(const service_provider & sp, const std::unique_ptr<json_value> & response);
+      void done(const service_provider & sp, const std::shared_ptr<json_value> & response);
       void on_timeout(const service_provider & sp);
-      std::string task() const;
+      std::shared_ptr<json_value> task() const;
 
     private:
-      std::string task_;
-      std::function<void(const service_provider & sp, const std::unique_ptr<json_value> & response)> done_;
+      std::shared_ptr<json_value> task_;
+      std::function<void(const service_provider & sp, const std::shared_ptr<json_value> & response)> done_;
       error_handler on_error_;
 
       mutable std::mutex mutex_;

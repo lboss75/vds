@@ -49,6 +49,7 @@ namespace vds {
     void write_async(const service_provider & sp, const void * buffer, size_t buffer_size)
     {
       if (0 == buffer_size) {
+        shutdown(this->s_, SD_SEND);
         mt_service::async(sp, [this, sp]() {
           this->written_method_(sp, 0);
         });

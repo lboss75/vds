@@ -12,6 +12,9 @@ All rights reserved
 #include "file.h"
 #include "barrier.h"
 #include "tcp_socket_server.h"
+#include "random_buffer.h"
+#include "random_reader.h"
+#include "compare_data.h"
 
 class read_for_newline
 {
@@ -97,6 +100,7 @@ TEST(network_tests, test_server)
 
   auto sp = registrator.build("network_tests::test_server");
   registrator.start(sp);
+  vds::imt_service::enable_async(sp);
 
   std::exception_ptr error;
   vds::barrier b;
@@ -147,15 +151,15 @@ TEST(network_tests, test_server)
 
     sp.get<vds::logger>()->debug(sp, "Connected");
     vds::cancellation_token_source cancellation;
+    random_buffer data;
 
     vds::async_series(
       vds::create_async_task(
-        [s, cancellation](const std::function<void(const vds::service_provider & sp)> & done, const vds::error_handler & on_error, const vds::service_provider & sp) {
+        [s, &data, cancellation](const std::function<void(const vds::service_provider & sp)> & done, const vds::error_handler & on_error, const vds::service_provider & sp) {
 
-      const char data[] = "test_test_test_test_test_test_test_test_test_test_test_test_test_test_test_\n";
 
       vds::dataflow(
-        vds::dataflow_arguments<uint8_t>((const uint8_t *)data, sizeof(data) - 1),
+        random_reader<uint8_t>(data.data(), data.size()),
         vds::write_tcp_network_socket(s, cancellation.token())
       )(
         [done](const vds::service_provider & sp) {
@@ -170,15 +174,10 @@ TEST(network_tests, test_server)
 
     }),
       vds::create_async_task(
-        [s, &answer, cancellation](const std::function<void(const vds::service_provider & sp)> & done, const vds::error_handler & on_error, const vds::service_provider & sp) {
+        [s, &data, &answer, cancellation](const std::function<void(const vds::service_provider & sp)> & done, const vds::error_handler & on_error, const vds::service_provider & sp) {
       vds::dataflow(
         vds::read_tcp_network_socket(s, cancellation.token()),
-        read_for_newline(
-          [&answer, s, cancellation](const vds::service_provider & sp, const std::string & value) {
-            answer = value;
-            cancellation.cancel();
-          }
-        )
+        compare_data<uint8_t>(data.data(), data.size())
       )(
         [done](const vds::service_provider & sp) {
         done(sp);
@@ -205,7 +204,8 @@ TEST(network_tests, test_server)
       sp.get<vds::logger>()->debug(sp, "Request sent");
       b.set();
     },
-    [&b](const vds::service_provider & sp, std::exception_ptr ex) {
+    [&b, &error](const vds::service_provider & sp, std::exception_ptr ex) {
+      error = ex;
       sp.get<vds::logger>()->debug(sp, "Request error");
       b.set();
     },
@@ -215,7 +215,6 @@ TEST(network_tests, test_server)
   //Wait
   registrator.shutdown(sp);
 
-  ASSERT_EQ(answer, "test_test_test_test_test_test_test_test_test_test_test_test_test_test_test_");
   if (error) {
     GTEST_FAIL() << vds::exception_what(error);
   }
