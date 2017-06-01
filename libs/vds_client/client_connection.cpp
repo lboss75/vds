@@ -15,7 +15,7 @@ vds::client_connection::client_connection(const std::string & address, int port,
   client_private_key_(client_private_key),
   state_(STATE::NONE),
   incoming_stream_(new async_stream<std::shared_ptr<http_message>>()),
-  outgoing_stream_(new async_stream<std::shared_ptr<http_message>>())
+  outgoing_stream_(new async_stream<std::shared_ptr<json_value>>())
 {
 }
 
