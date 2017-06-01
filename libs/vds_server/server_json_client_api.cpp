@@ -46,14 +46,14 @@ std::shared_ptr<vds::json_value> vds::_server_json_client_api::operator()(
   //sp.get<logger>().trace("Certificate issuer %s", cert.issuer().c_str());
   sp.get<logger>()->trace(sp, "JSON API %s", request->str().c_str());
 
-  std::shared_ptr<json_array> result(new json_array());
+  auto result = std::make_shared<json_array>();
 
-  auto request_tasks = dynamic_cast<const json_array *>(request.get());
-  if (nullptr != request_tasks) {
+  auto request_tasks = std::dynamic_pointer_cast<json_array>(request);
+  if (request_tasks) {
     for (size_t i = 0; i < request_tasks->size(); ++i) {
       auto task = request_tasks->get(i);
 
-      auto task_object = dynamic_cast<const json_object *>(task.get());
+      auto task_object = std::dynamic_pointer_cast<json_object>(task);
       if (nullptr != task_object) {
         std::string request_id;
         if(task_object->get_property("$r", request_id)){
@@ -67,7 +67,7 @@ std::shared_ptr<vds::json_value> vds::_server_json_client_api::operator()(
           else {
             need_start = false;
             if(p->second.result){
-              result->add(p->second.result->clone());
+              result->add(p->second.result);
             }
           }
           this->task_mutex_.unlock();
@@ -100,7 +100,7 @@ std::shared_ptr<vds::json_value> vds::_server_json_client_api::operator()(
             
             task.wait(
               [this, request_id](const service_provider & sp, const std::shared_ptr<json_value> & task_result){
-                dynamic_cast<json_object *>(task_result.get())->add_property("$r", request_id);
+                std::dynamic_pointer_cast<json_object>(task_result)->add_property("$r", request_id);
 
                 this->task_mutex_.lock();
                 auto p = this->tasks_.find(request_id);
@@ -119,7 +119,7 @@ std::shared_ptr<vds::json_value> vds::_server_json_client_api::operator()(
             p = this->tasks_.find(request_id);
             if(this->tasks_.end() != p){
               if(p->second.result){
-                result->add(p->second.result->clone());
+                result->add(p->second.result);
               }
             }
             this->task_mutex_.unlock();

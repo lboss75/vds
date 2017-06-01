@@ -24,6 +24,7 @@ typedef int socklen_t;
 #else
 typedef int SOCKET_HANDLE;
 #define INVALID_SOCKET (-1)
+#define SD_SEND 1
 #define SD_BOTH 2
 #endif
 

@@ -12,7 +12,7 @@ namespace vds {
   class server_json_api
   {
   public:
-    json_value * operator()(const service_provider & scope, const json_value * request) const;
+    std::shared_ptr<json_value> operator()(const service_provider & scope, const std::shared_ptr<json_value> & request) const;
   };
 }
 

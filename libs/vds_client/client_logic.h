@@ -28,17 +28,7 @@ namespace vds {
     void process_response(
       const service_provider & sp,
       //client_connection<client_logic> & connection,
-      const json_value * response);
-
-    template <typename response_type>
-    async_task<const response_type & /*response*/>
-      send_request(
-        const service_provider & sp,
-        std::unique_ptr<json_value> && message,
-        const std::chrono::steady_clock::duration & request_timeout = std::chrono::seconds(60))
-    {
-      return this->send_request<response_type>(sp, std::shared_ptr<json_value>(message.release()), request_timeout);
-    }
+      const std::shared_ptr<json_value> & response);
 
     template <typename response_type>
     async_task<const response_type & /*response*/>
@@ -63,7 +53,9 @@ namespace vds {
           std::lock_guard<std::mutex> lock(this->requests_mutex_);
           this->requests_.set(request_id, std::make_shared<request_info>(
             message,
-            [done](const service_provider & sp, const std::shared_ptr<json_value> & response) { done(sp, response_type(response.get())); },
+            [done](const service_provider & sp, const std::shared_ptr<json_value> & response) { 
+                done(sp, response_type(response));
+            },
             on_error));
           this->add_task(sp, message);
           

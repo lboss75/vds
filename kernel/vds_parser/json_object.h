@@ -27,7 +27,7 @@ namespace vds {
     std::string str() const;
     
     virtual void str(json_writer & writer) const = 0;
-    virtual std::unique_ptr<json_value> clone() const = 0;
+    virtual std::shared_ptr<json_value> clone(bool is_deep_clone) const = 0;
     
   private:
     int line_;
@@ -47,7 +47,7 @@ namespace vds {
     }
     
     void str(json_writer & writer) const override;
-    std::unique_ptr<json_value> clone() const override;
+    std::shared_ptr<json_value> clone(bool is_deep_clone) const override;
 
   private:
     std::string value_;
@@ -57,32 +57,32 @@ namespace vds {
   {
   public:
     json_property(int line, int column);
-    json_property(const std::string & name, json_value * val);
+    json_property(const std::string & name, const std::shared_ptr<json_value> & val);
 
     const std::string & name() const {
       return this->name_;
     }
 
-    json_value * value() const {
-      return this->value_.get();
+    const std::shared_ptr<json_value> & value() const {
+      return this->value_;
     }
 
     void name(const std::string & value) {
       this->name_ = value;
     }
 
-    void value(json_value * val) {
-      this->value_.reset(val);
+    void value(const std::shared_ptr<json_value> & val) {
+      this->value_ = val;
     }
     
     void str(json_writer & writer) const override;
-    std::unique_ptr<json_value> clone() const override;
+    std::shared_ptr<json_value> clone(bool is_deep_clone) const override;
 
   private:
     friend class json_object;
     
     std::string name_;
-    std::unique_ptr<json_value> value_;
+    std::shared_ptr<json_value> value_;
   };
   
   class json_object : public json_value
@@ -91,15 +91,15 @@ namespace vds {
     json_object();
     json_object(int line, int column);
 
-    void visit(const std::function<void(const json_property &)> & visitor) const;
+    void visit(const std::function<void(const std::shared_ptr<json_value> &)> & visitor) const;
     
-    void add_property(json_property * prop);
-    void add_property(const std::string & name, std::unique_ptr<json_value> && value);
+    void add_property(const std::shared_ptr<json_property> & prop);
+    void add_property(const std::string & name, const std::shared_ptr<json_value> & value);
     void add_property(const std::string & name, uint64_t value);
     void add_property(const std::string & name, const std::string & value);
     void add_property(const std::string & name, const const_data_buffer & value);
 
-    const json_value * get_property(const std::string & name) const;
+    std::shared_ptr<json_value> get_property(const std::string & name) const;
     bool get_property(const std::string & name, std::string & value, bool throw_error = true) const;
     bool get_property(const std::string & name, int & value, bool throw_error = true) const;
     //bool get_property(const std::string & name, size_t & value, bool throw_error = true) const;
@@ -110,11 +110,11 @@ namespace vds {
     bool get_property(const std::string & name, uint64_t & value, bool throw_error = true) const;
 
     void str(json_writer & writer) const override;
-    std::unique_ptr<json_value> clone() const override;
+    std::shared_ptr<json_value> clone(bool is_deep_clone) const override;
 
   private:
     friend class vjson_file_parser;
-    std::list<std::unique_ptr<json_property>> properties_;
+    std::list<std::shared_ptr<json_property>> properties_;
   };
   
   class json_array : public json_value
@@ -138,13 +138,8 @@ namespace vds {
       this->items_.push_back(item);
     }
 
-    void add(std::unique_ptr<json_value> && item)
-    {
-      this->items_.push_back(std::move(item));
-    }
-
     void str(json_writer & writer) const override;
-    std::unique_ptr<json_value> clone() const override;
+    std::shared_ptr<json_value> clone(bool is_deep_clone) const override;
 
   private:
     std::vector<std::shared_ptr<json_value>> items_;

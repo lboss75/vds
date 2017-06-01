@@ -6,7 +6,6 @@ All rights reserved
 #include "stdafx.h"
 #include "server.h"
 #include "server_p.h"
-#include "consensus_protocol.h"
 #include "node_manager.h"
 #include "user_manager.h"
 #include "cert_manager.h"

@@ -20,8 +20,8 @@ namespace vds {
         const const_data_buffer & password_hash
       );
       
-      certificate_and_key_request(const json_value *);
-      std::unique_ptr<json_value> serialize() const;
+      certificate_and_key_request(const std::shared_ptr<json_value> &);
+      std::shared_ptr<json_value> serialize() const;
 
       const std::string & object_name() const { return this->object_name_; }
       const const_data_buffer & password_hash() const { return this->password_hash_; }
@@ -41,8 +41,8 @@ namespace vds {
         const std::string & private_key_body
       );
 
-      certificate_and_key_response(const json_value *);
-      std::unique_ptr<json_value> serialize() const;
+      certificate_and_key_response(const std::shared_ptr<json_value> &);
+      std::shared_ptr<json_value> serialize() const;
 
       const std::string & certificate_body() const { return this->certificate_body_; }
       const std::string & private_key_body() const { return this->private_key_body_; }
@@ -61,8 +61,8 @@ namespace vds {
         const std::string & certificate_body
       );
 
-      register_server_request(const json_value *);
-      std::unique_ptr<json_value> serialize() const;
+      register_server_request(const std::shared_ptr<json_value> &);
+      std::shared_ptr<json_value> serialize() const;
 
       const std::string & certificate_body() const { return this->certificate_body_; }
 
@@ -76,9 +76,9 @@ namespace vds {
       static const char message_type[];
 
       register_server_response();
-      register_server_response(const json_value *);
+      register_server_response(const std::shared_ptr<json_value> &);
 
-      std::unique_ptr<json_value> serialize() const;
+      std::shared_ptr<json_value> serialize() const;
     };
     //////////////////////////////////////////////////////////////
     class put_file_message
@@ -86,8 +86,8 @@ namespace vds {
     public:
       static const char message_type[];
 
-      put_file_message(const json_value *);
-      std::unique_ptr<json_value> serialize() const;
+      put_file_message(const std::shared_ptr<json_value> &);
+      std::shared_ptr<json_value> serialize() const;
 
       put_file_message(
         const std::string & user_login,
@@ -112,8 +112,8 @@ namespace vds {
     public:
       static const char message_type[];
 
-      put_file_message_response(const json_value *);
-      std::unique_ptr<json_value> serialize() const;
+      put_file_message_response(const std::shared_ptr<json_value> &);
+      std::shared_ptr<json_value> serialize() const;
 
       put_file_message_response(const std::string & version_id);
       
@@ -128,8 +128,8 @@ namespace vds {
     public:
       static const char message_type[];
 
-      get_file_message_request(const json_value *);
-      std::unique_ptr<json_value> serialize() const;
+      get_file_message_request(const std::shared_ptr<json_value> &);
+      std::shared_ptr<json_value> serialize() const;
 
       get_file_message_request(
         const std::string & user_login,
@@ -148,8 +148,8 @@ namespace vds {
     public:
       static const char message_type[];
 
-      get_file_message_response(const json_value *);
-      std::unique_ptr<json_value> serialize() const;
+      get_file_message_response(const std::shared_ptr<json_value> &);
+      std::shared_ptr<json_value> serialize() const;
 
       get_file_message_response(
         const const_data_buffer & meta_info,

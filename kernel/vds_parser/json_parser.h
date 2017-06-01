@@ -84,12 +84,12 @@ namespace vds {
 
             case '[':
               this->start_array();
-              this->root_object_.reset(this->current_object_);
+              this->root_object_ = this->current_object_;
               break;
 
             case '{':
               this->start_object();
-              this->root_object_.reset(this->current_object_);
+              this->root_object_ = this->current_object_;
               break;
 
             default:
@@ -261,12 +261,11 @@ namespace vds {
                 break;
 
               case ST_ARRAY_ITEM:
-                static_cast<json_array *>(this->current_object_)->add(
-                  std::shared_ptr<json_value>(
-                  new json_primitive(
+                std::static_pointer_cast<json_array>(this->current_object_)->add(
+                  std::make_shared<json_primitive>(
                     this->line_, this->column_,
                     this->buffer_
-                  )
+                  
                 ));
                 this->buffer_.clear();
                 break;
@@ -705,8 +704,8 @@ namespace vds {
       std::stack<State> saved_states_;
 
       std::shared_ptr<json_value> root_object_;
-      std::stack<json_value *> current_path_;
-      json_value * current_object_;
+      std::stack<std::shared_ptr<json_value>> current_path_;
+      std::shared_ptr<json_value> current_object_;
 
       int line_;
       int column_;
@@ -730,11 +729,11 @@ namespace vds {
 
       void start_array()
       {
-        auto new_object = new json_array(this->line_, this->column_);
+        auto new_object = std::make_shared<json_array>(this->line_, this->column_);
 
         switch (this->state_) {
         case ST_OBJECT_PROPERTY_VALUE:
-          static_cast<json_property *>(this->current_object_)->value(new_object);
+          std::static_pointer_cast<json_property>(this->current_object_)->value(new_object);
           break;
 
         case ST_BOF:
@@ -776,17 +775,17 @@ namespace vds {
 
       void start_object()
       {
-        auto new_object = new json_object(this->line_, this->column_);
+        auto new_object = std::make_shared<json_object>(this->line_, this->column_);
 
         switch (this->state_) {
         case ST_OBJECT_PROPERTY_VALUE:
-          static_cast<json_property *>(this->current_object_)->value(new_object);
+          std::static_pointer_cast<json_property>(this->current_object_)->value(new_object);
           break;
         case ST_BOF:
           this->saved_states_.push(ST_BOF);
           break;
         case ST_ARRAY:
-          static_cast<json_array *>(this->current_object_)->add(new_object->shared_from_this());
+          std::static_pointer_cast<json_array>(this->current_object_)->add(new_object);
           this->saved_states_.push(ST_ARRAY_ITEM);
           this->current_path_.push(this->current_object_);
           break;
@@ -825,10 +824,10 @@ namespace vds {
 
       void start_property()
       {
-        auto new_property = new json_property(this->line_, this->column_);
+        auto new_property = std::make_shared<json_property>(this->line_, this->column_);
         new_property->name(this->buffer_);
 
-        static_cast<json_object *>(this->current_object_)->add_property(new_property);
+        std::static_pointer_cast<json_object>(this->current_object_)->add_property(new_property);
         this->current_path_.push(this->current_object_);
 
         this->current_object_ = new_property;
@@ -837,8 +836,8 @@ namespace vds {
 
       void final_string_property()
       {
-        static_cast<json_property *>(this->current_object_)->value(
-          new json_primitive(this->line_, this->column_, this->buffer_)
+        std::static_pointer_cast<json_property>(this->current_object_)->value(
+          std::make_shared<json_primitive>(this->line_, this->column_, this->buffer_)
         );
 
         this->current_object_ = this->current_path_.top();

@@ -23,13 +23,13 @@ namespace vds {
       uint64_t index);
 
     storage_object_id(
-      const json_value * source);
+      const std::shared_ptr<json_value> & source);
 
     uint64_t index() const { return this->index_; }
 
     storage_object_id & operator = (storage_object_id && original);
 
-    std::unique_ptr<json_value> serialize(bool write_type) const;
+    std::shared_ptr<json_value> serialize(bool write_type) const;
 
   private:
     uint64_t index_;
@@ -57,13 +57,13 @@ namespace vds {
       const storage_object_id & object_id);
 
     full_storage_object_id(
-      const json_value * source);
+      const std::shared_ptr<json_value> & source);
 
     const guid & source_server_id() const { return this->source_server_id_; }
 
     full_storage_object_id & operator = (full_storage_object_id && original);
 
-    std::unique_ptr<json_value> serialize(bool write_type) const;
+    std::shared_ptr<json_value> serialize(bool write_type) const;
 
   private:
     guid source_server_id_;

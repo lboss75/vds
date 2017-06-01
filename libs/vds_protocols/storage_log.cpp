@@ -237,8 +237,8 @@ void vds::_storage_log::apply_record(
     throw std::runtime_error("Invalid server state");
   }
  
-  const json_object * obj = dynamic_cast<const json_object *>(record.message().get());
-  if(nullptr == obj){
+  auto obj = std::dynamic_pointer_cast<json_object>(record.message());
+  if(!obj){
     sp.get<logger>()->info(sp, "Wrong messsage in the record %s:%d", record.id().source_id.str().c_str(), record.id().index);
     sp.get<iserver_database>()->delete_record(sp, record.id());
     return;

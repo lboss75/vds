@@ -16,16 +16,16 @@ namespace vds {
     static const char message_type[];
 
     server_log_batch();
-    server_log_batch(const json_value * source);
+    server_log_batch(const std::shared_ptr<json_value> & source);
 
-    const json_array * get_messages() const { return this->messages_.get(); }
+    const std::shared_ptr<json_array> & get_messages() const { return this->messages_; }
 
-    void add(std::unique_ptr<json_value> && item);
+    void add(const std::shared_ptr<json_value> & item);
 
-    std::unique_ptr<json_value> serialize() const;
+    std::shared_ptr<json_value> serialize() const;
 
   private:
-    std::unique_ptr<json_array> messages_;
+    std::shared_ptr<json_array> messages_;
   };
   
   class server_log_new_object
@@ -34,7 +34,7 @@ namespace vds {
     static const char message_type[];
     
     server_log_new_object(
-      const json_value * source);
+      const std::shared_ptr<json_value> & source);
     
     server_log_new_object(
       uint64_t index,
@@ -49,7 +49,7 @@ namespace vds {
     uint32_t target_lenght() const { return this->target_lenght_; }
     const const_data_buffer & target_hash() const { return this->target_hash_; }
     
-    std::unique_ptr<json_value> serialize(bool add_type_property = true) const;
+    std::shared_ptr<json_value> serialize(bool add_type_property = true) const;
   private:
     uint64_t index_;
     uint32_t original_lenght_;
@@ -70,10 +70,10 @@ namespace vds {
       const const_data_buffer & meta_info);
 
     server_log_file_map(
-      const json_value * source);
+      const std::shared_ptr<json_value> & source);
 
     void add(const server_log_new_object & item);
-    std::unique_ptr<json_value> serialize(bool add_type_property = true) const;
+    std::shared_ptr<json_value> serialize(bool add_type_property = true) const;
 
     const std::string & version_id() const { return this->version_id_; }
     const std::string & user_login() const { return this->user_login_; }
@@ -111,12 +111,12 @@ namespace vds {
       const std::string & subject,
       const const_data_buffer & signature);
 
-    server_log_sign(const json_value * source);
+    server_log_sign(const std::shared_ptr<json_value> & source);
 
     const std::string & subject() const { return this->subject_; }
     const const_data_buffer & signature() const { return this->signature_; }
 
-    std::unique_ptr<json_value> serialize() const;
+    std::shared_ptr<json_value> serialize() const;
 
   private:
     std::string subject_;
@@ -144,7 +144,7 @@ namespace vds {
       const std::list<record_id> & parents,
       const std::shared_ptr<json_value> & message);
     
-    server_log_record(const json_value * source);
+    server_log_record(const std::shared_ptr<json_value> & source);
 
     void reset(
       const record_id & id,
@@ -159,7 +159,7 @@ namespace vds {
 
     binary_deserializer & deserialize(const service_provider & sp, binary_deserializer & b);
     void serialize(binary_serializer & b) const;
-    std::unique_ptr<json_value> serialize(bool add_type_property) const;
+    std::shared_ptr<json_value> serialize(bool add_type_property) const;
 
   private:
     record_id id_;
@@ -177,13 +177,13 @@ namespace vds {
       const std::string & user_private_key,
       const const_data_buffer & password_hash);
 
-    server_log_root_certificate(const json_value * source);
+    server_log_root_certificate(const std::shared_ptr<json_value> & source);
     
     const std::string & user_cert() const { return this->user_cert_; }
     const std::string & user_private_key() const { return this->user_private_key_; }
     const const_data_buffer & password_hash() const { return this->password_hash_; }
 
-    std::unique_ptr<json_value> serialize() const;
+    std::shared_ptr<json_value> serialize() const;
 
   private:
     std::string user_cert_;
@@ -198,11 +198,11 @@ namespace vds {
 
     server_log_new_user_certificate(uint64_t user_cert);
 
-    server_log_new_user_certificate(const json_value * source);
+    server_log_new_user_certificate(const std::shared_ptr<json_value> & source);
 
     uint64_t user_cert() const { return this->user_cert_; }
 
-    std::unique_ptr<json_value> serialize() const;
+    std::shared_ptr<json_value> serialize() const;
 
   private:
     uint64_t user_cert_;
@@ -214,11 +214,11 @@ namespace vds {
     static const char message_type[];
     
     server_log_new_server(const std::string & certificate);
-    server_log_new_server(const json_value * source);
+    server_log_new_server(const std::shared_ptr<json_value> & source);
 
     const std::string & certificate () const { return this->certificate_; }
     
-    std::unique_ptr<json_value> serialize() const;
+    std::shared_ptr<json_value> serialize() const;
     
   private:
     std::string certificate_;
@@ -233,12 +233,12 @@ namespace vds {
       const guid & server_id,
       const std::string & addresses);
 
-    server_log_new_endpoint(const json_value * source);
+    server_log_new_endpoint(const std::shared_ptr<json_value> & source);
 
     const guid & server_id() const { return this->server_id_; }
     const std::string & addresses() const { return this->addresses_; }
 
-    std::unique_ptr<json_value> serialize() const;
+    std::shared_ptr<json_value> serialize() const;
 
   private:
     guid server_id_;

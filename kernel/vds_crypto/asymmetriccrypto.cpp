@@ -772,7 +772,11 @@ vds::certificate vds::_certificate::create_new(
     X509_gmtime_adj(X509_get_notBefore(x509), 0);
     X509_gmtime_adj(X509_get_notAfter(x509), (long)60 * 60 * 24 * 365);
     auto key = new_certificate_public_key.impl_->key();
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+    CRYPTO_add(&key->references,1,CRYPTO_LOCK_EVP_PKEY);
+#else
     EVP_PKEY_up_ref(key);
+#endif
     X509_set_pubkey(x509, key);
 
     auto name = X509_get_subject_name(x509);

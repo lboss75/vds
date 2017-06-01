@@ -46,14 +46,14 @@ vds::json_object::json_object(
 {
 }
 
-void vds::json_object::visit(const std::function<void(const json_property&)>& visitor) const
+void vds::json_object::visit(const std::function<void(const std::shared_ptr<json_value> & )>& visitor) const
 {
   for (const auto & property : this->properties_) {
-    visitor(*property.get());
+    visitor(property);
   }
 }
 
-const vds::json_value * vds::json_object::get_property(const std::string & name) const
+std::shared_ptr<vds::json_value> vds::json_object::get_property(const std::string & name) const
 {
   for (const auto & property : this->properties_) {
     if (property->name() == name) {
@@ -71,7 +71,7 @@ bool vds::json_object::get_property(const std::string & name, std::string & valu
     return false;
   }
 
-  auto pvalue = dynamic_cast<const json_primitive *>(value_obj);
+  auto pvalue = dynamic_cast<const json_primitive *>(value_obj.get());
   if (nullptr == pvalue) {
     if (throw_error) {
       throw std::runtime_error("Invalid property " + name + " type: expected string");
@@ -162,24 +162,24 @@ bool vds::json_object::get_property(const std::string & name, uint64_t & value, 
 }
 
 
-void vds::json_object::add_property(json_property * prop)
+void vds::json_object::add_property(const std::shared_ptr<json_property> & prop)
 {
-  this->properties_.push_back(std::unique_ptr<json_property>(prop));
+  this->properties_.push_back(prop);
 }
 
-void vds::json_object::add_property(const std::string & name, std::unique_ptr<json_value> && value)
+void vds::json_object::add_property(const std::string & name, const std::shared_ptr<json_value> & value)
 {
-  this->add_property(new json_property(name, value.release()));
+  this->add_property(std::make_shared<json_property>(name, value));
 }
 
 void vds::json_object::add_property(const std::string & name, uint64_t value)
 {
-  this->add_property(new json_property(name, new json_primitive(std::to_string(value))));
+  this->add_property(std::make_shared<json_property>(name, std::make_shared<json_primitive>(std::to_string(value))));
 }
 
 void vds::json_object::add_property(const std::string & name, const std::string & value)
 {
-  this->add_property(new json_property(name, new json_primitive(value)));
+  this->add_property(std::make_shared<json_property>(name, std::make_shared<json_primitive>(value)));
 }
 
 void vds::json_object::add_property(const std::string& name, const const_data_buffer& value)
@@ -198,7 +198,8 @@ vds::json_array::json_array(int line, int column)
 }
 
 vds::json_property::json_property(
-  const std::string& name, vds::json_value* val)
+  const std::string& name,
+  const std::shared_ptr<vds::json_value> & val)
 : name_(name), value_(val)
 {
 }
@@ -220,9 +221,9 @@ void vds::json_primitive::str(json_writer & writer) const
   writer.write_string_value(this->value_);
 }
 
-std::unique_ptr<vds::json_value> vds::json_primitive::clone() const
+std::shared_ptr<vds::json_value> vds::json_primitive::clone(bool is_deep) const
 {
-  return std::unique_ptr<json_value>(new json_primitive(this->value_));
+  return std::shared_ptr<json_value>(new json_primitive(this->value_));
 }
 
 void vds::json_property::str(json_writer & writer) const
@@ -238,12 +239,12 @@ void vds::json_property::str(json_writer & writer) const
   writer.end_property();
 }
 
-std::unique_ptr<vds::json_value> vds::json_property::clone() const
+std::shared_ptr<vds::json_value> vds::json_property::clone(bool is_deep) const
 {
-  return std::unique_ptr<json_value>(
-    new json_property(
+  return std::shared_ptr<json_value>(
+    std::make_shared<json_property>(
       this->name_,
-      (nullptr == this->value_) ? nullptr : this->value_->clone().release()));
+      (is_deep && this->value_) ? this->value_->clone(true) : this->value_));
 }
 
 void vds::json_object::str(json_writer & writer) const
@@ -256,15 +257,20 @@ void vds::json_object::str(json_writer & writer) const
   writer.end_object();
 }
 
-std::unique_ptr<vds::json_value> vds::json_object::clone() const
+std::shared_ptr<vds::json_value> vds::json_object::clone(bool is_deep) const
 {
-  std::unique_ptr<json_object> s(new json_object());
+  auto s = std::make_shared<json_object>();
 
   for (auto& p : this->properties_) {
-    s->add_property(static_cast<json_property *>(p->clone().release()));
+    if(is_deep){
+      s->add_property(std::static_pointer_cast<json_property>(p->clone(true)));
+    }
+    else {
+      s->add_property(p);
+    }
   }
 
-  return std::unique_ptr<json_value>(s.release());
+  return s;
 }
 
 void vds::json_array::str(json_writer & writer) const
@@ -278,15 +284,20 @@ void vds::json_array::str(json_writer & writer) const
   writer.end_array();
 }
 
-std::unique_ptr<vds::json_value> vds::json_array::clone() const
+std::shared_ptr<vds::json_value> vds::json_array::clone(bool is_deep) const
 {
-  std::unique_ptr<json_array> s(new json_array());
+  std::shared_ptr<json_value> s(new json_array());
 
   for (auto& i : this->items_) {
-    s->add(i->clone());
+    if(is_deep){
+      static_cast<json_array *>(s.get())->add(i->clone(true));
+    }
+    else {
+      static_cast<json_array *>(s.get())->add(i);
+    }
   }
 
-  return std::unique_ptr<json_value>(s.release());
+  return s;
 }
 
 

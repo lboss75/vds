@@ -50,7 +50,7 @@ namespace vds {
         const const_data_buffer & data);
 
       void serialize(binary_serializer & b) const;
-      std::unique_ptr<json_value> serialize() const;
+      std::shared_ptr<json_value> serialize() const;
 
       const server_log_record & record() const { return this->record_; }
       const const_data_buffer & signature() const { return this->signature_; }
@@ -74,7 +74,7 @@ namespace vds {
         const const_data_buffer & data);
 
       void serialize(binary_serializer & b) const;
-      std::unique_ptr<json_value> serialize() const;
+      std::shared_ptr<json_value> serialize() const;
 
       const std::list<server_log_record::record_id> & unknown_records() const { return this->unknown_records_; }
 

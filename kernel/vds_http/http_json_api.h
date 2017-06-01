@@ -56,7 +56,7 @@ namespace vds {
     private:
       service_provider scope_;
       const handler_type & handler_;
-      std::unique_ptr<json_value> response_;
+      std::shared_ptr<json_value> response_;
     };
 
   private:

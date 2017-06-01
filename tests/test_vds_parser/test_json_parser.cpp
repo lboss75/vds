@@ -40,7 +40,7 @@ class test_json_parser_validate
 {
 public:
   
-  using incoming_item_type = vds::json_value;
+  using incoming_item_type = std::shared_ptr<vds::json_value>;
   static constexpr size_t BUFFER_SIZE = 1024;
   static constexpr size_t MIN_BUFFER_SIZE = 1;
 
@@ -58,7 +58,7 @@ public:
 
     size_t sync_push_data(const vds::service_provider & sp)
     {
-      auto root_object = dynamic_cast<vds::json_object *>(this->input_buffer_[0]);
+      auto root_object = std::dynamic_pointer_cast<vds::json_object>(this->input_buffer_[0]);
       if(nullptr == root_object) {
         throw std::runtime_error("Test test");
       }

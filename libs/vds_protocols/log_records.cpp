@@ -16,7 +16,7 @@ vds::server_log_record::server_log_record()
 vds::server_log_record::server_log_record(const server_log_record & origin)
 : id_(origin.id_),
   parents_(origin.parents_),
-  message_(origin.message_->clone())
+  message_(origin.message_)
 {
 }
 
@@ -58,19 +58,19 @@ vds::server_log_record::server_log_record(
 {
 }
 
-vds::server_log_record::server_log_record(const json_value * source)
+vds::server_log_record::server_log_record(const std::shared_ptr<json_value> & source)
 {
-  auto s = dynamic_cast<const json_object *>(source);
-  if (nullptr != s) {
+  auto s = std::dynamic_pointer_cast<json_object>(source);
+  if (s) {
     s->get_property("s", this->id_.source_id);
     s->get_property("i", this->id_.index);
 
-    this->message_ = s->get_property("m")->clone();
+    this->message_ = s->get_property("m");
 
-    auto m = dynamic_cast<const json_array *>(s->get_property("p"));
-    if(nullptr != m) {
+    auto m = std::dynamic_pointer_cast<json_array>(s->get_property("p"));
+    if(m) {
       for (size_t i = 0; i < m->size(); ++i) {
-        auto item = dynamic_cast<const json_object *>(m->get(i).get());
+        auto item = std::dynamic_pointer_cast<json_object>(m->get(i));
         if (nullptr != item) {
           guid source_id;
           if (!item->get_property("s", this->id_.source_id, false)) {
@@ -117,7 +117,7 @@ void vds::server_log_record::serialize(binary_serializer & b) const
 }
 
 
-std::unique_ptr<vds::json_value> vds::server_log_record::serialize(bool add_type_property) const
+std::shared_ptr<vds::json_value> vds::server_log_record::serialize(bool add_type_property) const
 {
   std::unique_ptr<json_object> result(new json_object());
   if (add_type_property) {
@@ -125,10 +125,10 @@ std::unique_ptr<vds::json_value> vds::server_log_record::serialize(bool add_type
   }
   result->add_property("s", this->id_.source_id);
   result->add_property("i", this->id_.index);
-  result->add_property(new json_property("m", this->message_->clone().release()));
+  result->add_property(std::make_shared<json_property>("m", this->message_));
 
   if (!this->parents_.empty()) {
-    std::unique_ptr<json_array> parents(new json_array());
+    auto parents = std::make_shared<json_array>();
     for (auto& p : this->parents_) {
       std::shared_ptr<json_object> item(new json_object());
       if (p.source_id == this->id_.source_id) {
@@ -138,10 +138,10 @@ std::unique_ptr<vds::json_value> vds::server_log_record::serialize(bool add_type
       parents->add(item);
     }
 
-    result->add_property(new json_property("p", parents.release()));
+    result->add_property(std::make_shared<json_property>("p", parents));
   }
   
-  return std::unique_ptr<vds::json_value>(result.release());
+  return std::shared_ptr<vds::json_value>(result.release());
 }
 ////////////////////////////////////////////////////////////////////////
 const char vds::server_log_new_object::message_type[] = "new object";
@@ -161,9 +161,9 @@ vds::server_log_new_object::server_log_new_object(
 }
 
 vds::server_log_new_object::server_log_new_object(
-  const vds::json_value* source)
+  const std::shared_ptr<vds::json_value> & source)
 {
-  auto s = dynamic_cast<const json_object *>(source);
+  auto s = std::dynamic_pointer_cast<json_object>(source);
   if (nullptr != s) {
     s->get_property("i", this->index_);
     s->get_property("l", this->original_lenght_);
@@ -173,7 +173,7 @@ vds::server_log_new_object::server_log_new_object(
   }
 }
 
-std::unique_ptr<vds::json_value> vds::server_log_new_object::serialize(bool add_type_property) const
+std::shared_ptr<vds::json_value> vds::server_log_new_object::serialize(bool add_type_property) const
 {
   std::unique_ptr<json_object> result(new json_object());
   if (add_type_property) {
@@ -186,7 +186,7 @@ std::unique_ptr<vds::json_value> vds::server_log_new_object::serialize(bool add_
   result->add_property("tl", this->target_lenght_);
   result->add_property("th", this->target_hash_);
 
-  return std::unique_ptr<vds::json_value>(result.release());
+  return std::shared_ptr<vds::json_value>(result.release());
 }
 
 
@@ -204,17 +204,17 @@ vds::server_log_root_certificate::server_log_root_certificate(
 {
 }
 
-vds::server_log_root_certificate::server_log_root_certificate(const json_value * source)
+vds::server_log_root_certificate::server_log_root_certificate(const std::shared_ptr<json_value> & source)
 {
-  auto s = dynamic_cast<const json_object *>(source);
-  if (nullptr != s) {
+  auto s = std::dynamic_pointer_cast<json_object>(source);
+  if (s) {
     s->get_property("c", this->user_cert_);
     s->get_property("k", this->user_private_key_);
     s->get_property("h", this->password_hash_);
   }
 }
 
-std::unique_ptr<vds::json_value> vds::server_log_root_certificate::serialize() const
+std::shared_ptr<vds::json_value> vds::server_log_root_certificate::serialize() const
 {
   std::unique_ptr<json_object> result(new json_object());
   result->add_property("$t", message_type);
@@ -223,18 +223,18 @@ std::unique_ptr<vds::json_value> vds::server_log_root_certificate::serialize() c
   result->add_property("k", this->user_private_key_);
   result->add_property("h", this->password_hash_);
   
-  return std::unique_ptr<vds::json_value>(result.release());
+  return std::shared_ptr<vds::json_value>(result.release());
 }
 
 const char vds::server_log_new_user_certificate::message_type[] = "certificate";
 
-std::unique_ptr<vds::json_value> vds::server_log_new_user_certificate::serialize() const
+std::shared_ptr<vds::json_value> vds::server_log_new_user_certificate::serialize() const
 {
   std::unique_ptr<json_object> result(new json_object());
   result->add_property("$t", message_type);
   result->add_property("u", this->user_cert_);
   
-  return std::unique_ptr<vds::json_value>(result.release());
+  return std::shared_ptr<vds::json_value>(result.release());
 }
 
 vds::server_log_new_user_certificate::server_log_new_user_certificate(uint64_t user_cert)
@@ -242,10 +242,10 @@ vds::server_log_new_user_certificate::server_log_new_user_certificate(uint64_t u
 {
 }
 
-vds::server_log_new_user_certificate::server_log_new_user_certificate(const vds::json_value * source)
+vds::server_log_new_user_certificate::server_log_new_user_certificate(const std::shared_ptr<json_value> & source)
 {
-  auto s = dynamic_cast<const json_object *>(source);
-  if(nullptr != s) {
+  auto s = std::dynamic_pointer_cast<json_object>(source);
+  if(s) {
     s->get_property("u", this->user_cert_);
   }
 }
@@ -257,30 +257,30 @@ vds::server_log_batch::server_log_batch()
 {
 }
 
-vds::server_log_batch::server_log_batch(const json_value * source)
+vds::server_log_batch::server_log_batch(const std::shared_ptr<json_value> & source)
 {
-  auto s = dynamic_cast<const json_object *>(source);
+  auto s = std::dynamic_pointer_cast<json_object>(source);
   if (nullptr != s) {
      auto m = s->get_property("m");
-    auto ma = dynamic_cast<const json_array *>(m);
-    if(nullptr != ma){
-      this->messages_.reset(static_cast<json_array *>(ma->clone().release()));
+    auto ma = std::dynamic_pointer_cast<json_array>(m);
+    if(ma){
+      this->messages_ = ma;
     }
   }
 }
 
-void vds::server_log_batch::add(std::unique_ptr<json_value>&& item)
+void vds::server_log_batch::add(const std::shared_ptr<json_value> & item)
 {
-  this->messages_->add(std::move(item));
+  this->messages_->add(item);
 }
 
-std::unique_ptr<vds::json_value> vds::server_log_batch::serialize() const
+std::shared_ptr<vds::json_value> vds::server_log_batch::serialize() const
 {
   std::unique_ptr<json_object> result(new json_object());
   result->add_property("$t", message_type);
-  result->add_property(new json_property("m", this->messages_->clone().release()));
+  result->add_property(std::make_shared<json_property>("m", this->messages_));
 
-  return std::unique_ptr<vds::json_value>(result.release());
+  return std::shared_ptr<vds::json_value>(result.release());
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -294,21 +294,21 @@ vds::server_log_new_server::server_log_new_server(
 
 
 vds::server_log_new_server::server_log_new_server(
-  const vds::json_value* source)
+  const std::shared_ptr<json_value> & source)
 {
-  auto s = dynamic_cast<const json_object *>(source);
-  if (nullptr != s) {
+  auto s = std::dynamic_pointer_cast<json_object>(source);
+  if (s) {
     s->get_property("c", this->certificate_);
   }
 }
 
 
-std::unique_ptr<vds::json_value> vds::server_log_new_server::serialize() const
+std::shared_ptr<vds::json_value> vds::server_log_new_server::serialize() const
 {
   std::unique_ptr<json_object> result(new json_object());
   result->add_property("$t", message_type);
   result->add_property("c", this->certificate_);
-  return std::unique_ptr<vds::json_value>(result.release());
+  return std::shared_ptr<vds::json_value>(result.release());
 }
 //////////////////////////////////////////////////////////////////////
 const char vds::server_log_new_endpoint::message_type[] = "new endpoint";
@@ -322,23 +322,23 @@ vds::server_log_new_endpoint::server_log_new_endpoint(
 
 
 vds::server_log_new_endpoint::server_log_new_endpoint(
-  const vds::json_value* source)
+  const std::shared_ptr<vds::json_value> & source)
 {
-  auto s = dynamic_cast<const json_object *>(source);
-  if (nullptr != s) {
+  auto s = std::dynamic_pointer_cast<json_object>(source);
+  if (s) {
     s->get_property("s", this->server_id_);
     s->get_property("a", this->addresses_);
   }
 }
 
 
-std::unique_ptr<vds::json_value> vds::server_log_new_endpoint::serialize() const
+std::shared_ptr<vds::json_value> vds::server_log_new_endpoint::serialize() const
 {
   std::unique_ptr<json_object> result(new json_object());
   result->add_property("$t", message_type);
   result->add_property("s", this->server_id_);
   result->add_property("a", this->addresses_);
-  return std::unique_ptr<vds::json_value>(result.release());
+  return std::shared_ptr<vds::json_value>(result.release());
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -349,21 +349,21 @@ vds::server_log_sign::server_log_sign(
 {
 }
 
-vds::server_log_sign::server_log_sign(const json_value * source)
+vds::server_log_sign::server_log_sign(const std::shared_ptr<json_value> & source)
 {
-  auto s = dynamic_cast<const json_object *>(source);
-  if (nullptr != s) {
+  auto s = std::dynamic_pointer_cast<json_object>(source);
+  if (s) {
     s->get_property("n", this->subject_);
     s->get_property("s", this->signature_);
   }
 }
 
-std::unique_ptr<vds::json_value> vds::server_log_sign::serialize() const
+std::shared_ptr<vds::json_value> vds::server_log_sign::serialize() const
 {
   std::unique_ptr<json_object> result(new json_object());
   result->add_property("n", this->subject_);
   result->add_property("s", this->signature_);
-  return std::unique_ptr<vds::json_value>(result.release());
+  return std::shared_ptr<vds::json_value>(result.release());
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -381,19 +381,19 @@ vds::server_log_file_map::server_log_file_map(
 {
 }
 
-vds::server_log_file_map::server_log_file_map(const json_value * source)
+vds::server_log_file_map::server_log_file_map(const std::shared_ptr<json_value> & source)
 {
-  auto s = dynamic_cast<const json_object *>(source);
-  if (nullptr != s) {
+  auto s = std::dynamic_pointer_cast<json_object>(source);
+  if (s) {
     s->get_property("v", this->version_id_);
     s->get_property("u", this->user_login_);
     s->get_property("n", this->name_);
     s->get_property("m", this->meta_info_);
 
-    auto items = dynamic_cast<const json_array *>(s->get_property("i"));
-    if (nullptr != items) {
+    auto items = std::dynamic_pointer_cast<json_array>(s->get_property("i"));
+    if (items) {
       for (size_t i = 0; i < items->size(); ++i) {
-        this->add(server_log_new_object(items->get(i).get()));
+        this->add(server_log_new_object(items->get(i)));
       }
     }
   }
@@ -404,7 +404,7 @@ void vds::server_log_file_map::add(const server_log_new_object & item)
   this->items_.push_back(item);
 }
 
-std::unique_ptr<vds::json_value> vds::server_log_file_map::serialize(bool add_type_property) const
+std::shared_ptr<vds::json_value> vds::server_log_file_map::serialize(bool add_type_property) const
 {
   std::unique_ptr<json_object> result(new json_object());
   if (add_type_property) {
@@ -416,13 +416,13 @@ std::unique_ptr<vds::json_value> vds::server_log_file_map::serialize(bool add_ty
   result->add_property("n", this->name_);
   result->add_property("m", this->meta_info_);
 
-  std::unique_ptr<json_array> items(new json_array());
+  auto items = std::make_shared<json_array>();
   for (auto & p : this->items_) {
     items->add(p.serialize(false));
   }
-  result->add_property(new json_property("i", items.release()));
+  result->add_property(std::make_shared<json_property>("i", items));
 
-  return std::unique_ptr<vds::json_value>(result.release());
+  return std::shared_ptr<vds::json_value>(result.release());
 }
 
 vds::server_log_file_version::server_log_file_version(

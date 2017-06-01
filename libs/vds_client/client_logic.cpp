@@ -60,16 +60,16 @@ void vds::client_logic::stop(const service_provider & sp)
 void vds::client_logic::process_response(
   const service_provider & sp,
   //client_connection<client_logic>& connection,
-  const json_value * response)
+  const std::shared_ptr<json_value> & response)
 {
   sp.get<logger>()->trace(sp, "Response %s", response->str().c_str());
   
-  auto tasks = dynamic_cast<const json_array *>(response);
-  if (nullptr != tasks) {
+  auto tasks = std::dynamic_pointer_cast<json_array>(response);
+  if (tasks) {
     for (size_t i = 0; i < tasks->size(); ++i) {
-      auto task = dynamic_cast<const json_object *>(tasks->get(i).get());
+      auto task = std::dynamic_pointer_cast<json_object>(tasks->get(i));
 
-      if (nullptr != task) {
+      if (task) {
         std::string request_id;
         if(task->get_property("$r", request_id)){
           std::lock_guard<std::mutex> lock(this->requests_mutex_);
@@ -77,7 +77,7 @@ void vds::client_logic::process_response(
           if(this->requests_.end() != p){
             auto item = p->second;
 
-            item->done(sp, task->clone());
+            item->done(sp, task);
             this->requests_.remove(request_id);            
           }
         }

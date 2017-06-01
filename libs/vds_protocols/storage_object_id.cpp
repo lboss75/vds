@@ -23,10 +23,10 @@ vds::storage_object_id::storage_object_id(
 {
 }
 
-vds::storage_object_id::storage_object_id(const json_value * source)
+vds::storage_object_id::storage_object_id(const std::shared_ptr<json_value> & source)
 {
-  auto s = dynamic_cast<const json_object *>(source);
-  if (nullptr != s) {
+  auto s = std::dynamic_pointer_cast<json_object>(source);
+  if (s) {
     s->get_property("i", this->index_);
   }
 }
@@ -38,13 +38,13 @@ vds::storage_object_id & vds::storage_object_id::operator=(storage_object_id && 
   return *this;
 }
 
-std::unique_ptr<vds::json_value> vds::storage_object_id::serialize(bool write_type) const
+std::shared_ptr<vds::json_value> vds::storage_object_id::serialize(bool write_type) const
 {
   std::unique_ptr<json_object> s(new json_object());
   
   this->serialize(s.get(), write_type);
 
-  return std::unique_ptr<json_value>(s.release());
+  return std::shared_ptr<json_value>(s.release());
 }
 
 void vds::storage_object_id::serialize(vds::json_object* s, bool write_type) const
@@ -72,10 +72,10 @@ vds::full_storage_object_id::full_storage_object_id(
 }
 
 
-vds::full_storage_object_id::full_storage_object_id(const json_value* source)
+vds::full_storage_object_id::full_storage_object_id(const std::shared_ptr<json_value> & source)
 : storage_object_id(source)
 {
-  auto s = dynamic_cast<const json_object *>(source);
+  auto s = std::dynamic_pointer_cast<json_object>(source);
   if (nullptr != s) {
     s->get_property("s", this->source_server_id_);
   }
@@ -98,9 +98,9 @@ vds::full_storage_object_id::full_storage_object_id(
 
 }
 
-std::unique_ptr<vds::json_value> vds::full_storage_object_id::serialize(bool write_type) const
+std::shared_ptr<vds::json_value> vds::full_storage_object_id::serialize(bool write_type) const
 {
-  std::unique_ptr<json_object> s(new json_object());
+  auto s = std::shared_ptr<json_object>();
   
   if (write_type) {
     s->add_property("$t", message_type);
@@ -109,7 +109,7 @@ std::unique_ptr<vds::json_value> vds::full_storage_object_id::serialize(bool wri
   storage_object_id::serialize(s.get(), false);
   s->add_property("s", this->source_server_id_);
 
-  return std::unique_ptr<json_value>(s.release());
+  return s;
 }
 
 vds::full_storage_object_id& vds::full_storage_object_id::operator = (vds::full_storage_object_id&& original)

@@ -151,14 +151,14 @@ void vds::_server_log_sync::server_log_record_broadcast::serialize(binary_serial
   b << this->signature_;
 }
 
-std::unique_ptr<vds::json_value> vds::_server_log_sync::server_log_record_broadcast::serialize() const
+std::shared_ptr<vds::json_value> vds::_server_log_sync::server_log_record_broadcast::serialize() const
 {
   std::unique_ptr<json_object> result(new json_object());
   result->add_property("$t", message_type);
   result->add_property("r", this->record_.serialize(false));
   result->add_property("s", this->signature_);
 
-  return std::unique_ptr<json_value>(result.release());
+  return std::shared_ptr<json_value>(result.release());
 }
 
 //////////////////////////////////////////////////
@@ -190,11 +190,11 @@ void vds::_server_log_sync::server_log_get_records_broadcast::serialize(binary_s
   }
 }
 
-std::unique_ptr<vds::json_value> vds::_server_log_sync::server_log_get_records_broadcast::serialize() const
+std::shared_ptr<vds::json_value> vds::_server_log_sync::server_log_get_records_broadcast::serialize() const
 {
   std::unique_ptr<json_object> result(new json_object());
   result->add_property("$t", message_type);
 
-  return std::unique_ptr<json_value>(result.release());
+  return std::shared_ptr<json_value>(result.release());
 }
 

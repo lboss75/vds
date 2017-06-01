@@ -44,7 +44,6 @@ namespace vds {
     asymmetric_private_key private_key_;
     size_t port_;
 
-    std::unique_ptr<consensus_protocol::server> consensus_server_protocol_;
     std::unique_ptr<_cert_manager> cert_manager_;
     std::unique_ptr<_node_manager> node_manager_;
     std::unique_ptr<user_manager> user_manager_;
