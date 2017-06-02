@@ -120,6 +120,7 @@ namespace vds {
           }
           else {
             this->state_ = StateEnum::STATE_BOF;
+            this->buffer_.reset();
             if (this->processed(sp, 1, 0)) {
               this->async_process_data(sp);
             }

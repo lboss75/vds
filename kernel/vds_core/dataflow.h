@@ -283,12 +283,14 @@ namespace vds {
         }
       }
 
-      this->waiting_get_data_ = true;
-      if (this->target_->push_data(sp, written, this->output_buffer_, this->output_buffer_size_)) {
-        this->waiting_get_data_ = false;
+      if (0 < written || 0 == readed) {
+        this->waiting_get_data_ = true;
+        if (this->target_->push_data(sp, written, this->output_buffer_, this->output_buffer_size_)) {
+          this->waiting_get_data_ = false;
+        }
       }
-      this->waiting_push_data_ = true;
 
+      this->waiting_push_data_ = true;
       return !this->final_data_;
     }
 

@@ -115,6 +115,15 @@ namespace vds {
       });
     }
 
+    void reset()
+    {
+      if (!this->eof_ || 0 != this->second_ || 0 != this->front_ || 0 != this->back_ || this->continue_read_ || this->continue_write_) {
+        throw std::runtime_error("Logiñ error");
+      }
+
+      this->eof_ = false;
+    }
+
   private:
     std::mutex buffer_mutex_;
     item_type buffer_[4096];

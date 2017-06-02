@@ -25,17 +25,12 @@ namespace vds {
 
     void stop(const service_provider & sp);
 
-    void process_response(
-      const service_provider & sp,
-      //client_connection<client_logic> & connection,
-      const std::shared_ptr<json_value> & response);
-
     template <typename response_type>
     async_task<const response_type & /*response*/>
     send_request(
       const service_provider & sp,
       const std::shared_ptr<json_value> & message,
-      const std::chrono::steady_clock::duration & request_timeout = std::chrono::seconds(60))
+      const std::chrono::steady_clock::duration & request_timeout = std::chrono::seconds(5 * 60))
     {
       auto s = dynamic_cast<json_object *>(message.get());
       if(nullptr == s){
@@ -131,6 +126,17 @@ namespace vds {
     
     std::mutex requests_mutex_;
     simple_cache<std::string, std::shared_ptr<request_info>> requests_;    
+
+    void continue_read_connection(
+      const service_provider & sp,
+      client_connection * connection,
+      std::shared_ptr<std::shared_ptr<http_message>> buffer);
+
+    void process_response(
+      const service_provider & sp,
+      //client_connection<client_logic> & connection,
+      const std::shared_ptr<json_value> & response);
+
   };
 }
 

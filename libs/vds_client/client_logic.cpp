@@ -23,31 +23,35 @@ void vds::client_logic::start(
   certificate * client_certificate,
   asymmetric_private_key * client_private_key)
 {
+  auto scope = sp.create_scope("Client login");
+  imt_service::enable_async(scope);
+
   this->server_address_ = server_address;
   this->client_certificate_ = client_certificate;
   this->client_private_key_ = client_private_key;
 
   url_parser::parse_addresses(this->server_address_,
-    [this, sp](const std::string & protocol, const std::string & address)->bool {
+    [this, scope](const std::string & protocol, const std::string & address)->bool {
     if ("https" == protocol) {
       auto url = url_parser::parse_network_address(address);
       if (protocol == url.protocol) {
-        this->connection_queue_.push_back(
-          std::unique_ptr<client_connection>(
-            new client_connection(
-              url.server,
-              std::atoi(url.port.c_str()),
-              this->client_certificate_,
-              this->client_private_key_)));
+        std::unique_ptr<client_connection> connection(
+          new client_connection(
+            url.server,
+            std::atoi(url.port.c_str()),
+            this->client_certificate_,
+            this->client_private_key_));
+        this->continue_read_connection(scope, connection.get(), std::make_shared<std::shared_ptr<http_message>>());
+        this->connection_queue_.push_back(std::move(connection));
       }
     }
     return true;
   });
 
   this->process_timer_.start(
-    sp,
+    scope,
     std::chrono::seconds(5),
-    [this, sp](){ return this->process_timer_tasks(sp); });
+    [this, scope](){ return this->process_timer_tasks(scope); });
 }
 
 void vds::client_logic::stop(const service_provider & sp)
@@ -72,13 +76,14 @@ void vds::client_logic::process_response(
       if (task) {
         std::string request_id;
         if(task->get_property("$r", request_id)){
-          std::lock_guard<std::mutex> lock(this->requests_mutex_);
+          std::unique_lock<std::mutex> lock(this->requests_mutex_);
           auto p = this->requests_.find(request_id);
           if(this->requests_.end() != p){
             auto item = p->second;
+            this->requests_.remove(request_id);
+            lock.unlock();
 
             item->done(sp, task);
-            this->requests_.remove(request_id);            
           }
         }
       }
@@ -88,13 +93,15 @@ void vds::client_logic::process_response(
 
 void vds::client_logic::cancel_request(const service_provider & sp, const std::string& request_id)
 {
-  std::lock_guard<std::mutex> lock(this->requests_mutex_);
+  std::unique_lock<std::mutex> lock(this->requests_mutex_);
   auto p = this->requests_.find(request_id);
   if (this->requests_.end() != p) {
     auto item = p->second;
-    item->on_timeout(sp);
-
     this->requests_.remove(request_id);
+
+    lock.unlock();
+
+    item->on_timeout(sp);
   }
 }
 
@@ -221,6 +228,37 @@ bool vds::client_logic::process_timer_tasks(const service_provider & sp)
   }
 
   return true;
+}
+
+void vds::client_logic::continue_read_connection(
+  const service_provider & sp,
+  client_connection * connection,
+  std::shared_ptr<std::shared_ptr<http_message>> buffer)
+{
+  connection->incoming_stream()->read_async(sp, buffer.get(), 1)
+    .wait([this, connection, buffer](const service_provider & sp, size_t readed) {
+      if (0 < readed) {
+        auto json_response = std::make_shared<std::shared_ptr<json_value>>();
+        dataflow(
+          stream_read<uint8_t>((*buffer)->body()),
+          byte_to_char(),
+          json_parser("server response"),
+          dataflow_require_once<std::shared_ptr<json_value>>(json_response.get())
+        )(
+          [this, json_response, connection, buffer](const service_provider & sp) {
+            this->process_response(sp, *json_response);
+            this->continue_read_connection(sp, connection, buffer);
+          },
+          [](const service_provider & sp, std::exception_ptr ex) {
+            sp.unhandled_exception(ex);
+          },
+          sp);
+      }
+    },
+    [](const service_provider & sp, std::exception_ptr ex) {
+      sp.unhandled_exception(ex);
+    },
+    sp);
 }
 
 /*

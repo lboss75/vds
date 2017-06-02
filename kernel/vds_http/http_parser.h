@@ -45,8 +45,13 @@ namespace vds {
 
       void async_push_data(const service_provider & sp)
       {
+        if (0 == this->input_buffer_size()) {
+          sp.get<logger>()->debug(sp, "HTTP end");
+        }
+        else {
+          sp.get<logger>()->debug(sp, "HTTP [%s]", std::string((const char *)this->input_buffer(), this->input_buffer_size()).c_str());
+        }
         this->continue_push_data(sp, 0);
-
       }
 
     private:
