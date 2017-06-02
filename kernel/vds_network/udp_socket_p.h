@@ -38,6 +38,13 @@ namespace vds {
     {
     }
 
+    _udp_datagram(
+      const sockaddr_in & addr,
+      const const_data_buffer & data)
+      : addr_(addr), data_(data)
+    {
+    }
+
     sockaddr_in * addr() { return &this->addr_; }
     
     const std::string & server() const { return network_service::get_ip_address_string(this->addr_); }
@@ -49,6 +56,11 @@ namespace vds {
     static udp_datagram create(const sockaddr_in & addr, const void * data, size_t data_size)
     {
       return udp_datagram(new _udp_datagram(addr, data, data_size));
+    }
+
+    static udp_datagram create(const sockaddr_in & addr, const const_data_buffer & data)
+    {
+      return udp_datagram(new _udp_datagram(addr, data));
     }
 
   private:

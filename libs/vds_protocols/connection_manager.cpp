@@ -272,7 +272,7 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
           dataflow_arguments<uint8_t>(b.data().data(), b.data().size()),
           symmetric_encrypt(session.session_key()),
           collect_data(*data))(
-            [this, done, from, &session, key_crypted, data](const service_provider & sp) {
+            [this, done, on_error, from, &session, key_crypted, data](const service_provider & sp) {
           const_data_buffer crypted_data(data->data(), data->size());
 
           auto server_log = sp.get<istorage_log>();
@@ -293,12 +293,9 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
               to_sign.data()))
             .serialize();
 
-          this->message_queue_.push(
-            sp,
-            network_service::get_ip_address_string(*from),
-            ntohs(from->sin_port),
-            message_data);
-          done(sp);
+          auto data = _udp_datagram::create(*from, message_data);
+          this->s_.outgoing()->write_all_async(sp, &data, 1)
+            .wait(done, on_error, sp);
         },
           on_error,
           sp);

@@ -89,12 +89,6 @@ namespace vds {
         const void * data,
         size_t len);
       
-      template <typename next_step_type>
-      void get_message(const service_provider & sp, next_step_type & next)
-      {
-        this->message_queue_.get(sp, next);
-      }
-      
       void open_udp_session(
         const service_provider & sp,
         const std::string & address);
@@ -109,7 +103,6 @@ namespace vds {
       _connection_manager * owner_;
       udp_server server_;
       udp_socket s_;
-      pipeline<std::string, uint16_t, const_data_buffer> message_queue_;
       timer process_timer_;
 
       class hello_request
