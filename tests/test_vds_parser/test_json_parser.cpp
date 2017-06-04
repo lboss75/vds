@@ -109,7 +109,7 @@ public:
 
 TEST(test_json_parser, test_parser) {
   vds::dataflow(
-    vds::dataflow_arguments<uint8_t>((const uint8_t *)test_data, sizeof(test_data) - 1),
+    vds::dataflow_arguments<char>((const char *)test_data, sizeof(test_data) - 1),
     vds::json_parser("test"),
     test_json_parser_validate()
   )

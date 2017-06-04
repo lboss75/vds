@@ -9,6 +9,7 @@ All rights reserved
 #include "async_stream.h"
 #include "http_message.h"
 #include "http_request.h"
+#include "json_object.h"
 
 namespace vds {
   class http_serializer
