@@ -46,7 +46,7 @@ vds::json_object::json_object(
 {
 }
 
-void vds::json_object::visit(const std::function<void(const std::shared_ptr<json_value> & )>& visitor) const
+void vds::json_object::visit(const std::function<void(const std::shared_ptr<json_property> & )>& visitor) const
 {
   for (const auto & property : this->properties_) {
     visitor(property);

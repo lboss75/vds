@@ -58,41 +58,41 @@ public:
 
     size_t sync_push_data(const vds::service_provider & sp)
     {
-      auto root_object = std::dynamic_pointer_cast<vds::json_object>(this->input_buffer_[0]);
+      auto root_object = std::dynamic_pointer_cast<vds::json_object>(this->input_buffer(0));
       if(nullptr == root_object) {
         throw std::runtime_error("Test test");
       }
 
       int prop_count = 0;
       root_object->visit(
-        [&prop_count](const vds::json_property & prop) {
+        [&prop_count](const std::shared_ptr<vds::json_property> & prop) {
         ++prop_count;
-        if ("glossary" == prop.name()) {
-          auto glossary_object = dynamic_cast<vds::json_object *>(prop.value());
-          ASSERT_NE(nullptr, glossary_object);
+        if ("glossary" == prop->name()) {
+          auto glossary_object = std::dynamic_pointer_cast<vds::json_object>(prop->value());
+          ASSERT_NE(true, !glossary_object);
           int glossary_prop_count = 0;
           glossary_object->visit(
-            [&glossary_prop_count](const vds::json_property & prop) {
+            [&glossary_prop_count](const std::shared_ptr<vds::json_property> & prop) {
             ++glossary_prop_count;
-            if ("title" == prop.name()) {
-              auto title_prop = dynamic_cast<vds::json_primitive *>(prop.value());
-              ASSERT_NE(nullptr, title_prop);
+            if ("title" == prop->name()) {
+              auto title_prop = std::dynamic_pointer_cast<vds::json_primitive>(prop->value());
+              ASSERT_NE(true, !title_prop);
               ASSERT_EQ("example glossary", title_prop->value());
             }
-            else if ("GlossDiv" == prop.name()) {
-              auto glossdiv_prop = dynamic_cast<vds::json_object *>(prop.value());
+            else if ("GlossDiv" == prop->name()) {
+              auto glossdiv_prop = std::dynamic_pointer_cast<vds::json_object>(prop->value());
               ASSERT_NE(nullptr, glossdiv_prop);
 
             }
             else {
-              FAIL() << "Invalid property " << prop.name();
+              FAIL() << "Invalid property " << prop->name();
 
             }
           }
           );
         }
         else {
-          FAIL() << "Invalid property " << prop.name();
+          FAIL() << "Invalid property " << prop->name();
         }
       }
       );

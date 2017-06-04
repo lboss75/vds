@@ -91,7 +91,7 @@ namespace vds {
     json_object();
     json_object(int line, int column);
 
-    void visit(const std::function<void(const std::shared_ptr<json_value> &)> & visitor) const;
+    void visit(const std::function<void(const std::shared_ptr<json_property> &)> & visitor) const;
     
     void add_property(const std::shared_ptr<json_property> & prop);
     void add_property(const std::string & name, const std::shared_ptr<json_value> & value);
