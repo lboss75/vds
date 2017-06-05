@@ -108,9 +108,9 @@ TEST(chunk_tests, test_chunks16) {
     }
 }
 
-TEST(chunk_tests, test_chunks_storage) {
+TEST(DISABLED_chunk_tests, test_chunks_storage) {
     int size = std::rand();
-    while (size < 1 || size > 10000) {
+    while (size < 1 || size > 2000) {
         size = std::rand();
     }
     

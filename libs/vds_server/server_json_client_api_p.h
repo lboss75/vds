@@ -23,7 +23,7 @@ namespace vds {
     struct task_info
     {
       std::shared_ptr<json_value> result;
-      std::exception_ptr error;
+      std::shared_ptr<json_value> error;
     };
     
     std::mutex task_mutex_;

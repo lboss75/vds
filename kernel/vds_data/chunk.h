@@ -240,6 +240,7 @@ vds::chunk_restore<cell_type>::chunk_restore(cell_type k, const cell_type * n)
     //     1   0   (m2*x - m1*y)/(m2*m0)
     //
     //reverse
+    /*
     for (cell_type i = 0; i < k; ++i) {
         for (cell_type j = i + 1; j < k; ++j) {
             cell_type m1 = left.at(i).at(j);
@@ -284,16 +285,46 @@ vds::chunk_restore<cell_type>::chunk_restore(cell_type k, const cell_type * n)
           }
         }
     }
-    
+    */
+    for (cell_type i = 0; i < k; ++i) {
+      cell_type m1 = left.at(i).at(i);
+      for (cell_type c = 0; c < k; ++c) {
+        if (c < i) {
+          if (left.at(i).at(c) != 0) {
+            throw std::runtime_error("Logic error");
+          }
+        }
+        else {
+          left.at(i).at(c) = chunk<cell_type>::math_.div(left.at(i).at(c), m1);
+        }
+        this->multipliers_.at(i).at(c) = chunk<cell_type>::math_.div(this->multipliers_.at(i).at(c), m1);
+      }
+    }
+
+    //reverse
+    for (cell_type i = k; i > 0; --i) {
+      for (cell_type j = i - 1; j > 0; --j) {
+        cell_type m1 = left.at(j - 1).at(i - 1);
+        for (cell_type c = 0; c < k; ++c) {
+          left.at(j - 1).at(c) = chunk<cell_type>::math_.sub(left.at(j - 1).at(c), chunk<cell_type>::math_.mul(left.at(i - 1).at(c), m1));
+          this->multipliers_.at(j - 1).at(c) = chunk<cell_type>::math_.sub(this->multipliers_.at(j - 1).at(c), chunk<cell_type>::math_.mul(this->multipliers_.at(i - 1).at(c), m1));
+        }
+      }
+    }
+
     //validate
     for (cell_type i = 0; i < k; ++i) {
       for (cell_type c = 0; c < k; ++c) {
         auto value = left.at(i).at(c);
         if(i == c){
-          assert(1 == value);
+          if(1 != value) {
+            throw std::runtime_error("Logic error");
+          }
         }
         else {
-          assert(0 == value);
+          if(0 != value) {
+            throw std::runtime_error("Logic error");
+          }
         }
       }
     }

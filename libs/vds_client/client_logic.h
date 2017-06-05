@@ -48,8 +48,15 @@ namespace vds {
           std::lock_guard<std::mutex> lock(this->requests_mutex_);
           this->requests_.set(request_id, std::make_shared<request_info>(
             message,
-            [done](const service_provider & sp, const std::shared_ptr<json_value> & response) { 
+            [done, on_error](const service_provider & sp, const std::shared_ptr<json_value> & response) { 
+              auto response_object = std::dynamic_pointer_cast<json_object>(response);
+              std::string error_message;
+              if (response_object && response_object->get_property("$e", error_message)){
+                on_error(sp, std::make_exception_ptr(std::runtime_error(error_message)));
+              }
+              else {
                 done(sp, response_type(response));
+              }
             },
             on_error));
           this->add_task(sp, message);

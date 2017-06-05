@@ -38,8 +38,25 @@ namespace vds{
     {
     }
       
-    const uint8_t * data() const { return this->impl_->data(); }
-    size_t size() const { return this->impl_->size(); }
+    const uint8_t * data() const
+    {
+      if (this->impl_) {
+        return this->impl_->data();
+      }
+      else {
+        return nullptr;
+      }
+    }
+
+    size_t size() const
+    {
+      if (this->impl_) {
+        return this->impl_->size();
+      }
+      else {
+        return 0;
+      }
+    }
       
     void reset(const void * data, size_t len)
     {

@@ -108,9 +108,13 @@ std::shared_ptr<vds::json_value> vds::_server_json_client_api::operator()(
                 this->task_mutex_.unlock();
               },
               [this, request_id](const service_provider & sp, std::exception_ptr ex) {
+                auto error_response = std::make_shared<json_object>();
+                error_response->add_property("$r", request_id);
+                error_response->add_property("$e", exception_what(ex));
+
                 this->task_mutex_.lock();
                 auto p = this->tasks_.find(request_id);
-                p->second.error = ex;
+                p->second.error = error_response;
                 this->task_mutex_.unlock();
               },
               sp);
@@ -120,6 +124,9 @@ std::shared_ptr<vds::json_value> vds::_server_json_client_api::operator()(
             if(this->tasks_.end() != p){
               if(p->second.result){
                 result->add(p->second.result);
+              }
+              else if (p->second.error) {
+                result->add(p->second.error);
               }
             }
             this->task_mutex_.unlock();
@@ -146,14 +153,15 @@ vds::_server_json_client_api::process(
 
       if (!cert
         || cert->password_hash() != message.password_hash()) {
-        throw std::runtime_error("Invalid username or password");
+        on_error(sp, std::make_exception_ptr(std::runtime_error("Invalid username or password")));
       }
-
-      done(
-        sp,
-        client_messages::certificate_and_key_response(
-          cert->cert_body(),
-          cert->cert_key()).serialize());
+      else {
+        done(
+          sp,
+          client_messages::certificate_and_key_response(
+            cert->cert_body(),
+            cert->cert_key()).serialize());
+      }
     });
 }
 

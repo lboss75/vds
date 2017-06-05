@@ -121,7 +121,17 @@ void mock_client::init_server(
   registrator.add(client);
   registrator.add(network_service);
 
+  vds::barrier b;
+  std::exception_ptr error;
+
   auto sp = registrator.build("mock client on port " + std::to_string(port));
+  sp.set_property<vds::unhandled_exception_handler>(
+    vds::service_provider::property_scope::any_scope,
+    new vds::unhandled_exception_handler(
+      [&b, &error](const vds::service_provider & sp, std::exception_ptr ex) {
+    error = ex;
+    b.set();
+  }));
 
   auto root_folders = new vds::persistence_values();
   root_folders->current_user_ = folder;
@@ -131,7 +141,7 @@ void mock_client::init_server(
   try {
     registrator.start(sp);
 
-    vds::barrier b;
+    
     sp.get<vds::iclient>()->init_server(sp, "root", root_password)
       .wait(
         [&b, this](
@@ -158,6 +168,10 @@ void mock_client::init_server(
   }
 
   registrator.shutdown(sp);
+
+  if (error) {
+    std::rethrow_exception(error);
+  }
 }
 
 void mock_client::upload_file(
@@ -262,7 +276,14 @@ void mock_client::start_vds(bool full_client, const std::function<void(const vds
     registrator.add(client);
   }
 
+  std::exception_ptr error;
   auto sp = registrator.build("mock client");
+  sp.set_property<vds::unhandled_exception_handler>(
+    vds::service_provider::property_scope::any_scope,
+    new vds::unhandled_exception_handler(
+      [&error](const vds::service_provider & sp, std::exception_ptr ex) {
+        error = ex;
+  }));
 
   auto root_folders = new vds::persistence_values();
   root_folders->current_user_ = folder;
@@ -281,6 +302,10 @@ void mock_client::start_vds(bool full_client, const std::function<void(const vds
   }
 
   registrator.shutdown(sp);
+
+  if (error) {
+    std::rethrow_exception(error);
+  }
 }
 
 mock_server::mock_server(int index, int port)
@@ -314,12 +339,14 @@ void mock_server::init_root(const std::string & root_password, int port)
   registrator.add(task_manager);
   registrator.add(server);
 
+  std::exception_ptr error;
+
   auto sp = registrator.build("mock server::init_root");
   sp.set_property<vds::unhandled_exception_handler>(
     vds::service_provider::property_scope::any_scope,
     new vds::unhandled_exception_handler(
-      [](const vds::service_provider & sp, std::exception_ptr ex) {
-        GTEST_FAIL() << vds::exception_what(ex) << " at " << sp.full_name();
+      [&error](const vds::service_provider & sp, std::exception_ptr ex) {
+        error = ex;
       }));
   try {
     auto root_folders = new vds::persistence_values();
@@ -364,6 +391,10 @@ void mock_server::init_root(const std::string & root_password, int port)
   }
 
   registrator.shutdown(sp);
+
+  if (error) {
+    std::rethrow_exception(error);
+  }
 }
 
 

@@ -152,7 +152,19 @@ namespace vds {
         const error_handler &,
         const service_provider &)> & target)
         : target_(target)
+#if _DEBUG
+        , is_called_(false)
+#endif
       {
+      }
+
+      ~_async_task()
+      {
+#if _DEBUG
+        if (!this->is_called_) {
+          throw std::runtime_error("Logic error!!!");
+        }
+#endif
       }
 
       void wait(
@@ -160,7 +172,13 @@ namespace vds {
         const error_handler & on_error,
         const service_provider & sp)
       {
-        try {
+#if _DEBUG
+        if (this->is_called_) {
+          throw std::runtime_error("Logic error!!!");
+        }
+        this->is_called_ = true;
+#endif
+          try {
           this->target_(done, on_error, sp);
         }
         catch (...) {
@@ -169,6 +187,11 @@ namespace vds {
       }
 
     private:
+
+#if _DEBUG
+      bool is_called_;
+#endif
+
       std::function<void(const std::function<void(const service_provider & sp, arguments_types... args)> &, const error_handler &, const service_provider &)> target_;
     };
     std::shared_ptr<_async_task> impl_;

@@ -30,6 +30,19 @@ namespace vds {
       this->addr_.sin_port = htons(port);
       this->addr_.sin_addr.s_addr = inet_addr(server.c_str());
     }
+
+    _udp_datagram(
+      const std::string & server,
+      uint16_t port,
+      const const_data_buffer & data)
+      : data_(data)
+    {
+      memset((char *)&this->addr_, 0, sizeof(this->addr_));
+      this->addr_.sin_family = AF_INET;
+      this->addr_.sin_port = htons(port);
+      this->addr_.sin_addr.s_addr = inet_addr(server.c_str());
+    }
+
     _udp_datagram(
       const sockaddr_in & addr,
       const void * data,
@@ -430,7 +443,10 @@ namespace vds {
 
     udp_socket start(const service_provider & sp)
     {
-      this->socket_->create(sp);
+      auto scope = sp.create_scope("UDP server on " + this->address_ + ":" + std::to_string(this->port_));
+      imt_service::enable_async(scope);
+
+      this->socket_->create(scope);
       
       sockaddr_in addr;
       memset((char *)&addr, 0, sizeof(addr));
@@ -447,7 +463,7 @@ namespace vds {
         throw std::system_error(error, std::system_category(), "bind socket");
       }
 
-      this->socket_->start(sp);
+      this->socket_->start(scope);
       return this->socket_;
     }
 

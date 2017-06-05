@@ -121,16 +121,19 @@ void vds::_connection_manager::start_servers(
 {
   url_parser::parse_addresses(server_addresses,
     [this, sp](const std::string & protocol, const std::string & address) -> bool {
+    auto scope = sp.create_scope("Connect to " + address);
+    imt_service::enable_async(scope);
+
     if ("udp" == protocol) {
       auto na = url_parser::parse_network_address(address);
-      this->start_udp_channel(sp, na);
+      this->start_udp_channel(scope, na);
     }
     else if ("https" == protocol) {
       auto na = url_parser::parse_network_address(address);
-      this->start_https_server(sp, na).wait(
+      this->start_https_server(scope, na).wait(
         [this](const service_provider & sp) {sp.get<logger>()->info(sp, "HTTPS Servers stopped"); },
         [this](const service_provider & sp, std::exception_ptr ex) { sp.get<logger>()->info(sp, "HTTPS Server error: %s", exception_what(ex)); },
-        sp);
+        scope);
     }
 
     return true;
@@ -206,8 +209,16 @@ void vds::_connection_manager::udp_channel::schedule_read(
           sp,
           this->input_message_->addr(),
           this->input_message_.data(),
-          this->input_message_.data_size());
-        this->schedule_read(sp);
+          this->input_message_.data_size())
+        .wait(
+          [this](const service_provider & sp) {
+            this->schedule_read(sp);
+          },
+          [](const service_provider & sp, std::exception_ptr ex) {
+            sp.unhandled_exception(ex);
+          },
+          sp);
+
       }
     },
     [](const service_provider & sp, std::exception_ptr ex){
@@ -472,11 +483,15 @@ void vds::_connection_manager::udp_channel::open_udp_session(
         session_id,
         address).serialize();
       
-      this->message_queue_.push(
-        sp,
-        server,
-        port,
-        const_data_buffer(data));
+      auto scope = sp.create_scope("Send hello to " + server + ":" + std::to_string(port));
+      imt_service::enable_async(scope);
+      this->s_.outgoing()->write_value_async(scope, udp_datagram(server, port, data))
+        .wait(
+          [](const service_provider & sp) {},
+          [](const service_provider & sp, const std::exception_ptr ex) {
+            sp.unhandled_exception(ex);
+          },
+          scope);
 
       return;
     }
@@ -538,11 +553,13 @@ void vds::_connection_manager::udp_channel::session::send_to(
         s << hash::signature(hash::sha256(), message_data.data());
         s.final();
 
-        this->owner_->message_queue_.push(
-          sp,
-          this->server(),
-          this->port(),
-          s.data());
+        auto scope = sp.create_scope("Send message to " + this->server() + ":" + std::to_string(this->port()));
+        imt_service::enable_async(scope);
+        this->owner_->s_.outgoing()->write_value_async(scope, udp_datagram(this->server(), this->port(), s.data()))
+          .wait(
+            [](const service_provider & sp) {},
+            [](const service_provider & sp, std::exception_ptr ex) { sp.unhandled_exception(ex); },
+            scope);
       },
       [](const service_provider & sp,
          std::exception_ptr ex) {
@@ -605,11 +622,13 @@ bool vds::_connection_manager::udp_channel::process_timer_jobs(const service_pro
       p.first,
       "udp://" + p.second.server() + ":" + std::to_string(p.second.port())).serialize();
 
-    this->message_queue_.push(
-      sp,
-      p.second.server(),
-      p.second.port(),
-      const_data_buffer(data));
+    auto scope = sp.create_scope("Send hello to " + p.second.server() + ":" + std::to_string(p.second.port()));
+    imt_service::enable_async(scope);
+    this->s_.outgoing()->write_value_async(scope, udp_datagram(p.second.server(), p.second.port(), data))
+      .wait(
+        [](const service_provider & sp) {},
+        [](const service_provider & sp, std::exception_ptr ex) { sp.unhandled_exception(ex); },
+        scope);
   }
 
   return true;

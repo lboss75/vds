@@ -7,6 +7,7 @@ All rights reserved
 */
 
 #include "async_stream.h"
+#include "const_data_buffer.h"
 
 namespace vds {
   class _udp_socket;
@@ -24,7 +25,12 @@ namespace vds {
       uint16_t port,
       const void * data,
       size_t data_size);
-    
+
+    udp_datagram(
+      const std::string & server,
+      uint16_t port,
+      const const_data_buffer & data);
+
     void reset(
       const std::string & server,
       uint16_t port,

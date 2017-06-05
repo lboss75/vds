@@ -185,6 +185,13 @@ namespace vds {
         }
       }
 
+      if (this->common_data_->cancellation_token_.is_cancellation_requested()) {
+        this->source_->continue_read(sp, 0, this->input_buffer_, this->input_buffer_size_);
+        this->final_data_ = true;
+        this->common_data_->step_finish(sp, context_type::INDEX);
+        return false;
+      }
+
       for (;;) {
 
         if (0 == this->input_buffer_size_ && 0 < this->readed_) {
@@ -992,35 +999,40 @@ namespace vds {
         size_t & buffer_len)
       {
         if(!this->data_in_process_) {
+          if (this->data_final_ && this->common_data_->cancellation_token_.is_cancellation_requested()) {
+            return false;
+          }
           throw std::runtime_error("Logic error");
         }
-        
-        this->front_ += readed;
-        
-        if (this->front_ < this->back_) {
-          this->data_in_process_ = true;
 
-          buffer = this->buffer_ + this->front_;
-          buffer_len = this->back_ - this->front_;
-          return true;
+        if (0 < readed) {
+          this->front_ += readed;
+
+          if (this->front_ < this->back_) {
+            this->data_in_process_ = true;
+
+            buffer = this->buffer_ + this->front_;
+            buffer_len = this->back_ - this->front_;
+            return true;
+          }
+
+          this->data_in_process_ = false;
+
+          if (this->data_queried_) {
+            return false;
+          }
+
+          if (this->front_ == this->back_ && !this->data_queried_ && !this->data_in_process_) {
+            this->front_ = 0;
+            this->back_ = this->second_;
+            this->second_ = 0;
+          }
+
+          if (!this->get_write_buffer(buffer, buffer_len)) {
+            return false;
+          }
         }
 
-        this->data_in_process_ = false;
-
-        if (this->data_queried_) {
-          return false;
-        }
-
-        if (this->front_ == this->back_ && !this->data_queried_ && !this->data_in_process_) {
-          this->front_ = 0;
-          this->back_ = this->second_;
-          this->second_ = 0;
-        }
-        
-        if(!this->get_write_buffer(buffer, buffer_len)){
-          return false;
-        }
-        
         this->data_queried_ = true;
         if(this->source_->get_data(sp, buffer, buffer_len, readed)){
           this->data_queried_ = false;
@@ -1250,6 +1262,9 @@ namespace vds {
           this->error_ = error;
           this->cancellation_source_.cancel();
         }
+
+        this->done_steps_.emplace(index);
+        this->try_finish(sp);
       }
 
 

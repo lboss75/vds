@@ -18,8 +18,16 @@ vds::udp_datagram::udp_datagram(
   size_t data_size)
 : impl_(new _udp_datagram(server, port, data, data_size))
 {
-
 }
+
+vds::udp_datagram::udp_datagram(
+  const std::string& server,
+  uint16_t port,
+  const const_data_buffer & data)
+  : impl_(new _udp_datagram(server, port, data))
+{
+}
+
 
 void vds::udp_datagram::reset(const std::string & server, uint16_t port, const void * data, size_t data_size)
 {
