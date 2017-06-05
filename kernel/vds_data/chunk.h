@@ -306,8 +306,12 @@ vds::chunk_restore<cell_type>::chunk_restore(cell_type k, const cell_type * n)
       for (cell_type j = i - 1; j > 0; --j) {
         cell_type m1 = left.at(j - 1).at(i - 1);
         for (cell_type c = 0; c < k; ++c) {
-          left.at(j - 1).at(c) = chunk<cell_type>::math_.sub(left.at(j - 1).at(c), chunk<cell_type>::math_.mul(left.at(i - 1).at(c), m1));
-          this->multipliers_.at(j - 1).at(c) = chunk<cell_type>::math_.sub(this->multipliers_.at(j - 1).at(c), chunk<cell_type>::math_.mul(this->multipliers_.at(i - 1).at(c), m1));
+          left.at(j - 1).at(c) = chunk<cell_type>::math_.sub(
+            left.at(j - 1).at(c),
+            chunk<cell_type>::math_.mul(left.at(i - 1).at(c), m1));
+          this->multipliers_.at(j - 1).at(c) = chunk<cell_type>::math_.sub(
+            this->multipliers_.at(j - 1).at(c),
+            chunk<cell_type>::math_.mul(this->multipliers_.at(i - 1).at(c), m1));
         }
       }
     }

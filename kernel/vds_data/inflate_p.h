@@ -31,10 +31,16 @@ namespace vds {
       size_t & readed,
       size_t & written)
     {
+      if (StateEnum::STATE_EOF == this->state_) {
+        readed = 0;
+        written = 0;
+        return;
+      }
+      
       if (this->state_ == StateEnum::STATE_NORMAL) {
         this->strm_.next_in = (Bytef *)input_data;
         this->strm_.avail_in = (uInt)input_size;
-        this->state_ == StateEnum::STATE_PUSH;
+        this->state_ = StateEnum::STATE_PUSH;
       }
 
       this->strm_.next_out = (Bytef *)output_data;
@@ -42,9 +48,9 @@ namespace vds {
       auto result = ::inflate(&this->strm_, Z_NO_FLUSH);
 
       if (Z_STREAM_END == result) {
-        this->state_ == StateEnum::STATE_EOF;
+        this->state_ = StateEnum::STATE_EOF;
       }
-      else if (Z_OK != result) {
+      else if (Z_STREAM_ERROR == result || Z_NEED_DICT == result || Z_DATA_ERROR == result || Z_MEM_ERROR == result) {
         throw std::runtime_error("inflate failed");
       }
 

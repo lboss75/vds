@@ -31,37 +31,54 @@ namespace vds {
       size_t & readed,
       size_t & written)
     {
-      if(this->state_ == StateEnum::STATE_NORMAL){
-        this->strm_.next_in = (Bytef *)input_data;
-        this->strm_.avail_in = (uInt)input_size;
-        this->state_ = (0 == input_size) ? StateEnum::STATE_EOF : StateEnum::STATE_PUSH;
-      }
-      
-      this->strm_.next_out = (Bytef *)output_data;
-      this->strm_.avail_out = output_size;
-      auto error = ::deflate(&this->strm_, (0 == input_size) ? Z_FINISH : Z_NO_FLUSH);
-      
-      if(Z_STREAM_ERROR == error){
-        throw std::runtime_error("zlib error");
-      }
-
-      written = output_size - this->strm_.avail_out;
-
-      if (0 == this->strm_.avail_out) {
-        readed = 0;
-      }
-      else {
-        readed = input_size;
-
-        if(this->strm_.avail_in != 0){
-          throw std::runtime_error("zlib error");
+      if(StateEnum::STATE_EOF == this->state_){
+        deflateEnd(&this->strm_);
+        
+        if(0 != input_size){
+          throw std::runtime_error("Logic error");
         }
         
-        if(0 == input_size){
-          deflateEnd(&this->strm_);
+        readed = 0;
+        written = 0;
+      }
+      else {
+        if(StateEnum::STATE_NORMAL == this->state_){
+          this->strm_.next_in = (Bytef *)input_data;
+          this->strm_.avail_in = (uInt)input_size;
+          if(0 == input_size){
+            this->state_ = StateEnum::STATE_EOF_PENDING;
+          }
+          else {
+            this->state_ = StateEnum::STATE_PUSH;
+          }
+        }
+        
+        this->strm_.next_out = (Bytef *)output_data;
+        this->strm_.avail_out = output_size;
+        auto error = ::deflate(&this->strm_, (0 == input_size) ? Z_FINISH : Z_NO_FLUSH);
+        
+        if(Z_STREAM_ERROR == error){
+          throw std::runtime_error("zlib error");
+        }
+
+        written = output_size - this->strm_.avail_out;
+
+        if (0 == this->strm_.avail_out) {
+          readed = 0;
         }
         else {
-          this->state_ = StateEnum::STATE_NORMAL;
+          readed = input_size;
+
+          if(this->strm_.avail_in != 0){
+            throw std::runtime_error("zlib error");
+          }
+          
+          if(0 == input_size){
+            this->state_ = StateEnum::STATE_EOF;
+          }
+          else {
+            this->state_ = StateEnum::STATE_NORMAL;
+          }
         }
       }
     }
@@ -72,6 +89,7 @@ namespace vds {
     {
       STATE_NORMAL,
       STATE_PUSH,
+      STATE_EOF_PENDING,
       STATE_EOF
     };
     StateEnum state_;

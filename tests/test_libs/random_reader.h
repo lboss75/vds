@@ -39,7 +39,7 @@ public:
       const vds::service_provider & sp)
     {
       for (;;) {
-        size_t n = (size_t)std::rand();
+        size_t n = (size_t)std::rand() % this->output_buffer_size();
         if (n < 1 || n > this->output_buffer_size()) {
           continue;
         }
