@@ -200,7 +200,7 @@ namespace vds {
             this->ev_accept_ = event_new(
               static_cast<_network_service *>(sp.get<inetwork_service>())->base_,
               this->s_,
-              EV_READ,
+              EV_READ | EV_PERSIST,
               &_tcp_socket_server::wait_accept,
               this);
             event_add(this->ev_accept_, NULL);

@@ -139,7 +139,7 @@ size_t vds::file::length(const filename & fn)
 
 void vds::file::seek(size_t position)
 {
-  if (0 != lseek(this->handle_, position, SEEK_SET)) {
+  if (-1L == lseek(this->handle_, position, SEEK_SET)) {
     auto error = errno;
     throw std::system_error(error, std::generic_category(), "Unable to seek file position of " + this->filename_.full_name());
   }

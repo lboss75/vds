@@ -27,6 +27,7 @@ void vds::client::register_services(service_registrator & registrator)
 
 void vds::client::start(const service_provider & sp)
 {
+  this->impl_->start(sp);
   //Load certificates
   certificate * client_certificate = nullptr;
   asymmetric_private_key * client_private_key = nullptr;
@@ -49,6 +50,7 @@ void vds::client::start(const service_provider & sp)
 void vds::client::stop(const service_provider & sp)
 {
   this->logic_->stop(sp);
+  this->impl_->stop(sp);
 }
 
 void vds::client::connection_closed()

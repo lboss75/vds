@@ -138,7 +138,8 @@ namespace vds {
       const std::string & /*version_id*/,
       const guid & /*server_id*/,
       const std::string & /*user_login*/,
-      const std::string & /*name*/> add_file_statement_;
+      const std::string & /*name*/,
+      const const_data_buffer & /*meta_info*/> add_file_statement_;
       
     prepared_statement<
       const std::string & /*version_id*/,

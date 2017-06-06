@@ -30,7 +30,7 @@ namespace vds {
     send_request(
       const service_provider & sp,
       const std::shared_ptr<json_value> & message,
-      const std::chrono::steady_clock::duration & request_timeout = std::chrono::seconds(5 * 60))
+      const std::chrono::steady_clock::duration & request_timeout = std::chrono::seconds(60))
     {
       auto s = dynamic_cast<json_object *>(message.get());
       if(nullptr == s){

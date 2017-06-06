@@ -213,6 +213,7 @@ void vds::_server_database::start(const service_provider & sp)
       version_id VARCHAR(64) PRIMARY KEY NOT NULL,\
       server_id VARCHAR(64) NOT NULL,\
       user_login VARCHAR(64) NOT NULL,\
+      meta_info TEXT NOT NULL,\
       name TEXT NOT NULL)");
     
     this->db_.execute(
@@ -366,12 +367,13 @@ void vds::_server_database::add_file(
 {
     this->add_file_statement_.execute(
       this->db_,
-      "INSERT INTO file(version_id,server_id,user_login,name)\
-      VALUES(@version_id,@server_id,@user_login,@name)",
+      "INSERT INTO file(version_id,server_id,user_login,name,meta_info)\
+      VALUES(@version_id,@server_id,@user_login,@name,@meta_info)",
       fm.version_id(),
       server_id,
       fm.user_login(),
-      fm.name());
+      fm.name(),
+      fm.meta_info());
     
     int index = 0;
     for(auto & item : fm.items()){
