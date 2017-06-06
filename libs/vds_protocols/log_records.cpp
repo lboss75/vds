@@ -370,11 +370,13 @@ std::shared_ptr<vds::json_value> vds::server_log_sign::serialize() const
 const char vds::server_log_file_map::message_type[] = "file";
 
 vds::server_log_file_map::server_log_file_map(
+  const guid & server_id,
   const std::string & version_id,
   const std::string & user_login,
   const std::string & name,
   const const_data_buffer & meta_info)
-: version_id_(version_id),
+: server_id_(server_id),
+  version_id_(version_id),
   user_login_(user_login),
   name_(name),
   meta_info_(meta_info)
@@ -385,6 +387,7 @@ vds::server_log_file_map::server_log_file_map(const std::shared_ptr<json_value> 
 {
   auto s = std::dynamic_pointer_cast<json_object>(source);
   if (s) {
+    s->get_property("s", this->server_id_);
     s->get_property("v", this->version_id_);
     s->get_property("u", this->user_login_);
     s->get_property("n", this->name_);
@@ -411,6 +414,7 @@ std::shared_ptr<vds::json_value> vds::server_log_file_map::serialize(bool add_ty
     result->add_property("$t", message_type);
   }
   
+  result->add_property("s", this->server_id_);
   result->add_property("v", this->version_id_);
   result->add_property("u", this->user_login_);
   result->add_property("n", this->name_);

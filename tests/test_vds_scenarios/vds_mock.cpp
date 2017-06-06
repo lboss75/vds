@@ -215,8 +215,9 @@ void mock_client::upload_file(
 
 vds::const_data_buffer mock_client::download_data(const std::string & login, const std::string & password, const std::string & name)
 {
+  std::exception_ptr error;
   std::vector<uint8_t> result;
-  this->start_vds(true, [&result, login, password, name](const vds::service_provider&sp) {
+  this->start_vds(true, [&result, &error, login, password, name](const vds::service_provider&sp) {
     vds::barrier b;
     
     vds::foldername tmp_folder(vds::persistence::current_user(sp), "tmp");
@@ -225,26 +226,37 @@ vds::const_data_buffer mock_client::download_data(const std::string & login, con
 
     sp.get<vds::iclient>()->download_data(sp, login, password, name, tmp_file)
     .wait(
-      [&b](const vds::service_provider & sp){ b.set();},
-      [&b](const vds::service_provider & sp, std::exception_ptr ex) {
-        sp.unhandled_exception(ex);
+      [&b](const vds::service_provider & sp){
+        b.set();
+      },
+      [&b, &error](const vds::service_provider & sp, std::exception_ptr ex) {
+        error = ex;
         b.set();
       },
       sp);
 
     b.wait();
+    if (error) {
+      return;
+    }
 
     vds::dataflow(
       vds::file_read(tmp_file),
       vds::collect_data(result)
     )
     (
-      [](const vds::service_provider & sp) {},
-      [](const vds::service_provider & sp, std::exception_ptr ex) { sp.unhandled_exception(ex); },
-      sp
-      );
-
+      [](const vds::service_provider & sp) {
+      },
+      [&error](const vds::service_provider & sp, std::exception_ptr ex) {
+        error = ex; 
+      },
+      sp);
   }, false);
+
+  if (error) {
+    std::rethrow_exception(error);
+  }
+
   return result;
 }
 

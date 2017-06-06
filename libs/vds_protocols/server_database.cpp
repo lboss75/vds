@@ -433,7 +433,7 @@ std::unique_ptr<vds::server_log_file_map> vds::_server_database::get_file_versio
     reader.get_value(2, name);
     reader.get_value(3, meta_info);
 
-    result.reset(new server_log_file_map(version_id, user_login, name, meta_info));
+    result.reset(new server_log_file_map(server_id, version_id, user_login, name, meta_info));
     return false;
     },
     version_id);
@@ -466,6 +466,7 @@ std::unique_ptr<vds::server_log_file_map> vds::_server_database::get_file_versio
     result->add(server_log_new_object(index, original_lenght, original_hash, target_lenght, target_hash));
     return true;
   },
+    result->server_id(),
     version_id);
 
   return result;

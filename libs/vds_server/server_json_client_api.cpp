@@ -57,49 +57,50 @@ std::shared_ptr<vds::json_value> vds::_server_json_client_api::operator()(
       if (nullptr != task_object) {
         std::string request_id;
         if(task_object->get_property("$r", request_id)){
-          bool need_start;
-          this->task_mutex_.lock();
-          auto p = this->tasks_.find(request_id);
-          if(this->tasks_.end() == p){
-            need_start = true;
-            this->tasks_.set(request_id, task_info());
-          }
-          else {
-            need_start = false;
-            if(p->second.result){
-              result->add(p->second.result);
-            }
-          }
-          this->task_mutex_.unlock();
-          
-          if(need_start){
-            std::string task_type_name;
-            task_object->get_property("$t", task_type_name);
-              
-            async_task<std::shared_ptr<json_value>> task;
-
-            if (client_messages::certificate_and_key_request::message_type == task_type_name) {
-              task = this->process(sp, client_messages::certificate_and_key_request(task_object));
-            }
-            else if (client_messages::register_server_request::message_type == task_type_name) {
-              task = this->process(sp, client_messages::register_server_request(task_object));
-            }
-            //TODO: else if (consensus_messages::consensus_message_who_is_leader::message_type == task_type_name) {
-            //  task = scope.get<iserver>().consensus_server_protocol().process(scope, consensus_messages::consensus_message_who_is_leader(task_object));
-            //}
-            else if (client_messages::put_file_message::message_type == task_type_name) {
-              task = this->process(sp, client_messages::put_file_message(task_object));
-            }
-            else if (client_messages::get_file_message_request::message_type == task_type_name) {
-              task = this->process(sp, client_messages::get_file_message_request(task_object));
+          try {
+            bool need_start;
+            this->task_mutex_.lock();
+            auto p = this->tasks_.find(request_id);
+            if (this->tasks_.end() == p) {
+              need_start = true;
+              this->tasks_.set(request_id, task_info());
             }
             else {
-              sp.get<logger>()->warning(sp, "Invalid request type \'%s\'", task_type_name.c_str());
-              throw std::runtime_error("Invalid request type " + task_type_name);
+              need_start = false;
+              if (p->second.result) {
+                result->add(p->second.result);
+              }
             }
-            
-            task.wait(
-              [this, request_id](const service_provider & sp, const std::shared_ptr<json_value> & task_result){
+            this->task_mutex_.unlock();
+
+            if (need_start) {
+              std::string task_type_name;
+              task_object->get_property("$t", task_type_name);
+
+              async_task<std::shared_ptr<json_value>> task;
+
+              if (client_messages::certificate_and_key_request::message_type == task_type_name) {
+                task = this->process(sp, client_messages::certificate_and_key_request(task_object));
+              }
+              else if (client_messages::register_server_request::message_type == task_type_name) {
+                task = this->process(sp, client_messages::register_server_request(task_object));
+              }
+              //TODO: else if (consensus_messages::consensus_message_who_is_leader::message_type == task_type_name) {
+              //  task = scope.get<iserver>().consensus_server_protocol().process(scope, consensus_messages::consensus_message_who_is_leader(task_object));
+              //}
+              else if (client_messages::put_file_message::message_type == task_type_name) {
+                task = this->process(sp, client_messages::put_file_message(task_object));
+              }
+              else if (client_messages::get_file_message_request::message_type == task_type_name) {
+                task = this->process(sp, client_messages::get_file_message_request(task_object));
+              }
+              else {
+                sp.get<logger>()->warning(sp, "Invalid request type \'%s\'", task_type_name.c_str());
+                throw std::runtime_error("Invalid request type " + task_type_name);
+              }
+
+              task.wait(
+                [this, request_id](const service_provider & sp, const std::shared_ptr<json_value> & task_result) {
                 std::dynamic_pointer_cast<json_object>(task_result)->add_property("$r", request_id);
 
                 this->task_mutex_.lock();
@@ -107,30 +108,47 @@ std::shared_ptr<vds::json_value> vds::_server_json_client_api::operator()(
                 p->second.result = task_result;
                 this->task_mutex_.unlock();
               },
-              [this, request_id](const service_provider & sp, std::exception_ptr ex) {
+                [this, request_id](const service_provider & sp, std::exception_ptr ex) {
+                auto error_id = guid::new_guid().str();
+                sp.get<logger>()->error(sp, "Error %s: %s", error_id.c_str(), exception_what(ex).c_str());
+
                 auto error_response = std::make_shared<json_object>();
                 error_response->add_property("$r", request_id);
-                error_response->add_property("$e", exception_what(ex));
+                error_response->add_property("$e", "Error " + error_id);
 
                 this->task_mutex_.lock();
                 auto p = this->tasks_.find(request_id);
                 p->second.error = error_response;
                 this->task_mutex_.unlock();
               },
-              sp);
-            
-            this->task_mutex_.lock();
-            p = this->tasks_.find(request_id);
-            if(this->tasks_.end() != p){
-              if(p->second.result){
-                result->add(p->second.result);
-              }
-              else if (p->second.error) {
-                result->add(p->second.error);
-              }
+                sp);
             }
+          }
+          catch (...) {
+            auto error_id = guid::new_guid().str();
+            sp.get<logger>()->error(sp, "Error %s: %s", error_id.c_str(), exception_what(std::current_exception()).c_str());
+
+            auto error_response = std::make_shared<json_object>();
+            error_response->add_property("$r", request_id);
+            error_response->add_property("$e", "Error " + error_id);
+
+            this->task_mutex_.lock();
+            auto p = this->tasks_.find(request_id);
+            p->second.error = error_response;
             this->task_mutex_.unlock();
           }
+
+          this->task_mutex_.lock();
+          auto p = this->tasks_.find(request_id);
+          if (this->tasks_.end() != p) {
+            if (p->second.result) {
+              result->add(p->second.result);
+            }
+            else if (p->second.error) {
+              result->add(p->second.error);
+            }
+          }
+          this->task_mutex_.unlock();
         }
       }
     }

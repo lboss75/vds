@@ -154,6 +154,7 @@ namespace vds {
       const std::string & /*version_id*/> get_file_version_info_query_;
 
     prepared_query<
+      const guid & /*server_id*/,
       const std::string & /*version_id*/> get_file_version_map_query_;
 
     /// Server log

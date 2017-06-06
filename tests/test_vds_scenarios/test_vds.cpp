@@ -40,6 +40,6 @@ TEST(test_vds, test_initial)
     ASSERT_EQ(memcmp(buffer.get(), result.data(), len), 0);
   }
   catch(...){
-    FAIL() << vds::exception_what(std::current_exception());
+    GTEST_FAIL() << vds::exception_what(std::current_exception());
   }
 }

@@ -61,7 +61,12 @@ vds::_file_manager::put_file(
       const error_handler & on_error,
       const service_provider & sp) {
 
-      server_log_file_map result(version_id, user_login, name, meta_info);
+      server_log_file_map result(
+        sp.get<istorage_log>()->current_server_id(),
+        version_id,
+        user_login,
+        name,
+        meta_info);
 
       sp.get<ichunk_manager>()->add(sp, result, fn).wait(
           [this, done, &result](const service_provider & sp) {
