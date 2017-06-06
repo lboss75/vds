@@ -121,11 +121,11 @@ TEST(chunk_tests, test_chunks_storage) {
     }
     
     const uint16_t horcrux_count = 1000;
-    const uint16_t mix_horcrux = 800;
-    vds::chunk_storage storage(vds::guid::new_guid(), mix_horcrux);
+    const uint16_t min_horcrux = 800;
+    vds::chunk_storage storage(vds::guid::new_guid(), min_horcrux);
     std::list<vds::chunk_storage::horcrux> horcruxes;
     std::unordered_map<uint16_t, bool> processed_horcruxes;
-    while(horcruxes.size() < mix_horcrux){
+    while(horcruxes.size() < min_horcrux){
       uint16_t replica;
       for(;;) {
         replica = (uint16_t)std::rand();

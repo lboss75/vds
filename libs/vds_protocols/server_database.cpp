@@ -240,6 +240,31 @@ void vds::_server_database::start(const service_provider & sp)
       follower_index INTEGER NOT NULL,\
       CONSTRAINT pk_server_log_link PRIMARY KEY(parent_id,parent_index,follower_id,follower_index))");
 
+    //Replicas stored on the server
+    this->db_.execute(
+      "CREATE TABLE object_generation (\
+      server_id VARCHAR(64) NOT NULL,\
+      object_index INTEGER NOT NULL,\
+      generation INTEGER NOT NULL,\
+      min_horcrux INTEGER NOT NULL,\
+      CONSTRAINT pk_object_generation PRIMARY KEY (server_id, object_index, generation, min_horcrux))");
+
+    this->db_.execute(
+      "CREATE TABLE object_store (\
+      server_id VARCHAR(64) NOT NULL,\
+      object_index INTEGER NOT NULL,\
+      generation INTEGER NOT NULL,\
+      replica INTEGER NOT NULL,\
+      storage_id VARCHAR(64) NOT NULL,\
+      CONSTRAINT pk_object_store PRIMARY KEY (server_id, object_index, generation, replica, storage_id))");
+
+    this->db_.execute(
+      "CREATE TABLE reconstruction_tasks (\
+      server_id VARCHAR(64) NOT NULL,\
+      object_index INTEGER NOT NULL,\
+      storage_id VARCHAR(64) NOT NULL,\
+      CONSTRAINT pk_reconstruction_tasks PRIMARY KEY (server_id, object_index, storage_id))");
+
 
     this->db_.execute("INSERT INTO module(id, version, installed) VALUES('kernel', 1, datetime('now'))");
     this->db_.execute("INSERT INTO endpoint(endpoint_id, addresses) VALUES('default', 'udp://127.0.0.1:8050;https://127.0.0.1:8050')");
