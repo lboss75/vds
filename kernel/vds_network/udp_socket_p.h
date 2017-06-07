@@ -60,7 +60,7 @@ namespace vds {
 
     sockaddr_in * addr() { return &this->addr_; }
     
-    const std::string & server() const { return network_service::get_ip_address_string(this->addr_); }
+    std::string server() const { return network_service::get_ip_address_string(this->addr_); }
     uint16_t port() const { return ntohs(this->addr_.sin_port); }
 
     const void * data() const { return this->data_.data(); }
@@ -203,8 +203,8 @@ namespace vds {
 
     private:
       _udp_socket & owner_;
-      std::shared_ptr<async_stream<udp_datagram>> target_;
       service_provider sp_;
+      std::shared_ptr<async_stream<udp_datagram>> target_;
       sockaddr_in addr_;
       socklen_t addr_len_;
       uint8_t buffer_[10 * 1024 * 1024];
@@ -334,8 +334,8 @@ namespace vds {
 
     private:
       _udp_socket & owner_;
-      std::shared_ptr<async_stream<udp_datagram>> source_;
       service_provider sp_;
+      std::shared_ptr<async_stream<udp_datagram>> source_;
       socklen_t addr_len_;
       udp_datagram buffer_;
 
@@ -413,7 +413,7 @@ namespace vds {
               "Send to " + network_service::to_string(*pthis->buffer_->addr()));
           }
           
-          if(len != pthis->buffer_.data_size()){
+          if((size_t)len != pthis->buffer_.data_size()){
             throw std::runtime_error("Invalid send UDP");
           }
 

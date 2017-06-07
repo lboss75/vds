@@ -8,7 +8,6 @@ All rights reserved
 #include "server_json_client_api_p.h"
 #include "server.h"
 #include "node_manager.h"
-#include "file_manager.h"
 #include "storage_log.h"
 #include "principal_record.h"
 #include "server_database.h"

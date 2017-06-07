@@ -165,8 +165,8 @@ public:
         }
         
       private:
-        size_t offset_;
         test_async_object & owner_;
+        size_t offset_;
       };
       
     private:

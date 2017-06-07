@@ -45,10 +45,9 @@ std::unique_ptr<vds::principal_record> vds::iserver_database::find_user_principa
 
 void vds::iserver_database::add_object(
   const service_provider & sp,
-  const guid & server_id,
   const principal_log_new_object & index)
 {
-  static_cast<_server_database *>(this)->add_object(sp, server_id, index);
+  static_cast<_server_database *>(this)->add_object(sp, index);
 }
 
 void vds::iserver_database::add_endpoint(
@@ -182,12 +181,10 @@ void vds::_server_database::start(const service_provider & sp)
 
     this->db_.execute(
       "CREATE TABLE object(\
-      server_id VARCHAR(64) NOT NULL,\
-      object_index INTEGER NOT NULL,\
+      object_id VARCHAR(64) NOT NULL,\
       lenght INTEGER NOT NULL,\
       hash VARCHAR(64) NOT NULL,\
-      owner_principal VARCHAR(64) NOT NULL,\
-      CONSTRAINT pk_objects PRIMARY KEY (server_id, object_index))");
+      CONSTRAINT pk_objects PRIMARY KEY (object_index))");
 
     this->db_.execute(
       "CREATE TABLE endpoint(\
@@ -200,6 +197,7 @@ void vds::_server_database::start(const service_provider & sp)
       principal_id VARCHAR(64) NOT NULL,\
       message TEXT NOT NULL,\
       signature VARCHAR(64) NOT NULL,\
+      order_num INTEGER NOT NULL,\
       state INTEGER NOT NULL,\
       CONSTRAINT pk_principal_log PRIMARY KEY(id))");
 
@@ -339,36 +337,17 @@ std::unique_ptr<vds::principal_record> vds::_server_database::find_user_principa
 
 void vds::_server_database::add_object(
   const service_provider & sp,
-  const guid & server_id,
   const principal_log_new_object & index)
 {
   this->add_object_statement_.execute(
     this->db_,
-    "INSERT INTO object(server_id, object_index, lenght, hash, owner_principal)\
-    VALUES (@server_id, @object_index, @lenght, @hash, @owner_principal)",
-    server_id,
+    "INSERT INTO object(object_id, lenght, hash)\
+    VALUES (@object_id, @lenght, @hash)",
     index.index(),
     index.lenght(),
-    index.hash(),
-    index.owner_principal());
+    index.hash());
 }
 
-uint64_t vds::_server_database::last_object_index(
-  const service_provider & sp,
-  const guid& server_id)
-{
-  uint64_t result = 0;
-  this->last_object_index_query_.query(
-    this->db_,
-    "SELECT MAX(object_index)+1 FROM object WHERE server_id=@server_id",
-    [&result](sql_statement & st)->bool{
-      st.get_value(0, result);
-      return false;
-    },
-    server_id);
-  
-  return result;
-}
 
 void vds::_server_database::add_endpoint(
   const service_provider & sp,
@@ -412,23 +391,30 @@ vds::principal_log_record
 
   std::list<principal_log_record::record_id> parents;
 
+  int max_order_num = 0;
   //Collect parents
   this->get_principal_log_tails_query_.query(
     this->db_,
-    ("SELECT id FROM principal_log WHERE state="
+    ("SELECT id,order_num FROM principal_log WHERE state="
       + std::to_string((int)iserver_database::principal_log_state::tail)).c_str(),
-    [&parents](sql_statement & reader)->bool {
+    [&parents, &max_order_num](sql_statement & reader)->bool {
 
       guid id;
+      int order_num;
       reader.get_value(0, id);
+      reader.get_value(1, order_num);
+      
+      if(max_order_num < order_num){
+        max_order_num = order_num;
+      }
 
       parents.push_back(id);
       return true;
   });
 
   //Sign message
-  principal_log_record result(record_id, parents, message);
-  std::string body = principal_log_record(record_id, parents, message).serialize(false)->str();
+  principal_log_record result(record_id, parents, message, max_order_num + 1);
+  std::string body = result.serialize(false)->str();
   signature = asymmetric_sign::signature(
     hash::sha256(),
     sp.get<istorage_log>()->server_private_key(),
@@ -441,6 +427,7 @@ vds::principal_log_record
     record_id,
     message->str(),
     signature,
+    max_order_num + 1,
     iserver_database::principal_log_state::front);
 
   //update tails & create links
@@ -484,19 +471,17 @@ bool vds::_server_database::save_record(
 
   this->add_principal_log(
     sp,
-    record.id().source_id,
-    record.id().index,
+    record.id(),
     record.message()->str(),
     signature,
+    record.order_num(),
     state);
   
   for (auto& p : record.parents()) {
     this->principal_log_add_link(
       sp,
-      p.source_id,
-      p.index,
-      record.id().source_id,
-      record.id().index);
+      p,
+      record.id());
   }
 
   return true;
@@ -505,18 +490,14 @@ bool vds::_server_database::save_record(
 void vds::_server_database::principal_log_add_link(
   const service_provider & sp,
   const guid & source_id,
-  uint64_t source_index,
-  const guid & target_id,
-  uint64_t target_index)
+  const guid & target_id)
 {
   this->principal_log_add_link_statement_.execute(
     this->db_,
-    "INSERT INTO principal_log_link (parent_id,parent_index,follower_id,follower_index)\
-       VALUES (@parent_id,@parent_index,@follower_id,@follower_index)",
+    "INSERT INTO principal_log_link (parent_id,follower_id)\
+       VALUES (@parent_id,@follower_id)",
     source_id,
-    source_index,
-    target_id,
-    target_index);
+    target_id);
 }
 
 void vds::_server_database::add_principal_log(
@@ -524,16 +505,17 @@ void vds::_server_database::add_principal_log(
   const guid & record_id,
   const std::string & body,
   const const_data_buffer & signature,
+  int order_num,
   iserver_database::principal_log_state state)
 {
   this->principal_log_add_statement_.execute(
     this->db_,
-    "INSERT INTO principal_log (source_id,source_index,message,signature,state)\
-    VALUES (@source_id,@source_index,@message,@signature,@state)",
-    source_id,
-    source_index,
+    "INSERT INTO principal_log (source_id,source_index,message,signature,order_num,state)\
+    VALUES (@source_id,@source_index,@message,@signature,@order_num,@state)",
+    record_id,
     body,
     signature,
+    order_num,
     (int)state);
 }
 
@@ -544,9 +526,8 @@ void vds::_server_database::principal_log_update_state(
 {
   this->principal_log_update_state_statement_.execute(
     this->db_,
-    "UPDATE principal_log SET state=?3 WHERE source_id=?1 AND source_index=?2",
-    record_id.source_id,
-    record_id.index,
+    "UPDATE principal_log SET state=?2 WHERE id=?1",
+    record_id,
     (int)state);
 }
 
@@ -559,7 +540,7 @@ vds::_server_database::principal_log_get_state(
 
   this->principal_log_get_state_query_.query(
     this->db_,
-    "SELECT state FROM principal_log WHERE source_id=@source_id AND source_index=@source_index",
+    "SELECT state FROM principal_log WHERE id=@id",
     [&result](sql_statement & st)->bool {
 
       int value;
@@ -569,8 +550,7 @@ vds::_server_database::principal_log_get_state(
 
       return false;
     },
-    record_id.source_id,
-    record_id.index);
+    record_id);
 
   return result;
 }
@@ -582,21 +562,18 @@ void vds::_server_database::principal_log_get_parents(
 {
   this->principal_log_get_parents_query_.query(
     this->db_,
-    "SELECT parent_id, parent_index \
+    "SELECT parent_id \
     FROM principal_log_link \
-    WHERE follower_id=@follower_id AND follower_index=@follower_index",
+    WHERE follower_id=@follower_id",
     [&parents](sql_statement & st) -> bool{
       guid parent_id;
-      uint64_t parent_index;
 
       st.get_value(0, parent_id);
-      st.get_value(1, parent_index);
 
-      parents.push_back(principal_log_record::record_id{ parent_id, parent_index });
+      parents.push_back(parent_id);
       return true;
     },
-    record_id.source_id,
-    record_id.index);
+    record_id);
 }
 
 void vds::_server_database::principal_log_get_followers(
@@ -606,21 +583,18 @@ void vds::_server_database::principal_log_get_followers(
 {
   this->principal_log_get_followers_query_.query(
     this->db_,
-    "SELECT follower_id, follower_index \
+    "SELECT follower_id \
     FROM principal_log_link \
-    WHERE parent_id=@parent_id AND parent_index=@parent_index",
+    WHERE parent_id=@parent_id",
     [&followers](sql_statement & st) -> bool {
       guid follower_id;
-      uint64_t follower_index;
 
       st.get_value(0, follower_id);
-      st.get_value(1, follower_index);
 
-      followers.push_back(principal_log_record::record_id{ follower_id, follower_index });
+      followers.push_back(follower_id);
       return true;
     },
-    record_id.source_id,
-    record_id.index);
+    record_id);
 }
 
 void vds::_server_database::processed_record(
@@ -711,19 +685,17 @@ void vds::_server_database::get_unknown_records(
 {
   this->get_unknown_records_query_.query(
     this->db_,
-    "SELECT parent_id,parent_index \
+    "SELECT parent_id \
      FROM principal_log_link \
      WHERE NOT EXISTS (\
       SELECT * \
       FROM principal_log \
-      WHERE principal_log.source_id=principal_log_link.parent_id\
-       AND principal_log.source_index=principal_log_link.parent_index)",
+      WHERE principal_log.source_id=principal_log_link.parent_id)",
     [&result](sql_statement & st)->bool {
 
     principal_log_record::record_id item;
 
-    st.get_value(0, item.source_id);
-    st.get_value(1, item.index);
+    st.get_value(0, item);
 
     result.push_back(item);
 
@@ -740,21 +712,22 @@ bool vds::_server_database::get_record(
   bool result = false;
 
   std::string message;
+  int order_num;
 
   this->principal_log_get_query_.query(
     this->db_,
-    "SELECT message, signature FROM  principal_log WHERE source_id=@source_id AND source_index=@source_index",
-    [&result, &message, &result_signature](sql_statement & st)->bool {
+    "SELECT message, signature, order_num FROM  principal_log WHERE source_id=@source_id",
+    [&result, &message, &result_signature, &order_num](sql_statement & st)->bool {
 
       st.get_value(0, message);
       st.get_value(1, result_signature);
-
+      st.get_value(2, order_num);
+      
       result = true;
 
       return false;
     },
-    id.source_id,
-    id.index);
+    id);
 
   if (result) {
     std::list<principal_log_record::record_id> parents;
@@ -766,11 +739,12 @@ bool vds::_server_database::get_record(
       json_parser("Message body"),
       dataflow_require_once<std::shared_ptr<json_value>>(&body)
     )(
-      [&id, &result_record, &parents, &body](const service_provider & sp) {
+      [&id, &result_record, &parents, &body, order_num](const service_provider & sp) {
         result_record.reset(
           id,
           parents,
-          body);
+          body,
+          order_num);
       },
       [](const service_provider & sp, std::exception_ptr ex) { std::rethrow_exception(ex); },
       sp);
@@ -808,15 +782,16 @@ bool vds::_server_database::get_record_by_state(
 
   principal_log_record::record_id id;
   std::string message;
+  int order_num;
 
   this->get_record_by_state_query_.query(
     this->db_,
-    "SELECT source_id,source_index,message,signature FROM  principal_log WHERE state=@state LIMIT 1",
-    [&result, &id, &message, &result_signature](sql_statement & st)->bool {
+    "SELECT id,message,order_num,signature FROM  principal_log WHERE state=@state LIMIT 1",
+    [&result, &id, &message, &order_num, &result_signature](sql_statement & st)->bool {
 
-      st.get_value(0, id.source_id);
-      st.get_value(1, id.index);
-      st.get_value(2, message);
+      st.get_value(0, id);
+      st.get_value(1, message);
+      st.get_value(2, order_num);
       st.get_value(3, result_signature);
 
       result = true;
@@ -835,12 +810,13 @@ bool vds::_server_database::get_record_by_state(
       json_parser("Message body"),
       dataflow_require_once<std::shared_ptr<json_value>>(&body)
     )(
-      [&id, &result_record, &parents, &body](
+      [&id, &result_record, &parents, &body, order_num](
         const service_provider & sp) {
         result_record.reset(
           id,
           parents,
-          body);
+          body,
+          order_num);
       },
       [](const service_provider & sp,
          std::exception_ptr ex) {

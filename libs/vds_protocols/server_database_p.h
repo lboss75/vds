@@ -40,12 +40,7 @@ namespace vds {
     
     void add_object(
       const service_provider & sp,
-      const guid & server_id,
       const principal_log_new_object & index);
-    
-    uint64_t last_object_index(
-      const service_provider & sp,
-      const guid & server_id);
     
     void add_endpoint(
       const service_provider & sp,
@@ -118,11 +113,9 @@ namespace vds {
       const std::string & /* object_name */> find_user_principal_query_;
 
     prepared_statement<
-      const guid & /*server_id*/,
-      uint64_t /*index*/,
+      const guid & /*object_id*/,
       uint64_t /*lenght*/,
-      const const_data_buffer & /*hash*/,
-      const guid & /*owner_principal*/> add_object_statement_;
+      const const_data_buffer & /*hash*/> add_object_statement_;
       
     prepared_query<
       const guid & /*server_id*/> last_object_index_query_;
@@ -139,23 +132,19 @@ namespace vds {
 
     prepared_statement<
       const guid & /*source_id*/,
-      uint64_t /*source_index*/,
-      const guid & /* target_id*/,
-      uint64_t /* target_index*/> principal_log_add_link_statement_;
+      const guid & /* target_id*/> principal_log_add_link_statement_;
 
     void principal_log_add_link(
       const service_provider & sp,
       const guid & source_id,
-      uint64_t source_index,
-      const guid & target_id,
-      uint64_t target_index);
+      const guid & target_id);
 
 
     prepared_statement<
-      const guid & /*source_id*/,
-      uint64_t /*source_index*/,
+      const guid & /*record_id*/,
       const std::string & /* body */,
       const const_data_buffer & /* signature */,
+      int /*order_num*/,
       int /*state*/> principal_log_add_statement_;
 
     void add_principal_log(
@@ -163,13 +152,13 @@ namespace vds {
       const guid & record_id,
       const std::string & body,
       const const_data_buffer & signature,
+      int order_num,
       iserver_database::principal_log_state state);
 
     prepared_query<> get_principal_log_tails_query_;
 
     prepared_statement<
-      const guid & /*source_id*/,
-      uint64_t /*source_index*/,
+      const guid & /*record_id*/,
       int /*state*/> principal_log_update_state_statement_;
 
     void principal_log_update_state(
@@ -178,12 +167,10 @@ namespace vds {
       iserver_database::principal_log_state state);
 
     prepared_query<
-      const guid & /*source_id*/,
-      uint64_t /*source_index*/> principal_log_get_state_query_;
+      const guid & /*record_id*/> principal_log_get_state_query_;
 
     prepared_query<
-      const guid & /*source_id*/,
-      uint64_t /*source_index*/> principal_log_get_parents_query_;
+      const guid & /*source_id*/> principal_log_get_parents_query_;
 
     void principal_log_get_parents(
       const service_provider & sp,
@@ -191,8 +178,7 @@ namespace vds {
       std::list<principal_log_record::record_id> & parents);
 
     prepared_query<
-      const guid & /*source_id*/,
-      uint64_t /*source_index*/> principal_log_get_followers_query_;
+      const guid & /*source_id*/> principal_log_get_followers_query_;
 
     void principal_log_get_followers(
       const service_provider & sp,
@@ -205,8 +191,7 @@ namespace vds {
     prepared_query<> get_unknown_records_query_;
 
     prepared_query<
-      const guid & /*source_id*/,
-      uint64_t /*source_index*/> principal_log_get_query_;
+      const guid & /*record_id*/> principal_log_get_query_;
       
     prepared_query<
       int /*state*/> get_record_by_state_query_;

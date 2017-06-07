@@ -114,10 +114,6 @@ vds::principal_log_record::record_id vds::istorage_log::get_last_applied_record(
 
 ///////////////////////////////////////////////////////////////////////////////
 vds::_storage_log::_storage_log()
-: local_log_index_(0),
-  is_empty_(true),
-  minimal_consensus_(0),
-  last_message_id_(0)
 {
 }
 
@@ -162,9 +158,6 @@ void vds::_storage_log::start(
   this->current_server_id_ = current_server_id;
   this->vds_folder_ = foldername(persistence::current_user(sp), ".vds");
 
-  this->local_log_index_ = sp.get<iserver_database>()->get_server_log_max_index(
-    sp, this->current_server_id_) + 1;
-
   this->process_timer_.start(sp, std::chrono::seconds(5), [this, sp](){
     return this->process_timer_jobs(sp);
   });
@@ -173,12 +166,6 @@ void vds::_storage_log::start(
 void vds::_storage_log::stop(const service_provider & sp)
 {
   this->process_timer_.stop(sp);
-}
-
-
-size_t vds::_storage_log::new_message_id()
-{
-  return this->last_message_id_++;
 }
 
 vds::async_task<> vds::_storage_log::register_server(
@@ -204,9 +191,7 @@ void vds::_storage_log::add_to_local_log(
   const_data_buffer signature;
   auto result = sp.get<iserver_database>()->add_local_record(
       sp,
-      server_log_record::record_id{
-        this->current_server_id_,
-        this->local_log_index_++ },
+      guid::new_guid(),
       message,
       signature);
     
@@ -224,7 +209,7 @@ void vds::_storage_log::apply_record(
   const const_data_buffer & signature,
   bool check_signature /*= true*/)
 {
-  sp.get<logger>()->debug(sp, "Apply record %s:%d", record.id().source_id.str().c_str(), record.id().index);
+  sp.get<logger>()->debug(sp, "Apply record %s", record.id().str().c_str());
   auto state = sp.get<iserver_database>()->get_record_state(sp, record.id());
   if(iserver_database::principal_log_state::front != state){
     throw std::runtime_error("Invalid server state");
@@ -232,7 +217,7 @@ void vds::_storage_log::apply_record(
  
   auto obj = std::dynamic_pointer_cast<json_object>(record.message());
   if(!obj){
-    sp.get<logger>()->info(sp, "Wrong messsage in the record %s:%d", record.id().source_id.str().c_str(), record.id().index);
+    sp.get<logger>()->info(sp, "Wrong messsage in the record %s", record.id().str().c_str());
     sp.get<iserver_database>()->delete_record(sp, record.id());
     return;
   }
@@ -240,7 +225,7 @@ void vds::_storage_log::apply_record(
   try {
     std::string message_type;
     if (!obj->get_property("$t", message_type)) {
-      sp.get<logger>()->info(sp, "Missing messsage type in the record %s:%d", record.id().source_id.str().c_str(), record.id().index);
+      sp.get<logger>()->info(sp, "Missing messsage type in the record %s", record.id().str().c_str());
       sp.get<iserver_database>()->delete_record(sp, record.id());
       return;
     }
@@ -248,11 +233,11 @@ void vds::_storage_log::apply_record(
     if (principal_log_new_object::message_type == message_type) {
       principal_log_new_object msg(obj);
       
-      sp.get<logger>()->debug(sp, "Add object %s.%d",
-        record.id().source_id.str().c_str(),
+      sp.get<logger>()->debug(sp, "Add object %s",
+        record.id().str().c_str(),
         msg.index());
 
-      sp.get<iserver_database>()->add_object(sp, record.id().source_id, msg);
+      sp.get<iserver_database>()->add_object(sp, msg);
     }
     else if(server_log_root_certificate::message_type == message_type){
       server_log_root_certificate msg(obj);
@@ -276,19 +261,10 @@ void vds::_storage_log::apply_record(
         msg.server_id().str(),
         msg.addresses());
     }
-    else if(server_log_file_map::message_type == message_type){
-      server_log_file_map msg(obj);
-      
-      sp.get<iserver_database>()->add_file(
-        sp,
-        record.id().source_id,
-        msg);
-    }
     else {
-      sp.get<logger>()->info(sp, "Enexpected messsage type '%s' in the record %s:%d",
+      sp.get<logger>()->info(sp, "Enexpected messsage type '%s' in the record %s",
         message_type.c_str(),
-        record.id().source_id.str().c_str(),
-        record.id().index);
+        record.id().str().c_str());
 
       sp.get<iserver_database>()->delete_record(sp, record.id());
       return;
@@ -301,12 +277,6 @@ void vds::_storage_log::apply_record(
   }
   
   sp.get<iserver_database>()->processed_record(sp, record.id());
-  this->last_applied_record_ = record.id();
-}
-
-vds::principal_log_record::record_id vds::_storage_log::get_last_applied_record(const service_provider & sp)
-{
-  return this->last_applied_record_;
 }
 
 std::unique_ptr<vds::const_data_buffer> vds::_storage_log::get_object(

@@ -19,7 +19,6 @@ All rights reserved
 #include "server_to_client_api.h"
 #include "node_manager.h"
 #include "server_log_sync.h"
-#include "file_manager.h"
 #include "endpoint.h"
 #include "storage_log.h"
 

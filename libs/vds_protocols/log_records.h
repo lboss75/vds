@@ -19,7 +19,6 @@ namespace vds {
       const std::shared_ptr<json_value> & source);
     
     principal_log_new_object(
-      const guid & owner_principal,
       const guid & index,
       uint32_t lenght,
       const const_data_buffer & hash);
@@ -27,14 +26,12 @@ namespace vds {
     const guid & index() const { return this->index_; }
     uint32_t lenght() const { return this->lenght_; }
     const const_data_buffer & hash() const { return this->hash_; }
-    const guid & owner_principal() const { return this->owner_principal_; }
     
     std::shared_ptr<json_value> serialize(bool add_type_property = true) const;
   private:
     guid index_;
     uint32_t lenght_;
     const_data_buffer hash_;
-    guid owner_principal_;
   };
 
   class principal_log_record
@@ -52,19 +49,22 @@ namespace vds {
     principal_log_record(
       const record_id & id,
       const std::list<record_id> & parents,
-      const std::shared_ptr<json_value> & message);
+      const std::shared_ptr<json_value> & message,
+      int order_num);
     
     principal_log_record(const std::shared_ptr<json_value> & source);
 
     void reset(
       const record_id & id,
       const std::list<record_id> & parents,
-      const std::shared_ptr<json_value> & message);
+      const std::shared_ptr<json_value> & message,
+      int order_num);
 
     const std::shared_ptr<json_value> &  message() const { return this->message_; }
 
     const record_id & id() const { return this->id_; }
     const std::list<record_id> parents() const { return this->parents_; }
+    int order_num() const { return this->order_num_; }
     void add_parent(const guid & index);
 
     binary_deserializer & deserialize(const service_provider & sp, binary_deserializer & b);
@@ -75,6 +75,7 @@ namespace vds {
     record_id id_;
     std::list<record_id> parents_;
     std::shared_ptr<json_value> message_;
+    int order_num_;
   };
 
   class server_log_root_certificate

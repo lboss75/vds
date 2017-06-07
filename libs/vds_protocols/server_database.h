@@ -34,7 +34,6 @@ namespace vds {
 
     void add_object(
       const service_provider & sp,
-      const guid & server_id,
       const principal_log_new_object & index);
 
     void add_endpoint(
