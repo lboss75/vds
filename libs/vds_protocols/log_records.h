@@ -10,141 +10,51 @@ All rights reserved
 
 namespace vds {
   
-  class server_log_batch
-  {
-  public:
-    static const char message_type[];
-
-    server_log_batch();
-    server_log_batch(const std::shared_ptr<json_value> & source);
-
-    const std::shared_ptr<json_array> & get_messages() const { return this->messages_; }
-
-    void add(const std::shared_ptr<json_value> & item);
-
-    std::shared_ptr<json_value> serialize() const;
-
-  private:
-    std::shared_ptr<json_array> messages_;
-  };
-  
-  class server_log_new_object
+  class principal_log_new_object
   {
   public:
     static const char message_type[];
     
-    server_log_new_object(
+    principal_log_new_object(
       const std::shared_ptr<json_value> & source);
     
-    server_log_new_object(
-      uint64_t index,
+    principal_log_new_object(
+      const guid & owner_principal,
+      const guid & index,
       uint32_t lenght,
-      const const_data_buffer & hash,
-      const guid & owner_principal);
+      const const_data_buffer & hash);
     
-    uint64_t index() const { return this->index_; }
+    const guid & index() const { return this->index_; }
     uint32_t lenght() const { return this->lenght_; }
     const const_data_buffer & hash() const { return this->hash_; }
     const guid & owner_principal() const { return this->owner_principal_; }
     
     std::shared_ptr<json_value> serialize(bool add_type_property = true) const;
   private:
-    uint64_t index_;
+    guid index_;
     uint32_t lenght_;
     const_data_buffer hash_;
     guid owner_principal_;
   };
 
-  class server_log_file_map
+  class principal_log_record
   {
   public:
     static const char message_type[];
 
-    server_log_file_map(
-      const guid & server_id,
-      const std::string & version_id,
-      const std::string & user_login,
-      const std::string & name,
-      const const_data_buffer & meta_info);
+    typedef guid record_id;
 
-    server_log_file_map(
-      const std::shared_ptr<json_value> & source);
+    principal_log_record();
 
-    void add(const server_log_new_object & item);
-    std::shared_ptr<json_value> serialize(bool add_type_property = true) const;
+    principal_log_record(
+      const principal_log_record & origin);
 
-    const guid & server_id() const { return this->server_id_; }
-    const std::string & version_id() const { return this->version_id_; }
-    const std::string & user_login() const { return this->user_login_; }
-    const std::string & name() const { return this->name_; }
-    const const_data_buffer & meta_info() const { return this->meta_info_; }
-    const std::list<server_log_new_object> & items() const { return this->items_; }
-    
-  private:
-    guid server_id_;
-    std::string version_id_;
-    std::string user_login_;
-    std::string name_;
-    const_data_buffer meta_info_;
-    std::list<server_log_new_object> items_;
-  };
-
-  class server_log_file_version
-  {
-  public:
-    server_log_file_version(
-      const std::string & version_id,
-      const guid & server_id);
-
-    const std::string & version_id() const { return this->version_id_; }
-    const guid & server_id() const { return this->server_id_; }
-
-  private:
-    std::string version_id_;
-    guid server_id_;
-  };
-
-  class server_log_sign
-  {
-  public:
-    server_log_sign(
-      const std::string & subject,
-      const const_data_buffer & signature);
-
-    server_log_sign(const std::shared_ptr<json_value> & source);
-
-    const std::string & subject() const { return this->subject_; }
-    const const_data_buffer & signature() const { return this->signature_; }
-
-    std::shared_ptr<json_value> serialize() const;
-
-  private:
-    std::string subject_;
-    const_data_buffer signature_;
-  };
-
-  class server_log_record
-  {
-  public:
-    static const char message_type[];
-
-    struct record_id
-    {
-      guid source_id;
-      uint64_t index;
-    };
-
-    server_log_record();
-
-    server_log_record(
-      const server_log_record & origin);
-
-    server_log_record(
+    principal_log_record(
       const record_id & id,
       const std::list<record_id> & parents,
       const std::shared_ptr<json_value> & message);
     
-    server_log_record(const std::shared_ptr<json_value> & source);
+    principal_log_record(const std::shared_ptr<json_value> & source);
 
     void reset(
       const record_id & id,
@@ -155,7 +65,7 @@ namespace vds {
 
     const record_id & id() const { return this->id_; }
     const std::list<record_id> parents() const { return this->parents_; }
-    void add_parent(const guid & source_id, uint64_t index);
+    void add_parent(const guid & index);
 
     binary_deserializer & deserialize(const service_provider & sp, binary_deserializer & b);
     void serialize(binary_serializer & b) const;
@@ -244,79 +154,6 @@ namespace vds {
     guid server_id_;
     std::string addresses_;
   };
-  //
-  class server_log_put_file
-  {
-  public:
-    static const char message_type[];
-
-    class file_part
-    {
-    public:
-      file_part(
-        uint64_t index,
-        uint32_t length,
-        const const_data_buffer & signature);
-
-      uint64_t index() const { return this->index_; }
-      uint32_t length() const { return this->length_; }
-      const const_data_buffer & signature() const { return this->signature_; }
-
-    private:
-      uint64_t index_;
-      uint32_t length_;
-      const_data_buffer signature_;
-    };
-
-    const std::string & user_login() const { return this->user_login_; }
-    const std::string & name() const { return this->name_; }
-    const std::list<file_part> & parts() const { return this->parts_; }
-
-  private:
-    std::string user_login_;
-    std::string name_;
-    std::list<file_part> parts_;
-  };
-
-  class server_log_create_chunk
-  {
-  public:
-
-  private:
-    uint64_t chunk_index_;
-    std::list<uint64_t> parts_;
-  };
-
-  class server_log_copy_chunk_replica
-  {
-  public:
-
-  private:
-    guid source_id_;
-    uint64_t chunk_index_;
-    uint64_t chunk_replica_;
-  };
-
-  class server_log_build_chunk
-  {
-  public:
-
-  private:
-    guid source_id_;
-    uint64_t chunk_index_;
-    uint64_t chunk_replica_;
-  };
-
-  class server_log_delete_chunk
-  {
-  public:
-
-  private:
-    guid source_id_;
-    uint64_t chunk_index_;
-    uint64_t chunk_replica_;
-  };
-
 }
 
 #endif // __VDS_PROTOCOLS_LOG_RECORDS_H_

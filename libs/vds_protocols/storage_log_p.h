@@ -73,11 +73,11 @@ namespace vds {
 
     void apply_record(
       const service_provider & sp,
-      const server_log_record & record,
+      const principal_log_record & record,
       const const_data_buffer & signature,
       bool check_signature = true);
 
-    server_log_record::record_id get_last_applied_record(
+    principal_log_record::record_id get_last_applied_record(
       const service_provider & sp);
 
   private:
@@ -86,7 +86,7 @@ namespace vds {
 
     guid current_server_id_;
     foldername vds_folder_;
-    server_log_record::record_id last_applied_record_;
+    principal_log_record::record_id last_applied_record_;
 
     bool is_empty_;
     size_t minimal_consensus_;

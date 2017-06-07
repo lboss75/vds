@@ -14,7 +14,7 @@ namespace vds {
   public:
     server_log_logic();
 
-    void add_record(const server_log_record & record);
+    void add_record(const principal_log_record & record);
 
   private:
   };

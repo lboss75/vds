@@ -96,7 +96,7 @@ void vds::istorage_log::reset(
 
 void vds::istorage_log::apply_record(
   const service_provider & sp,
-  const server_log_record & record,
+  const principal_log_record & record,
   const const_data_buffer & signature,
   bool check_signature /*= true*/)
 {
@@ -107,7 +107,7 @@ void vds::istorage_log::apply_record(
     check_signature);
 }
 
-vds::server_log_record::record_id vds::istorage_log::get_last_applied_record(const service_provider & sp)
+vds::principal_log_record::record_id vds::istorage_log::get_last_applied_record(const service_provider & sp)
 {
   return static_cast<_storage_log *>(this)->get_last_applied_record(sp);
 }
@@ -220,13 +220,13 @@ void vds::_storage_log::add_to_local_log(
 
 void vds::_storage_log::apply_record(
   const service_provider & sp,
-  const server_log_record & record,
+  const principal_log_record & record,
   const const_data_buffer & signature,
   bool check_signature /*= true*/)
 {
   sp.get<logger>()->debug(sp, "Apply record %s:%d", record.id().source_id.str().c_str(), record.id().index);
   auto state = sp.get<iserver_database>()->get_record_state(sp, record.id());
-  if(iserver_database::server_log_state::front != state){
+  if(iserver_database::principal_log_state::front != state){
     throw std::runtime_error("Invalid server state");
   }
  
@@ -245,8 +245,8 @@ void vds::_storage_log::apply_record(
       return;
     }
     
-    if (server_log_new_object::message_type == message_type) {
-      server_log_new_object msg(obj);
+    if (principal_log_new_object::message_type == message_type) {
+      principal_log_new_object msg(obj);
       
       sp.get<logger>()->debug(sp, "Add object %s.%d",
         record.id().source_id.str().c_str(),
@@ -304,7 +304,7 @@ void vds::_storage_log::apply_record(
   this->last_applied_record_ = record.id();
 }
 
-vds::server_log_record::record_id vds::_storage_log::get_last_applied_record(const service_provider & sp)
+vds::principal_log_record::record_id vds::_storage_log::get_last_applied_record(const service_provider & sp)
 {
   return this->last_applied_record_;
 }
@@ -343,7 +343,7 @@ bool vds::_storage_log::process_timer_jobs(const service_provider & sp)
 {
   std::lock_guard<std::mutex> lock(this->record_state_mutex_);
 
-  server_log_record record;
+  principal_log_record record;
   const_data_buffer signature;
   while(sp.get<iserver_database>()->get_front_record(sp, record, signature)){
     this->apply_record(sp, record, signature);

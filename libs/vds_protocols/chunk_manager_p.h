@@ -17,7 +17,7 @@ namespace vds {
   public:
     _chunk_manager();
     ~_chunk_manager();
-
+    /*
     
     async_task<>
     add(
@@ -58,6 +58,7 @@ namespace vds {
     static constexpr size_t output_file_max_size = 1024;
 
     void generate_chunk(const service_provider & sp);
+    */
   };
 }
 

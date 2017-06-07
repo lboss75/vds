@@ -7,29 +7,29 @@ All rights reserved
 #include "log_records.h"
 #include "storage_object_id.h"
 
-const char vds::server_log_record::message_type[] = "server log";
+const char vds::principal_log_record::message_type[] = "server log";
 
-vds::server_log_record::server_log_record()
+vds::principal_log_record::principal_log_record()
 {
 }
 
-vds::server_log_record::server_log_record(const server_log_record & origin)
+vds::principal_log_record::principal_log_record(const principal_log_record & origin)
 : id_(origin.id_),
   parents_(origin.parents_),
   message_(origin.message_)
 {
 }
 
-vds::binary_deserializer & vds::server_log_record::deserialize(
+vds::binary_deserializer & vds::principal_log_record::deserialize(
   const service_provider & sp,
   binary_deserializer & b)
 {
-  b >> this->id_.source_id >> this->id_.index;
+  b >> this->id_;
 
   auto parent_count = b.read_number();
   for (decltype(parent_count) i = 0; i < parent_count; ++i) {
-    server_log_record::record_id item;
-    b >> item.source_id >> item.index;
+    principal_log_record::record_id item;
+    b >> item;
     this->parents_.push_back(item);
   }
 
@@ -48,7 +48,7 @@ vds::binary_deserializer & vds::server_log_record::deserialize(
   return b;
 }
 
-vds::server_log_record::server_log_record(
+vds::principal_log_record::principal_log_record(
   const record_id & id,
   const std::list<record_id> & parents,
   const std::shared_ptr<json_value> & message)
@@ -58,12 +58,11 @@ vds::server_log_record::server_log_record(
 {
 }
 
-vds::server_log_record::server_log_record(const std::shared_ptr<json_value> & source)
+vds::principal_log_record::principal_log_record(const std::shared_ptr<json_value> & source)
 {
   auto s = std::dynamic_pointer_cast<json_object>(source);
   if (s) {
-    s->get_property("s", this->id_.source_id);
-    s->get_property("i", this->id_.index);
+    s->get_property("i", this->id_);
 
     this->message_ = s->get_property("m");
 
@@ -73,21 +72,15 @@ vds::server_log_record::server_log_record(const std::shared_ptr<json_value> & so
         auto item = std::dynamic_pointer_cast<json_object>(m->get(i));
         if (nullptr != item) {
           guid source_id;
-          if (!item->get_property("s", this->id_.source_id, false)) {
-            source_id = this->id_.source_id;
-          }
-
-          uint64_t index;
-          item->get_property("i", index);
-
-          this->parents_.push_back(record_id{ source_id, index });
+          item->get_property("i", source_id);
+          this->parents_.push_back(source_id);
         }
       }
     }
   }
 }
 
-void vds::server_log_record::reset(
+void vds::principal_log_record::reset(
   const record_id & id,
   const std::list<record_id>& parents,
   const std::shared_ptr<json_value> & message)
@@ -97,44 +90,39 @@ void vds::server_log_record::reset(
   this->message_ = message;
 }
 
-void vds::server_log_record::add_parent(
-  const guid & source_id,
-  uint64_t index)
+void vds::principal_log_record::add_parent(
+  const guid & index)
 {
-  this->parents_.push_back(record_id { source_id, index });
+  this->parents_.push_back(index);
 }
 
-void vds::server_log_record::serialize(binary_serializer & b) const
+void vds::principal_log_record::serialize(binary_serializer & b) const
 {
-  b << this->id_.source_id << this->id_.index;
+  b << this->id_;
 
   b.write_number(this->parents_.size());
   for (auto & p : this->parents_) {
-    b << p.source_id << p.index;
+    b << p;
   }
 
   b << this->message_->str();
 }
 
 
-std::shared_ptr<vds::json_value> vds::server_log_record::serialize(bool add_type_property) const
+std::shared_ptr<vds::json_value> vds::principal_log_record::serialize(bool add_type_property) const
 {
   std::unique_ptr<json_object> result(new json_object());
   if (add_type_property) {
     result->add_property("$t", message_type);
   }
-  result->add_property("s", this->id_.source_id);
-  result->add_property("i", this->id_.index);
+  result->add_property("i", this->id_);
   result->add_property(std::make_shared<json_property>("m", this->message_));
 
   if (!this->parents_.empty()) {
     auto parents = std::make_shared<json_array>();
     for (auto& p : this->parents_) {
       std::shared_ptr<json_object> item(new json_object());
-      if (p.source_id == this->id_.source_id) {
-        item->add_property("s", p.source_id);
-      }
-      item->add_property("i", p.index);
+      item->add_property("i", p);
       parents->add(item);
     }
 
@@ -144,9 +132,9 @@ std::shared_ptr<vds::json_value> vds::server_log_record::serialize(bool add_type
   return std::shared_ptr<vds::json_value>(result.release());
 }
 ////////////////////////////////////////////////////////////////////////
-const char vds::server_log_new_object::message_type[] = "new object";
+const char vds::principal_log_new_object::message_type[] = "new object";
 
-vds::server_log_new_object::server_log_new_object(
+vds::principal_log_new_object::principal_log_new_object(
   uint64_t index,
   uint32_t lenght,
   const const_data_buffer & hash,
@@ -158,7 +146,7 @@ vds::server_log_new_object::server_log_new_object(
 {
 }
 
-vds::server_log_new_object::server_log_new_object(
+vds::principal_log_new_object::principal_log_new_object(
   const std::shared_ptr<vds::json_value> & source)
 {
   auto s = std::dynamic_pointer_cast<json_object>(source);
@@ -170,7 +158,7 @@ vds::server_log_new_object::server_log_new_object(
   }
 }
 
-std::shared_ptr<vds::json_value> vds::server_log_new_object::serialize(bool add_type_property) const
+std::shared_ptr<vds::json_value> vds::principal_log_new_object::serialize(bool add_type_property) const
 {
   std::unique_ptr<json_object> result(new json_object());
   if (add_type_property) {
@@ -244,39 +232,6 @@ vds::server_log_new_user_certificate::server_log_new_user_certificate(const std:
   if(s) {
     s->get_property("u", this->user_cert_);
   }
-}
-
-const char vds::server_log_batch::message_type[] = "batch";
-
-vds::server_log_batch::server_log_batch()
- : messages_(new json_array())
-{
-}
-
-vds::server_log_batch::server_log_batch(const std::shared_ptr<json_value> & source)
-{
-  auto s = std::dynamic_pointer_cast<json_object>(source);
-  if (nullptr != s) {
-     auto m = s->get_property("m");
-    auto ma = std::dynamic_pointer_cast<json_array>(m);
-    if(ma){
-      this->messages_ = ma;
-    }
-  }
-}
-
-void vds::server_log_batch::add(const std::shared_ptr<json_value> & item)
-{
-  this->messages_->add(item);
-}
-
-std::shared_ptr<vds::json_value> vds::server_log_batch::serialize() const
-{
-  std::unique_ptr<json_object> result(new json_object());
-  result->add_property("$t", message_type);
-  result->add_property(std::make_shared<json_property>("m", this->messages_));
-
-  return std::shared_ptr<vds::json_value>(result.release());
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -392,13 +347,13 @@ vds::server_log_file_map::server_log_file_map(const std::shared_ptr<json_value> 
     auto items = std::dynamic_pointer_cast<json_array>(s->get_property("i"));
     if (items) {
       for (size_t i = 0; i < items->size(); ++i) {
-        this->add(server_log_new_object(items->get(i)));
+        this->add(principal_log_new_object(items->get(i)));
       }
     }
   }
 }
 
-void vds::server_log_file_map::add(const server_log_new_object & item)
+void vds::server_log_file_map::add(const principal_log_new_object & item)
 {
   this->items_.push_back(item);
 }

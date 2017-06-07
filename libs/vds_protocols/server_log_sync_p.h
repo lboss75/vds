@@ -32,7 +32,7 @@ namespace vds {
     
     void on_new_local_record(
       const service_provider & sp,
-      const server_log_record & record,
+      const principal_log_record & record,
       const const_data_buffer & signature);
 
     class server_log_record_broadcast
@@ -42,7 +42,7 @@ namespace vds {
       static const uint32_t message_type_id;
 
       server_log_record_broadcast(
-        const server_log_record & record,
+        const principal_log_record & record,
         const const_data_buffer & signature);
 
       server_log_record_broadcast(
@@ -52,11 +52,11 @@ namespace vds {
       void serialize(binary_serializer & b) const;
       std::shared_ptr<json_value> serialize() const;
 
-      const server_log_record & record() const { return this->record_; }
+      const principal_log_record & record() const { return this->record_; }
       const const_data_buffer & signature() const { return this->signature_; }
 
     private:
-      server_log_record record_;
+      principal_log_record record_;
       const_data_buffer signature_;
     };
 
@@ -68,7 +68,7 @@ namespace vds {
       static const uint32_t message_type_id;
 
       server_log_get_records_broadcast(
-        const std::list<server_log_record::record_id> & unknown_records);
+        const std::list<principal_log_record::record_id> & unknown_records);
 
       server_log_get_records_broadcast(
         const const_data_buffer & data);
@@ -76,10 +76,10 @@ namespace vds {
       void serialize(binary_serializer & b) const;
       std::shared_ptr<json_value> serialize() const;
 
-      const std::list<server_log_record::record_id> & unknown_records() const { return this->unknown_records_; }
+      const std::list<principal_log_record::record_id> & unknown_records() const { return this->unknown_records_; }
 
     private:
-      std::list<server_log_record::record_id> unknown_records_;
+      std::list<principal_log_record::record_id> unknown_records_;
     };
 
 
@@ -96,7 +96,7 @@ namespace vds {
 
     void ensure_record_exists(
       const service_provider & sp,
-      const server_log_record::record_id & record_id);
+      const principal_log_record::record_id & record_id);
   };
 
 }

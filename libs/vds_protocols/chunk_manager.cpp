@@ -8,7 +8,7 @@ All rights reserved
 #include "chunk_manager_p.h"
 #include "storage_log.h"
 #include "hash.h"
-
+/*
 vds::async_task<>
 vds::ichunk_manager::add(
   const service_provider & sp,
@@ -87,7 +87,7 @@ vds::_chunk_manager::add(
                 sp.get<ilocal_cache>()->get_object_filename(
                   sp, sp.get<istorage_log>()->current_server_id(), index));
 
-              auto result = server_log_new_object(
+              auto result = principal_log_new_object(
                 index,
                 original_lenght,
                 original_hash,
@@ -140,3 +140,4 @@ void vds::_chunk_manager::stop(const service_provider & sp)
 {
 }
 
+*/

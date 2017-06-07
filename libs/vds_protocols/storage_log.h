@@ -14,7 +14,7 @@ namespace vds {
   class istorage_log;
   class principal_record;
   class full_storage_object_id;
-  class server_log_record;
+  class principal_log_record;
   class server;
   
   class istorage_log
@@ -58,11 +58,11 @@ namespace vds {
 
     void apply_record(
       const service_provider & sp,
-      const server_log_record & record,
+      const principal_log_record & record,
       const const_data_buffer & signature,
       bool check_signature = true);
 
-    server_log_record::record_id get_last_applied_record(
+    principal_log_record::record_id get_last_applied_record(
       const service_provider & sp);
   };
 }

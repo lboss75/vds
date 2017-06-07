@@ -35,27 +35,7 @@ namespace vds {
     void add_object(
       const service_provider & sp,
       const guid & server_id,
-      const server_log_new_object & index);
-
-    void add_file(
-      const service_provider & sp,
-      const guid & server_id,
-      const server_log_file_map & fm);
-
-    void get_file_versions(
-      const service_provider & sp,
-      const std::string & user_login,
-      const std::string & name,
-      std::list<server_log_file_version> & result);
-
-    std::unique_ptr<server_log_file_map> get_file_version_map(
-      const service_provider & sp,
-      const guid & server_id,
-      const std::string & version_id);
-
-    uint64_t last_object_index(
-      const service_provider & sp,
-      const guid & server_id);
+      const principal_log_new_object & index);
 
     void add_endpoint(
       const service_provider & sp,
@@ -66,23 +46,19 @@ namespace vds {
       const service_provider & sp,
       std::map<std::string, std::string> & addresses);
 
-    uint64_t get_server_log_max_index(
+    principal_log_record add_local_record(
       const service_provider & sp,
-      const guid & id);
-
-    server_log_record add_local_record(
-      const service_provider & sp,
-      const server_log_record::record_id & record_id,
+      const principal_log_record::record_id & record_id,
       const std::shared_ptr<json_value> & message,
       const_data_buffer & signature);
 
     //return: true - saved, false - already exists
     bool save_record(
       const service_provider & sp,
-      const server_log_record & record,
+      const principal_log_record & record,
       const const_data_buffer & signature);
 
-    enum class server_log_state
+    enum class principal_log_state
     {
       not_found = 0,
       stored = 1, //Just stored
@@ -91,32 +67,32 @@ namespace vds {
       tail = 4 //
     };
     
-    server_log_state get_record_state(
+    principal_log_state get_record_state(
       const service_provider & sp,
-      const server_log_record::record_id & id);
+      const principal_log_record::record_id & id);
 
     void get_unknown_records(
       const service_provider & sp,
-      std::list<server_log_record::record_id> & result);
+      std::list<principal_log_record::record_id> & result);
 
     bool get_record(
       const service_provider & sp,
-      const server_log_record::record_id & id,
-      server_log_record & result_record,
+      const principal_log_record::record_id & id,
+      principal_log_record & result_record,
       const_data_buffer & result_signature);
     
     bool get_front_record(
       const service_provider & sp,
-      server_log_record & result_record,
+      principal_log_record & result_record,
       const_data_buffer & result_signature);
 
     void processed_record(
       const service_provider & sp,
-      const server_log_record::record_id & id);
+      const principal_log_record::record_id & id);
 
     void delete_record(
       const service_provider & sp,
-      const server_log_record::record_id & id);
+      const principal_log_record::record_id & id);
   };
 }
 

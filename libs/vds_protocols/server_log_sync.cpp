@@ -59,7 +59,7 @@ void vds::_server_log_sync::stop(const service_provider & sp)
 
 void vds::_server_log_sync::on_new_local_record(
   const service_provider & sp,
-  const server_log_record & record,
+  const principal_log_record & record,
   const const_data_buffer & signature)
 {
   sp.get<logger>()->debug(sp, "Broadcast %s:%d", record.id().source_id.str().c_str(), record.id().index);
@@ -84,7 +84,7 @@ void vds::_server_log_sync::on_server_log_get_records_broadcast(
   const server_log_get_records_broadcast & message)
 {
   for (auto p : message.unknown_records()) {
-    server_log_record record;
+    principal_log_record record;
     const_data_buffer signature;
       if(sp.get<iserver_database>()->get_record(sp, p, record, signature)) {
         sp.get<logger>()->debug(sp, "Provided %s:%d", record.id().source_id.str().c_str(), record.id().index);
@@ -96,7 +96,7 @@ void vds::_server_log_sync::on_server_log_get_records_broadcast(
 void vds::_server_log_sync::require_unknown_records(
   const service_provider & sp)
 {
-  std::list<server_log_record::record_id> unknown_records;
+  std::list<principal_log_record::record_id> unknown_records;
   sp.get<iserver_database>()->get_unknown_records(sp, unknown_records);
 
   if (!unknown_records.empty()) {
@@ -115,10 +115,10 @@ bool vds::_server_log_sync::process_timer_jobs(const service_provider & sp)
   return true;
 }
 
-void vds::_server_log_sync::ensure_record_exists(const service_provider & sp, const server_log_record::record_id & record_id)
+void vds::_server_log_sync::ensure_record_exists(const service_provider & sp, const principal_log_record::record_id & record_id)
 {
-  if (iserver_database::server_log_state::not_found == sp.get<iserver_database>()->get_record_state(sp, record_id)) {
-    std::list<server_log_record::record_id> unknown_records;
+  if (iserver_database::principal_log_state::not_found == sp.get<iserver_database>()->get_record_state(sp, record_id)) {
+    std::list<principal_log_record::record_id> unknown_records;
     unknown_records.push_back(record_id);
     sp.get<iconnection_manager>()->broadcast(sp, server_log_get_records_broadcast(unknown_records));
   }
@@ -129,7 +129,7 @@ const char vds::_server_log_sync::server_log_record_broadcast::message_type[] = 
 const uint32_t vds::_server_log_sync::server_log_record_broadcast::message_type_id = (uint32_t)message_identification::server_log_record_broadcast_message_id;
 
 vds::_server_log_sync::server_log_record_broadcast::server_log_record_broadcast(
-  const server_log_record & record,
+  const principal_log_record & record,
   const const_data_buffer & signature)
 : record_(record),
   signature_(signature)
@@ -166,7 +166,7 @@ const char vds::_server_log_sync::server_log_get_records_broadcast::message_type
 const uint32_t vds::_server_log_sync::server_log_get_records_broadcast::message_type_id = (uint32_t)message_identification::server_log_get_records_broadcast_message_id;
 
 vds::_server_log_sync::server_log_get_records_broadcast::server_log_get_records_broadcast(
-  const std::list<server_log_record::record_id> & unknown_records)
+  const std::list<principal_log_record::record_id> & unknown_records)
 : unknown_records_(unknown_records)
 {
 }
@@ -176,7 +176,7 @@ vds::_server_log_sync::server_log_get_records_broadcast::server_log_get_records_
   binary_deserializer s(data);
   auto count = s.read_number();
   for (decltype(count) i = 0; i < count; ++i) {
-    server_log_record::record_id item;
+    principal_log_record::record_id item;
     s >> item.source_id >> item.index;
     this->unknown_records_.push_back(item);
   }
