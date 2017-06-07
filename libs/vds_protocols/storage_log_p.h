@@ -16,7 +16,7 @@ namespace vds {
   class server_log_root_certificate;
   class server_log_new_server;
   class server_log_new_endpoint;
-  class cert_record;
+  class principal_record;
   class node;
   class endpoint;
   class ichunk_storage;
@@ -49,9 +49,6 @@ namespace vds {
       const service_provider & sp,
       const std::string & server_certificate);
 
-    std::unique_ptr<cert_record> find_cert(
-      const service_provider & sp,
-      const std::string & object_name) const;
 
     std::unique_ptr<const_data_buffer> get_object(
       const service_provider & sp,

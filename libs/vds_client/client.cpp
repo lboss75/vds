@@ -339,7 +339,7 @@ vds::async_task<
   return this->owner_->logic_->send_request<client_messages::certificate_and_key_response>(
     sp,
     client_messages::certificate_and_key_request(
-      "login:" + user_login,
+      user_login,
       ph.signature()).serialize())
     .then([user_password](const std::function<void(
       const service_provider & /*sp*/,

@@ -12,10 +12,11 @@ All rights reserved
 vds::async_task<>
 vds::ichunk_manager::add(
   const service_provider & sp,
+  const guid & owner_principal,
   server_log_file_map & target,
   const filename & fn)
 {
-  return static_cast<_chunk_manager *>(this)->add(sp, target, fn);
+  return static_cast<_chunk_manager *>(this)->add(sp, owner_principal, target, fn);
 }
 
 vds::const_data_buffer vds::ichunk_manager::get(
@@ -47,11 +48,12 @@ vds::_chunk_manager::~_chunk_manager()
 vds::async_task<>
 vds::_chunk_manager::add(
   const service_provider & sp,
+  const guid & owner_principal,
   server_log_file_map & target,
   const filename & fn)
 {
   return create_async_task(
-    [this, fn, &target](
+    [this, fn, &target, owner_principal](
       const std::function<void (const service_provider & sp)> & done,
       const error_handler & on_error,
       const service_provider & sp){
@@ -69,18 +71,13 @@ vds::_chunk_manager::add(
 
           size_t original_lenght;
           const_data_buffer original_hash;
-          size_t object_lenght;
-          const_data_buffer object_hash;
 
           dataflow(
             file_range_read(fn, offset, BLOCK_SIZE),
             hash_filter(&original_lenght, &original_hash),
-            deflate(),
-            //crypt()
-            hash_filter(&object_lenght, &object_hash),
             file_write(tmp_file, file::file_mode::create_new)
           )(
-            [this, tmp_file, &original_lenght, &original_hash, &object_lenght, &object_hash, &target](const service_provider & sp) {
+            [this, tmp_file, &original_lenght, &original_hash, &target, owner_principal](const service_provider & sp) {
 
               this->obj_folder_mutex_.lock();
               auto index = this->last_obj_file_index_++;
@@ -94,8 +91,7 @@ vds::_chunk_manager::add(
                 index,
                 original_lenght,
                 original_hash,
-                object_lenght,
-                object_hash);
+                owner_principal);
 
               sp.get<istorage_log>()->add_to_local_log(sp, result.serialize());
               target.add(result);

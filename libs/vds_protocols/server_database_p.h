@@ -21,11 +21,20 @@ namespace vds {
     void start(const service_provider & sp);
     void stop(const service_provider & sp);
 
-    void add_cert(
+    void add_principal(
       const service_provider & sp,
-      const cert_record & record);
+      const principal_record & record);
 
-    std::unique_ptr<cert_record> find_cert(
+    void add_user_principal(
+      const service_provider & sp,
+      const std::string & login,
+      const principal_record & record);
+
+    std::unique_ptr<principal_record> find_principal(
+      const service_provider & sp,
+      const guid & object_name);
+
+    std::unique_ptr<principal_record> find_user_principal(
       const service_provider & sp,
       const std::string & object_name);
     
@@ -45,22 +54,6 @@ namespace vds {
 
     void get_endpoints(
       std::map<std::string, std::string> & addresses);
-
-    void add_file(
-      const service_provider & sp,
-      const guid & server_id,
-      const server_log_file_map & fm);
-
-    void get_file_versions(
-      const service_provider & sp,
-      const std::string & user_login,
-      const std::string & name,
-      std::list<server_log_file_version> & result);
-
-    std::unique_ptr<server_log_file_map> get_file_version_map(
-      const service_provider & sp,
-      const guid & server_id,
-      const std::string & version_id);
 
     server_log_record add_local_record(
       const service_provider & sp,
@@ -109,21 +102,27 @@ namespace vds {
     std::mutex operation_mutex_;
 
     prepared_statement<
-      const std::string & /* object_name */,
+      const guid & /* object_name */,
       const std::string & /* body */,
       const std::string & /* key */,
-      const const_data_buffer & /*password_hash*/> add_cert_statement_;
+      const const_data_buffer & /*password_hash*/> add_principal_statement_;
       
     prepared_query<
-      const std::string & /* object_name */> find_cert_query_;
+      const guid & /* object_name */> find_principal_query_;
       
+    prepared_statement<
+      const guid & /* object_name */,
+      const std::string & /* login */> add_user_principal_statement_;
+
+    prepared_query<
+      const std::string & /* object_name */> find_user_principal_query_;
+
     prepared_statement<
       const guid & /*server_id*/,
       uint64_t /*index*/,
-      uint64_t /*original_lenght*/,
-      const const_data_buffer & /*original_hash*/,
-      uint64_t /*target_lenght*/,
-      const const_data_buffer & /*signature*/> add_object_statement_;
+      uint64_t /*lenght*/,
+      const const_data_buffer & /*hash*/,
+      const guid & /*owner_principal*/> add_object_statement_;
       
     prepared_query<
       const guid & /*server_id*/> last_object_index_query_;
@@ -134,28 +133,6 @@ namespace vds {
       
     prepared_query<> get_endpoints_query_;
     
-    prepared_statement<
-      const std::string & /*version_id*/,
-      const guid & /*server_id*/,
-      const std::string & /*user_login*/,
-      const std::string & /*name*/,
-      const const_data_buffer & /*meta_info*/> add_file_statement_;
-      
-    prepared_statement<
-      const std::string & /*version_id*/,
-      uint64_t /*index*/,
-      int /*order*/> add_file_map_statement_;
-
-    prepared_query<
-      const std::string & /*user_login*/,
-      const std::string & /*name*/> get_file_versions_query_;
-
-    prepared_query<
-      const std::string & /*version_id*/> get_file_version_info_query_;
-
-    prepared_query<
-      const guid & /*server_id*/,
-      const std::string & /*version_id*/> get_file_version_map_query_;
 
     /// Server log
     std::mutex server_log_mutex_;

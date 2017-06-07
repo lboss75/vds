@@ -10,7 +10,8 @@ All rights reserved
 #include "node_manager.h"
 #include "file_manager.h"
 #include "storage_log.h"
-#include "cert_record.h"
+#include "principal_record.h"
+#include "server_database.h"
 
 vds::server_json_client_api::server_json_client_api()
 : impl_(new _server_json_client_api(this))
@@ -167,7 +168,7 @@ vds::_server_json_client_api::process(
               const error_handler & on_error,
               const service_provider & sp){
       auto cert = sp
-        .get<istorage_log>()->find_cert(sp, message.object_name());
+        .get<iserver_database>()->find_user_principal(sp, message.object_name());
 
       if (!cert
         || cert->password_hash() != message.password_hash()) {

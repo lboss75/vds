@@ -14,7 +14,7 @@ vds::udp_messages::hello_message::hello_message(network_deserializer& s)
 }
 
 vds::udp_messages::hello_message::hello_message(
-  const std::string & source_certificate,
+  const vds::const_data_buffer & source_certificate,
   uint32_t session_id,
   const std::string& to_url)
 : source_certificate_(source_certificate),

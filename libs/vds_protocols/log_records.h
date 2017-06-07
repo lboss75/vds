@@ -38,24 +38,21 @@ namespace vds {
     
     server_log_new_object(
       uint64_t index,
-      uint32_t original_lenght,
-      const const_data_buffer & original_hash,
-      uint32_t target_lenght,
-      const const_data_buffer & target_hash);
+      uint32_t lenght,
+      const const_data_buffer & hash,
+      const guid & owner_principal);
     
     uint64_t index() const { return this->index_; }
-    uint32_t original_lenght() const { return this->original_lenght_; }
-    const const_data_buffer & original_hash() const { return this->original_hash_; }
-    uint32_t target_lenght() const { return this->target_lenght_; }
-    const const_data_buffer & target_hash() const { return this->target_hash_; }
+    uint32_t lenght() const { return this->lenght_; }
+    const const_data_buffer & hash() const { return this->hash_; }
+    const guid & owner_principal() const { return this->owner_principal_; }
     
     std::shared_ptr<json_value> serialize(bool add_type_property = true) const;
   private:
     uint64_t index_;
-    uint32_t original_lenght_;
-    const_data_buffer original_hash_;
-    uint32_t target_lenght_;
-    const_data_buffer target_hash_;
+    uint32_t lenght_;
+    const_data_buffer hash_;
+    guid owner_principal_;
   };
 
   class server_log_file_map

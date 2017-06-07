@@ -60,7 +60,7 @@ vds::_file_manager::put_file(
       const std::function<void(const service_provider & sp)> & done,
       const error_handler & on_error,
       const service_provider & sp) {
-
+/*TODO
       server_log_file_map result(
         sp.get<istorage_log>()->current_server_id(),
         version_id,
@@ -75,6 +75,7 @@ vds::_file_manager::put_file(
           },
           on_error,
           sp);
+          */
   });
 }
 

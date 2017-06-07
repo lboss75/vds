@@ -8,7 +8,7 @@ All rights reserved
 #include "storage_log_p.h"
 #include "process_log_line.h"
 #include "log_records.h"
-#include "cert_record.h"
+#include "principal_record.h"
 #include "node.h"
 #include "endpoint.h"
 #include "certificate_authority.h"
@@ -55,13 +55,6 @@ vds::async_task<> vds::istorage_log::register_server(
   const std::string & server_certificate)
 {
   return static_cast<_storage_log *>(this)->register_server(sp, server_certificate);
-}
-
-std::unique_ptr<vds::cert_record> vds::istorage_log::find_cert(
-  const service_provider & sp,
-  const std::string & object_name) const
-{
-  return static_cast<const _storage_log *>(this)->find_cert(sp, object_name);
 }
 
 std::unique_ptr<vds::const_data_buffer> vds::istorage_log::get_object(
@@ -264,10 +257,11 @@ void vds::_storage_log::apply_record(
     else if(server_log_root_certificate::message_type == message_type){
       server_log_root_certificate msg(obj);
       
-      sp.get<iserver_database>()->add_cert(
+      sp.get<iserver_database>()->add_user_principal(
         sp,
-        vds::cert_record(
-          "login:root",
+        "root",
+        vds::principal_record(
+          guid::new_guid(),
           msg.user_cert(),
           msg.user_private_key(),
           msg.password_hash()));
@@ -313,13 +307,6 @@ void vds::_storage_log::apply_record(
 vds::server_log_record::record_id vds::_storage_log::get_last_applied_record(const service_provider & sp)
 {
   return this->last_applied_record_;
-}
-
-std::unique_ptr<vds::cert_record> vds::_storage_log::find_cert(
-  const service_provider & sp,
-  const std::string & object_name) const
-{
-  return sp.get<iserver_database>()->find_cert(sp, object_name);
 }
 
 std::unique_ptr<vds::const_data_buffer> vds::_storage_log::get_object(

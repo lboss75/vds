@@ -10,16 +10,25 @@ All rights reserved
 
 namespace vds {
   class _server_database;
-  class cert_record;
+  class principal_record;
 
   class iserver_database
   {
   public:
-    void add_cert(
+    void add_principal(
       const service_provider & sp,
-      const cert_record & record);
+      const principal_record & record);
 
-    std::unique_ptr<cert_record> find_cert(
+    void add_user_principal(
+      const service_provider & sp,
+      const std::string & login,
+      const principal_record & record);
+
+    std::unique_ptr<principal_record> find_principal(
+      const service_provider & sp,
+      const guid & object_name);
+
+    std::unique_ptr<principal_record> find_user_principal(
       const service_provider & sp, 
       const std::string & object_name);
 

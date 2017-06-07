@@ -18,6 +18,7 @@ namespace vds {
   public:
     async_task<> add(
       const service_provider & sp,
+      const guid & owner_principal,
       server_log_file_map & target,
       const filename & fn);
 

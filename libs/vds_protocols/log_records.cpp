@@ -148,15 +148,13 @@ const char vds::server_log_new_object::message_type[] = "new object";
 
 vds::server_log_new_object::server_log_new_object(
   uint64_t index,
-  uint32_t original_lenght,
-  const vds::const_data_buffer & original_hash,
-  uint32_t target_lenght,
-  const vds::const_data_buffer& target_hash)
+  uint32_t lenght,
+  const const_data_buffer & hash,
+  const guid & owner_principal)
 : index_(index),
-  original_lenght_(original_lenght),
-  original_hash_(original_hash),
-  target_lenght_(target_lenght),
-  target_hash_(target_hash)
+  lenght_(lenght),
+  hash_(hash),
+  owner_principal_(owner_principal)
 {
 }
 
@@ -166,10 +164,9 @@ vds::server_log_new_object::server_log_new_object(
   auto s = std::dynamic_pointer_cast<json_object>(source);
   if (nullptr != s) {
     s->get_property("i", this->index_);
-    s->get_property("l", this->original_lenght_);
-    s->get_property("h", this->original_hash_);
-    s->get_property("tl", this->target_lenght_);
-    s->get_property("th", this->target_hash_);
+    s->get_property("l", this->lenght_);
+    s->get_property("h", this->hash_);
+    s->get_property("o", this->owner_principal_);
   }
 }
 
@@ -181,10 +178,9 @@ std::shared_ptr<vds::json_value> vds::server_log_new_object::serialize(bool add_
   }  
   
   result->add_property("i", this->index_);
-  result->add_property("l", this->original_lenght_);
-  result->add_property("h", this->original_hash_);
-  result->add_property("tl", this->target_lenght_);
-  result->add_property("th", this->target_hash_);
+  result->add_property("l", this->lenght_);
+  result->add_property("h", this->hash_);
+  result->add_property("o", this->owner_principal_);
 
   return std::shared_ptr<vds::json_value>(result.release());
 }

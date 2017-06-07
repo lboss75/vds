@@ -584,6 +584,24 @@ std::string vds::certificate::str() const
   return this->impl_->str();
 }
 
+vds::certificate vds::certificate::parse_der(const const_data_buffer & value)
+{
+  auto p = value.data();
+  auto cert = d2i_X509(NULL, &p, value.size());
+
+  if (NULL == cert) {
+    auto error = ERR_get_error();
+    throw crypto_exception("Failed to parse certificate from DER", error);
+  }
+
+  return certificate(new _certificate(cert));
+}
+
+vds::const_data_buffer vds::certificate::der() const
+{
+  return this->impl_->der();
+}
+
 void vds::certificate::load(const filename & filename)
 {
   this->impl_->load(filename);
@@ -685,6 +703,24 @@ std::string vds::_certificate::str() const
   result.resize(len);
   BIO_read(bio, const_cast<char *>(result.data()), len);
   BIO_free_all(bio);
+
+  return result;
+}
+
+vds::const_data_buffer vds::_certificate::der() const
+{
+  auto len = i2d_X509(this->cert_, NULL);
+
+  auto buf = (unsigned char *)OPENSSL_malloc(len);
+  if (NULL == buf) {
+    throw std::runtime_error("Out of memory at get DER format of certificate");
+  }
+
+  auto p = buf;
+  i2d_X509(this->cert_, &p);
+
+  const_data_buffer result(buf, len);
+  OPENSSL_free(buf);
 
   return result;
 }

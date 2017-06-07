@@ -4,12 +4,12 @@ All rights reserved
 */
 
 #include "stdafx.h"
-#include "cert_record.h"
+#include "principal_record.h"
 #include "storage_log.h"
 #include "storage_log_p.h"
 
-vds::cert_record::cert_record(
-  const std::string & object_name,
+vds::principal_record::principal_record(
+  const guid & object_name,
   const std::string & cert_body,
   const std::string & cert_key,
   const const_data_buffer & password_hash)

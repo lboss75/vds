@@ -256,7 +256,7 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
 
       //auto cert_manager = this->sp_.get<vds::cert_manager>();
 
-      auto cert = certificate::parse(msg.source_certificate());
+      auto cert = certificate::parse_der(msg.source_certificate());
       //if(cert_manager.validate(cert))
       {
         auto session = this->register_incoming_session(
@@ -479,13 +479,13 @@ void vds::_connection_manager::udp_channel::open_udp_session(
       this->hello_requests_[session_id] = hello_request(session_id, server, port);
   
       auto data = udp_messages::hello_message(
-        sp.get<istorage_log>()->server_certificate().str(),
+        sp.get<istorage_log>()->server_certificate().der(),
         session_id,
         address).serialize();
       
       auto scope = sp.create_scope("Send hello to " + server + ":" + std::to_string(port));
       imt_service::enable_async(scope);
-      this->s_.outgoing()->write_value_async(scope, udp_datagram(server, port, data))
+      this->s_.outgoing()->write_value_async(scope, udp_datagram(server, port, data, false))
         .wait(
           [](const service_provider & sp) {},
           [](const service_provider & sp, const std::exception_ptr ex) {
@@ -618,13 +618,13 @@ bool vds::_connection_manager::udp_channel::process_timer_jobs(const service_pro
     sp.get<logger>()->debug(sp, "Reconect with %s:%d", p.second.server().c_str(), p.second.port());
 
     auto data = udp_messages::hello_message(
-      sp.get<istorage_log>()->server_certificate().str(),
+      sp.get<istorage_log>()->server_certificate().der(),
       p.first,
       "udp://" + p.second.server() + ":" + std::to_string(p.second.port())).serialize();
 
     auto scope = sp.create_scope("Send hello to " + p.second.server() + ":" + std::to_string(p.second.port()));
     imt_service::enable_async(scope);
-    this->s_.outgoing()->write_value_async(scope, udp_datagram(p.second.server(), p.second.port(), data))
+    this->s_.outgoing()->write_value_async(scope, udp_datagram(p.second.server(), p.second.port(), data, false))
       .wait(
         [](const service_provider & sp) {},
         [](const service_provider & sp, std::exception_ptr ex) { sp.unhandled_exception(ex); },

@@ -18,24 +18,31 @@ namespace vds {
   class udp_datagram
   {
   public:
+
+    //The maximum safe UDP payload
+    static const size_t max_safe_data_size = 508;
+
     udp_datagram();
 
     udp_datagram(
       const std::string & server,
       uint16_t port,
       const void * data,
-      size_t data_size);
+      size_t data_size,
+      bool check_max_safe_data_size = false);
 
     udp_datagram(
       const std::string & server,
       uint16_t port,
-      const const_data_buffer & data);
+      const const_data_buffer & data,
+      bool check_max_safe_data_size = false);
 
     void reset(
       const std::string & server,
       uint16_t port,
       const void * data,
-      size_t data_size);
+      size_t data_size,
+      bool check_max_safe_data_size = false);
 
     const std::string & server() const;
     uint16_t port() const;

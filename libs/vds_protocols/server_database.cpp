@@ -6,21 +6,39 @@ All rights reserved
 #include "stdafx.h"
 #include "server_database.h"
 #include "server_database_p.h"
-#include "cert_record.h"
+#include "principal_record.h"
 #include "storage_log.h"
 
-void vds::iserver_database::add_cert(
+void vds::iserver_database::add_principal(
   const service_provider & sp,
-  const cert_record & record)
+  const principal_record & record)
 {
-  static_cast<_server_database *>(this)->add_cert(sp, record);
+  static_cast<_server_database *>(this)->add_principal(sp, record);
 }
 
-std::unique_ptr<vds::cert_record> vds::iserver_database::find_cert(
+void vds::iserver_database::add_user_principal(
+  const service_provider & sp,
+  const std::string & login,
+  const principal_record & record)
+{
+  static_cast<_server_database *>(this)->add_user_principal(sp, login, record);
+}
+
+
+std::unique_ptr<vds::principal_record> vds::iserver_database::find_principal(
+  const service_provider & sp,
+  const guid & object_name)
+{
+  return static_cast<_server_database *>(this)->find_principal(
+    sp,
+    object_name);
+}
+
+std::unique_ptr<vds::principal_record> vds::iserver_database::find_user_principal(
   const service_provider & sp,
   const std::string & object_name)
 {
-  return static_cast<_server_database *>(this)->find_cert(
+  return static_cast<_server_database *>(this)->find_user_principal(
     sp,
     object_name);
 }
@@ -187,42 +205,33 @@ void vds::_server_database::start(const service_provider & sp)
     installed DATETIME NOT NULL)");
 
     this->db_.execute(
+      "CREATE TABLE principal(\
+      object_name VARCHAR(64) NOT NULL,\
+      cert TEXT NOT NULL,\
+      key TEXT NOT NULL,\
+      password_hash VARCHAR(64) NOT NULL,\
+      CONSTRAINT pk_principal PRIMARY KEY(object_name))");
+
+    this->db_.execute(
+      "CREATE TABLE user_principal(\
+      object_name VARCHAR(64) NOT NULL,\
+      login VARCHAR(64) NOT NULL,\
+      CONSTRAINT pk_user_principal PRIMARY KEY(object_name))");
+
+    this->db_.execute(
       "CREATE TABLE object(\
       server_id VARCHAR(64) NOT NULL,\
       object_index INTEGER NOT NULL,\
-      original_lenght INTEGER NOT NULL,\
-      original_hash VARCHAR(64) NOT NULL,\
-      target_lenght INTEGER NOT NULL, \
-      target_hash VARCHAR(64) NOT NULL,\
+      lenght INTEGER NOT NULL,\
+      hash VARCHAR(64) NOT NULL,\
+      owner_principal VARCHAR(64) NOT NULL,\
       CONSTRAINT pk_objects PRIMARY KEY (server_id, object_index))");
 
-    this->db_.execute(
-      "CREATE TABLE cert(\
-      object_name VARCHAR(64) PRIMARY KEY NOT NULL,\
-      body TEXT NOT NULL,\
-      key TEXT NOT NULL,\
-      password_hash VARCHAR(64) NOT NULL)");
-    
     this->db_.execute(
       "CREATE TABLE endpoint(\
       endpoint_id VARCHAR(64) PRIMARY KEY NOT NULL,\
       addresses TEXT NOT NULL)");
-
-    this->db_.execute(
-      "CREATE TABLE file(\
-      version_id VARCHAR(64) PRIMARY KEY NOT NULL,\
-      server_id VARCHAR(64) NOT NULL,\
-      user_login VARCHAR(64) NOT NULL,\
-      meta_info TEXT NOT NULL,\
-      name TEXT NOT NULL)");
     
-    this->db_.execute(
-      "CREATE TABLE file_map(\
-      version_id VARCHAR(64) NOT NULL,\
-      object_index INTEGER NOT NULL,\
-      order_num INTEGER NOT NULL,\
-      CONSTRAINT pk_file_map PRIMARY KEY (version_id, object_index))");
-
     this->db_.execute(
       "CREATE TABLE server_log(\
       source_id VARCHAR(64) NOT NULL,\
@@ -242,29 +251,22 @@ void vds::_server_database::start(const service_provider & sp)
 
     //Replicas stored on the server
     this->db_.execute(
-      "CREATE TABLE object_generation (\
+      "CREATE TABLE object_chunk(\
       server_id VARCHAR(64) NOT NULL,\
+      chunk_index INTEGER NOT NULL,\
       object_index INTEGER NOT NULL,\
-      generation INTEGER NOT NULL,\
-      min_horcrux INTEGER NOT NULL,\
-      CONSTRAINT pk_object_generation PRIMARY KEY (server_id, object_index, generation, min_horcrux))");
+      start_offset INTEGER NOT NULL,\
+      lenght INTEGER NOT NULL,\
+      hash VARCHAR(64) NOT NULL,\
+      CONSTRAINT pk_object_chunk PRIMARY KEY (server_id, chunk_index))");
 
     this->db_.execute(
-      "CREATE TABLE object_store (\
+      "CREATE TABLE object_chunk_store (\
       server_id VARCHAR(64) NOT NULL,\
-      object_index INTEGER NOT NULL,\
-      generation INTEGER NOT NULL,\
+      chunk_index INTEGER NOT NULL,\
       replica INTEGER NOT NULL,\
       storage_id VARCHAR(64) NOT NULL,\
-      CONSTRAINT pk_object_store PRIMARY KEY (server_id, object_index, generation, replica, storage_id))");
-
-    this->db_.execute(
-      "CREATE TABLE reconstruction_tasks (\
-      server_id VARCHAR(64) NOT NULL,\
-      object_index INTEGER NOT NULL,\
-      storage_id VARCHAR(64) NOT NULL,\
-      CONSTRAINT pk_reconstruction_tasks PRIMARY KEY (server_id, object_index, storage_id))");
-
+      CONSTRAINT pk_object_chunk_store PRIMARY KEY (server_id, chunk_index, replica, storage_id))");
 
     this->db_.execute("INSERT INTO module(id, version, installed) VALUES('kernel', 1, datetime('now'))");
     this->db_.execute("INSERT INTO endpoint(endpoint_id, addresses) VALUES('default', 'udp://127.0.0.1:8050;https://127.0.0.1:8050')");
@@ -276,14 +278,14 @@ void vds::_server_database::stop(const service_provider & sp)
   this->db_.close();
 }
 
-void vds::_server_database::add_cert(
+void vds::_server_database::add_principal(
   const service_provider & sp,
-  const cert_record & record)
+  const principal_record & record)
 {
-  this->add_cert_statement_.execute(
+  this->add_principal_statement_.execute(
     this->db_,
-    "INSERT INTO cert(object_name, body, key, password_hash)\
-      VALUES (@object_name, @body, @key, @password_hash)",
+    "INSERT INTO principal(object_name, cert, key, password_hash)\
+      VALUES (@object_name, @cert, @key, @password_hash)",
 
     record.object_name(),
     record.cert_body(),
@@ -291,15 +293,31 @@ void vds::_server_database::add_cert(
     record.password_hash());
 }
 
-std::unique_ptr<vds::cert_record> vds::_server_database::find_cert(
+void vds::_server_database::add_user_principal(
   const service_provider & sp,
-  const std::string & object_name)
+  const std::string & login,
+  const principal_record & record)
 {
-  std::unique_ptr<cert_record> result;
-  this->find_cert_query_.query(
+  this->add_principal(sp, record);
+
+  this->add_user_principal_statement_.execute(
     this->db_,
-    "SELECT body, key, password_hash\
-     FROM cert\
+    "INSERT INTO user_principal(object_name, login)\
+      VALUES (@object_name, @login)",
+
+    record.object_name(),
+    login);
+}
+
+std::unique_ptr<vds::principal_record> vds::_server_database::find_principal(
+  const service_provider & sp,
+  const guid & object_name)
+{
+  std::unique_ptr<principal_record> result;
+  this->find_principal_query_.query(
+    this->db_,
+    "SELECT cert,key,password_hash\
+     FROM principal\
      WHERE object_name=@object_name",
     [&result, object_name](sql_statement & st)->bool{
       
@@ -311,7 +329,7 @@ std::unique_ptr<vds::cert_record> vds::_server_database::find_cert(
       st.get_value(1, key);
       st.get_value(2, password_hash);
 
-      result.reset(new cert_record(
+      result.reset(new principal_record(
         object_name,
         body,
         key,
@@ -323,6 +341,42 @@ std::unique_ptr<vds::cert_record> vds::_server_database::find_cert(
   return result;
 }
 
+std::unique_ptr<vds::principal_record> vds::_server_database::find_user_principal(
+  const service_provider & sp,
+  const std::string & object_name)
+{
+  std::unique_ptr<principal_record> result;
+  this->find_user_principal_query_.query(
+    this->db_,
+    "SELECT p.object_name,p.cert,p.key,p.password_hash\
+     FROM principal p\
+     INNER JOIN user_principal u\
+     ON u.object_name=p.object_name\
+     WHERE u.login=@object_name",
+    [&result, object_name](sql_statement & st)->bool {
+
+    guid name;
+    std::string body;
+    std::string key;
+    const_data_buffer password_hash;
+
+    st.get_value(0, name);
+    st.get_value(1, body);
+    st.get_value(2, key);
+    st.get_value(3, password_hash);
+
+    result.reset(new principal_record(
+      name,
+      body,
+      key,
+      password_hash));
+
+    return false; },
+    object_name);
+
+  return result;
+}
+
 void vds::_server_database::add_object(
   const service_provider & sp,
   const guid & server_id,
@@ -330,14 +384,13 @@ void vds::_server_database::add_object(
 {
   this->add_object_statement_.execute(
     this->db_,
-    "INSERT INTO object(server_id, object_index, original_lenght, original_hash, target_lenght, target_hash)\
-    VALUES (@server_id, @object_index, @original_lenght, @original_hash, @target_lenght, @target_hash)",
+    "INSERT INTO object(server_id, object_index, lenght, hash, owner_principal)\
+    VALUES (@server_id, @object_index, @lenght, @hash, @owner_principal)",
     server_id,
     index.index(),
-    index.original_lenght(),
-    index.original_hash(),
-    index.target_lenght(),
-    index.target_hash());
+    index.lenght(),
+    index.hash(),
+    index.owner_principal());
 }
 
 uint64_t vds::_server_database::last_object_index(
@@ -385,117 +438,6 @@ void vds::_server_database::get_endpoints(std::map<std::string, std::string>& re
     });
 }
 
-void vds::_server_database::add_file(
-  const service_provider & sp,
-  const guid & server_id,
-  const server_log_file_map & fm)
-{
-    this->add_file_statement_.execute(
-      this->db_,
-      "INSERT INTO file(version_id,server_id,user_login,name,meta_info)\
-      VALUES(@version_id,@server_id,@user_login,@name,@meta_info)",
-      fm.version_id(),
-      server_id,
-      fm.user_login(),
-      fm.name(),
-      fm.meta_info());
-    
-    int index = 0;
-    for(auto & item : fm.items()){
-      this->add_file_map_statement_.execute(
-        this->db_,
-        "INSERT INTO file_map(version_id,object_index,order_num)\
-        VALUES(@version_id,@object_index,@order_num)",
-        fm.version_id(),
-        item.index(),
-        index++);
-    }
-}
-
-void vds::_server_database::get_file_versions(
-  const service_provider & sp,
-  const std::string & user_login,
-  const std::string & name,
-  std::list<server_log_file_version> & result)
-{
-  this->get_file_versions_query_.query(
-    this->db_,
-    "SELECT version_id,server_id FROM file\
-     WHERE user_login=@user_login AND name=@name",
-    [&result](sql_statement & reader)->bool {
-
-     std::string version_id;
-     guid server_id;
-    reader.get_value(0, version_id);
-    reader.get_value(1, server_id);
-
-    result.push_back(server_log_file_version(version_id, server_id));
-    return true;
-  },
-    user_login,
-    name);
-}
-
-std::unique_ptr<vds::server_log_file_map> vds::_server_database::get_file_version_map(
-  const service_provider & sp,
-  const guid & server_id,
-  const std::string & version_id)
-{
-  std::unique_ptr<server_log_file_map> result;
-
-  this->get_file_version_info_query_.query(
-    this->db_,
-    "SELECT user_login,server_id,name,meta_info FROM file\
-     WHERE version_id=@version_id",
-    [&result, version_id](sql_statement & reader)->bool {
-    std::string user_login;
-    guid server_id;
-    std::string name;
-    const_data_buffer meta_info;
-
-    reader.get_value(0, user_login);
-    reader.get_value(1, server_id);
-    reader.get_value(2, name);
-    reader.get_value(3, meta_info);
-
-    result.reset(new server_log_file_map(server_id, version_id, user_login, name, meta_info));
-    return false;
-    },
-    version_id);
-
-  if (!result) {
-    return result;
-  }
-
-  this->get_file_version_map_query_.query(
-    this->db_,
-    "SELECT fm.object_index,ob.original_lenght,ob.original_hash,ob.target_lenght,ob.target_hash FROM file_map fm\
-     INNER JOIN object ob\
-     ON ob.object_index=fm.object_index\
-     WHERE ob.server_id=@server_id AND fm.version_id=@version_id\
-     ORDER BY fm.order_num",
-    [&result](sql_statement & reader)->bool {
-
-    uint64_t index;
-    uint64_t original_lenght;
-    const_data_buffer original_hash;
-    uint64_t target_lenght;
-    const_data_buffer target_hash;
-
-    reader.get_value(0, index);
-    reader.get_value(1, original_lenght);
-    reader.get_value(2, original_hash);
-    reader.get_value(3, target_lenght);
-    reader.get_value(4, target_hash);
-
-    result->add(server_log_new_object(index, original_lenght, original_hash, target_lenght, target_hash));
-    return true;
-  },
-    result->server_id(),
-    version_id);
-
-  return result;
-}
 
 /////////////////////////////////////////////
 

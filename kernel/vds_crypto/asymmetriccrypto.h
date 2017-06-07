@@ -267,6 +267,9 @@ namespace vds {
     static certificate parse(const std::string & format);
     std::string str() const;
 
+    static certificate parse_der(const const_data_buffer & body);
+    const_data_buffer der() const;
+
     void load(const filename & filename);
     void save(const filename & filename) const;
 

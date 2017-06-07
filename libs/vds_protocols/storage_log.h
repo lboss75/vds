@@ -12,7 +12,7 @@ namespace vds {
   class _storage_log;
   class endpoint;
   class istorage_log;
-  class cert_record;
+  class principal_record;
   class full_storage_object_id;
   class server_log_record;
   class server;
@@ -35,10 +35,6 @@ namespace vds {
     vds::async_task<> register_server(
       const service_provider & sp,
       const std::string & server_certificate);
-
-    std::unique_ptr<cert_record> find_cert(
-      const service_provider & sp,
-      const std::string & object_name) const;
 
     std::unique_ptr<const_data_buffer> get_object(
       const service_provider & sp,

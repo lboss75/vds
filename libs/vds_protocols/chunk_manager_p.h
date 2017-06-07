@@ -20,8 +20,9 @@ namespace vds {
 
     
     async_task<>
-      add(
+    add(
         const service_provider & sp,
+        const guid & owner_principal,
         server_log_file_map & target,
         const filename & fn);
 
@@ -58,7 +59,6 @@ namespace vds {
 
     void generate_chunk(const service_provider & sp);
   };
-
 }
 
 #endif // __VDS_PROTOCOLS_CHUNK_MANAGER_P_H_
