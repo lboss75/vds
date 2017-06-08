@@ -17,7 +17,8 @@ vds::principal_log_record::principal_log_record(const principal_log_record & ori
 : id_(origin.id_),
   principal_id_(origin.principal_id_),
   parents_(origin.parents_),
-  message_(origin.message_)
+  message_(origin.message_),
+  order_num_(origin.order_num_)
 {
 }
 

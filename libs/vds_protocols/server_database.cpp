@@ -75,9 +75,16 @@ vds::principal_log_record vds::iserver_database::add_local_record(
   const principal_log_record::record_id & record_id,
   const guid & principal_id,
   const std::shared_ptr<json_value> & message,
+  const vds::asymmetric_private_key & principal_private_key,
   const_data_buffer & signature)
 {
-  return static_cast<_server_database *>(this)->add_local_record(sp, record_id, principal_id, message, signature);
+  return static_cast<_server_database *>(this)->add_local_record(
+    sp,
+    record_id,
+    principal_id,
+    message,
+    principal_private_key,
+    signature);
 }
 
 bool vds::iserver_database::save_record(
@@ -420,6 +427,7 @@ vds::principal_log_record
     const principal_log_record::record_id & record_id,
     const guid & principal_id,
     const std::shared_ptr<json_value> & message,
+    const vds::asymmetric_private_key & principal_private_key,
     const_data_buffer & signature)
 {
   std::lock_guard<std::mutex> lock(this->principal_log_mutex_);
@@ -452,7 +460,7 @@ vds::principal_log_record
   std::string body = result.serialize(false)->str();
   signature = asymmetric_sign::signature(
     hash::sha256(),
-    sp.get<istorage_log>()->server_private_key(),
+    principal_private_key,
     body.c_str(),
     body.length());
 

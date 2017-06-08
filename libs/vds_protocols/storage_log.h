@@ -29,6 +29,7 @@ namespace vds {
     void add_to_local_log(
       const service_provider & sp,
       const guid & principal_id,
+      const vds::asymmetric_private_key & principal_private_key,
       const std::shared_ptr<json_value> & record);
 
     size_t new_message_id();
@@ -61,8 +62,7 @@ namespace vds {
     void apply_record(
       const service_provider & sp,
       const principal_log_record & record,
-      const const_data_buffer & signature,
-      bool check_signature = true);
+      const const_data_buffer & signature);
 
     principal_log_record::record_id get_last_applied_record(
       const service_provider & sp);

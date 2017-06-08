@@ -41,9 +41,10 @@ size_t vds::istorage_log::minimal_consensus() const
 void vds::istorage_log::add_to_local_log(
   const service_provider & sp,
   const guid & principal_id,
+  const vds::asymmetric_private_key & principal_private_key,
   const std::shared_ptr<json_value> & record)
 {
-  static_cast<_storage_log *>(this)->add_to_local_log(sp, principal_id, record);
+  static_cast<_storage_log *>(this)->add_to_local_log(sp, principal_id, principal_private_key, record);
 }
 
 size_t vds::istorage_log::new_message_id()
@@ -100,14 +101,12 @@ void vds::istorage_log::reset(
 void vds::istorage_log::apply_record(
   const service_provider & sp,
   const principal_log_record & record,
-  const const_data_buffer & signature,
-  bool check_signature /*= true*/)
+  const const_data_buffer & signature)
 {
   static_cast<_storage_log *>(this)->apply_record(
     sp,
     record,
-    signature,
-    check_signature);
+    signature);
 }
 
 vds::principal_log_record::record_id vds::istorage_log::get_last_applied_record(const service_provider & sp)
@@ -143,18 +142,19 @@ void vds::_storage_log::reset(
   this->add_to_local_log(
     sp,
     principal_id,
+    private_key,
     server_log_root_certificate(
       principal_id,
       root_certificate.str(),
       private_key.str(password),
       ph.signature()).serialize());
-  this->add_to_local_log(sp, principal_id, server_log_new_server(
+  this->add_to_local_log(sp, principal_id, private_key, server_log_new_server(
     this->current_server_id_,
     principal_id,
     this->server_certificate_.str(),
     this->current_server_key_.str(password),
     ph.signature()).serialize());
-  this->add_to_local_log(sp, principal_id, server_log_new_endpoint(this->current_server_id_, addresses).serialize());
+  this->add_to_local_log(sp, principal_id, private_key, server_log_new_endpoint(this->current_server_id_, addresses).serialize());
 }
 
 
@@ -196,6 +196,7 @@ vds::async_task<> vds::_storage_log::register_server(
 void vds::_storage_log::add_to_local_log(
   const service_provider & sp,
   const guid & principal_id,
+  const vds::asymmetric_private_key & principal_private_key,
   const std::shared_ptr<json_value> & message)
 {
   std::lock_guard<std::mutex> lock(this->record_state_mutex_);
@@ -206,6 +207,7 @@ void vds::_storage_log::add_to_local_log(
       guid::new_guid(),
       principal_id,
       message,
+      principal_private_key,
       signature);
     
   this->apply_record(sp, result, signature);
@@ -219,8 +221,7 @@ void vds::_storage_log::add_to_local_log(
 void vds::_storage_log::apply_record(
   const service_provider & sp,
   const principal_log_record & record,
-  const const_data_buffer & signature,
-  bool check_signature /*= true*/)
+  const const_data_buffer & signature)
 {
   sp.get<logger>()->debug(sp, "Apply record %s", record.id().str().c_str());
   auto state = sp.get<iserver_database>()->get_record_state(sp, record.id());
@@ -236,6 +237,8 @@ void vds::_storage_log::apply_record(
   }
   
   try {
+    this->validate_signature(sp, record, signature);
+
     std::string message_type;
     if (!obj->get_property("$t", message_type)) {
       sp.get<logger>()->info(sp, "Missing messsage type in the record %s", record.id().str().c_str());
@@ -347,5 +350,50 @@ bool vds::_storage_log::process_timer_jobs(const service_provider & sp)
   }
 
   return true;
+}
+
+vds::asymmetric_public_key vds::_storage_log::corresponding_public_key(
+  const service_provider & sp,
+  const principal_log_record & record)
+{
+  auto principal = sp.get<iserver_database>()->find_principal(sp, record.principal_id());
+  if (!principal) {
+    auto obj = std::dynamic_pointer_cast<json_object>(record.message());
+    if (!obj) {
+      throw std::runtime_error("Wrong messsage in the record");
+    }
+
+    std::string message_type;
+    if (!obj->get_property("$t", message_type)) {
+      throw std::runtime_error("Missing messsage type in the record");
+    }
+
+    if (server_log_root_certificate::message_type == message_type) {
+      server_log_root_certificate msg(obj);
+      return certificate::parse(msg.user_cert()).public_key();
+    }
+
+    throw std::runtime_error("Principial not found");
+  }
+  else {
+    return certificate::parse(principal->cert_body()).public_key();
+  }
+}
+
+void vds::_storage_log::validate_signature(
+  const service_provider & sp,
+  const principal_log_record & record,
+  const const_data_buffer & signature)
+{
+
+  std::string body = record.serialize(false)->str();
+  if (!asymmetric_sign_verify::verify(
+    hash::sha256(),
+    this->corresponding_public_key(sp, record),
+    signature,
+    body.c_str(),
+    body.length())) {
+    throw std::runtime_error("Invalid signature");
+  }
 }
 

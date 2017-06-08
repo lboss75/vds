@@ -58,6 +58,7 @@ namespace vds {
       const principal_log_record::record_id & record_id,
       const guid & principal_id,
       const std::shared_ptr<json_value> & message,
+      const vds::asymmetric_private_key & principal_private_key,
       const_data_buffer & signature);
 
     bool save_record(
