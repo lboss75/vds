@@ -37,6 +37,7 @@ namespace vds {
       static const char message_type[];
 
       certificate_and_key_response(
+        const guid & id,
         const std::string & certificate_body,
         const std::string & private_key_body
       );
@@ -44,10 +45,12 @@ namespace vds {
       certificate_and_key_response(const std::shared_ptr<json_value> &);
       std::shared_ptr<json_value> serialize() const;
 
+      const guid & id() const { return this->id_; }
       const std::string & certificate_body() const { return this->certificate_body_; }
       const std::string & private_key_body() const { return this->private_key_body_; }
 
     private:
+      guid id_;
       std::string certificate_body_;
       std::string private_key_body_;
     };
@@ -58,16 +61,27 @@ namespace vds {
       static const char message_type[];
 
       register_server_request(
-        const std::string & certificate_body
-      );
+        const guid & id,
+        const guid & parent_id,
+        const std::string & server_certificate,
+        const std::string & server_private_key,
+        const const_data_buffer & password_hash);
 
       register_server_request(const std::shared_ptr<json_value> &);
       std::shared_ptr<json_value> serialize() const;
 
-      const std::string & certificate_body() const { return this->certificate_body_; }
+      const guid & id() const { return this->id_; }
+      const guid & parent_id() const { return this->parent_id_; }
+      const std::string & server_certificate() const { return this->server_certificate_; }
+      const std::string & server_private_key() const { return this->server_private_key_; }
+      const const_data_buffer & password_hash() const { return this->password_hash_; }
 
     private:
-      std::string certificate_body_;
+      guid id_;
+      guid parent_id_;
+      std::string server_certificate_;
+      std::string server_private_key_;
+      const_data_buffer password_hash_;
     };
 
     class register_server_response

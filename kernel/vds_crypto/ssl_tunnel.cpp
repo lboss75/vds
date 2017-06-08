@@ -57,6 +57,11 @@ void vds::ssl_tunnel::start(const service_provider & sp)
   this->impl_->start(sp);
 }
 
+vds::certificate vds::ssl_tunnel::get_peer_certificate() const
+{
+  return this->impl_->get_peer_certificate();
+}
+
 ////////////////////////////////////////////////////////////////
 vds::_ssl_tunnel::_ssl_tunnel(
   ssl_tunnel * owner,

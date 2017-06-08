@@ -44,7 +44,11 @@ namespace vds {
 
     vds::async_task<> register_server(
       const service_provider & sp,
-      const std::string & server_certificate);
+      const guid & id,
+      const guid & parent_id,
+      const std::string & server_certificate,
+      const std::string & server_private_key,
+      const const_data_buffer & password_hash);
 
 
     std::unique_ptr<const_data_buffer> get_object(

@@ -32,11 +32,13 @@ namespace vds {
       const vds::asymmetric_private_key & principal_private_key,
       const std::shared_ptr<json_value> & record);
 
-    size_t new_message_id();
-
     vds::async_task<> register_server(
       const service_provider & sp,
-      const std::string & server_certificate);
+      const guid & id,
+      const guid & parent_id,
+      const std::string & server_certificate,
+      const std::string & server_private_key,
+      const const_data_buffer & password_hash);
 
     std::unique_ptr<const_data_buffer> get_object(
       const service_provider & sp,

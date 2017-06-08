@@ -31,6 +31,7 @@ namespace vds {
     std::shared_ptr<async_stream<uint8_t>> decrypted_output();
 
     void start(const service_provider & sp);
+    certificate get_peer_certificate() const;
 
   private:
     _ssl_tunnel * const impl_;

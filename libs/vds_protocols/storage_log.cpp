@@ -47,16 +47,21 @@ void vds::istorage_log::add_to_local_log(
   static_cast<_storage_log *>(this)->add_to_local_log(sp, principal_id, principal_private_key, record);
 }
 
-size_t vds::istorage_log::new_message_id()
-{
-  return static_cast<_storage_log *>(this)->new_message_id();
-}
-
 vds::async_task<> vds::istorage_log::register_server(
   const service_provider & sp,
-  const std::string & server_certificate)
+  const guid & id,
+  const guid & parent_id,
+  const std::string & server_certificate,
+  const std::string & server_private_key,
+  const const_data_buffer & password_hash)
 {
-  return static_cast<_storage_log *>(this)->register_server(sp, server_certificate);
+  return static_cast<_storage_log *>(this)->register_server(
+    sp,
+    id,
+    parent_id,
+    server_certificate,
+    server_private_key,
+    password_hash);
 }
 
 std::unique_ptr<vds::const_data_buffer> vds::istorage_log::get_object(
@@ -180,15 +185,27 @@ void vds::_storage_log::stop(const service_provider & sp)
 
 vds::async_task<> vds::_storage_log::register_server(
   const service_provider & sp,
-  const std::string & server_certificate)
+  const guid & id,
+  const guid & parent_id,
+  const std::string & server_certificate,
+  const std::string & server_private_key,
+  const const_data_buffer & password_hash)
 {
   return create_async_task(
-    [this, server_certificate](
+    [this, id, parent_id, server_certificate, server_private_key, password_hash](
       const std::function<void(const service_provider & sp)> & done,
       const error_handler & on_error,
       const service_provider & sp) {
-    throw std::runtime_error("Not implemented");
-    //this->add_to_local_log(sp, server_log_new_server(server_certificate).serialize());
+    this->add_to_local_log(
+      sp,
+      this->current_server_id(),
+      this->server_private_key(),
+      server_log_new_server(
+        id,
+        parent_id,
+        server_certificate,
+        server_private_key,
+        password_hash).serialize());
     done(sp);
   });
 }
@@ -290,7 +307,7 @@ void vds::_storage_log::apply_record(
         msg.addresses());
     }
     else {
-      sp.get<logger>()->info(sp, "Enexpected messsage type '%s' in the record %s",
+      sp.get<logger>()->info(sp, "Unexpected messsage type '%s' in the record %s",
         message_type.c_str(),
         record.id().str().c_str());
 

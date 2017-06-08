@@ -118,13 +118,14 @@ vds::_client::init_server(
 {
   return
     this->authenticate(sp, user_login, user_password)
-    .then([this](
+    .then([this, user_password](
       const std::function<void(
         const service_provider & sp,
         const certificate & /*server_certificate*/,
         const asymmetric_private_key & /*private_key*/)> & done,
       const error_handler & on_error,
       const service_provider & sp,
+      const vds::guid & user_id,
       const certificate& user_certificate,
       const asymmetric_private_key& user_private_key) {
 
@@ -135,10 +136,11 @@ vds::_client::init_server(
 
     asymmetric_public_key pkey(private_key);
 
+    auto server_id = guid::new_guid();
     certificate::create_options options;
     options.country = "RU";
     options.organization = "IVySoft";
-    options.name = "Certificate " + guid::new_guid().str();
+    options.name = "Certificate " + server_id.str();
     options.ca_certificate = &user_certificate;
     options.ca_certificate_private_key = &user_private_key;
 
@@ -165,9 +167,18 @@ vds::_client::init_server(
     local_user_certificate.save(filename(root_folder, "user.crt"));
     local_user_private_key.save(filename(root_folder, "user.pkey"));
 
+    hash ph(hash::sha256());
+    ph.update(user_password.c_str(), user_password.length());
+    ph.final();
+
     this->owner_->logic_->send_request<client_messages::register_server_response>(
       sp,
-      client_messages::register_server_request(server_certificate.str()).serialize())
+      client_messages::register_server_request(
+        server_id,
+        user_id,
+        server_certificate.str(),
+        private_key.str(user_password),
+        ph.signature()).serialize())
       .then([this](const std::function<void(const service_provider & sp)> & done,
         const error_handler & on_error,
         const service_provider & sp,
@@ -199,6 +210,7 @@ vds::async_task<const std::string& /*version_id*/> vds::_client::upload_file(
       const std::function<void(const service_provider & sp, const std::string& /*version_id*/)> & done,
       const error_handler & on_error,
       const service_provider & sp,
+      const guid & user_id,
       const certificate& user_certificate,
       const asymmetric_private_key& user_private_key) {
 
@@ -267,6 +279,7 @@ vds::_client::download_data(
         const std::function<void(const service_provider & sp)>& done,
         const error_handler & on_error,
         const service_provider & sp,
+        const guid & user_id,
         const certificate& user_certificate,
         const asymmetric_private_key& user_private_key) {
 
@@ -323,6 +336,7 @@ vds::_client::download_data(
 }
 
 vds::async_task<
+  const vds::guid & /*user_id*/,
   const vds::certificate & /*user_certificate*/,
   const vds::asymmetric_private_key & /*user_private_key*/>
   vds::_client::authenticate(
@@ -343,6 +357,7 @@ vds::async_task<
       ph.signature()).serialize())
     .then([user_password](const std::function<void(
       const service_provider & /*sp*/,
+      const vds::guid & /*user_id*/,
       const certificate & /*user_certificate*/,
       const asymmetric_private_key & /*user_private_key*/)> & done,
       const error_handler & on_error,
@@ -350,6 +365,7 @@ vds::async_task<
       const client_messages::certificate_and_key_response & response) {
     done(
       sp,
+      response.id(),
       certificate::parse(response.certificate_body()),
       asymmetric_private_key::parse(response.private_key_body(), user_password));
   });

@@ -38,9 +38,10 @@ std::shared_ptr<vds::json_value> vds::client_messages::certificate_and_key_reque
 const char vds::client_messages::certificate_and_key_response::message_type[] = "certificate and key";
 
 vds::client_messages::certificate_and_key_response::certificate_and_key_response(
+  const guid & id,
   const std::string & certificate_body,
   const std::string & private_key_body)
-  :
+: id_(id),
   certificate_body_(certificate_body),
   private_key_body_(private_key_body)
 {
@@ -69,8 +70,16 @@ std::shared_ptr<vds::json_value> vds::client_messages::certificate_and_key_respo
 const char vds::client_messages::register_server_request::message_type[] = "register server";
 
 vds::client_messages::register_server_request::register_server_request(
-  const std::string & certificate_body)
-  : certificate_body_(certificate_body)
+  const guid & id,
+  const guid & parent_id,
+  const std::string & server_certificate,
+  const std::string & server_private_key,
+  const const_data_buffer & password_hash)
+: id_(id),
+  parent_id_(parent_id),
+  server_certificate_(server_certificate),
+  server_private_key_(server_private_key),
+  password_hash_(password_hash)
 {
 }
 
@@ -78,7 +87,11 @@ vds::client_messages::register_server_request::register_server_request(const std
 {
   auto s = std::dynamic_pointer_cast<json_object>(value);
   if (s) {
-    s->get_property("c", this->certificate_body_);
+    s->get_property("i", this->id_);
+    s->get_property("p", this->parent_id_);
+    s->get_property("c", this->server_certificate_);
+    s->get_property("k", this->server_private_key_);
+    s->get_property("h", this->password_hash_);
   }
 }
 
@@ -86,7 +99,11 @@ std::shared_ptr<vds::json_value> vds::client_messages::register_server_request::
 {
   auto result = std::make_shared<json_object>();
   result->add_property("$t", message_type);
-  result->add_property("c", this->certificate_body_);
+  result->add_property("i", this->id_);
+  result->add_property("p", this->parent_id_);
+  result->add_property("c", this->server_certificate_);
+  result->add_property("k", this->server_private_key_);
+  result->add_property("h", this->password_hash_);
 
   return result;
 }

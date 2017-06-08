@@ -9,6 +9,7 @@ All rights reserved
 #include "server_http_api_p.h"
 #include "http_serializer.h"
 #include "http_parser.h"
+#include "http_context.h"
 
 vds::async_task<> vds::server_http_api::start(
   const service_provider & sp,
@@ -71,7 +72,10 @@ vds::async_task<> vds::_server_http_api::start(
         dataflow(
           stream_read<uint8_t>(crypto_tunnel->decrypted_output()),
           http_parser(
-            [this, stream](const service_provider & sp, const std::shared_ptr<http_message> & request) {
+            [this, stream, crypto_tunnel](const service_provider & sp, const std::shared_ptr<http_message> & request) {
+          sp.set_property(
+            service_provider::property_scope::local_scope,
+            new http_context(crypto_tunnel->get_peer_certificate()));
           this->middleware_.process(sp, request)
             .wait(
               [stream](const service_provider & sp, const std::shared_ptr<http_message> & response) {

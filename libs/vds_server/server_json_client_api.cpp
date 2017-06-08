@@ -177,6 +177,7 @@ vds::_server_json_client_api::process(
         done(
           sp,
           client_messages::certificate_and_key_response(
+            cert->id(),
             cert->cert_body(),
             cert->cert_key()).serialize());
       }
@@ -190,7 +191,13 @@ vds::_server_json_client_api::process(
 {
   return create_async_task(
     [sp, message](const std::function<void(const service_provider & sp, std::shared_ptr<json_value>)> & done, const error_handler & on_error, const service_provider & sp){
-      sp.get<node_manager>()->register_server(sp, message.certificate_body())
+      sp.get<node_manager>()->register_server(
+        sp,
+        message.id(),
+        message.parent_id(),
+        message.server_certificate(),
+        message.server_private_key(),
+        message.password_hash())
         .wait(
           [done](const service_provider & sp) { done(sp, client_messages::register_server_response().serialize()); },
           on_error,
