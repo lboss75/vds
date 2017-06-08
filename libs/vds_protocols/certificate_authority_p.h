@@ -15,7 +15,9 @@ namespace vds {
     _certificate_authority(certificate_authority* owner);
     ~_certificate_authority();
       
-    static certificate create_root_user(const asymmetric_private_key & private_key);
+    static certificate create_root_user(
+      const guid & id,
+      const asymmetric_private_key & private_key);
 
   private:
       certificate_authority * const owner_;

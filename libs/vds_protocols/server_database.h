@@ -19,6 +19,9 @@ namespace vds {
       const service_provider & sp,
       const principal_record & record);
 
+    guid get_root_principal(
+      const service_provider & sp);
+
     void add_user_principal(
       const service_provider & sp,
       const std::string & login,
@@ -48,6 +51,7 @@ namespace vds {
     principal_log_record add_local_record(
       const service_provider & sp,
       const principal_log_record::record_id & record_id,
+      const guid & principal_id,
       const std::shared_ptr<json_value> & message,
       const_data_buffer & signature);
 

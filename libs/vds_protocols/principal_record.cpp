@@ -9,11 +9,13 @@ All rights reserved
 #include "storage_log_p.h"
 
 vds::principal_record::principal_record(
-  const guid & object_name,
+  const guid & parent_principal,
+  const guid & id,
   const std::string & cert_body,
   const std::string & cert_key,
   const const_data_buffer & password_hash)
-  : object_name_(object_name),
+: parent_principal_(parent_principal),
+  id_(id),
   cert_body_(cert_body),
   cert_key_(cert_key),
   password_hash_(password_hash)

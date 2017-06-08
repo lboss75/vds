@@ -28,6 +28,7 @@ namespace vds {
 
     void add_to_local_log(
       const service_provider & sp,
+      const guid & principal_id,
       const std::shared_ptr<json_value> & record);
 
     size_t new_message_id();
@@ -51,6 +52,7 @@ namespace vds {
 
     void reset(
       const service_provider & sp,
+      const guid & principal_id,
       const certificate & root_certificate,
       const asymmetric_private_key & private_key,
       const std::string & root_password,

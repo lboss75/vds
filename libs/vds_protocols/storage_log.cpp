@@ -16,7 +16,7 @@ All rights reserved
 #include "chunk_storage.h"
 #include "server_log_sync.h"
 #include "server_log_sync_p.h"
-
+#include "server_certificate.h"
 
 const vds::guid & vds::istorage_log::current_server_id() const
 {
@@ -40,9 +40,10 @@ size_t vds::istorage_log::minimal_consensus() const
 
 void vds::istorage_log::add_to_local_log(
   const service_provider & sp,
+  const guid & principal_id,
   const std::shared_ptr<json_value> & record)
 {
-  static_cast<_storage_log *>(this)->add_to_local_log(sp, record);
+  static_cast<_storage_log *>(this)->add_to_local_log(sp, principal_id, record);
 }
 
 size_t vds::istorage_log::new_message_id()
@@ -81,6 +82,7 @@ void vds::istorage_log::get_endpoints(
 
 void vds::istorage_log::reset(
   const service_provider & sp,
+  const guid & principal_id,
   const vds::certificate & root_certificate,
   const asymmetric_private_key & private_key,
   const std::string & root_password,
@@ -88,6 +90,7 @@ void vds::istorage_log::reset(
 {
   static_cast<_storage_log *>(this)->reset(
     sp,
+    principal_id,
     root_certificate,
     private_key,
     root_password,
@@ -123,6 +126,7 @@ vds::_storage_log::~_storage_log()
 
 void vds::_storage_log::reset(
   const service_provider & sp,
+  const guid & principal_id,
   const certificate & root_certificate,
   const asymmetric_private_key & private_key,
   const std::string & password,
@@ -138,12 +142,19 @@ void vds::_storage_log::reset(
   
   this->add_to_local_log(
     sp,
+    principal_id,
     server_log_root_certificate(
+      principal_id,
       root_certificate.str(),
       private_key.str(password),
       ph.signature()).serialize());
-  this->add_to_local_log(sp, server_log_new_server(this->server_certificate_.str()).serialize());
-  this->add_to_local_log(sp, server_log_new_endpoint(this->current_server_id_, addresses).serialize());
+  this->add_to_local_log(sp, principal_id, server_log_new_server(
+    this->current_server_id_,
+    principal_id,
+    this->server_certificate_.str(),
+    this->current_server_key_.str(password),
+    ph.signature()).serialize());
+  this->add_to_local_log(sp, principal_id, server_log_new_endpoint(this->current_server_id_, addresses).serialize());
 }
 
 
@@ -157,7 +168,6 @@ void vds::_storage_log::start(
   this->current_server_key_ = server_private_key;
   this->current_server_id_ = current_server_id;
   this->vds_folder_ = foldername(persistence::current_user(sp), ".vds");
-
   this->process_timer_.start(sp, std::chrono::seconds(5), [this, sp](){
     return this->process_timer_jobs(sp);
   });
@@ -177,13 +187,15 @@ vds::async_task<> vds::_storage_log::register_server(
       const std::function<void(const service_provider & sp)> & done,
       const error_handler & on_error,
       const service_provider & sp) {
-    this->add_to_local_log(sp, server_log_new_server(server_certificate).serialize());
+    throw std::runtime_error("Not implemented");
+    //this->add_to_local_log(sp, server_log_new_server(server_certificate).serialize());
     done(sp);
   });
 }
 
 void vds::_storage_log::add_to_local_log(
   const service_provider & sp,
+  const guid & principal_id,
   const std::shared_ptr<json_value> & message)
 {
   std::lock_guard<std::mutex> lock(this->record_state_mutex_);
@@ -192,6 +204,7 @@ void vds::_storage_log::add_to_local_log(
   auto result = sp.get<iserver_database>()->add_local_record(
       sp,
       guid::new_guid(),
+      principal_id,
       message,
       signature);
     
@@ -246,12 +259,24 @@ void vds::_storage_log::apply_record(
         sp,
         "root",
         vds::principal_record(
-          guid::new_guid(),
+          msg.id(),
+          msg.id(),
           msg.user_cert(),
           msg.user_private_key(),
           msg.password_hash()));
     }
     else if(server_log_new_server::message_type == message_type){
+      server_log_new_server msg(obj);
+
+      sp.get<iserver_database>()->add_principal(
+        sp,
+        vds::principal_record(
+          msg.parent_id(),
+          msg.id(),
+          msg.server_cert(),
+          msg.server_private_key(),
+          msg.password_hash()));
+
     }
     else if(server_log_new_endpoint::message_type == message_type){
       server_log_new_endpoint msg(obj);
@@ -269,6 +294,8 @@ void vds::_storage_log::apply_record(
       sp.get<iserver_database>()->delete_record(sp, record.id());
       return;
     }
+
+    this->last_applied_record_ = record.id();
   }
   catch(...){
     sp.get<logger>()->info(sp, "%s", exception_what(std::current_exception()).c_str());

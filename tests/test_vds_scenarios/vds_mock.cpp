@@ -369,7 +369,8 @@ void mock_server::init_root(const std::string & root_password, int port)
     vds::asymmetric_private_key private_key(vds::asymmetric_crypto::rsa4096());
     private_key.generate();
 
-    vds::certificate root_certificate = vds::_certificate_authority::create_root_user(private_key);
+    auto root_id = vds::guid::new_guid();
+    vds::certificate root_certificate = vds::_certificate_authority::create_root_user(root_id, private_key);
 
     vds::asymmetric_private_key server_private_key(vds::asymmetric_crypto::rsa4096());
     server_private_key.generate();
@@ -390,6 +391,7 @@ void mock_server::init_root(const std::string & root_password, int port)
 
     sp.get<vds::istorage_log>()->reset(
       sp,
+      root_id,
       root_certificate,
       private_key,
       root_password,

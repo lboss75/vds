@@ -25,14 +25,16 @@ vds::certificate vds::certificate_authority::create_server(
 }
 
 
-vds::certificate vds::_certificate_authority::create_root_user(const asymmetric_private_key & private_key)
+vds::certificate vds::_certificate_authority::create_root_user(
+  const guid & id,
+  const asymmetric_private_key & private_key)
 {
   asymmetric_public_key pkey(private_key);
 
   certificate::create_options options;
   options.country = "RU";
   options.organization = "IVySoft";
-  options.name = "Certificate " + guid::new_guid().str();
+  options.name = "Certificate " + id.str();
 
   return certificate::create_new(pkey, private_key, options);
 }

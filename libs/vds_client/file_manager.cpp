@@ -4,6 +4,7 @@
 #include "symmetriccrypto.h"
 
 ////////////////////////////////////////
+/*
 vds::async_task<> vds::upload_file(
   const service_provider & sp,
   const std::string & name,
@@ -42,3 +43,4 @@ vds::async_task<> vds::upload_file(
   
   this->client_->push_object();
 }
+*/

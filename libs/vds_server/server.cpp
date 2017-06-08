@@ -15,8 +15,6 @@ All rights reserved
 #include "server_udp_api.h"
 #include "node_manager.h"
 #include "node_manager_p.h"
-#include "file_manager.h"
-#include "file_manager_p.h"
 #include "storage_log_p.h"
 #include "chunk_manager_p.h"
 #include "server_database_p.h"
@@ -53,8 +51,6 @@ void vds::server::register_services(service_registrator& registrator)
 
   registrator.add_service<node_manager>(this->impl_->node_manager_.get());
 
-  registrator.add_service<file_manager>(this->impl_->file_manager_.get());
-
   registrator.add_service<cert_manager>(this->impl_->cert_manager_.get());
 }
 
@@ -83,8 +79,7 @@ vds::_server::_server(server * owner)
   node_manager_(new _node_manager()),
   server_http_api_(new _server_http_api()),
   local_cache_(new _local_cache()),
-  chunk_manager_(new _chunk_manager()),
-  file_manager_(new _file_manager())
+  chunk_manager_(new _chunk_manager())
 {
 }
 

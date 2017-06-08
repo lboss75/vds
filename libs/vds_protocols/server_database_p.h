@@ -30,6 +30,9 @@ namespace vds {
       const std::string & login,
       const principal_record & record);
 
+    guid get_root_principal(
+      const service_provider & sp);
+
     std::unique_ptr<principal_record> find_principal(
       const service_provider & sp,
       const guid & object_name);
@@ -53,6 +56,7 @@ namespace vds {
     principal_log_record add_local_record(
       const service_provider & sp,
       const principal_log_record::record_id & record_id,
+      const guid & principal_id,
       const std::shared_ptr<json_value> & message,
       const_data_buffer & signature);
 
@@ -91,16 +95,18 @@ namespace vds {
     iserver_database::principal_log_state principal_log_get_state(
       const service_provider & sp,
       const principal_log_record::record_id & record_id);
+
   private:
     database db_;
 
     std::mutex operation_mutex_;
 
     prepared_statement<
-      const guid & /* object_name */,
+      const guid & /* id */,
       const std::string & /* body */,
       const std::string & /* key */,
-      const const_data_buffer & /*password_hash*/> add_principal_statement_;
+      const const_data_buffer & /*password_hash*/,
+      const guid & /* parent */> add_principal_statement_;
       
     prepared_query<
       const guid & /* object_name */> find_principal_query_;
@@ -142,6 +148,7 @@ namespace vds {
 
     prepared_statement<
       const guid & /*record_id*/,
+      const guid & /*principal_id*/,
       const std::string & /* body */,
       const const_data_buffer & /* signature */,
       int /*order_num*/,
@@ -150,6 +157,7 @@ namespace vds {
     void add_principal_log(
       const service_provider & sp,
       const guid & record_id,
+      const guid & principal_id,
       const std::string & body,
       const const_data_buffer & signature,
       int order_num,

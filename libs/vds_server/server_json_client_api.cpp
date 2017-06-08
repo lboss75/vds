@@ -88,12 +88,12 @@ std::shared_ptr<vds::json_value> vds::_server_json_client_api::operator()(
               //TODO: else if (consensus_messages::consensus_message_who_is_leader::message_type == task_type_name) {
               //  task = scope.get<iserver>().consensus_server_protocol().process(scope, consensus_messages::consensus_message_who_is_leader(task_object));
               //}
-              else if (client_messages::put_file_message::message_type == task_type_name) {
-                task = this->process(sp, client_messages::put_file_message(task_object));
-              }
-              else if (client_messages::get_file_message_request::message_type == task_type_name) {
-                task = this->process(sp, client_messages::get_file_message_request(task_object));
-              }
+              //else if (client_messages::put_object_message::message_type == task_type_name) {
+              //  task = this->process(sp, client_messages::put_object_message(task_object));
+              //}
+              //else if (client_messages::get_file_message_request::message_type == task_type_name) {
+              //  task = this->process(sp, client_messages::get_file_message_request(task_object));
+              //}
               else {
                 sp.get<logger>()->warning(sp, "Invalid request type \'%s\'", task_type_name.c_str());
                 throw std::runtime_error("Invalid request type " + task_type_name);
@@ -198,10 +198,11 @@ vds::_server_json_client_api::process(
       });
 }
 
+/*
 vds::async_task<std::shared_ptr<vds::json_value>>
 vds::_server_json_client_api::process(
   const service_provider & sp,
-  const client_messages::put_file_message & message)
+  const client_messages::put_object_message & message)
 {
   auto version_id = guid::new_guid().str();
   
@@ -217,7 +218,7 @@ vds::_server_json_client_api::process(
                    const error_handler & on_error,
                    const service_provider & sp) {
 
-    done(sp, client_messages::put_file_message_response(version_id).serialize());
+    done(sp, client_messages::put_object_message_response(version_id).serialize());
   });
 }
 
@@ -238,3 +239,4 @@ vds::async_task<std::shared_ptr<vds::json_value>> vds::_server_json_client_api::
     done(sp, client_messages::get_file_message_response(meta_info, tmp_file).serialize());
   });
 }
+*/

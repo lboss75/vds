@@ -48,23 +48,26 @@ namespace vds {
 
     principal_log_record(
       const record_id & id,
+      const guid & principal_id,
       const std::list<record_id> & parents,
       const std::shared_ptr<json_value> & message,
-      int order_num);
+      size_t order_num);
     
     principal_log_record(const std::shared_ptr<json_value> & source);
 
     void reset(
       const record_id & id,
+      const guid & principal_id,
       const std::list<record_id> & parents,
       const std::shared_ptr<json_value> & message,
-      int order_num);
+      size_t order_num);
 
     const std::shared_ptr<json_value> &  message() const { return this->message_; }
 
     const record_id & id() const { return this->id_; }
+    const guid & principal_id() const { return this->principal_id_; }
     const std::list<record_id> parents() const { return this->parents_; }
-    int order_num() const { return this->order_num_; }
+    size_t order_num() const { return this->order_num_; }
     void add_parent(const guid & index);
 
     binary_deserializer & deserialize(const service_provider & sp, binary_deserializer & b);
@@ -73,9 +76,10 @@ namespace vds {
 
   private:
     record_id id_;
+    guid principal_id_;
     std::list<record_id> parents_;
     std::shared_ptr<json_value> message_;
-    int order_num_;
+    size_t order_num_;
   };
 
   class server_log_root_certificate
@@ -84,12 +88,14 @@ namespace vds {
     static const char message_type[];
 
     server_log_root_certificate(
+      const guid & id,
       const std::string & user_cert,
       const std::string & user_private_key,
       const const_data_buffer & password_hash);
 
     server_log_root_certificate(const std::shared_ptr<json_value> & source);
     
+    const guid & id() const { return this->id_; }
     const std::string & user_cert() const { return this->user_cert_; }
     const std::string & user_private_key() const { return this->user_private_key_; }
     const const_data_buffer & password_hash() const { return this->password_hash_; }
@@ -97,42 +103,58 @@ namespace vds {
     std::shared_ptr<json_value> serialize() const;
 
   private:
+    guid id_;
     std::string user_cert_;
     std::string user_private_key_;
     const_data_buffer password_hash_;
   };
   
-  class server_log_new_user_certificate
-  {
-  public:
-    static const char message_type[];
+  //class server_log_new_user_certificate
+  //{
+  //public:
+  //  static const char message_type[];
 
-    server_log_new_user_certificate(uint64_t user_cert);
+  //  server_log_new_user_certificate(uint64_t user_cert);
 
-    server_log_new_user_certificate(const std::shared_ptr<json_value> & source);
+  //  server_log_new_user_certificate(const std::shared_ptr<json_value> & source);
 
-    uint64_t user_cert() const { return this->user_cert_; }
+  //  uint64_t user_cert() const { return this->user_cert_; }
 
-    std::shared_ptr<json_value> serialize() const;
+  //  std::shared_ptr<json_value> serialize() const;
 
-  private:
-    uint64_t user_cert_;
-  };
+  //private:
+  //  uint64_t user_cert_;
+  //};
 
   class server_log_new_server
   {
   public:
     static const char message_type[];
     
-    server_log_new_server(const std::string & certificate);
-    server_log_new_server(const std::shared_ptr<json_value> & source);
+    server_log_new_server(
+      const guid & id,
+      const guid & parent_id,
+      const std::string & server_cert,
+      const std::string & server_private_key,
+      const const_data_buffer & password_hash);
 
-    const std::string & certificate () const { return this->certificate_; }
-    
+    server_log_new_server(
+      const std::shared_ptr<json_value> & source);
+
+    const guid & id() const { return this->id_; }
+    const guid & parent_id() const { return this->parent_id_; }
+    const std::string & server_cert() const { return this->server_cert_; }
+    const std::string & server_private_key() const { return this->server_private_key_; }
+    const const_data_buffer & password_hash() const { return this->password_hash_; }
+
     std::shared_ptr<json_value> serialize() const;
     
   private:
-    std::string certificate_;
+    guid id_;
+    guid parent_id_;
+    std::string server_cert_;
+    std::string server_private_key_;
+    const_data_buffer password_hash_;
   };
 
   class server_log_new_endpoint

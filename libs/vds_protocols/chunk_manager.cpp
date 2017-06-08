@@ -32,19 +32,16 @@ void vds::ichunk_manager::set_next_index(
 {
   static_cast<_chunk_manager *>(this)->set_next_index(sp, next_index);
 }
-
+*/
 //////////////////////////////////////////////////////////////////////
 vds::_chunk_manager::_chunk_manager()
-: last_tmp_file_index_(0),
-  last_obj_file_index_(0),
-  obj_size_(0)
 {
 }
 
 vds::_chunk_manager::~_chunk_manager()
 {
 }
-
+/*
 vds::async_task<>
 vds::_chunk_manager::add(
   const service_provider & sp,
@@ -123,21 +120,14 @@ void vds::_chunk_manager::set_next_index(const service_provider & sp, uint64_t n
 {
   this->last_obj_file_index_ = next_index;
 }
-
+*/
 void vds::_chunk_manager::start(const service_provider & sp)
 {
   this->tmp_folder_ = foldername(foldername(persistence::current_user(sp), ".vds"), "tmp");
   this->tmp_folder_.create();
-
-  this->set_next_index(
-    sp,
-    sp.get<iserver_database>()->last_object_index(
-      sp,
-      sp.get<istorage_log>()->current_server_id()));
 }
 
 void vds::_chunk_manager::stop(const service_provider & sp)
 {
 }
 
-*/

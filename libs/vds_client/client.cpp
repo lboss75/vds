@@ -202,50 +202,50 @@ vds::async_task<const std::string& /*version_id*/> vds::_client::upload_file(
       const certificate& user_certificate,
       const asymmetric_private_key& user_private_key) {
 
-    sp.get<logger>()->trace(sp, "Crypting data");
+    //sp.get<logger>()->trace(sp, "Crypting data");
 
-    symmetric_key transaction_key(symmetric_crypto::aes_256_cbc());
-    transaction_key.generate();
+    //symmetric_key transaction_key(symmetric_crypto::aes_256_cbc());
+    //transaction_key.generate();
 
-    binary_serializer key_data;
-    transaction_key.serialize(key_data);
+    //binary_serializer key_data;
+    //transaction_key.serialize(key_data);
 
-    auto key_crypted = user_certificate.public_key().encrypt(key_data.data());
+    //auto key_crypted = user_certificate.public_key().encrypt(key_data.data());
 
-    this->tmp_folder_mutex_.lock();
-    auto tmp_index = this->last_tmp_file_index_++;
-    this->tmp_folder_mutex_.unlock();
+    //this->tmp_folder_mutex_.lock();
+    //auto tmp_index = this->last_tmp_file_index_++;
+    //this->tmp_folder_mutex_.unlock();
 
-    filename tmp_file(this->tmp_folder_, std::to_string(tmp_index));
+    //filename tmp_file(this->tmp_folder_, std::to_string(tmp_index));
 
-    binary_serializer to_sign;
-    to_sign << key_crypted;
+    //binary_serializer to_sign;
+    //to_sign << key_crypted;
 
-    binary_serializer datagram;
-    datagram << key_crypted;
-    datagram << asymmetric_sign::signature(
-      hash::sha256(),
-      user_private_key,
-      to_sign.data());
+    //binary_serializer datagram;
+    //datagram << key_crypted;
+    //datagram << asymmetric_sign::signature(
+    //  hash::sha256(),
+    //  user_private_key,
+    //  to_sign.data());
 
-    dataflow(
-      file_read(fn),
-      deflate(),
-      symmetric_encrypt(transaction_key),
-      file_write(tmp_file, file::file_mode::create_new))(
-        [this, tmp_file, user_login, name, done, on_error, info = const_data_buffer(datagram.data())](const service_provider & sp) {
+    //dataflow(
+    //  file_read(fn),
+    //  deflate(),
+    //  symmetric_encrypt(transaction_key),
+    //  file_write(tmp_file, file::file_mode::create_new))(
+    //    [this, tmp_file, user_login, name, done, on_error, info = const_data_buffer(datagram.data())](const service_provider & sp) {
 
-      sp.get<logger>()->trace(sp, "Upload file");
-      this->owner_->logic_->put_file(
-        sp,
-        user_login,
-        name,
-        info,
-        tmp_file)
-        .wait(done, on_error, sp);
-    },
-        [](const service_provider & sp, std::exception_ptr ex) { std::rethrow_exception(ex); },
-      sp);
+    //  sp.get<logger>()->trace(sp, "Upload file");
+    //  this->owner_->logic_->put_file(
+    //    sp,
+    //    user_login,
+    //    name,
+    //    info,
+    //    tmp_file)
+    //    .wait(done, on_error, sp);
+    //},
+    //    [](const service_provider & sp, std::exception_ptr ex) { std::rethrow_exception(ex); },
+    //  sp);
 
   });
 }
@@ -270,55 +270,55 @@ vds::_client::download_data(
         const certificate& user_certificate,
         const asymmetric_private_key& user_private_key) {
 
-    sp.get<logger>()->trace(sp, "Downloading file");
-    this->owner_->logic_->download_file(sp, user_login, name).wait(
-      [this, done, on_error, user_certificate = certificate::parse(user_certificate.str()), user_private_key, target_file]
-      (const service_provider & sp, const const_data_buffer & meta_info, const filename & tmp_file) {
+    //sp.get<logger>()->trace(sp, "Downloading file");
+    //this->owner_->logic_->download_file(sp, user_login, name).wait(
+    //  [this, done, on_error, user_certificate = certificate::parse(user_certificate.str()), user_private_key, target_file]
+    //  (const service_provider & sp, const const_data_buffer & meta_info, const filename & tmp_file) {
 
-      sp.get<logger>()->trace(sp, "Decrypting data");
-      const_data_buffer key_crypted;
-      const_data_buffer signature;
+    //  sp.get<logger>()->trace(sp, "Decrypting data");
+    //  const_data_buffer key_crypted;
+    //  const_data_buffer signature;
 
-      binary_deserializer datagram(meta_info);
-      datagram
-        >> key_crypted
-        >> signature;
+    //  binary_deserializer datagram(meta_info);
+    //  datagram
+    //    >> key_crypted
+    //    >> signature;
 
-      binary_serializer to_sign;
-      to_sign << key_crypted;
+    //  binary_serializer to_sign;
+    //  to_sign << key_crypted;
 
-      if (!asymmetric_sign_verify::verify(
-        hash::sha256(),
-        user_certificate.public_key(),
-        signature,
-        to_sign.data().data(),
-        to_sign.data().size())) {
-        throw std::runtime_error("Invalid data");
-      }
+    //  if (!asymmetric_sign_verify::verify(
+    //    hash::sha256(),
+    //    user_certificate.public_key(),
+    //    signature,
+    //    to_sign.data().data(),
+    //    to_sign.data().size())) {
+    //    throw std::runtime_error("Invalid data");
+    //  }
 
-      symmetric_key transaction_key(
-        symmetric_crypto::aes_256_cbc(),
-        binary_deserializer(user_private_key.decrypt(key_crypted)));
+    //  symmetric_key transaction_key(
+    //    symmetric_crypto::aes_256_cbc(),
+    //    binary_deserializer(user_private_key.decrypt(key_crypted)));
 
-      std::exception_ptr error;
-      dataflow(
-        file_read(tmp_file),
-        symmetric_decrypt(transaction_key),
-        deflate(),
-        file_write(target_file, file::file_mode::create_new))(
-          [](const service_provider & sp) { },
-          [&error](const service_provider & sp, std::exception_ptr ex) { error = ex; },
-          sp);
+    //  std::exception_ptr error;
+    //  dataflow(
+    //    file_read(tmp_file),
+    //    symmetric_decrypt(transaction_key),
+    //    deflate(),
+    //    file_write(target_file, file::file_mode::create_new))(
+    //      [](const service_provider & sp) { },
+    //      [&error](const service_provider & sp, std::exception_ptr ex) { error = ex; },
+    //      sp);
 
-      if (error) {
-        on_error(sp, error);
-      }
-      else {
-        done(sp);
-      }
-    },
-      on_error,
-      sp);
+    //  if (error) {
+    //    on_error(sp, error);
+    //  }
+    //  else {
+    //    done(sp);
+    //  }
+    //},
+    //  on_error,
+    //  sp);
   });
 }
 

@@ -16,6 +16,11 @@ void vds::iserver_database::add_principal(
   static_cast<_server_database *>(this)->add_principal(sp, record);
 }
 
+vds::guid vds::iserver_database::get_root_principal(const service_provider & sp)
+{
+  return static_cast<_server_database *>(this)->get_root_principal(sp);
+}
+
 void vds::iserver_database::add_user_principal(
   const service_provider & sp,
   const std::string & login,
@@ -68,10 +73,11 @@ void vds::iserver_database::get_endpoints(
 vds::principal_log_record vds::iserver_database::add_local_record(
   const service_provider & sp,
   const principal_log_record::record_id & record_id,
+  const guid & principal_id,
   const std::shared_ptr<json_value> & message,
   const_data_buffer & signature)
 {
-  return static_cast<_server_database *>(this)->add_local_record(sp, record_id, message, signature);
+  return static_cast<_server_database *>(this)->add_local_record(sp, record_id, principal_id, message, signature);
 }
 
 bool vds::iserver_database::save_record(
@@ -171,20 +177,21 @@ void vds::_server_database::start(const service_provider & sp)
       cert TEXT NOT NULL,\
       key TEXT NOT NULL,\
       password_hash VARCHAR(64) NOT NULL,\
+      parent VARCHAR(64) NOT NULL,\
       CONSTRAINT pk_principal PRIMARY KEY(id))");
 
     this->db_.execute(
       "CREATE TABLE user_principal(\
-      principal_id VARCHAR(64) NOT NULL,\
+      id VARCHAR(64) NOT NULL,\
       login VARCHAR(64) NOT NULL,\
-      CONSTRAINT pk_user_principal PRIMARY KEY(object_name))");
+      CONSTRAINT pk_user_principal PRIMARY KEY(id))");
 
     this->db_.execute(
       "CREATE TABLE object(\
       object_id VARCHAR(64) NOT NULL,\
       lenght INTEGER NOT NULL,\
       hash VARCHAR(64) NOT NULL,\
-      CONSTRAINT pk_objects PRIMARY KEY (object_index))");
+      CONSTRAINT pk_objects PRIMARY KEY (object_id))");
 
     this->db_.execute(
       "CREATE TABLE endpoint(\
@@ -242,13 +249,14 @@ void vds::_server_database::add_principal(
 {
   this->add_principal_statement_.execute(
     this->db_,
-    "INSERT INTO principal(object_name, cert, key, password_hash)\
-      VALUES (@object_name, @cert, @key, @password_hash)",
+    "INSERT INTO principal(id, cert, key, password_hash, parent)\
+      VALUES (@id, @cert, @key, @password_hash, @parent)",
 
-    record.object_name(),
+    record.id(),
     record.cert_body(),
     record.cert_key(),
-    record.password_hash());
+    record.password_hash(),
+    record.parent_principal());
 }
 
 void vds::_server_database::add_user_principal(
@@ -260,11 +268,31 @@ void vds::_server_database::add_user_principal(
 
   this->add_user_principal_statement_.execute(
     this->db_,
-    "INSERT INTO user_principal(object_name, login)\
-      VALUES (@object_name, @login)",
+    "INSERT INTO user_principal(id, login)\
+      VALUES (@id, @login)",
 
-    record.object_name(),
+    record.id(),
     login);
+}
+
+vds::guid vds::_server_database::get_root_principal(
+  const service_provider & sp)
+{
+  vds::guid result;
+
+  auto st = this->db_.parse("SELECT id FROM principal WHERE id=parent");
+  while(st.execute()) {
+    if (0 < result.size()) {
+      throw std::runtime_error("Database is corrupt");
+    }
+    st.get_value(0, result);
+  }
+
+  if (0 == result.size()) {
+    throw std::runtime_error("Database is corrupt");
+  }
+
+  return result;
 }
 
 std::unique_ptr<vds::principal_record> vds::_server_database::find_principal(
@@ -274,20 +302,23 @@ std::unique_ptr<vds::principal_record> vds::_server_database::find_principal(
   std::unique_ptr<principal_record> result;
   this->find_principal_query_.query(
     this->db_,
-    "SELECT cert,key,password_hash\
+    "SELECT parent,cert,key,password_hash\
      FROM principal\
-     WHERE object_name=@object_name",
+     WHERE id=@id",
     [&result, object_name](sql_statement & st)->bool{
       
+      guid parent;
       std::string body;
       std::string key;
       const_data_buffer password_hash;
       
-      st.get_value(0, body);
-      st.get_value(1, key);
-      st.get_value(2, password_hash);
+      st.get_value(0, parent);
+      st.get_value(1, body);
+      st.get_value(2, key);
+      st.get_value(3, password_hash);
 
       result.reset(new principal_record(
+        parent,
         object_name,
         body,
         key,
@@ -306,24 +337,27 @@ std::unique_ptr<vds::principal_record> vds::_server_database::find_user_principa
   std::unique_ptr<principal_record> result;
   this->find_user_principal_query_.query(
     this->db_,
-    "SELECT p.object_name,p.cert,p.key,p.password_hash\
+    "SELECT p.parent,p.id,p.cert,p.key,p.password_hash\
      FROM principal p\
      INNER JOIN user_principal u\
-     ON u.object_name=p.object_name\
-     WHERE u.login=@object_name",
+     ON u.id=p.id\
+     WHERE u.login=@login",
     [&result, object_name](sql_statement & st)->bool {
 
+    guid parent;
     guid name;
     std::string body;
     std::string key;
     const_data_buffer password_hash;
 
-    st.get_value(0, name);
-    st.get_value(1, body);
-    st.get_value(2, key);
-    st.get_value(3, password_hash);
+    st.get_value(0, parent);
+    st.get_value(1, name);
+    st.get_value(2, body);
+    st.get_value(3, key);
+    st.get_value(4, password_hash);
 
     result.reset(new principal_record(
+      parent,
       name,
       body,
       key,
@@ -384,6 +418,7 @@ vds::principal_log_record
   vds::_server_database::add_local_record(
     const service_provider & sp,
     const principal_log_record::record_id & record_id,
+    const guid & principal_id,
     const std::shared_ptr<json_value> & message,
     const_data_buffer & signature)
 {
@@ -391,7 +426,7 @@ vds::principal_log_record
 
   std::list<principal_log_record::record_id> parents;
 
-  int max_order_num = 0;
+  size_t max_order_num = 0;
   //Collect parents
   this->get_principal_log_tails_query_.query(
     this->db_,
@@ -413,7 +448,7 @@ vds::principal_log_record
   });
 
   //Sign message
-  principal_log_record result(record_id, parents, message, max_order_num + 1);
+  principal_log_record result(record_id, principal_id, parents, message, max_order_num + 1);
   std::string body = result.serialize(false)->str();
   signature = asymmetric_sign::signature(
     hash::sha256(),
@@ -425,6 +460,7 @@ vds::principal_log_record
   this->add_principal_log(
     sp,
     record_id,
+    principal_id,
     message->str(),
     signature,
     max_order_num + 1,
@@ -472,6 +508,7 @@ bool vds::_server_database::save_record(
   this->add_principal_log(
     sp,
     record.id(),
+    record.principal_id(),
     record.message()->str(),
     signature,
     record.order_num(),
@@ -503,6 +540,7 @@ void vds::_server_database::principal_log_add_link(
 void vds::_server_database::add_principal_log(
   const service_provider & sp,
   const guid & record_id,
+  const guid & principal_id,
   const std::string & body,
   const const_data_buffer & signature,
   int order_num,
@@ -510,9 +548,10 @@ void vds::_server_database::add_principal_log(
 {
   this->principal_log_add_statement_.execute(
     this->db_,
-    "INSERT INTO principal_log (source_id,source_index,message,signature,order_num,state)\
-    VALUES (@source_id,@source_index,@message,@signature,@order_num,@state)",
+    "INSERT INTO principal_log (id,principal_id,message,signature,order_num,state)\
+    VALUES (@id,@principal_id,@message,@signature,@order_num,@state)",
     record_id,
+    principal_id,
     body,
     signature,
     order_num,
@@ -690,7 +729,7 @@ void vds::_server_database::get_unknown_records(
      WHERE NOT EXISTS (\
       SELECT * \
       FROM principal_log \
-      WHERE principal_log.source_id=principal_log_link.parent_id)",
+      WHERE principal_log.id=principal_log_link.parent_id)",
     [&result](sql_statement & st)->bool {
 
     principal_log_record::record_id item;
@@ -712,16 +751,18 @@ bool vds::_server_database::get_record(
   bool result = false;
 
   std::string message;
-  int order_num;
+  guid principal_id;
+  size_t order_num;
 
   this->principal_log_get_query_.query(
     this->db_,
-    "SELECT message, signature, order_num FROM  principal_log WHERE source_id=@source_id",
-    [&result, &message, &result_signature, &order_num](sql_statement & st)->bool {
+    "SELECT message, principal_id, signature, order_num FROM  principal_log WHERE source_id=@source_id",
+    [&result, &message, &principal_id, &result_signature, &order_num](sql_statement & st)->bool {
 
       st.get_value(0, message);
-      st.get_value(1, result_signature);
-      st.get_value(2, order_num);
+      st.get_value(1, principal_id);
+      st.get_value(2, result_signature);
+      st.get_value(3, order_num);
       
       result = true;
 
@@ -739,9 +780,10 @@ bool vds::_server_database::get_record(
       json_parser("Message body"),
       dataflow_require_once<std::shared_ptr<json_value>>(&body)
     )(
-      [&id, &result_record, &parents, &body, order_num](const service_provider & sp) {
+      [&id, &result_record, &parents, &body, principal_id, order_num](const service_provider & sp) {
         result_record.reset(
           id,
+          principal_id,
           parents,
           body,
           order_num);
@@ -781,18 +823,20 @@ bool vds::_server_database::get_record_by_state(
   bool result = false;
 
   principal_log_record::record_id id;
+  guid principal_id;
   std::string message;
   int order_num;
 
   this->get_record_by_state_query_.query(
     this->db_,
-    "SELECT id,message,order_num,signature FROM  principal_log WHERE state=@state LIMIT 1",
-    [&result, &id, &message, &order_num, &result_signature](sql_statement & st)->bool {
+    "SELECT id,principal_id,message,order_num,signature FROM  principal_log WHERE state=@state LIMIT 1",
+    [&result, &id, &principal_id, &message, &order_num, &result_signature](sql_statement & st)->bool {
 
       st.get_value(0, id);
-      st.get_value(1, message);
-      st.get_value(2, order_num);
-      st.get_value(3, result_signature);
+      st.get_value(1, principal_id);
+      st.get_value(2, message);
+      st.get_value(3, order_num);
+      st.get_value(4, result_signature);
 
       result = true;
 
@@ -810,10 +854,11 @@ bool vds::_server_database::get_record_by_state(
       json_parser("Message body"),
       dataflow_require_once<std::shared_ptr<json_value>>(&body)
     )(
-      [&id, &result_record, &parents, &body, order_num](
+      [&id, principal_id, &result_record, &parents, &body, order_num](
         const service_provider & sp) {
         result_record.reset(
           id,
+          principal_id,
           parents,
           body,
           order_num);

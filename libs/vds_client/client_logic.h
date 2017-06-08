@@ -75,18 +75,6 @@ namespace vds {
       const service_provider & sp,
       const std::string & request_id);
 
-    async_task<const std::string& /*version_id*/> put_file(
-      const service_provider & sp,
-      const std::string & user_login,
-      const std::string & name,
-      const const_data_buffer & meta_info,
-      const filename & tmp_file);
-
-    async_task<const_data_buffer /*meta_info*/, filename> download_file(
-      const service_provider & sp,
-      const std::string & user_login,
-      const std::string & name);
-
   private:
     std::string server_address_;
     certificate * client_certificate_;

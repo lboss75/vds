@@ -81,15 +81,16 @@ namespace vds {
       std::shared_ptr<json_value> serialize() const;
     };
     //////////////////////////////////////////////////////////////
-    class put_file_message
+    /*
+    class put_object_message
     {
     public:
       static const char message_type[];
 
-      put_file_message(const std::shared_ptr<json_value> &);
+      put_object_message(const std::shared_ptr<json_value> &);
       std::shared_ptr<json_value> serialize() const;
 
-      put_file_message(
+      put_object_message(
         const std::string & user_login,
         const std::string & name,
         const const_data_buffer & meta_info,
@@ -107,15 +108,15 @@ namespace vds {
       filename tmp_file_;
     };
 
-    class put_file_message_response
+    class put_object_message_response
     {
     public:
       static const char message_type[];
 
-      put_file_message_response(const std::shared_ptr<json_value> &);
+      put_object_message_response(const std::shared_ptr<json_value> &);
       std::shared_ptr<json_value> serialize() const;
 
-      put_file_message_response(const std::string & version_id);
+      put_object_message_response(const std::string & version_id);
       
       const std::string & version_id() const { return this->version_id_; }
       
@@ -161,7 +162,7 @@ namespace vds {
     private:
       const_data_buffer meta_info_;
       filename tmp_file_;
-    };
+    };*/
   };
 }
 

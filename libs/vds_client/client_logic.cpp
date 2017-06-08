@@ -274,57 +274,57 @@ void vds::client_logic::process(client_connection<client_logic>* connection, con
 }
 */
 
-vds::async_task<const std::string& /*version_id*/> vds::client_logic::put_file(
-  const service_provider & sp,
-  const std::string & user_login,
-  const std::string & name,
-  const const_data_buffer & meta_info,
-  const filename & tmp_file)
-{  
-  foldername tmp(persistence::current_user(sp), "tmp");
-  tmp.create();
-
-  auto version_id = guid::new_guid().str();
-
-  return this->send_request<client_messages::put_file_message_response>(
-    sp,
-    client_messages::put_file_message(
-      user_login,
-      name,
-      meta_info,
-      tmp_file).serialize())
-    .then([](
-      const std::function<void(const service_provider & sp, const std::string& /*version_id*/)> & done,
-      const error_handler & on_error,
-      const service_provider & sp, 
-      const client_messages::put_file_message_response & response) {
-    done(sp, response.version_id());
-  });
-}
-
-vds::async_task<vds::const_data_buffer /*meta_info*/, vds::filename> vds::client_logic::download_file(
-  const service_provider & sp,
-  const std::string & user_login,
-  const std::string & name)
-{
-  auto request_id = guid::new_guid().str();
-  std::string error;
-  std::string datagram;
-
-  return this->send_request<client_messages::get_file_message_response>(
-    sp,
-    client_messages::get_file_message_request(
-      user_login,
-      name).serialize())
-    .then([](
-      const std::function<void(const service_provider & sp, const_data_buffer meta_info, filename tmp_file)> & done,
-      const error_handler & on_error,
-      const service_provider & sp,
-      const client_messages::get_file_message_response & response) {
-    
-    done(sp, response.meta_info(), response.tmp_file());
-  });
-}
+//vds::async_task<const std::string& /*version_id*/> vds::client_logic::put_file(
+//  const service_provider & sp,
+//  const std::string & user_login,
+//  const std::string & name,
+//  const const_data_buffer & meta_info,
+//  const filename & tmp_file)
+//{  
+//  foldername tmp(persistence::current_user(sp), "tmp");
+//  tmp.create();
+//
+//  auto version_id = guid::new_guid().str();
+//
+//  return this->send_request<client_messages::put_object_message_response>(
+//    sp,
+//    client_messages::put_object_message(
+//      user_login,
+//      name,
+//      meta_info,
+//      tmp_file).serialize())
+//    .then([](
+//      const std::function<void(const service_provider & sp, const std::string& /*version_id*/)> & done,
+//      const error_handler & on_error,
+//      const service_provider & sp, 
+//      const client_messages::put_object_message_response & response) {
+//    done(sp, response.version_id());
+//  });
+//}
+//
+//vds::async_task<vds::const_data_buffer /*meta_info*/, vds::filename> vds::client_logic::download_file(
+//  const service_provider & sp,
+//  const std::string & user_login,
+//  const std::string & name)
+//{
+//  auto request_id = guid::new_guid().str();
+//  std::string error;
+//  std::string datagram;
+//
+//  return this->send_request<client_messages::get_file_message_response>(
+//    sp,
+//    client_messages::get_file_message_request(
+//      user_login,
+//      name).serialize())
+//    .then([](
+//      const std::function<void(const service_provider & sp, const_data_buffer meta_info, filename tmp_file)> & done,
+//      const error_handler & on_error,
+//      const service_provider & sp,
+//      const client_messages::get_file_message_response & response) {
+//    
+//    done(sp, response.meta_info(), response.tmp_file());
+//  });
+//}
 
 vds::client_logic::request_info::request_info(
   const std::shared_ptr<json_value> & task,
