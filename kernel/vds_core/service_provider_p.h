@@ -47,8 +47,8 @@ namespace vds {
     {
       this->shutdown_event_.set();
       while (!this->factories_.empty()) {
-        this->factories_.front()->stop(sp);
-        this->factories_.pop_front();
+        this->factories_.back()->stop(sp);
+        this->factories_.pop_back();
       }
     }
 

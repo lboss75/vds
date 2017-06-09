@@ -125,6 +125,7 @@ void vds::_network_service::stop(const service_provider & sp)
           event_base_loopbreak(this->base_);
         }
         while(std::future_status::ready != this->libevent_future_.wait_for(std::chrono::seconds(5)));
+        this->libevent_future_.wait();
 #else
         for (auto p : this->work_threads_) {
             p->join();

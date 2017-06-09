@@ -51,26 +51,24 @@ void vds::timer::stop(const vds::service_provider& sp)
 void vds::timer::execute(const vds::service_provider& sp)
 {
   try {
-    if (this->handler_()) {
+    if (!sp.get_shutdown_event().is_shuting_down() && this->handler_()) {
       this->schedule(sp);
     }
   }
   catch (const std::exception & ex) {
-    auto p = sp.get_property<unhandled_exception_handler>(service_provider::property_scope::any_scope);
-    if (nullptr != p) {
-      p->on_error(sp, std::make_shared<std::exception>(ex));
-    }
+    sp.unhandled_exception(std::make_shared<std::exception>(ex));
   }
   catch (...) {
-    auto p = sp.get_property<unhandled_exception_handler>(service_provider::property_scope::any_scope);
-    if (nullptr != p) {
-      p->on_error(sp, std::make_shared<std::runtime_error>("Unexpected error"));
-    }
+    sp.unhandled_exception(std::make_shared<std::runtime_error>("Unexpected error"));
   }
 }
 
 void vds::timer::schedule(const vds::service_provider& sp)
 {
+  if(sp.get_shutdown_event().is_shuting_down()){
+    return;
+  }
+  
   auto manager = static_cast<task_manager *>(sp.get<itask_manager>());
   
   this->start_time_ = std::chrono::steady_clock::now() + this->period_;
@@ -114,6 +112,10 @@ void vds::task_manager::stop(const service_provider &)
 
 void vds::task_manager::work_thread()
 {
+  std::mutex task_count_mutex;
+  size_t task_count = 0;
+  std::condition_variable task_count_cond;
+  
   while(!this->sp_.get_shutdown_event().is_shuting_down()){
   
     std::unique_lock<std::mutex> lock(this->scheduled_mutex_);
@@ -123,8 +125,22 @@ void vds::task_manager::work_thread()
     for(auto task : this->scheduled_){
       if(task->start_time_ <= now){
         this->scheduled_.remove(task);
-        imt_service::async(this->sp_, [this, task](){
-          task->execute(this->sp_);
+        
+        std::unique_lock<std::mutex> lock(task_count_mutex);
+        ++task_count;
+        
+        imt_service::async(this->sp_, [this, task, &task_count, &task_count_mutex, &task_count_cond](){
+          try{
+            task->execute(this->sp_);
+            
+            std::unique_lock<std::mutex> lock(task_count_mutex);
+            if(0 == --task_count){
+              task_count_cond.notify_all();
+            }
+          }
+          catch(...){
+            throw;
+          }
         });
         break;
       }
@@ -137,5 +153,14 @@ void vds::task_manager::work_thread()
     }
     
     this->scheduled_changed_.wait_for(lock, timeout);
+  }
+  
+  for(;;){
+    std::unique_lock<std::mutex> lock(task_count_mutex);
+    if(0 == task_count){
+      break;
+    }
+    
+    task_count_cond.wait(lock, [&task_count]()->bool{ return (0 == task_count);});
   }
 }

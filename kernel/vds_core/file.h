@@ -136,6 +136,7 @@ namespace vds {
       {
         if (0 == this->output_buffer_size()) {
           this->f_.close();
+          return 0;
         }
         else {
           return this->f_.read(this->output_buffer(), this->output_buffer_size());

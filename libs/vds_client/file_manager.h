@@ -15,10 +15,6 @@ namespace vds {
   class file_manager
   {
   public:
-    async_task<> upload_file(
-      const service_provider & sp,
-      const std::string & name,
-      const filename & fn);
 
 
   private:

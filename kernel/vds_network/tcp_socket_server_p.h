@@ -119,7 +119,7 @@ namespace vds {
             this->s_ = socket(AF_INET, SOCK_STREAM, 0);
             if (this->s_ < 0) {
               auto error = errno;
-              on_error(sp, std::make_exception_ptr(std::system_error(error, std::system_category())));
+              on_error(sp, std::make_shared<std::system_error>(error, std::system_category()));
               return;
             }
             
@@ -129,7 +129,7 @@ namespace vds {
             int on = 1;
             if (0 > setsockopt(this->s_, SOL_SOCKET, SO_REUSEADDR, (char *)&on, sizeof(on))) {
               auto error = errno;
-              on_error(sp, std::make_exception_ptr(std::system_error(error, std::system_category())));
+              on_error(sp, std::make_shared<std::system_error>(error, std::system_category()));
               return;
             }
 
@@ -140,7 +140,7 @@ namespace vds {
             /*************************************************************/
             if (0 > ioctl(this->s_, FIONBIO, (char *)&on)) {
               auto error = errno;
-              on_error(sp, std::make_exception_ptr(std::system_error(error, std::system_category())));
+              on_error(sp, std::make_shared<std::system_error>(error, std::system_category()));
               return;
             }
             
@@ -152,13 +152,13 @@ namespace vds {
             addr.sin_port = htons(port);
             if (0 > ::bind(this->s_, (struct sockaddr *)&addr, sizeof(addr))) {
               auto error = errno;
-              on_error(sp, std::make_exception_ptr(std::system_error(error, std::system_category())));
+              on_error(sp, std::make_shared<std::system_error>(error, std::system_category()));
               return;
             }
 
             if (0 > ::listen(this->s_, SOMAXCONN)) {
               auto error = errno;
-              on_error(sp, std::make_exception_ptr(std::system_error(error, std::system_category())));
+              on_error(sp, std::make_shared<std::system_error>(error, std::system_category()));
               return;
             }
 
@@ -168,14 +168,14 @@ namespace vds {
             auto flags = fcntl(this->s_, F_GETFL);
             if (0 > flags) {
               auto error = errno;
-              on_error(sp, std::make_exception_ptr(std::system_error(error, std::system_category())));
+              on_error(sp, std::make_shared<std::system_error>(error, std::system_category()));
               return;
             }
 
             flags |= O_NONBLOCK;
             if (0 > fcntl(this->s_, F_SETFL, flags)) {
               auto error = errno;
-              on_error(sp, std::make_exception_ptr(std::system_error(error, std::system_category())));
+              on_error(sp, std::make_shared<std::system_error>(error, std::system_category()));
               return;
             }
 
@@ -273,8 +273,11 @@ namespace vds {
           data->new_connection_(sp, _tcp_network_socket::from_handle(sock));
         });
       }
-      catch(...){
-        data->on_error_(data->sp_, std::current_exception());
+      catch (const std::exception & ex) {
+        data->on_error_(data->sp_, std::make_shared<std::exception>(ex));
+      }
+      catch (...) {
+        data->on_error_(data->sp_, std::make_shared<std::runtime_error>("Unexpected error"));
       }
     }
 

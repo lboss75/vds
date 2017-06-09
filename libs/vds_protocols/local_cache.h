@@ -10,13 +10,14 @@ All rights reserved
 
 namespace vds {
   class _local_cache;
+  class full_storage_object_id;
   
   class ilocal_cache
   {
   public:
     std::unique_ptr<const_data_buffer> get_object(
       const service_provider & sp,
-      const full_storage_object_id& object_id);
+      const full_storage_object_id & object_id);
 
     filename get_object_filename(
       const service_provider & sp,

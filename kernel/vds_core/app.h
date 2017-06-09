@@ -92,7 +92,7 @@ namespace vds{
     
     void on_exception(const std::shared_ptr<std::exception> & ex)
     {
-      std::cerr << exception_what(ex);
+      std::cerr << ex->what();
       exit(1);
     }
    

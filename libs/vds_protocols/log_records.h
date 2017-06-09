@@ -21,7 +21,7 @@ namespace vds {
     principal_log_new_object(
       const guid & index,
       uint32_t lenght,
-      const const_data_buffer & hash);
+      const const_data_buffer & meta_data);
     
     const guid & index() const { return this->index_; }
     uint32_t lenght() const { return this->lenght_; }
@@ -176,21 +176,6 @@ namespace vds {
   private:
     guid server_id_;
     std::string addresses_;
-  };
-
-  class principal_log_objects
-  {
-  public:
-
-    struct record
-    {
-      guid object_id;
-      size_t object_size;
-      const_data_buffer object_hash;
-    };
-
-    std::unordered_map<std::string, record> records;
-    const_data_buffer meta_info;
   };
 }
 

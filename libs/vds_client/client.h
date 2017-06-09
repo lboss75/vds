@@ -34,8 +34,8 @@ namespace vds {
     certificate client_certificate_;
     asymmetric_private_key client_private_key_;
     
-    std::unique_ptr<client_logic> logic_;
     std::unique_ptr<_client> impl_;
+    std::unique_ptr<client_logic> logic_;
   };
   
   class iclient

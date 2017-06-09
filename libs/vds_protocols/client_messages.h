@@ -101,7 +101,6 @@ namespace vds {
       std::shared_ptr<json_value> serialize() const;
     };
     //////////////////////////////////////////////////////////////
-    /*
     class put_object_message
     {
     public:
@@ -111,20 +110,20 @@ namespace vds {
       std::shared_ptr<json_value> serialize() const;
 
       put_object_message(
-        const std::string & user_login,
-        const std::string & name,
-        const const_data_buffer & meta_info,
+        const guid & principal_id,
+        const std::shared_ptr<json_value> & principal_msg,
+        const const_data_buffer & signature,
         const filename & tmp_file);
 
-      const std::string & user_login() const { return this->user_login_; }
-      const std::string & name() const { return this->name_; }
-      const const_data_buffer & meta_info() const { return this->meta_info_; }
+      const guid & principal_id() const { return this->principal_id_; }
+      const std::shared_ptr<json_value> & principal_msg() { return this->principal_msg_; }
+      const const_data_buffer & signature() const { return this->signature_; }
       const filename & tmp_file() const { return this->tmp_file_; }
 
     private:
-      std::string user_login_;
-      std::string name_;
-      const_data_buffer meta_info_;
+      guid principal_id_;
+      std::shared_ptr<json_value> principal_msg_;
+      const_data_buffer signature_;
       filename tmp_file_;
     };
 
@@ -136,14 +135,10 @@ namespace vds {
       put_object_message_response(const std::shared_ptr<json_value> &);
       std::shared_ptr<json_value> serialize() const;
 
-      put_object_message_response(const std::string & version_id);
-      
-      const std::string & version_id() const { return this->version_id_; }
-      
-    private:
-      std::string version_id_;
+      put_object_message_response();
     };
-
+    
+    /*
     class get_file_message_request
     {
     public:

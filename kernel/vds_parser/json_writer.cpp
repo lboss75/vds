@@ -24,6 +24,10 @@ void vds::json_writer::write_string_value(const std::string & value)
   case PROPERTY:
     this->state_ = PROPERTY_END;
     break;
+    
+  case START_ARRAY:
+    this->state_ = ARRAY_BODY;
+    break;
 
   case ARRAY_BODY:
     this->stream_ << ',';

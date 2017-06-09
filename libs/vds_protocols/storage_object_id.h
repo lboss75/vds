@@ -8,6 +8,8 @@ All rights reserved
 
 
 namespace vds {
+  class json_value;
+  class json_object;
 
   class storage_object_id
   {

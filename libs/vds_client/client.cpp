@@ -8,6 +8,7 @@ All rights reserved
 #include "client_p.h"
 #include "client_connection.h"
 #include "deflate.h"
+#include "file_manager_p.h"
 
 vds::client::client(const std::string & server_address)
 : server_address_(server_address),
@@ -208,58 +209,95 @@ vds::async_task<const std::string& /*version_id*/> vds::_client::upload_file(
 {
   return
     this->authenticate(sp, user_login, user_password)
-    .then([this, user_login, name, fn](
-      const std::function<void(const service_provider & sp, const std::string& /*version_id*/)> & done,
+    .then([this, user_login, name, fn, user_password](
+      const std::function<void(const service_provider & sp, const std::string & /*version_id*/)> & done,
       const error_handler & on_error,
       const service_provider & sp,
       const client_messages::certificate_and_key_response & response) {
+      
+      imt_service::disable_async(sp);
 
-    //sp.get<logger>()->trace(sp, "Crypting data");
+      sp.get<logger>()->trace(sp, "Crypting data");
+      auto length = file::length(fn);
+      
+      //Generate key
+      symmetric_key transaction_key(symmetric_crypto::aes_256_cbc());
+      transaction_key.generate();
 
-    //symmetric_key transaction_key(symmetric_crypto::aes_256_cbc());
-    //transaction_key.generate();
+      //Crypt body
+      auto version_id = guid::new_guid();
+      filename tmp_file(this->tmp_folder_, version_id.str());
 
-    //binary_serializer key_data;
-    //transaction_key.serialize(key_data);
+      _file_manager::crypt_file(
+        sp,
+        length,
+        transaction_key,
+        fn,
+        tmp_file)
+      .then([this, name, length, version_id, &response, transaction_key, user_password, tmp_file](
+        const std::function<void(const service_provider & sp)>& done,
+        const error_handler & on_error,
+        const service_provider & sp,
+        size_t body_size,
+        size_t tail_size){
+        //Meta info
+        binary_serializer file_info;
+        file_info << name << length << body_size << tail_size;
+        transaction_key.serialize(file_info);
+        
+        auto user_certificate = certificate::parse(response.certificate_body());
 
-    //auto key_crypted = user_certificate.public_key().encrypt(key_data.data());
-
-    //this->tmp_folder_mutex_.lock();
-    //auto tmp_index = this->last_tmp_file_index_++;
-    //this->tmp_folder_mutex_.unlock();
-
-    //filename tmp_file(this->tmp_folder_, std::to_string(tmp_index));
-
-    //binary_serializer to_sign;
-    //to_sign << key_crypted;
-
-    //binary_serializer datagram;
-    //datagram << key_crypted;
-    //datagram << asymmetric_sign::signature(
-    //  hash::sha256(),
-    //  user_private_key,
-    //  to_sign.data());
-
-    //dataflow(
-    //  file_read(fn),
-    //  deflate(),
-    //  symmetric_encrypt(transaction_key),
-    //  file_write(tmp_file, file::file_mode::create_new))(
-    //    [this, tmp_file, user_login, name, done, on_error, info = const_data_buffer(datagram.data())](const service_provider & sp) {
-
-    //  sp.get<logger>()->trace(sp, "Upload file");
-    //  this->owner_->logic_->put_file(
-    //    sp,
-    //    user_login,
-    //    name,
-    //    info,
-    //    tmp_file)
-    //    .wait(done, on_error, sp);
-    //},
-    //    [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) { std::rethrow_exception(ex); },
-    //  sp);
-
-  });
+        auto meta_info = user_certificate.public_key().encrypt(file_info.data());
+        
+        //Form principal_log message
+        auto msg = principal_log_record(
+          guid::new_guid(),
+          response.id(),
+          response.active_records(),
+          principal_log_new_object(version_id,  body_size + tail_size, meta_info).serialize(),
+          response.order_num() + 1).serialize(true);                              
+        
+        auto s = msg->str();
+        const_data_buffer signature;
+        dataflow(
+          dataflow_arguments<uint8_t>((const uint8_t *)s.c_str(), s.length()),
+          asymmetric_sign(
+            hash::sha256(),
+            asymmetric_private_key::parse(response.private_key_body(), user_password),
+            signature)
+        )(
+          [this, done, on_error, &signature, &response, msg, tmp_file](const service_provider & sp){
+            
+            sp.get<logger>()->trace(sp, "Uploading file");
+            
+            imt_service::enable_async(sp);            
+            this->owner_->logic_->send_request<client_messages::put_object_message_response>(
+              sp,
+              client_messages::put_object_message(
+                response.id(),
+                msg,
+                signature,
+                tmp_file).serialize())
+            .then([](
+              const std::function<void(const service_provider & /*sp*/)> & done,
+              const error_handler & on_error,
+              const service_provider & sp,
+              const client_messages::put_object_message_response & response) {
+                done(sp);
+            })
+            .wait(done, on_error, sp);
+          },
+          [on_error, tmp_file](const service_provider & sp, const std::shared_ptr<std::exception> & ex){
+            file::delete_file(tmp_file);
+            on_error(sp, ex);
+          },
+          sp);
+      }).wait([done, version_id]
+      (const service_provider & sp){
+        done(sp, version_id.str());
+      },
+      on_error, sp);
+    });
 }
 
 vds::async_task<>

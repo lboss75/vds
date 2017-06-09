@@ -55,6 +55,7 @@ vds::client_messages::certificate_and_key_response::certificate_and_key_response
 {
   auto s = std::dynamic_pointer_cast<json_object>(value);
   if (s) {
+    s->get_property("i", this->id_);
     s->get_property("c", this->certificate_body_);
     s->get_property("k", this->private_key_body_);
     s->get_property("o", this->order_num_);
@@ -76,6 +77,7 @@ std::shared_ptr<vds::json_value> vds::client_messages::certificate_and_key_respo
   std::unique_ptr<json_object> result(new json_object());
   result->add_property("$t", message_type);
 
+  result->add_property("i", this->id_);
   result->add_property("c", this->certificate_body_);
   result->add_property("k", this->private_key_body_);
   result->add_property("o", this->order_num_);
@@ -153,15 +155,14 @@ std::shared_ptr<vds::json_value> vds::client_messages::register_server_response:
   return std::shared_ptr<vds::json_value>(result.release());
 }
 ////////////////////////////////////////////////////////////////////////////////////
-/*
 const char vds::client_messages::put_object_message::message_type[] = "put file";
 vds::client_messages::put_object_message::put_object_message(const std::shared_ptr<json_value> & value)
 {
   auto s = std::dynamic_pointer_cast<json_object>(value);
   if (s) {
-    s->get_property("n", this->name_);
-    s->get_property("u", this->user_login_);
-    s->get_property("m", this->meta_info_);
+    s->get_property("i", this->principal_id_);
+    this->principal_msg_ = s->get_property("m");
+    s->get_property("s", this->signature_);
 
     std::string v;
     if (s->get_property("f", v)) {
@@ -172,26 +173,25 @@ vds::client_messages::put_object_message::put_object_message(const std::shared_p
 
 std::shared_ptr<vds::json_value> vds::client_messages::put_object_message::serialize() const
 {
-  std::unique_ptr<json_object> s(new json_object());
+  auto s = std::make_shared<json_object>();
   s->add_property("$t", message_type);
 
-  s->add_property("n", this->name_);
-  s->add_property("m", this->meta_info_);
-  s->add_property("u", this->user_login_);
+  s->add_property("i", this->principal_id_);
+  s->add_property("m", this->principal_msg_);
+  s->add_property("s", this->signature_);
   s->add_property("f", this->tmp_file_.full_name());
 
-  return std::shared_ptr<vds::json_value>(s.release());
+  return s;
 }
 
 vds::client_messages::put_object_message::put_object_message(
-  const std::string & user_login,
-  const std::string & name,
-  const const_data_buffer & meta_info,
+  const guid & principal_id,
+  const std::shared_ptr<json_value> & principal_msg,
+  const const_data_buffer & signature,
   const filename & tmp_file)
-  : 
-  user_login_(user_login),
-  name_(name),
-  meta_info_(meta_info),
+: principal_id_(principal_id),
+  principal_msg_(principal_msg),
+  signature_(signature),
   tmp_file_(tmp_file)
 {
 }
@@ -202,7 +202,6 @@ vds::client_messages::put_object_message_response::put_object_message_response(c
 {
   auto s = std::dynamic_pointer_cast<json_object>(value);
   if (s) {
-    s->get_property("i", this->version_id_);
   }
 }
 
@@ -210,16 +209,14 @@ std::shared_ptr<vds::json_value> vds::client_messages::put_object_message_respon
 {
   auto s = std::make_shared<json_object>();
   s->add_property("$t", message_type);
-  s->add_property("i", this->version_id_);
   return s;
 }
 
-vds::client_messages::put_object_message_response::put_object_message_response(
-  const std::string & version_id)
-: version_id_(version_id)
+vds::client_messages::put_object_message_response::put_object_message_response()
 {
 }
 
+/*
 const char vds::client_messages::get_file_message_request::message_type[] = "get file";
 vds::client_messages::get_file_message_request::get_file_message_request(const std::shared_ptr<json_value> & value)
 {

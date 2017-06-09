@@ -419,8 +419,11 @@ namespace vds {
 
           pthis->start(pthis->sp_);
         }
+        catch (const std::exception & ex) {
+          pthis->sp_.unhandled_exception(std::make_shared<std::exception>(ex));
+        }
         catch (...) {
-          pthis->sp_.unhandled_exception();
+          pthis->sp_.unhandled_exception(std::make_shared<std::runtime_error>("Unexpected error"));
         }
       }
 #endif//_WIN32

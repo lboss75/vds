@@ -64,7 +64,7 @@ vds::async_task< vds::tcp_network_socket && > vds::tcp_network_socket::connect(
       // Connect 
       if (0 > ::connect(s->handle(), (struct sockaddr *)&addr, sizeof(addr))) {
         auto error = errno;
-        on_error(sp, std::make_exception_ptr(std::system_error(error, std::generic_category())));
+        on_error(sp, std::make_shared<std::system_error>(error, std::generic_category()));
       }
 #endif
       done(sp, tcp_network_socket(s));
