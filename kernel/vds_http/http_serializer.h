@@ -58,7 +58,7 @@ namespace vds {
               auto buffer = std::make_shared<std::vector<uint8_t>>(1024);
               this->write_body(sp, message, buffer);
             },
-              [this, data, message](const service_provider & sp, std::exception_ptr ex) {
+              [this, data, message](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
               this->error(sp, ex);
             },
               sp);
@@ -91,7 +91,7 @@ namespace vds {
               [this, message, buffer](const service_provider & sp) {
               this->write_body(sp, message, buffer);
             },
-              [this](const service_provider & sp, std::exception_ptr ex) {
+              [this](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
               this->error(sp, ex);
             },
               sp);
@@ -99,10 +99,10 @@ namespace vds {
           else {
             this->buffer_.write_all_async(sp, nullptr, 0).wait(
               [](const service_provider & sp) { },
-              [](const service_provider & sp, std::exception_ptr ex) {},
+              [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {},
               sp);
           }
-        }, [this](const service_provider & sp, std::exception_ptr ex) {
+        }, [this](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
           this->error(sp, ex);
         },
           sp
@@ -127,7 +127,7 @@ namespace vds {
             }
           }
         },
-          [this](const service_provider & sp, std::exception_ptr ex) {
+          [this](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
           this->error(sp, ex);
         },
           sp);

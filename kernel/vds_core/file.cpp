@@ -1,3 +1,4 @@
+#define _CRT_SECURE_NO_WARNINGS
 #include "stdafx.h"
 #include <sys/stat.h>
 #include "file.h"
@@ -302,3 +303,4 @@ vds::const_data_buffer vds::file::read_all(const vds::filename& fn)
   
   return const_data_buffer(buffer.data(), buffer.size());
 }
+

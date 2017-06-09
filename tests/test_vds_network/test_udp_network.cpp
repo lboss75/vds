@@ -30,7 +30,7 @@ TEST(network_tests, test_udp_server)
   registrator.start(sp);
   vds::imt_service::enable_async(sp);
 
-  std::exception_ptr error;
+  const std::shared_ptr<std::exception> & error;
   vds::udp_server server;
 
   auto server_socket = server.start(sp, "127.0.0.1", 8000);
@@ -43,7 +43,7 @@ TEST(network_tests, test_udp_server)
       sp.get<vds::logger>()->debug(sp, "Server closed");
       server_socket.close();
     },
-      [&error, &server_socket](const vds::service_provider & sp, std::exception_ptr ex) {
+      [&error, &server_socket](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
       error = ex;
       server_socket.close();
     },
@@ -63,7 +63,7 @@ TEST(network_tests, test_udp_server)
         client_socket.close();
         b.set();
       },
-    [&b, &client_socket](const vds::service_provider & sp, std::exception_ptr ex) {
+    [&b, &client_socket](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
         sp.get<vds::logger>()->debug(sp, "Client reader error");
         client_socket.close();
         b.set();
@@ -78,7 +78,7 @@ TEST(network_tests, test_udp_server)
     [](const vds::service_provider & sp) {
         sp.get<vds::logger>()->debug(sp, "Client writer closed");
       },
-    [&error, &client_socket](const vds::service_provider & sp, std::exception_ptr ex) {
+    [&error, &client_socket](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
         error = ex;
         sp.get<vds::logger>()->debug(sp, "Client writer error");
         client_socket.close();

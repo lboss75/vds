@@ -317,8 +317,13 @@ void vds::_storage_log::apply_record(
 
     this->last_applied_record_ = record.id();
   }
+  catch (const std::exception & ex) {
+    sp.get<logger>()->info(sp, "%s", ex.what());
+    sp.get<iserver_database>()->delete_record(sp, record.id());
+    return;
+  }
   catch(...){
-    sp.get<logger>()->info(sp, "%s", exception_what(std::current_exception()).c_str());
+    sp.get<logger>()->info(sp, "Unhandled error");
     sp.get<iserver_database>()->delete_record(sp, record.id());
     return;
   }

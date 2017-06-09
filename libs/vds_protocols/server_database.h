@@ -56,6 +56,10 @@ namespace vds {
       const vds::asymmetric_private_key & principal_private_key,
       const_data_buffer & signature);
 
+    size_t get_current_state(
+      const service_provider & sp,
+      std::list<guid> & active_records);
+
     //return: true - saved, false - already exists
     bool save_record(
       const service_provider & sp,

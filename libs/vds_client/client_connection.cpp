@@ -54,7 +54,7 @@ void vds::client_connection::connect(const service_provider & sp)
         sp.get<logger>()->debug(sp, "Client crypted input closed");
         done(sp);
       },
-        [on_error](const service_provider & sp, std::exception_ptr ex) {
+        [on_error](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
         sp.get<logger>()->debug(sp, "Client crypted input error");
         on_error(sp, ex);
       },
@@ -69,7 +69,7 @@ void vds::client_connection::connect(const service_provider & sp)
         sp.get<logger>()->debug(sp, "Client crypted output closed");
         done(sp);
       },
-        [on_error](const service_provider & sp, std::exception_ptr ex) {
+        [on_error](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
         sp.get<logger>()->debug(sp, "Client crypted output error");
         on_error(sp, ex);
       }, sp.create_scope("Client SSL Output"));
@@ -86,7 +86,7 @@ void vds::client_connection::connect(const service_provider & sp)
         sp.get<logger>()->debug(sp, "Client writer closed");
         done(sp);
       },
-        [on_error](const service_provider & sp, std::exception_ptr ex) {
+        [on_error](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
         sp.get<logger>()->debug(sp, "Client writer error");
         on_error(sp, ex);
       },
@@ -102,7 +102,7 @@ void vds::client_connection::connect(const service_provider & sp)
             
             this->incoming_stream_->write_value_async(sp, request)
             .wait([](const service_provider & sp) {},
-                  [](const service_provider & sp, std::exception_ptr ex) { sp.unhandled_exception(ex); },
+                  [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) { sp.unhandled_exception(ex); },
                   sp);
         })
       )(
@@ -110,7 +110,7 @@ void vds::client_connection::connect(const service_provider & sp)
         sp.get<logger>()->debug(sp, "Client reader closed");
         done(sp);
       },
-        [on_error](const service_provider & sp, std::exception_ptr ex) {
+        [on_error](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
         sp.get<logger>()->debug(sp, "Client reader error");
         on_error(sp, ex);
       },
@@ -120,7 +120,7 @@ void vds::client_connection::connect(const service_provider & sp)
         [client_crypto_tunnel](const service_provider & sp) {
       sp.get<logger>()->debug(sp, "Client closed");
     },
-        [on_error](const service_provider & sp, std::exception_ptr ex) {
+        [on_error](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
       sp.get<logger>()->debug(sp, "Client error");
       on_error(sp, ex);
     },
@@ -135,9 +135,9 @@ void vds::client_connection::connect(const service_provider & sp)
         this->state_ = STATE::CONNECTED;
         this->connection_start_ = std::chrono::steady_clock::now();
       },
-      [this](const service_provider & sp, std::exception_ptr ex) {
+      [this](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
         this->state_ = STATE::CONNECT_ERROR;
-        sp.unhandled_exception(ex);        
+        sp.unhandled_exception(ex);
       },
       scope);
 }

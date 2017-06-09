@@ -23,7 +23,7 @@ TEST(test_zip, inflate_tests) {
     random_buffer buffer;
 
     vds::barrier b;
-    std::exception_ptr error;
+    const std::shared_ptr<std::exception> & error;
     dataflow(
       random_reader<uint8_t>(buffer.data(), buffer.size()),
       vds::deflate(),
@@ -33,7 +33,7 @@ TEST(test_zip, inflate_tests) {
       [&b](const vds::service_provider &) {
         b.set(); 
       },
-      [&b, &error](const vds::service_provider &, std::exception_ptr ex) {
+      [&b, &error](const vds::service_provider &, const std::shared_ptr<std::exception> & ex) {
         error = ex;
         b.set();
       },

@@ -58,7 +58,7 @@ void vds::service_provider::set_property(property_scope scope, size_t type_id, p
   this->impl_->set_property(scope, type_id, value);
 }
 
-void vds::service_provider::unhandled_exception(std::exception_ptr ex) const
+void vds::service_provider::unhandled_exception(const std::shared_ptr<std::exception> & ex) const
 {
   auto p = this->get_property<unhandled_exception_handler>(service_provider::property_scope::any_scope);
   if (nullptr != p) {

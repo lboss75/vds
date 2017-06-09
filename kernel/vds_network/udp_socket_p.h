@@ -287,7 +287,7 @@ namespace vds {
             [this](const service_provider & sp) {
               this->read_async(sp);
             },
-            [](const service_provider & sp, std::exception_ptr ex) {
+            [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
               sp.unhandled_exception(ex);
             },
             this->sp_);
@@ -322,7 +322,7 @@ namespace vds {
           else {
           }
         },
-            [](const service_provider & sp, std::exception_ptr ex) {
+            [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
         },
           sp);
       }
@@ -384,7 +384,7 @@ namespace vds {
           else {
           }
         },
-            [](const service_provider & sp, std::exception_ptr ex) {
+            [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
         },
           this->sp_);
       }

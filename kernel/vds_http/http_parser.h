@@ -49,7 +49,7 @@ namespace vds {
           sp.get<logger>()->debug(sp, "HTTP end");
         }
         else {
-          sp.get<logger>()->debug(sp, "HTTP [%s]", std::string((const char *)this->input_buffer(), this->input_buffer_size()).c_str());
+          sp.get<logger>()->debug(sp, "HTTP [%s]", logger::escape_string(std::string((const char *)this->input_buffer(), this->input_buffer_size())).c_str());
         }
         this->continue_push_data(sp, 0);
       }
@@ -151,7 +151,7 @@ namespace vds {
                       this->continue_push_data(sp, 0);
                     }
                   },
-                      [this](const service_provider & sp, std::exception_ptr ex) {
+                      [this](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
                     this->error(sp, ex);
                   },
                     sp);
@@ -162,7 +162,7 @@ namespace vds {
                   }
                 }
               },
-                  [this](const service_provider & sp, std::exception_ptr ex) {
+                  [this](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
                 this->error(sp, ex);
               },
                 sp);

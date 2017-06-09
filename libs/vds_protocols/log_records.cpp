@@ -44,8 +44,10 @@ vds::binary_deserializer & vds::principal_log_record::deserialize(
     json_parser("Message"),
     dataflow_require_once<std::shared_ptr<json_value>>(&body))(
       [this, &body](const service_provider & sp) { this->message_ = body; },
-      [](const service_provider & sp, std::exception_ptr ex) { std::rethrow_exception(ex);},
-    sp);
+      [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+        std::rethrow_exception(std::make_exception_ptr(*ex));
+      },
+      sp);
 
   return b;
 }

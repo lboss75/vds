@@ -131,8 +131,12 @@ void vds::_connection_manager::start_servers(
     else if ("https" == protocol) {
       auto na = url_parser::parse_network_address(address);
       this->start_https_server(scope, na).wait(
-        [this](const service_provider & sp) {sp.get<logger>()->info(sp, "HTTPS Servers stopped"); },
-        [this](const service_provider & sp, std::exception_ptr ex) { sp.get<logger>()->info(sp, "HTTPS Server error: %s", exception_what(ex)); },
+        [this](const service_provider & sp) {
+          sp.get<logger>()->info(sp, "HTTPS Servers stopped");
+        },
+        [this](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+          sp.get<logger>()->info(sp, "HTTPS Server error: %s", ex->what());
+        },
         scope);
     }
 
@@ -214,14 +218,15 @@ void vds::_connection_manager::udp_channel::schedule_read(
           [this](const service_provider & sp) {
             this->schedule_read(sp);
           },
-          [](const service_provider & sp, std::exception_ptr ex) {
-            sp.unhandled_exception(ex);
+          [this](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+            sp.get<logger>()->error(sp, "Error at processing message");
+            this->schedule_read(sp);
           },
           sp);
 
       }
     },
-    [](const service_provider & sp, std::exception_ptr ex){
+    [](const service_provider & sp, const std::shared_ptr<std::exception> & ex){
       sp.unhandled_exception(ex);
     },
     sp);
@@ -232,11 +237,11 @@ void vds::_connection_manager::udp_channel::stop(const service_provider & sp)
   this->process_timer_.stop(sp);
 }
 
-void vds::_connection_manager::udp_channel::socket_closed(
-  const service_provider & sp,
-  std::list<std::exception_ptr> errors)
-{
-}
+//void vds::_connection_manager::udp_channel::socket_closed(
+//  const service_provider & sp,
+//  const std::list<std::shared_ptr<std::exception>> & errors)
+//{
+//}
 
 
 vds::async_task<> vds::_connection_manager::udp_channel::input_message(
@@ -435,7 +440,7 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
               sp.get<logger>()->debug(sp, "Invalid data hash");
             }
           },
-            [](const service_provider & sp, std::exception_ptr ex) {
+            [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
             sp.unhandled_exception(ex);
           },
             sp);
@@ -444,9 +449,14 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
           sp.get<logger>()->debug(sp, "Session %d not found", session_id);
         }
       }
+      catch (const std::exception & ex) {
+        sp.get<logger>()->debug(sp, "Error at processing command");
+        on_error(sp, std::make_shared<std::exception>(ex));
+        return;
+      }
       catch (...) {
         sp.get<logger>()->debug(sp, "Error at processing command");
-        on_error(sp, std::current_exception());
+        on_error(sp, std::make_shared<std::runtime_error>("Unhandled error"));
         return;
       }
 
@@ -487,7 +497,7 @@ void vds::_connection_manager::udp_channel::open_udp_session(
       this->s_.outgoing()->write_value_async(scope, udp_datagram(server, port, data, false))
         .wait(
           [](const service_provider & sp) {},
-          [](const service_provider & sp, const std::exception_ptr ex) {
+          [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
             sp.unhandled_exception(ex);
           },
           scope);
@@ -557,12 +567,14 @@ void vds::_connection_manager::udp_channel::session::send_to(
         this->owner_->s_.outgoing()->write_value_async(scope, udp_datagram(this->server(), this->port(), s.data()))
           .wait(
             [](const service_provider & sp) {},
-            [](const service_provider & sp, std::exception_ptr ex) { sp.unhandled_exception(ex); },
+            [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+              sp.unhandled_exception(ex);
+            },
             scope);
       },
       [](const service_provider & sp,
-         std::exception_ptr ex) {
-        std::rethrow_exception(ex); },
+         const std::shared_ptr<std::exception> & ex) {
+        std::rethrow_exception(std::make_exception_ptr(*ex)); },
       sp);
 }
 
@@ -626,7 +638,9 @@ bool vds::_connection_manager::udp_channel::process_timer_jobs(const service_pro
     this->s_.outgoing()->write_value_async(scope, udp_datagram(p.second.server(), p.second.port(), data, false))
       .wait(
         [](const service_provider & sp) {},
-        [](const service_provider & sp, std::exception_ptr ex) { sp.unhandled_exception(ex); },
+        [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+          sp.unhandled_exception(ex); 
+        },
         scope);
   }
 

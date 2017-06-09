@@ -34,7 +34,7 @@ void vds::https_pipeline::on_connection_closed(const service_provider & sp)
 {
 }
 
-void vds::https_pipeline::on_error(const service_provider & sp, std::exception_ptr /*error* /)
+void vds::https_pipeline::on_error(const service_provider & sp, const std::shared_ptr<std::exception> & /*error* /)
 {
 }
 
@@ -87,7 +87,7 @@ void vds::_https_pipeline::connect(const service_provider & parent_scope)
   )
   (
    [this](const service_provider & sp){ this->owner_->on_connected(sp); },
-   [this](const service_provider & sp, std::exception_ptr ex) { this->owner_->on_error(sp, ex); },
+   [this](const service_provider & sp, const std::shared_ptr<std::exception> & ex) { this->owner_->on_error(sp, ex); },
    sp,
    this->address_,
    this->port_

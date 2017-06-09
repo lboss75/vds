@@ -87,6 +87,13 @@ vds::principal_log_record vds::iserver_database::add_local_record(
     signature);
 }
 
+size_t vds::iserver_database::get_current_state(
+  const service_provider & sp, 
+  std::list<guid> & active_records)
+{
+  return static_cast<_server_database *>(this)->get_current_state(sp, active_records);
+}
+
 bool vds::iserver_database::save_record(
   const service_provider & sp,
   const principal_log_record & record,
@@ -430,30 +437,10 @@ vds::principal_log_record
     const vds::asymmetric_private_key & principal_private_key,
     const_data_buffer & signature)
 {
-  std::lock_guard<std::mutex> lock(this->principal_log_mutex_);
-
   std::list<principal_log_record::record_id> parents;
+  auto max_order_num = this->get_current_state(sp, parents);
 
-  size_t max_order_num = 0;
-  //Collect parents
-  this->get_principal_log_tails_query_.query(
-    this->db_,
-    ("SELECT id,order_num FROM principal_log WHERE state="
-      + std::to_string((int)iserver_database::principal_log_state::tail)).c_str(),
-    [&parents, &max_order_num](sql_statement & reader)->bool {
-
-      guid id;
-      int order_num;
-      reader.get_value(0, id);
-      reader.get_value(1, order_num);
-      
-      if(max_order_num < order_num){
-        max_order_num = order_num;
-      }
-
-      parents.push_back(id);
-      return true;
-  });
+  std::lock_guard<std::mutex> lock(this->principal_log_mutex_);
 
   //Sign message
   principal_log_record result(record_id, principal_id, parents, message, max_order_num + 1);
@@ -600,6 +587,34 @@ vds::_server_database::principal_log_get_state(
     record_id);
 
   return result;
+}
+
+size_t vds::_server_database::get_current_state(const service_provider & sp, std::list<guid>& active_records)
+{
+  std::lock_guard<std::mutex> lock(this->principal_log_mutex_);
+
+  size_t max_order_num = 0;
+  //Collect parents
+  this->get_principal_log_tails_query_.query(
+    this->db_,
+    ("SELECT id,order_num FROM principal_log WHERE state="
+      + std::to_string((int)iserver_database::principal_log_state::tail)).c_str(),
+    [&active_records, &max_order_num](sql_statement & reader)->bool {
+
+    guid id;
+    int order_num;
+    reader.get_value(0, id);
+    reader.get_value(1, order_num);
+
+    if (max_order_num < order_num) {
+      max_order_num = order_num;
+    }
+
+    active_records.push_back(id);
+    return true;
+  });
+
+  return max_order_num;
 }
 
 void vds::_server_database::principal_log_get_parents(
@@ -764,11 +779,11 @@ bool vds::_server_database::get_record(
 
   this->principal_log_get_query_.query(
     this->db_,
-    "SELECT message, principal_id, signature, order_num FROM  principal_log WHERE source_id=@source_id",
+    "SELECT principal_id, message, signature, order_num FROM principal_log WHERE id=@id",
     [&result, &message, &principal_id, &result_signature, &order_num](sql_statement & st)->bool {
 
-      st.get_value(0, message);
-      st.get_value(1, principal_id);
+      st.get_value(0, principal_id);
+      st.get_value(1, message);
       st.get_value(2, result_signature);
       st.get_value(3, order_num);
       
@@ -796,7 +811,9 @@ bool vds::_server_database::get_record(
           body,
           order_num);
       },
-      [](const service_provider & sp, std::exception_ptr ex) { std::rethrow_exception(ex); },
+      [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+        std::rethrow_exception(std::make_exception_ptr(*ex));
+      },
       sp);
   }
 
@@ -872,8 +889,8 @@ bool vds::_server_database::get_record_by_state(
           order_num);
       },
       [](const service_provider & sp,
-         std::exception_ptr ex) {
-        std::rethrow_exception(ex); 
+         const std::shared_ptr<std::exception> & ex) {
+        std::rethrow_exception(std::make_exception_ptr(*ex)); 
       },
       sp);
   }

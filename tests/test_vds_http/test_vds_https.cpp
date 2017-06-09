@@ -95,7 +95,7 @@ TEST(http_tests, test_https_server)
               stream->write_value_async(sp, response)
                 .wait(
                   [](const vds::service_provider & sp) {},
-                  [](const vds::service_provider & sp, std::exception_ptr ex) {},
+                  [](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {},
                   sp);
             },
               on_error,
@@ -117,8 +117,8 @@ TEST(http_tests, test_https_server)
         [crypto_tunnel](const vds::service_provider & sp) {
       sp.get<vds::logger>()->debug(sp, "Connection closed");
     },
-        [](const vds::service_provider & sp, std::exception_ptr ex) {
-      FAIL() << vds::exception_what(ex);
+        [](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+      FAIL() << ex->what();
 
     },
       sp);
@@ -128,8 +128,8 @@ TEST(http_tests, test_https_server)
     sp.get<vds::logger>()->debug(sp, "Server has been started");
     b.set();
   },
-    [&b](const vds::service_provider & sp, std::exception_ptr ex) {
-    FAIL() << vds::exception_what(ex);
+    [&b](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+    FAIL() << ex->what();
     b.set();
   },
     sp
@@ -173,7 +173,7 @@ TEST(http_tests, test_https_server)
 
     requests[0]->body()->write_all_async(sp, nullptr, 0).wait(
       [](const vds::service_provider & sp) {},
-      [](const vds::service_provider & sp, std::exception_ptr ex) {},
+      [](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {},
       sp);
 
     vds::cancellation_token_source cancellation;
@@ -187,7 +187,7 @@ TEST(http_tests, test_https_server)
             sp.get<vds::logger>()->debug(sp, "Client crypted input closed");
             done(sp);
           },
-            [on_error](const vds::service_provider & sp, std::exception_ptr ex) {
+            [on_error](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
             sp.get<vds::logger>()->debug(sp, "Client crypted input error");
             on_error(sp, ex);
           },
@@ -202,7 +202,7 @@ TEST(http_tests, test_https_server)
             sp.get<vds::logger>()->debug(sp, "Client crypted output closed");
             done(sp);
           },
-            [on_error](const vds::service_provider & sp, std::exception_ptr ex) {
+            [on_error](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
             sp.get<vds::logger>()->debug(sp, "Client crypted output error");
             on_error(sp, ex);
           }, sp.create_scope("Client SSL Output"));
@@ -218,7 +218,7 @@ TEST(http_tests, test_https_server)
             sp.get<vds::logger>()->debug(sp, "Client writer closed");
             done(sp);
           },
-            [on_error](const vds::service_provider & sp, std::exception_ptr ex) {
+            [on_error](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
             sp.get<vds::logger>()->debug(sp, "Client writer error");
             on_error(sp, ex);
           },
@@ -242,7 +242,7 @@ TEST(http_tests, test_https_server)
               cancellation.cancel();
               done(sp);
             },
-              [on_error](const vds::service_provider & sp, std::exception_ptr ex) {
+              [on_error](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
               on_error(sp, ex);
             },
               sp.create_scope("Client read dataflow"));
@@ -252,7 +252,7 @@ TEST(http_tests, test_https_server)
         sp.get<vds::logger>()->debug(sp, "Client reader closed");
         done(sp);
       },
-        [on_error](const vds::service_provider & sp, std::exception_ptr ex) {
+        [on_error](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
         sp.get<vds::logger>()->debug(sp, "Client reader error");
         on_error(sp, ex);
       },
@@ -263,7 +263,7 @@ TEST(http_tests, test_https_server)
       sp.get<vds::logger>()->debug(sp, "Client closed");
       done(sp);
     },
-        [on_error](const vds::service_provider & sp, std::exception_ptr ex) {
+        [on_error](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
       sp.get<vds::logger>()->debug(sp, "Client error");
       on_error(sp, ex);
     },
@@ -275,7 +275,7 @@ TEST(http_tests, test_https_server)
         sp.get<vds::logger>()->debug(sp, "Request sent");
         b.set();
       },
-      [&b](const vds::service_provider & sp, std::exception_ptr ex) {
+      [&b](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
         sp.get<vds::logger>()->debug(sp, "Request error");
         b.set();
       },

@@ -138,7 +138,7 @@ namespace vds {
           {
           }
 
-          void operator()(const service_provider & sp, std::exception_ptr ex)
+          void operator()(const service_provider & sp, const std::shared_ptr<std::exception> & ex)
           {
             sp.get<logger>()->error(
               sp,

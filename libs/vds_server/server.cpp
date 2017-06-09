@@ -106,7 +106,9 @@ void vds::_server::start(const service_provider& sp)
   this->server_http_api_->start(sp, "127.0.0.1", this->port_, this->certificate_, this->private_key_)
     .wait(
       [](const service_provider& sp) {sp.get<logger>()->trace(sp, "Server closed"); },
-      [](const service_provider& sp, std::exception_ptr ex) {sp.get<logger>()->trace(sp, "Server error %s", exception_what(ex).c_str()); },
+      [](const service_provider& sp, const std::shared_ptr<std::exception> & ex) {
+        sp.get<logger>()->trace(sp, "Server error %s", ex->what());
+      },
       scope);
 }
 

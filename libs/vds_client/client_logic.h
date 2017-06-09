@@ -52,7 +52,7 @@ namespace vds {
               auto response_object = std::dynamic_pointer_cast<json_object>(response);
               std::string error_message;
               if (response_object && response_object->get_property("$e", error_message)){
-                on_error(sp, std::make_exception_ptr(std::runtime_error(error_message)));
+                on_error(sp, std::make_shared<std::runtime_error>(error_message));
               }
               else {
                 done(sp, response_type(response));

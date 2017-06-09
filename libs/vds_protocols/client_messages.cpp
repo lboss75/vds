@@ -40,10 +40,14 @@ const char vds::client_messages::certificate_and_key_response::message_type[] = 
 vds::client_messages::certificate_and_key_response::certificate_and_key_response(
   const guid & id,
   const std::string & certificate_body,
-  const std::string & private_key_body)
+  const std::string & private_key_body,
+  const std::list<guid> & active_records,
+  size_t order_num)
 : id_(id),
   certificate_body_(certificate_body),
-  private_key_body_(private_key_body)
+  private_key_body_(private_key_body),
+  active_records_(active_records),
+  order_num_(order_num)
 {
 }
 
@@ -52,7 +56,18 @@ vds::client_messages::certificate_and_key_response::certificate_and_key_response
   auto s = std::dynamic_pointer_cast<json_object>(value);
   if (s) {
     s->get_property("c", this->certificate_body_);
-    s->get_property("p", this->private_key_body_);
+    s->get_property("k", this->private_key_body_);
+    s->get_property("o", this->order_num_);
+
+    auto p = std::dynamic_pointer_cast<json_array>(s->get_property("p"));
+    if (p) {
+      for (size_t i = 0; i < p->size(); ++i) {
+        auto item = std::dynamic_pointer_cast<json_primitive>(p->get(i));
+        if (item) {
+          this->active_records_.push_back(guid::parse(item->value()));
+        }
+      }
+    }
   }
 }
 
@@ -62,7 +77,16 @@ std::shared_ptr<vds::json_value> vds::client_messages::certificate_and_key_respo
   result->add_property("$t", message_type);
 
   result->add_property("c", this->certificate_body_);
-  result->add_property("p", this->private_key_body_);
+  result->add_property("k", this->private_key_body_);
+  result->add_property("o", this->order_num_);
+
+  auto p = std::make_shared<json_array>();
+  for (auto & record : this->active_records_) {
+    auto item = std::make_shared<json_primitive>(record.str());
+    p->add(item);
+  }
+  result->add_property("p", p);
+
 
   return std::shared_ptr<vds::json_value>(result.release());
 }

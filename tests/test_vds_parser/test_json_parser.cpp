@@ -115,7 +115,7 @@ TEST(test_json_parser, test_parser) {
   )
   (
     [](const vds::service_provider & /*sp*/) {},
-    [](const vds::service_provider & /*sp*/, std::exception_ptr ex) { FAIL() << vds::exception_what(ex); },
+    [](const vds::service_provider & /*sp*/, const std::shared_ptr<std::exception> & ex) { FAIL() << ex->what(); },
     *(vds::service_provider *)nullptr
   );
 }

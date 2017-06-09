@@ -47,9 +47,7 @@ namespace vds {
     size_t last_tmp_file_index_;
 
     async_task<
-      const vds::guid & /*user_id*/,
-      const vds::certificate & /*user_certificate*/,
-      const vds::asymmetric_private_key & /*user_private_key*/>
+      const client_messages::certificate_and_key_response & /*response*/>
       authenticate(
         const service_provider & sp,
         const std::string & user_login,

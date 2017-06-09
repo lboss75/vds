@@ -298,7 +298,7 @@ namespace vds {
               this->continue_get_data(sp);
             }
           },
-          [this](const service_provider & sp, std::exception_ptr ex){
+          [this](const service_provider & sp, const std::shared_ptr<std::exception> & ex){
             this->error(sp, ex);
           },
           sp);          
@@ -353,7 +353,7 @@ namespace vds {
               this->continue_push_data(sp);
             }
           },
-          [this](const service_provider & sp, std::exception_ptr ex){
+          [this](const service_provider & sp, const std::shared_ptr<std::exception> & ex){
             this->error(sp, ex);
           },
           sp);          

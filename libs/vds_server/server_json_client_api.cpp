@@ -108,9 +108,9 @@ std::shared_ptr<vds::json_value> vds::_server_json_client_api::operator()(
                 p->second.result = task_result;
                 this->task_mutex_.unlock();
               },
-                [this, request_id](const service_provider & sp, std::exception_ptr ex) {
+                [this, request_id](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
                 auto error_id = guid::new_guid().str();
-                sp.get<logger>()->error(sp, "Error %s: %s", error_id.c_str(), exception_what(ex).c_str());
+                sp.get<logger>()->error(sp, "Error %s: %s", error_id.c_str(), ex->what());
 
                 auto error_response = std::make_shared<json_object>();
                 error_response->add_property("$r", request_id);
@@ -124,13 +124,26 @@ std::shared_ptr<vds::json_value> vds::_server_json_client_api::operator()(
                 sp);
             }
           }
-          catch (...) {
+          catch (const std::exception & ex) {
             auto error_id = guid::new_guid().str();
-            sp.get<logger>()->error(sp, "Error %s: %s", error_id.c_str(), exception_what(std::current_exception()).c_str());
+            sp.get<logger>()->error(sp, "Error %s: %s", error_id.c_str(), ex.what());
 
             auto error_response = std::make_shared<json_object>();
             error_response->add_property("$r", request_id);
             error_response->add_property("$e", "Error " + error_id);
+
+            this->task_mutex_.lock();
+            auto p = this->tasks_.find(request_id);
+            p->second.error = error_response;
+            this->task_mutex_.unlock();
+          }
+          catch (...) {
+            auto error_id = guid::new_guid().str();
+            sp.get<logger>()->error(sp, "Error %s: Unexpected error", error_id.c_str());
+
+            auto error_response = std::make_shared<json_object>();
+            error_response->add_property("$r", request_id);
+            error_response->add_property("$e", "Unexpected error");
 
             this->task_mutex_.lock();
             auto p = this->tasks_.find(request_id);
@@ -171,15 +184,20 @@ vds::_server_json_client_api::process(
 
       if (!cert
         || cert->password_hash() != message.password_hash()) {
-        on_error(sp, std::make_exception_ptr(std::runtime_error("Invalid username or password")));
+        on_error(sp, std::make_shared<std::runtime_error>("Invalid username or password"));
       }
       else {
+        std::list<guid> active_records;
+        auto order_num = sp.get<iserver_database>()->get_current_state(sp, active_records);
+
         done(
           sp,
           client_messages::certificate_and_key_response(
             cert->id(),
             cert->cert_body(),
-            cert->cert_key()).serialize());
+            cert->cert_key(),
+            active_records,
+            order_num).serialize());
       }
     });
 }

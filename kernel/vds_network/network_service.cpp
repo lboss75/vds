@@ -141,8 +141,11 @@ void vds::_network_service::stop(const service_provider & sp)
         WSACleanup();
 #endif
     }
+    catch (const std::exception & ex) {
+      sp.get<logger>()->error(sp, "Failed stop network service %s", ex.what());
+    }
     catch (...) {
-      sp.get<logger>()->error(sp, "Failed stop network service %s", exception_what(std::current_exception()).c_str());
+      sp.get<logger>()->error(sp, "Unhandled error at stopping network service");
     }
 }
 
@@ -185,17 +188,29 @@ void vds::_network_service::thread_loop(const service_provider & sp)
         try {
           _socket_task::from_overlapped(pOverlapped)->process(dwBytesTransfered);
         }
-        catch (...) {
+        catch (const std::exception & ex) {
           auto p = sp.get_property<unhandled_exception_handler>(
             service_provider::property_scope::any_scope);
           if (nullptr != p) {
-            p->on_error(sp, std::current_exception());
+            p->on_error(sp, std::make_shared<std::exception>(ex));
           }
           else {
             sp.get<logger>()->error(
               sp,
               "IO Task error: %s",
-              exception_what(std::current_exception()).c_str());
+              ex.what());
+          }
+        }
+        catch (...) {
+          auto p = sp.get_property<unhandled_exception_handler>(
+            service_provider::property_scope::any_scope);
+          if (nullptr != p) {
+            p->on_error(sp, std::make_shared<std::runtime_error>("Unexcpected error"));
+          }
+          else {
+            sp.get<logger>()->error(
+              sp,
+              "IO Task error: Unexcpected error");
           }
         }
     }

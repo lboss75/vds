@@ -66,7 +66,7 @@ namespace vds {
               read_async(sp, this->reader_, this->output_buffer(), this->output_buffer_size());
             }
           },
-          [this](const vds::service_provider & sp, std::exception_ptr ex) {
+          [this](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
           this->error(sp, ex);
           },
           this->cancel_token_);
@@ -136,7 +136,7 @@ namespace vds {
             write_async(sp, this->writer_, this->input_buffer(), this->input_buffer_size());
           }
         },
-          [this](const vds::service_provider & sp, std::exception_ptr ex) {
+          [this](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
           this->error(sp, ex);
         },
           this->cancel_token_);

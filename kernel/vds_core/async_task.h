@@ -178,11 +178,14 @@ namespace vds {
         }
         this->is_called_ = true;
 #endif
-          try {
+        try {
           this->target_(done, on_error, sp);
         }
+        catch (const std::exception & ex) {
+          on_error(sp, std::make_shared<std::exception>(ex));
+        }
         catch (...) {
-          on_error(sp, std::current_exception());
+          on_error(sp, std::make_shared<std::runtime_error>("Unexpected error"));
         }
       }
 
@@ -223,8 +226,11 @@ namespace vds {
         try {
           next_method(sp, args...).wait(done, on_error, sp);
         }
+        catch (const std::exception & ex) {
+          on_error(sp, std::make_shared<std::exception>(ex));
+        }
         catch (...) {
-          on_error(sp, std::current_exception());
+          on_error(sp, std::make_shared<std::runtime_error>("Unexpected error"));
         }
       }, on_error, sp);
     });
@@ -250,8 +256,11 @@ namespace vds {
         try {
           next_method(done, on_error, sp, std::forward<arguments_types>(args)...);
         }
+        catch (const std::exception & ex) {
+          on_error(sp, std::make_shared<std::exception>(ex));
+        }
         catch (...) {
-          on_error(sp, std::current_exception());
+          on_error(sp, std::make_shared<std::runtime_error>("Unexpected error"));
         }
       }, on_error, sp);
     });
@@ -284,7 +293,7 @@ namespace vds {
             delete this;
           }
         },
-          [this](const service_provider & sp, std::exception_ptr ex) {
+          [this](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
           if (!this->error_) {
             this->error_ = ex;
           }
@@ -307,7 +316,7 @@ namespace vds {
     error_handler on_error_;
     service_provider sp_;
     std::atomic_size_t count_;
-    std::exception_ptr error_;
+    std::shared_ptr<std::exception> error_;
   };
   
   template <typename... task_types>

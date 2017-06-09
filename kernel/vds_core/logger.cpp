@@ -72,26 +72,6 @@ void vds::console_logger::write(const service_provider & sp, const log_record & 
   }
 }
 
-std::string vds::exception_what(std::exception_ptr ex)
-{
-  std::string result;
-  try{
-    std::rethrow_exception(ex);
-  }
-  catch(std::exception * exp) {
-    result = exp->what();
-    delete exp;
-  }
-  catch(const std::exception & exp) {
-    result = exp.what();
-  }
-  catch(...) {
-    result = "Unknown error";
-  }
-  
-  return result;
-
-}
 /////////////////////////////////////////////////////////
 
 vds::file_logger::file_logger(log_level level)

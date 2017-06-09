@@ -125,9 +125,7 @@ vds::_client::init_server(
         const asymmetric_private_key & /*private_key*/)> & done,
       const error_handler & on_error,
       const service_provider & sp,
-      const vds::guid & user_id,
-      const certificate& user_certificate,
-      const asymmetric_private_key& user_private_key) {
+      const client_messages::certificate_and_key_response & response) {
 
     sp.get<logger>()->trace(sp, "Register new server");
 
@@ -135,6 +133,10 @@ vds::_client::init_server(
     private_key.generate();
 
     asymmetric_public_key pkey(private_key);
+
+    auto user_certificate = certificate::parse(response.certificate_body());
+    auto user_private_key = asymmetric_private_key::parse(response.private_key_body(), user_password);
+
 
     auto server_id = guid::new_guid();
     certificate::create_options options;
@@ -175,7 +177,7 @@ vds::_client::init_server(
       sp,
       client_messages::register_server_request(
         server_id,
-        user_id,
+        response.id(),
         server_certificate.str(),
         private_key.str(user_password),
         ph.signature()).serialize())
@@ -186,7 +188,7 @@ vds::_client::init_server(
       done(sp);
     }).wait(
       [server_cert = server_certificate.str(), private_key, done](const service_provider & sp) { done(sp, certificate::parse(server_cert), private_key); },
-      [on_error, root_folder](const service_provider & sp, std::exception_ptr ex) {
+      [on_error, root_folder](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
 
         file::delete_file(filename(root_folder, "user.crt"), true);
         file::delete_file(filename(root_folder, "user.pkey"), true);
@@ -210,9 +212,7 @@ vds::async_task<const std::string& /*version_id*/> vds::_client::upload_file(
       const std::function<void(const service_provider & sp, const std::string& /*version_id*/)> & done,
       const error_handler & on_error,
       const service_provider & sp,
-      const guid & user_id,
-      const certificate& user_certificate,
-      const asymmetric_private_key& user_private_key) {
+      const client_messages::certificate_and_key_response & response) {
 
     //sp.get<logger>()->trace(sp, "Crypting data");
 
@@ -256,7 +256,7 @@ vds::async_task<const std::string& /*version_id*/> vds::_client::upload_file(
     //    tmp_file)
     //    .wait(done, on_error, sp);
     //},
-    //    [](const service_provider & sp, std::exception_ptr ex) { std::rethrow_exception(ex); },
+    //    [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) { std::rethrow_exception(ex); },
     //  sp);
 
   });
@@ -279,9 +279,7 @@ vds::_client::download_data(
         const std::function<void(const service_provider & sp)>& done,
         const error_handler & on_error,
         const service_provider & sp,
-        const guid & user_id,
-        const certificate& user_certificate,
-        const asymmetric_private_key& user_private_key) {
+        const client_messages::certificate_and_key_response & response) {
 
     //sp.get<logger>()->trace(sp, "Downloading file");
     //this->owner_->logic_->download_file(sp, user_login, name).wait(
@@ -313,14 +311,14 @@ vds::_client::download_data(
     //    symmetric_crypto::aes_256_cbc(),
     //    binary_deserializer(user_private_key.decrypt(key_crypted)));
 
-    //  std::exception_ptr error;
+    //  const std::shared_ptr<std::exception> & error;
     //  dataflow(
     //    file_read(tmp_file),
     //    symmetric_decrypt(transaction_key),
     //    deflate(),
     //    file_write(target_file, file::file_mode::create_new))(
     //      [](const service_provider & sp) { },
-    //      [&error](const service_provider & sp, std::exception_ptr ex) { error = ex; },
+    //      [&error](const service_provider & sp, const std::shared_ptr<std::exception> & ex) { error = ex; },
     //      sp);
 
     //  if (error) {
@@ -335,10 +333,7 @@ vds::_client::download_data(
   });
 }
 
-vds::async_task<
-  const vds::guid & /*user_id*/,
-  const vds::certificate & /*user_certificate*/,
-  const vds::asymmetric_private_key & /*user_private_key*/>
+vds::async_task<const vds::client_messages::certificate_and_key_response & /*response*/>
   vds::_client::authenticate(
     const service_provider & sp,
     const std::string & user_login,
@@ -357,17 +352,11 @@ vds::async_task<
       ph.signature()).serialize())
     .then([user_password](const std::function<void(
       const service_provider & /*sp*/,
-      const vds::guid & /*user_id*/,
-      const certificate & /*user_certificate*/,
-      const asymmetric_private_key & /*user_private_key*/)> & done,
+      const client_messages::certificate_and_key_response & /*response*/)> & done,
       const error_handler & on_error,
       const service_provider & sp,
       const client_messages::certificate_and_key_response & response) {
-    done(
-      sp,
-      response.id(),
-      certificate::parse(response.certificate_body()),
-      asymmetric_private_key::parse(response.private_key_body(), user_password));
+    done(sp, response);
   });
 }
 

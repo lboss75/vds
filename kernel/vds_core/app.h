@@ -90,7 +90,7 @@ namespace vds{
       registrator.add(console_logger_);
     }
     
-    void on_exception(std::exception_ptr ex)
+    void on_exception(const std::shared_ptr<std::exception> & ex)
     {
       std::cerr << exception_what(ex);
       exit(1);

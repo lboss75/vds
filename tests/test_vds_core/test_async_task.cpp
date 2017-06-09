@@ -42,8 +42,8 @@ TEST(code_tests, test_async_task) {
     [&test_result](const vds::service_provider & sp, const std::string & result){
       test_result = result;
     },
-    [](const vds::service_provider & sp, std::exception_ptr ex) {
-      FAIL() << vds::exception_what(ex);
+    [](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+      FAIL() << ex->what();
     },
     sp);
   
@@ -66,8 +66,8 @@ TEST(code_tests, test_async_task1) {
     [&test_result](const vds::service_provider & sp, const std::string & result) {
       test_result = result;
     },
-    [](const vds::service_provider & sp, std::exception_ptr ex) {
-    FAIL() << vds::exception_what(ex);
+    [](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+    FAIL() << ex->what();
   },
   sp);
 
@@ -92,8 +92,8 @@ static void test2(
       test_result = result;
       b.set();
     },
-    [](const vds::service_provider & sp, std::exception_ptr ex) {
-      FAIL() << vds::exception_what(ex);
+    [](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+      FAIL() << ex->what();
     },
     sp);
 }

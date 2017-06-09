@@ -20,6 +20,7 @@ TEST(mt_tests, test_async) {
 
     test_async_object obj;
     vds::barrier barrier;
+    std::shared_ptr<std::exception> error;
 
     {
       auto sp = registrator.build("test_async");
@@ -35,8 +36,8 @@ TEST(mt_tests, test_async) {
         [&obj, &barrier](const vds::service_provider & sp) {
         barrier.set();
       },
-        [&barrier](const vds::service_provider & sp, std::exception_ptr ex) {
-        FAIL() << vds::exception_what(ex);
+        [&barrier, &error](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+        error = ex;
         barrier.set();
       },
         sp
@@ -45,6 +46,9 @@ TEST(mt_tests, test_async) {
       barrier.wait();
 
       registrator.shutdown(sp);
+    }
+    if (error) {
+      GTEST_FAIL() << error->what();
     }
 }
 

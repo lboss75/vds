@@ -73,7 +73,7 @@ namespace vds {
             this->readed_method_(this->sp_, 0);
           }
           else {
-            this->error_method_(this->sp_, std::make_exception_ptr(std::system_error(errorCode, std::system_category(), "read from tcp socket")));
+            this->error_method_(this->sp_, std::make_unique<std::system_error>(errorCode, std::system_category(), "read from tcp socket"));
           }
           return;
         }
@@ -133,7 +133,7 @@ namespace vds {
         this->process(0);
       }
       else {
-        this->error_method_(this->sp_, std::make_exception_ptr(std::system_error(error_code, std::system_category(), "read from tcp socket")));
+        this->error_method_(this->sp_, std::make_unique<std::system_error>(error_code, std::system_category(), "read from tcp socket"));
       }
     }
 

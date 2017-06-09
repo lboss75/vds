@@ -79,9 +79,9 @@ namespace vds {
         const service_provider & sp);
 
       //UDP server handlers
-      void socket_closed(
-        const service_provider & sp,
-        std::list<std::exception_ptr> errors);
+      //void socket_closed(
+      //  const service_provider & sp,
+      //  const std::list<std::shared_ptr<std::exception>> & errors);
 
       async_task<> input_message(
         const vds::service_provider& sp,

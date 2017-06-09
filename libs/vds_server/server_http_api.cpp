@@ -82,10 +82,14 @@ vds::async_task<> vds::_server_http_api::start(
             stream->write_all_async(sp, &response, 1)
               .wait(
                 [](const service_provider & sp) {},
-                [](const service_provider & sp, std::exception_ptr ex) {sp.unhandled_exception(ex); },
+                [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+                  sp.unhandled_exception(ex); 
+                },
                 sp);
-          },
-              [](const service_provider & sp, std::exception_ptr ex) {sp.unhandled_exception(ex); },
+            },
+              [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+                sp.unhandled_exception(ex);
+              },
             sp);
         }
           )
@@ -104,8 +108,8 @@ vds::async_task<> vds::_server_http_api::start(
           [crypto_tunnel](const service_provider & sp) {
         sp.get<logger>()->debug(sp, "Connection closed");
       },
-          [](const service_provider & sp, std::exception_ptr ex) {
-        sp.unhandled_exception(ex);
+          [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+            sp.unhandled_exception(ex);
       },
         sp);
       crypto_tunnel->start(sp);

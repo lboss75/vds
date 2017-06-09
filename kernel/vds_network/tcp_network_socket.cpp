@@ -54,7 +54,7 @@ vds::async_task< vds::tcp_network_socket && > vds::tcp_network_socket::connect(
         // WSAEWOULDBLOCK whichis actually not one 
         auto error = WSAGetLastError();
         if (WSAEWOULDBLOCK != error) {
-          on_error(sp, std::make_exception_ptr(std::system_error(error, std::system_category(), "connect")));
+          on_error(sp, std::make_unique<std::system_error>(error, std::system_category(), "connect"));
           return;
         }
       }

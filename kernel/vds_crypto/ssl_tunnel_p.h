@@ -54,7 +54,7 @@ namespace vds {
           this->start_work_circle(sp);
         }
       },
-          [this](const service_provider & sp, std::exception_ptr ex) {
+          [this](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
       },
         sp);
 
@@ -75,7 +75,7 @@ namespace vds {
           this->start_work_circle(sp);
         }
       },
-          [this](const service_provider & sp, std::exception_ptr ex) {
+          [this](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
       },
         sp);
 
@@ -172,7 +172,7 @@ namespace vds {
                   this->start_work_circle(sp);
                 }
               },
-                [this](const service_provider & sp, std::exception_ptr ex) {
+                [this](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
               },
                 sp);
           }
@@ -218,7 +218,7 @@ namespace vds {
                 this->start_work_circle(sp);
               }
             },
-                [this](const service_provider & sp, std::exception_ptr ex) {
+                [this](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
             },
               sp);
           }
@@ -255,7 +255,7 @@ namespace vds {
 
               this->start_work_circle(sp);
             },
-                [this](const service_provider & sp, std::exception_ptr ex) {
+                [this](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
             },
               sp);
           }
@@ -291,7 +291,7 @@ namespace vds {
 
               this->start_work_circle(sp);
             },
-                [this](const service_provider & sp, std::exception_ptr ex) {
+                [this](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
             },
               sp);
           }
@@ -307,7 +307,7 @@ namespace vds {
 
             tmp->write_all_async(sp, nullptr, 0)
               .wait([this](const service_provider & sp) {},
-                [this](const service_provider & sp, std::exception_ptr ex) {},
+                [this](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {},
                 sp);
           }
 
@@ -318,7 +318,7 @@ namespace vds {
             tmp->write_all_async(sp, nullptr, 0)
               .wait(
                 [this](const service_provider & sp) {},
-                [this](const service_provider & sp, std::exception_ptr ex) {},
+                [this](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {},
                 sp);
           }
 

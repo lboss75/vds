@@ -97,6 +97,10 @@ namespace vds {
       const service_provider & sp,
       const principal_log_record::record_id & record_id);
 
+    size_t get_current_state(
+      const service_provider & sp,
+      std::list<guid> & active_records);
+
   private:
     database db_;
 

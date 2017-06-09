@@ -122,13 +122,13 @@ void mock_client::init_server(
   registrator.add(network_service);
 
   vds::barrier b;
-  std::exception_ptr error;
+  std::shared_ptr<std::exception> error;
 
   auto sp = registrator.build("mock client on port " + std::to_string(port));
   sp.set_property<vds::unhandled_exception_handler>(
     vds::service_provider::property_scope::any_scope,
     new vds::unhandled_exception_handler(
-      [&b, &error](const vds::service_provider & sp, std::exception_ptr ex) {
+      [&b, &error](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
     error = ex;
     b.set();
   }));
@@ -154,7 +154,7 @@ void mock_client::init_server(
             private_key.save(vds::filename(root_folder, "server.pkey"));
           b.set();
         },
-          [&b](const vds::service_provider & sp, std::exception_ptr ex) {
+          [&b](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
             sp.unhandled_exception(ex);
             b.set();
         }, sp);
@@ -170,7 +170,7 @@ void mock_client::init_server(
   registrator.shutdown(sp);
 
   if (error) {
-    std::rethrow_exception(error);
+    std::rethrow_exception(std::make_exception_ptr(*error));
   }
 }
 
@@ -193,7 +193,7 @@ void mock_client::upload_file(
     )
     (
       [](const vds::service_provider & sp) {},
-      [](const vds::service_provider & sp, std::exception_ptr ex) { sp.unhandled_exception(ex); },
+      [](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) { sp.unhandled_exception(ex); },
       sp
       );
 
@@ -203,7 +203,7 @@ void mock_client::upload_file(
         [&b](const vds::service_provider&sp, const std::string& /*version_id*/) {
           b.set(); 
         },
-        [&b](const vds::service_provider&sp, std::exception_ptr ex) {
+        [&b](const vds::service_provider&sp, const std::shared_ptr<std::exception> & ex) {
           sp.unhandled_exception(ex);
           b.set();
         },
@@ -215,7 +215,7 @@ void mock_client::upload_file(
 
 vds::const_data_buffer mock_client::download_data(const std::string & login, const std::string & password, const std::string & name)
 {
-  std::exception_ptr error;
+  std::shared_ptr<std::exception> error;
   std::vector<uint8_t> result;
   this->start_vds(true, [&result, &error, login, password, name](const vds::service_provider&sp) {
     vds::barrier b;
@@ -229,7 +229,7 @@ vds::const_data_buffer mock_client::download_data(const std::string & login, con
       [&b](const vds::service_provider & sp){
         b.set();
       },
-      [&b, &error](const vds::service_provider & sp, std::exception_ptr ex) {
+      [&b, &error](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
         error = ex;
         b.set();
       },
@@ -247,14 +247,14 @@ vds::const_data_buffer mock_client::download_data(const std::string & login, con
     (
       [](const vds::service_provider & sp) {
       },
-      [&error](const vds::service_provider & sp, std::exception_ptr ex) {
+      [&error](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
         error = ex; 
       },
       sp);
   }, false);
 
   if (error) {
-    std::rethrow_exception(error);
+    std::rethrow_exception(std::make_exception_ptr(*error));
   }
 
   return result;
@@ -288,12 +288,12 @@ void mock_client::start_vds(bool full_client, const std::function<void(const vds
     registrator.add(client);
   }
 
-  std::exception_ptr error;
+  std::shared_ptr<std::exception> error;
   auto sp = registrator.build("mock client");
   sp.set_property<vds::unhandled_exception_handler>(
     vds::service_provider::property_scope::any_scope,
     new vds::unhandled_exception_handler(
-      [&error](const vds::service_provider & sp, std::exception_ptr ex) {
+      [&error](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
         error = ex;
   }));
 
@@ -316,7 +316,7 @@ void mock_client::start_vds(bool full_client, const std::function<void(const vds
   registrator.shutdown(sp);
 
   if (error) {
-    std::rethrow_exception(error);
+    std::rethrow_exception(std::make_exception_ptr(*error));
   }
 }
 
@@ -351,13 +351,13 @@ void mock_server::init_root(const std::string & root_password, int port)
   registrator.add(task_manager);
   registrator.add(server);
 
-  std::exception_ptr error;
+  std::shared_ptr<std::exception> error;
 
   auto sp = registrator.build("mock server::init_root");
   sp.set_property<vds::unhandled_exception_handler>(
     vds::service_provider::property_scope::any_scope,
     new vds::unhandled_exception_handler(
-      [&error](const vds::service_provider & sp, std::exception_ptr ex) {
+      [&error](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
         error = ex;
       }));
   try {
@@ -407,7 +407,7 @@ void mock_server::init_root(const std::string & root_password, int port)
   registrator.shutdown(sp);
 
   if (error) {
-    std::rethrow_exception(error);
+    std::rethrow_exception(std::make_exception_ptr(*error));
   }
 }
 

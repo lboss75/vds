@@ -112,6 +112,13 @@ namespace vds {
         return sp.get<logger>();
       }
 
+      static inline std::string escape_string(const std::string & str) {
+        std::string result = str;
+        replace_string(result, "\\", "\\\\");
+        replace_string(result, "\n", "\\n");
+        return result;
+      }
+
     private:
       log_writer & log_writer_;
       log_level min_log_level_;
@@ -150,7 +157,6 @@ namespace vds {
       std::unique_ptr<file> f_;
     };
 
-  std::string exception_what(std::exception_ptr ex);
 }
 
 #endif//__VDS_CORE_LOGGER_H_

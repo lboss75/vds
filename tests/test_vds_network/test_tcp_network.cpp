@@ -102,7 +102,7 @@ TEST(network_tests, test_server)
   registrator.start(sp);
   vds::imt_service::enable_async(sp);
 
-  std::exception_ptr error;
+  const std::shared_ptr<std::exception> & error;
   vds::barrier b;
   vds::tcp_socket_server server;
   server.start(
@@ -118,7 +118,7 @@ TEST(network_tests, test_server)
       [](const vds::service_provider & sp) {
       sp.get<vds::logger>()->debug(sp, "Server closed");
     },
-      [&error](const vds::service_provider & sp, std::exception_ptr ex) {
+      [&error](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
       error = ex;
     },
       sp);
@@ -127,7 +127,7 @@ TEST(network_tests, test_server)
     sp.get<vds::logger>()->debug(sp, "Server has been started");
     b.set();
   },
-    [&b, &error](const vds::service_provider & sp, std::exception_ptr ex) {
+    [&b, &error](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
     error = ex;
     b.set();
   },
@@ -166,7 +166,7 @@ TEST(network_tests, test_server)
         sp.get<vds::logger>()->debug(sp, "Client writer closed");
         done(sp);
       },
-        [on_error](const vds::service_provider & sp, std::exception_ptr ex) {
+        [on_error](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
         sp.get<vds::logger>()->debug(sp, "Client writer error");
         on_error(sp, ex);
       },
@@ -182,7 +182,7 @@ TEST(network_tests, test_server)
         [done](const vds::service_provider & sp) {
         done(sp);
       },
-        [on_error](const vds::service_provider & sp, std::exception_ptr ex) {
+        [on_error](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
         sp.get<vds::logger>()->debug(sp, "Client reader closed");
         on_error(sp, ex);
       },
@@ -194,7 +194,7 @@ TEST(network_tests, test_server)
       sp.get<vds::logger>()->debug(sp, "Client reader closed");
       done(sp);
     },
-        [on_error](const vds::service_provider & sp, std::exception_ptr ex) {
+        [on_error](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
       sp.get<vds::logger>()->debug(sp, "Client reader error");
       on_error(sp, ex);
     },
@@ -204,7 +204,7 @@ TEST(network_tests, test_server)
       sp.get<vds::logger>()->debug(sp, "Request sent");
       b.set();
     },
-    [&b, &error](const vds::service_provider & sp, std::exception_ptr ex) {
+    [&b, &error](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
       error = ex;
       sp.get<vds::logger>()->debug(sp, "Request error");
       b.set();

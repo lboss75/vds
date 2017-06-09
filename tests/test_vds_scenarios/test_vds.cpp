@@ -13,7 +13,7 @@ TEST(test_vds, test_initial)
 
     mock.start(5);
 
-
+    
     size_t len;
     do
     {
@@ -39,7 +39,10 @@ TEST(test_vds, test_initial)
     ASSERT_EQ(len, result.size());
     ASSERT_EQ(memcmp(buffer.get(), result.data(), len), 0);
   }
+  catch (const std::exception & ex) {
+    GTEST_FAIL() << ex.what();
+  }
   catch(...){
-    GTEST_FAIL() << vds::exception_what(std::current_exception());
+    GTEST_FAIL() << "Unexpected error";
   }
 }

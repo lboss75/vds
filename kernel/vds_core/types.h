@@ -28,7 +28,7 @@ namespace vds {
     static size_t g_last_type_id;
   };
   
-  typedef std::function<void (const service_provider &, std::exception_ptr)> error_handler;
+  typedef std::function<void (const service_provider &, const std::shared_ptr<std::exception> &)> error_handler;
 }
 
 template<typename interface_type>

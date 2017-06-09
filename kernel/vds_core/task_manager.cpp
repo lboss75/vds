@@ -55,10 +55,16 @@ void vds::timer::execute(const vds::service_provider& sp)
       this->schedule(sp);
     }
   }
+  catch (const std::exception & ex) {
+    auto p = sp.get_property<unhandled_exception_handler>(service_provider::property_scope::any_scope);
+    if (nullptr != p) {
+      p->on_error(sp, std::make_shared<std::exception>(ex));
+    }
+  }
   catch (...) {
     auto p = sp.get_property<unhandled_exception_handler>(service_provider::property_scope::any_scope);
     if (nullptr != p) {
-      p->on_error(sp, std::current_exception());
+      p->on_error(sp, std::make_shared<std::runtime_error>("Unexpected error"));
     }
   }
 }

@@ -20,6 +20,7 @@ namespace vds {
       const filename & fn);
 
   private:
+    foldername tmp_folder_;
   };
   
 }

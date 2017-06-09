@@ -37,7 +37,7 @@ TEST(test_vds_crypto, test_symmetric)
       key.generate();
 
       vds::barrier b;
-      std::exception_ptr error;
+      const std::shared_ptr<std::exception> & error;
       dataflow(
         random_reader<uint8_t>(buffer.get(), (int)len),
         vds::symmetric_encrypt(key),
@@ -45,7 +45,7 @@ TEST(test_vds_crypto, test_symmetric)
         compare_data<uint8_t>(buffer.get(), (int)len)
       )(
         [&b](const vds::service_provider &) {b.set(); },
-        [&b, &error](const vds::service_provider &, std::exception_ptr ex) {
+        [&b, &error](const vds::service_provider &, const std::shared_ptr<std::exception> & ex) {
           error = ex;
           b.set();
         },
@@ -132,7 +132,7 @@ TEST(test_vds_crypto, test_sign)
       vds::asymmetric_sign(vds::hash::sha256(), key, sign))
       (
         [&sign](const vds::service_provider & sp) { },
-        [](const vds::service_provider & sp, std::exception_ptr ex) { FAIL() << vds::exception_what(ex); },
+        [](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) { FAIL() << ex->what(); },
         sp);
 
 
@@ -144,7 +144,7 @@ TEST(test_vds_crypto, test_sign)
       vds::asymmetric_sign_verify(vds::hash::sha256(), pkey, sign))
       (
         [](const vds::service_provider & sp) { },
-        [](const vds::service_provider & sp, std::exception_ptr ex) { FAIL() << vds::exception_what(ex); },
+        [](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) { FAIL() << ex->what(); },
         sp);
 
     size_t index;
@@ -157,13 +157,13 @@ TEST(test_vds_crypto, test_sign)
     const_cast<unsigned char *>(buffer.get())[index]++;
 
     vds::barrier b;
-    std::exception_ptr error;
+    const std::shared_ptr<std::exception> & error;
     vds::dataflow(
       random_reader<uint8_t>(buffer.get(), (int)len),
       vds::asymmetric_sign_verify(vds::hash::sha256(), pkey, sign))
       (
         [&b](const vds::service_provider & sp) { b.set(); },
-        [&b, &error](const vds::service_provider & sp, std::exception_ptr ex) { error = ex; b.set(); },
+        [&b, &error](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) { error = ex; b.set(); },
         sp);
 
     b.wait();

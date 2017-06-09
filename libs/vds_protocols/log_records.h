@@ -177,6 +177,21 @@ namespace vds {
     guid server_id_;
     std::string addresses_;
   };
+
+  class principal_log_objects
+  {
+  public:
+
+    struct record
+    {
+      guid object_id;
+      size_t object_size;
+      const_data_buffer object_hash;
+    };
+
+    std::unordered_map<std::string, record> records;
+    const_data_buffer meta_info;
+  };
 }
 
 #endif // __VDS_PROTOCOLS_LOG_RECORDS_H_

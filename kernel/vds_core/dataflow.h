@@ -61,7 +61,7 @@ namespace vds {
     size_t output_buffer_size() { return this->output_buffer_size_; }
     outgoing_item_type & output_buffer(size_t index) const { return this->output_buffer_[index]; }
     
-    void error(const service_provider & sp, std::exception_ptr ex)
+    void error(const service_provider & sp, const std::shared_ptr<std::exception> & ex)
     {
       this->common_data_->step_error(sp, context_type::INDEX, ex);
     }
@@ -124,7 +124,7 @@ namespace vds {
       return this->target_->push_data(sp, written, this->output_buffer_, this->output_buffer_size_);
     }
     
-    void error(const service_provider & sp, std::exception_ptr ex)
+    void error(const service_provider & sp, const std::shared_ptr<std::exception> & ex)
     {
       this->common_data_->step_error(sp, context_type::INDEX, ex);
     }
@@ -207,8 +207,12 @@ namespace vds {
         try {
           static_cast<implementation_type *>(this)->sync_process_data(sp, readed, written);
         }
+        catch (const std::exception & ex) {
+          this->common_data_->step_error(sp, context_type::INDEX, std::make_shared<std::exception>(ex));
+          return false;
+        }
         catch (...) {
-          this->common_data_->step_error(sp, context_type::INDEX, std::current_exception());
+          this->common_data_->step_error(sp, context_type::INDEX, std::make_shared<std::runtime_error>("Unhandled error"));
           return false;
         }
 
@@ -330,7 +334,7 @@ namespace vds {
     size_t output_buffer_size() { return this->output_buffer_size_; }
     outgoing_item_type & output_buffer(size_t index) const { return this->output_buffer_[index]; }
 
-    void error(const service_provider & sp, std::exception_ptr ex)
+    void error(const service_provider & sp, const std::shared_ptr<std::exception> & ex)
     {
       this->common_data_->step_error(sp, context_type::INDEX, ex);
     }
@@ -532,7 +536,7 @@ namespace vds {
     size_t output_buffer_size() { return this->output_buffer_size_; }
     outgoing_item_type & output_buffer(size_t index) const { return this->output_buffer_[index]; }
     
-    void error(const service_provider & sp, std::exception_ptr ex)
+    void error(const service_provider & sp, const std::shared_ptr<std::exception> & ex)
     {
       this->common_data_->step_error(sp, context_type::INDEX, ex);
     }
@@ -632,7 +636,7 @@ namespace vds {
     size_t input_buffer_size() const { return this->input_buffer_size_; }
     incoming_item_type & input_buffer(size_t index) const { return this->input_buffer_[index];}
     
-    void error(const service_provider & sp, std::exception_ptr ex)
+    void error(const service_provider & sp, const std::shared_ptr<std::exception> & ex)
     {
       this->common_data_->step_error(sp, context_type::INDEX, ex);
     }
@@ -728,7 +732,7 @@ namespace vds {
       return true;
     }
     
-    void error(const service_provider & sp, std::exception_ptr ex)
+    void error(const service_provider & sp, const std::shared_ptr<std::exception> & ex)
     {
       this->common_data_->step_error(sp, context_type::INDEX, ex);
     }
@@ -774,7 +778,7 @@ namespace vds {
       cancellation_token cancellation_token_;
 
       virtual void step_finish(const service_provider & sp, size_t index) = 0;
-      virtual void step_error(const service_provider & sp, size_t index, std::exception_ptr error) = 0;
+      virtual void step_error(const service_provider & sp, size_t index, const std::shared_ptr<std::exception> & error) = 0;
     };
     
     template<
@@ -960,8 +964,12 @@ namespace vds {
           this->data_queried_ = true;
           return true;
         }
+        catch (const std::exception & ex) {
+          this->common_data_->step_error(sp, index, std::make_shared<std::exception>(ex));
+          return false;
+        }
         catch(...){
-          this->common_data_->step_error(sp, index, std::current_exception());
+          this->common_data_->step_error(sp, index, std::make_shared<std::runtime_error>("Unexpected error"));
           return false;
         }
       }
@@ -1256,7 +1264,7 @@ namespace vds {
         this->try_finish(sp);
       }
 
-      void step_error(const service_provider & sp, size_t index, std::exception_ptr error) override
+      void step_error(const service_provider & sp, size_t index, const std::shared_ptr<std::exception> & error) override
       {
         if (!this->error_) {
           this->error_ = error;
@@ -1277,7 +1285,7 @@ namespace vds {
       std::shared_ptr<starter> pthis_;
 
       std::set<size_t> done_steps_;
-      std::exception_ptr error_;
+      std::shared_ptr<std::exception> error_;
 
       void try_finish(const service_provider & sp)
       {
@@ -1339,7 +1347,7 @@ namespace vds {
       {
         if (!this->completed_) {
           if (1 < this->input_buffer_size()) {
-            this->error(sp, std::make_exception_ptr(std::runtime_error("Require only one item")));
+            this->error(sp, std::make_shared<std::runtime_error>("Require only one item"));
             return 0;
           }
           else if(1 == this->input_buffer_size()){
@@ -1347,12 +1355,12 @@ namespace vds {
             *this->result_ = *this->input_buffer();
           }
           else {
-            this->error(sp, std::make_exception_ptr(std::runtime_error("Require one item")));
+            this->error(sp, std::make_shared<std::runtime_error>("Require one item"));
             return 0;
           }
         }
         else if (0 < this->input_buffer_size()) {
-          this->error(sp, std::make_exception_ptr(std::runtime_error("Require only one item")));
+          this->error(sp, std::make_shared<std::runtime_error>("Require only one item"));
           return 0;
         }
 

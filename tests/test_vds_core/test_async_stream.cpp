@@ -23,7 +23,7 @@ TEST(mt_tests, test_async_stream) {
   auto stream = std::make_shared<vds::async_stream<uint8_t>>();
 
   vds::barrier b;
-  std::exception_ptr err;
+  const std::shared_ptr<std::exception> & err;
 
   vds::async_series(
     vds::create_async_task(
@@ -57,7 +57,7 @@ TEST(mt_tests, test_async_stream) {
       [&b](const vds::service_provider & sp) {
         b.set();
       },
-      [&b, &err](const vds::service_provider & sp, std::exception_ptr ex) {
+      [&b, &err](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
         err = ex;
         b.set();
       },

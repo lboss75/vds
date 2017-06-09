@@ -54,7 +54,7 @@ vds::_chunk_manager::add(
       const std::function<void (const service_provider & sp)> & done,
       const error_handler & on_error,
       const service_provider & sp){
-        std::exception_ptr error;
+        const std::shared_ptr<std::exception> & error;
 
         constexpr size_t BLOCK_SIZE = 5 * 1024 * 1024;
         auto file_size = file::length(fn);
@@ -93,7 +93,7 @@ vds::_chunk_manager::add(
               sp.get<istorage_log>()->add_to_local_log(sp, result.serialize());
               target.add(result);
           },
-            [&error](const service_provider & sp, std::exception_ptr ex) {
+            [&error](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
               error = ex;
             },
             sp);

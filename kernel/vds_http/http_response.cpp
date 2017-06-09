@@ -38,10 +38,10 @@ std::shared_ptr<vds::http_message> vds::http_response::simple_text_response(
       [result, buffer](const service_provider & sp) {
         result->body()->write_all_async(sp, nullptr, 0).wait(
           [](const service_provider & sp) {},
-          [](const service_provider & sp, std::exception_ptr ex) {},
+          [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {},
           sp);
       },
-      [](const service_provider & sp, std::exception_ptr ex) {},
+      [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {},
     sp);
   return result;
 }

@@ -124,13 +124,16 @@ namespace vds {
 #endif
         this->written_method_(this->sp_, dwBytesTransfered);
       }
+      catch (const std::exception & ex) {
+        this->error_method_(this->sp_, std::make_shared<std::exception>(ex));
+      }
       catch (...) {
-        this->error_method_(this->sp_, std::current_exception());
+        this->error_method_(this->sp_, std::make_shared<std::runtime_error>("Unexpected error"));
       }
     }
     void error(DWORD error_code) override
     {
-      this->error_method_(this->sp_, std::make_exception_ptr(std::system_error(error_code, std::system_category(), "write to tcp socket")));
+      this->error_method_(this->sp_, std::make_unique<std::system_error>(error_code, std::system_category(), "write to tcp socket"));
     }
 
 #else//!_WIN32

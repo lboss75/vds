@@ -163,7 +163,7 @@ void vds::client_logic::add_task(const service_provider & sp, const std::shared_
       connection->outgoing_stream()->write_value_async(scope, message)
       .wait(
         [](const service_provider & sp) {},
-        [](const service_provider & sp, std::exception_ptr ex) { sp.unhandled_exception(ex); },
+        [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) { sp.unhandled_exception(ex); },
         scope);
     }
   }
@@ -249,13 +249,13 @@ void vds::client_logic::continue_read_connection(
             this->process_response(sp, *json_response);
             this->continue_read_connection(sp, connection, buffer);
           },
-          [](const service_provider & sp, std::exception_ptr ex) {
+          [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
             sp.unhandled_exception(ex);
           },
           sp);
       }
     },
-    [](const service_provider & sp, std::exception_ptr ex) {
+    [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
       sp.unhandled_exception(ex);
     },
     sp);
@@ -351,7 +351,7 @@ void vds::client_logic::request_info::on_timeout(const service_provider & sp)
   std::lock_guard<std::mutex> task_lock(this->mutex_);
   if (!this->is_completed_) {
     this->is_completed_ = true;
-    this->on_error_(sp, std::make_exception_ptr(std::runtime_error("Timeout")));
+    this->on_error_(sp, std::make_shared<std::runtime_error>("Timeout"));
   }
 }
 
