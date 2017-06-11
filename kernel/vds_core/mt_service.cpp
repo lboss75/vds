@@ -6,6 +6,7 @@ All rights reserved
 #include "mt_service.h"
 #include "mt_service_p.h"
 #include "shutdown_event.h"
+#include "barrier.h"
 
 vds::mt_service::mt_service()
 {

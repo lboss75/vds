@@ -14,32 +14,35 @@ namespace vds {
     class barrier
     {
     public:
-        barrier();
+        barrier(size_t init_value = 1);
         ~barrier();
 
         void set();
         void wait();
-        void reset();
+        void reset(size_t init_value = 1);
+        
+        barrier & operator ++ ();
+        barrier & operator -- ();
         
         template<typename _Rep, typename _Period>
         bool wait_for(const std::chrono::duration<_Rep, _Period> & period)
         {
           std::unique_lock<std::mutex> lock(this->mutex_);
 
-          if (this->done_) {
+          if (0 == this->count_) {
             return true;
           }
           
           return this->cond_.wait_for(
                 lock,
                 period,
-                [this] { return this->done_; });
+                [this] { return 0 == this->count_; });
         }
 
 
     private:
         std::mutex mutex_;
-        bool done_;
+        size_t count_;
         std::condition_variable cond_;
     };
 }

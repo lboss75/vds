@@ -88,9 +88,9 @@ std::shared_ptr<vds::json_value> vds::_server_json_client_api::operator()(
               //TODO: else if (consensus_messages::consensus_message_who_is_leader::message_type == task_type_name) {
               //  task = scope.get<iserver>().consensus_server_protocol().process(scope, consensus_messages::consensus_message_who_is_leader(task_object));
               //}
-              //else if (client_messages::put_object_message::message_type == task_type_name) {
-              //  task = this->process(sp, client_messages::put_object_message(task_object));
-              //}
+              else if (client_messages::put_object_message::message_type == task_type_name) {
+                task = this->process(sp, client_messages::put_object_message(task_object));
+              }
               //else if (client_messages::get_file_message_request::message_type == task_type_name) {
               //  task = this->process(sp, client_messages::get_file_message_request(task_object));
               //}
@@ -223,14 +223,12 @@ vds::_server_json_client_api::process(
       });
 }
 
-/*
+
 vds::async_task<std::shared_ptr<vds::json_value>>
 vds::_server_json_client_api::process(
   const service_provider & sp,
   const client_messages::put_object_message & message)
 {
-  auto version_id = guid::new_guid().str();
-  
   return sp.get<file_manager>()->put_file(
       sp,
       version_id,
@@ -247,6 +245,7 @@ vds::_server_json_client_api::process(
   });
 }
 
+/*
 vds::async_task<std::shared_ptr<vds::json_value>> vds::_server_json_client_api::process(
   const service_provider & sp,
   const client_messages::get_file_message_request & message)

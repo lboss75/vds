@@ -8,6 +8,7 @@ All rights reserved
 #include "task_manager.h"
 #include "mt_service.h"
 #include "shutdown_event.h"
+#include "barrier.h"
 
 vds::timer::timer()
 : sp_(service_provider::empty())
@@ -112,9 +113,7 @@ void vds::task_manager::stop(const service_provider &)
 
 void vds::task_manager::work_thread()
 {
-  std::mutex task_count_mutex;
-  size_t task_count = 0;
-  std::condition_variable task_count_cond;
+  barrier b(0);
   
   while(!this->sp_.get_shutdown_event().is_shuting_down()){
   
@@ -126,17 +125,13 @@ void vds::task_manager::work_thread()
       if(task->start_time_ <= now){
         this->scheduled_.remove(task);
         
-        std::unique_lock<std::mutex> lock(task_count_mutex);
-        ++task_count;
+        ++b;
         
-        imt_service::async(this->sp_, [this, task, &task_count, &task_count_mutex, &task_count_cond](){
+        imt_service::async(this->sp_, [this, task, &b](){
           try{
             task->execute(this->sp_);
             
-            std::unique_lock<std::mutex> lock(task_count_mutex);
-            if(0 == --task_count){
-              task_count_cond.notify_all();
-            }
+            --b;
           }
           catch(...){
             throw;
@@ -155,12 +150,6 @@ void vds::task_manager::work_thread()
     this->scheduled_changed_.wait_for(lock, timeout);
   }
   
-  for(;;){
-    std::unique_lock<std::mutex> lock(task_count_mutex);
-    if(0 == task_count){
-      break;
-    }
-    
-    task_count_cond.wait(lock, [&task_count]()->bool{ return (0 == task_count);});
-  }
+  b.wait();
+  
 }
