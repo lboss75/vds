@@ -21,6 +21,11 @@ namespace vds {
     void start(const service_provider & sp);
     void stop(const service_provider & sp);
 
+    async_task<> add_object(
+      const service_provider & sp,
+      const guid & version_id,
+      const filename & tmp_file);
+
     /*
     
     async_task<>

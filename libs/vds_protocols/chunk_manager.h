@@ -11,11 +11,19 @@ All rights reserved
 #include "filename.h"
 
 namespace vds {
-  class _chunk_manager;
-  
   class ichunk_manager
   {
   public:
+    ichunk_manager();
+    ~ichunk_manager();
+    
+    void start(const service_provider & sp);
+    void stop(const service_provider & sp);
+    
+    async_task<> add_object(
+      const service_provider & sp,
+      const guid & version_id,
+      const filename & tmp_file);
   };
 }
 

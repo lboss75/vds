@@ -73,13 +73,13 @@ void vds::server::set_port(size_t port)
 /////////////////////////////////////////////////////////////////////////////////////////////
 
 vds::_server::_server(server * owner)
-  : owner_(owner),
-  storage_log_(new _storage_log()),
-  server_database_(new _server_database()),
+: owner_(owner),
   node_manager_(new _node_manager()),
   server_http_api_(new _server_http_api()),
-  local_cache_(new _local_cache()),
-  chunk_manager_(new _chunk_manager())
+  storage_log_(new _storage_log()),
+  chunk_manager_(new _chunk_manager()),
+  server_database_(new _server_database()),
+  local_cache_(new _local_cache())
 {
 }
 

@@ -602,7 +602,7 @@ size_t vds::_server_database::get_current_state(const service_provider & sp, std
     [&active_records, &max_order_num](sql_statement & reader)->bool {
 
     guid id;
-    int order_num;
+    size_t order_num;
     reader.get_value(0, id);
     reader.get_value(1, order_num);
 

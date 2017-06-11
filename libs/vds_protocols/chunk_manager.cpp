@@ -8,6 +8,36 @@ All rights reserved
 #include "chunk_manager_p.h"
 #include "storage_log.h"
 #include "hash.h"
+
+vds::ichunk_manager::ichunk_manager()
+{
+}
+
+vds::ichunk_manager::~ichunk_manager()
+{
+}
+
+void vds::ichunk_manager::start(const service_provider & sp)
+{
+  static_cast<_chunk_manager *>(this)->start(sp);
+}
+
+void vds::ichunk_manager::stop(const service_provider & sp)
+{
+  static_cast<_chunk_manager *>(this)->stop(sp);
+}
+
+vds::async_task<> vds::ichunk_manager::add_object(
+  const service_provider & sp,
+  const guid & version_id,
+  const filename & tmp_file)
+{
+  return static_cast<_chunk_manager *>(this)->add_object(
+    sp,
+    version_id,
+    tmp_file);
+}
+
 /*
 vds::async_task<>
 vds::ichunk_manager::add(
@@ -41,6 +71,7 @@ vds::_chunk_manager::_chunk_manager()
 vds::_chunk_manager::~_chunk_manager()
 {
 }
+
 /*
 vds::async_task<>
 vds::_chunk_manager::add(
@@ -121,6 +152,7 @@ void vds::_chunk_manager::set_next_index(const service_provider & sp, uint64_t n
   this->last_obj_file_index_ = next_index;
 }
 */
+
 void vds::_chunk_manager::start(const service_provider & sp)
 {
   this->tmp_folder_ = foldername(foldername(persistence::current_user(sp), ".vds"), "tmp");
@@ -131,3 +163,16 @@ void vds::_chunk_manager::stop(const service_provider & sp)
 {
 }
 
+vds::async_task<> vds::_chunk_manager::add_object(
+  const service_provider & sp,
+  const guid & version_id,
+  const filename & tmp_file)
+{
+  return create_async_task([](
+    const std::function<void (const service_provider & sp)> & done,
+    const error_handler & on_error,
+    const service_provider & sp){
+    
+    done(sp);
+  });
+}

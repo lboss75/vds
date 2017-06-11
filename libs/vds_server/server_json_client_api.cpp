@@ -229,19 +229,41 @@ vds::_server_json_client_api::process(
   const service_provider & sp,
   const client_messages::put_object_message & message)
 {
-  return sp.get<file_manager>()->put_file(
-      sp,
-      version_id,
-      message.user_login(),
-      message.name(),
-      message.meta_info(),
-      message.tmp_file())
-    .then(
-      [version_id](const std::function<void(const service_provider & sp, std::shared_ptr<vds::json_value>)> & done,
-                   const error_handler & on_error,
-                   const service_provider & sp) {
-
-    done(sp, client_messages::put_object_message_response(version_id).serialize());
+  return create_async_task([message](
+    const std::function<void(const service_provider & sp, std::shared_ptr<vds::json_value>)> & done,
+    const error_handler & on_error,
+    const service_provider & sp){
+      principal_log_record record(message.principal_msg());
+      auto author = sp.get<iserver_database>()->find_principal(sp, record.principal_id());
+      if(!author){
+        on_error(sp, std::make_shared<std::runtime_error>("Author not found"));
+        return;
+      }
+      
+      auto body = message.principal_msg()->str();
+      if(!asymmetric_sign_verify::verify(
+        hash::sha256(),
+        certificate::parse(author->cert_body()).public_key(),
+        message.signature(),
+        body.c_str(),
+        body.length())){
+        on_error(sp, std::make_shared<std::runtime_error>("Signature verification failed"));
+        return;
+      }
+      
+      principal_log_new_object new_object(record.message());
+      
+      sp.get<iserver_database>()->save_record(sp, record, message.signature());
+  
+      sp.get<ichunk_manager>()->add_object(
+        sp,
+        new_object.index(),
+        message.tmp_file())
+      .wait([done](const service_provider & sp){
+          done(sp, client_messages::put_object_message_response().serialize());
+        },
+        on_error,
+        sp);
   });
 }
 

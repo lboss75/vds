@@ -116,7 +116,7 @@ namespace vds {
         const filename & tmp_file);
 
       const guid & principal_id() const { return this->principal_id_; }
-      const std::shared_ptr<json_value> & principal_msg() { return this->principal_msg_; }
+      const std::shared_ptr<json_value> & principal_msg() const { return this->principal_msg_; }
       const const_data_buffer & signature() const { return this->signature_; }
       const filename & tmp_file() const { return this->tmp_file_; }
 
