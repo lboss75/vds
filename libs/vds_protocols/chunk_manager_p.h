@@ -8,6 +8,7 @@ All rights reserved
 
 #include "chunk_manager.h"
 #include "server_database.h"
+#include "chunk_storage.h"
 
 namespace vds {
   class istorage_log;
@@ -41,9 +42,19 @@ namespace vds {
 
       */
   private:
-    //std::mutex file_mutex_;
-    //uint64_t last_index_;
-    //uint64_t last_chunk_;
+    std::mutex file_mutex_;
+    uint64_t last_index_;
+    uint64_t last_chunk_;
+    uint64_t obj_size_;
+    uint64_t tails_chunk_index_;
+    
+    chunk_storage chunk_storage_;
+    
+    static const size_t BLOCK_SIZE = 5 * 1024 * 1024;
+    static const uint16_t min_horcrux = 512;
+    static const uint16_t generate_horcrux = 1024;
+
+    
     //
     //std::mutex tmp_folder_mutex_;
     foldername tmp_folder_;
@@ -65,6 +76,22 @@ namespace vds {
     //static constexpr size_t output_file_max_size = 1024;
 
     //void generate_chunk(const service_provider & sp);
+    
+    bool write_chunk(
+      const service_provider & sp,
+      const guid & version_id,
+      const filename & tmp_file,
+      size_t offset,
+      size_t size,
+      const error_handler & on_error);
+
+    bool write_tail(
+      const service_provider & sp,
+      const guid & version_id,
+      const filename & tmp_file,
+      size_t offset,
+      size_t size,
+      const error_handler & on_error);
   };
 }
 

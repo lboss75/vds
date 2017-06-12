@@ -15,13 +15,11 @@ namespace vds {
   public:
     _chunk_storage(
       chunk_storage * owner,
-      const guid & source_id,
       uint16_t min_horcrux);
 
     //
     void generate_replica(
       binary_serializer & s,
-      uint64_t index,
       uint16_t replica,
       const void * data,
       size_t size);
@@ -32,7 +30,6 @@ namespace vds {
 
   private:
     chunk_storage * owner_;
-    guid source_id_;
     uint16_t min_horcrux_;
 
     std::unordered_map<uint16_t, std::unique_ptr<chunk_generator<uint16_t>>> generators_;

@@ -168,11 +168,78 @@ vds::async_task<> vds::_chunk_manager::add_object(
   const guid & version_id,
   const filename & tmp_file)
 {
-  return create_async_task([](
+  return create_async_task([this, version_id, tmp_file](
     const std::function<void (const service_provider & sp)> & done,
     const error_handler & on_error,
     const service_provider & sp){
     
+    auto file_size = file::length(tmp_file);
+    
+    for (decltype(file_size) offset = 0; offset < file_size; offset += BLOCK_SIZE) {
+      if(BLOCK_SIZE < file_size - offset){
+        if(!this->write_chunk(sp, version_id, tmp_file, offset, BLOCK_SIZE, on_error)){
+          return;
+        }
+      }
+      else {
+        if(!this->write_tail(sp, version_id, tmp_file, offset, file_size - offset, on_error)){
+          return;
+        }
+      }
+    }
+    
     done(sp);
   });
+}
+
+bool vds::_chunk_manager::write_chunk(
+  const service_provider & sp,
+  const guid & version_id,
+  const filename & fn,
+  size_t offset,
+  size_t size,
+  const error_handler & on_error)
+{
+  filename tmp_file(this->tmp_folder_, std::to_string(tmp_index));
+
+  size_t original_length;
+  const_data_buffer original_hash;
+
+  bool result;
+  std::vector<uint8_t> buffer;
+  dataflow(
+    file_range_read(fn, offset, size),
+    hash_filter(&original_length, &original_hash),
+    collect_data(buffer)
+  )(
+    [this, &result, &buffer](const service_provider & sp){
+      for(uint16_t replica = 0; replica < generate_horcrux; ++replica){
+        auto replica_data = this->chunk_storage_.generate_replica(replica, buffer.data(), buffer.size());
+        size_t replica_length;
+        const_data_buffer replica_hash;
+        dataflow(
+          dataflow_arguments<uint8_t>(replica_data.data(), replica_data.size()),
+          hash_filter(&replica_length, &replica_hash),       
+          file_write(replica_file, file::open_mode::create))(
+            
+        );
+      }
+    },
+    [&result, on_error](const service_provider & sp, const std::shared_ptr<std::exception> & ex){
+      on_error(sp, ex);
+      result = false;
+    },
+    sp);
+  
+  return result;
+}
+
+bool vds::_chunk_manager::write_tail(
+  const service_provider & sp,
+  const guid & version_id,
+  const filename & tmp_file,
+  size_t offset,
+  size_t size,
+  const error_handler & on_error)
+{
 }
