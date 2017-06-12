@@ -239,13 +239,21 @@ void vds::_server_database::start(const service_provider & sp)
       "CREATE TABLE object_chunk(\
       server_id VARCHAR(64) NOT NULL,\
       chunk_index INTEGER NOT NULL,\
+      hash VARCHAR(64) NOT NULL,\
+      state INTEGER NOT NULL,\
+      CONSTRAINT pk_object_chunk PRIMARY KEY (server_id, chunk_index))");
+
+    this->db_.execute(
+      "CREATE TABLE object_chunk_map(\
+      server_id VARCHAR(64) NOT NULL,\
+      chunk_index INTEGER NOT NULL,\
       object_id VARCHAR(64) NOT NULL,\
       object_offset INTEGER NOT NULL,\
       chunk_offset INTEGER NOT NULL,\
-      lenght INTEGER NOT NULL,\
+      length INTEGER NOT NULL,\
       hash VARCHAR(64) NOT NULL,\
-      CONSTRAINT pk_object_chunk PRIMARY KEY (server_id, chunk_index))");
-
+      CONSTRAINT pk_object_chunk_map PRIMARY KEY (server_id, chunk_index))");
+    
     this->db_.execute(
       "CREATE TABLE object_chunk_store (\
       server_id VARCHAR(64) NOT NULL,\

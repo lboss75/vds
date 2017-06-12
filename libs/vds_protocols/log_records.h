@@ -177,6 +177,24 @@ namespace vds {
     guid server_id_;
     std::string addresses_;
   };
+  
+  class object_chunk_map
+  {
+  public:
+    object_chunk_map(const guid & object_id);
+    
+    void add_chunk(
+      size_t index,
+      uint16_t replica,
+      size_t offset,
+      size_t size,
+      size_t replica_length,
+      const const_data_buffer & replica_hash);
+    
+    
+  private:
+    
+  };
 }
 
 #endif // __VDS_PROTOCOLS_LOG_RECORDS_H_

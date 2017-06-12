@@ -42,17 +42,14 @@ namespace vds {
 
       */
   private:
-    std::mutex file_mutex_;
-    uint64_t last_index_;
-    uint64_t obj_size_;
-    uint64_t tails_chunk_index_;
-    
     chunk_storage chunk_storage_;
     foldername chunks_folder_;
 
     std::mutex chunk_mutex_;
     uint64_t last_chunk_;
     
+    uint64_t tails_chunk_index_;
+    size_t tail_chunk_size_;
     
     static const size_t BLOCK_SIZE = 5 * 1024 * 1024;
     static const uint16_t min_horcrux = 512;
