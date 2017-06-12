@@ -101,6 +101,10 @@ namespace vds {
     void delete_record(
       const service_provider & sp,
       const principal_log_record::record_id & id);
+    
+    size_t get_last_chunk(
+      const service_provider & sp,
+      const guid & server_id);
   };
 }
 

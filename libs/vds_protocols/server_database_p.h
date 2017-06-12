@@ -100,6 +100,10 @@ namespace vds {
     size_t get_current_state(
       const service_provider & sp,
       std::list<guid> & active_records);
+    
+    size_t get_last_chunk(
+      const service_provider & sp,
+      const guid & server_id);
 
   private:
     database db_;

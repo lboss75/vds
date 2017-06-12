@@ -155,8 +155,12 @@ void vds::_chunk_manager::set_next_index(const service_provider & sp, uint64_t n
 
 void vds::_chunk_manager::start(const service_provider & sp)
 {
-  this->tmp_folder_ = foldername(foldername(persistence::current_user(sp), ".vds"), "tmp");
-  this->tmp_folder_.create();
+  this->chunks_folder_ = foldername(foldername(persistence::current_user(sp), ".vds"), "chunks");
+  this->chunks_folder_.create();
+  
+  this->last_chunk_ = sp.get<iserver_database>()->get_last_chunk(
+    sp,
+    sp.get<istorage_log>()->current_server_id());
 }
 
 void vds::_chunk_manager::stop(const service_provider & sp)
@@ -200,8 +204,10 @@ bool vds::_chunk_manager::write_chunk(
   size_t size,
   const error_handler & on_error)
 {
-  filename tmp_file(this->tmp_folder_, std::to_string(tmp_index));
-
+  this->chunk_mutex_.lock();
+  auto index = this->last_chunk_++;
+  this->chunk_mutex_.unlock();
+  
   size_t original_length;
   const_data_buffer original_hash;
 
@@ -214,15 +220,23 @@ bool vds::_chunk_manager::write_chunk(
   )(
     [this, &result, &buffer](const service_provider & sp){
       for(uint16_t replica = 0; replica < generate_horcrux; ++replica){
+        
+        filename replica_file(this->chunks_folder_, std::to_string(index) + "." + std::to_string(replica));
+        
         auto replica_data = this->chunk_storage_.generate_replica(replica, buffer.data(), buffer.size());
         size_t replica_length;
         const_data_buffer replica_hash;
         dataflow(
           dataflow_arguments<uint8_t>(replica_data.data(), replica_data.size()),
           hash_filter(&replica_length, &replica_hash),       
-          file_write(replica_file, file::open_mode::create))(
-            
-        );
+          file_write(replica_file, file::file_mode::create_new))(
+            [](const service_provider & sp){
+              
+            },
+            [](const service_provider & sp, const std::shared_ptr<std::exception> & ex){
+              
+            },
+            sp);
       }
     },
     [&result, on_error](const service_provider & sp, const std::shared_ptr<std::exception> & ex){

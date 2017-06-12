@@ -147,6 +147,12 @@ vds::iserver_database::principal_log_state vds::iserver_database::get_record_sta
   return static_cast<_server_database *>(this)->principal_log_get_state(sp, id);
 }
 
+size_t vds::iserver_database::get_last_chunk(
+  const service_provider & sp,
+  const guid & server_id)
+{
+  return static_cast<_server_database *>(this)->get_last_chunk(sp, server_id);
+}
 ////////////////////////////////////////////////////////
 vds::_server_database::_server_database()
 {
@@ -233,8 +239,9 @@ void vds::_server_database::start(const service_provider & sp)
       "CREATE TABLE object_chunk(\
       server_id VARCHAR(64) NOT NULL,\
       chunk_index INTEGER NOT NULL,\
-      object_index INTEGER NOT NULL,\
-      start_offset INTEGER NOT NULL,\
+      object_id VARCHAR(64) NOT NULL,\
+      object_offset INTEGER NOT NULL,\
+      chunk_offset INTEGER NOT NULL,\
       lenght INTEGER NOT NULL,\
       hash VARCHAR(64) NOT NULL,\
       CONSTRAINT pk_object_chunk PRIMARY KEY (server_id, chunk_index))");
@@ -896,4 +903,19 @@ bool vds::_server_database::get_record_by_state(
   }
 
   return result;  
+}
+
+size_t vds::_server_database::get_last_chunk(
+  const service_provider & sp,
+  const guid & server_id)
+{  
+  size_t result = 0;
+  auto st = this->db_.parse("SELECT MAX(chunk_index) FROM object_chunk WHERE server_id=@server_id");
+  st.set_parameter(0, server_id);
+  
+  while(st.execute()) {
+    st.get_value(0, result);
+  }
+
+  return result;
 }
