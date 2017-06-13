@@ -334,7 +334,6 @@ void vds::_server_database::start(const service_provider & sp)
       "CREATE TABLE object_chunk(\
       server_id VARCHAR(64) NOT NULL,\
       chunk_index INTEGER NOT NULL,\
-      chunk_type INTEGER NOT NULL,\
       chunk_size INTEGER NOT NULL,\
       hash VARCHAR(64) NOT NULL,\
       CONSTRAINT pk_object_chunk PRIMARY KEY (server_id, chunk_index))");

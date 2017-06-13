@@ -289,7 +289,8 @@ bool vds::_chunk_manager::write_tail(
               index,
               this->tail_chunk_size_);
           },
-          [&result](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+          [&result, on_error](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+            on_error(sp, ex);
             result = false;
           },
           sp);
