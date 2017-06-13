@@ -104,6 +104,11 @@ namespace vds {
     size_t get_last_chunk(
       const service_provider & sp,
       const guid & server_id);
+    
+    size_t get_tail_chunk(
+      const service_provider & sp,
+      const guid & server_id,
+      size_t & result_size);
 
     void add_full_chunk(
       const service_provider & sp,

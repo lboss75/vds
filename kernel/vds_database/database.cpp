@@ -106,3 +106,12 @@ bool vds::sql_statement::get_value(int index, const_data_buffer & value)
 {
   return this->impl_->get_value(index, value);
 }
+
+vds::sql_statement& vds::sql_statement::operator= (vds::sql_statement&& original)
+{
+  delete this->impl_;
+  this->impl_ = original.impl_;
+  original.impl_ = nullptr;
+  
+  return *this;
+}

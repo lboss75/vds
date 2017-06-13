@@ -159,9 +159,17 @@ void vds::_chunk_manager::start(const service_provider & sp)
   this->chunks_folder_ = foldername(foldername(persistence::current_user(sp), ".vds"), "chunks");
   this->chunks_folder_.create();
   
+  auto server_id = sp.get<istorage_log>()->current_server_id();
   this->last_chunk_ = sp.get<iserver_database>()->get_last_chunk(
     sp,
-    sp.get<istorage_log>()->current_server_id());
+    server_id);
+  
+  foldername(this->chunks_folder_, server_id.str()).create();
+  
+  this->tail_chunk_index_ = sp.get<iserver_database>()->get_tail_chunk(
+    sp,
+    server_id,
+    this->tail_chunk_size_);
 }
 
 void vds::_chunk_manager::stop(const service_provider & sp)
@@ -256,7 +264,7 @@ bool vds::_chunk_manager::write_chunk(
 
 bool vds::_chunk_manager::write_tail(
   const service_provider & sp,
-  const const guid & version_id,
+  const guid & version_id,
   const filename & fn,
   size_t offset,
   size_t size,
@@ -278,12 +286,12 @@ bool vds::_chunk_manager::write_tail(
         file_range_read(fn, offset, to_write),
         hash_filter(&original_length, &original_hash),
         file_write(chunk_file, file::file_mode::append))(
-          [this, sp, server_id, version_id, index, offset, size, &original_hash](const service_provider & sp) {
+          [this, sp, server_id, version_id, index, offset, to_write, &original_hash](const service_provider & sp) {
             sp.get<iserver_database>()->add_to_tail_chunk(
               sp,
               version_id,
               offset,
-              size,
+              to_write,
               original_hash,
               server_id,
               index,
@@ -323,6 +331,37 @@ bool vds::_chunk_manager::write_tail(
           break;
         }
       }
+    }
+    else {
+      filename chunk_file(this->chunks_folder_, std::to_string(index));
+      size_t original_length;
+      const_data_buffer original_hash;
+      dataflow(
+        file_range_read(fn, offset, size),
+        hash_filter(&original_length, &original_hash),
+        file_write(chunk_file, file::file_mode::append))(
+          [this, sp, server_id, version_id, index, offset, size, &original_hash](const service_provider & sp) {
+            sp.get<iserver_database>()->add_to_tail_chunk(
+              sp,
+              version_id,
+              offset,
+              size,
+              original_hash,
+              server_id,
+              index,
+              this->tail_chunk_size_);
+          },
+          [&result, on_error](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+            on_error(sp, ex);
+            result = false;
+          },
+          sp);
+        
+      if (result) {
+        this->tail_chunk_size_ += size;
+      }
+      
+      break;
     }
   }
 

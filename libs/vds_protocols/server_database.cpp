@@ -154,6 +154,17 @@ size_t vds::iserver_database::get_last_chunk(
   return static_cast<_server_database *>(this)->get_last_chunk(sp, server_id);
 }
 
+size_t vds::iserver_database::get_tail_chunk(
+  const service_provider & sp,
+  const guid & server_id,
+  size_t & result_size)
+{
+  return static_cast<_server_database *>(this)->get_tail_chunk(
+    sp,
+    server_id,
+    result_size);
+}
+
 void vds::iserver_database::add_full_chunk(
   const service_provider & sp,
   const guid & object_id,
@@ -380,8 +391,8 @@ void vds::_server_database::start(const service_provider & sp)
       server_id VARCHAR(64) NOT NULL,\
       chunk_index INTEGER NOT NULL,\
       replica INTEGER NOT NULL,\
-      store_id VARCHAR(64) NOT NULL,\
-      CONSTRAINT pk_object_chunk_store PRIMARY KEY (server_id, chunk_index, replica, store_id))");
+      storage_id VARCHAR(64) NOT NULL,\
+      CONSTRAINT pk_object_chunk_store PRIMARY KEY (server_id, chunk_index, replica, storage_id))");
 
     this->db_.execute("INSERT INTO module(id, version, installed) VALUES('kernel', 1, datetime('now'))");
     this->db_.execute("INSERT INTO endpoint(endpoint_id, addresses) VALUES('default', 'udp://127.0.0.1:8050;https://127.0.0.1:8050')");
@@ -1048,6 +1059,31 @@ size_t vds::_server_database::get_last_chunk(
 
   return result;
 }
+
+size_t vds::_server_database::get_tail_chunk(
+  const service_provider & sp,
+  const guid & server_id,
+  size_t & result_size)
+{
+  size_t result = 0;
+  auto st = this->db_.parse("SELECT chunk_index FROM tmp_object_chunk WHERE server_id=@server_id");
+  st.set_parameter(0, server_id);
+  
+  while(st.execute()) {
+    st.get_value(0, result);
+  }
+  
+  st = this->db_.parse("SELECT SUM(length) FROM tmp_object_chunk_map WHERE server_id=@server_id AND chunk_index=@chunk_index");
+  st.set_parameter(0, server_id);
+  st.set_parameter(1, result);
+  
+  while(st.execute()) {
+    st.get_value(0, result_size);
+  }
+
+  return result;
+}
+
 
 void vds::_server_database::add_full_chunk(
   const service_provider & sp,

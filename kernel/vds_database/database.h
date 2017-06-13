@@ -37,6 +37,7 @@ namespace vds {
     bool get_value(int index, guid & value);
     bool get_value(int index, const_data_buffer & value);
     
+    sql_statement & operator = (sql_statement && original);
 
   private:
     _sql_statement * impl_;
