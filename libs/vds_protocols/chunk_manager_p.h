@@ -48,12 +48,13 @@ namespace vds {
     std::mutex chunk_mutex_;
     uint64_t last_chunk_;
     
-    uint64_t tails_chunk_index_;
+    std::mutex tail_chunk_mutex_;
+    uint64_t tail_chunk_index_;
     size_t tail_chunk_size_;
     
     static const size_t BLOCK_SIZE = 5 * 1024 * 1024;
-    static const uint16_t min_horcrux = 512;
-    static const uint16_t generate_horcrux = 1024;
+    static const uint16_t MIN_HORCRUX = 512;
+    static const uint16_t GENERATE_HORCRUX = 1024;
 
     
     //
@@ -92,6 +93,20 @@ namespace vds {
       size_t offset,
       size_t size,
       const error_handler & on_error);
+
+    bool generate_horcruxes(
+      const service_provider & sp,
+      const guid & server_id,
+      size_t chunk_index,
+      const std::vector<uint8_t> & buffer,
+      const error_handler & on_error);
+
+    bool generate_tail_horcruxes(
+      const service_provider & sp,
+      const guid & server_id,
+      size_t chunk_index,
+      const error_handler & on_error);
+
   };
 }
 

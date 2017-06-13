@@ -105,6 +105,58 @@ namespace vds {
     size_t get_last_chunk(
       const service_provider & sp,
       const guid & server_id);
+
+    size_t get_tail_chunk(
+      const service_provider & sp,
+      const guid & server_id,
+      size_t & result_size);
+
+    void add_full_chunk(
+      const service_provider & sp,
+      const guid & object_id,
+      size_t offset,
+      size_t size,
+      const const_data_buffer & object_hash,
+      const guid & server_id,
+      size_t index);
+
+    void start_tail_chunk(
+      const service_provider & sp,
+      const guid & server_id,
+      size_t chunk_index);
+
+    void final_tail_chunk(
+      const service_provider & sp,
+      size_t chunk_length,
+      const const_data_buffer & chunk_hash,
+      const guid & server_id,
+      size_t chunk_index);
+
+    void add_to_tail_chunk(
+      const service_provider & sp,
+      const guid & object_id,
+      size_t offset,
+      size_t size,
+      const const_data_buffer & object_hash,
+      const guid & server_id,
+      size_t index,
+      size_t chunk_offset);
+
+    void add_chunk_replica(
+      const service_provider & sp,
+      const guid & server_id,
+      size_t index,
+      uint16_t replica,
+      size_t replica_length,
+      const const_data_buffer & replica_hash);
+
+    void add_chunk_store(
+      const service_provider & sp,
+      const guid & server_id,
+      size_t index,
+      uint16_t replica,
+      const guid & storage_id);
+
   };
 }
 

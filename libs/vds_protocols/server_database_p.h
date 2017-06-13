@@ -40,11 +40,11 @@ namespace vds {
     std::unique_ptr<principal_record> find_user_principal(
       const service_provider & sp,
       const std::string & object_name);
-    
+
     void add_object(
       const service_provider & sp,
       const principal_log_new_object & index);
-    
+
     void add_endpoint(
       const service_provider & sp,
       const std::string & endpoint_id,
@@ -92,7 +92,7 @@ namespace vds {
     void delete_record(
       const service_provider & sp,
       const principal_log_record::record_id & id);
-    
+
     iserver_database::principal_log_state principal_log_get_state(
       const service_provider & sp,
       const principal_log_record::record_id & record_id);
@@ -100,10 +100,56 @@ namespace vds {
     size_t get_current_state(
       const service_provider & sp,
       std::list<guid> & active_records);
-    
+
     size_t get_last_chunk(
       const service_provider & sp,
       const guid & server_id);
+
+    void add_full_chunk(
+      const service_provider & sp,
+      const guid & object_id,
+      size_t offset,
+      size_t size,
+      const const_data_buffer & object_hash,
+      const guid & server_id,
+      size_t index);
+
+    void start_tail_chunk(
+      const service_provider & sp,
+      const guid & server_id,
+      size_t chunk_index);
+
+    void final_tail_chunk(
+      const service_provider & sp,
+      size_t chunk_length,
+      const const_data_buffer & chunk_hash,
+      const guid & server_id,
+      size_t chunk_index);
+
+    void add_to_tail_chunk(
+      const service_provider & sp,
+      const guid & object_id,
+      size_t offset,
+      size_t size,
+      const const_data_buffer & object_hash,
+      const guid & server_id,
+      size_t index,
+      size_t chunk_offset);
+
+    void add_chunk_replica(
+      const service_provider & sp,
+      const guid & server_id,
+      size_t index,
+      uint16_t replica,
+      size_t replica_length,
+      const const_data_buffer & replica_hash);
+
+    void add_chunk_store(
+      const service_provider & sp,
+      const guid & server_id,
+      size_t index,
+      uint16_t replica,
+      const guid & storage_id);
 
   private:
     database db_;
@@ -116,10 +162,10 @@ namespace vds {
       const std::string & /* key */,
       const const_data_buffer & /*password_hash*/,
       const guid & /* parent */> add_principal_statement_;
-      
+
     prepared_query<
       const guid & /* object_name */> find_principal_query_;
-      
+
     prepared_statement<
       const guid & /* object_name */,
       const std::string & /* login */> add_user_principal_statement_;
@@ -131,16 +177,16 @@ namespace vds {
       const guid & /*object_id*/,
       uint64_t /*lenght*/,
       const const_data_buffer & /*hash*/> add_object_statement_;
-      
+
     prepared_query<
       const guid & /*server_id*/> last_object_index_query_;
-      
+
     prepared_statement<
       const std::string & /*endpoint_id*/,
       const std::string & /*addresses*/> add_endpoint_statement_;
-      
+
     prepared_query<> get_endpoints_query_;
-    
+
 
     /// Server log
     std::mutex principal_log_mutex_;
@@ -209,17 +255,96 @@ namespace vds {
 
     prepared_query<
       const guid & /*record_id*/> principal_log_get_query_;
-      
+
     prepared_query<
       int /*state*/> get_record_by_state_query_;
-      
+
     bool get_record_by_state(
       const service_provider & sp,
       iserver_database::principal_log_state state,
       principal_log_record & result_record,
       const_data_buffer & result_signature);
-  };
 
+    prepared_statement<
+      const guid & /*server_id*/,
+      size_t /*index*/,
+      size_t /*size*/,
+      const const_data_buffer & /*object_hash*/> add_chunk_statement_;
+
+    void add_chunk(
+      const service_provider & sp,
+      const guid & server_id,
+      size_t index,
+      size_t size,
+      const const_data_buffer & object_hash);
+
+    prepared_statement<
+      const guid & /*server_id*/,
+      size_t /*chunk_index*/,
+      const guid & /*object_id*/,
+      size_t /*object_offset*/,
+      size_t /*chunk_offset*/,
+      size_t /*length*/,
+      const const_data_buffer & /*hash*/> object_chunk_map_statement_;
+
+    void add_object_chunk_map(
+      const service_provider & sp,
+      const guid & server_id,
+      size_t chunk_index,
+      const guid & object_id,
+      size_t object_offset,
+      size_t chunk_offset,
+      size_t length,
+      const const_data_buffer & hash);
+
+    prepared_statement<
+      const guid & /*server_id*/,
+      size_t /*index*/> add_tmp_chunk_statement_;
+
+    prepared_statement<
+      const guid & /*server_id*/,
+      size_t /*index*/> move_object_chunk_map_statement_;
+
+    prepared_statement<
+      const guid & /*server_id*/,
+      size_t /*index*/> delete_tmp_object_chunk_statement_;
+
+    prepared_statement<
+      const guid & /*server_id*/,
+      size_t /*index*/> delete_tmp_object_chunk_map_statement_;
+
+    prepared_statement<
+      const guid & /*server_id*/,
+      size_t /*chunk_index*/,
+      const guid & /*object_id*/,
+      size_t /*object_offset*/,
+      size_t /*chunk_offset*/,
+      size_t /*length*/,
+      const const_data_buffer & /*hash*/> tmp_object_chunk_map_statement_;
+
+    void add_tail_object_chunk_map(
+      const service_provider & sp,
+      const guid & server_id,
+      size_t chunk_index,
+      const guid & object_id,
+      size_t object_offset,
+      size_t chunk_offset,
+      size_t length,
+      const const_data_buffer & hash);
+
+    prepared_statement<
+      const guid & /*server_id*/,
+      size_t /*index*/,
+      uint16_t /*replica*/,
+      size_t /*replica_length*/,
+      const const_data_buffer & /*replica_hash*/> add_chunk_replica_statement_;
+
+    prepared_statement<
+      const guid & /*server_id*/,
+      size_t /*index*/,
+      uint16_t /*replica*/,
+      const guid & /*storage_id*/> add_object_chunk_store_statement_;
+  };
 }
 
 #endif // __VDS_PROTOCOLS_SERVER_DATABASE_P_H_

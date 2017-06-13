@@ -153,6 +153,101 @@ size_t vds::iserver_database::get_last_chunk(
 {
   return static_cast<_server_database *>(this)->get_last_chunk(sp, server_id);
 }
+
+void vds::iserver_database::add_full_chunk(
+  const service_provider & sp,
+  const guid & object_id,
+  size_t offset,
+  size_t size,
+  const const_data_buffer & object_hash,
+  const guid & server_id,
+  size_t index)
+{
+  static_cast<_server_database *>(this)->add_full_chunk(
+    sp,
+    object_id,
+    offset,
+    size,
+    object_hash,
+    server_id,
+    index);
+}
+
+void vds::iserver_database::start_tail_chunk(const service_provider & sp, const guid & server_id, size_t chunk_index)
+{
+  static_cast<_server_database *>(this)->start_tail_chunk(
+    sp,
+    server_id,
+    chunk_index);
+}
+
+void vds::iserver_database::final_tail_chunk(
+  const service_provider & sp,
+  size_t chunk_length,
+  const const_data_buffer & chunk_hash,
+  const guid & server_id,
+  size_t chunk_index)
+{
+  static_cast<_server_database *>(this)->final_tail_chunk(
+    sp,
+    chunk_length,
+    chunk_hash,
+    server_id,
+    chunk_index);
+}
+
+void vds::iserver_database::add_to_tail_chunk(
+  const service_provider & sp,
+  const guid & object_id,
+  size_t offset,
+  size_t size,
+  const const_data_buffer & object_hash,
+  const guid & server_id,
+  size_t index,
+  size_t chunk_offset)
+{
+  static_cast<_server_database *>(this)->add_to_tail_chunk(
+    sp,
+    object_id,
+    offset,
+    size,
+    object_hash,
+    server_id,
+    index,
+    chunk_offset);
+}
+
+void vds::iserver_database::add_chunk_replica(
+  const service_provider & sp,
+  const guid & server_id,
+  size_t index,
+  uint16_t replica,
+  size_t replica_length,
+  const const_data_buffer & replica_hash)
+{
+  static_cast<_server_database *>(this)->add_chunk_replica(
+    sp,
+    server_id,
+    index,
+    replica,
+    replica_length,
+    replica_hash);
+}
+
+void vds::iserver_database::add_chunk_store(
+  const service_provider & sp,
+  const guid & server_id,
+  size_t index,
+  uint16_t replica,
+  const guid & storage_id)
+{
+  static_cast<_server_database *>(this)->add_chunk_store(
+    sp,
+    server_id,
+    index,
+    replica,
+    storage_id);
+}
 ////////////////////////////////////////////////////////
 vds::_server_database::_server_database()
 {
@@ -239,8 +334,9 @@ void vds::_server_database::start(const service_provider & sp)
       "CREATE TABLE object_chunk(\
       server_id VARCHAR(64) NOT NULL,\
       chunk_index INTEGER NOT NULL,\
+      chunk_type INTEGER NOT NULL,\
+      chunk_size INTEGER NOT NULL,\
       hash VARCHAR(64) NOT NULL,\
-      state INTEGER NOT NULL,\
       CONSTRAINT pk_object_chunk PRIMARY KEY (server_id, chunk_index))");
 
     this->db_.execute(
@@ -253,14 +349,40 @@ void vds::_server_database::start(const service_provider & sp)
       length INTEGER NOT NULL,\
       hash VARCHAR(64) NOT NULL,\
       CONSTRAINT pk_object_chunk_map PRIMARY KEY (server_id, chunk_index))");
-    
+
     this->db_.execute(
-      "CREATE TABLE object_chunk_store (\
+      "CREATE TABLE tmp_object_chunk(\
+      server_id VARCHAR(64) NOT NULL,\
+      chunk_index INTEGER NOT NULL,\
+      CONSTRAINT pk_tmp_object_chunk PRIMARY KEY (server_id, chunk_index))");
+
+    this->db_.execute(
+      "CREATE TABLE tmp_object_chunk_map(\
+      server_id VARCHAR(64) NOT NULL,\
+      chunk_index INTEGER NOT NULL,\
+      object_id VARCHAR(64) NOT NULL,\
+      object_offset INTEGER NOT NULL,\
+      chunk_offset INTEGER NOT NULL,\
+      length INTEGER NOT NULL,\
+      hash VARCHAR(64) NOT NULL,\
+      CONSTRAINT pk_object_chunk_map PRIMARY KEY (server_id, chunk_index))");
+
+    this->db_.execute(
+      "CREATE TABLE object_chunk_replica(\
       server_id VARCHAR(64) NOT NULL,\
       chunk_index INTEGER NOT NULL,\
       replica INTEGER NOT NULL,\
-      storage_id VARCHAR(64) NOT NULL,\
-      CONSTRAINT pk_object_chunk_store PRIMARY KEY (server_id, chunk_index, replica, storage_id))");
+      replica_length INTEGER NOT NULL,\
+      replica_hash VARCHAR(64) NOT NULL,\
+      CONSTRAINT pk_tmp_object_chunk_map PRIMARY KEY (server_id, chunk_index, replica))");
+
+    this->db_.execute(
+      "CREATE TABLE object_chunk_store(\
+      server_id VARCHAR(64) NOT NULL,\
+      chunk_index INTEGER NOT NULL,\
+      replica INTEGER NOT NULL,\
+      store_id VARCHAR(64) NOT NULL,\
+      CONSTRAINT pk_object_chunk_store PRIMARY KEY (server_id, chunk_index, replica, store_id))");
 
     this->db_.execute("INSERT INTO module(id, version, installed) VALUES('kernel', 1, datetime('now'))");
     this->db_.execute("INSERT INTO endpoint(endpoint_id, addresses) VALUES('default', 'udp://127.0.0.1:8050;https://127.0.0.1:8050')");
@@ -926,4 +1048,174 @@ size_t vds::_server_database::get_last_chunk(
   }
 
   return result;
+}
+
+void vds::_server_database::add_full_chunk(
+  const service_provider & sp,
+  const guid & object_id,
+  size_t offset,
+  size_t size,
+  const const_data_buffer & object_hash,
+  const guid & server_id,
+  size_t index)
+{
+  this->add_chunk(sp, server_id, index, size, object_hash);
+  this->add_object_chunk_map(sp, server_id, index, object_id, offset, 0, size, object_hash);
+}
+
+void vds::_server_database::add_chunk(
+  const service_provider & sp,
+  const guid & server_id,
+  size_t index,
+  size_t size,
+  const const_data_buffer & object_hash)
+{
+  this->add_chunk_statement_.execute(
+    this->db_,
+    "INSERT INTO object_chunk(server_id, chunk_index, chunk_size, hash)\
+    VALUES (@server_id, @chunk_index, @chunk_size, @hash)",
+    server_id,
+    index,
+    size,
+    object_hash);
+}
+
+void vds::_server_database::add_object_chunk_map(
+  const service_provider & sp,
+  const guid & server_id,
+  size_t chunk_index,
+  const guid & object_id,
+  size_t object_offset,
+  size_t chunk_offset,
+  size_t length,
+  const const_data_buffer & hash)
+{
+  this->object_chunk_map_statement_.execute(
+    this->db_,
+    "INSERT INTO object_chunk_map(server_id,chunk_index,object_id,object_offset,chunk_offset,length,hash)\
+    VALUES(@server_id,@chunk_index,@object_id,@object_offset,@chunk_offset,@length,@hash)",
+    server_id,
+    chunk_index,
+    object_id,
+    object_offset,
+    chunk_offset,
+    length,
+    hash);
+}
+
+void vds::_server_database::start_tail_chunk(
+  const service_provider & sp,
+  const guid & server_id,
+  size_t chunk_index)
+{
+  this->add_tmp_chunk_statement_.execute(
+    this->db_,
+    "INSERT INTO tmp_object_chunk(server_id, chunk_index)\
+    VALUES (@server_id, @chunk_index)",
+    server_id,
+    chunk_index);
+}
+
+void vds::_server_database::add_tail_object_chunk_map(
+  const service_provider & sp,
+  const guid & server_id,
+  size_t chunk_index,
+  const guid & object_id,
+  size_t object_offset,
+  size_t chunk_offset,
+  size_t length,
+  const const_data_buffer & hash)
+{
+  this->tmp_object_chunk_map_statement_.execute(
+    this->db_,
+    "INSERT INTO tmp_object_chunk_map(server_id,chunk_index,object_id,object_offset,chunk_offset,length,hash)\
+    VALUES(@server_id,@chunk_index,@object_id,@object_offset,@chunk_offset,@length,@hash)",
+    server_id,
+    chunk_index,
+    object_id,
+    object_offset,
+    chunk_offset,
+    length,
+    hash);
+}
+
+void vds::_server_database::final_tail_chunk(
+  const service_provider & sp,
+  size_t chunk_length,
+  const const_data_buffer & chunk_hash,
+  const guid & server_id,
+  size_t chunk_index)
+{
+  this->add_chunk(sp, server_id, chunk_index, chunk_length, chunk_hash);
+
+  this->move_object_chunk_map_statement_.execute(
+    this->db_,
+    "INSERT INTO object_chunk_map(server_id,chunk_index,object_id,object_offset,chunk_offset,length,hash)\
+    SELECT server_id,chunk_index,object_id,object_offset,chunk_offset,length,hash\
+    FROM tmp_object_chunk_map WHERE server_id=@server_id AND chunk_index=@chunk_index",
+    server_id,
+    chunk_index);
+
+  this->delete_tmp_object_chunk_statement_.execute(
+    this->db_,
+    "DELETE FROM tmp_object_chunk\
+    WHERE server_id=@server_id AND chunk_index=@chunk_index",
+    server_id,
+    chunk_index);
+
+  this->delete_tmp_object_chunk_map_statement_.execute(
+    this->db_,
+    "DELETE FROM tmp_object_chunk_map\
+    WHERE server_id=@server_id AND chunk_index=@chunk_index",
+    server_id,
+    chunk_index);
+}
+
+void vds::_server_database::add_to_tail_chunk(
+  const service_provider & sp,
+  const guid & object_id,
+  size_t offset,
+  size_t size,
+  const const_data_buffer & object_hash,
+  const guid & server_id,
+  size_t index,
+  size_t chunk_offset)
+{
+  this->add_tail_object_chunk_map(sp, server_id, index, object_id, offset, chunk_offset, size, object_hash);
+}
+
+void vds::_server_database::add_chunk_replica(
+  const service_provider & sp,
+  const guid & server_id,
+  size_t index,
+  uint16_t replica,
+  size_t replica_length,
+  const const_data_buffer & replica_hash)
+{
+  this->add_chunk_replica_statement_.execute(
+    this->db_,
+    "INSERT INTO object_chunk_replica(server_id,chunk_index,replica,replica_length,replica_hash)\
+    VALUES(@server_id,@chunk_index,@replica,@replica_length,@replica_hash)",
+    server_id,
+    index,
+    replica,
+    replica_length,
+    replica_hash);
+}
+
+void vds::_server_database::add_chunk_store(
+  const service_provider & sp,
+  const guid & server_id,
+  size_t index,
+  uint16_t replica,
+  const guid & storage_id)
+{
+  this->add_object_chunk_store_statement_.execute(
+    this->db_,
+    "INSERT INTO object_chunk_store(server_id,chunk_index,replica,storage_id)\
+    VALUES(@server_id,@chunk_index,@replica,@storage_id)",
+    server_id,
+    index,
+    replica,
+    storage_id);
 }

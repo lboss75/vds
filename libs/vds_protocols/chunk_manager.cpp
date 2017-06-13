@@ -65,6 +65,7 @@ void vds::ichunk_manager::set_next_index(
 */
 //////////////////////////////////////////////////////////////////////
 vds::_chunk_manager::_chunk_manager()
+: chunk_storage_(MIN_HORCRUX)
 {
 }
 
@@ -192,7 +193,7 @@ vds::async_task<> vds::_chunk_manager::add_object(
       }
     }
     
-    done(sp, result);
+    done(sp);
   });
 }
 
@@ -218,37 +219,31 @@ bool vds::_chunk_manager::write_chunk(
     hash_filter(&original_length, &original_hash),
     collect_data(buffer)
   )(
-    [this, &result, &buffer, object_map](const service_provider & sp){
-      for(uint16_t replica = 0; replica < generate_horcrux; ++replica){
-        
-        filename replica_file(this->chunks_folder_, std::to_string(index) + "." + std::to_string(replica));
-        
-        auto replica_data = this->chunk_storage_.generate_replica(replica, buffer.data(), buffer.size());
-        size_t replica_length;
-        const_data_buffer replica_hash;
-        dataflow(
-          dataflow_arguments<uint8_t>(replica_data.data(), replica_data.size()),
-          hash_filter(&replica_length, &replica_hash),       
-          file_write(replica_file, file::file_mode::create_new))(
-            [sp, version_id, index, replica, offset, size, &replica_length, &replica_hash](const service_provider & sp){
-              sp.get<iserver_database>()->add_chunk(
-                version_id,
-                sp.get<istorage_log>()->current_server_id(),
-                index,
-                replica,
-                offset,
-                size,
-                replica_length,
-                replica_hash);
-            },
-            [&result](const service_provider & sp, const std::shared_ptr<std::exception> & ex){
-              result = false;
-            },
-            sp);
-        if(!result){
-          break;
-        }          
+    [this, &result, &original_length, &original_hash, &buffer, index, version_id, offset, size, on_error](const service_provider & sp){
+      
+      if (original_length != size) {
+        on_error(sp, std::make_shared<std::runtime_error>("File is corrupt"));
+        result = false;
+        return;
       }
+
+      auto server_id = sp.get<istorage_log>()->current_server_id();
+
+      sp.get<iserver_database>()->add_full_chunk(
+        sp,
+        version_id,
+        offset,
+        size,
+        original_hash,
+        server_id,
+        index);
+
+      result = this->generate_horcruxes(
+        sp,
+        server_id,
+        index,
+        buffer,
+        on_error);
     },
     [&result, on_error](const service_provider & sp, const std::shared_ptr<std::exception> & ex){
       on_error(sp, ex);
@@ -267,28 +262,159 @@ bool vds::_chunk_manager::write_tail(
   size_t size,
   const error_handler & on_error)
 {
-  auto index = this->tails_chunk_index_;
-  auto to_write = BLOCK_SIZE - this->tail_chunk_size_;
-  if(to_write <= size){
-    filename chunk_file(this->chunks_folder_, std::to_string(index));
+  auto server_id = sp.get<istorage_log>()->current_server_id();
+  bool result = true;
+  while(0 < size) {
+    std::lock_guard<std::mutex> lock(this->tail_chunk_mutex_);
+
+    auto index = this->tail_chunk_index_;
+
+    auto to_write = BLOCK_SIZE - this->tail_chunk_size_;
+    if (to_write <= size) {
+      filename chunk_file(this->chunks_folder_, std::to_string(index));
+      size_t original_length;
+      const_data_buffer original_hash;
+      dataflow(
+        file_range_read(fn, offset, to_write),
+        hash_filter(&original_length, &original_hash),
+        file_write(chunk_file, file::file_mode::append))(
+          [this, sp, server_id, version_id, index, offset, size, &original_hash](const service_provider & sp) {
+            sp.get<iserver_database>()->add_to_tail_chunk(
+              sp,
+              version_id,
+              offset,
+              size,
+              original_hash,
+              server_id,
+              index,
+              this->tail_chunk_size_);
+          },
+          [&result](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+            result = false;
+          },
+          sp);
+      if (!result) {
+        break;
+      }
+
+      offset += to_write;
+      size -= to_write;
+      this->tail_chunk_size_ += to_write;
+
+      if (BLOCK_SIZE == this->tail_chunk_size_) {
+        this->chunk_mutex_.lock();
+        this->tail_chunk_index_ = this->last_chunk_++;
+        this->tail_chunk_size_ = 0;
+        this->chunk_mutex_.unlock();
+
+        sp.get<iserver_database>()->start_tail_chunk(
+          sp,
+          server_id,
+          this->tail_chunk_index_);
+
+        result = this->generate_tail_horcruxes(
+          sp,
+          server_id,
+          index,
+          on_error);
+
+        if (!result) {
+          break;
+        }
+      }
+    }
+  }
+
+  return result;
+}
+
+bool vds::_chunk_manager::generate_tail_horcruxes(
+  const service_provider & sp,
+  const guid & server_id,
+  size_t chunk_index,
+  const error_handler & on_error)
+{
+  filename chunk_file(foldername(this->chunks_folder_, server_id.str()), std::to_string(chunk_index));
+
+  size_t original_length;
+  const_data_buffer original_hash;
+
+  bool result = true;
+  std::vector<uint8_t> buffer;
+  dataflow(
+    file_read(chunk_file),
+    hash_filter(&original_length, &original_hash),
+    collect_data(buffer)
+  )(
+    [this, &result, &original_length, &original_hash, &buffer, server_id, chunk_index, on_error](const service_provider & sp) {
+
+      sp.get<iserver_database>()->final_tail_chunk(
+        sp,
+        original_length,
+        original_hash,
+        server_id,
+        chunk_index);
+
+      result = this->generate_horcruxes(
+        sp,
+        server_id,
+        chunk_index,
+        buffer,
+        on_error);
+    },
+    [&result, on_error](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+      on_error(sp, ex);
+      result = false;
+    },
+    sp);
+  return result;
+}
+
+bool vds::_chunk_manager::generate_horcruxes(
+  const service_provider & sp,
+  const guid & server_id,
+  size_t chunk_index,
+  const std::vector<uint8_t> & buffer,
+  const error_handler & on_error)
+{
+  bool result = true;
+
+  for (uint16_t replica = 0; replica < GENERATE_HORCRUX; ++replica) {
+
+    filename replica_file(foldername(this->chunks_folder_, server_id.str()), std::to_string(chunk_index) + "." + std::to_string(replica));
+
+    auto replica_data = this->chunk_storage_.generate_replica(replica, buffer.data(), buffer.size());
+    size_t replica_length;
+    const_data_buffer replica_hash;
     dataflow(
-      file_range_read(fn, offset, size),
-      file_write(chunk_file, file::file_mode::append))(
-        [sp, version_id, index, offset, size](const service_provider & sp){
-          sp.get<iserver_database>()->add_chunk(
-            version_id,
-            sp.get<istorage_log>()->current_server_id(),
-            index,
+      dataflow_arguments<uint8_t>(replica_data.data(), replica_data.size()),
+      hash_filter(&replica_length, &replica_hash),
+      file_write(replica_file, file::file_mode::create_new))(
+        [server_id, chunk_index, replica, &replica_length, &replica_hash](const service_provider & sp) {
+          sp.get<iserver_database>()->add_chunk_replica(
+            sp,
+            server_id,
+            chunk_index,
             replica,
-            offset,
-            size,
             replica_length,
             replica_hash);
+
+          sp.get<iserver_database>()->add_chunk_store(
+            sp,
+            server_id,
+            chunk_index,
+            replica,
+            sp.get<istorage_log>()->current_server_id());
         },
-        [&result](const service_provider & sp, const std::shared_ptr<std::exception> & ex){
+        [&result, on_error](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+          on_error(sp, ex);
           result = false;
         },
         sp);
+    if (!result) {
+      break;
+    }
   }
-  
+
+  return result;
 }

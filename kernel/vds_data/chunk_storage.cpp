@@ -7,18 +7,8 @@ All rights reserved
 #include "chunk_storage.h"
 #include "chunk_storage_p.h"
 
-vds::chunk_storage::horcrux::horcrux(binary_deserializer& s)
-{
-  s >> this->replica_ >> this->size_ >> this->data_;
-}
-
-vds::chunk_storage::horcrux::horcrux(binary_deserializer&& s)
-{
-  s >> this->replica_ >> this->size_>> this->data_;
-}
-
 vds::chunk_storage::chunk_storage(uint16_t min_horcrux)
-  : impl_(new _chunk_storage(this, min_horcrux))
+  : impl_(new _chunk_storage(min_horcrux))
 {
 }
 
@@ -27,46 +17,28 @@ vds::chunk_storage::~chunk_storage()
   delete this->impl_;
 }
 
-void vds::chunk_storage::start()
-{
-}
 
-void vds::chunk_storage::stop()
-{
-}
-
-/////////////////////////////////////////////////////////////////////////////////////
-vds::ichunk_storage::ichunk_storage(chunk_storage * owner)
-  : owner_(owner)
-{
-}
-
-void vds::ichunk_storage::generate_replica(
-  binary_serializer & s,
+vds::const_data_buffer vds::chunk_storage::generate_replica(
   uint16_t replica,
   const void * data,
   size_t size)
 {
-  this->owner_->impl_->generate_replica(s, replica, data, size);
+  return this->impl_->generate_replica(replica, data, size);
 }
 
-void vds::ichunk_storage::restore_data(
-  binary_serializer & s,
-  const std::list<chunk_storage::horcrux> & chunks)
+vds::const_data_buffer vds::chunk_storage::restore_data(
+  const std::unordered_map<uint16_t, const_data_buffer> & horcruxes)
 {
-  this->owner_->impl_->restore_data(s, chunks);
+  return this->impl_->restore_data(horcruxes);
 }
 /////////////////////////////////////////////////////////////////////////////////////
 vds::_chunk_storage::_chunk_storage(
-  chunk_storage * owner,
   uint16_t min_horcrux)
-: owner_(owner),
-  min_horcrux_(min_horcrux)
+: min_horcrux_(min_horcrux)
 {
 }
 
-void vds::_chunk_storage::generate_replica(
-  binary_serializer & s,
+vds::const_data_buffer vds::_chunk_storage::generate_replica(
   uint16_t replica,
   const void * data,
   size_t size)
@@ -82,32 +54,37 @@ void vds::_chunk_storage::generate_replica(
     generator = p->second.get();
   }
 
-  s << replica << (uint16_t)size;
+  binary_serializer s;
   generator->write(s, data, size);
+
+  return s.data();
 }
 
-void vds::_chunk_storage::restore_data(
-  binary_serializer & s,
-  const std::list<chunk_storage::horcrux> & chunks)
+vds::const_data_buffer vds::_chunk_storage::restore_data(
+  const std::unordered_map<uint16_t, const_data_buffer> & horcruxes)
 {
-  if(this->min_horcrux_ != chunks.size()){
+  if(this->min_horcrux_ != horcruxes.size()){
     throw std::runtime_error("Error at restoring data");
   }
+
+  auto size = horcruxes.begin()->second.size();
   
-  const auto size = chunks.begin()->data().size();
   std::vector<uint16_t> replicas;
   std::vector<const const_data_buffer *> datas;
   
-  for(auto & p : chunks){
-    if(size != p.data().size()){
+  for(auto & p : horcruxes){
+    if (size != p.second.size()) {
       throw std::runtime_error("Error at restoring data");
     }
-    
-    replicas.push_back(p.replica());
-    datas.push_back(&p.data());
+
+    replicas.push_back(p.first);
+    datas.push_back(&p.second);
   }
   
   chunk_restore<uint16_t> restore(this->min_horcrux_, replicas.data());
+  binary_serializer s;
   restore.restore(s, datas, size);
+
+  return s.data();
 }
 
