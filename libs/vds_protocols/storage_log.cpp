@@ -415,6 +415,8 @@ void vds::_storage_log::validate_signature(
     signature,
     body.c_str(),
     body.length())) {
+    sp.get<logger>()->trace(sp, "Wrong signature [%s] signed [%s]", body.c_str(), base64::from_bytes(signature).c_str());
+
     throw std::runtime_error("Invalid signature");
   }
 }

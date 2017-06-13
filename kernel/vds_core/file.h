@@ -181,14 +181,14 @@ namespace vds {
 
       size_t sync_get_data(const service_provider & sp)
       {
-        if (0 == this->output_buffer_size()) {
+        if (0 == this->output_buffer_size() || 0 == this->max_size_) {
           this->f_.close();
           return 0;
         }
         else {
           auto n = this->output_buffer_size();
           if (n > this->max_size_) {
-            n -= this->max_size_;
+            n = this->max_size_;
           }
 
           auto readed = this->f_.read(this->output_buffer(), n);

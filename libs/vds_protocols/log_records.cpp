@@ -77,13 +77,12 @@ vds::principal_log_record::principal_log_record(const std::shared_ptr<json_value
     
     this->message_ = s->get_property("m");
 
-    auto m = std::dynamic_pointer_cast<json_array>(s->get_property("p"));
+    auto m = std::dynamic_pointer_cast<json_array>(s->get_property("d"));
     if(m) {
       for (size_t i = 0; i < m->size(); ++i) {
-        auto item = std::dynamic_pointer_cast<json_object>(m->get(i));
+        auto item = std::dynamic_pointer_cast<json_primitive>(m->get(i));
         if (nullptr != item) {
-          guid source_id;
-          item->get_property("i", source_id);
+          guid source_id = guid::parse(item->value());
           this->parents_.push_back(source_id);
         }
       }
@@ -138,12 +137,11 @@ std::shared_ptr<vds::json_value> vds::principal_log_record::serialize(bool add_t
   if (!this->parents_.empty()) {
     auto parents = std::make_shared<json_array>();
     for (auto& p : this->parents_) {
-      std::shared_ptr<json_object> item(new json_object());
-      item->add_property("i", p);
+      std::shared_ptr<json_value> item(new json_primitive(p.str()));
       parents->add(item);
     }
 
-    result->add_property(std::make_shared<json_property>("p", parents));
+    result->add_property(std::make_shared<json_property>("d", parents));
   }
   
   return std::shared_ptr<vds::json_value>(result.release());

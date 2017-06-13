@@ -255,7 +255,7 @@ vds::async_task<const std::string& /*version_id*/> vds::_client::upload_file(
           response.id(),
           response.active_records(),
           principal_log_new_object(version_id,  body_size + tail_size, meta_info).serialize(),
-          response.order_num() + 1).serialize(true);                              
+          response.order_num() + 1).serialize(false);                              
         
         auto s = msg->str();
         const_data_buffer signature;
@@ -267,7 +267,8 @@ vds::async_task<const std::string& /*version_id*/> vds::_client::upload_file(
             signature)
         )(
           [this, done, on_error, &signature, &response, msg, tmp_file](const service_provider & sp){
-            
+            sp.get<logger>()->trace(sp, "Message [%s] signed [%s]", msg->str().c_str(), base64::from_bytes(signature).c_str());
+
             sp.get<logger>()->trace(sp, "Uploading file");
             
             imt_service::enable_async(sp);            
