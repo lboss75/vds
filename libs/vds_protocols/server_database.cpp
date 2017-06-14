@@ -371,7 +371,7 @@ void vds::_server_database::start(const service_provider & sp)
       chunk_offset INTEGER NOT NULL,\
       length INTEGER NOT NULL,\
       hash BLOB NOT NULL,\
-      CONSTRAINT pk_object_chunk_map PRIMARY KEY (server_id, chunk_index))");
+      CONSTRAINT pk_object_chunk_map PRIMARY KEY (server_id, chunk_index, object_id))");
 
     this->db_.execute(
       "CREATE TABLE tmp_object_chunk(\
@@ -388,7 +388,7 @@ void vds::_server_database::start(const service_provider & sp)
       chunk_offset INTEGER NOT NULL,\
       hash BLOB NOT NULL,\
       data BLOB NOT NULL,\
-      CONSTRAINT pk_object_chunk_map PRIMARY KEY (server_id, chunk_index))");
+      CONSTRAINT pk_object_chunk_map PRIMARY KEY (server_id, chunk_index, object_id))");
 
     this->db_.execute(
       "CREATE TABLE object_chunk_replica(\

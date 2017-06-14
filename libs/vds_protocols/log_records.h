@@ -177,23 +177,33 @@ namespace vds {
     guid server_id_;
     std::string addresses_;
   };
-  
-  class object_chunk_map
+  /////////////////////////////////////////////////////
+  class new_object_chunk
   {
   public:
-    object_chunk_map(const guid & object_id);
+    static const char message_type[];
+   
+    new_object_chunk(
+      const std::shared_ptr<json_value> & source      
+    );
+    std::shared_ptr<json_value> serialize() const;
     
-    void add_chunk(
-      size_t index,
-      uint16_t replica,
-      size_t offset,
-      size_t size,
-      size_t replica_length,
-      const const_data_buffer & replica_hash);
+    new_object_chunk(
+      const guid & server_id,
+      size_t chunk_index,
+      size_t chunk_size,
+      const const_data_buffer & hash);
     
+    const guid & server_id() const { return this->server_id_; }
+    size_t chunk_index() const { return this->chunk_index_; }
+    size_t chunk_size() const { return this->chunk_size_; }
+    const_data_buffer hash() const { return this->hash_; }    
     
   private:
-    
+    const guid server_id_;
+    const size_t chunk_index_;
+    const size_t chunk_size_;
+    const const_data_buffer hash_;
   };
 }
 
