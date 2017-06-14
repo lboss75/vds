@@ -211,21 +211,21 @@ void vds::iserver_database::add_to_tail_chunk(
   const service_provider & sp,
   const guid & object_id,
   size_t offset,
-  size_t size,
   const const_data_buffer & object_hash,
   const guid & server_id,
   size_t index,
-  size_t chunk_offset)
+  size_t chunk_offset,
+  const const_data_buffer & data)
 {
   static_cast<_server_database *>(this)->add_to_tail_chunk(
     sp,
     object_id,
     offset,
-    size,
     object_hash,
     server_id,
     index,
-    chunk_offset);
+    chunk_offset,
+    data);
 }
 
 void vds::iserver_database::add_chunk_replica(
@@ -250,14 +250,27 @@ void vds::iserver_database::add_chunk_store(
   const guid & server_id,
   size_t index,
   uint16_t replica,
-  const guid & storage_id)
+  const guid & storage_id,
+  const const_data_buffer & data)
 {
   static_cast<_server_database *>(this)->add_chunk_store(
     sp,
     server_id,
     index,
     replica,
-    storage_id);
+    storage_id,
+    data);
+}
+
+vds::const_data_buffer vds::iserver_database::get_tail_data(
+  const service_provider & sp,
+  const guid & server_id,
+  size_t chunk_index)
+{
+  return static_cast<_server_database *>(this)->get_tail_data(
+    sp,
+    server_id,
+    chunk_index);
 }
 ////////////////////////////////////////////////////////
 vds::_server_database::_server_database()
@@ -302,7 +315,7 @@ void vds::_server_database::start(const service_provider & sp)
       id VARCHAR(64) NOT NULL,\
       cert TEXT NOT NULL,\
       key TEXT NOT NULL,\
-      password_hash VARCHAR(64) NOT NULL,\
+      password_hash BLOB NOT NULL,\
       parent VARCHAR(64) NOT NULL,\
       CONSTRAINT pk_principal PRIMARY KEY(id))");
 
@@ -316,7 +329,7 @@ void vds::_server_database::start(const service_provider & sp)
       "CREATE TABLE object(\
       object_id VARCHAR(64) NOT NULL,\
       lenght INTEGER NOT NULL,\
-      hash VARCHAR(64) NOT NULL,\
+      hash BLOB NOT NULL,\
       CONSTRAINT pk_objects PRIMARY KEY (object_id))");
 
     this->db_.execute(
@@ -329,7 +342,7 @@ void vds::_server_database::start(const service_provider & sp)
       id VARCHAR(64) NOT NULL,\
       principal_id VARCHAR(64) NOT NULL,\
       message TEXT NOT NULL,\
-      signature VARCHAR(64) NOT NULL,\
+      signature BLOB NOT NULL,\
       order_num INTEGER NOT NULL,\
       state INTEGER NOT NULL,\
       CONSTRAINT pk_principal_log PRIMARY KEY(id))");
@@ -346,7 +359,7 @@ void vds::_server_database::start(const service_provider & sp)
       server_id VARCHAR(64) NOT NULL,\
       chunk_index INTEGER NOT NULL,\
       chunk_size INTEGER NOT NULL,\
-      hash VARCHAR(64) NOT NULL,\
+      hash BLOB NOT NULL,\
       CONSTRAINT pk_object_chunk PRIMARY KEY (server_id, chunk_index))");
 
     this->db_.execute(
@@ -357,7 +370,7 @@ void vds::_server_database::start(const service_provider & sp)
       object_offset INTEGER NOT NULL,\
       chunk_offset INTEGER NOT NULL,\
       length INTEGER NOT NULL,\
-      hash VARCHAR(64) NOT NULL,\
+      hash BLOB NOT NULL,\
       CONSTRAINT pk_object_chunk_map PRIMARY KEY (server_id, chunk_index))");
 
     this->db_.execute(
@@ -373,8 +386,8 @@ void vds::_server_database::start(const service_provider & sp)
       object_id VARCHAR(64) NOT NULL,\
       object_offset INTEGER NOT NULL,\
       chunk_offset INTEGER NOT NULL,\
-      length INTEGER NOT NULL,\
-      hash VARCHAR(64) NOT NULL,\
+      hash BLOB NOT NULL,\
+      data BLOB NOT NULL,\
       CONSTRAINT pk_object_chunk_map PRIMARY KEY (server_id, chunk_index))");
 
     this->db_.execute(
@@ -392,6 +405,7 @@ void vds::_server_database::start(const service_provider & sp)
       chunk_index INTEGER NOT NULL,\
       replica INTEGER NOT NULL,\
       storage_id VARCHAR(64) NOT NULL,\
+      data BLOB NOT NULL,\
       CONSTRAINT pk_object_chunk_store PRIMARY KEY (server_id, chunk_index, replica, storage_id))");
 
     this->db_.execute("INSERT INTO module(id, version, installed) VALUES('kernel', 1, datetime('now'))");
@@ -1073,7 +1087,7 @@ size_t vds::_server_database::get_tail_chunk(
     st.get_value(0, result);
   }
   
-  st = this->db_.parse("SELECT SUM(length) FROM tmp_object_chunk_map WHERE server_id=@server_id AND chunk_index=@chunk_index");
+  st = this->db_.parse("SELECT SUM(length(data)) FROM tmp_object_chunk_map WHERE server_id=@server_id AND chunk_index=@chunk_index");
   st.set_parameter(0, server_id);
   st.set_parameter(1, result);
   
@@ -1158,20 +1172,20 @@ void vds::_server_database::add_tail_object_chunk_map(
   const guid & object_id,
   size_t object_offset,
   size_t chunk_offset,
-  size_t length,
-  const const_data_buffer & hash)
+  const const_data_buffer & hash,
+  const const_data_buffer & data)
 {
   this->tmp_object_chunk_map_statement_.execute(
     this->db_,
-    "INSERT INTO tmp_object_chunk_map(server_id,chunk_index,object_id,object_offset,chunk_offset,length,hash)\
-    VALUES(@server_id,@chunk_index,@object_id,@object_offset,@chunk_offset,@length,@hash)",
+    "INSERT INTO tmp_object_chunk_map(server_id,chunk_index,object_id,object_offset,chunk_offset,hash,data)\
+    VALUES(@server_id,@chunk_index,@object_id,@object_offset,@chunk_offset,@hash,@data)",
     server_id,
     chunk_index,
     object_id,
     object_offset,
     chunk_offset,
-    length,
-    hash);
+    hash,
+    data);
 }
 
 void vds::_server_database::final_tail_chunk(
@@ -1210,13 +1224,13 @@ void vds::_server_database::add_to_tail_chunk(
   const service_provider & sp,
   const guid & object_id,
   size_t offset,
-  size_t size,
   const const_data_buffer & object_hash,
   const guid & server_id,
   size_t index,
-  size_t chunk_offset)
+  size_t chunk_offset,
+  const const_data_buffer & data)
 {
-  this->add_tail_object_chunk_map(sp, server_id, index, object_id, offset, chunk_offset, size, object_hash);
+  this->add_tail_object_chunk_map(sp, server_id, index, object_id, offset, chunk_offset, object_hash, data);
 }
 
 void vds::_server_database::add_chunk_replica(
@@ -1243,14 +1257,49 @@ void vds::_server_database::add_chunk_store(
   const guid & server_id,
   size_t index,
   uint16_t replica,
-  const guid & storage_id)
+  const guid & storage_id,
+  const const_data_buffer & data)
 {
   this->add_object_chunk_store_statement_.execute(
     this->db_,
-    "INSERT INTO object_chunk_store(server_id,chunk_index,replica,storage_id)\
-    VALUES(@server_id,@chunk_index,@replica,@storage_id)",
+    "INSERT INTO object_chunk_store(server_id,chunk_index,replica,storage_id,data)\
+    VALUES(@server_id,@chunk_index,@replica,@storage_id,@data)",
     server_id,
     index,
     replica,
-    storage_id);
+    storage_id,
+    data);
+}
+
+vds::const_data_buffer vds::_server_database::get_tail_data(
+  const service_provider & sp,
+  const guid & server_id,
+  size_t chunk_index)
+{
+  std::vector<uint8_t> data;
+
+  this->get_tail_data_query_.query(
+    this->db_,
+    "SELECT data,chunk_offset\
+     FROM tmp_object_chunk_map\
+     WHERE server_id=@server_id AND chunk_index=@chunk_index\
+     ORDER BY chunk_offset",
+    [&data](sql_statement & st)->bool {
+      vds::const_data_buffer item;
+      size_t offset;
+
+      st.get_value(0, item);
+      st.get_value(1, offset);
+
+      if (offset != data.size()) {
+        throw std::runtime_error("Database is corrupted");
+      }
+
+      data.insert(data.end(), item.data(), item.data() + item.size());
+      return true;
+    },    
+    server_id,
+    chunk_index);
+
+  return const_data_buffer(data);
 }

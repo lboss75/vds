@@ -43,7 +43,6 @@ namespace vds {
       */
   private:
     chunk_storage chunk_storage_;
-    foldername chunks_folder_;
 
     std::mutex chunk_mutex_;
     uint64_t last_chunk_;

@@ -18,7 +18,8 @@ namespace vds {
       : db_(db), stmt_(nullptr), state_(bof_state)
     {
       if (SQLITE_OK != sqlite3_prepare_v2(db, sql.c_str(), -1, &this->stmt_, nullptr)) {
-        throw std::runtime_error(sqlite3_errmsg(db));
+        auto error = sqlite3_errmsg(db);
+        throw std::runtime_error(error);
       }
     }
 
@@ -61,7 +62,7 @@ namespace vds {
     {
       this->reset();
       
-      this->set_parameter(index, base64::from_bytes(value));
+      sqlite3_bind_blob(this->stmt_, index, value.data(), value.size(), SQLITE_TRANSIENT);
     }
 
     bool execute()
@@ -125,14 +126,17 @@ namespace vds {
     bool get_value(int index, const_data_buffer & value)
     {
       assert(read_state == this->state_);
-      
-      std::string v;
-      if (!this->get_value(index, v)) {
+
+      auto size = sqlite3_column_bytes(this->stmt_, index);
+      if (0 >= size) {
+        value.reset(nullptr, 0);
         return false;
       }
-
-      value = base64::to_bytes(v);
-      return true;
+      else {
+        auto v = sqlite3_column_blob(this->stmt_, index);
+        value.reset(v, size);
+        return true;
+      }
     }
 
 

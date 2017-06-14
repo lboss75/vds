@@ -156,15 +156,10 @@ void vds::_chunk_manager::set_next_index(const service_provider & sp, uint64_t n
 
 void vds::_chunk_manager::start(const service_provider & sp)
 {
-  this->chunks_folder_ = foldername(foldername(persistence::current_user(sp), ".vds"), "chunks");
-  this->chunks_folder_.create();
-  
   auto server_id = sp.get<istorage_log>()->current_server_id();
   this->last_chunk_ = sp.get<iserver_database>()->get_last_chunk(
     sp,
     server_id);
-  
-  foldername(this->chunks_folder_, server_id.str()).create();
   
   this->tail_chunk_index_ = sp.get<iserver_database>()->get_tail_chunk(
     sp,
@@ -279,23 +274,23 @@ bool vds::_chunk_manager::write_tail(
 
     auto to_write = BLOCK_SIZE - this->tail_chunk_size_;
     if (to_write <= size) {
-      filename chunk_file(this->chunks_folder_, std::to_string(index));
       size_t original_length;
       const_data_buffer original_hash;
+      std::vector<uint8_t> tail_buffer;
       dataflow(
         file_range_read(fn, offset, to_write),
         hash_filter(&original_length, &original_hash),
-        file_write(chunk_file, file::file_mode::append))(
-          [this, sp, server_id, version_id, index, offset, to_write, &original_hash](const service_provider & sp) {
+        collect_data(tail_buffer))(
+          [this, sp, server_id, version_id, index, offset, to_write, &original_hash, &tail_buffer](const service_provider & sp) {
             sp.get<iserver_database>()->add_to_tail_chunk(
               sp,
               version_id,
               offset,
-              to_write,
               original_hash,
               server_id,
               index,
-              this->tail_chunk_size_);
+              this->tail_chunk_size_,
+              tail_buffer);
           },
           [&result, on_error](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
             on_error(sp, ex);
@@ -333,23 +328,23 @@ bool vds::_chunk_manager::write_tail(
       }
     }
     else {
-      filename chunk_file(this->chunks_folder_, std::to_string(index));
       size_t original_length;
       const_data_buffer original_hash;
+      std::vector<uint8_t> tail_buffer;
       dataflow(
         file_range_read(fn, offset, size),
         hash_filter(&original_length, &original_hash),
-        file_write(chunk_file, file::file_mode::append))(
-          [this, sp, server_id, version_id, index, offset, size, &original_hash](const service_provider & sp) {
+        collect_data(tail_buffer))(
+          [this, sp, server_id, version_id, index, offset, size, &original_hash, &tail_buffer](const service_provider & sp) {
             sp.get<iserver_database>()->add_to_tail_chunk(
               sp,
               version_id,
               offset,
-              size,
               original_hash,
               server_id,
               index,
-              this->tail_chunk_size_);
+              this->tail_chunk_size_,
+              tail_buffer);
           },
           [&result, on_error](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
             on_error(sp, ex);
@@ -374,7 +369,7 @@ bool vds::_chunk_manager::generate_tail_horcruxes(
   size_t chunk_index,
   const error_handler & on_error)
 {
-  filename chunk_file(foldername(this->chunks_folder_, server_id.str()), std::to_string(chunk_index));
+  auto data = sp.get<iserver_database>()->get_tail_data(sp, server_id, chunk_index);
 
   size_t original_length;
   const_data_buffer original_hash;
@@ -382,7 +377,7 @@ bool vds::_chunk_manager::generate_tail_horcruxes(
   bool result = true;
   std::vector<uint8_t> buffer;
   dataflow(
-    file_read(chunk_file),
+    dataflow_arguments<uint8_t>(data.data(), data.size()),  
     hash_filter(&original_length, &original_hash),
     collect_data(buffer)
   )(
@@ -421,16 +416,15 @@ bool vds::_chunk_manager::generate_horcruxes(
 
   for (uint16_t replica = 0; replica < GENERATE_HORCRUX; ++replica) {
 
-    filename replica_file(foldername(this->chunks_folder_, server_id.str()), std::to_string(chunk_index) + "." + std::to_string(replica));
-
     auto replica_data = this->chunk_storage_.generate_replica(replica, buffer.data(), buffer.size());
     size_t replica_length;
     const_data_buffer replica_hash;
+    std::vector<uint8_t> buffer;
     dataflow(
       dataflow_arguments<uint8_t>(replica_data.data(), replica_data.size()),
       hash_filter(&replica_length, &replica_hash),
-      file_write(replica_file, file::file_mode::create_new))(
-        [server_id, chunk_index, replica, &replica_length, &replica_hash](const service_provider & sp) {
+      collect_data(buffer))(
+      [server_id, chunk_index, replica, &replica_length, &replica_hash, &buffer](const service_provider & sp) {
           sp.get<iserver_database>()->add_chunk_replica(
             sp,
             server_id,
@@ -444,7 +438,8 @@ bool vds::_chunk_manager::generate_horcruxes(
             server_id,
             chunk_index,
             replica,
-            sp.get<istorage_log>()->current_server_id());
+            sp.get<istorage_log>()->current_server_id(),
+            buffer);
         },
         [&result, on_error](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
           on_error(sp, ex);

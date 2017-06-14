@@ -136,11 +136,11 @@ namespace vds {
       const service_provider & sp,
       const guid & object_id,
       size_t offset,
-      size_t size,
       const const_data_buffer & object_hash,
       const guid & server_id,
       size_t index,
-      size_t chunk_offset);
+      size_t chunk_offset,
+      const const_data_buffer & data);
 
     void add_chunk_replica(
       const service_provider & sp,
@@ -155,8 +155,13 @@ namespace vds {
       const guid & server_id,
       size_t index,
       uint16_t replica,
-      const guid & storage_id);
+      const guid & storage_id,
+      const const_data_buffer & replica_data);
 
+    const_data_buffer get_tail_data(
+      const service_provider & sp,
+      const guid & server_id,
+      size_t chunk_index);
   };
 }
 

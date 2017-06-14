@@ -98,6 +98,7 @@ namespace vds {
           : this->output_buffer_size();
 
         if (0 == n) {
+          this->hash_.final();
           *this->size_result_ = this->size_;
           *this->hash_result_ = this->hash_.signature();
         }
