@@ -328,7 +328,7 @@ void vds::_server_database::start(const service_provider & sp)
     this->db_.execute(
       "CREATE TABLE object(\
       object_id VARCHAR(64) NOT NULL,\
-      lenght INTEGER NOT NULL,\
+      length INTEGER NOT NULL,\
       hash BLOB NOT NULL,\
       CONSTRAINT pk_objects PRIMARY KEY (object_id))");
 

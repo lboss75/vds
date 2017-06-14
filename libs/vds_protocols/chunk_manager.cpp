@@ -174,7 +174,8 @@ void vds::_chunk_manager::stop(const service_provider & sp)
 vds::async_task<> vds::_chunk_manager::add_object(
   const service_provider & sp,
   const guid & version_id,
-  const filename & tmp_file)
+  const filename & tmp_file,
+  const const_data_buffer & file_hash)
 {
   return create_async_task([this, version_id, tmp_file](
     const std::function<void (const service_provider & sp)> & done,
@@ -183,9 +184,12 @@ vds::async_task<> vds::_chunk_manager::add_object(
     
     auto file_size = file::length(tmp_file);
     
+    auto server_id = sp.get<istorage_log>()->current_server_id();
+    principal_log_new_object result(server_id, version_id, file_size, file_hash, BLOCK_SIZE);
+        
     for (decltype(file_size) offset = 0; offset < file_size; offset += BLOCK_SIZE) {
       if(BLOCK_SIZE < file_size - offset){
-        if(!this->write_chunk(sp, version_id, tmp_file, offset, BLOCK_SIZE, on_error)){
+        if(!this->write_chunk(sp, result, tmp_file, offset, BLOCK_SIZE, on_error)){
           return;
         }
       }
@@ -196,13 +200,19 @@ vds::async_task<> vds::_chunk_manager::add_object(
       }
     }
     
+    sp.get<istorage_log>()->add_to_local_log(
+      sp,
+      server_id,
+      sp.get<istorage_log>()->server_private_key(),
+      result.serialize());
+    
     done(sp);
   });
 }
 
 bool vds::_chunk_manager::write_chunk(
   const service_provider & sp,
-  const guid & version_id,
+  principal_log_new_object & result_record,
   const filename & fn,
   size_t offset,
   size_t size,
@@ -222,7 +232,7 @@ bool vds::_chunk_manager::write_chunk(
     hash_filter(&original_length, &original_hash),
     collect_data(buffer)
   )(
-    [this, &result, &original_length, &original_hash, &buffer, index, version_id, offset, size, on_error](const service_provider & sp){
+    [this, &result, &original_length, &original_hash, &buffer, index, &result_record, offset, size, on_error](const service_provider & sp){
       
       if (original_length != size) {
         on_error(sp, std::make_shared<std::runtime_error>("File is corrupt"));
@@ -230,8 +240,10 @@ bool vds::_chunk_manager::write_chunk(
         return;
       }
 
+      result_record.add_chunk(index, original_hash);
+      
+      /*
       auto server_id = sp.get<istorage_log>()->current_server_id();
-
       sp.get<iserver_database>()->add_full_chunk(
         sp,
         version_id,
@@ -240,10 +252,11 @@ bool vds::_chunk_manager::write_chunk(
         original_hash,
         server_id,
         index);
-
+      */
+      
       result = this->generate_horcruxes(
         sp,
-        server_id,
+        result_record.server_id(),
         index,
         buffer,
         on_error);
