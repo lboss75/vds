@@ -9,7 +9,31 @@ All rights reserved
 #include "storage_object_id.h"
 
 namespace vds {
-
+  
+  class principal_log_new_object
+  {
+  public:
+    static const char message_type[];
+    
+    principal_log_new_object(
+      const std::shared_ptr<json_value> & source);
+    
+    principal_log_new_object(
+      const guid & index,
+      uint32_t lenght,
+      const const_data_buffer & meta_data);
+    
+    const guid & index() const { return this->index_; }
+    uint32_t lenght() const { return this->lenght_; }
+    const const_data_buffer & hash() const { return this->hash_; }
+    
+    std::shared_ptr<json_value> serialize(bool add_type_property = true) const;
+  private:
+    guid index_;
+    uint32_t lenght_;
+    const_data_buffer hash_;
+  };
+  ////////////////////////////////////////
   class principal_log_record
   {
   public:
@@ -154,15 +178,87 @@ namespace vds {
     std::string addresses_;
   };
   /////////////////////////////////////////////////////
-  class principal_log_new_object
+  class tail_chunk_item
+  {
+  public:
+    tail_chunk_item(const std::shared_ptr<json_value> & source);
+    std::shared_ptr<json_value> serialize() const;
+
+    tail_chunk_item(
+      const guid & server_id,
+      const guid & object_id,
+      size_t chunk_index,
+      size_t object_offset,
+      size_t chunk_offset,
+      size_t length,
+      const const_data_buffer & hash)
+    : server_id_(server_id),
+      object_id_(object_id),
+      chunk_index_(chunk_index),
+      object_offset_(object_offset),
+      chunk_offset_(chunk_offset),
+      length_(length),
+      hash_(hash)
+    {
+    }
+    
+    const guid & server_id() const { return this->server_id_; }
+    const guid & object_id() const { return this->object_id_; }
+    size_t chunk_index() const { return this->chunk_index_; }
+    size_t object_offset() const { return this->object_offset_; }
+    size_t chunk_offset() const { return this->chunk_offset_; }
+    size_t length() const { return this->length_; }
+    const const_data_buffer & hash() const { return this->hash_; }
+    
+  private:
+    guid server_id_;
+    guid object_id_;
+    size_t chunk_index_;
+    size_t object_offset_;
+    size_t chunk_offset_;
+    size_t length_;
+    const_data_buffer hash_;
+  };
+  
+  class chunk_info
+  {
+  public:
+    chunk_info(const std::shared_ptr<json_value> & source);
+    std::shared_ptr<json_value> serialize() const;
+    
+    chunk_info(
+      size_t chunk_index,
+      const const_data_buffer & chunk_hash)
+    : chunk_index_(chunk_index),
+      hash_(chunk_hash)
+    {
+    }
+    
+    size_t chunk_index() const { return this->chunk_index_; }
+    const const_data_buffer & chunk_hash() const { return this->hash_; }
+    const std::list<const_data_buffer> & replica_hashes() const { return this->replica_hashes_; }
+    
+    void add_replica_hash(const const_data_buffer & replica_hash)
+    {
+      this->replica_hashes_.push_back(replica_hash);
+    }
+    
+  private:
+    size_t chunk_index_;
+    const_data_buffer hash_;
+    std::list<const_data_buffer> replica_hashes_;
+  };
+
+  class principal_log_new_object_map
   {
   public:
     static const char message_type[];
-    principal_log_new_object(
+    principal_log_new_object_map(
       const std::shared_ptr<json_value> & source);
+    
     std::shared_ptr<json_value> serialize(bool add_type_property = true) const;
     
-    principal_log_new_object(
+    principal_log_new_object_map(
       const guid & server_id,
       const guid & object_id,
       uint32_t length,
@@ -182,37 +278,10 @@ namespace vds {
     const const_data_buffer & object_hash() const { return this->hash_; }
     size_t chunk_size() const { return this->chunk_size_; }
     
-    class chunk_info
-    {
-    public:
-      chunk_info(
-        size_t chunk_index,
-        const const_data_buffer & chunk_hash)
-      : chunk_index_(chunk_index),
-        hash_(chunk_hash)
-      {
-      }
-      
-      size_t chunk_index() const { return this->chunk_index_; }
-      const const_data_buffer & chunk_hash() const { return this->hash_; }
-      const std::list<const_data_buffer> & replica_hashes() const { return this->replica_hashes_; }
-      
-      void add_replica_hash(const const_data_buffer & replica_hash)
-      {
-        this->replica_hashes_.push_back(replica_hash);
-      }
-      
-    private:
-      size_t chunk_index_;
-      const_data_buffer hash_;
-      std::list<const_data_buffer> replica_hashes_;
-    };
     
-    const std::list<chunk_info> & full_chunks() const { return this->full_chunks_; }
-    void add_chunk(size_t chunk_index, const const_data_buffer & chunk_hash)
-    {
-      this->full_chunks_.push_back(chunk_info(chunk_index, chunk_hash));
-    }
+    std::list<chunk_info> & full_chunks() { return this->full_chunks_; }
+    
+    std::list<tail_chunk_item> & tail_chunk_items() { return this->tail_chunk_items_; }
     
   private:
     guid server_id_;
@@ -221,7 +290,9 @@ namespace vds {
     const_data_buffer hash_;
     size_t chunk_size_;
     std::list<chunk_info> full_chunks_;
+    std::list<tail_chunk_item> tail_chunk_items_;
   };
+  
   
   class new_tail_chunk
   {
@@ -244,11 +315,14 @@ namespace vds {
     size_t chunk_size() const { return this->chunk_size_; }
     const_data_buffer chunk_hash() const { return this->hash_; }
     
+    std::list<tail_chunk_item> & tail_chunk_items() { return this->tail_chunk_items_; }
+    
   private:
     const guid server_id_;
     const size_t chunk_index_;
     const size_t chunk_size_;
     const const_data_buffer hash_;
+    std::list<tail_chunk_item> tail_chunk_items_;
   };
 }
 

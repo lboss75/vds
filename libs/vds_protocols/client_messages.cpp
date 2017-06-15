@@ -163,6 +163,7 @@ vds::client_messages::put_object_message::put_object_message(const std::shared_p
     s->get_property("i", this->principal_id_);
     this->principal_msg_ = s->get_property("m");
     s->get_property("s", this->signature_);
+    s->get_property("h", this->file_hash_);
 
     std::string v;
     if (s->get_property("f", v)) {
@@ -180,6 +181,7 @@ std::shared_ptr<vds::json_value> vds::client_messages::put_object_message::seria
   s->add_property("m", this->principal_msg_);
   s->add_property("s", this->signature_);
   s->add_property("f", this->tmp_file_.full_name());
+  s->add_property("h", this->file_hash_);
 
   return s;
 }
@@ -188,11 +190,13 @@ vds::client_messages::put_object_message::put_object_message(
   const guid & principal_id,
   const std::shared_ptr<json_value> & principal_msg,
   const const_data_buffer & signature,
-  const filename & tmp_file)
+  const filename & tmp_file,
+  const const_data_buffer & file_hash)
 : principal_id_(principal_id),
   principal_msg_(principal_msg),
   signature_(signature),
-  tmp_file_(tmp_file)
+  tmp_file_(tmp_file),
+  file_hash_(file_hash)
 {
 }
 

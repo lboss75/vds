@@ -113,18 +113,21 @@ namespace vds {
         const guid & principal_id,
         const std::shared_ptr<json_value> & principal_msg,
         const const_data_buffer & signature,
-        const filename & tmp_file);
+        const filename & tmp_file,
+        const const_data_buffer & file_hash);
 
       const guid & principal_id() const { return this->principal_id_; }
       const std::shared_ptr<json_value> & principal_msg() const { return this->principal_msg_; }
       const const_data_buffer & signature() const { return this->signature_; }
       const filename & tmp_file() const { return this->tmp_file_; }
+      const const_data_buffer & file_hash() const { return this->file_hash_; }
 
     private:
       guid principal_id_;
       std::shared_ptr<json_value> principal_msg_;
       const_data_buffer signature_;
       filename tmp_file_;
+      const_data_buffer file_hash_;
     };
 
     class put_object_message_response

@@ -37,7 +37,7 @@ namespace vds {
 
     void add_object(
       const service_provider & sp,
-      const principal_log_new_object & index);
+      const principal_log_new_object_map & index);
 
     void add_endpoint(
       const service_provider & sp,

@@ -7,6 +7,44 @@ All rights reserved
 #include "log_records.h"
 #include "storage_object_id.h"
 
+////////////////////////////////////////////////////////////////////////
+const char vds::principal_log_new_object::message_type[] = "new object";
+
+vds::principal_log_new_object::principal_log_new_object(
+  const guid & index,
+  uint32_t lenght,
+  const const_data_buffer & hash)
+: index_(index),
+  lenght_(lenght),
+  hash_(hash)  
+{
+}
+
+vds::principal_log_new_object::principal_log_new_object(
+  const std::shared_ptr<vds::json_value> & source)
+{
+  auto s = std::dynamic_pointer_cast<json_object>(source);
+  if (nullptr != s) {
+    s->get_property("i", this->index_);
+    s->get_property("l", this->lenght_);
+    s->get_property("h", this->hash_);
+  }
+}
+
+std::shared_ptr<vds::json_value> vds::principal_log_new_object::serialize(bool add_type_property) const
+{
+  std::unique_ptr<json_object> result(new json_object());
+  if (add_type_property) {
+    result->add_property("$t", message_type);
+  }  
+  
+  result->add_property("i", this->index_);
+  result->add_property("l", this->lenght_);
+  result->add_property("h", this->hash_);
+
+  return std::shared_ptr<vds::json_value>(result.release());
+}
+///////////////////////////////////////////////////////////////////////
 const char vds::principal_log_record::message_type[] = "server log";
 
 vds::principal_log_record::principal_log_record()
@@ -147,39 +185,37 @@ std::shared_ptr<vds::json_value> vds::principal_log_record::serialize(bool add_t
   return std::shared_ptr<vds::json_value>(result.release());
 }
 ////////////////////////////////////////////////////////////////////////
-const char vds::principal_log_new_object::message_type[] = "new object";
+const char vds::principal_log_new_object_map::message_type[] = "new object map";
 
-vds::principal_log_new_object::principal_log_new_object(
-  const guid & index,
-  uint32_t lenght,
-  const const_data_buffer & hash)
-: index_(index),
-  lenght_(lenght),
-  hash_(hash)  
-{
-}
 
-vds::principal_log_new_object::principal_log_new_object(
+vds::principal_log_new_object_map::principal_log_new_object_map(
   const std::shared_ptr<vds::json_value> & source)
 {
   auto s = std::dynamic_pointer_cast<json_object>(source);
   if (nullptr != s) {
-    s->get_property("i", this->index_);
-    s->get_property("l", this->lenght_);
+    s->get_property("i", this->server_id_);
+    s->get_property("o", this->object_id_);
+    s->get_property("l", this->length_);
     s->get_property("h", this->hash_);
+    s->get_property("s", this->chunk_size_);
+    s->get_property("c", this->full_chunks_);
+    s->get_property("t", this->tail_chunk_items_);
+    
   }
 }
 
-std::shared_ptr<vds::json_value> vds::principal_log_new_object::serialize(bool add_type_property) const
+std::shared_ptr<vds::json_value> vds::principal_log_new_object_map::serialize(bool add_type_property) const
 {
   std::unique_ptr<json_object> result(new json_object());
   if (add_type_property) {
     result->add_property("$t", message_type);
   }  
   
-  result->add_property("i", this->index_);
-  result->add_property("l", this->lenght_);
+  result->add_property("i", this->server_id_);
+  result->add_property("o", this->object_id_);
+  result->add_property("l", this->length_);
   result->add_property("h", this->hash_);
+  result->add_property("s", this->chunk_size_);
 
   return std::shared_ptr<vds::json_value>(result.release());
 }
@@ -322,4 +358,51 @@ std::shared_ptr<vds::json_value> vds::server_log_new_endpoint::serialize() const
   result->add_property("a", this->addresses_);
   return std::shared_ptr<vds::json_value>(result.release());
 }
+/////////////////////////////////////////////////////////////////
+vds::chunk_info::chunk_info(const std::shared_ptr<json_value> & source)
+{
+  auto s = std::dynamic_pointer_cast<json_object>(source);
+  if (s) {
+    s->get_property("i", this->chunk_index_);
+    s->get_property("h", this->hash_);
+    s->get_property("r", this->replica_hashes_);
+  }
+}
 
+std::shared_ptr<vds::json_value> vds::chunk_info::serialize() const
+{
+  auto result = std::make_shared<json_object>();
+  result->add_property("i", this->chunk_index_);
+  result->add_property("h", this->hash_);
+  result->add_property("r", this->replica_hashes_);
+  return result;
+
+}
+/////////////////////////////////////////////////////////////////
+vds::tail_chunk_item::tail_chunk_item(const std::shared_ptr<json_value> & source)
+{
+  auto s = std::dynamic_pointer_cast<json_object>(source);
+  if (s) {
+    s->get_property("s", this->server_id_);
+    s->get_property("o", this->object_id_);
+    s->get_property("i", this->chunk_index_);
+    s->get_property("of", this->object_offset_);
+    s->get_property("cf", this->chunk_offset_);
+    s->get_property("l", this->length_);
+    s->get_property("h", this->hash_);
+  }
+}
+
+std::shared_ptr<vds::json_value> vds::tail_chunk_item::serialize() const
+{
+  auto s = std::make_shared<json_object>();
+  s->add_property("s", this->server_id_);
+  s->add_property("o", this->object_id_);
+  s->add_property("i", this->chunk_index_);
+  s->add_property("of", this->object_offset_);
+  s->add_property("cf", this->chunk_offset_);
+  s->add_property("l", this->length_);
+  s->add_property("h", this->hash_);
+  return s;
+
+}

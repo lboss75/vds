@@ -30,7 +30,8 @@ namespace vds {
       const service_provider & sp,
       const guid & principal_id,
       const vds::asymmetric_private_key & principal_private_key,
-      const std::shared_ptr<json_value> & record);
+      const std::shared_ptr<json_value> & record,
+      bool apply_record = true);
 
     vds::async_task<> register_server(
       const service_provider & sp,

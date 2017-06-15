@@ -42,9 +42,10 @@ void vds::istorage_log::add_to_local_log(
   const service_provider & sp,
   const guid & principal_id,
   const vds::asymmetric_private_key & principal_private_key,
-  const std::shared_ptr<json_value> & record)
+  const std::shared_ptr<json_value> & record,
+  bool apply_record /*= true*/)
 {
-  static_cast<_storage_log *>(this)->add_to_local_log(sp, principal_id, principal_private_key, record);
+  static_cast<_storage_log *>(this)->add_to_local_log(sp, principal_id, principal_private_key, record, apply_record);
 }
 
 vds::async_task<> vds::istorage_log::register_server(
@@ -152,14 +153,21 @@ void vds::_storage_log::reset(
       principal_id,
       root_certificate.str(),
       private_key.str(password),
-      ph.signature()).serialize());
+      ph.signature()).serialize(),
+      true);
   this->add_to_local_log(sp, principal_id, private_key, server_log_new_server(
     this->current_server_id_,
     principal_id,
     this->server_certificate_.str(),
     this->current_server_key_.str(password),
-    ph.signature()).serialize());
-  this->add_to_local_log(sp, principal_id, private_key, server_log_new_endpoint(this->current_server_id_, addresses).serialize());
+    ph.signature()).serialize(),
+    true);
+  this->add_to_local_log(
+    sp,
+    principal_id,
+    private_key,
+    server_log_new_endpoint(this->current_server_id_, addresses).serialize(),
+    true);
 }
 
 
@@ -205,7 +213,8 @@ vds::async_task<> vds::_storage_log::register_server(
         parent_id,
         server_certificate,
         server_private_key,
-        password_hash).serialize());
+        password_hash).serialize(),
+      true);
     done(sp);
   });
 }
@@ -214,7 +223,8 @@ void vds::_storage_log::add_to_local_log(
   const service_provider & sp,
   const guid & principal_id,
   const vds::asymmetric_private_key & principal_private_key,
-  const std::shared_ptr<json_value> & message)
+  const std::shared_ptr<json_value> & message,
+  bool apply_record)
 {
   std::lock_guard<std::mutex> lock(this->record_state_mutex_);
 
@@ -227,7 +237,13 @@ void vds::_storage_log::add_to_local_log(
       principal_private_key,
       signature);
     
-  this->apply_record(sp, result, signature);
+  if(apply_record){
+    this->apply_record(sp, result, signature);
+  }
+  else {
+    this->last_applied_record_ = result.id();
+    sp.get<iserver_database>()->processed_record(sp, result.id());
+  }
 
   auto sl = sp.get<_server_log_sync>(false);
   if (nullptr != sl) {
@@ -263,13 +279,8 @@ void vds::_storage_log::apply_record(
       return;
     }
     
-    if (principal_log_new_object::message_type == message_type) {
-      principal_log_new_object msg(obj);
-      
-      sp.get<logger>()->debug(sp, "Add object %s",
-        record.id().str().c_str(),
-        msg.index());
-
+    if (principal_log_new_object_map::message_type == message_type) {
+      principal_log_new_object_map msg(obj);
       sp.get<iserver_database>()->add_object(sp, msg);
     }
     else if(server_log_root_certificate::message_type == message_type){

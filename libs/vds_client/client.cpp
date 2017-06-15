@@ -268,6 +268,20 @@ vds::async_task<const std::string& /*version_id*/> vds::_client::upload_file(
         )(
           [this, done, on_error, &signature, &response, msg, tmp_file](const service_provider & sp){
             sp.get<logger>()->trace(sp, "Message [%s] signed [%s]", msg->str().c_str(), base64::from_bytes(signature).c_str());
+            
+            uint8_t file_buffer[1024];
+            file f(tmp_file, file::file_mode::open_read);
+            hash file_hash(hash::sha256());
+            for(;;){
+              auto readed = f.read(file_buffer, sizeof(file_buffer));
+              if(0 == readed){
+                break;
+              }
+              
+              file_hash.update(file_buffer, readed);
+            }
+            file_hash.final();
+            f.close();
 
             sp.get<logger>()->trace(sp, "Uploading file");
             
@@ -278,7 +292,8 @@ vds::async_task<const std::string& /*version_id*/> vds::_client::upload_file(
                 response.id(),
                 msg,
                 signature,
-                tmp_file).serialize())
+                tmp_file,
+                file_hash.signature()).serialize())
             .then([](
               const std::function<void(const service_provider & /*sp*/)> & done,
               const error_handler & on_error,

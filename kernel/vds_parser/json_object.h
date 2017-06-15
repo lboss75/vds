@@ -99,6 +99,10 @@ namespace vds {
     void add_property(const std::string & name, uint64_t value);
     void add_property(const std::string & name, const std::string & value);
     void add_property(const std::string & name, const const_data_buffer & value);
+    void add_property(const std::string & name, const std::list<const_data_buffer> & value);
+    
+    template<typename item_type>
+    void add_property(const std::string & name, const std::list<item_type> & value);
 
     std::shared_ptr<json_value> get_property(const std::string & name) const;
     bool get_property(const std::string & name, std::string & value, bool throw_error = true) const;
@@ -109,6 +113,10 @@ namespace vds {
     bool get_property(const std::string & name, uint16_t & value, bool throw_error = true) const;
     bool get_property(const std::string & name, uint32_t & value, bool throw_error = true) const;
     bool get_property(const std::string & name, uint64_t & value, bool throw_error = true) const;
+    bool get_property(const std::string & name, std::list<const_data_buffer> & value, bool throw_error = true) const;
+    
+    template<typename item_type>
+    bool get_property(const std::string & name, std::list<item_type> & value, bool throw_error = true) const;
 
     void str(json_writer & writer) const override;
     std::shared_ptr<json_value> clone(bool is_deep_clone) const override;
@@ -146,6 +154,35 @@ namespace vds {
     std::vector<std::shared_ptr<json_value>> items_;
   };
   
+  template<typename item_type>
+  inline void json_object::add_property(const std::string & name, const std::list<item_type> & value)
+  {
+    auto array = std::make_shared<json_array>();
+    for(auto & item : value){
+      array->add(item.serialize());
+    }
+    
+    this->add_property(name, array);
+  }
+  
+  template<typename item_type>
+  inline bool json_object::get_property(const std::string & name, std::list<item_type> & value, bool throw_error) const
+  {
+    auto array = std::dynamic_pointer_cast<json_array>(this->get_property(name));
+    if(!array){
+      if(throw_error){
+        throw std::runtime_error("Invalid property " + name);
+      }
+      
+      return false;
+    }
+    
+    for(size_t i = 0; i < array->size(); ++i) {
+      value.push_back(item_type(array->get(i)));
+    }
+    
+    return true;
+  }
   
 }
 

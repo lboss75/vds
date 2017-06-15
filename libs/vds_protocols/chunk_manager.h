@@ -23,7 +23,8 @@ namespace vds {
     async_task<> add_object(
       const service_provider & sp,
       const guid & version_id,
-      const filename & tmp_file);
+      const filename & tmp_file,
+      const const_data_buffer & file_hash);
   };
 }
 

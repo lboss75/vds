@@ -25,7 +25,8 @@ namespace vds {
     async_task<> add_object(
       const service_provider & sp,
       const guid & version_id,
-      const filename & tmp_file);
+      const filename & tmp_file,
+      const const_data_buffer & file_hash);
 
     /*
     
@@ -79,7 +80,7 @@ namespace vds {
     
     bool write_chunk(
       const service_provider & sp,
-      principal_log_new_object & result_record,
+      principal_log_new_object_map & result_record,
       const filename & tmp_file,
       size_t offset,
       size_t size,
@@ -87,7 +88,7 @@ namespace vds {
 
     bool write_tail(
       const service_provider & sp,
-      principal_log_new_object & result_record,
+      principal_log_new_object_map & result_record,
       const filename & tmp_file,
       size_t offset,
       size_t size,
@@ -96,7 +97,7 @@ namespace vds {
     bool generate_horcruxes(
       const service_provider & sp,
       const guid & server_id,
-      size_t chunk_index,
+      chunk_info & chunk_info,
       const std::vector<uint8_t> & buffer,
       const error_handler & on_error);
 

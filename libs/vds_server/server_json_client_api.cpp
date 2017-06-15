@@ -251,14 +251,15 @@ vds::_server_json_client_api::process(
         return;
       }
       
-      principal_log_new_object new_object(record.message());
+      principal_log_new_object_map new_object(record.message());
       
       sp.get<iserver_database>()->save_record(sp, record, message.signature());
   
       sp.get<ichunk_manager>()->add_object(
         sp,
-        new_object.index(),
-        message.tmp_file())
+        new_object.object_id(),
+        message.tmp_file(),
+        message.file_hash())
       .wait([done](const service_provider & sp){
           done(sp, client_messages::put_object_message_response().serialize());
         },

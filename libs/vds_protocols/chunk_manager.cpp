@@ -30,12 +30,14 @@ void vds::ichunk_manager::stop(const service_provider & sp)
 vds::async_task<> vds::ichunk_manager::add_object(
   const service_provider & sp,
   const guid & version_id,
-  const filename & tmp_file)
+  const filename & tmp_file,
+  const const_data_buffer & file_hash)
 {
   return static_cast<_chunk_manager *>(this)->add_object(
     sp,
     version_id,
-    tmp_file);
+    tmp_file,
+    file_hash);
 }
 
 /*
@@ -185,7 +187,7 @@ vds::async_task<> vds::_chunk_manager::add_object(
     auto file_size = file::length(tmp_file);
     
     auto server_id = sp.get<istorage_log>()->current_server_id();
-    principal_log_new_object result(server_id, version_id, file_size, file_hash, BLOCK_SIZE);
+    principal_log_new_object_map result(server_id, version_id, file_size, file_hash, BLOCK_SIZE);
         
     for (decltype(file_size) offset = 0; offset < file_size; offset += BLOCK_SIZE) {
       if(BLOCK_SIZE < file_size - offset){
@@ -204,7 +206,8 @@ vds::async_task<> vds::_chunk_manager::add_object(
       sp,
       server_id,
       sp.get<istorage_log>()->server_private_key(),
-      result.serialize());
+      result.serialize(),
+      false);
     
     done(sp);
   });
@@ -212,7 +215,7 @@ vds::async_task<> vds::_chunk_manager::add_object(
 
 bool vds::_chunk_manager::write_chunk(
   const service_provider & sp,
-  principal_log_new_object & result_record,
+  principal_log_new_object_map & result_record,
   const filename & fn,
   size_t offset,
   size_t size,
@@ -240,26 +243,27 @@ bool vds::_chunk_manager::write_chunk(
         return;
       }
 
-      result_record.add_chunk(index, original_hash);
+      chunk_info chunk(index, original_hash);      
       
-      /*
       auto server_id = sp.get<istorage_log>()->current_server_id();
       sp.get<iserver_database>()->add_full_chunk(
         sp,
-        version_id,
+        result_record.object_id(),
         offset,
         size,
         original_hash,
         server_id,
         index);
-      */
+      
       
       result = this->generate_horcruxes(
         sp,
         result_record.server_id(),
-        index,
+        chunk,
         buffer,
         on_error);
+      
+      result_record.full_chunks().push_back(chunk);
     },
     [&result, on_error](const service_provider & sp, const std::shared_ptr<std::exception> & ex){
       on_error(sp, ex);
@@ -272,7 +276,7 @@ bool vds::_chunk_manager::write_chunk(
 
 bool vds::_chunk_manager::write_tail(
   const service_provider & sp,
-  const guid & version_id,
+  principal_log_new_object_map & result_record,
   const filename & fn,
   size_t offset,
   size_t size,
@@ -294,10 +298,10 @@ bool vds::_chunk_manager::write_tail(
         file_range_read(fn, offset, to_write),
         hash_filter(&original_length, &original_hash),
         collect_data(tail_buffer))(
-          [this, sp, server_id, version_id, index, offset, to_write, &original_hash, &tail_buffer](const service_provider & sp) {
+          [this, sp, server_id, &result_record, index, offset, to_write, &original_hash, &tail_buffer](const service_provider & sp) {
             sp.get<iserver_database>()->add_to_tail_chunk(
               sp,
-              version_id,
+              result_record.object_id(),
               offset,
               original_hash,
               server_id,
@@ -348,10 +352,10 @@ bool vds::_chunk_manager::write_tail(
         file_range_read(fn, offset, size),
         hash_filter(&original_length, &original_hash),
         collect_data(tail_buffer))(
-          [this, sp, server_id, version_id, index, offset, size, &original_hash, &tail_buffer](const service_provider & sp) {
+          [this, sp, server_id, &result_record, index, offset, size, &original_hash, &tail_buffer](const service_provider & sp) {
             sp.get<iserver_database>()->add_to_tail_chunk(
               sp,
-              version_id,
+              result_record.object_id(),
               offset,
               original_hash,
               server_id,
@@ -403,10 +407,11 @@ bool vds::_chunk_manager::generate_tail_horcruxes(
         server_id,
         chunk_index);
 
+      chunk_info chunk(chunk_index, original_hash);
       result = this->generate_horcruxes(
         sp,
         server_id,
-        chunk_index,
+        chunk,
         buffer,
         on_error);
     },
@@ -421,7 +426,7 @@ bool vds::_chunk_manager::generate_tail_horcruxes(
 bool vds::_chunk_manager::generate_horcruxes(
   const service_provider & sp,
   const guid & server_id,
-  size_t chunk_index,
+  chunk_info & chunk_info,
   const std::vector<uint8_t> & buffer,
   const error_handler & on_error)
 {
@@ -437,19 +442,20 @@ bool vds::_chunk_manager::generate_horcruxes(
       dataflow_arguments<uint8_t>(replica_data.data(), replica_data.size()),
       hash_filter(&replica_length, &replica_hash),
       collect_data(buffer))(
-      [server_id, chunk_index, replica, &replica_length, &replica_hash, &buffer](const service_provider & sp) {
+      [server_id, &chunk_info, replica, &replica_length, &replica_hash, &buffer](const service_provider & sp) {
           sp.get<iserver_database>()->add_chunk_replica(
             sp,
             server_id,
-            chunk_index,
+            chunk_info.chunk_index(),
             replica,
             replica_length,
             replica_hash);
+          chunk_info.add_replica_hash(replica_hash);
 
           sp.get<iserver_database>()->add_chunk_store(
             sp,
             server_id,
-            chunk_index,
+            chunk_info.chunk_index(),
             replica,
             sp.get<istorage_log>()->current_server_id(),
             buffer);
