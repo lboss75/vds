@@ -216,6 +216,8 @@ std::shared_ptr<vds::json_value> vds::principal_log_new_object_map::serialize(bo
   result->add_property("l", this->length_);
   result->add_property("h", this->hash_);
   result->add_property("s", this->chunk_size_);
+  result->add_property("c", this->full_chunks_);
+  result->add_property("t", this->tail_chunk_items_);
 
   return std::shared_ptr<vds::json_value>(result.release());
 }
