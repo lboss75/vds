@@ -79,7 +79,7 @@ namespace vds {
     
     bool write_chunk(
       const service_provider & sp,
-      const guid & version_id,
+      principal_log_new_object & result_record,
       const filename & tmp_file,
       size_t offset,
       size_t size,
@@ -87,7 +87,7 @@ namespace vds {
 
     bool write_tail(
       const service_provider & sp,
-      const guid & version_id,
+      principal_log_new_object & result_record,
       const filename & tmp_file,
       size_t offset,
       size_t size,

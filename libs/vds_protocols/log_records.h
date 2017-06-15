@@ -228,12 +228,12 @@ namespace vds {
   public:
     static const char message_type[];
    
-    new_object_chunk(
+    new_tail_chunk(
       const std::shared_ptr<json_value> & source      
     );
     std::shared_ptr<json_value> serialize() const;
     
-    new_object_chunk(
+    new_tail_chunk(
       const guid & server_id,
       size_t chunk_index,
       size_t chunk_size,
@@ -244,41 +244,11 @@ namespace vds {
     size_t chunk_size() const { return this->chunk_size_; }
     const_data_buffer chunk_hash() const { return this->hash_; }
     
-    class object_info
-    {
-    public:
-      object_info(
-        const guid & object_id,
-        size_t object_offset,
-        size_t object_length,
-        const const_data_buffer & object_hash)
-      : object_id_(object_id),
-        object_offset_(object_offset),
-        object_length_(object_length),
-        object_hash_(object_hash)
-      {
-      }
-      
-      const guid & object_id() const { return this->object_id_; }
-      size_t object_offset() const { return this->object_offset_; }
-      size_t object_length() const { return this->object_length_; }
-      const const_data_buffer & object_hash() const { return this->object_hash_; }
-      
-    private:      
-      guid object_id_;
-      size_t object_offset_;
-      size_t object_length_;
-      const_data_buffer object_hash_;
-    };
-    
-    const std::list<object_info> & objects() const { return this->objects_; }
-    
   private:
     const guid server_id_;
     const size_t chunk_index_;
     const size_t chunk_size_;
     const const_data_buffer hash_;
-    std::list<object_info> objects_;
   };
 }
 

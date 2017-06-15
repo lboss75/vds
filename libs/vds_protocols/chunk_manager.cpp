@@ -177,7 +177,7 @@ vds::async_task<> vds::_chunk_manager::add_object(
   const filename & tmp_file,
   const const_data_buffer & file_hash)
 {
-  return create_async_task([this, version_id, tmp_file](
+  return create_async_task([this, version_id, tmp_file, file_hash](
     const std::function<void (const service_provider & sp)> & done,
     const error_handler & on_error,
     const service_provider & sp){
@@ -194,7 +194,7 @@ vds::async_task<> vds::_chunk_manager::add_object(
         }
       }
       else {
-        if(!this->write_tail(sp, version_id, tmp_file, offset, file_size - offset, on_error)){
+        if(!this->write_tail(sp, result, tmp_file, offset, file_size - offset, on_error)){
           return;
         }
       }
