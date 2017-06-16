@@ -31,6 +31,7 @@ TEST(test_vds, test_initial)
     
     //Waiting to sync logs
     std::this_thread::sleep_for(std::chrono::seconds(60));
+    std::cout << "Download file...\n";
 
     auto result = mock.download_data(4, "test data");
 
