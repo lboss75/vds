@@ -30,14 +30,14 @@ TEST(test_vds, test_initial)
     mock.upload_file(3, "test data", buffer.get(), len);
     
     //Waiting to sync logs
-    //std::this_thread::sleep_for(std::chrono::seconds(60));
+    std::this_thread::sleep_for(std::chrono::seconds(60));
 
-    //auto result = mock.download_data(4, "test data");
+    auto result = mock.download_data(4, "test data");
 
     mock.stop();
 
-    //ASSERT_EQ(len, result.size());
-    //ASSERT_EQ(memcmp(buffer.get(), result.data(), len), 0);
+    ASSERT_EQ(len, result.size());
+    ASSERT_EQ(memcmp(buffer.get(), result.data(), len), 0);
   }
   catch (const std::exception & ex) {
     GTEST_FAIL() << ex.what();
