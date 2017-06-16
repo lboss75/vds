@@ -46,9 +46,9 @@ namespace vds {
 
         static gf_math<cell_type> math_;
         static void generate_multipliers(
-          _Out_writes_(k) cell_type * multipliers,
-          _In_ cell_type k,
-          _In_ cell_type n);
+          cell_type * multipliers,
+          cell_type k,
+          cell_type n);
 
         friend class chunk_generator<cell_type>; 
         friend class chunk_restore<cell_type>;

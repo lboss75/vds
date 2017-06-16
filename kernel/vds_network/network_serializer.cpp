@@ -44,21 +44,27 @@ void vds::network_serializer::start(uint8_t command_id)
   this->data_ << (uint8_t)'V' << (uint8_t)'D' << (uint8_t)'S' << (uint8_t)'M';
   this->data_ << command_id;
   
-  this->data_ << (uint16_t)0;
+  this->data_ << (uint32_t)0;
 }
 
 void vds::network_serializer::final()
 {
   this->data_ << (uint8_t)0;
   
-  if (0xFFFF < this->data_.size()) {
+  if (0xFFFFFFFF < this->data_.size()) {
     throw std::runtime_error("Data too long for datagram communication");
   }
 
-  uint16_t data = (uint16_t)this->data_.size();
+  uint32_t data = (uint32_t)this->data_.size();
 
+  this->data_[8] = (uint8_t)(0xFF & data);
+  
+  data >>= 8;
+  this->data_[7] = (uint8_t)(0xFF & data);
+  
+  data >>= 8;
   this->data_[6] = (uint8_t)(0xFF & data);
-
+  
   data >>= 8;
   this->data_[5] = (uint8_t)(0xFF & data);
 }
@@ -106,10 +112,10 @@ uint8_t vds::network_deserializer::start()
   uint8_t result;
   this->data_ >> result;
   
-  uint16_t len;
+  uint32_t len;
   this->data_ >> len;
   
-  if(len != this->data_.size() + 7){
+  if(len != this->data_.size() + 9){
     throw std::runtime_error("Invalid binary message format");
   }
  
