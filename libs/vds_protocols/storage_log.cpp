@@ -279,8 +279,8 @@ void vds::_storage_log::apply_record(
       return;
     }
     
-    if (principal_log_new_object_map::message_type == message_type) {
-      principal_log_new_object_map msg(obj);
+    if (principal_log_new_object::message_type == message_type) {
+      principal_log_new_object msg(obj);
       sp.get<iserver_database>()->add_object(sp, msg);
     }
     else if(server_log_root_certificate::message_type == message_type){

@@ -50,7 +50,7 @@ std::unique_ptr<vds::principal_record> vds::iserver_database::find_user_principa
 
 void vds::iserver_database::add_object(
   const service_provider & sp,
-  const principal_log_new_object_map & index)
+  const principal_log_new_object & index)
 {
   static_cast<_server_database *>(this)->add_object(sp, index);
 }
@@ -546,15 +546,15 @@ std::unique_ptr<vds::principal_record> vds::_server_database::find_user_principa
 
 void vds::_server_database::add_object(
   const service_provider & sp,
-  const principal_log_new_object_map & index)
+  const principal_log_new_object & index)
 {
   this->add_object_statement_.execute(
     this->db_,
-    "INSERT INTO object(object_id, lenght, hash)\
-    VALUES (@object_id, @lenght, @hash)",
-    index.object_id(),
-    index.length(),
-    index.object_hash());
+    "INSERT INTO object(object_id, length, hash)\
+    VALUES (@object_id, @length, @hash)",
+    index.index(),
+    index.lenght(),
+    index.hash());
 }
 
 

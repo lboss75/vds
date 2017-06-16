@@ -49,20 +49,20 @@ public:
       if (0 == this->input_buffer_size()) {
         if (0 != this->len_) {
           this->in_error_ = true;
-          this->error(sp, std::make_exception_ptr(std::runtime_error("Unexpected end of stream while comparing data")));
+          this->error(sp, std::make_shared<std::runtime_error>("Unexpected end of stream while comparing data"));
         }
         return 0;
       }
 
       if (this->len_ < this->input_buffer_size()) {
         this->in_error_ = true;
-        this->error(sp, std::make_exception_ptr(std::runtime_error("Unexpected data while comparing data")));
+        this->error(sp, std::make_shared<std::runtime_error>("Unexpected data while comparing data"));
         return 0;
       }
 
       if (0 != memcmp(this->data_, this->input_buffer(), this->input_buffer_size())) {
         this->in_error_ = true;
-        this->error(sp, std::make_exception_ptr(std::runtime_error("Compare data error")));
+        this->error(sp, std::make_shared<std::runtime_error>("Compare data error"));
         return 0;
       }
 

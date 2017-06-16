@@ -23,7 +23,7 @@ TEST(test_zip, inflate_tests) {
     random_buffer buffer;
 
     vds::barrier b;
-    const std::shared_ptr<std::exception> & error;
+    std::shared_ptr<std::exception> error;
     dataflow(
       random_reader<uint8_t>(buffer.data(), buffer.size()),
       vds::deflate(),
@@ -42,7 +42,7 @@ TEST(test_zip, inflate_tests) {
     b.wait();
     registrator.shutdown(sp);
     if (error) {
-      GTEST_FAIL() << vds::exception_what(error);
+      GTEST_FAIL() << error->what();
     }
   }
 }

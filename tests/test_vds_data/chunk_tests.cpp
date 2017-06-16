@@ -109,45 +109,40 @@ TEST(chunk_tests, test_chunks16) {
 }
 
 TEST(chunk_tests, test_chunks_storage) {
+    const uint16_t horcrux_count = 1000;
+    const uint16_t min_horcrux = 800;
+
     int size = std::rand() % 2000;
-    while (size < 1 || size > 2000) {
+    while (size < 2000 || size > 6000) {
         size = std::rand();
     }
-    
+    size -= (size % (sizeof(uint16_t) * min_horcrux));
+
     //Generate test data
     uint8_t * data = new uint8_t[size];
     for (int i = 0; i < size; ++i) {
         data[i] = uint8_t(0xFF & std::rand());
     }
     
-    const uint16_t horcrux_count = 1000;
-    const uint16_t min_horcrux = 800;
-    vds::chunk_storage storage(vds::guid::new_guid(), min_horcrux);
-    std::list<vds::chunk_storage::horcrux> horcruxes;
-    std::unordered_map<uint16_t, bool> processed_horcruxes;
+    vds::chunk_storage storage(min_horcrux);
+    std::unordered_map<uint16_t, vds::const_data_buffer> horcruxes;
     while(horcruxes.size() < min_horcrux){
       uint16_t replica;
       for(;;) {
         replica = (uint16_t)std::rand();
         if(horcrux_count > replica
-          && processed_horcruxes.end() == processed_horcruxes.find(replica)){
+          && horcruxes.end() == horcruxes.find(replica)){
           break;
         }
       }
       
       vds::binary_serializer s;
-      vds::ichunk_storage(&storage).generate_replica(s, 0, replica, data, size);
-      
-      processed_horcruxes[replica] = true;
-      vds::binary_deserializer ds(s.data());
-      horcruxes.push_back(vds::chunk_storage::horcrux(ds));
-      ASSERT_EQ(ds.size(), 0);
+      horcruxes[replica] = storage.generate_replica(replica, data, size);
     }
 
-    vds::binary_serializer result;
-    vds::ichunk_storage(&storage).restore_data(result, horcruxes);
+    auto result = storage.restore_data(horcruxes);
 
-    ASSERT_LE(size, result.size());
+    ASSERT_EQ(size, result.size());
     for (int i = 0; i < size; ++i) {
       if(data[i] != result[i]){
         FAIL() << "data[" << i << "](" << (int)data[i] << ") != result[" << i << "](" << (int)result[i] << ")";

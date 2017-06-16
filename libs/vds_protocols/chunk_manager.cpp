@@ -185,18 +185,17 @@ vds::async_task<> vds::_chunk_manager::add_object(
     const service_provider & sp){
     
     auto file_size = file::length(tmp_file);
-    
     auto server_id = sp.get<istorage_log>()->current_server_id();
     principal_log_new_object_map result(server_id, version_id, file_size, file_hash, BLOCK_SIZE);
         
     for (decltype(file_size) offset = 0; offset < file_size; offset += BLOCK_SIZE) {
       if(BLOCK_SIZE < file_size - offset){
-        if(!this->write_chunk(sp, result, tmp_file, offset, BLOCK_SIZE, on_error)){
+        if (!this->write_chunk(sp, result, tmp_file, offset, BLOCK_SIZE, on_error)) {
           return;
         }
       }
       else {
-        if(!this->write_tail(sp, result, tmp_file, offset, file_size - offset, on_error)){
+        if (!this->write_tail(sp, result, tmp_file, offset, file_size - offset, on_error)) {
           return;
         }
       }
