@@ -285,7 +285,43 @@ void vds::_storage_log::apply_record(
     }
     else if (principal_log_new_object_map::message_type == message_type) {
       principal_log_new_object_map msg(obj);
-      sp.get<logger>()->info(sp, "principal_log_new_object_map [%s]", record.message()->str().c_str());
+      
+      size_t offset = 0;
+      for(auto & chunk : msg.full_chunks()){
+        sp.get<iserver_database>()->add_full_chunk(
+          sp,
+          msg.object_id(),
+          offset,
+          msg.chunk_size(),
+          chunk.chunk_hash(),
+          msg.server_id(),
+          chunk.chunk_index());
+        
+        size_t replica = 0;
+        for(auto & replica_hash : chunk.replica_hashes()){
+          sp.get<iserver_database>()->add_chunk_replica(
+            sp,
+            msg.server_id(),
+            chunk.chunk_index(),
+            replica,
+            msg.replica_length(),
+            replica_hash);
+        }
+        
+        offset += msg.chunk_size();
+      }
+      
+      for(auto & tail_chunk : msg.tail_chunk_items()){
+        sp.get<iserver_database>()->add_object_chunk_map(
+          sp,
+          tail_chunk.server_id(),
+          tail_chunk.chunk_index(),
+          tail_chunk.object_id(),
+          tail_chunk.object_offset(),
+          tail_chunk.chunk_offset(),
+          tail_chunk.length(),
+          tail_chunk.hash());
+      }
     }
     else if(server_log_root_certificate::message_type == message_type){
       server_log_root_certificate msg(obj);

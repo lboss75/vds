@@ -187,7 +187,6 @@ std::shared_ptr<vds::json_value> vds::principal_log_record::serialize(bool add_t
 ////////////////////////////////////////////////////////////////////////
 const char vds::principal_log_new_object_map::message_type[] = "new object map";
 
-
 vds::principal_log_new_object_map::principal_log_new_object_map(
   const std::shared_ptr<vds::json_value> & source)
 {
@@ -200,13 +199,13 @@ vds::principal_log_new_object_map::principal_log_new_object_map(
     s->get_property("s", this->chunk_size_);
     s->get_property("c", this->full_chunks_);
     s->get_property("t", this->tail_chunk_items_);
-    
+    s->get_property("r", this->replica_length_);
   }
 }
 
 std::shared_ptr<vds::json_value> vds::principal_log_new_object_map::serialize(bool add_type_property) const
 {
-  std::unique_ptr<json_object> result(new json_object());
+  auto result = std::make_shared<json_object>();
   if (add_type_property) {
     result->add_property("$t", message_type);
   }  
@@ -218,8 +217,9 @@ std::shared_ptr<vds::json_value> vds::principal_log_new_object_map::serialize(bo
   result->add_property("s", this->chunk_size_);
   result->add_property("c", this->full_chunks_);
   result->add_property("t", this->tail_chunk_items_);
+  result->add_property("r", this->replica_length_);
 
-  return std::shared_ptr<vds::json_value>(result.release());
+  return result;
 }
 
 

@@ -186,7 +186,7 @@ vds::async_task<> vds::_chunk_manager::add_object(
     
     auto file_size = file::length(tmp_file);
     auto server_id = sp.get<istorage_log>()->current_server_id();
-    principal_log_new_object_map result(server_id, version_id, file_size, file_hash, BLOCK_SIZE);
+    principal_log_new_object_map result(server_id, version_id, file_size, file_hash, BLOCK_SIZE, REPLICA_SIZE);
         
     for (decltype(file_size) offset = 0; offset < file_size; offset += BLOCK_SIZE) {
       if(BLOCK_SIZE < file_size - offset){
@@ -307,6 +307,16 @@ bool vds::_chunk_manager::write_tail(
               index,
               this->tail_chunk_size_,
               tail_buffer);
+            
+            result_record.tail_chunk_items().push_back(
+              tail_chunk_item(
+                server_id,
+                result_record.object_id(),
+                index,
+                offset,
+                this->tail_chunk_size_,
+                tail_buffer.size(),
+                original_hash));
           },
           [&result, on_error](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
             on_error(sp, ex);
@@ -434,6 +444,7 @@ bool vds::_chunk_manager::generate_horcruxes(
   for (uint16_t replica = 0; replica < GENERATE_HORCRUX; ++replica) {
 
     auto replica_data = this->chunk_storage_.generate_replica(replica, buffer.data(), buffer.size());
+    assert(REPLICA_SIZE == replica_data.size());
     size_t replica_length;
     const_data_buffer replica_hash;
     std::vector<uint8_t> buffer;

@@ -263,12 +263,14 @@ namespace vds {
       const guid & object_id,
       uint32_t length,
       const const_data_buffer & object_hash,
-      size_t chunk_size)
+      size_t chunk_size,
+      size_t replica_length)
     : server_id_(server_id),
       object_id_(object_id),
       length_(length),
       hash_(object_hash),
-      chunk_size_(chunk_size)
+      chunk_size_(chunk_size),
+      replica_length_(replica_length)
     {
     }
     
@@ -277,7 +279,7 @@ namespace vds {
     size_t length() const { return this->length_; }
     const const_data_buffer & object_hash() const { return this->hash_; }
     size_t chunk_size() const { return this->chunk_size_; }
-    
+    size_t replica_length() const { return this->replica_length_; }
     
     std::list<chunk_info> & full_chunks() { return this->full_chunks_; }
     
@@ -289,6 +291,7 @@ namespace vds {
     size_t length_;
     const_data_buffer hash_;
     size_t chunk_size_;
+    size_t replica_length_;
     std::list<chunk_info> full_chunks_;
     std::list<tail_chunk_item> tail_chunk_items_;
   };

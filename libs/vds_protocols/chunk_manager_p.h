@@ -52,9 +52,10 @@ namespace vds {
     uint64_t tail_chunk_index_;
     size_t tail_chunk_size_;
     
-    static const size_t BLOCK_SIZE = 5 * 1024 * 1024;
+    static const size_t BLOCK_SIZE = 16 * 1024 * 1024;
     static const uint16_t MIN_HORCRUX = 512;
     static const uint16_t GENERATE_HORCRUX = 1024;
+    static const uint16_t REPLICA_SIZE = BLOCK_SIZE / MIN_HORCRUX;
 
     
     //

@@ -272,6 +272,27 @@ vds::const_data_buffer vds::iserver_database::get_tail_data(
     server_id,
     chunk_index);
 }
+
+void vds::iserver_database::add_object_chunk_map(
+  const service_provider & sp,
+  const guid & server_id,
+  size_t chunk_index,
+  const guid & object_id,
+  size_t object_offset,
+  size_t chunk_offset,
+  size_t length,
+  const const_data_buffer & hash)
+{
+ static_cast<_server_database *>(this)->add_object_chunk_map(
+  sp,
+  server_id,
+  chunk_index,
+  object_id,
+  object_offset,
+  chunk_offset,
+  length,
+  hash);
+}
 ////////////////////////////////////////////////////////
 vds::_server_database::_server_database()
 {

@@ -162,6 +162,16 @@ namespace vds {
       const service_provider & sp,
       const guid & server_id,
       size_t chunk_index);
+    
+    void add_object_chunk_map(
+      const service_provider & sp,
+      const guid & server_id,
+      size_t chunk_index,
+      const guid & object_id,
+      size_t object_offset,
+      size_t chunk_offset,
+      size_t length,
+      const const_data_buffer & hash);
   };
 }
 
