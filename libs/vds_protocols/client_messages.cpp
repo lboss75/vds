@@ -219,65 +219,86 @@ std::shared_ptr<vds::json_value> vds::client_messages::put_object_message_respon
 vds::client_messages::put_object_message_response::put_object_message_response()
 {
 }
+///////////////////////////////
+const char vds::client_messages::principal_log_request::message_type[] = "get principal log";
 
-/*
-const char vds::client_messages::get_file_message_request::message_type[] = "get file";
-vds::client_messages::get_file_message_request::get_file_message_request(const std::shared_ptr<json_value> & value)
+vds::client_messages::principal_log_request::principal_log_request(const std::shared_ptr<json_value> & value)
 {
   auto s = std::dynamic_pointer_cast<json_object>(value);
   if (s) {
-    s->get_property("u", this->user_login_);
-    s->get_property("n", this->name_);
+    s->get_property("p", this->principal_id_);
+    s->get_property("o", this->last_order_num_);
   }
 }
 
-std::shared_ptr<vds::json_value> vds::client_messages::get_file_message_request::serialize() const
+std::shared_ptr<vds::json_value> vds::client_messages::principal_log_request::serialize() const
 {
   auto s = std::make_shared<json_object>();
   s->add_property("$t", message_type);
+  s->add_property("p", this->principal_id_);
+  s->add_property("o", this->last_order_num_);
+  return s;
+}
+///////////////////////////////
+const char vds::client_messages::principal_log_response::message_type[] = "get principal log response";
 
-  s->add_property("u", this->user_login_);
-  s->add_property("n", this->name_);
+vds::client_messages::principal_log_response::principal_log_response(const std::shared_ptr<json_value> & value)
+{
+  auto s = std::dynamic_pointer_cast<json_object>(value);
+  if (s) {
+    s->get_property("p", this->principal_id_);
+    s->get_property("o", this->last_order_num_);
+    s->get_property("r", this->records_);
+  }
+}
 
+std::shared_ptr<vds::json_value> vds::client_messages::principal_log_response::serialize() const
+{
+  auto s = std::make_shared<json_object>();
+  s->add_property("$t", message_type);
+  s->add_property("p", this->principal_id_);
+  s->add_property("o", this->last_order_num_);
+  s->add_property("r", this->records_);
   return s;
 }
 
-vds::client_messages::get_file_message_request::get_file_message_request(
-  const std::string & user_login,
-  const std::string & name)
-: user_login_(user_login),
-  name_(name)
+///////////////////////////////
+const char vds::client_messages::get_object_request::message_type[] = "get object";
 
-{
-}
-
-const char vds::client_messages::get_file_message_response::message_type[] = "get file response";
-vds::client_messages::get_file_message_response::get_file_message_response(const std::shared_ptr<json_value> & value)
+vds::client_messages::get_object_request::get_object_request(const std::shared_ptr<json_value> & value)
 {
   auto s = std::dynamic_pointer_cast<json_object>(value);
   if (s) {
-    std::string v;
-    if (s->get_property("f", v)) {
-      this->tmp_file_ = filename(v);
-    }
-    s->get_property("m", this->meta_info_);
+    s->get_property("v", this->version_id_);
+    
+    std::string tmp_file;
+    s->get_property("f", tmp_file);
+    
+    this->tmp_file_ = filename(tmp_file);
   }
 }
 
-std::shared_ptr<vds::json_value> vds::client_messages::get_file_message_response::serialize() const
+std::shared_ptr<vds::json_value> vds::client_messages::get_object_request::serialize() const
 {
   auto s = std::make_shared<json_object>();
   s->add_property("$t", message_type);
+  s->add_property("v", this->version_id_);
   s->add_property("f", this->tmp_file_.full_name());
-  s->add_property("m", this->meta_info_);
-
   return s;
 }
+///////////////////////////////
+const char vds::client_messages::get_object_response::message_type[] = "get object response";
 
-vds::client_messages::get_file_message_response::get_file_message_response(
-  const const_data_buffer & meta_info,
-  const filename & tmp_file)
-: meta_info_(meta_info), tmp_file_(tmp_file)
+vds::client_messages::get_object_response::get_object_response(const std::shared_ptr<json_value> & value)
 {
+  auto s = std::dynamic_pointer_cast<json_object>(value);
+  if (s) {
+  }
 }
-*/
+
+std::shared_ptr<vds::json_value> vds::client_messages::get_object_response::serialize() const
+{
+  auto s = std::make_shared<json_object>();
+  s->add_property("$t", message_type);
+  return s;
+}

@@ -33,7 +33,7 @@ namespace vds {
       const std::string & name,
       const filename & tmp_file);
 
-    async_task<> download_data(
+    async_task<const vds::guid & /*version_id*/> download_data(
       const service_provider & sp,
       const std::string & login,
       const std::string & password,
@@ -52,6 +52,15 @@ namespace vds {
         const service_provider & sp,
         const std::string & user_login,
         const std::string & user_password);
+      
+    async_task<const guid & /*version_id*/>
+      looking_for_file(
+        const service_provider & sp,
+        const asymmetric_private_key & user_private_key,
+        const guid & principal_id,
+        const size_t order_num,
+        const std::string & looking_file_name,
+        const filename & target_file);
   };
 }
 

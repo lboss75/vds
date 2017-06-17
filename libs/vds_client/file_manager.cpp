@@ -4,6 +4,7 @@
 #include "symmetriccrypto.h"
 #include "hash.h"
 #include "deflate.h"
+#include "inflate.h"
 #include "logger.h"
 #include "guid.h"
 #include "mt_service.h"
@@ -76,3 +77,63 @@ vds::async_task<size_t /*body_size*/, size_t /*tail_size*/> vds::_file_manager::
       
     });
 }
+
+vds::async_task<> vds::_file_manager::decrypt_file(
+  const service_provider & sp,
+  const symmetric_key & transaction_key,
+  const filename & tmp_file,
+  const filename & target_file,
+  size_t body_size,
+  size_t tail_size)
+{
+  return create_async_task(
+    [transaction_key, tmp_file, target_file, body_size, tail_size]
+    (const std::function<void(const service_provider & sp)> & done,
+      const error_handler & on_error,
+      const service_provider & sp) {
+      
+      std::vector<uint8_t> tail_data;
+      dataflow(
+        file_range_read(tmp_file, body_size, tail_size),
+        symmetric_decrypt(transaction_key),
+        inflate(),
+        collect_data(tail_data))(
+          [&tail_data, done, on_error, tmp_file, target_file, transaction_key](const service_provider & sp){
+            
+            binary_deserializer tail(tail_data);
+            size_t offset = 0;
+            while(0 < tail.size()) {
+              size_t original_lenght;
+              const_data_buffer original_hash;
+              size_t target_lenght;
+              const_data_buffer target_hash;
+              
+              tail >> original_lenght >> original_hash >> target_lenght >> target_hash;
+              
+              std::shared_ptr<std::exception> error;
+              dataflow(
+                file_range_read(tmp_file, offset, target_lenght),
+                symmetric_decrypt(transaction_key),
+                inflate(),
+                file_write(target_file, file::file_mode::append)
+              )(
+                [](const service_provider & sp){
+                },
+                [&error](const service_provider & sp, const std::shared_ptr<std::exception> & ex){
+                  error = ex;
+                },
+                sp);
+              
+              if(error) {
+                on_error(sp, error);
+                return;
+              }
+            }
+            
+            done(sp);
+          },
+          on_error,
+          sp);
+    });
+}
+

@@ -64,6 +64,15 @@ size_t vds::symmetric_key::block_size() const
   return this->crypto_info_.block_size();
 }
 
+vds::symmetric_key::symmetric_key(const vds::symmetric_crypto_info& crypto_info, vds::binary_deserializer& s)
+: crypto_info_(crypto_info),
+  key_(new unsigned char[crypto_info.key_size()]),
+  iv_(new unsigned char[crypto_info.iv_size()])
+{
+  s.pop_data(this->key_.get(), (int)this->crypto_info_.key_size());
+  s.pop_data(this->iv_.get(), (int)this->crypto_info_.iv_size());
+}
+
 vds::symmetric_key::symmetric_key(const vds::symmetric_crypto_info& crypto_info, vds::binary_deserializer&& s)
 : crypto_info_(crypto_info),
   key_(new unsigned char[crypto_info.key_size()]),

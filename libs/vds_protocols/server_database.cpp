@@ -350,7 +350,7 @@ void vds::_server_database::start(const service_provider & sp)
       "CREATE TABLE object(\
       object_id VARCHAR(64) NOT NULL,\
       length INTEGER NOT NULL,\
-      hash BLOB NOT NULL,\
+      meta_info BLOB NOT NULL,\
       CONSTRAINT pk_objects PRIMARY KEY (object_id))");
 
     this->db_.execute(
@@ -571,11 +571,11 @@ void vds::_server_database::add_object(
 {
   this->add_object_statement_.execute(
     this->db_,
-    "INSERT INTO object(object_id, length, hash)\
-    VALUES (@object_id, @length, @hash)",
+    "INSERT INTO object(object_id, length, meta_info)\
+    VALUES (@object_id, @length, @meta_info)",
     index.index(),
     index.lenght(),
-    index.hash());
+    index.meta_data());
 }
 
 

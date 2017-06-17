@@ -196,7 +196,7 @@ namespace vds {
     prepared_statement<
       const guid & /*object_id*/,
       uint64_t /*lenght*/,
-      const const_data_buffer & /*hash*/> add_object_statement_;
+      const const_data_buffer & /*meta_info*/> add_object_statement_;
 
     prepared_query<
       const guid & /*server_id*/> last_object_index_query_;

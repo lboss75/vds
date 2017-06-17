@@ -6,6 +6,8 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
+#include "log_records.h"
+
 namespace vds {
 
   namespace client_messages
@@ -140,47 +142,97 @@ namespace vds {
 
       put_object_message_response();
     };
-    
-    /*
-    class get_file_message_request
+    //////////////////////////////////////////////////
+    class principal_log_request
     {
     public:
       static const char message_type[];
 
-      get_file_message_request(const std::shared_ptr<json_value> &);
+      principal_log_request(const std::shared_ptr<json_value> &);
       std::shared_ptr<json_value> serialize() const;
 
-      get_file_message_request(
-        const std::string & user_login,
-        const std::string & name);
+      principal_log_request(
+        const guid & principal_id,
+        size_t last_order_num)
+      : principal_id_(principal_id),
+        last_order_num_(last_order_num)
+      {
+      }
+      
 
-      const std::string & user_login() const { return this->user_login_; }
-      const std::string & name() const { return this->name_; }
+      const guid & principal_id() const { return this->principal_id_; }
+      const size_t last_order_num() const { return this->last_order_num_; }
 
     private:
-      std::string user_login_;
-      std::string name_;
+      guid principal_id_;
+      size_t last_order_num_;
     };
 
-    class get_file_message_response
+    class principal_log_response
+    {
+    public:
+      static const char message_type[];
+      principal_log_response(const std::shared_ptr<json_value> &);
+      std::shared_ptr<json_value> serialize() const;
+
+      principal_log_response(
+        const guid & principal_id,
+        size_t last_order_num)
+      : principal_id_(principal_id),
+        last_order_num_(last_order_num)
+      {
+      }
+      
+      const guid & principal_id() const { return this->principal_id_; }
+      const size_t last_order_num() const { return this->last_order_num_; }
+      std::list<principal_log_record> & records() { return this->records_; }
+      const std::list<principal_log_record> & records() const { return this->records_; }
+      
+    private:
+      guid principal_id_;
+      size_t last_order_num_;
+      std::list<principal_log_record> records_;
+    };
+    
+    //////////////////////////////////////////////////
+    class get_object_request
     {
     public:
       static const char message_type[];
 
-      get_file_message_response(const std::shared_ptr<json_value> &);
+      get_object_request(const std::shared_ptr<json_value> &);
       std::shared_ptr<json_value> serialize() const;
 
-      get_file_message_response(
-        const const_data_buffer & meta_info,
-        const filename & tmp_file);
+      get_object_request(
+        const guid & version_id,
+        const filename & tmp_file)
+      : version_id_(version_id),
+        tmp_file_(tmp_file)
+      {
+      }
 
-      const const_data_buffer & meta_info() const { return this->meta_info_; }
+      const guid & version_id() const { return this->version_id_; }
       const filename & tmp_file() const { return this->tmp_file_; }
 
     private:
-      const_data_buffer meta_info_;
+      guid version_id_;
       filename tmp_file_;
-    };*/
+    };
+
+    class get_object_response
+    {
+    public:
+      static const char message_type[];
+
+      get_object_response(const std::shared_ptr<json_value> &);
+      std::shared_ptr<json_value> serialize() const;
+
+      get_object_response()
+      {
+      }
+
+    private:
+    };
   };
 }
 

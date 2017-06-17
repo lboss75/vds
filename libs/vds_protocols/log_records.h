@@ -25,13 +25,13 @@ namespace vds {
     
     const guid & index() const { return this->index_; }
     uint32_t lenght() const { return this->lenght_; }
-    const const_data_buffer & hash() const { return this->hash_; }
+    const const_data_buffer & meta_data() const { return this->meta_data_; }
     
     std::shared_ptr<json_value> serialize(bool add_type_property = true) const;
   private:
     guid index_;
     uint32_t lenght_;
-    const_data_buffer hash_;
+    const_data_buffer meta_data_;
   };
   ////////////////////////////////////////
   class principal_log_record
@@ -72,7 +72,7 @@ namespace vds {
 
     binary_deserializer & deserialize(const service_provider & sp, binary_deserializer & b);
     void serialize(binary_serializer & b) const;
-    std::shared_ptr<json_value> serialize(bool add_type_property) const;
+    std::shared_ptr<json_value> serialize(bool add_type_property = false) const;
 
   private:
     record_id id_;

@@ -83,7 +83,7 @@ vds::async_task<const std::string& /*version_id*/> vds::iclient::upload_file(
   return static_cast<_client *>(this)->upload_file(sp, login, password, name, tmp_file);
 }
 
-vds::async_task<> vds::iclient::download_data(
+vds::async_task<const vds::guid & /*version_id*/> vds::iclient::download_data(
   const service_provider & sp,
   const std::string & login,
   const std::string & password,
@@ -316,7 +316,7 @@ vds::async_task<const std::string& /*version_id*/> vds::_client::upload_file(
     });
 }
 
-vds::async_task<>
+vds::async_task<const vds::guid & /*version_id*/>
 vds::_client::download_data(
   const service_provider & sp,
   const std::string & user_login,
@@ -329,61 +329,120 @@ vds::_client::download_data(
     user_login,
     user_password)
     .then(
-      [this, user_login, name, target_file](
-        const std::function<void(const service_provider & sp)>& done,
+      [this, user_login, name, target_file, user_password](
+        const std::function<void(const service_provider & sp, const guid & version_id)>& done,
         const error_handler & on_error,
         const service_provider & sp,
         const client_messages::certificate_and_key_response & response) {
+        
+        sp.get<logger>()->trace(sp, "Waiting file");
+        this->looking_for_file(
+            sp,
+            asymmetric_private_key::parse(response.private_key_body(), user_password),
+            response.id(),
+            response.order_num(),
+            name,
+            target_file)
+        .wait(done, on_error, sp);
+      });
+}
 
-    //sp.get<logger>()->trace(sp, "Downloading file");
-    //this->owner_->logic_->download_file(sp, user_login, name).wait(
-    //  [this, done, on_error, user_certificate = certificate::parse(user_certificate.str()), user_private_key, target_file]
-    //  (const service_provider & sp, const const_data_buffer & meta_info, const filename & tmp_file) {
+vds::async_task<const vds::guid & /*version_id*/>
+  vds::_client::looking_for_file(
+    const service_provider & sp,
+    const asymmetric_private_key & user_private_key,
+    const guid & principal_id,
+    const size_t order_num,
+    const std::string & looking_file_name,
+    const filename & target_file)
+{
+  return create_async_task(
+    [this, user_private_key, principal_id, order_num, looking_file_name, target_file](
+      const std::function<void(const service_provider & sp, const guid & version_id)> & done,
+      const error_handler & on_error,
+      const service_provider & sp) {
+      this->owner_->logic_->send_request<client_messages::principal_log_response>(
+        sp,
+        client_messages::principal_log_request(principal_id, order_num).serialize())
+      .wait([this, done, on_error, user_private_key, principal_id, looking_file_name, target_file]
+        (const service_provider & sp, const client_messages::principal_log_response & principal_log) {
+          for(auto p = principal_log.records().rbegin(); p != principal_log.records().rend(); ++p){
+            auto & log_record = *p;
+            
+            auto log_message = std::dynamic_pointer_cast<json_object>(log_record.message());
+            if(!log_message) {
+              continue;
+            }
+            
+            std::string message_type;
+            if(!log_message->get_property("$t", message_type, false)
+              || principal_log_new_object::message_type != message_type) {
+              continue;
+            }
+            
+            principal_log_new_object record(log_message);
+            
+            binary_deserializer file_info(user_private_key.decrypt(record.meta_data()));
+            
+            std::string name;
+            file_info >> name;
+            
+            if(looking_file_name != name) {
+              continue;
+            }
+            
+            size_t length;
+            size_t body_size;
+            size_t tail_size;
+            
+            file_info >> length >> body_size >> tail_size;
+            
+            symmetric_key transaction_key(symmetric_crypto::aes_256_cbc(), file_info);
+            
+            sp.get<logger>()->trace(sp, "Waiting file");
+            filename tmp_file(this->tmp_folder_, record.index().str());
 
-    //  sp.get<logger>()->trace(sp, "Decrypting data");
-    //  const_data_buffer key_crypted;
-    //  const_data_buffer signature;
-
-    //  binary_deserializer datagram(meta_info);
-    //  datagram
-    //    >> key_crypted
-    //    >> signature;
-
-    //  binary_serializer to_sign;
-    //  to_sign << key_crypted;
-
-    //  if (!asymmetric_sign_verify::verify(
-    //    hash::sha256(),
-    //    user_certificate.public_key(),
-    //    signature,
-    //    to_sign.data().data(),
-    //    to_sign.data().size())) {
-    //    throw std::runtime_error("Invalid data");
-    //  }
-
-    //  symmetric_key transaction_key(
-    //    symmetric_crypto::aes_256_cbc(),
-    //    binary_deserializer(user_private_key.decrypt(key_crypted)));
-
-    //  const std::shared_ptr<std::exception> & error;
-    //  dataflow(
-    //    file_read(tmp_file),
-    //    symmetric_decrypt(transaction_key),
-    //    deflate(),
-    //    file_write(target_file, file::file_mode::create_new))(
-    //      [](const service_provider & sp) { },
-    //      [&error](const service_provider & sp, const std::shared_ptr<std::exception> & ex) { error = ex; },
-    //      sp);
-
-    //  if (error) {
-    //    on_error(sp, error);
-    //  }
-    //  else {
-    //    done(sp);
-    //  }
-    //},
-    //  on_error,
-    //  sp);
+            this->owner_->logic_->send_request<client_messages::get_object_response>(
+              sp,
+              client_messages::get_object_request(record.index(), tmp_file).serialize())
+            .wait(
+              [this, done, on_error, transaction_key, tmp_file, version_id = record.index(), target_file, body_size, tail_size]
+              (const service_provider & sp, const client_messages::get_object_response & response) {
+                _file_manager::decrypt_file(
+                  sp,
+                  transaction_key,
+                  tmp_file,
+                  target_file,
+                  body_size,
+                  tail_size)
+                .wait(
+                  [done, version_id](const service_provider & sp){
+                    done(sp, version_id);
+                  },
+                  on_error,
+                  sp);
+              },
+              on_error,
+              sp);
+            return;
+          }
+          
+          if(0 < principal_log.last_order_num()){
+            this->looking_for_file(
+              sp,
+              user_private_key,
+              principal_id,
+              principal_log.last_order_num(),
+              looking_file_name,
+              target_file)
+            .wait(done, on_error, sp);
+          }
+          else {
+            on_error(sp, std::make_shared<std::runtime_error>("File " + looking_file_name + " not found"));
+          }
+        },
+        on_error,
+        sp);
   });
 }
 

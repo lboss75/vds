@@ -13,10 +13,10 @@ const char vds::principal_log_new_object::message_type[] = "new object";
 vds::principal_log_new_object::principal_log_new_object(
   const guid & index,
   uint32_t lenght,
-  const const_data_buffer & hash)
+  const const_data_buffer & meta_data)
 : index_(index),
   lenght_(lenght),
-  hash_(hash)  
+  meta_data_(meta_data)  
 {
 }
 
@@ -27,22 +27,22 @@ vds::principal_log_new_object::principal_log_new_object(
   if (nullptr != s) {
     s->get_property("i", this->index_);
     s->get_property("l", this->lenght_);
-    s->get_property("h", this->hash_);
+    s->get_property("m", this->meta_data_);
   }
 }
 
 std::shared_ptr<vds::json_value> vds::principal_log_new_object::serialize(bool add_type_property) const
 {
-  std::unique_ptr<json_object> result(new json_object());
+  auto result = std::make_shared<json_object>();
   if (add_type_property) {
     result->add_property("$t", message_type);
   }  
   
   result->add_property("i", this->index_);
   result->add_property("l", this->lenght_);
-  result->add_property("h", this->hash_);
+  result->add_property("m", this->meta_data_);
 
-  return std::shared_ptr<vds::json_value>(result.release());
+  return result;
 }
 ///////////////////////////////////////////////////////////////////////
 const char vds::principal_log_record::message_type[] = "server log";

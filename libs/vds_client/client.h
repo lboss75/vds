@@ -56,7 +56,7 @@ namespace vds {
       const std::string & name,
       const filename & tmp_file);
 
-    async_task<> download_data(
+    async_task<const guid & /*version_id*/> download_data(
       const service_provider & sp,
       const std::string & login,
       const std::string & password,

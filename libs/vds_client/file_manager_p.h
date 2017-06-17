@@ -22,6 +22,14 @@ namespace vds {
       const symmetric_key & transaction_key,
       const filename & fn,
       const filename & tmp_file);
+    
+    static async_task<> decrypt_file(
+      const service_provider & sp,
+      const symmetric_key & transaction_key,
+      const filename & tmp_file,
+      const filename & target_file,
+      size_t body_size,
+      size_t tail_size);
   };
   
 }

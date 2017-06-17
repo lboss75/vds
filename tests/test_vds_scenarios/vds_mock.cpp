@@ -226,7 +226,7 @@ vds::const_data_buffer mock_client::download_data(const std::string & login, con
 
     sp.get<vds::iclient>()->download_data(sp, login, password, name, tmp_file)
     .wait(
-      [&b](const vds::service_provider & sp){
+      [&b](const vds::service_provider & sp, const vds::guid & version_id){
         b.set();
       },
       [&b, &error](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
