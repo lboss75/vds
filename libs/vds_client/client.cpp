@@ -402,11 +402,12 @@ vds::async_task<const vds::guid & /*version_id*/>
             sp.get<logger>()->trace(sp, "Waiting file");
             filename tmp_file(this->tmp_folder_, record.index().str());
 
+            auto version_id = record.index();
             this->owner_->logic_->send_request<client_messages::get_object_response>(
               sp,
               client_messages::get_object_request(record.index(), tmp_file).serialize())
             .wait(
-              [this, done, on_error, transaction_key, tmp_file, version_id = record.index(), target_file, body_size, tail_size]
+              [this, done, on_error, transaction_key, tmp_file, version_id, target_file, body_size, tail_size]
               (const service_provider & sp, const client_messages::get_object_response & response) {
                 _file_manager::decrypt_file(
                   sp,
@@ -427,7 +428,7 @@ vds::async_task<const vds::guid & /*version_id*/>
             return;
           }
           
-          if(0 < principal_log.last_order_num()){
+          if(!principal_log.records().empty()){
             this->looking_for_file(
               sp,
               user_private_key,

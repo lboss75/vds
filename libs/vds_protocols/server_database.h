@@ -172,6 +172,28 @@ namespace vds {
       size_t chunk_offset,
       size_t length,
       const const_data_buffer & hash);
+
+    struct object_chunk_map
+    {
+      guid server_id;
+      size_t chunk_index;
+      guid object_id;
+      size_t object_offset;
+      size_t chunk_offset;
+      size_t length;
+      const_data_buffer hash;
+    };
+
+    std::list<object_chunk_map> get_object_map(
+      const service_provider & sp,
+      const guid & object_id);
+
+    void get_principal_log(
+      const service_provider & sp,
+      const guid & principal_id,
+      size_t last_order_num,
+      size_t & result_last_order_num,
+      std::list<principal_log_record> & records);
   };
 }
 

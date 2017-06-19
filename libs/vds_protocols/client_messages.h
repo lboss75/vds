@@ -177,15 +177,16 @@ namespace vds {
 
       principal_log_response(
         const guid & principal_id,
-        size_t last_order_num)
+        size_t last_order_num,
+        const std::list<principal_log_record> & records)
       : principal_id_(principal_id),
-        last_order_num_(last_order_num)
+        last_order_num_(last_order_num),
+        records_(records)
       {
       }
       
       const guid & principal_id() const { return this->principal_id_; }
       const size_t last_order_num() const { return this->last_order_num_; }
-      std::list<principal_log_record> & records() { return this->records_; }
       const std::list<principal_log_record> & records() const { return this->records_; }
       
     private:

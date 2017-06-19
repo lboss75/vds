@@ -11,6 +11,7 @@ All rights reserved
 #include "storage_log.h"
 #include "principal_record.h"
 #include "server_database.h"
+#include "parallel_tasks.h"
 
 vds::server_json_client_api::server_json_client_api()
 : impl_(new _server_json_client_api(this))
@@ -85,15 +86,15 @@ std::shared_ptr<vds::json_value> vds::_server_json_client_api::operator()(
               else if (client_messages::register_server_request::message_type == task_type_name) {
                 task = this->process(sp, client_messages::register_server_request(task_object));
               }
-              //TODO: else if (consensus_messages::consensus_message_who_is_leader::message_type == task_type_name) {
-              //  task = scope.get<iserver>().consensus_server_protocol().process(scope, consensus_messages::consensus_message_who_is_leader(task_object));
-              //}
+              else if (client_messages::get_object_request::message_type == task_type_name) {
+                task = this->process(sp, client_messages::get_object_request(task_object));
+              }
               else if (client_messages::put_object_message::message_type == task_type_name) {
                 task = this->process(sp, client_messages::put_object_message(task_object));
               }
-              //else if (client_messages::get_file_message_request::message_type == task_type_name) {
-              //  task = this->process(sp, client_messages::get_file_message_request(task_object));
-              //}
+              else if (client_messages::principal_log_request::message_type == task_type_name) {
+                task = this->process(sp, client_messages::principal_log_request(task_object));
+              }
               else {
                 sp.get<logger>()->warning(sp, "Invalid request type \'%s\'", task_type_name.c_str());
                 throw std::runtime_error("Invalid request type " + task_type_name);
@@ -265,6 +266,80 @@ vds::_server_json_client_api::process(
         },
         on_error,
         sp);
+  });
+}
+
+vds::async_task<std::shared_ptr<vds::json_value>> vds::_server_json_client_api::process(
+  const service_provider & scope,
+  const client_messages::get_object_request & message)
+{
+  return create_async_task([message](
+    const std::function<void(const service_provider & sp, std::shared_ptr<vds::json_value>)> & done,
+    const error_handler & on_error,
+    const service_provider & sp) {
+
+    auto object_map = sp.get<iserver_database>()->get_object_map(sp, message.version_id());
+    if (object_map.empty()) {
+      on_error(sp, std::make_shared<std::runtime_error>("Object not found"));
+    }
+    else {
+      std::shared_ptr<parallel_tasks> tasks;
+      auto cache = sp.get<ilocal_cache>();
+      auto connection_manager = sp.get<iconnection_manager>();
+      for (auto & item : object_map) {
+        auto chunk_file = cache->get_object_filename(
+          sp,
+          item.server_id,
+          item.chunk_index);
+
+        if (file::exists(chunk_file)) {
+          throw std::runtime_error("Not implemented");
+        }
+        else {
+          if (!tasks) {
+            tasks = std::make_shared<parallel_tasks>();
+          }
+
+          tasks->add(connection_manager->download_object(
+            sp,
+            item.server_id,
+            item.chunk_index,
+            chunk_file));
+        }
+      }
+      if (!tasks) {
+        tasks->run().wait(
+          [tasks, done](const service_provider & sp) {
+            done(sp, client_messages::get_object_response().serialize());
+          },
+          on_error,
+          sp);
+      }
+      else {
+        done(sp, client_messages::get_object_response().serialize());
+      }
+    }
+  });
+}
+
+vds::async_task<std::shared_ptr<vds::json_value>>
+  vds::_server_json_client_api::process(const service_provider & scope, const client_messages::principal_log_request & message)
+{
+  return create_async_task([message](
+    const std::function<void(const service_provider & sp, std::shared_ptr<vds::json_value>)> & done,
+    const error_handler & on_error,
+    const service_provider & sp) {
+
+    size_t last_order_num;
+    std::list<principal_log_record> records;
+    sp.get<iserver_database>()->get_principal_log(
+      sp,
+      message.principal_id(),
+      message.last_order_num(),
+      last_order_num,
+      records);
+
+    done(sp, client_messages::principal_log_response(message.principal_id(), last_order_num, records).serialize());
   });
 }
 

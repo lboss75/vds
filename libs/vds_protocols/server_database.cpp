@@ -293,6 +293,31 @@ void vds::iserver_database::add_object_chunk_map(
   length,
   hash);
 }
+
+std::list<vds::iserver_database::object_chunk_map> vds::iserver_database::get_object_map(
+  const service_provider & sp,
+  const guid & object_id)
+{
+  return static_cast<_server_database *>(this)->get_object_map(
+    sp,
+    object_id);
+}
+
+void vds::iserver_database::get_principal_log(
+  const service_provider & sp,
+  const guid & principal_id,
+  size_t last_order_num,
+  size_t & result_last_order_num,
+  std::list<principal_log_record> & records)
+{
+  static_cast<_server_database *>(this)->get_principal_log(
+    sp,
+    principal_id,
+    last_order_num,
+    result_last_order_num,
+    records);
+}
+
 ////////////////////////////////////////////////////////
 vds::_server_database::_server_database()
 {
@@ -1171,6 +1196,99 @@ void vds::_server_database::add_object_chunk_map(
     chunk_offset,
     length,
     hash);
+}
+
+std::list<vds::iserver_database::object_chunk_map>
+  vds::_server_database::get_object_map(
+    const service_provider & sp,
+    const guid & object_id)
+{
+  std::list<iserver_database::object_chunk_map> result;
+
+  this->get_object_map_query_.query(
+    this->db_,
+    "SELECT server_id,chunk_index,object_offset,chunk_offset,length,hash\
+    FROM object_chunk_map\
+    WHERE object_id=@object_id",
+    [&result, object_id](sql_statement & st)->bool {
+      iserver_database::object_chunk_map item;
+
+      st.get_value(0, item.server_id);
+      st.get_value(1, item.chunk_index);
+      st.get_value(2, item.object_offset);
+      st.get_value(3, item.chunk_offset);
+      st.get_value(4, item.length);
+      st.get_value(5, item.hash);
+
+      item.object_id = object_id;
+
+      result.push_back(item);
+      return true;
+    },    
+    object_id);
+
+  return result;
+}
+
+void vds::_server_database::get_principal_log(
+  const service_provider & sp,
+  const guid & principal_id,
+  size_t last_order_num,
+  size_t & result_last_order_num,
+  std::list<principal_log_record> & records)
+{
+  size_t count = 0;
+  result_last_order_num = last_order_num;
+
+  this->get_principal_log_query_.query(
+    this->db_,
+    "SELECT order_num,id,message\
+     FROM principal_log\
+     WHERE principal_id=@principal_id AND order_num<=@order_num\
+     ORDER BY order_num DESC",
+    [sp, &count, &result_last_order_num, principal_id, &records](sql_statement & st)->bool {
+
+      size_t order_num;
+      principal_log_record::record_id id;
+      std::string message;
+
+      st.get_value(0, order_num);
+
+      if (result_last_order_num != order_num) {
+        result_last_order_num = order_num;
+
+        if (10 < count) {
+          return false;
+        }
+      }
+
+      st.get_value(1, id);
+      st.get_value(2, message);
+
+      std::shared_ptr<json_value> msg;
+      dataflow(
+        dataflow_arguments<char>(message.c_str(), message.length()),
+        json_parser("Message parser"),
+        dataflow_require_once<std::shared_ptr<json_value>>(&msg))(
+          [](const service_provider & sp) {
+          },
+          [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+            throw *ex;
+          },
+          sp);
+
+      records.push_back(principal_log_record(
+        id,
+        principal_id,
+        std::list<principal_log_record::record_id>(),
+        msg,
+        order_num));
+
+      ++count;
+      return true;
+    },
+    principal_id,
+    last_order_num);
 }
 
 void vds::_server_database::start_tail_chunk(

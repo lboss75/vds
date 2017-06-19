@@ -303,7 +303,7 @@ void vds::_storage_log::apply_record(
             sp,
             msg.server_id(),
             chunk.chunk_index(),
-            replica,
+            replica++,
             msg.replica_length(),
             replica_hash);
         }
