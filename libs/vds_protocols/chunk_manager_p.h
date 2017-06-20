@@ -109,6 +109,27 @@ namespace vds {
       const error_handler & on_error);
 
   };
+
+  class  download_object_broadcast
+  {
+  public:
+    static const char message_type[];
+    static const uint32_t message_type_id;
+    download_object_broadcast(
+      const const_data_buffer & data);
+    void serialize(binary_serializer & b) const;
+    std::shared_ptr<json_value> serialize() const;
+
+    download_object_broadcast(
+      const guid & request_id,
+      const guid & server_id,
+      uint64_t index);
+
+  private:
+    guid request_id_;
+    guid server_id_;
+    uint64_t index_;
+  };
 }
 
 #endif // __VDS_PROTOCOLS_CHUNK_MANAGER_P_H_

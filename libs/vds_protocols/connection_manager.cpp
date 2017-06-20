@@ -15,6 +15,7 @@ All rights reserved
 #include "server_log_sync_p.h"
 #include "udp_socket_p.h"
 #include "network_serializer.h"
+#include "chunk_manager_p.h"
 
 vds::connection_manager::connection_manager()
   : impl_(new _connection_manager(this))
@@ -55,7 +56,13 @@ vds::async_task<> vds::iconnection_manager::download_object(
   uint64_t index,
   const filename & target_file)
 {
-  return static_cast<_connection_manager *>(this)->download_object(sp, server_id, index, target_file);
+  return create_async_task(
+    [this, server_id, index, target_file](const std::function<void(const service_provider & sp)> & done,
+      const error_handler & on_error,
+      const service_provider & sp) {
+    auto request_id = static_cast<_connection_manager *>(this)->register_transfer_request(sp, server_id, index, target_file, done, on_error);
+    this->broadcast(sp, download_object_broadcast(request_id, server_id, index));
+  });
 }
 
 void vds::iconnection_manager::broadcast(
@@ -156,13 +163,20 @@ void vds::_connection_manager::broadcast(
   }
 }
 
-vds::async_task<> vds::_connection_manager::download_object(
+vds::guid vds::_connection_manager::register_transfer_request(
   const service_provider & sp,
   const guid & server_id,
   uint64_t index,
-  const filename & target_file)
+  const filename & target_file,
+  const std::function<void(const service_provider&sp)>& done,
+  const error_handler & on_error)
 {
-  throw std::runtime_error("Not implemented");
+  auto request_id = guid::new_guid();
+  auto item = std::make_shared<transfer_request_info>(server_id, index, target_file, done, on_error);
+
+  std::lock_guard<std::mutex> lock(this->transfer_requests_mutex_);
+  this->transfer_requests_.set(request_id, item);
+  return request_id;
 }
 
 void vds::_connection_manager::start_udp_channel(
@@ -230,6 +244,15 @@ void vds::_connection_manager::udp_channel::schedule_read(
       sp.unhandled_exception(ex);
     },
     sp);
+}
+
+void vds::_connection_manager::udp_channel::process(
+  const service_provider & sp,
+  const sockaddr_in * from,
+  const guid & partner_id,
+  const download_object_broadcast & message)
+{
+
 }
 
 void vds::_connection_manager::udp_channel::stop(const service_provider & sp)
@@ -409,7 +432,7 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
             symmetric_decrypt(p->second->session_key()),
             collect_data(*data)
           )(
-            [this, &data_hash, session = p->second, data](const service_provider & sp) {
+            [this, &data_hash, session = p->second, from, data](const service_provider & sp) {
             if (hash::signature(hash::sha256(), data->data(), data->size()) == data_hash) {
 
               binary_deserializer d(data->data(), data->size());
@@ -429,6 +452,10 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
                   sp,
                   *session.get(),
                   _server_log_sync::server_log_get_records_broadcast(binary_form));
+                break;
+
+              case message_identification::download_object_message_id:
+                this->process(sp, from, session->partner_id(), download_object_broadcast(binary_form));
                 break;
 
               default:

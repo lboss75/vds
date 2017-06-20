@@ -482,3 +482,22 @@ bool vds::_chunk_manager::generate_horcruxes(
 
   return result;
 }
+/////////////////////////////////////////////////////
+vds::download_object_broadcast::download_object_broadcast(
+  const const_data_buffer & data)
+{
+}
+
+void vds::download_object_broadcast::serialize(binary_serializer & b) const
+{
+}
+
+std::shared_ptr<vds::json_value> vds::download_object_broadcast::serialize() const
+{
+  return std::shared_ptr<json_value>();
+}
+
+vds::download_object_broadcast::download_object_broadcast(const guid & request_id, const guid & server_id, uint64_t index)
+{
+}
+

@@ -14,6 +14,8 @@ namespace vds {
 
     server_log_record_broadcast_message_id = 'l',
     server_log_get_records_broadcast_message_id = 'r',
+
+    download_object_message_id = 'd'
   };
 
   

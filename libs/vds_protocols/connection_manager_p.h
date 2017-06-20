@@ -6,8 +6,11 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
+#include "simple_cache.h"
+
 namespace vds {
   class connection_manager;
+  class download_object_broadcast;
 
   class connection_session : public std::enable_shared_from_this<connection_session>
   {
@@ -50,11 +53,13 @@ namespace vds {
       session.send_to(sp, message_type_id, get_binary, get_json);
     }
 
-    async_task<> download_object(
+    guid register_transfer_request(
       const service_provider & sp,
       const guid & server_id,
       uint64_t index,
-      const filename & target_file);
+      const filename & target_file,
+      const std::function<void(const service_provider & sp)> & done,
+      const error_handler & on_error);
 
   private:
     connection_manager * const owner_;
@@ -213,9 +218,47 @@ namespace vds {
       void for_each_sessions(const std::function<void(const session &)> & callback);
       bool process_timer_jobs(const service_provider & sp);
       void schedule_read(const service_provider & sp);
+
+      void process(
+        const service_provider & sp,
+        const sockaddr_in * from,
+        const guid & partner_id,
+        const download_object_broadcast & message);
     };
     
     std::unique_ptr<udp_channel> udp_channel_;
+
+    class transfer_request_info
+    {
+    public:
+      transfer_request_info(
+        const guid & server_id,
+        uint64_t index,
+        const filename & target_file,
+        const std::function<void(const service_provider & sp)> & done,
+        const error_handler & on_error)
+        : server_id_(server_id),
+        index_(index),
+        target_file_(target_file),
+        done_(done),
+        on_error_(on_error)
+      {
+      }
+
+      ~transfer_request_info()
+      {
+      }
+
+    private:
+      guid server_id_;
+      uint64_t index_;
+      filename target_file_;
+      std::function<void(const service_provider & sp)> done_;
+      error_handler on_error_;
+    };
+
+    std::mutex transfer_requests_mutex_;
+    simple_cache<guid, std::shared_ptr<transfer_request_info>> transfer_requests_;
   };
 }
 
