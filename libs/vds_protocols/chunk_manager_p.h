@@ -125,8 +125,13 @@ namespace vds {
       const guid & server_id,
       uint64_t index);
 
+    const guid & request_id() const { return this->request_id_; }
+    const guid & target_server() const { return this->target_server_; }
+    const guid & server_id() const { return this->server_id_; }
+    uint64_t index() const { return this->index_; }
   private:
     guid request_id_;
+    guid target_server_;
     guid server_id_;
     uint64_t index_;
   };

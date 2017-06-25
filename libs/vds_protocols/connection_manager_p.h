@@ -228,20 +228,17 @@ namespace vds {
     
     std::unique_ptr<udp_channel> udp_channel_;
 
-    class transfer_request_info
+    class transfer_request_info : public std::enable_shared_from_this<transfer_request_info>
     {
     public:
       transfer_request_info(
         const guid & server_id,
         uint64_t index,
-        const filename & target_file,
-        const std::function<void(const service_provider & sp)> & done,
-        const error_handler & on_error)
+        uint16_t replica,
+        const guid & target_server)
         : server_id_(server_id),
         index_(index),
-        target_file_(target_file),
-        done_(done),
-        on_error_(on_error)
+        target_server_(target_server)
       {
       }
 
@@ -249,9 +246,65 @@ namespace vds {
       {
       }
 
+      const guid & server_id() const { return this->server_id_; }
+      uint64_t index() const { return this->index_; }
+      const guid & target_server() const { return this->target_server_; }
+
     private:
       guid server_id_;
       uint64_t index_;
+      guid target_server_;
+    };
+
+    class local_transfer_request_info : public transfer_request_info
+    {
+    public:
+      local_transfer_request_info(
+        const guid & server_id,
+        uint64_t index,
+        const guid & this_server,
+        const filename & target_file,
+        const std::function<void(const service_provider & sp)> & done,
+        const error_handler & on_error)
+        : transfer_request_info(server_id, index, this_server),
+        target_file_(target_file),
+        done_(done),
+        on_error_(on_error)
+      {
+      }
+
+      const filename & target_file() const { return this->target_file_; }
+      const std::function<void(const service_provider & sp)> & done() const { return this->done_; }
+      const error_handler & on_error() const { return this->on_error_; }
+
+    private:
+      filename target_file_;
+      std::function<void(const service_provider & sp)> done_;
+      error_handler on_error_;
+    };
+
+    class remote_transfer_request_info : public transfer_request_info
+    {
+    public:
+      remote_transfer_request_info(
+        const guid & server_id,
+        uint64_t index,
+        const guid & target_server,
+        const filename & target_file,
+        const std::function<void(const service_provider & sp)> & done,
+        const error_handler & on_error)
+        : transfer_request_info(server_id, index, this_server),
+        target_file_(target_file),
+        done_(done),
+        on_error_(on_error)
+      {
+      }
+
+      const filename & target_file() const { return this->target_file_; }
+      const std::function<void(const service_provider & sp)> & done() const { return this->done_; }
+      const error_handler & on_error() const { return this->on_error_; }
+
+    private:
       filename target_file_;
       std::function<void(const service_provider & sp)> done_;
       error_handler on_error_;

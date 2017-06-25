@@ -1,10 +1,10 @@
-#include "udp_socket.h"
 /*
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
 #include "stdafx.h"
+#include "udp_socket.h"
 #include "connection_manager.h"
 #include "connection_manager_p.h"
 #include "udp_messages.h"
@@ -252,7 +252,23 @@ void vds::_connection_manager::udp_channel::process(
   const guid & partner_id,
   const download_object_broadcast & message)
 {
+  std::lock_guard<std::mutex> lock(this->owner_->transfer_requests_mutex_);
+  for (auto & request : this->owner_->transfer_requests_) {
+    if (request.second->server_id() == message.server_id()
+      && request.second->index() == message.index()) {
+      if (request.second->target_server() == message.target_server()) {
+        request.second->add_proxy(partner_id, from);
+        return;
+      }
+    }
+  }
 
+  this->owner_->transfer_requests_.set(message.request_id(), std::make_shared<remote_transfer_request_info>(
+    message.server_id(),
+    message.index(),
+    message.target_server(),
+    from,
+    partner_id));
 }
 
 void vds::_connection_manager::udp_channel::stop(const service_provider & sp)
