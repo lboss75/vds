@@ -7,6 +7,7 @@ All rights reserved
 */
 
 #include "simple_cache.h"
+#include "object_transfer_protocol.h"
 
 namespace vds {
   class connection_manager;
@@ -234,77 +235,31 @@ namespace vds {
       transfer_request_info(
         const guid & server_id,
         uint64_t index,
-        uint16_t replica,
-        const guid & target_server)
+        const guid & this_server,
+        const filename & target_file,
+        const std::function<void(const service_provider & sp)> & done,
+        const error_handler & on_error)
         : server_id_(server_id),
         index_(index),
-        target_server_(target_server)
-      {
-      }
-
-      ~transfer_request_info()
+        target_server_(target_server),
+        target_file_(target_file),
+        done_(done),
+        on_error_(on_error)
       {
       }
 
       const guid & server_id() const { return this->server_id_; }
       uint64_t index() const { return this->index_; }
       const guid & target_server() const { return this->target_server_; }
+      
+      const filename & target_file() const { return this->target_file_; }
+      const std::function<void(const service_provider & sp)> & done() const { return this->done_; }
+      const error_handler & on_error() const { return this->on_error_; }
 
     private:
       guid server_id_;
       uint64_t index_;
       guid target_server_;
-    };
-
-    class local_transfer_request_info : public transfer_request_info
-    {
-    public:
-      local_transfer_request_info(
-        const guid & server_id,
-        uint64_t index,
-        const guid & this_server,
-        const filename & target_file,
-        const std::function<void(const service_provider & sp)> & done,
-        const error_handler & on_error)
-        : transfer_request_info(server_id, index, this_server),
-        target_file_(target_file),
-        done_(done),
-        on_error_(on_error)
-      {
-      }
-
-      const filename & target_file() const { return this->target_file_; }
-      const std::function<void(const service_provider & sp)> & done() const { return this->done_; }
-      const error_handler & on_error() const { return this->on_error_; }
-
-    private:
-      filename target_file_;
-      std::function<void(const service_provider & sp)> done_;
-      error_handler on_error_;
-    };
-
-    class remote_transfer_request_info : public transfer_request_info
-    {
-    public:
-      remote_transfer_request_info(
-        const guid & server_id,
-        uint64_t index,
-        const guid & target_server,
-        const filename & target_file,
-        const std::function<void(const service_provider & sp)> & done,
-        const error_handler & on_error)
-        : transfer_request_info(server_id, index, this_server),
-        target_file_(target_file),
-        done_(done),
-        on_error_(on_error)
-      {
-      }
-
-      const filename & target_file() const { return this->target_file_; }
-      const std::function<void(const service_provider & sp)> & done() const { return this->done_; }
-      const error_handler & on_error() const { return this->on_error_; }
-
-    private:
       filename target_file_;
       std::function<void(const service_provider & sp)> done_;
       error_handler on_error_;
@@ -312,6 +267,8 @@ namespace vds {
 
     std::mutex transfer_requests_mutex_;
     simple_cache<guid, std::shared_ptr<transfer_request_info>> transfer_requests_;
+    
+    object_transfer_protocol object_transfer_protocol_;
   };
 }
 

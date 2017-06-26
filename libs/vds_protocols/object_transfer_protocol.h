@@ -14,40 +14,16 @@ namespace vds {
   public:
     object_transfer_protocol();
     ~object_transfer_protocol();
+    
+    void ask_object(
+      const service_provider & sp,
+      const guid & source_server_id,
+      uint64_t object_index);
+    
+    _object_transfer_protocol * operator -> () const { return this->impl_; }
 
   private:
     _object_transfer_protocol * const impl_;
-  };
-  
-  class route_hop
-  {
-  public:
-    route_hop(
-      const guid & server_id,
-      const std::string & return_address);
-    
-    const guid & server_id() const { return this->server_id_; }
-    const std::string & return_address() const { return this->return_address_; }
-    
-  private:
-    guid server_id_;
-    std::string return_address_;
-  };
-  
-  class object_request
-  {
-  public:
-    object_request();
-    
-    const guid & server_id() const { return this->server_id_; }
-    uint64_t index() const { return this->index_; }
-    
-  private:
-    guid server_id_;
-    uint64_t index_;
-    
-    std::vector<uint16_t> collected_replicas_;
-    std::list<route_hop> hops_;
   };
   
 }
