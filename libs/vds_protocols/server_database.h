@@ -145,31 +145,31 @@ namespace vds {
     void add_chunk_replica(
       const service_provider & sp,
       const guid & server_id,
-      size_t index,
-      uint16_t replica,
+      ichunk_manager::index_type index,
+      ichunk_manager::replica_type replica,
       size_t replica_length,
       const const_data_buffer & replica_hash);
     
     void add_chunk_store(
       const service_provider & sp,
       const guid & server_id,
-      size_t index,
-      uint16_t replica,
+      ichunk_manager::index_type index,
+      ichunk_manager::replica_type replica,
       const guid & storage_id,
       const const_data_buffer & replica_data);
     
     struct chunk_store
     {
       guid server_id;
-      size_t index;
-      uint16_t replica;
+      ichunk_manager::index_type index;
+      ichunk_manager::replica_type replica;
       guid storage_id;
     };
     
     void get_chunk_store(
       const service_provider & sp,
       const guid & server_id,
-      size_t index,
+      ichunk_manager::index_type index,
       std::list<chunk_store> & result);
 
     const_data_buffer get_tail_data(

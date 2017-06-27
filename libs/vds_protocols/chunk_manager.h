@@ -14,6 +14,9 @@ namespace vds {
   class ichunk_manager
   {
   public:
+    typedef uint64_t index_type;
+    typedef uint16_t replica_type;
+
     ichunk_manager();
     ~ichunk_manager();
     
