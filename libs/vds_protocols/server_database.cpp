@@ -453,6 +453,15 @@ void vds::_server_database::start(const service_provider & sp)
       storage_id VARCHAR(64) NOT NULL,\
       data BLOB NOT NULL,\
       CONSTRAINT pk_object_chunk_store PRIMARY KEY (server_id, chunk_index, replica, storage_id))");
+    
+    this->db_.execute(
+      "CREATE TABLE network_route(\
+      source_server_id VARCHAR(64) NOT NULL,\
+      target_server_id VARCHAR(64) NOT NULL,\
+      address VARCHAR(64) NOT NULL,\
+      is_incomming BOOLEAN,\
+      last_access DATETIME NOT NULL,\
+      CONSTRAINT pk_network_route PRIMARY KEY (source_server_id,target_server_id,address,is_incomming))");
 
     this->db_.execute("INSERT INTO module(id, version, installed) VALUES('kernel', 1, datetime('now'))");
     this->db_.execute("INSERT INTO endpoint(endpoint_id, addresses) VALUES('default', 'udp://127.0.0.1:8050;https://127.0.0.1:8050')");
