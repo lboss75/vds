@@ -23,7 +23,7 @@ namespace vds {
       const service_provider & sp,
       const guid & server_id,
       uint64_t index);
-  
+
   private:
     foldername root_folder_;
   };

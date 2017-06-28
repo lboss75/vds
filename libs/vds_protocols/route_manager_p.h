@@ -7,6 +7,8 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
+#include "route_manager.h"
+
 namespace vds {
   
   class _route_manager
@@ -19,11 +21,7 @@ namespace vds {
       const service_provider& sp,
       const guid & source_server_id,
       const guid & target_server_id,
-      const std::string & address,
-      bool is_incomming)
-    {
-      
-    }
+      const std::string & address);
 
   private:
     

@@ -7,9 +7,9 @@ All rights reserved
 #include "object_transfer_protocol.h"
 #include "object_transfer_protocol_p.h"
 #include "connection_manager.h"
-#include "server_database.h"
+#include "server_database_p.h"
 #include "storage_log.h"
-#include "chunk_manager.h"
+#include "chunk_manager_p.h"
 
 vds::object_transfer_protocol::object_transfer_protocol()
 : impl_(new _object_transfer_protocol())
@@ -29,15 +29,18 @@ void vds::object_transfer_protocol::chunk_require(
 {
   auto current_server_id = sp.get<istorage_log>()->current_server_id();
 
+  auto chunk_manager = sp.get<ichunk_manager>();
+  auto db = sp.get<iserver_database>();
   std::list<ichunk_manager::replica_type> local_replicas;
-  sp.get<ilocal_cache>()->get_local_replicas(
+  (*chunk_manager)->get_replicas(
     sp,
     source_server_id,
     chunk_index,
+    current_server_id,
     local_replicas);
 
-  std::list<iserver_database::chunk_store> chunk_store_map;
-  sp.get<iserver_database>()->get_chunk_store(
+  std::list<ichunk_manager::chunk_store> chunk_store_map;
+  (*chunk_manager)->get_chunk_store(
     sp,
     source_server_id,
     chunk_index,

@@ -16,6 +16,8 @@ All rights reserved
 #include "udp_socket_p.h"
 #include "network_serializer.h"
 #include "chunk_manager_p.h"
+#include "route_manager_p.h"
+#include "object_transfer_protocol_p.h"
 
 vds::connection_manager::connection_manager()
   : impl_(new _connection_manager(this))
@@ -50,19 +52,12 @@ void vds::connection_manager::start_servers(
 
 //////////////////////////////////////////////////////
 
-vds::async_task<> vds::iconnection_manager::download_object(
+void vds::iconnection_manager::send_transfer_request(
   const service_provider & sp,
   const guid & server_id,
-  uint64_t index,
-  const filename & target_file)
+  uint64_t index)
 {
-  return create_async_task(
-    [this, server_id, index, target_file](const std::function<void(const service_provider & sp)> & done,
-      const error_handler & on_error,
-      const service_provider & sp) {
-    auto request_id = static_cast<_connection_manager *>(this)->register_transfer_request(sp, server_id, index, target_file, done, on_error);
-    this->broadcast(sp, download_object_broadcast(request_id, server_id, index));
-  });
+  static_cast<_connection_manager *>(this)->send_transfer_request(sp, server_id, index);
 }
 
 void vds::iconnection_manager::broadcast(
@@ -163,20 +158,11 @@ void vds::_connection_manager::broadcast(
   }
 }
 
-vds::guid vds::_connection_manager::register_transfer_request(
+void vds::_connection_manager::send_transfer_request(
   const service_provider & sp,
   const guid & server_id,
-  uint64_t index,
-  const filename & target_file,
-  const std::function<void(const service_provider&sp)>& done,
-  const error_handler & on_error)
+  uint64_t index)
 {
-  auto request_id = guid::new_guid();
-  auto item = std::make_shared<transfer_request_info>(server_id, index, target_file, done, on_error);
-
-  std::lock_guard<std::mutex> lock(this->transfer_requests_mutex_);
-  this->transfer_requests_.set(request_id, item);
-  return request_id;
 }
 
 void vds::_connection_manager::start_udp_channel(
@@ -246,30 +232,6 @@ void vds::_connection_manager::udp_channel::schedule_read(
     sp);
 }
 
-void vds::_connection_manager::udp_channel::process(
-  const service_provider & sp,
-  const sockaddr_in * from,
-  const guid & partner_id,
-  const download_object_broadcast & message)
-{
-  std::lock_guard<std::mutex> lock(this->owner_->transfer_requests_mutex_);
-  for (auto & request : this->owner_->transfer_requests_) {
-    if (request.second->server_id() == message.server_id()
-      && request.second->index() == message.index()) {
-      if (request.second->target_server() == message.target_server()) {
-        request.second->add_proxy(partner_id, from);
-        return;
-      }
-    }
-  }
-
-  this->owner_->transfer_requests_.set(message.request_id(), std::make_shared<remote_transfer_request_info>(
-    message.server_id(),
-    message.index(),
-    message.target_server(),
-    from,
-    partner_id));
-}
 
 void vds::_connection_manager::udp_channel::stop(const service_provider & sp)
 {
@@ -402,11 +364,21 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
           std::lock_guard<std::mutex> lock_hello(this->hello_requests_mutex_);
           auto p = this->hello_requests_.find(out_session_id);
           if (this->hello_requests_.end() != p) {
+            (*sp.get<route_manager>())->on_session_started(
+              sp,
+              sp.get<istorage_log>()->current_server_id(),
+              server_certificate::server_id(cert),
+              p->second.address());
             std::unique_lock<std::shared_mutex> lock(this->sessions_mutex_);
+
+            auto network_address = url_parser::parse_network_address(p->second.address());
+            assert("udp" == network_address.protocol);
 
             this->sessions_[out_session_id].reset(new outgoing_session(
               this,
-              p->second,
+              p->second.session_id(),
+              network_address.server,
+              (uint16_t)std::atoi(network_address.port.c_str()),
               in_session_id,
               network_service::get_ip_address_string(*from),
               ntohs(from->sin_port),
@@ -470,8 +442,11 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
                   _server_log_sync::server_log_get_records_broadcast(binary_form));
                 break;
 
-              case message_identification::download_object_message_id:
-                this->process(sp, from, session->partner_id(), download_object_broadcast(binary_form));
+              case message_identification::object_request_message_id:
+                this->owner_->object_transfer_protocol_->on_object_request(
+                  sp,
+                  session->partner_id(),
+                  object_request(binary_form));
                 break;
 
               default:
@@ -528,14 +503,14 @@ void vds::_connection_manager::udp_channel::open_udp_session(
     if(this->hello_requests_.end() == this->hello_requests_.find(session_id)
       && this->sessions_.end() == this->sessions_.find(session_id)
       ){
-      this->hello_requests_[session_id] = hello_request(session_id, server, port);
+      this->hello_requests_[session_id] = hello_request(session_id, address);
   
       auto data = udp_messages::hello_message(
         sp.get<istorage_log>()->server_certificate().der(),
         session_id,
         address).serialize();
       
-      auto scope = sp.create_scope("Send hello to " + server + ":" + std::to_string(port));
+      auto scope = sp.create_scope("Send hello to " + address);
       imt_service::enable_async(scope);
       this->s_.outgoing()->write_value_async(scope, udp_datagram(server, port, data, false))
         .wait(
@@ -669,16 +644,23 @@ bool vds::_connection_manager::udp_channel::process_timer_jobs(const service_pro
 {
   std::unique_lock<std::mutex> lock(this->hello_requests_mutex_);
   for (auto & p : this->hello_requests_) {
-    sp.get<logger>()->debug(sp, "Reconect with %s:%d", p.second.server().c_str(), p.second.port());
+    sp.get<logger>()->debug(sp, "Reconect with %s", p.second.address().c_str());
 
     auto data = udp_messages::hello_message(
       sp.get<istorage_log>()->server_certificate().der(),
       p.first,
-      "udp://" + p.second.server() + ":" + std::to_string(p.second.port())).serialize();
+      p.second.address()).serialize();
 
-    auto scope = sp.create_scope("Send hello to " + p.second.server() + ":" + std::to_string(p.second.port()));
+    auto scope = sp.create_scope("Send hello to " + p.second.address());
     imt_service::enable_async(scope);
-    this->s_.outgoing()->write_value_async(scope, udp_datagram(p.second.server(), p.second.port(), data, false))
+
+    auto network_address = url_parser::parse_network_address(p.second.address());
+    assert("udp" == network_address.protocol);
+
+    auto server = network_address.server;
+    auto port = (uint16_t)std::atoi(network_address.port.c_str());
+
+    this->s_.outgoing()->write_value_async(scope, udp_datagram(server, port, data, false))
       .wait(
         [](const service_provider & sp) {},
         [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
@@ -696,17 +678,17 @@ vds::_connection_manager::udp_channel::hello_request::hello_request()
 
 vds::_connection_manager::udp_channel::hello_request::hello_request(
   uint32_t session_id,
-  const std::string & server,
-  uint16_t port)
-: session_id_(session_id),
-  server_(server),
-  port_(port)
+  const std::string & address)
+  : session_id_(session_id),
+  address_(address)
 {
 }
 
 vds::_connection_manager::udp_channel::outgoing_session::outgoing_session(
   udp_channel * owner,
-  const hello_request & original_request,
+  uint32_t session_id,
+  const std::string & server,
+  uint16_t port,
   uint32_t external_session_id,
   const std::string & real_server,
   uint16_t real_port,
@@ -714,9 +696,9 @@ vds::_connection_manager::udp_channel::outgoing_session::outgoing_session(
   const symmetric_key & session_key)
 : session(
   owner,
-  original_request.session_id(),
-  original_request.server(),
-  original_request.port(),
+  session_id,
+  server,
+  port,
   external_session_id,
   server_certificate::server_id(cert),
   session_key),

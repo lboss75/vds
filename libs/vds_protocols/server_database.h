@@ -102,105 +102,6 @@ namespace vds {
       const service_provider & sp,
       const principal_log_record::record_id & id);
     
-    size_t get_last_chunk(
-      const service_provider & sp,
-      const guid & server_id);
-
-    size_t get_tail_chunk(
-      const service_provider & sp,
-      const guid & server_id,
-      size_t & result_size);
-
-    void add_full_chunk(
-      const service_provider & sp,
-      const guid & object_id,
-      size_t offset,
-      size_t size,
-      const const_data_buffer & object_hash,
-      const guid & server_id,
-      size_t index);
-
-    void start_tail_chunk(
-      const service_provider & sp,
-      const guid & server_id,
-      size_t chunk_index);
-
-    void final_tail_chunk(
-      const service_provider & sp,
-      size_t chunk_length,
-      const const_data_buffer & chunk_hash,
-      const guid & server_id,
-      size_t chunk_index);
-
-    void add_to_tail_chunk(
-      const service_provider & sp,
-      const guid & object_id,
-      size_t offset,
-      const const_data_buffer & object_hash,
-      const guid & server_id,
-      size_t index,
-      size_t chunk_offset,
-      const const_data_buffer & data);
-
-    void add_chunk_replica(
-      const service_provider & sp,
-      const guid & server_id,
-      ichunk_manager::index_type index,
-      ichunk_manager::replica_type replica,
-      size_t replica_length,
-      const const_data_buffer & replica_hash);
-    
-    void add_chunk_store(
-      const service_provider & sp,
-      const guid & server_id,
-      ichunk_manager::index_type index,
-      ichunk_manager::replica_type replica,
-      const guid & storage_id,
-      const const_data_buffer & replica_data);
-    
-    struct chunk_store
-    {
-      guid server_id;
-      ichunk_manager::index_type index;
-      ichunk_manager::replica_type replica;
-      guid storage_id;
-    };
-    
-    void get_chunk_store(
-      const service_provider & sp,
-      const guid & server_id,
-      ichunk_manager::index_type index,
-      std::list<chunk_store> & result);
-
-    const_data_buffer get_tail_data(
-      const service_provider & sp,
-      const guid & server_id,
-      size_t chunk_index);
-    
-    void add_object_chunk_map(
-      const service_provider & sp,
-      const guid & server_id,
-      size_t chunk_index,
-      const guid & object_id,
-      size_t object_offset,
-      size_t chunk_offset,
-      size_t length,
-      const const_data_buffer & hash);
-
-    struct object_chunk_map
-    {
-      guid server_id;
-      size_t chunk_index;
-      guid object_id;
-      size_t object_offset;
-      size_t chunk_offset;
-      size_t length;
-      const_data_buffer hash;
-    };
-
-    std::list<object_chunk_map> get_object_map(
-      const service_provider & sp,
-      const guid & object_id);
 
     void get_principal_log(
       const service_provider & sp,
@@ -208,6 +109,8 @@ namespace vds {
       size_t last_order_num,
       size_t & result_last_order_num,
       std::list<principal_log_record> & records);
+
+    _server_database * operator -> ();
   };
 }
 

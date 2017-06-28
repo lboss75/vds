@@ -44,18 +44,15 @@ namespace vds {
     route_message(
       const guid & target_server_id,
       const std::string & address,
-      bool is_incomming,
       const std::chrono::steady_clock & last_access);
     
     const guid & target_server_id() const { return this->target_server_id_; }
     const std::string & address() const { return this->address_; }
-    bool is_incomming() const { return this->is_incomming_; }
     const std::chrono::steady_clock & last_access() const { return this->last_access_; }
       
   private:    
     guid target_server_id_;
     std::string address_;
-    bool is_incomming_;
     std::chrono::steady_clock last_access_;
   };
 }

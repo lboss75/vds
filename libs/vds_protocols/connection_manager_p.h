@@ -11,7 +11,6 @@ All rights reserved
 
 namespace vds {
   class connection_manager;
-  class download_object_broadcast;
 
   class connection_session : public std::enable_shared_from_this<connection_session>
   {
@@ -54,13 +53,10 @@ namespace vds {
       session.send_to(sp, message_type_id, get_binary, get_json);
     }
 
-    guid register_transfer_request(
+    void send_transfer_request(
       const service_provider & sp,
       const guid & server_id,
-      uint64_t index,
-      const filename & target_file,
-      const std::function<void(const service_provider & sp)> & done,
-      const error_handler & on_error);
+      uint64_t index);
 
   private:
     connection_manager * const owner_;
@@ -118,17 +114,14 @@ namespace vds {
 
         hello_request(
           uint32_t session_id,
-          const std::string & server,
-          uint16_t port);
+          const std::string & address);
 
         uint32_t session_id() const { return this->session_id_; }
-        const std::string & server() const { return this->server_; }
-        uint16_t port() const { return this->port_; }
+        const std::string & address() const { return this->address_; }
 
       private:
         uint32_t session_id_;
-        std::string server_;
-        uint16_t port_;
+        std::string address_;
       };
 
       std::mutex hello_requests_mutex_;
@@ -176,7 +169,9 @@ namespace vds {
       public:
         outgoing_session(
           udp_channel * owner,
-          const hello_request & original_request,
+          uint32_t session_id,
+          const std::string & server,
+          uint16_t port,
           uint32_t external_session_id,
           const std::string & real_server,
           uint16_t real_port,
@@ -192,7 +187,7 @@ namespace vds {
         uint16_t real_port_;
         certificate cert_;
       };
-      
+
       class incoming_session : public session
       {
       public:
@@ -219,54 +214,9 @@ namespace vds {
       void for_each_sessions(const std::function<void(const session &)> & callback);
       bool process_timer_jobs(const service_provider & sp);
       void schedule_read(const service_provider & sp);
-
-      void process(
-        const service_provider & sp,
-        const sockaddr_in * from,
-        const guid & partner_id,
-        const download_object_broadcast & message);
     };
     
     std::unique_ptr<udp_channel> udp_channel_;
-
-    class transfer_request_info : public std::enable_shared_from_this<transfer_request_info>
-    {
-    public:
-      transfer_request_info(
-        const guid & server_id,
-        uint64_t index,
-        const guid & this_server,
-        const filename & target_file,
-        const std::function<void(const service_provider & sp)> & done,
-        const error_handler & on_error)
-        : server_id_(server_id),
-        index_(index),
-        target_server_(target_server),
-        target_file_(target_file),
-        done_(done),
-        on_error_(on_error)
-      {
-      }
-
-      const guid & server_id() const { return this->server_id_; }
-      uint64_t index() const { return this->index_; }
-      const guid & target_server() const { return this->target_server_; }
-      
-      const filename & target_file() const { return this->target_file_; }
-      const std::function<void(const service_provider & sp)> & done() const { return this->done_; }
-      const error_handler & on_error() const { return this->on_error_; }
-
-    private:
-      guid server_id_;
-      uint64_t index_;
-      guid target_server_;
-      filename target_file_;
-      std::function<void(const service_provider & sp)> done_;
-      error_handler on_error_;
-    };
-
-    std::mutex transfer_requests_mutex_;
-    simple_cache<guid, std::shared_ptr<transfer_request_info>> transfer_requests_;
     
     object_transfer_protocol object_transfer_protocol_;
   };

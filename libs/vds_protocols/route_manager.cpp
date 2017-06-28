@@ -6,9 +6,3 @@ All rights reserved
 #include "route_manager.h"
 #include "route_manager_p.h"
 
-route_managerPrivate::route_managerPrivate(route_manager* q) : q(q)
-{
-}
-route_managerPrivate::~route_managerPrivate()
-{
-}

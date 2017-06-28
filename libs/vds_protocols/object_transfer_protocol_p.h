@@ -21,6 +21,7 @@ namespace vds {
 
     void on_object_request(
       const service_provider & sp,
+      const guid & from_server_id,
       const object_request & message);
     
   private:
@@ -45,6 +46,8 @@ namespace vds {
   class object_request
   {
   public:
+    object_request(const const_data_buffer & binary_form);
+
     object_request(
       const guid & server_id,
       uint64_t index)

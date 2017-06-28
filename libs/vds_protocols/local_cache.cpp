@@ -51,4 +51,3 @@ vds::filename vds::_local_cache::get_object_filename(
   
   return filename(folder, std::to_string(index));
 }
-

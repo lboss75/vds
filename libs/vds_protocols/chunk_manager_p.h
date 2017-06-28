@@ -28,20 +28,35 @@ namespace vds {
       const filename & tmp_file,
       const const_data_buffer & file_hash);
 
-    /*
-    
-    async_task<>
-    add(
-        const service_provider & sp,
-        const guid & owner_principal,
-        server_log_file_map & target,
-        const filename & fn);
-
-    void set_next_index(
+    static void create_database_objects(
       const service_provider & sp,
-      uint64_t next_index);
+      uint64_t db_version,
+      database & db);
 
-      */
+    std::list<object_chunk_map> get_object_map(
+      const service_provider & sp,
+      const guid & object_id);
+
+    void get_replicas(
+      const service_provider & sp,
+      const guid & server_id,
+      ichunk_manager::index_type index,
+      const guid & storage_id,
+      std::list<ichunk_manager::replica_type> & result);
+
+    const_data_buffer get_replica_data(
+      const service_provider & sp,
+      const guid & server_id,
+      ichunk_manager::index_type index,
+      const guid & storage_id,
+      ichunk_manager::replica_type replica);
+
+    void get_chunk_store(
+      const service_provider & sp,
+      const guid & server_id,
+      index_type index,
+      std::list<chunk_store> & result);
+
   private:
     chunk_storage chunk_storage_;
 
@@ -51,33 +66,13 @@ namespace vds {
     std::mutex tail_chunk_mutex_;
     uint64_t tail_chunk_index_;
     size_t tail_chunk_size_;
+
+    database * db_;
     
     static const size_t BLOCK_SIZE = 16 * 1024 * 1024;
     static const uint16_t MIN_HORCRUX = 512;
     static const uint16_t GENERATE_HORCRUX = 1024;
     static const uint16_t REPLICA_SIZE = BLOCK_SIZE / MIN_HORCRUX;
-
-    
-    //
-    //std::mutex tmp_folder_mutex_;
-    //uint64_t last_tmp_file_index_;
-    //
-    //std::mutex obj_folder_mutex_;
-    //uint64_t last_obj_file_index_;
-    //uint64_t obj_size_;
-
-    //static constexpr uint64_t  max_obj_size_ = 1024 * 1024 * 1024;
-
-    //enum chunk_block_type
-    //{
-    //  cbt_start_stream = 1,
-    //  cbt_add_stream = 2,
-    //  cbt_finish_stream = 3
-    //};
-
-    //static constexpr size_t output_file_max_size = 1024;
-
-    //void generate_chunk(const service_provider & sp);
     
     bool write_chunk(
       const service_provider & sp,
@@ -108,33 +103,177 @@ namespace vds {
       size_t chunk_index,
       const error_handler & on_error);
 
-  };
+    /// Database
+    prepared_statement<
+      const guid & /*server_id*/,
+      size_t /*index*/,
+      size_t /*size*/,
+      const const_data_buffer & /*object_hash*/> add_chunk_statement_;
 
-  class  download_object_broadcast
-  {
-  public:
-    static const char message_type[];
-    static const uint32_t message_type_id;
-    download_object_broadcast(
-      const const_data_buffer & data);
-    void serialize(binary_serializer & b) const;
-    std::shared_ptr<json_value> serialize() const;
-
-    download_object_broadcast(
-      const guid & request_id,
+    void add_chunk(
+      const service_provider & sp,
       const guid & server_id,
-      uint64_t index);
+      size_t index,
+      size_t size,
+      const const_data_buffer & object_hash);
 
-    const guid & request_id() const { return this->request_id_; }
-    const guid & target_server() const { return this->target_server_; }
-    const guid & server_id() const { return this->server_id_; }
-    uint64_t index() const { return this->index_; }
-  private:
-    guid request_id_;
-    guid target_server_;
-    guid server_id_;
-    uint64_t index_;
+    prepared_statement<
+      const guid & /*server_id*/,
+      size_t /*chunk_index*/,
+      const guid & /*object_id*/,
+      size_t /*object_offset*/,
+      size_t /*chunk_offset*/,
+      size_t /*length*/,
+      const const_data_buffer & /*hash*/> object_chunk_map_statement_;
+
+    prepared_statement<
+      const guid & /*server_id*/,
+      size_t /*index*/> add_tmp_chunk_statement_;
+
+    prepared_statement<
+      const guid & /*server_id*/,
+      size_t /*index*/> move_object_chunk_map_statement_;
+
+    prepared_statement<
+      const guid & /*server_id*/,
+      size_t /*index*/> delete_tmp_object_chunk_statement_;
+
+    prepared_statement<
+      const guid & /*server_id*/,
+      size_t /*index*/> delete_tmp_object_chunk_map_statement_;
+
+    prepared_statement<
+      const guid & /*server_id*/,
+      size_t /*chunk_index*/,
+      const guid & /*object_id*/,
+      size_t /*object_offset*/,
+      size_t /*chunk_offset*/,
+      const const_data_buffer & /*hash*/,
+      const const_data_buffer & /*data*/> tmp_object_chunk_map_statement_;
+
+    void add_tail_object_chunk_map(
+      const service_provider & sp,
+      const guid & server_id,
+      size_t chunk_index,
+      const guid & object_id,
+      size_t object_offset,
+      size_t chunk_offset,
+      const const_data_buffer & hash,
+      const const_data_buffer & data);
+
+    prepared_statement<
+      const guid & /*server_id*/,
+      size_t /*index*/,
+      uint16_t /*replica*/,
+      size_t /*replica_length*/,
+      const const_data_buffer & /*replica_hash*/> add_chunk_replica_statement_;
+
+    prepared_statement<
+      const guid & /*server_id*/,
+      size_t /*index*/,
+      uint16_t /*replica*/,
+      const guid & /*storage_id*/,
+      const const_data_buffer & /*data*/> add_object_chunk_store_statement_;
+
+    prepared_query<
+      const guid & /*server_id*/,
+      size_t /*index*/> get_tail_data_query_;
+
+    prepared_query<
+      const guid & /*object_id*/> get_object_map_query_;
+
+    prepared_query<
+      const guid & /*principal_id*/,
+      size_t /*last_order_num*/> get_principal_log_query_;
+
+    prepared_query<
+      const guid & /*server_id*/,
+      size_t /*index*/,
+      const guid & /*storage_id*/> get_replicas_query_;
+
+    prepared_query<
+      const guid & /*server_id*/,
+      size_t /*index*/,
+      const guid & /*storage_id*/,
+      uint16_t /*replica*/> get_replica_data_query_;
+
+    size_t get_last_chunk(
+      const service_provider & sp,
+      const guid & server_id);
+
+    size_t get_tail_chunk(
+      const service_provider & sp,
+      const guid & server_id,
+      size_t & result_size);
+
+    void add_full_chunk(
+      const service_provider & sp,
+      const guid & object_id,
+      size_t offset,
+      size_t size,
+      const const_data_buffer & object_hash,
+      const guid & server_id,
+      size_t index);
+
+    void start_tail_chunk(
+      const service_provider & sp,
+      const guid & server_id,
+      size_t chunk_index);
+
+    void final_tail_chunk(
+      const service_provider & sp,
+      size_t chunk_length,
+      const const_data_buffer & chunk_hash,
+      const guid & server_id,
+      size_t chunk_index);
+
+    void add_to_tail_chunk(
+      const service_provider & sp,
+      const guid & object_id,
+      size_t offset,
+      const const_data_buffer & object_hash,
+      const guid & server_id,
+      size_t index,
+      size_t chunk_offset,
+      const const_data_buffer & data);
+
+    void add_chunk_replica(
+      const service_provider & sp,
+      const guid & server_id,
+      size_t index,
+      ichunk_manager::replica_type replica,
+      size_t replica_length,
+      const const_data_buffer & replica_hash);
+
+    void add_chunk_store(
+      const service_provider & sp,
+      const guid & server_id,
+      size_t index,
+      uint16_t replica,
+      const guid & storage_id,
+      const const_data_buffer & data);
+
+
+    const_data_buffer get_tail_data(
+      const service_provider & sp,
+      const guid & server_id,
+      size_t chunk_index);
+
+    void add_object_chunk_map(
+      const service_provider & sp,
+      const guid & server_id,
+      ichunk_manager::index_type chunk_index,
+      const guid & object_id,
+      size_t object_offset,
+      size_t chunk_offset,
+      size_t length,
+      const const_data_buffer & hash);
   };
+
+  inline _chunk_manager * vds::ichunk_manager::operator->()
+  {
+    return static_cast<_chunk_manager *>(this);
+  }
 }
 
 #endif // __VDS_PROTOCOLS_CHUNK_MANAGER_P_H_
