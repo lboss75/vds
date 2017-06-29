@@ -31,7 +31,7 @@ namespace vds {
     static void create_database_objects(
       const service_provider & sp,
       uint64_t db_version,
-      database & db);
+      database_transaction & t);
 
     std::list<object_chunk_map> get_object_map(
       const service_provider & sp,
@@ -67,7 +67,26 @@ namespace vds {
     uint64_t tail_chunk_index_;
     size_t tail_chunk_size_;
 
-    database * db_;
+    //Database
+    class object_chunk_store : public database_table
+    {
+    public:
+      object_chunk_store(database_transaction & t)
+        : database_table(t, "object_chunk_store"),
+          replica(this, "replica"),
+          server_id(this, "server_id"),
+          chunk_index(this, "chunk_index"),
+          storage_id(this, "storage_id")
+      {
+      }
+
+      database_column<int> replica;
+      database_column<guid> server_id;
+      database_column<ichunk_manager::index_type> chunk_index;
+      database_column<guid> storage_id;
+
+
+    };
     
     static const size_t BLOCK_SIZE = 16 * 1024 * 1024;
     static const uint16_t MIN_HORCRUX = 512;
@@ -103,53 +122,12 @@ namespace vds {
       size_t chunk_index,
       const error_handler & on_error);
 
-    /// Database
-    prepared_statement<
-      const guid & /*server_id*/,
-      size_t /*index*/,
-      size_t /*size*/,
-      const const_data_buffer & /*object_hash*/> add_chunk_statement_;
-
     void add_chunk(
       const service_provider & sp,
       const guid & server_id,
       size_t index,
       size_t size,
       const const_data_buffer & object_hash);
-
-    prepared_statement<
-      const guid & /*server_id*/,
-      size_t /*chunk_index*/,
-      const guid & /*object_id*/,
-      size_t /*object_offset*/,
-      size_t /*chunk_offset*/,
-      size_t /*length*/,
-      const const_data_buffer & /*hash*/> object_chunk_map_statement_;
-
-    prepared_statement<
-      const guid & /*server_id*/,
-      size_t /*index*/> add_tmp_chunk_statement_;
-
-    prepared_statement<
-      const guid & /*server_id*/,
-      size_t /*index*/> move_object_chunk_map_statement_;
-
-    prepared_statement<
-      const guid & /*server_id*/,
-      size_t /*index*/> delete_tmp_object_chunk_statement_;
-
-    prepared_statement<
-      const guid & /*server_id*/,
-      size_t /*index*/> delete_tmp_object_chunk_map_statement_;
-
-    prepared_statement<
-      const guid & /*server_id*/,
-      size_t /*chunk_index*/,
-      const guid & /*object_id*/,
-      size_t /*object_offset*/,
-      size_t /*chunk_offset*/,
-      const const_data_buffer & /*hash*/,
-      const const_data_buffer & /*data*/> tmp_object_chunk_map_statement_;
 
     void add_tail_object_chunk_map(
       const service_provider & sp,
@@ -161,44 +139,9 @@ namespace vds {
       const const_data_buffer & hash,
       const const_data_buffer & data);
 
-    prepared_statement<
-      const guid & /*server_id*/,
-      size_t /*index*/,
-      uint16_t /*replica*/,
-      size_t /*replica_length*/,
-      const const_data_buffer & /*replica_hash*/> add_chunk_replica_statement_;
-
-    prepared_statement<
-      const guid & /*server_id*/,
-      size_t /*index*/,
-      uint16_t /*replica*/,
-      const guid & /*storage_id*/,
-      const const_data_buffer & /*data*/> add_object_chunk_store_statement_;
-
-    prepared_query<
-      const guid & /*server_id*/,
-      size_t /*index*/> get_tail_data_query_;
-
-    prepared_query<
-      const guid & /*object_id*/> get_object_map_query_;
-
-    prepared_query<
-      const guid & /*principal_id*/,
-      size_t /*last_order_num*/> get_principal_log_query_;
-
-    prepared_query<
-      const guid & /*server_id*/,
-      size_t /*index*/,
-      const guid & /*storage_id*/> get_replicas_query_;
-
-    prepared_query<
-      const guid & /*server_id*/,
-      size_t /*index*/,
-      const guid & /*storage_id*/,
-      uint16_t /*replica*/> get_replica_data_query_;
-
     size_t get_last_chunk(
       const service_provider & sp,
+      database_transaction & t,
       const guid & server_id);
 
     size_t get_tail_chunk(

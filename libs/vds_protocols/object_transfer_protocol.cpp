@@ -68,15 +68,17 @@ vds::_object_transfer_protocol::~_object_transfer_protocol()
 
 void vds::_object_transfer_protocol::on_object_request(
   const service_provider & sp,
+  const guid & from_server_id,
   const object_request & message)
 {
   auto current_server_id = sp.get<istorage_log>()->current_server_id();
 
   std::list<ichunk_manager::replica_type> local_replicas;
-  sp.get<ilocal_cache>()->get_local_replicas(
+  (*sp.get<ichunk_manager>())->get_replicas(
     sp,
-    source_server_id,
-    chunk_index,
+    message.server_id(),
+    message.index(),
+    current_server_id,
     local_replicas);
 
   auto connection_manager = sp.get<iconnection_manager>();

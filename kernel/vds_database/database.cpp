@@ -7,7 +7,7 @@ All rights reserved
 #include "database_p.h"
 
 vds::database::database()
-  : impl_(new _database(this))
+  : impl_(new _database())
 {
 }
 
@@ -26,12 +26,12 @@ void vds::database::close()
   this->impl_->close();
 }
 
-void vds::database::execute(const std::string & sql)
+void vds::database_transaction::execute(const std::string & sql)
 {
   this->impl_->execute(sql);
 }
 
-vds::sql_statement vds::database::parse(const std::string & sql)
+vds::sql_statement vds::database_transaction::parse(const std::string & sql)
 {
   return this->impl_->parse(sql);
 }

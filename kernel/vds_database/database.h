@@ -5,10 +5,20 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
+#include <list>
+#include <map>
+#include <string>
+
+#include "guid.h"
+#include "filename.h"
 
 namespace vds {
   class _database;
+  class _database_transaction;
   class _sql_statement;
+
+  class database_table;
+  class database_sql_builder;
 
   class sql_statement
   {
@@ -23,12 +33,6 @@ namespace vds {
     void set_parameter(int index, const guid & value);
     void set_parameter(int index, const const_data_buffer & value);
 
-    template <typename... argument_types>
-    void set_parameters(argument_types... arguments)
-    {
-      this->set_parameters_(1, arguments...);
-    }
-    
     bool execute();
 
     bool get_value(int index, int & value);
@@ -41,18 +45,25 @@ namespace vds {
 
   private:
     _sql_statement * impl_;
-    
-    template <typename first_argument_type, typename... argument_types>
-    void set_parameters_(int index, first_argument_type first_argument, argument_types... arguments)
+  };
+
+  class database_transaction
+  {
+  public:
+    void execute(const std::string & sql);
+    sql_statement parse(const std::string & sql);
+
+    template<typename... column_types>
+    database_sql_builder select(column_types &... columns);
+
+  private:
+    friend class _database;
+    database_transaction(const std::shared_ptr<_database_transaction> & impl)
+      : impl_(impl)
     {
-      this->set_parameter(index, first_argument);
-      this->set_parameters_(index + 1, arguments...);
     }
-    
-    void set_parameters_(int /*index*/)
-    {
-    }
-    
+
+    std::shared_ptr<_database_transaction> impl_;
   };
 
   class database
@@ -61,69 +72,230 @@ namespace vds {
     database();
     ~database();
 
-    //void start(const service_provider & sp);
     void open(const filename & fn);
     void close();
 
-    void execute(const std::string & sql);
-    sql_statement parse(const std::string & sql);
+    database_transaction begin_transaction();
+    void commit(database_transaction & db);
 
   private:
     _database * const impl_;
   };
+
   
-  template <typename... argument_types>
-  class prepared_statement
+  class database_column_base
   {
   public:
-    
-    void execute(database & db, const char * sql, argument_types... arguments)
+    database_column_base(
+      const database_table * owner,
+      const std::string & name)
+      : owner_(owner), name_(name), st_(nullptr)
     {
-      std::lock_guard<std::mutex> lock(this->mutex_);
-      
-      if (!this->statement_) {
-        this->statement_.reset(new sql_statement(db.parse(sql)));
-      }
-
-      this->statement_->set_parameters(arguments...);
-      this->statement_->execute();
     }
-    
+
+    const database_table * owner() const { return this->owner_; }
+    const std::string & name() const { return this->name_; }
+
   private:
-    std::mutex mutex_;
-    std::unique_ptr<sql_statement> statement_;
+    const database_table * const owner_;
+    const std::string name_;
+
+  protected:
+    friend class database_sql_builder;
+    int index_;
+    sql_statement * st_;
+  };
+
+
+  class _database_expression
+  {
+  public:
+  };
+
+  template<typename value_type>
+  class database_expression_equ : public _database_expression
+  {
+  public:
+    database_expression_equ(
+      database_column_base * column,
+      const value_type & value)
+      : column_(column), value_(value)
+    {
+    }
+
+  private:
+    database_column_base * column_;
+    value_type value_;
+  };
+
+  class database_logical_and : public _database_expression
+  {
+  public:
+    database_logical_and(
+      std::unique_ptr<_database_expression> && left,
+      std::unique_ptr<_database_expression> && right)
+      : left_(std::move(left)), right_(std::move(right))
+    {
+    }
+
+  private:
+    std::unique_ptr<_database_expression> left_;
+    std::unique_ptr<_database_expression> right_;
+  };
+
+  class database_expression
+  {
+  public:
+    database_expression()
+    {
+
+    }
+    database_expression(database_expression && origin)
+      : impl_(std::move(origin.impl_))
+    {
+    }
+
+    database_expression(std::unique_ptr<_database_expression> && impl)
+      : impl_(std::move(impl))
+    {
+    }
+
+    database_expression & operator = (database_expression && exp)
+    {
+      this->impl_ = std::move(exp.impl_);
+      return *this;
+    }
+
+    database_expression operator && (database_expression && exp)
+    {
+      return database_expression(std::make_unique<database_logical_and>(std::move(this->impl_), std::move(exp.impl_)));
+    }
+  private:
+    std::unique_ptr<_database_expression> impl_;
+  };
+
+
+  class database_reader
+  {
+  public:
+    database_reader(sql_statement && st)
+      : st_(std::move(st))
+    {
+    }
+
+    bool read() { return this->st_.execute(); }
+
+
+  private:
+    sql_statement st_;
   };
   
-  template <typename... argument_types>
-  class prepared_query
+  class database_sql_builder
   {
   public:
-    
-    void query(
-      database & db,
-      const char * sql,
-      const std::function<bool (sql_statement & st)> & callback,
-      argument_types... arguments)
+    database_sql_builder(database_transaction & t)
+      : t_(t)
     {
-      std::lock_guard<std::mutex> lock(this->mutex_);
-      
-      if (!this->statement_) {
-        this->statement_.reset(new sql_statement(db.parse(sql)));
+    }
+
+    database_sql_builder & where(database_expression && cond)
+    {
+      this->cond_ = std::move(cond);
+      return *this;
+    }
+
+    database_sql_builder & select(database_column_base & column)
+    {
+      if (this->aliases_.end() == this->aliases_.find(column.owner())) {
+        this->aliases_[column.owner()] = "t" + std::to_string(this->aliases_.size());
       }
 
-      this->statement_->set_parameters(arguments...);
-      while(this->statement_->execute()){
-        if(!callback(*this->statement_)){
-          break;
+      this->columns_.push_back(&column);
+      return *this;
+    }
+
+    template<typename... column_types>
+    database_sql_builder & select(database_column_base & column, column_types &... columns)
+    {
+      return this->select(column).select(columns);
+    }
+
+    database_reader get_reader() const
+    {
+      std::string sql = "SELECT ";
+
+      int index = 0;
+      for (auto column : this->columns_) {
+        if (0 < index) {
+          sql += ",";
         }
+
+        sql += this->get_alias(column->owner());
+        sql += ".";
+        sql += column->name();
+
+        column->index_ = index++;
       }
+
+      sql += " FROM ";
+      if (1 != this->aliases_.size()) {
+        throw std::runtime_error("Not implemented");
+      }
+
+      auto st = this->t_.parse(sql);
+      return database_reader(std::move(st));
     }
-    
+
   private:
-    std::mutex mutex_;
-    std::unique_ptr<sql_statement> statement_;
+    database_transaction & t_;
+    std::map<const database_table *, std::string> aliases_;
+    std::list<database_column_base *> columns_;
+    database_expression cond_;
+
+    const std::string & get_alias(const database_table * t) const
+    {
+      return this->aliases_.find(t)->second;
+    }
+  };
+
+  class database_table
+  {
+  public:
+    database_table(const std::string & table_name)
+    {
+    }
+
 
   };
+  
+  template <typename value_type>
+  class database_column : public database_column_base
+  {
+  public:
+    database_column(
+      const database_table * owner,
+      const std::string & name)
+      : database_column_base(owner, name)
+    {
+    }
+
+    value_type get() const {
+      value_type result;
+      this->st_->get_value(this->index_, result);
+      return result;
+    }
+
+    database_expression operator == (const value_type & value) const {
+      return database_expression(std::make_unique<database_expression_equ<value_type>>(this, value));
+    }
+  };
+
+  template<typename... column_types>
+  inline database_sql_builder database_transaction::select(column_types &... columns)
+  {
+    return std::move(database_sql_builder(*this).select(columns...));
+  }
+
 }
 
 #endif//__VDS_DATABASE_DATABASE_H_
