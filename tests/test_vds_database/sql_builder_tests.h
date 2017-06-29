@@ -9,7 +9,7 @@ All rights reserved
 #define database_transaction mock_database_transaction
 #define sql_statement mock_sql_statement
 
-#include "database.h"
+#include "database_orm.h"
 
 
 class test_table1 : public vds::database_table

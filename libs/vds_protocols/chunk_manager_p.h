@@ -9,6 +9,7 @@ All rights reserved
 #include "chunk_manager.h"
 #include "server_database.h"
 #include "chunk_storage.h"
+#include "database_orm.h"
 
 namespace vds {
   class istorage_log;
@@ -71,8 +72,8 @@ namespace vds {
     class object_chunk_store : public database_table
     {
     public:
-      object_chunk_store(database_transaction & t)
-        : database_table(t, "object_chunk_store"),
+      object_chunk_store()
+        : database_table("object_chunk_store"),
           replica(this, "replica"),
           server_id(this, "server_id"),
           chunk_index(this, "chunk_index"),
@@ -82,7 +83,7 @@ namespace vds {
 
       database_column<int> replica;
       database_column<guid> server_id;
-      database_column<ichunk_manager::index_type> chunk_index;
+      database_column<ichunk_manager::index_type, int> chunk_index;
       database_column<guid> storage_id;
 
 

@@ -423,18 +423,18 @@ void vds::_server_database::stop(const service_provider & sp)
 
 void vds::_server_database::add_principal(
   const service_provider & sp,
+  database_transaction & tr,
   const principal_record & record)
 {
-  this->add_principal_statement_.execute(
-    this->db_,
-    "INSERT INTO principal(id, cert, key, password_hash, parent)\
-      VALUES (@id, @cert, @key, @password_hash, @parent)",
-
-    record.id(),
-    record.cert_body(),
-    record.cert_key(),
-    record.password_hash(),
-    record.parent_principal());
+  principal t;
+  tr.insert_into(t)
+  .set(
+    t.id = record.id(),
+    t.cert = record.cert_body(),
+    t.key = record.cert_key(),
+    t.password_hash = record.password_hash(),
+    t.parent = record.parent_principal())
+  .execute();
 }
 
 void vds::_server_database::add_user_principal(
