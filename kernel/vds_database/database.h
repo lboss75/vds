@@ -20,7 +20,10 @@ namespace vds {
   //orm
   template<typename... column_types>
   class database_select_builder;
+  
   class database_insert_builder;
+  class database_insert_from_builder;
+  
   class database_table;
   class database_delete_builder_base;
 
@@ -61,6 +64,10 @@ namespace vds {
     database_select_builder<column_types...> select(column_types &&... columns);
     
     database_insert_builder insert_into(const database_table & table);
+    
+    template<typename... column_types>
+    database_insert_from_builder insert_from(const database_table & table, column_types &&... columns);
+
     database_delete_builder_base delete_from(const database_table & table);
 
     static database_transaction & current(const service_provider & sp);

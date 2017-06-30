@@ -11,6 +11,7 @@ All rights reserved
 #include "storage_object_id.h"
 #include "local_cache.h"
 #include "storage_log.h"
+#include "database_orm.h"
 
 namespace vds {
   class server_log_root_certificate;
@@ -20,6 +21,7 @@ namespace vds {
   class node;
   class endpoint;
   class ichunk_storage;
+  class database_transaction;
   
   class _storage_log : public istorage_log
   {
@@ -84,6 +86,11 @@ namespace vds {
       const service_provider & sp) {
       return this->last_applied_record_;
     }
+    
+    static void create_database_objects(
+      const service_provider & sp,
+      uint64_t db_version,
+      database_transaction & t);
 
   private:
     certificate server_certificate_;
@@ -103,6 +110,47 @@ namespace vds {
     asymmetric_public_key corresponding_public_key(
       const service_provider & sp,
       const principal_log_record & record);
+    
+    //Database
+    class principal_table : public database_table
+    {
+    public:
+      principal_table()
+      : database_table("principal"),
+        id(this, "id"),
+        cert(this, "cert"),
+        key(this, "key"),
+        password_hash(this, "password_hash"),
+        parent(this, "parent")
+      {
+      }
+      
+      database_column<guid> id;
+      database_column<std::string> cert;
+      database_column<std::string> key;
+      database_column<const_data_buffer> password_hash;
+      database_column<guid> parent;
+    };
+    
+    void add_principal(
+      const service_provider & sp,
+      const principal_record & record);
+
+    void add_user_principal(
+      const service_provider & sp,
+      const std::string & login,
+      const principal_record & record);
+
+    guid get_root_principal(
+      const service_provider & sp);
+
+    std::unique_ptr<principal_record> find_principal(
+      const service_provider & sp,
+      const guid & object_name);
+
+    std::unique_ptr<principal_record> find_user_principal(
+      const service_provider & sp,
+      const std::string & object_name);
 
   };
 }

@@ -31,7 +31,8 @@ namespace vds {
 
     static void create_database_objects(
       const service_provider & sp,
-      uint64_t db_version);
+      uint64_t db_version,
+      database_transaction & t);
 
     std::list<object_chunk_map> get_object_map(
       const service_provider & sp,

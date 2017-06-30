@@ -8,6 +8,7 @@ All rights reserved
 
 #include "server_database.h"
 #include "database.h"
+#include "database_orm.h"
 
 namespace vds {
   class istorage_log;
@@ -21,36 +22,13 @@ namespace vds {
     void start(const service_provider & sp);
     void stop(const service_provider & sp);
 
-    void add_principal(
-      const service_provider & sp,
-      const principal_record & record);
-
-    void add_user_principal(
-      const service_provider & sp,
-      const std::string & login,
-      const principal_record & record);
-
-    guid get_root_principal(
-      const service_provider & sp);
-
-    std::unique_ptr<principal_record> find_principal(
-      const service_provider & sp,
-      const guid & object_name);
-
-    std::unique_ptr<principal_record> find_user_principal(
-      const service_provider & sp,
-      const std::string & object_name);
 
     void add_object(
       const service_provider & sp,
       const principal_log_new_object & index);
 
-    void add_endpoint(
-      const service_provider & sp,
-      const std::string & endpoint_id,
-      const std::string & addresses);
-
     void get_endpoints(
+      const service_provider & sp,
       std::map<std::string, std::string> & addresses);
 
     principal_log_record add_local_record(
@@ -108,6 +86,12 @@ namespace vds {
       size_t last_order_num,
       size_t & result_last_order_num,
       std::list<principal_log_record> & records);
+    
+    void add_endpoint(
+      const service_provider & sp,
+      const std::string & endpoint_id,
+      const std::string & addresses);
+
 
     database * get_db() { return &this->db_; }
   private:
@@ -153,6 +137,36 @@ namespace vds {
       iserver_database::principal_log_state state,
       principal_log_record & result_record,
       const_data_buffer & result_signature);
+    
+    class object_table : public database_table
+    {
+    public:
+      object_table()
+      : database_table("object"),
+        object_id(this, "object_id"),
+        length(this, "length"),
+        meta_info(this, "meta_info")
+      {
+      }
+      
+      database_column<guid> object_id;
+      database_column<size_t> length;
+      database_column<const_data_buffer> meta_info;
+    };
+    
+    class endpoint_table : public database_table
+    {
+    public:
+      endpoint_table()
+      : database_table("endpoint"),
+        endpoint_id(this, "endpoint_id"),
+        addresses(this, "addresses")
+      {
+      }
+      
+      database_column<std::string> endpoint_id;
+      database_column<std::string> addresses;
+    };
   };
 
   inline _server_database * vds::iserver_database::operator->()

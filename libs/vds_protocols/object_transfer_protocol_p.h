@@ -7,6 +7,7 @@ All rights reserved
 */
 
 #include "object_transfer_protocol.h"
+#include "messages.h"
 
 namespace vds {
   class route_hop;
@@ -46,6 +47,11 @@ namespace vds {
   class object_request
   {
   public:
+    static const uint32_t message_type_id = (uint32_t)message_identification::object_request_message_id;
+    
+    void serialize(binary_serializer & b) const;
+    std::shared_ptr<json_value> serialize() const;
+    
     object_request(const const_data_buffer & binary_form);
 
     object_request(

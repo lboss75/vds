@@ -30,7 +30,6 @@ void vds::object_transfer_protocol::chunk_require(
   auto current_server_id = sp.get<istorage_log>()->current_server_id();
 
   auto chunk_manager = sp.get<ichunk_manager>();
-  auto db = sp.get<iserver_database>();
   std::list<ichunk_manager::replica_type> local_replicas;
   (*chunk_manager)->get_replicas(
     sp,
@@ -66,6 +65,7 @@ vds::_object_transfer_protocol::~_object_transfer_protocol()
 {
 }
 
+/*
 void vds::_object_transfer_protocol::on_object_request(
   const service_provider & sp,
   const guid & from_server_id,
@@ -83,7 +83,12 @@ void vds::_object_transfer_protocol::on_object_request(
 
   auto connection_manager = sp.get<iconnection_manager>();
   if (!local_replicas.empty()) {
-    object_offer_replicas message(source_server_id, chunk_index, current_server_id, local_replicas);
+    object_offer_replicas message(
+      source_server_id,
+      chunk_index,
+      current_server_id,
+      local_replicas);
+    
     connection_manager->send_to(message.hops(), message);
   }
 
@@ -102,8 +107,6 @@ void vds::_object_transfer_protocol::on_object_request(
       connection_manager->send_to(sp, item.storage_id, message);
     }
   }
-
-  
 }
-
+*/
 
