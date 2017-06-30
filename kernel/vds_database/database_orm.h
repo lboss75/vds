@@ -105,25 +105,6 @@ namespace vds {
     const database_column_base * column_;
   };
 
-  class db_max
-  {
-  public:
-    db_max(
-      database_column_base & column)
-      : column_(&column)
-    {
-
-    }
-
-    std::string visit(database_sql_builder & builder) const
-    {
-      return "MAX(" + builder.get_alias(this->column_->owner()) + "." + this->column_->name() + ")";
-    }
-
-  private:
-    const database_column_base * column_;
-  };
-
   class db_simple_column
   {
   public:
@@ -142,7 +123,99 @@ namespace vds {
     database_column_base * column_;
   };
 
-  
+  template <typename source_type>
+  class _db_max
+  {
+  public:
+    _db_max(
+      source_type && column)
+      : column_(std::move(column))
+    {
+
+    }
+
+    std::string visit(database_sql_builder & builder) const
+    {
+      return "MAX(" + this->column_.visit(builder) + ")";
+    }
+
+  private:
+    source_type column_;
+  };
+
+  template <typename source_type>
+  class _db_length
+  {
+  public:
+    _db_length(
+      source_type && column)
+      : column_(std::move(column))
+    {
+
+    }
+
+    std::string visit(database_sql_builder & builder) const
+    {
+      return "LENGTH(" + this->column_.visit(builder) + ")";
+    }
+
+  private:
+    source_type column_;
+  };
+
+  template <typename source_type>
+  class _db_sum
+  {
+  public:
+    _db_sum(
+      source_type && column)
+      : column_(std::move(column))
+    {
+
+    }
+
+    std::string visit(database_sql_builder & builder) const
+    {
+      return "SUM(" + this->column_.visit(builder) + ")";
+    }
+
+  private:
+    source_type column_;
+  };
+
+  inline _db_max<db_simple_column> db_max(database_column_base & column)
+  {
+    return _db_max<db_simple_column>(db_simple_column(column));
+  }
+
+  template <typename source_type>
+  inline _db_max<source_type> db_max(source_type && column)
+  {
+    return _db_max<source_type>(std::move(column));
+  }
+
+  inline _db_length<db_simple_column> db_length(database_column_base & column)
+  {
+    return _db_length<db_simple_column>(db_simple_column(column));
+  }
+
+  template <typename source_type>
+  inline _db_length<source_type> db_length(source_type && column)
+  {
+    return _db_length<source_type>(std::move(column));
+  }
+
+  inline _db_sum<db_simple_column> db_sum(database_column_base & column)
+  {
+    return _db_sum<db_simple_column>(db_simple_column(column));
+  }
+
+  template <typename source_type>
+  inline _db_sum<source_type> db_sum(source_type && column)
+  {
+    return _db_sum<source_type>(std::move(column));
+  }
+
   template<typename value_type>
   class database_value_exp
   {
@@ -251,6 +324,9 @@ namespace vds {
   template <typename base_builder, typename condition_type>
   class database_reader_builder_with_join;
 
+  template <typename base_builder, typename condition_type>
+  class database_reader_builder_with_where;
+
   template <typename select_type>
   class database_reader_builder
   {
@@ -286,6 +362,12 @@ namespace vds {
     database_reader_builder_with_join<this_class, join_condition_type> inner_join(const database_table & t, join_condition_type && cond)
     {
       return database_reader_builder_with_join<this_class, join_condition_type>(std::move(*this), &t, std::move(cond));
+    }
+
+    template <typename where_condition_type>
+    database_reader_builder_with_where<this_class, where_condition_type> where(where_condition_type && cond)
+    {
+      return database_reader_builder_with_where<this_class, where_condition_type>(std::move(*this), std::move(cond));
     }
 
     sql_statement get_reader() const { return this->get_reader_impl<database_reader_builder>(); }

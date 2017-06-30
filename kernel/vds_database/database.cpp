@@ -115,3 +115,44 @@ vds::sql_statement& vds::sql_statement::operator= (vds::sql_statement&& original
   
   return *this;
 }
+//////////////////////////////////////
+class database_transaction_holder : public vds::service_provider::property_holder
+{
+public:
+  database_transaction_holder(
+    vds::database_transaction & t)
+    : transaction(t)
+  {
+  }
+
+  vds::database_transaction & transaction;
+};
+
+vds::database_transaction & vds::database_transaction::current(const service_provider & sp)
+{
+  auto holder = sp.get_property<database_transaction_holder>(service_provider::property_scope::any_scope);
+  if (nullptr == holder) {
+    throw std::runtime_error("Transaction is not openned");
+  }
+
+  return holder->transaction;
+}
+
+vds::database_transaction_scope::database_transaction_scope(const service_provider & sp, database & db)
+  : db_(db), transaction_(db.begin_transaction()), successful_(false)
+{
+  sp.set_property(service_provider::property_scope::any_scope, new database_transaction_holder(this->transaction_));
+}
+
+vds::database_transaction_scope::~database_transaction_scope()
+{
+  if (!this->successful_) {
+    this->db_.rollback(this->transaction_);
+  }
+}
+
+void vds::database_transaction_scope::commit()
+{
+  this->db_.commit(this->transaction_);
+  this->successful_ = true;
+}

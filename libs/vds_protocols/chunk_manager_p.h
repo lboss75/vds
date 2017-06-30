@@ -31,8 +31,7 @@ namespace vds {
 
     static void create_database_objects(
       const service_provider & sp,
-      uint64_t db_version,
-      database_transaction & t);
+      uint64_t db_version);
 
     std::list<object_chunk_map> get_object_map(
       const service_provider & sp,
@@ -258,7 +257,6 @@ namespace vds {
 
     size_t get_last_chunk(
       const service_provider & sp,
-      database_transaction & t,
       const guid & server_id);
 
     size_t get_tail_chunk(

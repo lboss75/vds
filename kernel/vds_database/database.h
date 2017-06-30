@@ -63,6 +63,8 @@ namespace vds {
     database_insert_builder insert_into(const database_table & table);
     database_delete_builder_base delete_from(const database_table & table);
 
+    static database_transaction & current(const service_provider & sp);
+
   private:
     friend class _database;
     friend class database;
@@ -90,9 +92,24 @@ namespace vds {
 
     database_transaction begin_transaction();
     void commit(database_transaction & db);
+    void rollback(database_transaction & db);
 
   private:
     _database * const impl_;
+  };
+
+  class database_transaction_scope
+  {
+  public:
+    database_transaction_scope(const service_provider & sp, database & db);
+    ~database_transaction_scope();
+
+    void commit();
+
+  private:
+    database & db_;
+    database_transaction transaction_;
+    bool successful_;
   };
 }
 

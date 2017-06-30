@@ -161,20 +161,18 @@ void vds::_chunk_manager::start(const service_provider & sp)
 {
   auto server_id = sp.get<istorage_log>()->current_server_id();
   auto db = (*sp.get<iserver_database>())->get_db();
+  database_transaction_scope scope(sp, *db);
 
-  auto t = db->begin_transaction();
   this->last_chunk_ = this->get_last_chunk(
     sp,
-    t,
     server_id);
   
   this->tail_chunk_index_ = this->get_tail_chunk(
     sp,
-    t,
     server_id,
     this->tail_chunk_size_);
 
-  db->commit(t);
+  scope.commit();
 }
 
 void vds::_chunk_manager::stop(const service_provider & sp)
@@ -222,9 +220,9 @@ vds::async_task<> vds::_chunk_manager::add_object(
 
 void vds::_chunk_manager::create_database_objects(
   const service_provider & sp,
-  uint64_t db_version,
-  database_transaction & t)
+  uint64_t db_version)
 {
+  auto & t = database_transaction::current(sp);
   t.execute(
     "CREATE TABLE object_chunk(\
       server_id VARCHAR(64) NOT NULL,\
@@ -561,15 +559,19 @@ bool vds::_chunk_manager::generate_horcruxes(
 
 size_t vds::_chunk_manager::get_last_chunk(
   const service_provider & sp,
-  database_transaction & t,
   const guid & server_id)
 {
-  size_t result = 0;
-  auto st = t.parse("SELECT MAX(chunk_index) FROM object_chunk WHERE server_id=@server_id");
-  st.set_parameter(0, server_id);
+  object_chunk_table t;
 
-  while (st.execute()) {
-    st.get_value(0, result);
+  auto reader = database_transaction::current(sp)
+    .select(db_max(t.chunk_index))
+    .from(t)
+    .where(t.server_id == server_id)
+    .get_reader();
+
+  size_t result = 0;
+  while (reader.execute()) {
+    reader.get_value(0, result);
   }
 
   return result;
@@ -577,27 +579,34 @@ size_t vds::_chunk_manager::get_last_chunk(
 
 size_t vds::_chunk_manager::get_tail_chunk(
   const service_provider & sp,
-  database_transaction & t,
   const guid & server_id,
   size_t & result_size)
 {
-  size_t result = 0;
-  auto st = t.parse("SELECT chunk_index FROM tmp_object_chunk WHERE server_id=@server_id");
-  st.set_parameter(0, server_id);
+  tmp_object_chunk_table t;
 
-  while (st.execute()) {
-    st.get_value(0, result);
+  auto reader = database_transaction::current(sp)
+    .select(t.chunk_index)
+    .from(t)
+    .where(t.server_id == server_id)
+    .get_reader();
+
+  size_t chunk_index = 0;
+  while (reader.execute()) {
+    chunk_index = t.chunk_index.get(reader);
   }
 
-  st = t.parse("SELECT SUM(length(data)) FROM tmp_object_chunk_map WHERE server_id=@server_id AND chunk_index=@chunk_index");
-  st.set_parameter(0, server_id);
-  st.set_parameter(1, result);
+  tmp_object_chunk_map_table t1;
+  reader = database_transaction::current(sp)
+    .select(db_sum(db_length(t1.chunk_index)))
+    .from(t1)
+    .where(t1.server_id == server_id && t1.chunk_index == chunk_index)
+    .get_reader();
 
-  while (st.execute()) {
-    st.get_value(0, result_size);
+  while (reader.execute()) {
+    reader.get_value(0, result_size);
   }
 
-  return result;
+  return chunk_index;
 }
 
 
@@ -616,25 +625,21 @@ void vds::_chunk_manager::add_full_chunk(
 
 void vds::_chunk_manager::add_chunk(
   const service_provider & sp,
-  database_transaction & t,
   const guid & server_id,
   size_t index,
   size_t size,
   const const_data_buffer & object_hash)
 {
-  auto st = t.parse(
-    "INSERT INTO object_chunk(server_id, chunk_index, chunk_size, hash)\
-    VALUES (@server_id, @chunk_index, @chunk_size, @hash)");
-  st.set_parameter(0, server_id);
-  st.set_parameter(1, index);
-  st.set_parameter(2, size);
-  st.set_parameter(3, object_hash);
-  st.execute();
+  object_chunk_table t;
+
+  database_transaction::current(sp)
+    .insert_into(t)
+    .set(t.server_id = server_id, t.chunk_index = index, t.chunk_size = size, t.hash = object_hash)
+    .execute();
 }
 
 void vds::_chunk_manager::add_object_chunk_map(
   const service_provider & sp,
-  database_transaction & t,
   const guid & server_id,
   size_t chunk_index,
   const guid & object_id,
@@ -643,17 +648,19 @@ void vds::_chunk_manager::add_object_chunk_map(
   size_t length,
   const const_data_buffer & hash)
 {
-  auto st = t.parse(
-    "INSERT INTO object_chunk_map(server_id,chunk_index,object_id,object_offset,chunk_offset,length,hash)\
-    VALUES(@server_id,@chunk_index,@object_id,@object_offset,@chunk_offset,@length,@hash)");
-  st.set_parameter(0, server_id);
-  st.set_parameter(0, chunk_index);
-  st.set_parameter(0, object_id);
-  st.set_parameter(0, object_offset);
-  st.set_parameter(0, chunk_offset);
-  st.set_parameter(0, length);
-  st.set_parameter(0, hash);
-  st.execute();
+  object_chunk_map_table t;
+
+  database_transaction::current(sp)
+    .insert_into(t)
+    .set(
+      t.server_id = server_id,
+      t.chunk_index = chunk_index,
+      t.object_id = object_id,
+      t.object_offset = object_offset,
+      t.chunk_offset = chunk_offset,
+      t.length = length,
+      t.hash = hash)
+    .execute();
 }
 
 std::list<vds::ichunk_manager::object_chunk_map>
