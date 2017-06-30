@@ -69,10 +69,109 @@ namespace vds {
     size_t tail_chunk_size_;
 
     //Database
-    class object_chunk_store : public database_table
+    class object_chunk_table : public database_table
     {
     public:
-      object_chunk_store()
+      object_chunk_table()
+        : database_table("object_chunk"),
+          server_id(this, "server_id"),
+          chunk_index(this, "chunk_index"),
+          chunk_size(this, "chunk_size"),
+          hash(this, "hash")
+      {}
+
+      database_column<guid> server_id;
+      database_column<ichunk_manager::index_type> chunk_index;
+      database_column<size_t> chunk_size;
+      database_column<const_data_buffer> hash;
+    };
+
+    class object_chunk_map_table : public database_table
+    {
+    public:
+      object_chunk_map_table()
+        : database_table("object_chunk_map"),
+        server_id(this, "server_id"),
+        chunk_index(this, "chunk_index"),
+        object_id(this, "object_id"),
+        object_offset(this, "object_offset"),
+        chunk_offset(this, "chunk_offset"),
+        length(this, "length"),
+        hash(this, "hash")
+      {}
+
+      database_column<guid> server_id;
+      database_column<ichunk_manager::index_type> chunk_index;
+      database_column<guid> object_id;
+      database_column<size_t> object_offset;
+      database_column<size_t> chunk_offset;
+      database_column<size_t> length;
+      database_column<const_data_buffer> hash;
+    };
+
+    class tmp_object_chunk_table : public database_table
+    {
+    public:
+      tmp_object_chunk_table()
+        : database_table("tmp_object_chunk"),
+        server_id(this, "server_id"),
+        chunk_index(this, "chunk_index")
+      {
+      }
+
+      database_column<guid> server_id;
+      database_column<ichunk_manager::index_type> chunk_index;
+    };
+
+    class tmp_object_chunk_map_table : public database_table
+    {
+    public:
+      tmp_object_chunk_map_table()
+        : database_table("tmp_object_chunk_map"),
+        server_id(this, "server_id"),
+        chunk_index(this, "chunk_index"),
+        object_id(this, "object_id"),
+        object_offset(this, "object_offset"),
+        chunk_offset(this, "chunk_offset"),
+        length(this, "length"),
+        hash(this, "hash"),
+        data(this, "data")
+      {}
+
+      database_column<guid> server_id;
+      database_column<ichunk_manager::index_type> chunk_index;
+      database_column<guid> object_id;
+      database_column<size_t> object_offset;
+      database_column<size_t> chunk_offset;
+      database_column<size_t> length;
+      database_column<const_data_buffer> hash;
+      database_column<const_data_buffer> data;
+    };
+
+    class object_chunk_replica_table : public database_table
+    {
+    public:
+      object_chunk_replica_table()
+        : database_table("object_chunk_replica"),
+        server_id(this, "server_id"),
+        chunk_index(this, "chunk_index"),
+        replica(this, "replica"),
+        replica_length(this, "replica_length"),
+        replica_hash(this, "replica_hash")
+      {
+      }
+
+      database_column<guid> server_id;
+      database_column<ichunk_manager::index_type> chunk_index;
+      database_column<int> replica;
+      database_column<size_t> replica_length;
+      database_column<const_data_buffer> replica_hash;
+    };
+
+    class object_chunk_store_table : public database_table
+    {
+    public:
+      object_chunk_store_table()
         : database_table("object_chunk_store"),
           replica(this, "replica"),
           server_id(this, "server_id"),
@@ -83,12 +182,29 @@ namespace vds {
 
       database_column<int> replica;
       database_column<guid> server_id;
-      database_column<ichunk_manager::index_type, int> chunk_index;
+      database_column<ichunk_manager::index_type> chunk_index;
       database_column<guid> storage_id;
-
-
     };
-    
+
+    class object_chunk_data_table : public database_table
+    {
+    public:
+      object_chunk_data_table()
+        : database_table("object_chunk_data"),
+        server_id(this, "server_id"),
+        chunk_index(this, "chunk_index"),
+        replica(this, "replica"),
+        data(this, "data")
+      {
+      }
+
+      database_column<guid> server_id;
+      database_column<ichunk_manager::index_type> chunk_index;
+      database_column<int> replica;
+      database_column<const_data_buffer> data;
+    };
+
+
     static const size_t BLOCK_SIZE = 16 * 1024 * 1024;
     static const uint16_t MIN_HORCRUX = 512;
     static const uint16_t GENERATE_HORCRUX = 1024;

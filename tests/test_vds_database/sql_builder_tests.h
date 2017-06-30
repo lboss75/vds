@@ -24,8 +24,6 @@ public:
 
   vds::database_column<int> column1;
   vds::database_column<std::string> column2;
-
-
 };
 
 class test_table2 : public vds::database_table

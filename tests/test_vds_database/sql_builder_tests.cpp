@@ -20,11 +20,11 @@ vds::mock_database_transaction vds::mock_database::begin_transaction()
   return mock_database_transaction();
 }
 
-vds::mock_sql_statement::mock_sql_statement(_sql_statement * impl)
+vds::mock_sql_statement::mock_sql_statement(_sql_statement * )
 {
 }
 
-vds::mock_sql_statement::mock_sql_statement(mock_sql_statement && st)
+vds::mock_sql_statement::mock_sql_statement(mock_sql_statement && )
 {
 }
 
@@ -41,7 +41,7 @@ void vds::mock_sql_statement::set_parameter(int index, int value)
   int_parameter_value = value;
 }
 
-void vds::mock_sql_statement::set_parameter(int index, uint64_t value)
+void vds::mock_sql_statement::set_parameter(int , uint64_t )
 {
 }
 
@@ -54,11 +54,11 @@ void vds::mock_sql_statement::set_parameter(int index, const std::string & value
   string_parameter_value = value;
 }
 
-void vds::mock_sql_statement::set_parameter(int index, const guid & value)
+void vds::mock_sql_statement::set_parameter(int , const guid & )
 {
 }
 
-void vds::mock_sql_statement::set_parameter(int index, const const_data_buffer & value)
+void vds::mock_sql_statement::set_parameter(int , const const_data_buffer & )
 {
 }
 
@@ -84,14 +84,14 @@ TEST(sql_builder_tests, test_select) {
   vds::database db;
   vds::database_transaction trans = db.begin_transaction();
 
-  auto reader = trans.select(t1.column1, t1.column2, t2.column1)
+  auto reader = trans.select(vds::db_max(t1.column1), t1.column2, t2.column1)
   .from(t1)
   .inner_join(t2, t1.column1 == t2.column1)
   .where(t1.column1 == 10 && t2.column2 == "test")
   .get_reader();
 
   ASSERT_EQ(result_sql,
-    "SELECT t0.column1,t0.column2,t1.column1 FROM test_table1 t0 INNER JOIN test_table2 t1 ON t0.column1=t1.column1 WHEN (t0.column1=@p2) AND (t1.column2=@p1)");
+    "SELECT MAX(t0.column1),t0.column2,t1.column1 FROM test_table1 t0 INNER JOIN test_table2 t1 ON t0.column1=t1.column1 WHERE (t0.column1=@p2) AND (t1.column2=@p1)");
   ASSERT_EQ(int_parameter_index, 1);
   ASSERT_EQ(int_parameter_value, 10);
   ASSERT_EQ(string_parameter_index, 0);

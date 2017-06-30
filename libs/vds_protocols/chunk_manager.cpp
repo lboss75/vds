@@ -68,7 +68,7 @@ void vds::ichunk_manager::set_next_index(
 */
 //////////////////////////////////////////////////////////////////////
 vds::_chunk_manager::_chunk_manager()
-: chunk_storage_(MIN_HORCRUX), db_(nullptr)
+: chunk_storage_(MIN_HORCRUX)
 {
 }
 
@@ -160,15 +160,21 @@ void vds::_chunk_manager::set_next_index(const service_provider & sp, uint64_t n
 void vds::_chunk_manager::start(const service_provider & sp)
 {
   auto server_id = sp.get<istorage_log>()->current_server_id();
-  this->db_ = (*sp.get<iserver_database>())->get_db();
+  auto db = (*sp.get<iserver_database>())->get_db();
+
+  auto t = db->begin_transaction();
   this->last_chunk_ = this->get_last_chunk(
     sp,
+    t,
     server_id);
   
   this->tail_chunk_index_ = this->get_tail_chunk(
     sp,
+    t,
     server_id,
     this->tail_chunk_size_);
+
+  db->commit(t);
 }
 
 void vds::_chunk_manager::stop(const service_provider & sp)

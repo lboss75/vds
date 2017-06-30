@@ -18,10 +18,11 @@ namespace vds {
   class _sql_statement;
   
   //orm
+  template<typename... column_types>
   class database_select_builder;
   class database_insert_builder;
   class database_table;
-  class database_delete_builder;;
+  class database_delete_builder_base;
 
   class sql_statement
   {
@@ -57,10 +58,10 @@ namespace vds {
     sql_statement parse(const std::string & sql);
 
     template<typename... column_types>
-    database_select_builder select(column_types &... columns);
+    database_select_builder<column_types...> select(column_types &&... columns);
     
     database_insert_builder insert_into(const database_table & table);
-    database_delete_builder delete_from(const database_table & table);
+    database_delete_builder_base delete_from(const database_table & table);
 
   private:
     friend class _database;
