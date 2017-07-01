@@ -11,7 +11,10 @@ All rights reserved
 namespace vds {
   class database_table;
   class database_sql_builder;
-
+  class database_insert_builder;
+  
+  template<typename expression_type>
+  class database_delete_builder;
     
   class database_column_base
   {
@@ -189,7 +192,7 @@ namespace vds {
   }
 
   template <typename source_type>
-  inline _db_max<source_type> db_max(source_type && column)
+  inline _db_max<source_type> db_max(source_type && column, typename std::enable_if<std::is_base_of<database_column_base, source_type>::value>::type)
   {
     return _db_max<source_type>(std::move(column));
   }
@@ -519,28 +522,35 @@ namespace vds {
     using holder = column_type;
   };
 
+  template<typename... column_types>
+  class database_select_builder;
+  
   template<typename column_type>
   class database_select_builder<column_type>
   {
   public:
-    database_select_builder(database_transaction & t, const std::string & prefix, column_type && column)
-      : t_(t), prefix_(prefix), column_(std::forward<column_type>(column))
+    database_select_builder(database_table * t, column_type && column)
+      : t_(t), column_(std::forward<column_type>(column))
     {
     }
 
-    database_reader_builder<database_select_builder> from(database_table & t)
+    void collect_aliases(std::map<const database_table *, std::string> & aliases) const
     {
-      return database_reader_builder<database_select_builder>(this->t_, std::move(*this), &t);
+      aliases[this->t_] = "t0";
     }
-
+    
+    std::string collect_sources(database_sql_builder & builder) const
+    {
+      return " FROM " + this->t_->name() + " " + builder.get_alias(this->t_);
+    }
+    
     std::string generate_select(database_sql_builder & builder) const
     {
       return this->column_.visit(builder);
     }
 
   protected:
-    database_transaction & t_;
-    std::string prefix_;
+    database_table * t_;
     typename database_column_holder<column_type>::holder column_;
   };
 
@@ -550,15 +560,16 @@ namespace vds {
     using base_class = database_select_builder<column_types...>;
     using this_class = database_select_builder<column_type, column_types...>;
   public:
-    database_select_builder(database_transaction & t, const std::string & prefix, column_type && column, column_types &&... columns)
-      : base_class(t, prefix, std::forward<column_types>(columns)...),
+    database_select_builder(database_table * t, column_type && column, column_types &&... columns)
+      : base_class(t, std::forward<column_types>(columns)...),
         column_(std::forward<column_type>(column))
     {
     }
 
-    database_reader_builder<this_class> from(database_table & t)
+    template <typename join_condition_type>
+    database_reader_builder_with_join<this_class, join_condition_type> inner_join(const database_table & t, join_condition_type && cond)
     {
-      return database_reader_builder<this_class>(this->t_, std::move(*this), &t);
+      return database_reader_builder_with_join<this_class, join_condition_type>(std::move(*this), &t, std::move(cond));
     }
 
     std::string generate_select(database_sql_builder & builder) const
@@ -579,6 +590,18 @@ namespace vds {
     }
     
     const std::string & name() const { return this->name_; }
+    
+    template<typename... column_types>
+    database_select_builder<column_types...> select(column_types &&... columns)
+    {
+      return database_select_builder<column_types...>(this, std::forward<column_types>(columns)...);
+    }
+    
+    template<typename... setter_types>
+    database_insert_builder insert(setter_types &&... setters);
+    
+    template<typename expression_type>
+    database_delete_builder<expression_type> delete_if(expression_type && cond);
 
   private:
     std::string name_;
@@ -630,18 +653,16 @@ namespace vds {
     return p->second;
   }
   
-  template<typename... column_types>
-  inline database_select_builder<column_types...> database_transaction::select(column_types &&... columns)
-  {
-    return database_select_builder<column_types...>(*this, std::string(), std::forward<column_types>(columns)...);
-  }
   /////////////////////////////// Insert ////////////////////////
   class database_insert_builder
   {
   public:
-    database_insert_builder(database_transaction & t, const database_table & table)
-    : t_(t), table_(table)
+    
+    template<typename... setter_types>
+    database_insert_builder(const database_table & table, setter_types &&... setters)
+    : table_(table)
     {
+      this->set(std::forward<setter_types>(setters)...);
     }
     
     template<typename... setter_types>
@@ -657,49 +678,14 @@ namespace vds {
       return *this;
     }
     
-    void execute()
-    {
-      std::string sql = "INSERT INTO " + this->table_.name() + "(";
-      bool is_first = true;
-      for(auto column : this->columns_){
-        if(is_first){
-          is_first = false;
-        }
-        else {
-          sql += ",";
-        }
-        sql += column->name();
-      }
-      sql += ") VALUES (";
-      
-      for(size_t index = 0; index < this->columns_.size(); ++index){
-        if(0 < index){
-          sql += ",";
-        }
-        sql += "@p" + std::to_string(index);
-      }
-      sql += ")";
-      
-      auto st = this->t_.parse(sql);
-      int index = 0;
-      for(auto & set_value : this->values_){
-        set_value(st, index++);
-      }
-      
-      st.execute();
-    }
-    
   private:
-    database_transaction & t_;
+    friend class sql_command_builder<database_insert_builder>;
+    
     const database_table & table_;
     std::list<const database_column_base *> columns_;
     std::list<std::function<void(sql_statement & st, int index)>> values_;
   };
   
-  inline database_insert_builder database_transaction::insert_into(const database_table & table)
-  {
-    return database_insert_builder(*this, table);
-  }
   /////////////////////////////// Insert from ////////////////////////
   class database_insert_from_builder
   {
@@ -746,71 +732,26 @@ namespace vds {
     std::list<const database_column_base *> columns_;
   };
  
-  template<typename... column_types>
-  inline database_insert_from_builder database_transaction::insert_from(const database_table & table, column_types &&... columns)
-  {
-    return database_insert_from_builder(*this, table).set(columns...);
-  }
 
   /////////////////////////////// Delete ////////////////////////
   template <typename condition_type>
-  class database_delete_builder;
-
-  class database_delete_builder_base
-  {
-  public:
-    database_delete_builder_base(database_transaction & t, const database_table & table)
-    : t_(t), table_(table)
-    {
-    }
-
-    database_delete_builder_base(database_delete_builder_base && b)
-      : t_(b.t_), table_(b.table_)
-    {
-    }
-
-    template <typename condition_type>
-    database_delete_builder<condition_type> where(condition_type && cond)
-    {
-      return database_delete_builder<condition_type>(std::move(*this), std::move(cond));
-    }
-   
-    
-  protected:
-    database_transaction & t_;
-    const database_table & table_;
-  };
-
-  template <typename condition_type>
-  class database_delete_builder : private database_delete_builder_base
+  class database_delete_builder
   {
   public:
     database_delete_builder(
-      database_delete_builder_base && b,
+      const database_table & table,
       condition_type && cond)
-      : database_delete_builder_base(std::move(b)),
+      : table_(table),
         cond_(std::move(cond))
     {
     }
 
-    void execute()
-    {
-      std::map<const database_table *, std::string> aliases;
-      aliases[&this->table_] = this->table_.name();
-
-      database_sql_builder builder(aliases);
-      std::string sql = "DELETE FROM " + this->table_.name() + " WHERE " + this->cond_.visit(builder);
-      builder.set_parameters(this->t_.parse(sql)).execute();
-    }
-
   private:
+    friend class sql_command_builder<database_delete_builder>;
+    const database_table & table_;
     condition_type cond_;
   };
   
-  inline database_delete_builder_base database_transaction::delete_from(const database_table & table)
-  {
-    return database_delete_builder_base(*this, table);
-  }
   template<typename implementation_type, typename left_exp_type, typename right_exp_type>
   template<typename other_exp>
   inline database_logical_and<implementation_type, other_exp> database_binary_expression<implementation_type, left_exp_type, right_exp_type>::operator&&(other_exp && exp)
@@ -824,6 +765,86 @@ namespace vds {
     return " FROM " + this->first_table_->name() + " " + builder.get_alias(this->first_table_);
   }
 
+  
+  template <>
+  class sql_command_builder<database_insert_builder>
+  {
+  public:
+    void execute(database_transaction & t, const database_insert_builder & builder)
+    {
+      std::string sql = "INSERT INTO " + builder.table_.name() + "(";
+      bool is_first = true;
+      for(auto column : builder.columns_){
+        if(is_first){
+          is_first = false;
+        }
+        else {
+          sql += ",";
+        }
+        sql += column->name();
+      }
+      sql += ") VALUES (";
+      
+      for(size_t index = 0; index < builder.columns_.size(); ++index){
+        if(0 < index){
+          sql += ",";
+        }
+        sql += "@p" + std::to_string(index);
+      }
+      sql += ")";
+      
+      auto st = t.parse(sql.c_str());
+      int index = 0;
+      for(auto & set_value : builder.values_){
+        set_value(st, index++);
+      }
+      
+      st.execute();
+    }
+  };
+  
+  template<typename expression_type>
+  class sql_command_builder<database_delete_builder<expression_type>>
+  {
+  public:
+    
+    void execute(database_transaction & t, const database_delete_builder<expression_type> & delete_builder)
+    {
+      std::map<const database_table *, std::string> aliases;
+      aliases[&delete_builder.table_] = delete_builder.table_.name();
+
+      database_sql_builder builder(aliases);
+      std::string sql = "DELETE FROM " + delete_builder.table_.name() + " WHERE " + delete_builder.cond_.visit(builder);
+      builder.set_parameters(t.parse(sql.c_str())).execute();
+    }
+  };
+  
+  
+  template<typename... setter_types>
+  inline database_insert_builder database_table::insert(setter_types &&... setters)
+  {
+    return database_insert_builder(*this, std::forward<setter_types>(setters)...);
+  }
+  
+  template <typename source_type>
+  class sql_reader_builder
+  {
+  public:
+    
+    sql_statement execute(database_transaction & t, const source_type & source)
+    {
+      std::map<const database_table *, std::string> aliases;
+      source.collect_aliases(aliases);
+
+      database_sql_builder builder(aliases);
+      std::string sql = "SELECT "
+        + source.generate_select(builder)
+        + source.collect_sources(builder)
+        + source.collect_condition(builder);
+
+      return builder.set_parameters(t.parse(sql.c_str()));
+    }
+  };
 }
 
 #endif // __VDS_DATABASE_DATABASE_ORM_H_

@@ -26,12 +26,12 @@ void vds::database::close()
   this->impl_->close();
 }
 
-void vds::database_transaction::execute(const std::string & sql)
+void vds::database_transaction::execute(const char * sql)
 {
-  this->impl_->execute(sql);
+   this->impl_->execute(sql);
 }
 
-vds::sql_statement vds::database_transaction::parse(const std::string & sql)
+vds::sql_statement vds::database_transaction::parse(const char * sql)
 {
   return this->impl_->parse(sql);
 }

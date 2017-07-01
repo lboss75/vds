@@ -18,14 +18,11 @@ namespace vds {
   class _sql_statement;
   
   //orm
-  template<typename... column_types>
-  class database_select_builder;
+  template <typename command_type>
+  class sql_command_builder;
   
-  class database_insert_builder;
-  class database_insert_from_builder;
-  
-  class database_table;
-  class database_delete_builder_base;
+  template <typename command_type>
+  class sql_reader_builder;
 
   class sql_statement
   {
@@ -57,18 +54,20 @@ namespace vds {
   class database_transaction
   {
   public:
-    void execute(const std::string & sql);
-    sql_statement parse(const std::string & sql);
+    void execute(const char * sql);
+    sql_statement parse(const char * sql);
 
-    template<typename... column_types>
-    database_select_builder<column_types...> select(column_types &&... columns);
+    template <typename command_type>
+    void execute(const command_type & command)
+    {
+      sql_command_builder<command_type>().execute(*this, command);
+    }
     
-    database_insert_builder insert_into(const database_table & table);
-    
-    template<typename... column_types>
-    database_insert_from_builder insert_from(const database_table & table, column_types &&... columns);
-
-    database_delete_builder_base delete_from(const database_table & table);
+    template <typename command_type>
+    sql_statement get_reader(const command_type & command)
+    {
+      return sql_reader_builder<command_type>().execute(*this, command);
+    }
 
     static database_transaction & current(const service_provider & sp);
 
