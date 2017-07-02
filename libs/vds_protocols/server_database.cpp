@@ -250,9 +250,8 @@ void vds::_server_database::add_object(
 {
   object_table t;
   database_transaction::current(sp)
-  .insert_into(t)
-  .set(t.object_id = index.index(), t.length = index.lenght(), t.meta_info = index.meta_data())
-  .execute();
+  .execute(
+    t.insert(t.object_id = index.index(), t.length = index.lenght(), t.meta_info = index.meta_data()));
 }
 
 
@@ -264,9 +263,8 @@ void vds::_server_database::add_endpoint(
   endpoint_table t;
   
   database_transaction::current(sp)
-  .insert_into(t)
-  .set(t.endpoint_id = endpoint_id, t.addresses = addresses)
-  .execute();
+  .execute(
+    t.insert(t.endpoint_id = endpoint_id, t.addresses = addresses));
 }
 
 void vds::_server_database::get_endpoints(
@@ -276,9 +274,8 @@ void vds::_server_database::get_endpoints(
   endpoint_table t;
   
   auto st = database_transaction::current(sp)
-  .select(t.endpoint_id, t.addresses)
-  .from(t)
-  .get_reader();
+  .get_reader(
+    t.select(t.endpoint_id, t.addresses));
   
   while(st.execute()){
     result.insert(std::pair<std::string, std::string>(t.endpoint_id.get(st), t.addresses.get(st)));

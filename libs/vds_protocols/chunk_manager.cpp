@@ -564,10 +564,9 @@ size_t vds::_chunk_manager::get_last_chunk(
   object_chunk_table t;
 
   auto reader = database_transaction::current(sp)
-    .select(db_max(t.chunk_index))
-    .from(t)
-    .where(t.server_id == server_id)
-    .get_reader();
+    .get_reader(
+      t.select(db_max(t.chunk_index))
+      .where(t.server_id == server_id));
 
   size_t result = 0;
   while (reader.execute()) {
@@ -585,10 +584,8 @@ size_t vds::_chunk_manager::get_tail_chunk(
   tmp_object_chunk_table t;
 
   auto reader = database_transaction::current(sp)
-    .select(t.chunk_index)
-    .from(t)
-    .where(t.server_id == server_id)
-    .get_reader();
+    .get_reader(
+      t.select(t.chunk_index).where(t.server_id == server_id));
 
   size_t chunk_index = 0;
   while (reader.execute()) {
@@ -597,10 +594,9 @@ size_t vds::_chunk_manager::get_tail_chunk(
 
   tmp_object_chunk_map_table t1;
   reader = database_transaction::current(sp)
-    .select(db_sum(db_length(t1.chunk_index)))
-    .from(t1)
-    .where(t1.server_id == server_id && t1.chunk_index == chunk_index)
-    .get_reader();
+    .get_reader(
+      t1.select(db_sum(db_length(t1.chunk_index)))
+      .where(t1.server_id == server_id && t1.chunk_index == chunk_index));
 
   while (reader.execute()) {
     reader.get_value(0, result_size);
@@ -632,10 +628,8 @@ void vds::_chunk_manager::add_chunk(
 {
   object_chunk_table t;
 
-  database_transaction::current(sp)
-    .insert_into(t)
-    .set(t.server_id = server_id, t.chunk_index = index, t.chunk_size = size, t.hash = object_hash)
-    .execute();
+  database_transaction::current(sp).execute(
+    t.insert(t.server_id = server_id, t.chunk_index = index, t.chunk_size = size, t.hash = object_hash));
 }
 
 void vds::_chunk_manager::add_object_chunk_map(

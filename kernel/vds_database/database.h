@@ -20,9 +20,6 @@ namespace vds {
   //orm
   template <typename command_type>
   class sql_command_builder;
-  
-  template <typename command_type>
-  class sql_reader_builder;
 
   class sql_statement
   {
@@ -60,13 +57,14 @@ namespace vds {
     template <typename command_type>
     void execute(const command_type & command)
     {
-      sql_command_builder<command_type>().execute(*this, command);
+      auto st = sql_command_builder<command_type>().build(*this, command);
+      st.execute();      
     }
     
     template <typename command_type>
     sql_statement get_reader(const command_type & command)
     {
-      return sql_reader_builder<command_type>().execute(*this, command);
+      return sql_command_builder<command_type>().build(*this, command);
     }
 
     static database_transaction & current(const service_provider & sp);

@@ -92,6 +92,7 @@ TEST(sql_builder_tests, test_select) {
 
   ASSERT_EQ(result_sql,
     "SELECT MAX(t0.column1),t0.column2,t1.column1 FROM test_table1 t0 INNER JOIN test_table2 t1 ON t0.column1=t1.column1 WHERE (t0.column1=@p2) AND (t1.column2=@p1)");
+  
   ASSERT_EQ(int_parameter_index, 1);
   ASSERT_EQ(int_parameter_value, 10);
   ASSERT_EQ(string_parameter_index, 0);
@@ -110,7 +111,7 @@ TEST(sql_builder_tests, test_insert) {
     t1.insert(t1.column1 = 10, t1.column2 = "test"));
     
   ASSERT_EQ(result_sql,
-    "INSERT INTO test_table1(column1,column2) VALUES (@p0,@p1)");
+    "INSERT INTO test_table1(column1,column2) VALUES (@p1,@p2)");
   
   ASSERT_EQ(int_parameter_index, 0);
   ASSERT_EQ(int_parameter_value, 10);
@@ -127,14 +128,13 @@ TEST(sql_builder_tests, test_insert_from) {
   vds::database_transaction trans = db.begin_transaction();
 
   trans.execute(
-    t1.insert_info(t1.column1, t1.column2)
-    .from(t2, vds::db_max(t2.column1), t2.column1)
+    t1.insert_into(t1.column1, t1.column2)
+    .from(t2, vds::db_max(t2.column1), t2.column1, vds::db_max(vds::db_length(t2.column2)))
     .where(t2.column2 == "test"));
 
   ASSERT_EQ(result_sql,
-    "SELECT MAX(t0.column1),t0.column2,t1.column1 FROM test_table1 t0 INNER JOIN test_table2 t1 ON t0.column1=t1.column1 WHERE (t0.column1=@p2) AND (t1.column2=@p1)");
-  ASSERT_EQ(int_parameter_index, 1);
-  ASSERT_EQ(int_parameter_value, 10);
+     "INSERT INTO test_table1(column1,column2) SELECT MAX(t0.column1),t0.column1,MAX(LENGTH(t0.column2)) FROM test_table2 t0 WHERE t0.column2=@p1");
+  
   ASSERT_EQ(string_parameter_index, 0);
   ASSERT_EQ(string_parameter_value, "test");
 }
