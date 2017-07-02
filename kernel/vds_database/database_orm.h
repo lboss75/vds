@@ -402,8 +402,107 @@ namespace vds {
     {
       return std::string();
     }
+    
+    std::string final_sql(_database_sql_builder & builder) const
+    {
+      return std::string();
+    }
+  };
+  /////////////////////////
+  class _db_oder_column
+  {
+  public:
+    _db_oder_column(const _database_column_base & column)
+    : column_(&column)
+    {
+    }
+    
+    std::string visit(_database_sql_builder & builder) const
+    {
+      return builder.get_alias(this->column_->owner()) + "." + this->column_->name();
+    }
+    
+  private:
+    const _database_column_base * column_;
+  };
+  
+  template<typename base_builder, typename... column_types>
+  class _database_order_builder;
+  
+  template<typename column_type, typename dummy = void>
+  class _database_order_holder;
+
+  template<typename column_type>
+  class _database_order_holder<column_type, typename std::enable_if<std::is_base_of<_database_column_base, typename std::remove_reference<column_type>::type>::value>::type>
+  {
+  public:
+    using holder = _db_oder_column;
   };
 
+  template<typename column_type>
+  class _database_order_holder<column_type, typename std::enable_if<!std::is_base_of<_database_column_base, typename std::remove_reference<column_type>::type>::value>::type>
+  {
+  public:
+    using holder = column_type;
+  };
+
+  template<typename base_builder, typename column_type>
+  class _database_order_builder<base_builder, column_type> : public base_builder
+  {
+    using this_class = _database_order_builder<base_builder, column_type>;
+  public:
+    _database_order_builder(
+      base_builder && b,
+      column_type && column)
+      : base_builder(std::move(b)),
+        column_(std::forward<column_type>(column))
+    {
+    }
+
+    std::string final_sql(_database_sql_builder & builder) const
+    {
+      return base_builder::start_sql(builder) + "SELECT ";
+    }
+    
+    std::string generate_columns(_database_sql_builder & builder) const
+    {
+      return this->column_.visit(builder);
+    }
+
+  protected:
+    typename _database_order_holder<column_type>::holder column_;
+  };
+
+  template<typename base_builder, typename column_type, typename... column_types>
+  class _database_order_builder<base_builder, column_type, column_types...>
+    : public _database_order_builder<base_builder, column_types...>
+  {
+    using base_class = _database_order_builder<base_builder, column_types...>;
+    using this_class = _database_order_builder<base_builder, column_type, column_types...>;
+  public:
+    _database_order_builder(
+      base_builder && b,
+      column_type && column,
+      column_types &&... columns)
+      : base_class(std::move(b), std::forward<column_types>(columns)...),
+        column_(std::forward<column_type>(column))
+    {
+    }
+    
+    std::string final_sql(_database_sql_builder & builder) const
+    {
+      return "ORDER BY " + this->generate_columns(builder);
+    }
+    
+    std::string generate_columns(_database_sql_builder & builder) const
+    {
+      return this->column_.visit(builder) + "," + base_builder::generate_columns(builder);
+    }
+
+  private:
+    typename _database_order_holder<column_type>::holder column_;
+  };
+  /////////////////////////
   template <typename base_builder, typename condition_type>
   class _database_reader_builder_with_where : public base_builder
   {
@@ -421,6 +520,15 @@ namespace vds {
     {
       return " WHERE " + this->cond_.visit(builder);
     }
+    
+    template <typename... order_columns_types>
+    _database_order_builder<this_class, order_columns_types...> order_by(order_columns_types && ... order_columns)
+    {
+      return _database_order_builder<this_class, order_columns_types...>(
+        std::move(*this),
+        std::forward<order_columns_types>(order_columns)...);
+    }
+    
 
   private:
     condition_type cond_;

@@ -770,63 +770,62 @@ void vds::_chunk_manager::add_chunk_replica(
   size_t replica_length,
   const const_data_buffer & replica_hash)
 {
-  auto st = t.parse(
-    "INSERT INTO object_chunk_replica(server_id,chunk_index,replica,replica_length,replica_hash)\
-    VALUES(@server_id,@chunk_index,@replica,@replica_length,@replica_hash)");
-  st.set_parameter(0, server_id);
-  st.set_parameter(1, index);
-  st.set_parameter(2, replica);
-  st.set_parameter(3, replica_length);
-  st.set_parameter(4, replica_hash);
-  st.execute();
+  object_chunk_replica_table t;
+  
+  database_transaction::current(sp).execute(
+    t.insert(
+      t.server_id = server_id,
+      t.chunk_index = index,
+      t.replica = replica,
+      t.replica_length = replica_length,
+      t.replica_hash = replica_hash));
 }
 
 void vds::_chunk_manager::add_chunk_store(
   const service_provider & sp,
-  database_transaction & t,
   const guid & server_id,
   ichunk_manager::index_type index,
   uint16_t replica,
   const guid & storage_id,
   const const_data_buffer & data)
 {
-  auto st = t.parse(
-    "INSERT INTO object_chunk_store(server_id,chunk_index,replica,storage_id,data)\
-    VALUES(@server_id,@chunk_index,@replica,@storage_id,@data)");
-  st.set_parameter(0, server_id);
-  st.set_parameter(1, index);
-  st.set_parameter(2, replica);
-  st.set_parameter(3, storage_id);
-  st.set_parameter(4, data);
-  st.execute();
+  object_chunk_data_table t;
+  database_transaction::current(sp).execute(
+    t.insert(
+      t.server_id = server_id,
+      t.chunk_index = index,
+      t.replica = replica,
+      t.data = data));
+  
+  object_chunk_store_table t1;
+  database_transaction::current(sp).execute(
+    t1.insert(
+      t1.server_id = server_id,
+      t1.chunk_index = index,
+      t1.replica = replica,
+      t1.storage_id = storage_id));
 }
 
 void vds::_chunk_manager::get_replicas(
   const service_provider & sp,
-  database_transaction & t,
   const guid & server_id,
   ichunk_manager::index_type index,
   const guid & storage_id,
   std::list<ichunk_manager::replica_type>& result)
 {
-  object_chunk_store a;
+  object_chunk_store_table t;
 
-  auto reader = t.select(a.replica).where(a.server_id == server_id && a.chunk_index == index && a.storage_id == storage_id).get_reader();
-  while (reader.read()) {
-    result.push_back((ichunk_manager::replica_type)a.replica.get());
+  auto reader = database_transaction::current(sp).get_reader(
+    t.select(t.replica).where(t.server_id == server_id && t.chunk_index == index && t.storage_id == storage_id));
+  while (reader.execute()) {
+    result.push_back((ichunk_manager::replica_type)t.replica.get(reader));
   }
 
-  auto st = t.parse(
-    "SELECT replica\
-     FROM object_chunk_store\
-     WHERE server_id=@server_id AND chunk_index=@chunk_index AND storage_id=@storage_id");
-  st.set_parameter(0, server_id);
-  st.set_parameter(1, index);
-  st.set_parameter(2, storage_id);
-  while (st.execute()) {
-    int item;
-    st.get_value(0, item);
-    result.push_back((ichunk_manager::replica_type)item);
+  object_chunk_store_table t1;
+  reader = database_transaction::current(sp).get_reader(
+    t1.select(t1.replica).where(t1.server_id == server_id && t1.chunk_index == index && t1.storage_id == storage_id));
+  while (reader.execute()) {
+    result.push_back((ichunk_manager::replica_type)t1.replica.get(reader));
   }
 }
 
@@ -834,24 +833,21 @@ vds::const_data_buffer vds::_chunk_manager::get_replica_data(
   const service_provider & sp,
   const guid & server_id,
   ichunk_manager::index_type index,
-  const guid & storage_id,
   ichunk_manager::replica_type replica)
 {
   vds::const_data_buffer result;
-  this->get_replica_data_query_.query(
-    *this->db_,
-    "SELECT replica\
-     FROM object_chunk_store\
-     WHERE server_id=@server_id AND chunk_index=@chunk_index AND storage_id=@storage_id AND replica=@replica",
-    [&result](sql_statement & st)->bool {
-
-    st.get_value(0, result);
-    return true;
-  },
-    server_id,
-    index,
-    storage_id,
-    replica);
+  
+  object_chunk_data_table t;
+  
+  auto reader = database_transaction::current(sp).get_reader(
+    t.select(t.data).where(
+      t.server_id == server_id
+      && t.chunk_index == index
+      && t.replica == replica));
+  
+  while(reader.execute()){  
+    result = t.data.get(reader);
+  }
 
   return result;
 }
@@ -872,28 +868,22 @@ vds::const_data_buffer vds::_chunk_manager::get_tail_data(
 {
   std::vector<uint8_t> data;
 
-  this->get_tail_data_query_.query(
-    *this->db_,
-    "SELECT data,chunk_offset\
-     FROM tmp_object_chunk_map\
-     WHERE server_id=@server_id AND chunk_index=@chunk_index\
-     ORDER BY chunk_offset",
-    [&data](sql_statement & st)->bool {
-    vds::const_data_buffer item;
-    size_t offset;
-
-    st.get_value(0, item);
-    st.get_value(1, offset);
+  tmp_object_chunk_map_table t;
+  auto reader = database_transaction::current(sp).get_reader(
+    t.select(t.data,t.chunk_offset)
+    .where(t.server_id == server_id && t.chunk_index == chunk_index)
+    .order_by(t.chunk_offset));
+  
+  while(reader.execute()){
+    auto item = t.data.get(reader);
+    auto offset = t.chunk_offset.get(reader);
 
     if (offset != data.size()) {
       throw std::runtime_error("Database is corrupted");
     }
 
     data.insert(data.end(), item.data(), item.data() + item.size());
-    return true;
-  },
-    server_id,
-    chunk_index);
+  }
 
   return const_data_buffer(data);
 }

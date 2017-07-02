@@ -49,7 +49,6 @@ namespace vds {
       const service_provider & sp,
       const guid & server_id,
       ichunk_manager::index_type index,
-      const guid & storage_id,
       ichunk_manager::replica_type replica);
 
     void get_chunk_store(
@@ -58,6 +57,32 @@ namespace vds {
       index_type index,
       std::list<chunk_store> & result);
 
+    void add_full_chunk(
+      const service_provider & sp,
+      const guid & object_id,
+      size_t offset,
+      size_t size,
+      const const_data_buffer & object_hash,
+      const guid & server_id,
+      size_t index);
+    
+    void add_chunk_replica(
+      const service_provider & sp,
+      const guid & server_id,
+      size_t index,
+      ichunk_manager::replica_type replica,
+      size_t replica_length,
+      const const_data_buffer & replica_hash);
+    
+    void add_object_chunk_map(
+      const service_provider & sp,
+      const guid & server_id,
+      ichunk_manager::index_type chunk_index,
+      const guid & object_id,
+      size_t object_offset,
+      size_t chunk_offset,
+      size_t length,
+      const const_data_buffer & hash);
   private:
     chunk_storage chunk_storage_;
 
@@ -265,15 +290,6 @@ namespace vds {
       const guid & server_id,
       size_t & result_size);
 
-    void add_full_chunk(
-      const service_provider & sp,
-      const guid & object_id,
-      size_t offset,
-      size_t size,
-      const const_data_buffer & object_hash,
-      const guid & server_id,
-      size_t index);
-
     void start_tail_chunk(
       const service_provider & sp,
       const guid & server_id,
@@ -296,14 +312,6 @@ namespace vds {
       size_t chunk_offset,
       const const_data_buffer & data);
 
-    void add_chunk_replica(
-      const service_provider & sp,
-      const guid & server_id,
-      size_t index,
-      ichunk_manager::replica_type replica,
-      size_t replica_length,
-      const const_data_buffer & replica_hash);
-
     void add_chunk_store(
       const service_provider & sp,
       const guid & server_id,
@@ -318,15 +326,6 @@ namespace vds {
       const guid & server_id,
       size_t chunk_index);
 
-    void add_object_chunk_map(
-      const service_provider & sp,
-      const guid & server_id,
-      ichunk_manager::index_type chunk_index,
-      const guid & object_id,
-      size_t object_offset,
-      size_t chunk_offset,
-      size_t length,
-      const const_data_buffer & hash);
   };
 
   inline _chunk_manager * vds::ichunk_manager::operator->()
