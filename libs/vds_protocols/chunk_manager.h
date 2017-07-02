@@ -50,6 +50,10 @@ namespace vds {
       const guid & version_id,
       const filename & tmp_file,
       const const_data_buffer & file_hash);
+    
+    std::list<object_chunk_map> get_object_map(
+      const service_provider & sp,
+      const guid & object_id);
 
     _chunk_manager * operator -> ();
   };

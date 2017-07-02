@@ -278,7 +278,7 @@ vds::async_task<std::shared_ptr<vds::json_value>> vds::_server_json_client_api::
     const error_handler & on_error,
     const service_provider & sp) {
 
-    auto object_map = sp.get<iserver_database>()->get_object_map(sp, message.version_id());
+    auto object_map = sp.get<ichunk_manager>()->get_object_map(sp, message.version_id());
     if (object_map.empty()) {
       on_error(sp, std::make_shared<std::runtime_error>("Object not found"));
     }
