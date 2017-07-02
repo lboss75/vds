@@ -645,16 +645,15 @@ void vds::_chunk_manager::add_object_chunk_map(
   object_chunk_map_table t;
 
   database_transaction::current(sp)
-    .insert_into(t)
-    .set(
+  .execute(
+    t.insert(
       t.server_id = server_id,
       t.chunk_index = chunk_index,
       t.object_id = object_id,
       t.object_offset = object_offset,
       t.chunk_offset = chunk_offset,
       t.length = length,
-      t.hash = hash)
-    .execute();
+      t.hash = hash));
 }
 
 std::list<vds::ichunk_manager::object_chunk_map>
@@ -665,11 +664,9 @@ vds::_chunk_manager::get_object_map(
   std::list<object_chunk_map> result;
 
   object_chunk_map_table t;
-  auto st = database_transaction::current(sp)
-  .select(t.server_id,t.chunk_index,t.object_offset,t.chunk_offset,t.length,t.hash)
-  .from(t)
-  .where(t.object_id == object_id)
-  .get_reader();
+  auto st = database_transaction::current(sp).get_reader(
+    t.select(t.server_id,t.chunk_index,t.object_offset,t.chunk_offset,t.length,t.hash)
+    .where(t.object_id == object_id));
   
   while (st.execute()) {
     object_chunk_map item;
@@ -695,10 +692,8 @@ void vds::_chunk_manager::start_tail_chunk(
   size_t chunk_index)
 {
   tmp_object_chunk_table t;
-  database_transaction::current(sp)
-  .insert_into(t)
-  .set(t.server_id = server_id, t.chunk_index = chunk_index)
-  .execute();
+  database_transaction::current(sp).execute(
+    t.insert(t.server_id = server_id, t.chunk_index = chunk_index));
 }
 
 void vds::_chunk_manager::add_tail_object_chunk_map(
@@ -713,17 +708,15 @@ void vds::_chunk_manager::add_tail_object_chunk_map(
 {
   tmp_object_chunk_map_table t;
   
-  database_transaction::current(sp)
-  .insert_into(t)
-  .set(
-    t.server_id = server_id,
-    t.chunk_index = chunk_index,
-    t.object_id = object_id,
-    t.object_offset = object_offset,
-    t.chunk_offset = chunk_offset,
-    t.hash = hash,
-    t.data = data)
-  .execute();
+  database_transaction::current(sp).execute(
+    t.insert(
+      t.server_id = server_id,
+      t.chunk_index = chunk_index,
+      t.object_id = object_id,
+      t.object_offset = object_offset,
+      t.chunk_offset = chunk_offset,
+      t.hash = hash,
+      t.data = data));
 }
 
 void vds::_chunk_manager::final_tail_chunk(
@@ -738,19 +731,14 @@ void vds::_chunk_manager::final_tail_chunk(
   object_chunk_map_table t;
   tmp_object_chunk_map_table t1;
   
-  database_transaction::current(sp)
-  .insert_from(t, t.server_id,t.chunk_index,t.object_id,t.object_offset,t.chunk_offset,t.length,t.hash)
-  .select(t1.server_id,t1.chunk_index,t1.object_id,t1.object_offset,t1.chunk_offset,t1.length,t1.hash)
-  .from(t1)
-  .where(t1.server_id == server_id && t1.chunk_index == chunk_index)
-  .get_reader()
-  .execute();
+  database_transaction::current(sp).execute(
+    t.insert_into(t.server_id,t.chunk_index,t.object_id,t.object_offset,t.chunk_offset,t.length,t.hash)
+    .from(t1, t1.server_id,t1.chunk_index,t1.object_id,t1.object_offset,t1.chunk_offset,t1.length,t1.hash)
+    .where(t1.server_id == server_id && t1.chunk_index == chunk_index));
 
   
-  database_transaction::current(sp)
-  .delete_from(t1)
-  .where(t1.server_id == server_id && t1.chunk_index == chunk_index)
-  .execute();
+  database_transaction::current(sp).execute(
+    t1.delete_if(t1.server_id == server_id && t1.chunk_index == chunk_index));
 }
 
 void vds::_chunk_manager::add_to_tail_chunk(
@@ -765,7 +753,6 @@ void vds::_chunk_manager::add_to_tail_chunk(
 {
   this->add_tail_object_chunk_map(
     sp,
-    t,
     server_id,
     index,
     object_id,
@@ -777,7 +764,6 @@ void vds::_chunk_manager::add_to_tail_chunk(
 
 void vds::_chunk_manager::add_chunk_replica(
   const service_provider & sp,
-  database_transaction & t,
   const guid & server_id,
   size_t index,
   uint16_t replica,
