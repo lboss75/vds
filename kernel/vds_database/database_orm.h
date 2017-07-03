@@ -461,9 +461,9 @@ namespace vds {
 
     std::string final_sql(_database_sql_builder & builder) const
     {
-      return base_builder::start_sql(builder) + "SELECT ";
+      return " ORDER BY " + this->generate_columns(builder);
     }
-    
+
     std::string generate_columns(_database_sql_builder & builder) const
     {
       return this->column_.visit(builder);
@@ -491,7 +491,7 @@ namespace vds {
     
     std::string final_sql(_database_sql_builder & builder) const
     {
-      return "ORDER BY " + this->generate_columns(builder);
+      return " ORDER BY " + this->generate_columns(builder);
     }
     
     std::string generate_columns(_database_sql_builder & builder) const
@@ -751,7 +751,7 @@ namespace vds {
   };
   
   /////////////////////////////// Insert from ////////////////////////
-  class _database_insert_from_builder
+  class _database_insert_from_builder : public _database_source_base
   {
   public:
     
@@ -864,11 +864,12 @@ namespace vds {
       source.collect_aliases(aliases);
 
       _database_sql_builder builder(aliases);
-      auto sql = 
-          source.start_sql(builder)
+      auto sql =
+        source.start_sql(builder)
         + source.generate_select(builder)
         + source.collect_sources(builder)
-        + source.collect_condition(builder);
+        + source.collect_condition(builder)
+        + source.final_sql(builder);
 
       return builder.set_parameters(t.parse(sql.c_str()));
     }
