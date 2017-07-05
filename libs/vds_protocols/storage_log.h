@@ -12,7 +12,6 @@ namespace vds {
   class _storage_log;
   class endpoint;
   class istorage_log;
-  class principal_record;
   class full_storage_object_id;
   class principal_log_record;
   class server;

@@ -13,6 +13,16 @@ namespace vds {
   class _principal_manager
   {
   public:
+
+    enum class principal_log_state
+    {
+      not_found = 0,
+      stored = 1, //Just stored
+      front = 2, //Stored + all parents processed
+      processed = 3, //+ Processed
+      tail = 4 //
+    };
+
     
     static void create_database_objects(
       const service_provider & sp,
@@ -40,7 +50,21 @@ namespace vds {
       database_column<const_data_buffer> password_hash;
       database_column<guid> parent;
     };
-    
+
+    class user_principal_table : public database_table
+    {
+    public:
+      user_principal_table()
+        : database_table("user_principal"),
+        id(this, "id"),
+        login(this, "login")
+      {
+      }
+
+      database_column<guid> id;
+      database_column<std::string> login;
+    };
+
     void add_principal(
       const service_provider & sp,
       const principal_record & record);

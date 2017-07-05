@@ -6,6 +6,8 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
+#include "server_task_manager.h"
+
 namespace vds {
   class _object_transfer_protocol;
   
@@ -14,7 +16,7 @@ namespace vds {
   public:
     object_transfer_protocol();
     ~object_transfer_protocol();
-    
+      
     void chunk_require(
       const service_provider & sp,
       const guid & source_server_id,

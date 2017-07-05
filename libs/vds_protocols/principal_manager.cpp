@@ -73,13 +73,12 @@ void vds::_principal_manager::add_user_principal(
 {
   this->add_principal(sp, record);
 
-  this->add_user_principal_statement_.execute(
-    this->db_,
-    "INSERT INTO user_principal(id, login)\
-      VALUES (@id, @login)",
+  user_principal_table t;
 
-    record.id(),
-    login);
+  database_transaction::current(sp).execute(
+    t.insert(
+      t.id = record.id(),
+      t.login = login));
 }
 
 vds::guid vds::_principal_manager::get_root_principal(

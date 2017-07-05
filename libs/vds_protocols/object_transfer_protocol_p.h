@@ -8,6 +8,7 @@ All rights reserved
 
 #include "object_transfer_protocol.h"
 #include "messages.h"
+#include "database_orm.h"
 
 namespace vds {
   class route_hop;
@@ -19,6 +20,10 @@ namespace vds {
     _object_transfer_protocol();
     ~_object_transfer_protocol();
     
+    server_task_manager::task_state
+      download_object(
+        const service_provider & sp,
+        const guid & object_version);
 
     void on_object_request(
       const service_provider & sp,
@@ -26,6 +31,19 @@ namespace vds {
       const object_request & message);
     
   private:
+
+    //Database
+    class download_object_task_table : public database_table
+    {
+    public:
+      download_object_task_table()
+        : database_table("download_object_task"),
+          object_id(this, "object_id")
+      {
+      }
+
+      database_column<guid> object_id;
+    };
     
   };
 

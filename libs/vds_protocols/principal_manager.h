@@ -5,6 +5,7 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
+#include "principal_record.h"
 
 namespace vds {
   class _principal_manager;
