@@ -7,6 +7,7 @@ All rights reserved
 */
 
 #include "storage_object_id.h"
+#include "binary_serialize.h"
 
 namespace vds {
   

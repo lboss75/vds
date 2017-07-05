@@ -7,6 +7,7 @@ All rights reserved
 #include "server_log_sync_p.h"
 #include "messages.h"
 #include "server_database.h"
+#include "principal_manager_p.h"
 
 vds::server_log_sync::server_log_sync()
 : impl_(new _server_log_sync(this))
@@ -70,7 +71,10 @@ void vds::_server_log_sync::on_record_broadcast(
   const service_provider & sp,
   const server_log_record_broadcast & message)
 {
-  if(sp.get<iserver_database>()->save_record(sp, message.record(), message.signature())){
+  if((*sp.get<principal_manager>())->save_record(
+    sp,
+    message.record(),
+    message.signature())){
     sp.get<logger>()->debug(sp, "Got %s", message.record().id().str().c_str());
 
     sp.get<iconnection_manager>()->broadcast(sp, server_log_record_broadcast(message.record(), message.signature()));
@@ -86,7 +90,7 @@ void vds::_server_log_sync::on_server_log_get_records_broadcast(
   for (auto p : message.unknown_records()) {
     principal_log_record record;
     const_data_buffer signature;
-      if(sp.get<iserver_database>()->get_record(sp, p, record, signature)) {
+      if((*sp.get<principal_manager>())->get_record(sp, p, record, signature)) {
         sp.get<logger>()->debug(sp, "Provided %s", record.id().str().c_str());
         sp.get<iconnection_manager>()->send_to(sp, session, server_log_record_broadcast(record, signature));
       }
@@ -97,7 +101,7 @@ void vds::_server_log_sync::require_unknown_records(
   const service_provider & sp)
 {
   std::list<principal_log_record::record_id> unknown_records;
-  sp.get<iserver_database>()->get_unknown_records(sp, unknown_records);
+  (*sp.get<principal_manager>())->get_unknown_records(sp, unknown_records);
 
   if (!unknown_records.empty()) {
 
@@ -117,7 +121,7 @@ bool vds::_server_log_sync::process_timer_jobs(const service_provider & sp)
 
 void vds::_server_log_sync::ensure_record_exists(const service_provider & sp, const principal_log_record::record_id & record_id)
 {
-  if (iserver_database::principal_log_state::not_found == sp.get<iserver_database>()->get_record_state(sp, record_id)) {
+  if (principal_manager::principal_log_state::not_found == (*sp.get<principal_manager>())->get_record_state(sp, record_id)) {
     std::list<principal_log_record::record_id> unknown_records;
     unknown_records.push_back(record_id);
     sp.get<iconnection_manager>()->broadcast(sp, server_log_get_records_broadcast(unknown_records));

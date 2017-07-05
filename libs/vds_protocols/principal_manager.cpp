@@ -86,12 +86,17 @@ vds::guid vds::_principal_manager::get_root_principal(
 {
   vds::guid result;
 
-  auto st = this->db_.parse("SELECT id FROM principal WHERE id=parent");
+  principal_table t;
+  
+  auto st = database_transaction::current(sp).get_reader(
+    t.select(t.id).where(t.id == t.parent));
+  
   while(st.execute()) {
     if (0 < result.size()) {
       throw std::runtime_error("Database is corrupt");
     }
-    st.get_value(0, result);
+    
+    result = t.id.get(st);
   }
 
   if (0 == result.size()) {
@@ -106,32 +111,18 @@ std::unique_ptr<vds::principal_record> vds::_principal_manager::find_principal(
   const guid & object_name)
 {
   std::unique_ptr<principal_record> result;
-  this->find_principal_query_.query(
-    this->db_,
-    "SELECT parent,cert,key,password_hash\
-     FROM principal\
-     WHERE id=@id",
-    [&result, object_name](sql_statement & st)->bool{
-      
-      guid parent;
-      std::string body;
-      std::string key;
-      const_data_buffer password_hash;
-      
-      st.get_value(0, parent);
-      st.get_value(1, body);
-      st.get_value(2, key);
-      st.get_value(3, password_hash);
-
-      result.reset(new principal_record(
-        parent,
-        object_name,
-        body,
-        key,
-        password_hash));
-      
-      return false; },
-    object_name);
+  principal_table t;
+  auto st = database_transaction::current(sp).get_reader(
+    t.select(t.parent,t.cert,t.key,t.password_hash).where(t.id == object_name));
+  while(st.execute()){
+    result.reset(new principal_record(
+      t.parent.get(st),
+      object_name,
+      t.cert.get(st),
+      t.key.get(st),
+      t.password_hash.get(st)));
+    break;
+  }
   
   return result;
 }
@@ -141,37 +132,22 @@ std::unique_ptr<vds::principal_record> vds::_principal_manager::find_user_princi
   const std::string & object_name)
 {
   std::unique_ptr<principal_record> result;
-  this->find_user_principal_query_.query(
-    this->db_,
-    "SELECT p.parent,p.id,p.cert,p.key,p.password_hash\
-     FROM principal p\
-     INNER JOIN user_principal u\
-     ON u.id=p.id\
-     WHERE u.login=@login",
-    [&result, object_name](sql_statement & st)->bool {
-
-    guid parent;
-    guid name;
-    std::string body;
-    std::string key;
-    const_data_buffer password_hash;
-
-    st.get_value(0, parent);
-    st.get_value(1, name);
-    st.get_value(2, body);
-    st.get_value(3, key);
-    st.get_value(4, password_hash);
-
+  principal_table p;
+  user_principal_table u;
+  auto st = database_transaction::current(sp).get_reader(
+    p.select(p.parent,p.id,p.cert,p.key,p.password_hash)
+    .inner_join(u, u.id == p.id)
+    .where(u.login == object_name));
+  
+  if(st.execute()){
     result.reset(new principal_record(
-      parent,
-      name,
-      body,
-      key,
-      password_hash));
-
-    return false; },
-    object_name);
-
+      p.parent.get(st),
+      p.id.get(st),
+      p.cert.get(st),
+      p.key.get(st),
+      p.password_hash.get(st)));
+  }
+  
   return result;
 }
 
@@ -182,10 +158,8 @@ void vds::_principal_manager::principal_log_add_link(
 {
   principal_log_link_table t;
   
-  database_transaction::current(sp)
-  .insert_into(t)
-  .set(t.parent_id = source_id, t.follower_id = target_id)
-  .execute();
+  database_transaction::current(sp).execute(
+    t.insert(t.parent_id = source_id, t.follower_id = target_id));
 }
 
 void vds::_principal_manager::add_principal_log(
@@ -195,18 +169,17 @@ void vds::_principal_manager::add_principal_log(
   const std::string & body,
   const const_data_buffer & signature,
   int order_num,
-  iserver_database::principal_log_state state)
+  _principal_manager::principal_log_state state)
 {
-  this->principal_log_add_statement_.execute(
-    this->db_,
-    "INSERT INTO principal_log (id,principal_id,message,signature,order_num,state)\
-    VALUES (@id,@principal_id,@message,@signature,@order_num,@state)",
-    record_id,
-    principal_id,
-    body,
-    signature,
-    order_num,
-    (int)state);
+  principal_log_table t;
+  database_transaction::current(sp).execute(
+    t.insert(
+      t.id = record_id,
+      t.principal_id = principal_id,
+      t.message = body,
+      t.signature = signature,
+      t.order_num = order_num,
+      t.state = (int)state));
 }
 
 void vds::_principal_manager::principal_log_update_state(

@@ -8,6 +8,7 @@ All rights reserved
 
 #include "principal_manager.h"
 #include "database_orm.h"
+#include "log_records.h"
 
 namespace vds {
   class _principal_manager
@@ -29,6 +30,17 @@ namespace vds {
       uint64_t db_version,
       database_transaction & t);
 
+    bool save_record(
+      const service_provider & sp,
+      const principal_log_record & record,
+      const const_data_buffer & signature);
+    
+    bool get_record(
+      const service_provider & sp,
+      const principal_log_record::record_id & id,
+      principal_log_record & result_record,
+      const_data_buffer & result_signature);
+    
   private:
     //Database
     class principal_table : public database_table
@@ -64,6 +76,42 @@ namespace vds {
       database_column<guid> id;
       database_column<std::string> login;
     };
+    
+    class principal_log_table : public database_table
+    {
+    public:
+      principal_log_table()
+        : database_table("principal_log"),
+        id(this, "id"),
+        principal_id(this, "principal_id"),
+        message(this, "message"),
+        signature(this, "signature"),
+        order_num(this, "order_num"),
+        state(this, "state")
+      {
+      }
+
+      database_column<guid> id;
+      database_column<guid> principal_id;
+      database_column<std::string> message;
+      database_column<const_data_buffer> signature;
+      database_column<int> order_num;
+      database_column<int> state;
+    };
+    
+    class principal_log_link_table : public database_table
+    {
+    public:
+      principal_log_link_table()
+        : database_table("principal_log_link"),
+        parent_id(this, "parent_id"),
+        follower_id(this, "follower_id")
+      {
+      }
+
+      database_column<guid> parent_id;
+      database_column<guid> follower_id;
+    };
 
     void add_principal(
       const service_provider & sp,
@@ -84,6 +132,21 @@ namespace vds {
     std::unique_ptr<principal_record> find_user_principal(
       const service_provider & sp,
       const std::string & object_name);
+    
+    void principal_log_add_link(
+      const service_provider & sp,
+      const guid & source_id,
+      const guid & target_id);
+    
+    void add_principal_log(
+      const service_provider & sp,
+      const guid & record_id,
+      const guid & principal_id,
+      const std::string & body,
+      const const_data_buffer & signature,
+      int order_num,
+      principal_log_state state);
+
   };
 }
 
