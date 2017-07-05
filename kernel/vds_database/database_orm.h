@@ -19,6 +19,8 @@ namespace vds {
   class _database_insert_builder;
   class _database_insert_from_builder;
   
+  class _database_update_builder;
+  
   template<typename expression_type>
   class _database_delete_builder;
 
@@ -49,6 +51,9 @@ namespace vds {
     
     template<typename... setter_types>
     _database_insert_builder insert(setter_types &&... setters);
+    
+    template<typename... setter_types>
+    _database_update_builder update(setter_types &&... setters);
     
     template<typename... column_types>
     _database_insert_from_builder insert_into(column_types &&... columns);
@@ -504,11 +509,11 @@ namespace vds {
   };
   /////////////////////////
   template <typename base_builder, typename condition_type>
-  class _database_reader_builder_with_where : public base_builder
+  class _database_builder_with_where : public base_builder
   {
-    using this_class = _database_reader_builder_with_where<base_builder, condition_type>;
+    using this_class = _database_builder_with_where<base_builder, condition_type>;
   public:
-    _database_reader_builder_with_where(
+    _database_builder_with_where(
       base_builder && b,
       condition_type && cond)
       : base_builder(std::move(b)),
@@ -521,6 +526,24 @@ namespace vds {
       return " WHERE " + this->cond_.visit(builder);
     }
     
+  private:
+    condition_type cond_;
+  };
+  /////////////////////////
+  template <typename base_builder, typename condition_type>
+  class _database_reader_builder_with_where : public _database_builder_with_where<base_builder, condition_type>
+  {
+    using base_class = _database_builder_with_where<base_builder, condition_type>;
+    using this_class = _database_reader_builder_with_where<base_builder, condition_type>;
+  public:
+    _database_reader_builder_with_where(
+      base_builder && b,
+      condition_type && cond)
+      : base_class(std::move(b), std::move(cond))
+    {
+    }
+
+   
     template <typename... order_columns_types>
     _database_order_builder<this_class, order_columns_types...> order_by(order_columns_types && ... order_columns)
     {
@@ -528,10 +551,6 @@ namespace vds {
         std::move(*this),
         std::forward<order_columns_types>(order_columns)...);
     }
-    
-
-  private:
-    condition_type cond_;
   };
 
   template <typename base_builder, typename condition_type>
@@ -704,19 +723,6 @@ namespace vds {
       this->set(std::forward<setter_types>(setters)...);
     }
     
-    template<typename... setter_types>
-    _database_insert_builder & set(_database_column_setter && setter, setter_types &&... setters)
-    {
-      return this->set(std::move(setter)).set(std::move(setters)...);
-    }
-   
-    _database_insert_builder & set(_database_column_setter && setter)
-    {
-      this->columns_.push_back(setter.column());
-      this->values_.push_back(setter.set_parameter());
-      return *this;
-    }
-    
     std::string start_sql(_database_sql_builder & builder) const
     {
       std::string sql = "INSERT INTO " + this->table_.name() + "(";
@@ -748,6 +754,84 @@ namespace vds {
     const database_table & table_;
     std::list<const _database_column_base *> columns_;
     std::list<std::function<void(sql_statement & st, int index)>> values_;
+    
+    template<typename... setter_types>
+    _database_insert_builder & set(_database_column_setter && setter, setter_types &&... setters)
+    {
+      return this->set(std::move(setter)).set(std::move(setters)...);
+    }
+   
+    _database_insert_builder & set(_database_column_setter && setter)
+    {
+      this->columns_.push_back(setter.column());
+      this->values_.push_back(setter.set_parameter());
+      return *this;
+    }
+  };
+  
+  /////////////////////////////// Update ////////////////////////
+  class _database_update_builder : public _database_source_base
+  {
+    using this_class = _database_update_builder;
+  public:
+    
+    template<typename... setter_types>
+    _database_update_builder(const database_table & table, setter_types &&... setters)
+    : table_(table)
+    {
+      this->set(std::forward<setter_types>(setters)...);
+    }
+    
+    void collect_aliases(std::map<const database_table *, std::string> & aliases) const
+    {
+      aliases[&this->table_] = this->table_.name();
+    }
+
+    
+    std::string start_sql(_database_sql_builder & builder) const
+    {
+      std::string sql = "UPDATE " + this->table_.name() + " SET ";
+      
+      bool is_first = true;
+      auto p = this->values_.begin();
+      for(auto column : this->columns_){
+        if(is_first){
+          is_first = false;
+        }
+        else {
+          sql += ",";
+        }
+        sql += column->name();
+        sql += "=";
+        sql += builder.add_parameter(*p++);
+      }
+      
+      return sql;      
+    }
+    
+    template <typename where_condition_type>
+    _database_builder_with_where<this_class, where_condition_type> where(where_condition_type && cond)
+    {
+      return _database_builder_with_where<this_class, where_condition_type>(std::move(*this), std::move(cond));
+    }
+    
+  private:
+    const database_table & table_;
+    std::list<const _database_column_base *> columns_;
+    std::list<std::function<void(sql_statement & st, int index)>> values_;
+    
+    template<typename... setter_types>
+    _database_update_builder & set(_database_column_setter && setter, setter_types &&... setters)
+    {
+      return this->set(std::move(setter)).set(std::move(setters)...);
+    }
+   
+    _database_update_builder & set(_database_column_setter && setter)
+    {
+      this->columns_.push_back(setter.column());
+      this->values_.push_back(setter.set_parameter());
+      return *this;
+    }
   };
   
   /////////////////////////////// Insert from ////////////////////////
@@ -848,12 +932,6 @@ namespace vds {
     return _database_logical_and<implementation_type, other_exp>(std::move(*static_cast<implementation_type *>(this)), std::move(exp));
   }
 
-  template<typename... setter_types>
-  inline _database_insert_builder database_table::insert(setter_types &&... setters)
-  {
-    return _database_insert_builder(*this, std::forward<setter_types>(setters)...);
-  }
-  
   template <typename source_type>
   class sql_command_builder
   {
@@ -886,10 +964,22 @@ namespace vds {
       std::forward<column_types>(columns)...);
   }
   
+  template<typename... setter_types>
+  inline _database_insert_builder database_table::insert(setter_types &&... setters)
+  {
+    return _database_insert_builder(*this, std::forward<setter_types>(setters)...);
+  }
+  
   template<typename... column_types>
   _database_insert_from_builder database_table::insert_into(column_types &&... columns)
   {
     return _database_insert_from_builder(this, std::forward<column_types>(columns)...);
+  }
+  
+  template<typename... setter_types>
+  inline _database_update_builder database_table::update(setter_types &&... setters)
+  {
+    return _database_update_builder(*this, std::forward<setter_types>(setters)...);
   }
   
   template<typename expression_type>

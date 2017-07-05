@@ -120,6 +120,25 @@ TEST(sql_builder_tests, test_insert) {
   ASSERT_EQ(string_parameter_value, "test");
 }
 
+TEST(sql_builder_tests, test_update) {
+
+  test_table1 t1;
+
+  vds::database db;
+  vds::database_transaction trans = db.begin_transaction();
+  
+  trans.execute(
+    t1.update(t1.column1 = 10, t1.column2 = "test").where(t1.column1 == 20));
+    
+  ASSERT_EQ(result_sql,
+    "UPDATE test_table1 SET column1=@p2,column2=@p3 WHERE test_table1.column1=@p1");
+  
+  ASSERT_EQ(int_parameter_index, 1);
+  ASSERT_EQ(int_parameter_value, 10);
+  ASSERT_EQ(string_parameter_index, 2);
+  ASSERT_EQ(string_parameter_value, "test");
+}
+
 TEST(sql_builder_tests, test_insert_from) {
 
   test_table1 t1;

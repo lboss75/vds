@@ -185,40 +185,34 @@ void vds::_principal_manager::add_principal_log(
 void vds::_principal_manager::principal_log_update_state(
   const service_provider & sp,
   const principal_log_record::record_id & record_id,
-  iserver_database::principal_log_state state)
+  _principal_manager::principal_log_state state)
 {
-  this->principal_log_update_state_statement_.execute(
-    this->db_,
-    "UPDATE principal_log SET state=?2 WHERE id=?1",
-    record_id,
-    (int)state);
+  principal_log_table t;
+  database_transaction::current(sp).execute(
+    t.update(t.state = (int)state).where(t.id == record_id));
 }
 
-vds::iserver_database::principal_log_state
+vds::_principal_manager::principal_log_state
 vds::_principal_manager::principal_log_get_state(
   const service_provider & sp,
   const principal_log_record::record_id & record_id)
 {
-  vds::iserver_database::principal_log_state result = iserver_database::principal_log_state::not_found;
+  auto result = principal_log_state::not_found;
 
-  this->principal_log_get_state_query_.query(
-    this->db_,
-    "SELECT state FROM principal_log WHERE id=@id",
-    [&result](sql_statement & st)->bool {
-
-      int value;
-      if (st.get_value(0, value)) {
-        result = (iserver_database::principal_log_state)value;
-      }
-
-      return false;
-    },
-    record_id);
-
+  principal_log_table t;
+  auto st = database_transaction::current(sp).get_reader(
+    t.select(t.state).where(t.id == record_id));
+  
+  while(st.execute()){
+    result = (principal_log_state)t.state.get(st);
+  }
+  
   return result;
 }
 
-size_t vds::_principal_manager::get_current_state(const service_provider & sp, std::list<guid>& active_records)
+size_t vds::_principal_manager::get_current_state(
+  const service_provider & sp,
+  std::list<guid> & active_records)
 {
   std::lock_guard<std::mutex> lock(this->principal_log_mutex_);
 

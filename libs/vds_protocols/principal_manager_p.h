@@ -41,6 +41,10 @@ namespace vds {
       principal_log_record & result_record,
       const_data_buffer & result_signature);
     
+    void get_unknown_records(
+      const service_provider & sp,
+      std::list<principal_log_record::record_id>& result);
+
   private:
     //Database
     class principal_table : public database_table
@@ -146,7 +150,15 @@ namespace vds {
       const const_data_buffer & signature,
       int order_num,
       principal_log_state state);
-
+    
+    void principal_log_update_state(
+      const service_provider & sp,
+      const principal_log_record::record_id & record_id,
+      principal_log_state state);
+    
+    principal_log_state principal_log_get_state(
+      const service_provider & sp,
+      const principal_log_record::record_id & record_id);
   };
 }
 
