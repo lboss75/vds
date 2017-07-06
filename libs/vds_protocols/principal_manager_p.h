@@ -52,6 +52,40 @@ namespace vds {
       const service_provider & sp,
       const principal_log_record::record_id & record_id);
     
+    principal_log_record add_local_record(
+        const service_provider & sp,
+        const principal_log_record::record_id & record_id,
+        const guid & principal_id,
+        const std::shared_ptr<json_value> & message,
+        const asymmetric_private_key & principal_private_key,
+        const_data_buffer & signature);
+    
+    void processed_record(
+      const service_provider & sp,
+      const principal_log_record::record_id & id);
+
+    void delete_record(
+      const service_provider & sp,
+      const principal_log_record::record_id & id);
+    
+    void add_principal(
+      const service_provider & sp,
+      const principal_record & record);
+
+    void add_user_principal(
+      const service_provider & sp,
+      const std::string & login,
+      const principal_record & record);
+    
+    bool get_front_record(
+      const service_provider & sp,
+      principal_log_record & result_record,
+      const_data_buffer & result_signature);
+    
+    std::unique_ptr<principal_record> find_principal(
+      const service_provider & sp,
+      const guid & object_name);
+
   private:
     not_mutex principal_log_mutex_;
 
@@ -126,21 +160,8 @@ namespace vds {
       database_column<guid> follower_id;
     };
 
-    void add_principal(
-      const service_provider & sp,
-      const principal_record & record);
-
-    void add_user_principal(
-      const service_provider & sp,
-      const std::string & login,
-      const principal_record & record);
-
     guid get_root_principal(
       const service_provider & sp);
-
-    std::unique_ptr<principal_record> find_principal(
-      const service_provider & sp,
-      const guid & object_name);
 
     std::unique_ptr<principal_record> find_user_principal(
       const service_provider & sp,
@@ -180,19 +201,6 @@ namespace vds {
       const principal_log_record::record_id & record_id,
       std::list<principal_log_record::record_id>& followers);
 
-    void processed_record(
-      const service_provider & sp,
-      const principal_log_record::record_id & id);
-
-    bool get_front_record(
-      const service_provider & sp,
-      principal_log_record & result_record,
-      const_data_buffer & result_signature);
-
-    void delete_record(
-      const service_provider & sp,
-      const principal_log_record::record_id & id);
-
     bool get_record_by_state(
       const service_provider & sp,
       principal_log_state state,
@@ -206,13 +214,6 @@ namespace vds {
       size_t & result_last_order_num,
       std::list<principal_log_record> & records);
 
-    principal_log_record add_local_record(
-        const service_provider & sp,
-        const principal_log_record::record_id & record_id,
-        const guid & principal_id,
-        const std::shared_ptr<json_value> & message,
-        const asymmetric_private_key & principal_private_key,
-        const_data_buffer & signature);
   };
 }
 

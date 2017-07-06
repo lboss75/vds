@@ -231,7 +231,7 @@ void vds::_storage_log::add_to_local_log(
   std::lock_guard<std::mutex> lock(this->record_state_mutex_);
 
   const_data_buffer signature;
-  auto result = sp.get<iserver_database>()->add_local_record(
+  auto result = this->principal_manager_->add_local_record(
       sp,
       guid::new_guid(),
       principal_id,
@@ -244,7 +244,7 @@ void vds::_storage_log::add_to_local_log(
   }
   else {
     this->last_applied_record_ = result.id();
-    sp.get<iserver_database>()->processed_record(sp, result.id());
+    this->principal_manager_->processed_record(sp, result.id());
   }
 
   auto sl = sp.get<_server_log_sync>(false);
@@ -259,15 +259,15 @@ void vds::_storage_log::apply_record(
   const const_data_buffer & signature)
 {
   sp.get<logger>()->debug(sp, "Apply record %s", record.id().str().c_str());
-  auto state = sp.get<iserver_database>()->get_record_state(sp, record.id());
-  if(iserver_database::principal_log_state::front != state){
+  auto state = this->principal_manager_->principal_log_get_state(sp, record.id());
+  if(_principal_manager::principal_log_state::front != state){
     throw std::runtime_error("Invalid server state");
   }
  
   auto obj = std::dynamic_pointer_cast<json_object>(record.message());
   if(!obj){
     sp.get<logger>()->info(sp, "Wrong messsage in the record %s", record.id().str().c_str());
-    sp.get<iserver_database>()->delete_record(sp, record.id());
+    this->principal_manager_->delete_record(sp, record.id());
     return;
   }
   
@@ -277,7 +277,7 @@ void vds::_storage_log::apply_record(
     std::string message_type;
     if (!obj->get_property("$t", message_type)) {
       sp.get<logger>()->info(sp, "Missing messsage type in the record %s", record.id().str().c_str());
-      sp.get<iserver_database>()->delete_record(sp, record.id());
+      this->principal_manager_->delete_record(sp, record.id());
       return;
     }
     
@@ -328,7 +328,7 @@ void vds::_storage_log::apply_record(
     else if(server_log_root_certificate::message_type == message_type){
       server_log_root_certificate msg(obj);
       
-      sp.get<iserver_database>()->add_user_principal(
+      this->principal_manager_->add_user_principal(
         sp,
         "root",
         vds::principal_record(
@@ -341,7 +341,7 @@ void vds::_storage_log::apply_record(
     else if(server_log_new_server::message_type == message_type){
       server_log_new_server msg(obj);
 
-      sp.get<iserver_database>()->add_principal(
+      this->principal_manager_->add_principal(
         sp,
         vds::principal_record(
           msg.parent_id(),
@@ -364,7 +364,7 @@ void vds::_storage_log::apply_record(
         message_type.c_str(),
         record.id().str().c_str());
 
-      sp.get<iserver_database>()->delete_record(sp, record.id());
+      this->principal_manager_->delete_record(sp, record.id());
       return;
     }
 
@@ -372,16 +372,16 @@ void vds::_storage_log::apply_record(
   }
   catch (const std::exception & ex) {
     sp.get<logger>()->info(sp, "%s", ex.what());
-    sp.get<iserver_database>()->delete_record(sp, record.id());
+    this->principal_manager_->delete_record(sp, record.id());
     return;
   }
   catch(...){
     sp.get<logger>()->info(sp, "Unhandled error");
-    sp.get<iserver_database>()->delete_record(sp, record.id());
+    this->principal_manager_->delete_record(sp, record.id());
     return;
   }
   
-  sp.get<iserver_database>()->processed_record(sp, record.id());
+  this->principal_manager_->processed_record(sp, record.id());
 }
 
 std::unique_ptr<vds::const_data_buffer> vds::_storage_log::get_object(
@@ -420,7 +420,7 @@ bool vds::_storage_log::process_timer_jobs(const service_provider & sp)
 
   principal_log_record record;
   const_data_buffer signature;
-  while(sp.get<iserver_database>()->get_front_record(sp, record, signature)){
+  while(this->principal_manager_->get_front_record(sp, record, signature)){
     this->apply_record(sp, record, signature);
   }
 
@@ -431,7 +431,7 @@ vds::asymmetric_public_key vds::_storage_log::corresponding_public_key(
   const service_provider & sp,
   const principal_log_record & record)
 {
-  auto principal = sp.get<iserver_database>()->find_principal(sp, record.principal_id());
+  auto principal = this->principal_manager_->find_principal(sp, record.principal_id());
   if (!principal) {
     auto obj = std::dynamic_pointer_cast<json_object>(record.message());
     if (!obj) {
