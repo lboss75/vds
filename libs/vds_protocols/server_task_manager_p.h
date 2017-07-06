@@ -28,6 +28,7 @@ namespace vds {
       server_task_table()
       : database_table("server_task"),
         task_id(this, "task_id"),
+        task_type(this, "type"),
         task_title(this, "title"),
         task_status_text(this, "status_text")
       {

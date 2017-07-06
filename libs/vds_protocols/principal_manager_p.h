@@ -48,6 +48,10 @@ namespace vds {
       const service_provider & sp,
       std::list<principal_log_record::record_id>& result);
 
+    principal_log_state principal_log_get_state(
+      const service_provider & sp,
+      const principal_log_record::record_id & record_id);
+    
   private:
     not_mutex principal_log_mutex_;
 
@@ -161,9 +165,6 @@ namespace vds {
       const principal_log_record::record_id & record_id,
       principal_log_state state);
     
-    principal_log_state principal_log_get_state(
-      const service_provider & sp,
-      const principal_log_record::record_id & record_id);
 
     size_t get_current_state(
       const service_provider & sp,

@@ -266,37 +266,37 @@ namespace vds {
     source_type column_;
   };
 
-  template <typename source_type, typename dummy = typename std::enable_if<std::is_base_of<_database_column_base, source_type>::value>::type>
+  template <typename source_type, typename dummy = typename std::enable_if<std::is_base_of<_database_column_base, typename std::remove_reference<source_type>::type>::value>::type>
   inline _db_max<_db_simple_column> db_max(source_type & column)
   {
     return _db_max<_db_simple_column>(_db_simple_column(column));
   }
 
-  template <typename source_type, typename dummy = typename std::enable_if<!std::is_base_of<_database_column_base, source_type>::value>::type>
+  template <typename source_type, typename dummy = typename std::enable_if<!std::is_base_of<_database_column_base, typename std::remove_reference<source_type>::type>::value>::type>
   inline _db_max<source_type> db_max(source_type && column)
   {
     return _db_max<source_type>(std::move(column));
   }
 
-  template <typename source_type, typename dummy = typename std::enable_if<std::is_base_of<_database_column_base, source_type>::value>::type>
+  template <typename source_type, typename dummy = typename std::enable_if<std::is_base_of<_database_column_base, typename std::remove_reference<source_type>::type>::value>::type>
   inline _db_length<_db_simple_column> db_length(source_type & column)
   {
     return _db_length<_db_simple_column>(_db_simple_column(column));
   }
 
-  template <typename source_type, typename dummy = typename std::enable_if<!std::is_base_of<_database_column_base, source_type>::value>::type>
+  template <typename source_type, typename dummy = typename std::enable_if<!std::is_base_of<_database_column_base, typename std::remove_reference<source_type>::type>::value>::type>
   inline _db_length<source_type> db_length(source_type && column)
   {
     return _db_length<source_type>(std::move(column));
   }
 
-  template <typename source_type, typename dummy = typename std::enable_if<std::is_base_of<_database_column_base, source_type>::value>::type>
+  template <typename source_type, typename dummy = typename std::enable_if<std::is_base_of<_database_column_base, typename std::remove_reference<source_type>::type>::value>::type>
   inline _db_sum<_db_simple_column> db_sum(source_type & column)
   {
     return _db_sum<_db_simple_column>(_db_simple_column(column));
   }
 
-  template <typename source_type, typename dummy = typename std::enable_if<!std::is_base_of<_database_column_base, source_type>::value>::type>
+  template <typename source_type, typename dummy = typename std::enable_if<!std::is_base_of<_database_column_base, typename std::remove_reference<source_type>::type>::value>::type>
   inline _db_sum<source_type> db_sum(source_type && column)
   {
     return _db_sum<source_type>(std::move(column));
@@ -321,13 +321,13 @@ namespace vds {
     source_type column_;
   };
 
-  template <typename source_type, typename dummy = std::enable_if_t<std::is_base_of<_database_column_base, std::remove_reference<source_type>::type>::value>>
+  template <typename source_type, typename dummy = std::enable_if_t<std::is_base_of<_database_column_base, typename std::remove_reference<source_type>::type>::value>>
   inline _db_order_desc<_db_simple_column> db_desc_order(source_type & column)
   {
     return _db_order_desc<_db_simple_column>(_db_simple_column(column));
   }
 
-  template <typename source_type, typename dummy = std::enable_if_t<!std::is_base_of<_database_column_base, std::remove_reference<source_type>::type>::value>>
+  template <typename source_type, typename dummy = std::enable_if_t<!std::is_base_of<_database_column_base, typename std::remove_reference<source_type>::type>::value>>
   inline _db_order_desc<source_type> db_desc_order(source_type && column)
   {
     return _db_order_desc<source_type>(std::move(column));

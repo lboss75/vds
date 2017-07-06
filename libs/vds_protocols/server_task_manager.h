@@ -7,6 +7,7 @@ All rights reserved
 */
 
 #include <chrono>
+#include "service_provider.h"
 
 namespace vds {
   class _server_task_manager;
