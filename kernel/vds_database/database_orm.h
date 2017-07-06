@@ -29,7 +29,10 @@ namespace vds {
   
   template<typename left_exp_type, typename right_exp_type>
   class _database_expression_equ_exp;
-  
+
+  template<typename left_exp_type, typename right_exp_type>
+  class _database_expression_less_or_equ_exp;
+
   template<typename value_type>
   class _database_value_exp;
   
@@ -101,6 +104,10 @@ namespace vds {
 
     _database_expression_equ_exp<_database_column_exp, _database_value_exp<value_type>> operator == (value_type value) const;
     _database_expression_equ_exp<_database_column_exp, _database_column_exp> operator == (const database_column<value_type> & right) const;
+
+    _database_expression_less_or_equ_exp<_database_column_exp, _database_value_exp<value_type>> operator <= (value_type value) const;
+
+
     _database_column_setter operator = (const value_type & value) const;
   };
   
@@ -295,6 +302,38 @@ namespace vds {
     return _db_sum<source_type>(std::move(column));
   }
 
+  template <typename source_type>
+  class _db_order_desc
+  {
+  public:
+    _db_order_desc(
+      source_type && column)
+      : column_(std::move(column))
+    {
+    }
+
+    std::string visit(_database_sql_builder & builder) const
+    {
+      return this->column_.visit(builder) + " DESC";
+    }
+
+  private:
+    source_type column_;
+  };
+
+  template <typename source_type, typename dummy = std::enable_if_t<std::is_base_of<_database_column_base, std::remove_reference<source_type>::type>::value>>
+  inline _db_order_desc<_db_simple_column> db_desc_order(source_type & column)
+  {
+    return _db_order_desc<_db_simple_column>(_db_simple_column(column));
+  }
+
+  template <typename source_type, typename dummy = std::enable_if_t<!std::is_base_of<_database_column_base, std::remove_reference<source_type>::type>::value>>
+  inline _db_order_desc<source_type> db_desc_order(source_type && column)
+  {
+    return _db_order_desc<source_type>(std::move(column));
+  }
+
+
   template<typename value_type>
   class _database_value_exp
   {
@@ -354,6 +393,24 @@ namespace vds {
     std::string visit(_database_sql_builder & builder) const
     {
       return this->left_.visit(builder) + "=" + this->right_.visit(builder);
+    }
+  };
+
+  template<typename left_exp_type, typename right_exp_type>
+  class _database_expression_less_or_equ_exp : public _database_binary_expression<_database_expression_equ_exp<left_exp_type, right_exp_type>, left_exp_type, right_exp_type>
+  {
+    using base_class = _database_binary_expression<_database_expression_equ_exp<left_exp_type, right_exp_type>, left_exp_type, right_exp_type>;
+  public:
+    _database_expression_less_or_equ_exp(
+      left_exp_type && left,
+      right_exp_type && right)
+      : base_class(std::move(left), std::move(right))
+    {
+    }
+
+    std::string visit(_database_sql_builder & builder) const
+    {
+      return this->left_.visit(builder) + "<=" + this->right_.visit(builder);
     }
   };
 
@@ -501,7 +558,7 @@ namespace vds {
     
     std::string generate_columns(_database_sql_builder & builder) const
     {
-      return this->column_.visit(builder) + "," + base_builder::generate_columns(builder);
+      return this->column_.visit(builder) + "," + base_class::generate_columns(builder);
     }
 
   private:
@@ -1009,7 +1066,14 @@ namespace vds {
         _database_column_exp(this),
         _database_column_exp(&right));
   }
-    
+
+  template <typename value_type, typename db_value_type>
+  inline _database_expression_less_or_equ_exp<_database_column_exp, _database_value_exp<value_type>> database_column<value_type, db_value_type>::operator <= (value_type value) const {
+    return _database_expression_less_or_equ_exp<_database_column_exp, _database_value_exp<value_type>>(
+      _database_column_exp(this),
+      _database_value_exp<value_type>(value));
+  }
+
   template <typename value_type, typename db_value_type>
   _database_column_setter database_column<value_type, db_value_type>::operator = (const value_type & value) const {
     return _database_column_setter(this, [val = (db_value_type)value](sql_statement & st, int index) {

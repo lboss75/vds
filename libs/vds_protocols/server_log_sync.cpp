@@ -121,7 +121,7 @@ bool vds::_server_log_sync::process_timer_jobs(const service_provider & sp)
 
 void vds::_server_log_sync::ensure_record_exists(const service_provider & sp, const principal_log_record::record_id & record_id)
 {
-  if (principal_manager::principal_log_state::not_found == (*sp.get<principal_manager>())->get_record_state(sp, record_id)) {
+  if (_principal_manager::principal_log_state::not_found == (*sp.get<principal_manager>())->get_record_state(sp, record_id)) {
     std::list<principal_log_record::record_id> unknown_records;
     unknown_records.push_back(record_id);
     sp.get<iconnection_manager>()->broadcast(sp, server_log_get_records_broadcast(unknown_records));

@@ -1,5 +1,7 @@
 #include "principal_manager.h"
 #include "principal_manager_p.h"
+#include "json_parser.h"
+#include "asymmetriccrypto.h"
 
 vds::principal_manager::principal_manager()
 : impl_(new _principal_manager())
@@ -214,28 +216,21 @@ size_t vds::_principal_manager::get_current_state(
   const service_provider & sp,
   std::list<guid> & active_records)
 {
-  std::lock_guard<std::mutex> lock(this->principal_log_mutex_);
+  std::lock_guard<not_mutex> lock(this->principal_log_mutex_);
 
   size_t max_order_num = 0;
-  //Collect parents
-  this->get_principal_log_tails_query_.query(
-    this->db_,
-    ("SELECT id,order_num FROM principal_log WHERE state="
-      + std::to_string((int)iserver_database::principal_log_state::tail)).c_str(),
-    [&active_records, &max_order_num](sql_statement & reader)->bool {
 
-    guid id;
-    size_t order_num;
-    reader.get_value(0, id);
-    reader.get_value(1, order_num);
-
+  principal_log_table t;
+  auto st = database_transaction::current(sp).get_reader(
+    t.select(t.id, t.order_num).where(t.state == (int)principal_log_state::tail));
+  while(st.execute()){
+    auto order_num = t.order_num.get(st);
     if (max_order_num < order_num) {
       max_order_num = order_num;
     }
 
-    active_records.push_back(id);
-    return true;
-  });
+    active_records.push_back(t.id.get(st));
+  }
 
   return max_order_num;
 }
@@ -245,20 +240,14 @@ void vds::_principal_manager::principal_log_get_parents(
   const principal_log_record::record_id & record_id,
   std::list<principal_log_record::record_id>& parents)
 {
-  this->principal_log_get_parents_query_.query(
-    this->db_,
-    "SELECT parent_id \
-    FROM principal_log_link \
-    WHERE follower_id=@follower_id",
-    [&parents](sql_statement & st) -> bool{
-      guid parent_id;
+  principal_log_link_table t;
 
-      st.get_value(0, parent_id);
+  auto st = database_transaction::current(sp).get_reader(
+    t.select(t.parent_id).where(t.follower_id == record_id));
 
-      parents.push_back(parent_id);
-      return true;
-    },
-    record_id);
+  while (st.execute()) {
+    parents.push_back(t.parent_id.get(st));
+  }
 }
 
 void vds::_principal_manager::principal_log_get_followers(
@@ -266,37 +255,30 @@ void vds::_principal_manager::principal_log_get_followers(
   const principal_log_record::record_id & record_id,
   std::list<principal_log_record::record_id>& followers)
 {
-  this->principal_log_get_followers_query_.query(
-    this->db_,
-    "SELECT follower_id \
-    FROM principal_log_link \
-    WHERE parent_id=@parent_id",
-    [&followers](sql_statement & st) -> bool {
-      guid follower_id;
+  principal_log_link_table t;
 
-      st.get_value(0, follower_id);
-
-      followers.push_back(follower_id);
-      return true;
-    },
-    record_id);
+  auto st = database_transaction::current(sp).get_reader(
+    t.select(t.follower_id).where(t.parent_id == record_id));
+  while (st.execute()) {
+    followers.push_back(t.follower_id.get(st));
+  }
 }
 
 void vds::_principal_manager::processed_record(
   const service_provider & sp,
   const principal_log_record::record_id & id)
 {
-  std::lock_guard<std::mutex> lock(this->principal_log_mutex_);
+  std::lock_guard<not_mutex> lock(this->principal_log_mutex_);
 
   std::list<principal_log_record::record_id> parents;
   this->principal_log_get_parents(sp, id, parents);
   for (auto& p : parents) {
     auto parent_state = this->principal_log_get_state(sp, p);
-    if (iserver_database::principal_log_state::tail == parent_state) {
-      this->principal_log_update_state(sp, p, iserver_database::principal_log_state::processed);
+    if (principal_log_state::tail == parent_state) {
+      this->principal_log_update_state(sp, p, principal_log_state::processed);
       break;
     }
-    else if (iserver_database::principal_log_state::processed != parent_state) {
+    else if (principal_log_state::processed != parent_state) {
       throw std::runtime_error("Invalid state");
     }
   }
@@ -305,29 +287,29 @@ void vds::_principal_manager::processed_record(
   this->principal_log_get_followers(sp, id, followers);
 
   if (0 == followers.size()) {
-    this->principal_log_update_state(sp, id, iserver_database::principal_log_state::tail);
+    this->principal_log_update_state(sp, id, principal_log_state::tail);
   }
   else {
-    this->principal_log_update_state(sp, id, iserver_database::principal_log_state::processed);
+    this->principal_log_update_state(sp, id, principal_log_state::processed);
     
     for (auto& f : followers) {
       auto state = this->principal_log_get_state(sp, f);
       switch (state) {
-      case iserver_database::principal_log_state::stored:
+      case principal_log_state::stored:
       {
         std::list<principal_log_record::record_id> parents;
         this->principal_log_get_parents(sp, f, parents);
 
-        auto new_state = iserver_database::principal_log_state::front;
+        auto new_state = principal_log_state::front;
         for (auto& p : parents) {
           auto state = this->principal_log_get_state(sp, p);
-          if (iserver_database::principal_log_state::stored == state
-            || iserver_database::principal_log_state::front == state) {
-            new_state = iserver_database::principal_log_state::stored;
+          if (principal_log_state::stored == state
+            || principal_log_state::front == state) {
+            new_state = principal_log_state::stored;
             break;
           }
 
-          if (iserver_database::principal_log_state::processed != state) {
+          if (principal_log_state::processed != state) {
             throw std::runtime_error("Invalid state");
           }
         }
@@ -345,47 +327,24 @@ void vds::_principal_manager::processed_record(
   }
 }
 
-uint64_t vds::_principal_manager::get_principal_log_max_index(
-  const service_provider & sp,
-  const guid & id)
-{
-  uint64_t result = 0;
-
-  this->get_principal_log_max_index_query_.query(
-    this->db_,
-    "SELECT MAX(source_index) FROM principal_log WHERE source_id=@source_id",
-    [&result](sql_statement & st)->bool {
-
-      st.get_value(0, result);
-      return false;
-    },
-    id);
-
-  return result;
-}
-
 void vds::_principal_manager::get_unknown_records(
   const service_provider & sp,
   std::list<principal_log_record::record_id>& result)
 {
-  this->get_unknown_records_query_.query(
-    this->db_,
+  auto st = database_transaction::current(sp).parse(
     "SELECT parent_id \
      FROM principal_log_link \
      WHERE NOT EXISTS (\
       SELECT * \
       FROM principal_log \
-      WHERE principal_log.id=principal_log_link.parent_id)",
-    [&result](sql_statement & st)->bool {
+      WHERE principal_log.id=principal_log_link.parent_id)");
 
+  while(st.execute()){
     principal_log_record::record_id item;
-
     st.get_value(0, item);
 
     result.push_back(item);
-
-    return false;
-  });
+  }
 }
 
 bool vds::_principal_manager::get_record(
@@ -394,49 +353,43 @@ bool vds::_principal_manager::get_record(
   principal_log_record & result_record,
   const_data_buffer & result_signature)
 {
+  principal_log_table t;
+  auto st = database_transaction::current(sp).get_reader(
+    t.select(t.principal_id, t.message, t.signature, t.order_num).where(t.id == id));
+
   bool result = false;
-
-  std::string message;
   guid principal_id;
+  std::string message;
   size_t order_num;
-
-  this->principal_log_get_query_.query(
-    this->db_,
-    "SELECT principal_id, message, signature, order_num FROM principal_log WHERE id=@id",
-    [&result, &message, &principal_id, &result_signature, &order_num](sql_statement & st)->bool {
-
-      st.get_value(0, principal_id);
-      st.get_value(1, message);
-      st.get_value(2, result_signature);
-      st.get_value(3, order_num);
-      
-      result = true;
-
-      return false;
-    },
-    id);
+  while (st.execute()) {
+    principal_id = t.principal_id.get(st);
+    message = t.message.get(st);
+    result_signature = t.signature.get(st);
+    order_num = t.order_num.get(st);
+    result = true;
+  }
 
   if (result) {
     std::list<principal_log_record::record_id> parents;
     this->principal_log_get_parents(sp, id, parents);
 
-  std::shared_ptr<json_value> body;
+    std::shared_ptr<json_value> body;
     dataflow(
       dataflow_arguments<char>(message.c_str(), message.length()),
       json_parser("Message body"),
       dataflow_require_once<std::shared_ptr<json_value>>(&body)
     )(
       [&id, &result_record, &parents, &body, principal_id, order_num](const service_provider & sp) {
-        result_record.reset(
-          id,
-          principal_id,
-          parents,
-          body,
-          order_num);
-      },
+      result_record.reset(
+        id,
+        principal_id,
+        parents,
+        body,
+        order_num);
+    },
       [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-        std::rethrow_exception(std::make_exception_ptr(*ex));
-      },
+      std::rethrow_exception(std::make_exception_ptr(*ex));
+    },
       sp);
   }
 
@@ -450,7 +403,7 @@ bool vds::_principal_manager::get_front_record(
 {
   return this->get_record_by_state(
     sp,
-    iserver_database::principal_log_state::front,
+    principal_log_state::front,
     result_record,
     result_signature);    
 }
@@ -464,33 +417,28 @@ void vds::_principal_manager::delete_record(
 
 bool vds::_principal_manager::get_record_by_state(
   const service_provider & sp,
-  iserver_database::principal_log_state state,
+  principal_log_state state,
   principal_log_record & result_record,
   const_data_buffer & result_signature)
 {
-  bool result = false;
+  principal_log_table t;
+  auto st = database_transaction::current(sp).parse(
+    "SELECT id,principal_id,message,order_num,signature FROM  principal_log WHERE state=@state LIMIT 1");
+  st.set_parameter(0, (int)state);
 
+  bool result = false;
   principal_log_record::record_id id;
   guid principal_id;
   std::string message;
   int order_num;
-
-  this->get_record_by_state_query_.query(
-    this->db_,
-    "SELECT id,principal_id,message,order_num,signature FROM  principal_log WHERE state=@state LIMIT 1",
-    [&result, &id, &principal_id, &message, &order_num, &result_signature](sql_statement & st)->bool {
-
-      st.get_value(0, id);
-      st.get_value(1, principal_id);
-      st.get_value(2, message);
-      st.get_value(3, order_num);
-      st.get_value(4, result_signature);
-
-      result = true;
-
-      return false;
-    },
-    (int)state);
+  while (st.execute()) {
+    id = t.id.get(st);
+    principal_id = t.principal_id.get(st);
+    message = t.message.get(st);
+    order_num = t.order_num.get(st);
+    result_signature = t.signature.get(st);
+    result = true;
+  }
 
   if (result) {
     std::list<principal_log_record::record_id> parents;
@@ -532,55 +480,47 @@ void vds::_principal_manager::get_principal_log(
   size_t count = 0;
   result_last_order_num = last_order_num;
 
-  this->get_principal_log_query_.query(
-    this->db_,
-    "SELECT order_num,id,message\
-     FROM principal_log\
-     WHERE principal_id=@principal_id AND order_num<=@order_num\
-     ORDER BY order_num DESC",
-    [sp, &count, &result_last_order_num, principal_id, &records](sql_statement & st)->bool {
+  principal_log_table t;
 
-      size_t order_num;
-      principal_log_record::record_id id;
-      std::string message;
+  auto st = database_transaction::current(sp).get_reader(
+    t.select(t.id, t.order_num, t.message)
+    .where(t.principal_id == principal_id && t.order_num <= last_order_num)
+    .order_by(db_desc_order(t.order_num)));
 
-      st.get_value(0, order_num);
+  while (st.execute()) {
+    auto order_num = t.order_num.get(st);
+    if (result_last_order_num != order_num) {
+      result_last_order_num = order_num;
 
-      if (result_last_order_num != order_num) {
-        result_last_order_num = order_num;
-
-        if (10 < count) {
-          return false;
-        }
+      if (10 < count) {
+        break;
       }
+    }
 
-      st.get_value(1, id);
-      st.get_value(2, message);
+    principal_log_record::record_id id = t.id.get(st);
+    std::string message = t.message.get(st);
 
-      std::shared_ptr<json_value> msg;
-      dataflow(
-        dataflow_arguments<char>(message.c_str(), message.length()),
-        json_parser("Message parser"),
-        dataflow_require_once<std::shared_ptr<json_value>>(&msg))(
-          [](const service_provider & sp) {
-          },
-          [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-            throw *ex;
-          },
-          sp);
-
-      records.push_back(principal_log_record(
-        id,
-        principal_id,
-        std::list<principal_log_record::record_id>(),
-        msg,
-        order_num));
-
-      ++count;
-      return true;
+    std::shared_ptr<json_value> msg;
+    dataflow(
+      dataflow_arguments<char>(message.c_str(), message.length()),
+      json_parser("Message parser"),
+      dataflow_require_once<std::shared_ptr<json_value>>(&msg))(
+        [](const service_provider & sp) {
     },
-    principal_id,
-    last_order_num);
+        [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+      throw *ex;
+    },
+      sp);
+
+    records.push_back(principal_log_record(
+      id,
+      principal_id,
+      std::list<principal_log_record::record_id>(),
+      msg,
+      order_num));
+
+    ++count;
+  }
 }
 
 vds::principal_log_record
@@ -595,7 +535,7 @@ vds::principal_log_record
   std::list<principal_log_record::record_id> parents;
   auto max_order_num = this->get_current_state(sp, parents);
 
-  std::lock_guard<std::mutex> lock(this->principal_log_mutex_);
+  std::lock_guard<not_mutex> lock(this->principal_log_mutex_);
 
   //Sign message
   principal_log_record result(record_id, principal_id, parents, message, max_order_num + 1);
@@ -614,14 +554,14 @@ vds::principal_log_record
     message->str(),
     signature,
     max_order_num + 1,
-    iserver_database::principal_log_state::front);
+    principal_log_state::front);
 
   //update tails & create links
   for (auto& p : parents) {
     this->principal_log_update_state(
       sp,
       p,
-      iserver_database::principal_log_state::processed);
+      principal_log_state::processed);
 
     this->principal_log_add_link(
       sp,
@@ -637,20 +577,20 @@ bool vds::_principal_manager::save_record(
   const principal_log_record & record,
   const const_data_buffer & signature)
 {
-  std::lock_guard<std::mutex> lock(this->principal_log_mutex_);
+  std::lock_guard<not_mutex> lock(this->principal_log_mutex_);
   
   auto state = this->principal_log_get_state(sp, record.id());
-  if (state != iserver_database::principal_log_state::not_found) {
+  if (state != principal_log_state::not_found) {
     return false;
   }
 
-  state = iserver_database::principal_log_state::front;
+  state = principal_log_state::front;
   for (auto& p : record.parents()) {
     auto parent_state = this->principal_log_get_state(sp, p);
-    if(iserver_database::principal_log_state::not_found == parent_state
-      || iserver_database::principal_log_state::stored == parent_state
-      || iserver_database::principal_log_state::front == parent_state) {
-      state = iserver_database::principal_log_state::stored;
+    if(principal_log_state::not_found == parent_state
+      || principal_log_state::stored == parent_state
+      || principal_log_state::front == parent_state) {
+      state = principal_log_state::stored;
       break;
     }
   }

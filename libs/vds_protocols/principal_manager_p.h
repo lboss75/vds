@@ -9,8 +9,11 @@ All rights reserved
 #include "principal_manager.h"
 #include "database_orm.h"
 #include "log_records.h"
+#include "not_mutex.h"
 
 namespace vds {
+  class asymmetric_private_key;
+
   class _principal_manager
   {
   public:
@@ -46,6 +49,8 @@ namespace vds {
       std::list<principal_log_record::record_id>& result);
 
   private:
+    not_mutex principal_log_mutex_;
+
     //Database
     class principal_table : public database_table
     {
@@ -159,6 +164,54 @@ namespace vds {
     principal_log_state principal_log_get_state(
       const service_provider & sp,
       const principal_log_record::record_id & record_id);
+
+    size_t get_current_state(
+      const service_provider & sp,
+      std::list<guid> & active_records);
+
+    void principal_log_get_parents(
+      const service_provider & sp,
+      const principal_log_record::record_id & record_id,
+      std::list<principal_log_record::record_id>& parents);
+
+    void principal_log_get_followers(
+      const service_provider & sp,
+      const principal_log_record::record_id & record_id,
+      std::list<principal_log_record::record_id>& followers);
+
+    void processed_record(
+      const service_provider & sp,
+      const principal_log_record::record_id & id);
+
+    bool get_front_record(
+      const service_provider & sp,
+      principal_log_record & result_record,
+      const_data_buffer & result_signature);
+
+    void delete_record(
+      const service_provider & sp,
+      const principal_log_record::record_id & id);
+
+    bool get_record_by_state(
+      const service_provider & sp,
+      principal_log_state state,
+      principal_log_record & result_record,
+      const_data_buffer & result_signature);
+
+    void get_principal_log(
+      const service_provider & sp,
+      const guid & principal_id,
+      size_t last_order_num,
+      size_t & result_last_order_num,
+      std::list<principal_log_record> & records);
+
+    principal_log_record add_local_record(
+        const service_provider & sp,
+        const principal_log_record::record_id & record_id,
+        const guid & principal_id,
+        const std::shared_ptr<json_value> & message,
+        const asymmetric_private_key & principal_private_key,
+        const_data_buffer & signature);
   };
 }
 

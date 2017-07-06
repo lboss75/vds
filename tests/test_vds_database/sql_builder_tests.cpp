@@ -89,10 +89,10 @@ TEST(sql_builder_tests, test_select) {
     .select(vds::db_max(t1.column1), t1.column2, t2.column1)
     .inner_join(t2, t1.column1 == t2.column1)
     .where(t1.column1 == 10 && t2.column2 == "test")
-    .order_by(t1.column1));
+    .order_by(t1.column1, vds::db_desc_order(t1.column1)));
 
   ASSERT_EQ(result_sql,
-    "SELECT MAX(t0.column1),t0.column2,t1.column1 FROM test_table1 t0 INNER JOIN test_table2 t1 ON t0.column1=t1.column1 WHERE (t0.column1=@p2) AND (t1.column2=@p1) ORDER BY t0.column1");
+    "SELECT MAX(t0.column1),t0.column2,t1.column1 FROM test_table1 t0 INNER JOIN test_table2 t1 ON t0.column1=t1.column1 WHERE (t0.column1=@p2) AND (t1.column2=@p1) ORDER BY t0.column1,t0.column1 DESC");
   
   ASSERT_EQ(int_parameter_index, 1);
   ASSERT_EQ(int_parameter_value, 10);
