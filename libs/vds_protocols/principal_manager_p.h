@@ -37,7 +37,7 @@ namespace vds {
       const service_provider & sp,
       const principal_log_record & record,
       const const_data_buffer & signature);
-    
+
     bool get_record(
       const service_provider & sp,
       const principal_log_record::record_id & id,
@@ -85,6 +85,22 @@ namespace vds {
     std::unique_ptr<principal_record> find_principal(
       const service_provider & sp,
       const guid & object_name);
+
+    std::unique_ptr<principal_record> find_user_principal(
+      const service_provider & sp,
+      const std::string & object_name);
+
+    size_t get_current_state(
+      const service_provider & sp,
+      std::list<guid> & active_records);
+
+
+    void get_principal_log(
+      const service_provider & sp,
+      const guid & principal_id,
+      size_t last_order_num,
+      size_t & result_last_order_num,
+      std::list<principal_log_record> & records);
 
   private:
     not_mutex principal_log_mutex_;
@@ -163,10 +179,6 @@ namespace vds {
     guid get_root_principal(
       const service_provider & sp);
 
-    std::unique_ptr<principal_record> find_user_principal(
-      const service_provider & sp,
-      const std::string & object_name);
-    
     void principal_log_add_link(
       const service_provider & sp,
       const guid & source_id,
@@ -185,11 +197,6 @@ namespace vds {
       const service_provider & sp,
       const principal_log_record::record_id & record_id,
       principal_log_state state);
-    
-
-    size_t get_current_state(
-      const service_provider & sp,
-      std::list<guid> & active_records);
 
     void principal_log_get_parents(
       const service_provider & sp,
@@ -206,14 +213,6 @@ namespace vds {
       principal_log_state state,
       principal_log_record & result_record,
       const_data_buffer & result_signature);
-
-    void get_principal_log(
-      const service_provider & sp,
-      const guid & principal_id,
-      size_t last_order_num,
-      size_t & result_last_order_num,
-      std::list<principal_log_record> & records);
-
   };
 }
 
