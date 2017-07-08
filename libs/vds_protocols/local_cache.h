@@ -7,6 +7,7 @@ All rights reserved
 */
 
 #include "storage_object_id.h"
+#include "server_task_manager.h"
 
 namespace vds {
   class _local_cache;
@@ -23,6 +24,11 @@ namespace vds {
       const service_provider & sp,
       const guid & server_id,
       uint64_t index);
+    
+    async_task<server_task_manager::task_state> download_object(
+      const service_provider & sp,
+      const guid & server_id);
+
   };
 }
 

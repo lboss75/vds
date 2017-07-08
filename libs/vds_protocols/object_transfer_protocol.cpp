@@ -56,6 +56,12 @@ void vds::object_transfer_protocol::chunk_require(
   }
 }
 
+vds::object_request::object_request(const const_data_buffer & binary_form)
+{
+  binary_deserializer s(binary_form);
+  s >> this->server_id_ >> this->index_;
+}
+
 //////////////////////////////////////////////////////
 vds::_object_transfer_protocol::_object_transfer_protocol()
 {
@@ -65,12 +71,13 @@ vds::_object_transfer_protocol::~_object_transfer_protocol()
 {
 }
 
-/*
+
 void vds::_object_transfer_protocol::on_object_request(
   const service_provider & sp,
   const guid & from_server_id,
   const object_request & message)
 {
+  /*
   auto current_server_id = sp.get<istorage_log>()->current_server_id();
 
   std::list<ichunk_manager::replica_type> local_replicas;
@@ -107,6 +114,7 @@ void vds::_object_transfer_protocol::on_object_request(
       connection_manager->send_to(sp, item.storage_id, message);
     }
   }
+  */
 }
-*/
+
 

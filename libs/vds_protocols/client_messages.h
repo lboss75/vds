@@ -7,6 +7,7 @@ All rights reserved
 */
 
 #include "log_records.h"
+#include "server_task_manager.h"
 
 namespace vds {
 
@@ -228,11 +229,13 @@ namespace vds {
       get_object_response(const std::shared_ptr<json_value> &);
       std::shared_ptr<json_value> serialize() const;
 
-      get_object_response()
+      get_object_response(const server_task_manager::task_state & state)
+      : state_(state)
       {
       }
 
     private:
+      server_task_manager::task_state state_;
     };
   };
 }

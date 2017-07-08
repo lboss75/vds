@@ -274,11 +274,22 @@ vds::async_task<std::shared_ptr<vds::json_value>> vds::_server_json_client_api::
   const service_provider & scope,
   const client_messages::get_object_request & message)
 {
-  return create_async_task([message](
-    const std::function<void(const service_provider & sp, std::shared_ptr<vds::json_value>)> & done,
-    const error_handler & on_error,
-    const service_provider & sp) {
-
+  return scope.get<ilocal_cache>()->download_object(
+    scope,
+    message.version_id())
+  .then(
+    [](
+      const std::function<void(const service_provider & sp, std::shared_ptr<vds::json_value>)> & done,
+      const error_handler & on_error,
+      const service_provider & sp,
+      const server_task_manager::task_state & state) {
+    
+      if(server_task_manager::task_status::DONE == state.status){
+        
+      }
+    
+      done(sp, client_messages::get_object_response(state).serialize());
+    /*
     auto object_map = sp.get<ichunk_manager>()->get_object_map(sp, message.version_id());
     if (object_map.empty()) {
       on_error(sp, std::make_shared<std::runtime_error>("Object not found"));
@@ -301,7 +312,7 @@ vds::async_task<std::shared_ptr<vds::json_value>> vds::_server_json_client_api::
             tasks = std::make_shared<parallel_tasks>();
           }
 
-          tasks->add(connection_manager->download_object(
+          tasks->add(sp.get<ilocal_cache>()->download_object(
             sp,
             item.server_id,
             item.chunk_index,
@@ -319,8 +330,8 @@ vds::async_task<std::shared_ptr<vds::json_value>> vds::_server_json_client_api::
       else {
         done(sp, client_messages::get_object_response().serialize());
       }
-    }
-  });
+      */
+    });
 }
 
 vds::async_task<std::shared_ptr<vds::json_value>>
