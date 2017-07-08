@@ -65,6 +65,7 @@ namespace vds {
   class object_request
   {
   public:
+    static const char message_type[];
     static const uint32_t message_type_id = (uint32_t)message_identification::object_request_message_id;
     
     void serialize(binary_serializer & b) const;

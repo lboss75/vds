@@ -274,6 +274,18 @@ namespace vds {
       this->free_transaction(t);
     }
 
+    void rollback(database_transaction & t)
+    {
+      try {
+        t.execute("ROLLBACK TRANSACTION");
+      }
+      catch (...) {
+        this->free_transaction(t);
+        throw;
+      }
+
+      this->free_transaction(t);
+    }
 
   private:
     filename database_file_;

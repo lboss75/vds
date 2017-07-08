@@ -26,6 +26,21 @@ void vds::database::close()
   this->impl_->close();
 }
 
+vds::database_transaction vds::database::begin_transaction()
+{
+  return vds::database_transaction(this->impl_->begin_transaction());
+}
+
+void vds::database::commit(vds::database_transaction& t)
+{
+  this->impl_->commit(t);
+}
+
+void vds::database::rollback(vds::database_transaction& t)
+{
+  this->impl_->rollback(t);
+}
+
 void vds::database_transaction::execute(const char * sql)
 {
    this->impl_->execute(sql);

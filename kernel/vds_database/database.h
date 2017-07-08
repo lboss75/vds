@@ -95,8 +95,8 @@ namespace vds {
     void close();
 
     database_transaction begin_transaction();
-    void commit(database_transaction & db);
-    void rollback(database_transaction & db);
+    void commit(database_transaction & t);
+    void rollback(database_transaction & t);
 
   private:
     _database * const impl_;

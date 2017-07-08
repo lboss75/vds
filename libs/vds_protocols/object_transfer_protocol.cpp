@@ -55,11 +55,27 @@ void vds::object_transfer_protocol::chunk_require(
     }
   }
 }
+/////////////////////////////////////////////
+const char vds::object_request::message_type[] = "object request";
 
 vds::object_request::object_request(const const_data_buffer & binary_form)
 {
   binary_deserializer s(binary_form);
   s >> this->server_id_ >> this->index_;
+}
+
+void vds::object_request::serialize(binary_serializer & b) const
+{
+  b << this->server_id_ << this->index_;
+}
+
+std::shared_ptr<vds::json_value> vds::object_request::serialize() const
+{
+  auto result = std::make_shared<json_object>();
+  result->add_property("$t", message_type);
+  result->add_property("s", this->server_id_);
+  result->add_property("i", this->index_);
+  return result;
 }
 
 //////////////////////////////////////////////////////
