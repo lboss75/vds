@@ -19,6 +19,7 @@ All rights reserved
 #include "server_certificate.h"
 #include "chunk_manager_p.h"
 #include "principal_manager_p.h"
+#include "server_database_p.h"
 
 const vds::guid & vds::istorage_log::current_server_id() const
 {
@@ -143,6 +144,8 @@ void vds::_storage_log::reset(
   this->vds_folder_ = foldername(persistence::current_user(sp), ".vds");
   this->vds_folder_.create();
   
+  database_transaction_scope scope(sp, *(*sp.get<iserver_database>())->get_db());
+  
   hash ph(hash::sha256());
   ph.update(password.c_str(), password.length());
   ph.final();
@@ -170,6 +173,8 @@ void vds::_storage_log::reset(
     private_key,
     server_log_new_endpoint(this->current_server_id_, addresses).serialize(),
     true);
+  
+  scope.commit();
 }
 
 
@@ -418,12 +423,15 @@ bool vds::_storage_log::process_timer_jobs(const service_provider & sp)
 {
   std::lock_guard<std::mutex> lock(this->record_state_mutex_);
 
+  database_transaction_scope scope(sp, *(*sp.get<iserver_database>())->get_db());
+  
   principal_log_record record;
   const_data_buffer signature;
   while(this->principal_manager_->get_front_record(sp, record, signature)){
     this->apply_record(sp, record, signature);
   }
 
+  scope.commit();
   return true;
 }
 

@@ -153,7 +153,7 @@ namespace vds {
     {
       int index = 0;
       for(auto & p : this->set_parameters_){
-        p(st, index++);
+        p(st, ++index);
       }
       
       return std::move(st);

@@ -13,6 +13,45 @@ vds::principal_manager::~principal_manager()
   delete this->impl_;
 }
 
+bool vds::principal_manager::save_record(
+  const service_provider & sp,
+  const principal_log_record & record,
+  const const_data_buffer & signature)
+{
+  return this->impl_->save_record(sp, record, signature);
+}
+
+std::unique_ptr<vds::principal_record> vds::principal_manager::find_principal(
+  const service_provider & sp,
+  const guid & object_name)
+{
+  return this->impl_->find_principal(sp, object_name);
+}
+
+std::unique_ptr<vds::principal_record> vds::principal_manager::find_user_principal(
+  const service_provider & sp,
+  const std::string & object_name)
+{
+  return this->impl_->find_user_principal(sp, object_name);
+}
+
+size_t vds::principal_manager::get_current_state(
+  const service_provider & sp,
+  std::list<guid> & active_records)
+{
+  return this->impl_->get_current_state(sp, active_records);
+}
+
+void vds::principal_manager::get_principal_log(
+  const service_provider & sp,
+  const guid & principal_id,
+  size_t last_order_num,
+  size_t & result_last_order_num,
+  std::list<principal_log_record> & records)
+{
+  this->impl_->get_principal_log(sp, principal_id, last_order_num, result_last_order_num, records);
+}
+
 ///////////////////////////////////////////////////////
 void vds::_principal_manager::create_database_objects(
   const service_provider & sp,

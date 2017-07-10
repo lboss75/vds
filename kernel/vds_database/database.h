@@ -111,6 +111,7 @@ namespace vds {
     void commit();
 
   private:
+    service_provider sp_;
     database & db_;
     database_transaction transaction_;
     bool successful_;

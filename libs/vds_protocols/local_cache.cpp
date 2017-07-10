@@ -22,6 +22,13 @@ vds::filename vds::ilocal_cache::get_object_filename(
   return static_cast<_local_cache *>(this)->get_object_filename(sp, server_id, index);
 }
 
+vds::async_task<vds::server_task_manager::task_state> vds::ilocal_cache::download_object(
+  const service_provider & sp,
+  const guid & server_id)
+{
+  return static_cast<_local_cache *>(this)->download_object(sp, server_id);
+}
+
 ////////////////////////////////////////////////////////////
 vds::_local_cache::_local_cache()
 {

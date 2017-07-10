@@ -154,9 +154,14 @@ vds::database_transaction & vds::database_transaction::current(const service_pro
 }
 
 vds::database_transaction_scope::database_transaction_scope(const service_provider & sp, database & db)
-  : db_(db), transaction_(db.begin_transaction()), successful_(false)
+  : sp_(sp), db_(db), transaction_(db.begin_transaction()), successful_(false)
 {
-  sp.set_property(service_provider::property_scope::any_scope, new database_transaction_holder(this->transaction_));
+  auto holder = sp.get_property<database_transaction_holder>(service_provider::property_scope::any_scope);
+  if (nullptr != holder) {
+    throw std::runtime_error("Transaction is already openned");
+  }
+  
+  sp.set_property(service_provider::property_scope::local_scope, new database_transaction_holder(this->transaction_));
 }
 
 vds::database_transaction_scope::~database_transaction_scope()
@@ -164,6 +169,13 @@ vds::database_transaction_scope::~database_transaction_scope()
   if (!this->successful_) {
     this->db_.rollback(this->transaction_);
   }
+  
+  auto holder = this->sp_.get_property<database_transaction_holder>(service_provider::property_scope::any_scope);
+  if (nullptr == holder) {
+    throw std::runtime_error("Logic error");
+  }
+  
+  this->sp_.set_property<database_transaction_holder>(service_provider::property_scope::local_scope, nullptr);
 }
 
 void vds::database_transaction_scope::commit()

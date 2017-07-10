@@ -14,10 +14,10 @@ namespace vds {
   class _sql_statement
   {
   public:
-    _sql_statement(sqlite3 * db, const std::string & sql)
+    _sql_statement(sqlite3 * db, const char * sql)
       : db_(db), stmt_(nullptr), state_(bof_state)
     {
-      if (SQLITE_OK != sqlite3_prepare_v2(db, sql.c_str(), -1, &this->stmt_, nullptr)) {
+      if (SQLITE_OK != sqlite3_prepare_v2(db, sql, -1, &this->stmt_, nullptr)) {
         auto error = sqlite3_errmsg(db);
         throw std::runtime_error(error);
       }
@@ -191,10 +191,11 @@ namespace vds {
       }
     }
 
-    void execute(const std::string & sql)
+    void execute(const char * sql)
     {
+      std::cout << sql << "\n";
       char * zErrMsg = nullptr;
-      auto error = sqlite3_exec(this->db_, sql.c_str(), nullptr, 0, &zErrMsg);
+      auto error = sqlite3_exec(this->db_, sql, nullptr, 0, &zErrMsg);
       if (SQLITE_OK != error) {
         std::string error_message(zErrMsg);
         sqlite3_free(zErrMsg);
@@ -203,8 +204,9 @@ namespace vds {
       }
     }
 
-    sql_statement parse(const std::string & sql)
+    sql_statement parse(const char * sql)
     {
+      std::cout << sql << "\n";
       return sql_statement(new _sql_statement(this->db_, sql));
     }
 
