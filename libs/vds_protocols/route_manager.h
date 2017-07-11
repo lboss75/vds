@@ -14,7 +14,9 @@ namespace vds {
   class route_manager
   {
   public:
-    
+    route_manager();
+    ~route_manager();
+
     void add_route(
       const service_provider& sp,
       const guid & source_server_id,

@@ -76,6 +76,34 @@ namespace vds {
   {
     return static_cast<_server_database *>(this);
   }
+
+  class server_database_scope
+  {
+  public:
+    server_database_scope(
+      const service_provider & sp)
+      : sp_(sp.create_scope("Server database scope")),
+        scope_(this->sp_, *(*this->sp_.get<iserver_database>())->get_db())
+    {
+    }
+
+    operator const service_provider & () const {
+      return this->sp_;
+    }
+
+    const service_provider * operator -> () const {
+      return &this->sp_;
+    }
+
+    void commit()
+    {
+      this->scope_.commit();
+    }
+
+  private:
+    service_provider sp_;
+    database_transaction_scope scope_;
+  };
 }
 
 #endif // __VDS_PROTOCOLS_SERVER_DATABASE_P_H_

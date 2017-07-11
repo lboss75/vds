@@ -18,6 +18,7 @@ All rights reserved
 #include "chunk_manager_p.h"
 #include "route_manager_p.h"
 #include "object_transfer_protocol_p.h"
+#include "server_database_p.h"
 
 vds::connection_manager::connection_manager()
   : impl_(new _connection_manager(this))
@@ -102,16 +103,18 @@ vds::_connection_manager::~_connection_manager()
 
 void vds::_connection_manager::start(const vds::service_provider& sp)
 {
+  server_database_scope scope(sp);
+
   std::map<std::string, std::string> endpoints;
-  sp.get<node_manager>()->get_endpoints(sp, endpoints);
+  scope->get<node_manager>()->get_endpoints(scope, endpoints);
   
   for (auto & p : endpoints) {
-    sp.get<logger>()->info(sp, "Connecting to %s", p.first.c_str());
+    scope->get<logger>()->info(scope, "Connecting to %s", p.first.c_str());
     
     url_parser::parse_addresses(p.second,
-      [this, sp](const std::string & protocol, const std::string & address) -> bool {
+      [this, &scope](const std::string & protocol, const std::string & address) -> bool {
         if("udp" == protocol){
-          this->udp_channel_->open_udp_session(sp, address);
+          this->udp_channel_->open_udp_session(scope, address);
         }
         else if ("https" == protocol) {
           //this->open_https_session(sp, address);
@@ -120,6 +123,7 @@ void vds::_connection_manager::start(const vds::service_provider& sp)
         return true;
     });
   }
+  scope.commit();
 }
 
 void vds::_connection_manager::stop(const vds::service_provider& sp)
@@ -232,7 +236,6 @@ void vds::_connection_manager::udp_channel::schedule_read(
             this->schedule_read(sp);
           },
           sp);
-
       }
     },
     [](const service_provider & sp, const std::shared_ptr<std::exception> & ex){
@@ -261,6 +264,7 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
   size_t len)
 {
   return create_async_task([this, from, data, len](const std::function<void(const service_provider & sp)> & done, const error_handler & on_error, const service_provider & sp) {
+    server_database_scope scope(sp);
     network_deserializer s(data, len);
     auto cmd = s.start();
     switch (cmd) {
@@ -280,7 +284,7 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
           msg.session_id(),
           server_certificate::server_id(cert));
 
-        auto last_record_id = sp.get<istorage_log>()->get_last_applied_record(sp);
+        auto last_record_id = sp.get<istorage_log>()->get_last_applied_record(scope);
         binary_serializer b;
         b
           << msg.session_id()
@@ -362,7 +366,7 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
           dataflow_arguments<uint8_t>(msg.crypted_data().data(), msg.crypted_data().size()),
           symmetric_decrypt(session_key),
           collect_data(*data))(
-            [this, done, &session_key, &cert, from, data](const service_provider & sp) {
+            [this, done, &session_key, &cert, from, data, &scope](const service_provider & sp) {
           uint32_t in_session_id;
           uint32_t out_session_id;
 
@@ -373,7 +377,7 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
           std::lock_guard<std::mutex> lock_hello(this->hello_requests_mutex_);
           auto p = this->hello_requests_.find(out_session_id);
           if (this->hello_requests_.end() != p) {
-            (*sp.get<route_manager>())->on_session_started(
+            this->owner_->route_manager_->on_session_started(
               sp,
               sp.get<istorage_log>()->current_server_id(),
               server_certificate::server_id(cert),
@@ -397,7 +401,7 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
             this->hello_requests_.erase(p);
           }
 
-          sp.get<_server_log_sync>()->ensure_record_exists(sp, last_record_id);
+          sp.get<_server_log_sync>()->ensure_record_exists(scope, last_record_id);
           done(sp);
         },
             on_error,
@@ -429,7 +433,7 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
             symmetric_decrypt(p->second->session_key()),
             collect_data(*data)
           )(
-            [this, &data_hash, session = p->second, from, data](const service_provider & sp) {
+            [this, &data_hash, session = p->second, from, data, &scope](const service_provider & sp) {
             if (hash::signature(hash::sha256(), data->data(), data->size()) == data_hash) {
 
               binary_deserializer d(data->data(), data->size());
@@ -440,20 +444,20 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
               switch ((message_identification)message_type_id) {
               case message_identification::server_log_record_broadcast_message_id:
                 sp.get<_server_log_sync>()->on_record_broadcast(
-                  sp,
+                  scope,
                   _server_log_sync::server_log_record_broadcast(sp, binary_form));
                 break;
 
               case message_identification::server_log_get_records_broadcast_message_id:
                 sp.get<_server_log_sync>()->on_server_log_get_records_broadcast(
-                  sp,
+                  scope,
                   *session.get(),
                   _server_log_sync::server_log_get_records_broadcast(binary_form));
                 break;
 
               case message_identification::object_request_message_id:
                 this->owner_->object_transfer_protocol_->on_object_request(
-                  sp,
+                  scope,
                   session->partner_id(),
                   object_request(binary_form));
                 break;
@@ -491,6 +495,8 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
       break;
     }
     }
+
+    scope.commit();
   });
 }
 

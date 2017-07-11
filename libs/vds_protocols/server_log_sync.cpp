@@ -6,7 +6,7 @@ All rights reserved
 #include "server_log_sync.h"
 #include "server_log_sync_p.h"
 #include "messages.h"
-#include "server_database.h"
+#include "server_database_p.h"
 #include "principal_manager_p.h"
 
 vds::server_log_sync::server_log_sync()
@@ -115,7 +115,9 @@ void vds::_server_log_sync::require_unknown_records(
 
 bool vds::_server_log_sync::process_timer_jobs(const service_provider & sp)
 {
-  this->require_unknown_records(sp);
+  server_database_scope scope(sp);
+  this->require_unknown_records(scope);
+  scope.commit();
   return true;
 }
 

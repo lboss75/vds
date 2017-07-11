@@ -160,15 +160,14 @@ void vds::_chunk_manager::set_next_index(const service_provider & sp, uint64_t n
 void vds::_chunk_manager::start(const service_provider & sp)
 {
   auto server_id = sp.get<istorage_log>()->current_server_id();
-  auto db = (*sp.get<iserver_database>())->get_db();
-  database_transaction_scope scope(sp, *db);
+  server_database_scope scope(sp);
 
   this->last_chunk_ = this->get_last_chunk(
-    sp,
+    scope,
     server_id);
   
   this->tail_chunk_index_ = this->get_tail_chunk(
-    sp,
+    scope,
     server_id,
     this->tail_chunk_size_);
 
@@ -223,16 +222,17 @@ void vds::_chunk_manager::create_database_objects(
   uint64_t db_version,
   database_transaction & t)
 {
-  t.execute(
-    "CREATE TABLE object_chunk(\
+  if (1 > db_version) {
+    t.execute(
+      "CREATE TABLE object_chunk(\
       server_id VARCHAR(64) NOT NULL,\
       chunk_index INTEGER NOT NULL,\
       chunk_size INTEGER NOT NULL,\
       hash BLOB NOT NULL,\
       CONSTRAINT pk_object_chunk PRIMARY KEY (server_id, chunk_index))");
 
-  t.execute(
-    "CREATE TABLE object_chunk_map(\
+    t.execute(
+      "CREATE TABLE object_chunk_map(\
       server_id VARCHAR(64) NOT NULL,\
       chunk_index INTEGER NOT NULL,\
       object_id VARCHAR(64) NOT NULL,\
@@ -242,14 +242,14 @@ void vds::_chunk_manager::create_database_objects(
       hash BLOB NOT NULL,\
       CONSTRAINT pk_object_chunk_map PRIMARY KEY (server_id, chunk_index, object_id))");
 
-  t.execute(
-    "CREATE TABLE tmp_object_chunk(\
+    t.execute(
+      "CREATE TABLE tmp_object_chunk(\
       server_id VARCHAR(64) NOT NULL,\
       chunk_index INTEGER NOT NULL,\
       CONSTRAINT pk_tmp_object_chunk PRIMARY KEY (server_id, chunk_index))");
 
-  t.execute(
-    "CREATE TABLE tmp_object_chunk_map(\
+    t.execute(
+      "CREATE TABLE tmp_object_chunk_map(\
       server_id VARCHAR(64) NOT NULL,\
       chunk_index INTEGER NOT NULL,\
       object_id VARCHAR(64) NOT NULL,\
@@ -259,8 +259,8 @@ void vds::_chunk_manager::create_database_objects(
       data BLOB NOT NULL,\
       CONSTRAINT pk_object_chunk_map PRIMARY KEY (server_id, chunk_index, object_id))");
 
-  t.execute(
-    "CREATE TABLE object_chunk_replica(\
+    t.execute(
+      "CREATE TABLE object_chunk_replica(\
       server_id VARCHAR(64) NOT NULL,\
       chunk_index INTEGER NOT NULL,\
       replica INTEGER NOT NULL,\
@@ -268,21 +268,22 @@ void vds::_chunk_manager::create_database_objects(
       replica_hash VARCHAR(64) NOT NULL,\
       CONSTRAINT pk_tmp_object_chunk_map PRIMARY KEY (server_id, chunk_index, replica))");
 
-  t.execute(
-    "CREATE TABLE object_chunk_store(\
+    t.execute(
+      "CREATE TABLE object_chunk_store(\
       server_id VARCHAR(64) NOT NULL,\
       chunk_index INTEGER NOT NULL,\
       replica INTEGER NOT NULL,\
       storage_id VARCHAR(64) NOT NULL,\
       CONSTRAINT pk_object_chunk_store PRIMARY KEY (server_id, chunk_index, replica, storage_id))");
 
-  t.execute(
-    "CREATE TABLE object_chunk_data(\
+    t.execute(
+      "CREATE TABLE object_chunk_data(\
       server_id VARCHAR(64) NOT NULL,\
       chunk_index INTEGER NOT NULL,\
       replica INTEGER NOT NULL,\
       data BLOB NOT NULL,\
       CONSTRAINT pk_object_chunk_data PRIMARY KEY (server_id, chunk_index, replica))");
+  }
 }
 
 bool vds::_chunk_manager::write_chunk(

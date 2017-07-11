@@ -10,6 +10,7 @@ All rights reserved
 #include "http_serializer.h"
 #include "http_parser.h"
 #include "http_context.h"
+#include "server_database_p.h"
 
 vds::async_task<> vds::server_http_api::start(
   const service_provider & sp,
@@ -141,7 +142,9 @@ vds::async_task<std::shared_ptr<vds::http_message>> vds::_server_http_api::route
       )(
         [this, done, json_request](const service_provider & sp) {
 
-          done(sp, http_response::simple_text_response(sp, this->server_json_client_api_(sp, *json_request)->str()));
+          server_database_scope scope(sp);
+
+          done(sp, http_response::simple_text_response(sp, this->server_json_client_api_(scope, *json_request)->str()));
         },
         on_error, sp);
     });

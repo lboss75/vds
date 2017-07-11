@@ -80,6 +80,11 @@ namespace vds {
 
     const database_table * owner() const { return this->owner_; }
     const std::string & name() const { return this->name_; }
+    
+    void set_index(int index)
+    {
+      this->index_ = index;
+    }
 
   private:
     const database_table * const owner_;
@@ -186,7 +191,7 @@ namespace vds {
   {
   public:
     _db_simple_column(
-      const _database_column_base & column)
+      _database_column_base & column)
       : column_(&column)
     {
     }
@@ -202,8 +207,13 @@ namespace vds {
       return builder.get_alias(this->column_->owner()) + "." + this->column_->name();
     }
 
+    void set_index(int index) const
+    {
+      this->column_->set_index(index);
+    }
+
   private:
-    const _database_column_base * column_;
+    _database_column_base * column_;
   };
 
   template <typename source_type>
@@ -220,6 +230,10 @@ namespace vds {
     std::string visit(_database_sql_builder & builder) const
     {
       return "MAX(" + this->column_.visit(builder) + ")";
+    }
+
+    void set_index(int index) const
+    {
     }
 
   private:
@@ -242,6 +256,10 @@ namespace vds {
       return "LENGTH(" + this->column_.visit(builder) + ")";
     }
 
+    void set_index(int index) const
+    {
+    }
+
   private:
     source_type column_;
   };
@@ -260,6 +278,10 @@ namespace vds {
     std::string visit(_database_sql_builder & builder) const
     {
       return "SUM(" + this->column_.visit(builder) + ")";
+    }
+
+    void set_index(int index) const
+    {
     }
 
   private:
@@ -450,7 +472,7 @@ namespace vds {
       return std::string();
     }
     
-    std::string generate_select(_database_sql_builder & builder) const
+    std::string generate_select(_database_sql_builder & builder, int index) const
     {
       return std::string();
     }
@@ -703,8 +725,9 @@ namespace vds {
       return " FROM " + this->t_->name() + " " + builder.get_alias(this->t_);
     }
     
-    std::string generate_select(_database_sql_builder & builder) const
+    std::string generate_select(_database_sql_builder & builder, int index) const
     {
+      this->column_.set_index(index);
       return this->column_.visit(builder);
     }
     
@@ -742,9 +765,10 @@ namespace vds {
       return _database_reader_builder_with_join<this_class, join_condition_type>(std::move(*this), &t, std::move(cond));
     }
 
-    std::string generate_select(_database_sql_builder & builder) const
+    std::string generate_select(_database_sql_builder & builder, int index) const
     {
-      return this->column_.visit(builder) + "," + base_class::generate_select(builder);
+      this->column_.set_index(index);
+      return this->column_.visit(builder) + "," + base_class::generate_select(builder, index + 1);
     }
     
     template <typename where_condition_type>
@@ -1001,7 +1025,7 @@ namespace vds {
       _database_sql_builder builder(aliases);
       auto sql =
         source.start_sql(builder)
-        + source.generate_select(builder)
+        + source.generate_select(builder, 0)
         + source.collect_sources(builder)
         + source.collect_condition(builder)
         + source.final_sql(builder);

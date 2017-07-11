@@ -24,6 +24,7 @@ All rights reserved
 #include "server_connection_p.h"
 #include "server_udp_api_p.h"
 #include "server_certificate.h"
+#include "storage_log_p.h"
 
 vds::server::server()
 : impl_(new _server(this))
@@ -42,6 +43,8 @@ void vds::server::register_services(service_registrator& registrator)
   registrator.add_service<iserver>(this->impl_);
   
   registrator.add_service<istorage_log>(this->impl_->storage_log_.get());
+
+  registrator.add_service<principal_manager>(&(this->impl_->storage_log_->principal_manager_));
   
   registrator.add_service<ichunk_manager>(this->impl_->chunk_manager_.get());
   

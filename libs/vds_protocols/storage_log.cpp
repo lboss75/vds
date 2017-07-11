@@ -144,14 +144,14 @@ void vds::_storage_log::reset(
   this->vds_folder_ = foldername(persistence::current_user(sp), ".vds");
   this->vds_folder_.create();
   
-  database_transaction_scope scope(sp, *(*sp.get<iserver_database>())->get_db());
+  server_database_scope scope(sp);
   
   hash ph(hash::sha256());
   ph.update(password.c_str(), password.length());
   ph.final();
   
   this->add_to_local_log(
-    sp,
+    scope,
     principal_id,
     private_key,
     server_log_root_certificate(
@@ -160,7 +160,7 @@ void vds::_storage_log::reset(
       private_key.str(password),
       ph.signature()).serialize(),
       true);
-  this->add_to_local_log(sp, principal_id, private_key, server_log_new_server(
+  this->add_to_local_log(scope, principal_id, private_key, server_log_new_server(
     this->current_server_id_,
     principal_id,
     this->server_certificate_.str(),
@@ -168,7 +168,7 @@ void vds::_storage_log::reset(
     ph.signature()).serialize(),
     true);
   this->add_to_local_log(
-    sp,
+    scope,
     principal_id,
     private_key,
     server_log_new_endpoint(this->current_server_id_, addresses).serialize(),
@@ -423,12 +423,12 @@ bool vds::_storage_log::process_timer_jobs(const service_provider & sp)
 {
   std::lock_guard<std::mutex> lock(this->record_state_mutex_);
 
-  database_transaction_scope scope(sp, *(*sp.get<iserver_database>())->get_db());
+  server_database_scope scope(sp);
   
   principal_log_record record;
   const_data_buffer signature;
-  while(this->principal_manager_->get_front_record(sp, record, signature)){
-    this->apply_record(sp, record, signature);
+  while(this->principal_manager_->get_front_record(scope, record, signature)){
+    this->apply_record(scope, record, signature);
   }
 
   scope.commit();

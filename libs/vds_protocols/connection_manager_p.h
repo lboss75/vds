@@ -8,6 +8,7 @@ All rights reserved
 
 #include "simple_cache.h"
 #include "object_transfer_protocol.h"
+#include "route_manager.h"
 
 namespace vds {
   class connection_manager;
@@ -60,6 +61,7 @@ namespace vds {
 
   private:
     connection_manager * const owner_;
+    route_manager route_manager_;
         
     void start_udp_channel(
       const vds::service_provider& sp,

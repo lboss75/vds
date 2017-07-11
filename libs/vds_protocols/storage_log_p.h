@@ -94,6 +94,8 @@ namespace vds {
       database_transaction & t);
 
   private:
+    friend class server;
+
     certificate server_certificate_;
     asymmetric_private_key current_server_key_;
     guid current_server_id_;

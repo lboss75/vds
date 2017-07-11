@@ -32,6 +32,7 @@ namespace vds {
 
     void set_parameter(int index, int value)
     {
+      std::cout << "@p[" << index << "]=(int)" << value << "\n";
       this->reset();
 
       sqlite3_bind_int(this->stmt_, index, value);
@@ -39,6 +40,7 @@ namespace vds {
 
     void set_parameter(int index, uint64_t value)
     {
+      std::cout << "@p[" << index << "]=(uint64_t)" << value << "\n";
       this->reset();
       
       sqlite3_bind_int64(this->stmt_, index, value);
@@ -46,6 +48,7 @@ namespace vds {
 
     void set_parameter(int index, const std::string & value)
     {
+      std::cout << "@p[" << index << "]=(string)" << value << "\n";
       this->reset();
       
       sqlite3_bind_text(this->stmt_, index, value.c_str(), -1, SQLITE_TRANSIENT);
@@ -53,6 +56,7 @@ namespace vds {
 
     void set_parameter(int index, const guid & value)
     {
+      std::cout << "@p[" << index << "]=(guid)" << value.str() << "\n";
       this->reset();
       
       this->set_parameter(index, value.str());
@@ -60,6 +64,7 @@ namespace vds {
 
     void set_parameter(int index, const const_data_buffer & value)
     {
+      std::cout << "@p[" << index << "]=(buffer)" << base64::from_bytes(value) << "\n";
       this->reset();
       
       sqlite3_bind_blob(this->stmt_, index, value.data(), (int)value.size(), SQLITE_TRANSIENT);
@@ -77,7 +82,8 @@ namespace vds {
         return false;
 
       default:
-        throw std::runtime_error(sqlite3_errmsg(this->db_));
+        auto error = sqlite3_errmsg(this->db_);
+        throw std::runtime_error(error);
       }
     }
 

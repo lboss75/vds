@@ -6,6 +6,16 @@ All rights reserved
 #include "route_manager.h"
 #include "route_manager_p.h"
 
+vds::route_manager::route_manager()
+  : impl_(new _route_manager())
+{
+}
+
+vds::route_manager::~route_manager()
+{
+  delete this->impl_;
+}
+
 void vds::route_manager::add_route(
   const service_provider& sp,
   const guid& source_server_id,
@@ -31,6 +41,14 @@ vds::route_message::route_message(
 
 }
 //////////////////////////////////
+vds::_route_manager::_route_manager()
+{
+}
+
+vds::_route_manager::~_route_manager()
+{
+}
+
 void vds::_route_manager::on_session_started(
   const service_provider& sp,
   const guid & source_server_id,
