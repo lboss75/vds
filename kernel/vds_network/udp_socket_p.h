@@ -446,7 +446,7 @@ namespace vds {
 
     udp_socket start(const service_provider & sp)
     {
-      auto scope = sp.create_scope("UDP server on " + this->address_ + ":" + std::to_string(this->port_));
+      auto scope = sp.create_scope(("UDP server on " + this->address_ + ":" + std::to_string(this->port_)).c_str());
       imt_service::enable_async(scope);
 
       this->socket_->create(scope);

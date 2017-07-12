@@ -136,7 +136,7 @@ void vds::_connection_manager::start_servers(
 {
   url_parser::parse_addresses(server_addresses,
     [this, sp](const std::string & protocol, const std::string & address) -> bool {
-    auto scope = sp.create_scope("Connect to " + address);
+    auto scope = sp.create_scope(("Connect to " + address).c_str());
     imt_service::enable_async(scope);
 
     if ("udp" == protocol) {
@@ -525,7 +525,7 @@ void vds::_connection_manager::udp_channel::open_udp_session(
         session_id,
         address).serialize();
       
-      auto scope = sp.create_scope("Send hello to " + address);
+      auto scope = sp.create_scope(("Send hello to " + address).c_str());
       imt_service::enable_async(scope);
       this->s_.outgoing()->write_value_async(scope, udp_datagram(server, port, data, false))
         .wait(
@@ -595,7 +595,7 @@ void vds::_connection_manager::udp_channel::session::send_to(
         s << hash::signature(hash::sha256(), message_data.data());
         s.final();
 
-        auto scope = sp.create_scope("Send message to " + this->server() + ":" + std::to_string(this->port()));
+        auto scope = sp.create_scope(("Send message to " + this->server() + ":" + std::to_string(this->port())).c_str());
         imt_service::enable_async(scope);
         this->owner_->s_.outgoing()->write_value_async(scope, udp_datagram(this->server(), this->port(), s.data()))
           .wait(
@@ -666,7 +666,7 @@ bool vds::_connection_manager::udp_channel::process_timer_jobs(const service_pro
       p.first,
       p.second.address()).serialize();
 
-    auto scope = sp.create_scope("Send hello to " + p.second.address());
+    auto scope = sp.create_scope(("Send hello to " + p.second.address()).c_str());
     imt_service::enable_async(scope);
 
     auto network_address = url_parser::parse_network_address(p.second.address());

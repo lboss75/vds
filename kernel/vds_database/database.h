@@ -94,7 +94,7 @@ namespace vds {
     void open(const filename & fn);
     void close();
 
-    database_transaction begin_transaction();
+    database_transaction begin_transaction(const service_provider & sp);
     void commit(database_transaction & t);
     void rollback(database_transaction & t);
 

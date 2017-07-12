@@ -82,7 +82,7 @@ namespace vds {
   public:
     server_database_scope(
       const service_provider & sp)
-      : sp_(sp.create_scope("Server database scope")),
+      : sp_(sp.create_scope(nullptr)),
         scope_(this->sp_, *(*this->sp_.get<iserver_database>())->get_db())
     {
     }

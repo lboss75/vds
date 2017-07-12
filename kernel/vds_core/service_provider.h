@@ -30,7 +30,7 @@ namespace vds {
       return result;
     }
 
-    service_provider create_scope(const std::string & name) const;
+    service_provider create_scope(const char * name) const;
 
     size_t id() const;
     const std::string & name() const;
@@ -106,7 +106,7 @@ namespace vds {
 
     void shutdown(service_provider & sp);
 
-    service_provider build(const std::string & name);
+    service_provider build(const char * name);
     void start(const service_provider & sp);
 
   private:

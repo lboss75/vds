@@ -71,7 +71,10 @@ void vds::_server_log_sync::on_record_broadcast(
   const service_provider & sp,
   const server_log_record_broadcast & message)
 {
-  if((*sp.get<principal_manager>())->save_record(
+  auto manager = sp.get<principal_manager>();
+
+  std::lock_guard<principal_manager> lock(*manager);
+  if((*manager)->save_record(
     sp,
     message.record(),
     message.signature())){

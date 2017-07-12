@@ -151,7 +151,7 @@ namespace vds {
     std::string add_parameter(const std::function<void(sql_statement & st, int index)> & set_parameter)
     {
       this->set_parameters_.push_back(set_parameter);
-      return "@p" + std::to_string(this->set_parameters_.size());
+      return "?" + std::to_string(this->set_parameters_.size());
     }
     
     sql_statement set_parameters(sql_statement && st)
@@ -180,7 +180,13 @@ namespace vds {
 
     std::string visit(_database_sql_builder & builder) const
     {
-      return builder.get_alias(this->column_->owner()) + "." + this->column_->name();
+      auto alias = builder.get_alias(this->column_->owner());
+      if (alias.empty()) {
+        return this->column_->name();
+      }
+      else {
+        return alias + "." + this->column_->name();
+      }
     }
     
   private:
@@ -204,7 +210,13 @@ namespace vds {
 
     std::string visit(_database_sql_builder & builder) const
     {
-      return builder.get_alias(this->column_->owner()) + "." + this->column_->name();
+      auto alias = builder.get_alias(this->column_->owner());
+      if (alias.empty()) {
+        return this->column_->name();
+      }
+      else {
+        return alias + "." + this->column_->name();
+      }
     }
 
     void set_index(int index) const
@@ -865,7 +877,7 @@ namespace vds {
     
     void collect_aliases(std::map<const database_table *, std::string> & aliases) const
     {
-      aliases[&this->table_] = this->table_.name();
+      aliases[&this->table_] = std::string();
     }
 
     

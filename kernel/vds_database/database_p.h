@@ -6,10 +6,19 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
+#include <chrono>
+#include <thread>
+
 #include "sqllite3/sqlite3.h"
+#include "debug.h"
 
 namespace vds {
   class database;
+
+  DECLARE_DEBUG_TASK(_database_transaction_task)
+  DECLARE_DEBUG_TASK(_database_transaction_debug)
+
+  void dump_commands();
 
   class _sql_statement
   {
@@ -17,9 +26,25 @@ namespace vds {
     _sql_statement(sqlite3 * db, const char * sql)
       : db_(db), stmt_(nullptr), state_(bof_state)
     {
-      if (SQLITE_OK != sqlite3_prepare_v2(db, sql, -1, &this->stmt_, nullptr)) {
-        auto error = sqlite3_errmsg(db);
-        throw std::runtime_error(error);
+      for (auto try_count = 0;; ++try_count) {
+        auto result = sqlite3_prepare_v2(db, sql, -1, &this->stmt_, nullptr);
+        switch (result) {
+        case SQLITE_OK:
+          return;
+
+        case SQLITE_BUSY:
+          if (30 > try_count) {
+            dump_commands();
+
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+            continue;
+          }
+          //break;
+
+        default:
+          auto error = sqlite3_errmsg(db);
+          throw std::runtime_error(error);
+        }
       }
     }
 
@@ -32,7 +57,6 @@ namespace vds {
 
     void set_parameter(int index, int value)
     {
-      std::cout << "@p[" << index << "]=(int)" << value << "\n";
       this->reset();
 
       sqlite3_bind_int(this->stmt_, index, value);
@@ -40,7 +64,6 @@ namespace vds {
 
     void set_parameter(int index, uint64_t value)
     {
-      std::cout << "@p[" << index << "]=(uint64_t)" << value << "\n";
       this->reset();
       
       sqlite3_bind_int64(this->stmt_, index, value);
@@ -48,7 +71,6 @@ namespace vds {
 
     void set_parameter(int index, const std::string & value)
     {
-      std::cout << "@p[" << index << "]=(string)" << value << "\n";
       this->reset();
       
       sqlite3_bind_text(this->stmt_, index, value.c_str(), -1, SQLITE_TRANSIENT);
@@ -56,7 +78,6 @@ namespace vds {
 
     void set_parameter(int index, const guid & value)
     {
-      std::cout << "@p[" << index << "]=(guid)" << value.str() << "\n";
       this->reset();
       
       this->set_parameter(index, value.str());
@@ -64,7 +85,6 @@ namespace vds {
 
     void set_parameter(int index, const const_data_buffer & value)
     {
-      std::cout << "@p[" << index << "]=(buffer)" << base64::from_bytes(value) << "\n";
       this->reset();
       
       sqlite3_bind_blob(this->stmt_, index, value.data(), (int)value.size(), SQLITE_TRANSIENT);
@@ -72,18 +92,30 @@ namespace vds {
 
     bool execute()
     {
-      switch (sqlite3_step(this->stmt_)) {
-      case SQLITE_ROW:
-        this->state_ = read_state;
-        return true;
+      for (auto try_count = 0; ; ++try_count) {
+        auto result = sqlite3_step(this->stmt_);
+        switch (result) {
+        case SQLITE_ROW:
+          this->state_ = read_state;
+          return true;
 
-      case SQLITE_DONE:
-        this->state_ = eof_state;
-        return false;
+        case SQLITE_DONE:
+          this->state_ = eof_state;
+          return false;
 
-      default:
-        auto error = sqlite3_errmsg(this->db_);
-        throw std::runtime_error(error);
+        case SQLITE_BUSY:
+          if (30 > try_count) {
+            dump_commands();
+
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+            continue;
+          }
+          //break;
+
+        default:
+          auto error = sqlite3_errmsg(this->db_);
+          throw std::runtime_error(error);
+        }
       }
     }
 
@@ -174,18 +206,21 @@ namespace vds {
   class _database_transaction : public std::enable_shared_from_this<_database_transaction>
   {
   public:
-    _database_transaction(const filename & database_file)
-    : db_(nullptr)
+    _database_transaction(const service_provider & sp, const filename & database_file)
+    : sp_(sp), db_(nullptr)
     {
       auto error = sqlite3_open(database_file.local_name().c_str(), &this->db_);
 
       if (SQLITE_OK != error) {
         throw std::runtime_error(sqlite3_errmsg(this->db_));
       }
+
+      START_DEBUG_TASK(_database_transaction_debug, sp.full_name());
     }
 
     ~_database_transaction()
     {
+      FINISH_DEBUG_TASK(_database_transaction_debug, this->sp_.full_name());
       this->close();
     }
 
@@ -199,31 +234,49 @@ namespace vds {
 
     void execute(const char * sql)
     {
-      std::cout << sql << "\n";
-      char * zErrMsg = nullptr;
-      auto error = sqlite3_exec(this->db_, sql, nullptr, 0, &zErrMsg);
-      if (SQLITE_OK != error) {
-        std::string error_message(zErrMsg);
-        sqlite3_free(zErrMsg);
+      DEBUG_TASK(_database_transaction_task, ("[" + std::to_string(GetCurrentThreadId()) + "]:" + sql).c_str());
+      for (auto try_count = 0; ; ++try_count) {
+        char * zErrMsg = nullptr;
+        auto result = sqlite3_exec(this->db_, sql, nullptr, 0, &zErrMsg);
+        switch (result) {
+        case SQLITE_OK:
+          return;
 
-        throw std::runtime_error(error_message);
+        case SQLITE_BUSY:
+          if (30 > try_count) {
+            sqlite3_free(zErrMsg);
+
+            dump_commands();
+
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+            continue;
+          }
+          //break;
+
+        default:
+          std::string error_message(zErrMsg);
+          sqlite3_free(zErrMsg);
+
+          throw std::runtime_error(error_message);
+        }
       }
     }
 
     sql_statement parse(const char * sql)
     {
-      std::cout << sql << "\n";
       return sql_statement(new _sql_statement(this->db_, sql));
     }
 
   private:
-    sqlite3 * db_;
+    service_provider sp_;
+    sqlite3 * db_;    
   };
 
+  DECLARE_DEBUG_TASK(_database_commit_task)
   class _database
   {
   public:
-    static const size_t MAX_CONNECTION_POOL = 10;
+    static const size_t MAX_CONNECTION_POOL = 0;
 
     _database()
       : is_closed_(true)
@@ -258,13 +311,13 @@ namespace vds {
       }
     }
 
-    database_transaction begin_transaction()
+    database_transaction begin_transaction(const service_provider & sp)
     {
       if (this->is_closed_) {
         throw std::runtime_error("Database is not opened");
       }
 
-      auto result = this->create_transaction();
+      auto result = this->create_transaction(sp);
       result.execute("BEGIN TRANSACTION");
       return result;
     }
@@ -272,6 +325,7 @@ namespace vds {
     void commit(database_transaction & t)
     {
       try {
+        DEBUG_TASK(_database_commit_task, ("Commiting in " + std::to_string(GetCurrentThreadId())).c_str());
         t.execute("COMMIT TRANSACTION");
       }
       catch (...) {
@@ -302,7 +356,7 @@ namespace vds {
     std::mutex pool_mutex_;
     std::list<std::shared_ptr<_database_transaction>> connection_pool_;
 
-    database_transaction create_transaction()
+    database_transaction create_transaction(const service_provider & sp)
     {
       this->pool_mutex_.lock();
       if (!this->connection_pool_.empty()) {
@@ -314,7 +368,7 @@ namespace vds {
       }
 
       this->pool_mutex_.unlock();
-      return database_transaction(std::make_shared<_database_transaction>(this->database_file_));
+      return database_transaction(std::make_shared<_database_transaction>(sp, this->database_file_));
     }
 
     void free_transaction(database_transaction & t)
@@ -325,6 +379,12 @@ namespace vds {
       }
     }
   };
+
+  inline void dump_commands()
+  {
+    std::cout << "Waiting for " << _database_transaction_task << "\n";
+    std::cout << "Transactions: " << _database_transaction_debug << "\n";
+  }
 }
 
 

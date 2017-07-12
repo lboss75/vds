@@ -18,6 +18,9 @@ namespace vds {
   {
   public:
 
+    void lock() { this->this_mutex_.lock(); }
+    void unlock() { this->this_mutex_.unlock(); }
+
     enum class principal_log_state
     {
       not_found = 0,
@@ -104,6 +107,7 @@ namespace vds {
 
   private:
     not_mutex principal_log_mutex_;
+    std::mutex this_mutex_;
 
     //Database
     class principal_table : public database_table

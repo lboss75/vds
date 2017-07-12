@@ -6,6 +6,10 @@ All rights reserved
 #include "database.h"
 #include "database_p.h"
 
+DEFINE_DEBUG_TASK(vds::_database_commit_task, "Commiting tasks");
+DEFINE_DEBUG_TASK(vds::_database_transaction_task, "SQL");
+DEFINE_DEBUG_TASK(vds::_database_transaction_debug, "Transactions")
+
 vds::database::database()
   : impl_(new _database())
 {
@@ -26,9 +30,9 @@ void vds::database::close()
   this->impl_->close();
 }
 
-vds::database_transaction vds::database::begin_transaction()
+vds::database_transaction vds::database::begin_transaction(const service_provider & sp)
 {
-  return vds::database_transaction(this->impl_->begin_transaction());
+  return vds::database_transaction(this->impl_->begin_transaction(sp));
 }
 
 void vds::database::commit(vds::database_transaction& t)
@@ -154,7 +158,7 @@ vds::database_transaction & vds::database_transaction::current(const service_pro
 }
 
 vds::database_transaction_scope::database_transaction_scope(const service_provider & sp, database & db)
-  : sp_(sp), db_(db), transaction_(db.begin_transaction()), successful_(false)
+  : sp_(sp), db_(db), transaction_(db.begin_transaction(sp)), successful_(false)
 {
   auto holder = sp.get_property<database_transaction_holder>(service_provider::property_scope::any_scope);
   if (nullptr != holder) {

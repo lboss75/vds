@@ -58,7 +58,7 @@ void vds::_server_database::start(const service_provider & sp)
   else {
     this->db_.open(db_filename);
     
-    auto t = this->db_.begin_transaction();
+    auto t = this->db_.begin_transaction(sp);
     auto st = t.parse("SELECT version FROM module WHERE id='kernel'");
     if(!st.execute()){
       throw std::runtime_error("Database has been corrupted");
@@ -68,7 +68,7 @@ void vds::_server_database::start(const service_provider & sp)
     this->db_.commit(t);
   }
 
-  auto t = this->db_.begin_transaction();
+  auto t = this->db_.begin_transaction(sp);
   
   if (1 > db_version) {
     

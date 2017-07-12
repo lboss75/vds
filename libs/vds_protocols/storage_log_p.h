@@ -100,7 +100,6 @@ namespace vds {
     asymmetric_private_key current_server_key_;
     guid current_server_id_;
     foldername vds_folder_;
-    std::mutex record_state_mutex_;
     timer process_timer_;
     principal_log_record::record_id last_applied_record_;
     principal_manager principal_manager_;

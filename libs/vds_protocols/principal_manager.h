@@ -17,7 +17,10 @@ namespace vds {
   {
   public:
     principal_manager();
-    ~principal_manager();    
+    ~principal_manager();
+
+    void lock();
+    void unlock();
 
     bool save_record(
       const service_provider & sp,

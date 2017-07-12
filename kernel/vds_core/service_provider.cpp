@@ -18,7 +18,7 @@ vds::service_provider vds::service_provider::empty()
   return service_provider(std::shared_ptr<_service_provider>());
 }
 
-vds::service_provider vds::service_provider::create_scope(const std::string & name) const
+vds::service_provider vds::service_provider::create_scope(const char * name) const
 {
   return this->impl_->create_scope(this, name);
 }
@@ -71,7 +71,7 @@ std::atomic_size_t vds::_service_provider::s_last_id_;
 
 vds::service_provider vds::_service_registrator::build(
   service_registrator & owner,
-  const std::string & name)
+  const char * name)
 {
   auto sp = service_provider(
     std::make_shared<_service_provider>(
@@ -111,7 +111,7 @@ void vds::service_registrator::shutdown(service_provider & sp)
   this->impl_->shutdown(sp);
 }
 
-vds::service_provider vds::service_registrator::build(const std::string & name)
+vds::service_provider vds::service_registrator::build(const char * name)
 {
   return this->impl_->build(*this, name);
 }

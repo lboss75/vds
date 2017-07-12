@@ -145,6 +145,7 @@ vds::async_task<std::shared_ptr<vds::http_message>> vds::_server_http_api::route
           server_database_scope scope(sp);
 
           done(sp, http_response::simple_text_response(sp, this->server_json_client_api_(scope, *json_request)->str()));
+          scope.commit();
         },
         on_error, sp);
     });

@@ -233,7 +233,7 @@ void vds::_storage_log::add_to_local_log(
   const std::shared_ptr<json_value> & message,
   bool apply_record)
 {
-  std::lock_guard<std::mutex> lock(this->record_state_mutex_);
+  std::lock_guard<principal_manager> lock(this->principal_manager_);
 
   const_data_buffer signature;
   auto result = this->principal_manager_->add_local_record(
@@ -421,10 +421,9 @@ void vds::_storage_log::get_endpoints(
 
 bool vds::_storage_log::process_timer_jobs(const service_provider & sp)
 {
-  std::lock_guard<std::mutex> lock(this->record_state_mutex_);
-
   server_database_scope scope(sp);
-  
+  std::lock_guard<principal_manager> lock(this->principal_manager_);
+
   principal_log_record record;
   const_data_buffer signature;
   while(this->principal_manager_->get_front_record(scope, record, signature)){

@@ -2,6 +2,7 @@
 #include "principal_manager_p.h"
 #include "json_parser.h"
 #include "asymmetriccrypto.h"
+#include "logger.h"
 
 vds::principal_manager::principal_manager()
 : impl_(new _principal_manager())
@@ -11,6 +12,16 @@ vds::principal_manager::principal_manager()
 vds::principal_manager::~principal_manager()
 {
   delete this->impl_;
+}
+
+void vds::principal_manager::lock()
+{
+  this->impl_->lock();
+}
+
+void vds::principal_manager::unlock()
+{
+  this->impl_->unlock();
 }
 
 bool vds::principal_manager::save_record(
@@ -461,9 +472,9 @@ bool vds::_principal_manager::get_record_by_state(
   const_data_buffer & result_signature)
 {
   principal_log_table t;
-  auto st = database_transaction::current(sp).parse(
-    "SELECT id,principal_id,message,order_num,signature FROM  principal_log WHERE state=@state LIMIT 1");
-  st.set_parameter(0, (int)state);
+  auto st = database_transaction::current(sp).get_reader(
+    t.select(t.id,t.principal_id,t.message,t.order_num,t.signature)
+    .where(t.state == (int)state));
 
   bool result = false;
   principal_log_record::record_id id;
@@ -477,6 +488,7 @@ bool vds::_principal_manager::get_record_by_state(
     order_num = t.order_num.get(st);
     result_signature = t.signature.get(st);
     result = true;
+    break;
   }
 
   if (result) {
@@ -642,12 +654,20 @@ bool vds::_principal_manager::save_record(
     signature,
     record.order_num(),
     state);
-  
+
+  if (record.parents().empty()) {
+    sp.get<logger>()->debug(sp, "Added record %s without parents", record.id().str().c_str());
+  }
+  else {
+    sp.get<logger>()->debug(sp, "Added record %s", record.id().str().c_str());
+  }
+
   for (auto& p : record.parents()) {
     this->principal_log_add_link(
       sp,
       p,
       record.id());
+    sp.get<logger>()->debug(sp, "Added parent %s", p.str().c_str());
   }
 
   return true;

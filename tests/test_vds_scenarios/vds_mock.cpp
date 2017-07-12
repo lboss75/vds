@@ -124,7 +124,7 @@ void mock_client::init_server(
   vds::barrier b;
   std::shared_ptr<std::exception> error;
 
-  auto sp = registrator.build("mock client on port " + std::to_string(port));
+  auto sp = registrator.build(("mock client on port " + std::to_string(port)).c_str());
   sp.set_property<vds::unhandled_exception_handler>(
     vds::service_provider::property_scope::any_scope,
     new vds::unhandled_exception_handler(
@@ -431,7 +431,7 @@ void mock_server::start()
 
   this->server_.set_port(8050 + this->index_);
 
-  this->sp_ = this->registrator_.build("mock server[" + std::to_string(this->index_) + "]");
+  this->sp_ = this->registrator_.build(("mock server[" + std::to_string(this->index_) + "]").c_str());
   auto root_folders = new vds::persistence_values();
   root_folders->current_user_ = folder;
   root_folders->local_machine_ = folder;
