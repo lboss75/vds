@@ -43,16 +43,18 @@ size_t vds::istorage_log::minimal_consensus() const
 
 void vds::istorage_log::add_to_local_log(
   const service_provider & sp,
+  database_transaction & tr,
   const guid & principal_id,
   const vds::asymmetric_private_key & principal_private_key,
   const std::shared_ptr<json_value> & record,
   bool apply_record /*= true*/)
 {
-  static_cast<_storage_log *>(this)->add_to_local_log(sp, principal_id, principal_private_key, record, apply_record);
+  static_cast<_storage_log *>(this)->add_to_local_log(sp, tr, principal_id, principal_private_key, record, apply_record);
 }
 
 vds::async_task<> vds::istorage_log::register_server(
   const service_provider & sp,
+  database_transaction & tr,
   const guid & id,
   const guid & parent_id,
   const std::string & server_certificate,
@@ -61,6 +63,7 @@ vds::async_task<> vds::istorage_log::register_server(
 {
   return static_cast<_storage_log *>(this)->register_server(
     sp,
+    tr,
     id,
     parent_id,
     server_certificate,
@@ -70,24 +73,27 @@ vds::async_task<> vds::istorage_log::register_server(
 
 std::unique_ptr<vds::const_data_buffer> vds::istorage_log::get_object(
   const service_provider & sp,
+  database_transaction & tr,
   const vds::full_storage_object_id& object_id)
 {
-  return static_cast<_storage_log *>(this)->get_object(sp, object_id);
+  return static_cast<_storage_log *>(this)->get_object(sp, tr, object_id);
 }
 
 void vds::istorage_log::add_endpoint(
   const service_provider & sp,
+  database_transaction & tr,
   const std::string & endpoint_id,
   const std::string & addresses)
 {
-  static_cast<_storage_log *>(this)->add_endpoint(sp, endpoint_id, addresses);
+  static_cast<_storage_log *>(this)->add_endpoint(sp, tr, endpoint_id, addresses);
 }
 
 void vds::istorage_log::get_endpoints(
   const service_provider & sp,
+  database_transaction & tr,
   std::map<std::string, std::string> & addresses)
 {
-  static_cast<_storage_log *>(this)->get_endpoints(sp, addresses);
+  static_cast<_storage_log *>(this)->get_endpoints(sp, tr, addresses);
 }
 
 void vds::istorage_log::reset(
@@ -109,16 +115,19 @@ void vds::istorage_log::reset(
 
 void vds::istorage_log::apply_record(
   const service_provider & sp,
+  database_transaction & tr,
   const principal_log_record & record,
   const const_data_buffer & signature)
 {
   static_cast<_storage_log *>(this)->apply_record(
     sp,
+    tr,
     record,
     signature);
 }
 
-vds::principal_log_record::record_id vds::istorage_log::get_last_applied_record(const service_provider & sp)
+vds::principal_log_record::record_id vds::istorage_log::get_last_applied_record(
+  const service_provider & sp)
 {
   return static_cast<_storage_log *>(this)->get_last_applied_record(sp);
 }
@@ -144,14 +153,15 @@ void vds::_storage_log::reset(
   this->vds_folder_ = foldername(persistence::current_user(sp), ".vds");
   this->vds_folder_.create();
   
-  server_database_scope scope(sp);
+  database_transaction_scope scope(sp, *(*sp.get<iserver_database>())->get_db());
   
   hash ph(hash::sha256());
   ph.update(password.c_str(), password.length());
   ph.final();
   
   this->add_to_local_log(
-    scope,
+    sp,
+    scope.transaction(),
     principal_id,
     private_key,
     server_log_root_certificate(
@@ -160,7 +170,7 @@ void vds::_storage_log::reset(
       private_key.str(password),
       ph.signature()).serialize(),
       true);
-  this->add_to_local_log(scope, principal_id, private_key, server_log_new_server(
+  this->add_to_local_log(sp, scope.transaction(), principal_id, private_key, server_log_new_server(
     this->current_server_id_,
     principal_id,
     this->server_certificate_.str(),
@@ -168,7 +178,8 @@ void vds::_storage_log::reset(
     ph.signature()).serialize(),
     true);
   this->add_to_local_log(
-    scope,
+    sp,
+    scope.transaction(),
     principal_id,
     private_key,
     server_log_new_endpoint(this->current_server_id_, addresses).serialize(),
@@ -200,6 +211,7 @@ void vds::_storage_log::stop(const service_provider & sp)
 
 vds::async_task<> vds::_storage_log::register_server(
   const service_provider & sp,
+  database_transaction & tr,
   const guid & id,
   const guid & parent_id,
   const std::string & server_certificate,
@@ -207,12 +219,13 @@ vds::async_task<> vds::_storage_log::register_server(
   const const_data_buffer & password_hash)
 {
   return create_async_task(
-    [this, id, parent_id, server_certificate, server_private_key, password_hash](
+    [this, &tr, id, parent_id, server_certificate, server_private_key, password_hash](
       const std::function<void(const service_provider & sp)> & done,
       const error_handler & on_error,
       const service_provider & sp) {
     this->add_to_local_log(
       sp,
+      tr,
       this->current_server_id(),
       this->server_private_key(),
       server_log_new_server(
@@ -228,6 +241,7 @@ vds::async_task<> vds::_storage_log::register_server(
 
 void vds::_storage_log::add_to_local_log(
   const service_provider & sp,
+  database_transaction & tr,
   const guid & principal_id,
   const vds::asymmetric_private_key & principal_private_key,
   const std::shared_ptr<json_value> & message,
@@ -238,6 +252,7 @@ void vds::_storage_log::add_to_local_log(
   const_data_buffer signature;
   auto result = this->principal_manager_->add_local_record(
       sp,
+      tr,
       guid::new_guid(),
       principal_id,
       message,
@@ -245,11 +260,11 @@ void vds::_storage_log::add_to_local_log(
       signature);
     
   if(apply_record){
-    this->apply_record(sp, result, signature);
+    this->apply_record(sp, tr, result, signature);
   }
   else {
     this->last_applied_record_ = result.id();
-    this->principal_manager_->processed_record(sp, result.id());
+    this->principal_manager_->processed_record(sp, tr, result.id());
   }
 
   auto sl = sp.get<_server_log_sync>(false);
@@ -260,11 +275,12 @@ void vds::_storage_log::add_to_local_log(
 
 void vds::_storage_log::apply_record(
   const service_provider & sp,
+  database_transaction & tr,
   const principal_log_record & record,
   const const_data_buffer & signature)
 {
   sp.get<logger>()->debug(sp, "Apply record %s", record.id().str().c_str());
-  auto state = this->principal_manager_->principal_log_get_state(sp, record.id());
+  auto state = this->principal_manager_->principal_log_get_state(sp, tr, record.id());
   if(_principal_manager::principal_log_state::front != state){
     throw std::runtime_error("Invalid server state");
   }
@@ -272,23 +288,23 @@ void vds::_storage_log::apply_record(
   auto obj = std::dynamic_pointer_cast<json_object>(record.message());
   if(!obj){
     sp.get<logger>()->info(sp, "Wrong messsage in the record %s", record.id().str().c_str());
-    this->principal_manager_->delete_record(sp, record.id());
+    this->principal_manager_->delete_record(sp, tr, record.id());
     return;
   }
   
   try {
-    this->validate_signature(sp, record, signature);
+    this->validate_signature(sp, tr, record, signature);
 
     std::string message_type;
     if (!obj->get_property("$t", message_type)) {
       sp.get<logger>()->info(sp, "Missing messsage type in the record %s", record.id().str().c_str());
-      this->principal_manager_->delete_record(sp, record.id());
+      this->principal_manager_->delete_record(sp, tr, record.id());
       return;
     }
     
     if (principal_log_new_object::message_type == message_type) {
       principal_log_new_object msg(obj);
-      sp.get<iserver_database>()->add_object(sp, msg);
+      sp.get<iserver_database>()->add_object(sp, tr, msg);
     }
     else if (principal_log_new_object_map::message_type == message_type) {
       principal_log_new_object_map msg(obj);
@@ -297,6 +313,7 @@ void vds::_storage_log::apply_record(
       for(auto & chunk : msg.full_chunks()){
         (*sp.get<ichunk_manager>())->add_full_chunk(
           sp,
+          tr,
           msg.object_id(),
           offset,
           msg.chunk_size(),
@@ -308,6 +325,7 @@ void vds::_storage_log::apply_record(
         for(auto & replica_hash : chunk.replica_hashes()){
           (*sp.get<ichunk_manager>())->add_chunk_replica(
             sp,
+            tr,
             msg.server_id(),
             chunk.chunk_index(),
             replica++,
@@ -321,6 +339,7 @@ void vds::_storage_log::apply_record(
       for(auto & tail_chunk : msg.tail_chunk_items()){
         (*sp.get<ichunk_manager>())->add_object_chunk_map(
           sp,
+          tr,
           tail_chunk.server_id(),
           tail_chunk.chunk_index(),
           tail_chunk.object_id(),
@@ -335,6 +354,7 @@ void vds::_storage_log::apply_record(
       
       this->principal_manager_->add_user_principal(
         sp,
+        tr,
         "root",
         vds::principal_record(
           msg.id(),
@@ -348,6 +368,7 @@ void vds::_storage_log::apply_record(
 
       this->principal_manager_->add_principal(
         sp,
+        tr,
         vds::principal_record(
           msg.parent_id(),
           msg.id(),
@@ -361,6 +382,7 @@ void vds::_storage_log::apply_record(
       
       sp.get<iserver_database>()->add_endpoint(
         sp,
+        tr,
         msg.server_id().str(),
         msg.addresses());
     }
@@ -369,7 +391,7 @@ void vds::_storage_log::apply_record(
         message_type.c_str(),
         record.id().str().c_str());
 
-      this->principal_manager_->delete_record(sp, record.id());
+      this->principal_manager_->delete_record(sp, tr, record.id());
       return;
     }
 
@@ -377,20 +399,21 @@ void vds::_storage_log::apply_record(
   }
   catch (const std::exception & ex) {
     sp.get<logger>()->info(sp, "%s", ex.what());
-    this->principal_manager_->delete_record(sp, record.id());
+    this->principal_manager_->delete_record(sp, tr, record.id());
     return;
   }
   catch(...){
     sp.get<logger>()->info(sp, "Unhandled error");
-    this->principal_manager_->delete_record(sp, record.id());
+    this->principal_manager_->delete_record(sp, tr, record.id());
     return;
   }
   
-  this->principal_manager_->processed_record(sp, record.id());
+  this->principal_manager_->processed_record(sp, tr, record.id());
 }
 
 std::unique_ptr<vds::const_data_buffer> vds::_storage_log::get_object(
   const service_provider & sp,
+  database_transaction & tr,
   const vds::full_storage_object_id& object_id)
 {
   return sp.get<ilocal_cache>()->get_object(sp, object_id);
@@ -398,17 +421,19 @@ std::unique_ptr<vds::const_data_buffer> vds::_storage_log::get_object(
 
 void vds::_storage_log::add_endpoint(
   const service_provider & sp,
+  database_transaction & tr,
   const std::string & endpoint_id,
   const std::string & addresses)
 {
-  sp.get<iserver_database>()->add_endpoint(sp, endpoint_id, addresses);
+  sp.get<iserver_database>()->add_endpoint(sp, tr, endpoint_id, addresses);
 }
 
 void vds::_storage_log::get_endpoints(
   const service_provider & sp,
+  database_transaction & tr,
   std::map<std::string, std::string> & addresses)
 {
-  sp.get<iserver_database>()->get_endpoints(sp, addresses);
+  sp.get<iserver_database>()->get_endpoints(sp, tr, addresses);
 }
 
 
@@ -421,13 +446,13 @@ void vds::_storage_log::get_endpoints(
 
 bool vds::_storage_log::process_timer_jobs(const service_provider & sp)
 {
-  server_database_scope scope(sp);
+  database_transaction_scope scope(sp, *(*sp.get<iserver_database>())->get_db());
   std::lock_guard<principal_manager> lock(this->principal_manager_);
 
   principal_log_record record;
   const_data_buffer signature;
-  while(this->principal_manager_->get_front_record(scope, record, signature)){
-    this->apply_record(scope, record, signature);
+  while(this->principal_manager_->get_front_record(sp, scope.transaction(), record, signature)){
+    this->apply_record(sp, scope.transaction(), record, signature);
   }
 
   scope.commit();
@@ -436,9 +461,10 @@ bool vds::_storage_log::process_timer_jobs(const service_provider & sp)
 
 vds::asymmetric_public_key vds::_storage_log::corresponding_public_key(
   const service_provider & sp,
+  database_transaction & tr,
   const principal_log_record & record)
 {
-  auto principal = this->principal_manager_->find_principal(sp, record.principal_id());
+  auto principal = this->principal_manager_->find_principal(sp, tr, record.principal_id());
   if (!principal) {
     auto obj = std::dynamic_pointer_cast<json_object>(record.message());
     if (!obj) {
@@ -464,6 +490,7 @@ vds::asymmetric_public_key vds::_storage_log::corresponding_public_key(
 
 void vds::_storage_log::validate_signature(
   const service_provider & sp,
+  database_transaction & tr,
   const principal_log_record & record,
   const const_data_buffer & signature)
 {
@@ -471,7 +498,7 @@ void vds::_storage_log::validate_signature(
   std::string body = record.serialize(false)->str();
   if (!asymmetric_sign_verify::verify(
     hash::sha256(),
-    this->corresponding_public_key(sp, record),
+    this->corresponding_public_key(sp, tr, record),
     signature,
     body.c_str(),
     body.length())) {

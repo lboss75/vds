@@ -142,10 +142,11 @@ vds::async_task<std::shared_ptr<vds::http_message>> vds::_server_http_api::route
       )(
         [this, done, json_request](const service_provider & sp) {
 
-          server_database_scope scope(sp);
-
-          done(sp, http_response::simple_text_response(sp, this->server_json_client_api_(scope, *json_request)->str()));
-          scope.commit();
+          //database_transaction_scope scope(sp, *(*sp.get<iserver_database>())->get_db());
+          done(sp, http_response::simple_text_response(sp, this->server_json_client_api_(
+            sp,
+            *json_request)->str()));
+          //scope.commit();
         },
         on_error, sp);
     });

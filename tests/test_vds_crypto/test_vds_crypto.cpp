@@ -37,7 +37,7 @@ TEST(test_vds_crypto, test_symmetric)
       key.generate();
 
       vds::barrier b;
-      const std::shared_ptr<std::exception> & error;
+      std::shared_ptr<std::exception> error;
       dataflow(
         random_reader<uint8_t>(buffer.get(), (int)len),
         vds::symmetric_encrypt(key),
@@ -54,7 +54,7 @@ TEST(test_vds_crypto, test_symmetric)
       b.wait();
       registrator.shutdown(sp);
       if (error) {
-        GTEST_FAIL() << vds::exception_what(error);
+        GTEST_FAIL() << error->what();
       }
     }
 }

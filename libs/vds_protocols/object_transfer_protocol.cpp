@@ -24,6 +24,7 @@ vds::object_transfer_protocol::~object_transfer_protocol()
 
 void vds::object_transfer_protocol::chunk_require(
   const vds::service_provider& sp,
+  database_transaction & tr,
   const vds::guid & source_server_id,
   uint64_t chunk_index)
 {
@@ -33,6 +34,7 @@ void vds::object_transfer_protocol::chunk_require(
   std::list<ichunk_manager::replica_type> local_replicas;
   (*chunk_manager)->get_replicas(
     sp,
+    tr,
     source_server_id,
     chunk_index,
     current_server_id,
@@ -41,6 +43,7 @@ void vds::object_transfer_protocol::chunk_require(
   std::list<ichunk_manager::chunk_store> chunk_store_map;
   (*chunk_manager)->get_chunk_store(
     sp,
+    tr,
     source_server_id,
     chunk_index,
     chunk_store_map);
@@ -90,6 +93,7 @@ vds::_object_transfer_protocol::~_object_transfer_protocol()
 
 void vds::_object_transfer_protocol::on_object_request(
   const service_provider & sp,
+  database_transaction & tr,
   const guid & from_server_id,
   const object_request & message)
 {

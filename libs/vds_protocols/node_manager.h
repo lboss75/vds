@@ -8,11 +8,14 @@ All rights reserved
 
 
 namespace vds {
+  class database_transaction;
+  
   class node_manager
   {
   public:
     vds::async_task<> register_server(
       const service_provider & sp,
+      database_transaction & tr,
       const guid & id,
       const guid & parent_id,
       const std::string & server_certificate,
@@ -21,11 +24,13 @@ namespace vds {
     
     void add_endpoint(
       const service_provider & sp,
+      database_transaction & tr,
       const std::string & endpoint_id,
       const std::string & addresses);
 
     void get_endpoints(
       const service_provider & sp,
+      database_transaction & tr,
       std::map<std::string, std::string> & addresses);
   };
 }

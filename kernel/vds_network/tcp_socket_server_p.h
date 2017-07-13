@@ -268,7 +268,7 @@ namespace vds {
         //    auto error = errno;
         //    throw c_exception("Set socket to be nonblocking", error);
         //}
-        auto sp = data->sp_.create_scope("Connection from " + network_service::to_string(client_addr));
+        auto sp = data->sp_.create_scope(("Connection from " + network_service::to_string(client_addr)).c_str());
         imt_service::async(sp, [sp, data, sock](){
           data->new_connection_(sp, _tcp_network_socket::from_handle(sock));
         });

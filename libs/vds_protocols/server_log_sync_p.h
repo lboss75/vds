@@ -85,17 +85,20 @@ namespace vds {
 
     void on_record_broadcast(
       const service_provider & sp,
+      database_transaction & tr,
       const server_log_record_broadcast & message);
     void on_server_log_get_records_broadcast(
       const service_provider & sp,
+      database_transaction & tr,
       const connection_session & session,
       const server_log_get_records_broadcast & message);
 
-    void require_unknown_records(const service_provider & sp);
+    void require_unknown_records(const service_provider & sp, database_transaction & tr);
     bool process_timer_jobs(const service_provider & sp);
 
     void ensure_record_exists(
       const service_provider & sp,
+      database_transaction & tr,
       const principal_log_record::record_id & record_id);
   };
 

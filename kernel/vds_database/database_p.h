@@ -234,7 +234,6 @@ namespace vds {
 
     void execute(const char * sql)
     {
-      DEBUG_TASK(_database_transaction_task, ("[" + std::to_string(GetCurrentThreadId()) + "]:" + sql).c_str());
       for (auto try_count = 0; ; ++try_count) {
         char * zErrMsg = nullptr;
         auto result = sqlite3_exec(this->db_, sql, nullptr, 0, &zErrMsg);
@@ -325,7 +324,6 @@ namespace vds {
     void commit(database_transaction & t)
     {
       try {
-        DEBUG_TASK(_database_commit_task, ("Commiting in " + std::to_string(GetCurrentThreadId())).c_str());
         t.execute("COMMIT TRANSACTION");
       }
       catch (...) {

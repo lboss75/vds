@@ -67,8 +67,6 @@ namespace vds {
       return sql_command_builder<command_type>().build(*this, command);
     }
 
-    static database_transaction & current(const service_provider & sp);
-
   private:
     friend class _database;
     friend class database;
@@ -108,10 +106,14 @@ namespace vds {
     database_transaction_scope(const service_provider & sp, database & db);
     ~database_transaction_scope();
 
+    database_transaction & transaction()
+    {
+      return this->transaction_;
+    }
+    
     void commit();
 
   private:
-    service_provider sp_;
     database & db_;
     database_transaction transaction_;
     bool successful_;

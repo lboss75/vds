@@ -103,18 +103,18 @@ vds::_connection_manager::~_connection_manager()
 
 void vds::_connection_manager::start(const vds::service_provider& sp)
 {
-  server_database_scope scope(sp);
+  database_transaction_scope scope(sp, *(*sp.get<iserver_database>())->get_db());
 
   std::map<std::string, std::string> endpoints;
-  scope->get<node_manager>()->get_endpoints(scope, endpoints);
+  sp.get<node_manager>()->get_endpoints(sp, scope.transaction(), endpoints);
   
   for (auto & p : endpoints) {
-    scope->get<logger>()->info(scope, "Connecting to %s", p.first.c_str());
+    sp.get<logger>()->info(sp, "Connecting to %s", p.first.c_str());
     
     url_parser::parse_addresses(p.second,
-      [this, &scope](const std::string & protocol, const std::string & address) -> bool {
+      [this, sp, &scope](const std::string & protocol, const std::string & address) -> bool {
         if("udp" == protocol){
-          this->udp_channel_->open_udp_session(scope, address);
+          this->udp_channel_->open_udp_session(sp, address);
         }
         else if ("https" == protocol) {
           //this->open_https_session(sp, address);
@@ -264,7 +264,7 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
   size_t len)
 {
   return create_async_task([this, from, data, len](const std::function<void(const service_provider & sp)> & done, const error_handler & on_error, const service_provider & sp) {
-    server_database_scope scope(sp);
+    database_transaction_scope scope(sp, *(*sp.get<iserver_database>())->get_db());
     network_deserializer s(data, len);
     auto cmd = s.start();
     switch (cmd) {
@@ -284,7 +284,7 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
           msg.session_id(),
           server_certificate::server_id(cert));
 
-        auto last_record_id = sp.get<istorage_log>()->get_last_applied_record(scope);
+        auto last_record_id = sp.get<istorage_log>()->get_last_applied_record(sp);
         binary_serializer b;
         b
           << msg.session_id()
@@ -401,7 +401,7 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
             this->hello_requests_.erase(p);
           }
 
-          sp.get<_server_log_sync>()->ensure_record_exists(scope, last_record_id);
+          sp.get<_server_log_sync>()->ensure_record_exists(sp, scope.transaction(), last_record_id);
           done(sp);
         },
             on_error,
@@ -444,20 +444,23 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
               switch ((message_identification)message_type_id) {
               case message_identification::server_log_record_broadcast_message_id:
                 sp.get<_server_log_sync>()->on_record_broadcast(
-                  scope,
+                  sp,
+                  scope.transaction(),
                   _server_log_sync::server_log_record_broadcast(sp, binary_form));
                 break;
 
               case message_identification::server_log_get_records_broadcast_message_id:
                 sp.get<_server_log_sync>()->on_server_log_get_records_broadcast(
-                  scope,
+                  sp,
+                  scope.transaction(),
                   *session.get(),
                   _server_log_sync::server_log_get_records_broadcast(binary_form));
                 break;
 
               case message_identification::object_request_message_id:
                 this->owner_->object_transfer_protocol_->on_object_request(
-                  scope,
+                  sp,
+                  scope.transaction(),
                   session->partner_id(),
                   object_request(binary_form));
                 break;

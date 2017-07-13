@@ -27,6 +27,7 @@ namespace vds {
 
     void on_object_request(
       const service_provider & sp,
+      database_transaction & tr,
       const guid & from_server_id,
       const object_request & message);
     

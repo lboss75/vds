@@ -25,6 +25,7 @@ namespace vds {
 
     async_task<> add_object(
       const service_provider & sp,
+      database_transaction & tr,
       const guid & version_id,
       const filename & tmp_file,
       const const_data_buffer & file_hash);
@@ -36,10 +37,12 @@ namespace vds {
 
     std::list<object_chunk_map> get_object_map(
       const service_provider & sp,
+      database_transaction & tr,
       const guid & object_id);
 
     void get_replicas(
       const service_provider & sp,
+      database_transaction & tr,
       const guid & server_id,
       ichunk_manager::index_type index,
       const guid & storage_id,
@@ -47,18 +50,21 @@ namespace vds {
 
     const_data_buffer get_replica_data(
       const service_provider & sp,
+      database_transaction & tr,
       const guid & server_id,
       ichunk_manager::index_type index,
       ichunk_manager::replica_type replica);
 
     void get_chunk_store(
       const service_provider & sp,
+      database_transaction & tr,
       const guid & server_id,
       index_type index,
       std::list<chunk_store> & result);
 
     void add_full_chunk(
       const service_provider & sp,
+      database_transaction & tr,
       const guid & object_id,
       size_t offset,
       size_t size,
@@ -68,6 +74,7 @@ namespace vds {
     
     void add_chunk_replica(
       const service_provider & sp,
+      database_transaction & tr,
       const guid & server_id,
       size_t index,
       ichunk_manager::replica_type replica,
@@ -76,6 +83,7 @@ namespace vds {
     
     void add_object_chunk_map(
       const service_provider & sp,
+      database_transaction & tr,
       const guid & server_id,
       ichunk_manager::index_type chunk_index,
       const guid & object_id,
@@ -237,6 +245,7 @@ namespace vds {
     
     bool write_chunk(
       const service_provider & sp,
+      database_transaction & tr,
       principal_log_new_object_map & result_record,
       const filename & tmp_file,
       size_t offset,
@@ -245,6 +254,7 @@ namespace vds {
 
     bool write_tail(
       const service_provider & sp,
+      database_transaction & tr,
       principal_log_new_object_map & result_record,
       const filename & tmp_file,
       size_t offset,
@@ -253,6 +263,7 @@ namespace vds {
 
     bool generate_horcruxes(
       const service_provider & sp,
+      database_transaction & tr,
       const guid & server_id,
       chunk_info & chunk_info,
       const std::vector<uint8_t> & buffer,
@@ -260,12 +271,14 @@ namespace vds {
 
     bool generate_tail_horcruxes(
       const service_provider & sp,
+      database_transaction & tr,
       const guid & server_id,
       size_t chunk_index,
       const error_handler & on_error);
 
     void add_chunk(
       const service_provider & sp,
+      database_transaction & tr,
       const guid & server_id,
       size_t index,
       size_t size,
@@ -273,6 +286,7 @@ namespace vds {
 
     void add_tail_object_chunk_map(
       const service_provider & sp,
+      database_transaction & tr,
       const guid & server_id,
       size_t chunk_index,
       const guid & object_id,
@@ -283,20 +297,24 @@ namespace vds {
 
     size_t get_last_chunk(
       const service_provider & sp,
+      database_transaction & tr,
       const guid & server_id);
 
     size_t get_tail_chunk(
       const service_provider & sp,
+      database_transaction & tr,
       const guid & server_id,
       size_t & result_size);
 
     void start_tail_chunk(
       const service_provider & sp,
+      database_transaction & tr,
       const guid & server_id,
       size_t chunk_index);
 
     void final_tail_chunk(
       const service_provider & sp,
+      database_transaction & tr,
       size_t chunk_length,
       const const_data_buffer & chunk_hash,
       const guid & server_id,
@@ -304,6 +322,7 @@ namespace vds {
 
     void add_to_tail_chunk(
       const service_provider & sp,
+      database_transaction & tr,
       const guid & object_id,
       size_t offset,
       const const_data_buffer & object_hash,
@@ -314,6 +333,7 @@ namespace vds {
 
     void add_chunk_store(
       const service_provider & sp,
+      database_transaction & tr,
       const guid & server_id,
       size_t index,
       uint16_t replica,
@@ -323,6 +343,7 @@ namespace vds {
 
     const_data_buffer get_tail_data(
       const service_provider & sp,
+      database_transaction & tr,
       const guid & server_id,
       size_t chunk_index);
 

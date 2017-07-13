@@ -47,6 +47,7 @@ namespace vds {
 
     vds::async_task<> register_server(
       const service_provider & sp,
+      database_transaction & tr,
       const guid & id,
       const guid & parent_id,
       const std::string & server_certificate,
@@ -56,15 +57,18 @@ namespace vds {
 
     std::unique_ptr<const_data_buffer> get_object(
       const service_provider & sp,
+      database_transaction & tr,
       const full_storage_object_id & object_id);
 
     void add_endpoint(
       const service_provider & sp,
+      database_transaction & tr,
       const std::string & endpoint_id,
       const std::string & addresses);
 
     void get_endpoints(
       const service_provider & sp,
+      database_transaction & tr,
       std::map<std::string, std::string> & addresses);
 
 
@@ -73,6 +77,7 @@ namespace vds {
     const asymmetric_private_key & server_private_key() const { return this->current_server_key_; }
     void add_to_local_log(
       const service_provider & sp,
+      database_transaction & tr,
       const guid & principal_id,
       const vds::asymmetric_private_key & principal_private_key,
       const std::shared_ptr<json_value> & record,
@@ -80,6 +85,7 @@ namespace vds {
 
     void apply_record(
       const service_provider & sp,
+      database_transaction & tr,
       const principal_log_record & record,
       const const_data_buffer & signature);
 
@@ -107,11 +113,13 @@ namespace vds {
     bool process_timer_jobs(const service_provider & sp);
     void validate_signature(
       const service_provider & sp,
+      database_transaction & tr,
       const principal_log_record & record,
       const const_data_buffer & signature);
 
     asymmetric_public_key corresponding_public_key(
       const service_provider & sp,
+      database_transaction & tr,
       const principal_log_record & record);
     
 

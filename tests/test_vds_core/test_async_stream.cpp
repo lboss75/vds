@@ -23,7 +23,7 @@ TEST(mt_tests, test_async_stream) {
   auto stream = std::make_shared<vds::async_stream<uint8_t>>();
 
   vds::barrier b;
-  const std::shared_ptr<std::exception> & err;
+  std::shared_ptr<std::exception> err;
 
   vds::async_series(
     vds::create_async_task(
@@ -67,6 +67,6 @@ TEST(mt_tests, test_async_stream) {
       b.wait();
       registrator.shutdown(sp);
       if (err) {
-        GTEST_FAIL() << vds::exception_what(err);
+        GTEST_FAIL() << err->what();
       }
 }

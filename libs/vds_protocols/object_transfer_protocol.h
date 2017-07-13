@@ -19,6 +19,7 @@ namespace vds {
       
     void chunk_require(
       const service_provider & sp,
+      database_transaction & tr,
       const guid & source_server_id,
       uint64_t chunk_index);
     

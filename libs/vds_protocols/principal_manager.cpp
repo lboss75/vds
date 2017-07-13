@@ -26,41 +26,46 @@ void vds::principal_manager::unlock()
 
 bool vds::principal_manager::save_record(
   const service_provider & sp,
+  database_transaction & tr,
   const principal_log_record & record,
   const const_data_buffer & signature)
 {
-  return this->impl_->save_record(sp, record, signature);
+  return this->impl_->save_record(sp, tr, record, signature);
 }
 
 std::unique_ptr<vds::principal_record> vds::principal_manager::find_principal(
   const service_provider & sp,
+  database_transaction & tr,
   const guid & object_name)
 {
-  return this->impl_->find_principal(sp, object_name);
+  return this->impl_->find_principal(sp, tr, object_name);
 }
 
 std::unique_ptr<vds::principal_record> vds::principal_manager::find_user_principal(
   const service_provider & sp,
+  database_transaction & tr,
   const std::string & object_name)
 {
-  return this->impl_->find_user_principal(sp, object_name);
+  return this->impl_->find_user_principal(sp, tr, object_name);
 }
 
 size_t vds::principal_manager::get_current_state(
   const service_provider & sp,
+  database_transaction & tr,
   std::list<guid> & active_records)
 {
-  return this->impl_->get_current_state(sp, active_records);
+  return this->impl_->get_current_state(sp, tr, active_records);
 }
 
 void vds::principal_manager::get_principal_log(
   const service_provider & sp,
+  database_transaction & tr,
   const guid & principal_id,
   size_t last_order_num,
   size_t & result_last_order_num,
   std::list<principal_log_record> & records)
 {
-  this->impl_->get_principal_log(sp, principal_id, last_order_num, result_last_order_num, records);
+  this->impl_->get_principal_log(sp, tr, principal_id, last_order_num, result_last_order_num, records);
 }
 
 ///////////////////////////////////////////////////////
@@ -105,11 +110,12 @@ void vds::_principal_manager::create_database_objects(
 
 void vds::_principal_manager::add_principal(
   const service_provider & sp,
+  database_transaction & tr,
   const principal_record & record)
 {
   principal_table t;
   
-  database_transaction::current(sp).execute(
+  tr.execute(
     t.insert(
       t.id = record.id(),
       t.cert = record.cert_body(),
@@ -120,27 +126,29 @@ void vds::_principal_manager::add_principal(
 
 void vds::_principal_manager::add_user_principal(
   const service_provider & sp,
+  database_transaction & tr,
   const std::string & login,
   const principal_record & record)
 {
-  this->add_principal(sp, record);
+  this->add_principal(sp, tr, record);
 
   user_principal_table t;
 
-  database_transaction::current(sp).execute(
+  tr.execute(
     t.insert(
       t.id = record.id(),
       t.login = login));
 }
 
 vds::guid vds::_principal_manager::get_root_principal(
-  const service_provider & sp)
+  const service_provider & sp,
+  database_transaction & tr)
 {
   vds::guid result;
 
   principal_table t;
   
-  auto st = database_transaction::current(sp).get_reader(
+  auto st = tr.get_reader(
     t.select(t.id).where(t.id == t.parent));
   
   while(st.execute()) {
@@ -160,11 +168,12 @@ vds::guid vds::_principal_manager::get_root_principal(
 
 std::unique_ptr<vds::principal_record> vds::_principal_manager::find_principal(
   const service_provider & sp,
+  database_transaction & tr,
   const guid & object_name)
 {
   std::unique_ptr<principal_record> result;
   principal_table t;
-  auto st = database_transaction::current(sp).get_reader(
+  auto st = tr.get_reader(
     t.select(t.parent,t.cert,t.key,t.password_hash).where(t.id == object_name));
   while(st.execute()){
     result.reset(new principal_record(
@@ -181,12 +190,13 @@ std::unique_ptr<vds::principal_record> vds::_principal_manager::find_principal(
 
 std::unique_ptr<vds::principal_record> vds::_principal_manager::find_user_principal(
   const service_provider & sp,
+  database_transaction & tr,
   const std::string & object_name)
 {
   std::unique_ptr<principal_record> result;
   principal_table p;
   user_principal_table u;
-  auto st = database_transaction::current(sp).get_reader(
+  auto st = tr.get_reader(
     p.select(p.parent,p.id,p.cert,p.key,p.password_hash)
     .inner_join(u, u.id == p.id)
     .where(u.login == object_name));
@@ -205,17 +215,19 @@ std::unique_ptr<vds::principal_record> vds::_principal_manager::find_user_princi
 
 void vds::_principal_manager::principal_log_add_link(
   const service_provider & sp,
+  database_transaction & tr,
   const guid & source_id,
   const guid & target_id)
 {
   principal_log_link_table t;
   
-  database_transaction::current(sp).execute(
+  tr.execute(
     t.insert(t.parent_id = source_id, t.follower_id = target_id));
 }
 
 void vds::_principal_manager::add_principal_log(
   const service_provider & sp,
+  database_transaction & tr,
   const guid & record_id,
   const guid & principal_id,
   const std::string & body,
@@ -224,7 +236,7 @@ void vds::_principal_manager::add_principal_log(
   _principal_manager::principal_log_state state)
 {
   principal_log_table t;
-  database_transaction::current(sp).execute(
+  tr.execute(
     t.insert(
       t.id = record_id,
       t.principal_id = principal_id,
@@ -236,23 +248,24 @@ void vds::_principal_manager::add_principal_log(
 
 void vds::_principal_manager::principal_log_update_state(
   const service_provider & sp,
+  database_transaction & tr,
   const principal_log_record::record_id & record_id,
   _principal_manager::principal_log_state state)
 {
   principal_log_table t;
-  database_transaction::current(sp).execute(
-    t.update(t.state = (int)state).where(t.id == record_id));
+  tr.execute(t.update(t.state = (int)state).where(t.id == record_id));
 }
 
 vds::_principal_manager::principal_log_state
 vds::_principal_manager::principal_log_get_state(
   const service_provider & sp,
+  database_transaction & tr,
   const principal_log_record::record_id & record_id)
 {
   auto result = principal_log_state::not_found;
 
   principal_log_table t;
-  auto st = database_transaction::current(sp).get_reader(
+  auto st = tr.get_reader(
     t.select(t.state).where(t.id == record_id));
   
   while(st.execute()){
@@ -264,6 +277,7 @@ vds::_principal_manager::principal_log_get_state(
 
 size_t vds::_principal_manager::get_current_state(
   const service_provider & sp,
+  database_transaction & tr,
   std::list<guid> & active_records)
 {
   std::lock_guard<not_mutex> lock(this->principal_log_mutex_);
@@ -271,7 +285,7 @@ size_t vds::_principal_manager::get_current_state(
   size_t max_order_num = 0;
 
   principal_log_table t;
-  auto st = database_transaction::current(sp).get_reader(
+  auto st = tr.get_reader(
     t.select(t.id, t.order_num).where(t.state == (int)principal_log_state::tail));
   while(st.execute()){
     auto order_num = t.order_num.get(st);
@@ -287,12 +301,13 @@ size_t vds::_principal_manager::get_current_state(
 
 void vds::_principal_manager::principal_log_get_parents(
   const service_provider & sp,
+  database_transaction & tr,
   const principal_log_record::record_id & record_id,
   std::list<principal_log_record::record_id>& parents)
 {
   principal_log_link_table t;
 
-  auto st = database_transaction::current(sp).get_reader(
+  auto st = tr.get_reader(
     t.select(t.parent_id).where(t.follower_id == record_id));
 
   while (st.execute()) {
@@ -302,12 +317,13 @@ void vds::_principal_manager::principal_log_get_parents(
 
 void vds::_principal_manager::principal_log_get_followers(
   const service_provider & sp,
+  database_transaction & tr,
   const principal_log_record::record_id & record_id,
   std::list<principal_log_record::record_id>& followers)
 {
   principal_log_link_table t;
 
-  auto st = database_transaction::current(sp).get_reader(
+  auto st = tr.get_reader(
     t.select(t.follower_id).where(t.parent_id == record_id));
   while (st.execute()) {
     followers.push_back(t.follower_id.get(st));
@@ -316,16 +332,17 @@ void vds::_principal_manager::principal_log_get_followers(
 
 void vds::_principal_manager::processed_record(
   const service_provider & sp,
+  database_transaction & tr,
   const principal_log_record::record_id & id)
 {
   std::lock_guard<not_mutex> lock(this->principal_log_mutex_);
 
   std::list<principal_log_record::record_id> parents;
-  this->principal_log_get_parents(sp, id, parents);
+  this->principal_log_get_parents(sp, tr, id, parents);
   for (auto& p : parents) {
-    auto parent_state = this->principal_log_get_state(sp, p);
+    auto parent_state = this->principal_log_get_state(sp, tr, p);
     if (principal_log_state::tail == parent_state) {
-      this->principal_log_update_state(sp, p, principal_log_state::processed);
+      this->principal_log_update_state(sp, tr, p, principal_log_state::processed);
       break;
     }
     else if (principal_log_state::processed != parent_state) {
@@ -334,25 +351,25 @@ void vds::_principal_manager::processed_record(
   }
 
   std::list<principal_log_record::record_id> followers;
-  this->principal_log_get_followers(sp, id, followers);
+  this->principal_log_get_followers(sp, tr, id, followers);
 
   if (0 == followers.size()) {
-    this->principal_log_update_state(sp, id, principal_log_state::tail);
+    this->principal_log_update_state(sp, tr, id, principal_log_state::tail);
   }
   else {
-    this->principal_log_update_state(sp, id, principal_log_state::processed);
+    this->principal_log_update_state(sp, tr, id, principal_log_state::processed);
     
     for (auto& f : followers) {
-      auto state = this->principal_log_get_state(sp, f);
+      auto state = this->principal_log_get_state(sp, tr, f);
       switch (state) {
       case principal_log_state::stored:
       {
         std::list<principal_log_record::record_id> parents;
-        this->principal_log_get_parents(sp, f, parents);
+        this->principal_log_get_parents(sp, tr, f, parents);
 
         auto new_state = principal_log_state::front;
         for (auto& p : parents) {
-          auto state = this->principal_log_get_state(sp, p);
+          auto state = this->principal_log_get_state(sp, tr, p);
           if (principal_log_state::stored == state
             || principal_log_state::front == state) {
             new_state = principal_log_state::stored;
@@ -365,7 +382,7 @@ void vds::_principal_manager::processed_record(
         }
 
         if (state != new_state) {
-          this->principal_log_update_state(sp, f, new_state);
+          this->principal_log_update_state(sp, tr, f, new_state);
         }
 
         break;
@@ -379,9 +396,10 @@ void vds::_principal_manager::processed_record(
 
 void vds::_principal_manager::get_unknown_records(
   const service_provider & sp,
+  database_transaction & tr,
   std::list<principal_log_record::record_id>& result)
 {
-  auto st = database_transaction::current(sp).parse(
+  auto st = tr.parse(
     "SELECT parent_id \
      FROM principal_log_link \
      WHERE NOT EXISTS (\
@@ -399,12 +417,13 @@ void vds::_principal_manager::get_unknown_records(
 
 bool vds::_principal_manager::get_record(
   const service_provider & sp,
+  database_transaction & tr,
   const principal_log_record::record_id & id,
   principal_log_record & result_record,
   const_data_buffer & result_signature)
 {
   principal_log_table t;
-  auto st = database_transaction::current(sp).get_reader(
+  auto st = tr.get_reader(
     t.select(t.principal_id, t.message, t.signature, t.order_num).where(t.id == id));
 
   bool result = false;
@@ -421,7 +440,7 @@ bool vds::_principal_manager::get_record(
 
   if (result) {
     std::list<principal_log_record::record_id> parents;
-    this->principal_log_get_parents(sp, id, parents);
+    this->principal_log_get_parents(sp, tr, id, parents);
 
     std::shared_ptr<json_value> body;
     dataflow(
@@ -448,11 +467,13 @@ bool vds::_principal_manager::get_record(
 
 bool vds::_principal_manager::get_front_record(
   const service_provider & sp,
+  database_transaction & tr,
   principal_log_record & result_record,
   const_data_buffer & result_signature)
 {
   return this->get_record_by_state(
     sp,
+    tr,
     principal_log_state::front,
     result_record,
     result_signature);    
@@ -460,6 +481,7 @@ bool vds::_principal_manager::get_front_record(
 
 void vds::_principal_manager::delete_record(
   const service_provider & sp,
+  database_transaction & tr,
   const principal_log_record::record_id & id)
 {
   throw std::runtime_error("Not implemented");
@@ -467,12 +489,13 @@ void vds::_principal_manager::delete_record(
 
 bool vds::_principal_manager::get_record_by_state(
   const service_provider & sp,
+  database_transaction & tr,
   principal_log_state state,
   principal_log_record & result_record,
   const_data_buffer & result_signature)
 {
   principal_log_table t;
-  auto st = database_transaction::current(sp).get_reader(
+  auto st = tr.get_reader(
     t.select(t.id,t.principal_id,t.message,t.order_num,t.signature)
     .where(t.state == (int)state));
 
@@ -493,7 +516,7 @@ bool vds::_principal_manager::get_record_by_state(
 
   if (result) {
     std::list<principal_log_record::record_id> parents;
-    this->principal_log_get_parents(sp, id, parents);
+    this->principal_log_get_parents(sp, tr, id, parents);
 
     std::shared_ptr<json_value> body;
     dataflow(
@@ -523,6 +546,7 @@ bool vds::_principal_manager::get_record_by_state(
 
 void vds::_principal_manager::get_principal_log(
   const service_provider & sp,
+  database_transaction & tr,
   const guid & principal_id,
   size_t last_order_num,
   size_t & result_last_order_num,
@@ -533,7 +557,7 @@ void vds::_principal_manager::get_principal_log(
 
   principal_log_table t;
 
-  auto st = database_transaction::current(sp).get_reader(
+  auto st = tr.get_reader(
     t.select(t.id, t.order_num, t.message)
     .where(t.principal_id == principal_id && t.order_num <= last_order_num)
     .order_by(db_desc_order(t.order_num)));
@@ -577,6 +601,7 @@ void vds::_principal_manager::get_principal_log(
 vds::principal_log_record
   vds::_principal_manager::add_local_record(
     const service_provider & sp,
+    database_transaction & tr,
     const principal_log_record::record_id & record_id,
     const guid & principal_id,
     const std::shared_ptr<json_value> & message,
@@ -584,7 +609,7 @@ vds::principal_log_record
     const_data_buffer & signature)
 {
   std::list<principal_log_record::record_id> parents;
-  auto max_order_num = this->get_current_state(sp, parents);
+  auto max_order_num = this->get_current_state(sp, tr, parents);
 
   std::lock_guard<not_mutex> lock(this->principal_log_mutex_);
 
@@ -600,6 +625,7 @@ vds::principal_log_record
   //Register message
   this->add_principal_log(
     sp,
+    tr,
     record_id,
     principal_id,
     message->str(),
@@ -611,11 +637,13 @@ vds::principal_log_record
   for (auto& p : parents) {
     this->principal_log_update_state(
       sp,
+      tr,
       p,
       principal_log_state::processed);
 
     this->principal_log_add_link(
       sp,
+      tr,
       p,
       record_id);
   }
@@ -625,19 +653,20 @@ vds::principal_log_record
 
 bool vds::_principal_manager::save_record(
   const service_provider & sp,
+  database_transaction & tr,
   const principal_log_record & record,
   const const_data_buffer & signature)
 {
   std::lock_guard<not_mutex> lock(this->principal_log_mutex_);
   
-  auto state = this->principal_log_get_state(sp, record.id());
+  auto state = this->principal_log_get_state(sp, tr, record.id());
   if (state != principal_log_state::not_found) {
     return false;
   }
 
   state = principal_log_state::front;
   for (auto& p : record.parents()) {
-    auto parent_state = this->principal_log_get_state(sp, p);
+    auto parent_state = this->principal_log_get_state(sp, tr, p);
     if(principal_log_state::not_found == parent_state
       || principal_log_state::stored == parent_state
       || principal_log_state::front == parent_state) {
@@ -648,6 +677,7 @@ bool vds::_principal_manager::save_record(
 
   this->add_principal_log(
     sp,
+    tr,
     record.id(),
     record.principal_id(),
     record.message()->str(),
@@ -665,6 +695,7 @@ bool vds::_principal_manager::save_record(
   for (auto& p : record.parents()) {
     this->principal_log_add_link(
       sp,
+      tr,
       p,
       record.id());
     sp.get<logger>()->debug(sp, "Added parent %s", p.str().c_str());

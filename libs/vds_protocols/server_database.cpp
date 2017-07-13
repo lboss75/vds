@@ -14,24 +14,27 @@ All rights reserved
 
 void vds::iserver_database::add_object(
   const service_provider & sp,
+  database_transaction & tr,
   const principal_log_new_object & index)
 {
-  static_cast<_server_database *>(this)->add_object(sp, index);
+  static_cast<_server_database *>(this)->add_object(sp, tr, index);
 }
 
 void vds::iserver_database::add_endpoint(
   const service_provider & sp,
+  database_transaction & tr,
   const std::string& endpoint_id,
   const std::string& addresses)
 {
-  static_cast<_server_database *>(this)->add_endpoint(sp, endpoint_id, addresses);
+  static_cast<_server_database *>(this)->add_endpoint(sp, tr, endpoint_id, addresses);
 }
 
 void vds::iserver_database::get_endpoints(
   const service_provider & sp,
+  database_transaction & tr,
   std::map<std::string, std::string>& addresses)
 {
-  static_cast<_server_database *>(this)->get_endpoints(sp, addresses);
+  static_cast<_server_database *>(this)->get_endpoints(sp, tr, addresses);
 }
 
 
@@ -117,35 +120,35 @@ void vds::_server_database::stop(const service_provider & sp)
 
 void vds::_server_database::add_object(
   const service_provider & sp,
+  database_transaction & tr,
   const principal_log_new_object & index)
 {
   object_table t;
-  database_transaction::current(sp)
-  .execute(
+  tr.execute(
     t.insert(t.object_id = index.index(), t.length = index.lenght(), t.meta_info = index.meta_data()));
 }
 
 
 void vds::_server_database::add_endpoint(
   const service_provider & sp,
+  database_transaction & tr,
   const std::string & endpoint_id,
   const std::string & addresses)
 {
   endpoint_table t;
   
-  database_transaction::current(sp)
-  .execute(
+  tr.execute(
     t.insert(t.endpoint_id = endpoint_id, t.addresses = addresses));
 }
 
 void vds::_server_database::get_endpoints(
   const service_provider & sp,
+  database_transaction & tr,
   std::map<std::string, std::string>& result)
 {
   endpoint_table t;
   
-  auto st = database_transaction::current(sp)
-  .get_reader(
+  auto st = tr.get_reader(
     t.select(t.endpoint_id, t.addresses));
   
   while(st.execute()){

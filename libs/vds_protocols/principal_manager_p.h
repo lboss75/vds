@@ -38,25 +38,30 @@ namespace vds {
 
     bool save_record(
       const service_provider & sp,
+      database_transaction & tr,
       const principal_log_record & record,
       const const_data_buffer & signature);
 
     bool get_record(
       const service_provider & sp,
+      database_transaction & tr,
       const principal_log_record::record_id & id,
       principal_log_record & result_record,
       const_data_buffer & result_signature);
     
     void get_unknown_records(
       const service_provider & sp,
+      database_transaction & tr,
       std::list<principal_log_record::record_id>& result);
 
     principal_log_state principal_log_get_state(
       const service_provider & sp,
+      database_transaction & tr,
       const principal_log_record::record_id & record_id);
     
     principal_log_record add_local_record(
         const service_provider & sp,
+        database_transaction & tr,
         const principal_log_record::record_id & record_id,
         const guid & principal_id,
         const std::shared_ptr<json_value> & message,
@@ -65,41 +70,50 @@ namespace vds {
     
     void processed_record(
       const service_provider & sp,
+      database_transaction & tr,
       const principal_log_record::record_id & id);
 
     void delete_record(
       const service_provider & sp,
+      database_transaction & tr,
       const principal_log_record::record_id & id);
     
     void add_principal(
       const service_provider & sp,
+      database_transaction & tr,
       const principal_record & record);
 
     void add_user_principal(
       const service_provider & sp,
+      database_transaction & tr,
       const std::string & login,
       const principal_record & record);
     
     bool get_front_record(
       const service_provider & sp,
+      database_transaction & tr,
       principal_log_record & result_record,
       const_data_buffer & result_signature);
     
     std::unique_ptr<principal_record> find_principal(
       const service_provider & sp,
+      database_transaction & tr,
       const guid & object_name);
 
     std::unique_ptr<principal_record> find_user_principal(
       const service_provider & sp,
+      database_transaction & tr,
       const std::string & object_name);
 
     size_t get_current_state(
       const service_provider & sp,
+      database_transaction & tr,
       std::list<guid> & active_records);
 
 
     void get_principal_log(
       const service_provider & sp,
+      database_transaction & tr,
       const guid & principal_id,
       size_t last_order_num,
       size_t & result_last_order_num,
@@ -181,15 +195,18 @@ namespace vds {
     };
 
     guid get_root_principal(
-      const service_provider & sp);
+      const service_provider & sp,
+      database_transaction & tr);
 
     void principal_log_add_link(
       const service_provider & sp,
+      database_transaction & tr,
       const guid & source_id,
       const guid & target_id);
     
     void add_principal_log(
       const service_provider & sp,
+      database_transaction & tr,
       const guid & record_id,
       const guid & principal_id,
       const std::string & body,
@@ -199,21 +216,25 @@ namespace vds {
     
     void principal_log_update_state(
       const service_provider & sp,
+      database_transaction & tr,
       const principal_log_record::record_id & record_id,
       principal_log_state state);
 
     void principal_log_get_parents(
       const service_provider & sp,
+      database_transaction & tr,
       const principal_log_record::record_id & record_id,
       std::list<principal_log_record::record_id>& parents);
 
     void principal_log_get_followers(
       const service_provider & sp,
+      database_transaction & tr,
       const principal_log_record::record_id & record_id,
       std::list<principal_log_record::record_id>& followers);
 
     bool get_record_by_state(
       const service_provider & sp,
+      database_transaction & tr,
       principal_log_state state,
       principal_log_record & result_record,
       const_data_buffer & result_signature);

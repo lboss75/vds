@@ -17,15 +17,18 @@ namespace vds {
   public:
     void add_object(
       const service_provider & sp,
+      database_transaction & tr,
       const principal_log_new_object & index);
 
     void add_endpoint(
       const service_provider & sp,
+      database_transaction & tr,
       const std::string & endpoint_id,
       const std::string & addresses);
 
     void get_endpoints(
       const service_provider & sp,
+      database_transaction & tr,
       std::map<std::string, std::string> & addresses);
 
 

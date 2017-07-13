@@ -13,6 +13,7 @@ All rights reserved
 #include "server_database.h"
 #include "parallel_tasks.h"
 #include "principal_manager.h"
+#include "server_database_p.h"
 
 vds::server_json_client_api::server_json_client_api()
 : impl_(new _server_json_client_api(this))
@@ -181,8 +182,9 @@ vds::_server_json_client_api::process(
     [message](const std::function<void(const service_provider & sp, std::shared_ptr<json_value>)> & done,
               const error_handler & on_error,
               const service_provider & sp){
+      database_transaction_scope scope(sp, *(*sp.get<iserver_database>())->get_db());
       auto cert = sp
-        .get<principal_manager>()->find_user_principal(sp, message.object_name());
+        .get<principal_manager>()->find_user_principal(sp, scope.transaction(), message.object_name());
 
       if (!cert
         || cert->password_hash() != message.password_hash()) {
@@ -190,8 +192,9 @@ vds::_server_json_client_api::process(
       }
       else {
         std::list<guid> active_records;
-        auto order_num = sp.get<principal_manager>()->get_current_state(sp, active_records);
+        auto order_num = sp.get<principal_manager>()->get_current_state(sp, scope.transaction(), active_records);
 
+        scope.commit();
         done(
           sp,
           client_messages::certificate_and_key_response(
@@ -211,15 +214,22 @@ vds::_server_json_client_api::process(
 {
   return create_async_task(
     [sp, message](const std::function<void(const service_provider & sp, std::shared_ptr<json_value>)> & done, const error_handler & on_error, const service_provider & sp){
+      
+      database_transaction_scope scope(sp, *(*sp.get<iserver_database>())->get_db());
+
       sp.get<node_manager>()->register_server(
         sp,
+        scope.transaction(),
         message.id(),
         message.parent_id(),
         message.server_certificate(),
         message.server_private_key(),
         message.password_hash())
         .wait(
-          [done](const service_provider & sp) { done(sp, client_messages::register_server_response().serialize()); },
+          [done, &scope](const service_provider & sp) {
+            scope.commit();
+            done(sp, client_messages::register_server_response().serialize());            
+          },
           on_error,
           sp);
       });
@@ -235,8 +245,9 @@ vds::_server_json_client_api::process(
     const std::function<void(const service_provider & sp, std::shared_ptr<vds::json_value>)> & done,
     const error_handler & on_error,
     const service_provider & sp){
+      database_transaction_scope scope(sp, *(*sp.get<iserver_database>())->get_db());
       principal_log_record record(message.principal_msg());
-      auto author = sp.get<principal_manager>()->find_principal(sp, record.principal_id());
+      auto author = sp.get<principal_manager>()->find_principal(sp, scope.transaction(), record.principal_id());
       if(!author){
         on_error(sp, std::make_shared<std::runtime_error>("Author not found"));
         return;
@@ -255,10 +266,11 @@ vds::_server_json_client_api::process(
       
       principal_log_new_object new_object(record.message());
       
-      sp.get<principal_manager>()->save_record(sp, record, message.signature());
+      sp.get<principal_manager>()->save_record(sp, scope.transaction(), record, message.signature());
   
       sp.get<ichunk_manager>()->add_object(
         sp,
+        scope.transaction(),
         new_object.index(),
         message.tmp_file(),
         message.file_hash())
@@ -267,6 +279,7 @@ vds::_server_json_client_api::process(
         },
         on_error,
         sp);
+      scope.commit();
   });
 }
 
@@ -344,13 +357,16 @@ vds::async_task<std::shared_ptr<vds::json_value>>
 
     size_t last_order_num;
     std::list<principal_log_record> records;
+    database_transaction_scope scope(sp, *(*sp.get<iserver_database>())->get_db());
+
     sp.get<principal_manager>()->get_principal_log(
       sp,
+      scope.transaction(),
       message.principal_id(),
       message.last_order_num(),
       last_order_num,
       records);
-
+    scope.commit();
     done(sp, client_messages::principal_log_response(message.principal_id(), last_order_num, records).serialize());
   });
 }

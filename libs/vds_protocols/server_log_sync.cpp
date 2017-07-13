@@ -69,6 +69,7 @@ void vds::_server_log_sync::on_new_local_record(
 
 void vds::_server_log_sync::on_record_broadcast(
   const service_provider & sp,
+  database_transaction & tr,
   const server_log_record_broadcast & message)
 {
   auto manager = sp.get<principal_manager>();
@@ -76,24 +77,26 @@ void vds::_server_log_sync::on_record_broadcast(
   std::lock_guard<principal_manager> lock(*manager);
   if((*manager)->save_record(
     sp,
+    tr,
     message.record(),
     message.signature())){
     sp.get<logger>()->debug(sp, "Got %s", message.record().id().str().c_str());
 
     sp.get<iconnection_manager>()->broadcast(sp, server_log_record_broadcast(message.record(), message.signature()));
-    this->require_unknown_records(sp);
+    this->require_unknown_records(sp, tr);
   }
 }
 
 void vds::_server_log_sync::on_server_log_get_records_broadcast(
   const service_provider & sp,
+  database_transaction & tr,
   const connection_session & session,
   const server_log_get_records_broadcast & message)
 {
   for (auto p : message.unknown_records()) {
     principal_log_record record;
     const_data_buffer signature;
-      if((*sp.get<principal_manager>())->get_record(sp, p, record, signature)) {
+      if((*sp.get<principal_manager>())->get_record(sp, tr, p, record, signature)) {
         sp.get<logger>()->debug(sp, "Provided %s", record.id().str().c_str());
         sp.get<iconnection_manager>()->send_to(sp, session, server_log_record_broadcast(record, signature));
       }
@@ -101,10 +104,11 @@ void vds::_server_log_sync::on_server_log_get_records_broadcast(
 }
 
 void vds::_server_log_sync::require_unknown_records(
-  const service_provider & sp)
+  const service_provider & sp,
+  database_transaction & tr)
 {
   std::list<principal_log_record::record_id> unknown_records;
-  (*sp.get<principal_manager>())->get_unknown_records(sp, unknown_records);
+  (*sp.get<principal_manager>())->get_unknown_records(sp, tr, unknown_records);
 
   if (!unknown_records.empty()) {
 
@@ -116,17 +120,21 @@ void vds::_server_log_sync::require_unknown_records(
   }
 }
 
-bool vds::_server_log_sync::process_timer_jobs(const service_provider & sp)
+bool vds::_server_log_sync::process_timer_jobs(
+  const service_provider & sp)
 {
-  server_database_scope scope(sp);
-  this->require_unknown_records(scope);
+  database_transaction_scope scope(sp, *(*sp.get<iserver_database>())->get_db());
+  this->require_unknown_records(sp, scope.transaction());
   scope.commit();
   return true;
 }
 
-void vds::_server_log_sync::ensure_record_exists(const service_provider & sp, const principal_log_record::record_id & record_id)
+void vds::_server_log_sync::ensure_record_exists(
+  const service_provider & sp,
+  database_transaction & tr,
+  const principal_log_record::record_id & record_id)
 {
-  if (_principal_manager::principal_log_state::not_found == (*sp.get<principal_manager>())->principal_log_get_state(sp, record_id)) {
+  if (_principal_manager::principal_log_state::not_found == (*sp.get<principal_manager>())->principal_log_get_state(sp, tr, record_id)) {
     std::list<principal_log_record::record_id> unknown_records;
     unknown_records.push_back(record_id);
     sp.get<iconnection_manager>()->broadcast(sp, server_log_get_records_broadcast(unknown_records));
