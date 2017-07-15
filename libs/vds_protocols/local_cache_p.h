@@ -23,6 +23,10 @@ namespace vds {
       const service_provider & sp,
       const guid & server_id,
       uint64_t index);
+    
+    async_task<server_task_manager::task_state> download_object(
+      const service_provider & sp,
+      const guid & version_id);
 
   private:
     foldername root_folder_;

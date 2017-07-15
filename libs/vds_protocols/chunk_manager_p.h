@@ -35,10 +35,11 @@ namespace vds {
       uint64_t db_version,
       database_transaction & t);
 
-    std::list<object_chunk_map> get_object_map(
+    void get_object_map(
       const service_provider & sp,
       database_transaction & tr,
-      const guid & object_id);
+      const guid & object_id,
+      std::list<object_chunk_map> & result);
 
     void get_replicas(
       const service_provider & sp,
@@ -91,6 +92,15 @@ namespace vds {
       size_t chunk_offset,
       size_t length,
       const const_data_buffer & hash);
+    
+    void query_object_chunk(
+      const service_provider& sp,
+      database_transaction& tr,
+      const guid & server_id,
+      index_type chunk_index,
+      size_t & downloaded_data,
+      size_t& total_data);
+
   private:
     chunk_storage chunk_storage_;
 
@@ -339,7 +349,6 @@ namespace vds {
       uint16_t replica,
       const guid & storage_id,
       const const_data_buffer & data);
-
 
     const_data_buffer get_tail_data(
       const service_provider & sp,

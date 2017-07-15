@@ -4,6 +4,7 @@ All rights reserved
 */
 
 #include "stdafx.h"
+#include <unordered_set>
 #include "chunk_manager.h"
 #include "chunk_manager_p.h"
 #include "storage_log.h"
@@ -41,6 +42,36 @@ vds::async_task<> vds::ichunk_manager::add_object(
     version_id,
     tmp_file,
     file_hash);
+}
+
+void vds::ichunk_manager::get_object_map(
+  const vds::service_provider& sp,
+  vds::database_transaction & tr,
+  const vds::guid & object_id,
+  std::list<vds::ichunk_manager::object_chunk_map >& result)
+{
+  static_cast<_chunk_manager *>(this)->add_object(
+    sp,
+    tr,
+    object_id,
+    result);
+}
+
+void vds::ichunk_manager::query_object_chunk(
+  const vds::service_provider& sp,
+  vds::database_transaction& tr,
+  const vds::guid & server_id,
+  vds::ichunk_manager::index_type chunk_index,
+  size_t & downloaded_data,
+  size_t& total_data)
+{
+  static_cast<_chunk_manager *>(this)->query_object_chunk(
+  sp,
+  tr,
+  server_id,
+  chunk_index,
+  downloaded_data,
+  total_data);
 }
 
 /*
@@ -678,14 +709,12 @@ void vds::_chunk_manager::add_object_chunk_map(
       t.hash = hash));
 }
 
-std::list<vds::ichunk_manager::object_chunk_map>
-vds::_chunk_manager::get_object_map(
+void vds::_chunk_manager::get_object_map(
   const service_provider & sp,
   database_transaction & tr,
-  const guid & object_id)
+  const guid & object_id,
+  std::list<object_chunk_map> & result)
 {
-  std::list<object_chunk_map> result;
-
   object_chunk_map_table t;
   auto st = tr.get_reader(
     t.select(t.server_id,t.chunk_index,t.object_offset,t.chunk_offset,t.length,t.hash)
@@ -705,8 +734,6 @@ vds::_chunk_manager::get_object_map(
 
     result.push_back(item);
   }
-
-  return result;
 }
 
 void vds::_chunk_manager::start_tail_chunk(
@@ -920,4 +947,42 @@ vds::const_data_buffer vds::_chunk_manager::get_tail_data(
   }
 
   return const_data_buffer(data);
+}
+
+void vds::_chunk_manager::query_object_chunk(
+  const vds::service_provider& sp,
+  vds::database_transaction& tr,
+  const vds::guid & server_id,
+  vds::ichunk_manager::index_type chunk_index,
+  size_t & downloaded_data,
+  size_t& total_data)
+{
+  object_chunk_data_table t;
+  auto st = tr.get_reader(
+    t.select(t.replica)
+    .where(t.server_id == server_id && t.chunk_index == chunk_index));
+  
+  std::unordered_set<ichunk_manager::replica_type> replicas;
+  while(st.execute()){
+    replicas.emplace(t.replica.get(st));
+  }
+  
+  total_data += BLOCK_SIZE;
+  if(MIN_HORCRUX <= replicas.size()){
+    downloaded_data += BLOCK_SIZE;//Ok
+    return;
+  }
+  
+  downloaded_data += REPLICA_SIZE * replicas.size();
+  
+  object_chunk_store_table t1;
+  st = tr.get_reader(
+    t1.select(t1.replica, t1.storage_id)
+    .where(t1.server_id == server_id && t1.chunk_index == chunk_index));
+  while(st.execute()){
+    auto replica = t1.replica.get(st);
+    if(replicas.end() == replicas.find(replica)){
+      
+    }
+  }
 }

@@ -38,7 +38,6 @@ namespace vds {
     };
 
 
-
     ichunk_manager();
     ~ichunk_manager();
     
@@ -52,11 +51,20 @@ namespace vds {
       const filename & tmp_file,
       const const_data_buffer & file_hash);
     
-    std::list<object_chunk_map> get_object_map(
+    void get_object_map(
       const service_provider & sp,
       database_transaction & tr,
-      const guid & object_id);
+      const guid & object_id,
+      std::list<object_chunk_map> & result);
 
+    void query_object_chunk(
+      const service_provider & sp,
+      database_transaction & tr,
+      const guid & server_id,
+      index_type chunk_index,
+      size_t & downloaded_data,
+      size_t & total_data);
+    
     _chunk_manager * operator -> ();
   };
 }
