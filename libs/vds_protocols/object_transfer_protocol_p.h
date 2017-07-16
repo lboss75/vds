@@ -9,6 +9,7 @@ All rights reserved
 #include "object_transfer_protocol.h"
 #include "messages.h"
 #include "database_orm.h"
+#include "chunk_manager.h"
 
 namespace vds {
   class route_hop;
@@ -31,6 +32,12 @@ namespace vds {
       const guid & from_server_id,
       const object_request & message);
     
+    void query_data(
+      const service_provider & sp,
+      database_transaction & tr,
+      const vds::guid & server_id,
+      ichunk_manager::index_type chunk_index,
+      const std::map<guid, std::list<ichunk_manager::replica_type>> & data_request);
   private:
 
     //Database
@@ -76,18 +83,26 @@ namespace vds {
 
     object_request(
       const guid & server_id,
-      uint64_t index)
+      uint64_t index,
+      const guid & storage_id,
+      const std::list<ichunk_manager::replica_type> & replicas)
     : server_id_(server_id),
-      index_(index)
+      index_(index),
+      storage_id_(storage_id),
+      replicas_(replicas)
     {
     }
     
     const guid & server_id() const { return this->server_id_; }
     uint64_t index() const { return this->index_; }
+    const guid & storage_id() const { return this->storage_id_; }
+    const std::list<ichunk_manager::replica_type> & replicas() const { return this->replicas_; }
     
   private:
     guid server_id_;
     uint64_t index_;
+    guid storage_id_;
+    std::list<ichunk_manager::replica_type> replicas_;
   };
   
 }

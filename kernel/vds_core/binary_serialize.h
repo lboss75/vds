@@ -5,6 +5,7 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
+#include <list>
 #include "types.h"
 #include "const_data_buffer.h"
 
@@ -40,6 +41,17 @@ namespace vds {
 
     size_t size() const { return this->data_.size(); }
     
+    template <typename T>
+    binary_serializer & operator << (const std::list<T> & value)
+    {
+      this->write_number(value.size());
+      for(auto & p : value){
+        *this << p;
+      }
+      
+      return *this;
+    }
+    
   private:
     std::vector<uint8_t> data_;
   };
@@ -73,6 +85,19 @@ namespace vds {
     
     void pop_data(void * data, size_t & size, bool serialize_size);
     void pop_data(void * data, size_t size);
+
+    template <typename T>
+    binary_deserializer & operator >> (std::list<T> & value)
+    {
+      auto count = this->read_number();
+      for(decltype(count) i = 0; i < count; ++i){
+        T item;
+        *this >> item;
+        value.push_back(item);
+      }
+      
+      return *this;
+    }
 
   private:
     const uint8_t * data_;

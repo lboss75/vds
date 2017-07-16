@@ -22,54 +22,18 @@ vds::object_transfer_protocol::~object_transfer_protocol()
   delete this->impl_;
 }
 
-void vds::object_transfer_protocol::chunk_require(
-  const vds::service_provider& sp,
-  database_transaction & tr,
-  const vds::guid & source_server_id,
-  uint64_t chunk_index)
-{
-  auto current_server_id = sp.get<istorage_log>()->current_server_id();
-
-  auto chunk_manager = sp.get<ichunk_manager>();
-  std::list<ichunk_manager::replica_type> local_replicas;
-  (*chunk_manager)->get_replicas(
-    sp,
-    tr,
-    source_server_id,
-    chunk_index,
-    current_server_id,
-    local_replicas);
-
-  std::list<ichunk_manager::chunk_store> chunk_store_map;
-  (*chunk_manager)->get_chunk_store(
-    sp,
-    tr,
-    source_server_id,
-    chunk_index,
-    chunk_store_map);
-
-  object_request message(source_server_id, chunk_index);
-  auto connection_manager = sp.get<iconnection_manager>();
-  for (auto & item : chunk_store_map) {
-    if (current_server_id != item.storage_id
-      && local_replicas.end() == std::find(local_replicas.begin(), local_replicas.end(), item.replica)) {
-
-      connection_manager->send_to(sp, item.storage_id, message);
-    }
-  }
-}
 /////////////////////////////////////////////
 const char vds::object_request::message_type[] = "object request";
 
 vds::object_request::object_request(const const_data_buffer & binary_form)
 {
   binary_deserializer s(binary_form);
-  s >> this->server_id_ >> this->index_;
+  s >> this->server_id_ >> this->index_ >> this->storage_id_ >> this->replicas_;
 }
 
 void vds::object_request::serialize(binary_serializer & b) const
 {
-  b << this->server_id_ << this->index_;
+  b << this->server_id_ << this->index_ << this->storage_id_ << this->replicas_;
 }
 
 std::shared_ptr<vds::json_value> vds::object_request::serialize() const
@@ -78,6 +42,8 @@ std::shared_ptr<vds::json_value> vds::object_request::serialize() const
   result->add_property("$t", message_type);
   result->add_property("s", this->server_id_);
   result->add_property("i", this->index_);
+  result->add_property("t", this->storage_id_);
+  result->add_property("r", this->replicas_);
   return result;
 }
 
@@ -135,6 +101,20 @@ void vds::_object_transfer_protocol::on_object_request(
     }
   }
   */
+}
+
+void vds::_object_transfer_protocol::query_data(
+  const service_provider & sp,
+  database_transaction & tr,
+  const vds::guid & server_id,
+  ichunk_manager::index_type chunk_index,
+  const std::map<guid, std::list<ichunk_manager::replica_type>> & data_request)
+{
+  auto connection_manager = sp.get<iconnection_manager>();
+  for(auto & p : data_request){
+    object_request message(server_id, chunk_index, p.first, p.second);
+    connection_manager->send_to(sp, p.first, message);
+  }
 }
 
 

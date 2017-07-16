@@ -100,6 +100,7 @@ namespace vds {
     void add_property(const std::string & name, const std::string & value);
     void add_property(const std::string & name, const const_data_buffer & value);
     void add_property(const std::string & name, const std::list<const_data_buffer> & value);
+    void add_property(const std::string & name, const std::list<uint16_t> & value);
     
     template<typename item_type>
     void add_property(const std::string & name, const std::list<item_type> & value);
@@ -160,6 +161,16 @@ namespace vds {
     auto array = std::make_shared<json_array>();
     for(auto & item : value){
       array->add(item.serialize());
+    }
+    
+    this->add_property(name, array);
+  }
+  
+  inline void json_object::add_property(const std::string & name, const std::list<uint16_t> & value)
+  {
+    auto array = std::make_shared<json_array>();
+    for(auto & item : value){
+      array->add(std::make_shared<json_primitive>(std::to_string(item)));
     }
     
     this->add_property(name, array);

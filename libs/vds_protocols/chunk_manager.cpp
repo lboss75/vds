@@ -10,6 +10,7 @@ All rights reserved
 #include "storage_log.h"
 #include "hash.h"
 #include "server_database_p.h"
+#include "object_transfer_protocol_p.h"
 
 vds::ichunk_manager::ichunk_manager()
 {
@@ -50,7 +51,7 @@ void vds::ichunk_manager::get_object_map(
   const vds::guid & object_id,
   std::list<vds::ichunk_manager::object_chunk_map >& result)
 {
-  static_cast<_chunk_manager *>(this)->add_object(
+  static_cast<_chunk_manager *>(this)->get_object_map(
     sp,
     tr,
     object_id,
@@ -975,14 +976,24 @@ void vds::_chunk_manager::query_object_chunk(
   
   downloaded_data += REPLICA_SIZE * replicas.size();
   
+  std::map<guid, std::list<replica_type>> data_request;
+  
   object_chunk_store_table t1;
   st = tr.get_reader(
     t1.select(t1.replica, t1.storage_id)
     .where(t1.server_id == server_id && t1.chunk_index == chunk_index));
   while(st.execute()){
+    auto storage_id = t1.storage_id.get(st);
     auto replica = t1.replica.get(st);
     if(replicas.end() == replicas.find(replica)){
-      
+      data_request[storage_id].push_back(replica);
     }
   }
+  
+  (*sp.get<object_transfer_protocol>())->query_data(
+    sp,
+    tr,
+    server_id,
+    chunk_index,
+    data_request);
 }

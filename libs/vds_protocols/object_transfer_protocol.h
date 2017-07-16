@@ -17,12 +17,7 @@ namespace vds {
     object_transfer_protocol();
     ~object_transfer_protocol();
       
-    void chunk_require(
-      const service_provider & sp,
-      database_transaction & tr,
-      const guid & source_server_id,
-      uint64_t chunk_index);
-    
+   
     _object_transfer_protocol * operator -> () const { return this->impl_; }
 
   private:
