@@ -14,6 +14,7 @@ All rights reserved
 #include "parallel_tasks.h"
 #include "principal_manager.h"
 #include "server_database_p.h"
+#include "server_log_sync_p.h"
 
 vds::server_json_client_api::server_json_client_api()
 : impl_(new _server_json_client_api(this))
@@ -247,6 +248,9 @@ vds::_server_json_client_api::process(
     const service_provider & sp){
       database_transaction_scope scope(sp, *(*sp.get<iserver_database>())->get_db());
       principal_log_record record(message.principal_msg());
+      
+      std::cout << "Upload file " << record.id().str() << ", principal=" << record.principal_id().str() << "\n";
+      
       auto author = sp.get<principal_manager>()->find_principal(sp, scope.transaction(), record.principal_id());
       if(!author){
         on_error(sp, std::make_shared<std::runtime_error>("Author not found"));
@@ -267,6 +271,8 @@ vds::_server_json_client_api::process(
       principal_log_new_object new_object(record.message());
       
       sp.get<principal_manager>()->save_record(sp, scope.transaction(), record, message.signature());
+      sp.get<_server_log_sync>()->on_new_local_record(sp, record, message.signature());
+
   
       sp.get<ichunk_manager>()->add_object(
         sp,

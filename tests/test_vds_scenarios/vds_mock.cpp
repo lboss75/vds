@@ -224,20 +224,32 @@ vds::const_data_buffer mock_client::download_data(const std::string & login, con
     tmp_folder.create();
     vds::filename tmp_file(tmp_folder, "target");
 
-    sp.get<vds::iclient>()->download_data(sp, login, password, name, tmp_file)
-    .wait(
-      [&b](const vds::service_provider & sp, const vds::guid & version_id){
-        b.set();
-      },
-      [&b, &error](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-        error = ex;
-        b.set();
-      },
-      sp);
+    for(int try_count = 0; ; ++try_count){
+      sp.get<vds::iclient>()->download_data(sp, login, password, name, tmp_file)
+      .wait(
+        [&b](const vds::service_provider & sp, const vds::guid & version_id){
+          b.set();
+        },
+        [&b, &error](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+          error = ex;
+          b.set();
+        },
+        sp);
 
-    b.wait();
-    if (error) {
-      return;
+      b.wait();
+      b.reset();
+      if (error) {
+        std::cout << "[" << try_count << "]:" << error->what() << "\n";
+        if(try_count < 10){
+          std::this_thread::sleep_for(std::chrono::seconds(5));
+          error.reset();
+          continue;
+        }
+        return;
+      }
+      else {
+        break;
+      }
     }
 
     vds::dataflow(

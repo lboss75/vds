@@ -23,6 +23,11 @@ namespace vds {
     void start(const service_provider & sp);
     void stop(const service_provider & sp);
 
+    void on_new_local_record(
+      const service_provider & sp,
+      const principal_log_record & record,
+      const const_data_buffer & signature);
+    
   private:
     friend class _storage_log;
     friend class _connection_manager;
@@ -30,11 +35,6 @@ namespace vds {
     server_log_sync * const owner_;
     timer timer_;
     
-    void on_new_local_record(
-      const service_provider & sp,
-      const principal_log_record & record,
-      const const_data_buffer & signature);
-
     class server_log_record_broadcast
     {
     public:
