@@ -89,5 +89,13 @@ vds::async_task<vds::server_task_manager::task_state> vds::_local_cache::downloa
     }
     
     tr.commit();
+    
+    done(sp, server_task_manager::task_state {
+      (total_data == downloaded_data) ? server_task_manager::task_status::DONE : server_task_manager::task_status::IN_PROGRESS,
+      "Downloading data...",
+      (int)(100 * downloaded_data / total_data),
+      std::chrono::system_clock::now(),
+      std::chrono::system_clock::now()
+    });
   });
 }

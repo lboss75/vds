@@ -35,8 +35,8 @@ namespace vds {
       task_status status;
       std::string current_task;
       int progress_percent;
-      std::chrono::system_clock start_time;
-      std::chrono::system_clock finish_time;
+      std::chrono::system_clock::time_point start_time;
+      std::chrono::system_clock::time_point finish_time;
     };
 
   private:
