@@ -374,6 +374,9 @@ vds::async_task<const vds::guid & /*version_id*/>
               continue;
             }
             
+            std::cout << "id=" << log_record.id().str() << ", principal_id=" << log_record.principal_id().str()
+            << "\n";
+            
             std::string message_type;
             if(!log_message->get_property("$t", message_type, false)
               || principal_log_new_object::message_type != message_type) {
@@ -433,7 +436,7 @@ vds::async_task<const vds::guid & /*version_id*/>
               sp,
               user_private_key,
               principal_id,
-              principal_log.last_order_num(),
+              principal_log.last_order_num() - 1,
               looking_file_name,
               target_file)
             .wait(done, on_error, sp);
