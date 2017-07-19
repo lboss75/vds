@@ -385,7 +385,8 @@ vds::async_task<const vds::guid & /*version_id*/>
             
             principal_log_new_object record(log_message);
             
-            binary_deserializer file_info(user_private_key.decrypt(record.meta_data()));
+            auto decrypted_data = user_private_key.decrypt(record.meta_data());
+            binary_deserializer file_info(decrypted_data);
             
             std::string name;
             file_info >> name;

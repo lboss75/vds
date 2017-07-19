@@ -60,8 +60,10 @@ namespace vds {
   {
   public:
     binary_deserializer(const const_data_buffer & data);
+    binary_deserializer(const_data_buffer && data) = delete;
     binary_deserializer(const void * data, size_t len);
     binary_deserializer(const std::vector<uint8_t> & data);
+    binary_deserializer(std::vector<uint8_t> && data) = delete;
     
     //1 byte
     binary_deserializer & operator >> (uint8_t & value);
