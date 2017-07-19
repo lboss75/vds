@@ -26,25 +26,14 @@ namespace vds {
     _sql_statement(sqlite3 * db, const char * sql)
       : db_(db), stmt_(nullptr), state_(bof_state)
     {
-      for (auto try_count = 0;; ++try_count) {
-        auto result = sqlite3_prepare_v2(db, sql, -1, &this->stmt_, nullptr);
-        switch (result) {
-        case SQLITE_OK:
-          return;
+      auto result = sqlite3_prepare_v2(db, sql, -1, &this->stmt_, nullptr);
+      switch (result) {
+      case SQLITE_OK:
+        return;
 
-        case SQLITE_BUSY:
-          if (30 > try_count) {
-            dump_commands();
-
-            std::this_thread::sleep_for(std::chrono::seconds(1));
-            continue;
-          }
-          //break;
-
-        default:
-          auto error = sqlite3_errmsg(db);
-          throw std::runtime_error(error);
-        }
+      default:
+        auto error = sqlite3_errmsg(db);
+        throw std::runtime_error(error);
       }
     }
 
@@ -92,30 +81,19 @@ namespace vds {
 
     bool execute()
     {
-      for (auto try_count = 0; ; ++try_count) {
-        auto result = sqlite3_step(this->stmt_);
-        switch (result) {
-        case SQLITE_ROW:
-          this->state_ = read_state;
-          return true;
+      auto result = sqlite3_step(this->stmt_);
+      switch (result) {
+      case SQLITE_ROW:
+        this->state_ = read_state;
+        return true;
 
-        case SQLITE_DONE:
-          this->state_ = eof_state;
-          return false;
+      case SQLITE_DONE:
+        this->state_ = eof_state;
+        return false;
 
-        case SQLITE_BUSY:
-          if (30 > try_count) {
-            dump_commands();
-
-            std::this_thread::sleep_for(std::chrono::seconds(1));
-            continue;
-          }
-          //break;
-
-        default:
-          auto error = sqlite3_errmsg(this->db_);
-          throw std::runtime_error(error);
-        }
+      default:
+        auto error = sqlite3_errmsg(this->db_);
+        throw std::runtime_error(error);
       }
     }
 
@@ -215,6 +193,11 @@ namespace vds {
         throw std::runtime_error(sqlite3_errmsg(this->db_));
       }
 
+      error = sqlite3_busy_timeout(this->db_, 300000);
+      if (SQLITE_OK != error) {
+        throw std::runtime_error(sqlite3_errmsg(this->db_));
+      }
+
       START_DEBUG_TASK(_database_transaction_debug, sp.full_name());
     }
 
@@ -227,37 +210,30 @@ namespace vds {
     void close()
     {
       if (nullptr != this->db_) {
-        sqlite3_close(this->db_);
+        auto error = sqlite3_close(this->db_);
+
+        if (SQLITE_OK != error) {
+          auto error_msg = sqlite3_errmsg(this->db_);
+          throw std::runtime_error(error_msg);
+        }
+
         this->db_ = nullptr;
       }
     }
 
     void execute(const char * sql)
     {
-      for (auto try_count = 0; ; ++try_count) {
-        char * zErrMsg = nullptr;
-        auto result = sqlite3_exec(this->db_, sql, nullptr, 0, &zErrMsg);
-        switch (result) {
-        case SQLITE_OK:
-          return;
+      char * zErrMsg = nullptr;
+      auto result = sqlite3_exec(this->db_, sql, nullptr, 0, &zErrMsg);
+      switch (result) {
+      case SQLITE_OK:
+        return;
 
-        case SQLITE_BUSY:
-          if (30 > try_count) {
-            sqlite3_free(zErrMsg);
+      default:
+        std::string error_message(zErrMsg);
+        sqlite3_free(zErrMsg);
 
-            dump_commands();
-
-            std::this_thread::sleep_for(std::chrono::seconds(1));
-            continue;
-          }
-          //break;
-
-        default:
-          std::string error_message(zErrMsg);
-          sqlite3_free(zErrMsg);
-
-          throw std::runtime_error(error_message);
-        }
+        throw std::runtime_error(error_message);
       }
     }
 

@@ -40,14 +40,16 @@ namespace vds {
       this->output_buffer_size_ = buffer_size;
       readed = static_cast<implementation_type *>(this)->sync_get_data(sp);
       if (0 == readed) {
-        this->common_data_->step_finish(sp, context_type::INDEX);
+        if (this->common_data_->step_finish(sp, context_type::INDEX)) {
+          return false;
+        }
       }
       return true;
     }
 
-    void cancel(const service_provider & sp)
+    bool cancel(const service_provider & sp)
     {
-      this->common_data_->step_finish(sp, context_type::INDEX);
+      return this->common_data_->step_finish(sp, context_type::INDEX);
     }
 
   private:
@@ -97,9 +99,9 @@ namespace vds {
       return false;
     }
 
-    void cancel(const service_provider & sp)
+    bool cancel(const service_provider & sp)
     {
-      this->common_data_->step_finish(sp, context_type::INDEX);
+      return this->common_data_->step_finish(sp, context_type::INDEX);
     }
 
   private:
@@ -118,7 +120,9 @@ namespace vds {
       size_t written)
     {
       if(0 == written){
-        this->common_data_->step_finish(sp, context_type::INDEX);
+        if (this->common_data_->step_finish(sp, context_type::INDEX)) {
+          return false;
+        }
       }
       
       return this->target_->push_data(sp, written, this->output_buffer_, this->output_buffer_size_);
@@ -238,7 +242,9 @@ namespace vds {
             }
 
             this->final_data_ = true;
-            this->common_data_->step_finish(sp, context_type::INDEX);
+            if (this->common_data_->step_finish(sp, context_type::INDEX)) {
+              return false;
+            }
             return true;
           }
 
@@ -290,24 +296,28 @@ namespace vds {
           }
 
           this->final_data_ = true;
-          this->common_data_->step_finish(sp, context_type::INDEX);
+          if (this->common_data_->step_finish(sp, context_type::INDEX)) {
+            return false;
+          }
         }
       }
 
       if (0 < written || 0 == readed) {
         this->waiting_get_data_ = true;
-        if (this->target_->push_data(sp, written, this->output_buffer_, this->output_buffer_size_)) {
-          this->waiting_get_data_ = false;
+        if (!this->target_->push_data(sp, written, this->output_buffer_, this->output_buffer_size_)) {
+          return false;
         }
+
+        this->waiting_get_data_ = false;
       }
 
       this->waiting_push_data_ = true;
       return !this->final_data_;
     }
 
-    void cancel(const service_provider & sp)
+    bool cancel(const service_provider & sp)
     {
-      this->common_data_->step_finish(sp, context_type::INDEX);
+      return this->common_data_->step_finish(sp, context_type::INDEX);
     }
 
   private:
@@ -483,7 +493,9 @@ namespace vds {
             throw std::runtime_error("Logic error");
           }
 
-          this->common_data_->step_finish(sp, context_type::INDEX);
+          if (this->common_data_->step_finish(sp, context_type::INDEX)) {
+            return false;
+          }
           this->waiting_push_data_ = true;
         }
 
@@ -505,9 +517,9 @@ namespace vds {
       }
     }
 
-    void cancel(const service_provider & sp)
+    bool cancel(const service_provider & sp)
     {
-      this->common_data_->step_finish(sp, context_type::INDEX);
+      return this->common_data_->step_finish(sp, context_type::INDEX);
     }
 
   private:
@@ -618,9 +630,9 @@ namespace vds {
       }
     }
 
-    void cancel(const service_provider & sp)
+    bool cancel(const service_provider & sp)
     {
-      this->common_data_->step_finish(sp, context_type::INDEX);
+      return this->common_data_->step_finish(sp, context_type::INDEX);
     }
 
   private:
@@ -698,9 +710,9 @@ namespace vds {
       static_cast<implementation_type *>(this)->async_push_data(sp);
     }
 
-    void cancel(const service_provider & sp)
+    bool cancel(const service_provider & sp)
     {
-      this->common_data_->step_finish(sp, context_type::INDEX);
+      return this->common_data_->step_finish(sp, context_type::INDEX);
     }
 
   private:
@@ -777,8 +789,8 @@ namespace vds {
       cancellation_token_source cancellation_source_;
       cancellation_token cancellation_token_;
 
-      virtual void step_finish(const service_provider & sp, size_t index) = 0;
-      virtual void step_error(const service_provider & sp, size_t index, const std::shared_ptr<std::exception> & error) = 0;
+      virtual bool step_finish(const service_provider & sp, size_t index) = 0;
+      virtual bool step_error(const service_provider & sp, size_t index, const std::shared_ptr<std::exception> & error) = 0;
     };
     
     template<
@@ -1258,13 +1270,13 @@ namespace vds {
         this->step_.start(sp);
       }
 
-      void step_finish(const service_provider & sp, size_t index) override
+      bool step_finish(const service_provider & sp, size_t index) override
       {
         this->done_steps_.emplace(index);
-        this->try_finish(sp);
+        return this->try_finish(sp);
       }
 
-      void step_error(const service_provider & sp, size_t index, const std::shared_ptr<std::exception> & error) override
+      bool step_error(const service_provider & sp, size_t index, const std::shared_ptr<std::exception> & error) override
       {
         if (!this->error_) {
           this->error_ = error;
@@ -1272,7 +1284,7 @@ namespace vds {
         }
 
         this->done_steps_.emplace(index);
-        this->try_finish(sp);
+        return this->try_finish(sp);
       }
 
 
@@ -1287,10 +1299,10 @@ namespace vds {
       std::set<size_t> done_steps_;
       std::shared_ptr<std::exception> error_;
 
-      void try_finish(const service_provider & sp)
+      bool try_finish(const service_provider & sp)
       {
         if (std::tuple_size<tuple_type>::value > this->done_steps_.size()) {
-          return;
+          return false;
         }
 
         this->handler_token_.destroy();
@@ -1303,6 +1315,7 @@ namespace vds {
         }
 
         this->pthis_.reset();
+        return true;
       }
     };
   };
