@@ -269,10 +269,6 @@ vds::_server_json_client_api::process(
       }
       
       principal_log_new_object new_object(record.message());
-      
-      sp.get<principal_manager>()->save_record(sp, scope.transaction(), record, message.signature());
-      sp.get<_server_log_sync>()->on_new_local_record(sp, record, message.signature());
-
   
       sp.get<ichunk_manager>()->add_object(
         sp,
@@ -280,12 +276,16 @@ vds::_server_json_client_api::process(
         new_object.index(),
         message.tmp_file(),
         message.file_hash())
-      .wait([done](const service_provider & sp){
-          done(sp, client_messages::put_object_message_response().serialize());
+      .wait([done, &scope, &record, &message](const service_provider & sp){
+
+        sp.get<principal_manager>()->save_record(sp, scope.transaction(), record, message.signature());
+        sp.get<_server_log_sync>()->on_new_local_record(sp, record, message.signature());
+
+        scope.commit();
+        done(sp, client_messages::put_object_message_response().serialize());
         },
         on_error,
         sp);
-      scope.commit();
   });
 }
 
