@@ -32,17 +32,20 @@ void vds::database::close()
 
 vds::database_transaction vds::database::begin_transaction(const service_provider & sp)
 {
+  this->transaction_mutex_.lock();
   return vds::database_transaction(this->impl_->begin_transaction(sp));
 }
 
 void vds::database::commit(vds::database_transaction& t)
 {
   this->impl_->commit(t);
+  this->transaction_mutex_.unlock();
 }
 
 void vds::database::rollback(vds::database_transaction& t)
 {
   this->impl_->rollback(t);
+  this->transaction_mutex_.unlock();
 }
 
 void vds::database_transaction::execute(const char * sql)

@@ -8,6 +8,7 @@ All rights reserved
 #include <list>
 #include <map>
 #include <string>
+#include <mutex>
 
 #include "guid.h"
 #include "filename.h"
@@ -98,6 +99,7 @@ namespace vds {
 
   private:
     _database * const impl_;
+    std::mutex transaction_mutex_;
   };
 
   class database_transaction_scope
