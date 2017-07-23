@@ -11,6 +11,7 @@ All rights reserved
 #include "hash.h"
 #include "server_database_p.h"
 #include "object_transfer_protocol_p.h"
+#include "connection_manager.h"
 
 vds::ichunk_manager::ichunk_manager()
 {
@@ -249,7 +250,8 @@ vds::async_task<> vds::_chunk_manager::add_object(
       server_id,
       sp.get<istorage_log>()->server_private_key(),
       result.serialize(),
-      false);
+      false,
+      version_id);
     
     done(sp);
   });
@@ -735,6 +737,9 @@ void vds::_chunk_manager::get_object_map(
 
     result.push_back(item);
   }
+  if(result.empty()){
+    throw std::runtime_error("Object " + object_id.str() + " not found");
+  }
 }
 
 void vds::_chunk_manager::start_tail_chunk(
@@ -990,10 +995,9 @@ void vds::_chunk_manager::query_object_chunk(
     }
   }
   
-  (*sp.get<object_transfer_protocol>())->query_data(
-    sp,
-    tr,
-    server_id,
-    chunk_index,
-    data_request);
+  auto connection_manager = sp.get<iconnection_manager>();
+  for(auto & p : data_request){
+    object_request message(server_id, chunk_index, p.first, p.second);
+    connection_manager->send_to(sp, p.first, message);
+  }
 }

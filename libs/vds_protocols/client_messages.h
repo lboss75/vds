@@ -234,6 +234,7 @@ namespace vds {
       {
       }
 
+      const server_task_manager::task_state & state() const { return this->state_; }
     private:
       server_task_manager::task_state state_;
     };

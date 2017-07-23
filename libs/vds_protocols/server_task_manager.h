@@ -23,7 +23,7 @@ namespace vds {
 
     enum class task_status
     {
-      QUIRED,
+      QUERED,
       IN_PROGRESS,
       PAUSED,
       FAILED,

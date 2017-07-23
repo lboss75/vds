@@ -277,6 +277,23 @@ vds::client_messages::get_object_response::get_object_response(const std::shared
 {
   auto s = std::dynamic_pointer_cast<json_object>(value);
   if (s) {
+    std::string state;
+    s->get_property("s", state);
+    
+    if("quered" == state){
+      this->state_.status = server_task_manager::task_status::QUERED;
+    } else if("in progress" == state){
+      this->state_.status = server_task_manager::task_status::IN_PROGRESS;
+    } else if("paused" == state){
+      this->state_.status = server_task_manager::task_status::PAUSED;
+    } else if("failed" == state){
+      this->state_.status = server_task_manager::task_status::FAILED;
+    } else if("done" == state){
+      this->state_.status = server_task_manager::task_status::DONE;
+    }      
+    
+    s->get_property("t", this->state_.current_task);
+    s->get_property("p", this->state_.progress_percent);
   }
 }
 
@@ -284,5 +301,30 @@ std::shared_ptr<vds::json_value> vds::client_messages::get_object_response::seri
 {
   auto s = std::make_shared<json_object>();
   s->add_property("$t", message_type);
+
+  switch(this->state_.status){
+    case server_task_manager::task_status::QUERED:
+      s->add_property("s", "quered");
+      break;
+      
+    case server_task_manager::task_status::IN_PROGRESS:
+      s->add_property("s", "in progress");
+      break;
+      
+    case server_task_manager::task_status::PAUSED:
+      s->add_property("s", "paused");
+      break;
+      
+    case server_task_manager::task_status::FAILED:
+      s->add_property("s", "failed");
+      break;
+
+    case server_task_manager::task_status::DONE:
+      s->add_property("s", "done");
+      break;
+  }
+  s->add_property("t", this->state_.current_task);
+  s->add_property("p", this->state_.progress_percent);
+
   return s;
 }

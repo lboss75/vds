@@ -12,7 +12,7 @@ All rights reserved
 #include "principal_record.h"
 #include "server_database.h"
 #include "parallel_tasks.h"
-#include "principal_manager.h"
+#include "principal_manager_p.h"
 #include "server_database_p.h"
 #include "server_log_sync_p.h"
 
@@ -271,10 +271,17 @@ vds::_server_json_client_api::process(
       sp.get<ichunk_manager>()->add_object(
         sp,
         scope.transaction(),
-        new_object.index(),
+        message.version_id(),
         message.tmp_file(),
         message.file_hash())
       .wait([done, &scope, &record, &message](const service_provider & sp){
+        
+        for(auto & p : record.parents()) {
+          auto state = (*sp.get<principal_manager>())->principal_log_get_state(sp, scope.transaction(), p);
+          if(_principal_manager::principal_log_state::tail != state){
+            throw std::runtime_error("Invalid parent_id " + p.str());
+          }
+        }
 
         sp.get<principal_manager>()->save_record(sp, scope.transaction(), record, message.signature());
         sp.get<_server_log_sync>()->on_new_local_record(sp, record, message.signature());

@@ -103,18 +103,3 @@ void vds::_object_transfer_protocol::on_object_request(
   */
 }
 
-void vds::_object_transfer_protocol::query_data(
-  const service_provider & sp,
-  database_transaction & tr,
-  const vds::guid & server_id,
-  ichunk_manager::index_type chunk_index,
-  const std::map<guid, std::list<ichunk_manager::replica_type>> & data_request)
-{
-  auto connection_manager = sp.get<iconnection_manager>();
-  for(auto & p : data_request){
-    object_request message(server_id, chunk_index, p.first, p.second);
-    connection_manager->send_to(sp, p.first, message);
-  }
-}
-
-

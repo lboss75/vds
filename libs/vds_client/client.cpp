@@ -410,12 +410,13 @@ vds::async_task<const vds::guid & /*version_id*/>
             filename tmp_file(this->tmp_folder_, record.index().str());
 
             auto version_id = record.index();
-            this->owner_->logic_->send_request<client_messages::get_object_response>(
-              sp,
-              client_messages::get_object_request(record.index(), tmp_file).serialize())
+            
+            this->download_file(
+              version_id,
+              tmp_file)
             .wait(
               [this, done, on_error, transaction_key, tmp_file, version_id, target_file, body_size, tail_size]
-              (const service_provider & sp, const client_messages::get_object_response & response) {
+              (const service_provider & sp) {
                 _file_manager::decrypt_file(
                   sp,
                   transaction_key,
@@ -432,6 +433,7 @@ vds::async_task<const vds::guid & /*version_id*/>
               },
               on_error,
               sp);
+            
             return;
           }
           
@@ -453,6 +455,43 @@ vds::async_task<const vds::guid & /*version_id*/>
         sp);
   });
 }
+
+vds::async_task<> vds::_client::download_file(
+  const guid & version_id,
+  const filename & tmp_file)
+{
+  return create_async_task(
+    [this, version_id, tmp_file](
+      const std::function<void(const service_provider & sp)> & done,
+      const error_handler & on_error,
+      const service_provider & sp) {
+  this->owner_->logic_->send_request<client_messages::get_object_response>(
+    sp,
+    client_messages::get_object_request(version_id, tmp_file).serialize())
+  .wait(
+    [this, version_id, tmp_file, done, on_error]
+    (const service_provider & sp, const client_messages::get_object_response & response) {
+      switch(response.state().status){
+        case server_task_manager::task_status::DONE:
+          done(sp);
+          break;
+          
+        case server_task_manager::task_status::FAILED:
+          on_error(sp, std::make_shared<std::runtime_error>(response.state().current_task));
+          break;
+          
+        default:
+          std::cout << response.state().current_task << "[" << response.state().progress_percent << "]\n";
+          std::this_thread::sleep_for(std::chrono::seconds(5));
+          this->download_file(version_id, tmp_file).wait(done, on_error, sp);
+          break;
+      }
+    },
+    on_error,
+    sp);
+    });
+}
+
 
 vds::async_task<const vds::client_messages::certificate_and_key_response & /*response*/>
   vds::_client::authenticate(

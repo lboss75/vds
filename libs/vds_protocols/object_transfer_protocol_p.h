@@ -32,12 +32,6 @@ namespace vds {
       const guid & from_server_id,
       const object_request & message);
     
-    void query_data(
-      const service_provider & sp,
-      database_transaction & tr,
-      const vds::guid & server_id,
-      ichunk_manager::index_type chunk_index,
-      const std::map<guid, std::list<ichunk_manager::replica_type>> & data_request);
   private:
 
     //Database

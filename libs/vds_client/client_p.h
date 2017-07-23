@@ -61,6 +61,10 @@ namespace vds {
         const size_t order_num,
         const std::string & looking_file_name,
         const filename & target_file);
+      
+      async_task<> download_file(
+        const guid & version_id,
+        const filename & tmp_file);
   };
 }
 
