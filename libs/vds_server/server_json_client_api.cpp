@@ -308,53 +308,7 @@ vds::async_task<std::shared_ptr<vds::json_value>> vds::_server_json_client_api::
       const service_provider & sp,
       const server_task_manager::task_state & state) {
     
-      if(server_task_manager::task_status::DONE == state.status){
-        
-      }
-    
       done(sp, client_messages::get_object_response(state).serialize());
-    /*
-    auto object_map = sp.get<ichunk_manager>()->get_object_map(sp, message.version_id());
-    if (object_map.empty()) {
-      on_error(sp, std::make_shared<std::runtime_error>("Object not found"));
-    }
-    else {
-      std::shared_ptr<parallel_tasks> tasks;
-      auto cache = sp.get<ilocal_cache>();
-      auto connection_manager = sp.get<iconnection_manager>();
-      for (auto & item : object_map) {
-        auto chunk_file = cache->get_object_filename(
-          sp,
-          item.server_id,
-          item.chunk_index);
-
-        if (file::exists(chunk_file)) {
-          throw std::runtime_error("Not implemented");
-        }
-        else {
-          if (!tasks) {
-            tasks = std::make_shared<parallel_tasks>();
-          }
-
-          tasks->add(sp.get<ilocal_cache>()->download_object(
-            sp,
-            item.server_id,
-            item.chunk_index,
-            chunk_file));
-        }
-      }
-      if (!tasks) {
-        tasks->run().wait(
-          [tasks, done](const service_provider & sp) {
-            done(sp, client_messages::get_object_response().serialize());
-          },
-          on_error,
-          sp);
-      }
-      else {
-        done(sp, client_messages::get_object_response().serialize());
-      }
-      */
     });
 }
 
@@ -381,23 +335,3 @@ vds::async_task<std::shared_ptr<vds::json_value>>
     done(sp, client_messages::principal_log_response(message.principal_id(), last_order_num, records).serialize());
   });
 }
-
-/*
-vds::async_task<std::shared_ptr<vds::json_value>> vds::_server_json_client_api::process(
-  const service_provider & sp,
-  const client_messages::get_file_message_request & message)
-{
-  return sp.get<file_manager>()->download_file(
-      sp,
-      message.user_login(),
-      message.name())
-    .then([](
-      const std::function<void(const service_provider & sp, std::shared_ptr<json_value>)> & done,
-      const error_handler & on_error,
-      const service_provider & sp,
-      const_data_buffer meta_info,
-      filename tmp_file) {
-    done(sp, client_messages::get_file_message_response(meta_info, tmp_file).serialize());
-  });
-}
-*/
