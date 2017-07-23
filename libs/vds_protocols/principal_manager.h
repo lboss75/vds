@@ -42,7 +42,7 @@ namespace vds {
     size_t get_current_state(
       const service_provider & sp,
       database_transaction & tr,
-      std::list<guid> & active_records);
+      std::list<guid> * active_records = nullptr);
 
 
     void get_principal_log(

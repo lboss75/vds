@@ -52,7 +52,7 @@ std::unique_ptr<vds::principal_record> vds::principal_manager::find_user_princip
 size_t vds::principal_manager::get_current_state(
   const service_provider & sp,
   database_transaction & tr,
-  std::list<guid> & active_records)
+  std::list<guid> * active_records)
 {
   return this->impl_->get_current_state(sp, tr, active_records);
 }
@@ -278,24 +278,33 @@ vds::_principal_manager::principal_log_get_state(
 size_t vds::_principal_manager::get_current_state(
   const service_provider & sp,
   database_transaction & tr,
-  std::list<guid> & active_records)
+  std::list<guid> * active_records)
 {
-  std::lock_guard<not_mutex> lock(this->principal_log_mutex_);
-
   size_t max_order_num = 0;
-
   principal_log_table t;
-  auto st = tr.get_reader(
-    t.select(t.id, t.order_num).where(t.state == (int)principal_log_state::tail));
-  while(st.execute()){
-    auto order_num = t.order_num.get(st);
-    if (max_order_num < order_num) {
-      max_order_num = order_num;
+  
+  std::lock_guard<not_mutex> lock(this->principal_log_mutex_);
+  
+  if(nullptr != active_records){
+
+    auto st = tr.get_reader(
+      t.select(t.id, t.order_num).where(t.state == (int)principal_log_state::tail));
+    while(st.execute()){
+      auto order_num = t.order_num.get(st);
+      if (max_order_num < order_num) {
+        max_order_num = order_num;
+      }
+
+      active_records->push_back(t.id.get(st));
     }
-
-    active_records.push_back(t.id.get(st));
+  } else {
+    auto st = tr.get_reader(
+      t.select(db_max(t.order_num)).where(t.state == (int)principal_log_state::tail));
+    while(st.execute()){
+      st.get_value(0, max_order_num);
+    }
   }
-
+  
   return max_order_num;
 }
 
@@ -609,7 +618,7 @@ vds::principal_log_record
     const_data_buffer & signature)
 {
   std::list<principal_log_record::record_id> parents;
-  auto max_order_num = this->get_current_state(sp, tr, parents);
+  auto max_order_num = this->get_current_state(sp, tr, &parents);
 
   std::lock_guard<not_mutex> lock(this->principal_log_mutex_);
 

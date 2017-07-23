@@ -31,7 +31,8 @@ namespace vds {
       const guid & principal_id,
       const vds::asymmetric_private_key & principal_private_key,
       const std::shared_ptr<json_value> & record,
-      bool apply_record = true);
+      bool apply_record = true,
+      const guid & record_id = guid::new_guid());
 
     vds::async_task<> register_server(
       const service_provider & sp,

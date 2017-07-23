@@ -41,12 +41,10 @@ vds::client_messages::certificate_and_key_response::certificate_and_key_response
   const guid & id,
   const std::string & certificate_body,
   const std::string & private_key_body,
-  const std::list<guid> & active_records,
   size_t order_num)
 : id_(id),
   certificate_body_(certificate_body),
   private_key_body_(private_key_body),
-  active_records_(active_records),
   order_num_(order_num)
 {
 }
@@ -59,16 +57,6 @@ vds::client_messages::certificate_and_key_response::certificate_and_key_response
     s->get_property("c", this->certificate_body_);
     s->get_property("k", this->private_key_body_);
     s->get_property("o", this->order_num_);
-
-    auto p = std::dynamic_pointer_cast<json_array>(s->get_property("p"));
-    if (p) {
-      for (size_t i = 0; i < p->size(); ++i) {
-        auto item = std::dynamic_pointer_cast<json_primitive>(p->get(i));
-        if (item) {
-          this->active_records_.push_back(guid::parse(item->value()));
-        }
-      }
-    }
   }
 }
 
@@ -81,14 +69,6 @@ std::shared_ptr<vds::json_value> vds::client_messages::certificate_and_key_respo
   result->add_property("c", this->certificate_body_);
   result->add_property("k", this->private_key_body_);
   result->add_property("o", this->order_num_);
-
-  auto p = std::make_shared<json_array>();
-  for (auto & record : this->active_records_) {
-    auto item = std::make_shared<json_primitive>(record.str());
-    p->add(item);
-  }
-  result->add_property("p", p);
-
 
   return std::shared_ptr<vds::json_value>(result.release());
 }
@@ -164,6 +144,7 @@ vds::client_messages::put_object_message::put_object_message(const std::shared_p
     this->principal_msg_ = s->get_property("m");
     s->get_property("s", this->signature_);
     s->get_property("h", this->file_hash_);
+    s->get_property("v", this->version_id_);
 
     std::string v;
     if (s->get_property("f", v)) {
@@ -180,6 +161,7 @@ std::shared_ptr<vds::json_value> vds::client_messages::put_object_message::seria
   s->add_property("i", this->principal_id_);
   s->add_property("m", this->principal_msg_);
   s->add_property("s", this->signature_);
+  s->add_property("v", this->version_id_);
   s->add_property("f", this->tmp_file_.full_name());
   s->add_property("h", this->file_hash_);
 
@@ -190,11 +172,13 @@ vds::client_messages::put_object_message::put_object_message(
   const guid & principal_id,
   const std::shared_ptr<json_value> & principal_msg,
   const const_data_buffer & signature,
+  const guid & version_id,
   const filename & tmp_file,
   const const_data_buffer & file_hash)
 : principal_id_(principal_id),
   principal_msg_(principal_msg),
   signature_(signature),
+  version_id_(version_id),
   tmp_file_(tmp_file),
   file_hash_(file_hash)
 {

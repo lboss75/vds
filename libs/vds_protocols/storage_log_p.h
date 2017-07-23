@@ -81,7 +81,8 @@ namespace vds {
       const guid & principal_id,
       const vds::asymmetric_private_key & principal_private_key,
       const std::shared_ptr<json_value> & record,
-      bool apply_record);
+      bool apply_record,
+      const guid & record_id);
 
     void apply_record(
       const service_provider & sp,

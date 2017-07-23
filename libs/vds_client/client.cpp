@@ -249,11 +249,13 @@ vds::async_task<const std::string& /*version_id*/> vds::_client::upload_file(
 
         auto meta_info = user_certificate.public_key().encrypt(file_info.data());
         
+        std::list<principal_log_record::record_id> parents;
+        parents.push_back(version_id);
         //Form principal_log message
         auto msg = principal_log_record(
           guid::new_guid(),
           response.id(),
-          response.active_records(),
+          parents,
           principal_log_new_object(version_id,  body_size + tail_size, meta_info).serialize(),
           response.order_num() + 1).serialize(false);                              
         
@@ -266,7 +268,7 @@ vds::async_task<const std::string& /*version_id*/> vds::_client::upload_file(
             asymmetric_private_key::parse(response.private_key_body(), user_password),
             signature)
         )(
-          [this, done, on_error, &signature, &response, msg, tmp_file](const service_provider & sp){
+          [this, done, on_error, &signature, &response, msg, version_id, tmp_file](const service_provider & sp){
             sp.get<logger>()->trace(sp, "Message [%s] signed [%s]", msg->str().c_str(), base64::from_bytes(signature).c_str());
             
             uint8_t file_buffer[1024];
@@ -292,6 +294,7 @@ vds::async_task<const std::string& /*version_id*/> vds::_client::upload_file(
                 response.id(),
                 msg,
                 signature,
+                version_id,
                 tmp_file,
                 file_hash.signature()).serialize())
             .then([](

@@ -43,7 +43,6 @@ namespace vds {
         const guid & id,
         const std::string & certificate_body,
         const std::string & private_key_body,
-        const std::list<guid> & active_records,
         size_t order_num
       );
 
@@ -53,14 +52,12 @@ namespace vds {
       const guid & id() const { return this->id_; }
       const std::string & certificate_body() const { return this->certificate_body_; }
       const std::string & private_key_body() const { return this->private_key_body_; }
-      const std::list<guid> & active_records() const { return this->active_records_; }
       size_t order_num() const { return this->order_num_; }
 
     private:
       guid id_;
       std::string certificate_body_;
       std::string private_key_body_;
-      std::list<guid> active_records_;
       size_t order_num_;
     };
 
@@ -116,12 +113,14 @@ namespace vds {
         const guid & principal_id,
         const std::shared_ptr<json_value> & principal_msg,
         const const_data_buffer & signature,
+        const guid & version_id,
         const filename & tmp_file,
         const const_data_buffer & file_hash);
 
       const guid & principal_id() const { return this->principal_id_; }
       const std::shared_ptr<json_value> & principal_msg() const { return this->principal_msg_; }
       const const_data_buffer & signature() const { return this->signature_; }
+      const guid & version_id() const { return this->version_id_; }
       const filename & tmp_file() const { return this->tmp_file_; }
       const const_data_buffer & file_hash() const { return this->file_hash_; }
 
@@ -129,6 +128,7 @@ namespace vds {
       guid principal_id_;
       std::shared_ptr<json_value> principal_msg_;
       const_data_buffer signature_;
+      guid version_id_;
       filename tmp_file_;
       const_data_buffer file_hash_;
     };
