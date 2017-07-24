@@ -64,30 +64,27 @@ void vds::iconnection_manager::send_transfer_request(
 void vds::iconnection_manager::broadcast(
   const service_provider & sp,
   uint32_t message_type_id,
-  const std::function<const_data_buffer(void)> & get_binary,
-  const std::function<std::string(void)> & get_json)
+  const const_data_buffer & message_data)
 {
-  static_cast<_connection_manager *>(this)->broadcast(sp, message_type_id, get_binary, get_json);
+  static_cast<_connection_manager *>(this)->broadcast(sp, message_type_id, message_data);
 }
 
 void vds::iconnection_manager::send_to(
   const service_provider & sp,
   const connection_session & session,
   uint32_t message_type_id,
-  const std::function<const_data_buffer(void)> & get_binary,
-  const std::function<std::string(void)> & get_json)
+  const const_data_buffer & message_data)
 {
-  static_cast<_connection_manager *>(this)->send_to(sp, session, message_type_id, get_binary, get_json);
+  static_cast<_connection_manager *>(this)->send_to(sp, session, message_type_id, message_data);
 }
 
 void vds::iconnection_manager::send_to(
   const service_provider & sp,
   const guid & server_id,
   uint32_t message_type_id,
-  const std::function<const_data_buffer(void)> & get_binary,
-  const std::function<std::string(void)> & get_json)
+  const const_data_buffer & message_data)
 {
-  static_cast<_connection_manager *>(this)->send_to(sp, server_id, message_type_id, get_binary, get_json);
+  static_cast<_connection_manager *>(this)->send_to(sp, server_id, message_type_id, message_data);
 }
 //////////////////////////////////////////////////////
 vds::_connection_manager::_connection_manager(
@@ -163,11 +160,10 @@ void vds::_connection_manager::start_servers(
 void vds::_connection_manager::broadcast(
   const service_provider & sp,
   uint32_t message_type_id,
-  const std::function<const_data_buffer(void)> & get_binary,
-  const std::function<std::string(void)> & get_json)
+  const const_data_buffer & message_data)
 {
   if (this->udp_channel_) {
-    this->udp_channel_->broadcast(sp, message_type_id, get_binary, get_json);
+    this->udp_channel_->broadcast(sp, message_type_id, message_data);
   }
 }
 
@@ -507,15 +503,13 @@ void vds::_connection_manager::send_to(
   const service_provider & sp,
   const guid & server_id,
   uint32_t message_type_id,
-  const std::function<const_data_buffer(void)> & get_binary,
-  const std::function<std::string(void)> & get_json)
+  const const_data_buffer & message_data)
 {
-  this->route_manager_->send_to(
+  this->route_manager_.send_to(
     sp,
     server_id,
     message_type_id,
-    get_binary,
-    get_json);
+    message_data);
 }
 
 void vds::_connection_manager::udp_channel::open_udp_session(
@@ -561,11 +555,10 @@ void vds::_connection_manager::udp_channel::open_udp_session(
 void vds::_connection_manager::udp_channel::broadcast(
   const service_provider & sp,
   uint32_t message_type_id,
-  const std::function<const_data_buffer(void)> & get_binary,
-  const std::function<std::string(void)> & get_json)
+  const const_data_buffer & message_data)
 {
-  this->for_each_sessions([this, sp, message_type_id, &get_binary, &get_json](const session & session){
-    session.send_to(sp, message_type_id, get_binary, get_json);
+  this->for_each_sessions([this, sp, message_type_id, message_data](const session & session){
+    session.send_to(sp, message_type_id, message_data);
   });
 }
 
@@ -594,11 +587,10 @@ vds::_connection_manager::udp_channel::session::~session()
 void vds::_connection_manager::udp_channel::session::send_to(
   const service_provider & sp,
   uint32_t message_type_id,
-  const std::function<const_data_buffer(void)> & get_binary,
-  const std::function<std::string(void)> & get_json) const
+  const const_data_buffer & msg_data) const
 {
   binary_serializer message_data;
-  message_data << message_type_id << get_binary();
+  message_data << message_type_id << msg_data;
 
   auto crypted_data = std::make_shared<std::vector<uint8_t>>();
   dataflow(

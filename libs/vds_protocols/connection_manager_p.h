@@ -9,18 +9,19 @@ All rights reserved
 #include "simple_cache.h"
 #include "object_transfer_protocol.h"
 #include "route_manager.h"
+#include "connection_manager.h"
+#include "udp_socket.h"
 
 namespace vds {
-  class connection_manager;
-
   class connection_session : public std::enable_shared_from_this<connection_session>
   {
   public:
+    virtual const guid & server_id() const = 0;
+    
     virtual void send_to(
       const service_provider & sp,
       uint32_t message_type_id,
-      const std::function<const_data_buffer(void)> & get_binary,
-      const std::function<std::string(void)> & get_json) const = 0;
+      const const_data_buffer & message_data) const = 0;
   };
 
   class _connection_manager : public iconnection_manager
@@ -41,25 +42,22 @@ namespace vds {
     void broadcast(
       const service_provider & sp,
       uint32_t message_type_id,
-      const std::function<const_data_buffer(void)> & get_binary,
-      const std::function<std::string(void)> & get_json);
+      const const_data_buffer & message_data);
 
     void send_to(
       const service_provider & sp,
       const connection_session & session,
       uint32_t message_type_id,
-      const std::function<const_data_buffer(void)> & get_binary,
-      const std::function<std::string(void)> & get_json)
+      const const_data_buffer & message_data)
     {
-      session.send_to(sp, message_type_id, get_binary, get_json);
+      session.send_to(sp, message_type_id, message_data);
     }
     
     void send_to(
       const service_provider & sp,
       const guid & server_id,
       uint32_t message_type_id,
-      const std::function<const_data_buffer(void)> & get_binary,
-      const std::function<std::string(void)> & get_json);
+      const const_data_buffer & message_data);
 
     void send_transfer_request(
       const service_provider & sp,
@@ -110,8 +108,7 @@ namespace vds {
       void broadcast(
         const service_provider & sp,
         uint32_t message_type_id,
-        const std::function<const_data_buffer(void)> & get_binary,
-        const std::function<std::string(void)> & get_json);
+        const const_data_buffer & message_data);
 
     private:
       _connection_manager * owner_;
@@ -160,11 +157,11 @@ namespace vds {
         const guid & partner_id() const { return this->partner_id_; }
         const symmetric_key & session_key() const { return this->session_key_; }
 
+        const guid & server_id () const override { return this->partner_id_; }
         void send_to(
           const service_provider & sp,
           uint32_t message_type_id,
-          const std::function<const_data_buffer(void)> & get_binary,
-          const std::function<std::string(void)> & get_json) const override;
+          const const_data_buffer & message_data) const override;
 
       private:
         udp_channel * const owner_;

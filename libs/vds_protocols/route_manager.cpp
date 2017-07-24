@@ -34,27 +34,18 @@ void vds::route_manager::get_routes(
 
 }
 
-vds::route_message::route_message(
-  const guid & target_server_id,
-  const std::string & address,
-  const std::chrono::steady_clock & last_access)
-{
-
-}
-
-void vds::route_message::send_to(
+void vds::route_manager::send_to(
   const service_provider & sp,
   const guid & server_id,
   uint32_t message_type_id,
-  const std::function<const_data_buffer(void)> & get_binary,
-  const std::function<std::string(void)> & get_json)
+  const const_data_buffer & message_data)
 {
   bool result = false;
-  auto con_man = sp.get<connection_manager>();
+  auto con_man = sp.get<iconnection_manager>();
   (*con_man)->enum_sessions(
-    [&result, con_man](connection_session & session)->bool{
+    [&result, sp, con_man, server_id, message_type_id, message_data](connection_session & session)->bool{
       if(server_id == session.server_id()){
-       con_man->send_to(sp, session, message_type_id, get_binary, get_json);
+       (*con_man)->send_to(sp, session, message_type_id, message_data);
        result = true;
        return false;
       }
@@ -66,7 +57,7 @@ void vds::route_message::send_to(
     return;
   }
   
-  throw std::runtime_error("Not implemented");
+  con_man->broadcast(sp, route_message(server_id, message_type_id, message_data));
 }
 //////////////////////////////////
 vds::_route_manager::_route_manager()

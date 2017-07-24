@@ -16,11 +16,13 @@ namespace vds {
     template<typename message_type>
     void broadcast(const service_provider & sp, const message_type & message)
     {
+      binary_serializer b;
+      message.serialize(b);
+      
       this->broadcast(
         sp,
         message_type::message_type_id,
-        [&message]() { binary_serializer b; message.serialize(b); return b.data(); },
-        [&message]() { return message.serialize()->str(); });
+        b.data());
     }
 
     template<typename message_type>
@@ -29,12 +31,14 @@ namespace vds {
       const connection_session & session,
       const message_type & message)
     {
+      binary_serializer b;
+      message.serialize(b);
+      
       this->send_to(
         sp,
         session,
         message_type::message_type_id,
-        [&message]() { binary_serializer b; message.serialize(b); return b.data(); },
-        [&message]() { return message.serialize()->str(); });
+        b.data());
     }
 
     template<typename message_type>
@@ -43,12 +47,14 @@ namespace vds {
       const guid & server_id,
       const message_type & message)
     {
+      binary_serializer b;
+      message.serialize(b);
+      
       this->send_to(
         sp,
         server_id,
         message_type::message_type_id,
-        [&message]() { binary_serializer b; message.serialize(b); return b.data(); },
-        [&message]() { return message.serialize()->str(); });
+        b.data());
     }
 
     void send_transfer_request(
@@ -56,26 +62,25 @@ namespace vds {
       const guid & server_id,
       uint64_t index);
 
+    _connection_manager * operator -> () const;
+    
   private:
     void broadcast(
       const service_provider & sp,
       uint32_t message_type_id,
-      const std::function<const_data_buffer(void)> & get_binary,
-      const std::function<std::string(void)> & get_json);
+      const const_data_buffer & message_data);
 
     void send_to(
       const service_provider & sp,
       const connection_session & session,
       uint32_t message_type_id,
-      const std::function<const_data_buffer(void)> & get_binary,
-      const std::function<std::string(void)> & get_json);
+      const const_data_buffer & message_data);
 
     void send_to(
       const service_provider & sp,
       const guid & server_id,
       uint32_t message_type_id,
-      const std::function<const_data_buffer(void)> & get_binary,
-      const std::function<std::string(void)> & get_json);
+      const const_data_buffer & message_data);
   };
 
 
@@ -93,6 +98,7 @@ namespace vds {
       const service_provider & sp,
       const std::string & server_addresses);
 
+    _connection_manager * operator -> () const { return this->impl_.get(); }
   private:
     std::unique_ptr<_connection_manager> impl_;
   };

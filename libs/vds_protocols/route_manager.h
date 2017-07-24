@@ -8,6 +8,7 @@ All rights reserved
 */
 
 #include <chrono>
+#include "messages.h"
 
 namespace vds {
   class _route_manager;
@@ -38,8 +39,7 @@ namespace vds {
       const service_provider & sp,
       const guid & server_id,
       uint32_t message_type_id,
-      const std::function<const_data_buffer(void)> & get_binary,
-      const std::function<std::string(void)> & get_json);
+      const const_data_buffer & message_data);
 
     _route_manager * operator ->() const { return this->impl_; }
     
@@ -50,10 +50,13 @@ namespace vds {
   class route_message
   {
   public:
+    static const uint32_t message_type_id = (uint32_t)message_identification::route_message_message_id;
+    void serialize(binary_serializer & b) const;
+    
     route_message(
       const guid & target_server_id,
-      const std::string & address,
-      const std::chrono::steady_clock & last_access);
+      uint32_t message_type_id,
+      const const_data_buffer & message_data);
     
     const guid & target_server_id() const { return this->target_server_id_; }
     const std::string & address() const { return this->address_; }

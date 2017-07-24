@@ -13,9 +13,11 @@ namespace vds {
     hello_message_id = 'h',
 
     server_log_record_broadcast_message_id = 'l',
-    server_log_get_records_broadcast_message_id = 'r',
+    server_log_get_records_broadcast_message_id = 'b',
 
-    object_request_message_id = 'd'
+    object_request_message_id = 'd',
+    
+    route_message_message_id = 'r'
   };
 
   
