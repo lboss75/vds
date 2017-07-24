@@ -65,6 +65,9 @@ namespace vds {
       const service_provider & sp,
       const guid & server_id,
       uint64_t index);
+    
+    void enum_sessions(
+      const std::function<void (connection_session &)> & callback);
 
   private:
     connection_manager * const owner_;

@@ -5,6 +5,7 @@ All rights reserved
 #include "stdafx.h"
 #include "route_manager.h"
 #include "route_manager_p.h"
+#include "connection_manager_p.h"
 
 vds::route_manager::route_manager()
   : impl_(new _route_manager())
@@ -48,7 +49,24 @@ void vds::route_message::send_to(
   const std::function<const_data_buffer(void)> & get_binary,
   const std::function<std::string(void)> & get_json)
 {
+  bool result = false;
+  auto con_man = sp.get<connection_manager>();
+  (*con_man)->enum_sessions(
+    [&result, con_man](connection_session & session)->bool{
+      if(server_id == session.server_id()){
+       con_man->send_to(sp, session, message_type_id, get_binary, get_json);
+       result = true;
+       return false;
+      }
+      
+      return true;
+    });
   
+  if(result){
+    return;
+  }
+  
+  throw std::runtime_error("Not implemented");
 }
 //////////////////////////////////
 vds::_route_manager::_route_manager()
