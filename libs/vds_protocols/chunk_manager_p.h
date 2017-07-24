@@ -102,6 +102,8 @@ namespace vds {
       size_t& total_data);
 
   private:
+    friend class _storage_log;
+    
     chunk_storage chunk_storage_;
 
     std::mutex chunk_mutex_;
@@ -342,6 +344,14 @@ namespace vds {
       const const_data_buffer & data);
 
     void add_chunk_store(
+      const service_provider & sp,
+      database_transaction & tr,
+      const guid & server_id,
+      size_t index,
+      uint16_t replica,
+      const guid & storage_id);
+    
+    void add_chunk_store_data(
       const service_provider & sp,
       database_transaction & tr,
       const guid & server_id,

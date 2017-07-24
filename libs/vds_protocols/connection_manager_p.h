@@ -53,6 +53,13 @@ namespace vds {
     {
       session.send_to(sp, message_type_id, get_binary, get_json);
     }
+    
+    void send_to(
+      const service_provider & sp,
+      const guid & server_id,
+      uint32_t message_type_id,
+      const std::function<const_data_buffer(void)> & get_binary,
+      const std::function<std::string(void)> & get_json);
 
     void send_transfer_request(
       const service_provider & sp,

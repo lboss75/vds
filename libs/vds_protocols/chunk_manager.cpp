@@ -589,7 +589,7 @@ bool vds::_chunk_manager::generate_horcruxes(
             replica_hash);
           chunk_info.add_replica_hash(replica_hash);
 
-          this->add_chunk_store(
+          this->add_chunk_store_data(
             sp,
             tr,
             server_id,
@@ -849,6 +849,23 @@ void vds::_chunk_manager::add_chunk_store(
   const guid & server_id,
   ichunk_manager::index_type index,
   uint16_t replica,
+  const guid & storage_id)
+{
+  object_chunk_store_table t1;
+  tr.execute(
+    t1.insert(
+      t1.server_id = server_id,
+      t1.chunk_index = index,
+      t1.replica = replica,
+      t1.storage_id = storage_id));
+}
+
+void vds::_chunk_manager::add_chunk_store_data(
+  const service_provider & sp,
+  database_transaction & tr,
+  const guid & server_id,
+  ichunk_manager::index_type index,
+  uint16_t replica,
   const guid & storage_id,
   const const_data_buffer & data)
 {
@@ -860,13 +877,7 @@ void vds::_chunk_manager::add_chunk_store(
       t.replica = replica,
       t.data = data));
   
-  object_chunk_store_table t1;
-  tr.execute(
-    t1.insert(
-      t1.server_id = server_id,
-      t1.chunk_index = index,
-      t1.replica = replica,
-      t1.storage_id = storage_id));
+  this->add_chunk_store(sp, tr, server_id, index, replica, storage_id);
 }
 
 void vds::_chunk_manager::get_replicas(

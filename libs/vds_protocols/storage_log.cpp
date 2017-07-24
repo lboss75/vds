@@ -315,9 +315,10 @@ void vds::_storage_log::apply_record(
     else if (principal_log_new_object_map::message_type == message_type) {
       principal_log_new_object_map msg(obj);
       
+      auto chunk_manager = sp.get<ichunk_manager>();
       size_t offset = 0;
       for(auto & chunk : msg.full_chunks()){
-        (*sp.get<ichunk_manager>())->add_full_chunk(
+        (*chunk_manager)->add_full_chunk(
           sp,
           tr,
           msg.object_id(),
@@ -329,21 +330,31 @@ void vds::_storage_log::apply_record(
         
         size_t replica = 0;
         for(auto & replica_hash : chunk.replica_hashes()){
-          (*sp.get<ichunk_manager>())->add_chunk_replica(
+          (*chunk_manager)->add_chunk_replica(
             sp,
             tr,
             msg.server_id(),
             chunk.chunk_index(),
-            replica++,
+            replica,
             msg.replica_length(),
             replica_hash);
+          
+          (*chunk_manager)->add_chunk_store(
+            sp,
+            tr,
+            msg.server_id(),
+            chunk.chunk_index(),
+            replica,
+            msg.server_id());
+          
+          ++replica;
         }
         
         offset += msg.chunk_size();
       }
       
       for(auto & tail_chunk : msg.tail_chunk_items()){
-        (*sp.get<ichunk_manager>())->add_object_chunk_map(
+        (*chunk_manager)->add_object_chunk_map(
           sp,
           tr,
           tail_chunk.server_id(),

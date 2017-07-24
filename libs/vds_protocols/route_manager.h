@@ -33,6 +33,13 @@ namespace vds {
       const service_provider& sp,
       const guid & target_server_id,
       const std::function<bool(size_t metric, std::list<network_route> & routes)> & callback);
+    
+    void send_to(
+      const service_provider & sp,
+      const guid & server_id,
+      uint32_t message_type_id,
+      const std::function<const_data_buffer(void)> & get_binary,
+      const std::function<std::string(void)> & get_json);
 
     _route_manager * operator ->() const { return this->impl_; }
     

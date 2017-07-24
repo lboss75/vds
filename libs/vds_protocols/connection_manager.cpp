@@ -87,7 +87,7 @@ void vds::iconnection_manager::send_to(
   const std::function<const_data_buffer(void)> & get_binary,
   const std::function<std::string(void)> & get_json)
 {
-  throw std::runtime_error("Not implemented");
+  static_cast<_connection_manager *>(this)->send_to(sp, server_id, message_type_id, get_binary, get_json);
 }
 //////////////////////////////////////////////////////
 vds::_connection_manager::_connection_manager(
@@ -501,6 +501,21 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
 
     scope.commit();
   });
+}
+
+void vds::_connection_manager::send_to(
+  const service_provider & sp,
+  const guid & server_id,
+  uint32_t message_type_id,
+  const std::function<const_data_buffer(void)> & get_binary,
+  const std::function<std::string(void)> & get_json)
+{
+  this->route_manager_->send_to(
+    sp,
+    server_id,
+    message_type_id,
+    get_binary,
+    get_json);
 }
 
 void vds::_connection_manager::udp_channel::open_udp_session(
