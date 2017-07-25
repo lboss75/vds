@@ -229,6 +229,16 @@ namespace vds {
     
     object_transfer_protocol object_transfer_protocol_;
   };
+  
+  inline _connection_manager * iconnection_manager::operator -> ()
+  {
+    return static_cast<_connection_manager *>(this);
+  }
+  inline const _connection_manager * iconnection_manager::operator -> () const
+  {
+    return static_cast<const _connection_manager *>(this);
+  }
+
 }
 
 #endif // __VDS_PROTOCOLS_CONNECTION_MANAGER_P_H_

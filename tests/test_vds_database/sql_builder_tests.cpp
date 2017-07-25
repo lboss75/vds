@@ -15,7 +15,7 @@ vds::mock_database::~mock_database()
 {
 }
 
-vds::mock_database_transaction vds::mock_database::begin_transaction()
+vds::mock_database_transaction vds::mock_database::begin_transaction(const service_provider & sp)
 {
   return mock_database_transaction();
 }
@@ -80,9 +80,9 @@ TEST(sql_builder_tests, test_select) {
 
   test_table1 t1;
   test_table2 t2;
-
+  service_provider sp;
   vds::database db;
-  vds::database_transaction trans = db.begin_transaction();
+  vds::database_transaction trans = db.begin_transaction(sp);
 
   auto reader = trans.get_reader(
     t1

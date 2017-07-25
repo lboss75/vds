@@ -188,7 +188,7 @@ namespace vds {
       {
         if (0 == this->input_buffer_size()) {
           if (!data_final(this->impl_, this->signature_)) {
-            this->error(sp, std::make_exception_ptr(std::runtime_error("Validate error")));
+            this->error(sp, std::make_shared<std::runtime_error>("Validate error"));
           }
           return 0;
         }

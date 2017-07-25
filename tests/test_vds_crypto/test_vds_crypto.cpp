@@ -157,7 +157,7 @@ TEST(test_vds_crypto, test_sign)
     const_cast<unsigned char *>(buffer.get())[index]++;
 
     vds::barrier b;
-    const std::shared_ptr<std::exception> & error;
+    std::shared_ptr<std::exception> error;
     vds::dataflow(
       random_reader<uint8_t>(buffer.get(), (int)len),
       vds::asymmetric_sign_verify(vds::hash::sha256(), pkey, sign))

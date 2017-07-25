@@ -62,7 +62,8 @@ namespace vds {
       const guid & server_id,
       uint64_t index);
 
-    _connection_manager * operator -> () const;
+    const _connection_manager * operator -> () const;
+    _connection_manager * operator -> ();
     
   private:
     void broadcast(
