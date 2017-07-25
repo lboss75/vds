@@ -76,3 +76,8 @@ void vds::_route_manager::on_session_started(
 {
 }
 
+////////////////////////////////////////////
+void vds::route_message::serialize(vds::binary_serializer& b) const
+{
+  b << target_server_id_ << message_type_id_ << message_data_;
+}

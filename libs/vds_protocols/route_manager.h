@@ -56,16 +56,21 @@ namespace vds {
     route_message(
       const guid & target_server_id,
       uint32_t message_type_id,
-      const const_data_buffer & message_data);
+      const const_data_buffer & message_data)
+    : target_server_id_(target_server_id),
+      message_type_id_(message_type_id),
+      message_data_(message_data)
+    {
+    }
     
     const guid & target_server_id() const { return this->target_server_id_; }
-    const std::string & address() const { return this->address_; }
-    const std::chrono::steady_clock & last_access() const { return this->last_access_; }
+    uint32_t msg_type_id() const { return this->message_type_id_; }
+    const const_data_buffer & message_data() const { return this->message_data_; }
       
   private:    
     guid target_server_id_;
-    std::string address_;
-    std::chrono::steady_clock last_access_;
+    uint32_t message_type_id_;
+    const_data_buffer message_data_;
   };
 }
 

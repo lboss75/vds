@@ -65,7 +65,7 @@ namespace vds {
       uint64_t index);
     
     void enum_sessions(
-      const std::function<void (connection_session &)> & callback);
+      const std::function<bool (connection_session &)> & callback);
 
   private:
     connection_manager * const owner_;
@@ -111,6 +111,7 @@ namespace vds {
         const const_data_buffer & message_data);
 
     private:
+      friend class _connection_manager;
       _connection_manager * owner_;
       udp_server server_;
       udp_socket s_;
@@ -220,7 +221,7 @@ namespace vds {
         uint32_t external_session_id,
         const guid & server_id);
       
-      void for_each_sessions(const std::function<void(const session &)> & callback);
+      void for_each_sessions(const std::function<bool (session &)> & callback);
       bool process_timer_jobs(const service_provider & sp);
       void schedule_read(const service_provider & sp);
     };

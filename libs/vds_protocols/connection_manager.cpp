@@ -174,6 +174,15 @@ void vds::_connection_manager::send_transfer_request(
 {
 }
 
+void vds::_connection_manager::enum_sessions(
+  const std::function<bool (connection_session &)> & callback)
+{
+  this->udp_channel_->for_each_sessions(
+    [callback](udp_channel::session & s)->bool {
+      return callback(s);
+    });
+}
+
 void vds::_connection_manager::start_udp_channel(
   const service_provider & sp,
   const url_parser::network_address& address)
@@ -557,8 +566,9 @@ void vds::_connection_manager::udp_channel::broadcast(
   uint32_t message_type_id,
   const const_data_buffer & message_data)
 {
-  this->for_each_sessions([this, sp, message_type_id, message_data](const session & session){
+  this->for_each_sessions([this, sp, message_type_id, message_data](session & session)->bool{
     session.send_to(sp, message_type_id, message_data);
+    return true;
   });
 }
 
@@ -656,12 +666,14 @@ vds::_connection_manager::udp_channel::register_incoming_session(
 }
 
 void vds::_connection_manager::udp_channel::for_each_sessions(
-  const std::function<void(const session & session)> & callback)
+  const std::function<bool (session & session)> & callback)
 {
   std::shared_lock<std::shared_mutex> lock(this->sessions_mutex_);
 
   for (auto & p : this->sessions_) {
-    callback(*p.second);
+    if(!callback(*p.second)){
+      break;
+    }
   }
 }
 
