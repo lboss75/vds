@@ -472,6 +472,7 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
 
               default:
                 sp.get<logger>()->debug(sp, "Handler for message %d not found", message_type_id);
+                throw std::runtime_error("Handler for message " + std::to_string(message_type_id) + " not found");
                 break;
               }
             }
