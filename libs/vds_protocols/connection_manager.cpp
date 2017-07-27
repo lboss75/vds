@@ -446,34 +446,13 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
               const_data_buffer binary_form;
               d >> message_type_id >> binary_form;
 
-              switch ((message_identification)message_type_id) {
-              case message_identification::server_log_record_broadcast_message_id:
-                sp.get<_server_log_sync>()->on_record_broadcast(
-                  sp,
-                  scope.transaction(),
-                  _server_log_sync::server_log_record_broadcast(sp, binary_form));
-                break;
-
-              case message_identification::server_log_get_records_broadcast_message_id:
-                sp.get<_server_log_sync>()->on_server_log_get_records_broadcast(
-                  sp,
-                  scope.transaction(),
-                  *session.get(),
-                  _server_log_sync::server_log_get_records_broadcast(binary_form));
-                break;
-
-              case message_identification::object_request_message_id:
-                this->owner_->object_transfer_protocol_->on_object_request(
-                  sp,
-                  scope.transaction(),
-                  session->partner_id(),
-                  object_request(binary_form));
-                break;
-
-              default:
-                sp.get<logger>()->debug(sp, "Handler for message %d not found", message_type_id);
-                break;
-              }
+              this->owner_->server_to_server_api_.process_message(
+                sp,
+                scope.transaction(),
+                this->owner_,
+                *session.get(),
+                message_type_id,
+                binary_form);
             }
             else {
               sp.get<logger>()->debug(sp, "Invalid data hash");

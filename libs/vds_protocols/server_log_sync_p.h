@@ -31,6 +31,7 @@ namespace vds {
   private:
     friend class _storage_log;
     friend class _connection_manager;
+    friend class server_to_server_api;
 
     server_log_sync * const owner_;
     timer timer_;

@@ -51,6 +51,8 @@ namespace vds {
   {
   public:
     static const uint32_t message_type_id = (uint32_t)message_identification::route_message_message_id;
+
+    route_message(const const_data_buffer & binary_form);
     void serialize(binary_serializer & b) const;
     
     route_message(

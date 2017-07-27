@@ -60,7 +60,7 @@ vds::_object_transfer_protocol::~_object_transfer_protocol()
 void vds::_object_transfer_protocol::on_object_request(
   const service_provider & sp,
   database_transaction & tr,
-  const guid & from_server_id,
+  const connection_session & session,
   const object_request & message)
 {
   /*

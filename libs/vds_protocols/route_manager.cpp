@@ -6,6 +6,7 @@ All rights reserved
 #include "route_manager.h"
 #include "route_manager_p.h"
 #include "connection_manager_p.h"
+#include "storage_log.h"
 
 vds::route_manager::route_manager()
   : impl_(new _route_manager())
@@ -40,25 +41,9 @@ void vds::route_manager::send_to(
   uint32_t message_type_id,
   const const_data_buffer & message_data)
 {
-  bool result = false;
-  auto con_man = sp.get<iconnection_manager>();
-  (*con_man)->enum_sessions(
-    [&result, sp, con_man, server_id, message_type_id, message_data](connection_session & session)->bool{
-      if(server_id == session.server_id()){
-       (*con_man)->send_to(sp, session, message_type_id, message_data);
-       result = true;
-       return false;
-      }
-      
-      return true;
-    });
-  
-  if(result){
-    return;
-  }
-  
-  con_man->broadcast(sp, route_message(server_id, message_type_id, message_data));
+  this->impl_->send_to(sp, server_id, message_type_id, message_data);
 }
+
 //////////////////////////////////
 vds::_route_manager::_route_manager()
 {
@@ -68,6 +53,33 @@ vds::_route_manager::~_route_manager()
 {
 }
 
+void vds::_route_manager::send_to(
+  const service_provider & sp,
+  const guid & server_id,
+  uint32_t message_type_id,
+  const const_data_buffer & message_data)
+{
+  bool result = false;
+  auto con_man = sp.get<iconnection_manager>();
+  (*con_man)->enum_sessions(
+    [&result, sp, con_man, server_id, message_type_id, message_data](connection_session & session)->bool {
+    if (server_id == session.server_id()) {
+      (*con_man)->send_to(sp, session, message_type_id, message_data);
+      result = true;
+      return false;
+    }
+
+    return true;
+  });
+
+  if (result) {
+    return;
+  }
+
+  con_man->broadcast(sp, route_message(server_id, message_type_id, message_data));
+}
+
+
 void vds::_route_manager::on_session_started(
   const service_provider& sp,
   const guid & source_server_id,
@@ -76,8 +88,28 @@ void vds::_route_manager::on_session_started(
 {
 }
 
+void vds::_route_manager::on_route_message(
+  _connection_manager * con_man,
+  const service_provider & sp,
+  database_transaction & t,
+  const connection_session & session,
+  const route_message & message)
+{
+  if (sp.get<istorage_log>()->current_server_id() == message.target_server_id()) {
+    con_man->server_to_server_api_.process_message(sp, t, con_man, session, message.msg_type_id(), message.message_data());
+  }
+  else {
+  }
+}
+
 ////////////////////////////////////////////
+vds::route_message::route_message(const const_data_buffer & binary_form)
+{
+  binary_deserializer b(binary_form);
+  b >> this->target_server_id_ >> this->message_type_id_ >> this->message_data_;
+}
+
 void vds::route_message::serialize(vds::binary_serializer& b) const
 {
-  b << target_server_id_ << message_type_id_ << message_data_;
+  b << this->target_server_id_ << this->message_type_id_ << this->message_data_;
 }

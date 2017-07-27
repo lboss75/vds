@@ -14,6 +14,7 @@ All rights reserved
 namespace vds {
   class route_hop;
   class object_request;
+  class connection_session;
 
   class _object_transfer_protocol
   {
@@ -29,7 +30,7 @@ namespace vds {
     void on_object_request(
       const service_provider & sp,
       database_transaction & tr,
-      const guid & from_server_id,
+      const connection_session & session,
       const object_request & message);
     
   private:

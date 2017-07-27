@@ -11,6 +11,7 @@ All rights reserved
 #include "route_manager.h"
 #include "connection_manager.h"
 #include "udp_socket.h"
+#include "server_to_server_api.h"
 
 namespace vds {
   class connection_session : public std::enable_shared_from_this<connection_session>
@@ -68,8 +69,11 @@ namespace vds {
       const std::function<bool (connection_session &)> & callback);
 
   private:
+    friend class server_to_server_api;
+    friend class _route_manager;
     connection_manager * const owner_;
     route_manager route_manager_;
+    server_to_server_api server_to_server_api_;
         
     void start_udp_channel(
       const vds::service_provider& sp,
