@@ -30,7 +30,7 @@ TEST(network_tests, test_udp_server)
   registrator.start(sp);
   vds::imt_service::enable_async(sp);
 
-  const std::shared_ptr<std::exception> & error;
+  std::shared_ptr<std::exception> error;
   vds::udp_server server;
 
   auto server_socket = server.start(sp, "127.0.0.1", 8000);
@@ -92,6 +92,6 @@ TEST(network_tests, test_udp_server)
   ASSERT_EQ(std::string((const char *)response.data(), response.data_size()),
     "test_test_test_test_test_test_test_test_test_test_test_test_test_test_test_");
   if (error) {
-    GTEST_FAIL() << vds::exception_what(error);
+    GTEST_FAIL() << error->what();
   }
 }

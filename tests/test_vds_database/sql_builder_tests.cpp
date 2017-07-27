@@ -80,9 +80,8 @@ TEST(sql_builder_tests, test_select) {
 
   test_table1 t1;
   test_table2 t2;
-  service_provider sp;
   vds::database db;
-  vds::database_transaction trans = db.begin_transaction(sp);
+  vds::database_transaction trans = db.begin_transaction(vds::service_provider::empty());
 
   auto reader = trans.get_reader(
     t1
@@ -106,7 +105,7 @@ TEST(sql_builder_tests, test_insert) {
   test_table1 t1;
 
   vds::database db;
-  vds::database_transaction trans = db.begin_transaction();
+  vds::database_transaction trans = db.begin_transaction(vds::service_provider::empty());
   
   trans.execute(
     t1.insert(t1.column1 = 10, t1.column2 = "test"));
@@ -125,7 +124,7 @@ TEST(sql_builder_tests, test_update) {
   test_table1 t1;
 
   vds::database db;
-  vds::database_transaction trans = db.begin_transaction();
+  vds::database_transaction trans = db.begin_transaction(vds::service_provider::empty());
   
   trans.execute(
     t1.update(t1.column1 = 10, t1.column2 = "test").where(t1.column1 == 20));
@@ -145,7 +144,7 @@ TEST(sql_builder_tests, test_insert_from) {
   test_table2 t2;
 
   vds::database db;
-  vds::database_transaction trans = db.begin_transaction();
+  vds::database_transaction trans = db.begin_transaction(vds::service_provider::empty());
 
   trans.execute(
     t1.insert_into(t1.column1, t1.column2)
@@ -165,7 +164,7 @@ TEST(sql_builder_tests, test_delete) {
   test_table1 t1;
 
   vds::database db;
-  vds::database_transaction trans = db.begin_transaction();
+  vds::database_transaction trans = db.begin_transaction(vds::service_provider::empty());
   
   trans.execute(
     t1.delete_if(t1.column1 == 10));

@@ -102,7 +102,7 @@ TEST(network_tests, test_server)
   registrator.start(sp);
   vds::imt_service::enable_async(sp);
 
-  const std::shared_ptr<std::exception> & error;
+  std::shared_ptr<std::exception> error;
   vds::barrier b;
   vds::tcp_socket_server server;
   server.start(
@@ -216,6 +216,6 @@ TEST(network_tests, test_server)
   registrator.shutdown(sp);
 
   if (error) {
-    GTEST_FAIL() << vds::exception_what(error);
+    GTEST_FAIL() << error->what();
   }
 }

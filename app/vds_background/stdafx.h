@@ -11,5 +11,6 @@ All rights reserved
 #include "vds_crypto.h"
 #include "vds_upnp.h"
 #include "vds_server.h"
+#include "network_service.h"
 
 #endif // __VDS_BACKGROUND_STDAFX_H_

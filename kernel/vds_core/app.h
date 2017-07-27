@@ -126,9 +126,13 @@ namespace vds{
         static_cast<app_impl *>(this)->start();
         return 0;
       }
+      catch (std::exception & ex) {
+        static_cast<app_impl *>(this)->on_exception(std::make_shared<std::runtime_error>(ex.what()));
+        return 1;
+      }
       catch(...){
-        static_cast<app_impl *>(this)->on_exception(std::current_exception());
-	return 1;
+        static_cast<app_impl *>(this)->on_exception(std::make_shared<std::runtime_error>("Unexpected error"));
+        return 1;
       }
     }
     
