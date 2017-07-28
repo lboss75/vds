@@ -40,7 +40,8 @@ namespace vds {
       const route_message & message);
 
   private:
-    
+    std::mutex processed_route_message_mutex_;
+    simple_cache<guid, guid> processed_route_message_;
   };
 }
 

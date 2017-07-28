@@ -104,23 +104,30 @@ void vds::_connection_manager::start(const vds::service_provider& sp)
 
   std::map<std::string, std::string> endpoints;
   sp.get<node_manager>()->get_endpoints(sp, scope.transaction(), endpoints);
-  
-  for (auto & p : endpoints) {
-    sp.get<logger>()->info(sp, "Connecting to %s", p.first.c_str());
-    
-    url_parser::parse_addresses(p.second,
-      [this, sp, &scope](const std::string & protocol, const std::string & address) -> bool {
-        if("udp" == protocol){
-          this->udp_channel_->open_udp_session(sp, address);
-        }
-        else if ("https" == protocol) {
-          //this->open_https_session(sp, address);
-        }
-      
-        return true;
-    });
-  }
   scope.commit();
+
+  for (auto & p : endpoints) {
+    this->try_to_connect(sp, p.second);
+  }
+}
+
+void vds::_connection_manager::try_to_connect(
+  const vds::service_provider& sp,
+  const std::string & address)
+{
+  sp.get<logger>()->info(sp, "Connecting to %s", address.c_str());
+
+  url_parser::parse_addresses(address,
+    [this, sp](const std::string & protocol, const std::string & address) -> bool {
+    if ("udp" == protocol) {
+      this->udp_channel_->open_udp_session(sp, address);
+    }
+    else if ("https" == protocol) {
+      //this->open_https_session(sp, address);
+    }
+
+    return true;
+  });
 }
 
 void vds::_connection_manager::stop(const vds::service_provider& sp)
@@ -181,6 +188,27 @@ void vds::_connection_manager::enum_sessions(
     [callback](udp_channel::session & s)->bool {
       return callback(s);
     });
+}
+
+void vds::_connection_manager::possible_connections(
+  const service_provider & sp,
+  const std::list<trace_point> & trace_route)
+{
+  std::set<guid> exists;
+
+  this->enum_sessions([&exists](connection_session & session)->bool {
+      if (!session.address().empty() && exists.end() == exists.find(session.server_id())) {
+        exists.emplace(session.server_id());
+      }
+
+      return true;
+  });
+
+  for(auto & p : trace_route) {
+    if (exists.end() == exists.find(p.server_id())) {
+      this->try_to_connect(sp, p.address());
+    }
+  }
 }
 
 void vds::_connection_manager::start_udp_channel(
@@ -395,6 +423,7 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
             this->sessions_[out_session_id].reset(new outgoing_session(
               this,
               p->second.session_id(),
+              p->second.address(),
               network_address.server,
               (uint16_t)std::atoi(network_address.port.c_str()),
               in_session_id,
@@ -554,6 +583,7 @@ void vds::_connection_manager::udp_channel::broadcast(
 vds::_connection_manager::udp_channel::session::session(
   udp_channel * owner,
   uint32_t session_id,
+  const std::string & address,
   const std::string & server,
   uint16_t port,
   uint32_t external_session_id,
@@ -561,6 +591,7 @@ vds::_connection_manager::udp_channel::session::session(
   const symmetric_key & session_key)
 : owner_(owner),
   session_id_(session_id),
+  address_(address),
   server_(server),
   port_(port),
   external_session_id_(external_session_id),
@@ -703,6 +734,7 @@ vds::_connection_manager::udp_channel::hello_request::hello_request(
 vds::_connection_manager::udp_channel::outgoing_session::outgoing_session(
   udp_channel * owner,
   uint32_t session_id,
+  const std::string & address,
   const std::string & server,
   uint16_t port,
   uint32_t external_session_id,
@@ -713,6 +745,7 @@ vds::_connection_manager::udp_channel::outgoing_session::outgoing_session(
 : session(
   owner,
   session_id,
+  address,
   server,
   port,
   external_session_id,
@@ -732,7 +765,7 @@ vds::_connection_manager::udp_channel::incoming_session::incoming_session(
   uint32_t external_session_id,
   const guid & server_id,
   const symmetric_key & session_key)
-: session(owner, session_id, server, port, external_session_id, server_id, session_key)
+: session(owner, session_id, std::string(), server, port, external_session_id, server_id, session_key)
 {
 }
 

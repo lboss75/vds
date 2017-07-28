@@ -18,7 +18,8 @@ namespace vds {
   {
   public:
     virtual const guid & server_id() const = 0;
-    
+    virtual const std::string & address() const = 0;
+
     virtual void send_to(
       const service_provider & sp,
       uint32_t message_type_id,
@@ -67,6 +68,10 @@ namespace vds {
     
     void enum_sessions(
       const std::function<bool (connection_session &)> & callback);
+
+    void possible_connections(
+      const service_provider & sp,
+      const std::list<trace_point> & trace_route);
 
   private:
     friend class server_to_server_api;
@@ -147,6 +152,7 @@ namespace vds {
         session(
           udp_channel * owner,
           uint32_t session_id,
+          const std::string & address,
           const std::string & server,
           uint16_t port,
           uint32_t external_session_id,
@@ -163,12 +169,15 @@ namespace vds {
         const symmetric_key & session_key() const { return this->session_key_; }
 
         const guid & server_id () const override { return this->partner_id_; }
+        const std::string & address() const override { return this->address_; }
+
         void send_to(
           const service_provider & sp,
           uint32_t message_type_id,
           const const_data_buffer & message_data) const override;
 
       private:
+        std::string address_;
         udp_channel * const owner_;
         uint32_t session_id_;
         std::string server_;
@@ -184,6 +193,7 @@ namespace vds {
         outgoing_session(
           udp_channel * owner,
           uint32_t session_id,
+          const std::string & address,
           const std::string & server,
           uint16_t port,
           uint32_t external_session_id,
@@ -231,8 +241,12 @@ namespace vds {
     };
     
     std::unique_ptr<udp_channel> udp_channel_;
-    
     object_transfer_protocol object_transfer_protocol_;
+
+    void try_to_connect(
+      const vds::service_provider& sp,
+      const std::string & address);
+
   };
   
   inline _connection_manager * iconnection_manager::operator -> ()

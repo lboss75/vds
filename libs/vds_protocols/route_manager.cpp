@@ -64,7 +64,13 @@ void vds::_route_manager::send_to(
   (*con_man)->enum_sessions(
     [&result, sp, con_man, server_id, message_type_id, message_data](connection_session & session)->bool {
     if (server_id == session.server_id()) {
-      (*con_man)->send_to(sp, session, message_type_id, message_data);
+      con_man->send_to(sp, session, route_message(
+        guid::new_guid(),
+        server_id,
+        message_type_id,
+        message_data,
+        session.server_id(),
+        session.address()));
       result = true;
       return false;
     }
@@ -76,7 +82,20 @@ void vds::_route_manager::send_to(
     return;
   }
 
-  con_man->broadcast(sp, route_message(server_id, message_type_id, message_data));
+  (*con_man)->enum_sessions(
+    [&result, sp, con_man, server_id, message_type_id, message_data](connection_session & session)->bool {
+    con_man->send_to(
+      sp,
+      session,
+      route_message(
+        guid::new_guid(),
+        server_id,
+        message_type_id,
+        message_data,
+        session.server_id(),
+        session.address()));
+    return true;
+  });
 }
 
 
@@ -95,10 +114,44 @@ void vds::_route_manager::on_route_message(
   const connection_session & session,
   const route_message & message)
 {
+  this->processed_route_message_mutex_.lock();
+  if (this->processed_route_message_.end() != this->processed_route_message_.find(message.message_id())) {
+    this->processed_route_message_mutex_.unlock();
+    return;
+  }
+
+  this->processed_route_message_.set(message.message_id(), message.message_id());
+  this->processed_route_message_mutex_.unlock();
+
   if (sp.get<istorage_log>()->current_server_id() == message.target_server_id()) {
+    //TODO: add signarute to the message and validate it
     con_man->server_to_server_api_.process_message(sp, t, con_man, session, message.msg_type_id(), message.message_data());
   }
   else {
+    con_man->possible_connections(sp, message.trace_route());
+
+    bool result = false;
+    auto con_man = sp.get<iconnection_manager>();
+    (*con_man)->enum_sessions(
+      [&result, sp, con_man, &message](connection_session & session)->bool {
+      if (message.target_server_id() == session.server_id()) {
+        con_man->send_to(sp, session, route_message(message, session.server_id(), session.address()));
+        result = true;
+        return false;
+      }
+
+      return true;
+    });
+
+    if (result) {
+      return;
+    }
+
+    (*con_man)->enum_sessions(
+      [&result, sp, con_man, &message](connection_session & session)->bool {
+      con_man->send_to(sp, session, route_message(message, session.server_id(), session.address()));
+      return true;
+    });
   }
 }
 
