@@ -61,12 +61,17 @@ namespace vds {
     async_task<> write_value_async(const service_provider & sp, const item_type & data)
     {
       imt_service::async_enabled_check(sp);
+      
+      auto p = std::make_shared<item_type>(data);
 
-      return create_async_task([this, data](
+      return create_async_task([this, p](
         const std::function<void(const service_provider & sp)> & done,
         const error_handler & on_error,
         const service_provider & sp){
-        this->write_all_async(sp, &data, 1).wait(done, on_error, sp);
+        this->write_all_async(sp, p.get(), 1).wait(
+          [p, done](const service_provider & sp){ done(sp); },
+          on_error,
+          sp);
       });
     }
     

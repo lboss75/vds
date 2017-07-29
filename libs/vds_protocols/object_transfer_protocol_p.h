@@ -79,25 +79,58 @@ namespace vds {
     object_request(
       const guid & server_id,
       uint64_t index,
-      const guid & storage_id,
+      const guid & target_storage_id,
       const std::list<ichunk_manager::replica_type> & replicas)
     : server_id_(server_id),
       index_(index),
-      storage_id_(storage_id),
+      target_storage_id_(target_storage_id),
       replicas_(replicas)
     {
     }
     
     const guid & server_id() const { return this->server_id_; }
     uint64_t index() const { return this->index_; }
-    const guid & storage_id() const { return this->storage_id_; }
+    const guid & target_storage_id() const { return this->target_storage_id_; }
     const std::list<ichunk_manager::replica_type> & replicas() const { return this->replicas_; }
     
   private:
     guid server_id_;
     uint64_t index_;
-    guid storage_id_;
+    guid target_storage_id_;
     std::list<ichunk_manager::replica_type> replicas_;
+  };
+  
+  class object_offer_replicas
+  {
+  public:
+    static const uint32_t message_type_id = (uint32_t)message_identification::object_offer_replicas_message_id;
+    
+    void serialize(binary_serializer & b) const;
+    
+    object_offer_replicas(const const_data_buffer & binary_form);
+    
+    object_offer_replicas(
+      const guid & server_id,
+      uint64_t index,
+      ichunk_manager::replica_type replica,
+      const const_data_buffer & data)
+    : server_id_(server_id),
+      index_(index),
+      replica_(replica),
+      data_(data)
+    {
+    }
+
+    const guid & server_id() const { return this->server_id_; }
+    uint64_t index() const { return this->index_; }
+    ichunk_manager::replica_type replica() const { return this->replica_; }
+    const_data_buffer data() const { return this->data_; }
+    
+  private:
+    guid server_id_;
+    uint64_t index_;
+    ichunk_manager::replica_type replica_;
+    const_data_buffer data_;
   };
   
 }

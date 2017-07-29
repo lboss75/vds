@@ -69,6 +69,7 @@ namespace vds {
       static const uint32_t message_type_id;
 
       server_log_get_records_broadcast(
+        const guid & last_record_id,
         const std::list<principal_log_record::record_id> & unknown_records);
 
       server_log_get_records_broadcast(
@@ -77,9 +78,11 @@ namespace vds {
       void serialize(binary_serializer & b) const;
       std::shared_ptr<json_value> serialize() const;
 
+      const guid & last_record_id() const { return this->last_record_id_; }
       const std::list<principal_log_record::record_id> & unknown_records() const { return this->unknown_records_; }
 
     private:
+      guid last_record_id_;
       std::list<principal_log_record::record_id> unknown_records_;
     };
 

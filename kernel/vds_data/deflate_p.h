@@ -35,7 +35,7 @@ namespace vds {
         deflateEnd(&this->strm_);
         
         if(0 != input_size){
-          throw std::runtime_error("Logic error");
+          throw std::runtime_error("Logic error 26");
         }
         
         readed = 0;

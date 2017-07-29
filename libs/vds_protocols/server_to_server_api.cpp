@@ -22,6 +22,7 @@ void vds::server_to_server_api::process_message(
 {
   switch ((message_identification)message_type_id) {
   case message_identification::server_log_record_broadcast_message_id:
+    sp.get<logger>()->debug(sp, "server_log_record_broadcast_message_id");
     sp.get<_server_log_sync>()->on_record_broadcast(
       sp,
       t,
@@ -29,6 +30,7 @@ void vds::server_to_server_api::process_message(
     break;
 
   case message_identification::server_log_get_records_broadcast_message_id:
+    sp.get<logger>()->debug(sp, "server_log_get_records_broadcast_message_id");
     sp.get<_server_log_sync>()->on_server_log_get_records_broadcast(
       sp,
       t,
@@ -37,6 +39,7 @@ void vds::server_to_server_api::process_message(
     break;
 
   case message_identification::object_request_message_id:
+    sp.get<logger>()->debug(sp, "object_request_message_id");
     con_man->object_transfer_protocol_->on_object_request(
       sp,
       t,
@@ -46,6 +49,7 @@ void vds::server_to_server_api::process_message(
 
   case message_identification::route_message_message_id:
   {
+    sp.get<logger>()->debug(sp, "route_message_message_id");
     route_message msg(binary_form);
     con_man->route_manager_->on_route_message(
       con_man,

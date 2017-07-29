@@ -250,7 +250,7 @@ vds::chunk_restore<cell_type>::chunk_restore(cell_type k, const cell_type * n)
       for (cell_type c = 0; c < k; ++c) {
         if (c < i) {
           if (left[k * i + c] != 0) {
-            throw std::runtime_error("Logic error");
+            throw std::runtime_error("Logic error 23");
           }
         }
         else {
@@ -283,12 +283,12 @@ vds::chunk_restore<cell_type>::chunk_restore(cell_type k, const cell_type * n)
         auto value = left[k * i + c];
         if(i == c){
           if(1 != value) {
-            throw std::runtime_error("Logic error");
+            throw std::runtime_error("Logic error 24");
           }
         }
         else {
           if(0 != value) {
-            throw std::runtime_error("Logic error");
+            throw std::runtime_error("Logic error 25");
           }
         }
       }

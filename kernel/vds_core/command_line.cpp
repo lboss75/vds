@@ -352,7 +352,7 @@ int vds::command_line_set::try_parse(
     
     if(!bgood){
       if(argc <= 0){
-        throw std::runtime_error("logic error");
+        throw std::runtime_error("Logic error 28");
       }
       
       return argc;

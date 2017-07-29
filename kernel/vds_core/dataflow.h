@@ -163,7 +163,7 @@ namespace vds {
       size_t & written)
     {
       if (!this->waiting_get_data_) {
-        throw std::runtime_error("Logic error");
+        throw std::runtime_error("Logic error 3");
       }
       
       this->waiting_get_data_ = false;
@@ -229,7 +229,7 @@ namespace vds {
           this->readed_ += readed;
 
           if (this->waiting_get_data_) {
-            throw std::runtime_error("Logic error");
+            throw std::runtime_error("Logic error 4");
           }
 
           this->waiting_get_data_ = true;
@@ -268,7 +268,7 @@ namespace vds {
     {
 
       if (!this->waiting_push_data_) {
-        throw std::runtime_error("Logic error");
+        throw std::runtime_error("Logic error 5");
       }
       this->waiting_push_data_ = false;
 
@@ -382,7 +382,7 @@ namespace vds {
       size_t & readed)
     {
       if (!this->waiting_get_data_) {
-        throw std::runtime_error("Logic error");
+        throw std::runtime_error("Logic error 6");
       }
 
       this->waiting_get_data_ = false;
@@ -420,7 +420,7 @@ namespace vds {
       size_t & written)
     {
       if (!this->waiting_push_data_) {
-        throw std::runtime_error("Logic error");
+        throw std::runtime_error("Logic error 7");
       }
       this->waiting_push_data_ = false;
 
@@ -441,14 +441,14 @@ namespace vds {
     bool processed(const service_provider & sp, size_t readed, size_t written)
     {
       if (this->waiting_get_data_) {
-        throw std::runtime_error("Logic error");
+        throw std::runtime_error("Logic error 8");
       }
       if (this->waiting_push_data_) {
-        throw std::runtime_error("Logic error");
+        throw std::runtime_error("Logic error 9");
       }
       
       if (!this->process_data_called_) {
-        throw std::runtime_error("Logic error");
+        throw std::runtime_error("Logic error 10");
       }
       this->process_data_called_ = false;
       
@@ -475,7 +475,7 @@ namespace vds {
 
             if (0 == this->input_buffer_size_) {
               if (this->waiting_push_data_) {
-                throw std::runtime_error("Logic error");
+                throw std::runtime_error("Logic error 12");
               }
 
               this->waiting_push_data_ = true;
@@ -490,7 +490,7 @@ namespace vds {
       else {
         if (0 == written) {
           if (0 != this->input_buffer_size_) {
-            throw std::runtime_error("Logic error");
+            throw std::runtime_error("Logic error 13");
           }
 
           if (this->common_data_->step_finish(sp, context_type::INDEX)) {
@@ -581,7 +581,7 @@ namespace vds {
       size_t & written)
     {
       if (!this->waiting_push_data_) {
-        throw std::runtime_error("Logic error");
+        throw std::runtime_error("Logic error 14");
       }
 
       this->waiting_push_data_ = false;
@@ -600,7 +600,7 @@ namespace vds {
     void start(const service_provider & sp)
     {
       if (this->waiting_push_data_) {
-        throw std::runtime_error("Logic error");
+        throw std::runtime_error("Logic error 14");
       }
 
       if (nullptr == this->input_buffer_) {
@@ -681,7 +681,7 @@ namespace vds {
       size_t & written)
     {
       if (!this->waiting_push_data_) {
-        throw std::runtime_error("Logic error");
+        throw std::runtime_error("Logic error 15");
       }
 
       this->waiting_push_data_ = false;
@@ -695,7 +695,7 @@ namespace vds {
     void start(const service_provider & sp)
     {
       if (this->waiting_push_data_) {
-        throw std::runtime_error("Logic error");
+        throw std::runtime_error("Logic error 16");
       }
 
       if (nullptr == this->input_buffer_) {
@@ -920,7 +920,7 @@ namespace vds {
             return false;
           }
           if(!this->data_queried_) {
-            throw std::runtime_error("Logic error");
+            throw std::runtime_error("Logic error 17");
           }
           this->data_queried_ = false;
 
@@ -994,12 +994,12 @@ namespace vds {
       {
        
         if(this->data_in_process_ || this->data_queried_) {
-          throw std::runtime_error("Logic error");
+          throw std::runtime_error("Logic error 18");
         }
 
         size_t buffer_len;
         if(!this->get_write_buffer(buffer, buffer_len)){
-          throw std::runtime_error("Logic error");
+          throw std::runtime_error("Logic error 19");
         }
         
         this->data_queried_ = true;
@@ -1022,7 +1022,7 @@ namespace vds {
           if (this->data_final_ && this->common_data_->cancellation_token_.is_cancellation_requested()) {
             return false;
           }
-          throw std::runtime_error("Logic error");
+          throw std::runtime_error("Logic error 20");
         }
 
         if (0 < readed) {
@@ -1070,11 +1070,11 @@ namespace vds {
             this->second_ += readed;
           }
           else {
-            throw std::runtime_error("Logic error");
+            throw std::runtime_error("Logic error 21");
           }
 
           if (!this->get_read_buffer(buffer, buffer_len)) {
-            throw std::runtime_error("Logic error");
+            throw std::runtime_error("Logic error 22");
           }
 
           this->data_in_process_ = true;

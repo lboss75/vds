@@ -16,6 +16,7 @@ namespace vds {
     server_log_get_records_broadcast_message_id = 'b',
 
     object_request_message_id = 'd',
+    object_offer_replicas_message_id = 'o',
     
     route_message_message_id = 'r'
   };

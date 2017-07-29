@@ -921,8 +921,10 @@ vds::const_data_buffer vds::_chunk_manager::get_replica_data(
       && t.chunk_index == index
       && t.replica == replica));
   
-  while(reader.execute()){  
+  if(reader.execute()){  
     result = t.data.get(reader);
+  } else {
+    throw std::runtime_error("Data not found");
   }
 
   return result;
@@ -979,9 +981,9 @@ void vds::_chunk_manager::query_object_chunk(
     t.select(t.replica)
     .where(t.server_id == server_id && t.chunk_index == chunk_index));
   
-  std::unordered_set<ichunk_manager::replica_type> replicas;
+  std::list<ichunk_manager::replica_type> replicas;
   while(st.execute()){
-    replicas.emplace(t.replica.get(st));
+    replicas.push_back(t.replica.get(st));
   }
   
   total_data += BLOCK_SIZE;
@@ -992,7 +994,7 @@ void vds::_chunk_manager::query_object_chunk(
   
   downloaded_data += REPLICA_SIZE * replicas.size();
   
-  std::map<guid, std::list<replica_type>> data_request;
+  std::set<guid> data_request;
   
   object_chunk_store_table t1;
   st = tr.get_reader(
@@ -1001,14 +1003,16 @@ void vds::_chunk_manager::query_object_chunk(
   while(st.execute()){
     auto storage_id = t1.storage_id.get(st);
     auto replica = t1.replica.get(st);
-    if(replicas.end() == replicas.find(replica)){
-      data_request[storage_id].push_back(replica);
+    if(replicas.end() == std::find(replicas.begin(), replicas.end(), replica)
+      && data_request.end() == data_request.find(storage_id)){
+      data_request.emplace(storage_id);
     }
   }
   
+  auto current_server_id = sp.get<istorage_log>()->current_server_id();
   auto connection_manager = sp.get<iconnection_manager>();
   for(auto & p : data_request){
-    object_request message(server_id, chunk_index, p.first, p.second);
-    connection_manager->send_to(sp, p.first, message);
+    object_request message(server_id, chunk_index, current_server_id, replicas);
+    connection_manager->send_to(sp, p, message);
   }
 }

@@ -8,6 +8,7 @@ All rights reserved
 #include "messages.h"
 #include "server_database_p.h"
 #include "principal_manager_p.h"
+#include "storage_log.h"
 
 vds::server_log_sync::server_log_sync()
 : impl_(new _server_log_sync(this))
@@ -93,6 +94,7 @@ void vds::_server_log_sync::on_server_log_get_records_broadcast(
   const connection_session & session,
   const server_log_get_records_broadcast & message)
 {
+  this->ensure_record_exists(sp, tr, message.last_record_id());
   for (auto p : message.unknown_records()) {
     principal_log_record record;
     const_data_buffer signature;
@@ -110,14 +112,15 @@ void vds::_server_log_sync::require_unknown_records(
   std::list<principal_log_record::record_id> unknown_records;
   (*sp.get<principal_manager>())->get_unknown_records(sp, tr, unknown_records);
 
-  if (!unknown_records.empty()) {
-
-    for (auto& p : unknown_records) {
-      sp.get<logger>()->debug(sp, "Require %s", p.str().c_str());
-    }
-
-    sp.get<iconnection_manager>()->broadcast(sp, server_log_get_records_broadcast(unknown_records));
+  for (auto& p : unknown_records) {
+    sp.get<logger>()->debug(sp, "Require %s", p.str().c_str());
   }
+
+  sp.get<iconnection_manager>()->broadcast(
+    sp,
+    server_log_get_records_broadcast(
+      sp.get<istorage_log>()->get_last_applied_record(sp),
+      unknown_records));
 }
 
 bool vds::_server_log_sync::process_timer_jobs(
@@ -137,7 +140,11 @@ void vds::_server_log_sync::ensure_record_exists(
   if (_principal_manager::principal_log_state::not_found == (*sp.get<principal_manager>())->principal_log_get_state(sp, tr, record_id)) {
     std::list<principal_log_record::record_id> unknown_records;
     unknown_records.push_back(record_id);
-    sp.get<iconnection_manager>()->broadcast(sp, server_log_get_records_broadcast(unknown_records));
+    sp.get<iconnection_manager>()->broadcast(
+      sp,
+      server_log_get_records_broadcast(
+        sp.get<istorage_log>()->get_last_applied_record(sp),
+        unknown_records));
   }
 }
 
@@ -183,14 +190,18 @@ const char vds::_server_log_sync::server_log_get_records_broadcast::message_type
 const uint32_t vds::_server_log_sync::server_log_get_records_broadcast::message_type_id = (uint32_t)message_identification::server_log_get_records_broadcast_message_id;
 
 vds::_server_log_sync::server_log_get_records_broadcast::server_log_get_records_broadcast(
+  const guid & last_record_id,
   const std::list<principal_log_record::record_id> & unknown_records)
-: unknown_records_(unknown_records)
+: last_record_id_(last_record_id),
+  unknown_records_(unknown_records)
 {
 }
 
 vds::_server_log_sync::server_log_get_records_broadcast::server_log_get_records_broadcast(const const_data_buffer & data)
 {
   binary_deserializer s(data);
+  s >> this->last_record_id_;
+  
   auto count = s.read_number();
   for (decltype(count) i = 0; i < count; ++i) {
     principal_log_record::record_id item;
@@ -201,6 +212,7 @@ vds::_server_log_sync::server_log_get_records_broadcast::server_log_get_records_
 
 void vds::_server_log_sync::server_log_get_records_broadcast::serialize(binary_serializer & b) const
 {
+  b << this->last_record_id_;
   b.write_number(this->unknown_records_.size());
   for (auto & p : this->unknown_records_) {
     b << p;
@@ -211,6 +223,7 @@ std::shared_ptr<vds::json_value> vds::_server_log_sync::server_log_get_records_b
 {
   std::unique_ptr<json_object> result(new json_object());
   result->add_property("$t", message_type);
+  result->add_property("r", this->last_record_id_);
 
   return std::shared_ptr<json_value>(result.release());
 }

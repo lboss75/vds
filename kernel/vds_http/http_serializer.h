@@ -168,7 +168,7 @@ namespace vds {
       {
         if (0 < this->input_buffer_size()) {
           if (0 == this->output_buffer_size()) {
-            throw std::runtime_error("Logic error");
+            throw std::runtime_error("Logic error 27");
           }
 
           auto message = std::make_unique<json_array>();

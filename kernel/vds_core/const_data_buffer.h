@@ -89,6 +89,11 @@ namespace vds{
     {
       return (*(this->impl_.get()))[index];
     }
+    
+    bool operator !() const
+    {
+      return !this->impl_;
+    }
 
   private:
     class _const_data_buffer

@@ -114,6 +114,8 @@ void vds::_route_manager::on_route_message(
   const connection_session & session,
   const route_message & message)
 {
+  sp.get<logger>()->debug(sp, "Route message %d to %s", message.msg_type_id(), message.target_server_id().str().c_str());
+
   this->processed_route_message_mutex_.lock();
   if (this->processed_route_message_.end() != this->processed_route_message_.find(message.message_id())) {
     this->processed_route_message_mutex_.unlock();
@@ -125,6 +127,7 @@ void vds::_route_manager::on_route_message(
 
   if (sp.get<istorage_log>()->current_server_id() == message.target_server_id()) {
     //TODO: add signarute to the message and validate it
+    sp.get<logger>()->debug(sp, "Route message %d", message.msg_type_id());
     con_man->server_to_server_api_.process_message(sp, t, con_man, session, message.msg_type_id(), message.message_data());
   }
   else {

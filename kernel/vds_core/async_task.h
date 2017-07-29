@@ -162,7 +162,7 @@ namespace vds {
       {
 #if _DEBUG
         if (!this->is_called_) {
-          throw std::runtime_error("Logic error!!!");
+          throw std::runtime_error("Logic error 1");
         }
 #endif
       }
@@ -174,7 +174,7 @@ namespace vds {
       {
 #if _DEBUG
         if (this->is_called_) {
-          throw std::runtime_error("Logic error!!!");
+          throw std::runtime_error("Logic error 2");
         }
         this->is_called_ = true;
 #endif
