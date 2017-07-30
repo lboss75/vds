@@ -274,6 +274,11 @@ namespace vds {
 
         if (len < 0) {
           int error = errno;
+          if(EAGAIN == error){
+            // Schedule client event
+            event_add(pthis->event_, NULL);
+            return;
+          }
           throw std::system_error(error, std::system_category(), "recvfrom");
         }
 
