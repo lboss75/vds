@@ -25,12 +25,12 @@ TEST(test_vds, test_initial)
     vds::crypto_service::rand_bytes(buffer.get(), (int)len);
 
     //Waiting to sync logs
-    std::this_thread::sleep_for(std::chrono::seconds(60));
+    mock.sync_wait();
 
     mock.upload_file(3, "test data", buffer.get(), len);
     
     //Waiting to sync logs
-    std::this_thread::sleep_for(std::chrono::seconds(60));
+    mock.sync_wait();
     std::cout << "Download file...\n";
 
     auto result = mock.download_data(4, "test data");

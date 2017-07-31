@@ -57,8 +57,10 @@ void vds::server_to_server_api::process_message(
 
   case message_identification::route_message_message_id:
   {
-    sp.get<logger>()->debug(sp, "route_message_message_id");
     route_message msg(binary_form);
+    sp.get<logger>()->debug(sp, "Route: route message to %s, this server is %s",
+      msg.target_server_id().str().c_str(),
+      sp.get<istorage_log>()->current_server_id().str().c_str());
     con_man->route_manager_->on_route_message(
       con_man,
       sp,

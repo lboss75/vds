@@ -16,6 +16,7 @@ public:
   void stop();
 
   void init_root(const std::string & root_password, int port);
+  vds::guid last_log_record() const;
   
 private:
   int index_;
@@ -69,6 +70,8 @@ public:
 
   void upload_file(size_t client_index, const std::string & name, const void * data, size_t data_size);
   vds::const_data_buffer download_data(size_t client_index, const std::string & name);
+  
+  void sync_wait();
 
 private:
   std::vector<std::unique_ptr<mock_server>> servers_;

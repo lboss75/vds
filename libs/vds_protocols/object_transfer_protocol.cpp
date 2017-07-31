@@ -62,7 +62,7 @@ void vds::_object_transfer_protocol::on_object_request(
   const connection_session & session,
   const object_request & message)
 {
-  sp.get<logger>()->debug(sp, "request object %s:%d for %s", message.server_id().str().c_str(), message.index(), message.target_storage_id().str().c_str());
+  sp.get<logger>()->debug(sp, "route: request object %s:%d for %s", message.server_id().str().c_str(), message.index(), message.target_storage_id().str().c_str());
 
   auto current_server_id = sp.get<istorage_log>()->current_server_id();
   
@@ -99,7 +99,11 @@ void vds::_object_transfer_protocol::on_object_request(
       continue;
     }
     
-    sp.get<logger>()->debug(sp, "Send replica %s:%d.%d to %s", message.server_id().str().c_str(), message.index(), replica, message.target_storage_id().str().c_str());
+    sp.get<logger>()->debug(sp, "Route: send replica %s:%d.%d to %s",
+      message.server_id().str().c_str(),
+      message.index(),
+      replica,
+      message.target_storage_id().str().c_str());
     connection_manager->send_to(
       sp,
       message.target_storage_id(), 
@@ -117,6 +121,10 @@ void vds::_object_transfer_protocol::object_offer(
   const connection_session & session,
   const object_offer_replicas & message)
 {
+  sp.get<logger>()->debug(sp, "Route: got object %s:%d.%d", 
+    message.server_id().str().c_str(),
+    message.index(),
+    message.replica());
   auto current_server_id = sp.get<istorage_log>()->current_server_id();
   auto chunk_manager = sp.get<ichunk_manager>();
   

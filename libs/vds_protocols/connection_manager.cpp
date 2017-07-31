@@ -474,6 +474,8 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
               uint32_t message_type_id;
               const_data_buffer binary_form;
               d >> message_type_id >> binary_form;
+              
+              sp.get<logger>()->debug(sp, "Message %d", message_type_id);
 
               this->owner_->server_to_server_api_.process_message(
                 sp,
@@ -625,12 +627,17 @@ void vds::_connection_manager::udp_channel::session::send_to(
         s << hash::signature(hash::sha256(), message_data.data());
         s.final();
 
+        sp.get<logger>()->debug(sp, "Send message to %s:%d", this->server().c_str(), this->port());
+        
         auto scope = sp.create_scope(("Send message to " + this->server() + ":" + std::to_string(this->port())).c_str());
         imt_service::enable_async(scope);
         this->owner_->s_.outgoing()->write_value_async(scope, udp_datagram(this->server(), this->port(), s.data()))
           .wait(
-            [](const service_provider & sp) {},
+            [](const service_provider & sp) {
+              sp.get<logger>()->debug(sp, "Message sent");
+            },
             [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+              sp.get<logger>()->debug(sp, "Message send failed %s", ex->what());
               sp.unhandled_exception(ex);
             },
             scope);

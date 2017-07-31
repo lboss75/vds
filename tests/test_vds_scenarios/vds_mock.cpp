@@ -64,6 +64,42 @@ void vds_mock::stop()
   }
 }
 
+void vds_mock::sync_wait()
+{
+  for(int i = 0; i < 1000; ++i){
+    std::cout << "Waiting to synchronize...\n";
+    
+    bool is_good = true;
+    vds::guid last_log_record;
+    int index = 0;
+    for(auto & p : this->servers_) {
+      std::cout << "State[" << index ++ << "]: " << p->last_log_record().str() << "\n";
+      if(!last_log_record){
+        last_log_record = p->last_log_record();
+      }
+      else if(last_log_record != p->last_log_record()){
+        is_good = false;
+        break;
+      }
+    }
+    
+    if(is_good){
+      return;
+    }
+    
+    std::this_thread::sleep_for(std::chrono::seconds(5));
+  }
+  
+  std::cout << "Synchronize error\n";
+  
+  int index = 0;
+  for(auto & p : this->servers_) {
+    std::cout << "State[" << index ++ << "]: " << p->last_log_record().str() << "\n";
+  }
+  
+  throw std::runtime_error("Synchronize error");
+}
+
 void vds_mock::upload_file(size_t client_index, const std::string & name, const void * data, size_t data_size)
 {
   mock_client client(client_index);
@@ -456,4 +492,9 @@ void mock_server::start()
 void mock_server::stop()
 {
   this->registrator_.shutdown(this->sp_);
+}
+
+vds::guid mock_server::last_log_record() const
+{
+  return this->sp_.get<vds::istorage_log>()->get_last_applied_record(this->sp_);
 }
