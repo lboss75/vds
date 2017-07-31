@@ -101,6 +101,15 @@ namespace vds {
       size_t & downloaded_data,
       size_t& total_data);
 
+    void add_chunk_store_data(
+      const service_provider & sp,
+      database_transaction & tr,
+      const guid & server_id,
+      size_t index,
+      uint16_t replica,
+      const guid & storage_id,
+      const const_data_buffer & data);
+    
   private:
     friend class _storage_log;
     
@@ -351,14 +360,6 @@ namespace vds {
       uint16_t replica,
       const guid & storage_id);
     
-    void add_chunk_store_data(
-      const service_provider & sp,
-      database_transaction & tr,
-      const guid & server_id,
-      size_t index,
-      uint16_t replica,
-      const guid & storage_id,
-      const const_data_buffer & data);
 
     const_data_buffer get_tail_data(
       const service_provider & sp,

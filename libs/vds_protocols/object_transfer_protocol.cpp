@@ -110,6 +110,25 @@ void vds::_object_transfer_protocol::on_object_request(
         data));
   }
 }
+
+void vds::_object_transfer_protocol::object_offer(
+  const service_provider & sp,
+  database_transaction & tr,
+  const connection_session & session,
+  const object_offer_replicas & message)
+{
+  auto current_server_id = sp.get<istorage_log>()->current_server_id();
+  auto chunk_manager = sp.get<ichunk_manager>();
+  
+  (*chunk_manager)->add_chunk_store_data(
+    sp,
+    tr,
+    message.server_id(),
+    message.index(),
+    message.replica(),
+    current_server_id,
+    message.data());
+}
 ////////////////////////////////////////////////////////
 vds::object_offer_replicas::object_offer_replicas(const const_data_buffer & binary_form)
 {

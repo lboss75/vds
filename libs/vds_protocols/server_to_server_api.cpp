@@ -44,6 +44,15 @@ void vds::server_to_server_api::process_message(
       session,
       object_request(binary_form));
     break;
+    
+  case message_identification::object_offer_replicas_message_id:
+  {
+    con_man->object_transfer_protocol_->object_offer(
+      sp,
+      t,
+      session,
+      object_offer_replicas(binary_form));
+  }
 
   case message_identification::route_message_message_id:
   {
@@ -55,6 +64,16 @@ void vds::server_to_server_api::process_message(
       t,
       session,
       msg);
+    
+    if(message_identification::object_offer_replicas_message_id == (message_identification)msg.msg_type_id()){
+      this->process_message(
+        sp,
+        t,
+        con_man,
+        session,
+        msg.msg_type_id(),
+        msg.message_data());
+    }
 
     break;
   }
