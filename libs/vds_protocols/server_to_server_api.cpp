@@ -52,6 +52,7 @@ void vds::server_to_server_api::process_message(
       t,
       session,
       object_offer_replicas(binary_form));
+    break;
   }
 
   case message_identification::route_message_message_id:
