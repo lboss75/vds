@@ -54,7 +54,10 @@ namespace vds {
     
     template<typename... setter_types>
     _database_insert_builder insert(setter_types &&... setters);
-    
+
+    template<typename... setter_types>
+    _database_insert_builder insert_or_ignore(setter_types &&... setters);
+
     template<typename... setter_types>
     _database_update_builder update(setter_types &&... setters);
     
@@ -808,17 +811,44 @@ namespace vds {
   class _database_insert_builder : public _database_source_base
   {
   public:
+    enum class Insert_Strategy
+    {
+      Regular,
+      Replace,
+      Ignore
+    };
     
     template<typename... setter_types>
     _database_insert_builder(const database_table & table, setter_types &&... setters)
-    : table_(table)
+    : strategy_(Insert_Strategy::Regular), table_(table)
     {
       this->set(std::forward<setter_types>(setters)...);
     }
-    
+
+    template<typename... setter_types>
+    _database_insert_builder(Insert_Strategy strategy, const database_table & table, setter_types &&... setters)
+      : strategy_(strategy), table_(table)
+    {
+      this->set(std::forward<setter_types>(setters)...);
+    }
+
     std::string start_sql(_database_sql_builder & builder) const
     {
-      std::string sql = "INSERT INTO " + this->table_.name() + "(";
+      std::string sql;
+      switch (this->strategy_) {
+      case Insert_Strategy::Replace:
+        sql = "REPLACE";
+        break;
+
+      case Insert_Strategy::Ignore:
+        sql = "INSERT OR IGNORE";
+        break;
+
+      default:
+        sql = "INSERT";
+        break;
+      }
+      sql += " INTO " + this->table_.name() + "(";
       bool is_first = true;
       for(auto column : this->columns_){
         if(is_first){
@@ -844,6 +874,7 @@ namespace vds {
     }
     
   private:
+    Insert_Strategy strategy_;
     const database_table & table_;
     std::list<const _database_column_base *> columns_;
     std::list<std::function<void(sql_statement & st, int index)>> values_;
@@ -1062,7 +1093,13 @@ namespace vds {
   {
     return _database_insert_builder(*this, std::forward<setter_types>(setters)...);
   }
-  
+
+  template<typename... setter_types>
+  inline _database_insert_builder database_table::insert_or_ignore(setter_types &&... setters)
+  {
+    return _database_insert_builder(_database_insert_builder::Insert_Strategy::Ignore, *this, std::forward<setter_types>(setters)...);
+  }
+
   template<typename... column_types>
   _database_insert_from_builder database_table::insert_into(column_types &&... columns)
   {
