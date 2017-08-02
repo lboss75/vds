@@ -10,6 +10,7 @@ All rights reserved
 #include "dataflow.h"
 #include "async_task.h"
 #include "mt_service.h"
+#include "not_mutex.h"
 
 namespace vds {
 
@@ -29,6 +30,8 @@ namespace vds {
       if (0 == data_size && this->eof_) {
         throw std::runtime_error("Logiñ error");
       }
+      
+      this->in_mutex_.lock();
 
       return create_async_task(
         [this, data, data_size](
@@ -38,6 +41,7 @@ namespace vds {
 
         if (0 == data_size) {
           if (this->eof_) {
+            this->in_mutex_.unlock();
             throw std::runtime_error("Logiñ error");
           }
           this->eof_ = true;
@@ -48,12 +52,16 @@ namespace vds {
             mt_service::async(sp, f);
           }
           
-          mt_service::async(sp, [sp, done]() {
+          mt_service::async(sp, [this, sp, done]() {
+            this->in_mutex_.unlock();
             done(sp);
           });
         }
         else {
-          this->write_all(sp, done, data, data_size);
+          this->write_all(sp, [this, done](const service_provider & sp){
+            this->in_mutex_.unlock();
+            done(sp);
+          }, data, data_size);
         }
       });
     }
@@ -69,7 +77,10 @@ namespace vds {
         const error_handler & on_error,
         const service_provider & sp){
         this->write_all_async(sp, p.get(), 1).wait(
-          [p, done](const service_provider & sp){ done(sp); },
+          [p, this, done](const service_provider & sp){
+            this->in_mutex_.unlock();
+            done(sp);            
+          },
           on_error,
           sp);
       });
@@ -82,6 +93,8 @@ namespace vds {
       if (this->continue_write_) {
         throw std::runtime_error("Login error");
       }
+      
+      this->in_mutex_.lock();
 
       return create_async_task(
         [this, data, data_size](
@@ -101,11 +114,15 @@ namespace vds {
               mt_service::async(sp, f);
             }
             
-            mt_service::async(sp, [sp, done]() {
+            mt_service::async(sp, [this, sp, done]() {
+              this->in_mutex_.unlock();
               done(sp, 0);
             });
           } else {
-            this->continue_write(sp, done, data, data_size);
+            this->continue_write(sp, [this, done](const service_provider & sp, size_t written){
+              this->in_mutex_.unlock();
+              done(sp, written);
+            }, data, data_size);
           }
       });
     }
@@ -115,8 +132,10 @@ namespace vds {
       imt_service::async_enabled_check(sp);
 
       if (this->continue_read_) {
-        throw std::runtime_error("Logiñ error");
+        throw std::runtime_error("Logic error 29");
       }
+      
+      this->out_mutex_.lock();
 
       return create_async_task(
         [this, buffer, buffer_size](
@@ -124,7 +143,10 @@ namespace vds {
           const error_handler & on_error,
           const service_provider & sp) {
 
-        this->continue_read(sp, done, buffer, buffer_size);
+        this->continue_read(sp, [this, done](const service_provider & sp, size_t readed){
+          this->out_mutex_.unlock();
+          done(sp, readed);
+        }, buffer, buffer_size);
       });
     }
 
@@ -138,6 +160,8 @@ namespace vds {
     }
 
   private:
+    not_mutex in_mutex_;
+    not_mutex out_mutex_;
     std::mutex buffer_mutex_;
     item_type buffer_[4096];
     uint32_t second_;

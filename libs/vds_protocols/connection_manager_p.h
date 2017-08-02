@@ -110,7 +110,7 @@ namespace vds {
         const void * data,
         size_t len);
       
-      void open_udp_session(
+      async_task<> open_udp_session(
         const service_provider & sp,
         const std::string & address);
 
@@ -123,6 +123,8 @@ namespace vds {
       friend class _connection_manager;
       _connection_manager * owner_;
       udp_server server_;
+      
+      std::mutex s_out_mutex_;
       udp_socket s_;
       timer process_timer_;
 
@@ -243,7 +245,7 @@ namespace vds {
     std::unique_ptr<udp_channel> udp_channel_;
     object_transfer_protocol object_transfer_protocol_;
 
-    void try_to_connect(
+    async_task<> try_to_connect(
       const vds::service_provider& sp,
       const std::string & address);
 

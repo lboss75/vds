@@ -106,21 +106,49 @@ void vds::_connection_manager::start(const vds::service_provider& sp)
   sp.get<node_manager>()->get_endpoints(sp, scope.transaction(), endpoints);
   scope.commit();
 
+  async_task<> result = create_async_task([](
+    const std::function<void(const service_provider & sp)> & done,
+    const error_handler & on_error,
+    const service_provider & sp) {
+    done(sp);
+  });
+  
   for (auto & p : endpoints) {
-    this->try_to_connect(sp, p.second);
+    auto address = p.second;
+    result = result.then([this, address](const service_provider & sp){ return this->try_to_connect(sp, address);});
   }
+  
+  auto mt_scope = sp.create_scope("Staring connection manager");
+  mt_service::enable_async(mt_scope);
+  barrier b;
+  result.wait([&b](const service_provider& sp){
+    b.set();
+  },
+  [](const service_provider& sp, const std::shared_ptr<std::exception> & ex){
+    sp.unhandled_exception(ex);
+  },
+  mt_scope);
+  
+  b.wait();
 }
 
-void vds::_connection_manager::try_to_connect(
+vds::async_task<> vds::_connection_manager::try_to_connect(
   const vds::service_provider& sp,
   const std::string & address)
 {
   sp.get<logger>()->info(sp, "Connecting to %s", address.c_str());
+  
+  async_task<> result = create_async_task([](
+    const std::function<void(const service_provider & sp)> & done,
+    const error_handler & on_error,
+    const service_provider & sp) {
+    done(sp);
+  });
 
   url_parser::parse_addresses(address,
-    [this, sp](const std::string & protocol, const std::string & address) -> bool {
+    [this, &result, sp](const std::string & protocol, const std::string & address) -> bool {
     if ("udp" == protocol) {
-      this->udp_channel_->open_udp_session(sp, address);
+      result = result.then([this, address](const service_provider & sp){ return this->udp_channel_->open_udp_session(sp, address); });
     }
     else if ("https" == protocol) {
       //this->open_https_session(sp, address);
@@ -128,6 +156,8 @@ void vds::_connection_manager::try_to_connect(
 
     return true;
   });
+  
+  return result;
 }
 
 void vds::_connection_manager::stop(const vds::service_provider& sp)
@@ -356,8 +386,16 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
             .serialize();
 
           auto data = _udp_datagram::create(*from, message_data);
+          this->s_out_mutex_.lock();
           this->s_.outgoing()->write_all_async(sp, &data, 1)
-            .wait(done, on_error, sp);
+            .wait([this, done](const service_provider & sp){
+              this->s_out_mutex_.unlock();
+              done(sp);
+            },
+            [this, on_error](const service_provider & sp, const std::shared_ptr<std::exception> & ex){
+              this->s_out_mutex_.unlock();
+              on_error(sp, ex);
+            }, sp);
         },
           on_error,
           sp);
@@ -531,44 +569,54 @@ void vds::_connection_manager::send_to(
     message_data);
 }
 
-void vds::_connection_manager::udp_channel::open_udp_session(
+vds::async_task<> vds::_connection_manager::udp_channel::open_udp_session(
   const service_provider & sp,
   const std::string & address)
 {
-  auto network_address = url_parser::parse_network_address(address);
-  assert("udp" == network_address.protocol);
-  
-  auto server = network_address.server;
-  auto port = (uint16_t)std::atoi(network_address.port.c_str());
-  
-  std::lock_guard<std::mutex> lock_hello(this->hello_requests_mutex_);
-  std::unique_lock<std::shared_mutex> lock_sessions(this->sessions_mutex_);
-  
-  for(;;){
-    auto session_id = (uint32_t)std::rand();
-    if(this->hello_requests_.end() == this->hello_requests_.find(session_id)
-      && this->sessions_.end() == this->sessions_.find(session_id)
-      ){
-      this->hello_requests_[session_id] = hello_request(session_id, address);
-  
-      auto data = udp_messages::hello_message(
-        sp.get<istorage_log>()->server_certificate().der(),
-        session_id,
-        address).serialize();
+  return create_async_task([this, address](
+    const std::function<void (const service_provider & sp)> & done,
+    const error_handler & on_error,
+    const service_provider & sp){
+      auto network_address = url_parser::parse_network_address(address);
+      assert("udp" == network_address.protocol);
       
-      auto scope = sp.create_scope(("Send hello to " + address).c_str());
-      imt_service::enable_async(scope);
-      this->s_.outgoing()->write_value_async(scope, udp_datagram(server, port, data, false))
-        .wait(
-          [](const service_provider & sp) {},
-          [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-            sp.unhandled_exception(ex);
-          },
-          scope);
-
-      return;
-    }
-  }
+      auto server = network_address.server;
+      auto port = (uint16_t)std::atoi(network_address.port.c_str());
+      
+      std::lock_guard<std::mutex> lock_hello(this->hello_requests_mutex_);
+      std::unique_lock<std::shared_mutex> lock_sessions(this->sessions_mutex_);
+      
+      for(;;){
+        auto session_id = (uint32_t)std::rand();
+        if(this->hello_requests_.end() == this->hello_requests_.find(session_id)
+          && this->sessions_.end() == this->sessions_.find(session_id)
+          ){
+          this->hello_requests_[session_id] = hello_request(session_id, address);
+      
+          auto data = udp_messages::hello_message(
+            sp.get<istorage_log>()->server_certificate().der(),
+            session_id,
+            address).serialize();
+          
+          auto scope = sp.create_scope(("Send hello to " + address).c_str());
+          imt_service::enable_async(scope);
+          this->s_out_mutex_.lock();
+          this->s_.outgoing()->write_value_async(scope, udp_datagram(server, port, data, false))
+          .wait(
+            [this, done](const service_provider & sp){
+              this->s_out_mutex_.unlock();
+              done(sp);
+            },
+            [this, on_error](const service_provider & sp, const std::shared_ptr<std::exception> & ex){
+              this->s_out_mutex_.unlock();
+              on_error(sp, ex);              
+            },
+            sp);
+          
+          return;
+        }
+      }
+  });
 }
 
 void vds::_connection_manager::udp_channel::broadcast(
@@ -631,12 +679,15 @@ void vds::_connection_manager::udp_channel::session::send_to(
         
         auto scope = sp.create_scope(("Send message to " + this->server() + ":" + std::to_string(this->port())).c_str());
         imt_service::enable_async(scope);
+        this->owner_->s_out_mutex_.lock();
         this->owner_->s_.outgoing()->write_value_async(scope, udp_datagram(this->server(), this->port(), s.data()))
           .wait(
-            [](const service_provider & sp) {
+            [this](const service_provider & sp) {
+              this->owner_->s_out_mutex_.unlock();
               sp.get<logger>()->debug(sp, "Message sent");
             },
-            [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+            [this](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+              this->owner_->s_out_mutex_.unlock();
               sp.get<logger>()->debug(sp, "Message send failed %s", ex->what());
               sp.unhandled_exception(ex);
             },
@@ -714,10 +765,12 @@ bool vds::_connection_manager::udp_channel::process_timer_jobs(const service_pro
     auto server = network_address.server;
     auto port = (uint16_t)std::atoi(network_address.port.c_str());
 
+    this->s_out_mutex_.lock();
     this->s_.outgoing()->write_value_async(scope, udp_datagram(server, port, data, false))
       .wait(
-        [](const service_provider & sp) {},
-        [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+        [this](const service_provider & sp) { this->s_out_mutex_.unlock(); },
+        [this](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+          this->s_out_mutex_.unlock();
           sp.unhandled_exception(ex); 
         },
         scope);
