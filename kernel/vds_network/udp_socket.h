@@ -44,7 +44,7 @@ namespace vds {
       size_t data_size,
       bool check_max_safe_data_size = false);
 
-    const std::string & server() const;
+    std::string server() const;
     uint16_t port() const;
 
     const void * data() const;

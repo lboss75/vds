@@ -263,11 +263,13 @@ namespace vds {
 
 #else
       struct event * event_;
+      not_mutex event_mutex_;
 
 
       static void callback(int fd, short event, void *arg)
       {
         auto pthis = reinterpret_cast<_udp_receive *>(arg);
+        std::unique_lock<not_mutex> lock(pthis->event_mutex_);
 
         int len = recvfrom(fd, pthis->buffer_, sizeof(pthis->buffer_), 0,
           (struct sockaddr *)&pthis->addr_, &pthis->addr_len_);
@@ -281,6 +283,8 @@ namespace vds {
           }
           throw std::system_error(error, std::system_category(), "recvfrom");
         }
+        
+        pthis->sp_.get<logger>()->debug(pthis->sp_, "UDP got %d bytes from %s", len, network_service::to_string(pthis->addr_).c_str());
 
         pthis->push_data(len);
       }
@@ -398,10 +402,13 @@ namespace vds {
       }
 #else
       struct event * event_;
+      not_mutex event_mutex_;
 
       static void callback(int fd, short event, void *arg)
       {
         auto pthis = reinterpret_cast<_udp_send *>(arg);
+        std::unique_lock<not_mutex> lock(pthis->event_mutex_);
+        
         try {
           int len = sendto(fd,
             pthis->buffer_.data(),
@@ -422,6 +429,7 @@ namespace vds {
             throw std::runtime_error("Invalid send UDP");
           }
 
+          pthis->sp_.get<logger>()->debug(pthis->sp_, "UDP Sent %d bytes to %s", len, network_service::to_string(*pthis->buffer_->addr()).c_str());
           pthis->start(pthis->sp_);
         }
         catch (const std::exception & ex) {

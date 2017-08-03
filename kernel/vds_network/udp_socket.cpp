@@ -46,7 +46,7 @@ void vds::udp_datagram::reset(const std::string & server, uint16_t port, const v
   this->impl_.reset(new _udp_datagram(server, port, data, data_size));
 }
 
-const std::string & vds::udp_datagram::server() const
+std::string vds::udp_datagram::server() const
 {
   return this->impl_->server();
 }

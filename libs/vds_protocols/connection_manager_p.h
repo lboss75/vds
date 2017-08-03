@@ -179,9 +179,9 @@ namespace vds {
           const const_data_buffer & message_data) const override;
 
       private:
-        std::string address_;
         udp_channel * const owner_;
         uint32_t session_id_;
+        std::string address_;
         std::string server_;
         uint16_t port_;
         uint32_t external_session_id_;

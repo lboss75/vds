@@ -244,6 +244,7 @@ vds::async_task<> vds::_chunk_manager::add_object(
       }
     }
     
+    sp.get<logger>()->debug(sp, "Add object %s", result.serialize()->str().c_str());
     sp.get<istorage_log>()->add_to_local_log(
       sp,
       tr,
