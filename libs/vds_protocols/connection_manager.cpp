@@ -386,16 +386,8 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
             .serialize();
 
           auto data = _udp_datagram::create(*from, message_data);
-          this->s_out_mutex_.lock();
-          this->s_.outgoing()->write_all_async(sp, &data, 1)
-            .wait([this, done](const service_provider & sp){
-              this->s_out_mutex_.unlock();
-              done(sp);
-            },
-            [this, on_error](const service_provider & sp, const std::shared_ptr<std::exception> & ex){
-              this->s_out_mutex_.unlock();
-              on_error(sp, ex);
-            }, sp);
+          this->s_.outgoing()->write(sp, data);
+          done(sp);
         },
           on_error,
           sp);
@@ -600,19 +592,8 @@ vds::async_task<> vds::_connection_manager::udp_channel::open_udp_session(
           
           auto scope = sp.create_scope(("Send hello to " + address).c_str());
           imt_service::enable_async(scope);
-          this->s_out_mutex_.lock();
-          this->s_.outgoing()->write_value_async(scope, udp_datagram(server, port, data, false))
-          .wait(
-            [this, done](const service_provider & sp){
-              this->s_out_mutex_.unlock();
-              done(sp);
-            },
-            [this, on_error](const service_provider & sp, const std::shared_ptr<std::exception> & ex){
-              this->s_out_mutex_.unlock();
-              on_error(sp, ex);              
-            },
-            sp);
-          
+          this->s_.outgoing()->write(scope, udp_datagram(server, port, data, false));
+          done(sp);
           return;
         }
       }
@@ -679,19 +660,7 @@ void vds::_connection_manager::udp_channel::session::send_to(
         
         auto scope = sp.create_scope(("Send message to " + this->server() + ":" + std::to_string(this->port())).c_str());
         imt_service::enable_async(scope);
-        this->owner_->s_out_mutex_.lock();
-        this->owner_->s_.outgoing()->write_value_async(scope, udp_datagram(this->server(), this->port(), s.data()))
-          .wait(
-            [this](const service_provider & sp) {
-              this->owner_->s_out_mutex_.unlock();
-              sp.get<logger>()->debug(sp, "Message sent");
-            },
-            [this](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-              this->owner_->s_out_mutex_.unlock();
-              sp.get<logger>()->debug(sp, "Message send failed %s", ex->what());
-              sp.unhandled_exception(ex);
-            },
-            scope);
+        this->owner_->s_.outgoing()->write(scope, udp_datagram(this->server(), this->port(), s.data()));
       },
       [](const service_provider & sp,
          const std::shared_ptr<std::exception> & ex) {
@@ -765,15 +734,7 @@ bool vds::_connection_manager::udp_channel::process_timer_jobs(const service_pro
     auto server = network_address.server;
     auto port = (uint16_t)std::atoi(network_address.port.c_str());
 
-    this->s_out_mutex_.lock();
-    this->s_.outgoing()->write_value_async(scope, udp_datagram(server, port, data, false))
-      .wait(
-        [this](const service_provider & sp) { this->s_out_mutex_.unlock(); },
-        [this](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-          this->s_out_mutex_.unlock();
-          sp.unhandled_exception(ex); 
-        },
-        scope);
+    this->s_.outgoing()->write(scope, udp_datagram(server, port, data, false));
   }
 
   return true;

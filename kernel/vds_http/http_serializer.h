@@ -76,7 +76,7 @@ namespace vds {
         STATE_EOF
       };
       StateEnum state_;
-      async_stream<uint8_t> buffer_;
+      continuous_stream<uint8_t> buffer_;
 
       void write_body(
         const service_provider & sp,

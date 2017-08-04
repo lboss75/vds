@@ -286,6 +286,8 @@ void vds::_storage_log::apply_record(
   const const_data_buffer & signature)
 {
   sp.get<logger>()->debug(sp, "Apply record %s", record.id().str().c_str());
+  sp.get<logger>()->trace(sp, "Record %s: %s", record.id().str().c_str(), record.message()->str().c_str());
+
   auto state = this->principal_manager_->principal_log_get_state(sp, tr, record.id());
   if(_principal_manager::principal_log_state::front != state){
     throw std::runtime_error("Invalid server state");

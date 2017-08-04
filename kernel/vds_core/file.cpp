@@ -156,12 +156,13 @@ void vds::file::flush()
 #ifdef _WIN32
   HANDLE h = (HANDLE)_get_osfhandle(this->handle_);
   if (INVALID_HANDLE_VALUE == h) {
-    throw std::system_error(EBADF, std::generic_category(), "Unable to flush file " + this->filename_.full_name());
+    auto err = GetLastError();
+    throw std::system_error(err, std::generic_category(), "Unable to flush file " + this->filename_.full_name());
   }
 
   if (!FlushFileBuffers(h)) {
     auto err = GetLastError();
-    throw std::system_error(EBADF, std::system_category(), "Unable to flush file " + this->filename_.full_name());
+    throw std::system_error(err, std::system_category(), "Unable to flush file " + this->filename_.full_name());
   }
 
 #else

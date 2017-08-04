@@ -52,26 +52,26 @@ vds::async_task<> vds::_server_http_api::start(
 
       auto crypto_tunnel = std::make_shared<ssl_tunnel>(false, &certificate, &private_key);
 
-      auto stream = std::make_shared<async_stream<std::shared_ptr<http_message>>>();
+      auto stream = std::make_shared<continuous_stream<std::shared_ptr<http_message>>>();
       async_series(
         create_async_task(
           [this, s, crypto_tunnel](const std::function<void(const service_provider & sp)> & done, const error_handler & on_error, const service_provider & sp) {
         dataflow(
           read_tcp_network_socket(s, this->cancellation_source_.token()),
-          stream_write<uint8_t>(crypto_tunnel->crypted_input())
+          stream_write<continuous_stream<uint8_t>>(crypto_tunnel->crypted_input())
         )(done, on_error, sp.create_scope("Server SSL Input"));
       }),
         create_async_task(
           [this, s, crypto_tunnel](const std::function<void(const service_provider & sp)> & done, const error_handler & on_error, const service_provider & sp) {
         dataflow(
-          stream_read<uint8_t>(crypto_tunnel->crypted_output()),
+          stream_read<continuous_stream<uint8_t>>(crypto_tunnel->crypted_output()),
           write_tcp_network_socket(s, this->cancellation_source_.token())
         )(done, on_error, sp.create_scope("Server SSL Output"));
       }),
         create_async_task(
           [this, s, stream, crypto_tunnel](const std::function<void(const service_provider & sp)> & done, const error_handler & on_error, const service_provider & sp) {
         dataflow(
-          stream_read<uint8_t>(crypto_tunnel->decrypted_output()),
+          stream_read<continuous_stream<uint8_t>>(crypto_tunnel->decrypted_output()),
           http_parser(
             [this, stream, crypto_tunnel](const service_provider & sp, const std::shared_ptr<http_message> & request) {
           sp.set_property(
@@ -99,9 +99,9 @@ vds::async_task<> vds::_server_http_api::start(
         create_async_task(
           [s, stream, crypto_tunnel](const std::function<void(const service_provider & sp)> & done, const error_handler & on_error, const service_provider & sp) {
         dataflow(
-          stream_read<std::shared_ptr<http_message>>(stream),
+          stream_read<continuous_stream<std::shared_ptr<http_message>>>(stream),
           http_serializer(),
-          stream_write<uint8_t>(crypto_tunnel->decrypted_input())
+          stream_write<continuous_stream<uint8_t>>(crypto_tunnel->decrypted_input())
         )(done, on_error, sp);
       })
         )
@@ -135,7 +135,7 @@ vds::async_task<std::shared_ptr<vds::http_message>> vds::_server_http_api::route
     {
       auto json_request = new std::shared_ptr<json_value>();
       dataflow(
-        stream_read<uint8_t>(message->body()),
+        stream_read<continuous_stream<uint8_t>>(message->body()),
         byte_to_char(),
         json_parser("client_api"),
         dataflow_require_once<std::shared_ptr<json_value>>(json_request)

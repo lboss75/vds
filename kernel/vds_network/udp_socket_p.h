@@ -156,7 +156,7 @@ namespace vds {
       return this->s_;
     }
 
-    std::shared_ptr<async_stream<udp_datagram>> incoming()
+    std::shared_ptr<continuous_stream<udp_datagram>> incoming()
     {
       return this->receive_.stream();
     }
@@ -184,7 +184,7 @@ namespace vds {
       _udp_receive(_udp_socket & owner)
         : owner_(owner),
         sp_(service_provider::empty()),
-        target_(new async_stream<udp_datagram>())
+        target_(new continuous_stream<udp_datagram>())
 #ifndef _WIN32
         , event_(nullptr)
 #endif
@@ -196,7 +196,7 @@ namespace vds {
         this->read_async(sp);
       }
 
-      std::shared_ptr<async_stream<udp_datagram>> stream()
+      std::shared_ptr<continuous_stream<udp_datagram>> stream()
       {
         return this->target_;
       }
@@ -204,7 +204,7 @@ namespace vds {
     private:
       _udp_socket & owner_;
       service_provider sp_;
-      std::shared_ptr<async_stream<udp_datagram>> target_;
+      std::shared_ptr<continuous_stream<udp_datagram>> target_;
       sockaddr_in addr_;
       socklen_t addr_len_;
       uint8_t buffer_[10 * 1024 * 1024];

@@ -36,8 +36,8 @@ TEST(network_tests, test_udp_server)
   auto server_socket = server.start(sp, "127.0.0.1", 8000);
 
     vds::dataflow(
-      vds::stream_read<vds::udp_datagram>(server_socket.incoming()),
-      vds::stream_write<vds::udp_datagram>(server_socket.outgoing())
+      vds::stream_read<vds::continuous_stream<vds::udp_datagram>>(server_socket.incoming()),
+      vds::stream_write<vds::async_stream<vds::udp_datagram>>(server_socket.outgoing())
     )(
     [&server_socket](const vds::service_provider & sp) {
       sp.get<vds::logger>()->debug(sp, "Server closed");
@@ -73,17 +73,7 @@ TEST(network_tests, test_udp_server)
   
   const char data[] = "test_test_test_test_test_test_test_test_test_test_test_test_test_test_test_";
   vds::udp_datagram request("127.0.0.1", 8000, data, sizeof(data) - 1);
-  client_socket.outgoing()->write_all_async(sp, &request, 1)
-  .wait(
-    [](const vds::service_provider & sp) {
-        sp.get<vds::logger>()->debug(sp, "Client writer closed");
-      },
-    [&error, &client_socket](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-        error = ex;
-        sp.get<vds::logger>()->debug(sp, "Client writer error");
-        client_socket.close();
-      },
-    sp.create_scope("Client writer"));
+  client_socket.outgoing()->write(sp, request);
 
   b.wait();
   //Wait

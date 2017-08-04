@@ -20,7 +20,7 @@ TEST(mt_tests, test_async_stream) {
   registrator.start(sp);
 
   random_buffer data;
-  auto stream = std::make_shared<vds::async_stream<uint8_t>>();
+  auto stream = std::make_shared<vds::continuous_stream<uint8_t>>();
 
   vds::barrier b;
   std::shared_ptr<std::exception> err;
@@ -34,7 +34,7 @@ TEST(mt_tests, test_async_stream) {
         vds::mt_service::async(sp, [&data, stream, done, error, sp] {
           vds::dataflow(
             random_reader<uint8_t>(data.data(), data.size()),
-            vds::stream_write<uint8_t>(stream)
+            vds::stream_write<vds::continuous_stream<uint8_t>>(stream)
           )(done, error, sp);
         });
       }
@@ -46,7 +46,7 @@ TEST(mt_tests, test_async_stream) {
         const vds::service_provider & sp) {
         vds::mt_service::async(sp, [&data, stream, done, error, sp] {
           vds::dataflow(
-            vds::stream_read<uint8_t>(stream),
+            vds::stream_read<vds::continuous_stream<uint8_t >> (stream),
             compare_data<uint8_t>(data.data(), data.size())
           )(done, error, sp);
         });

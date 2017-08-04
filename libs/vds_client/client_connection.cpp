@@ -14,8 +14,8 @@ vds::client_connection::client_connection(const std::string & address, int port,
   client_certificate_(client_certificate),
   client_private_key_(client_private_key),
   state_(STATE::NONE),
-  incoming_stream_(new async_stream<std::shared_ptr<http_message>>()),
-  outgoing_stream_(new async_stream<std::shared_ptr<json_value>>())
+  incoming_stream_(new continuous_stream<std::shared_ptr<http_message>>()),
+  outgoing_stream_(new continuous_stream<std::shared_ptr<json_value>>())
 {
 }
 
@@ -49,7 +49,7 @@ void vds::client_connection::connect(const service_provider & sp)
         [this, s, client_crypto_tunnel](const std::function<void(const service_provider & sp)> & done, const error_handler & on_error, const service_provider & sp) {
       dataflow(
         read_tcp_network_socket(s, this->cancellation_source_.token()),
-        stream_write<uint8_t>(client_crypto_tunnel->crypted_input())
+        stream_write<continuous_stream<uint8_t>>(client_crypto_tunnel->crypted_input())
       )([done](const service_provider & sp) {
         sp.get<logger>()->debug(sp, "Client crypted input closed");
         done(sp);
@@ -63,7 +63,7 @@ void vds::client_connection::connect(const service_provider & sp)
       create_async_task(
         [this, s, client_crypto_tunnel](const std::function<void(const service_provider & sp)> & done, const error_handler & on_error, const service_provider & sp) {
       dataflow(
-        stream_read<uint8_t>(client_crypto_tunnel->crypted_output()),
+        stream_read<continuous_stream<uint8_t>>(client_crypto_tunnel->crypted_output()),
         write_tcp_network_socket(s, this->cancellation_source_.token())
       )([done](const service_provider & sp) {
         sp.get<logger>()->debug(sp, "Client crypted output closed");
@@ -77,10 +77,10 @@ void vds::client_connection::connect(const service_provider & sp)
       create_async_task(
         [this, s, client_crypto_tunnel](const std::function<void(const service_provider & sp)> & done, const error_handler & on_error, const service_provider & sp) {
       dataflow(
-        stream_read<std::shared_ptr<json_value>>(this->outgoing_stream_),
+        stream_read<continuous_stream<std::shared_ptr<json_value>>>(this->outgoing_stream_),
         json_to_http_channel("POST", "/vds/client_api"),
         http_serializer(),
-        stream_write<uint8_t>(client_crypto_tunnel->decrypted_input())
+        stream_write<continuous_stream<uint8_t>>(client_crypto_tunnel->decrypted_input())
       )(
         [done](const service_provider & sp) {
         sp.get<logger>()->debug(sp, "Client writer closed");
@@ -96,7 +96,7 @@ void vds::client_connection::connect(const service_provider & sp)
       create_async_task(
         [this, s, client_crypto_tunnel](const std::function<void(const service_provider & sp)> & done, const error_handler & on_error, const service_provider & sp) {
       dataflow(
-        stream_read<uint8_t>(client_crypto_tunnel->decrypted_output()),
+        stream_read<continuous_stream<uint8_t>>(client_crypto_tunnel->decrypted_output()),
         http_parser(
           [this, s, done, on_error](const service_provider & sp, const std::shared_ptr<http_message> & request) {
             

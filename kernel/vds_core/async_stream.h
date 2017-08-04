@@ -14,11 +14,13 @@ All rights reserved
 
 namespace vds {
 
-  template <typename item_type>
-  class async_stream
+  template <typename item_t>
+  class continuous_stream
   {
   public:
-    async_stream()
+    using item_type = item_t;
+
+    continuous_stream()
       : second_(0), front_(0), back_(0), eof_(false)
     {
     }
@@ -77,10 +79,7 @@ namespace vds {
         const error_handler & on_error,
         const service_provider & sp){
         this->write_all_async(sp, p.get(), 1).wait(
-          [p, this, done](const service_provider & sp){
-            this->in_mutex_.unlock();
-            done(sp);            
-          },
+          done,
           on_error,
           sp);
       });
@@ -221,7 +220,7 @@ namespace vds {
         });
       }
       else {
-        this->continue_write_ = std::bind(&async_stream::continue_write, this, sp, done, data, data_size);
+        this->continue_write_ = std::bind(&continuous_stream::continue_write, this, sp, done, data, data_size);
       }
     }
     
@@ -279,21 +278,84 @@ namespace vds {
         });
       }
       else {
-        this->continue_read_ = std::bind(&async_stream::continue_read, this, sp, done, buffer, buffer_size);
+        this->continue_read_ = std::bind(&continuous_stream::continue_read, this, sp, done, buffer, buffer_size);
       }
     }
   };
-  
-  template <typename item_type>
+
+  template <typename item_t>
+  class async_stream
+  {
+  public:
+    using item_type = item_t;
+    async_stream()
+      : ready_to_data_(true)
+    {
+    }
+
+    void write(const service_provider & sp, const item_type & data)
+    {
+      std::unique_lock<std::mutex> lock(this->data_mutex_);
+      while (!this->ready_to_data_) {
+        this->data_barier_.wait(lock);
+      }
+
+      this->ready_to_data_ = false;
+      this->data_.write_value_async(sp, data).wait(
+        [this](const service_provider & sp) {
+          std::unique_lock<std::mutex> lock(this->data_mutex_);
+          this->ready_to_data_ = true;
+          this->data_barier_.notify_one();
+        },
+        [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+          sp.unhandled_exception(ex);
+        },
+        sp);
+    }
+
+    async_task<size_t> write_async(const service_provider & sp, const item_type * data, size_t data_size)
+    {
+      std::unique_lock<std::mutex> lock(this->data_mutex_);
+      while (!this->ready_to_data_) {
+        this->data_barier_.wait(lock);
+      }
+
+      this->ready_to_data_ = false;
+
+      return this->data_.write_async(sp, data, data_size).then(
+        [this](const std::function<void(const vds::service_provider & sp, size_t)> & done,
+          const vds::error_handler & on_error,
+          const vds::service_provider & sp,
+          size_t readed) {
+          std::unique_lock<std::mutex> lock(this->data_mutex_);
+          this->ready_to_data_ = true;
+          this->data_barier_.notify_one();
+          done(sp, readed);
+        });
+    }
+
+
+    async_task<size_t /*readed*/> read_async(const service_provider & sp, item_type * buffer, size_t buffer_size)
+    {
+      return this->data_.read_async(sp, buffer, buffer_size);
+    }
+  private:
+    bool ready_to_data_;
+    std::condition_variable data_barier_;
+    std::mutex data_mutex_;
+    continuous_stream<item_type> data_;
+  };
+
+  template <typename stream_type>
   class stream_read
   {
   public:
-    stream_read(const std::shared_ptr<async_stream<item_type>> & stream)
+    stream_read(const std::shared_ptr<stream_type> & stream)
     : stream_(stream)
     {
     }
-    
-    using outgoing_item_type = item_type;
+
+    typedef typename stream_type::item_type outgoing_item_type;
     static constexpr size_t BUFFER_SIZE = 1024;
     static constexpr size_t MIN_BUFFER_SIZE = 1;
 
@@ -316,7 +378,7 @@ namespace vds {
       }
       
     private:
-      std::shared_ptr<async_stream<item_type>> stream_;
+      std::shared_ptr<stream_type> stream_;
       
       void continue_get_data(const service_provider & sp)
       {
@@ -336,19 +398,19 @@ namespace vds {
     
     
   private:
-    std::shared_ptr<async_stream<item_type>> stream_;
+    std::shared_ptr<stream_type> stream_;
   };
   
-  template <typename item_type>
+  template <typename stream_type>
   class stream_write
   {
   public:
-    stream_write(const std::shared_ptr<async_stream<item_type>> & stream)
+    stream_write(const std::shared_ptr<stream_type> & stream)
     : stream_(stream)
     {
     }
     
-    using incoming_item_type = item_type;
+    typedef typename stream_type::item_type incoming_item_type;
     static constexpr size_t BUFFER_SIZE = 1024;
     static constexpr size_t MIN_BUFFER_SIZE = 1;
 
@@ -371,7 +433,7 @@ namespace vds {
       }
       
     private:
-      std::shared_ptr<async_stream<item_type>> stream_;
+      std::shared_ptr<stream_type> stream_;
       
       void continue_push_data(const service_provider & sp)
       {
@@ -391,7 +453,7 @@ namespace vds {
     
     
   private:
-    std::shared_ptr<async_stream<item_type>> stream_;
+    std::shared_ptr<stream_type> stream_;
   };
  
 }

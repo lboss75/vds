@@ -65,7 +65,7 @@ namespace vds {
     udp_socket();
     ~udp_socket();
 
-    std::shared_ptr<async_stream<udp_datagram>> incoming();
+    std::shared_ptr<continuous_stream<udp_datagram>> incoming();
     std::shared_ptr<async_stream<udp_datagram>> outgoing();
 
     void close();

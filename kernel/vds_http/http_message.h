@@ -17,7 +17,7 @@ namespace vds {
   {
   public:
     http_message(const std::list<std::string> & headers)
-    : headers_(headers), body_(std::make_shared<async_stream<uint8_t>>())
+    : headers_(headers), body_(std::make_shared<continuous_stream<uint8_t>>())
     {
     }
 
@@ -27,13 +27,13 @@ namespace vds {
 
     bool get_header(const std::string & name, std::string & value);
     
-    std::shared_ptr<async_stream<uint8_t>> & body() {
+    std::shared_ptr<continuous_stream<uint8_t>> & body() {
       return this->body_;
     }
 
   private:
     std::list<std::string> headers_;
-    std::shared_ptr<async_stream<uint8_t>> body_;
+    std::shared_ptr<continuous_stream<uint8_t>> body_;
   };
 }
 #endif // __VDS_HTTP_HTTP_MESSAGE_H_

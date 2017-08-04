@@ -24,11 +24,11 @@ namespace vds {
     
     bool is_client() const;
 
-    std::shared_ptr<async_stream<uint8_t>> crypted_input();
-    std::shared_ptr<async_stream<uint8_t>> crypted_output();
+    std::shared_ptr<continuous_stream<uint8_t>> crypted_input();
+    std::shared_ptr<continuous_stream<uint8_t>> crypted_output();
 
-    std::shared_ptr<async_stream<uint8_t>> decrypted_input();
-    std::shared_ptr<async_stream<uint8_t>> decrypted_output();
+    std::shared_ptr<continuous_stream<uint8_t>> decrypted_input();
+    std::shared_ptr<continuous_stream<uint8_t>> decrypted_output();
 
     void start(const service_provider & sp);
     certificate get_peer_certificate() const;

@@ -124,7 +124,6 @@ namespace vds {
       _connection_manager * owner_;
       udp_server server_;
       
-      std::mutex s_out_mutex_;
       udp_socket s_;
       timer process_timer_;
 

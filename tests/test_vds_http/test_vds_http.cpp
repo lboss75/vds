@@ -47,7 +47,7 @@ TEST(http_tests, test_server)
     "127.0.0.1",
     8000,
     [&router](const vds::service_provider & sp, const vds::tcp_network_socket & s) {
-    auto stream = std::make_shared<vds::async_stream<std::shared_ptr<vds::http_message>>>();
+    auto stream = std::make_shared<vds::continuous_stream<std::shared_ptr<vds::http_message>>>();
     vds::cancellation_token_source cancellation;
     vds::async_series(
       vds::create_async_task(
@@ -76,7 +76,7 @@ TEST(http_tests, test_server)
       vds::create_async_task(
         [s, stream, &cancellation](const std::function<void(const vds::service_provider & sp)> & done, const vds::error_handler & on_error, const vds::service_provider & sp) {
       vds::dataflow(
-        vds::stream_read<std::shared_ptr<vds::http_message>>(stream),
+        vds::stream_read<vds::continuous_stream<std::shared_ptr<vds::http_message>>>(stream),
         vds::http_serializer(),
         vds::write_tcp_network_socket(s, cancellation.token())
       )(done, on_error, sp);
@@ -159,7 +159,7 @@ TEST(http_tests, test_server)
         response = request;
         auto data = std::make_shared<std::vector<uint8_t>>();
         vds::dataflow(
-          vds::stream_read<uint8_t>(response->body()),
+          vds::stream_read<vds::continuous_stream<uint8_t>>(response->body()),
           vds::collect_data(*data)
         )(
           [data, &answer, s, done, &cancellation](const vds::service_provider & sp) {
