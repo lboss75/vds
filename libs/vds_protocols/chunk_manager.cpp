@@ -195,20 +195,22 @@ void vds::_chunk_manager::set_next_index(const service_provider & sp, uint64_t n
 void vds::_chunk_manager::start(const service_provider & sp)
 {
   auto server_id = sp.get<istorage_log>()->current_server_id();
-  database_transaction_scope scope(sp, *(*sp.get<iserver_database>())->get_db());
+  (*sp.get<iserver_database>())->get_db()->sync_transaction(sp,
+    [this, sp, server_id](database_transaction & t){
 
-  this->last_chunk_ = this->get_last_chunk(
-    sp,
-    scope.transaction(),
-    server_id);
-  
-  this->tail_chunk_index_ = this->get_tail_chunk(
-    sp,
-    scope.transaction(),
-    server_id,
-    this->tail_chunk_size_);
+    this->last_chunk_ = this->get_last_chunk(
+      sp,
+      t,
+      server_id);
+    
+    this->tail_chunk_index_ = this->get_tail_chunk(
+      sp,
+      t,
+      server_id,
+      this->tail_chunk_size_);
 
-  scope.commit();
+    return true;
+  });
 }
 
 void vds::_chunk_manager::stop(const service_provider & sp)

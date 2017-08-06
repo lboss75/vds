@@ -181,12 +181,23 @@ namespace vds {
     }
   };
 
-  class _database_transaction : public std::enable_shared_from_this<_database_transaction>
+
+  class _database
   {
   public:
-    _database_transaction(const service_provider & sp, const filename & database_file)
-    : sp_(sp), db_(nullptr)
+    _database()
+    : sp_(service_provider::empty()), db_(nullptr)
     {
+    }
+
+    ~_database()
+    {
+      this->close();
+    }
+    
+    void open(const service_provider & sp, const filename & database_file)
+    {
+      this->sp_ = sp;
       auto error = sqlite3_open(database_file.local_name().c_str(), &this->db_);
 
       if (SQLITE_OK != error) {
@@ -197,14 +208,6 @@ namespace vds {
       if (SQLITE_OK != error) {
         throw std::runtime_error(sqlite3_errmsg(this->db_));
       }
-
-      START_DEBUG_TASK(_database_transaction_debug, sp.full_name());
-    }
-
-    ~_database_transaction()
-    {
-      FINISH_DEBUG_TASK(_database_transaction_debug, this->sp_.full_name());
-      this->close();
     }
 
     void close()
@@ -242,116 +245,82 @@ namespace vds {
       return sql_statement(new _sql_statement(this->db_, sql));
     }
 
+    void async_transaction(
+      const service_provider & sp,
+      const std::function<bool(database_transaction & tr)> & callback)
+    {
+      mt_service::async(sp, [this, sp, callback](){
+        this->callbacks_mutex_.lock();
+        this->callbacks_.push_back(callback);
+        if(1 < callbacks_.size()){
+          this->callbacks_mutex_.unlock();
+          return;
+        }
+        
+        for(;;){
+          auto & head = *this->callbacks_.begin();
+          this->callbacks_mutex_.unlock();
+          
+          this->transaction_mutex_.lock();
+          try{
+            
+            this->execute("BEGIN TRANSACTION");
+            
+            database_transaction tr(this);
+            if(head(tr)){
+              this->execute("COMMIT TRANSACTION");
+            }
+            else {
+              this->execute("ROLLBACK TRANSACTION");
+            }
+          }
+          catch(...){
+            this->execute("ROLLBACK TRANSACTION");
+          }
+          this->transaction_mutex_.unlock();
+          
+          this->callbacks_mutex_.lock();
+          this->callbacks_.pop_front();
+          
+          if(0 == this->callbacks_.size()){
+            this->callbacks_mutex_.unlock();
+            return;
+          }
+        }
+      });
+    }
+    
+    void sync_transaction(
+      const service_provider & sp,
+      const std::function<bool(database_transaction & tr)> & callback)
+    {
+      std::unique_lock<std::mutex> lock(this->transaction_mutex_);
+        
+      try{
+        
+        this->execute("BEGIN TRANSACTION");
+        
+        database_transaction tr(this);
+        if(callback(tr)){
+          this->execute("COMMIT TRANSACTION");
+        }
+        else {
+          this->execute("ROLLBACK TRANSACTION");
+        }
+      }
+      catch(...){
+        this->execute("ROLLBACK TRANSACTION");
+      }
+    }
+
   private:
     service_provider sp_;
-    sqlite3 * db_;    
-  };
-
-  DECLARE_DEBUG_TASK(_database_commit_task)
-  class _database
-  {
-  public:
-    static const size_t MAX_CONNECTION_POOL = 0;
-
-    _database()
-      : is_closed_(true)
-    {
-    }
-
-    ~_database()
-    {
-      this->close();
-    }
-
-    void open(const filename & fn)
-    {
-      if (!this->is_closed_) {
-        throw std::runtime_error("Attempted to open a database that is already open");
-      }
-
-      this->database_file_ = fn;
-      this->is_closed_ = false;
-    }
-
-    void close()
-    {
-      if (!this->is_closed_) {
-        std::lock_guard<std::mutex> lock(this->pool_mutex_);
-
-        while (!this->connection_pool_.empty()) {
-          this->connection_pool_.pop_front();
-        }
-
-        this->is_closed_ = true;
-      }
-    }
-
-    database_transaction begin_transaction(const service_provider & sp)
-    {
-      if (this->is_closed_) {
-        throw std::runtime_error("Database is not opened");
-      }
-
-      auto result = this->create_transaction(sp);
-      result.execute("BEGIN TRANSACTION");
-      return result;
-    }
-
-    void commit(database_transaction & t)
-    {
-      try {
-        t.execute("COMMIT TRANSACTION");
-      }
-      catch (...) {
-        this->free_transaction(t);
-        throw;
-      }
-
-      this->free_transaction(t);
-    }
-
-    void rollback(database_transaction & t)
-    {
-      try {
-        t.execute("ROLLBACK TRANSACTION");
-      }
-      catch (...) {
-        this->free_transaction(t);
-        throw;
-      }
-
-      this->free_transaction(t);
-    }
-
-  private:
     filename database_file_;
-    bool is_closed_;
+    sqlite3 * db_;    
+    std::mutex transaction_mutex_;
+    std::mutex callbacks_mutex_;
+    std::list<std::function<bool(database_transaction & tr)>> callbacks_;
 
-    std::mutex pool_mutex_;
-    std::list<std::shared_ptr<_database_transaction>> connection_pool_;
-
-    database_transaction create_transaction(const service_provider & sp)
-    {
-      this->pool_mutex_.lock();
-      if (!this->connection_pool_.empty()) {
-        database_transaction result(this->connection_pool_.front());
-        this->connection_pool_.pop_front();
-        this->pool_mutex_.unlock();
-
-        return result;
-      }
-
-      this->pool_mutex_.unlock();
-      return database_transaction(std::make_shared<_database_transaction>(sp, this->database_file_));
-    }
-
-    void free_transaction(database_transaction & t)
-    {
-      std::lock_guard<std::mutex> lock(this->pool_mutex_);
-      if (!this->is_closed_ && MAX_CONNECTION_POOL > this->connection_pool_.size()) {
-        this->connection_pool_.push_back(t.impl_);
-      }
-    }
   };
 
   inline void dump_commands()

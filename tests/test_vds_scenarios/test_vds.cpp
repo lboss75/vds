@@ -29,6 +29,10 @@ TEST(test_vds, test_initial)
 
     mock.upload_file(3, "test data", buffer.get(), len);
     
+    std::cout << "Download local file...\n";
+
+    auto result1 = mock.download_data(3, "test data");
+
     //Waiting to sync logs
     mock.sync_wait();
     std::cout << "Download file...\n";
@@ -37,6 +41,9 @@ TEST(test_vds, test_initial)
 
     mock.stop();
 
+    ASSERT_EQ(len, result1.size());
+    ASSERT_EQ(memcmp(buffer.get(), result1.data(), len), 0);
+    
     ASSERT_EQ(len, result.size());
     ASSERT_EQ(memcmp(buffer.get(), result.data(), len), 0);
   }

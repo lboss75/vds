@@ -8,6 +8,10 @@ All rights reserved
 #include "shutdown_event.h"
 #include "barrier.h"
 
+#include <thread>
+#include <sys/syscall.h>
+#include <sys/types.h>
+
 vds::mt_service::mt_service()
 {
 }
@@ -94,6 +98,8 @@ void vds::_mt_service::async(const std::function<void(void)> & handler)
 
 void vds::_mt_service::work_thread()
 {
+  auto thread_id = syscall(SYS_gettid);
+
   while(!this->sp_.get_shutdown_event().is_shuting_down()){
     std::function<void(void)> handler;
     {

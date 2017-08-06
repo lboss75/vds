@@ -44,6 +44,7 @@ namespace vds {
           this->state_ = StateEnum::STATE_BODY;
 
           auto message = this->input_buffer(0);
+          this->buffer_mutex_.lock();
           mt_service::async(sp, [this, sp, message]() {
 
             std::stringstream stream;
@@ -53,6 +54,7 @@ namespace vds {
             stream << "\n";
 
             auto data = std::make_shared<std::string>(stream.str());
+            //std::cout << this << "->http_serializer::async_process_data " << syscall(SYS_gettid) << *data << ": lock\n";
             this->buffer_.write_all_async(sp, (const uint8_t *)data->c_str(), data->length()).wait(
               [this, data, message](const service_provider & sp) {
               auto buffer = std::make_shared<std::vector<uint8_t>>(1024);
@@ -77,6 +79,7 @@ namespace vds {
       };
       StateEnum state_;
       continuous_stream<uint8_t> buffer_;
+      not_mutex buffer_mutex_;
 
       void write_body(
         const service_provider & sp,
@@ -87,6 +90,7 @@ namespace vds {
           .wait(
             [this, message, buffer](const service_provider & sp, size_t readed) {
           if (0 < readed) {
+            //std::cout << this << "->http_serializer::write_body " << syscall(SYS_gettid) << "." << readed << ": lock\n";
             this->buffer_.write_all_async(sp, buffer->data(), readed).wait(
               [this, message, buffer](const service_provider & sp) {
               this->write_body(sp, message, buffer);
@@ -122,6 +126,7 @@ namespace vds {
           else {
             this->state_ = StateEnum::STATE_BOF;
             this->buffer_.reset();
+            this->buffer_mutex_.unlock();
             if (this->processed(sp, 1, 0)) {
               this->async_process_data(sp);
             }

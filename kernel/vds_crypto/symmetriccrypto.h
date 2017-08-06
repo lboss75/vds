@@ -44,15 +44,16 @@ namespace vds {
     symmetric_key(const symmetric_crypto_info & crypto_info, binary_deserializer & s);
     symmetric_key(const symmetric_crypto_info & crypto_info, binary_deserializer && s);
     symmetric_key(const symmetric_key & origin);
+    ~symmetric_key();
     
     void generate();
     
     const unsigned char * key() const {
-      return this->key_.get();
+      return this->key_;
     }
     
     const unsigned char * iv() const {
-      return this->iv_.get();
+      return this->iv_;
     }
 
     void serialize(binary_serializer & s) const;
@@ -66,8 +67,8 @@ namespace vds {
     friend class _symmetric_decrypt;
     
     const symmetric_crypto_info & crypto_info_;
-    std::unique_ptr<unsigned char> key_;
-    std::unique_ptr<unsigned char> iv_;
+    unsigned char * key_;
+    unsigned char * iv_;
   };
   
   class symmetric_encrypt

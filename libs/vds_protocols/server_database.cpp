@@ -56,60 +56,63 @@ void vds::_server_database::start(const service_provider & sp)
 
   if (!file::exists(db_filename)) {
     db_version = 0;
-    this->db_.open(db_filename);
+    this->db_.open(sp, db_filename);
   }
   else {
-    this->db_.open(db_filename);
+    this->db_.open(sp, db_filename);
     
-    auto t = this->db_.begin_transaction(sp);
-    auto st = t.parse("SELECT version FROM module WHERE id='kernel'");
-    if(!st.execute()){
-      throw std::runtime_error("Database has been corrupted");
+    this->db_.sync_transaction(sp, [&db_version](database_transaction & t){
+      auto st = t.parse("SELECT version FROM module WHERE id='kernel'");
+      if(!st.execute()){
+        throw std::runtime_error("Database has been corrupted");
+      }
+      
+      st.get_value(0, db_version);
+      
+      return true;
+    });
+  }
+
+  this->db_.sync_transaction(sp, [sp, db_version](database_transaction & t){
+    
+    if (1 > db_version) {
+      
+      t.execute("CREATE TABLE module(\
+      id VARCHAR(64) PRIMARY KEY NOT NULL,\
+      version INTEGER NOT NULL,\
+      installed DATETIME NOT NULL)");
+
+
+      t.execute(
+        "CREATE TABLE object(\
+        object_id VARCHAR(64) NOT NULL,\
+        length INTEGER NOT NULL,\
+        meta_info BLOB NOT NULL,\
+        CONSTRAINT pk_objects PRIMARY KEY (object_id))");
+
+      t.execute(
+        "CREATE TABLE endpoint(\
+        endpoint_id VARCHAR(64) PRIMARY KEY NOT NULL,\
+        addresses TEXT NOT NULL)");
+      
+      t.execute(
+        "CREATE TABLE network_route(\
+        source_server_id VARCHAR(64) NOT NULL,\
+        target_server_id VARCHAR(64) NOT NULL,\
+        address VARCHAR(64) NOT NULL,\
+        is_incomming BOOLEAN,\
+        last_access DATETIME NOT NULL,\
+        CONSTRAINT pk_network_route PRIMARY KEY (source_server_id,target_server_id,address,is_incomming))");
+
+      t.execute("INSERT INTO module(id, version, installed) VALUES('kernel', 1, datetime('now'))");
+      t.execute("INSERT INTO endpoint(endpoint_id, addresses) VALUES('default', 'udp://127.0.0.1:8050;https://127.0.0.1:8050')");
     }
     
-    st.get_value(0, db_version);
-    this->db_.commit(t);
-  }
-
-  auto t = this->db_.begin_transaction(sp);
-  
-  if (1 > db_version) {
+    _storage_log::create_database_objects(sp, db_version, t);
+    _chunk_manager::create_database_objects(sp, db_version, t);
     
-    t.execute("CREATE TABLE module(\
-    id VARCHAR(64) PRIMARY KEY NOT NULL,\
-    version INTEGER NOT NULL,\
-    installed DATETIME NOT NULL)");
-
-
-    t.execute(
-      "CREATE TABLE object(\
-      object_id VARCHAR(64) NOT NULL,\
-      length INTEGER NOT NULL,\
-      meta_info BLOB NOT NULL,\
-      CONSTRAINT pk_objects PRIMARY KEY (object_id))");
-
-    t.execute(
-      "CREATE TABLE endpoint(\
-      endpoint_id VARCHAR(64) PRIMARY KEY NOT NULL,\
-      addresses TEXT NOT NULL)");
-    
-    t.execute(
-      "CREATE TABLE network_route(\
-      source_server_id VARCHAR(64) NOT NULL,\
-      target_server_id VARCHAR(64) NOT NULL,\
-      address VARCHAR(64) NOT NULL,\
-      is_incomming BOOLEAN,\
-      last_access DATETIME NOT NULL,\
-      CONSTRAINT pk_network_route PRIMARY KEY (source_server_id,target_server_id,address,is_incomming))");
-
-    t.execute("INSERT INTO module(id, version, installed) VALUES('kernel', 1, datetime('now'))");
-    t.execute("INSERT INTO endpoint(endpoint_id, addresses) VALUES('default', 'udp://127.0.0.1:8050;https://127.0.0.1:8050')");
-  }
-  
-  _storage_log::create_database_objects(sp, db_version, t);
-  _chunk_manager::create_database_objects(sp, db_version, t);
-  
-  this->db_.commit(t);
+    return true;
+  });
 }
 
 void vds::_server_database::stop(const service_provider & sp)

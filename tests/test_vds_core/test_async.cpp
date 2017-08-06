@@ -25,6 +25,7 @@ TEST(mt_tests, test_async) {
     {
       auto sp = registrator.build("test_async");
       registrator.start(sp);
+      vds::mt_service::enable_async(sp);
       
       vds::dataflow(
         test_async_object::source_method(obj),

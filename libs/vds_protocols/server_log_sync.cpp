@@ -126,9 +126,13 @@ void vds::_server_log_sync::require_unknown_records(
 bool vds::_server_log_sync::process_timer_jobs(
   const service_provider & sp)
 {
-  database_transaction_scope scope(sp, *(*sp.get<iserver_database>())->get_db());
-  this->require_unknown_records(sp, scope.transaction());
-  scope.commit();
+  auto scope = sp.create_scope("Server log sync timer jobs");
+  mt_service::enable_async(scope);
+  (*sp.get<iserver_database>())->get_db()->async_transaction(scope,
+    [this, scope](database_transaction & t) {
+    this->require_unknown_records(scope, t);
+    return true;
+  });
   return true;
 }
 

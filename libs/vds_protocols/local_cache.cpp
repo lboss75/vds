@@ -69,33 +69,34 @@ vds::async_task<vds::server_task_manager::task_state> vds::_local_cache::downloa
     const std::function<void(const service_provider & sp, server_task_manager::task_state state)> & done,
     const error_handler & on_error,
     const service_provider & sp) {
-    database_transaction_scope tr(sp, *(*sp.get<iserver_database>())->get_db());
+    (*sp.get<iserver_database>())->get_db()->async_transaction(sp,
+      [sp, version_id, done](database_transaction & tr){
     
-    auto chunk_manager = sp.get<ichunk_manager>();
-    std::list<ichunk_manager::object_chunk_map> object_map;
-    chunk_manager->get_object_map(sp, tr.transaction(), version_id, object_map);
-    
-    size_t downloaded_data = 0;
-    size_t total_data = 0;
+        auto chunk_manager = sp.get<ichunk_manager>();
+        std::list<ichunk_manager::object_chunk_map> object_map;
+        chunk_manager->get_object_map(sp, tr, version_id, object_map);
+        
+        size_t downloaded_data = 0;
+        size_t total_data = 0;
 
-    for(auto & p : object_map) {
-      (*chunk_manager)->query_object_chunk(
-        sp,
-        tr.transaction(),
-        p.server_id,
-        p.chunk_index,
-        downloaded_data,
-        total_data);
-    }
-    
-    tr.commit();
-    
-    done(sp, server_task_manager::task_state {
-      (total_data == downloaded_data) ? server_task_manager::task_status::DONE : server_task_manager::task_status::IN_PROGRESS,
-      "Downloading data...",
-      (int)(100 * downloaded_data / total_data),
-      std::chrono::system_clock::now(),
-      std::chrono::system_clock::now()
-    });
+        for(auto & p : object_map) {
+          (*chunk_manager)->query_object_chunk(
+            sp,
+            tr,
+            p.server_id,
+            p.chunk_index,
+            downloaded_data,
+            total_data);
+        }
+        
+        done(sp, server_task_manager::task_state {
+          (total_data == downloaded_data) ? server_task_manager::task_status::DONE : server_task_manager::task_status::IN_PROGRESS,
+          "Downloading data...",
+          (int)(100 * downloaded_data / total_data),
+          std::chrono::system_clock::now(),
+          std::chrono::system_clock::now()
+        });
+        return true;
+      });
   });
 }

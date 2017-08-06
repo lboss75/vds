@@ -293,7 +293,7 @@ namespace vds {
     {
     }
 
-    void write(const service_provider & sp, const item_type & data)
+    async_task<> write_value_async(const service_provider & sp, const item_type & data)
     {
       std::unique_lock<std::mutex> lock(this->data_mutex_);
       while (!this->ready_to_data_) {
@@ -301,36 +301,61 @@ namespace vds {
       }
 
       this->ready_to_data_ = false;
-      this->data_.write_value_async(sp, data).wait(
-        [this](const service_provider & sp) {
-          std::unique_lock<std::mutex> lock(this->data_mutex_);
+      return this->data_.write_value_async(sp, data).then(
+        [this](const std::function<void(const service_provider & sp)> & done,
+          const vds::error_handler & on_error,
+          const vds::service_provider & sp) {
+          this->data_mutex_.lock();
           this->ready_to_data_ = true;
           this->data_barier_.notify_one();
-        },
-        [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-          sp.unhandled_exception(ex);
-        },
-        sp);
+          this->data_mutex_.unlock();
+          
+          done(sp);
+        });
     }
 
     async_task<size_t> write_async(const service_provider & sp, const item_type * data, size_t data_size)
     {
       std::unique_lock<std::mutex> lock(this->data_mutex_);
       while (!this->ready_to_data_) {
-        this->data_barier_.wait(lock);
+        this->data_barier_.wait_for(lock, std::chrono::microseconds(100));
       }
 
       this->ready_to_data_ = false;
 
       return this->data_.write_async(sp, data, data_size).then(
-        [this](const std::function<void(const vds::service_provider & sp, size_t)> & done,
+        [this](const std::function<void(const service_provider & sp, size_t)> & done,
           const vds::error_handler & on_error,
           const vds::service_provider & sp,
           size_t readed) {
-          std::unique_lock<std::mutex> lock(this->data_mutex_);
+          this->data_mutex_.lock();
           this->ready_to_data_ = true;
           this->data_barier_.notify_one();
+          this->data_mutex_.unlock();
+          
           done(sp, readed);
+        });
+    }
+    
+    async_task<> write_all_async(const service_provider & sp, const item_type * data, size_t data_size)
+    {
+      std::unique_lock<std::mutex> lock(this->data_mutex_);
+      while (!this->ready_to_data_) {
+        this->data_barier_.wait_for(lock, std::chrono::microseconds(100));
+      }
+
+      this->ready_to_data_ = false;
+
+      return this->data_.write_all_async(sp, data, data_size).then(
+        [this](const std::function<void(const service_provider & sp)> & done,
+          const vds::error_handler & on_error,
+          const vds::service_provider & sp) {
+          this->data_mutex_.lock();
+          this->ready_to_data_ = true;
+          this->data_barier_.notify_one();
+          this->data_mutex_.unlock();
+          
+          done(sp);
         });
     }
 

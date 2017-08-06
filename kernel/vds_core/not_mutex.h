@@ -8,6 +8,11 @@ All rights reserved
 
 #include <mutex>
 #include <condition_variable>
+#include <thread>
+#include <iostream>
+#include <unistd.h>
+#include <sys/syscall.h>
+#include <sys/types.h>
 
 namespace vds {
   class not_mutex
@@ -23,10 +28,12 @@ namespace vds {
       std::unique_lock<std::mutex> lock(this->m_);
 
       if(this->is_locked_) {
+        std::cout << "This object owned by thread " << this->owner_id_ << "\n";
         throw std::runtime_error("Multithreading error");
       }
 
       this->is_locked_ = true;
+      this->owner_id_ = syscall(SYS_gettid);
     }
 
     void unlock()
@@ -43,6 +50,7 @@ namespace vds {
   private:
     std::mutex m_;
     bool is_locked_;
+    pid_t owner_id_;
   };
 }
 

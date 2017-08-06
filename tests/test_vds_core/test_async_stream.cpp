@@ -18,6 +18,8 @@ TEST(mt_tests, test_async_stream) {
 
   auto sp = registrator.build("test_async_stream");
   registrator.start(sp);
+  
+  vds::mt_service::enable_async(sp);
 
   random_buffer data;
   auto stream = std::make_shared<vds::continuous_stream<uint8_t>>();

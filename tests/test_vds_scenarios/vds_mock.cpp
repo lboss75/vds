@@ -240,8 +240,8 @@ void mock_client::upload_file(
           b.set(); 
         },
         [&b](const vds::service_provider&sp, const std::shared_ptr<std::exception> & ex) {
-          sp.unhandled_exception(ex);
           b.set();
+          sp.unhandled_exception(ex);
         },
         sp);
 

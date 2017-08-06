@@ -2,7 +2,6 @@
 #define __VDS_CORE_DATAFLOW_H_
 
 #include <set>
-#include "cancellation_token.h"
 #include "shutdown_event.h"
 #include "service_provider.h"
 
@@ -133,7 +132,7 @@ namespace vds {
       this->common_data_->step_error(sp, context_type::INDEX, ex);
     }
   };
-
+  
   template <typename context_type, typename implementation_type>
   class sync_dataflow_filter
   {
@@ -148,9 +147,6 @@ namespace vds {
       : source_(context.source_),
       target_(context.target_),
       common_data_(context.common_data_),
-      final_data_(false),
-      waiting_get_data_(true),
-      waiting_push_data_(false),
       input_buffer_(nullptr),
       output_buffer_(nullptr)
     {
@@ -162,26 +158,13 @@ namespace vds {
       size_t buffer_size,
       size_t & written)
     {
-      if (!this->waiting_get_data_) {
-        throw std::runtime_error("Logic error 3");
-      }
-      
-      this->waiting_get_data_ = false;
-
       this->output_buffer_ = buffer;
       this->output_buffer_size_ = buffer_size;
 
-      if (this->waiting_push_data_) {
-        return false;
-      }
-      
       if (nullptr == this->input_buffer_) {
-        this->waiting_push_data_ = true;
-        if (!this->source_->start(sp, this->input_buffer_, this->input_buffer_size_)) {
+        if (!this->source_->get_data(sp, this->input_buffer_, this->input_buffer_size_)) {
           return false;
         }
-        this->waiting_push_data_ = false;
-        this->readed_ = 0;
 
         if (0 == this->input_buffer_size_) {
           written = 0;
@@ -189,22 +172,12 @@ namespace vds {
         }
       }
 
-      if (this->common_data_->cancellation_token_.is_cancellation_requested()) {
-        this->source_->continue_read(sp, 0, this->input_buffer_, this->input_buffer_size_);
-        this->final_data_ = true;
-        this->common_data_->step_finish(sp, context_type::INDEX);
-        return false;
-      }
-
       for (;;) {
 
-        if (0 == this->input_buffer_size_ && 0 < this->readed_) {
-          this->waiting_push_data_ = true;
-          if (!this->source_->continue_read(sp, this->readed_, this->input_buffer_, this->input_buffer_size_)) {
+        if (0 == this->input_buffer_size_) {
+          if (!this->source_->get_data(sp, this->input_buffer_, this->input_buffer_size_)) {
             return false;
           }
-          this->waiting_push_data_ = false;
-          this->readed_ = 0;
         }
 
         size_t readed;
@@ -219,43 +192,32 @@ namespace vds {
           this->common_data_->step_error(sp, context_type::INDEX, std::make_shared<std::runtime_error>("Unhandled error"));
           return false;
         }
-
-        if (0 < written) {
+        
+        if(0 < readed){
           if (readed > this->input_buffer_size_) {
-            throw new std::runtime_error("Invalid login");
+            throw std::runtime_error("Invalid logic");
           }
+          
           this->input_buffer_ += readed;
           this->input_buffer_size_ -= readed;
-          this->readed_ += readed;
+          this->source_->readed(sp, readed);
+        }
 
-          if (this->waiting_get_data_) {
-            throw std::runtime_error("Logic error 4");
-          }
-
-          this->waiting_get_data_ = true;
+        if (0 < written) {
           return true;
         }
         else {
           if (0 == readed) {
             if (0 != this->input_buffer_size_) {
-              throw new std::runtime_error("Invalid login");
+              throw std::runtime_error("Invalid logic");
             }
 
-            this->final_data_ = true;
             if (this->common_data_->step_finish(sp, context_type::INDEX)) {
               return false;
             }
+            
             return true;
           }
-
-          this->waiting_push_data_ = true;
-          this->readed_ += readed;
-          if (!this->source_->continue_read(sp, this->readed_, this->input_buffer_, this->input_buffer_size_)) {
-            return false;
-          }
-
-          this->waiting_push_data_ = false;
-          this->readed_ = 0;
         }
       }
     }
@@ -266,36 +228,23 @@ namespace vds {
       size_t buffer_size,
       size_t & readed)
     {
-
-      if (!this->waiting_push_data_) {
-        throw std::runtime_error("Logic error 5");
-      }
-      this->waiting_push_data_ = false;
-
       this->input_buffer_ = buffer;
       this->input_buffer_size_ = buffer_size;
-      this->readed_ = 0;
-
-      if (this->waiting_get_data_) {
-        return false;
-      }
 
       size_t written;
       static_cast<implementation_type *>(this)->sync_process_data(sp, readed, written);
 
-
       if (0 < written) {
         if (readed > this->input_buffer_size_) {
-          throw new std::runtime_error("Invalid login");
+          throw std::runtime_error("Invalid login");
         }
       }
       else {
         if (0 == readed) {
           if (0 != this->input_buffer_size_) {
-            throw new std::runtime_error("Invalid login");
+            throw std::runtime_error("Invalid login");
           }
 
-          this->final_data_ = true;
           if (this->common_data_->step_finish(sp, context_type::INDEX)) {
             return false;
           }
@@ -303,16 +252,12 @@ namespace vds {
       }
 
       if (0 < written || 0 == readed) {
-        this->waiting_get_data_ = true;
         if (!this->target_->push_data(sp, written, this->output_buffer_, this->output_buffer_size_)) {
           return false;
         }
-
-        this->waiting_get_data_ = false;
       }
-
-      this->waiting_push_data_ = true;
-      return !this->final_data_;
+      
+      return true;
     }
 
     bool cancel(const service_provider & sp)
@@ -324,11 +269,6 @@ namespace vds {
     incoming_queue_type * source_;
     outgoing_queue_type * target_;
     typename context_type::common_data_type * common_data_;
-    size_t readed_;
-
-    bool final_data_;
-    bool waiting_get_data_;
-    bool waiting_push_data_;
 
     incoming_item_type * input_buffer_;
     size_t input_buffer_size_;
@@ -366,9 +306,6 @@ namespace vds {
       : source_(context.source_),
       target_(context.target_),
       common_data_(context.common_data_),
-      waiting_get_data_(true),
-      waiting_push_data_(false),
-      process_data_called_(false),
       input_buffer_(nullptr)
     {
     }
@@ -381,26 +318,14 @@ namespace vds {
       size_t buffer_size,
       size_t & readed)
     {
-      if (!this->waiting_get_data_) {
-        throw std::runtime_error("Logic error 6");
-      }
-
-      this->waiting_get_data_ = false;
-
       this->output_buffer_ = buffer;
       this->output_buffer_size_ = buffer_size;
 
-      if (this->waiting_push_data_ || this->process_data_called_) {
-        return false;
-      }
-
       if (nullptr == this->input_buffer_) {
-        this->waiting_push_data_ = true;
         this->readed_ = 0;
-        if (!this->source_->start(sp, this->input_buffer_, this->input_buffer_size_)) {
+        if (!this->source_->get_data(sp, this->input_buffer_, this->input_buffer_size_)) {
           return false;
         }
-        this->waiting_push_data_ = false;
       }
 
       if (0 == this->input_buffer_size_) {
@@ -408,7 +333,6 @@ namespace vds {
         return true;
       }
 
-      this->process_data_called_ = true;
       static_cast<implementation_type *>(this)->async_process_data(sp);
       return false;
     }
@@ -419,20 +343,10 @@ namespace vds {
       size_t buffer_size,
       size_t & written)
     {
-      if (!this->waiting_push_data_) {
-        throw std::runtime_error("Logic error 7");
-      }
-      this->waiting_push_data_ = false;
-
       this->input_buffer_ = buffer;
       this->input_buffer_size_ = buffer_size;
       this->readed_ = 0;
 
-      if (this->waiting_get_data_ || this->process_data_called_) {
-        return false;
-      }
-
-      this->process_data_called_ = true;
       static_cast<implementation_type *>(this)->async_process_data(sp);
 
       return false;
@@ -440,81 +354,94 @@ namespace vds {
     
     bool processed(const service_provider & sp, size_t readed, size_t written)
     {
-      if (this->waiting_get_data_) {
-        throw std::runtime_error("Logic error 8");
-      }
-      if (this->waiting_push_data_) {
-        throw std::runtime_error("Logic error 9");
-      }
-      
-      if (!this->process_data_called_) {
-        throw std::runtime_error("Logic error 10");
-      }
-      this->process_data_called_ = false;
-      
-      if (0 < readed) {
-        if (0 == written) {
-          this->waiting_push_data_ = true;
-          if (this->source_->continue_read(sp, this->readed_ + readed, this->input_buffer_, this->input_buffer_size_)) {
-            this->waiting_push_data_ = false;
-            this->readed_ = 0;
-          }
+      if(0 == written && 0 == readed) {
+        if (0 != this->input_buffer_size_) {
+          throw std::runtime_error("Logic error 13");
         }
-        else {
-          if (this->input_buffer_size_ < readed) {
-            throw std::runtime_error("Login error");
-          }
-
-          this->input_buffer_ += readed;
-          this->input_buffer_size_ -= readed;
-          this->readed_ += readed;
-
-          this->waiting_get_data_ = true;
-          if (this->target_->push_data(sp, written, this->output_buffer_, this->output_buffer_size_)) {
-            this->waiting_get_data_ = false;
-
-            if (0 == this->input_buffer_size_) {
-              if (this->waiting_push_data_) {
-                throw std::runtime_error("Logic error 12");
-              }
-
-              this->waiting_push_data_ = true;
-              if (this->source_->continue_read(sp, this->readed_, this->input_buffer_, this->input_buffer_size_)) {
-                this->waiting_push_data_ = false;
-                this->readed_ = 0;
-              }
-            }
-          }
+        
+        if (this->common_data_->step_finish(sp, context_type::INDEX)) {
+          return false;
         }
+        return true;
       }
-      else {
-        if (0 == written) {
-          if (0 != this->input_buffer_size_) {
-            throw std::runtime_error("Logic error 13");
-          }
+      else if (0 == written) {
+        if (this->input_buffer_size_ < readed) {
+          throw std::runtime_error("Login error");
+        }
+        
+        this->source_->readed(sp, readed);
 
+        this->input_buffer_ += readed;
+        this->input_buffer_size_ -= readed;
+        
+        if(!this->source_->get_data(sp, this->input_buffer_, this->input_buffer_size_)){
+          return false;
+        }
+        
+        if(0 == this->input_buffer_size_){
+          
           if (this->common_data_->step_finish(sp, context_type::INDEX)) {
             return false;
           }
-          this->waiting_push_data_ = true;
-        }
-
-        this->waiting_get_data_ = true;
-        if (this->target_->push_data(sp, written, this->output_buffer_, this->output_buffer_size_)) {
-          this->waiting_get_data_ = false;
+          
+          if (!this->target_->push_data(sp, 0, this->output_buffer_, this->output_buffer_size_)) {
+            return false;
+          }
+          
+          return true;
         }
         else {
+          return true;
+        }        
+      }
+      else {
+        if (0 < readed) {
+          if (this->input_buffer_size_ < readed) {
+            throw std::runtime_error("Login error");
+          }
+          
+          this->source_->readed(sp, readed);
+
+          this->input_buffer_ += readed;
+          this->input_buffer_size_ -= readed;
+        }
+        
+        if (!this->target_->push_data(sp, written, this->output_buffer_, this->output_buffer_size_)) {
+          return false;
+        }
+        
+        return this->source_->get_data(sp, this->input_buffer_, this->input_buffer_size_);
+      }
+      
+      if (0 < readed) {
+        if (this->input_buffer_size_ < readed) {
+          throw std::runtime_error("Login error");
+        }
+        
+        this->source_->readed(sp, readed);
+
+        this->input_buffer_ += readed;
+        this->input_buffer_size_ -= readed;
+      }
+      
+      if (!this->target_->push_data(sp, written, this->output_buffer_, this->output_buffer_size_)) {
+        return false;
+      }
+      
+      if (0 == written && 0 == readed) {
+        if (0 != this->input_buffer_size_) {
+          throw std::runtime_error("Logic error 13");
+        }
+        
+        if (this->common_data_->step_finish(sp, context_type::INDEX)) {
           return false;
         }
       }
-      
-      if(!this->waiting_get_data_ && !this->waiting_push_data_){
-        this->process_data_called_ = true;
-        return true;
-      }
       else {
-        return false;
+        return this->source_->get_data(sp, this->input_buffer_, this->input_buffer_size_);
       }
+      
+      return true;
     }
 
     bool cancel(const service_provider & sp)
@@ -526,10 +453,6 @@ namespace vds {
     incoming_queue_type * source_;
     outgoing_queue_type * target_;
     typename context_type::common_data_type * common_data_;
-
-    bool waiting_get_data_;
-    bool waiting_push_data_;
-    bool process_data_called_;
 
     size_t readed_;
 
@@ -564,7 +487,6 @@ namespace vds {
     sync_dataflow_target(const context_type & context)
       : source_(context.source_),
       common_data_(context.common_data_),
-      waiting_push_data_(false),
       input_buffer_(nullptr)
     {
     }
@@ -580,52 +502,33 @@ namespace vds {
       size_t count,
       size_t & written)
     {
-      if (!this->waiting_push_data_) {
-        throw std::runtime_error("Logic error 14");
-      }
-
-      this->waiting_push_data_ = false;
       this->input_buffer_ = values;
       this->input_buffer_size_ = count;
 
       written = static_cast<implementation_type *>(this)->sync_push_data(sp);
       if (0 == written && 0 == count) {
-        this->common_data_->step_finish(sp, context_type::INDEX);
-        return false;
+        return !this->common_data_->step_finish(sp, context_type::INDEX);
       }
-      this->waiting_push_data_ = true;
+      
       return true;
     }
 
     void start(const service_provider & sp)
     {
-      if (this->waiting_push_data_) {
-        throw std::runtime_error("Logic error 14");
-      }
-
-      if (nullptr == this->input_buffer_) {
-        this->waiting_push_data_ = true;
-        if (!this->source_->start(sp, this->input_buffer_, this->input_buffer_size_)) {
+      for(;;) {
+        if (!this->source_->get_data(sp, this->input_buffer_, this->input_buffer_size_)) {
           return;
         }
         
-        this->waiting_push_data_ = false;
-      }
-
-      while(!this->common_data_->cancellation_token_.is_cancellation_requested()) {
         auto readed = static_cast<implementation_type *>(this)->sync_push_data(sp);
 
         if (0 == this->input_buffer_size_ && 0 == readed) {
           this->common_data_->step_finish(sp, context_type::INDEX);
           break;
         }
-
-        this->waiting_push_data_ = true;
-        if (this->source_->continue_read(sp, readed, this->input_buffer_, this->input_buffer_size_)) {
-          this->waiting_push_data_ = false;
-        }
-        else {
-          break;
+        
+        if(0 < readed){
+          this->source_->readed(sp, readed);
         }
       }
     }
@@ -638,7 +541,6 @@ namespace vds {
   private:
     incoming_queue_type * source_;
     common_data_type * common_data_;
-    bool waiting_push_data_;
 
     incoming_item_type * input_buffer_;
     size_t input_buffer_size_;
@@ -664,7 +566,6 @@ namespace vds {
     async_dataflow_target(const context_type & context)
     : source_(context.source_),
       common_data_(context.common_data_),
-      waiting_push_data_(false),
       input_buffer_(nullptr)
     {
     }
@@ -680,11 +581,6 @@ namespace vds {
       size_t count,
       size_t & written)
     {
-      if (!this->waiting_push_data_) {
-        throw std::runtime_error("Logic error 15");
-      }
-
-      this->waiting_push_data_ = false;
       this->input_buffer_ = values;
       this->input_buffer_size_ = count;
 
@@ -694,17 +590,10 @@ namespace vds {
 
     void start(const service_provider & sp)
     {
-      if (this->waiting_push_data_) {
-        throw std::runtime_error("Logic error 16");
-      }
-
       if (nullptr == this->input_buffer_) {
-        this->waiting_push_data_ = true;
-        if (!this->source_->start(sp, this->input_buffer_, this->input_buffer_size_)) {
+        if (!this->source_->get_data(sp, this->input_buffer_, this->input_buffer_size_)) {
           return;
         }
-        
-        this->waiting_push_data_ = false;
       }
 
       static_cast<implementation_type *>(this)->async_push_data(sp);
@@ -718,7 +607,6 @@ namespace vds {
   private:
     incoming_queue_type * source_;
     common_data_type * common_data_;
-    bool waiting_push_data_;
     
     incoming_item_type * input_buffer_;
     size_t input_buffer_size_;
@@ -735,13 +623,9 @@ namespace vds {
         return false;
       }
       
-      this->waiting_push_data_ = true;
-      if(!this->source_->continue_read(sp, written, this->input_buffer_, this->input_buffer_size_)){
-        return false;
-      }
+      this->source_->readed(sp, written);
       
-      this->waiting_push_data_ = false;
-      return true;
+      return this->source_->get_data(sp, this->input_buffer_, this->input_buffer_size_);
     }
     
     void error(const service_provider & sp, const std::shared_ptr<std::exception> & ex)
@@ -781,14 +665,6 @@ namespace vds {
     class common_data
     {
     public:
-      common_data()
-      : cancellation_token_(cancellation_source_.token())
-      {
-      }
-      
-      cancellation_token_source cancellation_source_;
-      cancellation_token cancellation_token_;
-
       virtual bool step_finish(const service_provider & sp, size_t index) = 0;
       virtual bool step_error(const service_provider & sp, size_t index, const std::shared_ptr<std::exception> & error) = 0;
     };
@@ -901,10 +777,7 @@ namespace vds {
         common_data_(data),
         second_(0),
         front_(0),
-        back_(0),
-        data_final_(false),
-        data_queried_(false),
-        data_in_process_(false)
+        back_(0)
       {
       }
       
@@ -916,14 +789,6 @@ namespace vds {
         size_t & buffer_len)
       {
         try {
-          if (0 == count && this->data_final_) {
-            return false;
-          }
-          if(!this->data_queried_) {
-            throw std::runtime_error("Logic error 17");
-          }
-          this->data_queried_ = false;
-
           if (this->back_ + MIN_BUFFER_SIZE < BUFFER_SIZE) {
             this->back_ += count;
           }
@@ -936,44 +801,37 @@ namespace vds {
             }
           }
 
-          if (this->front_ == this->back_ && !this->data_queried_ && !this->data_in_process_) {
+          if (this->front_ == this->back_) {
             this->front_ = 0;
             this->back_ = this->second_;
             this->second_ = 0;
           }
 
-          if (!this->data_in_process_) {
-            incoming_item_type * read_buffer;
-            size_t read_len;
-            if(this->get_read_buffer(read_buffer, read_len)){
-              this->data_in_process_ = true;
-              size_t readed;
-              if (!this->target_->push_data(sp, read_buffer, read_len, readed)) {
-                return false;
-              }
-              this->data_in_process_ = false;
-                
-              this->front_ += readed;
-                
-              if (this->front_ == this->back_) {
-                this->front_ = 0;
-                this->back_ = this->second_;
-                this->second_ = 0;
-              }
+          incoming_item_type * read_buffer;
+          size_t read_len;
+          if(this->get_read_buffer(read_buffer, read_len)){
+            size_t readed;
+            if (!this->target_->push_data(sp, read_buffer, read_len, readed)) {
+              return false;
             }
-            else if (0 == count) {
-              this->data_final_ = true;
-
-              size_t readed;
-              return this->target_->push_data(sp, nullptr, 0, readed);
+              
+            this->front_ += readed;
+              
+            if (this->front_ == this->back_) {
+              this->front_ = 0;
+              this->back_ = this->second_;
+              this->second_ = 0;
             }
+          }
+          else if (0 == count) {
+            size_t readed;
+            return this->target_->push_data(sp, nullptr, 0, readed);
           }
           
           if (!this->get_write_buffer(buffer, buffer_len)) {
             return false;
           }
 
-          this->data_queried_ = true;
           return true;
         }
         catch (const std::exception & ex) {
@@ -986,104 +844,58 @@ namespace vds {
         }
       }
       
-      //from target
-      bool start(
+      void readed(
         const service_provider & sp,
-        outgoing_item_type *& buffer,
-        size_t & readed)
+        size_t readed)
       {
-       
-        if(this->data_in_process_ || this->data_queried_) {
-          throw std::runtime_error("Logic error 18");
-        }
+        this->front_ += readed;
 
-        size_t buffer_len;
-        if(!this->get_write_buffer(buffer, buffer_len)){
-          throw std::runtime_error("Logic error 19");
+        if (this->front_ == this->back_) {
+          this->front_ = 0;
+          this->back_ = this->second_;
+          this->second_ = 0;
         }
-        
-        this->data_queried_ = true;
-        if(this->source_->get_data(sp, buffer, buffer_len, readed)){
-          this->back_ += readed;
-          this->data_queried_ = false;
-          this->data_in_process_ = true;
-          return true;
-        }
-        return false;
       }
       
-      bool continue_read(
+      bool get_data(
         const service_provider & sp,
-        size_t readed,
         outgoing_item_type *& buffer,
         size_t & buffer_len)
       {
-        if(!this->data_in_process_) {
-          if (this->data_final_ && this->common_data_->cancellation_token_.is_cancellation_requested()) {
-            return false;
-          }
-          throw std::runtime_error("Logic error 20");
+        if (this->get_read_buffer(buffer, buffer_len)) {
+          return true;
+        }
+        
+        if (!this->get_write_buffer(buffer, buffer_len)) {
+          throw std::runtime_error("Logic error 21");
         }
 
-        if (0 < readed) {
-          this->front_ += readed;
-
-          if (this->front_ < this->back_) {
-            this->data_in_process_ = true;
-
-            buffer = this->buffer_ + this->front_;
-            buffer_len = this->back_ - this->front_;
-            return true;
-          }
-
-          this->data_in_process_ = false;
-
-          if (this->data_queried_) {
-            return false;
-          }
-
-          if (this->front_ == this->back_ && !this->data_queried_ && !this->data_in_process_) {
-            this->front_ = 0;
-            this->back_ = this->second_;
-            this->second_ = 0;
-          }
-
-          if (!this->get_write_buffer(buffer, buffer_len)) {
-            return false;
-          }
+        size_t readed;
+        if(!this->source_->get_data(sp, buffer, buffer_len, readed)){
+          return false;
         }
-
-        this->data_queried_ = true;
-        if(this->source_->get_data(sp, buffer, buffer_len, readed)){
-          this->data_queried_ = false;
-
-          if (0 == readed) {
-            this->data_final_ = true;
-            buffer_len = 0;
-            return true;
-          }
-
-          if (this->back_ + MIN_BUFFER_SIZE < BUFFER_SIZE) {
-            this->back_ += readed;
-          }
-          else if (this->second_ + MIN_BUFFER_SIZE < this->front_) {
-            this->second_ += readed;
-          }
-          else {
-            throw std::runtime_error("Logic error 21");
-          }
-
-          if (!this->get_read_buffer(buffer, buffer_len)) {
-            throw std::runtime_error("Logic error 22");
-          }
-
-          this->data_in_process_ = true;
+        
+        if (0 == readed) {
+          buffer_len = 0;
           return true;
         }
 
-        return false;
+        if (this->back_ + MIN_BUFFER_SIZE < BUFFER_SIZE) {
+          this->back_ += readed;
+        }
+        else if (this->second_ + MIN_BUFFER_SIZE < this->front_) {
+          this->second_ += readed;
+        }
+        else {
+          throw std::runtime_error("Logic error 21");
+        }
+
+        if (!this->get_read_buffer(buffer, buffer_len)) {
+          throw std::runtime_error("Logic error 22");
+        }
+        
+        return true;
       }
-      
       
     private:
       data_source * source_;
@@ -1100,10 +912,6 @@ namespace vds {
       uint32_t second_;
       uint32_t front_;
       uint32_t back_;
-
-      bool data_final_;
-      bool data_queried_;
-      bool data_in_process_;
 
       //            0    second   front    back   buffer_size
       // to read    [...2...]       [...1...]
@@ -1263,9 +1071,6 @@ namespace vds {
 
       void start(const std::shared_ptr<starter> pthis, const service_provider & sp)
       {
-        this->handler_token_ = sp.get_shutdown_event().then_shuting_down([this]() {
-          this->cancellation_source_.cancel();
-        });
         this->pthis_ = pthis;
         this->step_.start(sp);
       }
@@ -1280,7 +1085,6 @@ namespace vds {
       {
         if (!this->error_) {
           this->error_ = error;
-          this->cancellation_source_.cancel();
         }
 
         this->done_steps_.emplace(index);
@@ -1293,7 +1097,6 @@ namespace vds {
       error_handler on_error_;
       final_step_type step_;
       queue_stream<std::tuple_size<tuple_type>::value - 2> queue_;
-      cancellation_subscriber handler_token_;
       std::shared_ptr<starter> pthis_;
 
       std::set<size_t> done_steps_;
@@ -1304,8 +1107,6 @@ namespace vds {
         if (std::tuple_size<tuple_type>::value > this->done_steps_.size()) {
           return false;
         }
-
-        this->handler_token_.destroy();
 
         if (!this->error_) {
           this->done_(sp);

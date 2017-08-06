@@ -154,42 +154,50 @@ void vds::_storage_log::reset(
   this->vds_folder_ = foldername(persistence::current_user(sp), ".vds");
   this->vds_folder_.create();
   
-  database_transaction_scope scope(sp, *(*sp.get<iserver_database>())->get_db());
+  (*sp.get<iserver_database>())->get_db()->sync_transaction(sp,
+    [this, sp, principal_id, root_certificate, private_key, password, addresses](database_transaction & tr){  
   
-  hash ph(hash::sha256());
-  ph.update(password.c_str(), password.length());
-  ph.final();
-  
-  this->add_to_local_log(
-    sp,
-    scope.transaction(),
-    principal_id,
-    private_key,
-    server_log_root_certificate(
+    hash ph(hash::sha256());
+    ph.update(password.c_str(), password.length());
+    ph.final();
+    
+    this->add_to_local_log(
+      sp,
+      tr,
       principal_id,
-      root_certificate.str(),
-      private_key.str(password),
-      ph.signature()).serialize(),
+      private_key,
+      server_log_root_certificate(
+        principal_id,
+        root_certificate.str(),
+        private_key.str(password),
+        ph.signature()).serialize(),
+        true,
+        guid::new_guid());
+    this->add_to_local_log(
+      sp,
+      tr,
+      principal_id,
+      private_key,
+      server_log_new_server(
+        this->current_server_id_,
+        principal_id,
+        this->server_certificate_.str(),
+        this->current_server_key_.str(password),
+        ph.signature()).serialize(),
+        true,
+        guid::new_guid());
+    
+    this->add_to_local_log(
+      sp,
+      tr,
+      principal_id,
+      private_key,
+      server_log_new_endpoint(this->current_server_id_, addresses).serialize(),
       true,
       guid::new_guid());
-  this->add_to_local_log(sp, scope.transaction(), principal_id, private_key, server_log_new_server(
-    this->current_server_id_,
-    principal_id,
-    this->server_certificate_.str(),
-    this->current_server_key_.str(password),
-    ph.signature()).serialize(),
-    true,
-    guid::new_guid());
-  this->add_to_local_log(
-    sp,
-    scope.transaction(),
-    principal_id,
-    private_key,
-    server_log_new_endpoint(this->current_server_id_, addresses).serialize(),
-    true,
-    guid::new_guid());
-  
-  scope.commit();
+    
+    return true;
+  });
 }
 
 
@@ -465,16 +473,18 @@ void vds::_storage_log::get_endpoints(
 
 bool vds::_storage_log::process_timer_jobs(const service_provider & sp)
 {
-  database_transaction_scope scope(sp, *(*sp.get<iserver_database>())->get_db());
-  std::lock_guard<principal_manager> lock(this->principal_manager_);
+  (*sp.get<iserver_database>())->get_db()->sync_transaction(sp,
+    [sp, this](database_transaction & t){
+    std::lock_guard<principal_manager> lock(this->principal_manager_);
 
-  principal_log_record record;
-  const_data_buffer signature;
-  while(this->principal_manager_->get_front_record(sp, scope.transaction(), record, signature)){
-    this->apply_record(sp, scope.transaction(), record, signature);
-  }
+    principal_log_record record;
+    const_data_buffer signature;
+    while(this->principal_manager_->get_front_record(sp, t, record, signature)){
+      this->apply_record(sp, t, record, signature);
+    }
 
-  scope.commit();
+    return true;
+  });
   return true;
 }
 

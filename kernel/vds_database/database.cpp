@@ -6,7 +6,6 @@ All rights reserved
 #include "database.h"
 #include "database_p.h"
 
-DEFINE_DEBUG_TASK(vds::_database_commit_task, "Commiting tasks");
 DEFINE_DEBUG_TASK(vds::_database_transaction_task, "SQL");
 DEFINE_DEBUG_TASK(vds::_database_transaction_debug, "Transactions")
 
@@ -20,9 +19,9 @@ vds::database::~database()
   delete this->impl_;
 }
 
-void vds::database::open(const filename & fn)
+void vds::database::open(const service_provider & sp, const filename & fn)
 {
-  this->impl_->open(fn);
+  this->impl_->open(sp, fn);
 }
 
 void vds::database::close()
@@ -30,22 +29,18 @@ void vds::database::close()
   this->impl_->close();
 }
 
-vds::database_transaction vds::database::begin_transaction(const service_provider & sp)
+void vds::database::async_transaction(
+  const service_provider & sp,
+  const std::function<bool(database_transaction & tr)> & callback)
 {
-  this->transaction_mutex_.lock();
-  return vds::database_transaction(this->impl_->begin_transaction(sp));
+  this->impl_->async_transaction(sp, callback);
 }
 
-void vds::database::commit(vds::database_transaction& t)
+void vds::database::sync_transaction(
+  const service_provider & sp,
+  const std::function<bool(database_transaction & tr)> & callback)
 {
-  this->impl_->commit(t);
-  this->transaction_mutex_.unlock();
-}
-
-void vds::database::rollback(vds::database_transaction& t)
-{
-  this->impl_->rollback(t);
-  this->transaction_mutex_.unlock();
+  this->impl_->sync_transaction(sp, callback);
 }
 
 void vds::database_transaction::execute(const char * sql)
@@ -138,20 +133,3 @@ vds::sql_statement& vds::sql_statement::operator= (vds::sql_statement&& original
   return *this;
 }
 //////////////////////////////////////
-vds::database_transaction_scope::database_transaction_scope(const service_provider & sp, database & db)
-  : db_(db), transaction_(db.begin_transaction(sp)), successful_(false)
-{
-}
-
-vds::database_transaction_scope::~database_transaction_scope()
-{
-  if (!this->successful_) {
-    this->db_.rollback(this->transaction_);
-  }
-}
-
-void vds::database_transaction_scope::commit()
-{
-  this->db_.commit(this->transaction_);
-  this->successful_ = true;
-}

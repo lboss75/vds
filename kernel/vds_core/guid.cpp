@@ -45,7 +45,7 @@ vds::guid vds::guid::new_guid()
 
 std::string vds::guid::str() const
 {
-  if(nullptr == this->data()){
+  if(nullptr == this->data() || 0 == this->size()){
     return "null";
   }
   

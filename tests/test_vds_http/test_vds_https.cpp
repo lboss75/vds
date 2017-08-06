@@ -80,14 +80,14 @@ TEST(http_tests, test_https_server)
       vds::create_async_task(
         [s, crypto_tunnel, cancellation](const std::function<void(const vds::service_provider & sp)> & done, const vds::error_handler & on_error, const vds::service_provider & sp) {
         vds::dataflow(
-          vds::stream_read<vds::continuous_stream<uint8_t>>(crypto_tunnel->crypted_output()),
+          vds::stream_read<vds::async_stream<uint8_t>>(crypto_tunnel->crypted_output()),
           vds::write_tcp_network_socket(s, cancellation.token())
           )(done, on_error, sp.create_scope("Server SSL Output"));
       }),
       vds::create_async_task(
         [s, stream, &router, crypto_tunnel](const std::function<void(const vds::service_provider & sp)> & done, const vds::error_handler & on_error, const vds::service_provider & sp) {
       vds::dataflow(
-        vds::stream_read<vds::continuous_stream<uint8_t>>(crypto_tunnel->decrypted_output()),
+        vds::stream_read<vds::async_stream<uint8_t>>(crypto_tunnel->decrypted_output()),
         vds::http_parser(
           [stream, &router, on_error](const vds::service_provider & sp, const std::shared_ptr<vds::http_message> & request) {
             vds::http_middleware<vds::http_router>(router).process(sp, request).wait(
@@ -196,7 +196,7 @@ TEST(http_tests, test_https_server)
         vds::create_async_task(
           [s, client_crypto_tunnel, cancellation](const std::function<void(const vds::service_provider & sp)> & done, const vds::error_handler & on_error, const vds::service_provider & sp) {
           vds::dataflow(
-            vds::stream_read<vds::continuous_stream<uint8_t>>(client_crypto_tunnel->crypted_output()),
+            vds::stream_read<vds::async_stream<uint8_t>>(client_crypto_tunnel->crypted_output()),
             vds::write_tcp_network_socket(s, cancellation.token())
           )([done](const vds::service_provider & sp) {
             sp.get<vds::logger>()->debug(sp, "Client crypted output closed");
@@ -228,7 +228,7 @@ TEST(http_tests, test_https_server)
         vds::create_async_task(
           [s, &response, &answer, client_crypto_tunnel, cancellation](const std::function<void(const vds::service_provider & sp)> & done, const vds::error_handler & on_error, const vds::service_provider & sp) {
           vds::dataflow(
-            vds::stream_read<vds::continuous_stream<uint8_t>>(client_crypto_tunnel->decrypted_output()),
+            vds::stream_read<vds::async_stream<uint8_t>>(client_crypto_tunnel->decrypted_output()),
             vds::http_parser(
               [&response, &answer, s, done, on_error, cancellation](const vds::service_provider & sp, const std::shared_ptr<vds::http_message> & request) {
             response = request;

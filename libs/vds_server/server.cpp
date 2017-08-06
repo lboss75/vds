@@ -111,6 +111,7 @@ void vds::_server::start(const service_provider& sp)
       [](const service_provider& sp) {sp.get<logger>()->trace(sp, "Server closed"); },
       [](const service_provider& sp, const std::shared_ptr<std::exception> & ex) {
         sp.get<logger>()->trace(sp, "Server error %s", ex->what());
+        sp.unhandled_exception(ex);
       },
       scope);
 }

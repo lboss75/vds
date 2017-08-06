@@ -73,7 +73,11 @@ TEST(network_tests, test_udp_server)
   
   const char data[] = "test_test_test_test_test_test_test_test_test_test_test_test_test_test_test_";
   vds::udp_datagram request("127.0.0.1", 8000, data, sizeof(data) - 1);
-  client_socket.outgoing()->write(sp, request);
+  auto stream = client_socket.outgoing();
+  stream->write_value_async(sp, request)
+  .wait([stream](const vds::service_provider & sp){},
+        [](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex){
+        }, sp);
 
   b.wait();
   //Wait

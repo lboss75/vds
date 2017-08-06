@@ -100,34 +100,38 @@ vds::_connection_manager::~_connection_manager()
 
 void vds::_connection_manager::start(const vds::service_provider& sp)
 {
-  database_transaction_scope scope(sp, *(*sp.get<iserver_database>())->get_db());
-
-  std::map<std::string, std::string> endpoints;
-  sp.get<node_manager>()->get_endpoints(sp, scope.transaction(), endpoints);
-  scope.commit();
-
-  async_task<> result = create_async_task([](
-    const std::function<void(const service_provider & sp)> & done,
-    const error_handler & on_error,
-    const service_provider & sp) {
-    done(sp);
-  });
-  
-  for (auto & p : endpoints) {
-    auto address = p.second;
-    result = result.then([this, address](const service_provider & sp){ return this->try_to_connect(sp, address);});
-  }
-  
-  auto mt_scope = sp.create_scope("Staring connection manager");
-  mt_service::enable_async(mt_scope);
   barrier b;
-  result.wait([&b](const service_provider& sp){
-    b.set();
-  },
-  [](const service_provider& sp, const std::shared_ptr<std::exception> & ex){
-    sp.unhandled_exception(ex);
-  },
-  mt_scope);
+  (*sp.get<iserver_database>())->get_db()->sync_transaction(sp,
+    [this, sp, &b](database_transaction & t){
+
+    std::map<std::string, std::string> endpoints;
+    sp.get<node_manager>()->get_endpoints(sp, t, endpoints);
+    
+
+    async_task<> result = create_async_task([](
+      const std::function<void(const service_provider & sp)> & done,
+      const error_handler & on_error,
+      const service_provider & sp) {
+      done(sp);
+    });
+    
+    for (auto & p : endpoints) {
+      auto address = p.second;
+      result = result.then([this, address](const service_provider & sp){ return this->try_to_connect(sp, address);});
+    }
+    
+    auto mt_scope = sp.create_scope("Staring connection manager");
+    mt_service::enable_async(mt_scope);
+    result.wait([&b](const service_provider& sp){
+      b.set();
+    },
+    [](const service_provider& sp, const std::shared_ptr<std::exception> & ex){
+      sp.unhandled_exception(ex);
+    },
+    mt_scope);
+    
+    return true;
+  });
   
   b.wait();
 }
@@ -327,7 +331,9 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
   size_t len)
 {
   return create_async_task([this, from, data, len](const std::function<void(const service_provider & sp)> & done, const error_handler & on_error, const service_provider & sp) {
-    database_transaction_scope scope(sp, *(*sp.get<iserver_database>())->get_db());
+    (*sp.get<iserver_database>())->get_db()->async_transaction(sp,
+      [this, sp, from, data, len, done, on_error](database_transaction & tr)->bool{
+    
     network_deserializer s(data, len);
     auto cmd = s.start();
     switch (cmd) {
@@ -386,8 +392,14 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
             .serialize();
 
           auto data = _udp_datagram::create(*from, message_data);
-          this->s_.outgoing()->write(sp, data);
-          done(sp);
+          auto stream = this->s_.outgoing();
+          stream->write_value_async(sp, data)
+          .wait(
+            [stream, done](const service_provider & sp){
+              done(sp);
+            },
+            on_error,
+            sp);
         },
           on_error,
           sp);
@@ -429,7 +441,7 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
           dataflow_arguments<uint8_t>(msg.crypted_data().data(), msg.crypted_data().size()),
           symmetric_decrypt(session_key),
           collect_data(*data))(
-            [this, done, &session_key, &cert, from, data, &scope](const service_provider & sp) {
+            [this, done, &session_key, &cert, from, data, &tr](const service_provider & sp) {
           uint32_t in_session_id;
           uint32_t out_session_id;
 
@@ -465,7 +477,7 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
             this->hello_requests_.erase(p);
           }
 
-          sp.get<_server_log_sync>()->ensure_record_exists(sp, scope.transaction(), last_record_id);
+          sp.get<_server_log_sync>()->ensure_record_exists(sp, tr, last_record_id);
           done(sp);
         },
             on_error,
@@ -497,7 +509,7 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
             symmetric_decrypt(p->second->session_key()),
             collect_data(*data)
           )(
-            [this, &data_hash, session = p->second, from, data, &scope](const service_provider & sp) {
+            [this, &data_hash, session = p->second, from, data, &tr](const service_provider & sp) {
             if (hash::signature(hash::sha256(), data->data(), data->size()) == data_hash) {
 
               binary_deserializer d(data->data(), data->size());
@@ -509,7 +521,7 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
 
               this->owner_->server_to_server_api_.process_message(
                 sp,
-                scope.transaction(),
+                tr,
                 this->owner_,
                 *session.get(),
                 message_type_id,
@@ -531,12 +543,12 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
       catch (const std::exception & ex) {
         sp.get<logger>()->debug(sp, "Error at processing command");
         on_error(sp, std::make_shared<std::exception>(ex));
-        return;
+        return false;
       }
       catch (...) {
         sp.get<logger>()->debug(sp, "Error at processing command");
         on_error(sp, std::make_shared<std::runtime_error>("Unhandled error"));
-        return;
+        return false;
       }
 
       done(sp);
@@ -544,7 +556,8 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
     }
     }
 
-    scope.commit();
+    return true;
+      });
   });
 }
 
@@ -592,8 +605,15 @@ vds::async_task<> vds::_connection_manager::udp_channel::open_udp_session(
           
           auto scope = sp.create_scope(("Send hello to " + address).c_str());
           imt_service::enable_async(scope);
-          this->s_.outgoing()->write(scope, udp_datagram(server, port, data, false));
-          done(sp);
+          
+          auto stream = this->s_.outgoing();
+          stream->write_value_async(scope, udp_datagram(server, port, data, false))
+          .wait([stream, done](const service_provider & sp) {
+            done(sp);
+          },
+          on_error,
+          sp);
+          
           return;
         }
       }
@@ -660,7 +680,11 @@ void vds::_connection_manager::udp_channel::session::send_to(
         
         auto scope = sp.create_scope(("Send message to " + this->server() + ":" + std::to_string(this->port())).c_str());
         imt_service::enable_async(scope);
-        this->owner_->s_.outgoing()->write(scope, udp_datagram(this->server(), this->port(), s.data()));
+        auto stream = this->owner_->s_.outgoing();
+        stream->write_value_async(scope, udp_datagram(this->server(), this->port(), s.data()))
+        .wait([stream](const service_provider & sp){},
+          [](const service_provider & sp, const std::shared_ptr<std::exception> & ex){},
+          scope);
       },
       [](const service_provider & sp,
          const std::shared_ptr<std::exception> & ex) {
@@ -734,7 +758,11 @@ bool vds::_connection_manager::udp_channel::process_timer_jobs(const service_pro
     auto server = network_address.server;
     auto port = (uint16_t)std::atoi(network_address.port.c_str());
 
-    this->s_.outgoing()->write(scope, udp_datagram(server, port, data, false));
+    auto stream = this->s_.outgoing();
+    stream->write_value_async(scope, udp_datagram(server, port, data, false))
+    .wait([stream](const service_provider & sp){},
+          [](const service_provider & sp, const std::shared_ptr<std::exception> & ex){
+          }, sp);
   }
 
   return true;

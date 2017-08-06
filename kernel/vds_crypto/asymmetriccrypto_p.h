@@ -43,24 +43,27 @@ namespace vds {
       auto p = data.data();
       auto l = data.size();
 
-      std::unique_ptr<uint8_t> buffer(new uint8_t[RSA_size(EVP_PKEY_get1_RSA(this->key_))]);
+      uint8_t * buffer = new uint8_t[RSA_size(EVP_PKEY_get1_RSA(this->key_))];
       while (l > 0) {
         auto n = l;
         if (n > blocksize) {
           n = blocksize;
         }
 
-        auto len = RSA_private_decrypt(n, p, buffer.get(), EVP_PKEY_get1_RSA(this->key_), RSA_PKCS1_PADDING);
+        auto len = RSA_private_decrypt(n, p, buffer, EVP_PKEY_get1_RSA(this->key_), RSA_PKCS1_PADDING);
         if (0 > len) {
           auto error = ERR_get_error();
+          delete[] buffer;
           throw crypto_exception("RSA_private_decrypt failed", error);
         }
 
-        result.insert(result.end(), buffer.get(), buffer.get() + len);
+        result.insert(result.end(), buffer, buffer + len);
 
         p += n;
         l -= n;
       }
+      
+      delete[] buffer;
 
       return const_data_buffer(result.data(), result.size());
     }
@@ -100,24 +103,26 @@ namespace vds {
       auto p = reinterpret_cast<const uint8_t *>(data);
       auto l = data_size;
 
-      std::unique_ptr<uint8_t> buffer(new uint8_t[RSA_size(EVP_PKEY_get1_RSA(this->key_))]);
+      uint8_t * buffer = new uint8_t[RSA_size(EVP_PKEY_get1_RSA(this->key_))];
       while (l > 0) {
         auto n = l;
         if (n > blocksize) {
           n = blocksize;
         }
 
-        auto len = RSA_public_encrypt(n, p, buffer.get(), EVP_PKEY_get1_RSA(this->key_), RSA_PKCS1_PADDING);
+        auto len = RSA_public_encrypt(n, p, buffer, EVP_PKEY_get1_RSA(this->key_), RSA_PKCS1_PADDING);
         if (0 > len) {
           auto error = ERR_get_error();
+          delete[] buffer;
           throw crypto_exception("RSA_private_encrypt failed", error);
         }
 
-        result.insert(result.end(), buffer.get(), buffer.get() + len);
+        result.insert(result.end(), buffer, buffer + len);
 
         p += n;
         l -= n;
       }
+      delete[] buffer;
 
       return const_data_buffer(result.data(), result.size());
     }

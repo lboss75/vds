@@ -71,17 +71,18 @@ namespace vds {
   private:
     friend class _database;
     friend class database;
-    
+   
     database_transaction()
+      : impl_(nullptr)
     {
     }
     
-    database_transaction(const std::shared_ptr<_database_transaction> & impl)
+    database_transaction(_database * impl)
       : impl_(impl)
     {
     }
 
-    std::shared_ptr<_database_transaction> impl_;
+    _database * const impl_;
   };
 
   class database
@@ -90,35 +91,19 @@ namespace vds {
     database();
     ~database();
 
-    void open(const filename & fn);
+    void open(const service_provider & sp, const filename & fn);
     void close();
 
-    database_transaction begin_transaction(const service_provider & sp);
-    void commit(database_transaction & t);
-    void rollback(database_transaction & t);
+    void async_transaction(
+      const service_provider & sp,
+      const std::function<bool(database_transaction & tr)> & callback);
+    
+    void sync_transaction(
+      const service_provider & sp,
+      const std::function<bool(database_transaction & tr)> & callback);
 
   private:
     _database * const impl_;
-    std::mutex transaction_mutex_;
-  };
-
-  class database_transaction_scope
-  {
-  public:
-    database_transaction_scope(const service_provider & sp, database & db);
-    ~database_transaction_scope();
-
-    database_transaction & transaction()
-    {
-      return this->transaction_;
-    }
-    
-    void commit();
-
-  private:
-    database & db_;
-    database_transaction transaction_;
-    bool successful_;
   };
 }
 

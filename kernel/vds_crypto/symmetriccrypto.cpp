@@ -37,7 +37,7 @@ const vds::symmetric_crypto_info& vds::symmetric_crypto::aes_256_cbc()
 }
 
 vds::symmetric_key::symmetric_key(const vds::symmetric_crypto_info& crypto_info)
-: crypto_info_(crypto_info)
+: crypto_info_(crypto_info), key_(nullptr), iv_(nullptr)
 {
 }
 
@@ -46,17 +46,26 @@ vds::symmetric_key::symmetric_key(const symmetric_key & origin)
   key_(new unsigned char[origin.crypto_info_.key_size()]),
   iv_(new unsigned char[origin.crypto_info_.iv_size()])
 {
-  memcpy(this->key_.get(), origin.key_.get(), origin.crypto_info_.key_size());
-  memcpy(this->iv_.get(), origin.iv_.get(), origin.crypto_info_.iv_size());
+  memcpy(this->key_, origin.key_, origin.crypto_info_.key_size());
+  memcpy(this->iv_, origin.iv_, origin.crypto_info_.iv_size());
+}
+
+vds::symmetric_key::~symmetric_key()
+{
+  delete[] this->key_;
+  delete[] this->iv_;
 }
 
 void vds::symmetric_key::generate()
 {
-  this->key_.reset(new unsigned char[this->crypto_info_.key_size()]);
-  this->iv_.reset(new unsigned char[this->crypto_info_.iv_size()]);
+  delete[] this->key_;
+  delete[] this->iv_;
   
-  RAND_bytes(this->key_.get(), (int)this->crypto_info_.key_size());
-  RAND_bytes(this->iv_.get(), (int)this->crypto_info_.iv_size());
+  this->key_ = new unsigned char[this->crypto_info_.key_size()];
+  this->iv_ = new unsigned char[this->crypto_info_.iv_size()];
+  
+  RAND_bytes(this->key_, (int)this->crypto_info_.key_size());
+  RAND_bytes(this->iv_, (int)this->crypto_info_.iv_size());
 }
 
 size_t vds::symmetric_key::block_size() const
@@ -69,8 +78,8 @@ vds::symmetric_key::symmetric_key(const vds::symmetric_crypto_info& crypto_info,
   key_(new unsigned char[crypto_info.key_size()]),
   iv_(new unsigned char[crypto_info.iv_size()])
 {
-  s.pop_data(this->key_.get(), (int)this->crypto_info_.key_size());
-  s.pop_data(this->iv_.get(), (int)this->crypto_info_.iv_size());
+  s.pop_data(this->key_, (int)this->crypto_info_.key_size());
+  s.pop_data(this->iv_, (int)this->crypto_info_.iv_size());
 }
 
 vds::symmetric_key::symmetric_key(const vds::symmetric_crypto_info& crypto_info, vds::binary_deserializer&& s)
@@ -78,14 +87,14 @@ vds::symmetric_key::symmetric_key(const vds::symmetric_crypto_info& crypto_info,
   key_(new unsigned char[crypto_info.key_size()]),
   iv_(new unsigned char[crypto_info.iv_size()])
 {
-  s.pop_data(this->key_.get(), (int)this->crypto_info_.key_size());
-  s.pop_data(this->iv_.get(), (int)this->crypto_info_.iv_size());
+  s.pop_data(this->key_, (int)this->crypto_info_.key_size());
+  s.pop_data(this->iv_, (int)this->crypto_info_.iv_size());
 }
 
 void vds::symmetric_key::serialize(vds::binary_serializer& s) const
 {
-  s.push_data(this->key_.get(), (int)this->crypto_info_.key_size());
-  s.push_data(this->iv_.get(), (int)this->crypto_info_.iv_size());
+  s.push_data(this->key_, (int)this->crypto_info_.key_size());
+  s.push_data(this->iv_, (int)this->crypto_info_.iv_size());
 }
 
 vds::symmetric_encrypt::symmetric_encrypt(
