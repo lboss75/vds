@@ -331,14 +331,15 @@ namespace vds {
         this->source_->read_async(sp, &this->buffer_, 1)
           .wait([this](const service_provider & sp, size_t readed) {
             //std::cout << this << "->_udp_send::start " << syscall(SYS_gettid) << ": unlock\n";
-            this->start_mutex_.unlock();
-          if (1 == readed) {
-            this->write_async(sp);
-          }
-          else {
-          }
-        },
-            [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+              this->start_mutex_.unlock();
+              if (1 == readed) {
+                this->write_async(sp);
+              }
+              else {
+              }
+            },
+            [this](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+              this->start_mutex_.unlock();
               sp.unhandled_exception(ex);
             },
           sp);

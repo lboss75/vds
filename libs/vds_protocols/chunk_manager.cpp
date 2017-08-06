@@ -496,6 +496,16 @@ bool vds::_chunk_manager::write_tail(
               index,
               this->tail_chunk_size_,
               tail_buffer);
+            
+            result_record.tail_chunk_items().push_back(
+              tail_chunk_item(
+                server_id,
+                result_record.object_id(),
+                index,
+                offset,
+                this->tail_chunk_size_,
+                tail_buffer.size(),
+                original_hash));
           },
           [&result, on_error](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
             on_error(sp, ex);
