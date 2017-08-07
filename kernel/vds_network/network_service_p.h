@@ -31,6 +31,8 @@ namespace vds {
         
 #ifdef _WIN32
         void associate(SOCKET_HANDLE s);
+#else
+        void associate(SOCKET_HANDLE s, _socket_handler * handler);
 #endif
         static std::string to_string(const sockaddr_in & from);
         static std::string get_ip_address_string(const sockaddr_in & from);
@@ -50,10 +52,6 @@ namespace vds {
       bool dispatch_started_;
       int epoll_set_;
       std::future<void> epoll_future_;
-      void start_dispatch(const service_provider & sp);
-      
-      void start_read(SOCKET_HANDLE s, _socket_task * pthis);
-      void start_write(SOCKET_HANDLE s, _socket_task * pthis);
 #endif//_WIN32
     };
 }

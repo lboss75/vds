@@ -104,14 +104,6 @@ void vds::_network_service::start(const service_provider & provider)
     if(0 > this->epoll_set_){
       throw std::runtime_error("Out of memory for epoll_create");
     }
-#endif
-}
-
-#ifndef _WIN32
-void vds::_network_service::start_dispatch(const service_provider & sp)
-{
-  if(!this->dispatch_started_) {
-    this->dispatch_started_ = true;
     
     this->epoll_future_ = std::async(std::launch::async,
       [this, sp] {
@@ -122,13 +114,12 @@ void vds::_network_service::start_dispatch(const service_provider & sp)
             throw std::system_error(result, std::system_category(), "epoll_wait");
           }
           else if(0 < result){
-            ((_socket_task *)events[0].data.ptr)->process();
+            ((_socket_handler *)events[0].data.ptr)->process(events[0].events);
           }          
         }
     });
-  }
-}
 #endif
+}
 
 void vds::_network_service::stop(const service_provider & sp)
 {
@@ -229,24 +220,11 @@ void vds::_network_service::thread_loop(const service_provider & sp)
 }
 #else
 
-void vds::_network_service::start_read(SOCKET_HANDLE s, _socket_task * data)
+void vds::_network_service::associate(SOCKET_HANDLE s, _socket_handler * handler)
 {
   struct epoll_event event_data;
-  event_data.events = EPOLLIN;
-  event_data.data.ptr = data;
-  
-  int result = epoll_ctl(this->epoll_set_, EPOLL_CTL_ADD, s, &event_data);
-  if(0 > result) {
-    auto error = errno;
-    throw std::system_error(error, std::system_category(), "epoll_ctl");
-  }
-}
-
-void vds::_network_service::start_write(SOCKET_HANDLE s, _socket_task * data)
-{
-  struct epoll_event event_data;
-  event_data.events = EPOLLOUT;
-  event_data.data.ptr = data;
+  event_data.events = EPOLLIN | EPOLLOUT;
+  event_data.data.ptr = handler;
   
   int result = epoll_ctl(this->epoll_set_, EPOLL_CTL_ADD, s, &event_data);
   if(0 > result) {

@@ -25,6 +25,9 @@ namespace vds {
       const std::string & server,
       const uint16_t port);
     
+    std::shared_ptr<continuous_stream<uint8_t>> incoming();
+    std::shared_ptr<continuous_stream<uint8_t>> outgoing();
+    
     _tcp_network_socket * operator -> () const { return this->impl_.get(); }
 
     void close();

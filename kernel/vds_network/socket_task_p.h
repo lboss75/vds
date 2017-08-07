@@ -23,8 +23,6 @@ namespace vds {
     static _socket_task * from_overlapped(OVERLAPPED * pOverlapped) {
         return reinterpret_cast<_socket_task *>((uint8_t *)pOverlapped - offsetof(_socket_task, overlapped_));
     }
-#else//!_WIN32
-    virtual void process() = 0;
 #endif//_WIN32
 
   protected:
@@ -33,6 +31,15 @@ namespace vds {
     WSABUF wsa_buf_;
 #endif//_WIN32
   };
+  
+#ifndef _WIN32
+  class _socket_handler
+  {
+  public:
+    virtual void process(uint32_t events) = 0;
+  };
+  
+#endif
 }
 
 #endif // __VDS_NETWORK_SOCKET_TASK_P_H_
