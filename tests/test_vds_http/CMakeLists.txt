@@ -4,7 +4,6 @@ project(test_vds_http)
 if (UNIX)
   find_package (OpenSSL REQUIRED)
   set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../cmake")
-	find_package (libevent REQUIRED)
 else(UNIX)
   set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../cmake")
   find_package (OpenSSL REQUIRED)
@@ -30,8 +29,7 @@ target_link_libraries(
   vds_http
   ${GTEST_LIBRARIES}
   ${OPENSSL_LIBRARIES}
-  ${CMAKE_THREAD_LIBS_INIT}
-  ${EVENT_LIBRARY})
+  ${CMAKE_THREAD_LIBS_INIT})
   
 add_test(
     NAME runUnitTests

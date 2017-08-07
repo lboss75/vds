@@ -81,17 +81,13 @@ namespace vds {
 #else//!_WIN32
       this->buffer_ = buffer;
       this->buffer_size_ = buffer_size;
-      if(nullptr == this->event_) {
-        this->event_ = event_new(
-          static_cast<_network_service *>(sp.get<inetwork_service>())->base_,
-          this->s_,
-          EV_READ,
-          &_read_socket_task::callback,
-          this);
-      }
-      // Schedule client event
-      event_add(this->event_, NULL);
-      static_cast<_network_service *>(sp.get<inetwork_service>())->start_libevent_dispatch(sp);
+      
+      auto service = static_cast<_network_service *>(sp.get<inetwork_service>());
+      service->start_read(
+        this->s_,
+        this                                                                     
+      );
+      service->start_dispatch(sp);
 #endif//_WIN32
     }
 
@@ -138,11 +134,10 @@ namespace vds {
     }
 
 #else//!_WIN32
-    static void callback(int fd, short event, void *arg)
+    void process() override
     {
-      auto pthis = reinterpret_cast<_read_socket_task *>(arg);
       try {
-        int len = read(fd, pthis->buffer_, pthis->buffer_size_);
+        int len = read(this->s_, this->buffer_, this->buffer_size_);
         if (len < 0) {
           int error = errno;
           throw
@@ -151,15 +146,15 @@ namespace vds {
             std::system_category());
         }
         
-        imt_service::async(pthis->sp_, [pthis, len](){
-          pthis->readed_method_(pthis->sp_, len);
+        imt_service::async(this->sp_, [this, len](){
+          this->readed_method_(this->sp_, len);
         });
       }
       catch (const std::exception & ex) {
-        pthis->error_method_(pthis->sp_, std::make_shared<std::exception>(ex));
+        this->error_method_(this->sp_, std::make_shared<std::exception>(ex));
       }
       catch (...) {
-        pthis->error_method_(pthis->sp_, std::make_shared<std::runtime_error>("Unexpected error"));
+        this->error_method_(this->sp_, std::make_shared<std::runtime_error>("Unexpected error"));
       }
     }
 #endif//_WIN32

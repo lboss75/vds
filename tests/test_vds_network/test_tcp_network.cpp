@@ -134,29 +134,34 @@ TEST(network_tests, test_server)
     sp);
 
   b.wait();
+
+  if (error) {
+    registrator.shutdown(sp);
+    GTEST_FAIL() << error->what();
+  }
+  
   b.reset();
 
   std::string answer;
+  vds::cancellation_token_source cancellation;
+  random_buffer data;
 
   vds::tcp_network_socket::connect(
     sp,
     (const char *)"127.0.0.1",
     8000)
     .then(
-      [&b, &answer](
+      [&b, &answer, &cancellation, &data](
         const std::function<void(const vds::service_provider & sp)> & done,
         const vds::error_handler & on_error,
         const vds::service_provider & sp,
         vds::tcp_network_socket && s) {
 
     sp.get<vds::logger>()->debug(sp, "Connected");
-    vds::cancellation_token_source cancellation;
-    random_buffer data;
 
     vds::async_series(
       vds::create_async_task(
         [s, &data, cancellation](const std::function<void(const vds::service_provider & sp)> & done, const vds::error_handler & on_error, const vds::service_provider & sp) {
-
 
       vds::dataflow(
         random_reader<uint8_t>(data.data(), data.size()),

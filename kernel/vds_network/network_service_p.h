@@ -9,6 +9,7 @@ All rights reserved
 #include <functional>
 #include <vector>
 #include <future>
+#include <sys/epoll.h>
 
 #include "service_provider.h"
 #include "network_service.h"
@@ -16,6 +17,7 @@ All rights reserved
 
 namespace vds {
     class network_service;
+    class _socket_task;
 
     class _network_service : public inetwork_service
     {
@@ -35,21 +37,23 @@ namespace vds {
         
     private:
         friend class network_socket;
-        friend class udp_socket;
+        friend class _udp_socket;
         friend class server_socket;
+        friend class _read_socket_task;
+        friend class _write_socket_task;
 
 #ifdef _WIN32
         HANDLE handle_;
         void thread_loop(const service_provider & provider);
         std::list<std::thread *> work_threads_;
 #else
-        bool dispatch_started_;
-    public:
-      std::future<void> libevent_future_;
-      event_base * base_;
-      void start_libevent_dispatch(const service_provider & sp);
+      bool dispatch_started_;
+      int epoll_set_;
+      std::future<void> epoll_future_;
+      void start_dispatch(const service_provider & sp);
       
-    private:
+      void start_read(SOCKET_HANDLE s, _socket_task * pthis);
+      void start_write(SOCKET_HANDLE s, _socket_task * pthis);
 #endif//_WIN32
     };
 }

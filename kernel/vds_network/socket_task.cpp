@@ -6,9 +6,6 @@ All rights reserved
 #include "socket_task_p.h"
 
 vds::_socket_task::_socket_task()
-#ifndef _WIN32
-: event_(nullptr)
-#endif
 {
 #ifdef _WIN32
   ZeroMemory(&this->overlapped_, sizeof(this->overlapped_)); 
@@ -17,9 +14,4 @@ vds::_socket_task::_socket_task()
 
 vds::_socket_task::~_socket_task()
 {
-#ifndef _WIN32
-  if(nullptr != this->event_){
-    event_free(this->event_);
-  }
-#endif
 }

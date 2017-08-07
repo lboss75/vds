@@ -24,14 +24,13 @@ namespace vds {
         return reinterpret_cast<_socket_task *>((uint8_t *)pOverlapped - offsetof(_socket_task, overlapped_));
     }
 #else//!_WIN32
+    virtual void process() = 0;
 #endif//_WIN32
 
   protected:
 #ifdef _WIN32
     OVERLAPPED overlapped_;
     WSABUF wsa_buf_;
-#else//!_WIN32
-    struct event * event_;
 #endif//_WIN32
   };
 }

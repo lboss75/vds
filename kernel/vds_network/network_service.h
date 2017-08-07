@@ -27,6 +27,7 @@ namespace vds {
       void start(const service_provider &) override;
       void stop(const service_provider &) override;
       
+      static std::string to_string(const sockaddr & from, socklen_t from_len);
       static std::string to_string(const sockaddr_in & from);
       static std::string get_ip_address_string(const sockaddr_in & from);
         

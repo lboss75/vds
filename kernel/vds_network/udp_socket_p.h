@@ -175,24 +175,22 @@ namespace vds {
   private:
     SOCKET_HANDLE s_;
 
-    class _udp_receive
-#ifdef _WIN32
-      : public _socket_task
-#endif
+    class _udp_receive : public _socket_task
     {
     public:
       _udp_receive(_udp_socket & owner)
         : owner_(owner),
         sp_(service_provider::empty()),
         target_(new continuous_stream<udp_datagram>())
-#ifndef _WIN32
-        , event_(nullptr)
-#endif
       {
       }
 
       void start(const service_provider & sp)
       {
+        static_cast<_network_service *>(sp.get<inetwork_service>())->start_read(
+          this->owner_.handle(),
+          this                                                                     
+        );
         this->read_async(sp);
       }
 
@@ -236,18 +234,7 @@ namespace vds {
           }
         }
 #else
-        if (nullptr == this->event_) {
-          this->event_ = event_new(
-            static_cast<_network_service *>(sp.get<inetwork_service>())->base_,
-            this->owner_.handle(),
-            EV_READ,
-            &callback,
-            this);
-        }
-        // Schedule client event
-        event_add(this->event_, NULL);
-
-        static_cast<_network_service *>(sp.get<inetwork_service>())->start_libevent_dispatch(sp);
+        static_cast<_network_service *>(sp.get<inetwork_service>())->start_dispatch(sp);
 #endif
       }
 
@@ -262,33 +249,25 @@ namespace vds {
       }
 
 #else
-      struct event * event_;
       not_mutex event_mutex_;
 
-
-      static void callback(int fd, short event, void *arg)
+      void process()
       {
-        auto pthis = reinterpret_cast<_udp_receive *>(arg);
-        std::unique_lock<not_mutex> lock(pthis->event_mutex_);
+        std::unique_lock<not_mutex> lock(this->event_mutex_);
 
-        int len = recvfrom(fd, pthis->buffer_, sizeof(pthis->buffer_), 0,
-          (struct sockaddr *)&pthis->addr_, &pthis->addr_len_);
+        int len = recvfrom(this->owner_.handle(), this->buffer_, sizeof(this->buffer_), 0,
+          (struct sockaddr *)&this->addr_, &this->addr_len_);
 
         if (len < 0) {
           int error = errno;
-          if(EAGAIN == error){
-            // Schedule client event
-            event_add(pthis->event_, NULL);
-            return;
-          }
           throw std::system_error(error, std::system_category(), "recvfrom");
         }
         
-        pthis->sp_.get<logger>()->debug(pthis->sp_, "UDP got %d bytes from %s", len, network_service::to_string(pthis->addr_).c_str());
-
-        pthis->push_data(len);
+        this->sp_.get<logger>()->debug(this->sp_, "UDP got %d bytes from %s", len, network_service::to_string(this->addr_).c_str());
+        this->push_data(len);
       }
-#endif//_WIN32
+#endif //_WIN32
+
       void push_data(size_t readed)
       {
         this->target_->write_value_async(this->sp_, _udp_datagram::create(this->addr_, this->buffer_, readed))
@@ -303,10 +282,7 @@ namespace vds {
       }
     };
 
-    class _udp_send
-#ifdef _WIN32
-      : public _socket_task
-#endif
+    class _udp_send : public _socket_task
     {
     public:
       _udp_send(
@@ -314,9 +290,6 @@ namespace vds {
         : owner_(owner),
         sp_(service_provider::empty()),
         source_(new async_stream<udp_datagram>())
-#ifndef _WIN32
-        , event_(nullptr)
-#endif
       {
       }
 
@@ -326,7 +299,7 @@ namespace vds {
       void start(const service_provider & sp)
       {
         //std::cout << this << "->_udp_send::start " << syscall(SYS_gettid) << ": lock\n";
-
+#ifdef _WIN32
         this->start_mutex_.lock();
         this->source_->read_async(sp, &this->buffer_, 1)
           .wait([this](const service_provider & sp, size_t readed) {
@@ -343,6 +316,15 @@ namespace vds {
               sp.unhandled_exception(ex);
             },
           sp);
+#else
+          this->sp_ = sp;
+          auto service = static_cast<_network_service *>(sp.get<inetwork_service>());
+          service->start_write(
+            this->owner_.handle(),
+            this                                                                     
+          );
+          service->start_dispatch(sp);
+#endif//_WIN32
       }
 
       std::shared_ptr<async_stream<udp_datagram>> stream()
@@ -356,7 +338,6 @@ namespace vds {
       std::shared_ptr<async_stream<udp_datagram>> source_;
       socklen_t addr_len_;
       udp_datagram buffer_;
-
 
       void write_async(const service_provider & sp)
       {
@@ -372,19 +353,6 @@ namespace vds {
             throw std::system_error(errorCode, std::system_category(), "WSASend failed");
           }
         }
-#else
-        if (nullptr == this->event_) {
-          this->event_ = event_new(
-            static_cast<_network_service *>(sp.get<inetwork_service>())->base_,
-            this->owner_.handle(),
-            EV_WRITE,
-            &callback,
-            this);
-        }
-        // Schedule client event
-        event_add(this->event_, NULL);
-
-        static_cast<_network_service *>(sp.get<inetwork_service>())->start_libevent_dispatch(sp);
 #endif
       }
 #ifdef _WIN32
@@ -413,17 +381,35 @@ namespace vds {
       struct event * event_;
       not_mutex event_mutex_;
 
-      static void callback(int fd, short event, void *arg)
+      void process()
       {
-        auto pthis = reinterpret_cast<_udp_send *>(arg);
-        std::unique_lock<not_mutex> lock(pthis->event_mutex_);
+        this->start_mutex_.lock();
+        this->source_->read_async(this->sp_, &this->buffer_, 1)
+          .wait([this](const service_provider & sp, size_t readed) {
+              this->start_mutex_.unlock();
+              if (1 == readed) {
+                this->write_data(sp);
+              }
+              else {
+              }
+            },
+            [this](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+              this->start_mutex_.unlock();
+              sp.unhandled_exception(ex);
+            },
+          this->sp_);
+      }
+      
+      void write_data(const service_provider & sp)
+      {
+        std::unique_lock<not_mutex> lock(this->event_mutex_);
         
         try {
-          int len = sendto(fd,
-            pthis->buffer_.data(),
-            pthis->buffer_.data_size(),
+          int len = sendto(this->owner_.handle(),
+            this->buffer_.data(),
+            this->buffer_.data_size(),
             0,
-            (sockaddr *)pthis->buffer_->addr(),
+            (sockaddr *)this->buffer_->addr(),
             sizeof(sockaddr_in));
           
           if (len < 0) {
@@ -431,21 +417,21 @@ namespace vds {
             throw std::system_error(
               error,
               std::generic_category(),
-              "Send to " + network_service::to_string(*pthis->buffer_->addr()));
+              "Send to " + network_service::to_string(*this->buffer_->addr()));
           }
           
-          if((size_t)len != pthis->buffer_.data_size()){
+          if((size_t)len != this->buffer_.data_size()){
             throw std::runtime_error("Invalid send UDP");
           }
 
-          pthis->sp_.get<logger>()->debug(pthis->sp_, "UDP Sent %d bytes to %s", len, network_service::to_string(*pthis->buffer_->addr()).c_str());
-          pthis->start(pthis->sp_);
+          this->sp_.get<logger>()->debug(this->sp_, "UDP Sent %d bytes to %s", len, network_service::to_string(*this->buffer_->addr()).c_str());
+          this->start(this->sp_);
         }
         catch (const std::exception & ex) {
-          pthis->sp_.unhandled_exception(std::make_shared<std::exception>(ex));
+          this->sp_.unhandled_exception(std::make_shared<std::exception>(ex));
         }
         catch (...) {
-          pthis->sp_.unhandled_exception(std::make_shared<std::runtime_error>("Unexpected error"));
+          this->sp_.unhandled_exception(std::make_shared<std::runtime_error>("Unexpected error"));
         }
       }
 #endif//_WIN32

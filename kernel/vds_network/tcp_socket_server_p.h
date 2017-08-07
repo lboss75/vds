@@ -19,7 +19,7 @@ namespace vds {
     _tcp_socket_server()
     : s_(INVALID_SOCKET)
 #ifndef _WIN32
-      , ev_accept_(nullptr), sp_(service_provider::empty())
+      , sp_(service_provider::empty())
 #endif
     {
     }
@@ -27,9 +27,6 @@ namespace vds {
     ~_tcp_socket_server()
     {
 #ifndef _WIN32
-      if(nullptr != this->ev_accept_){
-        event_free(this->ev_accept_);
-      }
       close(this->s_);
 #else
       closesocket(this->s_);
@@ -197,14 +194,37 @@ namespace vds {
             this->done_ = done;
             this->on_error_ = on_error;
             this->new_connection_ = new_connection;
-            this->ev_accept_ = event_new(
-              static_cast<_network_service *>(sp.get<inetwork_service>())->base_,
-              this->s_,
-              EV_READ | EV_PERSIST,
-              &_tcp_socket_server::wait_accept,
-              this);
-            event_add(this->ev_accept_, NULL);
-            static_cast<_network_service *>(sp.get<inetwork_service>())->start_libevent_dispatch(sp);
+            
+            this->wait_accept_task_ = std::thread(
+              [this](){
+                auto epollfd = epoll_create(1);
+                if (0 > epollfd) {
+                  throw std::runtime_error("epoll_create failed");
+                  return;
+                }
+
+                struct epoll_event ev;
+                ev.events = EPOLLIN;
+                //ev.data.ptr = this->s_;
+                if (0 > epoll_ctl(epollfd, EPOLL_CTL_ADD, this->s_, &ev)) {
+                  throw std::runtime_error("epoll_create failed");
+                  return;
+                }
+                
+                while(!this->sp_.get_shutdown_event().is_shuting_down()) {
+                  auto result = epoll_wait(epollfd, &ev, 1, 1000);
+                  if(result > 0){
+                    sockaddr client_address;
+                    socklen_t client_address_length = sizeof(client_address);
+
+                    auto socket = accept(this->s_, &client_address, &client_address_length);
+                    if (INVALID_SOCKET != socket) {
+                      auto scope = this->sp_.create_scope(("Connection from " + network_service::to_string(client_address, client_address_length)).c_str());
+                      this->new_connection_(scope, _tcp_network_socket::from_handle(socket));
+                    }
+                  }
+                }
+              });
             done(sp);
 #endif
       });
@@ -219,7 +239,6 @@ namespace vds {
     std::thread wait_accept_task_;
 #ifndef _WIN32
     std::function<void(const service_provider & sp, const tcp_network_socket & s)> new_connection_;
-    event * ev_accept_;
     service_provider sp_;
     std::function<void (const service_provider & sp)> done_;
     error_handler on_error_;

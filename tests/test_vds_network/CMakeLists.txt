@@ -2,9 +2,6 @@ cmake_minimum_required(VERSION 2.8)
 project(test_vds_network)
 
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../cmake")
-if (UNIX)
-	find_package (libevent REQUIRED)
-endif (UNIX)
 
 enable_testing()
 FILE(GLOB HEADER_FILES *.h)
@@ -16,7 +13,7 @@ include_directories(${vds_parser_SOURCE_DIR})
 include_directories(${vds_network_SOURCE_DIR})
 include_directories(${test_libs_SOURCE_DIR})
 
-target_link_libraries(test_vds_network vds_core vds_parser vds_network test_libs ${GTEST_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ${EVENT_LIBRARY})
+target_link_libraries(test_vds_network vds_core vds_parser vds_network test_libs ${GTEST_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 add_test(
     NAME runUnitTests
     COMMAND test_vds_network

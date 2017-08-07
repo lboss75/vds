@@ -1,11 +1,6 @@
 project(vds_network CXX C)
 cmake_minimum_required(VERSION 2.6.2)
 
-if (UNIX)
-  set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../cmake")
-  find_package (libevent REQUIRED)
-endif (UNIX)
-
 include_directories(${vds_core_SOURCE_DIR})
 include_directories(${vds_parser_SOURCE_DIR})
 

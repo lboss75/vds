@@ -38,6 +38,18 @@ void vds::network_service::stop(const service_provider & sp)
   this->impl_->stop(sp);
 }
 
+std::string vds::network_service::to_string(const sockaddr & from, socklen_t from_len)
+{
+  char hbuf[NI_MAXHOST], sbuf[NI_MAXSERV];
+  
+  auto result = getnameinfo(&from, from_len,
+    hbuf, sizeof hbuf,
+    sbuf, sizeof sbuf,
+    NI_NUMERICHOST | NI_NUMERICSERV);
+  
+  return std::string(hbuf) + ":" + std::string(sbuf);
+}
+
 std::string vds::network_service::to_string(const sockaddr_in & from)
 {
   return get_ip_address_string(from) + ":" + std::to_string(ntohs(from.sin_port));
@@ -55,7 +67,7 @@ std::string vds::network_service::get_ip_address_string(const sockaddr_in & from
 /////////////////////////////////////////////////////////////////////////////
 vds::_network_service::_network_service()
 #ifndef _WIN32
-: dispatch_started_(false), base_(nullptr)
+: dispatch_started_(false)
 #endif
 {
 }
@@ -88,27 +100,30 @@ void vds::_network_service::start(const service_provider & provider)
     }
 
 #else
-    /* Initialize libevent. */
-    event_init();
-    
-    this->base_ = event_base_new();
+    this->epoll_set_ = epoll_create(100);
+    if(0 > this->epoll_set_){
+      throw std::runtime_error("Out of memory for epoll_create");
+    }
 #endif
 }
 
 #ifndef _WIN32
-void vds::_network_service::start_libevent_dispatch(const service_provider & sp)
+void vds::_network_service::start_dispatch(const service_provider & sp)
 {
   if(!this->dispatch_started_) {
     this->dispatch_started_ = true;
     
-    this->libevent_future_ = std::async(std::launch::async,
+    this->epoll_future_ = std::async(std::launch::async,
       [this, sp] {
-        timeval ten_sec;
-        memset(&ten_sec, 0, sizeof(ten_sec));
-        ten_sec.tv_sec = 10;
         while(!sp.get_shutdown_event().is_shuting_down()){
-          event_base_loopexit(this->base_, &ten_sec);
-          event_base_dispatch(this->base_);
+          struct epoll_event events[1];
+          auto result = epoll_wait(this->epoll_set_, events, sizeof(events) / sizeof(events[0]), 1000);
+          if(0 > result){
+            throw std::system_error(result, std::system_category(), "epoll_wait");
+          }
+          else if(0 < result){
+            ((_socket_task *)events[0].data.ptr)->process();
+          }          
         }
     });
   }
@@ -121,11 +136,7 @@ void vds::_network_service::stop(const service_provider & sp)
       sp.get<logger>()->trace(sp, "Stopping network service");
       
 #ifndef _WIN32
-        do{
-          event_base_loopbreak(this->base_);
-        }
-        while(std::future_status::ready != this->libevent_future_.wait_for(std::chrono::seconds(5)));
-        this->libevent_future_.wait();
+        this->epoll_future_.wait();
 #else
         for (auto p : this->work_threads_) {
             p->join();
@@ -215,6 +226,33 @@ void vds::_network_service::thread_loop(const service_provider & sp)
           }
         }
     }
+}
+#else
+
+void vds::_network_service::start_read(SOCKET_HANDLE s, _socket_task * data)
+{
+  struct epoll_event event_data;
+  event_data.events = EPOLLIN;
+  event_data.data.ptr = data;
+  
+  int result = epoll_ctl(this->epoll_set_, EPOLL_CTL_ADD, s, &event_data);
+  if(0 > result) {
+    auto error = errno;
+    throw std::system_error(error, std::system_category(), "epoll_ctl");
+  }
+}
+
+void vds::_network_service::start_write(SOCKET_HANDLE s, _socket_task * data)
+{
+  struct epoll_event event_data;
+  event_data.events = EPOLLOUT;
+  event_data.data.ptr = data;
+  
+  int result = epoll_ctl(this->epoll_set_, EPOLL_CTL_ADD, s, &event_data);
+  if(0 > result) {
+    auto error = errno;
+    throw std::system_error(error, std::system_category(), "epoll_ctl");
+  }
 }
 
 #endif//_WIN32

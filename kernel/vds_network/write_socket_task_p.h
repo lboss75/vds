@@ -79,18 +79,13 @@ namespace vds {
 #else
       this->data_ = buffer;
       this->data_size_ = buffer_size;
-      if(nullptr == this->event_) {
-        this->event_ = event_new(
-          static_cast<_network_service *>(sp.get<inetwork_service>())->base_,
-          this->s_,
-          EV_WRITE,
-          &_write_socket_task::callback,
-          this);
-      }
-      // Schedule client event
-      event_add(this->event_, NULL);
       
-      static_cast<_network_service *>(sp.get<inetwork_service>())->start_libevent_dispatch(sp);
+      auto service = static_cast<_network_service *>(sp.get<inetwork_service>());
+      service->start_write(
+        this->s_,
+        this                                                                     
+      );
+      service->start_dispatch(sp);
 #endif
     }
   
@@ -137,12 +132,11 @@ namespace vds {
     }
 
 #else//!_WIN32
-    static void callback(int fd, short event, void *arg)
+    void process() override
     {
-      auto pthis = reinterpret_cast<_write_socket_task *>(arg);
-      logger::get(pthis->sp_)->trace(pthis->sp_, "write %d bytes", pthis->data_size_);
+      logger::get(this->sp_)->trace(this->sp_, "write %d bytes", this->data_size_);
       try {
-        int len = write(fd, pthis->data_, pthis->data_size_);
+        int len = write(this->s_, this->data_, this->data_size_);
         if (len < 0) {
           int error = errno;
           throw std::system_error(
@@ -150,16 +144,16 @@ namespace vds {
               std::system_category());
         }
         
-        imt_service::async(pthis->sp_,
-          [pthis, len](){
-            pthis->written_method_(pthis->sp_, len);
+        imt_service::async(this->sp_,
+          [this, len](){
+            this->written_method_(this->sp_, len);
           });
       }
       catch (const std::exception & ex) {
-        pthis->error_method_(pthis->sp_, std::make_shared<std::exception>(ex));
+        this->error_method_(this->sp_, std::make_shared<std::exception>(ex));
       }
       catch (...) {
-        pthis->error_method_(pthis->sp_, std::make_shared<std::runtime_error>("Unexpected error"));
+        this->error_method_(this->sp_, std::make_shared<std::runtime_error>("Unexpected error"));
       }
     }
 #endif//_WIN32
