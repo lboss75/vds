@@ -182,8 +182,8 @@ namespace vds {
       size_t data_size)
     {
       std::unique_lock<std::mutex> lock(this->buffer_mutex_);
-      if (this->back_ < sizeof(this->buffer_)) {
-        auto len = sizeof(this->buffer_) - this->back_;
+      if (this->back_ < sizeof(this->buffer_) / sizeof(this->buffer_[0])) {
+        auto len = sizeof(this->buffer_) / sizeof(this->buffer_[0]) - this->back_;
         if (len > data_size) {
           len = data_size;
         }

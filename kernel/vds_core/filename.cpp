@@ -36,6 +36,18 @@ std::string vds::filename::name() const
   }
 }
 
+std::string vds::filename::name_without_extension() const
+{
+  auto name = this->name();
+  auto p = strrchr(name.c_str(), '.');
+  if (nullptr == p) {
+    return name;
+  }
+  else {
+    return name.substr(0, p - name.c_str());
+  }
+}
+
 std::string vds::filename::extension() const
 {
   auto name = this->name();

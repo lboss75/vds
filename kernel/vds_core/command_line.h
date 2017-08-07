@@ -152,6 +152,14 @@ namespace vds {
     const command_line_set * parse(int argc, const char** argv) const;
     
     void show_help(const std::string & app_name);
+
+    void register_common_parameter(command_line_item & item)
+    {
+      for (auto cmd : this->command_sets_) {
+        cmd->optional(item);
+      }
+    }
+
   private:
     std::string name_;
     std::string description_;

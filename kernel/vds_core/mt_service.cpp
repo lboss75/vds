@@ -9,8 +9,11 @@ All rights reserved
 #include "barrier.h"
 
 #include <thread>
+
+#ifndef _WIN32
 #include <sys/syscall.h>
 #include <sys/types.h>
+#endif//_WIN32
 
 vds::mt_service::mt_service()
 {
@@ -98,7 +101,9 @@ void vds::_mt_service::async(const std::function<void(void)> & handler)
 
 void vds::_mt_service::work_thread()
 {
+#ifndef _WIN32
   auto thread_id = syscall(SYS_gettid);
+#endif
 
   while(!this->sp_.get_shutdown_event().is_shuting_down()){
     std::function<void(void)> handler;

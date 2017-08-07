@@ -27,6 +27,9 @@ namespace vds {
       explicit foldername(const std::string & str)
       : value_(str)
       {
+#ifdef _WIN32
+        std::replace(this->value_.begin(), this->value_.end(), '\\', '/');
+#endif
       }
       
       foldername(

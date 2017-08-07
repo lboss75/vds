@@ -31,6 +31,9 @@ namespace vds {
       explicit filename(const std::string & filepath)
       : value_(filepath)
       {
+#ifdef _WIN32
+        std::replace(this->value_.begin(), this->value_.end(), '\\', '/');
+#endif
       }
       
       filename & operator=(const filename& other)

@@ -119,6 +119,11 @@ namespace vds {
         return result;
       }
 
+      void set_log_level(log_level new_level)
+      {
+        this->min_log_level_ = new_level;
+      }
+
     private:
       log_writer & log_writer_;
       log_level min_log_level_;

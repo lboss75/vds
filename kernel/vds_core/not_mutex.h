@@ -10,9 +10,12 @@ All rights reserved
 #include <condition_variable>
 #include <thread>
 #include <iostream>
+
+#ifndef _WIN32
 #include <unistd.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
+#endif//_WIN32
 
 namespace vds {
   class not_mutex
@@ -33,7 +36,11 @@ namespace vds {
       }
 
       this->is_locked_ = true;
+#ifndef _WIN32
       this->owner_id_ = syscall(SYS_gettid);
+#else
+      this->owner_id_ = GetCurrentThreadId();
+#endif
     }
 
     void unlock()
@@ -50,7 +57,11 @@ namespace vds {
   private:
     std::mutex m_;
     bool is_locked_;
+#ifndef _WIN32
     pid_t owner_id_;
+#else
+    DWORD owner_id_;
+#endif//_WIN32
   };
 }
 
