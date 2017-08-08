@@ -222,7 +222,10 @@ namespace vds {
                     auto socket = accept(this->s_, &client_address, &client_address_length);
                     if (INVALID_SOCKET != socket) {
                       auto scope = this->sp_.create_scope(("Connection from " + network_service::to_string(client_address, client_address_length)).c_str());
-                      this->new_connection_(scope, _tcp_network_socket::from_handle(socket));
+                      auto s = _tcp_network_socket::from_handle(socket);
+                      s->make_socket_non_blocking();
+                      s->start(scope);
+                      this->new_connection_(scope, s);
                     }
                   }
                 }

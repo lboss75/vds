@@ -38,7 +38,19 @@ namespace vds {
         void associate(SOCKET_HANDLE s);
 
 #else
-        void associate(SOCKET_HANDLE s, _socket_handler * handler);
+        void associate(
+          const service_provider & sp,
+          SOCKET_HANDLE s,
+          _socket_task * handler,
+          uint32_t event_mask);
+        void set_events(
+          const service_provider & sp,
+          SOCKET_HANDLE s,
+          _socket_task * handler,
+          uint32_t event_mask);
+        void remove_association(
+          const service_provider & sp,
+          SOCKET_HANDLE s);
 #endif
         static std::string to_string(const sockaddr_in & from);
         static std::string get_ip_address_string(const sockaddr_in & from);
@@ -55,9 +67,10 @@ namespace vds {
         void thread_loop(const service_provider & provider);
         std::list<std::thread *> work_threads_;
 #else
-      bool dispatch_started_;
       int epoll_set_;
       std::future<void> epoll_future_;
+      std::mutex epoll_mutex_;
+      size_t epoll_count_;
 #endif//_WIN32
     };
 }
