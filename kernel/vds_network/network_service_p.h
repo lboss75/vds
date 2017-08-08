@@ -9,7 +9,10 @@ All rights reserved
 #include <functional>
 #include <vector>
 #include <future>
+
+#ifndef _WIN32
 #include <sys/epoll.h>
+#endif
 
 #include "service_provider.h"
 #include "network_service.h"
@@ -29,8 +32,11 @@ namespace vds {
         void start(const service_provider &);
         void stop(const service_provider &);
         
+        void remove(_socket_task * socket);
+
 #ifdef _WIN32
         void associate(SOCKET_HANDLE s);
+
 #else
         void associate(SOCKET_HANDLE s, _socket_handler * handler);
 #endif

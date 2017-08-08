@@ -57,7 +57,7 @@ vds::async_task<> vds::_server_http_api::start(
         create_async_task(
           [this, s, crypto_tunnel](const std::function<void(const service_provider & sp)> & done, const error_handler & on_error, const service_provider & sp) {
         dataflow(
-          read_tcp_network_socket(s, this->cancellation_source_.token()),
+          stream_read<continuous_stream<uint8_t>>(s.incoming()),
           stream_write<continuous_stream<uint8_t>>(crypto_tunnel->crypted_input())
         )(done, on_error, sp.create_scope("Server SSL Input"));
       }),
@@ -65,7 +65,7 @@ vds::async_task<> vds::_server_http_api::start(
           [this, s, crypto_tunnel](const std::function<void(const service_provider & sp)> & done, const error_handler & on_error, const service_provider & sp) {
         dataflow(
           stream_read<async_stream<uint8_t>>(crypto_tunnel->crypted_output()),
-          write_tcp_network_socket(s, this->cancellation_source_.token())
+          stream_write<continuous_stream<uint8_t>>(s.outgoing())
         )(done, on_error, sp.create_scope("Server SSL Output"));
       }),
         create_async_task(

@@ -100,6 +100,7 @@ TEST(network_tests, test_server)
 
   auto sp = registrator.build("network_tests::test_server");
   registrator.start(sp);
+
   vds::imt_service::enable_async(sp);
 
   std::shared_ptr<std::exception> error;
@@ -112,8 +113,8 @@ TEST(network_tests, test_server)
     [&error](const vds::service_provider & sp, const vds::tcp_network_socket & s) {
     vds::cancellation_token_source cancellation;
     vds::dataflow(
-      vds::read_tcp_network_socket(s, cancellation.token()),
-      vds::write_tcp_network_socket(s, cancellation.token())
+      vds::stream_read<vds::continuous_stream<uint8_t>>(s.incoming()),
+      vds::stream_write<vds::continuous_stream<uint8_t>>(s.outgoing())
     )(
       [](const vds::service_provider & sp) {
       sp.get<vds::logger>()->debug(sp, "Server closed");
@@ -155,7 +156,7 @@ TEST(network_tests, test_server)
         const std::function<void(const vds::service_provider & sp)> & done,
         const vds::error_handler & on_error,
         const vds::service_provider & sp,
-        vds::tcp_network_socket && s) {
+        const vds::tcp_network_socket & s) {
 
     sp.get<vds::logger>()->debug(sp, "Connected");
 
@@ -165,7 +166,7 @@ TEST(network_tests, test_server)
 
       vds::dataflow(
         random_reader<uint8_t>(data.data(), data.size()),
-        vds::write_tcp_network_socket(s, cancellation.token())
+        vds::stream_write<vds::continuous_stream<uint8_t>>(s.outgoing())
       )(
         [done](const vds::service_provider & sp) {
         sp.get<vds::logger>()->debug(sp, "Client writer closed");
@@ -181,7 +182,7 @@ TEST(network_tests, test_server)
       vds::create_async_task(
         [s, &data, &answer, cancellation](const std::function<void(const vds::service_provider & sp)> & done, const vds::error_handler & on_error, const vds::service_provider & sp) {
       vds::dataflow(
-        vds::read_tcp_network_socket(s, cancellation.token()),
+        vds::stream_read<vds::continuous_stream<uint8_t>>(s.incoming()),
         compare_data<uint8_t>(data.data(), data.size())
       )(
         [done](const vds::service_provider & sp) {

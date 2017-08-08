@@ -106,7 +106,9 @@ namespace vds {
                 if (INVALID_SOCKET != socket) {
                   static_cast<_network_service *>(sp.get<inetwork_service>())->associate(socket);
                   auto scope = sp.create_scope(("Connection from " + network_service::to_string(client_address)).c_str());
-                  new_connection(scope, _tcp_network_socket::from_handle(socket));
+                  auto s = _tcp_network_socket::from_handle(socket);
+                  s->start(scope);
+                  new_connection(scope, s);
                 }
               }
             }

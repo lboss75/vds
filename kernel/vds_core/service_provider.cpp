@@ -7,6 +7,7 @@ All rights reserved
 #include <iostream>
 #include "service_provider.h"
 #include "service_provider_p.h"
+#include "logger.h"
 
 vds::service_provider::service_provider(std::shared_ptr<_service_provider> && impl)
   : impl_(impl)
@@ -63,6 +64,10 @@ void vds::service_provider::unhandled_exception(const std::shared_ptr<std::excep
   auto p = this->get_property<unhandled_exception_handler>(service_provider::property_scope::any_scope);
   if (nullptr != p) {
     p->on_error(*this, ex);
+  }
+  else {
+    this->get<logger>()->error(*this, "Unhandler error %s", ex->what());
+    throw std::runtime_error(std::string("Unhandler error ") + ex->what());
   }
 }
 

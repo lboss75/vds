@@ -73,7 +73,7 @@ TEST(http_tests, test_https_server)
       vds::create_async_task(
         [s, crypto_tunnel, cancellation](const std::function<void(const vds::service_provider & sp)> & done, const vds::error_handler & on_error, const vds::service_provider & sp) {
           vds::dataflow(
-            vds::read_tcp_network_socket(s, cancellation.token()),
+            vds::stream_read<vds::continuous_stream<uint8_t>>(s.incoming()),
             vds::stream_write<vds::continuous_stream<uint8_t>>(crypto_tunnel->crypted_input())
           )(done, on_error, sp.create_scope("Server SSL Input"));
       }),
@@ -81,7 +81,7 @@ TEST(http_tests, test_https_server)
         [s, crypto_tunnel, cancellation](const std::function<void(const vds::service_provider & sp)> & done, const vds::error_handler & on_error, const vds::service_provider & sp) {
         vds::dataflow(
           vds::stream_read<vds::async_stream<uint8_t>>(crypto_tunnel->crypted_output()),
-          vds::write_tcp_network_socket(s, cancellation.token())
+          vds::stream_write<vds::continuous_stream<uint8_t>>(s.outgoing())
           )(done, on_error, sp.create_scope("Server SSL Output"));
       }),
       vds::create_async_task(
@@ -161,7 +161,7 @@ TEST(http_tests, test_https_server)
         const std::function<void(const vds::service_provider & sp)> & done,
         const vds::error_handler & on_error,
         const vds::service_provider & sp,
-        vds::tcp_network_socket && s) {
+        const vds::tcp_network_socket & s) {
 
     sp.get<vds::logger>()->debug(sp, "Connected");
     auto client_crypto_tunnel = std::make_shared<vds::ssl_tunnel>(true, &client_cert, &client_pkey);
@@ -181,7 +181,7 @@ TEST(http_tests, test_https_server)
       vds::create_async_task(
         [s, client_crypto_tunnel, cancellation](const std::function<void(const vds::service_provider & sp)> & done, const vds::error_handler & on_error, const vds::service_provider & sp) {
           vds::dataflow(
-            vds::read_tcp_network_socket(s, cancellation.token()),
+            vds::stream_read<vds::continuous_stream<uint8_t>>(s.incoming()),
             vds::stream_write<vds::continuous_stream<uint8_t>>(client_crypto_tunnel->crypted_input())
           )([done](const vds::service_provider & sp) {
             sp.get<vds::logger>()->debug(sp, "Client crypted input closed");
@@ -197,7 +197,7 @@ TEST(http_tests, test_https_server)
           [s, client_crypto_tunnel, cancellation](const std::function<void(const vds::service_provider & sp)> & done, const vds::error_handler & on_error, const vds::service_provider & sp) {
           vds::dataflow(
             vds::stream_read<vds::async_stream<uint8_t>>(client_crypto_tunnel->crypted_output()),
-            vds::write_tcp_network_socket(s, cancellation.token())
+            vds::stream_write<vds::continuous_stream<uint8_t>>(s.outgoing())
           )([done](const vds::service_provider & sp) {
             sp.get<vds::logger>()->debug(sp, "Client crypted output closed");
             done(sp);

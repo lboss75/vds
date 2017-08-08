@@ -7,8 +7,11 @@ All rights reserved
 */
 
 #include <sys/types.h>
+
+#ifndef _WIN32
 #include <sys/socket.h>
 #include <netdb.h>
+#endif
 
 #include "targetver.h"
 #include "network_types_p.h"

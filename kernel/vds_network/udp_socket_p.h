@@ -82,12 +82,13 @@ namespace vds {
   };
 
 
-  class _udp_socket
+  class _udp_socket : public std::enable_shared_from_this<_udp_socket>
   {
   public:
     _udp_socket()
       : s_(INVALID_SOCKET),
-      receive_(*this), send_(*this)
+      incoming_(new continuous_stream<udp_datagram>()),
+      outgoing_(new async_stream<udp_datagram>())
     {
     }
 
@@ -158,23 +159,175 @@ namespace vds {
 
     std::shared_ptr<continuous_stream<udp_datagram>> incoming()
     {
-      return this->receive_.stream();
+      return this->incoming_;
     }
 
     std::shared_ptr<async_stream<udp_datagram>> outgoing()
     {
-      return this->send_.stream();
+      return this->outgoing_;
     }
 
     void start(const vds::service_provider & sp)
     {
-      this->receive_.start(sp);
-      this->send_.start(sp);
+      std::make_shared<_udp_receive>(sp, this->shared_from_this())->read_async();
+      std::make_shared<_udp_send>(sp, this->shared_from_this())->write_async();
     }
 
   private:
     SOCKET_HANDLE s_;
+    std::shared_ptr<continuous_stream<udp_datagram>> incoming_;
+    std::shared_ptr<async_stream<udp_datagram>> outgoing_;
 
+#ifdef _WIN32
+    class _udp_receive : public _socket_task
+    {
+    public:
+      _udp_receive(
+        const service_provider & sp,
+        const std::shared_ptr<_udp_socket> & owner)
+        : sp_(sp),
+          owner_(owner)
+      {
+      }
+
+      void read_async()
+      {
+        this->addr_len_ = sizeof(sockaddr_in);
+
+        this->wsa_buf_.len = sizeof(this->buffer_);
+        this->wsa_buf_.buf = (CHAR *)this->buffer_;
+
+        DWORD flags = 0;
+        DWORD numberOfBytesRecvd;
+        if (NOERROR != WSARecvFrom(
+          this->owner_->s_,
+          &this->wsa_buf_,
+          1,
+          &numberOfBytesRecvd,
+          &flags,
+          (struct sockaddr *)&this->addr_,
+          &this->addr_len_,
+          &this->overlapped_, NULL)) {
+          auto errorCode = WSAGetLastError();
+          if (WSA_IO_PENDING != errorCode) {
+            if (INVALID_SOCKET == this->owner_->s_) {
+              return;
+            }
+
+            throw std::system_error(errorCode, std::system_category(), "WSARecvFrom failed");
+          }
+        }
+
+        this->pthis_ = this->shared_from_this();
+      }
+
+    private:
+      service_provider sp_;
+      std::shared_ptr<_udp_socket> owner_;
+      std::shared_ptr<_socket_task> pthis_;
+
+      sockaddr_in addr_;
+      socklen_t addr_len_;
+      uint8_t buffer_[10 * 1024 * 1024];
+
+      void process(DWORD dwBytesTransfered) override
+      {
+        auto pthis = this->shared_from_this();
+        this->pthis_.reset();
+
+        this->owner_->incoming_->write_value_async(
+          this->sp_,
+          _udp_datagram::create(this->addr_, this->buffer_, (size_t)dwBytesTransfered))
+          .wait(
+            [pthis](const service_provider & sp) {
+              static_cast<_udp_receive *>(pthis.get())->read_async();
+            },
+            [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+              sp.unhandled_exception(ex);
+            },
+            this->sp_);
+      }
+      void error(DWORD error_code) override
+      {
+        if (WSAESHUTDOWN == error_code || ERROR_OPERATION_ABORTED == error_code) {
+          this->process(0);
+        }
+        else {
+          this->sp_.unhandled_exception(std::make_shared<std::system_error>(error_code, std::system_category(), "WSARecvFrom failed"));
+        }
+      }
+    };
+
+    class _udp_send : public _socket_task
+    {
+    public:
+      _udp_send(
+        const service_provider & sp,
+        const std::shared_ptr<_udp_socket> & owner)
+        : sp_(sp),
+          owner_(owner)
+      {
+      }
+
+      void write_async()
+      {
+        auto pthis = this->shared_from_this();
+        this->owner_->outgoing_->read_async(this->sp_, &this->buffer_, 1)
+        .wait([pthis](const service_provider & sp, size_t readed) {
+          if (1 == readed) {
+            static_cast<_udp_send *>(pthis.get())->schedule();
+          }
+          else {
+          }
+          },
+            [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+          sp.unhandled_exception(ex);
+        },
+          this->sp_);
+      }
+
+    private:
+      service_provider sp_;
+      std::shared_ptr<_udp_socket> owner_;
+      std::shared_ptr<_socket_task> pthis_;
+
+      socklen_t addr_len_;
+      udp_datagram buffer_;
+
+      void schedule()
+      {
+        this->wsa_buf_.len = this->buffer_.data_size();
+        this->wsa_buf_.buf = (CHAR *)this->buffer_.data();
+
+        if (NOERROR != WSASendTo(this->owner_->s_, &this->wsa_buf_, 1, NULL, 0, (const sockaddr *)this->buffer_->addr(), sizeof(sockaddr_in), &this->overlapped_, NULL)) {
+          auto errorCode = WSAGetLastError();
+          if (WSA_IO_PENDING != errorCode) {
+            throw std::system_error(errorCode, std::system_category(), "WSASend failed");
+          }
+        }
+
+        this->pthis_ = this->shared_from_this();
+      }
+
+      void process(DWORD dwBytesTransfered) override
+      {
+        if (this->wsa_buf_.len != (size_t)dwBytesTransfered) {
+          throw std::runtime_error("Invalid sent UDP data");
+        }
+
+        auto pthis = this->shared_from_this();
+        this->pthis_.reset();
+
+        this->write_async();
+      }
+
+      void error(DWORD error_code) override
+      {
+        this->sp_.unhandled_exception(std::make_shared<std::system_error>(error_code, std::system_category(), "WSASendTo failed"));
+      }
+    };
+
+#else
     class _udp_receive : public _socket_task
     {
     public:
@@ -436,9 +589,8 @@ namespace vds {
       }
 #endif//_WIN32
     };
+#endif//_WIN32
 
-    _udp_receive receive_;
-    _udp_send send_;
   };
 
 

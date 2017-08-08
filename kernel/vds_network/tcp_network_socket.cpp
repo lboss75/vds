@@ -24,13 +24,13 @@ vds::tcp_network_socket::~tcp_network_socket()
 {  
 }
 
-vds::async_task< vds::tcp_network_socket && > vds::tcp_network_socket::connect(
+vds::async_task< const vds::tcp_network_socket &> vds::tcp_network_socket::connect(
   const vds::service_provider& sp,
   const std::string & server,
   const uint16_t port)
 {
   return create_async_task([server, port](
-    const std::function<void(const service_provider & sp, tcp_network_socket &&)> & done,
+    const std::function<void(const service_provider & sp, const tcp_network_socket &)> & done,
     const error_handler & on_error,
     const service_provider & sp){
       auto s = std::make_shared<_tcp_network_socket>(
@@ -67,61 +67,24 @@ vds::async_task< vds::tcp_network_socket && > vds::tcp_network_socket::connect(
         on_error(sp, std::make_shared<std::system_error>(error, std::generic_category()));
       }
 #endif
-      done(sp, tcp_network_socket(s));
+      tcp_network_socket sc(s);
+      sc->start(sp);
+      done(sp, sc);
     });
+}
+
+std::shared_ptr<vds::continuous_stream<uint8_t>> vds::tcp_network_socket::incoming() const
+{
+  return this->impl_->incoming();
+}
+
+std::shared_ptr<vds::continuous_stream<uint8_t>> vds::tcp_network_socket::outgoing() const
+{
+  return this->impl_->outgoing();
 }
 
 void vds::tcp_network_socket::close()
 {
   this->impl_->close();
 }
-
-vds::_read_socket_task * vds::read_tcp_network_socket::create_reader(
-  const std::function< void(const service_provider & sp, size_t readed) >& readed_method,
-  const error_handler& error_method,
-  const cancellation_token & cancel_token) const
-{
-  return new _read_socket_task(readed_method, error_method, this->s_->handle(), cancel_token);
-}
-
-void vds::read_tcp_network_socket::read_async(
-  const vds::service_provider& sp,
-  vds::_read_socket_task* reader,
-  void * buffer,
-  size_t buffer_size)
-{
-  reader->read_async(sp, buffer, buffer_size);
-}
-
-
-void vds::read_tcp_network_socket::destroy_reader(vds::_read_socket_task* reader)
-{
-  delete reader;
-}
-
-vds::_write_socket_task* vds::write_tcp_network_socket::create_writer(
-  const std::function< void(const service_provider & sp, size_t written) >& write_method,
-  const error_handler& error_method,
-  const cancellation_token & cancel_token) const
-{
-  return new _write_socket_task(write_method, error_method, this->s_->handle(), cancel_token);
-}
-
-void vds::write_tcp_network_socket::destroy_writer(vds::_write_socket_task* writer)
-{
-  delete writer;
-}
-
-void vds::write_tcp_network_socket::write_async(
-  const vds::service_provider& sp,
-  vds::_write_socket_task* writer,
-  const void * buffer,
-  size_t buffer_size)
-{
-  writer->write_async(sp, buffer, buffer_size);
-}
-
-
-
-
 

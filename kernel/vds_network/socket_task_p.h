@@ -10,7 +10,7 @@ All rights reserved
 
 namespace vds {
   
-  class _socket_task
+  class _socket_task : public std::enable_shared_from_this<_socket_task>
   {
   public:
     _socket_task();
@@ -29,7 +29,10 @@ namespace vds {
 #ifdef _WIN32
     OVERLAPPED overlapped_;
     WSABUF wsa_buf_;
+#else
+
 #endif//_WIN32
+
   };
   
 #ifndef _WIN32

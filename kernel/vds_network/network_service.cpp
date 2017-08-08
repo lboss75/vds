@@ -220,10 +220,10 @@ void vds::_network_service::thread_loop(const service_provider & sp)
 }
 #else
 
-void vds::_network_service::associate(SOCKET_HANDLE s, _socket_handler * handler)
+void vds::_network_service::associate(_socket_handler * handler)
 {
   struct epoll_event event_data;
-  event_data.events = EPOLLIN | EPOLLOUT;
+  event_data.events = EPOLLIN | EPOLLOUT | EPOLLRDHUP | EPOLLHUP;
   event_data.data.ptr = handler;
   
   int result = epoll_ctl(this->epoll_set_, EPOLL_CTL_ADD, s, &event_data);
