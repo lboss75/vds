@@ -342,11 +342,18 @@ namespace vds {
           network_service_(static_cast<_network_service *>(sp.get<inetwork_service>())),
           event_masks_(EPOLLIN)
       {
+        this->network_service_->associate(sp, this->owner_->s_, this, this->event_masks_);
+      }
+      
+      ~_udp_handler()
+      {
+        this->network_service_->remove_association(this->sp_, this->owner_->s_);
       }
 
       void start()
       {
-        this->pthis_ = this->shared_from_this();
+        this->read_this_ = this->shared_from_this();
+        this->write_this_ = this->shared_from_this();
         
         this->schedule_write();
       }
@@ -371,7 +378,9 @@ namespace vds {
       service_provider sp_;
       std::shared_ptr<_udp_socket> owner_;
       _network_service * network_service_;
-      std::shared_ptr<_socket_task> pthis_;
+      
+      std::shared_ptr<_socket_task> read_this_;
+      std::shared_ptr<_socket_task> write_this_;
       
       std::mutex event_masks_mutex_;
       uint32_t event_masks_;
@@ -397,8 +406,8 @@ namespace vds {
         .wait([this](const service_provider & sp, size_t readed){
           if(0 == readed){
             //End of stream
-            shutdown(this->owner_->s_, 1);
-            this->pthis_.reset();
+            shutdown(this->owner_->s_, SHUT_WR);
+            this->read_this_.reset();
           }
           else {
             int len = sendto(
@@ -444,8 +453,13 @@ namespace vds {
         this->sp_.get<logger>()->debug(this->sp_, "UDP got %d bytes from %s", len, network_service::to_string(this->addr_).c_str());
         this->owner_->incoming_->write_value_async(this->sp_, _udp_datagram::create(this->addr_, this->read_buffer_, len))
           .wait(
-            [this](const service_provider & sp) {
-              this->change_mask(EPOLLIN);
+            [this, len](const service_provider & sp) {
+              if(0 != len){
+                this->change_mask(EPOLLIN);
+              }
+              else {
+                this->write_this_.reset();
+              }
             },
             [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
               sp.unhandled_exception(ex);

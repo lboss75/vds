@@ -20,6 +20,7 @@ namespace vds {
     : s_(INVALID_SOCKET)
 #ifndef _WIN32
       , sp_(service_provider::empty())
+      , is_shuting_down_(false)
 #endif
     {
     }
@@ -27,13 +28,14 @@ namespace vds {
     ~_tcp_socket_server()
     {
 #ifndef _WIN32
+      this->is_shuting_down_ = true;
       close(this->s_);
 #else
       closesocket(this->s_);
+#endif
       if(this->wait_accept_task_.joinable()){
         this->wait_accept_task_.join();
       }
-#endif
     }
 
     async_task<> start(
@@ -213,7 +215,7 @@ namespace vds {
                   return;
                 }
                 
-                while(!this->sp_.get_shutdown_event().is_shuting_down()) {
+                while(!this->is_shuting_down_ && !this->sp_.get_shutdown_event().is_shuting_down()) {
                   auto result = epoll_wait(epollfd, &ev, 1, 1000);
                   if(result > 0){
                     sockaddr client_address;
@@ -242,6 +244,7 @@ namespace vds {
   private:
     SOCKET_HANDLE s_;
     std::thread wait_accept_task_;
+    bool is_shuting_down_;
 #ifndef _WIN32
     std::function<void(const service_provider & sp, const tcp_network_socket & s)> new_connection_;
     service_provider sp_;
