@@ -654,17 +654,18 @@ size_t vds::_chunk_manager::get_tail_chunk(
   const guid & server_id,
   size_t & result_size)
 {
-  tmp_object_chunk_table t;
+  object_chunk_table t;
 
-  auto reader = tr.get_reader(
-      t.select(t.chunk_index).where(t.server_id == server_id));
+  auto reader = tr.parse("SELECT t.chunk_index FROM object_chunk_map t "
+    " WHERE t.server_id=?1 AND t.chunk_index NOT IN (SELECT t1.chunk_index FROM object_chunk t1 WHERE t1.server_id=?1)");
+  reader.set_parameter(1, server_id);
 
   size_t chunk_index = 0;
   while (reader.execute()) {
     chunk_index = t.chunk_index.get(reader);
   }
 
-  tmp_object_chunk_map_table t1;
+  object_chunk_map_table t1;
   reader = tr.get_reader(
       t1.select(db_sum(db_length(t1.chunk_index)))
       .where(t1.server_id == server_id && t1.chunk_index == chunk_index));
