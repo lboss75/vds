@@ -52,6 +52,18 @@ namespace vds {
     
     _udp_datagram * operator -> () const { return this->impl_.get(); }
 
+    udp_datagram & operator = (const udp_datagram & r)
+    {
+      auto p1 = this->impl_.get();
+      auto p2 = r.impl_.get();
+
+      if (this->impl_.get() != r.impl_.get()) {
+        this->impl_ = r.impl_;
+      }
+
+      return *this;
+    }
+
   private:
     friend class _udp_datagram;
     udp_datagram(_udp_datagram * impl);

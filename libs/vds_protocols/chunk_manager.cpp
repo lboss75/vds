@@ -781,7 +781,7 @@ void vds::_chunk_manager::add_tail_object_chunk_map(
   const const_data_buffer & hash,
   const const_data_buffer & data)
 {
-  tmp_object_chunk_map_table t;
+  object_chunk_map_table t;
   
   tr.execute(
     t.insert(
