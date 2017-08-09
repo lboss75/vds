@@ -63,7 +63,15 @@ TEST(http_tests, test_server)
           [stream](const vds::service_provider & sp, const std::shared_ptr<vds::http_message> & response) {
           stream->write_value_async(sp, response)
             .wait(
-              [](const vds::service_provider & sp) {},
+              [stream](const vds::service_provider & sp) {
+                stream->write_async(sp, nullptr, 0).wait(
+                  [](const vds::service_provider & sp, size_t) {
+                  },
+                  [](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+                    sp.unhandled_exception(ex);
+                  },
+                  sp);
+              },
               [](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
                 sp.unhandled_exception(ex);
               },

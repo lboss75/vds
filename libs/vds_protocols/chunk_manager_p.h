@@ -162,6 +162,31 @@ namespace vds {
       database_column<size_t> length;
       database_column<const_data_buffer> hash;
     };
+    
+    class tmp_object_chunk_map_table : public database_table
+    {
+    public:
+      tmp_object_chunk_map_table()
+        : database_table("tmp_object_chunk_map"),
+        server_id(this, "server_id"),
+        chunk_index(this, "chunk_index"),
+        object_id(this, "object_id"),
+        object_offset(this, "object_offset"),
+        chunk_offset(this, "chunk_offset"),
+        length(this, "length"),
+        hash(this, "hash"),
+        data(this, "data")
+      {}
+
+      database_column<guid> server_id;
+      database_column<ichunk_manager::index_type> chunk_index;
+      database_column<guid> object_id;
+      database_column<size_t> object_offset;
+      database_column<size_t> chunk_offset;
+      database_column<size_t> length;
+      database_column<const_data_buffer> hash;
+      database_column<const_data_buffer> data;
+    };
 
     class object_chunk_replica_table : public database_table
     {

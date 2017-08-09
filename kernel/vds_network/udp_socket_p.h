@@ -340,7 +340,7 @@ namespace vds {
         const std::shared_ptr<_udp_socket> & owner)
         : sp_(sp), owner_(owner),
           network_service_(static_cast<_network_service *>(sp.get<inetwork_service>())),
-          event_masks_(EPOLLIN)
+          event_masks_(EPOLLIN | EPOLLET)
       {
         this->network_service_->associate(sp, this->owner_->s_, this, this->event_masks_);
       }

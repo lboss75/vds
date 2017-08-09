@@ -654,26 +654,25 @@ size_t vds::_chunk_manager::get_tail_chunk(
   const guid & server_id,
   size_t & result_size)
 {
-  object_chunk_table t;
+  tmp_object_chunk_map_table t;
 
-  auto reader = tr.parse("SELECT t.chunk_index FROM object_chunk_map t "
-    " WHERE t.server_id=?1 AND t.chunk_index NOT IN (SELECT t1.chunk_index FROM object_chunk t1 WHERE t1.server_id=?1)");
-  reader.set_parameter(1, server_id);
+  auto reader = tr.get_reader(
+      t.select(db_max(t.chunk_index)).where(t.server_id == server_id));
 
   size_t chunk_index = 0;
-  while (reader.execute()) {
+  if(reader.execute()) {
     chunk_index = t.chunk_index.get(reader);
+    
+    object_chunk_map_table t1;
+    reader = tr.get_reader(
+        t1.select(db_sum(db_length(t1.chunk_index)))
+        .where(t1.server_id == server_id && t1.chunk_index == chunk_index));
+
+    while (reader.execute()) {
+      reader.get_value(0, result_size);
+    }
   }
-
-  object_chunk_map_table t1;
-  reader = tr.get_reader(
-      t1.select(db_sum(db_length(t1.chunk_index)))
-      .where(t1.server_id == server_id && t1.chunk_index == chunk_index));
-
-  while (reader.execute()) {
-    reader.get_value(0, result_size);
-  }
-
+  
   return chunk_index;
 }
 
@@ -788,8 +787,19 @@ void vds::_chunk_manager::add_tail_object_chunk_map(
       t.object_id = object_id,
       t.object_offset = object_offset,
       t.chunk_offset = chunk_offset,
-      t.hash = hash,
-      t.data = data));
+      t.hash = hash));
+  
+  tmp_object_chunk_map_table t1;
+  
+  tr.execute(
+    t1.insert(
+      t1.server_id = server_id,
+      t1.chunk_index = chunk_index,
+      t1.object_id = object_id,
+      t1.object_offset = object_offset,
+      t1.chunk_offset = chunk_offset,
+      t1.hash = hash,
+      t1.data = data));
 }
 
 void vds::_chunk_manager::final_tail_chunk(
@@ -801,6 +811,10 @@ void vds::_chunk_manager::final_tail_chunk(
   size_t chunk_index)
 {
   this->add_chunk(sp, tr, server_id, chunk_index, chunk_length, chunk_hash);
+  
+  tmp_object_chunk_map_table t1;
+  tr.execute(
+    t1.delete_if(t1.server_id == server_id && t1.chunk_index == chunk_index));
 }
 
 void vds::_chunk_manager::add_to_tail_chunk(

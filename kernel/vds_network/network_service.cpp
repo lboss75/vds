@@ -113,7 +113,7 @@ void vds::_network_service::stop(const service_provider & sp)
       sp.get<logger>()->trace(sp, "Stopping network service");
       
 #ifndef _WIN32
-        this->epoll_future_.wait();
+        //this->epoll_future_.wait();
 #else
         for (auto p : this->work_threads_) {
             p->join();

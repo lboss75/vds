@@ -293,7 +293,7 @@ namespace vds {
         const std::shared_ptr<_tcp_network_socket> & owner)
         : sp_(sp), owner_(owner),
           network_service_(static_cast<_network_service *>(sp.get<inetwork_service>())),
-          event_masks_(EPOLLIN | EPOLLET)
+          event_masks_(EPOLLIN | EPOLLHUP)
       {
         this->network_service_->associate(sp, this->owner_->s_, this, this->event_masks_);
       }
@@ -326,6 +326,15 @@ namespace vds {
         }
         
         if(EPOLLHUP == (EPOLLHUP & events)){
+          this->owner_->incoming_->write_all_async(this->sp_, nullptr, 0)
+            .wait(
+              [this](const service_provider & sp) {
+                this->write_this_.reset();
+              },
+              [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+                sp.unhandled_exception(ex);
+              },
+              this->sp_);
         }
       }
 
