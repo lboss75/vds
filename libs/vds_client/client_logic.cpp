@@ -51,7 +51,13 @@ void vds::client_logic::start(
   this->process_timer_.start(
     scope,
     std::chrono::seconds(5),
-    [this, scope](){ return this->process_timer_tasks(scope); });
+    [this, scope](){
+      auto result = this->process_timer_tasks(scope);
+      if (!result) {
+        throw std::runtime_error("Login error");
+      }
+      return result;
+  });
 }
 
 void vds::client_logic::stop(const service_provider & sp)

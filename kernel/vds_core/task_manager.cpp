@@ -9,6 +9,7 @@ All rights reserved
 #include "mt_service.h"
 #include "shutdown_event.h"
 #include "barrier.h"
+#include "logger.h"
 
 vds::timer::timer()
 : sp_(service_provider::empty())
@@ -52,8 +53,16 @@ void vds::timer::stop(const vds::service_provider& sp)
 void vds::timer::execute(const vds::service_provider& sp)
 {
   try {
-    if (!sp.get_shutdown_event().is_shuting_down() && this->handler_()) {
-      this->schedule(sp);
+    if (!sp.get_shutdown_event().is_shuting_down()) {
+      if (this->handler_()) {
+        this->schedule(sp);
+      }
+      else {
+        sp.get<logger>()->debug(sp, "Task finished");
+      }
+    }
+    else {
+      sp.get<logger>()->debug(sp, "Task finished by shuting down");
     }
   }
   catch (const std::exception & ex) {

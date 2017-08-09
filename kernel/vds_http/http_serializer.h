@@ -32,8 +32,9 @@ namespace vds {
       {
       }
 
-      void async_process_data(const service_provider & sp)
+      void async_process_data(const service_provider & scope)
       {
+        auto sp = scope.create_scope("http_serializer.async_process_data");
         if (0 == this->input_buffer_size()) {
           this->state_ = StateEnum::STATE_EOF;
           this->processed(sp, 0, 0);
@@ -82,10 +83,11 @@ namespace vds {
       not_mutex buffer_mutex_;
 
       void write_body(
-        const service_provider & sp,
+        const service_provider & scope,
         const std::shared_ptr<http_message> & message,
         const std::shared_ptr<std::vector<uint8_t>> & buffer)
       {
+        auto sp = scope.create_scope("http_serializer.write_body");
         message->body()->read_async(sp, buffer->data(), buffer->size())
           .wait(
             [this, message, buffer](const service_provider & sp, size_t readed) {
@@ -113,8 +115,9 @@ namespace vds {
           );
       }
 
-      void continue_process(const service_provider & sp)
+      void continue_process(const service_provider & scope)
       {
+        auto sp = scope.create_scope("http_serializer.continue_process");
         this->buffer_.read_async(sp, this->output_buffer(), this->output_buffer_size()).wait(
           [this](const service_provider & sp, size_t readed) {
 

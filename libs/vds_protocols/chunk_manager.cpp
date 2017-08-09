@@ -201,13 +201,17 @@ void vds::_chunk_manager::start(const service_provider & sp)
     this->last_chunk_ = this->get_last_chunk(
       sp,
       t,
-      server_id);
+      server_id) + 1;
     
     this->tail_chunk_index_ = this->get_tail_chunk(
       sp,
       t,
       server_id,
       this->tail_chunk_size_);
+
+    if (0 == this->tail_chunk_index_) {
+      this->tail_chunk_index_ = this->last_chunk_++;
+    }
 
     return true;
   });
@@ -636,7 +640,7 @@ size_t vds::_chunk_manager::get_last_chunk(
       t.select(db_max(t.chunk_index))
       .where(t.server_id == server_id));
 
-  size_t result = 0;
+  size_t result = 1;
   while (reader.execute()) {
     reader.get_value(0, result);
   }

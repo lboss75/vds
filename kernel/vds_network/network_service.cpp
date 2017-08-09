@@ -96,7 +96,7 @@ void vds::_network_service::start(const service_provider & sp)
 
     //Create worker threads
     for (unsigned int i = 0; i < 2 * std::thread::hardware_concurrency(); ++i) {
-        this->work_threads_.push_back(new std::thread([this, provider] { this->thread_loop(provider); }));
+        this->work_threads_.push_back(new std::thread([this, sp] { this->thread_loop(sp); }));
     }
 
 #else

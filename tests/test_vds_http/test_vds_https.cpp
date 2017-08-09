@@ -75,7 +75,12 @@ TEST(http_tests, test_https_server)
           vds::dataflow(
             vds::stream_read<vds::continuous_stream<uint8_t>>(s.incoming()),
             vds::stream_write<vds::continuous_stream<uint8_t>>(crypto_tunnel->crypted_input())
-          )(done, on_error, sp.create_scope("Server SSL Input"));
+          )(
+            [done](const vds::service_provider & sp) {
+              sp.get<vds::logger>()->debug(sp, "Server SSL Input closed");
+              done(sp);
+            },
+            on_error, sp.create_scope("Server SSL Input"));
       }),
       vds::create_async_task(
         [s, crypto_tunnel, cancellation](const std::function<void(const vds::service_provider & sp)> & done, const vds::error_handler & on_error, const vds::service_provider & sp) {
@@ -94,8 +99,18 @@ TEST(http_tests, test_https_server)
               [stream](const vds::service_provider & sp, const std::shared_ptr<vds::http_message> & response) {
               stream->write_value_async(sp, response)
                 .wait(
-                  [](const vds::service_provider & sp) {},
-                  [](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {},
+                  [stream](const vds::service_provider & sp) {
+                    stream->write_async(sp, nullptr, 0).wait(
+                      [](const vds::service_provider & sp, size_t) {
+                      },
+                      [](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+                        sp.unhandled_exception(ex);
+                      },
+                      sp);
+                  },
+                  [](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+                    sp.unhandled_exception(ex);
+                  },
                   sp);
             },
               on_error,
