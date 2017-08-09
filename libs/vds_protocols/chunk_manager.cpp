@@ -766,9 +766,6 @@ void vds::_chunk_manager::start_tail_chunk(
   const guid & server_id,
   size_t chunk_index)
 {
-  tmp_object_chunk_table t;
-  tr.execute(
-    t.insert(t.server_id = server_id, t.chunk_index = chunk_index));
 }
 
 void vds::_chunk_manager::add_tail_object_chunk_map(
@@ -804,18 +801,6 @@ void vds::_chunk_manager::final_tail_chunk(
   size_t chunk_index)
 {
   this->add_chunk(sp, tr, server_id, chunk_index, chunk_length, chunk_hash);
-
-  object_chunk_map_table t;
-  tmp_object_chunk_map_table t1;
-  
-  tr.execute(
-    t.insert_into(t.server_id,t.chunk_index,t.object_id,t.object_offset,t.chunk_offset,t.length,t.hash)
-    .from(t1, t1.server_id,t1.chunk_index,t1.object_id,t1.object_offset,t1.chunk_offset,t1.length,t1.hash)
-    .where(t1.server_id == server_id && t1.chunk_index == chunk_index));
-
-  
-  tr.execute(
-    t1.delete_if(t1.server_id == server_id && t1.chunk_index == chunk_index));
 }
 
 void vds::_chunk_manager::add_to_tail_chunk(
