@@ -30,7 +30,7 @@ namespace vds {
       imt_service::async_enabled_check(sp);
 
       if (0 == data_size && this->eof_) {
-        throw std::runtime_error("Logiñ error");
+        throw std::runtime_error("Logic error");
       }
       
       this->in_mutex_.lock();

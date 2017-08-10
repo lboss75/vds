@@ -298,14 +298,16 @@ namespace vds {
         const std::shared_ptr<_tcp_network_socket> & owner)
         : sp_(sp), owner_(owner),
           network_service_(static_cast<_network_service *>(sp.get<inetwork_service>())),
-          event_masks_(EPOLLIN | EPOLLHUP)
+          event_masks_(EPOLLIN | EPOLLET)
       {
         this->network_service_->associate(sp, this->owner_->s_, this, this->event_masks_);
       }
       
       ~_socket_handler()
       {
-        this->network_service_->remove_association(this->sp_, this->owner_->s_);
+        if(0 != this->event_masks_){
+          this->network_service_->remove_association(this->sp_, this->owner_->s_);
+        }
       }
 
       void start()
@@ -321,25 +323,30 @@ namespace vds {
         if(EPOLLOUT == (EPOLLOUT & events)){
           this->change_mask(0, EPOLLOUT);
           
+          int len = write(
+            this->owner_->s_,
+            this->write_buffer_,
+            this->write_len_);
+          
+          if (len < 0) {
+            int error = errno;
+            throw std::system_error(
+              error,
+              std::generic_category(),
+              "Send");
+          }
+        
+          if((size_t)len != this->write_len_){
+            throw std::runtime_error("Invalid send TCP");
+          }
+          
+          this->sp_.get<logger>()->debug(this->sp_, "TCP Sent %d bytes", len);
           this->schedule_write();
         }
         
         if(EPOLLIN == (EPOLLIN & events)){
           this->change_mask(0, EPOLLIN);
-          
           this->read_data();
-        }
-        
-        if(EPOLLHUP == (EPOLLHUP & events)){
-          this->owner_->incoming_->write_all_async(this->sp_, nullptr, 0)
-            .wait(
-              [this](const service_provider & sp) {
-                this->write_this_.reset();
-              },
-              [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-                sp.unhandled_exception(ex);
-              },
-              this->sp_);
         }
       }
 
@@ -351,22 +358,32 @@ namespace vds {
       
       std::shared_ptr<_socket_task> read_this_;
       std::shared_ptr<_socket_task> write_this_;
+     
+      uint8_t read_buffer_[10 * 1024 * 1024];
       
+      uint8_t write_buffer_[10 * 1024 * 1024];
+      size_t write_len_;
       std::mutex event_masks_mutex_;
       uint32_t event_masks_;
-      
-      uint8_t read_buffer_[10 * 1024 * 1024];
-      uint8_t write_buffer_[10 * 1024 * 1024];
       
       void change_mask(uint32_t set_events, uint32_t clear_events = 0)
       {
         std::unique_lock<std::mutex> lock(this->event_masks_mutex_);
+        auto need_create = (0 == this->event_masks_);
         this->event_masks_ |= set_events;
         this->event_masks_ &= ~clear_events;
         
-        this->network_service_->set_events(this->sp_, this->owner_->s_, this, this->event_masks_);
+        if(!need_create && 0 != this->event_masks_){
+          this->network_service_->set_events(this->sp_, this->owner_->s_, this, this->event_masks_);
+        }
+        else if (0 == this->event_masks_){
+          this->network_service_->remove_association(this->sp_, this->owner_->s_);
+        }
+        else {
+          this->network_service_->associate(this->sp_, this->owner_->s_, this, this->event_masks_);
+        }
       }
-      
+     
       void schedule_write()
       {
         this->owner_->outgoing_->read_async(this->sp_, this->write_buffer_, sizeof(this->write_buffer_))
@@ -377,23 +394,7 @@ namespace vds {
             this->read_this_.reset();
           }
           else {
-            int len = write(
-              this->owner_->s_,
-              this->write_buffer_,
-              readed);
-            
-            if (len < 0) {
-              int error = errno;
-              throw std::system_error(
-                error,
-                std::generic_category(),
-                "Send");
-            }
-          
-            if((size_t)len != readed){
-              throw std::runtime_error("Invalid send TCP");
-            }
-            this->sp_.get<logger>()->debug(this->sp_, "TCP Sent %d bytes", len);
+            this->write_len_ = readed;
             this->change_mask(EPOLLOUT);
           }
         },
@@ -409,6 +410,11 @@ namespace vds {
 
         if (len < 0) {
           int error = errno;
+          if(EAGAIN == error){
+            this->change_mask(EPOLLIN);
+            return;
+          }
+          
           throw std::system_error(error, std::system_category(), "recv");
         }
         
@@ -417,7 +423,7 @@ namespace vds {
           .wait(
             [this, len](const service_provider & sp) {
               if(0 != len){
-                this->change_mask(EPOLLIN);
+                this->read_data();
               }
               else {
                 this->write_this_.reset();

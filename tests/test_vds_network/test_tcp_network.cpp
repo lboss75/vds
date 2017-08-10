@@ -186,10 +186,11 @@ TEST(network_tests, test_server)
         compare_data<uint8_t>(data.data(), data.size())
       )(
         [done](const vds::service_provider & sp) {
+        sp.get<vds::logger>()->debug(sp, "Client reader closed");
         done(sp);
       },
         [on_error](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-        sp.get<vds::logger>()->debug(sp, "Client reader closed");
+        sp.get<vds::logger>()->debug(sp, "Client reader error");
         on_error(sp, ex);
       },
         sp.create_scope("Client read dataflow"));
@@ -197,11 +198,11 @@ TEST(network_tests, test_server)
     })
       ).wait(
         [done](const vds::service_provider & sp) {
-      sp.get<vds::logger>()->debug(sp, "Client reader closed");
+      sp.get<vds::logger>()->debug(sp, "Client closed");
       done(sp);
     },
         [on_error](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-      sp.get<vds::logger>()->debug(sp, "Client reader error");
+      sp.get<vds::logger>()->debug(sp, "Client error");
       on_error(sp, ex);
     },
       sp.create_scope("Client reader"));

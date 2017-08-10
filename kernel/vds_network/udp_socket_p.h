@@ -356,7 +356,9 @@ namespace vds {
       
       ~_udp_handler()
       {
-        this->network_service_->remove_association(this->sp_, this->owner_->s_);
+        if(0 != this->event_masks_){
+          this->network_service_->remove_association(this->sp_, this->owner_->s_);
+        }
       }
 
       void start()
@@ -372,6 +374,26 @@ namespace vds {
         if(EPOLLOUT == (EPOLLOUT & events)){
           this->change_mask(0, EPOLLOUT);
           
+          int len = sendto(
+            this->owner_->s_,
+            this->write_buffer_.data(),
+            this->write_buffer_.data_size(),
+            0,
+            (sockaddr *)this->write_buffer_->addr(),
+            sizeof(sockaddr_in));
+          
+          if (len < 0) {
+            int error = errno;
+            throw std::system_error(
+              error,
+              std::generic_category(),
+              "Send to " + network_service::to_string(*this->write_buffer_->addr()));
+          }
+        
+          if((size_t)len != this->write_buffer_.data_size()){
+            throw std::runtime_error("Invalid send UDP");
+          }
+          this->sp_.get<logger>()->debug(this->sp_, "UDP Sent %d bytes to %s", len, network_service::to_string(*this->write_buffer_->addr()).c_str());
           this->schedule_write();
         }
         
@@ -403,10 +425,19 @@ namespace vds {
       void change_mask(uint32_t set_events, uint32_t clear_events = 0)
       {
         std::unique_lock<std::mutex> lock(this->event_masks_mutex_);
+        auto need_create = (0 == this->event_masks_);
         this->event_masks_ |= set_events;
         this->event_masks_ &= ~clear_events;
         
-        this->network_service_->set_events(this->sp_, this->owner_->s_, this, this->event_masks_);
+        if(!need_create && 0 != this->event_masks_){
+          this->network_service_->set_events(this->sp_, this->owner_->s_, this, this->event_masks_);
+        }
+        else if (0 == this->event_masks_){
+          this->network_service_->remove_association(this->sp_, this->owner_->s_);
+        }
+        else {
+          this->network_service_->associate(this->sp_, this->owner_->s_, this, this->event_masks_);
+        }
       }
       
       void schedule_write()
@@ -419,26 +450,6 @@ namespace vds {
             this->read_this_.reset();
           }
           else {
-            int len = sendto(
-              this->owner_->s_,
-              this->write_buffer_.data(),
-              this->write_buffer_.data_size(),
-              0,
-              (sockaddr *)this->write_buffer_->addr(),
-              sizeof(sockaddr_in));
-            
-            if (len < 0) {
-              int error = errno;
-              throw std::system_error(
-                error,
-                std::generic_category(),
-                "Send to " + network_service::to_string(*this->write_buffer_->addr()));
-            }
-          
-            if((size_t)len != this->write_buffer_.data_size()){
-              throw std::runtime_error("Invalid send UDP");
-            }
-            this->sp_.get<logger>()->debug(this->sp_, "UDP Sent %d bytes to %s", len, network_service::to_string(*this->write_buffer_->addr()).c_str());
             this->change_mask(EPOLLOUT);
           }
         },
@@ -456,6 +467,10 @@ namespace vds {
 
         if (len < 0) {
           int error = errno;
+          if(EAGAIN == error){
+            this->change_mask(EPOLLIN);
+            return;
+          }
           throw std::system_error(error, std::system_category(), "recvfrom");
         }
         
@@ -464,7 +479,7 @@ namespace vds {
           .wait(
             [this, len](const service_provider & sp) {
               if(0 != len){
-                this->change_mask(EPOLLIN);
+                this->read_data();
               }
               else {
                 this->write_this_.reset();
