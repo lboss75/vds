@@ -62,6 +62,7 @@ namespace vds {
       database_transaction & tr,
       const guid & server_id,
       index_type chunk_index,
+      const guid & object_id,
       size_t & downloaded_data,
       size_t & total_data);
     

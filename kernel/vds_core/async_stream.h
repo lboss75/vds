@@ -34,6 +34,7 @@ namespace vds {
       }
       
       this->in_mutex_.lock();
+      this->in_mutex_stack_ = sp.full_name();
 
       return create_async_task(
         [this, data, data_size](
@@ -79,7 +80,7 @@ namespace vds {
         const error_handler & on_error,
         const service_provider & sp){
         this->write_all_async(sp, p.get(), 1).wait(
-          done,
+          [done, p](const service_provider & sp) { done(sp); },
           on_error,
           sp);
       });
@@ -94,6 +95,7 @@ namespace vds {
       }
       
       this->in_mutex_.lock();
+      this->in_mutex_stack_ = sp.full_name();
 
       return create_async_task(
         [this, data, data_size](
@@ -160,6 +162,7 @@ namespace vds {
 
   private:
     not_mutex in_mutex_;
+    std::string in_mutex_stack_;
     not_mutex out_mutex_;
     std::mutex buffer_mutex_;
     item_type buffer_[4096];

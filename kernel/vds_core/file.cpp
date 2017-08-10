@@ -51,7 +51,7 @@ void vds::file::open(const vds::filename& filename, vds::file::file_mode mode)
     break;
 
   case file_mode::create_new:
-    oflags = O_WRONLY | O_CREAT | O_EXCL;
+    oflags = O_WRONLY | O_CREAT;
     break;
 
   case file_mode::truncate:

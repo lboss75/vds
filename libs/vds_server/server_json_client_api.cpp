@@ -314,7 +314,8 @@ vds::async_task<std::shared_ptr<vds::json_value>> vds::_server_json_client_api::
 {
   return scope.get<ilocal_cache>()->download_object(
     scope,
-    message.version_id())
+    message.version_id(),
+    message.tmp_file())
   .then(
     [](
       const std::function<void(const service_provider & sp, std::shared_ptr<vds::json_value>)> & done,

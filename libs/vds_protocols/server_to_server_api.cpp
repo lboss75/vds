@@ -55,6 +55,16 @@ void vds::server_to_server_api::process_message(
     break;
   }
 
+  case message_identification::object_tail_offer_message_id:
+  {
+    con_man->object_transfer_protocol_->object_offer(
+      sp,
+      t,
+      session,
+      object_tail_offer(binary_form));
+    break;
+  }
+
   case message_identification::route_message_message_id:
   {
     route_message msg(binary_form);

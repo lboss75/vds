@@ -276,6 +276,7 @@ namespace vds {
           }
           catch(...){
             this->execute("ROLLBACK TRANSACTION");
+            throw;
           }
           this->transaction_mutex_.unlock();
           

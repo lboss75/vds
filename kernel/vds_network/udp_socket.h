@@ -37,12 +37,12 @@ namespace vds {
       const const_data_buffer & data,
       bool check_max_safe_data_size = false);
 
-    void reset(
-      const std::string & server,
-      uint16_t port,
-      const void * data,
-      size_t data_size,
-      bool check_max_safe_data_size = false);
+    //void reset(
+    //  const std::string & server,
+    //  uint16_t port,
+    //  const void * data,
+    //  size_t data_size,
+    //  bool check_max_safe_data_size = false);
 
     std::string server() const;
     uint16_t port() const;
@@ -55,7 +55,10 @@ namespace vds {
     udp_datagram & operator = (const udp_datagram & r)
     {
       auto p1 = this->impl_.get();
+      auto id1 = this->id_;
+
       auto p2 = r.impl_.get();
+      auto id2 = r.id_;
 
       if (this->impl_.get() != r.impl_.get()) {
         this->impl_ = r.impl_;
@@ -68,6 +71,7 @@ namespace vds {
     friend class _udp_datagram;
     udp_datagram(_udp_datagram * impl);
 
+    int id_;
     std::shared_ptr<_udp_datagram> impl_;
   };
 

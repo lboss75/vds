@@ -2,12 +2,14 @@
 #include "udp_socket.h"
 #include "udp_socket_p.h"
 
+static int udp_datagram_id;
 vds::udp_datagram::udp_datagram()
+  : id_(udp_datagram_id++)
 {
 }
 
 vds::udp_datagram::udp_datagram(vds::_udp_datagram* impl)
-  : impl_(impl)
+  : impl_(impl), id_(udp_datagram_id++)
 {
 }
 
@@ -17,7 +19,7 @@ vds::udp_datagram::udp_datagram(
   const void* data,
   size_t data_size,
   bool check_max_safe_data_size /*= true*/)
-: impl_(new _udp_datagram(server, port, data, data_size))
+: impl_(new _udp_datagram(server, port, data, data_size)), id_(udp_datagram_id++)
 {
   if (check_max_safe_data_size && max_safe_data_size < data_size) {
     throw std::runtime_error("Data too long");
@@ -29,7 +31,7 @@ vds::udp_datagram::udp_datagram(
   uint16_t port,
   const const_data_buffer & data,
   bool check_max_safe_data_size /*= true*/)
-  : impl_(new _udp_datagram(server, port, data))
+  : impl_(new _udp_datagram(server, port, data)), id_(udp_datagram_id++)
 {
   if (check_max_safe_data_size && max_safe_data_size < data.size()) {
     throw std::runtime_error("Data too long");
@@ -37,14 +39,14 @@ vds::udp_datagram::udp_datagram(
 }
 
 
-void vds::udp_datagram::reset(const std::string & server, uint16_t port, const void * data, size_t data_size, bool check_max_safe_data_size /*= true*/)
-{
-  if (check_max_safe_data_size && max_safe_data_size < data_size) {
-    throw std::runtime_error("Data too long");
-  }
-
-  this->impl_.reset(new _udp_datagram(server, port, data, data_size));
-}
+//void vds::udp_datagram::reset(const std::string & server, uint16_t port, const void * data, size_t data_size, bool check_max_safe_data_size /*= true*/)
+//{
+//  if (check_max_safe_data_size && max_safe_data_size < data_size) {
+//    throw std::runtime_error("Data too long");
+//  }
+//
+//  this->impl_.reset(new _udp_datagram(server, port, data, data_size));
+//}
 
 std::string vds::udp_datagram::server() const
 {

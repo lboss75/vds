@@ -103,10 +103,11 @@ namespace vds {
               sp);
           }
           else {
-            this->buffer_.write_all_async(sp, nullptr, 0).wait(
+            auto sp_ = sp.create_scope("http_serializer.write_body.final");
+            this->buffer_.write_all_async(sp_, nullptr, 0).wait(
               [](const service_provider & sp) { },
               [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {},
-              sp);
+              sp_);
           }
         }, [this](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
           this->error(sp, ex);

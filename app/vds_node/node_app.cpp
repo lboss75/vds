@@ -63,6 +63,12 @@ vds::node_app::node_app()
     "password",
     "Password",
     "User password"),
+  name_(
+    "n",
+    "name",
+    "File name",
+    "The name of the file"
+  ),
   filename_(
     "f",
     "file",
@@ -79,17 +85,27 @@ void vds::node_app::main(
   if (&this->node_install_cmd_set_ == this->current_command_set_) {
     std::cout << "Waiting for network connection\n";
 
-    //this->client_.node_install(
-    //  this->node_login_.value(),
-    //  this->node_password_.value());
+    barrier b;
+    sp.get<vds::iclient>()->init_server(sp, this->login_.value(), this->password_.value())
+      .wait(
+        [&b, this](
+          const vds::service_provider & sp,
+          const vds::certificate & server_certificate,
+          const vds::asymmetric_private_key & private_key) {
 
-    //sp.get<vsr_protocol::iclient>().subscribe_client_id_assigned([this](vsr_protocol::client & client) {
-    //  this->cliend_id_assigned_.set();
-    //});
+      foldername folder(persistence::current_user(sp), ".vds");
+      folder.create();
 
-    //if (!this->cliend_id_assigned_.wait_for(std::chrono::seconds(15))) {
-    //  throw std::runtime_error("Connection failed");
-    //}
+      server_certificate.save(vds::filename(folder, "server.crt"));
+      private_key.save(vds::filename(folder, "server.pkey"));
+
+      b.set();
+    },
+        [&b](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+      sp.unhandled_exception(ex);
+      b.set();
+    }, sp);
+    b.wait();
   }
   else if (&this->file_upload_cmd_set_ == this->current_command_set_) {
     filename fn(this->filename_.value());
@@ -112,7 +128,12 @@ void vds::node_app::main(
     filename fn(this->filename_.value());
 
     barrier b;
-    sp.get<vds::iclient>()->download_data(sp, this->login_.value(), this->password_.value(), fn.name(), fn)
+    sp.get<vds::iclient>()->download_data(
+      sp,
+      this->login_.value(),
+      this->password_.value(),
+      this->name_.value().empty() ? fn.name() : this->name_.value(),
+      fn)
       .wait(
         [&b](const vds::service_provider&sp, const guid& version_id) {
           std::cout << "File downloaded " << version_id.str() << "\n";
@@ -158,6 +179,7 @@ void vds::node_app::register_command_line(vds::command_line& cmd_line)
   cmd_line.add_command_set(this->node_install_cmd_set_);
   this->node_install_cmd_set_.required(this->login_);
   this->node_install_cmd_set_.required(this->password_);
+  this->node_install_cmd_set_.optional(this->root_folder_);
 
   cmd_line.add_command_set(this->file_upload_cmd_set_);
   this->file_upload_cmd_set_.required(this->login_);
@@ -169,6 +191,7 @@ void vds::node_app::register_command_line(vds::command_line& cmd_line)
   this->file_download_cmd_set_.required(this->login_);
   this->file_download_cmd_set_.required(this->password_);
   this->file_download_cmd_set_.required(this->filename_);
+  this->file_download_cmd_set_.optional(this->name_);
   this->file_download_cmd_set_.optional(this->root_folder_);
 }
 
@@ -176,21 +199,11 @@ void vds::node_app::register_services(service_registrator & registrator)
 {
   base_class::register_services(registrator);
 
-  if (&this->node_install_cmd_set_ == this->current_command_set_) {
-    registrator.add(this->task_manager_);
-    registrator.add(this->network_service_);
-    registrator.add(this->crypto_service_);
-    registrator.add(this->client_);
-  }
-  else if (
-     &this->file_upload_cmd_set_ == this->current_command_set_
-  || &this->file_download_cmd_set_ == this->current_command_set_) {
-    registrator.add(this->mt_service_);
-    registrator.add(this->task_manager_);
-    registrator.add(this->network_service_);
-    registrator.add(this->crypto_service_);
-    registrator.add(this->client_);
-  }
+  registrator.add(this->mt_service_);
+  registrator.add(this->task_manager_);
+  registrator.add(this->network_service_);
+  registrator.add(this->crypto_service_);
+  registrator.add(this->client_);
 }
 
 void vds::node_app::start_services(service_registrator & registrator, service_provider & sp)

@@ -195,7 +195,12 @@ namespace vds {
       }
       void error(DWORD error_code) override
       {
-        this->sp_.unhandled_exception(std::make_shared<std::system_error>(error_code, std::system_category(), "read failed"));
+        if (ERROR_NETNAME_DELETED == error_code) {
+          this->process(0);
+        }
+        else {
+          this->sp_.unhandled_exception(std::make_shared<std::system_error>(error_code, std::system_category(), "read failed"));
+        }
       }
     };
 

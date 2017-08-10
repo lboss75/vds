@@ -98,8 +98,16 @@ namespace vds {
       database_transaction& tr,
       const guid & server_id,
       index_type chunk_index,
+      const guid & object_id,
       size_t & downloaded_data,
       size_t& total_data);
+
+    const_data_buffer restore_object_chunk(
+      const vds::service_provider& sp,
+      vds::database_transaction& tr,
+      const vds::guid & server_id,
+      vds::ichunk_manager::index_type chunk_index,
+      const guid & object_id);
 
     void add_chunk_store_data(
       const service_provider & sp,
@@ -109,7 +117,28 @@ namespace vds {
       uint16_t replica,
       const guid & storage_id,
       const const_data_buffer & data);
-    
+
+    void add_to_tail_chunk(
+      const service_provider & sp,
+      database_transaction & tr,
+      const guid & object_id,
+      size_t offset,
+      const const_data_buffer & object_hash,
+      const guid & server_id,
+      size_t index,
+      size_t chunk_offset,
+      const const_data_buffer & data);
+
+    const_data_buffer get_tail_object(
+      const service_provider & sp,
+      database_transaction & tr,
+      const guid & server_id,
+      size_t chunk_index,
+      const guid & object_id,
+      size_t & offset,
+      const_data_buffer & object_hash,
+      size_t & chunk_offset);
+
   private:
     friend class _storage_log;
     
@@ -173,7 +202,6 @@ namespace vds {
         object_id(this, "object_id"),
         object_offset(this, "object_offset"),
         chunk_offset(this, "chunk_offset"),
-        length(this, "length"),
         hash(this, "hash"),
         data(this, "data")
       {}
@@ -183,7 +211,6 @@ namespace vds {
       database_column<guid> object_id;
       database_column<size_t> object_offset;
       database_column<size_t> chunk_offset;
-      database_column<size_t> length;
       database_column<const_data_buffer> hash;
       database_column<const_data_buffer> data;
     };
@@ -327,16 +354,6 @@ namespace vds {
       const guid & server_id,
       size_t chunk_index);
 
-    void add_to_tail_chunk(
-      const service_provider & sp,
-      database_transaction & tr,
-      const guid & object_id,
-      size_t offset,
-      const const_data_buffer & object_hash,
-      const guid & server_id,
-      size_t index,
-      size_t chunk_offset,
-      const const_data_buffer & data);
 
     void add_chunk_store(
       const service_provider & sp,
@@ -345,7 +362,6 @@ namespace vds {
       size_t index,
       uint16_t replica,
       const guid & storage_id);
-    
 
     const_data_buffer get_tail_data(
       const service_provider & sp,

@@ -253,10 +253,13 @@ namespace vds {
       }
       void error(DWORD error_code) override
       {
-        if (WSAESHUTDOWN == error_code || ERROR_OPERATION_ABORTED == error_code) {
-          this->process(0);
-        }
-        else {
+        switch (error_code)
+        {
+        case WSAESHUTDOWN:
+        case ERROR_OPERATION_ABORTED:
+        case ERROR_PORT_UNREACHABLE:
+          break;
+        default:
           this->sp_.unhandled_exception(std::make_shared<std::system_error>(error_code, std::system_category(), "WSARecvFrom failed"));
         }
       }
@@ -273,10 +276,16 @@ namespace vds {
       {
       }
 
+      ~_udp_send()
+      {
+        this->sp_.get<logger>()->debug(this->sp_, "_udp_send.~_udp_send");
+      }
+
       void write_async()
       {
+        auto sp = this->sp_.create_scope("_udp_send.write_async");
         auto pthis = this->shared_from_this();
-        this->owner_->outgoing_->read_async(this->sp_, &this->buffer_, 1)
+        this->owner_->outgoing_->read_async(sp, &this->buffer_, 1)
         .wait([pthis](const service_provider & sp, size_t readed) {
           if (1 == readed) {
             static_cast<_udp_send *>(pthis.get())->schedule();
@@ -287,7 +296,7 @@ namespace vds {
             [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
           sp.unhandled_exception(ex);
         },
-          this->sp_);
+          sp);
       }
 
     private:

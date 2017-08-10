@@ -41,23 +41,57 @@ namespace vds{
   {
   public:
     app_base()
-    {
-    }
-    
-    void register_services(service_registrator & registrator)
+    : logger_(ll_info),
+      log_level_("ll", "log_level", "Log Level", "Set log level"),
+      current_command_set_(nullptr),
+      help_cmd_set_("Show help", "Show application help"),
+      help_cmd_switch_("h", "help", "Help", "Show help")
     {
     }
 
-    void start_services(service_registrator & registrator, service_provider & sp)
+    int run(int argc, const char ** argv)
     {
-      registrator.start(sp);
-    }    
+      setlocale(LC_ALL, "Russian");
 
-    void before_main(service_provider & sp)
-    {
+      try {
+        command_line cmd_line(
+          static_cast<app_impl *>(this)->app_name(),
+          static_cast<app_impl *>(this)->app_description(),
+          static_cast<app_impl *>(this)->app_version()
+        );
+
+        static_cast<app_impl *>(this)->register_command_line(cmd_line);
+        static_cast<app_impl *>(this)->register_common_parameters(cmd_line);
+
+        this->current_command_set_ = cmd_line.parse(argc, argv);
+
+        static_cast<app_impl *>(this)->process_common_parameters();
+
+        if (
+          nullptr == this->current_command_set_
+          || this->current_command_set_ == &this->help_cmd_set_) {
+          cmd_line.show_help(filename(argv[0]).name_without_extension());
+          return 0;
+        }
+
+        static_cast<app_impl *>(this)->start();
+        return 0;
+      }
+      catch (std::exception & ex) {
+        static_cast<app_impl *>(this)->on_exception(std::make_shared<std::runtime_error>(ex.what()));
+        return 1;
+      }
+      catch (...) {
+        static_cast<app_impl *>(this)->on_exception(std::make_shared<std::runtime_error>("Unexpected error"));
+        return 1;
+      }
     }
 
   protected:
+    file_logger logger_;
+    command_line_value log_level_;
+    const command_line_set * current_command_set_;
+
     void start()
     {
       vds::service_registrator registrator;
@@ -80,45 +114,31 @@ namespace vds{
       
       registrator.shutdown(sp);
     }
-  };
-  
-  template <typename app_impl>
-  class console_app : public app_base<app_impl>
-  {
-  public:
-    console_app()
-    :
-      console_logger_(ll_error),
-      help_cmd_set_("Show help", "Show application help"),
-      help_cmd_switch_("h", "help", "Help", "Show help"),
-      log_level_("ll", "log_level", "Log Level", "Set log level")
-    {
-    }
-    
     void register_services(service_registrator & registrator)
     {
-      app_base<app_impl>::register_services(registrator);
-      registrator.add(console_logger_);
+      registrator.add(this->logger_);
+    }
+
+    void start_services(service_registrator & registrator, service_provider & sp)
+    {
+      registrator.start(sp);
     }
 
     void before_main(service_provider & sp)
     {
-      app_base<app_impl>::before_main(sp);
-
       sp.set_property<unhandled_exception_handler>(
         service_provider::property_scope::any_scope,
         new vds::unhandled_exception_handler(
           [this](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-        this->on_exception(ex);
+        static_cast<app_impl *>(this)->on_exception(ex);
       }));
     }
 
     void on_exception(const std::shared_ptr<std::exception> & ex)
     {
-      std::cerr << ex->what();
       exit(1);
     }
-   
+
     void register_command_line(command_line & cmd_line)
     {
       cmd_line.add_command_set(this->help_cmd_set_);
@@ -133,64 +153,37 @@ namespace vds{
     void process_common_parameters()
     {
       if ("trace" == this->log_level_.value()) {
-        this->console_logger_.set_log_level(ll_trace);
+        this->logger_.set_log_level(ll_trace);
       }
       else if ("debug" == this->log_level_.value()) {
-        this->console_logger_.set_log_level(ll_debug);
+        this->logger_.set_log_level(ll_debug);
       }
       else if ("info" == this->log_level_.value()) {
-        this->console_logger_.set_log_level(ll_info);
+        this->logger_.set_log_level(ll_info);
       }
       else if ("error" == this->log_level_.value()) {
-        this->console_logger_.set_log_level(ll_error);
+        this->logger_.set_log_level(ll_error);
       }
     }
 
-    int run(int argc, const char ** argv)
-    {
-      setlocale(LC_ALL, "Russian");
-      
-      try {
-        command_line cmd_line(
-          static_cast<app_impl *>(this)->app_name(),
-          static_cast<app_impl *>(this)->app_description(),
-          static_cast<app_impl *>(this)->app_version()
-        );
-
-        static_cast<app_impl *>(this)->register_command_line(cmd_line);
-        static_cast<app_impl *>(this)->register_common_parameters(cmd_line);
-
-        this->current_command_set_ = cmd_line.parse(argc, argv);
-        
-        if(
-          nullptr == this->current_command_set_
-          || this->current_command_set_ == &this->help_cmd_set_){
-          cmd_line.show_help(filename(argv[0]).name_without_extension());
-          return 0;
-        }
-
-        static_cast<app_impl *>(this)->process_common_parameters();
-
-        static_cast<app_impl *>(this)->start();
-        return 0;
-      }
-      catch (std::exception & ex) {
-        static_cast<app_impl *>(this)->on_exception(std::make_shared<std::runtime_error>(ex.what()));
-        return 1;
-      }
-      catch(...){
-        static_cast<app_impl *>(this)->on_exception(std::make_shared<std::runtime_error>("Unexpected error"));
-        return 1;
-      }
-    }
-    
   private:
-    console_logger console_logger_;
     command_line_set help_cmd_set_;
     command_line_switch help_cmd_switch_;
-    command_line_value log_level_;
-  protected:
-    const command_line_set * current_command_set_;
+  };
+  
+  template <typename app_impl>
+  class console_app : public app_base<app_impl>
+  {
+  public:
+    console_app()
+    {
+    }
+    
+    void on_exception(const std::shared_ptr<std::exception> & ex)
+    {
+      std::cerr << ex->what();
+      app_base<app_impl>::on_exception(ex);
+    }
   };
 }
 

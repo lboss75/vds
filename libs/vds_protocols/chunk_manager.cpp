@@ -64,6 +64,7 @@ void vds::ichunk_manager::query_object_chunk(
   vds::database_transaction& tr,
   const vds::guid & server_id,
   vds::ichunk_manager::index_type chunk_index,
+  const vds::guid & object_id,
   size_t & downloaded_data,
   size_t& total_data)
 {
@@ -72,6 +73,7 @@ void vds::ichunk_manager::query_object_chunk(
   tr,
   server_id,
   chunk_index,
+  object_id,
   downloaded_data,
   total_data);
 }
@@ -288,12 +290,6 @@ void vds::_chunk_manager::create_database_objects(
       length INTEGER NOT NULL,\
       hash BLOB NOT NULL,\
       CONSTRAINT pk_object_chunk_map PRIMARY KEY (server_id, chunk_index, object_id))");
-
-    t.execute(
-      "CREATE TABLE tmp_object_chunk(\
-      server_id VARCHAR(64) NOT NULL,\
-      chunk_index INTEGER NOT NULL,\
-      CONSTRAINT pk_tmp_object_chunk PRIMARY KEY (server_id, chunk_index))");
 
     t.execute(
       "CREATE TABLE tmp_object_chunk_map(\
@@ -787,6 +783,7 @@ void vds::_chunk_manager::add_tail_object_chunk_map(
       t.object_id = object_id,
       t.object_offset = object_offset,
       t.chunk_offset = chunk_offset,
+      t.length = data.size(),
       t.hash = hash));
   
   tmp_object_chunk_map_table t1;
@@ -957,6 +954,34 @@ void vds::_chunk_manager::get_chunk_store(
 
 }
 
+vds::const_data_buffer  vds::_chunk_manager::get_tail_object(
+  const service_provider & sp,
+  database_transaction & tr,
+  const guid & server_id,
+  size_t chunk_index,
+  const guid & object_id,
+  size_t & offset,
+  const_data_buffer & object_hash,
+  size_t & chunk_offset)
+{
+  std::vector<uint8_t> data;
+
+  tmp_object_chunk_map_table t;
+  auto reader = tr.get_reader(
+    t.select(t.data, t.object_offset, t.hash, t.chunk_offset)
+    .where(t.server_id == server_id && t.chunk_index == chunk_index && t.object_id == object_id));
+
+  if (reader.execute()) {
+    offset = t.object_offset.get(reader);
+    object_hash = t.hash.get(reader);
+    chunk_offset = t.chunk_offset.get(reader);
+
+    return t.data.get(reader);
+  }
+
+  return vds::const_data_buffer();
+}
+
 vds::const_data_buffer vds::_chunk_manager::get_tail_data(
   const service_provider & sp,
   database_transaction & tr,
@@ -990,8 +1015,9 @@ void vds::_chunk_manager::query_object_chunk(
   vds::database_transaction& tr,
   const vds::guid & server_id,
   vds::ichunk_manager::index_type chunk_index,
+  const guid & object_id,
   size_t & downloaded_data,
-  size_t& total_data)
+  size_t & total_data)
 {
   object_chunk_data_table t;
   auto st = tr.get_reader(
@@ -1002,15 +1028,45 @@ void vds::_chunk_manager::query_object_chunk(
   while(st.execute()){
     replicas.push_back(t.replica.get(st));
   }
-  
-  total_data += BLOCK_SIZE;
-  if(MIN_HORCRUX <= replicas.size()){
-    downloaded_data += BLOCK_SIZE;//Ok
+
+  if (!replicas.empty()) {
+    total_data += BLOCK_SIZE;
+    if (MIN_HORCRUX <= replicas.size()) {
+      downloaded_data += BLOCK_SIZE;//Ok
+      return;
+    }
+
+    downloaded_data += REPLICA_SIZE * replicas.size();
+  }
+  else if(server_id == sp.get<istorage_log>()->current_server_id()){
+    tmp_object_chunk_map_table t;
+    auto reader = tr.get_reader(
+      t.select(db_length(t.data))
+      .where(t.server_id == server_id && t.chunk_index == chunk_index && t.object_id == object_id));
+
+    while (reader.execute()) {
+      size_t length;
+      reader.get_value(0, length);
+
+      total_data += length;
+      downloaded_data += length;
+    }
     return;
   }
-  
-  downloaded_data += REPLICA_SIZE * replicas.size();
-  
+  else {
+    object_chunk_map_table t;
+    auto reader = tr.get_reader(
+      t.select(db_sum(t.length))
+      .where(t.server_id == server_id && t.chunk_index == chunk_index && t.object_id == object_id));
+
+    while (reader.execute()) {
+      size_t length;
+      reader.get_value(0, length);
+
+      total_data += length;
+    }
+  }
+
   std::set<guid> data_request;
   
   object_chunk_store_table t1;
@@ -1036,4 +1092,44 @@ void vds::_chunk_manager::query_object_chunk(
     object_request message(server_id, chunk_index, current_server_id, replicas);
     connection_manager->send_to(sp, p, message);
   }
+
+}
+
+vds::const_data_buffer vds::_chunk_manager::restore_object_chunk(
+  const vds::service_provider & sp,
+  vds::database_transaction & tr,
+  const vds::guid & server_id,
+  vds::ichunk_manager::index_type chunk_index,
+  const guid & object_id)
+{
+  object_chunk_data_table t;
+  auto st = tr.get_reader(
+    t.select(t.replica, t.data)
+    .where(t.server_id == server_id && t.chunk_index == chunk_index));
+
+  std::unordered_map<uint16_t, const_data_buffer> horcruxes;
+  while (st.execute()) {
+    horcruxes[t.replica.get(st)] = t.data.get(st);
+  }
+
+  if (!horcruxes.empty()) {
+    if (MIN_HORCRUX > horcruxes.size()) {
+      throw std::runtime_error("Logic error");
+    }
+
+    return this->chunk_storage_.restore_data(horcruxes);
+
+  }
+  else if (server_id == sp.get<istorage_log>()->current_server_id()) {
+    tmp_object_chunk_map_table t;
+    auto reader = tr.get_reader(
+      t.select(t.data)
+      .where(t.server_id == server_id && t.chunk_index == chunk_index && t.object_id == object_id));
+
+    if (reader.execute()) {
+      return t.data.get(reader);
+    }
+  }
+
+  throw std::runtime_error("Ligic error");
 }
