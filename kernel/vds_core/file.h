@@ -38,9 +38,6 @@ namespace vds {
       open_or_create,
 
       //Specifies that the operating system should create a new file
-      create,
-
-      //Specifies that the operating system should create a new file
       create_new,
 
       //Specifies that the operating system should open an existing file

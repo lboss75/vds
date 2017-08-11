@@ -115,7 +115,7 @@ vds::async_task<> vds::_file_manager::decrypt_file(
                 file_range_read(tmp_file, offset, target_lenght),
                 symmetric_decrypt(transaction_key),
                 inflate(),
-                file_write(target_file, file::file_mode::append)
+                file_write(target_file, (0 == offset) ? file::file_mode::truncate : file::file_mode::append)
               )(
                 [](const service_provider & sp){
                 },
@@ -124,6 +124,7 @@ vds::async_task<> vds::_file_manager::decrypt_file(
                 },
                 sp);
               
+              offset += target_lenght;
               if(error) {
                 on_error(sp, error);
                 return;

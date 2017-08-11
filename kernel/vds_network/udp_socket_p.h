@@ -171,7 +171,7 @@ namespace vds {
     {
 #ifdef _WIN32
       std::make_shared<_udp_receive>(sp, this->shared_from_this())->read_async();
-      std::make_shared<_udp_send>(sp, this->shared_from_this())->write_async();
+      std::make_shared<_udp_send>(sp, this->shared_from_this())->start();
 #else
       std::make_shared<_udp_handler>(sp, this->shared_from_this())->start();
 #endif
@@ -273,7 +273,7 @@ namespace vds {
         const std::shared_ptr<_udp_socket> & owner)
         : sp_(sp),
           owner_(owner)
-      {
+      {        
       }
 
       ~_udp_send()
@@ -281,22 +281,10 @@ namespace vds {
         this->sp_.get<logger>()->debug(this->sp_, "_udp_send.~_udp_send");
       }
 
-      void write_async()
+      void start()
       {
-        auto sp = this->sp_.create_scope("_udp_send.write_async");
-        auto pthis = this->shared_from_this();
-        this->owner_->outgoing_->read_async(sp, &this->buffer_, 1)
-        .wait([pthis](const service_provider & sp, size_t readed) {
-          if (1 == readed) {
-            static_cast<_udp_send *>(pthis.get())->schedule();
-          }
-          else {
-          }
-          },
-            [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-          sp.unhandled_exception(ex);
-        },
-          sp);
+        this->pthis_ = this->shared_from_this();
+        this->write_async();
       }
 
     private:
@@ -306,6 +294,24 @@ namespace vds {
 
       socklen_t addr_len_;
       udp_datagram buffer_;
+
+      void write_async()
+      {
+        auto sp = this->sp_.create_scope("_udp_send.write_async");
+        this->owner_->outgoing_->read_async(sp, &this->buffer_, 1)
+          .wait([this](const service_provider & sp, size_t readed) {
+          if (1 == readed) {
+            this->schedule();
+          }
+          else {
+            this->pthis_.reset();
+          }
+        },
+            [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+          sp.unhandled_exception(ex);
+        },
+          sp);
+      }
 
       void schedule()
       {
@@ -318,8 +324,6 @@ namespace vds {
             throw std::system_error(errorCode, std::system_category(), "WSASend failed");
           }
         }
-
-        this->pthis_ = this->shared_from_this();
       }
 
       void process(DWORD dwBytesTransfered) override
@@ -327,9 +331,6 @@ namespace vds {
         if (this->wsa_buf_.len != (size_t)dwBytesTransfered) {
           throw std::runtime_error("Invalid sent UDP data");
         }
-
-        auto pthis = this->shared_from_this();
-        this->pthis_.reset();
 
         this->write_async();
       }
