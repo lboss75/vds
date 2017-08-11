@@ -1068,6 +1068,7 @@ void vds::_chunk_manager::query_object_chunk(
   }
 
   std::set<guid> data_request;
+  data_request.emplace(server_id);
   
   object_chunk_store_table t1;
   st = tr.get_reader(
