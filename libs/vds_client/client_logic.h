@@ -61,7 +61,7 @@ namespace vds {
             on_error));
           this->add_task(sp, message);
           
-          auto t = std::make_shared<timer>();
+          auto t = std::make_shared<timer>("Cancel timer");
           t->start(sp, request_timeout,
             [this, sp, t, request_id](){
               t->stop(sp);

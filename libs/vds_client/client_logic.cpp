@@ -9,7 +9,8 @@ All rights reserved
 
 vds::client_logic::client_logic()
 : connected_(0),  
-  messages_sent_(false)
+  messages_sent_(false),
+  process_timer_("client process timer")
 {
 }
 
@@ -54,7 +55,7 @@ void vds::client_logic::start(
     [this, scope](){
       auto result = this->process_timer_tasks(scope);
       if (!result) {
-        throw std::runtime_error("Login error");
+        throw std::runtime_error("Logic error");
       }
       return result;
   });

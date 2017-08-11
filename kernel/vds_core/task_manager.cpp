@@ -11,8 +11,8 @@ All rights reserved
 #include "barrier.h"
 #include "logger.h"
 
-vds::timer::timer()
-: sp_(service_provider::empty())
+vds::timer::timer(const char * name)
+: name_(name), sp_(service_provider::empty())
 {
 }
 
@@ -44,10 +44,7 @@ void vds::timer::stop(const vds::service_provider& sp)
   auto manager = static_cast<task_manager *>(sp.get<itask_manager>());
   
   std::lock_guard<std::mutex> lock(manager->scheduled_mutex_);
-  manager->scheduled_.erase(
-    manager->scheduled_.begin(),
-    std::remove(
-      manager->scheduled_.begin(), manager->scheduled_.end(), this));
+  manager->scheduled_.remove(this);
 }
 
 void vds::timer::execute(const vds::service_provider& sp)
@@ -58,7 +55,7 @@ void vds::timer::execute(const vds::service_provider& sp)
         this->schedule(sp);
       }
       else {
-        sp.get<logger>()->debug(sp, "Task finished");
+        sp.get<logger>()->debug(sp, "Task %s finished", this->name_.c_str());
       }
     }
     else {
@@ -85,6 +82,7 @@ void vds::timer::schedule(const vds::service_provider& sp)
 
   std::lock_guard<std::mutex> lock(manager->scheduled_mutex_);
   manager->scheduled_.push_back(this);
+  sp.get<logger>()->debug(sp, "Add Task %s", this->name_.c_str());
 
   if (!manager->work_thread_.joinable()) {
     if (!manager->sp_) {
@@ -133,7 +131,8 @@ void vds::task_manager::work_thread()
     for(auto task : this->scheduled_){
       if(task->start_time_ <= now){
         this->scheduled_.remove(task);
-        
+        this->sp_.get<logger>()->debug(this->sp_, "Remove Task %s", task->name_.c_str());
+
         ++b;
         
         imt_service::async(this->sp_, [this, task, &b](){

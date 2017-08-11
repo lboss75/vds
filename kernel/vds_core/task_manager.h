@@ -14,7 +14,7 @@ namespace vds {
   class timer
   {
   public:
-    timer();
+    timer(const char * name);
     
     void start(
       const service_provider & sp,
@@ -24,6 +24,8 @@ namespace vds {
     void stop(const vds::service_provider& sp);
     
   private:
+    std::string name_;
+
     friend class task_manager;
     service_provider sp_;
     std::chrono::steady_clock::duration period_;

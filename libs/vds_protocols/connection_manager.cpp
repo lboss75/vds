@@ -262,7 +262,7 @@ vds::async_task<> vds::_connection_manager::start_https_server(
 //////////////////////////////////////////////////////
 vds::_connection_manager::udp_channel::udp_channel(
   _connection_manager * owner)
-: owner_(owner)
+: owner_(owner), process_timer_("UDP channel")
 {
 }
 

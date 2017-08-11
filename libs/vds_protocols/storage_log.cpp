@@ -135,6 +135,7 @@ vds::principal_log_record::record_id vds::istorage_log::get_last_applied_record(
 
 ///////////////////////////////////////////////////////////////////////////////
 vds::_storage_log::_storage_log()
+  : process_timer_("storage_log timer")
 {
 }
 

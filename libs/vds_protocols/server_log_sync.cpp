@@ -37,7 +37,8 @@ void vds::server_log_sync::stop(const service_provider& sp)
 ////////////////////////////////////////////////
 vds::_server_log_sync::_server_log_sync(
   server_log_sync * owner)
-: owner_(owner)
+: owner_(owner), timer_("_server_log_sync")
+
 {
 }
 
