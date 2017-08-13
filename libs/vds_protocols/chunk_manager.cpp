@@ -117,87 +117,6 @@ vds::_chunk_manager::~_chunk_manager()
 {
 }
 
-/*
-vds::async_task<>
-vds::_chunk_manager::add(
-  const service_provider & sp,
-  const guid & owner_principal,
-  server_log_file_map & target,
-  const filename & fn)
-{
-  return create_async_task(
-    [this, fn, &target, owner_principal](
-      const std::function<void (const service_provider & sp)> & done,
-      const error_handler & on_error,
-      const service_provider & sp){
-        const std::shared_ptr<std::exception> & error;
-
-        constexpr size_t BLOCK_SIZE = 5 * 1024 * 1024;
-        auto file_size = file::length(fn);
-        for (decltype(file_size) offset = 0; offset < file_size; offset += BLOCK_SIZE) {
-
-          this->tmp_folder_mutex_.lock();
-          auto tmp_index = this->last_tmp_file_index_++;
-          this->tmp_folder_mutex_.unlock();
-
-          filename tmp_file(this->tmp_folder_, std::to_string(tmp_index));
-
-          size_t original_lenght;
-          const_data_buffer original_hash;
-
-          dataflow(
-            file_range_read(fn, offset, BLOCK_SIZE),
-            hash_filter(&original_lenght, &original_hash),
-            file_write(tmp_file, file::file_mode::create_new)
-          )(
-            [this, tmp_file, &original_lenght, &original_hash, &target, owner_principal](const service_provider & sp) {
-
-              this->obj_folder_mutex_.lock();
-              auto index = this->last_obj_file_index_++;
-              this->obj_folder_mutex_.unlock();
-
-              file::move(tmp_file,
-                sp.get<ilocal_cache>()->get_object_filename(
-                  sp, sp.get<istorage_log>()->current_server_id(), index));
-
-              auto result = principal_log_new_object(
-                index,
-                original_lenght,
-                original_hash,
-                owner_principal);
-
-              sp.get<istorage_log>()->add_to_local_log(sp, result.serialize());
-              target.add(result);
-          },
-            [&error](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-              error = ex;
-            },
-            sp);
-          if (error) {
-            break;
-          }
-        };
-
-        if (error) {
-          on_error(sp, error);
-        }
-        else {
-          done(sp);
-        }
-      });
-}
-
-void vds::_chunk_manager::generate_chunk(const service_provider & sp)
-{
-  throw std::runtime_error("Not implemented");
-}
-
-void vds::_chunk_manager::set_next_index(const service_provider & sp, uint64_t next_index)
-{
-  this->last_obj_file_index_ = next_index;
-}
-*/
-
 void vds::_chunk_manager::start(const service_provider & sp)
 {
   auto server_id = sp.get<istorage_log>()->current_server_id();
@@ -231,30 +150,38 @@ vds::async_task<> vds::_chunk_manager::add_object(
     
     auto file_size = file::length(tmp_file);
     auto server_id = sp.get<istorage_log>()->current_server_id();
-    principal_log_new_object_map result(server_id, version_id, file_size, file_hash, BLOCK_SIZE);
+    
+    this->chunk_mutex_.lock();
+    auto start_chunk = this->last_chunk_;
+    auto finish_chunk = start_chunk + (file_size / BLOCK_SIZE);
+    if(0 != (file_size % BLOCK_SIZE)){
+      ++finish_chunk;
+    }
+    this->chunk_mutex_.unlock();
+    
+    //principal_log_new_object_map result(server_id, version_id, file_size, file_hash, start_chunk, finish_chunk);
         
     for (decltype(file_size) offset = 0; offset < file_size; offset += BLOCK_SIZE) {
       if (!this->write_chunk(
         sp,
         tr,
-        result,
+        start_chunk,
+        version_id,
         tmp_file,
         offset,
         (BLOCK_SIZE < file_size - offset) ? BLOCK_SIZE : (file_size - offset),
-        on_error)) {
+        on_error,
+        start_chunk == finish_chunk - 1)) {
         return;
       }
+      
+      ++start_chunk;
     }
     
-    sp.get<logger>()->debug(sp, "Add object %s", result.serialize()->str().c_str());
-    sp.get<istorage_log>()->add_to_local_log(
-      sp,
-      tr,
-      server_id,
-      sp.get<istorage_log>()->server_private_key(),
-      result.serialize(),
-      false,
-      version_id);
+    if(start_chunk != finish_chunk){
+      throw std::runtime_error("Login error");
+    }
+    
     
     done(sp);
   });
@@ -308,16 +235,15 @@ void vds::_chunk_manager::create_database_objects(
 bool vds::_chunk_manager::write_chunk(
   const service_provider & sp,
   database_transaction & tr,
-  principal_log_new_object_map & result_record,
+  size_t index,
+  //principal_log_new_object_map & result_record,
+  const guid & object_id,
   const filename & fn,
   size_t offset,
   size_t size,
-  const error_handler & on_error)
+  const error_handler & on_error,
+  bool is_last)
 {
-  this->chunk_mutex_.lock();
-  auto index = this->last_chunk_++;
-  this->chunk_mutex_.unlock();
-  
   size_t original_length;
   const_data_buffer original_hash;
 
@@ -328,7 +254,7 @@ bool vds::_chunk_manager::write_chunk(
     hash_filter(&original_length, &original_hash),
     collect_data(buffer)
   )(
-    [this, &tr, &result, &original_length, &original_hash, &buffer, index, &result_record, offset, size, on_error](const service_provider & sp){
+    [this, &tr, &result, &original_length, &original_hash, &buffer, index, object_id, offset, size, on_error, is_last](const service_provider & sp){
       
       if (original_length != size) {
         on_error(sp, std::make_shared<std::runtime_error>("File is corrupt"));
@@ -336,15 +262,13 @@ bool vds::_chunk_manager::write_chunk(
         return;
       }
 
-      chunk_info chunk(index, original_length, original_hash);      
-      
       auto server_id = sp.get<istorage_log>()->current_server_id();
       this->add_chunk(
         sp,
         tr,
         server_id,
         index,
-        result_record.object_id(),
+        object_id,
         original_length,
         original_hash);
       
@@ -353,15 +277,23 @@ bool vds::_chunk_manager::write_chunk(
         buffer.push_back(0);
       }
       
+      principal_log_new_chunk chunk(server_id, index, object_id, original_length, original_hash);      
       result = this->generate_horcruxes(
         sp,
         tr,
-        result_record.server_id(),
+        server_id,
         chunk,
         buffer,
         on_error);
       
-      result_record.chunks().push_back(chunk);
+    sp.get<istorage_log>()->add_to_local_log(
+      sp,
+      tr,
+      server_id,
+      sp.get<istorage_log>()->server_private_key(),
+      chunk.serialize(),
+      false,
+      is_last ? object_id : guid::new_guid());
     },
     [&result, on_error](const service_provider & sp, const std::shared_ptr<std::exception> & ex){
       on_error(sp, ex);
@@ -377,7 +309,7 @@ bool vds::_chunk_manager::generate_horcruxes(
   const service_provider & sp,
   database_transaction & tr,
   const guid & server_id,
-  chunk_info & chunk_info,
+  principal_log_new_chunk & chunk_info,
   const std::vector<uint8_t> & buffer,
   const error_handler & on_error)
 {
@@ -394,6 +326,9 @@ bool vds::_chunk_manager::generate_horcruxes(
       hash_filter(&replica_length, &replica_hash),
       collect_data(buffer))(
       [this, &tr, server_id, &chunk_info, replica, &replica_length, &replica_hash, &buffer](const service_provider & sp) {
+        if(replica_length != chunk_info.replica_size()){
+          throw std::runtime_error("Login error");
+        }
           this->add_chunk_replica(
             sp,
             tr,
@@ -402,7 +337,21 @@ bool vds::_chunk_manager::generate_horcruxes(
             replica,
             replica_length,
             replica_hash);
-          chunk_info.add_replica(replica_info(replica_length, replica_hash));
+          
+          sp.get<istorage_log>()->add_to_local_log(
+            sp,
+            tr,
+            server_id,
+            sp.get<istorage_log>()->server_private_key(),
+            principal_log_new_replica(
+              server_id,
+              chunk_info.chunk_index(),
+              chunk_info.object_id(),
+              replica,
+              replica_length,
+              replica_hash).serialize(),
+            false);
+          
 
           this->add_chunk_store_data(
             sp,

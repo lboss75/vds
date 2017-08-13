@@ -15,6 +15,7 @@ namespace vds {
   class hash
   {
   public:
+    static const hash_info & md5();
     static const hash_info & sha256();
 
     hash(const hash_info & info);

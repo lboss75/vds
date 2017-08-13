@@ -8,6 +8,16 @@ All rights reserved
 #include "hash_p.h"
 #include "crypto_exception.h"
 
+const vds::hash_info & vds::hash::md5()
+{
+  static hash_info result = {
+    NID_md5,
+    EVP_md5()
+  };
+
+  return result;
+}
+
 const vds::hash_info & vds::hash::sha256()
 {
   static hash_info result = {

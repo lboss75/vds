@@ -65,7 +65,7 @@ void vds::_server_log_sync::on_new_local_record(
   const principal_log_record & record,
   const const_data_buffer & signature)
 {
-  sp.get<logger>()->debug(sp, "Broadcast %s", record.id().str().c_str());
+  sp.get<logger>()->debug(sp, "Broadcast %s:%s", record.id().str().c_str(), record.serialize()->str().c_str());
   sp.get<iconnection_manager>()->broadcast(sp, server_log_record_broadcast(record, signature));
 }
 

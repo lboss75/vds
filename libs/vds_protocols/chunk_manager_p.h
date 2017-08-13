@@ -110,6 +110,10 @@ namespace vds {
       const guid & storage_id,
       const const_data_buffer & data);
 
+    static const size_t BLOCK_SIZE = 16 * 1024 * 1024;
+    static const uint16_t MIN_HORCRUX = 512;
+    static const uint16_t GENERATE_HORCRUX = 1024;
+    
   private:
     friend class _storage_log;
     
@@ -194,25 +198,22 @@ namespace vds {
       database_column<const_data_buffer> data;
     };
 
-
-    static const size_t BLOCK_SIZE = 16 * 1024 * 1024;
-    static const uint16_t MIN_HORCRUX = 512;
-    static const uint16_t GENERATE_HORCRUX = 1024;
-    
     bool write_chunk(
       const service_provider & sp,
       database_transaction & tr,
-      principal_log_new_object_map & result_record,
+      size_t chunk_index,
+      const guid & object_id,
       const filename & tmp_file,
       size_t offset,
       size_t size,
-      const error_handler & on_error);
+      const error_handler & on_error,
+      bool is_last);
 
     bool generate_horcruxes(
       const service_provider & sp,
       database_transaction & tr,
       const guid & server_id,
-      chunk_info & chunk_info,
+      principal_log_new_chunk & chunk_info,
       const std::vector<uint8_t> & buffer,
       const error_handler & on_error);
 

@@ -397,10 +397,11 @@ namespace vds {
           this->sp_.get<logger>()->debug(this->sp_, "UDP EPOLLOUT event");
           this->change_mask(0, EPOLLOUT);
           
+          auto size = this->write_buffer_.data_size();
           int len = sendto(
             this->owner_->s_,
             this->write_buffer_.data(),
-            this->write_buffer_.data_size(),
+            size,
             0,
             (sockaddr *)this->write_buffer_->addr(),
             sizeof(sockaddr_in));
@@ -413,7 +414,7 @@ namespace vds {
               "Send to " + network_service::to_string(*this->write_buffer_->addr()));
           }
         
-          if((size_t)len != this->write_buffer_.data_size()){
+          if((size_t)len != size){
             throw std::runtime_error("Invalid send UDP");
           }
           this->sp_.get<logger>()->debug(this->sp_, "UDP Sent %d bytes to %s", len, network_service::to_string(*this->write_buffer_->addr()).c_str());

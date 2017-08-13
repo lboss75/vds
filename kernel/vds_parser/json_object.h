@@ -194,7 +194,6 @@ namespace vds {
     
     return true;
   }
-  
 }
 
 #endif // __VDS_PARSER_JSON_OBJECT_H_

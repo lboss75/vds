@@ -323,42 +323,39 @@ void vds::_storage_log::apply_record(
       principal_log_new_object msg(obj);
       sp.get<iserver_database>()->add_object(sp, tr, msg);
     }
-    else if (principal_log_new_object_map::message_type == message_type) {
-      principal_log_new_object_map msg(obj);
-      
+    else if (principal_log_new_chunk::message_type == message_type) {
+      principal_log_new_chunk msg(obj);
       auto chunk_manager = sp.get<ichunk_manager>();
-      for(auto & chunk : msg.chunks()){
-        (*chunk_manager)->add_chunk(
-          sp,
-          tr,
-          msg.server_id(),
-          chunk.chunk_index(),
-          msg.object_id(),
-          chunk.chunk_size(),
-          chunk.chunk_hash());
-        
-        size_t replica = 0;
-        for(auto & replica_info : chunk.replicas()){
-          (*chunk_manager)->add_chunk_replica(
-            sp,
-            tr,
-            msg.server_id(),
-            chunk.chunk_index(),
-            replica,
-            replica_info.size(),
-            replica_info.hash());
-          
-          (*chunk_manager)->add_chunk_store(
-            sp,
-            tr,
-            msg.server_id(),
-            chunk.chunk_index(),
-            replica,
-            msg.server_id());
-          
-          ++replica;
-        }
-      }
+      
+      (*chunk_manager)->add_chunk(
+        sp,
+        tr,
+        msg.server_id(),
+        msg.chunk_index(),
+        msg.object_id(),
+        msg.chunk_size(),
+        msg.chunk_hash());
+    }
+    else if (principal_log_new_replica::message_type == message_type) {
+      principal_log_new_replica msg(obj);
+      auto chunk_manager = sp.get<ichunk_manager>();
+      
+      (*chunk_manager)->add_chunk_replica(
+        sp,
+        tr,
+        msg.server_id(),
+        msg.chunk_index(),
+        msg.index(),
+        msg.replica_size(),
+        msg.replica_hash());
+      
+      (*chunk_manager)->add_chunk_store(
+        sp,
+        tr,
+        msg.server_id(),
+        msg.chunk_index(),
+        msg.index(),
+        msg.server_id());
     }
     else if(server_log_root_certificate::message_type == message_type){
       server_log_root_certificate msg(obj);

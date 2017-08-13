@@ -179,100 +179,122 @@ namespace vds {
     std::string addresses_;
   };
   /////////////////////////////////////////////////////
-  class replica_info
+  class principal_log_new_chunk
   {
   public:
-    replica_info(const std::shared_ptr<json_value> & source);
+    static const char message_type[];
+    principal_log_new_chunk(const std::shared_ptr<json_value> & source);
     std::shared_ptr<json_value> serialize() const;
     
-    replica_info(
-      size_t size,
-      const const_data_buffer & hash)
-    : size_(size),
-      hash_(hash)
-    {
-    }
-    
-    size_t size() const { return this->size_; }
-    const const_data_buffer & hash() const { return this->hash_; }
-    
-  private:
-    size_t size_;
-    const_data_buffer hash_;
-  };
-  /////////////////////////////////////////////////////
-  class chunk_info
-  {
-  public:
-    chunk_info(const std::shared_ptr<json_value> & source);
-    std::shared_ptr<json_value> serialize() const;
-    
-    chunk_info(
+    principal_log_new_chunk(
+      const guid & server_id,
       size_t chunk_index,
+      const guid & object_id,
       size_t size,
       const const_data_buffer & chunk_hash)
     : chunk_index_(chunk_index),
+      server_id_(server_id),
+      object_id_(object_id),
       size_(size),
       hash_(chunk_hash)
     {
     }
     
+    const guid & server_id() const { return this->server_id_; }
+    const guid & object_id() const { return this->object_id_; }
     size_t chunk_index() const { return this->chunk_index_; }
     size_t chunk_size() const { return this->size_; }
+    size_t replica_size() const;
     const const_data_buffer & chunk_hash() const { return this->hash_; }
-    const std::list<replica_info> & replicas() const { return this->replicas_; }
-    
-    void add_replica(const replica_info & replica)
-    {
-      this->replicas_.push_back(replica);
-    }
     
   private:
+    guid server_id_;
+    guid object_id_;
     size_t chunk_index_;
     size_t size_;
     const_data_buffer hash_;
-    std::list<replica_info> replicas_;
   };
-
-  class principal_log_new_object_map
+  ////////////////////////////////////
+  class principal_log_new_replica
   {
   public:
     static const char message_type[];
-    principal_log_new_object_map(
-      const std::shared_ptr<json_value> & source);
+    principal_log_new_replica(const std::shared_ptr<json_value> & source);
+    std::shared_ptr<json_value> serialize() const;
     
-    std::shared_ptr<json_value> serialize(bool add_type_property = true) const;
-    
-    principal_log_new_object_map(
+    principal_log_new_replica(
       const guid & server_id,
+      size_t chunk_index,
       const guid & object_id,
-      uint32_t length,
-      const const_data_buffer & object_hash,
-      size_t chunk_size)
-    : server_id_(server_id),
+      size_t index,
+      size_t replica_size,
+      const const_data_buffer & replica_hash)
+    : chunk_index_(chunk_index),
+      server_id_(server_id),
       object_id_(object_id),
-      length_(length),
-      hash_(object_hash),
-      chunk_size_(chunk_size)
+      index_(index),
+      replica_size_(replica_size),
+      replica_hash_(replica_hash)
     {
     }
     
     const guid & server_id() const { return this->server_id_; }
     const guid & object_id() const { return this->object_id_; }
-    size_t length() const { return this->length_; }
-    const const_data_buffer & object_hash() const { return this->hash_; }
-    size_t chunk_size() const { return this->chunk_size_; }
+    size_t chunk_index() const { return this->chunk_index_; }
+    size_t index() const { return this->index_; }
+    size_t replica_size() const { return this->replica_size_; }
+    const const_data_buffer & replica_hash() const { return this->replica_hash_; }
     
-    std::list<chunk_info> & chunks() { return this->chunks_; }
     
   private:
     guid server_id_;
     guid object_id_;
-    size_t length_;
-    const_data_buffer hash_;
-    size_t chunk_size_;
-    std::list<chunk_info> chunks_;
+    size_t chunk_index_;
+    size_t index_;
+    size_t replica_size_;
+    const_data_buffer replica_hash_;
   };
+  
+//   class principal_log_new_object_map
+//   {
+//   public:
+//     static const char message_type[];
+//     principal_log_new_object_map(
+//       const std::shared_ptr<json_value> & source);
+//     
+//     std::shared_ptr<json_value> serialize(bool add_type_property = true) const;
+//     
+//     principal_log_new_object_map(
+//       const guid & server_id,
+//       const guid & object_id,
+//       uint32_t length,
+//       const const_data_buffer & object_hash,
+//       size_t min_chunk,
+//       size_t max_chunk)
+//     : server_id_(server_id),
+//       object_id_(object_id),
+//       length_(length),
+//       hash_(object_hash),
+//       min_chunk_(min_chunk),
+//       max_chunk_(max_chunk)
+//     {
+//     }
+//     
+//     const guid & server_id() const { return this->server_id_; }
+//     const guid & object_id() const { return this->object_id_; }
+//     size_t length() const { return this->length_; }
+//     const const_data_buffer & object_hash() const { return this->hash_; }
+//     size_t min_chunk() const { return this->min_chunk_; }
+//     size_t max_chunk() const { return this->max_chunk_; }
+//     
+//   private:
+//     guid server_id_;
+//     guid object_id_;
+//     size_t length_;
+//     const_data_buffer hash_;
+//     size_t min_chunk_;
+//     size_t max_chunk_;
+//   };
 }
 
 #endif // __VDS_PROTOCOLS_LOG_RECORDS_H_
