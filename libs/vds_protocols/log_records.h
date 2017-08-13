@@ -179,48 +179,28 @@ namespace vds {
     std::string addresses_;
   };
   /////////////////////////////////////////////////////
-  class tail_chunk_item
+  class replica_info
   {
   public:
-    tail_chunk_item(const std::shared_ptr<json_value> & source);
+    replica_info(const std::shared_ptr<json_value> & source);
     std::shared_ptr<json_value> serialize() const;
-
-    tail_chunk_item(
-      const guid & server_id,
-      const guid & object_id,
-      size_t chunk_index,
-      size_t object_offset,
-      size_t chunk_offset,
-      size_t length,
+    
+    replica_info(
+      size_t size,
       const const_data_buffer & hash)
-    : server_id_(server_id),
-      object_id_(object_id),
-      chunk_index_(chunk_index),
-      object_offset_(object_offset),
-      chunk_offset_(chunk_offset),
-      length_(length),
+    : size_(size),
       hash_(hash)
     {
     }
     
-    const guid & server_id() const { return this->server_id_; }
-    const guid & object_id() const { return this->object_id_; }
-    size_t chunk_index() const { return this->chunk_index_; }
-    size_t object_offset() const { return this->object_offset_; }
-    size_t chunk_offset() const { return this->chunk_offset_; }
-    size_t length() const { return this->length_; }
+    size_t size() const { return this->size_; }
     const const_data_buffer & hash() const { return this->hash_; }
     
   private:
-    guid server_id_;
-    guid object_id_;
-    size_t chunk_index_;
-    size_t object_offset_;
-    size_t chunk_offset_;
-    size_t length_;
+    size_t size_;
     const_data_buffer hash_;
   };
-  
+  /////////////////////////////////////////////////////
   class chunk_info
   {
   public:
@@ -229,25 +209,29 @@ namespace vds {
     
     chunk_info(
       size_t chunk_index,
+      size_t size,
       const const_data_buffer & chunk_hash)
     : chunk_index_(chunk_index),
+      size_(size),
       hash_(chunk_hash)
     {
     }
     
     size_t chunk_index() const { return this->chunk_index_; }
+    size_t chunk_size() const { return this->size_; }
     const const_data_buffer & chunk_hash() const { return this->hash_; }
-    const std::list<const_data_buffer> & replica_hashes() const { return this->replica_hashes_; }
+    const std::list<replica_info> & replicas() const { return this->replicas_; }
     
-    void add_replica_hash(const const_data_buffer & replica_hash)
+    void add_replica(const replica_info & replica)
     {
-      this->replica_hashes_.push_back(replica_hash);
+      this->replicas_.push_back(replica);
     }
     
   private:
     size_t chunk_index_;
+    size_t size_;
     const_data_buffer hash_;
-    std::list<const_data_buffer> replica_hashes_;
+    std::list<replica_info> replicas_;
   };
 
   class principal_log_new_object_map
@@ -264,14 +248,12 @@ namespace vds {
       const guid & object_id,
       uint32_t length,
       const const_data_buffer & object_hash,
-      size_t chunk_size,
-      size_t replica_length)
+      size_t chunk_size)
     : server_id_(server_id),
       object_id_(object_id),
       length_(length),
       hash_(object_hash),
-      chunk_size_(chunk_size),
-      replica_length_(replica_length)
+      chunk_size_(chunk_size)
     {
     }
     
@@ -280,11 +262,8 @@ namespace vds {
     size_t length() const { return this->length_; }
     const const_data_buffer & object_hash() const { return this->hash_; }
     size_t chunk_size() const { return this->chunk_size_; }
-    size_t replica_length() const { return this->replica_length_; }
     
-    std::list<chunk_info> & full_chunks() { return this->full_chunks_; }
-    
-    std::list<tail_chunk_item> & tail_chunk_items() { return this->tail_chunk_items_; }
+    std::list<chunk_info> & chunks() { return this->chunks_; }
     
   private:
     guid server_id_;
@@ -292,41 +271,7 @@ namespace vds {
     size_t length_;
     const_data_buffer hash_;
     size_t chunk_size_;
-    size_t replica_length_;
-    std::list<chunk_info> full_chunks_;
-    std::list<tail_chunk_item> tail_chunk_items_;
-  };
-  
-  
-  class new_tail_chunk
-  {
-  public:
-    static const char message_type[];
-   
-    new_tail_chunk(
-      const std::shared_ptr<json_value> & source      
-    );
-    std::shared_ptr<json_value> serialize() const;
-    
-    new_tail_chunk(
-      const guid & server_id,
-      size_t chunk_index,
-      size_t chunk_size,
-      const const_data_buffer & hash);
-    
-    const guid & server_id() const { return this->server_id_; }
-    size_t chunk_index() const { return this->chunk_index_; }
-    size_t chunk_size() const { return this->chunk_size_; }
-    const_data_buffer chunk_hash() const { return this->hash_; }
-    
-    std::list<tail_chunk_item> & tail_chunk_items() { return this->tail_chunk_items_; }
-    
-  private:
-    const guid server_id_;
-    const size_t chunk_index_;
-    const size_t chunk_size_;
-    const const_data_buffer hash_;
-    std::list<tail_chunk_item> tail_chunk_items_;
+    std::list<chunk_info> chunks_;
   };
 }
 

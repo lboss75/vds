@@ -232,6 +232,30 @@ namespace vds {
   };
 
   template <typename source_type>
+  class _db_min
+  {
+  public:
+    _db_min(
+      source_type && column)
+      : column_(std::move(column))
+    {
+
+    }
+
+    std::string visit(_database_sql_builder & builder) const
+    {
+      return "MIN(" + this->column_.visit(builder) + ")";
+    }
+
+    void set_index(int index) const
+    {
+    }
+
+  private:
+    source_type column_;
+  };
+  
+  template <typename source_type>
   class _db_max
   {
   public:
@@ -302,6 +326,18 @@ namespace vds {
   private:
     source_type column_;
   };
+
+  template <typename source_type, typename dummy = typename std::enable_if<std::is_base_of<_database_column_base, typename std::remove_reference<source_type>::type>::value>::type>
+  inline _db_min<_db_simple_column> db_min(source_type & column)
+  {
+    return _db_min<_db_simple_column>(_db_simple_column(column));
+  }
+
+  template <typename source_type, typename dummy = typename std::enable_if<!std::is_base_of<_database_column_base, typename std::remove_reference<source_type>::type>::value>::type>
+  inline _db_min<source_type> db_min(source_type && column)
+  {
+    return _db_min<source_type>(std::move(column));
+  }
 
   template <typename source_type, typename dummy = typename std::enable_if<std::is_base_of<_database_column_base, typename std::remove_reference<source_type>::type>::value>::type>
   inline _db_max<_db_simple_column> db_max(source_type & column)

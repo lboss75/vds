@@ -16,7 +16,6 @@ namespace vds {
   class object_request;
   class connection_session;
   class object_offer_replicas;
-  class object_tail_offer;
 
   class _object_transfer_protocol
   {
@@ -40,12 +39,6 @@ namespace vds {
       database_transaction & tr,
       const connection_session & session,
       const object_offer_replicas & message);
-    
-    void object_offer(
-      const service_provider & sp,
-      database_transaction & tr,
-      const connection_session & session,
-      const object_tail_offer & message);
 
   private:
 
@@ -148,52 +141,6 @@ namespace vds {
     ichunk_manager::replica_type replica_;
     const_data_buffer data_;
   };
-
-  class object_tail_offer
-  {
-  public:
-    static const uint32_t message_type_id = (uint32_t)message_identification::object_tail_offer_message_id;
-
-    void serialize(binary_serializer & b) const;
-
-    object_tail_offer(const const_data_buffer & binary_form);
-
-    object_tail_offer(
-      const guid & server_id,
-      uint64_t index,
-      const guid & object_id,
-      size_t offset,
-      const const_data_buffer & object_hash,
-      size_t chunk_offset,
-      const const_data_buffer & data)
-      : server_id_(server_id),
-      index_(index),
-      object_id_(object_id),
-      offset_(offset),
-      object_hash_(object_hash),
-      chunk_offset_(chunk_offset),
-      data_(data)
-    {
-    }
-
-    const guid & server_id() const { return this->server_id_; }
-    uint64_t index() const { return this->index_; }
-    const guid & object_id() const { return this->object_id_; }
-    size_t offset() const { return this->offset_; }
-    const const_data_buffer & object_hash() const { return this->object_hash_; }
-    size_t chunk_offset() const { return this->chunk_offset_; }
-    const_data_buffer data() const { return this->data_; }
-
-  private:
-    guid server_id_;
-    uint64_t index_;
-    guid object_id_;
-    size_t offset_;
-    const_data_buffer object_hash_;
-    size_t chunk_offset_;
-    const_data_buffer data_;
-  };
-
 }
 
 #endif // __VDS_PROTOCOLS_OBJECT_TRANSFER_PROTOCOL_P_H_

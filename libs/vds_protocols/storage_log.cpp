@@ -327,28 +327,26 @@ void vds::_storage_log::apply_record(
       principal_log_new_object_map msg(obj);
       
       auto chunk_manager = sp.get<ichunk_manager>();
-      size_t offset = 0;
-      for(auto & chunk : msg.full_chunks()){
-        (*chunk_manager)->add_full_chunk(
+      for(auto & chunk : msg.chunks()){
+        (*chunk_manager)->add_chunk(
           sp,
           tr,
-          msg.object_id(),
-          offset,
-          msg.chunk_size(),
-          chunk.chunk_hash(),
           msg.server_id(),
-          chunk.chunk_index());
+          chunk.chunk_index(),
+          msg.object_id(),
+          chunk.chunk_size(),
+          chunk.chunk_hash());
         
         size_t replica = 0;
-        for(auto & replica_hash : chunk.replica_hashes()){
+        for(auto & replica_info : chunk.replicas()){
           (*chunk_manager)->add_chunk_replica(
             sp,
             tr,
             msg.server_id(),
             chunk.chunk_index(),
             replica,
-            msg.replica_length(),
-            replica_hash);
+            replica_info.size(),
+            replica_info.hash());
           
           (*chunk_manager)->add_chunk_store(
             sp,
@@ -360,21 +358,6 @@ void vds::_storage_log::apply_record(
           
           ++replica;
         }
-        
-        offset += msg.chunk_size();
-      }
-      
-      for(auto & tail_chunk : msg.tail_chunk_items()){
-        (*chunk_manager)->add_object_chunk_map(
-          sp,
-          tr,
-          tail_chunk.server_id(),
-          tail_chunk.chunk_index(),
-          tail_chunk.object_id(),
-          tail_chunk.object_offset(),
-          tail_chunk.chunk_offset(),
-          tail_chunk.length(),
-          tail_chunk.hash());
       }
     }
     else if(server_log_root_certificate::message_type == message_type){

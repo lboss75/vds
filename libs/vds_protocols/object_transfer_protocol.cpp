@@ -68,35 +68,8 @@ void vds::_object_transfer_protocol::on_object_request(
   
   auto chunk_manager = sp.get<ichunk_manager>();
 
-  size_t offset;
-  const_data_buffer object_hash;
-  size_t chunk_offset;
-  auto data = (*chunk_manager)->get_tail_object(
-    sp,
-    tr,
-    message.server_id(),
-    message.index(),
-    message.object_id(),
-    offset,
-    object_hash,
-    chunk_offset);
 
   auto connection_manager = sp.get<iconnection_manager>();
-  if (0 != data.size()) {
-    connection_manager->send_to(
-      sp,
-      message.target_storage_id(),
-      object_tail_offer(
-        message.server_id(),
-        message.index(),
-        message.object_id(),
-        offset,
-        object_hash,
-        chunk_offset,
-        data));
-    return;
-  }
-
   std::list<ichunk_manager::replica_type> local_replicas;
   (*chunk_manager)->get_replicas(
     sp,
@@ -165,27 +138,6 @@ void vds::_object_transfer_protocol::object_offer(
     current_server_id,
     message.data());
 }
-
-void vds::_object_transfer_protocol::object_offer(
-  const service_provider & sp,
-  database_transaction & tr,
-  const connection_session & session,
-  const object_tail_offer & message)
-{
-  auto current_server_id = sp.get<istorage_log>()->current_server_id();
-  auto chunk_manager = sp.get<ichunk_manager>();
-
-  (*chunk_manager)->add_to_tail_chunk(
-    sp,
-    tr,
-    message.object_id(),
-    message.offset(),
-    message.object_hash(),
-    message.server_id(),
-    message.index(),
-    message.chunk_offset(),
-    message.data());
-}
 ////////////////////////////////////////////////////////
 vds::object_offer_replicas::object_offer_replicas(const const_data_buffer & binary_form)
 {
@@ -199,16 +151,3 @@ void vds::object_offer_replicas::serialize(
   b << this->server_id_ << this->index_ << this->replica_ << this->data_;
 }
 ////////////////////////////////////////////////////////
-vds::object_tail_offer::object_tail_offer(const const_data_buffer & binary_form)
-{
-  binary_deserializer b(binary_form);
-  b >> this->server_id_ >> this->index_ >> this->object_id_ >> this->offset_ >> this->object_hash_ >> this->chunk_offset_ >> this->data_;
-}
-
-void vds::object_tail_offer::serialize(
-  binary_serializer & b) const
-{
-  b << this->server_id_ << this->index_ << this->object_id_ << this->offset_ << this->object_hash_ << this->chunk_offset_ << this->data_;
-}
-
-

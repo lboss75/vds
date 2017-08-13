@@ -50,13 +50,17 @@ void vds::ichunk_manager::get_object_map(
   const vds::service_provider& sp,
   vds::database_transaction & tr,
   const vds::guid & object_id,
-  std::list<vds::ichunk_manager::object_chunk_map >& result)
+  guid & server_id,
+  ichunk_manager::index_type & min_chunk_index,
+  ichunk_manager::index_type & max_chunk_index)
 {
   static_cast<_chunk_manager *>(this)->get_object_map(
     sp,
     tr,
     object_id,
-    result);
+    server_id,
+    min_chunk_index,
+    max_chunk_index);
 }
 
 void vds::ichunk_manager::query_object_chunk(
@@ -205,16 +209,6 @@ void vds::_chunk_manager::start(const service_provider & sp)
       t,
       server_id) + 1;
     
-    this->tail_chunk_index_ = this->get_tail_chunk(
-      sp,
-      t,
-      server_id,
-      this->tail_chunk_size_);
-
-    if (0 == this->tail_chunk_index_) {
-      this->tail_chunk_index_ = this->last_chunk_++;
-    }
-
     return true;
   });
 }
@@ -237,18 +231,18 @@ vds::async_task<> vds::_chunk_manager::add_object(
     
     auto file_size = file::length(tmp_file);
     auto server_id = sp.get<istorage_log>()->current_server_id();
-    principal_log_new_object_map result(server_id, version_id, file_size, file_hash, BLOCK_SIZE, REPLICA_SIZE);
+    principal_log_new_object_map result(server_id, version_id, file_size, file_hash, BLOCK_SIZE);
         
     for (decltype(file_size) offset = 0; offset < file_size; offset += BLOCK_SIZE) {
-      if(BLOCK_SIZE < file_size - offset){
-        if (!this->write_chunk(sp, tr, result, tmp_file, offset, BLOCK_SIZE, on_error)) {
-          return;
-        }
-      }
-      else {
-        if (!this->write_tail(sp, tr, result, tmp_file, offset, file_size - offset, on_error)) {
-          return;
-        }
+      if (!this->write_chunk(
+        sp,
+        tr,
+        result,
+        tmp_file,
+        offset,
+        (BLOCK_SIZE < file_size - offset) ? BLOCK_SIZE : (file_size - offset),
+        on_error)) {
+        return;
       }
     }
     
@@ -276,31 +270,13 @@ void vds::_chunk_manager::create_database_objects(
       "CREATE TABLE object_chunk(\
       server_id VARCHAR(64) NOT NULL,\
       chunk_index INTEGER NOT NULL,\
+      object_id VARCHAR(64) NOT NULL,\
       chunk_size INTEGER NOT NULL,\
-      hash BLOB NOT NULL,\
+      chunk_hash BLOB NOT NULL,\
       CONSTRAINT pk_object_chunk PRIMARY KEY (server_id, chunk_index))");
 
     t.execute(
-      "CREATE TABLE object_chunk_map(\
-      server_id VARCHAR(64) NOT NULL,\
-      chunk_index INTEGER NOT NULL,\
-      object_id VARCHAR(64) NOT NULL,\
-      object_offset INTEGER NOT NULL,\
-      chunk_offset INTEGER NOT NULL,\
-      length INTEGER NOT NULL,\
-      hash BLOB NOT NULL,\
-      CONSTRAINT pk_object_chunk_map PRIMARY KEY (server_id, chunk_index, object_id))");
-
-    t.execute(
-      "CREATE TABLE tmp_object_chunk_map(\
-      server_id VARCHAR(64) NOT NULL,\
-      chunk_index INTEGER NOT NULL,\
-      object_id VARCHAR(64) NOT NULL,\
-      object_offset INTEGER NOT NULL,\
-      chunk_offset INTEGER NOT NULL,\
-      hash BLOB NOT NULL,\
-      data BLOB NOT NULL,\
-      CONSTRAINT pk_object_chunk_map PRIMARY KEY (server_id, chunk_index, object_id))");
+      "CREATE INDEX pk_object_chunk_object_id ON object_chunk(object_id)");
 
     t.execute(
       "CREATE TABLE object_chunk_replica(\
@@ -308,7 +284,7 @@ void vds::_chunk_manager::create_database_objects(
       chunk_index INTEGER NOT NULL,\
       replica INTEGER NOT NULL,\
       replica_length INTEGER NOT NULL,\
-      replica_hash VARCHAR(64) NOT NULL,\
+      replica_hash BLOB NOT NULL,\
       CONSTRAINT pk_tmp_object_chunk_map PRIMARY KEY (server_id, chunk_index, replica))");
 
     t.execute(
@@ -360,19 +336,22 @@ bool vds::_chunk_manager::write_chunk(
         return;
       }
 
-      chunk_info chunk(index, original_hash);      
+      chunk_info chunk(index, original_length, original_hash);      
       
       auto server_id = sp.get<istorage_log>()->current_server_id();
-      this->add_full_chunk(
+      this->add_chunk(
         sp,
         tr,
-        result_record.object_id(),
-        offset,
-        size,
-        original_hash,
         server_id,
-        index);
+        index,
+        result_record.object_id(),
+        original_length,
+        original_hash);
       
+      //Padding
+      while(buffer.size() % (2 * MIN_HORCRUX) > 0){
+        buffer.push_back(0);
+      }
       
       result = this->generate_horcruxes(
         sp,
@@ -382,7 +361,7 @@ bool vds::_chunk_manager::write_chunk(
         buffer,
         on_error);
       
-      result_record.full_chunks().push_back(chunk);
+      result_record.chunks().push_back(chunk);
     },
     [&result, on_error](const service_provider & sp, const std::shared_ptr<std::exception> & ex){
       on_error(sp, ex);
@@ -393,182 +372,6 @@ bool vds::_chunk_manager::write_chunk(
   return result;
 }
 
-bool vds::_chunk_manager::write_tail(
-  const service_provider & sp,
-  database_transaction & tr,
-  principal_log_new_object_map & result_record,
-  const filename & fn,
-  size_t offset,
-  size_t size,
-  const error_handler & on_error)
-{
-  auto server_id = sp.get<istorage_log>()->current_server_id();
-  bool result = true;
-  while(0 < size) {
-    std::lock_guard<std::mutex> lock(this->tail_chunk_mutex_);
-
-    auto index = this->tail_chunk_index_;
-
-    auto to_write = BLOCK_SIZE - this->tail_chunk_size_;
-    if (to_write <= size) {
-      size_t original_length;
-      const_data_buffer original_hash;
-      std::vector<uint8_t> tail_buffer;
-      dataflow(
-        file_range_read(fn, offset, to_write),
-        hash_filter(&original_length, &original_hash),
-        collect_data(tail_buffer))(
-          [this, sp, &tr, server_id, &result_record, index, offset, to_write, &original_hash, &tail_buffer](const service_provider & sp) {
-            this->add_to_tail_chunk(
-              sp,
-              tr,
-              result_record.object_id(),
-              offset,
-              original_hash,
-              server_id,
-              index,
-              this->tail_chunk_size_,
-              tail_buffer);
-            
-            result_record.tail_chunk_items().push_back(
-              tail_chunk_item(
-                server_id,
-                result_record.object_id(),
-                index,
-                offset,
-                this->tail_chunk_size_,
-                tail_buffer.size(),
-                original_hash));
-          },
-          [&result, on_error](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-            on_error(sp, ex);
-            result = false;
-          },
-          sp);
-      if (!result) {
-        break;
-      }
-
-      offset += to_write;
-      size -= to_write;
-      this->tail_chunk_size_ += to_write;
-
-      if (BLOCK_SIZE == this->tail_chunk_size_) {
-        this->chunk_mutex_.lock();
-        this->tail_chunk_index_ = this->last_chunk_++;
-        this->tail_chunk_size_ = 0;
-        this->chunk_mutex_.unlock();
-
-        this->start_tail_chunk(
-          sp,
-          tr,
-          server_id,
-          this->tail_chunk_index_);
-
-        result = this->generate_tail_horcruxes(
-          sp,
-          tr,
-          server_id,
-          index,
-          on_error);
-
-        if (!result) {
-          break;
-        }
-      }
-    }
-    else {
-      size_t original_length;
-      const_data_buffer original_hash;
-      std::vector<uint8_t> tail_buffer;
-      dataflow(
-        file_range_read(fn, offset, size),
-        hash_filter(&original_length, &original_hash),
-        collect_data(tail_buffer))(
-          [this, sp, &tr, server_id, &result_record, index, offset, size, &original_hash, &tail_buffer](const service_provider & sp) {
-            this->add_to_tail_chunk(
-              sp,
-              tr,
-              result_record.object_id(),
-              offset,
-              original_hash,
-              server_id,
-              index,
-              this->tail_chunk_size_,
-              tail_buffer);
-            
-            result_record.tail_chunk_items().push_back(
-              tail_chunk_item(
-                server_id,
-                result_record.object_id(),
-                index,
-                offset,
-                this->tail_chunk_size_,
-                tail_buffer.size(),
-                original_hash));
-          },
-          [&result, on_error](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-            on_error(sp, ex);
-            result = false;
-          },
-          sp);
-        
-      if (result) {
-        this->tail_chunk_size_ += size;
-      }
-      
-      break;
-    }
-  }
-
-  return result;
-}
-
-bool vds::_chunk_manager::generate_tail_horcruxes(
-  const service_provider & sp,
-  database_transaction & tr,
-  const guid & server_id,
-  size_t chunk_index,
-  const error_handler & on_error)
-{
-  auto data = this->get_tail_data(sp, tr, server_id, chunk_index);
-
-  size_t original_length;
-  const_data_buffer original_hash;
-
-  bool result = true;
-  std::vector<uint8_t> buffer;
-  dataflow(
-    dataflow_arguments<uint8_t>(data.data(), data.size()),  
-    hash_filter(&original_length, &original_hash),
-    collect_data(buffer)
-  )(
-    [this, &tr, &result, &original_length, &original_hash, &buffer, server_id, chunk_index, on_error](const service_provider & sp) {
-
-      this->final_tail_chunk(
-        sp,
-        tr,
-        original_length,
-        original_hash,
-        server_id,
-        chunk_index);
-
-      chunk_info chunk(chunk_index, original_hash);
-      result = this->generate_horcruxes(
-        sp,
-        tr,
-        server_id,
-        chunk,
-        buffer,
-        on_error);
-    },
-    [&result, on_error](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-      on_error(sp, ex);
-      result = false;
-    },
-    sp);
-  return result;
-}
 
 bool vds::_chunk_manager::generate_horcruxes(
   const service_provider & sp,
@@ -583,7 +386,6 @@ bool vds::_chunk_manager::generate_horcruxes(
   for (uint16_t replica = 0; replica < GENERATE_HORCRUX; ++replica) {
 
     auto replica_data = this->chunk_storage_.generate_replica(replica, buffer.data(), buffer.size());
-    assert(REPLICA_SIZE == replica_data.size());
     size_t replica_length;
     const_data_buffer replica_hash;
     std::vector<uint8_t> buffer;
@@ -600,7 +402,7 @@ bool vds::_chunk_manager::generate_horcruxes(
             replica,
             replica_length,
             replica_hash);
-          chunk_info.add_replica_hash(replica_hash);
+          chunk_info.add_replica(replica_info(replica_length, replica_hash));
 
           this->add_chunk_store_data(
             sp,
@@ -644,198 +446,51 @@ size_t vds::_chunk_manager::get_last_chunk(
   return result;
 }
 
-size_t vds::_chunk_manager::get_tail_chunk(
-  const service_provider & sp,
-  database_transaction & tr,
-  const guid & server_id,
-  size_t & result_size)
-{
-  tmp_object_chunk_map_table t;
-
-  auto reader = tr.get_reader(
-      t.select(db_max(t.chunk_index)).where(t.server_id == server_id));
-
-  size_t chunk_index = 0;
-  if(reader.execute()) {
-    chunk_index = t.chunk_index.get(reader);
-    
-    object_chunk_map_table t1;
-    reader = tr.get_reader(
-        t1.select(db_sum(db_length(t1.chunk_index)))
-        .where(t1.server_id == server_id && t1.chunk_index == chunk_index));
-
-    while (reader.execute()) {
-      reader.get_value(0, result_size);
-    }
-  }
-  
-  return chunk_index;
-}
-
-
-void vds::_chunk_manager::add_full_chunk(
-  const service_provider & sp,
-  database_transaction & tr,
-  const guid & object_id,
-  size_t offset,
-  size_t size,
-  const const_data_buffer & object_hash,
-  const guid & server_id,
-  size_t index)
-{
-  this->add_chunk(sp, tr, server_id, index, size, object_hash);
-  this->add_object_chunk_map(sp, tr, server_id, index, object_id, offset, 0, size, object_hash);
-}
-
 void vds::_chunk_manager::add_chunk(
   const service_provider & sp,
   database_transaction & tr,
   const guid & server_id,
-  size_t index,
-  size_t size,
-  const const_data_buffer & object_hash)
+  ichunk_manager::index_type chunk_index,
+  const guid & object_id,
+  size_t chunk_size,
+  const const_data_buffer & chunk_hash)
 {
   object_chunk_table t;
-
-  tr.execute(
-    t.insert(t.server_id = server_id, t.chunk_index = index, t.chunk_size = size, t.hash = object_hash));
-}
-
-void vds::_chunk_manager::add_object_chunk_map(
-  const service_provider & sp,
-  database_transaction & tr,
-  const guid & server_id,
-  size_t chunk_index,
-  const guid & object_id,
-  size_t object_offset,
-  size_t chunk_offset,
-  size_t length,
-  const const_data_buffer & hash)
-{
-  object_chunk_map_table t;
 
   tr.execute(
     t.insert(
       t.server_id = server_id,
       t.chunk_index = chunk_index,
       t.object_id = object_id,
-      t.object_offset = object_offset,
-      t.chunk_offset = chunk_offset,
-      t.length = length,
-      t.hash = hash));
+      t.chunk_size = chunk_size,
+      t.chunk_hash = chunk_hash));
 }
+
 
 void vds::_chunk_manager::get_object_map(
   const service_provider & sp,
   database_transaction & tr,
   const guid & object_id,
-  std::list<object_chunk_map> & result)
+  guid & server_id,
+  ichunk_manager::index_type & min_chunk_index,
+  ichunk_manager::index_type & max_chunk_index)
 {
-  object_chunk_map_table t;
+  object_chunk_table t;
   auto st = tr.get_reader(
-    t.select(t.server_id,t.chunk_index,t.object_offset,t.chunk_offset,t.length,t.hash)
+    t.select(t.server_id, db_min(t.chunk_index), db_max(t.chunk_index))
     .where(t.object_id == object_id));
   
-  while (st.execute()) {
-    object_chunk_map item;
-
-    item.server_id = t.server_id.get(st);
-    item.chunk_index = t.chunk_index.get(st);
-    item.object_offset = t.object_offset.get(st);
-    item.chunk_offset = t.chunk_offset.get(st);
-    item.length = t.length.get(st);
-    item.hash = t.hash.get(st);
-
-    item.object_id = object_id;
-
-    result.push_back(item);
+  if (st.execute()) {
+    ichunk_manager::index_type min_chunk_index;
+    ichunk_manager::index_type max_chunk_index;
+    server_id = t.server_id.get(st);
+    st.get_value(1, min_chunk_index);
+    st.get_value(2, max_chunk_index);
+    return;    
   }
-  if(result.empty()){
-    throw std::runtime_error("Object " + object_id.str() + " not found");
-  }
+  throw std::runtime_error("Object " + object_id.str() + " not found");
 }
 
-void vds::_chunk_manager::start_tail_chunk(
-  const service_provider & sp,
-  database_transaction & tr,
-  const guid & server_id,
-  size_t chunk_index)
-{
-}
-
-void vds::_chunk_manager::add_tail_object_chunk_map(
-  const service_provider & sp,
-  database_transaction & tr,
-  const guid & server_id,
-  size_t chunk_index,
-  const guid & object_id,
-  size_t object_offset,
-  size_t chunk_offset,
-  const const_data_buffer & hash,
-  const const_data_buffer & data)
-{
-  object_chunk_map_table t;
-  
-  tr.execute(
-    t.insert(
-      t.server_id = server_id,
-      t.chunk_index = chunk_index,
-      t.object_id = object_id,
-      t.object_offset = object_offset,
-      t.chunk_offset = chunk_offset,
-      t.length = data.size(),
-      t.hash = hash));
-  
-  tmp_object_chunk_map_table t1;
-  
-  tr.execute(
-    t1.insert(
-      t1.server_id = server_id,
-      t1.chunk_index = chunk_index,
-      t1.object_id = object_id,
-      t1.object_offset = object_offset,
-      t1.chunk_offset = chunk_offset,
-      t1.hash = hash,
-      t1.data = data));
-}
-
-void vds::_chunk_manager::final_tail_chunk(
-  const service_provider & sp,
-  database_transaction & tr,
-  size_t chunk_length,
-  const const_data_buffer & chunk_hash,
-  const guid & server_id,
-  size_t chunk_index)
-{
-  this->add_chunk(sp, tr, server_id, chunk_index, chunk_length, chunk_hash);
-  
-  tmp_object_chunk_map_table t1;
-  tr.execute(
-    t1.delete_if(t1.server_id == server_id && t1.chunk_index == chunk_index));
-}
-
-void vds::_chunk_manager::add_to_tail_chunk(
-  const service_provider & sp,
-  database_transaction & tr,
-  const guid & object_id,
-  size_t offset,
-  const const_data_buffer & object_hash,
-  const guid & server_id,
-  size_t index,
-  size_t chunk_offset,
-  const const_data_buffer & data)
-{
-  this->add_tail_object_chunk_map(
-    sp,
-    tr,
-    server_id,
-    index,
-    object_id,
-    offset,
-    chunk_offset,
-    object_hash,
-    data);
-}
 
 void vds::_chunk_manager::add_chunk_replica(
   const service_provider & sp,
@@ -954,62 +609,6 @@ void vds::_chunk_manager::get_chunk_store(
 
 }
 
-vds::const_data_buffer  vds::_chunk_manager::get_tail_object(
-  const service_provider & sp,
-  database_transaction & tr,
-  const guid & server_id,
-  size_t chunk_index,
-  const guid & object_id,
-  size_t & offset,
-  const_data_buffer & object_hash,
-  size_t & chunk_offset)
-{
-  std::vector<uint8_t> data;
-
-  tmp_object_chunk_map_table t;
-  auto reader = tr.get_reader(
-    t.select(t.data, t.object_offset, t.hash, t.chunk_offset)
-    .where(t.server_id == server_id && t.chunk_index == chunk_index && t.object_id == object_id));
-
-  if (reader.execute()) {
-    offset = t.object_offset.get(reader);
-    object_hash = t.hash.get(reader);
-    chunk_offset = t.chunk_offset.get(reader);
-
-    return t.data.get(reader);
-  }
-
-  return vds::const_data_buffer();
-}
-
-vds::const_data_buffer vds::_chunk_manager::get_tail_data(
-  const service_provider & sp,
-  database_transaction & tr,
-  const guid & server_id,
-  size_t chunk_index)
-{
-  std::vector<uint8_t> data;
-
-  tmp_object_chunk_map_table t;
-  auto reader = tr.get_reader(
-    t.select(t.data,t.chunk_offset)
-    .where(t.server_id == server_id && t.chunk_index == chunk_index)
-    .order_by(t.chunk_offset));
-  
-  while(reader.execute()){
-    auto item = t.data.get(reader);
-    auto offset = t.chunk_offset.get(reader);
-
-    if (offset != data.size()) {
-      throw std::runtime_error("Database is corrupted");
-    }
-
-    data.insert(data.end(), item.data(), item.data() + item.size());
-  }
-
-  return const_data_buffer(data);
-}
-
 void vds::_chunk_manager::query_object_chunk(
   const vds::service_provider& sp,
   vds::database_transaction& tr,
@@ -1019,53 +618,40 @@ void vds::_chunk_manager::query_object_chunk(
   size_t & downloaded_data,
   size_t & total_data)
 {
-  object_chunk_data_table t;
+  size_t chunk_size;
+  
+  object_chunk_table t2;
   auto st = tr.get_reader(
-    t.select(t.replica)
+    t2.select(t2.chunk_size).where(t2.server_id == server_id && t2.chunk_index == chunk_index)
+  );
+  if(st.execute()){
+    chunk_size = t2.chunk_size.get(st);
+  }
+  else {
+    throw std::runtime_error("Chunk " + server_id.str() + ":" + std::to_string(chunk_index) + " not found");
+  }
+  
+  object_chunk_data_table t;
+  st = tr.get_reader(
+    t.select(t.replica, db_length(t.data))
     .where(t.server_id == server_id && t.chunk_index == chunk_index));
   
+  size_t replicas_size = 0;
   std::list<ichunk_manager::replica_type> replicas;
   while(st.execute()){
     replicas.push_back(t.replica.get(st));
+    size_t replica_size;
+    st.get_value(1, replica_size);
+    replicas_size += replica_size;
   }
 
-  if (!replicas.empty()) {
-    total_data += BLOCK_SIZE;
-    if (MIN_HORCRUX <= replicas.size()) {
-      downloaded_data += BLOCK_SIZE;//Ok
-      return;
-    }
-
-    downloaded_data += REPLICA_SIZE * replicas.size();
-  }
-  else if(server_id == sp.get<istorage_log>()->current_server_id()){
-    tmp_object_chunk_map_table t;
-    auto reader = tr.get_reader(
-      t.select(db_length(t.data))
-      .where(t.server_id == server_id && t.chunk_index == chunk_index && t.object_id == object_id));
-
-    while (reader.execute()) {
-      size_t length;
-      reader.get_value(0, length);
-
-      total_data += length;
-      downloaded_data += length;
-    }
+  total_data += chunk_size;
+  if (MIN_HORCRUX <= replicas.size()) {
+    downloaded_data += chunk_size;//Ok
     return;
   }
-  else {
-    object_chunk_map_table t;
-    auto reader = tr.get_reader(
-      t.select(db_sum(t.length))
-      .where(t.server_id == server_id && t.chunk_index == chunk_index && t.object_id == object_id));
 
-    while (reader.execute()) {
-      size_t length;
-      reader.get_value(0, length);
-
-      total_data += length;
-    }
-  }
+  downloaded_data += replicas_size;
 
   std::set<guid> data_request;
   data_request.emplace(server_id);
@@ -1101,7 +687,9 @@ vds::const_data_buffer vds::_chunk_manager::restore_object_chunk(
   vds::database_transaction & tr,
   const vds::guid & server_id,
   vds::ichunk_manager::index_type chunk_index,
-  const guid & object_id)
+  const guid & object_id,
+  size_t & chunk_size,
+  const_data_buffer & chunk_hash)
 {
   object_chunk_data_table t;
   auto st = tr.get_reader(
@@ -1113,24 +701,22 @@ vds::const_data_buffer vds::_chunk_manager::restore_object_chunk(
     horcruxes[t.replica.get(st)] = t.data.get(st);
   }
 
-  if (!horcruxes.empty()) {
-    if (MIN_HORCRUX > horcruxes.size()) {
-      throw std::runtime_error("Logic error");
-    }
-
-    return this->chunk_storage_.restore_data(horcruxes);
-
-  }
-  else if (server_id == sp.get<istorage_log>()->current_server_id()) {
-    tmp_object_chunk_map_table t;
-    auto reader = tr.get_reader(
-      t.select(t.data)
-      .where(t.server_id == server_id && t.chunk_index == chunk_index && t.object_id == object_id));
-
-    if (reader.execute()) {
-      return t.data.get(reader);
-    }
+  if (MIN_HORCRUX > horcruxes.size()) {
+    throw std::runtime_error("Logic error");
   }
 
-  throw std::runtime_error("Ligic error");
+  auto result = this->chunk_storage_.restore_data(horcruxes);
+  
+  object_chunk_table t1;
+  st = tr.get_reader(
+    t1.select(t1.chunk_size, t1.chunk_hash)
+    .where(t1.server_id == server_id && t1.chunk_index == chunk_index));
+
+  if(st.execute()) {
+    chunk_size = t1.chunk_size.get(st);
+    chunk_hash = t1.chunk_hash.get(st);
+  }
+  else {
+    throw std::runtime_error("Login error");
+  }
 }

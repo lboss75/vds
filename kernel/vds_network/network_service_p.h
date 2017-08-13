@@ -68,9 +68,7 @@ namespace vds {
         std::list<std::thread *> work_threads_;
 #else
       int epoll_set_;
-      std::future<void> epoll_future_;
-      std::mutex epoll_mutex_;
-      size_t epoll_count_;
+      std::thread epoll_thread_;
 #endif//_WIN32
     };
 }

@@ -17,7 +17,6 @@ namespace vds {
 
     object_request_message_id = 'd',
     object_offer_replicas_message_id = 'o',
-    object_tail_offer_message_id = 't',
     
     route_message_message_id = 'r'
   };

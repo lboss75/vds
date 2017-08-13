@@ -66,9 +66,6 @@ std::string vds::network_service::get_ip_address_string(const sockaddr_in & from
 }
 /////////////////////////////////////////////////////////////////////////////
 vds::_network_service::_network_service()
-#ifndef _WIN32
-: epoll_count_(0)
-#endif
 {
 }
 
@@ -104,6 +101,27 @@ void vds::_network_service::start(const service_provider & sp)
     if(0 > this->epoll_set_){
       throw std::runtime_error("Out of memory for epoll_create");
     }
+  this->epoll_thread_ = std::thread(
+    [this, sp] {
+      while(!sp.get_shutdown_event().is_shuting_down()){
+        struct epoll_event events[64];
+        
+        auto result = epoll_wait(this->epoll_set_, events, sizeof(events) / sizeof(events[0]), 1000);
+        if(0 > result){
+          auto error = errno;
+          if(EINTR == error){
+            continue;
+          }
+          
+          throw std::system_error(error, std::system_category(), "epoll_wait");
+        }
+        else if(0 < result){
+          for(int i = 0; i < result; ++i){
+            ((_socket_task *)events[i].data.ptr)->process(events[i].events);
+          }
+        }          
+      }
+  });
 #endif
 }
 
@@ -113,7 +131,9 @@ void vds::_network_service::stop(const service_provider & sp)
       sp.get<logger>()->trace(sp, "Stopping network service");
       
 #ifndef _WIN32
-        //this->epoll_future_.wait();
+      if(this->epoll_thread_.joinable()){
+        this->epoll_thread_.join();
+      }
 #else
         for (auto p : this->work_threads_) {
             p->join();
@@ -212,8 +232,6 @@ void vds::_network_service::associate(
   _socket_task * handler,
   uint32_t event_mask)
 {
-  std::unique_lock<std::mutex> lock(this->epoll_mutex_);
-  
   struct epoll_event event_data;
   event_data.events = event_mask;
   event_data.data.ptr = handler;
@@ -222,33 +240,6 @@ void vds::_network_service::associate(
   if(0 > result) {
     auto error = errno;
     throw std::system_error(error, std::system_category(), "epoll_ctl");
-  }
-  
-  if(0 == this->epoll_count_++){
-    this->epoll_future_ = std::async(std::launch::async,
-      [this, sp] {
-        while(!sp.get_shutdown_event().is_shuting_down()){
-          struct epoll_event events[64];
-          
-          std::unique_lock<std::mutex> lock(this->epoll_mutex_);
-          auto result = epoll_wait(this->epoll_set_, events, sizeof(events) / sizeof(events[0]), 1000);
-          if(0 > result){
-            auto error = errno;
-            if(EINTR == error){
-              continue;
-            }
-            if(0 == this->epoll_count_){
-              break;
-            }
-            throw std::system_error(error, std::system_category(), "epoll_wait");
-          }
-          else if(0 < result){
-            for(int i = 0; i < result; ++i){
-              ((_socket_task *)events[i].data.ptr)->process(events[i].events);
-            }
-          }          
-        }
-    });
   }
 }
 
@@ -273,8 +264,6 @@ void vds::_network_service::remove_association(
   const service_provider & sp,
   SOCKET_HANDLE s)
 {
-  std::unique_lock<std::mutex> lock(this->epoll_mutex_);
-  
   struct epoll_event event_data;
   event_data.events = 0;
   
@@ -283,8 +272,6 @@ void vds::_network_service::remove_association(
     auto error = errno;
     throw std::system_error(error, std::system_category(), "epoll_ctl");
   }
-
-  this->epoll_count_--;
 }
 
 #endif//_WIN32

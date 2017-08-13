@@ -75,18 +75,20 @@ vds::async_task<vds::server_task_manager::task_state> vds::_local_cache::downloa
       [sp, version_id, result_data, done](database_transaction & tr){
     
         auto chunk_manager = sp.get<ichunk_manager>();
-        std::list<ichunk_manager::object_chunk_map> object_map;
-        chunk_manager->get_object_map(sp, tr, version_id, object_map);
+        guid server_id;
+        size_t min_chunk;
+        size_t max_chunk;
+        chunk_manager->get_object_map(sp, tr, version_id, server_id, min_chunk, max_chunk);
         
         size_t downloaded_data = 0;
         size_t total_data = 0;
 
-        for(auto & p : object_map) {
+        for(size_t chunk = min_chunk; chunk < max_chunk; ++chunk) {
           (*chunk_manager)->query_object_chunk(
             sp,
             tr,
-            p.server_id,
-            p.chunk_index,
+            server_id,
+            chunk,
             version_id,
             downloaded_data,
             total_data);
@@ -103,20 +105,23 @@ vds::async_task<vds::server_task_manager::task_state> vds::_local_cache::downloa
         }
         else {
           file f(result_data, file::file_mode::create_new);
-          for (auto & p : object_map) {
+          for(size_t chunk = min_chunk; chunk < max_chunk; ++chunk) {
+            size_t chunk_size;
+            const_data_buffer chunk_hash;
             auto data = (*chunk_manager)->restore_object_chunk(
               sp,
               tr,
-              p.server_id,
-              p.chunk_index,
-              version_id);
-
-            if (p.length != data.size()) {
-              throw std::runtime_error("Login error");
+              server_id,
+              chunk,
+              version_id,
+              chunk_size,
+              chunk_hash);
+            
+            if(chunk_hash != hash::signature(hash::sha256(), data.data(), chunk_size)){
+              throw std::runtime_error("Data was corrupted");
             }
 
-            f.seek(p.object_offset);
-            f.write(data);
+            f.write(data.data(), chunk_size);
           }
           f.close();
 

@@ -87,9 +87,9 @@ std::shared_ptr<vds::async_stream<vds::udp_datagram>> vds::udp_socket::outgoing(
   return this->impl_->outgoing();
 }
 
-void vds::udp_socket::close()
+void vds::udp_socket::stop()
 {
-  this->impl_->close();
+  this->impl_->stop();
 }
 
 vds::udp_server::udp_server()

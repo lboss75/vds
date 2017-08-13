@@ -84,7 +84,7 @@ namespace vds {
     std::shared_ptr<continuous_stream<udp_datagram>> incoming();
     std::shared_ptr<async_stream<udp_datagram>> outgoing();
 
-    void close();
+    void stop();
 
     _udp_socket * operator -> () const { return this->impl_.get(); }
 

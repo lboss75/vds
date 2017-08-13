@@ -87,7 +87,12 @@ TEST(http_tests, test_https_server)
         vds::dataflow(
           vds::stream_read<vds::async_stream<uint8_t>>(crypto_tunnel->crypted_output()),
           vds::stream_write<vds::continuous_stream<uint8_t>>(s.outgoing())
-          )(done, on_error, sp.create_scope("Server SSL Output"));
+          )(
+            [done](const vds::service_provider & sp) {
+              sp.get<vds::logger>()->debug(sp, "Server SSL Output closed");
+              done(sp);
+            },
+            on_error, sp.create_scope("Server SSL Output"));
       }),
       vds::create_async_task(
         [s, stream, &router, crypto_tunnel](const std::function<void(const vds::service_provider & sp)> & done, const vds::error_handler & on_error, const vds::service_provider & sp) {

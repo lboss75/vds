@@ -137,21 +137,6 @@ namespace vds {
 #endif
     }
 
-    void close()
-    {
-#ifdef _WIN32
-      if (INVALID_SOCKET != this->s_) {
-        closesocket(this->s_);
-        this->s_ = INVALID_SOCKET;
-      }
-#else
-      if (0 <= this->s_) {
-        shutdown(this->s_, 2);
-        this->s_ = -1;
-      }
-#endif
-    }
-
     SOCKET_HANDLE handle() const
     {
       return this->s_;
@@ -170,10 +155,28 @@ namespace vds {
     void start(const vds::service_provider & sp)
     {
 #ifdef _WIN32
-      std::make_shared<_udp_receive>(sp, this->shared_from_this())->read_async();
-      std::make_shared<_udp_send>(sp, this->shared_from_this())->start();
+      this->reader_ = std::make_shared<_udp_receive>(sp, this->shared_from_this());
+      this->reader_->read_async();
+      
+      this->writter_ = std::make_shared<_udp_send>(sp, this->shared_from_this());
+      this->writter_->start();
 #else
-      std::make_shared<_udp_handler>(sp, this->shared_from_this())->start();
+      this->handler_ = std::make_shared<_udp_handler>(sp, this->shared_from_this());
+      this->handler_->start();
+#endif
+    }
+    
+    void stop()
+    {
+#ifdef _WIN32
+      this->reader_->stop();
+      this->writter_->stop();
+      
+      this->reader_.reset();
+      this->writter_.reset();
+#else
+      this->handler_->stop();
+      this->handler_.reset();
 #endif
     }
 
@@ -181,6 +184,21 @@ namespace vds {
     SOCKET_HANDLE s_;
     std::shared_ptr<continuous_stream<udp_datagram>> incoming_;
     std::shared_ptr<async_stream<udp_datagram>> outgoing_;
+    
+    void close()
+    {
+#ifdef _WIN32
+      if (INVALID_SOCKET != this->s_) {
+        closesocket(this->s_);
+        this->s_ = INVALID_SOCKET;
+      }
+#else
+      if (0 <= this->s_) {
+        shutdown(this->s_, 2);
+        this->s_ = -1;
+      }
+#endif
+    }
 
 #ifdef _WIN32
     class _udp_receive : public _socket_task
@@ -349,30 +367,34 @@ namespace vds {
         const service_provider & sp,
         const std::shared_ptr<_udp_socket> & owner)
         : sp_(sp), owner_(owner),
-          network_service_(static_cast<_network_service *>(sp.get<inetwork_service>())),
+          network_service_(static_cast<_network_service *>(this->sp_.get<inetwork_service>())),
           event_masks_(EPOLLIN | EPOLLET)
       {
-        this->network_service_->associate(sp, this->owner_->s_, this, this->event_masks_);
       }
       
       ~_udp_handler()
       {
-        if(0 != this->event_masks_){
-          this->network_service_->remove_association(this->sp_, this->owner_->s_);
-        }
       }
 
       void start()
       {
-        this->read_this_ = this->shared_from_this();
-        this->write_this_ = this->shared_from_this();
-        
+        this->network_service_->associate(this->sp_, this->owner_->s_, this, this->event_masks_);
         this->schedule_write();
+      }
+      
+      void stop()
+      {
+        if(0 != this->event_masks_){
+          this->network_service_->remove_association(this->sp_, this->owner_->s_);
+        }
+        
+        this->owner_.reset();
       }
       
       void process(uint32_t events) override
       {
         if(EPOLLOUT == (EPOLLOUT & events)){
+          this->sp_.get<logger>()->debug(this->sp_, "UDP EPOLLOUT event");
           this->change_mask(0, EPOLLOUT);
           
           int len = sendto(
@@ -399,7 +421,10 @@ namespace vds {
         }
         
         if(EPOLLIN == (EPOLLIN & events)){
-          this->change_mask(0, EPOLLIN);
+          this->sp_.get<logger>()->debug(this->sp_, "UDP EPOLLIN event");
+          if(0 < this->owner_->s_){
+            this->change_mask(0, EPOLLIN);
+          }
           
           this->read_data();
         }
@@ -493,6 +518,12 @@ namespace vds {
       }
     };
 #endif//_WIN32
+#ifdef _WIN32
+    std::shared_ptr<_udp_receive> reader_;
+    std::shared_ptr<_udp_send> writter_;
+#else
+    std::shared_ptr<_udp_handler> handler_;
+#endif
   };
 
   class _udp_server

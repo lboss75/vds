@@ -41,11 +41,11 @@ TEST(network_tests, test_udp_server)
     )(
     [&server_socket](const vds::service_provider & sp) {
       sp.get<vds::logger>()->debug(sp, "Server closed");
-      server_socket.close();
+      server_socket.stop();
     },
       [&error, &server_socket](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
       error = ex;
-      server_socket.close();
+      server_socket.stop();
     },
     sp);
 
@@ -60,12 +60,12 @@ TEST(network_tests, test_udp_server)
   .wait(
     [&b, &client_socket](const vds::service_provider & sp, size_t readed) {
         sp.get<vds::logger>()->debug(sp, "Client reader closed");
-        client_socket.close();
+        client_socket.stop();
         b.set();
       },
     [&b, &client_socket](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
         sp.get<vds::logger>()->debug(sp, "Client reader error");
-        client_socket.close();
+        client_socket.stop();
         b.set();
       },
     sp.create_scope("Client reader"));

@@ -209,7 +209,7 @@ namespace vds {
 
                 struct epoll_event ev;
                 ev.events = EPOLLIN;
-                //ev.data.ptr = this->s_;
+                ev.data.fd = this->s_;
                 if (0 > epoll_ctl(epollfd, EPOLL_CTL_ADD, this->s_, &ev)) {
                   throw std::runtime_error("epoll_create failed");
                   return;

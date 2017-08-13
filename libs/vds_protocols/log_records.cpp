@@ -197,9 +197,7 @@ vds::principal_log_new_object_map::principal_log_new_object_map(
     s->get_property("l", this->length_);
     s->get_property("h", this->hash_);
     s->get_property("s", this->chunk_size_);
-    s->get_property("c", this->full_chunks_);
-    s->get_property("t", this->tail_chunk_items_);
-    s->get_property("r", this->replica_length_);
+    s->get_property("c", this->chunks_);
   }
 }
 
@@ -215,9 +213,7 @@ std::shared_ptr<vds::json_value> vds::principal_log_new_object_map::serialize(bo
   result->add_property("l", this->length_);
   result->add_property("h", this->hash_);
   result->add_property("s", this->chunk_size_);
-  result->add_property("c", this->full_chunks_);
-  result->add_property("t", this->tail_chunk_items_);
-  result->add_property("r", this->replica_length_);
+  result->add_property("c", this->chunks_);
 
   return result;
 }
@@ -361,13 +357,31 @@ std::shared_ptr<vds::json_value> vds::server_log_new_endpoint::serialize() const
   return std::shared_ptr<vds::json_value>(result.release());
 }
 /////////////////////////////////////////////////////////////////
+vds::replica_info::replica_info(const std::shared_ptr<json_value> & source)
+{
+  auto s = std::dynamic_pointer_cast<json_object>(source);
+  if (s) {
+    s->get_property("s", this->size_);
+    s->get_property("h", this->hash_);
+  }
+}
+
+std::shared_ptr<vds::json_value> vds::replica_info::serialize() const
+{
+  auto result = std::make_shared<json_object>();
+  result->add_property("s", this->size_);
+  result->add_property("h", this->hash_);
+  return result;
+
+}
+/////////////////////////////////////////////////////////////////
 vds::chunk_info::chunk_info(const std::shared_ptr<json_value> & source)
 {
   auto s = std::dynamic_pointer_cast<json_object>(source);
   if (s) {
     s->get_property("i", this->chunk_index_);
     s->get_property("h", this->hash_);
-    s->get_property("r", this->replica_hashes_);
+    s->get_property("r", this->replicas_);
   }
 }
 
@@ -376,35 +390,7 @@ std::shared_ptr<vds::json_value> vds::chunk_info::serialize() const
   auto result = std::make_shared<json_object>();
   result->add_property("i", this->chunk_index_);
   result->add_property("h", this->hash_);
-  result->add_property("r", this->replica_hashes_);
+  result->add_property("r", this->replicas_);
   return result;
-
-}
-/////////////////////////////////////////////////////////////////
-vds::tail_chunk_item::tail_chunk_item(const std::shared_ptr<json_value> & source)
-{
-  auto s = std::dynamic_pointer_cast<json_object>(source);
-  if (s) {
-    s->get_property("s", this->server_id_);
-    s->get_property("o", this->object_id_);
-    s->get_property("i", this->chunk_index_);
-    s->get_property("of", this->object_offset_);
-    s->get_property("cf", this->chunk_offset_);
-    s->get_property("l", this->length_);
-    s->get_property("h", this->hash_);
-  }
-}
-
-std::shared_ptr<vds::json_value> vds::tail_chunk_item::serialize() const
-{
-  auto s = std::make_shared<json_object>();
-  s->add_property("s", this->server_id_);
-  s->add_property("o", this->object_id_);
-  s->add_property("i", this->chunk_index_);
-  s->add_property("of", this->object_offset_);
-  s->add_property("cf", this->chunk_offset_);
-  s->add_property("l", this->length_);
-  s->add_property("h", this->hash_);
-  return s;
 
 }

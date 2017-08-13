@@ -18,17 +18,6 @@ namespace vds {
     typedef uint64_t index_type;
     typedef uint16_t replica_type;
 
-    struct object_chunk_map
-    {
-      guid server_id;
-      index_type chunk_index;
-      guid object_id;
-      size_t object_offset;
-      size_t chunk_offset;
-      size_t length;
-      const_data_buffer hash;
-    };
-
     struct chunk_store
     {
       guid server_id;
@@ -55,7 +44,9 @@ namespace vds {
       const service_provider & sp,
       database_transaction & tr,
       const guid & object_id,
-      std::list<object_chunk_map> & result);
+      guid & server_id,
+      ichunk_manager::index_type & min_chunk_index,
+      ichunk_manager::index_type & max_chunk_index);
 
     void query_object_chunk(
       const service_provider & sp,
