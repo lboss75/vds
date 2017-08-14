@@ -107,14 +107,12 @@ void vds::task_manager::start(const service_provider & sp)
   imt_service::enable_async(this->sp_);
 }
 
-void vds::task_manager::stop(const service_provider &)
+void vds::task_manager::stop(const service_provider & sp)
 {
-  try {
-    if (this->work_thread_.joinable()) {
-      this->work_thread_.join();
-    }
-  }
-  catch (...) {
+  sp.get<logger>()->debug(sp, "Stopping task manager");
+
+  if (this->work_thread_.joinable()) {
+    this->work_thread_.join();
   }
 }
 

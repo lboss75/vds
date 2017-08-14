@@ -156,7 +156,7 @@ namespace vds {
     {
 #ifdef _WIN32
       this->reader_ = std::make_shared<_udp_receive>(sp, this->shared_from_this());
-      this->reader_->read_async();
+      this->reader_->start();
       
       this->writter_ = std::make_shared<_udp_send>(sp, this->shared_from_this());
       this->writter_->start();
@@ -212,6 +212,24 @@ namespace vds {
       {
       }
 
+      void start()
+      {
+        this->read_async();
+      }
+
+      void stop()
+      {
+      }
+
+    private:
+      service_provider sp_;
+      std::shared_ptr<_udp_socket> owner_;
+      std::shared_ptr<_socket_task> pthis_;
+
+      sockaddr_in addr_;
+      socklen_t addr_len_;
+      uint8_t buffer_[10 * 1024 * 1024];
+
       void read_async()
       {
         this->addr_len_ = sizeof(sockaddr_in);
@@ -242,15 +260,6 @@ namespace vds {
 
         this->pthis_ = this->shared_from_this();
       }
-
-    private:
-      service_provider sp_;
-      std::shared_ptr<_udp_socket> owner_;
-      std::shared_ptr<_socket_task> pthis_;
-
-      sockaddr_in addr_;
-      socklen_t addr_len_;
-      uint8_t buffer_[10 * 1024 * 1024];
 
       void process(DWORD dwBytesTransfered) override
       {
@@ -303,6 +312,10 @@ namespace vds {
       {
         this->pthis_ = this->shared_from_this();
         this->write_async();
+      }
+
+      void stop()
+      {
       }
 
     private:
