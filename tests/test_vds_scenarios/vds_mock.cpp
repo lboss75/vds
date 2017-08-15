@@ -140,7 +140,7 @@ void mock_client::init_server(
   vds::service_registrator registrator;
 
   vds::mt_service mt_service;
-  vds::file_logger logger(vds::ll_trace);
+  vds::file_logger logger(vds::ll_debug);
   vds::crypto_service crypto_service;
   vds::client client("https://127.0.0.1:8050");
   vds::task_manager task_manager;
@@ -315,7 +315,7 @@ void mock_client::start_vds(bool full_client, const std::function<void(const vds
 
   vds::mt_service mt_service;
   vds::network_service network_service;
-  vds::file_logger logger(vds::ll_trace);
+  vds::file_logger logger(vds::ll_debug);
   vds::crypto_service crypto_service;
   vds::client client("https://127.0.0.1:" + std::to_string(8050 + this->index_));
   vds::task_manager task_manager;
@@ -372,7 +372,7 @@ mock_server::mock_server(int index, int port)
   : index_(index),
   port_(port),
   sp_(vds::service_provider::empty()),
-  logger_(vds::ll_trace)
+  logger_(vds::ll_debug)
 {
 }
 
@@ -382,7 +382,7 @@ void mock_server::init_root(const std::string & root_password, int port)
 
   vds::mt_service mt_service;
   vds::network_service network_service;
-  vds::file_logger logger(vds::ll_trace);
+  vds::file_logger logger(vds::ll_debug);
   vds::crypto_service crypto_service;
   vds::client client("https://127.0.0.1:" + std::to_string(port));
   vds::task_manager task_manager;

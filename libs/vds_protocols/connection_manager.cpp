@@ -497,7 +497,7 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
         s >> session_id >> crypted_data >> data_hash;
         s.final();
 
-        sp.get<logger>()->debug(sp, "command from %s", network_service::to_string(*from).c_str());
+        sp.get<logger>()->trace(sp, "command from %s", network_service::to_string(*from).c_str());
 
         std::shared_lock<std::shared_mutex> lock(this->sessions_mutex_);
 
@@ -517,7 +517,7 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
               const_data_buffer binary_form;
               d >> message_type_id >> binary_form;
               
-              sp.get<logger>()->debug(sp, "Message %d", message_type_id);
+              sp.get<logger>()->trace(sp, "Message %d", message_type_id);
 
               this->owner_->server_to_server_api_.process_message(
                 sp,
@@ -528,7 +528,7 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
                 binary_form);
             }
             else {
-              sp.get<logger>()->debug(sp, "Invalid data hash");
+              sp.get<logger>()->error(sp, "Invalid data hash");
             }
           },
             [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
@@ -537,16 +537,16 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
             sp);
         }
         else {
-          sp.get<logger>()->debug(sp, "Session %d not found", session_id);
+          sp.get<logger>()->warning(sp, "Session %d not found", session_id);
         }
       }
       catch (const std::exception & ex) {
-        sp.get<logger>()->debug(sp, "Error at processing command");
+        sp.get<logger>()->error(sp, "Error at processing command");
         on_error(sp, std::make_shared<std::exception>(ex));
         return false;
       }
       catch (...) {
-        sp.get<logger>()->debug(sp, "Error at processing command");
+        sp.get<logger>()->error(sp, "Error at processing command");
         on_error(sp, std::make_shared<std::runtime_error>("Unhandled error"));
         return false;
       }
@@ -676,7 +676,7 @@ void vds::_connection_manager::udp_channel::session::send_to(
         s << hash::signature(hash::sha256(), message_data.data());
         s.final();
 
-        sp.get<logger>()->debug(sp, "Send message to %s:%d", this->server().c_str(), this->port());
+        sp.get<logger>()->trace(sp, "Send message to %s:%d", this->server().c_str(), this->port());
         
         auto scope = sp.create_scope(("Send message to " + this->server() + ":" + std::to_string(this->port())).c_str());
         imt_service::enable_async(scope);

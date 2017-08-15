@@ -305,7 +305,7 @@ namespace vds {
 
       ~_udp_send()
       {
-        this->sp_.get<logger>()->debug(this->sp_, "_udp_send.~_udp_send");
+        this->sp_.get<logger>()->trace(this->sp_, "_udp_send.~_udp_send");
       }
 
       void start()
@@ -407,7 +407,7 @@ namespace vds {
       void process(uint32_t events) override
       {
         if(EPOLLOUT == (EPOLLOUT & events)){
-          this->sp_.get<logger>()->debug(this->sp_, "UDP EPOLLOUT event");
+          this->sp_.get<logger>()->trace(this->sp_, "UDP EPOLLOUT event");
           this->change_mask(0, EPOLLOUT);
           
           auto size = this->write_buffer_.data_size();
@@ -430,12 +430,12 @@ namespace vds {
           if((size_t)len != size){
             throw std::runtime_error("Invalid send UDP");
           }
-          this->sp_.get<logger>()->debug(this->sp_, "UDP Sent %d bytes to %s", len, network_service::to_string(*this->write_buffer_->addr()).c_str());
+          this->sp_.get<logger>()->trace(this->sp_, "UDP Sent %d bytes to %s", len, network_service::to_string(*this->write_buffer_->addr()).c_str());
           this->schedule_write();
         }
         
         if(EPOLLIN == (EPOLLIN & events)){
-          this->sp_.get<logger>()->debug(this->sp_, "UDP EPOLLIN event");
+          this->sp_.get<logger>()->trace(this->sp_, "UDP EPOLLIN event");
           if(0 < this->owner_->s_){
             this->change_mask(0, EPOLLIN);
           }
@@ -514,7 +514,7 @@ namespace vds {
           throw std::system_error(error, std::system_category(), "recvfrom");
         }
         
-        this->sp_.get<logger>()->debug(this->sp_, "UDP got %d bytes from %s", len, network_service::to_string(this->addr_).c_str());
+        this->sp_.get<logger>()->trace(this->sp_, "UDP got %d bytes from %s", len, network_service::to_string(this->addr_).c_str());
         this->owner_->incoming_->write_value_async(this->sp_, _udp_datagram::create(this->addr_, this->read_buffer_, len))
           .wait(
             [this, len](const service_provider & sp) {
