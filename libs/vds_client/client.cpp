@@ -297,7 +297,7 @@ vds::async_task<const std::string& /*version_id*/> vds::_client::upload_file(
                 version_id,
                 tmp_file,
                 file_hash.signature()).serialize(),
-             std::chrono::seconds(5 * 60))
+             std::chrono::seconds(10 * 60))
             .then([](
               const std::function<void(const service_provider & /*sp*/)> & done,
               const error_handler & on_error,
