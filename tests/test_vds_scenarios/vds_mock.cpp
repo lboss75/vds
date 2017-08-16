@@ -176,7 +176,6 @@ void mock_client::init_server(
   
   try {
     registrator.start(sp);
-
     
     sp.get<vds::iclient>()->init_server(sp, "root", root_password)
       .wait(
