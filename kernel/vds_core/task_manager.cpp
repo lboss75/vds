@@ -55,11 +55,11 @@ void vds::timer::execute(const vds::service_provider& sp)
         this->schedule(sp);
       }
       else {
-        sp.get<logger>()->debug(sp, "Task %s finished", this->name_.c_str());
+        sp.get<logger>()->trace(sp, "Task %s finished", this->name_.c_str());
       }
     }
     else {
-      sp.get<logger>()->debug(sp, "Task finished by shuting down");
+      sp.get<logger>()->trace(sp, "Task finished by shuting down");
     }
   }
   catch (const std::exception & ex) {
@@ -82,7 +82,7 @@ void vds::timer::schedule(const vds::service_provider& sp)
 
   std::lock_guard<std::mutex> lock(manager->scheduled_mutex_);
   manager->scheduled_.push_back(this);
-  sp.get<logger>()->debug(sp, "Add Task %s", this->name_.c_str());
+  sp.get<logger>()->trace(sp, "Add Task %s", this->name_.c_str());
 
   if (!manager->work_thread_.joinable()) {
     if (!manager->sp_) {
@@ -129,7 +129,7 @@ void vds::task_manager::work_thread()
     for(auto task : this->scheduled_){
       if(task->start_time_ <= now){
         this->scheduled_.remove(task);
-        this->sp_.get<logger>()->debug(this->sp_, "Remove Task %s", task->name_.c_str());
+        this->sp_.get<logger>()->trace(this->sp_, "Remove Task %s", task->name_.c_str());
 
         ++b;
         

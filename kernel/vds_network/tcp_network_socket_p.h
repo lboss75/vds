@@ -340,7 +340,7 @@ namespace vds {
             throw std::runtime_error("Invalid send TCP");
           }
           
-          this->sp_.get<logger>()->debug(this->sp_, "TCP Sent %d bytes", len);
+          this->sp_.get<logger>()->trace(this->sp_, "TCP Sent %d bytes", len);
           this->schedule_write();
         }
         
@@ -418,7 +418,7 @@ namespace vds {
           throw std::system_error(error, std::system_category(), "recv");
         }
         
-        this->sp_.get<logger>()->debug(this->sp_, "TCP got %d bytes", len);
+        this->sp_.get<logger>()->trace(this->sp_, "TCP got %d bytes", len);
         this->owner_->incoming_->write_all_async(this->sp_, this->read_buffer_, len)
           .wait(
             [this, len](const service_provider & sp) {
