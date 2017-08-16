@@ -50,6 +50,8 @@ namespace vds {
     
     std::shared_ptr<async_stream<std::shared_ptr<http_message>>> incoming_stream() const { return this->incoming_stream_; }
     std::shared_ptr<continuous_stream<std::shared_ptr<json_value>>> outgoing_stream() const { return this->outgoing_stream_; }
+
+    void stop(const service_provider & sp);
    
   private:
     std::string address_;

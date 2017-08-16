@@ -111,7 +111,12 @@ void vds::node_app::main(
     filename fn(this->filename_.value());
 
     barrier b;
-    sp.get<vds::iclient>()->upload_file(sp, this->login_.value(), this->password_.value(), fn.name(), fn)
+    sp.get<vds::iclient>()->upload_file(
+      sp,
+      this->login_.value(),
+      this->password_.value(),
+      this->name_.value().empty() ? fn.name() : this->name_.value(),
+      fn)
       .wait(
         [&b](const vds::service_provider&sp, const std::string& version_id) {
           std::cout << "File uploaded " << version_id << "\n";
@@ -185,6 +190,7 @@ void vds::node_app::register_command_line(vds::command_line& cmd_line)
   this->file_upload_cmd_set_.required(this->login_);
   this->file_upload_cmd_set_.required(this->password_);
   this->file_upload_cmd_set_.required(this->filename_);
+  this->file_upload_cmd_set_.optional(this->name_);
   this->file_upload_cmd_set_.optional(this->root_folder_);
 
   cmd_line.add_command_set(this->file_download_cmd_set_);

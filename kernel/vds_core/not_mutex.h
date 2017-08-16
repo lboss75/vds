@@ -26,6 +26,13 @@ namespace vds {
     {
     }
 
+    ~not_mutex()
+    {
+      if (this->is_locked_) {
+        throw std::runtime_error("Multithreading error");
+      }
+    }
+
     void lock()
     {
       std::unique_lock<std::mutex> lock(this->m_);

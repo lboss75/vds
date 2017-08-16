@@ -141,3 +141,7 @@ void vds::client_connection::connect(const service_provider & sp)
       },
       scope);
 }
+
+void vds::client_connection::stop(const service_provider & sp)
+{
+}

@@ -53,16 +53,33 @@ void vds::client_logic::start(
     scope,
     std::chrono::seconds(5),
     [this, scope](){
-      auto result = this->process_timer_tasks(scope);
-      if (!result) {
-        throw std::runtime_error("Logic error");
-      }
-      return result;
+      return this->process_timer_tasks(scope);
   });
 }
 
 void vds::client_logic::stop(const service_provider & sp)
 {
+  this->process_timer_.stop(sp);
+
+  this->connection_mutex_.lock();
+  for (auto & connection : this->connection_queue_) {
+    if (client_connection::STATE::CONNECTED == connection->state()) {
+      auto scope = sp.create_scope("Call HTTP Client API");
+      imt_service::enable_async(scope);
+
+      barrier b;
+      connection->outgoing_stream()->write_all_async(scope, nullptr, 0)
+        .wait(
+          [&b](const service_provider & sp) {b.set(); },
+          [&b](const service_provider & sp, const std::shared_ptr<std::exception> & ex) { b.set(); sp.unhandled_exception(ex); },
+          scope);
+      b.wait();
+    }
+    connection->stop(sp);
+  }
+  this->connection_mutex_.unlock();
+
+
   if (std::future_status::ready != this->update_connection_pool_feature_.wait_for(std::chrono::seconds(0))) {
     this->update_connection_pool_feature_.get();
   }

@@ -83,7 +83,7 @@ vds::async_task<vds::server_task_manager::task_state> vds::_local_cache::downloa
         size_t downloaded_data = 0;
         size_t total_data = 0;
 
-        for(size_t chunk = min_chunk; chunk < max_chunk; ++chunk) {
+        for(size_t chunk = min_chunk; chunk <= max_chunk; ++chunk) {
           (*chunk_manager)->query_object_chunk(
             sp,
             tr,
@@ -105,7 +105,7 @@ vds::async_task<vds::server_task_manager::task_state> vds::_local_cache::downloa
         }
         else {
           file f(result_data, file::file_mode::create_new);
-          for(size_t chunk = min_chunk; chunk < max_chunk; ++chunk) {
+          for(size_t chunk = min_chunk; chunk <= max_chunk; ++chunk) {
             size_t chunk_size;
             const_data_buffer chunk_hash;
             auto data = (*chunk_manager)->restore_object_chunk(

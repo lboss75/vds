@@ -430,8 +430,6 @@ void vds::_chunk_manager::get_object_map(
     .where(t.object_id == object_id));
   
   if (st.execute()) {
-    ichunk_manager::index_type min_chunk_index;
-    ichunk_manager::index_type max_chunk_index;
     server_id = t.server_id.get(st);
     st.get_value(1, min_chunk_index);
     st.get_value(2, max_chunk_index);
@@ -646,7 +644,7 @@ vds::const_data_buffer vds::_chunk_manager::restore_object_chunk(
     .where(t.server_id == server_id && t.chunk_index == chunk_index));
 
   std::unordered_map<uint16_t, const_data_buffer> horcruxes;
-  while (st.execute()) {
+  while (st.execute() && MIN_HORCRUX > horcruxes.size()) {
     horcruxes[t.replica.get(st)] = t.data.get(st);
   }
 
@@ -668,4 +666,6 @@ vds::const_data_buffer vds::_chunk_manager::restore_object_chunk(
   else {
     throw std::runtime_error("Login error");
   }
+
+  return result;
 }

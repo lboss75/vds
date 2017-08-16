@@ -468,7 +468,8 @@ vds::async_task<> vds::_client::download_file(
       const service_provider & sp) {
   this->owner_->logic_->send_request<client_messages::get_object_response>(
     sp,
-    client_messages::get_object_request(version_id, tmp_file).serialize())
+    client_messages::get_object_request(version_id, tmp_file).serialize(),
+    std::chrono::minutes(10))
   .wait(
     [this, version_id, tmp_file, done, on_error]
     (const service_provider & sp, const client_messages::get_object_response & response) {
