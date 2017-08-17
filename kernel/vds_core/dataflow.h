@@ -362,6 +362,11 @@ namespace vds {
         if (this->common_data_->step_finish(sp, context_type::INDEX)) {
           return false;
         }
+
+        if (!this->target_->push_data(sp, 0, this->output_buffer_, this->output_buffer_size_)) {
+          return false;
+        }
+
         return true;
       }
       else if (0 == written) {

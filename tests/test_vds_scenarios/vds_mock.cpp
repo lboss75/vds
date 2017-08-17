@@ -139,8 +139,8 @@ void mock_client::init_server(
 {
   vds::service_registrator registrator;
 
-  vds::mt_service mt_service;
   vds::file_logger logger(vds::ll_debug);
+  vds::mt_service mt_service;
   vds::crypto_service crypto_service;
   vds::client client("https://127.0.0.1:8050");
   vds::task_manager task_manager;
@@ -150,8 +150,8 @@ void mock_client::init_server(
   folder.delete_folder(true);
   folder.create();
 
-  registrator.add(mt_service);
   registrator.add(logger);
+  registrator.add(mt_service);
   registrator.add(crypto_service);
   registrator.add(task_manager);
   registrator.add(client);

@@ -65,7 +65,7 @@ void vds::imt_service::async_enabled_check(const service_provider & sp)
 }
 
 vds::_mt_service::_mt_service(const service_provider & sp)
-: sp_(sp)
+: sp_(sp), is_shuting_down_(false)
 {
 }
 
@@ -86,6 +86,7 @@ void vds::_mt_service::start()
 
 void vds::_mt_service::stop()
 {
+  this->is_shuting_down_ = true;
   for(auto & t : this->work_threads_){
     this->cond_.notify_all();
     t.join();
@@ -105,7 +106,7 @@ void vds::_mt_service::work_thread()
   auto thread_id = syscall(SYS_gettid);
 #endif
 
-  while(!this->sp_.get_shutdown_event().is_shuting_down()){
+  while(!this->is_shuting_down_){
     std::function<void(void)> handler;
     {
       std::unique_lock<std::mutex> lock(this->mutex_);

@@ -30,6 +30,7 @@ namespace vds {
   private:
     service_provider sp_;
     std::list<std::thread> work_threads_;
+    bool is_shuting_down_;
     
     std::mutex mutex_;
     std::condition_variable cond_;

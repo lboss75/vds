@@ -52,7 +52,14 @@ namespace vds {
           if (this->continue_read_) {
             std::function<void(void)> f;
             this->continue_read_.swap(f);
+#ifdef _DEBUG
+            mt_service::async(sp, 
+              [f]() {
+              f();
+            });
+#else
             mt_service::async(sp, f);
+#endif
           }
           
           mt_service::async(sp, [this, sp, done]() {
