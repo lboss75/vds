@@ -59,14 +59,21 @@ vds::async_task<> vds::_server_http_api::start(
         dataflow(
           stream_read<continuous_stream<uint8_t>>(s.incoming()),
           stream_write<continuous_stream<uint8_t>>(crypto_tunnel->crypted_input())
-        )(done, on_error, sp.create_scope("Server SSL Input"));
+        )(
+          [done](const service_provider & sp) {
+          sp.get<logger>()->debug(sp, "SSL Input closed");
+          done(sp);
+        }, on_error, sp.create_scope("Server SSL Input"));
       }),
         create_async_task(
           [this, s, crypto_tunnel](const std::function<void(const service_provider & sp)> & done, const error_handler & on_error, const service_provider & sp) {
         dataflow(
           stream_read<async_stream<uint8_t>>(crypto_tunnel->crypted_output()),
           stream_write<continuous_stream<uint8_t>>(s.outgoing())
-        )(done, on_error, sp.create_scope("Server SSL Output"));
+        )([done](const service_provider & sp) {
+          sp.get<logger>()->debug(sp, "SSL Output closed");
+          done(sp);
+        }, on_error, sp.create_scope("Server SSL Output"));
       }),
         create_async_task(
           [this, s, stream, crypto_tunnel](const std::function<void(const service_provider & sp)> & done, const error_handler & on_error, const service_provider & sp) {
@@ -74,27 +81,37 @@ vds::async_task<> vds::_server_http_api::start(
           stream_read<async_stream<uint8_t>>(crypto_tunnel->decrypted_output()),
           http_parser(
             [this, stream, crypto_tunnel](const service_provider & sp, const std::shared_ptr<http_message> & request) {
-          sp.set_property(
-            service_provider::property_scope::local_scope,
-            new http_context(crypto_tunnel->get_peer_certificate()));
-          this->middleware_.process(sp, request)
-            .wait(
-              [stream](const service_provider & sp, const std::shared_ptr<http_message> & response) {
-            stream->write_all_async(sp, &response, 1)
+            sp.set_property(
+              service_provider::property_scope::local_scope,
+              new http_context(crypto_tunnel->get_peer_certificate()));
+            this->middleware_.process(sp, request)
               .wait(
-                [](const service_provider & sp) {},
-                [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-                  sp.unhandled_exception(ex); 
-                },
-                sp);
-            },
-              [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+                [stream](const service_provider & sp, const std::shared_ptr<http_message> & response) {
+              stream->write_all_async(sp, &response, 1)
+                .wait(
+                  [](const service_provider & sp) {},
+                  [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
                 sp.unhandled_exception(ex);
               },
-            sp);
-        }
+                  sp);
+            },
+                [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+              sp.unhandled_exception(ex);
+            },
+              sp);
+          }
           )
-        )(done, on_error, sp);
+        )([done, stream](const service_provider & sp) {
+          sp.get<logger>()->debug(sp, "HTTP Input closed");
+          stream->write_all_async(sp, nullptr, 0)
+            .wait(
+              [stream](const service_provider & sp) {},
+              [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+            sp.unhandled_exception(ex);
+          },
+              sp);
+          done(sp);
+        }, on_error, sp);
       }),
         create_async_task(
           [s, stream, crypto_tunnel](const std::function<void(const service_provider & sp)> & done, const error_handler & on_error, const service_provider & sp) {
@@ -102,7 +119,10 @@ vds::async_task<> vds::_server_http_api::start(
           stream_read<async_stream<std::shared_ptr<http_message>>>(stream),
           http_serializer(),
           stream_write<continuous_stream<uint8_t>>(crypto_tunnel->decrypted_input())
-        )(done, on_error, sp);
+        )([stream, done](const service_provider & sp) {
+          sp.get<logger>()->debug(sp, "Send http message closed");
+          done(sp);
+        }, on_error, sp);
       })
         )
         .wait(

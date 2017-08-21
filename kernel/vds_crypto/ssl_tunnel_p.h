@@ -235,6 +235,16 @@ namespace vds {
             case SSL_ERROR_WANT_CONNECT:
             case SSL_ERROR_WANT_ACCEPT:
             case SSL_ERROR_ZERO_RETURN:
+              if (this->crypted_input_eof_ && this->decrypted_output_) {
+                auto tmp = this->decrypted_output_;
+                this->decrypted_output_.reset();
+
+                tmp->write_all_async(sp, nullptr, 0)
+                  .wait(
+                    [this](const service_provider & sp) {},
+                    [this](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {},
+                    sp);
+              }
               break;
             default:
               throw crypto_exception("BIO_read", ssl_error);
@@ -307,17 +317,6 @@ namespace vds {
 
             tmp->write_all_async(sp, nullptr, 0)
               .wait([this](const service_provider & sp) {},
-                [this](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {},
-                sp);
-          }
-
-          if (this->crypted_input_eof_ && this->decrypted_output_) {
-            auto tmp = this->decrypted_output_;
-            this->decrypted_output_.reset();
-
-            tmp->write_all_async(sp, nullptr, 0)
-              .wait(
-                [this](const service_provider & sp) {},
                 [this](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {},
                 sp);
           }

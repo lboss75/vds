@@ -8,7 +8,11 @@ All rights reserved
 #include "http_serializer.h"
 #include "http_parser.h"
 
-vds::client_connection::client_connection(const std::string & address, int port, certificate * client_certificate, asymmetric_private_key * client_private_key)
+vds::client_connection::client_connection(
+  const std::string & address,
+  int port, 
+  certificate * client_certificate,
+  asymmetric_private_key * client_private_key)
 : address_(address),
   port_(port),
   client_certificate_(client_certificate),
@@ -100,10 +104,18 @@ void vds::client_connection::connect(const service_provider & sp)
         http_parser(
           [this, s, done, on_error](const service_provider & sp, const std::shared_ptr<http_message> & request) {
             
-            this->incoming_stream_->write_value_async(sp, request)
-            .wait([](const service_provider & sp) {},
+            if (!request) {
+              this->incoming_stream_->write_all_async(sp, nullptr, 0)
+                .wait([](const service_provider & sp) {},
                   [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) { sp.unhandled_exception(ex); },
                   sp);
+            }
+            else {
+              this->incoming_stream_->write_value_async(sp, request)
+                .wait([](const service_provider & sp) {},
+                  [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) { sp.unhandled_exception(ex); },
+                  sp);
+            }
         })
       )(
         [done](const service_provider & sp) {
@@ -117,11 +129,18 @@ void vds::client_connection::connect(const service_provider & sp)
         sp.create_scope("Client reader"));
     })
       ).wait(
-        [client_crypto_tunnel](const service_provider & sp) {
+        [this, client_crypto_tunnel](const service_provider & sp) {
       sp.get<logger>()->debug(sp, "Client closed");
+
+      std::unique_lock<std::mutex> lock(this->state_mutex_);
+      this->state_ = STATE::NONE;
+      this->state_cond_.notify_all();
     },
-        [on_error](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+        [this, on_error](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
       sp.get<logger>()->debug(sp, "Client error");
+      std::unique_lock<std::mutex> lock(this->state_mutex_);
+      this->state_ = STATE::CONNECT_ERROR;
+      this->state_cond_.notify_all();
       on_error(sp, ex);
     },
       sp.create_scope("Client dataflow"));
@@ -132,11 +151,15 @@ void vds::client_connection::connect(const service_provider & sp)
   })
     .wait(
       [this](const service_provider & sp) {
+        std::unique_lock<std::mutex> lock(this->state_mutex_);
         this->state_ = STATE::CONNECTED;
+        this->state_cond_.notify_all();
         this->connection_start_ = std::chrono::steady_clock::now();
       },
       [this](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+        std::unique_lock<std::mutex> lock(this->state_mutex_);
         this->state_ = STATE::CONNECT_ERROR;
+        this->state_cond_.notify_all();
         sp.unhandled_exception(ex);
       },
       scope);
@@ -144,4 +167,15 @@ void vds::client_connection::connect(const service_provider & sp)
 
 void vds::client_connection::stop(const service_provider & sp)
 {
+  for (;;) {
+    std::unique_lock<std::mutex> lock(this->state_mutex_);
+    switch (this->state_) {
+    case STATE::CONNECTING:
+    case STATE::CONNECTED:
+      this->state_cond_.wait_for(lock, std::chrono::seconds(5));
+      break;
+    default:
+      return;
+    }
+  }
 }

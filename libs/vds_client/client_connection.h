@@ -58,6 +58,9 @@ namespace vds {
     int port_;
     certificate * client_certificate_;
     asymmetric_private_key * client_private_key_;
+
+    std::mutex state_mutex_;
+    std::condition_variable state_cond_;
     STATE state_;
     std::shared_ptr<async_stream<std::shared_ptr<http_message>>> incoming_stream_;
     std::shared_ptr<continuous_stream<std::shared_ptr<json_value>>> outgoing_stream_;

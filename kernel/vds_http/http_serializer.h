@@ -105,7 +105,14 @@ namespace vds {
           else {
             auto sp_ = sp.create_scope("http_serializer.write_body.final");
             this->buffer_.write_all_async(sp_, nullptr, 0).wait(
-              [](const service_provider & sp) { },
+              [this](const service_provider & sp) { 
+                this->state_ = StateEnum::STATE_BOF;
+                this->buffer_.reset();
+                this->buffer_mutex_.unlock();
+                if (this->processed(sp, 1, 0)) {
+                  this->async_process_data(sp);
+                }
+              },
               [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {},
               sp_);
           }
@@ -125,14 +132,6 @@ namespace vds {
           if (0 < readed) {
             if (this->processed(sp, 0, readed)) {
               this->continue_process(sp);
-            }
-          }
-          else {
-            this->state_ = StateEnum::STATE_BOF;
-            this->buffer_.reset();
-            this->buffer_mutex_.unlock();
-            if (this->processed(sp, 1, 0)) {
-              this->async_process_data(sp);
             }
           }
         },

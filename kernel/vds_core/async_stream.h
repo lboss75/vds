@@ -144,6 +144,7 @@ namespace vds {
       }
       
       this->out_mutex_.lock();
+      this->out_mutex_stack_ = sp.full_name();
 
       return create_async_task(
         [this, buffer, buffer_size](
@@ -171,6 +172,7 @@ namespace vds {
     not_mutex in_mutex_;
     std::string in_mutex_stack_;
     not_mutex out_mutex_;
+    std::string out_mutex_stack_;
     std::mutex buffer_mutex_;
     item_type buffer_[4096];
     uint32_t second_;
