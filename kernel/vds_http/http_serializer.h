@@ -43,9 +43,9 @@ namespace vds {
         
         if(StateEnum::STATE_BOF == this->state_){
           this->state_ = StateEnum::STATE_BODY;
+          this->buffer_ = std::make_shared<continuous_stream<uint8_t>>();
 
           auto message = this->input_buffer(0);
-          this->buffer_mutex_.lock();
           mt_service::async(sp, [this, sp, message]() {
 
             std::stringstream stream;
@@ -56,7 +56,7 @@ namespace vds {
 
             auto data = std::make_shared<std::string>(stream.str());
             //std::cout << this << "->http_serializer::async_process_data " << syscall(SYS_gettid) << *data << ": lock\n";
-            this->buffer_.write_all_async(sp, (const uint8_t *)data->c_str(), data->length()).wait(
+            this->buffer_->write_all_async(sp, (const uint8_t *)data->c_str(), data->length()).wait(
               [this, data, message](const service_provider & sp) {
               auto buffer = std::make_shared<std::vector<uint8_t>>(1024);
               this->write_body(sp, message, buffer);
@@ -79,8 +79,7 @@ namespace vds {
         STATE_EOF
       };
       StateEnum state_;
-      continuous_stream<uint8_t> buffer_;
-      not_mutex buffer_mutex_;
+      std::shared_ptr<continuous_stream<uint8_t>> buffer_;
 
       void write_body(
         const service_provider & scope,
@@ -93,7 +92,7 @@ namespace vds {
             [this, message, buffer](const service_provider & sp, size_t readed) {
           if (0 < readed) {
             //std::cout << this << "->http_serializer::write_body " << syscall(SYS_gettid) << "." << readed << ": lock\n";
-            this->buffer_.write_all_async(sp, buffer->data(), readed).wait(
+            this->buffer_->write_all_async(sp, buffer->data(), readed).wait(
               [this, message, buffer](const service_provider & sp) {
               this->write_body(sp, message, buffer);
             },
@@ -104,15 +103,9 @@ namespace vds {
           }
           else {
             auto sp_ = sp.create_scope("http_serializer.write_body.final");
-            this->buffer_.write_all_async(sp_, nullptr, 0).wait(
-              [this](const service_provider & sp) { 
-                this->state_ = StateEnum::STATE_BOF;
-                this->buffer_.reset();
-                this->buffer_mutex_.unlock();
-                if (this->processed(sp, 1, 0)) {
-                  this->async_process_data(sp);
-                }
-              },
+            auto buffer = this->buffer_;
+            buffer->write_all_async(sp_, nullptr, 0).wait(
+              [this](const service_provider & sp) { },
               [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {},
               sp_);
           }
@@ -126,12 +119,18 @@ namespace vds {
       void continue_process(const service_provider & scope)
       {
         auto sp = scope.create_scope("http_serializer.continue_process");
-        this->buffer_.read_async(sp, this->output_buffer(), this->output_buffer_size()).wait(
+        this->buffer_->read_async(sp, this->output_buffer(), this->output_buffer_size()).wait(
           [this](const service_provider & sp, size_t readed) {
 
           if (0 < readed) {
             if (this->processed(sp, 0, readed)) {
               this->continue_process(sp);
+            }
+          }
+          else {
+            this->state_ = StateEnum::STATE_BOF;
+            if (this->processed(sp, 1, 0)) {
+              this->async_process_data(sp);
             }
           }
         },
