@@ -102,19 +102,13 @@ void vds::client_connection::connect(const service_provider & sp)
       dataflow(
         stream_read<async_stream<uint8_t>>(client_crypto_tunnel->decrypted_output()),
         http_parser(
-          [this, s, done, on_error](const service_provider & sp, const std::shared_ptr<http_message> & request) {
+          [this, s, done, on_error](const service_provider & sp, const std::shared_ptr<http_message> & request) -> async_task<> {
             
             if (!request) {
-              this->incoming_stream_->write_all_async(sp, nullptr, 0)
-                .wait([](const service_provider & sp) {},
-                  [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) { sp.unhandled_exception(ex); },
-                  sp);
+              return this->incoming_stream_->write_all_async(sp, nullptr, 0);
             }
             else {
-              this->incoming_stream_->write_value_async(sp, request)
-                .wait([](const service_provider & sp) {},
-                  [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) { sp.unhandled_exception(ex); },
-                  sp);
+              return this->incoming_stream_->write_value_async(sp, request);
             }
         })
       )(

@@ -169,10 +169,10 @@ namespace vds {
     }
 
   private:
-    not_mutex in_mutex_;
     std::string in_mutex_stack_;
-    not_mutex out_mutex_;
+    not_mutex in_mutex_;
     std::string out_mutex_stack_;
+    not_mutex out_mutex_;
     std::mutex buffer_mutex_;
     item_type buffer_[4096];
     uint32_t second_;

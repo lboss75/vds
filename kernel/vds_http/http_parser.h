@@ -13,13 +13,14 @@ All rights reserved
 #include "func_utils.h"
 #include "service_provider.h"
 #include "http_message.h"
+#include "barrier.h"
 
 namespace vds {
   class http_parser
   {
   public:
     http_parser(
-      const std::function<void(const service_provider & sp, const std::shared_ptr<http_message> & message)> & message_callback
+      const std::function<async_task<>(const service_provider & sp, const std::shared_ptr<http_message> & message)> & message_callback
     ) : message_callback_(message_callback)
     {
     }
@@ -47,15 +48,36 @@ namespace vds {
       {
         if (0 == this->input_buffer_size()) {
           sp.get<logger>()->debug(sp, "HTTP end");
+          
+          this->message_callback_(sp, std::shared_ptr<http_message>())
+          .wait(
+            [this](const service_provider & sp){
+              this->message_barrier_.set();
+            },
+            [this](const service_provider & sp, const std::shared_ptr<std::exception> & ex){
+              this->error_ = ex;
+              this->message_barrier_.set();
+            },
+            sp);
+          
+          if(this->error_){
+            this->error(sp, this->error_);
+          }
+          else {
+            this->processed(sp, 0);
+          }
         }
         else {
           sp.get<logger>()->debug(sp, "HTTP [%s]", logger::escape_string(std::string((const char *)this->input_buffer(), this->input_buffer_size())).c_str());
+          this->continue_push_data(sp, 0);
         }
-        this->continue_push_data(sp, 0);
       }
 
     private:
-      std::function<void(const service_provider & sp, const std::shared_ptr<http_message> & message)> message_callback_;
+      std::function<async_task<>(const service_provider & sp, const std::shared_ptr<http_message> & message)> message_callback_;
+      std::shared_ptr<std::exception> error_;
+      barrier message_barrier_;
+      
       std::string parse_buffer_;
       std::list<std::string> headers_;
       std::shared_ptr<http_message> current_message_;
@@ -102,7 +124,15 @@ namespace vds {
 
               auto current_message = std::make_shared<http_message>(this->headers_);
               mt_service::async(sp, [sp, this, current_message]() {
-                this->message_callback_(sp, current_message);
+                this->message_callback_(sp, current_message).wait(
+                  [this](const service_provider & sp){
+                    this->message_barrier_.set();
+                  },
+                  [this](const service_provider & sp, const std::shared_ptr<std::exception> & ex){
+                    this->error_ = ex;
+                    this->message_barrier_.set();
+                  },
+                  sp);
               });
               this->current_message_ = current_message;
               this->headers_.clear();
@@ -147,7 +177,12 @@ namespace vds {
                     0)
                     .wait(
                       [this, readed](const service_provider & sp) {
-                    if (this->processed(sp, readed)) {
+                    this->message_barrier_.wait();
+                    this->message_barrier_.reset();
+                    if(this->error_){
+                      this->error(sp, this->error_);
+                    }
+                    else if (this->processed(sp, readed)) {
                       this->continue_push_data(sp, 0);
                     }
                   },
@@ -157,7 +192,11 @@ namespace vds {
                     sp);
                 }
                 else {
-                  if (this->processed(sp, readed)) {
+                  this->message_barrier_.wait();
+                  this->message_barrier_.reset();
+                  if(this->error_){
+                    this->error(sp, this->error_);
+                  } else if (this->processed(sp, readed)) {
                     this->continue_push_data(sp, 0);
                   }
                 }
@@ -175,7 +214,7 @@ namespace vds {
       }
     };
   private:
-    std::function<void(const service_provider & sp, const std::shared_ptr<http_message> & message)> message_callback_;
+    std::function<async_task<>(const service_provider & sp, const std::shared_ptr<http_message> & message)> message_callback_;
 
   };
 }

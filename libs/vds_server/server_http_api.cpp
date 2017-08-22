@@ -80,25 +80,20 @@ vds::async_task<> vds::_server_http_api::start(
         dataflow(
           stream_read<async_stream<uint8_t>>(crypto_tunnel->decrypted_output()),
           http_parser(
-            [this, stream, crypto_tunnel](const service_provider & sp, const std::shared_ptr<http_message> & request) {
+            [this, stream, crypto_tunnel](const service_provider & sp, const std::shared_ptr<http_message> & request) -> async_task<> {
+              
+              if(!request){
+                return stream->write_all_async(sp, nullptr, 0);
+              }
+              
             sp.set_property(
               service_provider::property_scope::local_scope,
               new http_context(crypto_tunnel->get_peer_certificate()));
-            this->middleware_.process(sp, request)
-              .wait(
+            return this->middleware_.process(sp, request)
+              .then(
                 [stream](const service_provider & sp, const std::shared_ptr<http_message> & response) {
-              stream->write_all_async(sp, &response, 1)
-                .wait(
-                  [](const service_provider & sp) {},
-                  [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-                sp.unhandled_exception(ex);
-              },
-                  sp);
-            },
-                [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-              sp.unhandled_exception(ex);
-            },
-              sp);
+              return stream->write_all_async(sp, &response, 1);
+            });
           }
           )
         )([done, stream](const service_provider & sp) {

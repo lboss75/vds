@@ -139,12 +139,12 @@ void mock_client::init_server(
 {
   vds::service_registrator registrator;
 
-  vds::file_logger logger(vds::ll_debug);
+  vds::file_logger logger(vds::ll_trace);
   vds::mt_service mt_service;
   vds::crypto_service crypto_service;
-  vds::client client("https://127.0.0.1:8050");
   vds::task_manager task_manager;
   vds::network_service network_service;
+  vds::client client("https://127.0.0.1:8050");
 
   auto folder = vds::foldername(vds::foldername(vds::filename::current_process().contains_folder(), "clients"), std::to_string(this->index_));
   folder.delete_folder(true);
@@ -154,8 +154,8 @@ void mock_client::init_server(
   registrator.add(mt_service);
   registrator.add(crypto_service);
   registrator.add(task_manager);
-  registrator.add(client);
   registrator.add(network_service);
+  registrator.add(client);
 
   vds::barrier b;
   std::shared_ptr<std::exception> error;
@@ -314,7 +314,7 @@ void mock_client::start_vds(bool full_client, const std::function<void(const vds
 
   vds::mt_service mt_service;
   vds::network_service network_service;
-  vds::file_logger logger(vds::ll_debug);
+  vds::file_logger logger(vds::ll_trace);
   vds::crypto_service crypto_service;
   vds::client client("https://127.0.0.1:" + std::to_string(8050 + this->index_));
   vds::task_manager task_manager;
@@ -381,7 +381,7 @@ void mock_server::init_root(const std::string & root_password, int port)
 
   vds::mt_service mt_service;
   vds::network_service network_service;
-  vds::file_logger logger(vds::ll_debug);
+  vds::file_logger logger(vds::ll_trace);
   vds::crypto_service crypto_service;
   vds::client client("https://127.0.0.1:" + std::to_string(port));
   vds::task_manager task_manager;
