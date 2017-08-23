@@ -164,7 +164,7 @@ TEST(http_tests, test_server)
         vds::dataflow_consumer<std::shared_ptr<vds::http_message>>(
           [&response, &answer, s, done, on_error, &cancellation](
             const vds::service_provider & sp,
-            const std::shared_ptr<vds::http_message> & requests,
+            const std::shared_ptr<vds::http_message> * requests,
             size_t count) -> vds::async_task<size_t> {
         return vds::create_async_task(
           [&response, &answer, s, done, on_error, &cancellation, request](const std::function<void(const vds::service_provider & sp)> & task_done,
