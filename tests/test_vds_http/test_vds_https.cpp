@@ -99,29 +99,15 @@ TEST(http_tests, test_https_server)
       vds::dataflow(
         vds::stream_read<vds::async_stream<uint8_t>>(crypto_tunnel->decrypted_output()),
         vds::http_parser(
-          [stream, &router, on_error](const vds::service_provider & sp, const std::shared_ptr<vds::http_message> & request) {
-            vds::http_middleware<vds::http_router>(router).process(sp, request).wait(
-              [stream](const vds::service_provider & sp, const std::shared_ptr<vds::http_message> & response) {
-              stream->write_value_async(sp, response)
-                .wait(
-                  [stream](const vds::service_provider & sp) {
-                    stream->write_async(sp, nullptr, 0).wait(
-                      [](const vds::service_provider & sp, size_t) {
-                      },
-                      [](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-                        sp.unhandled_exception(ex);
-                      },
-                      sp);
-                  },
-                  [](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-                    sp.unhandled_exception(ex);
-                  },
-                  sp);
-            },
-              on_error,
-              sp);
-      }
-        )
+          [stream, &router, on_error](const vds::service_provider & sp, const std::shared_ptr<vds::http_message> & request) -> vds::async_task<> {
+            return vds::http_middleware<vds::http_router>(router).process(sp, request)
+              .then([stream](const vds::service_provider & sp, const std::shared_ptr<vds::http_message> & response) {
+                return stream->write_value_async(sp, response);
+              })
+              .then([stream](const vds::service_provider & sp) {
+                return stream->write_all_async(sp, nullptr, 0);
+              });
+        })
       )(done, on_error, sp);
     }),
       vds::create_async_task(
@@ -250,23 +236,37 @@ TEST(http_tests, test_https_server)
           vds::dataflow(
             vds::stream_read<vds::async_stream<uint8_t>>(client_crypto_tunnel->decrypted_output()),
             vds::http_parser(
-              [&response, &answer, s, done, on_error, cancellation](const vds::service_provider & sp, const std::shared_ptr<vds::http_message> & request) {
-            response = request;
-            auto data = std::make_shared<std::vector<uint8_t>>();
-            vds::dataflow(
-              vds::stream_read<vds::continuous_stream<uint8_t>>(response->body()),
-              vds::collect_data(*data)
-            )(
-              [data, &answer, s, done, cancellation](const vds::service_provider & sp) {
-              answer = std::string((const char *)data->data(), data->size());
-              cancellation.cancel();
-              done(sp);
-            },
-              [on_error](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-              on_error(sp, ex);
-            },
-              sp.create_scope("Client read dataflow"));
-      })
+              [&response, &answer, s, done, on_error, cancellation](const vds::service_provider & sp, const std::shared_ptr<vds::http_message> & request) -> vds::async_task<> {
+
+            return vds::create_async_task(
+              [&response, &answer, s, done, on_error, cancellation, request](
+                const std::function<void(const vds::service_provider & sp)> & task_done,
+                const vds::error_handler & on_error,
+                const vds::service_provider & sp) {
+              if (!request) {
+                cancellation.cancel();
+                done(sp);
+                task_done(sp);
+              }
+              else {
+                response = request;
+                auto data = std::make_shared<std::vector<uint8_t>>();
+                vds::dataflow(
+                  vds::stream_read<vds::continuous_stream<uint8_t>>(response->body()),
+                  vds::collect_data(*data)
+                )(
+                  [data, &answer, s, done, cancellation, task_done](const vds::service_provider & sp) {
+                  answer = std::string((const char *)data->data(), data->size());
+                  task_done(sp);
+                },
+                  [on_error](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+                  on_error(sp, ex);
+                },
+                  sp.create_scope("Client read dataflow"));
+
+              }
+            });
+          })
       )(
         [done](const vds::service_provider & sp) {
         sp.get<vds::logger>()->debug(sp, "Client reader closed");

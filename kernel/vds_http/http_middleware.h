@@ -22,6 +22,10 @@ namespace vds {
     : router_(router)
     {
     }
+
+    ~http_middleware()
+    {
+    }
     
     async_task<std::shared_ptr<http_message>> process(
       const vds::service_provider & sp,
