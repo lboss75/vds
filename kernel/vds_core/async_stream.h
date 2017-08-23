@@ -384,10 +384,10 @@ namespace vds {
   };
 
   template <typename stream_type>
-  class stream_read
+  class _stream_read
   {
   public:
-    stream_read(const std::shared_ptr<stream_type> & stream)
+    _stream_read(const std::shared_ptr<stream_type> & stream)
     : stream_(stream)
     {
     }
@@ -403,7 +403,7 @@ namespace vds {
     public:
       handler(
         const context_type & context,
-        const stream_read & args)
+        const _stream_read & args)
       : base_class(context),
         stream_(args.stream_)
       {
@@ -439,10 +439,16 @@ namespace vds {
   };
   
   template <typename stream_type>
-  class stream_write
+  inline auto stream_read(const std::shared_ptr<stream_type> & stream) -> _stream_read<stream_type>
+  {
+    return _stream_read<stream_type>(stream);
+  }
+  
+  template <typename stream_type>
+  class _stream_write
   {
   public:
-    stream_write(const std::shared_ptr<stream_type> & stream)
+    _stream_write(const std::shared_ptr<stream_type> & stream)
     : stream_(stream)
     {
     }
@@ -458,7 +464,7 @@ namespace vds {
     public:
       handler(
         const context_type & context,
-        const stream_write & args)
+        const _stream_write & args)
       : base_class(context),
         stream_(args.stream_)
       {
@@ -492,7 +498,12 @@ namespace vds {
   private:
     std::shared_ptr<stream_type> stream_;
   };
- 
+  
+  template <typename stream_type>
+  inline auto stream_write(const std::shared_ptr<stream_type> & stream) -> _stream_write<stream_type>
+  {
+    return _stream_write<stream_type>(stream);
+  } 
 }
 
 #endif // __VDS_CORE_ASYNC_STREAM_H_

@@ -4,7 +4,7 @@
 #include <set>
 #include "shutdown_event.h"
 #include "service_provider.h"
-
+#include "async_task.h"
 /*
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
@@ -1244,6 +1244,63 @@ namespace vds {
   private:
     const item_type * data_;
     size_t count_;
+  };
+  
+  template<typename item_type>
+  class dataflow_consumer
+  {
+  public:
+    typedef std::function<async_task<size_t> (const service_provider & sp, const item_type * data, size_t count)> callback_func_type;
+    
+    dataflow_consumer(const callback_func_type & callback_func)
+    : callback_func_(callback_func)
+    {
+    }
+    
+    template<typename context_type>
+    class handler : public async_dataflow_target<context_type, handler<context_type>>
+    {
+    public:
+      handler(
+        const context_type & context,
+        const dataflow_consumer & args)
+      : async_dataflow_target<context_type, handler<context_type>>(context),
+        callback_func_(args.callback_func_)
+      {
+      }
+      
+      ~handler()
+      {
+      }
+      
+      void async_push_data(const service_provider & sp)
+      {
+        try {
+          this->callback_func_(sp, this->input_buffer(), this->input_buffer_size())
+          .wait([this](const service_provider & sp, size_t readed){
+              if(this->processed(sp, readed)){
+                this->async_push_data(sp);
+              }
+            },
+            [this](const service_provider & sp, const std::shared_ptr<std::exception> & ex){
+              this->error(sp, ex);
+            },
+            sp);
+        }
+        catch(const std::exception & ex){
+          this->error(sp, std::make_shared<std::runtime_error>(ex.what()));
+        }
+        catch(...){
+          this->error(sp, std::make_shared<std::runtime_error>("Unexpected error"));
+        }
+      }
+      
+    private:
+      callback_func_type callback_func_;
+    };
+    
+  private:
+    callback_func_type callback_func_;
   };
 }
 

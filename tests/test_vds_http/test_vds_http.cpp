@@ -17,6 +17,7 @@ All rights reserved
 #include "async_stream.h"
 #include "const_data_buffer.h"
 #include "file.h"
+#include "http_pipeline.h"
 
 TEST(http_tests, test_server)
 {
@@ -131,13 +132,16 @@ TEST(http_tests, test_server)
       [](const vds::service_provider & sp) {},
       [](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {},
       sp);
+    
+    auto input_commands = std::make_shared<vds::async_stream<std::shared_ptr<vds::http_message>>>();
+    auto output_commands = std::make_shared<vds::async_stream<std::shared_ptr<vds::http_message>>>();
     vds::async_series(
+      vds::http_pipeline(s.incoming(), input_commands, output_commands, s.outgoing()),
       vds::create_async_task(
-        [s, &requests, &cancellation](const std::function<void(const vds::service_provider & sp)> & done, const vds::error_handler & on_error, const vds::service_provider & sp) {
+        [s, &requests, &cancellation, output_commands](const std::function<void(const vds::service_provider & sp)> & done, const vds::error_handler & on_error, const vds::service_provider & sp) {
       vds::dataflow(
         vds::dataflow_arguments<std::shared_ptr<vds::http_message>>(requests, 1),
-        vds::http_serializer(),
-        vds::stream_write<vds::continuous_stream<uint8_t>>(s.outgoing())
+        vds::stream_write(output_commands)
       )(
         [done](const vds::service_provider & sp) {
         sp.get<vds::logger>()->debug(sp, "Client writer closed");
@@ -151,10 +155,13 @@ TEST(http_tests, test_server)
 
     }),
       vds::create_async_task(
-        [s, &response, &answer, &cancellation](const std::function<void(const vds::service_provider & sp)> & done, const vds::error_handler & on_error, const vds::service_provider & sp) {
+        [s, &response, &answer, &cancellation, input_commands](
+          const std::function<void(const vds::service_provider & sp)> & done,
+          const vds::error_handler & on_error,
+          const vds::service_provider & sp) {
       vds::dataflow(
-        vds::stream_read<vds::continuous_stream<uint8_t>>(s.incoming()),
-        vds::http_parser(
+        vds::stream_read(input_commands),
+        vds::dataflow_consumer<std::shared_ptr<vds::http_message>>(
           [&response, &answer, s, done, on_error, &cancellation](const vds::service_provider & sp, const std::shared_ptr<vds::http_message> & request) -> vds::async_task<> {
         return vds::create_async_task(
           [&response, &answer, s, done, on_error, &cancellation, request](const std::function<void(const vds::service_provider & sp)> & task_done,
