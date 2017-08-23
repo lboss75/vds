@@ -167,11 +167,12 @@ TEST(http_tests, test_server)
             const std::shared_ptr<vds::http_message> * requests,
             size_t count) -> vds::async_task<size_t> {
         return vds::create_async_task(
-          [&response, &answer, s, done, on_error, &cancellation, request](const std::function<void(const vds::service_provider & sp)> & task_done,
+          [&response, &answer, s, done, on_error, &cancellation, requests, count](
+            const std::function<void(const vds::service_provider & sp)> & task_done,
             const vds::error_handler & on_error,
             const vds::service_provider & sp)
         {
-          if (!request) {
+          if (0 == count) {
             cancellation.cancel();
             done(sp);
 
