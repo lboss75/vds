@@ -37,7 +37,7 @@ std::shared_ptr<vds::continuous_stream<uint8_t>> vds::ssl_tunnel::crypted_input(
   return this->impl_->crypted_input();
 }
 
-std::shared_ptr<vds::async_stream<uint8_t>> vds::ssl_tunnel::crypted_output()
+std::shared_ptr<vds::continuous_stream<uint8_t>> vds::ssl_tunnel::crypted_output()
 {
   return this->impl_->crypted_output();
 }
@@ -47,7 +47,7 @@ std::shared_ptr<vds::continuous_stream<uint8_t>> vds::ssl_tunnel::decrypted_inpu
   return this->impl_->decrypted_input();
 }
 
-std::shared_ptr<vds::async_stream<uint8_t>> vds::ssl_tunnel::decrypted_output()
+std::shared_ptr<vds::continuous_stream<uint8_t>> vds::ssl_tunnel::decrypted_output()
 {
   return this->impl_->decrypted_output();
 }
@@ -71,9 +71,9 @@ vds::_ssl_tunnel::_ssl_tunnel(
 : owner_(owner),
   is_client_(is_client),
   crypted_input_(new continuous_stream<uint8_t>()),
-  crypted_output_(new async_stream<uint8_t>()),
+  crypted_output_(new continuous_stream<uint8_t>()),
   decrypted_input_(new continuous_stream<uint8_t>()),
-  decrypted_output_(new async_stream<uint8_t>()),
+  decrypted_output_(new continuous_stream<uint8_t>()),
   crypted_output_data_size_(0),
   crypted_input_data_size_(0),
   decrypted_output_data_size_(0),

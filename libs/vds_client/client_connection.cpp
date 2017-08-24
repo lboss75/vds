@@ -67,7 +67,7 @@ void vds::client_connection::connect(const service_provider & sp)
       create_async_task(
         [this, s, client_crypto_tunnel](const std::function<void(const service_provider & sp)> & done, const error_handler & on_error, const service_provider & sp) {
       dataflow(
-        stream_read<async_stream<uint8_t>>(client_crypto_tunnel->crypted_output()),
+        stream_read(client_crypto_tunnel->crypted_output()),
         stream_write<continuous_stream<uint8_t>>(s.outgoing())
       )([done](const service_provider & sp) {
         sp.get<logger>()->debug(sp, "Client crypted output closed");
@@ -100,7 +100,7 @@ void vds::client_connection::connect(const service_provider & sp)
       create_async_task(
         [this, s, client_crypto_tunnel](const std::function<void(const service_provider & sp)> & done, const error_handler & on_error, const service_provider & sp) {
       dataflow(
-        stream_read<async_stream<uint8_t>>(client_crypto_tunnel->decrypted_output()),
+        stream_read(client_crypto_tunnel->decrypted_output()),
         http_parser(
           [this, s, done, on_error](const service_provider & sp, const std::shared_ptr<http_message> & request) -> async_task<> {
             
