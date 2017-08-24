@@ -52,7 +52,7 @@ namespace vds {
             const error_handler & on_error,
             const service_provider & sp) {
         dataflow(
-          stream_read<async_stream<uint8_t>>(input_stream),
+          stream_read(input_stream),
           http_parser(
             [input_commands, done, on_error](const service_provider & sp, const std::shared_ptr<http_message> & request) -> async_task<> {
 

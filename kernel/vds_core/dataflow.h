@@ -1256,7 +1256,11 @@ namespace vds {
     : callback_func_(callback_func)
     {
     }
-    
+
+    using incoming_item_type = item_type;
+    static constexpr size_t BUFFER_SIZE = 1024;
+    static constexpr size_t MIN_BUFFER_SIZE = 1;
+
     template<typename context_type>
     class handler : public async_dataflow_target<context_type, handler<context_type>>
     {

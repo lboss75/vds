@@ -30,10 +30,10 @@ namespace vds {
     certificate get_peer_certificate() const;
 
     std::shared_ptr<continuous_stream<uint8_t>> crypted_input() const { return this->crypted_input_; }
-    std::shared_ptr<async_stream<uint8_t>> crypted_output() const { return this->crypted_output_; }
+    std::shared_ptr<continuous_stream<uint8_t>> crypted_output() const { return this->crypted_output_; }
 
     std::shared_ptr<continuous_stream<uint8_t>> decrypted_input() const { return this->decrypted_input_; }
-    std::shared_ptr<async_stream<uint8_t>> decrypted_output() const { return this->decrypted_output_; }
+    std::shared_ptr<continuous_stream<uint8_t>> decrypted_output() const { return this->decrypted_output_; }
 
     void start(const service_provider & sp)
     {
@@ -111,10 +111,10 @@ namespace vds {
     bool work_circle_started_;
 
     std::shared_ptr<continuous_stream<uint8_t>> crypted_input_;
-    std::shared_ptr<async_stream<uint8_t>> crypted_output_;
+    std::shared_ptr<continuous_stream<uint8_t>> crypted_output_;
 
     std::shared_ptr<continuous_stream<uint8_t>> decrypted_input_;
-    std::shared_ptr<async_stream<uint8_t>> decrypted_output_;
+    std::shared_ptr<continuous_stream<uint8_t>> decrypted_output_;
 
     void start_work_circle(const service_provider & sp)
     {
