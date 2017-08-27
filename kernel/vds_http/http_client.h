@@ -28,6 +28,10 @@ namespace vds {
     async_task<> send(
       const vds::service_provider & sp,
       const std::shared_ptr<vds::http_message> & message);
+    
+    const std::shared_ptr<async_stream<std::shared_ptr<http_message>>> & output_commands() const {
+      return this->output_commands_;
+    }
 
   private:
     handler_type handler_;

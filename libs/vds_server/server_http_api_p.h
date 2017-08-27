@@ -12,6 +12,7 @@ All rights reserved
 #include "tcp_network_socket.h"
 #include "tcp_socket_server.h"
 #include "http_middleware.h"
+#include "http_server.h"
 
 namespace vds {
   class _server_http_api
@@ -37,6 +38,7 @@ namespace vds {
 
   private:
     tcp_socket_server server_;
+    http_server http_server_;
     http_middleware<_server_http_api> middleware_;
     server_json_client_api server_json_client_api_;
     cancellation_token_source cancellation_source_;

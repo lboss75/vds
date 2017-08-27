@@ -8,6 +8,7 @@ All rights reserved
 
 #include "tcp_network_socket.h"
 #include "http_message.h"
+#include "http_client.h"
 
 namespace vds {
 
@@ -69,6 +70,8 @@ namespace vds {
     std::chrono::time_point<std::chrono::steady_clock> connection_end_;
     
     cancellation_token_source cancellation_source_;
+    
+    http_client client_;
   };
 }
 

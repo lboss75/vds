@@ -52,73 +52,40 @@ vds::async_task<> vds::_server_http_api::start(
 
       auto crypto_tunnel = std::make_shared<ssl_tunnel>(false, &certificate, &private_key);
 
-      auto stream = std::make_shared<async_stream<std::shared_ptr<http_message>>>();
       async_series(
-        create_async_task(
-          [this, s, crypto_tunnel](const std::function<void(const service_provider & sp)> & done, const error_handler & on_error, const service_provider & sp) {
-        dataflow(
-          stream_read<continuous_stream<uint8_t>>(s.incoming()),
-          stream_write<continuous_stream<uint8_t>>(crypto_tunnel->crypted_input())
-        )(
-          [done](const service_provider & sp) {
-          sp.get<logger>()->debug(sp, "SSL Input closed");
-          done(sp);
-        }, on_error, sp.create_scope("Server SSL Input"));
-      }),
-        create_async_task(
-          [this, s, crypto_tunnel](const std::function<void(const service_provider & sp)> & done, const error_handler & on_error, const service_provider & sp) {
-        dataflow(
-          stream_read(crypto_tunnel->crypted_output()),
-          stream_write<continuous_stream<uint8_t>>(s.outgoing())
-        )([done](const service_provider & sp) {
-          sp.get<logger>()->debug(sp, "SSL Output closed");
-          done(sp);
-        }, on_error, sp.create_scope("Server SSL Output"));
-      }),
-        create_async_task(
-          [this, s, stream, crypto_tunnel](const std::function<void(const service_provider & sp)> & done, const error_handler & on_error, const service_provider & sp) {
-        dataflow(
-          stream_read(crypto_tunnel->decrypted_output()),
-          http_parser(
-            [this, stream, crypto_tunnel](const service_provider & sp, const std::shared_ptr<http_message> & request) -> async_task<> {
-              
-              if(!request){
-                return stream->write_all_async(sp, nullptr, 0);
-              }
-              
-            sp.set_property(
+        this->http_server_.start(sp,
+          crypto_tunnel->decrypted_output(), crypto_tunnel->decrypted_input(),
+          [this, crypto_tunnel](
+            const vds::service_provider & sp,
+            const std::shared_ptr<vds::http_message> & request) -> vds::async_task<std::shared_ptr<vds::http_message>> {
+
+            auto scope = sp.create_scope("Process HTTP Request");
+            scope.set_property(
               service_provider::property_scope::local_scope,
               new http_context(crypto_tunnel->get_peer_certificate()));
-            return this->middleware_.process(sp, request)
-              .then(
-                [stream](const service_provider & sp, const std::shared_ptr<http_message> & response) {
-              return stream->write_all_async(sp, &response, 1);
-            });
-          }
-          )
-        )([done, stream](const service_provider & sp) {
-          sp.get<logger>()->debug(sp, "HTTP Input closed");
-          stream->write_all_async(sp, nullptr, 0)
-            .wait(
-              [stream](const service_provider & sp) {},
-              [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-            sp.unhandled_exception(ex);
-          },
-              sp);
-          done(sp);
-        }, on_error, sp);
-      }),
+            return this->middleware_.process(scope, request);
+        }),
         create_async_task(
-          [s, stream, crypto_tunnel](const std::function<void(const service_provider & sp)> & done, const error_handler & on_error, const service_provider & sp) {
-        dataflow(
-          stream_read<async_stream<std::shared_ptr<http_message>>>(stream),
-          http_serializer(),
-          stream_write<continuous_stream<uint8_t>>(crypto_tunnel->decrypted_input())
-        )([stream, done](const service_provider & sp) {
-          sp.get<logger>()->debug(sp, "Send http message closed");
-          done(sp);
-        }, on_error, sp);
-      })
+          [this, s, crypto_tunnel](const std::function<void(const service_provider & sp)> & done, const error_handler & on_error, const service_provider & sp) {
+          dataflow(
+            stream_read<continuous_stream<uint8_t>>(s.incoming()),
+            stream_write<continuous_stream<uint8_t>>(crypto_tunnel->crypted_input())
+          )(
+            [done](const service_provider & sp) {
+            sp.get<logger>()->debug(sp, "SSL Input closed");
+            done(sp);
+          }, on_error, sp.create_scope("Server SSL Input"));
+        }),
+        create_async_task(
+          [this, s, crypto_tunnel](const std::function<void(const service_provider & sp)> & done, const error_handler & on_error, const service_provider & sp) {
+          dataflow(
+            stream_read(crypto_tunnel->crypted_output()),
+            stream_write<continuous_stream<uint8_t>>(s.outgoing())
+          )([done](const service_provider & sp) {
+            sp.get<logger>()->debug(sp, "SSL Output closed");
+            done(sp);
+          }, on_error, sp.create_scope("Server SSL Output"));
+        })
         )
         .wait(
           [crypto_tunnel](const service_provider & sp) {
