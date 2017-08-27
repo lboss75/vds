@@ -147,19 +147,17 @@ TEST(http_tests, test_server)
     sp);
 
 
-  client.send(sp, request).wait(
+  client.send(sp, request)
+  .then(
     [&client](const vds::service_provider & sp) {
-    client.send(sp, std::shared_ptr<vds::http_message>()).wait(
-      [](const vds::service_provider & sp) {},
-      [](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+    return client.send(sp, std::shared_ptr<vds::http_message>());
+    })
+  .wait(
+    [](const vds::service_provider & sp) {},
+    [](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
       sp.unhandled_exception(ex);
     },
-      sp);
-  },
-    [](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-    sp.unhandled_exception(ex);
-  },
-    sp);
+  sp);
 
   b.wait();
   //Wait

@@ -117,7 +117,11 @@ void vds::_network_service::start(const service_provider & sp)
         }
         else if(0 < result){
           for(int i = 0; i < result; ++i){
-            ((_socket_task *)events[i].data.ptr)->process(events[i].events);
+            std::unique_lock<std::mutex> lock(this->tasks_mutex_);
+            auto p = this->tasks_.find(events[i].data.fd);
+            if(this->tasks_.end() != p){
+              p->second->process(events[i].events);
+            }
           }
         }          
       }
@@ -234,24 +238,26 @@ void vds::_network_service::associate(
 {
   struct epoll_event event_data;
   event_data.events = event_mask;
-  event_data.data.ptr = handler;
+  event_data.data.fd = s;
   
   int result = epoll_ctl(this->epoll_set_, EPOLL_CTL_ADD, s, &event_data);
   if(0 > result) {
     auto error = errno;
     throw std::system_error(error, std::system_category(), "epoll_ctl");
   }
+  
+  std::unique_lock<std::mutex> lock(this->tasks_mutex_);
+  this->tasks_[s] = handler;
 }
 
 void vds::_network_service::set_events(
   const service_provider & sp,
   SOCKET_HANDLE s,
-  _socket_task * handler,
   uint32_t event_mask)
 {
   struct epoll_event event_data;
   event_data.events = event_mask;
-  event_data.data.ptr = handler;
+  event_data.data.fd = s;
   
   int result = epoll_ctl(this->epoll_set_, EPOLL_CTL_MOD, s, &event_data);
   if(0 > result) {
@@ -272,6 +278,9 @@ void vds::_network_service::remove_association(
     auto error = errno;
     throw std::system_error(error, std::system_category(), "epoll_ctl");
   }
+  
+  std::unique_lock<std::mutex> lock(this->tasks_mutex_);
+  this->tasks_.erase(s);
 }
 
 #endif//_WIN32

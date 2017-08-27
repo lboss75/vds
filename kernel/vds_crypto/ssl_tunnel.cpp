@@ -79,9 +79,7 @@ vds::_ssl_tunnel::_ssl_tunnel(
   decrypted_output_data_size_(0),
   decrypted_input_data_size_(0),
   crypted_input_eof_(false),
-  decrypted_input_eof_(false),
-  work_circle_continue_(false),
-  work_circle_started_(false)
+  decrypted_input_eof_(false)
 {
   this->ssl_ctx_ = SSL_CTX_new(is_client ? SSLv23_client_method() : SSLv23_server_method());
   if(nullptr == this->ssl_ctx_){

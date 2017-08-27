@@ -46,7 +46,6 @@ namespace vds {
         void set_events(
           const service_provider & sp,
           SOCKET_HANDLE s,
-          _socket_task * handler,
           uint32_t event_mask);
         void remove_association(
           const service_provider & sp,
@@ -69,6 +68,9 @@ namespace vds {
 #else
       int epoll_set_;
       std::thread epoll_thread_;
+      
+      std::map<SOCKET_HANDLE, _socket_task *> tasks_;
+      std::mutex tasks_mutex_;
 #endif//_WIN32
     };
 }

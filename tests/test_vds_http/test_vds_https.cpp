@@ -73,7 +73,7 @@ TEST(http_tests, test_https_server)
 
     vds::async_series(
       http_server.start(sp,
-        crypto_tunnel->decrypted_input(), crypto_tunnel->decrypted_output(),
+        crypto_tunnel->decrypted_output(), crypto_tunnel->decrypted_input(),
         [&middleware](
           const vds::service_provider & sp,
           const std::shared_ptr<vds::http_message> & request) -> vds::async_task<std::shared_ptr<vds::http_message>> {
@@ -143,12 +143,14 @@ TEST(http_tests, test_https_server)
   vds::certificate client_cert = vds::certificate::create_new(client_public_key, client_pkey, client_opt);
 
   std::string answer;
+  vds::http_client client;
+  
   vds::tcp_network_socket::connect(
     sp,
     (const char *)"127.0.0.1",
     8000)
     .then(
-      [&b, &response, &answer, &client_cert, &client_pkey](
+      [&b, &response, &answer, &client_cert, &client_pkey, &client](
         const std::function<void(const vds::service_provider & sp)> & done,
         const vds::error_handler & on_error,
         const vds::service_provider & sp,
@@ -157,20 +159,38 @@ TEST(http_tests, test_https_server)
     sp.get<vds::logger>()->debug(sp, "Connected");
     auto client_crypto_tunnel = std::make_shared<vds::ssl_tunnel>(true, &client_cert, &client_pkey);
 
-    std::shared_ptr<vds::http_message> requests[] =
-    {
-      vds::http_request("GET", "/").get_message()
-    };
-
-    requests[0]->body()->write_all_async(sp, nullptr, 0).wait(
-      [](const vds::service_provider & sp) {},
-      [](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {},
-      sp);
-
-    vds::cancellation_token_source cancellation;
     vds::async_series(
+      client.start(
+        sp,
+        client_crypto_tunnel->decrypted_output(), client_crypto_tunnel->decrypted_input(),
+        [&response, &answer](
+          const vds::service_provider & sp,
+          const std::shared_ptr<vds::http_message> & request) -> vds::async_task<> {
+
+          response = request;
+
+          return vds::create_async_task(
+            [&response, &answer](
+              const std::function<void(const vds::service_provider & sp)> & task_done,
+              const vds::error_handler & on_error,
+              const vds::service_provider & sp)
+          {
+            auto data = std::make_shared<std::vector<uint8_t>>();
+            vds::dataflow(
+              vds::stream_read<vds::continuous_stream<uint8_t>>(response->body()),
+              vds::collect_data(*data)
+            )(
+              [data, &answer, task_done](const vds::service_provider & sp) {
+              answer = std::string((const char *)data->data(), data->size());
+              task_done(sp);
+            },
+              on_error,
+              sp.create_scope("Client read dataflow"));
+
+          });
+      }),
       vds::create_async_task(
-        [s, client_crypto_tunnel, cancellation](const std::function<void(const vds::service_provider & sp)> & done, const vds::error_handler & on_error, const vds::service_provider & sp) {
+        [s, client_crypto_tunnel](const std::function<void(const vds::service_provider & sp)> & done, const vds::error_handler & on_error, const vds::service_provider & sp) {
           vds::dataflow(
             vds::stream_read<vds::continuous_stream<uint8_t>>(s.incoming()),
             vds::stream_write<vds::continuous_stream<uint8_t>>(client_crypto_tunnel->crypted_input())
@@ -184,8 +204,8 @@ TEST(http_tests, test_https_server)
           },
             sp.create_scope("Client SSL Input"));
         }),
-        vds::create_async_task(
-          [s, client_crypto_tunnel, cancellation](const std::function<void(const vds::service_provider & sp)> & done, const vds::error_handler & on_error, const vds::service_provider & sp) {
+      vds::create_async_task(
+          [s, client_crypto_tunnel](const std::function<void(const vds::service_provider & sp)> & done, const vds::error_handler & on_error, const vds::service_provider & sp) {
           vds::dataflow(
             vds::stream_read(client_crypto_tunnel->crypted_output()),
             vds::stream_write(s.outgoing())
@@ -197,72 +217,7 @@ TEST(http_tests, test_https_server)
             sp.get<vds::logger>()->debug(sp, "Client crypted output error");
             on_error(sp, ex);
           }, sp.create_scope("Client SSL Output"));
-        }),
-        vds::create_async_task(
-          [s, &requests, client_crypto_tunnel](const std::function<void(const vds::service_provider & sp)> & done, const vds::error_handler & on_error, const vds::service_provider & sp) {
-          vds::dataflow(
-            vds::dataflow_arguments<std::shared_ptr<vds::http_message>>(requests, 1),
-            vds::http_serializer(),
-            vds::stream_write<vds::continuous_stream<uint8_t>>(client_crypto_tunnel->decrypted_input())
-          )(
-            [done](const vds::service_provider & sp) {
-            sp.get<vds::logger>()->debug(sp, "Client writer closed");
-            done(sp);
-          },
-            [on_error](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-            sp.get<vds::logger>()->debug(sp, "Client writer error");
-            on_error(sp, ex);
-          },
-            sp.create_scope("Client writer"));
-
-        }),
-        vds::create_async_task(
-          [s, &response, &answer, client_crypto_tunnel, cancellation](const std::function<void(const vds::service_provider & sp)> & done, const vds::error_handler & on_error, const vds::service_provider & sp) {
-          vds::dataflow(
-            vds::stream_read(client_crypto_tunnel->decrypted_output()),
-            vds::http_parser(
-              [&response, &answer, s, done, on_error, cancellation](const vds::service_provider & sp, const std::shared_ptr<vds::http_message> & request) -> vds::async_task<> {
-
-            return vds::create_async_task(
-              [&response, &answer, s, done, on_error, cancellation, request](
-                const std::function<void(const vds::service_provider & sp)> & task_done,
-                const vds::error_handler & on_error,
-                const vds::service_provider & sp) {
-              if (!request) {
-                cancellation.cancel();
-                done(sp);
-                task_done(sp);
-              }
-              else {
-                response = request;
-                auto data = std::make_shared<std::vector<uint8_t>>();
-                vds::dataflow(
-                  vds::stream_read<vds::continuous_stream<uint8_t>>(response->body()),
-                  vds::collect_data(*data)
-                )(
-                  [data, &answer, s, done, cancellation, task_done](const vds::service_provider & sp) {
-                  answer = std::string((const char *)data->data(), data->size());
-                  task_done(sp);
-                },
-                  [on_error](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-                  on_error(sp, ex);
-                },
-                  sp.create_scope("Client read dataflow"));
-
-              }
-            });
-          })
-      )(
-        [done](const vds::service_provider & sp) {
-        sp.get<vds::logger>()->debug(sp, "Client reader closed");
-        done(sp);
-      },
-        [on_error](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-        sp.get<vds::logger>()->debug(sp, "Client reader error");
-        on_error(sp, ex);
-      },
-        sp.create_scope("Client reader"));
-    })
+        })
       ).wait(
         [done, client_crypto_tunnel](const vds::service_provider & sp) {
       sp.get<vds::logger>()->debug(sp, "Client closed");
@@ -286,6 +241,25 @@ TEST(http_tests, test_https_server)
       },
       sp.create_scope("Client"));
 
+  std::shared_ptr<vds::http_message> request = vds::http_request("GET", "/").get_message();
+  request->body()->write_all_async(sp, nullptr, 0).wait(
+    [](const vds::service_provider & sp) {},
+    [](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {},
+    sp);
+
+
+  client.send(sp, request)
+  .then(
+    [&client](const vds::service_provider & sp) {
+    return client.send(sp, std::shared_ptr<vds::http_message>());
+    })
+  .wait(
+    [](const vds::service_provider & sp) {},
+    [](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+      sp.unhandled_exception(ex);
+    },
+  sp);
+  
   b.wait();
   //Wait
   registrator.shutdown(sp);

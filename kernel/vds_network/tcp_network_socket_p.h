@@ -374,7 +374,7 @@ namespace vds {
         this->event_masks_ &= ~clear_events;
         
         if(!need_create && 0 != this->event_masks_){
-          this->network_service_->set_events(this->sp_, this->owner_->s_, this, this->event_masks_);
+          this->network_service_->set_events(this->sp_, this->owner_->s_, this->event_masks_);
         }
         else if (0 == this->event_masks_){
           this->network_service_->remove_association(this->sp_, this->owner_->s_);

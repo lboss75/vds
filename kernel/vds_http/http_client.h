@@ -22,7 +22,7 @@ namespace vds {
     async_task<> start(
       const vds::service_provider & sp,
       const std::shared_ptr<continuous_stream<uint8_t>> & incoming_stream,
-      const std::shared_ptr<continuous_stream<uint8_t>> & outgoing,
+      const std::shared_ptr<continuous_stream<uint8_t>> & outgoing_stream,
       const handler_type & handler);
 
     async_task<> send(
