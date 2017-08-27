@@ -47,7 +47,12 @@ vds::async_task<> vds::http_client::start(
                       const vds::service_provider & sp)
                   {
                     if (0 == count) {
-                      task_done(sp, 0);
+                      return handler(sp, std::shared_ptr<vds::http_message>()).wait(
+                        [task_done](const vds::service_provider & sp) {
+                          task_done(sp, 0);
+                        },
+                        on_error,
+                        sp);
                     }
                     else {
                       return handler(sp, requests[0]).wait(
