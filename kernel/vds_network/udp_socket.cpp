@@ -102,8 +102,8 @@ vds::udp_socket vds::udp_socket::create(const service_provider & sp)
 
   static_cast<_network_service *>(sp.get<inetwork_service>())->associate(s);
 #else
-  this->s_ = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-  if (0 > this->s_) {
+  auto s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+  if (0 > s) {
     auto error = errno;
     throw std::system_error(error, std::system_category(), "create socket");
   }
@@ -112,9 +112,9 @@ vds::udp_socket vds::udp_socket::create(const service_provider & sp)
   /* Allow socket descriptor to be reuseable                   */
   /*************************************************************/
   int on = 1;
-  if (0 > setsockopt(this->s_, SOL_SOCKET, SO_REUSEADDR, (char *)&on, sizeof(on))) {
+  if (0 > setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (char *)&on, sizeof(on))) {
     auto error = errno;
-    ::close(this->s_);
+    ::close(s);
     throw std::system_error(error, std::system_category(), "Allow socket descriptor to be reuseable");
   }
 
@@ -123,9 +123,9 @@ vds::udp_socket vds::udp_socket::create(const service_provider & sp)
   /* the incoming connections will also be nonblocking since  */
   /* they will inherit that state from the listening socket.   */
   /*************************************************************/
-  if (0 > ioctl(this->s_, FIONBIO, (char *)&on)) {
+  if (0 > ioctl(s, FIONBIO, (char *)&on)) {
     auto error = errno;
-    ::close(this->s_);
+    ::close(s);
     throw std::system_error(error, std::system_category(), "Set socket to be nonblocking");
   }
 #endif

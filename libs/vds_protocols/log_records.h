@@ -229,9 +229,9 @@ namespace vds {
       size_t index,
       size_t replica_size,
       const const_data_buffer & replica_hash)
-    : chunk_index_(chunk_index),
-      server_id_(server_id),
+    : server_id_(server_id),
       object_id_(object_id),
+      chunk_index_(chunk_index),
       index_(index),
       replica_size_(replica_size),
       replica_hash_(replica_hash)

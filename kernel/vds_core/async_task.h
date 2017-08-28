@@ -148,7 +148,7 @@ namespace vds {
         const std::function<void(const service_provider & sp, arguments_types... args)> & done,
         const error_handler &,
         const service_provider & sp) {
-        done(sp, default(arguments_types)...);
+        done(sp, arguments_types()...);
       });
     }
 

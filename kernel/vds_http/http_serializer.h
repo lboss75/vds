@@ -31,6 +31,13 @@ namespace vds {
         : base_class(context), state_(StateEnum::STATE_BOF)
       {
       }
+      
+      ~handler()
+      {
+        if(StateEnum::STATE_EOF != this->state_){
+          throw std::runtime_error("http_serializer state error");
+        }
+      }
 
       void async_process_data(const service_provider & scope)
       {
@@ -52,6 +59,7 @@ namespace vds {
             for (auto & header : message->headers()) {
               stream << header << "\n";
             }
+            sp.get<logger>()->trace(sp, "HTTP Send [%s]", stream.str().c_str());
             stream << "\n";
 
             auto data = std::make_shared<std::string>(stream.str());
@@ -91,6 +99,8 @@ namespace vds {
           .wait(
             [this, message, buffer](const service_provider & sp, size_t readed) {
           if (0 < readed) {
+            sp.get<logger>()->trace(sp, "HTTP Send [%s]", std::string((const char *)buffer->data(), readed).c_str());
+
             //std::cout << this << "->http_serializer::write_body " << syscall(SYS_gettid) << "." << readed << ": lock\n";
             this->buffer_->write_all_async(sp, buffer->data(), readed).wait(
               [this, message, buffer](const service_provider & sp) {
