@@ -473,6 +473,8 @@ void mock_server::start()
   this->registrator_.add(this->task_manager_);
   this->registrator_.add(this->crypto_service_);
   this->registrator_.add(this->server_);
+
+  this->connection_manager_.set_addresses("udp://127.0.0.1:" + std::to_string(8050 + this->index_));
   this->registrator_.add(this->connection_manager_);
   this->registrator_.add(this->server_log_sync_);
 
@@ -484,8 +486,6 @@ void mock_server::start()
   root_folders->local_machine_ = folder;
   this->sp_.set_property<vds::persistence_values>(vds::service_provider::property_scope::root_scope, root_folders);
   this->registrator_.start(this->sp_);
-
-  this->connection_manager_.start_servers(this->sp_, "udp://127.0.0.1:" + std::to_string(8050 + this->index_));
 }
 
 void mock_server::stop()

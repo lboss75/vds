@@ -107,6 +107,10 @@ TEST(http_tests, test_server)
         const vds::service_provider & sp,
         const std::shared_ptr<vds::http_message> & request) -> vds::async_task<> {
 
+      if (!request) {
+        return vds::async_task<>::empty();
+      }
+      
       response = request;
 
       return vds::create_async_task(

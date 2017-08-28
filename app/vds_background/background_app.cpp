@@ -47,8 +47,6 @@ void vds::background_app::main(const service_provider & sp)
     || (&this->server_root_cmd_set_ == this->current_command_set_ && this->start_.value())){
 
     for (;;) {
-      this->connection_manager_.start_servers(sp, "udp://127.0.0.1:" + (this->port_.value().empty() ? "8050" : this->port_.value()));
-
       std::cout << "Enter command:\n";
 
       std::string cmd;
@@ -72,6 +70,8 @@ void vds::background_app::register_services(vds::service_registrator& registrato
   if (&this->server_start_command_set_ == this->current_command_set_
     || &this->server_root_cmd_set_ == this->current_command_set_) {
     registrator.add(this->server_);
+
+    this->connection_manager_.set_addresses("udp://127.0.0.1:" + (this->port_.value().empty() ? "8050" : this->port_.value()));
     registrator.add(this->connection_manager_);
     registrator.add(this->server_log_sync_);
   }

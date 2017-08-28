@@ -142,6 +142,16 @@ namespace vds {
       return *this;
     }
 
+    static async_task<arguments_types...> empty()
+    {
+      return async_task([](
+        const std::function<void(const service_provider & sp, arguments_types... args)> & done,
+        const error_handler &,
+        const service_provider & sp) {
+        done(sp, default(arguments_types)...);
+      });
+    }
+
   private:
 
     class _async_task

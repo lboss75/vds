@@ -88,9 +88,14 @@ namespace vds {
 
     _udp_socket * operator -> () const { return this->impl_.get(); }
 
+    static udp_socket create(const service_provider & sp);
+
   private:
     friend class _udp_socket;
-    udp_socket(const std::shared_ptr<_udp_socket> & impl);
+    udp_socket(const std::shared_ptr<_udp_socket> & impl)
+      : impl_(impl)
+    {
+    }
 
     std::shared_ptr<_udp_socket> impl_;
   };

@@ -25,6 +25,15 @@ namespace vds {
     {
     }
 
+    ~continuous_stream()
+    {
+#ifdef _DEBUG
+      if (0 != this->second_ || 0 != this->front_ || 0 != this->back_ || this->continue_read_ || this->continue_write_) {
+        throw std::runtime_error("Logiñ error");
+      }
+#endif//_DEBUG
+    }
+
     async_task<> write_all_async(const service_provider & sp, const item_type * data, size_t data_size)
     {
       imt_service::async_enabled_check(sp);

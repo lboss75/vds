@@ -44,11 +44,10 @@ void vds::connection_manager::stop(const vds::service_provider& sp)
   this->impl_->stop(sp);
 }
 
-void vds::connection_manager::start_servers(
-  const service_provider & sp,
+void vds::connection_manager::set_addresses(
   const std::string & server_addresses)
 {
-  this->impl_->start_servers(sp, server_addresses);
+  this->impl_->set_addresses(server_addresses);
 }
 
 //////////////////////////////////////////////////////
@@ -100,13 +99,36 @@ vds::_connection_manager::~_connection_manager()
 
 void vds::_connection_manager::start(const vds::service_provider& sp)
 {
+  url_parser::parse_addresses(this->server_addresses_,
+    [this, sp](const std::string & protocol, const std::string & address) -> bool {
+    auto scope = sp.create_scope(("Connect to " + address).c_str());
+    imt_service::enable_async(scope);
+
+    if ("udp" == protocol) {
+      auto na = url_parser::parse_network_address(address);
+      this->start_udp_channel(scope, na);
+    }
+    else if ("https" == protocol) {
+      auto na = url_parser::parse_network_address(address);
+      this->start_https_server(scope, na).wait(
+        [this](const service_provider & sp) {
+        sp.get<logger>()->info(sp, "HTTPS Servers stopped");
+      },
+        [this](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+        sp.get<logger>()->info(sp, "HTTPS Server error: %s", ex->what());
+      },
+        scope);
+    }
+
+    return true;
+  });
+
   barrier b;
   (*sp.get<iserver_database>())->get_db()->sync_transaction(sp,
     [this, sp, &b](database_transaction & t){
 
     std::map<std::string, std::string> endpoints;
     sp.get<node_manager>()->get_endpoints(sp, t, endpoints);
-    
 
     async_task<> result = create_async_task([](
       const std::function<void(const service_provider & sp)> & done,
@@ -168,34 +190,10 @@ void vds::_connection_manager::stop(const vds::service_provider& sp)
 {
 }
 
-void vds::_connection_manager::start_servers(
-  const vds::service_provider& sp,
+void vds::_connection_manager::set_addresses(
   const std::string & server_addresses)
 {
-  url_parser::parse_addresses(server_addresses,
-    [this, sp](const std::string & protocol, const std::string & address) -> bool {
-    auto scope = sp.create_scope(("Connect to " + address).c_str());
-    imt_service::enable_async(scope);
-
-    if ("udp" == protocol) {
-      auto na = url_parser::parse_network_address(address);
-      this->start_udp_channel(scope, na);
-    }
-    else if ("https" == protocol) {
-      auto na = url_parser::parse_network_address(address);
-      this->start_https_server(scope, na).wait(
-        [this](const service_provider & sp) {
-          sp.get<logger>()->info(sp, "HTTPS Servers stopped");
-        },
-        [this](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-          sp.get<logger>()->info(sp, "HTTPS Server error: %s", ex->what());
-        },
-        scope);
-    }
-
-    return true;
-  });
-
+  this->server_addresses_ = server_addresses;
 }
 
 void vds::_connection_manager::broadcast(

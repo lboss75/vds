@@ -37,8 +37,7 @@ namespace vds {
     void start(const vds::service_provider& sp);
     void stop(const vds::service_provider& sp);
 
-    void start_servers(
-      const vds::service_provider& sp,
+    void set_addresses(
       const std::string & server_addresses);
     
     void broadcast(
@@ -76,6 +75,7 @@ namespace vds {
   private:
     friend class server_to_server_api;
     friend class _route_manager;
+    std::string server_addresses_;
     connection_manager * const owner_;
     route_manager route_manager_;
     server_to_server_api server_to_server_api_;

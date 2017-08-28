@@ -95,9 +95,7 @@ namespace vds {
     void start(const service_provider &) override;
     void stop(const service_provider &) override;
 
-    void start_servers(
-      const service_provider & sp,
-      const std::string & server_addresses);
+    void set_addresses(const std::string & server_addresses);
 
     _connection_manager * operator -> () const { return this->impl_.get(); }
   private:

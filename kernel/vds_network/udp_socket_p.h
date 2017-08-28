@@ -85,8 +85,8 @@ namespace vds {
   class _udp_socket : public std::enable_shared_from_this<_udp_socket>
   {
   public:
-    _udp_socket()
-      : s_(INVALID_SOCKET),
+    _udp_socket(SOCKET_HANDLE s = INVALID_SOCKET)
+      : s_(s),
       incoming_(new continuous_stream<udp_datagram>()),
       outgoing_(new async_stream<udp_datagram>())
     {
@@ -95,46 +95,6 @@ namespace vds {
     ~_udp_socket()
     {
       this->close();
-    }
-
-    void create(const service_provider & sp)
-    {
-#ifdef _WIN32
-      this->s_ = WSASocket(AF_INET, SOCK_DGRAM, IPPROTO_UDP, NULL, 0, WSA_FLAG_OVERLAPPED);
-      if (INVALID_SOCKET == this->s_) {
-        auto error = WSAGetLastError();
-        throw std::system_error(error, std::system_category(), "create socket");
-      }
-
-      static_cast<_network_service *>(sp.get<inetwork_service>())->associate(this->s_);
-#else
-      this->s_ = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-      if (0 > this->s_) {
-        auto error = errno;
-        throw std::system_error(error, std::system_category(), "create socket");
-      }
-
-      /*************************************************************/
-      /* Allow socket descriptor to be reuseable                   */
-      /*************************************************************/
-      int on = 1;
-      if (0 > setsockopt(this->s_, SOL_SOCKET, SO_REUSEADDR, (char *)&on, sizeof(on))) {
-        auto error = errno;
-        ::close(this->s_);
-        throw std::system_error(error, std::system_category(), "Allow socket descriptor to be reuseable");
-      }
-
-      /*************************************************************/
-      /* Set socket to be nonblocking. All of the sockets for    */
-      /* the incoming connections will also be nonblocking since  */
-      /* they will inherit that state from the listening socket.   */
-      /*************************************************************/
-      if (0 > ioctl(this->s_, FIONBIO, (char *)&on)) {
-        auto error = errno;
-        ::close(this->s_);
-        throw std::system_error(error, std::system_category(), "Set socket to be nonblocking");
-      }
-#endif
     }
 
     SOCKET_HANDLE handle() const
@@ -555,7 +515,7 @@ namespace vds {
       auto scope = sp.create_scope(("UDP server on " + this->address_ + ":" + std::to_string(this->port_)).c_str());
       imt_service::enable_async(scope);
 
-      this->socket_->create(scope);
+      this->socket_ = udp_socket::create(scope);
       
       sockaddr_in addr;
       memset((char *)&addr, 0, sizeof(addr));
@@ -602,7 +562,7 @@ namespace vds {
 
     udp_socket start(const service_provider & sp)
     {
-      this->socket_->create(sp);
+      this->socket_ = udp_socket::create(sp);
 
       sockaddr_in addr;
       memset((char *)&addr, 0, sizeof(addr));

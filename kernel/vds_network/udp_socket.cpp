@@ -69,7 +69,6 @@ size_t vds::udp_datagram::data_size() const
 }
 
 vds::udp_socket::udp_socket()
-  : impl_(new _udp_socket())
 {
 }
 
@@ -90,6 +89,47 @@ std::shared_ptr<vds::async_stream<vds::udp_datagram>> vds::udp_socket::outgoing(
 void vds::udp_socket::stop()
 {
   this->impl_->stop();
+}
+
+vds::udp_socket vds::udp_socket::create(const service_provider & sp)
+{
+#ifdef _WIN32
+  auto s = WSASocket(AF_INET, SOCK_DGRAM, IPPROTO_UDP, NULL, 0, WSA_FLAG_OVERLAPPED);
+  if (INVALID_SOCKET == s) {
+    auto error = WSAGetLastError();
+    throw std::system_error(error, std::system_category(), "create socket");
+  }
+
+  static_cast<_network_service *>(sp.get<inetwork_service>())->associate(s);
+#else
+  this->s_ = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+  if (0 > this->s_) {
+    auto error = errno;
+    throw std::system_error(error, std::system_category(), "create socket");
+  }
+
+  /*************************************************************/
+  /* Allow socket descriptor to be reuseable                   */
+  /*************************************************************/
+  int on = 1;
+  if (0 > setsockopt(this->s_, SOL_SOCKET, SO_REUSEADDR, (char *)&on, sizeof(on))) {
+    auto error = errno;
+    ::close(this->s_);
+    throw std::system_error(error, std::system_category(), "Allow socket descriptor to be reuseable");
+  }
+
+  /*************************************************************/
+  /* Set socket to be nonblocking. All of the sockets for    */
+  /* the incoming connections will also be nonblocking since  */
+  /* they will inherit that state from the listening socket.   */
+  /*************************************************************/
+  if (0 > ioctl(this->s_, FIONBIO, (char *)&on)) {
+    auto error = errno;
+    ::close(this->s_);
+    throw std::system_error(error, std::system_category(), "Set socket to be nonblocking");
+  }
+#endif
+  return udp_socket(std::make_shared<_udp_socket>(s));
 }
 
 vds::udp_server::udp_server()
