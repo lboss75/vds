@@ -379,25 +379,7 @@ namespace vds {
         this->input_buffer_ += readed;
         this->input_buffer_size_ -= readed;
         
-        if(!this->source_->get_data(sp, this->input_buffer_, this->input_buffer_size_)){
-          return false;
-        }
-        
-        if(0 == this->input_buffer_size_){
-          
-          if (this->common_data_->step_finish(sp, context_type::INDEX)) {
-            return false;
-          }
-          
-          if (!this->target_->push_data(sp, 0, this->output_buffer_, this->output_buffer_size_)) {
-            return false;
-          }
-          
-          return true;
-        }
-        else {
-          return true;
-        }        
+        return this->source_->get_data(sp, this->input_buffer_, this->input_buffer_size_);
       }
       else {
         if (0 < readed) {

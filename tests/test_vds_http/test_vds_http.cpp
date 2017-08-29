@@ -20,7 +20,7 @@ All rights reserved
 #include "http_client.h"
 #include "http_server.h"
 
-TEST(http_tests, test_server)
+TEST(DISABLED_http_tests, test_server)
 {
   vds::service_registrator registrator;
 
