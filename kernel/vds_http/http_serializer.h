@@ -39,9 +39,8 @@ namespace vds {
         }
       }
 
-      void async_process_data(const service_provider & scope)
+      void async_process_data(const service_provider & sp)
       {
-        auto sp = scope.create_scope("http_serializer.async_process_data");
         if (0 == this->input_buffer_size()) {
           this->state_ = StateEnum::STATE_EOF;
           this->processed(sp, 0, 0);
@@ -63,7 +62,6 @@ namespace vds {
             stream << "\n";
 
             auto data = std::make_shared<std::string>(stream.str());
-            //std::cout << this << "->http_serializer::async_process_data " << syscall(SYS_gettid) << *data << ": lock\n";
             this->buffer_->write_all_async(sp, (const uint8_t *)data->c_str(), data->length()).wait(
               [this, data, message](const service_provider & sp) {
               auto buffer = std::make_shared<std::vector<uint8_t>>(1024);
@@ -90,11 +88,10 @@ namespace vds {
       std::shared_ptr<continuous_stream<uint8_t>> buffer_;
 
       void write_body(
-        const service_provider & scope,
+        const service_provider & sp,
         const std::shared_ptr<http_message> & message,
         const std::shared_ptr<std::vector<uint8_t>> & buffer)
       {
-        auto sp = scope.create_scope("http_serializer.write_body");
         message->body()->read_async(sp, buffer->data(), buffer->size())
           .wait(
             [this, message, buffer](const service_provider & sp, size_t readed) {
@@ -112,23 +109,21 @@ namespace vds {
               sp);
           }
           else {
-            auto sp_ = sp.create_scope("http_serializer.write_body.final");
             auto buffer = this->buffer_;
-            buffer->write_all_async(sp_, nullptr, 0).wait(
+            buffer->write_all_async(sp, nullptr, 0).wait(
               [this](const service_provider & sp) { },
               [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {},
-              sp_);
+              sp);
           }
         }, [this](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-          this->error(sp, ex);
-        },
-          sp
+              this->error(sp, ex);
+            },
+            sp
           );
       }
 
-      void continue_process(const service_provider & scope)
+      void continue_process(const service_provider & sp)
       {
-        auto sp = scope.create_scope("http_serializer.continue_process");
         this->buffer_->read_async(sp, this->output_buffer(), this->output_buffer_size()).wait(
           [this](const service_provider & sp, size_t readed) {
 

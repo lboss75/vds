@@ -1,5 +1,9 @@
-#ifndef COMPARE_DATA_H
-#define COMPARE_DATA_H
+/*
+Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
+All rights reserved
+*/
+#ifndef __TEST_VDS_LIBS__COMPARE_DATA_H_
+#define __TEST_VDS_LIBS__COMPARE_DATA_H_
 
 #include "targetver.h"
 #include "dataflow.h"
@@ -82,4 +86,4 @@ private:
   size_t len_;
 };
 
-#endif // COMPARE_DATA_H
+#endif // __TEST_VDS_LIBS__COMPARE_DATA_H_

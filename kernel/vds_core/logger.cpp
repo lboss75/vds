@@ -17,7 +17,7 @@ void vds::logger::operator()(
   log_level level,
   const std::string & message) const
 {
-  log_record record{ level, replace_string(sp.full_name(), "\n", "\\"), message };
+  log_record record{ level, sp.name(), message };
 
   this->log_writer_.write(sp, record);
 }
@@ -129,7 +129,7 @@ void vds::file_logger::write(
   auto tm = std::localtime(&t);
 
   auto str = string_format(
-    "%04d/%02d/%0d %02d:%02d.%02d %-6s %s:\n%s\n\n",
+    "%04d/%02d/%0d %02d:%02d.%02d %-6s %s %s\n\n",
     tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec,
     level_str.c_str(), record.source.c_str(), record.message.c_str());
 

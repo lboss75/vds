@@ -52,20 +52,12 @@ namespace vds {
           this->message_callback_(sp, std::shared_ptr<http_message>())
           .wait(
             [this](const service_provider & sp){
-              this->message_barrier_.set();
+              this->processed(sp, 0);
             },
             [this](const service_provider & sp, const std::shared_ptr<std::exception> & ex){
-              this->error_ = ex;
-              this->message_barrier_.set();
+              this->error(sp, ex);
             },
             sp);
-          
-          if(this->error_){
-            this->error(sp, this->error_);
-          }
-          else {
-            this->processed(sp, 0);
-          }
         }
         else {
           sp.get<logger>()->debug(sp, "HTTP [%s]", logger::escape_string(std::string((const char *)this->input_buffer(), this->input_buffer_size())).c_str());
@@ -192,11 +184,7 @@ namespace vds {
                     sp);
                 }
                 else {
-                  this->message_barrier_.wait();
-                  this->message_barrier_.reset();
-                  if(this->error_){
-                    this->error(sp, this->error_);
-                  } else if (this->processed(sp, readed)) {
+                  if (this->processed(sp, readed)) {
                     this->continue_push_data(sp, 0);
                   }
                 }

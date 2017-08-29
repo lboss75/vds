@@ -1,5 +1,9 @@
-#ifndef RANDOM_BUFFER_H
-#define RANDOM_BUFFER_H
+/*
+Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
+All rights reserved
+*/
+#ifndef __TEST_VDS_LIBS__RANDOM_BUFFER_H_
+#define __TEST_VDS_LIBS__RANDOM_BUFFER_H_
 
 #include "targetver.h"
 #include "types.h"
@@ -17,4 +21,4 @@ public:
   std::vector<uint8_t> data_;
 };
 
-#endif // RANDOM_BUFFER_H
+#endif // __TEST_VDS_LIBS__RANDOM_BUFFER_H_

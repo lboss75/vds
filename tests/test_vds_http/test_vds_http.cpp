@@ -19,14 +19,15 @@ All rights reserved
 #include "file.h"
 #include "http_client.h"
 #include "http_server.h"
+#include "test_config.h"
 
-TEST(DISABLED_http_tests, test_server)
+TEST(http_tests, test_server)
 {
   vds::service_registrator registrator;
 
   vds::mt_service mt_service;
   vds::network_service network_service;
-  vds::file_logger file_logger(vds::ll_trace);
+  vds::file_logger file_logger(test_config::instance().log_level());
 
   registrator.add(mt_service);
   registrator.add(file_logger);
@@ -174,6 +175,9 @@ TEST(DISABLED_http_tests, test_server)
 int main(int argc, char **argv) {
     setlocale(LC_ALL, "Russian");
     ::testing::InitGoogleTest(&argc, argv);
+    
+    test_config::instance().parse(argc, argv);
+    
     return RUN_ALL_TESTS();
 }
 
