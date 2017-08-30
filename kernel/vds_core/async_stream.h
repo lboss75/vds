@@ -57,6 +57,9 @@ namespace vds {
             throw std::runtime_error("Logiñ error");
           }
           this->eof_ = true;
+#ifdef _DEBUG
+          this->eof_stack_ = sp.full_name();
+#endif
 
           if (this->continue_read_) {
             std::function<void(void)> f;
@@ -124,6 +127,9 @@ namespace vds {
               throw std::runtime_error("Login error");
             }
             this->eof_ = true;
+#ifdef _DEBUG
+            this->eof_stack_ = sp.full_name();
+#endif
 
             if(this->continue_read_){
               std::function<void(void)> f;
@@ -188,7 +194,9 @@ namespace vds {
     uint32_t front_;
     uint32_t back_;
     bool eof_;
-
+#ifdef _DEBUG
+    std::string eof_stack_;
+#endif
     //            0    second   front    back   buffer_size
     // to read    [...2...]       [...1...]
     // to write            [..2..]         [...1...]

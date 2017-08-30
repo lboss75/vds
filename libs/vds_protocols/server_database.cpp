@@ -45,6 +45,7 @@ vds::_server_database::_server_database()
 
 vds::_server_database::~_server_database()
 {
+  this->db_.close();
 }
 
 void vds::_server_database::start(const service_provider & sp)
@@ -117,7 +118,6 @@ void vds::_server_database::start(const service_provider & sp)
 
 void vds::_server_database::stop(const service_provider & sp)
 {
-  this->db_.close();
 }
 
 

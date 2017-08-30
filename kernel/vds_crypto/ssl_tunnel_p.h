@@ -99,6 +99,10 @@ namespace vds {
     
     void start_decrypted_input(const service_provider & sp)
     {
+      if(this->decrypted_input_eof_){
+        throw std::runtime_error("Login error");
+      }
+      
       this->decrypted_input_->read_async(sp, this->decrypted_input_data_, sizeof(this->decrypted_input_data_))
         .wait([this](const service_provider & sp, size_t readed) {
           this->state_mutex_.lock();
@@ -198,6 +202,7 @@ namespace vds {
                 [this](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
             },
               sp);
+            return;
           }
         }
 
@@ -230,10 +235,14 @@ namespace vds {
               [this](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
             },
             sp);
+            return;
           }
         }
 
-          if (this->decrypted_input_eof_ && this->crypted_output_ && 0 == this->crypted_output_data_size_ && !BIO_pending(this->output_bio_)) {
+          if (this->decrypted_input_eof_ 
+            && (this->is_client_ || this->crypted_input_eof_)
+            && 0 == this->crypted_output_data_size_
+            && this->crypted_output_) {
             auto tmp = this->crypted_output_;
             this->crypted_output_.reset();
 

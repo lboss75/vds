@@ -134,7 +134,7 @@ bool vds::_server_log_sync::process_timer_jobs(
     this->require_unknown_records(scope, t);
     return true;
   });
-  return true;
+  return !sp.get_shutdown_event().is_shuting_down();
 }
 
 void vds::_server_log_sync::ensure_record_exists(
