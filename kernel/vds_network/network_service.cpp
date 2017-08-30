@@ -237,6 +237,7 @@ void vds::_network_service::associate(
   uint32_t event_mask)
 {
   struct epoll_event event_data;
+  memset(&event_data, 0, sizeof(event_data));
   event_data.events = event_mask;
   event_data.data.fd = s;
   
@@ -256,6 +257,7 @@ void vds::_network_service::set_events(
   uint32_t event_mask)
 {
   struct epoll_event event_data;
+  memset(&event_data, 0, sizeof(event_data));
   event_data.events = event_mask;
   event_data.data.fd = s;
   
@@ -271,6 +273,7 @@ void vds::_network_service::remove_association(
   SOCKET_HANDLE s)
 {
   struct epoll_event event_data;
+  memset(&event_data, 0, sizeof(event_data));
   event_data.events = 0;
   
   int result = epoll_ctl(this->epoll_set_, EPOLL_CTL_DEL, s, &event_data);

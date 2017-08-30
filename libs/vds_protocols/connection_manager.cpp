@@ -313,6 +313,7 @@ void vds::_connection_manager::udp_channel::schedule_read(
 void vds::_connection_manager::udp_channel::stop(const service_provider & sp)
 {
   this->process_timer_.stop(sp);
+  this->server_.stop(sp);
 }
 
 //void vds::_connection_manager::udp_channel::socket_closed(

@@ -208,6 +208,7 @@ namespace vds {
                 }
 
                 struct epoll_event ev;
+                memset(&ev, 0, sizeof(ev));
                 ev.events = EPOLLIN;
                 ev.data.fd = this->s_;
                 if (0 > epoll_ctl(epollfd, EPOLL_CTL_ADD, this->s_, &ev)) {

@@ -181,7 +181,7 @@ namespace vds {
               }
               break;
             default:
-              throw crypto_exception("BIO_read", ssl_error);
+              throw crypto_exception("SSL_read", ssl_error);
             }
           }
           else {
@@ -233,7 +233,7 @@ namespace vds {
           }
         }
 
-          if (this->decrypted_input_eof_ && this->crypted_output_ && 0 == this->crypted_output_data_size_) {
+          if (this->decrypted_input_eof_ && this->crypted_output_ && 0 == this->crypted_output_data_size_ && !BIO_pending(this->output_bio_)) {
             auto tmp = this->crypted_output_;
             this->crypted_output_.reset();
 

@@ -464,7 +464,7 @@ bool vds::_storage_log::process_timer_jobs(const service_provider & sp)
       this->apply_record(sp, t, record, signature);
     }
 
-    return true;
+    return !sp.get_shutdown_event().is_shuting_down();
   });
   return true;
 }

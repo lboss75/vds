@@ -25,6 +25,7 @@ All rights reserved
 #include "random_buffer.h"
 #include "encoding.h"
 #include "test_config.h"
+#include "random_filter.h"
 
 static void copy_body(
   const vds::service_provider & sp,

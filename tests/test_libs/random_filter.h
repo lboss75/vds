@@ -41,7 +41,8 @@ public:
         : this->output_buffer_size();
 
       if(0 != n) {
-        size_t l = (size_t)std::rand() % n;
+        size_t l = ((size_t)std::rand() % n) + 1;
+        
 
         std::copy(this->input_buffer(), this->input_buffer() + l, this->output_buffer());
 

@@ -233,10 +233,15 @@ namespace vds {
         return;
 
       default:
-        std::string error_message(zErrMsg);
-        sqlite3_free(zErrMsg);
+        if(nullptr != zErrMsg){
+          std::string error_message(zErrMsg);
+          sqlite3_free(zErrMsg);
 
-        throw std::runtime_error(error_message);
+          throw std::runtime_error(error_message);
+        }
+        else {
+          throw std::runtime_error("Sqlite3 error " + std::to_string(result));
+        }
       }
     }
 
@@ -262,22 +267,28 @@ namespace vds {
           this->callbacks_mutex_.unlock();
           
           this->transaction_mutex_.lock();
-          try{
             
-            this->execute("BEGIN TRANSACTION");
-            
-            database_transaction tr(this);
-            if(head(tr)){
-              this->execute("COMMIT TRANSACTION");
-            }
-            else {
-              this->execute("ROLLBACK TRANSACTION");
-            }
+          this->execute("BEGIN TRANSACTION");
+          
+          database_transaction tr(this);
+          
+          bool result;
+          try {
+            result = head(tr);
           }
           catch(...){
             this->execute("ROLLBACK TRANSACTION");
+            this->transaction_mutex_.unlock();
             throw;
           }
+          
+          if(result) {
+            this->execute("COMMIT TRANSACTION");
+          }
+          else {
+            this->execute("ROLLBACK TRANSACTION");
+          }
+          
           this->transaction_mutex_.unlock();
           
           this->callbacks_mutex_.lock();

@@ -536,8 +536,9 @@ namespace vds {
       return this->socket_;
     }
 
-    void stop()
+    void stop(const service_provider & sp)
     {
+      this->socket_->stop();
     }
 
   private:
