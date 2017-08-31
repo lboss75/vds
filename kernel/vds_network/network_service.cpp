@@ -178,63 +178,53 @@ void vds::_network_service::thread_loop(const service_provider & sp)
         void * lpContext = NULL;
         OVERLAPPED * pOverlapped = NULL;
 
-        auto bIORet = GetQueuedCompletionStatus(
+        if (!GetQueuedCompletionStatus(
           this->handle_,
           &dwBytesTransfered,
           (PULONG_PTR)&lpContext,
           &pOverlapped,
-          1000);
-        
-        auto errorCode = GetLastError();
-        switch(errorCode){
-        case ERROR_NETNAME_DELETED:
-          break;
+          1000)) {
+          auto errorCode = GetLastError();
+          if (errorCode == WAIT_TIMEOUT) {
+            continue;
+          }
 
-        case WAIT_TIMEOUT:
-          continue;
-
-        default:
-          if (bIORet) {
-            try {
-              _socket_task::from_overlapped(pOverlapped)->process(dwBytesTransfered);
-            }
-            catch (const std::exception & ex) {
-              auto p = sp.get_property<unhandled_exception_handler>(
-                service_provider::property_scope::any_scope);
-              if (nullptr != p) {
-                p->on_error(sp, std::make_shared<std::exception>(ex));
-              }
-              else {
-                sp.get<logger>()->error(
-                  sp,
-                  "IO Task error: %s",
-                  ex.what());
-              }
-            }
-            catch (...) {
-              auto p = sp.get_property<unhandled_exception_handler>(
-                service_provider::property_scope::any_scope);
-              if (nullptr != p) {
-                p->on_error(sp, std::make_shared<std::runtime_error>("Unexcpected error"));
-              }
-              else {
-                sp.get<logger>()->error(
-                  sp,
-                  "IO Task error: Unexcpected error");
-              }
-            }
+          if (pOverlapped != NULL) {
+            _socket_task::from_overlapped(pOverlapped)->error(errorCode);
+            continue;
           }
           else {
-            if (pOverlapped != NULL) {
-              _socket_task::from_overlapped(pOverlapped)->error(errorCode);
-              continue;
-            }
-            else {
-              sp.get<logger>()->error(sp, std::system_error(errorCode, std::system_category(), "GetQueuedCompletionStatus").what());
-              return;
-            }
+            sp.get<logger>()->error(sp, std::system_error(errorCode, std::system_category(), "GetQueuedCompletionStatus").what());
+            return;
           }
-          break;
+        }
+        try {
+          _socket_task::from_overlapped(pOverlapped)->process(dwBytesTransfered);
+        }
+        catch (const std::exception & ex) {
+          auto p = sp.get_property<unhandled_exception_handler>(
+            service_provider::property_scope::any_scope);
+          if (nullptr != p) {
+            p->on_error(sp, std::make_shared<std::exception>(ex));
+          }
+          else {
+            sp.get<logger>()->error(
+              sp,
+              "IO Task error: %s",
+              ex.what());
+          }
+        }
+        catch (...) {
+          auto p = sp.get_property<unhandled_exception_handler>(
+            service_provider::property_scope::any_scope);
+          if (nullptr != p) {
+            p->on_error(sp, std::make_shared<std::runtime_error>("Unexcpected error"));
+          }
+          else {
+            sp.get<logger>()->error(
+              sp,
+              "IO Task error: Unexcpected error");
+          }
         }
     }
 }
