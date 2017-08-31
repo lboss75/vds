@@ -12,7 +12,7 @@ class test_config
 {
 public:
   test_config()
-  : log_level_(vds::log_level::ll_warning)
+  : log_level_(vds::log_level::ll_trace)
   {
   }
   

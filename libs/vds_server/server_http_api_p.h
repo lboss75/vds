@@ -38,7 +38,6 @@ namespace vds {
 
   private:
     tcp_socket_server server_;
-    http_server http_server_;
     http_middleware<_server_http_api> middleware_;
     server_json_client_api server_json_client_api_;
     cancellation_token_source cancellation_source_;

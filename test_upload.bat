@@ -3,6 +3,7 @@ set root_folder=%~d0%~p0
 
 rmdir %root_folder%servers /s /q
 rmdir %root_folder%clients /s /q
+del /q %root_folder%vds.log.new
 
 echo creating server
 build\app\vds_background\Debug\vds_background.exe server root -p 123qwe -r %root_folder%servers\1

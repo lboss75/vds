@@ -70,14 +70,14 @@ namespace vds {
 #endif
           }
           
-          mt_service::async(sp, [this, sp, done]() {
-            this->in_mutex_.unlock();
+          this->in_mutex_.unlock();
+          mt_service::async(sp, [sp, done]() {
             done(sp);
           });
         }
         else {
-          this->write_all(sp, [this, done](const service_provider & sp){
-            this->in_mutex_.unlock();
+          this->in_mutex_.unlock();
+          this->write_all(sp, [done](const service_provider & sp){
             done(sp);
           }, data, data_size);
         }
@@ -131,8 +131,8 @@ namespace vds {
               mt_service::async(sp, f);
             }
             
-            mt_service::async(sp, [this, sp, done]() {
-              this->in_mutex_.unlock();
+            this->in_mutex_.unlock();
+            mt_service::async(sp, [sp, done]() {
               done(sp, 0);
             });
           } else {
