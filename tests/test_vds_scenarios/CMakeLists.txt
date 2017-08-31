@@ -22,6 +22,7 @@ include_directories(${vds_protocols_SOURCE_DIR})
 include_directories(${vds_storage_SOURCE_DIR})
 include_directories(${vds_client_SOURCE_DIR})
 include_directories(${vds_server_SOURCE_DIR})
+include_directories(${test_libs_SOURCE_DIR})
 include_directories(${OPENSSL_INCLUDE_DIR})
 include_directories(${UPNP_INCLUDE_DIR})
 

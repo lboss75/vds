@@ -51,9 +51,9 @@ vds::async_task<> vds::_server_http_api::start(
       [this, certificate, private_key](const service_provider & sp, const tcp_network_socket & s) {
 
       auto crypto_tunnel = std::make_shared<ssl_tunnel>(false, &certificate, &private_key);
-
+      auto server = std::make_shared<http_server>();
       async_series(
-        this->http_server_.start(sp,
+        server->start(sp,
           crypto_tunnel->decrypted_output(), crypto_tunnel->decrypted_input(),
           [this, crypto_tunnel](
             const vds::service_provider & sp,
@@ -86,14 +86,13 @@ vds::async_task<> vds::_server_http_api::start(
             done(sp);
           }, on_error, sp.create_scope("Server SSL Output"));
         })
-        )
-        .wait(
-          [crypto_tunnel](const service_provider & sp) {
-        sp.get<logger>()->debug(sp, "Connection closed");
-      },
-          [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+      ).wait(
+        [crypto_tunnel, server](const service_provider & sp) {
+          sp.get<logger>()->debug(sp, "Connection closed");
+        },
+        [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
             sp.unhandled_exception(ex);
-      },
+        },
         sp);
       crypto_tunnel->start(sp);
     }).wait(done, on_error, sp);
