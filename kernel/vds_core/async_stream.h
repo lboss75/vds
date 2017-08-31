@@ -27,11 +27,9 @@ namespace vds {
 
     ~continuous_stream()
     {
-#ifdef _DEBUG
       if (0 != this->second_ || 0 != this->front_ || 0 != this->back_ || this->continue_read_ || this->continue_write_) {
         throw std::runtime_error("Logiñ error");
       }
-#endif//_DEBUG
     }
 
     async_task<> write_all_async(const service_provider & sp, const item_type * data, size_t data_size)
@@ -57,9 +55,7 @@ namespace vds {
             throw std::runtime_error("Logiñ error");
           }
           this->eof_ = true;
-#ifdef _DEBUG
           this->eof_stack_ = sp.full_name();
-#endif
 
           if (this->continue_read_) {
             std::function<void(void)> f;
@@ -127,9 +123,7 @@ namespace vds {
               throw std::runtime_error("Login error");
             }
             this->eof_ = true;
-#ifdef _DEBUG
             this->eof_stack_ = sp.full_name();
-#endif
 
             if(this->continue_read_){
               std::function<void(void)> f;
@@ -194,9 +188,7 @@ namespace vds {
     uint32_t front_;
     uint32_t back_;
     bool eof_;
-#ifdef _DEBUG
     std::string eof_stack_;
-#endif
     //            0    second   front    back   buffer_size
     // to read    [...2...]       [...1...]
     // to write            [..2..]         [...1...]
