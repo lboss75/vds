@@ -17,6 +17,7 @@ All rights reserved
 #include "service_provider.h"
 #include "network_service.h"
 #include "network_types_p.h"
+#include "task_manager.h"
 
 namespace vds {
     class network_service;
@@ -60,6 +61,8 @@ namespace vds {
         friend class server_socket;
         friend class _read_socket_task;
         friend class _write_socket_task;
+        
+        timer update_timer_;
 
 #ifdef _WIN32
         HANDLE handle_;

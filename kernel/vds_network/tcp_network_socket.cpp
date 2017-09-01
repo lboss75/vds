@@ -67,6 +67,7 @@ vds::async_task< const vds::tcp_network_socket &> vds::tcp_network_socket::conne
         on_error(sp, std::make_shared<std::system_error>(error, std::generic_category()));
       }
       s->make_socket_non_blocking();
+      s->set_timeouts();
 #endif
       
       tcp_network_socket sc(s);

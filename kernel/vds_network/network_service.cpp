@@ -66,6 +66,7 @@ std::string vds::network_service::get_ip_address_string(const sockaddr_in & from
 }
 /////////////////////////////////////////////////////////////////////////////
 vds::_network_service::_network_service()
+: update_timer_("Sockets update timer")
 {
 }
 
@@ -127,10 +128,21 @@ void vds::_network_service::start(const service_provider & sp)
       }
   });
 #endif
+  
+  this->update_timer_.start(sp, std::chrono::seconds(30),
+    [sp, this]()-> bool {
+      std::unique_lock<std::mutex> lock(this->tasks_mutex_);
+      for(auto & p : this->tasks_) {
+        p.second->check_timeout(sp);
+      }
+      
+      return !sp.get_shutdown_event().is_shuting_down();
+    });
 }
 
 void vds::_network_service::stop(const service_provider & sp)
 {
+  this->update_timer_.stop(sp);
     try {
       sp.get<logger>()->trace("network", sp, "Stopping network service");
       

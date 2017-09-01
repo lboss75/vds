@@ -403,7 +403,10 @@ namespace vds {
           this->read_data();
         }
       }
-
+      
+      void check_timeout(const service_provider & sp) override
+      {
+      }
 
     private:
       service_provider sp_;

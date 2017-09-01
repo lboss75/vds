@@ -333,9 +333,9 @@ void mock_client::start_vds(bool full_client, const std::function<void(const vds
 
   registrator.add(mt_service);
   registrator.add(logger);
+  registrator.add(task_manager);
   registrator.add(network_service);
   registrator.add(crypto_service);
-  registrator.add(task_manager);
   
   if(full_client){
     registrator.add(client);
@@ -404,9 +404,9 @@ void mock_server::init_root(const std::string & root_password, int tcp_port, int
 
   registrator.add(mt_service);
   registrator.add(logger);
-  registrator.add(network_service);
-  registrator.add(crypto_service);
   registrator.add(task_manager);
+  registrator.add(crypto_service);
+  registrator.add(network_service);
   registrator.add(server);
 
   std::shared_ptr<std::exception> error;
@@ -480,8 +480,8 @@ void mock_server::start()
  
   this->registrator_.add(this->mt_service_);
   this->registrator_.add(this->logger_);
-  this->registrator_.add(this->network_service_);
   this->registrator_.add(this->task_manager_);
+  this->registrator_.add(this->network_service_);
   this->registrator_.add(this->crypto_service_);
   this->registrator_.add(this->server_);
 

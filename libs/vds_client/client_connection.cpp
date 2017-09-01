@@ -86,6 +86,7 @@ void vds::client_connection::connect(const service_provider & sp)
         stream_write(s.outgoing())
       )([done](const service_provider & sp) {
         sp.get<logger>()->debug("client", sp, "Client crypted output closed");
+        //tcp_network_socket(s).close();
         done(sp);
       },
         [on_error](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {

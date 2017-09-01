@@ -107,6 +107,13 @@ namespace vds {
         throw std::runtime_error("fcntl");
       }
     }
+    void set_timeouts()
+    {
+//       struct timeval tv;
+//       tv.tv_sec = 30;        // 30 Secs Timeout
+//       tv.tv_usec = 0;
+//       setsockopt(this->handle(), SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof(struct timeval));
+    }
 #endif//_WIN32
 
   private:
@@ -310,7 +317,8 @@ namespace vds {
         const std::shared_ptr<_tcp_network_socket> & owner)
         : sp_(sp), owner_(owner),
           network_service_(static_cast<_network_service *>(sp.get<inetwork_service>())),
-          event_masks_(EPOLLIN | EPOLLET)
+          event_masks_(EPOLLIN | EPOLLET),
+          read_timeout_ticks_(0)
       {
         this->network_service_->associate(sp, this->owner_->s_, this, this->event_masks_);
       }
@@ -334,6 +342,25 @@ namespace vds {
       {
         if(EPOLLOUT == (EPOLLOUT & events)){
           this->change_mask(0, EPOLLOUT);
+          
+          int len = write(
+            this->owner_->s_,
+            this->write_buffer_,
+            this->write_len_);
+          
+          if (len < 0) {
+            int error = errno;
+            throw std::system_error(
+              error,
+              std::generic_category(),
+              "Send");
+          }
+        
+          if((size_t)len != this->write_len_){
+            throw std::runtime_error("Invalid send TCP");
+          }
+          
+          this->sp_.get<logger>()->trace("TCP", this->sp_, "Sent %d bytes", len);
           this->schedule_write();
         }
         
@@ -342,7 +369,25 @@ namespace vds {
           this->read_data();
         }
       }
+      
+      void check_timeout(const service_provider & sp) override
+      {
+        if(this->read_timeout_ticks_++ > 1){
+          this->change_mask(0, EPOLLIN);
 
+          this->sp_.get<logger>()->trace("TCP", this->sp_, "read timeout");
+          this->owner_->incoming_->write_all_async(this->sp_, nullptr, 0)
+          .wait(
+            [this](const service_provider & sp) {
+              sp.get<logger>()->trace("TCP", sp, "input closed");
+              this->write_this_.reset();
+            },
+            [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+              sp.unhandled_exception(ex);
+            },
+            this->sp_);
+        }          
+      }
 
     private:
       service_provider sp_;
@@ -358,6 +403,7 @@ namespace vds {
       size_t write_len_;
       std::mutex event_masks_mutex_;
       uint32_t event_masks_;
+      int read_timeout_ticks_;
       
       void change_mask(uint32_t set_events, uint32_t clear_events = 0)
       {
@@ -391,24 +437,7 @@ namespace vds {
           else {
             sp.get<logger>()->trace("TCP", sp, "scheduled to send %d", readed);
             this->write_len_ = readed;
-            int len = write(
-              this->owner_->s_,
-              this->write_buffer_,
-              this->write_len_);
             
-            if (len < 0) {
-              int error = errno;
-              throw std::system_error(
-                error,
-                std::generic_category(),
-                "Send");
-            }
-          
-            if((size_t)len != this->write_len_){
-              throw std::runtime_error("Invalid send TCP");
-            }
-            
-            this->sp_.get<logger>()->trace("TCP", this->sp_, "Sent %d bytes", len);
             this->change_mask(EPOLLOUT);
           }
         },
@@ -432,7 +461,7 @@ namespace vds {
           
           throw std::system_error(error, std::system_category(), "recv");
         }
-        
+        this->read_timeout_ticks_ = 0;
         this->sp_.get<logger>()->trace("TCP", this->sp_, "got %d bytes", len);
         this->owner_->incoming_->write_all_async(this->sp_, this->read_buffer_, len)
           .wait(

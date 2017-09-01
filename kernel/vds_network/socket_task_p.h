@@ -9,6 +9,7 @@ All rights reserved
 #include "network_types_p.h"
 
 namespace vds {
+  class service_provider;
   
   class _socket_task : public std::enable_shared_from_this<_socket_task>
   {
@@ -26,6 +27,7 @@ namespace vds {
 #else
     virtual void process(uint32_t events) = 0;
 #endif//_WIN32
+    virtual void check_timeout(const service_provider & sp) = 0;
 
   protected:
 #ifdef _WIN32
