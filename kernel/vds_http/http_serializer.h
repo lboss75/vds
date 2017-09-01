@@ -58,7 +58,7 @@ namespace vds {
             for (auto & header : message->headers()) {
               stream << header << "\n";
             }
-            sp.get<logger>()->trace(sp, "HTTP Send [%s]", logger::escape_string(stream.str()).c_str());
+            sp.get<logger>()->trace("HTTP", sp, "HTTP Send [%s]", logger::escape_string(stream.str()).c_str());
             stream << "\n";
 
             auto data = std::make_shared<std::string>(stream.str());
@@ -96,7 +96,7 @@ namespace vds {
           .wait(
             [this, message, buffer](const service_provider & sp, size_t readed) {
           if (0 < readed) {
-            sp.get<logger>()->trace(sp, "HTTP Send [%s]", std::string((const char *)buffer->data(), readed).c_str());
+            sp.get<logger>()->trace("HTTP", sp, "HTTP Send [%s]", std::string((const char *)buffer->data(), readed).c_str());
 
             //std::cout << this << "->http_serializer::write_body " << syscall(SYS_gettid) << "." << readed << ": lock\n";
             this->buffer_->write_all_async(sp, buffer->data(), readed).wait(

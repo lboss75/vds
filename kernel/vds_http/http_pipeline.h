@@ -37,11 +37,11 @@ namespace vds {
           stream_write<output_stream_type>(output_stream)
         )(
           [done](const service_provider & sp) {
-            sp.get<logger>()->debug(sp, "HTTP writer closed");
+            sp.get<logger>()->debug("HTTP", sp, "writer closed");
             done(sp);
           },
           [on_error](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-            sp.get<logger>()->debug(sp, "HTTP writer error");
+            sp.get<logger>()->debug("HTTP", sp, "writer error");
             on_error(sp, ex);
           },
           sp.create_scope("HTTP writer"));
@@ -65,11 +65,11 @@ namespace vds {
         })
         )(
           [done](const service_provider & sp) {
-            sp.get<logger>()->debug(sp, "HTTP reader closed");
+            sp.get<logger>()->debug("HTTP", sp, "reader closed");
             done(sp);
           },
           [on_error](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-            sp.get<logger>()->debug(sp, "HTTP reader error");
+            sp.get<logger>()->debug("HTTP", sp, "reader error");
             on_error(sp, ex);
           },
           sp.create_scope("HTTP reader"));

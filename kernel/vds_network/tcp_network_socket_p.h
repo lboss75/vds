@@ -55,6 +55,7 @@ namespace vds {
       }
 #else
       if (0 <= this->s_) {
+        std::cout << "Socket closed\n";
         shutdown(this->s_, 2);
         this->s_ = -1;
       }
@@ -82,6 +83,8 @@ namespace vds {
 
     void start(const service_provider & sp)
     {
+      sp.get<logger>()->trace("TCP", sp, "socket start");
+      
 #ifdef _WIN32
       std::make_shared<_read_socket_task>(sp, this->shared_from_this())->read_async();
       std::make_shared<_write_socket_task>(sp, this->shared_from_this())->write_async();
@@ -331,25 +334,6 @@ namespace vds {
       {
         if(EPOLLOUT == (EPOLLOUT & events)){
           this->change_mask(0, EPOLLOUT);
-          
-          int len = write(
-            this->owner_->s_,
-            this->write_buffer_,
-            this->write_len_);
-          
-          if (len < 0) {
-            int error = errno;
-            throw std::system_error(
-              error,
-              std::generic_category(),
-              "Send");
-          }
-        
-          if((size_t)len != this->write_len_){
-            throw std::runtime_error("Invalid send TCP");
-          }
-          
-          this->sp_.get<logger>()->trace(this->sp_, "TCP Sent %d bytes", len);
           this->schedule_write();
         }
         
@@ -395,19 +379,41 @@ namespace vds {
      
       void schedule_write()
       {
+        this->sp_.get<logger>()->trace("TCP", this->sp_, "waiting data to send");
         this->owner_->outgoing_->read_async(this->sp_, this->write_buffer_, sizeof(this->write_buffer_))
         .wait([this](const service_provider & sp, size_t readed){
           if(0 == readed){
             //End of stream
+            sp.get<logger>()->trace("TCP", sp, "output closed");
             shutdown(this->owner_->s_, SHUT_WR);
             this->read_this_.reset();
           }
           else {
+            sp.get<logger>()->trace("TCP", sp, "scheduled to send %d", readed);
             this->write_len_ = readed;
+            int len = write(
+              this->owner_->s_,
+              this->write_buffer_,
+              this->write_len_);
+            
+            if (len < 0) {
+              int error = errno;
+              throw std::system_error(
+                error,
+                std::generic_category(),
+                "Send");
+            }
+          
+            if((size_t)len != this->write_len_){
+              throw std::runtime_error("Invalid send TCP");
+            }
+            
+            this->sp_.get<logger>()->trace("TCP", this->sp_, "Sent %d bytes", len);
             this->change_mask(EPOLLOUT);
           }
         },
         [](const service_provider & sp, const std::shared_ptr<std::exception> & ex){
+          sp.get<logger>()->trace("TCP", sp, "%s at write", ex->what());
           sp.unhandled_exception(ex);
         },
         this->sp_);
@@ -427,7 +433,7 @@ namespace vds {
           throw std::system_error(error, std::system_category(), "recv");
         }
         
-        this->sp_.get<logger>()->trace(this->sp_, "TCP got %d bytes", len);
+        this->sp_.get<logger>()->trace("TCP", this->sp_, "got %d bytes", len);
         this->owner_->incoming_->write_all_async(this->sp_, this->read_buffer_, len)
           .wait(
             [this, len](const service_provider & sp) {
@@ -435,6 +441,7 @@ namespace vds {
                 this->read_data();
               }
               else {
+                sp.get<logger>()->trace("TCP", sp, "input closed");
                 this->write_this_.reset();
               }
             },

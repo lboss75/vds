@@ -33,7 +33,7 @@ namespace vds {
     void start(const service_provider &);
     void stop(const service_provider &);
     
-    void set_port(size_t port);
+    void set_port(int port);
     
   private:
     friend class server;
@@ -42,7 +42,7 @@ namespace vds {
     server * owner_;
     certificate certificate_;
     asymmetric_private_key private_key_;
-    size_t port_;
+    int port_;
 
     std::unique_ptr<_cert_manager> cert_manager_;
     std::unique_ptr<_node_manager> node_manager_;

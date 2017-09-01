@@ -48,7 +48,7 @@ std::shared_ptr<vds::json_value> vds::_server_json_client_api::operator()(
   //auto cert = this->tunnel_.get_tunnel_certificate();
   //sp.get<logger>().trace("Certificate subject %s", cert.subject().c_str());
   //sp.get<logger>().trace("Certificate issuer %s", cert.issuer().c_str());
-  sp.get<logger>()->trace(sp, "JSON API %s", request->str().c_str());
+  sp.get<logger>()->trace("JSON API", sp, "%s", request->str().c_str());
 
   auto result = std::make_shared<json_array>();
 
@@ -99,7 +99,7 @@ std::shared_ptr<vds::json_value> vds::_server_json_client_api::operator()(
                 task = this->process(sp, client_messages::principal_log_request(task_object));
               }
               else {
-                sp.get<logger>()->warning(sp, "Invalid request type \'%s\'", task_type_name.c_str());
+                sp.get<logger>()->warning("JSON API", sp, "Invalid request type \'%s\'", task_type_name.c_str());
                 throw std::runtime_error("Invalid request type " + task_type_name);
               }
 
@@ -114,7 +114,7 @@ std::shared_ptr<vds::json_value> vds::_server_json_client_api::operator()(
               },
                 [this, request_id](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
                 auto error_id = guid::new_guid().str();
-                sp.get<logger>()->error(sp, "Error %s: %s", error_id.c_str(), ex->what());
+                sp.get<logger>()->error("JSON API", sp, "Error %s: %s", error_id.c_str(), ex->what());
 
                 auto error_response = std::make_shared<json_object>();
                 error_response->add_property("$r", request_id);
@@ -130,7 +130,7 @@ std::shared_ptr<vds::json_value> vds::_server_json_client_api::operator()(
           }
           catch (const std::exception & ex) {
             auto error_id = guid::new_guid().str();
-            sp.get<logger>()->error(sp, "Error %s: %s", error_id.c_str(), ex.what());
+            sp.get<logger>()->error("JSON API", sp, "Error %s: %s", error_id.c_str(), ex.what());
 
             auto error_response = std::make_shared<json_object>();
             error_response->add_property("$r", request_id);
@@ -143,7 +143,7 @@ std::shared_ptr<vds::json_value> vds::_server_json_client_api::operator()(
           }
           catch (...) {
             auto error_id = guid::new_guid().str();
-            sp.get<logger>()->error(sp, "Error %s: Unexpected error", error_id.c_str());
+            sp.get<logger>()->error("JSON API", sp, "Error %s: Unexpected error", error_id.c_str());
 
             auto error_response = std::make_shared<json_object>();
             error_response->add_property("$r", request_id);

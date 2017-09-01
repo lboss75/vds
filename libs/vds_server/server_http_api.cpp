@@ -72,7 +72,7 @@ vds::async_task<> vds::_server_http_api::start(
             stream_write<continuous_stream<uint8_t>>(crypto_tunnel->crypted_input())
           )(
             [done](const service_provider & sp) {
-            sp.get<logger>()->debug(sp, "SSL Input closed");
+            sp.get<logger>()->debug("HTTPAPI", sp, "SSL Input closed");
             done(sp);
           }, on_error, sp.create_scope("Server SSL Input"));
         }),
@@ -82,13 +82,13 @@ vds::async_task<> vds::_server_http_api::start(
             stream_read(crypto_tunnel->crypted_output()),
             stream_write<continuous_stream<uint8_t>>(s.outgoing())
           )([done](const service_provider & sp) {
-            sp.get<logger>()->debug(sp, "SSL Output closed");
+            sp.get<logger>()->debug("HTTPAPI", sp, "SSL Output closed");
             done(sp);
           }, on_error, sp.create_scope("Server SSL Output"));
         })
       ).wait(
         [crypto_tunnel, server](const service_provider & sp) {
-          sp.get<logger>()->debug(sp, "Connection closed");
+          sp.get<logger>()->debug("HTTPAPI", sp, "Connection closed");
         },
         [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
             sp.unhandled_exception(ex);

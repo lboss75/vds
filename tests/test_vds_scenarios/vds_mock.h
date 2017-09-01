@@ -10,17 +10,18 @@ All rights reserved
 class mock_server
 {
 public:
-  mock_server(int index, int port);
+  mock_server(int index, int tcp_port, int udp_port);
 
   void start();
   void stop();
 
-  void init_root(const std::string & root_password, int port);
+  void init_root(const std::string & root_password, int tcp_port, int udp_port);
   vds::guid last_log_record() const;
   
 private:
   int index_;
-  int port_;
+  int tcp_port_;
+  int udp_port_;
   vds::service_provider sp_;
 
   vds::service_registrator registrator_;
@@ -51,7 +52,7 @@ public:
     const std::string & password,
     const std::string & name);
 
-  void init_server(const std::string & root_password, const std::string & address, int port);
+  void init_server(const std::string & root_password, const std::string & address, int tcp_port, int udp_port);
   
 private:
   int index_;

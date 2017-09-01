@@ -45,7 +45,7 @@ void vds::client_connection::connect(const service_provider & sp)
         const service_provider & sp,
         const tcp_network_socket & s) {
 
-    sp.get<logger>()->debug(sp, "Connected");
+    sp.get<logger>()->debug("client", sp, "Connected");
     auto client_crypto_tunnel = std::make_shared<ssl_tunnel>(true, this->client_certificate_, this->client_private_key_);
 
     async_series(
@@ -70,11 +70,11 @@ void vds::client_connection::connect(const service_provider & sp)
         stream_read<continuous_stream<uint8_t>>(s.incoming()),
         stream_write<continuous_stream<uint8_t>>(client_crypto_tunnel->crypted_input())
       )([done](const service_provider & sp) {
-        sp.get<logger>()->debug(sp, "Client crypted input closed");
+        sp.get<logger>()->debug("client", sp, "Client crypted input closed");
         done(sp);
       },
         [on_error](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-        sp.get<logger>()->debug(sp, "Client crypted input error");
+        sp.get<logger>()->debug("client", sp, "Client crypted input error");
         on_error(sp, ex);
       },
         sp.create_scope("Client SSL Input"));
@@ -85,11 +85,11 @@ void vds::client_connection::connect(const service_provider & sp)
         stream_read(client_crypto_tunnel->crypted_output()),
         stream_write(s.outgoing())
       )([done](const service_provider & sp) {
-        sp.get<logger>()->debug(sp, "Client crypted output closed");
+        sp.get<logger>()->debug("client", sp, "Client crypted output closed");
         done(sp);
       },
         [on_error](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-        sp.get<logger>()->debug(sp, "Client crypted output error");
+        sp.get<logger>()->debug("client", sp, "Client crypted output error");
         on_error(sp, ex);
       }, sp.create_scope("Client SSL Output"));
     }),
@@ -101,25 +101,25 @@ void vds::client_connection::connect(const service_provider & sp)
         stream_write(this->client_.output_commands())
       )(
         [done](const service_provider & sp) {
-        sp.get<logger>()->debug(sp, "Client writer closed");
+        sp.get<logger>()->debug("client", sp, "Client writer closed");
         done(sp);
       },
         [on_error](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-        sp.get<logger>()->debug(sp, "Client writer error");
+        sp.get<logger>()->debug("client", sp, "Client writer error");
         on_error(sp, ex);
       },
         sp.create_scope("Client writer"));
 
     })).wait(
         [this, client_crypto_tunnel](const service_provider & sp) {
-      sp.get<logger>()->debug(sp, "Client closed");
+      sp.get<logger>()->debug("client", sp, "Client closed");
 
       std::unique_lock<std::mutex> lock(this->state_mutex_);
       this->state_ = STATE::NONE;
       this->state_cond_.notify_all();
     },
         [this, on_error](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-      sp.get<logger>()->debug(sp, "Client error");
+      sp.get<logger>()->debug("client", sp, "Client error");
       std::unique_lock<std::mutex> lock(this->state_mutex_);
       this->state_ = STATE::CONNECT_ERROR;
       this->state_cond_.notify_all();

@@ -7,12 +7,15 @@ All rights reserved
 #include "random_buffer.h"
 #include "random_reader.h"
 #include "compare_data.h"
+#include "test_config.h"
 
 TEST(test_zip, inflate_tests) {
   vds::service_registrator registrator;
   vds::mt_service mt_service;
 
-  vds::console_logger console_logger(vds::ll_trace);
+  vds::console_logger console_logger(
+      test_config::instance().log_level(),
+      test_config::instance().modules());
 
   registrator.add(mt_service);
   registrator.add(console_logger);

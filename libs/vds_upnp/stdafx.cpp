@@ -4,3 +4,5 @@ All rights reserved
 */
 
 #include "stdafx.h"
+
+std::string this_module_name("UPNP");

@@ -5,13 +5,16 @@ All rights reserved
 
 #include "stdafx.h"
 #include "test_certificates.h"
+#include "test_config.h"
 
 TEST(test_certificates, test_pem)
 {
     vds::service_registrator registrator;
     
     vds::crypto_service crypto_service;
-    vds::console_logger console_logger(vds::ll_trace);
+    vds::console_logger console_logger(
+      test_config::instance().log_level(),
+      test_config::instance().modules());
 
     registrator.add(console_logger);
     registrator.add(crypto_service);
@@ -173,7 +176,9 @@ TEST(test_certificates, test_der)
   vds::service_registrator registrator;
 
   vds::crypto_service crypto_service;
-  vds::console_logger console_logger(vds::ll_trace);
+  vds::console_logger console_logger(
+      test_config::instance().log_level(),
+      test_config::instance().modules());
 
   registrator.add(console_logger);
   registrator.add(crypto_service);

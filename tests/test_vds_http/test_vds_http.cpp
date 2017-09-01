@@ -27,7 +27,9 @@ TEST(http_tests, test_server)
 
   vds::mt_service mt_service;
   vds::network_service network_service;
-  vds::file_logger file_logger(test_config::instance().log_level());
+  vds::file_logger file_logger(
+    test_config::instance().log_level(),
+    test_config::instance().modules());
 
   registrator.add(mt_service);
   registrator.add(file_logger);
@@ -64,20 +66,20 @@ TEST(http_tests, test_server)
         })
       .wait(
         [](const vds::service_provider & sp) {
-          sp.get<vds::logger>()->debug(sp, "Connection closed");
+          sp.get<vds::logger>()->debug("test", sp, "Connection closed");
         },
         [](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-          sp.get<vds::logger>()->debug(sp, "Server error");
+          sp.get<vds::logger>()->debug("test", sp, "Server error");
           sp.unhandled_exception(ex);
         },
         sp);
   }).wait(
       [&b](const vds::service_provider & sp) {
-    sp.get<vds::logger>()->debug(sp, "Server has been started");
+    sp.get<vds::logger>()->debug("test", sp, "Server has been started");
     b.set();
   },
       [&b](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-    sp.get<vds::logger>()->debug(sp, "Server error");
+    sp.get<vds::logger>()->debug("test", sp, "Server error");
     sp.unhandled_exception(ex);
     b.set();
   },
@@ -99,7 +101,7 @@ TEST(http_tests, test_server)
         const vds::service_provider & sp,
         const vds::tcp_network_socket & s) {
 
-    sp.get<vds::logger>()->debug(sp, "Connected");
+    sp.get<vds::logger>()->debug("test", sp, "Connected");
 
     return client.start(
       sp,
@@ -137,10 +139,10 @@ TEST(http_tests, test_server)
   })
   .wait(
     [&b](const vds::service_provider & sp) {
-        sp.get<vds::logger>()->debug(sp, "Request sent"); b.set();
+        sp.get<vds::logger>()->debug("test", sp, "Request sent"); b.set();
     },
     [&b](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-      sp.get<vds::logger>()->debug(sp, "Request error");
+      sp.get<vds::logger>()->debug("test", sp, "Request error");
       b.set(); 
     },
     sp.create_scope("Client"));

@@ -32,7 +32,9 @@ TEST(http_tests, test_https_server)
 
   vds::mt_service mt_service;
   vds::network_service network_service;
-  vds::file_logger file_logger(test_config::instance().log_level());
+  vds::file_logger file_logger(
+    test_config::instance().log_level(),
+    test_config::instance().modules());
   vds::crypto_service crypto_service;
 
   registrator.add(mt_service);
@@ -90,7 +92,7 @@ TEST(http_tests, test_https_server)
             vds::stream_write<vds::continuous_stream<uint8_t>>(crypto_tunnel->crypted_input())
           )(
             [done](const vds::service_provider & sp) {
-              sp.get<vds::logger>()->debug(sp, "Server SSL Input closed");
+              sp.get<vds::logger>()->debug("test", sp, "Server SSL Input closed");
               done(sp);
             },
             on_error, sp.create_scope("Server SSL Input"));
@@ -102,7 +104,7 @@ TEST(http_tests, test_https_server)
           vds::stream_write(s.outgoing())
           )(
             [done](const vds::service_provider & sp) {
-              sp.get<vds::logger>()->debug(sp, "Server SSL Output closed");
+              sp.get<vds::logger>()->debug("test", sp, "Server SSL Output closed");
               done(sp);
             },
             on_error, sp.create_scope("Server SSL Output"));
@@ -110,7 +112,7 @@ TEST(http_tests, test_https_server)
       )
       .wait(
         [crypto_tunnel](const vds::service_provider & sp) {
-      sp.get<vds::logger>()->debug(sp, "Connection closed");
+      sp.get<vds::logger>()->debug("test", sp, "Connection closed");
     },
         [](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
       sp.unhandled_exception(ex);
@@ -119,7 +121,7 @@ TEST(http_tests, test_https_server)
     crypto_tunnel->start(sp);
   }).wait(
     [&b](const vds::service_provider & sp) {
-    sp.get<vds::logger>()->debug(sp, "Server has been started");
+    sp.get<vds::logger>()->debug("test", sp, "Server has been started");
     b.set();
   },
     [&b](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
@@ -159,7 +161,7 @@ TEST(http_tests, test_https_server)
         const vds::service_provider & sp,
         const vds::tcp_network_socket & s) {
 
-    sp.get<vds::logger>()->debug(sp, "Connected");
+    sp.get<vds::logger>()->debug("test", sp, "Connected");
     auto client_crypto_tunnel = std::make_shared<vds::ssl_tunnel>(true, &client_cert, &client_pkey);
 
     vds::async_series(
@@ -202,11 +204,11 @@ TEST(http_tests, test_https_server)
             vds::stream_read<vds::continuous_stream<uint8_t>>(s.incoming()),
             vds::stream_write<vds::continuous_stream<uint8_t>>(client_crypto_tunnel->crypted_input())
           )([done](const vds::service_provider & sp) {
-            sp.get<vds::logger>()->debug(sp, "Client crypted input closed");
+            sp.get<vds::logger>()->debug("test", sp, "Client crypted input closed");
             done(sp);
           },
             [on_error](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-            sp.get<vds::logger>()->debug(sp, "Client crypted input error");
+            sp.get<vds::logger>()->debug("test", sp, "Client crypted input error");
             on_error(sp, ex);
           },
             sp.create_scope("Client SSL Input"));
@@ -217,21 +219,21 @@ TEST(http_tests, test_https_server)
             vds::stream_read(client_crypto_tunnel->crypted_output()),
             vds::stream_write(s.outgoing())
           )([done](const vds::service_provider & sp) {
-            sp.get<vds::logger>()->debug(sp, "Client crypted output closed");
+            sp.get<vds::logger>()->debug("test", sp, "Client crypted output closed");
             done(sp);
           },
             [on_error](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-            sp.get<vds::logger>()->debug(sp, "Client crypted output error");
+            sp.get<vds::logger>()->debug("test", sp, "Client crypted output error");
             on_error(sp, ex);
           }, sp.create_scope("Client SSL Output"));
         })
       ).wait(
         [done, client_crypto_tunnel](const vds::service_provider & sp) {
-      sp.get<vds::logger>()->debug(sp, "Client closed");
+      sp.get<vds::logger>()->debug("test", sp, "Client closed");
       done(sp);
     },
         [on_error](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-      sp.get<vds::logger>()->debug(sp, "Client error");
+      sp.get<vds::logger>()->debug("test", sp, "Client error");
       on_error(sp, ex);
     },
       sp.create_scope("Client dataflow"));
@@ -239,11 +241,11 @@ TEST(http_tests, test_https_server)
   })
     .wait(
       [&b](const vds::service_provider & sp) {
-        sp.get<vds::logger>()->debug(sp, "Request sent");
+        sp.get<vds::logger>()->debug("test", sp, "Request sent");
         b.set();
       },
       [&b](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-        sp.get<vds::logger>()->debug(sp, "Request error");
+        sp.get<vds::logger>()->debug("test", sp, "Request error");
         b.set();
       },
       sp.create_scope("Client"));

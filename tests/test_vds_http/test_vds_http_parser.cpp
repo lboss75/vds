@@ -32,7 +32,9 @@ TEST(http_tests, test_http_serializer)
 
   vds::mt_service mt_service;
   vds::network_service network_service;
-  vds::file_logger file_logger(test_config::instance().log_level());
+  vds::file_logger file_logger(
+    test_config::instance().log_level(),
+    test_config::instance().modules());
   vds::crypto_service crypto_service;
 
   registrator.add(mt_service);
@@ -81,7 +83,9 @@ TEST(http_tests, test_http_parser)
 
   vds::mt_service mt_service;
   vds::network_service network_service;
-  vds::file_logger file_logger(test_config::instance().log_level());
+  vds::file_logger file_logger(
+    test_config::instance().log_level(),
+    test_config::instance().modules());
   vds::crypto_service crypto_service;
 
   registrator.add(mt_service);

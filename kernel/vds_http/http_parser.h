@@ -47,7 +47,7 @@ namespace vds {
       void async_push_data(const service_provider & sp)
       {
         if (0 == this->input_buffer_size()) {
-          sp.get<logger>()->debug(sp, "HTTP end");
+          sp.get<logger>()->debug("HTTP", sp, "HTTP end");
           
           this->message_callback_(sp, std::shared_ptr<http_message>())
           .wait(
@@ -60,7 +60,7 @@ namespace vds {
             sp);
         }
         else {
-          sp.get<logger>()->debug(sp, "HTTP [%s]", logger::escape_string(std::string((const char *)this->input_buffer(), this->input_buffer_size())).c_str());
+          sp.get<logger>()->debug("HTTP", sp, "HTTP [%s]", logger::escape_string(std::string((const char *)this->input_buffer(), this->input_buffer_size())).c_str());
           this->continue_push_data(sp, 0);
         }
       }

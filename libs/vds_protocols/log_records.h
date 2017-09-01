@@ -192,9 +192,9 @@ namespace vds {
       const guid & object_id,
       size_t size,
       const const_data_buffer & chunk_hash)
-    : chunk_index_(chunk_index),
-      server_id_(server_id),
+    : server_id_(server_id),
       object_id_(object_id),
+      chunk_index_(chunk_index),
       size_(size),
       hash_(chunk_hash)
     {

@@ -8,11 +8,14 @@ All rights reserved
 #include "logger.h"
 #include "barrier.h"
 #include "mt_service.h"
+#include "test_config.h"
 
 TEST(mt_tests, test_async) {
     vds::service_registrator registrator;
 
-    vds::console_logger logger(vds::ll_trace);
+    vds::console_logger logger(
+      test_config::instance().log_level(),
+      test_config::instance().modules());
     vds::mt_service mt_service;
 
     registrator.add(logger);

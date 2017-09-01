@@ -67,7 +67,7 @@ void vds::server::stop(const service_provider& sp)
   this->impl_->stop(sp);
 }
 
-void vds::server::set_port(size_t port)
+void vds::server::set_port(int port)
 {
   this->impl_->set_port(port);
 }
@@ -108,9 +108,9 @@ void vds::_server::start(const service_provider& sp)
   imt_service::enable_async(scope);
   this->server_http_api_->start(sp, "127.0.0.1", this->port_, this->certificate_, this->private_key_)
     .wait(
-      [](const service_provider& sp) {sp.get<logger>()->trace(sp, "Server closed"); },
+      [](const service_provider& sp) {sp.get<logger>()->trace("HTTP API", sp, "Server closed"); },
       [](const service_provider& sp, const std::shared_ptr<std::exception> & ex) {
-        sp.get<logger>()->trace(sp, "Server error %s", ex->what());
+        sp.get<logger>()->trace("HTTP API", sp, "Server error %s", ex->what());
         sp.unhandled_exception(ex);
       },
       scope);
@@ -125,7 +125,7 @@ void vds::_server::stop(const service_provider& sp)
   this->server_database_->stop(sp);
 }
 
-void vds::_server::set_port(size_t port)
+void vds::_server::set_port(int port)
 {
   this->port_ = port;
 }

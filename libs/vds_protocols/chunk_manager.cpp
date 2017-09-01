@@ -619,7 +619,9 @@ void vds::_chunk_manager::query_object_chunk(
   auto current_server_id = sp.get<istorage_log>()->current_server_id();
   auto connection_manager = sp.get<iconnection_manager>();
   for(auto & p : data_request){
-    sp.get<logger>()->debug(sp, "Route: Query chunk %s:%d for %s",
+    sp.get<logger>()->debug(
+      "route",
+      sp, "Route: Query chunk %s:%d for %s",
       server_id.str().c_str(),
       chunk_index,
       current_server_id.str().c_str());

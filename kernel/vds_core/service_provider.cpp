@@ -66,7 +66,7 @@ void vds::service_provider::unhandled_exception(const std::shared_ptr<std::excep
     p->on_error(*this, ex);
   }
   else {
-    this->get<logger>()->error(*this, "Unhandler error %s", ex->what());
+    this->get<logger>()->error("sp", *this, "Unhandler error %s", ex->what());
     throw std::runtime_error(std::string("Unhandler error ") + ex->what());
   }
 }

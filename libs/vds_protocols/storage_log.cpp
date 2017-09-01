@@ -294,8 +294,8 @@ void vds::_storage_log::apply_record(
   const principal_log_record & record,
   const const_data_buffer & signature)
 {
-  sp.get<logger>()->debug(sp, "Apply record %s", record.id().str().c_str());
-  sp.get<logger>()->trace(sp, "Record %s: %s", record.id().str().c_str(), record.message()->str().c_str());
+  sp.get<logger>()->debug("storage_log", sp, "Apply record %s", record.id().str().c_str());
+  sp.get<logger>()->trace("storage_log", sp, "Record %s: %s", record.id().str().c_str(), record.message()->str().c_str());
 
   auto state = this->principal_manager_->principal_log_get_state(sp, tr, record.id());
   if(_principal_manager::principal_log_state::front != state){
@@ -304,7 +304,7 @@ void vds::_storage_log::apply_record(
  
   auto obj = std::dynamic_pointer_cast<json_object>(record.message());
   if(!obj){
-    sp.get<logger>()->info(sp, "Wrong messsage in the record %s", record.id().str().c_str());
+    sp.get<logger>()->info("storage_log", sp, "Wrong messsage in the record %s", record.id().str().c_str());
     this->principal_manager_->delete_record(sp, tr, record.id());
     return;
   }
@@ -314,7 +314,7 @@ void vds::_storage_log::apply_record(
 
     std::string message_type;
     if (!obj->get_property("$t", message_type)) {
-      sp.get<logger>()->info(sp, "Missing messsage type in the record %s", record.id().str().c_str());
+      sp.get<logger>()->info("storage_log", sp, "Missing messsage type in the record %s", record.id().str().c_str());
       this->principal_manager_->delete_record(sp, tr, record.id());
       return;
     }
@@ -395,7 +395,7 @@ void vds::_storage_log::apply_record(
         msg.addresses());
     }
     else {
-      sp.get<logger>()->info(sp, "Unexpected messsage type '%s' in the record %s",
+      sp.get<logger>()->info("storage_log", sp, "Unexpected messsage type '%s' in the record %s",
         message_type.c_str(),
         record.id().str().c_str());
 
@@ -406,12 +406,12 @@ void vds::_storage_log::apply_record(
     this->last_applied_record_ = record.id();
   }
   catch (const std::exception & ex) {
-    sp.get<logger>()->info(sp, "%s", ex.what());
+    sp.get<logger>()->info("storage_log", sp, "%s", ex.what());
     this->principal_manager_->delete_record(sp, tr, record.id());
     return;
   }
   catch(...){
-    sp.get<logger>()->info(sp, "Unhandled error");
+    sp.get<logger>()->info("storage_log", sp, "Unhandled error");
     this->principal_manager_->delete_record(sp, tr, record.id());
     return;
   }
@@ -512,7 +512,7 @@ void vds::_storage_log::validate_signature(
     signature,
     body.c_str(),
     body.length())) {
-    sp.get<logger>()->trace(sp, "Wrong signature [%s] signed [%s]", body.c_str(), base64::from_bytes(signature).c_str());
+    sp.get<logger>()->trace("storage_log", sp, "Wrong signature [%s] signed [%s]", body.c_str(), base64::from_bytes(signature).c_str());
 
     throw std::runtime_error("Invalid signature");
   }

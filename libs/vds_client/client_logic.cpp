@@ -90,7 +90,7 @@ void vds::client_logic::process_response(
   //client_connection<client_logic>& connection,
   const std::shared_ptr<json_value> & response)
 {
-  sp.get<logger>()->trace(sp, "Response %s", response->str().c_str());
+  sp.get<logger>()->trace("client", sp, "Response %s", response->str().c_str());
   
   auto tasks = std::dynamic_pointer_cast<json_array>(response);
   if (tasks) {

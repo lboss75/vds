@@ -87,6 +87,7 @@ namespace vds {
           }
           else {
             this->crypted_input_eof_ = true;
+            sp.get<logger>()->trace("SSL", sp, "SSL Crypted input closed");
           }
           
           this->state_mutex_.unlock();
@@ -111,6 +112,7 @@ namespace vds {
           }
           else {
             this->decrypted_input_eof_ = true;
+            sp.get<logger>()->trace("SSL", sp, "SSL Decrypted input closed");
           }
           
           this->state_mutex_.unlock();
@@ -179,7 +181,9 @@ namespace vds {
 
                 tmp->write_all_async(sp, nullptr, 0)
                   .wait(
-                    [this](const service_provider & sp) {},
+                    [this](const service_provider & sp) {
+                      sp.get<logger>()->trace("SSL", sp, "SSL Decrypted output closed");
+                    },
                     [this](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {},
                     sp);
               }
@@ -247,7 +251,9 @@ namespace vds {
             this->crypted_output_.reset();
 
             tmp->write_all_async(sp, nullptr, 0)
-              .wait([this](const service_provider & sp) {},
+              .wait([this](const service_provider & sp) {
+                sp.get<logger>()->trace("SSL", sp, "SSL Crypted output closed");
+                },
                 [this](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {},
                 sp);
           }

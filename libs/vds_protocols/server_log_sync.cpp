@@ -65,7 +65,7 @@ void vds::_server_log_sync::on_new_local_record(
   const principal_log_record & record,
   const const_data_buffer & signature)
 {
-  sp.get<logger>()->trace(sp, "Broadcast %s:%s", record.id().str().c_str(), record.serialize()->str().c_str());
+  sp.get<logger>()->trace("server_log_sync", sp, "Broadcast %s:%s", record.id().str().c_str(), record.serialize()->str().c_str());
   sp.get<iconnection_manager>()->broadcast(sp, server_log_record_broadcast(record, signature));
 }
 
@@ -82,7 +82,7 @@ void vds::_server_log_sync::on_record_broadcast(
     tr,
     message.record(),
     message.signature())){
-    sp.get<logger>()->debug(sp, "Got %s", message.record().id().str().c_str());
+    sp.get<logger>()->debug("server_log_sync", sp, "Got %s", message.record().id().str().c_str());
 
     sp.get<iconnection_manager>()->broadcast(sp, server_log_record_broadcast(message.record(), message.signature()));
     this->require_unknown_records(sp, tr);
@@ -100,7 +100,7 @@ void vds::_server_log_sync::on_server_log_get_records_broadcast(
     principal_log_record record;
     const_data_buffer signature;
       if((*sp.get<principal_manager>())->get_record(sp, tr, p, record, signature)) {
-        sp.get<logger>()->debug(sp, "Provided %s", record.id().str().c_str());
+        sp.get<logger>()->debug("server_log_sync", sp, "Provided %s", record.id().str().c_str());
         sp.get<iconnection_manager>()->send_to(sp, session, server_log_record_broadcast(record, signature));
       }
   }
@@ -114,7 +114,7 @@ void vds::_server_log_sync::require_unknown_records(
   (*sp.get<principal_manager>())->get_unknown_records(sp, tr, unknown_records);
 
   for (auto& p : unknown_records) {
-    sp.get<logger>()->debug(sp, "Require %s", p.str().c_str());
+    sp.get<logger>()->debug("server_log_sync", sp, "Require %s", p.str().c_str());
   }
 
   sp.get<iconnection_manager>()->broadcast(

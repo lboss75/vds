@@ -45,7 +45,7 @@ std::shared_ptr<vds::json_value> vds::_server_json_api::operator()(
             if(false) {
             }
             else {
-              scope.get<logger>()->warning(scope, "Invalid request type \'%s\'", task_type_name.c_str());
+              scope.get<logger>()->warning("HTTP API", scope, "Invalid request type \'%s\'", task_type_name.c_str());
             }
           }
         }

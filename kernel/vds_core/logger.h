@@ -9,6 +9,8 @@ All rights reserved
 #include <sstream>
 #include <mutex>
 #include <memory>
+#include <unordered_set>
+
 #include "service_provider.h"
 #include "string_format.h"
 
@@ -24,6 +26,7 @@ namespace vds {
     struct log_record
     {
       log_level level;
+      std::string module;
       std::string source;
       std::string message;
     };
@@ -45,61 +48,57 @@ namespace vds {
 
     class logger {
     public:
-      logger(log_writer & log_writer, log_level min_log_level)
-        : log_writer_(log_writer), min_log_level_(min_log_level)
+      logger(log_writer & log_writer, log_level min_log_level, const std::unordered_set<std::string> & modules)
+        : log_writer_(log_writer), min_log_level_(min_log_level), modules_(modules),
+          all_modules_(modules.end() != modules.find("*"))
       {
       }
 
-      void operator () (
-        const service_provider & sp,
-        log_level level,
-        const std::string & message) const;
-
       template <typename... arg_types>
-      void operator () (const service_provider & sp, log_level level, const std::string & format, arg_types... args) const
+      void operator () (const std::string & module, const service_provider & sp, log_level level, const std::string & format, arg_types... args) const
       {
-        if (this->min_log_level() <= level) {
-          (*this)(sp, level, string_format(format, args...));
+        if (this->check(module, sp, level)) {
+          (*this)(module, sp, level, string_format(format, args...));
         }
       }
 
       template <typename... arg_types>
-      void trace(const service_provider & sp, const std::string & format, arg_types... args) const
+      void trace(const std::string & module, const service_provider & sp, const std::string & format, arg_types... args) const
       {
-        if (this->min_log_level() <= ll_trace) {
-          (*this)(sp, ll_trace, string_format(format, args...));
+        if(this->check(module, sp, ll_trace)) {
+          (*this)(module, sp, ll_trace, string_format(format, args...));
         }
       }
 
       template <typename... arg_types>
-      void debug(const service_provider & sp, const std::string & format, arg_types... args) const
+      void debug(const std::string & module, const service_provider & sp, const std::string & format, arg_types... args) const
       {
-        if (this->min_log_level() <= ll_debug) {
-          (*this)(sp, ll_debug, string_format(format, args...));
+        if (this->check(module, sp, ll_debug)) {
+          (*this)(module, sp, ll_debug, string_format(format, args...));
         }
       }
 
       template <typename... arg_types>
-      void info(const service_provider & sp, const std::string & format, arg_types... args) const
+      void info(const std::string & module, const service_provider & sp, const std::string & format, arg_types... args) const
       {
-        if (this->min_log_level() <= ll_info) {
-          (*this)(sp, ll_info, string_format(format, args...));
+        if (this->check(module, sp, ll_info)) {
+          (*this)(module, sp, ll_info, string_format(format, args...));
         }
       }
 
       template <typename... arg_types>
-      void warning(const service_provider & sp, const std::string & format, arg_types... args) const
+      void warning(const std::string & module, const service_provider & sp, const std::string & format, arg_types... args) const
       {
-        if (this->min_log_level() <= ll_warning) {
-          (*this)(sp, ll_warning, string_format(format, args...));
+        if (this->check(module, sp, ll_warning)) {
+          (*this)(module, sp, ll_warning, string_format(format, args...));
         }
       }
 
       template <typename... arg_types>
-      void error(const service_provider & sp, const std::string & format, arg_types... args) const
+      void error(const std::string & module, const service_provider & sp, const std::string & format, arg_types... args) const
       {
-        if (this->min_log_level() <= ll_error) {
-          (*this)(sp, ll_error, string_format(format, args...));
+        if (this->check(module, sp, ll_error)) {
+          (*this)(module, sp, ll_error, string_format(format, args...));
         }
       }
 
@@ -127,12 +126,51 @@ namespace vds {
     private:
       log_writer & log_writer_;
       log_level min_log_level_;
+      bool all_modules_;
+      std::unordered_set<std::string> modules_;
+      
+//       mutable std::mutex processed_modules_mutex_;
+//       mutable std::unordered_set<std::string> processed_modules_;
+
+      bool check(const std::string & module, const service_provider & sp, log_level level) const
+      {
+        if (this->min_log_level() > level) {
+          return false;
+        }
+        
+        if(this->modules_.end() != this->modules_.find(module)) {
+          return true;
+        }
+        
+        if(this->modules_.end() != this->modules_.find("-" + module)) {
+          return false;
+        }
+        
+//         this->processed_modules_mutex_.lock();
+//         if(this->processed_modules_.end() == this->processed_modules_.find(module)){
+//           this->processed_modules_.emplace(module);
+//           this->processed_modules_mutex_.unlock();
+//           
+//           (*this)(module, sp, ll_warning, "Log messages of this module will be filtered");
+//         }
+//         else {
+//           this->processed_modules_mutex_.unlock();
+//         }
+        
+        return this->all_modules_;
+      }
+      
+      void operator () (
+        const std::string & module,
+        const service_provider & sp,
+        log_level level,
+        const std::string & message) const;
     };
 
     class console_logger : public iservice_factory, public log_writer, public logger
     {
     public:
-      console_logger(log_level level);
+      console_logger(log_level level, const std::unordered_set<std::string> & modules);
 
       //iservice_factory
       void register_services(service_registrator &) override;
@@ -147,7 +185,7 @@ namespace vds {
     class file_logger : public iservice_factory, public log_writer, public logger
     {
     public:
-      file_logger(log_level level);
+      file_logger(log_level level, const std::unordered_set<std::string> & modules);
 
       //iservice_factory
       void register_services(service_registrator &) override;

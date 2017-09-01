@@ -37,7 +37,7 @@ void vds::server_to_server_api::process_message(
     break;
 
   case message_identification::object_request_message_id:
-    sp.get<logger>()->debug(sp, "object_request_message_id");
+    sp.get<logger>()->debug("route", sp, "object_request_message_id");
     con_man->object_transfer_protocol_->on_object_request(
       sp,
       t,
@@ -58,7 +58,7 @@ void vds::server_to_server_api::process_message(
   case message_identification::route_message_message_id:
   {
     route_message msg(binary_form);
-    sp.get<logger>()->debug(sp, "Route: route message to %s, this server is %s",
+    sp.get<logger>()->debug("route", sp, "Route: route message to %s, this server is %s",
       msg.target_server_id().str().c_str(),
       sp.get<istorage_log>()->current_server_id().str().c_str());
     con_man->route_manager_->on_route_message(
@@ -81,7 +81,7 @@ void vds::server_to_server_api::process_message(
     break;
   }
   default:
-    sp.get<logger>()->debug(sp, "Handler for message %d not found", message_type_id);
+    sp.get<logger>()->debug("route", sp, "Handler for message %d not found", message_type_id);
     break;
   }
 

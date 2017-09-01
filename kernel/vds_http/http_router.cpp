@@ -57,7 +57,7 @@ vds::async_task<std::shared_ptr<vds::http_message>> vds::http_router::route(
       return;
     }
 
-    sp.get<logger>()->debug(sp, "File not found: %s", request.url().c_str());
+    sp.get<logger>()->debug("HTTP", sp, "File not found: %s", request.url().c_str());
     done(sp, http_response(http_response::HTTP_Not_Found, "Not Found").create_message());
   });
 }

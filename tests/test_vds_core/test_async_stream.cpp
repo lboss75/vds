@@ -6,11 +6,14 @@
 #include "async_task.h"
 #include "async_stream.h"
 #include "random_buffer.h"
+#include "test_config.h"
 
 TEST(mt_tests, test_async_stream) {
   vds::service_registrator registrator;
 
-  vds::console_logger logger(vds::ll_trace);
+  vds::console_logger logger(
+    test_config::instance().log_level(),
+    test_config::instance().modules());
   vds::mt_service mt_service;
 
   registrator.add(logger);

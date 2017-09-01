@@ -20,4 +20,8 @@ All rights reserved
 
 #endif//_WIN32
 
+#include <string>
+
+extern std::string this_module_name;
+
 #endif // __VDS_UPNP_STDAFX_H_

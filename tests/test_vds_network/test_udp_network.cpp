@@ -11,6 +11,7 @@ All rights reserved
 #include "file.h"
 #include "barrier.h"
 #include "udp_socket.h"
+#include "test_config.h"
 
 TEST(network_tests, test_udp_server)
 {
@@ -18,7 +19,9 @@ TEST(network_tests, test_udp_server)
 
   vds::mt_service mt_service;
   vds::network_service network_service;
-  vds::file_logger file_logger(vds::ll_trace);
+  vds::file_logger file_logger(
+    test_config::instance().log_level(),
+    test_config::instance().modules());
 
   registrator.add(file_logger);
   registrator.add(mt_service);
@@ -40,7 +43,7 @@ TEST(network_tests, test_udp_server)
       vds::stream_write<vds::async_stream<vds::udp_datagram>>(server_socket.outgoing())
     )(
     [&server_socket](const vds::service_provider & sp) {
-      sp.get<vds::logger>()->debug(sp, "Server closed");
+      sp.get<vds::logger>()->debug("UDP", sp, "Server closed");
       server_socket.stop();
     },
       [&error, &server_socket](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
@@ -59,12 +62,12 @@ TEST(network_tests, test_udp_server)
   client_socket.incoming()->read_async(sp, &response, 1)
   .wait(
     [&b, &client_socket](const vds::service_provider & sp, size_t readed) {
-        sp.get<vds::logger>()->debug(sp, "Client reader closed");
+        sp.get<vds::logger>()->debug("UDP", sp, "Client reader closed");
         client_socket.stop();
         b.set();
       },
     [&b, &client_socket](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-        sp.get<vds::logger>()->debug(sp, "Client reader error");
+        sp.get<vds::logger>()->debug("UDP", sp, "Client reader error");
         client_socket.stop();
         b.set();
       },
@@ -80,6 +83,8 @@ TEST(network_tests, test_udp_server)
         }, sp);
 
   b.wait();
+  server.stop(sp);
+  client.stop(sp);
   //Wait
   registrator.shutdown(sp);
 

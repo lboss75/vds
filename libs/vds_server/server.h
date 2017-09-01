@@ -19,7 +19,7 @@ namespace vds {
     void start(const service_provider &) override;
     void stop(const service_provider &) override;
 
-    void set_port(size_t port);
+    void set_port(int port);
     
   private:
     _server * const impl_;

@@ -15,6 +15,7 @@ All rights reserved
 #include "random_buffer.h"
 #include "random_reader.h"
 #include "compare_data.h"
+#include "test_config.h"
 
 class read_for_newline
 {
@@ -90,7 +91,9 @@ TEST(network_tests, test_server)
 
   vds::mt_service mt_service;
   vds::network_service network_service;
-  vds::file_logger file_logger(vds::ll_trace);
+  vds::file_logger file_logger(
+    test_config::instance().log_level(),
+    test_config::instance().modules());
 
   registrator.add(file_logger);
   registrator.add(mt_service);
@@ -116,8 +119,8 @@ TEST(network_tests, test_server)
       vds::stream_read<vds::continuous_stream<uint8_t>>(s.incoming()),
       vds::stream_write<vds::continuous_stream<uint8_t>>(s.outgoing())
     )(
-      [](const vds::service_provider & sp) {
-      sp.get<vds::logger>()->debug(sp, "Server closed");
+      [s](const vds::service_provider & sp) {
+      sp.get<vds::logger>()->debug("TCP", sp, "Server closed");
     },
       [&error](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
       error = ex;
@@ -125,7 +128,7 @@ TEST(network_tests, test_server)
       sp);
   }).wait(
     [&b](const vds::service_provider & sp) {
-    sp.get<vds::logger>()->debug(sp, "Server has been started");
+    sp.get<vds::logger>()->debug("TCP", sp, "Server has been started");
     b.set();
   },
     [&b, &error](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
@@ -158,7 +161,7 @@ TEST(network_tests, test_server)
         const vds::service_provider & sp,
         const vds::tcp_network_socket & s) {
 
-    sp.get<vds::logger>()->debug(sp, "Connected");
+    sp.get<vds::logger>()->debug("TCP", sp, "Connected");
 
     vds::async_series(
       vds::create_async_task(
@@ -169,11 +172,11 @@ TEST(network_tests, test_server)
         vds::stream_write<vds::continuous_stream<uint8_t>>(s.outgoing())
       )(
         [done](const vds::service_provider & sp) {
-        sp.get<vds::logger>()->debug(sp, "Client writer closed");
+        sp.get<vds::logger>()->debug("TCP", sp, "Client writer closed");
         done(sp);
       },
         [on_error](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-        sp.get<vds::logger>()->debug(sp, "Client writer error");
+        sp.get<vds::logger>()->debug("TCP", sp, "Client writer error");
         on_error(sp, ex);
       },
         sp.create_scope("Client writer"));
@@ -186,34 +189,34 @@ TEST(network_tests, test_server)
         compare_data<uint8_t>(data.data(), data.size())
       )(
         [done](const vds::service_provider & sp) {
-        sp.get<vds::logger>()->debug(sp, "Client reader closed");
+        sp.get<vds::logger>()->debug("TCP", sp, "Client reader closed");
         done(sp);
       },
         [on_error](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-        sp.get<vds::logger>()->debug(sp, "Client reader error");
+        sp.get<vds::logger>()->debug("TCP", sp, "Client reader error");
         on_error(sp, ex);
       },
         sp.create_scope("Client read dataflow"));
 
     })
       ).wait(
-        [done](const vds::service_provider & sp) {
-      sp.get<vds::logger>()->debug(sp, "Client closed");
+        [done, s](const vds::service_provider & sp) {
+      sp.get<vds::logger>()->debug("TCP", sp, "Client closed");
       done(sp);
     },
         [on_error](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-      sp.get<vds::logger>()->debug(sp, "Client error");
+      sp.get<vds::logger>()->debug("TCP", sp, "Client error");
       on_error(sp, ex);
     },
       sp.create_scope("Client reader"));
   }).wait(
     [&b](const vds::service_provider & sp) {
-      sp.get<vds::logger>()->debug(sp, "Request sent");
+      sp.get<vds::logger>()->debug("TCP", sp, "Request sent");
       b.set();
     },
     [&b, &error](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
       error = ex;
-      sp.get<vds::logger>()->debug(sp, "Request error");
+      sp.get<vds::logger>()->debug("TCP", sp, "Request error");
       b.set();
     },
     sp.create_scope("Client"));

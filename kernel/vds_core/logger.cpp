@@ -13,11 +13,12 @@ All rights reserved
 #include "string_format.h"
 
 void vds::logger::operator()(
+  const std::string & module,
   const service_provider & sp,
   log_level level,
   const std::string & message) const
 {
-  log_record record{ level, sp.name(), message };
+  log_record record{ level, module, sp.name(), message };
 
   this->log_writer_.write(sp, record);
 }
@@ -28,8 +29,8 @@ vds::log_writer::log_writer(log_level level)
 }
 
 /////////////////////////////////////////////////////////
-vds::console_logger::console_logger(log_level level)
-: log_writer(level), logger(*this, level)
+vds::console_logger::console_logger(log_level level, const std::unordered_set<std::string> & modules)
+: log_writer(level), logger(*this, level, modules)
 {
 }
 
@@ -74,8 +75,8 @@ void vds::console_logger::write(const service_provider & sp, const log_record & 
 
 /////////////////////////////////////////////////////////
 
-vds::file_logger::file_logger(log_level level)
-: log_writer(level), logger(*this, level)
+vds::file_logger::file_logger(log_level level, const std::unordered_set<std::string> & modules)
+: log_writer(level), logger(*this, level, modules)
 {
 }
 
@@ -129,9 +130,9 @@ void vds::file_logger::write(
   auto tm = std::localtime(&t);
 
   auto str = string_format(
-    "%04d/%02d/%0d %02d:%02d.%02d %-6s %-20s: %s\n",
+    "%04d/%02d/%0d %02d:%02d.%02d %-6s [%-10s] %-20s: %s\n",
     tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec,
-    level_str.c_str(), record.source.c_str(), record.message.c_str());
+    level_str.c_str(), record.module.c_str(), record.source.c_str(), record.message.c_str());
 
   std::lock_guard<std::mutex> lock(this->file_mutex_);
   if (this->f_) {

@@ -41,7 +41,7 @@ namespace vds{
   {
   public:
     app_base()
-    : logger_(ll_info),
+    : logger_(ll_info, std::unordered_set<std::string>()),
       log_level_("ll", "log_level", "Log Level", "Set log level"),
       current_command_set_(nullptr),
       help_cmd_set_("Show help", "Show application help"),

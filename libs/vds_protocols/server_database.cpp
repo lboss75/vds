@@ -106,7 +106,7 @@ void vds::_server_database::start(const service_provider & sp)
         CONSTRAINT pk_network_route PRIMARY KEY (source_server_id,target_server_id,address,is_incomming))");
 
       t.execute("INSERT INTO module(id, version, installed) VALUES('kernel', 1, datetime('now'))");
-      t.execute("INSERT INTO endpoint(endpoint_id, addresses) VALUES('default', 'udp://127.0.0.1:8050;https://127.0.0.1:8050')");
+      t.execute("INSERT INTO endpoint(endpoint_id, addresses) VALUES('default', 'udp://127.0.0.1:8051;https://127.0.0.1:8050')");
     }
     
     _storage_log::create_database_objects(sp, db_version, t);

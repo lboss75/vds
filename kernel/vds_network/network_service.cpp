@@ -132,7 +132,7 @@ void vds::_network_service::start(const service_provider & sp)
 void vds::_network_service::stop(const service_provider & sp)
 {
     try {
-      sp.get<logger>()->trace(sp, "Stopping network service");
+      sp.get<logger>()->trace("network", sp, "Stopping network service");
       
 #ifndef _WIN32
       if(this->epoll_thread_.joinable()){
@@ -155,10 +155,10 @@ void vds::_network_service::stop(const service_provider & sp)
 #endif
     }
     catch (const std::exception & ex) {
-      sp.get<logger>()->error(sp, "Failed stop network service %s", ex.what());
+      sp.get<logger>()->error("network", sp, "Failed stop network service %s", ex.what());
     }
     catch (...) {
-      sp.get<logger>()->error(sp, "Unhandled error at stopping network service");
+      sp.get<logger>()->error("network", sp, "Unhandled error at stopping network service");
     }
 }
 

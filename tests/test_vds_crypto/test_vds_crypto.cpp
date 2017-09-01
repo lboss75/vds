@@ -7,6 +7,7 @@ All rights reserved
 #include "test_vds_crypto.h"
 #include "random_reader.h"
 #include "compare_data.h"
+#include "test_config.h"
 
 TEST(test_vds_crypto, test_symmetric)
 {
@@ -14,57 +15,9 @@ TEST(test_vds_crypto, test_symmetric)
     vds::mt_service mt_service;
     
     vds::crypto_service crypto_service;
-    vds::console_logger console_logger(vds::ll_trace);
-
-    registrator.add(mt_service);
-    registrator.add(console_logger);
-    registrator.add(crypto_service);
-    {
-      auto sp = registrator.build("test_symmetric");
-      registrator.start(sp);
-      
-      size_t len;
-      do
-      {
-        vds::crypto_service::rand_bytes(&len, sizeof(len));
-        len %= 32 * 1024 * 1024;
-      }while(len < 1024 || len > 32 * 1024 * 1024);
-
-      std::unique_ptr<unsigned char> buffer(new unsigned char[len]);
-      vds::crypto_service::rand_bytes(buffer.get(), (int)len);
-
-      vds::symmetric_key key(vds::symmetric_crypto::aes_256_cbc());
-      key.generate();
-
-      vds::barrier b;
-      std::shared_ptr<std::exception> error;
-      dataflow(
-        random_reader<uint8_t>(buffer.get(), (int)len),
-        vds::symmetric_encrypt(key),
-        vds::symmetric_decrypt(key),
-        compare_data<uint8_t>(buffer.get(), (int)len)
-      )(
-        [&b](const vds::service_provider &) {b.set(); },
-        [&b, &error](const vds::service_provider &, const std::shared_ptr<std::exception> & ex) {
-          error = ex;
-          b.set();
-        },
-        sp);
-
-      b.wait();
-      registrator.shutdown(sp);
-      if (error) {
-        GTEST_FAIL() << error->what();
-      }
-    }
-}
-
-TEST(test_vds_crypto, test_asymmetric)
-{
-  vds::service_registrator registrator;
-
-  vds::crypto_service crypto_service;
-  vds::console_logger console_logger(vds::ll_trace);
+    vds::console_logger console_logger(
+      test_config::instance().log_level(),
+      test_config::instance().modules());
 
   registrator.add(console_logger);
   registrator.add(crypto_service);
@@ -104,7 +57,9 @@ TEST(test_vds_crypto, test_sign)
   vds::mt_service mt_service;
 
   vds::crypto_service crypto_service;
-  vds::console_logger console_logger(vds::ll_trace);
+  vds::console_logger console_logger(
+      test_config::instance().log_level(),
+      test_config::instance().modules());
 
   registrator.add(mt_service);
   registrator.add(console_logger);

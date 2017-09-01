@@ -112,10 +112,10 @@ void vds::_connection_manager::start(const vds::service_provider& sp)
       auto na = url_parser::parse_network_address(address);
       this->start_https_server(scope, na).wait(
         [this](const service_provider & sp) {
-        sp.get<logger>()->info(sp, "HTTPS Servers stopped");
+        sp.get<logger>()->info("HTTPS", sp, "Servers stopped");
       },
         [this](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-        sp.get<logger>()->info(sp, "HTTPS Server error: %s", ex->what());
+        sp.get<logger>()->info("HTTPS", sp, "Server error: %s", ex->what());
       },
         scope);
     }
@@ -162,7 +162,7 @@ vds::async_task<> vds::_connection_manager::try_to_connect(
   const vds::service_provider& sp,
   const std::string & address)
 {
-  sp.get<logger>()->info(sp, "Connecting to %s", address.c_str());
+  sp.get<logger>()->info("network", sp, "Connecting to %s", address.c_str());
   
   async_task<> result = create_async_task([](
     const std::function<void(const service_provider & sp)> & done,
@@ -277,6 +277,7 @@ void vds::_connection_manager::udp_channel::start(
       return this->process_timer_jobs(sp);
     });
   
+  sp.get<logger>()->debug("UDPAPI", sp, "Pipeline opened");
   this->schedule_read(sp);
 }
 
@@ -297,10 +298,13 @@ void vds::_connection_manager::udp_channel::schedule_read(
             this->schedule_read(sp);
           },
           [this](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-            sp.get<logger>()->error(sp, "Error at processing message");
+            sp.get<logger>()->error("UDPAPI", sp, "Error %s at processing message", ex->what());
             this->schedule_read(sp);
           },
           sp);
+      }
+      else {
+        sp.get<logger>()->debug("UDPAPI", sp, "Pipeline closed");
       }
     },
     [](const service_provider & sp, const std::shared_ptr<std::exception> & ex){
@@ -329,6 +333,8 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
   const void * data,
   size_t len)
 {
+  sp.get<logger>()->trace("UDPAPI", sp, "message(%d) from %s", len, network_service::to_string(*from).c_str());
+  
   return create_async_task([this, from, data, len](const std::function<void(const service_provider & sp)> & done, const error_handler & on_error, const service_provider & sp) {
     (*sp.get<iserver_database>())->get_db()->async_transaction(sp,
       [this, sp, from, data, len, done, on_error](database_transaction & tr)->bool{
@@ -339,13 +345,13 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
     case udp_messages::message_identification::hello_message_id:
     {
       udp_messages::hello_message msg(s);
-      sp.get<logger>()->debug(sp, "hello from %s", network_service::to_string(*from).c_str());
+      sp.get<logger>()->debug("UDPAPI", sp, "hello from %s", network_service::to_string(*from).c_str());
 
       //auto cert_manager = this->sp_.get<vds::cert_manager>();
 
       auto cert = certificate::parse_der(msg.source_certificate());
       //if(cert_manager.validate(cert))
-      {
+      if(sp.get<istorage_log>()->current_server_id() != server_certificate::server_id(cert)) {
         auto session = this->register_incoming_session(
           network_service::get_ip_address_string(*from),
           ntohs(from->sin_port),
@@ -403,6 +409,9 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
           on_error,
           sp);
       }
+      else {
+        done(sp);
+      }
 
       break;
     }
@@ -410,7 +419,7 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
     case udp_messages::message_identification::welcome_message_id:
     {
       udp_messages::welcome_message msg(s);
-      sp.get<logger>()->debug(sp, "welcome from %s", network_service::to_string(*from).c_str());
+      sp.get<logger>()->debug("UDPAPI", sp, "welcome from %s", network_service::to_string(*from).c_str());
 
       auto cert = certificate::parse(msg.server_certificate());
 
@@ -427,6 +436,7 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
         to_sign.data())) {
 
         sp.get<logger>()->debug(
+          "UDPAPI",
           sp,
           "welcome from %s has been accepted",
           network_service::to_string(*from).c_str());
@@ -496,7 +506,7 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
         s >> session_id >> crypted_data >> data_hash;
         s.final();
 
-        sp.get<logger>()->trace(sp, "command from %s", network_service::to_string(*from).c_str());
+        sp.get<logger>()->trace("UDPAPI", sp, "command from %s", network_service::to_string(*from).c_str());
 
         std::shared_lock<std::shared_mutex> lock(this->sessions_mutex_);
 
@@ -516,7 +526,7 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
               const_data_buffer binary_form;
               d >> message_type_id >> binary_form;
               
-              sp.get<logger>()->trace(sp, "Message %d", message_type_id);
+              sp.get<logger>()->trace("UDPAPI", sp, "Message %d", message_type_id);
 
               this->owner_->server_to_server_api_.process_message(
                 sp,
@@ -527,7 +537,7 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
                 binary_form);
             }
             else {
-              sp.get<logger>()->error(sp, "Invalid data hash");
+              sp.get<logger>()->error("UDPAPI", sp, "Invalid data hash");
             }
           },
             [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
@@ -536,16 +546,16 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
             sp);
         }
         else {
-          sp.get<logger>()->warning(sp, "Session %d not found", session_id);
+          sp.get<logger>()->warning("UDPAPI", sp, "Session %d not found", session_id);
         }
       }
       catch (const std::exception & ex) {
-        sp.get<logger>()->error(sp, "Error at processing command");
+        sp.get<logger>()->error("UDPAPI", sp, "Error at processing command");
         on_error(sp, std::make_shared<std::exception>(ex));
         return false;
       }
       catch (...) {
-        sp.get<logger>()->error(sp, "Error at processing command");
+        sp.get<logger>()->error("UDPAPI", sp, "Error at processing command");
         on_error(sp, std::make_shared<std::runtime_error>("Unhandled error"));
         return false;
       }
@@ -675,7 +685,7 @@ void vds::_connection_manager::udp_channel::session::send_to(
         s << hash::signature(hash::sha256(), message_data.data());
         s.final();
 
-        sp.get<logger>()->trace(sp, "Send message to %s:%d", this->server().c_str(), this->port());
+        sp.get<logger>()->trace("UDPAPI", sp, "Send message to %s:%d", this->server().c_str(), this->port());
         
         auto scope = sp.create_scope(("Send message to " + this->server() + ":" + std::to_string(this->port())).c_str());
         imt_service::enable_async(scope);
@@ -741,7 +751,7 @@ bool vds::_connection_manager::udp_channel::process_timer_jobs(const service_pro
 {
   std::unique_lock<std::mutex> lock(this->hello_requests_mutex_);
   for (auto & p : this->hello_requests_) {
-    sp.get<logger>()->debug(sp, "Reconect with %s", p.second.address().c_str());
+    sp.get<logger>()->debug("UDPAPI", sp, "Reconect with %s", p.second.address().c_str());
 
     auto data = udp_messages::hello_message(
       sp.get<istorage_log>()->server_certificate().der(),

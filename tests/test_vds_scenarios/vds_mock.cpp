@@ -31,14 +31,14 @@ void vds_mock::start(size_t server_count)
     if(0 < i){
       std::cout << "Initing server " << i << "\n";
       mock_client client(i);
-      client.init_server(this->root_password_, "127.0.0.1", first_port + 1);
+      client.init_server(this->root_password_, "127.0.0.1", first_port + 1, first_port + 1);
     }
     
-    std::unique_ptr<mock_server> server(new mock_server(i, first_port + 1));
+    std::unique_ptr<mock_server> server(new mock_server(i, first_port + 1, first_port + 1));
     try {
       if (0 == i) {
         std::cout << "Initing root\n";
-        server->init_root(this->root_password_, first_port);
+        server->init_root(this->root_password_, first_port, first_port);
       }
       std::cout << "Starring server " << i << "\n";
       server->start();
@@ -136,11 +136,14 @@ mock_client::mock_client(int index)
 void mock_client::init_server(
   const std::string& root_password,
   const std::string& address,
-  int port)
+  int tcp_port,
+  int udp_port)
 {
   vds::service_registrator registrator;
 
-  vds::file_logger logger(test_config::instance().log_level());
+  vds::file_logger logger(
+    test_config::instance().log_level(),
+    test_config::instance().modules());
   vds::mt_service mt_service;
   vds::crypto_service crypto_service;
   vds::task_manager task_manager;
@@ -161,7 +164,7 @@ void mock_client::init_server(
   vds::barrier b;
   std::shared_ptr<std::exception> error;
 
-  auto sp = registrator.build(("mock client on port " + std::to_string(port)).c_str());
+  auto sp = registrator.build(("mock client on port " + std::to_string(tcp_port)).c_str());
   sp.set_property<vds::unhandled_exception_handler>(
     vds::service_provider::property_scope::any_scope,
     new vds::unhandled_exception_handler(
@@ -315,7 +318,9 @@ void mock_client::start_vds(bool full_client, const std::function<void(const vds
 
   vds::mt_service mt_service;
   vds::network_service network_service;
-  vds::file_logger logger(test_config::instance().log_level());
+  vds::file_logger logger(
+    test_config::instance().log_level(),
+    test_config::instance().modules());
   vds::crypto_service crypto_service;
   vds::client client("https://127.0.0.1:" + std::to_string(8050 + this->index_));
   vds::task_manager task_manager;
@@ -368,23 +373,28 @@ void mock_client::start_vds(bool full_client, const std::function<void(const vds
   }
 }
 
-mock_server::mock_server(int index, int port)
+mock_server::mock_server(int index, int tcp_port, int udp_port)
   : index_(index),
-  port_(port),
+  tcp_port_(tcp_port),
+  udp_port_(udp_port),
   sp_(vds::service_provider::empty()),
-  logger_(test_config::instance().log_level())
+  logger_(
+    test_config::instance().log_level(),
+    test_config::instance().modules())
 {
 }
 
-void mock_server::init_root(const std::string & root_password, int port)
+void mock_server::init_root(const std::string & root_password, int tcp_port, int udp_port)
 {
   vds::service_registrator registrator;
 
   vds::mt_service mt_service;
   vds::network_service network_service;
-  vds::file_logger logger(test_config::instance().log_level());
+  vds::file_logger logger(
+    test_config::instance().log_level(),
+    test_config::instance().modules());
   vds::crypto_service crypto_service;
-  vds::client client("https://127.0.0.1:" + std::to_string(port));
+  vds::client client("https://127.0.0.1:" + std::to_string(tcp_port));
   vds::task_manager task_manager;
   vds::server server;
 
@@ -433,7 +443,7 @@ void mock_server::init_root(const std::string & root_password, int port)
     server_certificate.save(vds::filename(vds::foldername(folder, ".vds"), "server.crt"));
     server_private_key.save(vds::filename(vds::foldername(folder, ".vds"), "server.pkey"));
     
-    server.set_port(port);
+    server.set_port(tcp_port);
 
     registrator.start(sp);
 
@@ -443,7 +453,7 @@ void mock_server::init_root(const std::string & root_password, int port)
       root_certificate,
       private_key,
       root_password,
-      "https://127.0.0.1:" + std::to_string(port));
+      "https://127.0.0.1:" + std::to_string(tcp_port));
   }
   catch (...) {
     try { registrator.shutdown(sp); }

@@ -72,11 +72,11 @@ vds::async_task<> vds::http_server::start(
         )
     )(
       [done](const vds::service_provider & sp) {
-      sp.get<logger>()->debug(sp, "HTTP server reader closed");
+      sp.get<logger>()->debug("HTTP", sp, "server reader closed");
       done(sp);
     },
       [on_error](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-      sp.get<logger>()->debug(sp, "HTTP server error");
+      sp.get<logger>()->debug("HTTP", sp, "server error");
       on_error(sp, ex);
     },
       sp.create_scope("HTTP server reader"));

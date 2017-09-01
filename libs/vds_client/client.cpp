@@ -128,7 +128,7 @@ vds::_client::init_server(
       const service_provider & sp,
       const client_messages::certificate_and_key_response & response) {
 
-    sp.get<logger>()->trace(sp, "Register new server");
+    sp.get<logger>()->trace("client", sp, "Register new server");
 
     asymmetric_private_key private_key(asymmetric_crypto::rsa4096());
     private_key.generate();
@@ -151,7 +151,7 @@ vds::_client::init_server(
     foldername root_folder(persistence::current_user(sp), ".vds");
     root_folder.create();
     
-    sp.get<logger>()->trace(sp, "Register new user");
+    sp.get<logger>()->trace("client", sp, "Register new user");
     asymmetric_private_key local_user_private_key(asymmetric_crypto::rsa4096());
     local_user_private_key.generate();
 
@@ -217,7 +217,7 @@ vds::async_task<const std::string& /*version_id*/> vds::_client::upload_file(
       
       imt_service::disable_async(sp);
 
-      sp.get<logger>()->trace(sp, "Crypting data");
+      sp.get<logger>()->trace("client", sp, "Crypting data");
       auto length = file::length(fn);
       
       //Generate key
@@ -269,7 +269,7 @@ vds::async_task<const std::string& /*version_id*/> vds::_client::upload_file(
             signature)
         )(
           [this, done, on_error, &signature, &response, msg, version_id, tmp_file](const service_provider & sp){
-            sp.get<logger>()->trace(sp, "Message [%s] signed [%s]", msg->str().c_str(), base64::from_bytes(signature).c_str());
+            sp.get<logger>()->trace("client", sp, "Message [%s] signed [%s]", msg->str().c_str(), base64::from_bytes(signature).c_str());
             
             uint8_t file_buffer[1024];
             file f(tmp_file, file::file_mode::open_read);
@@ -285,7 +285,7 @@ vds::async_task<const std::string& /*version_id*/> vds::_client::upload_file(
             file_hash.final();
             f.close();
 
-            sp.get<logger>()->trace(sp, "Uploading file");
+            sp.get<logger>()->trace("client", sp, "Uploading file");
             
             imt_service::enable_async(sp);            
             this->owner_->logic_->send_request<client_messages::put_object_message_response>(
@@ -339,7 +339,7 @@ vds::_client::download_data(
         const service_provider & sp,
         const client_messages::certificate_and_key_response & response) {
         
-        sp.get<logger>()->trace(sp, "Waiting file");
+        sp.get<logger>()->trace("client", sp, "Waiting file");
         this->looking_for_file(
             sp,
             asymmetric_private_key::parse(response.private_key_body(), user_password),
@@ -407,7 +407,7 @@ vds::async_task<const vds::guid & /*version_id*/>
             
             symmetric_key transaction_key(symmetric_crypto::aes_256_cbc(), file_info);
             
-            sp.get<logger>()->trace(sp, "Waiting file");
+            sp.get<logger>()->trace("client", sp, "Waiting file");
             filename tmp_file(this->tmp_folder_, record.index().str());
 
             auto version_id = record.index();
@@ -501,7 +501,7 @@ vds::async_task<const vds::client_messages::certificate_and_key_response & /*res
     const std::string & user_login,
     const std::string & user_password)
 {
-  sp.get<logger>()->trace(sp, "Authenticating user %s", user_login.c_str());
+  sp.get<logger>()->trace("client", sp, "Authenticating user %s", user_login.c_str());
 
   hash ph(hash::sha256());
   ph.update(user_password.c_str(), user_password.length());
