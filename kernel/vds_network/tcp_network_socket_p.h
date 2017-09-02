@@ -372,7 +372,7 @@ namespace vds {
       
       void check_timeout(const service_provider & sp) override
       {
-        if(this->read_timeout_ticks_++ > 1){
+        if(2 == this->read_timeout_ticks_++){
           this->change_mask(0, EPOLLIN);
 
           this->sp_.get<logger>()->trace("TCP", this->sp_, "read timeout");
