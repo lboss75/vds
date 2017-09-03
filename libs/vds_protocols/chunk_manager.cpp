@@ -469,7 +469,7 @@ void vds::_chunk_manager::add_chunk_store(
 {
   object_chunk_store_table t1;
   tr.execute(
-    t1.insert(
+    t1.insert_or_ignore(
       t1.server_id = server_id,
       t1.chunk_index = index,
       t1.replica = replica,

@@ -43,6 +43,7 @@ namespace vds{
     app_base()
     : logger_(ll_info, std::unordered_set<std::string>()),
       log_level_("ll", "log_level", "Log Level", "Set log level"),
+      log_modules_("lm", "log_modules", "Log modules", "Set log modules"),
       current_command_set_(nullptr),
       help_cmd_set_("Show help", "Show application help"),
       help_cmd_switch_("h", "help", "Help", "Show help")
@@ -90,6 +91,7 @@ namespace vds{
   protected:
     file_logger logger_;
     command_line_value log_level_;
+    command_line_value log_modules_;
     const command_line_set * current_command_set_;
 
     void start()
@@ -148,6 +150,7 @@ namespace vds{
     void register_common_parameters(command_line & cmd_line)
     {
       cmd_line.register_common_parameter(this->log_level_);
+      cmd_line.register_common_parameter(this->log_modules_);
     }
 
     void process_common_parameters()
@@ -163,6 +166,21 @@ namespace vds{
       }
       else if ("error" == this->log_level_.value()) {
         this->logger_.set_log_level(ll_error);
+      }
+      
+      auto p = this->log_modules_.value().c_str();
+      for(;;){
+        auto s = strchr(p, ',');
+        if(nullptr == s){
+          if(0 != *p){
+            this->logger_.set_log_module(p);
+          }
+          break;
+        }
+        else{
+          this->logger_.set_log_module(std::string(p, s - p));
+          p = s + 1;
+        }
       }
     }
 

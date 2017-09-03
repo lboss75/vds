@@ -122,6 +122,16 @@ namespace vds {
       {
         this->min_log_level_ = new_level;
       }
+      
+      void set_log_module(const std::string & module)
+      {
+        if("*" == module){
+          this->all_modules_ = true;
+        }
+        else {
+          this->modules_.emplace(module);
+        }
+      }
 
     private:
       log_writer & log_writer_;
