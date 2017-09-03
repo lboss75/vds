@@ -318,7 +318,8 @@ namespace vds {
         : sp_(sp), owner_(owner),
           network_service_(static_cast<_network_service *>(sp.get<inetwork_service>())),
           event_masks_(EPOLLIN | EPOLLET),
-          read_timeout_ticks_(0)
+          read_timeout_ticks_(0),
+          closed_(false)
       {
         this->network_service_->associate(sp, this->owner_->s_, this, this->event_masks_);
       }
@@ -372,10 +373,11 @@ namespace vds {
       
       void check_timeout(const service_provider & sp) override
       {
-        if(2 == this->read_timeout_ticks_++){
+        if(1 < this->read_timeout_ticks_++ && !this->closed_){
           this->change_mask(0, EPOLLIN);
 
           this->sp_.get<logger>()->trace("TCP", this->sp_, "read timeout");
+          this->closed_ = true;
           this->owner_->incoming_->write_all_async(this->sp_, nullptr, 0)
           .wait(
             [this](const service_provider & sp) {
@@ -404,6 +406,7 @@ namespace vds {
       std::mutex event_masks_mutex_;
       uint32_t event_masks_;
       int read_timeout_ticks_;
+      bool closed_;
       
       void change_mask(uint32_t set_events, uint32_t clear_events = 0)
       {
@@ -461,6 +464,11 @@ namespace vds {
           
           throw std::system_error(error, std::system_category(), "recv");
         }
+        
+        if(0 == len){
+          this->closed_ = true;
+        }
+        
         this->read_timeout_ticks_ = 0;
         this->sp_.get<logger>()->trace("TCP", this->sp_, "got %d bytes", len);
         this->owner_->incoming_->write_all_async(this->sp_, this->read_buffer_, len)
