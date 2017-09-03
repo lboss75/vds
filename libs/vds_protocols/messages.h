@@ -6,8 +6,11 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
+#include "json_object.h"
+#include <binary_serialize.h>
+
 namespace vds {
-  enum class message_identification : uint32_t
+  enum class message_identification : uint8_t
   {
     invalid_message_id = 0,
     hello_message_id = 'h',
@@ -20,14 +23,8 @@ namespace vds {
     
     route_message_message_id = 'r'
   };
+ 
 
-  
-  class messages
-  {
-  public:
-    
-    
-  };
 }
 
 

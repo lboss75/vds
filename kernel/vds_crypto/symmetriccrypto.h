@@ -35,6 +35,7 @@ namespace vds {
   {
   public:
     static const symmetric_crypto_info & aes_256_cbc();
+    static const symmetric_crypto_info & rc4();
   };
   
   class symmetric_key
@@ -44,7 +45,11 @@ namespace vds {
     symmetric_key(const symmetric_crypto_info & crypto_info, binary_deserializer & s);
     symmetric_key(const symmetric_crypto_info & crypto_info, binary_deserializer && s);
     symmetric_key(const symmetric_key & origin);
+    symmetric_key(symmetric_key && origin);
     ~symmetric_key();
+    
+    symmetric_key & operator = (const symmetric_key & origin) = delete;
+    symmetric_key & operator = (symmetric_key && origin) = delete;
     
     void generate();
     
@@ -60,11 +65,15 @@ namespace vds {
 
     size_t block_size() const;
     
+    static symmetric_key from_password(const std::string & password);
+    
   private:
     friend class symmetric_encrypt;
     friend class symmetric_decrypt;
     friend class _symmetric_encrypt;
     friend class _symmetric_decrypt;
+    
+    symmetric_key(const symmetric_crypto_info & crypto_info, unsigned char * key, unsigned char * iv);
     
     const symmetric_crypto_info & crypto_info_;
     unsigned char * key_;

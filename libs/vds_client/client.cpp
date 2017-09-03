@@ -136,7 +136,7 @@ vds::_client::init_server(
     asymmetric_public_key pkey(private_key);
 
     auto user_certificate = certificate::parse(response.certificate_body());
-    auto user_private_key = asymmetric_private_key::parse(response.private_key_body(), user_password);
+    auto user_private_key = asymmetric_private_key::parse_der(sp, base64::to_bytes(response.private_key_body()), user_password);
 
 
     auto server_id = guid::new_guid();
@@ -180,7 +180,7 @@ vds::_client::init_server(
         server_id,
         response.id(),
         server_certificate.str(),
-        private_key.str(user_password),
+        base64::from_bytes(private_key.der(sp, user_password)),
         ph.signature()).serialize())
       .then([this](const std::function<void(const service_provider & sp)> & done,
         const error_handler & on_error,
@@ -265,7 +265,7 @@ vds::async_task<const std::string& /*version_id*/> vds::_client::upload_file(
           dataflow_arguments<uint8_t>((const uint8_t *)s.c_str(), s.length()),
           asymmetric_sign(
             hash::sha256(),
-            asymmetric_private_key::parse(response.private_key_body(), user_password),
+            asymmetric_private_key::parse_der(sp, base64::to_bytes(response.private_key_body()), user_password),
             signature)
         )(
           [this, done, on_error, &signature, &response, msg, version_id, tmp_file](const service_provider & sp){
@@ -342,7 +342,7 @@ vds::_client::download_data(
         sp.get<logger>()->trace("client", sp, "Waiting file");
         this->looking_for_file(
             sp,
-            asymmetric_private_key::parse(response.private_key_body(), user_password),
+            asymmetric_private_key::parse_der(sp, base64::to_bytes(response.private_key_body()), user_password),
             response.id(),
             response.order_num(),
             name,

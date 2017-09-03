@@ -20,6 +20,8 @@ All rights reserved
 #include "chunk_manager_p.h"
 #include "principal_manager_p.h"
 #include "server_database_p.h"
+#include "messages.h"
+#include "server_log_logic_p.h"
 
 const vds::guid & vds::istorage_log::current_server_id() const
 {
@@ -58,8 +60,8 @@ vds::async_task<> vds::istorage_log::register_server(
   database_transaction & tr,
   const guid & id,
   const guid & parent_id,
-  const std::string & server_certificate,
-  const std::string & server_private_key,
+  const certificate & server_certificate,
+  const const_data_buffer & server_private_key,
   const const_data_buffer & password_hash)
 {
   return static_cast<_storage_log *>(this)->register_server(
@@ -169,9 +171,9 @@ void vds::_storage_log::reset(
       private_key,
       server_log_root_certificate(
         principal_id,
-        root_certificate.str(),
-        private_key.str(password),
-        ph.signature()).serialize(),
+        root_certificate,
+        private_key.der(sp, password),
+        ph.signature()).serialize(true),
         true,
         guid::new_guid());
     this->add_to_local_log(
@@ -182,9 +184,9 @@ void vds::_storage_log::reset(
       server_log_new_server(
         this->current_server_id_,
         principal_id,
-        this->server_certificate_.str(),
-        this->current_server_key_.str(password),
-        ph.signature()).serialize(),
+        this->server_certificate_,
+        this->current_server_key_.der(sp, password),
+        ph.signature()).serialize(true),
         true,
         guid::new_guid());
     
@@ -193,7 +195,7 @@ void vds::_storage_log::reset(
       tr,
       principal_id,
       private_key,
-      server_log_new_endpoint(this->current_server_id_, addresses).serialize(),
+      server_log_new_endpoint(this->current_server_id_, addresses).serialize(true),
       true,
       guid::new_guid());
     
@@ -227,8 +229,8 @@ vds::async_task<> vds::_storage_log::register_server(
   database_transaction & tr,
   const guid & id,
   const guid & parent_id,
-  const std::string & server_certificate,
-  const std::string & server_private_key,
+  const certificate & server_certificate,
+  const const_data_buffer & server_private_key,
   const const_data_buffer & password_hash)
 {
   return create_async_task(
@@ -246,7 +248,7 @@ vds::async_task<> vds::_storage_log::register_server(
         parent_id,
         server_certificate,
         server_private_key,
-        password_hash).serialize(),
+        password_hash).serialize(true),
       true,
       guid::new_guid());
     done(sp);
@@ -311,98 +313,9 @@ void vds::_storage_log::apply_record(
   
   try {
     this->validate_signature(sp, tr, record, signature);
-
-    std::string message_type;
-    if (!obj->get_property("$t", message_type)) {
-      sp.get<logger>()->info("storage_log", sp, "Missing messsage type in the record %s", record.id().str().c_str());
-      this->principal_manager_->delete_record(sp, tr, record.id());
-      return;
-    }
     
-    if (principal_log_new_object::message_type == message_type) {
-      principal_log_new_object msg(obj);
-      sp.get<iserver_database>()->add_object(sp, tr, msg);
-    }
-    else if (principal_log_new_chunk::message_type == message_type) {
-      principal_log_new_chunk msg(obj);
-      auto chunk_manager = sp.get<ichunk_manager>();
-      
-      (*chunk_manager)->add_chunk(
-        sp,
-        tr,
-        msg.server_id(),
-        msg.chunk_index(),
-        msg.object_id(),
-        msg.chunk_size(),
-        msg.chunk_hash());
-    }
-    else if (principal_log_new_replica::message_type == message_type) {
-      principal_log_new_replica msg(obj);
-      auto chunk_manager = sp.get<ichunk_manager>();
-      
-      (*chunk_manager)->add_chunk_replica(
-        sp,
-        tr,
-        msg.server_id(),
-        msg.chunk_index(),
-        msg.index(),
-        msg.replica_size(),
-        msg.replica_hash());
-      
-      (*chunk_manager)->add_chunk_store(
-        sp,
-        tr,
-        msg.server_id(),
-        msg.chunk_index(),
-        msg.index(),
-        msg.server_id());
-    }
-    else if(server_log_root_certificate::message_type == message_type){
-      server_log_root_certificate msg(obj);
-      
-      this->principal_manager_->add_user_principal(
-        sp,
-        tr,
-        "root",
-        vds::principal_record(
-          msg.id(),
-          msg.id(),
-          msg.user_cert(),
-          msg.user_private_key(),
-          msg.password_hash()));
-    }
-    else if(server_log_new_server::message_type == message_type){
-      server_log_new_server msg(obj);
-
-      this->principal_manager_->add_principal(
-        sp,
-        tr,
-        vds::principal_record(
-          msg.parent_id(),
-          msg.id(),
-          msg.server_cert(),
-          msg.server_private_key(),
-          msg.password_hash()));
-
-    }
-    else if(server_log_new_endpoint::message_type == message_type){
-      server_log_new_endpoint msg(obj);
-      
-      sp.get<iserver_database>()->add_endpoint(
-        sp,
-        tr,
-        msg.server_id().str(),
-        msg.addresses());
-    }
-    else {
-      sp.get<logger>()->info("storage_log", sp, "Unexpected messsage type '%s' in the record %s",
-        message_type.c_str(),
-        record.id().str().c_str());
-
-      this->principal_manager_->delete_record(sp, tr, record.id());
-      return;
-    }
-
+    parse_message(record.message(), _server_log_logic(sp, tr));
+    
     this->last_applied_record_ = record.id();
   }
   catch (const std::exception & ex) {
@@ -488,13 +401,13 @@ vds::asymmetric_public_key vds::_storage_log::corresponding_public_key(
 
     if (server_log_root_certificate::message_type == message_type) {
       server_log_root_certificate msg(obj);
-      return certificate::parse(msg.user_cert()).public_key();
+      return msg.user_cert().public_key();
     }
 
     throw std::runtime_error("Principial not found");
   }
   else {
-    return certificate::parse(principal->cert_body()).public_key();
+    return principal->cert_body().public_key();
   }
 }
 

@@ -138,8 +138,8 @@ namespace vds {
       }
       
       database_column<guid> id;
-      database_column<std::string> cert;
-      database_column<std::string> key;
+      database_column<const_data_buffer> cert;
+      database_column<const_data_buffer> key;
       database_column<const_data_buffer> password_hash;
       database_column<guid> parent;
     };

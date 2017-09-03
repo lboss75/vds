@@ -13,7 +13,6 @@ namespace vds {
   class endpoint;
   class istorage_log;
   class full_storage_object_id;
-  class principal_log_record;
   class server;
   
   class istorage_log
@@ -39,8 +38,8 @@ namespace vds {
       database_transaction & tr,
       const guid & id,
       const guid & parent_id,
-      const std::string & server_certificate,
-      const std::string & server_private_key,
+      const certificate & server_certificate,
+      const const_data_buffer & server_private_key,
       const const_data_buffer & password_hash);
 
     std::unique_ptr<const_data_buffer> get_object(

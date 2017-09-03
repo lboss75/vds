@@ -115,7 +115,7 @@ namespace vds {
     static const uint16_t GENERATE_HORCRUX = 1024;
     
   private:
-    friend class _storage_log;
+    friend class _server_log_logic;
     
     chunk_storage chunk_storage_;
 

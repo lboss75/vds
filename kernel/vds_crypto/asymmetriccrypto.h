@@ -7,6 +7,7 @@ All rights reserved
 */
 
 #include "hash.h"
+#include "filename.h"
 
 namespace vds {
   class _asymmetric_sign;
@@ -43,6 +44,9 @@ namespace vds {
 
     static asymmetric_private_key parse(const std::string & value, const std::string & password = std::string());
     std::string str(const std::string & password = std::string()) const;
+    
+    const_data_buffer der(const service_provider & sp, const std::string & password) const;
+    static asymmetric_private_key parse_der(const service_provider & sp, const const_data_buffer & value, const std::string & password);
 
     void load(const filename & filename, const std::string & password = std::string());
     void save(const filename & filename, const std::string & password = std::string()) const;
@@ -51,6 +55,7 @@ namespace vds {
 
   private:
     friend class _asymmetric_sign;
+    friend class _asymmetric_private_key;
     friend class _asymmetric_public_key;
     friend class _certificate;
     friend class _ssl_tunnel;

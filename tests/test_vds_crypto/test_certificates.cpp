@@ -186,9 +186,10 @@ TEST(test_certificates, test_der)
     auto sp = registrator.build("test_der");
     registrator.start(sp);
 
+    const std::string der_password("123qwe");
     //Generate CA certificate
     vds::const_data_buffer ca_certificate_text;
-    std::string ca_private_key;
+    vds::const_data_buffer ca_private_key;
 
     {
       vds::asymmetric_private_key ca_certificate_private_key(vds::asymmetric_crypto::rsa2048());
@@ -209,14 +210,14 @@ TEST(test_certificates, test_der)
       );
 
       ca_certificate_text = ca.der();
-      ca_private_key = ca_certificate_private_key.str();
+      ca_private_key = ca_certificate_private_key.der(sp, der_password);
     }
 
     //Generate sub certificate
     vds::const_data_buffer sub_certificate_text;
-    std::string sub_private_key;
+    vds::const_data_buffer sub_private_key;
     {
-      vds::asymmetric_private_key ca_certificate_private_key = vds::asymmetric_private_key::parse(ca_private_key);
+      vds::asymmetric_private_key ca_certificate_private_key = vds::asymmetric_private_key::parse_der(sp, ca_private_key, der_password);
       vds::certificate ca = vds::certificate::parse_der(ca_certificate_text);
 
       vds::asymmetric_private_key sub_certificate_private_key(vds::asymmetric_crypto::rsa2048());
@@ -239,14 +240,14 @@ TEST(test_certificates, test_der)
       );
 
       sub_certificate_text = sub_certificate.der();
-      sub_private_key = sub_certificate_private_key.str();
+      sub_private_key = sub_certificate_private_key.der(sp, der_password);
     }
 
     //Generate sub certificate
     vds::const_data_buffer caudal_certificate_text;
     std::string caudal_private_key;
     {
-      vds::asymmetric_private_key sub_certificate_private_key = vds::asymmetric_private_key::parse(sub_private_key);
+      vds::asymmetric_private_key sub_certificate_private_key = vds::asymmetric_private_key::parse_der(sp, sub_private_key, der_password);
       vds::certificate sub_certificate = vds::certificate::parse_der(sub_certificate_text);
 
       vds::asymmetric_private_key caudal_certificate_private_key(vds::asymmetric_crypto::rsa2048());

@@ -7,6 +7,7 @@ All rights reserved
 */
 
 #include "chunk_manager.h"
+#include "messages.h"
 
 namespace vds {
   class _server_database;

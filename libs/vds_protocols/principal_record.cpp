@@ -11,8 +11,8 @@ All rights reserved
 vds::principal_record::principal_record(
   const guid & parent_principal,
   const guid & id,
-  const std::string & cert_body,
-  const std::string & cert_key,
+  const certificate & cert_body,
+  const const_data_buffer & cert_key,
   const const_data_buffer & password_hash)
 : parent_principal_(parent_principal),
   id_(id),

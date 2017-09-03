@@ -49,8 +49,9 @@ namespace vds {
     class logger {
     public:
       logger(log_writer & log_writer, log_level min_log_level, const std::unordered_set<std::string> & modules)
-        : log_writer_(log_writer), min_log_level_(min_log_level), modules_(modules),
-          all_modules_(modules.end() != modules.find("*"))
+        : log_writer_(log_writer), min_log_level_(min_log_level),
+          all_modules_(modules.end() != modules.find("*")),
+          modules_(modules)
       {
       }
 

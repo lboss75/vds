@@ -9,15 +9,6 @@ All rights reserved
 #include "log_records.h"
 
 namespace vds {
-  class server_log_logic
-  {
-  public:
-    server_log_logic();
-
-    void add_record(const principal_log_record & record);
-
-  private:
-  };
 }
 
 #endif // __VDS_PROTOCOLS_SERVER_LOG_LOGIC_H_

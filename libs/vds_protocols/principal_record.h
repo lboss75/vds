@@ -8,6 +8,7 @@ All rights reserved
 
 #include "guid.h"
 #include "const_data_buffer.h"
+#include "asymmetriccrypto.h"
 
 namespace vds {
   class principal_record
@@ -16,21 +17,21 @@ namespace vds {
     principal_record(
       const guid & parent_principal,
       const guid & id,
-      const std::string & cert_body,
-      const std::string & cert_key,
+      const certificate & cert_body,
+      const const_data_buffer & cert_key,
       const const_data_buffer & password_hash);
 
     const guid & parent_principal() const { return this->parent_principal_; }
     const guid & id() const { return this->id_; }
-    const std::string & cert_body() const { return this->cert_body_; }
-    const std::string & cert_key() const { return this->cert_key_; }
+    const certificate & cert_body() const { return this->cert_body_; }
+    const const_data_buffer & cert_key() const { return this->cert_key_; }
     const const_data_buffer & password_hash() const { return this->password_hash_; }
 
   private:
     guid parent_principal_;
     guid id_;
-    std::string cert_body_;
-    std::string cert_key_;
+    certificate cert_body_;
+    const_data_buffer cert_key_;
     const_data_buffer password_hash_;
   };
 }

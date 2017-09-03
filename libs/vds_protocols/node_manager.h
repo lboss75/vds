@@ -18,8 +18,8 @@ namespace vds {
       database_transaction & tr,
       const guid & id,
       const guid & parent_id,
-      const std::string & server_certificate,
-      const std::string & server_private_key,
+      const certificate & server_certificate,
+      const const_data_buffer & server_private_key,
       const const_data_buffer & password_hash);
     
     void add_endpoint(

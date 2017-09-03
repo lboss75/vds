@@ -26,6 +26,9 @@ namespace vds {
 
     static asymmetric_private_key parse(const std::string & value, const std::string & password = std::string());
     std::string str(const std::string & password = std::string()) const;
+    
+    const_data_buffer der(const service_provider & sp, const std::string & password = std::string()) const;
+    static asymmetric_private_key parse_der(const service_provider & sp, const const_data_buffer & value, const std::string & password /*= std::string()*/);
 
     void load(const filename & filename, const std::string & password = std::string());
     void save(const filename & filename, const std::string & password = std::string()) const;

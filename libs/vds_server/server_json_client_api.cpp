@@ -199,8 +199,8 @@ vds::_server_json_client_api::process(
             sp,
             client_messages::certificate_and_key_response(
               cert->id(),
-              cert->cert_body(),
-              cert->cert_key(),
+              cert->cert_body().str(),
+              base64::from_bytes(cert->cert_key()),
               order_num).serialize());
         }
         
@@ -226,8 +226,8 @@ vds::_server_json_client_api::process(
           tr,
           message.id(),
           message.parent_id(),
-          message.server_certificate(),
-          message.server_private_key(),
+          certificate::parse(message.server_certificate()),
+          base64::to_bytes(message.server_private_key()),
           message.password_hash())
           .wait(
             [done, &b](const service_provider & sp) {
@@ -268,7 +268,7 @@ vds::_server_json_client_api::process(
       auto body = message.principal_msg()->str();
       if(!asymmetric_sign_verify::verify(
         hash::sha256(),
-        certificate::parse(author->cert_body()).public_key(),
+        author->cert_body().public_key(),
         message.signature(),
         body.c_str(),
         body.length())){

@@ -291,7 +291,7 @@ bool vds::_chunk_manager::write_chunk(
       tr,
       server_id,
       sp.get<istorage_log>()->server_private_key(),
-      chunk.serialize(),
+      chunk.serialize(true),
       false,
       is_last ? object_id : guid::new_guid());
     },
@@ -349,7 +349,7 @@ bool vds::_chunk_manager::generate_horcruxes(
               chunk_info.object_id(),
               replica,
               replica_length,
-              replica_hash).serialize(),
+              replica_hash).serialize(true),
             false);
           
 

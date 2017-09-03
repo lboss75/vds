@@ -8,12 +8,15 @@ All rights reserved
 
 #include "storage_object_id.h"
 #include "binary_serialize.h"
+#include "json_object.h"
+#include "asymmetriccrypto.h"
 
 namespace vds {
-  
+ 
   class principal_log_new_object
   {
   public:
+    static const uint8_t message_id = 'n';
     static const char message_type[];
     
     principal_log_new_object(
@@ -29,6 +32,17 @@ namespace vds {
     const const_data_buffer & meta_data() const { return this->meta_data_; }
     
     std::shared_ptr<json_value> serialize(bool add_type_property = true) const;
+    
+    principal_log_new_object(binary_deserializer & b)
+    {
+      b >> this->index_ >> this->lenght_ >> this->meta_data_;
+    }
+    
+    void serialize(binary_serializer & b) const
+    {
+      b << this->index_ << this->lenght_ << this->meta_data_;
+    }
+    
   private:
     guid index_;
     uint32_t lenght_;
@@ -38,6 +52,7 @@ namespace vds {
   class principal_log_record
   {
   public:
+    static const uint8_t message_id = 'r';
     static const char message_type[];
 
     typedef guid record_id;
@@ -75,6 +90,9 @@ namespace vds {
     void serialize(binary_serializer & b) const;
     std::shared_ptr<json_value> serialize(bool add_type_property = false) const;
 
+    principal_log_record(binary_deserializer & b);
+    void serialize(binary_serializer & b);
+    
   private:
     record_id id_;
     guid principal_id_;
@@ -86,27 +104,40 @@ namespace vds {
   class server_log_root_certificate
   {
   public:
+    static const uint8_t message_id = 'c';
     static const char message_type[];
 
     server_log_root_certificate(
       const guid & id,
-      const std::string & user_cert,
-      const std::string & user_private_key,
+      const certificate & user_cert,
+      const const_data_buffer & user_private_key,
       const const_data_buffer & password_hash);
 
     server_log_root_certificate(const std::shared_ptr<json_value> & source);
     
     const guid & id() const { return this->id_; }
-    const std::string & user_cert() const { return this->user_cert_; }
-    const std::string & user_private_key() const { return this->user_private_key_; }
+    const certificate & user_cert() const { return this->user_cert_; }
+    const const_data_buffer & user_private_key() const { return this->user_private_key_; }
     const const_data_buffer & password_hash() const { return this->password_hash_; }
 
-    std::shared_ptr<json_value> serialize() const;
+    std::shared_ptr<json_value> serialize(bool add_type) const;
+    
+    server_log_root_certificate(binary_deserializer & b)
+    {
+      const_data_buffer cert_der;
+      b >> this->id_ >> cert_der >> this->user_private_key_ >> this->password_hash_;
+      this->user_cert_ = certificate::parse_der(cert_der);
+    }
+    
+    void serialize(binary_serializer & b) const
+    {
+      b << this->id_ << this->user_cert_.der() << this->user_private_key_ << this->password_hash_;
+    }
 
   private:
     guid id_;
-    std::string user_cert_;
-    std::string user_private_key_;
+    certificate user_cert_;
+    const_data_buffer user_private_key_;
     const_data_buffer password_hash_;
   };
   
@@ -130,13 +161,14 @@ namespace vds {
   class server_log_new_server
   {
   public:
+    static const uint8_t message_id = 's';
     static const char message_type[];
     
     server_log_new_server(
       const guid & id,
       const guid & parent_id,
-      const std::string & server_cert,
-      const std::string & server_private_key,
+      const certificate & server_cert,
+      const const_data_buffer & server_private_key,
       const const_data_buffer & password_hash);
 
     server_log_new_server(
@@ -144,23 +176,37 @@ namespace vds {
 
     const guid & id() const { return this->id_; }
     const guid & parent_id() const { return this->parent_id_; }
-    const std::string & server_cert() const { return this->server_cert_; }
-    const std::string & server_private_key() const { return this->server_private_key_; }
+    const certificate & server_cert() const { return this->server_cert_; }
+    const const_data_buffer & server_private_key() const { return this->server_private_key_; }
     const const_data_buffer & password_hash() const { return this->password_hash_; }
 
-    std::shared_ptr<json_value> serialize() const;
+    std::shared_ptr<json_value> serialize(bool add_type) const;
+    
+    server_log_new_server(binary_deserializer & b)
+    {
+      const_data_buffer server_der;
+      b >> this->id_ >> this->parent_id_ >> server_der >> this->server_private_key_  >> this->password_hash_;
+      
+      this->server_cert_ = certificate::parse_der(server_der);
+    }
+    
+    void serialize(binary_serializer & b) const
+    {
+      b << this->id_ << this->parent_id_ << this->server_cert_.der() << this->server_private_key_  << this->password_hash_;
+    }
     
   private:
     guid id_;
     guid parent_id_;
-    std::string server_cert_;
-    std::string server_private_key_;
+    certificate server_cert_;
+    const_data_buffer server_private_key_;
     const_data_buffer password_hash_;
   };
 
   class server_log_new_endpoint
   {
   public:
+    static const uint8_t message_id = 'e';
     static const char message_type[];
 
     server_log_new_endpoint(
@@ -172,8 +218,16 @@ namespace vds {
     const guid & server_id() const { return this->server_id_; }
     const std::string & addresses() const { return this->addresses_; }
 
-    std::shared_ptr<json_value> serialize() const;
+    std::shared_ptr<json_value> serialize(bool add_type) const;
 
+    server_log_new_endpoint(binary_deserializer & b)
+    {
+      b >> this->server_id_ >> this->addresses_;
+    }
+    void serialize(binary_serializer & b) const
+    {
+      b << this->server_id_ << this->addresses_;
+    }
   private:
     guid server_id_;
     std::string addresses_;
@@ -182,9 +236,11 @@ namespace vds {
   class principal_log_new_chunk
   {
   public:
+    static const uint8_t message_id = 't';
+    
     static const char message_type[];
     principal_log_new_chunk(const std::shared_ptr<json_value> & source);
-    std::shared_ptr<json_value> serialize() const;
+    std::shared_ptr<json_value> serialize(bool add_type) const;
     
     principal_log_new_chunk(
       const guid & server_id,
@@ -207,6 +263,16 @@ namespace vds {
     size_t replica_size() const;
     const const_data_buffer & chunk_hash() const { return this->hash_; }
     
+    principal_log_new_chunk(binary_deserializer & b)
+    {
+      b >> this->server_id_ >> this->object_id_ >> this->chunk_index_ >> this->size_ >> this->hash_;
+    }
+    
+    void serialize(binary_serializer & b) const
+    {
+      b << this->server_id_ << this->object_id_ << this->chunk_index_ << this->size_ << this->hash_;
+    }
+
   private:
     guid server_id_;
     guid object_id_;
@@ -218,9 +284,11 @@ namespace vds {
   class principal_log_new_replica
   {
   public:
+    static const uint8_t message_id = 'r';
+
     static const char message_type[];
     principal_log_new_replica(const std::shared_ptr<json_value> & source);
-    std::shared_ptr<json_value> serialize() const;
+    std::shared_ptr<json_value> serialize(bool add_type) const;
     
     principal_log_new_replica(
       const guid & server_id,
@@ -245,7 +313,16 @@ namespace vds {
     size_t replica_size() const { return this->replica_size_; }
     const const_data_buffer & replica_hash() const { return this->replica_hash_; }
     
+    principal_log_new_replica(binary_deserializer & b)
+    {
+      b >> this->server_id_ >> this->object_id_ >> this->chunk_index_ >> this->index_ >> this->replica_size_ >> this->replica_hash_;
+    }
     
+    void serialize(binary_serializer & b) const
+    {
+      b << this->server_id_ << this->object_id_ << this->chunk_index_ << this->index_ << this->replica_size_ << this->replica_hash_;
+    }
+
   private:
     guid server_id_;
     guid object_id_;
@@ -295,6 +372,168 @@ namespace vds {
 //     size_t min_chunk_;
 //     size_t max_chunk_;
 //   };
+  
+  template<typename target_type>
+  inline void parse_message(const std::shared_ptr<json_value> & xml, const target_type & target)
+  {
+    auto obj = std::dynamic_pointer_cast<json_object>(xml);
+    if(!obj){
+      throw std::runtime_error("Unexpected messsage");
+    }
+    
+    std::string message_type;
+    if (!obj->get_property("$t", message_type)) {
+      throw std::runtime_error("Unexpected messsage");
+    }
+  
+    if (principal_log_new_object::message_type == message_type) {
+      target(principal_log_new_object(obj));
+    }
+    else if (principal_log_new_chunk::message_type == message_type) {
+      target(principal_log_new_chunk(obj));
+    }
+    else if (principal_log_new_replica::message_type == message_type) {
+      target(principal_log_new_replica(obj));
+    }
+    else if(server_log_root_certificate::message_type == message_type){
+      target(server_log_root_certificate(obj));
+    }
+    else if(server_log_new_server::message_type == message_type){
+      target(server_log_new_server(obj));
+    }
+    else if(server_log_new_endpoint::message_type == message_type){
+      target(server_log_new_endpoint(obj));
+    }
+    else {
+      throw std::runtime_error("Unexpected messsage type " + message_type);
+    }
+  };
+  
+  template<typename target_type>
+  inline void parse_message(binary_deserializer & b, const target_type & target)
+  {
+    uint8_t message_id;
+    b >> message_id;
+    
+    switch(message_id){
+      case principal_log_new_object::message_id:
+        target(principal_log_new_object(b));
+        break;
+    
+      case principal_log_new_chunk::message_id:
+        target(principal_log_new_chunk(b));
+        break;
+    
+      case principal_log_new_replica::message_id:
+        target(principal_log_new_replica(b));
+        break;
+    
+      case server_log_root_certificate::message_id:
+        target(server_log_root_certificate(b));
+        break;
+    
+      case server_log_new_server::message_id:
+        target(server_log_new_server(b));
+        break;
+    
+      case server_log_new_endpoint::message_id:
+        target(server_log_new_endpoint(b));
+        break;
+        
+      default:
+        throw std::runtime_error("Unexpected messsage type " + std::to_string(message_id));
+    }
+  };
+  
+  class message_binary_serializer
+  {
+  public:
+    message_binary_serializer(binary_serializer & b)
+    : b_(b)
+    {
+    }
+    
+    void operator()(const principal_log_new_object & obj) const
+    {
+      this->b_ << principal_log_new_object::message_id;
+      obj.serialize(this->b_);
+    }
+    
+    void operator()(const principal_log_new_chunk & obj) const
+    {
+      this->b_ << principal_log_new_chunk::message_id;
+      obj.serialize(this->b_);
+    }
+    
+    void operator()(const principal_log_new_replica & obj) const
+    {
+      this->b_ << principal_log_new_replica::message_id;
+      obj.serialize(this->b_);
+    }
+    
+    void operator()(const server_log_root_certificate & obj) const
+    {
+      this->b_ << server_log_root_certificate::message_id;
+      obj.serialize(this->b_);
+    }
+    
+    void operator()(const server_log_new_server & obj) const
+    {
+      this->b_ << server_log_new_server::message_id;
+      obj.serialize(this->b_);
+    }
+    
+    void operator()(const server_log_new_endpoint & obj) const
+    {
+      this->b_ << server_log_new_endpoint::message_id;
+      obj.serialize(this->b_);
+    }
+    
+  private:
+    binary_serializer & b_;
+  };
+  
+  class message_xml_serializer
+  {
+  public:
+    message_xml_serializer(std::shared_ptr<json_value> & target)
+    : target_(target)
+    {
+    }
+    
+    void operator()(const principal_log_new_object & obj) const
+    {
+      this->target_ = obj.serialize(true);
+    }
+    
+    void operator()(const principal_log_new_chunk & obj) const
+    {
+      this->target_ = obj.serialize(true);
+    }
+    
+    void operator()(const principal_log_new_replica & obj) const
+    {
+      this->target_ = obj.serialize(true);
+    }
+    
+    void operator()(const server_log_root_certificate & obj) const
+    {
+      this->target_ = obj.serialize(true);
+    }
+    
+    void operator()(const server_log_new_server & obj) const
+    {
+      this->target_ = obj.serialize(true);
+    }
+    
+    void operator()(const server_log_new_endpoint & obj) const
+    {
+      this->target_ = obj.serialize(true);
+    }
+    
+  private:
+    std::shared_ptr<json_value> & target_;
+  };
 }
 
 #endif // __VDS_PROTOCOLS_LOG_RECORDS_H_

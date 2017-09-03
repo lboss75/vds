@@ -78,8 +78,8 @@ void vds::_principal_manager::create_database_objects(
     t.execute(
       "CREATE TABLE principal(\
       id VARCHAR(64) NOT NULL,\
-      cert TEXT NOT NULL,\
-      key TEXT NOT NULL,\
+      cert BLOB NOT NULL,\
+      key BLOB NOT NULL,\
       password_hash BLOB NOT NULL,\
       parent VARCHAR(64) NOT NULL,\
       CONSTRAINT pk_principal PRIMARY KEY(id))");
@@ -118,7 +118,7 @@ void vds::_principal_manager::add_principal(
   tr.execute(
     t.insert(
       t.id = record.id(),
-      t.cert = record.cert_body(),
+      t.cert = record.cert_body().der(),
       t.key = record.cert_key(),
       t.password_hash = record.password_hash(),
       t.parent = record.parent_principal()));
@@ -179,7 +179,7 @@ std::unique_ptr<vds::principal_record> vds::_principal_manager::find_principal(
     result.reset(new principal_record(
       t.parent.get(st),
       object_name,
-      t.cert.get(st),
+      certificate::parse_der(t.cert.get(st)),
       t.key.get(st),
       t.password_hash.get(st)));
     break;
@@ -205,7 +205,7 @@ std::unique_ptr<vds::principal_record> vds::_principal_manager::find_user_princi
     result.reset(new principal_record(
       p.parent.get(st),
       p.id.get(st),
-      p.cert.get(st),
+      certificate::parse_der(p.cert.get(st)),
       p.key.get(st),
       p.password_hash.get(st)));
   }

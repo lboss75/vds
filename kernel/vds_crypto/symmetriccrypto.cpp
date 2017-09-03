@@ -36,18 +36,35 @@ const vds::symmetric_crypto_info& vds::symmetric_crypto::aes_256_cbc()
   return result;
 }
 
+const vds::symmetric_crypto_info& vds::symmetric_crypto::rc4()
+{
+  static _symmetric_crypto_info _result(EVP_rc4());
+  static symmetric_crypto_info result(&_result);
+  
+  return result;
+}
+
 vds::symmetric_key::symmetric_key(const vds::symmetric_crypto_info& crypto_info)
 : crypto_info_(crypto_info), key_(nullptr), iv_(nullptr)
 {
 }
 
 vds::symmetric_key::symmetric_key(const symmetric_key & origin)
-  : crypto_info_(origin.crypto_info_),
+: crypto_info_(origin.crypto_info_),
   key_(new unsigned char[origin.crypto_info_.key_size()]),
   iv_(new unsigned char[origin.crypto_info_.iv_size()])
 {
   memcpy(this->key_, origin.key_, origin.crypto_info_.key_size());
   memcpy(this->iv_, origin.iv_, origin.crypto_info_.iv_size());
+}
+
+vds::symmetric_key::symmetric_key(symmetric_key && origin)
+: crypto_info_(origin.crypto_info_),
+  key_(origin.key_),
+  iv_(origin.iv_)
+{
+  origin.key_ = nullptr;
+  origin.iv_ = nullptr;
 }
 
 vds::symmetric_key::~symmetric_key()
@@ -91,10 +108,34 @@ vds::symmetric_key::symmetric_key(const vds::symmetric_crypto_info& crypto_info,
   s.pop_data(this->iv_, (int)this->crypto_info_.iv_size());
 }
 
+vds::symmetric_key::symmetric_key(const symmetric_crypto_info & crypto_info, unsigned char * key, unsigned char * iv)
+: crypto_info_(crypto_info),
+  key_(new unsigned char[crypto_info.key_size()]),
+  iv_(new unsigned char[crypto_info.iv_size()])
+{
+  memcpy(this->key_, key, (int)this->crypto_info_.key_size());
+  
+  if(nullptr != iv){
+    memcpy(this->iv_, iv, (int)this->crypto_info_.iv_size());
+  }
+}
+
+
 void vds::symmetric_key::serialize(vds::binary_serializer& s) const
 {
   s.push_data(this->key_, (int)this->crypto_info_.key_size());
   s.push_data(this->iv_, (int)this->crypto_info_.iv_size());
+}
+
+vds::symmetric_key vds::symmetric_key::from_password(const std::string & password)
+{
+  unsigned char key[EVP_MAX_KEY_LENGTH];
+  if(!EVP_BytesToKey(EVP_rc4(), EVP_md5(), NULL, (const unsigned char *)password.c_str(), password.length(), 1, key, NULL)){
+    auto error = ERR_get_error();
+    throw crypto_exception("EVP_BytesToKey failed", error);
+  }
+  
+  return vds::symmetric_key(symmetric_crypto::rc4(), key, nullptr);
 }
 
 vds::symmetric_encrypt::symmetric_encrypt(

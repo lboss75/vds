@@ -8,6 +8,8 @@ All rights reserved
 #include "asymmetriccrypto_p.h"
 #include "crypto_exception.h"
 #include "hash_p.h"
+#include "symmetriccrypto.h"
+
 ///////////////////////////////////////////////////////////////////////
 vds::asymmetric_private_key::asymmetric_private_key()
 : impl_(new _asymmetric_private_key())
@@ -50,6 +52,17 @@ std::string vds::asymmetric_private_key::str(const std::string & password/* = st
 {
   return this->impl_->str(password);
 }
+
+vds::const_data_buffer vds::asymmetric_private_key::der(const service_provider & sp, const std::string & password /*= std::string()*/) const
+{
+  return this->impl_->der(sp, password);
+}
+
+vds::asymmetric_private_key vds::asymmetric_private_key::parse_der(const service_provider & sp, const const_data_buffer & value, const std::string & password /*= std::string()*/)
+{
+  return _asymmetric_private_key::parse_der(sp, value, password);
+}
+
 
 void vds::asymmetric_private_key::load(const filename & filename, const std::string & password/* = std::string()*/)
 {
@@ -132,6 +145,77 @@ std::string vds::_asymmetric_private_key::str(const std::string & password/* = s
   BIO_free_all(bio);
 
   return result;
+}
+
+vds::const_data_buffer vds::_asymmetric_private_key::der(
+  const service_provider & sp,
+  const std::string & password/* = std::string()*/) const
+{
+  auto len = i2d_PrivateKey(this->key_, NULL);
+
+  auto buf = (unsigned char *)OPENSSL_malloc(len);
+  if (NULL == buf) {
+    throw std::runtime_error("Out of memory at get DER format of certificate");
+  }
+
+  auto p = buf;
+  i2d_PrivateKey(this->key_, &p);
+
+  if(!password.empty()){
+    std::vector<uint8_t> buffer;
+
+    auto key = symmetric_key::from_password(password);
+    dataflow(
+      dataflow_arguments<uint8_t>(buf, len),
+      symmetric_encrypt(key),
+      collect_data(buffer))
+    (
+      [](const service_provider & sp){
+      },
+      [](const service_provider & sp, const std::shared_ptr<std::exception> & ex){
+      },
+      sp
+    );
+    
+    OPENSSL_free(buf);
+    return const_data_buffer(buffer);
+  }
+  else {
+    const_data_buffer result(buf, len);
+    OPENSSL_free(buf);
+
+    return result;
+  }
+}
+
+vds::asymmetric_private_key vds::_asymmetric_private_key::parse_der(
+  const service_provider & sp,
+  const const_data_buffer & value,
+  const std::string & password /*= std::string()*/)
+{
+  if(!password.empty()){
+    std::vector<uint8_t> buffer;
+
+    auto key = symmetric_key::from_password(password);
+    dataflow(
+      dataflow_arguments<uint8_t>(value.data(), value.size()),
+      symmetric_decrypt(key),
+      collect_data(buffer))
+    (
+      [](const service_provider & sp){
+      },
+      [](const service_provider & sp, const std::shared_ptr<std::exception> & ex){
+      },
+      sp
+    );
+    
+    return parse_der(sp, const_data_buffer(buffer), std::string());
+  }
+  else{
+    const unsigned char * p = value.data();
+    auto key = d2i_AutoPrivateKey(NULL, &p, value.size());
+    return asymmetric_private_key(new _asymmetric_private_key(key));
+  }
 }
 
 void vds::_asymmetric_private_key::load(const filename & filename, const std::string & password/* = std::string()*/)
@@ -576,6 +660,9 @@ vds::certificate vds::certificate::parse(const std::string & value)
 {
   auto io = BIO_new_mem_buf((void*)value.c_str(), (int)value.length());
   auto cert = PEM_read_bio_X509(io, 0, 0, 0);
+  if(nullptr == cert){
+    throw std::runtime_error("Invalid certificate format");
+  }
   return certificate(new _certificate(cert));
 }
 
