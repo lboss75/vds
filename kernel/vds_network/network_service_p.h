@@ -63,6 +63,8 @@ namespace vds {
         friend class _write_socket_task;
         
         timer update_timer_;
+        std::map<SOCKET_HANDLE, _socket_task *> tasks_;
+        std::mutex tasks_mutex_;
 
 #ifdef _WIN32
         HANDLE handle_;
@@ -71,9 +73,6 @@ namespace vds {
 #else
       int epoll_set_;
       std::thread epoll_thread_;
-      
-      std::map<SOCKET_HANDLE, _socket_task *> tasks_;
-      std::mutex tasks_mutex_;
 #endif//_WIN32
     };
 }

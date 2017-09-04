@@ -137,7 +137,7 @@ namespace vds {
 
       ~_read_socket_task()
       {
-        this->sp_.get<logger>()->trace(this->sp_, "WSARecv closed");
+        this->sp_.get<logger>()->trace("TCP", this->sp_, "WSARecv closed");
       }
 
       void read_async()
@@ -147,13 +147,13 @@ namespace vds {
 
         this->pthis_ = this->shared_from_this();
 
-        this->sp_.get<logger>()->trace(this->sp_, "WSARecv");
+        this->sp_.get<logger>()->trace("TCP", this->sp_, "WSARecv");
         DWORD flags = 0;
         DWORD numberOfBytesRecvd;
         if (NOERROR != WSARecv(this->owner_->s_, &this->wsa_buf_, 1, &numberOfBytesRecvd, &flags, &this->overlapped_, NULL)) {
           auto errorCode = WSAGetLastError();
           if (WSA_IO_PENDING != errorCode) {
-            this->sp_.get<logger>()->trace(this->sp_, "WSARecv error");
+            this->sp_.get<logger>()->trace("TCP", this->sp_, "WSARecv error");
             auto pthis = this->pthis_;
             this->pthis_.reset();
 
@@ -174,6 +174,10 @@ namespace vds {
         }
       }
 
+      void check_timeout(const service_provider & sp) override
+      {
+      }
+
     private:
       service_provider sp_;
       std::shared_ptr<_tcp_network_socket> owner_;
@@ -182,7 +186,7 @@ namespace vds {
 
       void process(DWORD dwBytesTransfered) override
       {
-        this->sp_.get<logger>()->trace(this->sp_, "WSARecv got(%d)", dwBytesTransfered);
+        this->sp_.get<logger>()->trace("TCP", this->sp_, "WSARecv got(%d)", dwBytesTransfered);
         auto pthis = this->pthis_;
         this->pthis_.reset();
 
@@ -209,7 +213,7 @@ namespace vds {
       }
       void error(DWORD error_code) override
       {
-        this->sp_.get<logger>()->trace(this->sp_, "WSARecv error(%d)", error_code);
+        this->sp_.get<logger>()->trace("TCP", this->sp_, "WSARecv error(%d)", error_code);
         if (ERROR_NETNAME_DELETED == error_code) {
           this->process(0);
         }
@@ -249,6 +253,10 @@ namespace vds {
             this->sp_);
       }
 
+      void check_timeout(const service_provider & sp) override
+      {
+      }
+
     private:
       service_provider sp_;
       std::shared_ptr<_tcp_network_socket> owner_;
@@ -268,11 +276,11 @@ namespace vds {
 
         this->pthis_ = this->shared_from_this();
 
-        this->sp_.get<logger>()->trace(this->sp_, "WSASend");
+        this->sp_.get<logger>()->trace("TCP", this->sp_, "WSASend");
         if (NOERROR != WSASend(this->owner_->s_, &this->wsa_buf_, 1, NULL, 0, &this->overlapped_, NULL)) {
           auto errorCode = WSAGetLastError();
           if (WSA_IO_PENDING != errorCode) {
-            this->sp_.get<logger>()->trace(this->sp_, "WSASend error(%d)", errorCode);
+            this->sp_.get<logger>()->trace("TCP", this->sp_, "WSASend error(%d)", errorCode);
             throw std::system_error(errorCode, std::system_category(), "WSASend failed");
           }
         }
@@ -280,7 +288,7 @@ namespace vds {
 
       void process(DWORD dwBytesTransfered) override
       {
-        this->sp_.get<logger>()->trace(this->sp_, "WSASend got(%d)", dwBytesTransfered);
+        this->sp_.get<logger>()->trace("TCP", this->sp_, "WSASend got(%d)", dwBytesTransfered);
 
         auto pthis = this->pthis_;
         this->pthis_.reset();

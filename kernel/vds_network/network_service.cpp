@@ -206,7 +206,7 @@ void vds::_network_service::thread_loop(const service_provider & sp)
             continue;
           }
           else {
-            sp.get<logger>()->error(sp, std::system_error(errorCode, std::system_category(), "GetQueuedCompletionStatus").what());
+            sp.get<logger>()->error("network", sp, std::system_error(errorCode, std::system_category(), "GetQueuedCompletionStatus").what());
             return;
           }
         }
@@ -221,6 +221,7 @@ void vds::_network_service::thread_loop(const service_provider & sp)
           }
           else {
             sp.get<logger>()->error(
+              "network",
               sp,
               "IO Task error: %s",
               ex.what());
@@ -234,6 +235,7 @@ void vds::_network_service::thread_loop(const service_provider & sp)
           }
           else {
             sp.get<logger>()->error(
+              "network",
               sp,
               "IO Task error: Unexcpected error");
           }

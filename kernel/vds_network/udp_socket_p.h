@@ -181,6 +181,10 @@ namespace vds {
       {
       }
 
+      void check_timeout(const service_provider & sp) override
+      {
+      }
+
     private:
       service_provider sp_;
       std::shared_ptr<_udp_socket> owner_;
@@ -265,7 +269,7 @@ namespace vds {
 
       ~_udp_send()
       {
-        this->sp_.get<logger>()->trace(this->sp_, "_udp_send.~_udp_send");
+        this->sp_.get<logger>()->trace("UDP", this->sp_, "_udp_send.~_udp_send");
       }
 
       void start()
@@ -275,6 +279,10 @@ namespace vds {
       }
 
       void stop()
+      {
+      }
+
+      void check_timeout(const service_provider & sp) override
       {
       }
 
