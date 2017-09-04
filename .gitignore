@@ -30,6 +30,7 @@
 
 # Build folder
 build/
+**/obj/
 .kdev4/vds.git.kdev4
 clients/windows/Debug
 clients/windows/ipch
@@ -38,4 +39,5 @@ clients/windows/vds_client/Debug
 clients/windows/vds_client/x64
 clients/windows/.vs
 clients/windows/win_clients.VC.db
+*.userprefs
 *.filters
