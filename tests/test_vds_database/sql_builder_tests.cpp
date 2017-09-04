@@ -106,11 +106,11 @@ TEST(sql_builder_tests, test_select) {
   });
 
   ASSERT_EQ(result_sql,
-    "SELECT MAX(t0.column1),t0.column2,t1.column1 FROM test_table1 t0 INNER JOIN test_table2 t1 ON t0.column1=t1.column1 WHERE (t0.column1=@p2) AND (t1.column2=@p1) ORDER BY t0.column1,t0.column1 DESC");
+    "SELECT MAX(t0.column1),t0.column2,t1.column1 FROM test_table1 t0 INNER JOIN test_table2 t1 ON t0.column1=t1.column1 WHERE (t0.column1=?2) AND (t1.column2=?1) ORDER BY t0.column1,t0.column1 DESC");
 
-  ASSERT_EQ(int_parameter_index, 1);
+  ASSERT_EQ(int_parameter_index, 2);
   ASSERT_EQ(int_parameter_value, 10);
-  ASSERT_EQ(string_parameter_index, 0);
+  ASSERT_EQ(string_parameter_index, 1);
   ASSERT_EQ(string_parameter_value, "test");
 }
 
@@ -126,11 +126,11 @@ TEST(sql_builder_tests, test_insert) {
     return true;
   });
   ASSERT_EQ(result_sql,
-    "INSERT INTO test_table1(column1,column2) VALUES (@p1,@p2)");
+    "INSERT INTO test_table1(column1,column2) VALUES (?1,?2)");
 
-  ASSERT_EQ(int_parameter_index, 0);
+  ASSERT_EQ(int_parameter_index, 1);
   ASSERT_EQ(int_parameter_value, 10);
-  ASSERT_EQ(string_parameter_index, 1);
+  ASSERT_EQ(string_parameter_index, 2);
   ASSERT_EQ(string_parameter_value, "test");
 }
 
@@ -146,11 +146,11 @@ TEST(sql_builder_tests, test_update) {
   return true;
   });
   ASSERT_EQ(result_sql,
-    "UPDATE test_table1 SET column1=@p2,column2=@p3 WHERE test_table1.column1=@p1");
+    "UPDATE test_table1 SET column1=?2,column2=?3 WHERE column1=?1");
 
-  ASSERT_EQ(int_parameter_index, 1);
+  ASSERT_EQ(int_parameter_index, 2);
   ASSERT_EQ(int_parameter_value, 10);
-  ASSERT_EQ(string_parameter_index, 2);
+  ASSERT_EQ(string_parameter_index, 3);
   ASSERT_EQ(string_parameter_value, "test");
 }
 
@@ -169,9 +169,9 @@ TEST(sql_builder_tests, test_insert_from) {
   return true;
   });
   ASSERT_EQ(result_sql,
-     "INSERT INTO test_table1(column1,column2) SELECT MAX(t0.column1),t0.column1,MAX(LENGTH(t0.column2)) FROM test_table2 t0 WHERE t0.column2=@p1");
+     "INSERT INTO test_table1(column1,column2) SELECT MAX(t0.column1),t0.column1,MAX(LENGTH(t0.column2)) FROM test_table2 t0 WHERE t0.column2=?1");
 
-  ASSERT_EQ(string_parameter_index, 0);
+  ASSERT_EQ(string_parameter_index, 1);
   ASSERT_EQ(string_parameter_value, "test");
 }
 
@@ -188,7 +188,7 @@ TEST(sql_builder_tests, test_delete) {
   return true;
   });
   ASSERT_EQ(result_sql,
-    "DELETE FROM test_table1 WHERE test_table1.column1=@p1");
-  ASSERT_EQ(int_parameter_index, 0);
+    "DELETE FROM test_table1 WHERE test_table1.column1=?1");
+  ASSERT_EQ(int_parameter_index, 1);
   ASSERT_EQ(int_parameter_value, 10);
 }

@@ -26,6 +26,7 @@ All rights reserved
 #include "encoding.h"
 #include "test_config.h"
 #include "random_filter.h"
+#include "task_manager.h"
 
 static void copy_body(
   const vds::service_provider & sp,
@@ -66,8 +67,8 @@ static void copy_body(
 TEST(http_tests, test_streams)
 {
   vds::service_registrator registrator;
-
   vds::mt_service mt_service;
+  vds::task_manager task_manager;
   vds::network_service network_service;
   vds::file_logger file_logger(
     test_config::instance().log_level(),
@@ -76,6 +77,7 @@ TEST(http_tests, test_streams)
 
   registrator.add(mt_service);
   registrator.add(file_logger);
+  registrator.add(task_manager);
   registrator.add(crypto_service);
 
   auto sp = registrator.build("test_https_server");
@@ -196,7 +198,7 @@ TEST(http_tests, test_streams)
 TEST(http_tests, test_https_stream)
 {
   vds::service_registrator registrator;
-
+  vds::task_manager task_manager;
   vds::mt_service mt_service;
   vds::network_service network_service;
   vds::file_logger file_logger(
@@ -206,6 +208,7 @@ TEST(http_tests, test_https_stream)
 
   registrator.add(mt_service);
   registrator.add(file_logger);
+  registrator.add(task_manager);
   registrator.add(network_service);
   registrator.add(crypto_service);
 

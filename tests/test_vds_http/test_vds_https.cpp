@@ -25,11 +25,12 @@ All rights reserved
 #include "random_buffer.h"
 #include "encoding.h"
 #include "test_config.h"
+#include "task_manager.h"
 
 TEST(http_tests, test_https_server)
 {
   vds::service_registrator registrator;
-
+  vds::task_manager task_manager;
   vds::mt_service mt_service;
   vds::network_service network_service;
   vds::file_logger file_logger(
@@ -39,6 +40,7 @@ TEST(http_tests, test_https_server)
 
   registrator.add(mt_service);
   registrator.add(file_logger);
+  registrator.add(task_manager);
   registrator.add(network_service);
   registrator.add(crypto_service);
 

@@ -16,6 +16,7 @@ All rights reserved
 #include "random_reader.h"
 #include "compare_data.h"
 #include "test_config.h"
+#include "task_manager.h"
 
 class read_for_newline
 {
@@ -90,12 +91,14 @@ TEST(network_tests, test_server)
   vds::service_registrator registrator;
 
   vds::mt_service mt_service;
+  vds::task_manager task_manager;
   vds::network_service network_service;
   vds::file_logger file_logger(
     test_config::instance().log_level(),
     test_config::instance().modules());
 
   registrator.add(file_logger);
+  registrator.add(task_manager);
   registrator.add(mt_service);
   registrator.add(network_service);
 

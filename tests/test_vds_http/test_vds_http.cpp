@@ -20,12 +20,14 @@ All rights reserved
 #include "http_client.h"
 #include "http_server.h"
 #include "test_config.h"
+#include "task_manager.h"
 
 TEST(http_tests, test_server)
 {
   vds::service_registrator registrator;
 
   vds::mt_service mt_service;
+  vds::task_manager task_manager;
   vds::network_service network_service;
   vds::file_logger file_logger(
     test_config::instance().log_level(),
@@ -33,6 +35,7 @@ TEST(http_tests, test_server)
 
   registrator.add(mt_service);
   registrator.add(file_logger);
+  registrator.add(task_manager);
   registrator.add(network_service);
 
   auto sp = registrator.build("test_server");

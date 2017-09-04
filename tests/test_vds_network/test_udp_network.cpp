@@ -12,18 +12,21 @@ All rights reserved
 #include "barrier.h"
 #include "udp_socket.h"
 #include "test_config.h"
+#include "task_manager.h"
 
 TEST(network_tests, test_udp_server)
 {
   vds::service_registrator registrator;
 
   vds::mt_service mt_service;
+  vds::task_manager task_manager;
   vds::network_service network_service;
   vds::file_logger file_logger(
     test_config::instance().log_level(),
     test_config::instance().modules());
 
   registrator.add(file_logger);
+  registrator.add(task_manager);
   registrator.add(mt_service);
   registrator.add(network_service);
 
