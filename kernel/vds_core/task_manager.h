@@ -59,6 +59,7 @@ namespace vds {
     std::condition_variable scheduled_changed_;
     std::mutex scheduled_mutex_;
     std::thread work_thread_;
+    bool is_shuting_down_;
 
     void work_thread();
   };

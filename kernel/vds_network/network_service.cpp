@@ -131,7 +131,9 @@ void vds::_network_service::start(const service_provider & sp)
   
   this->update_timer_.start(sp, std::chrono::seconds(30),
     [sp, this]()-> bool {
+      sp.get<logger>()->trace("network", sp, "Wait lock");
       std::unique_lock<std::mutex> lock(this->tasks_mutex_);
+      sp.get<logger>()->trace("network", sp, "start check_timeout");
       for(auto & p : this->tasks_) {
         p.second->check_timeout(sp);
       }

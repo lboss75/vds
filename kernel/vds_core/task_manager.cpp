@@ -18,7 +18,8 @@ vds::timer::timer(const char * name)
 
 
 vds::task_manager::task_manager()
-: sp_(service_provider::empty())
+: sp_(service_provider::empty()),
+  is_shuting_down_(false)
 {
 }
 
@@ -111,6 +112,7 @@ void vds::task_manager::stop(const service_provider & sp)
 {
   sp.get<logger>()->debug("tm", sp, "Stopping task manager");
 
+  this->is_shuting_down_ = true;
   if (this->work_thread_.joinable()) {
     this->work_thread_.join();
   }
@@ -120,7 +122,7 @@ void vds::task_manager::work_thread()
 {
   barrier b(0);
   
-  while(!this->sp_.get_shutdown_event().is_shuting_down()){
+  while(!this->is_shuting_down_){
   
     std::unique_lock<std::mutex> lock(this->scheduled_mutex_);
     
@@ -156,6 +158,8 @@ void vds::task_manager::work_thread()
     this->scheduled_changed_.wait_for(lock, timeout);
   }
   
+  this->sp_.get<logger>()->debug("tm", this->sp_, "Waiting stop task manager");
   b.wait();
+  this->sp_.get<logger>()->debug("tm", this->sp_, "Task manager stopped");
   
 }

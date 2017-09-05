@@ -381,6 +381,10 @@ namespace vds {
       
       void check_timeout(const service_provider & sp) override
       {
+        sp.get<logger>()->trace("TCP", sp, "check_timeout(ticks=%d, is_closed=%s)",
+           this->read_timeout_ticks_,
+           (this->closed_ ? "true" : "false"));
+        
         if(1 < this->read_timeout_ticks_++ && !this->closed_){
           this->change_mask(0, EPOLLIN);
 
