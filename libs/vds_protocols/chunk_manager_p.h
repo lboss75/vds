@@ -10,6 +10,7 @@ All rights reserved
 #include "server_database.h"
 #include "chunk_storage.h"
 #include "database_orm.h"
+#include "task_manager.h"
 
 namespace vds {
   class istorage_log;
@@ -121,6 +122,8 @@ namespace vds {
 
     std::mutex chunk_mutex_;
     uint64_t last_chunk_;
+    
+    timer update_chunk_map_;
     
     //Database
     class object_chunk_table : public database_table
@@ -236,6 +239,15 @@ namespace vds {
       size_t index,
       uint16_t replica,
       const guid & storage_id);
+    
+    void update_chunk_map(
+      const service_provider & sp,
+      database_transaction & tr);
+    
+    void dump_state(
+      const service_provider & sp,
+      database_transaction & tr,
+      logger * log);
   };
 
   inline _chunk_manager * vds::ichunk_manager::operator->()

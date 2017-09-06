@@ -15,7 +15,7 @@ All rights reserved
 #include "string_format.h"
 
 namespace vds {
-    enum log_level {
+    enum class log_level {
         ll_trace,
         ll_debug,
         ll_info,
@@ -66,40 +66,40 @@ namespace vds {
       template <typename... arg_types>
       void trace(const std::string & module, const service_provider & sp, const std::string & format, arg_types... args) const
       {
-        if(this->check(module, sp, ll_trace)) {
-          (*this)(module, sp, ll_trace, string_format(format, args...));
+        if(this->check(module, sp, log_level::ll_trace)) {
+          (*this)(module, sp, log_level::ll_trace, string_format(format, args...));
         }
       }
 
       template <typename... arg_types>
       void debug(const std::string & module, const service_provider & sp, const std::string & format, arg_types... args) const
       {
-        if (this->check(module, sp, ll_debug)) {
-          (*this)(module, sp, ll_debug, string_format(format, args...));
+        if (this->check(module, sp, log_level::ll_debug)) {
+          (*this)(module, sp, log_level::ll_debug, string_format(format, args...));
         }
       }
 
       template <typename... arg_types>
       void info(const std::string & module, const service_provider & sp, const std::string & format, arg_types... args) const
       {
-        if (this->check(module, sp, ll_info)) {
-          (*this)(module, sp, ll_info, string_format(format, args...));
+        if (this->check(module, sp, log_level::ll_info)) {
+          (*this)(module, sp, log_level::ll_info, string_format(format, args...));
         }
       }
 
       template <typename... arg_types>
       void warning(const std::string & module, const service_provider & sp, const std::string & format, arg_types... args) const
       {
-        if (this->check(module, sp, ll_warning)) {
-          (*this)(module, sp, ll_warning, string_format(format, args...));
+        if (this->check(module, sp, log_level::ll_warning)) {
+          (*this)(module, sp, log_level::ll_warning, string_format(format, args...));
         }
       }
 
       template <typename... arg_types>
       void error(const std::string & module, const service_provider & sp, const std::string & format, arg_types... args) const
       {
-        if (this->check(module, sp, ll_error)) {
-          (*this)(module, sp, ll_error, string_format(format, args...));
+        if (this->check(module, sp, log_level::ll_error)) {
+          (*this)(module, sp, log_level::ll_error, string_format(format, args...));
         }
       }
 
@@ -133,16 +133,7 @@ namespace vds {
           this->modules_.emplace(module);
         }
       }
-
-    private:
-      log_writer & log_writer_;
-      log_level min_log_level_;
-      bool all_modules_;
-      std::unordered_set<std::string> modules_;
       
-//       mutable std::mutex processed_modules_mutex_;
-//       mutable std::unordered_set<std::string> processed_modules_;
-
       bool check(const std::string & module, const service_provider & sp, log_level level) const
       {
         if (this->min_log_level() > level) {
@@ -170,6 +161,16 @@ namespace vds {
         
         return this->all_modules_;
       }
+
+    private:
+      log_writer & log_writer_;
+      log_level min_log_level_;
+      bool all_modules_;
+      std::unordered_set<std::string> modules_;
+      
+//       mutable std::mutex processed_modules_mutex_;
+//       mutable std::unordered_set<std::string> processed_modules_;
+
       
       void operator () (
         const std::string & module,

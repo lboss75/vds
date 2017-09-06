@@ -326,6 +326,30 @@ namespace vds {
   private:
     source_type column_;
   };
+  
+  template <typename source_type>
+  class _db_count
+  {
+  public:
+    _db_count(
+      source_type && column)
+      : column_(std::move(column))
+    {
+
+    }
+
+    std::string visit(_database_sql_builder & builder) const
+    {
+      return "COUNT(" + this->column_.visit(builder) + ")";
+    }
+
+    void set_index(int index) const
+    {
+    }
+
+  private:
+    source_type column_;
+  };
 
   template <typename source_type, typename dummy = typename std::enable_if<std::is_base_of<_database_column_base, typename std::remove_reference<source_type>::type>::value>::type>
   inline _db_min<_db_simple_column> db_min(source_type & column)
@@ -373,6 +397,18 @@ namespace vds {
   inline _db_sum<source_type> db_sum(source_type && column)
   {
     return _db_sum<source_type>(std::move(column));
+  }
+  
+  template <typename source_type, typename dummy = typename std::enable_if<std::is_base_of<_database_column_base, typename std::remove_reference<source_type>::type>::value>::type>
+  inline _db_count<_db_simple_column> db_count(source_type & column)
+  {
+    return _db_count<_db_simple_column>(_db_simple_column(column));
+  }
+
+  template <typename source_type, typename dummy = typename std::enable_if<!std::is_base_of<_database_column_base, typename std::remove_reference<source_type>::type>::value>::type>
+  inline _db_count<source_type> db_count(source_type && column)
+  {
+    return _db_count<source_type>(std::move(column));
   }
 
   template <typename source_type>
@@ -638,6 +674,100 @@ namespace vds {
     typename _database_order_holder<column_type>::holder column_;
   };
   /////////////////////////
+  class _db_group_by_column
+  {
+  public:
+    _db_group_by_column(const _database_column_base & column)
+    : column_(&column)
+    {
+    }
+    
+    std::string visit(_database_sql_builder & builder) const
+    {
+      return builder.get_alias(this->column_->owner()) + "." + this->column_->name();
+    }
+    
+  private:
+    const _database_column_base * column_;
+  };
+  
+  template<typename base_builder, typename... column_types>
+  class _database_group_by_builder;
+  
+  template<typename column_type, typename dummy = void>
+  class _database_group_by_holder;
+
+  template<typename column_type>
+  class _database_group_by_holder<column_type, typename std::enable_if<std::is_base_of<_database_column_base, typename std::remove_reference<column_type>::type>::value>::type>
+  {
+  public:
+    using holder = _db_group_by_column;
+  };
+
+  template<typename column_type>
+  class _database_group_by_holder<column_type, typename std::enable_if<!std::is_base_of<_database_column_base, typename std::remove_reference<column_type>::type>::value>::type>
+  {
+  public:
+    using holder = column_type;
+  };
+
+  template<typename base_builder, typename column_type>
+  class _database_group_by_builder<base_builder, column_type> : public base_builder
+  {
+    using this_class = _database_group_by_builder<base_builder, column_type>;
+  public:
+    _database_group_by_builder(
+      base_builder && b,
+      column_type && column)
+      : base_builder(std::move(b)),
+        column_(std::forward<column_type>(column))
+    {
+    }
+
+    std::string final_sql(_database_sql_builder & builder) const
+    {
+      return " GROUP BY " + this->generate_columns(builder);
+    }
+
+    std::string generate_columns(_database_sql_builder & builder) const
+    {
+      return this->column_.visit(builder);
+    }
+
+  protected:
+    typename _database_group_by_holder<column_type>::holder column_;
+  };
+
+  template<typename base_builder, typename column_type, typename... column_types>
+  class _database_group_by_builder<base_builder, column_type, column_types...>
+    : public _database_group_by_builder<base_builder, column_types...>
+  {
+    using base_class = _database_group_by_builder<base_builder, column_types...>;
+    using this_class = _database_group_by_builder<base_builder, column_type, column_types...>;
+  public:
+    _database_group_by_builder(
+      base_builder && b,
+      column_type && column,
+      column_types &&... columns)
+      : base_class(std::move(b), std::forward<column_types>(columns)...),
+        column_(std::forward<column_type>(column))
+    {
+    }
+    
+    std::string final_sql(_database_sql_builder & builder) const
+    {
+      return " GROUP BY " + this->generate_columns(builder);
+    }
+    
+    std::string generate_columns(_database_sql_builder & builder) const
+    {
+      return this->column_.visit(builder) + "," + base_class::generate_columns(builder);
+    }
+
+  private:
+    typename _database_group_by_holder<column_type>::holder column_;
+  };
+  /////////////////////////
   template <typename base_builder, typename condition_type>
   class _database_builder_with_where : public base_builder
   {
@@ -708,6 +838,14 @@ namespace vds {
     _database_reader_builder_with_where<this_class, where_condition_type> where(where_condition_type && cond)
     {
       return _database_reader_builder_with_where<this_class, where_condition_type>(std::move(*this), std::move(cond));
+    }
+
+    template <typename... group_by_columns_types>
+    _database_group_by_builder<this_class, group_by_columns_types...> group_by(group_by_columns_types && ... group_by_columns)
+    {
+      return _database_group_by_builder<this_class, group_by_columns_types...>(
+        std::move(*this),
+        std::forward<group_by_columns_types>(group_by_columns)...);
     }
 
     void collect_aliases(std::map<const database_table *, std::string> & aliases) const

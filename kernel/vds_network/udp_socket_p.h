@@ -412,9 +412,14 @@ namespace vds {
         }
       }
       
-      void check_timeout(const service_provider & sp) override
+      void check_timeout(const service_provider & /*sp*/) override
       {
       }
+      
+      void prepare_to_stop(const service_provider & /*sp*/) override
+      {
+      }
+
 
     private:
       service_provider sp_;

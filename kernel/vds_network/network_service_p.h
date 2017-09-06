@@ -32,6 +32,7 @@ namespace vds {
         // Inherited via iservice
         void start(const service_provider &);
         void stop(const service_provider &);
+        void prepare_to_stop(const service_provider &);
         
         void remove(_socket_task * socket);
 

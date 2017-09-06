@@ -109,7 +109,8 @@ void vds::ichunk_manager::set_next_index(
 */
 //////////////////////////////////////////////////////////////////////
 vds::_chunk_manager::_chunk_manager()
-: chunk_storage_(MIN_HORCRUX)
+: chunk_storage_(MIN_HORCRUX),
+  update_chunk_map_("update chunk map")
 {
 }
 
@@ -130,6 +131,16 @@ void vds::_chunk_manager::start(const service_provider & sp)
     
     return true;
   });
+  
+  this->update_chunk_map_.start(sp, std::chrono::seconds(30),
+   [sp, this]() -> bool {
+    (*sp.get<iserver_database>())->get_db()->sync_transaction(sp,
+      [this, sp](database_transaction & t) -> bool {
+        this->update_chunk_map(sp, t);
+        return true;
+      });
+     return !sp.get_shutdown_event().is_shuting_down();
+   });
 }
 
 void vds::_chunk_manager::stop(const service_provider & sp)
@@ -670,4 +681,39 @@ vds::const_data_buffer vds::_chunk_manager::restore_object_chunk(
   }
 
   return result;
+}
+
+void vds::_chunk_manager::update_chunk_map(
+  const service_provider & sp,
+  database_transaction & tr)
+{
+  auto log = sp.get<logger>();
+  if(log->check("chunk_manager", sp, log_level::ll_trace)){
+    this->dump_state(sp, tr, log);
+  }  
+}
+
+void vds::_chunk_manager::dump_state(
+  const service_provider & sp,
+  database_transaction & tr,
+  logger * log)
+{
+  object_chunk_table t1;
+  object_chunk_data_table t2;
+  
+  auto st = tr.get_reader(
+    t1.select(t1.server_id, t1.chunk_index, db_count(t2.replica))
+    .inner_join(t2, t1.server_id == t2.server_id && t1.chunk_index == t2.chunk_index)
+    .group_by(t1.server_id, t1.chunk_index)
+  );
+  
+  while(st.execute()){
+    int count;
+    st.get_value(2, count);
+    
+    log->trace("chunk_manager", sp, "%s.%d: %d replicas",
+      t1.server_id.get(st).str().c_str(),
+      t1.chunk_index.get(st),
+      count);
+  }  
 }

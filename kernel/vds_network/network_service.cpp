@@ -38,6 +38,12 @@ void vds::network_service::stop(const service_provider & sp)
   this->impl_->stop(sp);
 }
 
+void vds::network_service::prepare_to_stop(const service_provider & sp)
+{
+  this->impl_->prepare_to_stop(sp);
+}
+
+
 std::string vds::network_service::to_string(const sockaddr & from, socklen_t from_len)
 {
   char hbuf[NI_MAXHOST], sbuf[NI_MAXSERV];
@@ -174,6 +180,14 @@ void vds::_network_service::stop(const service_provider & sp)
     catch (...) {
       sp.get<logger>()->error("network", sp, "Unhandled error at stopping network service");
     }
+}
+
+void vds::_network_service::prepare_to_stop(const service_provider & sp)
+{
+  std::unique_lock<std::mutex> lock(this->tasks_mutex_);
+  for(auto & p : this->tasks_) {
+    p.second->prepare_to_stop(sp);
+  }
 }
 
 #ifdef _WIN32

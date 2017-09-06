@@ -695,10 +695,10 @@ bool vds::_principal_manager::save_record(
     state);
 
   if (record.parents().empty()) {
-    sp.get<logger>()->debug("server_log_sync", sp, "Added record %s without parents", record.id().str().c_str());
+    sp.get<logger>()->debug("server_log", sp, "Added record %s without parents", record.id().str().c_str());
   }
   else {
-    sp.get<logger>()->debug("server_log_sync", sp, "Added record %s", record.id().str().c_str());
+    sp.get<logger>()->debug("server_log", sp, "Added record %s", record.id().str().c_str());
   }
 
   for (auto& p : record.parents()) {
@@ -707,7 +707,7 @@ bool vds::_principal_manager::save_record(
       tr,
       p,
       record.id());
-    sp.get<logger>()->debug("server_log_sync", sp, "Added parent %s", p.str().c_str());
+    sp.get<logger>()->debug("server_log", sp, "Added parent %s", p.str().c_str());
   }
 
   return true;

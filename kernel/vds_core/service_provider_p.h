@@ -46,6 +46,12 @@ namespace vds {
     void shutdown(service_provider & sp)
     {
       this->shutdown_event_.set();
+      
+      for(auto & p : this->factories_) {
+        p->prepare_to_stop(sp);
+      }
+
+      
       while (!this->factories_.empty()) {
         this->factories_.back()->stop(sp);
         this->factories_.pop_back();

@@ -291,8 +291,14 @@ namespace vds {
     void run(const std::list<async_task<>> & args)
     {
       for (auto arg : args) {
-        arg.wait(
-          [this](const service_provider & sp) {
+        *this += arg;
+      }
+    }
+    
+    _async_series & operator += (const async_task<> & arg)
+    {
+      arg.wait(
+        [this](const service_provider & sp) {
           if (0 == --this->count_) {
             if (this->error_) {
               this->on_error_(sp, this->error_);
@@ -303,7 +309,7 @@ namespace vds {
             delete this;
           }
         },
-          [this](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+        [this](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
           if (!this->error_) {
             this->error_ = ex;
           }
@@ -317,8 +323,8 @@ namespace vds {
             delete this;
           }
         },
-          this->sp_);
-      }
+        this->sp_);
+      return *this;
     }
     
   private:

@@ -28,6 +28,7 @@ namespace vds {
     virtual void process(uint32_t events) = 0;
 #endif//_WIN32
     virtual void check_timeout(const service_provider & sp) = 0;
+    virtual void prepare_to_stop(const service_provider & sp) = 0;
 
   protected:
 #ifdef _WIN32

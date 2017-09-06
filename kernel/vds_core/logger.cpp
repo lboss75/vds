@@ -51,23 +51,23 @@ void vds::console_logger::write(const service_provider & sp, const log_record & 
 {
   switch (record.level)
   {
-  case ll_trace:
+  case log_level::ll_trace:
     std::cout << '[' << record.source << ']' << "TRACE: " << record.message << '\n';
     break;
 
-  case ll_debug:
+  case log_level::ll_debug:
     std::cout << '[' << record.source << ']' << "DEBUG: " << record.message << '\n';
     break;
 
-  case ll_info:
+  case log_level::ll_info:
     std::cout << '[' << record.source << ']' << "INFO: " << record.message << '\n';
     break;
 
-  case ll_warning:
+  case log_level::ll_warning:
     std::cout << '[' << record.source << ']' << "WARNIG: " << record.message << '\n';
     break;
 
-  case ll_error:
+  case log_level::ll_error:
     std::cout << '[' << record.source << ']' << "ERROR: " << record.message << '\n';
     break;
   }
@@ -104,23 +104,23 @@ void vds::file_logger::write(
 {
   std::string level_str;
   switch (record.level) {
-  case ll_trace:
+  case log_level::ll_trace:
     level_str = "TRACE";
     break;
 
-  case ll_debug:
+  case log_level::ll_debug:
     level_str = "DEBUG";
     break;
 
-  case ll_info:
+  case log_level::ll_info:
     level_str = "INFO";
     break;
 
-  case ll_warning:
+  case log_level::ll_warning:
     level_str = "WARNIG";
     break;
 
-  case ll_error:
+  case log_level::ll_error:
     level_str = "ERROR";
     break;
   }

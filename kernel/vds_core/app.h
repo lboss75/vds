@@ -41,7 +41,7 @@ namespace vds{
   {
   public:
     app_base()
-    : logger_(ll_info, std::unordered_set<std::string>()),
+    : logger_(log_level::ll_info, std::unordered_set<std::string>()),
       log_level_("ll", "log_level", "Log Level", "Set log level"),
       log_modules_("lm", "log_modules", "Log modules", "Set log modules"),
       current_command_set_(nullptr),
@@ -156,16 +156,16 @@ namespace vds{
     void process_common_parameters()
     {
       if ("trace" == this->log_level_.value()) {
-        this->logger_.set_log_level(ll_trace);
+        this->logger_.set_log_level(log_level::ll_trace);
       }
       else if ("debug" == this->log_level_.value()) {
-        this->logger_.set_log_level(ll_debug);
+        this->logger_.set_log_level(log_level::ll_debug);
       }
       else if ("info" == this->log_level_.value()) {
-        this->logger_.set_log_level(ll_info);
+        this->logger_.set_log_level(log_level::ll_info);
       }
       else if ("error" == this->log_level_.value()) {
-        this->logger_.set_log_level(ll_error);
+        this->logger_.set_log_level(log_level::ll_error);
       }
       
       auto p = this->log_modules_.value().c_str();

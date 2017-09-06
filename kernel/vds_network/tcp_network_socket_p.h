@@ -347,6 +347,26 @@ namespace vds {
         this->schedule_write();
       }
       
+      void prepare_to_stop(const service_provider & sp) override
+      {
+        if(!this->closed_){
+          this->change_mask(0, EPOLLIN);
+
+          this->sp_.get<logger>()->trace("TCP", this->sp_, "read timeout");
+          this->closed_ = true;
+          this->owner_->incoming_->write_all_async(this->sp_, nullptr, 0)
+          .wait(
+            [this](const service_provider & sp) {
+              sp.get<logger>()->trace("TCP", sp, "input closed");
+              this->write_this_.reset();
+            },
+            [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+              sp.unhandled_exception(ex);
+            },
+            this->sp_);
+        }          
+      }
+ 
       void process(uint32_t events) override
       {
         if(EPOLLOUT == (EPOLLOUT & events)){
