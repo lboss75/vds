@@ -9,7 +9,11 @@ All rights reserved
 #include <string>
 #include <exception>
 #include <iostream>
- 
+
+#ifndef _WIN32
+#include <sys/resource.h> 
+#endif
+
 #include "service_provider.h"
 #include "logger.h"
 #include "command_line.h"
@@ -52,7 +56,13 @@ namespace vds{
 
     int run(int argc, const char ** argv)
     {
-      setlocale(LC_ALL, "Russian");
+#ifndef _WIN32
+      // core dumps may be disallowed by parent of this process; change that
+      struct rlimit core_limits;
+      core_limits.rlim_cur = core_limits.rlim_max = RLIM_INFINITY;
+      setrlimit(RLIMIT_CORE, &core_limits);
+#endif
+      setlocale(LC_ALL, "Russian");      
 
       try {
         command_line cmd_line(

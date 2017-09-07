@@ -716,7 +716,8 @@ vds::_connection_manager::udp_channel::register_incoming_session(
   uint32_t session_id;
   for (;;) {
     session_id = (uint32_t)std::rand();
-    if (this->sessions_.end() == this->sessions_.find(session_id)) {
+    if (this->sessions_.end() == this->sessions_.find(session_id)
+      && this->hello_requests_.end() == this->hello_requests_.find(session_id)) {
       break;
     }
   }
