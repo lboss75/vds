@@ -42,7 +42,8 @@ namespace vds {
     bool get_value(int index, std::string & value);
     bool get_value(int index, guid & value);
     bool get_value(int index, const_data_buffer & value);
-    
+    bool get_value(int index, double & value);
+
     sql_statement & operator = (sql_statement && original);
 
   private:

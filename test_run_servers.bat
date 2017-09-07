@@ -23,4 +23,4 @@ build\app\vds_node\Debug\vds_node.exe file download -l root -p 123qwe -f %root_f
 
 fc /b %root_folder%vds.log %root_folder%vds.log.new
 
-
+rem https://localhost:8050/vds/dump_state

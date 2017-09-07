@@ -178,6 +178,10 @@ namespace vds {
       {
       }
 
+      void prepare_to_stop(const service_provider & sp) override
+      {
+      }
+
     private:
       service_provider sp_;
       std::shared_ptr<_tcp_network_socket> owner_;
@@ -254,6 +258,10 @@ namespace vds {
       }
 
       void check_timeout(const service_provider & sp) override
+      {
+      }
+
+      void prepare_to_stop(const service_provider & sp) override
       {
       }
 

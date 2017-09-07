@@ -82,6 +82,14 @@ void vds::ichunk_manager::query_object_chunk(
   total_data);
 }
 
+void vds::ichunk_manager::dump_state(
+  const service_provider & sp,
+  database_transaction & tr,
+  const std::shared_ptr<json_object>& result)
+{
+  static_cast<_chunk_manager *>(this)->dump_state(sp, tr, result);
+}
+
 /*
 vds::async_task<>
 vds::ichunk_manager::add(
@@ -683,37 +691,154 @@ vds::const_data_buffer vds::_chunk_manager::restore_object_chunk(
   return result;
 }
 
-void vds::_chunk_manager::update_chunk_map(
-  const service_provider & sp,
-  database_transaction & tr)
-{
-  auto log = sp.get<logger>();
-  if(log->check("chunk_manager", sp, log_level::ll_trace)){
-    this->dump_state(sp, tr, log);
-  }  
-}
-
 void vds::_chunk_manager::dump_state(
   const service_provider & sp,
   database_transaction & tr,
-  logger * log)
+  const std::shared_ptr<json_object>& result)
 {
+  this->dump_local_chunks(sp, tr, result);
+  this->dump_chunks_map(sp, tr, result);
+}
+
+void vds::_chunk_manager::dump_local_chunks(
+  const service_provider & sp,
+  database_transaction & tr,
+  const std::shared_ptr<json_object>& result)
+{
+  auto cont = std::make_shared<json_array>();
+
   object_chunk_table t1;
   object_chunk_data_table t2;
-  
+
   auto st = tr.get_reader(
     t1.select(t1.server_id, t1.chunk_index, db_count(t2.replica))
     .inner_join(t2, t1.server_id == t2.server_id && t1.chunk_index == t2.chunk_index)
     .group_by(t1.server_id, t1.chunk_index)
   );
-  
-  while(st.execute()){
+
+  while (st.execute()) {
     int count;
     st.get_value(2, count);
-    
-    log->trace("chunk_manager", sp, "%s.%d: %d replicas",
-      t1.server_id.get(st).str().c_str(),
-      t1.chunk_index.get(st),
-      count);
-  }  
+
+    auto item = std::make_shared<json_object>();
+    item->add_property("server_id", t1.server_id.get(st).str().c_str());
+    item->add_property("chunk_index", t1.chunk_index.get(st));
+    item->add_property("count", std::to_string(count));
+    cont->add(item);
+  }
+
+  result->add_property("local_chunks", cont);
 }
+
+void vds::_chunk_manager::dump_chunks_map(
+  const service_provider & sp,
+  database_transaction & tr,
+  const std::shared_ptr<json_object>& result)
+{
+  auto cont = std::make_shared<json_array>();
+
+  object_chunk_store_table t;
+
+  auto st = tr.get_reader(
+    t.select(t.server_id, t.chunk_index, t.storage_id, db_count(t.replica))
+    .group_by(t.server_id, t.chunk_index, t.storage_id)
+  );
+
+  while (st.execute()) {
+    int count;
+    st.get_value(3, count);
+
+    auto item = std::make_shared<json_object>();
+    item->add_property("server_id", t.server_id.get(st).str().c_str());
+    item->add_property("chunk_index", t.chunk_index.get(st));
+    item->add_property("storage_id", t.storage_id.get(st).str().c_str());
+    item->add_property("count", std::to_string(count));
+    cont->add(item);
+  }
+
+  result->add_property("chunk_map", cont);
+}
+
+void vds::_chunk_manager::update_chunk_map(
+  const service_provider & sp,
+  database_transaction & tr)
+{
+  this->update_move_replicas(sp, tr);
+}
+
+void vds::_chunk_manager::update_move_replicas(
+  const service_provider & sp,
+  database_transaction & tr)
+{
+  auto current_server_id = sp.get<istorage_log>()->current_server_id();
+
+  auto st = tr.parse(
+    "select t.server_id,t.chunk_index,t.replica,sum(t1.mul)\
+     from object_chunk_store t\
+     inner join (select t.storage_id,1.0/count(t.replica) mul from object_chunk_store t) t1\
+     on t1.storage_id = t.storage_id\
+     where not exists(select * from object_chunk_store t1\
+       where t1.server_id = t.server_id AND t1.chunk_index = t.chunk_index and t1.storage_id = ?1)\
+       group by t.server_id, t.chunk_index, t.replica order by sum(t1.mul)\
+     LIMIT 1000");
+
+  st.set_parameter(1, current_server_id);
+
+  std::vector<std::tuple<guid, ichunk_manager::index_type, int>> candidates;
+  while (st.execute()) {
+    guid server_id;
+    ichunk_manager::index_type chunk_index;
+    int replica;
+
+    st.get_value(0, server_id);
+    st.get_value(1, chunk_index);
+    st.get_value(2, replica);
+
+    candidates.push_back(std::make_tuple(server_id, chunk_index, replica));
+  }
+
+  auto connection_manager = sp.get<iconnection_manager>();
+  for (int i = 0; i < 100; ++i) {
+    if (candidates.empty()) {
+      break;
+    }
+
+    auto index = std::rand() % candidates.size();
+    auto server_id = std::get<0>(candidates[index]);
+    auto chunk_index = std::get<1>(candidates[index]);
+    auto replica = std::get<2>(candidates[index]);
+
+    std::set<guid> data_request;
+    data_request.emplace(server_id);
+
+    object_chunk_store_table t1;
+    st = tr.get_reader(
+      t1.select(t1.storage_id)
+      .where(t1.server_id == server_id && t1.chunk_index == chunk_index && t1.replica == replica));
+
+    while (st.execute()) {
+      auto storage_id = t1.storage_id.get(st);
+      if (data_request.end() == data_request.find(storage_id)) {
+        data_request.emplace(storage_id);
+      }
+    }
+
+    for (auto & p : data_request) {
+      sp.get<logger>()->debug(
+        "route",
+        sp, "Route: Query chunk %s:%d.%d for %s",
+        server_id.str().c_str(),
+        chunk_index,
+        replica,
+        current_server_id.str().c_str());
+
+      std::list<ichunk_manager::replica_type> replicas;
+      replicas.push_back(replica);
+      object_request message(server_id, chunk_index, current_server_id, replicas);
+      connection_manager->send_to(sp, p, message);
+    }
+
+    candidates.erase(candidates.begin() + index);
+  }
+}
+

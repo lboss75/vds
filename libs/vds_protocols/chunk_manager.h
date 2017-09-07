@@ -56,6 +56,11 @@ namespace vds {
       const guid & object_id,
       size_t & downloaded_data,
       size_t & total_data);
+
+    void dump_state(
+      const service_provider & sp,
+      database_transaction & tr,
+      const std::shared_ptr<json_object> & result);
     
     _chunk_manager * operator -> ();
   };

@@ -4,6 +4,9 @@ All rights reserved
 */
 
 #include "stdafx.h"
+#include <iostream>
+#include <ctime>
+#include <iomanip> // put_time
 #include "server.h"
 #include "server_http_api.h"
 #include "server_http_api_p.h"
@@ -130,6 +133,33 @@ vds::async_task<std::shared_ptr<vds::http_message>> vds::_server_http_api::route
           //scope.commit();
         },
         on_error, sp);
+    });
+  }
+
+  if ("/vds/dump_state" == request.url()) {
+    return create_async_task(
+      [this, message](const std::function<void(const service_provider & sp, std::shared_ptr<vds::http_message> response)> & done,
+        const error_handler & on_error,
+        const service_provider & sp)
+    {
+      (*sp.get<iserver_database>())->get_db()->async_transaction(sp,
+        [this, sp, done, on_error](database_transaction & t) -> bool {
+          auto result = std::make_shared<json_object>();
+
+          auto now = std::chrono::system_clock::now();
+          auto in_time_t = std::chrono::system_clock::to_time_t(now);
+
+          std::stringstream ss;
+          ss << std::put_time(std::localtime(&in_time_t), "%Y-%m-%d %X");
+
+          result->add_property("timestamp", ss.str());
+
+          sp.get<ichunk_manager>()->dump_state(sp, t, result);
+
+          done(sp, http_response::simple_text_response(sp, static_cast<const json_value *>(result.get())->str()));
+
+          return true;
+      });
     });
   }
 

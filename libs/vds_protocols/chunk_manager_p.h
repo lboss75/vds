@@ -111,6 +111,11 @@ namespace vds {
       const guid & storage_id,
       const const_data_buffer & data);
 
+    void dump_state(
+      const service_provider & sp,
+      database_transaction & tr,
+      const std::shared_ptr<json_object> & result);
+
     static const size_t BLOCK_SIZE = 16 * 1024 * 1024;
     static const uint16_t MIN_HORCRUX = 512;
     static const uint16_t GENERATE_HORCRUX = 1024;
@@ -243,11 +248,20 @@ namespace vds {
     void update_chunk_map(
       const service_provider & sp,
       database_transaction & tr);
+
+    void update_move_replicas(
+      const service_provider & sp,
+      database_transaction & tr);
     
-    void dump_state(
+    void dump_local_chunks(
       const service_provider & sp,
       database_transaction & tr,
-      logger * log);
+      const std::shared_ptr<json_object>& result);
+
+    void dump_chunks_map(
+      const service_provider & sp,
+      database_transaction & tr,
+      const std::shared_ptr<json_object>& result);
   };
 
   inline _chunk_manager * vds::ichunk_manager::operator->()

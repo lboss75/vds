@@ -155,6 +155,13 @@ namespace vds {
       }
     }
 
+    bool get_value(int index, double & value)
+    {
+      assert(read_state == this->state_);
+
+      value = sqlite3_column_double(this->stmt_, index);
+      return true;
+    }
 
   private:
     //service_provider sp_;
