@@ -331,7 +331,45 @@ namespace vds {
     size_t replica_size_;
     const_data_buffer replica_hash_;
   };
-  
+
+  class principal_log_store_replica
+  {
+  public:
+    static const uint8_t message_id = 'k';
+
+    static const char message_type[];
+    principal_log_store_replica(const std::shared_ptr<json_value> & source);
+    std::shared_ptr<json_value> serialize(bool add_type) const;
+
+    principal_log_store_replica(
+      const guid & server_id,
+      size_t chunk_index,
+      size_t replica_index)
+      : server_id_(server_id),
+      chunk_index_(chunk_index),
+      replica_index_(replica_index)
+    {
+    }
+
+    const guid & server_id() const { return this->server_id_; }
+    size_t chunk_index() const { return this->chunk_index_; }
+    size_t replica_index() const { return this->replica_index_; }
+
+    principal_log_store_replica(binary_deserializer & b)
+    {
+      b >> this->server_id_ >> this->chunk_index_ >> this->replica_index_;
+    }
+
+    void serialize(binary_serializer & b) const
+    {
+      b << this->server_id_ << this->chunk_index_ << this->replica_index_;
+    }
+
+  private:
+    guid server_id_;
+    size_t chunk_index_;
+    size_t replica_index_;
+  };
 //   class principal_log_new_object_map
 //   {
 //   public:
@@ -404,6 +442,9 @@ namespace vds {
     else if(server_log_new_endpoint::message_type == message_type){
       target(server_log_new_endpoint(obj));
     }
+    else if (principal_log_store_replica::message_type == message_type) {
+      target(principal_log_store_replica(obj));
+    }
     else {
       throw std::runtime_error("Unexpected messsage type " + message_type);
     }
@@ -440,6 +481,10 @@ namespace vds {
         target(server_log_new_endpoint(b));
         break;
         
+      case principal_log_store_replica::message_id:
+        target(principal_log_store_replica(b));
+        break;
+
       default:
         throw std::runtime_error("Unexpected messsage type " + std::to_string(message_id));
     }
@@ -453,42 +498,13 @@ namespace vds {
     {
     }
     
-    void operator()(const principal_log_new_object & obj) const
+    template<typename record_type>
+    void operator()(const record_type & obj) const
     {
-      this->b_ << principal_log_new_object::message_id;
+      this->b_ << record_type::message_id;
       obj.serialize(this->b_);
     }
-    
-    void operator()(const principal_log_new_chunk & obj) const
-    {
-      this->b_ << principal_log_new_chunk::message_id;
-      obj.serialize(this->b_);
-    }
-    
-    void operator()(const principal_log_new_replica & obj) const
-    {
-      this->b_ << principal_log_new_replica::message_id;
-      obj.serialize(this->b_);
-    }
-    
-    void operator()(const server_log_root_certificate & obj) const
-    {
-      this->b_ << server_log_root_certificate::message_id;
-      obj.serialize(this->b_);
-    }
-    
-    void operator()(const server_log_new_server & obj) const
-    {
-      this->b_ << server_log_new_server::message_id;
-      obj.serialize(this->b_);
-    }
-    
-    void operator()(const server_log_new_endpoint & obj) const
-    {
-      this->b_ << server_log_new_endpoint::message_id;
-      obj.serialize(this->b_);
-    }
-    
+
   private:
     binary_serializer & b_;
   };
@@ -501,36 +517,12 @@ namespace vds {
     {
     }
     
-    void operator()(const principal_log_new_object & obj) const
+    template<typename record_type>
+    void operator()(const record_type & obj) const
     {
       this->target_ = obj.serialize(true);
     }
-    
-    void operator()(const principal_log_new_chunk & obj) const
-    {
-      this->target_ = obj.serialize(true);
-    }
-    
-    void operator()(const principal_log_new_replica & obj) const
-    {
-      this->target_ = obj.serialize(true);
-    }
-    
-    void operator()(const server_log_root_certificate & obj) const
-    {
-      this->target_ = obj.serialize(true);
-    }
-    
-    void operator()(const server_log_new_server & obj) const
-    {
-      this->target_ = obj.serialize(true);
-    }
-    
-    void operator()(const server_log_new_endpoint & obj) const
-    {
-      this->target_ = obj.serialize(true);
-    }
-    
+
   private:
     std::shared_ptr<json_value> & target_;
   };

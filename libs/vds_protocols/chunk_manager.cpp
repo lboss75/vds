@@ -335,8 +335,8 @@ bool vds::_chunk_manager::generate_horcruxes(
   bool result = true;
 
   for (uint16_t replica = 0; replica < GENERATE_HORCRUX; ++replica) {
-
     auto replica_data = this->chunk_storage_.generate_replica(replica, buffer.data(), buffer.size());
+
     size_t replica_length;
     const_data_buffer replica_hash;
     std::vector<uint8_t> buffer;
@@ -488,7 +488,7 @@ void vds::_chunk_manager::add_chunk_store(
 {
   object_chunk_store_table t1;
   tr.execute(
-    t1.insert_or_ignore(
+    t1.insert(
       t1.server_id = server_id,
       t1.chunk_index = index,
       t1.replica = replica,
@@ -506,7 +506,7 @@ void vds::_chunk_manager::add_chunk_store_data(
 {
   object_chunk_data_table t;
   tr.execute(
-    t.insert_or_ignore(
+    t.insert(
       t.server_id = server_id,
       t.chunk_index = index,
       t.replica = replica,
@@ -691,6 +691,36 @@ vds::const_data_buffer vds::_chunk_manager::restore_object_chunk(
   return result;
 }
 
+bool vds::_chunk_manager::get_replica_info(
+  const service_provider & sp,
+  database_transaction & tr,
+  const guid & server_id,
+  size_t chunk_index,
+  uint16_t replica,
+  const_data_buffer & replica_hash,
+  bool & replica_stored)
+{
+  object_chunk_replica_table t1;
+  auto st = tr.get_reader(
+    t1.select(t1.replica_hash)
+    .where(t1.server_id == server_id && t1.chunk_index == chunk_index && t1.replica == replica));
+
+  if (!st.execute()) {
+    return false;
+  }
+
+  replica_hash = t1.replica_hash.get(st);
+
+  object_chunk_data_table t2;
+  st = tr.get_reader(
+    t2.select(t2.replica)
+    .where(t2.server_id == server_id && t2.chunk_index == chunk_index && t2.replica == replica));
+
+  replica_stored = st.execute();
+
+  return true;
+}
+
 void vds::_chunk_manager::dump_state(
   const service_provider & sp,
   database_transaction & tr,
@@ -773,28 +803,31 @@ void vds::_chunk_manager::update_move_replicas(
   auto current_server_id = sp.get<istorage_log>()->current_server_id();
 
   auto st = tr.parse(
-    "select t.server_id,t.chunk_index,t.replica,sum(t1.mul)\
+    "select t.server_id,t.chunk_index,t.replica,oc.object_id,sum(t1.mul)\
      from object_chunk_store t\
+     inner join object_chunk oc on oc.server_id=t.server_id AND oc.chunk_index=t.chunk_index\
      inner join (select t.storage_id,1.0/count(t.replica) mul from object_chunk_store t) t1\
      on t1.storage_id = t.storage_id\
      where not exists(select * from object_chunk_store t1\
-       where t1.server_id = t.server_id AND t1.chunk_index = t.chunk_index and t1.storage_id = ?1)\
+       where t1.server_id = t.server_id AND t1.chunk_index = t.chunk_index AND t1.storage_id = ?1)\
        group by t.server_id, t.chunk_index, t.replica order by sum(t1.mul)\
      LIMIT 1000");
 
   st.set_parameter(1, current_server_id);
 
-  std::vector<std::tuple<guid, ichunk_manager::index_type, int>> candidates;
+  std::vector<std::tuple<guid, ichunk_manager::index_type, int, guid>> candidates;
   while (st.execute()) {
     guid server_id;
     ichunk_manager::index_type chunk_index;
     int replica;
+    guid object_id;
 
     st.get_value(0, server_id);
     st.get_value(1, chunk_index);
     st.get_value(2, replica);
+    st.get_value(3, object_id);
 
-    candidates.push_back(std::make_tuple(server_id, chunk_index, replica));
+    candidates.push_back(std::make_tuple(server_id, chunk_index, replica, object_id));
   }
 
   auto connection_manager = sp.get<iconnection_manager>();
@@ -807,6 +840,7 @@ void vds::_chunk_manager::update_move_replicas(
     auto server_id = std::get<0>(candidates[index]);
     auto chunk_index = std::get<1>(candidates[index]);
     auto replica = std::get<2>(candidates[index]);
+    auto object_id = std::get<3>(candidates[index]);
 
     std::set<guid> data_request;
     data_request.emplace(server_id);

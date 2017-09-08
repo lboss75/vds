@@ -382,53 +382,21 @@ namespace vds {
         return this->source_->get_data(sp, this->input_buffer_, this->input_buffer_size_);
       }
       else {
-        if (0 < readed) {
-          if (this->input_buffer_size_ < readed) {
-            throw std::runtime_error("Login error");
-          }
-          
-          this->source_->readed(sp, readed);
-
-          this->input_buffer_ += readed;
-          this->input_buffer_size_ -= readed;
-        }
-        
-        if (!this->target_->push_data(sp, written, this->output_buffer_, this->output_buffer_size_)) {
-          return false;
-        }
-        
-        return this->source_->get_data(sp, this->input_buffer_, this->input_buffer_size_);
-      }
-      
-      if (0 < readed) {
         if (this->input_buffer_size_ < readed) {
           throw std::runtime_error("Login error");
         }
-        
+          
         this->source_->readed(sp, readed);
 
         this->input_buffer_ += readed;
         this->input_buffer_size_ -= readed;
       }
-      
+        
       if (!this->target_->push_data(sp, written, this->output_buffer_, this->output_buffer_size_)) {
         return false;
       }
-      
-      if (0 == written && 0 == readed) {
-        if (0 != this->input_buffer_size_) {
-          throw std::runtime_error("Logic error 13");
-        }
         
-        if (this->common_data_->step_finish(sp, context_type::INDEX)) {
-          return false;
-        }
-      }
-      else {
-        return this->source_->get_data(sp, this->input_buffer_, this->input_buffer_size_);
-      }
-      
-      return true;
+      return this->source_->get_data(sp, this->input_buffer_, this->input_buffer_size_);
     }
 
     bool cancel(const service_provider & sp)

@@ -218,6 +218,7 @@ namespace vds {
           mt_service::async(sp, f);
         }
 
+        lock.unlock();
         mt_service::async(sp, [sp, done, len]() {
           done(sp, len);
         });
@@ -236,6 +237,7 @@ namespace vds {
           mt_service::async(sp, f);
         }
 
+        lock.unlock();
         mt_service::async(sp, [sp, done, len]() {
           done(sp, len);
         });
@@ -294,6 +296,8 @@ namespace vds {
         });
       }
       else if(this->eof_){
+
+        lock.unlock();
         mt_service::async(sp, [sp, done](){
           done(sp, 0);
         });

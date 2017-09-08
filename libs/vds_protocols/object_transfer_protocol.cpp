@@ -126,17 +126,33 @@ void vds::_object_transfer_protocol::object_offer(
     message.server_id().str().c_str(),
     message.index(),
     message.replica());
-  auto current_server_id = sp.get<istorage_log>()->current_server_id();
+
+  auto storage_log = sp.get<istorage_log>();
+  auto current_server_id = storage_log->current_server_id();
   auto chunk_manager = sp.get<ichunk_manager>();
   
-  (*chunk_manager)->add_chunk_store_data(
+  const_data_buffer replica_hash;
+  bool replica_stored;
+  if ((*chunk_manager)->get_replica_info(
     sp,
     tr,
     message.server_id(),
     message.index(),
     message.replica(),
-    current_server_id,
-    message.data());
+    replica_hash,
+    replica_stored) && !replica_stored){
+
+    //TODO: Validate data hash
+    sp.get<istorage_log>()->add_to_local_log(
+      sp,
+      tr,
+      current_server_id,
+      storage_log->server_private_key(),
+      principal_log_store_replica(
+        message.server_id(),
+        message.index(),
+        message.replica()).serialize(true));
+  }
 }
 ////////////////////////////////////////////////////////
 vds::object_offer_replicas::object_offer_replicas(const const_data_buffer & binary_form)

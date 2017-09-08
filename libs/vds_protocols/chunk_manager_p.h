@@ -111,6 +111,15 @@ namespace vds {
       const guid & storage_id,
       const const_data_buffer & data);
 
+    bool get_replica_info(
+      const service_provider & sp,
+      database_transaction & tr,
+      const guid & server_id,
+      size_t chunk_index,
+      uint16_t replica,
+      const_data_buffer & replica_hash,
+      bool & replica_stored);
+
     void dump_state(
       const service_provider & sp,
       database_transaction & tr,
@@ -223,13 +232,6 @@ namespace vds {
       const guid & server_id,
       principal_log_new_chunk & chunk_info,
       const std::vector<uint8_t> & buffer,
-      const error_handler & on_error);
-
-    bool generate_tail_horcruxes(
-      const service_provider & sp,
-      database_transaction & tr,
-      const guid & server_id,
-      size_t chunk_index,
       const error_handler & on_error);
 
     size_t get_last_chunk(

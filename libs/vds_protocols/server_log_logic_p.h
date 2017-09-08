@@ -17,8 +17,9 @@ namespace vds {
   public:
     _server_log_logic(
       const service_provider & sp,
-      database_transaction & tr)
-    : sp_(sp), tr_(tr)
+      database_transaction & tr,
+      const guid & principal_id)
+    : sp_(sp), tr_(tr), principal_id_(principal_id)
     {
     }
     
@@ -100,10 +101,24 @@ namespace vds {
         msg.server_id().str(),
         msg.addresses());
     }
-    
+
+    void operator()(const principal_log_store_replica & msg) const
+    {
+      auto chunk_manager = this->sp_.get<ichunk_manager>();
+
+      (*chunk_manager)->add_chunk_store(
+        this->sp_,
+        this->tr_,
+        msg.server_id(),
+        msg.chunk_index(),
+        msg.replica_index(),
+        this->principal_id_);
+    }
+
   private:
     service_provider sp_;
     database_transaction & tr_;
+    guid principal_id_;
   };
 }
 

@@ -314,7 +314,7 @@ void vds::_storage_log::apply_record(
   try {
     this->validate_signature(sp, tr, record, signature);
     
-    parse_message(record.message(), _server_log_logic(sp, tr));
+    parse_message(record.message(), _server_log_logic(sp, tr, record.principal_id()));
     
     this->last_applied_record_ = record.id();
   }

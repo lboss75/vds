@@ -437,3 +437,27 @@ size_t vds::principal_log_new_chunk::replica_size() const
 {
   return 2 * (this->size_ / (2 * _chunk_manager::MIN_HORCRUX)) + ((0 == (this->size_ % (2 * _chunk_manager::MIN_HORCRUX))) ? 0 : 2); 
 }
+////////////////////////////////////////////////////
+const char vds::principal_log_store_replica::message_type[] = "store replica";
+
+vds::principal_log_store_replica::principal_log_store_replica(const std::shared_ptr<json_value>& source)
+{
+  auto s = std::dynamic_pointer_cast<json_object>(source);
+  if (s) {
+    s->get_property("s", this->server_id_);
+    s->get_property("i", this->chunk_index_);
+    s->get_property("r", this->replica_index_);
+  }
+}
+
+std::shared_ptr<vds::json_value> vds::principal_log_store_replica::serialize(bool add_type) const
+{
+  auto result = std::make_shared<json_object>();
+  if (add_type) {
+    result->add_property("$t", message_type);
+  }
+  result->add_property("s", this->server_id_);
+  result->add_property("i", this->chunk_index_);
+  result->add_property("r", this->replica_index_);
+  return result;
+}
