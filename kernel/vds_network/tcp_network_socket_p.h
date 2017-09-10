@@ -55,7 +55,6 @@ namespace vds {
       }
 #else
       if (0 <= this->s_) {
-        std::cout << "Socket closed\n";
         shutdown(this->s_, 2);
         this->s_ = -1;
       }
