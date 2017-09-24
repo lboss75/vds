@@ -158,6 +158,22 @@ namespace vds {
       database_column<std::string> login;
     };
     
+    class principal_member_table : public database_table
+    {
+    public:
+      group_member_principal_table()
+        : database_table("principal_member"),
+        principal_id(this, "principal_id"),
+        member_id(this, "member_id"),
+        cert(this, "cert")
+      {
+      }
+
+      database_column<guid> principal_id;
+      database_column<guid> member_id;
+      database_column<const_data_buffer> cert;
+    };
+    
     class principal_log_table : public database_table
     {
     public:
@@ -165,6 +181,7 @@ namespace vds {
         : database_table("principal_log"),
         id(this, "id"),
         principal_id(this, "principal_id"),
+        member_id(this, "member_id"),
         message(this, "message"),
         signature(this, "signature"),
         order_num(this, "order_num"),
@@ -174,6 +191,7 @@ namespace vds {
 
       database_column<guid> id;
       database_column<guid> principal_id;
+      database_column<guid> member_id;
       database_column<std::string> message;
       database_column<const_data_buffer> signature;
       database_column<int> order_num;

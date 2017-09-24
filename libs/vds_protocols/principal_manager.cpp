@@ -91,9 +91,17 @@ void vds::_principal_manager::create_database_objects(
       CONSTRAINT pk_user_principal PRIMARY KEY(id))");
     
     t.execute(
+      "CREATE TABLE principal_member(\
+      principal_id VARCHAR(64) NOT NULL,\
+      member_id VARCHAR(64) NOT NULL,\
+      cert BLOB NOT NULL,\
+      CONSTRAINT pk_principal_member PRIMARY KEY(principal_id,member_id))");
+    
+    t.execute(
       "CREATE TABLE principal_log(\
       id VARCHAR(64) NOT NULL,\
       principal_id VARCHAR(64) NOT NULL,\
+      member_id VARCHAR(64) NOT NULL,\
       message TEXT NOT NULL,\
       signature BLOB NOT NULL,\
       order_num INTEGER NOT NULL,\
