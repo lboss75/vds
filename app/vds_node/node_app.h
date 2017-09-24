@@ -34,8 +34,10 @@ namespace vds {
     command_line_set list_storage_cmd_set_;
     
     command_line_value storage_path_;
+    command_line_value target_path_;
 
     command_line_set node_install_cmd_set_;
+    command_line_set node_login_cmd_set_;
 
     client client_;
 

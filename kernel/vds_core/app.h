@@ -355,6 +355,13 @@ namespace vds{
     console_app()
     {
     }
+    
+    void on_exception(const std::shared_ptr<std::exception> & ex)
+    {
+      std::cerr << ex->what() << "\n";
+      
+      app_base<app_impl>::on_exception(ex);
+    }
   };
 }
 

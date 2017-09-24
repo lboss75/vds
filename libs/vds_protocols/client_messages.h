@@ -101,6 +101,46 @@ namespace vds {
       std::shared_ptr<json_value> serialize() const;
     };
     //////////////////////////////////////////////////////////////
+    class register_local_user_request
+    {
+    public:
+      static const char message_type[];
+
+      register_local_user_request(
+        const guid & id,
+        const guid & parent_id,
+        const std::string & server_certificate,
+        const std::string & server_private_key,
+        const const_data_buffer & password_hash);
+
+      register_local_user_request(const std::shared_ptr<json_value> &);
+      std::shared_ptr<json_value> serialize() const;
+
+      const guid & id() const { return this->id_; }
+      const guid & parent_id() const { return this->parent_id_; }
+      const std::string & server_certificate() const { return this->server_certificate_; }
+      const std::string & server_private_key() const { return this->server_private_key_; }
+      const const_data_buffer & password_hash() const { return this->password_hash_; }
+
+    private:
+      guid id_;
+      guid parent_id_;
+      std::string server_certificate_;
+      std::string server_private_key_;
+      const_data_buffer password_hash_;
+    };
+
+    class register_local_user_response
+    {
+    public:
+      static const char message_type[];
+
+      register_local_user_response();
+      register_local_user_response(const std::shared_ptr<json_value> &);
+
+      std::shared_ptr<json_value> serialize() const;
+    };
+    //////////////////////////////////////////////////////////////
     class put_object_message
     {
     public:

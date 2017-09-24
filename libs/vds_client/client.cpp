@@ -73,6 +73,14 @@ vds::async_task<
   return static_cast<_client *>(this)->init_server(sp, user_login, user_password);
 }
 
+vds::async_task<> vds::iclient::client_login(
+  const service_provider & sp,
+  const std::string & login,
+  const std::string & password)
+{
+  return static_cast<_client *>(this)->client_login(sp, login, password);
+}
+
 vds::async_task<const std::string& /*version_id*/> vds::iclient::upload_file(
   const service_provider & sp,
   const std::string & login,
@@ -151,24 +159,7 @@ vds::_client::init_server(
     foldername root_folder(persistence::current_user(sp), ".vds");
     root_folder.create();
     
-    sp.get<logger>()->trace("client", sp, "Register new user");
-    asymmetric_private_key local_user_private_key(asymmetric_crypto::rsa4096());
-    local_user_private_key.generate();
-
-    asymmetric_public_key local_user_pkey(local_user_private_key);
-
-    certificate::create_options local_user_options;
-    local_user_options.country = "RU";
-    local_user_options.organization = "IVySoft";
-    local_user_options.name = "Local User Certificate";
-    local_user_options.ca_certificate = &user_certificate;
-    local_user_options.ca_certificate_private_key = &user_private_key;
-
-    certificate local_user_certificate = certificate::create_new(local_user_pkey, local_user_private_key, local_user_options);
-
     user_certificate.save(filename(root_folder, "owner.crt"));
-    local_user_certificate.save(filename(root_folder, "user.crt"));
-    local_user_private_key.save(filename(root_folder, "user.pkey"));
 
     hash ph(hash::sha256());
     ph.update(user_password.c_str(), user_password.length());
@@ -181,6 +172,82 @@ vds::_client::init_server(
         response.id(),
         server_certificate.str(),
         base64::from_bytes(private_key.der(sp, user_password)),
+        ph.signature()).serialize())
+      .then([this](const std::function<void(const service_provider & sp)> & done,
+        const error_handler & on_error,
+        const service_provider & sp,
+        const client_messages::register_server_response & response) {
+      done(sp);
+    }).wait(
+      [server_cert = server_certificate.str(), private_key, done](const service_provider & sp) { done(sp, certificate::parse(server_cert), private_key); },
+      [on_error, root_folder](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+
+        file::delete_file(filename(root_folder, "user.crt"), true);
+        file::delete_file(filename(root_folder, "user.pkey"), true);
+
+        on_error(sp, ex);
+      },
+      sp);
+  });
+}
+
+vds::async_task<> vds::_client::client_login(
+  const service_provider & sp,
+  const std::string & login,
+  const std::string & password)
+{
+  return
+    this->authenticate(sp, login, password)
+    .then([this, password](
+      const std::function<void(const service_provider & sp)> & done,
+      const error_handler & on_error,
+      const service_provider & sp,
+      const client_messages::certificate_and_key_response & response) {
+    sp.get<logger>()->trace("client", sp, "Register new user");
+
+    auto user_certificate = certificate::parse(response.certificate_body());
+    auto user_private_key = asymmetric_private_key::parse_der(sp, base64::to_bytes(response.private_key_body()), password);
+
+    asymmetric_private_key local_user_private_key(asymmetric_crypto::rsa4096());
+    local_user_private_key.generate();
+
+    asymmetric_public_key local_user_pkey(local_user_private_key);
+
+    auto client_id = guid::new_guid();
+    
+    certificate::create_options local_user_options;
+    local_user_options.country = "RU";
+    local_user_options.organization = "IVySoft";
+    local_user_options.name = "Local User Certificate " + client_id.str();
+    local_user_options.ca_certificate = &user_certificate;
+    local_user_options.ca_certificate_private_key = &user_private_key;
+
+    certificate local_user_certificate = certificate::create_new(local_user_pkey, local_user_private_key, local_user_options);
+
+    foldername root_folder(persistence::current_user(sp), ".vds");
+    root_folder.create();
+    user_certificate.save(filename(root_folder, "owner.crt"));
+    local_user_certificate.save(filename(root_folder, "user.crt"));
+    local_user_private_key.save(filename(root_folder, "user.pkey"));
+
+    hash ph(hash::sha256());
+    ph.update(password.c_str(), password.length());
+    ph.final();
+    
+    binary_serializer user_info;
+    user_info << name << local_user_private_key.der();
+    local_user_private_key.serialize(user_info);
+    
+    auto user_certificate = certificate::parse(response.certificate_body());
+
+    auto meta_info = user_certificate.public_key().encrypt(file_info.data());
+
+    this->owner_->logic_->send_request<client_messages::register_local_user_response>(
+      sp,
+      client_messages::register_local_user_request(
+        client_id,
+        local_user_certificate.str(),
+        base64::from_bytes(local_user_private_key.der(sp, password)),
         ph.signature()).serialize())
       .then([this](const std::function<void(const service_provider & sp)> & done,
         const error_handler & on_error,

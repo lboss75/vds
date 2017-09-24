@@ -25,6 +25,11 @@ namespace vds {
         const service_provider & sp,
       const std::string & user_login,
       const std::string & user_password);
+      
+    async_task<> client_login(
+      const service_provider & sp,
+      const std::string & login,
+      const std::string & password);
 
     async_task<const std::string& /*version_id*/> upload_file(
       const service_provider & sp,

@@ -32,7 +32,8 @@ vds::udp_datagram::udp_datagram(
   : impl_(new _udp_datagram(server, port, data))
 {
   if (check_max_safe_data_size && max_safe_data_size < data.size()) {
-    throw std::runtime_error("Data too long");
+    auto size = data.size();
+    throw std::runtime_error(string_format("Data too long: %d, max: %d", size, max_safe_data_size));
   }
 }
 

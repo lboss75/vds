@@ -42,11 +42,20 @@ vds::node_app::node_app()
     "s", "storage",
     "Storage", "Path to the storage"
   ),
-
+  target_path_(
+    "t", "target-folder",
+    "Target", "Path to the target server folder"
+  ),
   node_install_cmd_set_(
     "Install Node",
     "Install new node",
     "install",
+    "node"
+  ),
+  node_login_cmd_set_(
+    "Login to the network",
+    "Login to the network",
+    "login",
     "node"
   ),
   login_(
@@ -79,8 +88,6 @@ void vds::node_app::main(
   const vds::service_provider& sp)
 {
   if (&this->node_install_cmd_set_ == this->current_command_set_) {
-    std::cout << "Waiting for network connection\n";
-
     barrier b;
     sp.get<vds::iclient>()->init_server(sp, this->login_.value(), this->password_.value())
       .wait(
@@ -89,18 +96,36 @@ void vds::node_app::main(
           const vds::certificate & server_certificate,
           const vds::asymmetric_private_key & private_key) {
 
-      foldername folder(persistence::current_user(sp), ".vds");
-      folder.create();
+          foldername folder(foldername(this->target_path_.value()), ".vds");
+          folder.create();
 
-      server_certificate.save(vds::filename(folder, "server.crt"));
-      private_key.save(vds::filename(folder, "server.pkey"));
+          server_certificate.save(vds::filename(folder, "server.crt"));
+          private_key.save(vds::filename(folder, "server.pkey"));
 
-      b.set();
-    },
+          b.set();
+        },
         [&b](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-      sp.unhandled_exception(ex);
-      b.set();
+          std::cerr << ex->what() << "\n";
+          sp.unhandled_exception(ex);
+          b.set();
     }, sp);
+    b.wait();
+  }
+  else if (&this->node_login_cmd_set_ == this->current_command_set_){
+    barrier b;
+    sp.get<vds::iclient>()->client_login(
+      sp,
+      this->login_.value(),
+      this->password_.value())
+      .wait(
+        [&b](const vds::service_provider & sp) {
+          b.set();
+        },
+        [](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+          sp.unhandled_exception(ex);
+        },
+      sp);
+
     b.wait();
   }
   else if (&this->file_upload_cmd_set_ == this->current_command_set_) {
@@ -180,16 +205,17 @@ void vds::node_app::register_command_line(vds::command_line& cmd_line)
   cmd_line.add_command_set(this->node_install_cmd_set_);
   this->node_install_cmd_set_.required(this->login_);
   this->node_install_cmd_set_.required(this->password_);
+  this->node_install_cmd_set_.required(this->target_path_);
 
+  cmd_line.add_command_set(this->node_login_cmd_set_);
+  this->node_login_cmd_set_.required(this->login_);
+  this->node_login_cmd_set_.required(this->password_);
+  
   cmd_line.add_command_set(this->file_upload_cmd_set_);
-  this->file_upload_cmd_set_.required(this->login_);
-  this->file_upload_cmd_set_.required(this->password_);
   this->file_upload_cmd_set_.required(this->filename_);
   this->file_upload_cmd_set_.optional(this->name_);
 
   cmd_line.add_command_set(this->file_download_cmd_set_);
-  this->file_download_cmd_set_.required(this->login_);
-  this->file_download_cmd_set_.required(this->password_);
   this->file_download_cmd_set_.required(this->filename_);
   this->file_download_cmd_set_.optional(this->name_);
 }
