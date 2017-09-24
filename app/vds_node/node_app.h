@@ -24,8 +24,6 @@ namespace vds {
     command_line_set file_upload_cmd_set_;
     command_line_set file_download_cmd_set_;
 
-    command_line_value root_folder_;
-
     command_line_value login_;
     command_line_value password_;
     command_line_value filename_;

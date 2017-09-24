@@ -80,7 +80,6 @@ void vds_mock::sync_wait()
       }
       else if(last_log_record != p->last_log_record()){
         is_good = false;
-        break;
       }
     }
     
@@ -209,7 +208,7 @@ void mock_client::init_server(
   registrator.shutdown(sp);
 
   if (error) {
-    std::rethrow_exception(std::make_exception_ptr(*error));
+    throw *error;
   }
 }
 
@@ -305,7 +304,7 @@ vds::const_data_buffer mock_client::download_data(const std::string & login, con
   }, false);
 
   if (error) {
-    std::rethrow_exception(std::make_exception_ptr(*error));
+    throw *error;
   }
 
   return result;
@@ -369,7 +368,7 @@ void mock_client::start_vds(bool full_client, const std::function<void(const vds
   registrator.shutdown(sp);
 
   if (error) {
-    std::rethrow_exception(std::make_exception_ptr(*error));
+    throw *error;
   }
 }
 
@@ -465,7 +464,7 @@ void mock_server::init_root(const std::string & root_password, int tcp_port, int
   registrator.shutdown(sp);
 
   if (error) {
-    std::rethrow_exception(std::make_exception_ptr(*error));
+    throw *error;
   }
 }
 

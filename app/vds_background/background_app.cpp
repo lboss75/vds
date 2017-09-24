@@ -10,10 +10,6 @@ All rights reserved
 
 vds::background_app::background_app()
 : server_start_command_set_("Server start", "Start web server", "start", "server"),
-  root_folder_(
-    "r", "root",
-    "Root folder", "Root folder to store files"
-  ),
   node_login_(
     "l",
     "login",
@@ -33,18 +29,13 @@ vds::background_app::background_app()
     "Install Root node",
     "Create new network",
     "root",
-    "server"),
-  start_(
-    "s", "start",
-    "Start server",
-    "Satrt server after creation")
+    "server")
 {
 }
 
 void vds::background_app::main(const service_provider & sp)
 {
-  if(this->current_command_set_ == &this->server_start_command_set_
-    || (&this->server_root_cmd_set_ == this->current_command_set_ && this->start_.value())){
+  if(this->current_command_set_ == &this->server_start_command_set_){
 
     for (;;) {
       std::cout << "Enter command:\n";
@@ -82,28 +73,15 @@ void vds::background_app::register_command_line(command_line & cmd_line)
   base_class::register_command_line(cmd_line);
 
   cmd_line.add_command_set(this->server_start_command_set_);
-  this->server_start_command_set_.optional(this->root_folder_);
   this->server_start_command_set_.optional(this->port_);
 
   cmd_line.add_command_set(this->server_root_cmd_set_);
   this->server_root_cmd_set_.required(this->node_password_);
-  this->server_root_cmd_set_.optional(this->root_folder_);
   this->server_root_cmd_set_.optional(this->port_);
-  this->server_root_cmd_set_.optional(this->start_);
 }
 
 void vds::background_app::start_services(service_registrator & registrator, service_provider & sp)
 {
-  if (!this->root_folder_.value().empty()) {
-    vds::foldername folder(this->root_folder_.value());
-    folder.create();
-
-    auto root_folders = new vds::persistence_values();
-    root_folders->current_user_ = folder;
-    root_folders->local_machine_ = folder;
-    sp.set_property<vds::persistence_values>(vds::service_provider::property_scope::root_scope, root_folders);
-  }
-
   if (&this->server_root_cmd_set_ == this->current_command_set_) {
     vds::asymmetric_private_key private_key(vds::asymmetric_crypto::rsa4096());
     private_key.generate();
@@ -157,3 +135,7 @@ void vds::background_app::start_services(service_registrator & registrator, serv
   }
 }
 
+bool vds::background_app::need_demonize()
+{
+  return (this->current_command_set_ == &this->server_start_command_set_);
+}

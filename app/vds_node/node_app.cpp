@@ -20,10 +20,6 @@ vds::node_app::node_app()
     "download",
     "file"
   ),
-  root_folder_(
-    "r", "root",
-    "Root folder", "Root folder to store files"
-  ),
   add_storage_cmd_set_(
     "Add new storage",
     "Add new storage to the network",
@@ -184,21 +180,18 @@ void vds::node_app::register_command_line(vds::command_line& cmd_line)
   cmd_line.add_command_set(this->node_install_cmd_set_);
   this->node_install_cmd_set_.required(this->login_);
   this->node_install_cmd_set_.required(this->password_);
-  this->node_install_cmd_set_.optional(this->root_folder_);
 
   cmd_line.add_command_set(this->file_upload_cmd_set_);
   this->file_upload_cmd_set_.required(this->login_);
   this->file_upload_cmd_set_.required(this->password_);
   this->file_upload_cmd_set_.required(this->filename_);
   this->file_upload_cmd_set_.optional(this->name_);
-  this->file_upload_cmd_set_.optional(this->root_folder_);
 
   cmd_line.add_command_set(this->file_download_cmd_set_);
   this->file_download_cmd_set_.required(this->login_);
   this->file_download_cmd_set_.required(this->password_);
   this->file_download_cmd_set_.required(this->filename_);
   this->file_download_cmd_set_.optional(this->name_);
-  this->file_download_cmd_set_.optional(this->root_folder_);
 }
 
 void vds::node_app::register_services(service_registrator & registrator)
@@ -214,15 +207,5 @@ void vds::node_app::register_services(service_registrator & registrator)
 
 void vds::node_app::start_services(service_registrator & registrator, service_provider & sp)
 {
-  if (!this->root_folder_.value().empty()) {
-    vds::foldername folder(this->root_folder_.value());
-    folder.create();
-
-    auto root_folders = new vds::persistence_values();
-    root_folders->current_user_ = folder;
-    root_folders->local_machine_ = folder;
-    sp.set_property<vds::persistence_values>(vds::service_provider::property_scope::root_scope, root_folders);
-  }
-
   base_class::start_services(registrator, sp);
 }

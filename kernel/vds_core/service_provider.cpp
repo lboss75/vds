@@ -31,7 +31,8 @@ size_t vds::service_provider::id() const
 
 const std::string & vds::service_provider::name() const
 {
-  return this->impl_->name();
+  static std::string empty_string;
+  return this->impl_ ? this->impl_->name() : empty_string;
 }
 
 const std::string & vds::service_provider::full_name() const
@@ -67,7 +68,7 @@ void vds::service_provider::unhandled_exception(const std::shared_ptr<std::excep
   }
   else {
     this->get<logger>()->error("sp", *this, "Unhandler error %s", ex->what());
-    throw std::runtime_error(std::string("Unhandler error ") + ex->what());
+    abort();
   }
 }
 

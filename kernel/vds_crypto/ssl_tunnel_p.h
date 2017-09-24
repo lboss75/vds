@@ -135,7 +135,7 @@ namespace vds {
             }
           }
           else {
-            assert(bytes == this->crypted_input_data_size_);
+            assert((size_t)bytes == this->crypted_input_data_size_);
             this->crypted_input_data_size_ = 0;
             this->start_crypted_input(sp);
           }
@@ -157,7 +157,7 @@ namespace vds {
             }
           }
           else {
-            assert(bytes == this->decrypted_input_data_size_);
+            assert((size_t)bytes == this->decrypted_input_data_size_);
             
             this->decrypted_input_data_size_ = 0;
             this->start_decrypted_input(sp);

@@ -18,6 +18,7 @@ namespace vds {
     void register_services(service_registrator & registrator);
     void register_command_line(command_line & cmd_line);
     void start_services(service_registrator & registrator, service_provider & sp);
+    bool need_demonize();
 
   private:
     command_line_set server_start_command_set_;
@@ -25,9 +26,7 @@ namespace vds {
 
     command_line_value node_login_;
     command_line_value node_password_;
-    command_line_value root_folder_;
     command_line_value port_;
-    command_line_switch start_;
 
     std::list<endpoint> endpoints_;
 

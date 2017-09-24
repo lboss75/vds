@@ -46,7 +46,7 @@ int vds::command_line_value::try_parse(
   }
   
   if(
-    argv[0] != "-" + this->sort_switch_
+    (this->sort_switch_.empty() || argv[0] != "-" + this->sort_switch_)
     && argv[0] != "--" + this->long_switch_) {
     return -1;
   }
@@ -214,7 +214,7 @@ int vds::command_line_switch::try_parse(
   }
   
   if(
-    argv[0] != "-" + this->sort_switch_
+    (this->sort_switch_.empty() || argv[0] != "-" + this->sort_switch_)
     && argv[0] != "--" + this->long_switch_) {
     return -1;
   }
@@ -231,7 +231,7 @@ int vds::command_line_switch::try_parse(
 
 void vds::command_line_switch::print_usage(std::map< std::string, const vds::command_line_item* >& items) const
 {
-  auto switch_text = "-" + this->sort_switch_;
+  auto switch_text = this->sort_switch_.empty() ? ("--" + this->long_switch_) : ("-" + this->sort_switch_);
   std::cout << switch_text;
   
   if(items.end() == items.find(switch_text)){
@@ -297,7 +297,7 @@ int vds::command_line_set::try_parse(
 {  
   if(!this->categoty_.empty()){
     if(argc < 1 || argv[0] != this->categoty_){
-      return -1;
+      return argc + 1;
     }
     
     ++argv;
@@ -306,7 +306,7 @@ int vds::command_line_set::try_parse(
   
   if(!this->command_.empty()){
     if(argc < 1 || argv[0] != this->command_){
-      return -1;
+      return argc + 1;
     }
     
     ++argv;
@@ -355,6 +355,7 @@ int vds::command_line_set::try_parse(
         throw std::runtime_error("Logic error 28");
       }
       
+      last_error = std::string(argv[0]) + " is unexpected";
       return argc;
     }
   }

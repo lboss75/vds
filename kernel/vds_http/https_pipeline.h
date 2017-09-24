@@ -4,7 +4,7 @@
 /*
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
-*/
+*
 namespace vds {
   class https_pipeline
   {
@@ -37,5 +37,6 @@ namespace vds {
     const std::unique_ptr<class _https_pipeline> impl_;
   };
 }
+*/
 
 #endif // __VDS_HTTP_HTTPS_PIPELINE_H_

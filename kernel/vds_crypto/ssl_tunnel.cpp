@@ -70,14 +70,14 @@ vds::_ssl_tunnel::_ssl_tunnel(
   const asymmetric_private_key * key)
 : owner_(owner),
   is_client_(is_client),
-  crypted_input_(new continuous_stream<uint8_t>()),
-  crypted_output_(new continuous_stream<uint8_t>()),
-  decrypted_input_(new continuous_stream<uint8_t>()),
-  decrypted_output_(new continuous_stream<uint8_t>()),
   crypted_output_data_size_(0),
   crypted_input_data_size_(0),
   decrypted_output_data_size_(0),
   decrypted_input_data_size_(0),
+  crypted_input_(new continuous_stream<uint8_t>()),
+  crypted_output_(new continuous_stream<uint8_t>()),
+  decrypted_input_(new continuous_stream<uint8_t>()),
+  decrypted_output_(new continuous_stream<uint8_t>()),
   crypted_input_eof_(false),
   decrypted_input_eof_(false)
 {
