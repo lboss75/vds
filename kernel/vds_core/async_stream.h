@@ -28,7 +28,9 @@ namespace vds {
     ~continuous_stream()
     {
       if (0 != this->second_ || 0 != this->front_ || 0 != this->back_ || this->continue_read_ || this->continue_write_) {
-        throw std::runtime_error("Logiñ error");
+        if(!std::current_exception()){
+          throw std::runtime_error("continuous_stream::~continuous_stream logic error");
+        }
       }
     }
 
@@ -52,7 +54,7 @@ namespace vds {
         if (0 == data_size) {
           if (this->eof_) {
             this->in_mutex_.unlock();
-            throw std::runtime_error("Logiñ error");
+            throw std::runtime_error("continuous_stream::write_all_async logic error");
           }
           this->eof_ = true;
           this->eof_stack_ = sp.full_name();
@@ -171,7 +173,7 @@ namespace vds {
     void reset()
     {
       if (!this->eof_ || 0 != this->second_ || 0 != this->front_ || 0 != this->back_ || this->continue_read_ || this->continue_write_) {
-        throw std::runtime_error("Logiñ error");
+        throw std::runtime_error("continuous_stream::reset logic error");
       }
 
       this->eof_ = false;

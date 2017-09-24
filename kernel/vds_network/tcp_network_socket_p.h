@@ -326,6 +326,7 @@ namespace vds {
 #else
     class _socket_handler : public _socket_task
     {
+      using this_class = _socket_handler;
     public:
       _socket_handler(
         const service_provider & sp,
@@ -336,21 +337,18 @@ namespace vds {
           read_timeout_ticks_(0),
           closed_(false)
       {
-        this->network_service_->associate(sp, this->owner_->s_, this, this->event_masks_);
       }
       
       ~_socket_handler()
       {
-        if(0 != this->event_masks_){
+        if(EPOLLET != this->event_masks_){
           this->network_service_->remove_association(this->sp_, this->owner_->s_);
         }
       }
 
       void start()
       {
-        this->read_this_ = this->shared_from_this();
-        this->write_this_ = this->shared_from_this();
-        
+        this->network_service_->associate(this->sp_, this->owner_->s_, this->shared_from_this(), this->event_masks_);
         this->schedule_write();
       }
       
@@ -363,9 +361,8 @@ namespace vds {
           this->closed_ = true;
           this->owner_->incoming_->write_all_async(this->sp_, nullptr, 0)
           .wait(
-            [this](const service_provider & sp) {
+            [](const service_provider & sp) {
               sp.get<logger>()->trace("TCP", sp, "input closed");
-              this->write_this_.reset();
             },
             [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
               sp.unhandled_exception(ex);
@@ -413,15 +410,14 @@ namespace vds {
            (this->closed_ ? "true" : "false"));
         
         if(1 < this->read_timeout_ticks_++ && !this->closed_){
-          this->change_mask(0, EPOLLIN);
+          this->change_mask(0, EPOLLIN | EPOLLOUT);
 
           this->sp_.get<logger>()->trace("TCP", this->sp_, "read timeout");
           this->closed_ = true;
           this->owner_->incoming_->write_all_async(this->sp_, nullptr, 0)
           .wait(
-            [this](const service_provider & sp) {
+            [](const service_provider & sp) {
               sp.get<logger>()->trace("TCP", sp, "input closed");
-              this->write_this_.reset();
             },
             [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
               sp.unhandled_exception(ex);
@@ -435,9 +431,6 @@ namespace vds {
       std::shared_ptr<_tcp_network_socket> owner_;
       _network_service * network_service_;
       
-      std::shared_ptr<_socket_task> read_this_;
-      std::shared_ptr<_socket_task> write_this_;
-     
       uint8_t read_buffer_[10 * 1024 * 1024];
       
       uint8_t write_buffer_[10 * 1024 * 1024];
@@ -450,18 +443,18 @@ namespace vds {
       void change_mask(uint32_t set_events, uint32_t clear_events = 0)
       {
         std::unique_lock<std::mutex> lock(this->event_masks_mutex_);
-        auto need_create = (0 == this->event_masks_);
+        auto need_create = (EPOLLET == this->event_masks_);
         this->event_masks_ |= set_events;
         this->event_masks_ &= ~clear_events;
         
-        if(!need_create && 0 != this->event_masks_){
+        if(!need_create && EPOLLET != this->event_masks_){
           this->network_service_->set_events(this->sp_, this->owner_->s_, this->event_masks_);
         }
-        else if (0 == this->event_masks_){
+        else if (EPOLLET == this->event_masks_){
           this->network_service_->remove_association(this->sp_, this->owner_->s_);
         }
         else {
-          this->network_service_->associate(this->sp_, this->owner_->s_, this, this->event_masks_);
+          this->network_service_->associate(this->sp_, this->owner_->s_, this->shared_from_this(), this->event_masks_);
         }
       }
      
@@ -469,18 +462,16 @@ namespace vds {
       {
         this->sp_.get<logger>()->trace("TCP", this->sp_, "waiting data to send");
         this->owner_->outgoing_->read_async(this->sp_, this->write_buffer_, sizeof(this->write_buffer_))
-        .wait([this](const service_provider & sp, size_t readed){
+        .wait([pthis = this->shared_from_this()](const service_provider & sp, size_t readed){
           if(0 == readed){
             //End of stream
             sp.get<logger>()->trace("TCP", sp, "output closed");
-            shutdown(this->owner_->s_, SHUT_WR);
-            this->read_this_.reset();
+            shutdown(static_cast<this_class *>(pthis.get())->owner_->s_, SHUT_WR);
           }
           else {
             sp.get<logger>()->trace("TCP", sp, "scheduled to send %d", readed);
-            this->write_len_ = readed;
-            
-            this->change_mask(EPOLLOUT);
+            static_cast<this_class *>(pthis.get())->write_len_ = readed;
+            static_cast<this_class *>(pthis.get())->change_mask(EPOLLOUT);
           }
         },
         [](const service_provider & sp, const std::shared_ptr<std::exception> & ex){
@@ -512,13 +503,12 @@ namespace vds {
         this->sp_.get<logger>()->trace("TCP", this->sp_, "got %d bytes", len);
         this->owner_->incoming_->write_all_async(this->sp_, this->read_buffer_, len)
           .wait(
-            [this, len](const service_provider & sp) {
+            [pthis = this->shared_from_this(), len](const service_provider & sp) {
               if(0 != len){
-                this->read_data();
+                static_cast<this_class *>(pthis.get())->read_data();
               }
               else {
                 sp.get<logger>()->trace("TCP", sp, "input closed");
-                this->write_this_.reset();
               }
             },
             [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {

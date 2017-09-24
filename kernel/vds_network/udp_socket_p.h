@@ -351,13 +351,16 @@ namespace vds {
 #else
     class _udp_handler : public _socket_task
     {
+      using this_class = _udp_handler;
     public:
       _udp_handler(
         const service_provider & sp,
         const std::shared_ptr<_udp_socket> & owner)
         : sp_(sp), owner_(owner),
           network_service_(static_cast<_network_service *>(this->sp_.get<inetwork_service>())),
-          event_masks_(EPOLLIN | EPOLLET)
+          event_masks_(EPOLLIN | EPOLLET),
+          read_timeout_ticks_(0),
+          closed_(false)
       {
       }
       
@@ -367,17 +370,15 @@ namespace vds {
 
       void start()
       {
-        this->network_service_->associate(this->sp_, this->owner_->s_, this, this->event_masks_);
+        this->network_service_->associate(this->sp_, this->owner_->s_, this->shared_from_this(), this->event_masks_);
         this->schedule_write();
       }
       
       void stop()
       {
-        if(0 != this->event_masks_){
+        if(EPOLLET != this->event_masks_){
           this->network_service_->remove_association(this->sp_, this->owner_->s_);
         }
-        
-        this->owner_.reset();
       }
       
       void process(uint32_t events) override
@@ -420,12 +421,46 @@ namespace vds {
         }
       }
       
-      void check_timeout(const service_provider & /*sp*/) override
+      void check_timeout(const service_provider & sp) override
       {
+        sp.get<logger>()->trace("UDP", sp, "check_timeout(ticks=%d, is_closed=%s)",
+           this->read_timeout_ticks_,
+           (this->closed_ ? "true" : "false"));
+        
+        if(1 < this->read_timeout_ticks_++ && !this->closed_){
+          this->change_mask(0, EPOLLIN | EPOLLOUT);
+
+          this->sp_.get<logger>()->trace("UDP", this->sp_, "read timeout");
+          this->closed_ = true;
+          this->owner_->incoming_->write_all_async(this->sp_, nullptr, 0)
+          .wait(
+            [](const service_provider & sp) {
+              sp.get<logger>()->trace("UDP", sp, "input closed");
+            },
+            [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+              sp.unhandled_exception(ex);
+            },
+            this->sp_);
+        }          
       }
       
       void prepare_to_stop(const service_provider & /*sp*/) override
       {
+        if(!this->closed_){
+          this->change_mask(0, EPOLLIN);
+
+          this->sp_.get<logger>()->trace("UDP", this->sp_, "read timeout");
+          this->closed_ = true;
+          this->owner_->incoming_->write_all_async(this->sp_, nullptr, 0)
+          .wait(
+            [](const service_provider & sp) {
+              sp.get<logger>()->trace("UDP", sp, "input closed");
+            },
+            [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+              sp.unhandled_exception(ex);
+            },
+            this->sp_);
+        }          
       }
 
 
@@ -433,9 +468,6 @@ namespace vds {
       service_provider sp_;
       std::shared_ptr<_udp_socket> owner_;
       _network_service * network_service_;
-      
-      std::shared_ptr<_socket_task> read_this_;
-      std::shared_ptr<_socket_task> write_this_;
       
       std::mutex event_masks_mutex_;
       uint32_t event_masks_;
@@ -445,36 +477,37 @@ namespace vds {
       uint8_t read_buffer_[10 * 1024 * 1024];
       
       udp_datagram write_buffer_;
+      int read_timeout_ticks_;
+      bool closed_;
       
       void change_mask(uint32_t set_events, uint32_t clear_events = 0)
       {
         std::unique_lock<std::mutex> lock(this->event_masks_mutex_);
-        auto need_create = (0 == this->event_masks_);
+        auto need_create = (EPOLLET == this->event_masks_);
         this->event_masks_ |= set_events;
         this->event_masks_ &= ~clear_events;
         
-        if(!need_create && 0 != this->event_masks_){
+        if(!need_create && EPOLLET != this->event_masks_){
           this->network_service_->set_events(this->sp_, this->owner_->s_, this->event_masks_);
         }
-        else if (0 == this->event_masks_){
+        else if (EPOLLET == this->event_masks_){
           this->network_service_->remove_association(this->sp_, this->owner_->s_);
         }
         else {
-          this->network_service_->associate(this->sp_, this->owner_->s_, this, this->event_masks_);
+          this->network_service_->associate(this->sp_, this->owner_->s_, this->shared_from_this(), this->event_masks_);
         }
       }
       
       void schedule_write()
       {
         this->owner_->outgoing_->read_async(this->sp_, &this->write_buffer_, 1)
-        .wait([this](const service_provider & sp, size_t readed){
+        .wait([pthis = this->shared_from_this()](const service_provider & sp, size_t readed){
           if(0 == readed){
             //End of stream
-            shutdown(this->owner_->s_, SHUT_WR);
-            this->read_this_.reset();
+            shutdown(static_cast<this_class *>(pthis.get())->owner_->s_, SHUT_WR);
           }
           else {
-            this->change_mask(EPOLLOUT);
+            static_cast<this_class *>(pthis.get())->change_mask(EPOLLOUT);
           }
         },
         [](const service_provider & sp, const std::shared_ptr<std::exception> & ex){
@@ -497,16 +530,20 @@ namespace vds {
           }
           throw std::system_error(error, std::system_category(), "recvfrom");
         }
+        else {
+          this->closed_ = true;
+        }
         
+        this->read_timeout_ticks_ = 0;
         this->sp_.get<logger>()->trace("UDP", this->sp_, "got %d bytes from %s", len, network_service::to_string(this->addr_).c_str());
         this->owner_->incoming_->write_value_async(this->sp_, _udp_datagram::create(this->addr_, this->read_buffer_, len))
           .wait(
-            [this, len](const service_provider & sp) {
+            [pthis = this->shared_from_this(), len](const service_provider & sp) {
               if(0 != len){
-                this->read_data();
+                static_cast<this_class *>(pthis.get())->read_data();
               }
               else {
-                this->write_this_.reset();
+                sp.get<logger>()->trace("UDP", sp, "input closed");
               }
             },
             [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {

@@ -72,7 +72,6 @@ std::string vds::network_service::get_ip_address_string(const sockaddr_in & from
 }
 /////////////////////////////////////////////////////////////////////////////
 vds::_network_service::_network_service()
-: update_timer_("Sockets update timer")
 {
 }
 
@@ -110,7 +109,19 @@ void vds::_network_service::start(const service_provider & sp)
     }
   this->epoll_thread_ = std::thread(
     [this, sp] {
-      while(!sp.get_shutdown_event().is_shuting_down()){
+      auto last_timeout_update = std::chrono::steady_clock::now();
+      for(;;){
+        std::unique_lock<std::mutex> lock(this->tasks_mutex_);
+        if(this->tasks_.empty()){
+          if(sp.get_shutdown_event().is_shuting_down()){
+            break;
+          }
+          
+          this->tasks_cond_.wait(lock);
+          continue;
+        }
+        lock.unlock();
+        
         struct epoll_event events[64];
         
         auto result = epoll_wait(this->epoll_set_, events, sizeof(events) / sizeof(events[0]), 1000);
@@ -124,37 +135,61 @@ void vds::_network_service::start(const service_provider & sp)
         }
         else if(0 < result){
           for(int i = 0; i < result; ++i){
-            std::unique_lock<std::mutex> lock(this->tasks_mutex_);
+            lock.lock();
             auto p = this->tasks_.find(events[i].data.fd);
             if(this->tasks_.end() != p){
-              p->second->process(events[i].events);
+              std::shared_ptr<_socket_task> handler = p->second;
+              lock.unlock();
+              
+              handler->process(events[i].events);
+            }
+            else {
+              lock.unlock();
             }
           }
         }          
+        
+        if(std::chrono::seconds(30) < std::chrono::steady_clock::now() - last_timeout_update){
+          std::set<SOCKET_HANDLE> processed;
+          
+          for(;;){
+            bool bcontinue = false;
+            
+            lock.lock();
+            for(auto & p : this->tasks_) {
+              if(processed.end() != processed.find(p.first)){
+                continue;
+              }
+              processed.emplace(p.first);
+              std::shared_ptr<_socket_task> handler = p.second;
+              lock.unlock();
+              
+              handler->check_timeout(sp);
+              bcontinue = true;
+              break;
+            }
+            
+            if(!bcontinue){
+              lock.unlock();
+              break;
+            }
+          }
+          
+          last_timeout_update = std::chrono::steady_clock::now();
+        }
       }
   });
 #endif
-  
-  this->update_timer_.start(sp, std::chrono::seconds(30),
-    [sp, this]()-> bool {
-      sp.get<logger>()->trace("network", sp, "Wait lock");
-      std::unique_lock<std::mutex> lock(this->tasks_mutex_);
-      sp.get<logger>()->trace("network", sp, "start check_timeout");
-      for(auto & p : this->tasks_) {
-        p.second->check_timeout(sp);
-      }
-      
-      return !sp.get_shutdown_event().is_shuting_down();
-    });
+ 
 }
 
 void vds::_network_service::stop(const service_provider & sp)
 {
-  this->update_timer_.stop(sp);
     try {
       sp.get<logger>()->trace("network", sp, "Stopping network service");
       
 #ifndef _WIN32
+      this->tasks_cond_.notify_one();
       if(this->epoll_thread_.joinable()){
         this->epoll_thread_.join();
       }
@@ -184,9 +219,32 @@ void vds::_network_service::stop(const service_provider & sp)
 
 void vds::_network_service::prepare_to_stop(const service_provider & sp)
 {
+  std::set<SOCKET_HANDLE> processed;
+  
   std::unique_lock<std::mutex> lock(this->tasks_mutex_);
-  for(auto & p : this->tasks_) {
-    p.second->prepare_to_stop(sp);
+
+  for(;;){
+    bool bcontinue = false;
+    
+    for(auto & p : this->tasks_) {
+      if(processed.end() != processed.find(p.first)){
+        continue;
+      }
+      processed.emplace(p.first);
+      std::shared_ptr<_socket_task> handler = p.second;
+      lock.unlock();
+      
+      handler->prepare_to_stop(sp);
+      bcontinue = true;
+      break;
+    }
+    
+    if(!bcontinue){
+      break;
+    }
+    else {
+      lock.lock();
+    }
   }
 }
 
@@ -263,7 +321,7 @@ void vds::_network_service::thread_loop(const service_provider & sp)
 void vds::_network_service::associate(
   const service_provider & sp,
   SOCKET_HANDLE s,
-  _socket_task * handler,
+  const std::shared_ptr<_socket_task> & handler,
   uint32_t event_mask)
 {
   struct epoll_event event_data;
@@ -274,10 +332,14 @@ void vds::_network_service::associate(
   int result = epoll_ctl(this->epoll_set_, EPOLL_CTL_ADD, s, &event_data);
   if(0 > result) {
     auto error = errno;
-    throw std::system_error(error, std::system_category(), "epoll_ctl");
+    throw std::system_error(error, std::system_category(), "epoll_ctl(EPOLL_CTL_ADD)");
   }
   
   std::unique_lock<std::mutex> lock(this->tasks_mutex_);
+  if(this->tasks_.empty()){
+    this->tasks_cond_.notify_one();
+  }
+  
   this->tasks_[s] = handler;
 }
 
@@ -294,7 +356,7 @@ void vds::_network_service::set_events(
   int result = epoll_ctl(this->epoll_set_, EPOLL_CTL_MOD, s, &event_data);
   if(0 > result) {
     auto error = errno;
-    throw std::system_error(error, std::system_category(), "epoll_ctl");
+    throw std::system_error(error, std::system_category(), "epoll_ctl(EPOLL_CTL_MOD)");
   }
 }
 
@@ -309,7 +371,7 @@ void vds::_network_service::remove_association(
   int result = epoll_ctl(this->epoll_set_, EPOLL_CTL_DEL, s, &event_data);
   if(0 > result) {
     auto error = errno;
-    throw std::system_error(error, std::system_category(), "epoll_ctl");
+    throw std::system_error(error, std::system_category(), "epoll_ctl(EPOLL_CTL_DEL)");
   }
   
   std::unique_lock<std::mutex> lock(this->tasks_mutex_);

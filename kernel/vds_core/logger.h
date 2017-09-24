@@ -136,6 +136,10 @@ namespace vds {
       
       bool check(const std::string & module, const service_provider & sp, log_level level) const
       {
+        if(log_level::ll_error <= level) {
+          return true;
+        }
+        
         if (this->min_log_level() > level) {
           return false;
         }

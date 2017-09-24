@@ -54,12 +54,6 @@ namespace vds {
 
     udp_datagram & operator = (const udp_datagram & r)
     {
-      auto p1 = this->impl_.get();
-      auto id1 = this->id_;
-
-      auto p2 = r.impl_.get();
-      auto id2 = r.id_;
-
       if (this->impl_.get() != r.impl_.get()) {
         this->impl_ = r.impl_;
       }

@@ -43,7 +43,7 @@ namespace vds {
         void associate(
           const service_provider & sp,
           SOCKET_HANDLE s,
-          _socket_task * handler,
+          const std::shared_ptr<_socket_task> & handler,
           uint32_t event_mask);
         void set_events(
           const service_provider & sp,
@@ -63,9 +63,9 @@ namespace vds {
         friend class _read_socket_task;
         friend class _write_socket_task;
         
-        timer update_timer_;
-        std::map<SOCKET_HANDLE, _socket_task *> tasks_;
+        std::map<SOCKET_HANDLE, std::shared_ptr<_socket_task>> tasks_;
         std::mutex tasks_mutex_;
+        std::condition_variable tasks_cond_;
 
 #ifdef _WIN32
         HANDLE handle_;

@@ -192,7 +192,7 @@ namespace vds {
           this->target_(done, on_error, sp);
         }
         catch (const std::exception & ex) {
-          on_error(sp, std::make_shared<std::exception>(ex));
+          on_error(sp, std::make_shared<std::runtime_error>(ex.what()));
         }
         catch (...) {
           on_error(sp, std::make_shared<std::runtime_error>("Unexpected error"));
