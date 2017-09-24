@@ -43,8 +43,8 @@ namespace vds {
         const guid & id,
         const std::string & certificate_body,
         const std::string & private_key_body,
-        size_t order_num
-      );
+        size_t order_num,
+        const std::list<guid> & parents);
 
       certificate_and_key_response(const std::shared_ptr<json_value> &);
       std::shared_ptr<json_value> serialize() const;
@@ -53,12 +53,14 @@ namespace vds {
       const std::string & certificate_body() const { return this->certificate_body_; }
       const std::string & private_key_body() const { return this->private_key_body_; }
       size_t order_num() const { return this->order_num_; }
+      std::list<guid> & parents() const { return this->parents_; }
 
     private:
       guid id_;
       std::string certificate_body_;
       std::string private_key_body_;
       size_t order_num_;
+      std::list<guid> parents_;
     };
 
     class register_server_request

@@ -73,12 +73,13 @@ vds::async_task<
   return static_cast<_client *>(this)->init_server(sp, user_login, user_password);
 }
 
-vds::async_task<> vds::iclient::client_login(
+vds::async_task<> vds::iclient::create_local_login(
   const service_provider & sp,
   const std::string & login,
-  const std::string & password)
+  const std::string & password,
+  const std::string & name)
 {
-  return static_cast<_client *>(this)->client_login(sp, login, password);
+  return static_cast<_client *>(this)->create_local_login(sp, login, password, name);
 }
 
 vds::async_task<const std::string& /*version_id*/> vds::iclient::upload_file(
@@ -191,14 +192,15 @@ vds::_client::init_server(
   });
 }
 
-vds::async_task<> vds::_client::client_login(
+vds::async_task<> vds::_client::create_local_login(
   const service_provider & sp,
   const std::string & login,
-  const std::string & password)
+  const std::string & password,
+  const std::string & name)
 {
   return
     this->authenticate(sp, login, password)
-    .then([this, password](
+    .then([this, name, password](
       const std::function<void(const service_provider & sp)> & done,
       const error_handler & on_error,
       const service_provider & sp,
@@ -213,12 +215,12 @@ vds::async_task<> vds::_client::client_login(
 
     asymmetric_public_key local_user_pkey(local_user_private_key);
 
-    auto client_id = guid::new_guid();
+    auto member_id = guid::new_guid();
     
     certificate::create_options local_user_options;
     local_user_options.country = "RU";
     local_user_options.organization = "IVySoft";
-    local_user_options.name = "Local User Certificate " + client_id.str();
+    local_user_options.name = "Local User Certificate " + member_id.str();
     local_user_options.ca_certificate = &user_certificate;
     local_user_options.ca_certificate_private_key = &user_private_key;
 
@@ -234,37 +236,48 @@ vds::async_task<> vds::_client::client_login(
     ph.update(password.c_str(), password.length());
     ph.final();
     
-    binary_serializer user_info;
-    user_info << name << local_user_private_key.der();
-    local_user_private_key.serialize(user_info);
+    //Form principal_log message
+    auto msg = principal_log_record(
+      guid::new_guid(),
+      response.id(),
+      response.parents(),
+      principal_log_new_member(member_id, name, local_user_certificate).serialize(),
+      response.order_num() + 1).serialize(false);                              
     
-    auto user_certificate = certificate::parse(response.certificate_body());
+    auto s = msg->str();
+    const_data_buffer signature;
+    dataflow(
+      dataflow_arguments<uint8_t>((const uint8_t *)s.c_str(), s.length()),
+      asymmetric_sign(
+        hash::sha256(),
+        asymmetric_private_key::parse_der(sp, base64::to_bytes(response.private_key_body()), password),
+        signature)
+    )(
+      [this, done, on_error, &signature, &response, msg, version_id, tmp_file](const service_provider & sp){
+        this->owner_->logic_->send_request<client_messages::register_local_user_response>(
+          sp,
+          client_messages::register_local_user_request(
+            client_id,
+            local_user_certificate.str(),
+            base64::from_bytes(local_user_private_key.der(sp, password)),
+            ph.signature()).serialize())
+          .then([this](const std::function<void(const service_provider & sp)> & done,
+            const error_handler & on_error,
+            const service_provider & sp,
+            const client_messages::register_server_response & response) {
+          done(sp);
+        }).wait(
+          [server_cert = server_certificate.str(), private_key, done](const service_provider & sp) { done(sp, certificate::parse(server_cert), private_key); },
+          [on_error, root_folder](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
 
-    auto meta_info = user_certificate.public_key().encrypt(file_info.data());
+            file::delete_file(filename(root_folder, "user.crt"), true);
+            file::delete_file(filename(root_folder, "user.pkey"), true);
 
-    this->owner_->logic_->send_request<client_messages::register_local_user_response>(
-      sp,
-      client_messages::register_local_user_request(
-        client_id,
-        local_user_certificate.str(),
-        base64::from_bytes(local_user_private_key.der(sp, password)),
-        ph.signature()).serialize())
-      .then([this](const std::function<void(const service_provider & sp)> & done,
-        const error_handler & on_error,
-        const service_provider & sp,
-        const client_messages::register_server_response & response) {
-      done(sp);
-    }).wait(
-      [server_cert = server_certificate.str(), private_key, done](const service_provider & sp) { done(sp, certificate::parse(server_cert), private_key); },
-      [on_error, root_folder](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-
-        file::delete_file(filename(root_folder, "user.crt"), true);
-        file::delete_file(filename(root_folder, "user.pkey"), true);
-
-        on_error(sp, ex);
-      },
-      sp);
-  });
+            on_error(sp, ex);
+          },
+          sp);
+      });
+    });
 }
 
 vds::async_task<const std::string& /*version_id*/> vds::_client::upload_file(
