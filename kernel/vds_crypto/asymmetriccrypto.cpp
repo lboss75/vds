@@ -58,7 +58,7 @@ vds::const_data_buffer vds::asymmetric_private_key::der(const service_provider &
   return this->impl_->der(sp, password);
 }
 
-vds::asymmetric_private_key vds::asymmetric_private_key::parse_der(const service_provider & sp, const const_data_buffer & value, const std::string & password /*= std::string()*/)
+vds::async_task<vds::asymmetric_private_key> vds::asymmetric_private_key::parse_der(const service_provider & sp, const const_data_buffer & value, const std::string & password /*= std::string()*/)
 {
   return _asymmetric_private_key::parse_der(sp, value, password);
 }
@@ -189,33 +189,39 @@ vds::const_data_buffer vds::_asymmetric_private_key::der(
   }
 }
 
-vds::asymmetric_private_key vds::_asymmetric_private_key::parse_der(
+vds::async_task<vds::asymmetric_private_key> vds::_asymmetric_private_key::parse_der(
   const service_provider & sp,
   const const_data_buffer & value,
   const std::string & password /*= std::string()*/)
 {
   if(!password.empty()){
-    std::vector<uint8_t> buffer;
+    auto buffer = std::make_shared<std::vector<uint8_t>>();
 
     auto key = symmetric_key::from_password(password);
-    dataflow(
+    return dataflow(
       dataflow_arguments<uint8_t>(value.data(), value.size()),
       symmetric_decrypt(key),
-      collect_data(buffer))
-    (
-      [](const service_provider & sp){
-      },
-      [](const service_provider & sp, const std::shared_ptr<std::exception> & ex){
-      },
-      sp
-    );
+      collect_data(*buffer))
+    .then(
+      [buffer](
+        const std::function<void(const service_provider & sp, vds::asymmetric_private_key)> & done,
+        const error_handler & on_error,
+        const service_provider & sp){
+          const unsigned char * p = buffer->data();
+          auto key = d2i_AutoPrivateKey(NULL, &p, buffer->size());
+          done(sp, asymmetric_private_key(new _asymmetric_private_key(key)));
+      });
     
-    return parse_der(sp, const_data_buffer(buffer), std::string());
   }
   else{
-    const unsigned char * p = value.data();
-    auto key = d2i_AutoPrivateKey(NULL, &p, value.size());
-    return asymmetric_private_key(new _asymmetric_private_key(key));
+    return create_async_task(
+      [value](const std::function<void(const service_provider & sp, vds::asymmetric_private_key)> & done,
+         const error_handler & on_error,
+         const service_provider & sp){
+          const unsigned char * p = value.data();
+          auto key = d2i_AutoPrivateKey(NULL, &p, value.size());
+          done(sp, asymmetric_private_key(new _asymmetric_private_key(key)));
+      });
   }
 }
 

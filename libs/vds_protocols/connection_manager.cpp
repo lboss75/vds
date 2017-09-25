@@ -374,7 +374,8 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
         dataflow(
           dataflow_arguments<uint8_t>(b.data().data(), b.data().size()),
           symmetric_encrypt(session.session_key()),
-          collect_data(*data))(
+          collect_data(*data))
+        .wait(
             [this, done, on_error, from, &session, key_crypted, data](const service_provider & sp) {
           const_data_buffer crypted_data(data->data(), data->size());
 

@@ -85,10 +85,10 @@ TEST(test_vds_crypto, test_sign)
     vds::dataflow(
       random_reader<uint8_t>(buffer.get(), (int)len),
       vds::asymmetric_sign(vds::hash::sha256(), key, sign))
-      (
-        [&sign](const vds::service_provider & sp) { },
-        [](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) { FAIL() << ex->what(); },
-        sp);
+    .wait(
+      [&sign](const vds::service_provider & sp) { },
+      [](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) { FAIL() << ex->what(); },
+      sp);
 
 
     vds::asymmetric_public_key pkey(key);
@@ -97,6 +97,7 @@ TEST(test_vds_crypto, test_sign)
     vds::dataflow(
       random_reader<uint8_t>(buffer.get(), (int)len),
       vds::asymmetric_sign_verify(vds::hash::sha256(), pkey, sign))
+    .wait
       (
         [](const vds::service_provider & sp) { },
         [](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) { FAIL() << ex->what(); },
@@ -116,6 +117,7 @@ TEST(test_vds_crypto, test_sign)
     vds::dataflow(
       random_reader<uint8_t>(buffer.get(), (int)len),
       vds::asymmetric_sign_verify(vds::hash::sha256(), pkey, sign))
+    .wait
       (
         [&b](const vds::service_provider & sp) { b.set(); },
         [&b, &error](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) { error = ex; b.set(); },

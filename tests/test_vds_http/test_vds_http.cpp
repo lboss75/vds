@@ -118,26 +118,21 @@ TEST(http_tests, test_server)
       }
       
       response = request;
-
-      return vds::create_async_task(
-        [&response, &answer](
-          const std::function<void(const vds::service_provider & sp)> & task_done,
-          const vds::error_handler & on_error,
-          const vds::service_provider & sp)
-      {
-        auto data = std::make_shared<std::vector<uint8_t>>();
-        vds::dataflow(
+      
+      auto data = std::make_shared<std::vector<uint8_t>>();
+      
+      return vds::dataflow(
           vds::stream_read<vds::continuous_stream<uint8_t>>(response->body()),
           vds::collect_data(*data)
-        )(
-          [data, &answer, task_done](const vds::service_provider & sp) {
-          answer = std::string((const char *)data->data(), data->size());
-          task_done(sp);
-        },
-          on_error,
-          sp.create_scope("Client read dataflow"));
-
-      });
+        )
+      .then(
+        [&response, &answer, data](
+          const std::function<void(const vds::service_provider & sp)> & task_done,
+          const vds::error_handler & /*on_error*/,
+          const vds::service_provider & sp){
+            answer = std::string((const char *)data->data(), data->size());
+            task_done(sp);
+        });
     });
   })
   .wait(

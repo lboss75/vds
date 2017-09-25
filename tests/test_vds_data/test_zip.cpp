@@ -32,7 +32,8 @@ TEST(test_zip, inflate_tests) {
       vds::deflate(),
       vds::inflate(),
       compare_data<uint8_t>(buffer.data(), buffer.size())
-    )(
+    )
+    .wait(
       [&b](const vds::service_provider &) {
         b.set(); 
       },

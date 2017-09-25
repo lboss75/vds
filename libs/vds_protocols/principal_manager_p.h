@@ -161,7 +161,7 @@ namespace vds {
     class principal_member_table : public database_table
     {
     public:
-      group_member_principal_table()
+      principal_member_table()
         : database_table("principal_member"),
         principal_id(this, "principal_id"),
         member_id(this, "member_id"),

@@ -216,62 +216,92 @@ TEST(test_certificates, test_der)
     //Generate sub certificate
     vds::const_data_buffer sub_certificate_text;
     vds::const_data_buffer sub_private_key;
-    {
-      vds::asymmetric_private_key ca_certificate_private_key = vds::asymmetric_private_key::parse_der(sp, ca_private_key, der_password);
-      vds::certificate ca = vds::certificate::parse_der(ca_certificate_text);
+    
+    vds::asymmetric_private_key::parse_der(sp, ca_private_key, der_password)
+    .then(
+      [&sub_certificate_text, &sub_private_key, ca_certificate_text, der_password](
+        const std::function<void (const vds::service_provider & sp)> & done,
+        const vds::error_handler & on_error,
+        const vds::service_provider & sp,
+        const vds::asymmetric_private_key & ca_certificate_private_key) {
+      
+        vds::certificate ca = vds::certificate::parse_der(ca_certificate_text);
 
-      vds::asymmetric_private_key sub_certificate_private_key(vds::asymmetric_crypto::rsa2048());
-      sub_certificate_private_key.generate();
+        vds::asymmetric_private_key sub_certificate_private_key(vds::asymmetric_crypto::rsa2048());
+        sub_certificate_private_key.generate();
 
-      vds::asymmetric_public_key sub_certificate_public_key(sub_certificate_private_key);
+        vds::asymmetric_public_key sub_certificate_public_key(sub_certificate_private_key);
 
-      //Create sub certificate
-      vds::certificate::create_options sub_options;
-      sub_options.country = "RU";
-      sub_options.organization = "Test Org";
-      sub_options.name = "Sub Cert";
-      sub_options.ca_certificate = &ca;
-      sub_options.ca_certificate_private_key = &ca_certificate_private_key;
+        //Create sub certificate
+        vds::certificate::create_options sub_options;
+        sub_options.country = "RU";
+        sub_options.organization = "Test Org";
+        sub_options.name = "Sub Cert";
+        sub_options.ca_certificate = &ca;
+        sub_options.ca_certificate_private_key = &ca_certificate_private_key;
 
-      vds::certificate sub_certificate = vds::certificate::create_new(
-        sub_certificate_public_key,
-        sub_certificate_private_key,
-        sub_options
-      );
+        vds::certificate sub_certificate = vds::certificate::create_new(
+          sub_certificate_public_key,
+          sub_certificate_private_key,
+          sub_options
+        );
 
-      sub_certificate_text = sub_certificate.der();
-      sub_private_key = sub_certificate_private_key.der(sp, der_password);
-    }
-
+        sub_certificate_text = sub_certificate.der();
+        sub_private_key = sub_certificate_private_key.der(sp, der_password);
+        
+        done(sp);
+      })
+    .wait(
+      [](const vds::service_provider & sp){},
+      [](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex){
+        throw *ex;
+      },
+      sp);
+    
     //Generate sub certificate
     vds::const_data_buffer caudal_certificate_text;
     std::string caudal_private_key;
-    {
-      vds::asymmetric_private_key sub_certificate_private_key = vds::asymmetric_private_key::parse_der(sp, sub_private_key, der_password);
-      vds::certificate sub_certificate = vds::certificate::parse_der(sub_certificate_text);
+    
+    vds::asymmetric_private_key::parse_der(sp, sub_private_key, der_password)
+    .then(
+      [&caudal_certificate_text, &caudal_private_key, sub_certificate_text](
+        const std::function<void (const vds::service_provider & sp)> & done,
+        const vds::error_handler & on_error,
+        const vds::service_provider & sp,
+        const vds::asymmetric_private_key & sub_certificate_private_key) {
+        
+        vds::certificate sub_certificate = vds::certificate::parse_der(sub_certificate_text);
 
-      vds::asymmetric_private_key caudal_certificate_private_key(vds::asymmetric_crypto::rsa2048());
-      caudal_certificate_private_key.generate();
+        vds::asymmetric_private_key caudal_certificate_private_key(vds::asymmetric_crypto::rsa2048());
+        caudal_certificate_private_key.generate();
 
-      vds::asymmetric_public_key caudal_certificate_public_key(caudal_certificate_private_key);
+        vds::asymmetric_public_key caudal_certificate_public_key(caudal_certificate_private_key);
 
-      //Create sub certificate
-      vds::certificate::create_options caudal_options;
-      caudal_options.country = "RU";
-      caudal_options.organization = "Test Org";
-      caudal_options.name = "Caudal Cert";
-      caudal_options.ca_certificate = &sub_certificate;
-      caudal_options.ca_certificate_private_key = &sub_certificate_private_key;
+        //Create sub certificate
+        vds::certificate::create_options caudal_options;
+        caudal_options.country = "RU";
+        caudal_options.organization = "Test Org";
+        caudal_options.name = "Caudal Cert";
+        caudal_options.ca_certificate = &sub_certificate;
+        caudal_options.ca_certificate_private_key = &sub_certificate_private_key;
 
-      vds::certificate caudal_certificate = vds::certificate::create_new(
-        caudal_certificate_public_key,
-        caudal_certificate_private_key,
-        caudal_options
-      );
+        vds::certificate caudal_certificate = vds::certificate::create_new(
+          caudal_certificate_public_key,
+          caudal_certificate_private_key,
+          caudal_options
+        );
 
-      caudal_certificate_text = caudal_certificate.der();
-      caudal_private_key = caudal_certificate_private_key.str();
-    }
+        caudal_certificate_text = caudal_certificate.der();
+        caudal_private_key = caudal_certificate_private_key.str();
+        
+        done(sp);
+      })
+    .wait(
+      [](const vds::service_provider & sp){},
+      [](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex){
+        throw *ex;
+      },
+      sp);
 
     //Check
     {
@@ -335,3 +365,4 @@ TEST(test_certificates, test_der)
   }
 
 }
+

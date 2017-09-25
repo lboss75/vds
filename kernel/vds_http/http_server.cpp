@@ -29,56 +29,42 @@ vds::async_task<> vds::http_server::start(
 {
   return async_series(
     http_pipeline(incoming_stream, this->input_commands_, this->output_commands_, outgoing_stream),
-    create_async_task(
-      [this, handler](
-        const std::function<void(const vds::service_provider & sp)> & done,
-        const error_handler & on_error,
-        const service_provider & sp) {
     dataflow(
       stream_read(this->input_commands_),
       dataflow_consumer<std::shared_ptr<http_message>>(
-        [this, done, on_error, handler](
+        [this, handler](
           const vds::service_provider & sp,
           const std::shared_ptr<vds::http_message> * requests,
           size_t count) -> vds::async_task<size_t> {
-      return create_async_task(
-        [this, handler, requests, count](
-          const std::function<void(const vds::service_provider & sp, size_t readed)> & task_done,
-          const vds::error_handler & on_error,
-          const vds::service_provider & sp)
-      {
-        if (0 == count) {
-          this->send(sp, std::shared_ptr<vds::http_message>())
-            .wait([task_done](const vds::service_provider & sp) {
-              task_done(sp, 0);
-              },
-              on_error,
-              sp);
-        }
-        else {
-          return handler(sp, requests[0]).wait(
-            [this, task_done, on_error](const vds::service_provider & sp, const std::shared_ptr<vds::http_message> & response) {
-              this->send(sp, response).wait([task_done](const vds::service_provider & sp) {
-                task_done(sp, 1);
+          return create_async_task(
+            [this, handler, requests, count](
+              const std::function<void(const vds::service_provider & sp, size_t readed)> & task_done,
+              const vds::error_handler & on_error,
+              const vds::service_provider & sp)
+          {
+            if (0 == count) {
+              this->send(sp, std::shared_ptr<vds::http_message>())
+                .wait([task_done](const vds::service_provider & sp) {
+                  task_done(sp, 0);
+                  },
+                  on_error,
+                  sp);
+            }
+            else {
+              return handler(sp, requests[0]).wait(
+                [this, task_done, on_error](const vds::service_provider & sp, const std::shared_ptr<vds::http_message> & response) {
+                  this->send(sp, response).wait([task_done](const vds::service_provider & sp) {
+                    task_done(sp, 1);
+                    },
+                    on_error,
+                    sp);
                 },
                 on_error,
                 sp);
-            },
-            on_error,
-            sp);
+            }
+          });
         }
-      });
-    }
-        )
-    )(
-      [done](const vds::service_provider & sp) {
-      sp.get<logger>()->debug("HTTP", sp, "server reader closed");
-      done(sp);
-    },
-      [on_error](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-      sp.get<logger>()->debug("HTTP", sp, "server error");
-      on_error(sp, ex);
-    },
-      sp.create_scope("HTTP server reader"));
-  }));
+      )
+    )
+  );
 }

@@ -44,7 +44,8 @@ TEST(network_tests, test_udp_server)
     vds::dataflow(
       vds::stream_read<vds::continuous_stream<vds::udp_datagram>>(server_socket.incoming()),
       vds::stream_write<vds::async_stream<vds::udp_datagram>>(server_socket.outgoing())
-    )(
+    )
+    .wait(
     [&server_socket](const vds::service_provider & sp) {
       sp.get<vds::logger>()->debug("UDP", sp, "Server closed");
       server_socket.stop();

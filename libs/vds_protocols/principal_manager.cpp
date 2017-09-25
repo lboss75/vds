@@ -455,18 +455,19 @@ bool vds::_principal_manager::get_record(
       dataflow_arguments<char>(message.c_str(), message.length()),
       json_parser("Message body"),
       dataflow_require_once<std::shared_ptr<json_value>>(&body)
-    )(
+    )
+    .wait(
       [&id, &result_record, &parents, &body, principal_id, order_num](const service_provider & sp) {
-      result_record.reset(
-        id,
-        principal_id,
-        parents,
-        body,
-        order_num);
-    },
+        result_record.reset(
+          id,
+          principal_id,
+          parents,
+          body,
+          order_num);
+      },
       [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-      std::rethrow_exception(std::make_exception_ptr(*ex));
-    },
+        throw *ex;
+      },
       sp);
   }
 
@@ -531,7 +532,8 @@ bool vds::_principal_manager::get_record_by_state(
       dataflow_arguments<char>(message.c_str(), message.length()),
       json_parser("Message body"),
       dataflow_require_once<std::shared_ptr<json_value>>(&body)
-    )(
+    )
+    .wait(
       [&id, principal_id, &result_record, &parents, &body, order_num](
         const service_provider & sp) {
         result_record.reset(
@@ -587,9 +589,10 @@ void vds::_principal_manager::get_principal_log(
     dataflow(
       dataflow_arguments<char>(message.c_str(), message.length()),
       json_parser("Message parser"),
-      dataflow_require_once<std::shared_ptr<json_value>>(&msg))(
+      dataflow_require_once<std::shared_ptr<json_value>>(&msg))
+    .wait(
         [](const service_provider & sp) {
-    },
+        },
         [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
       throw *ex;
     },
@@ -617,7 +620,7 @@ vds::principal_log_record
     const_data_buffer & signature)
 {
   std::list<principal_log_record::record_id> parents;
-  auto max_order_num = this->get_current_state(sp, tr, &parents);
+  auto max_order_num = this->get_current_state(sp, tr, parents);
 
   std::lock_guard<not_mutex> lock(this->principal_log_mutex_);
 

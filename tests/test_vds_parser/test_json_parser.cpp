@@ -113,6 +113,7 @@ TEST(test_json_parser, test_parser) {
     vds::json_parser("test"),
     test_json_parser_validate()
   )
+  .wait
   (
     [](const vds::service_provider & /*sp*/) {},
     [](const vds::service_provider & /*sp*/, const std::shared_ptr<std::exception> & ex) { FAIL() << ex->what(); },

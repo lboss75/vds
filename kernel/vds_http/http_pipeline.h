@@ -26,35 +26,15 @@ namespace vds {
     )
     {
       return async_series(
-        create_async_task(
-          [output_commands, output_stream](
-            const std::function<void(const service_provider & sp)> & done,
-            const error_handler & on_error,
-            const service_provider & sp) {
         dataflow(
           stream_read<async_stream<std::shared_ptr<http_message>>>(output_commands),
           http_serializer(),
           stream_write<output_stream_type>(output_stream)
-        )(
-          [done](const service_provider & sp) {
-            sp.get<logger>()->debug("HTTP", sp, "writer closed");
-            done(sp);
-          },
-          [on_error](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-            sp.get<logger>()->debug("HTTP", sp, "writer error");
-            on_error(sp, ex);
-          },
-          sp.create_scope("HTTP writer"));
-        }),
-        create_async_task(
-          [input_commands, input_stream](
-            const std::function<void(const service_provider & sp)> & done,
-            const error_handler & on_error,
-            const service_provider & sp) {
+        ),
         dataflow(
           stream_read(input_stream),
           http_parser(
-            [input_commands, done, on_error](const service_provider & sp, const std::shared_ptr<http_message> & request) -> async_task<> {
+            [input_commands](const service_provider & sp, const std::shared_ptr<http_message> & request) -> async_task<> {
 
           if (!request) {
             return input_commands->write_all_async(sp, nullptr, 0);
@@ -63,17 +43,7 @@ namespace vds {
             return input_commands->write_value_async(sp, request);
           }
         })
-        )(
-          [done](const service_provider & sp) {
-            sp.get<logger>()->debug("HTTP", sp, "reader closed");
-            done(sp);
-          },
-          [on_error](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-            sp.get<logger>()->debug("HTTP", sp, "reader error");
-            on_error(sp, ex);
-          },
-          sp.create_scope("HTTP reader"));
-      })
+        )
         );
     }
 }

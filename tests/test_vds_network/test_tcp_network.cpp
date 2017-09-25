@@ -121,7 +121,8 @@ TEST(network_tests, test_server)
     vds::dataflow(
       vds::stream_read<vds::continuous_stream<uint8_t>>(s.incoming()),
       vds::stream_write<vds::continuous_stream<uint8_t>>(s.outgoing())
-    )(
+    )
+    .wait(
       [s](const vds::service_provider & sp) {
       sp.get<vds::logger>()->debug("TCP", sp, "Server closed");
     },
@@ -159,59 +160,20 @@ TEST(network_tests, test_server)
     8000)
     .then(
       [&b, &answer, &cancellation, &data](
-        const std::function<void(const vds::service_provider & sp)> & done,
-        const vds::error_handler & on_error,
         const vds::service_provider & sp,
         const vds::tcp_network_socket & s) {
 
     sp.get<vds::logger>()->debug("TCP", sp, "Connected");
 
-    vds::async_series(
-      vds::create_async_task(
-        [s, &data, cancellation](const std::function<void(const vds::service_provider & sp)> & done, const vds::error_handler & on_error, const vds::service_provider & sp) {
-
+    return vds::async_series(
       vds::dataflow(
         random_reader<uint8_t>(data.data(), data.size()),
         vds::stream_write<vds::continuous_stream<uint8_t>>(s.outgoing())
-      )(
-        [done](const vds::service_provider & sp) {
-        sp.get<vds::logger>()->debug("TCP", sp, "Client writer closed");
-        done(sp);
-      },
-        [on_error](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-        sp.get<vds::logger>()->debug("TCP", sp, "Client writer error");
-        on_error(sp, ex);
-      },
-        sp.create_scope("Client writer"));
-
-    }),
-      vds::create_async_task(
-        [s, &data, &answer, cancellation](const std::function<void(const vds::service_provider & sp)> & done, const vds::error_handler & on_error, const vds::service_provider & sp) {
+      ),
       vds::dataflow(
         vds::stream_read<vds::continuous_stream<uint8_t>>(s.incoming()),
         compare_data<uint8_t>(data.data(), data.size())
-      )(
-        [done](const vds::service_provider & sp) {
-        sp.get<vds::logger>()->debug("TCP", sp, "Client reader closed");
-        done(sp);
-      },
-        [on_error](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-        sp.get<vds::logger>()->debug("TCP", sp, "Client reader error");
-        on_error(sp, ex);
-      },
-        sp.create_scope("Client read dataflow"));
-
-    })
-      ).wait(
-        [done, s](const vds::service_provider & sp) {
-      sp.get<vds::logger>()->debug("TCP", sp, "Client closed");
-      done(sp);
-    },
-        [on_error](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-      sp.get<vds::logger>()->debug("TCP", sp, "Client error");
-      on_error(sp, ex);
-    },
-      sp.create_scope("Client reader"));
+      ));
   }).wait(
     [&b](const vds::service_provider & sp) {
       sp.get<vds::logger>()->debug("TCP", sp, "Request sent");
