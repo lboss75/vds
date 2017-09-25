@@ -169,6 +169,7 @@ vds::const_data_buffer vds::_asymmetric_private_key::der(
       dataflow_arguments<uint8_t>(buf, len),
       symmetric_encrypt(key),
       collect_data(buffer))
+    .wait
     (
       [](const service_provider & sp){
       },

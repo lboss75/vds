@@ -40,7 +40,7 @@ TEST(mt_tests, test_async_stream) {
           vds::dataflow(
             random_reader<uint8_t>(data.data(), data.size()),
             vds::stream_write<vds::continuous_stream<uint8_t>>(stream)
-          )(done, error, sp);
+          ).wait(done, error, sp);
         });
       }
     ),
@@ -53,7 +53,7 @@ TEST(mt_tests, test_async_stream) {
           vds::dataflow(
             vds::stream_read<vds::continuous_stream<uint8_t >> (stream),
             compare_data<uint8_t>(data.data(), data.size())
-          )(done, error, sp);
+          ).wait(done, error, sp);
         });
       }
     )

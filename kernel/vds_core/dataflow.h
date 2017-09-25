@@ -594,23 +594,20 @@ namespace vds {
   {
     using tuple_type = std::tuple<functor_types...>;
   public:
-    _dataflow(functor_types... functors)
-    : builder_(std::forward<functor_types>(functors)...)
-    {
-    }
     
-    void operator()(
-      const std::function<void(const service_provider & sp)> & done,
-      const error_handler & on_error,
-      const service_provider & sp)
+    static async_task<> create_task(functor_types... functors)
     {
-      auto p = std::make_shared<starter>(done, on_error, this->builder_);
-      p->start(p, sp);
+      return create_async_task(
+        [builder = tuple_type(std::forward<functor_types>(functors)...)](
+          const std::function<void(const service_provider & sp)> & done,
+          const error_handler & on_error,
+          const service_provider & sp) {
+        auto p = std::make_shared<starter>(done, on_error, builder);
+        p->start(p, sp);
+      });
     }        
     
   private:
-    tuple_type builder_;
-
     class final_step_type;
     class starter;
     
@@ -912,7 +909,7 @@ namespace vds {
       pipeline(
         common_data * data,
         queue_stream<index> * queue,
-        tuple_type & args)
+        const tuple_type & args)
       : base_class(data, &queue_, args),
         queue_(data, base_class::step(), &step_),
         step_(context<index>(data, &queue_, queue), std::get<index>(args))
@@ -941,7 +938,7 @@ namespace vds {
       pipeline(
         common_data * data,
         queue_stream<0> * queue,
-        tuple_type & args)
+        const tuple_type & args)
       : step_(context<0>(data, queue), std::get<0>(args))
       {
       }
@@ -1015,7 +1012,7 @@ namespace vds {
       starter(
         const std::function<void(const service_provider & sp)> & done,
         const error_handler & on_error,
-        tuple_type & args)
+        const tuple_type & args)
       : base_class(this, &queue_, args),
         done_(done), on_error_(on_error),
         step_(final_context(this, &queue_, this), std::get<std::tuple_size<tuple_type>::value - 1>(args)),
@@ -1077,10 +1074,9 @@ namespace vds {
   };
   
   template <typename... functor_types>
-  inline
-  _dataflow<functor_types...> dataflow(functor_types&&... functors)
+  inline async_task<> dataflow(functor_types&&... functors)
   {
-    return _dataflow<functor_types...>(std::forward<functor_types>(functors)...);
+    return _dataflow<functor_types...>::create_task(std::forward<functor_types>(functors)...);
   }
   
   template<typename item_type>

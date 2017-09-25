@@ -193,7 +193,8 @@ vds::_server_json_client_api::process(
           on_error(sp, std::make_shared<std::runtime_error>("Invalid username or password"));
         }
         else {
-          auto order_num = sp.get<principal_manager>()->get_current_state(sp, tr);
+          std::list<guid> active_records;
+          auto order_num = sp.get<principal_manager>()->get_current_state(sp, tr, active_records);
 
           done(
             sp,
@@ -201,7 +202,8 @@ vds::_server_json_client_api::process(
               cert->id(),
               cert->cert_body().str(),
               base64::from_bytes(cert->cert_key()),
-              order_num).serialize());
+              order_num,
+              active_records).serialize());
         }
         
         return true;

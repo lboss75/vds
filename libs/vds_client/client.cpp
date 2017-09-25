@@ -204,7 +204,7 @@ vds::async_task<> vds::_client::create_local_login(
       const std::function<void(const service_provider & sp)> & done,
       const error_handler & on_error,
       const service_provider & sp,
-      const client_messages::certificate_and_key_response & response) {
+      const client_messages::certificate_and_key_response & response) ->async_task<> {
     sp.get<logger>()->trace("client", sp, "Register new user");
 
     auto user_certificate = certificate::parse(response.certificate_body());
@@ -216,7 +216,7 @@ vds::async_task<> vds::_client::create_local_login(
     asymmetric_public_key local_user_pkey(local_user_private_key);
 
     auto member_id = guid::new_guid();
-    
+
     certificate::create_options local_user_options;
     local_user_options.country = "RU";
     local_user_options.organization = "IVySoft";
@@ -235,24 +235,25 @@ vds::async_task<> vds::_client::create_local_login(
     hash ph(hash::sha256());
     ph.update(password.c_str(), password.length());
     ph.final();
-    
+
     //Form principal_log message
     auto msg = principal_log_record(
       guid::new_guid(),
       response.id(),
       response.parents(),
       principal_log_new_member(member_id, name, local_user_certificate).serialize(),
-      response.order_num() + 1).serialize(false);                              
-    
+      response.order_num() + 1).serialize(false);
+
     auto s = msg->str();
     const_data_buffer signature;
-    dataflow(
+    return dataflow(
       dataflow_arguments<uint8_t>((const uint8_t *)s.c_str(), s.length()),
       asymmetric_sign(
         hash::sha256(),
         asymmetric_private_key::parse_der(sp, base64::to_bytes(response.private_key_body()), password),
         signature)
-    )(
+    )
+    .then(
       [this, done, on_error, &signature, &response, msg, version_id, tmp_file](const service_provider & sp){
         this->owner_->logic_->send_request<client_messages::register_local_user_response>(
           sp,
@@ -276,7 +277,11 @@ vds::async_task<> vds::_client::create_local_login(
             on_error(sp, ex);
           },
           sp);
-      });
+      },
+      [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+
+      },
+      sp);
     });
 }
 

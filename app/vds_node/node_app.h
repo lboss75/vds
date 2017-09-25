@@ -29,6 +29,8 @@ namespace vds {
     command_line_value filename_;
     command_line_value name_;
 
+    command_line_value device_name_;
+
     command_line_set add_storage_cmd_set_;
     command_line_set remove_storage_cmd_set_;
     command_line_set list_storage_cmd_set_;

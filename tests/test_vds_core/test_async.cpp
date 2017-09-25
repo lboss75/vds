@@ -36,16 +36,16 @@ TEST(mt_tests, test_async) {
         test_async_object::async_method(obj),
         test_async_object::target_method(obj)
       )
+      .wait
       (
         [&obj, &barrier](const vds::service_provider & sp) {
-        barrier.set();
-      },
+          barrier.set();
+        },
         [&barrier, &error](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-        error = ex;
-        barrier.set();
-      },
-        sp
-      );
+          error = ex;
+          barrier.set();
+        },
+        sp);
 
       barrier.wait();
 

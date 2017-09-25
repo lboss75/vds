@@ -113,10 +113,11 @@ void vds::node_app::main(
   }
   else if (&this->node_login_cmd_set_ == this->current_command_set_){
     barrier b;
-    sp.get<vds::iclient>()->client_login(
+    sp.get<vds::iclient>()->create_local_login(
       sp,
       this->login_.value(),
-      this->password_.value())
+      this->password_.value(),
+      this->device_name_.value())
       .wait(
         [&b](const vds::service_provider & sp) {
           b.set();
