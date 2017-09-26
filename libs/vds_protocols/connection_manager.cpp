@@ -335,7 +335,10 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
 {
   sp.get<logger>()->trace("UDPAPI", sp, "message(%d) from %s", len, network_service::to_string(*from).c_str());
   
-  return create_async_task([this, from, data, len](const std::function<void(const service_provider & sp)> & done, const error_handler & on_error, const service_provider & sp) {
+  return create_async_task([this, from, data, len](
+    const std::function<void(const service_provider & sp)> & done,
+    const error_handler & on_error,
+    const service_provider & sp) {
     (*sp.get<iserver_database>())->get_db()->async_transaction(sp,
       [this, sp, from, data, len, done, on_error](database_transaction & tr)->bool{
     
@@ -450,48 +453,49 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
         dataflow(
           dataflow_arguments<uint8_t>(msg.crypted_data().data(), msg.crypted_data().size()),
           symmetric_decrypt(session_key),
-          collect_data(*data))(
+          collect_data(*data))
+        .wait(
             [this, done, &session_key, &cert, from, data, &tr](const service_provider & sp) {
-          uint32_t in_session_id;
-          uint32_t out_session_id;
+              uint32_t in_session_id;
+              uint32_t out_session_id;
 
-          principal_log_record::record_id last_record_id;
-          binary_deserializer s(data->data(), data->size());
-          s >> out_session_id >> in_session_id >> last_record_id;
+              principal_log_record::record_id last_record_id;
+              binary_deserializer s(data->data(), data->size());
+              s >> out_session_id >> in_session_id >> last_record_id;
 
-          std::lock_guard<std::mutex> lock_hello(this->hello_requests_mutex_);
-          auto p = this->hello_requests_.find(out_session_id);
-          if (this->hello_requests_.end() != p) {
-            this->owner_->route_manager_->on_session_started(
-              sp,
-              sp.get<istorage_log>()->current_server_id(),
-              server_certificate::server_id(cert),
-              p->second.address());
-            std::unique_lock<std::shared_mutex> lock(this->sessions_mutex_);
+              std::lock_guard<std::mutex> lock_hello(this->hello_requests_mutex_);
+              auto p = this->hello_requests_.find(out_session_id);
+              if (this->hello_requests_.end() != p) {
+                this->owner_->route_manager_->on_session_started(
+                  sp,
+                  sp.get<istorage_log>()->current_server_id(),
+                  server_certificate::server_id(cert),
+                  p->second.address());
+                std::unique_lock<std::shared_mutex> lock(this->sessions_mutex_);
 
-            auto network_address = url_parser::parse_network_address(p->second.address());
-            assert("udp" == network_address.protocol);
+                auto network_address = url_parser::parse_network_address(p->second.address());
+                assert("udp" == network_address.protocol);
 
-            this->sessions_[out_session_id].reset(new outgoing_session(
-              this,
-              p->second.session_id(),
-              p->second.address(),
-              network_address.server,
-              (uint16_t)std::atoi(network_address.port.c_str()),
-              in_session_id,
-              network_service::get_ip_address_string(*from),
-              ntohs(from->sin_port),
-              std::move(cert),
-              std::move(session_key)));
+                this->sessions_[out_session_id].reset(new outgoing_session(
+                  this,
+                  p->second.session_id(),
+                  p->second.address(),
+                  network_address.server,
+                  (uint16_t)std::atoi(network_address.port.c_str()),
+                  in_session_id,
+                  network_service::get_ip_address_string(*from),
+                  ntohs(from->sin_port),
+                  std::move(cert),
+                  std::move(session_key)));
 
-            this->hello_requests_.erase(p);
-          }
+                this->hello_requests_.erase(p);
+              }
 
-          sp.get<_server_log_sync>()->ensure_record_exists(sp, tr, last_record_id);
-          done(sp);
-        },
-            on_error,
-          sp);
+              sp.get<_server_log_sync>()->ensure_record_exists(sp, tr, last_record_id);
+              done(sp);
+            },
+                on_error,
+              sp);
       }
 
       break;
@@ -518,7 +522,8 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
             dataflow_arguments<uint8_t>(crypted_data.data(), crypted_data.size()),
             symmetric_decrypt(p->second->session_key()),
             collect_data(*data)
-          )(
+          )
+          .wait(
             [this, &data_hash, session = p->second, from, data, &tr](const service_provider & sp) {
             if (hash::signature(hash::sha256(), data->data(), data->size()) == data_hash) {
 
@@ -677,7 +682,8 @@ void vds::_connection_manager::udp_channel::session::send_to(
   dataflow(
     dataflow_arguments<uint8_t>(message_data.data().data(), message_data.data().size()),
     symmetric_encrypt(this->session_key()),
-    collect_data(*crypted_data))(
+    collect_data(*crypted_data))
+  .wait(
       [this, sp, &message_data, crypted_data](const service_provider & sp) {
         network_serializer s;
         s.start(udp_messages::command_message_id);
@@ -698,7 +704,8 @@ void vds::_connection_manager::udp_channel::session::send_to(
       },
       [](const service_provider & sp,
          const std::shared_ptr<std::exception> & ex) {
-        std::rethrow_exception(std::make_exception_ptr(*ex)); },
+        throw *ex;
+      },
       sp);
 }
 

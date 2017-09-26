@@ -19,7 +19,8 @@ namespace vds {
     const_data_buffer generate_replica(
       uint16_t replica,
       const void * data,
-      size_t size);
+      size_t size,
+      const_data_buffer & replica_hash);
     
     const_data_buffer restore_data(
       const std::unordered_map<uint16_t, const_data_buffer> & horcruxes);

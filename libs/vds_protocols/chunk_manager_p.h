@@ -215,7 +215,7 @@ namespace vds {
       database_column<const_data_buffer> data;
     };
 
-    bool write_chunk(
+    async_task<> write_chunk(
       const service_provider & sp,
       database_transaction & tr,
       size_t chunk_index,
@@ -223,16 +223,14 @@ namespace vds {
       const filename & tmp_file,
       size_t offset,
       size_t size,
-      const error_handler & on_error,
       bool is_last);
 
-    bool generate_horcruxes(
+    void generate_horcruxes(
       const service_provider & sp,
       database_transaction & tr,
       const guid & server_id,
       principal_log_new_chunk & chunk_info,
-      const std::vector<uint8_t> & buffer,
-      const error_handler & on_error);
+      const std::vector<uint8_t> & buffer);
 
     size_t get_last_chunk(
       const service_provider & sp,

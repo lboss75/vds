@@ -58,7 +58,8 @@ TEST(http_tests, test_http_serializer)
     vds::dataflow_arguments<std::shared_ptr<vds::http_message>>(&request, 1),
     vds::http_serializer(),
     vds::collect_data(buffer)
-  )(
+  )
+  .wait(
     [&b](const vds::service_provider & sp) {
       b.set();
     },
@@ -125,7 +126,8 @@ TEST(http_tests, test_http_parser)
           vds::dataflow(
             vds::stream_read<vds::continuous_stream<uint8_t>>(request->body()),
             vds::collect_data(*data)
-          )(
+          )
+          .wait(
             [data, &b, &answer, task_done](const vds::service_provider & sp) {
             b.set();
             answer = std::string((const char *)data->data(), data->size());
@@ -137,7 +139,8 @@ TEST(http_tests, test_http_parser)
         });
       }
     )
-  )(
+  )
+  .wait(
     [](const vds::service_provider & sp) {},
     [](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) { sp.unhandled_exception(ex); },
     sp);

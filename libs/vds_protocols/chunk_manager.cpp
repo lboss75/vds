@@ -251,147 +251,125 @@ void vds::_chunk_manager::create_database_objects(
   }
 }
 
-bool vds::_chunk_manager::write_chunk(
+
+vds::async_task<> vds::_chunk_manager::write_chunk(
   const service_provider & sp,
   database_transaction & tr,
   size_t index,
-  //principal_log_new_object_map & result_record,
   const guid & object_id,
   const filename & fn,
   size_t offset,
   size_t size,
-  const error_handler & on_error,
   bool is_last)
 {
-  size_t original_length;
-  const_data_buffer original_hash;
+  auto context = std::make_shared<std::tuple<
+    size_t /*original_length*/,
+    const_data_buffer /*original_hash*/,
+    std::vector<uint8_t> /*buffer*/>>();
 
-  bool result = true;
-  std::vector<uint8_t> buffer;
-  dataflow(
-    file_range_read(fn, offset, size),
-    hash_filter(&original_length, &original_hash),
-    collect_data(buffer)
-  )(
-    [this, &tr, &result, &original_length, &original_hash, &buffer, index, object_id, offset, size, on_error, is_last](const service_provider & sp){
+  return 
+    dataflow(
+      file_range_read(fn, offset, size),
+      hash_filter(&std::get<0>(*context), &std::get<1>(*context)),
+      collect_data(std::get<2>(*context))
+    )
+    .then(
+      [this, &tr, context, index, object_id, offset, size, is_last](
+        const std::function<void(const service_provider & sp)> & done,
+        const error_handler & on_error,
+        const service_provider & sp){
       
-      if (original_length != size) {
-        on_error(sp, std::make_shared<std::runtime_error>("File is corrupt"));
-        result = false;
-        return;
-      }
+        if (std::get<0>(*context) != size) {
+          throw std::runtime_error("File is corrupt");
+        }
 
-      auto server_id = sp.get<istorage_log>()->current_server_id();
-      this->add_chunk(
-        sp,
-        tr,
-        server_id,
-        index,
-        object_id,
-        original_length,
-        original_hash);
+        auto server_id = sp.get<istorage_log>()->current_server_id();
+        this->add_chunk(
+          sp,
+          tr,
+          server_id,
+          index,
+          object_id,
+          std::get<0>(*context),
+          std::get<1>(*context));
       
-      //Padding
-      while(buffer.size() % (2 * MIN_HORCRUX) > 0){
-        buffer.push_back(0);
-      }
+        //Padding
+        while(std::get<2>(*context).size() % (2 * MIN_HORCRUX) > 0){
+          std::get<2>(*context).push_back(0);
+        }
       
-      principal_log_new_chunk chunk(server_id, index, object_id, original_length, original_hash);      
-      result = this->generate_horcruxes(
-        sp,
-        tr,
-        server_id,
-        chunk,
-        buffer,
-        on_error);
-      
+        principal_log_new_chunk chunk(
+          server_id,
+          index,
+          object_id,
+          std::get<0>(*context),
+          std::get<1>(*context));
+
+        this->generate_horcruxes(
+          sp,
+          tr,
+          server_id,
+          chunk,
+          std::get<2>(*context));
+
+        sp.get<istorage_log>()->add_to_local_log(
+          sp,
+          tr,
+          server_id,
+          sp.get<istorage_log>()->server_private_key(),
+          chunk.serialize(true),
+          false,
+          is_last ? object_id : guid::new_guid());
+
+        done(sp);
+    });
+}
+
+void vds::_chunk_manager::generate_horcruxes(
+  const service_provider & sp,
+  database_transaction & tr,
+  const guid & server_id,
+  principal_log_new_chunk & chunk_info,
+  const std::vector<uint8_t> & buffer)
+{
+  for (uint16_t replica = 0; replica < GENERATE_HORCRUX; ++replica) {
+
+    auto replica_data = this->chunk_storage_.generate_replica(replica, buffer.data(), buffer.size());
+    auto replica_hash = hash::signature(hash::md5(), replica_data);
+
+    this->add_chunk_replica(
+      sp,
+      tr,
+      server_id,
+      chunk_info.chunk_index(),
+      replica,
+      replica_data.size(),
+      replica_hash);
+
     sp.get<istorage_log>()->add_to_local_log(
       sp,
       tr,
       server_id,
       sp.get<istorage_log>()->server_private_key(),
-      chunk.serialize(true),
-      false,
-      is_last ? object_id : guid::new_guid());
-    },
-    [&result, on_error](const service_provider & sp, const std::shared_ptr<std::exception> & ex){
-      on_error(sp, ex);
-      result = false;
-    },
-    sp);
-  
-  return result;
-}
+      principal_log_new_replica(
+        server_id,
+        chunk_info.chunk_index(),
+        chunk_info.object_id(),
+        replica,
+        replica_data.size(),
+        replica_hash).serialize(true),
+      false);
 
 
-bool vds::_chunk_manager::generate_horcruxes(
-  const service_provider & sp,
-  database_transaction & tr,
-  const guid & server_id,
-  principal_log_new_chunk & chunk_info,
-  const std::vector<uint8_t> & buffer,
-  const error_handler & on_error)
-{
-  bool result = true;
-
-  for (uint16_t replica = 0; replica < GENERATE_HORCRUX; ++replica) {
-    auto replica_data = this->chunk_storage_.generate_replica(replica, buffer.data(), buffer.size());
-
-    size_t replica_length;
-    const_data_buffer replica_hash;
-    std::vector<uint8_t> buffer;
-    dataflow(
-      dataflow_arguments<uint8_t>(replica_data.data(), replica_data.size()),
-      hash_filter(&replica_length, &replica_hash),
-      collect_data(buffer))(
-      [this, &tr, server_id, &chunk_info, replica, &replica_length, &replica_hash, &buffer](const service_provider & sp) {
-        if(replica_length != chunk_info.replica_size()){
-          throw std::runtime_error("Login error");
-        }
-          this->add_chunk_replica(
-            sp,
-            tr,
-            server_id,
-            chunk_info.chunk_index(),
-            replica,
-            replica_length,
-            replica_hash);
-          
-          sp.get<istorage_log>()->add_to_local_log(
-            sp,
-            tr,
-            server_id,
-            sp.get<istorage_log>()->server_private_key(),
-            principal_log_new_replica(
-              server_id,
-              chunk_info.chunk_index(),
-              chunk_info.object_id(),
-              replica,
-              replica_length,
-              replica_hash).serialize(true),
-            false);
-          
-
-          this->add_chunk_store_data(
-            sp,
-            tr,
-            server_id,
-            chunk_info.chunk_index(),
-            replica,
-            sp.get<istorage_log>()->current_server_id(),
-            buffer);
-        },
-        [&result, on_error](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-          on_error(sp, ex);
-          result = false;
-        },
-        sp);
-    if (!result) {
-      break;
-    }
+    this->add_chunk_store_data(
+      sp,
+      tr,
+      server_id,
+      chunk_info.chunk_index(),
+      replica,
+      sp.get<istorage_log>()->current_server_id(),
+      replica_data);
   }
-
-  return result;
 }
 
 
