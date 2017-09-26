@@ -68,27 +68,14 @@ vds::async_task<> vds::_server_http_api::start(
               new http_context(crypto_tunnel->get_peer_certificate()));
             return this->middleware_.process(scope, request);
         }),
-        create_async_task(
-          [this, s, crypto_tunnel](const std::function<void(const service_provider & sp)> & done, const error_handler & on_error, const service_provider & sp) {
-          dataflow(
-            stream_read<continuous_stream<uint8_t>>(s.incoming()),
-            stream_write<continuous_stream<uint8_t>>(crypto_tunnel->crypted_input())
-          )(
-            [done](const service_provider & sp) {
-            sp.get<logger>()->debug("HTTPAPI", sp, "SSL Input closed");
-            done(sp);
-          }, on_error, sp.create_scope("Server SSL Input"));
-        }),
-        create_async_task(
-          [this, s, crypto_tunnel](const std::function<void(const service_provider & sp)> & done, const error_handler & on_error, const service_provider & sp) {
-          dataflow(
-            stream_read(crypto_tunnel->crypted_output()),
-            stream_write<continuous_stream<uint8_t>>(s.outgoing())
-          )([done](const service_provider & sp) {
-            sp.get<logger>()->debug("HTTPAPI", sp, "SSL Output closed");
-            done(sp);
-          }, on_error, sp.create_scope("Server SSL Output"));
-        })
+        dataflow(
+          stream_read<continuous_stream<uint8_t>>(s.incoming()),
+          stream_write<continuous_stream<uint8_t>>(crypto_tunnel->crypted_input())
+        ),
+        dataflow(
+          stream_read(crypto_tunnel->crypted_output()),
+          stream_write<continuous_stream<uint8_t>>(s.outgoing())
+        )
       ).wait(
         [crypto_tunnel, server](const service_provider & sp) {
           sp.get<logger>()->debug("HTTPAPI", sp, "Connection closed");
@@ -112,28 +99,25 @@ vds::async_task<std::shared_ptr<vds::http_message>> vds::_server_http_api::route
   http_request request(message);
 
   if ("/vds/client_api" == request.url()) {
-    return create_async_task(
-      [this, message](const std::function<void(const service_provider & sp, std::shared_ptr<vds::http_message> response)> & done,
-        const error_handler & on_error,
-        const service_provider & sp)
-    {
-      auto json_request = new std::shared_ptr<json_value>();
-      dataflow(
+    auto json_request = new std::shared_ptr<json_value>();
+    return dataflow(
         stream_read<continuous_stream<uint8_t>>(message->body()),
         byte_to_char(),
         json_parser("client_api"),
         dataflow_require_once<std::shared_ptr<json_value>>(json_request)
-      )(
-        [this, done, json_request](const service_provider & sp) {
+      )
+    .then(
+        [this, json_request](
+          const std::function<void(const service_provider & sp, std::shared_ptr<vds::http_message> response)> & done,
+          const error_handler & on_error,
+          const service_provider & sp) {
 
-          //database_transaction_scope scope(sp, *(*sp.get<iserver_database>())->get_db());
-          done(sp, http_response::simple_text_response(sp, this->server_json_client_api_(
+          done(
             sp,
-            *json_request)->str()));
-          //scope.commit();
-        },
-        on_error, sp);
-    });
+            http_response::simple_text_response(sp, this->server_json_client_api_(
+              sp,
+              *json_request)->str()));
+          });
   }
 
   if ("/vds/dump_state" == request.url()) {

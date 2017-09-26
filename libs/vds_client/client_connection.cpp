@@ -64,54 +64,20 @@ void vds::client_connection::connect(const service_provider & sp)
             }
           }),
                    
-      create_async_task(
-        [this, s, client_crypto_tunnel](const std::function<void(const service_provider & sp)> & done, const error_handler & on_error, const service_provider & sp) {
       dataflow(
         stream_read<continuous_stream<uint8_t>>(s.incoming()),
         stream_write<continuous_stream<uint8_t>>(client_crypto_tunnel->crypted_input())
-      )([done](const service_provider & sp) {
-        sp.get<logger>()->debug("client", sp, "Client crypted input closed");
-        done(sp);
-      },
-        [on_error](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-        sp.get<logger>()->debug("client", sp, "Client crypted input error");
-        on_error(sp, ex);
-      },
-        sp.create_scope("Client SSL Input"));
-    }),
-      create_async_task(
-        [this, s, client_crypto_tunnel](const std::function<void(const service_provider & sp)> & done, const error_handler & on_error, const service_provider & sp) {
+      ),
       dataflow(
         stream_read(client_crypto_tunnel->crypted_output()),
         stream_write(s.outgoing())
-      )([done](const service_provider & sp) {
-        sp.get<logger>()->debug("client", sp, "Client crypted output closed");
-        //tcp_network_socket(s).close();
-        done(sp);
-      },
-        [on_error](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-        sp.get<logger>()->debug("client", sp, "Client crypted output error");
-        on_error(sp, ex);
-      }, sp.create_scope("Client SSL Output"));
-    }),
-      create_async_task(
-        [this, s, client_crypto_tunnel](const std::function<void(const service_provider & sp)> & done, const error_handler & on_error, const service_provider & sp) {
+      ),
       dataflow(
         stream_read<continuous_stream<std::shared_ptr<json_value>>>(this->outgoing_stream_),
         json_to_http_channel("POST", "/vds/client_api"),
         stream_write(this->client_.output_commands())
-      )(
-        [done](const service_provider & sp) {
-        sp.get<logger>()->debug("client", sp, "Client writer closed");
-        done(sp);
-      },
-        [on_error](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-        sp.get<logger>()->debug("client", sp, "Client writer error");
-        on_error(sp, ex);
-      },
-        sp.create_scope("Client writer"));
-
-    })).wait(
+      )
+    ).wait(
         [this, client_crypto_tunnel](const service_provider & sp) {
       sp.get<logger>()->debug("client", sp, "Client closed");
 

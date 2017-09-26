@@ -268,7 +268,8 @@ void vds::client_logic::continue_read_connection(
           byte_to_char(),
           json_parser("server response"),
           dataflow_require_once<std::shared_ptr<json_value>>(json_response.get())
-        )(
+        )
+        .wait(
           [this, json_response, connection, buffer](const service_provider & sp) {
             this->process_response(sp, *json_response);
             this->continue_read_connection(sp, connection, buffer);

@@ -129,15 +129,19 @@ vds::_client::init_server(
   return
     this->authenticate(sp, user_login, user_password)
     .then([this, user_password](
-      const std::function<void(
-        const service_provider & sp,
-        const certificate & /*server_certificate*/,
-        const asymmetric_private_key & /*private_key*/)> & done,
-      const error_handler & on_error,
       const service_provider & sp,
       const client_messages::certificate_and_key_response & response) {
-
+      
     sp.get<logger>()->trace("client", sp, "Register new server");
+    
+    return asymmetric_private_key::parse_der(
+      sp,
+      base64::to_bytes(response.private_key_body()),
+      user_password)
+    .then(
+      [this, response, user_password](
+      const service_provider & sp,
+      const asymmetric_private_key & user_private_key) {
 
     asymmetric_private_key private_key(asymmetric_crypto::rsa4096());
     private_key.generate();
@@ -145,8 +149,6 @@ vds::_client::init_server(
     asymmetric_public_key pkey(private_key);
 
     auto user_certificate = certificate::parse(response.certificate_body());
-    auto user_private_key = asymmetric_private_key::parse_der(sp, base64::to_bytes(response.private_key_body()), user_password);
-
 
     auto server_id = guid::new_guid();
     certificate::create_options options;
@@ -166,7 +168,7 @@ vds::_client::init_server(
     ph.update(user_password.c_str(), user_password.length());
     ph.final();
 
-    this->owner_->logic_->send_request<client_messages::register_server_response>(
+    return this->owner_->logic_->send_request<client_messages::register_server_response>(
       sp,
       client_messages::register_server_request(
         server_id,
@@ -174,21 +176,19 @@ vds::_client::init_server(
         server_certificate.str(),
         base64::from_bytes(private_key.der(sp, user_password)),
         ph.signature()).serialize())
-      .then([this](const std::function<void(const service_provider & sp)> & done,
+      .then([this, server_certificate, private_key](
+        const std::function<void(
+          const service_provider & sp,
+          const vds::certificate & server_certificate,
+          const vds::asymmetric_private_key & private_key)> & done,
         const error_handler & on_error,
         const service_provider & sp,
         const client_messages::register_server_response & response) {
-      done(sp);
-    }).wait(
-      [server_cert = server_certificate.str(), private_key, done](const service_provider & sp) { done(sp, certificate::parse(server_cert), private_key); },
-      [on_error, root_folder](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-
-        file::delete_file(filename(root_folder, "user.crt"), true);
-        file::delete_file(filename(root_folder, "user.pkey"), true);
-
-        on_error(sp, ex);
-      },
-      sp);
+        
+          done(sp, server_certificate, private_key);
+        
+        });
+    });
   });
 }
 

@@ -41,11 +41,13 @@ vds::client_messages::certificate_and_key_response::certificate_and_key_response
   const guid & id,
   const std::string & certificate_body,
   const std::string & private_key_body,
-  size_t order_num)
+  size_t order_num,
+  const std::list<guid> & parents)
 : id_(id),
   certificate_body_(certificate_body),
   private_key_body_(private_key_body),
-  order_num_(order_num)
+  order_num_(order_num),
+  parents_(parents)
 {
 }
 

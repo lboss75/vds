@@ -162,48 +162,44 @@ vds::async_task<> vds::_chunk_manager::add_object(
   const filename & tmp_file,
   const const_data_buffer & file_hash)
 {
-  return create_async_task([this, &tr, version_id, tmp_file, file_hash](
-    const std::function<void (const service_provider & sp)> & done,
-    const error_handler & on_error,
-    const service_provider & sp){
-    
     auto file_size = file::length(tmp_file);
     auto server_id = sp.get<istorage_log>()->current_server_id();
-    
+
     this->chunk_mutex_.lock();
     auto start_chunk = this->last_chunk_;
     auto finish_chunk = start_chunk + (file_size / BLOCK_SIZE);
     if(0 != (file_size % BLOCK_SIZE)){
-      ++finish_chunk;
+        ++finish_chunk;
     }
     this->chunk_mutex_.unlock();
-    
-    //principal_log_new_object_map result(server_id, version_id, file_size, file_hash, start_chunk, finish_chunk);
-        
+
+    auto result = vds::async_task<>::empty();    
+       
     for (decltype(file_size) offset = 0; offset < file_size; offset += BLOCK_SIZE) {
-      if (!this->write_chunk(
-        sp,
-        tr,
-        start_chunk,
-        version_id,
-        tmp_file,
-        offset,
-        (BLOCK_SIZE < file_size - offset) ? BLOCK_SIZE : (file_size - offset),
-        on_error,
-        start_chunk == finish_chunk - 1)) {
-        return;
-      }
+        result = result.then(
+            [this,
+            &tr,
+            start_chunk,
+            version_id,
+            tmp_file,
+            offset,
+            file_size,
+            is_last = (start_chunk == finish_chunk - 1)](const service_provider & sp){
+                return this->write_chunk(
+                    sp,
+                    tr,
+                    start_chunk,
+                    version_id,
+                    tmp_file,
+                    offset,
+                    (BLOCK_SIZE < file_size - offset) ? BLOCK_SIZE : (file_size - offset),
+                    is_last);
+            });
       
       ++start_chunk;
     }
     
-    if(start_chunk != finish_chunk){
-      throw std::runtime_error("Login error");
-    }
-    
-    
-    done(sp);
-  });
+  return result;
 }
 
 void vds::_chunk_manager::create_database_objects(

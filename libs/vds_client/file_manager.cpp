@@ -44,7 +44,8 @@ vds::async_task<size_t /*body_size*/, size_t /*tail_size*/> vds::_file_manager::
           symmetric_encrypt(transaction_key),
           hash_filter(&target_lenght, &target_hash),
           file_write(tmp_file, file::file_mode::append)
-        )(
+        )
+        .wait(
           [&tail, &original_lenght, &original_hash, &target_lenght, &target_hash, &total_size]
           (const service_provider & sp) {
             total_size += target_lenght;
@@ -65,7 +66,7 @@ vds::async_task<size_t /*body_size*/, size_t /*tail_size*/> vds::_file_manager::
         symmetric_encrypt(transaction_key),
         hash_filter(&tail_lenght, &tail_hash),
         file_write(tmp_file, file::file_mode::append)
-      )(
+      ).wait(
         [done, total_size, &tail_lenght](const service_provider & sp) {
           done(sp, total_size, tail_lenght);
         },
@@ -86,21 +87,20 @@ vds::async_task<> vds::_file_manager::decrypt_file(
   size_t body_size,
   size_t tail_size)
 {
-  return create_async_task(
-    [transaction_key, tmp_file, target_file, body_size, tail_size]
-    (const std::function<void(const service_provider & sp)> & done,
-      const error_handler & on_error,
-      const service_provider & sp) {
-      
-      std::vector<uint8_t> tail_data;
-      dataflow(
+  auto tail_data = std::make_shared<std::vector<uint8_t>>();
+  
+  return dataflow(
         file_range_read(tmp_file, body_size, tail_size),
         symmetric_decrypt(transaction_key),
         inflate(),
-        collect_data(tail_data))(
-          [&tail_data, done, on_error, tmp_file, target_file, transaction_key](const service_provider & sp){
+        collect_data(*tail_data))
+  .then(
+      [tail_data, tmp_file, target_file, transaction_key](
+        const std::function<void (const service_provider & sp)> & done,
+        const error_handler & on_error,
+        const service_provider & sp){
             
-            binary_deserializer tail(tail_data);
+            binary_deserializer tail(*tail_data);
             size_t offset = 0;
             while(0 < tail.size()) {
               size_t original_lenght;
@@ -116,7 +116,7 @@ vds::async_task<> vds::_file_manager::decrypt_file(
                 symmetric_decrypt(transaction_key),
                 inflate(),
                 file_write(target_file, (0 == offset) ? file::file_mode::truncate : file::file_mode::append)
-              )(
+              ).wait(
                 [](const service_provider & sp){
                 },
                 [&error](const service_provider & sp, const std::shared_ptr<std::exception> & ex){
@@ -132,9 +132,6 @@ vds::async_task<> vds::_file_manager::decrypt_file(
             }
             
             done(sp);
-          },
-          on_error,
-          sp);
-    });
+  });
 }
 

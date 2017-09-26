@@ -53,7 +53,7 @@ namespace vds {
       const std::string & certificate_body() const { return this->certificate_body_; }
       const std::string & private_key_body() const { return this->private_key_body_; }
       size_t order_num() const { return this->order_num_; }
-      std::list<guid> & parents() const { return this->parents_; }
+      const std::list<guid> & parents() const { return this->parents_; }
 
     private:
       guid id_;
