@@ -65,7 +65,8 @@ namespace vds {
         const principal_log_record::record_id & record_id,
         const guid & principal_id,
         const std::shared_ptr<json_value> & message,
-        const asymmetric_private_key & principal_private_key,
+        const guid & member_id,
+        const vds::asymmetric_private_key & member_private_key,
         const_data_buffer & signature);
     
     void processed_record(

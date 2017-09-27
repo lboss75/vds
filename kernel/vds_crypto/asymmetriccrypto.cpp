@@ -763,6 +763,11 @@ vds::certificate_extension vds::certificate::get_extension(int index) const
   return this->impl_->get_extension(index);
 }
 
+vds::certificate_extension vds::certificate::get_extension(const std::string & name) const
+{
+  return this->impl_->get_extension(name);
+}
+
 vds::certificate & vds::certificate::operator = (const certificate & original)
 {
   this->impl_ = original.impl_;
@@ -980,12 +985,7 @@ bool vds::_certificate::is_issued(const vds::certificate& issuer) const
 
 bool vds::_certificate::add_ext(X509 * cert, int nid, const char * value)
 {
-  X509V3_CTX ctx;
-  X509V3_set_ctx_nodb(&ctx);
-
-  X509V3_set_ctx(&ctx, cert, cert, NULL, NULL, 0);
-
-  X509_EXTENSION * ex = X509V3_EXT_conf_nid(NULL, &ctx, nid, const_cast<char *>(value));
+  X509_EXTENSION * ex = X509V3_EXT_conf_nid(NULL, NULL, nid, const_cast<char *>(value));
   if (nullptr == ex) {
     return false;
   }
@@ -1012,16 +1012,18 @@ vds::certificate_extension vds::_certificate::get_extension(int index) const
   
   X509_EXTENSION * ext = X509_get_ext(this->cert_, index);
   if(nullptr != ext){
-    //TODO: result.base_nid = OBJ_obj2nid(ext);
+    auto obj = X509_EXTENSION_get_object(ext);
+    result.base_nid = OBJ_obj2nid(obj);
     
     char buf[256];
-    //OBJ_obj2txt(buf, sizeof(buf), ext, 0);
+    OBJ_obj2txt(buf, sizeof(buf), obj, 0);
     result.name = buf;
     
     BIO *bio = BIO_new(BIO_s_mem());
-    if(!X509V3_EXT_print(bio, ext, 0, 0)){
-      //TODO: M_ASN1_OCTET_STRING_print(bio, ext);
-    }
+    i2a_ASN1_OBJECT(bio, obj);
+//     if(!X509V3_EXT_print(bio, ext, 0, 0)){
+//       M_ASN1_OCTET_STRING_print(bio, ext);
+//     }
     
     auto len = BIO_read(bio, buf, sizeof(buf));
     BIO_free(bio);
@@ -1032,6 +1034,19 @@ vds::certificate_extension vds::_certificate::get_extension(int index) const
   return result;
 }
 
+vds::certificate_extension vds::_certificate::get_extension(const std::string & name) const
+{
+  std::cout << "extension_count:" << this->extension_count() << "\n";
+  for(int i = 0; i < this->extension_count(); ++i){
+    auto ext = this->get_extension(i);
+    std::cout << "extension[" << i << "]:" << ext.name << "=" << ext.value << "\n";
+    if(ext.name == name){
+      return ext;
+    }
+  }
+  
+  return certificate_extension();
+}
 
 vds::certificate_extension::certificate_extension()
   : base_nid(NID_netscape_comment)

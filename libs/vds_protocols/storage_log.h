@@ -28,7 +28,8 @@ namespace vds {
       const service_provider & sp,
       database_transaction & tr,
       const guid & principal_id,
-      const vds::asymmetric_private_key & principal_private_key,
+      const guid & member_id,
+      const vds::asymmetric_private_key & member_private_key,
       const std::shared_ptr<json_value> & record,
       bool apply_record = true,
       const guid & record_id = guid::new_guid());

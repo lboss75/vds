@@ -37,6 +37,14 @@ TEST(test_certificates, test_pem)
         ca_options.country = "RU";
         ca_options.organization = "Test Org";
         ca_options.name = "CA Cert";
+        
+        vds::certificate_extension ca_ext;
+        ca_ext.oid = "1.2.3.4";
+        ca_ext.name = "test_ext";
+        ca_ext.description = "test";
+        ca_ext.value = "test_value";
+        
+        ca_options.extensions.push_back(ca_ext);
 
         vds::certificate ca = vds::certificate::create_new(
           ca_certificate_public_key,
@@ -54,6 +62,8 @@ TEST(test_certificates, test_pem)
       {
         vds::asymmetric_private_key ca_certificate_private_key = vds::asymmetric_private_key::parse(ca_private_key);
         vds::certificate ca = vds::certificate::parse(ca_certificate_text);
+        
+        GTEST_ASSERT_EQ(ca.get_extension("test_ext").value, "test_value");
 
         vds::asymmetric_private_key sub_certificate_private_key(vds::asymmetric_crypto::rsa2048());
         sub_certificate_private_key.generate();

@@ -312,6 +312,7 @@ vds::async_task<> vds::_chunk_manager::write_chunk(
           sp,
           tr,
           server_id,
+          server_id,
           sp.get<istorage_log>()->server_private_key(),
           chunk.serialize(true),
           false,
@@ -345,6 +346,7 @@ void vds::_chunk_manager::generate_horcruxes(
     sp.get<istorage_log>()->add_to_local_log(
       sp,
       tr,
+      server_id,
       server_id,
       sp.get<istorage_log>()->server_private_key(),
       principal_log_new_replica(

@@ -576,7 +576,7 @@ void vds::_principal_manager::get_principal_log(
   principal_log_table t;
 
   auto st = tr.get_reader(
-    t.select(t.id, t.order_num, t.message)
+    t.select(t.id, t.member_id, t.order_num, t.message)
     .where(t.principal_id == principal_id && t.order_num <= last_order_num)
     .order_by(db_desc_order(t.order_num)));
 
@@ -592,6 +592,7 @@ void vds::_principal_manager::get_principal_log(
 
     principal_log_record::record_id id = t.id.get(st);
     std::string message = t.message.get(st);
+    auto member_id = t.member_id.get(st);
 
     std::shared_ptr<json_value> msg;
     dataflow(
@@ -609,6 +610,7 @@ void vds::_principal_manager::get_principal_log(
     records.push_back(principal_log_record(
       id,
       principal_id,
+      member_id,
       std::list<principal_log_record::record_id>(),
       msg,
       order_num));
@@ -624,7 +626,8 @@ vds::principal_log_record
     const principal_log_record::record_id & record_id,
     const guid & principal_id,
     const std::shared_ptr<json_value> & message,
-    const vds::asymmetric_private_key & principal_private_key,
+    const guid & member_id,
+    const vds::asymmetric_private_key & member_private_key,
     const_data_buffer & signature)
 {
   std::list<principal_log_record::record_id> parents;
@@ -633,11 +636,11 @@ vds::principal_log_record
   std::lock_guard<not_mutex> lock(this->principal_log_mutex_);
 
   //Sign message
-  principal_log_record result(record_id, principal_id, parents, message, max_order_num + 1);
+  principal_log_record result(record_id, principal_id, member_id, parents, message, max_order_num + 1);
   std::string body = result.serialize(false)->str();
   signature = asymmetric_sign::signature(
     hash::sha256(),
-    principal_private_key,
+    member_private_key,
     body.c_str(),
     body.length());
 
@@ -648,7 +651,7 @@ vds::principal_log_record
     record_id,
     principal_id,
     message->str(),
-    principal_id,
+    member_id,
     signature,
     max_order_num + 1,
     principal_log_state::front);

@@ -47,12 +47,14 @@ void vds::istorage_log::add_to_local_log(
   const service_provider & sp,
   database_transaction & tr,
   const guid & principal_id,
-  const vds::asymmetric_private_key & principal_private_key,
+  const guid & member_id,
+  const vds::asymmetric_private_key & member_private_key,
   const std::shared_ptr<json_value> & record,
   bool apply_record /*= true*/,
   const guid & record_id /*= guid::new_guid()*/)
 {
-  static_cast<_storage_log *>(this)->add_to_local_log(sp, tr, principal_id, principal_private_key, record, apply_record, record_id);
+  static_cast<_storage_log *>(this)->add_to_local_log(
+    sp, tr, principal_id, member_id, member_private_key, record, apply_record, record_id);
 }
 
 vds::async_task<> vds::istorage_log::register_server(
@@ -168,6 +170,7 @@ void vds::_storage_log::reset(
       sp,
       tr,
       principal_id,
+      principal_id,
       private_key,
       server_log_root_certificate(
         principal_id,
@@ -179,6 +182,7 @@ void vds::_storage_log::reset(
     this->add_to_local_log(
       sp,
       tr,
+      principal_id,
       principal_id,
       private_key,
       server_log_new_server(
@@ -193,6 +197,7 @@ void vds::_storage_log::reset(
     this->add_to_local_log(
       sp,
       tr,
+      principal_id,
       principal_id,
       private_key,
       server_log_new_endpoint(this->current_server_id_, addresses).serialize(true),
@@ -242,6 +247,7 @@ vds::async_task<> vds::_storage_log::register_server(
       sp,
       tr,
       this->current_server_id(),
+      this->current_server_id(),
       this->server_private_key(),
       server_log_new_server(
         id,
@@ -259,7 +265,8 @@ void vds::_storage_log::add_to_local_log(
   const service_provider & sp,
   database_transaction & tr,
   const guid & principal_id,
-  const vds::asymmetric_private_key & principal_private_key,
+  const guid & member_id,
+  const vds::asymmetric_private_key & member_private_key,
   const std::shared_ptr<json_value> & message,
   bool apply_record,
   const guid & record_id /*= guid::new_guid()*/)
@@ -273,7 +280,8 @@ void vds::_storage_log::add_to_local_log(
       record_id,
       principal_id,
       message,
-      principal_private_key,
+      member_id,
+      member_private_key,
       signature);
     
   if(apply_record){

@@ -235,6 +235,7 @@ namespace vds {
     int extension_count() const;
     int extension_by_NID(int nid) const;
     certificate_extension get_extension(int index) const;
+    certificate_extension get_extension(const std::string & name) const;
 
   private:
     X509 * cert_;

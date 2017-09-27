@@ -147,6 +147,7 @@ void vds::_object_transfer_protocol::object_offer(
       sp,
       tr,
       current_server_id,
+      current_server_id,
       storage_log->server_private_key(),
       principal_log_store_replica(
         message.server_id(),
