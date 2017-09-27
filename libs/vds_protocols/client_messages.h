@@ -103,44 +103,64 @@ namespace vds {
       std::shared_ptr<json_value> serialize() const;
     };
     //////////////////////////////////////////////////////////////
-    class register_local_user_request
+    class principal_log_add_record_request
     {
     public:
       static const char message_type[];
 
-      register_local_user_request(
-        const guid & id,
-        const guid & parent_id,
-        const std::string & server_certificate,
-        const std::string & server_private_key,
-        const const_data_buffer & password_hash);
+      principal_log_add_record_request(
+        const std::string & message,
+        const const_data_buffer & message_sign)
+      : message_(message),
+        message_sign_(message_sign)
+      {
+      }
 
-      register_local_user_request(const std::shared_ptr<json_value> &);
-      std::shared_ptr<json_value> serialize() const;
+      principal_log_add_record_request(const std::shared_ptr<json_value> & source)
+      {
+        auto s = std::dynamic_pointer_cast<json_object>(source);
+        if (s) {
+          s->get_property("m", this->message_);
+          s->get_property("s", this->message_sign_);
+        }
+      }
 
-      const guid & id() const { return this->id_; }
-      const guid & parent_id() const { return this->parent_id_; }
-      const std::string & server_certificate() const { return this->server_certificate_; }
-      const std::string & server_private_key() const { return this->server_private_key_; }
-      const const_data_buffer & password_hash() const { return this->password_hash_; }
+      std::shared_ptr<json_value> serialize(bool add_type) const
+      {
+        auto result = std::make_shared<json_object>();
+        if (add_type) {
+          result->add_property("$t", message_type);
+        }
+
+        result->add_property("m", this->message_);
+        result->add_property("s", this->message_sign_);
+        return result;
+      }
+
+      const std::string & message() const { return this->message_; }
+      const const_data_buffer & message_sign() const { return this->message_sign_; }
 
     private:
-      guid id_;
-      guid parent_id_;
-      std::string server_certificate_;
-      std::string server_private_key_;
-      const_data_buffer password_hash_;
+      std::string message_;
+      const_data_buffer message_sign_;
     };
 
-    class register_local_user_response
+    class principal_log_add_record_response
     {
     public:
       static const char message_type[];
 
-      register_local_user_response();
-      register_local_user_response(const std::shared_ptr<json_value> &);
+      principal_log_add_record_response(const std::shared_ptr<json_value> & source)
+      {
+      }
 
-      std::shared_ptr<json_value> serialize() const;
+      std::shared_ptr<json_value> serialize(bool add_type) const
+      {
+        auto result = std::make_shared<json_object>();
+        if (add_type) {
+          result->add_property("$t", message_type);
+        }
+      }
     };
     //////////////////////////////////////////////////////////////
     class put_object_message

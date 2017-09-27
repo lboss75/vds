@@ -97,12 +97,17 @@ namespace vds{
         return 0;
       }
       
+#ifndef _WIN32
       if(pthis->need_demonize()){
         pthis->demonize();
       }
       else {
         pthis->start();
       }
+#else
+      pthis->start();
+#endif // _WIN32
+
       return 0;
     }
 
@@ -229,7 +234,9 @@ namespace vds{
         }
       }
     }
-    
+
+#ifndef _WIN32
+
     bool need_demonize()
     {
       return false;
@@ -342,6 +349,7 @@ namespace vds{
       auto pthis = static_cast<app_impl *>(this);
       pthis->start();
     }
+#endif // _WIN32
 
   private:
     command_line_set help_cmd_set_;

@@ -74,6 +74,12 @@ vds::node_app::node_app()
     "File name",
     "The name of the file"
   ),
+  device_name_(
+    "d",
+    "device-name",
+    "Device name",
+    "The device name"
+  ),
   filename_(
     "f",
     "file",

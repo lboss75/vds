@@ -55,6 +55,7 @@ vds::principal_log_record::principal_log_record()
 vds::principal_log_record::principal_log_record(const principal_log_record & origin)
 : id_(origin.id_),
   principal_id_(origin.principal_id_),
+  member_id_(origin.member_id_),
   parents_(origin.parents_),
   message_(origin.message_),
   order_num_(origin.order_num_)
@@ -65,7 +66,7 @@ vds::binary_deserializer & vds::principal_log_record::deserialize(
   const service_provider & sp,
   binary_deserializer & b)
 {
-  b >> this->id_ >> this->principal_id_ >> this->order_num_;
+  b >> this->id_ >> this->principal_id_ >> this->member_id_ >> this->order_num_;
 
   auto parent_count = b.read_number();
   for (decltype(parent_count) i = 0; i < parent_count; ++i) {
@@ -82,11 +83,13 @@ vds::binary_deserializer & vds::principal_log_record::deserialize(
 vds::principal_log_record::principal_log_record(
   const record_id & id,
   const guid & principal_id,
+  const guid & member_id,
   const std::list<record_id> & parents,
   const std::shared_ptr<json_value> & message,
   size_t order_num)
 : id_(id),
   principal_id_(principal_id),
+  member_id_(member_id),
   parents_(parents),
   message_(message),
   order_num_(order_num)
@@ -100,6 +103,7 @@ vds::principal_log_record::principal_log_record(const std::shared_ptr<json_value
     
     s->get_property("i", this->id_);
     s->get_property("p", this->principal_id_);
+    s->get_property("u", this->member_id_);
     s->get_property("o", this->order_num_);
     
     this->message_ = s->get_property("m");
@@ -120,12 +124,14 @@ vds::principal_log_record::principal_log_record(const std::shared_ptr<json_value
 void vds::principal_log_record::reset(
   const record_id & id,
   const guid & principal_id,
+  const guid & member_id,
   const std::list<record_id>& parents,
   const std::shared_ptr<json_value> & message,
   size_t order_num)
 {
   this->id_ = id;
   this->principal_id_ = principal_id;
+  this->member_id_ = member_id;
   this->parents_ = parents;
   this->message_ = message;
   this->order_num_ = order_num;
@@ -139,7 +145,7 @@ void vds::principal_log_record::add_parent(
 
 void vds::principal_log_record::serialize(binary_serializer & b) const
 {
-  b << this->id_ << this->principal_id_ << this->order_num_;
+  b << this->id_ << this->principal_id_ << this->member_id_ << this->order_num_;
 
   b.write_number(this->parents_.size());
   for (auto & p : this->parents_) {
@@ -158,6 +164,7 @@ std::shared_ptr<vds::json_value> vds::principal_log_record::serialize(bool add_t
   }
   result->add_property("i", this->id_);
   result->add_property("p", this->principal_id_);
+  result->add_property("u", this->member_id_);
   result->add_property("o", this->order_num_);
   result->add_property(std::make_shared<json_property>("m", this->message_));
 
@@ -461,3 +468,5 @@ std::shared_ptr<vds::json_value> vds::principal_log_store_replica::serialize(boo
   result->add_property("r", this->replica_index_);
   return result;
 }
+////////////////////////////////////////////////////
+const char vds::principal_log_new_local_user::message_type[] = "new local user";

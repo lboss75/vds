@@ -65,6 +65,7 @@ namespace vds {
     principal_log_record(
       const record_id & id,
       const guid & principal_id,
+      const guid & member_id,
       const std::list<record_id> & parents,
       const std::shared_ptr<json_value> & message,
       size_t order_num);
@@ -74,6 +75,7 @@ namespace vds {
     void reset(
       const record_id & id,
       const guid & principal_id,
+      const guid & member_id,
       const std::list<record_id> & parents,
       const std::shared_ptr<json_value> & message,
       size_t order_num);
@@ -82,6 +84,7 @@ namespace vds {
 
     const record_id & id() const { return this->id_; }
     const guid & principal_id() const { return this->principal_id_; }
+    const guid & member_id() const { return this->member_id_; }
     const std::list<record_id> parents() const { return this->parents_; }
     size_t order_num() const { return this->order_num_; }
     void add_parent(const guid & index);
@@ -96,6 +99,7 @@ namespace vds {
   private:
     record_id id_;
     guid principal_id_;
+    guid member_id_;
     std::list<record_id> parents_;
     std::shared_ptr<json_value> message_;
     size_t order_num_;
@@ -369,6 +373,77 @@ namespace vds {
     guid server_id_;
     size_t chunk_index_;
     size_t replica_index_;
+  };
+
+  class principal_log_new_local_user
+  {
+  public:
+    static const uint8_t message_id = 'l';
+    static const char message_type[];
+
+    principal_log_new_local_user(
+      const guid & member_id,
+      const guid & parent_id,
+      const certificate & member_cert,
+      const std::string & member_name)
+    : member_id_(member_id),
+      parent_id_(parent_id),
+      member_cert_(member_cert),
+      member_name_(member_name)
+    {
+    }
+
+    principal_log_new_local_user(const std::shared_ptr<json_value> & source)
+    {
+      auto s = std::dynamic_pointer_cast<json_object>(source);
+      if (s) {
+        s->get_property("m", this->member_id_);
+        s->get_property("p", this->parent_id_);
+
+        std::string member_cert;
+        s->get_property("c", member_cert);
+        this->member_cert_ = certificate::parse(member_cert);
+
+        s->get_property("n", this->member_name_);
+      }
+    }
+
+    const guid & member_id() const { return this->member_id_; }
+    const guid & parent_id() const { return this->parent_id_; }
+    const certificate & member_cert() const { return this->member_cert_; }
+    const std::string & member_name() const { return this->member_name_; }
+
+    std::shared_ptr<json_value> serialize(bool add_type) const
+    {
+      auto result = std::make_shared<json_object>();
+      if (add_type) {
+        result->add_property("$t", message_type);
+      }
+      result->add_property("m", this->member_id_);
+      result->add_property("p", this->parent_id_);
+      result->add_property("c", this->member_cert_.str());
+      result->add_property("n", this->member_name_);
+      return result;
+    }
+
+    principal_log_new_local_user(binary_deserializer & b)
+    {
+      const_data_buffer member_cert;
+      b >> this->member_id_ >> this->parent_id_ >> member_cert >> this->member_name_;
+
+      this->member_cert_ = certificate::parse_der(member_cert);
+    }
+
+    void serialize(binary_serializer & b) const
+    {
+      b << this->member_id_ << this->parent_id_ << this->member_cert_.der() << this->member_name_;
+    }
+
+  private:
+    guid member_id_;
+    guid parent_id_;
+    certificate member_cert_;
+    std::string member_name_;
   };
 //   class principal_log_new_object_map
 //   {

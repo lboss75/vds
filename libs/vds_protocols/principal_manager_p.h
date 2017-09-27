@@ -181,8 +181,8 @@ namespace vds {
         : database_table("principal_log"),
         id(this, "id"),
         principal_id(this, "principal_id"),
-        member_id(this, "member_id"),
         message(this, "message"),
+        member_id(this, "member_id"),
         signature(this, "signature"),
         order_num(this, "order_num"),
         state(this, "state")
@@ -191,8 +191,8 @@ namespace vds {
 
       database_column<guid> id;
       database_column<guid> principal_id;
-      database_column<guid> member_id;
       database_column<std::string> message;
+      database_column<guid> member_id;
       database_column<const_data_buffer> signature;
       database_column<int> order_num;
       database_column<int> state;
@@ -228,6 +228,7 @@ namespace vds {
       const guid & record_id,
       const guid & principal_id,
       const std::string & body,
+      const guid & member_id,
       const const_data_buffer & signature,
       int order_num,
       principal_log_state state);

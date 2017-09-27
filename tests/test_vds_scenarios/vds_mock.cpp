@@ -225,27 +225,23 @@ void mock_client::upload_file(
     tmp_folder.create();
     vds::filename tmp_file(tmp_folder, "source");
 
+    vds::barrier b;
     vds::dataflow(
       vds::dataflow_arguments<uint8_t>((const uint8_t *)data, data_size),
       vds::file_write(tmp_file, vds::file::file_mode::create_new)
     )
-    (
-      [](const vds::service_provider & sp) {},
-      [](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) { sp.unhandled_exception(ex); },
-      sp
-      );
-
-    vds::barrier b;
-    sp.get<vds::iclient>()->upload_file(sp, login, password, name, tmp_file)
-      .wait(
-        [&b](const vds::service_provider&sp, const std::string& /*version_id*/) {
-          b.set(); 
-        },
-        [&b](const vds::service_provider&sp, const std::shared_ptr<std::exception> & ex) {
-          b.set();
-          sp.unhandled_exception(ex);
-        },
-        sp);
+    .then([login, password, name, tmp_file](const vds::service_provider & sp) {
+      return sp.get<vds::iclient>()->upload_file(sp, login, password, name, tmp_file);
+    })
+    .wait(
+      [&b](const vds::service_provider&sp, const std::string& /*version_id*/) {
+        b.set(); 
+      },
+      [&b](const vds::service_provider&sp, const std::shared_ptr<std::exception> & ex) {
+        b.set();
+        sp.unhandled_exception(ex);
+      },
+      sp);
 
     b.wait();
   }, false);
@@ -293,8 +289,7 @@ vds::const_data_buffer mock_client::download_data(const std::string & login, con
     vds::dataflow(
       vds::file_read(tmp_file),
       vds::collect_data(result)
-    )
-    (
+    ).wait(
       [](const vds::service_provider & sp) {
       },
       [&error](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {

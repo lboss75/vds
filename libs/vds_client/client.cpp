@@ -194,95 +194,94 @@ vds::_client::init_server(
 
 vds::async_task<> vds::_client::create_local_login(
   const service_provider & sp,
-  const std::string & login,
-  const std::string & password,
+  const std::string& user_login,
+  const std::string& user_password,
   const std::string & name)
 {
   return
-    this->authenticate(sp, login, password)
-    .then([this, name, password](
-      const std::function<void(const service_provider & sp)> & done,
-      const error_handler & on_error,
+    this->authenticate(sp, user_login, user_password)
+    .then([this, name, user_password](
       const service_provider & sp,
       const client_messages::certificate_and_key_response & response) ->async_task<> {
     sp.get<logger>()->trace("client", sp, "Register new user");
 
-    auto user_certificate = certificate::parse(response.certificate_body());
-    auto user_private_key = asymmetric_private_key::parse_der(sp, base64::to_bytes(response.private_key_body()), password);
+    return asymmetric_private_key::parse_der(
+      sp,
+      base64::to_bytes(response.private_key_body()),
+      user_password)
+      .then(
+        [this, response, user_password, name](
+          const service_provider & sp,
+          const asymmetric_private_key & user_private_key) ->async_task<> {
 
-    asymmetric_private_key local_user_private_key(asymmetric_crypto::rsa4096());
-    local_user_private_key.generate();
+      auto user_certificate = certificate::parse(response.certificate_body());
 
-    asymmetric_public_key local_user_pkey(local_user_private_key);
+      asymmetric_private_key local_user_private_key(asymmetric_crypto::rsa4096());
+      local_user_private_key.generate();
 
-    auto member_id = guid::new_guid();
+      asymmetric_public_key local_user_pkey(local_user_private_key);
 
-    certificate::create_options local_user_options;
-    local_user_options.country = "RU";
-    local_user_options.organization = "IVySoft";
-    local_user_options.name = "Local User Certificate " + member_id.str();
-    local_user_options.ca_certificate = &user_certificate;
-    local_user_options.ca_certificate_private_key = &user_private_key;
+      auto member_id = guid::new_guid();
 
-    certificate local_user_certificate = certificate::create_new(local_user_pkey, local_user_private_key, local_user_options);
+      certificate::create_options local_user_options;
+      local_user_options.country = "RU";
+      local_user_options.organization = "IVySoft";
+      local_user_options.name = "Local User Certificate " + member_id.str();
+      local_user_options.ca_certificate = &user_certificate;
+      local_user_options.ca_certificate_private_key = &user_private_key;
 
-    foldername root_folder(persistence::current_user(sp), ".vds");
-    root_folder.create();
-    user_certificate.save(filename(root_folder, "owner.crt"));
-    local_user_certificate.save(filename(root_folder, "user.crt"));
-    local_user_private_key.save(filename(root_folder, "user.pkey"));
+      certificate local_user_certificate = certificate::create_new(local_user_pkey, local_user_private_key, local_user_options);
 
-    hash ph(hash::sha256());
-    ph.update(password.c_str(), password.length());
-    ph.final();
+      foldername root_folder(persistence::current_user(sp), ".vds");
+      root_folder.create();
+      user_certificate.save(filename(root_folder, "owner.crt"));
+      local_user_certificate.save(filename(root_folder, "user.crt"));
+      local_user_private_key.save(filename(root_folder, "user.pkey"));
 
-    //Form principal_log message
-    auto msg = principal_log_record(
-      guid::new_guid(),
-      response.id(),
-      response.parents(),
-      principal_log_new_member(member_id, name, local_user_certificate).serialize(),
-      response.order_num() + 1).serialize(false);
+      //Form principal_log message
+      auto msg = principal_log_record(
+        guid::new_guid(),
+        response.id(),
+        response.id(),
+        response.parents(),
+        principal_log_new_local_user(
+          member_id,
+          response.id(),
+          local_user_certificate,
+          name).serialize(true),
+        response.order_num() + 1).serialize(false);
 
-    auto s = msg->str();
-    const_data_buffer signature;
-    return dataflow(
-      dataflow_arguments<uint8_t>((const uint8_t *)s.c_str(), s.length()),
-      asymmetric_sign(
-        hash::sha256(),
-        asymmetric_private_key::parse_der(sp, base64::to_bytes(response.private_key_body()), password),
-        signature)
-    )
-    .then(
-      [this, done, on_error, &signature, &response, msg, version_id, tmp_file](const service_provider & sp){
-        this->owner_->logic_->send_request<client_messages::register_local_user_response>(
-          sp,
-          client_messages::register_local_user_request(
-            client_id,
-            local_user_certificate.str(),
-            base64::from_bytes(local_user_private_key.der(sp, password)),
-            ph.signature()).serialize())
-          .then([this](const std::function<void(const service_provider & sp)> & done,
-            const error_handler & on_error,
-            const service_provider & sp,
-            const client_messages::register_server_response & response) {
-          done(sp);
-        }).wait(
-          [server_cert = server_certificate.str(), private_key, done](const service_provider & sp) { done(sp, certificate::parse(server_cert), private_key); },
-          [on_error, root_folder](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-
-            file::delete_file(filename(root_folder, "user.crt"), true);
-            file::delete_file(filename(root_folder, "user.pkey"), true);
-
-            on_error(sp, ex);
-          },
-          sp);
-      },
-      [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-
-      },
-      sp);
+      auto s = msg->str();
+      const_data_buffer signature;
+      return asymmetric_private_key::parse_der(sp, base64::to_bytes(response.private_key_body()), user_password)
+        .then([this, &signature, &response, msg, member_id, local_user_certificate, local_user_private_key, user_password, s](
+          const service_provider & sp,
+          const asymmetric_private_key & private_key) -> async_task<> {
+        return dataflow(
+          dataflow_arguments<uint8_t>((const uint8_t *)s.c_str(), s.length()),
+          asymmetric_sign(
+            hash::sha256(),
+            private_key,
+            signature))
+          .then(
+            [this, &signature, &response, msg, member_id, local_user_certificate, local_user_private_key, user_password, s](
+              const service_provider & sp) -> async_task<> {
+          return this->owner_->logic_->send_request<client_messages::principal_log_add_record_response>(
+            sp,
+            client_messages::principal_log_add_record_request(
+              s,
+              signature).serialize(true))
+            .then([this](
+              const std::function<void(const service_provider & sp)> & done,
+              const error_handler & on_error,
+              const service_provider & sp,
+              const client_messages::principal_log_add_record_response & response) {
+            done(sp);
+          });
+        });
+      });
     });
+  });
 }
 
 vds::async_task<const std::string& /*version_id*/> vds::_client::upload_file(
@@ -295,114 +294,113 @@ vds::async_task<const std::string& /*version_id*/> vds::_client::upload_file(
   return
     this->authenticate(sp, user_login, user_password)
     .then([this, user_login, name, fn, user_password](
-      const std::function<void(const service_provider & sp, const std::string & /*version_id*/)> & done,
-      const error_handler & on_error,
       const service_provider & sp,
       const client_messages::certificate_and_key_response & response) {
-      
-      imt_service::disable_async(sp);
 
-      sp.get<logger>()->trace("client", sp, "Crypting data");
-      auto length = file::length(fn);
-      
-      //Generate key
-      symmetric_key transaction_key(symmetric_crypto::aes_256_cbc());
-      transaction_key.generate();
+    imt_service::disable_async(sp);
 
-      //Crypt body
-      auto version_id = guid::new_guid();
-      filename tmp_file(this->tmp_folder_, version_id.str());
+    sp.get<logger>()->trace("client", sp, "Crypting data");
+    auto length = file::length(fn);
 
-      _file_manager::crypt_file(
-        sp,
-        length,
-        transaction_key,
-        fn,
-        tmp_file)
+    //Generate key
+    symmetric_key transaction_key(symmetric_crypto::aes_256_cbc());
+    transaction_key.generate();
+
+    //Crypt body
+    auto version_id = guid::new_guid();
+    filename tmp_file(this->tmp_folder_, version_id.str());
+
+    return _file_manager::crypt_file(
+      sp,
+      length,
+      transaction_key,
+      fn,
+      tmp_file)
       .then([this, name, length, version_id, &response, transaction_key, user_password, tmp_file](
-        const std::function<void(const service_provider & sp)>& done,
-        const error_handler & on_error,
         const service_provider & sp,
         size_t body_size,
-        size_t tail_size){
-        //Meta info
-        binary_serializer file_info;
-        file_info << name << length << body_size << tail_size;
-        transaction_key.serialize(file_info);
-        
-        auto user_certificate = certificate::parse(response.certificate_body());
+        size_t tail_size) {
+      //Meta info
+      binary_serializer file_info;
+      file_info << name << length << body_size << tail_size;
+      transaction_key.serialize(file_info);
 
-        auto meta_info = user_certificate.public_key().encrypt(file_info.data());
-        
-        std::list<principal_log_record::record_id> parents;
-        parents.push_back(version_id);
-        //Form principal_log message
-        auto msg = principal_log_record(
-          guid::new_guid(),
-          response.id(),
-          parents,
-          principal_log_new_object(version_id,  body_size + tail_size, meta_info).serialize(),
-          response.order_num() + 1).serialize(false);                              
-        
-        auto s = msg->str();
-        const_data_buffer signature;
-        dataflow(
+      auto user_certificate = certificate::parse(response.certificate_body());
+
+      auto meta_info = user_certificate.public_key().encrypt(file_info.data());
+
+      std::list<principal_log_record::record_id> parents;
+      parents.push_back(version_id);
+      //Form principal_log message
+      auto msg = principal_log_record(
+        guid::new_guid(),
+        response.id(),
+        parents,
+        principal_log_new_object(version_id, body_size + tail_size, meta_info).serialize(),
+        response.order_num() + 1).serialize(false);
+
+      auto s = msg->str();
+      const_data_buffer signature;
+      return asymmetric_private_key::parse_der(sp, base64::to_bytes(response.private_key_body()), user_password)
+        .then([this, &signature, &response, msg, version_id, tmp_file, s](
+          const service_provider & sp,
+          const asymmetric_private_key & private_key) {
+
+        return dataflow(
           dataflow_arguments<uint8_t>((const uint8_t *)s.c_str(), s.length()),
           asymmetric_sign(
             hash::sha256(),
-            asymmetric_private_key::parse_der(sp, base64::to_bytes(response.private_key_body()), user_password),
+            private_key,
             signature)
-        )(
-          [this, done, on_error, &signature, &response, msg, version_id, tmp_file](const service_provider & sp){
-            sp.get<logger>()->trace("client", sp, "Message [%s] signed [%s]", msg->str().c_str(), base64::from_bytes(signature).c_str());
-            
-            uint8_t file_buffer[1024];
-            file f(tmp_file, file::file_mode::open_read);
-            hash file_hash(hash::sha256());
-            for(;;){
-              auto readed = f.read(file_buffer, sizeof(file_buffer));
-              if(0 == readed){
-                break;
-              }
-              
-              file_hash.update(file_buffer, readed);
-            }
-            file_hash.final();
-            f.close();
+        )
+          .then(
+            [this, &signature, &response, msg, version_id, tmp_file](const service_provider & sp) {
+          sp.get<logger>()->trace("client", sp, "Message [%s] signed [%s]", msg->str().c_str(), base64::from_bytes(signature).c_str());
 
-            sp.get<logger>()->trace("client", sp, "Uploading file");
-            
-            imt_service::enable_async(sp);            
-            this->owner_->logic_->send_request<client_messages::put_object_message_response>(
-              sp,
-              client_messages::put_object_message(
-                response.id(),
-                msg,
-                signature,
-                version_id,
-                tmp_file,
-                file_hash.signature()).serialize(),
-             std::chrono::seconds(10 * 60))
+          uint8_t file_buffer[1024];
+          file f(tmp_file, file::file_mode::open_read);
+          hash file_hash(hash::sha256());
+          for (;;) {
+            auto readed = f.read(file_buffer, sizeof(file_buffer));
+            if (0 == readed) {
+              break;
+            }
+
+            file_hash.update(file_buffer, readed);
+          }
+          file_hash.final();
+          f.close();
+
+          sp.get<logger>()->trace("client", sp, "Uploading file");
+
+          imt_service::enable_async(sp);
+          return this->owner_->logic_->send_request<client_messages::put_object_message_response>(
+            sp,
+            client_messages::put_object_message(
+              response.id(),
+              msg,
+              signature,
+              version_id,
+              tmp_file,
+              file_hash.signature()).serialize(),
+            std::chrono::seconds(10 * 60))
             .then([](
               const std::function<void(const service_provider & /*sp*/)> & done,
               const error_handler & on_error,
               const service_provider & sp,
               const client_messages::put_object_message_response & response) {
-                done(sp);
-            })
-            .wait(done, on_error, sp);
-          },
-          [on_error, tmp_file](const service_provider & sp, const std::shared_ptr<std::exception> & ex){
-            file::delete_file(tmp_file);
-            on_error(sp, ex);
-          },
-          sp);
-      }).wait([done, version_id]
-      (const service_provider & sp){
-        done(sp, version_id.str());
-      },
-      on_error, sp);
+            done(sp);
+          });
+        });
+      });
+    })
+    .then([version_id](
+      const std::function<void(const service_provider & sp, const std::string & version_id)> & done,
+      const error_handler & on_error,
+      const service_provider & sp) {
+      done(sp, version_id.str());
     });
+  });
 }
 
 vds::async_task<const vds::guid & /*version_id*/>
@@ -419,20 +417,22 @@ vds::_client::download_data(
     user_password)
     .then(
       [this, user_login, name, target_file, user_password](
-        const std::function<void(const service_provider & sp, const guid & version_id)>& done,
-        const error_handler & on_error,
         const service_provider & sp,
         const client_messages::certificate_and_key_response & response) {
         
         sp.get<logger>()->trace("client", sp, "Waiting file");
-        this->looking_for_file(
+        return asymmetric_private_key::parse_der(sp, base64::to_bytes(response.private_key_body()), user_password)
+          .then([this, response, name, target_file](
+            const service_provider & sp,
+            const asymmetric_private_key & user_private_key) {
+          return this->looking_for_file(
             sp,
-            asymmetric_private_key::parse_der(sp, base64::to_bytes(response.private_key_body()), user_password),
+            user_private_key,
             response.id(),
             response.order_num(),
             name,
-            target_file)
-        .wait(done, on_error, sp);
+            target_file);
+        });
       });
 }
 

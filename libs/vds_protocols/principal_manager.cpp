@@ -239,6 +239,7 @@ void vds::_principal_manager::add_principal_log(
   const guid & record_id,
   const guid & principal_id,
   const std::string & body,
+  const guid & member_id,
   const const_data_buffer & signature,
   int order_num,
   _principal_manager::principal_log_state state)
@@ -249,6 +250,7 @@ void vds::_principal_manager::add_principal_log(
       t.id = record_id,
       t.principal_id = principal_id,
       t.message = body,
+      t.member_id = member_id,
       t.signature = signature,
       t.order_num = order_num,
       t.state = (int)state));
@@ -432,15 +434,17 @@ bool vds::_principal_manager::get_record(
 {
   principal_log_table t;
   auto st = tr.get_reader(
-    t.select(t.principal_id, t.message, t.signature, t.order_num).where(t.id == id));
+    t.select(t.principal_id, t.message, t.member_id, t.signature, t.order_num).where(t.id == id));
 
   bool result = false;
   guid principal_id;
   std::string message;
   size_t order_num;
+  guid member_id;
   while (st.execute()) {
     principal_id = t.principal_id.get(st);
     message = t.message.get(st);
+    member_id = t.member_id.get(st);
     result_signature = t.signature.get(st);
     order_num = t.order_num.get(st);
     result = true;
@@ -457,10 +461,11 @@ bool vds::_principal_manager::get_record(
       dataflow_require_once<std::shared_ptr<json_value>>(&body)
     )
     .wait(
-      [&id, &result_record, &parents, &body, principal_id, order_num](const service_provider & sp) {
+      [&id, &result_record, &parents, &body, principal_id, member_id, order_num](const service_provider & sp) {
         result_record.reset(
           id,
           principal_id,
+          member_id,
           parents,
           body,
           order_num);
@@ -505,17 +510,19 @@ bool vds::_principal_manager::get_record_by_state(
 {
   principal_log_table t;
   auto st = tr.get_reader(
-    t.select(t.id,t.principal_id,t.message,t.order_num,t.signature)
+    t.select(t.id,t.principal_id,t.message,t.order_num,t.member_id,t.signature)
     .where(t.state == (int)state));
 
   bool result = false;
   principal_log_record::record_id id;
   guid principal_id;
+  guid member_id;
   std::string message;
   int order_num;
   while (st.execute()) {
     id = t.id.get(st);
     principal_id = t.principal_id.get(st);
+    member_id = t.member_id.get(st);
     message = t.message.get(st);
     order_num = t.order_num.get(st);
     result_signature = t.signature.get(st);
@@ -534,11 +541,12 @@ bool vds::_principal_manager::get_record_by_state(
       dataflow_require_once<std::shared_ptr<json_value>>(&body)
     )
     .wait(
-      [&id, principal_id, &result_record, &parents, &body, order_num](
+      [&id, principal_id, member_id, &result_record, &parents, &body, order_num](
         const service_provider & sp) {
         result_record.reset(
           id,
           principal_id,
+          member_id,
           parents,
           body,
           order_num);
@@ -640,6 +648,7 @@ vds::principal_log_record
     record_id,
     principal_id,
     message->str(),
+    principal_id,
     signature,
     max_order_num + 1,
     principal_log_state::front);
@@ -692,6 +701,7 @@ bool vds::_principal_manager::save_record(
     record.id(),
     record.principal_id(),
     record.message()->str(),
+    record.member_id(),
     signature,
     record.order_num(),
     state);

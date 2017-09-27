@@ -330,3 +330,6 @@ std::shared_ptr<vds::json_value> vds::client_messages::get_object_response::seri
 
   return s;
 }
+///////////////////////////////
+const char vds::client_messages::principal_log_add_record_request::message_type[] = "add record";
+const char vds::client_messages::principal_log_add_record_response::message_type[] = "add record response";
