@@ -133,6 +133,41 @@ namespace vds {
       size_t order_num_;
       std::list<guid> parents_;
     };
+    //////////////////////////////////////////////////////////////
+    class principal_log_members_request
+    {
+    public:
+      static const char message_type[];
+
+      principal_log_members_request(
+        const guid & principal_id)
+      : principal_id_(principal_id)
+      {
+      }
+
+      principal_log_members_request(const std::shared_ptr<json_value> &);
+      std::shared_ptr<json_value> serialize() const;
+      
+    private:
+      guid principal_id_;
+    };
+    
+    class principal_log_members_response
+    {
+    public:
+      static const char message_type[];
+
+      principal_log_members_response(
+        const std::list<std::string> & members);
+
+      principal_log_members_response(const std::shared_ptr<json_value> &);
+      std::shared_ptr<json_value> serialize() const;
+
+      const std::list<std::string> & members() const { return this->members_; }
+
+    private:
+      std::list<std::string> members_;
+    };
 
     //////////////////////////////////////////////////////////////
     class principal_log_add_record_request
@@ -205,14 +240,14 @@ namespace vds {
 
       put_object_message(
         const guid & principal_id,
-        const std::shared_ptr<json_value> & principal_msg,
+        const principal_log_record & principal_msg,
         const const_data_buffer & signature,
         const guid & version_id,
         const filename & tmp_file,
         const const_data_buffer & file_hash);
 
       const guid & principal_id() const { return this->principal_id_; }
-      const std::shared_ptr<json_value> & principal_msg() const { return this->principal_msg_; }
+      const principal_log_record & principal_msg() const { return this->principal_msg_; }
       const const_data_buffer & signature() const { return this->signature_; }
       const guid & version_id() const { return this->version_id_; }
       const filename & tmp_file() const { return this->tmp_file_; }
@@ -220,7 +255,7 @@ namespace vds {
 
     private:
       guid principal_id_;
-      std::shared_ptr<json_value> principal_msg_;
+      principal_log_record principal_msg_;
       const_data_buffer signature_;
       guid version_id_;
       filename tmp_file_;

@@ -207,7 +207,7 @@ std::shared_ptr<vds::json_value> vds::client_messages::put_object_message::seria
   s->add_property("$t", message_type);
 
   s->add_property("i", this->principal_id_);
-  s->add_property("m", this->principal_msg_);
+  s->add_property("m", this->principal_msg_.serialize(false));
   s->add_property("s", this->signature_);
   s->add_property("v", this->version_id_);
   s->add_property("f", this->tmp_file_.full_name());
@@ -218,7 +218,7 @@ std::shared_ptr<vds::json_value> vds::client_messages::put_object_message::seria
 
 vds::client_messages::put_object_message::put_object_message(
   const guid & principal_id,
-  const std::shared_ptr<json_value> & principal_msg,
+  const principal_log_record & principal_msg,
   const const_data_buffer & signature,
   const guid & version_id,
   const filename & tmp_file,

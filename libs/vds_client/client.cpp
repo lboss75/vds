@@ -307,7 +307,7 @@ vds::async_task<const std::string& /*version_id*/> vds::_client::upload_file(
       transaction_key,
       fn,
       tmp_file)
-      .then([this, name, length, version_id, transaction_key, tmp_file](
+      .then([this, response, name, length, version_id, transaction_key, tmp_file](
         const service_provider & sp,
         size_t body_size,
         size_t tail_size) {
@@ -333,56 +333,52 @@ vds::async_task<const std::string& /*version_id*/> vds::_client::upload_file(
 
       auto s = msg->str();
       const_data_buffer signature;
-      return asymmetric_private_key::parse_der(sp, base64::to_bytes(response.private_key_body()), user_password)
-        .then([this, &signature, &response, msg, version_id, tmp_file, s](
-          const service_provider & sp,
-          const asymmetric_private_key & private_key) {
+      auto private_key = load_user_private_key(sp);
+      
+      return dataflow(
+        dataflow_arguments<uint8_t>((const uint8_t *)s.c_str(), s.length()),
+        asymmetric_sign(
+          hash::sha256(),
+          private_key,
+          signature)
+      )
+        .then(
+          [this, &signature, &response, msg, version_id, tmp_file, user_certificate](const service_provider & sp) {
+        sp.get<logger>()->trace("client", sp, "Message [%s] signed [%s]", msg->str().c_str(), base64::from_bytes(signature).c_str());
 
-        return dataflow(
-          dataflow_arguments<uint8_t>((const uint8_t *)s.c_str(), s.length()),
-          asymmetric_sign(
-            hash::sha256(),
-            private_key,
-            signature)
-        )
-          .then(
-            [this, &signature, &response, msg, version_id, tmp_file](const service_provider & sp) {
-          sp.get<logger>()->trace("client", sp, "Message [%s] signed [%s]", msg->str().c_str(), base64::from_bytes(signature).c_str());
-
-          uint8_t file_buffer[1024];
-          file f(tmp_file, file::file_mode::open_read);
-          hash file_hash(hash::sha256());
-          for (;;) {
-            auto readed = f.read(file_buffer, sizeof(file_buffer));
-            if (0 == readed) {
-              break;
-            }
-
-            file_hash.update(file_buffer, readed);
+        uint8_t file_buffer[1024];
+        file f(tmp_file, file::file_mode::open_read);
+        hash file_hash(hash::sha256());
+        for (;;) {
+          auto readed = f.read(file_buffer, sizeof(file_buffer));
+          if (0 == readed) {
+            break;
           }
-          file_hash.final();
-          f.close();
 
-          sp.get<logger>()->trace("client", sp, "Uploading file");
+          file_hash.update(file_buffer, readed);
+        }
+        file_hash.final();
+        f.close();
 
-          imt_service::enable_async(sp);
-          return this->owner_->logic_->send_request<client_messages::put_object_message_response>(
-            sp,
-            client_messages::put_object_message(
-              response.id(),
-              msg,
-              signature,
-              version_id,
-              tmp_file,
-              file_hash.signature()).serialize(),
-            std::chrono::seconds(10 * 60))
-            .then([](
-              const std::function<void(const service_provider & /*sp*/)> & done,
-              const error_handler & on_error,
-              const service_provider & sp,
-              const client_messages::put_object_message_response & response) {
-            done(sp);
-          });
+        sp.get<logger>()->trace("client", sp, "Uploading file");
+
+        imt_service::enable_async(sp);
+        return this->owner_->logic_->send_request<client_messages::put_object_message_response>(
+          sp,
+          client_messages::put_object_message(
+            certificate_authority::certificate_parent_id(user_certificate),
+            msg,
+            signature,
+            version_id,
+            tmp_file,
+            file_hash.signature()).serialize(),
+          std::chrono::seconds(10 * 60))
+          .then([](
+            const std::function<void(const service_provider & /*sp*/)> & done,
+            const error_handler & on_error,
+            const service_provider & sp,
+            const client_messages::put_object_message_response & response) {
+          done(sp);
         });
       });
     })
