@@ -103,6 +103,38 @@ namespace vds {
       std::shared_ptr<json_value> serialize() const;
     };
     //////////////////////////////////////////////////////////////
+    class server_log_state_request
+    {
+    public:
+      static const char message_type[];
+
+      server_log_state_request();
+
+      server_log_state_request(const std::shared_ptr<json_value> &);
+      std::shared_ptr<json_value> serialize() const;
+    };
+
+    class server_log_state_response
+    {
+    public:
+      static const char message_type[];
+
+      server_log_state_response(
+        size_t order_num,
+        const std::list<guid> & parents);
+
+      server_log_state_response(const std::shared_ptr<json_value> &);
+      std::shared_ptr<json_value> serialize() const;
+
+      size_t order_num() const { return this->order_num_; }
+      const std::list<guid> & parents() const { return this->parents_; }
+
+    private:
+      size_t order_num_;
+      std::list<guid> parents_;
+    };
+
+    //////////////////////////////////////////////////////////////
     class principal_log_add_record_request
     {
     public:

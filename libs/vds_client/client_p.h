@@ -34,15 +34,11 @@ namespace vds {
 
     async_task<const std::string& /*version_id*/> upload_file(
       const service_provider & sp,
-      const std::string & login,
-      const std::string & password,
       const std::string & name,
       const filename & tmp_file);
 
     async_task<const vds::guid & /*version_id*/> download_data(
       const service_provider & sp,
-      const std::string & login,
-      const std::string & password,
       const std::string & name,
       const filename & target_file);
 
@@ -71,6 +67,9 @@ namespace vds {
       async_task<> download_file(
         const guid & version_id,
         const filename & tmp_file);
+
+      static certificate load_user_certificate(const service_provider & sp);
+      static asymmetric_private_key load_user_private_key(const service_provider & sp);
   };
 }
 

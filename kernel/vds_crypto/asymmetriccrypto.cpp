@@ -763,11 +763,6 @@ vds::certificate_extension vds::certificate::get_extension(int index) const
   return this->impl_->get_extension(index);
 }
 
-vds::certificate_extension vds::certificate::get_extension(const std::string & name) const
-{
-  return this->impl_->get_extension(name);
-}
-
 vds::certificate & vds::certificate::operator = (const certificate & original)
 {
   this->impl_ = original.impl_;
@@ -920,9 +915,7 @@ vds::certificate vds::_certificate::create_new(
     X509_NAME_add_entry_by_txt(name, "CN", MBSTRING_ASC, (const unsigned char *)options.name.c_str(), -1, -1, 0);
 
     for(auto& extension : options.extensions) {
-      int nid = OBJ_create(extension.oid.c_str(), extension.name.c_str(), extension.description.c_str());
-      X509V3_EXT_add_alias(nid, NID_netscape_comment);
-      add_ext(x509, nid, "example comment alias");
+      add_ext(x509, extension.oid, extension.value.c_str());
     }
 
     if (nullptr == options.ca_certificate) {
@@ -1003,7 +996,7 @@ int vds::_certificate::extension_count() const
 
 int vds::_certificate::extension_by_NID(int nid) const
 {
-  return X509_get_ext_by_NID(this->cert_, nid,-1);
+  return X509_get_ext_by_NID(this->cert_, nid, -1);
 }
 
 vds::certificate_extension vds::_certificate::get_extension(int index) const
@@ -1013,18 +1006,20 @@ vds::certificate_extension vds::_certificate::get_extension(int index) const
   X509_EXTENSION * ext = X509_get_ext(this->cert_, index);
   if(nullptr != ext){
     auto obj = X509_EXTENSION_get_object(ext);
-    result.base_nid = OBJ_obj2nid(obj);
+    result.oid = OBJ_obj2nid(obj);
     
-    char buf[256];
-    OBJ_obj2txt(buf, sizeof(buf), obj, 0);
-    result.name = buf;
+    //char buf[256];
+    //OBJ_obj2txt(buf, sizeof(buf), obj, 0);
+    //result.name = buf;
     
     BIO *bio = BIO_new(BIO_s_mem());
-    i2a_ASN1_OBJECT(bio, obj);
-//     if(!X509V3_EXT_print(bio, ext, 0, 0)){
-//       M_ASN1_OCTET_STRING_print(bio, ext);
-//     }
+    if(!X509V3_EXT_print(bio, ext, 0, 0)){
+      //M_ASN1_OCTET_STRING_print(bio, ext);
+      throw std::runtime_error("Unable get certificate extension");
+    }
+    BIO_flush(bio);
     
+    char buf[256];
     auto len = BIO_read(bio, buf, sizeof(buf));
     BIO_free(bio);
     
@@ -1034,24 +1029,6 @@ vds::certificate_extension vds::_certificate::get_extension(int index) const
   return result;
 }
 
-vds::certificate_extension vds::_certificate::get_extension(const std::string & name) const
-{
-  std::cout << "extension_count:" << this->extension_count() << "\n";
-  for(int i = 0; i < this->extension_count(); ++i){
-    auto ext = this->get_extension(i);
-    std::cout << "extension[" << i << "]:" << ext.name << "=" << ext.value << "\n";
-    if(ext.name == name){
-      return ext;
-    }
-  }
-  
-  return certificate_extension();
-}
-
-vds::certificate_extension::certificate_extension()
-  : base_nid(NID_netscape_comment)
-{
-}
 //////////////////////////////////////////////////////////
 vds::certificate_store::certificate_store()
 : impl_(new _certificate_store())

@@ -18,6 +18,10 @@ TEST(test_certificates, test_pem)
 
     registrator.add(console_logger);
     registrator.add(crypto_service);
+
+    auto oid = vds::crypto_service::register_certificate_extension_type("1.2.3.4", "test_ext", "test");
+
+
     {
       auto sp = registrator.build("test_pem");
       registrator.start(sp);
@@ -39,9 +43,7 @@ TEST(test_certificates, test_pem)
         ca_options.name = "CA Cert";
         
         vds::certificate_extension ca_ext;
-        ca_ext.oid = "1.2.3.4";
-        ca_ext.name = "test_ext";
-        ca_ext.description = "test";
+        ca_ext.oid = oid;
         ca_ext.value = "test_value";
         
         ca_options.extensions.push_back(ca_ext);
@@ -63,7 +65,7 @@ TEST(test_certificates, test_pem)
         vds::asymmetric_private_key ca_certificate_private_key = vds::asymmetric_private_key::parse(ca_private_key);
         vds::certificate ca = vds::certificate::parse(ca_certificate_text);
         
-        GTEST_ASSERT_EQ(ca.get_extension("test_ext").value, "test_value");
+        GTEST_ASSERT_EQ(ca.get_extension(ca.extension_by_NID(oid)).value, "test_value");
 
         vds::asymmetric_private_key sub_certificate_private_key(vds::asymmetric_crypto::rsa2048());
         sub_certificate_private_key.generate();

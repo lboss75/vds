@@ -59,3 +59,12 @@ void vds::crypto_service::rand_bytes(void * buffer, size_t buffer_size)
 {
   RAND_bytes((unsigned char *)buffer, (int)buffer_size);
 }
+
+vds::crypto_service::certificate_extension_type
+vds::crypto_service::register_certificate_extension_type(
+  const char * oid, const char * name, const char * description, certificate_extension_type base_nid)
+{
+  auto nid = OBJ_create(oid, name, description);
+  X509V3_EXT_add_alias(nid, (0 == base_nid) ? NID_netscape_comment : base_nid);
+  return nid;
+}

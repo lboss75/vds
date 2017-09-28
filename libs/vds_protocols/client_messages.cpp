@@ -59,6 +59,7 @@ vds::client_messages::certificate_and_key_response::certificate_and_key_response
     s->get_property("c", this->certificate_body_);
     s->get_property("k", this->private_key_body_);
     s->get_property("o", this->order_num_);
+    s->get_property("p", this->parents_);
   }
 }
 
@@ -71,6 +72,51 @@ std::shared_ptr<vds::json_value> vds::client_messages::certificate_and_key_respo
   result->add_property("c", this->certificate_body_);
   result->add_property("k", this->private_key_body_);
   result->add_property("o", this->order_num_);
+  result->add_property("p", this->parents_);
+
+  return std::shared_ptr<vds::json_value>(result.release());
+}
+///////////////////////////////////////////////////////////////////////////////
+const char vds::client_messages::server_log_state_request::message_type[] = "server log state";
+
+vds::client_messages::server_log_state_request::server_log_state_request(const std::shared_ptr<json_value> & value)
+{
+}
+
+std::shared_ptr<vds::json_value> vds::client_messages::server_log_state_request::serialize() const
+{
+  auto result = std::make_shared<json_object>();
+  result->add_property("$t", message_type);
+
+  return result;
+}
+///////////////////////////////////////////////////////////////////////////////
+const char vds::client_messages::server_log_state_response::message_type[] = "server log state response";
+
+vds::client_messages::server_log_state_response::server_log_state_response(
+  size_t order_num,
+  const std::list<guid> & parents)
+: order_num_(order_num),
+  parents_(parents)
+{
+}
+
+vds::client_messages::server_log_state_response::server_log_state_response(const std::shared_ptr<json_value> & value)
+{
+  auto s = std::dynamic_pointer_cast<json_object>(value);
+  if (s) {
+    s->get_property("o", this->order_num_);
+    s->get_property("p", this->parents_);
+  }
+}
+
+std::shared_ptr<vds::json_value> vds::client_messages::server_log_state_response::serialize() const
+{
+  std::unique_ptr<json_object> result(new json_object());
+  result->add_property("$t", message_type);
+
+  result->add_property("o", this->order_num_);
+  result->add_property("p", this->parents_);
 
   return std::shared_ptr<vds::json_value>(result.release());
 }

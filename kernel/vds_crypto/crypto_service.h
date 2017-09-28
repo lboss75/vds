@@ -17,8 +17,14 @@ namespace vds {
     void start(const service_provider &) override;
     void stop(const service_provider &) override;
 
-
     static void rand_bytes(void * buffer, size_t buffer_size);
+
+    typedef int certificate_extension_type;
+    static certificate_extension_type register_certificate_extension_type(
+      const char * oid,
+      const char * name,
+      const char * description,
+      certificate_extension_type base_nid = 0);
   };
 }
 

@@ -183,6 +183,27 @@ bool vds::json_object::get_property(const std::string& name, std::list< const_da
 
 }
 
+bool vds::json_object::get_property(const std::string& name, std::list<guid> & value, bool throw_error) const
+{
+  auto array = std::dynamic_pointer_cast<json_array>(this->get_property(name));
+  if (!array) {
+    if (throw_error) {
+      throw std::runtime_error("Invalid property " + name);
+    }
+
+    return false;
+  }
+
+  for (size_t i = 0; i < array->size(); ++i) {
+    auto item = std::dynamic_pointer_cast<json_primitive>(array->get(i));
+    if (item) {
+      value.push_back(guid::parse(item->value()));
+    }
+  }
+
+  return true;
+
+}
 
 
 void vds::json_object::add_property(const std::shared_ptr<json_property> & prop)

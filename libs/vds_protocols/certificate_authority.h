@@ -21,6 +21,15 @@ namespace vds {
       const asymmetric_private_key & user_private_key,
       const asymmetric_private_key& server_private_key);
 
+    static guid certificate_id(const certificate & cert);
+    static guid certificate_parent_id(const certificate & cert);
+
+    static certificate create_local_user(
+      const guid & user_id,
+      const certificate & owner_certificate,
+      const asymmetric_private_key & owner_private_key,
+      const asymmetric_private_key & user_private_key);
+
   private:
       _certificate_authority * const impl_;
   };

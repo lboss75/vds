@@ -57,15 +57,11 @@ namespace vds {
     
     async_task<const std::string& /*version_id*/> upload_file(
       const service_provider & sp,
-      const std::string & login,
-      const std::string & password,
       const std::string & name,
       const filename & tmp_file);
 
     async_task<const guid & /*version_id*/> download_data(
       const service_provider & sp,
-      const std::string & login,
-      const std::string & password,
       const std::string & name,
       const filename & target_file);
   };

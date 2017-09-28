@@ -8,6 +8,7 @@ All rights reserved
 
 #include "hash.h"
 #include "filename.h"
+#include "crypto_service.h"
 
 namespace vds {
   class _asymmetric_sign;
@@ -254,14 +255,20 @@ namespace vds {
   
   struct certificate_extension
   {
-    certificate_extension();
+    certificate_extension()
+      : oid(0)
+    {
+    }
 
-    std::string oid;
-    std::string name;
-    std::string description;
+    certificate_extension(
+      crypto_service::certificate_extension_type extension_type,
+      const std::string & val)
+    : oid(extension_type), value(val)
+    {
+    }
+
+    crypto_service::certificate_extension_type oid;
     std::string value;
-
-    int base_nid;
   };
 
   class _certificate;
@@ -319,7 +326,6 @@ namespace vds {
     int extension_count() const;
     int extension_by_NID(int nid) const;
     certificate_extension get_extension(int index) const;
-    certificate_extension get_extension(const std::string & name) const;
 
     certificate & operator = (const certificate & original);
 

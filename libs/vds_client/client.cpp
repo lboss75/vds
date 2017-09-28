@@ -9,6 +9,7 @@ All rights reserved
 #include "client_connection.h"
 #include "deflate.h"
 #include "file_manager_p.h"
+#include "certificate_authority.h"
 
 vds::client::client(const std::string & server_address)
 : server_address_(server_address),
@@ -84,22 +85,18 @@ vds::async_task<> vds::iclient::create_local_login(
 
 vds::async_task<const std::string& /*version_id*/> vds::iclient::upload_file(
   const service_provider & sp,
-  const std::string & login,
-  const std::string & password,
   const std::string & name,
   const filename & tmp_file)
 {
-  return static_cast<_client *>(this)->upload_file(sp, login, password, name, tmp_file);
+  return static_cast<_client *>(this)->upload_file(sp, name, tmp_file);
 }
 
 vds::async_task<const vds::guid & /*version_id*/> vds::iclient::download_data(
   const service_provider & sp,
-  const std::string & login,
-  const std::string & password,
   const std::string & name,
   const filename & target_file)
 {
-  return static_cast<_client *>(this)->download_data(sp, login, password, name, target_file);
+  return static_cast<_client *>(this)->download_data(sp, name, target_file);
 }
 
 vds::_client::_client(vds::client* owner)
@@ -219,18 +216,13 @@ vds::async_task<> vds::_client::create_local_login(
       asymmetric_private_key local_user_private_key(asymmetric_crypto::rsa4096());
       local_user_private_key.generate();
 
-      asymmetric_public_key local_user_pkey(local_user_private_key);
-
       auto member_id = guid::new_guid();
 
-      certificate::create_options local_user_options;
-      local_user_options.country = "RU";
-      local_user_options.organization = "IVySoft";
-      local_user_options.name = "Local User Certificate " + member_id.str();
-      local_user_options.ca_certificate = &user_certificate;
-      local_user_options.ca_certificate_private_key = &user_private_key;
-
-      certificate local_user_certificate = certificate::create_new(local_user_pkey, local_user_private_key, local_user_options);
+      auto local_user_certificate = certificate_authority::create_local_user(
+        member_id,
+        user_certificate,
+        user_private_key,
+        local_user_private_key);
 
       foldername root_folder(persistence::current_user(sp), ".vds");
       root_folder.create();
@@ -286,16 +278,15 @@ vds::async_task<> vds::_client::create_local_login(
 
 vds::async_task<const std::string& /*version_id*/> vds::_client::upload_file(
   const service_provider & sp,
-  const std::string & user_login,
-  const std::string & user_password,
   const std::string & name,
   const filename & fn)
 {
-  return
-    this->authenticate(sp, user_login, user_password)
-    .then([this, user_login, name, fn, user_password](
+  return this->owner_->logic_->send_request<client_messages::server_log_state_response>(
+    sp,
+    client_messages::server_log_state_request().serialize())
+    .then([this, name, fn](
       const service_provider & sp,
-      const client_messages::certificate_and_key_response & response) {
+      const client_messages::server_log_state_response & response) {
 
     imt_service::disable_async(sp);
 
@@ -316,7 +307,7 @@ vds::async_task<const std::string& /*version_id*/> vds::_client::upload_file(
       transaction_key,
       fn,
       tmp_file)
-      .then([this, name, length, version_id, &response, transaction_key, user_password, tmp_file](
+      .then([this, name, length, version_id, transaction_key, tmp_file](
         const service_provider & sp,
         size_t body_size,
         size_t tail_size) {
@@ -325,7 +316,7 @@ vds::async_task<const std::string& /*version_id*/> vds::_client::upload_file(
       file_info << name << length << body_size << tail_size;
       transaction_key.serialize(file_info);
 
-      auto user_certificate = certificate::parse(response.certificate_body());
+      auto user_certificate = load_user_certificate(sp);
 
       auto meta_info = user_certificate.public_key().encrypt(file_info.data());
 
@@ -334,7 +325,8 @@ vds::async_task<const std::string& /*version_id*/> vds::_client::upload_file(
       //Form principal_log message
       auto msg = principal_log_record(
         guid::new_guid(),
-        response.id(),
+        certificate_authority::certificate_parent_id(user_certificate),
+        certificate_authority::certificate_id(user_certificate),
         parents,
         principal_log_new_object(version_id, body_size + tail_size, meta_info).serialize(),
         response.order_num() + 1).serialize(false);
@@ -394,10 +386,10 @@ vds::async_task<const std::string& /*version_id*/> vds::_client::upload_file(
         });
       });
     })
-    .then([version_id](
-      const std::function<void(const service_provider & sp, const std::string & version_id)> & done,
-      const error_handler & on_error,
-      const service_provider & sp) {
+      .then([version_id](
+        const std::function<void(const service_provider & sp, const std::string & version_id)> & done,
+        const error_handler & on_error,
+        const service_provider & sp) {
       done(sp, version_id.str());
     });
   });
@@ -406,19 +398,15 @@ vds::async_task<const std::string& /*version_id*/> vds::_client::upload_file(
 vds::async_task<const vds::guid & /*version_id*/>
 vds::_client::download_data(
   const service_provider & sp,
-  const std::string & user_login,
-  const std::string & user_password,
   const std::string & name,
   const filename & target_file)
 {
-  return this->authenticate(
+  return this->owner_->logic_->send_request<client_messages::server_log_state_response>(
     sp,
-    user_login,
-    user_password)
-    .then(
-      [this, user_login, name, target_file, user_password](
-        const service_provider & sp,
-        const client_messages::certificate_and_key_response & response) {
+    client_messages::server_log_state_request().serialize())
+    .then([this, name, target_file](
+      const service_provider & sp,
+      const client_messages::server_log_state_response & response) {
         
         sp.get<logger>()->trace("client", sp, "Waiting file");
         return asymmetric_private_key::parse_der(sp, base64::to_bytes(response.private_key_body()), user_password)
@@ -577,6 +565,20 @@ vds::async_task<> vds::_client::download_file(
     on_error,
     sp);
     });
+}
+
+vds::certificate vds::_client::load_user_certificate(const service_provider & sp)
+{
+  certificate result;
+  result.load(filename(foldername(persistence::current_user(sp), ".vds"), "user.crt"));
+  return result;
+}
+
+vds::asymmetric_private_key vds::_client::load_user_private_key(const service_provider & sp)
+{
+  asymmetric_private_key result;
+  result.load(filename(foldername(persistence::current_user(sp), ".vds"), "user.pkey"));
+  return result;
 }
 
 
