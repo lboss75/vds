@@ -14,7 +14,24 @@ namespace vds {
   public:
       _channel_manager();
       ~_channel_manager();
+      
+      void add_member(
+        const service_provider & sp,
+        database_transaction & tr,
+        const guid & channel_id,
+        const guid & member_id);
 
+      void remove_member(
+        const service_provider & sp,
+        database_transaction & tr,
+        const guid & channel_id,
+        const guid & member_id);
+      
+      std::list<guid> get_lead_certificates(
+        const service_provider & sp,
+        database_transaction & tr,
+        const guid & channel_id);
+      
   private:
       class channel_table : public database_table
       {
@@ -45,27 +62,5 @@ namespace vds {
       };
   };
 }
-
-/*
-
-Channel: guid id, title
-
-add member:
-remove member:
-
-crypt data:
-  if(added members != 0 || removed members != 0){
-    new channel key
-    to old members -> encrypt new key by old key,
-    to new member -> encrypt new key by open key from member's certificate
-  }
-  
-  create file key
-  key_id,
-  crypt file_key by the channel key
-  
-  
-*/
-
 
 #endif // __VDS_SERVER_CHANNEL_MANAGERPRIVATE_H_
