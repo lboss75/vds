@@ -60,6 +60,22 @@ namespace vds {
         database_column<guid> channel_id;
         database_column<guid> member_id;
       };
+
+      class channel_member_cert_table : public database_table
+      {
+      public:
+        channel_member_cert_table()
+        : database_table("channel_member_cert"),
+          cert_id(this, "cert_id"),
+          member_id(this, "member_id"),
+          include_member(this, "include_member")
+        {
+        }
+
+        database_column<guid> cert_id;
+        database_column<guid> member_id;
+        database_column<bool> include_member;
+      };
   };
 }
 
