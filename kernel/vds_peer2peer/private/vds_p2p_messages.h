@@ -14,15 +14,14 @@ namespace vds {
     {
     public:
       guid server_id;
-      std::string address;
+      const_data_buffer session_data;
     };
     
-    class hello_message
+    class welcome_message
     {
     public:
       guid server_id;
-      std::string address;
-      const_data_buffer key;
+      const_data_buffer session_data;
     };
     
   };
