@@ -6,14 +6,13 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
+#include "vds_peer2peer.h"
+
 namespace vds {
-	class p2p_manager
+	class p2p_handler
 	{
 	public:
-		void	broadcast(const const_data_buffer & data);
-		void	send_to(const p2p_node_id_type & node_id, const const_data_buffer & data);
 	};
-
 }
 
 #endif//__VDS_PEER2PEER_PEER2PEER_H_
