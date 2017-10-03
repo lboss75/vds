@@ -1,5 +1,5 @@
-#ifndef __VDS_PEER2PEER_PEER2PEER_H_
-#define __VDS_PEER2PEER_PEER2PEER_H_
+#ifndef __VDS_PEER2PEER_PEER2PEER_P_H_
+#define __VDS_PEER2PEER_PEER2PEER_P_H_
 
 /*
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
@@ -11,4 +11,4 @@ namespace vds {
 
 }
 
-#endif//__VDS_PEER2PEER_PEER2PEER_H_
+#endif//__VDS_PEER2PEER_PEER2PEER_P_H_

@@ -7,8 +7,10 @@ All rights reserved
 */
 
 namespace vds {
-	typedef guid p2p_node_id_type;
-
+	class p2p_handler
+	{
+	public:
+	};
 }
 
 #endif//__VDS_PEER2PEER_PEER2PEER_H_

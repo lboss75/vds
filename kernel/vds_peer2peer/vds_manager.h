@@ -7,7 +7,12 @@ All rights reserved
 */
 
 namespace vds {
-	typedef guid p2p_node_id_type;
+	class p2p_manager
+	{
+	public:
+		void	broadcast(const const_data_buffer & data);
+		void	send_to(const p2p_node_id_type & node_id, const const_data_buffer & data);
+	};
 
 }
 
