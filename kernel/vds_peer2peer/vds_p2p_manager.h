@@ -29,6 +29,23 @@ namespace vds {
       const p2p_node_id_type & node_id,
       const const_data_buffer & data);
     
+    class step1 : public vds::async_task<>
+    {
+    public:
+      step1(int p1, int p2)
+      {
+      }
+      
+      void operator()
+      {
+        await<step1>(10, 20)
+        .then<step2>();
+        done(10);
+      }
+      
+    private:
+    };
+    
   private:
     std::shared_ptr<_p2p_manager> impl_;
 	};

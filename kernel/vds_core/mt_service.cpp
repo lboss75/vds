@@ -4,9 +4,10 @@ All rights reserved
 */
 #include "stdafx.h"
 #include "mt_service.h"
-#include "mt_service_p.h"
 #include "shutdown_event.h"
 #include "barrier.h"
+
+#include "private/mt_service_p.h"
 
 #include <thread>
 

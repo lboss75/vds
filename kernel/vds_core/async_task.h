@@ -98,6 +98,26 @@ namespace vds {
   };
   ////////////////////////////////////////////////////////////////
   template <typename... arguments_types>
+  class async_task_result
+  {
+  public:
+    
+    void operator()(arguments_types... args) const;
+  };
+  
+  template <typename... result_types>
+  class _async_task
+  {
+  public:
+    template<typename functor_type, typename... arguments_types>
+    _async_task(functor_type && f)
+    {
+      decltype(f(sp));
+    }
+  };
+  
+  ////////////////////////////////////////////////////////////////
+  template <typename... arguments_types>
   class async_task
   {
   public:
@@ -107,7 +127,10 @@ namespace vds {
     {
     }
     
-    async_task(const std::function<void(const std::function<void(const service_provider & sp, arguments_types... args)> &, const error_handler &, const service_provider &)> & target)
+    async_task(
+      const std::function<void(const std::function<void(const service_provider & sp, arguments_types... args)> &,
+      const error_handler &,
+      const service_provider &)> & target)
       : impl_(std::make_shared<_async_task>(target))
     {
     }

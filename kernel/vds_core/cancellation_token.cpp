@@ -5,7 +5,7 @@ All rights reserved
 
 #include "stdafx.h"
 #include "cancellation_token.h"
-#include "cancellation_token_p.h"
+#include "private/cancellation_token_p.h"
 
 vds::cancellation_subscriber::cancellation_subscriber()
 : index_(0)

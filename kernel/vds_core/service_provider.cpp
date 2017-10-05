@@ -6,8 +6,8 @@ All rights reserved
 #include "stdafx.h"
 #include <iostream>
 #include "service_provider.h"
-#include "service_provider_p.h"
 #include "logger.h"
+#include "private/service_provider_p.h"
 
 vds::service_provider::service_provider(std::shared_ptr<_service_provider> && impl)
   : impl_(impl)
