@@ -5,8 +5,9 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
+#include "targetver.h"
 #include <vector>
-#include "dataflow.h"
+#include "types.h"
 
 namespace vds{
   class binary_serializer;
@@ -141,46 +142,7 @@ namespace vds{
     };
     std::shared_ptr<_const_data_buffer> impl_;
   };
-  
-  class collect_data
-  {
-  public:
-    collect_data(std::vector<uint8_t> & buffer)
-    : buffer_(buffer)
-    {
-    }
-    
-    using incoming_item_type = uint8_t;
-    using outgoint_item_type = uint8_t;
-    static const size_t BUFFER_SIZE = 1024;
-    static const size_t MIN_BUFFER_SIZE = 1;
-
-    template <typename context_type>
-    class handler : public sync_dataflow_target<context_type, handler<context_type>>
-    {
-      using base_class = sync_dataflow_target<context_type, handler<context_type>>;
-
-    public:
-      handler(
-        const context_type & context,
-        const collect_data & args)
-        : base_class(context),
-          buffer_(args.buffer_)
-      {
-      }
-
-      size_t sync_push_data(const service_provider & sp)
-      {
-        this->buffer_.insert(this->buffer_.end(), this->input_buffer(), this->input_buffer() + this->input_buffer_size());
-        return this->input_buffer_size();
-      }
-
-    private:
-      std::vector<uint8_t> & buffer_;
-    };
-  private:
-    std::vector<uint8_t> & buffer_;
-  };
+ 
 }
 
 #endif // __VDS_CORE_DATA_BUFFER_H_

@@ -12,10 +12,10 @@ add_library(vds_database
   STATIC
   ${SOURCE_LIB}
   ${HEADER_FILES}
-  sqllite3/shell.c
-  sqllite3/sqlite3.c
-  sqllite3/sqlite3.h
-  sqllite3/sqlite3ext.h)
+  private/sqllite3/shell.c
+  private/sqllite3/sqlite3.c
+  private/sqllite3/sqlite3.h
+  private/sqllite3/sqlite3ext.h)
 
 target_link_libraries(
   vds_database

@@ -7,7 +7,6 @@ All rights reserved
 */
 
 #include "types.h"
-#include "dataflow.h"
 #include "const_data_buffer.h"
 
 namespace vds {

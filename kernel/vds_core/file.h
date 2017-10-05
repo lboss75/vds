@@ -12,7 +12,6 @@ All rights reserved
 #include <system_error>
 
 #include "filename.h"
-#include "dataflow.h"
 #include "const_data_buffer.h"
 
 namespace vds {
@@ -103,7 +102,7 @@ namespace vds {
     size_t offset_;
     size_t readed_;
   };
-
+/*
   class file_read
   {
   public:
@@ -296,6 +295,7 @@ namespace vds {
   private:
     file & target_;
   };
+  */
 }
 
 #endif//__VDS_CORE_FILE_H_

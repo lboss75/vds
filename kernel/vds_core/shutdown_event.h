@@ -7,7 +7,6 @@ All rights reserved
 */
 
 #include "windows_event.h"
-#include "cancellation_token.h"
 
 namespace vds {
   class shutdown_event
@@ -16,19 +15,12 @@ namespace vds {
     shutdown_event();
     ~shutdown_event();
 
-    bool is_shuting_down() const { return this->token_.is_cancellation_requested(); }
+    bool is_shuting_down() const { return this->is_shuting_down_; }
 
     void set();
-    auto then_shuting_down(
-      const std::function<void(void)> & callback)
-    {
-      return this->token_.then_cancellation_requested(callback);
-    }
-
 
   private:
-    cancellation_token_source source_;
-    cancellation_token token_;
+    bool is_shuting_down_;
 
 #ifdef _WIN32
   public:

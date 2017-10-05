@@ -7,7 +7,6 @@
 #include <thread>
 
 #include "service_provider.h"
-#include "debug.h"
 
 namespace vds {
   

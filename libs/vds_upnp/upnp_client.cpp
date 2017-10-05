@@ -6,7 +6,7 @@ All rights reserved
 #include "stdafx.h"
 #include "upnp_client.h"
 #include "logger.h"
-#include "dns_p.h"
+#include "private/dns_p.h"
 #include "encoding.h"
 
 vds::upnp_client::upnp_client()

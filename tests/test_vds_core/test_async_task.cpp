@@ -21,7 +21,7 @@ static vds::async_task<std::string> step2(const std::string & v)
 		false == vds::_async_task_functor_helper<decltype(&decltype(f)::operator())>::is_async_callback,
 		"Is is_async_callback");
 
-	return f;
+	return vds::async_task<std::string>(std::move(f));
 }
 
 static std::function<void(void)> step3_saved_done;
@@ -37,7 +37,7 @@ static vds::async_task<std::string> step3(
 		true == vds::_async_task_functor_helper<decltype(&decltype(f)::operator())>::is_async_callback,
 		"Is not is_async_callback");
 
-	return f;
+	return std::move(f);
 }
 
 static vds::async_task<std::string, int> step4(const std::string & v)
@@ -46,7 +46,6 @@ static vds::async_task<std::string, int> step4(const std::string & v)
 }
 
 TEST(code_tests, test_async_task) {
-  vds::service_provider & sp = *(vds::service_provider *)nullptr;
   auto t = step1(10).then([](const std::string & v) { return step2(v); });
   
   std::string test_result;

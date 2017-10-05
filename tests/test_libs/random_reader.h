@@ -7,7 +7,6 @@ All rights reserved
 
 #include "targetver.h"
 #include "types.h"
-#include "dataflow.h"
 
 template<typename item_type>
 class random_reader
@@ -21,30 +20,14 @@ public:
   {
   }
 
-  using outgoing_item_type = item_type;
-  static constexpr size_t BUFFER_SIZE = 1024;
-  static constexpr size_t MIN_BUFFER_SIZE = 1;
-
-  template<typename context_type>
-  class handler : public vds::sync_dataflow_source<context_type, handler<context_type>>
-  {
-    using base_class = vds::sync_dataflow_source<context_type, handler<context_type>>;
-  public:
-    handler(
-      const context_type & context,
-      const random_reader & args)
-      : base_class(context),
-      data_(args.data_),
-      len_(args.len_)
-    {
-    }
 
     size_t sync_get_data(
-      const vds::service_provider & sp)
+      const item_type * data,
+      size_t len)
     {
       for (;;) {
-        size_t n = (size_t)std::rand() % this->output_buffer_size();
-        if (n < 1 || n > this->output_buffer_size()) {
+        size_t n = (size_t)std::rand() % len;
+        if (n < 1 || n > len) {
           continue;
         }
 
@@ -56,7 +39,7 @@ public:
           return 0;
         }
 
-        std::copy(this->data_, this->data_ + n, this->output_buffer());
+        std::copy(this->data_, this->data_ + n, data);
 
         this->data_ += n;
         this->len_ -= n;
@@ -69,11 +52,6 @@ public:
     const item_type * data_;
     size_t len_;
   };
-
-private:
-  const item_type * data_;
-  size_t len_;
-};
 
 
 #endif // __TEST_VDS_LIBS__RANDOM_READER_H_

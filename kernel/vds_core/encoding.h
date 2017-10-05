@@ -33,7 +33,8 @@ namespace vds {
     static std::string from_bytes(const const_data_buffer & data);
     static const_data_buffer to_bytes(const std::string & data);
   };
-
+  
+  /*
   class utf8_byte_to_wchar
   {
   public:
@@ -97,7 +98,8 @@ namespace vds {
     };
 
   };
-
+  
+  
   class byte_to_char
   {
   public:
@@ -126,6 +128,7 @@ namespace vds {
     };
 
   };
+  */
 }
 
 #endif//__VDS_CORE_ENCODING_H_

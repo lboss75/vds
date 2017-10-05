@@ -38,37 +38,42 @@ namespace vds {
   struct _is_async_task_result
   {
 	  static constexpr bool value = false;
+    typedef void task_type;
   };
 
   template <typename... result_types>
   struct _is_async_task_result<const async_result<result_types...> &>
   {
-	static constexpr bool value = true;
+    static constexpr bool value = true;
     typedef async_task<result_types...> task_type;
   };
   /////////////////////////////////////////////////////////////////////////////////
   template <typename result_type>
-  struct _async_task_tuple_result
+  struct _async_task_result_helper
   {
 	  typedef async_task<result_type> task_type;
+    static constexpr bool task_as_result = false;
   };
 
   template <>
-  struct _async_task_tuple_result<void>
+  struct _async_task_result_helper<void>
   {
 	  typedef async_task<> task_type;
+    static constexpr bool task_as_result = false;
   };
 
   template <typename... result_types>
-  struct _async_task_tuple_result<std::tuple<result_types...>>
+  struct _async_task_result_helper<std::tuple<result_types...>>
   {
 	  typedef async_task<result_types...> task_type;
+    static constexpr bool task_as_result = false;
   };
 
   template <typename... result_types>
-  struct _async_task_tuple_result<async_task<result_types...>>
+  struct _async_task_result_helper<async_task<result_types...>>
   {
 	  typedef async_task<result_types...> task_type;
+    static constexpr bool task_as_result = true;
   };
   /////////////////////////////////////////////////////////////////////////////////
   template<typename functor_signature>
@@ -77,13 +82,15 @@ namespace vds {
   template <typename result_type, typename class_name, typename... arg_types>
   struct _async_task_helper<result_type(class_name::*)(arg_types...)>
   {
-	  typedef typename _async_task_tuple_result<result_type>::task_type task_type;
+	  typedef typename _async_task_result_helper<result_type>::task_type task_type;
+	  static constexpr bool task_as_result = _async_task_result_helper<result_type>::task_as_result;
   };
 
   template <typename result_type, typename class_name, typename... arg_types>
   struct _async_task_helper<result_type(class_name::*)(arg_types...) const>
   {
-	  typedef typename _async_task_tuple_result<result_type>::task_type task_type;
+	  typedef typename _async_task_result_helper<result_type>::task_type task_type;
+	  static constexpr bool task_as_result = _async_task_result_helper<result_type>::task_as_result;
   };
 
   /////////////////////////////////////////////////////////////////////////////////
@@ -91,6 +98,7 @@ namespace vds {
   struct _async_task_functor_helper
   {
 	  static constexpr bool is_async_callback = false;
+	  static constexpr bool task_as_result = _async_task_helper<functor_signature>::task_as_result;
 	  typedef typename _async_task_helper<functor_signature>::task_type task_type;
   };
 
@@ -98,6 +106,7 @@ namespace vds {
   struct _async_task_functor_helper<void(class_name::*)(first_argument_type, arg_types...) const>
   {
 	  static constexpr bool is_async_callback = _is_async_task_result<first_argument_type>::value;
+	  static constexpr bool task_as_result = false;
 	  typedef typename std::conditional<
 		  _is_async_task_result<first_argument_type>::value,
 		  typename _is_async_task_result<first_argument_type>::task_type,
@@ -108,6 +117,7 @@ namespace vds {
   struct _async_task_functor_helper<void(class_name::*)(first_argument_type, arg_types...)>
   {
 	  static constexpr bool is_async_callback = _is_async_task_result<first_argument_type>::value;
+	  static constexpr bool task_as_result = false;
 	  typedef typename std::conditional<
 		  _is_async_task_result<first_argument_type>::value,
 		  typename _is_async_task_result<first_argument_type>::task_type,
@@ -135,6 +145,9 @@ namespace vds {
 
 	  template<typename functor_type, typename error_functor_type>
 	  void wait(functor_type && done_callback, error_functor_type && error_callback);
+    
+    void operator()(
+      const async_result<result_types...> & done);
 
 	  template<typename functor_type>
 	  auto then(functor_type && f)
@@ -150,7 +163,17 @@ namespace vds {
 	  void join(
 		  functor_type && f,
 		  done_type && done,
-		  typename std::enable_if<!_async_task_functor_helper<decltype(&functor_type::operator())>::is_async_callback>::type * = nullptr);
+		  typename std::enable_if<
+		  !_async_task_functor_helper<decltype(&functor_type::operator())>::is_async_callback
+		  && _async_task_functor_helper<decltype(&functor_type::operator())>::task_as_result>::type * = nullptr);
+    
+	  template<typename functor_type, typename done_type>
+	  void join(
+		  functor_type && f,
+		  done_type && done,
+		  typename std::enable_if<
+		  !_async_task_functor_helper<decltype(&functor_type::operator())>::is_async_callback
+		  && !_async_task_functor_helper<decltype(&functor_type::operator())>::task_as_result>::type * = nullptr);
   private:
 	  _async_task_base<result_types...> * impl_;
 
@@ -161,12 +184,12 @@ namespace vds {
   };
   /////////////////////////////////////////////////////////////////////////////////
   template <typename... result_types>
-  class _async_task_base<result_types...>
+  class _async_task_base
   {
   public:
 	  virtual ~_async_task_base() {}
 
-	  virtual void execute(async_result<result_types...> && done) = 0;
+	  virtual void execute(const async_result<result_types...> & done) = 0;
   };
   /////////////////////////////////////////////////////////////////////////////////
   template <typename functor_type, typename... result_types>
@@ -178,9 +201,9 @@ namespace vds {
 	  {
 	  }
 
-	  void execute(async_result<result_types...> && done) override
+	  void execute(const async_result<result_types...> & done) override
 	  {
-		  this->f_(std::move(done));
+		  this->f_(done);
 	  }
 
   private:
@@ -196,7 +219,7 @@ namespace vds {
 	  {
 	  }
 
-	  void execute(async_result<result_types...> && done) override
+	  void execute(const async_result<result_types...> & done) override
 	  {
 		  done(this->f_());
 	  }
@@ -214,7 +237,7 @@ namespace vds {
 	  {
 	  }
 
-	  void execute(async_result<> && done) override
+	  void execute(const async_result<> & done) override
 	  {
 		  this->f_();
 		  done();
@@ -233,9 +256,9 @@ namespace vds {
 	  {
 	  }
 
-	  void execute(async_result<result_types...> && done) override
+	  void execute(const async_result<result_types...> & done) override
 	  {
-		  this->parent_.join(std::move(this->f_), std::move(done));
+		  this->parent_.join(std::move(this->f_), done);
 	  }
 
   private:
@@ -292,13 +315,20 @@ namespace vds {
 			  std::function<void(result_types...)>(std::move(done_callback)),
 			  std::function<void(const std::shared_ptr<std::exception> &)>(std::move(error_callback))));
   }
+  
+  template<typename ...result_types>
+  inline void async_task<result_types...>::operator()(
+    const async_result<result_types...> & done)
+  {
+	  this->impl_->execute(done);
+  }
 
   template<typename ...result_types>
   template<typename functor_type>
   inline auto async_task<result_types...>::then(functor_type && f)
 	  -> typename _async_task_functor_helper<decltype(&functor_type::operator())>::task_type
   {
-	  return _async_task_functor_helper<decltype(&functor_type::operator())>::task_type(
+	  return typename _async_task_functor_helper<decltype(&functor_type::operator())>::task_type(
 		  std::move(*this),
 		  std::move(f));
   }
@@ -325,18 +355,39 @@ namespace vds {
   inline void async_task<result_types...>::join(
 	  functor_type && f,
 	  done_type && done,
-	  typename std::enable_if<!_async_task_functor_helper<decltype(&functor_type::operator())>::is_async_callback>::type *)
+	  typename std::enable_if<
+	  !_async_task_functor_helper<decltype(&functor_type::operator())>::is_async_callback
+	  && _async_task_functor_helper<decltype(&functor_type::operator())>::task_as_result>::type *)
   {
 	  this->impl_->execute(
 		  async_result<result_types...>(
 			  std::function<void(result_types...)>([f_ = std::move(f), done](result_types... result) {
-		  f_(std::forward<result_types>(result)...);
+        auto t = f_(std::forward<result_types>(result)...);
+        t(done);
 	  }),
 			  std::function<void(const std::shared_ptr<std::exception> &)>([done](const std::shared_ptr<std::exception> & ex) {
 		  done.error(ex);
 	  })));
   }
 
+  template<typename ...result_types>
+  template<typename functor_type, typename done_type>
+  inline void async_task<result_types...>::join(
+	  functor_type && f,
+	  done_type && done,
+	  typename std::enable_if<
+	  !_async_task_functor_helper<decltype(&functor_type::operator())>::is_async_callback
+	  && !_async_task_functor_helper<decltype(&functor_type::operator())>::task_as_result>::type *)
+  {
+	  this->impl_->execute(
+		  async_result<result_types...>(
+			  std::function<void(result_types...)>([f_ = std::move(f), done](result_types... result) {
+		  done(f_(std::forward<result_types>(result)...));
+	  }),
+			  std::function<void(const std::shared_ptr<std::exception> &)>([done](const std::shared_ptr<std::exception> & ex) {
+		  done.error(ex);
+	  })));
+  }
   /////////////////////////////////////////////////////////////////////////////////
   template<typename ...result_types>
   inline async_result<result_types...>::async_result(

@@ -8,7 +8,7 @@ All rights reserved
 
 
 vds::shutdown_event::shutdown_event()
-: token_(source_.token())
+: is_shuting_down_(false)
 #ifdef _WIN32
   , event_(TRUE)
 #endif
@@ -26,5 +26,5 @@ void vds::shutdown_event::set()
 #ifdef _WIN32
     this->event_.set();
 #endif
-    this->source_.cancel();
+    this->is_shuting_down_ = true;
 }
