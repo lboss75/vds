@@ -358,6 +358,12 @@ namespace vds {
 	  call_with(this->done_, std::move(result));
   }
 
+  template<typename ...result_types>
+  inline void async_result<result_types...>::error(const std::shared_ptr<std::exception>& ex) const
+  {
+	  this->error_(ex);
+  }
+
   /////////////////////////////////////////////////////////////////////////////////
   /*
   class _async_series
