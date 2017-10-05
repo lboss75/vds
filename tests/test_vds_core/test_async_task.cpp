@@ -7,17 +7,18 @@ All rights reserved
 #include "stdafx.h"
 #include "test_async_task.h"
 
-static vds::async_result<const std::string &> step1(
-  const vds::service_provider & sp,
+static vds::async_task<const std::string &> step1(
   int v)
 {
-  return vds::async_result<const std::string &>(std::to_string(v));
+  return vds::create_async_task([v](){
+    return std::to_string(v); 
+  });
 }
 
 static vds::async_result<const std::string &> step2(const std::string & v)
 {
   return vds::create_async_task(
-    [v](const vds::service_provider & sp) {
+    [v]() {
     return "result" + v;
   });
 }
@@ -25,25 +26,24 @@ static vds::async_result<const std::string &> step2(const std::string & v)
 static std::function<void(void)> step3_saved_done;
 
 static vds::async_result<const std::string &> step3(
-  const vds::service_provider & sp,
   int v)
 {
-  return vds::async_result(
+  return vds::create_async_task(
     [v](const vds::async_result<const std::string &> & done) {
-        step3_saved_done = [done, v](){ done(std::to_string(v)); };
+      step3_saved_done = [done, v](){ done(std::to_string(v)); };
   });
 }
 
 TEST(code_tests, test_async_task) {
   vds::service_provider & sp = *(vds::service_provider *)nullptr;
-  auto t = step1(sp, 10).then([](const vds::service_provider & sp, const std::string & v) { return step2(v); });
+  auto t = step1(10).then([](const std::string & v) { return step2(v); });
   
   std::string test_result;
-  t.await(
+  t
+  .wait(
     [&test_result](const vds::service_provider & sp, const std::string & result){
       test_result = result;
-    })
-  .on_error(
+    },
     [](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
       FAIL() << ex->what();
     },
