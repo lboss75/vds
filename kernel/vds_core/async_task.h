@@ -11,294 +11,355 @@ All rights reserved
 #include <list>
 
 #include "func_utils.h"
-#include "service_provider.h"
 
 namespace vds {
-  class service_provider;
+	template <typename... result_types>
+	class async_task;
 
-  ////////////////////////////////////////////////////////////////
-  template <typename functor_type, typename functor_signature>
-  struct _async_task_functor_info;
+	template <typename... result_types>
+	class async_result
+	{
+	public:
+		async_result(
+			std::function<void(result_types... results)> && done,
+			std::function<void(const std::shared_ptr<std::exception> & ex)> && error);
 
-  template <typename functor_type, typename result, typename class_name, typename... arg_types>
-  struct _async_task_functor_info<functor_type, result(class_name::*)(const service_provider & sp, arg_types...)>
+		void operator()(result_types &&... results) const;
+		void operator()(std::tuple<result_types...> && result) const;
+		void error(const std::shared_ptr<std::exception> & ex) const;
+
+	private:
+		std::function<void(result_types... results)> done_;
+		std::function<void(const std::shared_ptr<std::exception> & ex)> error_;
+	};
+
+  /////////////////////////////////////////////////////////////////////////////////
+  template <typename argument_type>
+  struct _is_async_task_result
   {
-    typedef result signature(arg_types...);
-
-    template<template<typename...> typename target_template>
-    struct build_type
-    {
-      typedef target_template<arg_types...> type;
-    };
-
-    typedef std::tuple<arg_types...> arguments_typle;
-    typedef std::function<signature> function_type;
-    typedef result result_type;
-
-    static std::function<signature> to_function(functor_type & f)
-    {
-      return std::function<signature>([&f](arg_types... args) { f(args...); });
-    }
-    static std::function<signature> to_function(functor_type && f)
-    {
-      return std::function<signature>(f);
-    }
+	  static constexpr bool value = false;
   };
 
-  template <typename functor_type, typename result, typename class_name, typename... arg_types>
-  struct _async_task_functor_info<functor_type, result(class_name::*)(const service_provider & sp, arg_types...) const>
-  {
-    typedef result signature(arg_types...);
-    typedef std::tuple<arg_types...> arguments_typle;
-    typedef std::function<signature> function_type;
-    typedef result result_type;
-
-    template<template<typename...> typename target_template>
-    struct build_type
-    {
-      typedef target_template<arg_types...> type;
-    };
-
-    static std::function<signature> to_function(functor_type & f)
-    {
-      return std::function<signature>([&f](arg_types ...args) { f(args...); });
-    }
-
-    static std::function<signature> to_function(functor_type && f)
-    {
-      return std::function<signature>(f);
-    }
-  };
-
-  template <typename functor_type>
-  struct async_task_functor_info : public _async_task_functor_info<functor_type, decltype(&functor_type::operator())>
-  {};
-
-
-
-  ////////////////////////////////////////////////////////////////
-  template <typename function_signature>
-  struct _async_task_arguments;
-
-  template <typename done_method, typename class_name, typename... argument_types>
-  struct _async_task_arguments<void (class_name::*)(const done_method &, const error_handler &, const service_provider & sp, argument_types...)>
-  {
-    typedef done_method done_method_type;
-  };
-
-  template <typename done_method, typename class_name, typename... argument_types>
-  struct _async_task_arguments<void (class_name::*)(const done_method &, const error_handler &, const service_provider & sp, argument_types...) const>
-  {
-    typedef done_method done_method_type;
-  };
-  
-  template <typename functor>
-  struct async_task_arguments : public _async_task_arguments<decltype(&functor::operator())>
-  {
-  };
-  ////////////////////////////////////////////////////////////////
-  template <typename... arguments_types>
-  class async_task_result
-  {
-  public:
-    
-    void operator()(arguments_types... args) const;
-  };
-  
   template <typename... result_types>
-  class _async_task
+  struct _is_async_task_result<const async_result<result_types...> &>
   {
-  public:
-    template<typename functor_type, typename... arguments_types>
-    _async_task(functor_type && f)
-    {
-      decltype(f(sp));
-    }
+	static constexpr bool value = true;
+    typedef async_task<result_types...> task_type;
   };
-  
-  ////////////////////////////////////////////////////////////////
-  template <typename... arguments_types>
+  /////////////////////////////////////////////////////////////////////////////////
+  template <typename result_type>
+  struct _async_task_tuple_result
+  {
+	  typedef async_task<result_type> task_type;
+  };
+
+  template <>
+  struct _async_task_tuple_result<void>
+  {
+	  typedef async_task<> task_type;
+  };
+
+  template <typename... result_types>
+  struct _async_task_tuple_result<std::tuple<result_types...>>
+  {
+	  typedef async_task<result_types...> task_type;
+  };
+
+  template <typename... result_types>
+  struct _async_task_tuple_result<async_task<result_types...>>
+  {
+	  typedef async_task<result_types...> task_type;
+  };
+  /////////////////////////////////////////////////////////////////////////////////
+  template<typename functor_signature>
+  struct _async_task_helper;
+
+  template <typename result_type, typename class_name, typename... arg_types>
+  struct _async_task_helper<result_type(class_name::*)(arg_types...)>
+  {
+	  typedef typename _async_task_tuple_result<result_type>::task_type task_type;
+  };
+
+  template <typename result_type, typename class_name, typename... arg_types>
+  struct _async_task_helper<result_type(class_name::*)(arg_types...) const>
+  {
+	  typedef typename _async_task_tuple_result<result_type>::task_type task_type;
+  };
+
+  /////////////////////////////////////////////////////////////////////////////////
+  template<typename functor_signature>
+  struct _async_task_functor_helper
+  {
+	  static constexpr bool is_async_callback = false;
+	  typedef typename _async_task_helper<functor_signature>::task_type task_type;
+  };
+
+  template <typename class_name, typename first_argument_type, typename... arg_types>
+  struct _async_task_functor_helper<void(class_name::*)(first_argument_type, arg_types...) const>
+  {
+	  static constexpr bool is_async_callback = _is_async_task_result<first_argument_type>::value;
+	  typedef typename std::conditional<
+		  _is_async_task_result<first_argument_type>::value,
+		  typename _is_async_task_result<first_argument_type>::task_type,
+		  async_task<> >::type task_type;
+  };
+
+  template <typename class_name, typename first_argument_type, typename... arg_types>
+  struct _async_task_functor_helper<void(class_name::*)(first_argument_type, arg_types...)>
+  {
+	  static constexpr bool is_async_callback = _is_async_task_result<first_argument_type>::value;
+	  typedef typename std::conditional<
+		  _is_async_task_result<first_argument_type>::value,
+		  typename _is_async_task_result<first_argument_type>::task_type,
+		  async_task<> >::type task_type;
+  };
+  /////////////////////////////////////////////////////////////////////////////////
+  template <typename... result_types>
+  class _async_task_base;
+  /////////////////////////////////////////////////////////////////////////////////
+  template <typename... result_types>
   class async_task
   {
   public:
-    typedef void signature(arguments_types... args);
+	  template<typename functor_type>
+	  async_task(functor_type && f,
+		  typename std::enable_if<_async_task_functor_helper<decltype(&functor_type::operator())>::is_async_callback>::type * = nullptr);
 
-    async_task()
-    {
-    }
-    
-    async_task(
-      const std::function<void(const std::function<void(const service_provider & sp, arguments_types... args)> &,
-      const error_handler &,
-      const service_provider &)> & target)
-      : impl_(std::make_shared<_async_task>(target))
-    {
-    }
+	  template<typename functor_type>
+	  async_task(
+		  functor_type && f,
+		  typename std::enable_if<!_async_task_functor_helper<decltype(&functor_type::operator())>::is_async_callback>::type * = nullptr);
 
-    template <typename functor>
-    auto
-      then(const functor & next_method, typename std::enable_if<!std::is_void<typename functor_info<functor>::result_type>::value>::type * = nullptr)
-#ifndef _WIN32
-      -> typename async_task_functor_info<functor>::result_type
-#endif// _WIN32
-      ;
+	  async_task(async_task<result_types...> && origin);
+	  ~async_task();
 
-    template <typename functor>
-    auto
-      then(const functor & next_method, typename std::enable_if<std::is_void<typename functor_info<functor>::result_type>::value>::type * = nullptr)
-#ifndef _WIN32
-      -> typename async_task_functor_info<typename async_task_arguments<functor>::done_method_type>::template build_type<async_task>::type
-#endif// _WIN32
-      ;
+	  template<typename functor_type, typename error_functor_type>
+	  void wait(functor_type && done_callback, error_functor_type && error_callback);
 
-    void wait(
-      const std::function<void(const service_provider & sp, arguments_types... args)> & done,
-      const error_handler & on_error,
-      const service_provider & sp) const
-    {
-      this->impl_->wait(done, on_error, sp);
-    }
-    
-    async_task & operator = (const async_task & other)
-    {
-      this->impl_ = other.impl_;
-      return *this;
-    }
+	  template<typename functor_type>
+	  auto then(functor_type && f)
+	  -> typename _async_task_functor_helper<decltype(&functor_type::operator())>::task_type;
 
-    static async_task<arguments_types...> empty()
-    {
-      return async_task([](
-        const std::function<void(const service_provider & sp, arguments_types... args)> & done,
-        const error_handler &,
-        const service_provider & sp) {
-        done(sp, arguments_types()...);
-      });
-    }
+	  template<typename functor_type, typename done_type>
+	  void join(
+		functor_type && f,
+		done_type && done,
+		typename std::enable_if<_async_task_functor_helper<decltype(&functor_type::operator())>::is_async_callback>::type * = nullptr);
+
+	  template<typename functor_type, typename done_type>
+	  void join(
+		  functor_type && f,
+		  done_type && done,
+		  typename std::enable_if<!_async_task_functor_helper<decltype(&functor_type::operator())>::is_async_callback>::type * = nullptr);
+  private:
+	  _async_task_base<result_types...> * impl_;
+
+	  template<typename parent_task_type, typename functor_type>
+	  async_task(
+		  parent_task_type && parent,
+		  functor_type && f);
+  };
+  /////////////////////////////////////////////////////////////////////////////////
+  template <typename... result_types>
+  class _async_task_base<result_types...>
+  {
+  public:
+	  virtual ~_async_task_base() {}
+
+	  virtual void execute(async_result<result_types...> && done) = 0;
+  };
+  /////////////////////////////////////////////////////////////////////////////////
+  template <typename functor_type, typename... result_types>
+  class _async_task_async_callback : public _async_task_base<result_types...>
+  {
+  public:
+	  _async_task_async_callback(functor_type && f)
+		  : f_(f)
+	  {
+	  }
+
+	  void execute(async_result<result_types...> && done) override
+	  {
+		  this->f_(std::move(done));
+	  }
 
   private:
-
-    class _async_task
-    {
-    public:
-      _async_task(const std::function<void(
-        const std::function<void(const service_provider & sp, arguments_types... args)> &,
-        const error_handler &,
-        const service_provider &)> & target)
-        : target_(target)
-#if _DEBUG
-        , is_called_(false)
-#endif
-      {
-      }
-
-      ~_async_task()
-      {
-#if _DEBUG
-        if (!this->is_called_) {
-          throw std::runtime_error("Logic error 1");
-        }
-#endif
-      }
-
-      void wait(
-        const std::function<void(const service_provider & sp, arguments_types... args)> & done,
-        const error_handler & on_error,
-        const service_provider & sp)
-      {
-#if _DEBUG
-        if (this->is_called_) {
-          throw std::runtime_error("Logic error 2");
-        }
-        this->is_called_ = true;
-#endif
-        try {
-          this->target_(done, on_error, sp);
-        }
-        catch (const std::exception & ex) {
-          on_error(sp, std::make_shared<std::runtime_error>(ex.what()));
-        }
-        catch (...) {
-          on_error(sp, std::make_shared<std::runtime_error>("Unexpected error"));
-        }
-      }
-
-    private:
-
-#if _DEBUG
-      bool is_called_;
-#endif
-
-      std::function<void(const std::function<void(const service_provider & sp, arguments_types... args)> &, const error_handler &, const service_provider &)> target_;
-    };
-    std::shared_ptr<_async_task> impl_;
+	  functor_type f_;
   };
 
-  template <typename functor>
-  inline
-    auto
-    create_async_task(const functor & f) ->
-    typename async_task_functor_info<typename _async_task_arguments<decltype(&functor::operator())>::done_method_type>::template build_type<async_task>::type
+  template <typename functor_type, typename... result_types>
+  class _async_task_sync_callback : public _async_task_base<result_types...>
   {
-    return typename async_task_functor_info<typename _async_task_arguments<decltype(&functor::operator())>::done_method_type>::template build_type<async_task>::type(f);
+  public:
+	  _async_task_sync_callback(functor_type && f)
+		  : f_(f)
+	  {
+	  }
+
+	  void execute(async_result<result_types...> && done) override
+	  {
+		  done(this->f_());
+	  }
+
+  private:
+	  functor_type f_;
+  };
+
+  template <typename functor_type>
+  class _async_task_sync_callback<functor_type> : public _async_task_base<>
+  {
+  public:
+	  _async_task_sync_callback(functor_type && f)
+		  : f_(f)
+	  {
+	  }
+
+	  void execute(async_result<> && done) override
+	  {
+		  this->f_();
+		  done();
+	  }
+
+  private:
+	  functor_type f_;
+  };
+  /////////////////////////////////////////////////////////////////////////////////
+  template <typename parent_task_type, typename functor_type, typename... result_types>
+  class _async_task_joined_callback : public _async_task_base<result_types...>
+  {
+  public:
+	  _async_task_joined_callback(parent_task_type && parent, functor_type && f)
+		  : parent_(std::move(parent)), f_(std::move(f))
+	  {
+	  }
+
+	  void execute(async_result<result_types...> && done) override
+	  {
+		  this->parent_.join(std::move(this->f_), std::move(done));
+	  }
+
+  private:
+	  parent_task_type parent_;
+	  functor_type f_;
+  };
+  /////////////////////////////////////////////////////////////////////////////////
+  template<typename ...result_types>
+  template<typename functor_type>
+  inline async_task<result_types...>::async_task(
+	  functor_type && f,
+	  typename std::enable_if<_async_task_functor_helper<decltype(&functor_type::operator())>::is_async_callback>::type *)
+  : impl_(new _async_task_async_callback<functor_type, result_types...>(std::move(f)))
+  {
+  }
+    
+  template<typename ...result_types>
+  template<typename functor_type>
+  inline async_task<result_types...>::async_task(
+	  functor_type && f,
+	  typename std::enable_if<!_async_task_functor_helper<decltype(&functor_type::operator())>::is_async_callback>::type *)
+  : impl_(new _async_task_sync_callback<functor_type, result_types...>(std::move(f)))
+  {
   }
 
-  template<typename ...arguments_types>
-  template<typename functor>
-  inline auto async_task<arguments_types...>::then(
-    const functor & next_method,
-    typename std::enable_if<!std::is_void<typename functor_info<functor>::result_type>::value>::type *)
-#ifndef _WIN32
-    -> typename async_task_functor_info<functor>::result_type
-#endif// _WIN32
+  template<typename ...result_types>
+  inline async_task<result_types...>::async_task(async_task<result_types...>&& origin)
+  : impl_(origin.impl_)
   {
-    using new_task_type = typename functor_info<functor>::result_type;
-    auto p = this->impl_;
-    return new_task_type([p, next_method](const std::function<typename add_first_parameter<const service_provider &, typename new_task_type::signature>::type> & done, const error_handler & on_error, const service_provider & sp)->void {
-      p->wait(
-        [next_method, done, on_error](const service_provider & sp, arguments_types... args) {
-        try {
-          next_method(sp, args...).wait(done, on_error, sp);
-        }
-        catch (const std::exception & ex) {
-          on_error(sp, std::make_shared<std::exception>(ex));
-        }
-        catch (...) {
-          on_error(sp, std::make_shared<std::runtime_error>("Unexpected error"));
-        }
-      }, on_error, sp);
-    });
+	  origin.impl_ = nullptr;
   }
 
-  template<typename ...arguments_types>
-  template<typename functor>
-  inline auto async_task<arguments_types...>::then(
-    const functor & next_method,
-    typename std::enable_if<std::is_void<typename functor_info<functor>::result_type>::value>::type *)
-#ifndef _WIN32
-    -> typename async_task_functor_info<typename async_task_arguments<functor>::done_method_type>::template build_type<async_task>::type
-#endif// _WIN32
+  template<typename ...result_types>
+  template<typename parent_task_type, typename functor_type>
+  inline async_task<result_types...>::async_task(
+	  parent_task_type && parent,
+	  functor_type && f)
+  : impl_(new _async_task_joined_callback<parent_task_type, functor_type, result_types...>(std::move(parent), std::move(f)))
   {
-    auto p = this->impl_;
-    return typename async_task_functor_info<typename async_task_arguments<functor>::done_method_type>::template build_type<::vds::async_task>::type(
-      [p, next_method](
-        const typename async_task_arguments<functor>::done_method_type & done,
-        const error_handler & on_error,
-        const service_provider & sp)->void {
-      p->wait(
-        [next_method, done, on_error](const vds::service_provider & sp, arguments_types... args) {
-        try {
-          next_method(done, on_error, sp, std::forward<arguments_types>(args)...);
-        }
-        catch (const std::exception & ex) {
-          on_error(sp, std::make_shared<std::exception>(ex));
-        }
-        catch (...) {
-          on_error(sp, std::make_shared<std::runtime_error>("Unexpected error"));
-        }
-      }, on_error, sp);
-    });
   }
-  
+
+  template<typename ...result_types>
+  inline async_task<result_types...>::~async_task()
+  {
+	  delete this->impl_;
+  }
+
+  template<typename ...result_types>
+  template<typename functor_type, typename error_functor_type>
+  inline void async_task<result_types...>::wait(functor_type && done_callback, error_functor_type && error_callback)
+  {
+	  this->impl_->execute(
+		  async_result<result_types...>(
+			  std::function<void(result_types...)>(std::move(done_callback)),
+			  std::function<void(const std::shared_ptr<std::exception> &)>(std::move(error_callback))));
+  }
+
+  template<typename ...result_types>
+  template<typename functor_type>
+  inline auto async_task<result_types...>::then(functor_type && f)
+	  -> typename _async_task_functor_helper<decltype(&functor_type::operator())>::task_type
+  {
+	  return _async_task_functor_helper<decltype(&functor_type::operator())>::task_type(
+		  std::move(*this),
+		  std::move(f));
+  }
+
+  template<typename ...result_types>
+  template<typename functor_type, typename done_type>
+  inline void async_task<result_types...>::join(
+	functor_type && f,
+	done_type && done,
+	typename std::enable_if<_async_task_functor_helper<decltype(&functor_type::operator())>::is_async_callback>::type *)
+  {
+	  this->impl_->execute(
+		  async_result<result_types...>(
+			  std::function<void(result_types...)>([f_ = std::move(f), done](result_types... result) {
+				f_(done, std::forward<result_types>(result)...);
+			}),
+			  std::function<void(const std::shared_ptr<std::exception> &)>([done](const std::shared_ptr<std::exception> & ex) {
+				done.error(ex);
+			})));
+  }
+
+  template<typename ...result_types>
+  template<typename functor_type, typename done_type>
+  inline void async_task<result_types...>::join(
+	  functor_type && f,
+	  done_type && done,
+	  typename std::enable_if<!_async_task_functor_helper<decltype(&functor_type::operator())>::is_async_callback>::type *)
+  {
+	  this->impl_->execute(
+		  async_result<result_types...>(
+			  std::function<void(result_types...)>([f_ = std::move(f), done](result_types... result) {
+		  f_(std::forward<result_types>(result)...);
+	  }),
+			  std::function<void(const std::shared_ptr<std::exception> &)>([done](const std::shared_ptr<std::exception> & ex) {
+		  done.error(ex);
+	  })));
+  }
+
+  /////////////////////////////////////////////////////////////////////////////////
+  template<typename ...result_types>
+  inline async_result<result_types...>::async_result(
+	  std::function<void(result_types...results)> && done,
+	  std::function<void(const std::shared_ptr<std::exception>&ex)> && error)
+	  : done_(done), error_(error)
+  {
+  }
+
+  template<typename ...result_types>
+  inline void async_result<result_types...>::operator()(result_types && ...results) const
+  {
+	  this->done_(std::forward<result_types>(results)...);
+  }
+
+  template<typename ...result_types>
+  inline void async_result<result_types...>::operator()(std::tuple<result_types...> && result) const
+  {
+	  call_with(this->done_, std::move(result));
+  }
+
+  /////////////////////////////////////////////////////////////////////////////////
+  /*
   class _async_series
   {
   public:
@@ -374,7 +435,7 @@ namespace vds {
         runner->run(*steps);
         delete steps;
       });
-  }
+  }*/
 }
 
 #endif // __VDS_CORE_ASYNC_TASK_H_
