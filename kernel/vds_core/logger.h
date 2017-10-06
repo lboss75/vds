@@ -134,7 +134,7 @@ namespace vds {
         }
       }
       
-      bool check(const std::string & module, const service_provider & sp, log_level level) const
+      bool check(const std::string & module, const service_provider & /*sp*/, log_level level) const
       {
         if(log_level::ll_error <= level) {
           return true;

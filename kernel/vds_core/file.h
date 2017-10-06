@@ -13,6 +13,7 @@ All rights reserved
 
 #include "filename.h"
 #include "const_data_buffer.h"
+#include "async_task.h"
 
 namespace vds {
 
@@ -51,11 +52,22 @@ namespace vds {
     void open(const filename & filename, file_mode mode);
     void close();
     
-    size_t read(void * buffer, size_t buffer_len);
-    void write(const void * buffer, size_t buffer_len);
-    void write(const const_data_buffer & buf) { this->write(buf.data(), buf.size()); }
+    void read(
+      const async_result<size_t> & result,
+      void * buffer,
+      size_t buffer_len);
 
-    size_t length() const;
+    void write(
+      const async_result<> & result,
+      const void * buffer,
+      size_t buffer_len);
+
+    void write(
+      const async_result<> & result,
+      const const_data_buffer & buf) { this->write(result, buf.data(), buf.size()); }
+
+    void length(
+      const async_result<size_t> & result) const;
 
     void seek(size_t position);
 
@@ -80,7 +92,9 @@ namespace vds {
     output_text_stream(file & f);
     ~output_text_stream();
 
-    void write(const std::string & value);
+    void write(
+      const async_result<> & result,
+      const std::string & value);
     void flush();
 
   private:

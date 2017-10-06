@@ -484,7 +484,7 @@ void vds::command_line::show_help(
 
 vds::command_line_item_error::command_line_item_error(
   const std::string& message,
-  const std::string& item_name)
+  const std::string& /*item_name*/)
 : std::runtime_error(message)
 {
 
