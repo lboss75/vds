@@ -5,7 +5,7 @@ All rights reserved
 
 #include "stdafx.h"
 #include "hash.h"
-#include "hash_p.h"
+#include "private/hash_p.h"
 #include "crypto_exception.h"
 
 const vds::hash_info & vds::hash::md5()

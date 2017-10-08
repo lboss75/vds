@@ -5,7 +5,7 @@ All rights reserved
 
 #include "stdafx.h"
 #include "chunk_storage.h"
-#include "chunk_storage_p.h"
+#include "private/chunk_storage_p.h"
 
 vds::chunk_storage::chunk_storage(uint16_t min_horcrux)
   : impl_(new _chunk_storage(min_horcrux))

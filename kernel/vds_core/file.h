@@ -52,22 +52,18 @@ namespace vds {
     void open(const filename & filename, file_mode mode);
     void close();
     
-    void read(
-      const async_result<size_t> & result,
+    size_t read(
       void * buffer,
       size_t buffer_len);
 
     void write(
-      const async_result<> & result,
       const void * buffer,
       size_t buffer_len);
 
     void write(
-      const async_result<> & result,
-      const const_data_buffer & buf) { this->write(result, buf.data(), buf.size()); }
+      const const_data_buffer & buf) { this->write(buf.data(), buf.size()); }
 
-    void length(
-      const async_result<size_t> & result) const;
+    size_t length() const;
 
     void seek(size_t position);
 
@@ -93,8 +89,8 @@ namespace vds {
     ~output_text_stream();
 
     void write(
-      const async_result<> & result,
       const std::string & value);
+    
     void flush();
 
   private:

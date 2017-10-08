@@ -4,9 +4,9 @@ All rights reserved
 */
 #include "stdafx.h"
 #include "ssl_tunnel.h"
-#include "ssl_tunnel_p.h"
+#include "private/ssl_tunnel_p.h"
 #include "asymmetriccrypto.h"
-#include "asymmetriccrypto_p.h"
+#include "private/asymmetriccrypto_p.h"
 
 static int verify_callback(int prev, X509_STORE_CTX * ctx)
 {

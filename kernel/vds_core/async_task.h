@@ -11,6 +11,7 @@ All rights reserved
 #include <list>
 
 #include "func_utils.h"
+#include "result_or_error.h"
 
 namespace vds {
 	template <typename... result_types>
@@ -29,8 +30,14 @@ namespace vds {
 		void error(const std::shared_ptr<std::exception> & ex) const;
 
 	private:
-		std::function<void(result_types... results)> done_;
-		std::function<void(const std::shared_ptr<std::exception> & ex)> error_;
+    
+    struct result_data : public std::enable_shared_from_this<result_data>
+    {
+      std::function<void(result_types... results)> done_;
+      std::function<void(const std::shared_ptr<std::exception> & ex)> error_;
+    };
+    
+    std::shared_ptr<result_data> impl_;
 	};
 
   /////////////////////////////////////////////////////////////////////////////////
@@ -312,8 +319,8 @@ namespace vds {
   {
 	  this->impl_->execute(
 		  async_result<result_types...>(
-			  std::function<void(result_types...)>(std::move(done_callback)),
-			  std::function<void(const std::shared_ptr<std::exception> &)>(std::move(error_callback))));
+			  std::move(done_callback),
+			  std::move(error_callback)));
   }
   
   template<typename ...result_types>
@@ -393,26 +400,26 @@ namespace vds {
   inline async_result<result_types...>::async_result(
 	  std::function<void(result_types...results)> && done,
 	  std::function<void(const std::shared_ptr<std::exception>&ex)> && error)
-	  : done_(done), error_(error)
+	  : impl_(new result_data { std::move(done), std::move(error) })
   {
   }
 
   template<typename ...result_types>
   inline void async_result<result_types...>::operator()(result_types && ...results) const
   {
-	  this->done_(std::forward<result_types>(results)...);
+	  this->impl_->done_(std::forward<result_types>(results)...);
   }
 
   template<typename ...result_types>
   inline void async_result<result_types...>::operator()(std::tuple<result_types...> && result) const
   {
-	  call_with(this->done_, std::move(result));
+	  call_with(this->impl_->done_, std::move(result));
   }
 
   template<typename ...result_types>
   inline void async_result<result_types...>::error(const std::shared_ptr<std::exception>& ex) const
   {
-	  this->error_(ex);
+	  this->impl_->error_(ex);
   }
 
   /////////////////////////////////////////////////////////////////////////////////

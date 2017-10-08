@@ -7,7 +7,6 @@ All rights reserved
 */
 #include <mutex>
 
-#include "dataflow.h"
 #include "async_task.h"
 #include "mt_service.h"
 #include "not_mutex.h"
@@ -386,7 +385,6 @@ namespace vds {
         });
     }
 
-
     async_task<size_t /*readed*/> read_async(const service_provider & sp, item_type * buffer, size_t buffer_size)
     {
       return this->data_.read_async(sp, buffer, buffer_size);
@@ -397,128 +395,6 @@ namespace vds {
     std::mutex data_mutex_;
     continuous_stream<item_type> data_;
   };
-
-  template <typename stream_type>
-  class _stream_read
-  {
-  public:
-    _stream_read(const std::shared_ptr<stream_type> & stream)
-    : stream_(stream)
-    {
-    }
-
-    typedef typename stream_type::item_type outgoing_item_type;
-    static constexpr size_t BUFFER_SIZE = 1024;
-    static constexpr size_t MIN_BUFFER_SIZE = 1;
-
-    template <typename context_type>
-    class handler : public async_dataflow_source<context_type, handler<context_type>>
-    {
-      using base_class = async_dataflow_source<context_type, handler<context_type>>;
-    public:
-      handler(
-        const context_type & context,
-        const _stream_read & args)
-      : base_class(context),
-        stream_(args.stream_)
-      {
-      }
-      
-      void async_get_data(const service_provider & sp)
-      {
-        this->continue_get_data(sp);
-      }
-      
-    private:
-      std::shared_ptr<stream_type> stream_;
-      
-      void continue_get_data(const service_provider & sp)
-      {
-        this->stream_->read_async(sp, this->output_buffer(), this->output_buffer_size())
-        .wait(
-          [this](const service_provider & sp, size_t readed){
-            if(this->processed(sp, readed)){
-              this->continue_get_data(sp);
-            }
-          },
-          [this](const service_provider & sp, const std::shared_ptr<std::exception> & ex){
-            this->error(sp, ex);
-          },
-          sp);          
-      }
-    };
-    
-    
-  private:
-    std::shared_ptr<stream_type> stream_;
-  };
-  
-  template <typename stream_type>
-  inline auto stream_read(const std::shared_ptr<stream_type> & stream) -> _stream_read<stream_type>
-  {
-    return _stream_read<stream_type>(stream);
-  }
-  
-  template <typename stream_type>
-  class _stream_write
-  {
-  public:
-    _stream_write(const std::shared_ptr<stream_type> & stream)
-    : stream_(stream)
-    {
-    }
-    
-    typedef typename stream_type::item_type incoming_item_type;
-    static constexpr size_t BUFFER_SIZE = 1024;
-    static constexpr size_t MIN_BUFFER_SIZE = 1;
-
-    template <typename context_type>
-    class handler : public async_dataflow_target<context_type, handler<context_type>>
-    {
-      using base_class = async_dataflow_target<context_type, handler<context_type>>;
-    public:
-      handler(
-        const context_type & context,
-        const _stream_write & args)
-      : base_class(context),
-        stream_(args.stream_)
-      {
-      }
-      
-      void async_push_data(const service_provider & sp)
-      {
-        this->continue_push_data(sp);
-      }
-      
-    private:
-      std::shared_ptr<stream_type> stream_;
-      
-      void continue_push_data(const service_provider & sp)
-      {
-        this->stream_->write_async(sp, this->input_buffer(), this->input_buffer_size())
-        .wait(
-          [this](const service_provider & sp, size_t written){
-            if(this->processed(sp, written)){
-              this->continue_push_data(sp);
-            }
-          },
-          [this](const service_provider & sp, const std::shared_ptr<std::exception> & ex){
-            this->error(sp, ex);
-          },
-          sp);          
-      }
-    };
-    
-    
-  private:
-    std::shared_ptr<stream_type> stream_;
-  };
-  
-  template <typename stream_type>
-  inline auto stream_write(const std::shared_ptr<stream_type> & stream) -> _stream_write<stream_type>
-  {
-    return _stream_write<stream_type>(stream);
-  } 
 }
 
 #endif // __VDS_CORE_ASYNC_STREAM_H_

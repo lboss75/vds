@@ -5,24 +5,19 @@ All rights reserved
 
 #include "stdafx.h"
 #include "inflate.h"
-#include "inflate_p.h"
+#include "private/inflate_p.h"
 
 vds::inflate::inflate()
+: impl_(new _inflate_handler())
 {
 }
 
-vds::_inflate_handler * vds::inflate::create_handler() const
+vds::inflate::~inflate()
 {
-  return new _inflate_handler();
-}
-
-void vds::inflate::delete_handler(_inflate_handler * handler)
-{
-  delete handler;
+  delete this->impl_;
 }
 
 void vds::inflate::update_data(
-  _inflate_handler * handler,
   const void * input_data,
   size_t input_size,
   void * output_data,
@@ -30,7 +25,7 @@ void vds::inflate::update_data(
   size_t & readed,
   size_t & written)
 {
-  handler->update_data(
+  this->impl_->update_data(
     input_data,
     input_size,
     output_data,
@@ -38,4 +33,3 @@ void vds::inflate::update_data(
     readed,
     written);
 }
-

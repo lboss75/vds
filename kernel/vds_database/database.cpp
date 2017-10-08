@@ -4,10 +4,7 @@ All rights reserved
 */
 #include "stdafx.h"
 #include "database.h"
-#include "database_p.h"
-
-DEFINE_DEBUG_TASK(vds::_database_transaction_task, "SQL");
-DEFINE_DEBUG_TASK(vds::_database_transaction_debug, "Transactions")
+#include "private/database_p.h"
 
 vds::database::database()
   : impl_(new _database())

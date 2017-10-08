@@ -47,7 +47,7 @@ namespace vds {
     std::string str(const std::string & password = std::string()) const;
     
     const_data_buffer der(const service_provider & sp, const std::string & password) const;
-    static async_task<asymmetric_private_key> parse_der(
+    static asymmetric_private_key parse_der(
       const service_provider & sp,
       const const_data_buffer & value,
       const std::string & password);
@@ -99,44 +99,20 @@ namespace vds {
   public:
     asymmetric_sign(
       const hash_info & hash_info,
-      const asymmetric_private_key & key,
-      const_data_buffer & signature);
+      const asymmetric_private_key & key);
 
-    using incoming_item_type = uint8_t;
-    static constexpr size_t BUFFER_SIZE = 1024;
-    static constexpr size_t MIN_BUFFER_SIZE = 10;
-
-    template<typename context_type>
-    class handler : public vds::sync_dataflow_target<context_type, handler<context_type>>
+    size_t  update(
+      const char * data,
+      size_t data_size
+    )
     {
-      using base_class = vds::sync_dataflow_target<context_type, handler<context_type>>;
-    public:
-      handler(
-        const context_type & context,
-        const asymmetric_sign & owner
-      )
-        : base_class(context),
-          impl_(owner.create_implementation()),
-          signature_(owner.signature_)
-      {
-      }
+    }
 
-      size_t sync_push_data(const vds::service_provider & sp)
-      {
-        if (0 == this->input_buffer_size()) {
-          data_final(this->impl_, this->signature_);
-          return 0;
-        }
-        else {
-          data_update(this->impl_, this->input_buffer(), this->input_buffer_size());
-          return this->input_buffer_size();
-        }
-      }
+    void update(
+      const uint8_t * data,
+      size_t len);
 
-    private:
-      _asymmetric_sign * impl_;
-      const_data_buffer & signature_;
-    };
+    const_data_buffer signature();
 
     static const_data_buffer signature(
       const hash_info & hash_info,
@@ -150,20 +126,8 @@ namespace vds {
       size_t data_size);
     
   private:
-    const hash_info & hash_info_;
-    asymmetric_private_key key_;
-    const_data_buffer & signature_;
+    _asymmetric_sign * impl_;
 
-    _asymmetric_sign * create_implementation() const;
-
-    static void data_update(
-      _asymmetric_sign * impl,
-      const uint8_t * data,
-      int len);
-
-    static void data_final(
-      _asymmetric_sign * impl,
-      const_data_buffer & result);
   };
 
   class _asymmetric_sign_verify;
@@ -172,45 +136,14 @@ namespace vds {
   public:
     asymmetric_sign_verify(
       const hash_info & hash_info,
-      const asymmetric_public_key & key,
-      const const_data_buffer & sign);
-
-    using incoming_item_type = uint8_t;
-    static constexpr size_t BUFFER_SIZE = 1024;
-    static constexpr size_t MIN_BUFFER_SIZE = 10;
-
-    template<typename context_type>
-    class handler : public vds::sync_dataflow_target<context_type, handler<context_type>>
-    {
-      using base_class = vds::sync_dataflow_target<context_type, handler<context_type>>;
-    public:
-      handler(
-        const context_type & context,
-        const asymmetric_sign_verify & args)
-        : base_class(context),
-        impl_(args.create_implementation()),
-        signature_(args.signature_)
-      {
-      }
-
-      size_t sync_push_data(const vds::service_provider & sp)
-      {
-        if (0 == this->input_buffer_size()) {
-          if (!data_final(this->impl_, this->signature_)) {
-            this->error(sp, std::make_shared<std::runtime_error>("Validate error"));
-          }
-          return 0;
-        }
-        else {
-          data_update(this->impl_, this->input_buffer(), this->input_buffer_size());
-          return this->input_buffer_size();
-        }
-      }
-
-    private:
-      _asymmetric_sign_verify * impl_;
-      const_data_buffer signature_;
-    };
+      const asymmetric_public_key & key);
+    
+    void data_update(
+      const void * data,
+      size_t len);
+    
+    bool verify(
+      const const_data_buffer & signature);
     
     static bool verify(
       const hash_info & hash_info,
@@ -226,21 +159,7 @@ namespace vds {
       const const_data_buffer & data);
 
   private:
-    const hash_info & hash_info_;
-    asymmetric_public_key key_;
-    const_data_buffer signature_;
-
-    _asymmetric_sign_verify * create_implementation() const;
-
-    static void data_update(
-      _asymmetric_sign_verify * impl,
-      const void * data,
-      int len);
-
-    static bool data_final(
-      _asymmetric_sign_verify * impl,
-      const const_data_buffer & signature);
-
+    _asymmetric_sign_verify * const impl_;
   };
   
   

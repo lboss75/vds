@@ -5,7 +5,7 @@ All rights reserved
 
 #include "stdafx.h"
 #include "symmetriccrypto.h"
-#include "symmetriccrypto_p.h"
+#include "private/symmetriccrypto_p.h"
 
 ////////////////////////////////////////////////////////////////////////////
 vds::symmetric_crypto_info::symmetric_crypto_info(_symmetric_crypto_info * impl)
@@ -140,26 +140,79 @@ vds::symmetric_key vds::symmetric_key::from_password(const std::string & passwor
 
 vds::symmetric_encrypt::symmetric_encrypt(
   const vds::symmetric_key& key)
-: key_(key)
+: impl_(new _symmetric_encrypt(key))
 {
 }
 
-vds::_symmetric_encrypt * vds::symmetric_encrypt::create_implementation()  const
+vds::symmetric_encrypt::~symmetric_encrypt()
 {
-  return new vds::_symmetric_encrypt(this->key_);
+  delete this->impl_;
 }
 
-void vds::symmetric_encrypt::data_update(
-  _symmetric_encrypt * impl,
-  const uint8_t * data,
+void vds::symmetric_encrypt::update(
+  const void * data,
   size_t len,
-  uint8_t * result_data,
+  void * result_data,
   size_t result_data_len,
   size_t & input_readed,
   size_t & output_written)
 {
-  impl->update(data, len, result_data, result_data_len, input_readed, output_written);
+  this->impl_->update(data, len, result_data, result_data_len, input_readed, output_written);
 }
+
+vds::const_data_buffer vds::symmetric_encrypt::encrypt(
+  const vds::symmetric_key& key,
+  const void * input_buffer,
+  size_t input_buffer_size)
+{
+  std::vector<uint8_t> result;
+  uint8_t buffer[1024];
+  
+  symmetric_encrypt s(key);
+  while(0 < input_buffer_size){
+    size_t input_readed = 0;
+    size_t output_written = 0;
+    
+    s.update(
+      input_buffer,
+      input_buffer_size,
+      buffer,
+      sizeof(buffer),
+      input_readed,
+      output_written);
+    
+    input_buffer_size -= input_readed;
+    input_buffer = (const uint8_t *)input_buffer + input_readed;
+    
+    for(size_t i = 0; i < output_written; ++i){
+      result.push_back(buffer[i]);
+    }
+  }
+  
+  for(;;){
+    size_t input_readed = 0;
+    size_t output_written = 0;
+    
+    s.update(
+      nullptr,
+      0,
+      buffer,
+      sizeof(buffer),
+      input_readed,
+      output_written);
+    
+    if(0 == output_written){
+      break;
+    }
+    
+    for(size_t i = 0; i < output_written; ++i){
+      result.push_back(buffer[i]);
+    }
+  }
+  
+  return const_data_buffer(result);
+}
+
 
 ////////////////////////////////////////////////////////////////////////////
 vds::_symmetric_crypto_info::_symmetric_crypto_info(const EVP_CIPHER* cipher)

@@ -79,8 +79,7 @@ void vds::file::open(const vds::filename& filename, vds::file::file_mode mode)
 }
 
 
-void vds::file::read(
-  const async_result<size_t> & done, 
+size_t vds::file::read(
   void * buffer,
   size_t buffer_len)
 {
@@ -91,15 +90,13 @@ void vds::file::read(
 #else
     auto error = errno;
 #endif
-    done.error(std::make_shared<std::system_error>(error, std::system_category(), "Unable to read file " + this->filename_.str()));
+    throw std::system_error(error, std::system_category(), "Unable to read file " + this->filename_.str());
   }
-  else {
-    done((size_t)readed);
-  }
+  
+  return (size_t)readed;
 }
 
 void vds::file::write(
-  const async_result<> & done,
   const void * buffer,
   size_t buffer_len)
 {
@@ -111,11 +108,10 @@ void vds::file::write(
 #else
       auto error = errno;
 #endif
-      done.error(std::make_shared<std::system_error>(error, std::system_category(), "Unable to write file " + this->filename_.str()));
+      throw std::system_error(error, std::system_category(), "Unable to write file " + this->filename_.str());
     }
 
     if ((size_t)written == buffer_len) {
-      done();
       return;
     }
 
@@ -124,16 +120,15 @@ void vds::file::write(
   }
 }
 
-void vds::file::length(const async_result<size_t> & result) const
+size_t vds::file::length() const
 {
   struct stat buffer;
   if (0 != fstat(this->handle_, &buffer)) {
     auto error = errno;
-    result.error(std::make_shared<std::system_error>(error, std::generic_category(), "Unable to get file size of " + this->filename_.name()));
+    throw std::system_error(error, std::generic_category(), "Unable to get file size of " + this->filename_.name());
   }
-  else {
-    result(buffer.st_size);
-  }
+  
+  return buffer.st_size;
 }
 
 size_t vds::file::length(const filename & fn)
@@ -193,7 +188,6 @@ vds::output_text_stream::~output_text_stream()
 }
 
 void vds::output_text_stream::write(
-  const async_result<> & result,
   const std::string & value)
 {
   const char * data = value.c_str();
@@ -209,20 +203,10 @@ void vds::output_text_stream::write(
       if (rest > 0) {
         memcpy((uint8_t *)this->buffer_ + this->written_, data, rest);
         this->written_ += rest;
-        this->f_.write(
-          async_result<>(
-            [result, this, data, len]() {
-              this->written_ = 0;
-              len -= rest;
-              data += rest;
-              if()
-            },
-            [result](const std::shared_ptr<std::exception> & ex) {
-              result.error(ex);
-            }
-          ),
-          this->buffer_, this->written_);
-
+        this->f_.write(this->buffer_, this->written_);
+        this->written_ = 0;
+        len -= rest;
+        data += rest;
       }
     }
     else {

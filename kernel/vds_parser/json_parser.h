@@ -27,41 +27,27 @@ namespace vds {
       }
     };
 
-    json_parser(const std::string & stream_name, const options & parse_options = options())
-      : stream_name_(stream_name), parse_options_(parse_options)
-    {
-    }
-
-    using incoming_item_type = char;
-    using outgoing_item_type = std::shared_ptr<json_value>;
-    static constexpr size_t BUFFER_SIZE = 1024;
-    static constexpr size_t MIN_BUFFER_SIZE = 1;
-
-    template <typename context_type>
-    class handler : public sync_dataflow_filter<context_type, handler<context_type>>
-    {
-      using base_class = sync_dataflow_filter<context_type, handler<context_type>>;
-    public:
-      handler(
-        const context_type & context,
-        const json_parser & args
-        ) : base_class(context),
-        stream_name_(args.stream_name_),
-        parse_options_(args.parse_options_),
+    json_parser(
+      const std::string & stream_name,
+      std::function<void(const std::shared_ptr<json_value> &)> && result,
+      const options & parse_options = options())
+      : stream_name_(stream_name), parse_options_(parse_options),
+        result_(std::move(result)),
         state_(ST_BOF),
         current_object_(nullptr),
         line_(1), column_(1)
       {
       }
 
-      void sync_process_data(
-        const service_provider & sp,
+      void update(
+        const char * input_buffer,
+        size_t input_len,
         size_t & input_readed,
         size_t & output_written)
       {
         output_written = 0;
-        for (input_readed = 0; input_readed < this->input_buffer_size(); ++input_readed) {
-          switch (this->input_buffer(input_readed)) {
+        for (input_readed = 0; input_readed < input_len; ++input_readed) {
+          switch (input_buffer[input_readed]) {
           case '\n':
             this->line_++;
             this->column_ = 1;
@@ -78,7 +64,7 @@ namespace vds {
 
           switch (this->state_) {
           case ST_BOF:
-            switch (this->input_buffer(input_readed)) {
+            switch (input_buffer[input_readed]) {
             case '/':
               this->after_slesh();
               break;
@@ -94,7 +80,7 @@ namespace vds {
               break;
 
             default:
-              if (isspace(this->input_buffer(input_readed))) {
+              if (isspace(input_buffer[input_readed])) {
                 continue;
               }
 
@@ -102,11 +88,11 @@ namespace vds {
                 this->stream_name_,
                 this->line_,
                 this->column_,
-                std::string("Unexpected char ") + this->input_buffer(input_readed));
+                std::string("Unexpected char ") + input_buffer[input_readed]);
             }
             break;
           case ST_AFTER_SLESH:
-            switch (this->input_buffer(input_readed))
+            switch (input_buffer[input_readed])
             {
             case '/':
               this->state_ = ST_INLINE_COMMENT;
@@ -116,11 +102,11 @@ namespace vds {
                 this->stream_name_,
                 this->line_,
                 this->column_,
-                std::string("Unexpected char ") + this->input_buffer(input_readed));
+                std::string("Unexpected char ") + input_buffer[input_readed]);
             }
             break;
           case ST_INLINE_COMMENT:
-            switch (this->input_buffer(input_readed))
+            switch (input_buffer[input_readed])
             {
             case '\n':
               this->state_ = this->saved_states_.top();
@@ -131,9 +117,9 @@ namespace vds {
             };
             break;
           case ST_ARRAY:
-            switch (this->input_buffer(input_readed)) {
+            switch (input_buffer[input_readed]) {
             case ']':
-              this->final_array(sp, input_readed, output_written);
+              this->final_array(input_readed, output_written);
               break;
 
             case '[':
@@ -154,12 +140,12 @@ namespace vds {
               break;
 
             default:
-              if (isspace(this->input_buffer(input_readed))) {
+              if (isspace(input_buffer[input_readed])) {
                 continue;
               }
 
-              if (isdigit(this->input_buffer(input_readed))) {
-                this->buffer_ = this->input_buffer(input_readed);
+              if (isdigit(input_buffer[input_readed])) {
+                this->buffer_ = input_buffer[input_readed];
                 this->saved_states_.push(ST_ARRAY_ITEM);
                 this->state_ = ST_NUMBER;
                 continue;
@@ -169,14 +155,14 @@ namespace vds {
                 this->stream_name_,
                 this->line_,
                 this->column_,
-                std::string("Unexpected char ") + this->input_buffer(input_readed));
+                std::string("Unexpected char ") + input_buffer[input_readed]);
             };
             break;
 
           case ST_ARRAY_ITEM:
-            switch (this->input_buffer(input_readed)) {
+            switch (input_buffer[input_readed]) {
             case ']':
-              this->final_array(sp, input_readed, output_written);
+              this->final_array(input_readed, output_written);
               break;
 
             case ',':
@@ -184,7 +170,7 @@ namespace vds {
               break;
 
             default:
-              if (isspace(this->input_buffer(input_readed))) {
+              if (isspace(input_buffer[input_readed])) {
                 continue;
               }
 
@@ -192,12 +178,12 @@ namespace vds {
                 this->stream_name_,
                 this->line_,
                 this->column_,
-                std::string("Unexpected char ") + this->input_buffer(input_readed));
+                std::string("Unexpected char ") + input_buffer[input_readed]);
             }
             break;
 
           case ST_OBJECT:
-            switch (this->input_buffer(input_readed)) {
+            switch (input_buffer[input_readed]) {
             case '\"':
               this->saved_states_.push(ST_OBJECT_ITEM);
               this->saved_states_.push(ST_OBJECT_PROPERTY_NAME);
@@ -205,11 +191,11 @@ namespace vds {
               break;
 
             case '}':
-              this->final_object(sp, input_readed, output_written);
+              this->final_object(input_readed, output_written);
               break;
 
             default:
-              if (isspace(this->input_buffer(input_readed))) {
+              if (isspace(input_buffer[input_readed])) {
                 continue;
               }
 
@@ -217,14 +203,14 @@ namespace vds {
                 this->stream_name_,
                 this->line_,
                 this->column_,
-                std::string("Unexpected char ") + this->input_buffer(input_readed));
+                std::string("Unexpected char ") + input_buffer[input_readed]);
             }
             break;
 
           case ST_OBJECT_ITEM:
-            switch (this->input_buffer(input_readed)) {
+            switch (input_buffer[input_readed]) {
             case '}':
-              this->final_object(sp, input_readed, output_written);
+              this->final_object(input_readed, output_written);
               break;
 
             case ',':
@@ -232,7 +218,7 @@ namespace vds {
               break;
 
             default:
-              if (isspace(this->input_buffer(input_readed))) {
+              if (isspace(input_buffer[input_readed])) {
                 continue;
               }
 
@@ -240,12 +226,12 @@ namespace vds {
                 this->stream_name_,
                 this->line_,
                 this->column_,
-                std::string("Unexpected char ") + this->input_buffer(input_readed));
+                std::string("Unexpected char ") + input_buffer[input_readed]);
             }
             break;
 
           case ST_STRING:
-            switch (this->input_buffer(input_readed)) {
+            switch (input_buffer[input_readed]) {
             case '\\':
               this->state_ = ST_STRING_BACKSLESH;
               break;
@@ -660,15 +646,9 @@ namespace vds {
         this->target_->final_data(sp);
       }
 
-      void processed(const service_provider & sp)
-      {
-        if(this->continue_process(sp)){
-          this->prev(sp);
-        }
-      }
-
     private:
       std::string stream_name_;
+      std::function<void(const std::shared_ptr<json_value> &)> result_;
       options parse_options_;
 
       enum State
@@ -754,7 +734,6 @@ namespace vds {
       }
 
       void final_array(
-        const service_provider & sp,
         size_t & input_readed,
         size_t & output_written)
       {
@@ -803,7 +782,6 @@ namespace vds {
       }
 
       void final_object(
-        const service_provider & sp,
         size_t & input_readed,
         size_t & output_written)
       {
@@ -846,11 +824,6 @@ namespace vds {
 
         this->buffer_.clear();
       }
-    };
-    
-  private:
-    std::string stream_name_;
-    options parse_options_;
   };
 }
 

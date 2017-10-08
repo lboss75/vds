@@ -10,15 +10,9 @@ All rights reserved
 #include <thread>
 
 #include "sqllite3/sqlite3.h"
-#include "debug.h"
 
 namespace vds {
   class database;
-
-  DECLARE_DEBUG_TASK(_database_transaction_task)
-  DECLARE_DEBUG_TASK(_database_transaction_debug)
-
-  void dump_commands();
 
   class _sql_statement
   {
@@ -341,12 +335,6 @@ namespace vds {
     std::list<std::function<bool(database_transaction & tr)>> callbacks_;
 
   };
-
-  inline void dump_commands()
-  {
-    std::cout << "Waiting for " << _database_transaction_task << "\n";
-    std::cout << "Transactions: " << _database_transaction_debug << "\n";
-  }
 }
 
 

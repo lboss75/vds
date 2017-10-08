@@ -28,7 +28,7 @@ namespace vds {
     std::string str(const std::string & password = std::string()) const;
     
     const_data_buffer der(const service_provider & sp, const std::string & password = std::string()) const;
-    static async_task<asymmetric_private_key> parse_der(
+    static asymmetric_private_key parse_der(
       const service_provider & sp,
       const const_data_buffer & value,
       const std::string & password /*= std::string()*/);

@@ -94,9 +94,9 @@ namespace vds {
     }
     
     void update(
-      const uint8_t * input_buffer,
+      const void * input_buffer,
       size_t input_buffer_size,
-      uint8_t * output_buffer,
+      void * output_buffer,
       size_t output_buffer_size,
       size_t & input_readed,
       size_t & output_written)
