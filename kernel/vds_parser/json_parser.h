@@ -262,11 +262,11 @@ namespace vds {
                   this->stream_name_,
                   this->line_,
                   this->column_,
-                  std::string("Unexpected char ") + this->input_buffer(input_readed));
+                  std::string("Unexpected char ") + input_buffer[input_readed]);
               }
               break;
             default:
-              this->buffer_ += this->input_buffer(input_readed);
+              this->buffer_ += input_buffer[input_readed];
               break;
             }
             break;

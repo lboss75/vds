@@ -118,6 +118,11 @@ namespace vds {
       size_t & input_readed,
       size_t & output_written);
 
+    static const_data_buffer decrypt(
+      const symmetric_key & key,
+      const void * input_buffer,
+      size_t input_buffer_size);
+    
   private:
       _symmetric_decrypt * const impl_;
   };

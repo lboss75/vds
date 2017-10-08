@@ -78,7 +78,7 @@ namespace vds {
     void start_crypted_input(const service_provider & sp)
     {
       this->crypted_input_->read_async(sp, this->crypted_input_data_, sizeof(this->crypted_input_data_))
-        .wait([this](const service_provider & sp, size_t readed) {
+        .wait([this, sp](size_t readed) {
           
           this->state_mutex_.lock();
           
@@ -93,9 +93,8 @@ namespace vds {
           this->state_mutex_.unlock();
           this->process(sp);
         },
-          [this](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-        },
-          sp);
+          [this](const std::shared_ptr<std::exception> & ex) {
+        });
     }
     
     void start_decrypted_input(const service_provider & sp)
@@ -105,7 +104,7 @@ namespace vds {
       }
       
       this->decrypted_input_->read_async(sp, this->decrypted_input_data_, sizeof(this->decrypted_input_data_))
-        .wait([this](const service_provider & sp, size_t readed) {
+        .wait([this, sp](size_t readed) {
           this->state_mutex_.lock();
           if (0 < readed) {
             this->decrypted_input_data_size_ = readed;
@@ -118,9 +117,8 @@ namespace vds {
           this->state_mutex_.unlock();
           this->process(sp);
         },
-          [this](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-      },
-        sp);
+          [this](const std::shared_ptr<std::exception> & ex) {
+      });
     }
 
     void process(const service_provider & sp)

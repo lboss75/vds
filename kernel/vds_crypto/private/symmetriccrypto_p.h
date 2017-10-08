@@ -108,7 +108,9 @@ namespace vds {
           n = len - this->block_size_ + 1;
         }
 
-        if (0 == EVP_CipherUpdate(this->ctx_, reinterpret_cast<unsigned char *>(output_buffer), &len, input_buffer, (int)n)) {
+        if (0 == EVP_CipherUpdate(this->ctx_, 
+          reinterpret_cast<unsigned char *>(output_buffer), &len,
+          reinterpret_cast<const unsigned char *>(input_buffer), (int)n)) {
           auto error = ERR_get_error();
           throw crypto_exception("EVP_CipherUpdate failed", error);
         }
