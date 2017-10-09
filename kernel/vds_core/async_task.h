@@ -31,8 +31,16 @@ namespace vds {
 
 	private:
     
-    struct result_data : public std::enable_shared_from_this<result_data>
+    class result_data : public std::enable_shared_from_this<result_data>
     {
+    public:
+      result_data(
+        std::function<void(result_types... results)> && done,
+        std::function<void(const std::shared_ptr<std::exception> & ex)> && error)
+        : done_(std::move(done)), error_(std::move(error))
+      {
+      }
+
       std::function<void(result_types... results)> done_;
       std::function<void(const std::shared_ptr<std::exception> & ex)> error_;
     };
@@ -210,7 +218,15 @@ namespace vds {
 
 	  void execute(const async_result<result_types...> & done) override
 	  {
-		  this->f_(done);
+      try {
+        this->f_(done);
+      }
+      catch (const std::exception & ex) {
+        done.error(std::make_shared<std::runtime_error>(ex.what()));
+      }
+      catch (...) {
+        done.error(std::make_shared<std::runtime_error>("Unexpected error"));
+      }
 	  }
 
   private:
@@ -228,7 +244,16 @@ namespace vds {
 
 	  void execute(const async_result<result_types...> & done) override
 	  {
-		  done(this->f_());
+      try {
+		    done(this->f_());
+      }
+      catch (const std::exception & ex) {
+        done.error(std::make_shared<std::runtime_error>(ex.what()));
+      }
+      catch (...) {
+        done.error(std::make_shared<std::runtime_error>("Unexpected error"));
+      }
+
 	  }
 
   private:
@@ -246,8 +271,19 @@ namespace vds {
 
 	  void execute(const async_result<> & done) override
 	  {
-		  this->f_();
-		  done();
+      try {
+        this->f_();
+      }
+      catch (const std::exception & ex) {
+        done.error(std::make_shared<std::runtime_error>(ex.what()));
+        return;
+      }
+      catch (...) {
+        done.error(std::make_shared<std::runtime_error>("Unexpected error"));
+        return;
+      }
+
+      done();
 	  }
 
   private:
@@ -400,7 +436,7 @@ namespace vds {
   inline async_result<result_types...>::async_result(
 	  std::function<void(result_types...results)> && done,
 	  std::function<void(const std::shared_ptr<std::exception>&ex)> && error)
-	  : impl_(new result_data { std::move(done), std::move(error) })
+	: impl_(new result_data(std::move(done), std::move(error)))
   {
   }
 

@@ -6,6 +6,9 @@ All rights reserved
 #include "guid.h"
 #include "encoding.h"
 
+#include <stdexcept>
+#include <system_error>
+
 #ifndef WIN32
 #include <uuid/uuid.h>
 #endif

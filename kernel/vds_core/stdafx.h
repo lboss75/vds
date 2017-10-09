@@ -23,6 +23,9 @@ All rights reserved
 #include <list>
 #include <string.h>
 #include <codecvt>
+#include <stdexcept>
+#include <system_error>
+
 
 #ifndef _WIN32
 #include <errno.h>
