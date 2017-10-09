@@ -187,8 +187,6 @@ vds::asymmetric_private_key vds::_asymmetric_private_key::parse_der(
   const std::string & password /*= std::string()*/)
 {
   if(!password.empty()){
-    auto buffer = std::make_shared<std::vector<uint8_t>>();
-
     auto key = symmetric_key::from_password(password);
     auto buffer = symmetric_decrypt::decrypt(
       key,
