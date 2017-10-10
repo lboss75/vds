@@ -36,76 +36,53 @@ static const char test_data[] =
 
 //static const char test_data[] = "{\"glossary\":\"\"}";
 
-class test_json_parser_validate
+static size_t test_json_parser_validate(const std::shared_ptr<vds::json_value> & value)
 {
-public:
-  
-  using incoming_item_type = std::shared_ptr<vds::json_value>;
-  static constexpr size_t BUFFER_SIZE = 1024;
-  static constexpr size_t MIN_BUFFER_SIZE = 1;
+  auto root_object = std::dynamic_pointer_cast<vds::json_object>(value);
+  if(nullptr == root_object) {
+    throw std::runtime_error("Test test");
+  }
 
-  template<typename context_type>
-  class handler : public vds::sync_dataflow_target<context_type, handler<context_type>>
-  {
-    using base_class = vds::sync_dataflow_target<context_type, handler<context_type>>;
-  public:
-    handler(
-      const context_type & context,
-      const test_json_parser_validate & args
-    ) : base_class(context)
-    {
-    }
+  int prop_count = 0;
+  root_object->visit(
+    [&prop_count](const std::shared_ptr<vds::json_property> & prop) {
+    ++prop_count;
+    if ("glossary" == prop->name()) {
+      auto glossary_object = std::dynamic_pointer_cast<vds::json_object>(prop->value());
+      ASSERT_NE(true, !glossary_object);
+      int glossary_prop_count = 0;
+      glossary_object->visit(
+        [&glossary_prop_count](const std::shared_ptr<vds::json_property> & prop) {
+        ++glossary_prop_count;
+        if ("title" == prop->name()) {
+          auto title_prop = std::dynamic_pointer_cast<vds::json_primitive>(prop->value());
+          ASSERT_NE(true, !title_prop);
+          ASSERT_EQ("example glossary", title_prop->value());
+        }
+        else if ("GlossDiv" == prop->name()) {
+          auto glossdiv_prop = std::dynamic_pointer_cast<vds::json_object>(prop->value());
+          ASSERT_NE(nullptr, glossdiv_prop);
 
-    size_t sync_push_data(const vds::service_provider & sp)
-    {
-      auto root_object = std::dynamic_pointer_cast<vds::json_object>(this->input_buffer(0));
-      if(nullptr == root_object) {
-        throw std::runtime_error("Test test");
-      }
-
-      int prop_count = 0;
-      root_object->visit(
-        [&prop_count](const std::shared_ptr<vds::json_property> & prop) {
-        ++prop_count;
-        if ("glossary" == prop->name()) {
-          auto glossary_object = std::dynamic_pointer_cast<vds::json_object>(prop->value());
-          ASSERT_NE(true, !glossary_object);
-          int glossary_prop_count = 0;
-          glossary_object->visit(
-            [&glossary_prop_count](const std::shared_ptr<vds::json_property> & prop) {
-            ++glossary_prop_count;
-            if ("title" == prop->name()) {
-              auto title_prop = std::dynamic_pointer_cast<vds::json_primitive>(prop->value());
-              ASSERT_NE(true, !title_prop);
-              ASSERT_EQ("example glossary", title_prop->value());
-            }
-            else if ("GlossDiv" == prop->name()) {
-              auto glossdiv_prop = std::dynamic_pointer_cast<vds::json_object>(prop->value());
-              ASSERT_NE(nullptr, glossdiv_prop);
-
-            }
-            else {
-              FAIL() << "Invalid property " << prop->name();
-
-            }
-          }
-          );
         }
         else {
           FAIL() << "Invalid property " << prop->name();
+
         }
       }
       );
-
-      if(1 != prop_count){
-        throw std::runtime_error("test failed");
-      }
-
-      //this->prev();
-      return true;
     }
-  };
-};
+    else {
+      FAIL() << "Invalid property " << prop->name();
+    }
+  }
+  );
+
+  if(1 != prop_count){
+    throw std::runtime_error("test failed");
+  }
+
+  return true;
+}
 
 TEST(test_json_parser, test_parser) {
   vds::dataflow(
