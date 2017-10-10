@@ -33,6 +33,8 @@ namespace vds {
     void start(const service_provider & sp);
     certificate get_peer_certificate() const;
 
+    void on_error(const std::function<void(const std::shared_ptr<std::exception> &)> & handler);
+
   private:
     _ssl_tunnel * const impl_;
   };

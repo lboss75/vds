@@ -172,9 +172,9 @@ namespace vds {
     }
 
     void update(
-      const uint8_t * input_data,
+      const void * input_data,
       size_t input_data_len,
-      uint8_t * result_data,
+      void * result_data,
       size_t result_data_len,
       size_t & input_readed,
       size_t & output_written)
@@ -185,7 +185,7 @@ namespace vds {
         if (n > len - this->block_size_ + 1) {
           n = len - this->block_size_ + 1;
         }
-        if (0 == EVP_CipherUpdate(this->ctx_, reinterpret_cast<unsigned char *>(result_data), &len, input_data, (int)n)) {
+        if (0 == EVP_CipherUpdate(this->ctx_, reinterpret_cast<unsigned char *>(result_data), &len, reinterpret_cast<const unsigned char *>(input_data), (int)n)) {
           auto error = ERR_get_error();
           throw crypto_exception("EVP_CipherUpdate failed", error);
         }

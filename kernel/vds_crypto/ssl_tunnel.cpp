@@ -62,6 +62,11 @@ vds::certificate vds::ssl_tunnel::get_peer_certificate() const
   return this->impl_->get_peer_certificate();
 }
 
+void vds::ssl_tunnel::on_error(const std::function<void(const std::shared_ptr<std::exception> &)> & handler)
+{
+  this->impl_->on_error(handler);
+}
+
 ////////////////////////////////////////////////////////////////
 vds::_ssl_tunnel::_ssl_tunnel(
   ssl_tunnel * owner,
@@ -79,7 +84,8 @@ vds::_ssl_tunnel::_ssl_tunnel(
   decrypted_input_(new continuous_stream<uint8_t>()),
   decrypted_output_(new continuous_stream<uint8_t>()),
   crypted_input_eof_(false),
-  decrypted_input_eof_(false)
+  decrypted_input_eof_(false),
+  failed_state_(false)
 {
   this->ssl_ctx_ = SSL_CTX_new(is_client ? SSLv23_client_method() : SSLv23_server_method());
   if(nullptr == this->ssl_ctx_){

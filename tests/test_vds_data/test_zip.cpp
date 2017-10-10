@@ -27,6 +27,18 @@ TEST(test_zip, inflate_tests) {
 
     vds::barrier b;
     std::shared_ptr<std::exception> error;
+    
+    random_reader<uint8_t> reader(buffer.data(), buffer.size());
+    
+    vds::deflate dl;
+    vds::inflate il;
+    
+    uint8_t buf1[1024];
+    uint8_t buf2[1024];
+    for(;;){
+      auto l = reader.read(buf1, sizeof(buf1));
+      dl.update(buf1, l, buf2, sizeof(buf2));
+    
     dataflow(
       random_reader<uint8_t>(buffer.data(), buffer.size()),
       vds::deflate(),

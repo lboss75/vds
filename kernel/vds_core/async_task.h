@@ -25,7 +25,7 @@ namespace vds {
 			std::function<void(result_types... results)> && done,
 			std::function<void(const std::shared_ptr<std::exception> & ex)> && error);
 
-		void operator()(result_types &&... results) const;
+		void operator()(const result_types &... results) const;
 		void operator()(std::tuple<result_types...> && result) const;
 		void error(const std::shared_ptr<std::exception> & ex) const;
 
@@ -441,9 +441,9 @@ namespace vds {
   }
 
   template<typename ...result_types>
-  inline void async_result<result_types...>::operator()(result_types && ...results) const
+  inline void async_result<result_types...>::operator()(const result_types & ...results) const
   {
-	  this->impl_->done_(std::forward<result_types>(results)...);
+	  this->impl_->done_(results...);
   }
 
   template<typename ...result_types>

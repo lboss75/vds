@@ -109,6 +109,8 @@ namespace vds {
   public:
     symmetric_decrypt(
       const symmetric_key & key);
+    
+    ~symmetric_decrypt();
 
     void update(
       const void * input_buffer,

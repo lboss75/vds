@@ -19,9 +19,8 @@ public:
     len_(len)
   {
   }
-
-
-    size_t sync_get_data(
+  
+    size_t read(
       const item_type * data,
       size_t len)
     {

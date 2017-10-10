@@ -100,17 +100,12 @@ namespace vds {
     asymmetric_sign(
       const hash_info & hash_info,
       const asymmetric_private_key & key);
-
-    size_t  update(
-      const char * data,
-      size_t data_size
-    )
-    {
-    }
+    
+    ~asymmetric_sign();
 
     void update(
-      const uint8_t * data,
-      size_t len);
+      const void * data,
+      size_t data_size);
 
     const_data_buffer signature();
 
@@ -137,8 +132,9 @@ namespace vds {
     asymmetric_sign_verify(
       const hash_info & hash_info,
       const asymmetric_public_key & key);
+    ~asymmetric_sign_verify();
     
-    void data_update(
+    void update(
       const void * data,
       size_t len);
     

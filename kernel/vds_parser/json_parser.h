@@ -122,7 +122,7 @@ namespace vds {
           case ST_ARRAY:
             switch (current_symbol) {
             case ']':
-              this->final_array(input_readed, output_written);
+              this->final_array();
               break;
 
             case '[':
@@ -165,7 +165,7 @@ namespace vds {
           case ST_ARRAY_ITEM:
             switch (current_symbol) {
             case ']':
-              this->final_array(input_readed, output_written);
+              this->final_array();
               break;
 
             case ',':
@@ -194,7 +194,7 @@ namespace vds {
               break;
 
             case '}':
-              this->final_object(input_readed, output_written);
+              this->final_object();
               break;
 
             default:
@@ -213,7 +213,7 @@ namespace vds {
           case ST_OBJECT_ITEM:
             switch (current_symbol) {
             case '}':
-              this->final_object(input_readed, output_written);
+              this->final_object();
               break;
 
             case ',':
@@ -625,30 +625,6 @@ namespace vds {
         }
       }
       
-      void final_data(
-        const service_provider & sp)
-      {
-        switch (this->state_) {
-        case ST_EOF:
-          break;
-
-        case ST_BOF:
-          if (this->parse_options_.enable_multi_root_objects) {
-            break;
-          }
-          //break;
-
-        default:
-          throw parse_error(
-            this->stream_name_,
-            this->line_,
-            this->column_,
-            "Unexpected end of data");
-        }
-        
-        this->target_->final_data(sp);
-      }
-
     private:
       std::string stream_name_;
       std::function<void(const std::shared_ptr<json_value> &)> result_;
@@ -697,6 +673,27 @@ namespace vds {
       std::string buffer_;
       uint32_t num_buffer_;
 
+      void final_data()
+      {
+        switch (this->state_) {
+        case ST_EOF:
+          break;
+
+        case ST_BOF:
+          if (this->parse_options_.enable_multi_root_objects) {
+            break;
+          }
+          //break;
+
+        default:
+          throw parse_error(
+            this->stream_name_,
+            this->line_,
+            this->column_,
+            "Unexpected end of data");
+        }
+      }
+      
       void after_slesh()
       {
         if (!this->parse_options_.enable_inline_comments) {
@@ -736,9 +733,7 @@ namespace vds {
         this->state_ = ST_ARRAY;
       }
 
-      void final_array(
-        size_t & input_readed,
-        size_t & output_written)
+      void final_array()
       {
         this->state_ = this->saved_states_.top();
         this->saved_states_.pop();
@@ -784,9 +779,7 @@ namespace vds {
         this->state_ = ST_OBJECT;
       }
 
-      void final_object(
-        size_t & input_readed,
-        size_t & output_written)
+      void final_object()
       {
         this->state_ = this->saved_states_.top();
         this->saved_states_.pop();
@@ -796,7 +789,7 @@ namespace vds {
             this->state_ = ST_EOF;
           }
           
-          this->output_buffer(output_written++) = this->root_object_;
+          this->result_(this->root_object_);
         }
         else {
           this->current_object_ = this->current_path_.top();

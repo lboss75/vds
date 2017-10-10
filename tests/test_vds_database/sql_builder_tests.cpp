@@ -5,6 +5,7 @@ All rights reserved
 
 #include "stdafx.h"
 #include "sql_builder_tests.h"
+#include "service_provider.h"
 
 vds::mock_database::mock_database()
 : impl_(nullptr)
