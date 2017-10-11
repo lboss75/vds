@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "udp_socket.h"
-#include "udp_socket_p.h"
+#include "private/udp_socket_p.h"
 
 vds::udp_datagram::udp_datagram()
 {

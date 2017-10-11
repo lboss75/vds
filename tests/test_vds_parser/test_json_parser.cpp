@@ -85,15 +85,11 @@ static size_t test_json_parser_validate(const std::shared_ptr<vds::json_value> &
 }
 
 TEST(test_json_parser, test_parser) {
-  vds::dataflow(
-    vds::dataflow_arguments<char>((const char *)test_data, sizeof(test_data) - 1),
-    vds::json_parser("test"),
-    test_json_parser_validate()
-  )
-  .wait
-  (
-    [](const vds::service_provider & /*sp*/) {},
-    [](const vds::service_provider & /*sp*/, const std::shared_ptr<std::exception> & ex) { FAIL() << ex->what(); },
-    *(vds::service_provider *)nullptr
+  vds::json_parser parser("test",
+    [](const std::shared_ptr<vds::json_value> & value){
+      test_json_parser_validate(value);
+    }
   );
+  parser.update((const char *)test_data, sizeof(test_data) - 1);
+  parser.update(nullptr, 0);
 }

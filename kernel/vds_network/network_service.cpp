@@ -5,13 +5,13 @@ All rights reserved
 
 #include "stdafx.h"
 #include "network_service.h"
-#include "network_service_p.h"
+#include "private/network_service_p.h"
 #include "tcp_network_socket.h"
 #include "udp_socket.h"
 #include "service_provider.h"
 #include "logger.h"
 #include <iostream>
-#include "socket_task_p.h"
+#include "private/socket_task_p.h"
 
 vds::network_service::network_service()
 : impl_(new _network_service())

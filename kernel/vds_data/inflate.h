@@ -8,26 +8,21 @@ All rights reserved
 
 #include "types.h"
 #include "const_data_buffer.h"
+#include "stream.h"
 
 namespace vds {
   class _inflate_handler;
 
   //Decompress stream
-  class inflate
+  class inflate : public stream<uint8_t>
   {
   public:
-    inflate();
+    inflate(stream<uint8_t> & target);
     ~inflate();
 
-    void update_data(
-      const void * input_data,
-      size_t input_size,
-      
-      void * output_data,
-      size_t output_size,
-      
-      size_t & readed,
-      size_t & written);
+    void write(const uint8_t * data, size_t len) override;
+    void final() override;
+
 
   private:
     _inflate_handler * const impl_;

@@ -6,7 +6,6 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 #include <memory>
-#include "dataflow.h"
 #include "async_task.h"
 #include "async_stream.h"
 

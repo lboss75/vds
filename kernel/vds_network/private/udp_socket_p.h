@@ -434,13 +434,12 @@ namespace vds {
           this->closed_ = true;
           this->owner_->incoming_->write_all_async(this->sp_, nullptr, 0)
           .wait(
-            [](const service_provider & sp) {
+            [sp = this->sp_]() {
               sp.get<logger>()->trace("UDP", sp, "input closed");
             },
-            [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+            [sp = this->sp_](const std::shared_ptr<std::exception> & ex) {
               sp.unhandled_exception(ex);
-            },
-            this->sp_);
+            });
         }          
       }
       
@@ -453,13 +452,12 @@ namespace vds {
           this->closed_ = true;
           this->owner_->incoming_->write_all_async(this->sp_, nullptr, 0)
           .wait(
-            [](const service_provider & sp) {
+            [sp = this->sp_]() {
               sp.get<logger>()->trace("UDP", sp, "input closed");
             },
-            [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+            [sp = this->sp_](const std::shared_ptr<std::exception> & ex) {
               sp.unhandled_exception(ex);
-            },
-            this->sp_);
+            });
         }          
       }
 
@@ -501,7 +499,7 @@ namespace vds {
       void schedule_write()
       {
         this->owner_->outgoing_->read_async(this->sp_, &this->write_buffer_, 1)
-        .wait([pthis = this->shared_from_this()](const service_provider & sp, size_t readed){
+        .wait([pthis = this->shared_from_this()](size_t readed){
           if(0 == readed){
             //End of stream
             shutdown(static_cast<this_class *>(pthis.get())->owner_->s_, SHUT_WR);
@@ -510,10 +508,9 @@ namespace vds {
             static_cast<this_class *>(pthis.get())->change_mask(EPOLLOUT);
           }
         },
-        [](const service_provider & sp, const std::shared_ptr<std::exception> & ex){
+        [sp = this->sp_](const std::shared_ptr<std::exception> & ex){
           sp.unhandled_exception(ex);
-        },
-        this->sp_);
+        });
       }
 
       void read_data()
@@ -538,18 +535,17 @@ namespace vds {
         this->sp_.get<logger>()->trace("UDP", this->sp_, "got %d bytes from %s", len, network_service::to_string(this->addr_).c_str());
         this->owner_->incoming_->write_value_async(this->sp_, _udp_datagram::create(this->addr_, this->read_buffer_, len))
           .wait(
-            [pthis = this->shared_from_this(), len](const service_provider & sp) {
+            [pthis = this->shared_from_this(), len]() {
               if(0 != len){
                 static_cast<this_class *>(pthis.get())->read_data();
               }
               else {
-                sp.get<logger>()->trace("UDP", sp, "input closed");
+                static_cast<this_class *>(pthis.get())->sp_.get<logger>()->trace("UDP", static_cast<this_class *>(pthis.get())->sp_, "input closed");
               }
             },
-            [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+            [sp = this->sp_](const std::shared_ptr<std::exception> & ex) {
               sp.unhandled_exception(ex);
-            },
-            this->sp_);
+            });
       }
     };
 #endif//_WIN32

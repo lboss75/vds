@@ -21,7 +21,7 @@ vds::deflate::~deflate()
   delete this->impl_;
 }
 
-void vds::deflate::update_data(
+void vds::deflate::update(
   const void * input_data,
   size_t input_size,
   void * output_data,

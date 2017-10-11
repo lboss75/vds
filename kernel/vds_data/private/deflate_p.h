@@ -16,8 +16,8 @@ namespace vds {
   class _deflate_handler
   {
   public:
-    _deflate_handler(int compression_level)
-    : state_(StateEnum::STATE_NORMAL)
+    _deflate_handler(stream<uint8_t> & target, int compression_level)
+    : target_(target)
     {
       memset(&this->strm_, 0, sizeof(z_stream));
       if (Z_OK != deflateInit(&this->strm_, compression_level)) {
@@ -25,76 +25,51 @@ namespace vds {
       }
     }
 
-    void update_data(
-      const void * input_data,
-      size_t input_size,
-      void * output_data,
-      size_t output_size,
-      size_t & readed,
-      size_t & written)
+    void write(const uint8_t * input_data, size_t input_size)
     {
-      if(StateEnum::STATE_EOF == this->state_){
-        deflateEnd(&this->strm_);
-        
-        if(0 != input_size){
-          throw std::runtime_error("Logic error 26");
-        }
-        
-        readed = 0;
-        written = 0;
-      }
-      else {
-        if(StateEnum::STATE_NORMAL == this->state_){
-          this->strm_.next_in = (Bytef *)input_data;
-          this->strm_.avail_in = (uInt)input_size;
-          if(0 == input_size){
-            this->state_ = StateEnum::STATE_EOF_PENDING;
-          }
-          else {
-            this->state_ = StateEnum::STATE_PUSH;
-          }
-        }
-        
+      this->strm_.next_in = (Bytef *)input_data;
+      this->strm_.avail_in = (uInt)input_size;
+
+      uint8_t output_data[1024];
+      do {
         this->strm_.next_out = (Bytef *)output_data;
-        this->strm_.avail_out = output_size;
-        auto error = ::deflate(&this->strm_, (0 == input_size) ? Z_FINISH : Z_NO_FLUSH);
+        this->strm_.avail_out = sizeof(output_data);
+        auto error = ::deflate(&this->strm_, Z_NO_FLUSH);
         
         if(Z_STREAM_ERROR == error){
           throw std::runtime_error("zlib error");
         }
 
-        written = output_size - this->strm_.avail_out;
+        auto written = sizeof(output_data) - this->strm_.avail_out;
+        this->target_.write(output_data, written);
+      } while (0 == this->strm_.avail_out);
+    }
+    
+    void final()
+    {
+      this->strm_.next_in = nullptr;
+      this->strm_.avail_in = 0;
 
-        if (0 == this->strm_.avail_out) {
-          readed = 0;
+      uint8_t output_data[1024];
+      do {
+        this->strm_.next_out = (Bytef *)output_data;
+        this->strm_.avail_out = sizeof(output_data);
+        auto error = ::deflate(&this->strm_, Z_FINISH);
+        
+        if(Z_STREAM_ERROR == error){
+          throw std::runtime_error("zlib error");
         }
-        else {
-          readed = input_size;
 
-          if(this->strm_.avail_in != 0){
-            throw std::runtime_error("zlib error");
-          }
-          
-          if(0 == input_size){
-            this->state_ = StateEnum::STATE_EOF;
-          }
-          else {
-            this->state_ = StateEnum::STATE_NORMAL;
-          }
-        }
-      }
+        auto written = sizeof(output_data) - this->strm_.avail_out;
+        this->target_.write(output_data, written);
+      } while (0 == this->strm_.avail_out);
+      
+      deflateEnd(&this->strm_);
     }
 
   private:
+    stream<uint8_t> & target_;
     z_stream strm_;
-    enum class StateEnum
-    {
-      STATE_NORMAL,
-      STATE_PUSH,
-      STATE_EOF_PENDING,
-      STATE_EOF
-    };
-    StateEnum state_;
   };
 }
 

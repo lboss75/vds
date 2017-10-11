@@ -35,10 +35,28 @@ TEST(test_zip, inflate_tests) {
     
     uint8_t buf1[1024];
     uint8_t buf2[1024];
+    uint8_t buf3[1024];
     for(;;){
       auto l = reader.read(buf1, sizeof(buf1));
-      dl.update(buf1, l, buf2, sizeof(buf2));
-    
+      
+      if(0 == l){
+        break;
+      }
+      
+      auto p = buf1;
+      while(0 < l){
+        size_t readed;
+        size_t written;
+        dl.update(p, l, buf2, sizeof(buf2), readed, written);
+        
+        l -= readed;
+        p += readed;
+        
+        if(0 < written){
+          il.update(buf2, written, buf3, sizeof(buf3), );
+        }
+      }
+      
     dataflow(
       random_reader<uint8_t>(buffer.data(), buffer.size()),
       vds::deflate(),
