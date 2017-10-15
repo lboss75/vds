@@ -149,7 +149,7 @@ namespace vds {
     );
     ~_asymmetric_sign();
 
-    void update(
+    void write(
       const void * data,
       int len);
 
@@ -170,21 +170,24 @@ namespace vds {
   public:
     _asymmetric_sign_verify(
       const hash_info & hash_info,
-      const asymmetric_public_key & key
-    );
+      const asymmetric_public_key & key,
+      const const_data_buffer & sig);
+    
     ~_asymmetric_sign_verify();
 
-    void update(
+    void write(
       const void * data,
       int len);
+    
+    void final();
 
-    bool verify(
-      const const_data_buffer & sig
-    );
+    bool result() const { return this->result_; }
 
   private:
+    const_data_buffer sig_;
     EVP_MD_CTX * ctx_;
     const EVP_MD * md_;
+    bool result_;
   };
   
   

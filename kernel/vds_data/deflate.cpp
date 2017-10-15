@@ -6,13 +6,13 @@ All rights reserved
 #include "stdafx.h"
 #include "private/deflate_p.h"
 
-vds::deflate::deflate()
-  : impl_(new _deflate_handler(Z_DEFAULT_COMPRESSION))
+vds::deflate::deflate(stream<uint8_t> & target)
+  : impl_(new _deflate_handler(target, Z_DEFAULT_COMPRESSION))
 {
 }
 
-vds::deflate::deflate(int compression_level)
-  : impl_(new _deflate_handler(compression_level))
+vds::deflate::deflate(stream<uint8_t> & target, int compression_level)
+  : impl_(new _deflate_handler(target, compression_level))
 {
 }
 
@@ -21,19 +21,12 @@ vds::deflate::~deflate()
   delete this->impl_;
 }
 
-void vds::deflate::update(
-  const void * input_data,
-  size_t input_size,
-  void * output_data,
-  size_t output_size,
-  size_t & readed,
-  size_t & written)
+void vds::deflate::write(const uint8_t * data, size_t len)
 {
-  this->impl_->update_data(
-      input_data,
-      input_size,
-      output_data,
-      output_size,
-      readed,
-      written);
+  this->impl_->write(data, len);
+}
+
+void vds::deflate::final()
+{
+  this->impl_->final();
 }

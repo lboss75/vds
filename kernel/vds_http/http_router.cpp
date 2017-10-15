@@ -17,18 +17,13 @@ vds::async_task<std::shared_ptr<vds::http_message>> vds::http_router::route(
   const service_provider & sp,
   const std::shared_ptr<http_message> & message) const
 {
-  return create_async_task(
-    [this, message](
-    const std::function<void(const vds::service_provider & sp, std::shared_ptr<http_message> response)> & done,
-    const error_handler & on_error,
-    const service_provider & sp) {
+  return [this, sp, message]() {
 
     http_request request(message);
 
     auto p = this->static_.find(request.url());
     if (this->static_.end() != p) {
-      done(sp, http_response::simple_text_response(sp, p->second));
-      return;
+      return http_response::simple_text_response(sp, p->second);
     }
 
     auto pf = this->files_.find(request.url());
@@ -53,13 +48,12 @@ vds::async_task<std::shared_ptr<vds::http_message>> vds::http_router::route(
         response.add_header("Content-Type", "text/html; charset=utf-8");
       }
 
-      done(sp, response.create_message());
-      return;
+      return response.create_message();
     }
 
     sp.get<logger>()->debug("HTTP", sp, "File not found: %s", request.url().c_str());
-    done(sp, http_response(http_response::HTTP_Not_Found, "Not Found").create_message());
-  });
+    return http_response(http_response::HTTP_Not_Found, "Not Found").create_message();
+  };
 }
 
 void vds::http_router::add_static(

@@ -4,7 +4,7 @@ All rights reserved
 */
 
 #include "stdafx.h"
-#include "dns_p.h"
+#include "private/dns_p.h"
 
 std::string vds::_dns::hostname()
 {

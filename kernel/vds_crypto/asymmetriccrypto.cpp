@@ -283,11 +283,16 @@ vds::asymmetric_sign::~asymmetric_sign()
   delete this->impl_;
 }
 
-void vds::asymmetric_sign::update(
-  const void * data,
+void vds::asymmetric_sign::write(
+  const uint8_t * data,
   size_t len)
 {
-  this->impl_->update(data, len);
+  this->impl_->write(data, len);
+}
+
+void vds::asymmetric_sign::final()
+{
+  this->impl_->final();
 }
 
 vds::const_data_buffer vds::asymmetric_sign::signature()
@@ -314,7 +319,7 @@ vds::const_data_buffer vds::asymmetric_sign::signature(
   size_t data_size)
 {
   _asymmetric_sign s(hash_info, key);
-  s.update(data, data_size);
+  s.write(data, data_size);
   s.final();
   return s.signature();
 }
@@ -354,7 +359,7 @@ vds::_asymmetric_sign::~_asymmetric_sign()
   }
 }
 
-void vds::_asymmetric_sign::update(const void * data, int len)
+void vds::_asymmetric_sign::write(const void * data, int len)
 {
   if (1 != EVP_DigestSignUpdate(this->ctx_, data, len)) {
     auto error = ERR_get_error();
@@ -395,8 +400,9 @@ void vds::_asymmetric_sign::final()
 ///////////////////////////////////////////////////////////////
 vds::asymmetric_sign_verify::asymmetric_sign_verify(
   const hash_info & hash_info,
-  const asymmetric_public_key & key)
-: impl_(new _asymmetric_sign_verify(hash_info, key))
+  const asymmetric_public_key & key,
+  const const_data_buffer & sig)
+: impl_(new _asymmetric_sign_verify(hash_info, key, sig))
 {
 }
 
@@ -405,16 +411,21 @@ vds::asymmetric_sign_verify::~asymmetric_sign_verify()
   delete this->impl_;
 }
 
-void vds::asymmetric_sign_verify::update(
-  const void * data,
+void vds::asymmetric_sign_verify::write(
+  const uint8_t * data,
   size_t len)
 {
-  this->impl_->update(data, len);
+  this->impl_->write(data, len);
 }
 
-bool vds::asymmetric_sign_verify::verify(const const_data_buffer & signature)
+void vds::asymmetric_sign_verify::final()
 {
-  return this->impl_->verify(signature);
+  this->impl_->final();
+}
+
+bool vds::asymmetric_sign_verify::result() const
+{
+  return this->impl_->result();
 }
 
 bool vds::asymmetric_sign_verify::verify(
@@ -424,9 +435,10 @@ bool vds::asymmetric_sign_verify::verify(
   const void* data,
   size_t data_size)
 {
-  _asymmetric_sign_verify s(hash_info, key);
-  s.update(data, data_size);
-  return s.verify(signature);
+  _asymmetric_sign_verify s(hash_info, key, signature);
+  s.write(data, data_size);
+  s.final();
+  return s.result();
 }
 
 bool vds::asymmetric_sign_verify::verify(
@@ -439,8 +451,11 @@ bool vds::asymmetric_sign_verify::verify(
 }
 
 ///////////////////////////////////////////////////////////////
-vds::_asymmetric_sign_verify::_asymmetric_sign_verify(const hash_info & hash_info, const asymmetric_public_key & key)
-  : md_(nullptr)
+vds::_asymmetric_sign_verify::_asymmetric_sign_verify(
+  const hash_info & hash_info,
+  const asymmetric_public_key & key,
+  const const_data_buffer & sig)
+  : sig_(sig), md_(nullptr), result_(false)
 {
   this->ctx_ = EVP_MD_CTX_create();
   if (nullptr == this->ctx_) {
@@ -472,7 +487,7 @@ vds::_asymmetric_sign_verify::~_asymmetric_sign_verify()
   }
 }
 
-void vds::_asymmetric_sign_verify::update(const void * data, int len)
+void vds::_asymmetric_sign_verify::write(const void * data, int len)
 {
   if (1 != EVP_DigestVerifyUpdate(this->ctx_, data, len)) {
     auto error = ERR_get_error();
@@ -480,9 +495,9 @@ void vds::_asymmetric_sign_verify::update(const void * data, int len)
   }
 }
 
-bool vds::_asymmetric_sign_verify::verify(const const_data_buffer & sig)
+void vds::_asymmetric_sign_verify::final()
 {
-  return 1 == EVP_DigestVerifyFinal(this->ctx_, const_cast<unsigned char *>(sig.data()), sig.size());
+  this->result_ = (1 == EVP_DigestVerifyFinal(this->ctx_, const_cast<unsigned char *>(this->sig_.data()), this->sig_.size()));
 }
 //////////////////////////////////////////////////////////////////////
 vds::asymmetric_public_key::asymmetric_public_key(_asymmetric_public_key * impl)

@@ -5,7 +5,7 @@ All rights reserved
 
 #include "stdafx.h"
 #include "tcp_socket_server.h"
-#include "tcp_socket_server_p.h"
+#include "private/tcp_socket_server_p.h"
 
 vds::tcp_socket_server::tcp_socket_server()
 : impl_(new _tcp_socket_server())

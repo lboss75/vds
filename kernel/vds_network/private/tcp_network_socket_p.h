@@ -415,10 +415,10 @@ namespace vds {
           this->closed_ = true;
           this->owner_->incoming_->write_all_async(this->sp_, nullptr, 0)
           .wait(
-            [sp = this->sp_](const service_provider & sp) {
+            [sp = this->sp_]() {
               sp.get<logger>()->trace("TCP", sp, "input closed");
             },
-            [sp = this->sp_](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+            [sp = this->sp_](const std::shared_ptr<std::exception> & ex) {
               sp.unhandled_exception(ex);
             });
         }          
@@ -502,18 +502,20 @@ namespace vds {
         this->sp_.get<logger>()->trace("TCP", this->sp_, "got %d bytes", len);
         this->owner_->incoming_->write_all_async(this->sp_, this->read_buffer_, len)
           .wait(
-            [pthis = this->shared_from_this(), len](const service_provider & sp) {
+            [pthis = this->shared_from_this(), len]() {
               if(0 != len){
                 static_cast<this_class *>(pthis.get())->read_data();
               }
               else {
-                sp.get<logger>()->trace("TCP", sp, "input closed");
+                static_cast<this_class *>(pthis.get())->sp_.get<logger>()->trace(
+                  "TCP",
+                  static_cast<this_class *>(pthis.get())->sp_,
+                  "input closed");
               }
             },
-            [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+            [sp = this->sp_](const std::shared_ptr<std::exception> & ex) {
               sp.unhandled_exception(ex);
-            },
-            this->sp_);
+            });
       }
     };
 #endif//_WIN32

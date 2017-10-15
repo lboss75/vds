@@ -6,6 +6,8 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
+#include "guid.h"
+
 namespace vds {
 
   namespace p2p_messages

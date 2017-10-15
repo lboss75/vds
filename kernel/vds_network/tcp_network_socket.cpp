@@ -4,9 +4,9 @@ All rights reserved
 */
 #include "stdafx.h"
 #include "tcp_network_socket.h"
-#include "tcp_network_socket_p.h"
-#include "read_socket_task_p.h"
-#include "write_socket_task_p.h"
+#include "private/tcp_network_socket_p.h"
+#include "private/read_socket_task_p.h"
+#include "private/write_socket_task_p.h"
 
 vds::tcp_network_socket::tcp_network_socket()
 : impl_(new _tcp_network_socket())
@@ -29,10 +29,7 @@ vds::async_task< const vds::tcp_network_socket &> vds::tcp_network_socket::conne
   const std::string & server,
   const uint16_t port)
 {
-  return create_async_task([server, port](
-    const std::function<void(const service_provider & sp, const tcp_network_socket &)> & done,
-    const error_handler & on_error,
-    const service_provider & sp){
+  return [sp, server, port](){
       auto s = std::make_shared<_tcp_network_socket>(
 #ifdef _WIN32
         WSASocket(PF_INET, SOCK_STREAM, 0, NULL, 0, WSA_FLAG_OVERLAPPED)
@@ -54,7 +51,7 @@ vds::async_task< const vds::tcp_network_socket &> vds::tcp_network_socket::conne
         // WSAEWOULDBLOCK whichis actually not one 
         auto error = WSAGetLastError();
         if (WSAEWOULDBLOCK != error) {
-          on_error(sp, std::make_unique<std::system_error>(error, std::system_category(), "connect"));
+          throw std::system_error(error, std::system_category(), "connect"));
           return;
         }
       }
@@ -64,7 +61,7 @@ vds::async_task< const vds::tcp_network_socket &> vds::tcp_network_socket::conne
       // Connect 
       if (0 > ::connect(s->handle(), (struct sockaddr *)&addr, sizeof(addr))) {
         auto error = errno;
-        on_error(sp, std::make_shared<std::system_error>(error, std::generic_category()));
+        throw std::system_error(error, std::generic_category(), "connect");
       }
       s->make_socket_non_blocking();
       s->set_timeouts();
@@ -72,8 +69,8 @@ vds::async_task< const vds::tcp_network_socket &> vds::tcp_network_socket::conne
       
       tcp_network_socket sc(s);
       sc->start(sp);
-      done(sp, sc);
-    });
+      return sc;
+    };
 }
 
 std::shared_ptr<vds::continuous_stream<uint8_t>> vds::tcp_network_socket::incoming() const

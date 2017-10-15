@@ -88,15 +88,7 @@ namespace vds {
       
       auto p = std::make_shared<item_type>(data);
 
-      return [this, p](
-        const async_result<> & done,
-        const service_provider & sp){
-        this->write_all_async(sp, p.get(), 1).wait(
-          [done, p](const service_provider & sp) {
-            done();
-          },
-          sp);
-      };
+      return this->write_all_async(sp, p.get(), 1).then([p]() {});
     }
     
     async_task<size_t> write_async(const service_provider & sp, const item_type * data, size_t data_size)

@@ -9,6 +9,7 @@ All rights reserved
 #include "hash.h"
 #include "filename.h"
 #include "crypto_service.h"
+#include "stream.h"
 
 namespace vds {
   class _asymmetric_sign;
@@ -94,7 +95,7 @@ namespace vds {
     std::shared_ptr<_asymmetric_public_key> impl_;
   };
 
-  class asymmetric_sign
+  class asymmetric_sign : public stream<uint8_t>
   {
   public:
     asymmetric_sign(
@@ -103,9 +104,8 @@ namespace vds {
     
     ~asymmetric_sign();
 
-    void update(
-      const void * data,
-      size_t data_size);
+    void write(const uint8_t * data, size_t len) override;
+    void final() override;
 
     const_data_buffer signature();
 
@@ -126,20 +126,19 @@ namespace vds {
   };
 
   class _asymmetric_sign_verify;
-  class asymmetric_sign_verify
+  class asymmetric_sign_verify : public stream<uint8_t>
   {
   public:
     asymmetric_sign_verify(
       const hash_info & hash_info,
-      const asymmetric_public_key & key);
+      const asymmetric_public_key & key,
+      const const_data_buffer & sig);
     ~asymmetric_sign_verify();
     
-    void update(
-      const void * data,
-      size_t len);
+    void write(const uint8_t * data, size_t len) override;
+    void final() override;
     
-    bool verify(
-      const const_data_buffer & signature);
+    bool result() const;
     
     static bool verify(
       const hash_info & hash_info,

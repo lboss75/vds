@@ -7,84 +7,15 @@ All rights reserved
 #include "service_provider.h"
 #include "mt_service.h"
 #include "network_service.h"
-#include "dataflow.h"
 #include "logger.h"
 #include "file.h"
 #include "barrier.h"
 #include "tcp_socket_server.h"
 #include "random_buffer.h"
-#include "random_reader.h"
+#include "random_stream.h"
 #include "compare_data.h"
 #include "test_config.h"
 #include "task_manager.h"
-
-class read_for_newline
-{
-public:
-  read_for_newline(
-    const std::function<void(const vds::service_provider & sp, const std::string &)> & done_callback)
-  : done_callback_(done_callback)
-  {
-  }
-
-  using incoming_item_type = uint8_t;
-  static constexpr size_t BUFFER_SIZE = 1024;
-  static constexpr size_t MIN_BUFFER_SIZE = 1;
-
-  template<typename context_type>
-  class handler : public vds::sync_dataflow_target<context_type, handler<context_type>>
-  {
-    using base_class = vds::sync_dataflow_target<context_type, handler<context_type>>;
-  public:
-    handler(
-      const context_type & context,
-      const read_for_newline & args)
-    : base_class(context),
-      done_callback_(args.done_callback_)
-    {
-    }
-  
-    size_t sync_push_data(const vds::service_provider & sp)
-    {
-      if(0 == this->input_buffer_size()) {
-        if (this->done_callback_) {
-          std::function<void(const vds::service_provider & sp, const std::string &)> f;
-          this->done_callback_.swap(f);
-          f(sp, this->buffer_);
-        }
-      }
-      else {
-        this->buffer_.append(reinterpret_cast<const char *>(this->input_buffer()), this->input_buffer_size());
-
-        auto p = this->buffer_.find('\n');
-        if (std::string::npos != p) {
-          auto result = this->buffer_.substr(0, p);
-          this->buffer_.erase(0, p + 1);
-
-          if (this->done_callback_) {
-            std::function<void(const vds::service_provider & sp, const std::string &)> f;
-            this->done_callback_.swap(f);
-            f(sp, result);
-          }
-        }
-      }
-
-      return this->input_buffer_size();
-    }
-        
-  private:
-    std::string buffer_;
-    std::function<void(const vds::service_provider & sp, const std::string &)> done_callback_;
-
-    template <typename done_method>
-    void send_terminator(done_method & done, handler & owner)
-    {
-      owner.next(done, std::string());
-    }
-  };
-private:
-  std::function<void(const vds::service_provider & sp, const std::string &)> done_callback_;
-};
 
 TEST(network_tests, test_server)
 {

@@ -7,9 +7,10 @@ All rights reserved
 
 #include "targetver.h"
 #include <memory>
+#include "stream.h"
 
 template <typename item_type>
-class compare_data
+class compare_data : public vds::stream<item_type>
 {
 public:
   compare_data(
@@ -20,33 +21,31 @@ public:
   {
   }
 
-  std::shared_ptr<std::exception> update(
+  void write(
     const item_type * data,
-    size_t len)
+    size_t len) override
     {
       if (0 == len) {
-        if (0 != this->len_) {
-          this->in_error_ = true;
-          return std::make_shared<std::runtime_error>("Unexpected end of stream while comparing data");
-        }
-        
-        return std::shared_ptr<std::exception>();
+        throw std::runtime_error("Unexpected end of stream while comparing data");
       }
 
       if (this->len_ < len) {
-        this->in_error_ = true;
-        return std::make_shared<std::runtime_error>("Unexpected data while comparing data");
+        throw std::runtime_error("Unexpected data while comparing data");
       }
 
-      if (0 != memcmp(this->data_, this->input_buffer(), this->input_buffer_size())) {
-        this->in_error_ = true;
-        return std::make_shared<std::runtime_error>("Compare data error");
+      if (0 != memcmp(this->data_, data, len)) {
+        throw std::runtime_error("Compare data error");
       }
 
-      this->data_ += this->input_buffer_size();
-      this->len_ -= this->input_buffer_size();
-
-      return std::shared_ptr<std::exception>();
+      this->data_ += len;
+      this->len_ -= len;
+    }
+    
+    void final() override
+    {
+      if (0 != this->len_) {
+        throw std::runtime_error("Unexpected end of stream while comparing data");
+      }
     }
 
   private:

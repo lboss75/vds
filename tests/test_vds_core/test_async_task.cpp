@@ -62,8 +62,6 @@ TEST(code_tests, test_async_task) {
 }
 
 TEST(code_tests, test_async_task1) {
-  vds::service_provider & sp = *(vds::service_provider *)nullptr;
-
   auto t = step1(10).then(
     [](const std::string & v) {
     return "result" + v;
@@ -85,7 +83,6 @@ static void test2(
   vds::barrier & b,
   std::string & test_result)
 {
-  vds::service_provider & sp = *(vds::service_provider *)nullptr;
   auto t = step3(10).then(
     [](const std::string & v) {
     return "result" + v;

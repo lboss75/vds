@@ -5,7 +5,7 @@ All rights reserved
 
 #include "stdafx.h"
 #include "test_vds_crypto.h"
-#include "random_reader.h"
+#include "random_stream.h"
 #include "compare_data.h"
 #include "test_config.h"
 
@@ -81,27 +81,24 @@ TEST(test_vds_crypto, test_sign)
     vds::asymmetric_private_key key(vds::asymmetric_crypto::rsa2048());
     key.generate();
 
-    vds::const_data_buffer sign;
-    vds::dataflow(
-      random_reader<uint8_t>(buffer.get(), (int)len),
-      vds::asymmetric_sign(vds::hash::sha256(), key, sign))
-    .wait(
-      [&sign](const vds::service_provider & sp) { },
-      [](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) { FAIL() << ex->what(); },
-      sp);
-
-
+    vds::asymmetric_sign s(vds::hash::sha256(), key);
+    s.write(buffer.get(), len);
+    s.final();
+    
+    auto sign = s.signature();
     vds::asymmetric_public_key pkey(key);
 
     
-    vds::dataflow(
-      random_reader<uint8_t>(buffer.get(), (int)len),
-      vds::asymmetric_sign_verify(vds::hash::sha256(), pkey, sign))
-    .wait
-      (
-        [](const vds::service_provider & sp) { },
-        [](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) { FAIL() << ex->what(); },
-        sp);
+    vds::asymmetric_sign_verify v(vds::hash::sha256(), pkey, sign);
+    v.write(buffer.get(), (int)len);
+    v.final();
+    GTEST_ASSERT_EQ(v.result(), true);
+    
+    vds::asymmetric_sign_verify sv(vds::hash::sha256(), pkey, sign);
+    random_stream<uint8_t> rs(sv);
+    rs.write(buffer.get(), len);
+    rs.final();
+    GTEST_ASSERT_EQ(sv.result(), true);
 
     size_t index;
     do
@@ -112,25 +109,13 @@ TEST(test_vds_crypto, test_sign)
 
     const_cast<unsigned char *>(buffer.get())[index]++;
 
-    vds::barrier b;
-    std::shared_ptr<std::exception> error;
-    vds::dataflow(
-      random_reader<uint8_t>(buffer.get(), (int)len),
-      vds::asymmetric_sign_verify(vds::hash::sha256(), pkey, sign))
-    .wait
-      (
-        [&b](const vds::service_provider & sp) { b.set(); },
-        [&b, &error](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) { error = ex; b.set(); },
-        sp);
-
-    b.wait();
+    vds::asymmetric_sign_verify sv1(vds::hash::sha256(), pkey, sign);
+    random_stream<uint8_t> rs1(sv1);
+    rs1.write(buffer.get(), len);
+    rs1.final();
+    GTEST_ASSERT_EQ(sv1.result(), false);
 
     registrator.shutdown(sp);
-
-    if (!error) {
-      GTEST_FAIL() << "Sign failed";
-    }
-
   }
 }
 

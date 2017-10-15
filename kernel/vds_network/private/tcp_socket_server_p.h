@@ -45,10 +45,7 @@ namespace vds {
       const std::function<void(const service_provider & sp, const tcp_network_socket & s)> & new_connection)
     {
       imt_service::async_enabled_check(sp);
-      return create_async_task([this, address, port, new_connection](
-        const std::function<void (const service_provider & sp)> & done,
-        const error_handler & on_error,
-        const service_provider & sp) {
+      return [this, sp, address, port, new_connection]() {
         
 #ifdef _WIN32
         this->s_ = WSASocket(AF_INET, SOCK_STREAM, 0, NULL, 0, WSA_FLAG_OVERLAPPED);
@@ -116,13 +113,11 @@ namespace vds {
               }
             }
           });
-          done(sp);
 #else
             this->s_ = socket(AF_INET, SOCK_STREAM, 0);
             if (this->s_ < 0) {
               auto error = errno;
-              on_error(sp, std::make_shared<std::system_error>(error, std::system_category()));
-              return;
+              throw std::system_error(error, std::system_category());
             }
             
             /*************************************************************/
@@ -131,8 +126,7 @@ namespace vds {
             int on = 1;
             if (0 > setsockopt(this->s_, SOL_SOCKET, SO_REUSEADDR, (char *)&on, sizeof(on))) {
               auto error = errno;
-              on_error(sp, std::make_shared<std::system_error>(error, std::system_category()));
-              return;
+              throw std::system_error(error, std::system_category());
             }
 
             /*************************************************************/
@@ -142,7 +136,7 @@ namespace vds {
             /*************************************************************/
             if (0 > ioctl(this->s_, FIONBIO, (char *)&on)) {
               auto error = errno;
-              on_error(sp, std::make_shared<std::system_error>(error, std::system_category()));
+              throw std::system_error(error, std::system_category());
               return;
             }
             
@@ -154,14 +148,12 @@ namespace vds {
             addr.sin_port = htons(port);
             if (0 > ::bind(this->s_, (struct sockaddr *)&addr, sizeof(addr))) {
               auto error = errno;
-              on_error(sp, std::make_shared<std::system_error>(error, std::system_category()));
-              return;
+              throw std::system_error(error, std::system_category());
             }
 
             if (0 > ::listen(this->s_, SOMAXCONN)) {
               auto error = errno;
-              on_error(sp, std::make_shared<std::system_error>(error, std::system_category()));
-              return;
+              throw std::system_error(error, std::system_category());
             }
 
             /* Set the socket to non-blocking, this is essential in event
@@ -170,34 +162,16 @@ namespace vds {
             auto flags = fcntl(this->s_, F_GETFL);
             if (0 > flags) {
               auto error = errno;
-              on_error(sp, std::make_shared<std::system_error>(error, std::system_category()));
-              return;
+              throw std::system_error(error, std::system_category());
             }
 
             flags |= O_NONBLOCK;
             if (0 > fcntl(this->s_, F_SETFL, flags)) {
               auto error = errno;
-              on_error(sp, std::make_shared<std::system_error>(error, std::system_category()));
-              return;
+              throw std::system_error(error, std::system_category());
             }
 
-            /* We now have a listening socket, we create a read event to
-              * be notified when a client connects. * /
-            event_set(
-              &this->ev_accept_,
-              this->s_,
-              EV_READ,
-              &accept_socket_task::wait_accept,
-              this);
-            event_add(&this->ev_accept_, NULL);
-            this->network_service_->start_libevent_dispatch();*/
-
-            sp.get_shutdown_event().then_shuting_down([this, sp, done](){
-              shutdown(this->s_, 2);
-            });
             this->sp_ = sp;
-            this->done_ = done;
-            this->on_error_ = on_error;
             this->new_connection_ = new_connection;
             
             this->wait_accept_task_ = std::thread(
@@ -235,9 +209,8 @@ namespace vds {
                   }
                 }
               });
-            done(sp);
 #endif
-      });
+      };
     }
     
     void stop(const service_provider & sp)
@@ -251,65 +224,6 @@ namespace vds {
 #ifndef _WIN32
     std::function<void(const service_provider & sp, const tcp_network_socket & s)> new_connection_;
     service_provider sp_;
-    std::function<void (const service_provider & sp)> done_;
-    error_handler on_error_;
-    static void wait_accept(int fd, short event, void *arg)
-    {
-      auto data = reinterpret_cast<_tcp_socket_server *>(arg);
-      
-      try {
-        sockaddr_in client_addr;
-        socklen_t   len = sizeof(client_addr);
-
-        // Accept incoming connection
-        int sock = accept(fd, reinterpret_cast<sockaddr *>(&client_addr), &len);
-        if (sock < 1) {
-          data->done_(data->sp_);
-          return;
-        }
-        
-        /* Set the socket to non-blocking, this is essential in event
-        * based programming with libevent. */
-
-        auto flags = fcntl(sock, F_GETFL);
-        if (0 > flags) {
-          auto error = errno;
-          throw std::system_error(
-            error,
-            std::system_category());
-        }
-
-        flags |= O_NONBLOCK;
-        if (0 > fcntl(sock, F_SETFL, flags)) {
-          auto error = errno;
-          throw std::system_error(
-            error,
-            std::system_category(),
-            "fcntl");
-        }
-        
-        /*************************************************************/
-        /* Set socket to be nonblocking. All of the sockets for    */
-        /* the incoming connections will also be nonblocking since  */
-        /* they will inherit that state from the listening socket.   */
-        /*************************************************************/
-        //int on = 1;
-        //if (0 > ioctl(sock, FIONBIO, (char *)&on)) {
-        //    auto error = errno;
-        //    throw c_exception("Set socket to be nonblocking", error);
-        //}
-        auto sp = data->sp_.create_scope(("Connection from " + network_service::to_string(client_addr)).c_str());
-        imt_service::async(sp, [sp, data, sock](){
-          data->new_connection_(sp, _tcp_network_socket::from_handle(sock));
-        });
-      }
-      catch (const std::exception & ex) {
-        data->on_error_(data->sp_, std::make_shared<std::exception>(ex));
-      }
-      catch (...) {
-        data->on_error_(data->sp_, std::make_shared<std::runtime_error>("Unexpected error"));
-      }
-    }
 
 #else
     class windows_wsa_event
