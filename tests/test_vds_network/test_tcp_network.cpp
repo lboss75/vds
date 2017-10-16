@@ -48,29 +48,23 @@ TEST(network_tests, test_server)
     "127.0.0.1",
     8000,
     [&error](const vds::service_provider & sp, const vds::tcp_network_socket & s) {
-    vds::cancellation_token_source cancellation;
-    vds::dataflow(
-      vds::stream_read<vds::continuous_stream<uint8_t>>(s.incoming()),
-      vds::stream_write<vds::continuous_stream<uint8_t>>(s.outgoing())
-    )
+    vds::copy_stream<uint8_t>(sp, s.incoming(), s.outgoing())
     .wait(
-      [s](const vds::service_provider & sp) {
-      sp.get<vds::logger>()->debug("TCP", sp, "Server closed");
+      [s, sp]() {
+        sp.get<vds::logger>()->debug("TCP", sp, "Server closed");
+      },
+      [&error](const std::shared_ptr<std::exception> & ex) {
+        error = ex;
+      });
+    }).wait(
+    [&b, sp]() {
+      sp.get<vds::logger>()->debug("TCP", sp, "Server has been started");
+      b.set();
     },
-      [&error](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+    [&b, &error](const std::shared_ptr<std::exception> & ex) {
       error = ex;
-    },
-      sp);
-  }).wait(
-    [&b](const vds::service_provider & sp) {
-    sp.get<vds::logger>()->debug("TCP", sp, "Server has been started");
-    b.set();
-  },
-    [&b, &error](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-    error = ex;
-    b.set();
-  },
-    sp);
+      b.set();
+    });
 
   b.wait();
 
@@ -82,7 +76,6 @@ TEST(network_tests, test_server)
   b.reset();
 
   std::string answer;
-  vds::cancellation_token_source cancellation;
   random_buffer data;
 
   vds::tcp_network_socket::connect(
@@ -90,8 +83,7 @@ TEST(network_tests, test_server)
     (const char *)"127.0.0.1",
     8000)
     .then(
-      [&b, &answer, &cancellation, &data](
-        const vds::service_provider & sp,
+      [&b, &answer, &data, sp](
         const vds::tcp_network_socket & s) {
 
     sp.get<vds::logger>()->debug("TCP", sp, "Connected");
@@ -106,16 +98,15 @@ TEST(network_tests, test_server)
         compare_data<uint8_t>(data.data(), data.size())
       ));
   }).wait(
-    [&b](const vds::service_provider & sp) {
+    [&b, sp]() {
       sp.get<vds::logger>()->debug("TCP", sp, "Request sent");
       b.set();
     },
-    [&b, &error](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+    [&b, &error, sp](const std::shared_ptr<std::exception> & ex) {
       error = ex;
       sp.get<vds::logger>()->debug("TCP", sp, "Request error");
       b.set();
-    },
-    sp.create_scope("Client"));
+    });
 
   b.wait();
   //Wait

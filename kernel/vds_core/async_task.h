@@ -164,7 +164,7 @@ namespace vds {
 	  ~async_task();
 
 	  template<typename functor_type, typename error_functor_type>
-	  void wait(functor_type && done_callback, error_functor_type && error_callback);
+	  void wait(functor_type && done_callback, error_functor_type && error_callback) const;
     
     void operator()(
       const async_result<result_types...> & done);
@@ -366,7 +366,7 @@ namespace vds {
 
   template<typename ...result_types>
   template<typename functor_type, typename error_functor_type>
-  inline void async_task<result_types...>::wait(functor_type && done_callback, error_functor_type && error_callback)
+  inline void async_task<result_types...>::wait(functor_type && done_callback, error_functor_type && error_callback) const
   {
 	  this->impl_->execute(
 		  async_result<result_types...>(
@@ -507,22 +507,19 @@ namespace vds {
   }
 
   /////////////////////////////////////////////////////////////////////////////////
-  /*
   class _async_series
   {
   public:
     _async_series(
-      const std::function<void(const service_provider & sp)> & done,
-      const error_handler & on_error,
-      const service_provider & sp,
+      const async_result<> & result,
       size_t count)
-    : done_(done), on_error_(on_error), sp_(sp), count_(count)
+    : result_(result), count_(count)
     {
     }
     
     void run(const std::list<async_task<>> & args)
     {
-      for (auto arg : args) {
+      for (auto & arg : args) {
         *this += arg;
       }
     }
@@ -530,39 +527,36 @@ namespace vds {
     _async_series & operator += (const async_task<> & arg)
     {
       arg.wait(
-        [this](const service_provider & sp) {
+        [this]() {
           if (0 == --this->count_) {
             if (this->error_) {
-              this->on_error_(sp, this->error_);
+              this->result_.error(this->error_);
             }
             else {
-              this->done_(sp);
-            }
+              this->result_();
+            }            
             delete this;
           }
         },
-        [this](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+        [this](const std::shared_ptr<std::exception> & ex) {
           if (!this->error_) {
             this->error_ = ex;
           }
           if (0 == --this->count_) {
             if (this->error_) {
-              this->on_error_(sp, this->error_);
+              this->result_.error(this->error_);
             }
             else {
-              this->done_(sp);
+              this->result_();
             }
             delete this;
           }
-        },
-        this->sp_);
+        });
       return *this;
     }
     
   private:
-    std::function<void(const service_provider & sp)> done_;
-    error_handler on_error_;
-    service_provider sp_;
+    async_result<> result_;
     std::atomic_size_t count_;
     std::shared_ptr<std::exception> error_;
   };
@@ -577,13 +571,12 @@ namespace vds {
   inline async_task<> async_series(task_types... args)
   {
     auto steps = new std::list<async_task<>>({ args... });
-    return create_async_task<>(
-      [steps](const std::function<void(const service_provider & sp)> & done, const error_handler & on_error, const service_provider & sp){
-        auto runner = new _async_series(done, on_error, sp, steps->size());
+    return [steps](const async_result<> & result){
+        auto runner = new _async_series(result, steps->size());
         runner->run(*steps);
         delete steps;
-      });
-  }*/
+      };
+  }
 }
 
 #endif // __VDS_CORE_ASYNC_TASK_H_

@@ -70,18 +70,16 @@ std::shared_ptr<vds::http_message> vds::http_request::simple_request(
 
   result->body()->write_all_async(sp, (const uint8_t *)buffer->c_str(), buffer->length())
     .wait(
-    [buffer, result](const service_provider & sp) {
+    [buffer, result, sp]() {
       result->body()->write_all_async(sp, nullptr, 0).wait(
-        [](const service_provider & sp) {},
-        [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+        []() {},
+        [sp](const std::shared_ptr<std::exception> & ex) {
           sp.unhandled_exception(ex);
-        },
-        sp);
+        });
       },
-      [buffer](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+      [buffer, sp](const std::shared_ptr<std::exception> & ex) {
         sp.unhandled_exception(ex);
-      },
-      sp);
+      });
 
   return result;
 }

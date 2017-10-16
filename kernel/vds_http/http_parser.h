@@ -170,10 +170,10 @@ private:
                         is_fail = false;
                         b.set();
                     },
-                    [&b, &is_fail](const std::shared_ptr<std::exception> & ex) {
+                    [&b, &is_fail, this](const std::shared_ptr<std::exception> & ex) {
                         is_fail = true;
-                        if(pthis->message_state_.fail()) {
-                            pthis->error_handler_(ex);
+                        if(this->message_state_.fail()) {
+                            this->error_handler_(ex);
                         }
                         b.set();
                     });
@@ -190,7 +190,7 @@ private:
                         barrier b;
                         bool is_fail;
                         this->current_message_->body()->write_all_async(
-                            sp,
+                            this->sp_,
                             nullptr,
                             0)
                         .wait(
@@ -198,10 +198,10 @@ private:
                             is_fail = false;
                             b.set();
                         },
-                        [&b, &is_fail](const std::shared_ptr<std::exception> & ex) {
+                        [&b, &is_fail, this](const std::shared_ptr<std::exception> & ex) {
                             is_fail = true;
-                            if(pthis->message_state_.fail()) {
-                                pthis->error_handler_(ex);
+                            if(this->message_state_.fail()) {
+                                this->error_handler_(ex);
                             }
                             b.set();
                         });

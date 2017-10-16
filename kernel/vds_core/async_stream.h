@@ -6,6 +6,7 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 #include <mutex>
+#include <memory>
 
 #include "async_task.h"
 #include "mt_service.h"
@@ -378,6 +379,77 @@ namespace vds {
     std::mutex data_mutex_;
     continuous_stream<item_type> data_;
   };
+  
+  template <typename item_type, typename source_type, typename target_type>
+  class _continue_copy_stream : public std::enable_shared_from_this<_continue_copy_stream<item_type, source_type, target_type>>
+  {
+  public:
+    _continue_copy_stream(
+      const service_provider & sp,
+      const std::shared_ptr<source_type> & source,
+      const std::shared_ptr<target_type> & target)
+    : sp_(sp), source_(source), target_(target)
+    {
+    }
+    
+    static async_task<> _continue_copy(
+      const std::shared_ptr<_continue_copy_stream> & context)
+    {
+      return context->source_.read_async(
+        context->sp_,
+        context->buffer_,
+        sizeof(context->buffer_) / sizeof(context->buffer_[0])).then(
+        [context](size_t readed){
+          return context->target_.write_all_async(context->buffer_, readed).
+            then([context, is_eof = (0 == readed)](){
+              if(is_eof){
+                return [](){};
+              }
+              else {
+                return _continue_copy(context);
+              }              
+            });
+        }
+      );    
+    }
+        
+  private:
+    service_provider sp_;
+    std::shared_ptr<source_type> source_;
+    std::shared_ptr<target_type> target_;
+    item_type buffer_[1024];
+  };
+  
+  
+  template <typename item_type>
+  inline async_task<> copy_stream(
+    const service_provider & sp,
+    const std::shared_ptr<continuous_stream<item_type>> & source,
+    const std::shared_ptr<async_stream<item_type>> & target)
+  {
+    auto context = std::make_shared<_continue_copy_stream<item_type, continuous_stream<item_type>, async_stream<item_type>>>(sp, source, target);
+    return _continue_copy_stream<item_type, continuous_stream<item_type>, async_stream<item_type>>::_continue_copy(context);
+  }
+  
+  template <typename item_type>
+  inline async_task<> copy_stream(
+    const service_provider & sp,
+    const std::shared_ptr<async_stream<item_type>> & source,
+    const std::shared_ptr<continuous_stream<item_type>> & target)
+  {
+    auto context = std::make_shared<_continue_copy_stream<item_type, async_stream<item_type>, continuous_stream<item_type>>>(sp, source, target);
+    return _continue_copy_stream<item_type, async_stream<item_type>, continuous_stream<item_type>>::_continue_copy(context);
+  }
+  
+  template <typename item_type>
+  inline async_task<> copy_stream(
+    const service_provider & sp,
+    const std::shared_ptr<continuous_stream<item_type>> & source,
+    const std::shared_ptr<continuous_stream<item_type>> & target)
+  {
+    auto context = std::make_shared<_continue_copy_stream<item_type, continuous_stream<item_type>, continuous_stream<item_type>>>(sp, source, target);
+    return _continue_copy_stream<item_type, continuous_stream<item_type>, continuous_stream<item_type>>::_continue_copy(context);
+  }
 }
 
 #endif // __VDS_CORE_ASYNC_STREAM_H_

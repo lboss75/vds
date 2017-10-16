@@ -40,20 +40,16 @@ TEST(network_tests, test_udp_server)
 
   auto server_socket = server.start(sp, "127.0.0.1", 8000);
 
-    vds::dataflow(
-      vds::stream_read<vds::continuous_stream<vds::udp_datagram>>(server_socket.incoming()),
-      vds::stream_write<vds::async_stream<vds::udp_datagram>>(server_socket.outgoing())
-    )
+    vds::copy_stream<vds::udp_datagram>(sp, server_socket.incoming(), server_socket.outgoing())
     .wait(
-    [&server_socket](const vds::service_provider & sp) {
+    [&server_socket, sp]() {
       sp.get<vds::logger>()->debug("UDP", sp, "Server closed");
       server_socket.stop();
     },
-      [&error, &server_socket](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+      [&error, &server_socket, sp](const std::shared_ptr<std::exception> & ex) {
       error = ex;
       server_socket.stop();
-    },
-    sp);
+    });
 
 
     vds::barrier b;

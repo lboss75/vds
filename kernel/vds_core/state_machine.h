@@ -21,7 +21,7 @@ namespace vds {
     
     bool change_state(state_enum_type expected_state, state_enum_type new_state)
     {
-      std::unique_lock<std::mutex> lock(this->state_);
+      std::unique_lock<std::mutex> lock(this->state_mutex_);
       for(;;){
         if(expected_state == this->state_){
           this->state_ = new_state;
@@ -32,13 +32,13 @@ namespace vds {
           return false;
         }
         
-        this->state_cond_.wait();
+        this->state_cond_.wait(lock);
       }
     }
     
     bool fail()
     {
-      std::unique_lock<std::mutex> lock(this->state_);
+      std::unique_lock<std::mutex> lock(this->state_mutex_);
       if(this->failed_state_ != this->state_){
         this->state_ = this->failed_state_;
         this->state_cond_.notify_one();
