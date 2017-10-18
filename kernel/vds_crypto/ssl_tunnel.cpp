@@ -32,22 +32,22 @@ bool vds::ssl_tunnel::is_client() const
   return this->impl_->is_client();
 }
 
-std::shared_ptr<vds::continuous_stream<uint8_t>> vds::ssl_tunnel::crypted_input()
+std::shared_ptr<vds::continuous_buffer<uint8_t>> vds::ssl_tunnel::crypted_input()
 {
   return this->impl_->crypted_input();
 }
 
-std::shared_ptr<vds::continuous_stream<uint8_t>> vds::ssl_tunnel::crypted_output()
+std::shared_ptr<vds::continuous_buffer<uint8_t>> vds::ssl_tunnel::crypted_output()
 {
   return this->impl_->crypted_output();
 }
 
-std::shared_ptr<vds::continuous_stream<uint8_t>> vds::ssl_tunnel::decrypted_input()
+std::shared_ptr<vds::continuous_buffer<uint8_t>> vds::ssl_tunnel::decrypted_input()
 {
   return this->impl_->decrypted_input();
 }
 
-std::shared_ptr<vds::continuous_stream<uint8_t>> vds::ssl_tunnel::decrypted_output()
+std::shared_ptr<vds::continuous_buffer<uint8_t>> vds::ssl_tunnel::decrypted_output()
 {
   return this->impl_->decrypted_output();
 }
@@ -79,10 +79,10 @@ vds::_ssl_tunnel::_ssl_tunnel(
   crypted_input_data_size_(0),
   decrypted_output_data_size_(0),
   decrypted_input_data_size_(0),
-  crypted_input_(new continuous_stream<uint8_t>()),
-  crypted_output_(new continuous_stream<uint8_t>()),
-  decrypted_input_(new continuous_stream<uint8_t>()),
-  decrypted_output_(new continuous_stream<uint8_t>()),
+  crypted_input_(new continuous_buffer<uint8_t>()),
+  crypted_output_(new continuous_buffer<uint8_t>()),
+  decrypted_input_(new continuous_buffer<uint8_t>()),
+  decrypted_output_(new continuous_buffer<uint8_t>()),
   crypted_input_eof_(false),
   decrypted_input_eof_(false),
   failed_state_(false)

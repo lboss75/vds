@@ -14,7 +14,7 @@ All rights reserved
 #include "http_serializer.h"
 #include "http_request.h"
 #include "barrier.h"
-#include "async_stream.h"
+#include "async_buffer.h"
 #include "const_data_buffer.h"
 #include "file.h"
 #include "asymmetriccrypto.h"
@@ -31,8 +31,8 @@ All rights reserved
 static void copy_body(
   const vds::service_provider & sp,
   const std::shared_ptr<std::vector<uint8_t>> & buffer,
-  const std::shared_ptr<vds::continuous_stream<uint8_t>> & source,
-  const std::shared_ptr<vds::continuous_stream<uint8_t>> & dest)
+  const std::shared_ptr<vds::continuous_buffer<uint8_t>> & source,
+  const std::shared_ptr<vds::continuous_buffer<uint8_t>> & dest)
 {
   source->read_async(sp, buffer->data(), buffer->size())
   .wait([buffer, source, dest](const vds::service_provider & sp, size_t readed){
@@ -88,8 +88,8 @@ TEST(http_tests, test_streams)
   //Start server
   vds::http_server http_server;
 
-  auto server2client = std::make_shared<vds::continuous_stream<uint8_t>>();
-  auto client2server = std::make_shared<vds::continuous_stream<uint8_t>>();
+  auto server2client = std::make_shared<vds::continuous_buffer<uint8_t>>();
+  auto client2server = std::make_shared<vds::continuous_buffer<uint8_t>>();
 
   std::shared_ptr<vds::http_message> response;
 
@@ -150,7 +150,7 @@ TEST(http_tests, test_streams)
 
     auto data = std::make_shared<std::vector<uint8_t>>();
     return vds::dataflow(
-        vds::stream_read<vds::continuous_stream<uint8_t>>(response->body()),
+        vds::stream_read<vds::continuous_buffer<uint8_t>>(response->body()),
         vds::collect_data(*data)
       )
     .then(
@@ -267,8 +267,8 @@ TEST(http_tests, test_https_stream)
             });
       }),
       vds::dataflow(
-        vds::stream_read<vds::continuous_stream<uint8_t>>(s.incoming()),
-        vds::stream_write<vds::continuous_stream<uint8_t>>(crypto_tunnel->crypted_input())
+        vds::stream_read<vds::continuous_buffer<uint8_t>>(s.incoming()),
+        vds::stream_write<vds::continuous_buffer<uint8_t>>(crypto_tunnel->crypted_input())
       ),
       vds::dataflow(
         vds::stream_read(crypto_tunnel->crypted_output()),
@@ -344,7 +344,7 @@ TEST(http_tests, test_https_stream)
           auto data = std::make_shared<std::vector<uint8_t>>();
 
           return vds::dataflow(
-              vds::stream_read<vds::continuous_stream<uint8_t>>(response->body()),
+              vds::stream_read<vds::continuous_buffer<uint8_t>>(response->body()),
               vds::collect_data(*data)
             )
             .then(
@@ -357,8 +357,8 @@ TEST(http_tests, test_https_stream)
             });
       }),
       vds::dataflow(
-        vds::stream_read<vds::continuous_stream<uint8_t>>(s.incoming()),
-        vds::stream_write<vds::continuous_stream<uint8_t>>(client_crypto_tunnel->crypted_input())
+        vds::stream_read<vds::continuous_buffer<uint8_t>>(s.incoming()),
+        vds::stream_write<vds::continuous_buffer<uint8_t>>(client_crypto_tunnel->crypted_input())
       ),
       vds::dataflow(
         vds::stream_read(client_crypto_tunnel->crypted_output()),
@@ -445,8 +445,8 @@ TEST(http_tests, test_ssl_streams)
   //Start server
   vds::http_server http_server;
 
-  auto server2client = std::make_shared<vds::continuous_stream<uint8_t>>();
-  auto client2server = std::make_shared<vds::continuous_stream<uint8_t>>();
+  auto server2client = std::make_shared<vds::continuous_buffer<uint8_t>>();
+  auto client2server = std::make_shared<vds::continuous_buffer<uint8_t>>();
 
   vds::barrier b;
   //Server
@@ -485,8 +485,8 @@ TEST(http_tests, test_ssl_streams)
       });
     }),
       vds::dataflow(
-        vds::stream_read<vds::continuous_stream<uint8_t>>(client2server),
-        vds::stream_write<vds::continuous_stream<uint8_t>>(crypto_tunnel->crypted_input())
+        vds::stream_read<vds::continuous_buffer<uint8_t>>(client2server),
+        vds::stream_write<vds::continuous_buffer<uint8_t>>(crypto_tunnel->crypted_input())
       ),
       vds::dataflow(
         vds::stream_read(crypto_tunnel->crypted_output()),
@@ -538,7 +538,7 @@ TEST(http_tests, test_ssl_streams)
       auto data = std::make_shared<std::vector<uint8_t>>();
 
       return vds::dataflow(
-          vds::stream_read<vds::continuous_stream<uint8_t>>(response->body()),
+          vds::stream_read<vds::continuous_buffer<uint8_t>>(response->body()),
           vds::collect_data(*data))
         .then(
           [data, &answer](
@@ -550,8 +550,8 @@ TEST(http_tests, test_ssl_streams)
         });
     }),
       vds::dataflow(
-        vds::stream_read<vds::continuous_stream<uint8_t>>(server2client),
-        vds::stream_write<vds::continuous_stream<uint8_t>>(client_crypto_tunnel->crypted_input())
+        vds::stream_read<vds::continuous_buffer<uint8_t>>(server2client),
+        vds::stream_write<vds::continuous_buffer<uint8_t>>(client_crypto_tunnel->crypted_input())
       ),
       vds::dataflow(
         vds::stream_read(client_crypto_tunnel->crypted_output()),

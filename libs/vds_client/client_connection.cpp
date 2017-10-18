@@ -18,8 +18,8 @@ vds::client_connection::client_connection(
   client_certificate_(client_certificate),
   client_private_key_(client_private_key),
   state_(STATE::NONE),
-  incoming_stream_(new async_stream<std::shared_ptr<http_message>>()),
-  outgoing_stream_(new continuous_stream<std::shared_ptr<json_value>>())
+  incoming_stream_(new async_buffer<std::shared_ptr<http_message>>()),
+  outgoing_stream_(new continuous_buffer<std::shared_ptr<json_value>>())
 {
 }
 
@@ -65,15 +65,15 @@ void vds::client_connection::connect(const service_provider & sp)
           }),
                    
       dataflow(
-        stream_read<continuous_stream<uint8_t>>(s.incoming()),
-        stream_write<continuous_stream<uint8_t>>(client_crypto_tunnel->crypted_input())
+        stream_read<continuous_buffer<uint8_t>>(s.incoming()),
+        stream_write<continuous_buffer<uint8_t>>(client_crypto_tunnel->crypted_input())
       ),
       dataflow(
         stream_read(client_crypto_tunnel->crypted_output()),
         stream_write(s.outgoing())
       ),
       dataflow(
-        stream_read<continuous_stream<std::shared_ptr<json_value>>>(this->outgoing_stream_),
+        stream_read<continuous_buffer<std::shared_ptr<json_value>>>(this->outgoing_stream_),
         json_to_http_channel("POST", "/vds/client_api"),
         stream_write(this->client_.output_commands())
       )

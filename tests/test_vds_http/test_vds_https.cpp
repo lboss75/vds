@@ -14,7 +14,7 @@ All rights reserved
 #include "http_serializer.h"
 #include "http_request.h"
 #include "barrier.h"
-#include "async_stream.h"
+#include "async_buffer.h"
 #include "const_data_buffer.h"
 #include "file.h"
 #include "asymmetriccrypto.h"
@@ -88,8 +88,8 @@ TEST(http_tests, test_https_server)
           return middleware.process(sp, request);
       }),
       vds::dataflow(
-        vds::stream_read<vds::continuous_stream<uint8_t>>(s.incoming()),
-        vds::stream_write<vds::continuous_stream<uint8_t>>(crypto_tunnel->crypted_input())
+        vds::stream_read<vds::continuous_buffer<uint8_t>>(s.incoming()),
+        vds::stream_write<vds::continuous_buffer<uint8_t>>(crypto_tunnel->crypted_input())
       ),
       vds::dataflow(
         vds::stream_read(crypto_tunnel->crypted_output()),
@@ -165,7 +165,7 @@ TEST(http_tests, test_https_server)
           auto data = std::make_shared<std::vector<uint8_t>>();
 
           return vds::dataflow(
-              vds::stream_read<vds::continuous_stream<uint8_t>>(response->body()),
+              vds::stream_read<vds::continuous_buffer<uint8_t>>(response->body()),
               vds::collect_data(*data)
             )
             .then(
@@ -178,8 +178,8 @@ TEST(http_tests, test_https_server)
             });
       }),
       vds::dataflow(
-        vds::stream_read<vds::continuous_stream<uint8_t>>(s.incoming()),
-        vds::stream_write<vds::continuous_stream<uint8_t>>(client_crypto_tunnel->crypted_input())
+        vds::stream_read<vds::continuous_buffer<uint8_t>>(s.incoming()),
+        vds::stream_write<vds::continuous_buffer<uint8_t>>(client_crypto_tunnel->crypted_input())
       ),
       vds::dataflow(
         vds::stream_read(client_crypto_tunnel->crypted_output()),

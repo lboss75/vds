@@ -7,7 +7,7 @@ All rights reserved
 */
 #include <memory>
 #include "async_task.h"
-#include "async_stream.h"
+#include "async_buffer.h"
 
 namespace vds {
   class _tcp_network_socket;
@@ -23,8 +23,8 @@ namespace vds {
       const std::string & server,
       const uint16_t port);
     
-    std::shared_ptr<continuous_stream<uint8_t>> incoming() const;
-    std::shared_ptr<continuous_stream<uint8_t>> outgoing() const;
+    std::shared_ptr<continuous_buffer<uint8_t>> incoming() const;
+    std::shared_ptr<continuous_buffer<uint8_t>> outgoing() const;
     
     _tcp_network_socket * operator -> () const { return this->impl_.get(); }
 

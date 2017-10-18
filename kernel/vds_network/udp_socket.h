@@ -6,7 +6,7 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
-#include "async_stream.h"
+#include "async_buffer.h"
 #include "const_data_buffer.h"
 
 namespace vds {
@@ -75,8 +75,8 @@ namespace vds {
     udp_socket();
     ~udp_socket();
 
-    std::shared_ptr<continuous_stream<udp_datagram>> incoming();
-    std::shared_ptr<async_stream<udp_datagram>> outgoing();
+    std::shared_ptr<continuous_buffer<udp_datagram>> incoming();
+    std::shared_ptr<async_buffer<udp_datagram>> outgoing();
 
     void stop();
 

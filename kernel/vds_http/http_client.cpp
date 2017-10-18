@@ -3,8 +3,8 @@
 #include "http_pipeline.h"
 
 vds::http_client::http_client()
-: input_commands_(new vds::async_stream<std::shared_ptr<http_message>>()),
-  output_commands_(new vds::async_stream<std::shared_ptr<http_message>>())
+: input_commands_(new vds::async_buffer<std::shared_ptr<http_message>>()),
+  output_commands_(new vds::async_buffer<std::shared_ptr<http_message>>())
 {
 }
 
@@ -22,8 +22,8 @@ vds::async_task<> vds::http_client::send(
 
 vds::async_task<> vds::http_client::start(
   const vds::service_provider & sp,
-  const std::shared_ptr<continuous_stream<uint8_t>> & incoming_stream,
-  const std::shared_ptr<continuous_stream<uint8_t>> & outgoing_stream,
+  const std::shared_ptr<continuous_buffer<uint8_t>> & incoming_stream,
+  const std::shared_ptr<continuous_buffer<uint8_t>> & outgoing_stream,
   const handler_type & handler)
 {
   return async_series(

@@ -73,12 +73,12 @@ vds::async_task< const vds::tcp_network_socket &> vds::tcp_network_socket::conne
     };
 }
 
-std::shared_ptr<vds::continuous_stream<uint8_t>> vds::tcp_network_socket::incoming() const
+std::shared_ptr<vds::continuous_buffer<uint8_t>> vds::tcp_network_socket::incoming() const
 {
   return this->impl_->incoming();
 }
 
-std::shared_ptr<vds::continuous_stream<uint8_t>> vds::tcp_network_socket::outgoing() const
+std::shared_ptr<vds::continuous_buffer<uint8_t>> vds::tcp_network_socket::outgoing() const
 {
   return this->impl_->outgoing();
 }

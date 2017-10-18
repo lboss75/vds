@@ -91,10 +91,10 @@ TEST(network_tests, test_server)
     return vds::async_series(
       vds::dataflow(
         random_reader<uint8_t>(data.data(), data.size()),
-        vds::stream_write<vds::continuous_stream<uint8_t>>(s.outgoing())
+        vds::stream_write<vds::continuous_buffer<uint8_t>>(s.outgoing())
       ),
       vds::dataflow(
-        vds::stream_read<vds::continuous_stream<uint8_t>>(s.incoming()),
+        vds::stream_read<vds::continuous_buffer<uint8_t>>(s.incoming()),
         compare_data<uint8_t>(data.data(), data.size())
       ));
   }).wait(

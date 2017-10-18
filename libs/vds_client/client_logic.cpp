@@ -264,7 +264,7 @@ void vds::client_logic::continue_read_connection(
       if (0 < readed) {
         auto json_response = std::make_shared<std::shared_ptr<json_value>>();
         dataflow(
-          stream_read<continuous_stream<uint8_t>>((*buffer)->body()),
+          stream_read<continuous_buffer<uint8_t>>((*buffer)->body()),
           byte_to_char(),
           json_parser("server response"),
           dataflow_require_once<std::shared_ptr<json_value>>(json_response.get())

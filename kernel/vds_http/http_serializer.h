@@ -6,7 +6,7 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
-#include "async_stream.h"
+#include "async_buffer.h"
 #include "http_message.h"
 #include "http_request.h"
 #include "json_object.h"
@@ -49,7 +49,7 @@ namespace vds {
         
         if(StateEnum::STATE_BOF == this->state_){
           this->state_ = StateEnum::STATE_BODY;
-          this->buffer_ = std::make_shared<continuous_stream<uint8_t>>();
+          this->buffer_ = std::make_shared<continuous_buffer<uint8_t>>();
 
           auto message = this->input_buffer(0);
           mt_service::async(sp, [this, sp, message]() {
@@ -85,7 +85,7 @@ namespace vds {
         STATE_EOF
       };
       StateEnum state_;
-      std::shared_ptr<continuous_stream<uint8_t>> buffer_;
+      std::shared_ptr<continuous_buffer<uint8_t>> buffer_;
 
       void write_body(
         const service_provider & sp,

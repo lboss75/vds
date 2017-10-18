@@ -7,7 +7,7 @@ All rights reserved
 */
 
 #include <memory>
-#include "async_stream.h"
+#include "async_buffer.h"
 
 namespace vds {
   class http_message;
@@ -21,14 +21,14 @@ namespace vds {
 
     async_task<> start(
       const vds::service_provider & sp,
-      const std::shared_ptr<continuous_stream<uint8_t>> & incoming_stream,
-      const std::shared_ptr<continuous_stream<uint8_t>> & outgoing,
+      const std::shared_ptr<continuous_buffer<uint8_t>> & incoming_stream,
+      const std::shared_ptr<continuous_buffer<uint8_t>> & outgoing,
       const handler_type & handler);
 
   private:
     handler_type handler_;
-    std::shared_ptr<async_stream<std::shared_ptr<http_message>>> input_commands_;
-    std::shared_ptr<async_stream<std::shared_ptr<http_message>>> output_commands_;
+    std::shared_ptr<async_buffer<std::shared_ptr<http_message>>> input_commands_;
+    std::shared_ptr<async_buffer<std::shared_ptr<http_message>>> output_commands_;
 
     async_task<> send(
       const vds::service_provider & sp,

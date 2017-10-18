@@ -16,18 +16,18 @@ All rights reserved
 #include "http_parser.h"
 
 namespace vds {
-    template <typename input_stream_type = async_stream<uint8_t>, typename output_stream_type = continuous_stream<uint8_t>>
+    template <typename input_stream_type = async_buffer<uint8_t>, typename output_stream_type = continuous_buffer<uint8_t>>
     inline async_task<> http_pipeline(
       const std::shared_ptr<input_stream_type> & input_stream,
-      const std::shared_ptr<async_stream<std::shared_ptr<http_message>>> & input_commands,
+      const std::shared_ptr<async_buffer<std::shared_ptr<http_message>>> & input_commands,
 
-      const std::shared_ptr<async_stream<std::shared_ptr<http_message>>> & output_commands,
+      const std::shared_ptr<async_buffer<std::shared_ptr<http_message>>> & output_commands,
       const std::shared_ptr<output_stream_type> & output_stream
     )
     {
       return async_series(
         dataflow(
-          stream_read<async_stream<std::shared_ptr<http_message>>>(output_commands),
+          stream_read<async_buffer<std::shared_ptr<http_message>>>(output_commands),
           http_serializer(),
           stream_write<output_stream_type>(output_stream)
         ),

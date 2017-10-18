@@ -14,7 +14,7 @@ All rights reserved
 #include "http_serializer.h"
 #include "http_request.h"
 #include "barrier.h"
-#include "async_stream.h"
+#include "async_buffer.h"
 #include "const_data_buffer.h"
 #include "file.h"
 #include "http_client.h"
@@ -122,7 +122,7 @@ TEST(http_tests, test_server)
       auto data = std::make_shared<std::vector<uint8_t>>();
       
       return vds::dataflow(
-          vds::stream_read<vds::continuous_stream<uint8_t>>(response->body()),
+          vds::stream_read<vds::continuous_buffer<uint8_t>>(response->body()),
           vds::collect_data(*data)
         )
       .then(

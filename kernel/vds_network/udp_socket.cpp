@@ -75,12 +75,12 @@ vds::udp_socket::~udp_socket()
 {
 }
 
-std::shared_ptr<vds::continuous_stream<vds::udp_datagram>> vds::udp_socket::incoming()
+std::shared_ptr<vds::continuous_buffer<vds::udp_datagram>> vds::udp_socket::incoming()
 {
   return this->impl_->incoming();
 }
 
-std::shared_ptr<vds::async_stream<vds::udp_datagram>> vds::udp_socket::outgoing()
+std::shared_ptr<vds::async_buffer<vds::udp_datagram>> vds::udp_socket::outgoing()
 {
   return this->impl_->outgoing();
 }

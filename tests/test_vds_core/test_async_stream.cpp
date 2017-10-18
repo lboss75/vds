@@ -4,7 +4,7 @@
 //#include "random_reader.h"
 //#include "compare_data.h"
 //#include "async_task.h"
-//#include "async_stream.h"
+//#include "async_buffer.h"
 //#include "random_buffer.h"
 //#include "test_config.h"
 //
@@ -25,7 +25,7 @@
 //  vds::mt_service::enable_async(sp);
 //
 //  random_buffer data;
-//  auto stream = std::make_shared<vds::continuous_stream<uint8_t>>();
+//  auto stream = std::make_shared<vds::continuous_buffer<uint8_t>>();
 //
 //  vds::barrier b;
 //  std::shared_ptr<std::exception> err;
@@ -39,7 +39,7 @@
 //        vds::mt_service::async(sp, [&data, stream, done, error, sp] {
 //          vds::dataflow(
 //            random_reader<uint8_t>(data.data(), data.size()),
-//            vds::stream_write<vds::continuous_stream<uint8_t>>(stream)
+//            vds::stream_write<vds::continuous_buffer<uint8_t>>(stream)
 //          ).wait(done, error, sp);
 //        });
 //      }
@@ -51,7 +51,7 @@
 //        const vds::service_provider & sp) {
 //        vds::mt_service::async(sp, [&data, stream, done, error, sp] {
 //          vds::dataflow(
-//            vds::stream_read<vds::continuous_stream<uint8_t >> (stream),
+//            vds::stream_read<vds::continuous_buffer<uint8_t >> (stream),
 //            compare_data<uint8_t>(data.data(), data.size())
 //          ).wait(done, error, sp);
 //        });

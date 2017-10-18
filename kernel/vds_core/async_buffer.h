@@ -20,16 +20,16 @@ namespace vds {
   public:
     using item_type = item_t;
 
-    continuous_stream()
+    continuous_buffer()
       : second_(0), front_(0), back_(0), eof_(false)
     {
     }
 
-    ~continuous_stream()
+    ~continuous_buffer()
     {
       if (0 != this->second_ || 0 != this->front_ || 0 != this->back_ || this->continue_read_ || this->continue_write_) {
         if(!std::current_exception()){
-          throw std::runtime_error("continuous_stream::~continuous_stream logic error");
+          throw std::runtime_error("continuous_buffer::~continuous_buffer logic error");
         }
       }
     }
@@ -51,7 +51,7 @@ namespace vds {
         if (0 == data_size) {
           if (this->eof_) {
             this->in_mutex_.unlock();
-            throw std::runtime_error("continuous_stream::write_all_async logic error");
+            throw std::runtime_error("continuous_buffer::write_all_async logic error");
           }
           this->eof_ = true;
           this->eof_stack_ = sp.full_name();
@@ -156,7 +156,7 @@ namespace vds {
     void reset()
     {
       if (!this->eof_ || 0 != this->second_ || 0 != this->front_ || 0 != this->back_ || this->continue_read_ || this->continue_write_) {
-        throw std::runtime_error("continuous_stream::reset logic error");
+        throw std::runtime_error("continuous_buffer::reset logic error");
       }
 
       this->eof_ = false;
@@ -298,7 +298,7 @@ namespace vds {
   {
   public:
     using item_type = item_t;
-    async_stream()
+    async_buffer()
       : ready_to_data_(true)
     {
     }

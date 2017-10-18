@@ -69,12 +69,12 @@ vds::async_task<> vds::_server_http_api::start(
             return this->middleware_.process(scope, request);
         }),
         dataflow(
-          stream_read<continuous_stream<uint8_t>>(s.incoming()),
-          stream_write<continuous_stream<uint8_t>>(crypto_tunnel->crypted_input())
+          stream_read<continuous_buffer<uint8_t>>(s.incoming()),
+          stream_write<continuous_buffer<uint8_t>>(crypto_tunnel->crypted_input())
         ),
         dataflow(
           stream_read(crypto_tunnel->crypted_output()),
-          stream_write<continuous_stream<uint8_t>>(s.outgoing())
+          stream_write<continuous_buffer<uint8_t>>(s.outgoing())
         )
       ).wait(
         [crypto_tunnel, server](const service_provider & sp) {
@@ -101,7 +101,7 @@ vds::async_task<std::shared_ptr<vds::http_message>> vds::_server_http_api::route
   if ("/vds/client_api" == request.url()) {
     auto json_request = new std::shared_ptr<json_value>();
     return dataflow(
-        stream_read<continuous_stream<uint8_t>>(message->body()),
+        stream_read<continuous_buffer<uint8_t>>(message->body()),
         byte_to_char(),
         json_parser("client_api"),
         dataflow_require_once<std::shared_ptr<json_value>>(json_request)

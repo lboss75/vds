@@ -14,7 +14,7 @@ All rights reserved
 #include "http_serializer.h"
 #include "http_request.h"
 #include "barrier.h"
-#include "async_stream.h"
+#include "async_buffer.h"
 #include "const_data_buffer.h"
 #include "file.h"
 #include "asymmetriccrypto.h"
@@ -124,7 +124,7 @@ TEST(http_tests, test_http_parser)
         {
           auto data = std::make_shared<std::vector<uint8_t>>();
           vds::dataflow(
-            vds::stream_read<vds::continuous_stream<uint8_t>>(request->body()),
+            vds::stream_read<vds::continuous_buffer<uint8_t>>(request->body()),
             vds::collect_data(*data)
           )
           .wait(

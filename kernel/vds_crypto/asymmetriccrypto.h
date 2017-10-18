@@ -104,8 +104,8 @@ namespace vds {
     
     ~asymmetric_sign();
 
-    void write(const uint8_t * data, size_t len) override;
-    void final() override;
+    async_task<> write_async(const uint8_t * data, size_t len) override;
+    void write(const uint8_t * data, size_t len);
 
     const_data_buffer signature();
 
@@ -135,8 +135,8 @@ namespace vds {
       const const_data_buffer & sig);
     ~asymmetric_sign_verify();
     
-    void write(const uint8_t * data, size_t len) override;
-    void final() override;
+    async_task<> write_async(const uint8_t * data, size_t len) override;
+    void write(const uint8_t * data, size_t len);
     
     bool result() const;
     

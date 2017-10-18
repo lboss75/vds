@@ -49,8 +49,8 @@ namespace vds {
     
     void connect(const service_provider & sp);
     
-    std::shared_ptr<async_stream<std::shared_ptr<http_message>>> incoming_stream() const { return this->incoming_stream_; }
-    std::shared_ptr<continuous_stream<std::shared_ptr<json_value>>> outgoing_stream() const { return this->outgoing_stream_; }
+    std::shared_ptr<async_buffer<std::shared_ptr<http_message>>> incoming_stream() const { return this->incoming_stream_; }
+    std::shared_ptr<continuous_buffer<std::shared_ptr<json_value>>> outgoing_stream() const { return this->outgoing_stream_; }
 
     void stop(const service_provider & sp);
    
@@ -63,8 +63,8 @@ namespace vds {
     std::mutex state_mutex_;
     std::condition_variable state_cond_;
     STATE state_;
-    std::shared_ptr<async_stream<std::shared_ptr<http_message>>> incoming_stream_;
-    std::shared_ptr<continuous_stream<std::shared_ptr<json_value>>> outgoing_stream_;
+    std::shared_ptr<async_buffer<std::shared_ptr<http_message>>> incoming_stream_;
+    std::shared_ptr<continuous_buffer<std::shared_ptr<json_value>>> outgoing_stream_;
 
     std::chrono::time_point<std::chrono::steady_clock> connection_start_;
     std::chrono::time_point<std::chrono::steady_clock> connection_end_;
