@@ -17,9 +17,9 @@ vds::inflate::~inflate()
   delete this->impl_;
 }
 
-void vds::inflate::write(
+vds::async_task<>  vds::inflate::write_async(
   const uint8_t * input_data,
   size_t input_size)
 {
-  this->impl_->write(input_data, input_size);
+  return this->impl_->write_async(input_data, input_size);
 }

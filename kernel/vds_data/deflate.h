@@ -19,8 +19,7 @@ namespace vds {
     deflate(stream<uint8_t> & target, int compression_level);
     ~deflate();
 
-    void write(const uint8_t * data, size_t len) override;
-    void final() override;
+    async_task<> write_async(const uint8_t * data, size_t len) override;
 
   private:
       _deflate_handler * const impl_;

@@ -161,6 +161,8 @@ namespace vds {
 		  typename std::enable_if<!_async_task_functor_helper<decltype(&functor_type::operator())>::is_async_callback>::type * = nullptr);
 
 	  async_task(async_task<result_types...> && origin);
+	  async_task(std::shared_ptr<std::exception> && error);
+	  async_task(const std::shared_ptr<std::exception> & error);
 	  ~async_task();
 
 	  template<typename functor_type, typename error_functor_type>
@@ -305,6 +307,30 @@ namespace vds {
 	  functor_type f_;
   };
   /////////////////////////////////////////////////////////////////////////////////
+  template <typename... result_types>
+  class _async_task_error : public _async_task_base<result_types...>
+  {
+  public:
+	  _async_task_error(std::shared_ptr<std::exception> && error)
+		  : error_(std::move(error))
+	  {
+	  }
+	  
+	  _async_task_error(const std::shared_ptr<std::exception> & error)
+		  : error_(error)
+	  {
+	  }
+
+	  void execute(const async_result<result_types...> & done) override
+	  {
+      done.error(this->error_);
+	  }
+
+  private:
+	  std::shared_ptr<std::exception> error_;
+  };
+
+  /////////////////////////////////////////////////////////////////////////////////
   template <typename parent_task_type, typename functor_type, typename... result_types>
   class _async_task_joined_callback : public _async_task_base<result_types...>
   {
@@ -348,6 +374,20 @@ namespace vds {
   {
 	  origin.impl_ = nullptr;
   }
+  
+  template<typename ...result_types>
+  inline async_task<result_types...>::async_task(std::shared_ptr<std::exception> && error)
+  : impl_(new _async_task_error<result_types...>(std::move(error)))
+  {
+  }
+  	  
+  template<typename ...result_types>
+  inline async_task<result_types...>::async_task(const std::shared_ptr<std::exception> & error)
+  : impl_(new _async_task_error<result_types...>(error))
+  {
+  }
+	  
+
 
   template<typename ...result_types>
   template<typename parent_task_type, typename functor_type>

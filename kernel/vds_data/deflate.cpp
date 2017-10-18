@@ -21,12 +21,8 @@ vds::deflate::~deflate()
   delete this->impl_;
 }
 
-void vds::deflate::write(const uint8_t * data, size_t len)
+vds::async_task<> vds::deflate::write_async(const uint8_t * data, size_t len)
 {
-  this->impl_->write(data, len);
+  return this->impl_->write_async(data, len);
 }
 
-void vds::deflate::final()
-{
-  this->impl_->final();
-}

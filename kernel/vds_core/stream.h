@@ -6,6 +6,7 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
+#include "async_task.h"
 
 namespace vds {
   template <typename item_type>
@@ -14,10 +15,8 @@ namespace vds {
   public:
     virtual ~stream() {}
     
-    virtual void write(const item_type * data, size_t len) = 0;
-    virtual void final() = 0;
+    virtual async_task<> write_async(const item_type * data, size_t len) = 0;
   };
-
 }
 
 #endif//__VDS_CORE_STREAM_H_

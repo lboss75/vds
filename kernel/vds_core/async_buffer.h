@@ -15,7 +15,7 @@ All rights reserved
 namespace vds {
 
   template <typename item_t>
-  class continuous_stream
+  class continuous_buffer
   {
   public:
     using item_type = item_t;
@@ -228,7 +228,7 @@ namespace vds {
         });
       }
       else {
-        this->continue_write_ = std::bind(&continuous_stream::continue_write, this, sp, done, data, data_size);
+        this->continue_write_ = std::bind(&continuous_buffer::continue_write, this, sp, done, data, data_size);
       }
     }
     
@@ -288,13 +288,13 @@ namespace vds {
         });
       }
       else {
-        this->continue_read_ = std::bind(&continuous_stream::continue_read, this, sp, done, buffer, buffer_size);
+        this->continue_read_ = std::bind(&continuous_buffer::continue_read, this, sp, done, buffer, buffer_size);
       }
     }
   };
 
   template <typename item_t>
-  class async_stream
+  class async_buffer
   {
   public:
     using item_type = item_t;
@@ -377,7 +377,7 @@ namespace vds {
     bool ready_to_data_;
     std::condition_variable data_barier_;
     std::mutex data_mutex_;
-    continuous_stream<item_type> data_;
+    continuous_buffer<item_type> data_;
   };
   
   template <typename item_type, typename source_type, typename target_type>
@@ -424,31 +424,31 @@ namespace vds {
   template <typename item_type>
   inline async_task<> copy_stream(
     const service_provider & sp,
-    const std::shared_ptr<continuous_stream<item_type>> & source,
-    const std::shared_ptr<async_stream<item_type>> & target)
+    const std::shared_ptr<continuous_buffer<item_type>> & source,
+    const std::shared_ptr<async_buffer<item_type>> & target)
   {
-    auto context = std::make_shared<_continue_copy_stream<item_type, continuous_stream<item_type>, async_stream<item_type>>>(sp, source, target);
-    return _continue_copy_stream<item_type, continuous_stream<item_type>, async_stream<item_type>>::_continue_copy(context);
+    auto context = std::make_shared<_continue_copy_stream<item_type, continuous_buffer<item_type>, async_buffer<item_type>>>(sp, source, target);
+    return _continue_copy_stream<item_type, continuous_buffer<item_type>, async_buffer<item_type>>::_continue_copy(context);
   }
   
   template <typename item_type>
   inline async_task<> copy_stream(
     const service_provider & sp,
-    const std::shared_ptr<async_stream<item_type>> & source,
-    const std::shared_ptr<continuous_stream<item_type>> & target)
+    const std::shared_ptr<async_buffer<item_type>> & source,
+    const std::shared_ptr<continuous_buffer<item_type>> & target)
   {
-    auto context = std::make_shared<_continue_copy_stream<item_type, async_stream<item_type>, continuous_stream<item_type>>>(sp, source, target);
-    return _continue_copy_stream<item_type, async_stream<item_type>, continuous_stream<item_type>>::_continue_copy(context);
+    auto context = std::make_shared<_continue_copy_stream<item_type, async_buffer<item_type>, continuous_buffer<item_type>>>(sp, source, target);
+    return _continue_copy_stream<item_type, async_buffer<item_type>, continuous_buffer<item_type>>::_continue_copy(context);
   }
   
   template <typename item_type>
   inline async_task<> copy_stream(
     const service_provider & sp,
-    const std::shared_ptr<continuous_stream<item_type>> & source,
-    const std::shared_ptr<continuous_stream<item_type>> & target)
+    const std::shared_ptr<continuous_buffer<item_type>> & source,
+    const std::shared_ptr<continuous_buffer<item_type>> & target)
   {
-    auto context = std::make_shared<_continue_copy_stream<item_type, continuous_stream<item_type>, continuous_stream<item_type>>>(sp, source, target);
-    return _continue_copy_stream<item_type, continuous_stream<item_type>, continuous_stream<item_type>>::_continue_copy(context);
+    auto context = std::make_shared<_continue_copy_stream<item_type, continuous_buffer<item_type>, continuous_buffer<item_type>>>(sp, source, target);
+    return _continue_copy_stream<item_type, continuous_buffer<item_type>, continuous_buffer<item_type>>::_continue_copy(context);
   }
 }
 

@@ -20,8 +20,7 @@ namespace vds {
     inflate(stream<uint8_t> & target);
     ~inflate();
 
-    void write(const uint8_t * data, size_t len) override;
-    void final() override;
+    async_task<> write_async(const uint8_t * data, size_t len) override;
 
 
   private:

@@ -28,11 +28,11 @@ namespace vds {
 
     certificate get_peer_certificate() const;
 
-    std::shared_ptr<continuous_stream<uint8_t>> crypted_input() const { return this->crypted_input_; }
-    std::shared_ptr<continuous_stream<uint8_t>> crypted_output() const { return this->crypted_output_; }
+    std::shared_ptr<continuous_buffer<uint8_t>> crypted_input() const { return this->crypted_input_; }
+    std::shared_ptr<continuous_buffer<uint8_t>> crypted_output() const { return this->crypted_output_; }
 
-    std::shared_ptr<continuous_stream<uint8_t>> decrypted_input() const { return this->decrypted_input_; }
-    std::shared_ptr<continuous_stream<uint8_t>> decrypted_output() const { return this->decrypted_output_; }
+    std::shared_ptr<continuous_buffer<uint8_t>> decrypted_input() const { return this->decrypted_input_; }
+    std::shared_ptr<continuous_buffer<uint8_t>> decrypted_output() const { return this->decrypted_output_; }
 
     void start(const service_provider & sp)
     {
@@ -73,11 +73,11 @@ namespace vds {
 
     std::mutex state_mutex_;
 
-    std::shared_ptr<continuous_stream<uint8_t>> crypted_input_;
-    std::shared_ptr<continuous_stream<uint8_t>> crypted_output_;
+    std::shared_ptr<continuous_buffer<uint8_t>> crypted_input_;
+    std::shared_ptr<continuous_buffer<uint8_t>> crypted_output_;
 
-    std::shared_ptr<continuous_stream<uint8_t>> decrypted_input_;
-    std::shared_ptr<continuous_stream<uint8_t>> decrypted_output_;
+    std::shared_ptr<continuous_buffer<uint8_t>> decrypted_input_;
+    std::shared_ptr<continuous_buffer<uint8_t>> decrypted_output_;
     
     bool failed_state_;
     std::function<void(const std::shared_ptr<std::exception> &)> error_handler_;
