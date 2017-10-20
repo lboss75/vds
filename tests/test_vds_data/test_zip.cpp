@@ -31,8 +31,8 @@ TEST(test_zip, inflate_tests) {
     random_stream<uint8_t> rs(dl);
     
     rs.write(buffer.data(), buffer.size());
-    rs.final();    
-      
+	rs.write(nullptr, 0);
+
     registrator.shutdown(sp);
   }
 }

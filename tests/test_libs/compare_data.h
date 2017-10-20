@@ -26,7 +26,11 @@ public:
     size_t len) override
     {
       if (0 == len) {
-        throw std::runtime_error("Unexpected end of stream while comparing data");
+		  if (0 != this->len_) {
+			  throw std::runtime_error("Unexpected end of stream while comparing data");
+		  }
+
+		  return;
       }
 
       if (this->len_ < len) {
@@ -41,13 +45,6 @@ public:
       this->len_ -= len;
     }
     
-    void final() override
-    {
-      if (0 != this->len_) {
-        throw std::runtime_error("Unexpected end of stream while comparing data");
-      }
-    }
-
   private:
     const item_type * data_;
     size_t len_;

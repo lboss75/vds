@@ -17,7 +17,7 @@ All rights reserved
 #include "state_machine.h"
 
 namespace vds {
-class http_parser : public stream<uint8_t>, public std::enable_shared_from_this<http_parser>
+class http_parser : public stream_asynñ<uint8_t>, public std::enable_shared_from_this<http_parser>
 {
 public:
     static std::shared_ptr<http_parser> create(

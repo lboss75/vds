@@ -7,7 +7,7 @@ All rights reserved
 #include "inflate.h"
 #include "private/inflate_p.h"
 
-vds::inflate::inflate(stream<uint8_t> & target)
+vds::inflate::inflate(stream_asynñ<uint8_t> & target)
 : impl_(new _inflate_handler(target))
 {
 }

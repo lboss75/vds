@@ -14,7 +14,7 @@ namespace vds {
   class _inflate_handler : public std::enable_shared_from_this<_inflate_handler>
   {
   public:
-    _inflate_handler(stream<uint8_t> & target)
+    _inflate_handler(stream_asynñ<uint8_t> & target)
     : target_(target)
     {
       memset(&this->strm_, 0, sizeof(z_stream));
@@ -39,7 +39,7 @@ namespace vds {
     }
 
   private:
-    stream<uint8_t> & target_;
+    stream_asynñ<uint8_t> & target_;
     z_stream strm_;
     uint8_t buffer_[1024];
     

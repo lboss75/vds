@@ -290,11 +290,6 @@ void vds::asymmetric_sign::write(
   this->impl_->write(data, len);
 }
 
-void vds::asymmetric_sign::final()
-{
-  this->impl_->final();
-}
-
 vds::const_data_buffer vds::asymmetric_sign::signature()
 {
   return this->impl_->signature();
@@ -320,7 +315,7 @@ vds::const_data_buffer vds::asymmetric_sign::signature(
 {
   _asymmetric_sign s(hash_info, key);
   s.write(data, data_size);
-  s.final();
+  s.write(nullptr, 0);
   return s.signature();
 }
 
@@ -361,42 +356,47 @@ vds::_asymmetric_sign::~_asymmetric_sign()
 
 void vds::_asymmetric_sign::write(const void * data, int len)
 {
-  if (1 != EVP_DigestSignUpdate(this->ctx_, data, len)) {
+	if (0 == len) {
+		size_t req = 0;
+		if (1 != EVP_DigestSignFinal(this->ctx_, NULL, &req) || req <= 0) {
+			auto error = ERR_get_error();
+			throw crypto_exception("EVP_DigestSignFinal", error);
+		}
+
+		auto sig = (unsigned char *)OPENSSL_malloc(req);
+		if (nullptr == sig) {
+			auto error = ERR_get_error();
+			throw crypto_exception("OPENSSL_malloc", error);
+		}
+
+		auto len = req;
+		if (1 != EVP_DigestSignFinal(this->ctx_, sig, &len)) {
+			auto error = ERR_get_error();
+			OPENSSL_free(sig);
+			throw crypto_exception("EVP_DigestSignFinal", error);
+		}
+
+		if (len != req) {
+			auto error = ERR_get_error();
+			OPENSSL_free(sig);
+			throw crypto_exception("EVP_DigestSignFinal", error);
+		}
+
+		this->sig_.reset(sig, len);
+		OPENSSL_free(sig);
+	}
+	else if (1 != EVP_DigestSignUpdate(this->ctx_, data, len)) {
     auto error = ERR_get_error();
     throw crypto_exception("EVP_DigestInit_ex", error);
   }
 }
 
-void vds::_asymmetric_sign::final()
+vds::async_task<> vds::_asymmetric_sign::write_async(const void * data, int len)
 {
-  size_t req = 0;
-  if(1 != EVP_DigestSignFinal(this->ctx_, NULL, &req) || req <= 0) {
-    auto error = ERR_get_error();
-    throw crypto_exception("EVP_DigestSignFinal", error);
-  }
-
-  auto sig = (unsigned char *)OPENSSL_malloc(req);
-  if (nullptr == sig) {
-    auto error = ERR_get_error();
-    throw crypto_exception("OPENSSL_malloc", error);
-  }
-
-  auto len = req;
-  if (1 != EVP_DigestSignFinal(this->ctx_, sig, &len)) {
-    auto error = ERR_get_error();
-    OPENSSL_free(sig);
-    throw crypto_exception("EVP_DigestSignFinal", error);
-  }
-
-  if (len != req) {
-    auto error = ERR_get_error();
-    OPENSSL_free(sig);
-    throw crypto_exception("EVP_DigestSignFinal", error);
-  }
-  
-  this->sig_.reset(sig, len);
-  OPENSSL_free(sig);
+	this->write(data, len);
+	return []() {};
 }
+
 ///////////////////////////////////////////////////////////////
 vds::asymmetric_sign_verify::asymmetric_sign_verify(
   const hash_info & hash_info,
@@ -418,11 +418,6 @@ void vds::asymmetric_sign_verify::write(
   this->impl_->write(data, len);
 }
 
-void vds::asymmetric_sign_verify::final()
-{
-  this->impl_->final();
-}
-
 bool vds::asymmetric_sign_verify::result() const
 {
   return this->impl_->result();
@@ -437,7 +432,7 @@ bool vds::asymmetric_sign_verify::verify(
 {
   _asymmetric_sign_verify s(hash_info, key, signature);
   s.write(data, data_size);
-  s.final();
+  s.write(nullptr, 0);
   return s.result();
 }
 
@@ -489,15 +484,13 @@ vds::_asymmetric_sign_verify::~_asymmetric_sign_verify()
 
 void vds::_asymmetric_sign_verify::write(const void * data, int len)
 {
-  if (1 != EVP_DigestVerifyUpdate(this->ctx_, data, len)) {
+	if (0 == len) {
+		this->result_ = (1 == EVP_DigestVerifyFinal(this->ctx_, const_cast<unsigned char *>(this->sig_.data()), this->sig_.size()));
+	}
+	else if (1 != EVP_DigestVerifyUpdate(this->ctx_, data, len)) {
     auto error = ERR_get_error();
     throw crypto_exception("EVP_DigestInit_ex", error);
   }
-}
-
-void vds::_asymmetric_sign_verify::final()
-{
-  this->result_ = (1 == EVP_DigestVerifyFinal(this->ctx_, const_cast<unsigned char *>(this->sig_.data()), this->sig_.size()));
 }
 //////////////////////////////////////////////////////////////////////
 vds::asymmetric_public_key::asymmetric_public_key(_asymmetric_public_key * impl)

@@ -153,7 +153,9 @@ namespace vds {
       const void * data,
       int len);
 
-    void final();
+	async_task<> write_async(
+		const void * data,
+		int len);
 
     const const_data_buffer & signature() const {
       return this->sig_;
@@ -178,8 +180,6 @@ namespace vds {
     void write(
       const void * data,
       int len);
-    
-    void final();
 
     bool result() const { return this->result_; }
 

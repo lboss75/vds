@@ -20,27 +20,27 @@ public:
   
     void write(const item_type * data, size_t len)
     {
-      while (0 < len) {
-        size_t n = (size_t)std::rand() % len;
-        if (n < 1) {
-          n = 1;
-        }
-        if(len < n) {
-          n = len;
-        }
-        
-        this->target_.write(data, len);
+		if (0 == len) {
+			this->target_.write(data, len);
+		}
+		else {
+			while (0 < len) {
+				size_t n = (size_t)std::rand() % len;
+				if (n < 1) {
+					n = 1;
+				}
+				if (len < n) {
+					n = len;
+				}
 
-        data += n;
-        len -= n;
-      }
+				this->target_.write(data, len);
+
+				data += n;
+				len -= n;
+			}
+		}
     }
     
-    void final()
-    {
-      this->target_.final();
-    }
-
   private:
     vds::stream<item_type> & target_;
   };

@@ -83,21 +83,21 @@ TEST(test_vds_crypto, test_sign)
 
     vds::asymmetric_sign s(vds::hash::sha256(), key);
     s.write(buffer.get(), len);
-    s.final();
+	s.write(nullptr, 0);
     
     auto sign = s.signature();
     vds::asymmetric_public_key pkey(key);
 
     
     vds::asymmetric_sign_verify v(vds::hash::sha256(), pkey, sign);
-    v.write(buffer.get(), (int)len);
-    v.final();
-    GTEST_ASSERT_EQ(v.result(), true);
+    v.write(buffer.get(), len);
+	v.write(nullptr, 0);
+	GTEST_ASSERT_EQ(v.result(), true);
     
     vds::asymmetric_sign_verify sv(vds::hash::sha256(), pkey, sign);
     random_stream<uint8_t> rs(sv);
     rs.write(buffer.get(), len);
-    rs.final();
+    rs.write(nullptr, 0);
     GTEST_ASSERT_EQ(sv.result(), true);
 
     size_t index;
@@ -112,7 +112,7 @@ TEST(test_vds_crypto, test_sign)
     vds::asymmetric_sign_verify sv1(vds::hash::sha256(), pkey, sign);
     random_stream<uint8_t> rs1(sv1);
     rs1.write(buffer.get(), len);
-    rs1.final();
+    rs1.write(nullptr, 0);
     GTEST_ASSERT_EQ(sv1.result(), false);
 
     registrator.shutdown(sp);
