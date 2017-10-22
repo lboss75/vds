@@ -639,7 +639,7 @@ namespace vds {
   template <typename... task_types>
   inline async_task<> async_series(task_types &&... args)
   {
-    auto steps = new std::list<async_task<>>({ std::move<task_types>(args)... });
+    auto steps = new std::list<async_task<>>({ std::forward<task_types>(args)... });
     return [steps](const async_result<> & result){
         auto runner = new _async_series(result, steps->size());
         runner->run(*steps);
