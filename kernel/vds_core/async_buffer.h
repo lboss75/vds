@@ -297,16 +297,15 @@ namespace vds {
       this->ready_to_data_ = false;
 
       return this->data_.write_async(sp, data, data_size).then(
-        [this](const std::function<void(const service_provider & sp, size_t)> & done,
-          const vds::error_handler & on_error,
-          const vds::service_provider & sp,
+        [this](
+          const async_result<size_t> & result,
           size_t readed) {
           this->data_mutex_.lock();
           this->ready_to_data_ = true;
           this->data_barier_.notify_one();
           this->data_mutex_.unlock();
           
-          done(sp, readed);
+          result(readed);
         });
     }
     
