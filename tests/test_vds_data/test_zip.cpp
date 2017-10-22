@@ -30,8 +30,8 @@ TEST(test_zip, inflate_tests) {
     vds::deflate dl(il);
     random_stream<uint8_t> rs(dl);
     
-    rs.write(buffer.data(), buffer.size());
-	rs.write(nullptr, 0);
+    rs.write(sp, buffer.data(), buffer.size());
+    rs.write(sp, nullptr, 0);
 
     registrator.shutdown(sp);
   }

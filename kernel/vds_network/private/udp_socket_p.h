@@ -87,8 +87,8 @@ namespace vds {
   public:
     _udp_socket(SOCKET_HANDLE s = INVALID_SOCKET)
       : s_(s),
-      incoming_(new continuous_stream<udp_datagram>()),
-      outgoing_(new async_stream<udp_datagram>())
+      incoming_(new continuous_buffer<udp_datagram>()),
+      outgoing_(new async_buffer<udp_datagram>())
     {
     }
 
@@ -102,12 +102,12 @@ namespace vds {
       return this->s_;
     }
 
-    std::shared_ptr<continuous_stream<udp_datagram>> incoming()
+    std::shared_ptr<continuous_buffer<udp_datagram>> incoming()
     {
       return this->incoming_;
     }
 
-    std::shared_ptr<async_stream<udp_datagram>> outgoing()
+    std::shared_ptr<async_buffer<udp_datagram>> outgoing()
     {
       return this->outgoing_;
     }
@@ -142,8 +142,8 @@ namespace vds {
 
   private:
     SOCKET_HANDLE s_;
-    std::shared_ptr<continuous_stream<udp_datagram>> incoming_;
-    std::shared_ptr<async_stream<udp_datagram>> outgoing_;
+    std::shared_ptr<continuous_buffer<udp_datagram>> incoming_;
+    std::shared_ptr<async_buffer<udp_datagram>> outgoing_;
     
     void close()
     {
@@ -432,7 +432,7 @@ namespace vds {
 
           this->sp_.get<logger>()->trace("UDP", this->sp_, "read timeout");
           this->closed_ = true;
-          this->owner_->incoming_->write_all_async(this->sp_, nullptr, 0)
+          this->owner_->incoming_->write_async(this->sp_, nullptr, 0)
           .wait(
             [sp = this->sp_]() {
               sp.get<logger>()->trace("UDP", sp, "input closed");
@@ -450,7 +450,7 @@ namespace vds {
 
           this->sp_.get<logger>()->trace("UDP", this->sp_, "read timeout");
           this->closed_ = true;
-          this->owner_->incoming_->write_all_async(this->sp_, nullptr, 0)
+          this->owner_->incoming_->write_async(this->sp_, nullptr, 0)
           .wait(
             [sp = this->sp_]() {
               sp.get<logger>()->trace("UDP", sp, "input closed");

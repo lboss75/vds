@@ -205,7 +205,7 @@ namespace vds {
                 auto tmp = this->decrypted_output_;
                 this->decrypted_output_.reset();
 
-                tmp->write_all_async(sp, nullptr, 0)
+                tmp->write_async(sp, nullptr, 0)
                   .wait(
                     [this, sp]() {
                       sp.get<logger>()->trace("SSL", sp, "SSL Decrypted output closed");
@@ -231,7 +231,7 @@ namespace vds {
           else {
             this->decrypted_output_data_size_ = bytes;
 
-            this->decrypted_output_->write_all_async(sp, this->decrypted_output_data_, (size_t)bytes)
+            this->decrypted_output_->write_async(sp, this->decrypted_output_data_, (size_t)bytes)
               .wait([this, sp]() {
                   this->state_mutex_.lock();
                   this->decrypted_output_data_size_ = 0;
@@ -273,7 +273,7 @@ namespace vds {
           else {
             this->crypted_output_data_size_ = (size_t)bytes;
 
-            this->crypted_output_->write_all_async(sp, this->crypted_output_data_, (size_t)bytes)
+            this->crypted_output_->write_async(sp, this->crypted_output_data_, (size_t)bytes)
               .wait([this, sp]() {
               this->state_mutex_.lock();
               this->crypted_output_data_size_ = 0;
@@ -304,7 +304,7 @@ namespace vds {
             auto tmp = this->crypted_output_;
             this->crypted_output_.reset();
 
-            tmp->write_all_async(sp, nullptr, 0)
+            tmp->write_async(sp, nullptr, 0)
               .wait([this, sp]() {
                   sp.get<logger>()->trace("SSL", sp, "SSL Crypted output closed");
                 },

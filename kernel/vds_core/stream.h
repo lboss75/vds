@@ -10,12 +10,15 @@ All rights reserved
 
 namespace vds {
   template <typename item_type>
-  class stream_asynñ
+  class stream_async
   {
   public:
-    virtual ~stream_asynñ() {}
+    virtual ~stream_async() {}
     
-    virtual async_task<> write_async(const item_type * data, size_t len) = 0;
+    virtual async_task<> write_async(
+      const service_provider & sp,
+      const item_type * data,
+      size_t len) = 0;
   };
 
   template <typename item_type>
@@ -24,7 +27,10 @@ namespace vds {
   public:
 	  virtual ~stream() {}
 
-	  virtual void write(const item_type * data, size_t len) = 0;
+	  virtual void write(
+      const service_provider & sp,
+      const item_type * data,
+      size_t len) = 0;
   };
 }
 

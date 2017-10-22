@@ -22,6 +22,7 @@ public:
   }
 
   void write(
+    const vds::service_provider & sp,
     const item_type * data,
     size_t len) override
     {

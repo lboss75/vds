@@ -12,197 +12,83 @@ All rights reserved
 #include "json_object.h"
 
 namespace vds {
-  class http_serializer
+  class http_serializer : public std::enable_shared_from_this<http_serializer>
   {
   public:
-    using incoming_item_type = std::shared_ptr<http_message>;
-    using outgoing_item_type = uint8_t;
-    static constexpr size_t BUFFER_SIZE = 1024;
-    static constexpr size_t MIN_BUFFER_SIZE = 1;
-
-    template<typename context_type>
-    class handler : public async_dataflow_filter<context_type, handler<context_type>>
-    {
-      using base_class = async_dataflow_filter<context_type, handler<context_type>>;
-    public:
-      handler(
-        const context_type & context,
-        const http_serializer & args)
-        : base_class(context), state_(StateEnum::STATE_BOF)
+      http_serializer(
+        stream_async<uint8_t> & target)
+        : target_(target)
       {
       }
       
-      ~handler()
+      ~http_serializer()
       {
-        if(StateEnum::STATE_EOF != this->state_){
-          throw std::runtime_error("http_serializer state error");
-        }
       }
 
-      void async_process_data(const service_provider & sp)
+      async_task<> write(
+        const service_provider & sp,
+        const std::shared_ptr<http_message> & message)
       {
-        if (0 == this->input_buffer_size()) {
-          this->state_ = StateEnum::STATE_EOF;
-          this->processed(sp, 0, 0);
-          return;
+        this->buffer_ = std::make_shared<continuous_buffer<uint8_t>>();
+
+        std::stringstream stream;
+        for (auto & header : message->headers()) {
+          stream << header << "\n";
         }
+        sp.get<logger>()->trace("HTTP", sp, "HTTP Send [%s]", logger::escape_string(stream.str()).c_str());
+        stream << "\n";
+
+        auto data = std::make_shared<std::string>(stream.str());
         
-        if(StateEnum::STATE_BOF == this->state_){
-          this->state_ = StateEnum::STATE_BODY;
-          this->buffer_ = std::make_shared<continuous_buffer<uint8_t>>();
-
-          auto message = this->input_buffer(0);
-          mt_service::async(sp, [this, sp, message]() {
-
-            std::stringstream stream;
-            for (auto & header : message->headers()) {
-              stream << header << "\n";
-            }
-            sp.get<logger>()->trace("HTTP", sp, "HTTP Send [%s]", logger::escape_string(stream.str()).c_str());
-            stream << "\n";
-
-            auto data = std::make_shared<std::string>(stream.str());
-            this->buffer_->write_all_async(sp, (const uint8_t *)data->c_str(), data->length()).wait(
-              [this, data, message](const service_provider & sp) {
+        return async_series(
+          this->buffer_->write_async(sp, (const uint8_t *)data->c_str(), data->length())
+            .then([pthis = this->shared_from_this(), sp, data, message]() {
               auto buffer = std::make_shared<std::vector<uint8_t>>(1024);
-              this->write_body(sp, message, buffer);
-            },
-              [this, data, message](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-              this->error(sp, ex);
-            },
-              sp);
-          });
-        }
-        
-        this->continue_process(sp);
+              pthis->write_body(sp, message, buffer);
+            }),
+          this->continue_process(sp));
       }
 
     private:
-      enum class StateEnum
-      {
-        STATE_BOF,
-        STATE_BODY,
-        STATE_EOF
-      };
-      StateEnum state_;
+      stream_async<uint8_t> & target_;
       std::shared_ptr<continuous_buffer<uint8_t>> buffer_;
+      uint8_t output_buffer_[1024];
 
-      void write_body(
+      async_task<> write_body(
         const service_provider & sp,
         const std::shared_ptr<http_message> & message,
         const std::shared_ptr<std::vector<uint8_t>> & buffer)
       {
-        message->body()->read_async(sp, buffer->data(), buffer->size())
-          .wait(
-            [this, message, buffer](const service_provider & sp, size_t readed) {
+        return message->body()->read_async(sp, buffer->data(), buffer->size())
+          .then([pthis = this->shared_from_this(), sp, message, buffer](size_t readed) {
           if (0 < readed) {
             sp.get<logger>()->trace("HTTP", sp, "HTTP Send [%s]", std::string((const char *)buffer->data(), readed).c_str());
 
-            //std::cout << this << "->http_serializer::write_body " << syscall(SYS_gettid) << "." << readed << ": lock\n";
-            this->buffer_->write_all_async(sp, buffer->data(), readed).wait(
-              [this, message, buffer](const service_provider & sp) {
-              this->write_body(sp, message, buffer);
-            },
-              [this](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-              this->error(sp, ex);
-            },
-              sp);
+            return pthis->buffer_->write_async(sp, buffer->data(), readed)
+            .then(
+              [pthis, sp, message, buffer]() {
+                pthis->write_body(sp, message, buffer);
+            });
           }
           else {
-            auto buffer = this->buffer_;
-            buffer->write_all_async(sp, nullptr, 0).wait(
-              [this](const service_provider & sp) { },
-              [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {},
-              sp);
+            auto buffer = pthis->buffer_;
+            return buffer->write_async(sp, nullptr, 0);
           }
-        }, [this](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-              this->error(sp, ex);
-            },
-            sp
-          );
+        });
       }
 
-      void continue_process(const service_provider & sp)
+      async_task<> continue_process(const service_provider & sp)
       {
-        this->buffer_->read_async(sp, this->output_buffer(), this->output_buffer_size()).wait(
-          [this](const service_provider & sp, size_t readed) {
-
-          if (0 < readed) {
-            if (this->processed(sp, 0, readed)) {
-              this->continue_process(sp);
+        return this->buffer_->read_async(sp, this->output_buffer_, sizeof(this->output_buffer_))
+          .then([pthis = this->shared_from_this(), sp](size_t readed) {
+            if (0 < readed) {
+              return pthis->continue_process(sp);
             }
-          }
-          else {
-            this->state_ = StateEnum::STATE_BOF;
-            if (this->processed(sp, 1, 0)) {
-              this->async_process_data(sp);
+            else {
+              return async_task<>::empty();
             }
-          }
-        },
-          [this](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-          this->error(sp, ex);
-        },
-          sp);
+          });
       }
-    };
-  };
-
-  class json_to_http_channel
-  {
-  public:
-    json_to_http_channel(
-      const std::string & method,
-      const std::string & url)
-    : method_(method), url_(url)
-    {
-    }
-
-    using incoming_item_type = std::shared_ptr<json_value>;
-    using outgoing_item_type = std::shared_ptr<http_message>;
-    static constexpr size_t BUFFER_SIZE = 1024;
-    static constexpr size_t MIN_BUFFER_SIZE = 1;
-
-    template<typename context_type>
-    class handler : public sync_dataflow_filter<context_type, handler<context_type>>
-    {
-      using base_class = sync_dataflow_filter<context_type, handler<context_type>>;
-    public:
-      handler(
-        const context_type & context,
-        const json_to_http_channel & args)
-        : base_class(context), 
-          method_(args.method_),
-          url_(args.url_)
-      {
-      }
-
-      void sync_process_data(const vds::service_provider & sp, size_t & input_readed, size_t & output_written)
-      {
-        if (0 < this->input_buffer_size()) {
-          if (0 == this->output_buffer_size()) {
-            throw std::runtime_error("Logic error 27");
-          }
-
-          auto message = std::make_unique<json_array>();
-          for (size_t i = 0; i < this->input_buffer_size(); ++i) {
-            message->add(this->input_buffer(i));
-          }
-
-          this->output_buffer(0) = http_request::simple_request(sp, this->method_, this->url_, message->json_value::str());
-          output_written = 1;
-        }
-        else {
-          output_written = 0;
-        }
-        input_readed = this->input_buffer_size();        
-      }
-    private:
-      std::string method_;
-      std::string url_;
-    };
-  private:
-    std::string method_;
-    std::string url_;
   };
 }
 

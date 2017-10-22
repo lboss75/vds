@@ -11,11 +11,12 @@ All rights reserved
 #include "async_task.h"
 #include "mt_service.h"
 #include "not_mutex.h"
+#include "stream.h"
 
 namespace vds {
 
   template <typename item_t>
-  class continuous_buffer
+  class continuous_buffer : public stream_async<item_t>
   {
   public:
     using item_type = item_t;
@@ -34,7 +35,10 @@ namespace vds {
       }
     }
 
-    async_task<> write_all_async(const service_provider & sp, const item_type * data, size_t data_size)
+    async_task<> write_async(
+      const service_provider & sp,
+      const item_type * data,
+      size_t data_size) override      
     {
       imt_service::async_enabled_check(sp);
 
@@ -89,48 +93,7 @@ namespace vds {
       
       auto p = std::make_shared<item_type>(data);
 
-      return this->write_all_async(sp, p.get(), 1).then([p]() {});
-    }
-    
-    async_task<size_t> write_async(const service_provider & sp, const item_type * data, size_t data_size)
-    {
-      imt_service::async_enabled_check(sp);
-
-      if (this->continue_write_) {
-        throw std::runtime_error("Login error");
-      }
-      
-      this->in_mutex_.lock();
-      this->in_mutex_stack_ = sp.full_name();
-
-      return [this, data, data_size](
-          const async_result<size_t /*written*/> & done,
-          const service_provider & sp) {
-
-          if(0 == data_size) {
-            if (this->eof_) {
-              throw std::runtime_error("Login error");
-            }
-            this->eof_ = true;
-            this->eof_stack_ = sp.full_name();
-
-            if(this->continue_read_){
-              std::function<void(void)> f;
-              this->continue_read_.swap(f);
-              mt_service::async(sp, f);
-            }
-            
-            this->in_mutex_.unlock();
-            mt_service::async(sp, [done]() {
-              done(0);
-            });
-          } else {
-            this->continue_write(sp, [this, done](size_t written){
-              this->in_mutex_.unlock();
-              done(written);
-            }, data, data_size);
-          }
-      };
+      return this->write_async(sp, p.get(), 1).then([p]() {});
     }
 
     async_task<size_t /*readed*/> read_async(const service_provider & sp, item_type * buffer, size_t buffer_size)

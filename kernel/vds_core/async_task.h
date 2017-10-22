@@ -206,6 +206,8 @@ namespace vds {
 		  !_async_task_functor_helper<decltype(&functor_type::operator())>::is_async_callback
 		  && !_async_task_functor_helper<decltype(&functor_type::operator())>::task_as_result
 		  && !_async_task_functor_helper<decltype(&functor_type::operator())>::is_void_result>::type * = nullptr);
+    
+    static async_task<result_types...> empty();
   private:
 	  _async_task_base<result_types...> * impl_;
 
@@ -213,6 +215,8 @@ namespace vds {
 	  async_task(
 		  parent_task_type && parent,
 		  functor_type && f);
+    
+	  async_task(_async_task_base<result_types...> * impl);
   };
   /////////////////////////////////////////////////////////////////////////////////
   template <typename... result_types>
@@ -329,6 +333,20 @@ namespace vds {
   private:
 	  std::shared_ptr<std::exception> error_;
   };
+  /////////////////////////////////////////////////////////////////////////////////
+  template <typename... result_types>
+  class _async_task_empty : public _async_task_base<result_types...>
+  {
+  public:
+	  _async_task_empty()
+	  {
+	  }
+
+	  void execute(const async_result<result_types...> & done) override
+	  {
+      done(result_types()...);
+	  }
+  };
 
   /////////////////////////////////////////////////////////////////////////////////
   template <typename parent_task_type, typename functor_type, typename... result_types>
@@ -386,8 +404,6 @@ namespace vds {
   : impl_(new _async_task_error<result_types...>(error))
   {
   }
-	  
-
 
   template<typename ...result_types>
   template<typename parent_task_type, typename functor_type>
@@ -395,6 +411,12 @@ namespace vds {
 	  parent_task_type && parent,
 	  functor_type && f)
   : impl_(new _async_task_joined_callback<parent_task_type, functor_type, result_types...>(std::move(parent), std::move(f)))
+  {
+  }
+
+  template<typename ...result_types>
+  inline async_task<result_types...>::async_task(_async_task_base<result_types...> * impl)
+  : impl_(impl)
   {
   }
 
@@ -518,6 +540,12 @@ namespace vds {
 			  std::function<void(const std::shared_ptr<std::exception> &)>([done](const std::shared_ptr<std::exception> & ex) {
 		  done.error(ex);
 	  })));
+  }
+  
+  template<typename ...result_types>
+  inline async_task<result_types...> async_task<result_types...>::empty()
+  {
+    return async_task<result_types...>(new _async_task_empty<result_types...>());
   }
   /////////////////////////////////////////////////////////////////////////////////
   template<typename ...result_types>

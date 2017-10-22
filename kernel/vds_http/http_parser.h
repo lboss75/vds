@@ -17,57 +17,65 @@ All rights reserved
 #include "state_machine.h"
 
 namespace vds {
-class http_parser : public stream_asynñ<uint8_t>, public std::enable_shared_from_this<http_parser>
+class http_parser : public stream<uint8_t>, public std::enable_shared_from_this<http_parser>
 {
 public:
     static std::shared_ptr<http_parser> create(
-        const service_provider & sp,
-        const std::function<async_task<>(const std::shared_ptr<http_message> & message)> & message_callback,
-        const std::function<void(const std::shared_ptr<std::exception> &)> & error_handler)
+        const std::function<async_task<>(const std::shared_ptr<http_message> & message)> & message_callback)
     {
-        return std::make_shared<http_parser>(sp, message_callback, error_handler);
+        return std::make_shared<http_parser>(message_callback);
     }
 
-    void write(const uint8_t * data, size_t len) override
+    void write(
+      const service_provider & sp,
+      const uint8_t * data,
+      size_t len) override
     {
-        this->sp_.get<logger>()->debug("HTTP", this->sp_, "HTTP [%s]", logger::escape_string(std::string((const char *)data, len)).c_str());
-        this->continue_push_data(data, len);
-    }
+      if(0 == len){
+         auto pthis = this->shared_from_this();
+        sp.get<logger>()->debug("HTTP", sp, "HTTP end");
 
-    void final() override
-    {
-        this->sp_.get<logger>()->debug("HTTP", this->sp_, "HTTP end");
-
+        this->message_state_.change_state(
+          MessageStateEnum::MESSAGE_STATE_NONE,
+          MessageStateEnum::MESSAGE_STATE_MESSAGE_STARTED,
+          error_logic::throw_exception);
         this->message_callback_(std::shared_ptr<http_message>())
         .wait(
-        []() { },
-        [pthis = this->shared_from_this()](const std::shared_ptr<std::exception> & ex) {
-            pthis->error_handler_(ex);
-        });
+          [pthis]() {
+              pthis->message_state_.change_state(
+                  MessageStateEnum::MESSAGE_STATE_MESSAGE_STARTED,
+                  MessageStateEnum::MESSAGE_STATE_NONE,
+                  error_logic::return_false);
+          },
+          [pthis](const std::shared_ptr<std::exception> & ex) {
+              pthis->message_state_.fail(ex);
+          });
+        this->message_state_.wait(MessageStateEnum::MESSAGE_STATE_NONE, error_logic::throw_exception);
+      }
+      else {
+        sp.get<logger>()->debug("HTTP", sp, "HTTP [%s]", logger::escape_string(std::string((const char *)data, len)).c_str());
+        this->continue_push_data(sp, data, len);
+      }
     }
 
 private:
     http_parser(
-        const service_provider & sp,
-        const std::function<async_task<>(const std::shared_ptr<http_message> & message)> & message_callback,
-        const std::function<void(const std::shared_ptr<std::exception> &)> & error_handler
-    ) : sp_(sp),
-        message_callback_(message_callback),
-        error_handler_(error_handler),
-        message_state_(MessageStateEnum::MESSAGE_STATE_NONE, MessageStateEnum::MESSAGE_STATE_FAILED),
-        state_(StateEnum::STATE_PARSE_HEADER)
+        const std::function<async_task<>(const std::shared_ptr<http_message> & message)> & message_callback)
+    : message_callback_(message_callback),
+      message_state_(MessageStateEnum::MESSAGE_STATE_NONE, MessageStateEnum::MESSAGE_STATE_FAILED),
+      state_(StateEnum::STATE_PARSE_HEADER)
     {
     }
 
-    service_provider sp_;
     std::function<async_task<>(const std::shared_ptr<http_message> & message)> message_callback_;
-    std::function<void(const std::shared_ptr<std::exception> &)> error_handler_;
 
     enum class MessageStateEnum
     {
         MESSAGE_STATE_NONE,
         MESSAGE_STATE_FAILED,
-        MESSAGE_STATE_MESSAGE
+        MESSAGE_STATE_MESSAGE_STARTED,
+        MESSAGE_STATE_MESSAGE_BODY_STARTED,
+        MESSAGE_STATE_MESSAGE_BODY_FINISH
     };
     state_machine<MessageStateEnum> message_state_;
 
@@ -84,8 +92,9 @@ private:
 
     size_t content_length_;
 
-    void continue_push_data(const uint8_t * data, size_t len)
+    void continue_push_data(const service_provider & sp, const uint8_t * data, size_t len)
     {
+      auto pthis = this->shared_from_this();
         while (0 < len) {
             if (StateEnum::STATE_PARSE_HEADER == this->state_) {
                 char * p = (char *)memchr((const char *)data, '\n', len);
@@ -114,22 +123,23 @@ private:
                     }
 
                     auto current_message = std::make_shared<http_message>(this->headers_);
-                    mt_service::async(this->sp_, [pthis = this->shared_from_this(), current_message]() {
-                        if(pthis->message_state_.change_state(
-                                    MessageStateEnum::MESSAGE_STATE_NONE,
-                                    MessageStateEnum::MESSAGE_STATE_MESSAGE)) {
-                            pthis->message_callback_(current_message).wait(
-                            [pthis]() {
-                                pthis->message_state_.change_state(
-                                    MessageStateEnum::MESSAGE_STATE_MESSAGE,
-                                    MessageStateEnum::MESSAGE_STATE_NONE);
-                            },
-                            [pthis](const std::shared_ptr<std::exception> & ex) {
-                                if(pthis->message_state_.fail()) {
-                                    pthis->error_handler_(ex);
-                                }
-                            });
-                        }
+                    
+                    this->message_state_.change_state(
+                      MessageStateEnum::MESSAGE_STATE_NONE,
+                      MessageStateEnum::MESSAGE_STATE_MESSAGE_STARTED,
+                      error_logic::throw_exception);
+
+                    mt_service::async(sp, [pthis, current_message]() {
+                        pthis->message_callback_(current_message).wait(
+                        [pthis]() {
+                            pthis->message_state_.change_state(
+                                MessageStateEnum::MESSAGE_STATE_MESSAGE_BODY_FINISH,
+                                MessageStateEnum::MESSAGE_STATE_NONE,
+                                error_logic::return_false);
+                        },
+                        [pthis](const std::shared_ptr<std::exception> & ex) {
+                            pthis->message_state_.fail(ex);
+                        });
                     });
                     this->current_message_ = current_message;
                     this->headers_.clear();
@@ -140,6 +150,10 @@ private:
                     }
                     else {
                         this->content_length_ = 0;
+                        this->message_state_.change_state(
+                                MessageStateEnum::MESSAGE_STATE_MESSAGE_STARTED,
+                                MessageStateEnum::MESSAGE_STATE_MESSAGE_BODY_FINISH,
+                                error_logic::throw_exception);
                     }
 
                     if (0 < this->content_length_) {
@@ -159,51 +173,45 @@ private:
 
                 if (0 < size) {
                     this->content_length_ -= size;
-                    barrier b;
-                    bool is_fail;
-                    this->current_message_->body()->write_all_async(
-                        this->sp_,
+                    this->message_state_.change_state(
+                            MessageStateEnum::MESSAGE_STATE_MESSAGE_STARTED,
+                            MessageStateEnum::MESSAGE_STATE_MESSAGE_BODY_STARTED,
+                            error_logic::throw_exception);
+                    
+                    this->current_message_->body()->write_async(
+                        sp,
                         data,
                         size)
                     .wait(
-                    [&b, &is_fail]() {
-                        is_fail = false;
-                        b.set();
+                    [pthis]() {
+                      pthis->message_state_.change_state(
+                            MessageStateEnum::MESSAGE_STATE_MESSAGE_BODY_STARTED,
+                            MessageStateEnum::MESSAGE_STATE_MESSAGE_BODY_FINISH,
+                            error_logic::return_false);
                     },
-                    [&b, &is_fail, this](const std::shared_ptr<std::exception> & ex) {
-                        is_fail = true;
-                        if(this->message_state_.fail()) {
-                            this->error_handler_(ex);
-                        }
-                        b.set();
+                    [pthis](const std::shared_ptr<std::exception> & ex) {
+                      pthis->message_state_.fail(ex);
                     });
-                    b.wait();
-                    if(is_fail) {
-                        return;
-                    }
 
                     data += size;
                     len -= size;
 
                     if (0 == this->content_length_) {
                         this->state_ = StateEnum::STATE_PARSE_HEADER;
-                        barrier b;
-                        bool is_fail;
-                        this->current_message_->body()->write_all_async(
-                            this->sp_,
-                            nullptr,
-                            0)
+                          this->message_state_.change_state(
+                                MessageStateEnum::MESSAGE_STATE_MESSAGE_BODY_STARTED,
+                                MessageStateEnum::MESSAGE_STATE_MESSAGE_BODY_FINISH,
+                                error_logic::throw_exception);
+                        this->current_message_->body()->write_async(sp, nullptr, 0)
                         .wait(
-                        [&b, &is_fail]() {
-                            is_fail = false;
-                            b.set();
+                        [pthis]() {
+                          pthis->message_state_.change_state(
+                                MessageStateEnum::MESSAGE_STATE_MESSAGE_BODY_STARTED,
+                                MessageStateEnum::MESSAGE_STATE_MESSAGE_BODY_FINISH,
+                                error_logic::return_false);
                         },
-                        [&b, &is_fail, this](const std::shared_ptr<std::exception> & ex) {
-                            is_fail = true;
-                            if(this->message_state_.fail()) {
-                                this->error_handler_(ex);
-                            }
-                            b.set();
+                        [pthis](const std::shared_ptr<std::exception> & ex) {
+                          pthis->message_state_.fail(ex);
                         });
                     }
                 }
@@ -213,4 +221,5 @@ private:
 };
 }
 
-#endif // HTTP_PARSER_H
+#endif // __VDS_HTTP_HTTP_PARSER_H
+

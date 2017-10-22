@@ -20,20 +20,23 @@ namespace vds {
     deflate(stream<uint8_t> & target, int compression_level);
     ~deflate();
 
-    void write(const uint8_t * data, size_t len) override;
+    void write(
+      const service_provider & sp,
+      const uint8_t * data,
+      size_t len) override;
 
   private:
       _deflate_handler * const impl_;
   };
 
-  class deflate_async : public stream_asynñ<uint8_t>
+  class deflate_async : public stream_async<uint8_t>
   {
   public:
-	  deflate_async(stream_asynñ<uint8_t> & target);
-	  deflate_async(stream_asynñ<uint8_t> & target, int compression_level);
+	  deflate_async(stream_async<uint8_t> & target);
+	  deflate_async(stream_async<uint8_t> & target, int compression_level);
 	  ~deflate_async();
 
-	  async_task<> write_async(const uint8_t * data, size_t len) override;
+	  async_task<> write_async(const service_provider & sp, const uint8_t * data, size_t len) override;
 
   private:
 	  _deflate_async_handler * const impl_;

@@ -19,15 +19,15 @@ namespace vds {
   public:
     _tcp_network_socket()
     : s_(INVALID_SOCKET),
-      incoming_(new continuous_stream<uint8_t>()),
-      outgoing_(new continuous_stream<uint8_t>())
+      incoming_(new continuous_buffer<uint8_t>()),
+      outgoing_(new continuous_buffer<uint8_t>())
     {
     }
 
     _tcp_network_socket(SOCKET_HANDLE s)
       : s_(s),
-      incoming_(new continuous_stream<uint8_t>()),
-      outgoing_(new continuous_stream<uint8_t>())
+      incoming_(new continuous_buffer<uint8_t>()),
+      outgoing_(new continuous_buffer<uint8_t>())
     {
 #ifdef _WIN32
       if (INVALID_SOCKET == s) {
@@ -77,8 +77,8 @@ namespace vds {
       return tcp_network_socket(std::make_shared<_tcp_network_socket>(handle));
     }
 
-    std::shared_ptr<continuous_stream<uint8_t>> incoming() const { return this->incoming_; }
-    std::shared_ptr<continuous_stream<uint8_t>> outgoing() const { return this->outgoing_; }
+    std::shared_ptr<continuous_buffer<uint8_t>> incoming() const { return this->incoming_; }
+    std::shared_ptr<continuous_buffer<uint8_t>> outgoing() const { return this->outgoing_; }
 
     void start(const service_provider & sp)
     {
@@ -117,8 +117,8 @@ namespace vds {
 
   private:
     SOCKET_HANDLE s_;
-    std::shared_ptr<continuous_stream<uint8_t>> incoming_;
-    std::shared_ptr<continuous_stream<uint8_t>> outgoing_;
+    std::shared_ptr<continuous_buffer<uint8_t>> incoming_;
+    std::shared_ptr<continuous_buffer<uint8_t>> outgoing_;
 
 #ifdef _WIN32
     class _read_socket_task : public _socket_task
@@ -359,7 +359,7 @@ namespace vds {
 
           this->sp_.get<logger>()->trace("TCP", this->sp_, "read timeout");
           this->closed_ = true;
-          this->owner_->incoming_->write_all_async(this->sp_, nullptr, 0)
+          this->owner_->incoming_->write_async(this->sp_, nullptr, 0)
           .wait(
             [sp = this->sp_]() {
               sp.get<logger>()->trace("TCP", sp, "input closed");
@@ -413,7 +413,7 @@ namespace vds {
 
           this->sp_.get<logger>()->trace("TCP", this->sp_, "read timeout");
           this->closed_ = true;
-          this->owner_->incoming_->write_all_async(this->sp_, nullptr, 0)
+          this->owner_->incoming_->write_async(this->sp_, nullptr, 0)
           .wait(
             [sp = this->sp_]() {
               sp.get<logger>()->trace("TCP", sp, "input closed");
@@ -500,7 +500,7 @@ namespace vds {
         
         this->read_timeout_ticks_ = 0;
         this->sp_.get<logger>()->trace("TCP", this->sp_, "got %d bytes", len);
-        this->owner_->incoming_->write_all_async(this->sp_, this->read_buffer_, len)
+        this->owner_->incoming_->write_async(this->sp_, this->read_buffer_, len)
           .wait(
             [pthis = this->shared_from_this(), len]() {
               if(0 != len){

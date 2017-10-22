@@ -60,26 +60,26 @@ TEST(network_tests, test_udp_server)
   vds::udp_datagram response;
   client_socket.incoming()->read_async(sp, &response, 1)
   .wait(
-    [&b, &client_socket](const vds::service_provider & sp, size_t readed) {
+    [&b, &client_socket, sp](size_t readed) {
         sp.get<vds::logger>()->debug("UDP", sp, "Client reader closed");
         client_socket.stop();
         b.set();
       },
-    [&b, &client_socket](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+    [&b, &client_socket, sp](const std::shared_ptr<std::exception> & ex) {
         sp.get<vds::logger>()->debug("UDP", sp, "Client reader error");
         client_socket.stop();
         b.set();
-      },
-    sp.create_scope("Client reader"));
+      });
 
   
   const char data[] = "test_test_test_test_test_test_test_test_test_test_test_test_test_test_test_";
   vds::udp_datagram request("127.0.0.1", 8000, data, sizeof(data) - 1);
   auto stream = client_socket.outgoing();
   stream->write_value_async(sp, request)
-  .wait([stream](const vds::service_provider & sp){},
-        [](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex){
-        }, sp);
+  .wait([stream](){},
+        [sp](const std::shared_ptr<std::exception> & ex){
+          sp.unhandled_exception(ex);
+        });
 
   b.wait();
   server.stop(sp);

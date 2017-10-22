@@ -178,6 +178,7 @@ namespace vds {
     ~_asymmetric_sign_verify();
 
     void write(
+      const service_provider & sp,
       const void * data,
       int len);
 

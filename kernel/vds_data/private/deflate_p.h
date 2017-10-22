@@ -10,6 +10,7 @@ All rights reserved
 
 #include "zlib.h"
 #include "deflate.h"
+#include "service_provider.h"
 
 namespace vds {
 
@@ -25,11 +26,14 @@ namespace vds {
 			}
 		}
 
-		void write(const uint8_t * input_data, size_t input_size)
+		void write(
+      const service_provider & sp,
+      const uint8_t * input_data,
+      size_t input_size)
 		{
 			if (0 == input_size) {
 				deflateEnd(&this->strm_);
-				this->target_.write(input_data, input_size);
+				this->target_.write(sp, input_data, input_size);
 				return;
 			}
 
@@ -46,20 +50,20 @@ namespace vds {
 					throw std::runtime_error("deflate failed");
 				}
 
-				auto written = sizeof(buffer_) - this->strm_.avail_out;
-				this->target_.write(buffer_, written);
+				auto written = sizeof(buffer) - this->strm_.avail_out;
+				this->target_.write(sp, buffer, written);
 			} while (0 == this->strm_.avail_out);
 		}
 
 	private:
-		stream_asynñ<uint8_t> & target_;
+		stream<uint8_t> & target_;
 		z_stream strm_;
 	};
 
-	class _deflate_async_handler : public std::enable_shared_from_this<_deflate_handler>
+	class _deflate_async_handler : public std::enable_shared_from_this<_deflate_async_handler>
   {
   public:
-    _deflate_handler(stream_asynñ<uint8_t> & target, int compression_level)
+    _deflate_async_handler(stream_async<uint8_t> & target, int compression_level)
     : target_(target)
     {
       memset(&this->strm_, 0, sizeof(z_stream));
@@ -68,27 +72,30 @@ namespace vds {
       }
     }
 
-    async_task<> write_async(const uint8_t * input_data, size_t input_size)
+    async_task<> write_async(
+      const service_provider & sp,
+      const uint8_t * input_data,
+      size_t input_size)
     {
       if(0 == input_size){
         deflateEnd(&this->strm_);
-        return this->target_.write_async(input_data, input_size);
+        return this->target_.write_async(sp, input_data, input_size);
       }
       
       this->strm_.next_in = (Bytef *)input_data;
       this->strm_.avail_in = (uInt)input_size;
 
-      return [pthis = this->shared_from_this()](const async_result<> & result){
-        pthis->continue_write(result);
+      return [pthis = this->shared_from_this(), sp](const async_result<> & result){
+        pthis->continue_write(sp, result);
       };
     }
     
   private:
-    stream_asynñ<uint8_t> & target_;
+    stream_async<uint8_t> & target_;
     z_stream strm_;
     uint8_t buffer_[1024];
     
-    void continue_write(const async_result<> & result)
+    void continue_write(const service_provider & sp, const async_result<> & result)
     {
       if(0 != this->strm_.avail_out){
         result();
@@ -104,10 +111,10 @@ namespace vds {
         }
 
         auto written = sizeof(buffer_) - this->strm_.avail_out;
-        this->target_.write_async(buffer_, written)
+        this->target_.write_async(sp, buffer_, written)
         .wait(
-          [pthis = this->shared_from_this(), result](){
-            pthis->continue_write(result);
+          [pthis = this->shared_from_this(), result, sp](){
+            pthis->continue_write(sp, result);
           },
           [result](const std::shared_ptr<std::exception> & ex){
            result.error(ex); 

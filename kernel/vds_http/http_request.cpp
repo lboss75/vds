@@ -68,10 +68,10 @@ std::shared_ptr<vds::http_message> vds::http_request::simple_request(
   auto result = std::make_shared<http_message>(headers);
   auto buffer = std::make_shared<std::string>(body);
 
-  result->body()->write_all_async(sp, (const uint8_t *)buffer->c_str(), buffer->length())
+  result->body()->write_async(sp, (const uint8_t *)buffer->c_str(), buffer->length())
     .wait(
     [buffer, result, sp]() {
-      result->body()->write_all_async(sp, nullptr, 0).wait(
+      result->body()->write_async(sp, nullptr, 0).wait(
         []() {},
         [sp](const std::shared_ptr<std::exception> & ex) {
           sp.unhandled_exception(ex);

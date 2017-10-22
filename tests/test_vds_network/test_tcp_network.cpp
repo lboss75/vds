@@ -88,13 +88,17 @@ TEST(network_tests, test_server)
 
     sp.get<vds::logger>()->debug("TCP", sp, "Connected");
 
+
+    random_stream_async<uint8_t> rs(*s.outgoing());
+    
     return vds::async_series(
-      vds::dataflow(
-        random_reader<uint8_t>(data.data(), data.size()),
-        vds::stream_write<vds::continuous_buffer<uint8_t>>(s.outgoing())
-      ),
-      vds::dataflow(
-        vds::stream_read<vds::continuous_buffer<uint8_t>>(s.incoming()),
+      rs.write_async(sp, data.data(), data.size())
+      .then([&rs, sp](){
+        rs.write_async(sp, nullptr, 0);
+      }),
+      vds::copy_stream(
+        sp,
+        *s.incoming(),
         compare_data<uint8_t>(data.data(), data.size())
       ));
   }).wait(

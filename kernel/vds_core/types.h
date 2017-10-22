@@ -29,6 +29,12 @@ namespace vds {
   };
   
   typedef std::function<void (const service_provider &, const std::shared_ptr<std::exception> &)> error_handler;
+  
+  enum class error_logic
+  {
+    throw_exception,
+    return_false
+  };
 }
 
 template<typename interface_type>

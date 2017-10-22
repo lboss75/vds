@@ -104,7 +104,7 @@ namespace vds {
     
     ~asymmetric_sign();
 
-    void write(const uint8_t * data, size_t len) override;
+    void write(const service_provider & sp, const uint8_t * data, size_t len) override;
 
     const_data_buffer signature();
 
@@ -134,11 +134,12 @@ namespace vds {
       const const_data_buffer & sig);
     ~asymmetric_sign_verify();
     
-    void write(const uint8_t * data, size_t len) override;
+    void write(const service_provider & sp, const uint8_t * data, size_t len) override;
     
     bool result() const;
     
     static bool verify(
+      const service_provider & sp, 
       const hash_info & hash_info,
       const asymmetric_public_key & key,
       const const_data_buffer & signature,
@@ -146,6 +147,7 @@ namespace vds {
       size_t data_size);
 
     static bool verify(
+      const service_provider & sp, 
       const hash_info & hash_info,
       const asymmetric_public_key & key,
       const const_data_buffer & signature,

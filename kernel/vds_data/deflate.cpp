@@ -21,29 +21,29 @@ vds::deflate::~deflate()
   delete this->impl_;
 }
 
-void vds::deflate::write(const uint8_t * data, size_t len)
+void vds::deflate::write(const service_provider & sp, const uint8_t * data, size_t len)
 {
-  this->impl_->write(data, len);
+  this->impl_->write(sp, data, len);
 }
 
 ///////////////////////////////////////////////////////////////
-vds::deflate_asynñ::deflate_asynñ(stream_asynñ<uint8_t> & target)
-	: impl_(new _deflate_asynñ_handler(target, Z_DEFAULT_COMPRESSION))
+vds::deflate_async::deflate_async(stream_async<uint8_t> & target)
+	: impl_(new _deflate_async_handler(target, Z_DEFAULT_COMPRESSION))
 {
 }
 
-vds::deflate_asynñ::deflate_asynñ(stream_asynñ<uint8_t> & target, int compression_level)
-	: impl_(new _deflate_asynñ_handler(target, compression_level))
+vds::deflate_async::deflate_async(stream_async<uint8_t> & target, int compression_level)
+	: impl_(new _deflate_async_handler(target, compression_level))
 {
 }
 
-vds::deflate_asynñ::~deflate_asynñ()
+vds::deflate_async::~deflate_async()
 {
 	delete this->impl_;
 }
 
-vds::async_task<> vds::deflate_asynñ::write_async(const uint8_t * data, size_t len)
+vds::async_task<> vds::deflate_async::write_async(const service_provider & sp, const uint8_t * data, size_t len)
 {
-	return this->impl_->write_async(data, len);
+	return this->impl_->write_async(sp, data, len);
 }
 
