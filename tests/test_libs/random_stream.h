@@ -69,11 +69,11 @@ public:
         }
 
         if(n == len){
-          return this->target_.write(sp, data, n);
+          return this->target_.write_async(sp, data, n);
         }
         
         return 
-          this->target_.write(sp, data, n)
+          this->target_.write_async(sp, data, n)
           .then([this, sp, p = data + n, l = len - n](){
             return this->write_async(sp, p, l);
           });

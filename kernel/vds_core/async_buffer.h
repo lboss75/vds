@@ -358,15 +358,15 @@ namespace vds {
     static async_task<> _continue_copy(
       const std::shared_ptr<_continue_copy_stream> & context)
     {
-      return context->source_.read_async(
+      return context->source_->read_async(
         context->sp_,
         context->buffer_,
         sizeof(context->buffer_) / sizeof(context->buffer_[0])).then(
         [context](size_t readed){
-          return context->target_.write_all_async(context->buffer_, readed).
+          return context->target_->write_async(context->sp_, context->buffer_, readed).
             then([context, is_eof = (0 == readed)](){
               if(is_eof){
-                return [](){};
+                return async_task<>::empty();
               }
               else {
                 return _continue_copy(context);
@@ -412,6 +412,16 @@ namespace vds {
   {
     auto context = std::make_shared<_continue_copy_stream<item_type, continuous_buffer<item_type>, continuous_buffer<item_type>>>(sp, source, target);
     return _continue_copy_stream<item_type, continuous_buffer<item_type>, continuous_buffer<item_type>>::_continue_copy(context);
+  }
+  
+  template <typename item_type>
+  inline async_task<> copy_stream(
+    const service_provider & sp,
+    const std::shared_ptr<continuous_buffer<item_type>> & source,
+    const std::shared_ptr<stream_async<item_type>> & target)
+  {
+    auto context = std::make_shared<_continue_copy_stream<item_type, continuous_buffer<item_type>, stream_async<item_type>>>(sp, source, target);
+    return _continue_copy_stream<item_type, continuous_buffer<item_type>, stream_async<item_type>>::_continue_copy(context);
   }
 }
 

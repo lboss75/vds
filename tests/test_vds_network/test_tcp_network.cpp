@@ -89,18 +89,19 @@ TEST(network_tests, test_server)
     sp.get<vds::logger>()->debug("TCP", sp, "Connected");
 
 
-    random_stream_async<uint8_t> rs(*s.outgoing());
+    auto rs = std::make_shared<random_stream_async<uint8_t>>(*s.outgoing());
+    auto cd = std::make_shared<compare_data<uint8_t>>(data.data(), data.size());
     
     return vds::async_series(
-      rs.write_async(sp, data.data(), data.size())
-      .then([&rs, sp](){
-        rs.write_async(sp, nullptr, 0);
+      rs->write_async(sp, data.data(), data.size())
+      .then([rs, sp](){
+        return rs->write_async(sp, nullptr, 0);
       }),
       vds::copy_stream(
         sp,
-        *s.incoming(),
-        compare_data<uint8_t>(data.data(), data.size())
-      ));
+        s.incoming(),
+        std::static_pointer_cast<vds::stream_async<uint8_t>>(cd))
+      );
   }).wait(
     [&b, sp]() {
       sp.get<vds::logger>()->debug("TCP", sp, "Request sent");

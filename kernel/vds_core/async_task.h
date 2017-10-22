@@ -163,6 +163,12 @@ namespace vds {
 	  async_task(async_task<result_types...> && origin);
 	  async_task(std::shared_ptr<std::exception> && error);
 	  async_task(const std::shared_ptr<std::exception> & error);
+    
+	  template<typename parent_task_type, typename functor_type>
+	  async_task(
+		  parent_task_type && parent,
+		  functor_type && f);
+    
 	  ~async_task();
 
 	  template<typename functor_type, typename error_functor_type>
@@ -210,11 +216,6 @@ namespace vds {
     static async_task<result_types...> empty();
   private:
 	  _async_task_base<result_types...> * impl_;
-
-	  template<typename parent_task_type, typename functor_type>
-	  async_task(
-		  parent_task_type && parent,
-		  functor_type && f);
     
 	  async_task(_async_task_base<result_types...> * impl);
   };
@@ -233,7 +234,7 @@ namespace vds {
   {
   public:
 	  _async_task_async_callback(functor_type && f)
-		  : f_(f)
+		  : f_(std::move(f))
 	  {
 	  }
 
@@ -636,9 +637,9 @@ namespace vds {
 
 
   template <typename... task_types>
-  inline async_task<> async_series(task_types... args)
+  inline async_task<> async_series(task_types &&... args)
   {
-    auto steps = new std::list<async_task<>>({ args... });
+    auto steps = new std::list<async_task<>>({ std::move<task_types>(args)... });
     return [steps](const async_result<> & result){
         auto runner = new _async_series(result, steps->size());
         runner->run(*steps);

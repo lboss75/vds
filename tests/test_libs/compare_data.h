@@ -10,7 +10,7 @@ All rights reserved
 #include "stream.h"
 
 template <typename item_type>
-class compare_data : public vds::stream<item_type>
+class compare_data : public vds::stream<item_type>, public vds::stream_async<item_type>
 {
 public:
   compare_data(
@@ -27,11 +27,11 @@ public:
     size_t len) override
     {
       if (0 == len) {
-		  if (0 != this->len_) {
-			  throw std::runtime_error("Unexpected end of stream while comparing data");
-		  }
+        if (0 != this->len_) {
+          throw std::runtime_error("Unexpected end of stream while comparing data");
+        }
 
-		  return;
+        return;
       }
 
       if (this->len_ < len) {
@@ -44,6 +44,15 @@ public:
 
       this->data_ += len;
       this->len_ -= len;
+    }
+    
+  vds::async_task<> write_async(
+    const vds::service_provider & sp,
+    const item_type * data,
+    size_t len) override
+    {
+      this->write(sp, data, len);
+      return vds::async_task<>::empty();
     }
     
   private:

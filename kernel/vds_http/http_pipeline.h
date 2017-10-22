@@ -17,7 +17,29 @@ All rights reserved
 
 namespace vds {
     template <typename input_stream_type = async_buffer<uint8_t>, typename output_stream_type = continuous_buffer<uint8_t>>
+    inline async_task<> _copy_http_commands(
+      const service_provider & sp,
+      const std::shared_ptr<http_serializer> & serializer,
+      const std::shared_ptr<std::shared_ptr<http_message>> & buffer,
+      const std::shared_ptr<async_buffer<std::shared_ptr<http_message>>> & output_commands)
+    {
+      return output_commands->read_async(sp, buffer.get(), 1)
+      .then([sp, serializer, buffer, output_commands](size_t readed){
+        if(0 != readed){
+          return serializer->write(sp, *buffer)
+          .then([sp, serializer, buffer, output_commands](){
+            _copy_http_commands(sp, serializer, buffer, output_commands);
+          });
+        } else {
+          return async_task<>::empty();
+        }
+      };
+    }
+
+    template <typename input_stream_type = async_buffer<uint8_t>, typename output_stream_type = continuous_buffer<uint8_t>>
     inline async_task<> http_pipeline(
+      const service_provider & sp,
+      
       const std::shared_ptr<input_stream_type> & input_stream,
       const std::shared_ptr<async_buffer<std::shared_ptr<http_message>>> & input_commands,
 
@@ -26,11 +48,11 @@ namespace vds {
     )
     {
       return async_series(
-        dataflow(
-          stream_read<async_buffer<std::shared_ptr<http_message>>>(output_commands),
-          http_serializer(),
-          stream_write<output_stream_type>(output_stream)
-        ),
+        _copy_http_commands(
+          sp,
+          std::make_shared<http_serializer>(output_stream),
+          std::make_shared<std::shared_ptr<http_message>>(),
+          output_commands),
         dataflow(
           stream_read(input_stream),
           http_parser(

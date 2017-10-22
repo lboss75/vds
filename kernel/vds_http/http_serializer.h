@@ -44,7 +44,7 @@ namespace vds {
           this->buffer_->write_async(sp, (const uint8_t *)data->c_str(), data->length())
             .then([pthis = this->shared_from_this(), sp, data, message]() {
               auto buffer = std::make_shared<std::vector<uint8_t>>(1024);
-              pthis->write_body(sp, message, buffer);
+              return pthis->write_body(sp, message, buffer);
             }),
           this->continue_process(sp));
       }
