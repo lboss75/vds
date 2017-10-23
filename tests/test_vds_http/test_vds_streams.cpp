@@ -34,33 +34,30 @@ static void copy_body(
   const std::shared_ptr<vds::continuous_buffer<uint8_t>> & dest)
 {
   source->read_async(sp, buffer->data(), buffer->size())
-  .wait([buffer, source, dest](const vds::service_provider & sp, size_t readed){
+  .wait([sp, buffer, source, dest](size_t readed){
     if(0 == readed){
-      dest->write_all_async(sp, nullptr, 0)
+      dest->write_async(sp, nullptr, 0)
       .wait(
-        [](const vds::service_provider & sp){
+        [](){
         },
-        [](const vds::service_provider & sp, const std::shared_ptr<std::exception> & error){
+        [sp](const std::shared_ptr<std::exception> & error){
           sp.unhandled_exception(error);
-        },
-        sp);
+        });
     }
     else {
-      dest->write_all_async(sp, buffer->data(), readed)
+      dest->write_async(sp, buffer->data(), readed)
       .wait(
-        [buffer, source, dest](const vds::service_provider & sp){
+        [sp, buffer, source, dest](){
           copy_body(sp, buffer, source, dest);
         },
-        [](const vds::service_provider & sp, const std::shared_ptr<std::exception> & error){
+        [sp](const std::shared_ptr<std::exception> & error){
           sp.unhandled_exception(error);
-        },
-        sp);
+        });
     }
   },
-  [](const vds::service_provider & sp, const std::shared_ptr<std::exception> & error){
+  [sp](const std::shared_ptr<std::exception> & error){
     sp.unhandled_exception(error);
-  },
-  sp);
+  });
 }
 
 TEST(http_tests, test_streams)

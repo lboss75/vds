@@ -263,7 +263,6 @@ namespace vds {
     const guid & object_id() const { return this->object_id_; }
     size_t chunk_index() const { return this->chunk_index_; }
     size_t chunk_size() const { return this->size_; }
-    size_t replica_size() const;
     const const_data_buffer & chunk_hash() const { return this->hash_; }
     
     principal_log_new_chunk(binary_deserializer & b)

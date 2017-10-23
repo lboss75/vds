@@ -76,45 +76,37 @@ TEST(http_tests, test_https_server)
     8000,
     [&middleware, &http_server, &cert, &pkey](const vds::service_provider & sp, const vds::tcp_network_socket & s) {
 
-    auto crypto_tunnel = std::make_shared<vds::ssl_tunnel>(false, &cert, &pkey);
+    vds::ssl_tunnel crypto_tunnel(false, &cert, &pkey);
 
     vds::async_series(
       http_server.start(sp,
-        crypto_tunnel->decrypted_output(), crypto_tunnel->decrypted_input(),
+        crypto_tunnel.decrypted_output(), crypto_tunnel.decrypted_input(),
         [&middleware](
           const vds::service_provider & sp,
           const std::shared_ptr<vds::http_message> & request) -> vds::async_task<std::shared_ptr<vds::http_message>> {
 
           return middleware.process(sp, request);
       }),
-      vds::dataflow(
-        vds::stream_read<vds::continuous_buffer<uint8_t>>(s.incoming()),
-        vds::stream_write<vds::continuous_buffer<uint8_t>>(crypto_tunnel->crypted_input())
-      ),
-      vds::dataflow(
-        vds::stream_read(crypto_tunnel->crypted_output()),
-        vds::stream_write(s.outgoing())
-      ))
+      vds::copy_stream(sp, s.incoming(), crypto_tunnel->crypted_input()),
+      vds::copy_stream(sp, crypto_tunnel->crypted_output(), s.outgoing())
+      )
       .wait(
-        [crypto_tunnel](const vds::service_provider & sp) {
-      sp.get<vds::logger>()->debug("test", sp, "Connection closed");
-    },
-        [](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-      sp.unhandled_exception(ex);
-    },
-      sp);
-    crypto_tunnel->start(sp);
+        [sp]() {
+          sp.get<vds::logger>()->debug("test", sp, "Connection closed");
+        },
+        [sp](const std::shared_ptr<std::exception> & ex) {
+          sp.unhandled_exception(ex);
+        });
+    crypto_tunnel.start(sp);
   }).wait(
-    [&b](const vds::service_provider & sp) {
-    sp.get<vds::logger>()->debug("test", sp, "Server has been started");
-    b.set();
-  },
-    [&b](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-    FAIL() << ex->what();
-    b.set();
-  },
-    sp
-    );
+    [sp, &b]() {
+      sp.get<vds::logger>()->debug("test", sp, "Server has been started");
+      b.set();
+    },
+    [sp, &b](const std::shared_ptr<std::exception> & ex) {
+      FAIL() << ex->what();
+      b.set();
+    });
   b.wait();
   b.reset();
 
@@ -141,13 +133,10 @@ TEST(http_tests, test_https_server)
     8000)
     .then(
       [&b, &response, &answer, &client_cert, &client_pkey, &client](
-        const std::function<void(const vds::service_provider & sp)> & done,
-        const vds::error_handler & on_error,
-        const vds::service_provider & sp,
         const vds::tcp_network_socket & s) {
 
     sp.get<vds::logger>()->debug("test", sp, "Connected");
-    auto client_crypto_tunnel = std::make_shared<vds::ssl_tunnel>(true, &client_cert, &client_pkey);
+    vds::ssl_tunnel client_crypto_tunnel(true, &client_cert, &client_pkey);
 
     vds::async_series(
       client.start(
@@ -177,14 +166,8 @@ TEST(http_tests, test_https_server)
                 task_done(sp);
             });
       }),
-      vds::dataflow(
-        vds::stream_read<vds::continuous_buffer<uint8_t>>(s.incoming()),
-        vds::stream_write<vds::continuous_buffer<uint8_t>>(client_crypto_tunnel->crypted_input())
-      ),
-      vds::dataflow(
-        vds::stream_read(client_crypto_tunnel->crypted_output()),
-        vds::stream_write(s.outgoing())
-      )
+      vds::copy_stream(sp, s.incoming(), client_crypto_tunnel->crypted_input()),
+      vds::copy_stream(sp, client_crypto_tunnel->crypted_output(), s.outgoing())
       ).wait(
         [done, client_crypto_tunnel](const vds::service_provider & sp) {
       sp.get<vds::logger>()->debug("test", sp, "Client closed");

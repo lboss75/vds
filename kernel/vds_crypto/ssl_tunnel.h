@@ -36,7 +36,7 @@ namespace vds {
     void on_error(const std::function<void(const std::shared_ptr<std::exception> &)> & handler);
 
   private:
-    _ssl_tunnel * const impl_;
+    std::shared_ptr<_ssl_tunnel> impl_;
   };
 }
 

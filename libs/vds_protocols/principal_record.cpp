@@ -5,8 +5,6 @@ All rights reserved
 
 #include "stdafx.h"
 #include "principal_record.h"
-#include "storage_log.h"
-#include "storage_log_p.h"
 
 vds::principal_record::principal_record(
   const guid & parent_principal,

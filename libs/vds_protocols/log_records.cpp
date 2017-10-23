@@ -5,8 +5,6 @@ All rights reserved
 
 #include "stdafx.h"
 #include "log_records.h"
-#include "storage_object_id.h"
-#include "chunk_manager_p.h"
 #include "messages.h"
 
 const char vds::principal_log_new_object::message_type[] = "new object";
@@ -439,11 +437,6 @@ std::shared_ptr<vds::json_value> vds::principal_log_new_replica::serialize(bool 
 
 }
 
-/////////////////////////////////////////////////////
-size_t vds::principal_log_new_chunk::replica_size() const
-{
-  return 2 * (this->size_ / (2 * _chunk_manager::MIN_HORCRUX)) + ((0 == (this->size_ % (2 * _chunk_manager::MIN_HORCRUX))) ? 0 : 2); 
-}
 ////////////////////////////////////////////////////
 const char vds::principal_log_store_replica::message_type[] = "store replica";
 

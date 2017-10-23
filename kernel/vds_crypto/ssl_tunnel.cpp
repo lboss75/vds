@@ -24,7 +24,6 @@ vds::ssl_tunnel::ssl_tunnel(
 
 vds::ssl_tunnel::~ssl_tunnel()
 {
-  delete this->impl_;
 }
 
 bool vds::ssl_tunnel::is_client() const

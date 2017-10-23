@@ -7,7 +7,6 @@ All rights reserved
 */
 
 #include "log_records.h"
-#include "server_task_manager.h"
 
 namespace vds {
 

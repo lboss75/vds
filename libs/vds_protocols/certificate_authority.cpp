@@ -5,7 +5,7 @@ All rights reserved
 
 #include "stdafx.h"
 #include "certificate_authority.h"
-#include "certificate_authority_p.h"
+#include "private/certificate_authority_p.h"
 
 static vds::crypto_service::certificate_extension_type id_extension_type()
 {
