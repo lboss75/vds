@@ -238,13 +238,12 @@ namespace vds {
           this->sp_,
           _udp_datagram::create(this->addr_, this->buffer_, (size_t)dwBytesTransfered))
           .wait(
-            [pthis](const service_provider & sp) {
+            [pthis]() {
               static_cast<_udp_receive *>(pthis.get())->read_async();
             },
-            [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-              sp.unhandled_exception(ex);
-            },
-            this->sp_);
+            [pthis](const std::shared_ptr<std::exception> & ex) {
+              static_cast<_udp_receive *>(pthis.get())->sp_.unhandled_exception(ex);
+            });
       }
       void error(DWORD error_code) override
       {
@@ -306,7 +305,7 @@ namespace vds {
       {
         auto sp = this->sp_.create_scope("_udp_send.write_async");
         this->owner_->outgoing_->read_async(sp, &this->buffer_, 1)
-          .wait([this](const service_provider & sp, size_t readed) {
+          .wait([this](size_t readed) {
           if (1 == readed) {
             this->schedule();
           }
@@ -314,10 +313,9 @@ namespace vds {
             this->pthis_.reset();
           }
         },
-            [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+            [sp](const std::shared_ptr<std::exception> & ex) {
           sp.unhandled_exception(ex);
-        },
-          sp);
+        });
       }
 
       void schedule()

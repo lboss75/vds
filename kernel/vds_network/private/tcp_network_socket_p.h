@@ -157,13 +157,12 @@ namespace vds {
             this->pthis_.reset();
 
             if (WSAESHUTDOWN == errorCode) {
-              this->owner_->incoming_->write_async(this->sp_, nullptr, 0).wait(
-                [pthis](const service_provider & sp, size_t) {
-                },
-                [](const service_provider & sp, const std::shared_ptr<std::exception> & error) {
-                  sp.unhandled_exception(error);
-                },
-                this->sp_);
+              this->owner_->incoming_->write_async(this->sp_, nullptr, 0)
+                .wait(
+                []() {},
+                [pthis](const std::shared_ptr<std::exception> & error) {
+                  static_cast<_read_socket_task *>(pthis.get())->sp_.unhandled_exception(error);
+                });
             }
             else {
               this->sp_.unhandled_exception(std::make_unique<std::system_error>(errorCode, std::system_category(), "read from tcp socket"));
@@ -195,23 +194,20 @@ namespace vds {
 
         if (0 == dwBytesTransfered) {
           this->owner_->incoming_->write_async(this->sp_, nullptr, 0).wait(
-            [pthis](const service_provider & sp, size_t) {
-          },
-            [](const service_provider & sp, const std::shared_ptr<std::exception> & error) {
-            sp.unhandled_exception(error);
-          },
-            this->sp_);
+            []() {},
+            [pthis](const std::shared_ptr<std::exception> & error) {
+              static_cast<_read_socket_task *>(pthis.get())->sp_.unhandled_exception(error);
+            });
         }
         else {
-          this->owner_->incoming_->write_all_async(this->sp_, this->buffer_, (size_t)dwBytesTransfered)
+          this->owner_->incoming_->write_async(this->sp_, this->buffer_, (size_t)dwBytesTransfered)
             .wait(
-              [pthis](const service_provider & sp) {
+              [pthis]() {
                 static_cast<_read_socket_task *>(pthis.get())->read_async();
               },
-              [](const service_provider & sp, const std::shared_ptr<std::exception> & error) {
-                sp.unhandled_exception(error);
-              },
-              this->sp_);
+              [pthis](const std::shared_ptr<std::exception> & error) {
+                static_cast<_read_socket_task *>(pthis.get())->sp_.unhandled_exception(error);
+              });
         }
       }
       void error(DWORD error_code) override
@@ -247,13 +243,12 @@ namespace vds {
       {
         auto pthis = this->shared_from_this();
         this->owner_->outgoing_->read_async(this->sp_, this->buffer_, BUFFER_SIZE)
-          .wait([pthis](const service_provider & sp, size_t len) {
+          .wait([pthis](size_t len) {
               static_cast<_write_socket_task *>(pthis.get())->schedule(static_cast<_write_socket_task *>(pthis.get())->buffer_, len);
             },
-            [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-              sp.unhandled_exception(ex);
-            },
-            this->sp_);
+            [pthis](const std::shared_ptr<std::exception> & ex) {
+              static_cast<_write_socket_task *>(pthis.get())->sp_.unhandled_exception(ex);
+            });
       }
 
       void check_timeout(const service_provider & sp) override

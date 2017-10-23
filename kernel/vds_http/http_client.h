@@ -38,6 +38,11 @@ namespace vds {
     std::shared_ptr<async_buffer<std::shared_ptr<http_message>>> input_commands_;
     std::shared_ptr<async_buffer<std::shared_ptr<http_message>>> output_commands_;
 
+    std::shared_ptr<http_message> input_buffer_;
+    async_task<> process_input_commands(
+      const vds::service_provider & sp,
+      const handler_type & handler);
+
   };
 }
 

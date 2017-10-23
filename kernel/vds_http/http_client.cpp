@@ -20,6 +20,7 @@ vds::async_task<> vds::http_client::send(
   }
 }
 
+
 vds::async_task<> vds::http_client::start(
   const vds::service_provider & sp,
   const std::shared_ptr<continuous_buffer<uint8_t>> & incoming_stream,
@@ -27,39 +28,25 @@ vds::async_task<> vds::http_client::start(
   const handler_type & handler)
 {
   return async_series(
-    http_pipeline(incoming_stream, this->input_commands_, this->output_commands_, outgoing_stream),
-    dataflow(
-      stream_read(this->input_commands_),
-      dataflow_consumer<std::shared_ptr<http_message>>(
-        [this, handler](
-          const vds::service_provider & sp,
-          const std::shared_ptr<vds::http_message> * requests,
-          size_t count) -> vds::async_task<size_t> {
-            return create_async_task(
-              [this, handler, requests, count](
-                const std::function<void(const vds::service_provider & sp, size_t readed)> & task_done,
-                const vds::error_handler & on_error,
-                const vds::service_provider & sp)
-            {
-              if (0 == count) {
-                return handler(sp, std::shared_ptr<vds::http_message>()).wait(
-                  [task_done](const vds::service_provider & sp) {
-                    task_done(sp, 0);
-                  },
-                  on_error,
-                  sp);
-              }
-              else {
-                return handler(sp, requests[0]).wait(
-                  [task_done](const vds::service_provider & sp) {
-                    task_done(sp, 1);
-                  },
-                  on_error,
-                  sp);
-              }
-            });
-          }
-      )
-    )
+    http_pipeline(sp, incoming_stream, this->input_commands_, this->output_commands_, outgoing_stream),
+    this->process_input_commands(sp, handler)
   );
+}
+
+vds::async_task<> vds::http_client::process_input_commands(
+  const vds::service_provider & sp,
+  const handler_type & handler)
+{
+  return this->input_commands_->read_async(sp, &this->input_buffer_, 1)
+    .then([this, sp, handler](size_t readed) {
+    if (0 == readed) {
+      return handler(sp, std::shared_ptr<vds::http_message>());
+    }
+    else {
+      return handler(sp, this->input_buffer_)
+        .then([this, sp, handler]() {
+        return this->process_input_commands(sp, handler);
+      });
+    }
+  });
 }

@@ -28,9 +28,14 @@ namespace vds {
 
     ~not_mutex()
     {
+#ifdef _DEBUG
+#pragma warning(disable: 4297)
+
       if (this->is_locked_) {
         throw std::runtime_error("Multithreading error");
       }
+#pragma warning(default: 4297)
+#endif//_DEBUG
     }
 
     void lock()

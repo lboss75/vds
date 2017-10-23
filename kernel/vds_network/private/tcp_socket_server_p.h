@@ -74,10 +74,6 @@ namespace vds {
 
         this->accept_event_.select(this->s_, FD_ACCEPT);
 
-        sp.get_shutdown_event().then_shuting_down([this, sp]() {
-          closesocket(this->s_);
-        });
-
         this->wait_accept_task_ = std::thread(
           [this, sp, new_connection]() {
 

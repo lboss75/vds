@@ -14,6 +14,7 @@ All rights reserved
 #include "http_message.h"
 #include "http_serializer.h"
 #include "http_parser.h"
+#include "async_buffer.h"
 
 namespace vds {
     template <typename input_stream_type = async_buffer<uint8_t>, typename output_stream_type = continuous_buffer<uint8_t>>
@@ -33,7 +34,7 @@ namespace vds {
         } else {
           return async_task<>::empty();
         }
-      };
+      });
     }
 
     template <typename input_stream_type = async_buffer<uint8_t>, typename output_stream_type = continuous_buffer<uint8_t>>
@@ -47,26 +48,24 @@ namespace vds {
       const std::shared_ptr<output_stream_type> & output_stream
     )
     {
-      return async_series(
-        _copy_http_commands(
-          sp,
-          std::make_shared<http_serializer>(output_stream),
-          std::make_shared<std::shared_ptr<http_message>>(),
-          output_commands),
-        dataflow(
-          stream_read(input_stream),
-          http_parser(
-            [input_commands](const service_provider & sp, const std::shared_ptr<http_message> & request) -> async_task<> {
-
+      auto parser = std::make_shared<http_parser>(
+        [sp, input_commands](const std::shared_ptr<http_message> & request) -> async_task<> {
           if (!request) {
             return input_commands->write_all_async(sp, nullptr, 0);
           }
           else {
             return input_commands->write_value_async(sp, request);
           }
-        })
-        )
-        );
+      });
+
+      return async_series(
+        _copy_http_commands(
+          sp,
+          std::make_shared<http_serializer>(output_stream),
+          std::make_shared<std::shared_ptr<http_message>>(),
+          output_commands),
+        copy_stream<uint8_t>(sp, input_stream, parser)
+      );
     }
 }
 
