@@ -33,16 +33,14 @@ std::shared_ptr<vds::http_message> vds::http_response::simple_text_response(
   response.add_header("Content-Length", std::to_string(body.length()));
   auto result = response.create_message();
   auto buffer = std::make_shared<std::string>(body);
-  result->body()->write_all_async(sp, (const uint8_t *)buffer->c_str(), buffer->length())
+  result->body()->write_async(sp, (const uint8_t *)buffer->c_str(), buffer->length())
     .wait(
-      [result, buffer](const service_provider & sp) {
-        result->body()->write_all_async(sp, nullptr, 0).wait(
-          [](const service_provider & sp) {},
-          [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {},
-          sp);
+      [sp, result, buffer]() {
+        result->body()->write_async(sp, nullptr, 0).wait(
+          []() {},
+          [](const std::shared_ptr<std::exception> & ex) {});
       },
-      [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {},
-    sp);
+      [](const std::shared_ptr<std::exception> & ex) {});
   return result;
 }
 

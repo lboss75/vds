@@ -279,19 +279,15 @@ namespace vds {
 
       this->ready_to_data_ = false;
       return this->data_.write_value_async(sp, data).then(
-        [this](const std::function<void(const service_provider & sp)> & done,
-          const vds::error_handler & on_error,
-          const vds::service_provider & sp) {
+        [this]() {
           this->data_mutex_.lock();
           this->ready_to_data_ = true;
           this->data_barier_.notify_one();
           this->data_mutex_.unlock();
-          
-          done(sp);
         });
     }
 
-    async_task<size_t> write_async(const service_provider & sp, const item_type * data, size_t data_size)
+    async_task<> write_async(const service_provider & sp, const item_type * data, size_t data_size)
     {
       std::unique_lock<std::mutex> lock(this->data_mutex_);
       while (!this->ready_to_data_) {
@@ -301,15 +297,11 @@ namespace vds {
       this->ready_to_data_ = false;
 
       return this->data_.write_async(sp, data, data_size).then(
-        [this](
-          const async_result<size_t> & result,
-          size_t readed) {
+        [this]() {
           this->data_mutex_.lock();
           this->ready_to_data_ = true;
           this->data_barier_.notify_one();
           this->data_mutex_.unlock();
-          
-          result(readed);
         });
     }
     

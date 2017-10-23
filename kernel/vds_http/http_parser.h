@@ -20,10 +20,12 @@ namespace vds {
 class http_parser : public stream<uint8_t>, public std::enable_shared_from_this<http_parser>
 {
 public:
-    static std::shared_ptr<http_parser> create(
+    http_parser(
         const std::function<async_task<>(const std::shared_ptr<http_message> & message)> & message_callback)
+    : message_callback_(message_callback),
+      message_state_(MessageStateEnum::MESSAGE_STATE_NONE, MessageStateEnum::MESSAGE_STATE_FAILED),
+      state_(StateEnum::STATE_PARSE_HEADER)
     {
-        return std::make_shared<http_parser>(message_callback);
     }
 
     void write(
@@ -57,16 +59,8 @@ public:
         this->continue_push_data(sp, data, len);
       }
     }
-
+    
 private:
-    http_parser(
-        const std::function<async_task<>(const std::shared_ptr<http_message> & message)> & message_callback)
-    : message_callback_(message_callback),
-      message_state_(MessageStateEnum::MESSAGE_STATE_NONE, MessageStateEnum::MESSAGE_STATE_FAILED),
-      state_(StateEnum::STATE_PARSE_HEADER)
-    {
-    }
-
     std::function<async_task<>(const std::shared_ptr<http_message> & message)> message_callback_;
 
     enum class MessageStateEnum

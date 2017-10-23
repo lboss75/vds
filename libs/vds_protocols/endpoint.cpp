@@ -5,6 +5,4 @@ All rights reserved
 
 #include "stdafx.h"
 #include "endpoint.h"
-#include "storage_log.h"
-#include "storage_log_p.h"
 

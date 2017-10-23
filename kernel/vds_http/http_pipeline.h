@@ -61,7 +61,7 @@ namespace vds {
       return async_series(
         _copy_http_commands(
           sp,
-          std::make_shared<http_serializer>(output_stream),
+          std::make_shared<http_serializer>(*output_stream),
           std::make_shared<std::shared_ptr<http_message>>(),
           output_commands),
         copy_stream<uint8_t>(sp, input_stream, parser)

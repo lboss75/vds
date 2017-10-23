@@ -92,16 +92,15 @@ TEST(network_tests, test_server)
     auto rs = std::make_shared<random_stream_async<uint8_t>>(*s.outgoing());
     auto cd = std::make_shared<compare_data<uint8_t>>(data.data(), data.size());
     
-    return vds::async_series(
-      rs->write_async(sp, data.data(), data.size())
+    vds::async_task<> step1 = rs->write_async(sp, data.data(), data.size())
       .then([rs, sp](){
         return rs->write_async(sp, nullptr, 0);
-      }),
-      vds::copy_stream(
+      });
+    vds::async_task<> step2 = vds::copy_stream(
         sp,
         s.incoming(),
-        std::static_pointer_cast<vds::stream_async<uint8_t>>(cd))
-      );
+        std::static_pointer_cast<vds::stream_async<uint8_t>>(cd));
+    return vds::async_series(std::move(step1), std::move(step2));
   }).wait(
     [&b, sp]() {
       sp.get<vds::logger>()->debug("TCP", sp, "Request sent");

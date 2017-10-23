@@ -25,7 +25,6 @@ All rights reserved
 #include "random_buffer.h"
 #include "encoding.h"
 #include "test_config.h"
-#include "random_filter.h"
 #include "task_manager.h"
 
 static void copy_body(

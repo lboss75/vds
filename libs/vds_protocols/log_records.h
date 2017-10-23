@@ -6,7 +6,6 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
-#include "storage_object_id.h"
 #include "binary_serialize.h"
 #include "json_object.h"
 #include "asymmetriccrypto.h"

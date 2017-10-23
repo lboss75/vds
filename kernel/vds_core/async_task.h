@@ -634,12 +634,27 @@ namespace vds {
   inline void _empty_fake(task_types... args)
   {
   }
+  
+  template <typename task_type>
+  inline void _add_to_async_series(std::list<async_task<>> & target, task_type && first)
+  {
+    target.push_back(std::move(first));
+  }
+  
+  template <typename task_type, typename... task_types>
+  inline void _add_to_async_series(std::list<async_task<>> & target, task_type && first, task_types &&... args)
+  {
+    target.push_back(std::move(first));
+    _add_to_async_series(target, std::move(args)...);
+  }
 
 
   template <typename... task_types>
   inline async_task<> async_series(task_types &&... args)
   {
-    auto steps = new std::list<async_task<>>({ std::forward<task_types>(args)... });
+    auto steps = new std::list<async_task<>>();
+    _add_to_async_series(*steps, std::move(args)...);
+    
     return [steps](const async_result<> & result){
         auto runner = new _async_series(result, steps->size());
         runner->run(*steps);

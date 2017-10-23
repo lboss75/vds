@@ -11,13 +11,15 @@ All rights reserved
 
 namespace vds {
   class http_message;
+  class _http_server;
 
   class http_server
   {
   public:
-    typedef std::function<async_task<std::shared_ptr<vds::http_message>> (const vds::service_provider & sp, const std::shared_ptr<vds::http_message> & request)> handler_type;
+    typedef std::function<async_task<std::shared_ptr<vds::http_message>>(const std::shared_ptr<vds::http_message> & request)> handler_type;
 
     http_server();
+    ~http_server();
 
     async_task<> start(
       const vds::service_provider & sp,
@@ -26,13 +28,7 @@ namespace vds {
       const handler_type & handler);
 
   private:
-    handler_type handler_;
-    std::shared_ptr<async_buffer<std::shared_ptr<http_message>>> input_commands_;
-    std::shared_ptr<async_buffer<std::shared_ptr<http_message>>> output_commands_;
-
-    async_task<> send(
-      const vds::service_provider & sp,
-      const std::shared_ptr<vds::http_message> & message);
+    std::shared_ptr<_http_server> impl_;
   };
 }
 
