@@ -22,6 +22,23 @@ All rights reserved
 #include "test_config.h"
 #include "task_manager.h"
 
+static vds::async_task<std::string> read_answer(
+  const vds::service_provider & sp,
+  const std::shared_ptr<uint8_t[1024]> & buffer,
+  const std::shared_ptr<vds::continuous_buffer<uint8_t>> & source,
+  const std::string & result = std::string())
+{
+  return source->read_async(sp, *buffer, 1024)
+    .then([sp, buffer, source, result](size_t readed) -> vds::async_task<std::string> {
+    if (0 == readed) {
+      return [result]() { return result; };
+    }
+    else {
+      return read_answer(sp, buffer, source, result + std::string((const char *)*buffer, readed));
+    }
+  });
+}
+
 TEST(http_tests, test_server)
 {
   vds::service_registrator registrator;
@@ -61,33 +78,27 @@ TEST(http_tests, test_server)
 
     http_server.start(sp,
       s.incoming(), s.outgoing(),
-      [&middleware](
-        const vds::service_provider & sp,
-        const std::shared_ptr<vds::http_message> & request) -> vds::async_task<std::shared_ptr<vds::http_message>> {
-
+      [sp, &middleware](const std::shared_ptr<vds::http_message> & request) {
         return middleware.process(sp, request);
         })
       .wait(
-        [](const vds::service_provider & sp) {
+        [sp]() {
           sp.get<vds::logger>()->debug("test", sp, "Connection closed");
         },
-        [](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+        [sp](const std::shared_ptr<std::exception> & ex) {
           sp.get<vds::logger>()->debug("test", sp, "Server error");
           sp.unhandled_exception(ex);
-        },
-        sp);
+        });
   }).wait(
-      [&b](const vds::service_provider & sp) {
+      [sp, &b]() {
     sp.get<vds::logger>()->debug("test", sp, "Server has been started");
     b.set();
   },
-      [&b](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+      [sp, &b](const std::shared_ptr<std::exception> & ex) {
     sp.get<vds::logger>()->debug("test", sp, "Server error");
     sp.unhandled_exception(ex);
     b.set();
-  },
-    sp
-    );
+  });
   b.wait();
   b.reset();
 
@@ -100,18 +111,14 @@ TEST(http_tests, test_server)
     (const char *)"127.0.0.1",
     8000)
     .then(
-      [&client, &response, &answer](
-        const vds::service_provider & sp,
-        const vds::tcp_network_socket & s) {
+      [sp, &client, &response, &answer](const vds::tcp_network_socket & s) {
 
     sp.get<vds::logger>()->debug("test", sp, "Connected");
 
     return client.start(
       sp,
       s.incoming(), s.outgoing(),
-      [&response, &answer](
-        const vds::service_provider & sp,
-        const std::shared_ptr<vds::http_message> & request) -> vds::async_task<> {
+      [sp, &response, &answer](const std::shared_ptr<vds::http_message> & request) {
 
       if (!request) {
         return vds::async_task<>::empty();
@@ -119,50 +126,41 @@ TEST(http_tests, test_server)
       
       response = request;
       
-      auto data = std::make_shared<std::vector<uint8_t>>();
-      
-      return vds::dataflow(
-          vds::stream_read<vds::continuous_buffer<uint8_t>>(response->body()),
-          vds::collect_data(*data)
-        )
+      return read_answer(
+          sp,
+          std::make_shared<uint8_t[1024]>(),
+          request->body())
       .then(
-        [&response, &answer, data](
-          const std::function<void(const vds::service_provider & sp)> & task_done,
-          const vds::error_handler & /*on_error*/,
-          const vds::service_provider & sp){
-            answer = std::string((const char *)data->data(), data->size());
-            task_done(sp);
+        [&answer](const std::string & result){
+            answer = result;
         });
     });
   })
   .wait(
-    [&b](const vds::service_provider & sp) {
+    [sp, &b]() {
         sp.get<vds::logger>()->debug("test", sp, "Request sent"); b.set();
     },
-    [&b](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+    [sp, &b](const std::shared_ptr<std::exception> & ex) {
       sp.get<vds::logger>()->debug("test", sp, "Request error");
       b.set(); 
-    },
-    sp.create_scope("Client"));
+    });
 
   std::shared_ptr<vds::http_message> request = vds::http_request("GET", "/").get_message();
-  request->body()->write_all_async(sp, nullptr, 0).wait(
-    [](const vds::service_provider & sp) {},
-    [](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {},
-    sp);
+  request->body()->write_async(sp, nullptr, 0).wait(
+    []() {},
+    [sp](const std::shared_ptr<std::exception> & ex) {});
 
 
   client.send(sp, request)
   .then(
-    [&client](const vds::service_provider & sp) {
-    return client.send(sp, std::shared_ptr<vds::http_message>());
+    [sp, &client]() {
+      return client.send(sp, std::shared_ptr<vds::http_message>());
     })
   .wait(
-    [](const vds::service_provider & sp) {},
-    [](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+    []() {},
+    [sp](const std::shared_ptr<std::exception> & ex) {
       sp.unhandled_exception(ex);
-    },
-  sp);
+    });
 
   b.wait();
   //Wait
