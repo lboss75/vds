@@ -329,15 +329,15 @@ vds::client_messages::get_object_response::get_object_response(const std::shared
     s->get_property("s", state);
     
     if("quered" == state){
-      this->state_.status = server_task_manager::task_status::QUERED;
+      this->state_.status = task_state::task_status::QUERED;
     } else if("in progress" == state){
-      this->state_.status = server_task_manager::task_status::IN_PROGRESS;
+      this->state_.status = task_state::task_status::IN_PROGRESS;
     } else if("paused" == state){
-      this->state_.status = server_task_manager::task_status::PAUSED;
+      this->state_.status = task_state::task_status::PAUSED;
     } else if("failed" == state){
-      this->state_.status = server_task_manager::task_status::FAILED;
+      this->state_.status = task_state::task_status::FAILED;
     } else if("done" == state){
-      this->state_.status = server_task_manager::task_status::DONE;
+      this->state_.status = task_state::task_status::DONE;
     }      
     
     s->get_property("t", this->state_.current_task);
@@ -351,23 +351,23 @@ std::shared_ptr<vds::json_value> vds::client_messages::get_object_response::seri
   s->add_property("$t", message_type);
 
   switch(this->state_.status){
-    case server_task_manager::task_status::QUERED:
+    case task_state::task_status::QUERED:
       s->add_property("s", "quered");
       break;
       
-    case server_task_manager::task_status::IN_PROGRESS:
+    case task_state::task_status::IN_PROGRESS:
       s->add_property("s", "in progress");
       break;
       
-    case server_task_manager::task_status::PAUSED:
+    case task_state::task_status::PAUSED:
       s->add_property("s", "paused");
       break;
       
-    case server_task_manager::task_status::FAILED:
+    case task_state::task_status::FAILED:
       s->add_property("s", "failed");
       break;
 
-    case server_task_manager::task_status::DONE:
+    case task_state::task_status::DONE:
       s->add_property("s", "done");
       break;
   }

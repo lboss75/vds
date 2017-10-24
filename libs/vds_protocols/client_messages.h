@@ -348,6 +348,22 @@ namespace vds {
       guid version_id_;
       filename tmp_file_;
     };
+    
+    struct task_state
+    {
+      enum class task_status
+      {
+        QUERED,
+        IN_PROGRESS,
+        PAUSED,
+        FAILED,
+        DONE
+      };
+      
+      task_status status;
+      std::string current_task;
+      int progress_percent;
+    };
 
     class get_object_response
     {
@@ -357,14 +373,15 @@ namespace vds {
       get_object_response(const std::shared_ptr<json_value> &);
       std::shared_ptr<json_value> serialize() const;
 
-      get_object_response(const server_task_manager::task_state & state)
+      get_object_response(
+        const task_state & state)
       : state_(state)
       {
       }
 
-      const server_task_manager::task_state & state() const { return this->state_; }
+      const task_state & state() const { return this->state_; }
     private:
-      server_task_manager::task_state state_;
+      task_state state_;
     };
   };
 }
