@@ -26,6 +26,23 @@ All rights reserved
 #include "encoding.h"
 #include "test_config.h"
 
+static vds::async_task<std::string> read_answer(
+  const vds::service_provider & sp,
+  const std::shared_ptr<uint8_t[1024]> & buffer,
+  const std::shared_ptr<vds::continuous_buffer<uint8_t>> & source,
+  const std::string & result = std::string())
+{
+  return source->read_async(sp, *buffer, 1024)
+    .then([sp, buffer, source, result](size_t readed) -> vds::async_task<std::string> {
+    if (0 == readed) {
+      return [result]() { return result; };
+    }
+    else {
+      return read_answer(sp, buffer, source, result + std::string((const char *)*buffer, readed));
+    }
+  });
+}
+
 TEST(http_tests, test_http_serializer)
 {
   vds::service_registrator registrator;
@@ -53,26 +70,23 @@ TEST(http_tests, test_http_serializer)
 
   vds::barrier b;
 
-  std::vector<uint8_t> buffer;
-  vds::dataflow(
-    vds::dataflow_arguments<std::shared_ptr<vds::http_message>>(&request, 1),
-    vds::http_serializer(),
-    vds::collect_data(buffer)
-  )
+  vds::collect_data<uint8_t> cd;
+  vds::http_serializer s(cd);
+  
+  s.write(sp, request)
   .wait(
-    [&b](const vds::service_provider & sp) {
+    [&b]() {
       b.set();
     },
-    [](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+    [sp](const std::shared_ptr<std::exception> & ex) {
       sp.unhandled_exception(ex);
-    },
-    sp);
+    });
 
   b.wait();
   //Wait
   registrator.shutdown(sp);
 
-  std::string answer((const char *)buffer.data(), buffer.size());
+  std::string answer((const char *)cd.data(), cd.size());
   std::string expected = "GET / HTTP/1.0\nContent-Type: text/html; charset=utf-8\nContent-Length:" + std::to_string(test_data.length()) + "\n\n" + test_data;
 
   ASSERT_EQ(answer, expected);

@@ -31,18 +31,7 @@ namespace vds {
       const vds::service_provider & sp,
       const std::shared_ptr<http_message> & request)
     {
-      return create_async_task(
-        [this, request](
-          const std::function<void(const vds::service_provider & sp, std::shared_ptr<http_message> response)> & done,
-          const error_handler & on_error,
-          const service_provider & sp) {
-        try {
-          this->router_.route(sp, request).wait(done, on_error, sp);
-        }
-        catch (...) {
-          done(sp, http_response(http_response::HTTP_Internal_Server_Error, "ERROR").create_message());
-        }
-      });
+      return this->router_.route(sp, request);
     }
 
   private:

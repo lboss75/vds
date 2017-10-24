@@ -15,7 +15,7 @@ namespace vds {
   class http_client
   {
   public:
-    typedef std::function<async_task<> (const vds::service_provider & sp, const std::shared_ptr<vds::http_message> & request)> handler_type;
+    typedef std::function<async_task<> (const std::shared_ptr<vds::http_message> & request)> handler_type;
 
     http_client();
 

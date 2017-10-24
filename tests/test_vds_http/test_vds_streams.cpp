@@ -27,36 +27,24 @@ All rights reserved
 #include "test_config.h"
 #include "task_manager.h"
 
-static void copy_body(
+static vds::async_task<> copy_body(
   const vds::service_provider & sp,
   const std::shared_ptr<std::vector<uint8_t>> & buffer,
   const std::shared_ptr<vds::continuous_buffer<uint8_t>> & source,
   const std::shared_ptr<vds::continuous_buffer<uint8_t>> & dest)
 {
-  source->read_async(sp, buffer->data(), buffer->size())
-  .wait([sp, buffer, source, dest](size_t readed){
+  return source->read_async(sp, buffer->data(), buffer->size())
+  .then([sp, buffer, source, dest](size_t readed){
     if(0 == readed){
-      dest->write_async(sp, nullptr, 0)
-      .wait(
-        [](){
-        },
-        [sp](const std::shared_ptr<std::exception> & error){
-          sp.unhandled_exception(error);
-        });
+      return dest->write_async(sp, nullptr, 0);
     }
     else {
-      dest->write_async(sp, buffer->data(), readed)
-      .wait(
+      return dest->write_async(sp, buffer->data(), readed)
+      .then(
         [sp, buffer, source, dest](){
-          copy_body(sp, buffer, source, dest);
-        },
-        [sp](const std::shared_ptr<std::exception> & error){
-          sp.unhandled_exception(error);
+          return copy_body(sp, buffer, source, dest);
         });
     }
-  },
-  [sp](const std::shared_ptr<std::exception> & error){
-    sp.unhandled_exception(error);
   });
 }
 
@@ -102,16 +90,11 @@ TEST(http_tests, test_streams)
   vds::async_series(
     http_server.start(sp,
       server2client, client2server,
-      [](
-        const vds::service_provider & sp,
-        const std::shared_ptr<vds::http_message> & request) -> vds::async_task<std::shared_ptr<vds::http_message>> {
+      [sp](const std::shared_ptr<vds::http_message> & request) -> vds::async_task<std::shared_ptr<vds::http_message>> {
 
-    return vds::create_async_task(
-      [request](const std::function<void(const vds::service_provider & sp, std::shared_ptr<vds::http_message>)> & done,
-        const vds::error_handler & on_error,
-        const vds::service_provider & sp) {
+    return [sp, request]() {
       if (!request) {
-        done(sp, std::shared_ptr<vds::http_message>());
+        return []() { return std::shared_ptr<vds::http_message>(); };
       }
       else {
         std::string value;
@@ -121,15 +104,14 @@ TEST(http_tests, test_streams)
         response.add_header("Content-Length", value);
         auto result = response.create_message();
 
-        copy_body(
+        return copy_body(
           sp,
           std::make_shared<std::vector<uint8_t>>(1024),
           request->body(),
-          result->body());
-
-        done(sp, result);
+          result->body())
+          .then([result](){ return result;});
       }
-    });
+    };
   }),
     client.start(
       sp,

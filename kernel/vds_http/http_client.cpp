@@ -40,10 +40,10 @@ vds::async_task<> vds::http_client::process_input_commands(
   return this->input_commands_->read_async(sp, &this->input_buffer_, 1)
     .then([this, sp, handler](size_t readed) {
     if (0 == readed) {
-      return handler(sp, std::shared_ptr<vds::http_message>());
+      return handler(std::shared_ptr<vds::http_message>());
     }
     else {
-      return handler(sp, this->input_buffer_)
+      return handler(this->input_buffer_)
         .then([this, sp, handler]() {
         return this->process_input_commands(sp, handler);
       });
