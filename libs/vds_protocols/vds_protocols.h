@@ -14,8 +14,6 @@ All rights reserved
 #include "messages.h"
 #include "install_node_messages.h"
 #include "client_messages.h"
-#include "server_log_sync.h"
 #include "endpoint.h"
-#include "storage_log.h"
 
 #endif // __VDS_PROTOCOLS_VDS_PROTOCOLS_H_

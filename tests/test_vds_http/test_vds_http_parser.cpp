@@ -73,7 +73,7 @@ TEST(http_tests, test_http_serializer)
   vds::collect_data<uint8_t> cd;
   vds::http_serializer s(cd);
   
-  s.write(sp, request)
+  s.write_async(sp, request)
   .wait(
     [&b]() {
       b.set();
@@ -120,44 +120,37 @@ TEST(http_tests, test_http_parser)
   std::string answer;
   vds::barrier b;
 
-  vds::dataflow(
-    vds::dataflow_arguments<std::shared_ptr<vds::http_message>>(&request, 1),
-    vds::http_serializer(),
-    //random_filter(),
-    vds::http_parser(
-      [&answer, &b](const vds::service_provider & sp, const std::shared_ptr<vds::http_message> & request) -> vds::async_task<> {
-        if (!request) {
-          return vds::async_task<>::empty();
-        }
+  vds::http_parser parser(
+    [&answer, &b](const std::shared_ptr<vds::http_message> & request) -> vds::async_task<> {
+    if (!request) {
+      return vds::async_task<>::empty();
+    }
 
-        return vds::create_async_task(
-          [&b, &answer, request](
-            const std::function<void(const vds::service_provider & sp)> & task_done,
-            const vds::error_handler & on_error,
-            const vds::service_provider & sp)
-        {
-          auto data = std::make_shared<std::vector<uint8_t>>();
-          vds::dataflow(
-            vds::stream_read<vds::continuous_buffer<uint8_t>>(request->body()),
-            vds::collect_data(*data)
-          )
-          .wait(
-            [data, &b, &answer, task_done](const vds::service_provider & sp) {
-            b.set();
-            answer = std::string((const char *)data->data(), data->size());
-            task_done(sp);
-          },
-            on_error,
-            sp.create_scope("Client read dataflow"));
+    return 
+      [&b, &answer, request]()
+    {
+      auto data = std::make_shared<std::vector<uint8_t>>();
+      vds::dataflow(
+        vds::stream_read<vds::continuous_buffer<uint8_t>>(request->body()),
+        vds::collect_data(*data)
+      )
+        .wait(
+          [data, &b, &answer, task_done](const vds::service_provider & sp) {
+        b.set();
+        answer = std::string((const char *)data->data(), data->size());
+        task_done(sp);
+      },
+          on_error,
+        sp.create_scope("Client read dataflow"));
 
-        });
-      }
-    )
-  )
+    });
+  });
+
+  vds::http_serializer serializer(parser);
+  serializer.write_async(sp, request)
   .wait(
-    [](const vds::service_provider & sp) {},
-    [](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) { sp.unhandled_exception(ex); },
-    sp);
+    []() {},
+    [sp](const std::shared_ptr<std::exception> & ex) { sp.unhandled_exception(ex); });
 
   b.wait();
   //Wait

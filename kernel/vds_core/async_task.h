@@ -53,6 +53,7 @@ namespace vds {
   struct _is_async_task_result
   {
 	  static constexpr bool value = false;
+    static constexpr bool is_void_result = true;
     typedef void task_type;
   };
 
@@ -60,6 +61,7 @@ namespace vds {
   struct _is_async_task_result<const async_result<result_types...> &>
   {
     static constexpr bool value = true;
+    static constexpr bool is_void_result = (0 == sizeof...(result_types));
     typedef async_task<result_types...> task_type;
   };
   /////////////////////////////////////////////////////////////////////////////////
@@ -125,7 +127,10 @@ namespace vds {
   {
 	  static constexpr bool is_async_callback = _is_async_task_result<first_argument_type>::value;
 	  static constexpr bool task_as_result = false;
-	  static constexpr bool is_void_result = false;
+    static constexpr bool is_void_result = 
+      !_is_async_task_result<first_argument_type>::value
+      || _is_async_task_result<first_argument_type>::is_void_result;
+
 	  typedef typename std::conditional<
 		  _is_async_task_result<first_argument_type>::value,
 		  typename _is_async_task_result<first_argument_type>::task_type,
@@ -137,8 +142,10 @@ namespace vds {
   {
 	  static constexpr bool is_async_callback = _is_async_task_result<first_argument_type>::value;
 	  static constexpr bool task_as_result = false;
-    static constexpr bool is_void_result = false;
-	  typedef typename std::conditional<
+    static constexpr bool is_void_result =
+      !_is_async_task_result<first_argument_type>::value
+      || _is_async_task_result<first_argument_type>::is_void_result;
+    typedef typename std::conditional<
 		  _is_async_task_result<first_argument_type>::value,
 		  typename _is_async_task_result<first_argument_type>::task_type,
 		  async_task<> >::type task_type;
