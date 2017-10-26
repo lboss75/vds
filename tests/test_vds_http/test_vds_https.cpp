@@ -148,7 +148,7 @@ TEST(http_tests, test_https_server)
     (const char *)"127.0.0.1",
     8000)
     .then(
-      [&b, &response, &answer, &client_cert, &client_pkey, &client](
+      [sp, &b, &response, &answer, &client_cert, &client_pkey, &client](
         const vds::tcp_network_socket & s) {
 
     sp.get<vds::logger>()->debug("test", sp, "Connected");
@@ -158,7 +158,7 @@ TEST(http_tests, test_https_server)
       client.start(
         sp,
         client_crypto_tunnel.decrypted_output(), client_crypto_tunnel.decrypted_input(),
-        [&response, &answer](const std::shared_ptr<vds::http_message> & request) -> vds::async_task<> {
+        [sp, &response, &answer](const std::shared_ptr<vds::http_message> & request) -> vds::async_task<> {
 
           if (!request) {
             return vds::async_task<>::empty();
@@ -196,10 +196,9 @@ TEST(http_tests, test_https_server)
       });
 
   std::shared_ptr<vds::http_message> request = vds::http_request("GET", "/").get_message();
-  request->body()->write_all_async(sp, nullptr, 0).wait(
-    [](const vds::service_provider & sp) {},
-    [](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {},
-    sp);
+  request->body()->write_async(sp, nullptr, 0).wait(
+    []() {},
+    [](const std::shared_ptr<std::exception> & ex) {});
 
 
   client.send(sp, request)

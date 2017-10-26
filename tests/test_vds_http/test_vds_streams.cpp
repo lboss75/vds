@@ -48,6 +48,23 @@ static vds::async_task<> copy_body(
   });
 }
 
+static vds::async_task<std::string> read_answer(
+  const vds::service_provider & sp,
+  const std::shared_ptr<uint8_t[1024]> & buffer,
+  const std::shared_ptr<vds::continuous_buffer<uint8_t>> & source,
+  const std::string & result = std::string())
+{
+  return source->read_async(sp, *buffer, 1024)
+    .then([sp, buffer, source, result](size_t readed) -> vds::async_task<std::string> {
+    if (0 == readed) {
+      return [result]() { return result; };
+    }
+    else {
+      return read_answer(sp, buffer, source, result + std::string((const char *)*buffer, readed));
+    }
+  });
+}
+
 TEST(http_tests, test_streams)
 {
   vds::service_registrator registrator;
@@ -92,7 +109,7 @@ TEST(http_tests, test_streams)
       server2client, client2server,
       [sp](const std::shared_ptr<vds::http_message> & request) -> vds::async_task<std::shared_ptr<vds::http_message>> {
 
-    return [sp, request]() {
+    return [sp, request]()-> vds::async_task<> {
       if (!request) {
         return []() { return std::shared_ptr<vds::http_message>(); };
       }
@@ -126,17 +143,13 @@ TEST(http_tests, test_streams)
 
     response = request;
 
-    auto data = std::make_shared<std::vector<uint8_t>>();
-    return vds::dataflow(
-        vds::stream_read<vds::continuous_buffer<uint8_t>>(response->body()),
-        vds::collect_data(*data)
-      )
+    return read_answer(
+      sp,
+      std::make_shared<uint8_t[1024]>(),
+      response->body())
     .then(
-      [data, &answer](const std::function<void(const vds::service_provider & sp)> & done,
-         const vds::error_handler & on_error,
-         const vds::service_provider & sp){
-          answer = std::string((const char *)data->data(), data->size());
-          done(sp);
+      [&answer](const std::string & result){
+          answer = result;
         });
   }),
   client.send(sp, request)

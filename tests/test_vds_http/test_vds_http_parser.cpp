@@ -126,23 +126,12 @@ TEST(http_tests, test_http_parser)
       return vds::async_task<>::empty();
     }
 
-    return 
-      [&b, &answer, request]()
-    {
-      auto data = std::make_shared<std::vector<uint8_t>>();
-      vds::dataflow(
-        vds::stream_read<vds::continuous_buffer<uint8_t>>(request->body()),
-        vds::collect_data(*data)
-      )
-        .wait(
-          [data, &b, &answer, task_done](const vds::service_provider & sp) {
-        b.set();
-        answer = std::string((const char *)data->data(), data->size());
-        task_done(sp);
-      },
-          on_error,
-        sp.create_scope("Client read dataflow"));
-
+    return read_answer(
+      sp,
+      std::make_shared<uint8_t[1024]>(),
+      request->body())
+    .then([&answer](const std::string & result){
+      answer = result;
     });
   });
 

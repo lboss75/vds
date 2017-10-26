@@ -69,8 +69,6 @@ namespace vds {
     std::chrono::time_point<std::chrono::steady_clock> connection_start_;
     std::chrono::time_point<std::chrono::steady_clock> connection_end_;
     
-    cancellation_token_source cancellation_source_;
-    
     http_client client_;
   };
 }

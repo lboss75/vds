@@ -68,11 +68,10 @@ void vds::client_logic::stop(const service_provider & sp)
       imt_service::enable_async(scope);
 
       barrier b;
-      connection->outgoing_stream()->write_all_async(scope, nullptr, 0)
+      connection->outgoing_stream()->write_async(scope, nullptr, 0)
         .wait(
-          [&b](const service_provider & sp) {b.set(); },
-          [&b](const service_provider & sp, const std::shared_ptr<std::exception> & ex) { b.set(); sp.unhandled_exception(ex); },
-          scope);
+          [&b]() {b.set(); },
+          [sp, &b](const std::shared_ptr<std::exception> & ex) { b.set(); sp.unhandled_exception(ex); });
       b.wait();
     }
     connection->stop(sp);
@@ -186,9 +185,10 @@ void vds::client_logic::add_task(const service_provider & sp, const std::shared_
 
       connection->outgoing_stream()->write_value_async(scope, message)
       .wait(
-        [](const service_provider & sp) {},
-        [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) { sp.unhandled_exception(ex); },
-        scope);
+        []() {},
+        [sp](const std::shared_ptr<std::exception> & ex) {
+          sp.unhandled_exception(ex);
+        });
     }
   }
 }
