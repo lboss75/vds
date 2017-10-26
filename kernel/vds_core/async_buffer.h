@@ -79,13 +79,13 @@ namespace vds {
           
           this->in_mutex_.unlock();
           mt_service::async(sp, [sp, done]() {
-            done();
+            done.done();
           });
         }
         else {
           this->in_mutex_.unlock();
           this->write_all(sp, [done](){
-            done();
+            done.done();
           }, data, data_size);
         }
       };
@@ -115,7 +115,7 @@ namespace vds {
 
         this->continue_read(sp, [this, result](size_t readed){
           this->out_mutex_.unlock();
-          result(readed);
+          result.done(readed);
         }, buffer, buffer_size);
       };
     }

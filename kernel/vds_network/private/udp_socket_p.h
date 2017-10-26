@@ -431,12 +431,13 @@ namespace vds {
           this->sp_.get<logger>()->trace("UDP", this->sp_, "read timeout");
           this->closed_ = true;
           this->owner_->incoming_->write_async(this->sp_, nullptr, 0)
-          .wait(
-            [sp = this->sp_]() {
-              sp.get<logger>()->trace("UDP", sp, "input closed");
-            },
+          .execute(
             [sp = this->sp_](const std::shared_ptr<std::exception> & ex) {
-              sp.unhandled_exception(ex);
+              if(!ex){
+                sp.get<logger>()->trace("UDP", sp, "input closed");
+              } else {
+                sp.unhandled_exception(ex);
+              }
             });
         }          
       }
@@ -449,12 +450,13 @@ namespace vds {
           this->sp_.get<logger>()->trace("UDP", this->sp_, "read timeout");
           this->closed_ = true;
           this->owner_->incoming_->write_async(this->sp_, nullptr, 0)
-          .wait(
-            [sp = this->sp_]() {
-              sp.get<logger>()->trace("UDP", sp, "input closed");
-            },
+          .execute(
             [sp = this->sp_](const std::shared_ptr<std::exception> & ex) {
-              sp.unhandled_exception(ex);
+              if(!ex){
+                sp.get<logger>()->trace("UDP", sp, "input closed");
+              } else {
+                sp.unhandled_exception(ex);
+              }
             });
         }          
       }
@@ -497,17 +499,19 @@ namespace vds {
       void schedule_write()
       {
         this->owner_->outgoing_->read_async(this->sp_, &this->write_buffer_, 1)
-        .wait([pthis = this->shared_from_this()](size_t readed){
-          if(0 == readed){
-            //End of stream
-            shutdown(static_cast<this_class *>(pthis.get())->owner_->s_, SHUT_WR);
+        .execute([pthis = this->shared_from_this()](const std::shared_ptr<std::exception> & ex, size_t readed){
+          auto this_ = static_cast<this_class *>(pthis.get());
+          if(!ex){
+            if(0 == readed){
+              //End of stream
+              shutdown(this_->owner_->s_, SHUT_WR);
+            }
+            else {
+              this_->change_mask(EPOLLOUT);
+            }
+          } else {
+            this_->sp_.unhandled_exception(ex);
           }
-          else {
-            static_cast<this_class *>(pthis.get())->change_mask(EPOLLOUT);
-          }
-        },
-        [sp = this->sp_](const std::shared_ptr<std::exception> & ex){
-          sp.unhandled_exception(ex);
         });
       }
 
@@ -532,17 +536,18 @@ namespace vds {
         this->read_timeout_ticks_ = 0;
         this->sp_.get<logger>()->trace("UDP", this->sp_, "got %d bytes from %s", len, network_service::to_string(this->addr_).c_str());
         this->owner_->incoming_->write_value_async(this->sp_, _udp_datagram::create(this->addr_, this->read_buffer_, len))
-          .wait(
-            [pthis = this->shared_from_this(), len]() {
-              if(0 != len){
-                static_cast<this_class *>(pthis.get())->read_data();
+          .execute(
+            [pthis = this->shared_from_this(), len](const std::shared_ptr<std::exception> & ex) {
+              if(!ex){
+                if(0 != len){
+                  static_cast<this_class *>(pthis.get())->read_data();
+                }
+                else {
+                  static_cast<this_class *>(pthis.get())->sp_.get<logger>()->trace("UDP", static_cast<this_class *>(pthis.get())->sp_, "input closed");
+                }
+              } else {
+                sp.unhandled_exception(ex);
               }
-              else {
-                static_cast<this_class *>(pthis.get())->sp_.get<logger>()->trace("UDP", static_cast<this_class *>(pthis.get())->sp_, "input closed");
-              }
-            },
-            [sp = this->sp_](const std::shared_ptr<std::exception> & ex) {
-              sp.unhandled_exception(ex);
             });
       }
     };

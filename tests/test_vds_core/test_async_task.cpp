@@ -30,7 +30,7 @@ static vds::async_task<std::string> step3(
 	int v)
 {
 	auto f = [v](const vds::async_result<std::string> & result) {
-		step3_saved_done = [result, v]() { result(std::to_string(v)); };
+		step3_saved_done = [result, v]() { result.done(std::to_string(v)); };
 	};
 
 	static_assert(
@@ -49,13 +49,13 @@ TEST(code_tests, test_async_task) {
   auto t = step1(10).then([](const std::string & v) { return step2(v); });
   
   std::string test_result;
-  t
-  .wait(
-    [&test_result](const std::string & result){
-      test_result = result;
-    },
-    [](const std::shared_ptr<std::exception> & ex) {
-      FAIL() << ex->what();
+  t.execute(
+    [&test_result](const std::shared_ptr<std::exception> & ex, const std::string & result){
+      if(!ex){
+        test_result = result;
+      }else {
+        FAIL() << ex->what();
+      }
     });
   
   ASSERT_EQ(test_result, "result10");
@@ -68,13 +68,15 @@ TEST(code_tests, test_async_task1) {
   });
 
   std::string test_result;
-  t.wait(
-    [&test_result](const std::string & result) {
+  t.execute(
+    [&test_result](const std::shared_ptr<std::exception> & ex, const std::string & result) {
+      if(!ex){
       test_result = result;
-    },
-    [](const std::shared_ptr<std::exception> & ex) {
-    FAIL() << ex->what();
-  });
+      }
+      else {
+        FAIL() << ex->what();
+      }
+    });
 
   ASSERT_EQ(test_result, "result10");
 }
@@ -88,13 +90,15 @@ static void test2(
     return "result" + v;
   });
 
-  t.wait(
-    [&test_result, &b](const std::string & result) {
+  t.execute(
+    [&test_result, &b](const std::shared_ptr<std::exception> & ex, const std::string & result) {
+      if(!ex){
       test_result = result;
+      }
+      else {
+        FAIL() << ex->what();
+      }
       b.set();
-    },
-    [](const std::shared_ptr<std::exception> & ex) {
-      FAIL() << ex->what();
     });
 }
 

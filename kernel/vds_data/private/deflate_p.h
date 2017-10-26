@@ -98,7 +98,7 @@ namespace vds {
     void continue_write(const service_provider & sp, const async_result<> & result)
     {
       if(0 != this->strm_.avail_out){
-        result();
+        result.done();
       }
       else {
         this->strm_.next_out = (Bytef *)this->buffer_;
@@ -112,12 +112,13 @@ namespace vds {
 
         auto written = sizeof(buffer_) - this->strm_.avail_out;
         this->target_.write_async(sp, buffer_, written)
-        .wait(
-          [pthis = this->shared_from_this(), result, sp](){
-            pthis->continue_write(sp, result);
-          },
-          [result](const std::shared_ptr<std::exception> & ex){
-           result.error(ex); 
+        .execute(
+          [pthis = this->shared_from_this(), result, sp](const std::shared_ptr<std::exception> & ex){
+            if(!ex){
+              pthis->continue_write(sp, result);
+            } else {
+              result.error(ex); 
+            };
           });
       }
     }

@@ -72,8 +72,8 @@ namespace vds {
   {
     using base_class = _call_with<target_type, tuple_type, current_num - 1, current_num - 1, nums...>;
   public:
-    _call_with(const target_type & target, tuple_type && arguments)
-    : base_class(target, std::move(arguments))
+    _call_with(const target_type & target, const std::shared_ptr<std::exception>& ex, tuple_type && arguments)
+    : base_class(target, ex, std::move(arguments))
     {
     }
   };
@@ -82,16 +82,16 @@ namespace vds {
   class _call_with<target_type, tuple_type, 0, nums...>
   {
   public:
-    _call_with(const target_type & target, tuple_type && arguments)
+    _call_with(const target_type & target, const std::shared_ptr<std::exception>& ex, tuple_type && arguments)
     {
-      target(std::move(std::get<nums>(arguments))...);
+      target(ex, std::move(std::get<nums>(arguments))...);
     }
   };
   
   template<typename target_type, typename tuple_type>
-  inline void call_with(const target_type & target, tuple_type && arguments)
+  inline void call_with(const target_type & target, const std::shared_ptr<std::exception> & ex, tuple_type && arguments)
   {
-    _call_with<target_type, tuple_type, std::tuple_size<tuple_type>::value>(target, std::move(arguments));
+    _call_with<target_type, tuple_type, std::tuple_size<tuple_type>::value>(target, ex, std::move(arguments));
   }
   
   class func_utils

@@ -21,31 +21,15 @@ namespace vds {
 	class async_result
 	{
 	public:
-		async_result(
-			std::function<void(result_types... results)> && done,
-			std::function<void(const std::shared_ptr<std::exception> & ex)> && error);
+		async_result(std::function<void(const std::shared_ptr<std::exception> & ex, result_types... results)> && done);
 
-		void operator()(const result_types &... results) const;
-		void operator()(std::tuple<result_types...> && result) const;
+		void done(const result_types &... results) const;
+		void done(std::tuple<result_types...> && result) const;
 		void error(const std::shared_ptr<std::exception> & ex) const;
 
 	private:
     
-    class result_data : public std::enable_shared_from_this<result_data>
-    {
-    public:
-      result_data(
-        std::function<void(result_types... results)> && done,
-        std::function<void(const std::shared_ptr<std::exception> & ex)> && error)
-        : done_(std::move(done)), error_(std::move(error))
-      {
-      }
-
-      std::function<void(result_types... results)> done_;
-      std::function<void(const std::shared_ptr<std::exception> & ex)> error_;
-    };
-    
-    std::shared_ptr<result_data> impl_;
+    std::function<void(const std::shared_ptr<std::exception> & ex, result_types... results)> done_;
 	};
 
   /////////////////////////////////////////////////////////////////////////////////
@@ -178,11 +162,11 @@ namespace vds {
     
 	  ~async_task();
 
-	  template<typename functor_type, typename error_functor_type>
-	  void wait(functor_type && done_callback, error_functor_type && error_callback) const;
+	  template<typename functor_type>
+	  void execute(functor_type && done_callback);
     
-    void operator()(
-      const async_result<result_types...> & done);
+	  template<typename functor_type>
+    void operator()(functor_type && done_callback);
 
 	  template<typename functor_type>
 	  auto then(functor_type && f)
@@ -233,7 +217,7 @@ namespace vds {
   public:
 	  virtual ~_async_task_base() {}
 
-	  virtual void execute(const async_result<result_types...> & done) = 0;
+	  virtual void execute(async_result<result_types...> && done) = 0;
   };
   /////////////////////////////////////////////////////////////////////////////////
   template <typename functor_type, typename... result_types>
@@ -245,7 +229,7 @@ namespace vds {
 	  {
 	  }
 
-	  void execute(const async_result<result_types...> & done) override
+	  void execute(async_result<result_types...> && done) override
 	  {
       try {
         this->f_(done);
@@ -271,10 +255,10 @@ namespace vds {
 	  {
 	  }
 
-	  void execute(const async_result<result_types...> & done) override
+	  void execute(async_result<result_types...> && done) override
 	  {
       try {
-		    done(this->f_());
+		    done.done(this->f_());
       }
       catch (const std::exception & ex) {
         done.error(std::make_shared<std::runtime_error>(ex.what()));
@@ -298,7 +282,7 @@ namespace vds {
 	  {
 	  }
 
-	  void execute(const async_result<> & done) override
+	  void execute(async_result<> && done) override
 	  {
       try {
         this->f_();
@@ -312,7 +296,7 @@ namespace vds {
         return;
       }
 
-      done();
+      done.done();
 	  }
 
   private:
@@ -333,7 +317,7 @@ namespace vds {
 	  {
 	  }
 
-	  void execute(const async_result<result_types...> & done) override
+	  void execute(async_result<result_types...> && done) override
 	  {
       done.error(this->error_);
 	  }
@@ -350,7 +334,7 @@ namespace vds {
 	  {
 	  }
 
-	  void execute(const async_result<result_types...> & done) override
+	  void execute(async_result<result_types...> && done) override
 	  {
       done(result_types()...);
 	  }
@@ -366,9 +350,9 @@ namespace vds {
 	  {
 	  }
 
-	  void execute(const async_result<result_types...> & done) override
+	  void execute(async_result<result_types...> && done) override
 	  {
-		  this->parent_.join(std::move(this->f_), done);
+		  this->parent_.join(std::move(this->f_), std::move(done));
 	  }
 
   private:
@@ -431,24 +415,38 @@ namespace vds {
   template<typename ...result_types>
   inline async_task<result_types...>::~async_task()
   {
+    if(nullptr != this->impl_){
+      throw std::runtime_error("Task without execute");
+    }
+    
 	  delete this->impl_;
   }
 
   template<typename ...result_types>
-  template<typename functor_type, typename error_functor_type>
-  inline void async_task<result_types...>::wait(functor_type && done_callback, error_functor_type && error_callback) const
+  template<typename functor_type>
+  inline void async_task<result_types...>::execute(functor_type && done_callback)
   {
-	  this->impl_->execute(
+    auto impl = this->impl_;
+    this->impl_ = nullptr;
+    impl->execute(
 		  async_result<result_types...>(
-			  std::move(done_callback),
-			  std::move(error_callback)));
+			  std::move(done_callback)));
   }
   
   template<typename ...result_types>
+  template<typename functor_type>
   inline void async_task<result_types...>::operator()(
-    const async_result<result_types...> & done)
+    functor_type && done_callback)
   {
-	  this->impl_->execute(done);
+	  this->impl_->execute(
+      async_result<result_types...>(
+        [done = std::move(done_callback)](const std::shared_ptr<std::exception> & ex, result_types... results){
+          if(!ex){
+            done.done(std::forward<result_types>(results)...);
+          } else {
+            done.error(ex);
+          }
+        }));
   }
 
   template<typename ...result_types>
@@ -470,11 +468,12 @@ namespace vds {
   {
 	  this->impl_->execute(
 		  async_result<result_types...>(
-			  std::function<void(result_types...)>([f_ = std::move(f), done](result_types... result) {
-				f_(done, std::forward<result_types>(result)...);
-			}),
-			  std::function<void(const std::shared_ptr<std::exception> &)>([done](const std::shared_ptr<std::exception> & ex) {
-				done.error(ex);
+			  std::function<void(result_types...)>([f_ = std::move(f), d = std::move(done)](const std::shared_ptr<std::exception> & ex, result_types... result) {
+          if(!ex){
+            f_(d, std::forward<result_types>(result)...);
+          } else {
+            d.error(ex);
+          }
 			})));
   }
 
@@ -488,14 +487,14 @@ namespace vds {
 	  && _async_task_functor_helper<decltype(&functor_type::operator())>::task_as_result>::type *)
   {
 	  this->impl_->execute(
-		  async_result<result_types...>(
-			  std::function<void(result_types...)>([f_ = std::move(f), done](result_types... result) {
-        auto t = f_(std::forward<result_types>(result)...);
-        t(done);
-	  }),
-			  std::function<void(const std::shared_ptr<std::exception> &)>([done](const std::shared_ptr<std::exception> & ex) {
-		  done.error(ex);
-	  })));
+		  async_result<result_types...>([f_ = std::move(f), d = std::move(done)](const std::shared_ptr<std::exception> & ex, result_types... result) {
+        if(!ex){
+          auto t = f_(std::forward<result_types>(result)...);
+          t(std::move(d));
+        } else {
+          d.error(ex);
+        }
+	  }));
   }
 
   template<typename ...result_types>
@@ -510,18 +509,19 @@ namespace vds {
   {
 	  this->impl_->execute(
 		  async_result<result_types...>(
-			  std::function<void(result_types...)>([f_ = std::move(f), done](result_types... result) {
-        try {
-          f_(std::forward<result_types>(result)...);
-        } catch(const std::exception & ex){
-          done.error(std::make_shared<std::runtime_error>(ex.what()));
-          return;
-        }        
-        done();
-      }),
-			  std::function<void(const std::shared_ptr<std::exception> &)>([done](const std::shared_ptr<std::exception> & ex) {
-		  done.error(ex);
-	  })));
+			  [f_ = std::move(f), done](const std::shared_ptr<std::exception> & ex, result_types... result) {
+          if(!ex){
+            try {
+              f_(std::forward<result_types>(result)...);
+            } catch(const std::exception & ex){
+              done.error(std::make_shared<std::runtime_error>(ex.what()));
+              return;
+            }        
+            done.done();
+          } else {
+            done.error(ex);
+          }
+	  }));
   }
   
   template<typename ...result_types>
@@ -534,20 +534,20 @@ namespace vds {
 	  && !_async_task_functor_helper<decltype(&functor_type::operator())>::task_as_result
 	  && !_async_task_functor_helper<decltype(&functor_type::operator())>::is_void_result>::type *)
   {
-	  this->impl_->execute(
-		  async_result<result_types...>(
-			  std::function<void(result_types...)>([f_ = std::move(f), done](result_types... result) {
-          try {
-            auto t = f_(std::forward<result_types>(result)...);
-            done(t);
-          } catch(const std::exception & ex){
-          done.error(std::make_shared<std::runtime_error>(ex.what()));
-          return;
-        }        
-	  }),
-			  std::function<void(const std::shared_ptr<std::exception> &)>([done](const std::shared_ptr<std::exception> & ex) {
-		  done.error(ex);
-	  })));
+	  this->impl_->execute(async_result<result_types...>([f_ = std::move(f), done](
+          const std::shared_ptr<std::exception> & ex,
+          result_types... result) {
+          if(!ex){
+            try {
+              auto t = f_(std::forward<result_types>(result)...);
+              done.done(t);
+            } catch(const std::exception & ex){
+              done.error(std::make_shared<std::runtime_error>(ex.what()));
+            }        
+          } else {
+            done.error(ex);
+          }
+        }));
   }
   
   template<typename ...result_types>
@@ -558,28 +558,27 @@ namespace vds {
   /////////////////////////////////////////////////////////////////////////////////
   template<typename ...result_types>
   inline async_result<result_types...>::async_result(
-	  std::function<void(result_types...results)> && done,
-	  std::function<void(const std::shared_ptr<std::exception>&ex)> && error)
-	: impl_(new result_data(std::move(done), std::move(error)))
+	  std::function<void(const std::shared_ptr<std::exception> & ex, result_types...results)> && done)
+	: done_(std::move(done))
   {
   }
 
   template<typename ...result_types>
-  inline void async_result<result_types...>::operator()(const result_types & ...results) const
+  inline void async_result<result_types...>::done(const result_types & ...results) const
   {
-	  this->impl_->done_(results...);
+	  this->done_(std::shared_ptr<std::exception>(), results...);
   }
 
   template<typename ...result_types>
-  inline void async_result<result_types...>::operator()(std::tuple<result_types...> && result) const
+  inline void async_result<result_types...>::done(std::tuple<result_types...> && result) const
   {
-	  call_with(this->impl_->done_, std::move(result));
+	  call_with(this->done_, std::shared_ptr<std::exception>(), std::move(result));
   }
 
   template<typename ...result_types>
   inline void async_result<result_types...>::error(const std::shared_ptr<std::exception>& ex) const
   {
-	  this->impl_->error_(ex);
+	  this->done_(ex, result_types()...);
   }
 
   /////////////////////////////////////////////////////////////////////////////////
@@ -593,38 +592,28 @@ namespace vds {
     {
     }
     
-    void run(const std::list<async_task<>> & args)
+    void run(std::list<async_task<>> && args)
     {
-      for (auto & arg : args) {
-        *this += arg;
+      for (auto && arg : args) {
+        this->add(std::move(arg));
       }
     }
     
-    _async_series & operator += (const async_task<> & arg)
+    _async_series & add(async_task<> && arg)
     {
-      arg.wait(
-        [this]() {
-          if (0 == --this->count_) {
-            if (this->error_) {
-              this->result_.error(this->error_);
-            }
-            else {
-              this->result_();
-            }            
-            delete this;
-          }
-        },
+      arg.execute(
         [this](const std::shared_ptr<std::exception> & ex) {
-          if (!this->error_) {
-            this->error_ = ex;
+          if(ex && !this->error_) {
+              this->error_ = ex;
           }
+          
           if (0 == --this->count_) {
             if (this->error_) {
               this->result_.error(this->error_);
             }
             else {
-              this->result_();
-            }
+              this->result_.done();
+            }            
             delete this;
           }
         });
@@ -664,7 +653,7 @@ namespace vds {
     
     return [steps](const async_result<> & result){
         auto runner = new _async_series(result, steps->size());
-        runner->run(*steps);
+        runner->run(std::move(*steps));
         delete steps;
       };
   }

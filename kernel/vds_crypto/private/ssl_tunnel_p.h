@@ -85,23 +85,22 @@ namespace vds {
     void start_crypted_input(const service_provider & sp)
     {
       this->crypted_input_->read_async(sp, this->crypted_input_data_, sizeof(this->crypted_input_data_))
-        .wait([this, sp](size_t readed) {
+        .execute([this, sp](const std::shared_ptr<std::exception> & ex, size_t readed) {
           
           this->state_mutex_.lock();
           
-          if (0 < readed) {
-            this->crypted_input_data_size_ = readed;
-          }
-          else {
-            this->crypted_input_eof_ = true;
-            sp.get<logger>()->trace("SSL", sp, "SSL Crypted input closed");
-          }
-          
-          this->state_mutex_.unlock();
-          this->process(sp);
-        },
-          [this](const std::shared_ptr<std::exception> & ex) {
-            this->state_mutex_.lock();
+          if(!ex){
+            if (0 < readed) {
+              this->crypted_input_data_size_ = readed;
+            }
+            else {
+              this->crypted_input_eof_ = true;
+              sp.get<logger>()->trace("SSL", sp, "SSL Crypted input closed");
+            }
+            
+            this->state_mutex_.unlock();
+            this->process(sp);
+          } else {
             if(this->failed_state_){
               this->failed_state_ = true;
               this->state_mutex_.unlock();
@@ -111,7 +110,7 @@ namespace vds {
             else {
               this->state_mutex_.unlock();
             }
-
+          }
         });
     }
     
@@ -122,21 +121,20 @@ namespace vds {
       }
       
       this->decrypted_input_->read_async(sp, this->decrypted_input_data_, sizeof(this->decrypted_input_data_))
-        .wait([this, sp](size_t readed) {
+        .execute([this, sp](const std::shared_ptr<std::exception> & ex, size_t readed) {
           this->state_mutex_.lock();
-          if (0 < readed) {
-            this->decrypted_input_data_size_ = readed;
-          }
-          else {
-            this->decrypted_input_eof_ = true;
-            sp.get<logger>()->trace("SSL", sp, "SSL Decrypted input closed");
-          }
-          
-          this->state_mutex_.unlock();
-          this->process(sp);
-        },
-          [this](const std::shared_ptr<std::exception> & ex) {
-            this->state_mutex_.lock();
+          if(!ex){
+            if (0 < readed) {
+              this->decrypted_input_data_size_ = readed;
+            }
+            else {
+              this->decrypted_input_eof_ = true;
+              sp.get<logger>()->trace("SSL", sp, "SSL Decrypted input closed");
+            }
+            
+            this->state_mutex_.unlock();
+            this->process(sp);
+          }else {
             if(this->failed_state_){
               this->failed_state_ = true;
               this->state_mutex_.unlock();
@@ -146,7 +144,8 @@ namespace vds {
             else {
               this->state_mutex_.unlock();
             }
-      });
+          }
+        });
     }
 
     void process(const service_provider & sp)
@@ -206,21 +205,22 @@ namespace vds {
                 this->decrypted_output_.reset();
 
                 tmp->write_async(sp, nullptr, 0)
-                  .wait(
-                    [this, sp]() {
-                      sp.get<logger>()->trace("SSL", sp, "SSL Decrypted output closed");
-                    },
-                    [this](const std::shared_ptr<std::exception> & ex) {
-                      this->state_mutex_.lock();
-                      if(this->failed_state_){
-                        this->failed_state_ = true;
-                        this->state_mutex_.unlock();
-                        
-                        this->error_handler_(ex);
+                  .execute(
+                    [this, sp](const std::shared_ptr<std::exception> & ex) {
+                      if(!ex){
+                        sp.get<logger>()->trace("SSL", sp, "SSL Decrypted output closed");
+                      } else {
+                        this->state_mutex_.lock();
+                        if(this->failed_state_){
+                          this->failed_state_ = true;
+                          this->state_mutex_.unlock();
+                          
+                          this->error_handler_(ex);
+                        }
+                        else {
+                          this->state_mutex_.unlock();
+                        }                      
                       }
-                      else {
-                        this->state_mutex_.unlock();
-                      }                      
                     });
               }
               break;
@@ -232,23 +232,23 @@ namespace vds {
             this->decrypted_output_data_size_ = bytes;
 
             this->decrypted_output_->write_async(sp, this->decrypted_output_data_, (size_t)bytes)
-              .wait([this, sp]() {
+              .execute([this, sp](const std::shared_ptr<std::exception> & ex) {
                   this->state_mutex_.lock();
-                  this->decrypted_output_data_size_ = 0;
-                  this->state_mutex_.unlock();
+                  if(!ex){
+                    this->decrypted_output_data_size_ = 0;
+                    this->state_mutex_.unlock();
 
-                  this->process(sp);
-                },
-                [this](const std::shared_ptr<std::exception> & ex) {
-                  this->state_mutex_.lock();
-                  if(this->failed_state_){
-                    this->failed_state_ = true;
-                    this->state_mutex_.unlock();
-                    
-                    this->error_handler_(ex);
-                  }
-                  else {
-                    this->state_mutex_.unlock();
+                    this->process(sp);
+                  } else {
+                    if(this->failed_state_){
+                      this->failed_state_ = true;
+                      this->state_mutex_.unlock();
+                      
+                      this->error_handler_(ex);
+                    }
+                    else {
+                      this->state_mutex_.unlock();
+                    }
                   }
             });
             return;
@@ -274,15 +274,14 @@ namespace vds {
             this->crypted_output_data_size_ = (size_t)bytes;
 
             this->crypted_output_->write_async(sp, this->crypted_output_data_, (size_t)bytes)
-              .wait([this, sp]() {
+              .execute([this, sp](const std::shared_ptr<std::exception> & ex) {
               this->state_mutex_.lock();
-              this->crypted_output_data_size_ = 0;
-              this->state_mutex_.unlock();
+              if(!ex){
+                this->crypted_output_data_size_ = 0;
+                this->state_mutex_.unlock();
 
-              this->process(sp);
-            },
-              [this](const std::shared_ptr<std::exception> & ex) {
-                this->state_mutex_.lock();
+                this->process(sp);
+              } else {
                 if(this->failed_state_){
                   this->failed_state_ = true;
                   this->state_mutex_.unlock();
@@ -292,6 +291,7 @@ namespace vds {
                 else {
                   this->state_mutex_.unlock();
                 }
+              }
             });
             return;
           }
@@ -305,10 +305,10 @@ namespace vds {
             this->crypted_output_.reset();
 
             tmp->write_async(sp, nullptr, 0)
-              .wait([this, sp]() {
+              .execute([this, sp](const std::shared_ptr<std::exception> & ex) {
+                if(!ex){
                   sp.get<logger>()->trace("SSL", sp, "SSL Crypted output closed");
-                },
-                [this](const std::shared_ptr<std::exception> & ex) {
+                } else {
                   this->state_mutex_.lock();
                   if(this->failed_state_){
                     this->failed_state_ = true;
@@ -319,7 +319,8 @@ namespace vds {
                   else {
                     this->state_mutex_.unlock();
                   }
-                });
+                }
+              });
           }
     }
           

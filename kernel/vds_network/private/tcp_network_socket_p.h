@@ -355,12 +355,13 @@ namespace vds {
           this->sp_.get<logger>()->trace("TCP", this->sp_, "read timeout");
           this->closed_ = true;
           this->owner_->incoming_->write_async(this->sp_, nullptr, 0)
-          .wait(
-            [sp = this->sp_]() {
-              sp.get<logger>()->trace("TCP", sp, "input closed");
-            },
+          .execute(
             [sp = this->sp_](const std::shared_ptr<std::exception> & ex) {
-              sp.unhandled_exception(ex);
+              if(!ex){
+                sp.get<logger>()->trace("TCP", sp, "input closed");
+              } else {
+                sp.unhandled_exception(ex);
+              }
             });
         }          
       }
@@ -409,12 +410,13 @@ namespace vds {
           this->sp_.get<logger>()->trace("TCP", this->sp_, "read timeout");
           this->closed_ = true;
           this->owner_->incoming_->write_async(this->sp_, nullptr, 0)
-          .wait(
-            [sp = this->sp_]() {
-              sp.get<logger>()->trace("TCP", sp, "input closed");
-            },
+          .execute(
             [sp = this->sp_](const std::shared_ptr<std::exception> & ex) {
-              sp.unhandled_exception(ex);
+              if(!ex){
+                sp.get<logger>()->trace("TCP", sp, "input closed");
+              } else {
+                sp.unhandled_exception(ex);
+              }
             });
         }          
       }
@@ -455,23 +457,23 @@ namespace vds {
       {
         this->sp_.get<logger>()->trace("TCP", this->sp_, "waiting data to send");
         this->owner_->outgoing_->read_async(this->sp_, this->write_buffer_, sizeof(this->write_buffer_))
-        .wait([pthis = this->shared_from_this()](size_t readed){
-          if(0 == readed){
-            //End of stream
-            static_cast<this_class *>(pthis.get())->sp_.get<logger>()->trace("TCP",
-              static_cast<this_class *>(pthis.get())->sp_, "output closed");
-            shutdown(static_cast<this_class *>(pthis.get())->owner_->s_, SHUT_WR);
+        .execute([pthis = this->shared_from_this()](const std::shared_ptr<std::exception> & ex, size_t readed){
+          auto sp = static_cast<this_class *>(pthis.get())->sp_;
+          if(!ex){
+            if(0 == readed){
+              //End of stream
+              sp.get<logger>()->trace("TCP", sp, "output closed");
+              shutdown(static_cast<this_class *>(pthis.get())->owner_->s_, SHUT_WR);
+            }
+            else {
+              sp.get<logger>()->trace("TCP", sp, "scheduled to send %d", readed);
+              static_cast<this_class *>(pthis.get())->write_len_ = readed;
+              static_cast<this_class *>(pthis.get())->change_mask(EPOLLOUT);
+            }
+          } else {
+            sp.get<logger>()->trace("TCP", sp, "%s at write", ex->what());
+            sp.unhandled_exception(ex);
           }
-          else {
-            static_cast<this_class *>(pthis.get())->sp_.get<logger>()->trace("TCP", 
-              static_cast<this_class *>(pthis.get())->sp_, "scheduled to send %d", readed);
-            static_cast<this_class *>(pthis.get())->write_len_ = readed;
-            static_cast<this_class *>(pthis.get())->change_mask(EPOLLOUT);
-          }
-        },
-        [sp = this->sp_](const std::shared_ptr<std::exception> & ex){
-          sp.get<logger>()->trace("TCP", sp, "%s at write", ex->what());
-          sp.unhandled_exception(ex);
         });
       }
 
@@ -496,20 +498,19 @@ namespace vds {
         this->read_timeout_ticks_ = 0;
         this->sp_.get<logger>()->trace("TCP", this->sp_, "got %d bytes", len);
         this->owner_->incoming_->write_async(this->sp_, this->read_buffer_, len)
-          .wait(
-            [pthis = this->shared_from_this(), len]() {
-              if(0 != len){
-                static_cast<this_class *>(pthis.get())->read_data();
+          .execute(
+            [pthis = this->shared_from_this(), len](const std::shared_ptr<std::exception> & ex) {
+              auto this_ = static_cast<this_class *>(pthis.get());
+              if(!ex){
+                if(0 != len){
+                  this_->read_data();
+                }
+                else {
+                  this_->sp_.get<logger>()->trace("TCP", this_->sp_, "input closed");
+                }
+              } else {
+                this_->sp_.unhandled_exception(ex);
               }
-              else {
-                static_cast<this_class *>(pthis.get())->sp_.get<logger>()->trace(
-                  "TCP",
-                  static_cast<this_class *>(pthis.get())->sp_,
-                  "input closed");
-              }
-            },
-            [sp = this->sp_](const std::shared_ptr<std::exception> & ex) {
-              sp.unhandled_exception(ex);
             });
       }
     };
