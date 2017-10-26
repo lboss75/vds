@@ -8,20 +8,20 @@ All rights reserved
 #include "private/cert_manager_p.h"
 
 bool vds::cert_manager::validate(
-  const certificate& cert)
+  const certificate& /*cert*/)
 {
   return true;
 }
 
 ////////////////////////////////////
 bool vds::_cert_manager::validate(
-  const certificate& cert)
+  const certificate& /*cert*/)
 {
   return true;
 }
 
 void vds::_cert_manager::create_database_objects(
-  const service_provider & sp,
+  const service_provider & /*sp*/,
   uint64_t db_version,
   database_transaction & t)
 {

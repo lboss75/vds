@@ -64,7 +64,7 @@ namespace vds {
               this->cancel_request(sp, request_id);              
               return false;
             });
-        });
+        };
     }
     
     void cancel_request(
