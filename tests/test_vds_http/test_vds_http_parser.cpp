@@ -121,7 +121,7 @@ TEST(http_tests, test_http_parser)
   vds::barrier b;
 
   vds::http_parser parser(
-    [&answer, &b](const std::shared_ptr<vds::http_message> & request) -> vds::async_task<> {
+    [sp, &answer, &b](const std::shared_ptr<vds::http_message> & request) -> vds::async_task<> {
     if (!request) {
       return vds::async_task<>::empty();
     }

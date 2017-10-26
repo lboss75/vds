@@ -203,15 +203,14 @@ TEST(http_tests, test_https_server)
 
   client.send(sp, request)
   .then(
-    [&client](const vds::service_provider & sp) {
-    return client.send(sp, std::shared_ptr<vds::http_message>());
+    [sp, &client]() {
+      return client.send(sp, std::shared_ptr<vds::http_message>());
     })
   .wait(
-    [](const vds::service_provider & sp) {},
-    [](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+    []() {},
+    [sp](const std::shared_ptr<std::exception> & ex) {
       sp.unhandled_exception(ex);
-    },
-  sp);
+    });
   
   b.wait();
   //Wait

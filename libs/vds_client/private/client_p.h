@@ -65,6 +65,7 @@ namespace vds {
         const filename & target_file);
       
       async_task<> download_file(
+        const service_provider & sp,
         const guid & version_id,
         const filename & tmp_file);
 

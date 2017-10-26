@@ -40,15 +40,11 @@ namespace vds {
       auto request_id = guid::new_guid().str();
       s->add_property("$r", request_id);
       
-      return create_async_task(
-        [this, sp, message, request_id, request_timeout](
-          const std::function<void (const service_provider & sp, const response_type & response)> & done,
-          const error_handler & on_error,
-          const service_provider & sp){
+      return [this, sp, message, request_id, request_timeout](){
           std::lock_guard<std::mutex> lock(this->requests_mutex_);
           this->requests_.set(request_id, std::make_shared<request_info>(
             message,
-            [done, on_error](const service_provider & sp, const std::shared_ptr<json_value> & response) { 
+            [sp](const std::shared_ptr<json_value> & response) { 
               auto response_object = std::dynamic_pointer_cast<json_object>(response);
               std::string error_message;
               if (response_object && response_object->get_property("$e", error_message)){
@@ -103,17 +99,15 @@ namespace vds {
     public:
       request_info(
         const std::shared_ptr<json_value> & task,
-        const std::function<void(const service_provider & sp, const std::shared_ptr<json_value> & response)> & done,
-        const error_handler & on_error);
+        const async_result<std::shared_ptr<json_value>> & done_handler);
 
-      void done(const service_provider & sp, const std::shared_ptr<json_value> & response);
+      void done(const std::shared_ptr<json_value> & response);
       void on_timeout(const service_provider & sp);
       std::shared_ptr<json_value> task() const;
 
     private:
       std::shared_ptr<json_value> task_;
-      std::function<void(const service_provider & sp, const std::shared_ptr<json_value> & response)> done_;
-      error_handler on_error_;
+      async_result<std::shared_ptr<json_value>> done_handler_;
 
       mutable std::mutex mutex_;
       bool is_completed_;
