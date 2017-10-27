@@ -138,19 +138,23 @@ TEST(http_tests, test_server)
         });
     });
   })
-  .wait(
-    [sp, &b]() {
-        sp.get<vds::logger>()->debug("test", sp, "Request sent"); b.set();
-    },
+  .execute(
     [sp, &b](const std::shared_ptr<std::exception> & ex) {
-      sp.get<vds::logger>()->debug("test", sp, "Request error");
-      b.set(); 
+	  if(!ex){
+        sp.get<vds::logger>()->debug("test", sp, "Request sent"); b.set();
+	  }
+	  else {
+		  sp.get<vds::logger>()->debug("test", sp, "Request error");
+		  b.set();
+	  }
     });
 
   std::shared_ptr<vds::http_message> request = vds::http_request("GET", "/").get_message();
-  request->body()->write_async(sp, nullptr, 0).wait(
-    []() {},
-    [sp](const std::shared_ptr<std::exception> & ex) {});
+  request->body()->write_async(sp, nullptr, 0)
+	.execute(
+    [sp](const std::shared_ptr<std::exception> & ex) {
+	  sp.unhandled_exception(ex);
+  });
 
 
   client.send(sp, request)
@@ -158,8 +162,7 @@ TEST(http_tests, test_server)
     [sp, &client]() {
       return client.send(sp, std::shared_ptr<vds::http_message>());
     })
-  .wait(
-    []() {},
+  .execute(
     [sp](const std::shared_ptr<std::exception> & ex) {
       sp.unhandled_exception(ex);
     });

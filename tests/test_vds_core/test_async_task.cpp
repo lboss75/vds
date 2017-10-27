@@ -40,9 +40,11 @@ static vds::async_task<std::string> step3(
 	return std::move(f);
 }
 
-static vds::async_task<std::string, int> step4(const std::string & v)
+static vds::async_task<std::string, size_t> step4(const std::string & v)
 {
-	return [v]() { return std::make_tuple("result" + v, v.length()); };
+	return [v](const vds::async_result<std::string, size_t> & result) {
+		result.done("result" + v, v.length()); 
+	};
 }
 
 TEST(code_tests, test_async_task) {

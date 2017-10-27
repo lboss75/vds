@@ -106,22 +106,26 @@ TEST(http_tests, test_https_server)
       vds::copy_stream(sp, s.incoming(), crypto_tunnel.crypted_input()),
       vds::copy_stream(sp, crypto_tunnel.crypted_output(), s.outgoing())
       )
-      .wait(
-        [sp]() {
-          sp.get<vds::logger>()->debug("test", sp, "Connection closed");
-        },
+      .execute(
         [sp](const std::shared_ptr<std::exception> & ex) {
-          sp.unhandled_exception(ex);
+		  if(!ex){
+          sp.get<vds::logger>()->debug("test", sp, "Connection closed");
+		  }
+		  else {
+			  sp.unhandled_exception(ex);
+		  }
         });
     crypto_tunnel.start(sp);
-  }).wait(
-    [sp, &b]() {
-      sp.get<vds::logger>()->debug("test", sp, "Server has been started");
-      b.set();
-    },
+  }).execute(
     [sp, &b](const std::shared_ptr<std::exception> & ex) {
-      FAIL() << ex->what();
-      b.set();
+	  if(!ex){
+		  sp.get<vds::logger>()->debug("test", sp, "Server has been started");
+		  b.set();
+	  }
+	  else {
+		  FAIL() << ex->what();
+		  b.set();
+	  }
     });
   b.wait();
   b.reset();
@@ -176,24 +180,28 @@ TEST(http_tests, test_https_server)
       }),
       vds::copy_stream(sp, s.incoming(), client_crypto_tunnel.crypted_input()),
       vds::copy_stream(sp, client_crypto_tunnel.crypted_output(), s.outgoing())
-      ).wait(
-        [sp, client_crypto_tunnel]() {
-      sp.get<vds::logger>()->debug("test", sp, "Client closed");
-    },
-        [sp](const std::shared_ptr<std::exception> & ex) {
-      sp.get<vds::logger>()->debug("test", sp, "Client error");
+      ).execute(
+        [sp, client_crypto_tunnel](const std::shared_ptr<std::exception> & ex) {
+		  if(!ex){
+			sp.get<vds::logger>()->debug("test", sp, "Client closed");
+		  }
+		  else {
+			  sp.get<vds::logger>()->debug("test", sp, "Client error");
+		  }
     });
     client_crypto_tunnel.start(sp);
   })
-    .wait(
-      [sp, &b]() {
-        sp.get<vds::logger>()->debug("test", sp, "Request sent");
-        b.set();
-      },
-      [sp, &b](const std::shared_ptr<std::exception> & ex) {
-        sp.get<vds::logger>()->debug("test", sp, "Request error");
-        b.set();
-      });
+    .execute(
+		[sp, &b](const std::shared_ptr<std::exception> & ex) {
+	  if (!ex) {
+		  sp.get<vds::logger>()->debug("test", sp, "Request sent");
+		  b.set();
+	  }
+	  else {
+		  sp.get<vds::logger>()->debug("test", sp, "Request error");
+		  b.set();
+	  }
+  });
 
   std::shared_ptr<vds::http_message> request = vds::http_request("GET", "/").get_message();
   request->body()->write_async(sp, nullptr, 0).wait(

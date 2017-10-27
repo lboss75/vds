@@ -158,10 +158,11 @@ namespace vds {
 
             if (WSAESHUTDOWN == errorCode) {
               this->owner_->incoming_->write_async(this->sp_, nullptr, 0)
-                .wait(
-                []() {},
-                [pthis](const std::shared_ptr<std::exception> & error) {
-                  static_cast<_read_socket_task *>(pthis.get())->sp_.unhandled_exception(error);
+                .execute(
+	                [pthis](const std::shared_ptr<std::exception> & error) {
+				  if (error) {
+					  static_cast<_read_socket_task *>(pthis.get())->sp_.unhandled_exception(error);
+				  }
                 });
             }
             else {
@@ -193,20 +194,23 @@ namespace vds {
         this->pthis_.reset();
 
         if (0 == dwBytesTransfered) {
-          this->owner_->incoming_->write_async(this->sp_, nullptr, 0).wait(
-            []() {},
-            [pthis](const std::shared_ptr<std::exception> & error) {
-              static_cast<_read_socket_task *>(pthis.get())->sp_.unhandled_exception(error);
+          this->owner_->incoming_->write_async(this->sp_, nullptr, 0)
+			  .execute([pthis](const std::shared_ptr<std::exception> & error) {
+			  if (error) {
+				  static_cast<_read_socket_task *>(pthis.get())->sp_.unhandled_exception(error);
+			  }
             });
         }
         else {
           this->owner_->incoming_->write_async(this->sp_, this->buffer_, (size_t)dwBytesTransfered)
-            .wait(
-              [pthis]() {
-                static_cast<_read_socket_task *>(pthis.get())->read_async();
-              },
+            .execute(
               [pthis](const std::shared_ptr<std::exception> & error) {
-                static_cast<_read_socket_task *>(pthis.get())->sp_.unhandled_exception(error);
+				  if (!error) {
+					  static_cast<_read_socket_task *>(pthis.get())->read_async();
+				  }
+				  else {
+					  static_cast<_read_socket_task *>(pthis.get())->sp_.unhandled_exception(error);
+				  }
               });
         }
       }
@@ -243,11 +247,13 @@ namespace vds {
       {
         auto pthis = this->shared_from_this();
         this->owner_->outgoing_->read_async(this->sp_, this->buffer_, BUFFER_SIZE)
-          .wait([pthis](size_t len) {
+          .execute([pthis](const std::shared_ptr<std::exception> & ex, size_t len) {
+			if(!ex){
               static_cast<_write_socket_task *>(pthis.get())->schedule(static_cast<_write_socket_task *>(pthis.get())->buffer_, len);
-            },
-            [pthis](const std::shared_ptr<std::exception> & ex) {
-              static_cast<_write_socket_task *>(pthis.get())->sp_.unhandled_exception(ex);
+			}
+			else {
+				static_cast<_write_socket_task *>(pthis.get())->sp_.unhandled_exception(ex);
+			}
             });
       }
 

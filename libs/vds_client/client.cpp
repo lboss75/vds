@@ -110,7 +110,7 @@ void vds::_client::start(const service_provider & sp)
   this->tmp_folder_.create();
 }
 
-void vds::_client::stop(const service_provider & sp)
+void vds::_client::stop(const service_provider & /*sp*/)
 {
 }
 
@@ -170,16 +170,12 @@ vds::async_task<
         base64::from_bytes(private_key.der(sp, user_password)),
         ph.signature()).serialize())
       .then([this, server_certificate, private_key](
-        const std::function<void(
-          const service_provider & sp,
-          const vds::certificate & server_certificate,
-          const vds::asymmetric_private_key & private_key)> & done,
-        const error_handler & on_error,
-        const service_provider & sp,
-        const client_messages::register_server_response & response) {
+        const async_result<
+          const vds::certificate & /*server_certificate*/,
+          const vds::asymmetric_private_key & /*private_key*/> & result,
+        const client_messages::register_server_response & /*response*/) {
 
-      done(sp, server_certificate, private_key);
-
+		result.done(server_certificate, private_key);
     });
   });
 }
@@ -248,16 +244,12 @@ vds::async_task<> vds::_client::create_local_login(
         s,
         signature).serialize(true))
       .then([this](
-        const std::function<void(const service_provider & sp)> & done,
-        const error_handler & on_error,
-        const service_provider & sp,
-        const client_messages::principal_log_add_record_response & response) {
-      done(sp);
+        const client_messages::principal_log_add_record_response & /*response*/) {
     });
   });
 }
 
-vds::async_task<const std::string& /*version_id*/> vds::_client::upload_file(
+vds::async_task<const std::string & /*version_id*/> vds::_client::upload_file(
   const service_provider & sp,
   const std::string & name,
   const filename & fn)
@@ -265,8 +257,7 @@ vds::async_task<const std::string& /*version_id*/> vds::_client::upload_file(
   return this->owner_->logic_->send_request<client_messages::server_log_state_response>(
     sp,
     client_messages::server_log_state_request().serialize())
-    .then([this, name, fn](
-      const service_provider & sp,
+    .then([this, sp, name, fn](
       const client_messages::server_log_state_response & response) {
 
     imt_service::disable_async(sp);
@@ -309,7 +300,7 @@ vds::async_task<const std::string& /*version_id*/> vds::_client::upload_file(
         certificate_authority::certificate_parent_id(user_certificate),
         certificate_authority::certificate_id(user_certificate),
         parents,
-        principal_log_new_object(version_id, body_size + tail_size, meta_info).serialize(),
+        principal_log_new_object(version_id, (uint32_t)(body_size + tail_size), meta_info).serialize(),
         response.order_num() + 1).serialize(false);
 
       auto s = msg->str();
@@ -349,7 +340,7 @@ vds::async_task<const std::string& /*version_id*/> vds::_client::upload_file(
           tmp_file,
           file_hash.signature()).serialize(),
         std::chrono::seconds(10 * 60))
-        .then([version_id](const client_messages::put_object_message_response & response) {
+        .then([version_id](const client_messages::put_object_message_response & /*response*/) {
         return version_id.str();
       });
     });
@@ -382,92 +373,91 @@ vds::_client::download_data(
 
 vds::async_task<const vds::guid & /*version_id*/>
 vds::_client::looking_for_file(
-  const service_provider & sp,
-  const asymmetric_private_key & user_private_key,
-  const guid & principal_id,
-  const size_t order_num,
-  const std::string & looking_file_name,
-  const filename & target_file)
+	const service_provider & sp,
+	const asymmetric_private_key & user_private_key,
+	const guid & principal_id,
+	const size_t order_num,
+	const std::string & looking_file_name,
+	const filename & target_file)
 {
-  return [this, sp, user_private_key, principal_id, order_num, looking_file_name, target_file]() {
-    this->owner_->logic_->send_request<client_messages::principal_log_response>(
-      sp,
-      client_messages::principal_log_request(principal_id, order_num).serialize())
-      .then([this, sp, user_private_key, principal_id, looking_file_name, target_file]
-      (const client_messages::principal_log_response & principal_log) -> vds::async_task<const vds::guid & /*version_id*/> {
-      for (auto p = principal_log.records().rbegin(); p != principal_log.records().rend(); ++p) {
-        auto & log_record = *p;
+	return this->owner_->logic_->send_request<client_messages::principal_log_response>(
+		sp,
+		client_messages::principal_log_request(principal_id, order_num).serialize())
+		.then([this, sp, user_private_key, principal_id, looking_file_name, target_file]
+		(const client_messages::principal_log_response & principal_log) -> vds::async_task<const vds::guid & /*version_id*/> {
+		for (auto p = principal_log.records().rbegin(); p != principal_log.records().rend(); ++p) {
+			auto & log_record = *p;
 
-        auto log_message = std::dynamic_pointer_cast<json_object>(log_record.message());
-        if (!log_message) {
-          continue;
-        }
+			auto log_message = std::dynamic_pointer_cast<json_object>(log_record.message());
+			if (!log_message) {
+				continue;
+			}
 
-        std::cout << "id=" << log_record.id().str() << ", principal_id=" << log_record.principal_id().str()
-          << "\n";
+			std::cout << "id=" << log_record.id().str() << ", principal_id=" << log_record.principal_id().str()
+				<< "\n";
 
-        std::string message_type;
-        if (!log_message->get_property("$t", message_type, false)
-          || principal_log_new_object::message_type != message_type) {
-          continue;
-        }
+			std::string message_type;
+			if (!log_message->get_property("$t", message_type, false)
+				|| principal_log_new_object::message_type != message_type) {
+				continue;
+			}
 
-        principal_log_new_object record(log_message);
+			principal_log_new_object record(log_message);
 
-        auto decrypted_data = user_private_key.decrypt(record.meta_data());
-        binary_deserializer file_info(decrypted_data);
+			auto decrypted_data = user_private_key.decrypt(record.meta_data());
+			binary_deserializer file_info(decrypted_data);
 
-        std::string name;
-        file_info >> name;
+			std::string name;
+			file_info >> name;
 
-        if (looking_file_name != name) {
-          continue;
-        }
+			if (looking_file_name != name) {
+				continue;
+			}
 
-        size_t length;
-        size_t body_size;
-        size_t tail_size;
+			size_t length;
+			size_t body_size;
+			size_t tail_size;
 
-        file_info >> length >> body_size >> tail_size;
+			file_info >> length >> body_size >> tail_size;
 
-        symmetric_key transaction_key(symmetric_crypto::aes_256_cbc(), file_info);
+			symmetric_key transaction_key(symmetric_crypto::aes_256_cbc(), file_info);
 
-        sp.get<logger>()->trace("client", sp, "Waiting file");
-        filename tmp_file(this->tmp_folder_, record.index().str());
+			sp.get<logger>()->trace("client", sp, "Waiting file");
+			filename tmp_file(this->tmp_folder_, record.index().str());
 
-        auto version_id = record.index();
+			auto version_id = record.index();
 
-        return this->download_file(
-          sp,
-          version_id,
-          tmp_file)
-          .then(
-            [this, sp, transaction_key, tmp_file, version_id, target_file, body_size, tail_size]
-        () {
-          return _file_manager::decrypt_file(
-            sp,
-            transaction_key,
-            tmp_file,
-            target_file,
-            body_size,
-            tail_size);
-        });
-      }
+			return this->download_file(
+				sp,
+				version_id,
+				tmp_file)
+				.then(
+					[this, sp, transaction_key, tmp_file, version_id, target_file, body_size, tail_size]
+			() {
+				return _file_manager::decrypt_file(
+					sp,
+					transaction_key,
+					tmp_file,
+					target_file,
+					body_size,
+					tail_size)
+					.then([version_id]() {return version_id; });
+			});
+		}
 
-      if (!principal_log.records().empty()) {
-        return this->looking_for_file(
-          sp,
-          user_private_key,
-          principal_id,
-          principal_log.last_order_num() - 1,
-          looking_file_name,
-          target_file);
-      }
-      else {
-        throw std::runtime_error("File " + looking_file_name + " not found");
-      }
-    });
-  };
+		if (!principal_log.records().empty()) {
+			return this->looking_for_file(
+				sp,
+				user_private_key,
+				principal_id,
+				principal_log.last_order_num() - 1,
+				looking_file_name,
+				target_file);
+		}
+		else {
+			throw std::runtime_error("File " + looking_file_name + " not found");
+		}
+	});
 }
 
 vds::async_task<> vds::_client::download_file(
@@ -530,14 +520,6 @@ vds::async_task<const vds::client_messages::certificate_and_key_response & /*res
     sp,
     client_messages::certificate_and_key_request(
       user_login,
-      ph.signature()).serialize())
-    .then([user_password](const std::function<void(
-      const service_provider & /*sp*/,
-      const client_messages::certificate_and_key_response & /*response*/)> & done,
-      const error_handler & on_error,
-      const service_provider & sp,
-      const client_messages::certificate_and_key_response & response) {
-    done(sp, response);
-  });
+      ph.signature()).serialize());
 }
 

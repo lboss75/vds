@@ -38,6 +38,8 @@ namespace vds {
     public:
       static const char message_type[];
 
+	  certificate_and_key_response();
+
       certificate_and_key_response(
         const guid & id,
         const std::string & certificate_body,
@@ -117,6 +119,8 @@ namespace vds {
     {
     public:
       static const char message_type[];
+
+	  server_log_state_response();
 
       server_log_state_response(
         size_t order_num,
@@ -216,7 +220,11 @@ namespace vds {
     public:
       static const char message_type[];
 
-      principal_log_add_record_response(const std::shared_ptr<json_value> & source)
+	  principal_log_add_record_response()
+	  {
+	  }
+
+      principal_log_add_record_response(const std::shared_ptr<json_value> & /*source*/)
       {
       }
 
@@ -304,6 +312,10 @@ namespace vds {
       principal_log_response(const std::shared_ptr<json_value> &);
       std::shared_ptr<json_value> serialize() const;
 
+	  principal_log_response()
+	  {
+	  }
+
       principal_log_response(
         const guid & principal_id,
         size_t last_order_num,
@@ -369,6 +381,11 @@ namespace vds {
     {
     public:
       static const char message_type[];
+
+	  get_object_response()
+	  {
+
+	  }
 
       get_object_response(const std::shared_ptr<json_value> &);
       std::shared_ptr<json_value> serialize() const;

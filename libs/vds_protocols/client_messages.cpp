@@ -37,6 +37,10 @@ std::shared_ptr<vds::json_value> vds::client_messages::certificate_and_key_reque
 ///////////////////////////////////////////////////////////////////////////////
 const char vds::client_messages::certificate_and_key_response::message_type[] = "certificate and key";
 
+vds::client_messages::certificate_and_key_response::certificate_and_key_response()
+{
+}
+
 vds::client_messages::certificate_and_key_response::certificate_and_key_response(
   const guid & id,
   const std::string & certificate_body,
@@ -92,6 +96,10 @@ std::shared_ptr<vds::json_value> vds::client_messages::server_log_state_request:
 }
 ///////////////////////////////////////////////////////////////////////////////
 const char vds::client_messages::server_log_state_response::message_type[] = "server log state response";
+
+vds::client_messages::server_log_state_response::server_log_state_response()
+{
+}
 
 vds::client_messages::server_log_state_response::server_log_state_response(
   size_t order_num,

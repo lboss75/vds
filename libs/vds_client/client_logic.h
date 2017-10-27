@@ -52,7 +52,7 @@ namespace vds {
                 result.error(std::make_shared<std::runtime_error>(error_message));
               }
               else {
-                result.done(sp, response_type(response));
+                result.done(response_type(response));
               }
             }));
           this->add_task(sp, message);

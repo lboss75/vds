@@ -24,7 +24,6 @@ namespace vds {
 		async_result(std::function<void(const std::shared_ptr<std::exception> & ex, result_types... results)> && done);
 
 		void done(const result_types &... results) const;
-		void done(std::tuple<result_types...> && result) const;
 		void error(const std::shared_ptr<std::exception> & ex) const;
 
 	private:
@@ -60,13 +59,6 @@ namespace vds {
   struct _async_task_result_helper<void>
   {
 	  typedef async_task<> task_type;
-    static constexpr bool task_as_result = false;
-  };
-
-  template <typename... result_types>
-  struct _async_task_result_helper<std::tuple<result_types...>>
-  {
-	  typedef async_task<result_types...> task_type;
     static constexpr bool task_as_result = false;
   };
 
@@ -257,16 +249,15 @@ namespace vds {
 
 	  void execute(async_result<result_types...> && done) override
 	  {
-      try {
-		    done.done(this->f_());
-      }
-      catch (const std::exception & ex) {
-        done.error(std::make_shared<std::runtime_error>(ex.what()));
-      }
-      catch (...) {
-        done.error(std::make_shared<std::runtime_error>("Unexpected error"));
-      }
-
+		  try {
+			  done.done(this->f_());
+		  }
+		  catch (const std::exception & ex) {
+			  done.error(std::make_shared<std::runtime_error>(ex.what()));
+		  }
+		  catch (...) {
+			  done.error(std::make_shared<std::runtime_error>("Unexpected error"));
+		  }
 	  }
 
   private:
@@ -415,10 +406,14 @@ namespace vds {
   template<typename ...result_types>
   inline async_task<result_types...>::~async_task()
   {
-    if(nullptr != this->impl_){
+#ifdef _DEBUG
+#pragma warning(disable: 4297)
+	  if(nullptr != this->impl_){
       throw std::runtime_error("Task without execute");
     }
-    
+#pragma warning(default: 4297)
+#endif//_DEBUG
+
 	  delete this->impl_;
   }
 
@@ -436,17 +431,18 @@ namespace vds {
   template<typename ...result_types>
   template<typename functor_type>
   inline void async_task<result_types...>::operator()(
-    functor_type && done_callback)
+	  functor_type && done_callback)
   {
 	  this->impl_->execute(
-      async_result<result_types...>(
-        [done = std::move(done_callback)](const std::shared_ptr<std::exception> & ex, result_types... results){
-          if(!ex){
-            done.done(std::forward<result_types>(results)...);
-          } else {
-            done.error(ex);
-          }
-        }));
+		  async_result<result_types...>(
+			  [done = std::move(done_callback)](const std::shared_ptr<std::exception> & ex, result_types... results){
+		  if (!ex) {
+			  done.done(std::forward<result_types>(results)...);
+		  }
+		  else {
+			  done.error(ex);
+		  }
+	  }));
   }
 
   template<typename ...result_types>
@@ -487,10 +483,10 @@ namespace vds {
 	  && _async_task_functor_helper<decltype(&functor_type::operator())>::task_as_result>::type *)
   {
 	  this->impl_->execute(
-		  async_result<result_types...>([f_ = std::move(f), d = std::move(done)](const std::shared_ptr<std::exception> & ex, result_types... result) {
+		  async_result<result_types...>([f_ = std::move(f), d = std::move(done)](const std::shared_ptr<std::exception> & ex, result_types... result) mutable {
         if(!ex){
           auto t = f_(std::forward<result_types>(result)...);
-          t(std::move(d));
+          t.operator()<done_type>(std::move(d));
         } else {
           d.error(ex);
         }
@@ -567,12 +563,6 @@ namespace vds {
   inline void async_result<result_types...>::done(const result_types & ...results) const
   {
 	  this->done_(std::shared_ptr<std::exception>(), results...);
-  }
-
-  template<typename ...result_types>
-  inline void async_result<result_types...>::done(std::tuple<result_types...> && result) const
-  {
-	  call_with(this->done_, std::shared_ptr<std::exception>(), std::move(result));
   }
 
   template<typename ...result_types>

@@ -138,9 +138,10 @@ TEST(http_tests, test_http_parser)
 
   vds::http_serializer serializer(parser);
   serializer.write_async(sp, request)
-  .wait(
-    []() {},
-    [sp](const std::shared_ptr<std::exception> & ex) { sp.unhandled_exception(ex); });
+  .execute(
+    [sp](const std::shared_ptr<std::exception> & ex) {
+	  sp.unhandled_exception(ex);
+  });
 
   b.wait();
   //Wait

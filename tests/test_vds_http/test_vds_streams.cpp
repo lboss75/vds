@@ -362,12 +362,10 @@ TEST(http_tests, test_https_stream)
     [sp, &client]() {
       return client.send(sp, std::shared_ptr<vds::http_message>());
     })
-  .wait(
-    []() {},
+  .execute(
     [sp](const std::shared_ptr<std::exception> & ex) {
       sp.unhandled_exception(ex);
-    },
-  sp);
+    });
   
   b.wait();
   //Wait
