@@ -42,15 +42,16 @@ public:
           MessageStateEnum::MESSAGE_STATE_MESSAGE_STARTED,
           error_logic::throw_exception);
         this->message_callback_(std::shared_ptr<http_message>())
-        .wait(
-          [pthis]() {
+        .execute(
+          [pthis](const std::shared_ptr<std::exception> & ex) {
+            if(!ex){
               pthis->message_state_.change_state(
                   MessageStateEnum::MESSAGE_STATE_MESSAGE_STARTED,
                   MessageStateEnum::MESSAGE_STATE_NONE,
                   error_logic::return_false);
-          },
-          [pthis](const std::shared_ptr<std::exception> & ex) {
+            } else {
               pthis->message_state_.fail(ex);
+            }
           });
         this->message_state_.wait(MessageStateEnum::MESSAGE_STATE_NONE, error_logic::throw_exception);
       }
@@ -124,15 +125,16 @@ private:
                       error_logic::throw_exception);
 
                     mt_service::async(sp, [pthis, current_message]() {
-                        pthis->message_callback_(current_message).wait(
-                        [pthis]() {
+                        pthis->message_callback_(current_message).execute(
+                        [pthis](const std::shared_ptr<std::exception> & ex) {
+                          if(!ex){
                             pthis->message_state_.change_state(
                                 MessageStateEnum::MESSAGE_STATE_MESSAGE_BODY_FINISH,
                                 MessageStateEnum::MESSAGE_STATE_NONE,
                                 error_logic::return_false);
-                        },
-                        [pthis](const std::shared_ptr<std::exception> & ex) {
+                          } else {
                             pthis->message_state_.fail(ex);
+                          }
                         });
                     });
                     this->current_message_ = current_message;
@@ -176,15 +178,16 @@ private:
                         sp,
                         data,
                         size)
-                    .wait(
-                    [pthis]() {
-                      pthis->message_state_.change_state(
-                            MessageStateEnum::MESSAGE_STATE_MESSAGE_BODY_STARTED,
-                            MessageStateEnum::MESSAGE_STATE_MESSAGE_BODY_FINISH,
-                            error_logic::return_false);
-                    },
+                    .execute(
                     [pthis](const std::shared_ptr<std::exception> & ex) {
-                      pthis->message_state_.fail(ex);
+                      if(!ex){
+                        pthis->message_state_.change_state(
+                              MessageStateEnum::MESSAGE_STATE_MESSAGE_BODY_STARTED,
+                              MessageStateEnum::MESSAGE_STATE_MESSAGE_BODY_FINISH,
+                              error_logic::return_false);
+                      } else {
+                        pthis->message_state_.fail(ex);
+                      }
                     });
 
                     data += size;
@@ -197,15 +200,16 @@ private:
                                 MessageStateEnum::MESSAGE_STATE_MESSAGE_BODY_FINISH,
                                 error_logic::throw_exception);
                         this->current_message_->body()->write_async(sp, nullptr, 0)
-                        .wait(
-                        [pthis]() {
-                          pthis->message_state_.change_state(
-                                MessageStateEnum::MESSAGE_STATE_MESSAGE_BODY_STARTED,
-                                MessageStateEnum::MESSAGE_STATE_MESSAGE_BODY_FINISH,
-                                error_logic::return_false);
-                        },
+                        .execute(
                         [pthis](const std::shared_ptr<std::exception> & ex) {
-                          pthis->message_state_.fail(ex);
+                          if(!ex){
+                            pthis->message_state_.change_state(
+                                  MessageStateEnum::MESSAGE_STATE_MESSAGE_BODY_STARTED,
+                                  MessageStateEnum::MESSAGE_STATE_MESSAGE_BODY_FINISH,
+                                  error_logic::return_false);
+                          } else {
+                            pthis->message_state_.fail(ex);
+                          }
                         });
                     }
                 }

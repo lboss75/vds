@@ -81,23 +81,25 @@ TEST(http_tests, test_server)
       [sp, &middleware](const std::shared_ptr<vds::http_message> & request) {
         return middleware.process(sp, request);
         })
-      .wait(
-        [sp]() {
-          sp.get<vds::logger>()->debug("test", sp, "Connection closed");
-        },
+      .execute(
         [sp](const std::shared_ptr<std::exception> & ex) {
+          if(!ex){
+            sp.get<vds::logger>()->debug("test", sp, "Connection closed");
+          } else {
+            sp.get<vds::logger>()->debug("test", sp, "Server error");
+            sp.unhandled_exception(ex);
+          }
+        });
+  }).execute(
+      [sp, &b](const std::shared_ptr<std::exception> & ex) {
+        if(!ex){
+          sp.get<vds::logger>()->debug("test", sp, "Server has been started");
+          b.set();
+        } else {
           sp.get<vds::logger>()->debug("test", sp, "Server error");
           sp.unhandled_exception(ex);
-        });
-  }).wait(
-      [sp, &b]() {
-    sp.get<vds::logger>()->debug("test", sp, "Server has been started");
-    b.set();
-  },
-      [sp, &b](const std::shared_ptr<std::exception> & ex) {
-    sp.get<vds::logger>()->debug("test", sp, "Server error");
-    sp.unhandled_exception(ex);
-    b.set();
+          b.set();
+        }
   });
   b.wait();
   b.reset();

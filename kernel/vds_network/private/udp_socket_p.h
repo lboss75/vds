@@ -538,15 +538,16 @@ namespace vds {
         this->owner_->incoming_->write_value_async(this->sp_, _udp_datagram::create(this->addr_, this->read_buffer_, len))
           .execute(
             [pthis = this->shared_from_this(), len](const std::shared_ptr<std::exception> & ex) {
+              auto this_ = static_cast<this_class *>(pthis.get());
               if(!ex){
                 if(0 != len){
-                  static_cast<this_class *>(pthis.get())->read_data();
+                  this_->read_data();
                 }
                 else {
-                  static_cast<this_class *>(pthis.get())->sp_.get<logger>()->trace("UDP", static_cast<this_class *>(pthis.get())->sp_, "input closed");
+                  this_->sp_.get<logger>()->trace("UDP", this_->sp_, "input closed");
                 }
               } else {
-                sp.unhandled_exception(ex);
+                this_->sp_.unhandled_exception(ex);
               }
             });
       }

@@ -49,21 +49,23 @@ TEST(network_tests, test_server)
     8000,
     [&error](const vds::service_provider & sp, const vds::tcp_network_socket & s) {
     vds::copy_stream<uint8_t>(sp, s.incoming(), s.outgoing())
-    .wait(
-      [s, sp]() {
-        sp.get<vds::logger>()->debug("TCP", sp, "Server closed");
-      },
-      [&error](const std::shared_ptr<std::exception> & ex) {
-        error = ex;
+    .execute(
+      [s, sp, &error](const std::shared_ptr<std::exception> & ex) {
+        if(!ex){
+          sp.get<vds::logger>()->debug("TCP", sp, "Server closed");
+        } else {
+          error = ex;
+        }
       });
-    }).wait(
-    [&b, sp]() {
-      sp.get<vds::logger>()->debug("TCP", sp, "Server has been started");
-      b.set();
-    },
-    [&b, &error](const std::shared_ptr<std::exception> & ex) {
-      error = ex;
-      b.set();
+    }).execute(
+    [&b, sp, &error](const std::shared_ptr<std::exception> & ex) {
+      if(!ex){
+        sp.get<vds::logger>()->debug("TCP", sp, "Server has been started");
+        b.set();
+      } else {
+        error = ex;
+        b.set();
+      }
     });
 
   b.wait();
@@ -92,24 +94,25 @@ TEST(network_tests, test_server)
     auto rs = std::make_shared<random_stream_async<uint8_t>>(*s.outgoing());
     auto cd = std::make_shared<compare_data<uint8_t>>(data.data(), data.size());
     
-    vds::async_task<> step1 = rs->write_async(sp, data.data(), data.size())
+    return vds::async_series(
+      rs->write_async(sp, data.data(), data.size())
       .then([rs, sp](){
         return rs->write_async(sp, nullptr, 0);
-      });
-    vds::async_task<> step2 = vds::copy_stream(
+      }),
+      vds::copy_stream(
         sp,
         s.incoming(),
-        std::static_pointer_cast<vds::stream_async<uint8_t>>(cd));
-    return vds::async_series(std::move(step1), std::move(step2));
-  }).wait(
-    [&b, sp]() {
-      sp.get<vds::logger>()->debug("TCP", sp, "Request sent");
-      b.set();
-    },
-    [&b, &error, sp](const std::shared_ptr<std::exception> & ex) {
-      error = ex;
-      sp.get<vds::logger>()->debug("TCP", sp, "Request error");
-      b.set();
+        std::static_pointer_cast<vds::stream_async<uint8_t>>(cd)));
+  }).execute(
+    [&b, sp, &error](const std::shared_ptr<std::exception> & ex) {
+      if(!ex){
+        sp.get<vds::logger>()->debug("TCP", sp, "Request sent");
+        b.set();
+      } else {
+        error = ex;
+        sp.get<vds::logger>()->debug("TCP", sp, "Request error");
+        b.set();
+      }
     });
 
   b.wait();

@@ -336,7 +336,7 @@ namespace vds {
 
 	  void execute(async_result<result_types...> && done) override
 	  {
-      done(result_types()...);
+      done.done(result_types()...);
 	  }
   };
 
@@ -578,7 +578,7 @@ namespace vds {
   template<typename ...result_types>
   inline void async_result<result_types...>::error(const std::shared_ptr<std::exception>& ex) const
   {
-	  this->done_(ex, result_types()...);
+	  this->done_(ex, typename std::remove_reference<result_types>::type()...);
   }
 
   /////////////////////////////////////////////////////////////////////////////////

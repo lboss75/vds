@@ -74,12 +74,13 @@ TEST(http_tests, test_http_serializer)
   vds::http_serializer s(cd);
   
   s.write_async(sp, request)
-  .wait(
-    [&b]() {
-      b.set();
-    },
-    [sp](const std::shared_ptr<std::exception> & ex) {
-      sp.unhandled_exception(ex);
+  .execute(
+    [&b, sp](const std::shared_ptr<std::exception> & ex) {
+      if(!ex){
+        b.set();
+      } else {
+        sp.unhandled_exception(ex);
+      }
     });
 
   b.wait();
