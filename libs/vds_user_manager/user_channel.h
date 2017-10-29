@@ -8,6 +8,7 @@ All rights reserved
 
 #include <memory>
 #include "member_user.h"
+#include "const_data_buffer.h"
 
 namespace vds {
   class _user_channel;
@@ -18,9 +19,7 @@ namespace vds {
     user_channel();
     ~user_channel();
     
-    void add_user(
-      const member_user & user,
-      int access_to_history);
+    void add_user(const member_user & user);
     
     const_data_buffer crypt_message(
       const member_user & user,
