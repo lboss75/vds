@@ -19,8 +19,8 @@ namespace vds {
     void stop(const service_provider & sp);
 
     async_task<
-      const vds::certificate & /*server_certificate*/,
-      const vds::asymmetric_private_key & /*private_key*/>
+      const certificate & /*server_certificate*/,
+      const asymmetric_private_key & /*private_key*/>
       init_server(
         const service_provider & sp,
       const std::string & user_login,
@@ -32,7 +32,7 @@ namespace vds {
       const std::string & password,
       const std::string & name);
 
-    async_task<const std::string& /*version_id*/> upload_file(
+    async_task<const std::string & /*version_id*/> upload_file(
       const service_provider & sp,
       const std::string & name,
       const filename & tmp_file);
@@ -49,13 +49,13 @@ namespace vds {
     size_t last_tmp_file_index_;
 
     async_task<
-      const client_messages::certificate_and_key_response & /*response*/>
+      const client_messages::certificate_and_key_response &/*response*/>
       authenticate(
         const service_provider & sp,
         const std::string & user_login,
         const std::string & user_password);
       
-    async_task<const guid & /*version_id*/>
+    async_task<const guid &/*version_id*/>
       looking_for_file(
         const service_provider & sp,
         const asymmetric_private_key & user_private_key,

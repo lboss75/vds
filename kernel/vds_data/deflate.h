@@ -11,6 +11,7 @@ All rights reserved
 namespace vds {
   class _deflate_handler;
   class _deflate_async_handler;
+  class const_data_buffer;
 
   //Compress data
   class deflate : public stream<uint8_t>
@@ -24,6 +25,15 @@ namespace vds {
       const service_provider & sp,
       const uint8_t * data,
       size_t len) override;
+      
+    static const_data_buffer compress(
+      const service_provider & sp,
+      const uint8_t * data,
+      size_t len);
+    
+    static const_data_buffer compress(
+      const service_provider & sp,
+      const const_data_buffer & data);
 
   private:
       _deflate_handler * const impl_;

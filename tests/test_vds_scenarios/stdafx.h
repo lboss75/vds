@@ -14,7 +14,7 @@ All rights reserved
 #include "vds_server.h"
 #include "vds_client.h"
 
-#include "certificate_authority_p.h"
+#include "private/certificate_authority_p.h"
 
 #include "gtest/gtest.h"
 

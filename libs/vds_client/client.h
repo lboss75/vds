@@ -42,8 +42,8 @@ namespace vds {
   {
   public:
     async_task<
-      const vds::certificate & /*server_certificate*/,
-      const vds::asymmetric_private_key & /*private_key*/>
+      const certificate & /*server_certificate*/,
+      const asymmetric_private_key & /*private_key*/>
       init_server(
         const service_provider & sp,
         const std::string & user_login,
@@ -55,7 +55,7 @@ namespace vds {
       const std::string & password,
       const std::string & name);
     
-    async_task<const std::string& /*version_id*/> upload_file(
+    async_task<const std::string & /*version_id*/> upload_file(
       const service_provider & sp,
       const std::string & name,
       const filename & tmp_file);

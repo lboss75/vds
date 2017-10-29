@@ -14,18 +14,18 @@ namespace vds {
   {
   public:
 
-    void add(const async_task<> & task)
+    template <typename task_type>
+    void add(task_type && task)
     {
-      this->tasks_.push_back(task);
+      this->tasks_.push_back(std::forward<task_type>(task));
     }
 
     async_task<> run()
     {
-      return create_async_task(
-        [this](const std::function<void(const service_provider & sp)> & done, const error_handler & on_error, const service_provider & sp) {
-          auto runner = new _async_series(done, on_error, sp, this->tasks_.size());
-          runner->run(this->tasks_);
-        });
+      return [this](const async_result<> & result) {
+          auto runner = new _async_series(result, this->tasks_.size());
+          runner->run(std::move(this->tasks_));
+        };
     }
 
   private:

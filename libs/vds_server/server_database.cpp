@@ -5,11 +5,11 @@ All rights reserved
 
 #include "stdafx.h"
 #include "server_database.h"
-#include "server_database_p.h"
+#include "private/server_database_p.h"
 #include "principal_record.h"
 #include "storage_log.h"
-#include "chunk_manager_p.h"
-#include "storage_log_p.h"
+#include "private/chunk_manager_p.h"
+#include "private/storage_log_p.h"
 
 
 void vds::iserver_database::add_object(

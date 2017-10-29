@@ -5,6 +5,7 @@ All rights reserved
 #include "stdafx.h"
 #include "vds_mock.h"
 #include "test_config.h"
+#include "storage_log.h"
 
 vds_mock::vds_mock()
 {
@@ -181,21 +182,21 @@ void mock_client::init_server(
     registrator.start(sp);
     
     sp.get<vds::iclient>()->init_server(sp, "root", root_password)
-      .wait(
-        [&b, this](
-          const vds::service_provider & sp,
+      .execute(
+        [&b, sp, this](
+          const std::shared_ptr<std::exception> & ex,
           const vds::certificate & server_certificate,
           const vds::asymmetric_private_key & private_key) {
+          if(!ex){
             auto root_folder = vds::foldername(vds::foldername(vds::foldername(vds::filename::current_process().contains_folder(), "servers"), std::to_string(this->index_)), ".vds");
             root_folder.create();
             server_certificate.save(vds::filename(root_folder, "server.crt"));
             private_key.save(vds::filename(root_folder, "server.pkey"));
           b.set();
-        },
-          [&b](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+        } else {
             sp.unhandled_exception(ex);
             b.set();
-        }, sp);
+        }});
     b.wait();
   }
   catch (...) {
@@ -225,23 +226,21 @@ void mock_client::upload_file(
     tmp_folder.create();
     vds::filename tmp_file(tmp_folder, "source");
 
+    vds::file f(tmp_file, vds::file::file_mode::create_new);
+    f.write((const uint8_t *)data, data_size);
+    f.close();
+    
     vds::barrier b;
-    vds::dataflow(
-      vds::dataflow_arguments<uint8_t>((const uint8_t *)data, data_size),
-      vds::file_write(tmp_file, vds::file::file_mode::create_new)
-    )
-    .then([login, password, name, tmp_file](const vds::service_provider & sp) {
-      return sp.get<vds::iclient>()->upload_file(sp, login, password, name, tmp_file);
-    })
-    .wait(
-      [&b](const vds::service_provider&sp, const std::string& /*version_id*/) {
+    
+    sp.get<vds::iclient>()->upload_file(sp, name, tmp_file)
+    .execute(
+      [&b, sp](const std::shared_ptr<std::exception> & ex, const std::string& /*version_id*/) {
+        if(!ex){
         b.set(); 
-      },
-      [&b](const vds::service_provider&sp, const std::shared_ptr<std::exception> & ex) {
+      } else {
         b.set();
         sp.unhandled_exception(ex);
-      },
-      sp);
+      }});
 
     b.wait();
   }, false);
@@ -250,7 +249,7 @@ void mock_client::upload_file(
 vds::const_data_buffer mock_client::download_data(const std::string & login, const std::string & password, const std::string & name)
 {
   std::shared_ptr<std::exception> error;
-  std::vector<uint8_t> result;
+  vds::const_data_buffer result;
   this->start_vds(true, [&result, &error, login, password, name](const vds::service_provider&sp) {
     vds::barrier b;
     
@@ -259,16 +258,15 @@ vds::const_data_buffer mock_client::download_data(const std::string & login, con
     vds::filename tmp_file(tmp_folder, "target");
 
     for(int try_count = 0; ; ++try_count){
-      sp.get<vds::iclient>()->download_data(sp, login, password, name, tmp_file)
-      .wait(
-        [&b](const vds::service_provider & sp, const vds::guid & version_id){
+      sp.get<vds::iclient>()->download_data(sp, name, tmp_file)
+      .execute(
+        [&b, &error, sp](const std::shared_ptr<std::exception> & ex, const vds::guid & /*version_id*/){
+          if(!ex){
           b.set();
-        },
-        [&b, &error](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+        } else {
           error = ex;
           b.set();
-        },
-        sp);
+        }});
 
       b.wait();
       b.reset();
@@ -286,16 +284,7 @@ vds::const_data_buffer mock_client::download_data(const std::string & login, con
       }
     }
 
-    vds::dataflow(
-      vds::file_read(tmp_file),
-      vds::collect_data(result)
-    ).wait(
-      [](const vds::service_provider & sp) {
-      },
-      [&error](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-        error = ex; 
-      },
-      sp);
+    result = vds::file::read_all(tmp_file);
   }, false);
 
   if (error) {

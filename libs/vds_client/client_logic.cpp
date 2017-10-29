@@ -69,9 +69,16 @@ void vds::client_logic::stop(const service_provider & sp)
 
       barrier b;
       connection->outgoing_stream()->write_async(scope, nullptr, 0)
-        .wait(
-          [&b]() {b.set(); },
-          [sp, &b](const std::shared_ptr<std::exception> & ex) { b.set(); sp.unhandled_exception(ex); });
+        .execute(
+          [sp, &b](const std::shared_ptr<std::exception> & ex) {
+            if(!ex){
+            b.set();
+              
+            } else {
+              b.set();
+              sp.unhandled_exception(ex);
+            }
+          });
       b.wait();
     }
     connection->stop(sp);
@@ -106,7 +113,7 @@ void vds::client_logic::process_response(
             this->requests_.remove(request_id);
             lock.unlock();
 
-            item->done(sp, task);
+            item->done(task);
           }
         }
       }
@@ -184,10 +191,11 @@ void vds::client_logic::add_task(const service_provider & sp, const std::shared_
       imt_service::enable_async(scope);
 
       connection->outgoing_stream()->write_value_async(scope, message)
-      .wait(
-        []() {},
+      .execute(
         [sp](const std::shared_ptr<std::exception> & ex) {
-          sp.unhandled_exception(ex);
+          if(ex){
+            sp.unhandled_exception(ex);
+          }
         });
     }
   }
@@ -259,31 +267,32 @@ void vds::client_logic::continue_read_connection(
   client_connection * connection,
   std::shared_ptr<std::shared_ptr<http_message>> buffer)
 {
-  connection->incoming_stream()->read_async(sp, buffer.get(), 1)
-    .wait([this, connection, buffer](const service_provider & sp, size_t readed) {
-      if (0 < readed) {
-        auto json_response = std::make_shared<std::shared_ptr<json_value>>();
-        dataflow(
-          stream_read<continuous_buffer<uint8_t>>((*buffer)->body()),
-          byte_to_char(),
-          json_parser("server response"),
-          dataflow_require_once<std::shared_ptr<json_value>>(json_response.get())
-        )
-        .wait(
-          [this, json_response, connection, buffer](const service_provider & sp) {
-            this->process_response(sp, *json_response);
-            this->continue_read_connection(sp, connection, buffer);
-          },
-          [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-            sp.unhandled_exception(ex);
-          },
-          sp);
-      }
-    },
-    [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-      sp.unhandled_exception(ex);
-    },
-    sp);
+//   connection->incoming_stream()->read_async(sp, buffer.get(), 1)
+//     .execute([this, sp, connection, buffer](const std::shared_ptr<std::exception> & ex, size_t readed) {
+//       if(!ex){
+//       if (0 < readed) {
+//         auto json_response = std::make_shared<std::shared_ptr<json_value>>();
+//         dataflow(
+//           stream_read<continuous_buffer<uint8_t>>((*buffer)->body()),
+//           byte_to_char(),
+//           json_parser("server response"),
+//           dataflow_require_once<std::shared_ptr<json_value>>(json_response.get())
+//         )
+//         .wait(
+//           [this, json_response, connection, buffer](const service_provider & sp) {
+//             this->process_response(sp, *json_response);
+//             this->continue_read_connection(sp, connection, buffer);
+//           },
+//           [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+//             sp.unhandled_exception(ex);
+//           },
+//           sp);
+//       }
+//     } else {
+//       sp.unhandled_exception(ex);
+//     }
+//     },
+//     sp);
 }
 
 /*
@@ -353,21 +362,19 @@ void vds::client_logic::process(client_connection<client_logic>* connection, con
 
 vds::client_logic::request_info::request_info(
   const std::shared_ptr<json_value> & task,
-  const std::function<void(const service_provider & sp, const std::shared_ptr<json_value> & response)> & done,
-  const error_handler & on_error)
+  async_result<const std::shared_ptr<json_value> &> && done_handler)
 : task_(task),
-  done_(done),
-  on_error_(on_error),
+  done_handler_(std::move(done_handler)),
   is_completed_(false)
 {
 }
 
-void vds::client_logic::request_info::done(const service_provider & sp, const std::shared_ptr<json_value>& response)
+void vds::client_logic::request_info::done(const std::shared_ptr<json_value>& response)
 {
   std::lock_guard<std::mutex> task_lock(this->mutex_);
   if (!this->is_completed_) {
     this->is_completed_ = true;
-    this->done_(sp, response);
+    this->done_handler_.done(response);
   }
 }
 
@@ -376,7 +383,7 @@ void vds::client_logic::request_info::on_timeout(const service_provider & sp)
   std::lock_guard<std::mutex> task_lock(this->mutex_);
   if (!this->is_completed_) {
     this->is_completed_ = true;
-    this->on_error_(sp, std::make_shared<std::runtime_error>("Timeout"));
+    this->done_handler_.error(std::make_shared<std::runtime_error>("Timeout"));
   }
 }
 

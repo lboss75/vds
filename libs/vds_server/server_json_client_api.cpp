@@ -5,16 +5,16 @@ All rights reserved
 
 #include "stdafx.h"
 #include "server_json_client_api.h"
-#include "server_json_client_api_p.h"
+#include "private/server_json_client_api_p.h"
 #include "server.h"
 #include "node_manager.h"
 #include "storage_log.h"
 #include "principal_record.h"
 #include "server_database.h"
 #include "parallel_tasks.h"
-#include "principal_manager_p.h"
-#include "server_database_p.h"
-#include "server_log_sync_p.h"
+#include "private/principal_manager_p.h"
+#include "private/server_database_p.h"
+#include "private/server_log_sync_p.h"
 
 vds::server_json_client_api::server_json_client_api()
 : impl_(new _server_json_client_api(this))
@@ -81,7 +81,7 @@ std::shared_ptr<vds::json_value> vds::_server_json_client_api::operator()(
               std::string task_type_name;
               task_object->get_property("$t", task_type_name);
 
-              async_task<std::shared_ptr<json_value>> task;
+              async_task<std::shared_ptr<json_value>> task = async_task<std::shared_ptr<json_value>>::empty();
 
               if (client_messages::certificate_and_key_request::message_type == task_type_name) {
                 task = this->process(sp, client_messages::certificate_and_key_request(task_object));
@@ -103,16 +103,16 @@ std::shared_ptr<vds::json_value> vds::_server_json_client_api::operator()(
                 throw std::runtime_error("Invalid request type " + task_type_name);
               }
 
-              task.wait(
-                [this, request_id](const service_provider & sp, const std::shared_ptr<json_value> & task_result) {
+              task.execute(
+                [sp, this, request_id](const std::shared_ptr<std::exception> & ex, const std::shared_ptr<json_value> & task_result) {
+                  if(!ex){
                 std::dynamic_pointer_cast<json_object>(task_result)->add_property("$r", request_id);
 
                 this->task_mutex_.lock();
                 auto p = this->tasks_.find(request_id);
                 p->second.result = task_result;
                 this->task_mutex_.unlock();
-              },
-                [this, request_id](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+              } else {
                 auto error_id = guid::new_guid().str();
                 sp.get<logger>()->error("JSON API", sp, "Error %s: %s", error_id.c_str(), ex->what());
 
@@ -124,8 +124,7 @@ std::shared_ptr<vds::json_value> vds::_server_json_client_api::operator()(
                 auto p = this->tasks_.find(request_id);
                 p->second.error = error_response;
                 this->task_mutex_.unlock();
-              },
-                sp);
+              }});
             }
           }
           catch (const std::exception & ex) {
@@ -179,25 +178,21 @@ vds::_server_json_client_api::process(
   const service_provider & sp,
   const client_messages::certificate_and_key_request & message)
 {
-  return create_async_task(
-    [message](const std::function<void(const service_provider & sp, std::shared_ptr<json_value>)> & done,
-              const error_handler & on_error,
-              const service_provider & sp){
+  return [sp, message](const async_result<std::shared_ptr<json_value>> & result){
       (*sp.get<iserver_database>())->get_db()->async_transaction(sp,
-      [sp, done, on_error, message](database_transaction & tr){
+      [sp, result, message](database_transaction & tr){
         auto cert = sp
           .get<principal_manager>()->find_user_principal(sp, tr, message.object_name());
 
         if (!cert
           || cert->password_hash() != message.password_hash()) {
-          on_error(sp, std::make_shared<std::runtime_error>("Invalid username or password"));
+          result.error(std::make_shared<std::runtime_error>("Invalid username or password"));
         }
         else {
           std::list<guid> active_records;
           auto order_num = sp.get<principal_manager>()->get_current_state(sp, tr, active_records);
 
-          done(
-            sp,
+          result.done(
             client_messages::certificate_and_key_response(
               cert->id(),
               cert->cert_body().str(),
@@ -208,7 +203,7 @@ vds::_server_json_client_api::process(
         
         return true;
       });
-    });
+    };
 }
 
 vds::async_task<std::shared_ptr<vds::json_value>>
@@ -216,11 +211,10 @@ vds::_server_json_client_api::process(
   const service_provider & sp,
   const client_messages::register_server_request & message)
 {
-  return create_async_task(
-    [sp, message](const std::function<void(const service_provider & sp, std::shared_ptr<json_value>)> & done, const error_handler & on_error, const service_provider & sp){
+  return [sp, message](const async_result<std::shared_ptr<json_value>> & result){
       
       (*sp.get<iserver_database>())->get_db()->async_transaction(sp,
-      [sp, done, on_error, message](database_transaction & tr) {
+      [sp, result, message](database_transaction & tr) {
         barrier b;
 
         sp.get<node_manager>()->register_server(
@@ -231,17 +225,19 @@ vds::_server_json_client_api::process(
           certificate::parse(message.server_certificate()),
           base64::to_bytes(message.server_private_key()),
           message.password_hash())
-          .wait(
-            [done, &b](const service_provider & sp) {
+          .execute(
+            [result, &b, sp](const std::shared_ptr<std::exception> & ex) {
+              if(!ex){
               b.set();
-              done(sp, client_messages::register_server_response().serialize());            
-            },
-            on_error,
-            sp);
+              result.done(client_messages::register_server_response().serialize());            
+            } else {
+              result.error(ex);
+            }
+            });
         b.wait();
         return true;
       });
-    });
+    };
 }
 
 
@@ -250,12 +246,10 @@ vds::_server_json_client_api::process(
   const service_provider & sp,
   const client_messages::put_object_message & message)
 {
-  return create_async_task([message](
-    const std::function<void(const service_provider & sp, std::shared_ptr<vds::json_value>)> & done,
-    const error_handler & on_error,
-    const service_provider & sp){
+  return [sp, message](
+    const async_result<std::shared_ptr<vds::json_value>> & result){
       (*sp.get<iserver_database>())->get_db()->async_transaction(sp,
-        [sp, message, done, on_error](database_transaction & tr)->bool{
+        [sp, message, result](database_transaction & tr)->bool{
       
       principal_log_record record(message.principal_msg());
       
@@ -263,18 +257,19 @@ vds::_server_json_client_api::process(
       
       auto author = sp.get<principal_manager>()->find_principal(sp, tr, record.principal_id());
       if(!author){
-        on_error(sp, std::make_shared<std::runtime_error>("Author not found"));
+        result.error(std::make_shared<std::runtime_error>("Author not found"));
         return false;
       }
       
-      auto body = message.principal_msg()->str();
+      auto body = message.principal_msg().serialize(false)->str();
       if(!asymmetric_sign_verify::verify(
+        sp,
         hash::sha256(),
         author->cert_body().public_key(),
         message.signature(),
         body.c_str(),
         body.length())){
-        on_error(sp, std::make_shared<std::runtime_error>("Signature verification failed"));
+        result.error(std::make_shared<std::runtime_error>("Signature verification failed"));
         return false;
       }
       
@@ -287,7 +282,8 @@ vds::_server_json_client_api::process(
         message.version_id(),
         message.tmp_file(),
         message.file_hash())
-      .wait([done, &tr, &b, &record, &message](const service_provider & sp){
+      .execute([result, sp, &tr, &b, &record, &message](const std::shared_ptr<std::exception> & ex){
+        if(!ex){
         
         for(auto & p : record.parents()) {
           auto state = (*sp.get<principal_manager>())->principal_log_get_state(sp, tr, p);
@@ -300,14 +296,16 @@ vds::_server_json_client_api::process(
         sp.get<_server_log_sync>()->on_new_local_record(sp, record, message.signature());
 
         b.set();
-        done(sp, client_messages::put_object_message_response().serialize());
-        },
-        on_error,
-        sp);
+        result.done(client_messages::put_object_message_response().serialize());
+        }
+        else {
+          result.error(ex);
+        }
+        });
       b.wait();
       return true;
     });
-  });
+  };
 }
 
 vds::async_task<std::shared_ptr<vds::json_value>> vds::_server_json_client_api::process(
@@ -319,26 +317,19 @@ vds::async_task<std::shared_ptr<vds::json_value>> vds::_server_json_client_api::
     message.version_id(),
     message.tmp_file())
   .then(
-    [](
-      const std::function<void(const service_provider & sp, std::shared_ptr<vds::json_value>)> & done,
-      const error_handler & on_error,
-      const service_provider & sp,
-      const server_task_manager::task_state & state) {
+    [](const client_messages::task_state & state) {
     
-      done(sp, client_messages::get_object_response(state).serialize());
+      return client_messages::get_object_response(state).serialize();
     });
 }
 
 vds::async_task<std::shared_ptr<vds::json_value>>
-  vds::_server_json_client_api::process(const service_provider & scope, const client_messages::principal_log_request & message)
+  vds::_server_json_client_api::process(const service_provider & sp, const client_messages::principal_log_request & message)
 {
-  return create_async_task([message](
-    const std::function<void(const service_provider & sp, std::shared_ptr<vds::json_value>)> & done,
-    const error_handler & on_error,
-    const service_provider & sp) {
+  return [sp, message](const async_result<std::shared_ptr<vds::json_value>> & result) {
 
     (*sp.get<iserver_database>())->get_db()->async_transaction(sp,
-      [sp, message, done](database_transaction & tr)->bool{
+      [sp, message, result](database_transaction & tr)->bool{
         
       size_t last_order_num;
       std::list<principal_log_record> records;
@@ -350,8 +341,8 @@ vds::async_task<std::shared_ptr<vds::json_value>>
         last_order_num,
         records);
       
-      done(sp, client_messages::principal_log_response(message.principal_id(), last_order_num, records).serialize());
+      result.done(client_messages::principal_log_response(message.principal_id(), last_order_num, records).serialize());
       return true;
     });
-  });
+  };
 }

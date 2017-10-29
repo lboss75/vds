@@ -4,21 +4,22 @@ All rights reserved
 */
 
 #include "stdafx.h"
+#include <set>
 #include "udp_socket.h"
 #include "connection_manager.h"
-#include "connection_manager_p.h"
+#include "private/connection_manager_p.h"
 #include "udp_messages.h"
 #include "node_manager.h"
 #include "messages.h"
 #include "server_certificate.h"
 #include "storage_log.h"
-#include "server_log_sync_p.h"
-#include "udp_socket_p.h"
+#include "private/server_log_sync_p.h"
+#include "private/udp_socket_p.h"
 #include "network_serializer.h"
-#include "chunk_manager_p.h"
-#include "route_manager_p.h"
-#include "object_transfer_protocol_p.h"
-#include "server_database_p.h"
+#include "private/chunk_manager_p.h"
+#include "private/route_manager_p.h"
+#include "private/object_transfer_protocol_p.h"
+#include "private/server_database_p.h"
 
 vds::connection_manager::connection_manager()
   : impl_(new _connection_manager(this))
@@ -110,14 +111,14 @@ void vds::_connection_manager::start(const vds::service_provider& sp)
     }
     else if ("https" == protocol) {
       auto na = url_parser::parse_network_address(address);
-      this->start_https_server(scope, na).wait(
-        [this](const service_provider & sp) {
+      this->start_https_server(scope, na)
+              .execute(
+        [this, sp = scope](const std::shared_ptr<std::exception> & ex) {
+            if(!ex){
         sp.get<logger>()->info("HTTPS", sp, "Servers stopped");
-      },
-        [this](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+      } else {
         sp.get<logger>()->info("HTTPS", sp, "Server error: %s", ex->what());
-      },
-        scope);
+      }});
     }
 
     return true;
@@ -130,27 +131,22 @@ void vds::_connection_manager::start(const vds::service_provider& sp)
     std::map<std::string, std::string> endpoints;
     sp.get<node_manager>()->get_endpoints(sp, t, endpoints);
 
-    async_task<> result = create_async_task([](
-      const std::function<void(const service_provider & sp)> & done,
-      const error_handler & on_error,
-      const service_provider & sp) {
-      done(sp);
-    });
+    async_task<> result = async_task<>::empty();
     
     for (auto & p : endpoints) {
       auto address = p.second;
-      result = result.then([this, address](const service_provider & sp){ return this->try_to_connect(sp, address);});
+      result = result.then([this, sp, address](){ return this->try_to_connect(sp, address);});
     }
     
     auto mt_scope = sp.create_scope("Staring connection manager");
     mt_service::enable_async(mt_scope);
-    result.wait([&b](const service_provider& sp){
+    result.execute([sp, &b](const std::shared_ptr<std::exception> & ex){
+      if(!ex){
       b.set();
-    },
-    [](const service_provider& sp, const std::shared_ptr<std::exception> & ex){
+    } else {
       sp.unhandled_exception(ex);
-    },
-    mt_scope);
+    }
+    });
     
     return true;
   });
@@ -164,17 +160,14 @@ vds::async_task<> vds::_connection_manager::try_to_connect(
 {
   sp.get<logger>()->info("network", sp, "Connecting to %s", address.c_str());
   
-  async_task<> result = create_async_task([](
-    const std::function<void(const service_provider & sp)> & done,
-    const error_handler & on_error,
-    const service_provider & sp) {
-    done(sp);
-  });
+  async_task<> result = async_task<>::empty();
 
   url_parser::parse_addresses(address,
     [this, &result, sp](const std::string & protocol, const std::string & address) -> bool {
     if ("udp" == protocol) {
-      result = result.then([this, address](const service_provider & sp){ return this->udp_channel_->open_udp_session(sp, address); });
+      result = result.then([this, sp, address](){
+        return this->udp_channel_->open_udp_session(sp, address);
+      });
     }
     else if ("https" == protocol) {
       //this->open_https_session(sp, address);
@@ -285,32 +278,31 @@ void vds::_connection_manager::udp_channel::schedule_read(
   const service_provider & sp)
 {
   this->s_.incoming()->read_async(sp, &this->input_message_, 1)
-  .wait(
-    [this](const service_provider & sp, size_t readed){
+  .execute(
+    [this, sp](const std::shared_ptr<std::exception> & ex, size_t readed){
+      if(!ex){
       if(0 < readed){
         this->input_message(
           sp,
           this->input_message_->addr(),
           this->input_message_.data(),
           this->input_message_.data_size())
-        .wait(
-          [this](const service_provider & sp) {
+        .execute(
+          [this, sp](const std::shared_ptr<std::exception> & ex) {
+            if(!ex){
             this->schedule_read(sp);
-          },
-          [this](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+          } else {
             sp.get<logger>()->error("UDPAPI", sp, "Error %s at processing message", ex->what());
             this->schedule_read(sp);
-          },
-          sp);
+          }});
       }
       else {
         sp.get<logger>()->debug("UDPAPI", sp, "Pipeline closed");
       }
-    },
-    [](const service_provider & sp, const std::shared_ptr<std::exception> & ex){
+    } else {
       sp.unhandled_exception(ex);
-    },
-    sp);
+    }
+    });
 }
 
 
@@ -335,12 +327,9 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
 {
   sp.get<logger>()->trace("UDPAPI", sp, "message(%d) from %s", len, network_service::to_string(*from).c_str());
   
-  return create_async_task([this, from, data, len](
-    const std::function<void(const service_provider & sp)> & done,
-    const error_handler & on_error,
-    const service_provider & sp) {
+  return [this, sp, from, data, len](const async_result<> & result) {
     (*sp.get<iserver_database>())->get_db()->async_transaction(sp,
-      [this, sp, from, data, len, done, on_error](database_transaction & tr)->bool{
+      [this, sp, from, data, len, result](database_transaction & tr)->bool{
     
     network_deserializer s(data, len);
     auto cmd = s.start();
@@ -373,14 +362,7 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
 
         auto key_crypted = cert.public_key().encrypt(key_data.data());
 
-        auto data = std::make_shared<std::vector<uint8_t>>();
-        dataflow(
-          dataflow_arguments<uint8_t>(b.data().data(), b.data().size()),
-          symmetric_encrypt(session.session_key()),
-          collect_data(*data))
-        .wait(
-            [this, done, on_error, from, &session, key_crypted, data](const service_provider & sp) {
-          const_data_buffer crypted_data(data->data(), data->size());
+        auto crypted_data = symmetric_encrypt::encrypt(session.session_key(), b.data().data(), b.data().size());
 
           auto server_log = sp.get<istorage_log>();
 
@@ -403,18 +385,17 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
           auto data = _udp_datagram::create(*from, message_data);
           auto stream = this->s_.outgoing();
           stream->write_value_async(sp, data)
-          .wait(
-            [stream, done](const service_provider & sp){
-              done(sp);
-            },
-            on_error,
-            sp);
-        },
-          on_error,
-          sp);
+          .execute(
+            [stream, sp, result](const std::shared_ptr<std::exception> & ex){
+              if(!ex){
+              result.done();
+            } else {
+              result.error(ex);
+            }
+            });
       }
       else {
-        done(sp);
+        result.done();
       }
 
       break;
@@ -434,6 +415,7 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
         << msg.crypted_data();
 
       if (asymmetric_sign_verify::verify(
+        sp,
         hash::sha256(),
         cert.public_key(),
         msg.sign(),
@@ -449,18 +431,13 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
         auto key_data = storage_log->server_private_key().decrypt(msg.key_crypted());
 
         symmetric_key session_key(symmetric_crypto::aes_256_cbc(), binary_deserializer(key_data));
-        auto data = std::make_shared<std::vector<uint8_t>>();
-        dataflow(
-          dataflow_arguments<uint8_t>(msg.crypted_data().data(), msg.crypted_data().size()),
-          symmetric_decrypt(session_key),
-          collect_data(*data))
-        .wait(
-            [this, done, &session_key, &cert, from, data, &tr](const service_provider & sp) {
+        auto data = symmetric_decrypt::decrypt(session_key, msg.crypted_data().data(), msg.crypted_data().size());
+        
               uint32_t in_session_id;
               uint32_t out_session_id;
 
               principal_log_record::record_id last_record_id;
-              binary_deserializer s(data->data(), data->size());
+              binary_deserializer s(data.data(), data.size());
               s >> out_session_id >> in_session_id >> last_record_id;
 
               std::lock_guard<std::mutex> lock_hello(this->hello_requests_mutex_);
@@ -492,10 +469,7 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
               }
 
               sp.get<_server_log_sync>()->ensure_record_exists(sp, tr, last_record_id);
-              done(sp);
-            },
-                on_error,
-              sp);
+              result.done();
       }
 
       break;
@@ -517,17 +491,11 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
 
         auto p = this->sessions_.find(session_id);
         if (this->sessions_.end() != p) {
-          auto data = std::make_shared<std::vector<uint8_t>>();
-          dataflow(
-            dataflow_arguments<uint8_t>(crypted_data.data(), crypted_data.size()),
-            symmetric_decrypt(p->second->session_key()),
-            collect_data(*data)
-          )
-          .wait(
-            [this, &data_hash, session = p->second, from, data, &tr](const service_provider & sp) {
-            if (hash::signature(hash::sha256(), data->data(), data->size()) == data_hash) {
+          auto data = symmetric_decrypt::decrypt(p->second->session_key(), crypted_data.data(), crypted_data.size());
+          
+            if (hash::signature(hash::sha256(), data.data(), data.size()) == data_hash) {
 
-              binary_deserializer d(data->data(), data->size());
+              binary_deserializer d(data.data(), data.size());
               uint32_t message_type_id;
               const_data_buffer binary_form;
               d >> message_type_id >> binary_form;
@@ -538,18 +506,13 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
                 sp,
                 tr,
                 this->owner_,
-                *session.get(),
+                *p->second.get(),
                 message_type_id,
                 binary_form);
             }
             else {
               sp.get<logger>()->error("UDPAPI", sp, "Invalid data hash");
             }
-          },
-            [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-            sp.unhandled_exception(ex);
-          },
-            sp);
         }
         else {
           sp.get<logger>()->warning("UDPAPI", sp, "Session %d not found", session_id);
@@ -557,23 +520,23 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
       }
       catch (const std::exception & ex) {
         sp.get<logger>()->error("UDPAPI", sp, "Error at processing command");
-        on_error(sp, std::make_shared<std::exception>(ex));
+        result.error(std::make_shared<std::exception>(ex));
         return false;
       }
       catch (...) {
         sp.get<logger>()->error("UDPAPI", sp, "Error at processing command");
-        on_error(sp, std::make_shared<std::runtime_error>("Unhandled error"));
+        result.error(std::make_shared<std::runtime_error>("Unhandled error"));
         return false;
       }
 
-      done(sp);
+      result.done();
       break;
     }
     }
 
     return true;
       });
-  });
+  };
 }
 
 void vds::_connection_manager::send_to(
@@ -593,10 +556,7 @@ vds::async_task<> vds::_connection_manager::udp_channel::open_udp_session(
   const service_provider & sp,
   const std::string & address)
 {
-  return create_async_task([this, address](
-    const std::function<void (const service_provider & sp)> & done,
-    const error_handler & on_error,
-    const service_provider & sp){
+  return [this, sp, address](const async_result<> & result){
       auto network_address = url_parser::parse_network_address(address);
       assert("udp" == network_address.protocol);
       
@@ -623,16 +583,17 @@ vds::async_task<> vds::_connection_manager::udp_channel::open_udp_session(
           
           auto stream = this->s_.outgoing();
           stream->write_value_async(scope, udp_datagram(server, port, data, false))
-          .wait([stream, done](const service_provider & sp) {
-            done(sp);
-          },
-          on_error,
-          sp);
+          .execute([stream, result](const std::shared_ptr<std::exception> & ex) {
+            if(!ex){
+            result.done();
+          } else {
+            result.error(ex);
+          }});
           
           return;
         }
       }
-  });
+  };
 }
 
 void vds::_connection_manager::udp_channel::broadcast(
@@ -678,17 +639,12 @@ void vds::_connection_manager::udp_channel::session::send_to(
   binary_serializer message_data;
   message_data << message_type_id << msg_data;
 
-  auto crypted_data = std::make_shared<std::vector<uint8_t>>();
-  dataflow(
-    dataflow_arguments<uint8_t>(message_data.data().data(), message_data.data().size()),
-    symmetric_encrypt(this->session_key()),
-    collect_data(*crypted_data))
-  .wait(
-      [this, sp, &message_data, crypted_data](const service_provider & sp) {
+  auto crypted_data = symmetric_encrypt::encrypt(this->session_key(), message_data.data().data(), message_data.data().size());
+  
         network_serializer s;
         s.start(udp_messages::command_message_id);
         s << this->external_session_id();
-        s.push_data(crypted_data->data(), crypted_data->size());
+        s.push_data(crypted_data.data(), crypted_data.size());
         s << hash::signature(hash::sha256(), message_data.data());
         s.final();
 
@@ -698,15 +654,7 @@ void vds::_connection_manager::udp_channel::session::send_to(
         imt_service::enable_async(scope);
         auto stream = this->owner_->s_.outgoing();
         stream->write_value_async(scope, udp_datagram(this->server(), this->port(), s.data()))
-        .wait([stream](const service_provider & sp){},
-          [](const service_provider & sp, const std::shared_ptr<std::exception> & ex){},
-          scope);
-      },
-      [](const service_provider & sp,
-         const std::shared_ptr<std::exception> & ex) {
-        throw *ex;
-      },
-      sp);
+        .execute([stream](const std::shared_ptr<std::exception> & ex){});
 }
 
 const vds::_connection_manager::udp_channel::incoming_session & 
@@ -778,9 +726,7 @@ bool vds::_connection_manager::udp_channel::process_timer_jobs(const service_pro
 
     auto stream = this->s_.outgoing();
     stream->write_value_async(scope, udp_datagram(server, port, data, false))
-    .wait([stream](const service_provider & sp){},
-          [](const service_provider & sp, const std::shared_ptr<std::exception> & ex){
-          }, sp);
+    .execute([stream](const std::shared_ptr<std::exception> & ex){});
   }
 
   return true;

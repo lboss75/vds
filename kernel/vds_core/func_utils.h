@@ -113,6 +113,35 @@ namespace vds {
   public:
     typedef result_type type(first_parameter_type, argument_types...);
   };
+  
+  ///////////////////////////////////////
+  /*
+  template <typename lambda_type, typename lambda_signature>
+  class _lambda_holder;
+  
+  template <typename lambda_type>
+  class lambda_holder : public _lambda_holder<lambda_type, decltype(&lambda_type::operator())>
+  {
+  };
+  
+  template <typename functor_type, typename result, typename class_name, typename... arg_types>
+  class _lambda_holder<functor_type, result (class_name::*)(arg_types...), std::enable_if<std::is_copy_constructible<functor_type>>
+  {
+  public:
+    _lambda_holder(functor_type && f)
+    : holder_(f)
+    {
+    }
+    
+    result operator()(arg_types... && args)
+    {
+      return this->holder_(std::forward<arg_types>(args)...);
+    }
+    
+  protected:
+    std::function<result(arg_types...)> holder_;
+  };
+  */  
 }
 
 #endif//__VDS_CORE_FUNC_UTILS_H_

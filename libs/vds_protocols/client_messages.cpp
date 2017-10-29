@@ -83,6 +83,10 @@ std::shared_ptr<vds::json_value> vds::client_messages::certificate_and_key_respo
 ///////////////////////////////////////////////////////////////////////////////
 const char vds::client_messages::server_log_state_request::message_type[] = "server log state";
 
+vds::client_messages::server_log_state_request::server_log_state_request()
+{
+}
+
 vds::client_messages::server_log_state_request::server_log_state_request(const std::shared_ptr<json_value> & value)
 {
 }

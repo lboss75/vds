@@ -5,23 +5,23 @@ All rights reserved
 
 #include "stdafx.h"
 #include "storage_log.h"
-#include "storage_log_p.h"
+#include "private/storage_log_p.h"
 #include "process_log_line.h"
 #include "log_records.h"
 #include "principal_record.h"
 #include "node.h"
 #include "endpoint.h"
 #include "certificate_authority.h"
-#include "certificate_authority_p.h"
+#include "private/certificate_authority_p.h"
 #include "chunk_storage.h"
 #include "server_log_sync.h"
-#include "server_log_sync_p.h"
+#include "private/server_log_sync_p.h"
 #include "server_certificate.h"
-#include "chunk_manager_p.h"
-#include "principal_manager_p.h"
-#include "server_database_p.h"
+#include "private/chunk_manager_p.h"
+#include "private/principal_manager_p.h"
+#include "private/server_database_p.h"
 #include "messages.h"
-#include "server_log_logic_p.h"
+#include "private/server_log_logic_p.h"
 
 const vds::guid & vds::istorage_log::current_server_id() const
 {
@@ -238,27 +238,22 @@ vds::async_task<> vds::_storage_log::register_server(
   const const_data_buffer & server_private_key,
   const const_data_buffer & password_hash)
 {
-  return create_async_task(
-    [this, &tr, id, parent_id, server_certificate, server_private_key, password_hash](
-      const std::function<void(const service_provider & sp)> & done,
-      const error_handler & on_error,
-      const service_provider & sp) {
-    this->add_to_local_log(
-      sp,
-      tr,
-      this->current_server_id(),
-      this->current_server_id(),
-      this->server_private_key(),
-      server_log_new_server(
-        id,
-        parent_id,
-        server_certificate,
-        server_private_key,
-        password_hash).serialize(true),
-      true,
-      guid::new_guid());
-    done(sp);
-  });
+  this->add_to_local_log(
+    sp,
+    tr,
+    this->current_server_id(),
+    this->current_server_id(),
+    this->server_private_key(),
+    server_log_new_server(
+      id,
+      parent_id,
+      server_certificate,
+      server_private_key,
+      password_hash).serialize(true),
+    true,
+    guid::new_guid());
+  
+  return async_task<>::empty();
 }
 
 void vds::_storage_log::add_to_local_log(
@@ -428,6 +423,7 @@ void vds::_storage_log::validate_signature(
 
   std::string body = record.serialize(false)->str();
   if (!asymmetric_sign_verify::verify(
+    sp,
     hash::sha256(),
     this->corresponding_public_key(sp, tr, record),
     signature,

@@ -4,8 +4,8 @@ All rights reserved
 */
 #include "stdafx.h"
 #include "route_manager.h"
-#include "route_manager_p.h"
-#include "connection_manager_p.h"
+#include "private/route_manager_p.h"
+#include "private/connection_manager_p.h"
 #include "storage_log.h"
 
 vds::route_manager::route_manager()

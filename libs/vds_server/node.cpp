@@ -6,7 +6,7 @@ All rights reserved
 #include "stdafx.h"
 #include "node.h"
 #include "storage_log.h"
-#include "storage_log_p.h"
+#include "private/storage_log_p.h"
 
 vds::node::node(
   const guid & id,

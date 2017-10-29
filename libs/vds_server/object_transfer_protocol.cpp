@@ -5,11 +5,11 @@ All rights reserved
 
 #include "stdafx.h"
 #include "object_transfer_protocol.h"
-#include "object_transfer_protocol_p.h"
+#include "private/object_transfer_protocol_p.h"
 #include "connection_manager.h"
-#include "server_database_p.h"
+#include "private/server_database_p.h"
 #include "storage_log.h"
-#include "chunk_manager_p.h"
+#include "private/chunk_manager_p.h"
 
 vds::object_transfer_protocol::object_transfer_protocol()
 : impl_(new _object_transfer_protocol())

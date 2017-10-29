@@ -14,6 +14,7 @@ namespace vds {
   class istorage_log;
   class full_storage_object_id;
   class server;
+  class database_transaction;
   
   class istorage_log
   {

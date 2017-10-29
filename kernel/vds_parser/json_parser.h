@@ -9,9 +9,10 @@ All rights reserved
 #include "json_object.h"
 #include "parse_error.h"
 #include "encoding.h"
+#include "stream.h"
 
 namespace vds {
-  class json_parser
+  class json_parser : public stream<uint8_t>
   {
   public:
     struct options
@@ -39,9 +40,10 @@ namespace vds {
       {
       }
 
-      void update(
-        const char * input_buffer,
-        size_t input_len)
+      void write(
+        const service_provider & sp,
+        const uint8_t * input_buffer,
+        size_t input_len) override
       {
         if(nullptr == input_buffer || 0 == input_len){
           this->final_data();
@@ -49,7 +51,7 @@ namespace vds {
         }
         
         while(0 < input_len--) {
-          auto current_symbol = *input_buffer++;
+          auto current_symbol = (char)*input_buffer++;
           switch (current_symbol) {
           case '\n':
             this->line_++;

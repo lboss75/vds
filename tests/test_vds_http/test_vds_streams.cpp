@@ -48,19 +48,25 @@ static vds::async_task<> copy_body(
   });
 }
 
+struct shared_buffer
+{
+  uint8_t data_[1024];
+};
+
 static vds::async_task<std::string> read_answer(
   const vds::service_provider & sp,
-  const std::shared_ptr<uint8_t[1024]> & buffer,
+  std::unique_ptr<shared_buffer> && buffer,
   const std::shared_ptr<vds::continuous_buffer<uint8_t>> & source,
   const std::string & result = std::string())
 {
-  return source->read_async(sp, *buffer, 1024)
-    .then([sp, buffer, source, result](size_t readed) -> vds::async_task<std::string> {
+  return source->read_async(sp, buffer->data_, sizeof(buffer->data_))
+    .then([sp, b = std::move(buffer), source, result](size_t readed) mutable -> vds::async_task<std::string> {
     if (0 == readed) {
       return [result]() { return result; };
     }
     else {
-      return read_answer(sp, buffer, source, result + std::string((const char *)*buffer, readed));
+      auto value = result + std::string((const char *)b->data_, readed);
+      return read_answer(sp, std::move(b), source, value);
     }
   });
 }
@@ -104,68 +110,69 @@ TEST(http_tests, test_streams)
   
   vds::barrier b;
   //Server
-  vds::async_series(
-    http_server.start(sp,
-      server2client, client2server,
-      [sp](const std::shared_ptr<vds::http_message> & request) -> vds::async_task<std::shared_ptr<vds::http_message>> {
-
-    return [sp, request]()-> vds::async_task<> {
-      if (!request) {
-        return []() { return std::shared_ptr<vds::http_message>(); };
-      }
-      else {
-        std::string value;
-        request->get_header("Content-Length", value);
-
-        vds::http_response response(vds::http_response::HTTP_OK, "OK");
-        response.add_header("Content-Length", value);
-        auto result = response.create_message();
-
-        return copy_body(
-          sp,
-          std::make_shared<std::vector<uint8_t>>(1024),
-          request->body(),
-          result->body())
-          .then([result](){ return result;});
-      }
-    };
-  }),
-    client.start(
-      sp,
-      client2server, server2client,
-      [sp, &response, &answer](
-        const std::shared_ptr<vds::http_message> & request) -> vds::async_task<> {
-
-    if (!request) {
-      return vds::async_task<>::empty();
-    }
-
-    response = request;
-
-    return read_answer(
-      sp,
-      std::make_shared<uint8_t[1024]>(),
-      response->body())
-    .then(
-      [&answer](const std::string & result){
-          answer = result;
-        });
-  }),
-  client.send(sp, request)
-    .then(
-      [&client](const vds::service_provider & sp) {
-    return client.send(sp, std::shared_ptr<vds::http_message>());
-  })
-    
-  ).wait(
-      [sp, &b]() {
-    sp.get<vds::logger>()->debug("network", sp, "Client closed");
-    b.set();
-  },
-      [sp](const std::shared_ptr<std::exception> & ex) {
-    sp.get<vds::logger>()->debug("network", sp, "Client error");
-    sp.unhandled_exception(ex);
-  });
+//   vds::async_series(
+//     http_server.start(sp,
+//       server2client, client2server,
+//       [sp](const std::shared_ptr<vds::http_message> & request) -> vds::async_task<std::shared_ptr<vds::http_message>> {
+// 
+//     return [sp, request]()-> vds::async_task<std::shared_ptr<vds::http_message>> {
+//       if (!request) {
+//         return []() { return std::shared_ptr<vds::http_message>(); };
+//       }
+//       else {
+//         std::string value;
+//         request->get_header("Content-Length", value);
+// 
+//         vds::http_response response(vds::http_response::HTTP_OK, "OK");
+//         response.add_header("Content-Length", value);
+//         auto result = response.create_message();
+// 
+//         return copy_body(
+//           sp,
+//           std::make_shared<std::vector<uint8_t>>(1024),
+//           request->body(),
+//           result->body())
+//           .then([result](){ return result;});
+//       }
+//     };
+//   }),
+//     client.start(
+//       sp,
+//       client2server, server2client,
+//       [sp, &response, &answer](
+//         const std::shared_ptr<vds::http_message> & request) -> vds::async_task<> {
+// 
+//     if (!request) {
+//       return vds::async_task<>::empty();
+//     }
+// 
+//     response = request;
+// 
+//     return read_answer(
+//       sp,
+//       std::make_unique<shared_buffer>(),
+//       response->body())
+//     .then(
+//       [&answer](const std::string & result){
+//           answer = result;
+//         });
+//   }),
+//   client.send(sp, request)
+//     .then(
+//       [sp, &client]() {
+//     return client.send(sp, std::shared_ptr<vds::http_message>());
+//   })
+//     
+//   ).execute(
+//       [sp, &b](const std::shared_ptr<std::exception> & ex) {
+//         if(!ex){
+//     sp.get<vds::logger>()->debug("network", sp, "Client closed");
+//     b.set();
+//   } else {
+//     sp.get<vds::logger>()->debug("network", sp, "Client error");
+//     sp.unhandled_exception(ex);
+//   }
+//   });
 
 
   b.wait();
@@ -228,27 +235,26 @@ TEST(http_tests, test_https_stream)
         crypto_tunnel.decrypted_output(), crypto_tunnel.decrypted_input(),
         [sp](const std::shared_ptr<vds::http_message> & request) -> vds::async_task<std::shared_ptr<vds::http_message>> {
 
-          return [sp, request]() -> vds::async_task<std::shared_ptr<vds::http_message>> {
-             if(!request){
-               return []() { return std::shared_ptr<vds::http_message>(); };
-             }
-             else {
-              std::string value;
-              request->get_header("Content-Length", value);
-              
-              vds::http_response response(vds::http_response::HTTP_OK, "OK");
-              response.add_header("Content-Length", value);
-              auto result = response.create_message();
-              
-              return copy_body(
-                sp,
-                std::make_shared<std::vector<uint8_t>>(1024),
-                request->body(),
-                result->body()).then([result]() {
-                return result;
-              });
-             }
-            };
+            if(!request){
+              return []() { return std::shared_ptr<vds::http_message>(); };
+            }
+            else {
+            std::string value;
+            request->get_header("Content-Length", value);
+            
+            vds::http_response response(vds::http_response::HTTP_OK, "OK");
+            response.add_header("Content-Length", value);
+            auto result = response.create_message();
+            
+            return copy_body(
+              sp,
+              std::make_shared<std::vector<uint8_t>>(1024),
+              request->body(),
+              result->body())
+            .then([result]() {
+              return result;
+            });
+            }
       }),
       vds::copy_stream(
         sp,
@@ -260,22 +266,24 @@ TEST(http_tests, test_https_stream)
           crypto_tunnel.crypted_output(),
           s.outgoing()
         )
-      ).wait(
-        [sp, crypto_tunnel]() {
+      ).execute(
+        [sp, crypto_tunnel](const std::shared_ptr<std::exception> & ex) {
+          if(!ex){
       sp.get<vds::logger>()->debug("SSL", sp, "Connection closed");
-    },
-        [sp](const std::shared_ptr<std::exception> & ex) {
+    } else {
       sp.unhandled_exception(ex);
+    }
     });
     crypto_tunnel.start(sp);
-  }).wait(
-    [sp, &b]() {
+  }).execute(
+    [sp, &b](const std::shared_ptr<std::exception> & ex) {
+      if(!ex){
       sp.get<vds::logger>()->debug("SSL", sp, "Server has been started");
       b.set();
-    },
-    [sp, &b](const std::shared_ptr<std::exception> & ex) {
+    } else {
       FAIL() << ex->what();
       b.set();
+    }
     });
   b.wait();
   b.reset();
@@ -312,7 +320,8 @@ TEST(http_tests, test_https_stream)
     return vds::async_series(
       client.start(
         sp,
-        client_crypto_tunnel.decrypted_output(), client_crypto_tunnel.decrypted_input(),
+        client_crypto_tunnel.decrypted_output(),
+        client_crypto_tunnel.decrypted_input(),
         [sp, &response, &answer](
           const std::shared_ptr<vds::http_message> & request) -> vds::async_task<> {
 
@@ -324,10 +333,10 @@ TEST(http_tests, test_https_stream)
 
           return read_answer(
             sp,
-            std::make_shared<uint8_t[1024]>(),
+            std::make_unique<shared_buffer>(),
             response->body())
             .then(
-              [&answer](static std::string & result) {
+              [&answer](const std::string & result) {
               answer = result;
             });
       }),
@@ -343,13 +352,14 @@ TEST(http_tests, test_https_stream)
       )
       );
   })
-    .wait(
-      [sp, &b]() {
+    .execute(
+      [sp, &b](const std::shared_ptr<std::exception> & ex) {
+        if(!ex){
         sp.get<vds::logger>()->debug("SSL", sp, "Request sent");
         b.set();
-      },
-      [sp](const std::shared_ptr<std::exception> & ex) {
+      } else {
         sp.get<vds::logger>()->debug("SSL", sp, "Request error");
+      }
       });
 
   random_buffer buf;
@@ -364,7 +374,9 @@ TEST(http_tests, test_https_stream)
     })
   .execute(
     [sp](const std::shared_ptr<std::exception> & ex) {
-      sp.unhandled_exception(ex);
+      if(ex){
+        sp.unhandled_exception(ex);
+      }
     });
   
   b.wait();
@@ -414,58 +426,51 @@ TEST(http_tests, test_ssl_streams)
 
   vds::barrier b;
   //Server
-    auto crypto_tunnel = std::make_shared<vds::ssl_tunnel>(false, &cert, &pkey);
+    vds::ssl_tunnel crypto_tunnel(false, &cert, &pkey);
 
-    vds::async_series(
-      http_server.start(sp,
-        crypto_tunnel->decrypted_output(), crypto_tunnel->decrypted_input(),
-        [](
-          const vds::service_provider & sp,
-          const std::shared_ptr<vds::http_message> & request) -> vds::async_task<std::shared_ptr<vds::http_message>> {
-
-      return vds::create_async_task(
-        [request](const std::function<void(const vds::service_provider & sp, std::shared_ptr<vds::http_message>)> & done,
-          const vds::error_handler & on_error,
-          const vds::service_provider & sp) {
-        if (!request) {
-          done(sp, std::shared_ptr<vds::http_message>());
-        }
-        else {
-          std::string value;
-          request->get_header("Content-Length", value);
-
-          vds::http_response response(vds::http_response::HTTP_OK, "OK");
-          response.add_header("Content-Length", value);
-          auto result = response.create_message();
-
-          copy_body(
-            sp,
-            std::make_shared<std::vector<uint8_t>>(1024),
-            request->body(),
-            result->body());
-
-          done(sp, result);
-        }
-      });
-    }),
-      vds::dataflow(
-        vds::stream_read<vds::continuous_buffer<uint8_t>>(client2server),
-        vds::stream_write<vds::continuous_buffer<uint8_t>>(crypto_tunnel->crypted_input())
-      ),
-      vds::dataflow(
-        vds::stream_read(crypto_tunnel->crypted_output()),
-        vds::stream_write(server2client)
-      )
-      )
-      .wait(
-        [crypto_tunnel](const vds::service_provider & sp) {
-      sp.get<vds::logger>()->debug("SSL", sp, "Connection closed");
-    },
-        [](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-      sp.unhandled_exception(ex);
-    },
-      sp);
-    crypto_tunnel->start(sp);
+//     vds::async_series(
+//       http_server.start(sp,
+//         crypto_tunnel.decrypted_output(), crypto_tunnel.decrypted_input(),
+//         [sp](const std::shared_ptr<vds::http_message> & request) -> vds::async_task<std::shared_ptr<vds::http_message>> {
+// 
+//       return 
+//         [sp, request]() -> vds::async_task<std::shared_ptr<vds::http_message>> {
+//         if (!request) {
+//           return [](){return std::shared_ptr<vds::http_message>();};
+//         }
+//         else {
+//           std::string value;
+//           request->get_header("Content-Length", value);
+// 
+//           vds::http_response response(vds::http_response::HTTP_OK, "OK");
+//           response.add_header("Content-Length", value);
+//           auto result = response.create_message();
+// 
+//           return copy_body(
+//             sp,
+//             std::make_shared<std::vector<uint8_t>>(1024),
+//             request->body(),
+//             result->body()).then([result](){return result;});
+//         }
+//       };
+//     }),
+//       vds::copy_stream(
+//         sp,
+//         client2server,
+//         crypto_tunnel.crypted_input()),
+//       vds::copy_stream(
+//         sp,
+//         crypto_tunnel.crypted_output(),
+//         server2client)
+//       )
+//       .execute(
+//         [sp, crypto_tunnel](const std::shared_ptr<std::exception> & ex) {
+//           if(!ex){
+//       sp.get<vds::logger>()->debug("SSL", sp, "Connection closed");
+//     } else {
+//       sp.unhandled_exception(ex);
+//     }});
+    crypto_tunnel.start(sp);
 
   std::shared_ptr<vds::http_message> response;
 
@@ -484,71 +489,66 @@ TEST(http_tests, test_ssl_streams)
   std::string answer;
   vds::http_client client;
 
-    auto client_crypto_tunnel = std::make_shared<vds::ssl_tunnel>(true, &client_cert, &client_pkey);
+    vds::ssl_tunnel client_crypto_tunnel(true, &client_cert, &client_pkey);
 
-    vds::async_series(
-      client.start(
-        sp,
-        client_crypto_tunnel->decrypted_output(), client_crypto_tunnel->decrypted_input(),
-        [&response, &answer](
-          const vds::service_provider & sp,
-          const std::shared_ptr<vds::http_message> & request) -> vds::async_task<> {
-
-      if (!request) {
-        return vds::async_task<>::empty();
-      }
-
-      response = request;
-      auto data = std::make_shared<std::vector<uint8_t>>();
-
-      return vds::dataflow(
-          vds::stream_read<vds::continuous_buffer<uint8_t>>(response->body()),
-          vds::collect_data(*data))
-        .then(
-          [data, &answer](
-            const std::function<void(const vds::service_provider & sp)> & task_done,
-            const vds::error_handler & on_error,
-            const vds::service_provider & sp) {
-          answer = std::string((const char *)data->data(), data->size());
-          task_done(sp);
-        });
-    }),
-      vds::dataflow(
-        vds::stream_read<vds::continuous_buffer<uint8_t>>(server2client),
-        vds::stream_write<vds::continuous_buffer<uint8_t>>(client_crypto_tunnel->crypted_input())
-      ),
-      vds::dataflow(
-        vds::stream_read(client_crypto_tunnel->crypted_output()),
-        vds::stream_write(client2server)
-      )
-      ).wait(
-        [&b, client_crypto_tunnel](const vds::service_provider & sp) {
-      sp.get<vds::logger>()->debug("test", sp, "Client closed");
-      b.set();
-    },
-        [](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-      sp.get<vds::logger>()->debug("test", sp, "Client error");
-      sp.unhandled_exception(ex);
-    },
-      sp.create_scope("Client dataflow"));
-    client_crypto_tunnel->start(sp);
+//     vds::async_series(
+//       client.start(
+//         sp,
+//         client_crypto_tunnel.decrypted_output(), client_crypto_tunnel.decrypted_input(),
+//         [sp, &response, &answer](const std::shared_ptr<vds::http_message> & request) -> vds::async_task<> {
+// 
+//       if (!request) {
+//         return vds::async_task<>::empty();
+//       }
+// 
+//       response = request;
+//       
+//       return read_answer(
+//         sp,
+//         std::make_unique<shared_buffer>(),
+//         response->body())
+//       .then([&answer](const std::string & result){
+//           answer = result;
+//         });
+//       }),
+//       vds::copy_stream(
+//         sp,
+//         server2client,
+//         client_crypto_tunnel.crypted_input()
+//       ),
+//       vds::copy_stream(
+//         sp,
+//         client_crypto_tunnel.crypted_output(),
+//         client2server
+//       )
+//       ).execute(
+//         [sp, &b, client_crypto_tunnel](const std::shared_ptr<std::exception> & ex) {
+//           if(!ex){
+//       sp.get<vds::logger>()->debug("test", sp, "Client closed");
+//       b.set();
+//     } else {
+//       sp.get<vds::logger>()->debug("test", sp, "Client error");
+//       sp.unhandled_exception(ex);
+//     }
+//     });
+    client_crypto_tunnel.start(sp);
 
   random_buffer buf;
   auto test_data = vds::base64::from_bytes(buf.data(), buf.size());
 
   std::shared_ptr<vds::http_message> request = vds::http_request::simple_request(sp, "GET", "/", test_data);
 
-  client.send(sp, request)
-    .then(
-      [&client](const vds::service_provider & sp) {
-    return client.send(sp, std::shared_ptr<vds::http_message>());
-  })
-    .wait(
-      [](const vds::service_provider & sp) {},
-      [](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-    sp.unhandled_exception(ex);
-  },
-      sp);
+//   client.send(sp, request)
+//     .then(
+//       [sp, &client]() {
+//     return client.send(sp, std::shared_ptr<vds::http_message>());
+//   })
+//     .execute(
+//       [sp](const std::shared_ptr<std::exception> & ex) {
+//         if(ex){
+//     sp.unhandled_exception(ex);
+//         }
+//   });
 
   b.wait();
   //Wait

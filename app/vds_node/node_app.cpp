@@ -96,11 +96,12 @@ void vds::node_app::main(
   if (&this->node_install_cmd_set_ == this->current_command_set_) {
     barrier b;
     sp.get<vds::iclient>()->init_server(sp, this->login_.value(), this->password_.value())
-      .wait(
-        [&b, this](
-          const vds::service_provider & sp,
+      .execute(
+        [&b, sp, this](
+          const std::shared_ptr<std::exception> & ex,
           const vds::certificate & server_certificate,
           const vds::asymmetric_private_key & private_key) {
+          if(!ex){
 
           foldername folder(foldername(this->target_path_.value()), ".vds");
           folder.create();
@@ -109,12 +110,12 @@ void vds::node_app::main(
           private_key.save(vds::filename(folder, "server.pkey"));
 
           b.set();
-        },
-        [&b](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+        } else {
           std::cerr << ex->what() << "\n";
           sp.unhandled_exception(ex);
           b.set();
-    }, sp);
+        }
+    });
     b.wait();
   }
   else if (&this->node_login_cmd_set_ == this->current_command_set_){
@@ -124,14 +125,13 @@ void vds::node_app::main(
       this->login_.value(),
       this->password_.value(),
       this->device_name_.value())
-      .wait(
-        [&b](const vds::service_provider & sp) {
+      .execute(
+        [&b, sp](const std::shared_ptr<std::exception> & ex) {
+          if(!ex){
           b.set();
-        },
-        [](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
+        } else {
           sp.unhandled_exception(ex);
-        },
-      sp);
+        }});
 
     b.wait();
   }
@@ -141,19 +141,16 @@ void vds::node_app::main(
     barrier b;
     sp.get<vds::iclient>()->upload_file(
       sp,
-      this->login_.value(),
-      this->password_.value(),
       this->name_.value().empty() ? fn.name() : this->name_.value(),
       fn)
-      .wait(
-        [&b](const vds::service_provider&sp, const std::string& version_id) {
+      .execute(
+        [&b, sp](const std::shared_ptr<std::exception> & ex, const std::string& version_id) {
+          if(!ex){
           std::cout << "File uploaded " << version_id << "\n";
           b.set();
-        },
-        [](const vds::service_provider&sp, const std::shared_ptr<std::exception> & ex) {
+        } else {
           sp.unhandled_exception(ex);
-        },
-      sp);
+        }});
 
     b.wait();
   }
@@ -163,19 +160,16 @@ void vds::node_app::main(
     barrier b;
     sp.get<vds::iclient>()->download_data(
       sp,
-      this->login_.value(),
-      this->password_.value(),
       this->name_.value().empty() ? fn.name() : this->name_.value(),
       fn)
-      .wait(
-        [&b](const vds::service_provider&sp, const guid& version_id) {
+      .execute(
+        [sp, &b](const std::shared_ptr<std::exception> & ex, const guid& version_id) {
+          if(!ex){
           std::cout << "File downloaded " << version_id.str() << "\n";
           b.set();
-        },
-        [](const vds::service_provider&sp, const std::shared_ptr<std::exception> & ex) {
+        } else {
           sp.unhandled_exception(ex);
-        },
-      sp);
+        }});
 
     b.wait();
   }

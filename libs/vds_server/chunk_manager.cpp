@@ -5,12 +5,13 @@ All rights reserved
 
 #include "stdafx.h"
 #include <unordered_set>
+#include <set>
 #include "chunk_manager.h"
-#include "chunk_manager_p.h"
+#include "private/chunk_manager_p.h"
 #include "storage_log.h"
 #include "hash.h"
-#include "server_database_p.h"
-#include "object_transfer_protocol_p.h"
+#include "private/server_database_p.h"
+#include "private/object_transfer_protocol_p.h"
 #include "connection_manager.h"
 
 vds::ichunk_manager::ichunk_manager()
@@ -178,13 +179,14 @@ vds::async_task<> vds::_chunk_manager::add_object(
     for (decltype(file_size) offset = 0; offset < file_size; offset += BLOCK_SIZE) {
         result = result.then(
             [this,
+            sp,
             &tr,
             start_chunk,
             version_id,
             tmp_file,
             offset,
             file_size,
-            is_last = (start_chunk == finish_chunk - 1)](const service_provider & sp){
+            is_last = (start_chunk == finish_chunk - 1)](){
                 return this->write_chunk(
                     sp,
                     tr,
@@ -258,68 +260,56 @@ vds::async_task<> vds::_chunk_manager::write_chunk(
   size_t size,
   bool is_last)
 {
-  auto context = std::make_shared<std::tuple<
-    size_t /*original_length*/,
-    const_data_buffer /*original_hash*/,
-    std::vector<uint8_t> /*buffer*/>>();
-
-  return 
-    dataflow(
-      file_range_read(fn, offset, size),
-      hash_filter(&std::get<0>(*context), &std::get<1>(*context)),
-      collect_data(std::get<2>(*context))
-    )
-    .then(
-      [this, &tr, context, index, object_id, offset, size, is_last](
-        const std::function<void(const service_provider & sp)> & done,
-        const error_handler & on_error,
-        const service_provider & sp){
-      
-        if (std::get<0>(*context) != size) {
-          throw std::runtime_error("File is corrupt");
-        }
-
-        auto server_id = sp.get<istorage_log>()->current_server_id();
-        this->add_chunk(
-          sp,
-          tr,
-          server_id,
-          index,
-          object_id,
-          std::get<0>(*context),
-          std::get<1>(*context));
-      
-        //Padding
-        while(std::get<2>(*context).size() % (2 * MIN_HORCRUX) > 0){
-          std::get<2>(*context).push_back(0);
-        }
-      
-        principal_log_new_chunk chunk(
-          server_id,
-          index,
-          object_id,
-          std::get<0>(*context),
-          std::get<1>(*context));
-
-        this->generate_horcruxes(
-          sp,
-          tr,
-          server_id,
-          chunk,
-          std::get<2>(*context));
-
-        sp.get<istorage_log>()->add_to_local_log(
-          sp,
-          tr,
-          server_id,
-          server_id,
-          sp.get<istorage_log>()->server_private_key(),
-          chunk.serialize(true),
-          false,
-          is_last ? object_id : guid::new_guid());
-
-        done(sp);
-    });
+//   auto  buffer = (uint8_t *)alloca(size);
+//   file f(fn, file::file_mode::open_read);
+//   f.seek(offset);
+//   auto original_length = f.read(buffer, size);
+//   auto original_hash = hash::signature(hash::sha256(), buffer, original_length);
+// 
+//         if (original_length != size) {
+//           throw std::runtime_error("File is corrupt");
+//         }
+// 
+//         auto server_id = sp.get<istorage_log>()->current_server_id();
+//         this->add_chunk(
+//           sp,
+//           tr,
+//           server_id,
+//           index,
+//           object_id,
+//           original_length,
+//           original_hash);
+//       
+//         //Padding
+//         /*TODO: while(size % (2 * MIN_HORCRUX) > 0){
+//           std::get<2>(*context).push_back(0);
+//         }*/
+// 
+//         principal_log_new_chunk chunk(
+//           server_id,
+//           index,
+//           object_id,
+//           original_length,
+//           original_hash);
+// 
+//         this->generate_horcruxes(
+//           sp,
+//           tr,
+//           server_id,
+//           chunk,
+//           (uint8_t *)buffer);
+// 
+//         sp.get<istorage_log>()->add_to_local_log(
+//           sp,
+//           tr,
+//           server_id,
+//           server_id,
+//           sp.get<istorage_log>()->server_private_key(),
+//           chunk.serialize(true),
+//           false,
+//           is_last ? object_id : guid::new_guid());
+// 
+  return async_task<>::empty();
 }
 
 void vds::_chunk_manager::generate_horcruxes(

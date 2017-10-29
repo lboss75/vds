@@ -6,6 +6,8 @@ All rights reserved
 #define __TEST_VDS_SCENARIOS_VDS_MOCK_H_
 
 #include "network_service.h"
+#include "connection_manager.h"
+#include "server_log_sync.h"
 
 class mock_server
 {

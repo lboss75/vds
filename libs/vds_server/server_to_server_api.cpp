@@ -6,10 +6,10 @@ All rights reserved
 #include "stdafx.h"
 #include "server_to_server_api.h"
 #include "messages.h"
-#include "server_log_sync_p.h"
-#include "route_manager_p.h"
-#include "connection_manager_p.h"
-#include "object_transfer_protocol_p.h"
+#include "private/server_log_sync_p.h"
+#include "private/route_manager_p.h"
+#include "private/connection_manager_p.h"
+#include "private/object_transfer_protocol_p.h"
 #include "storage_log.h"
 
 void vds::server_to_server_api::process_message(

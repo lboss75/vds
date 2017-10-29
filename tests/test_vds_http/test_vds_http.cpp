@@ -22,19 +22,25 @@ All rights reserved
 #include "test_config.h"
 #include "task_manager.h"
 
+struct shared_buffer
+{
+  uint8_t data_[1024];
+};
+
 static vds::async_task<std::string> read_answer(
   const vds::service_provider & sp,
-  const std::shared_ptr<uint8_t[1024]> & buffer,
+  std::unique_ptr<shared_buffer> && buffer,
   const std::shared_ptr<vds::continuous_buffer<uint8_t>> & source,
   const std::string & result = std::string())
 {
-  return source->read_async(sp, *buffer, 1024)
-    .then([sp, buffer, source, result](size_t readed) -> vds::async_task<std::string> {
+  return source->read_async(sp, buffer->data_, sizeof(buffer->data_))
+    .then([sp, b = std::move(buffer), source, result](size_t readed) mutable -> vds::async_task<std::string> {
     if (0 == readed) {
       return [result]() { return result; };
     }
     else {
-      return read_answer(sp, buffer, source, result + std::string((const char *)*buffer, readed));
+      auto value = result + std::string((const char *)b->data_, readed);
+      return read_answer(sp, std::move(b), source, value);
     }
   });
 }
@@ -130,7 +136,7 @@ TEST(http_tests, test_server)
       
       return read_answer(
           sp,
-          std::make_shared<uint8_t[1024]>(),
+          std::make_unique<shared_buffer>(),
           request->body())
       .then(
         [&answer](const std::string & result){

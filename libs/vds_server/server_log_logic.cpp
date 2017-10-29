@@ -5,5 +5,5 @@ All rights reserved
 
 #include "stdafx.h"
 #include "server_log_logic.h"
-#include "server_log_logic_p.h"
+#include "private/server_log_logic_p.h"
 

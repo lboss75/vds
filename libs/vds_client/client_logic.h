@@ -26,7 +26,7 @@ namespace vds {
     void stop(const service_provider & sp);
 
     template <typename response_type>
-    async_task<const response_type & /*response*/>
+    async_task<const response_type &/*response*/>
     send_request(
       const service_provider & sp,
       const std::shared_ptr<json_value> & message,
@@ -41,11 +41,13 @@ namespace vds {
       s->add_property("$r", request_id);
       
       return [this, sp, message, request_id, request_timeout](
-        const async_result<const response_type & /*response*/> & result){
+        const async_result<const response_type &/*response*/> & result){
           std::lock_guard<std::mutex> lock(this->requests_mutex_);
           this->requests_.set(request_id, std::make_shared<request_info>(
             message,
-            [sp, result](const std::shared_ptr<json_value> & response) { 
+            async_result<const std::shared_ptr<json_value> &>(
+            [sp, result](const std::shared_ptr<std::exception> & ex, const std::shared_ptr<json_value> & response) { 
+              if(!ex){
               auto response_object = std::dynamic_pointer_cast<json_object>(response);
               std::string error_message;
               if (response_object && response_object->get_property("$e", error_message)){
@@ -54,7 +56,9 @@ namespace vds {
               else {
                 result.done(response_type(response));
               }
-            }));
+            } else {
+              result.error(ex);
+            }})));
           this->add_task(sp, message);
           
           auto t = std::make_shared<timer>("Cancel timer");
@@ -99,7 +103,7 @@ namespace vds {
     public:
       request_info(
         const std::shared_ptr<json_value> & task,
-        const async_result<std::shared_ptr<json_value>> & done_handler);
+        async_result<const std::shared_ptr<json_value> &> && done_handler);
 
       void done(const std::shared_ptr<json_value> & response);
       void on_timeout(const service_provider & sp);
@@ -107,7 +111,7 @@ namespace vds {
 
     private:
       std::shared_ptr<json_value> task_;
-      async_result<std::shared_ptr<json_value>> done_handler_;
+      async_result<const std::shared_ptr<json_value> &> done_handler_;
 
       mutable std::mutex mutex_;
       bool is_completed_;

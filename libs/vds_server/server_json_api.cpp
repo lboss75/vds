@@ -5,7 +5,7 @@ All rights reserved
 
 #include "stdafx.h"
 #include "server_json_api.h"
-#include "server_json_api_p.h"
+#include "private/server_json_api_p.h"
 #include "server.h"
 #include "node_manager.h"
 

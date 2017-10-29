@@ -4,10 +4,10 @@ All rights reserved
 */
 #include "stdafx.h"
 #include "server_log_sync.h"
-#include "server_log_sync_p.h"
+#include "private/server_log_sync_p.h"
 #include "messages.h"
-#include "server_database_p.h"
-#include "principal_manager_p.h"
+#include "private/server_database_p.h"
+#include "private/principal_manager_p.h"
 #include "storage_log.h"
 
 vds::server_log_sync::server_log_sync()

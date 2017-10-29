@@ -1,5 +1,5 @@
 #include "principal_manager.h"
-#include "principal_manager_p.h"
+#include "private/principal_manager_p.h"
 #include "json_parser.h"
 #include "asymmetriccrypto.h"
 #include "logger.h"
@@ -454,14 +454,8 @@ bool vds::_principal_manager::get_record(
     std::list<principal_log_record::record_id> parents;
     this->principal_log_get_parents(sp, tr, id, parents);
 
-    std::shared_ptr<json_value> body;
-    dataflow(
-      dataflow_arguments<char>(message.c_str(), message.length()),
-      json_parser("Message body"),
-      dataflow_require_once<std::shared_ptr<json_value>>(&body)
-    )
-    .wait(
-      [&id, &result_record, &parents, &body, principal_id, member_id, order_num](const service_provider & sp) {
+    json_parser parser("Message body",
+      [&id, &result_record, &parents, principal_id, member_id, order_num, sp](const std::shared_ptr<json_value> & body){
         result_record.reset(
           id,
           principal_id,
@@ -469,11 +463,10 @@ bool vds::_principal_manager::get_record(
           parents,
           body,
           order_num);
-      },
-      [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-        throw *ex;
-      },
-      sp);
+      });
+    
+    parser.write(sp, (const uint8_t *)message.c_str(), message.length());
+    parser.write(sp, nullptr, 0);
   }
 
   return result;
@@ -534,15 +527,7 @@ bool vds::_principal_manager::get_record_by_state(
     std::list<principal_log_record::record_id> parents;
     this->principal_log_get_parents(sp, tr, id, parents);
 
-    std::shared_ptr<json_value> body;
-    dataflow(
-      dataflow_arguments<char>(message.c_str(), message.length()),
-      json_parser("Message body"),
-      dataflow_require_once<std::shared_ptr<json_value>>(&body)
-    )
-    .wait(
-      [&id, principal_id, member_id, &result_record, &parents, &body, order_num](
-        const service_provider & sp) {
+    json_parser parser("Message body", [sp, &id, principal_id, member_id, &result_record, &parents, order_num](const std::shared_ptr<json_value> & body){
         result_record.reset(
           id,
           principal_id,
@@ -550,12 +535,9 @@ bool vds::_principal_manager::get_record_by_state(
           parents,
           body,
           order_num);
-      },
-      [](const service_provider & sp,
-         const std::shared_ptr<std::exception> & ex) {
-        std::rethrow_exception(std::make_exception_ptr(*ex)); 
-      },
-      sp);
+      });
+    parser.write(sp, (const uint8_t *)message.c_str(), message.length());
+    parser.write(sp, nullptr, 0);
   }
 
   return result;  
@@ -595,17 +577,11 @@ void vds::_principal_manager::get_principal_log(
     auto member_id = t.member_id.get(st);
 
     std::shared_ptr<json_value> msg;
-    dataflow(
-      dataflow_arguments<char>(message.c_str(), message.length()),
-      json_parser("Message parser"),
-      dataflow_require_once<std::shared_ptr<json_value>>(&msg))
-    .wait(
-        [](const service_provider & sp) {
-        },
-        [](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-      throw *ex;
-    },
-      sp);
+    json_parser parser("Message parser", [&msg](const std::shared_ptr<json_value> & m){
+      msg = m;
+    });
+    parser.write(sp, (const uint8_t *)message.c_str(), message.length());
+    parser.write(sp, nullptr, 0);
 
     records.push_back(principal_log_record(
       id,

@@ -5,26 +5,26 @@ All rights reserved
 
 #include "stdafx.h"
 #include "server.h"
-#include "server_p.h"
+#include "private/server_p.h"
 #include "node_manager.h"
 #include "user_manager.h"
 #include "cert_manager.h"
 #include "server_http_api.h"
-#include "server_http_api_p.h"
+#include "private/server_http_api_p.h"
 #include "server_connection.h"
 #include "server_udp_api.h"
 #include "node_manager.h"
-#include "node_manager_p.h"
-#include "storage_log_p.h"
-#include "chunk_manager_p.h"
-#include "server_database_p.h"
-#include "local_cache_p.h"
-#include "node_manager_p.h"
-#include "cert_manager_p.h"
-#include "server_connection_p.h"
-#include "server_udp_api_p.h"
+#include "private/node_manager_p.h"
+#include "private/storage_log_p.h"
+#include "private/chunk_manager_p.h"
+#include "private/server_database_p.h"
+#include "private/local_cache_p.h"
+#include "private/node_manager_p.h"
+#include "private/cert_manager_p.h"
+#include "private/server_connection_p.h"
+#include "private/server_udp_api_p.h"
 #include "server_certificate.h"
-#include "storage_log_p.h"
+#include "private/storage_log_p.h"
 
 vds::server::server()
 : impl_(new _server(this))
@@ -107,13 +107,15 @@ void vds::_server::start(const service_provider& sp)
   auto scope = sp.create_scope("Server HTTP API");
   imt_service::enable_async(scope);
   this->server_http_api_->start(sp, "127.0.0.1", this->port_, this->certificate_, this->private_key_)
-    .wait(
-      [](const service_provider& sp) {sp.get<logger>()->trace("HTTP API", sp, "Server closed"); },
-      [](const service_provider& sp, const std::shared_ptr<std::exception> & ex) {
-        sp.get<logger>()->trace("HTTP API", sp, "Server error %s", ex->what());
-        sp.unhandled_exception(ex);
-      },
-      scope);
+    .execute(
+      [sp](const std::shared_ptr<std::exception> & ex) {
+        if(!ex){
+          sp.get<logger>()->trace("HTTP API", sp, "Server closed");
+        } else {
+          sp.get<logger>()->trace("HTTP API", sp, "Server error %s", ex->what());
+          sp.unhandled_exception(ex);
+        }
+      });
 }
 
 void vds::_server::stop(const service_provider& sp)

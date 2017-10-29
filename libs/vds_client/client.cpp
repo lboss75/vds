@@ -83,7 +83,7 @@ vds::async_task<> vds::iclient::create_local_login(
   return static_cast<_client *>(this)->create_local_login(sp, login, password, name);
 }
 
-vds::async_task<const std::string& /*version_id*/> vds::iclient::upload_file(
+vds::async_task<const std::string & /*version_id*/> vds::iclient::upload_file(
   const service_provider & sp,
   const std::string & name,
   const filename & tmp_file)
@@ -125,8 +125,7 @@ vds::async_task<
 {
   return
     this->authenticate(sp, user_login, user_password)
-    .then([this, user_password](
-      const service_provider & sp,
+    .then([this, sp, user_password](
       const client_messages::certificate_and_key_response & response) {
 
     sp.get<logger>()->trace("client", sp, "Register new server");
@@ -175,7 +174,7 @@ vds::async_task<
           const vds::asymmetric_private_key & /*private_key*/> & result,
         const client_messages::register_server_response & /*response*/) {
 
-		result.done(server_certificate, private_key);
+        result.done(server_certificate, private_key);
     });
   });
 }
@@ -188,8 +187,7 @@ vds::async_task<> vds::_client::create_local_login(
 {
   return
     this->authenticate(sp, user_login, user_password)
-    .then([this, name, user_password](
-      const service_provider & sp,
+    .then([this, sp, name, user_password](
       const client_messages::certificate_and_key_response & response) ->async_task<> {
     sp.get<logger>()->trace("client", sp, "Register new user");
 
@@ -257,8 +255,7 @@ vds::async_task<const std::string & /*version_id*/> vds::_client::upload_file(
   return this->owner_->logic_->send_request<client_messages::server_log_state_response>(
     sp,
     client_messages::server_log_state_request().serialize())
-    .then([this, sp, name, fn](
-      const client_messages::server_log_state_response & response) {
+    .then([this, sp, name, fn](const client_messages::server_log_state_response & response) {
 
     imt_service::disable_async(sp);
 
@@ -279,8 +276,7 @@ vds::async_task<const std::string & /*version_id*/> vds::_client::upload_file(
       transaction_key,
       fn,
       tmp_file)
-      .then([this, response, name, length, version_id, transaction_key, tmp_file](
-        const service_provider & sp,
+      .then([this, sp, response, name, length, version_id, transaction_key, tmp_file](
         size_t body_size,
         size_t tail_size) {
       //Meta info
@@ -340,18 +336,18 @@ vds::async_task<const std::string & /*version_id*/> vds::_client::upload_file(
           tmp_file,
           file_hash.signature()).serialize(),
         std::chrono::seconds(10 * 60))
-        .then([version_id](const client_messages::put_object_message_response & /*response*/) {
-        return version_id.str();
+        .then([version_id](const async_result<const std::string &> & result, const client_messages::put_object_message_response & /*response*/) {
+          result.done(version_id.str());
       });
     });
   });
 }
 
 vds::async_task<const vds::guid & /*version_id*/>
-vds::_client::download_data(
-  const service_provider & sp,
-  const std::string & name,
-  const filename & target_file)
+  vds::_client::download_data(
+    const service_provider & sp,
+    const std::string & name,
+    const filename & target_file)
 {
   return this->owner_->logic_->send_request<client_messages::server_log_state_response>(
     sp,
@@ -372,19 +368,19 @@ vds::_client::download_data(
 }
 
 vds::async_task<const vds::guid & /*version_id*/>
-vds::_client::looking_for_file(
-	const service_provider & sp,
-	const asymmetric_private_key & user_private_key,
-	const guid & principal_id,
-	const size_t order_num,
-	const std::string & looking_file_name,
-	const filename & target_file)
+  vds::_client::looking_for_file(
+    const service_provider & sp,
+    const asymmetric_private_key & user_private_key,
+    const guid & principal_id,
+    const size_t order_num,
+    const std::string & looking_file_name,
+    const filename & target_file)
 {
 	return this->owner_->logic_->send_request<client_messages::principal_log_response>(
 		sp,
 		client_messages::principal_log_request(principal_id, order_num).serialize())
 		.then([this, sp, user_private_key, principal_id, looking_file_name, target_file]
-		(const client_messages::principal_log_response & principal_log) -> vds::async_task<const vds::guid & /*version_id*/> {
+		(const client_messages::principal_log_response & principal_log) -> vds::async_task<const vds::guid &/*version_id*/> {
 		for (auto p = principal_log.records().rbegin(); p != principal_log.records().rend(); ++p) {
 			auto & log_record = *p;
 
@@ -441,7 +437,7 @@ vds::_client::looking_for_file(
 					target_file,
 					body_size,
 					tail_size)
-					.then([version_id]() {return version_id; });
+					.then([version_id](const async_result<const guid &> & result) { result.done(version_id); });
 			});
 		}
 
@@ -504,7 +500,7 @@ vds::asymmetric_private_key vds::_client::load_user_private_key(const service_pr
 }
 
 
-vds::async_task<const vds::client_messages::certificate_and_key_response & /*response*/>
+vds::async_task<const vds::client_messages::certificate_and_key_response &/*response*/>
   vds::_client::authenticate(
     const service_provider & sp,
     const std::string & user_login,

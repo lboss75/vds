@@ -90,6 +90,6 @@ TEST(test_json_parser, test_parser) {
       test_json_parser_validate(value);
     }
   );
-  parser.update((const char *)test_data, sizeof(test_data) - 1);
-  parser.update(nullptr, 0);
+  parser.write(*(vds::service_provider *)nullptr, (const uint8_t *)test_data, sizeof(test_data) - 1);
+  parser.write(*(vds::service_provider *)nullptr, nullptr, 0);
 }
