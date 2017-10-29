@@ -64,8 +64,9 @@ TEST(test_vds_crypto, test_sign)
   registrator.add(mt_service);
   registrator.add(console_logger);
   registrator.add(crypto_service);
+  auto sp = registrator.build("test_sign");
+  try
   {
-    auto sp = registrator.build("test_sign");
     registrator.start(sp);
     
     size_t len;
@@ -115,8 +116,17 @@ TEST(test_vds_crypto, test_sign)
     rs1.write(sp, nullptr, 0);
     GTEST_ASSERT_EQ(sv1.result(), false);
 
-    registrator.shutdown(sp);
+  } catch(const std::exception & ex){
+    try { registrator.shutdown(sp); } catch (...){}
+
+    GTEST_FAIL() << ex.what();
+
+  } catch(...){
+    try { registrator.shutdown(sp); } catch (...){}
+    GTEST_FAIL() << "Unknown error";
   }
+
+  registrator.shutdown(sp);
 }
 
 int main(int argc, char **argv) {

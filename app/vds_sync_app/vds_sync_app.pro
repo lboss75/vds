@@ -32,3 +32,7 @@ HEADERS += \
 
 FORMS += \
         mainwindow.ui
+
+DISTFILES += \
+    LoginForm.ui.qml \
+    Login.qml
