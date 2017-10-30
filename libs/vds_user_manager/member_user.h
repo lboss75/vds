@@ -7,13 +7,25 @@ All rights reserved
 */
 
 #include <memory>
+#include "user_channel.h"
 
 namespace vds {
+  class asymmetric_private_key;
   class _member_user;
   
   class member_user
   {
   public:
+    member_user(_member_user * impl);
+
+    member_user create_user(
+      const asymmetric_private_key & owner_user_private_key,
+      const std::string & user_name,
+      const std::string & user_password,
+      const asymmetric_private_key & private_key);
+
+    user_channel create_channel(
+      const std::string & channel_name);
 
   private:
     std::shared_ptr<_member_user> impl_;

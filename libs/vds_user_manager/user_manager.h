@@ -7,29 +7,24 @@ All rights reserved
 */
 
 #include <memory>
-#include "member_user.h"
-#include "user_channel.h"
+#include <string>
 
 namespace vds {
+  class asymmetric_private_key;
+  class member_user;
+  class iuser_manager_storage;
   class _user_manager;
   
   class user_manager
   {
   public:
+    user_manager(const std::shared_ptr<iuser_manager_storage> & storage);
     
     member_user create_root_user(
       const std::string & user_name,
-      const std::string & user_password); 
-    
-    member_user create_user(
-      const member_user & owner_user,
-      const std::string & user_name,
-      const std::string & user_password); 
-    
-    user_channel create_channel(
-      const member_user & owner_user,
-      const std::string & channel_name); 
-
+      const std::string & user_password,
+      const asymmetric_private_key & private_key);
+   
   private:
     std::shared_ptr<_user_manager> impl_;
   };

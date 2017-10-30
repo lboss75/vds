@@ -7,10 +7,10 @@ All rights reserved
 */
 
 #include <memory>
-#include "member_user.h"
 #include "const_data_buffer.h"
 
 namespace vds {
+  class member_user;
   class _user_channel;
   
   class user_channel

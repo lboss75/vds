@@ -6,13 +6,17 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
+#include "user_manager.h"
+
 namespace vds {
   class _user_manager
   {
   public:
-      _user_manager();
-      ~_user_manager();
+    _user_manager(const std::shared_ptr<iuser_manager_storage> & storage);
+    ~_user_manager();
 
+  private:
+    std::shared_ptr<iuser_manager_storage> storage_;
   };
 }
 

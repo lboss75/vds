@@ -6,9 +6,4 @@ All rights reserved
 #include "user_channel.h"
 #include "private/user_channel_p.h"
 
-_user_channel::_user_channel(user_channel* q) : q(q)
-{
-}
-_user_channel::~_user_channel()
-{
-}
+
