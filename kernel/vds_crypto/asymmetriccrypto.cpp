@@ -53,9 +53,9 @@ std::string vds::asymmetric_private_key::str(const std::string & password/* = st
   return this->impl_->str(password);
 }
 
-vds::const_data_buffer vds::asymmetric_private_key::der(const service_provider & sp, const std::string & password /*= std::string()*/) const
+vds::const_data_buffer vds::asymmetric_private_key::der(const std::string &password) const
 {
-  return this->impl_->der(sp, password);
+  return this->impl_->der(password);
 }
 
 vds::asymmetric_private_key vds::asymmetric_private_key::parse_der(
@@ -150,9 +150,7 @@ std::string vds::_asymmetric_private_key::str(const std::string & password/* = s
   return result;
 }
 
-vds::const_data_buffer vds::_asymmetric_private_key::der(
-  const service_provider & sp,
-  const std::string & password/* = std::string()*/) const
+vds::const_data_buffer vds::_asymmetric_private_key::der(const std::string &password) const
 {
   auto len = i2d_PrivateKey(this->key_, NULL);
 
@@ -1015,7 +1013,7 @@ vds::certificate_extension vds::_certificate::get_extension(int index) const
       //M_ASN1_OCTET_STRING_print(bio, ext);
       throw std::runtime_error("Unable get certificate extension");
     }
-    BIO_flush(bio);
+    (void)BIO_flush(bio);
     
     char buf[256];
     auto len = BIO_read(bio, buf, sizeof(buf));

@@ -175,7 +175,7 @@ void vds::_storage_log::reset(
       server_log_root_certificate(
         principal_id,
         root_certificate,
-        private_key.der(sp, password),
+        private_key.der(password),
         ph.signature()).serialize(true),
         true,
         guid::new_guid());
@@ -189,7 +189,7 @@ void vds::_storage_log::reset(
         this->current_server_id_,
         principal_id,
         this->server_certificate_,
-        this->current_server_key_.der(sp, password),
+        this->current_server_key_.der(password),
         ph.signature()).serialize(true),
         true,
         guid::new_guid());

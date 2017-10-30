@@ -222,7 +222,7 @@ TEST(test_certificates, test_der)
       );
 
       ca_certificate_text = ca.der();
-      ca_private_key = ca_certificate_private_key.der(sp, der_password);
+      ca_private_key = ca_certificate_private_key.der(der_password);
     }
 
     //Generate sub certificate
@@ -254,7 +254,7 @@ TEST(test_certificates, test_der)
       );
 
       sub_certificate_text = sub_certificate.der();
-      sub_private_key = sub_certificate_private_key.der(sp, der_password);
+      sub_private_key = sub_certificate_private_key.der(der_password);
     }
     //Generate sub certificate
     vds::const_data_buffer caudal_certificate_text;

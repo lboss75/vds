@@ -7,7 +7,9 @@ All rights reserved
 */
 
 #include <memory>
+#include <guid.h>
 #include "const_data_buffer.h"
+#include "stdafx.h"
 
 namespace vds {
   class member_user;
@@ -17,6 +19,11 @@ namespace vds {
   {
   public:
     user_channel();
+
+    user_channel(
+        const guid &guid,
+        const certificate &certificate);
+
     ~user_channel();
     
     void add_user(const member_user & user);

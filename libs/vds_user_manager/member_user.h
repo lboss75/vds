@@ -11,6 +11,7 @@ All rights reserved
 
 namespace vds {
   class asymmetric_private_key;
+  class iuser_manager_storage;
   class _member_user;
   
   class member_user
@@ -25,7 +26,9 @@ namespace vds {
       const asymmetric_private_key & private_key);
 
     user_channel create_channel(
-      const std::string & channel_name);
+      const std::shared_ptr<iuser_manager_storage> & storage,
+      const vds::asymmetric_private_key & owner_user_private_key,
+      const std::string & channel_name)const;
 
   private:
     std::shared_ptr<_member_user> impl_;

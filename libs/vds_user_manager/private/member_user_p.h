@@ -13,23 +13,27 @@ namespace vds {
   class _member_user
   {
   public:
-      _member_user(
-        const guid & id,
-        const certificate & user_cert);
+    _member_user(
+      const guid & id,
+      const certificate & user_cert);
 
-      ~_member_user();
+    ~_member_user();
 
-      static member_user create_root(
-        const std::string & user_name,
-        const std::string & user_password,
-        const vds::asymmetric_private_key & private_key);
+    static member_user create_root(
+      const std::string & user_name,
+      const std::string & user_password,
+      const vds::asymmetric_private_key & private_key);
 
-      member_user create_user(
+    member_user create_user(
+      const vds::asymmetric_private_key & owner_user_private_key,
+      const std::string & user_name,
+      const std::string & user_password,
+      const vds::asymmetric_private_key & private_key);
+
+    user_channel create_channel(
+        const std::shared_ptr<iuser_manager_storage> & storage,
         const vds::asymmetric_private_key & owner_user_private_key,
-        const std::string & user_name,
-        const std::string & user_password,
-        const vds::asymmetric_private_key & private_key);
-
+        const std::string & channel_name) const;
 
   private:
     guid id_;

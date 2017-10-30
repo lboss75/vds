@@ -1,9 +1,25 @@
 #include "stdafx.h"
 #include "user_manager.h"
+#include "user_manager_storage.h"
+#include "member_user.h"
+#include "asymmetriccrypto.h"
 
 class test_user_manager_storage : public vds::iuser_manager_storage
 {
 public:
+  vds::member_user new_user(vds::member_user && user) override
+  {
+    return std::move(user);
+  }
+
+  vds::user_channel new_channel(
+      vds::user_channel &&channel,
+      const vds::guid &owner_id_,
+      const vds::const_data_buffer &crypted_private_key) override
+  {
+    return std::move(channel);
+  }
+
 };
 
 TEST(test_user_operations, test_add_user)
@@ -25,10 +41,10 @@ TEST(test_user_operations, test_add_user)
   user2_private_key.generate();
   auto user2 = root_user.create_user(root_private_key, "test2", "123qwe", user2_private_key);
   
-  auto channel1 = manager.create_channel(user1, "channel1");
-  auto channel2 = manager.create_channel(user2, "channel2");
+  auto channel1 = manager.create_channel(user1, user1_private_key, "channel1");
+  auto channel2 = manager.create_channel(user2, user2_private_key, "channel2");
   
-  auto channel3 = manager.create_channel(user1, "channel3");
+  auto channel3 = manager.create_channel(user1, user1_private_key, "channel3");
   channel3.add_user(user2);
   
   char test_data1[] = "test message1";

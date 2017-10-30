@@ -166,7 +166,7 @@ vds::async_task<
         server_id,
         response.id(),
         server_certificate.str(),
-        base64::from_bytes(private_key.der(sp, user_password)),
+        base64::from_bytes(private_key.der(user_password)),
         ph.signature()).serialize())
       .then([this, server_certificate, private_key](
         const async_result<

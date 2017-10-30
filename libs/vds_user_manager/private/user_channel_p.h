@@ -15,9 +15,15 @@ namespace vds {
   {
   public:
       _user_channel();
+      _user_channel(
+        const vds::guid &id,
+        const vds::certificate &cert);
+
       ~_user_channel();
 
   private:
+    guid id_;
+    certificate cert_;
   };
 }
 
