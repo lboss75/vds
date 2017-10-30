@@ -24,12 +24,12 @@ vds::ichunk_manager::~ichunk_manager()
 
 void vds::ichunk_manager::start(const service_provider & sp)
 {
-  static_cast<_chunk_manager *>(this)->start(sp);
+  static_cast<_p2p_network *>(this)->start(sp);
 }
 
 void vds::ichunk_manager::stop(const service_provider & sp)
 {
-  static_cast<_chunk_manager *>(this)->stop(sp);
+  static_cast<_p2p_network *>(this)->stop(sp);
 }
 
 vds::async_task<> vds::ichunk_manager::add_object(
@@ -39,7 +39,7 @@ vds::async_task<> vds::ichunk_manager::add_object(
   const filename & tmp_file,
   const const_data_buffer & file_hash)
 {
-  return static_cast<_chunk_manager *>(this)->add_object(
+  return static_cast<_p2p_network *>(this)->add_object(
     sp,
     tr,
     version_id,
@@ -55,7 +55,7 @@ void vds::ichunk_manager::get_object_map(
   ichunk_manager::index_type & min_chunk_index,
   ichunk_manager::index_type & max_chunk_index)
 {
-  static_cast<_chunk_manager *>(this)->get_object_map(
+  static_cast<_p2p_network *>(this)->get_object_map(
     sp,
     tr,
     object_id,
@@ -73,7 +73,7 @@ void vds::ichunk_manager::query_object_chunk(
   size_t & downloaded_data,
   size_t& total_data)
 {
-  static_cast<_chunk_manager *>(this)->query_object_chunk(
+  static_cast<_p2p_network *>(this)->query_object_chunk(
   sp,
   tr,
   server_id,
@@ -88,7 +88,7 @@ void vds::ichunk_manager::dump_state(
   database_transaction & tr,
   const std::shared_ptr<json_object>& result)
 {
-  static_cast<_chunk_manager *>(this)->dump_state(sp, tr, result);
+  static_cast<_p2p_network *>(this)->dump_state(sp, tr, result);
 }
 
 /*
@@ -99,31 +99,31 @@ vds::ichunk_manager::add(
   server_log_file_map & target,
   const filename & fn)
 {
-  return static_cast<_chunk_manager *>(this)->add(sp, owner_principal, target, fn);
+  return static_cast<_p2p_network *>(this)->add(sp, owner_principal, target, fn);
 }
 
 vds::const_data_buffer vds::ichunk_manager::get(
   const service_provider & sp,
   const guid & server_id, uint64_t index)
 {
-  return static_cast<_chunk_manager *>(this)->get(sp, server_id, index);
+  return static_cast<_p2p_network *>(this)->get(sp, server_id, index);
 }
 
 void vds::ichunk_manager::set_next_index(
   const service_provider & sp,
   uint64_t next_index)
 {
-  static_cast<_chunk_manager *>(this)->set_next_index(sp, next_index);
+  static_cast<_p2p_network *>(this)->set_next_index(sp, next_index);
 }
 */
 //////////////////////////////////////////////////////////////////////
-vds::_chunk_manager::_chunk_manager()
+vds::_chunk_manager::_p2p_network()
 : chunk_storage_(MIN_HORCRUX),
   update_chunk_map_("update chunk map")
 {
 }
 
-vds::_chunk_manager::~_chunk_manager()
+vds::_chunk_manager::~_p2p_network()
 {
 }
 

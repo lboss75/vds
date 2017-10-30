@@ -80,7 +80,7 @@ vds::_server::_server(server * owner)
   node_manager_(new _node_manager()),
   server_http_api_(new _server_http_api()),
   storage_log_(new _storage_log()),
-  chunk_manager_(new _chunk_manager()),
+  chunk_manager_(new _p2p_network()),
   server_database_(new _server_database()),
   local_cache_(new _local_cache())
 {

@@ -20,7 +20,7 @@ namespace vds {
   public:
 
     //The maximum safe UDP payload
-    static const size_t max_safe_data_size = 32 * 1024;
+    static const size_t max_safe_data_size = 508;
 
     udp_datagram();
 
