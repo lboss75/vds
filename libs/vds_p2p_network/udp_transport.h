@@ -1,5 +1,5 @@
-#ifndef __VDS_P2P_NETWORK_P2P_TRANSPORT_H_
-#define __VDS_P2P_NETWORK_P2P_TRANSPORT_H_
+#ifndef __VDS_P2P_NETWORK_UDP_TRANSPORT_H_
+#define __VDS_P2P_NETWORK_UDP_TRANSPORT_H_
 
 /*
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
@@ -11,7 +11,7 @@ All rights reserved
 
 namespace vds {
 
-  class p2p_transport {
+  class udp_transport {
   public:
     continuous_buffer<const_data_buffer> & incoming();
     continuous_buffer<const_data_buffer> & outgoing();
@@ -21,4 +21,4 @@ namespace vds {
   };
 }
 
-#endif //__VDS_P2P_NETWORK_P2P_TRANSPORT_H_
+#endif //__VDS_P2P_NETWORK_UDP_TRANSPORT_H_
