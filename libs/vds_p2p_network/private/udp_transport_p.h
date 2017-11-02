@@ -7,6 +7,7 @@ All rights reserved
 */
 
 #include <unordered_map>
+#include <queue>
 
 namespace vds {
 
@@ -25,14 +26,40 @@ namespace vds {
     udp_datagram incomming_buffer_;
     bool incomming_eof_;
 
-
     struct address {
-      std::string server;
-      uint16_t port;
+      std::string server_;
+      uint16_t port_;
+
+      address(
+          const std::string & server,
+          uint16_t port)
+          : server_(server), port_(port)
+      {
+      }
     };
 
-    class session {
+    class session : public std::enable_shared_from_this<session> {
+    public:
 
+      const address & address() const {
+        return this->address_;
+      }
+
+      uint32_t output_sequence_number() const {
+        return this->output_sequence_number_;
+      }
+
+      uint16_t mtu() const {
+        return this->mtu_;
+      }
+
+      void mtu(uint16_t value) {
+        this->mtu_ = value;
+      }
+
+      void decrease_mtu();
+
+    private:
       enum class send_state{
         bof,
         wait_message
@@ -56,6 +83,7 @@ namespace vds {
         Failed          = 1011b,//seq: last package, info: failed bits
       };
 
+      address address_;
       uint32_t output_sequence_number_;
       uint32_t input_sequence_number_;
 
@@ -102,7 +130,17 @@ namespace vds {
     std::unordered_map<address, std::shared_ptr<session>> sessions_;
     std::mutex sessions_mutex_;
 
-    std::queue<udp_datagram> send_data_buffer_;
+    struct datagram{
+      std::shared_ptr<session> owner_;
+      const_data_buffer data_;
+      uint16_t  offset_;
+    };
+
+    static constexpr uint16_t max_datagram_size = 65507;
+
+    uint8_t buffer_[max_datagram_size];
+
+    std::queue<datagram> send_data_buffer_;
     std::mutex send_data_buffer_mutex_;
 
     void continue_read_socket(const service_provider & sp);
