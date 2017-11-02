@@ -45,11 +45,18 @@ void vds::_udp_transport::continue_read_outgoing_stream(const service_provider &
       });
 }
 
-void vds::_udp_transport::send_data(const service_provider & sp, const udp_datagram & data)
+void vds::_udp_transport::send_data(
+    const service_provider & sp,
+    const std::shared_ptr<session> & session,
+    const const_data_buffer & data)
 {
   std::unique_lock<std::mutex> lock(this->send_data_buffer_mutex_);
   auto need_to_start = this->send_data_buffer_.empty();
-  this->send_data_buffer_.push_back(data);
+  this->send_data_buffer_.emplace(datagram {
+      .owner_ = session,
+      .data_ = data,
+      .offset_ = 0
+  });
   lock.unlock();
 
   if(need_to_start){
@@ -77,6 +84,20 @@ void vds::_udp_transport::continue_send_data(const service_provider & sp) {
     memcpy(this->buffer_ + 6, message.data_.data(), size);
     message.offset_ += size;
     len = size + 6;
+/*
+    0                   1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |0|                     Seq. No.                                |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |        Size                 |                                 |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+                                 +
+    |                                                               |
+    ~                            Data                               ~
+    |                                                               |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+*/
+
   } else {
     auto size = message.owner_->mtu() - 4;
     if(size > message.data_.size() - message.offset_){
@@ -86,6 +107,17 @@ void vds::_udp_transport::continue_send_data(const service_provider & sp) {
     memcpy(this->buffer_ + 4, message.data_.data() + message.offset_, size);
     message.offset_ += size;
     len = size + 4;
+/*
+    0                   1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |0|                     Seq. No.                                |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |                                                               |
+    ~                            Data                               ~
+    |                                                               |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+*/
   }
 
   this->socket_.send(sp,
@@ -109,6 +141,8 @@ void vds::_udp_transport::continue_send_data(const service_provider & sp) {
           pthis->send_data_buffer_.pop();
           auto data_eof = pthis->send_data_buffer_.empty();
           lock.unlock();
+
+          session->message_sent();
 
           if(!data_eof){
             pthis->continue_send_data(sp);

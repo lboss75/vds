@@ -59,6 +59,8 @@ namespace vds {
 
       void decrease_mtu();
 
+      void message_sent();
+
     private:
       enum class send_state{
         bof,
@@ -146,7 +148,10 @@ namespace vds {
     void continue_read_socket(const service_provider & sp);
 
     void continue_send_data(const service_provider & sp);
-    void send_data(const service_provider & sp, const udp_datagram & data);
+    void send_data(
+        const service_provider & sp,
+        const std::shared_ptr<session> & session,
+        const const_data_buffer & data);
   };
 }
 
