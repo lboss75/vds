@@ -12,39 +12,42 @@ All rights reserved
 #include "stream.h"
 
 namespace vds {
-  class json_parser : public stream<uint8_t>
-  {
+  class json_parser : public stream<uint8_t> {
   public:
-    struct options
-    {
+    struct options {
       bool enable_inline_comments;
       bool enable_multi_root_objects;
 
 
       options()
-      : enable_inline_comments(false),
-        enable_multi_root_objects(false)
-      {
+          : enable_inline_comments(false),
+            enable_multi_root_objects(false) {
       }
     };
 
     json_parser(
-      const std::string & stream_name,
-      std::function<void(const std::shared_ptr<json_value> &)> && result,
-      const options & parse_options = options());
+        const std::string &stream_name,
+        std::function<void(const std::shared_ptr<json_value> &)> &&result,
+        const options &parse_options = options());
 
-    void write(
-      const service_provider & sp,
-      const uint8_t * input_buffer,
-      size_t input_len) override;
-      
+  private:
+    class _json_parser : public _stream<uint8_t> {
+    public:
+      _json_parser(
+          const std::string &stream_name,
+          std::function<void(const std::shared_ptr<json_value> &)> &&result,
+          const options &parse_options = options());
+
+      void write(
+          const uint8_t *input_buffer,
+          size_t input_len) override;
+
     private:
       std::string stream_name_;
       std::function<void(const std::shared_ptr<json_value> &)> result_;
       options parse_options_;
 
-      enum State
-      {
+      enum State {
         ST_BOF,
 
         ST_AFTER_SLESH,
@@ -64,7 +67,7 @@ namespace vds {
 
         ST_STRING,
         ST_STRING_BACKSLESH,
-        
+
         ST_STRING_SYMBOL_1,
         ST_STRING_SYMBOL_2,
         ST_STRING_SYMBOL_3,
@@ -87,48 +90,45 @@ namespace vds {
       uint32_t num_buffer_;
 
       void final_data();
-      
-      void after_slesh()
-      {
+
+      void after_slesh() {
         if (!this->parse_options_.enable_inline_comments) {
           throw parse_error(
-            this->stream_name_,
-            this->line_,
-            this->column_,
-            "Unexpected char /");
+              this->stream_name_,
+              this->line_,
+              this->column_,
+              "Unexpected char /");
         }
 
         this->saved_states_.push(this->state_);
         this->state_ = ST_AFTER_SLESH;
       }
 
-      void start_array()
-      {
+      void start_array() {
         auto new_object = std::make_shared<json_array>(this->line_, this->column_);
 
         switch (this->state_) {
-        case ST_OBJECT_PROPERTY_VALUE:
-          std::static_pointer_cast<json_property>(this->current_object_)->value(new_object);
-          break;
+          case ST_OBJECT_PROPERTY_VALUE:
+            std::static_pointer_cast<json_property>(this->current_object_)->value(new_object);
+            break;
 
-        case ST_BOF:
-          this->saved_states_.push(ST_BOF);
-          break;
+          case ST_BOF:
+            this->saved_states_.push(ST_BOF);
+            break;
 
-        default:
-          throw parse_error(
-            this->stream_name_,
-            this->line_,
-            this->column_,
-            "Unexpected state");
+          default:
+            throw parse_error(
+                this->stream_name_,
+                this->line_,
+                this->column_,
+                "Unexpected state");
         }
 
         this->current_object_ = new_object;
         this->state_ = ST_ARRAY;
       }
 
-      void final_array()
-      {
+      void final_array() {
         this->state_ = this->saved_states_.top();
         this->saved_states_.pop();
 
@@ -136,45 +136,42 @@ namespace vds {
           if (!this->parse_options_.enable_multi_root_objects) {
             this->state_ = ST_EOF;
           }
-          
+
           this->result_(this->root_object_);
-        }
-        else {
+        } else {
           this->current_object_ = this->current_path_.top();
           this->current_path_.pop();
         }
       }
 
-      void start_object()
-      {
+      void start_object() {
         auto new_object = std::make_shared<json_object>(this->line_, this->column_);
 
         switch (this->state_) {
-        case ST_OBJECT_PROPERTY_VALUE:
-          std::static_pointer_cast<json_property>(this->current_object_)->value(new_object);
-          break;
-        case ST_BOF:
-          this->saved_states_.push(ST_BOF);
-          break;
-        case ST_ARRAY:
-          std::static_pointer_cast<json_array>(this->current_object_)->add(new_object);
-          this->saved_states_.push(ST_ARRAY_ITEM);
-          this->current_path_.push(this->current_object_);
-          break;
-        default:
-          throw parse_error(
-            this->stream_name_,
-            this->line_,
-            this->column_,
-            "Unexpected state");
+          case ST_OBJECT_PROPERTY_VALUE:
+            std::static_pointer_cast<json_property>(this->current_object_)->value(new_object);
+            break;
+          case ST_BOF:
+            this->saved_states_.push(ST_BOF);
+            break;
+          case ST_ARRAY:
+            std::static_pointer_cast<json_array>(this->current_object_)->add(new_object);
+            this->saved_states_.push(ST_ARRAY_ITEM);
+            this->current_path_.push(this->current_object_);
+            break;
+          default:
+            throw parse_error(
+                this->stream_name_,
+                this->line_,
+                this->column_,
+                "Unexpected state");
         }
 
         this->current_object_ = new_object;
         this->state_ = ST_OBJECT;
       }
 
-      void final_object()
-      {
+      void final_object() {
         this->state_ = this->saved_states_.top();
         this->saved_states_.pop();
 
@@ -182,17 +179,15 @@ namespace vds {
           if (!this->parse_options_.enable_multi_root_objects) {
             this->state_ = ST_EOF;
           }
-          
+
           this->result_(this->root_object_);
-        }
-        else {
+        } else {
           this->current_object_ = this->current_path_.top();
           this->current_path_.pop();
         }
       }
 
-      void start_property()
-      {
+      void start_property() {
         auto new_property = std::make_shared<json_property>(this->line_, this->column_);
         new_property->name(this->buffer_);
 
@@ -203,10 +198,9 @@ namespace vds {
         this->buffer_.clear();
       }
 
-      void final_string_property()
-      {
+      void final_string_property() {
         std::static_pointer_cast<json_property>(this->current_object_)->value(
-          std::make_shared<json_primitive>(this->line_, this->column_, this->buffer_)
+            std::make_shared<json_primitive>(this->line_, this->column_, this->buffer_)
         );
 
         this->current_object_ = this->current_path_.top();
@@ -214,27 +208,33 @@ namespace vds {
 
         this->buffer_.clear();
       }
+    };
   };
 
   inline json_parser::json_parser(const std::string &stream_name,
-                           std::function<void(const std::shared_ptr<json_value> &)> &&result,
-                           const json_parser::options &parse_options)
+                                  std::function<void(const std::shared_ptr<json_value> &)> &&result,
+                                  const json_parser::options &parse_options)
+      : stream<uint8_t >(new _json_parser(stream_name, std::move(result), parse_options)){
+  }
+
+  inline json_parser::_json_parser::_json_parser(const std::string &stream_name,
+                                    std::function<void(const std::shared_ptr<json_value> &)> &&result,
+                                    const json_parser::options &parse_options)
       : stream_name_(stream_name), parse_options_(parse_options),
         result_(std::move(result)),
         state_(ST_BOF),
         current_object_(nullptr),
-        line_(1), column_(1)
-  {
+        line_(1), column_(1) {
   }
 
-  inline void json_parser::write(const service_provider &sp, const uint8_t *input_buffer, size_t input_len) {
-    if(nullptr == input_buffer || 0 == input_len){
+  inline void json_parser::_json_parser::write( const uint8_t *input_buffer, size_t input_len) {
+    if (nullptr == input_buffer || 0 == input_len) {
       this->final_data();
       return;
     }
 
-    while(0 < input_len--) {
-      auto current_symbol = (char)*input_buffer++;
+    while (0 < input_len--) {
+      auto current_symbol = (char) *input_buffer++;
       switch (current_symbol) {
         case '\n':
           this->line_++;
@@ -280,8 +280,7 @@ namespace vds {
           }
           break;
         case ST_AFTER_SLESH:
-          switch (current_symbol)
-          {
+          switch (current_symbol) {
             case '/':
               this->state_ = ST_INLINE_COMMENT;
               break;
@@ -294,8 +293,7 @@ namespace vds {
           }
           break;
         case ST_INLINE_COMMENT:
-          switch (current_symbol)
-          {
+          switch (current_symbol) {
             case '\n':
               this->state_ = this->saved_states_.top();
               saved_states_.pop();
@@ -751,7 +749,7 @@ namespace vds {
                   this->column_,
                   std::string("Unexpected char ") + current_symbol);
           }
-          utf8::add(this->buffer_, (wchar_t)this->num_buffer_);
+          utf8::add(this->buffer_, (wchar_t) this->num_buffer_);
           break;
 
         case ST_OBJECT_PROPERTY_NAME:
@@ -810,7 +808,7 @@ namespace vds {
     }
   }
 
-  inline void json_parser::final_data() {
+  inline void json_parser::_json_parser::final_data() {
     switch (this->state_) {
       case ST_EOF:
         break;
@@ -830,5 +828,4 @@ namespace vds {
     }
   }
 }
-
 #endif // __VDS_PARSER_JSON_PARSER_H_

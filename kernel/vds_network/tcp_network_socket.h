@@ -10,30 +10,24 @@ All rights reserved
 #include "async_buffer.h"
 
 namespace vds {
-  class _tcp_network_socket;
-  
-  class tcp_network_socket
+
+  class tcp_network_socket : public stream_async<uint8_t>
   {
   public:
     tcp_network_socket();
-    ~tcp_network_socket();
-    
+
     static async_task<const tcp_network_socket &> connect(
       const service_provider & sp,
       const std::string & server,
       const uint16_t port);
     
-    std::shared_ptr<continuous_buffer<uint8_t>> incoming() const;
-    std::shared_ptr<continuous_buffer<uint8_t>> outgoing() const;
-    
-    _tcp_network_socket * operator -> () const { return this->impl_.get(); }
-
     void close();
+
+    class _tcp_network_socket * operator ->() const;
     
   private:
     friend class _tcp_network_socket;
-    tcp_network_socket(const std::shared_ptr<_tcp_network_socket> & impl);
-    std::shared_ptr<_tcp_network_socket> impl_;
+    tcp_network_socket(class _tcp_network_socket * impl);
   };
 }
 

@@ -12,10 +12,11 @@ All rights reserved
 namespace vds {
 
   //Decompress stream
-  class _inflate_handler : public std::enable_shared_from_this<_inflate_handler>
+  class _inflate_handler : public _stream<uint8_t>
   {
   public:
-    _inflate_handler(stream<uint8_t> & target)
+    _inflate_handler(
+        const stream<uint8_t> & target)
     : target_(target)
     {
       memset(&this->strm_, 0, sizeof(z_stream));
@@ -24,11 +25,11 @@ namespace vds {
       }
     }
 
-    void write(const service_provider & sp, const uint8_t * input_data, size_t input_size)
+    void write(const uint8_t * input_data, size_t input_size) override
     {
       if(0 == input_size){
         inflateEnd(&this->strm_);
-        this->target_.write(sp, input_data, input_size);
+        this->target_.write(input_data, input_size);
         return;
       }
       
@@ -46,17 +47,17 @@ namespace vds {
         }
 
         auto written = sizeof(buffer) - this->strm_.avail_out;
-        this->target_.write(sp, buffer, written);
+        this->target_.write(buffer, written);
       } while(0 == this->strm_.avail_out);
     }
 
   private:
-    stream<uint8_t> & target_;
+    stream<uint8_t> target_;
     z_stream strm_;
   };
   
   //Decompress stream
-  class _inflate_async_handler : public std::enable_shared_from_this<_inflate_async_handler>
+  class _inflate_async_handler : public _stream_async<uint8_t>
   {
   public:
     _inflate_async_handler(stream_async<uint8_t> & target)
@@ -69,29 +70,28 @@ namespace vds {
     }
 
     async_task<> write_async(
-      const service_provider & sp,
       const uint8_t * input_data,
-      size_t input_size)
+      size_t input_size) override
     {
       if(0 == input_size){
         inflateEnd(&this->strm_);
-        return this->target_.write_async(sp, input_data, input_size);
+        return this->target_.write_async(input_data, input_size);
       }
       
       this->strm_.next_in = (Bytef *)input_data;
       this->strm_.avail_in = (uInt)input_size;
 
-      return [pthis = this->shared_from_this(), sp](const async_result<> & result){
-        pthis->continue_write(sp, result);
+      return [pthis = this->shared_from_this()](const async_result<> & result){
+        static_cast<_inflate_async_handler *>(pthis.get())->continue_write(result);
       };
     }
 
   private:
-    stream_async<uint8_t> & target_;
+    stream_async<uint8_t> target_;
     z_stream strm_;
     uint8_t buffer_[1024];
     
-    void continue_write(const service_provider & sp, const async_result<> & result)
+    void continue_write(const async_result<> & result)
     {
       if(0 != this->strm_.avail_out){
         result.done();
@@ -107,14 +107,14 @@ namespace vds {
         }
 
         auto written = sizeof(buffer_) - this->strm_.avail_out;
-        this->target_.write_async(sp, buffer_, written)
+        this->target_.write_async(buffer_, written)
         .execute(
-          [pthis = this->shared_from_this(), result, sp](const std::shared_ptr<std::exception> & ex){
+          [pthis = this->shared_from_this(), result](const std::shared_ptr<std::exception> & ex){
             if(ex){
               result.error(ex);
             }
             else {
-              pthis->continue_write(sp, result);
+              static_cast<_inflate_async_handler *>(pthis.get())->continue_write(result);
             }
           });
       }

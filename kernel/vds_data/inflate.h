@@ -19,32 +19,12 @@ namespace vds {
   {
   public:
     inflate(stream<uint8_t> & target);
-    ~inflate();
-
-    void write(
-      const service_provider & sp,
-      const uint8_t * data,
-      size_t len) override;
-
-
-  private:
-    _inflate_handler * const impl_;
   };
 
   class inflate_async : public stream_async<uint8_t>
   {
   public:
 	  inflate_async(stream_async<uint8_t> & target);
-	  ~inflate_async();
-
-	  async_task<> write_async(
-      const service_provider & sp,
-      const uint8_t * data,
-      size_t len) override;
-
-
-  private:
-	  _inflate_async_handler * const impl_;
   };
 }
 

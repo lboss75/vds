@@ -11,33 +11,53 @@ All rights reserved
 
 namespace vds {
   template <typename item_type>
+  class _stream_async : public std::enable_shared_from_this<_stream_async<item_type>> {
+  public:
+    ~_stream_async() {}
+    virtual async_task<> write_async(
+        const item_type *data,
+        size_t len) = 0;
+  };
+
+
+  template <typename item_type>
   class stream_async
   {
   public:
+    stream_async(const stream_async & origin)
+    : impl_(origin.impl_)
+    {
+    }
+
     async_task<> write_async(
-        const service_provider &sp,
         const item_type *data,
         size_t len)
     {
-      return  this->impl_->write_async(sp, data, len);
+      return  this->impl_->write_async(data, len);
+    }
+
+    operator bool () const {
+      return this->impl_.operator bool();
     }
 
   protected:
-    class _stream_async {
-    public:
-      ~_stream_async() {}
-      virtual async_task<> write_async(
-          const service_provider &sp,
-          const item_type *data,
-          size_t len) = 0;
-    };
 
-    std::shared_ptr<_stream_async> impl_;
+    std::shared_ptr<_stream_async<item_type>> impl_;
 
-    stream_async(_stream_async * impl)
+    stream_async(_stream_async<item_type> * impl)
         : impl_(impl)
     {
     }
+  };
+
+  template <typename item_type>
+  class _stream : public std::enable_shared_from_this<_stream<item_type>> {
+  public:
+    virtual ~_stream() {}
+
+    virtual void write(
+        const item_type *data,
+        size_t len) = 0;
   };
 
   template <typename item_type>
@@ -45,26 +65,15 @@ namespace vds {
   {
   public:
     void write(
-        const service_provider &sp,
         const item_type *data,
         size_t len){
-      this->impl_->write(sp, data, len);
+      this->impl_->write(data, len);
     }
 
   protected:
-    class _stream {
-    public:
-      virtual ~_stream() {}
+    std::shared_ptr<_stream<item_type>> impl_;
 
-      virtual void write(
-          const service_provider &sp,
-          const item_type *data,
-          size_t len) = 0;
-    };
-
-    std::shared_ptr<_stream> impl_;
-
-    stream(_stream * impl)
+    stream(_stream<item_type> * impl)
     : impl_(impl)
     {
     }
@@ -81,19 +90,18 @@ namespace vds {
 
     const item_type * data() const
     {
-      return static_cast<const collect_data *>(this->impl_.get())->data();
+      return static_cast<const _collect_data *>(this->impl_.get())->data();
     }
     
     size_t size() const
     {
-      return static_cast<const collect_data *>(this->impl_.get())->size();
+      return static_cast<const _collect_data *>(this->impl_.get())->size();
     }
 
   protected:
-    class _collect_data : public _stream {
+    class _collect_data : public _stream<item_type> {
     public:
       void write(
-          const service_provider &sp,
           const item_type *data,
           size_t len) override {
         for (size_t i = 0; i < len; ++i) {

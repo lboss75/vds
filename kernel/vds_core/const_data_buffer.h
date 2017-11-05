@@ -64,6 +64,10 @@ namespace vds{
       this->impl_.reset(new _const_data_buffer(data, len));
     }
 
+    void reset(size_t size) {
+      this->impl_.reset(new _const_data_buffer(size));
+    }
+
     const_data_buffer & operator = (const const_data_buffer & other)
     {
       this->impl_ = other.impl_;
@@ -104,7 +108,12 @@ namespace vds{
       : data_(nullptr), len_(0)
       {
       }
-      
+
+      _const_data_buffer(size_t len)
+          : data_(new uint8_t[len]), len_(len)
+      {
+      }
+
       _const_data_buffer(const void * data, size_t len)
       : data_(new uint8_t[len]), len_(len)
       {

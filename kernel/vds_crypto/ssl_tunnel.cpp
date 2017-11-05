@@ -15,10 +15,13 @@ static int verify_callback(int prev, X509_STORE_CTX * ctx)
 
 ////////////////////////////////////////////////////////////////
 vds::ssl_tunnel::ssl_tunnel(
+  const service_provider & sp,
+  const stream_async<uint8_t> & crypted_output,
+  const stream_async<uint8_t> & decrypted_output,
   bool is_client,
   const certificate * cert,
   const asymmetric_private_key * key)
-: impl_(new _ssl_tunnel(this, is_client, cert, key))
+: impl_(new _ssl_tunnel(sp, crypted_output, decrypted_output, is_client, cert, key))
 {
 }
 
@@ -31,24 +34,14 @@ bool vds::ssl_tunnel::is_client() const
   return this->impl_->is_client();
 }
 
-std::shared_ptr<vds::continuous_buffer<uint8_t>> vds::ssl_tunnel::crypted_input()
+vds::stream_async<uint8_t> & vds::ssl_tunnel::crypted_input()
 {
   return this->impl_->crypted_input();
 }
 
-std::shared_ptr<vds::continuous_buffer<uint8_t>> vds::ssl_tunnel::crypted_output()
-{
-  return this->impl_->crypted_output();
-}
-
-std::shared_ptr<vds::continuous_buffer<uint8_t>> vds::ssl_tunnel::decrypted_input()
+vds::stream_async<uint8_t> & vds::ssl_tunnel::decrypted_input()
 {
   return this->impl_->decrypted_input();
-}
-
-std::shared_ptr<vds::continuous_buffer<uint8_t>> vds::ssl_tunnel::decrypted_output()
-{
-  return this->impl_->decrypted_output();
 }
 
 void vds::ssl_tunnel::start(const service_provider & sp)
@@ -68,20 +61,21 @@ void vds::ssl_tunnel::on_error(const std::function<void(const std::shared_ptr<st
 
 ////////////////////////////////////////////////////////////////
 vds::_ssl_tunnel::_ssl_tunnel(
-  ssl_tunnel * owner,
+  const service_provider & sp,
+  const stream_async<uint8_t> & crypted_output,
+  const stream_async<uint8_t> & decrypted_output,
   bool is_client,
   const certificate * cert,
   const asymmetric_private_key * key)
-: owner_(owner),
+: crypted_input_(sp),
+  crypted_output_(crypted_output),
+  decrypted_input_(sp),
+  decrypted_output_(decrypted_output),
   is_client_(is_client),
   crypted_output_data_size_(0),
   crypted_input_data_size_(0),
   decrypted_output_data_size_(0),
   decrypted_input_data_size_(0),
-  crypted_input_(new continuous_buffer<uint8_t>()),
-  crypted_output_(new continuous_buffer<uint8_t>()),
-  decrypted_input_(new continuous_buffer<uint8_t>()),
-  decrypted_output_(new continuous_buffer<uint8_t>()),
   crypted_input_eof_(false),
   decrypted_input_eof_(false),
   failed_state_(false)

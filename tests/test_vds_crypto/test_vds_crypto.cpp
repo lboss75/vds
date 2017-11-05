@@ -83,22 +83,22 @@ TEST(test_vds_crypto, test_sign)
     key.generate();
 
     vds::asymmetric_sign s(vds::hash::sha256(), key);
-    s.write(sp, buffer.get(), len);
-    s.write(sp, nullptr, 0);
+    s.write(buffer.get(), len);
+    s.write(nullptr, 0);
     
     auto sign = s.signature();
     vds::asymmetric_public_key pkey(key);
 
     
     vds::asymmetric_sign_verify v(vds::hash::sha256(), pkey, sign);
-    v.write(sp, buffer.get(), len);
-    v.write(sp, nullptr, 0);
+    v.write(buffer.get(), len);
+    v.write(nullptr, 0);
     GTEST_ASSERT_EQ(v.result(), true);
     
     vds::asymmetric_sign_verify sv(vds::hash::sha256(), pkey, sign);
     random_stream<uint8_t> rs(sv);
-    rs.write(sp, buffer.get(), len);
-    rs.write(sp, nullptr, 0);
+    rs.write(buffer.get(), len);
+    rs.write(nullptr, 0);
     GTEST_ASSERT_EQ(sv.result(), true);
 
     size_t index;
@@ -112,8 +112,8 @@ TEST(test_vds_crypto, test_sign)
 
     vds::asymmetric_sign_verify sv1(vds::hash::sha256(), pkey, sign);
     random_stream<uint8_t> rs1(sv1);
-    rs1.write(sp, buffer.get(), len);
-    rs1.write(sp, nullptr, 0);
+    rs1.write(buffer.get(), len);
+    rs1.write(nullptr, 0);
     GTEST_ASSERT_EQ(sv1.result(), false);
 
   } catch(const std::exception & ex){

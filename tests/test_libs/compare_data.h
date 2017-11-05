@@ -10,22 +10,28 @@ All rights reserved
 #include "stream.h"
 
 template <typename item_type>
-class compare_data : public vds::stream<item_type>, public vds::stream_async<item_type>
-{
+class compare_data : public vds::stream<item_type> {
 public:
   compare_data(
-    const item_type * data,
-    size_t len)
-    : data_(data),
-    len_(len)
-  {
+      const item_type *data,
+      size_t len)
+      : vds::stream<item_type>(new _compare_data(data, len)) {
+
   }
 
-  void write(
-    const vds::service_provider & sp,
-    const item_type * data,
-    size_t len) override
-    {
+private:
+  class _compare_data : public vds::_stream<item_type> {
+  public:
+    _compare_data(
+        const item_type *data,
+        size_t len)
+        : data_(data),
+          len_(len) {
+    }
+
+    void write(
+        const item_type *data,
+        size_t len) override {
       if (0 == len) {
         if (0 != this->len_) {
           throw std::runtime_error("Unexpected end of stream while comparing data");
@@ -45,20 +51,68 @@ public:
       this->data_ += len;
       this->len_ -= len;
     }
-    
-  vds::async_task<> write_async(
-    const vds::service_provider & sp,
-    const item_type * data,
-    size_t len) override
+
+  private:
+    const item_type *data_;
+    size_t len_;
+  };
+};
+
+template <typename item_type>
+class compare_data_async : public vds::stream_async<item_type>
+{
+public:
+  compare_data_async(
+      const item_type *data,
+      size_t len)
+      : vds::stream<item_type>(new _compare_data(data, len)) {
+
+  }
+private:
+
+  class _compare_data : public vds::stream_async<item_type>
+  {
+  public:
+
+    _compare_data(
+        const item_type * data,
+        size_t len)
+        : data_(data),
+          len_(len)
     {
-      this->write(sp, data, len);
+    }
+
+    vds::async_task<> write_async(
+        const item_type * data,
+        size_t len) override
+    {
+      if (0 == len) {
+        if (0 != this->len_) {
+          return vds::async_task<>(std::make_shared<std::runtime_error>("Unexpected end of stream while comparing data"));
+        }
+
+        return vds::async_task<>::empty();
+      }
+
+      if (this->len_ < len) {
+        return vds::async_task<>(std::make_shared<std::runtime_error>("Unexpected data while comparing data"));
+      }
+
+      if (0 != memcmp(this->data_, data, len)) {
+        return vds::async_task<>(std::make_shared<std::runtime_error>("Compare data error"));
+      }
+
+      this->data_ += len;
+      this->len_ -= len;
+
       return vds::async_task<>::empty();
     }
-    
+
   private:
     const item_type * data_;
     size_t len_;
   };
+};
 
 
 #endif // __TEST_VDS_LIBS__COMPARE_DATA_H_

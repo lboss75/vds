@@ -86,9 +86,7 @@ namespace vds {
   {
   public:
     _udp_socket(SOCKET_HANDLE s = INVALID_SOCKET)
-      : s_(s),
-      incoming_(new continuous_buffer<udp_datagram>()),
-      outgoing_(new async_buffer<udp_datagram>())
+      : s_(s)
     {
     }
 
@@ -100,16 +98,6 @@ namespace vds {
     SOCKET_HANDLE handle() const
     {
       return this->s_;
-    }
-
-    std::shared_ptr<continuous_buffer<udp_datagram>> incoming()
-    {
-      return this->incoming_;
-    }
-
-    std::shared_ptr<async_buffer<udp_datagram>> outgoing()
-    {
-      return this->outgoing_;
     }
 
     void start(const vds::service_provider & sp)
@@ -140,11 +128,14 @@ namespace vds {
 #endif
     }
 
+    async_task<const udp_datagram &> read_async();
+    async_task<> write_async(const udp_datagram & message);
+
+
   private:
     SOCKET_HANDLE s_;
-    std::shared_ptr<continuous_buffer<udp_datagram>> incoming_;
-    std::shared_ptr<async_buffer<udp_datagram>> outgoing_;
-    
+    std::shared_ptr<_udp_handler> handler_;
+
     void close()
     {
 #ifdef _WIN32
@@ -382,7 +373,15 @@ namespace vds {
           this->network_service_->remove_association(this->sp_, this->owner_->s_);
         }
       }
-      
+
+      async_task<const udp_datagram &> read_async(){
+
+      }
+
+      async_task<> write_async(const udp_datagram & message){
+
+      }
+
       void process(uint32_t events) override
       {
         if(EPOLLOUT == (EPOLLOUT & events)){

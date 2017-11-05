@@ -35,6 +35,12 @@ namespace vds {
 		void done(const result_types &... results) const;
 		void error(const std::shared_ptr<std::exception> & ex) const;
 
+		async_result & operator =(const async_result<result_types...> & origin)
+		{
+			this->impl_ = origin.impl_;
+			return *this;
+		}
+
 	private:
     struct result_callback
     {
@@ -168,6 +174,7 @@ namespace vds {
 
 	  async_task(async_task<result_types...> && origin);
 	  async_task(std::shared_ptr<std::exception> && error);
+		async_task(result_types && ... values);
 	  async_task(const std::shared_ptr<std::exception> & error);
     
 	  template<typename parent_task_type, typename functor_type>
@@ -342,6 +349,26 @@ namespace vds {
   private:
 	  std::shared_ptr<std::exception> error_;
   };
+	/////////////////////////////////////////////////////////////////////////////////
+	template <typename... result_types>
+	class _async_task_value : public _async_task_base<result_types...>
+	{
+	public:
+		_async_task_value(result_types && ... values)
+				: values_(std::make_tuple(std::forward<result_types>(values)...))
+		{
+		}
+
+		void execute(async_result<result_types...> && done) override
+		{
+			call_with([d = std::move(done)](result_types &&... args) {
+				d.done(std::forward<result_types>(args)...);
+			}, this->values_);
+		}
+
+	private:
+		std::tuple<result_types...> values_;
+	};
   /////////////////////////////////////////////////////////////////////////////////
   template <typename... result_types>
   class _async_task_empty : public _async_task_base<result_types...>
@@ -401,7 +428,13 @@ namespace vds {
   {
 	  origin.impl_ = nullptr;
   }
-  
+
+	template<typename ...result_types>
+	inline async_task<result_types...>::async_task(result_types && ... values)
+			: impl_(new _async_task_value<result_types...>(std::forward<result_types>(values)...))
+	{
+	}
+
   template<typename ...result_types>
   inline async_task<result_types...>::async_task(std::shared_ptr<std::exception> && error)
   : impl_(new _async_task_error<result_types...>(std::move(error)))

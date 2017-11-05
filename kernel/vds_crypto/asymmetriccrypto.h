@@ -6,6 +6,8 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
+#include <utility>
+
 #include "hash.h"
 #include "filename.h"
 #include "crypto_service.h"
@@ -101,10 +103,6 @@ namespace vds {
     asymmetric_sign(
       const hash_info & hash_info,
       const asymmetric_private_key & key);
-    
-    ~asymmetric_sign();
-
-    void write(const service_provider & sp, const uint8_t * data, size_t len) override;
 
     const_data_buffer signature();
 
@@ -118,10 +116,6 @@ namespace vds {
       const asymmetric_private_key & key,
       const void * data,
       size_t data_size);
-    
-  private:
-    _asymmetric_sign * impl_;
-
   };
 
   class _asymmetric_sign_verify;
@@ -132,9 +126,7 @@ namespace vds {
       const hash_info & hash_info,
       const asymmetric_public_key & key,
       const const_data_buffer & sig);
-    ~asymmetric_sign_verify();
-    
-    void write(const service_provider & sp, const uint8_t * data, size_t len) override;
+
     
     bool result() const;
     
@@ -152,9 +144,6 @@ namespace vds {
       const asymmetric_public_key & key,
       const const_data_buffer & signature,
       const const_data_buffer & data);
-
-  private:
-    _asymmetric_sign_verify * const impl_;
   };
   
   
@@ -176,8 +165,8 @@ namespace vds {
 
     certificate_extension(
       crypto_service::certificate_extension_type extension_type,
-      const std::string & val)
-    : oid(extension_type), value(val)
+      std::string && val)
+    : oid(extension_type), value(std::move(val))
     {
     }
 

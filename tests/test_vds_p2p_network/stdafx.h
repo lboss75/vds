@@ -8,7 +8,6 @@ All rights reserved
 
 #include "targetver.h"
 
-#include "user_manager.h"
 
 #include "gtest/gtest.h"
 
