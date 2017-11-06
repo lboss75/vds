@@ -291,77 +291,76 @@ namespace vds {
   };
   
   template <typename item_t>
-  class async_buffer
-  {
+  class async_buffer : public stream_async<item_t> {
   public:
     using item_type = item_t;
-    async_buffer()
-      : ready_to_data_(true)
-    {
+
+    async_buffer(const service_provider &sp)
+        : stream_async<item_t>(new _async_buffer(sp)) {
     }
 
-    async_task<> write_value_async(const service_provider & sp, const item_type & data)
-    {
-      std::unique_lock<std::mutex> lock(this->data_mutex_);
-      while (!this->ready_to_data_) {
-        this->data_barier_.wait(lock);
-      }
-
-      this->ready_to_data_ = false;
-      return this->data_.write_value_async(sp, data).then(
-        [this]() {
-          this->data_mutex_.lock();
-          this->ready_to_data_ = true;
-          this->data_barier_.notify_one();
-          this->data_mutex_.unlock();
-        });
+    async_task<> write_value_async(const item_type & data) {
+      return static_cast<_async_buffer *>(this->impl_.get())->write_value_async(data);
     }
 
-    async_task<> write_async(const service_provider & sp, const item_type * data, size_t data_size)
-    {
-      std::unique_lock<std::mutex> lock(this->data_mutex_);
-      while (!this->ready_to_data_) {
-        this->data_barier_.wait_for(lock, std::chrono::microseconds(100));
-      }
-
-      this->ready_to_data_ = false;
-
-      return this->data_.write_async(sp, data, data_size).then(
-        [this]() {
-          this->data_mutex_.lock();
-          this->ready_to_data_ = true;
-          this->data_barier_.notify_one();
-          this->data_mutex_.unlock();
-        });
-    }
-    
-    async_task<> write_all_async(const service_provider & sp, const item_type * data, size_t data_size)
-    {
-      std::unique_lock<std::mutex> lock(this->data_mutex_);
-      while (!this->ready_to_data_) {
-        this->data_barier_.wait_for(lock, std::chrono::microseconds(100));
-      }
-
-      this->ready_to_data_ = false;
-
-      return this->data_.write_async(sp, data, data_size)
-        .then([this]() {
-          this->data_mutex_.lock();
-          this->ready_to_data_ = true;
-          this->data_barier_.notify_one();
-          this->data_mutex_.unlock();
-        });
+    async_task<size_t /*readed*/> read_async(item_type *buffer, size_t buffer_size) {
+      return static_cast<_async_buffer *>(this->impl_.get())->read_async(buffer, buffer_size);
     }
 
-    async_task<size_t /*readed*/> read_async(const service_provider & sp, item_type * buffer, size_t buffer_size)
-    {
-      return this->data_.read_async(sp, buffer, buffer_size);
-    }
   private:
-    bool ready_to_data_;
-    std::condition_variable data_barier_;
-    std::mutex data_mutex_;
-    continuous_buffer<item_type> data_;
+    class _async_buffer : public _stream_async<item_t> {
+    public:
+
+      _async_buffer(const service_provider &sp)
+          : ready_to_data_(true),
+            data_(sp) {
+      }
+
+      async_task<> write_value_async(const item_type &data) {
+        std::unique_lock<std::mutex> lock(this->data_mutex_);
+        while (!this->ready_to_data_) {
+          this->data_barier_.wait(lock);
+        }
+
+        this->ready_to_data_ = false;
+        return this->data_.write_value_async(data).then(
+            [pthis = this->shared_from_this()]() {
+              auto this_ = static_cast<async_buffer *>(pthis.get());
+              this_->data_mutex_.lock();
+              this_->ready_to_data_ = true;
+              this_->data_barier_.notify_one();
+              this_->data_mutex_.unlock();
+            });
+      }
+
+      async_task<> write_async(const item_type *data, size_t data_size) override {
+        std::unique_lock<std::mutex> lock(this->data_mutex_);
+        while (!this->ready_to_data_) {
+          this->data_barier_.wait_for(lock, std::chrono::microseconds(100));
+        }
+
+        this->ready_to_data_ = false;
+
+        return this->data_.write_async(data, data_size).then(
+            [pthis = this->shared_from_this()]() {
+              auto this_ = static_cast<async_buffer *>(pthis.get());
+              this_->data_mutex_.lock();
+              this_->ready_to_data_ = true;
+              this_->data_barier_.notify_one();
+              this_->data_mutex_.unlock();
+            });
+      }
+
+      async_task<size_t /*readed*/> read_async(item_type *buffer, size_t buffer_size) {
+        return this->data_.read_async(buffer, buffer_size);
+      }
+
+    private:
+      bool ready_to_data_;
+      std::condition_variable data_barier_;
+      std::mutex data_mutex_;
+      continuous_buffer<item_type> data_;
+    };
   };
   /////////////////////////////////////////////////////////////////////////////////////////////////////////
   template <typename item_type, typename source_type, typename target_type>

@@ -100,7 +100,9 @@ namespace vds {
       return this->s_;
     }
 
-    void start(const vds::service_provider & sp)
+    void start(
+        const vds::service_provider & sp,
+        const std::function<void(const udp_datagram &)> & target)
     {
 #ifdef _WIN32
       this->reader_ = std::make_shared<_udp_receive>(sp, this->shared_from_this());
@@ -109,8 +111,9 @@ namespace vds {
       this->writter_ = std::make_shared<_udp_send>(sp, this->shared_from_this());
       this->writter_->start();
 #else
-      this->handler_ = std::make_shared<_udp_handler>(sp, this->shared_from_this());
-      this->handler_->start();
+      auto handler = std::make_shared<_udp_handler>(sp, this->shared_from_this(), target);
+      this->handler_ = handler;
+      handler->start();
 #endif
     }
     
@@ -123,8 +126,9 @@ namespace vds {
       this->reader_.reset();
       this->writter_.reset();
 #else
-      this->handler_->stop();
+      auto handler = this->handler_.lock();
       this->handler_.reset();
+      handler->stop();
 #endif
     }
 
@@ -134,7 +138,6 @@ namespace vds {
 
   private:
     SOCKET_HANDLE s_;
-    std::shared_ptr<_udp_handler> handler_;
 
     void close()
     {
@@ -342,18 +345,19 @@ namespace vds {
     };
 
 #else
-    class _udp_handler : public _socket_task
+    class _udp_handler : public _socket_task_impl<_udp_handler>
     {
       using this_class = _udp_handler;
     public:
       _udp_handler(
         const service_provider & sp,
-        const std::shared_ptr<_udp_socket> & owner)
-        : sp_(sp), owner_(owner),
-          network_service_(static_cast<_network_service *>(this->sp_.get<inetwork_service>())),
-          event_masks_(EPOLLIN | EPOLLET),
-          read_timeout_ticks_(0),
-          closed_(false)
+        const std::shared_ptr<_udp_socket> & owner,
+        const std::function<void(const udp_datagram &)> & target)
+        : _socket_task_impl<_udp_handler>(sp, owner->s_),
+          owner_(owner),
+          write_result_([](const std::shared_ptr<std::exception> & ){
+            throw std::runtime_error("Logic error");
+          })
       {
       }
       
@@ -361,206 +365,110 @@ namespace vds {
       {
       }
 
-      void start()
-      {
-        this->network_service_->associate(this->sp_, this->owner_->s_, this->shared_from_this(), this->event_masks_);
-        this->schedule_write();
-      }
-      
-      void stop()
-      {
-        if(EPOLLET != this->event_masks_){
-          this->network_service_->remove_association(this->sp_, this->owner_->s_);
-        }
-      }
-
-      async_task<const udp_datagram &> read_async(){
-
-      }
 
       async_task<> write_async(const udp_datagram & message){
 
+        std::lock_guard<std::mutex> lock(this->write_mutex_);
+        switch (this->write_status_){
+          case write_status_t::bof:
+            this->write_message_ = message;
+            return [pthis = this->shared_from_this()](const async_result<> & result){
+              auto this_ = static_cast<_udp_handler *>(pthis.get());
+              this_->write_result_ = result;
+              this_->write_status_ = write_status_t::waiting_socket;
+              this_->change_mask(EPOLLOUT);
+            };
+
+          case write_status_t::eof:
+          case write_status_t::waiting_socket:
+            throw  std::runtime_error("Invalid operator");
+        }
       }
 
-      void process(uint32_t events) override
-      {
-        if(EPOLLOUT == (EPOLLOUT & events)){
-          this->sp_.get<logger>()->trace("UDP", this->sp_, "UDP EPOLLOUT event");
-          this->change_mask(0, EPOLLOUT);
-          
-          auto size = this->write_buffer_.data_size();
+      void write_data() {
+        std::unique_lock<std::mutex> lock(this->write_mutex_);
+
+        if(write_status_t::waiting_socket != this->write_status_) {
+          throw std::runtime_error("Invalid operation");
+        }
+
+          auto size = this->write_message_.data_size();
           int len = sendto(
-            this->owner_->s_,
-            this->write_buffer_.data(),
+            this->s_,
+            this->write_message_.data(),
             size,
             0,
-            (sockaddr *)this->write_buffer_->addr(),
+            (sockaddr *)this->write_message_->addr(),
             sizeof(sockaddr_in));
           
           if (len < 0) {
             int error = errno;
-            throw std::system_error(
-              error,
-              std::generic_category(),
-              "Send to " + network_service::to_string(*this->write_buffer_->addr()));
+            this->write_status_ = write_status_t::bof;
+            lock.unlock();
+
+            this->write_result_.error(
+                std::make_shared<std::system_error>(
+                  error,
+                  std::generic_category(),
+                  "Send to " + network_service::to_string(*this->write_message_->addr())));
           }
         
           if((size_t)len != size){
             throw std::runtime_error("Invalid send UDP");
           }
-          this->sp_.get<logger>()->trace("UDP", this->sp_, "Sent %d bytes to %s", len, network_service::to_string(*this->write_buffer_->addr()).c_str());
-          this->schedule_write();
+          lock.unlock();
+          this->sp_.get<logger>()->trace(
+              "UDP",
+              this->sp_,
+              "Sent %d bytes to %s",
+              len,
+              network_service::to_string(*this->write_message_->addr()).c_str());
+
+          this->write_result_.done();
         }
-        
-        if(EPOLLIN == (EPOLLIN & events)){
-          this->sp_.get<logger>()->trace("UDP", this->sp_, "EPOLLIN event");
-          if(0 < this->owner_->s_){
-            this->change_mask(0, EPOLLIN);
+
+      void read_data() {
+        for(;;) {
+          this->addr_len_ = sizeof(this->addr_);
+          int len = recvfrom(this->s_,
+                             this->read_buffer_,
+                             sizeof(this->read_buffer_),
+                             0,
+                             (struct sockaddr *)&this->addr_,
+                             &this->addr_len_);
+
+          if (len < 0) {
+            int error = errno;
+            if(EAGAIN == error){
+              break;
+            }
+
+            throw std::system_error(error, std::system_category(), "recvfrom");
           }
-          
-          this->read_data();
+
+          this->sp_.get<logger>()->trace("UDP", this->sp_, "got %d bytes from %s", len, network_service::to_string(this->addr_).c_str());
+          this->target_(_udp_datagram::create(this->addr_, this->read_buffer_, len));
         }
       }
-      
-      void check_timeout(const service_provider & sp) override
-      {
-        sp.get<logger>()->trace("UDP", sp, "check_timeout(ticks=%d, is_closed=%s)",
-           this->read_timeout_ticks_,
-           (this->closed_ ? "true" : "false"));
-        
-        if(1 < this->read_timeout_ticks_++ && !this->closed_){
-          this->change_mask(0, EPOLLIN | EPOLLOUT);
-
-          this->sp_.get<logger>()->trace("UDP", this->sp_, "read timeout");
-          this->closed_ = true;
-          this->owner_->incoming_->write_async(this->sp_, nullptr, 0)
-          .execute(
-            [sp = this->sp_](const std::shared_ptr<std::exception> & ex) {
-              if(!ex){
-                sp.get<logger>()->trace("UDP", sp, "input closed");
-              } else {
-                sp.unhandled_exception(ex);
-              }
-            });
-        }          
-      }
-      
-      void prepare_to_stop(const service_provider & /*sp*/) override
-      {
-        if(!this->closed_){
-          this->change_mask(0, EPOLLIN);
-
-          this->sp_.get<logger>()->trace("UDP", this->sp_, "read timeout");
-          this->closed_ = true;
-          this->owner_->incoming_->write_async(this->sp_, nullptr, 0)
-          .execute(
-            [sp = this->sp_](const std::shared_ptr<std::exception> & ex) {
-              if(!ex){
-                sp.get<logger>()->trace("UDP", sp, "input closed");
-              } else {
-                sp.unhandled_exception(ex);
-              }
-            });
-        }          
-      }
-
 
     private:
-      service_provider sp_;
       std::shared_ptr<_udp_socket> owner_;
-      _network_service * network_service_;
-      
-      std::mutex event_masks_mutex_;
-      uint32_t event_masks_;
-      
+      async_result<> write_result_;
+      std::function<void(const udp_datagram &)> target_;
+
       sockaddr_in addr_;
       socklen_t addr_len_;
-      uint8_t read_buffer_[10 * 1024 * 1024];
+      uint8_t read_buffer_[64 * 1024];
       
-      udp_datagram write_buffer_;
-      int read_timeout_ticks_;
-      bool closed_;
-      
-      void change_mask(uint32_t set_events, uint32_t clear_events = 0)
-      {
-        std::unique_lock<std::mutex> lock(this->event_masks_mutex_);
-        auto need_create = (EPOLLET == this->event_masks_);
-        this->event_masks_ |= set_events;
-        this->event_masks_ &= ~clear_events;
-        
-        if(!need_create && EPOLLET != this->event_masks_){
-          this->network_service_->set_events(this->sp_, this->owner_->s_, this->event_masks_);
-        }
-        else if (EPOLLET == this->event_masks_){
-          this->network_service_->remove_association(this->sp_, this->owner_->s_);
-        }
-        else {
-          this->network_service_->associate(this->sp_, this->owner_->s_, this->shared_from_this(), this->event_masks_);
-        }
-      }
-      
-      void schedule_write()
-      {
-        this->owner_->outgoing_->read_async(this->sp_, &this->write_buffer_, 1)
-        .execute([pthis = this->shared_from_this()](const std::shared_ptr<std::exception> & ex, size_t readed){
-          auto this_ = static_cast<this_class *>(pthis.get());
-          if(!ex){
-            if(0 == readed){
-              //End of stream
-              shutdown(this_->owner_->s_, SHUT_WR);
-            }
-            else {
-              this_->change_mask(EPOLLOUT);
-            }
-          } else {
-            this_->sp_.unhandled_exception(ex);
-          }
-        });
-      }
-
-      void read_data()
-      {
-        this->addr_len_ = sizeof(this->addr_);
-        int len = recvfrom(this->owner_->s_, this->read_buffer_, sizeof(this->read_buffer_), 0,
-          (struct sockaddr *)&this->addr_, &this->addr_len_);
-
-        if (len < 0) {
-          int error = errno;
-          if(EAGAIN == error){
-            this->change_mask(EPOLLIN);
-            return;
-          }
-          throw std::system_error(error, std::system_category(), "recvfrom");
-        }
-        else {
-          this->closed_ = true;
-        }
-        
-        this->read_timeout_ticks_ = 0;
-        this->sp_.get<logger>()->trace("UDP", this->sp_, "got %d bytes from %s", len, network_service::to_string(this->addr_).c_str());
-        this->owner_->incoming_->write_value_async(this->sp_, _udp_datagram::create(this->addr_, this->read_buffer_, len))
-          .execute(
-            [pthis = this->shared_from_this(), len](const std::shared_ptr<std::exception> & ex) {
-              auto this_ = static_cast<this_class *>(pthis.get());
-              if(!ex){
-                if(0 != len){
-                  this_->read_data();
-                }
-                else {
-                  this_->sp_.get<logger>()->trace("UDP", this_->sp_, "input closed");
-                }
-              } else {
-                this_->sp_.unhandled_exception(ex);
-              }
-            });
-      }
+      udp_datagram write_message_;
     };
+
+    std::weak_ptr<_udp_handler> handler_;
 #endif//_WIN32
 #ifdef _WIN32
     std::shared_ptr<_udp_receive> reader_;
     std::shared_ptr<_udp_send> writter_;
 #else
-    std::shared_ptr<_udp_handler> handler_;
 #endif
   };
 
@@ -574,7 +482,7 @@ namespace vds {
     {
     }
 
-    udp_socket start(const service_provider & sp)
+    udp_socket start(const service_provider & sp, const std::function<void(const udp_datagram &)> & target)
     {
       auto scope = sp.create_scope(("UDP server on " + this->address_ + ":" + std::to_string(this->port_)).c_str());
       imt_service::enable_async(scope);
@@ -596,7 +504,7 @@ namespace vds {
         throw std::system_error(error, std::system_category(), "bind socket");
       }
 
-      this->socket_->start(scope);
+      this->socket_->start(scope, target);
       return this->socket_;
     }
 
@@ -625,7 +533,7 @@ namespace vds {
 
     }
 
-    udp_socket start(const service_provider & sp)
+    udp_socket start(const service_provider & sp, const std::function<void(const udp_datagram &)> & target)
     {
       this->socket_ = udp_socket::create(sp);
 
@@ -644,7 +552,7 @@ namespace vds {
         throw std::system_error(error, std::system_category(), "bind socket");
       }
 
-      this->socket_->start(sp);
+      this->socket_->start(sp, target);
       return this->socket_;
     }
 

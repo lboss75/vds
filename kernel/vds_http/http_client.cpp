@@ -1,10 +1,8 @@
 #include "http_client.h"
 #include "logger.h"
 #include "http_pipeline.h"
-
+/*
 vds::http_client::http_client()
-: input_commands_(new vds::async_buffer<std::shared_ptr<http_message>>()),
-  output_commands_(new vds::async_buffer<std::shared_ptr<http_message>>())
 {
 }
 
@@ -12,19 +10,11 @@ vds::async_task<> vds::http_client::send(
   const vds::service_provider & sp,
   const std::shared_ptr<vds::http_message>& message)
 {
-  if (!message) {
-    return this->output_commands_->write_all_async(sp, nullptr, 0);
-  }
-  else {
-    return this->output_commands_->write_value_async(sp, message);
-  }
 }
 
 
 vds::async_task<> vds::http_client::start(
   const vds::service_provider & sp,
-  const std::shared_ptr<continuous_buffer<uint8_t>> & incoming_stream,
-  const std::shared_ptr<continuous_buffer<uint8_t>> & outgoing_stream,
   const handler_type & handler)
 {
   return async_series(
@@ -50,3 +40,4 @@ vds::async_task<> vds::http_client::process_input_commands(
     }
   });
 }
+*/

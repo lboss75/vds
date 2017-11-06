@@ -11,7 +11,7 @@ All rights reserved
 #include "filename.h"
 
 namespace vds {
-  class _p2p_network;
+
   class ichunk_manager
   {
   public:
@@ -61,8 +61,8 @@ namespace vds {
       const service_provider & sp,
       database_transaction & tr,
       const std::shared_ptr<json_object> & result);
-    
-    _p2p_network * operator -> ();
+
+    class _chunk_manager * operator -> ();
   };
 }
 

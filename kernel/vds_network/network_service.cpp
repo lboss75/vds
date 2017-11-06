@@ -148,35 +148,6 @@ void vds::_network_service::start(const service_provider & sp)
             }
           }
         }          
-        
-        if(std::chrono::seconds(30) < std::chrono::steady_clock::now() - last_timeout_update){
-          std::set<SOCKET_HANDLE> processed;
-          
-          for(;;){
-            bool bcontinue = false;
-            
-            lock.lock();
-            for(auto & p : this->tasks_) {
-              if(processed.end() != processed.find(p.first)){
-                continue;
-              }
-              processed.emplace(p.first);
-              std::shared_ptr<_socket_task> handler = p.second;
-              lock.unlock();
-              
-              handler->check_timeout(sp);
-              bcontinue = true;
-              break;
-            }
-            
-            if(!bcontinue){
-              lock.unlock();
-              break;
-            }
-          }
-          
-          last_timeout_update = std::chrono::steady_clock::now();
-        }
       }
   });
 #endif
@@ -234,7 +205,7 @@ void vds::_network_service::prepare_to_stop(const service_provider & sp)
       std::shared_ptr<_socket_task> handler = p.second;
       lock.unlock();
       
-      handler->prepare_to_stop(sp);
+      //handler->prepare_to_stop(sp);
       bcontinue = true;
       break;
     }

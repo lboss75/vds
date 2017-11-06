@@ -29,7 +29,7 @@ namespace vds {
         const service_provider & sp,
         const std::shared_ptr<http_message> & message)
       {
-        this->buffer_ = std::make_shared<continuous_buffer<uint8_t>>();
+        this->buffer_ = std::make_shared<continuous_buffer<uint8_t>>(sp);
 
         std::stringstream stream;
         for (auto & header : message->headers()) {
@@ -41,7 +41,7 @@ namespace vds {
         auto data = std::make_shared<std::string>(stream.str());
         
         return async_series(
-          this->buffer_->write_async(sp, (const uint8_t *)data->c_str(), data->length())
+          this->buffer_->write_async((const uint8_t *)data->c_str(), data->length())
             .then([pthis = this->shared_from_this(), sp, data, message]() {
               auto buffer = std::make_shared<std::vector<uint8_t>>(1024);
               return pthis->write_body(sp, message, buffer);
@@ -59,12 +59,12 @@ namespace vds {
         const std::shared_ptr<http_message> & message,
         const std::shared_ptr<std::vector<uint8_t>> & buffer)
       {
-        return message->body()->read_async(sp, buffer->data(), buffer->size())
+        return message->body()->read_async(buffer->data(), buffer->size())
           .then([pthis = this->shared_from_this(), sp, message, buffer](size_t readed) {
           if (0 < readed) {
             sp.get<logger>()->trace("HTTP", sp, "HTTP Send [%s]", std::string((const char *)buffer->data(), readed).c_str());
 
-            return pthis->buffer_->write_async(sp, buffer->data(), readed)
+            return pthis->buffer_->write_async(buffer->data(), readed)
             .then(
               [pthis, sp, message, buffer]() {
                 pthis->write_body(sp, message, buffer);
@@ -72,24 +72,24 @@ namespace vds {
           }
           else {
             auto buffer = pthis->buffer_;
-            return buffer->write_async(sp, nullptr, 0);
+            return buffer->write_async(nullptr, 0);
           }
         });
       }
 
       async_task<> continue_process(const service_provider & sp)
       {
-        return this->buffer_->read_async(sp, this->output_buffer_, sizeof(this->output_buffer_))
+        return this->buffer_->read_async(this->output_buffer_, sizeof(this->output_buffer_))
           .then([pthis = this->shared_from_this(), sp](size_t readed) {
             if (0 < readed) {
               return 
-                pthis->target_.write_async(sp, pthis->output_buffer_, readed)
+                pthis->target_.write_async(pthis->output_buffer_, readed)
                 .then([pthis, sp]() {
                     return pthis->continue_process(sp);
                   });
             }
             else {
-              return pthis->target_.write_async(sp, nullptr, 0)
+              return pthis->target_.write_async(nullptr, 0)
                 .then([]() {
                   return async_task<>::empty();
                 });
@@ -115,7 +115,7 @@ namespace vds {
       const service_provider & sp,
       const std::shared_ptr<http_message> & message)
     {
-      this->buffer_ = std::make_shared<continuous_buffer<uint8_t>>();
+      this->buffer_ = std::make_shared<continuous_buffer<uint8_t>>(sp);
 
       std::stringstream stream;
       for (auto & header : message->headers()) {
@@ -127,7 +127,7 @@ namespace vds {
       auto data = std::make_shared<std::string>(stream.str());
 
       return async_series(
-        this->buffer_->write_async(sp, (const uint8_t *)data->c_str(), data->length())
+        this->buffer_->write_async((const uint8_t *)data->c_str(), data->length())
         .then([pthis = this->shared_from_this(), sp, data, message]() {
         auto buffer = std::make_shared<std::vector<uint8_t>>(1024);
         return pthis->write_body(sp, message, buffer);
@@ -145,12 +145,12 @@ namespace vds {
       const std::shared_ptr<http_message> & message,
       const std::shared_ptr<std::vector<uint8_t>> & buffer)
     {
-      return message->body()->read_async(sp, buffer->data(), buffer->size())
+      return message->body()->read_async(buffer->data(), buffer->size())
         .then([pthis = this->shared_from_this(), sp, message, buffer](size_t readed) {
         if (0 < readed) {
           sp.get<logger>()->trace("HTTP", sp, "HTTP Send [%s]", std::string((const char *)buffer->data(), readed).c_str());
 
-          return pthis->buffer_->write_async(sp, buffer->data(), readed)
+          return pthis->buffer_->write_async(buffer->data(), readed)
             .then(
               [pthis, sp, message, buffer]() {
             pthis->write_body(sp, message, buffer);
@@ -158,21 +158,21 @@ namespace vds {
         }
         else {
           auto buffer = pthis->buffer_;
-          return buffer->write_async(sp, nullptr, 0);
+          return buffer->write_async(nullptr, 0);
         }
       });
     }
 
     async_task<> continue_process(const service_provider & sp)
     {
-      return this->buffer_->read_async(sp, this->output_buffer_, sizeof(this->output_buffer_))
+      return this->buffer_->read_async(this->output_buffer_, sizeof(this->output_buffer_))
         .then([pthis = this->shared_from_this(), sp](size_t readed) {
         if (0 < readed) {
-          pthis->target_.write(sp, pthis->output_buffer_, readed);
+          pthis->target_.write(pthis->output_buffer_, readed);
           return pthis->continue_process(sp);
         }
         else {
-          pthis->target_.write(sp, nullptr, 0);
+          pthis->target_.write(nullptr, 0);
           return async_task<>::empty();
         }
       });

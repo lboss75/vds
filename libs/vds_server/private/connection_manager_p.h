@@ -238,7 +238,7 @@ namespace vds {
       
       void for_each_sessions(const std::function<bool (session &)> & callback);
       bool process_timer_jobs(const service_provider & sp);
-      void schedule_read(const service_provider & sp);
+      //void schedule_read(const service_provider & sp);
     };
     
     std::unique_ptr<udp_channel> udp_channel_;

@@ -6,15 +6,15 @@ All rights reserved
 #include "stdafx.h"
 #include "http_request.h"
 
-vds::http_request::http_request(const std::shared_ptr<http_message>& message)
+vds::http_request::http_request(const http_message & message)
   : message_(message)
 {
-  if (0 == message->headers().size()) {
+  if (0 == message.headers().size()) {
     throw std::runtime_error("Invalid HTTP Request");
   }
 
   int index = 0;
-  for (auto ch : *(message->headers().begin())) {
+  for (auto ch : *(message.headers().begin())) {
     if (isspace(ch)) {
       if (index < 2) {
         ++index;
@@ -54,7 +54,7 @@ void vds::http_request::parse_parameters()
   }
 }
 
-std::shared_ptr<vds::http_message> vds::http_request::simple_request(
+vds::http_message vds::http_request::simple_request(
   const service_provider & sp,
   const std::string& method,
   const std::string& url,
@@ -64,15 +64,15 @@ std::shared_ptr<vds::http_message> vds::http_request::simple_request(
   headers.push_back(method + " " + url + " HTTP/1.0");
   headers.push_back("Content-Type: text/html; charset=utf-8");
   headers.push_back("Content-Length:" + std::to_string(body.length()));
-  
-  auto result = std::make_shared<http_message>(headers);
+
+  http_message result(sp, headers);
   auto buffer = std::make_shared<std::string>(body);
 
-  result->body()->write_async(sp, (const uint8_t *)buffer->c_str(), buffer->length())
+  result.body()->write_async((const uint8_t *)buffer->c_str(), buffer->length())
     .execute(
     [buffer, result, sp](const std::shared_ptr<std::exception> & ex) {
       if(!ex){
-        result->body()->write_async(sp, nullptr, 0).execute(
+        result.body()->write_async(nullptr, 0).execute(
           [sp](const std::shared_ptr<std::exception> & ex) {
             if(ex){
               sp.unhandled_exception(ex);

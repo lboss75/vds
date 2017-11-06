@@ -261,7 +261,10 @@ void vds::_connection_manager::udp_channel::start(
   const service_provider & sp,
   const url_parser::network_address& address)
 {
-  this->s_ = this->server_.start(sp, address.server, (uint16_t)std::atoi(address.port.c_str()));
+  this->s_ = this->server_.start(sp, address.server, (uint16_t)std::atoi(address.port.c_str()),
+  [sp, this](const udp_datagram & message){
+    this->input_message(sp, message->addr(), message.data(), message.data_size());
+  });
 
   this->process_timer_.start(
     sp,
@@ -271,9 +274,10 @@ void vds::_connection_manager::udp_channel::start(
     });
   
   sp.get<logger>()->debug("UDPAPI", sp, "Pipeline opened");
-  this->schedule_read(sp);
+  //this->schedule_read(sp);
 }
 
+/*
 void vds::_connection_manager::udp_channel::schedule_read(
   const service_provider & sp)
 {
@@ -304,6 +308,7 @@ void vds::_connection_manager::udp_channel::schedule_read(
     }
     });
 }
+*/
 
 
 void vds::_connection_manager::udp_channel::stop(const service_provider & sp)
@@ -383,6 +388,7 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
             .serialize();
 
           auto data = _udp_datagram::create(*from, message_data);
+/*TODO:
           auto stream = this->s_.outgoing();
           stream->write_value_async(sp, data)
           .execute(
@@ -393,6 +399,7 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
               result.error(ex);
             }
             });
+*/
       }
       else {
         result.done();
@@ -581,6 +588,7 @@ vds::async_task<> vds::_connection_manager::udp_channel::open_udp_session(
           auto scope = sp.create_scope(("Send hello to " + address).c_str());
           imt_service::enable_async(scope);
           
+/*TODO:
           auto stream = this->s_.outgoing();
           stream->write_value_async(scope, udp_datagram(server, port, data, false))
           .execute([stream, result](const std::shared_ptr<std::exception> & ex) {
@@ -589,7 +597,8 @@ vds::async_task<> vds::_connection_manager::udp_channel::open_udp_session(
           } else {
             result.error(ex);
           }});
-          
+*/
+
           return;
         }
       }
@@ -652,9 +661,11 @@ void vds::_connection_manager::udp_channel::session::send_to(
         
         auto scope = sp.create_scope(("Send message to " + this->server() + ":" + std::to_string(this->port())).c_str());
         imt_service::enable_async(scope);
+/*
         auto stream = this->owner_->s_.outgoing();
         stream->write_value_async(scope, udp_datagram(this->server(), this->port(), s.data()))
         .execute([stream](const std::shared_ptr<std::exception> & ex){});
+*/
 }
 
 const vds::_connection_manager::udp_channel::incoming_session & 
@@ -724,9 +735,11 @@ bool vds::_connection_manager::udp_channel::process_timer_jobs(const service_pro
     auto server = network_address.server;
     auto port = (uint16_t)std::atoi(network_address.port.c_str());
 
+/*
     auto stream = this->s_.outgoing();
     stream->write_value_async(scope, udp_datagram(server, port, data, false))
     .execute([stream](const std::shared_ptr<std::exception> & ex){});
+*/
   }
 
   return true;

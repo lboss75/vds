@@ -9,7 +9,7 @@ All rights reserved
 #include "network_types_p.h"
 #include "tcp_network_socket.h"
 #include "socket_task_p.h"
-#include "network_service_p.h"
+#include "private/network_service_p.h"
 
 namespace vds {
   class _network_service;
@@ -73,7 +73,7 @@ namespace vds {
       return tcp_network_socket(new _tcp_network_socket(handle));
     }
 
-    void start(const service_provider & sp)
+    void start(const service_provider & sp, const stream<uint8_t> & target)
     {
       sp.get<logger>()->trace("TCP", sp, "socket start");
       
@@ -81,15 +81,15 @@ namespace vds {
       std::make_shared<_read_socket_task>(sp, this->shared_from_this())->read_async();
       std::make_shared<_write_socket_task>(sp, this->shared_from_this())->write_async();
 #else
-      std::make_shared<_socket_handler>(sp, this->s_)->start();
+      auto handler = std::make_shared<_socket_handler>(sp, this->shared_from_this(), target);
+      this->socket_task_ = handler;
+      handler->start();
 #endif//_WIN32
     }
 
-    async_task<size_t /*readed*/> read_async(uint8_t * data, size_t size){
-      return static_cast<_socket_handler *>(this->socket_task_.get())->read_async(data, size);
-    }
     async_task<> write_async(const uint8_t * data, size_t size) override {
-      return static_cast<_socket_handler *>(this->socket_task_.get())->write_async(data, size);
+      auto task = this->socket_task_.lock();
+      return static_cast<_socket_handler *>(task.get())->write_async(data, size);
     }
 
 #ifndef _WIN32
@@ -119,7 +119,7 @@ namespace vds {
     SOCKET_HANDLE s_;
 #ifdef _WIN32
 #else
-    std::shared_ptr<_socket_task> socket_task_;
+    std::weak_ptr<_socket_task> socket_task_;
 #endif
 
 #ifdef _WIN32
@@ -327,79 +327,21 @@ namespace vds {
 
 
 #else
-    class _socket_handler : public _socket_task
+    class _socket_handler : public _socket_task_impl<_socket_handler>
     {
-      using this_class = _socket_handler;
     public:
       _socket_handler(
         const service_provider & sp,
-        SOCKET_HANDLE s)
-        : sp_(sp), s_(s),
-          network_service_(static_cast<_network_service *>(sp.get<inetwork_service>())),
-          event_masks_(EPOLLIN | EPOLLET),
-          read_timeout_ticks_(0),
-          read_status_(read_status_t::bof),
-          read_result_([](const std::shared_ptr<std::exception> & , size_t){
-            throw std::runtime_error("Logic error");
-          }),
+        const std::shared_ptr<_stream_async<uint8_t>> & owner,
+        const stream<uint8_t> & target)
+        : _socket_task_impl<_socket_handler>(sp, static_cast<_tcp_network_socket *>(owner.get())->s_),
+          owner_(owner),
+          target_(target),
           write_result_([](const std::shared_ptr<std::exception> & ){
             throw std::runtime_error("Logic error");
           })
+
       {
-      }
-      
-      ~_socket_handler()
-      {
-        if(EPOLLET != this->event_masks_){
-          this->network_service_->remove_association(this->sp_, this->s_);
-        }
-      }
-
-      void start()
-      {
-        this->network_service_->associate(
-            this->sp_,
-            this->s_,
-            this->shared_from_this(),
-            this->event_masks_);
-      }
-
-      async_task<size_t /*readed*/> read_async(uint8_t * data, size_t size) {
-
-        std::lock_guard<std::mutex> lock(this->read_mutex_);
-        if(read_status_t::waiting_data == this->read_status_){
-          throw std::runtime_error("Invalid operation");
-        }
-
-        int len = read(this->s_, data, size);
-
-        if (len < 0) {
-          int error = errno;
-          if(EAGAIN == error){
-            this->read_buffer_ = data;
-            this->read_buffer_size_ = size;
-            this->read_status_ = read_status_t::waiting_data;
-
-            return [pthis = this->shared_from_this()](
-                const async_result<size_t /*readed*/> & result){
-              auto this_ = static_cast<_socket_handler *>(pthis.get());
-              this_->read_result_ = result;
-              this_->change_mask(EPOLLIN);
-            };
-          }
-
-          return async_task<size_t>(
-              std::make_shared<std::system_error>(
-                  error, std::system_category(), "recv"));
-        }
-
-        if(0 == len){
-          this->read_status_ = read_status_t::eof;
-        }
-
-        this->read_timeout_ticks_ = 0;
-        this->sp_.get<logger>()->trace("TCP", this->sp_, "got %d bytes", len);
-        return async_task<size_t>(len);
       }
 
       async_task<> write_async(const uint8_t * data, size_t size) {
@@ -412,6 +354,7 @@ namespace vds {
               auto this_ = static_cast<_socket_handler *>(pthis.get());
               this_->write_result_ = result;
               this_->write_status_ = write_status_t::waiting_socket;
+              this_->change_mask(EPOLLOUT);
             };
 
           case write_status_t::eof:
@@ -421,155 +364,74 @@ namespace vds {
 
       }
 
-      void prepare_to_stop(const service_provider & sp) override
-      {
-        this->change_mask(0, EPOLLIN);
+      void write_data() {
+        std::unique_lock<std::mutex> lock(this->write_mutex_);
 
-        this->sp_.get<logger>()->trace("TCP", this->sp_, "read timeout");
-
-        std::lock_guard<std::mutex> lock(this->read_mutex_);
-        switch(this->read_status_) {
-          case read_status_t::waiting_data:
-            this->read_status_ = read_status_t::eof;
-            this->read_result_.done(0);
-            break;
-          case read_status_t::bof:
-            this->read_status_ = read_status_t::eof;
-            break;
+        if(write_status_t::waiting_socket != this->write_status_) {
+          throw std::runtime_error("Invalid operation");
         }
-      }
- 
-      void process(uint32_t events) override
-      {
-        if(EPOLLOUT == (EPOLLOUT & events)){
-          this->change_mask(0, EPOLLOUT);
 
-          std::lock_guard<std::mutex> lock(this->write_mutex_);
-
-          if(write_status_t::waiting_socket != this->write_status_){
-            throw std::runtime_error("Invalid design");
-          }
-          
-          int len = write(
+        int len = write(
             this->s_,
             this->write_buffer_,
             this->write_buffer_size_);
-          
-          if (len < 0) {
-            int error = errno;
-            this->write_result_.error(
-                std::make_shared<std::system_error>(
+
+        if (len < 0) {
+          int error = errno;
+          this->write_status_ = write_status_t::bof;
+          lock.unlock();
+
+          this->write_result_.error(
+              std::make_shared<std::system_error>(
                   error,
                   std::generic_category(),
                   "Send"));
-          } else {
+        } else {
+          this->write_status_ = write_status_t::bof;
+          this->sp_.get<logger>()->trace("TCP", this->sp_, "Sent %d bytes", len);
 
-            if ((size_t) len != this->write_buffer_size_) {
-              throw std::runtime_error("Invalid send TCP");
-            }
-
-            this->sp_.get<logger>()->trace("TCP", this->sp_, "Sent %d bytes", len);
+          if ((size_t) len != this->write_buffer_size_) {
+            throw std::runtime_error("Invalid send TCP");
           }
+          lock.unlock();
+
+          this->write_result_.done();
         }
-        
-        if(EPOLLIN == (EPOLLIN & events)){
-          this->change_mask(0, EPOLLIN);
+      }
 
-          std::lock_guard<std::mutex> lock(this->read_mutex_);
-
-          if(read_status_t::waiting_data != this->read_status_){
-            throw std::runtime_error("Invalid design");
-          }
-
+      void read_data() {
+        for(;;) {
           int len = read(
               this->s_,
               this->read_buffer_,
-              this->read_buffer_size_);
+              sizeof(this->read_buffer_));
 
           if (len < 0) {
             int error = errno;
-            this->read_result_.error(
-                std::make_shared<std::system_error>(
+            if (EAGAIN == error) {
+              break;
+            }
+
+            throw std::system_error(
                     error,
                     std::generic_category(),
-                    "Read"));
+                    "Read");
           } else {
             this->sp_.get<logger>()->trace("TCP", this->sp_, "Read %d bytes", len);
-            this->read_result_.done(len);
+            this->target_.write(this->read_buffer_, len);
           }
-        }
-      }
-      
-      void check_timeout(const service_provider & sp) override
-      {
-        std::lock_guard<std::mutex> lock(this->read_mutex_);
-
-        sp.get<logger>()->trace("TCP", sp, "check_timeout(ticks=%d, is_closed=%s)",
-           this->read_timeout_ticks_,
-           ((read_status_t::eof == this->read_status_) ? "true" : "false"));
-        
-        if(1 < this->read_timeout_ticks_++ && (read_status_t::eof != this->read_status_)){
-          this->change_mask(0, EPOLLIN | EPOLLOUT);
-
-          if(read_status_t::waiting_data != this->read_status_){
-            this->read_result_.done(0);
-          }
-
-          this->sp_.get<logger>()->trace("TCP", this->sp_, "read timeout");
-          this->read_status_ = read_status_t::eof;
         }
       }
 
     private:
-      SOCKET_HANDLE s_;
-      service_provider sp_;
-      _network_service * network_service_;
+      std::shared_ptr<_stream_async<uint8_t>> owner_;
 
-      enum class read_status_t{
-        bof,
-        waiting_data,
-        eof
-      };
-
-      std::mutex read_mutex_;
-      read_status_t read_status_;
-      async_result<size_t> read_result_;
-      uint8_t * read_buffer_;
-      size_t read_buffer_size_;
-
-      enum class write_status_t {
-        bof,
-        waiting_socket,
-        eof
-      };
-
-      std::mutex write_mutex_;
-      write_status_t write_status_;
-      async_result<> write_result_;
       const uint8_t * write_buffer_;
       size_t write_buffer_size_;
+      async_result<> write_result_;
 
-      std::mutex event_masks_mutex_;
-      uint32_t event_masks_;
-      int read_timeout_ticks_;
-
-      void change_mask(uint32_t set_events, uint32_t clear_events = 0)
-      {
-        std::unique_lock<std::mutex> lock(this->event_masks_mutex_);
-        auto need_create = (EPOLLET == this->event_masks_);
-        this->event_masks_ |= set_events;
-        this->event_masks_ &= ~clear_events;
-        
-        if(!need_create && EPOLLET != this->event_masks_){
-          this->network_service_->set_events(this->sp_, this->s_, this->event_masks_);
-        }
-        else if (EPOLLET == this->event_masks_){
-          this->network_service_->remove_association(this->sp_, this->s_);
-        }
-        else {
-          this->network_service_->associate(this->sp_, this->s_, this->shared_from_this(), this->event_masks_);
-        }
-      }
+      stream<uint8_t> target_;
+      uint8_t read_buffer_[1024];
     };
 #endif//_WIN32
   };

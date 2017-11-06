@@ -14,30 +14,26 @@ namespace vds {
   {
   public:
     _http_server()
-      : input_commands_(new vds::async_buffer<std::shared_ptr<http_message>>()),
-        output_commands_(new vds::async_buffer<std::shared_ptr<http_message>>())
       {
       }
 
     async_task<> start(
       const vds::service_provider & sp,
-      const std::shared_ptr<_http_server> & pthis,
-      const std::shared_ptr<continuous_buffer<uint8_t>> & incoming_stream,
-      const std::shared_ptr<continuous_buffer<uint8_t>> & outgoing,
       const http_server::handler_type & handler)
     {
+/*
       return async_series(
         http_pipeline(sp, incoming_stream, this->input_commands_, this->output_commands_, outgoing),
         this->process_input(sp, pthis, handler)
       );
+*/
     }
 
   private:
     http_server::handler_type handler_;
-    std::shared_ptr<async_buffer<std::shared_ptr<http_message>>> input_commands_;
-    std::shared_ptr<async_buffer<std::shared_ptr<http_message>>> output_commands_;
     std::shared_ptr<http_message> input_buffer_;
 
+/*
     async_task<> send(
       const vds::service_provider & sp,
       const std::shared_ptr<vds::http_message> & message)
@@ -49,7 +45,9 @@ namespace vds {
         return this->output_commands_->write_value_async(sp, message);
       }
     }
-    
+*/
+
+/*
     async_task<> process_input(
       const vds::service_provider & sp,
       const std::shared_ptr<_http_server> & pthis,
@@ -71,6 +69,7 @@ namespace vds {
           }
       });
     }
+*/
   };
 
 }

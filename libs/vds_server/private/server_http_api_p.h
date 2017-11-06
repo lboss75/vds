@@ -32,9 +32,9 @@ namespace vds {
     void stop(const service_provider & sp);
 
     //override http_router
-    async_task<std::shared_ptr<http_message>> route(
+    async_task<http_message> route(
       const service_provider & sp,
-      const std::shared_ptr<http_message> & request) const;
+      const http_message & request) const;
 
   private:
     tcp_socket_server server_;

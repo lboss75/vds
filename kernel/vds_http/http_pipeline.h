@@ -16,6 +16,7 @@ All rights reserved
 #include "http_parser.h"
 #include "async_buffer.h"
 
+/*
 namespace vds {
     template <typename input_stream_type = async_buffer<uint8_t>, typename output_stream_type = continuous_buffer<uint8_t>>
     inline async_task<> _copy_http_commands(
@@ -24,7 +25,7 @@ namespace vds {
       const std::shared_ptr<std::shared_ptr<http_message>> & buffer,
       const std::shared_ptr<async_buffer<std::shared_ptr<http_message>>> & output_commands)
     {
-      return output_commands->read_async(sp, buffer.get(), 1)
+      return output_commands->read_async(buffer.get(), 1)
       .then([sp, serializer, buffer, output_commands](size_t readed){
         if(0 != readed){
           return serializer->write_async(sp, *buffer)
@@ -51,10 +52,10 @@ namespace vds {
       auto parser = std::make_shared<http_parser>(
         [sp, input_commands](const std::shared_ptr<http_message> & request) -> async_task<> {
           if (!request) {
-            return input_commands->write_all_async(sp, nullptr, 0);
+            return input_commands->write_async(nullptr, 0);
           }
           else {
-            return input_commands->write_value_async(sp, request);
+            return input_commands->write_value_async(request);
           }
       });
 
@@ -68,5 +69,6 @@ namespace vds {
       );
     }
 }
+*/
 
 #endif // __VDS_HTTP_HTTP_PIPELINE_H_

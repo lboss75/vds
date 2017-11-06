@@ -19,12 +19,13 @@ vds::tcp_network_socket::tcp_network_socket(
 {
 }
 
-vds::async_task< const vds::tcp_network_socket &> vds::tcp_network_socket::connect(
+vds::tcp_network_socket vds::tcp_network_socket::connect(
   const vds::service_provider& sp,
   const std::string & server,
-  const uint16_t port)
+  const uint16_t port,
+  const stream<uint8_t> & input_handler)
 {
-  return [sp, server, port](){
+
       auto s = std::make_unique<_tcp_network_socket>(
 #ifdef _WIN32
         WSASocket(PF_INET, SOCK_STREAM, 0, NULL, 0, WSA_FLAG_OVERLAPPED)
@@ -62,14 +63,13 @@ vds::async_task< const vds::tcp_network_socket &> vds::tcp_network_socket::conne
 #endif
       
       tcp_network_socket sc(s.release());
-      sc->start(sp);
+      sc.start(sp, input_handler);
       return sc;
-    };
 }
 
 
 void vds::tcp_network_socket::close()
 {
-  static_cast<tcp_network_socket *>(this->impl_.get())->close();
+  static_cast<_tcp_network_socket *>(this->impl_.get())->close();
 }
 

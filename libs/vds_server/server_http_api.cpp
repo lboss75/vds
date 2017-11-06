@@ -38,20 +38,20 @@ vds::async_task<> vds::_server_http_api::start(
   const std::string & address,
   int port,
   certificate & certificate,
-  asymmetric_private_key & private_key)
-{
+  asymmetric_private_key & private_key) {
   return [this, sp, address, port, certificate, private_key]() {
     //upnp_client upnp(sp);
     //upnp.open_port(8000, 8000, "TCP", "VDS Service");
 
     return this->server_.start(
-      sp,
-      address,
-      port,
-      [this, certificate, private_key](const service_provider & sp, const tcp_network_socket & s) {
+        sp,
+        address,
+        port,
+        [this, certificate, private_key](const service_provider &sp, const tcp_network_socket &s) {
 
-      auto crypto_tunnel = std::make_shared<ssl_tunnel>(false, &certificate, &private_key);
-      auto server = std::make_shared<http_server>();
+//          auto crypto_tunnel = std::make_shared<ssl_tunnel>(false, &certificate, &private_key);
+          auto server = std::make_shared<http_server>();
+/*
       async_series(
         server->start(sp,
           crypto_tunnel->decrypted_output(), crypto_tunnel->decrypted_input(),
@@ -80,17 +80,19 @@ vds::async_task<> vds::_server_http_api::start(
           } else {
             sp.unhandled_exception(ex);
         };
-      crypto_tunnel->start(sp);
-    });
-  });
-};
+*/
+          //crypto_tunnel->start(sp);
+        });
+  };
 }
 
 void vds::_server_http_api::stop(const service_provider & /*sp*/)
 {
 }
 
-vds::async_task<std::shared_ptr<vds::http_message>> vds::_server_http_api::route(const service_provider & sp, const std::shared_ptr<http_message>& message) const
+vds::async_task<vds::http_message> vds::_server_http_api::route(
+    const service_provider & sp,
+    const http_message & message) const
 {
   http_request request(message);
 

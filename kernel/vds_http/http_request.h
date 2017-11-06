@@ -14,19 +14,29 @@ namespace vds {
   class http_request
   {
   public:
-    http_request(const std::shared_ptr<http_message> & message);
+    http_request(const http_message & message);
 
     http_request(
+        const service_provider & sp,
+        const std::list<std::string> & headers,
+        const std::string & method,
+        const std::string & url,
+        const std::string & agent = "HTTP/1.0"
+    ): message_(sp, headers), method_(method), url_(url), agent_(agent)
+    {
+      this->parse_parameters();
+    }
+
+    static http_request create(
+      const service_provider & sp,
       const std::string & method,
       const std::string & url,
-      const std::string & agent = "HTTP/1.0"
-      ): method_(method), url_(url), agent_(agent)
+      const std::string & agent = "HTTP/1.0")
     {
       std::list<std::string> headers;
       headers.push_back(method + " " + url + " " + agent);
 
-      this->message_ = std::make_shared<http_message>(headers);
-      this->parse_parameters();
+      return http_request(sp, headers, method, url, agent);
     }
 
     const std::string & url() const {
@@ -41,25 +51,25 @@ namespace vds {
     }
 
     const std::list<std::string> & headers() {
-      return this->message_->headers();
+      return this->message_.headers();
     }
 
     bool get_header(const std::string & name, std::string & value) {
-      return this->message_->get_header(name, value);
+      return this->message_.get_header(name, value);
     }
     
-    std::shared_ptr<http_message> get_message() const {
+    const http_message & get_message() const {
       return this->message_;
     }
     
-    static std::shared_ptr<http_message> simple_request(
+    static http_message simple_request(
       const service_provider & sp,
       const std::string & method,
       const std::string & url,
       const std::string & body);
 
   private:
-    std::shared_ptr<http_message> message_;
+    http_message message_;
     std::string method_;
     std::string url_;
     std::list<std::string> parameters_;
