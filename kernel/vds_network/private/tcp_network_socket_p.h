@@ -435,6 +435,11 @@ namespace vds {
     };
 #endif//_WIN32
   };
+
+  inline _tcp_network_socket * tcp_network_socket::operator ->() const {
+    return static_cast<_tcp_network_socket *>(this->impl_.get());
+  }
+
 }
 
 #endif//__VDS_NETWORK_NETWORK_SOCKET_P_H_

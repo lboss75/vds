@@ -29,6 +29,7 @@ namespace vds {
     void close();
 
     class _tcp_network_socket * operator ->() const;
+
   private:
     friend class _tcp_network_socket;
     tcp_network_socket(class _tcp_network_socket * impl);
