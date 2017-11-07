@@ -8,6 +8,7 @@ All rights reserved
 
 namespace vds {
   struct hash_info;
+  class const_data_buffer;
 
   class _hash;
   class hash
