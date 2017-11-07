@@ -45,7 +45,7 @@ TEST(test_user_operations, test_add_user)
   auto channel2 = manager.create_channel(user2, user2_private_key, "channel2");
   
   auto channel3 = manager.create_channel(user1, user1_private_key, "channel3");
-  channel3.add_user(user2);
+  //channel3.add_user(user2);
   
   char test_data1[] = "test message1";
   auto message1 = channel1.crypt_message(user1, vds::const_data_buffer((const uint8_t *)test_data1, sizeof(test_data1) - 1));

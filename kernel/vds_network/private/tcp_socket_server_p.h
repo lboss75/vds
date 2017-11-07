@@ -199,7 +199,6 @@ namespace vds {
                       auto s = _tcp_network_socket::from_handle(socket);
                       s->make_socket_non_blocking();
                       s->set_timeouts();
-                      s->start(scope);
                       this->new_connection_(scope, s);
                     }
                   }

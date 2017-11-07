@@ -7,14 +7,10 @@ All rights reserved
 */
 
 namespace vds {
-  struct hash_info;
-  class const_data_buffer;
-
-  class _hash;
   class hash
   {
   public:
-    static const hash_info & md5();
+    static const struct hash_info & md5();
     static const hash_info & sha256();
 
     hash(const hash_info & info);
@@ -26,7 +22,7 @@ namespace vds {
 
     void final();
 
-    const const_data_buffer & signature() const;
+    const class const_data_buffer & signature() const;
     
     static const_data_buffer signature(
       const hash_info & info,
@@ -38,7 +34,7 @@ namespace vds {
       size_t data_size);
     
   private:
-    _hash * impl_;
+    class _hash * impl_;
   };
 
   class _hmac;

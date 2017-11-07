@@ -465,8 +465,8 @@ bool vds::_principal_manager::get_record(
           order_num);
       });
     
-    parser.write(sp, (const uint8_t *)message.c_str(), message.length());
-    parser.write(sp, nullptr, 0);
+    parser.write((const uint8_t *)message.c_str(), message.length());
+    parser.write(nullptr, 0);
   }
 
   return result;
@@ -536,8 +536,8 @@ bool vds::_principal_manager::get_record_by_state(
           body,
           order_num);
       });
-    parser.write(sp, (const uint8_t *)message.c_str(), message.length());
-    parser.write(sp, nullptr, 0);
+    parser.write((const uint8_t *)message.c_str(), message.length());
+    parser.write(nullptr, 0);
   }
 
   return result;  
@@ -580,8 +580,8 @@ void vds::_principal_manager::get_principal_log(
     json_parser parser("Message parser", [&msg](const std::shared_ptr<json_value> & m){
       msg = m;
     });
-    parser.write(sp, (const uint8_t *)message.c_str(), message.length());
-    parser.write(sp, nullptr, 0);
+    parser.write((const uint8_t *)message.c_str(), message.length());
+    parser.write(nullptr, 0);
 
     records.push_back(principal_log_record(
       id,

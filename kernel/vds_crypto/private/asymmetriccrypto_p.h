@@ -140,7 +140,7 @@ namespace vds {
     EVP_PKEY * key_;
   };
 
-  class _asymmetric_sign
+  class _asymmetric_sign : public _stream<uint8_t>
   {
   public:
     _asymmetric_sign(
@@ -150,12 +150,8 @@ namespace vds {
     ~_asymmetric_sign();
 
     void write(
-      const void * data,
-      int len);
-
-	async_task<> write_async(
-		const void * data,
-		int len);
+      const uint8_t * data,
+      size_t len) override;
 
     const const_data_buffer & signature() const {
       return this->sig_;
@@ -167,7 +163,7 @@ namespace vds {
     const_data_buffer sig_;
   };
 
-  class _asymmetric_sign_verify
+  class _asymmetric_sign_verify : public _stream<uint8_t>
   {
   public:
     _asymmetric_sign_verify(
@@ -178,9 +174,8 @@ namespace vds {
     ~_asymmetric_sign_verify();
 
     void write(
-      const service_provider & sp,
-      const void * data,
-      int len);
+      const uint8_t * data,
+      size_t len);
 
     bool result() const { return this->result_; }
 

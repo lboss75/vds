@@ -9,28 +9,24 @@ All rights reserved
 #include "private/write_socket_task_p.h"
 
 vds::tcp_network_socket::tcp_network_socket()
-: impl_(new _tcp_network_socket())
+: stream_async<uint8_t>(new _tcp_network_socket())
 {
 }
 
-vds::tcp_network_socket::tcp_network_socket(const std::shared_ptr< vds::_tcp_network_socket >& impl)
-: impl_(impl)
+vds::tcp_network_socket::tcp_network_socket(
+    _tcp_network_socket * impl)
+: stream_async<uint8_t>(impl)
 {
-
 }
 
-
-vds::tcp_network_socket::~tcp_network_socket()
-{  
-}
-
-vds::async_task< const vds::tcp_network_socket &> vds::tcp_network_socket::connect(
+vds::tcp_network_socket vds::tcp_network_socket::connect(
   const vds::service_provider& sp,
   const std::string & server,
-  const uint16_t port)
+  const uint16_t port,
+  const stream<uint8_t> & input_handler)
 {
-  return [sp, server, port](){
-      auto s = std::make_shared<_tcp_network_socket>(
+
+      auto s = std::make_unique<_tcp_network_socket>(
 #ifdef _WIN32
         WSASocket(PF_INET, SOCK_STREAM, 0, NULL, 0, WSA_FLAG_OVERLAPPED)
 #else
@@ -66,24 +62,20 @@ vds::async_task< const vds::tcp_network_socket &> vds::tcp_network_socket::conne
       s->set_timeouts();
 #endif
       
-      tcp_network_socket sc(s);
-      sc->start(sp);
+      tcp_network_socket sc(s.release());
+      sc.start(sp, input_handler);
       return sc;
-    };
 }
 
-std::shared_ptr<vds::continuous_buffer<uint8_t>> vds::tcp_network_socket::incoming() const
-{
-  return this->impl_->incoming();
-}
-
-std::shared_ptr<vds::continuous_buffer<uint8_t>> vds::tcp_network_socket::outgoing() const
-{
-  return this->impl_->outgoing();
-}
 
 void vds::tcp_network_socket::close()
 {
-  this->impl_->close();
+  static_cast<_tcp_network_socket *>(this->impl_.get())->close();
+}
+
+void vds::tcp_network_socket::start(
+    const vds::service_provider &sp,
+    const vds::stream<uint8_t> &input_handler) {
+  static_cast<_tcp_network_socket *>(this->impl_.get())->start(sp, input_handler);
 }
 

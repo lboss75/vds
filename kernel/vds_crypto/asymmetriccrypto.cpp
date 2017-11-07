@@ -272,26 +272,13 @@ const vds::asymmetric_crypto_info & vds::asymmetric_crypto::rsa4096()
 vds::asymmetric_sign::asymmetric_sign(
   const hash_info & hash_info,
   const asymmetric_private_key & key)
-: impl_(new _asymmetric_sign(hash_info, key))
+: stream<uint8_t>(new _asymmetric_sign(hash_info, key))
 {
-}
-
-vds::asymmetric_sign::~asymmetric_sign()
-{
-  delete this->impl_;
-}
-
-void vds::asymmetric_sign::write(
-  const service_provider & sp,
-  const uint8_t * data,
-  size_t len)
-{
-  this->impl_->write(data, len);
 }
 
 vds::const_data_buffer vds::asymmetric_sign::signature()
 {
-  return this->impl_->signature();
+  return static_cast<_asymmetric_sign *>(this->impl_.get())->signature();
 }
 
 vds::const_data_buffer vds::asymmetric_sign::signature(
@@ -313,14 +300,16 @@ vds::const_data_buffer vds::asymmetric_sign::signature(
   size_t data_size)
 {
   _asymmetric_sign s(hash_info, key);
-  s.write(data, data_size);
+  s.write(reinterpret_cast<const uint8_t *>(data), data_size);
   s.write(nullptr, 0);
   return s.signature();
 }
 
 
 ////////////////////////////////////////////////////////////////////////////////
-vds::_asymmetric_sign::_asymmetric_sign(const hash_info & hash_info, const asymmetric_private_key & key)
+vds::_asymmetric_sign::_asymmetric_sign(
+    const hash_info & hash_info,
+    const asymmetric_private_key & key)
   : md_(nullptr)
 {
   this->ctx_ = EVP_MD_CTX_create();
@@ -353,7 +342,7 @@ vds::_asymmetric_sign::~_asymmetric_sign()
   }
 }
 
-void vds::_asymmetric_sign::write(const void * data, int len)
+void vds::_asymmetric_sign::write(const uint8_t * data, size_t len)
 {
 	if (0 == len) {
 		size_t req = 0;
@@ -390,37 +379,18 @@ void vds::_asymmetric_sign::write(const void * data, int len)
   }
 }
 
-vds::async_task<> vds::_asymmetric_sign::write_async(const void * data, int len)
-{
-	this->write(data, len);
-	return []() {};
-}
-
 ///////////////////////////////////////////////////////////////
 vds::asymmetric_sign_verify::asymmetric_sign_verify(
   const hash_info & hash_info,
   const asymmetric_public_key & key,
   const const_data_buffer & sig)
-: impl_(new _asymmetric_sign_verify(hash_info, key, sig))
+: stream<uint8_t>(new _asymmetric_sign_verify(hash_info, key, sig))
 {
-}
-
-vds::asymmetric_sign_verify::~asymmetric_sign_verify()
-{
-  delete this->impl_;
-}
-
-void vds::asymmetric_sign_verify::write(
-  const service_provider & sp, 
-  const uint8_t * data,
-  size_t len)
-{
-  this->impl_->write(sp, data, len);
 }
 
 bool vds::asymmetric_sign_verify::result() const
 {
-  return this->impl_->result();
+  return static_cast<_asymmetric_sign_verify *>(this->impl_.get())->result();
 }
 
 bool vds::asymmetric_sign_verify::verify(
@@ -432,8 +402,8 @@ bool vds::asymmetric_sign_verify::verify(
   size_t data_size)
 {
   _asymmetric_sign_verify s(hash_info, key, signature);
-  s.write(sp, data, data_size);
-  s.write(sp, nullptr, 0);
+  s.write(reinterpret_cast<const uint8_t *>(data), data_size);
+  s.write(nullptr, 0);
   return s.result();
 }
 
@@ -485,9 +455,8 @@ vds::_asymmetric_sign_verify::~_asymmetric_sign_verify()
 }
 
 void vds::_asymmetric_sign_verify::write(
-  const service_provider & sp,
-  const void * data,
-  int len)
+  const uint8_t * data,
+  size_t len)
 {
 	if (0 == len) {
 		this->result_ = (1 == EVP_DigestVerifyFinal(this->ctx_, const_cast<unsigned char *>(this->sig_.data()), this->sig_.size()));

@@ -11,6 +11,7 @@ endif (UNIX)
 
 include_directories(${vds_core_SOURCE_DIR})
 include_directories(${vds_crypto_SOURCE_DIR})
+include_directories(${vds_network_SOURCE_DIR})
 include_directories(${OPENSSL_INCLUDE_DIR})
 
 FILE(GLOB HEADER_FILES *.h)
@@ -23,6 +24,7 @@ target_link_libraries(
         vds_p2p_network
         vds_core
         vds_crypto
+        vds_network
         ${OPENSSL_LIBRARIES}
         ${CMAKE_THREAD_LIBS_INIT}
 )

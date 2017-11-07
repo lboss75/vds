@@ -15,7 +15,9 @@ namespace vds {
   class _ssl_tunnel {
   public:
     _ssl_tunnel(
-      ssl_tunnel * owner,
+      const service_provider & sp,
+      const stream_async<uint8_t> & crypted_output,
+      const stream_async<uint8_t> & decrypted_output,
       bool is_client,
       const certificate * cert,
       const asymmetric_private_key * key);
@@ -28,11 +30,8 @@ namespace vds {
 
     certificate get_peer_certificate() const;
 
-    std::shared_ptr<continuous_buffer<uint8_t>> crypted_input() const { return this->crypted_input_; }
-    std::shared_ptr<continuous_buffer<uint8_t>> crypted_output() const { return this->crypted_output_; }
-
-    std::shared_ptr<continuous_buffer<uint8_t>> decrypted_input() const { return this->decrypted_input_; }
-    std::shared_ptr<continuous_buffer<uint8_t>> decrypted_output() const { return this->decrypted_output_; }
+    stream_async<uint8_t> & crypted_input()  { return this->crypted_input_; }
+    stream_async<uint8_t> & decrypted_input() { return this->decrypted_input_; }
 
     void start(const service_provider & sp)
     {
@@ -73,18 +72,18 @@ namespace vds {
 
     std::mutex state_mutex_;
 
-    std::shared_ptr<continuous_buffer<uint8_t>> crypted_input_;
-    std::shared_ptr<continuous_buffer<uint8_t>> crypted_output_;
+    continuous_buffer<uint8_t> crypted_input_;
+    stream_async<uint8_t> crypted_output_;
 
-    std::shared_ptr<continuous_buffer<uint8_t>> decrypted_input_;
-    std::shared_ptr<continuous_buffer<uint8_t>> decrypted_output_;
+    continuous_buffer<uint8_t> decrypted_input_;
+    stream_async<uint8_t> decrypted_output_;
     
     bool failed_state_;
     std::function<void(const std::shared_ptr<std::exception> &)> error_handler_;
 
     void start_crypted_input(const service_provider & sp)
     {
-      this->crypted_input_->read_async(sp, this->crypted_input_data_, sizeof(this->crypted_input_data_))
+      this->crypted_input_.read_async(this->crypted_input_data_, sizeof(this->crypted_input_data_))
         .execute([this, sp](const std::shared_ptr<std::exception> & ex, size_t readed) {
           
           this->state_mutex_.lock();
@@ -120,7 +119,7 @@ namespace vds {
         throw std::runtime_error("Login error");
       }
       
-      this->decrypted_input_->read_async(sp, this->decrypted_input_data_, sizeof(this->decrypted_input_data_))
+      this->decrypted_input_.read_async(this->decrypted_input_data_, sizeof(this->decrypted_input_data_))
         .execute([this, sp](const std::shared_ptr<std::exception> & ex, size_t readed) {
           this->state_mutex_.lock();
           if(!ex){
@@ -201,10 +200,10 @@ namespace vds {
             case SSL_ERROR_WANT_ACCEPT:
             case SSL_ERROR_ZERO_RETURN:
               if (this->crypted_input_eof_ && this->decrypted_output_) {
-                auto tmp = this->decrypted_output_;
-                this->decrypted_output_.reset();
+                auto & tmp = this->decrypted_output_;
+                this->decrypted_output_ = continuous_buffer<uint8_t>(sp);
 
-                tmp->write_async(sp, nullptr, 0)
+                tmp.write_async(nullptr, 0)
                   .execute(
                     [this, sp](const std::shared_ptr<std::exception> & ex) {
                       if(!ex){
@@ -231,7 +230,7 @@ namespace vds {
           else {
             this->decrypted_output_data_size_ = bytes;
 
-            this->decrypted_output_->write_async(sp, this->decrypted_output_data_, (size_t)bytes)
+            this->decrypted_output_.write_async(this->decrypted_output_data_, (size_t)bytes)
               .execute([this, sp](const std::shared_ptr<std::exception> & ex) {
                   this->state_mutex_.lock();
                   if(!ex){
@@ -273,7 +272,7 @@ namespace vds {
           else {
             this->crypted_output_data_size_ = (size_t)bytes;
 
-            this->crypted_output_->write_async(sp, this->crypted_output_data_, (size_t)bytes)
+            this->crypted_output_.write_async(this->crypted_output_data_, (size_t)bytes)
               .execute([this, sp](const std::shared_ptr<std::exception> & ex) {
               this->state_mutex_.lock();
               if(!ex){
@@ -302,9 +301,9 @@ namespace vds {
             && 0 == this->crypted_output_data_size_
             && this->crypted_output_) {
             auto tmp = this->crypted_output_;
-            this->crypted_output_.reset();
+            this->crypted_output_ = continuous_buffer<uint8_t>(sp);
 
-            tmp->write_async(sp, nullptr, 0)
+            tmp.write_async(nullptr, 0)
               .execute([this, sp](const std::shared_ptr<std::exception> & ex) {
                 if(!ex){
                   sp.get<logger>()->trace("SSL", sp, "SSL Crypted output closed");

@@ -75,8 +75,8 @@ namespace vds {
     udp_socket();
     ~udp_socket();
 
-    std::shared_ptr<continuous_buffer<udp_datagram>> incoming();
-    std::shared_ptr<async_buffer<udp_datagram>> outgoing();
+    async_task<const udp_datagram &> read_async();
+    async_task<> write_async(const udp_datagram & message);
 
     void stop();
 
@@ -104,7 +104,8 @@ namespace vds {
     udp_socket start(
       const service_provider & sp,
       const std::string & address,
-      int port);
+      int port,
+      const std::function<void(const udp_datagram &)> & target);
 
     void stop(const service_provider & sp);
 
@@ -119,7 +120,8 @@ namespace vds {
     ~udp_client();
 
     udp_socket start(
-      const service_provider & sp);
+      const service_provider & sp,
+      const std::function<void(const udp_datagram &)> & target);
 
     void stop(const service_provider & sp);
 

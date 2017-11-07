@@ -16,9 +16,9 @@ namespace vds {
   public:
     http_router();
 
-    async_task<std::shared_ptr<http_message>> route(
+    http_message route(
       const service_provider & sp,
-      const std::shared_ptr<http_message> & request) const;
+      const http_message & request) const;
     
     void add_static(
       const std::string & url,

@@ -6,7 +6,7 @@
 #include "udp_transport.h"
 #include "private/udp_transport_p.h"
 #include "binary_serialize.h
-#include "../../kernel/vds_network/udp_socket.h"
+#include "udp_socket.h"
 
 static constexpr uint8_t protocol_version = 0;
 ///////////////////////////////////////////////////////
@@ -36,7 +36,7 @@ void vds::_udp_transport::continue_read_outgoing_stream(const service_provider &
           pthis->outgoing_stream_state_ = outgoing_stream_state::eof;
           //EOF
         } else {
-          this->outgoing_stream_buffer_count_ += readed;
+          pthis->outgoing_stream_buffer_count_ += readed;
           if(sizeof(pthis->outgoing_stream_buffer_) / sizeof(pthis->outgoing_stream_buffer_[0])
              < pthis->outgoing_stream_buffer_count_){
             pthis->continue_read_outgoing_stream(sp);
@@ -64,66 +64,114 @@ void vds::_udp_transport::send_data(
   }
 }
 
+vds::async_task<> vds::_udp_transport::session::incomming_message(
+    const service_provider & sp,
+    const uint8_t * data,
+    uint16_t size)
+{
+  if(4 > size){
+    return async_task<>(std::make_shared<std::runtime_error>("Small message"));
+  }
+
+  if(0x80 == (0x80 & data[0])){
+    switch((control_type)(data[0] >> 4)){
+      case control_type::Handshake:
+        break;
+
+    }
+  } else {
+    auto seq = *(uint32_t *)data;
+
+    std::unique_lock<std::mutex> lock(this->incoming_sequence_mutex_);
+    if(this->future_data_.end() == this->future_data_.find(seq)) {
+      this->future_data_[seq] = const_data_buffer(data + 4, size - 4);
+      return this->continue_process_incoming_data(sp);
+    } else {
+      return async_task<>::empty();
+    }
+  }
+}
+
+vds::async_task<> vds::_udp_transport::session::continue_process_incoming_data(
+    const service_provider & sp){
+
+  if(this->future_data_.empty()
+     || this->min_incoming_sequence_ != this->future_data_.begin()->first) {
+    return async_task<>::empty();
+  }
+
+  auto data = this->future_data_.begin()->second;
+  this->min_incoming_sequence_++;
+  this->future_data_.erase(this->future_data_.begin());
+
+  return this->push_data(sp, data).then([pthis = this->shared_from_this(), sp](){
+    std::unique_lock<std::mutex> lock(this->incoming_sequence_mutex_);
+    return pthis->continue_process_incoming_data(sp);
+  });
+}
+
+
+void vds::_udp_transport::session::on_timer(const std::shared_ptr<_udp_transport> & owner) {
+  std::unique_lock<std::mutex> lock(this->incoming_sequence_mutex_);
+  std::unique_lock<std::mutex> owner_lock(owner->send_data_buffer_mutex_);
+
+  owner->send_data_buffer_.emplace(std::make_shared<acknowledgement_datagram>(
+      this->shared_from_this(),
+      this->min_incoming_sequence_,
+      this->future_data_.empty()
+      ? this->min_incoming_sequence_
+      : this->future_data_.rbegin()->first));
+}
+
+vds::async_task<> vds::_udp_transport::session::push_data(
+    const service_provider & sp,
+    const const_data_buffer & data){
+  const uint8_t * p;
+  size_t s;
+
+  if(0 == this->expected_size_){
+    this->expected_size_ = ntohs(*reinterpret_cast<const uint16_t *>(data.data()));
+    this->expected_buffer_.reset(this->expected_size_);
+    this->expected_buffer_p_ = const_cast<uint8_t *>(this->expected_buffer_.data());
+    p = data.data() + 2;
+    s = data.size() - 2;
+  } else {
+    p = data.data();
+    s = data.size();
+  }
+
+  if(this->expected_size_ < s){
+    return async_task<>(std::make_shared<std::runtime_error>("Invalid data"));
+  }
+
+  memcpy(this->expected_buffer_p_, p, s);
+  this->expected_buffer_p_ += s;
+  this->expected_size_ -= s;
+
+  if(0 == this->expected_size_){
+    return this->socket_.write_async(
+        sp,
+        this->expected_buffer_.data(),
+        this->expected_buffer_.size());
+  } else {
+    return async_task<>::empty();
+  }
+}
+
 void vds::_udp_transport::continue_send_data(const service_provider & sp) {
 
   std::unique_lock<std::mutex> lock(this->send_data_buffer_mutex_);
-  datagram message = this->send_data_buffer_.front();
+  auto & generator = this->send_data_buffer_.front();
   lock.unlock();
 
-  auto seq_number = message.owner_->output_sequence_number();
-  ((uint32_t *)this->buffer_)[0] = htonl(seq_number);
-
-  uint16_t  len;
-  if(0 == message.offset_){
-    ((uint16_t *)this->buffer_)[3] = htons(message.data_.size());
-    auto size = message.owner_->mtu() - 6;
-    if(size > message.data_.size()){
-      size = message.data_.size();
-    }
-
-    memcpy(this->buffer_ + 6, message.data_.data(), size);
-    message.offset_ += size;
-    len = size + 6;
-/*
-    0                   1                   2                   3
-    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    |0|                     Seq. No.                                |
-    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    |        Size                 |                                 |
-    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+                                 +
-    |                                                               |
-    ~                            Data                               ~
-    |                                                               |
-    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-*/
-
-  } else {
-    auto size = message.owner_->mtu() - 4;
-    if(size > message.data_.size() - message.offset_){
-      size = message.data_.size() - message.offset_;
-    }
-
-    memcpy(this->buffer_ + 4, message.data_.data() + message.offset_, size);
-    message.offset_ += size;
-    len = size + 4;
-/*
-    0                   1                   2                   3
-    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    |0|                     Seq. No.                                |
-    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    |                                                               |
-    ~                            Data                               ~
-    |                                                               |
-    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-*/
-  }
-
+  auto len = generator->generate_message(this->buffer_);
   this->socket_.send(sp,
-      udp_datagram::create(message.owner_->address().server,
-        message.owner_->address().port, this->buffer_, len)).execute(
-      [pthis = this->shared_from_this(), sp, session = message.owner_](
+      udp_datagram::create(generator->owner()->address().server,
+                           generator->owner()->address().port,
+                           this->buffer_,
+                           len))
+      .execute(
+      [pthis = this->shared_from_this(), sp, generator](
           const std::shared_ptr<std::exception> & ex){
         if(ex){
           auto datagram_error = std::dynamic_pointer_cast<udp_datagram_size_exception>(ex);

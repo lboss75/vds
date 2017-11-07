@@ -75,16 +75,6 @@ vds::udp_socket::~udp_socket()
 {
 }
 
-std::shared_ptr<vds::continuous_buffer<vds::udp_datagram>> vds::udp_socket::incoming()
-{
-  return this->impl_->incoming();
-}
-
-std::shared_ptr<vds::async_buffer<vds::udp_datagram>> vds::udp_socket::outgoing()
-{
-  return this->impl_->outgoing();
-}
-
 void vds::udp_socket::stop()
 {
   this->impl_->stop();
@@ -142,10 +132,11 @@ vds::udp_server::~udp_server()
 vds::udp_socket vds::udp_server::start(
   const service_provider & sp,
   const std::string & address,
-  int port)
+  int port,
+  const std::function<void(const udp_datagram &)> & target)
 {
   this->impl_.reset(new _udp_server(address, port));
-  return this->impl_->start(sp);
+  return this->impl_->start(sp, target);
 
 }
 
@@ -162,10 +153,12 @@ vds::udp_client::~udp_client()
 {
 }
 
-vds::udp_socket vds::udp_client::start(const service_provider & sp)
+vds::udp_socket vds::udp_client::start(
+    const service_provider & sp,
+    const std::function<void(const udp_datagram &)> & target)
 {
   this->impl_.reset(new _udp_client());
-  return this->impl_->start(sp);
+  return this->impl_->start(sp, target);
 }
 
 void vds::udp_client::stop(const service_provider & sp)

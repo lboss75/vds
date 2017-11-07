@@ -13,8 +13,24 @@ namespace vds {
 
   class udp_transport {
   public:
-    continuous_buffer<const_data_buffer> & incoming();
-    continuous_buffer<const_data_buffer> & outgoing();
+    class session {
+    public:
+      const std::string & address() const;
+
+      async_task<> send(
+          const service_provider & sp,
+          const const_data_buffer & message);
+
+    private:
+      std::shared_ptr<class _session> impl_;
+    };
+
+    typedef std::function<async_task<>(const session & source, const const_data_buffer & message)> message_handler_t;
+
+    udp_transport(const message_handler_t & message_handler);
+    async_task<const session &> connect(
+        const service_provider & sp,
+        const std::string & address);
 
   private:
     std::shared_ptr<class _p2p_transport> impl_;

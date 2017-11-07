@@ -15,6 +15,9 @@ namespace vds {
   class ssl_tunnel {
   public:
     ssl_tunnel(
+      const service_provider & sp,
+      const stream_async<uint8_t> & crypted_output,
+      const stream_async<uint8_t> & decrypted_output,
       bool is_client,
       const certificate * cert,
       const asymmetric_private_key * key
@@ -24,11 +27,8 @@ namespace vds {
     
     bool is_client() const;
 
-    std::shared_ptr<continuous_buffer<uint8_t>> crypted_input();
-    std::shared_ptr<continuous_buffer<uint8_t>> crypted_output();
-
-    std::shared_ptr<continuous_buffer<uint8_t>> decrypted_input();
-    std::shared_ptr<continuous_buffer<uint8_t>> decrypted_output();
+    vds::stream_async<uint8_t> & crypted_input();
+    vds::stream_async<uint8_t> & decrypted_input();
 
     void start(const service_provider & sp);
     certificate get_peer_certificate() const;

@@ -5,7 +5,7 @@ All rights reserved
 
 #include "http_message.h"
 
-bool vds::http_message::get_header(const std::string& name, std::string& value)
+bool vds::http_message::get_header(const std::string& name, std::string& value) const
 {
   for (auto& p : this->headers_) {
     //Start with
