@@ -6,19 +6,18 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
-#include <unordered_map>
+#include <map>
 #include <queue>
 
 #include "async_task.h"
+#include "udp_socket.h"
 
 namespace vds {
 
   class _udp_transport : public std::enable_shared_from_this<_udp_transport> {
   public:
     _udp_transport(const udp_socket & socket);
-    ~_udp_transport();
-
-    
+    ~_udp_transport();   
 
 
     void start(const service_provider & sp);
@@ -29,15 +28,20 @@ namespace vds {
     udp_datagram incomming_buffer_;
     bool incomming_eof_;
 
-    struct address {
+    struct address_t {
       std::string server_;
       uint16_t port_;
 
-      address(
+      address_t(
           const std::string & server,
           uint16_t port)
           : server_(server), port_(port)
       {
+      }
+
+      bool operator < (const address_t & other) const {
+        return (this->server_ < other.server_) ? true :
+          ((this->port_ < other.port_) ? true : false);
       }
     };
 
@@ -45,7 +49,7 @@ namespace vds {
     public:
 
 
-      const address & address() const {
+      const address_t & address() const {
         return this->address_;
       }
 
@@ -89,14 +93,14 @@ namespace vds {
     |                                                               |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 */
-      enum class control_type : public uint8_t {
-        Handshake =       1000b,//seq: version
-        Keep_alive =      1001b,//
-        Acknowledgement = 1010b,//seq: last package
-        Failed          = 1011b,//seq: last package, info: failed bits
+      enum class control_type : uint8_t {
+        Handshake =       0b1000,//seq: version
+        Keep_alive =      0b1001,//
+        Acknowledgement = 0b1010,//seq: last package
+        Failed          = 0b1011 //seq: last package, info: failed bits
       };
 
-      address address_;
+      address_t address_;
       uint32_t output_sequence_number_;
       uint32_t input_sequence_number_;
 
@@ -157,7 +161,7 @@ namespace vds {
 
     };
 
-    std::unordered_map<address, std::shared_ptr<session>> sessions_;
+    std::map<address_t, std::shared_ptr<session>> sessions_;
     std::mutex sessions_mutex_;
 
     class datagram_generator {
@@ -212,11 +216,11 @@ namespace vds {
 */
           ((uint16_t *)buffer)[3] = htons(this->data_.size());
           auto size = this->owner()->mtu() - 6;
-          if(size > this->data().size()){
-            size = this->data().size();
+          if(size > this->data_.size()){
+            size = this->data_.size();
           }
 
-          memcpy(buffer + 6, this->data().data(), size);
+          memcpy(buffer + 6, this->data_.data(), size);
           this->offset_ += size;
           return size + 6;
 
@@ -268,7 +272,7 @@ namespace vds {
 
       }
       bool is_eof() const override {
-        return (this->offset_ >= this->data_.size());
+        return true;
       }
 
     private:

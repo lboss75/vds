@@ -103,7 +103,7 @@ namespace vds {
               std::function<void(void)> f;
               this_->continue_read_.swap(f);
   #ifdef _DEBUG
-              mt_service::async(sp, 
+              mt_service::async(this_->sp_, 
                 [f]() {
                 f();
               });

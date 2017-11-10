@@ -261,8 +261,9 @@ void vds::_connection_manager::udp_channel::start(
   const service_provider & sp,
   const url_parser::network_address& address)
 {
-  this->s_ = this->server_.start(sp, address.server, (uint16_t)std::atoi(address.port.c_str()),
-  [sp, this](const udp_datagram & message){
+  this->s_ = this->server_.start(sp, address.server, (uint16_t)std::atoi(address.port.c_str()));
+  //TODO:!!!
+  this->s_.read_async().execute([sp, this](const std::shared_ptr<std::exception> & /*ex*/, const udp_datagram & message) {
     this->input_message(sp, message->addr(), message.data(), message.data_size());
   });
 

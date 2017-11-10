@@ -1,11 +1,10 @@
 //
 // Created by vadim on 31.10.17.
 //
-
-#include <netinet/in.h>
+#include "stdafx.h"
 #include "udp_transport.h"
 #include "private/udp_transport_p.h"
-#include "binary_serialize.h
+#include "binary_serialize.h"
 #include "udp_socket.h"
 
 static constexpr uint8_t protocol_version = 0;

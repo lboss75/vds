@@ -78,8 +78,8 @@ namespace vds {
       sp.get<logger>()->trace("TCP", sp, "socket start");
       
 #ifdef _WIN32
-      std::make_shared<_read_socket_task>(sp, this->shared_from_this())->read_async();
-      std::make_shared<_write_socket_task>(sp, this->shared_from_this())->write_async();
+      std::make_shared<_read_socket_task>(sp, this->shared_from_this(), target)->start();
+      this->socket_task_ = std::make_shared<_write_socket_task>(sp, this->s_);
 #else
       auto handler = std::make_shared<_socket_handler>(sp, this->shared_from_this(), target);
       this->socket_task_ = handler;
@@ -88,8 +88,12 @@ namespace vds {
     }
 
     async_task<> write_async(const uint8_t * data, size_t size) override {
+#ifdef _WIN32
+      return static_cast<_write_socket_task *>(this->socket_task_.get())->write_async(data, size);
+#else
       auto task = this->socket_task_.lock();
       return static_cast<_socket_handler *>(task.get())->write_async(data, size);
+#endif//_WIN32
     }
 
 #ifndef _WIN32
@@ -118,9 +122,10 @@ namespace vds {
   private:
     SOCKET_HANDLE s_;
 #ifdef _WIN32
+    std::shared_ptr<_socket_task> socket_task_;
 #else
     std::weak_ptr<_socket_task> socket_task_;
-#endif
+#endif//_WIN32
 
 #ifdef _WIN32
     class _read_socket_task : public _socket_task
@@ -130,9 +135,11 @@ namespace vds {
 
       _read_socket_task(
         const service_provider & sp,
-        const std::shared_ptr<_tcp_network_socket> & owner)
+        const std::shared_ptr<_stream_async<uint8_t>> & owner,
+        const stream<uint8_t> & target)
         : owner_(owner),
-        sp_(sp)
+          sp_(sp),
+          target_(target)
       {
       }
 
@@ -141,7 +148,7 @@ namespace vds {
         this->sp_.get<logger>()->trace("TCP", this->sp_, "WSARecv closed");
       }
 
-      void read_async()
+      void start()
       {
         this->wsa_buf_.len = BUFFER_SIZE;
         this->wsa_buf_.buf = (CHAR *)this->buffer_;
@@ -151,7 +158,13 @@ namespace vds {
         this->sp_.get<logger>()->trace("TCP", this->sp_, "WSARecv");
         DWORD flags = 0;
         DWORD numberOfBytesRecvd;
-        if (NOERROR != WSARecv(this->owner_->s_, &this->wsa_buf_, 1, &numberOfBytesRecvd, &flags, &this->overlapped_, NULL)) {
+        if (NOERROR != WSARecv(static_cast<_tcp_network_socket *>(this->owner_.get())->s_,
+          &this->wsa_buf_,
+          1,
+          &numberOfBytesRecvd,
+          &flags,
+          &this->overlapped_,
+          NULL)) {
           auto errorCode = WSAGetLastError();
           if (WSA_IO_PENDING != errorCode) {
             this->sp_.get<logger>()->trace("TCP", this->sp_, "WSARecv error");
@@ -159,13 +172,7 @@ namespace vds {
             this->pthis_.reset();
 
             if (WSAESHUTDOWN == errorCode) {
-              this->owner_->incoming_->write_async(this->sp_, nullptr, 0)
-                .execute(
-	                [pthis](const std::shared_ptr<std::exception> & error) {
-				  if (error) {
-					  static_cast<_read_socket_task *>(pthis.get())->sp_.unhandled_exception(error);
-				  }
-                });
+              this->target_.write(nullptr, 0);
             }
             else {
               this->sp_.unhandled_exception(std::make_unique<std::system_error>(errorCode, std::system_category(), "read from tcp socket"));
@@ -175,19 +182,13 @@ namespace vds {
         }
       }
 
-      void check_timeout(const service_provider & sp) override
-      {
-      }
-
-      void prepare_to_stop(const service_provider & sp) override
-      {
-      }
 
     private:
       service_provider sp_;
-      std::shared_ptr<_tcp_network_socket> owner_;
-      std::shared_ptr<_socket_task> pthis_;
+      std::shared_ptr<_stream_async<uint8_t>> owner_;
+      stream<uint8_t> target_;
       uint8_t buffer_[BUFFER_SIZE];
+      std::shared_ptr<_socket_task> pthis_;
 
       void process(DWORD dwBytesTransfered) override
       {
@@ -196,26 +197,14 @@ namespace vds {
         this->pthis_.reset();
 
         if (0 == dwBytesTransfered) {
-          this->owner_->incoming_->write_async(this->sp_, nullptr, 0)
-			  .execute([pthis](const std::shared_ptr<std::exception> & error) {
-			  if (error) {
-				  static_cast<_read_socket_task *>(pthis.get())->sp_.unhandled_exception(error);
-			  }
-            });
+          this->target_.write(nullptr, 0);
         }
         else {
-          this->owner_->incoming_->write_async(this->sp_, this->buffer_, (size_t)dwBytesTransfered)
-            .execute(
-              [pthis](const std::shared_ptr<std::exception> & error) {
-				  if (!error) {
-					  static_cast<_read_socket_task *>(pthis.get())->read_async();
-				  }
-				  else {
-					  static_cast<_read_socket_task *>(pthis.get())->sp_.unhandled_exception(error);
-				  }
-              });
+          this->target_.write(this->buffer_, (size_t)dwBytesTransfered);
+          this->start();
         }
       }
+
       void error(DWORD error_code) override
       {
         this->sp_.get<logger>()->trace("TCP", this->sp_, "WSARecv error(%d)", error_code);
@@ -235,9 +224,12 @@ namespace vds {
 
       _write_socket_task(
         const service_provider & sp,
-        const std::shared_ptr<_tcp_network_socket> & owner)
-        : owner_(owner),
-          sp_(sp)
+        SOCKET_HANDLE s)
+        : sp_(sp),
+          s_(s),
+        result_([](const std::shared_ptr<std::exception> &) {
+          throw std::runtime_error("Logic error");
+        })
       {
       }
 
@@ -245,57 +237,50 @@ namespace vds {
       {
       }
 
-      void write_async()
+      async_task<> write_async(const uint8_t * data, size_t len)
       {
-        auto pthis = this->shared_from_this();
-        this->owner_->outgoing_->read_async(this->sp_, this->buffer_, BUFFER_SIZE)
-          .execute([pthis](const std::shared_ptr<std::exception> & ex, size_t len) {
-			if(!ex){
-              static_cast<_write_socket_task *>(pthis.get())->schedule(static_cast<_write_socket_task *>(pthis.get())->buffer_, len);
-			}
-			else {
-				static_cast<_write_socket_task *>(pthis.get())->sp_.unhandled_exception(ex);
-			}
-            });
-      }
-
-      void check_timeout(const service_provider & sp) override
-      {
-      }
-
-      void prepare_to_stop(const service_provider & sp) override
-      {
+        return [pthis = this->shared_from_this(), data, len](const async_result<> & result){
+          auto this_ = static_cast<_write_socket_task *>(pthis.get());
+          
+          this_->result_ = result;
+          this_->pthis_ = pthis;
+          auto ex = this_->schedule(data, len);
+          if (ex) {
+            result.error(ex);
+          }
+        };
       }
 
     private:
       service_provider sp_;
-      std::shared_ptr<_tcp_network_socket> owner_;
+      SOCKET_HANDLE s_;
+      async_result<> result_;
       std::shared_ptr<_socket_task> pthis_;
-      uint8_t buffer_[BUFFER_SIZE];
 
-      void schedule(const void * data, size_t len)
+      std::shared_ptr<std::exception> schedule(const void * data, size_t len)
       {
         if (0 == len) {
-          shutdown(this->owner_->s_, SD_SEND);
-          this->owner_.reset();
-          return;
+          shutdown(this->s_, SD_SEND);
         }
+        else {
 
-        this->wsa_buf_.buf = (CHAR *)data;
-        this->wsa_buf_.len = len;
+          this->wsa_buf_.buf = (CHAR *)data;
+          this->wsa_buf_.len = (ULONG)len;
 
-        this->pthis_ = this->shared_from_this();
-
-        this->sp_.get<logger>()->trace("TCP", this->sp_, "WSASend");
-        if (NOERROR != WSASend(this->owner_->s_, &this->wsa_buf_, 1, NULL, 0, &this->overlapped_, NULL)) {
-          auto errorCode = WSAGetLastError();
-          if (WSA_IO_PENDING != errorCode) {
-            this->sp_.get<logger>()->trace("TCP", this->sp_, "WSASend error(%d)", errorCode);
-            throw std::system_error(errorCode, std::system_category(), "WSASend failed");
+          this->sp_.get<logger>()->trace("TCP", this->sp_, "WSASend");
+          if (NOERROR != WSASend(this->s_, &this->wsa_buf_, 1, NULL, 0, &this->overlapped_, NULL)) {
+            auto errorCode = WSAGetLastError();
+            if (WSA_IO_PENDING != errorCode) {
+              this->sp_.get<logger>()->trace("TCP", this->sp_, "WSASend error(%d)", errorCode);
+              return std::make_shared<std::system_error>(errorCode, std::system_category(), "WSASend failed");
+            }
           }
         }
-      }
 
+        return std::shared_ptr<std::exception>();
+      }
+      
+      
       void process(DWORD dwBytesTransfered) override
       {
         this->sp_.get<logger>()->trace("TCP", this->sp_, "WSASend got(%d)", dwBytesTransfered);
@@ -305,10 +290,13 @@ namespace vds {
 
         try {
           if (this->wsa_buf_.len == dwBytesTransfered) {
-            this->write_async();
+            this->result_.done();
           }
           else {
-            this->schedule(this->wsa_buf_.buf + dwBytesTransfered, this->wsa_buf_.len - dwBytesTransfered);
+            auto ex = this->schedule(this->wsa_buf_.buf + dwBytesTransfered, this->wsa_buf_.len - dwBytesTransfered);
+            if (ex) {
+              this->sp_.unhandled_exception(ex);
+            }
           }
         }
         catch (const std::exception & ex) {

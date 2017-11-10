@@ -21,6 +21,8 @@ namespace vds {
           const service_provider & sp,
           const const_data_buffer & message);
 
+      class _session * operator -> () const { return this->impl_.get(); }
+
     private:
       std::shared_ptr<class _session> impl_;
     };

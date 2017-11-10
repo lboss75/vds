@@ -104,8 +104,7 @@ namespace vds {
     udp_socket start(
       const service_provider & sp,
       const std::string & address,
-      int port,
-      const std::function<void(const udp_datagram &)> & target);
+      int port);
 
     void stop(const service_provider & sp);
 
@@ -120,8 +119,7 @@ namespace vds {
     ~udp_client();
 
     udp_socket start(
-      const service_provider & sp,
-      const std::function<void(const udp_datagram &)> & target);
+      const service_provider & sp);
 
     void stop(const service_provider & sp);
 
