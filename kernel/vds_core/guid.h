@@ -15,7 +15,8 @@ namespace vds {
     guid();
     guid(const guid & other);
     guid(guid && other);
-    
+    guid(const void * data, size_t len);
+
     static guid new_guid();
 
     std::string str() const;
@@ -29,8 +30,6 @@ namespace vds {
     bool operator < (const guid & other) const;
     bool operator > (const guid & other) const;
     
-  private:
-    guid(const void * data, size_t len);
   };
 }
 

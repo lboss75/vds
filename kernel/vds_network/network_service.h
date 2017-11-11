@@ -28,8 +28,8 @@ namespace vds {
       void stop(const service_provider &) override;
       void prepare_to_stop(const service_provider &) override;
       
-      static std::string to_string(const sockaddr & from, socklen_t from_len);
-      static std::string to_string(const sockaddr_in & from);
+      static std::string to_string(const struct sockaddr & from, socklen_t from_len);
+      static std::string to_string(const struct sockaddr_in & from);
       static std::string get_ip_address_string(const sockaddr_in & from);
         
     private:

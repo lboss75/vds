@@ -47,7 +47,7 @@ namespace vds {
     std::string server() const;
     uint16_t port() const;
 
-    const void * data() const;
+    const uint8_t * data() const;
     size_t data_size() const;
     
     _udp_datagram * operator -> () const { return this->impl_.get(); }
@@ -73,7 +73,13 @@ namespace vds {
   {
   public:
     udp_socket();
+    udp_socket(udp_socket && original);
+    udp_socket(const udp_socket & original) = delete;
+
     ~udp_socket();
+
+    udp_socket &operator = (const udp_socket & original) = delete;
+    udp_socket & operator = (udp_socket && original) = default;
 
     async_task<const udp_datagram &> read_async();
     async_task<> write_async(const udp_datagram & message);
@@ -83,6 +89,8 @@ namespace vds {
     _udp_socket * operator -> () const { return this->impl_.get(); }
 
     static udp_socket create(const service_provider & sp);
+
+    void send_broadcast(int port, const const_data_buffer &message);
 
   private:
     friend class _udp_socket;
@@ -101,7 +109,7 @@ namespace vds {
     udp_server();
     ~udp_server();
 
-    udp_socket start(
+    udp_socket & start(
       const service_provider & sp,
       const std::string & address,
       int port);
@@ -118,7 +126,7 @@ namespace vds {
     udp_client();
     ~udp_client();
 
-    udp_socket start(
+    udp_socket & start(
       const service_provider & sp);
 
     void stop(const service_provider & sp);

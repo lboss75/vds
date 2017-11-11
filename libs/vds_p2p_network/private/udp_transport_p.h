@@ -11,21 +11,36 @@ All rights reserved
 
 #include "async_task.h"
 #include "udp_socket.h"
+#include "resizable_data_buffer.h"
 
 namespace vds {
 
   class _udp_transport : public std::enable_shared_from_this<_udp_transport> {
   public:
-    _udp_transport(const udp_socket & socket);
+    _udp_transport(
+        udp_socket && socket);
     ~_udp_transport();   
 
 
     void start(const service_provider & sp);
     void stop(const service_provider & sp);
 
+    void send_broadcast(int port);
+
   private:
     udp_socket socket_;
-    udp_datagram incomming_buffer_;
+    guid instance_id_;
+
+    const_data_buffer create_handshake_message();
+    void process_incommig_message(const service_provider &sp, const udp_datagram &message);
+
+    void process_incoming_datagram(
+        const vds::service_provider &sp,
+        const uint8_t *data,
+        size_t size);
+
+
+      udp_datagram incomming_buffer_;
     bool incomming_eof_;
 
     struct address_t {
@@ -47,6 +62,31 @@ namespace vds {
 
     class session : public std::enable_shared_from_this<session> {
     public:
+      session(
+          const guid & instance_id,
+          const address_t & address)
+      :instance_id_(instance_id),
+       address_(address),
+       timeout_timer_("UDP transport timer")
+      {
+      }
+/*
+    0                   1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |1|type |           ACK Seq. No.                                |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |                                                               |
+    ~                 Control Information Field                     ~
+    |                                                               |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+*/
+      enum class control_type : uint8_t {
+        Handshake =       0b1000,//seq: version, info: node-id
+        Keep_alive =      0b1001,//
+        Acknowledgement = 0b1010,//seq: last package
+        Failed          = 0b1011 //seq: last package, info: failed bits
+      };
 
 
       const address_t & address() const {
@@ -69,35 +109,20 @@ namespace vds {
 
       void message_sent();
 
-      async_task<> incomming_message(
-          const service_provider & sp,
-          const uint8_t * data,
-          uint16_t size);
+      void incomming_message(const service_provider &sp, _udp_transport &owner, const uint8_t *data,
+                                   uint16_t size);
 
-      void on_timer();
+      void on_timer(const std::shared_ptr<_udp_transport> & owner);
+
+      void add_datagram(const const_data_buffer & data) {
+        this->sent_data_[this->output_sequence_number_++] = data;
+      }
 
     private:
+      guid instance_id_;
       enum class send_state{
         bof,
         wait_message
-      };
-
-/*
-    0                   1                   2                   3
-    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    |1|type |           ACK Seq. No.                                |
-    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    |                                                               |
-    ~                 Control Information Field                     ~
-    |                                                               |
-    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-*/
-      enum class control_type : uint8_t {
-        Handshake =       0b1000,//seq: version
-        Keep_alive =      0b1001,//
-        Acknowledgement = 0b1010,//seq: last package
-        Failed          = 0b1011 //seq: last package, info: failed bits
       };
 
       address_t address_;
@@ -109,13 +134,14 @@ namespace vds {
       uint16_t mtu_;
       send_state current_state_;
 
+      std::map<uint32_t, const_data_buffer> sent_data_;
+
       enum class outgoing_stream_state {
         ready_to_send,
         eof
 
       };
 
-      continuous_buffer<const_data_buffer> outgoing_stream_;
       const_data_buffer outgoing_stream_buffer_[16];
       size_t outgoing_stream_buffer_count_;
 
@@ -125,8 +151,6 @@ namespace vds {
 
       const_data_buffer outgoing_network_datagrams_[16];
       int outgoing_network_count_;
-
-      continuous_buffer<const_data_buffer> incoming_network_stream_;
 
       enum class send_data_state {
 
@@ -141,9 +165,7 @@ namespace vds {
       std::map<uint32_t, const_data_buffer> future_data_;
 
       uint16_t expected_size_;
-      const_data_buffer expected_buffer_;
-      uint8_t  * expected_buffer_p_;
-
+      resizable_data_buffer expected_buffer_;
 
       void send(const service_provider & sp, const const_data_buffer & data);
       void on_timeout();
@@ -156,9 +178,10 @@ namespace vds {
           const service_provider & sp,
           const const_data_buffer & data);
 
-      async_task<> continue_process_incoming_data(
-          const service_provider & sp);
+      void continue_process_incoming_data(const service_provider &sp, _udp_transport &owner);
 
+      void process_incoming_datagram(const vds::service_provider &sp, _udp_transport &owner,
+                                           const uint8_t *data, size_t size);
     };
 
     std::map<address_t, std::shared_ptr<session>> sessions_;
@@ -174,6 +197,8 @@ namespace vds {
 
       virtual uint16_t generate_message(
           uint8_t * buffer) = 0;
+
+      virtual  void complete(const const_data_buffer & buffer) = 0;
 
       virtual bool is_eof() const = 0;
 
@@ -247,6 +272,10 @@ namespace vds {
         }
       }
 
+      void complete(const const_data_buffer & buffer) override {
+        this->owner()->add_datagram(buffer);
+      }
+
       bool is_eof() const override {
         return (this->offset_ >= this->data_.size());
       }
@@ -273,6 +302,9 @@ namespace vds {
       }
       bool is_eof() const override {
         return true;
+      }
+
+      void complete(const const_data_buffer & buffer) override {
       }
 
     private:

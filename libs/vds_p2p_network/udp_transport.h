@@ -27,9 +27,10 @@ namespace vds {
       std::shared_ptr<class _session> impl_;
     };
 
-    typedef std::function<async_task<>(const session & source, const const_data_buffer & message)> message_handler_t;
+    typedef std::function<void(const session & source, const const_data_buffer & message)> message_handler_t;
 
     udp_transport(const message_handler_t & message_handler);
+
     async_task<const session &> connect(
         const service_provider & sp,
         const std::string & address);

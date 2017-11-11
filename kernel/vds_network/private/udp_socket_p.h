@@ -6,6 +6,7 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
+#include <udp_datagram_size_exception.h>
 #include "network_types_p.h"
 #include "service_provider.h"
 #include "network_service_p.h"
@@ -63,7 +64,7 @@ namespace vds {
     std::string server() const { return network_service::get_ip_address_string(this->addr_); }
     uint16_t port() const { return ntohs(this->addr_.sin_port); }
 
-    const void * data() const { return this->data_.data(); }
+    const uint8_t * data() const { return this->data_.data(); }
     size_t data_size() const { return this->data_.size(); }
 
     static udp_datagram create(const sockaddr_in & addr, const void * data, size_t data_size)
@@ -86,7 +87,7 @@ namespace vds {
   {
   public:
     _udp_socket(SOCKET_HANDLE s = INVALID_SOCKET)
-      : s_(s)
+      : s_(s), broadcast_enabled_(false)
     {
     }
 
@@ -106,7 +107,7 @@ namespace vds {
       this->reader_ = std::make_shared<_udp_receive>(sp, this->s_);
       this->writter_ = std::make_shared<_udp_send>(sp, this->s_);
 #else
-      auto handler = std::make_shared<_udp_handler>(sp, this->shared_from_this(), target);
+      auto handler = std::make_shared<_udp_handler>(sp, this->shared_from_this());
       this->handler_ = handler;
       handler->start();
 #endif
@@ -118,23 +119,63 @@ namespace vds {
       this->reader_.reset();
       this->writter_.reset();
 #else
-      auto handler = this->handler_.lock();
+      this->handler_->stop();
       this->handler_.reset();
-      handler->stop();
 #endif
     }
 
     async_task<const udp_datagram &> read_async()
     {
+#ifdef _WIN32
       return this->reader_->read_async();
+#else
+      return this->handler_->read_async();
+#endif
     }
 
     async_task<> write_async(const udp_datagram & message)
     {
+#ifdef _WIN32
       return this->writter_->write_async(message);
+#else
+      return this->handler_->write_async(message);
+#endif
+    }
+
+    void send_broadcast(int port, const const_data_buffer & message)
+    {
+      if(!this->broadcast_enabled_) {
+        int broadcastEnable = 1;
+        setsockopt(this->s_, SOL_SOCKET, SO_BROADCAST, &broadcastEnable, sizeof(broadcastEnable));
+        this->broadcast_enabled_ = true;
+      }
+
+      struct sockaddr_in s;
+      memset(&s, 0, sizeof(struct sockaddr_in));
+
+      s.sin_family = AF_INET;
+      s.sin_port = (in_port_t)htons(port);
+      s.sin_addr.s_addr = htonl(INADDR_BROADCAST);
+
+      if(0 > sendto(
+          this->s_,
+          message.data(),
+          message.size(),
+          0,
+          (struct sockaddr *)&s,
+          sizeof(struct sockaddr_in))) {
+        int error = errno;
+
+        if(EMSGSIZE == error){
+          throw udp_datagram_size_exception();
+        }
+
+        throw std::system_error(error, std::system_category(), "send broadcast");
+      }
     }
 
   private:
+    bool broadcast_enabled_;
     SOCKET_HANDLE s_;
 
     void close()
@@ -282,10 +323,12 @@ namespace vds {
     public:
       _udp_handler(
         const service_provider & sp,
-        const std::shared_ptr<_udp_socket> & owner,
-        const std::function<void(const udp_datagram &)> & target)
+        const std::shared_ptr<_udp_socket> & owner)
         : _socket_task_impl<_udp_handler>(sp, owner->s_),
           owner_(owner),
+          read_result_([](const std::shared_ptr<std::exception> &, const udp_datagram & ){
+            throw std::runtime_error("Logic error");
+          }),
           write_result_([](const std::shared_ptr<std::exception> & ){
             throw std::runtime_error("Logic error");
           })
@@ -296,6 +339,29 @@ namespace vds {
       {
       }
 
+      async_task<const udp_datagram &> read_async() {
+        std::lock_guard<std::mutex> lock(this->read_mutex_);
+        switch (this->read_status_) {
+          case read_status_t::bof:
+            return [pthis = this->shared_from_this()](
+                const async_result<const udp_datagram &> & result){
+              auto this_ = static_cast<_udp_handler *>(pthis.get());
+              this_->read_result_ = result;
+              this_->read_status_ = read_status_t::waiting_socket;
+              this_->change_mask(EPOLLIN);
+            };
+          case read_status_t::continue_read:
+            return [pthis = this->shared_from_this()](
+                const async_result<const udp_datagram &> & result){
+              auto this_ = static_cast<_udp_handler *>(pthis.get());
+              this_->read_result_ = result;
+              this_->read_data();
+            };
+
+          default:
+            throw  std::runtime_error("Invalid operator");
+        }
+      }
 
       async_task<> write_async(const udp_datagram & message){
 
@@ -337,11 +403,17 @@ namespace vds {
             this->write_status_ = write_status_t::bof;
             lock.unlock();
 
-            this->write_result_.error(
-                std::make_shared<std::system_error>(
-                  error,
-                  std::generic_category(),
-                  "Send to " + network_service::to_string(*this->write_message_->addr())));
+            if(EMSGSIZE == error){
+              this->write_result_.error(
+                  std::make_shared<udp_datagram_size_exception>());
+            }
+            else {
+              this->write_result_.error(
+                  std::make_shared<std::system_error>(
+                      error,
+                      std::generic_category(),
+                      "Send to " + network_service::to_string(*this->write_message_->addr())));
+            }
           }
         
           if((size_t)len != size){
@@ -359,33 +431,43 @@ namespace vds {
         }
 
       void read_data() {
-        for(;;) {
-          this->addr_len_ = sizeof(this->addr_);
-          int len = recvfrom(this->s_,
-                             this->read_buffer_,
-                             sizeof(this->read_buffer_),
-                             0,
-                             (struct sockaddr *)&this->addr_,
-                             &this->addr_len_);
+        std::unique_lock<std::mutex> lock(this->write_mutex_);
 
-          if (len < 0) {
-            int error = errno;
-            if(EAGAIN == error){
-              break;
-            }
+        if(read_status_t::waiting_socket != this->read_status_
+            && read_status_t::continue_read != this->read_status_) {
+          throw std::runtime_error("Invalid operation");
+        }
 
-            throw std::system_error(error, std::system_category(), "recvfrom");
+        this->addr_len_ = sizeof(this->addr_);
+        int len = recvfrom(this->s_,
+                           this->read_buffer_,
+                           sizeof(this->read_buffer_),
+                           0,
+                           (struct sockaddr *)&this->addr_,
+                           &this->addr_len_);
+
+        if (len < 0) {
+          int error = errno;
+          if(EAGAIN == error){
+            this->read_status_ = read_status_t::bof;
+            this->change_mask(EPOLLIN);
+            return;
           }
 
-          this->sp_.get<logger>()->trace("UDP", this->sp_, "got %d bytes from %s", len, network_service::to_string(this->addr_).c_str());
-          this->target_(_udp_datagram::create(this->addr_, this->read_buffer_, len));
+          this->read_result_.error(std::make_shared<std::system_error>(error, std::system_category(), "recvfrom"));
+        }
+        else {
+          this->sp_.get<logger>()->trace("UDP", this->sp_, "got %d bytes from %s", len,
+                                         network_service::to_string(this->addr_).c_str());
+          this->read_status_ = read_status_t::continue_read;
+          this->read_result_.done(_udp_datagram::create(this->addr_, this->read_buffer_, len));
         }
       }
 
     private:
       std::shared_ptr<_udp_socket> owner_;
+      async_result<const udp_datagram &> read_result_;
       async_result<> write_result_;
-      std::function<void(const udp_datagram &)> target_;
 
       sockaddr_in addr_;
       socklen_t addr_len_;
@@ -394,7 +476,7 @@ namespace vds {
       udp_datagram write_message_;
     };
 
-    std::weak_ptr<_udp_handler> handler_;
+    std::shared_ptr<_udp_handler> handler_;
 #endif//_WIN32
 #ifdef _WIN32
     std::shared_ptr<_udp_receive> reader_;
@@ -413,7 +495,7 @@ namespace vds {
     {
     }
 
-    udp_socket start(const service_provider & sp)
+    udp_socket & start(const service_provider & sp)
     {
       auto scope = sp.create_scope(("UDP server on " + this->address_ + ":" + std::to_string(this->port_)).c_str());
       imt_service::enable_async(scope);
@@ -464,7 +546,7 @@ namespace vds {
 
     }
 
-    udp_socket start(const service_provider & sp)
+    udp_socket & start(const service_provider & sp)
     {
       this->socket_ = udp_socket::create(sp);
 

@@ -96,8 +96,13 @@ namespace vds {
 
       if(EPOLLIN == (EPOLLIN & events)){
         this->change_mask(0, EPOLLIN);
+
+        std::lock_guard<std::mutex> lock(this->write_mutex_);
+
+        if(read_status_t::waiting_socket != this->read_status_){
+          throw std::runtime_error("Invalid design");
+        }
         static_cast<implementation_class *>(this)->read_data();
-        this->change_mask(EPOLLIN);
       }
     }
 
@@ -109,6 +114,7 @@ namespace vds {
     enum class read_status_t {
       bof,
       waiting_socket,
+      continue_read,
       eof
     };
 

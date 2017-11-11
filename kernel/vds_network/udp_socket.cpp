@@ -57,7 +57,7 @@ uint16_t vds::udp_datagram::port() const
   return this->impl_->port();
 }
 
-const void * vds::udp_datagram::data() const
+const uint8_t * vds::udp_datagram::data() const
 {
   return this->impl_->data();
 }
@@ -131,6 +131,10 @@ vds::udp_socket vds::udp_socket::create(const service_provider & sp)
   return udp_socket(std::make_shared<_udp_socket>(s));
 }
 
+void vds::udp_socket::send_broadcast(int port, const vds::const_data_buffer &message) {
+  this->impl_->send_broadcast(port, message);
+}
+
 vds::udp_server::udp_server()
 {
 }
@@ -139,7 +143,7 @@ vds::udp_server::~udp_server()
 {
 }
 
-vds::udp_socket vds::udp_server::start(
+vds::udp_socket & vds::udp_server::start(
   const service_provider & sp,
   const std::string & address,
   int port)
@@ -162,7 +166,7 @@ vds::udp_client::~udp_client()
 {
 }
 
-vds::udp_socket vds::udp_client::start(
+vds::udp_socket & vds::udp_client::start(
     const service_provider & sp)
 {
   this->impl_.reset(new _udp_client());
