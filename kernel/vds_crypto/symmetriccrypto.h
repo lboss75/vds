@@ -121,7 +121,7 @@ namespace vds {
   private:
       _symmetric_decrypt * const impl_;
   };
-  
+
 }
 
 #endif // __SYMMETRICCRYPTO_H_

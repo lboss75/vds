@@ -263,8 +263,7 @@ vds::async_task<const std::string & /*version_id*/> vds::_client::upload_file(
     auto length = file::length(fn);
 
     //Generate key
-    symmetric_key transaction_key(symmetric_crypto::aes_256_cbc());
-    transaction_key.generate();
+    auto transaction_key = symmetric_key::generate(symmetric_crypto::aes_256_cbc());
 
     //Crypt body
     auto version_id = guid::new_guid();
@@ -416,7 +415,7 @@ vds::async_task<const vds::guid & /*version_id*/>
 
 			file_info >> length >> body_size >> tail_size;
 
-			symmetric_key transaction_key(symmetric_crypto::aes_256_cbc(), file_info);
+			auto transaction_key = symmetric_key::deserialize(symmetric_crypto::aes_256_cbc(), file_info);
 
 			sp.get<logger>()->trace("client", sp, "Waiting file");
 			filename tmp_file(this->tmp_folder_, record.index().str());

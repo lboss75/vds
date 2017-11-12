@@ -41,3 +41,6 @@ vds::async_task<> vds::http_client::process_input_commands(
   });
 }
 */
+vds::http_client::http_client() {
+
+}

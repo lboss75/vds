@@ -111,6 +111,18 @@ vds::symmetric_key::symmetric_key(class _symmetric_key *impl)
     : impl_(impl){
 }
 
+vds::symmetric_key::~symmetric_key() {
+
+}
+
+//////////////////////////////////////////////////////////////
+vds::_symmetric_key::_symmetric_key(
+    const symmetric_crypto_info &crypto_info,
+    uint8_t *key, uint8_t *iv)
+: crypto_info_(crypto_info), key_(key), iv_(iv) {
+
+}
+///////////////////////////////////////////////////
 vds::symmetric_encrypt::symmetric_encrypt(
   const vds::symmetric_key& key)
 : impl_(new _symmetric_encrypt(key))

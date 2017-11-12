@@ -68,15 +68,15 @@ void vds::client_logic::stop(const service_provider & sp)
       imt_service::enable_async(scope);
 
       barrier b;
-      connection->outgoing_stream()->write_async(scope, nullptr, 0)
+      connection->outgoing_stream()->write_async(nullptr, 0)
         .execute(
-          [sp, &b](const std::shared_ptr<std::exception> & ex) {
+          [scope, &b](const std::shared_ptr<std::exception> & ex) {
             if(!ex){
             b.set();
               
             } else {
               b.set();
-              sp.unhandled_exception(ex);
+              scope.unhandled_exception(ex);
             }
           });
       b.wait();
@@ -190,7 +190,7 @@ void vds::client_logic::add_task(const service_provider & sp, const std::shared_
       auto scope = sp.create_scope("Call HTTP Client API");
       imt_service::enable_async(scope);
 
-      connection->outgoing_stream()->write_value_async(scope, message)
+      connection->outgoing_stream()->write_value_async(message)
       .execute(
         [sp](const std::shared_ptr<std::exception> & ex) {
           if(ex){

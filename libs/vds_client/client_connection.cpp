@@ -18,8 +18,8 @@ vds::client_connection::client_connection(
   client_certificate_(client_certificate),
   client_private_key_(client_private_key),
   state_(STATE::NONE),
-  incoming_stream_(new async_buffer<std::shared_ptr<http_message>>()),
-  outgoing_stream_(new continuous_buffer<std::shared_ptr<json_value>>())
+  incoming_stream_(new async_buffer<std::shared_ptr<http_message>>(*(service_provider *)nullptr)),
+  outgoing_stream_(new continuous_buffer<std::shared_ptr<json_value>>(*(service_provider *)nullptr))
 {
 }
 

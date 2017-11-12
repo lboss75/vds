@@ -438,7 +438,7 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
         auto storage_log = sp.get<istorage_log>();
         auto key_data = storage_log->server_private_key().decrypt(msg.key_crypted());
 
-        symmetric_key session_key(symmetric_crypto::aes_256_cbc(), binary_deserializer(key_data));
+        auto session_key = symmetric_key::deserialize(symmetric_crypto::aes_256_cbc(), binary_deserializer(key_data));
         auto data = symmetric_decrypt::decrypt(session_key, msg.crypted_data().data(), msg.crypted_data().size());
         
               uint32_t in_session_id;
@@ -676,8 +676,7 @@ vds::_connection_manager::udp_channel::register_incoming_session(
   uint32_t external_session_id,
   const guid & server_id)
 {
-  symmetric_key session_key(symmetric_crypto::aes_256_cbc());
-  session_key.generate();
+  auto session_key = symmetric_key::generate(symmetric_crypto::aes_256_cbc());
 
   std::unique_lock<std::shared_mutex> lock(this->sessions_mutex_);
 

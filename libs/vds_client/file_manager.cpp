@@ -42,7 +42,6 @@ vds::async_task<size_t /*body_size*/, size_t /*tail_size*/> vds::_file_manager::
         
         auto original_hash = hash::signature(hash::sha256(), buffer, original_lenght);
         auto data = deflate::compress(
-          sp,
           symmetric_encrypt::encrypt(transaction_key, buffer, original_lenght));
         auto target_hash = hash::signature(hash::sha256(), data);
         

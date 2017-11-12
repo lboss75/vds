@@ -325,7 +325,7 @@ namespace vds {
         this->ready_to_data_ = false;
         return this->data_.write_value_async(data).then(
             [pthis = this->shared_from_this()]() {
-              auto this_ = static_cast<async_buffer *>(pthis.get());
+              auto this_ = static_cast<_async_buffer *>(pthis.get());
               this_->data_mutex_.lock();
               this_->ready_to_data_ = true;
               this_->data_barier_.notify_one();
@@ -343,7 +343,7 @@ namespace vds {
 
         return this->data_.write_async(data, data_size).then(
             [pthis = this->shared_from_this()]() {
-              auto this_ = static_cast<async_buffer *>(pthis.get());
+              auto this_ = static_cast<_async_buffer *>(pthis.get());
               this_->data_mutex_.lock();
               this_->ready_to_data_ = true;
               this_->data_barier_.notify_one();
