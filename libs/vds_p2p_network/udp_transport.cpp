@@ -8,8 +8,23 @@
 #include "binary_serialize.h"
 #include "udp_socket.h"
 #include "udp_datagram_size_exception.h"
+#include "url_parser.h"
 
 static constexpr uint32_t protocol_version = 0;
+
+///////////////////////////////////////////////////////
+void vds::udp_transport::connect(const vds::service_provider &sp, const std::string &address) {
+  this->impl_->connect(sp, address);
+}
+
+void vds::udp_transport::start(const vds::service_provider &sp) {
+  this->impl_->start(sp);
+}
+
+void vds::udp_transport::stop(const vds::service_provider &sp) {
+  this->impl_->stop(sp);
+}
+
 ///////////////////////////////////////////////////////
 vds::_udp_transport::_udp_transport(
     udp_socket && socket)
@@ -80,7 +95,6 @@ void vds::_udp_transport::process_incommig_message(
         this->sessions_[server_address] = new_session;
       }
     }
-
   } else {
     auto p = this->sessions_.find(server_address);
     if(this->sessions_.end() != p){
@@ -258,4 +272,37 @@ void vds::_udp_transport::continue_send_data(const service_provider & sp) {
         }
       }
   );
+}
+
+void vds::_udp_transport::connect(const vds::service_provider &sp, const std::string & address) {
+  auto na = url_parser::parse_network_address(address);
+  if(na.protocol != "udp"){
+    throw std::invalid_argument("address");
+  }
+
+  address_t addr(na.server, (uint16_t)atoi(na.port.c_str()));
+
+  std::lock_guard<std::mutex> lock(this->sessions_mutex_);
+  if(this->sessions_.end() != this->sessions_.find(addr)){
+    return;
+  }
+
+  auto new_session = std::make_shared<session>(addr);
+  this->sessions_[addr] = new_session;
+
+  this->socket_.write_async(
+      udp_datagram(addr.server_, addr.port_,
+      this->create_handshake_message()))
+      .execute([pthis = this->shared_from_this(), sp, addr, new_session, address](
+          const std::shared_ptr<std::exception> & ex){
+        if(ex){
+          sp.get<logger>()->warning("P2P", sp, "Failed to connect %s: %s", address.c_str(), ex->what());
+
+          std::lock_guard<std::mutex> lock(pthis->sessions_mutex_);
+          auto p = pthis->sessions_.find(addr);
+          if(pthis->sessions_.end() != p && p->second.get() == new_session.get()){
+            pthis->sessions_.erase(p);
+          }
+        }
+      });
 }

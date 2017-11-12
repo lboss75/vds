@@ -41,43 +41,36 @@ namespace vds {
   class symmetric_key
   {
   public:
-    symmetric_key(const symmetric_crypto_info & crypto_info);
-    symmetric_key(const symmetric_crypto_info & crypto_info, binary_deserializer & s);
-    symmetric_key(const symmetric_crypto_info & crypto_info, binary_deserializer && s);
-    symmetric_key(const symmetric_key & origin);
-    symmetric_key(symmetric_key && origin);
+    symmetric_key();
+    symmetric_key(const symmetric_key & origin) = default;
+    symmetric_key(symmetric_key && origin) = default;
     ~symmetric_key();
     
-    symmetric_key & operator = (const symmetric_key & origin) = delete;
-    symmetric_key & operator = (symmetric_key && origin) = delete;
+    symmetric_key & operator = (const symmetric_key & origin) = default;
+    symmetric_key & operator = (symmetric_key && origin) = default;
     
-    void generate();
-    
-    const unsigned char * key() const {
-      return this->key_;
-    }
-    
-    const unsigned char * iv() const {
-      return this->iv_;
-    }
+    static symmetric_key generate(const symmetric_crypto_info & crypto_info);
+    static symmetric_key deserialize(const symmetric_crypto_info & crypto_info, binary_deserializer & s);
+    static symmetric_key deserialize(const symmetric_crypto_info & crypto_info, binary_deserializer && s);
 
     void serialize(binary_serializer & s) const;
 
     size_t block_size() const;
     
     static symmetric_key from_password(const std::string & password);
+
+    bool operator !() const {
+      return !this->impl_;
+    }
     
   private:
-    friend class symmetric_encrypt;
-    friend class symmetric_decrypt;
     friend class _symmetric_encrypt;
     friend class _symmetric_decrypt;
-    
-    symmetric_key(const symmetric_crypto_info & crypto_info, unsigned char * key, unsigned char * iv);
-    
-    const symmetric_crypto_info & crypto_info_;
-    unsigned char * key_;
-    unsigned char * iv_;
+    friend class _symmetric_key;
+
+    symmetric_key(class _symmetric_key * impl);
+
+    std::shared_ptr<class _symmetric_key> impl_;
   };
   
   class symmetric_encrypt

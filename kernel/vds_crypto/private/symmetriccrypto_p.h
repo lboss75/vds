@@ -43,25 +43,32 @@ namespace vds {
   class _symmetric_key
   {
   public:
-    _symmetric_key(const symmetric_crypto_info & crypto_info);
+    _symmetric_key(
+        const symmetric_crypto_info & crypto_info,
+        uint8_t * key,
+        uint8_t * iv);
+    ~_symmetric_key();
     
     void generate();
     
-    const unsigned char * key() const {
-      return this->key_.get();
+    const uint8_t * key() const {
+      return this->key_;
     }
     
-    const unsigned char * iv() const {
-      return this->iv_.get();
+    const uint8_t * iv() const {
+      return this->iv_;
     }    
     
   private:
     friend class symmetric_encrypt;
     friend class symmetric_decrypt;
-    
+    friend class _symmetric_encrypt;
+    friend class _symmetric_decrypt;
+    friend class symmetric_key;
+
     const symmetric_crypto_info & crypto_info_;
-    std::unique_ptr<unsigned char> key_;
-    std::unique_ptr<unsigned char> iv_;
+    uint8_t * key_;
+    uint8_t * iv_;
   };
   
   class _symmetric_encrypt
@@ -78,10 +85,10 @@ namespace vds {
 
       if (1 != EVP_EncryptInit_ex(
         this->ctx_,
-        key.crypto_info_.impl_->cipher(),
+        key.impl_->crypto_info_.impl_->cipher(),
         nullptr,
-        key.key(),
-        key.iv())) {
+        key.impl_->key(),
+        key.impl_->iv())) {
         throw std::runtime_error("Create crypto context failed");
       }
     }
@@ -142,7 +149,7 @@ namespace vds {
     bool eof_;
     size_t block_size_;
   };
-  
+
   class _symmetric_decrypt
   {
   public:
@@ -156,10 +163,10 @@ namespace vds {
 
       if (1 != EVP_DecryptInit_ex(
         this->ctx_,
-        key.crypto_info_.impl_->cipher(),
+        key.impl_->crypto_info_.impl_->cipher(),
         nullptr,
-        key.key(),
-        key.iv())) {
+        key.impl_->key(),
+        key.impl_->iv())) {
         throw std::runtime_error("Create decrypt context failed");
       }
     }

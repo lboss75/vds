@@ -25,6 +25,8 @@ namespace vds {
     void start(const service_provider & sp);
     void stop(const service_provider & sp);
 
+    void connect(const service_provider & sp, const std::string & address);
+
     void send_broadcast(int port);
 
   private:
@@ -68,6 +70,13 @@ namespace vds {
       :instance_id_(instance_id),
        address_(address),
        timeout_timer_("UDP transport timer")
+      {
+      }
+
+      //Fake session
+      session(const address_t & address)
+      : address_(address),
+        timeout_timer_("UDP transport timer")
       {
       }
 /*

@@ -31,12 +31,15 @@ namespace vds {
 
     udp_transport(const message_handler_t & message_handler);
 
-    async_task<const session &> connect(
+    void start(const service_provider & sp);
+    void stop(const service_provider & sp);
+
+    void connect(
         const service_provider & sp,
         const std::string & address);
 
   private:
-    std::shared_ptr<class _p2p_transport> impl_;
+    std::shared_ptr<class _udp_transport> impl_;
   };
 }
 

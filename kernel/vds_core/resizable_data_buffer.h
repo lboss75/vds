@@ -8,6 +8,10 @@ namespace vds {
 
     }
 
+    resizable_data_buffer(size_t size){
+      this->data_.resize(size);
+    }
+
     resizable_data_buffer &operator += (const class const_data_buffer & data){
       return this->add(data.data(), data.size());
     }
@@ -19,6 +23,9 @@ namespace vds {
       return *this;
     }
 
+    uint8_t * data() {
+      return this->data_.data();
+    }
     const uint8_t * data() const {
       return this->data_.data();
     }
