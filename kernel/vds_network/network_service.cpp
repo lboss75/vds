@@ -44,11 +44,11 @@ void vds::network_service::prepare_to_stop(const service_provider & sp)
 }
 
 
-std::string vds::network_service::to_string(const sockaddr & from, socklen_t from_len)
+std::string vds::network_service::to_string(const sockaddr & from, size_t from_len)
 {
   char hbuf[NI_MAXHOST], sbuf[NI_MAXSERV];
   
-  auto result = getnameinfo(&from, from_len,
+  auto result = getnameinfo(&from, (socklen_t)from_len,
     hbuf, sizeof hbuf,
     sbuf, sizeof sbuf,
     NI_NUMERICHOST | NI_NUMERICSERV);

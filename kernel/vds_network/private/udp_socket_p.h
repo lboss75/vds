@@ -87,7 +87,10 @@ namespace vds {
   {
   public:
     _udp_socket(SOCKET_HANDLE s = INVALID_SOCKET)
-      : s_(s), broadcast_enabled_(false)
+      : s_(s)
+#ifndef _WIN32
+      , broadcast_enabled_(false)
+#endif
     {
     }
 
@@ -144,22 +147,24 @@ namespace vds {
 
     void send_broadcast(int port, const const_data_buffer & message)
     {
+#ifndef _WIN32
       if(!this->broadcast_enabled_) {
         int broadcastEnable = 1;
         setsockopt(this->s_, SOL_SOCKET, SO_BROADCAST, &broadcastEnable, sizeof(broadcastEnable));
         this->broadcast_enabled_ = true;
       }
+#endif
 
       struct sockaddr_in s;
       memset(&s, 0, sizeof(struct sockaddr_in));
 
       s.sin_family = AF_INET;
-      s.sin_port = (in_port_t)htons(port);
+      s.sin_port = htons(port);
       s.sin_addr.s_addr = htonl(INADDR_BROADCAST);
 
       if(0 > sendto(
           this->s_,
-          message.data(),
+          (const char *)message.data(),
           message.size(),
           0,
           (struct sockaddr *)&s,
@@ -175,7 +180,9 @@ namespace vds {
     }
 
   private:
+#ifndef _WIN32
     bool broadcast_enabled_;
+#endif
     SOCKET_HANDLE s_;
 
     void close()
