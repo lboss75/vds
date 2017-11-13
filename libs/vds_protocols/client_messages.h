@@ -234,6 +234,8 @@ namespace vds {
         if (add_type) {
           result->add_property("$t", message_type);
         }
+
+        return result;
       }
     };
     //////////////////////////////////////////////////////////////

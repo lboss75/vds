@@ -220,7 +220,8 @@ namespace vds {
   inline json_parser::_json_parser::_json_parser(const std::string &stream_name,
                                     std::function<void(const std::shared_ptr<json_value> &)> &&result,
                                     const json_parser::options &parse_options)
-      : stream_name_(stream_name), parse_options_(parse_options),
+      : stream_name_(stream_name),
+        parse_options_(parse_options),
         result_(std::move(result)),
         state_(ST_BOF),
         current_object_(nullptr),
