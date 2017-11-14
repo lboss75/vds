@@ -14,9 +14,6 @@ namespace vds {
   public:
     virtual ~ip2p_network_storage() {}
 
-    virtual void get_node_list(std::list<std::string> & result) = 0;
-
-
   };
 }
 

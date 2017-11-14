@@ -9,6 +9,8 @@ All rights reserved
 #include "udp_transport.h"
 #include "ip2p_network_storage.h"
 #include "url_parser.h"
+#include "db_model.h"
+#include "well_known_node_dbo.h"
 
 namespace vds {
 
@@ -83,35 +85,38 @@ namespace vds {
   }
 
   bool _p2p_network::do_backgroud_tasks(const service_provider &sp) {
-    std::list<std::string> nodes;
-    this->storage_->get_node_list(nodes);
+    auto scope = sp.create_scope("P2P timer job");
+    mt_service::enable_async(scope);
+    sp.get<db_model>()->async_transaction(
+        scope,
+        [this, scope](database_transaction & t) {
 
-    for(auto node : nodes) {
-      url_parser::parse_addresses(
-          node,
-          [this, sp](const std::string &protocol, const std::string &address) -> bool {
-            auto scope = sp.create_scope(("Connect to " + address).c_str());
-            imt_service::enable_async(scope);
+          well_known_node_dbo t1;
 
-            if ("udp" == protocol) {
-              this->udp_transport_.connect(scope, address);
-            } else if ("https" == protocol) {
-//            auto na = url_parser::parse_network_address(address);
-//            this->start_https_server(scope, na)
-//                .execute(
-//                    [this, sp = scope](const std::shared_ptr<std::exception> & ex) {
-//                      if(!ex){
-//                        sp.get<logger>()->info("HTTPS", sp, "Servers stopped");
-//                      } else {
-//                        sp.get<logger>()->info("HTTPS", sp, "Server error: %s", ex->what());
-//                      }});
-            }
+          auto st = t.get_reader(t1.select(t1.addresses));
+          while (st.execute()) {
+            url_parser::parse_addresses(
+                t1.addresses.get(st),
+                [this, scope](const std::string &protocol, const std::string &address) -> bool {
+                  auto sp = scope.create_scope(("Connect to " + address).c_str());
 
-            return true;
-          });
-    }
-
-    return true;
+                  if ("udp" == protocol) {
+                    this->udp_transport_.connect(sp, address);
+                  } else if ("https" == protocol) {
+                    //            auto na = url_parser::parse_network_address(address);
+                    //            this->start_https_server(scope, na)
+                    //                .execute(
+                    //                    [this, sp = scope](const std::shared_ptr<std::exception> & ex) {
+                    //                      if(!ex){
+                    //                        sp.get<logger>()->info("HTTPS", sp, "Servers stopped");
+                    //                      } else {
+                    //                        sp.get<logger>()->info("HTTPS", sp, "Server error: %s", ex->what());
+                    //                      }});
+                  }
+                });
+          }
+        });
+    return !sp.get_shutdown_event().is_shuting_down();
   }
 }
 
