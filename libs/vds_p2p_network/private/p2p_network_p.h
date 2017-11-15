@@ -98,7 +98,7 @@ namespace vds {
             url_parser::parse_addresses(
                 t1.addresses.get(st),
                 [this, scope](const std::string &protocol, const std::string &address) -> bool {
-                  auto sp = scope.create_scope(("Connect to " + address).c_str());
+                  auto sp = scope.create_scope(("Connecting to " + address).c_str());
 
                   if ("udp" == protocol) {
                     this->udp_transport_.connect(sp, address);
