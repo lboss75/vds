@@ -12,9 +12,11 @@ namespace vds {
   class transaction_log {
   public:
 
-    static async_task<> reset(
-        const service_provider & sp
-    );
+    static void reset(
+        const service_provider &sp,
+        class database_transaction & t,
+        const std::string & root_user_name,
+        const std::string & root_password);
 
   private:
 

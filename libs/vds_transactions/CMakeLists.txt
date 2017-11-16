@@ -17,6 +17,7 @@ include_directories(${vds_http_SOURCE_DIR})
 include_directories(${vds_parser_SOURCE_DIR})
 include_directories(${vds_protocols_SOURCE_DIR})
 include_directories(${vds_database_SOURCE_DIR})
+include_directories(${vds_db_model_SOURCE_DIR})
 include_directories(${vds_user_manager_SOURCE_DIR})
 include_directories(${OPENSSL_INCLUDE_DIR})
 
@@ -39,6 +40,7 @@ target_link_libraries(vds_transactions
   vds_core
   vds_data
   vds_database
+  vds_db_model
   vds_network
   vds_http
   vds_crypto

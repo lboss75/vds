@@ -21,6 +21,8 @@ namespace vds {
 
     const guid & id() const;
     const certificate & user_certificate() const;
+    const const_data_buffer & private_key() const;
+    const const_data_buffer & password_hash() const;
 
 
     member_user create_user(
