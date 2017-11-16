@@ -19,6 +19,10 @@ namespace vds {
   public:
     member_user(_member_user * impl);
 
+    const guid & id() const;
+    const certificate & user_certificate() const;
+
+
     member_user create_user(
       const asymmetric_private_key & owner_user_private_key,
       const std::string & user_name,

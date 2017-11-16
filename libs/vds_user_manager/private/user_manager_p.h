@@ -16,6 +16,7 @@ namespace vds {
     ~_user_manager();
 
     member_user create_root_user(
+      const class database_transaction & t,
       const std::string & user_name,
       const std::string & user_password,
       const asymmetric_private_key & private_key);
@@ -25,8 +26,6 @@ namespace vds {
         const vds::asymmetric_private_key & owner_user_private_key,
         const std::string &name);
 
-  private:
-    std::shared_ptr<iuser_manager_storage> storage_;
   };
 }
 

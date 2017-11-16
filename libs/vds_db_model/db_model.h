@@ -10,7 +10,7 @@ namespace vds {
 
   class db_model {
   public:
-    void async_transaction(
+    async_task<> async_transaction(
         const service_provider & sp,
         const std::function<void(class database_transaction & t)> & handler);
 
