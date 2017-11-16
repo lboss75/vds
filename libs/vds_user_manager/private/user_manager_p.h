@@ -12,11 +12,11 @@ namespace vds {
   class _user_manager
   {
   public:
-    _user_manager(const std::shared_ptr<iuser_manager_storage> & storage);
+    _user_manager();
     ~_user_manager();
 
     member_user create_root_user(
-      const class database_transaction & t,
+      class database_transaction & t,
       const std::string & user_name,
       const std::string & user_password,
       const asymmetric_private_key & private_key);

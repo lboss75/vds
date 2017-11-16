@@ -29,7 +29,7 @@ namespace vds {
     database_column<guid> parent;
 
     database_column<std::string> login;
-    database_column<std::string> password_hash;
+    database_column<const_data_buffer> password_hash;
   };
 }
 

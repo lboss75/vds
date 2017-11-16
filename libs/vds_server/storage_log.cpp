@@ -159,7 +159,6 @@ void vds::_storage_log::reset(
   this->vds_folder_ = foldername(persistence::current_user(sp), ".vds");
   this->vds_folder_.create();
 
-
   (*sp.get<iserver_database>())->get_db()->sync_transaction(sp,
     [this, sp, principal_id, root_certificate, private_key, password, addresses](database_transaction & tr){  
   

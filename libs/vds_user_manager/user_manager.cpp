@@ -13,18 +13,18 @@ All rights reserved
 #include "../vds_db_model/certificate_dbo.h"
 #include "../vds_db_model/user_dbo.h"
 
-vds::user_manager::user_manager(const std::shared_ptr<iuser_manager_storage> & storage)
-  : impl_(new _user_manager(storage))
+vds::user_manager::user_manager()
+  : impl_(new _user_manager())
 {
 }
 
 vds::member_user vds::user_manager::create_root_user(
-  const database_transaction & t,
+  database_transaction & t,
   const std::string & user_name,
   const std::string & user_password,
   const vds::asymmetric_private_key & private_key)
 {
-  return this->impl_->create_root_user(user_name, user_password, private_key);
+  return this->impl_->create_root_user(t, user_name, user_password, private_key);
 }
 
 vds::user_channel vds::user_manager::create_channel(
@@ -40,7 +40,7 @@ vds::_user_manager::_user_manager()
 }
 
 vds::member_user vds::_user_manager::create_root_user(
-  const class database_transaction & t,
+  database_transaction & t,
   const std::string & user_name,
   const std::string & user_password,
   const vds::asymmetric_private_key & private_key)
@@ -58,7 +58,10 @@ vds::member_user vds::_user_manager::create_root_user(
       usr_dbo.insert(
         usr_dbo.id = user.id(),
         usr_dbo.login = user_name,
-        usr_dbo.password_hash = hash::signature(hash::sha256(), user_password),
+        usr_dbo.password_hash = hash::signature(
+            hash::sha256(),
+            user_password.c_str(),
+            user_password.length()),
         usr_dbo.private_key = private_key.der(user_password)));
 
   return user;
@@ -69,5 +72,4 @@ vds::user_channel vds::_user_manager::create_channel(
     const vds::asymmetric_private_key & owner_user_private_key,
     const std::string &name)
 {
-  return owner.create_channel(this->storage_, owner_user_private_key, name);
 }

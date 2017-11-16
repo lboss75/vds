@@ -17,7 +17,7 @@ namespace vds {
     user_manager();
     
     class member_user create_root_user(
-      const class database_transaction & t,
+      class database_transaction & t,
       const std::string & user_name,
       const std::string & user_password,
       const class asymmetric_private_key & private_key);
