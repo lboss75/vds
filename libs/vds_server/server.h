@@ -20,7 +20,12 @@ namespace vds {
     void stop(const service_provider &) override;
 
     void set_port(int port);
-    
+
+    void reset(
+        const service_provider &sp,
+        const std::string & root_user_name,
+        const std::string & root_password);
+
   private:
     _server * const impl_;
   };

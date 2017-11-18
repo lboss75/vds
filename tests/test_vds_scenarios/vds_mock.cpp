@@ -423,6 +423,8 @@ void mock_server::init_root(const std::string & root_password, int tcp_port, int
 
     registrator.start(sp);
 
+    server.reset(sp);
+
     sp.get<vds::istorage_log>()->reset(
       sp,
       root_id,

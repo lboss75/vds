@@ -223,7 +223,7 @@ namespace vds {
     bool eof_;
     size_t block_size_;
   };
-  
+
 }
 
 #endif // __VDS_CRYPTO_SYMMETRICCRYPTO_P_H_

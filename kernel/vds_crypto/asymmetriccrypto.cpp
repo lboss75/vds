@@ -36,9 +36,11 @@ vds::asymmetric_private_key::~asymmetric_private_key()
 {
 }
 
-void vds::asymmetric_private_key::generate()
+vds::asymmetric_private_key vds::asymmetric_private_key::generate(const asymmetric_crypto_info & info)
 {
-  this->impl_->generate();
+  auto impl = new _asymmetric_private_key(info);
+  impl->generate();
+  return asymmetric_private_key(impl);
 }
 
 vds::asymmetric_private_key vds::asymmetric_private_key::parse(const std::string & value, const std::string & password)
@@ -394,12 +396,11 @@ bool vds::asymmetric_sign_verify::result() const
 }
 
 bool vds::asymmetric_sign_verify::verify(
-  const service_provider & sp,
-  const vds::hash_info& hash_info,
-  const vds::asymmetric_public_key& key,
-  const const_data_buffer& signature,
-  const void* data,
-  size_t data_size)
+    const vds::hash_info &hash_info,
+    const vds::asymmetric_public_key &key,
+    const const_data_buffer &signature,
+    const void *data,
+    size_t data_size)
 {
   _asymmetric_sign_verify s(hash_info, key, signature);
   s.write(reinterpret_cast<const uint8_t *>(data), data_size);
@@ -408,13 +409,12 @@ bool vds::asymmetric_sign_verify::verify(
 }
 
 bool vds::asymmetric_sign_verify::verify(
-  const service_provider & sp,
-  const hash_info & hash_info,
-  const asymmetric_public_key & key,
-  const const_data_buffer & signature,
-  const const_data_buffer & data)
+    const hash_info &hash_info,
+    const asymmetric_public_key &key,
+    const const_data_buffer &signature,
+    const const_data_buffer &data)
 {
-  return verify(sp, hash_info, key, signature, data.data(), data.size());
+  return verify(hash_info, key, signature, data.data(), data.size());
 }
 
 ///////////////////////////////////////////////////////////////

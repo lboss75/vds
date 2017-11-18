@@ -262,13 +262,8 @@ vds::_server_json_client_api::process(
       }
       
       auto body = message.principal_msg().serialize(false)->str();
-      if(!asymmetric_sign_verify::verify(
-        sp,
-        hash::sha256(),
-        author->cert_body().public_key(),
-        message.signature(),
-        body.c_str(),
-        body.length())){
+      if(!asymmetric_sign_verify::verify(author->cert_body().public_key(), message.signature(), body.c_str(),
+                                         body.length())){
         result.error(std::make_shared<std::runtime_error>("Signature verification failed"));
         return false;
       }

@@ -25,11 +25,16 @@ namespace vds {
     const const_data_buffer & password_hash() const;
 
 
+    member_user create_device_user(
+        class transaction_block & log,
+        const asymmetric_private_key &owner_user_private_key,
+        const asymmetric_private_key &private_key);
+
     member_user create_user(
-      const asymmetric_private_key & owner_user_private_key,
-      const std::string & user_name,
-      const std::string & user_password,
-      const asymmetric_private_key & private_key);
+        const asymmetric_private_key &owner_user_private_key,
+        const std::string &user_name,
+        const std::string &user_password,
+        const asymmetric_private_key &private_key);
 
     user_channel create_channel(
       const std::shared_ptr<iuser_manager_storage> & storage,

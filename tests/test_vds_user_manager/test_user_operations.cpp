@@ -35,11 +35,11 @@ TEST(test_user_operations, test_add_user)
 
   vds::asymmetric_private_key user1_private_key(vds::asymmetric_crypto::rsa2048());
   user1_private_key.generate();
-  auto user1 = root_user.create_user(root_private_key, "test1", "123qwe", user1_private_key);
+  auto user1 = root_user.create_device_user(root_private_key, "test1", "123qwe", user1_private_key);
 
   vds::asymmetric_private_key user2_private_key(vds::asymmetric_crypto::rsa2048());
   user2_private_key.generate();
-  auto user2 = root_user.create_user(root_private_key, "test2", "123qwe", user2_private_key);
+  auto user2 = root_user.create_device_user(root_private_key, "test2", "123qwe", user2_private_key);
   
   auto channel1 = manager.create_channel(user1, user1_private_key, "channel1");
   auto channel2 = manager.create_channel(user2, user2_private_key, "channel2");

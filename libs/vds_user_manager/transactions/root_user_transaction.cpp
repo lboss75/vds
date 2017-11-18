@@ -4,13 +4,13 @@ All rights reserved
 */
 
 #include "stdafx.h"
-#include "root_certificate_transaction.h"
+#include "root_user_transaction.h"
 #include "json_object.h"
 #include "binary_serialize.h"
 
-const char vds::root_certificate_transaction::message_type[] = "root";
+const char vds::root_user_transaction::message_type[] = "root";
 
-vds::root_certificate_transaction::root_certificate_transaction(
+vds::root_user_transaction::root_user_transaction(
     const guid & id,
     const certificate & user_cert,
     const const_data_buffer & user_private_key,
@@ -22,7 +22,7 @@ vds::root_certificate_transaction::root_certificate_transaction(
 {
 }
 
-vds::root_certificate_transaction::root_certificate_transaction(
+vds::root_user_transaction::root_user_transaction(
     const std::shared_ptr<json_value> & source)
 {
   auto s = std::dynamic_pointer_cast<json_object>(source);
@@ -38,7 +38,7 @@ vds::root_certificate_transaction::root_certificate_transaction(
   }
 }
 
-std::shared_ptr<vds::json_value> vds::root_certificate_transaction::serialize(bool add_type) const
+std::shared_ptr<vds::json_value> vds::root_user_transaction::serialize(bool add_type) const
 {
   std::unique_ptr<json_object> result(new json_object());
   if(add_type){
@@ -53,12 +53,12 @@ std::shared_ptr<vds::json_value> vds::root_certificate_transaction::serialize(bo
   return result;
 }
 
-vds::root_certificate_transaction::root_certificate_transaction(struct binary_deserializer &b) {
+vds::root_user_transaction::root_user_transaction(struct binary_deserializer &b) {
   const_data_buffer cert_der;
   b >> this->id_ >> cert_der >> this->user_private_key_ >> this->password_hash_;
   this->user_cert_ = certificate::parse_der(cert_der);
 }
 
-void vds::root_certificate_transaction::serialize(vds::binary_serializer &b) const {
+void vds::root_user_transaction::serialize(vds::binary_serializer &b) const {
   b << this->id_ << this->user_cert_.der() << this->user_private_key_ << this->password_hash_;
 }

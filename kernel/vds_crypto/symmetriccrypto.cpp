@@ -44,12 +44,6 @@ const vds::symmetric_crypto_info& vds::symmetric_crypto::rc4()
   return result;
 }
 
-vds::_symmetric_key::~_symmetric_key()
-{
-  delete[] this->key_;
-  delete[] this->iv_;
-}
-
 vds::symmetric_key vds::symmetric_key::generate(const symmetric_crypto_info & crypto_info)
 {
   auto key = new unsigned char[crypto_info.key_size()];
@@ -115,12 +109,31 @@ vds::symmetric_key::~symmetric_key() {
 
 }
 
+vds::symmetric_key vds::symmetric_key::create(
+    const symmetric_crypto_info &crypto_info,
+    const uint8_t *key,
+    const uint8_t *iv) {
+  auto key_ = new unsigned char[crypto_info.key_size()];
+  auto iv_ = new unsigned char[crypto_info.iv_size()];
+
+  memcpy(key_, key, crypto_info.key_size());
+  memcpy(iv_, iv, crypto_info.iv_size());
+
+  return symmetric_key(new _symmetric_key(crypto_info, key_, iv_));
+}
+
 //////////////////////////////////////////////////////////////
 vds::_symmetric_key::_symmetric_key(
     const symmetric_crypto_info &crypto_info,
     uint8_t *key, uint8_t *iv)
 : crypto_info_(crypto_info), key_(key), iv_(iv) {
 
+}
+
+vds::_symmetric_key::~_symmetric_key()
+{
+  delete[] this->key_;
+  delete[] this->iv_;
 }
 ///////////////////////////////////////////////////
 vds::symmetric_encrypt::symmetric_encrypt(

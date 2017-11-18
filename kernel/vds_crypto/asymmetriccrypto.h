@@ -44,7 +44,7 @@ namespace vds {
     asymmetric_private_key(const asymmetric_crypto_info & info);
     ~asymmetric_private_key();
     
-    void generate();
+    static asymmetric_private_key generate(const asymmetric_crypto_info & info);
 
     static asymmetric_private_key parse(const std::string & value, const std::string & password = std::string());
     std::string str(const std::string & password = std::string()) const;
@@ -132,7 +132,6 @@ namespace vds {
     bool result() const;
     
     static bool verify(
-      const service_provider & sp, 
       const hash_info & hash_info,
       const asymmetric_public_key & key,
       const const_data_buffer & signature,
@@ -140,7 +139,6 @@ namespace vds {
       size_t data_size);
 
     static bool verify(
-      const service_provider & sp, 
       const hash_info & hash_info,
       const asymmetric_public_key & key,
       const const_data_buffer & signature,

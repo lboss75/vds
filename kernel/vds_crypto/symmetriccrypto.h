@@ -55,9 +55,21 @@ namespace vds {
 
     void serialize(binary_serializer & s) const;
 
+    const_data_buffer serialize() const{
+      binary_serializer s;
+      this->serialize(s);
+      return s.data();
+    }
+
+
     size_t block_size() const;
     
     static symmetric_key from_password(const std::string & password);
+
+    static symmetric_key create(
+        const symmetric_crypto_info & crypto_info,
+        const uint8_t * key,
+        const uint8_t * iv);
 
     bool operator !() const {
       return !this->impl_;
@@ -92,7 +104,13 @@ namespace vds {
       const symmetric_key & key,
       const void * input_buffer,
       size_t input_buffer_size);
-    
+
+    static const_data_buffer encrypt(
+        const symmetric_key & key,
+        const const_data_buffer & input_buffer){
+      return encrypt(key, input_buffer.data(), input_buffer.size());
+    }
+
   private:
     _symmetric_encrypt * const impl_;
   };
@@ -117,7 +135,13 @@ namespace vds {
       const symmetric_key & key,
       const void * input_buffer,
       size_t input_buffer_size);
-    
+
+    static const_data_buffer decrypt(
+        const symmetric_key & key,
+        const const_data_buffer & input_buffer){
+      return decrypt(key, input_buffer.data(), input_buffer.size());
+    }
+
   private:
       _symmetric_decrypt * const impl_;
   };

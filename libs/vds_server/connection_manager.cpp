@@ -422,12 +422,7 @@ vds::async_task<> vds::_connection_manager::udp_channel::input_message(
         << msg.key_crypted()
         << msg.crypted_data();
 
-      if (asymmetric_sign_verify::verify(
-        sp,
-        hash::sha256(),
-        cert.public_key(),
-        msg.sign(),
-        to_sign.data())) {
+      if (asymmetric_sign_verify::verify(hash::sha256(), cert.public_key(), msg.sign(), to_sign.data())) {
 
         sp.get<logger>()->debug(
           "UDPAPI",

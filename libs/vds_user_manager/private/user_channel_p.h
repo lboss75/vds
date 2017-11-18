@@ -17,13 +17,15 @@ namespace vds {
       _user_channel();
       _user_channel(
         const vds::guid &id,
-        const vds::certificate &cert);
+        const vds::certificate & read_cert,
+        const vds::certificate & write_cert);
 
       ~_user_channel();
 
   private:
     guid id_;
-    certificate cert_;
+    certificate read_cert_;
+    certificate write_cert_;
   };
 }
 

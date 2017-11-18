@@ -8,25 +8,39 @@ All rights reserved
 
 #include <memory>
 #include <string>
+#include <transaction_block.h>
 
 namespace vds {
 
   class user_manager
   {
   public:
+
     user_manager();
     
     class member_user create_root_user(
-      class database_transaction & t,
+      transaction_block & log,
       const std::string & user_name,
       const std::string & user_password,
       const class asymmetric_private_key & private_key);
     
     class user_channel create_channel(
         const member_user &owner,
-        const class asymmetric_private_key &owner_user_private_key,
+        const class asymmetric_private_key & owner_user_private_key,
         const std::string &name);
-   
+
+    const_data_buffer reset(
+        const service_provider &sp,
+        const std::string &root_user_name,
+        const std::string &root_password,
+        const asymmetric_private_key &root_private_key);
+
+    void apply_transaction_record(
+        const service_provider &sp,
+        database_transaction & t,
+        uint8_t message_id,
+        binary_deserializer & s);
+
   private:
     std::shared_ptr<class _user_manager> impl_;
   };

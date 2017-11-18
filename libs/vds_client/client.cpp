@@ -135,8 +135,7 @@ vds::async_task<
       base64::to_bytes(response.private_key_body()),
       user_password);
 
-    asymmetric_private_key private_key(asymmetric_crypto::rsa4096());
-    private_key.generate();
+    auto private_key = asymmetric_private_key::generate(asymmetric_crypto::rsa4096());
 
     asymmetric_public_key pkey(private_key);
 
@@ -198,8 +197,7 @@ vds::async_task<> vds::_client::create_local_login(
 
     auto user_certificate = certificate::parse(response.certificate_body());
 
-    asymmetric_private_key local_user_private_key(asymmetric_crypto::rsa4096());
-    local_user_private_key.generate();
+    auto local_user_private_key = asymmetric_private_key::generate(asymmetric_crypto::rsa4096());
 
     auto member_id = guid::new_guid();
 

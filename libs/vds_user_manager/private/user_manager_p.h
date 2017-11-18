@@ -16,14 +16,25 @@ namespace vds {
     ~_user_manager();
 
     member_user create_root_user(
-      class database_transaction & t,
+      class transaction_block & log,
       const std::string & user_name,
       const std::string & user_password,
       const asymmetric_private_key & private_key);
 
+    /*
+     *              *  Admin  * Reader  * Writer
+     * Admin cert   *         *
+     * Change cert  *
+     * Read cert    *
+     *
+     * Sign = allow to write
+     * Read = allow to read
+     * Allow write = access to private key
+     * Allow read = access to
+     */
     user_channel create_channel(
         const member_user &owner,
-        const vds::asymmetric_private_key & owner_user_private_key,
+        const asymmetric_private_key & owner_user_private_key,
         const std::string &name);
 
   };

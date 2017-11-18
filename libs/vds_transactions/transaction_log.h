@@ -11,12 +11,11 @@ All rights reserved
 namespace vds {
   class transaction_log {
   public:
+    static const uint8_t user_manager_category_id = 'u';
 
-    static void reset(
-        const service_provider &sp,
+    void apply(
         class database_transaction & t,
-        const std::string & root_user_name,
-        const std::string & root_password);
+        class transaction_block_walker & block);
 
   private:
 

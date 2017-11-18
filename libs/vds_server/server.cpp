@@ -3,6 +3,7 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
+#include <transaction_log.h>
 #include "stdafx.h"
 #include "server.h"
 #include "private/server_p.h"
@@ -25,6 +26,8 @@ All rights reserved
 #include "private/server_udp_api_p.h"
 #include "server_certificate.h"
 #include "private/storage_log_p.h"
+#include "transaction_block.h"
+#include "transaction_block.h"
 
 vds::server::server()
 : impl_(new _server(this))
@@ -72,6 +75,43 @@ void vds::server::set_port(int port)
   this->impl_->set_port(port);
 }
 
+void vds::server::reset(
+    const vds::service_provider &sp,
+    const std::string & root_user_name,
+    const std::string & root_password) {
+
+  auto usr_manager = sp.get<user_manager>();
+  auto block_data = usr_manager->reset(sp, root_user_name, root_password, private_key);
+  auto chunk = chunk_manager::pack_block(t, block_data);
+
+}
+
+void vds::transaction_log::apply(
+    database_transaction & t,
+    const const_data_buffer & chunk) {
+  auto data = transaction_block::unpack_block(chunk, [](
+      const vds::guid & cert_id,
+      vds::certificate & certificate,
+      vds::asymmetric_private_key & private_key){
+
+  });
+
+  binary_deserializer s(data);
+
+  while(0 < s.size()){
+    uint8_t category_id;
+    s >> category_id;
+    switch (category_id){
+      case transaction_log::user_manager_category_id:
+      {
+        user_manager::apply_log_record(t, s);
+        break;
+      }
+      default:
+        throw std::runtime_error("Invalid record category");
+    }
+  }
+}
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 
