@@ -9,6 +9,7 @@ All rights reserved
 #include <memory>
 #include <string>
 #include <transaction_block.h>
+#include "user_channel.h"
 
 namespace vds {
 
@@ -24,10 +25,9 @@ namespace vds {
       const std::string & user_password,
       const class asymmetric_private_key & private_key);
     
-    class user_channel create_channel(
-        const member_user &owner,
-        const class asymmetric_private_key & owner_user_private_key,
-        const std::string &name);
+    user_channel create_channel(transaction_block &log, const member_user &owner,
+                                    const vds::asymmetric_private_key &owner_user_private_key,
+                                    const std::string &name);
 
     const_data_buffer reset(
         const service_provider &sp,

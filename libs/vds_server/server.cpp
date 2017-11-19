@@ -28,6 +28,7 @@ All rights reserved
 #include "private/storage_log_p.h"
 #include "transaction_block.h"
 #include "transaction_block.h"
+#include "transaction_context.h"
 
 vds::server::server()
 : impl_(new _server(this))
@@ -87,14 +88,18 @@ void vds::server::reset(
 }
 
 void vds::transaction_log::apply(
-    database_transaction & t,
-    const const_data_buffer & chunk) {
-  auto data = transaction_block::unpack_block(chunk, [](
-      const vds::guid & cert_id,
-      vds::certificate & certificate,
-      vds::asymmetric_private_key & private_key){
+    const service_provider &sp,
+    database_transaction &t,
+    const const_data_buffer &chunk) {
+  auto scope = sp.create_scope("Apply record");
 
-  });
+  auto data = transaction_block::unpack_block(
+      scope,
+      chunk,
+    [](const vds::guid & cert_id) -> vds::certificate){
+    },
+    [](const vds::guid & cert_id) -> vds::asymmetric_private_key{
+    });
 
   binary_deserializer s(data);
 

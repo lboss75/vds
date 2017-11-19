@@ -14,15 +14,20 @@ namespace vds {
 
   class channel_dbo : public database_table {
   public:
+
+    enum class channel_type_t : uint8_t {
+      simple = 0
+    };
+
     channel_dbo()
         : database_table("channel"),
           id(this, "id"),
-          cert(this, "cert")
+          channel_type(this, "channel_type")
     {
     }
 
     database_column<guid> id;
-    database_column<guid> cert;
+    database_column<uint8_t> channel_type;
   };
 }
 

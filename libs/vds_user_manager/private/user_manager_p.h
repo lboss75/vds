@@ -32,10 +32,9 @@ namespace vds {
      * Allow write = access to private key
      * Allow read = access to
      */
-    user_channel create_channel(
-        const member_user &owner,
-        const asymmetric_private_key & owner_user_private_key,
-        const std::string &name);
+    vds::user_channel create_channel(transaction_block &log, const vds::member_user &owner,
+                                     const vds::asymmetric_private_key &owner_user_private_key,
+                                     const std::string &name);
 
   };
 }

@@ -21,8 +21,9 @@ namespace vds {
     user_channel();
 
     user_channel(
-        const guid &guid,
-        const certificate &certificate);
+        const guid & id,
+        const vds::certificate & read_cert,
+        const vds::certificate & write_cert);
 
     ~user_channel();
     

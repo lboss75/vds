@@ -16,7 +16,6 @@ All rights reserved
 #include "transactions/root_user_transaction.h"
 #include "transaction_block.h"
 #include "private/cert_control_p.h"
-#include "transactions/root_user_transaction.h"
 
 vds::member_user::member_user(_member_user * impl)
   : impl_(impl)
@@ -46,15 +45,6 @@ vds::member_user vds::member_user::create_user(
       private_key);
 }
 
-vds::user_channel vds::member_user::create_channel(
-    const std::shared_ptr<iuser_manager_storage> & storage,
-    const vds::asymmetric_private_key & owner_user_private_key,
-    const std::string & channel_name
-)const {
-  return this->impl_->create_channel(storage, owner_user_private_key, channel_name);
-}
-
-
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
 vds::_member_user::_member_user(const guid & id, const certificate & user_cert)
@@ -75,6 +65,7 @@ vds::member_user vds::_member_user::create_root(
   log.add(root_user_transaction(
       id,
       cert,
+      user_name,
       private_key.der(user_password),
       hash::signature(hash::sha256(), user_password.c_str(), user_password.length())));
 
@@ -124,34 +115,3 @@ vds::member_user vds::_member_user::create_user(
   return member_user(new _member_user(id, cert));
 }
 
-vds::user_channel vds::_member_user::create_channel(
-    const std::shared_ptr<iuser_manager_storage> & storage,
-    const vds::asymmetric_private_key & owner_user_private_key,
-    const std::string & channel_name)const
-{
-  auto id = guid::new_guid();
-
-  asymmetric_private_key private_key(asymmetric_crypto::rsa4096());
-  private_key.generate();
-
-  asymmetric_public_key public_key(private_key);
-
-  certificate::create_options cert_options;
-  cert_options.country = "RU";
-  cert_options.organization = "IVySoft";
-  cert_options.name = "Channel Certificate " + id.str();
-  cert_options.ca_certificate = &this->user_cert_;
-  cert_options.ca_certificate_private_key = &owner_user_private_key;
-
-  cert_options.extensions.push_back(certificate_extension(id_extension_type(), id.str()));
-
-  cert_options.extensions.push_back(
-      certificate_extension(parent_id_extension_type(), this->id_.str()));
-
-  auto cert = certificate::create_new(public_key, private_key, cert_options);
-
-  return storage->new_channel(
-    user_channel(id, cert),
-    this->id_,
-    this->user_cert_.public_key().encrypt(private_key.der(std::string())));
-}

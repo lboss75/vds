@@ -19,7 +19,7 @@ include_directories(${OPENSSL_INCLUDE_DIR})
 FILE(GLOB HEADER_FILES *.h)
 FILE(GLOB PRIVATE_HEADER_FILES private/*.h)
 FILE(GLOB SOURCE_LIB *.cpp)
-FILE(GLOB TRANSACTION_FILES transactions/*.h)
+FILE(GLOB TRANSACTION_FILES transactions/*.cpp transactions/*.h)
 
 ADD_MSVC_PRECOMPILED_HEADER("stdafx.h" "stdafx.cpp" SOURCE_LIB)
 

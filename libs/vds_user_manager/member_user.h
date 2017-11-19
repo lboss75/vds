@@ -36,11 +36,6 @@ namespace vds {
         const std::string &user_password,
         const asymmetric_private_key &private_key);
 
-    user_channel create_channel(
-      const std::shared_ptr<iuser_manager_storage> & storage,
-      const vds::asymmetric_private_key & owner_user_private_key,
-      const std::string & channel_name)const;
-
   private:
     std::shared_ptr<_member_user> impl_;
   };
