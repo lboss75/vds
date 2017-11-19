@@ -422,8 +422,12 @@ void vds::_storage_log::validate_signature(
 {
 
   std::string body = record.serialize(false)->str();
-  if (!asymmetric_sign_verify::verify(this->corresponding_public_key(sp, tr, record), signature, body.c_str(),
-                                      body.length())) {
+  if (!asymmetric_sign_verify::verify(
+      hash::sha256(),
+      this->corresponding_public_key(sp, tr, record),
+      signature,
+      body.c_str(),
+      body.length())) {
     sp.get<logger>()->trace("storage_log", sp, "Wrong signature [%s] signed [%s]", body.c_str(), base64::from_bytes(signature).c_str());
 
     throw std::runtime_error("Invalid signature");

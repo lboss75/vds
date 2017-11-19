@@ -9,7 +9,7 @@ All rights reserved
 #include "object_transfer_protocol.h"
 #include "messages.h"
 #include "database_orm.h"
-#include "chunk_manager.h"
+#include "ichunk_manager.h"
 
 namespace vds {
   class route_hop;

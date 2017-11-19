@@ -25,8 +25,7 @@ namespace vds {
         const vds::certificate & read_cert,
         const vds::certificate & write_cert);
 
-    ~user_channel();
-    
+
     void add_user(const member_user & user);
     
     const_data_buffer crypt_message(

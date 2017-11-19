@@ -23,6 +23,7 @@ include_directories(${vds_protocols_SOURCE_DIR})
 include_directories(${vds_server_SOURCE_DIR})
 include_directories(${vds_p2p_network_SOURCE_DIR})
 include_directories(${vds_user_manager_SOURCE_DIR})
+include_directories(${vds_transactions_SOURCE_DIR})
 include_directories(${OPENSSL_INCLUDE_DIR})
 include_directories(${UPNP_INCLUDE_DIR})
 
@@ -46,6 +47,7 @@ target_link_libraries(
   vds_server
   vds_p2p_network
   vds_user_manager
+  vds_transactions
   ${UUID_LIBRARIES}
   ${OPENSSL_LIBRARIES}
   ${UPNP_LIBRARIES}

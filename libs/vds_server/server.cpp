@@ -29,6 +29,8 @@ All rights reserved
 #include "transaction_block.h"
 #include "transaction_block.h"
 #include "transaction_context.h"
+#include "chunk_manager.h"
+#include "db_model.h"
 
 vds::server::server()
 : impl_(new _server(this))
@@ -76,15 +78,17 @@ void vds::server::set_port(int port)
   this->impl_->set_port(port);
 }
 
-void vds::server::reset(
+vds::async_task<> vds::server::reset(
     const vds::service_provider &sp,
-    const std::string & root_user_name,
-    const std::string & root_password) {
+    const std::string &root_user_name,
+    const std::string &root_password) {
 
   auto usr_manager = sp.get<user_manager>();
+  auto private_key = asymmetric_private_key::generate(asymmetric_crypto::rsa4096());
   auto block_data = usr_manager->reset(sp, root_user_name, root_password, private_key);
-  auto chunk = chunk_manager::pack_block(t, block_data);
-
+  return sp.get<db_model>()->async_transaction(sp, [block_data](database_transaction & t){
+    auto chunk = chunk_manager::pack_block(t, block_data);
+  });
 }
 
 void vds::transaction_log::apply(
@@ -96,7 +100,7 @@ void vds::transaction_log::apply(
   auto data = transaction_block::unpack_block(
       scope,
       chunk,
-    [](const vds::guid & cert_id) -> vds::certificate){
+    [](const vds::guid & cert_id) -> vds::certificate{
     },
     [](const vds::guid & cert_id) -> vds::asymmetric_private_key{
     });
@@ -105,11 +109,12 @@ void vds::transaction_log::apply(
 
   while(0 < s.size()){
     uint8_t category_id;
-    s >> category_id;
+    uint8_t message_id;
+    s >> category_id >> message_id;
     switch (category_id){
       case transaction_log::user_manager_category_id:
       {
-        user_manager::apply_log_record(t, s);
+        sp.get<user_manager>()->apply_transaction_record(sp, t, message_id, s);
         break;
       }
       default:

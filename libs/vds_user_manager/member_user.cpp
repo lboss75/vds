@@ -45,10 +45,21 @@ vds::member_user vds::member_user::create_user(
       private_key);
 }
 
+const vds::guid &vds::member_user::id() const {
+  return this->impl_->id();
+}
+
+const vds::certificate &vds::member_user::user_certificate() const {
+  return this->impl_->user_certificate();
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
-vds::_member_user::_member_user(const guid & id, const certificate & user_cert)
-  : id_(id), user_cert_(user_cert)
+vds::_member_user::_member_user(
+    const guid & id,
+    const certificate & user_cert)
+  : id_(id),
+    user_cert_(user_cert)
 {
 }
 

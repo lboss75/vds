@@ -6,6 +6,8 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
+#include "database.h"
+
 namespace vds {
 
   class db_model {
@@ -14,6 +16,8 @@ namespace vds {
         const service_provider & sp,
         const std::function<void(class database_transaction & t)> & handler);
 
+  private:
+    database db_;
 
   };
 

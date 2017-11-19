@@ -19,6 +19,8 @@ include_directories(${vds_protocols_SOURCE_DIR})
 include_directories(${vds_database_SOURCE_DIR})
 include_directories(${vds_transactions_SOURCE_DIR})
 include_directories(${vds_user_manager_SOURCE_DIR})
+include_directories(${vds_chunk_manager_SOURCE_DIR})
+include_directories(${vds_db_model_SOURCE_DIR})
 include_directories(${OPENSSL_INCLUDE_DIR})
 
 FILE(GLOB HEADER_FILES *.h)
@@ -39,7 +41,9 @@ target_link_libraries(
   vds_parser
   vds_protocols
   vds_transactions
+  vds_chunk_manager
   vds_user_manager
+  vds_db_model
   ${UUID_LIBRARIES}
   ${OPENSSL_LIBRARIES}
   ${UPNP_LIBRARIES}

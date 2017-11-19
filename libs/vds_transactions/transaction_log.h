@@ -14,8 +14,9 @@ namespace vds {
     static const uint8_t user_manager_category_id = 'u';
 
     void apply(
-        class database_transaction & t,
-        class transaction_block_walker & block);
+        const service_provider &sp,
+        class database_transaction &t,
+        const class const_data_buffer &chunk);
 
   private:
 

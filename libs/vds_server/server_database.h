@@ -6,7 +6,7 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
-#include "chunk_manager.h"
+#include "ichunk_manager.h"
 #include "messages.h"
 
 namespace vds {

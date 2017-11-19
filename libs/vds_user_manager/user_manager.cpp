@@ -126,28 +126,10 @@ vds::const_data_buffer vds::user_manager::reset(
   auto private_key = asymmetric_private_key::generate(asymmetric_crypto::rsa4096());
   auto common_channel = this->create_channel(log, user, private_key, "Common chanel");
 
-  auto device_user = user.create_device_user(log, root_private_key);
 
-  log.add(device_user_transaction(
-      user.id(),
-      device_user.id(),
-      device_user.user_certificate()));
-
-  return log.sign(user.id(), user.user_certificate(), private_key);
+  return log.sign(user.id(), user.user_certificate(), user.id(), private_key);
 }
 
-const_data_buffer vds::user_manager::authorize_device(
-    const service_provider &sp,
-    const std::string &root_user_name,
-    const std::string &root_password,
-    const asymmetric_private_key &root_private_key) {
-
-  transaction_block log;
-
-  auto user = this->get_user(root_user_name);
-  auto device_user = user.create_device_user(log, root_private_key);
-  return log.sign(user.id(), user.user_certificate(), root_private_key);
-}
 ////////////////////////////////////////////////////////////////////////
 vds::_user_manager::_user_manager()
 {

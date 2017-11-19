@@ -6,7 +6,7 @@ All rights reserved
 #include "stdafx.h"
 #include <unordered_set>
 #include <set>
-#include "chunk_manager.h"
+#include "ichunk_manager.h"
 #include "private/chunk_manager_p.h"
 #include "storage_log.h"
 #include "hash.h"

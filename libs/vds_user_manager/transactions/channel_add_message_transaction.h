@@ -55,6 +55,25 @@ namespace vds {
       create_channel(const guid &channel_id, const guid &read_cert_id, const certificate &read_cert,
                    const asymmetric_private_key &read_cert_key, const guid &write_cert_id, const certificate &write_cert,
                    const asymmetric_private_key &write_key);
+      binary_serializer & serialize(binary_serializer & s) const {
+        s
+            << this->channel_id_
+            << this->read_cert_id_
+            << this->read_cert_.der()
+            << this->read_cert_key_.der("")
+            << this->write_cert_id_
+            << this->write_cert_.der()
+            << this->write_key_.der("");
+        return  s;
+      }
+    private:
+      guid channel_id_;
+      guid read_cert_id_;
+      certificate read_cert_;
+      asymmetric_private_key read_cert_key_;
+      guid write_cert_id_;
+      certificate write_cert_;
+      asymmetric_private_key write_key_;
     };
 
     channel_add_message_transaction(binary_deserializer & s){

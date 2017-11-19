@@ -37,7 +37,7 @@ namespace vds {
 
     void apply_transaction_record(
         const service_provider &sp,
-        database_transaction & t,
+        class database_transaction & t,
         uint8_t message_id,
         binary_deserializer & s);
 
