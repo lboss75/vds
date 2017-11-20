@@ -3,7 +3,6 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
-#include <transaction_log.h>
 #include "stdafx.h"
 #include "server.h"
 #include "private/server_p.h"
@@ -30,6 +29,7 @@ All rights reserved
 #include "transaction_block.h"
 #include "transaction_context.h"
 #include "chunk_manager.h"
+#include "transaction_log.h"
 #include "db_model.h"
 
 vds::server::server()

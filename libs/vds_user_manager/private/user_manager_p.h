@@ -13,7 +13,6 @@ namespace vds {
   {
   public:
     _user_manager();
-    ~_user_manager();
 
     member_user create_root_user(
       class transaction_block & log,
