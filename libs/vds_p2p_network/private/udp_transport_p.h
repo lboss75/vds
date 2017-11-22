@@ -297,16 +297,19 @@ namespace vds {
     class acknowledgement_datagram : public datagram_generator {
     public:
       acknowledgement_datagram(
-          const std::shared_ptr<session> &owner,
-          const uint16_t min_sequence,
-          const uint16_t max_sequence)
-          : datagram_generator(owner),
-            min_sequence_(min_sequence),
-            max_sequence_(max_sequence_) {
+          const std::shared_ptr<session> &owner)
+          : datagram_generator(owner) {
       }
 
       virtual uint16_t generate_message(
           uint8_t *buffer) override {
+		  throw std::runtime_error("Not implemented");
+		  /*,
+      this->min_incoming_sequence_,
+      this->future_data_.empty()
+      ? this->min_incoming_sequence_
+      : this->future_data_.rbegin()->first
+	  */
 
       }
       bool is_eof() const override {
@@ -315,10 +318,6 @@ namespace vds {
 
       void complete(const const_data_buffer & buffer) override {
       }
-
-    private:
-       uint16_t min_sequence_;
-       uint16_t max_sequence_;
     };
     static constexpr uint16_t max_datagram_size = 65507;
 

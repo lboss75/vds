@@ -113,7 +113,8 @@ namespace vds {
                     //                        sp.get<logger>()->info("HTTPS", sp, "Server error: %s", ex->what());
                     //                      }});
                   }
-                });
+				  return true;
+			});
           }
         });
     return !sp.get_shutdown_event().is_shuting_down();

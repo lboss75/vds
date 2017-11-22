@@ -184,5 +184,5 @@ vds::user_channel vds::_user_manager::create_channel(
           id,
           read_id, read_cert, read_private_key,
           write_id, write_cert, write_private_key)));
-
+  return user_channel(id, read_cert, write_cert);
 }

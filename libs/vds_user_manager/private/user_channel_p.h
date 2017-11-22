@@ -20,8 +20,6 @@ namespace vds {
         const vds::certificate & read_cert,
         const vds::certificate & write_cert);
 
-      ~_user_channel();
-
   private:
     guid id_;
     certificate read_cert_;

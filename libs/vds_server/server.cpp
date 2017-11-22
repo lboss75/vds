@@ -31,6 +31,8 @@ All rights reserved
 #include "chunk_manager.h"
 #include "transaction_log.h"
 #include "db_model.h"
+#include "certificate_dbo.h"
+#include "certificate_private_key_dbo.h"
 
 vds::server::server()
 : impl_(new _server(this))
@@ -86,8 +88,10 @@ vds::async_task<> vds::server::reset(
   auto usr_manager = sp.get<user_manager>();
   auto private_key = asymmetric_private_key::generate(asymmetric_crypto::rsa4096());
   auto block_data = usr_manager->reset(sp, root_user_name, root_password, private_key);
-  return sp.get<db_model>()->async_transaction(sp, [block_data](database_transaction & t){
-    auto chunk = chunk_manager::pack_block(t, block_data);
+  return sp.get<db_model>()->async_transaction(sp, [this, sp, block_data](database_transaction & t){
+    auto block_id = chunk_manager::pack_block(t, block_data);
+
+	transaction_log::apply(sp, t, chunk_manager::get_block(t, block_id));
   });
 }
 
@@ -100,10 +104,26 @@ void vds::transaction_log::apply(
   auto data = transaction_block::unpack_block(
       scope,
       chunk,
-    [](const vds::guid & cert_id) -> vds::certificate{
+    [&t](const guid & cert_id) -> certificate{
+	  certificate_dbo t1;
+	  auto st = t.get_reader(t1.select(t1.cert).where(t1.id == cert_id));
+	  if (st.execute()) {
+		  return certificate::parse_der(t1.cert.get(st));
+	  }
+	  else {
+		  return certificate();
+	  }
     },
-    [](const vds::guid & cert_id) -> vds::asymmetric_private_key{
-    });
+    [&t](const guid & cert_id) -> asymmetric_private_key{
+		certificate_private_key_dbo t1;
+		auto st = t.get_reader(t1.select(t1.body).where(t1.id == cert_id));
+		if (st.execute()) {
+			return asymmetric_private_key::parse_der(t1.body.get(st), std::string());
+		}
+		else {
+			return asymmetric_private_key();
+		}
+	});
 
   binary_deserializer s(data);
 

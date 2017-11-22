@@ -131,7 +131,6 @@ vds::async_task<
     sp.get<logger>()->trace("client", sp, "Register new server");
 
     auto user_private_key = asymmetric_private_key::parse_der(
-      sp,
       base64::to_bytes(response.private_key_body()),
       user_password);
 
@@ -191,7 +190,6 @@ vds::async_task<> vds::_client::create_local_login(
     sp.get<logger>()->trace("client", sp, "Register new user");
 
     auto user_private_key = asymmetric_private_key::parse_der(
-      sp,
       base64::to_bytes(response.private_key_body()),
       user_password);
 
@@ -227,7 +225,7 @@ vds::async_task<> vds::_client::create_local_login(
       response.order_num() + 1).serialize(false);
 
     auto s = msg->str();
-    auto private_key = asymmetric_private_key::parse_der(sp, base64::to_bytes(response.private_key_body()), user_password);
+    auto private_key = asymmetric_private_key::parse_der(base64::to_bytes(response.private_key_body()), user_password);
 
     const_data_buffer signature = asymmetric_sign::signature(
       hash::sha256(),

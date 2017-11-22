@@ -216,11 +216,7 @@ void vds::_udp_transport::session::on_timer(const std::shared_ptr<_udp_transport
   std::unique_lock<std::mutex> owner_lock(owner->send_data_buffer_mutex_);
 
   owner->send_data_buffer_.emplace(new acknowledgement_datagram(
-      this->shared_from_this(),
-      this->min_incoming_sequence_,
-      this->future_data_.empty()
-      ? this->min_incoming_sequence_
-      : this->future_data_.rbegin()->first));
+      this->shared_from_this()));
 }
 
 void vds::_udp_transport::session::process_incoming_datagram(

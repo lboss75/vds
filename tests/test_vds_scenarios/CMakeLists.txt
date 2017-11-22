@@ -51,7 +51,7 @@ target_link_libraries(
   vds_client
   vds_server
   vds_user_manager
-  vds_p2p_networks
+  vds_p2p_network
   vds_transactions
   ${UUID_LIBRARIES}
   ${OPENSSL_LIBRARIES}

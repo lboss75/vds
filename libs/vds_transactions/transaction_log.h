@@ -13,7 +13,7 @@ namespace vds {
   public:
     static const uint8_t user_manager_category_id = 'u';
 
-    void apply(
+    static void apply(
         const service_provider &sp,
         class database_transaction &t,
         const class const_data_buffer &chunk);

@@ -51,7 +51,6 @@ namespace vds {
     
     vds::const_data_buffer der(const std::string &password) const;
     static asymmetric_private_key parse_der(
-      const service_provider & sp,
       const const_data_buffer & value,
       const std::string & password);
 

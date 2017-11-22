@@ -23,7 +23,7 @@ namespace vds {
 
     database_column<const_data_buffer> id;
     database_column<const_data_buffer> block_key;
-    database_column<uint8_t> padding;
+    database_column<int> padding;
     database_column<const_data_buffer> block_data;
 
   };

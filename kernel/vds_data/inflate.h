@@ -19,6 +19,8 @@ namespace vds {
   {
   public:
     inflate(stream<uint8_t> & target);
+
+	static const_data_buffer decompress(const void * data, size_t size);
   };
 
   class inflate_async : public stream_async<uint8_t>

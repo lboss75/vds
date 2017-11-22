@@ -61,11 +61,10 @@ vds::const_data_buffer vds::asymmetric_private_key::der(const std::string &passw
 }
 
 vds::asymmetric_private_key vds::asymmetric_private_key::parse_der(
-  const service_provider & sp,
   const const_data_buffer & value,
   const std::string & password /*= std::string()*/)
 {
-  return _asymmetric_private_key::parse_der(sp, value, password);
+  return _asymmetric_private_key::parse_der(value, password);
 }
 
 
@@ -182,7 +181,6 @@ vds::const_data_buffer vds::_asymmetric_private_key::der(const std::string &pass
 }
 
 vds::asymmetric_private_key vds::_asymmetric_private_key::parse_der(
-  const service_provider & sp,
   const const_data_buffer & value,
   const std::string & password /*= std::string()*/)
 {

@@ -400,14 +400,12 @@ void mock_server::init_root(const std::string & root_password, int tcp_port, int
     root_folders->local_machine_ = folder;
     sp.set_property<vds::persistence_values>(vds::service_provider::property_scope::root_scope, root_folders);
 
-    vds::asymmetric_private_key private_key(vds::asymmetric_crypto::rsa4096());
-    private_key.generate();
+    auto private_key = vds::asymmetric_private_key::generate(vds::asymmetric_crypto::rsa4096());
 
     auto root_id = vds::guid::new_guid();
     vds::certificate root_certificate = vds::_certificate_authority::create_root_user(root_id, private_key);
 
-    vds::asymmetric_private_key server_private_key(vds::asymmetric_crypto::rsa4096());
-    server_private_key.generate();
+    auto server_private_key = vds::asymmetric_private_key::generate(vds::asymmetric_crypto::rsa4096());
 
     vds::guid current_server_id = vds::guid::new_guid();
     vds::certificate server_certificate = vds::certificate_authority::create_server(
@@ -423,7 +421,7 @@ void mock_server::init_root(const std::string & root_password, int tcp_port, int
 
     registrator.start(sp);
 
-    server.reset(sp);
+    server.reset(sp, "root", root_password);
 
     sp.get<vds::istorage_log>()->reset(
       sp,
