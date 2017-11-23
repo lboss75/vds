@@ -6,6 +6,7 @@ All rights reserved
 #include "vds_mock.h"
 #include "test_config.h"
 #include "storage_log.h"
+#include "mt_service.h"
 
 vds_mock::vds_mock()
 {
@@ -399,37 +400,23 @@ void mock_server::init_root(const std::string & root_password, int tcp_port, int
     root_folders->current_user_ = folder;
     root_folders->local_machine_ = folder;
     sp.set_property<vds::persistence_values>(vds::service_provider::property_scope::root_scope, root_folders);
-
-    auto private_key = vds::asymmetric_private_key::generate(vds::asymmetric_crypto::rsa4096());
-
-    auto root_id = vds::guid::new_guid();
-    vds::certificate root_certificate = vds::_certificate_authority::create_root_user(root_id, private_key);
-
-    auto server_private_key = vds::asymmetric_private_key::generate(vds::asymmetric_crypto::rsa4096());
-
-    vds::guid current_server_id = vds::guid::new_guid();
-    vds::certificate server_certificate = vds::certificate_authority::create_server(
-      current_server_id,
-      root_certificate,
-      private_key,
-      server_private_key);
-    
-    server_certificate.save(vds::filename(vds::foldername(folder, ".vds"), "server.crt"));
-    server_private_key.save(vds::filename(vds::foldername(folder, ".vds"), "server.pkey"));
-    
+	
     server.set_port(tcp_port);
 
     registrator.start(sp);
 
-    server.reset(sp, "root", root_password);
+	vds::imt_service::enable_async(sp);
+	vds::barrier b;
+    server
+		.reset(sp, "root", root_password)
+		.execute([&error, &b](const std::shared_ptr<std::exception> & ex) {
+		if (ex) {
+			error = ex;
+		}
+		b.set();
+	});
 
-    sp.get<vds::istorage_log>()->reset(
-      sp,
-      root_id,
-      root_certificate,
-      private_key,
-      root_password,
-      "https://127.0.0.1:" + std::to_string(tcp_port));
+	b.wait();
   }
   catch (...) {
     try { registrator.shutdown(sp); }

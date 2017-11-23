@@ -21,7 +21,7 @@ namespace vds {
     {
     }
 
-    database_column<const_data_buffer> id;
+    database_column<std::string> id;
     database_column<const_data_buffer> block_key;
     database_column<int> padding;
     database_column<const_data_buffer> block_data;

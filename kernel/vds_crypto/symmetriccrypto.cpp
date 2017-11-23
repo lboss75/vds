@@ -92,9 +92,10 @@ void vds::symmetric_key::serialize(vds::binary_serializer& s) const
 
 vds::symmetric_key vds::symmetric_key::from_password(const std::string & password)
 {
-  unsigned char key[EVP_MAX_KEY_LENGTH];
+  unsigned char * key = new unsigned char[EVP_MAX_KEY_LENGTH];
   if(!EVP_BytesToKey(EVP_rc4(), EVP_md5(), NULL, (const unsigned char *)password.c_str(), password.length(), 1, key, NULL)){
     auto error = ERR_get_error();
+	delete[] key;
     throw crypto_exception("EVP_BytesToKey failed", error);
   }
   
@@ -132,8 +133,8 @@ vds::_symmetric_key::_symmetric_key(
 
 vds::_symmetric_key::~_symmetric_key()
 {
-  delete[] this->key_;
-  delete[] this->iv_;
+	delete[] this->key_;
+	delete[] this->iv_;
 }
 ///////////////////////////////////////////////////
 vds::symmetric_encrypt::symmetric_encrypt(

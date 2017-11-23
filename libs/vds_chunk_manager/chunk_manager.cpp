@@ -29,7 +29,7 @@ vds::chunk_manager::block_id_t vds::chunk_manager::pack_block(
       key_data.data(),
       pack_block_iv);
 
-  auto id = hash::signature(hash::sha256(), data);
+  auto id = base64::from_bytes(hash::signature(hash::sha256(), data));
   chunk_data_dbo t1;
   t.execute(t1.insert(
       t1.id = id,

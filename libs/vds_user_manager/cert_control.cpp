@@ -4,7 +4,7 @@
 static vds::crypto_service::certificate_extension_type id_extension_type()
 {
   static vds::crypto_service::certificate_extension_type result = vds::crypto_service::register_certificate_extension_type(
-      "VDS.ID",
+      "1.2.3.4",
       "VDS Identifier",
       "VDS Identifier");
 
@@ -14,7 +14,7 @@ static vds::crypto_service::certificate_extension_type id_extension_type()
 static vds::crypto_service::certificate_extension_type parent_id_extension_type()
 {
   static vds::crypto_service::certificate_extension_type result = vds::crypto_service::register_certificate_extension_type(
-      "VDS.ParentID",
+      "1.2.3.5",
       "VDS Parent Identifier",
       "VDS Parent Identifier");
 

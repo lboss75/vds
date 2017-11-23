@@ -63,6 +63,10 @@ void vds::server::register_services(service_registrator& registrator)
   registrator.add_service<node_manager>(this->impl_->node_manager_.get());
 
   registrator.add_service<cert_manager>(this->impl_->cert_manager_.get());
+
+  registrator.add_service<user_manager>(this->impl_->user_manager_.get());
+
+  registrator.add_service<db_model>(this->impl_->db_model_.get());
 }
 
 void vds::server::start(const service_provider& sp)
@@ -152,7 +156,9 @@ vds::_server::_server(server * owner)
   storage_log_(new _storage_log()),
   chunk_manager_(new _chunk_manager()),
   server_database_(new _server_database()),
-  local_cache_(new _local_cache())
+  local_cache_(new _local_cache()),
+	user_manager_(new user_manager()),
+	db_model_(new db_model())
 {
 }
 
@@ -162,39 +168,12 @@ vds::_server::~_server()
 
 void vds::_server::start(const service_provider& sp)
 {
-  this->certificate_.load(filename(foldername(persistence::current_user(sp), ".vds"), "server.crt"));
-  this->private_key_.load(filename(foldername(persistence::current_user(sp), ".vds"), "server.pkey"));
-
-  this->server_database_->start(sp);
-  this->storage_log_->start(
-    sp,
-    server_certificate::server_id(this->certificate_),
-    this->certificate_,
-    this->private_key_);
-  this->local_cache_->start(sp);
-  this->chunk_manager_->start(sp);
-
-  auto scope = sp.create_scope("Server HTTP API");
-  imt_service::enable_async(scope);
-  this->server_http_api_->start(sp, "127.0.0.1", this->port_, this->certificate_, this->private_key_)
-    .execute(
-      [sp](const std::shared_ptr<std::exception> & ex) {
-        if(!ex){
-          sp.get<logger>()->trace("HTTP API", sp, "Server closed");
-        } else {
-          sp.get<logger>()->trace("HTTP API", sp, "Server error %s", ex->what());
-          sp.unhandled_exception(ex);
-        }
-      });
+	this->db_model_->start(sp);
 }
 
 void vds::_server::stop(const service_provider& sp)
 {
-  this->server_http_api_->stop(sp);
-  this->chunk_manager_->stop(sp);
-  this->local_cache_->stop(sp);
-  this->storage_log_->stop(sp);
-  this->server_database_->stop(sp);
+	this->db_model_->stop(sp);
 }
 
 void vds::_server::set_port(int port)

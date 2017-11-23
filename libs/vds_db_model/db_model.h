@@ -16,8 +16,13 @@ namespace vds {
         const service_provider & sp,
         const std::function<void(class database_transaction & t)> & handler);
 
+	void start(const service_provider & sp);
+	void stop(const service_provider & sp);
+
   private:
     database db_;
+
+	static void migrate(class database_transaction & t, uint64_t db_version);
 
   };
 
