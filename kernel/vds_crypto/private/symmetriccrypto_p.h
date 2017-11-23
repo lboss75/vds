@@ -82,7 +82,7 @@ namespace vds {
       block_size_(key.block_size()),
       input_buffer_(new uint8_t[key.block_size()]),
       input_buffer_offset_(0),
-      output_buffer_(new uint8_t[key.block_size()])
+      output_buffer_(new uint8_t[2 * key.block_size()])
     {
       if (nullptr == this->ctx_) {
         throw std::runtime_error("Create crypto context failed");
@@ -121,10 +121,11 @@ namespace vds {
           memcpy(this->input_buffer_, input_buffer, s);
 
           this->input_buffer_offset_ += s;
+          input_buffer += s;
           input_buffer_size -= s;
 
           if (this->input_buffer_offset_ == this->block_size_) {
-            int len = this->block_size_;
+            int len = 2 * this->block_size_;
 
             if (0 == EVP_CipherUpdate(this->ctx_,
                                       reinterpret_cast<unsigned char *>(this->output_buffer_), &len,
@@ -147,7 +148,7 @@ namespace vds {
 //            this->input_buffer_[this->input_buffer_offset_++] = 0x8F;//Padding
 //          }
 
-          int len = this->block_size_;
+          int len = 2 * this->block_size_;
           if (0 == EVP_CipherUpdate(this->ctx_,
                                     reinterpret_cast<unsigned char *>(this->output_buffer_), &len,
                                     reinterpret_cast<const unsigned char *>(this->input_buffer_), (int)this->input_buffer_offset_)) {
@@ -160,7 +161,7 @@ namespace vds {
           }
         }
 
-        int len = this->block_size_;
+        int len = 2 * this->block_size_;
         if (0 == EVP_CipherFinal_ex(
             this->ctx_,
             reinterpret_cast<unsigned char *>(this->output_buffer_), &len)) {
@@ -198,7 +199,7 @@ namespace vds {
         block_size_(key.block_size()),
         input_buffer_(new uint8_t[key.block_size()]),
         input_buffer_offset_(0),
-        output_buffer_(new uint8_t[key.block_size()])
+        output_buffer_(new uint8_t[2 * key.block_size()])
     {
       if (nullptr == this->ctx_) {
         throw std::runtime_error("Create crypto context failed");
@@ -238,10 +239,11 @@ namespace vds {
           memcpy(this->input_buffer_, input_buffer, s);
 
           this->input_buffer_offset_ += s;
+          input_buffer += s;
           input_buffer_size -= s;
 
           if (this->input_buffer_offset_ == this->block_size_) {
-            int len = this->block_size_;
+            int len = 2 * this->block_size_;
 
             if (0 == EVP_CipherUpdate(this->ctx_,
                                       reinterpret_cast<unsigned char *>(this->output_buffer_), &len,
@@ -264,7 +266,7 @@ namespace vds {
 //            this->input_buffer_[this->input_buffer_offset_++] = 0x8F;//Padding
 //          }
 
-          int len = this->block_size_;
+          int len = 2 * this->block_size_;
           if (0 == EVP_CipherUpdate(this->ctx_,
                                     reinterpret_cast<unsigned char *>(this->output_buffer_), &len,
                                     reinterpret_cast<const unsigned char *>(this->input_buffer_), (int)this->input_buffer_offset_)) {
@@ -277,7 +279,7 @@ namespace vds {
           }
         }
 
-        int len = this->block_size_;
+        int len = 2 * this->block_size_;
         if (0 == EVP_CipherFinal_ex(
             this->ctx_,
             reinterpret_cast<unsigned char *>(this->output_buffer_), &len)) {
