@@ -6,6 +6,7 @@ All rights reserved
 #include "stdafx.h"
 #include "symmetriccrypto.h"
 #include "private/symmetriccrypto_p.h"
+#include "resizable_data_buffer.h"
 
 ////////////////////////////////////////////////////////////////////////////
 vds::symmetric_crypto_info::symmetric_crypto_info(_symmetric_crypto_info * impl)
@@ -138,25 +139,10 @@ vds::_symmetric_key::~_symmetric_key()
 }
 ///////////////////////////////////////////////////
 vds::symmetric_encrypt::symmetric_encrypt(
-  const vds::symmetric_key& key)
-: impl_(new _symmetric_encrypt(key))
+  const vds::symmetric_key& key,
+  const stream<uint8_t> & target)
+: stream<uint8_t>(new _symmetric_encrypt(key, target))
 {
-}
-
-vds::symmetric_encrypt::~symmetric_encrypt()
-{
-  delete this->impl_;
-}
-
-void vds::symmetric_encrypt::update(
-  const void * data,
-  size_t len,
-  void * result_data,
-  size_t result_data_len,
-  size_t & input_readed,
-  size_t & output_written)
-{
-  this->impl_->update(data, len, result_data, result_data_len, input_readed, output_written);
 }
 
 vds::const_data_buffer vds::symmetric_encrypt::encrypt(
@@ -164,52 +150,14 @@ vds::const_data_buffer vds::symmetric_encrypt::encrypt(
   const void * input_buffer,
   size_t input_buffer_size)
 {
-  std::vector<uint8_t> result;
+  collect_data<uint8_t> result;
   uint8_t buffer[1024];
   
-  symmetric_encrypt s(key);
-  while(0 < input_buffer_size){
-    size_t input_readed = 0;
-    size_t output_written = 0;
-    
-    s.update(
-      input_buffer,
-      input_buffer_size,
-      buffer,
-      sizeof(buffer),
-      input_readed,
-      output_written);
-    
-    input_buffer_size -= input_readed;
-    input_buffer = (const uint8_t *)input_buffer + input_readed;
-    
-    for(size_t i = 0; i < output_written; ++i){
-      result.push_back(buffer[i]);
-    }
-  }
-  
-  for(;;){
-    size_t input_readed = 0;
-    size_t output_written = 0;
-    
-    s.update(
-      nullptr,
-      0,
-      buffer,
-      sizeof(buffer),
-      input_readed,
-      output_written);
-    
-    if(0 == output_written){
-      break;
-    }
-    
-    for(size_t i = 0; i < output_written; ++i){
-      result.push_back(buffer[i]);
-    }
-  }
-  
-  return const_data_buffer(result);
+  symmetric_encrypt s(key, result);
+  s.write((const uint8_t *)input_buffer, input_buffer_size);
+  s.write(nullptr, 0);
+
+  return const_data_buffer(result.data(), result.size());
 }
 
 
@@ -230,25 +178,10 @@ size_t vds::_symmetric_crypto_info::iv_size() const
 }
 
 vds::symmetric_decrypt::symmetric_decrypt(
-  const symmetric_key & key)
-  : impl_(new _symmetric_decrypt(key))
+  const symmetric_key & key,
+  const stream<uint8_t> & target)
+  : stream<uint8_t>(new _symmetric_decrypt(key, target))
 {
-}
-
-vds::symmetric_decrypt::~symmetric_decrypt()
-{
-  delete this->impl_;
-}
-
-void vds::symmetric_decrypt::update(
-  const void * data,
-  size_t len,
-  void * result_data,
-  size_t result_data_len,
-  size_t & input_readed,
-  size_t & output_written)
-{
-  this->impl_->update(data, len, result_data, result_data_len, input_readed, output_written);
 }
 
 vds::const_data_buffer vds::symmetric_decrypt::decrypt(
@@ -256,50 +189,12 @@ vds::const_data_buffer vds::symmetric_decrypt::decrypt(
   const void * input_buffer,
   size_t input_buffer_size)
 {
-  std::vector<uint8_t> result;
+  collect_data<uint8_t> result;
   uint8_t buffer[1024];
-  
-  symmetric_decrypt s(key);
-  while(0 < input_buffer_size){
-    size_t input_readed = 0;
-    size_t output_written = 0;
-    
-    s.update(
-      input_buffer,
-      input_buffer_size,
-      buffer,
-      sizeof(buffer),
-      input_readed,
-      output_written);
-    
-    input_buffer_size -= input_readed;
-    input_buffer = (const uint8_t *)input_buffer + input_readed;
-    
-    for(size_t i = 0; i < output_written; ++i){
-      result.push_back(buffer[i]);
-    }
-  }
-  
-  for(;;){
-    size_t input_readed = 0;
-    size_t output_written = 0;
-    
-    s.update(
-      nullptr,
-      0,
-      buffer,
-      sizeof(buffer),
-      input_readed,
-      output_written);
-    
-    if(0 == output_written){
-      break;
-    }
-    
-    for(size_t i = 0; i < output_written; ++i){
-      result.push_back(buffer[i]);
-    }
-  }
-  
-  return const_data_buffer(result);
+
+  symmetric_decrypt s(key, result);
+  s.write((const uint8_t *)input_buffer, input_buffer_size);
+  s.write(nullptr, 0);
+
+  return const_data_buffer(result.data(), result.size());
 }

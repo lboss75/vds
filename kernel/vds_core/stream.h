@@ -8,6 +8,7 @@ All rights reserved
 
 #include <vector>
 #include "async_task.h"
+#include "resizable_data_buffer.h"
 
 namespace vds {
   template <typename item_type>
@@ -104,9 +105,7 @@ namespace vds {
       void write(
           const item_type *data,
           size_t len) override {
-        for (size_t i = 0; i < len; ++i) {
-          this->data_.push_back(data[i]);
-        }
+        this->data_.add(data, len);
       }
 
       const item_type *data() const {
@@ -118,7 +117,7 @@ namespace vds {
       }
 
     private:
-      std::vector<item_type> data_;
+      resizable_data_buffer data_;
     };
   };
 }

@@ -71,13 +71,18 @@ namespace vds {
     uint8_t * iv_;
   };
   
-  class _symmetric_encrypt
+  class _symmetric_encrypt : public _stream<uint8_t>
   {
   public:
-    _symmetric_encrypt(const symmetric_key & key)
-    : ctx_(EVP_CIPHER_CTX_new()),
-      eof_(false),
-      block_size_(key.block_size())
+    _symmetric_encrypt(
+      const symmetric_key & key,
+      const stream<uint8_t> & target)
+    : target_(target),
+      ctx_(EVP_CIPHER_CTX_new()),
+      block_size_(key.block_size()),
+      input_buffer_(new uint8_t[key.block_size()]),
+      input_buffer_offset_(0),
+      output_buffer_(new uint8_t[key.block_size()])
     {
       if (nullptr == this->ctx_) {
         throw std::runtime_error("Create crypto context failed");
@@ -95,68 +100,106 @@ namespace vds {
 
     ~_symmetric_encrypt()
     {
+      delete[] this->input_buffer_;
+      delete[] this->output_buffer_;
+
       if (nullptr != this->ctx_) {
         EVP_CIPHER_CTX_free(this->ctx_);
       }
     }
     
-    void update(
-      const void * input_buffer,
-      size_t input_buffer_size,
-      void * output_buffer,
-      size_t output_buffer_size,
-      size_t & input_readed,
-      size_t & output_written)
-    {
-      if (0 < input_buffer_size) {
-        int len = (output_buffer_size > INT_MAX) ? INT_MAX : (int)output_buffer_size;
-        auto n = input_buffer_size;
-        if (n > len - this->block_size_ + 1) {
-          n = len - this->block_size_ + 1;
+    void write(
+        const uint8_t * input_buffer,
+        size_t input_buffer_size) override {
+      if (0 < input_buffer) {
+        while (0 < input_buffer_size) {
+          auto s = this->block_size_ - this->input_buffer_offset_;
+          if (s > input_buffer_size) {
+            s = input_buffer_size;
+          }
+
+          memcpy(this->input_buffer_, input_buffer, s);
+
+          this->input_buffer_offset_ += s;
+          input_buffer_size -= s;
+
+          if (this->input_buffer_offset_ == this->block_size_) {
+            int len = this->block_size_;
+
+            if (0 == EVP_CipherUpdate(this->ctx_,
+                                      reinterpret_cast<unsigned char *>(this->output_buffer_), &len,
+                                      reinterpret_cast<const unsigned char *>(this->input_buffer_),
+                                      (int) this->block_size_)) {
+              auto error = ERR_get_error();
+              throw crypto_exception("EVP_CipherUpdate failed", error);
+            }
+
+            if(0 < len) {
+              this->target_.write(this->output_buffer_, len);
+            }
+
+            this->input_buffer_offset_ = 0;
+          }
+        }
+      } else {
+        if(0 < this->input_buffer_offset_){
+//          while(this->input_buffer_offset_ != this->block_size_) {
+//            this->input_buffer_[this->input_buffer_offset_++] = 0x8F;//Padding
+//          }
+
+          int len = this->block_size_;
+          if (0 == EVP_CipherUpdate(this->ctx_,
+                                    reinterpret_cast<unsigned char *>(this->output_buffer_), &len,
+                                    reinterpret_cast<const unsigned char *>(this->input_buffer_), (int)this->input_buffer_offset_)) {
+            auto error = ERR_get_error();
+            throw crypto_exception("EVP_CipherUpdate failed", error);
+          }
+
+          if(0 < len) {
+            this->target_.write(this->output_buffer_, len);
+          }
         }
 
-        if (0 == EVP_CipherUpdate(this->ctx_, 
-          reinterpret_cast<unsigned char *>(output_buffer), &len,
-          reinterpret_cast<const unsigned char *>(input_buffer), (int)n)) {
-          auto error = ERR_get_error();
-          throw crypto_exception("EVP_CipherUpdate failed", error);
-        }
-
-        input_readed = n;
-        output_written = len;
-      }
-      else if (!this->eof_) {
-        this->eof_ = true;
-
-        int buf_len = (output_buffer_size > INT_MAX) ? INT_MAX : (int)output_buffer_size;
-        if (0 == EVP_CipherFinal_ex(this->ctx_, reinterpret_cast<unsigned char *>(output_buffer), &buf_len)) {
+        int len = this->block_size_;
+        if (0 == EVP_CipherFinal_ex(
+            this->ctx_,
+            reinterpret_cast<unsigned char *>(this->output_buffer_), &len)) {
           auto error = ERR_get_error();
           throw crypto_exception("EVP_CipherFinal_ex failed", error);
         }
 
-        input_readed = 0;
-        output_written = buf_len;
-      }
-      else {
-        input_readed = 0;
-        output_written = 0;
+        if(0 < len) {
+          this->target_.write(this->output_buffer_, len);
+        }
+
+        this->target_.write(nullptr, 0);
       }
     }
 
 
   private:
+    stream<uint8_t> target_;
     EVP_CIPHER_CTX * ctx_;
-    bool eof_;
     size_t block_size_;
+
+    uint8_t  * input_buffer_;
+    uint8_t    input_buffer_offset_;
+    uint8_t  * output_buffer_;
   };
 
-  class _symmetric_decrypt
+  class _symmetric_decrypt : public _stream<uint8_t>
   {
   public:
-    _symmetric_decrypt(const symmetric_key & key)
-      : ctx_(EVP_CIPHER_CTX_new()),
-      eof_(false),
-      block_size_(key.block_size()) {
+    _symmetric_decrypt(
+        const symmetric_key & key,
+        const stream<uint8_t> & target)
+      : target_(target),
+        ctx_(EVP_CIPHER_CTX_new()),
+        block_size_(key.block_size()),
+        input_buffer_(new uint8_t[key.block_size()]),
+        input_buffer_offset_(0),
+        output_buffer_(new uint8_t[key.block_size()])
+    {
       if (nullptr == this->ctx_) {
         throw std::runtime_error("Create crypto context failed");
       }
@@ -173,55 +216,90 @@ namespace vds {
 
     ~_symmetric_decrypt()
     {
+      delete[] this->input_buffer_;
+      delete[] this->output_buffer_;
+
       if (nullptr != this->ctx_) {
         EVP_CIPHER_CTX_free(this->ctx_);
       }
     }
 
-    void update(
-      const void * input_data,
-      size_t input_data_len,
-      void * result_data,
-      size_t result_data_len,
-      size_t & input_readed,
-      size_t & output_written)
+    void write(
+        const uint8_t * input_buffer,
+        size_t input_buffer_size) override
     {
-      if (0 < input_data_len) {
-        int len = (result_data_len > INT_MAX) ? INT_MAX : (int)result_data_len;
-        auto n = input_data_len;
-        if (n > len - this->block_size_ + 1) {
-          n = len - this->block_size_ + 1;
+      if (0 < input_buffer) {
+        while (0 < input_buffer_size) {
+          auto s = this->block_size_ - this->input_buffer_offset_;
+          if (s > input_buffer_size) {
+            s = input_buffer_size;
+          }
+
+          memcpy(this->input_buffer_, input_buffer, s);
+
+          this->input_buffer_offset_ += s;
+          input_buffer_size -= s;
+
+          if (this->input_buffer_offset_ == this->block_size_) {
+            int len = this->block_size_;
+
+            if (0 == EVP_CipherUpdate(this->ctx_,
+                                      reinterpret_cast<unsigned char *>(this->output_buffer_), &len,
+                                      reinterpret_cast<const unsigned char *>(this->input_buffer_),
+                                      (int) this->block_size_)) {
+              auto error = ERR_get_error();
+              throw crypto_exception("EVP_CipherUpdate failed", error);
+            }
+
+            if(0 < len) {
+              this->target_.write(this->output_buffer_, len);
+            }
+
+            this->input_buffer_offset_ = 0;
+          }
         }
-        if (0 == EVP_CipherUpdate(this->ctx_, reinterpret_cast<unsigned char *>(result_data), &len, reinterpret_cast<const unsigned char *>(input_data), (int)n)) {
-          auto error = ERR_get_error();
-          throw crypto_exception("EVP_CipherUpdate failed", error);
+      } else {
+        if(0 < this->input_buffer_offset_){
+//          while(this->input_buffer_offset_ != this->block_size_) {
+//            this->input_buffer_[this->input_buffer_offset_++] = 0x8F;//Padding
+//          }
+
+          int len = this->block_size_;
+          if (0 == EVP_CipherUpdate(this->ctx_,
+                                    reinterpret_cast<unsigned char *>(this->output_buffer_), &len,
+                                    reinterpret_cast<const unsigned char *>(this->input_buffer_), (int)this->input_buffer_offset_)) {
+            auto error = ERR_get_error();
+            throw crypto_exception("EVP_CipherUpdate failed", error);
+          }
+
+          if(0 < len) {
+            this->target_.write(this->output_buffer_, len);
+          }
         }
 
-        input_readed = n;
-        output_written = len;
-      }
-      else if(!this->eof_) {
-        this->eof_ = true;
-
-        int buf_len = (result_data_len > INT_MAX) ? INT_MAX : (int)result_data_len;
-        if (0 == EVP_CipherFinal_ex(this->ctx_, reinterpret_cast<unsigned char *>(result_data), &buf_len)) {
+        int len = this->block_size_;
+        if (0 == EVP_CipherFinal_ex(
+            this->ctx_,
+            reinterpret_cast<unsigned char *>(this->output_buffer_), &len)) {
           auto error = ERR_get_error();
           throw crypto_exception("EVP_CipherFinal_ex failed", error);
         }
 
-        input_readed = 0;
-        output_written = buf_len;
-      }
-      else {
-        input_readed = 0;
-        output_written = 0;
+        if(0 < len) {
+          this->target_.write(this->output_buffer_, len);
+        }
+
+        this->target_.write(nullptr, 0);
       }
     }
 
   private:
+    stream<uint8_t> target_;
     EVP_CIPHER_CTX * ctx_;
-    bool eof_;
     size_t block_size_;
+    uint8_t  * input_buffer_;
+    uint8_t    input_buffer_offset_;
+    uint8_t  * output_buffer_;
   };
 
 }

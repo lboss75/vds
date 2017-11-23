@@ -7,6 +7,7 @@ All rights reserved
 */
 
 #include "binary_serialize.h"
+#include "stream.h"
 
 namespace vds {
   class symmetric_encrypt;
@@ -85,21 +86,13 @@ namespace vds {
     std::shared_ptr<class _symmetric_key> impl_;
   };
   
-  class symmetric_encrypt
+  class symmetric_encrypt : public stream<uint8_t>
   {
   public:
     symmetric_encrypt(
-      const symmetric_key & key);
-    ~symmetric_encrypt();
+      const symmetric_key & key,
+      const stream<uint8_t> & target);
 
-    void update(
-      const void * input_buffer,
-      size_t input_buffer_size,
-      void * output_buffer,
-      size_t output_buffer_size,
-      size_t & input_readed,
-      size_t & output_written);
-    
     static const_data_buffer encrypt(
       const symmetric_key & key,
       const void * input_buffer,
@@ -110,26 +103,14 @@ namespace vds {
         const const_data_buffer & input_buffer){
       return encrypt(key, input_buffer.data(), input_buffer.size());
     }
-
-  private:
-    _symmetric_encrypt * const impl_;
   };
   
-  class symmetric_decrypt
+  class symmetric_decrypt : public stream<uint8_t>
   {
   public:
     symmetric_decrypt(
-      const symmetric_key & key);
-    
-    ~symmetric_decrypt();
-
-    void update(
-      const void * input_buffer,
-      size_t input_buffer_size,
-      void * output_buffer,
-      size_t output_buffer_size,
-      size_t & input_readed,
-      size_t & output_written);
+      const symmetric_key & key,
+      const stream<uint8_t> & target);
 
     static const_data_buffer decrypt(
       const symmetric_key & key,
@@ -141,9 +122,6 @@ namespace vds {
         const const_data_buffer & input_buffer){
       return decrypt(key, input_buffer.data(), input_buffer.size());
     }
-
-  private:
-      _symmetric_decrypt * const impl_;
   };
 
 }

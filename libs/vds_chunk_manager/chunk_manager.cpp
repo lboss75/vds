@@ -68,7 +68,7 @@ vds::const_data_buffer vds::chunk_manager::get_block(database_transaction & t, c
 
 	auto zipped = symmetric_decrypt::decrypt(key, t1.block_data.get(st));
 	auto data = inflate::decompress(zipped.data(), zipped.size() - t1.padding.get(st));
-	if (block_id != hash::signature(hash::sha256(), data)) {
+	if (block_id != base64::from_bytes(hash::signature(hash::sha256(), data))) {
 		throw std::runtime_error("Data block is corrupt");
 	}
 

@@ -1,6 +1,8 @@
 #ifndef __VDS_CORE_RESIZABLE_DATA_BUFFER_H_
 #define __VDS_CORE_RESIZABLE_DATA_BUFFER_H_
 
+#include "const_data_buffer.h"
+
 namespace vds {
   class resizable_data_buffer {
   public:
@@ -12,7 +14,7 @@ namespace vds {
       this->data_.resize(size);
     }
 
-    resizable_data_buffer &operator += (const class const_data_buffer & data){
+    resizable_data_buffer &operator += (const const_data_buffer & data){
       return this->add(data.data(), data.size());
     }
 
