@@ -7,9 +7,9 @@
 #include "ip2p_network_client.h"
 
 
-vds::async_task<> vds::p2p_network_service::start(const vds::service_provider &sp) {
+vds::async_task<> vds::p2p_network_service::start(const vds::service_provider &sp, int port) {
   this->impl_.reset(new _p2p_network_service(sp));
-  return this->impl_->start(sp);
+  return this->impl_->start(sp, port);
 
 }
 
@@ -37,6 +37,10 @@ vds::_p2p_network_service::start(
   this->network_->start(sp, port, login, password);
 }
 
-vds::async_task<> vds::_p2p_network_service::start(const vds::service_provider &sp) {
-  throw std::runtime_error("Not implemented");
+vds::async_task<> vds::_p2p_network_service::start(
+    const vds::service_provider &sp,
+    int port) {
+  certificate node_cert;
+  asymmetric_private_key node_key;
+  this->network_->start(sp, port, node_cert, node_key);
 }

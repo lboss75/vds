@@ -33,9 +33,7 @@ namespace vds {
     
     void start(const service_provider &);
     void stop(const service_provider &);
-    
-    void set_port(int port);
-    
+
   private:
     friend class server;
     friend class iserver;
@@ -43,7 +41,6 @@ namespace vds {
     server * owner_;
     certificate certificate_;
     asymmetric_private_key private_key_;
-    int port_;
 
     std::unique_ptr<_cert_manager> cert_manager_;
     std::unique_ptr<_node_manager> node_manager_;
@@ -61,7 +58,7 @@ namespace vds {
     vds::async_task<> init_server(const vds::service_provider &sp, int port, const std::string &user_name,
                                       const std::string &user_password);
 
-    async_task<> start_network(const service_provider &sp);
+    vds::async_task<> start_network(const vds::service_provider &sp, int port);
   };
 }
 

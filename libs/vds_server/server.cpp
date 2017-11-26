@@ -82,11 +82,6 @@ void vds::server::stop(const service_provider& sp)
   this->impl_->stop(sp);
 }
 
-void vds::server::set_port(int port)
-{
-  this->impl_->set_port(port);
-}
-
 vds::async_task<> vds::server::reset(
     const vds::service_provider &sp,
     const std::string &root_user_name,
@@ -109,8 +104,8 @@ vds::async_task<> vds::server::init_server(const vds::service_provider &sp, int 
 
 }
 
-vds::async_task<> vds::server::start_network(const vds::service_provider &sp) {
-  return this->impl_->start_network(sp);
+vds::async_task<> vds::server::start_network(const vds::service_provider &sp, int port) {
+  return this->impl_->start_network(sp, port);
 }
 
 void vds::transaction_log::apply(
@@ -191,11 +186,6 @@ void vds::_server::stop(const service_provider& sp)
 	this->db_model_->stop(sp);
 }
 
-void vds::_server::set_port(int port)
-{
-  this->port_ = port;
-}
-
 vds::async_task<> vds::_server::init_server(
     const vds::service_provider &sp,
     int port,
@@ -204,6 +194,6 @@ vds::async_task<> vds::_server::init_server(
   return this->network_service_.start(sp, port, user_name, user_password);
 }
 
-vds::async_task<> vds::_server::start_network(const vds::service_provider &sp) {
-  return  this->network_service_.start(sp);
+vds::async_task<> vds::_server::start_network(const vds::service_provider &sp, int port) {
+  return this->network_service_.start(sp, port);
 }

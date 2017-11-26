@@ -172,8 +172,6 @@ void mock_server::init_root(const std::string & root_password, int tcp_port, int
     root_folders->local_machine_ = folder;
     sp.set_property<vds::persistence_values>(vds::service_provider::property_scope::root_scope, root_folders);
 	
-    server.set_port(tcp_port);
-
     registrator.start(sp);
 
 	vds::imt_service::enable_async(sp);
@@ -221,14 +219,14 @@ void mock_server::start()
 
   //this->connection_manager_.set_addresses("udp://127.0.0.1:" + std::to_string(8050 + this->index_));
 
-  this->server_.set_port(8050 + this->index_);
-
   this->sp_ = this->registrator_.build(("mock server[" + std::to_string(this->index_) + "]").c_str());
   auto root_folders = new vds::persistence_values();
   root_folders->current_user_ = folder;
   root_folders->local_machine_ = folder;
   this->sp_.set_property<vds::persistence_values>(vds::service_provider::property_scope::root_scope, root_folders);
   this->registrator_.start(this->sp_);
+
+  this->server_.start_network(this->sp_, 8050 + this->index_);
 }
 
 void mock_server::stop()

@@ -27,8 +27,10 @@ namespace vds {
     void start(const vds::service_provider &sp, int port, const std::string &login,
                    const std::string &password);
 
-    void start(const vds::service_provider &sp, int port, const vds::certificate &node_cert,
-                   const vds::asymmetric_private_key &node_key);
+    void start(const vds::service_provider &sp,
+               int port,
+               const vds::certificate &node_cert,
+               const vds::asymmetric_private_key &node_key);
 
   private:
     udp_server server_;
