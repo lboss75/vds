@@ -17,12 +17,11 @@ namespace vds {
 
   class _udp_transport : public std::enable_shared_from_this<_udp_transport> {
   public:
-    _udp_transport(
-        udp_socket && socket);
+    _udp_transport(const udp_transport::message_handler_t &message_handler);
     ~_udp_transport();   
 
 
-    void start(const service_provider & sp);
+    void start(const service_provider &sp, int port);
     void stop(const service_provider & sp);
 
     void connect(const service_provider & sp, const std::string & address);
@@ -30,8 +29,9 @@ namespace vds {
     void send_broadcast(int port);
 
   private:
-    udp_socket socket_;
+    udp_server server_;
     guid instance_id_;
+    udp_transport::message_handler_t message_handler_;
 
     const_data_buffer create_handshake_message();
     void process_incommig_message(const service_provider &sp, const udp_datagram &message);

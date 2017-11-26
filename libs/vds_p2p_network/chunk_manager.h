@@ -14,14 +14,12 @@ namespace vds {
 
     void start(
         const service_provider & sp,
-        const std::shared_ptr<class ip2p_network_storage> & storage,
         const std::shared_ptr<class ip2p_network_client> & client,
         const std::string & login,
         const std::string & password);
 
     void start(
         const service_provider & sp,
-        const std::shared_ptr<class ip2p_network_storage> & storage,
         const std::shared_ptr<class ip2p_network_client> & client,
         const certificate & node_cert,
         const asymmetric_private_key & node_key);

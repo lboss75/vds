@@ -21,10 +21,8 @@ namespace vds {
     async_task<> start(
         const vds::service_provider &sp);
 
-    async_task<> start(
-        const vds::service_provider &sp,
-        const std::string &login,
-        const std::string &password);
+    vds::async_task<> start(const vds::service_provider &sp, int port, const std::string &login,
+                                const std::string &password);
 
   private:
     std::shared_ptr<class _p2p_network_service> impl_;

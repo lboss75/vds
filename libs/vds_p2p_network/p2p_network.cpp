@@ -1,3 +1,4 @@
+#include <udp_socket.h>
 #include "stdafx.h"
 #include "chunk_manager.h"
 #include "private/p2p_network_p.h"
@@ -14,31 +15,29 @@ vds::p2p_network::~p2p_network() {
 void
 vds::p2p_network::start(
     const vds::service_provider &sp,
-    const std::shared_ptr<class ip2p_network_storage> &storage,
     const std::shared_ptr<class ip2p_network_client> &client,
     const std::string &login,
     const std::string &password) {
 
-  this->impl_.reset(new _p2p_network(storage, client));
-  this->impl_->start(sp, login, password);
+  this->impl_.reset(new _p2p_network(client));
+  this->impl_->start(sp, 0, login, password);
 
 }
 
 void
 vds::p2p_network::start(
     const vds::service_provider &sp,
-    const std::shared_ptr<class ip2p_network_storage> &storage,
     const std::shared_ptr<class ip2p_network_client> &client,
     const vds::certificate &node_cert,
     const vds::asymmetric_private_key &node_key) {
 
-  this->impl_.reset(new _p2p_network(storage, client));
-  this->impl_->start(sp, node_cert, node_key);
+  this->impl_.reset(new _p2p_network(client));
+  this->impl_->start(sp, 0, node_cert, node_key);
 }
 //////////////////////////////////
-vds::_p2p_network::_p2p_network(const std::shared_ptr<ip2p_network_storage> &storage,
-                           const std::shared_ptr<ip2p_network_client> &client)
-    : storage_(storage), client_(client), udp_transport_([pthis = this->shared_from_this()](
+vds::_p2p_network::_p2p_network(
+    const std::shared_ptr<ip2p_network_client> &client)
+: client_(client), udp_transport_([pthis = this->shared_from_this()](
     const udp_transport::session & source, const const_data_buffer & message) {
   pthis->handle_incoming_message(source, message);
 }),
@@ -51,23 +50,22 @@ vds::_p2p_network::~_p2p_network() {
 
 void vds::_p2p_network::start(
     const vds::service_provider &sp,
+    int port,
     const std::string &login,
     const std::string &password) {
 
-  this->start_network(sp);
+  this->start_network(sp, port);
 
 }
 
-void vds::_p2p_network::start(
-    const vds::service_provider &sp,
-    const vds::certificate &node_cert,
-    const vds::asymmetric_private_key &node_key) {
+void vds::_p2p_network::start(const vds::service_provider &sp, int port, const vds::certificate &node_cert,
+                              const vds::asymmetric_private_key &node_key) {
 
-  this->start_network(sp);
+  this->start_network(sp, port);
 }
 
-void vds::_p2p_network::start_network(const service_provider & sp) {
-  this->udp_transport_.start(sp);
+void vds::_p2p_network::start_network(const service_provider &sp, int port) {
+  this->udp_transport_.start(sp, 0);
   this->do_backgroud_tasks(sp);
 
   this->backgroud_timer_.start(sp, std::chrono::seconds(5), [sp, pthis = this->shared_from_this()]()->bool{

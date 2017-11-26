@@ -14,6 +14,7 @@ include_directories(${vds_network_SOURCE_DIR})
 include_directories(${vds_parser_SOURCE_DIR})
 include_directories(${vds_crypto_SOURCE_DIR})
 include_directories(${vds_database_SOURCE_DIR})
+include_directories(${vds_p2p_network_SOURCE_DIR})
 include_directories(${OPENSSL_INCLUDE_DIR})
 
 FILE(GLOB HEADER_FILES *.h)
@@ -32,6 +33,7 @@ target_link_libraries(
   vds_crypto
   vds_upnp
   vds_parser
+		vds_p2p_network
   ${UUID_LIBRARIES}
   ${OPENSSL_LIBRARIES}
   ${UPNP_LIBRARIES}

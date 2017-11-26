@@ -198,8 +198,7 @@ vds::async_task<> vds::_server::init_server(
     const vds::service_provider &sp,
     const std::string &user_name,
     const std::string &user_password) {
-  throw std::runtime_error("Not implemented");
-
+  return this->network_service_.start(sp, 0, user_name, user_password);
 }
 
 vds::async_task<> vds::_server::start_network(const vds::service_provider &sp) {

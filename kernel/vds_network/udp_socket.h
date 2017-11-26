@@ -116,6 +116,9 @@ namespace vds {
 
     void stop(const service_provider & sp);
 
+    udp_socket & socket();
+
+
   private:
     std::shared_ptr<_udp_server> impl_;
   };

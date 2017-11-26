@@ -17,8 +17,8 @@ void vds::udp_transport::connect(const vds::service_provider &sp, const std::str
   this->impl_->connect(sp, address);
 }
 
-void vds::udp_transport::start(const vds::service_provider &sp) {
-  this->impl_->start(sp);
+void vds::udp_transport::start(const vds::service_provider &sp, int port) {
+  this->impl_->start(sp, port);
 }
 
 void vds::udp_transport::stop(const vds::service_provider &sp) {
@@ -31,14 +31,17 @@ vds::udp_transport::udp_transport(const vds::udp_transport::message_handler_t &m
 }
 
 ///////////////////////////////////////////////////////
-vds::_udp_transport::_udp_transport(
-    udp_socket && socket)
-: socket_(std::move(socket)), instance_id_(guid::new_guid())
+vds::_udp_transport::_udp_transport(const vds::udp_transport::message_handler_t &message_handler)
+: instance_id_(guid::new_guid())
 {
 }
 
-void vds::_udp_transport::start(const service_provider & sp) {
-  this->socket_.read_async().execute(
+vds::_udp_transport::~_udp_transport() {
+
+}
+
+void vds::_udp_transport::start(const service_provider &sp, int port) {
+  this->server_.start(sp, "127.0.0.1", port).read_async().execute(
       [pthis = this->shared_from_this(), sp](
           const std::shared_ptr<std::exception> & ex,
           const udp_datagram & message){
@@ -51,7 +54,7 @@ void vds::_udp_transport::start(const service_provider & sp) {
 
 void vds::_udp_transport::send_broadcast(int port) {
 
-  this->socket_.send_broadcast(port, this->create_handshake_message());
+  this->server_.socket().send_broadcast(port, this->create_handshake_message());
 
 }
 
@@ -71,7 +74,7 @@ void vds::_udp_transport::process_incommig_message(
     const service_provider &sp,
     const udp_datagram &message) {
   if(4 > message.data_size()){
-    this->socket_.read_async().execute(
+    this->server_.socket().read_async().execute(
         [pthis = this->shared_from_this(), sp](
             const std::shared_ptr<std::exception> & ex,
             const udp_datagram & message){
@@ -232,6 +235,10 @@ void vds::_udp_transport::session::process_incoming_datagram(
   owner.process_incoming_datagram(sp, data, size);
 }
 
+void vds::_udp_transport::session::decrease_mtu() {
+
+}
+
 void vds::_udp_transport::continue_send_data(const service_provider & sp) {
 
   std::unique_lock<std::mutex> lock(this->send_data_buffer_mutex_);
@@ -239,7 +246,7 @@ void vds::_udp_transport::continue_send_data(const service_provider & sp) {
   lock.unlock();
 
   auto len = generator->generate_message(this->buffer_);
-  this->socket_.write_async(
+  this->server_.socket().write_async(
       udp_datagram(generator->owner()->address().server_,
          generator->owner()->address().port_,
          this->buffer_,
@@ -291,7 +298,7 @@ void vds::_udp_transport::connect(const vds::service_provider &sp, const std::st
   auto new_session = std::make_shared<session>(addr);
   this->sessions_[addr] = new_session;
 
-  this->socket_.write_async(
+  this->server_.socket().write_async(
       udp_datagram(addr.server_, addr.port_,
       this->create_handshake_message()))
       .execute([pthis = this->shared_from_this(), sp, addr, new_session, address](
@@ -307,3 +314,8 @@ void vds::_udp_transport::connect(const vds::service_provider &sp, const std::st
         }
       });
 }
+
+void vds::_udp_transport::stop(const vds::service_provider &sp) {
+
+}
+

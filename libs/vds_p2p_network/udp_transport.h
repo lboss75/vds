@@ -31,7 +31,7 @@ namespace vds {
 
     udp_transport(const message_handler_t & message_handler);
 
-    void start(const service_provider & sp);
+    void start(const vds::service_provider &sp, int port);
     void stop(const service_provider & sp);
 
     void connect(

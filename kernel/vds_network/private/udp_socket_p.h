@@ -533,6 +533,8 @@ namespace vds {
       this->socket_->stop();
     }
 
+    udp_socket & socket() { return this->socket_; }
+
   private:
     udp_socket socket_;
     std::string address_;
