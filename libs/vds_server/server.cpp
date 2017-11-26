@@ -33,6 +33,7 @@ All rights reserved
 #include "db_model.h"
 #include "certificate_dbo.h"
 #include "certificate_private_key_dbo.h"
+#include "p2p_network_client.h"
 
 vds::server::server()
 : impl_(new _server(this))
@@ -67,6 +68,8 @@ void vds::server::register_services(service_registrator& registrator)
   registrator.add_service<user_manager>(this->impl_->user_manager_.get());
 
   registrator.add_service<db_model>(this->impl_->db_model_.get());
+
+  registrator.add_service<ip2p_network_client>(this->impl_->network_client_.get());
 }
 
 void vds::server::start(const service_provider& sp)
@@ -100,11 +103,9 @@ vds::async_task<> vds::server::reset(
   });
 }
 
-vds::async_task<> vds::server::init_server(
-    const vds::service_provider &sp,
-    const std::string &user_login,
-    const std::string &user_password) {
-  return this->impl_->init_server(sp, user_login, user_password);
+vds::async_task<> vds::server::init_server(const vds::service_provider &sp, int port, const std::string &user_login,
+                                           const std::string &user_password) {
+  return this->impl_->init_server(sp, port, user_login, user_password);
 
 }
 
@@ -171,7 +172,8 @@ vds::_server::_server(server * owner)
   server_database_(new _server_database()),
   local_cache_(new _local_cache()),
 	user_manager_(new user_manager()),
-	db_model_(new db_model())
+	db_model_(new db_model()),
+  network_client_(new p2p_network_client())
 {
 }
 
@@ -196,9 +198,10 @@ void vds::_server::set_port(int port)
 
 vds::async_task<> vds::_server::init_server(
     const vds::service_provider &sp,
+    int port,
     const std::string &user_name,
     const std::string &user_password) {
-  return this->network_service_.start(sp, 0, user_name, user_password);
+  return this->network_service_.start(sp, port, user_name, user_password);
 }
 
 vds::async_task<> vds::_server::start_network(const vds::service_provider &sp) {

@@ -174,7 +174,8 @@ namespace vds {
 
 	  async_task(async_task<result_types...> && origin);
 	  async_task(std::shared_ptr<std::exception> && error);
-		async_task(result_types && ... values);
+
+		explicit async_task(result_types && ... values);
 	  async_task(const std::shared_ptr<std::exception> & error);
     
 	  template<typename parent_task_type, typename functor_type>

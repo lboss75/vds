@@ -37,11 +37,8 @@ vds::p2p_network::start(
 //////////////////////////////////
 vds::_p2p_network::_p2p_network(
     const std::shared_ptr<ip2p_network_client> &client)
-: client_(client), udp_transport_([pthis = this->shared_from_this()](
-    const udp_transport::session & source, const const_data_buffer & message) {
-  pthis->handle_incoming_message(source, message);
-}),
-      backgroud_timer_("p2p network background") {
+: client_(client),
+  backgroud_timer_("p2p network background") {
 }
 
 vds::_p2p_network::~_p2p_network() {
@@ -65,7 +62,11 @@ void vds::_p2p_network::start(const vds::service_provider &sp, int port, const v
 }
 
 void vds::_p2p_network::start_network(const service_provider &sp, int port) {
-  this->udp_transport_.start(sp, 0);
+  this->transport_.start(sp, port, [pthis = this->shared_from_this()](
+      const udp_transport::session & source, const const_data_buffer & message) {
+    pthis->handle_incoming_message(source, message);
+  });
+
   this->do_backgroud_tasks(sp);
 
   this->backgroud_timer_.start(sp, std::chrono::seconds(5), [sp, pthis = this->shared_from_this()]()->bool{
@@ -90,7 +91,7 @@ bool vds::_p2p_network::do_backgroud_tasks(const service_provider &sp) {
                 auto sp = scope.create_scope(("Connecting to " + address).c_str());
 
                 if ("udp" == protocol) {
-                  this->udp_transport_.connect(sp, address);
+                  this->transport_.connect(sp, address);
                 } else if ("https" == protocol) {
                   //            auto na = url_parser::parse_network_address(address);
                   //            this->start_https_server(scope, na)

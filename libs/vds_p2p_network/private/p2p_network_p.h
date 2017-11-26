@@ -34,7 +34,7 @@ namespace vds {
     udp_server server_;
     std::shared_ptr<class ip2p_network_client> client_;
 
-    udp_transport udp_transport_;
+    udp_transport transport_;
     timer backgroud_timer_;
 
     void start_network(const service_provider &sp, int port);

@@ -284,7 +284,7 @@ void mock_server::init(const std::string &user_name, const std::string &user_pas
     vds::imt_service::enable_async(sp);
     vds::barrier b;
     server
-        .init_server(sp, user_name, user_password)
+        .init_server(sp, this->udp_port_, user_name, user_password)
         .execute([&error, &b](const std::shared_ptr<std::exception> & ex) {
           if (ex) {
             error = ex;

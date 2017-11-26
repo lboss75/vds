@@ -29,9 +29,9 @@ namespace vds {
 
     typedef std::function<void(const session & source, const const_data_buffer & message)> message_handler_t;
 
-    udp_transport(const message_handler_t & message_handler);
+    udp_transport();
 
-    void start(const vds::service_provider &sp, int port);
+    void start(const vds::service_provider &sp, int port, const message_handler_t & message_handler);
     void stop(const service_provider & sp);
 
     void connect(

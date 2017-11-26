@@ -56,8 +56,10 @@ namespace vds {
     std::unique_ptr<_local_cache> local_cache_;
 
     p2p_network_service network_service_;
+    std::shared_ptr<class p2p_network_client> network_client_;
 
-    async_task<> init_server(const service_provider &sp, const std::string &user_name, const std::string &user_password);
+    vds::async_task<> init_server(const vds::service_provider &sp, int port, const std::string &user_name,
+                                      const std::string &user_password);
 
     async_task<> start_network(const service_provider &sp);
   };

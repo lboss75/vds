@@ -26,10 +26,8 @@ namespace vds {
 
     async_task<> start_network(const service_provider &sp);
 
-    async_task<> init_server(
-        const service_provider &sp,
-        const std::string &user_login,
-        const std::string &user_password);
+    vds::async_task<> init_server(const vds::service_provider &sp, int port, const std::string &user_login,
+                                      const std::string &user_password);
 
   private:
     class _server * const impl_;
