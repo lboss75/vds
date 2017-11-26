@@ -12,7 +12,6 @@ All rights reserved
 
 ///////////////////////////////////////////////////////////////////////
 vds::asymmetric_private_key::asymmetric_private_key()
-: impl_(new _asymmetric_private_key())
 {
 }
 
@@ -84,12 +83,6 @@ vds::const_data_buffer vds::asymmetric_private_key::decrypt(const const_data_buf
 }
 
 ///////////////////////////////////////////////////////////////////////
-vds::_asymmetric_private_key::_asymmetric_private_key()
-  : info_(vds::asymmetric_crypto::unknown()),
-  ctx_(nullptr),
-  key_(nullptr)
-{
-}
 
 vds::_asymmetric_private_key::_asymmetric_private_key(EVP_PKEY * key)
   : info_(vds::asymmetric_crypto::unknown()),
@@ -457,7 +450,10 @@ void vds::_asymmetric_sign_verify::write(
   size_t len)
 {
 	if (0 == len) {
-		this->result_ = (1 == EVP_DigestVerifyFinal(this->ctx_, const_cast<unsigned char *>(this->sig_.data()), this->sig_.size()));
+		this->result_ = (1 == EVP_DigestVerifyFinal(
+        this->ctx_,
+        const_cast<unsigned char *>(this->sig_.data()),
+        this->sig_.size()));
 	}
 	else if (1 != EVP_DigestVerifyUpdate(this->ctx_, data, len)) {
     auto error = ERR_get_error();
@@ -608,7 +604,7 @@ void vds::_asymmetric_public_key::save(const filename & filename) const
 
 /////////////////////////////////////////////////////////////////////////////
 vds::certificate::certificate()
-: impl_(new _certificate())
+: impl_(nullptr)
 {
 }
 
@@ -733,14 +729,12 @@ vds::certificate & vds::certificate::operator = (const certificate & original)
 }
 
 /////////////////////////////////////////////////////////////////////////////
-vds::_certificate::_certificate()
-: cert_(nullptr)
-{
-}
-
 vds::_certificate::_certificate(X509 * cert)
   : cert_(cert)
 {
+  if(nullptr == cert){
+    throw std::invalid_argument("cert");
+  }
 }
 
 vds::_certificate::~_certificate()

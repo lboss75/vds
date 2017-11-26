@@ -41,8 +41,7 @@ namespace vds {
         const uint8_t *data,
         size_t size);
 
-
-      udp_datagram incomming_buffer_;
+    udp_datagram incomming_buffer_;
     bool incomming_eof_;
 
     struct address_t {

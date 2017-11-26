@@ -8,6 +8,7 @@ All rights reserved
 #include "network_service.h"
 #include "connection_manager.h"
 #include "server_log_sync.h"
+#include "p2p_network_service.h"
 
 class mock_server
 {
@@ -18,6 +19,7 @@ public:
   void stop();
 
   void init_root(const std::string & root_password, int tcp_port, int udp_port);
+  void init(const std::string & user_name, const std::string & user_password);
   vds::guid last_log_record() const;
   
 private:
@@ -33,33 +35,6 @@ private:
   vds::task_manager task_manager_;
   vds::crypto_service crypto_service_;
   vds::server server_;
-  vds::connection_manager connection_manager_;
-  vds::server_log_sync server_log_sync_;
-};
-
-class mock_client
-{
-public:
-  mock_client(int index);
-
-  void upload_file(
-    const std::string & login,
-    const std::string & password,
-    const std::string & name,
-    const void * data,
-    size_t data_size);
-
-  vds::const_data_buffer download_data(
-    const std::string & login,
-    const std::string & password,
-    const std::string & name);
-
-  void init_server(const std::string & root_password, const std::string & address, int tcp_port, int udp_port);
-  
-private:
-  int index_;
-
-  void start_vds(bool full_client, const std::function<void(const vds::service_provider & sp)> & handler, bool clear_folder);
 };
 
 class vds_mock

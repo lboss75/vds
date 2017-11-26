@@ -24,7 +24,7 @@ namespace vds {
     {
     }
 
-    database_column<guid> id;
+    database_column<int> id;
     database_column<guid> channel_id;
     database_column<guid> cert_id;
     database_column<const_data_buffer> message;

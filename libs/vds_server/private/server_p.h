@@ -7,6 +7,7 @@ All rights reserved
 */
 
 #include "server.h"
+#include "p2p_network_service.h"
 
 namespace vds {
   class cert_manager;
@@ -47,12 +48,18 @@ namespace vds {
     std::unique_ptr<_cert_manager> cert_manager_;
     std::unique_ptr<_node_manager> node_manager_;
     std::unique_ptr<user_manager> user_manager_;
-	std::unique_ptr<class db_model> db_model_;
+	  std::unique_ptr<class db_model> db_model_;
     std::unique_ptr<_server_http_api> server_http_api_;
     std::unique_ptr<_storage_log> storage_log_;
     std::unique_ptr<_chunk_manager> chunk_manager_;
     std::unique_ptr<_server_database> server_database_;
     std::unique_ptr<_local_cache> local_cache_;
+
+    p2p_network_service network_service_;
+
+    async_task<> init_server(const service_provider &sp, const std::string &user_name, const std::string &user_password);
+
+    async_task<> start_network(const service_provider &sp);
   };
 }
 

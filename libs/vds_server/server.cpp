@@ -89,14 +89,27 @@ vds::async_task<> vds::server::reset(
     const std::string &root_user_name,
     const std::string &root_password) {
 
-  auto usr_manager = sp.get<user_manager>();
-  auto private_key = asymmetric_private_key::generate(asymmetric_crypto::rsa4096());
-  auto block_data = usr_manager->reset(sp, root_user_name, root_password, private_key);
-  return sp.get<db_model>()->async_transaction(sp, [this, sp, block_data](database_transaction & t){
+  return sp.get<db_model>()->async_transaction(sp, [this, sp, root_user_name, root_password](
+      database_transaction & t){
+    auto usr_manager = sp.get<user_manager>();
+    auto private_key = asymmetric_private_key::generate(asymmetric_crypto::rsa4096());
+    auto block_data = usr_manager->reset(sp, t, root_user_name, root_password, private_key);
     auto block_id = chunk_manager::pack_block(t, block_data);
 
-	transaction_log::apply(sp, t, chunk_manager::get_block(t, block_id));
+	  transaction_log::apply(sp, t, chunk_manager::get_block(t, block_id));
   });
+}
+
+vds::async_task<> vds::server::init_server(
+    const vds::service_provider &sp,
+    const std::string &user_login,
+    const std::string &user_password) {
+  return this->impl_->init_server(sp, user_login, user_password);
+
+}
+
+vds::async_task<> vds::server::start_network(const vds::service_provider &sp) {
+  return this->impl_->start_network(sp);
 }
 
 void vds::transaction_log::apply(
@@ -138,7 +151,7 @@ void vds::transaction_log::apply(
     switch (category_id){
       case transaction_log::user_manager_category_id:
       {
-        sp.get<user_manager>()->apply_transaction_record(sp, t, message_id, s);
+        scope.get<user_manager>()->apply_transaction_record(scope, t, message_id, s);
         break;
       }
       default:
@@ -179,4 +192,16 @@ void vds::_server::stop(const service_provider& sp)
 void vds::_server::set_port(int port)
 {
   this->port_ = port;
+}
+
+vds::async_task<> vds::_server::init_server(
+    const vds::service_provider &sp,
+    const std::string &user_name,
+    const std::string &user_password) {
+  throw std::runtime_error("Not implemented");
+
+}
+
+vds::async_task<> vds::_server::start_network(const vds::service_provider &sp) {
+  return  this->network_service_.start(sp);
 }

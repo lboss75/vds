@@ -33,7 +33,9 @@ namespace vds {
      */
     vds::user_channel create_channel(transaction_block &log, const vds::member_user &owner,
                                      const vds::asymmetric_private_key &owner_user_private_key,
-                                     const std::string &name);
+                                     const std::string &name,
+                                     const asymmetric_private_key &read_private_key,
+                                     const asymmetric_private_key &write_private_key);
 
   };
 }

@@ -2,7 +2,6 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
-#include <channel_message_dbo.h>
 #include "stdafx.h"
 #include "user_manager.h"
 #include "member_user.h"
@@ -11,8 +10,7 @@ All rights reserved
 #include "private/member_user_p.h"
 #include "database_orm.h"
 #include "certificate_dbo.h"
-#include "../vds_db_model/certificate_dbo.h"
-#include "../vds_db_model/user_dbo.h"
+#include "user_dbo.h"
 #include "transactions/root_user_transaction.h"
 #include "transactions/create_channel_transaction.h"
 #include "transactions/channel_add_member_transaction.h"
@@ -21,6 +19,9 @@ All rights reserved
 #include "transaction_context.h"
 #include "channel_dbo.h"
 #include "channel_admin_dbo.h"
+#include "cert_control.h"
+#include "channel_message_dbo.h"
+#include "certificate_private_key_dbo.h"
 
 vds::user_manager::user_manager()
   : impl_(new _user_manager())
@@ -36,12 +37,12 @@ vds::member_user vds::user_manager::create_root_user(
   return this->impl_->create_root_user(log, user_name, user_password, private_key);
 }
 
-vds::user_channel vds::user_manager::create_channel(
-    transaction_block &log,
-    const vds::member_user &owner,
-    const vds::asymmetric_private_key &owner_user_private_key,
-    const std::string &name) {
-  return this->impl_->create_channel(log, owner, owner_user_private_key, name);
+vds::user_channel vds::user_manager::create_channel(transaction_block &log, const vds::member_user &owner,
+                                                    const vds::asymmetric_private_key &owner_user_private_key,
+                                                    const std::string &name,
+                                                    const asymmetric_private_key &read_private_key,
+                                                    const asymmetric_private_key &write_private_key) {
+  return this->impl_->create_channel(log, owner, owner_user_private_key, name, read_private_key, write_private_key);
 }
 
 void vds::user_manager::apply_transaction_record(
@@ -54,12 +55,6 @@ void vds::user_manager::apply_transaction_record(
     case root_user_transaction::message_id:
     {
       root_user_transaction record(s);
-
-      certificate_dbo cert_dbo;
-
-      t.execute(cert_dbo.insert(
-          cert_dbo.id = record.id(),
-          cert_dbo.cert = record.user_cert().der()));
 
       user_dbo usr_dbo;
       t.execute(
@@ -75,7 +70,8 @@ void vds::user_manager::apply_transaction_record(
     case create_channel_transaction::message_id:
     {
       create_channel_transaction record(s);
-      if(record.owner_id() != sp.get_property<transaction_context>(service_provider::property_scope::local_scope)->author_id()){
+      if(record.owner_id() != sp.get_property<transaction_context>(
+          service_provider::property_scope::local_scope)->author_id()){
         throw std::runtime_error("Unable to create channels for other users");
       }
 
@@ -96,7 +92,7 @@ void vds::user_manager::apply_transaction_record(
 
       channel_message_dbo t1;
       t.execute(t1.insert(
-          t1.id = record.channel_id(),
+          t1.channel_id = record.channel_id(),
           t1.cert_id = record.cert_id(),
           t1.message = record.message()));
 
@@ -111,6 +107,7 @@ void vds::user_manager::apply_transaction_record(
 
 vds::const_data_buffer vds::user_manager::reset(
     const service_provider &sp,
+    database_transaction &t,
     const std::string &root_user_name,
     const std::string &root_password,
     const asymmetric_private_key &root_private_key) {
@@ -123,11 +120,32 @@ vds::const_data_buffer vds::user_manager::reset(
       root_password,
       root_private_key);
 
+  certificate_dbo t1;
+  t.execute(t1.insert(
+      t1.id = user.id(),
+      t1.cert = user.user_certificate().der()));
+
   auto private_key = asymmetric_private_key::generate(asymmetric_crypto::rsa4096());
-  auto common_channel = this->create_channel(log, user, private_key, "Common chanel");
+  auto read_private_key = asymmetric_private_key::generate(asymmetric_crypto::rsa4096());
+  auto write_private_key = asymmetric_private_key::generate(asymmetric_crypto::rsa4096());
+  auto common_channel = this->create_channel(
+      log,
+      user,
+      private_key,
+      "Common chanel",
+      read_private_key,
+      write_private_key);
 
+  certificate_private_key_dbo t2;
+  t.execute(t2.insert(
+      t2.id = cert_control::get_id(common_channel.write_cert()),
+      t2.body = write_private_key.der(std::string())));
 
-  return log.sign(user.id(), user.user_certificate(), user.id(), private_key);
+  return log.sign(
+      cert_control::get_id(common_channel.write_cert()),
+      common_channel.write_cert(),
+      user.id(),
+      root_private_key);
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -144,14 +162,13 @@ vds::member_user vds::_user_manager::create_root_user(
   return _member_user::create_root(log, user_name, user_password, private_key);
 }
 
-vds::user_channel vds::_user_manager::create_channel(
-    transaction_block &log,
-    const vds::member_user &owner,
-    const vds::asymmetric_private_key &owner_user_private_key,
-    const std::string &name)
+vds::user_channel vds::_user_manager::create_channel(transaction_block &log, const vds::member_user &owner,
+                                                     const vds::asymmetric_private_key &owner_user_private_key,
+                                                     const std::string &name,
+                                                     const asymmetric_private_key &read_private_key,
+                                                     const asymmetric_private_key &write_private_key)
 {
   auto read_id = guid::new_guid();
-  auto read_private_key = asymmetric_private_key::generate(asymmetric_crypto::rsa4096());
   auto read_cert = _cert_control::create(
       read_id,
       "Read Member Certificate " + read_id.str(),
@@ -161,11 +178,10 @@ vds::user_channel vds::_user_manager::create_channel(
       owner_user_private_key);
 
   auto write_id = guid::new_guid();
-  auto write_private_key = asymmetric_private_key::generate(asymmetric_crypto::rsa4096());
   auto write_cert = _cert_control::create(
       write_id,
       "Write Member Certificate " + write_id.str(),
-      read_private_key,
+      write_private_key,
       owner.id(),
       owner.user_certificate(),
       owner_user_private_key);

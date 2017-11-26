@@ -21,13 +21,21 @@ namespace vds {
         const udp_transport::session & session,
         const std::list<certificate> & certificate_chain,
         const asymmetric_private_key & private_key)
-    : session_(session), certificate_chain_(certificate_chain_),
+    : session_(session),
+      certificate_chain_(certificate_chain_),
       private_key_(private_key){
+    }
+
+    _p2p_crypto_tunnel(
+        const udp_transport::session & session)
+        : session_(session){
     }
 
     async_task<> start(const service_provider & sp);
 
-    async_task<> process_input_command(const service_provider & sp, const const_data_buffer & message);
+    async_task<> process_input_command(
+        const service_provider & sp,
+        const const_data_buffer & message);
 
   private:
     enum class command_id : uint8_t {
@@ -82,7 +90,7 @@ namespace vds {
         //TODO: validate chain
 
         if(!this->output_key_){
-          this->output_key_.generate();
+          this->output_key_ = symmetric_key::generate(symmetric_crypto::aes_256_cbc());
         }
 
         binary_serializer key_stream;
@@ -108,13 +116,11 @@ namespace vds {
         const_data_buffer key_info;
         key_stream >> key_info;
 
-        this->input_key_ = symmetric_key(symmetric_crypto::aes_256_cbc(), binary_deserializer(key_info));
+        this->input_key_ = symmetric_key::deserialize(symmetric_crypto::aes_256_cbc(), binary_deserializer(key_info));
 
       }
 
     }
-
-
   }
 }
 

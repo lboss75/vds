@@ -2,8 +2,8 @@
 // Created by vadim on 30.10.17.
 //
 
-#ifndef __VDS_P2P_NETWORK_P2P_NETWORK_SERVICE_H_
-#define __VDS_P2P_NETWORK_P2P_NETWORK_SERVICE_H_
+#ifndef __VDS_P2P_NETWORK_P2P_NETWORK_SERVICE_P_H_
+#define __VDS_P2P_NETWORK_P2P_NETWORK_SERVICE_P_H_
 
 /*
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
@@ -11,12 +11,13 @@ All rights reserved
 */
 
 #include "service_provider.h"
-#include "async_task.h"
+#include "private/p2p_network_p.h"
 
 namespace vds {
 
-  class p2p_network_service {
+  class _p2p_network_service {
   public:
+    _p2p_network_service(const vds::service_provider &sp);
 
     async_task<> start(
         const vds::service_provider &sp);
@@ -27,10 +28,10 @@ namespace vds {
         const std::string &password);
 
   private:
-    std::shared_ptr<class _p2p_network_service> impl_;
+    std::shared_ptr<_p2p_network> network_;
   };
 
 }
 
 
-#endif //__VDS_P2P_NETWORK_P2P_NETWORK_SERVICE_H_
+#endif //__VDS_P2P_NETWORK_P2P_NETWORK_SERVICE_P_H_

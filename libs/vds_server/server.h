@@ -7,8 +7,6 @@ All rights reserved
 */
 
 namespace vds {
-  class _server;
-
   class server : public iservice_factory
   {
   public:
@@ -26,8 +24,15 @@ namespace vds {
         const std::string &root_user_name,
         const std::string &root_password);
 
+    async_task<> start_network(const service_provider &sp);
+
+    async_task<> init_server(
+        const service_provider &sp,
+        const std::string &user_login,
+        const std::string &user_password);
+
   private:
-    _server * const impl_;
+    class _server * const impl_;
   };
   
   class iserver

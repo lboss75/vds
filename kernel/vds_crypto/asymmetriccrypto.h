@@ -60,6 +60,9 @@ namespace vds {
     const_data_buffer decrypt(const const_data_buffer & data) const;
     const_data_buffer decrypt(const void * data, size_t size) const;
 
+    bool operator !() const { return !this->impl_; }
+    operator bool () const { return  nullptr != this->impl_.get(); }
+
   private:
     friend class _asymmetric_sign;
     friend class _asymmetric_private_key;
@@ -118,7 +121,6 @@ namespace vds {
       size_t data_size);
   };
 
-  class _asymmetric_sign_verify;
   class asymmetric_sign_verify : public stream<uint8_t>
   {
   public:
@@ -229,6 +231,9 @@ namespace vds {
     certificate_extension get_extension(int index) const;
 
     certificate & operator = (const certificate & original);
+
+    bool operator ! () const { return !this->impl_; }
+    operator bool () const { return nullptr != this->impl_.get(); }
 
   private:
     friend class _certificate;

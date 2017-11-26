@@ -17,7 +17,6 @@ namespace vds {
   class _asymmetric_private_key : public std::enable_shared_from_this<_asymmetric_private_key>
   {
   public:
-    _asymmetric_private_key();
     _asymmetric_private_key(EVP_PKEY * key);
     _asymmetric_private_key(const asymmetric_crypto_info & info);
     ~_asymmetric_private_key();
@@ -199,7 +198,6 @@ namespace vds {
   class _certificate : public std::enable_shared_from_this<_certificate>
   {
   public:
-    _certificate();
     _certificate(certificate && original);
     _certificate(X509 * cert);
     ~_certificate();

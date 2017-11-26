@@ -11,7 +11,7 @@ namespace vds {
   public:
     virtual ~ip2p_network_client(){}
 
-    async_task<> process_message(const guid & user_id, const const_data_buffer & message) = 0;
+    virtual async_task<> process_message(const guid & user_id, const const_data_buffer & message) = 0;
 
   };
 }

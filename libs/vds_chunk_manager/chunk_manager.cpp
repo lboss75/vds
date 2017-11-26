@@ -34,7 +34,7 @@ vds::chunk_manager::block_id_t vds::chunk_manager::pack_block(
   t.execute(t1.insert(
       t1.id = id,
       t1.block_key = key_data,
-      t1.padding = zipped.size() % key.block_size(),
+      t1.padding = 0,//zipped.size() % key.block_size(),
       t1.block_data = symmetric_encrypt::encrypt(key, zipped)));
 
   return id;

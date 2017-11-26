@@ -20,6 +20,10 @@ namespace vds {
         const vds::certificate & read_cert,
         const vds::certificate & write_cert);
 
+    const vds::guid &id() const { return this->id_;}
+    const vds::certificate & read_cert() const { return this->read_cert_; }
+    const vds::certificate & write_cert() const { return this->write_cert_; }
+
   private:
     guid id_;
     certificate read_cert_;

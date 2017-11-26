@@ -85,11 +85,25 @@ void vds::db_model::migrate(
 			member_id VARCHAR(64) NOT NULL,\
 			CONSTRAINT pk_channel_admin PRIMARY KEY(id, member_id))");
 
+    t.execute("CREATE TABLE channel_message(\
+			id INTEGER PRIMARY KEY AUTOINCREMENT,\
+      channel_id VARCHAR(64) NOT NULL,\
+			cert_id VARCHAR(64) NOT NULL,\
+			message BLOB NOT NULL)");
+
 		t.execute("CREATE TABLE chunk_data (\
 			id VARCHAR(64) PRIMARY KEY NOT NULL,\
 			block_key BLOB NOT NULL,\
 			padding INT NOT NULL,\
 			block_data BLOB NOT NULL)");
+
+		t.execute("CREATE TABLE user (\
+			id VARCHAR(64) PRIMARY KEY NOT NULL,\
+			private_key BLOB NOT NULL,\
+			parent VARCHAR(64),\
+			login VARCHAR(64),\
+			password_hash BLOB NOT NULL,\
+		  CONSTRAINT pk_user_login UNIQUE(login))");
 
 		t.execute("INSERT INTO module(id, version, installed) VALUES('kernel', 1, datetime('now'))");
 	}

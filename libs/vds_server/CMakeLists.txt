@@ -21,14 +21,23 @@ include_directories(${vds_transactions_SOURCE_DIR})
 include_directories(${vds_user_manager_SOURCE_DIR})
 include_directories(${vds_chunk_manager_SOURCE_DIR})
 include_directories(${vds_db_model_SOURCE_DIR})
+include_directories(${vds_p2p_network_SOURCE_DIR})
 include_directories(${OPENSSL_INCLUDE_DIR})
 
 FILE(GLOB HEADER_FILES *.h)
+FILE(GLOB PRIVATE_HEADER_FILES private/*.h)
 FILE(GLOB SOURCE_LIB *.cpp)
 
 ADD_MSVC_PRECOMPILED_HEADER("stdafx.h" "stdafx.cpp" SOURCE_LIB)
 
-add_library(vds_server STATIC ${SOURCE_LIB} ${HEADER_FILES})
+add_library(vds_server)
+target_sources(vds_server
+		PRIVATE
+		${PRIVATE_HEADER_FILES}
+		${SOURCE_LIB}
+		PUBLIC
+		${HEADER_FILES})
+
 target_link_libraries(
   vds_server
   vds_core
@@ -43,6 +52,7 @@ target_link_libraries(
   vds_transactions
   vds_chunk_manager
   vds_user_manager
+  vds_p2p_network
   vds_db_model
   ${UUID_LIBRARIES}
   ${OPENSSL_LIBRARIES}

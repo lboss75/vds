@@ -13,8 +13,7 @@ All rights reserved
 
 namespace vds {
   class member_user;
-  class _user_channel;
-  
+
   class user_channel
   {
   public:
@@ -31,9 +30,13 @@ namespace vds {
     const_data_buffer crypt_message(
       const member_user & user,
       const const_data_buffer & message);
-    
+
+    const vds::guid &id() const;
+    const vds::certificate & read_cert() const;
+    const vds::certificate & write_cert() const;
+
   private:
-    std::shared_ptr<_user_channel> impl_;
+    std::shared_ptr<class _user_channel> impl_;
   };
 }
 #endif // __VDS_USER_MANAGER_USER_CHANNEL_H_

@@ -15,6 +15,18 @@ vds::user_channel::user_channel(
 {
 }
 
+const vds::guid &vds::user_channel::id() const {
+  return this->impl_->id();
+}
+
+const vds::certificate &vds::user_channel::read_cert() const {
+  return this->impl_->read_cert();
+}
+
+const vds::certificate &vds::user_channel::write_cert() const {
+  return this->impl_->write_cert();
+}
+
 /////////////////////////////////////////////////
 vds::_user_channel::_user_channel(
     const vds::guid &id,

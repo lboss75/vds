@@ -25,6 +25,11 @@ void vds::udp_transport::stop(const vds::service_provider &sp) {
   this->impl_->stop(sp);
 }
 
+vds::udp_transport::udp_transport(const vds::udp_transport::message_handler_t &message_handler)
+: impl_(new _udp_transport(message_handler)){
+
+}
+
 ///////////////////////////////////////////////////////
 vds::_udp_transport::_udp_transport(
     udp_socket && socket)

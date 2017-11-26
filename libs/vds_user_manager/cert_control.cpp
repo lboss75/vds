@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "private/cert_control_p.h"
+#include "cert_control.h"
 
 static vds::crypto_service::certificate_extension_type id_extension_type()
 {
@@ -65,4 +66,8 @@ vds::certificate vds::_cert_control::create(
 
   asymmetric_public_key cert_pkey(private_key);
   return certificate::create_new(cert_pkey, private_key, local_user_options);
+}
+
+vds::guid vds::cert_control::get_id(const vds::certificate &cert) {
+  return vds::guid::parse(cert.get_extension(cert.extension_by_NID(id_extension_type())).value);
 }
