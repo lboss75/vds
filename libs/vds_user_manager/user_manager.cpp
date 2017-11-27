@@ -191,6 +191,7 @@ vds::const_data_buffer vds::user_manager::lock_to_device(
       private_key,
       channel_add_message_transaction::add_device_user(
 
+
       )));
 
   return log.sign(

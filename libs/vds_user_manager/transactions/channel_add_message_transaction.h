@@ -101,7 +101,7 @@ namespace vds {
     };
 
     enum class device_user_type : uint8_t {
-
+      simple
     };
 
     class add_device_user {
@@ -121,6 +121,14 @@ namespace vds {
 
     private:
       device_user_type user_type_;
+
+      guid read_cert_id_;
+      certificate read_cert_;
+      asymmetric_private_key read_cert_key_;
+
+      guid write_cert_id_;
+      certificate write_cert_;
+      asymmetric_private_key write_key_;
     };
 
     channel_add_message_transaction(binary_deserializer & s){
