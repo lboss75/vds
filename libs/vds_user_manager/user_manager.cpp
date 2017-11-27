@@ -154,6 +154,36 @@ void vds::user_manager::lock_to_device(
     const std::string &user_name,
     const std::string &user_password) {
 
+  user_dbo t1;
+  auto st = t.get_reader(t1.select(t1.id, t1.private_key).where(t1.login == user_name));
+
+  if(!st.execute()){
+    throw std::runtime_error("User not found");
+  }
+
+  auto id = t1.id.get(st);
+  auto private_key = asymmetric_private_key::parse_der(t1.private_key.get(st), user_password);
+
+  certificate_dbo t2;
+  st = t.get_reader(t2.select(t2.cert).where(t2.id == id));
+
+  if(!st.execute()){
+    throw std::runtime_error("User not found");
+  }
+
+  auto cert = certificate::parse_der(t2.cert.get(st));
+
+  channel_message_dbo t3;
+  st = t.get_reader(
+      t3
+          .select(t3.message, t3.cert_id)
+          .where(t3.channel_id == id)
+          .order_by(t3.id));
+
+  while(st.execute()){
+
+  }
+
   transaction_block log;
 
   auto user = this->user_by_login(t, user_name);

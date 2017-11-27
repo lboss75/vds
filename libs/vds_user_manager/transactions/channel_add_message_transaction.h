@@ -27,13 +27,13 @@ namespace vds {
     : cert_id_(cert_id) {
 
       binary_serializer s;
+      s << message_t::message_id;
       message.serialize(s);
 
       auto skey = symmetric_key::generate(symmetric_crypto::aes_256_cbc());
 
       binary_serializer result;
       result
-          << cert_id
           << cert.public_key().encrypt(skey.serialize())
           << symmetric_encrypt::encrypt(skey, s.data());
 
@@ -51,10 +51,34 @@ namespace vds {
 
     class create_channel {
     public:
+      static constexpr uint8_t message_id = 'c';
 
       create_channel(const guid &channel_id, const guid &read_cert_id, const certificate &read_cert,
                    const asymmetric_private_key &read_cert_key, const guid &write_cert_id, const certificate &write_cert,
                    const asymmetric_private_key &write_key);
+
+      create_channel(binary_deserializer & s){
+        const_data_buffer read_cert_der;
+        const_data_buffer read_cert_key_der;
+        const_data_buffer write_cert_der;
+        const_data_buffer write_key_der;
+
+        s
+            >> this->channel_id_
+            >> this->read_cert_id_
+            >> read_cert_der
+            >> read_cert_key_der
+            >> this->write_cert_id_
+            >> write_cert_der
+            >> write_key_der;
+
+        this->read_cert_ = certificate::parse_der(read_cert_der);
+        this->read_cert_key_ = asymmetric_private_key::parse_der(read_cert_key_der, std::string());
+
+        this->write_cert_ = certificate::parse_der(write_cert_der);
+        this->write_key_ = asymmetric_private_key::parse_der(write_key_der, std::string());
+      }
+
       binary_serializer & serialize(binary_serializer & s) const {
         s
             << this->channel_id_
