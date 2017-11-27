@@ -100,6 +100,29 @@ namespace vds {
       asymmetric_private_key write_key_;
     };
 
+    enum class device_user_type : uint8_t {
+
+    };
+
+    class add_device_user {
+    public:
+      static constexpr uint8_t message_id = 'u';
+
+      add_device_user(
+          device_user_type user_type){
+      }
+
+      add_device_user(binary_deserializer & s){
+      }
+
+      binary_serializer & serialize(binary_serializer & s) const {
+        return s;
+      }
+
+    private:
+      device_user_type user_type_;
+    };
+
     channel_add_message_transaction(binary_deserializer & s){
       s >> this->cert_id_ >> this->channel_id_ >> this->data_;
     }
@@ -113,7 +136,6 @@ namespace vds {
     guid cert_id_;
     guid channel_id_;
     const_data_buffer data_;
-
   };
 }
 

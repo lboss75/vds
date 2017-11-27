@@ -5,7 +5,7 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
-
+#include <map>
 #include "asymmetriccrypto.h"
 #include "binary_serialize.h"
 #include "symmetriccrypto.h"
@@ -57,12 +57,45 @@ namespace vds {
               channel_add_message_transaction::create_channel(message_stream));
           break;
         }
+        case channel_add_message_transaction::add_device_user::message_id:
+        {
+          static_cast<implementation_class *>(this)->apply(
+              channel_add_message_transaction::add_device_user(message_stream));
+          break;
+        }
       }
 
       if(0 != message_stream.size()){
         throw std::runtime_error("Data is corrupted");
       }
     }
+
+    void apply(const channel_add_message_transaction::create_channel & message){
+    }
+
+    void apply(const channel_add_message_transaction::add_device_user & message){
+    }
+  };
+
+  class channel_collect_certificate : public channel_message_walker<channel_collect_certificate> {
+  public:
+
+    void apply(const channel_add_message_transaction::create_channel & message){
+    }
+
+    void apply(const channel_add_message_transaction::add_device_user & message){
+
+    }
+
+  private:
+    struct cert_info
+    {
+      certificate cert;
+      asymmetric_private_key cert_key;
+    };
+
+    std::map<guid, cert_info> certificates_;
+
   };
 }
 

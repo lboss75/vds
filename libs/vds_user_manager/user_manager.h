@@ -41,13 +41,14 @@ namespace vds {
         uint8_t message_id,
         binary_deserializer & s);
 
-    void lock_to_device(const service_provider &sp, vds::database_transaction &t, const std::string &user_name,
-                      const std::string &user_password);
+    const_data_buffer lock_to_device(
+        const service_provider &sp,
+        class database_transaction &t,
+        const std::string &user_name,
+        const std::string &user_password);
 
   private:
     std::shared_ptr<class _user_manager> impl_;
-
-    member_user user_by_login(vds::database_transaction &t, const std::string &user_name);
   };
 }
 

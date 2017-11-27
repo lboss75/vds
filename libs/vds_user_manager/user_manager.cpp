@@ -148,7 +148,7 @@ vds::const_data_buffer vds::user_manager::reset(
       root_private_key);
 }
 
-void vds::user_manager::lock_to_device(
+vds::const_data_buffer vds::user_manager::lock_to_device(
     const vds::service_provider &sp,
     vds::database_transaction &t,
     const std::string &user_name,
@@ -185,18 +185,21 @@ void vds::user_manager::lock_to_device(
   }
 
   transaction_block log;
+  log.add(channel_add_message_transaction(
+      id,
+      cert,
+      private_key,
+      channel_add_message_transaction::add_device_user(
 
-  auto user = this->user_by_login(t, user_name);
-  auto device_user = user.create_device_user(log, user_password);
+      )));
 
-  device_user.lock_device(log);
-
-
+  return log.sign(
+      id,
+      cert,
+      id,
+      private_key);
 }
 
-vds::member_user vds::user_manager::user_by_login(vds::database_transaction &t, const std::string &user_name) {
-  return vds::member_user();
-}
 
 ////////////////////////////////////////////////////////////////////////
 vds::_user_manager::_user_manager()
