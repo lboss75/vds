@@ -18,7 +18,11 @@ namespace vds {
   class p2p_network_service {
   public:
 
-    vds::async_task<> start(const vds::service_provider &sp, int port);
+    vds::async_task<> start(
+        const vds::service_provider &sp,
+        int port,
+        const class certificate &node_cert,
+        const class asymmetric_private_key &node_key);
 
     vds::async_task<> start(const vds::service_provider &sp, int port, const std::string &login,
                                 const std::string &password);

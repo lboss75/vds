@@ -468,13 +468,17 @@ namespace vds {
   template<typename ...result_types>
   inline async_task<result_types...>::~async_task()
   {
-#ifdef _DEBUG
+#ifdef DEBUG
+#ifdef _WIN32
 #pragma warning(disable: 4297)
+#endif
 	  if(nullptr != this->impl_){
       throw std::runtime_error("Task without execute");
     }
+#ifdef _WIN32
 #pragma warning(default: 4297)
-#endif//_DEBUG
+#endif
+#endif//DEBUG
 
 	  delete this->impl_;
   }

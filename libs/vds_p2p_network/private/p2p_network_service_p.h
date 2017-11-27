@@ -10,6 +10,7 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
+#include <stdafx.h>
 #include "service_provider.h"
 #include "private/p2p_network_p.h"
 
@@ -19,7 +20,8 @@ namespace vds {
   public:
     _p2p_network_service(const vds::service_provider &sp);
 
-    vds::async_task<> start(const vds::service_provider &sp, int port);
+    vds::async_task<> start(const vds::service_provider &sp, int port, const certificate &node_cert,
+                                const asymmetric_private_key &node_key);
 
     vds::async_task<> start(const vds::service_provider &sp, int port, const std::string &login,
                                 const std::string &password);

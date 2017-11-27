@@ -226,7 +226,18 @@ void mock_server::start()
   this->sp_.set_property<vds::persistence_values>(vds::service_provider::property_scope::root_scope, root_folders);
   this->registrator_.start(this->sp_);
 
-  this->server_.start_network(this->sp_, 8050 + this->index_);
+  std::shared_ptr<std::exception> error;
+  vds::barrier b;
+  this->server_.start_network(this->sp_).execute([&b, &error](const std::shared_ptr<std::exception> & ex){
+    if(ex){
+      error = ex;
+    }
+    b.set();
+  });
+  b.wait();
+  if(error){
+    throw std::runtime_error(error->what());
+  }
 }
 
 void mock_server::stop()

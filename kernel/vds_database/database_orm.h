@@ -919,7 +919,13 @@ namespace vds {
       this->column_.set_index(index);
       return this->column_.visit(builder);
     }
-    
+
+    template <typename join_condition_type>
+    _database_reader_builder_with_join<this_class, join_condition_type> inner_join(const database_table & t, join_condition_type && cond)
+    {
+      return _database_reader_builder_with_join<this_class, join_condition_type>(std::move(*this), &t, std::move(cond));
+    }
+
     template <typename where_condition_type>
     _database_reader_builder_with_where<this_class, where_condition_type> where(where_condition_type && cond)
     {

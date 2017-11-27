@@ -34,6 +34,7 @@ All rights reserved
 #include "certificate_dbo.h"
 #include "certificate_private_key_dbo.h"
 #include "p2p_network_client.h"
+#include "run_configuration_dbo.h"
 
 vds::server::server()
 : impl_(new _server(this))
@@ -95,6 +96,9 @@ vds::async_task<> vds::server::reset(
     auto block_id = chunk_manager::pack_block(t, block_data);
 
 	  transaction_log::apply(sp, t, chunk_manager::get_block(t, block_id));
+
+    usr_manager->lock_to_device(sp, t, root_user_name, root_password);
+
   });
 }
 
@@ -104,8 +108,8 @@ vds::async_task<> vds::server::init_server(const vds::service_provider &sp, int 
 
 }
 
-vds::async_task<> vds::server::start_network(const vds::service_provider &sp, int port) {
-  return this->impl_->start_network(sp, port);
+vds::async_task<> vds::server::start_network(const vds::service_provider &sp) {
+  return this->impl_->start_network(sp);
 }
 
 void vds::transaction_log::apply(
@@ -194,6 +198,40 @@ vds::async_task<> vds::_server::init_server(
   return this->network_service_.start(sp, port, user_name, user_password);
 }
 
-vds::async_task<> vds::_server::start_network(const vds::service_provider &sp, int port) {
-  return this->network_service_.start(sp, port);
+struct run_data
+{
+  int port;
+  vds::certificate cert;
+  vds::asymmetric_private_key key;
+};
+
+vds::async_task<> vds::_server::start_network(const vds::service_provider &sp) {
+
+  imt_service::enable_async(sp);
+  auto run_conf = std::make_shared<std::list<run_data>>();
+  return sp.get<db_model>()->async_transaction(sp, [run_conf](database_transaction & t){
+    run_configuration_dbo t1;
+    certificate_dbo t2;
+    certificate_private_key_dbo t3;
+    auto st = t.get_reader(
+        t1.select(t1.port)
+            .inner_join(t2, t2.id == t1.cert)
+            .inner_join(t3, t3.id == t1.cert));
+    while(st.execute()){
+      run_conf->push_back( run_data {
+          .port = t1.port.get(st),
+          .cert = certificate::parse_der(t2.cert.get(st)),
+          .key = asymmetric_private_key::parse_der(t3.body.get(st), std::string())
+      });
+    }
+
+    return true;
+  }).then([sp, run_conf, this](){
+    if(run_conf->empty()){
+      throw std::runtime_error("There is no active network configuration");
+    }
+    for(auto & conf : *run_conf) {
+      this->network_service_.start(sp, conf.port, conf.cert, conf.key);
+    }
+  });
 }

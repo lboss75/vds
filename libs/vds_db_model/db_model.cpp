@@ -105,6 +105,11 @@ void vds::db_model::migrate(
 			password_hash BLOB NOT NULL,\
 		  CONSTRAINT pk_user_login UNIQUE(login))");
 
+    t.execute("CREATE TABLE run_configuration (\
+			id VARCHAR(64) PRIMARY KEY NOT NULL,\
+			cert VARCHAR(64) NOT NULL,\
+			port INTEGER)");
+
 		t.execute("INSERT INTO module(id, version, installed) VALUES('kernel', 1, datetime('now'))");
 	}
 }

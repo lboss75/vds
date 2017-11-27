@@ -22,7 +22,7 @@ namespace vds {
         const std::string &root_user_name,
         const std::string &root_password);
 
-    vds::async_task<> start_network(const vds::service_provider &sp, int port);
+    vds::async_task<> start_network(const vds::service_provider &sp);
 
     vds::async_task<> init_server(const vds::service_provider &sp, int port, const std::string &user_login,
                                       const std::string &user_password);
