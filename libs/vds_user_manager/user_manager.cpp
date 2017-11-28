@@ -22,6 +22,7 @@ All rights reserved
 #include "cert_control.h"
 #include "channel_message_dbo.h"
 #include "certificate_private_key_dbo.h"
+#include "transactions/device_user_add_transaction.h"
 
 vds::user_manager::user_manager()
   : impl_(new _user_manager())
@@ -173,26 +174,8 @@ vds::const_data_buffer vds::user_manager::lock_to_device(
 
   auto cert = certificate::parse_der(t2.cert.get(st));
 
-  channel_message_dbo t3;
-  st = t.get_reader(
-      t3
-          .select(t3.message, t3.cert_id)
-          .where(t3.channel_id == id)
-          .order_by(t3.id));
-
-  while(st.execute()){
-
-  }
-
   transaction_block log;
-  log.add(channel_add_message_transaction(
-      id,
-      cert,
-      private_key,
-      channel_add_message_transaction::add_device_user(
-
-
-      )));
+  log.add(device_user_add_transaction());
 
   return log.sign(
       id,
