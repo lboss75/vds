@@ -97,7 +97,7 @@ vds::async_task<> vds::server::reset(
 
 	  transaction_log::apply(sp, t, chunk_manager::get_block(t, block_id));
 
-    usr_manager->lock_to_device(sp, t, root_user_name, root_password);
+    usr_manager->lock_to_device(sp, t, root_user_name, root_password, 8050);
 
   });
 }
@@ -195,7 +195,8 @@ vds::async_task<> vds::_server::init_server(
     int port,
     const std::string &user_name,
     const std::string &user_password) {
-  return this->network_service_.start(sp, port, user_name, user_password);
+  this->network_services_.push_back(p2p_network_service());
+  return this->network_services_.rbegin()->start(sp, port, user_name, user_password);
 }
 
 struct run_data
@@ -214,9 +215,9 @@ vds::async_task<> vds::_server::start_network(const vds::service_provider &sp) {
     certificate_dbo t2;
     certificate_private_key_dbo t3;
     auto st = t.get_reader(
-        t1.select(t1.port)
-            .inner_join(t2, t2.id == t1.cert)
-            .inner_join(t3, t3.id == t1.cert));
+        t1.select(t1.port, t2.cert, t3.body)
+            .inner_join(t2, t2.id == t1.cert_id)
+            .inner_join(t3, t3.id == t1.cert_id));
     while(st.execute()){
       run_conf->push_back( run_data {
           .port = t1.port.get(st),
@@ -231,7 +232,8 @@ vds::async_task<> vds::_server::start_network(const vds::service_provider &sp) {
       throw std::runtime_error("There is no active network configuration");
     }
     for(auto & conf : *run_conf) {
-      this->network_service_.start(sp, conf.port, conf.cert, conf.key);
+      this->network_services_.push_back(p2p_network_service());
+      this->network_services_.rbegin()->start(sp, conf.port, conf.cert, conf.key);
     }
   });
 }

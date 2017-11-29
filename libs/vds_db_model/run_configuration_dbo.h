@@ -17,13 +17,13 @@ namespace vds {
     run_configuration_dbo()
         : database_table("run_configuration"),
           id(this, "id"),
-          cert(this, "cert"),
+          cert_id(this, "cert_id"),
           port(this, "port")
     {
     }
 
     database_column<guid> id;
-    database_column<guid> cert;
+    database_column<guid> cert_id;
     database_column<int> port;
   };
 }

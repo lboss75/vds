@@ -11,6 +11,8 @@ All rights reserved
 #ifndef _WIN32
 #include <unistd.h>
 #include <limits.h>
+#include <user_dbo.h>
+#include <certificate_dbo.h>
 
 #endif
 #include "transactions/root_user_transaction.h"
@@ -51,6 +53,23 @@ const vds::guid &vds::member_user::id() const {
 
 const vds::certificate &vds::member_user::user_certificate() const {
   return this->impl_->user_certificate();
+}
+
+vds::member_user vds::member_user::by_login(vds::database_transaction &t, const std::string &login) {
+
+  user_dbo t1;
+  certificate_dbo t2;
+  auto st = t.get_reader(t1
+                             .select(t1.id, t2.cert)
+                             .inner_join(t2, t2.id == t1.id)
+                             .where(t1.login == login));
+  if(!st.execute()){
+    throw std::runtime_error("User with login '" + login + "' was not found");
+  }
+
+  return member_user(new _member_user(
+      t1.id.get(st),
+      certificate::parse_der(t2.cert.get(st))));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////

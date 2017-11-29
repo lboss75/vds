@@ -107,8 +107,12 @@ void vds::db_model::migrate(
 
     t.execute("CREATE TABLE run_configuration (\
 			id VARCHAR(64) PRIMARY KEY NOT NULL,\
-			cert VARCHAR(64) NOT NULL,\
+			cert_id VARCHAR(64) NOT NULL,\
 			port INTEGER)");
+
+		t.execute("CREATE TABLE well_known_node(\
+			id VARCHAR(64) PRIMARY KEY NOT NULL,\
+			addresses TEXT NOT NULL)");
 
 		t.execute("INSERT INTO module(id, version, installed) VALUES('kernel', 1, datetime('now'))");
 	}

@@ -23,6 +23,7 @@ All rights reserved
 #include "channel_message_dbo.h"
 #include "certificate_private_key_dbo.h"
 #include "transactions/device_user_add_transaction.h"
+#include "run_configuration_dbo.h"
 
 vds::user_manager::user_manager()
   : impl_(new _user_manager())
@@ -153,35 +154,50 @@ vds::const_data_buffer vds::user_manager::lock_to_device(
     const vds::service_provider &sp,
     vds::database_transaction &t,
     const std::string &user_name,
-    const std::string &user_password) {
+    const std::string &user_password,
+    int port) {
+
+  auto user = member_user::by_login(t, user_name);
 
   user_dbo t1;
-  auto st = t.get_reader(t1.select(t1.id, t1.private_key).where(t1.login == user_name));
+  auto st = t.get_reader(t1.select(t1.private_key).where(t1.id == user.id()));
 
   if(!st.execute()){
     throw std::runtime_error("User not found");
   }
 
-  auto id = t1.id.get(st);
-  auto private_key = asymmetric_private_key::parse_der(t1.private_key.get(st), user_password);
+  auto user_private_key = asymmetric_private_key::parse_der(t1.private_key.get(st), user_password);
 
-  certificate_dbo t2;
-  st = t.get_reader(t2.select(t2.cert).where(t2.id == id));
-
-  if(!st.execute()){
-    throw std::runtime_error("User not found");
-  }
-
-  auto cert = certificate::parse_der(t2.cert.get(st));
+  auto private_key = asymmetric_private_key::generate(asymmetric_crypto::rsa4096());
 
   transaction_block log;
-  log.add(device_user_add_transaction());
+  auto device_user = user.create_device_user(log, user_private_key, private_key);
+
+  auto config_id = guid::new_guid();
+  run_configuration_dbo t3;
+  t.execute(
+      t3.insert(
+          t3.id = config_id,
+          t3.cert_id = device_user.id(),
+          t3.port = port));
+
+  certificate_dbo t4;
+  t.execute(
+      t4.insert(
+          t4.id = device_user.id(),
+          t4.cert = device_user.user_certificate().der()));
+
+  certificate_private_key_dbo t5;
+  t.execute(
+      t5.insert(
+          t5.id = device_user.id(),
+          t5.body = private_key.der(std::string())));
 
   return log.sign(
-      id,
-      cert,
-      id,
-      private_key);
+      user.id(),
+      user.user_certificate(),
+      user.id(),
+      user_private_key);
 }
 
 

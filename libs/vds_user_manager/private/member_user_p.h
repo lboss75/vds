@@ -23,11 +23,6 @@ namespace vds {
       const std::string & user_password,
       const vds::asymmetric_private_key & private_key);
 
-    member_user create_device_user(
-      class transaction_block & log,
-      const vds::asymmetric_private_key & owner_user_private_key,
-      const vds::asymmetric_private_key & private_key);
-
     member_user create_user(
         const vds::asymmetric_private_key & owner_user_private_key,
         const std::string & user_name,
@@ -38,6 +33,11 @@ namespace vds {
         const std::shared_ptr<iuser_manager_storage> & storage,
         const vds::asymmetric_private_key & owner_user_private_key,
         const std::string & channel_name) const;
+
+    member_user create_device_user(
+        class transaction_block & log,
+        const vds::asymmetric_private_key & owner_user_private_key,
+        const vds::asymmetric_private_key & private_key);
 
     const guid & id() const { return this->id_; }
     const certificate & user_certificate() const { return this->user_cert_; }

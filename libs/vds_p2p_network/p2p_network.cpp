@@ -106,6 +106,11 @@ bool vds::_p2p_network::do_backgroud_tasks(const service_provider &sp) {
                 return true;
               });
         }
+      })
+      .execute([sp](const std::shared_ptr<std::exception> & ex){
+        if(ex) {
+          sp.unhandled_exception(ex);
+        }
       });
   return !sp.get_shutdown_event().is_shuting_down();
 }

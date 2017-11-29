@@ -45,7 +45,8 @@ namespace vds {
         const service_provider &sp,
         class database_transaction &t,
         const std::string &user_name,
-        const std::string &user_password);
+        const std::string &user_password,
+        int port);
 
   private:
     std::shared_ptr<class _user_manager> impl_;
