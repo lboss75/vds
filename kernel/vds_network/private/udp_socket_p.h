@@ -385,6 +385,7 @@ namespace vds {
 
           case write_status_t::eof:
           case write_status_t::waiting_socket:
+          default:
             throw  std::runtime_error("Invalid operator");
         }
       }

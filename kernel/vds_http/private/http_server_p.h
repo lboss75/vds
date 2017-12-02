@@ -21,6 +21,7 @@ namespace vds {
       const vds::service_provider & sp,
       const http_server::handler_type & handler)
     {
+      throw std::runtime_error("Not implemented");
 /*
       return async_series(
         http_pipeline(sp, incoming_stream, this->input_commands_, this->output_commands_, outgoing),

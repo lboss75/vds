@@ -38,27 +38,36 @@ vds::p2p_network::start(
 vds::_p2p_network::_p2p_network(
     const std::shared_ptr<ip2p_network_client> &client)
 : client_(client),
-  backgroud_timer_("p2p network background") {
+  backgroud_timer_("p2p network background"),
+  start_result_([](const std::shared_ptr<std::exception> & ex){
+    throw std::runtime_error("Login error");
+  }){
 }
 
 vds::_p2p_network::~_p2p_network() {
 
 }
 
-void vds::_p2p_network::start(
+vds::async_task<> vds::_p2p_network::start(
     const vds::service_provider &sp,
     int port,
     const std::string &login,
     const std::string &password) {
 
-  this->start_network(sp, port);
-
+  this->set_auth(login, password);
+  return [sp, pthis = this->shared_from_this(), port](const async_result<> & start_result){
+    pthis->start_result_ = start_result;
+    pthis->start_network(sp, port);
+  };
 }
 
-void vds::_p2p_network::start(const vds::service_provider &sp, int port, const vds::certificate &node_cert,
+vds::async_task<> vds::_p2p_network::start(const vds::service_provider &sp, int port, const vds::certificate &node_cert,
                               const vds::asymmetric_private_key &node_key) {
+  this->set_auth(node_cert, node_key);
 
   this->start_network(sp, port);
+
+  return vds::async_task<>::empty();
 }
 
 void vds::_p2p_network::start_network(const service_provider &sp, int port) {
@@ -118,5 +127,13 @@ bool vds::_p2p_network::do_backgroud_tasks(const service_provider &sp) {
 void vds::_p2p_network::handle_incoming_message(
     const udp_transport::session &source,
     const const_data_buffer &message) {
+}
+
+void vds::_p2p_network::set_auth(const vds::certificate &node_cert, const vds::asymmetric_private_key &node_key) {
+
+}
+
+void vds::_p2p_network::set_auth(const std::string &login, const std::string &password) {
+
 }
 

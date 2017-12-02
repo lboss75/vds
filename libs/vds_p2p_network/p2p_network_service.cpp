@@ -39,10 +39,10 @@ vds::_p2p_network_service::start(
     int port,
     const std::string &login,
     const std::string &password) {
-  this->network_->start(sp, port, login, password);
+  return this->network_->start(sp, port, login, password);
 }
 
 vds::async_task<> vds::_p2p_network_service::start(const vds::service_provider &sp, int port, const certificate &node_cert,
                                                    const asymmetric_private_key &node_key) {
-  this->network_->start(sp, port, node_cert, node_key);
+  return this->network_->start(sp, port, node_cert, node_key);
 }

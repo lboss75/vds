@@ -119,6 +119,8 @@ namespace vds {
         this->input_key_ = symmetric_key::deserialize(symmetric_crypto::aes_256_cbc(), binary_deserializer(key_info));
 
       }
+      default:
+        throw std::runtime_error("Not implemented");
 
     }
   }

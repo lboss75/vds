@@ -24,10 +24,10 @@ namespace vds {
 
     ~_p2p_network();
 
-    void start(const vds::service_provider &sp, int port, const std::string &login,
+    async_task<> start(const vds::service_provider &sp, int port, const std::string &login,
                    const std::string &password);
 
-    void start(const vds::service_provider &sp,
+    async_task<> start(const vds::service_provider &sp,
                int port,
                const vds::certificate &node_cert,
                const vds::asymmetric_private_key &node_key);
@@ -39,12 +39,22 @@ namespace vds {
     udp_transport transport_;
     timer backgroud_timer_;
 
+     async_result<> start_result_;
+
     void start_network(const service_provider &sp, int port);
 
     bool do_backgroud_tasks(const service_provider &sp);
     void handle_incoming_message(
         const udp_transport::session & source,
         const const_data_buffer & message);
+
+    void set_auth(
+        const std::string &login,
+        const std::string &password);
+
+    void set_auth(
+        const vds::certificate &node_cert,
+        const vds::asymmetric_private_key &node_key);
   };
 }
 

@@ -136,6 +136,7 @@ namespace vds {
             }
             
             //bind to address
+            sp.get<logger>()->trace("UDP", sp, "Starting UDP server on the port %d", port);
             sockaddr_in addr;
             memset(&addr, 0, sizeof(addr));
             addr.sin_family = AF_INET;

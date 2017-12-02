@@ -175,7 +175,6 @@ namespace vds {
 	  async_task(async_task<result_types...> && origin);
 	  async_task(std::shared_ptr<std::exception> && error);
 
-		explicit async_task(result_types && ... values);
 	  async_task(const std::shared_ptr<std::exception> & error);
     
 	  template<typename parent_task_type, typename functor_type>
@@ -229,9 +228,11 @@ namespace vds {
 		  !_async_task_functor_helper<decltype(&functor_type::operator())>::is_async_callback
 		  && !_async_task_functor_helper<decltype(&functor_type::operator())>::task_as_result
 		  && !_async_task_functor_helper<decltype(&functor_type::operator())>::is_void_result>::type * = nullptr);
-    
-    static async_task<result_types...> empty();
+
+		static async_task<result_types...> result(result_types && ... values);
+		static async_task<result_types...> empty();
   private:
+    async_task() = delete;
 	  _async_task_base<result_types...> * impl_;
     
 	  async_task(_async_task_base<result_types...> * impl);
@@ -431,9 +432,10 @@ namespace vds {
   }
 
 	template<typename ...result_types>
-	inline async_task<result_types...>::async_task(result_types && ... values)
-			: impl_(new _async_task_value<result_types...>(std::forward<result_types>(values)...))
+	inline async_task<result_types...> async_task<result_types...>::result(result_types && ... values)
 	{
+		return async_task<result_types...>(
+				new _async_task_value<result_types...>(std::forward<result_types>(values)...));
 	}
 
   template<typename ...result_types>
@@ -499,7 +501,9 @@ namespace vds {
   inline void async_task<result_types...>::operator()(
 	  functor_type && done_callback)
   {
-	  this->impl_->execute(
+		auto impl = this->impl_;
+		this->impl_ = nullptr;
+	  impl->execute(
 		  async_result<result_types...>(
 			  [done = std::move(done_callback)](const std::shared_ptr<std::exception> & ex, result_types... results){
 		  if (!ex) {
@@ -528,7 +532,9 @@ namespace vds {
 	done_type && done,
 	typename std::enable_if<_async_task_functor_helper<decltype(&functor_type::operator())>::is_async_callback>::type *)
   {
-	  this->impl_->execute(
+		auto impl = this->impl_;
+		this->impl_ = nullptr;
+	  impl->execute(
 		  async_result<result_types...>(
 			  [&f, d = std::move(done)](const std::shared_ptr<std::exception> & ex, result_types... result) {
           if(!ex){
@@ -548,7 +554,9 @@ namespace vds {
 	  !_async_task_functor_helper<decltype(&functor_type::operator())>::is_async_callback
 	  && _async_task_functor_helper<decltype(&functor_type::operator())>::task_as_result>::type *)
   {
-	  this->impl_->execute(
+		auto impl = this->impl_;
+		this->impl_ = nullptr;
+	  impl->execute(
 		  async_result<result_types...>([&f, d = std::move(done)](const std::shared_ptr<std::exception> & ex, result_types... result) mutable {
         if(!ex){
           auto t = f(std::forward<result_types>(result)...);
@@ -569,7 +577,9 @@ namespace vds {
 	  && !_async_task_functor_helper<decltype(&functor_type::operator())>::task_as_result
 	  && _async_task_functor_helper<decltype(&functor_type::operator())>::is_void_result>::type *)
   {
-	  this->impl_->execute(
+		auto impl = this->impl_;
+		this->impl_ = nullptr;
+	  impl->execute(
 		  async_result<result_types...>(
 			  [&f, done](const std::shared_ptr<std::exception> & ex, result_types... result) {
           if(!ex){
@@ -596,7 +606,9 @@ namespace vds {
 	  && !_async_task_functor_helper<decltype(&functor_type::operator())>::task_as_result
 	  && !_async_task_functor_helper<decltype(&functor_type::operator())>::is_void_result>::type *)
   {
-	  this->impl_->execute(async_result<result_types...>([&f, done](
+		auto impl = this->impl_;
+		this->impl_ = nullptr;
+	  impl->execute(async_result<result_types...>([&f, done](
           const std::shared_ptr<std::exception> & ex,
           result_types... result) {
           if(!ex){

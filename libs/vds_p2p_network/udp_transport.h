@@ -13,6 +13,8 @@ namespace vds {
 
   class udp_transport {
   public:
+    static constexpr uint32_t protocol_version = 0;
+
     class session {
     public:
       const std::string & address() const;

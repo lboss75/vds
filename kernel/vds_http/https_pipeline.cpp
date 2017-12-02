@@ -34,7 +34,7 @@ void vds::https_pipeline::on_connection_closed(const service_provider & sp)
 {
 }
 
-void vds::https_pipeline::on_error(const service_provider & sp, const std::shared_ptr<std::exception> & /*error* /)
+void vds::https_pipeline::on_error(const service_provider & sp, const std::shared_ptr<std::exception> & / *error* /)
 {
 }
 

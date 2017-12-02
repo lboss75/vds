@@ -118,7 +118,6 @@ namespace vds {
 
     udp_socket & socket();
 
-
   private:
     std::shared_ptr<_udp_server> impl_;
   };

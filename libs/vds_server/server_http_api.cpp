@@ -144,6 +144,6 @@ vds::async_task<vds::http_message> vds::_server_http_api::route(
     });
   }*/
 
-  return async_task<vds::http_message>(http_router::route(sp, message));
+  return async_task<vds::http_message>::result(http_router::route(sp, message));
 }
 

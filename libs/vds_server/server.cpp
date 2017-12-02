@@ -231,9 +231,14 @@ vds::async_task<> vds::_server::start_network(const vds::service_provider &sp) {
     if(run_conf->empty()){
       throw std::runtime_error("There is no active network configuration");
     }
+
+    auto result = async_task<>::empty();
     for(auto & conf : *run_conf) {
       this->network_services_.push_back(p2p_network_service());
-      this->network_services_.rbegin()->start(sp, conf.port, conf.cert, conf.key);
+      result = result.then([this, sp, conf]() {
+        return this->network_services_.rbegin()->start(sp, conf.port, conf.cert, conf.key);
+      });
     }
+    return result;
   });
 }
