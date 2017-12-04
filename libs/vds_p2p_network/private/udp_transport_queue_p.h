@@ -98,6 +98,29 @@ namespace vds {
       guid instance_id_;
     };
 
+    class welcome_datagram : public datagram_generator {
+    public:
+      welcome_datagram(
+          const std::shared_ptr<class _udp_transport_session> & owner,
+          const guid & instance_id)
+          : datagram_generator(owner),
+            instance_id_(instance_id)
+      {
+      }
+
+      virtual uint16_t generate_message(
+          uint8_t * buffer) override;
+
+      void complete(const uint8_t * buffer, size_t len) override;
+
+      bool is_eof() const override {
+        return true;
+      }
+
+    private:
+      guid instance_id_;
+    };
+
     class acknowledgement_datagram : public datagram_generator {
     public:
       acknowledgement_datagram(

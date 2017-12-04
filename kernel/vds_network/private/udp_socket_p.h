@@ -405,10 +405,10 @@ namespace vds {
             0,
             (sockaddr *)this->write_message_->addr(),
             sizeof(sockaddr_in));
-          
+
+          this->write_status_ = write_status_t::bof;
           if (len < 0) {
             int error = errno;
-            this->write_status_ = write_status_t::bof;
             lock.unlock();
 
             if(EMSGSIZE == error){

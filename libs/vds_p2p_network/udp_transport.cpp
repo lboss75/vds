@@ -34,6 +34,7 @@ void vds::udp_transport::connect(const vds::service_provider &sp, const std::str
 ///////////////////////////////////////////////////////
 vds::_udp_transport::_udp_transport(const vds::udp_transport::message_handler_t &message_handler)
 : instance_id_(guid::new_guid()),
+  send_queue_(new _udp_transport_queue()),
   timer_("UDP transport timer")
 {
 }
@@ -52,6 +53,11 @@ void vds::_udp_transport::start(const service_provider &sp, int port) {
         }
       }
   );
+
+  this->timer_.start(sp, std::chrono::seconds(1), [sp, pthis = this->shared_from_this()]()->bool{
+    return pthis->do_timer_tasks(sp);
+  });
+
 }
 
 void vds::_udp_transport::send_broadcast(int port) {
@@ -75,26 +81,21 @@ vds::const_data_buffer vds::_udp_transport::create_handshake_message() {
 }
 
 void vds::_udp_transport::process_incommig_message(
-    const service_provider &sp,
-    const udp_datagram &message) {
-  if(4 > message.data_size()){
-    this->server_.socket().read_async().execute(
-        [pthis = this->shared_from_this(), sp](
-            const std::shared_ptr<std::exception> & ex,
-            const udp_datagram & message){
-          if(!ex) {
-            pthis->process_incommig_message(sp, message);
-          }
-        }
-    );
+    const service_provider & sp,
+    const udp_datagram & message) {
 
+  _udp_transport_session_address_t server_address(message.server(), message.port());
+  std::unique_lock<std::mutex> lock(this->sessions_mutex_);
+
+  if(4 > message.data_size()){
+    auto p = this->sessions_.find(server_address);
+    if (this->sessions_.end() != p) {
+      this->sessions_.erase(p);
+    }
     return;
   }
 
-  _udp_transport_session_address_t server_address(message.server(), message.port());
-
-  std::unique_lock<std::mutex> lock(this->sessions_mutex_);
-
+  std::shared_ptr<_udp_transport_session> session;
   if(0x80 == (0x80 & static_cast<const uint8_t *>(message.data())[0])
     && _udp_transport_session::control_type::Handshake == (_udp_transport_session::control_type)(static_cast<const uint8_t *>(message.data())[0] >> 4)){
 
@@ -103,26 +104,29 @@ void vds::_udp_transport::process_incommig_message(
     if(version == udp_transport::protocol_version && 20 == message.data_size()){
       guid instance_id(message.data(), 16);
       if(instance_id != this->instance_id_){
-        auto new_session = std::make_shared<_udp_transport_session>(instance_id, server_address);
-        this->sessions_[server_address] = new_session;
+        session = std::make_shared<_udp_transport_session>(instance_id, server_address);
+        this->sessions_[server_address] = session;
       }
     }
   } else {
     auto p = this->sessions_.find(server_address);
-    if(this->sessions_.end() != p){
-      auto session_handle = p->second;
-      lock.unlock();
+    if (this->sessions_.end() == p) {
+      return;
+    }
 
-      try {
-        session_handle->incomming_message(sp, *this, message.data(), message.data_size());
-      }
-      catch (...){
-        std::unique_lock<std::mutex> lock(this->sessions_mutex_);
-        auto p = this->sessions_.find(server_address);
-        if(this->sessions_.end() != p && session_handle.get() == p->second.get()){
-          this->sessions_.erase(p);
-        }
-      }
+    session = p->second;
+  }
+
+  lock.unlock();
+
+  try {
+    session->incomming_message(sp, *this, message.data(), message.data_size());
+  }
+  catch (...){
+    std::unique_lock<std::mutex> lock(this->sessions_mutex_);
+    auto p = this->sessions_.find(server_address);
+    if(this->sessions_.end() != p && session.get() == p->second.get()){
+      this->sessions_.erase(p);
     }
   }
 }
@@ -178,5 +182,17 @@ void vds::_udp_transport::close_session(
       && session == p->second.get()){
     this->sessions_.erase(p);
   }
+}
+
+bool vds::_udp_transport::do_timer_tasks(const vds::service_provider &sp) {
+
+  auto owner = this->shared_from_this();
+
+  std::lock_guard<std::mutex> lock(this->sessions_mutex_);
+  for(auto & p : this->sessions_){
+    p.second->on_timer(sp, owner);
+  }
+
+  return !sp.get_shutdown_event().is_shuting_down();
 }
 

@@ -50,6 +50,8 @@ namespace vds {
 
     timer timer_;
 
+    bool do_timer_tasks(
+        const service_provider &sp);
     const_data_buffer create_handshake_message();
 
     void process_incommig_message(

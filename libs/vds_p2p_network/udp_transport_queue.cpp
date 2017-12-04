@@ -150,7 +150,7 @@ uint16_t vds::_udp_transport_queue::handshake_datagram::generate_message(uint8_t
   }
 
   *(reinterpret_cast<uint32_t *>(buffer)) = htonl(
-      ((uint32_t)_udp_transport_session::control_type::Handshake) << 24
+      ((uint32_t)_udp_transport_session::control_type::Handshake) << 28
       | udp_transport::protocol_version);
   memcpy(buffer + 4, this->instance_id_.data(), this->instance_id_.size());
 
@@ -159,4 +159,18 @@ uint16_t vds::_udp_transport_queue::handshake_datagram::generate_message(uint8_t
 
 void vds::_udp_transport_queue::handshake_datagram::complete(
     const uint8_t * buffer, size_t len) {
+  this->owner()->handshake_sent();
+}
+
+uint16_t vds::_udp_transport_queue::welcome_datagram::generate_message(uint8_t *buffer) {
+  *(reinterpret_cast<uint32_t *>(buffer)) = htonl(
+      ((uint32_t)_udp_transport_session::control_type::Welcome) << 28
+      | udp_transport::protocol_version);
+  memcpy(buffer + 4, this->instance_id_.data(), this->instance_id_.size());
+
+  return safe_cast<uint16_t>(4 + this->instance_id_.size());
+}
+
+void vds::_udp_transport_queue::welcome_datagram::complete(const uint8_t *buffer, size_t len) {
+  this->owner()->welcome_sent();
 }

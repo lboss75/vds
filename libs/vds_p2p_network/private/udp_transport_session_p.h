@@ -36,15 +36,17 @@ namespace vds {
         const guid &instance_id,
         const _udp_transport_session_address_t &address)
         : instance_id_(instance_id),
-          address_(address) {
+          address_(address),
+          current_state_(send_state::bof){
     }
 
     //Fake session
     _udp_transport_session(const _udp_transport_session_address_t &address)
-        : address_(address) {
+        : address_(address),
+          current_state_(send_state::bof){
     }
 
-/*
+  /*
     0                   1                   2                   3
     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -54,12 +56,13 @@ namespace vds {
     ~                 Control Information Field                     ~
     |                                                               |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-*/
+  */
     enum class control_type : uint8_t {
       Handshake = 0b1000,//seq: version, info: node-id
-      Keep_alive = 0b1001,//
-      Acknowledgement = 0b1010,//seq: last package
-      Failed = 0b1011 //seq: last package, info: failed bits
+      Welcome = 0b1001,//seq: version, info: node-id
+      Keep_alive = 0b1010,//
+      Acknowledgement = 0b1011,//seq: last package
+      Failed = 0b1100 //seq: last package, info: failed bits
     };
 
     const _udp_transport_session_address_t &address() const {
@@ -100,9 +103,19 @@ namespace vds {
         const service_provider &sp,
         const std::shared_ptr<_udp_transport> & owner);
 
+    void handshake_sent();
+
+    void send_welcome(
+        const service_provider &sp,
+        const std::shared_ptr<_udp_transport> & owner);
+    void welcome_sent();
+
   private:
     enum class send_state {
       bof,
+      handshake_pending,
+      welcome_pending,
+      welcome_sent,
       wait_message
     };
 
@@ -111,7 +124,6 @@ namespace vds {
     uint32_t output_sequence_number_;
     uint32_t input_sequence_number_;
 
-    guid node_id_;
     uint16_t mtu_;
 
     send_state current_state_;

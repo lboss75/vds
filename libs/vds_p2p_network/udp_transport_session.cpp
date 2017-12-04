@@ -15,7 +15,16 @@ void vds::_udp_transport_session::incomming_message(
   if(0x80 == (0x80 & data[0])){
     switch((control_type)(data[0] >> 4)){
       case control_type::Handshake:
+      {
+        std::unique_lock<std::mutex> lock(this->state_mutex_);
+        if(send_state::bof == this->current_state_
+            || send_state::handshake_pending == this->current_state_) {
+          this->current_state_ = send_state::welcome_pending;
+          this->send_welcome(sp, owner.shared_from_this());
+        }
+
         break;
+      }
 
     }
   } else {
@@ -82,12 +91,22 @@ void vds::_udp_transport_session::on_timer(
   switch(this->current_state_){
     case send_state::bof:
     {
-      owner->send_queue()->emplace(
-          sp,
-          owner,
-          new _udp_transport_queue::handshake_datagram(
-              this->shared_from_this(),
-              owner->instance_id_));
+      this->current_state_ = send_state::handshake_pending;
+      this->send_handshake(sp, owner);
+      break;
+    }
+    case send_state::handshake_pending:
+    {
+      break;
+    }
+    case send_state::welcome_sent:
+    {
+      this->current_state_ = send_state::handshake_pending;
+      this->send_handshake(sp, owner);
+      break;
+    }
+    case send_state::welcome_pending:
+    {
       break;
     }
     case send_state ::wait_message:
@@ -128,6 +147,31 @@ void vds::_udp_transport_session::send_handshake(
       new _udp_transport_queue::handshake_datagram(
           this->shared_from_this(),
           owner->instance_id_));
+}
+
+void vds::_udp_transport_session::handshake_sent() {
+  std::unique_lock<std::mutex> lock(this->state_mutex_);
+  this->current_state_ = send_state::bof;
+}
+
+void vds::_udp_transport_session::send_welcome(
+    const vds::service_provider &sp,
+    const std::shared_ptr<_udp_transport> & owner) {
+  sp.get<logger>()->trace("UDP", sp, "Send welcome to %s:%d",
+                          this->address_.server_.c_str(),
+                          this->address_.port_);
+
+  owner->send_queue()->emplace(
+      sp,
+      owner,
+      new _udp_transport_queue::welcome_datagram(
+          this->shared_from_this(),
+          owner->instance_id_));
+}
+
+void vds::_udp_transport_session::welcome_sent() {
+  std::unique_lock<std::mutex> lock(this->state_mutex_);
+  this->current_state_ = send_state::welcome_sent;
 }
 
 

@@ -263,7 +263,9 @@ void mock_server::init(const std::string &user_name, const std::string &user_pas
   vds::task_manager task_manager;
   vds::server server;
 
-  auto folder = vds::foldername(vds::foldername(vds::filename::current_process().contains_folder(), "servers"), std::to_string(0));
+  auto folder = vds::foldername(
+      vds::foldername(vds::filename::current_process().contains_folder(), "servers"),
+      std::to_string(this->index_));
   folder.delete_folder(true);
   vds::foldername(folder, ".vds").create();
 
