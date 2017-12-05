@@ -21,10 +21,38 @@ void vds::_udp_transport_session::incomming_message(
             || send_state::handshake_pending == this->current_state_) {
           this->current_state_ = send_state::welcome_pending;
           this->send_welcome(sp, owner.shared_from_this());
+          owner.handshake_completed(sp, this);
         }
 
         break;
       }
+      case control_type::Welcome:
+      {
+        if(20 != size){
+          throw std::runtime_error("Invalid message");
+        }
+
+        std::unique_lock<std::mutex> lock(this->state_mutex_);
+        if(send_state::handshake_pending == this->current_state_) {
+          guid instance_id(data + 4, 16);
+          if(0 == this->instance_id_.size()) {
+            this->instance_id_ = instance_id;
+            this->current_state_ = send_state::wait_message;
+
+            owner.handshake_completed(sp, this);
+          }
+          else if(this->instance_id_ != instance_id){
+            throw std::runtime_error("Invalid message");
+          }
+        }
+        else {
+          throw std::runtime_error("Invalid state");
+        }
+
+        break;
+      }
+      default:
+        throw std::runtime_error("Not implemented");
 
     }
   } else {
@@ -172,6 +200,10 @@ void vds::_udp_transport_session::send_welcome(
 void vds::_udp_transport_session::welcome_sent() {
   std::unique_lock<std::mutex> lock(this->state_mutex_);
   this->current_state_ = send_state::welcome_sent;
+}
+
+vds::_udp_transport_session::~_udp_transport_session() {
+  std::cout << "_udp_transport_session::~_udp_transport_session\n";
 }
 
 

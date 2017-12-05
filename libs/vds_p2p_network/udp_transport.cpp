@@ -44,15 +44,9 @@ vds::_udp_transport::~_udp_transport() {
 }
 
 void vds::_udp_transport::start(const service_provider &sp, int port) {
-  this->server_.start(sp, "127.0.0.1", port).read_async().execute(
-      [pthis = this->shared_from_this(), sp](
-          const std::shared_ptr<std::exception> & ex,
-          const udp_datagram & message){
-        if(!ex) {
-          pthis->process_incommig_message(sp, message);
-        }
-      }
-  );
+  this->server_.start(sp, "127.0.0.1", port);
+
+  this->read_message(sp);
 
   this->timer_.start(sp, std::chrono::seconds(1), [sp, pthis = this->shared_from_this()]()->bool{
     return pthis->do_timer_tasks(sp);
@@ -85,7 +79,7 @@ void vds::_udp_transport::process_incommig_message(
     const udp_datagram & message) {
 
   _udp_transport_session_address_t server_address(message.server(), message.port());
-  std::unique_lock<std::mutex> lock(this->sessions_mutex_);
+  std::unique_lock<std::shared_mutex> lock(this->sessions_mutex_);
 
   if(4 > message.data_size()){
     auto p = this->sessions_.find(server_address);
@@ -102,8 +96,10 @@ void vds::_udp_transport::process_incommig_message(
     auto version = 0x0FFFFFFF & ntohl(*reinterpret_cast<const uint32_t *>(message.data()));
 
     if(version == udp_transport::protocol_version && 20 == message.data_size()){
-      guid instance_id(message.data(), 16);
+      guid instance_id(message.data() + 4, 16);
       if(instance_id != this->instance_id_){
+        sp.get<logger>()->trace("UDP", sp, "%s: New session from %s",
+                                instance_id.str().c_str(), this->instance_id_.str().c_str());
         session = std::make_shared<_udp_transport_session>(instance_id, server_address);
         this->sessions_[server_address] = session;
       }
@@ -119,14 +115,16 @@ void vds::_udp_transport::process_incommig_message(
 
   lock.unlock();
 
-  try {
-    session->incomming_message(sp, *this, message.data(), message.data_size());
-  }
-  catch (...){
-    std::unique_lock<std::mutex> lock(this->sessions_mutex_);
-    auto p = this->sessions_.find(server_address);
-    if(this->sessions_.end() != p && session.get() == p->second.get()){
-      this->sessions_.erase(p);
+  if(session) {
+    try {
+      session->incomming_message(sp, *this, message.data(), message.data_size());
+    }
+    catch (...) {
+      std::unique_lock<std::shared_mutex> lock(this->sessions_mutex_);
+      auto p = this->sessions_.find(server_address);
+      if (this->sessions_.end() != p && session.get() == p->second.get()) {
+        this->sessions_.erase(p);
+      }
     }
   }
 }
@@ -155,7 +153,7 @@ void vds::_udp_transport::connect(const vds::service_provider &sp, const std::st
 
   _udp_transport_session_address_t addr(na.server, (uint16_t)atoi(na.port.c_str()));
 
-  std::lock_guard<std::mutex> lock(this->sessions_mutex_);
+  std::unique_lock<std::shared_mutex> lock(this->sessions_mutex_);
   if(this->sessions_.end() != this->sessions_.find(addr)){
     return;
   }
@@ -176,7 +174,7 @@ vds::async_task<> vds::_udp_transport::write_async(vds::udp_datagram &&message) 
 void vds::_udp_transport::close_session(
     _udp_transport_session *session,
     const std::shared_ptr<std::exception> & ex) {
-  std::unique_lock<std::mutex> lock(this->sessions_mutex_);
+  std::unique_lock<std::shared_mutex> lock(this->sessions_mutex_);
   auto p = this->sessions_.find(session->address());
   if(this->sessions_.end() != p
       && session == p->second.get()){
@@ -188,11 +186,31 @@ bool vds::_udp_transport::do_timer_tasks(const vds::service_provider &sp) {
 
   auto owner = this->shared_from_this();
 
-  std::lock_guard<std::mutex> lock(this->sessions_mutex_);
+  std::shared_lock<std::shared_mutex> lock(this->sessions_mutex_);
   for(auto & p : this->sessions_){
     p.second->on_timer(sp, owner);
   }
 
   return !sp.get_shutdown_event().is_shuting_down();
+}
+
+void vds::_udp_transport::read_message(const vds::service_provider &sp) {
+  this->server_.socket().read_async().execute(
+      [pthis = this->shared_from_this(), sp](
+          const std::shared_ptr<std::exception> & ex,
+          const udp_datagram & message){
+        if(!ex) {
+          pthis->process_incommig_message(sp, message);
+        }
+        pthis->read_message(sp);
+      }
+  );
+
+}
+
+void vds::_udp_transport::handshake_completed(
+    const vds::service_provider &sp,
+    _udp_transport_session *session) {
+
 }
 

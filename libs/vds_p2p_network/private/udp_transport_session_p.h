@@ -37,26 +37,30 @@ namespace vds {
         const _udp_transport_session_address_t &address)
         : instance_id_(instance_id),
           address_(address),
+          mtu_(65507),
           current_state_(send_state::bof){
     }
 
     //Fake session
     _udp_transport_session(const _udp_transport_session_address_t &address)
         : address_(address),
+          mtu_(65507),
           current_state_(send_state::bof){
     }
 
-  /*
-    0                   1                   2                   3
-    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    |1|type |           ACK Seq. No.                                |
-    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    |                                                               |
-    ~                 Control Information Field                     ~
-    |                                                               |
-    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-  */
+    ~_udp_transport_session();
+
+    /*
+      0                   1                   2                   3
+      0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+      |1|type |           ACK Seq. No.                                |
+      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+      |                                                               |
+      ~                 Control Information Field                     ~
+      |                                                               |
+      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    */
     enum class control_type : uint8_t {
       Handshake = 0b1000,//seq: version, info: node-id
       Welcome = 0b1001,//seq: version, info: node-id

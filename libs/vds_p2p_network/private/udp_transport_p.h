@@ -44,7 +44,7 @@ namespace vds {
     bool incomming_eof_;
 
     std::map<_udp_transport_session_address_t, std::shared_ptr<_udp_transport_session>> sessions_;
-    std::mutex sessions_mutex_;
+    std::shared_mutex sessions_mutex_;
 
     std::shared_ptr<_udp_transport_queue> send_queue_;
 
@@ -75,6 +75,12 @@ namespace vds {
     void close_session(
         _udp_transport_session * session,
         const std::shared_ptr<std::exception> & ex);
+
+    void read_message(const service_provider &sp);
+
+    void handshake_completed(
+        const service_provider &sp,
+        _udp_transport_session * session);
   };
 }
 
