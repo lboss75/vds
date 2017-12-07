@@ -10,7 +10,7 @@ All rights reserved
 #include "udp_transport.h"
 
 namespace vds {
-  class p2p_crypto_tunnel {
+  class p2p_crypto_tunnel : public udp_transport::session {
   public:
     p2p_crypto_tunnel();
     ~p2p_crypto_tunnel();
@@ -26,12 +26,9 @@ namespace vds {
         const class certificate &node_cert,
         const class asymmetric_private_key &node_key);
 
-    async_task<> handle_incoming_message(
-        const service_provider & sp,
+    void handle_incoming_message(
+        const service_provider &sp,
         const vds::const_data_buffer &message);
-
-  private:
-    std::shared_ptr<class _p2p_crypto_tunnel> impl_;
   };
 }
 

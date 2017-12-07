@@ -19,7 +19,7 @@ namespace vds {
 
   class _udp_transport : public std::enable_shared_from_this<_udp_transport> {
   public:
-    _udp_transport(const udp_transport::message_handler_t &message_handler);
+    _udp_transport(const udp_transport::new_session_handler_t & new_session_handler);
     ~_udp_transport();   
 
     void start(const service_provider &sp, int port);
@@ -32,13 +32,14 @@ namespace vds {
       return this->send_queue_;
     }
 
+
   private:
     friend class _udp_transport_queue;
     friend class _udp_transport_session;
 
     udp_server server_;
     guid instance_id_;
-    udp_transport::message_handler_t message_handler_;
+    udp_transport::new_session_handler_t new_session_handler_;
 
     udp_datagram incomming_buffer_;
     bool incomming_eof_;

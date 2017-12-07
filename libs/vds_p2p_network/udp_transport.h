@@ -15,28 +15,47 @@ namespace vds {
   public:
     static constexpr uint32_t protocol_version = 0;
 
-    class session {
+    class _session : public std::enable_shared_from_this<_session>
+    {
     public:
-      const std::string & address() const;
+      virtual ~_session() {}
 
-      async_task<> send(
-          const service_provider & sp,
-          const const_data_buffer & message);
+      virtual void send(
+          const service_provider &sp,
+          const std::shared_ptr<class _udp_transport> &owner,
+          const const_data_buffer &message) = 0;
 
-      class _session * operator -> () const { return this->impl_.get(); }
-
-    private:
-      std::shared_ptr<class _session> impl_;
     };
 
-    typedef std::function<void(const session & source, const const_data_buffer & message)> message_handler_t;
+    class session {
+    public:
+      session(
+          const std::shared_ptr<class _udp_transport> & owner,
+          const std::shared_ptr<_session> impl)
+      : owner_(owner), impl_(impl){
+      }
+
+      void send(
+          const service_provider & sp,
+          const const_data_buffer & message){
+        this->impl_->send(sp, this->owner_, message);
+      }
+
+      _session * operator -> () const { return this->impl_.get(); }
+
+    private:
+      std::shared_ptr<class _udp_transport> owner_;
+      std::shared_ptr<_session> impl_;
+    };
+
+    typedef std::function<void(const session & session)> new_session_handler_t;
 
     udp_transport();
 
     void start(
         const vds::service_provider &sp,
         int port,
-        const message_handler_t & message_handler);
+        const new_session_handler_t &new_session_handler);
 
     void stop(const service_provider & sp);
 

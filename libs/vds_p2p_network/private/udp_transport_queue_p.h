@@ -16,7 +16,7 @@ namespace vds {
     void send_data(
         const service_provider & sp,
         const std::shared_ptr<_udp_transport> & owner,
-        const std::shared_ptr<_udp_transport_session> & session,
+        const std::shared_ptr<udp_transport::_session> & session,
         const const_data_buffer & data);
 
   private:
@@ -24,7 +24,7 @@ namespace vds {
 
     class datagram_generator {
     public:
-      datagram_generator(const std::shared_ptr<_udp_transport_session> & owner)
+      datagram_generator(const std::shared_ptr<udp_transport::_session> & owner)
           : owner_(owner) {
       }
 
@@ -39,18 +39,18 @@ namespace vds {
 
       virtual bool is_eof() const = 0;
 
-      const std::shared_ptr<class _udp_transport_session> & owner(){
+      const std::shared_ptr<udp_transport::_session> & owner(){
         return this->owner_;
       }
 
     private:
-      std::shared_ptr<class _udp_transport_session> owner_;
+      std::shared_ptr<udp_transport::_session> owner_;
     };
 
     class data_datagram : public datagram_generator {
     public:
       data_datagram(
-          const std::shared_ptr<class _udp_transport_session> & owner,
+          const std::shared_ptr<udp_transport::_session> & owner,
           const const_data_buffer & data )
           : datagram_generator(owner), data_(data), offset_(0)
       {
@@ -62,7 +62,7 @@ namespace vds {
 
       //Store sent message
       void complete(const uint8_t * buffer, size_t len) override {
-        this->owner()->add_datagram(const_data_buffer(buffer, len));
+        static_cast<_udp_transport_session *>(this->owner().get())->add_datagram(const_data_buffer(buffer, len));
       }
 
       //
@@ -78,7 +78,7 @@ namespace vds {
     class handshake_datagram : public datagram_generator {
     public:
       handshake_datagram(
-          const std::shared_ptr<class _udp_transport_session> & owner,
+          const std::shared_ptr<udp_transport::_session> & owner,
           const guid & instance_id)
           : datagram_generator(owner),
             instance_id_(instance_id)
@@ -101,7 +101,7 @@ namespace vds {
     class welcome_datagram : public datagram_generator {
     public:
       welcome_datagram(
-          const std::shared_ptr<class _udp_transport_session> & owner,
+          const std::shared_ptr<udp_transport::_session> & owner,
           const guid & instance_id)
           : datagram_generator(owner),
             instance_id_(instance_id)
@@ -124,7 +124,7 @@ namespace vds {
     class acknowledgement_datagram : public datagram_generator {
     public:
       acknowledgement_datagram(
-          const std::shared_ptr<_udp_transport_session> &owner)
+          const std::shared_ptr<udp_transport::_session> &owner)
           : datagram_generator(owner) {
       }
 

@@ -24,13 +24,17 @@ namespace vds {
 
     ~_p2p_network();
 
-    async_task<> start(const vds::service_provider &sp, int port, const std::string &login,
-                   const std::string &password);
+    async_task<> start(
+        const vds::service_provider &sp,
+        int port,
+        const std::string & login,
+        const std::string & password);
 
-    async_task<> start(const vds::service_provider &sp,
-               int port,
-               const vds::certificate &node_cert,
-               const vds::asymmetric_private_key &node_key);
+    async_task<> start(
+        const vds::service_provider &sp,
+        int port,
+        const vds::certificate &node_cert,
+        const vds::asymmetric_private_key &node_key);
 
   private:
     udp_server server_;
@@ -39,22 +43,15 @@ namespace vds {
     udp_transport transport_;
     timer backgroud_timer_;
 
-     async_result<> start_result_;
+    async_result<> start_result_;
 
-    void start_network(const service_provider &sp, int port);
+    std::shared_mutex sessions_mutex_;
+    std::list<udp_transport::session> sessions_;
+
+    void start_network(const service_provider &sp, int port,
+                           const udp_transport::new_session_handler_t &new_session_handler);
 
     bool do_backgroud_tasks(const service_provider &sp);
-    void handle_incoming_message(
-        const udp_transport::session & source,
-        const const_data_buffer & message);
-
-    void set_auth(
-        const std::string &login,
-        const std::string &password);
-
-    void set_auth(
-        const vds::certificate &node_cert,
-        const vds::asymmetric_private_key &node_key);
   };
 }
 

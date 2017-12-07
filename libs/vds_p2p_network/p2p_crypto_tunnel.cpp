@@ -15,11 +15,11 @@ vds::p2p_crypto_tunnel::start(
 
 }
 
-vds::async_task<> vds::p2p_crypto_tunnel::handle_incoming_message(
-    const service_provider & sp,
+void vds::p2p_crypto_tunnel::handle_incoming_message(
+    const service_provider &sp,
     const vds::const_data_buffer &message) {
 
-  return this->impl_->process_input_command(sp, message);
+  this->impl_->process_input_command(sp, message);
 
 }
 

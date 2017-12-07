@@ -142,7 +142,8 @@ void vds::_udp_transport_session::on_timer(
       owner->send_queue()->emplace(
           sp,
           owner,
-          new _udp_transport_queue::acknowledgement_datagram(this->shared_from_this()));
+          new _udp_transport_queue::acknowledgement_datagram(
+              this->shared_from_this()));
       break;
     }
     default:
@@ -204,6 +205,18 @@ void vds::_udp_transport_session::welcome_sent() {
 
 vds::_udp_transport_session::~_udp_transport_session() {
   std::cout << "_udp_transport_session::~_udp_transport_session\n";
+}
+
+void vds::_udp_transport_session::send(
+    const vds::service_provider &sp,
+    const std::shared_ptr<_udp_transport> &owner,
+    const vds::const_data_buffer &message) {
+  owner->send_queue()->emplace(
+      sp,
+      owner,
+      new _udp_transport_queue::data_datagram(
+          this->shared_from_this(),
+          owner->instance_id_));
 }
 
 

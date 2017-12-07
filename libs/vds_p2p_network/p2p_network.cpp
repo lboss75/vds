@@ -54,27 +54,40 @@ vds::async_task<> vds::_p2p_network::start(
     const std::string &login,
     const std::string &password) {
 
-  this->set_auth(login, password);
-  return [sp, pthis = this->shared_from_this(), port](const async_result<> & start_result){
+  return [sp, pthis = this->shared_from_this(), port, login, password](const async_result<> & start_result){
     pthis->start_result_ = start_result;
-    pthis->start_network(sp, port);
+    pthis->start_network(sp, port,
+      [pthis, login, password](const udp_transport::session & session){
+        p2p_crypto_tunnel tunnel;
+        tunnel.start(session, login, password);
+
+        std::unique_lock<std::shared_mutex> lock(pthis->sessions_mutex_);
+        pthis->sessions_.push_back(tunnel);
+    });
   };
 }
 
-vds::async_task<> vds::_p2p_network::start(const vds::service_provider &sp, int port, const vds::certificate &node_cert,
-                              const vds::asymmetric_private_key &node_key) {
-  this->set_auth(node_cert, node_key);
+vds::async_task<> vds::_p2p_network::start(
+    const vds::service_provider &sp,
+    int port,
+    const vds::certificate &node_cert,
+    const vds::asymmetric_private_key &node_key) {
 
-  this->start_network(sp, port);
+  this->start_network(sp, port,
+  [pthis = this->shared_from_this(), node_cert, node_key](const udp_transport::session & session){
+    p2p_crypto_tunnel tunnel;
+    tunnel.start(session, node_cert, node_key);
+
+    std::unique_lock<std::shared_mutex> lock(pthis->sessions_mutex_);
+    pthis->sessions_.push_back(tunnel);
+  });
 
   return vds::async_task<>::empty();
 }
 
-void vds::_p2p_network::start_network(const service_provider &sp, int port) {
-  this->transport_.start(sp, port, [pthis = this->shared_from_this()](
-      const udp_transport::session & source, const const_data_buffer & message) {
-    pthis->handle_incoming_message(source, message);
-  });
+void vds::_p2p_network::start_network(const service_provider &sp, int port,
+                                      const udp_transport::new_session_handler_t &new_session_handler) {
+  this->transport_.start(sp, port, new_session_handler);
 
   this->do_backgroud_tasks(sp);
 
@@ -122,18 +135,5 @@ bool vds::_p2p_network::do_backgroud_tasks(const service_provider &sp) {
         }
       });
   return !sp.get_shutdown_event().is_shuting_down();
-}
-
-void vds::_p2p_network::handle_incoming_message(
-    const udp_transport::session &source,
-    const const_data_buffer &message) {
-}
-
-void vds::_p2p_network::set_auth(const vds::certificate &node_cert, const vds::asymmetric_private_key &node_key) {
-
-}
-
-void vds::_p2p_network::set_auth(const std::string &login, const std::string &password) {
-
 }
 

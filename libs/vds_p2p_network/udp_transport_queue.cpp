@@ -17,8 +17,9 @@ void vds::_udp_transport_queue::continue_send_data(
 
   auto len = generator->generate_message(this->buffer_);
   owner->write_async(
-          udp_datagram(generator->owner()->address().server_,
-                       generator->owner()->address().port_,
+          udp_datagram(
+              static_cast<_udp_transport_session *>(generator->owner().get())->address().server_,
+              static_cast<_udp_transport_session *>(generator->owner().get())->address().port_,
                        this->buffer_,
                        len))
       .execute(
@@ -27,9 +28,10 @@ void vds::_udp_transport_queue::continue_send_data(
             if(ex){
               auto datagram_error = std::dynamic_pointer_cast<udp_datagram_size_exception>(ex);
               if(datagram_error){
-                generator->owner()->decrease_mtu();
+                static_cast<_udp_transport_session *>(generator->owner().get())->decrease_mtu();
               } else {
-                owner->close_session(generator->owner().get(), ex);
+                owner->close_session(
+                    static_cast<_udp_transport_session *>(generator->owner().get()), ex);
               }
             } else {
               generator->complete(pthis->buffer_, len);
@@ -55,7 +57,7 @@ void vds::_udp_transport_queue::continue_send_data(
 void vds::_udp_transport_queue::send_data(
     const vds::service_provider &sp,
     const std::shared_ptr<_udp_transport> &owner,
-    const std::shared_ptr<_udp_transport_session> &session,
+    const std::shared_ptr<udp_transport::_session> &session,
     const vds::const_data_buffer &data) {
 
   this->emplace(
@@ -83,7 +85,7 @@ void vds::_udp_transport_queue::emplace(
 
 uint16_t vds::_udp_transport_queue::data_datagram::generate_message(uint8_t *buffer) {
 
-  auto seq_number = this->owner()->output_sequence_number();
+  auto seq_number = static_cast<_udp_transport_session *>(this->owner().get())->output_sequence_number();
   ((uint32_t *)buffer)[0] = htonl(seq_number);
 
   if(0 == this->offset_){
@@ -101,7 +103,7 @@ uint16_t vds::_udp_transport_queue::data_datagram::generate_message(uint8_t *buf
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 */
     ((uint16_t *)buffer)[3] = htons(this->data_.size());
-    auto size = (size_t)(this->owner()->mtu() - 6);
+    auto size = (size_t)(static_cast<_udp_transport_session *>(this->owner().get())->mtu() - 6);
     if(size > this->data_.size()){
       size = this->data_.size();
     }
@@ -122,7 +124,7 @@ uint16_t vds::_udp_transport_queue::data_datagram::generate_message(uint8_t *buf
     |                                                               |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 */
-    auto size = this->owner()->mtu() - 4;
+    auto size = static_cast<_udp_transport_session *>(this->owner().get())->mtu() - 4;
     if(size > this->data_.size() - this->offset_){
       size = this->data_.size() - this->offset_;
     }
@@ -159,7 +161,7 @@ uint16_t vds::_udp_transport_queue::handshake_datagram::generate_message(uint8_t
 
 void vds::_udp_transport_queue::handshake_datagram::complete(
     const uint8_t * buffer, size_t len) {
-  this->owner()->handshake_sent();
+  static_cast<_udp_transport_session *>(this->owner().get())->handshake_sent();
 }
 
 uint16_t vds::_udp_transport_queue::welcome_datagram::generate_message(uint8_t *buffer) {
@@ -172,5 +174,5 @@ uint16_t vds::_udp_transport_queue::welcome_datagram::generate_message(uint8_t *
 }
 
 void vds::_udp_transport_queue::welcome_datagram::complete(const uint8_t *buffer, size_t len) {
-  this->owner()->welcome_sent();
+  static_cast<_udp_transport_session *>(this->owner().get())->welcome_sent();
 }

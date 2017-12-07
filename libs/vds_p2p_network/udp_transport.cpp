@@ -15,11 +15,12 @@ vds::udp_transport::udp_transport() {
 
 }
 
-void vds::udp_transport::start(
+void
+vds::udp_transport::start(
     const vds::service_provider &sp,
     int port,
-    const vds::udp_transport::message_handler_t &message_handler) {
-  this->impl_.reset(new _udp_transport(message_handler));
+    const new_session_handler_t &new_session_handler) {
+  this->impl_.reset(new _udp_transport(new_session_handler));
   this->impl_->start(sp, port);
 }
 
@@ -32,8 +33,9 @@ void vds::udp_transport::connect(const vds::service_provider &sp, const std::str
 }
 
 ///////////////////////////////////////////////////////
-vds::_udp_transport::_udp_transport(const vds::udp_transport::message_handler_t &message_handler)
+vds::_udp_transport::_udp_transport(const udp_transport::new_session_handler_t & new_session_handler)
 : instance_id_(guid::new_guid()),
+  new_session_handler_(new_session_handler),
   send_queue_(new _udp_transport_queue()),
   timer_("UDP transport timer")
 {
@@ -211,6 +213,9 @@ void vds::_udp_transport::read_message(const vds::service_provider &sp) {
 void vds::_udp_transport::handshake_completed(
     const vds::service_provider &sp,
     _udp_transport_session *session) {
-
+  this->new_session_handler_(
+      udp_transport::session(
+          this->shared_from_this(),
+          session->shared_from_this()));
 }
 

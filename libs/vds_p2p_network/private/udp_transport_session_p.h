@@ -11,6 +11,7 @@ All rights reserved
 #include "async_task.h"
 #include "udp_socket.h"
 #include "resizable_data_buffer.h"
+#include "udp_transport.h"
 
 namespace vds {
   struct _udp_transport_session_address_t {
@@ -30,7 +31,7 @@ namespace vds {
     }
   };
 
-  class _udp_transport_session: public std::enable_shared_from_this<_udp_transport_session> {
+  class _udp_transport_session : public udp_transport::_session {
   public:
     _udp_transport_session(
         const guid &instance_id,
@@ -114,6 +115,11 @@ namespace vds {
         const std::shared_ptr<_udp_transport> & owner);
     void welcome_sent();
 
+    void send(
+        const service_provider &sp,
+        const std::shared_ptr<_udp_transport> &owner,
+        const const_data_buffer &message) override;
+
   private:
     enum class send_state {
       bof,
@@ -166,7 +172,6 @@ namespace vds {
     uint16_t expected_size_;
     resizable_data_buffer expected_buffer_;
 
-    void send(const service_provider & sp, const const_data_buffer & data);
     void on_timeout();
 
     const_data_buffer next_message();
