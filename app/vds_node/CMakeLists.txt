@@ -1,13 +1,11 @@
 project(vds_node CXX C)
 cmake_minimum_required(VERSION 2.6.2)
 
+find_package (OpenSSL REQUIRED)
+
 if (UNIX)
-	find_package (OpenSSL REQUIRED)
   set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../cmake")
   find_package (UUID REQUIRED)
-else()
-	set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../cmake")
-	find_package (OpenSSL REQUIRED)
 endif (UNIX)
 
 include_directories(${vds_core_SOURCE_DIR})

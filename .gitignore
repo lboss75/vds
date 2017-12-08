@@ -42,3 +42,8 @@ clients/windows/.vs
 clients/windows/win_clients.VC.db
 *.userprefs
 *.filters
+.vs/
+externals/build_zlib/
+externals/zlib/
+externals/Build-VC-64-debug/
+externals/build_gtest/

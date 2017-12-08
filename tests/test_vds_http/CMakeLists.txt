@@ -1,13 +1,7 @@
 cmake_minimum_required(VERSION 2.8)
 project(test_vds_http)
 
-if (UNIX)
-  find_package (OpenSSL REQUIRED)
-  set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../cmake")
-else(UNIX)
-  set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../cmake")
-  find_package (OpenSSL REQUIRED)
-endif (UNIX)
+find_package (OpenSSL REQUIRED)
 
 enable_testing()
 FILE(GLOB HEADER_FILES *.h)

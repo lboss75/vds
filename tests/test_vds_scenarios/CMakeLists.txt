@@ -1,13 +1,12 @@
 cmake_minimum_required(VERSION 2.8)
 project(test_vds_scenarios)
 
+find_package (OpenSSL REQUIRED)
+
+set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../cmake")
+
 if (UNIX)
-	find_package (OpenSSL REQUIRED)
-	set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../cmake")
-	find_package (UUID REQUIRED)
-else()
-	set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../cmake")
-	find_package (OpenSSL REQUIRED)
+  find_package (UUID REQUIRED)
 endif (UNIX)
 
 find_package (UPNP REQUIRED)

@@ -1,13 +1,7 @@
 cmake_minimum_required(VERSION 2.8)
 project(test_vds_p2p_network)
 
-if (UNIX)
-	find_package (OpenSSL REQUIRED)
-	set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../cmake")
-else()
-	set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../cmake")
-	find_package (OpenSSL REQUIRED)
-endif (UNIX)
+find_package (OpenSSL REQUIRED)
 
 include_directories(${vds_core_SOURCE_DIR})
 include_directories(${vds_crypto_SOURCE_DIR})
