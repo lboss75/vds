@@ -12,6 +12,11 @@ All rights reserved
 
 namespace vds {
 
+#ifndef _WIN32
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wformat-security"
+#endif
+
   template<typename ... Args>
   inline std::string string_format(const std::string& format, Args ... args) {
     size_t size = std::snprintf(nullptr, 0, format.c_str(), args ...) + 1;
@@ -19,6 +24,10 @@ namespace vds {
     std::snprintf(buf.get(), size, format.c_str(), args ...);
     return std::string(buf.get(), size - 1);
   }
+
+#ifndef _WIN32
+#pragma GCC diagnostic pop
+#endif
 
   static inline void replace_string(std::string & result, const std::string & original, const std::string & target) {
     size_t index = 0;

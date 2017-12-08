@@ -385,6 +385,7 @@ namespace vds {
 
           case write_status_t::eof:
           case write_status_t::waiting_socket:
+          default:
             throw  std::runtime_error("Invalid operator");
         }
       }
@@ -404,10 +405,10 @@ namespace vds {
             0,
             (sockaddr *)this->write_message_->addr(),
             sizeof(sockaddr_in));
-          
+
+          this->write_status_ = write_status_t::bof;
           if (len < 0) {
             int error = errno;
-            this->write_status_ = write_status_t::bof;
             lock.unlock();
 
             if(EMSGSIZE == error){
@@ -438,7 +439,7 @@ namespace vds {
         }
 
       void read_data() {
-        std::unique_lock<std::mutex> lock(this->write_mutex_);
+        std::unique_lock<std::mutex> lock(this->read_mutex_);
 
         if(read_status_t::waiting_socket != this->read_status_
             && read_status_t::continue_read != this->read_status_) {
@@ -456,18 +457,24 @@ namespace vds {
         if (len < 0) {
           int error = errno;
           if(EAGAIN == error){
-            this->read_status_ = read_status_t::bof;
+            this->read_status_ = read_status_t::waiting_socket;
             this->change_mask(EPOLLIN);
             return;
           }
 
-          this->read_result_.error(std::make_shared<std::system_error>(error, std::system_category(), "recvfrom"));
+          auto result = std::move(this->read_result_);
+          lock.unlock();
+
+          result.error(std::make_shared<std::system_error>(error, std::system_category(), "recvfrom"));
         }
         else {
           this->sp_.get<logger>()->trace("UDP", this->sp_, "got %d bytes from %s", len,
                                          network_service::to_string(this->addr_).c_str());
           this->read_status_ = read_status_t::continue_read;
-          this->read_result_.done(_udp_datagram::create(this->addr_, this->read_buffer_, len));
+          auto result = std::move(this->read_result_);
+          lock.unlock();
+
+          result.done(_udp_datagram::create(this->addr_, this->read_buffer_, len));
         }
       }
 

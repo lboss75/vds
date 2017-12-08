@@ -6,6 +6,8 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
+#include <stdexcept>
+
 namespace vds {
 
   class udp_datagram_size_exception : public std::runtime_error {

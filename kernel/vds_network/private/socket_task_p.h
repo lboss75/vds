@@ -50,7 +50,7 @@ namespace vds {
       SOCKET_HANDLE s)
     : sp_(sp), s_(s),
       network_service_(static_cast<_network_service *>(sp.get<inetwork_service>())),
-      event_masks_(EPOLLIN | EPOLLET),
+      event_masks_(EPOLLET),
       read_status_(read_status_t::bof),
       write_status_(write_status_t::bof)
     {
@@ -65,11 +65,11 @@ namespace vds {
 
     void start()
     {
-      this->network_service_->associate(
-          this->sp_,
-          this->s_,
-          this->shared_from_this(),
-          this->event_masks_);
+//      this->network_service_->associate(
+//          this->sp_,
+//          this->s_,
+//          this->shared_from_this(),
+//          this->event_masks_);
     }
 
     void stop()
@@ -83,25 +83,20 @@ namespace vds {
     void process(uint32_t events) override
     {
       if(EPOLLOUT == (EPOLLOUT & events)){
-        this->change_mask(0, EPOLLOUT);
-
-        std::lock_guard<std::mutex> lock(this->write_mutex_);
-
-        if(write_status_t::waiting_socket != this->write_status_){
-          throw std::runtime_error("Invalid design");
+        if(0 == (this->event_masks_ & EPOLLOUT)) {
+          throw std::runtime_error("Invalid state");
         }
+        this->change_mask(0, EPOLLOUT);
 
         static_cast<implementation_class *>(this)->write_data();
       }
 
       if(EPOLLIN == (EPOLLIN & events)){
+        if(0 == (this->event_masks_ & EPOLLIN)) {
+          throw std::runtime_error("Invalid state");
+        }
         this->change_mask(0, EPOLLIN);
 
-        std::lock_guard<std::mutex> lock(this->write_mutex_);
-
-        if(read_status_t::waiting_socket != this->read_status_){
-          throw std::runtime_error("Invalid design");
-        }
         static_cast<implementation_class *>(this)->read_data();
       }
     }

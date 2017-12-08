@@ -221,11 +221,12 @@ namespace vds {
                                     std::function<void(const std::shared_ptr<json_value> &)> &&result,
                                     const json_parser::options &parse_options)
       : stream_name_(stream_name),
-        parse_options_(parse_options),
         result_(std::move(result)),
+        parse_options_(parse_options),
         state_(ST_BOF),
         current_object_(nullptr),
         line_(1), column_(1) {
+
   }
 
   inline void json_parser::_json_parser::write( const uint8_t *input_buffer, size_t input_len) {

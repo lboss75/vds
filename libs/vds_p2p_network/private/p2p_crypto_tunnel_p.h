@@ -13,7 +13,7 @@ All rights reserved
 #include "binary_serialize.h"
 
 namespace vds {
-  class _p2p_crypto_tunnel {
+  class _p2p_crypto_tunnel : public udp_transport::_session {
   public:
 
     //Server
@@ -31,11 +31,11 @@ namespace vds {
         : session_(session){
     }
 
-    async_task<> start(const service_provider & sp);
+    void start(const service_provider &sp);
 
-    async_task<> process_input_command(
-        const service_provider & sp,
-        const const_data_buffer & message);
+    void process_input_command(
+        const service_provider &sp,
+        const const_data_buffer &message);
 
   private:
     enum class command_id : uint8_t {
@@ -54,10 +54,10 @@ namespace vds {
 
   };
 
-  async_task<> _p2p_crypto_tunnel::start(
+  void _p2p_crypto_tunnel::start(
       const service_provider &sp) {
     if(this->certificate_chain_.empty()){
-      return async_task<>::empty();
+      return;
     }
 
     binary_serializer s;
@@ -66,10 +66,10 @@ namespace vds {
       s << cert.der();
     }
 
-    return this->session_.send(sp, const_data_buffer(s.data().data(), s.size()));
+    this->session_.send(sp, const_data_buffer(s.data().data(), s.size()));
   }
 
-  async_task<> _p2p_crypto_tunnel::process_input_command(
+  void _p2p_crypto_tunnel::process_input_command(
       const service_provider &sp,
       const const_data_buffer &message) {
     binary_deserializer s(message);
@@ -102,7 +102,8 @@ namespace vds {
         out_stream << (uint32_t)((uint32_t)command_id::SendKey << 30 | crypted_key.size());
         out_stream.push_data(crypted_key.data(), crypted_key.size(), false);
 
-        return this->session_.send(sp, const_data_buffer(out_stream.data().data(), out_stream.size()));
+        this->session_.send(sp, const_data_buffer(out_stream.data().data(), out_stream.size()));
+        return;
       }
       case command_id::SendKey:
       {
@@ -119,6 +120,8 @@ namespace vds {
         this->input_key_ = symmetric_key::deserialize(symmetric_crypto::aes_256_cbc(), binary_deserializer(key_info));
 
       }
+      default:
+        throw std::runtime_error("Not implemented");
 
     }
   }

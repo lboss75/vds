@@ -64,7 +64,7 @@ void vds::timer::execute(const vds::service_provider& sp)
     }
   }
   catch (const std::exception & ex) {
-    sp.unhandled_exception(std::make_shared<std::exception>(ex));
+    sp.unhandled_exception(std::make_shared<std::runtime_error>(ex.what()));
   }
   catch (...) {
     sp.unhandled_exception(std::make_shared<std::runtime_error>("Unexpected error"));

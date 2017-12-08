@@ -114,6 +114,9 @@ void vds::db_model::migrate(
 			id VARCHAR(64) PRIMARY KEY NOT NULL,\
 			addresses TEXT NOT NULL)");
 
+		t.execute("INSERT INTO well_known_node(id, addresses) VALUES(\
+									'3940754a-64dd-4491-9777-719315b36a67',\
+									'udp://127.0.0.1:8050')");
 		t.execute("INSERT INTO module(id, version, installed) VALUES('kernel', 1, datetime('now'))");
 	}
 }

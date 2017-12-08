@@ -35,6 +35,28 @@ namespace vds {
     throw_exception,
     return_false
   };
+
+  template <typename target_type>
+  class safe_cast
+  {
+  public:
+    template <typename source_type>
+    safe_cast(source_type value)
+    : value_((target_type)value)
+    {
+      if(value != (source_type)this->value_){
+        throw std::overflow_error("Value too big");
+      }
+    }
+
+    operator target_type () const {
+      return this->value_;
+    }
+
+  private:
+    target_type value_;
+  };
+
 }
 
 template<typename interface_type>
