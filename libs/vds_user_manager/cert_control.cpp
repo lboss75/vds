@@ -71,3 +71,13 @@ vds::certificate vds::_cert_control::create(
 vds::guid vds::cert_control::get_id(const vds::certificate &cert) {
   return vds::guid::parse(cert.get_extension(cert.extension_by_NID(id_extension_type())).value);
 }
+
+vds::guid vds::cert_control::get_parent_id(const vds::certificate &cert) {
+  auto parent = cert.get_extension(cert.extension_by_NID(parent_id_extension_type())).value;
+  if(parent.empty()){
+    return vds::guid();
+  }
+  else {
+    return vds::guid::parse(parent);
+  }
+}

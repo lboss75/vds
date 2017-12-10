@@ -12,7 +12,6 @@ All rights reserved
 
 #include "server.h"
 #include "server_logic.h"
-#include "cert_manager.h"
 #include "user_manager.h"
 
 #endif // __VDS_SERVER_VDS_SERVER_H_

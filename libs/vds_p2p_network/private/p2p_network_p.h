@@ -33,7 +33,7 @@ namespace vds {
     async_task<> start(
         const vds::service_provider &sp,
         int port,
-        const vds::certificate &node_cert,
+        const std::list<certificate> &certificate_chain,
         const vds::asymmetric_private_key &node_key);
 
   private:

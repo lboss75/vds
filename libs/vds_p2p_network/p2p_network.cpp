@@ -1,8 +1,11 @@
-#include <udp_socket.h>
 #include "stdafx.h"
 #include "p2p_network.h"
 #include "private/p2p_network_p.h"
 #include "ip2p_network_client.h"
+#include "udp_socket.h"
+#include "private/p2p_crypto_tunnel_p.h"
+#include "private/p2p_crypto_tunnel_with_login_p.h"
+#include "private/p2p_crypto_tunnel_with_certificate_p.h"
 
 vds::p2p_network::p2p_network() {
 
@@ -13,26 +16,21 @@ vds::p2p_network::~p2p_network() {
 }
 
 void
-vds::p2p_network::start(
-    const vds::service_provider &sp,
-    const std::shared_ptr<class ip2p_network_client> &client,
-    const std::string &login,
-    const std::string &password) {
+vds::p2p_network::start(const vds::service_provider &sp, const std::shared_ptr<class ip2p_network_client> &client,
+                        int port, const std::string &login, const std::string &password) {
 
   this->impl_.reset(new _p2p_network(client));
-  this->impl_->start(sp, 0, login, password);
+  this->impl_->start(sp, port, login, password);
 
 }
 
 void
 vds::p2p_network::start(
-    const vds::service_provider &sp,
-    const std::shared_ptr<class ip2p_network_client> &client,
-    const vds::certificate &node_cert,
-    const vds::asymmetric_private_key &node_key) {
+    const vds::service_provider &sp, const std::shared_ptr<class ip2p_network_client> &client,
+    int port, const std::list<certificate> &certificate_chain, const vds::asymmetric_private_key &node_key) {
 
   this->impl_.reset(new _p2p_network(client));
-  this->impl_->start(sp, 0, node_cert, node_key);
+  this->impl_->start(sp, port, certificate_chain, node_key);
 }
 //////////////////////////////////
 vds::_p2p_network::_p2p_network(
@@ -57,9 +55,10 @@ vds::async_task<> vds::_p2p_network::start(
   return [sp, pthis = this->shared_from_this(), port, login, password](const async_result<> & start_result){
     pthis->start_result_ = start_result;
     pthis->start_network(sp, port,
-      [pthis, login, password](const udp_transport::session & session){
-        p2p_crypto_tunnel tunnel;
-        tunnel.start(session, login, password);
+      [pthis, sp, login, password](const udp_transport::session & session){
+        p2p_crypto_tunnel tunnel(std::make_shared<_p2p_crypto_tunnel_with_login>(
+            session, login, password));
+        tunnel.start(sp);
 
         std::unique_lock<std::shared_mutex> lock(pthis->sessions_mutex_);
         pthis->sessions_.push_back(tunnel);
@@ -70,13 +69,14 @@ vds::async_task<> vds::_p2p_network::start(
 vds::async_task<> vds::_p2p_network::start(
     const vds::service_provider &sp,
     int port,
-    const vds::certificate &node_cert,
+    const std::list<certificate> &certificate_chain,
     const vds::asymmetric_private_key &node_key) {
 
   this->start_network(sp, port,
-  [pthis = this->shared_from_this(), node_cert, node_key](const udp_transport::session & session){
-    p2p_crypto_tunnel tunnel;
-    tunnel.start(session, node_cert, node_key);
+  [pthis = this->shared_from_this(), sp, certificate_chain, node_key](const udp_transport::session & session){
+    p2p_crypto_tunnel tunnel(std::make_shared<_p2p_crypto_tunnel_with_certificate>(
+        session, certificate_chain, node_key));
+    tunnel.start(sp);
 
     std::unique_lock<std::shared_mutex> lock(pthis->sessions_mutex_);
     pthis->sessions_.push_back(tunnel);

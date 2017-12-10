@@ -52,20 +52,10 @@ namespace vds {
     
     _udp_datagram * operator -> () const { return this->impl_.get(); }
 
-    udp_datagram & operator = (const udp_datagram & r)
-    {
-      if (this->impl_.get() != r.impl_.get()) {
-        this->impl_ = r.impl_;
-      }
-
-      return *this;
-    }
-
   private:
     friend class _udp_datagram;
     udp_datagram(_udp_datagram * impl);
 
-    int id_;
     std::shared_ptr<_udp_datagram> impl_;
   };
 

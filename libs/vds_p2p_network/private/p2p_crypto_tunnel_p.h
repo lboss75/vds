@@ -18,70 +18,109 @@ namespace vds {
 
     //Server
     _p2p_crypto_tunnel(
-        const udp_transport::session & session,
-        const std::list<certificate> & certificate_chain,
-        const asymmetric_private_key & private_key)
-    : session_(session),
-      certificate_chain_(certificate_chain_),
-      private_key_(private_key){
-    }
-
-    _p2p_crypto_tunnel(
         const udp_transport::session & session)
-        : session_(session){
+    : session_(session),
+      data_read_result_([](
+          const std::shared_ptr<std::exception> & ex,
+          const const_data_buffer & message){
+        throw std::runtime_error("Invalid logic");
+      }){
     }
 
-    void start(const service_provider &sp);
+    virtual void start(const service_provider &sp);
+
+    void send(const service_provider &sp, const const_data_buffer &message) override;
+
+    async_task<const const_data_buffer &> read_async(const service_provider &sp) override;
+
+  protected:
+    enum class command_id : uint8_t {
+      Data = 0,
+      CertRequest = 1,//login, hash(password)
+      CertRequestFailed = 2,//
+      CertCain = 3, //size + certificate chain
+      SendKey = 4, //size + certificate chain
+    };
+
+    udp_transport::session session_;
+
+    symmetric_key output_key_;
+    symmetric_key input_key_;
 
     void process_input_command(
         const service_provider &sp,
         const const_data_buffer &message);
 
-  private:
-    enum class command_id : uint8_t {
-      CertCain = 0b00, //size + certificate chain
-      SendKey = 0b01, //size + certificate chain
-    };
+    virtual void process_input_command(
+        const service_provider &sp,
+        const command_id command,
+        binary_deserializer & s);
 
-    udp_transport::session session_;
+    async_result<const const_data_buffer &> data_read_result_;
 
-    std::list<certificate> certificate_chain_;
-    asymmetric_private_key private_key_;
-
-    symmetric_key output_key_;
-    symmetric_key input_key_;
-
-
+    void read_input_messages(const service_provider &sp);
   };
 
-  void _p2p_crypto_tunnel::start(
+  inline void _p2p_crypto_tunnel::start(
       const service_provider &sp) {
-    if(this->certificate_chain_.empty()){
-      return;
-    }
 
-    binary_serializer s;
-    s << (uint32_t)((uint32_t)command_id::CertCain << 30 | this->certificate_chain_.size());
-    for(auto cert : this->certificate_chain_){
-      s << cert.der();
-    }
-
-    this->session_.send(sp, const_data_buffer(s.data().data(), s.size()));
+    this->read_input_messages(sp);
   }
 
-  void _p2p_crypto_tunnel::process_input_command(
+  inline void _p2p_crypto_tunnel::read_input_messages(const service_provider &sp) {
+    session_.read_async(sp).execute(
+        [pthis = shared_from_this(), sp](
+            const std::shared_ptr<std::exception> & ex,
+            const const_data_buffer & message){
+          if(!ex) {
+            auto this_ = static_cast<_p2p_crypto_tunnel *>(pthis.get());
+            this_->process_input_command(sp, message);
+            this_->read_input_messages(sp);
+          }
+        });
+  }
+
+  inline void _p2p_crypto_tunnel::process_input_command(
       const service_provider &sp,
       const const_data_buffer &message) {
     binary_deserializer s(message);
 
-    uint32_t  header;
-    s >> header;
-    switch((command_id)(header >> 30)){
-      case command_id::CertCain:
-      {
-        auto size = header & 0x3FFFFFFF;
+    uint8_t command;
+    s >> command;
+    this->process_input_command(sp, (command_id)command, s);
+  }
+
+  inline void _p2p_crypto_tunnel::send(
+      const service_provider &sp,
+      const const_data_buffer &message) {
+    if(!this->output_key_){
+      throw std::runtime_error("Invalid state");
+    }
+
+    this->session_->send(
+        sp,
+        symmetric_encrypt::encrypt(this->output_key_, message));
+  }
+
+  inline async_task<const const_data_buffer &> _p2p_crypto_tunnel::read_async(
+      const service_provider &sp) {
+    return [pthis = this->shared_from_this()](
+        const async_result<const const_data_buffer &> & result){
+      static_cast<_p2p_crypto_tunnel *>(pthis.get())->data_read_result_ = result;
+    };
+  }
+
+  inline void _p2p_crypto_tunnel::process_input_command(
+      const service_provider &sp,
+      const command_id command,
+      binary_deserializer &s) {
+    switch(command) {
+      case command_id::CertCain: {
+        uint16_t size;
+        s >> size;
+
         std::list<certificate> certificate_chain;
-        for(uint32_t i = 0; i < size; ++i){
+        for (decltype(size) i = 0; i < size; ++i) {
           const_data_buffer buffer;
           s >> buffer;
           certificate_chain.push_back(certificate::parse_der(buffer));
@@ -89,42 +128,40 @@ namespace vds {
 
         //TODO: validate chain
 
-        if(!this->output_key_){
+        if (!this->output_key_) {
           this->output_key_ = symmetric_key::generate(symmetric_crypto::aes_256_cbc());
+        } else {
+          return;
         }
 
         binary_serializer key_stream;
         this->output_key_.serialize(key_stream);
 
-        auto crypted_key = certificate_chain.rbegin()->public_key().encrypt(key_stream.data().data(), key_stream.size());
+        auto crypted_key = certificate_chain.rbegin()->public_key().encrypt(
+            key_stream.data().data(),
+            key_stream.size());
 
         binary_serializer out_stream;
-        out_stream << (uint32_t)((uint32_t)command_id::SendKey << 30 | crypted_key.size());
+        out_stream << (uint8_t)command_id::SendKey << safe_cast<uint16_t>(crypted_key.size());
         out_stream.push_data(crypted_key.data(), crypted_key.size(), false);
 
         this->session_.send(sp, const_data_buffer(out_stream.data().data(), out_stream.size()));
         return;
       }
-      case command_id::SendKey:
-      {
-        auto size = header & 0x3FFFFFFF;
-        resizable_data_buffer crypted_key(size);
-        s.pop_data(crypted_key.data(), size);
+      case command_id::Data: {
+        if(!this->input_key_){
+          throw std::runtime_error("Invalid state");
+        }
 
-        auto key_data = this->private_key_.decrypt(crypted_key.data(), size);
-        binary_deserializer key_stream(key_data);
-
-        const_data_buffer key_info;
-        key_stream >> key_info;
-
-        this->input_key_ = symmetric_key::deserialize(symmetric_crypto::aes_256_cbc(), binary_deserializer(key_info));
-
+        this->data_read_result_.done(
+            symmetric_decrypt::decrypt(this->input_key_, s.data(), s.size()));
+        break;
       }
       default:
-        throw std::runtime_error("Not implemented");
-
+        throw std::runtime_error("Invalid command");
     }
   }
+
 }
 
 #endif //__VDS_P2P_NETWORK_P2P_CRYPTO_TUNNEL_P_H_

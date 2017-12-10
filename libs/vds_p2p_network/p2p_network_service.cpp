@@ -11,10 +11,10 @@
 vds::async_task<> vds::p2p_network_service::start(
     const vds::service_provider &sp,
     int port,
-    const vds::certificate &node_cert,
+    const std::list<certificate> &certificate_chain,
     const vds::asymmetric_private_key &node_key) {
   this->impl_.reset(new _p2p_network_service(sp));
-  return this->impl_->start(sp, port, node_cert, node_key);
+  return this->impl_->start(sp, port, certificate_chain, node_key);
 
 }
 
@@ -42,7 +42,8 @@ vds::_p2p_network_service::start(
   return this->network_->start(sp, port, login, password);
 }
 
-vds::async_task<> vds::_p2p_network_service::start(const vds::service_provider &sp, int port, const certificate &node_cert,
+vds::async_task<> vds::_p2p_network_service::start(const vds::service_provider &sp, int port,
+                                                   const std::list<certificate> &certificate_chain,
                                                    const asymmetric_private_key &node_key) {
-  return this->network_->start(sp, port, node_cert, node_key);
+  return this->network_->start(sp, port, certificate_chain, node_key);
 }

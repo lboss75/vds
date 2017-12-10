@@ -12,23 +12,11 @@ All rights reserved
 namespace vds {
   class p2p_crypto_tunnel : public udp_transport::session {
   public:
-    p2p_crypto_tunnel();
+    p2p_crypto_tunnel(const std::shared_ptr<vds::udp_transport::_session> &impl);
     ~p2p_crypto_tunnel();
 
 
-    void start(
-        const vds::udp_transport::session &session,
-        const std::string &login,
-        const std::string &password);
-
-    void start(
-        const vds::udp_transport::session &session,
-        const class certificate &node_cert,
-        const class asymmetric_private_key &node_key);
-
-    void handle_incoming_message(
-        const service_provider &sp,
-        const vds::const_data_buffer &message);
+    void start(const service_provider & sp);
   };
 }
 

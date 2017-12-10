@@ -42,7 +42,6 @@ namespace vds {
     certificate certificate_;
     asymmetric_private_key private_key_;
 
-    std::unique_ptr<_cert_manager> cert_manager_;
     std::unique_ptr<_node_manager> node_manager_;
     std::unique_ptr<user_manager> user_manager_;
 	  std::unique_ptr<class db_model> db_model_;

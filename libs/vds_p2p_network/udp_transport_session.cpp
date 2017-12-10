@@ -16,6 +16,9 @@ void vds::_udp_transport_session::incomming_message(
     switch((control_type)(data[0] >> 4)){
       case control_type::Handshake:
       {
+        sp.get<logger>()->trace("P2PUDP", sp, "%s:%d: incomming handshake",
+                                this->address_.server_.c_str(),
+                                this->address_.port_);
         std::unique_lock<std::mutex> lock(this->state_mutex_);
         if(send_state::bof == this->current_state_
             || send_state::handshake_pending == this->current_state_) {
@@ -28,12 +31,16 @@ void vds::_udp_transport_session::incomming_message(
       }
       case control_type::Welcome:
       {
+        sp.get<logger>()->trace("P2PUDP", sp, "%s:%d: incomming welcome",
+                                this->address_.server_.c_str(),
+                                this->address_.port_);
         if(20 != size){
           throw std::runtime_error("Invalid message");
         }
 
         std::unique_lock<std::mutex> lock(this->state_mutex_);
-        if(send_state::handshake_pending == this->current_state_) {
+        if(send_state::handshake_pending == this->current_state_
+            || send_state::bof == this->current_state_) {
           guid instance_id(data + 4, 16);
           if(0 == this->instance_id_.size()) {
             this->instance_id_ = instance_id;
@@ -51,12 +58,35 @@ void vds::_udp_transport_session::incomming_message(
 
         break;
       }
+      case control_type::Acknowledgement:
+      {
+        sp.get<logger>()->trace("P2PUDP", sp, "%s:%d: incomming acknowledgement",
+                                this->address_.server_.c_str(),
+                                this->address_.port_);
+        if(4 != size){
+          throw std::runtime_error("Invalid message");
+        }
+
+        uint32_t sequence_number = 0x0FFFFFFF & ntohl(*(uint32_t *)data);
+        std::unique_lock<std::mutex> lock(this->incoming_sequence_mutex_);
+        uint32_t curent =
+            this->future_data_.empty()
+            ? this->min_incoming_sequence_
+            : this->future_data_.rbegin()->first;
+
+
+        break;
+      }
       default:
         throw std::runtime_error("Not implemented");
 
     }
   } else {
     auto seq = ntohl(*(uint32_t *)data);
+    sp.get<logger>()->trace("P2PUDP", sp, "%s:%d: incomming data %d",
+                            this->address_.server_.c_str(),
+                            this->address_.port_,
+                            seq);
 
     std::unique_lock<std::mutex> lock(this->incoming_sequence_mutex_);
     if(this->future_data_.end() == this->future_data_.find(seq)) {
@@ -97,16 +127,20 @@ void vds::_udp_transport_session::continue_process_incoming_data(
     } else if (size != this->expected_size_) {
       throw std::runtime_error("Invalid data size");
     } else {
+      std::unique_lock<std::mutex> lock(this->incoming_datagram_mutex_);
       if (0 == this->expected_buffer_.size()) {
-        this->process_incoming_datagram(sp, owner, pdata, size);
+        this->incoming_datagrams_.push(const_data_buffer(pdata, size));
       } else {
         this->expected_buffer_.add(pdata, size);
-        this->process_incoming_datagram(sp, owner, this->expected_buffer_.data(),
-                                        this->expected_buffer_.size());
+        this->incoming_datagrams_.push(const_data_buffer(this->expected_buffer_.data(),
+                                        this->expected_buffer_.size()));
       }
+      this->incoming_datagram_mutex_.unlock();
 
       this->expected_size_ = 0;
       this->expected_buffer_.clear();
+
+      this->try_read_data();
     }
   }
 }
@@ -156,7 +190,6 @@ void vds::_udp_transport_session::process_incoming_datagram(
     class _udp_transport &owner,
     const uint8_t *data,
     size_t size) {
-  owner.process_incoming_datagram(sp, data, size);
 }
 
 void vds::_udp_transport_session::decrease_mtu() {
@@ -208,15 +241,50 @@ vds::_udp_transport_session::~_udp_transport_session() {
 }
 
 void vds::_udp_transport_session::send(
-    const vds::service_provider &sp,
-    const std::shared_ptr<_udp_transport> &owner,
-    const vds::const_data_buffer &message) {
+    const service_provider &sp,
+    const const_data_buffer &message) {
+  auto owner = this->owner_.lock();
   owner->send_queue()->emplace(
       sp,
       owner,
       new _udp_transport_queue::data_datagram(
           this->shared_from_this(),
           owner->instance_id_));
+}
+
+vds::async_task<const vds::const_data_buffer &> vds::_udp_transport_session::read_async(
+    const vds::service_provider &sp) {
+
+  return [pthis = this->shared_from_this()](const async_result<const vds::const_data_buffer &> & result){
+    auto this_ = static_cast<_udp_transport_session *>(pthis.get());
+    std::unique_lock<std::mutex> lock(this_->read_result_mutex_);
+    this_->read_result_ = result;
+    lock.unlock();
+
+    this_->try_read_data();
+  };
+}
+
+void vds::_udp_transport_session::try_read_data() {
+  std::unique_lock<std::mutex> data_lock(this->incoming_datagram_mutex_);
+  if(this->incoming_datagrams_.empty()){
+    return;
+  }
+
+  std::unique_lock<std::mutex> lock(this->read_result_mutex_);
+  if(!this->read_result_){
+    return;
+  }
+
+  auto result = std::move(this->read_result_);
+  lock.unlock();
+
+  const_data_buffer message(this->incoming_datagrams_.front());
+  this->incoming_datagrams_.pop();
+
+  data_lock.unlock();
+
+  result.done(message);
 }
 
 

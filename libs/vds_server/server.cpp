@@ -8,7 +8,6 @@ All rights reserved
 #include "private/server_p.h"
 #include "node_manager.h"
 #include "user_manager.h"
-#include "cert_manager.h"
 #include "server_http_api.h"
 #include "private/server_http_api_p.h"
 #include "server_connection.h"
@@ -20,7 +19,6 @@ All rights reserved
 #include "private/server_database_p.h"
 #include "private/local_cache_p.h"
 #include "private/node_manager_p.h"
-#include "private/cert_manager_p.h"
 #include "private/server_connection_p.h"
 #include "private/server_udp_api_p.h"
 #include "server_certificate.h"
@@ -35,6 +33,7 @@ All rights reserved
 #include "certificate_private_key_dbo.h"
 #include "p2p_network_client.h"
 #include "run_configuration_dbo.h"
+#include "cert_control.h"
 
 vds::server::server()
 : impl_(new _server(this))
@@ -63,8 +62,6 @@ void vds::server::register_services(service_registrator& registrator)
   registrator.add_service<ilocal_cache>(this->impl_->local_cache_.get());
 
   registrator.add_service<node_manager>(this->impl_->node_manager_.get());
-
-  registrator.add_service<cert_manager>(this->impl_->cert_manager_.get());
 
   registrator.add_service<user_manager>(this->impl_->user_manager_.get());
 
@@ -202,7 +199,7 @@ vds::async_task<> vds::_server::init_server(
 struct run_data
 {
   int port;
-  vds::certificate cert;
+  std::list<vds::certificate> cert_chain;
   vds::asymmetric_private_key key;
 };
 
@@ -219,11 +216,27 @@ vds::async_task<> vds::_server::start_network(const vds::service_provider &sp) {
             .inner_join(t2, t2.id == t1.cert_id)
             .inner_join(t3, t3.id == t1.cert_id));
     while(st.execute()){
-      run_conf->push_back( run_data {
-          .port = t1.port.get(st),
-          .cert = certificate::parse_der(t2.cert.get(st)),
-          .key = asymmetric_private_key::parse_der(t3.body.get(st), std::string())
-      });
+      run_data item;
+      item.port = t1.port.get(st);
+      item.key = asymmetric_private_key::parse_der(t3.body.get(st), std::string());
+      item.cert_chain.push_back(certificate::parse_der(t2.cert.get(st)));
+
+      run_conf->push_back(item);
+    }
+
+    for(auto & conf : *run_conf) {
+      auto parent_id = cert_control::get_parent_id(conf.cert_chain.front());
+      while(parent_id){
+        certificate_dbo t4;
+        auto st = t.get_reader(t4.select(t4.cert).where(t4.id == parent_id));
+        if(!st.execute()){
+          throw std::runtime_error("Invalid certificate ID " + parent_id.str());
+        }
+
+        auto cert = certificate::parse_der(t4.cert.get(st));
+        conf.cert_chain.push_front(cert);
+        parent_id = cert_control::get_parent_id(cert);
+      }
     }
 
     return true;
@@ -236,7 +249,7 @@ vds::async_task<> vds::_server::start_network(const vds::service_provider &sp) {
     for(auto & conf : *run_conf) {
       this->network_services_.push_back(p2p_network_service());
       result = result.then([this, sp, conf]() {
-        return this->network_services_.rbegin()->start(sp, conf.port, conf.cert, conf.key);
+        return this->network_services_.rbegin()->start(sp, conf.port, conf.cert_chain, conf.key);
       });
     }
     return result;

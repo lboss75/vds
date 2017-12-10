@@ -82,7 +82,8 @@ namespace vds {
     binary_deserializer & operator >> (const_data_buffer & data);
     
     uint64_t read_number();
-    
+
+    const uint8_t * data() const { return this->data_; }
     size_t size() const { return this->len_; }
     
     void pop_data(void * data, size_t & size, bool serialize_size);

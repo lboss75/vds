@@ -59,11 +59,6 @@ namespace vds {
         const service_provider &sp,
         const udp_datagram &message);
 
-    void process_incoming_datagram(
-        const vds::service_provider &sp,
-        const uint8_t *data,
-        size_t size);
-
     void continue_read_socket(const service_provider & sp);
 
     void send_data(

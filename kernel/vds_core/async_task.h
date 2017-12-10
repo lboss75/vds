@@ -22,6 +22,8 @@ namespace vds {
 	class async_result
 	{
 	public:
+		async_result() = default;
+
 		async_result(std::function<void(const std::shared_ptr<std::exception> & ex, result_types... results)> && callback);
     async_result(async_result<result_types...> && origin)
     : impl_(std::move(origin.impl_))
@@ -40,6 +42,8 @@ namespace vds {
 			this->impl_ = origin.impl_;
 			return *this;
 		}
+
+		bool operator !() const { return !this->impl_; }
 
 	private:
     struct result_callback

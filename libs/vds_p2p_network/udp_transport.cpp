@@ -102,7 +102,10 @@ void vds::_udp_transport::process_incommig_message(
       if(instance_id != this->instance_id_){
         sp.get<logger>()->trace("UDP", sp, "%s: New session from %s",
                                 instance_id.str().c_str(), this->instance_id_.str().c_str());
-        session = std::make_shared<_udp_transport_session>(instance_id, server_address);
+        session = std::make_shared<_udp_transport_session>(
+            instance_id,
+            this->shared_from_this(),
+            server_address);
         this->sessions_[server_address] = session;
       }
     }
@@ -137,13 +140,6 @@ void vds::_udp_transport::send_data(
     const const_data_buffer & data)
 {
   this->send_queue_->send_data(sp, this->shared_from_this(), session, data);
-}
-
-void vds::_udp_transport::process_incoming_datagram(
-    const vds::service_provider &sp,
-    const uint8_t *data,
-    size_t size) {
-
 }
 
 /////////////////////////////////////////////////////////////////////////
@@ -214,8 +210,6 @@ void vds::_udp_transport::handshake_completed(
     const vds::service_provider &sp,
     _udp_transport_session *session) {
   this->new_session_handler_(
-      udp_transport::session(
-          this->shared_from_this(),
-          session->shared_from_this()));
+      udp_transport::session(session->shared_from_this()));
 }
 

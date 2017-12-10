@@ -103,12 +103,14 @@ vds::symmetric_key vds::symmetric_key::from_password(const std::string & passwor
   return symmetric_key(new _symmetric_key(symmetric_crypto::rc4(), key, nullptr));
 }
 
+vds::symmetric_key::symmetric_key() {
+}
+
 vds::symmetric_key::symmetric_key(class _symmetric_key *impl)
     : impl_(impl){
 }
 
 vds::symmetric_key::~symmetric_key() {
-
 }
 
 vds::symmetric_key vds::symmetric_key::create(

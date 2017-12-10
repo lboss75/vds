@@ -20,6 +20,10 @@ namespace vds {
   private:
     class session {
     public:
+      session(const udp_transport::session & target)
+      : target_(target){
+      }
+
       void lock();
       void unlock();
 

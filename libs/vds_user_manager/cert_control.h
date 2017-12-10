@@ -13,8 +13,8 @@ namespace vds {
     static class guid get_id(
         const class certificate & cert);
 
-  private:
-
+    static class guid get_parent_id(
+        const class certificate & cert);
   };
 }
 

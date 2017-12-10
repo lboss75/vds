@@ -40,13 +40,13 @@ namespace vds {
       return this->key_;
     }
 
-    const_data_buffer decrypt(const const_data_buffer & data)
+    const_data_buffer decrypt(const void * data, size_t size)
     {
       size_t blocksize = (size_t)RSA_size(EVP_PKEY_get1_RSA(this->key_));
       std::vector<uint8_t> result;
 
-      auto p = data.data();
-      auto l = data.size();
+      auto p = (const uint8_t *)data;
+      auto l = size;
 
       uint8_t * buffer = new uint8_t[RSA_size(EVP_PKEY_get1_RSA(this->key_))];
       while (l > 0) {

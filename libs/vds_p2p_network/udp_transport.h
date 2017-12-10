@@ -20,31 +20,34 @@ namespace vds {
     public:
       virtual ~_session() {}
 
-      virtual void send(
-          const service_provider &sp,
-          const std::shared_ptr<class _udp_transport> &owner,
-          const const_data_buffer &message) = 0;
+      virtual void send(const service_provider &sp, const const_data_buffer &message) = 0;
+
+      virtual async_task<const const_data_buffer &> read_async(
+          const service_provider & sp) = 0;
 
     };
 
     class session {
     public:
-      session(
-          const std::shared_ptr<class _udp_transport> & owner,
-          const std::shared_ptr<_session> impl)
-      : owner_(owner), impl_(impl){
+      session(const session & other) = default;
+
+      session(const std::shared_ptr<_session> &impl)
+      : impl_(impl){
       }
 
       void send(
           const service_provider & sp,
           const const_data_buffer & message){
-        this->impl_->send(sp, this->owner_, message);
+        this->impl_->send(sp, message);
+      }
+
+      async_task<const const_data_buffer &> read_async(const service_provider & sp){
+        return this->impl_->read_async(sp);
       }
 
       _session * operator -> () const { return this->impl_.get(); }
 
-    private:
-      std::shared_ptr<class _udp_transport> owner_;
+    protected:
       std::shared_ptr<_session> impl_;
     };
 

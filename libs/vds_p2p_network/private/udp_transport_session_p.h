@@ -5,7 +5,7 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
-
+#include <queue>
 #include <map>
 
 #include "async_task.h"
@@ -35,16 +35,22 @@ namespace vds {
   public:
     _udp_transport_session(
         const guid &instance_id,
+        const std::shared_ptr<_udp_transport> & owner,
         const _udp_transport_session_address_t &address)
         : instance_id_(instance_id),
           address_(address),
+          output_sequence_number_(0),
           mtu_(65507),
+          owner_(owner),
           current_state_(send_state::bof){
     }
+
+    async_task<const const_data_buffer &> read_async(const service_provider &sp) override;
 
     //Fake session
     _udp_transport_session(const _udp_transport_session_address_t &address)
         : address_(address),
+          output_sequence_number_(0),
           mtu_(65507),
           current_state_(send_state::bof){
     }
@@ -115,10 +121,7 @@ namespace vds {
         const std::shared_ptr<_udp_transport> & owner);
     void welcome_sent();
 
-    void send(
-        const service_provider &sp,
-        const std::shared_ptr<_udp_transport> &owner,
-        const const_data_buffer &message) override;
+    void send(const service_provider &sp, const const_data_buffer &message) override;
 
   private:
     enum class send_state {
@@ -132,7 +135,6 @@ namespace vds {
     guid instance_id_;
     _udp_transport_session_address_t address_;
     uint32_t output_sequence_number_;
-    uint32_t input_sequence_number_;
 
     uint16_t mtu_;
 
@@ -141,36 +143,17 @@ namespace vds {
 
     std::map<uint32_t, const_data_buffer> sent_data_;
 
-    enum class outgoing_stream_state {
-      ready_to_send,
-      eof
-
-    };
-
-    const_data_buffer outgoing_stream_buffer_[16];
-    size_t outgoing_stream_buffer_count_;
-
-    outgoing_stream_state outgoing_stream_state_;
-    std::mutex outgoing_stream_state_mutex_;
-
-
-    const_data_buffer outgoing_network_datagrams_[16];
-    int outgoing_network_count_;
-
-    enum class send_data_state {
-
-    };
-
-    send_data_state send_data_state_;
-    std::mutex send_data_state_mutex_;
-    udp_datagram send_data_;
-
     std::mutex incoming_sequence_mutex_;
     uint32_t min_incoming_sequence_;
     std::map<uint32_t, const_data_buffer> future_data_;
 
     uint16_t expected_size_;
     resizable_data_buffer expected_buffer_;
+
+    std::mutex read_result_mutex_;
+    async_result<const const_data_buffer &> read_result_;
+
+    std::weak_ptr<_udp_transport> owner_;
 
     void on_timeout();
 
@@ -191,6 +174,11 @@ namespace vds {
         class _udp_transport &owner,
         const uint8_t *data,
         size_t size);
+
+    void try_read_data();
+
+    std::mutex incoming_datagram_mutex_;
+    std::queue<const_data_buffer> incoming_datagrams_;
   };
 }
 

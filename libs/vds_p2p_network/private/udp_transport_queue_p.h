@@ -32,7 +32,8 @@ namespace vds {
       }
 
       virtual uint16_t generate_message(
-          uint8_t * buffer) = 0;
+          const service_provider &sp,
+          uint8_t *buffer) = 0;
 
       virtual  void complete(
           const uint8_t * buffer, size_t len) = 0;
@@ -58,7 +59,8 @@ namespace vds {
 
       //Generate message
       virtual uint16_t generate_message(
-          uint8_t * buffer) override;
+          const service_provider &sp,
+          uint8_t *buffer) override;
 
       //Store sent message
       void complete(const uint8_t * buffer, size_t len) override {
@@ -85,8 +87,7 @@ namespace vds {
       {
       }
 
-      virtual uint16_t generate_message(
-          uint8_t * buffer) override;
+      virtual uint16_t generate_message(const service_provider &sp, uint8_t *buffer) override;
 
       void complete(const uint8_t * buffer, size_t len) override;
 
@@ -108,8 +109,7 @@ namespace vds {
       {
       }
 
-      virtual uint16_t generate_message(
-          uint8_t * buffer) override;
+      virtual uint16_t generate_message(const service_provider &sp, uint8_t *buffer) override;
 
       void complete(const uint8_t * buffer, size_t len) override;
 
@@ -128,8 +128,7 @@ namespace vds {
           : datagram_generator(owner) {
       }
 
-      virtual uint16_t generate_message(
-          uint8_t *buffer) override;
+      virtual uint16_t generate_message(const service_provider &sp, uint8_t *buffer) override;
       bool is_eof() const override {
         return true;
       }

@@ -21,7 +21,7 @@ namespace vds {
     vds::async_task<> start(
         const vds::service_provider &sp,
         int port,
-        const class certificate &node_cert,
+        const std::list<class certificate> &certificate_chain,
         const class asymmetric_private_key &node_key);
 
     vds::async_task<> start(

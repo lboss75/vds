@@ -29,7 +29,10 @@ namespace vds {
     bool operator != (const guid & other) const;
     bool operator < (const guid & other) const;
     bool operator > (const guid & other) const;
-    
+
+    operator bool () const {
+      return 0 != this->size();
+    }
   };
 }
 
