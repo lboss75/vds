@@ -77,6 +77,33 @@ namespace vds {
       uint16_t  offset_;
     };
 
+    class repeat_datagram : public datagram_generator {
+    public:
+      repeat_datagram(
+          const std::shared_ptr<udp_transport::_session> & owner,
+          const uint32_t sequence_number)
+          : datagram_generator(owner), sequence_number_(sequence_number)
+      {
+      }
+
+      //Generate message
+      virtual uint16_t generate_message(
+          const service_provider &sp,
+          uint8_t *buffer) override;
+
+      //Store sent message
+      void complete(const uint8_t * buffer, size_t len) override {
+      }
+
+      //
+      bool is_eof() const override {
+        return true;
+      }
+
+    private:
+      uint32_t  sequence_number_;
+    };
+
     class handshake_datagram : public datagram_generator {
     public:
       handshake_datagram(
@@ -121,6 +148,25 @@ namespace vds {
       guid instance_id_;
     };
 
+    class keep_alive_datagram : public datagram_generator {
+    public:
+      keep_alive_datagram(
+          const std::shared_ptr<udp_transport::_session> &owner)
+          : datagram_generator(owner) {
+      }
+
+      virtual uint16_t generate_message(
+          const service_provider &sp,
+          uint8_t *buffer) override;
+
+      bool is_eof() const override {
+        return true;
+      }
+
+      void complete(const uint8_t * buffer, size_t len) override {
+      }
+    };
+
     class acknowledgement_datagram : public datagram_generator {
     public:
       acknowledgement_datagram(
@@ -128,7 +174,10 @@ namespace vds {
           : datagram_generator(owner) {
       }
 
-      virtual uint16_t generate_message(const service_provider &sp, uint8_t *buffer) override;
+      virtual uint16_t generate_message(
+          const service_provider &sp,
+          uint8_t *buffer) override;
+
       bool is_eof() const override {
         return true;
       }

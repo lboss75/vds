@@ -58,22 +58,41 @@ void vds::_udp_transport_session::incomming_message(
 
         break;
       }
-      case control_type::Acknowledgement:
+      case control_type::Keep_alive:
       {
-        sp.get<logger>()->trace("P2PUDP", sp, "%s:%d: incomming acknowledgement",
+        sp.get<logger>()->trace("P2PUDP", sp, "%s:%d: incoming keep alive",
                                 this->address_.server_.c_str(),
                                 this->address_.port_);
-        if(4 != size){
+        if(8 != size){
           throw std::runtime_error("Invalid message");
         }
 
         uint32_t sequence_number = 0x0FFFFFFF & ntohl(*(uint32_t *)data);
-        std::unique_lock<std::mutex> lock(this->incoming_sequence_mutex_);
-        uint32_t curent =
-            this->future_data_.empty()
-            ? this->min_incoming_sequence_
-            : this->future_data_.rbegin()->first;
+        uint32_t result_mask = ntohl(*(uint32_t *)(data + 4));
 
+        std::unique_lock<std::mutex> lock(this->output_sequence_mutex_);
+        while(!this->sent_data_.empty()
+              && sequence_number > this->sent_data_.begin()->first){
+          this->sent_data_.erase(this->sent_data_.begin());
+        }
+        for(int i = 0; i < 32; ++i){
+          if(++sequence_number > this->output_sequence_number_){
+            break;
+          }
+
+          if(0 != (result_mask & 0x80000000)){
+            this->sent_data_.erase(sequence_number);
+          }
+          else {
+            owner.send_queue()->emplace(
+                sp,
+                owner,
+                new _udp_transport_queue::repeat_datagram(
+                    this->shared_from_this(),
+                    sequence_number));
+          }
+          result_mask <<= 1;
+        }
 
         break;
       }
@@ -176,7 +195,7 @@ void vds::_udp_transport_session::on_timer(
       owner->send_queue()->emplace(
           sp,
           owner,
-          new _udp_transport_queue::acknowledgement_datagram(
+          new _udp_transport_queue::keep_alive_datagram(
               this->shared_from_this()));
       break;
     }
@@ -278,6 +297,19 @@ void vds::_udp_transport_session::try_read_data() {
   data_lock.unlock();
 
   result.done(message);
+}
+
+uint16_t vds::_udp_transport_session::get_sent_data(
+    uint8_t *buffer,
+    uint32_t sequence_number) {
+  std::unique_lock<std::mutex> lock(this->output_sequence_mutex_);
+  auto p = this->sent_data_.find(sequence_number);
+  if(this->sent_data_.end() == p){
+    return 0;
+  }
+
+  memcpy(buffer, p->second.data(), p->second.size());
+  return p->second.size();
 }
 
 

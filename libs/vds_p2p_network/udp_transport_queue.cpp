@@ -146,12 +146,18 @@ vds::_udp_transport_queue::acknowledgement_datagram::generate_message(const serv
                           static_cast<_udp_transport_session *>(this->owner().get())->address().server_.c_str(),
                           static_cast<_udp_transport_session *>(this->owner().get())->address().port_);
 
+  auto owner_ = static_cast<_udp_transport_session *>(this->owner().get());
+
+  uint32_t result_mask;
+  auto seq = owner_->report_incoming_sequence(result_mask);
+
   *(reinterpret_cast<uint32_t *>(buffer)) = htonl(
       ((uint32_t)_udp_transport_session::control_type::Acknowledgement) << 28
-      | safe_cast<uint32_t>(
-          static_cast<_udp_transport_session *>(this->owner().get())->output_sequence_number()));
+      | safe_cast<uint32_t>(seq, 0x0FFFFFFF));
 
-  return 4;
+  *(reinterpret_cast<uint32_t *>(buffer + 4)) = htonl(result_mask);
+
+  return 8;
 }
 
 uint16_t vds::_udp_transport_queue::handshake_datagram::generate_message(const service_provider &sp, uint8_t *buffer) {
@@ -191,4 +197,22 @@ uint16_t vds::_udp_transport_queue::welcome_datagram::generate_message(const ser
 
 void vds::_udp_transport_queue::welcome_datagram::complete(const uint8_t *buffer, size_t len) {
   static_cast<_udp_transport_session *>(this->owner().get())->welcome_sent();
+}
+
+uint16_t
+vds::_udp_transport_queue::keep_alive_datagram::generate_message(const vds::service_provider &sp, uint8_t *buffer) {
+  *(reinterpret_cast<uint32_t *>(buffer)) = htonl(
+      ((uint32_t)_udp_transport_session::control_type::Keep_alive) << 28
+      | safe_cast<uint32_t>(
+          static_cast<_udp_transport_session *>(this->owner().get())->output_sequence_number(), 0x0FFFFFFF));
+
+  return 4;
+}
+
+uint16_t
+vds::_udp_transport_queue::repeat_datagram::generate_message(
+    const vds::service_provider &sp,
+    uint8_t * buffer) {
+  return static_cast<_udp_transport_session *>(this->owner().get())->get_sent_data(
+      buffer, this->sequence_number_);
 }

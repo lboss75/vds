@@ -84,6 +84,23 @@ namespace vds {
       return this->output_sequence_number_;
     }
 
+    uint32_t report_incoming_sequence(uint32_t & result_mask) const {
+      std::unique_lock<std::mutex> lock(this->incoming_sequence_mutex_);
+
+      auto curent = this->min_incoming_sequence_;
+      uint32_t result = 0;
+      for(int i = 0; i < 8 * sizeof(result); ++i){
+        ++curent;
+        result <<= 1;
+        if(this->future_data_.end() != this->future_data_.find(curent)){
+          result |= 1;
+        }
+      }
+      result_mask = result;
+
+      return this->min_incoming_sequence_;
+    }
+
     uint16_t mtu() const {
       return this->mtu_;
     }
@@ -107,6 +124,7 @@ namespace vds {
         const std::shared_ptr<class _udp_transport> &owner);
 
     void add_datagram(const const_data_buffer &data) {
+      std::unique_lock<std::mutex> lock(this->output_sequence_mutex_);
       this->sent_data_[this->output_sequence_number_++] = data;
     }
 
@@ -123,6 +141,8 @@ namespace vds {
 
     void send(const service_provider &sp, const const_data_buffer &message) override;
 
+    uint16_t get_sent_data(uint8_t *buffer, uint32_t sequence_number);
+
   private:
     enum class send_state {
       bof,
@@ -134,14 +154,15 @@ namespace vds {
 
     guid instance_id_;
     _udp_transport_session_address_t address_;
+
+    std::mutex output_sequence_mutex_;
     uint32_t output_sequence_number_;
+    std::map<uint32_t, const_data_buffer> sent_data_;
 
     uint16_t mtu_;
 
     send_state current_state_;
     std::mutex state_mutex_;
-
-    std::map<uint32_t, const_data_buffer> sent_data_;
 
     std::mutex incoming_sequence_mutex_;
     uint32_t min_incoming_sequence_;

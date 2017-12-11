@@ -49,6 +49,15 @@ namespace vds {
       }
     }
 
+    template <typename source_type>
+    safe_cast(source_type value, target_type mask)
+        : value_(mask & (target_type)value)
+    {
+      if(value != (source_type)this->value_){
+        throw std::overflow_error("Value too big");
+      }
+    }
+
     operator target_type () const {
       return this->value_;
     }
