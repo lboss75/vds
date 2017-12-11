@@ -185,15 +185,8 @@ void vds::_udp_transport_session::on_timer(
   }
 }
 
-void vds::_udp_transport_session::process_incoming_datagram(
-    const vds::service_provider &sp,
-    class _udp_transport &owner,
-    const uint8_t *data,
-    size_t size) {
-}
-
 void vds::_udp_transport_session::decrease_mtu() {
-
+  throw std::runtime_error("Not implemented");
 }
 
 void vds::_udp_transport_session::send_handshake(

@@ -169,12 +169,6 @@ namespace vds {
         const service_provider &sp,
         class _udp_transport &owner);
 
-    void process_incoming_datagram(
-        const vds::service_provider &sp,
-        class _udp_transport &owner,
-        const uint8_t *data,
-        size_t size);
-
     void try_read_data();
 
     std::mutex incoming_datagram_mutex_;
