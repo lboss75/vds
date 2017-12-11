@@ -43,7 +43,7 @@ namespace vds {
           min_incoming_sequence_(0),
           mtu_(65507),
           owner_(owner),
-          send_state_(send_state::bof){
+          current_state_(state_t::bof){
     }
 
     async_task<const const_data_buffer &> read_async(const service_provider &sp) override;
@@ -54,7 +54,7 @@ namespace vds {
           output_sequence_number_(0),
           min_incoming_sequence_(0),
           mtu_(65507),
-          send_state_(send_state::bof){
+          current_state_(state_t::bof){
     }
 
     ~_udp_transport_session();
@@ -146,24 +146,17 @@ namespace vds {
     uint16_t get_sent_data(uint8_t *buffer, uint32_t sequence_number);
 
   private:
-    enum class send_state {
+    enum class state_t {
       bof,
       handshake_pending,
+      handshake_sent,
       welcome_pending,
       welcome_sent,
       wait_message
     };
 
-    enum class incoming_state {
-      bof,
-      handshake_received
-    };
-
-    send_state send_state_;
-    std::mutex send_state_mutex_;
-
-    incoming_state incoming_state_;
-    std::mutex incoming_state_mutex_;
+    std::mutex current_state_mutex_;
+    state_t current_state_;
 
     guid instance_id_;
     _udp_transport_session_address_t address_;

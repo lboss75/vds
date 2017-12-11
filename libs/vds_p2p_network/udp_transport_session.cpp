@@ -19,19 +19,10 @@ void vds::_udp_transport_session::incomming_message(
         sp.get<logger>()->trace("P2PUDP", sp, "%s:%d: incomming handshake",
                                 this->address_.server_.c_str(),
                                 this->address_.port_);
-        std::unique_lock<std::mutex> lock(this->incoming_state_mutex_);
-        if(incoming_state::bof == this->incoming_state_) {
-          this->incoming_state_ = incoming_state::handshake_received;
-
-          std::unique_lock<std::mutex> out_lock(this->send_state_mutex_);
-          switch(this->send_state_){
-            case send_state::bof:
-            case send_state::handshake_pending:
-              this->send_welcome(sp, owner.shared_from_this());
-              break;
-          }
-          out_lock.unlock();
-
+        std::unique_lock<std::mutex> lock(this->current_state_mutex_);
+        if(state_t::bof == this->current_state_) {
+          this->current_state_ = state_t::welcome_pending;
+          this->send_welcome(sp, owner.shared_from_this());
           owner.handshake_completed(sp, this);
         }
 
@@ -46,13 +37,14 @@ void vds::_udp_transport_session::incomming_message(
           throw std::runtime_error("Invalid message");
         }
 
-        std::unique_lock<std::mutex> lock(this->send_state_mutex_);
-        if(send_state::handshake_pending == this->send_state_
-            || send_state::bof == this->send_state_) {
+        std::unique_lock<std::mutex> lock(this->current_state_mutex_);
+        if(state_t::handshake_sent == this->current_state_
+        || state_t::welcome_pending == this->current_state_
+        || state_t::welcome_sent == this->current_state_) {
           guid instance_id(data + 4, 16);
           if(0 == this->instance_id_.size()) {
             this->instance_id_ = instance_id;
-            this->send_state_ = send_state::wait_message;
+            this->current_state_ = state_t::wait_message;
 
             owner.handshake_completed(sp, this);
           }
@@ -193,29 +185,30 @@ void vds::_udp_transport_session::continue_process_incoming_data(
 void vds::_udp_transport_session::on_timer(
     const service_provider & sp,
     const std::shared_ptr<_udp_transport> & owner) {
-  std::unique_lock<std::mutex> lock(this->send_state_mutex_);
-  switch(this->send_state_){
-    case send_state::bof:
+  std::unique_lock<std::mutex> lock(this->current_state_mutex_);
+  switch(this->current_state_){
+    case state_t::bof:
+    case state_t::handshake_sent:
     {
-      this->send_state_ = send_state::handshake_pending;
+      this->current_state_ = state_t::handshake_pending;
       this->send_handshake(sp, owner);
       break;
     }
-    case send_state::handshake_pending:
+    case state_t::handshake_pending:
     {
       break;
     }
-    case send_state::welcome_sent:
+    case state_t::welcome_sent:
     {
-      this->send_state_ = send_state::handshake_pending;
+      this->current_state_ = state_t::handshake_pending;
       this->send_handshake(sp, owner);
       break;
     }
-    case send_state::welcome_pending:
+    case state_t::welcome_pending:
     {
       break;
     }
-    case send_state ::wait_message:
+    case state_t::wait_message:
     {
       owner->send_queue()->emplace(
           sp,
@@ -249,8 +242,8 @@ void vds::_udp_transport_session::send_handshake(
 }
 
 void vds::_udp_transport_session::handshake_sent() {
-  std::unique_lock<std::mutex> lock(this->send_state_mutex_);
-  this->send_state_ = send_state::bof;
+  std::unique_lock<std::mutex> lock(this->current_state_mutex_);
+  this->current_state_ = state_t::handshake_sent;
 }
 
 void vds::_udp_transport_session::send_welcome(
@@ -269,8 +262,8 @@ void vds::_udp_transport_session::send_welcome(
 }
 
 void vds::_udp_transport_session::welcome_sent() {
-  std::unique_lock<std::mutex> lock(this->send_state_mutex_);
-  this->send_state_ = send_state::welcome_sent;
+  std::unique_lock<std::mutex> lock(this->current_state_mutex_);
+  this->current_state_ = state_t::welcome_sent;
 }
 
 vds::_udp_transport_session::~_udp_transport_session() {
