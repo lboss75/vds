@@ -91,9 +91,9 @@ namespace vds {
       uint32_t result = 0;
       for(int i = 0; i < 8 * sizeof(result); ++i){
         ++curent;
-        result <<= 1;
+        result >>= 1;
         if(this->future_data_.end() != this->future_data_.find(curent)){
-          result |= 1;
+          result |= 0x80000000;
         }
       }
       result_mask = result;

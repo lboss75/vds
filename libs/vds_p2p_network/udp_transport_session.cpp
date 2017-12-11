@@ -80,7 +80,7 @@ void vds::_udp_transport_session::incomming_message(
             break;
           }
 
-          if(0 != (result_mask & 0x80000000)){
+          if(0 != (result_mask & 1)){
             this->sent_data_.erase(sequence_number);
           }
           else {
@@ -91,7 +91,7 @@ void vds::_udp_transport_session::incomming_message(
                     this->shared_from_this(),
                     sequence_number));
           }
-          result_mask <<= 1;
+          result_mask >>= 1;
         }
 
         break;
