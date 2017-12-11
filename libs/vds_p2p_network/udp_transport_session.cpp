@@ -19,11 +19,19 @@ void vds::_udp_transport_session::incomming_message(
         sp.get<logger>()->trace("P2PUDP", sp, "%s:%d: incomming handshake",
                                 this->address_.server_.c_str(),
                                 this->address_.port_);
-        std::unique_lock<std::mutex> lock(this->state_mutex_);
-        if(send_state::bof == this->current_state_
-            || send_state::handshake_pending == this->current_state_) {
-          this->current_state_ = send_state::welcome_pending;
-          this->send_welcome(sp, owner.shared_from_this());
+        std::unique_lock<std::mutex> lock(this->incoming_state_mutex_);
+        if(incoming_state::bof == this->incoming_state_) {
+          this->incoming_state_ = incoming_state::handshake_received;
+
+          std::unique_lock<std::mutex> out_lock(this->send_state_mutex_);
+          switch(this->send_state_){
+            case send_state::bof:
+            case send_state::handshake_pending:
+              this->send_welcome(sp, owner.shared_from_this());
+              break;
+          }
+          out_lock.unlock();
+
           owner.handshake_completed(sp, this);
         }
 
@@ -38,13 +46,13 @@ void vds::_udp_transport_session::incomming_message(
           throw std::runtime_error("Invalid message");
         }
 
-        std::unique_lock<std::mutex> lock(this->state_mutex_);
-        if(send_state::handshake_pending == this->current_state_
-            || send_state::bof == this->current_state_) {
+        std::unique_lock<std::mutex> lock(this->send_state_mutex_);
+        if(send_state::handshake_pending == this->send_state_
+            || send_state::bof == this->send_state_) {
           guid instance_id(data + 4, 16);
           if(0 == this->instance_id_.size()) {
             this->instance_id_ = instance_id;
-            this->current_state_ = send_state::wait_message;
+            this->send_state_ = send_state::wait_message;
 
             owner.handshake_completed(sp, this);
           }
@@ -61,6 +69,23 @@ void vds::_udp_transport_session::incomming_message(
       case control_type::Keep_alive:
       {
         sp.get<logger>()->trace("P2PUDP", sp, "%s:%d: incoming keep alive",
+                                this->address_.server_.c_str(),
+                                this->address_.port_);
+        if(4 != size){
+          throw std::runtime_error("Invalid message");
+        }
+
+        uint32_t sequence_number = 0x0FFFFFFF & ntohl(*(uint32_t *)data);
+        owner.send_queue()->emplace(
+            sp,
+            owner.shared_from_this(),
+            new _udp_transport_queue::acknowledgement_datagram(
+                this->shared_from_this()));
+        break;
+      }
+      case control_type::Acknowledgement:
+      {
+        sp.get<logger>()->trace("P2PUDP", sp, "%s:%d: incoming acknowledgement",
                                 this->address_.server_.c_str(),
                                 this->address_.port_);
         if(8 != size){
@@ -86,7 +111,7 @@ void vds::_udp_transport_session::incomming_message(
           else {
             owner.send_queue()->emplace(
                 sp,
-                owner,
+                owner.shared_from_this(),
                 new _udp_transport_queue::repeat_datagram(
                     this->shared_from_this(),
                     sequence_number));
@@ -168,11 +193,11 @@ void vds::_udp_transport_session::continue_process_incoming_data(
 void vds::_udp_transport_session::on_timer(
     const service_provider & sp,
     const std::shared_ptr<_udp_transport> & owner) {
-  std::unique_lock<std::mutex> lock(this->state_mutex_);
-  switch(this->current_state_){
+  std::unique_lock<std::mutex> lock(this->send_state_mutex_);
+  switch(this->send_state_){
     case send_state::bof:
     {
-      this->current_state_ = send_state::handshake_pending;
+      this->send_state_ = send_state::handshake_pending;
       this->send_handshake(sp, owner);
       break;
     }
@@ -182,7 +207,7 @@ void vds::_udp_transport_session::on_timer(
     }
     case send_state::welcome_sent:
     {
-      this->current_state_ = send_state::handshake_pending;
+      this->send_state_ = send_state::handshake_pending;
       this->send_handshake(sp, owner);
       break;
     }
@@ -224,8 +249,8 @@ void vds::_udp_transport_session::send_handshake(
 }
 
 void vds::_udp_transport_session::handshake_sent() {
-  std::unique_lock<std::mutex> lock(this->state_mutex_);
-  this->current_state_ = send_state::bof;
+  std::unique_lock<std::mutex> lock(this->send_state_mutex_);
+  this->send_state_ = send_state::bof;
 }
 
 void vds::_udp_transport_session::send_welcome(
@@ -244,8 +269,8 @@ void vds::_udp_transport_session::send_welcome(
 }
 
 void vds::_udp_transport_session::welcome_sent() {
-  std::unique_lock<std::mutex> lock(this->state_mutex_);
-  this->current_state_ = send_state::welcome_sent;
+  std::unique_lock<std::mutex> lock(this->send_state_mutex_);
+  this->send_state_ = send_state::welcome_sent;
 }
 
 vds::_udp_transport_session::~_udp_transport_session() {

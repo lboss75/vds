@@ -40,9 +40,10 @@ namespace vds {
         : instance_id_(instance_id),
           address_(address),
           output_sequence_number_(0),
+          min_incoming_sequence_(0),
           mtu_(65507),
           owner_(owner),
-          current_state_(send_state::bof){
+          send_state_(send_state::bof){
     }
 
     async_task<const const_data_buffer &> read_async(const service_provider &sp) override;
@@ -51,8 +52,9 @@ namespace vds {
     _udp_transport_session(const _udp_transport_session_address_t &address)
         : address_(address),
           output_sequence_number_(0),
+          min_incoming_sequence_(0),
           mtu_(65507),
-          current_state_(send_state::bof){
+          send_state_(send_state::bof){
     }
 
     ~_udp_transport_session();
@@ -152,6 +154,17 @@ namespace vds {
       wait_message
     };
 
+    enum class incoming_state {
+      bof,
+      handshake_received
+    };
+
+    send_state send_state_;
+    std::mutex send_state_mutex_;
+
+    incoming_state incoming_state_;
+    std::mutex incoming_state_mutex_;
+
     guid instance_id_;
     _udp_transport_session_address_t address_;
 
@@ -161,10 +174,7 @@ namespace vds {
 
     uint16_t mtu_;
 
-    send_state current_state_;
-    std::mutex state_mutex_;
-
-    std::mutex incoming_sequence_mutex_;
+    mutable std::mutex incoming_sequence_mutex_;
     uint32_t min_incoming_sequence_;
     std::map<uint32_t, const_data_buffer> future_data_;
 

@@ -81,13 +81,13 @@ void vds::client_connection::connect(const service_provider & sp)
 //         [this, client_crypto_tunnel](const service_provider & sp) {
 //       sp.get<logger>()->debug("client", sp, "Client closed");
 // 
-//       std::unique_lock<std::mutex> lock(this->state_mutex_);
+//       std::unique_lock<std::mutex> lock(this->send_state_mutex_);
 //       this->state_ = STATE::NONE;
 //       this->state_cond_.notify_all();
 //     },
 //         [this, on_error](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
 //       sp.get<logger>()->debug("client", sp, "Client error");
-//       std::unique_lock<std::mutex> lock(this->state_mutex_);
+//       std::unique_lock<std::mutex> lock(this->send_state_mutex_);
 //       this->state_ = STATE::CONNECT_ERROR;
 //       this->state_cond_.notify_all();
 //       on_error(sp, ex);
@@ -100,13 +100,13 @@ void vds::client_connection::connect(const service_provider & sp)
 //   })
 //     .wait(
 //       [this](const service_provider & sp) {
-//         std::unique_lock<std::mutex> lock(this->state_mutex_);
+//         std::unique_lock<std::mutex> lock(this->send_state_mutex_);
 //         this->state_ = STATE::CONNECTED;
 //         this->state_cond_.notify_all();
 //         this->connection_start_ = std::chrono::steady_clock::now();
 //       },
 //       [this](const service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-//         std::unique_lock<std::mutex> lock(this->state_mutex_);
+//         std::unique_lock<std::mutex> lock(this->send_state_mutex_);
 //         this->state_ = STATE::CONNECT_ERROR;
 //         this->state_cond_.notify_all();
 //         sp.unhandled_exception(ex);
