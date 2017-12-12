@@ -330,4 +330,8 @@ uint16_t vds::_udp_transport_session::get_sent_data(
   return p->second.size();
 }
 
+void vds::_udp_transport_session::register_outgoing_traffic(uint32_t bytes) {
+  this->sent_data_bytes_ += bytes;
+}
+
 

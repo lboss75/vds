@@ -25,15 +25,16 @@ void vds::_udp_transport_queue::continue_send_data(
       .execute(
           [pthis = this->shared_from_this(), sp, owner, generator, len](
               const std::shared_ptr<std::exception> & ex){
+            auto owner_ = static_cast<_udp_transport_session *>(generator->owner().get());
             if(ex){
               auto datagram_error = std::dynamic_pointer_cast<udp_datagram_size_exception>(ex);
               if(datagram_error){
-                static_cast<_udp_transport_session *>(generator->owner().get())->decrease_mtu();
+                owner_->decrease_mtu();
               } else {
-                owner->close_session(
-                    static_cast<_udp_transport_session *>(generator->owner().get()), ex);
+                owner->close_session(owner_, ex);
               }
             } else {
+              owner_->register_outgoing_traffic(len);
               generator->complete(pthis->buffer_, len);
             }
 

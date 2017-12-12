@@ -43,7 +43,9 @@ namespace vds {
           min_incoming_sequence_(0),
           mtu_(65507),
           owner_(owner),
-          current_state_(state_t::bof){
+          current_state_(state_t::bof),
+          sent_data_bytes_(0),
+          reviced_data_bytes_(0) {
     }
 
     async_task<const const_data_buffer &> read_async(const service_provider &sp) override;
@@ -54,7 +56,9 @@ namespace vds {
           output_sequence_number_(0),
           min_incoming_sequence_(0),
           mtu_(65507),
-          current_state_(state_t::bof){
+          current_state_(state_t::bof),
+          sent_data_bytes_(0),
+          reviced_data_bytes_(0) {
     }
 
     ~_udp_transport_session();
@@ -113,8 +117,6 @@ namespace vds {
 
     void decrease_mtu();
 
-    void message_sent();
-
     void incomming_message(
         const service_provider &sp,
         class _udp_transport &owner,
@@ -144,6 +146,8 @@ namespace vds {
     void send(const service_provider &sp, const const_data_buffer &message) override;
 
     uint16_t get_sent_data(uint8_t *buffer, uint32_t sequence_number);
+
+    void register_outgoing_traffic(uint32_t bytes);
 
   private:
     enum class state_t {
@@ -179,15 +183,8 @@ namespace vds {
 
     std::weak_ptr<_udp_transport> owner_;
 
-    void on_timeout();
-
-    const_data_buffer next_message();
-
-    void continue_read_outgoing_stream(const service_provider & sp);
-
-    async_task<> push_data(
-        const service_provider & sp,
-        const const_data_buffer & data);
+    uint32_t sent_data_bytes_;
+    uint32_t reviced_data_bytes_;
 
     void continue_process_incoming_data(
         const service_provider &sp,
