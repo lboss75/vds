@@ -11,32 +11,95 @@ All rights reserved
 
 vds::background_app::background_app()
 : server_start_command_set_("Server start", "Start web server", "start", "server"),
-  node_login_(
-    "l",
-    "login",
-    "Login",
-    "User login"),
-  node_password_(
-    "p",
-    "password",
-    "Password",
-    "User password"),
+  server_root_cmd_set_("Install Root node", "Create new network", "root", "server"),
+  server_init_command_set_("Initialize new node", "Attach this device to the network", "init", "server"),
+  user_login_(
+      "l",
+      "login",
+      "Login",
+      "User login"),
+  user_password_(
+      "p",
+      "password",
+      "Password",
+      "User password"),
+  node_name_(
+    "n",
+    "name",
+    "Node name",
+    "Node name"),
   port_(
     "P",
     "port",
     "Port",
-    "Port to listen connections"),
-  server_root_cmd_set_(
-    "Install Root node",
-    "Create new network",
-    "root",
-    "server")
+    "Port to listen connections")
 {
 }
 
 void vds::background_app::main(const service_provider & sp)
 {
-  if(this->current_command_set_ == &this->server_start_command_set_){
+  if(&this->server_root_cmd_set_ == this->current_command_set_){
+    vds::imt_service::enable_async(sp);
+
+    std::shared_ptr<std::exception> error;
+    vds::barrier b;
+    this->server_
+        .reset(sp,
+               this->user_login_.value(),
+               this->user_password_.value(),
+               this->node_name_.value(),
+               this->port_.value().empty() ? 0 : atoi(this->port_.value().c_str()))
+        .execute([&error, &b](const std::shared_ptr<std::exception> & ex) {
+          if (ex) {
+            error = ex;
+          }
+
+          b.set();
+        });
+
+    b.wait();
+    if(error){
+      std::cout << "Failed:" << error->what() << "\n";
+    }
+  } else if(&this->server_init_command_set_ == this->current_command_set_){
+    vds::imt_service::enable_async(sp);
+
+    std::shared_ptr<std::exception> error;
+    vds::barrier b;
+    this->server_
+        .init_server(
+            sp,
+            this->user_login_.value(),
+            this->user_password_.value(),
+            this->node_name_.value(),
+            this->port_.value().empty() ? 0 : atoi(this->port_.value().c_str()))
+        .execute([&error, &b](const std::shared_ptr<std::exception> & ex) {
+          if (ex) {
+            error = ex;
+          }
+
+          b.set();
+        });
+
+    b.wait();
+    if(error){
+      std::cout << "Failed:" << error->what() << "\n";
+    }
+  } else if(this->current_command_set_ == &this->server_start_command_set_){
+    std::shared_ptr<std::exception> error;
+    vds::barrier b;
+    this->server_
+        .start_network(sp)
+        .execute([&b, &error](const std::shared_ptr<std::exception> & ex){
+      if(ex){
+        error = ex;
+      }
+      b.set();
+    });
+    b.wait();
+    if(error){
+      std::cout << "Failed:" << error->what() << "\n";
+    }
 
     for (;;) {
       std::cout << "Enter command:\n";
@@ -60,14 +123,12 @@ void vds::background_app::register_services(vds::service_registrator& registrato
   registrator.add(this->crypto_service_);
   
   if (&this->server_start_command_set_ == this->current_command_set_
-    || &this->server_root_cmd_set_ == this->current_command_set_) {
+      || &this->server_root_cmd_set_ == this->current_command_set_
+      || &this->server_init_command_set_ == this->current_command_set_){
     registrator.add(this->server_);
   }
   
   if (&this->server_start_command_set_ == this->current_command_set_) {
-    this->connection_manager_.set_addresses("udp://127.0.0.1:" + (this->port_.value().empty() ? "8050" : this->port_.value()));
-    registrator.add(this->connection_manager_);
-    registrator.add(this->server_log_sync_);
   }
 }
 
@@ -79,57 +140,39 @@ void vds::background_app::register_command_line(command_line & cmd_line)
   this->server_start_command_set_.optional(this->port_);
 
   cmd_line.add_command_set(this->server_root_cmd_set_);
-  this->server_root_cmd_set_.required(this->node_password_);
+  this->server_root_cmd_set_.required(this->user_login_);
+  this->server_root_cmd_set_.required(this->user_password_);
+  this->server_root_cmd_set_.optional(this->node_name_);
   this->server_root_cmd_set_.optional(this->port_);
+
+  cmd_line.add_command_set(this->server_init_command_set_);
+  this->server_init_command_set_.required(this->user_login_);
+  this->server_init_command_set_.required(this->user_password_);
+  this->server_init_command_set_.optional(this->node_name_);
+  this->server_init_command_set_.optional(this->port_);
 }
 
 void vds::background_app::start_services(service_registrator & registrator, service_provider & sp)
 {
   if (&this->server_root_cmd_set_ == this->current_command_set_) {
-    auto private_key = vds::asymmetric_private_key::generate(vds::asymmetric_crypto::rsa4096());
-
-    auto root_id = vds::guid::new_guid();
-    vds::certificate root_certificate = vds::_certificate_authority::create_root_user(root_id, private_key);
-
-    auto server_private_key = vds::asymmetric_private_key::generate(vds::asymmetric_crypto::rsa4096());
-
-    vds::guid current_server_id = vds::guid::new_guid();
-    vds::certificate server_certificate = vds::certificate_authority::create_server(
-      current_server_id,
-      root_certificate,
-      private_key,
-      server_private_key);
-
     foldername folder(persistence::current_user(sp), ".vds");
+    folder.delete_folder(true);
     folder.create();
-
-    server_certificate.save(vds::filename(folder, "server.crt"));
-    server_private_key.save(vds::filename(folder, "server.pkey"));
-
-    if (!this->port_.value().empty()) {
-      this->server_.set_port(std::atoi(this->port_.value().c_str()));
-    } else {
-      this->server_.set_port(8050);
-    }
-
     registrator.start(sp);
-
-    sp.get<vds::istorage_log>()->reset(
-      sp,
-      root_id,
-      root_certificate,
-      private_key,
-      this->node_password_.value(),
-      "https://127.0.0.1:" + (this->port_.value().empty() ? "8050" : this->port_.value()));
+  } else if (&this->server_init_command_set_ == this->current_command_set_) {
+    foldername folder(persistence::current_user(sp), ".vds");
+    folder.delete_folder(true);
+    folder.create();
+    registrator.start(sp);
   }
   else {
     if (&this->server_start_command_set_ == this->current_command_set_) {
-      if (!this->port_.value().empty()) {
-        this->server_.set_port(std::atoi(this->port_.value().c_str()));
-      }
-      else {
-        this->server_.set_port(8050);
-      }
+//      if (!this->port_.value().empty()) {
+//        this->server_.set_port(std::atoi(this->port_.value().c_str()));
+//      }
+//      else {
+//        this->server_.set_port(8050);
+//      }
     }
 
     base_class::start_services(registrator, sp);
@@ -138,5 +181,6 @@ void vds::background_app::start_services(service_registrator & registrator, serv
 
 bool vds::background_app::need_demonize()
 {
-  return (this->current_command_set_ == &this->server_start_command_set_);
+  return false;
+  //return (this->current_command_set_ == &this->server_start_command_set_);
 }

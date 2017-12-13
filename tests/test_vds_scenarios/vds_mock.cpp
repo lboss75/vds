@@ -178,7 +178,7 @@ void mock_server::init_root(const std::string & root_password, int tcp_port, int
 	vds::imt_service::enable_async(sp);
 	vds::barrier b;
     server
-		.reset(sp, "root", root_password)
+        .reset(sp, "root", root_password, <#initializer#>, 0)
 		.execute([&error, &b](const std::shared_ptr<std::exception> & ex) {
 		if (ex) {
 			error = ex;
@@ -296,7 +296,7 @@ void mock_server::init(const std::string &user_name, const std::string &user_pas
     vds::imt_service::enable_async(sp);
     vds::barrier b;
     server
-        .init_server(sp, this->udp_port_, user_name, user_password)
+        .init_server(sp, user_name, user_password, <#initializer#>, this->udp_port_)
         .execute([&error, &b](const std::shared_ptr<std::exception> & ex) {
           if (ex) {
             error = ex;

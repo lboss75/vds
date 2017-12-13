@@ -24,15 +24,10 @@ vds::member_user::member_user(_member_user * impl)
 {
 }
 
-vds::member_user vds::member_user::create_device_user(
-    transaction_block & log,
-    const vds::asymmetric_private_key &owner_user_private_key,
-    const vds::asymmetric_private_key &private_key)
+vds::member_user vds::member_user::create_device_user(transaction_block &log, const vds::asymmetric_private_key &owner_user_private_key,
+                                                      const vds::asymmetric_private_key &private_key, const std::string &device_name)
 {
-  return this->impl_->create_device_user(
-      log,
-      owner_user_private_key,
-      private_key);
+  return this->impl_->create_device_user(log, owner_user_private_key, private_key, device_name);
 }
 
 vds::member_user vds::member_user::create_user(
@@ -102,14 +97,16 @@ vds::member_user vds::_member_user::create_root(
   return member_user(new _member_user(id, cert));
 }
 
-vds::member_user vds::_member_user::create_device_user(
-    transaction_block & log,
-    const vds::asymmetric_private_key & owner_user_private_key,
-    const vds::asymmetric_private_key & private_key) {
+vds::member_user vds::_member_user::create_device_user(transaction_block &log, const vds::asymmetric_private_key &owner_user_private_key,
+                                                       const vds::asymmetric_private_key &private_key, const std::string &device_name) {
 
 #ifndef _WIN32
-  char hostname[HOST_NAME_MAX];
-  gethostname(hostname, HOST_NAME_MAX);
+  auto name = device_name;
+  if(name.empty()) {
+    char hostname[HOST_NAME_MAX];
+    gethostname(hostname, HOST_NAME_MAX);
+    name = hostname;
+  }
 #else// _WIN32
   CHAR hostname[256];
   DWORD bufCharCount = sizeof(hostname) / sizeof(hostname[0]);
@@ -121,7 +118,7 @@ vds::member_user vds::_member_user::create_device_user(
 
   return create_user(
       owner_user_private_key,
-      hostname,
+      name,
       "",
       private_key);
 }

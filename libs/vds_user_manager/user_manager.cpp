@@ -150,12 +150,9 @@ vds::const_data_buffer vds::user_manager::reset(
       root_private_key);
 }
 
-vds::const_data_buffer vds::user_manager::lock_to_device(
-    const vds::service_provider &sp,
-    vds::database_transaction &t,
-    const std::string &user_name,
-    const std::string &user_password,
-    int port) {
+vds::const_data_buffer vds::user_manager::lock_to_device(const vds::service_provider &sp, vds::database_transaction &t,
+                                                         const std::string &user_name, const std::string &user_password,
+                                                         const std::string &device_name, int port) {
 
   auto user = member_user::by_login(t, user_name);
 
@@ -171,7 +168,7 @@ vds::const_data_buffer vds::user_manager::lock_to_device(
   auto private_key = asymmetric_private_key::generate(asymmetric_crypto::rsa4096());
 
   transaction_block log;
-  auto device_user = user.create_device_user(log, user_private_key, private_key);
+  auto device_user = user.create_device_user(log, user_private_key, private_key, device_name);
 
   auto config_id = guid::new_guid();
   run_configuration_dbo t3;

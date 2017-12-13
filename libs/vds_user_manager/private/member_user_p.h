@@ -37,7 +37,8 @@ namespace vds {
     member_user create_device_user(
         class transaction_block & log,
         const vds::asymmetric_private_key & owner_user_private_key,
-        const vds::asymmetric_private_key & private_key);
+        const vds::asymmetric_private_key & private_key,
+        const std::string &device_name);
 
     const guid & id() const { return this->id_; }
     const certificate & user_certificate() const { return this->user_cert_; }

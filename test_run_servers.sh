@@ -49,3 +49,9 @@ echo "download file"
 build/app/vds_node/vds_node file download -f ${DIR}/README.md.new -n README.md --root-folder ${DIR}/clients/0
 
 rem https://localhost:8050/vds/dump_state
+
+
+
+------------------
+vds_background server root -l root -p 123 --root-folder /home/vadim/projects/vds.git/servers/0 -ll trace
+server start --root-folder /home/vadim/projects/vds.git/servers/0 -ll trace

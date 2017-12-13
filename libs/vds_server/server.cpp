@@ -80,12 +80,10 @@ void vds::server::stop(const service_provider& sp)
   this->impl_->stop(sp);
 }
 
-vds::async_task<> vds::server::reset(
-    const vds::service_provider &sp,
-    const std::string &root_user_name,
-    const std::string &root_password) {
+vds::async_task<> vds::server::reset(const vds::service_provider &sp, const std::string &root_user_name, const std::string &root_password,
+                                     const std::string &device_name, int port) {
 
-  return sp.get<db_model>()->async_transaction(sp, [this, sp, root_user_name, root_password](
+  return sp.get<db_model>()->async_transaction(sp, [this, sp, root_user_name, root_password, device_name, port](
       database_transaction & t){
     auto usr_manager = sp.get<user_manager>();
     auto private_key = asymmetric_private_key::generate(asymmetric_crypto::rsa4096());
@@ -94,14 +92,14 @@ vds::async_task<> vds::server::reset(
 
 	  transaction_log::apply(sp, t, chunk_manager::get_block(t, block_id));
 
-    usr_manager->lock_to_device(sp, t, root_user_name, root_password, 8050);
+    usr_manager->lock_to_device(sp, t, root_user_name, root_password, device_name, port);
 
   });
 }
 
-vds::async_task<> vds::server::init_server(const vds::service_provider &sp, int port, const std::string &user_login,
-                                           const std::string &user_password) {
-  return this->impl_->init_server(sp, port, user_login, user_password);
+vds::async_task<> vds::server::init_server(const vds::service_provider &sp, const std::string &user_login,
+                                           const std::string &user_password, const std::string &device_name, int port) {
+  return this->impl_->init_server(sp, user_login, user_password, device_name, port);
 
 }
 
@@ -189,9 +187,10 @@ void vds::_server::stop(const service_provider& sp)
 
 vds::async_task<> vds::_server::init_server(
     const vds::service_provider &sp,
-    int port,
     const std::string &user_name,
-    const std::string &user_password) {
+    const std::string &user_password,
+    const std::string &device_name,
+    int port) {
   this->network_services_.push_back(p2p_network_service());
   return this->network_services_.rbegin()->start(sp, port, user_name, user_password);
 }

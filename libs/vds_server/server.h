@@ -17,15 +17,13 @@ namespace vds {
     void start(const service_provider &) override;
     void stop(const service_provider &) override;
 
-    async_task<> reset(
-        const service_provider &sp,
-        const std::string &root_user_name,
-        const std::string &root_password);
+    vds::async_task<> reset(const vds::service_provider &sp, const std::string &root_user_name, const std::string &root_password,
+                                const std::string &device_name, int port);
 
     vds::async_task<> start_network(const vds::service_provider &sp);
 
-    vds::async_task<> init_server(const vds::service_provider &sp, int port, const std::string &user_login,
-                                      const std::string &user_password);
+    vds::async_task<> init_server(const vds::service_provider &sp, const std::string &user_login,
+                                      const std::string &user_password, const std::string &device_name, int port);
 
   private:
     class _server * const impl_;

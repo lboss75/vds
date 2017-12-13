@@ -46,6 +46,7 @@ namespace vds {
         class database_transaction &t,
         const std::string &user_name,
         const std::string &user_password,
+        const std::string &device_name,
         int port);
 
   private:

@@ -156,9 +156,11 @@ void vds::_udp_transport::connect(const vds::service_provider &sp, const std::st
     return;
   }
 
+  auto scope = sp.create_scope(("Connect to " + address).c_str());
+
   auto new_session = std::make_shared<_udp_transport_session>(addr);
   this->sessions_[addr] = new_session;
-  new_session->send_handshake(sp, this->shared_from_this());
+  new_session->send_handshake(scope, this->shared_from_this());
 }
 
 void vds::_udp_transport::stop(const vds::service_provider &sp) {

@@ -25,9 +25,12 @@ namespace vds {
   private:
     command_line_set server_start_command_set_;
     command_line_set server_root_cmd_set_;
+    command_line_set server_init_command_set_;
 
-    command_line_value node_login_;
-    command_line_value node_password_;
+    command_line_value user_login_;
+    command_line_value user_password_;
+
+    command_line_value node_name_;
     command_line_value port_;
 
     std::list<endpoint> endpoints_;
@@ -37,8 +40,6 @@ namespace vds {
     network_service network_service_;
     crypto_service crypto_service_;
     server server_;
-    connection_manager connection_manager_;
-    server_log_sync server_log_sync_;
   };
 }
 
