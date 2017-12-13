@@ -11,6 +11,7 @@ void vds::_udp_transport_session::incomming_message(
   if(4 > size){
     throw std::runtime_error("Small message");
   }
+  this->received_data_bytes_ += size;
 
   if(0x80 == (0x80 & data[0])){
     switch((control_type)(data[0] >> 4)){
@@ -39,6 +40,7 @@ void vds::_udp_transport_session::incomming_message(
 
         std::unique_lock<std::mutex> lock(this->current_state_mutex_);
         if(state_t::handshake_sent == this->current_state_
+        || state_t::handshake_pending == this->current_state_
         || state_t::welcome_pending == this->current_state_
         || state_t::welcome_sent == this->current_state_) {
           guid instance_id(data + 4, 16);
@@ -274,12 +276,14 @@ void vds::_udp_transport_session::send(
     const service_provider &sp,
     const const_data_buffer &message) {
   auto owner = this->owner_.lock();
-  owner->send_queue()->emplace(
-      sp,
-      owner,
-      new _udp_transport_queue::data_datagram(
-          this->shared_from_this(),
-          owner->instance_id_));
+  if(owner) {
+    owner->send_queue()->emplace(
+        sp,
+        owner,
+        new _udp_transport_queue::data_datagram(
+            this->shared_from_this(),
+            message));
+  }
 }
 
 vds::async_task<const vds::const_data_buffer &> vds::_udp_transport_session::read_async(

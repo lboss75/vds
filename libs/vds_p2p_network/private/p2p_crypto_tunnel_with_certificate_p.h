@@ -23,7 +23,7 @@ namespace vds {
         const std::list<certificate> & certificate_chain,
         const asymmetric_private_key & private_key)
     : _p2p_crypto_tunnel(session),
-      certificate_chain_(certificate_chain_),
+      certificate_chain_(certificate_chain),
       private_key_(private_key){
     }
 

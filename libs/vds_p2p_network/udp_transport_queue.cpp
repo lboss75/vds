@@ -20,8 +20,9 @@ void vds::_udp_transport_queue::continue_send_data(
           udp_datagram(
               static_cast<_udp_transport_session *>(generator->owner().get())->address().server_,
               static_cast<_udp_transport_session *>(generator->owner().get())->address().port_,
-                       this->buffer_,
-                       len))
+              this->buffer_,
+              len,
+              false))
       .execute(
           [pthis = this->shared_from_this(), sp, owner, generator, len](
               const std::shared_ptr<std::exception> & ex){
@@ -87,7 +88,7 @@ void vds::_udp_transport_queue::emplace(
 uint16_t vds::_udp_transport_queue::data_datagram::generate_message(const service_provider &sp, uint8_t *buffer) {
 
   auto seq_number = static_cast<_udp_transport_session *>(this->owner().get())->output_sequence_number();
-  ((uint32_t *)buffer)[0] = htonl(seq_number);
+  *(uint32_t *)buffer = htonl(seq_number);
 
   sp.get<logger>()->trace("P2PUDP", sp, "[%d] Send data to %s:%d",
                           seq_number,
@@ -108,7 +109,7 @@ uint16_t vds::_udp_transport_queue::data_datagram::generate_message(const servic
     |                                                               |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 */
-    ((uint16_t *)buffer)[3] = htons(this->data_.size());
+    *(uint16_t *)(buffer + 4) = htons(this->data_.size());
     auto size = (size_t)(static_cast<_udp_transport_session *>(this->owner().get())->mtu() - 6);
     if(size > this->data_.size()){
       size = this->data_.size();

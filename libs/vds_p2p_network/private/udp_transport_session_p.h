@@ -45,7 +45,7 @@ namespace vds {
           owner_(owner),
           current_state_(state_t::bof),
           sent_data_bytes_(0),
-          reviced_data_bytes_(0) {
+          received_data_bytes_(0) {
     }
 
     async_task<const const_data_buffer &> read_async(const service_provider &sp) override;
@@ -58,7 +58,7 @@ namespace vds {
           mtu_(65507),
           current_state_(state_t::bof),
           sent_data_bytes_(0),
-          reviced_data_bytes_(0) {
+          received_data_bytes_(0) {
     }
 
     ~_udp_transport_session();
@@ -184,7 +184,7 @@ namespace vds {
     std::weak_ptr<_udp_transport> owner_;
 
     uint32_t sent_data_bytes_;
-    uint32_t reviced_data_bytes_;
+    uint32_t received_data_bytes_;
 
     void continue_process_incoming_data(
         const service_provider &sp,
