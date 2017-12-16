@@ -30,16 +30,10 @@ vds::member_user vds::member_user::create_device_user(transaction_block &log, co
   return this->impl_->create_device_user(log, owner_user_private_key, private_key, device_name);
 }
 
-vds::member_user vds::member_user::create_user(
-    const vds::asymmetric_private_key &owner_user_private_key,
-    const std::string &user_name,
-    const std::string &user_password,
-    const vds::asymmetric_private_key &private_key)
+vds::member_user vds::member_user::create_user(const vds::asymmetric_private_key &owner_user_private_key, const std::string &user_name,
+                                               const vds::asymmetric_private_key &private_key)
 {
-  return this->impl_->create_user(
-      owner_user_private_key,
-      user_name, user_password,
-      private_key);
+  return this->impl_->create_user(owner_user_private_key, user_name, private_key);
 }
 
 const vds::guid &vds::member_user::id() const {
@@ -116,18 +110,11 @@ vds::member_user vds::_member_user::create_device_user(transaction_block &log, c
   }
 #endif// _WIN32
 
-  return create_user(
-      owner_user_private_key,
-      name,
-      "",
-      private_key);
+  return create_user(owner_user_private_key, name, private_key);
 }
 
-vds::member_user vds::_member_user::create_user(
-  const vds::asymmetric_private_key & owner_user_private_key,
-  const std::string & user_name,
-  const std::string & user_password,
-  const vds::asymmetric_private_key & private_key)
+vds::member_user vds::_member_user::create_user(const vds::asymmetric_private_key &owner_user_private_key, const std::string &user_name,
+                                                const vds::asymmetric_private_key &private_key)
 {
   auto id = guid::new_guid();
 

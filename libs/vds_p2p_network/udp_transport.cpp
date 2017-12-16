@@ -1,7 +1,6 @@
 //
 // Created by vadim on 31.10.17.
 //
-#include <network_service.h>
 #include "stdafx.h"
 #include "udp_transport.h"
 #include "private/udp_transport_p.h"
@@ -9,6 +8,7 @@
 #include "udp_socket.h"
 #include "udp_datagram_size_exception.h"
 #include "url_parser.h"
+#include "network_service.h"
 
 ///////////////////////////////////////////////////////
 vds::udp_transport::udp_transport() {
@@ -164,7 +164,7 @@ void vds::_udp_transport::connect(const vds::service_provider &sp, const std::st
 
   auto scope = sp.create_scope(("Connect to " + address).c_str());
 
-  auto new_session = std::make_shared<_udp_transport_session>(addr);
+  auto new_session = std::make_shared<_udp_transport_session>(this->shared_from_this(), addr);
   this->sessions_[addr] = new_session;
   new_session->send_handshake(scope, this->shared_from_this());
 }

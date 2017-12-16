@@ -44,6 +44,7 @@ namespace vds {
 		}
 
 		bool operator !() const { return !this->impl_; }
+		operator bool () const { return this->impl_.get() != nullptr; }
 
 	private:
     struct result_callback

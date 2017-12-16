@@ -32,11 +32,8 @@ namespace vds {
         const asymmetric_private_key &private_key,
         const std::string &device_name);
 
-    member_user create_user(
-        const asymmetric_private_key &owner_user_private_key,
-        const std::string &user_name,
-        const std::string &user_password,
-        const asymmetric_private_key &private_key);
+    vds::member_user create_user(const vds::asymmetric_private_key &owner_user_private_key, const std::string &user_name,
+                                     const vds::asymmetric_private_key &private_key);
 
   private:
     std::shared_ptr<_member_user> impl_;

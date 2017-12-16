@@ -29,14 +29,31 @@ namespace vds {
         case command_id::CertCain: {
           _p2p_crypto_tunnel::process_input_command(sp, command, s);
 
-          this->input_key_ = this->output_key_;
-
           binary_serializer s;
           s << (uint8_t)command_id::CertRequest;
           s << this->login_ << hash::signature(hash::sha256(), this->password_.c_str(), this->password_.length());
 
           this->send(sp, const_data_buffer(s.data().data(), s.size()));
 
+          break;
+        }
+        case command_id::CertRequestSuccessful:{
+          uint16_t cert_count;
+          s >> cert_count;
+
+          for(uint16_t i = 0; i < cert_count; ++i){
+            const_data_buffer cert_body;
+            s >> cert_body;
+
+            this->certificates_.push_back(certificate::parse_der(cert_body));
+          }
+
+          const_data_buffer private_key_data;
+          s >> private_key_data;
+
+          this->private_key_ = asymmetric_private_key::parse_der(
+              private_key_data,
+              this->password_);
           break;
         }
         default: {
@@ -49,6 +66,9 @@ namespace vds {
   private:
     std::string login_;
     std::string password_;
+
+    std::list<certificate> certificates_;
+    asymmetric_private_key private_key_;
   };
 }
 

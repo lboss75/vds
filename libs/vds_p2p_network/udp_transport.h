@@ -20,11 +20,16 @@ namespace vds {
     public:
       virtual ~_session() {}
 
-      virtual void send(const service_provider &sp, const const_data_buffer &message) = 0;
+      virtual void send(
+          const service_provider &sp,
+          const const_data_buffer &message) = 0;
 
       virtual async_task<const const_data_buffer &> read_async(
           const service_provider & sp) = 0;
 
+      virtual void close(
+          const service_provider & sp,
+          const std::shared_ptr<std::exception> & ex) = 0;
     };
 
     class session {

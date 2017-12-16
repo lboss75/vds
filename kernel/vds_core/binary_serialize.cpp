@@ -242,9 +242,10 @@ void vds::binary_deserializer::pop_data(void* data, size_t& size, bool serialize
   }
 }
 
-void vds::binary_deserializer::pop_data(void* data, size_t size)
+size_t vds::binary_deserializer::pop_data(void* data, size_t size)
 {
   this->pop_data(data, size, true);
+  return size;
 }
 
 

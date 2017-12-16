@@ -127,6 +127,7 @@ void vds::_udp_transport_session::incomming_message(
   } else {
     std::unique_lock<std::mutex> lock(this->current_state_mutex_);
     switch (this->current_state_) {
+      case state_t::welcome_pending:
       case state_t::welcome_sent:
         this->current_state_ = state_t::wait_message;
         break;
@@ -140,7 +141,7 @@ void vds::_udp_transport_session::incomming_message(
     lock.unlock();
 
     auto seq = ntohl(*(uint32_t *)data);
-    sp.get<logger>()->trace("P2PUDP", sp, "%s:%d: incomming data %d",
+    sp.get<logger>()->trace("P2PUDP", sp, "%s:%d: incoming data seq %d",
                             this->address_.server_.c_str(),
                             this->address_.port_,
                             seq);
@@ -222,7 +223,7 @@ void vds::_udp_transport_session::on_timer(
     case state_t::welcome_sent:
     {
       this->current_state_ = state_t::welcome_pending;
-      this->send_handshake(sp, owner);
+      this->send_welcome(sp, owner);
       break;
     }
     case state_t::welcome_pending:
@@ -250,7 +251,7 @@ void vds::_udp_transport_session::decrease_mtu() {
 void vds::_udp_transport_session::send_handshake(
     const vds::service_provider &sp,
     const std::shared_ptr<_udp_transport> & owner) {
-  sp.get<logger>()->trace("UDP", sp, "Send handshake to %s:%d",
+  sp.get<logger>()->trace("P2PUDP", sp, "Send handshake to %s:%d",
                           this->address_.server_.c_str(),
                           this->address_.port_);
 
@@ -264,13 +265,15 @@ void vds::_udp_transport_session::send_handshake(
 
 void vds::_udp_transport_session::handshake_sent() {
   std::unique_lock<std::mutex> lock(this->current_state_mutex_);
-  this->current_state_ = state_t::handshake_sent;
+  if(state_t::handshake_pending == this->current_state_) {
+    this->current_state_ = state_t::handshake_sent;
+  }
 }
 
 void vds::_udp_transport_session::send_welcome(
     const vds::service_provider &sp,
     const std::shared_ptr<_udp_transport> & owner) {
-  sp.get<logger>()->trace("UDP", sp, "Send welcome to %s:%d",
+  sp.get<logger>()->trace("P2PUDP", sp, "Send welcome to %s:%d",
                           this->address_.server_.c_str(),
                           this->address_.port_);
 
@@ -284,7 +287,9 @@ void vds::_udp_transport_session::send_welcome(
 
 void vds::_udp_transport_session::welcome_sent() {
   std::unique_lock<std::mutex> lock(this->current_state_mutex_);
-  this->current_state_ = state_t::welcome_sent;
+  if(state_t::welcome_pending == this->current_state_) {
+    this->current_state_ = state_t::welcome_sent;
+  }
 }
 
 vds::_udp_transport_session::~_udp_transport_session() {
@@ -295,14 +300,12 @@ void vds::_udp_transport_session::send(
     const service_provider &sp,
     const const_data_buffer &message) {
   auto owner = this->owner_.lock();
-  if(owner) {
-    owner->send_queue()->emplace(
-        sp,
-        owner,
-        new _udp_transport_queue::data_datagram(
-            this->shared_from_this(),
-            message));
-  }
+  owner->send_queue()->emplace(
+      sp,
+      owner,
+      new _udp_transport_queue::data_datagram(
+          this->shared_from_this(),
+          message));
 }
 
 vds::async_task<const vds::const_data_buffer &> vds::_udp_transport_session::read_async(
@@ -311,6 +314,9 @@ vds::async_task<const vds::const_data_buffer &> vds::_udp_transport_session::rea
   return [pthis = this->shared_from_this()](const async_result<const vds::const_data_buffer &> & result){
     auto this_ = static_cast<_udp_transport_session *>(pthis.get());
     std::unique_lock<std::mutex> lock(this_->read_result_mutex_);
+    if(this_->read_result_){
+      throw std::runtime_error("Invalid state");
+    }
     this_->read_result_ = result;
     lock.unlock();
 
@@ -355,6 +361,13 @@ uint16_t vds::_udp_transport_session::get_sent_data(
 
 void vds::_udp_transport_session::register_outgoing_traffic(uint32_t bytes) {
   this->sent_data_bytes_ += bytes;
+}
+
+void vds::_udp_transport_session::close(const vds::service_provider &sp, const std::shared_ptr<std::exception> &ex) {
+  auto owner = this->owner_.lock();
+  if(owner){
+    owner->close_session(this, ex);
+  }
 }
 
 

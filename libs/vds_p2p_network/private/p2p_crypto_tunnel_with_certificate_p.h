@@ -58,21 +58,21 @@ namespace vds {
       binary_deserializer & s) {
     switch(command){
       case command_id::SendKey: {
-        sp.get<logger>()->trace("UDPAPI", sp, "Got SendKey");
+        sp.get<logger>()->trace("P2PUDPAPI", sp, "Got SendKey");
 
         uint16_t size;
         s >> size;
 
         resizable_data_buffer crypted_key(size);
-        s.pop_data(crypted_key.data(), size);
+        size_t lsize = size;
+        s.pop_data(crypted_key.data(), lsize, false);
 
         auto key_data = this->private_key_.decrypt(crypted_key.data(), size);
         binary_deserializer key_stream(key_data);
 
-        const_data_buffer key_info;
-        key_stream >> key_info;
-
-        this->input_key_ = symmetric_key::deserialize(symmetric_crypto::aes_256_cbc(), binary_deserializer(key_info));
+        this->input_key_ = symmetric_key::deserialize(
+            symmetric_crypto::aes_256_cbc(),
+            key_stream);
         break;
       }
       case command_id::CertRequest:{
@@ -81,9 +81,9 @@ namespace vds {
 
         s >> login >> password_hash;
 
-        sp.get<logger>()->trace("UDPAPI", sp, "Got CertRequest %s", login.c_str());
+        sp.get<logger>()->trace("P2PUDPAPI", sp, "Got CertRequest %s", login.c_str());
 
-        sp.get<db_model>()->async_transaction(sp, [login, password_hash](database_transaction & t){
+        sp.get<db_model>()->async_transaction(sp, [pthis = this->shared_from_this(), sp, login, password_hash](database_transaction & t){
           user_dbo t1;
 
           auto st = t.get_reader(
@@ -113,8 +113,20 @@ namespace vds {
               id = cert_control::get_parent_id(cert);
             } while(id);
 
+            result << (uint8_t)command_id::CertRequestSuccessful;
+            result << safe_cast<uint16_t>(certificates.size());
+            for(auto & cert : certificates){
+              result << cert.der();
+            }
+
+            result << private_key;
           }
 
+          pthis->send(sp, const_data_buffer(result.data().data(), result.size()));
+        }).execute([pthis = this->shared_from_this(), sp](const std::shared_ptr<std::exception> & ex){
+          if(ex) {
+            pthis->close(sp, ex);
+          }
         });
 
         break;

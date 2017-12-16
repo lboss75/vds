@@ -37,7 +37,7 @@ void vds_mock::start(size_t server_count)
         server->init_root(this->root_password_, first_port, first_port);
       } else {
         std::cout << "Initing server " << i << "\n";
-        server->init("roor", this->root_password_);
+        server->init("root", this->root_password_);
       }
 
       std::cout << "Starring server " << i << "\n";
