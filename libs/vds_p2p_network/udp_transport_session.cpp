@@ -39,23 +39,28 @@ void vds::_udp_transport_session::incomming_message(
         }
 
         std::unique_lock<std::mutex> lock(this->current_state_mutex_);
-        if(state_t::handshake_sent == this->current_state_
-        || state_t::handshake_pending == this->current_state_
-        || state_t::welcome_pending == this->current_state_
-        || state_t::welcome_sent == this->current_state_) {
-          guid instance_id(data + 4, 16);
-          if(0 == this->instance_id_.size()) {
-            this->instance_id_ = instance_id;
-            this->current_state_ = state_t::wait_message;
+        switch (this->current_state_) {
+          case state_t::handshake_sent:
+          case state_t::handshake_pending:
+          case state_t::welcome_pending:
+          case state_t::welcome_sent: {
+            guid instance_id(data + 4, 16);
+            if (0 == this->instance_id_.size()) {
+              this->instance_id_ = instance_id;
+              this->current_state_ = state_t::wait_message;
 
-            owner.handshake_completed(sp, this);
+              owner.handshake_completed(sp, this);
+            } else if (this->instance_id_ != instance_id) {
+              throw std::runtime_error("Invalid message");
+            }
+            break;
           }
-          else if(this->instance_id_ != instance_id){
-            throw std::runtime_error("Invalid message");
-          }
-        }
-        else {
-          throw std::runtime_error("Invalid state");
+
+          case state_t::wait_message:
+            break;//Ignore
+
+          default:
+            throw std::runtime_error("Invalid state");
         }
 
         break;
@@ -120,13 +125,27 @@ void vds::_udp_transport_session::incomming_message(
 
     }
   } else {
+    std::unique_lock<std::mutex> lock(this->current_state_mutex_);
+    switch (this->current_state_) {
+      case state_t::welcome_sent:
+        this->current_state_ = state_t::wait_message;
+        break;
+
+      case state_t::wait_message:
+        break;
+
+      default:
+        throw std::runtime_error("Invalid state");
+    }
+    lock.unlock();
+
     auto seq = ntohl(*(uint32_t *)data);
     sp.get<logger>()->trace("P2PUDP", sp, "%s:%d: incomming data %d",
                             this->address_.server_.c_str(),
                             this->address_.port_,
                             seq);
 
-    std::unique_lock<std::mutex> lock(this->incoming_sequence_mutex_);
+    std::unique_lock<std::mutex> seq_lock(this->incoming_sequence_mutex_);
     if(this->future_data_.end() == this->future_data_.find(seq)) {
       this->future_data_[seq] = const_data_buffer(data + 4, size - 4);
       this->continue_process_incoming_data(sp, owner);
@@ -202,7 +221,7 @@ void vds::_udp_transport_session::on_timer(
     }
     case state_t::welcome_sent:
     {
-      this->current_state_ = state_t::handshake_pending;
+      this->current_state_ = state_t::welcome_pending;
       this->send_handshake(sp, owner);
       break;
     }

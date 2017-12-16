@@ -11,6 +11,7 @@ All rights reserved
 #include "asymmetriccrypto.h"
 #include "symmetriccrypto.h"
 #include "binary_serialize.h"
+#include "logger.h"
 
 namespace vds {
   class _p2p_crypto_tunnel : public udp_transport::_session {
@@ -116,6 +117,7 @@ namespace vds {
       binary_deserializer &s) {
     switch(command) {
       case command_id::CertCain: {
+        sp.get<logger>()->trace("UDPAPI", sp, "Got CertCain");
         uint16_t size;
         s >> size;
 
@@ -131,6 +133,7 @@ namespace vds {
         if (!this->output_key_) {
           this->output_key_ = symmetric_key::generate(symmetric_crypto::aes_256_cbc());
         } else {
+          sp.get<logger>()->warning("UDPAPI", sp, "Duplicate CertCain ");
           return;
         }
 

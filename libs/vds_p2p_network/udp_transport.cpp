@@ -92,29 +92,35 @@ void vds::_udp_transport::process_incommig_message(
   }
 
   std::shared_ptr<_udp_transport_session> session;
-  if(0x80 == (0x80 & static_cast<const uint8_t *>(message.data())[0])
-    && _udp_transport_session::control_type::Handshake == (_udp_transport_session::control_type)(static_cast<const uint8_t *>(message.data())[0] >> 4)){
 
-    auto version = 0x0FFFFFFF & ntohl(*reinterpret_cast<const uint32_t *>(message.data()));
+  auto p = this->sessions_.find(server_address);
+  if (this->sessions_.end() == p) {
+    if(0x80 == (0x80 & static_cast<const uint8_t *>(message.data())[0])
+       && _udp_transport_session::control_type::Handshake == (_udp_transport_session::control_type)(static_cast<const uint8_t *>(message.data())[0] >> 4)){
 
-    if(version == udp_transport::protocol_version && 20 == message.data_size()){
-      guid instance_id(message.data() + 4, 16);
-      if(instance_id != this->instance_id_){
-        sp.get<logger>()->trace("UDP", sp, "%s: New session from %s",
-                                instance_id.str().c_str(), this->instance_id_.str().c_str());
-        session = std::make_shared<_udp_transport_session>(
-            instance_id,
-            this->shared_from_this(),
-            server_address);
-        this->sessions_[server_address] = session;
+      auto version = 0x0FFFFFFF & ntohl(*reinterpret_cast<const uint32_t *>(message.data()));
+
+      if(version == udp_transport::protocol_version && 20 == message.data_size()){
+        guid instance_id(message.data() + 4, 16);
+        if(instance_id != this->instance_id_){
+          sp.get<logger>()->trace("UDPAPI", sp, "%s: New session from %s",
+                                  instance_id.str().c_str(), this->instance_id_.str().c_str());
+          session = std::make_shared<_udp_transport_session>(
+              instance_id,
+              this->shared_from_this(),
+              server_address);
+          this->sessions_[server_address] = session;
+        } else {
+          return;
+        }
+      } else {
+        return;
       }
-    }
-  } else {
-    auto p = this->sessions_.find(server_address);
-    if (this->sessions_.end() == p) {
+    } else {
       return;
     }
-
+  }
+  else {
     session = p->second;
   }
 

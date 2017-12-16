@@ -58,6 +58,8 @@ namespace vds {
       binary_deserializer & s) {
     switch(command){
       case command_id::SendKey: {
+        sp.get<logger>()->trace("UDPAPI", sp, "Got SendKey");
+
         uint16_t size;
         s >> size;
 
@@ -78,6 +80,8 @@ namespace vds {
         const_data_buffer password_hash;
 
         s >> login >> password_hash;
+
+        sp.get<logger>()->trace("UDPAPI", sp, "Got CertRequest %s", login.c_str());
 
         sp.get<db_model>()->async_transaction(sp, [login, password_hash](database_transaction & t){
           user_dbo t1;
