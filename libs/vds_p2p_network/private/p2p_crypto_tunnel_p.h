@@ -12,6 +12,7 @@ All rights reserved
 #include "symmetriccrypto.h"
 #include "binary_serialize.h"
 #include "logger.h"
+#include "guid.h"
 
 namespace vds {
   class _p2p_crypto_tunnel : public udp_transport::_session {
@@ -50,6 +51,7 @@ namespace vds {
 
     udp_transport::session session_;
 
+    std::mutex key_mutex_;
     symmetric_key output_key_;
     symmetric_key input_key_;
 
@@ -65,6 +67,8 @@ namespace vds {
     async_result<const const_data_buffer &> data_read_result_;
 
     void read_input_messages(const service_provider &sp);
+
+    guid partner_id_;
   };
 }
 

@@ -20,11 +20,12 @@ vds::async_task<> vds::p2p_network_service::start(
 
 vds::async_task<> vds::p2p_network_service::start(
     const vds::service_provider &sp,
+    const std::string &device_name,
     int port,
     const std::string &login,
     const std::string &password) {
   this->impl_.reset(new _p2p_network_service(sp));
-  return this->impl_->start(sp, port, login, password);
+  return this->impl_->start(sp, device_name, port, login, password);
 }
 //////////////////////////
 vds::_p2p_network_service::_p2p_network_service(const vds::service_provider &sp)
@@ -36,10 +37,11 @@ vds::_p2p_network_service::_p2p_network_service(const vds::service_provider &sp)
 vds::async_task<>
 vds::_p2p_network_service::start(
     const vds::service_provider &sp,
+    const std::string &device_name,
     int port,
     const std::string &login,
     const std::string &password) {
-  return this->network_->start(sp, port, login, password);
+  return this->network_->start(sp, device_name, port, login, password);
 }
 
 vds::async_task<> vds::_p2p_network_service::start(const vds::service_provider &sp, int port,

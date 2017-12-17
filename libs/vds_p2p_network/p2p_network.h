@@ -6,6 +6,8 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
+#include "udp_transport.h"
+
 namespace vds {
   class p2p_network {
   public:
@@ -13,7 +15,8 @@ namespace vds {
     ~p2p_network();
 
     void start(const vds::service_provider &sp, const std::shared_ptr<class ip2p_network_client> &client,
-                   int port, const std::string &login, const std::string &password);
+                   const std::string &device_name, int port, const std::string &login,
+                   const std::string &password);
 
     void start(const vds::service_provider &sp, const std::shared_ptr<class ip2p_network_client> &client,
                int port, const std::list<certificate> &certificate_chain, const vds::asymmetric_private_key &node_key);
@@ -26,6 +29,14 @@ namespace vds {
     async_task<> broadcast(
         const service_provider & sp,
         const const_data_buffer & message);
+
+    async_task<> random_broadcast(
+        const service_provider & sp,
+        const const_data_buffer & message);
+
+    std::shared_ptr<class _p2p_network> operator -> () const {
+      return this->impl_;
+    }
 
   private:
     std::shared_ptr<class _p2p_network> impl_;

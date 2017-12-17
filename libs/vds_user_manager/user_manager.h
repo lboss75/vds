@@ -33,7 +33,8 @@ namespace vds {
                                          const asymmetric_private_key &write_private_key);
 
     vds::const_data_buffer reset(const service_provider &sp, class database_transaction &t, const std::string &root_user_name,
-                                     const std::string &root_password, const asymmetric_private_key &root_private_key);
+                                     const std::string &root_password, const asymmetric_private_key &root_private_key,
+                                 const std::string &device_name, int port);
 
     void apply_transaction_record(
         const service_provider &sp,
@@ -41,13 +42,20 @@ namespace vds {
         uint8_t message_id,
         binary_deserializer & s);
 
-    const_data_buffer lock_to_device(
+    void lock_to_device(
         const service_provider &sp,
         class database_transaction &t,
+        class transaction_block &log,
+        const member_user &user,
         const std::string &user_name,
         const std::string &user_password,
+        const asymmetric_private_key &user_private_key,
         const std::string &device_name,
         int port);
+
+    member_user by_login(class database_transaction &t, const std::string &login);
+
+    member_user import_user(const certificate &user_cert);
 
   private:
     std::shared_ptr<class _user_manager> impl_;

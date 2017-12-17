@@ -2,8 +2,10 @@
 // Created by vadim on 12.11.17.
 //
 
+#include <cert_control.h>
 #include "p2p_crypto_tunnel.h"
 #include "private/p2p_crypto_tunnel_p.h"
+#include "p2p_network.h"
 
 void vds::p2p_crypto_tunnel::start(
     const service_provider & sp) {
@@ -106,6 +108,7 @@ void vds::_p2p_crypto_tunnel::process_input_command(
       //TODO: validate chain
 
       if (!this->output_key_) {
+        this->partner_id_ = cert_control::get_id(*certificate_chain.rbegin());
         this->output_key_ = symmetric_key::generate(symmetric_crypto::aes_256_cbc());
       } else {
         sp.get<logger>()->warning("P2PUDPAPI", sp, "Duplicate CertCain");

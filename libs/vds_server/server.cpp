@@ -87,13 +87,9 @@ vds::async_task<> vds::server::reset(const vds::service_provider &sp, const std:
       database_transaction & t){
     auto usr_manager = sp.get<user_manager>();
     auto private_key = asymmetric_private_key::generate(asymmetric_crypto::rsa4096());
-    auto block_data = usr_manager->reset(sp, t, root_user_name, root_password, private_key);
+    auto block_data = usr_manager->reset(sp, t, root_user_name, root_password, private_key, device_name, port);
     auto block_id = chunk_manager::pack_block(t, block_data);
-
 	  transaction_log::apply(sp, t, chunk_manager::get_block(t, block_id));
-
-    usr_manager->lock_to_device(sp, t, root_user_name, root_password, device_name, port);
-
   });
 }
 
@@ -192,7 +188,7 @@ vds::async_task<> vds::_server::init_server(
     const std::string &device_name,
     int port) {
   this->network_services_.push_back(p2p_network_service());
-  return this->network_services_.rbegin()->start(sp, port, user_name, user_password);
+  return this->network_services_.rbegin()->start(sp, device_name, port, user_name, user_password);
 }
 
 struct run_data

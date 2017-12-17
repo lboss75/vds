@@ -23,8 +23,8 @@ namespace vds {
     vds::async_task<> start(const vds::service_provider &sp, int port, const std::list<certificate> &certificate_chain,
                             const asymmetric_private_key &node_key);
 
-    vds::async_task<> start(const vds::service_provider &sp, int port, const std::string &login,
-                                const std::string &password);
+    vds::async_task<> start(const vds::service_provider &sp, const std::string &device_name, int port,
+                                const std::string &login, const std::string &password);
 
   private:
     std::shared_ptr<_p2p_network> network_;

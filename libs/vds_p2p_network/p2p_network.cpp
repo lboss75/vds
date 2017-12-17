@@ -6,6 +6,7 @@
 #include "private/p2p_crypto_tunnel_p.h"
 #include "private/p2p_crypto_tunnel_with_login_p.h"
 #include "private/p2p_crypto_tunnel_with_certificate_p.h"
+#include "private/p2p_route_p.h"
 
 vds::p2p_network::p2p_network() {
 
@@ -17,10 +18,11 @@ vds::p2p_network::~p2p_network() {
 
 void
 vds::p2p_network::start(const vds::service_provider &sp, const std::shared_ptr<class ip2p_network_client> &client,
-                        int port, const std::string &login, const std::string &password) {
+                        const std::string &device_name, int port, const std::string &login,
+                        const std::string &password) {
 
   this->impl_.reset(new _p2p_network(client));
-  this->impl_->start(sp, port, login, password);
+  this->impl_->start(sp, device_name, port, login, password);
 
 }
 
@@ -32,6 +34,13 @@ vds::p2p_network::start(
   this->impl_.reset(new _p2p_network(client));
   this->impl_->start(sp, port, certificate_chain, node_key);
 }
+
+vds::async_task<>
+vds::p2p_network::random_broadcast(const vds::service_provider &sp, const vds::const_data_buffer &message) {
+  return this->impl_->random_broadcast(sp, message);
+}
+
+
 //////////////////////////////////
 vds::_p2p_network::_p2p_network(
     const std::shared_ptr<ip2p_network_client> &client)
@@ -46,18 +55,19 @@ vds::_p2p_network::~_p2p_network() {
 
 }
 
-vds::async_task<> vds::_p2p_network::start(
-    const vds::service_provider &sp,
-    int port,
-    const std::string &login,
-    const std::string &password) {
+vds::async_task<> vds::_p2p_network::start(const vds::service_provider &sp, const std::string &device_name, int port,
+                                           const std::string &login, const std::string &password) {
 
-  return [sp, pthis = this->shared_from_this(), port, login, password](const async_result<> & start_result){
+  return [sp, pthis = this->shared_from_this(), device_name, port, login, password](const async_result<> & start_result){
     pthis->start_result_ = start_result;
     pthis->start_network(sp, port,
-      [pthis, sp, login, password](const udp_transport::session & session){
+      [pthis, sp, device_name, port, login, password](const udp_transport::session & session){
         p2p_crypto_tunnel tunnel(std::make_shared<_p2p_crypto_tunnel_with_login>(
-            session, login, password));
+            session,
+            login,
+            password,
+            device_name,
+            port));
         tunnel.start(sp);
 
         std::unique_lock<std::shared_mutex> lock(pthis->sessions_mutex_);
@@ -135,5 +145,20 @@ bool vds::_p2p_network::do_backgroud_tasks(const service_provider &sp) {
         }
       });
   return !sp.get_shutdown_event().is_shuting_down();
+}
+
+vds::async_task<>
+vds::_p2p_network::random_broadcast(
+    const vds::service_provider &sp,
+    const vds::const_data_buffer &message) {
+  return this->route_.random_broadcast(sp, message);
+}
+
+void vds::_p2p_network::add_route(
+    const vds::guid &partner_id,
+    const vds::guid &this_node_id,
+    const std::shared_ptr<vds::udp_transport::_session> &session) {
+  this->route_->add(partner_id, this_node_id, session);
+
 }
 

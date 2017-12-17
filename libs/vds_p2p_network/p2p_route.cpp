@@ -2,6 +2,14 @@
 #include "p2p_route.h"
 #include "private/p2p_route_p.h"
 
+vds::async_task<>
+vds::p2p_route::random_broadcast(
+    const vds::service_provider &sp,
+    const vds::const_data_buffer &message) {
+  return this->impl_->random_broadcast(sp, message);
+}
+
+
 //////////////////////////////////////////////
 vds::async_task<> vds::_p2p_route::send_to(const service_provider &sp, const guid &node_id,
                                            const const_data_buffer &message) {
@@ -34,7 +42,7 @@ vds::async_task<> vds::_p2p_route::send_to(const service_provider &sp, const gui
     }
   }
 
-  return best_session->send(sp, node_id, message);
+  return best_session->route(sp, node_id, message);
 }
 
 int vds::_p2p_route::calc_distance(const guid & source_node, const guid & target_node)
@@ -42,3 +50,29 @@ int vds::_p2p_route::calc_distance(const guid & source_node, const guid & target
   return 0;
 }
 
+vds::async_task<> vds::_p2p_route::random_broadcast(
+    const vds::service_provider &sp,
+    const vds::const_data_buffer &message) {
+  std::shared_lock<std::shared_mutex> lock(this->sessions_mutex_);
+  if(this->sessions_.empty()){
+    return async_task<>(std::make_shared<std::runtime_error>("No sessions"));
+  }
+
+  auto index = std::rand() % this->sessions_.size();
+  auto p = this->sessions_.begin();
+  while(index != 0){
+    ++p;
+    --index;
+  }
+
+  return p->second->send(sp, message);
+}
+
+void vds::_p2p_route::add(
+    const vds::guid &partner_id,
+    const vds::guid &this_node_id,
+    const std::shared_ptr<vds::udp_transport::_session> &session) {
+
+  std::unique_lock<std::shared_mutex> lock(this->sessions_mutex_);
+  this->sessions_[partner_id] = std::make_shared<vds::_p2p_route::session>(session);
+}

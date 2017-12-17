@@ -57,6 +57,17 @@ namespace vds {
       const command_id command,
       binary_deserializer & s) {
     switch(command){
+      case command_id::CertCain: {
+        if(!this->output_key_){
+          _p2p_crypto_tunnel::process_input_command(sp, command, s);
+
+          (*sp.get<p2p_network>())->add_route(
+              this->partner_id_,
+              cert_control::get_id(*this->certificate_chain_.rbegin()),
+              this->shared_from_this());
+        }
+        break;
+      }
       case command_id::SendKey: {
         sp.get<logger>()->trace("P2PUDPAPI", sp, "Got SendKey");
 

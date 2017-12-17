@@ -107,12 +107,9 @@ void vds::user_manager::apply_transaction_record(
 
 }
 
-vds::const_data_buffer vds::user_manager::reset(
-    const service_provider &sp,
-    database_transaction &t,
-    const std::string &root_user_name,
-    const std::string &root_password,
-    const asymmetric_private_key &root_private_key) {
+vds::const_data_buffer vds::user_manager::reset(const service_provider &sp, database_transaction &t, const std::string &root_user_name,
+                                                const std::string &root_password, const asymmetric_private_key &root_private_key,
+                                                const std::string &device_name, int port) {
 
   transaction_block log;
 
@@ -143,6 +140,9 @@ vds::const_data_buffer vds::user_manager::reset(
       t2.id = cert_control::get_id(common_channel.write_cert()),
       t2.body = write_private_key.der(std::string())));
 
+  this->lock_to_device(sp, t, log, user, root_user_name, root_password,
+                       root_private_key, device_name, port);
+
   return log.sign(
       cert_control::get_id(common_channel.write_cert()),
       common_channel.write_cert(),
@@ -150,24 +150,13 @@ vds::const_data_buffer vds::user_manager::reset(
       root_private_key);
 }
 
-vds::const_data_buffer vds::user_manager::lock_to_device(const vds::service_provider &sp, vds::database_transaction &t,
-                                                         const std::string &user_name, const std::string &user_password,
-                                                         const std::string &device_name, int port) {
-
-  auto user = member_user::by_login(t, user_name);
-
-  user_dbo t1;
-  auto st = t.get_reader(t1.select(t1.private_key).where(t1.id == user.id()));
-
-  if(!st.execute()){
-    throw std::runtime_error("User not found");
-  }
-
-  auto user_private_key = asymmetric_private_key::parse_der(t1.private_key.get(st), user_password);
+void
+vds::user_manager::lock_to_device(const vds::service_provider &sp, vds::database_transaction &t, transaction_block &log,
+                                  const member_user &user, const std::string &user_name,
+                                  const std::string &user_password, const asymmetric_private_key &user_private_key,
+                                  const std::string &device_name, int port) {
 
   auto private_key = asymmetric_private_key::generate(asymmetric_crypto::rsa4096());
-
-  transaction_block log;
   auto device_user = user.create_device_user(log, user_private_key, private_key, device_name);
 
   auto config_id = guid::new_guid();
@@ -189,12 +178,16 @@ vds::const_data_buffer vds::user_manager::lock_to_device(const vds::service_prov
       t5.insert(
           t5.id = device_user.id(),
           t5.body = private_key.der(std::string())));
+}
 
-  return log.sign(
-      user.id(),
-      user.user_certificate(),
-      user.id(),
-      user_private_key);
+vds::member_user vds::user_manager::by_login(
+    vds::database_transaction &t,
+    const std::string &login) {
+  return vds::member_user::by_login(t, login);
+}
+
+vds::member_user vds::user_manager::import_user(const certificate &user_cert) {
+  return vds::member_user::import_user(user_cert);
 }
 
 
