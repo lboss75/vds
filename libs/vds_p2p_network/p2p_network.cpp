@@ -45,10 +45,7 @@ vds::p2p_network::random_broadcast(const vds::service_provider &sp, const vds::c
 vds::_p2p_network::_p2p_network(
     const std::shared_ptr<ip2p_network_client> &client)
 : client_(client),
-  backgroud_timer_("p2p network background"),
-  start_result_([](const std::shared_ptr<std::exception> & ex){
-    throw std::runtime_error("Login error");
-  }){
+  backgroud_timer_("p2p network background") {
 }
 
 vds::_p2p_network::~_p2p_network() {

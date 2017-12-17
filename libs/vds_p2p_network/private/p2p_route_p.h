@@ -49,6 +49,8 @@ namespace vds {
                         const const_data_buffer &message);
     private:
       std::shared_ptr<udp_transport::_session> target_;
+
+      std::mutex state_mutex_;
       bool is_busy_;
     };
 

@@ -76,3 +76,22 @@ void vds::_p2p_route::add(
   std::unique_lock<std::shared_mutex> lock(this->sessions_mutex_);
   this->sessions_[partner_id] = std::make_shared<vds::_p2p_route::session>(session);
 }
+
+void vds::_p2p_route::session::lock() {
+  this->state_mutex_.lock();
+}
+
+void vds::_p2p_route::session::unlock() {
+  this->state_mutex_.unlock();
+}
+
+vds::async_task<>
+vds::_p2p_route::session::send(const vds::service_provider &sp, const vds::const_data_buffer &message) {
+  this->target_->send(sp, message);
+  return async_task<>::empty();
+}
+
+vds::async_task<> vds::_p2p_route::session::route(const vds::service_provider &sp, const vds::guid &node_id,
+                                                  const vds::const_data_buffer &message) {
+  throw std::runtime_error("Not implemented");
+}
