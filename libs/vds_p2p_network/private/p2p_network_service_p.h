@@ -16,18 +16,35 @@ All rights reserved
 
 namespace vds {
 
-  class _p2p_network_service {
+  class _p2p_network_service : public std::enable_shared_from_this<_p2p_network_service> {
   public:
     _p2p_network_service(const vds::service_provider &sp);
 
-    vds::async_task<> start(const vds::service_provider &sp, int port, const std::list<certificate> &certificate_chain,
-                            const asymmetric_private_key &node_key);
+    vds::async_task<> start(
+        const vds::service_provider &sp,
+        int port,
+        const std::list<certificate> &certificate_chain,
+        const asymmetric_private_key &node_key);
 
-    vds::async_task<> start(const vds::service_provider &sp, const std::string &device_name, int port,
-                                const std::string &login, const std::string &password);
+    vds::async_task<> start(
+        const vds::service_provider &sp,
+        const std::string &device_name,
+        int port,
+        const std::string &login,
+        const std::string &password);
 
   private:
-    std::shared_ptr<_p2p_network> network_;
+    udp_transport transport_;
+    timer backgroud_timer_;
+    async_result<> start_result_;
+
+    std::shared_mutex sessions_mutex_;
+    std::list<udp_transport::session> sessions_;
+
+    void start_network(const service_provider &sp, int port,
+                       const udp_transport::new_session_handler_t &new_session_handler);
+
+    bool do_backgroud_tasks(const service_provider &sp);
   };
 
 }
