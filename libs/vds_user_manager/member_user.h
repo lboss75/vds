@@ -30,13 +30,12 @@ namespace vds {
         class transaction_block & log,
         const asymmetric_private_key &owner_user_private_key,
         const asymmetric_private_key &private_key,
-        const std::string &device_name);
+        const std::string &device_name) const;
 
-    member_user create_user(
-        const asymmetric_private_key &owner_user_private_key,
-        const std::string &user_name,
-        const std::string &user_password,
-        const asymmetric_private_key &private_key);
+    vds::member_user create_user(const vds::asymmetric_private_key &owner_user_private_key, const std::string &user_name,
+                                     const vds::asymmetric_private_key &private_key);
+
+    static member_user import_user(const certificate &user_cert);
 
   private:
     std::shared_ptr<_member_user> impl_;

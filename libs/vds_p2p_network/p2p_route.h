@@ -11,6 +11,13 @@ namespace vds {
   class p2p_route {
   public:
 
+    async_task<> random_broadcast(
+        const vds::service_provider &sp,
+        const vds::const_data_buffer &message);
+
+    std::shared_ptr<class _p2p_route> operator -> () const {
+      return this->impl_;
+    }
   private:
     std::shared_ptr<class _p2p_route> impl_;
 

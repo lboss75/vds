@@ -79,8 +79,12 @@ vds::symmetric_key vds::symmetric_key::deserialize(
 {
   auto key = new unsigned char[crypto_info.key_size()];
   auto iv = new unsigned char[crypto_info.iv_size()];
-  s.pop_data(key, (int)crypto_info.key_size());
-  s.pop_data(iv, (int)crypto_info.iv_size());
+  if(crypto_info.key_size() != s.pop_data(key, (int)crypto_info.key_size())){
+    throw std::runtime_error("Invalid data");
+  }
+  if(crypto_info.iv_size() != s.pop_data(iv, (int)crypto_info.iv_size())){
+    throw std::runtime_error("Invalid data");
+  }
 
   return symmetric_key(new _symmetric_key(crypto_info, key, iv));
 }
@@ -150,11 +154,9 @@ vds::symmetric_encrypt::symmetric_encrypt(
 vds::const_data_buffer vds::symmetric_encrypt::encrypt(
   const vds::symmetric_key& key,
   const void * input_buffer,
-  size_t input_buffer_size)
-{
+  size_t input_buffer_size) {
   collect_data<uint8_t> result;
-  uint8_t buffer[1024];
-  
+
   symmetric_encrypt s(key, result);
   s.write((const uint8_t *)input_buffer, input_buffer_size);
   s.write(nullptr, 0);
@@ -192,7 +194,6 @@ vds::const_data_buffer vds::symmetric_decrypt::decrypt(
   size_t input_buffer_size)
 {
   collect_data<uint8_t> result;
-  uint8_t buffer[1024];
 
   symmetric_decrypt s(key, result);
   s.write((const uint8_t *)input_buffer, input_buffer_size);

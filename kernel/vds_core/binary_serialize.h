@@ -87,7 +87,7 @@ namespace vds {
     size_t size() const { return this->len_; }
     
     void pop_data(void * data, size_t & size, bool serialize_size);
-    void pop_data(void * data, size_t size);
+    size_t pop_data(void * data, size_t size);
 
     template <typename T>
     binary_deserializer & operator >> (std::list<T> & value)

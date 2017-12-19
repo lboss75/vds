@@ -1,7 +1,6 @@
 //
 // Created by vadim on 31.10.17.
 //
-#include <network_service.h>
 #include "stdafx.h"
 #include "udp_transport.h"
 #include "private/udp_transport_p.h"
@@ -9,6 +8,7 @@
 #include "udp_socket.h"
 #include "udp_datagram_size_exception.h"
 #include "url_parser.h"
+#include "network_service.h"
 
 ///////////////////////////////////////////////////////
 vds::udp_transport::udp_transport() {
@@ -92,29 +92,35 @@ void vds::_udp_transport::process_incommig_message(
   }
 
   std::shared_ptr<_udp_transport_session> session;
-  if(0x80 == (0x80 & static_cast<const uint8_t *>(message.data())[0])
-    && _udp_transport_session::control_type::Handshake == (_udp_transport_session::control_type)(static_cast<const uint8_t *>(message.data())[0] >> 4)){
 
-    auto version = 0x0FFFFFFF & ntohl(*reinterpret_cast<const uint32_t *>(message.data()));
+  auto p = this->sessions_.find(server_address);
+  if (this->sessions_.end() == p) {
+    if(0x80 == (0x80 & static_cast<const uint8_t *>(message.data())[0])
+       && _udp_transport_session::control_type::Handshake == (_udp_transport_session::control_type)(static_cast<const uint8_t *>(message.data())[0] >> 4)){
 
-    if(version == udp_transport::protocol_version && 20 == message.data_size()){
-      guid instance_id(message.data() + 4, 16);
-      if(instance_id != this->instance_id_){
-        sp.get<logger>()->trace("UDP", sp, "%s: New session from %s",
-                                instance_id.str().c_str(), this->instance_id_.str().c_str());
-        session = std::make_shared<_udp_transport_session>(
-            instance_id,
-            this->shared_from_this(),
-            server_address);
-        this->sessions_[server_address] = session;
+      auto version = 0x0FFFFFFF & ntohl(*reinterpret_cast<const uint32_t *>(message.data()));
+
+      if(version == udp_transport::protocol_version && 20 == message.data_size()){
+        guid instance_id(message.data() + 4, 16);
+        if(instance_id != this->instance_id_){
+          sp.get<logger>()->trace("UDPAPI", sp, "%s: New session from %s",
+                                  instance_id.str().c_str(), this->instance_id_.str().c_str());
+          session = std::make_shared<_udp_transport_session>(
+              instance_id,
+              this->shared_from_this(),
+              server_address);
+          this->sessions_[server_address] = session;
+        } else {
+          return;
+        }
+      } else {
+        return;
       }
-    }
-  } else {
-    auto p = this->sessions_.find(server_address);
-    if (this->sessions_.end() == p) {
+    } else {
       return;
     }
-
+  }
+  else {
     session = p->second;
   }
 
@@ -158,7 +164,7 @@ void vds::_udp_transport::connect(const vds::service_provider &sp, const std::st
 
   auto scope = sp.create_scope(("Connect to " + address).c_str());
 
-  auto new_session = std::make_shared<_udp_transport_session>(addr);
+  auto new_session = std::make_shared<_udp_transport_session>(this->shared_from_this(), addr);
   this->sessions_[addr] = new_session;
   new_session->send_handshake(scope, this->shared_from_this());
 }

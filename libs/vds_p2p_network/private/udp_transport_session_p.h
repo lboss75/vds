@@ -51,12 +51,15 @@ namespace vds {
     async_task<const const_data_buffer &> read_async(const service_provider &sp) override;
 
     //Fake session
-    _udp_transport_session(const _udp_transport_session_address_t &address)
+    _udp_transport_session(
+        const std::shared_ptr<_udp_transport> & owner,
+        const _udp_transport_session_address_t &address)
         : address_(address),
           output_sequence_number_(0),
           min_incoming_sequence_(0),
           mtu_(65507),
-          current_state_(state_t::bof),
+          owner_(owner),
+          current_state_(state_t::handshake_sent),
           sent_data_bytes_(0),
           received_data_bytes_(0) {
     }
@@ -144,6 +147,8 @@ namespace vds {
     void welcome_sent();
 
     void send(const service_provider &sp, const const_data_buffer &message) override;
+
+    void close(const service_provider &sp, const std::shared_ptr<std::exception> &ex) override;
 
     uint16_t get_sent_data(uint8_t *buffer, uint32_t sequence_number);
 

@@ -18,6 +18,7 @@ All rights reserved
 #include "transaction_block.h"
 #include "private/member_user_p.h"
 #include "private/cert_control_p.h"
+#include "cert_control.h"
 
 vds::member_user::member_user(_member_user * impl)
   : impl_(impl)
@@ -25,21 +26,15 @@ vds::member_user::member_user(_member_user * impl)
 }
 
 vds::member_user vds::member_user::create_device_user(transaction_block &log, const vds::asymmetric_private_key &owner_user_private_key,
-                                                      const vds::asymmetric_private_key &private_key, const std::string &device_name)
+                                                      const vds::asymmetric_private_key &private_key, const std::string &device_name) const
 {
   return this->impl_->create_device_user(log, owner_user_private_key, private_key, device_name);
 }
 
-vds::member_user vds::member_user::create_user(
-    const vds::asymmetric_private_key &owner_user_private_key,
-    const std::string &user_name,
-    const std::string &user_password,
-    const vds::asymmetric_private_key &private_key)
+vds::member_user vds::member_user::create_user(const vds::asymmetric_private_key &owner_user_private_key, const std::string &user_name,
+                                               const vds::asymmetric_private_key &private_key)
 {
-  return this->impl_->create_user(
-      owner_user_private_key,
-      user_name, user_password,
-      private_key);
+  return this->impl_->create_user(owner_user_private_key, user_name, private_key);
 }
 
 const vds::guid &vds::member_user::id() const {
@@ -65,6 +60,12 @@ vds::member_user vds::member_user::by_login(vds::database_transaction &t, const 
   return member_user(new _member_user(
       t1.id.get(st),
       certificate::parse_der(t2.cert.get(st))));
+}
+
+vds::member_user vds::member_user::import_user(const certificate &user_cert) {
+  return member_user(new _member_user(
+      cert_control::get_id(user_cert),
+      user_cert));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -117,18 +118,11 @@ vds::member_user vds::_member_user::create_device_user(transaction_block &/*log*
   name = hostname;
 #endif// _WIN32
 
-  return create_user(
-      owner_user_private_key,
-      name,
-      std::string(),
-      private_key);
+  return create_user(owner_user_private_key, name, private_key);
 }
 
-vds::member_user vds::_member_user::create_user(
-  const vds::asymmetric_private_key & owner_user_private_key,
-  const std::string & user_name,
-  const std::string & /*user_password*/,
-  const vds::asymmetric_private_key & private_key)
+vds::member_user vds::_member_user::create_user(const vds::asymmetric_private_key &owner_user_private_key, const std::string &user_name,
+                                                const vds::asymmetric_private_key &private_key)
 {
   auto id = guid::new_guid();
 
