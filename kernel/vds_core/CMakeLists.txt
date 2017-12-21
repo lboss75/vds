@@ -13,6 +13,9 @@ FILE(GLOB SOURCE_LIB *.cpp)
 ADD_MSVC_PRECOMPILED_HEADER("stdafx.h" "stdafx.cpp" SOURCE_LIB)
 
 ADD_LIBRARY(vds_core STATIC ${SOURCE_LIB} ${HEADER_FILES})
+
+target_include_directories(vds_core PUBLIC ${HEADER_FILES})
+ 
 target_link_libraries(
   vds_core
   ${UUID_LIBRARIES})

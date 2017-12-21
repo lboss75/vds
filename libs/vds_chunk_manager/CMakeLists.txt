@@ -3,28 +3,27 @@ cmake_minimum_required(VERSION 2.6.2)
 
 find_package (OpenSSL REQUIRED)
 
-
-include_directories(${vds_core_SOURCE_DIR})
-include_directories(${vds_crypto_SOURCE_DIR})
-include_directories(${vds_data_SOURCE_DIR})
-include_directories(${vds_database_SOURCE_DIR})
-include_directories(${vds_db_model_SOURCE_DIR})
-include_directories(${OPENSSL_INCLUDE_DIR})
-
 FILE(GLOB HEADER_FILES *.h)
 FILE(GLOB PRIVATE_HEADER_FILES private/*.h)
 FILE(GLOB SOURCE_LIB *.cpp)
 
 ADD_MSVC_PRECOMPILED_HEADER("stdafx.h" "stdafx.cpp" SOURCE_LIB)
 
-add_library(vds_chunk_manager)
-target_sources(
-        vds_chunk_manager
-        PRIVATE
+add_library(
+	vds_chunk_manager STATIC 
             ${PRIVATE_HEADER_FILES}
             ${SOURCE_LIB}
-        PUBLIC
             ${HEADER_FILES})
+
+target_include_directories(
+	vds_chunk_manager
+	PRIVATE
+		${vds_core_INCLUDE_DIRS}
+		${vds_crypto_INCLUDE_DIRS}
+		${vds_data_INCLUDE_DIRS}
+		${vds_database_INCLUDE_DIRS}
+		${vds_db_model_INCLUDE_DIRS}
+		${OPENSSL_INCLUDE_DIR})
 
 target_link_libraries(
         vds_chunk_manager

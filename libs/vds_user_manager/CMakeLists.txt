@@ -4,12 +4,6 @@ cmake_minimum_required(VERSION 2.6.2)
 find_package (OpenSSL REQUIRED)
 
 
-include_directories(${vds_core_SOURCE_DIR})
-include_directories(${vds_crypto_SOURCE_DIR})
-include_directories(${vds_database_SOURCE_DIR})
-include_directories(${vds_db_model_SOURCE_DIR})
-include_directories(${vds_transactions_SOURCE_DIR})
-include_directories(${OPENSSL_INCLUDE_DIR})
 
 FILE(GLOB HEADER_FILES *.h)
 FILE(GLOB PRIVATE_HEADER_FILES private/*.h)
@@ -18,15 +12,23 @@ FILE(GLOB TRANSACTION_FILES transactions/*.cpp transactions/*.h)
 
 ADD_MSVC_PRECOMPILED_HEADER("stdafx.h" "stdafx.cpp" SOURCE_LIB)
 
-add_library(vds_user_manager)
-target_sources(
+add_library(vds_user_manager 
+	STATIC
+		${PRIVATE_HEADER_FILES}
+		${SOURCE_LIB}
+            	${TRANSACTION_FILES}
+		${HEADER_FILES})
+target_include_directories(
 		vds_user_manager
-		PRIVATE
-			${PRIVATE_HEADER_FILES}
-			${SOURCE_LIB}
-            ${TRANSACTION_FILES}
 		PUBLIC
-			${HEADER_FILES})
+			${HEADER_FILES}
+		PRIVATE
+			${vds_core_INCLUDE_DIRS}
+			${vds_crypto_INCLUDE_DIRS}
+			${vds_database_INCLUDE_DIRS}
+			${vds_db_model_INCLUDE_DIRS}
+			${vds_transactions_INCLUDE_DIRS}
+			${OPENSSL_INCLUDE_DIR})
 
 target_link_libraries(
   vds_user_manager
