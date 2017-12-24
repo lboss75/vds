@@ -3,20 +3,20 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 #include "stdafx.h"
-#include "member_user.h"
-#include "private/member_user_p.h"
-#include "user_manager_storage.h"
-#include "database_orm.h"
 
 #ifndef _WIN32
 #include <unistd.h>
 #include <limits.h>
-#include <user_dbo.h>
-#include <certificate_dbo.h>
-
 #endif
+
+#include "member_user.h"
+#include "user_manager_storage.h"
+#include "database_orm.h"
+#include "user_dbo.h"
+#include "certificate_dbo.h"
 #include "transactions/root_user_transaction.h"
 #include "transaction_block.h"
+#include "private/member_user_p.h"
 #include "private/cert_control_p.h"
 #include "cert_control.h"
 
@@ -98,11 +98,11 @@ vds::member_user vds::_member_user::create_root(
   return member_user(new _member_user(id, cert));
 }
 
-vds::member_user vds::_member_user::create_device_user(transaction_block &log, const vds::asymmetric_private_key &owner_user_private_key,
+vds::member_user vds::_member_user::create_device_user(transaction_block &/*log*/, const vds::asymmetric_private_key &owner_user_private_key,
                                                        const vds::asymmetric_private_key &private_key, const std::string &device_name) {
 
+	auto name = device_name;
 #ifndef _WIN32
-  auto name = device_name;
   if(name.empty()) {
     char hostname[HOST_NAME_MAX];
     gethostname(hostname, HOST_NAME_MAX);
@@ -115,6 +115,7 @@ vds::member_user vds::_member_user::create_device_user(transaction_block &log, c
     auto error = GetLastError();
     throw std::system_error(error, std::system_category(), "Get Computer Name");
   }
+  name = hostname;
 #endif// _WIN32
 
   return create_user(owner_user_private_key, name, private_key);

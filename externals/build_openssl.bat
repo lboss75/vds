@@ -6,7 +6,7 @@ call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\VC\Auxiliar
 
 mkdir %root_folder%\Build-VC-64-debug
 cd %root_folder%\openssl
-perl Configure debug-VC-WIN64A --prefix=%root_folder%\Build-VC-64-debug --openssldir=%root_folder%\Build-VC-64-debug
+perl Configure debug-VC-WIN64A no-shared no-tests --prefix=%root_folder%\Build-VC-64-debug --openssldir=%root_folder%\Build-VC-64-debug
 
 nmake -f makefile clean
 nmake -f makefile

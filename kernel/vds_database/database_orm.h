@@ -550,31 +550,31 @@ namespace vds {
   class _database_source_base
   {
   public:
-    void collect_aliases(std::map<const database_table *, std::string> & aliases) const
+    void collect_aliases(std::map<const database_table *, std::string> & /*aliases*/) const
     {
     }
     
-    std::string start_sql(_database_sql_builder & builder) const
-    {
-      return std::string();
-    }
-    
-    std::string generate_select(_database_sql_builder & builder, int index) const
+    std::string start_sql(_database_sql_builder & /*builder*/) const
     {
       return std::string();
     }
     
-    std::string collect_sources(_database_sql_builder & builder) const
+    std::string generate_select(_database_sql_builder & /*builder*/, int /*index*/) const
     {
       return std::string();
     }
     
-    std::string collect_condition(_database_sql_builder & builder) const
+    std::string collect_sources(_database_sql_builder & /*builder*/) const
     {
       return std::string();
     }
     
-    std::string final_sql(_database_sql_builder & builder) const
+    std::string collect_condition(_database_sql_builder & /*builder*/) const
+    {
+      return std::string();
+    }
+    
+    std::string final_sql(_database_sql_builder & /*builder*/) const
     {
       return std::string();
     }
@@ -1158,7 +1158,7 @@ namespace vds {
       this->set(columns...);
     }
    
-    std::string start_sql(_database_sql_builder & builder) const
+    std::string start_sql(_database_sql_builder & /*builder*/) const
     {
       std::string sql = "INSERT INTO " + this->table_->name() + "(";
       bool is_first = true;
