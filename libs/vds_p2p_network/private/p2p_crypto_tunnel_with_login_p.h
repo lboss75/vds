@@ -32,22 +32,26 @@ namespace vds {
   protected:
     void create_device_user(
         const service_provider & sp,
-        const std::list<certificate> & certificates,
         const asymmetric_private_key & private_key) {
 
       sp.get<db_model>()->async_transaction(
               sp,
-              [pthis = this->shared_from_this(), sp, certificates, private_key](
+              [pthis = this->shared_from_this(), sp, private_key](
           database_transaction & t){
                 auto this_ = static_cast<_p2p_crypto_tunnel_with_login *>(pthis.get());
                 auto usr_manager = sp.get<user_manager>();
 
                 transaction_block log;
-                auto &user_cert = *certificates.rbegin();
+                auto &user_cert = *this_->certificate_chain_.rbegin();
                 auto user = usr_manager->import_user(user_cert);
 
-                usr_manager->lock_to_device(sp, t, log, user, this_->login_, this_->password_,
-                                            private_key, this_->device_name_, this_->port_);
+                this_->private_key_ = asymmetric_private_key::generate(asymmetric_crypto::rsa4096());
+                auto device_user = usr_manager->lock_to_device(sp, t, log, user, this_->login_, this_->password_,
+                                                               private_key, this_->device_name_,
+                                                               this_->private_key_,
+                                                               this_->port_);
+                this_->certificate_chain_.push_back(device_user.user_certificate());
+
                 auto user_id = cert_control::get_id(user_cert);
                 auto block_data =  log.sign(
                   user_id,
@@ -56,14 +60,21 @@ namespace vds {
                   private_key);
 
                 auto block_id = chunk_manager::pack_block(t, block_data);
-                transaction_log::apply(sp, t, chunk_manager::get_block(t, block_id));
+                //transaction_log::apply(sp, t, chunk_manager::get_block(t, block_id));
+
+                binary_serializer s;
+                s << (uint8_t)command_id::CertCain;
+                s << safe_cast<uint16_t>(1);
+                s << device_user.user_certificate().der();
+
+                this_->session_.send(sp, const_data_buffer(s.data().data(), s.size()));
+
       })
       .execute([sp, pthis = this->shared_from_this()](const std::shared_ptr<std::exception> & ex) {
         if(ex){
           pthis->close(sp, ex);
         }
       });
-
     }
 
     void process_input_command(
@@ -83,15 +94,20 @@ namespace vds {
           break;
         }
         case command_id::CertRequestSuccessful:{
+          sp.get<logger>()->trace("P2PUDPAPI", sp, "CertRequestSuccessful");
+
           uint16_t cert_count;
           s >> cert_count;
 
-          std::list<certificate> certificates;
+          if(!this->certificate_chain_.empty()){
+            throw std::runtime_error("Invalid logic");
+          }
+
           for(uint16_t i = 0; i < cert_count; ++i){
             const_data_buffer cert_body;
             s >> cert_body;
 
-            certificates.push_back(certificate::parse_der(cert_body));
+            this->certificate_chain_.push_back(certificate::parse_der(cert_body));
           }
 
           const_data_buffer private_key_data;
@@ -100,10 +116,7 @@ namespace vds {
           auto private_key = asymmetric_private_key::parse_der(
               private_key_data,
               this->password_);
-          this->create_device_user(
-              sp,
-              certificates,
-              private_key);
+          this->create_device_user(sp, private_key);
           break;
         }
         default: {

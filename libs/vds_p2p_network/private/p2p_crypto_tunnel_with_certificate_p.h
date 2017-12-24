@@ -23,16 +23,13 @@ namespace vds {
         const udp_transport::session & session,
         const std::list<certificate> & certificate_chain,
         const asymmetric_private_key & private_key)
-    : _p2p_crypto_tunnel(session),
-      certificate_chain_(certificate_chain),
-      private_key_(private_key){
+    : _p2p_crypto_tunnel(session, certificate_chain, private_key)
+{
     }
 
     void start(const service_provider &sp) override;
 
   private:
-    std::list<certificate> certificate_chain_;
-    asymmetric_private_key private_key_;
 
     void process_input_command(
         const service_provider &sp,
@@ -58,35 +55,6 @@ namespace vds {
       const command_id command,
       binary_deserializer & s) {
     switch(command){
-      case command_id::CertCain: {
-        if(!this->output_key_){
-          _p2p_crypto_tunnel::process_input_command(sp, command, s);
-
-          (*sp.get<p2p_network>())->add_route(
-              this->partner_id_,
-              cert_control::get_id(*this->certificate_chain_.rbegin()),
-              this->shared_from_this());
-        }
-        break;
-      }
-      case command_id::SendKey: {
-        sp.get<logger>()->trace("P2PUDPAPI", sp, "Got SendKey");
-
-        uint16_t size;
-        s >> size;
-
-        resizable_data_buffer crypted_key(size);
-        size_t lsize = size;
-        s.pop_data(crypted_key.data(), lsize, false);
-
-        auto key_data = this->private_key_.decrypt(crypted_key.data(), size);
-        binary_deserializer key_stream(key_data);
-
-        this->input_key_ = symmetric_key::deserialize(
-            symmetric_crypto::aes_256_cbc(),
-            key_stream);
-        break;
-      }
       case command_id::CertRequest:{
         std::string login;
         const_data_buffer password_hash;

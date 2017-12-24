@@ -4,8 +4,9 @@
 
 #include <cert_control.h>
 #include "p2p_crypto_tunnel.h"
-#include "private/p2p_crypto_tunnel_p.h"
 #include "p2p_network.h"
+#include "private/p2p_crypto_tunnel_p.h"
+#include "private/p2p_network_p.h"
 
 void vds::p2p_crypto_tunnel::start(
     const service_provider & sp) {
@@ -142,6 +143,34 @@ void vds::_p2p_crypto_tunnel::process_input_command(
           symmetric_decrypt::decrypt(
               this->input_key_,
               message.data(), message.size()));
+      break;
+    }
+    case command_id::SendKey: {
+      sp.get<logger>()->trace("P2PUDPAPI", sp, "Got SendKey");
+
+      uint16_t size;
+      s >> size;
+
+      resizable_data_buffer crypted_key(size);
+      size_t lsize = size;
+      s.pop_data(crypted_key.data(), lsize, false);
+
+      auto key_data = this->private_key_.decrypt(crypted_key.data(), size);
+      binary_deserializer key_stream(key_data);
+
+      std::unique_lock<std::mutex> lock(this->key_mutex_);
+      this->input_key_ = symmetric_key::deserialize(
+          symmetric_crypto::aes_256_cbc(),
+          key_stream);
+
+      if(this->output_key_){
+        lock.unlock();
+
+        (*sp.get<p2p_network>())->add_route(
+            sp,
+            this->partner_id_,
+            this->shared_from_this());
+      }
       break;
     }
     case command_id::CryptedByInput:{

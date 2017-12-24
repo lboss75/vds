@@ -140,8 +140,9 @@ vds::const_data_buffer vds::user_manager::reset(const service_provider &sp, data
       t2.id = cert_control::get_id(common_channel.write_cert()),
       t2.body = write_private_key.der(std::string())));
 
+  auto device_key = asymmetric_private_key::generate(asymmetric_crypto::rsa4096());
   this->lock_to_device(sp, t, log, user, root_user_name, root_password,
-                       root_private_key, device_name, port);
+                       root_private_key, device_name, device_key, port);
 
   return log.sign(
       cert_control::get_id(common_channel.write_cert()),
@@ -150,14 +151,15 @@ vds::const_data_buffer vds::user_manager::reset(const service_provider &sp, data
       root_private_key);
 }
 
-void
+vds::member_user
 vds::user_manager::lock_to_device(const vds::service_provider &sp, vds::database_transaction &t, transaction_block &log,
                                   const member_user &user, const std::string &user_name,
                                   const std::string &user_password, const asymmetric_private_key &user_private_key,
-                                  const std::string &device_name, int port) {
+                                  const std::string &device_name,
+                                  const asymmetric_private_key &device_private_key,
+                                  int port) {
 
-  auto private_key = asymmetric_private_key::generate(asymmetric_crypto::rsa4096());
-  auto device_user = user.create_device_user(log, user_private_key, private_key, device_name);
+  auto device_user = user.create_device_user(log, user_private_key, device_private_key, device_name);
 
   auto config_id = guid::new_guid();
   run_configuration_dbo t3;
@@ -177,7 +179,9 @@ vds::user_manager::lock_to_device(const vds::service_provider &sp, vds::database
   t.execute(
       t5.insert(
           t5.id = device_user.id(),
-          t5.body = private_key.der(std::string())));
+          t5.body = device_private_key.der(std::string())));
+
+  return device_user;
 }
 
 vds::member_user vds::user_manager::by_login(

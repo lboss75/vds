@@ -10,6 +10,8 @@ namespace vds {
 
   class p2p_route {
   public:
+    p2p_route();
+    ~p2p_route();
 
     async_task<> random_broadcast(
         const vds::service_provider &sp,

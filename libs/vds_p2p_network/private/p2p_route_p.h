@@ -21,10 +21,8 @@ namespace vds {
         const vds::service_provider &sp,
         const vds::const_data_buffer &message);
 
-    void add(
-        const guid &partner_id,
-        const guid &this_node_id,
-        const std::shared_ptr<udp_transport::_session> &session);
+    void add(const service_provider &sp, const guid &partner_id,
+                 const std::shared_ptr<udp_transport::_session> &session);
 
 
   private:

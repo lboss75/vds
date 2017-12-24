@@ -34,6 +34,7 @@ All rights reserved
 #include "p2p_network_client.h"
 #include "run_configuration_dbo.h"
 #include "cert_control.h"
+#include "p2p_network.h"
 
 vds::server::server()
 : impl_(new _server(this))
@@ -68,6 +69,8 @@ void vds::server::register_services(service_registrator& registrator)
   registrator.add_service<db_model>(this->impl_->db_model_.get());
 
   registrator.add_service<ip2p_network_client>(this->impl_->network_client_.get());
+
+  registrator.add_service<p2p_network>(this->impl_->p2p_network_.get());
 }
 
 void vds::server::start(const service_provider& sp)
@@ -95,12 +98,12 @@ vds::async_task<> vds::server::reset(const vds::service_provider &sp, const std:
 
 vds::async_task<> vds::server::init_server(const vds::service_provider &sp, const std::string &user_login,
                                            const std::string &user_password, const std::string &device_name, int port) {
-  return this->impl_->init_server(sp, user_login, user_password, device_name, port);
+  return this->impl_->p2p_network_->init_server(sp, user_login, user_password, device_name, port);
 
 }
 
 vds::async_task<> vds::server::start_network(const vds::service_provider &sp) {
-  return this->impl_->start_network(sp);
+  return this->impl_->p2p_network_->start_network(sp);
 }
 
 void vds::transaction_log::apply(
@@ -163,7 +166,8 @@ vds::_server::_server(server * owner)
   local_cache_(new _local_cache()),
 	user_manager_(new user_manager()),
 	db_model_(new db_model()),
-  network_client_(new p2p_network_client())
+  network_client_(new p2p_network_client()),
+  p2p_network_(new p2p_network())
 {
 }
 
@@ -179,74 +183,4 @@ void vds::_server::start(const service_provider& sp)
 void vds::_server::stop(const service_provider& sp)
 {
 	this->db_model_->stop(sp);
-}
-
-vds::async_task<> vds::_server::init_server(
-    const vds::service_provider &sp,
-    const std::string &user_name,
-    const std::string &user_password,
-    const std::string &device_name,
-    int port) {
-  this->network_services_.push_back(p2p_network_service());
-  return this->network_services_.rbegin()->start(sp, device_name, port, user_name, user_password);
-}
-
-struct run_data
-{
-  int port;
-  std::list<vds::certificate> cert_chain;
-  vds::asymmetric_private_key key;
-};
-
-vds::async_task<> vds::_server::start_network(const vds::service_provider &sp) {
-
-  imt_service::enable_async(sp);
-  auto run_conf = std::make_shared<std::list<run_data>>();
-  return sp.get<db_model>()->async_transaction(sp, [run_conf](database_transaction & t){
-    run_configuration_dbo t1;
-    certificate_dbo t2;
-    certificate_private_key_dbo t3;
-    auto st = t.get_reader(
-        t1.select(t1.port, t2.cert, t3.body)
-            .inner_join(t2, t2.id == t1.cert_id)
-            .inner_join(t3, t3.id == t1.cert_id));
-    while(st.execute()){
-      run_data item;
-      item.port = t1.port.get(st);
-      item.key = asymmetric_private_key::parse_der(t3.body.get(st), std::string());
-      item.cert_chain.push_back(certificate::parse_der(t2.cert.get(st)));
-
-      run_conf->push_back(item);
-    }
-
-    for(auto & conf : *run_conf) {
-      auto parent_id = cert_control::get_parent_id(conf.cert_chain.front());
-      while(parent_id){
-        certificate_dbo t4;
-        auto st = t.get_reader(t4.select(t4.cert).where(t4.id == parent_id));
-        if(!st.execute()){
-          throw std::runtime_error("Invalid certificate ID " + parent_id.str());
-        }
-
-        auto cert = certificate::parse_der(t4.cert.get(st));
-        conf.cert_chain.push_front(cert);
-        parent_id = cert_control::get_parent_id(cert);
-      }
-    }
-
-    return true;
-  }).then([sp, run_conf, this](){
-    if(run_conf->empty()){
-      throw std::runtime_error("There is no active network configuration");
-    }
-
-    auto result = async_task<>::empty();
-    for(auto & conf : *run_conf) {
-      this->network_services_.push_back(p2p_network_service());
-      result = result.then([this, sp, conf]() {
-        return this->network_services_.rbegin()->start(sp, conf.port, conf.cert_chain, conf.key);
-      });
-    }
-    return result;
-  });
 }

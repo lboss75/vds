@@ -21,11 +21,12 @@ namespace vds {
 
   private:
     friend class _udp_transport_session;
+    friend class _udp_transport;
 
     class datagram_generator {
     public:
       datagram_generator(const std::shared_ptr<udp_transport::_session> & owner)
-          : owner_(owner) {
+      : owner_(owner) {
       }
 
       virtual ~datagram_generator() {
@@ -40,7 +41,7 @@ namespace vds {
 
       virtual bool is_eof() const = 0;
 
-      const std::shared_ptr<udp_transport::_session> & owner(){
+      const std::shared_ptr<udp_transport::_session> & owner() const {
         return this->owner_;
       }
 
@@ -53,7 +54,8 @@ namespace vds {
       data_datagram(
           const std::shared_ptr<udp_transport::_session> & owner,
           const const_data_buffer & data )
-          : datagram_generator(owner), data_(data), offset_(0)
+          : datagram_generator(owner),
+            data_(data), offset_(0)
       {
       }
 
@@ -110,7 +112,7 @@ namespace vds {
           const std::shared_ptr<udp_transport::_session> & owner,
           const guid & instance_id)
           : datagram_generator(owner),
-            instance_id_(instance_id)
+          instance_id_(instance_id)
       {
       }
 
@@ -152,7 +154,8 @@ namespace vds {
     public:
       keep_alive_datagram(
           const std::shared_ptr<udp_transport::_session> &owner)
-          : datagram_generator(owner) {
+      : datagram_generator(owner)
+      {
       }
 
       virtual uint16_t generate_message(
@@ -171,7 +174,8 @@ namespace vds {
     public:
       acknowledgement_datagram(
           const std::shared_ptr<udp_transport::_session> &owner)
-          : datagram_generator(owner) {
+          : datagram_generator(owner)
+      {
       }
 
       virtual uint16_t generate_message(
@@ -183,6 +187,28 @@ namespace vds {
       }
 
       void complete(const uint8_t * buffer, size_t len) override {
+      }
+
+    };
+
+    class failed_datagram : public datagram_generator {
+    public:
+      failed_datagram(const std::shared_ptr<udp_transport::_session> &owner)
+          : datagram_generator(owner) {
+      }
+
+      //Generate message
+      uint16_t generate_message(
+          const service_provider &sp,
+          uint8_t *buffer) override;
+
+      //Store sent message
+      void complete(const uint8_t * buffer, size_t len) override {
+      }
+
+      //
+      bool is_eof() const override {
+        return true;
       }
     };
 

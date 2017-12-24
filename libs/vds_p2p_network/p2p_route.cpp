@@ -2,6 +2,14 @@
 #include "p2p_route.h"
 #include "private/p2p_route_p.h"
 
+vds::p2p_route::p2p_route()
+    : impl_(new _p2p_route()){
+
+}
+
+vds::p2p_route::~p2p_route() {
+}
+
 vds::async_task<>
 vds::p2p_route::random_broadcast(
     const vds::service_provider &sp,
@@ -68,11 +76,10 @@ vds::async_task<> vds::_p2p_route::random_broadcast(
   return p->second->send(sp, message);
 }
 
-void vds::_p2p_route::add(
-    const vds::guid &partner_id,
-    const vds::guid &this_node_id,
-    const std::shared_ptr<vds::udp_transport::_session> &session) {
+void vds::_p2p_route::add(const service_provider &sp, const guid &partner_id,
+                          const std::shared_ptr<udp_transport::_session> &session) {
 
+  sp.get<logger>()->trace("P2PRoute", sp,"Established connection with %s", partner_id.str().c_str());
   std::unique_lock<std::shared_mutex> lock(this->sessions_mutex_);
   this->sessions_[partner_id] = std::make_shared<vds::_p2p_route::session>(session);
 }

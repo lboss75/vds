@@ -75,7 +75,10 @@ namespace vds {
     bool operator !() const {
       return !this->impl_;
     }
-    
+    operator bool() const {
+      return nullptr != this->impl_.get();
+    }
+
   private:
     friend class _symmetric_encrypt;
     friend class _symmetric_decrypt;

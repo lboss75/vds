@@ -27,9 +27,9 @@ void vds::_udp_transport_queue::continue_send_data(
           [pthis = this->shared_from_this(), sp, owner, generator, len](
               const std::shared_ptr<std::exception> & ex){
             auto owner_ = static_cast<_udp_transport_session *>(generator->owner().get());
-            if(ex){
+            if (ex) {
               auto datagram_error = std::dynamic_pointer_cast<udp_datagram_size_exception>(ex);
-              if(datagram_error){
+              if (datagram_error) {
                 owner_->decrease_mtu();
               } else {
                 owner->close_session(owner_, ex);
@@ -217,4 +217,10 @@ vds::_udp_transport_queue::repeat_datagram::generate_message(
     uint8_t * buffer) {
   return static_cast<_udp_transport_session *>(this->owner().get())->get_sent_data(
       buffer, this->sequence_number_);
+}
+
+uint16_t
+vds::_udp_transport_queue::failed_datagram::generate_message(const vds::service_provider &sp, uint8_t *buffer) {
+  *buffer = (uint8_t)_udp_transport_session::control_type::Failed << 4;
+  return 1;
 }

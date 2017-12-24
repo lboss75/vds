@@ -21,12 +21,7 @@ namespace vds {
     //Server
     _p2p_crypto_tunnel(
         const udp_transport::session & session)
-    : session_(session),
-      data_read_result_([](
-          const std::shared_ptr<std::exception> & ex,
-          const const_data_buffer & message){
-        throw std::runtime_error("Invalid logic");
-      }){
+    : session_(session) {
     }
 
     virtual void start(const service_provider &sp);
@@ -54,6 +49,18 @@ namespace vds {
     std::mutex key_mutex_;
     symmetric_key output_key_;
     symmetric_key input_key_;
+
+    std::list<certificate> certificate_chain_;
+    asymmetric_private_key private_key_;
+
+    _p2p_crypto_tunnel(
+        const udp_transport::session & session,
+        const std::list<certificate> & certificate_chain,
+        const asymmetric_private_key & private_key)
+        : session_(session),
+          certificate_chain_(certificate_chain),
+          private_key_(private_key){
+    }
 
     void process_input_command(
         const service_provider &sp,

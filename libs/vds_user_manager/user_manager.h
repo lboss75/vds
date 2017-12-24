@@ -42,7 +42,7 @@ namespace vds {
         uint8_t message_id,
         binary_deserializer & s);
 
-    void lock_to_device(
+    member_user lock_to_device(
         const service_provider &sp,
         class database_transaction &t,
         class transaction_block &log,
@@ -51,6 +51,7 @@ namespace vds {
         const std::string &user_password,
         const asymmetric_private_key &user_private_key,
         const std::string &device_name,
+        const asymmetric_private_key & device_private_key,
         int port);
 
     member_user by_login(class database_transaction &t, const std::string &login);

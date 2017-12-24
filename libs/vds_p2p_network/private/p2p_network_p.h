@@ -20,23 +20,23 @@ namespace vds {
 
   class _p2p_network : public std::enable_shared_from_this<_p2p_network> {
   public:
-    _p2p_network(
-        const std::shared_ptr<class ip2p_network_client> &client);
-
+    _p2p_network();
     ~_p2p_network();
 
     async_task<> random_broadcast(
         const vds::service_provider &sp,
         const vds::const_data_buffer &message);
 
-    void add_route(
-        const guid &partner_id,
-        const guid &this_node_id,
-        const std::shared_ptr<udp_transport::_session> & session);
+    void add_route(const service_provider &sp, const vds::guid &partner_id,
+                       const std::shared_ptr<vds::udp_transport::_session> &session);
 
+    vds::async_task<> init_server(const vds::service_provider &sp, const std::string &user_name,
+                                  const std::string &user_password, const std::string &device_name, int port);
+
+    vds::async_task<> start_network(const vds::service_provider &sp);
   private:
     udp_server server_;
-    std::shared_ptr<class ip2p_network_client> client_;
+    std::list<class p2p_network_service> network_services_;
 
     p2p_route route_;
 

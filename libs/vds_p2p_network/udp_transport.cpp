@@ -80,63 +80,53 @@ void vds::_udp_transport::process_incommig_message(
     const service_provider & sp,
     const udp_datagram & message) {
 
-  _udp_transport_session_address_t server_address(message.server(), message.port());
+
   std::unique_lock<std::shared_mutex> lock(this->sessions_mutex_);
 
   if(4 > message.data_size()){
-    auto p = this->sessions_.find(server_address);
-    if (this->sessions_.end() != p) {
-      this->sessions_.erase(p);
-    }
+    this->close_session(sp, message.server(), message.port());
     return;
   }
 
   std::shared_ptr<_udp_transport_session> session;
+  _udp_transport_session_address_t server_address(message.server(), message.port());
 
-  auto p = this->sessions_.find(server_address);
-  if (this->sessions_.end() == p) {
-    if(0x80 == (0x80 & static_cast<const uint8_t *>(message.data())[0])
-       && _udp_transport_session::control_type::Handshake == (_udp_transport_session::control_type)(static_cast<const uint8_t *>(message.data())[0] >> 4)){
+  if(0x80 == (0x80 & static_cast<const uint8_t *>(message.data())[0])
+     && _udp_transport_session::control_type::Handshake == (_udp_transport_session::control_type)(static_cast<const uint8_t *>(message.data())[0] >> 4)){
 
-      auto version = 0x0FFFFFFF & ntohl(*reinterpret_cast<const uint32_t *>(message.data()));
+    auto version = 0x0FFFFFFF & ntohl(*reinterpret_cast<const uint32_t *>(message.data()));
 
-      if(version == udp_transport::protocol_version && 20 == message.data_size()){
-        guid instance_id(message.data() + 4, 16);
-        if(instance_id != this->instance_id_){
-          sp.get<logger>()->trace("UDPAPI", sp, "%s: New session from %s",
-                                  instance_id.str().c_str(), this->instance_id_.str().c_str());
-          session = std::make_shared<_udp_transport_session>(
-              instance_id,
-              this->shared_from_this(),
-              server_address);
-          this->sessions_[server_address] = session;
-        } else {
-          return;
-        }
-      } else {
-        return;
+    if(version == udp_transport::protocol_version && 20 == message.data_size()){
+      guid instance_id(message.data() + 4, 16);
+      if(instance_id != this->instance_id_){
+        sp.get<logger>()->trace("UDPAPI", sp, "%s: New session from %s",
+                                instance_id.str().c_str(), this->instance_id_.str().c_str());
+        session = std::make_shared<_udp_transport_session>(
+                    instance_id,
+                    this->shared_from_this(),
+                    server_address);
+        this->sessions_[server_address] = session;
       }
-    } else {
-      return;
     }
   }
   else {
-    session = p->second;
+    auto p = this->sessions_.find(server_address);
+    if (this->sessions_.end() != p) {
+      session = p->second;
+    }
   }
 
-  lock.unlock();
-
   if(session) {
+    lock.unlock();
     try {
       session->incomming_message(sp, *this, message.data(), message.data_size());
     }
     catch (...) {
       std::unique_lock<std::shared_mutex> lock(this->sessions_mutex_);
-      auto p = this->sessions_.find(server_address);
-      if (this->sessions_.end() != p && session.get() == p->second.get()) {
-        this->sessions_.erase(p);
-      }
+      this->close_session(sp, message.server(), message.port());
     }
+  } else {
+    this->close_session(sp, message.server(), message.port());
   }
 }
 
@@ -219,5 +209,21 @@ void vds::_udp_transport::handshake_completed(
     _udp_transport_session *session) {
   this->new_session_handler_(
       udp_transport::session(session->shared_from_this()));
+}
+
+void vds::_udp_transport::close_session(
+    const service_provider & sp,
+    const std::string &server,
+    uint16_t port) {
+
+  auto p = this->sessions_.find(_udp_transport_session_address_t(server, port));
+  if (this->sessions_.end() != p) {
+    this->sessions_.erase(p);
+  }
+
+  this->send_queue_->emplace(
+      sp,
+      this->shared_from_this(),
+      new _udp_transport_queue::failed_datagram(server, port));
 }
 

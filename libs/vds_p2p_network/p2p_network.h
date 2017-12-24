@@ -14,21 +14,10 @@ namespace vds {
     p2p_network();
     ~p2p_network();
 
-    void start(const vds::service_provider &sp, const std::shared_ptr<class ip2p_network_client> &client,
-                   const std::string &device_name, int port, const std::string &login,
-                   const std::string &password);
+    vds::async_task<> init_server(const vds::service_provider &sp, const std::string &user_name,
+                                  const std::string &user_password, const std::string &device_name, int port);
 
-    void start(const vds::service_provider &sp, const std::shared_ptr<class ip2p_network_client> &client,
-               int port, const std::list<certificate> &certificate_chain, const vds::asymmetric_private_key &node_key);
-
-    async_task<> send_to(
-        const service_provider & sp,
-        const guid & node_id,
-        const const_data_buffer & message);
-
-    async_task<> broadcast(
-        const service_provider & sp,
-        const const_data_buffer & message);
+    vds::async_task<> start_network(const vds::service_provider &sp);
 
     async_task<> random_broadcast(
         const service_provider & sp,

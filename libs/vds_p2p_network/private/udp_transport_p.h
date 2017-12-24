@@ -72,6 +72,11 @@ namespace vds {
         _udp_transport_session * session,
         const std::shared_ptr<std::exception> & ex);
 
+    void close_session(
+        const service_provider & sp,
+        const std::string & server,
+        uint16_t port);
+
     void read_message(const service_provider &sp);
 
     void handshake_completed(
