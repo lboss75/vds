@@ -79,17 +79,25 @@ vds::const_data_buffer vds::_udp_transport::create_handshake_message() {
 void vds::_udp_transport::process_incommig_message(
     const service_provider & sp,
     const udp_datagram & message) {
-
-
   std::unique_lock<std::shared_mutex> lock(this->sessions_mutex_);
 
-  if(4 > message.data_size()){
-    this->close_session(sp, message.server(), message.port());
-    return;
-  }
+  _udp_transport_session_address_t server_address(message.server(), message.port());
 
   std::shared_ptr<_udp_transport_session> session;
-  _udp_transport_session_address_t server_address(message.server(), message.port());
+  auto p = this->sessions_.find(server_address);
+  if (this->sessions_.end() != p) {
+    session = p->second;
+  } else {
+    session = std::make_shared<_udp_transport_session>(
+        this->shared_from_this(),
+        server_address);
+    this->sessions_[server_address] = session;
+  }
+
+  if(4 > message.data_size()){
+    session->close(sp, std::make_shared<std::runtime_error>("Invalid data"));
+    return;
+  }
 
   if(0x80 == (0x80 & static_cast<const uint8_t *>(message.data())[0])
      && _udp_transport_session::control_type::Handshake == (_udp_transport_session::control_type)(static_cast<const uint8_t *>(message.data())[0] >> 4)){
@@ -101,32 +109,30 @@ void vds::_udp_transport::process_incommig_message(
       if(instance_id != this->instance_id_){
         sp.get<logger>()->trace("UDPAPI", sp, "%s: New session from %s",
                                 instance_id.str().c_str(), this->instance_id_.str().c_str());
-        session = std::make_shared<_udp_transport_session>(
-                    instance_id,
-                    this->shared_from_this(),
-                    server_address);
-        this->sessions_[server_address] = session;
+        session->set_instance_id(instance_id);
+      }
+      else {
+        session->close(sp, std::make_shared<std::runtime_error>("Self"));
       }
     }
-  }
-  else {
-    auto p = this->sessions_.find(server_address);
-    if (this->sessions_.end() != p) {
-      session = p->second;
+    else {
+      session->close(sp, std::make_shared<std::runtime_error>("Invalid protocol version"));
     }
   }
 
-  if(session) {
+  if(!session->is_failed()) {
     lock.unlock();
     try {
       session->incomming_message(sp, *this, message.data(), message.data_size());
     }
+    catch (const std::exception & ex) {
+      std::unique_lock<std::shared_mutex> lock(this->sessions_mutex_);
+      session->close(sp, std::make_shared<std::runtime_error>(ex.what()));
+    }
     catch (...) {
       std::unique_lock<std::shared_mutex> lock(this->sessions_mutex_);
-      this->close_session(sp, message.server(), message.port());
+      session->close(sp, std::make_shared<std::runtime_error>("Internal error"));
     }
-  } else {
-    this->close_session(sp, message.server(), message.port());
   }
 }
 
@@ -167,17 +173,6 @@ vds::async_task<> vds::_udp_transport::write_async(vds::udp_datagram &&message) 
   return this->server_.socket().write_async(std::move(message));
 }
 
-void vds::_udp_transport::close_session(
-    _udp_transport_session *session,
-    const std::shared_ptr<std::exception> & ex) {
-  std::unique_lock<std::shared_mutex> lock(this->sessions_mutex_);
-  auto p = this->sessions_.find(session->address());
-  if(this->sessions_.end() != p
-      && session == p->second.get()){
-    this->sessions_.erase(p);
-  }
-}
-
 bool vds::_udp_transport::do_timer_tasks(const vds::service_provider &sp) {
 
   auto owner = this->shared_from_this();
@@ -210,20 +205,3 @@ void vds::_udp_transport::handshake_completed(
   this->new_session_handler_(
       udp_transport::session(session->shared_from_this()));
 }
-
-void vds::_udp_transport::close_session(
-    const service_provider & sp,
-    const std::string &server,
-    uint16_t port) {
-
-  auto p = this->sessions_.find(_udp_transport_session_address_t(server, port));
-  if (this->sessions_.end() != p) {
-    this->sessions_.erase(p);
-  }
-
-  this->send_queue_->emplace(
-      sp,
-      this->shared_from_this(),
-      new _udp_transport_queue::failed_datagram(server, port));
-}
-

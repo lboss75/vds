@@ -34,11 +34,9 @@ namespace vds {
   class _udp_transport_session : public udp_transport::_session {
   public:
     _udp_transport_session(
-        const guid &instance_id,
         const std::shared_ptr<_udp_transport> & owner,
         const _udp_transport_session_address_t &address)
-        : instance_id_(instance_id),
-          address_(address),
+        : address_(address),
           output_sequence_number_(0),
           min_incoming_sequence_(0),
           mtu_(65507),
@@ -48,23 +46,12 @@ namespace vds {
           received_data_bytes_(0) {
     }
 
-    async_task<const const_data_buffer &> read_async(const service_provider &sp) override;
-
-    //Fake session
-    _udp_transport_session(
-        const std::shared_ptr<_udp_transport> & owner,
-        const _udp_transport_session_address_t &address)
-        : address_(address),
-          output_sequence_number_(0),
-          min_incoming_sequence_(0),
-          mtu_(65507),
-          owner_(owner),
-          current_state_(state_t::handshake_sent),
-          sent_data_bytes_(0),
-          received_data_bytes_(0) {
-    }
-
     ~_udp_transport_session();
+
+    void set_instance_id(const guid & instance_id);
+    bool is_failed() const;
+
+    async_task<const const_data_buffer &> read_async(const service_provider &sp) override;
 
     /*
       0                   1                   2                   3
@@ -148,7 +135,9 @@ namespace vds {
 
     void send(const service_provider &sp, const const_data_buffer &message) override;
 
-    void close(const service_provider &sp, const std::shared_ptr<std::exception> &ex) override;
+    void close(
+        const service_provider &sp,
+        const std::shared_ptr<std::exception> &ex) override;
 
     uint16_t get_sent_data(uint8_t *buffer, uint32_t sequence_number);
 
@@ -161,7 +150,8 @@ namespace vds {
       handshake_sent,
       welcome_pending,
       welcome_sent,
-      wait_message
+      wait_message,
+      fail
     };
 
     std::mutex current_state_mutex_;
@@ -190,6 +180,8 @@ namespace vds {
 
     uint32_t sent_data_bytes_;
     uint32_t received_data_bytes_;
+
+    std::shared_ptr<std::exception> error_;
 
     void continue_process_incoming_data(
         const service_provider &sp,

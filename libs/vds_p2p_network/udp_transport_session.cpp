@@ -364,9 +364,16 @@ void vds::_udp_transport_session::register_outgoing_traffic(uint32_t bytes) {
 }
 
 void vds::_udp_transport_session::close(const vds::service_provider &sp, const std::shared_ptr<std::exception> &ex) {
+
+  this->current_state_ = state_t::fail;
+
   auto owner = this->owner_.lock();
   if(owner){
-    owner->close_session(this, ex);
+    owner->send_queue()->emplace(
+        sp,
+        owner,
+        new _udp_transport_queue::failed_datagram(
+            this->shared_from_this()));
   }
 }
 

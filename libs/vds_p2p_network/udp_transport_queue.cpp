@@ -32,7 +32,7 @@ void vds::_udp_transport_queue::continue_send_data(
               if (datagram_error) {
                 owner_->decrease_mtu();
               } else {
-                owner->close_session(owner_, ex);
+                owner_->close(sp, ex);
               }
             } else {
               owner_->register_outgoing_traffic(len);
