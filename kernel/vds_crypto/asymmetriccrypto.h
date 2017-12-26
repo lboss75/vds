@@ -20,6 +20,7 @@ namespace vds {
   class _certificate;
   class _ssl_tunnel;
   class _certificate_store;
+  struct hash_info;
   
   struct asymmetric_crypto_info
   {

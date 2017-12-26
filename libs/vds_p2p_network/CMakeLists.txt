@@ -11,19 +11,20 @@ ADD_MSVC_PRECOMPILED_HEADER("stdafx.h" "stdafx.cpp" SOURCE_LIB)
 
 add_library(vds_p2p_network STATIC ${SOURCE_LIB} ${PRIVATE_HEADER_FILES})
 
-target_include_directories(vds_p2p_network PUBLIC ${HEADER_FILES})
-
-target_include_directories(vds_p2p_network PRIVATE
- ${vds_core_INCLUDE_DIRS}
- ${vds_crypto_INCLUDE_DIRS}
- ${vds_network_INCLUDE_DIRS}
- ${vds_parser_INCLUDE_DIRS}
- ${vds_database_INCLUDE_DIRS}
- ${vds_db_model_INCLUDE_DIRS}
- ${vds_user_manager_INCLUDE_DIRS}
- ${vds_chunk_manager_INCLUDE_DIRS}
- ${vds_transactions_INCLUDE_DIRS}
- ${OPENSSL_INCLUDE_DIR})
+target_include_directories(vds_p2p_network
+	PRIVATE
+		 ${vds_core_INCLUDE_DIRS}
+		 ${vds_crypto_INCLUDE_DIRS}
+		 ${vds_network_INCLUDE_DIRS}
+		 ${vds_parser_INCLUDE_DIRS}
+		 ${vds_database_INCLUDE_DIRS}
+		 ${vds_db_model_INCLUDE_DIRS}
+		 ${vds_user_manager_INCLUDE_DIRS}
+		 ${vds_chunk_manager_INCLUDE_DIRS}
+		 ${vds_transactions_INCLUDE_DIRS}
+		 ${OPENSSL_INCLUDE_DIR}
+	PUBLIC
+		${CMAKE_CURRENT_SOURCE_DIR})
 
 target_link_libraries(
         vds_p2p_network

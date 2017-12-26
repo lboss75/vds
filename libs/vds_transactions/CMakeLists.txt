@@ -3,31 +3,28 @@ cmake_minimum_required(VERSION 2.6.2)
 
 find_package (OpenSSL REQUIRED)
 
-include_directories(${vds_core_SOURCE_DIR})
-include_directories(${vds_network_SOURCE_DIR})
-include_directories(${vds_crypto_SOURCE_DIR})
-include_directories(${vds_data_SOURCE_DIR})
-include_directories(${vds_http_SOURCE_DIR})
-include_directories(${vds_parser_SOURCE_DIR})
-include_directories(${vds_protocols_SOURCE_DIR})
-include_directories(${vds_database_SOURCE_DIR})
-include_directories(${vds_db_model_SOURCE_DIR})
-include_directories(${OPENSSL_INCLUDE_DIR})
-
 FILE(GLOB HEADER_FILES *.h)
 FILE(GLOB PRIVATE_HEADER_FILES private/*.h)
 FILE(GLOB SOURCE_LIB *.cpp)
 
 ADD_MSVC_PRECOMPILED_HEADER("stdafx.h" "stdafx.cpp" SOURCE_LIB)
 
-add_library(vds_transactions)
+add_library(vds_transactions STATIC ${PRIVATE_HEADER_FILES} ${SOURCE_LIB} ${HEADER_FILES})
 
-target_sources(vds_transactions
-		PRIVATE
-			${PRIVATE_HEADER_FILES}
-			${SOURCE_LIB}
-		PUBLIC
-			${HEADER_FILES})
+target_include_directories(vds_transactions
+	PRIVATE
+		${vds_core_INCLUDE_DIRS}
+		${vds_network_INCLUDE_DIRS}
+		${vds_crypto_INCLUDE_DIRS}
+		${vds_data_INCLUDE_DIRS}
+		${vds_http_INCLUDE_DIRS}
+		${vds_parser_INCLUDE_DIRS}
+		${vds_protocols_INCLUDE_DIRS}
+		${vds_database_INCLUDE_DIRS}
+		${vds_db_model_INCLUDE_DIRS}
+		${OPENSSL_INCLUDE_DIR}
+	PUBLIC
+		${CMAKE_CURRENT_SOURCE_DIR})
 
 target_link_libraries(vds_transactions
   vds_core

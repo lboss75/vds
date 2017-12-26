@@ -18,7 +18,9 @@ target_include_directories(vds_db_model
 	PRIVATE
 		${vds_core_INCLUDE_DIRS}
 		${vds_database_INCLUDE_DIRS}
-		${OPENSSL_INCLUDE_DIR})
+		${OPENSSL_INCLUDE_DIR}
+	PUBLIC
+		${CMAKE_CURRENT_SOURCE_DIR})
 
 target_link_libraries(
         vds_db_model

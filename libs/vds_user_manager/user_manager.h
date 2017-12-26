@@ -8,8 +8,7 @@ All rights reserved
 
 #include <memory>
 #include <string>
-#include <transaction_block.h>
-#include <stdafx.h>
+#include "transaction_block.h"
 #include "user_channel.h"
 
 namespace vds {

@@ -1,6 +1,11 @@
+/*
+Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
+All rights reserved
+*/
+#include "stdafx.h"
 #include "http_client.h"
-#include "logger.h"
-#include "http_pipeline.h"
+//#include "logger.h"
+//#include "http_pipeline.h"
 /*
 vds::http_client::http_client()
 {

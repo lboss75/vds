@@ -2,7 +2,7 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
-
+#include "stdafx.h"
 #include "http_message.h"
 
 bool vds::http_message::get_header(const std::string& name, std::string& value) const
