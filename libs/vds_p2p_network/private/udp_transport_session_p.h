@@ -154,7 +154,7 @@ namespace vds {
       fail
     };
 
-    std::mutex current_state_mutex_;
+    mutable std::shared_mutex current_state_mutex_;
     state_t current_state_;
 
     guid instance_id_;
