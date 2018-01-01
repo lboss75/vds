@@ -46,7 +46,9 @@ namespace vds {
 		bool operator !() const { return !this->impl_; }
 		operator bool () const { return this->impl_.get() != nullptr; }
 
-	private:
+    void clear();
+
+  private:
     struct result_callback
     {
       result_callback(std::function<void(const std::shared_ptr<std::exception> & ex, result_types... results)> && callback)
@@ -58,7 +60,7 @@ namespace vds {
     };
     
     std::shared_ptr<result_callback> impl_;
-	};
+  };
 
   /////////////////////////////////////////////////////////////////////////////////
   template <typename argument_type>
@@ -661,6 +663,11 @@ namespace vds {
   inline void async_result<result_types...>::error(const std::shared_ptr<std::exception>& ex) const
   {
 	  this->impl_->callback_(ex, typename std::remove_reference<result_types>::type()...);
+  }
+
+  template<typename ...result_types>
+  inline void async_result<result_types...>::clear() {
+		this->impl_.reset();
   }
 
   /////////////////////////////////////////////////////////////////////////////////

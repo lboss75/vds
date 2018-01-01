@@ -116,6 +116,8 @@ void vds::_udp_transport_session::incomming_message(
                 new _udp_transport_queue::repeat_datagram(
                     this->shared_from_this(),
                     sequence_number));
+
+            lock.lock();
           }
           result_mask >>= 1;
         }
@@ -398,6 +400,7 @@ bool vds::_udp_transport_session::is_failed() const {
 vds::async_task<> vds::_udp_transport_session::prepare_to_stop(const vds::service_provider &sp) {
   std::unique_lock<std::shared_mutex> lock(this->current_state_mutex_);
   this->current_state_ = state_t::closed;
+  this->read_result_.clear();
 
   return async_task<>::empty();
 }
