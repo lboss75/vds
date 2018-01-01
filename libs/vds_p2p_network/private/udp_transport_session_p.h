@@ -38,6 +38,7 @@ namespace vds {
         const _udp_transport_session_address_t &address)
         : address_(address),
           output_sequence_number_(0),
+		  expected_size_(0),
           min_incoming_sequence_(0),
           mtu_(65507),
           owner_(owner),

@@ -143,7 +143,8 @@ void vds::_udp_transport_session::incomming_message(
     lock.unlock();
 
     auto seq = ntohl(*(uint32_t *)data);
-    sp.get<logger>()->trace("P2PUDP", sp, "%s:%d: incoming data seq %d",
+	auto log = sp.get<logger>();
+	log->trace("P2PUDP", sp, "%s:%d: incoming data seq %d",
                             this->address_.server_.c_str(),
                             this->address_.port_,
                             seq);
@@ -153,13 +154,19 @@ void vds::_udp_transport_session::incomming_message(
       this->future_data_[seq] = const_data_buffer(data + 4, size - 4);
       this->continue_process_incoming_data(sp, owner);
     }
+	else {
+		log->warning("P2PUDP", sp, "%s:%d: dublicate data seq %d",
+			this->address_.server_.c_str(),
+			this->address_.port_,
+			seq);
+	}
   }
 }
 
 void vds::_udp_transport_session::continue_process_incoming_data(
     const service_provider &sp,
     _udp_transport &owner) {
-
+	auto log = sp.get<logger>();
   for(;;) {
     if (this->future_data_.empty()
         || this->min_incoming_sequence_ != this->future_data_.begin()->first) {
@@ -173,13 +180,15 @@ void vds::_udp_transport_session::continue_process_incoming_data(
     const uint8_t *pdata;
     size_t size;
     if (0 == this->expected_size_) {
-      this->expected_size_ = ntohs(*reinterpret_cast<const uint16_t *>(data.data()));
+	  this->expected_size_ = ntohs(*reinterpret_cast<const uint16_t *>(data.data()));
       pdata = data.data() + 2;
       size = data.size() - 2;
-    } else {
+	  log->trace("P2PUDP", sp, "new block [%d] %d of expected %d", this->min_incoming_sequence_, size, this->expected_size_);
+	} else {
       pdata = data.data();
       size = data.size();
-    }
+	  log->trace("P2PUDP", sp, "continue [%d] %d of expected %d", this->min_incoming_sequence_, size, this->expected_size_);
+	}
 
     if (size < this->expected_size_) {
       this->expected_buffer_.add(pdata, size);
@@ -190,17 +199,19 @@ void vds::_udp_transport_session::continue_process_incoming_data(
       std::unique_lock<std::mutex> lock(this->incoming_datagram_mutex_);
       if (0 == this->expected_buffer_.size()) {
         this->incoming_datagrams_.push(const_data_buffer(pdata, size));
-      } else {
+		log->trace("P2PUDP", sp, "complete %d", size);
+	  } else {
         this->expected_buffer_.add(pdata, size);
         this->incoming_datagrams_.push(const_data_buffer(this->expected_buffer_.data(),
                                         this->expected_buffer_.size()));
-      }
-      this->incoming_datagram_mutex_.unlock();
+		log->trace("P2PUDP", sp, "complete %d", this->expected_buffer_.size());
+	  }
+      lock.unlock();
 
       this->expected_size_ = 0;
       this->expected_buffer_.clear();
 
-      this->try_read_data();
+	  this->try_read_data();
     }
   }
 }

@@ -64,7 +64,7 @@ const uint8_t * vds::udp_datagram::data() const
 
 size_t vds::udp_datagram::data_size() const
 {
-  return this->impl_->data_size();
+  return this->impl_ ? this->impl_->data_size() : 0;
 }
 
 vds::udp_socket::udp_socket()

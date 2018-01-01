@@ -9,9 +9,14 @@
 #include "udp_datagram_size_exception.h"
 #include "url_parser.h"
 #include "network_service.h"
+#include "vds_debug.h"
 
 ///////////////////////////////////////////////////////
 vds::udp_transport::udp_transport() {
+
+}
+
+vds::udp_transport::~udp_transport() {
 
 }
 
@@ -45,7 +50,8 @@ vds::_udp_transport::_udp_transport(const udp_transport::new_session_handler_t &
 : instance_id_(guid::new_guid()),
   new_session_handler_(new_session_handler),
   send_queue_(new _udp_transport_queue()),
-  timer_("UDP transport timer")
+  timer_("UDP transport timer"),
+	is_closed_(false)
 {
 }
 
@@ -88,6 +94,9 @@ void vds::_udp_transport::process_incommig_message(
     const service_provider & sp,
     const udp_datagram & message) {
   std::unique_lock<std::shared_mutex> lock(this->sessions_mutex_);
+  if (this->is_closed_) {
+	  return;
+  }
 
   _udp_transport_session_address_t server_address(message.server(), message.port());
 
@@ -223,8 +232,13 @@ void vds::_udp_transport::handshake_completed(
 }
 
 vds::async_task<> vds::_udp_transport::prepare_to_stop(const vds::service_provider &sp) {
+
   this->send_queue_->stop(sp);
   this->server_.stop(sp);
+
+  std::unique_lock<std::shared_mutex> lock(this->sessions_mutex_);
+  vds_assert(!this->is_closed_);
+  this->is_closed_ = true;
 
   return [pthis = this->shared_from_this(), sp](const async_result<> & result){
     auto runner = new _async_series(result, pthis->sessions_.size());

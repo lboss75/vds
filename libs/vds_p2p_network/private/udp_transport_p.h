@@ -48,6 +48,7 @@ namespace vds {
 
     std::map<_udp_transport_session_address_t, std::shared_ptr<_udp_transport_session>> sessions_;
     std::shared_mutex sessions_mutex_;
+	bool is_closed_;
 
     std::shared_ptr<_udp_transport_queue> send_queue_;
 

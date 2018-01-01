@@ -182,6 +182,10 @@ uint16_t vds::_udp_transport_queue::data_datagram::generate_message(const servic
     if(size > this->data_.size()){
       size = this->data_.size();
     }
+	sp.get<logger>()->trace("P2PUDP", sp, "[%d] Send data %d of %d",
+		seq_number,
+		size,
+		this->data_.size());
 
     memcpy(buffer + 6, this->data_.data(), size);
     this->offset_ += size;
@@ -203,6 +207,11 @@ uint16_t vds::_udp_transport_queue::data_datagram::generate_message(const servic
     if(size > this->data_.size() - this->offset_){
       size = this->data_.size() - this->offset_;
     }
+	sp.get<logger>()->trace("P2PUDP", sp, "[%d] Send data %d of %d offset %d",
+		seq_number,
+		size,
+		this->data_.size(),
+		this->offset_);
 
     memcpy(buffer + 4, this->data_.data() + this->offset_, size);
     this->offset_ += size;

@@ -63,6 +63,7 @@ namespace vds {
     typedef std::function<void(const session & session)> new_session_handler_t;
 
     udp_transport();
+	~udp_transport();
 
     void start(
         const vds::service_provider &sp,

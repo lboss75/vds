@@ -10,6 +10,14 @@
 #include "private/p2p_crypto_tunnel_with_certificate_p.h"
 
 
+vds::p2p_network_service::p2p_network_service()
+{
+}
+
+vds::p2p_network_service::~p2p_network_service()
+{
+}
+
 vds::async_task<> vds::p2p_network_service::start(
     const vds::service_provider &sp,
     int port,

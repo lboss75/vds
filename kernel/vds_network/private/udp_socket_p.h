@@ -130,7 +130,11 @@ namespace vds {
     async_task<const udp_datagram &> read_async()
     {
 #ifdef _WIN32
-      return this->reader_->read_async();
+		if (!this->reader_) {
+			return async_task<const udp_datagram &>(std::make_shared<std::system_error>(
+				ECONNRESET, std::system_category(), "Socket is closed"));
+		}
+		return this->reader_->read_async();
 #else
       if(!this->handler_){
         throw std::system_error(ECONNRESET, std::system_category(), "Socket is closed");

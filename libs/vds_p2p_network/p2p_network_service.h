@@ -17,6 +17,8 @@ namespace vds {
 
   class p2p_network_service {
   public:
+	  p2p_network_service();
+	  ~p2p_network_service();
 
     vds::async_task<> start(
         const vds::service_provider &sp,
