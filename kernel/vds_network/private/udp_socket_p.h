@@ -132,6 +132,9 @@ namespace vds {
 #ifdef _WIN32
       return this->reader_->read_async();
 #else
+      if(!this->handler_){
+        throw std::system_error(ECONNRESET, std::system_category(), "Socket is closed");
+      }
       return this->handler_->read_async();
 #endif
     }

@@ -32,6 +32,14 @@ void vds::udp_transport::connect(const vds::service_provider &sp, const std::str
   this->impl_->connect(sp, address);
 }
 
+vds::async_task<> vds::udp_transport::prepare_to_stop(const vds::service_provider &sp) {
+  return this->impl_->prepare_to_stop(sp);
+}
+
+vds::async_task<> vds::udp_transport::session::prepare_to_stop(const vds::service_provider &sp) {
+  return this->impl_->prepare_to_stop(sp);
+}
+
 ///////////////////////////////////////////////////////
 vds::_udp_transport::_udp_transport(const udp_transport::new_session_handler_t & new_session_handler)
 : instance_id_(guid::new_guid()),
@@ -94,19 +102,25 @@ void vds::_udp_transport::process_incommig_message(
     this->sessions_[server_address] = session;
   }
 
-  if(4 > message.data_size()){
-    session->close(sp, std::make_shared<std::runtime_error>("Invalid data"));
-    return;
-  }
-
   if(0x80 == (0x80 & static_cast<const uint8_t *>(message.data())[0])
      && _udp_transport_session::control_type::Handshake == (_udp_transport_session::control_type)(static_cast<const uint8_t *>(message.data())[0] >> 4)){
+
+    if(4 > message.data_size()){
+      session->close(sp, std::make_shared<std::runtime_error>("Invalid data"));
+      return;
+    }
 
     auto version = 0x0FFFFFFF & ntohl(*reinterpret_cast<const uint32_t *>(message.data()));
 
     if(version == udp_transport::protocol_version && 20 == message.data_size()){
       guid instance_id(message.data() + 4, 16);
       if(instance_id != this->instance_id_){
+        if(0 != session->get_instance_id().size()) {
+          session = std::make_shared<_udp_transport_session>(
+              this->shared_from_this(),
+              server_address);
+          this->sessions_[server_address] = session;
+        }
         sp.get<logger>()->trace("UDPAPI", sp, "%s: New session from %s",
                                 instance_id.str().c_str(), this->instance_id_.str().c_str());
         session->set_instance_id(instance_id);
@@ -190,10 +204,12 @@ void vds::_udp_transport::read_message(const vds::service_provider &sp) {
       [pthis = this->shared_from_this(), sp](
           const std::shared_ptr<std::exception> & ex,
           const udp_datagram & message){
-        if(!ex) {
-          pthis->process_incommig_message(sp, message);
+        if(0 != message.data_size()) {
+          if (!ex) {
+            pthis->process_incommig_message(sp, message);
+          }
+          pthis->read_message(sp);
         }
-        pthis->read_message(sp);
       }
   );
 
@@ -205,3 +221,16 @@ void vds::_udp_transport::handshake_completed(
   this->new_session_handler_(
       udp_transport::session(session->shared_from_this()));
 }
+
+vds::async_task<> vds::_udp_transport::prepare_to_stop(const vds::service_provider &sp) {
+  this->send_queue_->stop(sp);
+  this->server_.stop(sp);
+
+  return [pthis = this->shared_from_this(), sp](const async_result<> & result){
+    auto runner = new _async_series(result, pthis->sessions_.size());
+    for (auto &session : pthis->sessions_) {
+      runner->add(session.second->prepare_to_stop(sp));
+    }
+  };
+}
+

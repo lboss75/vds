@@ -30,7 +30,7 @@ void vds_mock::start(size_t server_count)
 
 
   for (size_t i = 0; i < server_count; ++i) {
-    std::unique_ptr<mock_server> server(new mock_server(i, first_port + 1, first_port + 1));
+    std::unique_ptr<mock_server> server(new mock_server(i, first_port + i, first_port + i));
     try {
       if (0 == i) {
         std::cout << "Initing root\n";

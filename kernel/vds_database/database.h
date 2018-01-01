@@ -12,6 +12,7 @@ All rights reserved
 
 #include "guid.h"
 #include "filename.h"
+#include "async_task.h"
 
 namespace vds {
   class _database;
@@ -102,6 +103,8 @@ namespace vds {
     void sync_transaction(
       const service_provider & sp,
       const std::function<bool(database_transaction & tr)> & callback);
+
+    async_task<> prepare_to_stop(const service_provider &sp);
 
   private:
     _database * const impl_;

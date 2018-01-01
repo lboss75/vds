@@ -11,6 +11,7 @@ All rights reserved
 
 #include "service_provider.h"
 #include "shutdown_event.h"
+#include "barrier.h"
 
 namespace vds {
 
@@ -46,11 +47,18 @@ namespace vds {
     void shutdown(service_provider & sp)
     {
       this->shutdown_event_.set();
-      
-      for(auto & p : this->factories_) {
-        p->prepare_to_stop(sp);
-      }
 
+      barrier b;
+      async_task<>([this, sp](const async_result<> & result){
+        auto runner = new _async_series(result, this->factories_.size());
+        for(auto & p : this->factories_) {
+          runner->add(p->prepare_to_stop(sp));
+        }
+      }).execute([&b](const std::shared_ptr<std::exception> & ex){
+        b.set();
+      });
+
+      b.wait();
       
       while (!this->factories_.empty()) {
         this->factories_.back()->stop(sp);
@@ -82,7 +90,7 @@ namespace vds {
       const char * name)
     : id_(++s_last_id_),
       name_((name == nullptr) ? parent->name() : name),
-      full_name_((name == nullptr) ? parent->full_name_ : ((parent ? (parent->full_name_ + "\n") : std::string()) + "[" + std::to_string(id_) + "]" + name)),
+      full_name_((name == nullptr) ? parent->full_name_ : ((parent ? (parent->full_name_ + "/") : std::string()) + "[" + std::to_string(id_) + "]" + name)),
       parent_(parent),
       service_registrator_(service_registrator)
     {

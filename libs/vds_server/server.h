@@ -16,6 +16,8 @@ namespace vds {
     void register_services(service_registrator &) override;
     void start(const service_provider &) override;
     void stop(const service_provider &) override;
+    async_task<> prepare_to_stop(const service_provider &sp) override;
+
 
     vds::async_task<> reset(const vds::service_provider &sp, const std::string &root_user_name, const std::string &root_password,
                                 const std::string &device_name, int port);

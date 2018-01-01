@@ -12,17 +12,20 @@ All rights reserved
 #include "chunk_manager.h"
 #include "transaction_log.h"
 #include "member_user.h"
+#include "certificate_dbo.h"
 
 namespace vds {
   class _p2p_crypto_tunnel_with_login : public _p2p_crypto_tunnel {
   public:
     _p2p_crypto_tunnel_with_login(
         const udp_transport::session &session,
+        const async_result<> & start_result,
         const std::string &login,
         const std::string &password,
         const std::string &device_name,
         int port)
         : _p2p_crypto_tunnel(session),
+          start_result_(start_result),
           login_(login),
           password_(password),
           device_name_(device_name),
@@ -40,6 +43,17 @@ namespace vds {
           database_transaction & t){
                 auto this_ = static_cast<_p2p_crypto_tunnel_with_login *>(pthis.get());
                 auto usr_manager = sp.get<user_manager>();
+
+                //save certificates
+                for(auto & cert : this_->certificate_chain_){
+                  certificate_dbo t1;
+                  t.execute(
+                    t1.insert(
+                        t1.id = cert_control::get_id(cert),
+                        t1.cert = cert.der(),
+                        t1.parent = cert_control::get_parent_id(cert)
+                    ));
+                }
 
                 transaction_block log;
                 auto &user_cert = *this_->certificate_chain_.rbegin();
@@ -71,8 +85,13 @@ namespace vds {
 
       })
       .execute([sp, pthis = this->shared_from_this()](const std::shared_ptr<std::exception> & ex) {
+        auto this_ = static_cast<_p2p_crypto_tunnel_with_login *>(pthis.get());
         if(ex){
           pthis->close(sp, ex);
+          this_->start_result_.error(ex);
+        }
+        else {
+          this_->start_result_.done();
         }
       });
     }
@@ -127,6 +146,7 @@ namespace vds {
     }
 
   private:
+    async_result<> start_result_;
     std::string login_;
     std::string password_;
     std::string device_name_;

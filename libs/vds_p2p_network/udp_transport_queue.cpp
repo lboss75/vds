@@ -2,14 +2,35 @@
 #include "stdafx.h"
 #include "private/udp_transport_queue_p.h"
 #include "private/udp_transport_p.h"
+#include "vds_debug.h"
 
-vds::_udp_transport_queue::_udp_transport_queue() {
-
+vds::_udp_transport_queue::_udp_transport_queue()
+: current_state_(state_t::bof, state_t::failed) {
 }
 
 void vds::_udp_transport_queue::continue_send_data(
     const vds::service_provider &sp,
     const std::shared_ptr<_udp_transport> & owner) {
+
+  if(state_t::closed == this->current_state_.change_state(
+      [](state_t & state)->bool{
+        switch(state){
+          case state_t::write_scheduled: {
+            state = state_t::write_pending;
+            return true;
+          }
+          case state_t::close_pending: {
+            state = state_t::closed;
+            return true;
+          }
+          default:{
+            return false;
+          }
+        }
+      },
+      error_logic::throw_exception)){
+    return;
+  }
 
   std::unique_lock<std::mutex> lock(this->send_data_buffer_mutex_);
   auto generator = this->send_data_buffer_.front().get();
@@ -46,10 +67,25 @@ void vds::_udp_transport_queue::continue_send_data(
               lock.unlock();
 
               if(!data_eof){
+                pthis->current_state_.change_state(
+                    state_t::write_pending,
+                    state_t::write_scheduled,
+                    error_logic::throw_exception);
+
                 pthis->continue_send_data(sp, owner);
+              } else {
+                pthis->current_state_.change_state(
+                    state_t::write_pending,
+                    state_t::bof,
+                    error_logic::throw_exception);
               }
 
             } else {
+              pthis->current_state_.change_state(
+                  state_t::write_pending,
+                  state_t::write_scheduled,
+                  error_logic::throw_exception);
+
               pthis->continue_send_data(sp, owner);
             }
           }
@@ -66,7 +102,6 @@ void vds::_udp_transport_queue::send_data(
     sp,
     owner,
     new data_datagram(session, data));
-
 }
 
 void vds::_udp_transport_queue::emplace(
@@ -75,14 +110,47 @@ void vds::_udp_transport_queue::emplace(
     vds::_udp_transport_queue::datagram_generator *item) {
 
   std::unique_lock<std::mutex> lock(this->send_data_buffer_mutex_);
+  auto size = this->send_data_buffer_.size();
   auto need_to_start = this->send_data_buffer_.empty();
   this->send_data_buffer_.emplace(item);
   lock.unlock();
 
   if(need_to_start){
+    this->current_state_.change_state(
+        state_t::bof,
+        state_t::write_scheduled,
+        error_logic::throw_exception);
+
     this->continue_send_data(sp, owner);
   }
 
+}
+
+void vds::_udp_transport_queue::stop(const vds::service_provider &sp) {
+  if(state_t::close_pending == this->current_state_.change_state(
+      [](state_t & state)->bool {
+        switch (state) {
+          case state_t::bof:
+            state = state_t::closed;
+            return true;
+          case state_t::write_scheduled:
+            state = state_t::close_pending;
+            return true;
+          default:
+            return false;
+        }
+      }, error_logic::throw_exception)) {
+    this->current_state_.wait(
+        state_t::closed,
+        error_logic::throw_exception);
+  }
+
+  std::unique_lock<std::mutex> lock(this->send_data_buffer_mutex_);
+  while(!this->send_data_buffer_.empty()) {
+    this->send_data_buffer_.pop();
+  }
+
+  sp.get<logger>()->trace("P2PUDP", sp, "UDPtransport_queue::stop");
 }
 
 uint16_t vds::_udp_transport_queue::data_datagram::generate_message(const service_provider &sp, uint8_t *buffer) {

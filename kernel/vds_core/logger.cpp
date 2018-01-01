@@ -18,7 +18,7 @@ void vds::logger::operator()(
   log_level level,
   const std::string & message) const
 {
-  log_record record{ level, module, sp.name(), message };
+  log_record record{ level, module, sp.full_name(), message };
 
   this->log_writer_.write(sp, record);
 }

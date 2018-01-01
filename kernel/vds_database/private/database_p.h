@@ -187,7 +187,7 @@ namespace vds {
   {
   public:
     _database()
-    : sp_(service_provider::empty()), db_(nullptr)
+    : sp_(service_provider::empty()), db_(nullptr), is_closed_(false)
     {
     }
 
@@ -255,6 +255,11 @@ namespace vds {
       const service_provider & sp,
       const std::function<bool(database_transaction & tr)> & callback)
     {
+      std::unique_lock<std::mutex> lock(this->state_mutex_);
+      if(this->is_closed_){
+        throw std::runtime_error("Invalid state");
+      }
+
       mt_service::async(sp, [this, sp, callback](){
         this->callbacks_mutex_.lock();
         this->callbacks_.push_back(callback);
@@ -297,6 +302,13 @@ namespace vds {
           
           if(0 == this->callbacks_.size()){
             this->callbacks_mutex_.unlock();
+
+            std::unique_lock<std::mutex> lock(this->state_mutex_);
+            if(this->is_closed_ && this->close_result_){
+              auto result = std::move(this->close_result_);
+              result.done();
+            }
+
             return;
           }
         }
@@ -326,6 +338,18 @@ namespace vds {
       }
     }
 
+    async_task<> prepare_to_stop(const service_provider & sp){
+      return [this](const async_result<> & result){
+        std::unique_lock<std::mutex> lock(this->state_mutex_);
+        if(this->is_closed_){
+          throw std::runtime_error("Ivalid error");
+        }
+
+        this->is_closed_ = true;
+        this->close_result_ = result;
+      };
+    }
+
   private:
     service_provider sp_;
     filename database_file_;
@@ -334,6 +358,9 @@ namespace vds {
     std::mutex callbacks_mutex_;
     std::list<std::function<bool(database_transaction & tr)>> callbacks_;
 
+    std::mutex state_mutex_;
+    bool is_closed_;
+    async_result<> close_result_;
   };
 }
 

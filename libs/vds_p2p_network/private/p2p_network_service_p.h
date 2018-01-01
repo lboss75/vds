@@ -20,23 +20,24 @@ namespace vds {
   public:
     _p2p_network_service(const vds::service_provider &sp);
 
-    vds::async_task<> start(
+    async_task<> start(
         const vds::service_provider &sp,
         int port,
         const std::list<certificate> &certificate_chain,
         const asymmetric_private_key &node_key);
 
-    vds::async_task<> start(
+    async_task<> start(
         const vds::service_provider &sp,
         const std::string &device_name,
         int port,
         const std::string &login,
         const std::string &password);
 
+    async_task<> prepare_to_stop(const vds::service_provider &sp);
+
   private:
     udp_transport transport_;
     timer backgroud_timer_;
-    async_result<> start_result_;
 
     std::shared_mutex sessions_mutex_;
     std::list<udp_transport::session> sessions_;

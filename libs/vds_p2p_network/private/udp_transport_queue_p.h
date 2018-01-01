@@ -6,6 +6,7 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 #include <queue>
+#include <state_machine.h>
 #include "udp_transport_session_p.h"
 
 namespace vds {
@@ -18,6 +19,8 @@ namespace vds {
         const std::shared_ptr<_udp_transport> & owner,
         const std::shared_ptr<udp_transport::_session> & session,
         const const_data_buffer & data);
+
+    void stop(const service_provider & sp);
 
   private:
     friend class _udp_transport_session;
@@ -214,6 +217,17 @@ namespace vds {
 
     std::queue<std::unique_ptr<datagram_generator>> send_data_buffer_;
     std::mutex send_data_buffer_mutex_;
+
+    enum state_t
+    {
+      bof,
+      write_scheduled,
+      write_pending,
+      close_pending,
+      closed,
+      failed
+    };
+    state_machine<state_t> current_state_;
 
     static constexpr uint16_t max_datagram_size = 65507;
     uint8_t buffer_[max_datagram_size];

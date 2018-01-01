@@ -29,6 +29,11 @@ vds::async_task<> vds::p2p_network_service::start(
   this->impl_.reset(new _p2p_network_service(sp));
   return this->impl_->start(sp, device_name, port, login, password);
 }
+
+vds::async_task<> vds::p2p_network_service::prepare_to_stop(const vds::service_provider &sp) {
+  return this->impl_->prepare_to_stop(sp);
+}
+
 //////////////////////////
 vds::_p2p_network_service::_p2p_network_service(const vds::service_provider &sp)
 : backgroud_timer_("p2p network background") {
@@ -42,20 +47,23 @@ vds::_p2p_network_service::start(
     const std::string &login,
     const std::string &password) {
   return [sp, pthis = this->shared_from_this(), device_name, port, login, password](const async_result<> & start_result){
-    pthis->start_result_ = start_result;
-    pthis->start_network(sp, port,
-                         [pthis, sp, device_name, port, login, password](const udp_transport::session & session){
-                           p2p_crypto_tunnel tunnel(std::make_shared<_p2p_crypto_tunnel_with_login>(
-                               session,
-                               login,
-                               password,
-                               device_name,
-                               port));
-                           tunnel.start(sp);
+    pthis->start_network(
+        sp,
+        port,
+        [pthis, sp, start_result, device_name, port, login, password](const udp_transport::session & session){
+          p2p_crypto_tunnel tunnel(std::make_shared<_p2p_crypto_tunnel_with_login>(
+              session,
+              start_result,
+              login,
+              password,
+              device_name,
+              port));
+          tunnel.start(sp);
 
-                           std::unique_lock<std::shared_mutex> lock(pthis->sessions_mutex_);
-                           pthis->sessions_.push_back(tunnel);
-                         });
+          std::unique_lock<std::shared_mutex> lock(pthis->sessions_mutex_);
+          pthis->sessions_.push_back(tunnel);
+        }
+    );
   };
 }
 
@@ -125,4 +133,16 @@ bool vds::_p2p_network_service::do_backgroud_tasks(const service_provider &sp) {
         }
       });
   return !sp.get_shutdown_event().is_shuting_down();
+}
+
+vds::async_task<> vds::_p2p_network_service::prepare_to_stop(const vds::service_provider &sp) {
+  return [pthis = this->shared_from_this(), sp](const async_result<> & result){
+    std::unique_lock<std::shared_mutex> lock(pthis->sessions_mutex_);
+    auto runner = new _async_series(result, 1 + pthis->sessions_.size());
+    runner->add(pthis->transport_.prepare_to_stop(sp));
+
+    for(auto & s : pthis->sessions_){
+      runner->add(s.prepare_to_stop(sp));
+    }
+  };
 }

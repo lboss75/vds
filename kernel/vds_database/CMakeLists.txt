@@ -2,6 +2,7 @@ project(vds_database CXX C)
 cmake_minimum_required(VERSION 2.6.2)
 
 FILE(GLOB HEADER_FILES *.h)
+FILE(GLOB PRIVATE_HEADER_FILES private/*.h)
 FILE(GLOB SOURCE_LIB *.cpp)
 
 ADD_MSVC_PRECOMPILED_HEADER("stdafx.h" "stdafx.cpp" SOURCE_LIB)
@@ -10,12 +11,13 @@ add_library(vds_database
   STATIC
   ${SOURCE_LIB}
   ${HEADER_FILES}
+  ${PRIVATE_HEADER_FILES}
   private/sqllite3/shell.c
   private/sqllite3/sqlite3.c
   private/sqllite3/sqlite3.h
   private/sqllite3/sqlite3ext.h)
 
- target_include_directories(vds_database
+target_include_directories(vds_database
 	PRIVATE
 		${vds_core_INCLUDE_DIRS}
 	PUBLIC

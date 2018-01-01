@@ -32,6 +32,8 @@ namespace vds {
 
     void close(const service_provider &sp, const std::shared_ptr<std::exception> &ex) override;
 
+    async_task<> prepare_to_stop(const vds::service_provider &sp) override;
+
   protected:
     enum class command_id : uint8_t {
       Data = 0,

@@ -41,7 +41,28 @@ namespace vds {
         this->state_cond_.wait(lock);
       }
     }
-    
+
+    state_enum_type change_state(const std::function<bool (state_enum_type & old_state)> & change_state_method, error_logic err_logic)
+    {
+      std::unique_lock<std::mutex> lock(this->state_mutex_);
+
+      for(;;){
+        if(change_state_method(this->state_)){
+          this->state_cond_.notify_one();
+          return this->state_;
+        }
+        else if(this->failed_state_ == this->state_) {
+          if(error_logic::throw_exception == err_logic){
+            throw *this->error_;
+          }
+
+          return this->state_;
+        }
+
+        this->state_cond_.wait(lock);
+      }
+    }
+
     bool wait(state_enum_type expected_state, error_logic err_logic)
     {
       std::unique_lock<std::mutex> lock(this->state_mutex_);

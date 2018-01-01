@@ -33,6 +33,7 @@ namespace vds {
     
     void start(const service_provider &);
     void stop(const service_provider &);
+    async_task<> prepare_to_stop(const service_provider &sp);
 
   private:
     friend class server;

@@ -201,3 +201,8 @@ void vds::_p2p_crypto_tunnel::process_input_command(
       throw std::runtime_error("Invalid command");
   }
 }
+
+vds::async_task<> vds::_p2p_crypto_tunnel::prepare_to_stop(
+    const vds::service_provider &sp) {
+  return async_task<>::empty();
+}

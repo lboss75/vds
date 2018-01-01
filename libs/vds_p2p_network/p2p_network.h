@@ -27,6 +27,8 @@ namespace vds {
       return this->impl_;
     }
 
+    async_task<> prepare_to_stop(const vds::service_provider &sp);
+
   private:
     std::shared_ptr<class _p2p_network> impl_;
   };

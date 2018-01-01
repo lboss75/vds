@@ -49,6 +49,9 @@ namespace vds {
     ~_udp_transport_session();
 
     void set_instance_id(const guid & instance_id);
+    const guid & get_instance_id() const{
+      return this->instance_id_;
+    }
     bool is_failed() const;
 
     async_task<const const_data_buffer &> read_async(const service_provider &sp) override;
@@ -143,6 +146,8 @@ namespace vds {
 
     void register_outgoing_traffic(uint32_t bytes);
 
+    async_task<> prepare_to_stop(const vds::service_provider &sp) override;
+
   private:
     enum class state_t {
       bof,
@@ -151,7 +156,8 @@ namespace vds {
       welcome_pending,
       welcome_sent,
       wait_message,
-      fail
+      fail,
+      closed
     };
 
     mutable std::shared_mutex current_state_mutex_;

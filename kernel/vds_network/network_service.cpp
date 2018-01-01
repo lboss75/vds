@@ -38,9 +38,9 @@ void vds::network_service::stop(const service_provider & sp)
   this->impl_->stop(sp);
 }
 
-void vds::network_service::prepare_to_stop(const service_provider & sp)
+vds::async_task<> vds::network_service::prepare_to_stop(const service_provider &sp)
 {
-  this->impl_->prepare_to_stop(sp);
+  return this->impl_->prepare_to_stop(sp);
 }
 
 
@@ -188,8 +188,10 @@ void vds::_network_service::stop(const service_provider & sp)
     }
 }
 
-void vds::_network_service::prepare_to_stop(const service_provider & sp)
+vds::async_task<> vds::_network_service::prepare_to_stop(const service_provider &sp)
 {
+  return async_task<>::empty();
+  /*
   std::set<SOCKET_HANDLE> processed;
   
   std::unique_lock<std::mutex> lock(this->tasks_mutex_);
@@ -217,6 +219,7 @@ void vds::_network_service::prepare_to_stop(const service_provider & sp)
       lock.lock();
     }
   }
+   */
 }
 
 #ifdef _WIN32

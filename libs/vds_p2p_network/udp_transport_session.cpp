@@ -108,6 +108,8 @@ void vds::_udp_transport_session::incomming_message(
             this->sent_data_.erase(sequence_number);
           }
           else {
+            lock.unlock();
+
             owner.send_queue()->emplace(
                 sp,
                 owner.shared_from_this(),
@@ -237,6 +239,12 @@ void vds::_udp_transport_session::decrease_mtu() {
 void vds::_udp_transport_session::send_handshake(
     const vds::service_provider &sp,
     const std::shared_ptr<_udp_transport> & owner) {
+  std::unique_lock<std::shared_mutex> lock(this->current_state_mutex_);
+  if(state_t::bof != this->current_state_) {
+    throw std::runtime_error("Invalid state");
+  }
+  this->current_state_ = state_t::handshake_pending;
+
   sp.get<logger>()->trace("P2PUDP", sp, "Send handshake to %s:%d",
                           this->address_.server_.c_str(),
                           this->address_.port_);
@@ -374,6 +382,13 @@ void vds::_udp_transport_session::set_instance_id(const vds::guid &instance_id) 
 bool vds::_udp_transport_session::is_failed() const {
   std::shared_lock<std::shared_mutex> lock(this->current_state_mutex_);
   return state_t::fail == this->current_state_;
+}
+
+vds::async_task<> vds::_udp_transport_session::prepare_to_stop(const vds::service_provider &sp) {
+  std::unique_lock<std::shared_mutex> lock(this->current_state_mutex_);
+  this->current_state_ = state_t::closed;
+
+  return async_task<>::empty();
 }
 
 

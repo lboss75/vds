@@ -37,6 +37,11 @@ vds::async_task<> vds::p2p_network::init_server(
 vds::async_task<> vds::p2p_network::start_network(const vds::service_provider &sp) {
   return this->impl_->start_network(sp);
 }
+
+vds::async_task<> vds::p2p_network::prepare_to_stop(const vds::service_provider &sp) {
+  return this->impl_->prepare_to_stop(sp);
+}
+
 //////////////////////////////////
 vds::_p2p_network::_p2p_network()
 {
@@ -129,4 +134,17 @@ vds::async_task<> vds::_p2p_network::start_network(const vds::service_provider &
     }
     return result;
   });
+}
+
+vds::async_task<> vds::_p2p_network::prepare_to_stop(const vds::service_provider &sp) {
+  if(this->network_services_.empty()){
+    return async_task<>::empty();
+  }
+
+  return [pthis = this->shared_from_this(), sp](const async_result<> & result) {
+    auto runner = new _async_series(result, pthis->network_services_.size());
+    for(auto & p : pthis->network_services_){
+      runner->add(p.prepare_to_stop(sp));
+    }
+  };
 }

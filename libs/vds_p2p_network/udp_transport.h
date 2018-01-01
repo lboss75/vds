@@ -30,6 +30,8 @@ namespace vds {
       virtual void close(
           const service_provider & sp,
           const std::shared_ptr<std::exception> & ex) = 0;
+
+      virtual async_task<> prepare_to_stop(const vds::service_provider &sp) = 0;
     };
 
     class session {
@@ -52,6 +54,8 @@ namespace vds {
 
       _session * operator -> () const { return this->impl_.get(); }
 
+      async_task<> prepare_to_stop(const vds::service_provider &sp);
+
     protected:
       std::shared_ptr<_session> impl_;
     };
@@ -70,6 +74,8 @@ namespace vds {
     void connect(
         const service_provider & sp,
         const std::string & address);
+
+    async_task<> prepare_to_stop(const service_provider &sp);
 
   private:
     std::shared_ptr<class _udp_transport> impl_;

@@ -14,6 +14,7 @@ All rights reserved
 #include "resizable_data_buffer.h"
 #include "udp_transport_queue_p.h"
 #include "udp_transport.h"
+#include "thread_apartment.h"
 
 namespace vds {
 
@@ -32,6 +33,7 @@ namespace vds {
       return this->send_queue_;
     }
 
+    async_task<> prepare_to_stop(const vds::service_provider &sp);
 
   private:
     friend class _udp_transport_queue;

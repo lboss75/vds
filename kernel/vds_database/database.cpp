@@ -40,6 +40,10 @@ void vds::database::sync_transaction(
   this->impl_->sync_transaction(sp, callback);
 }
 
+vds::async_task<> vds::database::prepare_to_stop(const vds::service_provider &sp) {
+  return this->impl_->prepare_to_stop(sp);
+}
+
 void vds::database_transaction::execute(const char * sql)
 {
    this->impl_->execute(sql);

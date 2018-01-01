@@ -5,7 +5,9 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
+
 #include "types.h"
+#include "async_task.h"
 
 namespace vds {
   class shutdown_event;
@@ -88,7 +90,9 @@ namespace vds {
     virtual void register_services(service_registrator &) = 0;
     virtual void start(const service_provider &) = 0;
     virtual void stop(const service_provider &) = 0;
-    virtual void prepare_to_stop(const service_provider &) {}
+    virtual async_task<> prepare_to_stop(const service_provider &) {
+      return async_task<>::empty();
+    }
   };
   
 

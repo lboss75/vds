@@ -106,6 +106,10 @@ vds::async_task<> vds::server::start_network(const vds::service_provider &sp) {
   return this->impl_->p2p_network_->start_network(sp);
 }
 
+vds::async_task<> vds::server::prepare_to_stop(const vds::service_provider &sp) {
+  return this->impl_->prepare_to_stop(sp);
+}
+
 void vds::transaction_log::apply(
     const service_provider &sp,
     database_transaction &t,
@@ -183,4 +187,11 @@ void vds::_server::start(const service_provider& sp)
 void vds::_server::stop(const service_provider& sp)
 {
 	this->db_model_->stop(sp);
+}
+
+vds::async_task<> vds::_server::prepare_to_stop(const vds::service_provider &sp) {
+  return async_series(
+    this->db_model_->prepare_to_stop(sp),
+    this->p2p_network_->prepare_to_stop(sp)
+  );
 }

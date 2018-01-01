@@ -130,3 +130,7 @@ void vds::db_model::migrate(
 		t.execute("INSERT INTO module(id, version, installed) VALUES('kernel', 1, datetime('now'))");
 	}
 }
+
+vds::async_task<> vds::db_model::prepare_to_stop(const vds::service_provider &sp) {
+  return this->db_.prepare_to_stop(sp);
+}
