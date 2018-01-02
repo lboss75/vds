@@ -54,8 +54,12 @@ namespace vds {
     std::unique_ptr<class p2p_network> p2p_network_;
     std::shared_ptr<class p2p_network_client> network_client_;
 
+    std::unique_ptr<class log_sync_service> log_sync_service_;
+
   public:
     leak_detect_helper leak_detect_;
+
+    void get_statistic(server_statistic &result);
   };
 }
 

@@ -25,6 +25,14 @@ void vds::log_sync_service::stop(const vds::service_provider &sp) {
   this->impl_.reset();
 }
 
+vds::async_task<> vds::log_sync_service::prepare_to_stop(const vds::service_provider &sp) {
+  return this->impl_->prepare_to_stop(sp);
+}
+
+void vds::log_sync_service::get_statistic(vds::sync_statistic & result) {
+  this->impl_->get_statistic(result);
+}
+
 
 /////////////////////////////////////////////////////////////////////
 vds::_log_sync_service::_log_sync_service()
@@ -46,7 +54,7 @@ void vds::_log_sync_service::start(const vds::service_provider &sp) {
 
         std::unique_lock<std::mutex> lock(pthis->state_mutex_);
         pthis->sycn_scheduled_ = false;
-      }).execute([scope](std::shared_ptr<std::exception> & ex){
+      }).execute([scope](const std::shared_ptr<std::exception> & ex){
         if(ex){
           scope.get<logger>()->warning("LOGSYNC", scope, "Exception %s", ex->what());
         }
@@ -95,6 +103,18 @@ void vds::_log_sync_service::request_unknown_records(
                 ex->what());
           }
         });
+}
+
+void vds::_log_sync_service::get_statistic(vds::sync_statistic &result) {
+
+}
+
+void vds::_log_sync_service::stop(const vds::service_provider &sp) {
+
+}
+
+vds::async_task<> vds::_log_sync_service::prepare_to_stop(const vds::service_provider &sp) {
+  return vds::async_task<>::empty();
 }
 
 

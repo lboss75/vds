@@ -16,7 +16,10 @@ namespace vds {
     ~_log_sync_service();
 
     void start(const service_provider & sp);
+    async_task<> prepare_to_stop(const service_provider &sp);
     void stop(const service_provider & sp);
+
+    void get_statistic(sync_statistic & result);
 
   private:
     timer update_timer_;

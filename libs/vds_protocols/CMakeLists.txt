@@ -3,21 +3,26 @@ cmake_minimum_required(VERSION 2.6.2)
 
 find_package (OpenSSL REQUIRED)
 
-include_directories(${vds_core_SOURCE_DIR})
-include_directories(${vds_data_SOURCE_DIR})
-include_directories(${vds_network_SOURCE_DIR})
-include_directories(${vds_parser_SOURCE_DIR})
-include_directories(${vds_crypto_SOURCE_DIR})
-include_directories(${vds_database_SOURCE_DIR})
-include_directories(${vds_p2p_network_SOURCE_DIR})
-include_directories(${OPENSSL_INCLUDE_DIR})
-
 FILE(GLOB HEADER_FILES *.h)
 FILE(GLOB SOURCE_LIB *.cpp)
 
 ADD_MSVC_PRECOMPILED_HEADER("stdafx.h" "stdafx.cpp" SOURCE_LIB)
 
 add_library(vds_protocols STATIC ${SOURCE_LIB} ${HEADER_FILES})
+
+target_include_directories(vds_protocols
+		PRIVATE
+			${vds_core_INCLUDE_DIRS}
+			${vds_data_INCLUDE_DIRS}
+			${vds_network_INCLUDE_DIRS}
+			${vds_parser_INCLUDE_DIRS}
+			${vds_crypto_INCLUDE_DIRS}
+			${vds_database_INCLUDE_DIRS}
+			${vds_p2p_network_INCLUDE_DIRS}
+			${OPENSSL_INCLUDE_DIR}
+		PUBLIC
+			${CMAKE_CURRENT_SOURCE_DIR})
+
 target_link_libraries(
   vds_protocols
   vds_core
@@ -28,7 +33,7 @@ target_link_libraries(
   vds_crypto
   vds_upnp
   vds_parser
-		vds_p2p_network
+  vds_p2p_network
   ${UUID_LIBRARIES}
   ${OPENSSL_LIBRARIES}
   ${UPNP_LIBRARIES}

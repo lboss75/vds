@@ -9,7 +9,6 @@ All rights reserved
 #include "vds_core.h"
 #include "vds_data.h"
 #include "vds_database.h"
-#include "vds_protocols.h"
 #include "vds_http.h"
 #include "vds_parser.h"
 #include "vds_crypto.h"

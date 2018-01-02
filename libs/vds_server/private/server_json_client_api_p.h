@@ -5,6 +5,7 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
+#include "client_messages.h"
 
 namespace vds {
   class server_json_client_api;

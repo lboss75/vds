@@ -12,6 +12,7 @@ All rights reserved
 #include "connection_manager.h"
 #include "udp_socket.h"
 #include "server_to_server_api.h"
+#include "vds_protocols.h"
 
 namespace vds {
   class connection_session : public std::enable_shared_from_this<connection_session>

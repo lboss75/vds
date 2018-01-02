@@ -5,6 +5,8 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
+
+#include "server_statistic.h"
 #include "leak_detect.h"
 
 namespace vds {
@@ -35,6 +37,9 @@ namespace vds {
     class _server *operator -> () const {
       return this->impl_;
     }
+
+    void get_statistic(server_statistic & result);
+
   private:
     class _server * const impl_;
   };

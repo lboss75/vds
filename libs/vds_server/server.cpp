@@ -36,6 +36,7 @@ All rights reserved
 #include "cert_control.h"
 #include "p2p_network.h"
 #include "private/p2p_network_p.h"
+#include "log_sync_service.h"
 
 vds::server::server()
 : impl_(new _server(this))
@@ -111,6 +112,10 @@ vds::async_task<> vds::server::prepare_to_stop(const vds::service_provider &sp) 
   return this->impl_->prepare_to_stop(sp);
 }
 
+void vds::server::get_statistic(vds::server_statistic &result) {
+  this->impl_->get_statistic(result);
+}
+
 void vds::transaction_log::apply(
     const service_provider &sp,
     database_transaction &t,
@@ -172,7 +177,8 @@ vds::_server::_server(server * owner)
 	user_manager_(new user_manager()),
 	db_model_(new db_model()),
   network_client_(new p2p_network_client()),
-  p2p_network_(new p2p_network())
+  p2p_network_(new p2p_network()),
+  log_sync_service_(new log_sync_service())
 {
   this->leak_detect_.name_ = "server";
   this->leak_detect_.dump_callback_ = [this](leak_detect_collector * collector){
@@ -188,13 +194,16 @@ vds::_server::~_server()
 void vds::_server::start(const service_provider& sp)
 {
 	this->db_model_->start(sp);
+  this->log_sync_service_->start(sp);
 }
 
 void vds::_server::stop(const service_provider& sp)
 {
-	this->db_model_->stop(sp);
+  this->log_sync_service_->stop(sp);
+  this->db_model_->stop(sp);
   this->p2p_network_->stop(sp);
 
+  this->log_sync_service_.reset();
   this->db_model_.reset();
   this->p2p_network_.reset();
   this->network_client_.reset();
@@ -202,7 +211,13 @@ void vds::_server::stop(const service_provider& sp)
 
 vds::async_task<> vds::_server::prepare_to_stop(const vds::service_provider &sp) {
   return async_series(
+    this->log_sync_service_->prepare_to_stop(sp),
     this->db_model_->prepare_to_stop(sp),
     this->p2p_network_->prepare_to_stop(sp)
   );
+}
+
+void vds::_server::get_statistic(vds::server_statistic &result) {
+  this->log_sync_service_->get_statistic(result.sync_statistic_);
+
 }
