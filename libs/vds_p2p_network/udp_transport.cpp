@@ -10,10 +10,10 @@
 #include "url_parser.h"
 #include "network_service.h"
 #include "vds_debug.h"
+#include "private/udp_socket_p.h"
 
 ///////////////////////////////////////////////////////
 vds::udp_transport::udp_transport() {
-
 }
 
 vds::udp_transport::~udp_transport() {
@@ -53,6 +53,14 @@ vds::_udp_transport::_udp_transport(const udp_transport::new_session_handler_t &
   timer_("UDP transport timer"),
 	is_closed_(false)
 {
+  this->leak_detect_.name_ = "_udp_transport";
+  this->leak_detect_.dump_callback_ = [this](leak_detect_collector * collector){
+    collector->add(this->server_);
+    collector->add(this->send_queue_);
+    for(auto p : this->sessions_){
+      collector->add(p.second);
+    }
+  };
 }
 
 vds::_udp_transport::~_udp_transport() {
@@ -189,7 +197,10 @@ void vds::_udp_transport::connect(const vds::service_provider &sp, const std::st
 }
 
 void vds::_udp_transport::stop(const vds::service_provider &sp) {
-
+  this->server_.stop(sp);
+  this->new_session_handler_ = udp_transport::new_session_handler_t();
+  this->sessions_.clear();
+  this->send_queue_.reset();
 }
 
 vds::async_task<> vds::_udp_transport::write_async(vds::udp_datagram &&message) {
@@ -233,18 +244,19 @@ void vds::_udp_transport::handshake_completed(
 
 vds::async_task<> vds::_udp_transport::prepare_to_stop(const vds::service_provider &sp) {
 
-  this->send_queue_->stop(sp);
-  this->server_.stop(sp);
-
   std::unique_lock<std::shared_mutex> lock(this->sessions_mutex_);
   vds_assert(!this->is_closed_);
   this->is_closed_ = true;
 
   return [pthis = this->shared_from_this(), sp](const async_result<> & result){
-    auto runner = new _async_series(result, pthis->sessions_.size());
+    auto runner = new _async_series(result, pthis->sessions_.size() + 1);
     for (auto &session : pthis->sessions_) {
       runner->add(session.second->prepare_to_stop(sp));
     }
+    runner->add([pthis, sp](){
+      pthis->server_.prepare_to_stop(sp);
+      pthis->send_queue_->stop(sp);
+    });
   };
 }
 

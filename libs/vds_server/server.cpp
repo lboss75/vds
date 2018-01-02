@@ -35,6 +35,7 @@ All rights reserved
 #include "run_configuration_dbo.h"
 #include "cert_control.h"
 #include "p2p_network.h"
+#include "private/p2p_network_p.h"
 
 vds::server::server()
 : impl_(new _server(this))
@@ -173,6 +174,11 @@ vds::_server::_server(server * owner)
   network_client_(new p2p_network_client()),
   p2p_network_(new p2p_network())
 {
+  this->leak_detect_.name_ = "server";
+  this->leak_detect_.dump_callback_ = [this](leak_detect_collector * collector){
+    collector->add(*this->p2p_network_);
+    //collector->add(this->network_client_);
+  };
 }
 
 vds::_server::~_server()
@@ -187,6 +193,11 @@ void vds::_server::start(const service_provider& sp)
 void vds::_server::stop(const service_provider& sp)
 {
 	this->db_model_->stop(sp);
+  this->p2p_network_->stop(sp);
+
+  this->db_model_.reset();
+  this->p2p_network_.reset();
+  this->network_client_.reset();
 }
 
 vds::async_task<> vds::_server::prepare_to_stop(const vds::service_provider &sp) {

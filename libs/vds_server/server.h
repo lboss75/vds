@@ -5,6 +5,7 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
+#include "leak_detect.h"
 
 namespace vds {
   class server : public iservice_factory
@@ -27,6 +28,13 @@ namespace vds {
     vds::async_task<> init_server(const vds::service_provider &sp, const std::string &user_login,
                                       const std::string &user_password, const std::string &device_name, int port);
 
+    operator bool () const {
+      return nullptr != this->impl_;
+    }
+
+    class _server *operator -> () const {
+      return this->impl_;
+    }
   private:
     class _server * const impl_;
   };

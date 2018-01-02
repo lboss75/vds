@@ -8,6 +8,7 @@ All rights reserved
 #include <queue>
 #include <state_machine.h>
 #include "udp_transport_session_p.h"
+#include "leak_detect.h"
 
 namespace vds {
   class _udp_transport_queue : public std::enable_shared_from_this<_udp_transport_queue> {
@@ -30,6 +31,10 @@ namespace vds {
     public:
       datagram_generator(const std::shared_ptr<udp_transport::_session> & owner)
       : owner_(owner) {
+        this->leak_detect_.name_ = "datagram_generator";
+        this->leak_detect_.dump_callback_ = [this](leak_detect_collector * collector){
+          this->dump(collector);
+        };
       }
 
       virtual ~datagram_generator() {
@@ -50,6 +55,14 @@ namespace vds {
 
     private:
       std::shared_ptr<udp_transport::_session> owner_;
+
+      virtual void dump(leak_detect_collector * collector)
+      {
+        collector->add(this->owner_);
+      }
+
+    public:
+      leak_detect_helper leak_detect_;
     };
 
     class data_datagram : public datagram_generator {
@@ -60,6 +73,7 @@ namespace vds {
           : datagram_generator(owner),
             data_(data), offset_(0)
       {
+        this->leak_detect_.name_ = "data_datagram";
       }
 
       //Generate message
@@ -89,6 +103,7 @@ namespace vds {
           const uint32_t sequence_number)
           : datagram_generator(owner), sequence_number_(sequence_number)
       {
+        this->leak_detect_.name_ = "repeat_datagram";
       }
 
       //Generate message
@@ -117,6 +132,7 @@ namespace vds {
           : datagram_generator(owner),
           instance_id_(instance_id)
       {
+        this->leak_detect_.name_ = "handshake_datagram";
       }
 
       virtual uint16_t generate_message(const service_provider &sp, uint8_t *buffer) override;
@@ -139,6 +155,7 @@ namespace vds {
           : datagram_generator(owner),
             instance_id_(instance_id)
       {
+        this->leak_detect_.name_ = "welcome_datagram";
       }
 
       virtual uint16_t generate_message(const service_provider &sp, uint8_t *buffer) override;
@@ -159,6 +176,7 @@ namespace vds {
           const std::shared_ptr<udp_transport::_session> &owner)
       : datagram_generator(owner)
       {
+        this->leak_detect_.name_ = "keep_alive_datagram";
       }
 
       virtual uint16_t generate_message(
@@ -179,6 +197,7 @@ namespace vds {
           const std::shared_ptr<udp_transport::_session> &owner)
           : datagram_generator(owner)
       {
+        this->leak_detect_.name_ = "acknowledgement_datagram";
       }
 
       virtual uint16_t generate_message(
@@ -198,6 +217,7 @@ namespace vds {
     public:
       failed_datagram(const std::shared_ptr<udp_transport::_session> &owner)
           : datagram_generator(owner) {
+        this->leak_detect_.name_ = "failed_datagram";
       }
 
       //Generate message
@@ -215,12 +235,13 @@ namespace vds {
       }
     };
 
-    std::queue<std::unique_ptr<datagram_generator>> send_data_buffer_;
+    std::list<std::shared_ptr<datagram_generator>> send_data_buffer_;
     std::mutex send_data_buffer_mutex_;
 
     enum state_t
     {
       bof,
+      start_write,
       write_scheduled,
       write_pending,
       close_pending,
@@ -240,6 +261,9 @@ namespace vds {
         const service_provider & sp,
         const std::shared_ptr<_udp_transport> & owner,
         datagram_generator * item);
+
+  public:
+    leak_detect_helper leak_detect_;
   };
 }
 

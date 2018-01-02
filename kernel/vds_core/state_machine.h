@@ -38,7 +38,9 @@ namespace vds {
           return false;
         }
         
-        this->state_cond_.wait(lock);
+        if(std::cv_status::timeout == this->state_cond_.wait_for(lock, std::chrono::seconds(5))){
+          throw std::runtime_error("Deadlock error");
+        }
       }
     }
 
@@ -59,7 +61,9 @@ namespace vds {
           return this->state_;
         }
 
-        this->state_cond_.wait(lock);
+        if(std::cv_status::timeout == this->state_cond_.wait_for(lock, std::chrono::seconds(5))){
+          throw std::runtime_error("Deadlock error");
+        }
       }
     }
 
@@ -77,8 +81,10 @@ namespace vds {
           
           return false;
         }
-        
-        this->state_cond_.wait(lock);
+
+        if(std::cv_status::timeout == this->state_cond_.wait_for(lock, std::chrono::seconds(5))){
+          throw std::runtime_error("Deadlock error");
+        }
       }
     }
     

@@ -206,3 +206,7 @@ vds::async_task<> vds::_p2p_crypto_tunnel::prepare_to_stop(
     const vds::service_provider &sp) {
   return async_task<>::empty();
 }
+
+void vds::_p2p_crypto_tunnel::dump(vds::leak_detect_collector *collector) {
+  collector->add(this->session_);
+}

@@ -9,17 +9,18 @@ All rights reserved
 #include "connection_manager.h"
 #include "server_log_sync.h"
 #include "p2p_network_service.h"
+#include "leak_detect.h"
 
 class mock_server
 {
 public:
-  mock_server(int index, int tcp_port, int udp_port);
+  mock_server(int index, int udp_port);
 
   void start();
   void stop();
 
-  void init_root(const std::string & root_password, int tcp_port, int udp_port);
-  void init(const std::string & user_name, const std::string & user_password);
+  static void init_root(int index, int udp_port, const std::string & root_password);
+  static void init(int index, int udp_port, const std::string & user_name, const std::string & user_password);
   vds::guid last_log_record() const;
   
 private:
@@ -35,6 +36,9 @@ private:
   vds::task_manager task_manager_;
   vds::crypto_service crypto_service_;
   vds::server server_;
+
+public:
+  vds::leak_detect_helper leak_detect_;
 };
 
 class vds_mock

@@ -34,6 +34,8 @@ namespace vds {
 
     async_task<> prepare_to_stop(const vds::service_provider &sp) override;
 
+    void dump(leak_detect_collector * collector) override;
+
   protected:
     enum class command_id : uint8_t {
       Data = 0,

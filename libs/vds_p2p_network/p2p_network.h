@@ -28,7 +28,11 @@ namespace vds {
     }
 
     async_task<> prepare_to_stop(const vds::service_provider &sp);
+    void stop(const vds::service_provider &sp);
 
+    operator bool () const {
+      return nullptr != this->impl_.get();
+    }
   private:
     std::shared_ptr<class _p2p_network> impl_;
   };

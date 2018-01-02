@@ -13,6 +13,7 @@ All rights reserved
 #include <stdafx.h>
 #include "service_provider.h"
 #include "private/p2p_network_p.h"
+#include "leak_detect.h"
 
 namespace vds {
 
@@ -34,6 +35,7 @@ namespace vds {
         const std::string &password);
 
     async_task<> prepare_to_stop(const vds::service_provider &sp);
+    void stop(const service_provider & sp);
 
   private:
     udp_transport transport_;
@@ -46,6 +48,9 @@ namespace vds {
                        const udp_transport::new_session_handler_t &new_session_handler);
 
     bool do_backgroud_tasks(const service_provider &sp);
+
+  public:
+    leak_detect_helper leak_detect_;
   };
 
 }

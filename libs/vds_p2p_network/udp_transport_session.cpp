@@ -405,4 +405,7 @@ vds::async_task<> vds::_udp_transport_session::prepare_to_stop(const vds::servic
   return async_task<>::empty();
 }
 
+void vds::_udp_transport_session::dump(vds::leak_detect_collector *collector) {
+}
+
 

@@ -82,8 +82,13 @@ namespace vds {
 
     void send_broadcast(int port, const const_data_buffer &message);
 
+    operator bool () const {
+      return this->impl_.get() != nullptr;
+    }
+
   private:
     friend class _udp_socket;
+
     udp_socket(const std::shared_ptr<_udp_socket> & impl)
       : impl_(impl)
     {
@@ -91,7 +96,6 @@ namespace vds {
 
     std::shared_ptr<_udp_socket> impl_;
   };
-
 
   class udp_server
   {
@@ -104,10 +108,17 @@ namespace vds {
       const std::string & address,
       int port);
 
+    void prepare_to_stop(const service_provider & sp);
     void stop(const service_provider & sp);
 
     udp_socket & socket();
 
+    _udp_server *operator ->()const {
+      return this->impl_.get();
+    }
+    operator bool () const  {
+      return nullptr != this->impl_.get();
+    }
   private:
     std::shared_ptr<_udp_server> impl_;
   };

@@ -35,12 +35,14 @@ namespace vds {
 
     vds::async_task<> start_network(const vds::service_provider &sp);
     async_task<> prepare_to_stop(const vds::service_provider &sp);
+    void stop(const vds::service_provider &sp);
   private:
-    udp_server server_;
     std::list<class p2p_network_service> network_services_;
 
     p2p_route route_;
 
+  public:
+    leak_detect_helper leak_detect_;
   };
 }
 

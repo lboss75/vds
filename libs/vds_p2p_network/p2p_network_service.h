@@ -26,10 +26,16 @@ namespace vds {
         const std::list<class certificate> &certificate_chain,
         const class asymmetric_private_key &node_key);
 
-    vds::async_task<> start(const vds::service_provider &sp, const std::string &device_name, int port,
+    async_task<> start(const service_provider &sp, const std::string &device_name, int port,
                                 const std::string &login, const std::string &password);
 
+		void stop(const service_provider & sp);
     async_task<> prepare_to_stop(const vds::service_provider &sp);
+
+		class _p2p_network_service *operator ->() const { return  this->impl_.get();}
+		operator bool () const {
+			return nullptr != this->impl_.get();
+		}
   private:
     std::shared_ptr<class _p2p_network_service> impl_;
   };

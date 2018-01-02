@@ -8,7 +8,7 @@
 #include "stdafx.h"
 #include "private/p2p_crypto_tunnel_with_login_p.h"
 #include "private/p2p_crypto_tunnel_with_certificate_p.h"
-
+#include "private/udp_transport_p.h"
 
 vds::p2p_network_service::p2p_network_service()
 {
@@ -42,9 +42,21 @@ vds::async_task<> vds::p2p_network_service::prepare_to_stop(const vds::service_p
   return this->impl_->prepare_to_stop(sp);
 }
 
+void vds::p2p_network_service::stop(const vds::service_provider & sp) {
+  this->impl_->stop(sp);
+  this->impl_.reset();
+}
+
 //////////////////////////
 vds::_p2p_network_service::_p2p_network_service(const vds::service_provider &sp)
 : backgroud_timer_("p2p network background") {
+  this->leak_detect_.name_ = "_p2p_network_service";
+  this->leak_detect_.dump_callback_ = [this](leak_detect_collector * collector){
+    collector->add(this->transport_);
+    for(auto & s : this->sessions_) {
+      collector->add(s);
+    }
+  };
 }
 
 vds::async_task<>
@@ -153,4 +165,10 @@ vds::async_task<> vds::_p2p_network_service::prepare_to_stop(const vds::service_
       runner->add(s.prepare_to_stop(sp));
     }
   };
+}
+
+void vds::_p2p_network_service::stop(const vds::service_provider &sp) {
+  this->transport_.stop(sp);
+  this->sessions_.clear();
+
 }

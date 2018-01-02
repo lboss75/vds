@@ -24,7 +24,8 @@ namespace vds {
         const std::list<certificate> & certificate_chain,
         const asymmetric_private_key & private_key)
     : _p2p_crypto_tunnel(session, certificate_chain, private_key)
-{
+    {
+      this->leak_detect_.name_ = "_p2p_crypto_tunnel_with_certificate";
     }
 
     void start(const service_provider &sp) override;
@@ -117,7 +118,6 @@ namespace vds {
       }
     }
   }
-
 }
 
 #endif //__VDS_P2P_NETWORK_P2P_CRYPTO_TUNNEL_WITH_CERTIFICATE_P_H_

@@ -7,6 +7,8 @@ All rights reserved
 #include "test_config.h"
 #include "storage_log.h"
 #include "mt_service.h"
+#include "leak_detect.h"
+#include "private/server_p.h"
 
 vds_mock::vds_mock()
 {
@@ -28,18 +30,18 @@ void vds_mock::start(size_t server_count)
   this->root_password_ = generate_password();
   int first_port = 8050;
 
-
+  vds::leak_detect_resolver resolver;
   for (size_t i = 0; i < server_count; ++i) {
-    std::unique_ptr<mock_server> server(new mock_server(i, first_port + i, first_port + i));
-    try {
-      if (0 == i) {
-        std::cout << "Initing root\n";
-        server->init_root(this->root_password_, first_port, first_port);
-      } else {
-        std::cout << "Initing server " << i << "\n";
-        server->init("root", this->root_password_);
-      }
+    if (0 == i) {
+      std::cout << "Initing root\n";
+      mock_server::init_root(i, first_port + i, this->root_password_);
+    } else {
+      std::cout << "Initing server " << i << "\n";
+      mock_server::init(i, first_port + i, "root", this->root_password_);
+    }
 
+    std::unique_ptr<mock_server> server(new mock_server(i, first_port + i));
+    try {
       std::cout << "Starring server " << i << "\n";
       server->start();
     }
@@ -54,8 +56,10 @@ void vds_mock::start(size_t server_count)
       throw;
     }
 
+    resolver.add(&(*server).leak_detect_);
     this->servers_.push_back(std::move(server));
   }
+  std::cout << "Leaks:" << resolver.resolve();
 }
 
 void vds_mock::stop()
@@ -123,18 +127,22 @@ vds::const_data_buffer vds_mock::download_data(size_t client_index, const std::s
   throw std::runtime_error("Not implemented");
 }
 
-mock_server::mock_server(int index, int tcp_port, int udp_port)
+mock_server::mock_server(int index, int udp_port)
   : index_(index),
-  tcp_port_(tcp_port),
+  tcp_port_(udp_port),
   udp_port_(udp_port),
   sp_(vds::service_provider::empty()),
   logger_(
     test_config::instance().log_level(),
     test_config::instance().modules())
 {
+  this->leak_detect_.name_ = "mock_server";
+  this->leak_detect_.dump_callback_ = [this](vds::leak_detect_collector * collector){
+    collector->add(this->server_);
+  };
 }
 
-void mock_server::init_root(const std::string & root_password, int tcp_port, int udp_port)
+void mock_server::init_root(int index, int udp_port, const std::string & root_password)
 {
   vds::service_registrator registrator;
 
@@ -220,7 +228,7 @@ void mock_server::start()
 
   //this->connection_manager_.set_addresses("udp://127.0.0.1:" + std::to_string(8050 + this->index_));
 
-  this->sp_ = this->registrator_.build(("mock server[" + std::to_string(this->index_) + "]").c_str());
+  this->sp_ = this->registrator_.build(("mock server on " + std::to_string(this->udp_port_)).c_str());
   auto root_folders = new vds::persistence_values();
   root_folders->current_user_ = folder;
   root_folders->local_machine_ = folder;
@@ -251,7 +259,7 @@ vds::guid mock_server::last_log_record() const
   return this->sp_.get<vds::istorage_log>()->get_last_applied_record(this->sp_);
 }
 
-void mock_server::init(const std::string &user_name, const std::string &user_password) {
+void mock_server::init(int index, int udp_port, const std::string &user_name, const std::string &user_password) {
   vds::service_registrator registrator;
 
   vds::mt_service mt_service;
@@ -265,7 +273,7 @@ void mock_server::init(const std::string &user_name, const std::string &user_pas
 
   auto folder = vds::foldername(
       vds::foldername(vds::filename::current_process().contains_folder(), "servers"),
-      std::to_string(this->index_));
+      std::to_string(index));
   folder.delete_folder(true);
   vds::foldername(folder, ".vds").create();
 
@@ -296,7 +304,7 @@ void mock_server::init(const std::string &user_name, const std::string &user_pas
     vds::imt_service::enable_async(sp);
     vds::barrier b;
     server
-        .init_server(sp, user_name, user_password, "test" + std::to_string(this->udp_port_), this->udp_port_)
+        .init_server(sp, user_name, user_password, "test" + std::to_string(udp_port), udp_port)
         .execute([&error, &b](const std::shared_ptr<std::exception> & ex) {
           if (ex) {
             error = ex;

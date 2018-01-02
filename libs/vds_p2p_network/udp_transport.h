@@ -8,6 +8,8 @@ All rights reserved
 
 #include "const_data_buffer.h"
 #include "async_buffer.h"
+#include "leak_detect.h"
+#include "leak_detect.h"
 
 namespace vds {
 
@@ -18,6 +20,12 @@ namespace vds {
     class _session : public std::enable_shared_from_this<_session>
     {
     public:
+      _session(){
+        this->leak_detect_.name_ = "vds.udp_transport._session";
+        this->leak_detect_.dump_callback_ = [this](leak_detect_collector * collector){
+          this->dump(collector);
+        };
+      }
       virtual ~_session() {}
 
       virtual void send(
@@ -32,6 +40,10 @@ namespace vds {
           const std::shared_ptr<std::exception> & ex) = 0;
 
       virtual async_task<> prepare_to_stop(const vds::service_provider &sp) = 0;
+
+      leak_detect_helper leak_detect_;
+
+      virtual void dump(leak_detect_collector * collector) = 0;
     };
 
     class session {
@@ -56,6 +68,10 @@ namespace vds {
 
       async_task<> prepare_to_stop(const vds::service_provider &sp);
 
+      operator bool () const {
+        return this->impl_.get() != nullptr;
+      }
+
     protected:
       std::shared_ptr<_session> impl_;
     };
@@ -63,7 +79,7 @@ namespace vds {
     typedef std::function<void(const session & session)> new_session_handler_t;
 
     udp_transport();
-	~udp_transport();
+	  ~udp_transport();
 
     void start(
         const vds::service_provider &sp,
@@ -78,6 +94,12 @@ namespace vds {
 
     async_task<> prepare_to_stop(const service_provider &sp);
 
+    class _udp_transport *operator -> () const {
+      return this->impl_.get();
+    }
+    operator bool () const {
+      return nullptr != this->impl_.get();
+    }
   private:
     std::shared_ptr<class _udp_transport> impl_;
   };

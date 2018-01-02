@@ -13,6 +13,7 @@ All rights reserved
 #include "udp_socket.h"
 #include "socket_task_p.h"
 #include "const_data_buffer.h"
+#include "leak_detect.h"
 
 namespace vds {
 
@@ -92,6 +93,10 @@ namespace vds {
       , broadcast_enabled_(false)
 #endif
     {
+      this->leak_detect_.name_ = "_udp_socket";
+      this->leak_detect_.dump_callback_ = [this](leak_detect_collector * collector){
+        collector->add(this->handler_);
+      };
     }
 
     ~_udp_socket()
@@ -114,6 +119,11 @@ namespace vds {
       this->handler_ = handler;
       handler->start();
 #endif
+    }
+
+    void prepare_to_stop(const service_provider & sp)
+    {
+      this->handler_->prepare_to_stop(sp);
     }
 
     void stop()
@@ -334,6 +344,7 @@ namespace vds {
     class _udp_handler : public _socket_task_impl<_udp_handler>
     {
       using this_class = _udp_handler;
+      using base_class = _socket_task_impl<_udp_handler>;
     public:
       _udp_handler(
         const service_provider & sp,
@@ -347,6 +358,10 @@ namespace vds {
             throw std::runtime_error("Logic error");
           })
       {
+        this->leak_detect_.name_ = "_udp_handler";
+        this->leak_detect_.dump_callback_ = [this](leak_detect_collector * collector){
+          collector->add(this->owner_);
+        };
       }
       
       ~_udp_handler()
@@ -391,6 +406,10 @@ namespace vds {
             };
 
           case write_status_t::eof:
+            return async_task<>(
+                std::make_shared<std::system_error>(
+                    ECONNRESET, std::system_category()));
+
           case write_status_t::waiting_socket:
           default:
             throw  std::runtime_error("Invalid operator");
@@ -448,6 +467,16 @@ namespace vds {
       void read_data() {
         std::unique_lock<std::mutex> lock(this->read_mutex_);
 
+        if(read_status_t::eof == this->read_status_){
+          auto result = std::move(this->read_result_);
+          lock.unlock();
+
+          if(result) {
+            result.error(std::make_shared<std::system_error>(ECONNRESET, std::system_category()));
+          }
+          return;
+        }
+
         if(read_status_t::waiting_socket != this->read_status_
             && read_status_t::continue_read != this->read_status_) {
           throw std::runtime_error("Invalid operation");
@@ -485,6 +514,32 @@ namespace vds {
         }
       }
 
+      void prepare_to_stop(const service_provider & sp)
+      {
+        std::unique_lock<std::mutex> lock1(this->write_mutex_);
+        std::unique_lock<std::mutex> lock2(this->read_mutex_);
+
+        if(this->read_result_) {
+          this->read_result_.error(std::make_shared<std::system_error>(ECONNRESET, std::system_category()));
+        }
+
+        if(this->write_result_) {
+          this->write_result_.error(std::make_shared<std::system_error>(ECONNRESET, std::system_category()));
+        }
+
+        this->read_status_ = read_status_t::eof;
+        this->write_status_ = write_status_t::eof;
+      }
+
+      void stop(){
+        base_class::stop();
+
+        this->read_result_.clear();
+        this->write_result_.clear();
+
+        this->owner_.reset();
+      }
+
     private:
       std::shared_ptr<_udp_socket> owner_;
       async_result<const udp_datagram &> read_result_;
@@ -495,6 +550,9 @@ namespace vds {
       uint8_t read_buffer_[64 * 1024];
       
       udp_datagram write_message_;
+
+    public:
+      leak_detect_helper leak_detect_;
     };
 
     std::shared_ptr<_udp_handler> handler_;
@@ -504,6 +562,8 @@ namespace vds {
     std::shared_ptr<_udp_send> writter_;
 #else
 #endif
+  public:
+    leak_detect_helper leak_detect_;
   };
 
   class _udp_server
@@ -514,6 +574,10 @@ namespace vds {
       int port
     ) : address_(address), port_(port)
     {
+      this->leak_detect_.name_ = "_udp_server";
+      this->leak_detect_.dump_callback_ = [this](leak_detect_collector * collector){
+        collector->add(this->socket_);
+      };
     }
 
     udp_socket & start(const service_provider & sp)
@@ -542,6 +606,11 @@ namespace vds {
       return this->socket_;
     }
 
+    void prepare_to_stop(const service_provider & sp)
+    {
+      this->socket_->prepare_to_stop(sp);
+    }
+
     void stop(const service_provider & sp)
     {
       this->socket_->stop();
@@ -553,6 +622,9 @@ namespace vds {
     udp_socket socket_;
     std::string address_;
     int port_;
+
+  public:
+    leak_detect_helper leak_detect_;
   };
 
 

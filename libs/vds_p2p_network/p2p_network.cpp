@@ -10,6 +10,7 @@
 #include "run_configuration_dbo.h"
 #include "certificate_private_key_dbo.h"
 #include "p2p_network_service.h"
+#include "private/p2p_network_service_p.h"
 
 vds::p2p_network::p2p_network()
 :impl_(new _p2p_network()){
@@ -42,9 +43,20 @@ vds::async_task<> vds::p2p_network::prepare_to_stop(const vds::service_provider 
   return this->impl_->prepare_to_stop(sp);
 }
 
+void vds::p2p_network::stop(const vds::service_provider &sp) {
+  this->impl_->stop(sp);
+  this->impl_.reset();
+}
+
 //////////////////////////////////
 vds::_p2p_network::_p2p_network()
 {
+  this->leak_detect_.name_ = "_p2p_network";
+  this->leak_detect_.dump_callback_ = [this](leak_detect_collector * collector){
+    for(auto & p : this->network_services_){
+      collector->add(p);
+    }
+  };
 }
 
 vds::_p2p_network::~_p2p_network() {
@@ -147,4 +159,11 @@ vds::async_task<> vds::_p2p_network::prepare_to_stop(const vds::service_provider
       runner->add(p.prepare_to_stop(sp));
     }
   };
+}
+
+void vds::_p2p_network::stop(const vds::service_provider &sp) {
+  for(auto & p : this->network_services_){
+    p.stop(sp);
+  }
+  this->network_services_.clear();
 }

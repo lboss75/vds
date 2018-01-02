@@ -30,6 +30,7 @@ namespace vds {
           password_(password),
           device_name_(device_name),
           port_(port) {
+      this->leak_detect_.name_ = "_p2p_crypto_tunnel_with_login";
     }
 
   protected:

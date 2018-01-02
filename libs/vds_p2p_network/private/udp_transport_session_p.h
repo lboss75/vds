@@ -12,6 +12,7 @@ All rights reserved
 #include "udp_socket.h"
 #include "resizable_data_buffer.h"
 #include "udp_transport.h"
+#include "leak_detect.h"
 
 namespace vds {
   struct _udp_transport_session_address_t {
@@ -38,13 +39,14 @@ namespace vds {
         const _udp_transport_session_address_t &address)
         : address_(address),
           output_sequence_number_(0),
-		  expected_size_(0),
+		      expected_size_(0),
           min_incoming_sequence_(0),
           mtu_(65507),
           owner_(owner),
           current_state_(state_t::bof),
           sent_data_bytes_(0),
           received_data_bytes_(0) {
+      this->leak_detect_.name_ = "_udp_transport_session";
     }
 
     ~_udp_transport_session();
@@ -198,6 +200,9 @@ namespace vds {
 
     std::mutex incoming_datagram_mutex_;
     std::queue<const_data_buffer> incoming_datagrams_;
+
+    void dump(leak_detect_collector * collector) override;
+
   };
 }
 

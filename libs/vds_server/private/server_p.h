@@ -53,6 +53,9 @@ namespace vds {
     std::unique_ptr<_local_cache> local_cache_;
     std::unique_ptr<class p2p_network> p2p_network_;
     std::shared_ptr<class p2p_network_client> network_client_;
+
+  public:
+    leak_detect_helper leak_detect_;
   };
 }
 
