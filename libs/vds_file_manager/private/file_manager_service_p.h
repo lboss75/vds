@@ -7,6 +7,7 @@ All rights reserved
 */
 #include "service_provider.h"
 #include "async_task.h"
+#include "file_operations.h"
 
 namespace vds {
   namespace file_manager_private {
@@ -18,7 +19,7 @@ namespace vds {
       async_task<> prepare_to_stop(const service_provider &sp);
 
     private:
-      file_operations file_operations_;
+      file_manager::file_operations file_operations_;
     };
   }
 }

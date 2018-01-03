@@ -13,7 +13,6 @@ TEST(test_vds, test_initial)
 
     mock.start(5);
 
-    
     size_t len;
     do
     {
@@ -24,10 +23,23 @@ TEST(test_vds, test_initial)
     std::unique_ptr<uint8_t> buffer(new uint8_t[len]);
     vds::crypto_service::rand_bytes(buffer.get(), (int)len);
 
+    auto folder = vds::foldername(
+        vds::foldername(
+            vds::filename::current_process().contains_folder(),
+            "servers"),
+        "tmp");
+    folder.delete_folder(true);
+    folder.create();
+
+    vds::filename tmp_fn(folder, "data");
+    vds::file f(tmp_fn, vds::file::file_mode::create_new);
+    f.write(buffer.get(), len);
+    f.close();
+
     //Waiting to sync logs
     mock.sync_wait();
 
-    mock.upload_file(3, "test data", buffer.get(), len);
+    mock.upload_file(3, "test data", tmp_fn);
     
     std::cout << "Download local file...\n";
 

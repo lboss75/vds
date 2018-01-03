@@ -23,9 +23,16 @@ namespace vds {
         const service_provider & sp,
         const const_data_buffer & message);
 
+    void send(
+        const service_provider & sp,
+        const guid & node_id,
+        const const_data_buffer & message);
+
     std::shared_ptr<class _p2p_network> operator -> () const {
       return this->impl_;
     }
+
+    std::set<guid> active_nodes() const;
 
     async_task<> prepare_to_stop(const vds::service_provider &sp);
     void stop(const vds::service_provider &sp);

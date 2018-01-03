@@ -6,6 +6,7 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 #include <string>
+#include <guid.h>
 #include "const_data_buffer.h"
 #include "async_task.h"
 #include "filename.h"
@@ -19,16 +20,12 @@ namespace vds {
     class file_operations {
     public:
       static const size_t BLOCK_SIZE = 16 * 1024 * 1024;
-      static const uint16_t MIN_HORCRUX = 512;
-      static const uint16_t GENERATE_HORCRUX = 1024;
 
       file_operations();
 
-      async_task<> upload_file(
-          const service_provider & sp,
-          const std::string & name,
-          const std::string & mimetype,
-          const filename & file_path);
+      vds::async_task<> upload_file(const service_provider &sp, const vds::guid &channel_id,
+                                          const std::string &name, const std::string &mimetype,
+                                          const vds::filename &file_path);
 
     protected:
       std::shared_ptr<file_manager_private::_file_operations> impl_;

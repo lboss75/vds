@@ -34,7 +34,7 @@ All rights reserved
 #include "p2p_network_client.h"
 #include "run_configuration_dbo.h"
 #include "cert_control.h"
-#include "p2p_network.h"
+#include "chunk_manager.h"
 #include "private/p2p_network_p.h"
 #include "log_sync_service.h"
 #include "file_manager_service.h"

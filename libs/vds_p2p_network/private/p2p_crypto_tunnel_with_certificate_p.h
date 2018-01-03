@@ -14,7 +14,7 @@ All rights reserved
 #include "user_dbo.h"
 #include "certificate_dbo.h"
 #include "cert_control.h"
-#include "p2p_network.h"
+#include "chunk_manager.h"
 
 namespace vds {
   class _p2p_crypto_tunnel_with_certificate : public _p2p_crypto_tunnel {

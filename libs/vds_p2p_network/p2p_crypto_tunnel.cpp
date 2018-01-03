@@ -4,7 +4,7 @@
 
 #include "cert_control.h"
 #include "p2p_crypto_tunnel.h"
-#include "p2p_network.h"
+#include "chunk_manager.h"
 #include "private/p2p_crypto_tunnel_p.h"
 #include "private/p2p_network_p.h"
 

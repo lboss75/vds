@@ -813,6 +813,13 @@ namespace vds {
     }
   };
 
+  enum join_t
+  {
+    inner,
+    left,
+    right
+  };
+
   template <typename base_builder, typename condition_type>
   class _database_reader_builder_with_join : public base_builder
   {
@@ -821,17 +828,19 @@ namespace vds {
     _database_reader_builder_with_join(
       base_builder && b,
       const database_table * table,
-      condition_type && cond)
+      condition_type && cond,
+      join_t join_type)
       : base_builder(std::move(b)),
         table_(table),
-        cond_(std::move(cond))
+        cond_(std::move(cond)),
+        join_type_(join_type)
     {
     }
 
     template <typename join_condition_type>
     _database_reader_builder_with_join<this_class, join_condition_type> inner_join(const database_table & t, join_condition_type && cond)
     {
-      return _database_reader_builder_with_join<this_class, join_condition_type>(std::move(*this), &t, std::move(cond));
+      return _database_reader_builder_with_join<this_class, join_condition_type>(std::move(*this), &t, std::move(cond), join_t::inner);
     }
 
     template <typename where_condition_type>
@@ -848,6 +857,14 @@ namespace vds {
         std::forward<group_by_columns_types>(group_by_columns)...);
     }
 
+    template <typename... order_columns_types>
+    _database_order_builder<this_class, order_columns_types...> order_by(order_columns_types && ... order_columns)
+    {
+      return _database_order_builder<this_class, order_columns_types...>(
+          std::move(*this),
+          std::forward<order_columns_types>(order_columns)...);
+    }
+
     void collect_aliases(std::map<const database_table *, std::string> & aliases) const
     {
       base_builder::collect_aliases(aliases);
@@ -858,13 +875,19 @@ namespace vds {
     std::string collect_sources(_database_sql_builder & builder) const
     {
       return base_builder::collect_sources(builder)
-        + " INNER JOIN " + this->table_->name() + " " + builder.get_alias(this->table_)
+        + ((this->join_type_ == join_t::inner)
+           ? " INNER JOIN "
+           : (this->join_type_ == join_t::left)
+             ? " LEFT JOIN "
+               : " RIGHT JOIN ")
+        + this->table_->name() + " " + builder.get_alias(this->table_)
         + " ON " + this->cond_.visit(builder);
     }
 
   private:
     const database_table * table_;
     condition_type cond_;
+    join_t join_type_;
   };
 
   template<typename column_type, typename dummy = void>
@@ -923,7 +946,7 @@ namespace vds {
     template <typename join_condition_type>
     _database_reader_builder_with_join<this_class, join_condition_type> inner_join(const database_table & t, join_condition_type && cond)
     {
-      return _database_reader_builder_with_join<this_class, join_condition_type>(std::move(*this), &t, std::move(cond));
+      return _database_reader_builder_with_join<this_class, join_condition_type>(std::move(*this), &t, std::move(cond), join_t::inner);
     }
 
     template <typename where_condition_type>
@@ -965,7 +988,19 @@ namespace vds {
     template <typename join_condition_type>
     _database_reader_builder_with_join<this_class, join_condition_type> inner_join(const database_table & t, join_condition_type && cond)
     {
-      return _database_reader_builder_with_join<this_class, join_condition_type>(std::move(*this), &t, std::move(cond));
+      return _database_reader_builder_with_join<this_class, join_condition_type>(std::move(*this), &t, std::move(cond), join_t::inner);
+    }
+
+    template <typename join_condition_type>
+    _database_reader_builder_with_join<this_class, join_condition_type> left_join(const database_table & t, join_condition_type && cond)
+    {
+      return _database_reader_builder_with_join<this_class, join_condition_type>(std::move(*this), &t, std::move(cond), join_t::left);
+    }
+
+    template <typename join_condition_type>
+    _database_reader_builder_with_join<this_class, join_condition_type> right_join(const database_table & t, join_condition_type && cond)
+    {
+      return _database_reader_builder_with_join<this_class, join_condition_type>(std::move(*this), &t, std::move(cond), join_t::right);
     }
 
     std::string generate_select(_database_sql_builder & builder, int index) const

@@ -4,7 +4,7 @@ All rights reserved
 */
 
 #include <transactions/channel_add_message_transaction.h>
-#include <cert_control.h>
+#include "cert_control.h"
 #include "stdafx.h"
 #include "file_operations.h"
 #include "file.h"
@@ -16,17 +16,19 @@ All rights reserved
 #include "transaction_block.h"
 #include "transactions/file_add_transaction.h"
 #include "user_manager.h"
+#include "member_user.h"
 
 vds::file_manager::file_operations::file_operations()
 : impl_(new file_manager_private::_file_operations()){
 }
 
 vds::async_task<> vds::file_manager::file_operations::upload_file(
-    const service_provider & sp,
+    const service_provider &sp,
+    const guid &channel_id,
     const std::string &name,
     const std::string &mimetype,
     const vds::filename &file_path) {
-  return this->impl_->upload_file(sp, name, mimetype, file_path);
+  return this->impl_->upload_file(sp, channel_id, name, mimetype, file_path);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////

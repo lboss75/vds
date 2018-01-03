@@ -128,11 +128,9 @@ void vds_mock::upload_file(
   vds::barrier b;
   std::shared_ptr<std::exception> error;
 
-  this->servers_[client_index]->get<vds::file_manager::file_operations>()->upload_file(
-    name,
-    mimetype,
-    file_path
-  ).execute([&b, &error](const std::shared_ptr<std::exception> & ex){
+  this->servers_[client_index]->get<vds::file_manager::file_operations>()->upload_file(name, <#initializer#>, mimetype,
+                                                                                       file_path,
+                                                                                       <#initializer#>).execute([&b, &error](const std::shared_ptr<std::exception> & ex){
     if(ex){
       error = ex;
     }

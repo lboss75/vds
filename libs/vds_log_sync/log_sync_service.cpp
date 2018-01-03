@@ -4,7 +4,7 @@
 #include "stdafx.h"
 #include "log_sync_service.h"
 #include "private/log_sync_service_p.h"
-#include "p2p_network.h"
+#include "chunk_manager.h"
 #include "private/message_log_record_request.h"
 
 vds::log_sync_service::log_sync_service() {
