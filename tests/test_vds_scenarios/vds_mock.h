@@ -22,6 +22,11 @@ public:
   static void init_root(int index, int udp_port, const std::string & root_password);
   static void init(int index, int udp_port, const std::string & user_name, const std::string & user_password);
   vds::guid last_log_record() const;
+
+  template <typename T>
+  T * get() const {
+    return this->sp_.get<T>();
+  }
   
 private:
   int index_;
@@ -50,7 +55,12 @@ public:
   void start(size_t server_count);
   void stop();
 
-  void upload_file(size_t client_index, const std::string & name, const void * data, size_t data_size);
+  void upload_file(
+      size_t client_index,
+      const std::string & name,
+      const std::string & mimetype,
+      const vds::filename & file_path);
+
   vds::const_data_buffer download_data(size_t client_index, const std::string & name);
   
   void sync_wait();

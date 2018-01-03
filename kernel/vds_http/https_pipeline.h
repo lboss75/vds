@@ -33,7 +33,7 @@ namespace vds {
 
     void run(const service_provider & sp, const std::string & body);
     
-  private:
+  private
     const std::unique_ptr<class _https_pipeline> impl_;
   };
 }

@@ -124,6 +124,18 @@ void vds::db_model::migrate(
 			relation_type INTEGER NOT NULL,\
 			CONSTRAINT pk_transaction_log_record_relation PRIMARY KEY(predecessor_id,follower_id))");
 
+    t.execute("CREATE TABLE chunk_replica(\
+			id VARCHAR(64) NOT NULL,\
+			replica INTEGER NOT NULL,\
+			replica_hash BLOB NOT NULL,\
+			CONSTRAINT pk_chunk_replica PRIMARY KEY(id,replica))");
+
+		t.execute("CREATE TABLE chunk_map(\
+			id VARCHAR(64) NOT NULL,\
+			replica INTEGER NOT NULL,\
+			device VARCHAR(64) NOT NULL,\
+			CONSTRAINT pk_chunk_map PRIMARY KEY(id,replica,device))");
+
 		t.execute("INSERT INTO well_known_node(id, addresses) VALUES(\
 									'3940754a-64dd-4491-9777-719315b36a67',\
 									'udp://127.0.0.1:8050')");

@@ -194,6 +194,37 @@ vds::member_user vds::user_manager::import_user(const certificate &user_cert) {
   return vds::member_user::import_user(user_cert);
 }
 
+vds::member_user vds::user_manager::get_current_device(
+    const vds::service_provider &sp,
+    vds::database_transaction &t,
+    asymmetric_private_key &device_private_key) {
+
+  run_configuration_dbo t1;
+  auto st = t.get_reader(t1.select(t1.cert_id));
+  if(!st.execute()){
+    throw std::runtime_error("Unable to get current configuration");
+  }
+  auto user_id = t1.cert_id.get(st);
+
+  certificate_private_key_dbo t2;
+  st = t.get_reader(t2.select(t2.body).where(t2.id == user_id));
+  if(!st.execute()){
+    throw std::runtime_error("Unable to load user private key");
+  }
+  device_private_key = asymmetric_private_key::parse_der(t2.body.get(st), std::string());
+
+  certificate_dbo t3;
+  st = t.get_reader(t3.select(t3.cert).where(t3.id == user_id));
+  if(!st.execute()){
+    throw std::runtime_error("Unable to load user certificate");
+  }
+
+  return member_user(
+      new _member_user(
+          user_id,
+          certificate::parse_der(t3.cert.get(st))));
+}
+
 
 ////////////////////////////////////////////////////////////////////////
 vds::_user_manager::_user_manager()

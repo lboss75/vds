@@ -53,13 +53,13 @@ namespace vds {
         return this->next(sp, this->response_.get());
       }
       
-    private:
+    private
       service_provider scope_;
       const handler_type & handler_;
       std::shared_ptr<json_value> response_;
     };
 
-  private:
+  private
     service_provider scope_;
     const handler_type & handler_;
   };

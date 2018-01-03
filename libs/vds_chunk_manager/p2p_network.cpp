@@ -13,7 +13,7 @@ static uint8_t pack_block_iv[] = {
     0xa8, 0xc9, 0x59, 0x44, 0x62, 0x55, 0x90, 0x24
 };
 
-vds::chunk_manager::block_id_t vds::chunk_manager::pack_block(
+std::string vds::chunk_manager::pack_block(
     database_transaction & t,
     const vds::const_data_buffer &data) {
   auto zipped = deflate::compress(data);
@@ -40,7 +40,7 @@ vds::chunk_manager::block_id_t vds::chunk_manager::pack_block(
   return id;
 }
 
-vds::const_data_buffer vds::chunk_manager::get_block(database_transaction & t, const block_id_t & block_id)
+vds::const_data_buffer vds::chunk_manager::get_block(database_transaction & t, const std::string & block_id)
 {
 	chunk_data_dbo t1;
 	auto st = t.get_reader(

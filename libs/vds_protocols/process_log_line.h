@@ -92,12 +92,12 @@ namespace vds {
         this->prev();
       }
 
-    private:
+    private
       std::string stream_name_;
       handler_type * owner_;
     };
 
-  private:
+  private
     std::string stream_name_;
     handler_type * owner_;
   };

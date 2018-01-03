@@ -40,7 +40,7 @@ namespace vds {
     
     void run(const service_provider & sp, const std::string & body);
 
-  private:
+  private
     class ioutput_command_stream;
 
     https_pipeline * owner_;
@@ -103,7 +103,7 @@ namespace vds {
           return false;
         }
 
-      private:
+      private
         class stream_done
         {
         public:
@@ -125,7 +125,7 @@ namespace vds {
             }
           }
 
-        private:
+        private
           handler * owner_;
         };
 
@@ -157,7 +157,7 @@ namespace vds {
             }
           }
 
-        private:
+        private
           handler * owner_;
         };
         
@@ -170,7 +170,7 @@ namespace vds {
         stream_done done_handler_;
         stream_error error_handler_;
       };
-    private:
+    private
       _https_pipeline * owner_;
     };
     
@@ -209,11 +209,11 @@ namespace vds {
           //this->owner_->log_.trace("Certificate subject %s", cert.subject().c_str());
           //this->owner_->log_.trace("Certificate issuer %s", cert.issuer().c_str());
         }
-      private:
+      private
         _https_pipeline * owner_;
         ssl_tunnel & tunnel_;
       };
-    private:
+    private
       _https_pipeline * owner_;
       ssl_tunnel & tunnel_;
     };
@@ -248,11 +248,11 @@ namespace vds {
           
           return true;
         }
-      private:
+      private
         _https_pipeline * owner_;
         ssl_tunnel & tunnel_;
       };
-    private:
+    private
       _https_pipeline * owner_;
       ssl_tunnel & tunnel_;
     };
@@ -316,11 +316,11 @@ namespace vds {
           
           return false;
         }
-      private:
+      private
         _https_pipeline * owner_;
         ssl_tunnel & tunnel_;
       };
-    private:
+    private
       _https_pipeline * owner_;
       ssl_tunnel & tunnel_;
     };
@@ -377,13 +377,13 @@ namespace vds {
           this->next(sp, &this->request_, &this->outgoing_stream_);
         }
 
-      private:
+      private
         _https_pipeline * owner_;
 
         http_request request_;
         http_outgoing_stream outgoing_stream_;
       };
-    private:
+    private
       _https_pipeline * owner_;
     };
   };

@@ -43,7 +43,9 @@ namespace vds {
       }
 
       auto key_data = cert_key.decrypt(key_crypted);
-      auto skey = symmetric_key::deserialize(symmetric_crypto::aes_256_cbc(), binary_deserializer(key_data));
+      auto skey = symmetric_key::deserialize(
+          symmetric_crypto::aes_256_cbc(),
+          binary_deserializer(key_data));
 
       auto message_data = symmetric_decrypt::decrypt(skey, data_crypted);
 
@@ -63,6 +65,8 @@ namespace vds {
               channel_add_message_transaction::add_device_user(message_stream));
           break;
         }
+        default:
+          throw std::runtime_error("Data is corrupted");
       }
 
       if(0 != message_stream.size()){

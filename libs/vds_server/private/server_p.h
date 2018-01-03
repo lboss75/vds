@@ -25,6 +25,11 @@ namespace vds {
   class _server_http_api;
   class _storage_log;
 
+  namespace file_manager {
+    class file_manager_service;
+  }
+
+
   class _server : public iserver
   {
   public:
@@ -55,6 +60,7 @@ namespace vds {
     std::shared_ptr<class p2p_network_client> network_client_;
 
     std::unique_ptr<class log_sync_service> log_sync_service_;
+    std::unique_ptr<file_manager::file_manager_service> file_manager_;
 
   public:
     leak_detect_helper leak_detect_;

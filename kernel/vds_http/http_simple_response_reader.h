@@ -66,7 +66,7 @@ namespace vds {
         }
         return true;
       }
-    private:
+    private
     };    
   };
 }

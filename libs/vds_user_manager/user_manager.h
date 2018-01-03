@@ -25,13 +25,15 @@ namespace vds {
       const std::string & user_password,
       const class asymmetric_private_key & private_key);
     
-    vds::user_channel create_channel(transaction_block &log, const vds::member_user &owner,
-                                         const vds::asymmetric_private_key &owner_user_private_key,
-                                         const std::string &name,
-                                         const asymmetric_private_key &read_private_key,
-                                         const asymmetric_private_key &write_private_key);
+    user_channel create_channel(
+        transaction_block &log,
+        const vds::member_user &owner,
+        const vds::asymmetric_private_key &owner_user_private_key,
+        const std::string &name,
+        const asymmetric_private_key &read_private_key,
+        const asymmetric_private_key &write_private_key);
 
-    vds::const_data_buffer reset(const service_provider &sp, class database_transaction &t, const std::string &root_user_name,
+    const_data_buffer reset(const service_provider &sp, class database_transaction &t, const std::string &root_user_name,
                                      const std::string &root_password, const asymmetric_private_key &root_private_key,
                                  const std::string &device_name, int port);
 
@@ -52,6 +54,18 @@ namespace vds {
         const std::string &device_name,
         const asymmetric_private_key & device_private_key,
         int port);
+
+    member_user get_current_device(
+        const service_provider &sp,
+        class database_transaction &t,
+        asymmetric_private_key & device_private_key);
+
+    user_channel get_channel_write_key(
+        const guid & channel_id,
+        asymmetric_private_key &write_private_key);
+
+    user_channel get_common_channel_write_key(
+        asymmetric_private_key &write_private_key);
 
     member_user by_login(class database_transaction &t, const std::string &login);
 

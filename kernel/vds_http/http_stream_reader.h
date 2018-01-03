@@ -77,11 +77,11 @@ namespace vds {
         }        
       }
       
-    private:
+    private
       done_method_type & done_method_;
       http_incoming_stream & incoming_stream_;
     };
-  private:
+  private
     done_method_type & done_method_;
     http_incoming_stream & incoming_stream_;
   };

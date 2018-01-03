@@ -60,11 +60,11 @@ namespace vds {
           this->response_stream_);
       }
             
-    private:
+    private
       http_response & response_;
       http_outgoing_stream & response_stream_;
     };
-  private:
+  private
     http_response & response_;
     http_outgoing_stream & response_stream_;
   };

@@ -7,24 +7,21 @@ All rights reserved
 */
 #include <memory>
 #include <string>
+#include "const_data_buffer.h"
 
 namespace vds {
   class chunk_manager {
   public:
-    typedef std::string block_id_t;
-    typedef class symmetric_key block_key_t;
-
-    static block_id_t pack_block(
+		static std::string pack_block(
         class database_transaction & t,
         const class const_data_buffer & data);
 
 	static const_data_buffer get_block(
 		class database_transaction & t,
-		const block_id_t & block_id);
+		const std::string & block_id);
 
   private:
     std::shared_ptr<class _chunk_manager> impl_;
-
   };
 }
 

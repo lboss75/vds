@@ -149,11 +149,11 @@ namespace vds {
         }
       }
 
-    private:
+    private
       file f_;
     };
 
-  private:
+  private
     filename filename_;
   };
   
@@ -203,13 +203,13 @@ namespace vds {
         }
       }
 
-    private:
+    private
       file f_;
       size_t start_offset_;
       size_t max_size_;
     };
 
-  private:
+  private
     filename filename_;
     size_t start_offset_;
     size_t max_size_;
@@ -255,11 +255,11 @@ namespace vds {
         return this->input_buffer_size();
       }
       
-    private:
+    private
       file f_;
     };
     
-  private:
+  private
     filename filename_;
     file::file_mode mode_;
   };
@@ -298,11 +298,11 @@ namespace vds {
         return this->input_buffer_size();
       }
 
-    private:
+    private
       file & target_;
     };
 
-  private:
+  private
     file & target_;
   };
   */

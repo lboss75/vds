@@ -73,7 +73,7 @@ namespace vds {
         return false;
       }
 
-    private:
+    private
       class request_sent
       {
       public:
@@ -95,7 +95,7 @@ namespace vds {
       std::string header_;
     };
 
-  private:
+  private
     http_request & request_;
     http_outgoing_stream & outgoing_stream_;
     response_handler_type & response_handler_;

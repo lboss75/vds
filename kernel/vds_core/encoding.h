@@ -92,7 +92,7 @@ namespace vds {
         }
       }
 
-    private:
+    private
       uint8_t buffer_[4];
       size_t written_;
     };

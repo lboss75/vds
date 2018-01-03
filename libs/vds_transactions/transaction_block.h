@@ -18,7 +18,7 @@ namespace vds {
       item.serialize(this->s_);
     }
 
-    vds::const_data_buffer sign(
+    const_data_buffer sign(
         const class guid &target_cert_id,
         const class certificate &target_cert,
         const class guid &sign_cert_key_id,

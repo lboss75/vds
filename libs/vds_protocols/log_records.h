@@ -157,7 +157,7 @@ namespace vds {
 
   //  std::shared_ptr<json_value> serialize() const;
 
-  //private:
+  //private
   //  uint64_t user_cert_;
   //};
 
@@ -475,7 +475,7 @@ namespace vds {
 //     size_t min_chunk() const { return this->min_chunk_; }
 //     size_t max_chunk() const { return this->max_chunk_; }
 //     
-//   private:
+//   private
 //     guid server_id_;
 //     guid object_id_;
 //     size_t length_;

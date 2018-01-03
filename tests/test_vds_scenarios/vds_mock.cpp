@@ -2,6 +2,7 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
+#include <file_operations.h>
 #include "stdafx.h"
 #include "vds_mock.h"
 #include "test_config.h"
@@ -119,8 +120,26 @@ std::string vds_mock::generate_password(size_t min_len, size_t max_len)
   return result;
 }
 
-void vds_mock::upload_file(size_t client_index, const std::string &name, const void *data, size_t data_size) {
-  throw std::runtime_error("Not implemented");
+void vds_mock::upload_file(
+    size_t client_index,
+    const std::string & name,
+    const std::string & mimetype,
+    const vds::filename & file_path) {
+  vds::barrier b;
+  std::shared_ptr<std::exception> error;
+
+  this->servers_[client_index]->get<vds::file_manager::file_operations>()->upload_file(
+    name,
+    mimetype,
+    file_path
+  ).execute([&b, &error](const std::shared_ptr<std::exception> & ex){
+    if(ex){
+      error = ex;
+    }
+    b.set();
+  });
+
+  b.wait();
 }
 
 vds::const_data_buffer vds_mock::download_data(size_t client_index, const std::string &name) {
