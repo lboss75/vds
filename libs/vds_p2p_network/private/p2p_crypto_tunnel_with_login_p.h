@@ -6,6 +6,7 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
+#include <transaction_log_record_dbo.h>
 #include "cert_control.h"
 #include "p2p_crypto_tunnel_p.h"
 #include "user_manager.h"
@@ -13,6 +14,7 @@ All rights reserved
 #include "transaction_log.h"
 #include "member_user.h"
 #include "certificate_dbo.h"
+#include "chunk_data_dbo.h"
 
 namespace vds {
   class _p2p_crypto_tunnel_with_login : public _p2p_crypto_tunnel {
@@ -68,7 +70,19 @@ namespace vds {
                 auto user_id = cert_control::get_id(user_cert);
                 auto block_data = log.sign(user_cert, user_id, private_key);
 
-                auto block_id = chunk_manager::pack_block(t, block_data);
+                auto block_info = chunk_manager::pack_block(block_data);
+
+                orm::chunk_data_dbo t1;
+                t.execute(t1.insert(
+                    t1.id = base64::from_bytes(block_info.id),
+                    t1.block_key = block_info.key,
+                    t1.block_data = block_info.data));
+
+                orm::transaction_log_record_dbo t2;
+                t.execute(t2.insert(
+                    t2.id = base64::from_bytes(block_info.id),
+                    t2.state = (uint8_t)orm::transaction_log_record_dbo::state_t::new_record));
+
                 //transaction_log::apply(sp, t, chunk_manager::get_block(t, block_id));
 
                 binary_serializer s;

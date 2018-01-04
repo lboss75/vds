@@ -6,7 +6,7 @@ find_package (OpenSSL REQUIRED)
 FILE(GLOB HEADER_FILES *.h)
 FILE(GLOB PRIVATE_HEADER_FILES private/*.h)
 FILE(GLOB SOURCE_LIB *.cpp)
-FILE(GLOB TRANSACTION_FILES transactions/*.cpp transactions/*.h)
+FILE(GLOB TRANSACTION_FILES ../vds_transactions/transactions/*.cpp ../vds_transactions/transactions/*.h)
 
 ADD_MSVC_PRECOMPILED_HEADER("stdafx.h" "stdafx.cpp" SOURCE_LIB)
 

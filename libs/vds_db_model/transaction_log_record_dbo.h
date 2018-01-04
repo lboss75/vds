@@ -11,23 +11,25 @@ All rights reserved
 #include "const_data_buffer.h"
 
 namespace vds {
-  class transaction_log_record_dbo : public database_table {
-  public:
-    enum class state_t : uint8_t {
-      pending = 0,
-      unknown,
-      follower
+  namespace orm {
+    class transaction_log_record_dbo : public database_table {
+    public:
+      enum class state_t : uint8_t {
+        new_record = 0,
+        pending,
+        unknown,
+        follower
+      };
+
+      transaction_log_record_dbo()
+          : database_table("transaction_log_record"),
+            id(this, "id"),
+            state(this, "state") {}
+
+      database_column<std::string> id;
+      database_column<uint8_t> state;
     };
-
-    transaction_log_record_dbo()
-        : database_table("transaction_log_record"),
-          id(this, "id"),
-          state(this, "state")
-    {}
-
-    database_column<std::string> id;
-    database_column<uint8_t> state;
-  };
+  }
 }
 
 #endif //__VDS_DB_MODEL_TRANSACTION_LOG_RECORD_H_
