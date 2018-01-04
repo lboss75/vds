@@ -45,6 +45,8 @@ namespace vds {
     bool get_value(int index, const_data_buffer & value);
     bool get_value(int index, double & value);
 
+    bool is_null(int index) const;
+
     sql_statement & operator = (sql_statement && original);
 
   private:

@@ -2,7 +2,6 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
-#include <file_operations.h>
 #include "stdafx.h"
 #include "vds_mock.h"
 #include "test_config.h"
@@ -10,6 +9,10 @@ All rights reserved
 #include "mt_service.h"
 #include "leak_detect.h"
 #include "private/server_p.h"
+#include "file_operations.h"
+#include "db_model.h"
+#include "member_user.h"
+#include "user_dbo.h"
 
 vds_mock::vds_mock()
 {
@@ -120,17 +123,18 @@ std::string vds_mock::generate_password(size_t min_len, size_t max_len)
   return result;
 }
 
-void vds_mock::upload_file(
-    size_t client_index,
-    const std::string & name,
-    const std::string & mimetype,
-    const vds::filename & file_path) {
+void vds_mock::upload_file(size_t client_index, const vds::guid &channel_id, const std::string &name,
+                           const std::string &mimetype, const vds::filename &file_path) {
   vds::barrier b;
   std::shared_ptr<std::exception> error;
 
-  this->servers_[client_index]->get<vds::file_manager::file_operations>()->upload_file(name, <#initializer#>, mimetype,
-                                                                                       file_path,
-                                                                                       <#initializer#>).execute([&b, &error](const std::shared_ptr<std::exception> & ex){
+  this->servers_[client_index]->get<vds::file_manager::file_operations>()->upload_file(
+      this->servers_[client_index]->get_service_provider(),
+      channel_id,
+      name,
+      mimetype,
+      file_path)
+      .execute([&b, &error](const std::shared_ptr<std::exception> & ex){
     if(ex){
       error = ex;
     }
@@ -142,6 +146,60 @@ void vds_mock::upload_file(
 
 vds::const_data_buffer vds_mock::download_data(size_t client_index, const std::string &name) {
   throw std::runtime_error("Not implemented");
+}
+
+vds::user_channel vds_mock::create_channel(int index, const std::string &name) {
+  vds::user_channel result;
+  vds::barrier b;
+  std::shared_ptr<std::exception> error;
+  this->servers_[index]->get<vds::db_model>()->async_transaction(
+      this->servers_[index]->get_service_provider(),
+      [this, index, name, &result](vds::database_transaction & t) -> bool{
+
+    vds::user_dbo t1;
+
+    auto st = t.get_reader(
+        t1
+            .select(t1.id, t1.private_key)
+            .where(t1.login == "root"));
+    if(!st.execute()){
+      throw std::runtime_error("Unable to load user root");
+    }
+    auto root_private_key = vds::asymmetric_private_key::parse_der(
+        t1.private_key.get(st),
+        this->root_password_);
+
+    auto user_mng = this->servers_[index]->get<vds::user_manager>();
+    auto root_user = user_mng->by_login(t, "root");
+
+    auto read_private_key = vds::asymmetric_private_key::generate(
+        vds::asymmetric_crypto::rsa4096());
+    auto write_private_key = vds::asymmetric_private_key::generate(
+        vds::asymmetric_crypto::rsa4096());
+
+    vds::transaction_block log;
+    result = user_mng->create_channel(
+        log,
+        root_user,
+        root_private_key,
+        name,
+        read_private_key,
+        write_private_key);
+
+    return true;
+  }).execute([&b, &error](const std::shared_ptr<std::exception> & ex){
+    if(ex){
+      error = ex;
+    }
+    b.set();
+  });
+
+  b.wait();
+  if(error){
+    throw std::runtime_error(error->what());
+  }
+
+  return result;
 }
 
 mock_server::mock_server(int index, int udp_port)

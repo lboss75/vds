@@ -27,7 +27,7 @@ namespace vds {
     std::mutex state_mutex_;
     bool sycn_scheduled_;
 
-    void sync_process(const service_provider & sp, database_transaction & t);
+    void sync_process(const service_provider & sp, class database_transaction & t);
     void request_unknown_records(
         const service_provider &sp,
         class p2p_network *p2p,

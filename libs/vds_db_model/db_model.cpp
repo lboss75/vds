@@ -108,7 +108,8 @@ void vds::db_model::migrate(
     t.execute("CREATE TABLE run_configuration (\
 			id VARCHAR(64) PRIMARY KEY NOT NULL,\
 			cert_id VARCHAR(64) NOT NULL,\
-			port INTEGER)");
+			port INTEGER,\
+			common_channel_id VARCHAR(64) NOT NULL)");
 
 		t.execute("CREATE TABLE well_known_node(\
 			id VARCHAR(64) PRIMARY KEY NOT NULL,\

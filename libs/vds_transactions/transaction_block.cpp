@@ -9,10 +9,10 @@ All rights reserved
 #include "asymmetriccrypto.h"
 #include "guid.h"
 #include "transaction_context.h"
+#include "cert_control.h"
 
 vds::const_data_buffer
-vds::transaction_block::sign(const guid &target_cert_id, const class certificate &target_cert,
-                             const class guid &sign_cert_key_id,
+vds::transaction_block::sign(const class certificate &target_cert, const class guid &sign_cert_key_id,
                              const class asymmetric_private_key &sign_cert_key) {
 
   auto skey = symmetric_key::generate(symmetric_crypto::aes_256_cbc());
@@ -20,7 +20,7 @@ vds::transaction_block::sign(const guid &target_cert_id, const class certificate
   binary_serializer result;
   result
       << sign_cert_key_id
-      << target_cert_id
+      << cert_control::get_id(target_cert)
       << target_cert.public_key().encrypt(skey.serialize())
       << symmetric_encrypt::encrypt(skey, this->s_.data());
 

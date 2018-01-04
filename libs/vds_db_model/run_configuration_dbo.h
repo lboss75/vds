@@ -18,13 +18,15 @@ namespace vds {
         : database_table("run_configuration"),
           id(this, "id"),
           cert_id(this, "cert_id"),
-          port(this, "port")
+          port(this, "port"),
+          common_channel_id(this, "common_channel_id")
     {
     }
 
     database_column<guid> id;
     database_column<guid> cert_id;
     database_column<int> port;
+    database_column<guid> common_channel_id;
   };
 }
 

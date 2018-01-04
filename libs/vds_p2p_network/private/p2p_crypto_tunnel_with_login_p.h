@@ -34,13 +34,12 @@ namespace vds {
     }
 
   protected:
-    void create_device_user(
-        const service_provider & sp,
-        const asymmetric_private_key & private_key) {
+    void create_device_user(const service_provider &sp, const asymmetric_private_key &private_key,
+                                const guid &common_channel_id) {
 
       sp.get<db_model>()->async_transaction(
               sp,
-              [pthis = this->shared_from_this(), sp, private_key](
+              [pthis = this->shared_from_this(), sp, private_key, common_channel_id](
           database_transaction & t){
                 auto this_ = static_cast<_p2p_crypto_tunnel_with_login *>(pthis.get());
                 auto usr_manager = sp.get<user_manager>();
@@ -62,17 +61,12 @@ namespace vds {
 
                 this_->private_key_ = asymmetric_private_key::generate(asymmetric_crypto::rsa4096());
                 auto device_user = usr_manager->lock_to_device(sp, t, log, user, this_->login_, this_->password_,
-                                                               private_key, this_->device_name_,
-                                                               this_->private_key_,
-                                                               this_->port_);
+                                                               private_key, this_->device_name_, this_->private_key_,
+                                                               common_channel_id, this_->port_);
                 this_->certificate_chain_.push_back(device_user.user_certificate());
 
                 auto user_id = cert_control::get_id(user_cert);
-                auto block_data =  log.sign(
-                  user_id,
-                  user_cert,
-                  user_id,
-                  private_key);
+                auto block_data = log.sign(user_cert, user_id, private_key);
 
                 auto block_id = chunk_manager::pack_block(t, block_data);
                 //transaction_log::apply(sp, t, chunk_manager::get_block(t, block_id));
@@ -133,10 +127,13 @@ namespace vds {
           const_data_buffer private_key_data;
           s >> private_key_data;
 
+          guid common_channel_id;
+          s >> common_channel_id;
+
           auto private_key = asymmetric_private_key::parse_der(
               private_key_data,
               this->password_);
-          this->create_device_user(sp, private_key);
+          this->create_device_user(sp, private_key, common_channel_id);
           break;
         }
         default: {

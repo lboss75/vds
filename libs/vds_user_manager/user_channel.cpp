@@ -6,6 +6,8 @@ All rights reserved
 #include "user_channel.h"
 #include "private/user_channel_p.h"
 
+vds::user_channel::user_channel() {
+}
 
 vds::user_channel::user_channel(
     const vds::guid &id,

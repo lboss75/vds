@@ -26,7 +26,7 @@ All rights reserved
 #include "transaction_block.h"
 #include "transaction_block.h"
 #include "transaction_context.h"
-#include "chunk_manager.h"
+#include "p2p_network.h"
 #include "transaction_log.h"
 #include "db_model.h"
 #include "certificate_dbo.h"
@@ -103,7 +103,8 @@ vds::async_task<> vds::server::reset(const vds::service_provider &sp, const std:
 
 vds::async_task<> vds::server::init_server(const vds::service_provider &sp, const std::string &user_login,
                                            const std::string &user_password, const std::string &device_name, int port) {
-  return this->impl_->p2p_network_->init_server(sp, user_login, user_password, device_name, port);
+  return this->impl_->p2p_network_->init_server(
+      sp, user_login, user_password, device_name, port);
 
 }
 

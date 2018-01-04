@@ -13,6 +13,8 @@ TEST(test_vds, test_initial)
 
     mock.start(5);
 
+    auto channel = mock.create_channel(0, "Test file");
+
     size_t len;
     do
     {
@@ -39,8 +41,8 @@ TEST(test_vds, test_initial)
     //Waiting to sync logs
     mock.sync_wait();
 
-    mock.upload_file(3, "test data", tmp_fn);
-    
+    mock.upload_file(3, channel.id(), "test data", "application/octet-stream", tmp_fn);
+
     std::cout << "Download local file...\n";
 
     auto result1 = mock.download_data(3, "test data");

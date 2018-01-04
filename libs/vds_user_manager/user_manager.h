@@ -8,6 +8,7 @@ All rights reserved
 
 #include <memory>
 #include <string>
+#include <stdafx.h>
 #include "transaction_block.h"
 #include "user_channel.h"
 
@@ -53,6 +54,7 @@ namespace vds {
         const asymmetric_private_key &user_private_key,
         const std::string &device_name,
         const asymmetric_private_key & device_private_key,
+        const guid &common_channel_id,
         int port);
 
     member_user get_current_device(
@@ -60,16 +62,18 @@ namespace vds {
         class database_transaction &t,
         asymmetric_private_key & device_private_key);
 
-    user_channel get_channel_write_key(
-        const guid & channel_id,
-        asymmetric_private_key &write_private_key);
-
-    user_channel get_common_channel_write_key(
-        asymmetric_private_key &write_private_key);
+    asymmetric_private_key get_channel_write_key(
+        const service_provider &sp,
+        class database_transaction &t,
+        const user_channel &channel_id,
+        const guid &user_id);
 
     member_user by_login(class database_transaction &t, const std::string &login);
 
     member_user import_user(const certificate &user_cert);
+
+    user_channel get_channel(class database_transaction &t, const guid &channel_id) const;
+    user_channel get_common_channel(class database_transaction & t) const;
 
   private:
     std::shared_ptr<class _user_manager> impl_;

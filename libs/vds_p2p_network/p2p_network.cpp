@@ -1,5 +1,5 @@
 #include "stdafx.h"
-#include "chunk_manager.h"
+#include "p2p_network.h"
 #include "private/p2p_network_p.h"
 #include "ip2p_network_client.h"
 #include "udp_socket.h"

@@ -18,11 +18,8 @@ namespace vds {
       item.serialize(this->s_);
     }
 
-    const_data_buffer sign(
-        const class guid &target_cert_id,
-        const class certificate &target_cert,
-        const class guid &sign_cert_key_id,
-        const class asymmetric_private_key &sign_cert_key);
+    vds::const_data_buffer sign(const class certificate &target_cert, const class guid &sign_cert_key_id,
+                                    const class asymmetric_private_key &sign_cert_key);
 
     static const_data_buffer unpack_block(
         service_provider & sp,

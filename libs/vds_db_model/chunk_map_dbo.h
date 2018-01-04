@@ -19,7 +19,7 @@ namespace vds {
     }
 
     database_column<std::string> id;
-    database_column<uint16_t > replica;
+    database_column<int> replica;
     database_column<guid> device;
   };
 

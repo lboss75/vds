@@ -117,6 +117,8 @@ namespace vds {
 
 
     _database_column_setter operator = (const value_type & value) const;
+
+    bool is_null(const sql_statement &statement) const;
   };
   
   ////////////////////////////////////////////
@@ -1361,6 +1363,12 @@ namespace vds {
     return _database_expression_equ_exp<_database_column_exp, _database_column_exp>(
         _database_column_exp(this),
         _database_column_exp(&right));
+  }
+
+  template <typename value_type, typename db_value_type>
+  inline bool database_column<value_type, db_value_type>::is_null(
+      const sql_statement &statement) const{
+    return statement.is_null(this->index_);
   }
 
   template <typename value_type, typename db_value_type>

@@ -22,12 +22,16 @@ namespace vds {
     channel_dbo()
         : database_table("channel"),
           id(this, "id"),
-          channel_type(this, "channel_type")
+          channel_type(this, "channel_type"),
+          read_cert(this, "read_cert"),
+          write_cert(this, "write_cert")
     {
     }
 
     database_column<guid> id;
     database_column<uint8_t> channel_type;
+    database_column<guid> read_cert;
+    database_column<guid> write_cert;
   };
 }
 

@@ -27,6 +27,10 @@ public:
   T * get() const {
     return this->sp_.get<T>();
   }
+
+  const vds::service_provider & get_service_provider() const {
+    return this->sp_;
+  }
   
 private:
   int index_;
@@ -55,15 +59,14 @@ public:
   void start(size_t server_count);
   void stop();
 
-  void upload_file(
-      size_t client_index,
-      const std::string & name,
-      const std::string & mimetype,
-      const vds::filename & file_path);
+  void upload_file(size_t client_index, const vds::guid &channel_id, const std::string &name,
+                     const std::string &mimetype, const vds::filename &file_path);
 
   vds::const_data_buffer download_data(size_t client_index, const std::string & name);
   
   void sync_wait();
+
+  vds::user_channel create_channel(int index, const std::string &name);
 
 private:
   std::vector<std::unique_ptr<mock_server>> servers_;

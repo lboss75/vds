@@ -12,7 +12,7 @@ All rights reserved
 #include "chunk_replica_dbo.h"
 #include "chunk_map_dbo.h"
 #include "chunk.h"
-#include "chunk_send_replica.h"
+#include "messages/chunk_send_replica.h"
 #include "member_user.h"
 #include "user_manager.h"
 
@@ -148,7 +148,7 @@ void vds::_chunk_replicator::update_replicas(
           p2p->send(
               sp,
               node,
-              chunk_send_replica(
+              p2p_messages::chunk_send_replica(
                   this_device.id(),
                   this->generate_replica(replica, data)).serialize());
         }

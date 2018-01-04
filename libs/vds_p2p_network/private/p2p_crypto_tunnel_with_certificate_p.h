@@ -7,6 +7,7 @@ All rights reserved
 */
 
 #include <resizable_data_buffer.h>
+#include <run_configuration_dbo.h>
 #include "udp_transport.h"
 #include "asymmetriccrypto.h"
 #include "symmetriccrypto.h"
@@ -101,6 +102,14 @@ namespace vds {
             }
 
             result << private_key;
+
+            run_configuration_dbo t2;
+            auto st = t.get_reader(t2.select(t2.common_channel_id));
+            if(!st.execute()){
+              throw std::runtime_error("Unable to load common channel id");
+            }
+
+            result << t2.common_channel_id.get(st);
           }
 
           pthis->send(sp, const_data_buffer(result.data().data(), result.size()));

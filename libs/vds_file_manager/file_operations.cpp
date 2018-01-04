@@ -51,8 +51,12 @@ vds::async_task<> vds::file_manager_private::_file_operations::upload_file(
 
         auto user_mng = sp.get<user_manager>();
 
-        asymmetric_private_key channel_write_key;
-        auto channel = user_mng->get_channel_write_key(channel_id, channel_write_key);
+        asymmetric_private_key device_private_key;
+        auto user = user_mng->get_current_device(sp, t, device_private_key);
+
+        auto channel = user_mng->get_channel(t, channel_id);
+        auto channel_write_key = user_mng->get_channel_write_key(
+            sp, t, channel, user.id());
 
         std::list<std::string> file_blocks;
         pthis->pack_file(sp, file_path, t, file_blocks);
@@ -67,14 +71,9 @@ vds::async_task<> vds::file_manager_private::_file_operations::upload_file(
                 mimetype,
                 file_blocks)));
 
-        asymmetric_private_key device_private_key;
-        auto user = user_mng->get_current_device(sp, t, device_private_key);
-
-        asymmetric_private_key common_channel_write_key;
-        auto common_channel = user_mng->get_common_channel_write_key(common_channel_write_key);
+        auto common_channel = user_mng->get_common_channel(t);
 
         auto tran = log.sign(
-            common_channel.id(),
             common_channel.read_cert(),
             cert_control::get_id(common_channel.write_cert()),
             common_channel_write_key);

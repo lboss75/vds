@@ -138,4 +138,8 @@ vds::sql_statement& vds::sql_statement::operator= (vds::sql_statement&& original
   
   return *this;
 }
+
+bool vds::sql_statement::is_null(int index) const {
+  return this->impl_->is_null(index);
+}
 //////////////////////////////////////

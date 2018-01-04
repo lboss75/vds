@@ -157,6 +157,10 @@ namespace vds {
       return true;
     }
 
+    bool is_null(int index) const {
+      return (SQLITE_NULL == sqlite3_column_type(this->stmt_, index));
+    }
+
   private:
     //service_provider sp_;
     sqlite3 * db_;

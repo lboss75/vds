@@ -5,11 +5,12 @@ find_package (OpenSSL REQUIRED)
 
 FILE(GLOB HEADER_FILES *.h)
 FILE(GLOB PRIVATE_HEADER_FILES private/*.h)
+FILE(GLOB MESSAGES_HEADER_FILES messages/*.h)
 FILE(GLOB SOURCE_LIB *.cpp)
 
 ADD_MSVC_PRECOMPILED_HEADER("stdafx.h" "stdafx.cpp" SOURCE_LIB)
 
-add_library(vds_p2p_network STATIC ${SOURCE_LIB} ${PRIVATE_HEADER_FILES})
+add_library(vds_p2p_network STATIC ${SOURCE_LIB} ${PRIVATE_HEADER_FILES} ${MESSAGES_HEADER_FILES})
 
 target_include_directories(vds_p2p_network
 	PRIVATE
