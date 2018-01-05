@@ -18,15 +18,20 @@ namespace vds {
         new_record = 0,
         pending,
         unknown,
-        follower
+        follower,
+        leaf
       };
 
       transaction_log_record_dbo()
           : database_table("transaction_log_record"),
             id(this, "id"),
+            key(this, "key"),
+            channel_id(this, "channel_id"),
             state(this, "state") {}
 
       database_column<std::string> id;
+      database_column<const_data_buffer> key;
+      database_column<guid> channel_id;
       database_column<uint8_t> state;
     };
   }

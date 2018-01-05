@@ -12,9 +12,6 @@ All rights reserved
 namespace vds {
   class transaction_log {
   public:
-    static const uint8_t transactions_category_id = 't';
-    static const uint8_t user_manager_category_id = 'u';
-    static const uint8_t file_manager_category_id = 'f';
 
     static void apply(
         const service_provider &sp,

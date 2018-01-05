@@ -41,12 +41,15 @@ TEST(test_user_operations, test_add_user)
   user2_private_key.generate();
   auto user2 = root_user.create_device_user(root_private_key, "test2", "123qwe", <#initializer#>);
   
-  auto channel1 = manager.create_channel(<#initializer#>, user1, user1_private_key, "channel1", <#initializer#>,
+  auto channel1 = manager.create_channel(<#initializer#>, <#initializer#>, user1, user1_private_key, "channel1",
+                                         <#initializer#>,
                                          <#initializer#>);
-  auto channel2 = manager.create_channel(<#initializer#>, user2, user2_private_key, "channel2", <#initializer#>,
+  auto channel2 = manager.create_channel(<#initializer#>, <#initializer#>, user2, user2_private_key, "channel2",
+                                         <#initializer#>,
                                          <#initializer#>);
   
-  auto channel3 = manager.create_channel(<#initializer#>, user1, user1_private_key, "channel3", <#initializer#>,
+  auto channel3 = manager.create_channel(<#initializer#>, <#initializer#>, user1, user1_private_key, "channel3",
+                                         <#initializer#>,
                                          <#initializer#>);
   //channel3.add_user(user2);
   

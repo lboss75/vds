@@ -27,7 +27,6 @@ namespace vds {
         const std::string & login);
 
     member_user create_device_user(
-        class transaction_block & log,
         const asymmetric_private_key &owner_user_private_key,
         const asymmetric_private_key &private_key,
         const std::string &device_name) const;

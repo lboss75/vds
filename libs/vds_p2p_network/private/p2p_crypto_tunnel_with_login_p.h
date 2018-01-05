@@ -36,8 +36,10 @@ namespace vds {
     }
 
   protected:
-    void create_device_user(const service_provider &sp, const asymmetric_private_key &private_key,
-                                const guid &common_channel_id) {
+    void create_device_user(
+        const service_provider &sp,
+        const asymmetric_private_key &private_key,
+        const guid &common_channel_id) {
 
       sp.get<db_model>()->async_transaction(
               sp,
@@ -62,26 +64,14 @@ namespace vds {
                 auto user = usr_manager->import_user(user_cert);
 
                 this_->private_key_ = asymmetric_private_key::generate(asymmetric_crypto::rsa4096());
-                auto device_user = usr_manager->lock_to_device(sp, t, log, user, this_->login_, this_->password_,
-                                                               private_key, this_->device_name_, this_->private_key_,
+                auto device_user = usr_manager->lock_to_device(sp, t, user, this_->login_, this_->password_,
+                                                               private_key,
+                                                               this_->device_name_, this_->private_key_,
                                                                common_channel_id, this_->port_);
                 this_->certificate_chain_.push_back(device_user.user_certificate());
 
                 auto user_id = cert_control::get_id(user_cert);
-                auto block_data = log.sign(user_cert, user_id, private_key);
-
-                auto block_info = chunk_manager::pack_block(block_data);
-
-                orm::chunk_data_dbo t1;
-                t.execute(t1.insert(
-                    t1.id = base64::from_bytes(block_info.id),
-                    t1.block_key = block_info.key,
-                    t1.block_data = block_info.data));
-
-                orm::transaction_log_record_dbo t2;
-                t.execute(t2.insert(
-                    t2.id = base64::from_bytes(block_info.id),
-                    t2.state = (uint8_t)orm::transaction_log_record_dbo::state_t::new_record));
+                log.pack(sp, t, user, private_key);
 
                 //transaction_log::apply(sp, t, chunk_manager::get_block(t, block_id));
 

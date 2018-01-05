@@ -17,12 +17,6 @@ namespace vds {
       const guid & id,
       const certificate & user_cert);
 
-    static member_user create_root(
-      class transaction_block & log,
-      const std::string & user_name,
-      const std::string & user_password,
-      const vds::asymmetric_private_key & private_key);
-
     vds::member_user create_user(const vds::asymmetric_private_key &owner_user_private_key, const std::string &user_name,
                                      const vds::asymmetric_private_key &private_key);
 
@@ -32,7 +26,6 @@ namespace vds {
         const std::string & channel_name) const;
 
     member_user create_device_user(
-        class transaction_block & log,
         const vds::asymmetric_private_key & owner_user_private_key,
         const vds::asymmetric_private_key & private_key,
         const std::string &device_name);

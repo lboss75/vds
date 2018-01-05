@@ -25,10 +25,12 @@ vds::member_user::member_user(_member_user * impl)
 {
 }
 
-vds::member_user vds::member_user::create_device_user(transaction_block &log, const vds::asymmetric_private_key &owner_user_private_key,
-                                                      const vds::asymmetric_private_key &private_key, const std::string &device_name) const
+vds::member_user vds::member_user::create_device_user(
+    const vds::asymmetric_private_key &owner_user_private_key,
+    const vds::asymmetric_private_key &private_key,
+    const std::string &device_name) const
 {
-  return this->impl_->create_device_user(log, owner_user_private_key, private_key, device_name);
+  return this->impl_->create_device_user(owner_user_private_key, private_key, device_name);
 }
 
 vds::member_user vds::member_user::create_user(const vds::asymmetric_private_key &owner_user_private_key, const std::string &user_name,
@@ -78,28 +80,9 @@ vds::_member_user::_member_user(
 {
 }
 
-vds::member_user vds::_member_user::create_root(
-  transaction_block & log,
-  const std::string & user_name,
-  const std::string & user_password,
-  const vds::asymmetric_private_key & private_key)
-{
-  auto id = guid::new_guid();
-
-  auto cert = _cert_control::create_root(id, "User " + user_name, private_key);
-
-  log.add(root_user_transaction(
-      id,
-      cert,
-      user_name,
-      private_key.der(user_password),
-      hash::signature(hash::sha256(), user_password.c_str(), user_password.length())));
-
-  return member_user(new _member_user(id, cert));
-}
-
-vds::member_user vds::_member_user::create_device_user(transaction_block &/*log*/, const vds::asymmetric_private_key &owner_user_private_key,
-                                                       const vds::asymmetric_private_key &private_key, const std::string &device_name) {
+vds::member_user vds::_member_user::create_device_user(const vds::asymmetric_private_key &owner_user_private_key,
+                                                       const vds::asymmetric_private_key &private_key,
+                                                       const std::string &device_name) {
 
 	auto name = device_name;
 #ifndef _WIN32

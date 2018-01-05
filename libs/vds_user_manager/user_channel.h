@@ -14,6 +14,19 @@ All rights reserved
 namespace vds {
   class member_user;
 
+  /*
+   * Read:
+   *    write_cert.check()
+   *    read_private_key.decrypt(sym_key)
+   *
+   * Write:
+   *    sym_key
+   *    read_cert.crypt(sym_key)
+   *    write_cert.sign(write_private_key)
+   *
+   * Add reader:
+   *    send(write_cert + read_private_key)
+   */
   class user_channel
   {
   public:

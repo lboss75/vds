@@ -49,57 +49,6 @@ namespace vds {
     const guid & channel_id() const { return this->channel_id_; }
     const const_data_buffer & message() const { return this->data_; }
 
-    class create_channel {
-    public:
-      static constexpr uint8_t message_id = 'c';
-
-      create_channel(const guid &channel_id, const guid &read_cert_id, const certificate &read_cert,
-                   const asymmetric_private_key &read_cert_key, const guid &write_cert_id, const certificate &write_cert,
-                   const asymmetric_private_key &write_key);
-
-      create_channel(binary_deserializer & s){
-        const_data_buffer read_cert_der;
-        const_data_buffer read_cert_key_der;
-        const_data_buffer write_cert_der;
-        const_data_buffer write_key_der;
-
-        s
-            >> this->channel_id_
-            >> this->read_cert_id_
-            >> read_cert_der
-            >> read_cert_key_der
-            >> this->write_cert_id_
-            >> write_cert_der
-            >> write_key_der;
-
-        this->read_cert_ = certificate::parse_der(read_cert_der);
-        this->read_cert_key_ = asymmetric_private_key::parse_der(read_cert_key_der, std::string());
-
-        this->write_cert_ = certificate::parse_der(write_cert_der);
-        this->write_key_ = asymmetric_private_key::parse_der(write_key_der, std::string());
-      }
-
-      binary_serializer & serialize(binary_serializer & s) const {
-        s
-            << this->channel_id_
-            << this->read_cert_id_
-            << this->read_cert_.der()
-            << this->read_cert_key_.der("")
-            << this->write_cert_id_
-            << this->write_cert_.der()
-            << this->write_key_.der("");
-        return  s;
-      }
-    private:
-      guid channel_id_;
-      guid read_cert_id_;
-      certificate read_cert_;
-      asymmetric_private_key read_cert_key_;
-      guid write_cert_id_;
-      certificate write_cert_;
-      asymmetric_private_key write_key_;
-    };
-
     enum class device_user_type : uint8_t {
       simple
     };
