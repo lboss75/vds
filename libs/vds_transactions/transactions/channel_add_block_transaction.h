@@ -17,7 +17,6 @@ namespace vds {
   namespace transactions {
     class channel_add_block_transaction {
     public:
-      static const uint8_t category_id = transaction_log::transactions_category_id;
       static const uint8_t message_id = 'b';
 
       channel_add_block_transaction(

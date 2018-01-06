@@ -11,28 +11,28 @@ All rights reserved
 #include "const_data_buffer.h"
 
 namespace vds {
+  namespace orm {
+    class channel_dbo : public database_table {
+    public:
 
-  class channel_dbo : public database_table {
-  public:
+      enum class channel_type_t : uint8_t {
+        simple = 0
+      };
 
-    enum class channel_type_t : uint8_t {
-      simple = 0
+      channel_dbo()
+          : database_table("channel"),
+            id(this, "id"),
+            channel_type(this, "channel_type"),
+            read_cert(this, "read_cert"),
+            write_cert(this, "write_cert") {
+      }
+
+      database_column <guid> id;
+      database_column <uint8_t> channel_type;
+      database_column <guid> read_cert;
+      database_column <guid> write_cert;
     };
-
-    channel_dbo()
-        : database_table("channel"),
-          id(this, "id"),
-          channel_type(this, "channel_type"),
-          read_cert(this, "read_cert"),
-          write_cert(this, "write_cert")
-    {
-    }
-
-    database_column<guid> id;
-    database_column<uint8_t> channel_type;
-    database_column<guid> read_cert;
-    database_column<guid> write_cert;
-  };
+  }
 }
 
 #endif //__VDS_DB_MODEL_CHANNEL_DBO_H_

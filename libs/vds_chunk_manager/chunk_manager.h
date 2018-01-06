@@ -23,6 +23,10 @@ namespace vds {
 		static chunk_info pack_block(
 				const const_data_buffer &data);
 
+		static chunk_info save_block(
+				class database_transaction & t,
+				const const_data_buffer &data);
+
 		static const_data_buffer unpack_block(
 				const const_data_buffer & block_id,
 				const const_data_buffer & block_key,

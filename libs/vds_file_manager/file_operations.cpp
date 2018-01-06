@@ -61,9 +61,10 @@ vds::async_task<> vds::file_manager_private::_file_operations::upload_file(
         std::list<std::string> file_blocks;
         pthis->pack_file(sp, file_path, t, file_blocks);
 
-        transaction_block log;
-        log.add(channel_add_message_transaction(
+        transactions::transaction_block log;
+        log.add(
             channel_id,
+            transactions::channel_add_message_transaction(
             channel.write_cert(),
             channel_write_key,
             file_manager_transactions::file_add_transaction(
@@ -73,13 +74,7 @@ vds::async_task<> vds::file_manager_private::_file_operations::upload_file(
 
         auto common_channel = user_mng->get_common_channel(t);
 
-        auto tran = log.sign(
-            common_channel.read_cert(),
-            cert_control::get_id(common_channel.write_cert()),
-            common_channel_write_key);
-
-        auto chunk_mng = sp.get<vds::chunk_manager>();
-        chunk_mng->pack_block(t, tran);
+        log.save(t);
       }
   );
 }

@@ -178,8 +178,8 @@ vds::user_channel vds_mock::create_channel(int index, const std::string &name) {
         vds::asymmetric_crypto::rsa4096());
 
     vds::transaction_block log;
-    result = user_mng->create_channel(log, <#initializer#>, root_user, root_private_key, name, read_private_key,
-                                      write_private_key);
+    result = user_mng->create_channel(log, <#initializer#>, <#initializer#>, root_user, root_private_key, name,
+                                      read_private_key, write_private_key);
 
     return true;
   }).execute([&b, &error](const std::shared_ptr<std::exception> & ex){

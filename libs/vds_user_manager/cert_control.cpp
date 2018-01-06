@@ -2,6 +2,12 @@
 #include "private/cert_control_p.h"
 #include "cert_control.h"
 
+/*
+ * User: user_id -> certificate (id, user_id, parent_id)
+ *
+ *
+ */
+
 static vds::crypto_service::certificate_extension_type id_extension_type()
 {
   static vds::crypto_service::certificate_extension_type result = vds::crypto_service::register_certificate_extension_type(
@@ -22,15 +28,25 @@ static vds::crypto_service::certificate_extension_type parent_id_extension_type(
   return result;
 }
 
+static vds::crypto_service::certificate_extension_type user_id_extension_type()
+{
+  static vds::crypto_service::certificate_extension_type result = vds::crypto_service::register_certificate_extension_type(
+      "1.2.3.6",
+      "VDS User Identifier",
+      "VDS User Identifier");
+
+  return result;
+}
+
 static vds::guid certificate_parent_id(const vds::certificate & cert)
 {
   return vds::guid::parse(cert.get_extension(cert.extension_by_NID(parent_id_extension_type())).value);
 }
 
 vds::certificate vds::_cert_control::create_root(
-    const guid & id,
-    const std::string & name,
-    const vds::asymmetric_private_key & private_key) {
+    const guid &user_id,
+    const std::string &name,
+    const vds::asymmetric_private_key &private_key) {
 
   certificate::create_options local_user_options;
   local_user_options.country = "RU";
@@ -38,7 +54,10 @@ vds::certificate vds::_cert_control::create_root(
   local_user_options.name = name;
 
   local_user_options.extensions.push_back(
-      certificate_extension(id_extension_type(), id.str()));
+      certificate_extension(id_extension_type(), guid::new_guid().str()));
+
+  local_user_options.extensions.push_back(
+      certificate_extension(user_id_extension_type(), user_id.str()));
 
   asymmetric_public_key cert_pkey(private_key);
   return certificate::create_new(cert_pkey, private_key, local_user_options);
@@ -62,7 +81,10 @@ vds::certificate vds::_cert_control::create(
       certificate_extension(id_extension_type(), id.str()));
 
   local_user_options.extensions.push_back(
-      certificate_extension(parent_id_extension_type(), user_id.str()));
+      certificate_extension(user_id_extension_type(), user_id.str()));
+
+  local_user_options.extensions.push_back(
+      certificate_extension(parent_id_extension_type(), cert_control::get_id(user_cert).str()));
 
   asymmetric_public_key cert_pkey(private_key);
   return certificate::create_new(cert_pkey, private_key, local_user_options);

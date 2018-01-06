@@ -9,19 +9,25 @@ All rights reserved
 #include "database_orm.h"
 
 namespace vds {
+  namespace orm {
+    class certificate_private_key_dbo : public database_table {
+    public:
+      certificate_private_key_dbo()
+          : database_table("cert_private_key"),
+            id(this, "id"),
+            owner_id(this, "owner_id"),
+            body(this, "body") {
+      }
 
-  class certificate_private_key_dbo : public database_table {
-  public:
-    certificate_private_key_dbo()
-        : database_table("cert_private_key"),
-          id(this, "id"),
-          body(this, "body")
-    {
-    }
+      database_column <guid> id;
+      database_column <guid> owner_id;
 
-    database_column<guid> id;
-    database_column<const_data_buffer> body;
-  };
+      /*
+       * body = cert(owner_id).public_key().encrypt(private_key)
+       */
+      database_column <const_data_buffer> body;
+    };
+  }
 }
 
 #endif //__VDS_DB_MODEL_CERTIFICATE_PRIVATE_KEY_DBO_H_

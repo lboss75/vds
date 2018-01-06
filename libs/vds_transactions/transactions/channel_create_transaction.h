@@ -15,7 +15,6 @@ namespace vds {
   namespace transactions {
     class channel_create_transaction {
     public:
-      static const uint8_t category_id = transaction_log::transactions_category_id;
       static const uint8_t message_id = 'c';
 
       enum class channel_type : uint8_t {
@@ -23,20 +22,21 @@ namespace vds {
         user
       };
 
+      //normal
       channel_create_transaction(
           channel_type type,
           const guid &channel_id,
+          const guid &owner_id,
           const std::string &name,
-          const certificate &read_cert,
-          const asymmetric_private_key &read_cert_key,
-          const certificate &write_cert,
-          const asymmetric_private_key &write_key);
+          const guid & read_cert_id,
+          const guid & write_cert_id);
 
+      //user
       channel_create_transaction(
           channel_type type,
-          const guid &channel_id,
-          const certificate &read_cert,
-          const asymmetric_private_key &read_cert_key);
+          const guid &owner_id,
+          const guid & read_cert_id,
+          const guid & write_cert_id);
 
       channel_create_transaction(binary_deserializer & s){
         const_data_buffer read_cert_der;

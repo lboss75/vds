@@ -74,3 +74,16 @@ vds::const_data_buffer vds::chunk_manager::unpack_block(
 
 	return data;
 }
+
+vds::chunk_manager::chunk_info
+vds::chunk_manager::save_block(vds::database_transaction &t, const vds::const_data_buffer &data) {
+	auto block = pack_block(data);
+
+	orm::chunk_data_dbo t1;
+	t.execute(t1.insert(
+			t1.id = base64::from_bytes(block.id),
+			t1.block_key = block.key,
+			t1.block_data = block.data));
+
+	return block;
+}

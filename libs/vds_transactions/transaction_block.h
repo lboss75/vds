@@ -6,48 +6,44 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 #include <set>
+#include <map>
 #include "binary_serialize.h"
+#include "chunk_manager.h"
+#include "guid.h"
 
 namespace vds {
   namespace transactions {
     class transaction_block {
     public:
 
-      class channel_playback{
-      public:
-        template<typename item_type>
-        void add(
-            item_type &&item) {
-          this->s_ << item_type::message_id;
-          item.serialize(this->s_);
-        }
-
-      private:
-        binary_serializer s_;
-        certificate read_cert_;
-        certificate write_cert_;
-        asymmetric_private_key write_private_key_;
-      };
-
-      channel_playback & create_channel(
+      template<typename item_type>
+      void add(
           const guid & channel_id,
-          const certificate & read_cert,
-          const certificate & write_cert,
-          const asymmetric_private_key & write_private_key);
+          item_type && item) {
 
+        auto & s = this->channels_[channel_id];
 
-      static transaction_block unpack_block(
-          const service_provider &sp,
-          const const_data_buffer &data,
-          const std::function<class certificate(const class guid &)> &get_cert_handler,
-          const std::function<class asymmetric_private_key(const class guid &)> &get_key_handler);
+        s << item_type::message_id;
+        item.serialize(s);
+      }
+
+      void save(
+          class database_transaction & t) const;
 
     private:
-      struct dependency_info {
-        const_data_buffer id;
-        const_data_buffer key;
-      };
-      std::map<guid, channel_playback> channels_;
+
+      std::map<guid, binary_serializer> channels_;
+
+      void collect_dependencies(
+          binary_serializer &s,
+          class database_transaction &t,
+          std::set<std::string> &ancestors) const;
+
+      void register_transaction(
+          class database_transaction &t,
+          const std::set<std::string> &ancestors,
+          const chunk_manager::chunk_info &block) const;
+
     };
   }
 }

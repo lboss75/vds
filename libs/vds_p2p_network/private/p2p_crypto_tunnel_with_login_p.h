@@ -59,7 +59,7 @@ namespace vds {
                     ));
                 }
 
-                transaction_block log;
+                transactions::transaction_block log;
                 auto &user_cert = *this_->certificate_chain_.rbegin();
                 auto user = usr_manager->import_user(user_cert);
 
@@ -71,9 +71,7 @@ namespace vds {
                 this_->certificate_chain_.push_back(device_user.user_certificate());
 
                 auto user_id = cert_control::get_id(user_cert);
-                log.pack(sp, t, user, private_key);
-
-                //transaction_log::apply(sp, t, chunk_manager::get_block(t, block_id));
+                log.save(t);
 
                 binary_serializer s;
                 s << (uint8_t)command_id::CertCain;

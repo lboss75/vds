@@ -7,9 +7,12 @@ All rights reserved
 */
 
 namespace vds {
-  class channel_add_member_transaction {
+  namespace transactions {
 
-  };
+    class channel_add_member_transaction {
+
+    };
+  }
 }
 
 

@@ -69,11 +69,11 @@ void vds::_log_sync_service::sync_process(
     vds::database_transaction &t) {
   auto p2p = sp.get<p2p_network>();
 
-  transaction_log_record_dbo t1;
+  orm::transaction_log_record_dbo t1;
   auto st = t.get_reader(
       t1
           .select(t1.id)
-          .where(t1.state == (uint8_t)transaction_log_record_dbo::state_t::unknown));
+          .where(t1.state == (uint8_t)orm::transaction_log_record_dbo::state_t::unknown));
 
   std::list<std::string> record_ids;
   while(st.execute()){

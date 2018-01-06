@@ -11,9 +11,9 @@ namespace vds {
   class _cert_control {
   public:
     static certificate create_root(
-        const guid & id,
-        const std::string & name,
-        const vds::asymmetric_private_key & private_key);
+        const guid &user_id,
+        const std::string &name,
+        const vds::asymmetric_private_key &private_key);
 
     static certificate create(
         const guid & id,

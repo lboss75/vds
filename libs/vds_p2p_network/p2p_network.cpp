@@ -101,7 +101,7 @@ vds::async_task<> vds::_p2p_network::start_network(const vds::service_provider &
   return sp.get<db_model>()->async_transaction(sp, [run_conf](database_transaction & t){
     run_configuration_dbo t1;
     certificate_dbo t2;
-    certificate_private_key_dbo t3;
+    orm::certificate_private_key_dbo t3;
     auto st = t.get_reader(
         t1.select(t1.port, t2.cert, t3.body)
             .inner_join(t2, t2.id == t1.cert_id)

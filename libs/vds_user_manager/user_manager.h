@@ -21,19 +21,25 @@ namespace vds {
     user_manager();
     
     class member_user create_root_user(
-      transaction_block & log,
+      class transaction_block & log,
       const std::string & user_name,
       const std::string & user_password,
       const class asymmetric_private_key & private_key);
 
     user_channel create_channel(
-      transactions::transaction_block &log,
-      const vds::guid &channel_id,
-      const std::string & name,
-      const vds::guid &common_channel_id,
-      const vds::guid &owner_id,
-      const certificate &owner_cert,
-      const asymmetric_private_key &owner_private_key) const;
+        transactions::transaction_block &log,
+        class database_transaction & t,
+        const guid &common_channel_id,
+        const vds::guid &channel_id,
+        const std::string &name,
+        const vds::guid &owner_id,
+        const certificate &owner_cert,
+        const asymmetric_private_key &owner_private_key) const;
+
+    user_channel create_user_channel(transactions::transaction_block &log, class database_transaction &t,
+                                           const vds::guid &common_channel_id, const vds::guid &owner_id,
+                                           const certificate &owner_cert,
+                                           const asymmetric_private_key &owner_private_key) const;
 
     void reset(const service_provider &sp, class database_transaction &t, const std::string &root_user_name,
                const std::string &root_password, const asymmetric_private_key &root_private_key,
@@ -84,6 +90,16 @@ namespace vds {
 
   private:
     std::shared_ptr<class _user_manager> impl_;
+
+    void allow_read(class database_transaction &t,
+                    const member_user & user,
+                    const user_channel & channel,
+                    const asymmetric_private_key & read_private_key) const;
+
+    asymmetric_private_key
+    get_private_key(vds::database_transaction &t, const vds::guid &cert_id,
+                        const vds::guid &user_cert_id,
+                        const asymmetric_private_key &user_cert_private_key);
   };
 }
 

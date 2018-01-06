@@ -13,7 +13,6 @@ namespace vds {
 
     class file_add_transaction {
     public:
-      static const uint8_t category_id = transaction_log::file_manager_category_id;
       static const uint8_t message_id = 'a';
 
       file_add_transaction(
