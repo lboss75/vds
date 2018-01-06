@@ -6,6 +6,7 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 #include "file_operations.h"
+#include "transactions/file_add_transaction.h"
 
 namespace vds {
   namespace file_manager_private {
@@ -23,7 +24,7 @@ namespace vds {
           const vds::service_provider &sp,
           const vds::filename &file_path,
           vds::database_transaction &t,
-          std::list<std::string> &file_blocks) const;
+          std::list<transactions::file_add_transaction::file_block_t> &file_blocks) const;
     };
   }
 }

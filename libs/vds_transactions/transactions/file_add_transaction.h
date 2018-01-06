@@ -9,16 +9,21 @@ All rights reserved
 #include "binary_serialize.h"
 
 namespace vds {
-  namespace file_manager_transactions {
+  namespace transactions {
 
     class file_add_transaction {
     public:
       static const uint8_t message_id = 'a';
 
+      struct file_block_t {
+        const_data_buffer block_id;
+        const_data_buffer block_key;
+      };
+
       file_add_transaction(
           const std::string &name,
           const std::string &mimetype,
-          const std::list<std::string> & file_blocks)
+          const std::list<file_block_t> & file_blocks)
       : name_(name), mimetype_(mimetype), file_blocks_(file_blocks) {
       }
 
@@ -34,14 +39,14 @@ namespace vds {
         return this->mimetype_;
       }
 
-      const std::list<std::string> & file_blocks() const {
+      const std::list<file_block_t> & file_blocks() const {
         return this->file_blocks_;
       }
 
     private:
       std::string name_;
       std::string mimetype_;
-      std::list<std::string> file_blocks_;
+      std::list<file_block_t> file_blocks_;
     };
 
   }

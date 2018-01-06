@@ -58,7 +58,7 @@ vds::async_task<> vds::file_manager_private::_file_operations::upload_file(
         auto channel_write_key = user_mng->get_channel_write_key(
             sp, t, channel, user.id());
 
-        std::list<std::string> file_blocks;
+        std::list<transactions::file_add_transaction::file_block_t> file_blocks;
         pthis->pack_file(sp, file_path, t, file_blocks);
 
         transactions::transaction_block log;
@@ -67,7 +67,7 @@ vds::async_task<> vds::file_manager_private::_file_operations::upload_file(
             transactions::channel_add_message_transaction(
             channel.write_cert(),
             channel_write_key,
-            file_manager_transactions::file_add_transaction(
+            transactions::file_add_transaction(
                 name,
                 mimetype,
                 file_blocks)));
@@ -83,7 +83,7 @@ void vds::file_manager_private::_file_operations::pack_file(
     const vds::service_provider &sp,
     const vds::filename &file_path,
     vds::database_transaction &t,
-    std::list<std::string> &file_blocks) const {
+    std::list<transactions::file_add_transaction::file_block_t> &file_blocks) const {
   auto chunk_mng = sp.get<vds::chunk_manager>();
   auto file_size = vds::file::length(file_path);
   if (file_size > 0) {
@@ -93,8 +93,13 @@ void vds::file_manager_private::_file_operations::pack_file(
 
       auto readed = f.read(buffer, file_size);
       vds_assert(readed == file_size);
-      auto block_id = chunk_mng->pack_block(t, vds::const_data_buffer(buffer, readed));
-      file_blocks.push_back(block_id);
+      auto block_info = chunk_mng->save_block(t, vds::const_data_buffer(buffer, readed));
+      file_blocks.push_back(
+          transactions::file_add_transaction::file_block_t
+          {
+              .block_id = block_info.id,
+              .block_key = block_info.key
+          });
     } else {
       auto count = file_size / vds::file_manager::file_operations::BLOCK_SIZE;
       auto block_size = (file_size + count - 1) / count;
@@ -103,8 +108,13 @@ void vds::file_manager_private::_file_operations::pack_file(
 
       for (uint64_t offset = 0; offset < file_size; offset += block_size) {
         auto readed = f.read(buffer, block_size);
-        auto block_id = chunk_mng->pack_block(t, vds::const_data_buffer(buffer, readed));
-        file_blocks.push_back(block_id);
+        auto block_info = chunk_mng->save_block(t, vds::const_data_buffer(buffer, readed));
+        file_blocks.push_back(
+            transactions::file_add_transaction::file_block_t
+                {
+                    .block_id = block_info.id,
+                    .block_key = block_info.key
+                });
       }
     }
   }
