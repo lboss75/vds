@@ -48,11 +48,12 @@ namespace vds {
     _socket_task_impl(
       const service_provider & sp,
       SOCKET_HANDLE s)
-    : sp_(sp), s_(s),
+    : s_(s),
+      sp_(sp),
       network_service_(static_cast<_network_service *>(sp.get<inetwork_service>())),
-      event_masks_(EPOLLET),
       read_status_(read_status_t::bof),
-      write_status_(write_status_t::bof)
+      write_status_(write_status_t::bof),
+      event_masks_(EPOLLET)
     {
     }
 

@@ -387,6 +387,11 @@ namespace vds {
               this_->read_data();
             };
 
+          case read_status_t::eof:
+            return async_task<const udp_datagram &>(
+                std::make_shared<std::system_error>(ECONNRESET, std::system_category())
+            );
+
           default:
             throw  std::runtime_error("Invalid operator");
         }
@@ -418,6 +423,14 @@ namespace vds {
 
       void write_data() {
         std::unique_lock<std::mutex> lock(this->write_mutex_);
+
+        if(write_status_t::eof == this->write_status_) {
+          this->write_result_.error(
+              std::make_shared<std::system_error>(
+                  ECONNRESET,
+                  std::generic_category()));
+          return;
+        }
 
         if(write_status_t::waiting_socket != this->write_status_) {
           throw std::runtime_error("Invalid operation");

@@ -29,8 +29,8 @@ vds::async_task<> vds::log_sync_service::prepare_to_stop(const vds::service_prov
   return this->impl_->prepare_to_stop(sp);
 }
 
-void vds::log_sync_service::get_statistic(vds::sync_statistic & result) {
-  this->impl_->get_statistic(result);
+void vds::log_sync_service::get_statistic(database_transaction & t, vds::sync_statistic & result) {
+  this->impl_->get_statistic(t, result);
 }
 
 
@@ -105,8 +105,16 @@ void vds::_log_sync_service::request_unknown_records(
         });
 }
 
-void vds::_log_sync_service::get_statistic(vds::sync_statistic &result) {
-
+void vds::_log_sync_service::get_statistic(
+    database_transaction & t,
+    vds::sync_statistic &result) {
+  orm::transaction_log_record_dbo t1;
+  auto st = t.get_reader(
+      t1.select(t1.id)
+          .where(t1.state == (uint8_t)orm::transaction_log_record_dbo::state_t::leaf));
+  while(st.execute()){
+    result.leafs_.push_back(t1.id.get(st));
+  }
 }
 
 void vds::_log_sync_service::stop(const vds::service_provider &sp) {

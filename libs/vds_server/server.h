@@ -38,7 +38,7 @@ namespace vds {
       return this->impl_;
     }
 
-    void get_statistic(server_statistic & result);
+    async_task<server_statistic> get_statistic(const service_provider &sp) const;
 
   private:
     class _server * const impl_;

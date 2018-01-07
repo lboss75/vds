@@ -9,6 +9,7 @@ All rights reserved
 #include "crypto_exception.h"
 #include "private/hash_p.h"
 #include "symmetriccrypto.h"
+#include "vds_debug.h"
 
 ///////////////////////////////////////////////////////////////////////
 vds::asymmetric_private_key::asymmetric_private_key()
@@ -94,6 +95,7 @@ vds::_asymmetric_private_key::_asymmetric_private_key(EVP_PKEY * key)
   ctx_(nullptr),
   key_(key)
 {
+  vds_assert(nullptr != key);
 }
 
 vds::_asymmetric_private_key::_asymmetric_private_key(
@@ -196,6 +198,10 @@ vds::asymmetric_private_key vds::_asymmetric_private_key::parse_der(
   else{
       const unsigned char * p = value.data();
       auto key = d2i_AutoPrivateKey(NULL, &p, value.size());
+      if(nullptr == key){
+        auto error = ERR_get_error();
+        throw crypto_exception("d2i_AutoPrivateKey", error);
+      }
       return asymmetric_private_key(new _asymmetric_private_key(key));
   }
 }

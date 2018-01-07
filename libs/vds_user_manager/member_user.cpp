@@ -53,7 +53,7 @@ vds::member_user vds::member_user::by_login(vds::database_transaction &t, const 
   certificate_dbo t2;
   auto st = t.get_reader(t1
                              .select(t1.id, t2.cert)
-                             .inner_join(t2, t2.id == t1.id)
+                             .inner_join(t2, t2.id == t1.cert_id)
                              .where(t1.login == login));
   if(!st.execute()){
     throw std::runtime_error("User with login '" + login + "' was not found");

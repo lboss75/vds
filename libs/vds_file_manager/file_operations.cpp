@@ -64,13 +64,12 @@ vds::async_task<> vds::file_manager_private::_file_operations::upload_file(
         transactions::transaction_block log;
         log.add(
             channel_id,
-            transactions::channel_add_message_transaction(
-            channel.write_cert(),
-            channel_write_key,
             transactions::file_add_transaction(
+                channel.write_cert(),
+                user_mng->get_channel_write_key(sp, t, channel, user.id()),
                 name,
                 mimetype,
-                file_blocks)));
+                file_blocks));
 
         auto common_channel = user_mng->get_common_channel(t);
 

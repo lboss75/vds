@@ -7,11 +7,12 @@ All rights reserved
 */
 #include "transaction_log.h"
 #include "binary_serialize.h"
+#include "channel_message_transaction.h"
 
 namespace vds {
   namespace transactions {
 
-    class file_add_transaction {
+    class file_add_transaction : public channel_message_transaction {
     public:
       static const uint8_t message_id = 'a';
 
@@ -21,33 +22,28 @@ namespace vds {
       };
 
       file_add_transaction(
+          const certificate &cert,
+          const asymmetric_private_key &cert_key,
           const std::string &name,
           const std::string &mimetype,
-          const std::list<file_block_t> & file_blocks)
-      : name_(name), mimetype_(mimetype), file_blocks_(file_blocks) {
-      }
+          const std::list<file_block_t> & file_blocks);
 
-      binary_serializer & serialize(binary_serializer & s) const {
-        return s;
-      }
-
-      const std::string & name () const {
-        return this->name_;
-      }
-
-      const std::string &mimetype() const {
-        return this->mimetype_;
-      }
-
-      const std::list<file_block_t> & file_blocks() const {
-        return this->file_blocks_;
-      }
-
-    private:
-      std::string name_;
-      std::string mimetype_;
-      std::list<file_block_t> file_blocks_;
     };
+
+    inline binary_serializer & operator << (
+        binary_serializer & s,
+        const file_add_transaction::file_block_t & data){
+      return s << data.block_id << data.block_key;
+    }
+
+    file_add_transaction::file_add_transaction(const certificate &cert, const asymmetric_private_key &cert_key,
+                                               const std::string &name, const std::string &mimetype,
+                                               const std::list<file_add_transaction::file_block_t> &file_blocks)
+        : channel_message_transaction(
+        cert,
+        cert_key,
+        (binary_serializer() << name << mimetype << file_blocks).data()) {
+    }
 
   }
 }

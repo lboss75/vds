@@ -101,15 +101,13 @@ vds::async_task<> vds::_p2p_network::start_network(const vds::service_provider &
   return sp.get<db_model>()->async_transaction(sp, [run_conf](database_transaction & t){
     run_configuration_dbo t1;
     certificate_dbo t2;
-    orm::certificate_private_key_dbo t3;
     auto st = t.get_reader(
-        t1.select(t1.port, t2.cert, t3.body)
-            .inner_join(t2, t2.id == t1.cert_id)
-            .inner_join(t3, t3.id == t1.cert_id));
+        t1.select(t1.port, t2.cert, t1.cert_private_key)
+            .inner_join(t2, t2.id == t1.cert_id));
     while(st.execute()){
       run_data item;
       item.port = t1.port.get(st);
-      item.key = asymmetric_private_key::parse_der(t3.body.get(st), std::string());
+      item.key = asymmetric_private_key::parse_der(t1.cert_private_key.get(st), std::string());
       item.cert_chain.push_back(certificate::parse_der(t2.cert.get(st)));
 
       run_conf->push_back(item);

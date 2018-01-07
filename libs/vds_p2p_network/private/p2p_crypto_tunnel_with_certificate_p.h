@@ -70,7 +70,7 @@ namespace vds {
 
           auto st = t.get_reader(
               t1
-                  .select(t1.id, t1.private_key)
+                  .select(t1.cert_id, t1.private_key)
                   .where(t1.login == login && t1.password_hash == password_hash));
 
           binary_serializer result;
@@ -78,7 +78,7 @@ namespace vds {
             result << (uint8_t)command_id::CertRequestFailed;
           }
           else {
-            auto id = t1.id.get(st);
+            auto id = t1.cert_id.get(st);
             auto private_key = t1.private_key.get(st);
 
             std::list<certificate> certificates;

@@ -21,7 +21,7 @@ namespace vds {
     async_task<> prepare_to_stop(const service_provider &sp);
     void stop(const service_provider & sp);
 
-    void get_statistic(sync_statistic & result);
+    void get_statistic(class database_transaction & t, sync_statistic & result);
 
   private:
     std::shared_ptr<class _log_sync_service> impl_;

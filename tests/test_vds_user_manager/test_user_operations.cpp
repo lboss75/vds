@@ -30,7 +30,8 @@ TEST(test_user_operations, test_add_user)
   
   vds::asymmetric_private_key root_private_key(vds::asymmetric_crypto::rsa2048());
   root_private_key.generate();
-  auto root_user = manager.create_root_user("root", "123qwe!@#", root_private_key);
+  auto root_user = manager.create_root_user("root", <#initializer#>, <#initializer#>, "123qwe!@#", root_private_key,
+                                            <#initializer#>);
   
 
   vds::asymmetric_private_key user1_private_key(vds::asymmetric_crypto::rsa2048());

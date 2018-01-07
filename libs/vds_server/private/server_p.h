@@ -40,6 +40,8 @@ namespace vds {
     void stop(const service_provider &);
     async_task<> prepare_to_stop(const service_provider &sp);
 
+    async_task<server_statistic> get_statistic(const vds::service_provider &sp);
+
   private:
     friend class server;
     friend class iserver;
@@ -64,8 +66,6 @@ namespace vds {
 
   public:
     leak_detect_helper leak_detect_;
-
-    void get_statistic(server_statistic &result);
   };
 }
 

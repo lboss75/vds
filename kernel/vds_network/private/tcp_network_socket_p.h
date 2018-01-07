@@ -324,11 +324,7 @@ namespace vds {
         const stream<uint8_t> & target)
         : _socket_task_impl<_socket_handler>(sp, static_cast<_tcp_network_socket *>(owner.get())->s_),
           owner_(owner),
-          target_(target),
-          write_result_([](const std::shared_ptr<std::exception> & ){
-            throw std::runtime_error("Logic error");
-          })
-
+          target_(target)
       {
       }
 

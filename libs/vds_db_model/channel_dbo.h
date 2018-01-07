@@ -23,12 +23,14 @@ namespace vds {
           : database_table("channel"),
             id(this, "id"),
             channel_type(this, "channel_type"),
+            name(this, "name"),
             read_cert(this, "read_cert"),
             write_cert(this, "write_cert") {
       }
 
       database_column <guid> id;
       database_column <uint8_t> channel_type;
+      database_column <std::string> name;
       database_column <guid> read_cert;
       database_column <guid> write_cert;
     };

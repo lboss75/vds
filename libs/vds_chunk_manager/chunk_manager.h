@@ -12,7 +12,7 @@ All rights reserved
 namespace vds {
   class chunk_manager {
 	public:
-		static const uint16_t BLOCK_SIZE = 1024 * 1024;
+		static const uint32_t BLOCK_SIZE = 1024 * 1024;
 
 		struct chunk_info {
 			const_data_buffer id;

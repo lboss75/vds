@@ -79,14 +79,37 @@ void vds_mock::sync_wait()
     std::cout << "Waiting to synchronize...\n";
     
     bool is_good = true;
-    vds::guid last_log_record;
+    vds::sync_statistic last_sync_statistic;
     int index = 0;
     for(auto & p : this->servers_) {
-      std::cout << "State[" << index ++ << "]: " << p->last_log_record().str() << "\n";
-      if(!last_log_record){
-        last_log_record = p->last_log_record();
+
+      vds::barrier b;
+      std::shared_ptr<std::exception> error;
+      vds::server_statistic stat;
+
+      p->get_statistic()
+          .execute([&b, &error, &stat](
+              const std::shared_ptr<std::exception> & ex,
+              const vds::server_statistic & statistic){
+        if(ex){
+          error = ex;
+        } else {
+          stat = statistic;
+        }
+
+        b.set();
+      });
+      b.wait();
+
+      if(error){
+        throw std::runtime_error(error->what());
       }
-      else if(last_log_record != p->last_log_record()){
+
+      std::cout << "State[" << index ++ << "]: " << stat.sync_statistic_.str() << "\n";
+      if(!last_sync_statistic){
+        last_sync_statistic = stat.sync_statistic_;
+      }
+      else if(last_sync_statistic != stat.sync_statistic_){
         is_good = false;
       }
     }
@@ -171,15 +194,22 @@ vds::user_channel vds_mock::create_channel(int index, const std::string &name) {
 
     auto user_mng = this->servers_[index]->get<vds::user_manager>();
     auto root_user = user_mng->by_login(t, "root");
+    auto common_channel = user_mng->get_common_channel(t);
 
     auto read_private_key = vds::asymmetric_private_key::generate(
         vds::asymmetric_crypto::rsa4096());
     auto write_private_key = vds::asymmetric_private_key::generate(
         vds::asymmetric_crypto::rsa4096());
 
-    vds::transaction_block log;
-    result = user_mng->create_channel(log, <#initializer#>, <#initializer#>, root_user, root_private_key, name,
-                                      read_private_key, write_private_key);
+    vds::transactions::transaction_block log;
+    result = user_mng->create_channel(
+        log, t, common_channel.id(),
+        vds::guid::new_guid(),
+        name,
+        root_user.id(),
+        root_user.user_certificate(),
+        root_private_key);
+    log.save(t);
 
     return true;
   }).execute([&b, &error](const std::shared_ptr<std::exception> & ex){

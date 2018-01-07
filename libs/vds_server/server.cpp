@@ -95,9 +95,7 @@ vds::async_task<> vds::server::reset(const vds::service_provider &sp, const std:
       database_transaction & t){
     auto usr_manager = sp.get<user_manager>();
     auto private_key = asymmetric_private_key::generate(asymmetric_crypto::rsa4096());
-    auto block_data = usr_manager->reset(sp, t, root_user_name, root_password, private_key, device_name, port);
-    auto block_id = chunk_manager::pack_block(t, block_data);
-	  transaction_log::apply(sp, t, chunk_manager::get_block(t, block_id));
+    usr_manager->reset(sp, t, root_user_name, root_password, private_key, device_name, port);
   });
 }
 
@@ -116,58 +114,9 @@ vds::async_task<> vds::server::prepare_to_stop(const vds::service_provider &sp) 
   return this->impl_->prepare_to_stop(sp);
 }
 
-void vds::server::get_statistic(vds::server_statistic &result) {
-  this->impl_->get_statistic(result);
+vds::async_task<vds::server_statistic> vds::server::get_statistic(const vds::service_provider &sp) const {
+  return this->impl_->get_statistic(sp);
 }
-
-void vds::transaction_log::apply(
-    const service_provider &sp,
-    database_transaction &t,
-    const const_data_buffer &chunk) {
-  auto scope = sp.create_scope("Apply record");
-
-  auto data = transaction_block::unpack_block(
-      scope,
-      chunk,
-    [&t](const guid & cert_id) -> certificate{
-	  certificate_dbo t1;
-	  auto st = t.get_reader(t1.select(t1.cert).where(t1.id == cert_id));
-	  if (st.execute()) {
-		  return certificate::parse_der(t1.cert.get(st));
-	  }
-	  else {
-		  return certificate();
-	  }
-    },
-    [&t](const guid & cert_id) -> asymmetric_private_key{
-		certificate_private_key_dbo t1;
-		auto st = t.get_reader(t1.select(t1.body).where(t1.id == cert_id));
-		if (st.execute()) {
-			return asymmetric_private_key::parse_der(t1.body.get(st), std::string());
-		}
-		else {
-			return asymmetric_private_key();
-		}
-	});
-
-  binary_deserializer s(data);
-
-  while(0 < s.size()){
-    uint8_t category_id;
-    uint8_t message_id;
-    s >> category_id >> message_id;
-    switch (category_id){
-      case transaction_log::user_manager_category_id:
-      {
-        scope.get<user_manager>()->apply_transaction_record(scope, t, message_id, s);
-        break;
-      }
-      default:
-        throw std::runtime_error("Invalid record category");
-    }
-  }
-}
-
 /////////////////////////////////////////////////////////////////////////////////////////////
 
 vds::_server::_server(server * owner)
@@ -225,7 +174,13 @@ vds::async_task<> vds::_server::prepare_to_stop(const vds::service_provider &sp)
   );
 }
 
-void vds::_server::get_statistic(vds::server_statistic &result) {
-  this->log_sync_service_->get_statistic(result.sync_statistic_);
+vds::async_task<vds::server_statistic> vds::_server::get_statistic(const vds::service_provider &sp) {
+  auto result = std::make_shared<vds::server_statistic>();
+  return sp.get<db_model>()->async_transaction(sp, [this, result](database_transaction & t){
+    this->log_sync_service_->get_statistic(t, result->sync_statistic_);
+    return true;
+  }).then([result]()->server_statistic{
+    return *result;
+  });
 
 }

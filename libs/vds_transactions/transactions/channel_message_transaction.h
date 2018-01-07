@@ -19,6 +19,10 @@ namespace vds {
     class channel_message_transaction {
     public:
 
+      binary_serializer & serialize(binary_serializer & s) const {
+        return s << this->data_;
+      }
+
     protected:
       const_data_buffer data_;
 

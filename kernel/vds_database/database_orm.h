@@ -581,6 +581,47 @@ namespace vds {
       return std::string();
     }
   };
+  template <typename base_source_type>
+  class _database_source_impl
+  {
+  public:
+    _database_source_impl(base_source_type && base_source)
+    : base_source_(std::move(base_source)){
+    }
+
+    void collect_aliases(std::map<const database_table *, std::string> & aliases) const
+    {
+      this->base_source_.collect_aliases(aliases);
+    }
+
+    std::string start_sql(_database_sql_builder & builder) const
+    {
+      return this->base_source_.start_sql(builder);
+    }
+
+    std::string generate_select(_database_sql_builder & builder, int index) const
+    {
+      return this->base_source_.generate_select(builder, index);
+    }
+
+    std::string collect_sources(_database_sql_builder & builder) const
+    {
+      return this->base_source_.collect_sources(builder);
+    }
+
+    std::string collect_condition(_database_sql_builder & builder) const
+    {
+      return this->base_source_.collect_condition(builder);
+    }
+
+    std::string final_sql(_database_sql_builder & builder) const
+    {
+      return this->base_source_.final_sql(builder);
+    }
+
+  private:
+    base_source_type base_source_;
+  };
   /////////////////////////
   class _db_oder_column
   {
@@ -620,14 +661,14 @@ namespace vds {
   };
 
   template<typename base_builder, typename column_type>
-  class _database_order_builder<base_builder, column_type> : public base_builder
+  class _database_order_builder<base_builder, column_type> : public _database_source_impl<base_builder>
   {
     using this_class = _database_order_builder<base_builder, column_type>;
   public:
     _database_order_builder(
       base_builder && b,
       column_type && column)
-      : base_builder(std::move(b)),
+      : _database_source_impl<base_builder>(std::move(b)),
         column_(std::forward<column_type>(column))
     {
     }
@@ -714,14 +755,14 @@ namespace vds {
   };
 
   template<typename base_builder, typename column_type>
-  class _database_group_by_builder<base_builder, column_type> : public base_builder
+  class _database_group_by_builder<base_builder, column_type> : public _database_source_impl<base_builder>
   {
     using this_class = _database_group_by_builder<base_builder, column_type>;
   public:
     _database_group_by_builder(
       base_builder && b,
       column_type && column)
-      : base_builder(std::move(b)),
+      : _database_source_impl<base_builder>(std::move(b)),
         column_(std::forward<column_type>(column))
     {
     }
@@ -771,14 +812,14 @@ namespace vds {
   };
   /////////////////////////
   template <typename base_builder, typename condition_type>
-  class _database_builder_with_where : public base_builder
+  class _database_builder_with_where : public _database_source_impl<base_builder>
   {
     using this_class = _database_builder_with_where<base_builder, condition_type>;
   public:
     _database_builder_with_where(
       base_builder && b,
       condition_type && cond)
-      : base_builder(std::move(b)),
+      : _database_source_impl<base_builder>(std::move(b)),
       cond_(std::move(cond))
     {
     }
@@ -804,7 +845,6 @@ namespace vds {
       : base_class(std::move(b), std::move(cond))
     {
     }
-
    
     template <typename... order_columns_types>
     _database_order_builder<this_class, order_columns_types...> order_by(order_columns_types && ... order_columns)
@@ -823,7 +863,7 @@ namespace vds {
   };
 
   template <typename base_builder, typename condition_type>
-  class _database_reader_builder_with_join : public base_builder
+  class _database_reader_builder_with_join : public _database_source_impl<base_builder>
   {
     using this_class = _database_reader_builder_with_join;
   public:
@@ -832,7 +872,7 @@ namespace vds {
       const database_table * table,
       condition_type && cond,
       join_t join_type)
-      : base_builder(std::move(b)),
+      : _database_source_impl<base_builder>(std::move(b)),
         table_(table),
         cond_(std::move(cond)),
         join_type_(join_type)
@@ -840,15 +880,32 @@ namespace vds {
     }
 
     template <typename join_condition_type>
-    _database_reader_builder_with_join<this_class, join_condition_type> inner_join(const database_table & t, join_condition_type && cond)
+    _database_reader_builder_with_join<this_class, join_condition_type> inner_join(
+        const database_table & t,
+        join_condition_type && cond)
     {
-      return _database_reader_builder_with_join<this_class, join_condition_type>(std::move(*this), &t, std::move(cond), join_t::inner);
+      return _database_reader_builder_with_join<this_class, join_condition_type>(
+          std::move(*this), &t, std::move(cond), join_t::inner);
+    }
+    
+    template <typename join_condition_type>
+    _database_reader_builder_with_join<this_class, join_condition_type> left_join(const database_table & t, join_condition_type && cond)
+    {
+      return _database_reader_builder_with_join<this_class, join_condition_type>(std::move(*this), &t, std::move(cond), join_t::left);
+    }
+
+    template <typename join_condition_type>
+    _database_reader_builder_with_join<this_class, join_condition_type> right_join(const database_table & t, join_condition_type && cond)
+    {
+      return _database_reader_builder_with_join<this_class, join_condition_type>(std::move(*this), &t, std::move(cond), join_t::right);
     }
 
     template <typename where_condition_type>
-    _database_reader_builder_with_where<this_class, where_condition_type> where(where_condition_type && cond)
+    _database_reader_builder_with_where<this_class, where_condition_type> where(
+        where_condition_type && cond)
     {
-      return _database_reader_builder_with_where<this_class, where_condition_type>(std::move(*this), std::move(cond));
+      return _database_reader_builder_with_where<this_class, where_condition_type>(
+          std::move(*this), std::move(cond));
     }
 
     template <typename... group_by_columns_types>
@@ -860,7 +917,8 @@ namespace vds {
     }
 
     template <typename... order_columns_types>
-    _database_order_builder<this_class, order_columns_types...> order_by(order_columns_types && ... order_columns)
+    _database_order_builder<this_class, order_columns_types...> order_by(
+        order_columns_types && ... order_columns)
     {
       return _database_order_builder<this_class, order_columns_types...>(
           std::move(*this),
@@ -869,14 +927,14 @@ namespace vds {
 
     void collect_aliases(std::map<const database_table *, std::string> & aliases) const
     {
-      base_builder::collect_aliases(aliases);
+      _database_source_impl<base_builder>::collect_aliases(aliases);
 
       aliases[this->table_] = "t" + std::to_string(aliases.size());
     }
 
     std::string collect_sources(_database_sql_builder & builder) const
     {
-      return base_builder::collect_sources(builder)
+      return _database_source_impl<base_builder>::collect_sources(builder)
         + ((this->join_type_ == join_t::inner)
            ? " INNER JOIN "
            : (this->join_type_ == join_t::left)
@@ -910,7 +968,7 @@ namespace vds {
   };
   
   template<typename base_builder, typename column_type>
-  class _database_select_builder<base_builder, column_type> : public base_builder
+  class _database_select_builder<base_builder, column_type> : public _database_source_impl<base_builder>
   {
     using this_class = _database_select_builder<base_builder, column_type>;
   public:
@@ -918,7 +976,7 @@ namespace vds {
       base_builder && b,
       database_table * t,
       column_type && column)
-      : base_builder(std::move(b)),
+      : _database_source_impl<base_builder>(std::move(b)),
         t_(t),
         column_(std::forward<column_type>(column))
     {
@@ -926,12 +984,14 @@ namespace vds {
 
     void collect_aliases(std::map<const database_table *, std::string> & aliases) const
     {
-      aliases[this->t_] = "t0";
+      _database_source_impl<base_builder>::collect_aliases(aliases);
+
+      aliases[this->t_] = "t" + std::to_string(aliases.size());
     }
     
     std::string start_sql(_database_sql_builder & builder) const
     {
-      return base_builder::start_sql(builder) + "SELECT ";
+      return _database_source_impl<base_builder>::start_sql(builder) + "SELECT ";
     }
     
     std::string collect_sources(_database_sql_builder & builder) const

@@ -24,6 +24,7 @@ namespace vds {
 
       /*
        * body = cert(owner_id).public_key().encrypt(private_key)
+       *
        */
       database_column <const_data_buffer> body;
     };

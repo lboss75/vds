@@ -20,6 +20,7 @@ All rights reserved
 #include "transaction_log_record_dbo.h"
 #include "encoding.h"
 #include "member_user.h"
+#include "vds_debug.h"
 
 void vds::transactions::transaction_block::save(
     database_transaction & t) const {
@@ -29,6 +30,7 @@ void vds::transactions::transaction_block::save(
 
   this->collect_dependencies(s, t, ancestors);
 
+  vds_assert(0 != s.size());
   auto block = chunk_manager::save_block(t, s.data());
 
   register_transaction(t, ancestors, block);
@@ -86,9 +88,8 @@ void vds::transactions::transaction_block::register_transaction(
   for(auto & ancestor : ancestors){
     orm::transaction_log_record_dbo t1;
     t.execute(
-        t1.update(
-            t1.id = ancestor,
-            t1.state = (uint8_t)orm::transaction_log_record_dbo::state_t::processed));
+        t1.update(t1.state = (uint8_t)orm::transaction_log_record_dbo::state_t::processed)
+            .where(t1.id == ancestor));
 
     orm::transaction_log_record_relation_dbo t2;
     t.execute(t2.insert(

@@ -73,12 +73,17 @@ void vds::db_model::migrate(
 			parent VARCHAR(64))");
 
 		t.execute("CREATE TABLE cert_private_key(\
-			id VARCHAR(64) PRIMARY KEY NOT NULL,\
-			body BLOB NOT NULL)");
+			id VARCHAR(64) NOT NULL,\
+      owner_id VARCHAR(64) NOT NULL,\
+			body BLOB NOT NULL,\
+		  CONSTRAINT pk_cert_private_key PRIMARY KEY(id, owner_id))");
 
 		t.execute("CREATE TABLE channel (\
 			id VARCHAR(64) PRIMARY KEY NOT NULL,\
-			channel_type INT NOT NULL)");
+			channel_type INT NOT NULL,\
+      name VARCHAR(64) NOT NULL,\
+      read_cert VARCHAR(64) NOT NULL,\
+      write_cert VARCHAR(64) NOT NULL)");
 
 		t.execute("CREATE TABLE channel_admin(\
 			id VARCHAR(64) NOT NULL,\
@@ -94,11 +99,11 @@ void vds::db_model::migrate(
 		t.execute("CREATE TABLE chunk_data (\
 			id VARCHAR(64) PRIMARY KEY NOT NULL,\
 			block_key BLOB NOT NULL,\
-			padding INT NOT NULL,\
 			block_data BLOB NOT NULL)");
 
 		t.execute("CREATE TABLE user (\
 			id VARCHAR(64) PRIMARY KEY NOT NULL,\
+			cert_id VARCHAR(64) NOT NULL,\
 			private_key BLOB NOT NULL,\
 			parent VARCHAR(64),\
 			login VARCHAR(64),\
@@ -108,6 +113,7 @@ void vds::db_model::migrate(
     t.execute("CREATE TABLE run_configuration (\
 			id VARCHAR(64) PRIMARY KEY NOT NULL,\
 			cert_id VARCHAR(64) NOT NULL,\
+      cert_private_key BLOB NOT NULL,\
 			port INTEGER,\
 			common_channel_id VARCHAR(64) NOT NULL)");
 
@@ -117,6 +123,7 @@ void vds::db_model::migrate(
 
 		t.execute("CREATE TABLE transaction_log_record(\
 			id VARCHAR(64) PRIMARY KEY NOT NULL,\
+      key BLOB NOT NULL,\
 			state INTEGER NOT NULL)");
 
 		t.execute("CREATE TABLE transaction_log_record_relation(\
@@ -136,6 +143,17 @@ void vds::db_model::migrate(
 			replica INTEGER NOT NULL,\
 			device VARCHAR(64) NOT NULL,\
 			CONSTRAINT pk_chunk_map PRIMARY KEY(id,replica,device))");
+
+    t.execute("CREATE TABLE channel_member(\
+			channel_id VARCHAR(64) NOT NULL,\
+			user_cert_id VARCHAR(64) NOT NULL,\
+			member_type INTEGER NOT NULL,\
+			CONSTRAINT pk_channel_member PRIMARY KEY(channel_id,user_cert_id))");
+
+    t.execute("CREATE TABLE transaction_log_dependency(\
+			channel_id VARCHAR(64) PRIMARY KEY NOT NULL,\
+			block_id BLOB NOT NULL,\
+			block_key BLOB NOT NULL)");
 
 		t.execute("INSERT INTO well_known_node(id, addresses) VALUES(\
 									'3940754a-64dd-4491-9777-719315b36a67',\

@@ -13,6 +13,9 @@ TEST(test_vds, test_initial)
 
     mock.start(5);
 
+    //Waiting to sync logs
+    mock.sync_wait();
+
     auto channel = mock.create_channel(0, "Test file");
 
     size_t len;

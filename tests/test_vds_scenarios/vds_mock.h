@@ -31,6 +31,10 @@ public:
   const vds::service_provider & get_service_provider() const {
     return this->sp_;
   }
+
+  vds::async_task<vds::server_statistic> get_statistic() const{
+    return this->server_.get_statistic(this->sp_);
+  }
   
 private:
   int index_;

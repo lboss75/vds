@@ -17,6 +17,7 @@ namespace vds {
     user_dbo()
         : database_table("user"),
           id(this, "id"),
+          cert_id(this, "cert_id"),
           private_key(this, "private_key"),
           parent(this, "parent"),
           login(this, "login"),
@@ -25,6 +26,7 @@ namespace vds {
     }
 
     database_column<guid> id;
+    database_column<guid> cert_id;
     database_column<const_data_buffer> private_key;
     database_column<guid> parent;
 

@@ -2,9 +2,6 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
-#include <transactions/channel_add_reader_transaction.h>
-#include <transactions/channel_add_writer_transaction.h>
-#include <channel_member_dbo.h>
 #include "stdafx.h"
 #include "user_manager.h"
 #include "member_user.h"
@@ -30,6 +27,10 @@ All rights reserved
 #include "channel_keys_dbo.h"
 #include "vds_exceptions.h"
 #include "transactions/channel_create_transaction.h"
+#include "transactions/channel_add_reader_transaction.h"
+#include "transactions/channel_add_writer_transaction.h"
+#include "channel_member_dbo.h"
+#include "transactions/user_channel_create_transaction.h"
 
 vds::user_manager::user_manager()
   : impl_(new _user_manager())
@@ -110,20 +111,8 @@ void vds::user_manager::reset(
   guid common_channel_id = guid::new_guid();
   transactions::transaction_block playback;
   //Create root user
-  auto root_user_id = guid::new_guid();
-  auto root_user_cert = _cert_control::create_root(
-      root_user_id,
-      "User " + root_user_name,
-      root_private_key);
-
-  playback.add(
-      common_channel_id,
-      transactions::root_user_transaction(
-          root_user_id,
-          root_user_cert,
-          root_user_name,
-          root_private_key.der(root_password),
-          hash::signature(hash::sha256(), root_password.c_str(), root_password.length())));
+  auto root_user = this->create_root_user(playback, t, common_channel_id, root_user_name, root_password,
+                                          root_private_key);
 
   //Create common channel
   auto common_channel = this->create_channel(
@@ -131,13 +120,16 @@ void vds::user_manager::reset(
       common_channel_id,
       common_channel_id,
       "Common channel",
-      root_user_id,
-      root_user_cert, root_private_key);
+      root_user.id(),
+      root_user.user_certificate(),
+      root_private_key);
 
   auto user_channel = this->create_user_channel(
       playback, t,
-      common_channel_id, root_user_id,
-      root_user_cert, root_private_key);
+      common_channel_id,
+      root_user.id(),
+      root_user.user_certificate(),
+      root_private_key);
 
   //Lock to device
   auto user = this->by_login(t, root_user_name);
@@ -150,8 +142,11 @@ void vds::user_manager::reset(
         t,
         device_user,
         common_channel,
-        this->get_private_key(t, cert_control::get_id(common_channel.read_cert()),
-                              cert_control::get_id(root_user_cert), root_private_key));
+        this->get_private_key(
+            t,
+            cert_control::get_id(common_channel.read_cert()),
+            cert_control::get_id(root_user.user_certificate()),
+            root_private_key));
 
   playback.add(
       common_channel_id,
@@ -212,15 +207,23 @@ vds::user_manager::create_channel(
       t1.cert = write_cert.der()
   ));
   t.execute(t2.insert(
-      t2.id = read_id,
+      t2.id = write_id,
       t2.owner_id = cert_control::get_id(owner_cert),
       t2.body = owner_cert.public_key().encrypt(write_private_key.der(std::string()))
+  ));
+
+  orm::channel_dbo t3;
+  t.execute(t3.insert(
+      t3.id = channel_id,
+      t3.channel_type = (uint8_t)orm::channel_dbo::channel_type_t::simple,
+      t3.name = name,
+      t3.read_cert = read_id,
+      t3.write_cert = write_id
   ));
 
   log.add(
       common_channel_id,
       transactions::channel_create_transaction(
-          transactions::channel_create_transaction::channel_type::normal,
           channel_id,
           owner_id,
           name,
@@ -271,8 +274,7 @@ vds::user_manager::create_user_channel(transactions::transaction_block &log, dat
 
   log.add(
       common_channel_id,
-      transactions::channel_create_transaction(
-          transactions::channel_create_transaction::channel_type::user,
+      transactions::user_channel_create_transaction(
           owner_id,
           read_id,
           cert_control::get_id(owner_cert)));
@@ -300,6 +302,7 @@ vds::user_manager::lock_to_device(const vds::service_provider &sp, vds::database
       t3.insert(
           t3.id = config_id,
           t3.cert_id = device_user.id(),
+          t3.cert_private_key = device_private_key.der(std::string()),
           t3.port = port,
           t3.common_channel_id = common_channel_id));
 
@@ -313,7 +316,9 @@ vds::user_manager::lock_to_device(const vds::service_provider &sp, vds::database
   t.execute(
       t5.insert(
           t5.id = device_user.id(),
-          t5.body = device_private_key.der(std::string())));
+          t5.owner_id = cert_control::get_id(device_user.user_certificate()),
+          t5.body = device_user.user_certificate().public_key().encrypt(
+              device_private_key.der(std::string()))));
 
   return device_user;
 }
@@ -334,18 +339,12 @@ vds::member_user vds::user_manager::get_current_device(
     asymmetric_private_key &device_private_key) {
 
   run_configuration_dbo t1;
-  auto st = t.get_reader(t1.select(t1.cert_id));
+  auto st = t.get_reader(t1.select(t1.cert_id, t1.cert_private_key));
   if(!st.execute()){
     throw std::runtime_error("Unable to get current configuration");
   }
   auto user_id = t1.cert_id.get(st);
-
-  orm::certificate_private_key_dbo t2;
-  st = t.get_reader(t2.select(t2.body).where(t2.id == user_id));
-  if(!st.execute()){
-    throw std::runtime_error("Unable to load user private key");
-  }
-  device_private_key = asymmetric_private_key::parse_der(t2.body.get(st), std::string());
+  device_private_key = asymmetric_private_key::parse_der(t1.cert_private_key.get(st), std::string());
 
   certificate_dbo t3;
   st = t.get_reader(t3.select(t3.cert).where(t3.id == user_id));
@@ -445,6 +444,45 @@ vds::user_manager::get_private_key(database_transaction &t, const vds::guid &cer
   return asymmetric_private_key::parse_der(
       user_cert_private_key.decrypt(t1.body.get(st)),
       std::string());
+}
+
+vds::member_user vds::user_manager::create_root_user(transactions::transaction_block &playback, database_transaction &t,
+                                                     const guid &common_channel_id, const std::string &root_user_name,
+                                                     const std::string &root_password,
+                                                     const vds::asymmetric_private_key &root_private_key) {
+  auto root_user_id = guid::new_guid();
+  auto root_user_cert = _cert_control::create_root(
+      root_user_id,
+      "User " + root_user_name,
+      root_private_key);
+
+  certificate_dbo t2;
+  t.execute(t2.insert(
+      t2.id = cert_control::get_id(root_user_cert),
+      t2.cert = root_user_cert.der()));
+
+  user_dbo t1;
+  t.execute(t1.insert(
+     t1.id = root_user_id,
+     t1.cert_id = cert_control::get_id(root_user_cert),
+     t1.private_key = root_private_key.der(root_password),
+     t1.login = root_user_name,
+     t1.password_hash = hash::signature(
+         hash::sha256(),
+         root_password.c_str(),
+         root_password.length())));
+
+
+  playback.add(
+      common_channel_id,
+      transactions::root_user_transaction(
+          root_user_id,
+          root_user_cert,
+          root_user_name,
+          root_private_key.der(root_password),
+          hash::signature(hash::sha256(), root_password.c_str(), root_password.length())));
+
+  return member_user(new _member_user(root_user_id, root_user_cert));
 }
 
 ////////////////////////////////////////////////////////////////////////
