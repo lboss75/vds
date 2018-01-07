@@ -17,14 +17,17 @@ namespace vds {
 
       device_user_add_transaction(
           const guid & user_id,
-          const certificate & user_certificate) {
-
+          const certificate & user_certificate)
+      : user_id_(user_id), user_certificate_(user_certificate){
       }
 
       binary_serializer &serialize(binary_serializer &s) const {
-        return s;
+        return s << this->user_id_ << this->user_certificate_.der();
       }
 
+    private:
+      guid user_id_;
+      certificate user_certificate_;
     };
   }
 }

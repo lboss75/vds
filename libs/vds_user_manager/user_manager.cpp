@@ -138,15 +138,16 @@ void vds::user_manager::reset(
       sp, t, user, root_user_name, root_password, root_private_key,
       device_name, device_key, common_channel_id, port);
 
-    this->allow_read(
-        t,
-        device_user,
-        common_channel,
-        this->get_private_key(
-            t,
-            cert_control::get_id(common_channel.read_cert()),
-            cert_control::get_id(root_user.user_certificate()),
-            root_private_key));
+  this->allow_read(
+      t,
+      device_user,
+      common_channel.id(),
+      common_channel.read_cert(),
+      this->get_private_key(
+          t,
+          cert_control::get_id(common_channel.read_cert()),
+          cert_control::get_id(root_user.user_certificate()),
+          root_private_key));
 
   playback.add(
       common_channel_id,
@@ -411,19 +412,20 @@ vds::user_channel vds::user_manager::get_channel(
 void vds::user_manager::allow_read(
     vds::database_transaction &t,
     const vds::member_user & user,
-    const vds::user_channel & channel,
+    const guid & channel_id,
+    const certificate & channel_read_cert,
     const asymmetric_private_key & read_private_key) const {
 
   orm::certificate_private_key_dbo t2;
   t.execute(t2.insert(
-      t2.id = cert_control::get_id(channel.read_cert()),
+      t2.id = cert_control::get_id(channel_read_cert),
       t2.owner_id = cert_control::get_id(user.user_certificate()),
       t2.body = user.user_certificate().public_key().encrypt(read_private_key.der(std::string()))
   ));
 
   orm::channel_member_dbo t3;
   t.execute(t3.insert(
-      t3.channel_id = channel.id(),
+      t3.channel_id = channel_id,
       t3.user_cert_id = cert_control::get_id(user.user_certificate()),
       t3.member_type = (uint8_t)orm::channel_member_dbo::member_type_t::reader
   ));

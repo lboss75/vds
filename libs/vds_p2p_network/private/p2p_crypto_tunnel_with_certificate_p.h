@@ -8,6 +8,8 @@ All rights reserved
 
 #include <resizable_data_buffer.h>
 #include <run_configuration_dbo.h>
+#include <certificate_private_key_dbo.h>
+#include <vds_exceptions.h>
 #include "udp_transport.h"
 #include "asymmetriccrypto.h"
 #include "symmetriccrypto.h"
@@ -70,7 +72,7 @@ namespace vds {
 
           auto st = t.get_reader(
               t1
-                  .select(t1.cert_id, t1.private_key)
+                  .select(t1.id, t1.cert_id, t1.private_key)
                   .where(t1.login == login && t1.password_hash == password_hash));
 
           binary_serializer result;
@@ -78,6 +80,7 @@ namespace vds {
             result << (uint8_t)command_id::CertRequestFailed;
           }
           else {
+            auto user_id = t1.id.get(st);
             auto id = t1.cert_id.get(st);
             auto private_key = t1.private_key.get(st);
 
@@ -103,13 +106,23 @@ namespace vds {
 
             result << private_key;
 
-            run_configuration_dbo t2;
-            auto st = t.get_reader(t2.select(t2.common_channel_id));
+            auto user_mng = sp.get<user_manager>();
+            auto common_channel = user_mng->get_common_channel(t);
+            result
+                << common_channel.id()
+                << common_channel.read_cert().der();
+
+            orm::certificate_private_key_dbo t3;
+            auto st = t.get_reader(
+                t3.select(t3.body)
+                    .inner_join(t1, t1.cert_id == t3.owner_id)
+                    .where(t3.id == cert_control::get_id(common_channel.read_cert())
+                           && t1.id == user_id));
             if(!st.execute()){
-              throw std::runtime_error("Unable to load common channel id");
+              throw vds_exceptions::not_found();
             }
 
-            result << t2.common_channel_id.get(st);
+            result << t3.body.get(st);
           }
 
           pthis->send(sp, const_data_buffer(result.data().data(), result.size()));

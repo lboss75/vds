@@ -7,6 +7,7 @@ All rights reserved
 */
 
 #include <transaction_log_record_dbo.h>
+#include <transactions/device_user_add_transaction.h>
 #include "cert_control.h"
 #include "p2p_crypto_tunnel_p.h"
 #include "user_manager.h"
@@ -39,11 +40,14 @@ namespace vds {
     void create_device_user(
         const service_provider &sp,
         const asymmetric_private_key &private_key,
-        const guid &common_channel_id) {
+        const guid &common_channel_id,
+        const certificate & common_channel_read_cert,
+        const asymmetric_private_key & common_channel_private_key) {
 
       sp.get<db_model>()->async_transaction(
               sp,
-              [pthis = this->shared_from_this(), sp, private_key, common_channel_id](
+              [pthis = this->shared_from_this(), sp, private_key, common_channel_id,
+                  common_channel_read_cert, common_channel_private_key](
           database_transaction & t){
                 auto this_ = static_cast<_p2p_crypto_tunnel_with_login *>(pthis.get());
                 auto usr_manager = sp.get<user_manager>();
@@ -71,6 +75,20 @@ namespace vds {
                 this_->certificate_chain_.push_back(device_user.user_certificate());
 
                 auto user_id = cert_control::get_id(user_cert);
+
+                usr_manager->allow_read(
+                    t,
+                    device_user,
+                    common_channel_id,
+                    common_channel_read_cert,
+                    common_channel_private_key);
+
+                log.add(
+                    common_channel_id,
+                    transactions::device_user_add_transaction(
+                        device_user.id(),
+                        device_user.user_certificate()));
+
                 log.save(t);
 
                 binary_serializer s;
@@ -129,13 +147,29 @@ namespace vds {
           const_data_buffer private_key_data;
           s >> private_key_data;
 
-          guid common_channel_id;
-          s >> common_channel_id;
-
           auto private_key = asymmetric_private_key::parse_der(
               private_key_data,
               this->password_);
-          this->create_device_user(sp, private_key, common_channel_id);
+
+          guid common_channel_id;
+          const_data_buffer common_channel_read_cert_data;
+          const_data_buffer common_channel_private_key_data;
+          s
+              >> common_channel_id
+              >> common_channel_read_cert_data
+              >> common_channel_private_key_data;
+
+          auto common_channel_read_cert = certificate::parse_der(
+              common_channel_read_cert_data);
+          auto common_channel_private_key = asymmetric_private_key::parse_der(
+              private_key.decrypt(common_channel_private_key_data), std::string());
+
+          this->create_device_user(
+              sp,
+              private_key,
+              common_channel_id,
+              common_channel_read_cert,
+              common_channel_private_key);
           break;
         }
         default: {

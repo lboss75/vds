@@ -87,16 +87,18 @@ namespace vds {
     user_channel get_channel(class database_transaction &t, const guid &channel_id) const;
     user_channel get_common_channel(class database_transaction & t) const;
 
+    void allow_read(class database_transaction &t,
+                    const member_user & user,
+                    const guid & channel_id,
+                    const certificate & channel_read_cert,
+                    const asymmetric_private_key & read_private_key) const;
+
   private:
     std::shared_ptr<class _user_manager> impl_;
 
-    void allow_read(class database_transaction &t,
-                    const member_user & user,
-                    const user_channel & channel,
-                    const asymmetric_private_key & read_private_key) const;
 
     asymmetric_private_key
-    get_private_key(vds::database_transaction &t, const vds::guid &cert_id,
+    get_private_key(class database_transaction &t, const vds::guid &cert_id,
                         const vds::guid &user_cert_id,
                         const asymmetric_private_key &user_cert_private_key);
   };
