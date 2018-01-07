@@ -15,6 +15,7 @@ All rights reserved
 #include "p2p_crypto_tunnel.h"
 #include "udp_socket.h"
 #include "p2p_route.h"
+#include "p2p_node_info.h"
 
 namespace vds {
 
@@ -23,7 +24,7 @@ namespace vds {
     _p2p_network();
     ~_p2p_network();
 
-    async_task<> random_broadcast(
+    void random_broadcast(
         const vds::service_provider &sp,
         const vds::const_data_buffer &message);
 
@@ -36,6 +37,13 @@ namespace vds {
     vds::async_task<> start_network(const vds::service_provider &sp);
     async_task<> prepare_to_stop(const vds::service_provider &sp);
     void stop(const vds::service_provider &sp);
+
+    std::set<p2p::p2p_node_info> get_neighbors() const;
+
+    void broadcast(
+        const service_provider & sp,
+        const const_data_buffer & message) const;
+
   private:
     std::list<class p2p_network_service> network_services_;
 

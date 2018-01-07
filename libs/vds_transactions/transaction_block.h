@@ -7,6 +7,7 @@ All rights reserved
 */
 #include <set>
 #include <map>
+#include <stdafx.h>
 #include "binary_serialize.h"
 #include "chunk_manager.h"
 #include "guid.h"
@@ -28,6 +29,7 @@ namespace vds {
       }
 
       void save(
+          const service_provider &sp,
           class database_transaction & t) const;
 
     private:
@@ -44,6 +46,7 @@ namespace vds {
           const std::set<std::string> &ancestors,
           const chunk_manager::chunk_info &block) const;
 
+      void on_new_transaction(const service_provider &sp, class database_transaction &t, const chunk_manager::chunk_info &block) const;
     };
   }
 }

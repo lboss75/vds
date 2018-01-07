@@ -5,10 +5,13 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
+#include "types.h"
+
 namespace vds {
   namespace p2p_messages {
     enum class p2p_message_id : uint8_t {
-      chunk_send_replica = 'r'
+      chunk_send_replica = 'r',
+      common_log_record = 'l'
     };
   }
 }

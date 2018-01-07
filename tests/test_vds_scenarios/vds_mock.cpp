@@ -209,7 +209,7 @@ vds::user_channel vds_mock::create_channel(int index, const std::string &name) {
         root_user.id(),
         root_user.user_certificate(),
         root_private_key);
-    log.save(t);
+        log.save(this->servers_[index]->get_service_provider(), t);
 
     return true;
   }).execute([&b, &error](const std::shared_ptr<std::exception> & ex){

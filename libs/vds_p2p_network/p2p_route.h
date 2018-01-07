@@ -13,7 +13,7 @@ namespace vds {
     p2p_route();
     ~p2p_route();
 
-    async_task<> random_broadcast(
+    void random_broadcast(
         const vds::service_provider &sp,
         const vds::const_data_buffer &message);
 

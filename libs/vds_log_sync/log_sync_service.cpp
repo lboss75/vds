@@ -6,6 +6,9 @@
 #include "private/message_log_record_request.h"
 #include "db_model.h"
 #include "transaction_log_record_dbo.h"
+#include "chunk_manager.h"
+#include "transaction_block.h"
+#include "messages/common_log_record.h"
 
 vds::log_sync_service::log_sync_service() {
 
@@ -93,16 +96,7 @@ void vds::_log_sync_service::request_unknown_records(
     const service_provider &sp,
     p2p_network *p2p,
     const std::list<std::string> &record_ids) {
-  p2p->random_broadcast(sp, message_log_record_request(record_ids).serialize())
-        .execute([sp](const std::shared_ptr<std::exception> &ex) {
-          if (ex) {
-            sp.get<logger>()->warning(
-                "LOGSYNC",
-                sp,
-                "Exception at request records: %s",
-                ex->what());
-          }
-        });
+  p2p->random_broadcast(sp, message_log_record_request(record_ids).serialize());
 }
 
 void vds::_log_sync_service::get_statistic(
@@ -126,3 +120,13 @@ vds::async_task<> vds::_log_sync_service::prepare_to_stop(const vds::service_pro
 }
 
 
+////////////////////////////////////////////////////
+void vds::transactions::transaction_block::on_new_transaction(
+    const vds::service_provider &sp,
+    vds::database_transaction &t,
+    const vds::chunk_manager::chunk_info &block) const {
+
+  sp.get<p2p_network>()->broadcast(sp, p2p_messages::common_log_record(
+      block.id, block.data).serialize());
+
+}

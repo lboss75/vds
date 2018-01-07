@@ -23,7 +23,8 @@ All rights reserved
 #include "vds_debug.h"
 
 void vds::transactions::transaction_block::save(
-    database_transaction & t) const {
+    const service_provider &sp,
+    database_transaction &t) const {
 
   binary_serializer s;
   std::set<std::string> ancestors;
@@ -35,6 +36,7 @@ void vds::transactions::transaction_block::save(
 
   register_transaction(t, ancestors, block);
 
+  on_new_transaction(sp, t, block);
 }
 
 struct dependency_info {
@@ -108,3 +110,4 @@ void vds::transactions::transaction_block::register_transaction(
         t1.block_key = block.key));
   }
 }
+

@@ -89,7 +89,7 @@ namespace vds {
                         device_user.id(),
                         device_user.user_certificate()));
 
-                log.save(t);
+                log.save(sp, t);
 
                 binary_serializer s;
                 s << (uint8_t)command_id::CertCain;

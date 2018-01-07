@@ -21,9 +21,9 @@ vds::p2p_network::~p2p_network() {
 }
 
 
-vds::async_task<>
+void
 vds::p2p_network::random_broadcast(const vds::service_provider &sp, const vds::const_data_buffer &message) {
-  return this->impl_->random_broadcast(sp, message);
+  this->impl_->random_broadcast(sp, message);
 }
 
 vds::async_task<> vds::p2p_network::init_server(
@@ -48,6 +48,14 @@ void vds::p2p_network::stop(const vds::service_provider &sp) {
   this->impl_.reset();
 }
 
+std::set<vds::p2p::p2p_node_info> vds::p2p_network::get_neighbors() const {
+  return this->impl_->get_neighbors();
+}
+
+void vds::p2p_network::broadcast(const vds::service_provider &sp, const vds::const_data_buffer &message) {
+  this->impl_->broadcast(sp, message);
+}
+
 //////////////////////////////////
 vds::_p2p_network::_p2p_network()
 {
@@ -63,11 +71,11 @@ vds::_p2p_network::~_p2p_network() {
 
 }
 
-vds::async_task<>
+void
 vds::_p2p_network::random_broadcast(
     const vds::service_provider &sp,
     const vds::const_data_buffer &message) {
-  return this->route_.random_broadcast(sp, message);
+  this->route_.random_broadcast(sp, message);
 }
 
 void vds::_p2p_network::add_route(const service_provider &sp, const vds::guid &partner_id,
@@ -165,3 +173,14 @@ void vds::_p2p_network::stop(const vds::service_provider &sp) {
   }
   this->network_services_.clear();
 }
+
+std::set<vds::p2p::p2p_node_info> vds::_p2p_network::get_neighbors() const {
+  return this->route_->get_neighbors();
+}
+
+void vds::_p2p_network::broadcast(
+    const service_provider & sp,
+    const const_data_buffer & message) const {
+  this->route_->broadcast(sp, message);
+}
+

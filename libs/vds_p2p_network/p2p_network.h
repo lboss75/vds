@@ -7,6 +7,7 @@ All rights reserved
 */
 
 #include "udp_transport.h"
+#include "p2p_node_info.h"
 
 namespace vds {
   class p2p_network {
@@ -23,7 +24,11 @@ namespace vds {
 
     vds::async_task<> start_network(const vds::service_provider &sp);
 
-    async_task<> random_broadcast(
+    void random_broadcast(
+        const service_provider &sp,
+        const const_data_buffer &message);
+
+    void broadcast(
         const service_provider & sp,
         const const_data_buffer & message);
 
@@ -36,6 +41,7 @@ namespace vds {
       return this->impl_;
     }
 
+    std::set<p2p::p2p_node_info> get_neighbors() const;
     std::set<guid> active_nodes() const;
 
     async_task<> prepare_to_stop(const vds::service_provider &sp);
