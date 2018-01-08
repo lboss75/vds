@@ -14,6 +14,12 @@ namespace vds {
       not_found();
 
     };
+
+    class invalid_operation : public std::runtime_error {
+    public:
+      invalid_operation();
+
+    };
   };
 }
 

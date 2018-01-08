@@ -16,6 +16,10 @@ namespace vds {
       bool operator < (const p2p_node_info & other) const {
         return this->node_id < other.node_id;
       }
+
+      bool operator == (const p2p_node_info & other) const {
+        return this->node_id == other.node_id;
+      }
     };
   }
 }

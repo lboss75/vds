@@ -1,4 +1,5 @@
 
+#include <messages/common_log_state.h>
 #include "stdafx.h"
 #include "log_sync_service.h"
 #include "private/log_sync_service_p.h"
@@ -72,6 +73,8 @@ void vds::_log_sync_service::sync_process(
     vds::database_transaction &t) {
   auto p2p = sp.get<p2p_network>();
 
+  this->process_new_neighbors(p2p, sp, t);
+
   orm::transaction_log_record_dbo t1;
   auto st = t.get_reader(
       t1
@@ -117,6 +120,38 @@ void vds::_log_sync_service::stop(const vds::service_provider &sp) {
 
 vds::async_task<> vds::_log_sync_service::prepare_to_stop(const vds::service_provider &sp) {
   return vds::async_task<>::empty();
+}
+
+void vds::_log_sync_service::process_new_neighbors(
+    p2p_network * p2p,
+    const vds::service_provider &sp,
+    vds::database_transaction &t) {
+
+  std::set<p2p::p2p_node_info> new_neighbors;
+  auto neighbors = p2p->get_neighbors();
+  for(auto & p : neighbors){
+    if(this->neighbors_.end() == this->neighbors_.find(p)){
+      new_neighbors.emplace(p);
+    }
+  }
+
+  this->neighbors_ = neighbors;
+
+  std::list<const_data_buffer> leafs;
+  orm::transaction_log_record_dbo t1;
+  auto st = t.get_reader(
+      t1.select(t1.id)
+          .where(t1.state == (uint8_t)orm::transaction_log_record_dbo::state_t::leaf));
+  while(st.execute()){
+    leafs.push_back(base64::to_bytes(t1.id.get(st)));
+  }
+
+  if(!leafs.empty()) {
+    auto message = p2p_messages::common_log_state(leafs).serialize();
+    for (auto &p : new_neighbors) {
+      p2p->send(sp, p.node_id, message);
+    }
+  }
 }
 
 

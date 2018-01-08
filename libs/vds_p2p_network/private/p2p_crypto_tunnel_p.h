@@ -28,8 +28,6 @@ namespace vds {
 
     void send(const service_provider &sp, const const_data_buffer &message) override;
 
-    async_task<const const_data_buffer &> read_async(const service_provider &sp) override;
-
     void close(const service_provider &sp, const std::shared_ptr<std::exception> &ex) override;
 
     async_task<> prepare_to_stop(const vds::service_provider &sp) override;
@@ -57,6 +55,8 @@ namespace vds {
     std::list<certificate> certificate_chain_;
     asymmetric_private_key private_key_;
 
+    guid partner_id_;
+
     _p2p_crypto_tunnel(
         const udp_transport::session & session,
         const std::list<certificate> & certificate_chain,
@@ -65,6 +65,8 @@ namespace vds {
           certificate_chain_(certificate_chain),
           private_key_(private_key){
     }
+
+    async_task<const const_data_buffer &> read_async(const service_provider &sp) override;
 
     void process_input_command(
         const service_provider &sp,
@@ -75,11 +77,11 @@ namespace vds {
         const command_id command,
         binary_deserializer & s);
 
-    async_result<const const_data_buffer &> data_read_result_;
-
     void read_input_messages(const service_provider &sp);
 
-    guid partner_id_;
+    void send_crypted_command(
+        const service_provider &sp,
+        const const_data_buffer &message);
   };
 }
 

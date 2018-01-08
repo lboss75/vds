@@ -2,11 +2,13 @@
 // Created by vadim on 12.11.17.
 //
 
+#include "stdafx.h"
 #include "cert_control.h"
 #include "p2p_crypto_tunnel.h"
 #include "p2p_network.h"
 #include "private/p2p_crypto_tunnel_p.h"
 #include "private/p2p_network_p.h"
+#include "vds_exceptions.h"
 
 void vds::p2p_crypto_tunnel::start(
     const service_provider & sp) {
@@ -59,7 +61,7 @@ void vds::_p2p_crypto_tunnel::process_input_command(
   this->process_input_command(sp, (command_id)command, s);
 }
 
-void vds::_p2p_crypto_tunnel::send(
+void vds::_p2p_crypto_tunnel::send_crypted_command(
     const service_provider &sp,
     const const_data_buffer &message) {
 
@@ -80,13 +82,33 @@ void vds::_p2p_crypto_tunnel::send(
       sp,
       const_data_buffer(s.data().data(), s.size()));
 }
+void vds::_p2p_crypto_tunnel::send(
+    const service_provider &sp,
+    const const_data_buffer &message) {
+
+  binary_serializer s;
+  if(!this->output_key_) {
+    throw std::runtime_error("Invalid state");
+  }
+  else {
+    auto data = symmetric_encrypt::encrypt(this->output_key_, message);
+
+    std::cout
+        << base64::from_bytes(data)
+        << " cryped by "
+        << base64::from_bytes(this->output_key_.serialize()) << "\n";
+    s << (uint8_t) command_id::Data;
+    s << symmetric_encrypt::encrypt(this->output_key_, message);
+  }
+
+  this->session_->send(
+      sp,
+      const_data_buffer(s.data().data(), s.size()));
+}
 
 vds::async_task<const vds::const_data_buffer &> vds::_p2p_crypto_tunnel::read_async(
     const service_provider &sp) {
-  return [pthis = this->shared_from_this()](
-      const async_result<const const_data_buffer &> & result){
-    static_cast<_p2p_crypto_tunnel *>(pthis.get())->data_read_result_ = result;
-  };
+  throw vds_exceptions::invalid_operation();
 }
 
 void vds::_p2p_crypto_tunnel::process_input_command(
@@ -193,8 +215,14 @@ void vds::_p2p_crypto_tunnel::process_input_command(
         throw std::runtime_error("Invalid state");
       }
 
-      this->data_read_result_.done(
-          symmetric_decrypt::decrypt(this->input_key_, s.data(), s.size()));
+      const_data_buffer data;
+      s >> data;
+
+      (*sp.get<p2p_network>())->process_input_command(
+          sp,
+          this->partner_id_,
+          this->shared_from_this(),
+          symmetric_decrypt::decrypt(this->input_key_, data));
       break;
     }
     default:

@@ -129,8 +129,8 @@ vds::_server::_server(server * owner)
   local_cache_(new _local_cache()),
 	user_manager_(new user_manager()),
 	db_model_(new db_model()),
-  network_client_(new p2p_network_client()),
   p2p_network_(new p2p_network()),
+  network_client_(new p2p_network_client()),
   log_sync_service_(new log_sync_service()),
   file_manager_(new file_manager::file_manager_service())
 {

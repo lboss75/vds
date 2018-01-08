@@ -105,6 +105,23 @@ void vds::_p2p_route::broadcast(const vds::service_provider &sp, const vds::cons
   }
 }
 
+bool vds::_p2p_route::send(
+    const vds::service_provider &sp,
+    const vds::guid &device_id,
+    const vds::const_data_buffer &message) {
+
+  std::shared_lock<std::shared_mutex> lock(this->sessions_mutex_);
+  auto p = this->sessions_.find(device_id);
+  if(this->sessions_.end() == p) {
+    return false;
+  }
+
+  p->second->send(sp, message);
+  return true;
+}
+
+
+
 void vds::_p2p_route::session::lock() {
   this->state_mutex_.lock();
 }

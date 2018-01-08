@@ -1,5 +1,5 @@
-#ifndef __VDS_P2P_NETWORK_SEND_REPLICA_H_
-#define __VDS_P2P_NETWORK_SEND_REPLICA_H_
+#ifndef __VDS_P2P_NETWORK_COMMON_LOG_RECORD_H_
+#define __VDS_P2P_NETWORK_COMMON_LOG_RECORD_H_
 
 /*
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
@@ -40,4 +40,4 @@ namespace vds {
   }
 }
 
-#endif //__VDS_P2P_NETWORK_SEND_REPLICA_H_
+#endif //__VDS_P2P_NETWORK_COMMON_LOG_RECORD_H_

@@ -28,8 +28,8 @@ namespace vds {
         const vds::service_provider &sp,
         const vds::const_data_buffer &message);
 
-    void add_route(const service_provider &sp, const vds::guid &partner_id,
-                       const std::shared_ptr<vds::udp_transport::_session> &session);
+    void add_route(const service_provider &sp, const guid &partner_id,
+                       const std::shared_ptr<udp_transport::_session> &session);
 
     vds::async_task<> init_server(const vds::service_provider &sp, const std::string &user_name,
                                   const std::string &user_password, const std::string &device_name, int port);
@@ -43,6 +43,17 @@ namespace vds {
     void broadcast(
         const service_provider & sp,
         const const_data_buffer & message) const;
+
+    bool send(
+        const vds::service_provider &sp,
+        const vds::guid &device_id,
+        const vds::const_data_buffer &message);
+
+    void process_input_command(
+        const service_provider &sp,
+        const guid &partner_id,
+        const std::shared_ptr<udp_transport::_session> &session,
+        const vds::const_data_buffer &message);
 
   private:
     std::list<class p2p_network_service> network_services_;

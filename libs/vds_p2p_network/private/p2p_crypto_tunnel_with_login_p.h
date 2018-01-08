@@ -123,7 +123,7 @@ namespace vds {
           s << (uint8_t)command_id::CertRequest;
           s << this->login_ << hash::signature(hash::sha256(), this->password_.c_str(), this->password_.length());
 
-          this->send(sp, const_data_buffer(s.data().data(), s.size()));
+          this->send_crypted_command(sp, const_data_buffer(s.data().data(), s.size()));
 
           break;
         }

@@ -125,7 +125,8 @@ namespace vds {
             result << t3.body.get(st);
           }
 
-          pthis->send(sp, const_data_buffer(result.data().data(), result.size()));
+          auto this_ = static_cast<_p2p_crypto_tunnel_with_certificate *>(pthis.get());
+          this_->send_crypted_command(sp, const_data_buffer(result.data().data(), result.size()));
         }).execute([pthis = this->shared_from_this(), sp](const std::shared_ptr<std::exception> & ex){
           if(ex) {
             pthis->close(sp, ex);

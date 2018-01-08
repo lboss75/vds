@@ -31,6 +31,10 @@ namespace vds {
         const service_provider & sp,
         const const_data_buffer & message) const;
 
+    bool send(
+        const service_provider &sp,
+        const guid &device_id,
+        const const_data_buffer &message);
   private:
     class session {
     public:

@@ -11,7 +11,8 @@ namespace vds {
   namespace p2p_messages {
     enum class p2p_message_id : uint8_t {
       chunk_send_replica = 'r',
-      common_log_record = 'l'
+      common_log_record = 'l',
+      common_log_state = 's'
     };
   }
 }

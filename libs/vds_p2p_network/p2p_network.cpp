@@ -11,6 +11,8 @@
 #include "certificate_private_key_dbo.h"
 #include "p2p_network_service.h"
 #include "private/p2p_network_service_p.h"
+#include "messages/p2p_message_id.h"
+#include "messages/common_log_state.h"
 
 vds::p2p_network::p2p_network()
 :impl_(new _p2p_network()){
@@ -54,6 +56,11 @@ std::set<vds::p2p::p2p_node_info> vds::p2p_network::get_neighbors() const {
 
 void vds::p2p_network::broadcast(const vds::service_provider &sp, const vds::const_data_buffer &message) {
   this->impl_->broadcast(sp, message);
+}
+
+void vds::p2p_network::send(const vds::service_provider &sp, const vds::guid &device_id,
+                            const vds::const_data_buffer &message) {
+  this->impl_->send(sp, device_id, message);
 }
 
 //////////////////////////////////
@@ -184,3 +191,29 @@ void vds::_p2p_network::broadcast(
   this->route_->broadcast(sp, message);
 }
 
+bool vds::_p2p_network::send(
+    const vds::service_provider &sp,
+    const vds::guid &device_id,
+    const vds::const_data_buffer &message) {
+  return this->route_->send(sp, device_id, message);
+}
+
+void vds::_p2p_network::process_input_command(
+    const service_provider &sp,
+    const guid &partner_id,
+    const std::shared_ptr<udp_transport::_session> &session,
+    const const_data_buffer &message_data) {
+  binary_deserializer s(message_data);
+  uint8_t  command_id;
+  s >> command_id;
+
+  switch((p2p_messages::p2p_message_id)command_id){
+    case p2p_messages::p2p_message_id::common_log_state:{
+      p2p_messages::common_log_state message(s);
+
+      break;
+    }
+    default:
+      throw std::runtime_error("Invalid command");
+  }
+}
