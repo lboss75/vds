@@ -9,8 +9,9 @@ All rights reserved
 #include <map>
 #include <stdafx.h>
 #include "binary_serialize.h"
-#include "chunk_manager.h"
 #include "guid.h"
+#include "database.h"
+#include "asymmetriccrypto.h"
 
 namespace vds {
   namespace transactions {
@@ -30,7 +31,10 @@ namespace vds {
 
       void save(
           const service_provider &sp,
-          class database_transaction & t) const;
+          class vds::database_transaction & t,
+          const certificate & common_read_cert,
+          const certificate & write_cert,
+          const asymmetric_private_key & write_private_key) const;
 
     private:
 
@@ -41,12 +45,16 @@ namespace vds {
           class database_transaction &t,
           std::set<std::string> &ancestors) const;
 
-      void register_transaction(
+      const_data_buffer register_transaction(
           class database_transaction &t,
           const std::set<std::string> &ancestors,
-          const chunk_manager::chunk_info &block) const;
+          const const_data_buffer &block) const;
 
-      void on_new_transaction(const service_provider &sp, class database_transaction &t, const chunk_manager::chunk_info &block) const;
+      void on_new_transaction(
+          const service_provider &sp,
+          class database_transaction &t,
+          const const_data_buffer & id,
+          const const_data_buffer &block) const;
     };
   }
 }

@@ -73,7 +73,12 @@ vds::async_task<> vds::file_manager_private::_file_operations::upload_file(
 
         auto common_channel = user_mng->get_common_channel(t);
 
-        log.save(sp, t);
+        log.save(
+            sp,
+            t,
+            common_channel.read_cert(),
+            user.user_certificate(),
+            device_private_key);
       }
   );
 }

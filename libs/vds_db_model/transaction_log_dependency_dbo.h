@@ -17,12 +17,10 @@ namespace vds {
       transaction_log_dependency_dbo()
           : database_table("transaction_log_dependency"),
             channel_id(this, "channel_id"),
-            block_id(this, "block_id"),
-            block_key(this, "block_key") {}
+            block_id(this, "block_id") {}
 
       database_column<guid> channel_id;
       database_column<const_data_buffer> block_id;
-      database_column<const_data_buffer> block_key;
     };
   }
 }

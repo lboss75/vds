@@ -1,3 +1,4 @@
+#include <messages/common_block_request.h>
 #include "stdafx.h"
 #include "p2p_network.h"
 #include "private/p2p_network_p.h"
@@ -13,6 +14,7 @@
 #include "private/p2p_network_service_p.h"
 #include "messages/p2p_message_id.h"
 #include "messages/common_log_state.h"
+#include "../vds_log_sync/log_sync_service.h"
 
 vds::p2p_network::p2p_network()
 :impl_(new _p2p_network()){
@@ -61,6 +63,13 @@ void vds::p2p_network::broadcast(const vds::service_provider &sp, const vds::con
 void vds::p2p_network::send(const vds::service_provider &sp, const vds::guid &device_id,
                             const vds::const_data_buffer &message) {
   this->impl_->send(sp, device_id, message);
+}
+
+void vds::p2p_network::close_session(
+    const service_provider &sp,
+    const guid &partner,
+    const std::shared_ptr<std::exception> & ex) {
+  this->impl_->close_session(sp, partner, ex);
 }
 
 //////////////////////////////////
@@ -210,10 +219,24 @@ void vds::_p2p_network::process_input_command(
   switch((p2p_messages::p2p_message_id)command_id){
     case p2p_messages::p2p_message_id::common_log_state:{
       p2p_messages::common_log_state message(s);
+      sp.get<log_sync_service>()->apply(sp, partner_id, message);
+
+      break;
+    }
+    case p2p_messages::p2p_message_id::common_block_request:{
+      p2p_messages::common_block_request message(s);
+      sp.get<log_sync_service>()->apply(sp, partner_id, message);
 
       break;
     }
     default:
       throw std::runtime_error("Invalid command");
   }
+}
+
+void vds::_p2p_network::close_session(
+    const vds::service_provider &sp,
+    const vds::guid &partner,
+    const std::shared_ptr<std::exception> & ex) {
+  this->route_->close_session(sp, partner, ex);
 }

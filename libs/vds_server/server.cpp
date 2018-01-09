@@ -75,6 +75,8 @@ void vds::server::register_services(service_registrator& registrator)
 
   registrator.add_service<p2p_network>(this->impl_->p2p_network_.get());
 
+  registrator.add_service<log_sync_service>(this->impl_->log_sync_service_.get());
+
   this->impl_->file_manager_->register_services(registrator);
 }
 

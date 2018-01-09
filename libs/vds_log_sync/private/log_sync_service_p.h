@@ -22,6 +22,11 @@ namespace vds {
 
     void get_statistic(class database_transaction & t, sync_statistic & result);
 
+    void apply(
+        const vds::service_provider &sp,
+        const vds::guid &partner_id,
+        const vds::p2p_messages::common_log_state &message);
+
   private:
     timer update_timer_;
 

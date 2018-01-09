@@ -1,5 +1,6 @@
 
 #include <messages/common_log_state.h>
+#include <messages/common_block_request.h>
 #include "stdafx.h"
 #include "log_sync_service.h"
 #include "private/log_sync_service_p.h"
@@ -35,6 +36,14 @@ vds::async_task<> vds::log_sync_service::prepare_to_stop(const vds::service_prov
 
 void vds::log_sync_service::get_statistic(database_transaction & t, vds::sync_statistic & result) {
   this->impl_->get_statistic(t, result);
+}
+
+void vds::log_sync_service::apply(
+    const vds::service_provider &sp,
+    const vds::guid &partner_id,
+    const vds::p2p_messages::common_log_state &message) {
+  this->impl_->apply(sp, partner_id, message);
+
 }
 
 
@@ -154,14 +163,38 @@ void vds::_log_sync_service::process_new_neighbors(
   }
 }
 
+void vds::_log_sync_service::apply(const vds::service_provider &sp, const vds::guid &partner_id,
+                              const vds::p2p_messages::common_log_state &message) {
+  sp.get<db_model>()->async_transaction(
+      sp,
+      [pthis = this->shared_from_this(), sp, partner_id, message](database_transaction & t) -> bool{
+        orm::transaction_log_record_dbo t1;
 
-////////////////////////////////////////////////////
-void vds::transactions::transaction_block::on_new_transaction(
-    const vds::service_provider &sp,
-    vds::database_transaction &t,
-    const vds::chunk_manager::chunk_info &block) const {
+        std::list<const_data_buffer> requests;
+        for(auto & p : message.leafs()){
+          auto st = t.get_reader(
+              t1.select(t1.state)
+                  .where(t1.id == base64::from_bytes(p)));
+          if(!st.execute()){
+            //Not found
+            requests.push_back(p);
+          }
+        }
 
-  sp.get<p2p_network>()->broadcast(sp, p2p_messages::common_log_record(
-      block.id, block.data).serialize());
+        if(!requests.empty()){
+          sp.get<p2p_network>()->send(
+              sp,
+              partner_id,
+              p2p_messages::common_block_request(requests).serialize());
+        }
+
+        return true;
+  }).execute([sp, partner_id](const std::shared_ptr<std::exception> & ex){
+    if(ex){
+      sp.get<p2p_network>()->close_session(sp, partner_id, ex);
+    }
+  });
 
 }
+
+

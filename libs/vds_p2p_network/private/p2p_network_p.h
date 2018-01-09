@@ -55,6 +55,10 @@ namespace vds {
         const std::shared_ptr<udp_transport::_session> &session,
         const vds::const_data_buffer &message);
 
+    void close_session(
+        const service_provider &sp,
+        const guid &partner,
+        const std::shared_ptr<std::exception> & ex);
   private:
     std::list<class p2p_network_service> network_services_;
 

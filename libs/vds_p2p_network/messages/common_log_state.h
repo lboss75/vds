@@ -31,6 +31,10 @@ namespace vds {
         return s.data();
       }
 
+      const std::list<const_data_buffer> & leafs() const {
+        return this->leafs_;
+      }
+
     private:
       std::list<const_data_buffer> leafs_;
     };

@@ -155,7 +155,12 @@ void vds::user_manager::reset(
           device_user.id(),
           device_user.user_certificate()));
 
-  playback.save(sp, t);
+  playback.save(
+      sp,
+      t,
+      common_channel.read_cert(),
+      root_user.user_certificate(),
+      root_private_key);
 }
 
 vds::user_channel

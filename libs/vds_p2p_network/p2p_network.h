@@ -50,6 +50,12 @@ namespace vds {
     operator bool () const {
       return nullptr != this->impl_.get();
     }
+
+    void close_session(
+        const service_provider &sp,
+        const guid &partner,
+        const std::shared_ptr<std::exception> & ex);
+
   private:
     std::shared_ptr<class _p2p_network> impl_;
   };

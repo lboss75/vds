@@ -9,6 +9,7 @@ All rights reserved
 #include "async_task.h"
 #include "service_provider.h"
 #include "sync_statistic.h"
+#include "messages/common_log_state.h"
 
 namespace vds {
 
@@ -22,6 +23,11 @@ namespace vds {
     void stop(const service_provider & sp);
 
     void get_statistic(class database_transaction & t, sync_statistic & result);
+
+    void apply(
+        const service_provider &sp,
+        const guid &partner_id,
+        const p2p_messages::common_log_state &message);
 
   private:
     std::shared_ptr<class _log_sync_service> impl_;

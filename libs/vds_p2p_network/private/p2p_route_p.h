@@ -35,6 +35,11 @@ namespace vds {
         const service_provider &sp,
         const guid &device_id,
         const const_data_buffer &message);
+
+    void close_session(
+        const service_provider &sp,
+        const guid &partner,
+        const std::shared_ptr<std::exception> & ex);
   private:
     class session {
     public:
@@ -55,6 +60,10 @@ namespace vds {
 
       void send(const service_provider &sp,
                 const const_data_buffer &message);
+
+      void close(
+          const service_provider &sp,
+          const std::shared_ptr<std::exception> & ex);
     private:
       std::shared_ptr<udp_transport::_session> target_;
 

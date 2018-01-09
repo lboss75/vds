@@ -123,7 +123,7 @@ void vds::db_model::migrate(
 
 		t.execute("CREATE TABLE transaction_log_record(\
 			id VARCHAR(64) PRIMARY KEY NOT NULL,\
-      key BLOB NOT NULL,\
+      data BLOB NOT NULL,\
 			state INTEGER NOT NULL)");
 
 		t.execute("CREATE TABLE transaction_log_record_relation(\
@@ -152,8 +152,7 @@ void vds::db_model::migrate(
 
     t.execute("CREATE TABLE transaction_log_dependency(\
 			channel_id VARCHAR(64) PRIMARY KEY NOT NULL,\
-			block_id BLOB NOT NULL,\
-			block_key BLOB NOT NULL)");
+			block_id BLOB NOT NULL)");
 
 		t.execute("INSERT INTO well_known_node(id, addresses) VALUES(\
 									'3940754a-64dd-4491-9777-719315b36a67',\

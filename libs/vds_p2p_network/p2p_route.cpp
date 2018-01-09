@@ -120,6 +120,17 @@ bool vds::_p2p_route::send(
   return true;
 }
 
+void vds::_p2p_route::close_session(
+    const vds::service_provider &sp,
+    const vds::guid &partner,
+    const std::shared_ptr<std::exception> & ex) {
+
+  std::unique_lock<std::shared_mutex> lock(this->sessions_mutex_);
+  auto p = this->sessions_.find(partner);
+  if(this->sessions_.end() != p) {
+    p->second->close(sp, ex);
+  }
+}
 
 
 void vds::_p2p_route::session::lock() {
@@ -138,4 +149,10 @@ vds::_p2p_route::session::send(const vds::service_provider &sp, const vds::const
 vds::async_task<> vds::_p2p_route::session::route(const vds::service_provider &sp, const vds::guid &node_id,
                                                   const vds::const_data_buffer &message) {
   throw std::runtime_error("Not implemented");
+}
+
+void vds::_p2p_route::session::close(
+    const vds::service_provider &sp,
+    const std::shared_ptr<std::exception> & ex) {
+  this->target_->close(sp, ex);
 }

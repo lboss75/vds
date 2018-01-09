@@ -20,18 +20,21 @@ namespace vds {
 
     user_manager();
     
-    vds::member_user create_root_user(transactions::transaction_block &log, vds::database_transaction &t,
-                                          const guid &common_channel_id, const std::string &user_name,
-                                          const std::string &user_password,
-                                          const vds::asymmetric_private_key &private_key);
+    vds::member_user create_root_user(
+        transactions::transaction_block &log,
+        class database_transaction &t,
+        const guid &common_channel_id,
+        const std::string &user_name,
+        const std::string &user_password,
+        const asymmetric_private_key &private_key);
 
     user_channel create_channel(
         transactions::transaction_block &log,
         class database_transaction & t,
         const guid &common_channel_id,
-        const vds::guid &channel_id,
+        const guid &channel_id,
         const std::string &name,
-        const vds::guid &owner_id,
+        const guid &owner_id,
         const certificate &owner_cert,
         const asymmetric_private_key &owner_private_key) const;
 

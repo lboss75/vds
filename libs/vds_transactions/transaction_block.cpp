@@ -5,9 +5,11 @@ All rights reserved
 
 #include "stdafx.h"
 #include <set>
-#include <chunk_manager.h>
-#include <transaction_log_record_relation_dbo.h>
-#include <transaction_log_dependency_dbo.h>
+#include "chunk_manager.h"
+#include "transaction_log_record_relation_dbo.h"
+#include "transaction_log_dependency_dbo.h"
+#include "p2p_network.h"
+#include "messages/common_log_record.h"
 #include "user_manager.h"
 #include "transaction_block.h"
 #include "symmetriccrypto.h"
@@ -24,7 +26,10 @@ All rights reserved
 
 void vds::transactions::transaction_block::save(
     const service_provider &sp,
-    database_transaction &t) const {
+    database_transaction &t,
+    const certificate & common_read_cert,
+    const certificate & write_cert,
+    const asymmetric_private_key & write_private_key) const {
 
   binary_serializer s;
   std::set<std::string> ancestors;
@@ -32,23 +37,22 @@ void vds::transactions::transaction_block::save(
   this->collect_dependencies(s, t, ancestors);
 
   vds_assert(0 != s.size());
-  auto block = chunk_manager::save_block(t, s.data());
 
-  register_transaction(t, ancestors, block);
+  auto key = symmetric_key::generate(symmetric_crypto::aes_256_cbc());
 
-  on_new_transaction(sp, t, block);
-}
+  binary_serializer crypted;
+  crypted
+      << cert_control::get_id(common_read_cert)
+      << symmetric_encrypt::encrypt(key, s.data())
+      << common_read_cert.public_key().encrypt(key.serialize());
 
-struct dependency_info {
-  vds::const_data_buffer id;
-  vds::const_data_buffer key;
-};
+  crypted << asymmetric_sign::signature(
+      hash::sha256(),
+      write_private_key,
+      crypted.data());
 
-static vds::binary_serializer &operator << (
-    vds::binary_serializer & s,
-    const dependency_info & info){
-  s << info.id << info.key;
-  return  s;
+  auto id = register_transaction(t, ancestors, crypted.data());
+  on_new_transaction(sp, t, id, crypted.data());
 }
 
 void vds::transactions::transaction_block::collect_dependencies(
@@ -56,35 +60,33 @@ void vds::transactions::transaction_block::collect_dependencies(
     vds::database_transaction &t,
     std::set<std::string> &ancestors) const {
   for(auto & p : this->channels_){
-    std::list<dependency_info> dependencies;
+    std::list<const_data_buffer> dependencies;
     vds::orm::transaction_log_dependency_dbo t1;
     auto st = t.get_reader(
-        t1.select(t1.block_id, t1.block_key)
+        t1.select(t1.block_id)
             .where(t1.channel_id == p.first));
     while(st.execute()){
       auto id = t1.block_id.get(st);
       if(ancestors.end() == ancestors.find(vds::base64::from_bytes(id))) {
         ancestors.emplace(vds::base64::from_bytes(id));
       }
-      dependencies.push_back(dependency_info {
-          .id = id,
-          .key = t1.block_key.get(st)
-      });
+      dependencies.push_back(id);
     }
 
     s << dependencies << p.first << p.second.data();
   }
 }
 
-void vds::transactions::transaction_block::register_transaction(
+vds::const_data_buffer vds::transactions::transaction_block::register_transaction(
     vds::database_transaction &t,
     const std::set<std::string> &ancestors,
-    const vds::chunk_manager::chunk_info &block) const {
+    const const_data_buffer &block) const {
 
+  auto id = hash::signature(hash::sha256(), block);
   orm::transaction_log_record_dbo t2;
   t.execute(t2.insert(
-      t2.id = vds::base64::from_bytes(block.id),
-      t2.key = block.key,
+      t2.id = vds::base64::from_bytes(id),
+      t2.data = block,
       t2.state = (uint8_t) orm::transaction_log_record_dbo::state_t::leaf));
 
   for(auto & ancestor : ancestors){
@@ -96,7 +98,7 @@ void vds::transactions::transaction_block::register_transaction(
     orm::transaction_log_record_relation_dbo t2;
     t.execute(t2.insert(
         t2.predecessor_id = ancestor,
-        t2.follower_id = vds::base64::from_bytes(block.id),
+        t2.follower_id = vds::base64::from_bytes(id),
         t2.relation_type = (uint8_t) orm::transaction_log_record_relation_dbo::relation_type_t::week
     ));
   }
@@ -106,8 +108,19 @@ void vds::transactions::transaction_block::register_transaction(
     t.execute(t1.delete_if(t1.channel_id == p.first));
     t.execute(t1.insert(
         t1.channel_id = p.first,
-        t1.block_id = block.id,
-        t1.block_key = block.key));
+        t1.block_id = id));
   }
+
+  return id;
 }
 
+void vds::transactions::transaction_block::on_new_transaction(
+    const vds::service_provider &sp,
+    vds::database_transaction &t,
+    const const_data_buffer & id,
+    const const_data_buffer &block) const {
+
+  sp.get<p2p_network>()->broadcast(sp, p2p_messages::common_log_record(
+      id, block).serialize());
+
+}
