@@ -63,10 +63,10 @@ vds::async_task<> vds::file_manager_private::_file_operations::upload_file(
 
         transactions::transaction_block log;
         log.add(
-            channel_id,
             transactions::file_add_transaction(
-                channel.write_cert(),
-                user_mng->get_channel_write_key(sp, t, channel, user.id()),
+                channel_id,
+                channel.read_cert(),
+                channel_write_key,
                 name,
                 mimetype,
                 file_blocks));

@@ -15,10 +15,9 @@ namespace vds {
     class transaction_log_record_dbo : public database_table {
     public:
       enum class state_t : uint8_t {
-        new_record = 0,
+        none,
+        validated,
         processed,
-        unknown,
-        follower,
         leaf
       };
 
@@ -30,7 +29,7 @@ namespace vds {
 
       database_column<std::string> id;
       database_column<const_data_buffer> data;
-      database_column<uint8_t> state;
+      database_column<int> state;
     };
   }
 }

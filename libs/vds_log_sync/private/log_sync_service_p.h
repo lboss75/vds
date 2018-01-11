@@ -49,7 +49,7 @@ namespace vds {
     void request_unknown_records(
         const service_provider &sp,
         class p2p_network *p2p,
-        const std::list<std::string> &record_ids);
+        const std::list<const_data_buffer> &record_ids);
 
     void process_new_neighbors(
         class p2p_network * p2p,

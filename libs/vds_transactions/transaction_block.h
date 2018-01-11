@@ -20,13 +20,10 @@ namespace vds {
 
       template<typename item_type>
       void add(
-          const guid & channel_id,
           item_type && item) {
 
-        auto & s = this->channels_[channel_id];
-
-        s << item_type::message_id;
-        item.serialize(s);
+        this->s_ << item_type::message_id;
+        item.serialize(this->s_);
       }
 
       void save(
@@ -38,17 +35,16 @@ namespace vds {
 
     private:
 
-      std::map<guid, binary_serializer> channels_;
+      binary_serializer s_;
 
       void collect_dependencies(
-          binary_serializer &s,
           class database_transaction &t,
-          std::set<std::string> &ancestors) const;
+          std::set<const_data_buffer> &ancestors) const;
 
       const_data_buffer register_transaction(
           class database_transaction &t,
-          const std::set<std::string> &ancestors,
-          const const_data_buffer &block) const;
+          const const_data_buffer &block,
+          const std::set<const_data_buffer> &ancestors) const;
 
       void on_new_transaction(
           const service_provider &sp,

@@ -84,7 +84,6 @@ namespace vds {
                     common_channel_private_key);
 
                 log.add(
-                    common_channel_id,
                     transactions::device_user_add_transaction(
                         device_user.id(),
                         device_user.user_certificate()));

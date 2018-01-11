@@ -150,7 +150,6 @@ void vds::user_manager::reset(
           root_private_key));
 
   playback.add(
-      common_channel_id,
       transactions::device_user_add_transaction(
           device_user.id(),
           device_user.user_certificate()));
@@ -228,7 +227,6 @@ vds::user_manager::create_channel(
   ));
 
   log.add(
-      common_channel_id,
       transactions::channel_create_transaction(
           channel_id,
           owner_id,
@@ -237,7 +235,6 @@ vds::user_manager::create_channel(
           write_id));
 
   log.add(
-      owner_id,
       transactions::channel_add_writer_transaction(
           channel_id,
           owner_cert,
@@ -279,7 +276,6 @@ vds::user_manager::create_user_channel(transactions::transaction_block &log, dat
   ));
 
   log.add(
-      common_channel_id,
       transactions::user_channel_create_transaction(
           owner_id,
           read_id,
@@ -481,7 +477,6 @@ vds::member_user vds::user_manager::create_root_user(transactions::transaction_b
 
 
   playback.add(
-      common_channel_id,
       transactions::root_user_transaction(
           root_user_id,
           root_user_cert,

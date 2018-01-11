@@ -3,7 +3,6 @@
 #include "log_sync_service.h"
 #include "private/log_sync_service_p.h"
 #include "p2p_network.h"
-#include "private/message_log_record_request.h"
 #include "db_model.h"
 #include "transaction_log_record_dbo.h"
 #include "chunk_manager.h"
@@ -12,6 +11,7 @@
 #include "messages/common_log_state.h"
 #include "messages/common_block_request.h"
 #include "transaction_log.h"
+#include "transaction_log_unknown_record_dbo.h"
 
 vds::log_sync_service::log_sync_service() {
 
@@ -97,16 +97,13 @@ void vds::_log_sync_service::sync_process(
 
   this->process_new_neighbors(p2p, sp, t);
 
-  orm::transaction_log_record_dbo t1;
-  auto st = t.get_reader(
-      t1
-          .select(t1.id)
-          .where(t1.state == (uint8_t)orm::transaction_log_record_dbo::state_t::unknown));
+  orm::transaction_log_unknown_record_dbo t1;
+  auto st = t.get_reader(t1.select(t1.id));
 
-  std::list<std::string> record_ids;
+  std::list<const_data_buffer> record_ids;
   while(st.execute()){
     auto record_id = t1.id.get(st);
-    record_ids.push_back(record_id);
+    record_ids.push_back(base64::to_bytes(record_id));
     if(record_ids.size() > 10) {
       this->request_unknown_records(sp, p2p, record_ids);
       record_ids.clear();
@@ -120,8 +117,8 @@ void vds::_log_sync_service::sync_process(
 void vds::_log_sync_service::request_unknown_records(
     const service_provider &sp,
     p2p_network *p2p,
-    const std::list<std::string> &record_ids) {
-  p2p->random_broadcast(sp, message_log_record_request(record_ids).serialize());
+    const std::list<const_data_buffer> &record_ids) {
+  p2p->random_broadcast(sp, p2p_messages::common_block_request(record_ids).serialize());
 }
 
 void vds::_log_sync_service::get_statistic(
@@ -137,7 +134,7 @@ void vds::_log_sync_service::get_statistic(
 }
 
 void vds::_log_sync_service::stop(const vds::service_provider &sp) {
-
+  this->update_timer_.stop(sp);
 }
 
 vds::async_task<> vds::_log_sync_service::prepare_to_stop(const vds::service_provider &sp) {

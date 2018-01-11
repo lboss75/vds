@@ -92,11 +92,6 @@ void vds::_p2p_crypto_tunnel::send(
   }
   else {
     auto data = symmetric_encrypt::encrypt(this->output_key_, message);
-
-    std::cout
-        << base64::from_bytes(data)
-        << " cryped by "
-        << base64::from_bytes(this->output_key_.serialize()) << "\n";
     s << (uint8_t) command_id::Data;
     s << symmetric_encrypt::encrypt(this->output_key_, message);
   }

@@ -11,14 +11,14 @@ All rights reserved
 #include "guid.h"
 #include "asymmetriccrypto.h"
 #include "const_data_buffer.h"
-#include "transaction_log.h"
+#include "binary_serialize.h"
 
 namespace vds {
   namespace transactions {
 
     class root_user_transaction {
     public:
-      static const uint8_t message_id = 'c';
+      static const uint8_t message_id = 'r';
 
       root_user_transaction(
           const guid &id,

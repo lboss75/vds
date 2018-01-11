@@ -21,6 +21,12 @@ namespace vds {
       : user_id_(user_id), user_certificate_(user_certificate){
       }
 
+      device_user_add_transaction(binary_deserializer & s){
+        const_data_buffer user_certificate_der;
+        s >> this->user_id_ >> user_certificate_der;
+        this->user_certificate_ = certificate::parse_der(user_certificate_der);
+      }
+
       binary_serializer &serialize(binary_serializer &s) const {
         return s << this->user_id_ << this->user_certificate_.der();
       }

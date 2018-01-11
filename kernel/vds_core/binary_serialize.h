@@ -6,6 +6,7 @@ All rights reserved
 */
 
 #include <list>
+#include <set>
 #include "types.h"
 #include "const_data_buffer.h"
 
@@ -51,7 +52,18 @@ namespace vds {
       
       return *this;
     }
-    
+
+    template <typename T>
+    binary_serializer & operator << (const std::set<T> & value)
+    {
+      this->write_number(value.size());
+      for(auto & p : value){
+        *this << p;
+      }
+
+      return *this;
+    }
+
   private:
     std::vector<uint8_t> data_;
   };
@@ -99,6 +111,19 @@ namespace vds {
         value.push_back(item);
       }
       
+      return *this;
+    }
+
+    template <typename T>
+    binary_deserializer & operator >> (std::set<T> & value)
+    {
+      auto count = this->read_number();
+      for(decltype(count) i = 0; i < count; ++i){
+        T item;
+        *this >> item;
+        value.emplace(item);
+      }
+
       return *this;
     }
 

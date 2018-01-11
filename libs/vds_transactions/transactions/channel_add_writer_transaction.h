@@ -10,45 +10,39 @@ All rights reserved
 #include "asymmetriccrypto.h"
 #include "transaction_log.h"
 #include "symmetriccrypto.h"
+#include "channel_message_transaction.h"
 
 namespace vds {
   namespace transactions {
-    class channel_add_writer_transaction {
+    class channel_add_writer_transaction : public channel_message_transaction {
     public:
-      static const uint8_t message_id = 'w';
+      static const uint8_t channel_message_id = 'w';
 
       channel_add_writer_transaction(
           const guid & channel_id,
           const certificate & owner_cert,
+
           const certificate & read_cert,
           const asymmetric_private_key & read_private_key,
           const certificate & write_cert,
           const asymmetric_private_key & write_private_key)
-      : channel_id_(channel_id),
-        owner_cert_id_(cert_control::get_id(owner_cert))
-      {
-        binary_serializer s;
-        s << read_cert.der() << read_private_key.der(std::string())
-          << write_cert.der() << write_private_key.der(std::string());
-
-        auto key = symmetric_key::generate(symmetric_crypto::aes_256_cbc());
-
-        binary_serializer crypted;
-        crypted
-            << owner_cert.public_key().encrypt(key.serialize())
-            << symmetric_encrypt::encrypt(key, s.data());
-
-        this->data_ = crypted.data();
+      : channel_message_transaction(
+          channel_id,
+          read_cert,
+          write_private_key,
+          (
+            binary_serializer()
+                << channel_message_id
+                << read_cert.der()
+                << read_private_key.der(std::string())
+                << write_cert.der()
+                << write_private_key.der(std::string())
+          ).data()) {
       }
 
-      void serialize(binary_serializer & s) const {
-        s << this->data_;
+      channel_add_writer_transaction(binary_deserializer & s)
+          : channel_message_transaction(s){
       }
-
-    private:
-      guid channel_id_;
-      guid owner_cert_id_;
-      const_data_buffer data_;
     };
   }
 }

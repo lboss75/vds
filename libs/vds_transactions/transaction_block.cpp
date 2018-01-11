@@ -6,8 +6,6 @@ All rights reserved
 #include "stdafx.h"
 #include <set>
 #include "chunk_manager.h"
-#include "transaction_log_record_relation_dbo.h"
-#include "transaction_log_dependency_dbo.h"
 #include "p2p_network.h"
 #include "messages/common_log_record.h"
 #include "user_manager.h"
@@ -31,20 +29,19 @@ void vds::transactions::transaction_block::save(
     const certificate & write_cert,
     const asymmetric_private_key & write_private_key) const {
 
-  binary_serializer s;
-  std::set<std::string> ancestors;
+  vds_assert(0 != this->s_.size());
 
-  this->collect_dependencies(s, t, ancestors);
-
-  vds_assert(0 != s.size());
+  std::set<const_data_buffer> ancestors;
+  this->collect_dependencies(t, ancestors);
 
   auto key = symmetric_key::generate(symmetric_crypto::aes_256_cbc());
 
   binary_serializer crypted;
   crypted
       << cert_control::get_id(common_read_cert)
-	  << cert_control::get_id(write_cert)
-	  << symmetric_encrypt::encrypt(key, s.data())
+	    << cert_control::get_id(write_cert)
+      << ancestors
+	    << symmetric_encrypt::encrypt(key, this->s_.data())
       << common_read_cert.public_key().encrypt(key.serialize());
 
   crypted << asymmetric_sign::signature(
@@ -52,64 +49,43 @@ void vds::transactions::transaction_block::save(
       write_private_key,
       crypted.data());
 
-  auto id = register_transaction(t, ancestors, crypted.data());
+  auto id = register_transaction(t, crypted.data(), ancestors);
   on_new_transaction(sp, t, id, crypted.data());
 }
 
 void vds::transactions::transaction_block::collect_dependencies(
-    vds::binary_serializer &s,
     vds::database_transaction &t,
-    std::set<std::string> &ancestors) const {
-  for(auto & p : this->channels_){
-    std::list<const_data_buffer> dependencies;
-    vds::orm::transaction_log_dependency_dbo t1;
-    auto st = t.get_reader(
-        t1.select(t1.block_id)
-            .where(t1.channel_id == p.first));
-    while(st.execute()){
-      auto id = t1.block_id.get(st);
-      if(ancestors.end() == ancestors.find(vds::base64::from_bytes(id))) {
-        ancestors.emplace(vds::base64::from_bytes(id));
-      }
-      dependencies.push_back(id);
-    }
+    std::set<const_data_buffer> &ancestors) const {
 
-    s << dependencies << p.first << p.second.data();
+  vds::orm::transaction_log_record_dbo t1;
+  auto st = t.get_reader(
+      t1.select(t1.id)
+          .where(t1.state == (uint8_t)orm::transaction_log_record_dbo::state_t::leaf));
+  while(st.execute()){
+    auto id = t1.id.get(st);
+    if(ancestors.end() == ancestors.find(vds::base64::to_bytes(id))) {
+      ancestors.emplace(vds::base64::to_bytes(id));
+    }
   }
 }
 
 vds::const_data_buffer vds::transactions::transaction_block::register_transaction(
     vds::database_transaction &t,
-    const std::set<std::string> &ancestors,
-    const const_data_buffer &block) const {
+    const const_data_buffer &block,
+    const std::set<const_data_buffer> &ancestors) const {
 
   auto id = hash::signature(hash::sha256(), block);
   orm::transaction_log_record_dbo t2;
   t.execute(t2.insert(
       t2.id = vds::base64::from_bytes(id),
       t2.data = block,
-      t2.state = (uint8_t) orm::transaction_log_record_dbo::state_t::leaf));
+      t2.state = (uint8_t)orm::transaction_log_record_dbo::state_t::leaf));
 
   for(auto & ancestor : ancestors){
     orm::transaction_log_record_dbo t1;
     t.execute(
         t1.update(t1.state = (uint8_t)orm::transaction_log_record_dbo::state_t::processed)
-            .where(t1.id == ancestor));
-
-    orm::transaction_log_record_relation_dbo t2;
-    t.execute(t2.insert(
-        t2.predecessor_id = ancestor,
-        t2.follower_id = vds::base64::from_bytes(id),
-        t2.relation_type = (uint8_t) orm::transaction_log_record_relation_dbo::relation_type_t::week
-    ));
-  }
-
-  for(auto & p : this->channels_){
-    orm::transaction_log_dependency_dbo t1;
-    t.execute(t1.delete_if(t1.channel_id == p.first));
-    t.execute(t1.insert(
-        t1.channel_id = p.first,
-        t1.block_id = id));
+            .where(t1.id == base64::from_bytes(ancestor)));
   }
 
   return id;

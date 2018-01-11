@@ -13,15 +13,15 @@ target_include_directories(vds_web_server
 	        ${vds_database_INCLUDE_DIRS}
 	        ${vds_db_model_INCLUDE_DIRS}
 	        ${vds_p2p_network_INCLUDE_DIRS}
-		${vds_network_INCLUDE_DIRS}
-		${vds_parser_INCLUDE_DIRS}
-		${vds_http_INCLUDE_DIRS}
-		${vds_protocols_INCLUDE_DIRS}
-		${vds_storage_INCLUDE_DIRS}
-		${vds_client_INCLUDE_DIRS}
-		${vds_server_INCLUDE_DIRS}
-		${vds_user_manager_INCLUDE_DIRS}
-		${vds_transactions_INCLUDE_DIRS}
+			${vds_network_INCLUDE_DIRS}
+			${vds_parser_INCLUDE_DIRS}
+			${vds_http_INCLUDE_DIRS}
+			${vds_protocols_INCLUDE_DIRS}
+			${vds_storage_INCLUDE_DIRS}
+			${vds_client_INCLUDE_DIRS}
+			${vds_server_INCLUDE_DIRS}
+			${vds_user_manager_INCLUDE_DIRS}
+			${vds_transactions_INCLUDE_DIRS}
         PUBLIC
         	${CMAKE_CURRENT_SOURCE_DIR})
 

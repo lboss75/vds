@@ -14,7 +14,7 @@ namespace vds {
 
     class file_add_transaction : public channel_message_transaction {
     public:
-      static const uint8_t message_id = 'a';
+      static const uint8_t channel_message_id = 'a';
 
       struct file_block_t {
         const_data_buffer block_id;
@@ -22,6 +22,7 @@ namespace vds {
       };
 
       file_add_transaction(
+          const guid & channel_id,
           const certificate &cert,
           const asymmetric_private_key &cert_key,
           const std::string &name,
@@ -36,10 +37,15 @@ namespace vds {
       return s << data.block_id << data.block_key;
     }
 
-    file_add_transaction::file_add_transaction(const certificate &cert, const asymmetric_private_key &cert_key,
-                                               const std::string &name, const std::string &mimetype,
-                                               const std::list<file_add_transaction::file_block_t> &file_blocks)
+    file_add_transaction::file_add_transaction(
+        const guid & channel_id,
+        const certificate &cert,
+        const asymmetric_private_key &cert_key,
+        const std::string &name,
+        const std::string &mimetype,
+        const std::list<file_add_transaction::file_block_t> &file_blocks)
         : channel_message_transaction(
+        channel_id,
         cert,
         cert_key,
         (binary_serializer() << name << mimetype << file_blocks).data()) {

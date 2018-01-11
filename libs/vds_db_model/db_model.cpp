@@ -126,11 +126,10 @@ void vds::db_model::migrate(
       data BLOB NOT NULL,\
 			state INTEGER NOT NULL)");
 
-		t.execute("CREATE TABLE transaction_log_record_relation(\
-			predecessor_id VARCHAR(64) NOT NULL,\
-			follower_id VARCHAR(64) NOT NULL,\
-			relation_type INTEGER NOT NULL,\
-			CONSTRAINT pk_transaction_log_record_relation PRIMARY KEY(predecessor_id,follower_id))");
+		t.execute("CREATE TABLE transaction_log_unknown_record(\
+			id VARCHAR(64) NOT NULL,\
+      follower_id VARCHAR(64) NOT NULL,\
+			CONSTRAINT pk_transaction_log_unknown_record PRIMARY KEY(id,follower_id))");
 
     t.execute("CREATE TABLE chunk_replica(\
 			id VARCHAR(64) NOT NULL,\
@@ -149,10 +148,6 @@ void vds::db_model::migrate(
 			user_cert_id VARCHAR(64) NOT NULL,\
 			member_type INTEGER NOT NULL,\
 			CONSTRAINT pk_channel_member PRIMARY KEY(channel_id,user_cert_id))");
-
-    t.execute("CREATE TABLE transaction_log_dependency(\
-			channel_id VARCHAR(64) PRIMARY KEY NOT NULL,\
-			block_id BLOB NOT NULL)");
 
 		t.execute("INSERT INTO well_known_node(id, addresses) VALUES(\
 									'3940754a-64dd-4491-9777-719315b36a67',\
