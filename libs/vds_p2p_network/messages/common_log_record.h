@@ -17,7 +17,7 @@ namespace vds {
 
       common_log_record(
           const const_data_buffer & block_id,
-          const const_data_buffer &body)
+          const const_data_buffer & body)
           : block_id_(block_id),
             body_(body) {
       }
@@ -32,6 +32,14 @@ namespace vds {
         s << message_id << this->block_id_ << this->body_;
         return s.data();
       }
+	  
+	  const const_data_buffer & block_id() const {
+		  return this->block_id_;
+	  }
+
+	  const const_data_buffer & body() const {
+		  return this->body_;
+	  }
 
     private:
       const_data_buffer block_id_;

@@ -10,7 +10,8 @@ All rights reserved
 #include "service_provider.h"
 #include "sync_statistic.h"
 #include "messages/common_log_state.h"
-
+#include "messages/common_block_request.h"
+#include "messages/common_log_record.h"
 namespace vds {
 
   class log_sync_service {
@@ -28,6 +29,16 @@ namespace vds {
         const service_provider &sp,
         const guid &partner_id,
         const p2p_messages::common_log_state &message);
+
+	void apply(
+		const service_provider &sp,
+		const guid &partner_id,
+		const p2p_messages::common_block_request & message);
+
+	void apply(
+		const service_provider &sp,
+		const guid &partner_id,
+		const p2p_messages::common_log_record & message);
 
   private:
     std::shared_ptr<class _log_sync_service> impl_;

@@ -229,6 +229,12 @@ void vds::_p2p_network::process_input_command(
 
       break;
     }
+	case p2p_messages::p2p_message_id::common_log_record: {
+		p2p_messages::common_log_record message(s);
+		sp.get<log_sync_service>()->apply(sp, partner_id, message);
+
+		break;
+	}
     default:
       throw std::runtime_error("Invalid command");
   }

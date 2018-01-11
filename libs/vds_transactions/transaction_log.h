@@ -13,6 +13,12 @@ namespace vds {
   class transaction_log {
   public:
 
+	  static void save(
+		  const service_provider &sp,
+		  class database_transaction &t,
+		  const class const_data_buffer & block_id,
+		  const class const_data_buffer & block_data);
+
     static void apply(
         const service_provider &sp,
         class database_transaction &t,

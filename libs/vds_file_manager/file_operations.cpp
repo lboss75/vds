@@ -101,8 +101,8 @@ void vds::file_manager_private::_file_operations::pack_file(
       file_blocks.push_back(
           transactions::file_add_transaction::file_block_t
           {
-              .block_id = block_info.id,
-              .block_key = block_info.key
+              block_info.id,
+              block_info.key
           });
     } else {
       auto count = file_size / vds::file_manager::file_operations::BLOCK_SIZE;
@@ -116,8 +116,8 @@ void vds::file_manager_private::_file_operations::pack_file(
         file_blocks.push_back(
             transactions::file_add_transaction::file_block_t
                 {
-                    .block_id = block_info.id,
-                    .block_key = block_info.key
+                    block_info.id,
+                    block_info.key
                 });
       }
     }

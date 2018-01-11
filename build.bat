@@ -1,7 +1,7 @@
 set root_folder=%~d0%~p0
 
 rem call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\Common7\Tools\VsDevCmd.bat" 
-call "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" x64 8.1
+call setenv.bat
 
 del %root_folder%\CMakeSettings.json
 rmdir %root_folder%\build /s /q

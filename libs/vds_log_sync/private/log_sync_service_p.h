@@ -27,6 +27,16 @@ namespace vds {
         const vds::guid &partner_id,
         const vds::p2p_messages::common_log_state &message);
 
+	void apply(
+		const service_provider &sp,
+		const guid &partner_id,
+		const p2p_messages::common_block_request & message);
+
+	void apply(
+		const vds::service_provider &sp,
+		const vds::guid &partner_id,
+		const vds::p2p_messages::common_log_record &message);
+
   private:
     timer update_timer_;
 

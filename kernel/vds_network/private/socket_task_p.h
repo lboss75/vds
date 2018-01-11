@@ -9,6 +9,7 @@ All rights reserved
 #include "network_types_p.h"
 #include "network_service.h"
 #include "private/network_service_p.h"
+#include "leak_detect.h"
 
 namespace vds {
   class service_provider;
@@ -38,6 +39,9 @@ namespace vds {
 
 #endif//_WIN32
 
+  public:
+	  leak_detect_helper leak_detect_;
+	  virtual void dump(leak_detect_collector * collector);
   };
 
   template <typename implementation_class>

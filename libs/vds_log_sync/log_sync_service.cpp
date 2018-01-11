@@ -1,6 +1,4 @@
 
-#include <messages/common_log_state.h>
-#include <messages/common_block_request.h>
 #include "stdafx.h"
 #include "log_sync_service.h"
 #include "private/log_sync_service_p.h"
@@ -11,6 +9,9 @@
 #include "chunk_manager.h"
 #include "transaction_block.h"
 #include "messages/common_log_record.h"
+#include "messages/common_log_state.h"
+#include "messages/common_block_request.h"
+#include "transaction_log.h"
 
 vds::log_sync_service::log_sync_service() {
 
@@ -43,9 +44,21 @@ void vds::log_sync_service::apply(
     const vds::guid &partner_id,
     const vds::p2p_messages::common_log_state &message) {
   this->impl_->apply(sp, partner_id, message);
-
 }
 
+void vds::log_sync_service::apply(
+	const vds::service_provider &sp,
+	const vds::guid &partner_id,
+	const vds::p2p_messages::common_block_request &message) {
+	this->impl_->apply(sp, partner_id, message);
+}
+
+void vds::log_sync_service::apply(
+	const vds::service_provider &sp,
+	const vds::guid &partner_id,
+	const vds::p2p_messages::common_log_record &message) {
+	this->impl_->apply(sp, partner_id, message);
+}
 
 /////////////////////////////////////////////////////////////////////
 vds::_log_sync_service::_log_sync_service()
@@ -197,4 +210,48 @@ void vds::_log_sync_service::apply(const vds::service_provider &sp, const vds::g
 
 }
 
+void vds::_log_sync_service::apply(const vds::service_provider &sp, const vds::guid &partner_id,
+	const vds::p2p_messages::common_block_request &message) {
+	sp.get<db_model>()->async_transaction(
+		sp,
+		[pthis = this->shared_from_this(), sp, partner_id, message](database_transaction & t) -> bool{
 
+		auto p2p = sp.get<p2p_network>();
+
+		orm::transaction_log_record_dbo t1;
+		std::list<const_data_buffer> requests;
+		for (auto & p : message.requests()) {
+			auto st = t.get_reader(t1.select(t1.data).where(t1.id == base64::from_bytes(p)));
+			if (st.execute()) {
+				p2p->send(
+					sp,
+					partner_id,
+					p2p_messages::common_log_record(p, t1.data.get(st)).serialize());
+			}
+		}
+
+		return true;
+	}).execute([sp, partner_id](const std::shared_ptr<std::exception> & ex) {
+		if (ex) {
+			sp.get<p2p_network>()->close_session(sp, partner_id, ex);
+		}
+	});
+
+}
+
+void vds::_log_sync_service::apply(const vds::service_provider &sp, const vds::guid &partner_id,
+	const vds::p2p_messages::common_log_record &message) {
+	sp.get<db_model>()->async_transaction(
+		sp,
+		[pthis = this->shared_from_this(), sp, partner_id, message](database_transaction & t) -> bool{
+
+		transaction_log::save(sp, t, message.block_id(), message.body());
+
+		return true;
+	}).execute([sp, partner_id](const std::shared_ptr<std::exception> & ex) {
+		if (ex) {
+			sp.get<p2p_network>()->close_session(sp, partner_id, ex);
+		}
+	});
+
+}

@@ -90,9 +90,7 @@ std::set<vds::p2p::p2p_node_info> vds::_p2p_route::get_neighbors() const {
 
   std::shared_lock<std::shared_mutex> lock(this->sessions_mutex_);
   for(auto p : this->sessions_) {
-    result.emplace(p2p::p2p_node_info {
-        .node_id = p.first
-    });
+    result.emplace(p2p::p2p_node_info(p.first));
   }
 
   return result;

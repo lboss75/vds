@@ -3,7 +3,7 @@ rmdir %root_folder%\Build-VC-64-debug /s /q
 
 set PATH=%PATH%;%HOMEDRIVE%%HOMEPATH%\AppData\Local\bin\NASM\;
 rem call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" x64
-call "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" x64 8.1
+call ..\setenv.bat
 
 mkdir %root_folder%\Build-VC-64-debug
 cd %root_folder%\openssl

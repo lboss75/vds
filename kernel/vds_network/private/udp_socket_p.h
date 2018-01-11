@@ -95,7 +95,12 @@ namespace vds {
     {
       this->leak_detect_.name_ = "_udp_socket";
       this->leak_detect_.dump_callback_ = [this](leak_detect_collector * collector){
-        collector->add(this->handler_);
+#ifdef _WIN32
+		  collector->add(this->reader_);
+		  collector->add(this->writter_);
+#else
+		  collector->add(this->handler_);
+#endif
       };
     }
 
@@ -123,7 +128,12 @@ namespace vds {
 
     void prepare_to_stop(const service_provider & sp)
     {
-      this->handler_->prepare_to_stop(sp);
+#ifdef _WIN32
+		this->reader_->prepare_to_stop(sp);
+		this->writter_->prepare_to_stop(sp);
+#else
+		this->handler_->prepare_to_stop(sp);
+#endif// _WIN32
     }
 
     void stop()
@@ -261,6 +271,10 @@ namespace vds {
         };
       }
 
+	  void prepare_to_stop(const service_provider & sp)
+	  {
+	  }
+
     private:
       service_provider sp_;
       SOCKET_HANDLE s_;
@@ -295,6 +309,7 @@ namespace vds {
           throw std::runtime_error("Design error");
         })
       {
+		  this->leak_detect_.name_ = "_udp_send";
       }
 
         async_task<> write_async(const udp_datagram & data)
@@ -315,6 +330,10 @@ namespace vds {
             }
           };
         }
+
+		void prepare_to_stop(const service_provider & sp)
+		{
+		}
 
     private:
       service_provider sp_;
@@ -338,7 +357,7 @@ namespace vds {
       {
         this->result_.error(std::make_shared<std::system_error>(error_code, std::system_category(), "WSASendTo failed"));
       }
-    };
+	};
 
 #else
     class _udp_handler : public _socket_task_impl<_udp_handler>

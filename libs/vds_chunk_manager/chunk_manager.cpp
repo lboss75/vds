@@ -45,9 +45,9 @@ vds::chunk_manager::chunk_info vds::chunk_manager::pack_block(
 
   return chunk_info
   {
-      .id = key_data,
-      .key = key_data2,
-      .data = symmetric_encrypt::encrypt(key2, zipped)
+      key_data,
+      key_data2,
+      symmetric_encrypt::encrypt(key2, zipped)
   };
 }
 

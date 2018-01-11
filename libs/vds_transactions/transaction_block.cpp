@@ -43,7 +43,8 @@ void vds::transactions::transaction_block::save(
   binary_serializer crypted;
   crypted
       << cert_control::get_id(common_read_cert)
-      << symmetric_encrypt::encrypt(key, s.data())
+	  << cert_control::get_id(write_cert)
+	  << symmetric_encrypt::encrypt(key, s.data())
       << common_read_cert.public_key().encrypt(key.serialize());
 
   crypted << asymmetric_sign::signature(

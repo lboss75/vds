@@ -20,6 +20,12 @@ namespace vds {
       invalid_operation();
 
     };
+
+	class signature_validate_error : public std::runtime_error {
+	public:
+		signature_validate_error();
+
+	};
   };
 }
 

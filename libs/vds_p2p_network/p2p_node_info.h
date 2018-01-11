@@ -13,6 +13,10 @@ namespace vds {
     struct p2p_node_info {
       guid node_id;
 
+	  p2p_node_info(const guid & node)
+	  : node_id(node){
+	  }
+
       bool operator < (const p2p_node_info & other) const {
         return this->node_id < other.node_id;
       }
