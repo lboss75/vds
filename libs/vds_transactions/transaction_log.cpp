@@ -69,7 +69,7 @@ void vds::transaction_log::save(
 		device_private_key);
 
 	orm::transaction_log_record_dbo t2;
-	auto st = t.get_reader(t2.select(t2.state).where(t2.id == base64::from_bytes(block_id)));
+	st = t.get_reader(t2.select(t2.state).where(t2.id == base64::from_bytes(block_id)));
 
 	if (!st.execute()) {
 		//Not found
@@ -77,7 +77,5 @@ void vds::transaction_log::save(
 			t2.id = base64::from_bytes(block_id),
 			t2.data = block_data,
 			t2.state = (uint8_t)orm::transaction_log_record_dbo::state_t::unknown));
-
 	}
-
 }
