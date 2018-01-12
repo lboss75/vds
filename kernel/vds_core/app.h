@@ -67,48 +67,55 @@ namespace vds{
 
     int run(int argc, const char ** argv)
     {
-      this->current_process_ = filename(argv[0]);
+		try {
+			this->current_process_ = filename(argv[0]);
 #ifndef _WIN32
-      // core dumps may be disallowed by parent of this process; change that
-      struct rlimit core_limits;
-      core_limits.rlim_cur = core_limits.rlim_max = RLIM_INFINITY;
-      setrlimit(RLIMIT_CORE, &core_limits);
+			// core dumps may be disallowed by parent of this process; change that
+			struct rlimit core_limits;
+			core_limits.rlim_cur = core_limits.rlim_max = RLIM_INFINITY;
+			setrlimit(RLIMIT_CORE, &core_limits);
 #endif
-      setlocale(LC_ALL, "Russian");      
+			setlocale(LC_ALL, "Russian");
 
-      auto pthis = static_cast<app_impl *>(this);
-      command_line cmd_line(
-        pthis->app_name(),
-        pthis->app_description(),
-        pthis->app_version()
-      );
+			auto pthis = static_cast<app_impl *>(this);
+			command_line cmd_line(
+				pthis->app_name(),
+				pthis->app_description(),
+				pthis->app_version()
+			);
 
-      pthis->register_command_line(cmd_line);
-      pthis->register_common_parameters(cmd_line);
+			pthis->register_command_line(cmd_line);
+			pthis->register_common_parameters(cmd_line);
 
-      this->current_command_set_ = cmd_line.parse(argc, argv);
+			this->current_command_set_ = cmd_line.parse(argc, argv);
 
-      pthis->process_common_parameters();
+			pthis->process_common_parameters();
 
-      if (
-        nullptr == this->current_command_set_
-        || this->current_command_set_ == &this->help_cmd_set_) {
-        cmd_line.show_help(this->current_process_.name_without_extension());
-        return 0;
-      }
-      
+			if (
+				nullptr == this->current_command_set_
+				|| this->current_command_set_ == &this->help_cmd_set_) {
+				cmd_line.show_help(this->current_process_.name_without_extension());
+				return 0;
+			}
+
 #ifndef _WIN32
-      if(pthis->need_demonize()){
-        pthis->demonize();
-      }
-      else {
-        pthis->start();
-      }
+			if (pthis->need_demonize()) {
+				pthis->demonize();
+			}
+			else {
+				pthis->start();
+			}
 #else
-      pthis->start();
+			pthis->start();
 #endif // _WIN32
 
-      return 0;
+			return 0;
+		}
+		catch (const std::exception & ex) {
+			std::cerr << ex.what() << "\n";
+			return 1;
+
+		}
     }
 
   protected:

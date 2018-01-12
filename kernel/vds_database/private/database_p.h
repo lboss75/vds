@@ -349,8 +349,15 @@ namespace vds {
           throw std::runtime_error("Ivalid error");
         }
 
-        this->is_closed_ = true;
-        this->close_result_ = result;
+		std::unique_lock<std::mutex> lock1(this->callbacks_mutex_);
+		this->is_closed_ = true;
+
+		if (this->callbacks_.empty()) {
+			result.done();
+		}
+		else {
+			this->close_result_ = result;
+		}
       };
     }
 

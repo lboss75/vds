@@ -223,16 +223,23 @@ void vds::_udp_transport_session::on_timer(
     const std::shared_ptr<_udp_transport> & owner) {
   std::shared_lock<std::shared_mutex> lock(this->current_state_mutex_);
   switch(this->current_state_){
-    case state_t::bof:
-    case state_t::handshake_sent:
+  case state_t::bof:
     case state_t::handshake_pending:
     case state_t::welcome_sent:
     case state_t::welcome_pending:
-    case state_t::fail:
-      break;
+	case state_t::fail: {
+		sp.get<logger>()->trace("P2PUDP", sp, "Skip timer %d", this->current_state_);
+		break;
+	}
 
-    case state_t::wait_message:
-    {
+	case state_t::handshake_sent: {
+		if (5 < this->timer_count_++) {
+			this->timer_count_ = 0;
+			this->send_handshake_(sp, owner);
+		}
+		break;
+	}
+	case state_t::wait_message: {
       owner->send_queue()->emplace(
           sp,
           owner,
@@ -249,11 +256,11 @@ void vds::_udp_transport_session::decrease_mtu() {
   throw std::runtime_error("Not implemented");
 }
 
-void vds::_udp_transport_session::send_handshake(
+void vds::_udp_transport_session::send_handshake_(
     const vds::service_provider &sp,
     const std::shared_ptr<_udp_transport> & owner) {
-  std::unique_lock<std::shared_mutex> lock(this->current_state_mutex_);
-  if(state_t::bof != this->current_state_) {
+  if(state_t::bof != this->current_state_
+	  && state_t::handshake_sent != this->current_state_) {
     throw std::runtime_error("Invalid state");
   }
   this->current_state_ = state_t::handshake_pending;
@@ -373,6 +380,7 @@ void vds::_udp_transport_session::register_outgoing_traffic(uint32_t bytes) {
 void vds::_udp_transport_session::close(const vds::service_provider &sp, const std::shared_ptr<std::exception> &ex) {
 
   this->current_state_ = state_t::fail;
+  this->error_ = ex;
 
   auto owner = this->owner_.lock();
   if(owner){

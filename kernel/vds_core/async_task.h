@@ -566,8 +566,13 @@ namespace vds {
 	  impl->execute(
 		  async_result<result_types...>([&f, d = std::move(done)](const std::shared_ptr<std::exception> & ex, result_types... result) mutable {
         if(!ex){
-          auto t = f(std::forward<result_types>(result)...);
-          t.operator()<done_type>(std::move(d));
+			try {
+				auto t = f(std::forward<result_types>(result)...);
+				t.operator() < done_type > (std::move(d));
+			}
+			catch (const std::exception & ex) {
+				d.error(std::make_shared<std::runtime_error>(ex.what()));
+			}
         } else {
           d.error(ex);
         }

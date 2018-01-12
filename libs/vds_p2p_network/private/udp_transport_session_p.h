@@ -45,7 +45,8 @@ namespace vds {
           owner_(owner),
           current_state_(state_t::bof),
           sent_data_bytes_(0),
-          received_data_bytes_(0) {
+          received_data_bytes_(0),
+			timer_count_(0){
       this->leak_detect_.name_ = "_udp_transport_session";
     }
 
@@ -128,9 +129,13 @@ namespace vds {
       this->sent_data_[this->output_sequence_number_++] = data;
     }
 
-    void send_handshake(
-        const service_provider &sp,
-        const std::shared_ptr<_udp_transport> & owner);
+	void send_handshake(
+		const service_provider &sp,
+		const std::shared_ptr<_udp_transport> & owner) {
+
+		std::unique_lock<std::shared_mutex> lock(this->current_state_mutex_);
+		this->send_handshake_(sp, owner);
+	}
 
     void handshake_sent();
 
@@ -196,12 +201,18 @@ namespace vds {
         const service_provider &sp,
         class _udp_transport &owner);
 
-    void try_read_data();
 
     std::mutex incoming_datagram_mutex_;
     std::queue<const_data_buffer> incoming_datagrams_;
 
-    void dump(leak_detect_collector * collector) override;
+	int timer_count_;
+
+	void try_read_data();
+	void dump(leak_detect_collector * collector) override;
+
+	void send_handshake_(
+		const service_provider &sp,
+		const std::shared_ptr<_udp_transport> & owner);
 
   };
 }
