@@ -37,7 +37,9 @@ void vds::mt_service::start(const vds::service_provider& sp)
 
 void vds::mt_service::stop(const vds::service_provider&)
 {
-  this->impl_->stop();
+	if (this->impl_) {
+		this->impl_->stop();
+	}
 }
 
 void vds::imt_service::async(const std::function<void(void)>& handler)

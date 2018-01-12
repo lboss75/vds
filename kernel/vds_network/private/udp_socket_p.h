@@ -269,6 +269,9 @@ namespace vds {
             if (WSA_IO_PENDING != errorCode) {
               result.error(std::make_shared<std::system_error>(errorCode, std::system_category(), "WSARecvFrom failed"));
             }
+			else {
+				this_->sp_.get<logger>()->trace("UDP", this_->sp_, "Read scheduled");
+			}
           }
         };
       }
@@ -289,7 +292,7 @@ namespace vds {
       void process(DWORD dwBytesTransfered) override
       {
         auto pthis = this->shared_from_this();
-
+		this->sp_.get<logger>()->trace("UDP", this->sp_, "Readed %d", dwBytesTransfered);
         this->result_.done(_udp_datagram::create(this->addr_, this->buffer_, (size_t)dwBytesTransfered));
       }
 
