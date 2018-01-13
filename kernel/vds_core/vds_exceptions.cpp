@@ -17,3 +17,8 @@ vds::vds_exceptions::invalid_operation::invalid_operation()
 vds::vds_exceptions::signature_validate_error::signature_validate_error()
 	: std::runtime_error("Invalid data validation") {
 }
+
+vds::vds_exceptions::access_denied_error::access_denied_error(const std::string &message)
+	: std::runtime_error(message) {
+
+}

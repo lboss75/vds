@@ -26,6 +26,11 @@ namespace vds {
 		signature_validate_error();
 
 	};
+		class access_denied_error : public std::runtime_error {
+		public:
+			access_denied_error(const std::string & message);
+
+		};
   };
 }
 

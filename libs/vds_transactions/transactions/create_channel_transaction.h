@@ -9,12 +9,13 @@ All rights reserved
 #include <stdafx.h>
 #include "guid.h"
 #include "transaction_log.h"
+#include "transaction_id.h"
 
 namespace vds {
   namespace transactions {
     class create_channel_transaction {
     public:
-      static const uint8_t message_id = 'p';
+      static const uint8_t message_id = (uint8_t)transaction_id::create_channel_transaction;
 
       create_channel_transaction(
           const guid &id,

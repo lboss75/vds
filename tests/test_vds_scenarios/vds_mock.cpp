@@ -63,7 +63,6 @@ void vds_mock::start(size_t server_count)
     resolver.add(&(*server).leak_detect_);
     this->servers_.push_back(std::move(server));
   }
-  std::cout << "Leaks:" << resolver.resolve();
 }
 
 void vds_mock::stop()
@@ -202,13 +201,8 @@ vds::user_channel vds_mock::create_channel(int index, const std::string &name) {
         vds::asymmetric_crypto::rsa4096());
 
     vds::transactions::transaction_block log;
-    result = user_mng->create_channel(
-        log, t, common_channel.id(),
-        vds::guid::new_guid(),
-        name,
-        root_user.id(),
-        root_user.user_certificate(),
-        root_private_key);
+    result = user_mng->create_channel(log, t, vds::guid::new_guid(), name, root_user.id(), root_user.user_certificate(),
+                                      root_private_key);
         log.save(
             this->servers_[index]->get_service_provider(),
             t,

@@ -6,12 +6,15 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
+#ifdef _DEBUG
+
 #include <string>
 #include <set>
 #include <map>
 #include <functional>
 
 namespace vds {
+
   class ileak_detect_helper;
 
   class leak_detect_resolver {
@@ -150,8 +153,61 @@ namespace vds {
       this->properties_.emplace(&property->leak_detect_);
       this->add(properties...);
     }
+  }
+}
+#else
+namespace vds {
+
+  class ileak_detect_helper {
+
+  };
+
+  class leak_detect_resolver {
+  public:
+    void add(ileak_detect_helper * root_object){
+    }
+
+    std::string resolve() {
+      return std::string();
+    }
+
+    void add_reference(ileak_detect_helper * source, ileak_detect_helper * target){
+    }
+  };
+
+  class leak_detect_collector{
+  public:
+    leak_detect_collector(
+        leak_detect_resolver * owner,
+        ileak_detect_helper * source) {
+    }
+
+    template <typename T>
+    void add(T & property){
+    }
+  };
+
+  class leak_detect_helper : public ileak_detect_helper{
+  public:
+    leak_detect_helper() {
+    }
+
+    ~leak_detect_helper(){
+    }
+
+    std::string name() const {
+      return std::string();
+    }
+
+    void dump_leaks(leak_detect_collector * collector) const {
+    }
+
+    std::string name_;
+    std::function<void(leak_detect_collector *)> dump_callback_;
   };
 }
+
+#endif
 
 
 #endif //__VDS_CORE_LEAK_DETECT_H_

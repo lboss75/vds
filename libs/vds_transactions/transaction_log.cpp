@@ -15,6 +15,8 @@ All rights reserved
 #include <transactions/channel_add_writer_transaction.h>
 #include <transactions/device_user_add_transaction.h>
 #include <transactions/channel_create_transaction.h>
+#include <transactions/user_channel_create_transaction.h>
+#include <user_dbo.h>
 #include "vds_debug.h"
 #include "transaction_log_record_dbo.h"
 #include "encoding.h"
@@ -24,6 +26,7 @@ All rights reserved
 #include "certificate_dbo.h"
 #include "vds_exceptions.h"
 #include "encoding.h"
+#include "cert_control.h"
 
 void vds::transaction_log::save(
 	const service_provider & sp,
@@ -40,6 +43,13 @@ void vds::transaction_log::save(
 
   std::list<const_data_buffer> followers;
   auto state = apply_block(sp, t, block_id, block_data, followers);
+  sp.get<logger>()->trace(
+      ThisModule,
+      sp,
+      "%s is state %s",
+      base64::from_bytes(block_id).c_str(),
+      orm::transaction_log_record_dbo::str(state).c_str());
+
   vds_assert(orm::transaction_log_record_dbo::state_t::none != state);
 
   t.execute(t2.insert(
@@ -50,6 +60,13 @@ void vds::transaction_log::save(
   if(orm::transaction_log_record_dbo::state_t::processed == state) {
     orm::transaction_log_unknown_record_dbo t4;
     for (auto &p : followers) {
+      sp.get<logger>()->trace(
+          ThisModule,
+          sp,
+          "Apply follower %s for %s",
+          base64::from_bytes(p).c_str(),
+          base64::from_bytes(block_id).c_str());
+
       t.execute(
           t4.delete_if(
               t4.id == base64::from_bytes(block_id)
@@ -80,6 +97,13 @@ void vds::transaction_log::apply_block(
   auto block_data = t2.data.get(st);
   std::list<const_data_buffer> followers;
   state = apply_block(sp, t, block_id, block_data, followers);
+
+  sp.get<logger>()->trace(
+      ThisModule,
+      sp,
+      "%s in state %s",
+      base64::from_bytes(block_id).c_str(),
+      orm::transaction_log_record_dbo::str(state).c_str());
 
   vds_assert(orm::transaction_log_record_dbo::state_t::processed != state);
   if(orm::transaction_log_record_dbo::state_t::none != state) {
@@ -132,7 +156,7 @@ vds::orm::transaction_log_record_dbo::state_t vds::transaction_log::apply_block(
   for(auto & id : ancestors){
     auto id_str = base64::from_bytes(id);
     orm::transaction_log_record_dbo t3;
-    st = t.get_reader(t3.select(t3.id).where(t3.id == id_str));
+    st = t.get_reader(t3.select(t3.state).where(t3.id == id_str));
     if(!st.execute()) {
       is_ready = false;
 
@@ -142,16 +166,43 @@ vds::orm::transaction_log_record_dbo::state_t vds::transaction_log::apply_block(
               .where(t4.id == id_str
                      && t4.follower_id == base64::from_bytes(block_id)));
       if (!st.execute()) {
+        sp.get<logger>()->trace(
+            ThisModule,
+            sp,
+            "Dependency %s has been registered as unknown",
+            id_str.c_str());
         t.execute(t4.insert(
             t4.id = id_str,
             t4.follower_id = base64::from_bytes(block_id)));
       }
+      else {
+        sp.get<logger>()->trace(
+            ThisModule,
+            sp,
+            "Dependency %s has been registered as unknown already",
+            id_str.c_str());
+      }
+    } else {
+      auto state = (orm::transaction_log_record_dbo::state_t)t3.state.get(st);
+      sp.get<logger>()->trace(
+          ThisModule,
+          sp,
+          "Dependency %s already exists in state %s",
+          id_str.c_str(),
+          orm::transaction_log_record_dbo::str(state).c_str());
+      if(orm::transaction_log_record_dbo::state_t::leaf == state){
+        t.execute(
+            t3.update(
+                    t3.state = (int)orm::transaction_log_record_dbo::state_t::processed)
+                .where(t3.id == id_str));
+      }
     }
+
   }
 
   if(is_validated) {
     if(is_ready){
-      //Decript
+      //Decrypt
       auto user_mng = sp.get<user_manager>();
 
       asymmetric_private_key device_private_key;
@@ -167,7 +218,7 @@ vds::orm::transaction_log_record_dbo::state_t vds::transaction_log::apply_block(
       auto key = symmetric_key::deserialize(symmetric_crypto::aes_256_cbc(), key_data);
 
       auto data = symmetric_decrypt::decrypt(key, body);
-      apply_block(sp, data);
+      apply_message(sp, t, data);
 
       orm::transaction_log_unknown_record_dbo t4;
       st = t.get_reader(
@@ -191,59 +242,43 @@ vds::orm::transaction_log_record_dbo::state_t vds::transaction_log::apply_block(
   return orm::transaction_log_record_dbo::state_t::none;
 }
 
-static void apply_command(
-    const vds::service_provider & sp,
-    const vds::transactions::root_user_transaction &message) {
-
-}
-
-static void apply_command(
-    const vds::service_provider & sp,
-    const vds::transactions::channel_message_transaction & message){
-
-}
-
-static void apply_command(
-    const vds::service_provider & sp,
-    const vds::transactions::channel_create_transaction & message){
-
-}
-
-static void apply_command(
-    const vds::service_provider & sp,
-    const vds::transactions::device_user_add_transaction & message){
-}
-
-void vds::transaction_log::apply_block(
-    const service_provider & sp,
-    const const_data_buffer & block_data) {
+void vds::transaction_log::apply_message(
+    const vds::service_provider &sp,
+    database_transaction &t,
+    const const_data_buffer &block_data) {
   binary_deserializer s(block_data);
 
   while(0 < s.size()) {
     uint8_t command_id;
     s >> command_id;
-    switch (command_id) {
-      case transactions::root_user_transaction::message_id: {
+    switch ((transactions::transaction_id)command_id) {
+      case transactions::transaction_id::root_user_transaction: {
         transactions::root_user_transaction message(s);
-        apply_command(sp, message);
+        message.apply(sp, t);
         break;
       }
 
-      case transactions::channel_create_transaction::message_id: {
+      case transactions::transaction_id::channel_create_transaction: {
         transactions::channel_create_transaction message(s);
-        apply_command(sp, message);
+        message.apply(sp, t);
         break;
       }
 
-      case transactions::channel_message_transaction::message_id: {
+      case transactions::transaction_id::channel_message_transaction: {
         transactions::channel_message_transaction message(s);
-        apply_command(sp, message);
+        message.apply(sp, t);
         break;
       }
 
-      case transactions::device_user_add_transaction::message_id: {
+      case transactions::transaction_id::user_channel_create_transaction: {
+        transactions::user_channel_create_transaction message(s);
+        message.apply(sp, t);
+        break;
+      }
+
+      case transactions::transaction_id::device_user_add_transaction: {
         transactions::device_user_add_transaction message(s);
-        apply_command(sp, message);
+        message.apply(sp, t);
         break;
       }
 

@@ -18,7 +18,7 @@ namespace vds {
         const guid & node_id,
         const const_data_buffer & message);
 
-    void random_broadcast(
+    bool random_broadcast(
         const vds::service_provider &sp,
         const vds::const_data_buffer &message);
 

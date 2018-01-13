@@ -8,14 +8,13 @@ All rights reserved
 #include "transaction_log.h"
 #include "binary_serialize.h"
 #include "channel_message_transaction.h"
+#include "transaction_id.h"
 
 namespace vds {
   namespace transactions {
 
     class file_add_transaction : public channel_message_transaction {
     public:
-      static const uint8_t channel_message_id = 'a';
-
       struct file_block_t {
         const_data_buffer block_id;
         const_data_buffer block_key;
@@ -23,7 +22,8 @@ namespace vds {
 
       file_add_transaction(
           const guid & channel_id,
-          const certificate &cert,
+          const certificate &read_cert,
+          const guid &write_cert_id,
           const asymmetric_private_key &cert_key,
           const std::string &name,
           const std::string &mimetype,
@@ -39,14 +39,17 @@ namespace vds {
 
     file_add_transaction::file_add_transaction(
         const guid & channel_id,
-        const certificate &cert,
+        const certificate &read_cert,
+        const guid &write_cert_id,
         const asymmetric_private_key &cert_key,
         const std::string &name,
         const std::string &mimetype,
         const std::list<file_add_transaction::file_block_t> &file_blocks)
         : channel_message_transaction(
+        channel_message_id ::file_add_transaction,
         channel_id,
-        cert,
+        read_cert,
+        write_cert_id,
         cert_key,
         (binary_serializer() << name << mimetype << file_blocks).data()) {
     }

@@ -5,17 +5,20 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
+#include <certificate_dbo.h>
+#include <channel_dbo.h>
 #include "types.h"
 #include "guid.h"
 #include "asymmetriccrypto.h"
 #include "transaction_log.h"
 #include "binary_serialize.h"
+#include "transaction_id.h"
 
 namespace vds {
   namespace transactions {
     class channel_create_transaction {
     public:
-      static const uint8_t message_id = 'c';
+      static const uint8_t message_id = (uint8_t)transaction_id::channel_create_transaction;
 
       channel_create_transaction(
           const guid &channel_id,
@@ -29,8 +32,6 @@ namespace vds {
             read_cert_id_(read_cert_id),
             write_cert_id_(write_cert_id){
       }
-
-
 
       channel_create_transaction(binary_deserializer & s){
         s
@@ -49,6 +50,22 @@ namespace vds {
             << this->read_cert_id_
             << this->write_cert_id_;
       }
+
+      void apply(
+          const service_provider & sp,
+          database_transaction & t) const{
+
+        orm::channel_dbo t3;
+        t.execute(t3.insert(
+            t3.id = this->channel_id_,
+            t3.channel_type = (uint8_t)orm::channel_dbo::channel_type_t::simple,
+            t3.name = this->name_,
+            t3.read_cert = this->read_cert_id_,
+            t3.write_cert = this->write_cert_id_
+        ));
+
+      }
+
     private:
       guid channel_id_;
       guid owner_id_;

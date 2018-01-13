@@ -34,9 +34,10 @@ namespace vds {
         const class const_data_buffer & block_data,
         std::list<const_data_buffer> & followers);
 
-    static void apply_block(
-        const service_provider & sp,
-        const const_data_buffer & block_data);
+    static void apply_message(
+				const vds::service_provider &sp,
+        database_transaction &t,
+        const const_data_buffer &block_data);
 
   };
 

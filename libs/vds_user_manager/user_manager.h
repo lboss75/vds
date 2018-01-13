@@ -28,15 +28,10 @@ namespace vds {
         const std::string &user_password,
         const asymmetric_private_key &private_key);
 
-    user_channel create_channel(
-        transactions::transaction_block &log,
-        class database_transaction & t,
-        const guid &common_channel_id,
-        const guid &channel_id,
-        const std::string &name,
-        const guid &owner_id,
-        const certificate &owner_cert,
-        const asymmetric_private_key &owner_private_key) const;
+    vds::user_channel create_channel(transactions::transaction_block &log, database_transaction &t,
+                                         const vds::guid &channel_id, const std::string &name,
+                                         const vds::guid &owner_id, const certificate &owner_cert,
+                                         const asymmetric_private_key &owner_private_key) const;
 
     user_channel create_user_channel(transactions::transaction_block &log, class database_transaction &t,
                                            const vds::guid &common_channel_id, const vds::guid &owner_id,
@@ -47,13 +42,7 @@ namespace vds {
                const std::string &root_password, const asymmetric_private_key &root_private_key,
                const std::string &device_name, int port);
 
-    void apply_transaction_record(
-        const service_provider &sp,
-        class database_transaction & t,
-        uint8_t message_id,
-        binary_deserializer & s);
-
-    member_user lock_to_device(
+		member_user lock_to_device(
         const service_provider &sp,
         class database_transaction &t,
         const member_user &user,

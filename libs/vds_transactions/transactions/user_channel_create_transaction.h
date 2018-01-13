@@ -10,12 +10,13 @@ All rights reserved
 #include "asymmetriccrypto.h"
 #include "transaction_log.h"
 #include "binary_serialize.h"
+#include "transaction_id.h"
 
 namespace vds {
   namespace transactions {
     class user_channel_create_transaction {
     public:
-      static const uint8_t message_id = 'u';
+      static const uint8_t message_id = (uint8_t)transaction_id::user_channel_create_transaction;
 
       user_channel_create_transaction(
           const guid & owner_id,
@@ -38,6 +39,13 @@ namespace vds {
             << this->read_cert_id_
             << this->write_cert_id_;
       }
+
+      void apply(
+          const service_provider & sp,
+          database_transaction & t) const{
+
+      }
+
     private:
       guid owner_id_;
       guid read_cert_id_;

@@ -46,7 +46,19 @@ namespace vds {
           return true;
         }
       }
-      return true;
+      for(auto & p : other.leafs_){
+        bool is_good = false;
+        for(auto & p1 : this->leafs_){
+          if(p == p1){
+            is_good = true;
+            break;
+          }
+        }
+        if(!is_good){
+          return true;
+        }
+      }
+      return false;
     }
   };
 }

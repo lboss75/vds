@@ -2,6 +2,8 @@
 // Created by vadim on 02.01.18.
 //
 #include "stdafx.h"
+
+#ifdef _DEBUG
 #include "leak_detect.h"
 #include <mutex>
 
@@ -110,3 +112,4 @@ void vds::leak_detect_resolver::process_leak(
     }
   }
 }
+#endif

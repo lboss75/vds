@@ -37,68 +37,6 @@ vds::user_manager::user_manager()
 {
 }
 
-void vds::user_manager::apply_transaction_record(
-    const service_provider &sp,
-    database_transaction & t,
-    uint8_t message_id,
-    binary_deserializer & s) {
-
-  switch(message_id){
-    case transactions::root_user_transaction::message_id:
-    {
-      transactions::root_user_transaction record(s);
-
-      user_dbo usr_dbo;
-      t.execute(
-          usr_dbo.insert(
-              usr_dbo.id = record.id(),
-              usr_dbo.login = record.user_name(),
-              usr_dbo.password_hash = record.password_hash(),
-              usr_dbo.private_key = record.user_private_key()));
-
-      break;
-    }
-
-    case transactions::create_channel_transaction::message_id:
-    {
-      transactions::create_channel_transaction record(s);
-      if(record.owner_id() != sp.get_property<transaction_context>(
-          service_provider::property_scope::local_scope)->author_id()){
-        throw std::runtime_error("Unable to create channels for other users");
-      }
-
-      orm::channel_dbo t1;
-      t.execute(
-          t1.insert(
-              t1.id = record.id(),
-              t1.channel_type = (uint8_t)orm::channel_dbo::channel_type_t::simple));
-
-      channel_admin_dbo t2;
-      t.execute(
-          t2.insert(t2.id = record.id(), t2.member_id = record.owner_id()));
-
-      break;
-    }
-
-    case transactions::channel_add_message_transaction::message_id:
-    {
-      transactions::channel_add_message_transaction record(s);
-
-      channel_message_dbo t1;
-      t.execute(t1.insert(
-          t1.channel_id = record.channel_id(),
-          t1.cert_id = record.cert_id(),
-          t1.message = record.message()));
-
-      break;
-    }
-
-    default:
-      throw std::runtime_error("Invalid record ID");
-  }
-
-}
-
 void vds::user_manager::reset(
     const service_provider &sp,
     database_transaction &t,
@@ -115,14 +53,9 @@ void vds::user_manager::reset(
                                           root_private_key);
 
   //Create common channel
-  auto common_channel = this->create_channel(
-      playback, t,
-      common_channel_id,
-      common_channel_id,
-      "Common channel",
-      root_user.id(),
-      root_user.user_certificate(),
-      root_private_key);
+  auto common_channel = this->create_channel(playback, t, common_channel_id, "Common channel", root_user.id(),
+                                             root_user.user_certificate(),
+                                             root_private_key);
 
   auto user_channel = this->create_user_channel(
       playback, t,
@@ -163,15 +96,10 @@ void vds::user_manager::reset(
 }
 
 vds::user_channel
-vds::user_manager::create_channel(
-    transactions::transaction_block &log,
-    database_transaction &t,
-    const vds::guid &common_channel_id,
-    const vds::guid &channel_id,
-    const std::string &name,
-    const vds::guid &owner_id,
-    const certificate &owner_cert,
-    const asymmetric_private_key &owner_private_key) const {
+vds::user_manager::create_channel(transactions::transaction_block &log, database_transaction &t,
+                                  const vds::guid &channel_id, const std::string &name,
+                                  const vds::guid &owner_id, const certificate &owner_cert,
+                                  const asymmetric_private_key &owner_private_key) const {
   auto read_private_key = vds::asymmetric_private_key::generate(vds::asymmetric_crypto::rsa4096());
   auto read_id = vds::guid::new_guid();
   auto read_cert = vds::_cert_control::create(
@@ -238,6 +166,8 @@ vds::user_manager::create_channel(
       transactions::channel_add_writer_transaction(
           channel_id,
           owner_cert,
+          cert_control::get_id(owner_cert),
+          owner_private_key,
           read_cert,
           read_private_key,
           write_cert,

@@ -111,6 +111,21 @@ void vds::_log_sync_service::sync_process(
   }
   if(!record_ids.empty()){
     this->request_unknown_records(sp, p2p, record_ids);
+    return;
+  }
+
+  orm::transaction_log_record_dbo t2;
+  st = t.get_reader(
+      t2
+          .select(t2.id)
+          .where(t2.state == (uint8_t)orm::transaction_log_record_dbo::state_t::leaf));
+  while(st.execute()){
+    record_ids.push_back(base64::to_bytes(t2.id.get(st)));
+  }
+
+  if(!record_ids.empty()){
+    p2p->random_broadcast(sp, p2p_messages::common_log_state(record_ids).serialize());
+    return;
   }
 }
 

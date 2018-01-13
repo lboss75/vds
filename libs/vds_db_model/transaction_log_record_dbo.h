@@ -14,12 +14,30 @@ namespace vds {
   namespace orm {
     class transaction_log_record_dbo : public database_table {
     public:
-      enum class state_t : uint8_t {
+      enum class state_t : int {
         none,
         validated,
         processed,
         leaf
       };
+      static std::string str(state_t value){
+        switch(value){
+          case state_t::none:
+            return "none";
+
+          case state_t::validated:
+            return "validated";
+
+          case state_t::processed:
+            return "processed";
+
+          case state_t::leaf:
+            return "leaf";
+
+          default:
+            return "unknown(" + std::to_string((int)value) + ")";
+        }
+      }
 
       transaction_log_record_dbo()
           : database_table("transaction_log_record"),

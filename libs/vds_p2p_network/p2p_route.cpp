@@ -11,11 +11,11 @@ vds::p2p_route::p2p_route()
 vds::p2p_route::~p2p_route() {
 }
 
-void
+bool
 vds::p2p_route::random_broadcast(
     const vds::service_provider &sp,
     const vds::const_data_buffer &message) {
-  this->impl_->random_broadcast(sp, message);
+  return this->impl_->random_broadcast(sp, message);
 }
 
 
@@ -59,12 +59,12 @@ int vds::_p2p_route::calc_distance(const guid & source_node, const guid & target
   return 0;
 }
 
-void vds::_p2p_route::random_broadcast(
+bool vds::_p2p_route::random_broadcast(
     const vds::service_provider &sp,
     const vds::const_data_buffer &message) {
   std::shared_lock<std::shared_mutex> lock(this->sessions_mutex_);
   if(this->sessions_.empty()){
-    throw std::runtime_error("No sessions");
+    return false;
   }
 
   auto index = std::rand() % this->sessions_.size();
@@ -75,6 +75,7 @@ void vds::_p2p_route::random_broadcast(
   }
 
   p->second->send(sp, message);
+  return true;
 }
 
 void vds::_p2p_route::add(const service_provider &sp, const guid &partner_id,

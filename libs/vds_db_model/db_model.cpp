@@ -93,7 +93,9 @@ void vds::db_model::migrate(
     t.execute("CREATE TABLE channel_message(\
 			id INTEGER PRIMARY KEY AUTOINCREMENT,\
       channel_id VARCHAR(64) NOT NULL,\
-			cert_id VARCHAR(64) NOT NULL,\
+      message_id INT NOT NULL,\
+			read_cert_id VARCHAR(64) NOT NULL,\
+      write_cert_id VARCHAR(64) NOT NULL,\
 			message BLOB NOT NULL)");
 
 		t.execute("CREATE TABLE chunk_data (\

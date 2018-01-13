@@ -3,8 +3,6 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
-#include <transactions/channel_add_message_transaction.h>
-#include "cert_control.h"
 #include "stdafx.h"
 #include "file_operations.h"
 #include "file.h"
@@ -17,6 +15,9 @@ All rights reserved
 #include "transactions/file_add_transaction.h"
 #include "user_manager.h"
 #include "member_user.h"
+#include "transactions/channel_add_message_transaction.h"
+#include "vds_exceptions.h"
+#include "cert_control.h"
 
 vds::file_manager::file_operations::file_operations()
 : impl_(new file_manager_private::_file_operations()){
@@ -55,6 +56,14 @@ vds::async_task<> vds::file_manager_private::_file_operations::upload_file(
         auto user = user_mng->get_current_device(sp, t, device_private_key);
 
         auto channel = user_mng->get_channel(t, channel_id);
+        if(!channel.write_cert()){
+          sp.get<logger>()->error(
+              ThisModule,
+              sp,
+              "Channel %s don't have write cert",
+              channel_id.str().c_str());
+          throw vds_exceptions::access_denied_error("User don't have write permission");
+        }
         auto channel_write_key = user_mng->get_channel_write_key(
             sp, t, channel, user.id());
 
@@ -66,6 +75,7 @@ vds::async_task<> vds::file_manager_private::_file_operations::upload_file(
             transactions::file_add_transaction(
                 channel_id,
                 channel.read_cert(),
+                cert_control::get_id(channel.write_cert()),
                 channel_write_key,
                 name,
                 mimetype,

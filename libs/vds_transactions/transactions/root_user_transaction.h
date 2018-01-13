@@ -7,18 +7,20 @@ All rights reserved
 */
 
 
+#include <user_dbo.h>
+#include <cert_control.h>
 #include "types.h"
 #include "guid.h"
 #include "asymmetriccrypto.h"
 #include "const_data_buffer.h"
 #include "binary_serialize.h"
+#include "transaction_id.h"
 
 namespace vds {
   namespace transactions {
-
     class root_user_transaction {
     public:
-      static const uint8_t message_id = 'r';
+      static const uint8_t message_id = (uint8_t)transaction_id::root_user_transaction;
 
       root_user_transaction(
           const guid &id,
@@ -40,6 +42,21 @@ namespace vds {
       root_user_transaction(class binary_deserializer &b);
 
       void serialize(class binary_serializer &b) const;
+
+      void apply(
+          const service_provider & sp,
+          database_transaction & t) const {
+
+        user_dbo usr_dbo;
+        t.execute(
+            usr_dbo.insert(
+                usr_dbo.id = this->id(),
+                usr_dbo.login = this->user_name(),
+                usr_dbo.cert_id = cert_control::get_id(this->user_cert()),
+                usr_dbo.password_hash = this->password_hash(),
+                usr_dbo.private_key = this->user_private_key()));
+
+      }
 
     private:
       guid id_;

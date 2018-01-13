@@ -8,12 +8,13 @@ All rights reserved
 
 #include <stdafx.h>
 #include "transaction_log.h"
+#include "transaction_id.h"
 
 namespace vds {
   namespace transactions {
     class device_user_add_transaction {
     public:
-      static const uint8_t message_id = 'u';
+      static const uint8_t message_id = (uint8_t)transaction_id::device_user_add_transaction;
 
       device_user_add_transaction(
           const guid & user_id,
@@ -29,6 +30,12 @@ namespace vds {
 
       binary_serializer &serialize(binary_serializer &s) const {
         return s << this->user_id_ << this->user_certificate_.der();
+      }
+
+      void apply(
+          const service_provider & sp,
+          database_transaction & t) const{
+
       }
 
     private:
