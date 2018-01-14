@@ -55,10 +55,10 @@ namespace vds {
           const service_provider & sp,
           database_transaction & t) const{
 
-        orm::channel_dbo t3;
+        dbo::channel t3;
         t.execute(t3.insert(
             t3.id = this->channel_id_,
-            t3.channel_type = (uint8_t)orm::channel_dbo::channel_type_t::simple,
+            t3.channel_type = (uint8_t)dbo::channel::channel_type_t::simple,
             t3.name = this->name_,
             t3.read_cert = this->read_cert_id_,
             t3.write_cert = this->write_cert_id_

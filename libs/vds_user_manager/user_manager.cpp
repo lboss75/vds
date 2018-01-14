@@ -20,7 +20,7 @@ All rights reserved
 #include "channel_dbo.h"
 #include "channel_admin_dbo.h"
 #include "cert_control.h"
-#include "channel_message_dbo.h"
+#include "channel_message.h"
 #include "certificate_private_key_dbo.h"
 #include "transactions/device_user_add_transaction.h"
 #include "run_configuration_dbo.h"
@@ -110,14 +110,14 @@ vds::user_manager::create_channel(transactions::transaction_block &log, database
       owner_cert,
       owner_private_key);
 
-  certificate_dbo t1;
+  dbo::certificate t1;
   t.execute(t1.insert(
       t1.id = read_id,
       t1.parent = cert_control::get_id(owner_cert),
       t1.cert = read_cert.der()
   ));
 
-  orm::certificate_private_key_dbo t2;
+  dbo::certificate_private_key t2;
   t.execute(t2.insert(
       t2.id = read_id,
       t2.owner_id = cert_control::get_id(owner_cert),
@@ -145,10 +145,10 @@ vds::user_manager::create_channel(transactions::transaction_block &log, database
       t2.body = owner_cert.public_key().encrypt(write_private_key.der(std::string()))
   ));
 
-  orm::channel_dbo t3;
+  dbo::channel t3;
   t.execute(t3.insert(
       t3.id = channel_id,
-      t3.channel_type = (uint8_t)orm::channel_dbo::channel_type_t::simple,
+      t3.channel_type = (uint8_t)dbo::channel::channel_type_t::simple,
       t3.name = name,
       t3.read_cert = read_id,
       t3.write_cert = write_id
@@ -169,7 +169,6 @@ vds::user_manager::create_channel(transactions::transaction_block &log, database
           cert_control::get_id(owner_cert),
           owner_private_key,
           read_cert,
-          read_private_key,
           write_cert,
           write_private_key));
 
@@ -191,14 +190,14 @@ vds::user_manager::create_user_channel(transactions::transaction_block &log, dat
       owner_cert,
       owner_private_key);
 
-  certificate_dbo t1;
+  dbo::certificate t1;
   t.execute(t1.insert(
       t1.id = read_id,
       t1.parent = cert_control::get_id(owner_cert),
       t1.cert = read_cert.der()
   ));
 
-  orm::certificate_private_key_dbo t2;
+  dbo::certificate_private_key t2;
   t.execute(t2.insert(
       t2.id = read_id,
       t2.owner_id = cert_control::get_id(owner_cert),
@@ -229,7 +228,7 @@ vds::user_manager::lock_to_device(const vds::service_provider &sp, vds::database
       device_name);
 
   auto config_id = guid::new_guid();
-  run_configuration_dbo t3;
+  dbo::run_configuration t3;
   t.execute(
       t3.insert(
           t3.id = config_id,
@@ -238,13 +237,13 @@ vds::user_manager::lock_to_device(const vds::service_provider &sp, vds::database
           t3.port = port,
           t3.common_channel_id = common_channel_id));
 
-  certificate_dbo t4;
+  dbo::certificate t4;
   t.execute(
       t4.insert(
           t4.id = device_user.id(),
           t4.cert = device_user.user_certificate().der()));
 
-  orm::certificate_private_key_dbo t5;
+  dbo::certificate_private_key t5;
   t.execute(
       t5.insert(
           t5.id = device_user.id(),
@@ -270,7 +269,7 @@ vds::member_user vds::user_manager::get_current_device(
     vds::database_transaction &t,
     asymmetric_private_key &device_private_key) {
 
-  run_configuration_dbo t1;
+  dbo::run_configuration t1;
   auto st = t.get_reader(t1.select(t1.cert_id, t1.cert_private_key));
   if(!st.execute()){
     throw std::runtime_error("Unable to get current configuration");
@@ -278,7 +277,7 @@ vds::member_user vds::user_manager::get_current_device(
   auto user_id = t1.cert_id.get(st);
   device_private_key = asymmetric_private_key::parse_der(t1.cert_private_key.get(st), std::string());
 
-  certificate_dbo t3;
+  dbo::certificate t3;
   st = t.get_reader(t3.select(t3.cert).where(t3.id == user_id));
   if(!st.execute()){
     throw std::runtime_error("Unable to load user certificate");
@@ -312,7 +311,7 @@ vds::user_manager::get_channel_write_key(
 }
 
 vds::user_channel vds::user_manager::get_common_channel(vds::database_transaction &t) const {
-  run_configuration_dbo t1;
+  dbo::run_configuration t1;
   auto st = t.get_reader(t1.select(t1.common_channel_id));
   if(!st.execute()){
     throw std::runtime_error("Unable to load common channel id");
@@ -324,9 +323,9 @@ vds::user_channel vds::user_manager::get_common_channel(vds::database_transactio
 vds::user_channel vds::user_manager::get_channel(
     vds::database_transaction &t,
     const vds::guid &channel_id) const {
-  orm::channel_dbo t1;
-  certificate_dbo t2;
-  certificate_dbo t3;
+  dbo::channel t1;
+  dbo::certificate t2;
+  dbo::certificate t3;
   auto st = t.get_reader(t1.select(t2.cert, t3.cert)
                     .left_join(t2, t2.id == t1.read_cert)
                     .left_join(t3, t3.id == t1.write_cert)
@@ -347,7 +346,7 @@ void vds::user_manager::allow_read(
     const certificate & channel_read_cert,
     const asymmetric_private_key & read_private_key) const {
 
-  orm::certificate_private_key_dbo t2;
+  dbo::certificate_private_key t2;
   t.execute(t2.insert(
       t2.id = cert_control::get_id(channel_read_cert),
       t2.owner_id = cert_control::get_id(user.user_certificate()),
@@ -366,7 +365,7 @@ vds::asymmetric_private_key
 vds::user_manager::get_private_key(database_transaction &t, const vds::guid &cert_id, const vds::guid &user_cert_id,
                                    const asymmetric_private_key &user_cert_private_key) {
 
-  orm::certificate_private_key_dbo t1;
+  dbo::certificate_private_key t1;
   auto st = t.get_reader(t1.select(t1.body).where(
       t1.id == cert_id
       && t1.owner_id == user_cert_id));
@@ -389,12 +388,12 @@ vds::member_user vds::user_manager::create_root_user(transactions::transaction_b
       "User " + root_user_name,
       root_private_key);
 
-  certificate_dbo t2;
+  dbo::certificate t2;
   t.execute(t2.insert(
       t2.id = cert_control::get_id(root_user_cert),
       t2.cert = root_user_cert.der()));
 
-  user_dbo t1;
+  dbo::user_dbo t1;
   t.execute(t1.insert(
      t1.id = root_user_id,
      t1.cert_id = cert_control::get_id(root_user_cert),
@@ -415,6 +414,57 @@ vds::member_user vds::user_manager::create_root_user(transactions::transaction_b
           hash::signature(hash::sha256(), root_password.c_str(), root_password.length())));
 
   return member_user(new _member_user(root_user_id, root_user_cert));
+}
+
+bool vds::user_manager::get_channel_write_certificate(
+    vds::database_transaction &t,
+    const guid & channel_id,
+    const vds::member_user &user,
+    const vds::asymmetric_private_key &user_key,
+    vds::certificate &write_certificate,
+    vds::asymmetric_private_key &write_cert_private_key) {
+  dbo::certificate_private_key t1;
+  dbo::channel t2;
+  dbo::certificate t3;
+  auto st = t.get_reader(
+      t1
+          .select(t1.body, t3.cert)
+          .inner_join(t2, t2.write_cert == t1.id)
+          .inner_join(t3, t3.id == t2.write_cert)
+          .where(
+              t1.owner_id == cert_control::get_id(user.user_certificate())
+          && t2.id == channel_id));
+  if(!st.execute()) {
+    return false;
+  }
+
+  write_certificate = certificate::parse_der(t3.cert.get(st));
+  write_cert_private_key = asymmetric_private_key::parse_der(
+      user_key.decrypt(t1.body.get(st)),
+      std::string());
+  return true;
+}
+
+vds::member_user
+vds::user_manager::load_user(vds::database_transaction &t, const std::string &login, const std::string &password,
+                             vds::asymmetric_private_key &user_private_key) {
+  dbo::user_dbo t1;
+  dbo::certificate t2;
+  auto st = t.get_reader(
+      t1
+          .select(t1.id, t2.cert, t1.password_hash, t1.private_key)
+          .inner_join(t2, t2.id == t1.cert_id)
+          .where(t1.login == login));
+  if(!st.execute()
+     || t1.password_hash.get(st) != hash::signature(hash::sha256(), password.c_str(), password.length())){
+    throw std::runtime_error("User with login '" + login + "' was not found");
+  }
+
+  user_private_key = asymmetric_private_key::parse_der(t1.private_key.get(st), password);
+
+  return member_user(new _member_user(
+      t1.id.get(st),
+      certificate::parse_der(t2.cert.get(st))));
 }
 
 ////////////////////////////////////////////////////////////////////////

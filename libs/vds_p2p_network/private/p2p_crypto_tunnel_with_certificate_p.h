@@ -6,10 +6,10 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
-#include <resizable_data_buffer.h>
-#include <run_configuration_dbo.h>
-#include <certificate_private_key_dbo.h>
-#include <vds_exceptions.h>
+#include "resizable_data_buffer.h"
+#include "run_configuration_dbo.h"
+#include "certificate_private_key_dbo.h"
+#include "vds_exceptions.h"
 #include "udp_transport.h"
 #include "asymmetriccrypto.h"
 #include "symmetriccrypto.h"
@@ -68,7 +68,7 @@ namespace vds {
         sp.get<logger>()->trace("P2PUDPAPI", sp, "Got CertRequest %s", login.c_str());
 
         sp.get<db_model>()->async_transaction(sp, [pthis = this->shared_from_this(), sp, login, password_hash](database_transaction & t){
-          user_dbo t1;
+          dbo::user_dbo t1;
 
           auto st = t.get_reader(
               t1
@@ -86,7 +86,7 @@ namespace vds {
 
             std::list<certificate> certificates;
             do {
-              certificate_dbo t2;
+              dbo::certificate t2;
               st = t.get_reader(t2.select(t2.cert).where(t2.id == id));
               if(!st.execute()){
                 throw std::runtime_error("Database is corrupted");
@@ -112,7 +112,7 @@ namespace vds {
                 << common_channel.id()
                 << common_channel.read_cert().der();
 
-            orm::certificate_private_key_dbo t3;
+            dbo::certificate_private_key t3;
             auto st = t.get_reader(
                 t3.select(t3.body)
                     .inner_join(t1, t1.cert_id == t3.owner_id)

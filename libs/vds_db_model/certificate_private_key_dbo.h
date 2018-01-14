@@ -9,10 +9,10 @@ All rights reserved
 #include "database_orm.h"
 
 namespace vds {
-  namespace orm {
-    class certificate_private_key_dbo : public database_table {
+  namespace dbo {
+    class certificate_private_key : public database_table {
     public:
-      certificate_private_key_dbo()
+      certificate_private_key()
           : database_table("cert_private_key"),
             id(this, "id"),
             owner_id(this, "owner_id"),

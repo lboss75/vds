@@ -63,6 +63,7 @@ public:
   void start(size_t server_count);
   void stop();
 
+  void allow_write_channel(size_t client_index, const vds::guid &channel_id);
   void upload_file(size_t client_index, const vds::guid &channel_id, const std::string &name,
                      const std::string &mimetype, const vds::filename &file_path);
 

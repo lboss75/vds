@@ -11,18 +11,19 @@ All rights reserved
 #include "const_data_buffer.h"
 
 namespace vds {
-  namespace orm {
-    class channel_message_dbo : public database_table {
+  namespace dbo {
+    class channel_message : public database_table {
     public:
 
-      channel_message_dbo()
+      channel_message()
           : database_table("channel_message"),
             id(this, "id"),
             channel_id(this, "channel_id"),
             message_id(this, "message_id"),
             read_cert_id(this, "read_cert_id"),
             write_cert_id(this, "write_cert_id"),
-            message(this, "message") {
+            message(this, "message"),
+            signature(this, "signature"){
       }
 
       database_column<int> id;
@@ -31,6 +32,7 @@ namespace vds {
       database_column <guid> read_cert_id;
       database_column <guid> write_cert_id;
       database_column <const_data_buffer> message;
+      database_column <const_data_buffer> signature;
     };
   }
 }

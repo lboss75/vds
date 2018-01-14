@@ -19,8 +19,8 @@ namespace vds {
         const const_data_buffer & message);
 
     bool random_broadcast(
-        const vds::service_provider &sp,
-        const vds::const_data_buffer &message);
+        const service_provider &sp,
+        const const_data_buffer &message);
 
     void add(const service_provider &sp, const guid &partner_id,
                  const std::shared_ptr<udp_transport::_session> &session);

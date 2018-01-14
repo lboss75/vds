@@ -47,7 +47,7 @@ namespace vds {
           const service_provider & sp,
           database_transaction & t) const {
 
-        user_dbo usr_dbo;
+        dbo::user_dbo usr_dbo;
         t.execute(
             usr_dbo.insert(
                 usr_dbo.id = this->id(),

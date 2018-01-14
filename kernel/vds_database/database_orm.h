@@ -37,7 +37,10 @@ namespace vds {
   class _database_value_exp;
   
   class _database_source_base;
-  
+
+  template<typename left_exp_type, typename right_exp_type>
+  class _database_logical_or;
+
   //database table
   class database_table
   {
@@ -484,6 +487,8 @@ namespace vds {
     template <typename other_exp>
     _database_logical_and<implementation_type, other_exp> operator && (other_exp && exp);
 
+    template <typename other_exp>
+    _database_logical_or<implementation_type, other_exp> operator || (other_exp && exp);
   protected:
     left_exp_type left_;
     right_exp_type right_;
@@ -543,6 +548,23 @@ namespace vds {
     }
   };
 
+  template<typename left_exp_type, typename right_exp_type>
+  class _database_logical_or : public _database_binary_expression<_database_logical_or<left_exp_type, right_exp_type>, left_exp_type, right_exp_type>
+  {
+    using base_class = _database_binary_expression<_database_logical_or<left_exp_type, right_exp_type>, left_exp_type, right_exp_type>;
+  public:
+    _database_logical_or(
+        left_exp_type && left,
+        right_exp_type && right)
+        : base_class(std::move(left), std::move(right))
+    {
+    }
+
+    std::string visit(_database_sql_builder & builder) const
+    {
+      return "(" + this->left_.visit(builder) + ") OR (" + this->right_.visit(builder) + ")";
+    }
+  };
   template <typename base_builder, typename condition_type>
   class _database_reader_builder_with_join;
 
@@ -1339,6 +1361,13 @@ namespace vds {
   inline _database_logical_and<implementation_type, other_exp> _database_binary_expression<implementation_type, left_exp_type, right_exp_type>::operator&&(other_exp && exp)
   {
     return _database_logical_and<implementation_type, other_exp>(std::move(*static_cast<implementation_type *>(this)), std::move(exp));
+  }
+
+  template<typename implementation_type, typename left_exp_type, typename right_exp_type>
+  template<typename other_exp>
+  inline _database_logical_or<implementation_type, other_exp> _database_binary_expression<implementation_type, left_exp_type, right_exp_type>::operator||(other_exp && exp)
+  {
+    return _database_logical_or<implementation_type, other_exp>(std::move(*static_cast<implementation_type *>(this)), std::move(exp));
   }
 
   template <typename source_type>

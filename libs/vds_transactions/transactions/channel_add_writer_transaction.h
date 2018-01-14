@@ -23,7 +23,6 @@ namespace vds {
           const asymmetric_private_key & sing_cert_private_key,
 
           const certificate & read_cert,
-          const asymmetric_private_key & read_private_key,
           const certificate & write_cert,
           const asymmetric_private_key & write_private_key)
       : channel_message_transaction(
@@ -35,7 +34,6 @@ namespace vds {
           (
             binary_serializer()
                 << read_cert.der()
-                << read_private_key.der(std::string())
                 << write_cert.der()
                 << write_private_key.der(std::string())
           ).data()) {

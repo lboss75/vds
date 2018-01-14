@@ -7,7 +7,10 @@ All rights reserved
 */
 
 #include <cert_control.h>
-#include <channel_message_dbo.h>
+#include <channel_message.h>
+#include <vds_exceptions.h>
+#include <certificate_dbo.h>
+#include <logger.h>
 #include "binary_serialize.h"
 #include "guid.h"
 #include "asymmetriccrypto.h"
@@ -17,36 +20,41 @@ All rights reserved
 
 namespace vds {
   namespace transactions {
-
     class channel_message_transaction {
     public:
       static const uint8_t message_id = (uint8_t)transaction_id::channel_message_transaction;
 
       enum class channel_message_id : uint8_t {
         channel_add_writer_transaction,
+        channel_remove_writer_transaction,
+        channel_add_reader_transaction,
+        channel_remove_reader_transaction,
         file_add_transaction
       };
 
       channel_message_transaction(binary_deserializer & s){
-        s >> this->message_id_ >> this->channel_id_ >> this->read_cert_id_ >> this->write_cert_id_ >> this->data_;
+        s
+            >> this->message_id_
+            >> this->channel_id_
+            >> this->read_cert_id_
+            >> this->write_cert_id_
+            >> this->data_
+            >> this->signature_;
       }
 
       binary_serializer & serialize(binary_serializer & s) const {
-        return s << this->message_id_ << this->channel_id_ << this->read_cert_id_ << this->write_cert_id_ << this->data_;
+        return s
+            << this->message_id_
+            << this->channel_id_
+            << this->read_cert_id_
+            << this->write_cert_id_
+            << this->data_
+            << this->signature_;
       }
 
       void apply(
           const service_provider & sp,
-          database_transaction & t) const{
-
-        orm::channel_message_dbo t1;
-        t.execute(t1.insert(
-           t1.channel_id = this->channel_id_,
-           t1.message_id = this->message_id_,
-           t1.read_cert_id = this->read_cert_id_,
-           t1.write_cert_id = this->write_cert_id_,
-           t1.message = this->data_));
-      }
+          database_transaction & t) const;
 
     protected:
       uint8_t message_id_;
@@ -54,6 +62,7 @@ namespace vds {
       guid read_cert_id_;
       guid write_cert_id_;
       const_data_buffer data_;
+      const_data_buffer signature_;
 
       channel_message_transaction(
           channel_message_id message_id,
@@ -74,7 +83,7 @@ namespace vds {
             << read_cert.public_key().encrypt(skey.serialize())
             << symmetric_encrypt::encrypt(skey, data);
 
-        result << asymmetric_sign::signature(
+        this->signature_ = asymmetric_sign::signature(
             hash::sha256(),
             write_cert_key,
             (binary_serializer()

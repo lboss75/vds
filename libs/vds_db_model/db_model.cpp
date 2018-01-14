@@ -96,7 +96,8 @@ void vds::db_model::migrate(
       message_id INT NOT NULL,\
 			read_cert_id VARCHAR(64) NOT NULL,\
       write_cert_id VARCHAR(64) NOT NULL,\
-			message BLOB NOT NULL)");
+			message BLOB NOT NULL,\
+			signature BLOB NOT NULL)");
 
 		t.execute("CREATE TABLE chunk_data (\
 			id VARCHAR(64) PRIMARY KEY NOT NULL,\

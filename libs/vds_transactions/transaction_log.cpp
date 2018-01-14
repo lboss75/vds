@@ -17,6 +17,8 @@ All rights reserved
 #include <transactions/channel_create_transaction.h>
 #include <transactions/user_channel_create_transaction.h>
 #include <user_dbo.h>
+#include <run_configuration_dbo.h>
+#include <certificate_private_key_dbo.h>
 #include "vds_debug.h"
 #include "transaction_log_record_dbo.h"
 #include "encoding.h"
@@ -140,7 +142,7 @@ vds::orm::transaction_log_record_dbo::state_t vds::transaction_log::apply_block(
 
   //Validate
   bool is_validated = false;
-  certificate_dbo t1;
+  dbo::certificate t1;
   auto st = t.get_reader(t1.select(t1.cert).where(t1.id == write_cert_id));
   if (st.execute()) {
     auto cert = certificate::parse_der(t1.cert.get(st));
@@ -285,6 +287,105 @@ void vds::transaction_log::apply_message(
       default:
         throw std::runtime_error("Invalid data");
     }
+  }
+}
+
+////////////////////////////////////////////
+void vds::transactions::channel_message_transaction::apply(
+    const service_provider & sp,
+    database_transaction & t) const {
+
+  dbo::channel_message t1;
+  t.execute(t1.insert(
+      t1.channel_id = this->channel_id_,
+      t1.message_id = this->message_id_,
+      t1.read_cert_id = this->read_cert_id_,
+      t1.write_cert_id = this->write_cert_id_,
+      t1.message = this->data_));
+
+  dbo::run_configuration t2;
+  auto st = t.get_reader(t2.select(t2.cert_id, t2.cert_private_key));
+  if (!st.execute()) {
+    throw std::runtime_error("Unable to get current run configuration");
+  }
+  auto device_cert_id = t2.cert_id.get(st);
+  auto device_private_key = asymmetric_private_key::parse_der(
+      t2.cert_private_key.get(st), std::string());
+
+
+  dbo::certificate t3;
+  st = t.get_reader(
+      t3.select(t3.cert)
+          .where(t3.id == this->write_cert_id_));
+  if (!st.execute()) {
+    sp.get<logger>()->trace(
+        ThisModule,
+        sp,
+        "Unknown write certificate %s",
+        this->write_cert_id_.str().c_str());
+
+    return;
+  }
+
+  auto write_cert = certificate::parse_der(t3.cert.get(st));
+  if (!asymmetric_sign_verify::verify(
+      hash::sha256(),
+      write_cert.public_key(),
+      this->signature_,
+      (binary_serializer()
+          << this->message_id_
+          << this->channel_id_
+          << this->read_cert_id_
+          << this->write_cert_id_
+          << this->data_).data())) {
+    throw std::runtime_error("Write signature error");
+  }
+
+
+  dbo::certificate_private_key t4;
+  st = t.get_reader(
+      t4.select(t4.body)
+          .where(t4.id == this->read_cert_id_
+                 && t4.owner_id == device_cert_id));
+  if (!st.execute()) {
+    sp.get<logger>()->trace(
+        ThisModule,
+        sp,
+        "Unknown read certificate %s",
+        this->write_cert_id_.str().c_str());
+
+    return;
+  }
+  auto private_key_data = t4.body.get(st);
+  auto private_key = symmetric_key::deserialize(
+      symmetric_crypto::aes_256_cbc(),
+      binary_deserializer(private_key_data));
+
+
+  binary_deserializer s(this->data_);
+  const_data_buffer key_data;
+  const_data_buffer crypted_data;
+
+  s >> key_data >> crypted_data;
+
+  auto key_info = symmetric_decrypt::decrypt(private_key, key_data);
+  auto key = symmetric_key::deserialize(
+      symmetric_crypto::aes_256_cbc(),
+      binary_deserializer(key_info));
+
+  auto data = symmetric_decrypt::decrypt(key, crypted_data);
+
+  switch ((channel_message_id) this->message_id_) {
+    case channel_message_id::file_add_transaction:
+      break;
+
+    case channel_message_id::channel_add_writer_transaction: {
+
+      break;
+    }
+
+    default:
+      throw vds_exceptions::invalid_operation();
   }
 }
 

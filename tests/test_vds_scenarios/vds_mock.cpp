@@ -2,6 +2,9 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
+#include <security_walker.h>
+#include <transactions/channel_add_reader_transaction.h>
+#include <transactions/channel_add_writer_transaction.h>
 #include "stdafx.h"
 #include "vds_mock.h"
 #include "test_config.h"
@@ -145,6 +148,82 @@ std::string vds_mock::generate_password(size_t min_len, size_t max_len)
   return result;
 }
 
+void vds_mock::allow_write_channel(size_t client_index, const vds::guid &channel_id){
+  vds::barrier b;
+  std::shared_ptr<std::exception> error;
+
+  this->servers_[client_index]
+      ->get<vds::db_model>()
+      ->async_transaction(
+          this->servers_[client_index]->get_service_provider(),
+          [this, client_index, channel_id](vds::database_transaction & t)->bool {
+
+            auto user_mng = this->servers_[client_index]->get<vds::user_manager>();
+            vds::asymmetric_private_key root_user_private_key;
+            auto root_user = user_mng->load_user(
+                t,
+                "root",
+                this->root_password_,
+                root_user_private_key);
+
+            vds::certificate channel_read_cert;
+            vds::certificate channel_write_cert;
+            vds::asymmetric_private_key channel_write_private_key;
+            if(!user_mng->get_channel_write_certificate(
+                t,
+                channel_id,
+                root_user,
+                root_user_private_key,
+                channel_read_cert,
+                channel_write_private_key)){
+              throw std::runtime_error("Unable to get channel write certificate");
+            }
+            user_mng->allow_write(
+                t,
+                root_user,
+                channel_id,
+                channel_write_cert,
+                channel_write_private_key);
+
+            vds::asymmetric_private_key device_private_key;
+            auto device_user = user_mng->get_current_device(
+                this->servers_[client_index]->get_service_provider(),
+                t,
+                device_private_key);
+
+            vds::transactions::transaction_block log;
+            log.add(vds::transactions::channel_add_writer_transaction(
+                channel_id,
+                device_user.user_certificate(),
+                vds::cert_control::get_id(root_user.user_certificate()),
+                root_user_private_key,
+                channel_read_cert,
+                channel_write_cert,
+                channel_write_private_key));
+
+            auto common_channel = user_mng->get_common_channel(t);
+            log.save(
+                this->servers_[client_index]->get_service_provider(),
+                t,
+                common_channel.read_cert(),
+                root_user.user_certificate(),
+                root_user_private_key);
+
+            return true;
+          })
+      .execute([&b, &error](const std::shared_ptr<std::exception> & ex){
+        if(ex){
+          error = ex;
+        }
+        b.set();
+      });
+
+  b.wait();
+  if(error){
+    throw std::runtime_error(error->what());
+  }
+}
+
 void vds_mock::upload_file(size_t client_index, const vds::guid &channel_id, const std::string &name,
                            const std::string &mimetype, const vds::filename &file_path) {
   vds::barrier b;
@@ -164,6 +243,9 @@ void vds_mock::upload_file(size_t client_index, const vds::guid &channel_id, con
   });
 
   b.wait();
+  if(error){
+    throw std::runtime_error(error->what());
+  }
 }
 
 vds::const_data_buffer vds_mock::download_data(size_t client_index, const std::string &name) {
@@ -178,21 +260,11 @@ vds::user_channel vds_mock::create_channel(int index, const std::string &name) {
       this->servers_[index]->get_service_provider(),
       [this, index, name, &result](vds::database_transaction & t) -> bool{
 
-    vds::user_dbo t1;
-
-    auto st = t.get_reader(
-        t1
-            .select(t1.id, t1.private_key)
-            .where(t1.login == "root"));
-    if(!st.execute()){
-      throw std::runtime_error("Unable to load user root");
-    }
-    auto root_private_key = vds::asymmetric_private_key::parse_der(
-        t1.private_key.get(st),
-        this->root_password_);
 
     auto user_mng = this->servers_[index]->get<vds::user_manager>();
-    auto root_user = user_mng->by_login(t, "root");
+
+    vds::asymmetric_private_key root_private_key;
+    auto root_user = user_mng->load_user(t, "root", this->root_password_, root_private_key);
     auto common_channel = user_mng->get_common_channel(t);
 
     auto read_private_key = vds::asymmetric_private_key::generate(
@@ -203,12 +275,12 @@ vds::user_channel vds_mock::create_channel(int index, const std::string &name) {
     vds::transactions::transaction_block log;
     result = user_mng->create_channel(log, t, vds::guid::new_guid(), name, root_user.id(), root_user.user_certificate(),
                                       root_private_key);
-        log.save(
-            this->servers_[index]->get_service_provider(),
-            t,
-            common_channel.read_cert(),
-            root_user.user_certificate(),
-            root_private_key);
+    log.save(
+        this->servers_[index]->get_service_provider(),
+        t,
+        common_channel.read_cert(),
+        root_user.user_certificate(),
+        root_private_key);
 
     return true;
   }).execute([&b, &error](const std::shared_ptr<std::exception> & ex){

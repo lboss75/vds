@@ -123,8 +123,8 @@ vds::async_task<> vds::_p2p_network::start_network(const vds::service_provider &
   imt_service::enable_async(sp);
   auto run_conf = std::make_shared<std::list<run_data>>();
   return sp.get<db_model>()->async_transaction(sp, [run_conf](database_transaction & t){
-    run_configuration_dbo t1;
-    certificate_dbo t2;
+    dbo::run_configuration t1;
+    dbo::certificate t2;
     auto st = t.get_reader(
         t1.select(t1.port, t2.cert, t1.cert_private_key)
             .inner_join(t2, t2.id == t1.cert_id));
@@ -140,7 +140,7 @@ vds::async_task<> vds::_p2p_network::start_network(const vds::service_provider &
     for(auto & conf : *run_conf) {
       auto parent_id = cert_control::get_parent_id(conf.cert_chain.front());
       while(parent_id){
-        certificate_dbo t4;
+        dbo::certificate t4;
         auto st = t.get_reader(t4.select(t4.cert).where(t4.id == parent_id));
         if(!st.execute()){
           throw std::runtime_error("Invalid certificate ID " + parent_id.str());

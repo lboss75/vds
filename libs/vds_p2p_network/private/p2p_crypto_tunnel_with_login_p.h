@@ -54,7 +54,7 @@ namespace vds {
 
                 //save certificates
                 for(auto & cert : this_->certificate_chain_){
-                  certificate_dbo t1;
+                  dbo::certificate t1;
                   t.execute(
                     t1.insert(
                         t1.id = cert_control::get_id(cert),

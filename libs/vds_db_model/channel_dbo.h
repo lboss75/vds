@@ -11,15 +11,15 @@ All rights reserved
 #include "const_data_buffer.h"
 
 namespace vds {
-  namespace orm {
-    class channel_dbo : public database_table {
+  namespace dbo {
+    class channel : public database_table {
     public:
 
       enum class channel_type_t : uint8_t {
         simple = 0
       };
 
-      channel_dbo()
+      channel()
           : database_table("channel"),
             id(this, "id"),
             channel_type(this, "channel_type"),

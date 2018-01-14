@@ -49,8 +49,8 @@ const vds::certificate &vds::member_user::user_certificate() const {
 
 vds::member_user vds::member_user::by_login(vds::database_transaction &t, const std::string &login) {
 
-  user_dbo t1;
-  certificate_dbo t2;
+  dbo::user_dbo t1;
+  dbo::certificate t2;
   auto st = t.get_reader(t1
                              .select(t1.id, t2.cert)
                              .inner_join(t2, t2.id == t1.cert_id)
