@@ -301,19 +301,23 @@ void vds::transactions::channel_message_transaction::apply(
       t1.message_id = this->message_id_,
       t1.read_cert_id = this->read_cert_id_,
       t1.write_cert_id = this->write_cert_id_,
-      t1.message = this->data_));
+      t1.message = this->data_,
+      t1.signature = this->signature_));
 
   dbo::run_configuration t2;
-  auto st = t.get_reader(t2.select(t2.cert_id, t2.cert_private_key));
+  dbo::certificate t3;
+  auto st = t.get_reader(
+      t2.select(t2.cert_id, t2.cert_private_key, t3.cert)
+          .inner_join(t3, t3.id == t2.cert_id));
   if (!st.execute()) {
     throw std::runtime_error("Unable to get current run configuration");
   }
   auto device_cert_id = t2.cert_id.get(st);
+  auto device_cert = certificate::parse_der(t3.cert.get(st));
   auto device_private_key = asymmetric_private_key::parse_der(
       t2.cert_private_key.get(st), std::string());
 
 
-  dbo::certificate t3;
   st = t.get_reader(
       t3.select(t3.cert)
           .where(t3.id == this->write_cert_id_));
@@ -374,6 +378,7 @@ void vds::transactions::channel_message_transaction::apply(
       binary_deserializer(key_info));
 
   auto data = symmetric_decrypt::decrypt(key, crypted_data);
+  binary_deserializer data_stream(data);
 
   switch ((channel_message_id) this->message_id_) {
     case channel_message_id::file_add_transaction:
@@ -381,6 +386,13 @@ void vds::transactions::channel_message_transaction::apply(
 
     case channel_message_id::channel_add_writer_transaction: {
 
+      break;
+    }
+
+    case channel_message_id::channel_create_transaction:{
+      if(this->channel_id_ == cert_control::get_user_id(device_cert)) {
+        channel_create_transaction::apply_message(device_cert, sp, t, data_stream);
+      }
       break;
     }
 

@@ -156,19 +156,14 @@ vds::user_manager::create_channel(transactions::transaction_block &log, database
 
   log.add(
       transactions::channel_create_transaction(
-          channel_id,
           owner_id,
-          name,
-          read_id,
-          write_id));
-
-  log.add(
-      transactions::channel_add_writer_transaction(
-          channel_id,
           owner_cert,
           cert_control::get_id(owner_cert),
           owner_private_key,
+          channel_id,
+          name,
           read_cert,
+          read_private_key,
           write_cert,
           write_private_key));
 
@@ -465,6 +460,26 @@ vds::user_manager::load_user(vds::database_transaction &t, const std::string &lo
   return member_user(new _member_user(
       t1.id.get(st),
       certificate::parse_der(t2.cert.get(st))));
+}
+
+void
+vds::user_manager::allow_write(vds::database_transaction &t, const vds::member_user &user, const vds::guid &channel_id,
+                               const vds::certificate &channel_write_cert,
+                               const vds::asymmetric_private_key &channel_write_key) const {
+  dbo::certificate_private_key t2;
+  t.execute(t2.insert(
+      t2.id = cert_control::get_id(channel_write_cert),
+      t2.owner_id = cert_control::get_id(user.user_certificate()),
+      t2.body = user.user_certificate().public_key().encrypt(channel_write_key.der(std::string()))
+  ));
+
+  orm::channel_member_dbo t3;
+  t.execute(t3.insert(
+      t3.channel_id = channel_id,
+      t3.user_cert_id = cert_control::get_id(user.user_certificate()),
+      t3.member_type = (uint8_t)orm::channel_member_dbo::member_type_t::writer
+  ));
+
 }
 
 ////////////////////////////////////////////////////////////////////////

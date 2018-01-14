@@ -8,6 +8,7 @@ All rights reserved
 
 #include <transaction_log_record_dbo.h>
 #include <transactions/device_user_add_transaction.h>
+#include <transactions/channel_add_reader_transaction.h>
 #include "cert_control.h"
 #include "p2p_crypto_tunnel_p.h"
 #include "user_manager.h"
@@ -82,6 +83,15 @@ namespace vds {
                     common_channel_id,
                     common_channel_read_cert,
                     common_channel_private_key);
+
+                log.add(
+                    transactions::channel_add_reader_transaction(
+                        device_user.id(),
+                        device_user.user_certificate(),
+                        cert_control::get_id(user_cert),
+                        private_key,
+                        common_channel_read_cert,
+                        common_channel_private_key));
 
                 log.add(
                     transactions::device_user_add_transaction(

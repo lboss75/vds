@@ -273,8 +273,14 @@ vds::user_channel vds_mock::create_channel(int index, const std::string &name) {
         vds::asymmetric_crypto::rsa4096());
 
     vds::transactions::transaction_block log;
-    result = user_mng->create_channel(log, t, vds::guid::new_guid(), name, root_user.id(), root_user.user_certificate(),
-                                      root_private_key);
+    result = user_mng->create_channel(
+        log,
+        t,
+        vds::guid::new_guid(),
+        name,
+        root_user.id(),
+        root_user.user_certificate(),
+        root_private_key);
     log.save(
         this->servers_[index]->get_service_provider(),
         t,

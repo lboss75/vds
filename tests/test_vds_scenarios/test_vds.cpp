@@ -44,8 +44,6 @@ TEST(test_vds, test_initial)
     //Waiting to sync logs
     mock.sync_wait();
 
-    mock.sync_wait();
-
     mock.allow_write_channel(3, channel.id());
     mock.upload_file(3, channel.id(), "test data", "application/octet-stream", tmp_fn);
 
