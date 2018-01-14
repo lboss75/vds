@@ -25,7 +25,7 @@ namespace vds {
       static const uint8_t message_id = (uint8_t)transaction_id::channel_message_transaction;
 
       enum class channel_message_id : uint8_t {
-        channel_create_transaction,
+        channel_create_transaction = 0,
         channel_add_writer_transaction,
         channel_remove_writer_transaction,
         channel_add_reader_transaction,

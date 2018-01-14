@@ -355,7 +355,10 @@ void vds::transactions::channel_message_transaction::apply(
     sp.get<logger>()->trace(
         ThisModule,
         sp,
-        "Unknown read certificate %s",
+        "Unknown read certificate msg: %d, channel: %s, read cert: %s, write cert: %s",
+        this->message_id_,
+        this->channel_id_.str().c_str(),
+        this->read_cert_id_.str().c_str(),
         this->write_cert_id_.str().c_str());
 
     return;

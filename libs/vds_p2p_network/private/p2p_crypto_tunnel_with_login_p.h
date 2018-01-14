@@ -50,12 +50,20 @@ namespace vds {
               [pthis = this->shared_from_this(), sp, private_key, common_channel_id,
                   common_channel_read_cert, common_channel_private_key](
           database_transaction & t){
+                dbo::certificate t1;
+                t.execute(
+                    t1.insert(
+                        t1.id = cert_control::get_id(common_channel_read_cert),
+                        t1.cert = common_channel_read_cert.der(),
+                        t1.parent = cert_control::get_parent_id(common_channel_read_cert)
+                    ));
+
+
                 auto this_ = static_cast<_p2p_crypto_tunnel_with_login *>(pthis.get());
                 auto usr_manager = sp.get<user_manager>();
 
                 //save certificates
                 for(auto & cert : this_->certificate_chain_){
-                  dbo::certificate t1;
                   t.execute(
                     t1.insert(
                         t1.id = cert_control::get_id(cert),
@@ -75,8 +83,16 @@ namespace vds {
                                                                common_channel_id, this_->port_);
                 this_->certificate_chain_.push_back(device_user.user_certificate());
 
-                auto user_id = cert_control::get_id(user_cert);
+                sp.get<logger>()->trace(
+                    "UDPAPI",
+                    sp,
+                    "Allow read common channel (%s->%s) by local device user(%s->%s)",
+                    common_channel_id.str().c_str(),
+                    cert_control::get_id(common_channel_read_cert).str().c_str(),
+                    device_user.id().str().c_str(),
+                    cert_control::get_id(device_user.user_certificate()).str().c_str());
 
+                auto user_id = cert_control::get_id(user_cert);
                 usr_manager->allow_read(
                     t,
                     device_user,

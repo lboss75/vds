@@ -418,10 +418,31 @@ bool vds::user_manager::get_channel_write_certificate(
     const vds::asymmetric_private_key &user_key,
     vds::certificate &write_certificate,
     vds::asymmetric_private_key &write_cert_private_key) {
-  dbo::certificate_private_key t1;
+
   dbo::channel t2;
-  dbo::certificate t3;
   auto st = t.get_reader(
+      t2
+          .select(t2.write_cert)
+          .where(t2.id == channel_id));
+  if(!st.execute()) {
+    return false;
+  }
+  auto write_cert = t2.write_cert.get(st);
+
+  dbo::certificate_private_key t1;
+  st = t.get_reader(
+      t1.select(t1.body)
+          .where(
+              t1.id == write_cert
+              && t1.owner_id == cert_control::get_id(user.user_certificate())));
+  if(!st.execute()) {
+    return false;
+  }
+  auto body = t1.body.get(st);
+
+
+  dbo::certificate t3;
+  st = t.get_reader(
       t1
           .select(t1.body, t3.cert)
           .inner_join(t2, t2.write_cert == t1.id)
