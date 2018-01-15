@@ -153,8 +153,9 @@ namespace vds {
       this->properties_.emplace(&property->leak_detect_);
       this->add(properties...);
     }
-  }
+  };
 }
+
 #else
 namespace vds {
 
