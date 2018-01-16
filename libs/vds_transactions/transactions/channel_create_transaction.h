@@ -27,10 +27,10 @@ namespace vds {
           const asymmetric_private_key &write_cert_key,
           const guid &new_channel_id,
           const std::string &name,
-          const certificate & read_cert,
-          const asymmetric_private_key & read_private_key,
-          const certificate & write_cert,
-          const asymmetric_private_key & write_private_key)
+          const certificate &read_cert,
+          const asymmetric_private_key &read_private_key,
+          const certificate &write_cert,
+          const asymmetric_private_key &write_private_key)
           : channel_message_transaction(
           channel_message_id::channel_create_transaction,
           owner_id,
@@ -50,12 +50,8 @@ namespace vds {
           : channel_message_transaction(s) {
       }
 
-      static void apply_message(
-          const certificate & owner_cert,
-          const service_provider &sp,
-          database_transaction &t,
-          binary_deserializer & s) {
-
+      template<typename target>
+      static void parse_message(binary_deserializer &s, target t) {
         guid channel_id;
         std::string name;
         const_data_buffer read_cert_data;
@@ -71,49 +67,63 @@ namespace vds {
             >> write_cert_data
             >> write_private_key_data;
 
-        sp.get<logger>()->trace(
-            "TRLOG",
-            sp,
-            "Create channel %s",
-            channel_id.str().c_str());
+        t(
+            channel_id,
+            name,
+            certificate::parse_der(read_cert_data),
+            asymmetric_private_key::parse_der(read_private_key_data, std::string()),
+            certificate::parse_der(write_cert_data),
+            asymmetric_private_key::parse_der(write_private_key_data, std::string()));
+      }
 
-        auto read_cert = certificate::parse_der(read_cert_data);
-        auto read_private_key = asymmetric_private_key::parse_der(
-            read_private_key_data, std::string());
+      static void apply_message(
+          const certificate &owner_cert,
+          const service_provider &sp,
+          database_transaction &t,
+          binary_deserializer &s) {
+        parse_message(s, [&owner_cert, &sp, &t](
+            const guid &channel_id,
+            const std::string &name,
+            const certificate &read_cert,
+            const asymmetric_private_key &read_private_key,
+            const certificate &write_cert,
+            const asymmetric_private_key &write_private_key) {
 
-        dbo::certificate t1;
-        t.execute(t1.insert(
-            t1.id = cert_control::get_id(read_cert),
-            t1.cert = read_cert_data,
-            t1.parent = cert_control::get_parent_id(read_cert)));
+          sp.get<logger>()->trace(
+              "TRLOG",
+              sp,
+              "Create channel %s",
+              channel_id.str().c_str());
 
-        dbo::certificate_private_key t2;
-        t.execute(t2.insert(
-            t2.id = cert_control::get_id(read_cert),
-            t2.owner_id = cert_control::get_id(owner_cert),
-            t2.body = owner_cert.public_key().encrypt(read_private_key_data)));
+          dbo::certificate t1;
+          t.execute(t1.insert(
+              t1.id = cert_control::get_id(read_cert),
+              t1.cert = read_cert.der(),
+              t1.parent = cert_control::get_parent_id(read_cert)));
 
-        auto write_cert = certificate::parse_der(write_cert_data);
-        auto write_private_key = asymmetric_private_key::parse_der(
-            write_private_key_data, std::string());
+          dbo::certificate_private_key t2;
+          t.execute(t2.insert(
+              t2.id = cert_control::get_id(read_cert),
+              t2.owner_id = cert_control::get_id(owner_cert),
+              t2.body = owner_cert.public_key().encrypt(read_private_key.der(std::string()))));
 
+          t.execute(t1.insert(
+              t1.id = cert_control::get_id(write_cert),
+              t1.cert = write_cert.der(),
+              t1.parent = cert_control::get_parent_id(write_cert)));
 
-        t.execute(t1.insert(
-            t1.id = cert_control::get_id(write_cert),
-            t1.cert = write_cert_data,
-            t1.parent = cert_control::get_parent_id(write_cert)));
+          t.execute(t2.insert(
+              t2.id = cert_control::get_id(write_cert),
+              t2.owner_id = cert_control::get_id(owner_cert),
+              t2.body = owner_cert.public_key().encrypt(write_private_key.der(std::string()))));
 
-        t.execute(t2.insert(
-            t2.id = cert_control::get_id(write_cert),
-            t2.owner_id = cert_control::get_id(owner_cert),
-            t2.body = owner_cert.public_key().encrypt(write_private_key_data)));
-
-        dbo::channel t3;
-        t.execute(t3.insert(
-            t3.id = channel_id,
-            t3.name = name,
-            t3.read_cert = cert_control::get_id(read_cert),
-            t3.write_cert = cert_control::get_id(write_cert)));
+          dbo::channel t3;
+          t.execute(t3.insert(
+              t3.id = channel_id,
+              t3.name = name,
+              t3.read_cert = cert_control::get_id(read_cert),
+              t3.write_cert = cert_control::get_id(write_cert)));
+        });
       }
     };
   }

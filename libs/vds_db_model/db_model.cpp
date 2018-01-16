@@ -82,8 +82,8 @@ void vds::db_model::migrate(
 			id VARCHAR(64) PRIMARY KEY NOT NULL,\
 			channel_type INT NOT NULL,\
       name VARCHAR(64) NOT NULL,\
-      read_cert VARCHAR(64) NOT NULL,\
-      write_cert VARCHAR(64) NOT NULL)");
+      read_cert VARCHAR(64) NULL,\
+      write_cert VARCHAR(64) NULL)");
 
 		t.execute("CREATE TABLE channel_admin(\
 			id VARCHAR(64) NOT NULL,\

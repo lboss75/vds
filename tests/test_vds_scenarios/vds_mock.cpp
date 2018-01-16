@@ -166,15 +166,19 @@ void vds_mock::allow_write_channel(size_t client_index, const vds::guid &channel
                 this->root_password_,
                 root_user_private_key);
 
-            vds::certificate channel_read_cert;
+            vds::security_walker walker(
+                root_user.id(),
+                root_user.user_certificate(),
+                root_user_private_key);
+            walker.load(t);
+
+            std::string channel_name;
             vds::certificate channel_write_cert;
             vds::asymmetric_private_key channel_write_private_key;
-            if(!user_mng->get_channel_write_certificate(
-                t,
+            if(!walker.get_channel_write_certificate(
                 channel_id,
-                root_user,
-                root_user_private_key,
-                channel_read_cert,
+                channel_name,
+                channel_write_cert,
                 channel_write_private_key)){
               throw std::runtime_error("Unable to get channel write certificate");
             }
@@ -182,6 +186,7 @@ void vds_mock::allow_write_channel(size_t client_index, const vds::guid &channel
                 t,
                 root_user,
                 channel_id,
+                channel_name,
                 channel_write_cert,
                 channel_write_private_key);
 
@@ -197,7 +202,7 @@ void vds_mock::allow_write_channel(size_t client_index, const vds::guid &channel
                 device_user.user_certificate(),
                 vds::cert_control::get_id(root_user.user_certificate()),
                 root_user_private_key,
-                channel_read_cert,
+                channel_write_cert,//TODO: channel_read_cert,
                 channel_write_cert,
                 channel_write_private_key));
 

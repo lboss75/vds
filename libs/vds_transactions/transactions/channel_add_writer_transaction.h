@@ -42,6 +42,25 @@ namespace vds {
       channel_add_writer_transaction(binary_deserializer & s)
           : channel_message_transaction(s){
       }
+
+      static void apply_message(
+          const certificate &device_cert,
+          const service_provider &sp,
+          database_transaction &t,
+          binary_deserializer &data_stream) {
+          const_data_buffer read_cert_der;
+          const_data_buffer write_cert_der;
+          const_data_buffer write_private_key_der;
+
+          data_stream >> read_cert_der >> write_cert_der >> write_private_key_der;
+
+        auto read_cert = certificate::parse_der(read_cert_der);
+        auto write_cert = certificate::parse_der(write_cert_der);
+        auto write_private_key = asymmetric_private_key::parse_der(
+            write_private_key_der,
+            std::string());
+
+      }
     };
   }
 }

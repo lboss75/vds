@@ -385,14 +385,19 @@ void vds::transactions::channel_message_transaction::apply(
 
   switch ((channel_message_id) this->message_id_) {
     case channel_message_id::file_add_transaction:
+      sp.get<logger>()->trace(ThisModule, sp, "channel_message_id::file_add_transaction");
       break;
 
     case channel_message_id::channel_add_writer_transaction: {
+      sp.get<logger>()->trace(ThisModule, sp, "channel_message_id::channel_add_writer_transaction");
+      channel_add_writer_transaction::apply_message(device_cert, sp, t, data_stream);
 
       break;
     }
 
     case channel_message_id::channel_create_transaction:{
+      sp.get<logger>()->trace(ThisModule, sp, "channel_message_id::channel_create_transaction");
+
       if(this->channel_id_ == cert_control::get_user_id(device_cert)) {
         channel_create_transaction::apply_message(device_cert, sp, t, data_stream);
       }

@@ -40,14 +40,30 @@ namespace vds {
         const const_data_buffer & message,
         const const_data_buffer & signature);
 
+    bool get_channel_write_certificate(const guid &channel_id,
+                                       std::string & name,
+                                       certificate &write_certificate,
+                                     asymmetric_private_key &write_key);
+
   private:
     const guid user_id_;
     const certificate user_cert_;
     const asymmetric_private_key user_private_key_;
 
     struct channel_info {
-      std::map<guid, certificate> certificates_;
+      std::map<guid, certificate> read_certificates_;
+      std::map<guid, certificate> write_certificates_;
+
       std::map<guid, asymmetric_private_key> read_private_keys_;
+      std::map<guid, asymmetric_private_key> write_private_keys_;
+
+      certificate read_certificate_;
+      asymmetric_private_key read_private_key_;
+
+      certificate write_certificate_;
+      asymmetric_private_key write_private_key_;
+
+      std::string name_;
     };
 
     std::map<guid, channel_info> channels_;

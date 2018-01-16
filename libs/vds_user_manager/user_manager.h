@@ -94,6 +94,7 @@ namespace vds {
     void allow_write(class database_transaction &t,
                     const member_user & user,
                     const guid & channel_id,
+										const std::string & name,
                     const certificate & channel_write_cert,
                     const asymmetric_private_key & channel_write_key) const;
 

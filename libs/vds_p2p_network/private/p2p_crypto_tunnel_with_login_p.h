@@ -9,6 +9,7 @@ All rights reserved
 #include <transaction_log_record_dbo.h>
 #include <transactions/device_user_add_transaction.h>
 #include <transactions/channel_add_reader_transaction.h>
+#include <channel_dbo.h>
 #include "cert_control.h"
 #include "p2p_crypto_tunnel_p.h"
 #include "user_manager.h"
@@ -23,7 +24,7 @@ namespace vds {
   public:
     _p2p_crypto_tunnel_with_login(
         const udp_transport::session &session,
-        const async_result<> & start_result,
+        const async_result<> &start_result,
         const std::string &login,
         const std::string &password,
         const std::string &device_name,
@@ -42,14 +43,22 @@ namespace vds {
         const service_provider &sp,
         const asymmetric_private_key &private_key,
         const guid &common_channel_id,
-        const certificate & common_channel_read_cert,
-        const asymmetric_private_key & common_channel_private_key) {
+        const certificate &common_channel_read_cert,
+        const asymmetric_private_key &common_channel_private_key) {
 
       sp.get<db_model>()->async_transaction(
               sp,
               [pthis = this->shared_from_this(), sp, private_key, common_channel_id,
                   common_channel_read_cert, common_channel_private_key](
-          database_transaction & t){
+                  database_transaction &t) {
+
+                dbo::channel t3;
+                t.execute(t3.insert(
+                    t3.id = common_channel_id,
+                    t3.read_cert = cert_control::get_id(common_channel_read_cert),
+                    t3.channel_type = (uint8_t)dbo::channel::channel_type_t::simple,
+                    t3.name = "Common channel"));
+
                 dbo::certificate t1;
                 t.execute(
                     t1.insert(
@@ -63,13 +72,13 @@ namespace vds {
                 auto usr_manager = sp.get<user_manager>();
 
                 //save certificates
-                for(auto & cert : this_->certificate_chain_){
+                for (auto &cert : this_->certificate_chain_) {
                   t.execute(
-                    t1.insert(
-                        t1.id = cert_control::get_id(cert),
-                        t1.cert = cert.der(),
-                        t1.parent = cert_control::get_parent_id(cert)
-                    ));
+                      t1.insert(
+                          t1.id = cert_control::get_id(cert),
+                          t1.cert = cert.der(),
+                          t1.parent = cert_control::get_parent_id(cert)
+                      ));
                 }
 
                 transactions::transaction_block log;
@@ -115,58 +124,57 @@ namespace vds {
                         device_user.user_certificate()));
 
                 log.save(
-					sp, t,
+                    sp, t,
                     common_channel_read_cert,
-					user_cert,
-					private_key);
+                    user_cert,
+                    private_key);
 
                 binary_serializer s;
-                s << (uint8_t)command_id::CertCain;
+                s << (uint8_t) command_id::CertCain;
                 s << safe_cast<uint16_t>(1);
                 s << device_user.user_certificate().der();
 
                 this_->session_.send(sp, const_data_buffer(s.data().data(), s.size()));
 
-      })
-      .execute([sp, pthis = this->shared_from_this()](const std::shared_ptr<std::exception> & ex) {
-        auto this_ = static_cast<_p2p_crypto_tunnel_with_login *>(pthis.get());
-        if(ex){
-          pthis->close(sp, ex);
-          this_->start_result_.error(ex);
-        }
-        else {
-          this_->start_result_.done();
-        }
-      });
+              })
+          .execute([sp, pthis = this->shared_from_this()](const std::shared_ptr<std::exception> &ex) {
+            auto this_ = static_cast<_p2p_crypto_tunnel_with_login *>(pthis.get());
+            if (ex) {
+              pthis->close(sp, ex);
+              this_->start_result_.error(ex);
+            } else {
+              this_->start_result_.done();
+            }
+          });
     }
 
     void process_input_command(
         const service_provider &sp,
         const command_id command,
         binary_deserializer &s) override {
-      switch(command) {
+      switch (command) {
         case command_id::CertCain: {
           _p2p_crypto_tunnel::process_input_command(sp, command, s);
 
           binary_serializer s;
-          s << (uint8_t)command_id::CertRequest;
+          s << (uint8_t) command_id::CertRequest;
           s << this->login_ << hash::signature(hash::sha256(), this->password_.c_str(), this->password_.length());
 
           this->send_crypted_command(sp, const_data_buffer(s.data().data(), s.size()));
 
           break;
         }
-        case command_id::CertRequestSuccessful:{
+        case command_id::CertRequestSuccessful: {
           sp.get<logger>()->trace("P2PUDPAPI", sp, "CertRequestSuccessful");
 
           uint16_t cert_count;
           s >> cert_count;
 
-          if(!this->certificate_chain_.empty()){
+          if (!this->certificate_chain_.empty()) {
             throw std::runtime_error("Invalid logic");
           }
 
-          for(uint16_t i = 0; i < cert_count; ++i){
+          for (uint16_t i = 0; i < cert_count; ++i) {
             const_data_buffer cert_body;
             s >> cert_body;
 

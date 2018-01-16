@@ -484,9 +484,22 @@ vds::user_manager::load_user(vds::database_transaction &t, const std::string &lo
 }
 
 void
-vds::user_manager::allow_write(vds::database_transaction &t, const vds::member_user &user, const vds::guid &channel_id,
+vds::user_manager::allow_write(vds::database_transaction &t,
+                               const vds::member_user &user, const vds::guid &channel_id,
+                               const std::string & name,
                                const vds::certificate &channel_write_cert,
                                const vds::asymmetric_private_key &channel_write_key) const {
+  dbo::channel t1;
+  auto st = t.get_reader(t1.select(t1.id).where(t1.id == channel_id));
+  if(!st.execute()){
+    t.execute(t1.insert(
+       t1.id = channel_id,
+       t1.channel_type = (uint8_t)dbo::channel::channel_type_t::simple,
+       t1.name = name,
+       t1.write_cert = cert_control::get_id(channel_write_cert)));
+
+  }
+
   dbo::certificate_private_key t2;
   t.execute(t2.insert(
       t2.id = cert_control::get_id(channel_write_cert),
