@@ -220,19 +220,18 @@ bool vds::_udp_transport::do_timer_tasks(const vds::service_provider &sp) {
 }
 
 void vds::_udp_transport::read_message(const vds::service_provider &sp) {
-  this->server_.socket().read_async().execute(
-      [pthis = this->shared_from_this(), sp](
-          const std::shared_ptr<std::exception> & ex,
-          const udp_datagram & message){
-        if(0 != message.data_size()) {
-          if (!ex) {
-            pthis->process_incommig_message(sp, message);
-          }
-          pthis->read_message(sp);
-        }
-      }
-  );
+	this->server_.socket().read_async().execute(
+		[pthis = this->shared_from_this(), sp](
+			const std::shared_ptr<std::exception> & ex,
+			const udp_datagram & message){
+		if (!ex && 0 != message.data_size()) {
+			pthis->process_incommig_message(sp, message);
+		}
 
+		if (ex || 0 != message.data_size()) {
+			pthis->read_message(sp);
+		}
+	});
 }
 
 void vds::_udp_transport::handshake_completed(

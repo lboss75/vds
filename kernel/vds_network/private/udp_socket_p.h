@@ -253,6 +253,8 @@ namespace vds {
           this_->wsa_buf_.buf = (CHAR *)this_->buffer_;
           this_->result_ = result;
           
+		  this_->sp_.get<logger>()->trace("UDP", this_->sp_, "WSARecvFrom %d", this_->s_);
+
           DWORD flags = 0;
           DWORD numberOfBytesRecvd;
           if (NOERROR != WSARecvFrom(
@@ -273,6 +275,11 @@ namespace vds {
 				this_->sp_.get<logger>()->trace("UDP", this_->sp_, "Read scheduled");
 			}
           }
+		  else {
+			  auto errorCode = WSAGetLastError();
+			  this_->sp_.get<logger>()->trace("UDP", this_->sp_, "Direct readed %d, code %d", numberOfBytesRecvd, errorCode);
+			  //this_->process(numberOfBytesRecvd);
+		  }
         };
       }
 
@@ -327,7 +334,8 @@ namespace vds {
             auto this_ = static_cast<_udp_send *>(pthis.get());
             this_->result_ = result;
 
-            if (NOERROR != WSASendTo(this_->s_, &this_->wsa_buf_, 1, NULL, 0, (const sockaddr *)this_->buffer_->addr(), sizeof(sockaddr_in), &this_->overlapped_, NULL)) {
+			this_->sp_.get<logger>()->trace("UDP", this_->sp_, "WSASendTo");
+			if (NOERROR != WSASendTo(this_->s_, &this_->wsa_buf_, 1, NULL, 0, (const sockaddr *)this_->buffer_->addr(), sizeof(sockaddr_in), &this_->overlapped_, NULL)) {
               auto errorCode = WSAGetLastError();
               if (WSA_IO_PENDING != errorCode) {
                 result.error(std::make_shared<std::system_error>(errorCode, std::system_category(), "WSASend failed"));
@@ -354,7 +362,8 @@ namespace vds {
           this->result_.error(std::make_shared<std::runtime_error>("Invalid sent UDP data"));
         }
         else {
-          this->result_.done();
+			this->sp_.get<logger>()->trace("UDP", this->sp_, "Sent %d", dwBytesTransfered);
+			this->result_.done();
         }
       }
 

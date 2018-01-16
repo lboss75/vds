@@ -250,14 +250,19 @@ void vds::_network_service::thread_loop(const service_provider & sp)
           }
 
           if (pOverlapped != NULL) {
-            _socket_task::from_overlapped(pOverlapped)->error(errorCode);
+			  sp.get<logger>()->error("network", sp, "GetQueuedCompletionStatus %d error %s", errorCode, std::system_error(errorCode, std::system_category(), "GetQueuedCompletionStatus").what());
+			  _socket_task::from_overlapped(pOverlapped)->error(errorCode);
             continue;
           }
           else {
-            sp.get<logger>()->error("network", sp, std::system_error(errorCode, std::system_category(), "GetQueuedCompletionStatus").what());
+            sp.get<logger>()->error("network", sp, "GetQueuedCompletionStatus %d error %s", errorCode, std::system_error(errorCode, std::system_category(), "GetQueuedCompletionStatus").what());
             return;
           }
         }
+		else {
+			sp.get<logger>()->error("network", sp, "GetQueuedCompletionStatus is OK");
+		}
+
         try {
           _socket_task::from_overlapped(pOverlapped)->process(dwBytesTransfered);
         }
