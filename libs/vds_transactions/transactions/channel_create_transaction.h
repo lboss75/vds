@@ -5,9 +5,6 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
-#include <certificate_dbo.h>
-#include <channel_dbo.h>
-#include <certificate_private_key_dbo.h>
 #include "types.h"
 #include "guid.h"
 #include "asymmetriccrypto.h"
@@ -75,7 +72,7 @@ namespace vds {
             certificate::parse_der(write_cert_data),
             asymmetric_private_key::parse_der(write_private_key_data, std::string()));
       }
-
+	  /*
       static void apply_message(
           const certificate &owner_cert,
           const service_provider &sp,
@@ -92,8 +89,11 @@ namespace vds {
           sp.get<logger>()->trace(
               "TRLOG",
               sp,
-              "Create channel %s",
-              channel_id.str().c_str());
+              "Create channel %s(%s). Read cert %s, Write cert %s",
+              channel_id.str().c_str(),
+			  name.c_str(),
+			  cert_control::get_id(read_cert).str().c_str(),
+			  cert_control::get_id(write_cert).str().c_str());
 
           dbo::certificate t1;
           t.execute(t1.insert(
@@ -124,7 +124,7 @@ namespace vds {
               t3.read_cert = cert_control::get_id(read_cert),
               t3.write_cert = cert_control::get_id(write_cert)));
         });
-      }
+      }*/
     };
   }
 }

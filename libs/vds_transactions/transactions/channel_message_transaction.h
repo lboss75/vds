@@ -5,18 +5,18 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
-
-#include <cert_control.h>
-#include <channel_message.h>
-#include <vds_exceptions.h>
-#include <certificate_dbo.h>
-#include <logger.h>
+#include  <iostream>
+#include "cert_control.h"
+#include "channel_message.h"
+#include "vds_exceptions.h"
+#include "logger.h"
 #include "binary_serialize.h"
 #include "guid.h"
 #include "asymmetriccrypto.h"
 #include "symmetriccrypto.h"
 #include "transaction_log.h"
 #include "transaction_id.h"
+#include "encoding.h"
 
 namespace vds {
   namespace transactions {
@@ -83,6 +83,7 @@ namespace vds {
         result
             << read_cert.public_key().encrypt(skey.serialize())
             << symmetric_encrypt::encrypt(skey, data);
+		this->data_ = result.data();
 
         this->signature_ = asymmetric_sign::signature(
             hash::sha256(),
@@ -92,9 +93,14 @@ namespace vds {
                 << this->channel_id_
                 << this->read_cert_id_
                 << this->write_cert_id_
-                << result.data()).data());
-
-        this->data_ = result.data();
+                << this->data_).data());
+		std::cout << "channel_message_transaction("
+			<< (int)this->message_id_ << ", "
+			<< this->channel_id_.str() << ", "
+			<< this->read_cert_id_.str() << ", "
+			<< this->write_cert_id_.str() << ", "
+			<< display_string(base64::from_bytes(this->data_)) << ", "
+			<< display_string(base64::from_bytes(this->signature_)) << ")\n";
       }
     };
   }

@@ -6,6 +6,7 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
+
 namespace vds {
 
   class cert_control {
@@ -18,6 +19,9 @@ namespace vds {
 
     static class guid get_parent_id(
         const class certificate & cert);
+
+	static class guid get_parent_user_id(
+		const class certificate & cert);
   };
 }
 

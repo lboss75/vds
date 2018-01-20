@@ -26,12 +26,13 @@ namespace vds {
         item.serialize(this->s_);
       }
 
-      void save(
+	  const_data_buffer save(
           const service_provider &sp,
           class vds::database_transaction & t,
           const certificate & common_read_cert,
           const certificate & write_cert,
-          const asymmetric_private_key & write_private_key) const;
+          const asymmetric_private_key & write_private_key,
+		  bool apply = true) const;
 
     private:
 
@@ -42,6 +43,7 @@ namespace vds {
           std::set<const_data_buffer> &ancestors) const;
 
       const_data_buffer register_transaction(
+		  const service_provider & sp,
           class database_transaction &t,
           const const_data_buffer &block,
           const std::set<const_data_buffer> &ancestors) const;

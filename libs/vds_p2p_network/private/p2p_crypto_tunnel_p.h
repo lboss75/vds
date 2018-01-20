@@ -17,12 +17,20 @@ All rights reserved
 namespace vds {
   class _p2p_crypto_tunnel : public udp_transport::_session {
   public:
+	  _p2p_crypto_tunnel(
+		  const udp_transport::session & session,
+		  const std::list<certificate> & certificate_chain,
+		  const asymmetric_private_key & private_key)
+		  : session_(session),
+		  certificate_chain_(certificate_chain),
+		  private_key_(private_key) {
+	  }
 
-    //Server
-    _p2p_crypto_tunnel(
-        const udp_transport::session & session)
-    : session_(session) {
-    }
+    ////Server
+    //_p2p_crypto_tunnel(
+    //    const udp_transport::session & session)
+    //: session_(session) {
+    //}
 
     virtual void start(const service_provider &sp);
 
@@ -37,13 +45,9 @@ namespace vds {
   protected:
     enum class command_id : uint8_t {
       Data = 0,
-      CertRequest = 1,//login, hash(password)
-      CertRequestFailed = 2,//
-      CertRequestSuccessful = 3,//
-      CertCain = 4, //size + certificate chain
-      SendKey = 5, //size + certificate chain
-      Crypted = 6,
-      CryptedByInput = 7
+      CertCain, //size + certificate chain
+      SendKey, //size + certificate chain
+      Crypted
     };
 
     udp_transport::session session_;
@@ -56,16 +60,6 @@ namespace vds {
     asymmetric_private_key private_key_;
 
     guid partner_id_;
-
-    _p2p_crypto_tunnel(
-        const udp_transport::session & session,
-        const std::list<certificate> & certificate_chain,
-        const asymmetric_private_key & private_key)
-        : session_(session),
-          certificate_chain_(certificate_chain),
-          private_key_(private_key){
-    }
-
     async_task<const const_data_buffer &> read_async(const service_provider &sp) override;
 
     void process_input_command(

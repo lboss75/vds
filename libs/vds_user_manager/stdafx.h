@@ -9,5 +9,7 @@ All rights reserved
 #include "vds_core.h"
 #include "vds_crypto.h"
 
+#define ThisModule "UserMng"
+
 #endif // __VDS_USER_MANAGER_STDAFX_H_
 

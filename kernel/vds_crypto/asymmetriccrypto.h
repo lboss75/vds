@@ -12,6 +12,7 @@ All rights reserved
 #include "filename.h"
 #include "crypto_service.h"
 #include "stream.h"
+#include "binary_serialize.h"
 
 namespace vds {
   class _asymmetric_sign;
@@ -234,7 +235,7 @@ namespace vds {
     certificate & operator = (const certificate & original);
 
     bool operator ! () const { return !this->impl_; }
-    operator bool () const { return nullptr != this->impl_.get(); }
+    explicit operator bool () const { return nullptr != this->impl_.get(); }
 
   private:
     friend class _certificate;
@@ -245,7 +246,7 @@ namespace vds {
     
     std::shared_ptr<_certificate> impl_;
   };
-  
+
   class _certificate_store;
   class certificate_store
   {
@@ -268,6 +269,19 @@ namespace vds {
   private:
     _certificate_store * impl_;
   };
+}
+
+inline vds::binary_serializer & operator << (vds::binary_serializer & s, const vds::certificate & cert)
+{
+	return s << cert.der();
+}
+
+inline vds::binary_deserializer & operator >> (vds::binary_deserializer & s, vds::certificate & cert)
+{
+	vds::const_data_buffer cert_data;
+	s >> cert_data;
+	cert = vds::certificate::parse_der(cert_data);
+	return s;
 }
 
 #endif // __VDS_CRYPTO_ASYMMETRICCRYPTO_H_

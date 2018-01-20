@@ -220,6 +220,9 @@ bool vds::_udp_transport::do_timer_tasks(const vds::service_provider &sp) {
 }
 
 void vds::_udp_transport::read_message(const vds::service_provider &sp) {
+	if (!this->server_) {
+		return;
+	}
 	this->server_.socket().read_async().execute(
 		[pthis = this->shared_from_this(), sp](
 			const std::shared_ptr<std::exception> & ex,

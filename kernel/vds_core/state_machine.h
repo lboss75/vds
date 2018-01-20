@@ -44,6 +44,12 @@ namespace vds {
       }
     }
 
+	  /**
+     * \brief Change state by filter method
+     * \param change_state_method the filter method. return true to change state
+     * \param err_logic 
+     * \return 
+     */
     state_enum_type change_state(const std::function<bool (state_enum_type & old_state)> & change_state_method, error_logic err_logic)
     {
       std::unique_lock<std::mutex> lock(this->state_mutex_);

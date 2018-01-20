@@ -29,8 +29,6 @@ All rights reserved
 #include "p2p_network.h"
 #include "transaction_log.h"
 #include "db_model.h"
-#include "certificate_dbo.h"
-#include "certificate_private_key_dbo.h"
 #include "p2p_network_client.h"
 #include "run_configuration_dbo.h"
 #include "cert_control.h"
@@ -90,22 +88,29 @@ void vds::server::stop(const service_provider& sp)
   this->impl_->stop(sp);
 }
 
-vds::async_task<> vds::server::reset(const vds::service_provider &sp, const std::string &root_user_name, const std::string &root_password,
+vds::async_task<vds::user_invitation> vds::server::reset(const vds::service_provider &sp, const std::string &root_user_name, const std::string &root_password,
                                      const std::string &device_name, int port) {
-
-  return sp.get<db_model>()->async_transaction(sp, [this, sp, root_user_name, root_password, device_name, port](
+	auto result = std::make_shared<user_invitation>();
+  return sp.get<db_model>()->async_transaction(sp, [this, sp, root_user_name, root_password, device_name, port, result](
       database_transaction & t){
     auto usr_manager = sp.get<user_manager>();
     auto private_key = asymmetric_private_key::generate(asymmetric_crypto::rsa4096());
-    usr_manager->reset(sp, t, root_user_name, root_password, private_key, device_name, port);
+    *result = usr_manager->reset(sp, t, root_user_name, root_password, private_key, device_name, port);
+	return true;
+  }).then([result]() {
+	  return *result;
+	  
   });
 }
 
-vds::async_task<> vds::server::init_server(const vds::service_provider &sp, const std::string &user_login,
-                                           const std::string &user_password, const std::string &device_name, int port) {
-  return this->impl_->p2p_network_->init_server(
-      sp, user_login, user_password, device_name, port);
-
+vds::async_task<> vds::server::init_server(
+	const vds::service_provider &sp,
+	const user_invitation & request,
+	const std::string & user_password,
+	const std::string &device_name,
+	int port) {
+  return this->impl_->user_manager_->init_server(
+      sp, request, user_password, device_name, port);
 }
 
 vds::async_task<> vds::server::start_network(const vds::service_provider &sp) {

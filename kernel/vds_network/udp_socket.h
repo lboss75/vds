@@ -112,6 +112,7 @@ namespace vds {
     void stop(const service_provider & sp);
 
     udp_socket & socket();
+	const udp_socket & socket() const;
 
     _udp_server *operator ->()const {
       return this->impl_.get();
@@ -119,6 +120,9 @@ namespace vds {
     operator bool () const  {
       return nullptr != this->impl_.get();
     }
+	bool operator ! () const {
+		return nullptr == this->impl_.get() || !this->socket();
+	}
   private:
     std::shared_ptr<_udp_server> impl_;
   };

@@ -16,5 +16,7 @@ All rights reserved
 
 #endif
 
+#define ThisModule "p2p"
+
 #endif // __VDS_P2P_NETWORK_STDAFX_H_
 

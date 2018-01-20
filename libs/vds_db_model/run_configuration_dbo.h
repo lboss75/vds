@@ -17,17 +17,21 @@ namespace vds {
       run_configuration()
           : database_table("run_configuration"),
             id(this, "id"),
-            cert_id(this, "cert_id"),
+            cert(this, "cert"),
             cert_private_key(this, "cert_private_key"),
             port(this, "port"),
-            common_channel_id(this, "common_channel_id") {
+            common_channel_id(this, "common_channel_id"),
+		  common_channel_read_cert(this, "common_channel_read_cert"),
+		  common_channel_pkey(this, "common_channel_pkey") {
       }
 
       database_column <guid> id;
-      database_column <guid> cert_id;
+      database_column <const_data_buffer> cert;
       database_column <const_data_buffer> cert_private_key;
       database_column<int> port;
       database_column <guid> common_channel_id;
+	  database_column <const_data_buffer> common_channel_read_cert;
+	  database_column <const_data_buffer> common_channel_pkey;
     };
   }
 }

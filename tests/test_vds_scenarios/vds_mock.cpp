@@ -15,7 +15,6 @@ All rights reserved
 #include "file_operations.h"
 #include "db_model.h"
 #include "member_user.h"
-#include "user_dbo.h"
 
 vds_mock::vds_mock()
 {
@@ -35,16 +34,16 @@ void vds_mock::start(size_t server_count)
   clients_folder.delete_folder(true);
             
   this->root_password_ = generate_password();
-  int first_port = 8050;
+  const auto first_port = 8050;
 
   vds::leak_detect_resolver resolver;
   for (size_t i = 0; i < server_count; ++i) {
     if (0 == i) {
       std::cout << "Initing root\n";
-      mock_server::init_root(i, first_port + i, this->root_password_);
+	  this->root_user_invitation_ = mock_server::init_root(i, first_port + i, this->root_password_);
     } else {
       std::cout << "Initing server " << i << "\n";
-      mock_server::init(i, first_port + i, "root", this->root_password_);
+      mock_server::init(i, first_port + i, this->root_user_invitation_, this->root_password_);
     }
 
     std::unique_ptr<mock_server> server(new mock_server(i, first_port + i));
@@ -152,63 +151,62 @@ void vds_mock::allow_write_channel(size_t client_index, const vds::guid &channel
   vds::barrier b;
   std::shared_ptr<std::exception> error;
 
+  auto sp = this->servers_[client_index]->get_service_provider().create_scope(__FUNCSIG__);
+
   this->servers_[client_index]
       ->get<vds::db_model>()
       ->async_transaction(
-          this->servers_[client_index]->get_service_provider(),
-          [this, client_index, channel_id](vds::database_transaction & t)->bool {
+          sp,
+          [this, sp, client_index, channel_id](vds::database_transaction & t)->bool {
 
             auto user_mng = this->servers_[client_index]->get<vds::user_manager>();
-            vds::asymmetric_private_key root_user_private_key;
-            auto root_user = user_mng->load_user(
-                t,
-                "root",
-                this->root_password_,
-                root_user_private_key);
+            auto root_user = this->root_user_invitation_.get_user();
+			vds::asymmetric_private_key root_user_private_key = this->root_user_invitation_.get_user_private_key();
 
             vds::security_walker walker(
+				user_mng->get_common_channel().id(),
                 root_user.id(),
                 root_user.user_certificate(),
                 root_user_private_key);
-            walker.load(t);
+            walker.load(sp, t);
 
             std::string channel_name;
+			vds::certificate channel_read_cert;
             vds::certificate channel_write_cert;
             vds::asymmetric_private_key channel_write_private_key;
             if(!walker.get_channel_write_certificate(
                 channel_id,
                 channel_name,
+				channel_read_cert,
                 channel_write_cert,
                 channel_write_private_key)){
               throw std::runtime_error("Unable to get channel write certificate");
             }
-            user_mng->allow_write(
-                t,
-                root_user,
-                channel_id,
-                channel_name,
-                channel_write_cert,
-                channel_write_private_key);
+
+			sp.get<vds::logger>()->trace("MOCK", sp, "Allow write channel %s(%s). Cert %s",
+				channel_name.c_str(),
+				channel_id.str().c_str(),
+				vds::cert_control::get_id(channel_write_cert).str().c_str());
 
             vds::asymmetric_private_key device_private_key;
             auto device_user = user_mng->get_current_device(
-                this->servers_[client_index]->get_service_provider(),
-                t,
+                sp,
                 device_private_key);
 
             vds::transactions::transaction_block log;
             log.add(vds::transactions::channel_add_writer_transaction(
-                channel_id,
+				device_user.id(),
                 device_user.user_certificate(),
                 vds::cert_control::get_id(root_user.user_certificate()),
                 root_user_private_key,
-                channel_write_cert,//TODO: channel_read_cert,
+				channel_name,
+                channel_read_cert,
                 channel_write_cert,
                 channel_write_private_key));
 
-            auto common_channel = user_mng->get_common_channel(t);
+            auto common_channel = user_mng->get_common_channel();
             log.save(
-                this->servers_[client_index]->get_service_provider(),
+                sp,
                 t,
                 common_channel.read_cert(),
                 root_user.user_certificate(),
@@ -268,9 +266,9 @@ vds::user_channel vds_mock::create_channel(int index, const std::string &name) {
 
     auto user_mng = this->servers_[index]->get<vds::user_manager>();
 
-    vds::asymmetric_private_key root_private_key;
-    auto root_user = user_mng->load_user(t, "root", this->root_password_, root_private_key);
-    auto common_channel = user_mng->get_common_channel(t);
+    auto root_user = this->root_user_invitation_.get_user();
+	auto root_private_key = this->root_user_invitation_.get_user_private_key();
+	auto common_channel = user_mng->get_common_channel();
 
     auto read_private_key = vds::asymmetric_private_key::generate(
         vds::asymmetric_crypto::rsa4096());
@@ -278,14 +276,20 @@ vds::user_channel vds_mock::create_channel(int index, const std::string &name) {
         vds::asymmetric_crypto::rsa4096());
 
     vds::transactions::transaction_block log;
+	vds::asymmetric_private_key channel_read_private_key;
+	vds::asymmetric_private_key channel_write_private_key;
     result = user_mng->create_channel(
+		this->servers_[index]->get_service_provider(),
         log,
         t,
         vds::guid::new_guid(),
         name,
         root_user.id(),
         root_user.user_certificate(),
-        root_private_key);
+        root_private_key,
+		channel_read_private_key,
+		channel_write_private_key);
+
     log.save(
         this->servers_[index]->get_service_provider(),
         t,
@@ -324,7 +328,7 @@ mock_server::mock_server(int index, int udp_port)
   };
 }
 
-void mock_server::init_root(int index, int udp_port, const std::string & root_password)
+vds::user_invitation mock_server::init_root(int index, int udp_port, const std::string& root_password)
 {
   vds::service_registrator registrator;
 
@@ -348,6 +352,7 @@ void mock_server::init_root(int index, int udp_port, const std::string & root_pa
   registrator.add(network_service);
   registrator.add(server);
 
+  vds::user_invitation result;
   std::shared_ptr<std::exception> error;
 
   auto sp = registrator.build("mock server::init_root");
@@ -369,14 +374,19 @@ void mock_server::init_root(int index, int udp_port, const std::string & root_pa
 	vds::barrier b;
     server
         .reset(sp, "root", root_password, "test" + std::to_string(udp_port), udp_port)
-		.execute([&error, &b](const std::shared_ptr<std::exception> & ex) {
+		.execute([&error, &b, &result](const std::shared_ptr<std::exception> & ex, const vds::user_invitation & invitation) {
 		if (ex) {
 			error = ex;
+		}
+		else
+		{
+			result = invitation;
 		}
 		b.set();
 	});
 
 	b.wait();
+
   }
   catch (...) {
     try { registrator.shutdown(sp); }
@@ -390,6 +400,8 @@ void mock_server::init_root(int index, int udp_port, const std::string & root_pa
   if (error) {
     throw *error;
   }
+
+  return  result;
 }
 
 
@@ -441,7 +453,7 @@ vds::guid mock_server::last_log_record() const
   return this->sp_.get<vds::istorage_log>()->get_last_applied_record(this->sp_);
 }
 
-void mock_server::init(int index, int udp_port, const std::string &user_name, const std::string &user_password) {
+void mock_server::init(int index, int udp_port, const vds::user_invitation & invitation, const std::string &user_password) {
   vds::service_registrator registrator;
 
   vds::mt_service mt_service;
@@ -486,7 +498,7 @@ void mock_server::init(int index, int udp_port, const std::string &user_name, co
     vds::imt_service::enable_async(sp);
     vds::barrier b;
     server
-        .init_server(sp, user_name, user_password, "test" + std::to_string(udp_port), udp_port)
+        .init_server(sp, invitation, user_password, "test" + std::to_string(udp_port), udp_port)
         .execute([&error, &b](const std::shared_ptr<std::exception> & ex) {
           if (ex) {
             error = ex;

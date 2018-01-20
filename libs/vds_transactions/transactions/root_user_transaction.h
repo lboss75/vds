@@ -7,14 +7,14 @@ All rights reserved
 */
 
 
-#include <user_dbo.h>
-#include <cert_control.h>
+#include "cert_control.h"
 #include "types.h"
 #include "guid.h"
 #include "asymmetriccrypto.h"
 #include "const_data_buffer.h"
 #include "binary_serialize.h"
 #include "transaction_id.h"
+#include "database_orm.h"
 
 namespace vds {
   namespace transactions {
@@ -47,14 +47,14 @@ namespace vds {
           const service_provider & sp,
           database_transaction & t) const {
 
-        dbo::user_dbo usr_dbo;
-        t.execute(
-            usr_dbo.insert(
-                usr_dbo.id = this->id(),
-                usr_dbo.login = this->user_name(),
-                usr_dbo.cert_id = cert_control::get_id(this->user_cert()),
-                usr_dbo.password_hash = this->password_hash(),
-                usr_dbo.private_key = this->user_private_key()));
+        //dbo::user_dbo usr_dbo;
+        //t.execute(
+        //    usr_dbo.insert_or_ignore(
+        //        usr_dbo.id = this->id(),
+        //        usr_dbo.login = this->user_name(),
+        //        usr_dbo.cert = this->user_cert().der(),
+        //        usr_dbo.password_hash = this->password_hash(),
+        //        usr_dbo.private_key = this->user_private_key()));
 
       }
 

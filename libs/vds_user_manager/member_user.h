@@ -22,10 +22,6 @@ namespace vds {
     const guid & id() const;
     const certificate & user_certificate() const;
 
-    static member_user by_login(
-        class database_transaction & t,
-        const std::string & login);
-
     member_user create_device_user(
         const asymmetric_private_key &owner_user_private_key,
         const asymmetric_private_key &private_key,

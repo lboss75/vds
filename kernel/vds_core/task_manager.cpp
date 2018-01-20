@@ -12,7 +12,8 @@ All rights reserved
 #include "logger.h"
 
 vds::timer::timer(const char * name)
-: name_(name), sp_(service_provider::empty())
+: name_(name), sp_(service_provider::empty()),
+current_state_(state_t::bof, state_t::fail)
 {
 }
 
@@ -33,34 +34,51 @@ void vds::timer::start(
   const std::chrono::steady_clock::duration & period,
   const std::function< bool(void) >& callback)
 {
+  this->current_state_.change_state(state_t::bof, state_t::scheduled, error_logic::throw_exception);
   this->sp_ = sp;
   this->period_ = period;
   this->handler_ = callback;
   
-  this->schedule(sp);  
+  this->schedule(sp);
 }
 
 void vds::timer::stop(const vds::service_provider& sp)
 {
-  auto manager = static_cast<task_manager *>(sp.get<itask_manager>());
-  
-  std::lock_guard<std::mutex> lock(manager->scheduled_mutex_);
-  manager->scheduled_.remove(this);
+	auto manager = static_cast<task_manager *>(sp.get<itask_manager>());
+
+	std::lock_guard<std::mutex> lock(manager->scheduled_mutex_);
+	manager->scheduled_.remove(this);
+	this->current_state_.change_state([](state_t & state)->bool {
+		switch (state) {
+		case state_t::scheduled:
+			state = state_t::eof;
+			break;
+		case state_t::eof:
+			break;
+		default:
+			throw std::runtime_error("Logic error");
+		}
+		return true;
+	}, error_logic::throw_exception);
 }
 
 void vds::timer::execute(const vds::service_provider& sp)
 {
   try {
     if (!sp.get_shutdown_event().is_shuting_down()) {
-      if (this->handler_()) {
-        this->schedule(sp);
+		this->current_state_.change_state(state_t::scheduled, state_t::in_handler, error_logic::throw_exception);
+		if (this->handler_()) {
+			this->current_state_.change_state(state_t::in_handler, state_t::scheduled, error_logic::throw_exception);
+			this->schedule(sp);
       }
       else {
         sp.get<logger>()->trace("tm", sp, "Task %s finished", this->name_.c_str());
-      }
+		this->current_state_.change_state(state_t::in_handler, state_t::eof, error_logic::throw_exception);
+	  }
     }
     else {
-      sp.get<logger>()->trace("tm", sp, "Task finished by shuting down");
+		this->current_state_.change_state(state_t::scheduled, state_t::eof, error_logic::throw_exception);
+		sp.get<logger>()->trace("tm", sp, "Task finished by shuting down");
     }
   }
   catch (const std::exception & ex) {

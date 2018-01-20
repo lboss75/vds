@@ -19,8 +19,9 @@ public:
   void start();
   void stop();
 
-  static void init_root(int index, int udp_port, const std::string & root_password);
-  static void init(int index, int udp_port, const std::string & user_name, const std::string & user_password);
+  static vds::user_invitation init_root(int index, int udp_port, const std::string & root_password);
+  static void init(
+	  int index, int udp_port, const vds::user_invitation & invitation, const std::string & user_password);
   vds::guid last_log_record() const;
 
   template <typename T>
@@ -75,8 +76,9 @@ public:
 
 private:
   std::vector<std::unique_ptr<mock_server>> servers_;
-
   std::string root_password_;
+  vds::user_invitation root_user_invitation_;
+
 
   static std::string generate_password(size_t min_len = 4, size_t max_len = 20);
 };

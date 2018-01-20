@@ -165,6 +165,10 @@ vds::udp_socket &vds::udp_server::socket() {
   return this->impl_->socket();
 }
 
+const vds::udp_socket &vds::udp_server::socket() const{
+	return this->impl_->socket();
+}
+
 void vds::udp_server::prepare_to_stop(const service_provider & sp) {
   this->impl_->prepare_to_stop(sp);
 }

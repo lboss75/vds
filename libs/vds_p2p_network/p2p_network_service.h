@@ -26,9 +26,6 @@ namespace vds {
         const std::list<class certificate> &certificate_chain,
         const class asymmetric_private_key &node_key);
 
-    async_task<> start(const service_provider &sp, const std::string &device_name, int port,
-                                const std::string &login, const std::string &password);
-
 		void stop(const service_provider & sp);
     async_task<> prepare_to_stop(const vds::service_provider &sp);
 

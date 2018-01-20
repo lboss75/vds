@@ -70,6 +70,7 @@ vds::_log_sync_service::~_log_sync_service() {
 
 void vds::_log_sync_service::start(const vds::service_provider &sp) {
   auto scope = sp.create_scope("Sync log");
+  mt_service::enable_async(scope);
   this->update_timer_.start(scope, std::chrono::seconds(1), [pthis = this->shared_from_this(), scope](){
     std::unique_lock<std::mutex> lock(pthis->state_mutex_);
     if(!pthis->sycn_scheduled_){

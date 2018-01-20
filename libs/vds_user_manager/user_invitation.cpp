@@ -1,23 +1,79 @@
-#ifndef __VDS_P2P_NETWORK_P2P_CRYPTO_TUNNEL_WITH_LOGIN_P_H_
-#define __VDS_P2P_NETWORK_P2P_CRYPTO_TUNNEL_WITH_LOGIN_P_H_
-
 /*
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
-#include <transaction_log_record_dbo.h>
-#include <transactions/device_user_add_transaction.h>
-#include <transactions/channel_add_reader_transaction.h>
-#include <channel_dbo.h>
-#include "cert_control.h"
-#include "p2p_crypto_tunnel_p.h"
-#include "user_manager.h"
-#include "chunk_manager.h"
-#include "transaction_log.h"
-#include "member_user.h"
-#include "certificate_dbo.h"
-#include "chunk_data_dbo.h"
+#include "stdafx.h"
+#include "user_invitation.h"
+#include "private/member_user_p.h"
+
+
+/*
+      case command_id::CertRequest: {
+		  std::string login;
+		  const_data_buffer password_hash;
+
+		  s >> login >> password_hash;
+
+		  sp.get<logger>()->trace("P2PUDPAPI", sp, "Got CertRequest %s", login.c_str());
+
+		  sp.get<db_model>()->async_transaction(sp, [pthis = this->shared_from_this(), sp, login, password_hash](database_transaction & t){
+			  dbo::user_dbo t1;
+
+			  auto st = t.get_reader(
+				  t1
+				  .select(t1.id, t1.cert, t1.private_key)
+				  .where(t1.login == login && t1.password_hash == password_hash));
+
+			  binary_serializer result;
+			  if (!st.execute()) {
+				  result << (uint8_t)command_id::CertRequestFailed;
+			  }
+			  else {
+				  auto user_id = t1.id.get(st);
+				  auto user_cert = certificate::parse_der(t1.cert.get(st));
+				  auto private_key = t1.private_key.get(st);
+
+				  std::list<certificate> certificates;
+				  do {
+					  st = t.get_reader(t1.select(t1.cert, t1.parent).where(t1.id == user_id));
+					  if (!st.execute()) {
+						  throw std::runtime_error("Database is corrupted");
+					  }
+
+					  auto cert = certificate::parse_der(t1.cert.get(st));
+					  certificates.push_front(cert);
+
+					  user_id = t1.parent.get(st);
+				  } while (user_id);
+
+				  result << (uint8_t)command_id::CertRequestSuccessful;
+				  result << safe_cast<uint16_t>(certificates.size());
+				  for (auto & cert : certificates) {
+					  result << cert.der();
+				  }
+
+				  result << private_key;
+
+				  auto user_mng = sp.get<user_manager>();
+				  auto common_channel = user_mng->get_common_channel();
+				  result
+					  << common_channel.id()
+					  << common_channel.read_cert().der();
+
+				  result << user_cert.public_key().encrypt(user_mng->get_channel_read_key(common_channel.id()).der(std::string()));
+			  }
+
+			  auto this_ = static_cast<_p2p_crypto_tunnel_with_certificate *>(pthis.get());
+			  this_->send_crypted_command(sp, const_data_buffer(result.data().data(), result.size()));
+		  }).execute([pthis = this->shared_from_this(), sp](const std::shared_ptr<std::exception> & ex){
+			  if (ex) {
+				  pthis->close(sp, ex);
+			  }
+		  });
+
+		  break;
+	  }
 
 namespace vds {
   class _p2p_crypto_tunnel_with_login : public _p2p_crypto_tunnel {
@@ -52,32 +108,21 @@ namespace vds {
                   common_channel_read_cert, common_channel_private_key](
                   database_transaction &t) {
 
-                dbo::channel t3;
-                t.execute(t3.insert(
-                    t3.id = common_channel_id,
-                    t3.read_cert = cert_control::get_id(common_channel_read_cert),
-                    t3.channel_type = (uint8_t)dbo::channel::channel_type_t::simple,
-                    t3.name = "Common channel"));
-
-                dbo::certificate t1;
-                t.execute(
-                    t1.insert(
-                        t1.id = cert_control::get_id(common_channel_read_cert),
-                        t1.cert = common_channel_read_cert.der(),
-                        t1.parent = cert_control::get_parent_id(common_channel_read_cert)
-                    ));
-
+				sp.get<logger>()->info("UDPAPI", sp, "Read certificate %s for channel %s",
+					cert_control::get_id(common_channel_read_cert).str().c_str(),
+					common_channel_id.str().c_str());
 
                 auto this_ = static_cast<_p2p_crypto_tunnel_with_login *>(pthis.get());
                 auto usr_manager = sp.get<user_manager>();
 
+				dbo::user_dbo t1;
                 //save certificates
                 for (auto &cert : this_->certificate_chain_) {
                   t.execute(
                       t1.insert(
-                          t1.id = cert_control::get_id(cert),
+                          t1.id = cert_control::get_user_id(cert),
                           t1.cert = cert.der(),
-                          t1.parent = cert_control::get_parent_id(cert)
+                          t1.parent = cert_control::get_parent_user_id(cert)
                       ));
                 }
 
@@ -89,7 +134,9 @@ namespace vds {
                 auto device_user = usr_manager->lock_to_device(sp, t, user, this_->login_, this_->password_,
                                                                private_key,
                                                                this_->device_name_, this_->private_key_,
-                                                               common_channel_id, this_->port_);
+                                                               common_channel_id, this_->port_,
+																common_channel_read_cert, 
+																common_channel_private_key);
                 this_->certificate_chain_.push_back(device_user.user_certificate());
 
                 sp.get<logger>()->trace(
@@ -100,14 +147,6 @@ namespace vds {
                     cert_control::get_id(common_channel_read_cert).str().c_str(),
                     device_user.id().str().c_str(),
                     cert_control::get_id(device_user.user_certificate()).str().c_str());
-
-                auto user_id = cert_control::get_id(user_cert);
-                usr_manager->allow_read(
-                    t,
-                    device_user,
-                    common_channel_id,
-                    common_channel_read_cert,
-                    common_channel_private_key);
 
                 log.add(
                     transactions::channel_add_reader_transaction(
@@ -226,3 +265,88 @@ namespace vds {
 }
 
 #endif //__VDS_P2P_NETWORK_P2P_CRYPTO_TUNNEL_WITH_LOGIN_P_H_
+*/
+vds::member_user vds::user_invitation::get_user() const
+{
+	return member_user(new _member_user(this->user_id_, this->user_certificate_));
+}
+
+vds::const_data_buffer vds::user_invitation::pack(const std::string& user_password) const
+{
+	return  (
+		binary_serializer()
+		<< this->user_id_
+		<< this->user_name_
+		<< this->user_certificate_
+		<< this->user_private_key_.der(user_password)
+		<< this->common_channel_id_
+		<< this->common_channel_read_cert_
+		<< this->common_channel_private_key_.der(user_password)
+		<< this->certificate_chain_
+		<< asymmetric_sign::signature(
+			hash::sha256(), 
+			this->user_private_key_,
+			(binary_serializer()
+				<< this->user_id_
+				<< this->user_name_
+				<< this->user_certificate_
+				<< this->user_private_key_.der(user_password)
+				<< this->common_channel_id_
+				<< this->common_channel_read_cert_
+				<< this->common_channel_private_key_.der(user_password)
+				<< this->certificate_chain_
+				<< hash::signature(hash::md5(), user_password.c_str(), user_password.length())).data())).data();
+}
+
+vds::user_invitation vds::user_invitation::unpack(const const_data_buffer& data, const std::string& user_password)
+{
+	guid user_id;
+	std::string user_name;
+	certificate user_cert;
+	const_data_buffer user_key_data;
+	guid common_channel_id;
+	certificate common_channel_read_cert;
+	const_data_buffer common_channel_private_key;
+
+	std::list<certificate> certificate_chain;
+	const_data_buffer signature;
+
+	binary_deserializer s(data);
+	s
+		>> user_id
+		>> user_name
+		>> user_cert
+		>> user_key_data
+		>> common_channel_id
+		>> common_channel_read_cert
+		>> common_channel_private_key
+		>> certificate_chain
+		>> signature;
+
+	if (!asymmetric_sign_verify::verify(hash::sha256(), user_cert.public_key(), signature,
+		(binary_serializer()
+			<< user_id
+			<< user_name
+			<< user_cert
+			<< user_key_data
+			<< common_channel_id
+			<< common_channel_read_cert
+			<< common_channel_private_key
+			<< certificate_chain
+			<< hash::signature(hash::md5(), user_password.c_str(), user_password.length())).data()))
+	{
+		throw std::runtime_error("Signature error");
+	}
+
+	const auto user_private_key = asymmetric_private_key::parse_der(user_key_data, user_password);
+
+	return user_invitation(
+		user_id,
+		user_name,
+		user_cert,
+		asymmetric_private_key::parse_der(user_key_data, user_password),
+		common_channel_id,
+		common_channel_read_cert,
+		asymmetric_private_key::parse_der(common_channel_private_key, user_password),
+		certificate_chain);
+}

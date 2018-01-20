@@ -80,7 +80,7 @@ void vds::_chunk_replicator::update_replicas(
     database_transaction &t) {
 
   asymmetric_private_key device_private_key;
-  auto this_device = sp.get<user_manager>()->get_current_device(sp, t, device_private_key);
+  auto this_device = sp.get<user_manager>()->get_current_device(sp, device_private_key);
 
   orm::chunk_data_dbo t1;
   orm::chunk_map_dbo t2;

@@ -66,30 +66,6 @@ void vds::db_model::migrate(
 		  version INTEGER NOT NULL,\
 		  installed DATETIME NOT NULL)");
 
-
-		t.execute("CREATE TABLE cert(\
-			id VARCHAR(64) PRIMARY KEY NOT NULL,\
-			body BLOB NOT NULL,\
-			parent VARCHAR(64))");
-
-		t.execute("CREATE TABLE cert_private_key(\
-			id VARCHAR(64) NOT NULL,\
-      owner_id VARCHAR(64) NOT NULL,\
-			body BLOB NOT NULL,\
-		  CONSTRAINT pk_cert_private_key PRIMARY KEY(id, owner_id))");
-
-		t.execute("CREATE TABLE channel (\
-			id VARCHAR(64) PRIMARY KEY NOT NULL,\
-			channel_type INT NOT NULL,\
-      name VARCHAR(64) NOT NULL,\
-      read_cert VARCHAR(64) NULL,\
-      write_cert VARCHAR(64) NULL)");
-
-		t.execute("CREATE TABLE channel_admin(\
-			id VARCHAR(64) NOT NULL,\
-			member_id VARCHAR(64) NOT NULL,\
-			CONSTRAINT pk_channel_admin PRIMARY KEY(id, member_id))");
-
     t.execute("CREATE TABLE channel_message(\
 			id INTEGER PRIMARY KEY AUTOINCREMENT,\
       channel_id VARCHAR(64) NOT NULL,\
@@ -104,21 +80,14 @@ void vds::db_model::migrate(
 			block_key BLOB NOT NULL,\
 			block_data BLOB NOT NULL)");
 
-		t.execute("CREATE TABLE user (\
-			id VARCHAR(64) PRIMARY KEY NOT NULL,\
-			cert_id VARCHAR(64) NOT NULL,\
-			private_key BLOB NOT NULL,\
-			parent VARCHAR(64),\
-			login VARCHAR(64),\
-			password_hash BLOB NOT NULL,\
-		  CONSTRAINT fk_user_login UNIQUE(login))");
-
     t.execute("CREATE TABLE run_configuration (\
 			id VARCHAR(64) PRIMARY KEY NOT NULL,\
-			cert_id VARCHAR(64) NOT NULL,\
+			cert BLOB NOT NULL,\
       cert_private_key BLOB NOT NULL,\
 			port INTEGER,\
-			common_channel_id VARCHAR(64) NOT NULL)");
+			common_channel_id VARCHAR(64) NOT NULL,\
+			common_channel_read_cert BLOB NOT NULL,\
+			common_channel_pkey BLOB NOT NULL)");
 
 		t.execute("CREATE TABLE well_known_node(\
 			id VARCHAR(64) PRIMARY KEY NOT NULL,\
@@ -146,11 +115,10 @@ void vds::db_model::migrate(
 			device VARCHAR(64) NOT NULL,\
 			CONSTRAINT pk_chunk_map PRIMARY KEY(id,replica,device))");
 
-    t.execute("CREATE TABLE channel_member(\
-			channel_id VARCHAR(64) NOT NULL,\
-			user_cert_id VARCHAR(64) NOT NULL,\
-			member_type INTEGER NOT NULL,\
-			CONSTRAINT pk_channel_member PRIMARY KEY(channel_id,user_cert_id))");
+    t.execute("CREATE TABLE certificate_chain(\
+			id VARCHAR(64) PRIMARY KEY NOT NULL,\
+			cert BLOB NOT NULL,\
+			parent VARCHAR(64) NOT NULL)");
 
 		t.execute("INSERT INTO well_known_node(id, addresses) VALUES(\
 									'3940754a-64dd-4491-9777-719315b36a67',\

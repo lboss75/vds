@@ -34,11 +34,14 @@ vds::async_task<> vds::file_manager::file_operations::upload_file(
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 vds::async_task<> vds::file_manager_private::_file_operations::upload_file(
-    const service_provider & sp,
+    const service_provider & paren_sp,
     const guid & channel_id,
     const std::string &name,
     const std::string &mimetype,
     const vds::filename &file_path) {
+
+	auto sp = paren_sp.create_scope(__FUNCSIG__);
+
 
   return sp.get<db_model>()->async_transaction(
       sp,
@@ -53,9 +56,9 @@ vds::async_task<> vds::file_manager_private::_file_operations::upload_file(
         auto user_mng = sp.get<user_manager>();
 
         asymmetric_private_key device_private_key;
-        auto user = user_mng->get_current_device(sp, t, device_private_key);
+        auto user = user_mng->get_current_device(sp, device_private_key);
 
-        auto channel = user_mng->get_channel(t, channel_id);
+        auto channel = user_mng->get_channel(channel_id);
         if(!channel.write_cert()){
           sp.get<logger>()->error(
               ThisModule,
@@ -64,8 +67,7 @@ vds::async_task<> vds::file_manager_private::_file_operations::upload_file(
               channel_id.str().c_str());
           throw vds_exceptions::access_denied_error("User don't have write permission");
         }
-        auto channel_write_key = user_mng->get_channel_write_key(
-            sp, t, channel, user.id());
+        auto channel_write_key = user_mng->get_channel_write_key(channel.id());
 
         std::list<transactions::file_add_transaction::file_block_t> file_blocks;
         pthis->pack_file(sp, file_path, t, file_blocks);

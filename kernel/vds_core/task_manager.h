@@ -7,6 +7,7 @@
 #include <thread>
 
 #include "service_provider.h"
+#include "state_machine.h"
 
 namespace vds {
   
@@ -30,6 +31,16 @@ namespace vds {
     std::chrono::steady_clock::duration period_;
     std::chrono::time_point<std::chrono::steady_clock> start_time_;
     std::function<bool(void)> handler_;
+
+	  enum state_t {
+		  bof,
+		  started,
+		  scheduled,
+		  in_handler,
+		  eof,
+		  fail
+	  };
+	  state_machine<state_t> current_state_;
     
     void execute(const service_provider& sp);
     void schedule(const service_provider& sp);

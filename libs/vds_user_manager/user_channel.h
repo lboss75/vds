@@ -9,7 +9,6 @@ All rights reserved
 #include <memory>
 #include <guid.h>
 #include "const_data_buffer.h"
-#include "stdafx.h"
 
 namespace vds {
   class member_user;
@@ -37,12 +36,6 @@ namespace vds {
         const vds::certificate & read_cert,
         const vds::certificate & write_cert);
 
-
-    void add_user(const member_user & user);
-    
-    const_data_buffer crypt_message(
-      const member_user & user,
-      const const_data_buffer & message);
 
     const vds::guid &id() const;
     const vds::certificate & read_cert() const;

@@ -8,6 +8,7 @@ All rights reserved
 
 #include "server_statistic.h"
 #include "leak_detect.h"
+#include "user_invitation.h"
 
 namespace vds {
   class server : public iservice_factory
@@ -22,13 +23,17 @@ namespace vds {
     async_task<> prepare_to_stop(const service_provider &sp) override;
 
 
-    vds::async_task<> reset(const vds::service_provider &sp, const std::string &root_user_name, const std::string &root_password,
+    vds::async_task<user_invitation> reset(const vds::service_provider &sp, const std::string &root_user_name, const std::string &root_password,
                                 const std::string &device_name, int port);
 
     vds::async_task<> start_network(const vds::service_provider &sp);
 
-    vds::async_task<> init_server(const vds::service_provider &sp, const std::string &user_login,
-                                      const std::string &user_password, const std::string &device_name, int port);
+    vds::async_task<> init_server(
+		const vds::service_provider &sp,
+		const user_invitation & request,
+		const std::string & user_password,
+		const std::string &device_name,
+		int port);
 
     operator bool () const {
       return nullptr != this->impl_;

@@ -21,13 +21,15 @@ All rights reserved
 #include "encoding.h"
 #include "member_user.h"
 #include "vds_debug.h"
+#include "transaction_log.h"
 
-void vds::transactions::transaction_block::save(
+vds::const_data_buffer vds::transactions::transaction_block::save(
     const service_provider &sp,
     database_transaction &t,
     const certificate & common_read_cert,
     const certificate & write_cert,
-    const asymmetric_private_key & write_private_key) const {
+    const asymmetric_private_key & write_private_key,
+	bool apply /*= true*/) const {
 
   vds_assert(0 != this->s_.size());
 
@@ -49,8 +51,13 @@ void vds::transactions::transaction_block::save(
       write_private_key,
       crypted.data());
 
-  auto id = register_transaction(t, crypted.data(), ancestors);
+  auto id = register_transaction(sp, t, crypted.data(), ancestors);
+  if (apply) {
+	  transaction_log::apply_block(sp, t, id);
+  }
   on_new_transaction(sp, t, id, crypted.data());
+
+  return id;
 }
 
 void vds::transactions::transaction_block::collect_dependencies(
@@ -70,16 +77,18 @@ void vds::transactions::transaction_block::collect_dependencies(
 }
 
 vds::const_data_buffer vds::transactions::transaction_block::register_transaction(
+	const service_provider & sp,
     vds::database_transaction &t,
     const const_data_buffer &block,
     const std::set<const_data_buffer> &ancestors) const {
 
   auto id = hash::signature(hash::sha256(), block);
+  
   orm::transaction_log_record_dbo t2;
   t.execute(t2.insert(
       t2.id = vds::base64::from_bytes(id),
       t2.data = block,
-      t2.state = (uint8_t)orm::transaction_log_record_dbo::state_t::leaf));
+      t2.state = (uint8_t)orm::transaction_log_record_dbo::state_t::validated));
 
   for(auto & ancestor : ancestors){
     orm::transaction_log_record_dbo t1;
@@ -87,7 +96,7 @@ vds::const_data_buffer vds::transactions::transaction_block::register_transactio
         t1.update(t1.state = (uint8_t)orm::transaction_log_record_dbo::state_t::processed)
             .where(t1.id == base64::from_bytes(ancestor)));
   }
-
+  
   return id;
 }
 

@@ -47,6 +47,13 @@ namespace vds {
     return result;
   }
 
+  static inline std::string display_string(const std::string & str, size_t first_symbols = 10, size_t last_symbols = 10) {
+	  if (str.length() < first_symbols + last_symbols + 3) {
+		  return str;
+	  }
+	  return str.substr(0, first_symbols) + "..." + str.substr(str.length() - last_symbols - 1, last_symbols);
+  }
+
 }
 
 #endif//__VDS_CORE_STRING_FORMAT_H_

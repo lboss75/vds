@@ -36,6 +36,16 @@ void vds::_p2p_crypto_tunnel::start(
     const service_provider &sp) {
 
   this->read_input_messages(sp);
+
+  binary_serializer s;
+  s << (uint8_t)command_id::CertCain;
+  s << safe_cast<uint16_t>(this->certificate_chain_.size());
+  for (auto cert : this->certificate_chain_) {
+	  s << cert.der();
+  }
+
+  this->session_.send(sp, const_data_buffer(s.data().data(), s.size()));
+
 }
 
 void vds::_p2p_crypto_tunnel::read_input_messages(const service_provider &sp) {
@@ -67,11 +77,7 @@ void vds::_p2p_crypto_tunnel::send_crypted_command(
 
   binary_serializer s;
   if(!this->output_key_) {
-    if (!this->input_key_) {
-      throw std::runtime_error("Invalid state");
-    }
-    s << (uint8_t) command_id::CryptedByInput;
-    s << symmetric_encrypt::encrypt(this->input_key_, message);
+    throw std::runtime_error("Invalid state");
   }
   else {
     s << (uint8_t) command_id::Crypted;
@@ -188,21 +194,6 @@ void vds::_p2p_crypto_tunnel::process_input_command(
             this->partner_id_,
             this->shared_from_this());
       }
-      break;
-    }
-    case command_id::CryptedByInput:{
-      if(!this->output_key_){
-        throw std::runtime_error("Invalid state");
-      }
-
-      const_data_buffer message;
-      s >> message;
-
-      this->process_input_command(
-          sp,
-          symmetric_decrypt::decrypt(
-              this->output_key_,
-              message.data(), message.size()));
       break;
     }
     case command_id::Data: {

@@ -4,31 +4,29 @@ All rights reserved
 */
 
 #include "stdafx.h"
+#include <set>
 #include "transaction_log.h"
 #include "private/transaction_log_p.h"
 #include "asymmetriccrypto.h"
 #include "database_orm.h"
 #include "db_model.h"
 #include "transaction_block.h"
-#include <set>
-#include <transaction_log_unknown_record_dbo.h>
-#include <transactions/channel_add_writer_transaction.h>
-#include <transactions/device_user_add_transaction.h>
-#include <transactions/channel_create_transaction.h>
-#include <transactions/user_channel_create_transaction.h>
-#include <user_dbo.h>
-#include <run_configuration_dbo.h>
-#include <certificate_private_key_dbo.h>
+#include "transaction_log_unknown_record_dbo.h"
+#include "transactions/channel_add_writer_transaction.h"
+#include "transactions/device_user_add_transaction.h"
+#include "transactions/channel_create_transaction.h"
+#include "transactions/user_channel_create_transaction.h"
+#include "run_configuration_dbo.h"
 #include "vds_debug.h"
 #include "transaction_log_record_dbo.h"
 #include "encoding.h"
 #include "user_manager.h"
 #include "member_user.h"
 #include "cert_control.h"
-#include "certificate_dbo.h"
 #include "vds_exceptions.h"
 #include "encoding.h"
 #include "cert_control.h"
+#include "vds_debug.h"
 
 void vds::transaction_log::save(
 	const service_provider & sp,
@@ -140,13 +138,12 @@ vds::orm::transaction_log_record_dbo::state_t vds::transaction_log::apply_block(
   crypted
       >> signature;
 
+  auto user_mng = sp.get<user_manager>();
   //Validate
   bool is_validated = false;
-  dbo::certificate t1;
-  auto st = t.get_reader(t1.select(t1.cert).where(t1.id == write_cert_id));
-  if (st.execute()) {
-    auto cert = certificate::parse_der(t1.cert.get(st));
-    if (!asymmetric_sign_verify::verify(hash::sha256(), cert.public_key(), signature, block_data.data(), crypted_size)) {
+  auto validate_cert = user_mng->get_certificate(write_cert_id);
+  if (validate_cert) {
+    if (!asymmetric_sign_verify::verify(hash::sha256(), validate_cert.public_key(), signature, block_data.data(), crypted_size)) {
       throw vds_exceptions::signature_validate_error();
     }
 
@@ -158,7 +155,7 @@ vds::orm::transaction_log_record_dbo::state_t vds::transaction_log::apply_block(
   for(auto & id : ancestors){
     auto id_str = base64::from_bytes(id);
     orm::transaction_log_record_dbo t3;
-    st = t.get_reader(t3.select(t3.state).where(t3.id == id_str));
+    auto st = t.get_reader(t3.select(t3.state).where(t3.id == id_str));
     if(!st.execute()) {
       is_ready = false;
 
@@ -208,13 +205,9 @@ vds::orm::transaction_log_record_dbo::state_t vds::transaction_log::apply_block(
       auto user_mng = sp.get<user_manager>();
 
       asymmetric_private_key device_private_key;
-      auto device_user = user_mng->get_current_device(sp, t, device_private_key);
+      auto device_user = user_mng->get_current_device(sp, device_private_key);
 
-      auto common_private_key = user_mng->get_private_key(
-          t,
-          common_read_cert_id,
-          cert_control::get_id(device_user.user_certificate()),
-          device_private_key);
+      auto common_private_key = user_mng->get_common_channel_read_key(common_read_cert_id);
 
       auto key_data = common_private_key.decrypt(crypted_key);
       auto key = symmetric_key::deserialize(symmetric_crypto::aes_256_cbc(), key_data);
@@ -223,7 +216,7 @@ vds::orm::transaction_log_record_dbo::state_t vds::transaction_log::apply_block(
       apply_message(sp, t, data);
 
       orm::transaction_log_unknown_record_dbo t4;
-      st = t.get_reader(
+      auto st = t.get_reader(
           t4.select(t4.follower_id)
               .where(t4.id == base64::from_bytes(block_id)));
       while(st.execute()){
@@ -304,24 +297,20 @@ void vds::transactions::channel_message_transaction::apply(
       t1.message = this->data_,
       t1.signature = this->signature_));
 
-  dbo::run_configuration t2;
-  dbo::certificate t3;
-  auto st = t.get_reader(
-      t2.select(t2.cert_id, t2.cert_private_key, t3.cert)
-          .inner_join(t3, t3.id == t2.cert_id));
-  if (!st.execute()) {
-    throw std::runtime_error("Unable to get current run configuration");
-  }
-  auto device_cert_id = t2.cert_id.get(st);
-  auto device_cert = certificate::parse_der(t3.cert.get(st));
-  auto device_private_key = asymmetric_private_key::parse_der(
-      t2.cert_private_key.get(st), std::string());
-
-
-  st = t.get_reader(
-      t3.select(t3.cert)
-          .where(t3.id == this->write_cert_id_));
-  if (!st.execute()) {
+  auto user_mng = sp.get<user_manager>();
+  user_mng->apply_channel_message(
+	  sp,
+	  this->channel_id_,
+	  this->message_id_,
+	  this->read_cert_id_,
+	  this->write_cert_id_,
+	  this->data_,
+	  this->signature_);
+  /*
+  asymmetric_private_key device_private_key;
+  auto device_user = user_mng->get_current_device(sp, device_private_key);
+  auto write_cert = user_mng->get_channel_write_cert(this->write_cert_id_);
+  if (!write_cert) {
     sp.get<logger>()->trace(
         ThisModule,
         sp,
@@ -331,7 +320,6 @@ void vds::transactions::channel_message_transaction::apply(
     return;
   }
 
-  auto write_cert = certificate::parse_der(t3.cert.get(st));
   if (!asymmetric_sign_verify::verify(
       hash::sha256(),
       write_cert.public_key(),
@@ -345,13 +333,8 @@ void vds::transactions::channel_message_transaction::apply(
     throw std::runtime_error("Write signature error");
   }
 
-
-  dbo::certificate_private_key t4;
-  st = t.get_reader(
-      t4.select(t4.body)
-          .where(t4.id == this->read_cert_id_
-                 && t4.owner_id == device_cert_id));
-  if (!st.execute()) {
+  auto private_key = user_mng->get_channel_read_key(this->read_cert_id_);
+  if (!private_key) {
     sp.get<logger>()->trace(
         ThisModule,
         sp,
@@ -363,11 +346,6 @@ void vds::transactions::channel_message_transaction::apply(
 
     return;
   }
-  auto private_key_data = t4.body.get(st);
-  auto private_key = symmetric_key::deserialize(
-      symmetric_crypto::aes_256_cbc(),
-      binary_deserializer(private_key_data));
-
 
   binary_deserializer s(this->data_);
   const_data_buffer key_data;
@@ -375,7 +353,7 @@ void vds::transactions::channel_message_transaction::apply(
 
   s >> key_data >> crypted_data;
 
-  auto key_info = symmetric_decrypt::decrypt(private_key, key_data);
+  auto key_info = private_key.decrypt(key_data);
   auto key = symmetric_key::deserialize(
       symmetric_crypto::aes_256_cbc(),
       binary_deserializer(key_info));
@@ -390,22 +368,18 @@ void vds::transactions::channel_message_transaction::apply(
 
     case channel_message_id::channel_add_writer_transaction: {
       sp.get<logger>()->trace(ThisModule, sp, "channel_message_id::channel_add_writer_transaction");
-      channel_add_writer_transaction::apply_message(device_cert, sp, t, data_stream);
 
       break;
     }
 
     case channel_message_id::channel_create_transaction:{
       sp.get<logger>()->trace(ThisModule, sp, "channel_message_id::channel_create_transaction");
-
-      if(this->channel_id_ == cert_control::get_user_id(device_cert)) {
-        channel_create_transaction::apply_message(device_cert, sp, t, data_stream);
-      }
       break;
     }
 
     default:
       throw vds_exceptions::invalid_operation();
   }
+  */
 }
 

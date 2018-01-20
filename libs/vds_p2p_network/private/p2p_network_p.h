@@ -31,9 +31,6 @@ namespace vds {
     void add_route(const service_provider &sp, const guid &partner_id,
                        const std::shared_ptr<udp_transport::_session> &session);
 
-    vds::async_task<> init_server(const vds::service_provider &sp, const std::string &user_name,
-                                  const std::string &user_password, const std::string &device_name, int port);
-
     vds::async_task<> start_network(const vds::service_provider &sp);
     async_task<> prepare_to_stop(const vds::service_provider &sp);
     void stop(const vds::service_provider &sp);

@@ -663,6 +663,7 @@ namespace vds {
     }
 
     udp_socket & socket() { return this->socket_; }
+	const udp_socket & socket() const { return this->socket_; }
 
   private:
     udp_socket socket_;
