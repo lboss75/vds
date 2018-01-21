@@ -102,12 +102,12 @@ void vds::file_manager_private::_file_operations::pack_file(
   auto file_size = vds::file::length(file_path);
   if (file_size > 0) {
     if (file_size < vds::file_manager::file_operations::BLOCK_SIZE) {
-      auto buffer = (uint8_t *) alloca(file_size);
+		resizable_data_buffer buffer(file_size);
       vds::file f(file_path, vds::file::file_mode::open_read);
 
-      auto readed = f.read(buffer, file_size);
+      auto readed = f.read(buffer.data(), file_size);
       vds_assert(readed == file_size);
-      auto block_info = chunk_mng->save_block(t, vds::const_data_buffer(buffer, readed));
+      auto block_info = chunk_mng->save_block(t, vds::const_data_buffer(buffer.data(), readed));
       file_blocks.push_back(
           transactions::file_add_transaction::file_block_t
           {
@@ -117,12 +117,12 @@ void vds::file_manager_private::_file_operations::pack_file(
     } else {
       auto count = file_size / vds::file_manager::file_operations::BLOCK_SIZE;
       auto block_size = (file_size + count - 1) / count;
-      auto buffer = (uint8_t *) alloca(block_size);
+		resizable_data_buffer buffer(block_size);
       vds::file f(file_path, vds::file::file_mode::open_read);
 
       for (uint64_t offset = 0; offset < file_size; offset += block_size) {
-        auto readed = f.read(buffer, block_size);
-        auto block_info = chunk_mng->save_block(t, vds::const_data_buffer(buffer, readed));
+        auto readed = f.read(buffer.data(), block_size);
+        auto block_info = chunk_mng->save_block(t, vds::const_data_buffer(buffer.data(), readed));
         file_blocks.push_back(
             transactions::file_add_transaction::file_block_t
                 {

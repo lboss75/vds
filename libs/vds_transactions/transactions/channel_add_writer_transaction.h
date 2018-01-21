@@ -21,6 +21,7 @@ namespace vds {
           const certificate & target_cert,
           const guid & sing_cert_id,
           const asymmetric_private_key & sing_cert_private_key,
+		  const guid & target_channel_id,
 		  const std::string & name,
           const certificate & read_cert,
           const certificate & write_cert,
@@ -33,6 +34,7 @@ namespace vds {
           sing_cert_private_key,
           (
             binary_serializer()
+			    << target_channel_id
 			    << name
                 << read_cert.der()
                 << write_cert.der()
@@ -48,15 +50,18 @@ namespace vds {
 	  static void parse_message(binary_deserializer &data_stream, target t) {
 
 		  std::string name;
-		  const_data_buffer read_cert_der;
-		  const_data_buffer write_cert_der;
+		  guid target_channel_id;
+		  certificate read_cert;
+		  certificate write_cert;
 		  const_data_buffer write_private_key_der;
 
-		  data_stream >> name >> read_cert_der >> write_cert_der >> write_private_key_der;
+		  data_stream >> target_channel_id  >> name >> read_cert >> write_cert >> write_private_key_der;
 
-		  t(name,
-			certificate::parse_der(read_cert_der),
-			certificate::parse_der(write_cert_der),
+		  t(
+			  target_channel_id,
+			  name,
+			read_cert,
+			write_cert,
 			asymmetric_private_key::parse_der(write_private_key_der, std::string()));
 
 	  }

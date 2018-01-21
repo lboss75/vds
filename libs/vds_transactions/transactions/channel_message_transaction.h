@@ -94,13 +94,6 @@ namespace vds {
                 << this->read_cert_id_
                 << this->write_cert_id_
                 << this->data_).data());
-		std::cout << "channel_message_transaction("
-			<< (int)this->message_id_ << ", "
-			<< this->channel_id_.str() << ", "
-			<< this->read_cert_id_.str() << ", "
-			<< this->write_cert_id_.str() << ", "
-			<< display_string(base64::from_bytes(this->data_)) << ", "
-			<< display_string(base64::from_bytes(this->signature_)) << ")\n";
       }
     };
   }

@@ -34,7 +34,9 @@ public:
   }
 
   vds::async_task<vds::server_statistic> get_statistic() const{
-    return this->server_.get_statistic(this->sp_);
+	  auto scope = this->sp_.create_scope(__FUNCSIG__);
+	  vds::mt_service::enable_async(scope);
+    return this->server_.get_statistic(scope);
   }
   
 private:

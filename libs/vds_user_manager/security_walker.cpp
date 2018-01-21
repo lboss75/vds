@@ -23,17 +23,19 @@ void vds::security_walker::load(
 	const service_provider & parent_scope,
 	database_transaction &t) {
 	auto sp = parent_scope.create_scope(__FUNCSIG__);
-	auto log = sp.get<logger>();
+	const auto log = sp.get<logger>();
+
+	this->certificate_chain_[cert_control::get_id(this->user_cert_)] = this->user_cert_;
 
 	dbo::certificate_chain_dbo t2;
-	auto cert_id = cert_control::get_id(this->user_cert_);
+	auto cert_id = cert_control::get_parent_id(this->user_cert_);
 	while (cert_id) {
 
 		auto st = t.get_reader(t2.select(t2.cert).where(t2.id == cert_id));
 		if (!st.execute()) {
 			throw std::runtime_error("Wrong certificate id " + cert_id.str());
 		}
-		auto cert = certificate::parse_der(t2.cert.get(st));
+		const auto cert = certificate::parse_der(t2.cert.get(st));
 		log->debug(ThisModule, sp, "Loaded certificate %s",
 			cert_id.str().c_str());
 
@@ -191,23 +193,27 @@ void vds::security_walker::apply(
     case transactions::channel_message_transaction::channel_message_id::channel_add_writer_transaction: {
 		transactions::channel_add_writer_transaction::parse_message(
 			s,
-			[&cp, log, &sp, &channel_id](
+			[this, log, &sp](
+				const guid & target_channel_id,
 				const std::string & name,
-				const certificate & /*read_cert*/,
+				const certificate & read_cert,
 				const certificate & write_cert,
 				const asymmetric_private_key & write_private_key) {
-
+			auto & cp = this->channels_[target_channel_id];
 			auto id = cert_control::get_id(write_cert);
 			cp.name_ = name;
 			cp.write_certificates_[id] = write_cert;
 			cp.write_private_keys_[id] = write_private_key;
 			cp.current_write_certificate_ = id;
 
-			log->debug(ThisModule, sp, "Got channel %s write certificate %s",
-				channel_id.str().c_str(),
-				id.str().c_str());
+			auto read_id = cert_control::get_id(read_cert);
+			cp.read_certificates_[read_id] = read_cert;
+			cp.current_read_certificate_ = read_id;
 
-
+			log->debug(ThisModule, sp, "Got channel %s write certificate %s, read certificate %s",
+				target_channel_id.str().c_str(),
+				id.str().c_str(),
+				read_id.str().c_str());
 		});
       break;
     }

@@ -17,7 +17,7 @@ namespace vds {
       channel_add_reader_transaction(
           const guid & target_user_id,
           const certificate & target_cert,
-          const guid & sing_cert_id,
+          const certificate & sign_cert,
           const asymmetric_private_key & sing_cert_private_key,
 
           const certificate & read_cert,
@@ -26,13 +26,27 @@ namespace vds {
           channel_message_id::channel_add_reader_transaction,
 		  target_user_id,
           target_cert,
-          sing_cert_id,
+		  cert_control::get_id(sign_cert),
           sing_cert_private_key,
           (
               binary_serializer()
                   << read_cert.der()
                   << read_private_key.der(std::string())
           ).data()) {
+
+		  if (!asymmetric_sign_verify::verify(
+			  hash::sha256(),
+			  sign_cert.public_key(),
+			  this->signature_,
+			  (binary_serializer()
+				  << (uint8_t)this->message_id_
+				  << this->channel_id_
+				  << this->read_cert_id_
+				  << this->write_cert_id_
+				  << this->data_).data())) {
+			  throw std::runtime_error("Write signature error");
+		  }
+
       }
 
       channel_add_reader_transaction(binary_deserializer & s)

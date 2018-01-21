@@ -36,6 +36,7 @@ All rights reserved
 #include "private/p2p_network_p.h"
 #include "log_sync_service.h"
 #include "file_manager_service.h"
+#include "chunk_manager.h"
 
 vds::server::server()
 : impl_(new _server(this))
@@ -57,7 +58,7 @@ void vds::server::register_services(service_registrator& registrator)
 
   registrator.add_service<principal_manager>(&(this->impl_->storage_log_->principal_manager_));
   
-  registrator.add_service<ichunk_manager>(this->impl_->chunk_manager_.get());
+  registrator.add_service<chunk_manager>(this->impl_->chunk_manager_.get());
   
   registrator.add_service<iserver_database>(this->impl_->server_database_.get());
   
@@ -133,7 +134,7 @@ vds::_server::_server(server * owner)
   db_model_(new db_model()),
   server_http_api_(new _server_http_api()),
   storage_log_(new _storage_log()),
-  chunk_manager_(new _chunk_manager()),
+  chunk_manager_(new chunk_manager()),
   server_database_(new _server_database()),
   local_cache_(new _local_cache()),
   p2p_network_(new p2p_network()),

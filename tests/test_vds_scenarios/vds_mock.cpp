@@ -152,7 +152,7 @@ void vds_mock::allow_write_channel(size_t client_index, const vds::guid &channel
   std::shared_ptr<std::exception> error;
 
   auto sp = this->servers_[client_index]->get_service_provider().create_scope(__FUNCSIG__);
-
+  vds::mt_service::enable_async(sp);
   this->servers_[client_index]
       ->get<vds::db_model>()
       ->async_transaction(
@@ -199,6 +199,7 @@ void vds_mock::allow_write_channel(size_t client_index, const vds::guid &channel
                 device_user.user_certificate(),
                 vds::cert_control::get_id(root_user.user_certificate()),
                 root_user_private_key,
+				channel_id,
 				channel_name,
                 channel_read_cert,
                 channel_write_cert,
@@ -231,9 +232,10 @@ void vds_mock::upload_file(size_t client_index, const vds::guid &channel_id, con
                            const std::string &mimetype, const vds::filename &file_path) {
   vds::barrier b;
   std::shared_ptr<std::exception> error;
-
+  auto sp = this->servers_[client_index]->get_service_provider().create_scope(__FUNCSIG__);
+  vds::mt_service::enable_async(sp);
   this->servers_[client_index]->get<vds::file_manager::file_operations>()->upload_file(
-      this->servers_[client_index]->get_service_provider(),
+      sp,
       channel_id,
       name,
       mimetype,
@@ -259,9 +261,11 @@ vds::user_channel vds_mock::create_channel(int index, const std::string &name) {
   vds::user_channel result;
   vds::barrier b;
   std::shared_ptr<std::exception> error;
+  auto sp = this->servers_[index]->get_service_provider().create_scope(__FUNCSIG__);
+  vds::mt_service::enable_async(sp);
   this->servers_[index]->get<vds::db_model>()->async_transaction(
-      this->servers_[index]->get_service_provider(),
-      [this, index, name, &result](vds::database_transaction & t) -> bool{
+      sp,
+      [this, sp, index, name, &result](vds::database_transaction & t) -> bool{
 
 
     auto user_mng = this->servers_[index]->get<vds::user_manager>();
@@ -279,7 +283,7 @@ vds::user_channel vds_mock::create_channel(int index, const std::string &name) {
 	vds::asymmetric_private_key channel_read_private_key;
 	vds::asymmetric_private_key channel_write_private_key;
     result = user_mng->create_channel(
-		this->servers_[index]->get_service_provider(),
+		sp,
         log,
         t,
         vds::guid::new_guid(),
@@ -291,7 +295,7 @@ vds::user_channel vds_mock::create_channel(int index, const std::string &name) {
 		channel_write_private_key);
 
     log.save(
-        this->servers_[index]->get_service_provider(),
+        sp,
         t,
         common_channel.read_cert(),
         root_user.user_certificate(),

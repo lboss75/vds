@@ -116,7 +116,7 @@ vds::user_invitation vds::user_manager::reset(
 	  transactions::channel_add_reader_transaction(
 		  device_user.id(),
 		  device_user.user_certificate(),
-		  cert_control::get_id(root_user.user_certificate()),
+		  root_user.user_certificate(),
 		  root_private_key,
 		  common_channel.read_cert(),
 		  common_read_private_key));
@@ -159,16 +159,24 @@ vds::async_task<> vds::user_manager::init_server(
 		//save certificates
 		dbo::certificate_chain_dbo t1;
 		for (auto &cert : request.certificate_chain()) {
+			sp.get<logger>()->info(ThisModule, sp, "Stored certificate %s", cert_control::get_id(cert).str().c_str());
 			t.execute(
 				t1.insert(
-					t1.id = cert_control::get_user_id(cert),
+					t1.id = cert_control::get_id(cert),
 					t1.cert = cert.der(),
-					t1.parent = cert_control::get_parent_user_id(cert)
+					t1.parent = cert_control::get_parent_id(cert)
 				));
 		}
+		auto user = request.get_user();
+		sp.get<logger>()->info(ThisModule, sp, "Stored certificate %s", cert_control::get_id(user.user_certificate()).str().c_str());
+		t.execute(
+			t1.insert(
+				t1.id = cert_control::get_id(user.user_certificate()),
+				t1.cert = user.user_certificate().der(),
+				t1.parent = cert_control::get_parent_id(user.user_certificate())
+			));
 
 		transactions::transaction_block log;
-		auto user = request.get_user();
 
 		auto private_key = asymmetric_private_key::generate(asymmetric_crypto::rsa4096());
 		auto device_user = this->lock_to_device(
@@ -199,8 +207,8 @@ vds::async_task<> vds::user_manager::init_server(
 			transactions::channel_add_reader_transaction(
 				device_user.id(),
 				device_user.user_certificate(),
-				cert_control::get_id(user.user_certificate()),
-				private_key,
+				user.user_certificate(),
+				request.get_user_private_key(),
 				request.common_channel_read_cert(),
 				request.common_channel_private_key()));
 
@@ -209,11 +217,14 @@ vds::async_task<> vds::user_manager::init_server(
 				device_user.id(),
 				device_user.user_certificate()));
 
-		log.save(
+		auto block_id = log.save(
 			sp, t,
 			request.common_channel_read_cert(),
 			user.user_certificate(),
-			request.get_user_private_key());
+			request.get_user_private_key(),
+			false);
+		this->load(sp, t);
+		transaction_log::apply_block(sp, t, block_id);
 
 		return true;
 	});
@@ -428,6 +439,7 @@ vds::_user_manager::_user_manager(
 
 vds::member_user vds::_user_manager::get_current_device(const service_provider & sp, asymmetric_private_key & device_private_key) const
 {
+	device_private_key = this->user_private_key();
 	return member_user(
 		new _member_user(
 			this->user_id(),
