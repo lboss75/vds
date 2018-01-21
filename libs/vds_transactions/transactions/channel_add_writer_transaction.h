@@ -19,7 +19,7 @@ namespace vds {
       channel_add_writer_transaction(
           const guid & channel_id,
           const certificate & target_cert,
-          const guid & sing_cert_id,
+          const certificate & sing_cert,
           const asymmetric_private_key & sing_cert_private_key,
 		  const guid & target_channel_id,
 		  const std::string & name,
@@ -30,7 +30,7 @@ namespace vds {
           channel_message_id::channel_add_writer_transaction,
           channel_id,
           target_cert,
-          sing_cert_id,
+		  cert_control::get_id(sing_cert),
           sing_cert_private_key,
           (
             binary_serializer()
@@ -55,7 +55,12 @@ namespace vds {
 		  certificate write_cert;
 		  const_data_buffer write_private_key_der;
 
-		  data_stream >> target_channel_id  >> name >> read_cert >> write_cert >> write_private_key_der;
+		  data_stream
+      		>> target_channel_id 
+      		>> name
+      		>> read_cert
+      		>> write_cert
+      		>> write_private_key_der;
 
 		  t(
 			  target_channel_id,

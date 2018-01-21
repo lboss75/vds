@@ -9,6 +9,7 @@ All rights reserved
 #include <memory>
 #include <guid.h>
 #include "const_data_buffer.h"
+#include "transaction_block.h"
 
 namespace vds {
   class member_user;
@@ -33,13 +34,28 @@ namespace vds {
 
     user_channel(
         const guid & id,
-        const vds::certificate & read_cert,
+		const std::string & name,
+		const vds::certificate & read_cert,
         const vds::certificate & write_cert);
 
 
     const vds::guid &id() const;
     const vds::certificate & read_cert() const;
     const vds::certificate & write_cert() const;
+
+	void add_reader(
+		transactions::transaction_block& playback,
+		const member_user& member_user,
+		const vds::member_user& owner_user,
+		const asymmetric_private_key& owner_private_key,
+		const asymmetric_private_key& channel_read_private_key) const;
+
+	void add_writer(
+		transactions::transaction_block& playback,
+		const member_user& member_user,
+		const vds::member_user& owner_user,
+		const asymmetric_private_key& owner_private_key,
+		const asymmetric_private_key& channel_write_private_key) const;
 
   private:
     std::shared_ptr<class _user_channel> impl_;

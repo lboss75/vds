@@ -172,16 +172,19 @@ void vds_mock::allow_write_channel(size_t client_index, const vds::guid &channel
 
             std::string channel_name;
 			vds::certificate channel_read_cert;
-            vds::certificate channel_write_cert;
+			vds::asymmetric_private_key channel_read_private_key;
+			vds::certificate channel_write_cert;
             vds::asymmetric_private_key channel_write_private_key;
             if(!walker.get_channel_write_certificate(
                 channel_id,
                 channel_name,
 				channel_read_cert,
+				channel_read_private_key,
                 channel_write_cert,
                 channel_write_private_key)){
               throw std::runtime_error("Unable to get channel write certificate");
             }
+			vds::user_channel channel(channel_id, channel_name, channel_read_cert, channel_write_cert);
 
 			sp.get<vds::logger>()->trace("MOCK", sp, "Allow write channel %s(%s). Cert %s",
 				channel_name.c_str(),
@@ -194,16 +197,19 @@ void vds_mock::allow_write_channel(size_t client_index, const vds::guid &channel
                 device_private_key);
 
             vds::transactions::transaction_block log;
-            log.add(vds::transactions::channel_add_writer_transaction(
-				device_user.id(),
-                device_user.user_certificate(),
-                vds::cert_control::get_id(root_user.user_certificate()),
-                root_user_private_key,
-				channel_id,
-				channel_name,
-                channel_read_cert,
-                channel_write_cert,
-                channel_write_private_key));
+
+			channel.add_reader(
+				log,
+				device_user,
+				root_user,
+				root_user_private_key,
+				channel_read_private_key);
+			channel.add_writer(
+					log,
+					device_user,
+					root_user,
+					root_user_private_key,
+					channel_write_private_key);
 
             auto common_channel = user_mng->get_common_channel();
             log.save(

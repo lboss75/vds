@@ -41,7 +41,7 @@ vds::const_data_buffer vds::transactions::transaction_block::save(
   binary_serializer crypted;
   crypted
       << cert_control::get_id(common_read_cert)
-	    << cert_control::get_id(write_cert)
+	  << cert_control::get_id(write_cert)
       << ancestors
 	    << symmetric_encrypt::encrypt(key, this->s_.data())
       << common_read_cert.public_key().encrypt(key.serialize());

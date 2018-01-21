@@ -101,7 +101,7 @@ vds::user_invitation vds::user_manager::reset(
   certificate_chain.push_back(root_user.user_certificate());
   auto device_key = asymmetric_private_key::generate(asymmetric_crypto::rsa4096());
   auto device_user = this->lock_to_device(
-      sp, t,
+      sp, t, playback,
 	  certificate_chain,
 	  root_user, root_user_name, root_password, root_private_key,
       device_name, device_key, common_channel_id, port,
@@ -111,15 +111,20 @@ vds::user_invitation vds::user_manager::reset(
       transactions::device_user_add_transaction(
           device_user.id(),
           device_user.user_certificate()));
+  //
+  common_channel.add_reader(
+	  playback,
+	  device_user,
+	  root_user,
+	  root_private_key,
+	  common_read_private_key);
 
-  playback.add(
-	  transactions::channel_add_reader_transaction(
-		  device_user.id(),
-		  device_user.user_certificate(),
-		  root_user.user_certificate(),
-		  root_private_key,
-		  common_channel.read_cert(),
-		  common_read_private_key));
+  common_channel.add_writer(
+	  playback,
+	  device_user,
+	  root_user,
+	  root_private_key,
+	  common_write_private_key);
 
   auto block_id = playback.save(
       sp,
@@ -139,6 +144,8 @@ vds::user_invitation vds::user_manager::reset(
 	  common_channel_id,
 	  common_channel.read_cert(),
 	  common_read_private_key,
+	  common_channel.write_cert(),
+	  common_write_private_key,
 	  std::list<certificate>());
 }
 
@@ -182,6 +189,7 @@ vds::async_task<> vds::user_manager::init_server(
 		auto device_user = this->lock_to_device(
 			sp,
 			t,
+			log,
 			request.certificate_chain(),
 			user,
 			request.get_user_name(),
@@ -192,25 +200,36 @@ vds::async_task<> vds::user_manager::init_server(
 			request.common_channel_id(),
 			port,
 			request.common_channel_read_cert(),
-			request.common_channel_private_key());
+			request.common_channel_read_private_key());
+
+		user_channel channel(
+			request.common_channel_id(),
+			"Common channel",
+			request.common_channel_read_cert(),
+			request.common_channel_write_cert());
 
 		sp.get<logger>()->trace(
 			"UDPAPI",
 			sp,
-			"Allow read common channel (%s->%s) by local device user(%s->%s)",
+			"Allow read/write common channel (%s->%s) by local device user(%s->%s)",
 			request.common_channel_id().str().c_str(),
 			cert_control::get_id(request.common_channel_read_cert()).str().c_str(),
 			device_user.id().str().c_str(),
 			cert_control::get_id(device_user.user_certificate()).str().c_str());
 
-		log.add(
-			transactions::channel_add_reader_transaction(
-				device_user.id(),
-				device_user.user_certificate(),
-				user.user_certificate(),
-				request.get_user_private_key(),
-				request.common_channel_read_cert(),
-				request.common_channel_private_key()));
+		channel.add_reader(
+			log,
+			device_user,
+			user, 
+			request.get_user_private_key(),
+			request.common_channel_read_private_key());
+
+		channel.add_writer(
+			log,
+			device_user,
+			user,
+			request.get_user_private_key(),
+			request.common_channel_write_private_key());
 
 		log.add(
 			transactions::device_user_add_transaction(
@@ -281,11 +300,14 @@ vds::user_manager::create_channel(
           write_cert,
           write_private_key));
 
-  return user_channel(channel_id, read_cert, write_cert);
+  return user_channel(channel_id, name, read_cert, write_cert);
 }
 
 vds::member_user
-vds::user_manager::lock_to_device(const vds::service_provider &sp, vds::database_transaction &t,
+vds::user_manager::lock_to_device(
+	const vds::service_provider &sp,
+	vds::database_transaction &t,
+	transactions::transaction_block & playback,
 	const std::list<certificate> & certificate_chain,
                                   const member_user &user,
 								  const std::string &user_name,
@@ -327,6 +349,7 @@ vds::user_manager::lock_to_device(const vds::service_provider &sp, vds::database
 		  t4.id = cert_control::get_id(device_user.user_certificate()),
 		  t4.cert = device_user.user_certificate().der(),
 		  t4.parent = cert_control::get_parent_id(device_user.user_certificate())));
+
   return device_user;
 }
 
@@ -450,6 +473,7 @@ vds::user_channel vds::_user_manager::get_channel(const guid & channel_id) const
 {
 	return user_channel(
 		channel_id,
+		this->get_channel_name(channel_id),
 		this->get_channel_read_cert(channel_id),
 		this->get_channel_write_cert(channel_id));
 }

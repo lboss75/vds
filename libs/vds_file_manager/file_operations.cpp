@@ -83,12 +83,13 @@ vds::async_task<> vds::file_manager_private::_file_operations::upload_file(
                 mimetype,
                 file_blocks));
 
-        log.save(
+		auto common_channel_write_key = user_mng->get_channel_write_key(user_mng->get_common_channel().id());
+		log.save(
             sp,
             t,
-            channel.read_cert(),
-            user.user_certificate(),
-            device_private_key);
+			user_mng->get_common_channel().read_cert(),
+			user_mng->get_common_channel().write_cert(),
+			common_channel_write_key);
       }
   );
 }

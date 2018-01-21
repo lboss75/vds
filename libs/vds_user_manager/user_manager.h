@@ -56,6 +56,7 @@ namespace vds {
 	member_user lock_to_device(
         const service_provider &sp,
         class database_transaction &t,
+		transactions::transaction_block & playback,
 		const std::list<certificate> & certificate_chain,
         const member_user &user,
         const std::string &user_name,

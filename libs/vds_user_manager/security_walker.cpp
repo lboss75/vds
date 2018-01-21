@@ -260,6 +260,7 @@ vds::security_walker::get_channel_write_certificate(
     const guid &channel_id,
     std::string & name,
 	certificate & read_certificate,
+	asymmetric_private_key &read_key,
     certificate & write_certificate,
     asymmetric_private_key &write_key) const {
   auto p = this->channels_.find(channel_id);
@@ -273,6 +274,10 @@ vds::security_walker::get_channel_write_certificate(
 	  auto p1 = p->second.read_certificates_.find(p->second.current_read_certificate_);
 	  if (p->second.read_certificates_.end() != p1) {
 		  read_certificate = p1->second;
+	  }
+	  auto p2 = p->second.read_private_keys_.find(p->second.current_read_certificate_);
+	  if (p->second.read_private_keys_.end() != p2) {
+		  read_key = p2->second;
 	  }
   }
 

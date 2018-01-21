@@ -15,7 +15,7 @@ namespace vds {
     class channel_add_reader_transaction : public channel_message_transaction {
     public:
       channel_add_reader_transaction(
-          const guid & target_user_id,
+          const guid & target_channel_id,
           const certificate & target_cert,
           const certificate & sign_cert,
           const asymmetric_private_key & sing_cert_private_key,
@@ -24,7 +24,7 @@ namespace vds {
           const asymmetric_private_key & read_private_key)
           : channel_message_transaction(
           channel_message_id::channel_add_reader_transaction,
-		  target_user_id,
+		  target_channel_id,
           target_cert,
 		  cert_control::get_id(sign_cert),
           sing_cert_private_key,

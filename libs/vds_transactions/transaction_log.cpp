@@ -119,7 +119,7 @@ vds::orm::transaction_log_record_dbo::state_t vds::transaction_log::apply_block(
     const vds::const_data_buffer &block_data,
     std::list<const_data_buffer> & followers) {
   //Parse block
-  guid common_read_cert_id;
+  guid read_cert_id;
   guid write_cert_id;
   std::set<const_data_buffer> ancestors;
   const_data_buffer body;
@@ -128,7 +128,7 @@ vds::orm::transaction_log_record_dbo::state_t vds::transaction_log::apply_block(
 
   binary_deserializer crypted(block_data);
   crypted
-      >> common_read_cert_id
+      >> read_cert_id
       >> write_cert_id
       >> ancestors
       >> body
@@ -207,7 +207,7 @@ vds::orm::transaction_log_record_dbo::state_t vds::transaction_log::apply_block(
       asymmetric_private_key device_private_key;
       auto device_user = user_mng->get_current_device(sp, device_private_key);
 
-      auto common_private_key = user_mng->get_common_channel_read_key(common_read_cert_id);
+      auto common_private_key = user_mng->get_common_channel_read_key(read_cert_id);
 
       auto key_data = common_private_key.decrypt(crypted_key);
       auto key = symmetric_key::deserialize(symmetric_crypto::aes_256_cbc(), key_data);

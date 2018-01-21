@@ -21,14 +21,18 @@ namespace vds {
 			const guid & common_channel_id,
 			const certificate & common_channel_read_cert,
 			const asymmetric_private_key & common_channel_private_key,
-			const std::list<certificate> & certificate_chain)
+		  const certificate & common_channel_write_cert,
+		  const asymmetric_private_key & common_channel_write_private_key,
+		  const std::list<certificate> & certificate_chain)
 		  :user_id_(user_id),
 		  user_name_(user_name),
 		  user_certificate_(user_certificate),
 		  user_private_key_(user_private_key),
 		  common_channel_id_(common_channel_id),
 		  common_channel_read_cert_(common_channel_read_cert),
-		  common_channel_private_key_(common_channel_private_key),
+		  common_channel_read_private_key_(common_channel_private_key),
+		  common_channel_write_cert_(common_channel_write_cert),
+		  common_channel_write_private_key_(common_channel_write_private_key),
 		  certificate_chain_(certificate_chain)
 
 	  {		  
@@ -49,8 +53,17 @@ namespace vds {
 		  return this->common_channel_read_cert_;
 	  }
 
-	  const asymmetric_private_key & common_channel_private_key() const {
-		  return  this->common_channel_private_key_;
+	  const asymmetric_private_key & common_channel_read_private_key() const {
+		  return  this->common_channel_read_private_key_;
+	  }
+
+	  const certificate & common_channel_write_cert() const
+	  {
+		  return this->common_channel_write_cert_;
+	  }
+
+	  const asymmetric_private_key & common_channel_write_private_key() const {
+		  return  this->common_channel_write_private_key_;
 	  }
 
 	  const std::list<certificate> & certificate_chain() const
@@ -71,7 +84,9 @@ namespace vds {
 
 	  guid common_channel_id_;
 	  certificate common_channel_read_cert_;
-	  asymmetric_private_key common_channel_private_key_;
+	  asymmetric_private_key common_channel_read_private_key_;
+	  certificate common_channel_write_cert_;
+	  asymmetric_private_key common_channel_write_private_key_;
 
 	  std::list<certificate> certificate_chain_;
 
