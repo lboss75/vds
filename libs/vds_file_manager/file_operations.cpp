@@ -32,6 +32,12 @@ vds::async_task<> vds::file_manager::file_operations::upload_file(
   return this->impl_->upload_file(sp, channel_id, name, mimetype, file_path);
 }
 
+vds::async_task<std::string> vds::file_manager::file_operations::download_file(const service_provider& sp,
+	const vds::guid& channel_id, const std::string& name, const vds::filename& file_path)
+{
+	return this->impl_->download_file(sp, channel_id, name, file_path);
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////////
 vds::async_task<> vds::file_manager_private::_file_operations::upload_file(
     const service_provider & paren_sp,
@@ -90,8 +96,78 @@ vds::async_task<> vds::file_manager_private::_file_operations::upload_file(
 			user_mng->get_common_channel().read_cert(),
 			user_mng->get_common_channel().write_cert(),
 			common_channel_write_key);
+
+		return true;
       }
   );
+}
+
+vds::async_task<std::string> vds::file_manager_private::_file_operations::download_file(
+	const service_provider& parent_sp,
+	const guid& channel_id,
+	const std::string& name,
+	const filename& file_path)
+{
+	auto sp = parent_sp.create_scope(__FUNCSIG__);
+	auto mime_type = std::make_shared<std::string>();
+	return vds::async_task<>([sp, name, channel_id, file_path, mime_type, pthis = this->shared_from_this()](const vds::async_result<> & result) {
+		return sp.get<db_model>()->async_transaction(
+			sp,
+			[pthis, sp, name, result, file_path, mime_type, channel_id](database_transaction & t) {
+
+			auto user_mng = sp.get<user_manager>();
+			auto channel = user_mng->get_channel(channel_id);
+
+			dbo::channel_message t1;
+			auto st = t.get_reader(
+				t1
+				.select(t1.id, t1.message)
+				.where(t1.channel_id == channel_id
+					&& t1.message_id == (int)transactions::channel_message_transaction::channel_message_id::file_add_transaction)
+				.order_by(db_desc_order(t1.id)));
+			while (st.execute())
+			{
+				auto data = t1.message.get(st);
+
+				binary_deserializer s(data);
+
+				transactions::file_add_transaction::parse_message(s, [pthis, result, mime_type, name](
+					const std::string &record_name,
+					const std::string &record_mimetype,
+					const std::list<transactions::file_add_transaction::file_block_t> &file_blocks) {
+					if (name == record_name) {
+						*mime_type = record_mimetype;
+						auto runner = new _async_series(result, file_blocks.size());
+						for(auto & block : file_blocks) {
+							runner->add(pthis->download_block(sp, t, block));							
+						}
+					}
+				});
+
+				if (!mime_type->empty()) {
+					break;
+				}
+			}
+
+			if(mime_type->empty())
+			{
+				result.error(std::make_shared<vds_exceptions::not_found>());
+			}
+
+			return true;
+		});
+	}).then([mime_type]() {
+		return *mime_type;
+	});
+}
+
+vds::async_task<> vds::file_manager_private::_file_operations::download_block(
+	const service_provider& sp,
+	database_transaction& t,
+	const transactions::file_add_transaction::file_block_t& block_id)
+{
+	auto chunk_mng = sp.get<vds::chunk_manager>();
+	chunk_mng->unpack_block();
 }
 
 void vds::file_manager_private::_file_operations::pack_file(

@@ -234,8 +234,12 @@ void vds_mock::allow_write_channel(size_t client_index, const vds::guid &channel
   }
 }
 
-void vds_mock::upload_file(size_t client_index, const vds::guid &channel_id, const std::string &name,
-                           const std::string &mimetype, const vds::filename &file_path) {
+void vds_mock::upload_file(
+	size_t client_index,
+	const vds::guid &channel_id,
+	const std::string &name,
+    const std::string &mimetype,
+	const vds::filename &file_path) {
   vds::barrier b;
   std::shared_ptr<std::exception> error;
   auto sp = this->servers_[client_index]->get_service_provider().create_scope(__FUNCSIG__);
@@ -259,8 +263,31 @@ void vds_mock::upload_file(size_t client_index, const vds::guid &channel_id, con
   }
 }
 
-vds::const_data_buffer vds_mock::download_data(size_t client_index, const std::string &name) {
-  throw std::runtime_error("Not implemented");
+void vds_mock::download_data(
+	size_t client_index,
+	const vds::guid &channel_id, 
+	const std::string &name,
+	const vds::filename &file_path) {
+	vds::barrier b;
+	std::shared_ptr<std::exception> error;
+	auto sp = this->servers_[client_index]->get_service_provider().create_scope(__FUNCSIG__);
+	vds::mt_service::enable_async(sp);
+	this->servers_[client_index]->get<vds::file_manager::file_operations>()->download_file(
+		sp,
+		channel_id,
+		name,
+		file_path)
+		.execute([&b, &error](const std::shared_ptr<std::exception> & ex, const std::string & mimetype) {
+		if (ex) {
+			error = ex;
+		}
+		b.set();
+	});
+
+	b.wait();
+	if (error) {
+		throw std::runtime_error(error->what());
+	}
 }
 
 vds::user_channel vds_mock::create_channel(int index, const std::string &name) {

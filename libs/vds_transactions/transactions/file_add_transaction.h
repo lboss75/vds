@@ -54,6 +54,17 @@ namespace vds {
         (binary_serializer() << name << mimetype << file_blocks).data()) {
     }
 
+	template <typename target>
+	static void parse_message(binary_deserializer &data_stream, target t) {
+		std::string name;
+		std::string mimetype;
+		std::list<file_add_transaction::file_block_t> file_blocks;
+
+		data_stream >> name >> mimetype >> file_blocks;
+
+		t(name, mimetype, file_blocks);
+	}
+
   }
 }
 #endif //__VDS_FILE_MANAGER_FILE_ADD_TRANSACTION_H_

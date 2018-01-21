@@ -49,7 +49,10 @@ TEST(test_vds, test_initial)
 
     std::cout << "Download local file...\n";
 
-    auto result1 = mock.download_data(3, "test data");
+	vds::filename tmp_ofn(folder, "out_data");
+	mock.download_data(3, channel.id(), "test data", tmp_ofn);
+
+	auto result1 = vds::file::read_all(tmp_ofn);
     ASSERT_EQ(len, result1.size());
     ASSERT_EQ(memcmp(buffer.get(), result1.data(), len), 0);
 
@@ -57,7 +60,8 @@ TEST(test_vds, test_initial)
     mock.sync_wait();
     std::cout << "Download file...\n";
 
-    auto result = mock.download_data(4, "test data");
+	mock.download_data(4, channel.id(), "test data", tmp_ofn);
+	auto result = vds::file::read_all(tmp_ofn);
 
     mock.stop();
    

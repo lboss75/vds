@@ -70,8 +70,12 @@ public:
   void upload_file(size_t client_index, const vds::guid &channel_id, const std::string &name,
                      const std::string &mimetype, const vds::filename &file_path);
 
-  vds::const_data_buffer download_data(size_t client_index, const std::string & name);
-  
+  void vds_mock::download_data(
+	  size_t client_index,
+	  const vds::guid &channel_id,
+	  const std::string &name,
+	  const vds::filename &file_path);
+
   void sync_wait();
 
   vds::user_channel create_channel(int index, const std::string &name);

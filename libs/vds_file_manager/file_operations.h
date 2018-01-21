@@ -23,9 +23,18 @@ namespace vds {
 
       file_operations();
 
-      vds::async_task<> upload_file(const service_provider &sp, const vds::guid &channel_id,
-                                          const std::string &name, const std::string &mimetype,
-                                          const vds::filename &file_path);
+      vds::async_task<> upload_file(
+		  const service_provider &sp,
+		  const vds::guid &channel_id,
+          const std::string &name,
+		  const std::string &mimetype,
+          const vds::filename &file_path);
+
+	  vds::async_task<std::string /*mimetype*/> download_file(
+		  const service_provider &sp,
+		  const vds::guid &channel_id,
+		  const std::string &name,
+		  const vds::filename &file_path);
 
     protected:
       std::shared_ptr<file_manager_private::_file_operations> impl_;
