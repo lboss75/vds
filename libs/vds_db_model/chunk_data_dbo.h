@@ -9,7 +9,7 @@ All rights reserved
 #include "database_orm.h"
 
 namespace vds {
-  namespace orm {
+  namespace dbo {
 
     class chunk_data_dbo : public database_table {
     public:

@@ -19,7 +19,7 @@ namespace vds {
           const std::string &mimetype,
           const filename &file_path);
 
-	    async_task<std::string> download_file(
+	    async_task<vds::file_manager::file_operations::download_file_result_t> download_file(
 			const service_provider& sp,
 			const guid& channel_id,
 			const std::string& name,
@@ -28,7 +28,8 @@ namespace vds {
 	    async_task<> download_block(
 			const service_provider& sp,
 			database_transaction& t,
-			const transactions::file_add_transaction::file_block_t& block_id);
+			const transactions::file_add_transaction::file_block_t& block_id,
+			const std::shared_ptr<vds::file_manager::file_operations::download_file_result_t> & result);
 
     private:
       void pack_file(

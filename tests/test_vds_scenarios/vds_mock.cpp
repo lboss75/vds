@@ -277,10 +277,16 @@ void vds_mock::download_data(
 		channel_id,
 		name,
 		file_path)
-		.execute([&b, &error](const std::shared_ptr<std::exception> & ex, const std::string & mimetype) {
+		.execute([&b, &error](const std::shared_ptr<std::exception> & ex, const vds::file_manager::file_operations::download_file_result_t & download_result) {
 		if (ex) {
 			error = ex;
 		}
+		std::cout
+		<< "Downloaded "
+		<< download_result.local_block_count
+		<< " of "
+		<< (download_result.local_block_count + download_result.remote_block_count)
+		<< "\n";
 		b.set();
 	});
 

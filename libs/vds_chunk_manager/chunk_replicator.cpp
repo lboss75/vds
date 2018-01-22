@@ -82,8 +82,8 @@ void vds::_chunk_replicator::update_replicas(
   asymmetric_private_key device_private_key;
   auto this_device = sp.get<user_manager>()->get_current_device(sp, device_private_key);
 
-  orm::chunk_data_dbo t1;
-  orm::chunk_map_dbo t2;
+  dbo::chunk_data_dbo t1;
+  dbo::chunk_map_dbo t2;
   auto st = t.get_reader(
       t1.select(t1.id, db_count(t2.replica))
           .left_join(t2, t1.id == t2.id)

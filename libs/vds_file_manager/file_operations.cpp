@@ -18,6 +18,9 @@ All rights reserved
 #include "transactions/channel_add_message_transaction.h"
 #include "vds_exceptions.h"
 #include "cert_control.h"
+#include "chunk_data_dbo.h"
+#include "chunk_replica_dbo.h"
+#include "chunk_replicator.h"
 
 vds::file_manager::file_operations::file_operations()
 : impl_(new file_manager_private::_file_operations()){
@@ -32,7 +35,8 @@ vds::async_task<> vds::file_manager::file_operations::upload_file(
   return this->impl_->upload_file(sp, channel_id, name, mimetype, file_path);
 }
 
-vds::async_task<std::string> vds::file_manager::file_operations::download_file(const service_provider& sp,
+vds::async_task<vds::file_manager::file_operations::download_file_result_t>
+vds::file_manager::file_operations::download_file(const service_provider& sp,
 	const vds::guid& channel_id, const std::string& name, const vds::filename& file_path)
 {
 	return this->impl_->download_file(sp, channel_id, name, file_path);
@@ -102,18 +106,18 @@ vds::async_task<> vds::file_manager_private::_file_operations::upload_file(
   );
 }
 
-vds::async_task<std::string> vds::file_manager_private::_file_operations::download_file(
+vds::async_task<vds::file_manager::file_operations::download_file_result_t> vds::file_manager_private::_file_operations::download_file(
 	const service_provider& parent_sp,
 	const guid& channel_id,
 	const std::string& name,
 	const filename& file_path)
 {
 	auto sp = parent_sp.create_scope(__FUNCSIG__);
-	auto mime_type = std::make_shared<std::string>();
-	return vds::async_task<>([sp, name, channel_id, file_path, mime_type, pthis = this->shared_from_this()](const vds::async_result<> & result) {
-		return sp.get<db_model>()->async_transaction(
+	auto result_data = std::make_shared<vds::file_manager::file_operations::download_file_result_t>();
+	return vds::async_task<>([sp, name, channel_id, file_path, result_data, pthis = this->shared_from_this()](const vds::async_result<> & result) {
+		sp.get<db_model>()->async_transaction(
 			sp,
-			[pthis, sp, name, result, file_path, mime_type, channel_id](database_transaction & t) {
+			[pthis, sp, name, result, file_path, result_data, channel_id](database_transaction & t) {
 
 			auto user_mng = sp.get<user_manager>();
 			auto channel = user_mng->get_channel(channel_id);
@@ -131,43 +135,73 @@ vds::async_task<std::string> vds::file_manager_private::_file_operations::downlo
 
 				binary_deserializer s(data);
 
-				transactions::file_add_transaction::parse_message(s, [pthis, result, mime_type, name](
+				transactions::file_add_transaction::parse_message(s, [pthis, sp, &t, result, result_data, name](
 					const std::string &record_name,
 					const std::string &record_mimetype,
 					const std::list<transactions::file_add_transaction::file_block_t> &file_blocks) {
 					if (name == record_name) {
-						*mime_type = record_mimetype;
+						result_data->mime_type = record_mimetype;
 						auto runner = new _async_series(result, file_blocks.size());
 						for(auto & block : file_blocks) {
-							runner->add(pthis->download_block(sp, t, block));							
+							runner->add(pthis->download_block(sp, t, block, result_data));
 						}
 					}
 				});
 
-				if (!mime_type->empty()) {
+				if (!result_data->mime_type.empty()) {
 					break;
 				}
 			}
 
-			if(mime_type->empty())
-			{
+			return true;
+		}).execute([result, result_data](const std::shared_ptr<std::exception> & ex) {
+			if(ex) {
+				result.error(ex);
+			}
+			else if (result_data->mime_type.empty()) {
 				result.error(std::make_shared<vds_exceptions::not_found>());
 			}
 
-			return true;
 		});
-	}).then([mime_type]() {
-		return *mime_type;
+	}).then([result_data]() {
+		return *result_data;
 	});
 }
 
 vds::async_task<> vds::file_manager_private::_file_operations::download_block(
 	const service_provider& sp,
 	database_transaction& t,
-	const transactions::file_add_transaction::file_block_t& block_id)
+	const transactions::file_add_transaction::file_block_t& block_id,
+	const std::shared_ptr<vds::file_manager::file_operations::download_file_result_t> & result)
 {
-	auto chunk_mng = sp.get<vds::chunk_manager>();
-	chunk_mng->unpack_block();
+	dbo::chunk_data_dbo t1;
+	auto st = t.get_reader(t1.select(t1.id).where(t1.id == base64::from_bytes(block_id.block_id)));
+	if(st.execute())
+	{
+		result->local_block_count++;
+	}
+	else
+	{
+		dbo::chunk_replica_dbo t2;
+		st = t.get_reader(t2.select(db_count(t2.id)).where(t2.id == base64::from_bytes(block_id.block_id)));
+		st.execute();
+
+		uint64_t count;
+		if(!st.get_value(0, count)) {
+			throw std::runtime_error("Unexpected error");
+		}
+
+		if(count >= chunk_replicator::MIN_HORCRUX)
+		{
+			result->local_block_count++;
+		}
+		else
+		{
+			result->remote_block_count++;
+
+			throw std::runtime_error("Not implemented");
+		}
+	}
 }
 
 void vds::file_manager_private::_file_operations::pack_file(
