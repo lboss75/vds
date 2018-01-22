@@ -27,12 +27,12 @@ namespace vds {
       }
 
       database_column<int> id;
-      database_column <guid> channel_id;
+      database_column<guid> channel_id;
       database_column<int> message_id;
-      database_column <guid> read_cert_id;
-      database_column <guid> write_cert_id;
-      database_column <const_data_buffer> message;
-      database_column <const_data_buffer> signature;
+      database_column<guid> read_cert_id;
+      database_column<guid> write_cert_id;
+      database_column<const_data_buffer> message;
+      database_column<const_data_buffer> signature;
     };
   }
 }
