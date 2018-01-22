@@ -130,8 +130,8 @@ vds::user_invitation vds::user_manager::reset(
       sp,
       t,
       common_channel.read_cert(),
-      root_user.user_certificate(),
-      root_private_key,
+      common_channel.write_cert(),
+      common_write_private_key,
 	  false);
   this->load(sp, t);
   transaction_log::apply_block(sp, t, block_id);
@@ -156,7 +156,7 @@ vds::async_task<> vds::user_manager::init_server(
 	const std::string & device_name,
 	int port)
 {
-	auto sp = parent_sp.create_scope(__FUNCSIG__);
+	auto sp = parent_sp.create_scope(__FUNCTION__);
 	return sp.get<db_model>()->async_transaction(sp, [this, sp, request, user_password, device_name, port](database_transaction & t)
 	{
 		sp.get<logger>()->info("UDPAPI", sp, "Read certificate %s for channel %s",
@@ -239,8 +239,8 @@ vds::async_task<> vds::user_manager::init_server(
 		auto block_id = log.save(
 			sp, t,
 			request.common_channel_read_cert(),
-			user.user_certificate(),
-			request.get_user_private_key(),
+			request.common_channel_write_cert(),
+			request.common_channel_write_private_key(),
 			false);
 		this->load(sp, t);
 		transaction_log::apply_block(sp, t, block_id);
@@ -369,6 +369,11 @@ vds::certificate vds::user_manager::get_channel_write_cert(const guid & channel_
 	return this->impl_->get_channel_write_cert(channel_id);
 }
 
+vds::certificate vds::user_manager::get_channel_write_cert(const guid & channel_id, const guid & cert_id) const
+{
+  return this->impl_->get_channel_write_cert(channel_id, cert_id);
+}
+
 vds::asymmetric_private_key vds::user_manager::get_channel_write_key(const guid & channel_id) const
 {
 	return this->impl_->get_channel_write_key(channel_id);
@@ -450,6 +455,21 @@ vds::guid vds::user_manager::get_common_channel_id() const
 	return this->impl_->get_common_channel_id();
 }
 
+vds::const_data_buffer
+vds::user_manager::decrypt_message(const vds::service_provider &parent_scope, const vds::guid &channel_id,
+                                   int message_id, const vds::guid &read_cert_id, const vds::guid &write_cert_id,
+                                   const vds::const_data_buffer &message_data,
+                                   const vds::const_data_buffer &signature) {
+  return this->impl_->decrypt_message(
+      parent_scope,
+      channel_id,
+      message_id,
+      read_cert_id,
+      write_cert_id,
+      message_data,
+      signature);
+}
+
 ////////////////////////////////////////////////////////////////////////
 vds::_user_manager::_user_manager(
 	const guid & common_channel_id,
@@ -477,3 +497,4 @@ vds::user_channel vds::_user_manager::get_channel(const guid & channel_id) const
 		this->get_channel_read_cert(channel_id),
 		this->get_channel_write_cert(channel_id));
 }
+

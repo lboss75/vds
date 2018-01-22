@@ -75,6 +75,7 @@ namespace vds {
 
     certificate get_channel_write_cert(const guid &channel_id) const;
 	asymmetric_private_key get_channel_write_key(const guid &channel_id) const;
+		certificate get_channel_write_cert(const guid & channel_id, const guid & cert_id) const;
 
 	certificate get_channel_read_cert(const guid &channel_id) const;
 	asymmetric_private_key get_channel_read_key(const guid &channel_id) const;
@@ -87,7 +88,16 @@ namespace vds {
     user_channel get_channel(const guid &channel_id) const;
     user_channel get_common_channel() const;
 
-	void apply_channel_message(
+    const_data_buffer decrypt_message(
+        const service_provider & parent_scope,
+        const guid & channel_id,
+        int message_id,
+        const guid & read_cert_id,
+        const guid & write_cert_id,
+        const const_data_buffer & message_data,
+        const const_data_buffer & signature);
+
+    void apply_channel_message(
 		const service_provider & sp,
 		const guid & channel_id,
 		int message_id,

@@ -151,7 +151,7 @@ void vds_mock::allow_write_channel(size_t client_index, const vds::guid &channel
   vds::barrier b;
   std::shared_ptr<std::exception> error;
 
-  auto sp = this->servers_[client_index]->get_service_provider().create_scope(__FUNCSIG__);
+  auto sp = this->servers_[client_index]->get_service_provider().create_scope(__FUNCTION__);
   vds::mt_service::enable_async(sp);
   this->servers_[client_index]
       ->get<vds::db_model>()
@@ -216,8 +216,8 @@ void vds_mock::allow_write_channel(size_t client_index, const vds::guid &channel
                 sp,
                 t,
                 common_channel.read_cert(),
-                root_user.user_certificate(),
-                root_user_private_key);
+                common_channel.write_cert(),
+                user_mng->get_channel_write_key(common_channel.id()));
 
             return true;
           })
@@ -242,7 +242,7 @@ void vds_mock::upload_file(
 	const vds::filename &file_path) {
   vds::barrier b;
   std::shared_ptr<std::exception> error;
-  auto sp = this->servers_[client_index]->get_service_provider().create_scope(__FUNCSIG__);
+  auto sp = this->servers_[client_index]->get_service_provider().create_scope(__FUNCTION__);
   vds::mt_service::enable_async(sp);
   this->servers_[client_index]->get<vds::file_manager::file_operations>()->upload_file(
       sp,
@@ -270,7 +270,7 @@ void vds_mock::download_data(
 	const vds::filename &file_path) {
 	vds::barrier b;
 	std::shared_ptr<std::exception> error;
-	auto sp = this->servers_[client_index]->get_service_provider().create_scope(__FUNCSIG__);
+	auto sp = this->servers_[client_index]->get_service_provider().create_scope(__FUNCTION__);
 	vds::mt_service::enable_async(sp);
 	this->servers_[client_index]->get<vds::file_manager::file_operations>()->download_file(
 		sp,
@@ -300,7 +300,7 @@ vds::user_channel vds_mock::create_channel(int index, const std::string &name) {
   vds::user_channel result;
   vds::barrier b;
   std::shared_ptr<std::exception> error;
-  auto sp = this->servers_[index]->get_service_provider().create_scope(__FUNCSIG__);
+  auto sp = this->servers_[index]->get_service_provider().create_scope(__FUNCTION__);
   vds::mt_service::enable_async(sp);
   this->servers_[index]->get<vds::db_model>()->async_transaction(
       sp,
@@ -337,8 +337,8 @@ vds::user_channel vds_mock::create_channel(int index, const std::string &name) {
         sp,
         t,
         common_channel.read_cert(),
-        root_user.user_certificate(),
-        root_private_key);
+        common_channel.write_cert(),
+        user_mng->get_channel_write_key(common_channel.id()));
 
     return true;
   }).execute([&b, &error](const std::shared_ptr<std::exception> & ex){

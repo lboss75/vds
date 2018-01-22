@@ -37,7 +37,17 @@ namespace vds {
 		const service_provider & sp, 
 		class database_transaction &t);
 
-    void apply(
+    const_data_buffer decrypt_message(
+        const service_provider & parent_scope,
+        const guid & channel_id,
+        int message_id,
+        const guid & read_cert_id,
+        const guid & write_cert_id,
+        const const_data_buffer & message_data,
+        const const_data_buffer & signature);
+
+
+      void apply(
 		const service_provider & sp,
         const guid & channel_id,
         int message_id,
@@ -73,6 +83,17 @@ namespace vds {
 		}
 		return certificate();
 	}
+		certificate get_channel_write_cert(const guid &channel_id, const guid &cert_id) const {
+			auto p = this->channels_.find(channel_id);
+			if (this->channels_.end() != p) {
+				auto p1 = p->second.write_certificates_.find(cert_id);
+				if (p->second.write_certificates_.end() != p1) {
+					return p1->second;
+				}
+			}
+
+			return certificate();
+		}
 
 	asymmetric_private_key get_channel_write_key(const guid &channel_id) const {
 		auto p = this->channels_.find(channel_id);

@@ -22,8 +22,9 @@ vds::security_walker::security_walker(
 void vds::security_walker::load(
 	const service_provider & parent_scope,
 	database_transaction &t) {
-	auto sp = parent_scope.create_scope(__FUNCSIG__);
+	auto sp = parent_scope.create_scope(__FUNCTION__);
 	const auto log = sp.get<logger>();
+	log->trace(ThisModule, sp, "security_walker::load");
 
 	this->certificate_chain_[cert_control::get_id(this->user_cert_)] = this->user_cert_;
 
@@ -60,6 +61,7 @@ void vds::security_walker::load(
           .order_by(t1.id));
 
   while (st.execute()) {
+    log->trace(ThisModule, sp, "Apply message %d", t1.message_id.get(st));
     this->apply(
 		sp,
         t1.channel_id.get(st),
@@ -71,8 +73,8 @@ void vds::security_walker::load(
   }
 }
 
-void vds::security_walker::apply(
-	const service_provider & parent_scope,
+vds::const_data_buffer vds::security_walker::decrypt_message(
+    const service_provider & parent_scope,
     const guid & channel_id,
     int message_id,
     const guid & read_cert_id,
@@ -80,44 +82,25 @@ void vds::security_walker::apply(
     const const_data_buffer & message_data,
     const const_data_buffer & signature) {
 
-	if (channel_id != this->user_id_) {
-		return;
-	}
-
-	auto sp = parent_scope.create_scope(__FUNCSIG__);
-	auto log = sp.get<logger>();
-	log->debug(ThisModule, sp, "Channel %s: Apply message %d, read cert %s, write_cert %s, message len %d, signature len %d",
-		channel_id.str().c_str(),
-		message_id,
-		read_cert_id.str().c_str(),
-		write_cert_id.str().c_str(),
-		message_data.size(),
-		signature.size());
-
+  auto sp = parent_scope.create_scope(__FUNCTION__);
+  auto log = sp.get<logger>();
   auto &cp = this->channels_[channel_id];
 
   certificate write_cert;
   auto p = cp.write_certificates_.find(write_cert_id);
   if (cp.write_certificates_.end() == p) {
-	  log->warning(ThisModule, sp, "Write cert %s has not been found",
-		  write_cert_id.str().c_str());
-	  if (channel_id == this->user_id_) {
-		  if (channel_id == cert_control::get_user_id(this->user_cert_)) {
-			  write_cert = this->get_certificate(write_cert_id);
-		  }
-		  else {
-			  throw std::runtime_error(
-				  string_format(
-					  "Unknown write certificate %s",
-					  write_cert_id.str().c_str()));
-		  }
-	  }
-	  else {
-		  return;
-	  }
-  }
-  else {
-	  write_cert = p->second;
+    log->warning(ThisModule, sp, "Write cert %s has not been found",
+                 write_cert_id.str().c_str());
+    if (channel_id == cert_control::get_user_id(this->user_cert_)) {
+      write_cert = this->get_certificate(write_cert_id);
+    } else {
+      throw std::runtime_error(
+          string_format(
+              "Unknown write certificate %s",
+              write_cert_id.str().c_str()));
+    }
+  } else {
+    write_cert = p->second;
   }
 
   if (!asymmetric_sign_verify::verify(
@@ -125,31 +108,27 @@ void vds::security_walker::apply(
       write_cert.public_key(),
       signature,
       (binary_serializer()
-          << (uint8_t)message_id
+          << (uint8_t) message_id
           << channel_id
           << read_cert_id
           << write_cert_id
           << message_data).data())) {
-	  log->error(ThisModule, sp, "Write signature error");
-	  throw std::runtime_error("Write signature error");
+    log->error(ThisModule, sp, "Write signature error");
+    throw std::runtime_error("Write signature error");
   }
 
   asymmetric_private_key read_key;
   auto p1 = cp.read_private_keys_.find(read_cert_id);
   if (cp.read_private_keys_.end() == p1) {
-	  log->warning(ThisModule, sp, "Read cert %s has not been found",
-		  read_cert_id.str().c_str());
-	  if (channel_id == this->user_id_) {
-      if(channel_id == cert_control::get_user_id(this->user_cert_)){
-        read_key = this->user_private_key_;
-      } else {
-        throw std::runtime_error(
-            string_format(
-                "Unknown read certificate %s",
-                read_cert_id.str().c_str()));
-      }
+    log->warning(ThisModule, sp, "Read cert %s has not been found",
+                 read_cert_id.str().c_str());
+    if (channel_id == cert_control::get_user_id(this->user_cert_)) {
+      read_key = this->user_private_key_;
     } else {
-      return;
+      throw std::runtime_error(
+          string_format(
+              "Unknown read certificate %s",
+              read_cert_id.str().c_str()));
     }
   } else {
     read_key = p1->second;
@@ -166,7 +145,40 @@ void vds::security_walker::apply(
       symmetric_crypto::aes_256_cbc(),
       binary_deserializer(key_info));
 
-  auto data = symmetric_decrypt::decrypt(key, crypted_data);
+  return symmetric_decrypt::decrypt(key, crypted_data);
+}
+
+void vds::security_walker::apply(
+	const service_provider & parent_scope,
+    const guid & channel_id,
+    int message_id,
+    const guid & read_cert_id,
+    const guid & write_cert_id,
+    const const_data_buffer & message_data,
+    const const_data_buffer & signature) {
+
+	if (channel_id != this->user_id_) {
+		return;
+	}
+	auto sp = parent_scope.create_scope(__FUNCTION__);
+	auto log = sp.get<logger>();
+	log->debug(ThisModule, sp, "Channel %s: Apply message %d, read cert %s, write_cert %s, message len %d, signature len %d",
+		channel_id.str().c_str(),
+		message_id,
+		read_cert_id.str().c_str(),
+		write_cert_id.str().c_str(),
+		message_data.size(),
+		signature.size());
+
+  auto data = this->decrypt_message(
+      parent_scope,
+      channel_id,
+      message_id,
+      read_cert_id,
+      write_cert_id,
+      message_data,
+      signature);
+
   binary_deserializer s(data);
 
   switch ((transactions::channel_message_transaction::channel_message_id) message_id) {
@@ -179,6 +191,7 @@ void vds::security_walker::apply(
       auto read_private_key = asymmetric_private_key::parse_der(read_private_key_der, std::string());
 
       auto id = cert_control::get_id(read_cert);
+      auto &cp = this->channels_[channel_id];
       cp.read_certificates_[id] = read_cert;
       cp.read_private_keys_[id] = read_private_key;
       cp.current_read_certificate_ = id;

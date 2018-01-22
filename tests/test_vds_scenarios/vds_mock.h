@@ -34,7 +34,7 @@ public:
   }
 
   vds::async_task<vds::server_statistic> get_statistic() const{
-	  auto scope = this->sp_.create_scope(__FUNCSIG__);
+	  auto scope = this->sp_.create_scope(__FUNCTION__);
 	  vds::mt_service::enable_async(scope);
     return this->server_.get_statistic(scope);
   }
@@ -70,11 +70,11 @@ public:
   void upload_file(size_t client_index, const vds::guid &channel_id, const std::string &name,
                      const std::string &mimetype, const vds::filename &file_path);
 
-  void vds_mock::download_data(
+  void download_data(
 	  size_t client_index,
-	  const vds::guid &channel_id,
-	  const std::string &name,
-	  const vds::filename &file_path);
+	  const vds::guid & channel_id,
+	  const std::string & name,
+	  const vds::filename & file_path);
 
   void sync_wait();
 

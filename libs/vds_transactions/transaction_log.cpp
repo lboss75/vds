@@ -139,9 +139,10 @@ vds::orm::transaction_log_record_dbo::state_t vds::transaction_log::apply_block(
       >> signature;
 
   auto user_mng = sp.get<user_manager>();
+  auto common_channel = user_mng->get_common_channel();
   //Validate
   bool is_validated = false;
-  auto validate_cert = user_mng->get_certificate(write_cert_id);
+  auto validate_cert = user_mng->get_channel_write_cert(common_channel.id(), write_cert_id);
   if (validate_cert) {
     if (!asymmetric_sign_verify::verify(hash::sha256(), validate_cert.public_key(), signature, block_data.data(), crypted_size)) {
       throw vds_exceptions::signature_validate_error();
@@ -199,42 +200,49 @@ vds::orm::transaction_log_record_dbo::state_t vds::transaction_log::apply_block(
 
   }
 
-  if(is_validated) {
-    if(is_ready){
-      //Decrypt
-      auto user_mng = sp.get<user_manager>();
+  if(is_ready){
+    //Decrypt
+    auto user_mng = sp.get<user_manager>();
 
-      asymmetric_private_key device_private_key;
-      auto device_user = user_mng->get_current_device(sp, device_private_key);
+    asymmetric_private_key device_private_key;
+    auto device_user = user_mng->get_current_device(sp, device_private_key);
 
-      auto common_private_key = user_mng->get_common_channel_read_key(read_cert_id);
+    auto common_private_key = user_mng->get_common_channel_read_key(read_cert_id);
 
-      auto key_data = common_private_key.decrypt(crypted_key);
-      auto key = symmetric_key::deserialize(symmetric_crypto::aes_256_cbc(), key_data);
+    auto key_data = common_private_key.decrypt(crypted_key);
+    auto key = symmetric_key::deserialize(symmetric_crypto::aes_256_cbc(), key_data);
 
-      auto data = symmetric_decrypt::decrypt(key, body);
-      apply_message(sp, t, data);
+    auto data = symmetric_decrypt::decrypt(key, body);
+    apply_message(sp, t, data);
 
-      orm::transaction_log_unknown_record_dbo t4;
-      auto st = t.get_reader(
-          t4.select(t4.follower_id)
-              .where(t4.id == base64::from_bytes(block_id)));
-      while(st.execute()){
-        followers.push_back(base64::to_bytes(t4.id.get(st)));
-      }
-
-      orm::transaction_log_record_dbo t2;
-      if(followers.empty()) {
-        return orm::transaction_log_record_dbo::state_t::leaf;
-      } else {
-        return orm::transaction_log_record_dbo::state_t::processed;
+    if(!is_validated){
+      auto validate_cert = user_mng->get_channel_write_cert(common_channel.id(), write_cert_id);
+      if (!validate_cert
+          || !asymmetric_sign_verify::verify(hash::sha256(), validate_cert.public_key(), signature, block_data.data(), crypted_size)) {
+          throw vds_exceptions::signature_validate_error();
       }
     }
-    else {
-      return orm::transaction_log_record_dbo::state_t::validated;
+
+    orm::transaction_log_unknown_record_dbo t4;
+    auto st = t.get_reader(
+        t4.select(t4.follower_id)
+            .where(t4.id == base64::from_bytes(block_id)));
+    while(st.execute()){
+      followers.push_back(base64::to_bytes(t4.id.get(st)));
+    }
+
+    orm::transaction_log_record_dbo t2;
+    if(followers.empty()) {
+      return orm::transaction_log_record_dbo::state_t::leaf;
+    } else {
+      return orm::transaction_log_record_dbo::state_t::processed;
     }
   }
-  return orm::transaction_log_record_dbo::state_t::none;
+  else {
+    return is_validated
+           ? orm::transaction_log_record_dbo::state_t::validated
+           : orm::transaction_log_record_dbo::state_t::none;
+  }
 }
 
 void vds::transaction_log::apply_message(
@@ -306,80 +314,5 @@ void vds::transactions::channel_message_transaction::apply(
 	  this->write_cert_id_,
 	  this->data_,
 	  this->signature_);
-  /*
-  asymmetric_private_key device_private_key;
-  auto device_user = user_mng->get_current_device(sp, device_private_key);
-  auto write_cert = user_mng->get_channel_write_cert(this->write_cert_id_);
-  if (!write_cert) {
-    sp.get<logger>()->trace(
-        ThisModule,
-        sp,
-        "Unknown write certificate %s",
-        this->write_cert_id_.str().c_str());
-
-    return;
-  }
-
-  if (!asymmetric_sign_verify::verify(
-      hash::sha256(),
-      write_cert.public_key(),
-      this->signature_,
-      (binary_serializer()
-          << this->message_id_
-          << this->channel_id_
-          << this->read_cert_id_
-          << this->write_cert_id_
-          << this->data_).data())) {
-    throw std::runtime_error("Write signature error");
-  }
-
-  auto private_key = user_mng->get_channel_read_key(this->read_cert_id_);
-  if (!private_key) {
-    sp.get<logger>()->trace(
-        ThisModule,
-        sp,
-        "Unknown read certificate msg: %d, channel: %s, read cert: %s, write cert: %s",
-        this->message_id_,
-        this->channel_id_.str().c_str(),
-        this->read_cert_id_.str().c_str(),
-        this->write_cert_id_.str().c_str());
-
-    return;
-  }
-
-  binary_deserializer s(this->data_);
-  const_data_buffer key_data;
-  const_data_buffer crypted_data;
-
-  s >> key_data >> crypted_data;
-
-  auto key_info = private_key.decrypt(key_data);
-  auto key = symmetric_key::deserialize(
-      symmetric_crypto::aes_256_cbc(),
-      binary_deserializer(key_info));
-
-  auto data = symmetric_decrypt::decrypt(key, crypted_data);
-  binary_deserializer data_stream(data);
-
-  switch ((channel_message_id) this->message_id_) {
-    case channel_message_id::file_add_transaction:
-      sp.get<logger>()->trace(ThisModule, sp, "channel_message_id::file_add_transaction");
-      break;
-
-    case channel_message_id::channel_add_writer_transaction: {
-      sp.get<logger>()->trace(ThisModule, sp, "channel_message_id::channel_add_writer_transaction");
-
-      break;
-    }
-
-    case channel_message_id::channel_create_transaction:{
-      sp.get<logger>()->trace(ThisModule, sp, "channel_message_id::channel_create_transaction");
-      break;
-    }
-
-    default:
-      throw vds_exceptions::invalid_operation();
-  }
-  */
 }
 

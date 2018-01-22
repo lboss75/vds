@@ -99,7 +99,7 @@ struct run_data
 
 
 vds::async_task<> vds::_p2p_network::start_network(const vds::service_provider &parent_scope) {
-	auto sp = parent_scope.create_scope(__FUNCSIG__);
+	auto sp = parent_scope.create_scope(__PRETTY_FUNCTION__);
 	imt_service::enable_async(sp);
 
   auto run_conf = std::make_shared<std::list<run_data>>();

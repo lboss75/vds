@@ -50,7 +50,7 @@ vds::async_task<> vds::file_manager_private::_file_operations::upload_file(
     const std::string &mimetype,
     const vds::filename &file_path) {
 
-	auto sp = paren_sp.create_scope(__FUNCSIG__);
+	auto sp = paren_sp.create_scope(__FUNCTION__);
 
 
   return sp.get<db_model>()->async_transaction(
@@ -112,7 +112,7 @@ vds::async_task<vds::file_manager::file_operations::download_file_result_t> vds:
 	const std::string& name,
 	const filename& file_path)
 {
-	auto sp = parent_sp.create_scope(__FUNCSIG__);
+	auto sp = parent_sp.create_scope(__FUNCTION__);
 	auto result_data = std::make_shared<vds::file_manager::file_operations::download_file_result_t>();
 	return vds::async_task<>([sp, name, channel_id, file_path, result_data, pthis = this->shared_from_this()](const vds::async_result<> & result) {
 		sp.get<db_model>()->async_transaction(
@@ -125,15 +125,28 @@ vds::async_task<vds::file_manager::file_operations::download_file_result_t> vds:
 			dbo::channel_message t1;
 			auto st = t.get_reader(
 				t1
-				.select(t1.id, t1.message)
+				.select(
+            t1.id,
+            t1.message_id,
+            t1.message,
+            t1.read_cert_id,
+            t1.write_cert_id,
+            t1.signature)
 				.where(t1.channel_id == channel_id
 					&& t1.message_id == (int)transactions::channel_message_transaction::channel_message_id::file_add_transaction)
 				.order_by(db_desc_order(t1.id)));
 			while (st.execute())
 			{
-				auto data = t1.message.get(st);
+        auto data = user_mng->decrypt_message(
+            sp,
+            channel_id,
+            t1.message_id.get(st),
+            t1.read_cert_id.get(st),
+            t1.write_cert_id.get(st),
+            t1.message.get(st),
+            t1.signature.get(st));
 
-				binary_deserializer s(data);
+        binary_deserializer s(data);
 
 				transactions::file_add_transaction::parse_message(s, [pthis, sp, &t, result, result_data, name](
 					const std::string &record_name,
@@ -202,6 +215,7 @@ vds::async_task<> vds::file_manager_private::_file_operations::download_block(
 			throw std::runtime_error("Not implemented");
 		}
 	}
+	return async_task<>::empty();
 }
 
 void vds::file_manager_private::_file_operations::pack_file(
