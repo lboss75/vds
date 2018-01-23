@@ -66,7 +66,7 @@ void vds::file::open(const vds::filename& filename, vds::file::file_mode mode)
   this->handle_ = ::open(filename.local_name().c_str(), oflags, S_IREAD | S_IWRITE);
   if (0 > this->handle_) {
     auto error = errno;
-    throw std::system_error(error, std::system_category(), "Unable to open file " + this->filename_.str());
+с    throw std::system_error(error, std::system_category(), "Unable to open file " + this->filename_.str());
   }
 #else
 
