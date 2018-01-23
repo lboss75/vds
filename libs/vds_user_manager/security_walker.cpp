@@ -6,6 +6,7 @@
 #include "transactions/channel_add_writer_transaction.h"
 #include "vds_debug.h"
 #include "certificate_chain_dbo.h"
+#include "transactions/channel_add_reader_transaction.h"
 
 vds::security_walker::security_walker(
 	const guid & common_channel_id,
@@ -192,23 +193,32 @@ void vds::security_walker::apply(
 
   switch ((transactions::channel_message_transaction::channel_message_id) message_id) {
     case transactions::channel_message_transaction::channel_message_id::channel_add_reader_transaction: {
-      const_data_buffer read_cert_der;
-      const_data_buffer read_private_key_der;
-      s >> read_cert_der >> read_private_key_der;
+		transactions::channel_add_reader_transaction::parse_message(
+			s,
+			[this, log, &sp](
+				const guid & target_channel_id,
+				const std::string & name,
+				const certificate & read_cert,
+				const asymmetric_private_key & read_private_key,
+				const certificate & write_cert) {
 
-      auto read_cert = certificate::parse_der(read_cert_der);
-      auto read_private_key = asymmetric_private_key::parse_der(read_private_key_der, std::string());
 
-      auto id = cert_control::get_id(read_cert);
-      auto &cp = this->channels_[channel_id];
-      cp.read_certificates_[id] = read_cert;
-      cp.read_private_keys_[id] = read_private_key;
-      cp.current_read_certificate_ = id;
+			auto &cp = this->channels_[target_channel_id];
 
-	  log->debug(ThisModule, sp, "Got channel %s reader certificate %s",
-		  channel_id.str().c_str(),
-		  id.str().c_str());
+			cp.name_ = name;
 
+			auto write_id = cert_control::get_id(write_cert);
+			cp.write_certificates_[write_id] = write_cert;
+
+			auto id = cert_control::get_id(read_cert);
+			cp.read_certificates_[id] = read_cert;
+			cp.read_private_keys_[id] = read_private_key;
+			cp.current_read_certificate_ = id;
+
+			log->debug(ThisModule, sp, "Got channel %s reader certificate %s",
+				target_channel_id.str().c_str(),
+				id.str().c_str());
+		});
       break;
     }
 
