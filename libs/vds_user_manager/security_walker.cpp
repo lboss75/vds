@@ -84,6 +84,15 @@ vds::const_data_buffer vds::security_walker::decrypt_message(
 
   auto sp = parent_scope.create_scope(__FUNCTION__);
   auto log = sp.get<logger>();
+
+  log->debug(ThisModule, sp, "Decrypt channel %s message %d, read cert %s, write_cert %s, message len %d, signature len %d",
+	  channel_id.str().c_str(),
+	  message_id,
+	  read_cert_id.str().c_str(),
+	  write_cert_id.str().c_str(),
+	  message_data.size(),
+	  signature.size());
+
   auto &cp = this->channels_[channel_id];
 
   certificate write_cert;
@@ -127,7 +136,7 @@ vds::const_data_buffer vds::security_walker::decrypt_message(
     } else {
       throw std::runtime_error(
           string_format(
-              "Unknown read certificate %s",
+              "Unknown read certificate %s private key",
               read_cert_id.str().c_str()));
     }
   } else {
