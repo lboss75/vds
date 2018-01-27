@@ -268,32 +268,42 @@ void vds_mock::download_data(
 	const vds::guid &channel_id, 
 	const std::string &name,
 	const vds::filename &file_path) {
-	vds::barrier b;
-	std::shared_ptr<std::exception> error;
 	auto sp = this->servers_[client_index]->get_service_provider().create_scope(__FUNCTION__);
 	vds::mt_service::enable_async(sp);
-	this->servers_[client_index]->get<vds::file_manager::file_operations>()->download_file(
-		sp,
-		channel_id,
-		name,
-		file_path)
-		.execute([&b, &error](const std::shared_ptr<std::exception> & ex, const vds::file_manager::file_operations::download_file_result_t & download_result) {
-		if (ex) {
-			error = ex;
-		}
-		std::cout
-		<< "Downloaded "
-		<< download_result.local_block_count
-		<< " of "
-		<< (download_result.local_block_count + download_result.remote_block_count)
-		<< "\n";
-		b.set();
-	});
+  auto task = std::make_shared<vds::file_manager::download_file_task>(
+      channel_id,
+      name,
+      file_path);
+  for(int try_count = 0; try_count < 10; ++try_count) {
+    vds::barrier b;
+    std::shared_ptr<std::exception> error;
+    this->servers_[client_index]->get<vds::file_manager::file_operations>()->download_file(
+            sp,
+            task)
+        .execute([&b, &error, task](const std::shared_ptr<std::exception> &ex) {
+          if (ex) {
+            error = ex;
+          }
+          std::cout
+              << "Downloaded "
+              << task->local_block_count()
+              << " of "
+              << (task->local_block_count() + task->remote_block_count())
+              << "\n";
+          b.set();
+        });
 
-	b.wait();
-	if (error) {
-		throw std::runtime_error(error->what());
-	}
+    b.wait();
+    if (error) {
+      throw std::runtime_error(error->what());
+    }
+
+    if (0 == task->remote_block_count()) {
+      break;
+    }
+
+    std::this_thread::sleep_for(std::chrono::seconds(5));
+  }
 }
 
 vds::user_channel vds_mock::create_channel(int index, const std::string &name) {

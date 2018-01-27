@@ -7,9 +7,11 @@ All rights reserved
 */
 #include <string>
 #include <guid.h>
+#include <transactions/file_add_transaction.h>
 #include "const_data_buffer.h"
 #include "async_task.h"
 #include "filename.h"
+#include "download_file_task.h"
 
 namespace vds {
   namespace file_manager_private {
@@ -30,23 +32,10 @@ namespace vds {
 		  const std::string &mimetype,
           const vds::filename &file_path);
 
-		struct download_file_result_t
-		{
-			std::string mime_type;
-			uint16_t local_block_count;
-			uint16_t remote_block_count;
 
-			download_file_result_t()
-				: local_block_count(0), remote_block_count(0)
-			{				
-			}
-		};
-
-	  vds::async_task<download_file_result_t> download_file(
+	  vds::async_task<> download_file(
 		  const service_provider &sp,
-		  const vds::guid &channel_id,
-		  const std::string &name,
-		  const vds::filename &file_path);
+			const std::shared_ptr<download_file_task> & task);
 
     protected:
       std::shared_ptr<file_manager_private::_file_operations> impl_;

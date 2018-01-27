@@ -94,6 +94,7 @@ namespace vds {
     bool get_value(int index, int & value)
     {
       assert(read_state == this->state_);
+      assert(0 <= index && index < sqlite3_column_count(this->stmt_));
 
       value = sqlite3_column_int(this->stmt_, index);
       return true;
@@ -102,7 +103,8 @@ namespace vds {
     bool get_value(int index, uint64_t & value)
     {
       assert(read_state == this->state_);
-      
+      assert(0 <= index && index < sqlite3_column_count(this->stmt_));
+
       value = sqlite3_column_int64(this->stmt_, index);
       return true;
     }
@@ -110,7 +112,8 @@ namespace vds {
     bool get_value(int index, std::string & value)
     {
       assert(read_state == this->state_);
-      
+      assert(0 <= index && index < sqlite3_column_count(this->stmt_));
+
       auto v = (const char *)sqlite3_column_text(this->stmt_, index);
       if(nullptr == v){
         return false;
@@ -123,7 +126,8 @@ namespace vds {
     bool get_value(int index, guid & value)
     {
       assert(read_state == this->state_);
-      
+      assert(0 <= index && index < sqlite3_column_count(this->stmt_));
+
       std::string v;
       if (!this->get_value(index, v)) {
         return false;
@@ -136,6 +140,7 @@ namespace vds {
     bool get_value(int index, const_data_buffer & value)
     {
       assert(read_state == this->state_);
+      assert(0 <= index && index < sqlite3_column_count(this->stmt_));
 
       auto size = sqlite3_column_bytes(this->stmt_, index);
       if (0 >= size) {
@@ -152,12 +157,14 @@ namespace vds {
     bool get_value(int index, double & value)
     {
       assert(read_state == this->state_);
+      assert(0 <= index && index < sqlite3_column_count(this->stmt_));
 
       value = sqlite3_column_double(this->stmt_, index);
       return true;
     }
 
     bool is_null(int index) const {
+      assert(0 <= index && index < sqlite3_column_count(this->stmt_));
       return (SQLITE_NULL == sqlite3_column_type(this->stmt_, index));
     }
 

@@ -80,7 +80,7 @@ namespace vds {
     _database_column_base(
       const database_table * owner,
       const std::string & name)
-      : owner_(owner), name_(name)
+      : owner_(owner), name_(name), index_(-1)
     {
     }
 

@@ -18,6 +18,7 @@ namespace vds {
 			struct file_block_t {
 				const_data_buffer block_id;
 				const_data_buffer block_key;
+				uint32_t block_size;
 			};
 
 			file_add_transaction(
@@ -63,13 +64,13 @@ namespace vds {
 inline vds::binary_serializer & operator << (
 	vds::binary_serializer & s,
 	const vds::transactions::file_add_transaction::file_block_t & data) {
-	return s << data.block_id << data.block_key;
+	return s << data.block_id << data.block_key << data.block_size;
 }
 
 inline vds::binary_deserializer & operator >> (
 	vds::binary_deserializer & s,
 	vds::transactions::file_add_transaction::file_block_t & data) {
-	return s >> data.block_id >> data.block_key;
+	return s >> data.block_id >> data.block_key >> data.block_size;
 }
 
 #endif //__VDS_FILE_MANAGER_FILE_ADD_TRANSACTION_H_

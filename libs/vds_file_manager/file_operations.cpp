@@ -35,11 +35,12 @@ vds::async_task<> vds::file_manager::file_operations::upload_file(
   return this->impl_->upload_file(sp, channel_id, name, mimetype, file_path);
 }
 
-vds::async_task<vds::file_manager::file_operations::download_file_result_t>
-vds::file_manager::file_operations::download_file(const service_provider& sp,
-	const vds::guid& channel_id, const std::string& name, const vds::filename& file_path)
+vds::async_task<>
+vds::file_manager::file_operations::download_file(
+    const service_provider &sp,
+    const std::shared_ptr<download_file_task> & task)
 {
-	return this->impl_->download_file(sp, channel_id, name, file_path);
+	return this->impl_->download_file(sp, task);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
@@ -106,97 +107,99 @@ vds::async_task<> vds::file_manager_private::_file_operations::upload_file(
   );
 }
 
-vds::async_task<vds::file_manager::file_operations::download_file_result_t> vds::file_manager_private::_file_operations::download_file(
+vds::async_task<> vds::file_manager_private::_file_operations::download_file(
 	const service_provider& parent_sp,
-	const guid& channel_id,
-	const std::string& name,
-	const filename& file_path)
+  const std::shared_ptr<vds::file_manager::download_file_task> & task)
 {
 	auto sp = parent_sp.create_scope(__FUNCTION__);
-	auto result_data = std::make_shared<vds::file_manager::file_operations::download_file_result_t>();
-	return vds::async_task<>([sp, name, channel_id, file_path, result_data, pthis = this->shared_from_this()](const vds::async_result<> & result) {
+	return vds::async_task<>([sp, task, pthis = this->shared_from_this()](const vds::async_result<> & result) {
 		sp.get<db_model>()->async_transaction(
 			sp,
-			[pthis, sp, name, result, file_path, result_data, channel_id](database_transaction & t) {
+			[pthis, sp, task, result](database_transaction & t) {
+        if(task->file_blocks().empty()) {
 
-			auto user_mng = sp.get<user_manager>();
-			auto channel = user_mng->get_channel(channel_id);
+          auto user_mng = sp.get<user_manager>();
+          auto channel = user_mng->get_channel(task->channel_id());
 
-			dbo::channel_message t1;
-			auto st = t.get_reader(
-				t1
-				.select(
-            t1.id,
-            t1.message_id,
-            t1.message,
-            t1.read_cert_id,
-            t1.write_cert_id,
-            t1.signature)
-				.where(t1.channel_id == channel_id
-					&& t1.message_id == (int)transactions::channel_message_transaction::channel_message_id::file_add_transaction)
-				.order_by(db_desc_order(t1.id)));
-			while (st.execute())
-			{
-        auto data = user_mng->decrypt_message(
-            sp,
-            channel_id,
-            t1.message_id.get(st),
-            t1.read_cert_id.get(st),
-            t1.write_cert_id.get(st),
-            t1.message.get(st),
-            t1.signature.get(st));
+          dbo::channel_message t1;
+          auto st = t.get_reader(
+              t1
+                  .select(
+                      t1.id,
+                      t1.message_id,
+                      t1.message,
+                      t1.read_cert_id,
+                      t1.write_cert_id,
+                      t1.signature)
+                  .where(t1.channel_id == task->channel_id()
+                         && t1.message_id ==
+                            (int) transactions::channel_message_transaction::channel_message_id::file_add_transaction)
+                  .order_by(db_desc_order(t1.id)));
+          while (st.execute()) {
+            auto data = user_mng->decrypt_message(
+                sp,
+                task->channel_id(),
+                t1.message_id.get(st),
+                t1.read_cert_id.get(st),
+                t1.write_cert_id.get(st),
+                t1.message.get(st),
+                t1.signature.get(st));
 
-        binary_deserializer s(data);
+            binary_deserializer s(data);
 
-				transactions::file_add_transaction::parse_message(s, [pthis, sp, &t, result, result_data, name](
-					const std::string &record_name,
-					const std::string &record_mimetype,
-					const std::list<transactions::file_add_transaction::file_block_t> &file_blocks) {
-					if (name == record_name) {
-						result_data->mime_type = record_mimetype;
-						auto runner = new _async_series(result, file_blocks.size());
-						for(auto & block : file_blocks) {
-							runner->add(pthis->download_block(sp, t, block, result_data));
-						}
-					}
-				});
+            transactions::file_add_transaction::parse_message(s, [pthis, sp, &t, result, task](
+                const std::string &record_name,
+                const std::string &record_mimetype,
+                const std::list<transactions::file_add_transaction::file_block_t> &file_blocks) {
+              if (task->name() == record_name) {
+                task->set_file_blocks(record_mimetype, file_blocks);
+              }
+            });
 
-				if (!result_data->mime_type.empty()) {
-					break;
-				}
-			}
+            if (!task->mime_type().empty()) {
+              break;
+            }
+          }
+        }
+
+        auto runner = new _async_series(result, task->remote_block_count());
+        for (auto &block : task->file_blocks()) {
+          if(!block.is_processed_) {
+            runner->add(pthis->download_block(sp, t, block, task));
+          }
+        }
 
 			return true;
-		}).execute([result, result_data](const std::shared_ptr<std::exception> & ex) {
+		}).execute([result, task](const std::shared_ptr<std::exception> & ex) {
 			if(ex) {
 				result.error(ex);
 			}
-			else if (result_data->mime_type.empty()) {
+			else if (task->mime_type().empty()) {
 				result.error(std::make_shared<vds_exceptions::not_found>());
 			}
-
 		});
-	}).then([result_data]() {
-		return *result_data;
 	});
 }
 
 vds::async_task<> vds::file_manager_private::_file_operations::download_block(
 	const service_provider& sp,
 	database_transaction& t,
-	const transactions::file_add_transaction::file_block_t& block_id,
-	const std::shared_ptr<vds::file_manager::file_operations::download_file_result_t> & result)
+  file_manager::download_file_task::block_info & block,
+  const std::shared_ptr<file_manager::download_file_task> & result)
 {
 	dbo::chunk_data_dbo t1;
-	auto st = t.get_reader(t1.select(t1.id).where(t1.id == base64::from_bytes(block_id.block_id)));
-	if(st.execute())
-	{
-		result->local_block_count++;
+	auto st = t.get_reader(t1.select(t1.block_key, t1.block_data).where(t1.id == base64::from_bytes(block.id_.block_id)));
+	if(st.execute()) {
+    auto data = chunk_manager::unpack_block(
+        block.id_.block_id,
+        t1.block_key.get(st),
+        t1.block_data.get(st));
+    result->set_file_data(block, data);
 	}
-	else
-	{
+	else {
 		dbo::chunk_replica_dbo t2;
-		st = t.get_reader(t2.select(db_count(t2.id)).where(t2.id == base64::from_bytes(block_id.block_id)));
+		st = t.get_reader(t2.select(db_count(t2.id)).where(t2.id == base64::from_bytes(
+        block.id_.block_id)));
 		st.execute();
 
 		uint64_t count;
@@ -204,16 +207,17 @@ vds::async_task<> vds::file_manager_private::_file_operations::download_block(
 			throw std::runtime_error("Unexpected error");
 		}
 
-		if(count >= chunk_replicator::MIN_HORCRUX)
-		{
-			result->local_block_count++;
-		}
-		else
-		{
-			result->remote_block_count++;
-
-			throw std::runtime_error("Not implemented");
-		}
+    throw std::runtime_error("Not implemented");
+//		if(count >= chunk_replicator::MIN_HORCRUX)
+//		{
+//			result->local_block_count++;
+//		}
+//		else
+//		{
+//			result->remote_block_count++;
+//
+//			throw std::runtime_error("Not implemented");
+//		}
 	}
 	return async_task<>::empty();
 }
@@ -232,12 +236,14 @@ void vds::file_manager_private::_file_operations::pack_file(
 
       auto readed = f.read(buffer.data(), file_size);
       vds_assert(readed == file_size);
-      auto block_info = chunk_mng->save_block(t, vds::const_data_buffer(buffer.data(), readed));
+      auto block_info = chunk_mng->save_block(
+          t, vds::const_data_buffer(buffer.data(), readed));
       file_blocks.push_back(
           transactions::file_add_transaction::file_block_t
           {
               block_info.id,
-              block_info.key
+              block_info.key,
+              safe_cast<decltype(transactions::file_add_transaction::file_block_t::block_size)>(readed)
           });
     } else {
       auto count = file_size / vds::file_manager::file_operations::BLOCK_SIZE;
@@ -247,12 +253,14 @@ void vds::file_manager_private::_file_operations::pack_file(
 
       for (uint64_t offset = 0; offset < file_size; offset += block_size) {
         auto readed = f.read(buffer.data(), block_size);
-        auto block_info = chunk_mng->save_block(t, vds::const_data_buffer(buffer.data(), readed));
+        auto block_info = chunk_mng->save_block(
+            t, vds::const_data_buffer(buffer.data(), readed));
         file_blocks.push_back(
             transactions::file_add_transaction::file_block_t
                 {
                     block_info.id,
-                    block_info.key
+                    block_info.key,
+                    safe_cast<decltype(transactions::file_add_transaction::file_block_t::block_size)>(readed)
                 });
       }
     }

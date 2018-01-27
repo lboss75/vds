@@ -228,7 +228,7 @@ vds::orm::transaction_log_record_dbo::state_t vds::transaction_log::apply_block(
         t4.select(t4.follower_id)
             .where(t4.id == base64::from_bytes(block_id)));
     while(st.execute()){
-      followers.push_back(base64::to_bytes(t4.id.get(st)));
+      followers.push_back(base64::to_bytes(t4.follower_id.get(st)));
     }
 
     orm::transaction_log_record_dbo t2;
