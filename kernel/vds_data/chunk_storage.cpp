@@ -70,7 +70,7 @@ vds::const_data_buffer vds::_chunk_storage::restore_data(
   auto size = horcruxes.begin()->second.size();
   
   std::vector<uint16_t> replicas;
-  std::vector<const const_data_buffer *> datas;
+  std::vector<const_data_buffer> datas;
   
   for(auto & p : horcruxes){
     if (size != p.second.size()) {
@@ -78,12 +78,12 @@ vds::const_data_buffer vds::_chunk_storage::restore_data(
     }
 
     replicas.push_back(p.first);
-    datas.push_back(&p.second);
+    datas.push_back(p.second);
   }
   
   chunk_restore<uint16_t> restore(this->min_horcrux_, replicas.data());
   binary_serializer s;
-  restore.restore(s, datas, size);
+  restore.restore(s, datas);
 
   return s.data();
 }

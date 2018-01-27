@@ -3,6 +3,9 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
+#include <chunk_map_dbo.h>
+#include <p2p_network.h>
+#include <messages/chunk_query_replica.h>
 #include "stdafx.h"
 #include "file_operations.h"
 #include "file.h"
@@ -21,6 +24,7 @@ All rights reserved
 #include "chunk_data_dbo.h"
 #include "chunk_replica_dbo.h"
 #include "chunk_replicator.h"
+#include "chunk.h"
 
 vds::file_manager::file_operations::file_operations()
 : impl_(new file_manager_private::_file_operations()){
@@ -198,17 +202,64 @@ vds::async_task<> vds::file_manager_private::_file_operations::download_block(
 	}
 	else {
 		dbo::chunk_replica_dbo t2;
-		st = t.get_reader(t2.select(db_count(t2.id)).where(t2.id == base64::from_bytes(
+		st = t.get_reader(t2.select(t2.replica).where(t2.id == base64::from_bytes(
         block.id_.block_id)));
-		st.execute();
 
-		uint64_t count;
-		if(!st.get_value(0, count)) {
-			throw std::runtime_error("Unexpected error");
-		}
+    std::list<uint16_t> replicas;
+    while(st.execute()){
+      replicas.push_back(safe_cast<uint16_t>(t2.replica.get(st)));
+    }
 
-    throw std::runtime_error("Not implemented");
-//		if(count >= chunk_replicator::MIN_HORCRUX)
+		if(replicas.size() >= chunk_replicator::MIN_HORCRUX){
+      this->restore_chunk(sp, t, block, result);
+    }
+    else {
+      std::set<guid> devices;
+
+      dbo::chunk_map_dbo t3;
+      st = t.get_reader(
+          t3
+              .select(t3.device)
+              .where(t3.id == base64::from_bytes(block.id_.block_id)
+              && db_not_in_values(t3.replica, replicas)));
+
+      while(st.execute()){
+        auto device = t3.device.get(st);
+        if(devices.end() == devices.find(device)){
+          devices.emplace(device);
+        }
+      }
+
+      if(!devices.empty()) {
+        auto p2p = sp.get<p2p_network>();
+        auto user_mng = sp.get<user_manager>();
+
+        asymmetric_private_key device_private_key;
+        auto device_user = user_mng->get_current_device(sp,device_private_key);
+
+        for (auto device : devices) {
+          sp.get<logger>()->warning(
+              ThisModule,
+              sp,
+              "Send query for %s to device %s",
+              base64::from_bytes(block.id_.block_id).c_str(),
+              device.str().c_str());
+
+          p2p->send(sp, device, p2p_messages::chunk_query_replica(
+              device_user.id(),
+              block.id_.block_id,
+              replicas).serialize());
+        }
+      }
+      else {
+        sp.get<logger>()->warning(
+            ThisModule,
+            sp,
+            "No devices to get block %s",
+            base64::from_bytes(block.id_.block_id).c_str());
+      }
+    }
+
 //		{
 //			result->local_block_count++;
 //		}
@@ -265,5 +316,47 @@ void vds::file_manager_private::_file_operations::pack_file(
       }
     }
   }
+}
+
+void
+  vds::file_manager_private::_file_operations::restore_chunk(
+      const vds::service_provider &sp,
+      vds::database_transaction &t,
+      vds::file_manager::download_file_task::block_info &block,
+      const std::shared_ptr<vds::file_manager::download_file_task> &result) {
+
+  std::vector<uint16_t> replicas;
+  std::vector<const_data_buffer> datas;
+
+  dbo::chunk_replica_dbo t1;
+  auto st = t.get_reader(
+      t1
+          .select(t1.replica, t1.replica_data)
+          .where(t1.id == base64::from_bytes(block.id_.block_id)));
+
+  while(st.execute()){
+    replicas.push_back(safe_cast<uint16_t>(t1.replica.get(st)));
+    datas.push_back(t1.replica_data.get(st));
+
+    if(replicas.size() >= chunk_replicator::MIN_HORCRUX){
+      break;
+    }
+  }
+
+  if(replicas.size() < chunk_replicator::MIN_HORCRUX){
+    throw std::runtime_error("Invalid operation");
+  }
+
+  chunk_restore<uint16_t> restore(chunk_replicator::MIN_HORCRUX, replicas.data());
+  binary_serializer s;
+  restore.restore(s, datas);
+
+  dbo::chunk_data_dbo t2;
+  t.execute(t2.insert(
+          t2.id = base64::from_bytes(block.id_.block_id),
+      t2.block_key = block.id_.block_key,
+      t2.block_data = s.data()));
+
+  result->set_file_data(block, s.data());
 }
 

@@ -186,6 +186,9 @@ namespace vds {
     {
     }
 
+    void collect_aliases(std::map<const database_table *, std::string> & aliases) const{
+    }
+
     std::string visit(_database_sql_builder & builder) const
     {
       auto alias = builder.get_alias(this->column_->owner());
@@ -214,6 +217,9 @@ namespace vds {
       _db_simple_column && column)
       : column_(column.column_)
     {
+    }
+
+    void collect_aliases(std::map<const database_table *, std::string> & aliases) const{
     }
 
     std::string visit(_database_sql_builder & builder) const
@@ -247,6 +253,10 @@ namespace vds {
 
     }
 
+    void collect_aliases(std::map<const database_table *, std::string> & aliases) const{
+      this->column_.collect_aliases(aliases);
+    }
+
     std::string visit(_database_sql_builder & builder) const
     {
       return "MIN(" + this->column_.visit(builder) + ")";
@@ -269,6 +279,10 @@ namespace vds {
       : column_(std::move(column))
     {
 
+    }
+
+    void collect_aliases(std::map<const database_table *, std::string> & aliases) const{
+      this->column_.collect_aliases(aliases);
     }
 
     std::string visit(_database_sql_builder & builder) const
@@ -295,6 +309,10 @@ namespace vds {
 
     }
 
+    void collect_aliases(std::map<const database_table *, std::string> & aliases) const{
+      this->column_.collect_aliases(aliases);
+    }
+
     std::string visit(_database_sql_builder & builder) const
     {
       return "LENGTH(" + this->column_.visit(builder) + ")";
@@ -319,6 +337,10 @@ namespace vds {
 
     }
 
+    void collect_aliases(std::map<const database_table *, std::string> & aliases) const{
+      this->column_.collect_aliases(aliases);
+    }
+
     std::string visit(_database_sql_builder & builder) const
     {
       return "SUM(" + this->column_.visit(builder) + ")";
@@ -341,6 +363,10 @@ namespace vds {
       : column_(std::move(column))
     {
 
+    }
+
+    void collect_aliases(std::map<const database_table *, std::string> & aliases) const{
+      this->column_.collect_aliases(aliases);
     }
 
     std::string visit(_database_sql_builder & builder) const
@@ -426,6 +452,10 @@ namespace vds {
     {
     }
 
+    void collect_aliases(std::map<const database_table *, std::string> & aliases) const{
+      this->column_.collect_aliases(aliases);
+    }
+
     std::string visit(_database_sql_builder & builder) const
     {
       return this->column_.visit(builder) + " DESC";
@@ -456,6 +486,9 @@ namespace vds {
       const value_type & value)
       : value_(value)
     {
+    }
+
+    void collect_aliases(std::map<const database_table *, std::string> & aliases) const{
     }
 
     std::string visit(_database_sql_builder & builder) const
@@ -505,7 +538,12 @@ namespace vds {
       : base_class(std::move(left), std::move(right))
     {
     }
-    
+
+    void collect_aliases(std::map<const database_table *, std::string> & aliases) const{
+      this->left_.collect_aliases(aliases);
+      this->right_.collect_aliases(aliases);
+    }
+
     std::string visit(_database_sql_builder & builder) const
     {
       return this->left_.visit(builder) + "=" + this->right_.visit(builder);
@@ -522,6 +560,11 @@ namespace vds {
       right_exp_type && right)
       : base_class(std::move(left), std::move(right))
     {
+    }
+
+    void collect_aliases(std::map<const database_table *, std::string> & aliases) const{
+      this->left_.collect_aliases(aliases);
+      this->right_.collect_aliases(aliases);
     }
 
     std::string visit(_database_sql_builder & builder) const
@@ -541,7 +584,12 @@ namespace vds {
       : base_class(std::move(left), std::move(right))
     {
     }
-    
+
+    void collect_aliases(std::map<const database_table *, std::string> & aliases) const{
+      this->left_.collect_aliases(aliases);
+      this->right_.collect_aliases(aliases);
+    }
+
     std::string visit(_database_sql_builder & builder) const
     {
       return "(" + this->left_.visit(builder) + ") AND (" + this->right_.visit(builder) + ")";
@@ -560,11 +608,97 @@ namespace vds {
     {
     }
 
+    void collect_aliases(std::map<const database_table *, std::string> & aliases) const{
+      this->left_.collect_aliases(aliases);
+      this->right_.collect_aliases(aliases);
+    }
+
     std::string visit(_database_sql_builder & builder) const
     {
       return "(" + this->left_.visit(builder) + ") OR (" + this->right_.visit(builder) + ")";
     }
   };
+
+  template <typename source_type, typename command_type>
+  class _db_not_in{
+  public:
+    _db_not_in(
+        source_type && left,
+        command_type && right)
+        : left_(std::move(left)),
+          right_(std::move(right)){
+    }
+
+    void collect_aliases(std::map<const database_table *, std::string> & aliases) const {
+      this->left_.collect_aliases(aliases);
+      this->right_.collect_aliases(aliases);
+    }
+
+    std::string visit(_database_sql_builder & builder) const
+    {
+      return this->left_.visit(builder)
+             + " NOT IN ("
+             + this->right_.start_sql(builder)
+             + this->right_.generate_select(builder, -5000)//To fail if get
+             + this->right_.collect_sources(builder)
+             + this->right_.collect_condition(builder)
+             + this->right_.final_sql(builder)
+             + ")";
+    }
+
+  private:
+    source_type left_;
+    command_type right_;
+  };
+
+  template <typename source_type, typename container_type>
+  class _db_not_in_values{
+  public:
+    _db_not_in_values(
+        source_type && left,
+        const container_type & right)
+        : left_(std::move(left)),
+          right_(right){
+    }
+
+    void collect_aliases(std::map<const database_table *, std::string> & aliases) const {
+      this->left_.collect_aliases(aliases);
+    }
+
+    std::string visit(_database_sql_builder & builder) const
+    {
+      std::string postfix;
+      for(auto p : this->right_){
+        if(!postfix.empty()){
+          postfix += ',';
+        }
+
+        postfix += builder.add_parameter([p](sql_statement & st, int index){
+          st.set_parameter(index, p);
+        });
+      }
+
+      return this->left_.visit(builder)
+             + " NOT IN (" + postfix + ")";
+    }
+
+  private:
+    source_type left_;
+    container_type right_;
+  };
+
+  template <typename source_type, typename command_type>
+  inline _db_not_in<_db_simple_column, command_type> db_not_in(source_type & column, command_type && command)
+  {
+    return _db_not_in<_db_simple_column, command_type>(_db_simple_column(column), std::move(command));
+  }
+
+  template <typename source_type, typename container_type>
+  inline _db_not_in_values<_db_simple_column, container_type> db_not_in_values(source_type & column, const container_type & values)
+  {
+    return _db_not_in_values<_db_simple_column, container_type>(_db_simple_column(column), values);
+  }
+
   template <typename base_builder, typename condition_type>
   class _database_reader_builder_with_join;
 
@@ -652,7 +786,7 @@ namespace vds {
     : column_(&column)
     {
     }
-    
+
     std::string visit(_database_sql_builder & builder) const
     {
       return builder.get_alias(this->column_->owner()) + "." + this->column_->name();
@@ -746,7 +880,7 @@ namespace vds {
     : column_(&column)
     {
     }
-    
+
     std::string visit(_database_sql_builder & builder) const
     {
       return builder.get_alias(this->column_->owner()) + "." + this->column_->name();
@@ -836,14 +970,21 @@ namespace vds {
   template <typename base_builder, typename condition_type>
   class _database_builder_with_where : public _database_source_impl<base_builder>
   {
+    using base_class = _database_source_impl<base_builder>;
     using this_class = _database_builder_with_where<base_builder, condition_type>;
   public:
     _database_builder_with_where(
       base_builder && b,
       condition_type && cond)
-      : _database_source_impl<base_builder>(std::move(b)),
+      : base_class(std::move(b)),
       cond_(std::move(cond))
     {
+    }
+
+    void collect_aliases(std::map<const database_table *, std::string> & aliases) const {
+      base_class::collect_aliases(aliases);
+
+      this->cond_.collect_aliases(aliases);
     }
 
     std::string collect_condition(_database_sql_builder & builder) const
@@ -1344,6 +1485,7 @@ namespace vds {
     void collect_aliases(std::map<const database_table *, std::string> & aliases) const
     {
       aliases[&this->table_] = this->table_.name();
+      this->cond_.collect_aliases(aliases);
     }
    
     std::string collect_condition(_database_sql_builder & builder) const

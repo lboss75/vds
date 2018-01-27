@@ -36,7 +36,14 @@ namespace vds {
           const vds::filename &file_path,
           vds::database_transaction &t,
           std::list<transactions::file_add_transaction::file_block_t> &file_blocks) const;
-    };
+
+			void restore_chunk(
+					const service_provider& sp,
+					database_transaction& t,
+					file_manager::download_file_task::block_info & block,
+					const std::shared_ptr<file_manager::download_file_task> & result);
+
+		};
   }
 }
 

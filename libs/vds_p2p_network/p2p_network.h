@@ -6,6 +6,7 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
+#include <set>
 #include "udp_transport.h"
 #include "p2p_node_info.h"
 

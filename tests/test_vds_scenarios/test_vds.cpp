@@ -56,6 +56,7 @@ TEST(test_vds, test_initial)
     ASSERT_EQ(len, result1.size());
     ASSERT_EQ(memcmp(buffer.get(), result1.data(), len), 0);
 
+    mock.allow_read_channel(4, channel.id());
     //Waiting to sync logs
     mock.sync_wait();
     std::cout << "Download file...\n";

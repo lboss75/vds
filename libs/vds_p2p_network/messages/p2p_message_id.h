@@ -13,7 +13,8 @@ namespace vds {
       chunk_send_replica = 'r',
       common_log_record = 'l',
       common_log_state = 's',
-      common_block_request = 'q'
+      common_block_request = 'q',
+      chunk_query_replica = 'c'
     };
   }
 }

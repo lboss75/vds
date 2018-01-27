@@ -106,7 +106,7 @@ void vds::db_model::migrate(
     t.execute("CREATE TABLE chunk_replica(\
 			id VARCHAR(64) NOT NULL,\
 			replica INTEGER NOT NULL,\
-			replica_hash BLOB NOT NULL,\
+			replica_data BLOB NOT NULL,\
 			CONSTRAINT pk_chunk_replica PRIMARY KEY(id,replica))");
 
 		t.execute("CREATE TABLE chunk_map(\

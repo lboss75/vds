@@ -90,9 +90,7 @@ namespace vds {
             
         void restore(
           binary_serializer & s,
-          const std::vector<const const_data_buffer *> & chunks,
-          size_t size
-        );
+          const std::vector<const_data_buffer> & chunks);
         
         const cell_type * multipliers() const
         {
@@ -324,9 +322,9 @@ inline void vds::chunk_restore<cell_type>::restore(
 template<typename cell_type>
 inline void vds::chunk_restore<cell_type>::restore(
   binary_serializer & s,
-  const std::vector<const const_data_buffer *> & chunks,
-  size_t size)
+  const std::vector<const_data_buffer> & chunks)
 {
+  auto size = chunks.begin()->size();
   for (size_t index = 0; index < size; index += sizeof(cell_type)) {
     auto m = this->multipliers_;
     for (cell_type i = 0; i < this->k_; ++i) {
@@ -335,7 +333,7 @@ inline void vds::chunk_restore<cell_type>::restore(
         cell_type cell = 0;
         for(size_t offset = 0; offset < sizeof(cell_type); ++offset){
           cell <<= 8;
-          cell |= (*chunks[j])[index + offset];
+          cell |= chunks[j][index + offset];
         }
         value = chunk<cell_type>::math_.add(value, 
             chunk<cell_type>::math_.mul(

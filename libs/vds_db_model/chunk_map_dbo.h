@@ -18,9 +18,9 @@ namespace vds {
             device(this, "device") {
       }
 
-      database_column <std::string> id;
+      database_column<std::string> id;
       database_column<int> replica;
-      database_column <guid> device;
+      database_column<guid> device;
     };
   }
 }
