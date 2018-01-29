@@ -40,6 +40,13 @@ namespace vds {
         const service_provider &sp,
         const guid &partner,
         const std::shared_ptr<std::exception> & ex);
+
+	void save_data(
+		const service_provider& sp,
+		const guid& this_device_id,
+		const guid& user_id,
+		const const_data_buffer& data);
+
   private:
     class session {
     public:
@@ -74,7 +81,7 @@ namespace vds {
     std::map<guid, std::shared_ptr<session>> sessions_;
     mutable std::shared_mutex sessions_mutex_;
 
-    int calc_distance(const guid & source_node, const guid & target_node);
+    static size_t calc_distance(const const_data_buffer & source_node, const const_data_buffer & target_node);
   };
 
 }

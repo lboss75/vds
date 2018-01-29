@@ -8,6 +8,7 @@ All rights reserved
 
 #include <memory>
 #include "service_provider.h"
+#include "messages/chunk_send_replica.h"
 
 namespace vds {
 
@@ -18,6 +19,8 @@ namespace vds {
 
     void start(const service_provider & sp);
     void stop(const service_provider & sp);
+
+	void apply(const service_provider& sp, const guid& partner_id, const p2p_messages::chunk_send_replica& message);
 
   private:
     std::shared_ptr<class _chunk_replicator> impl_;

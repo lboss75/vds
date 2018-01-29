@@ -17,6 +17,7 @@ namespace vds {
 
     void start(const service_provider & sp);
     void stop(const service_provider & sp);
+	  void apply(const service_provider& sp, const guid& partner_id, const p2p_messages::chunk_send_replica& message);
 
   private:
     timer update_timer_;
@@ -30,7 +31,8 @@ namespace vds {
         const service_provider & sp,
         class database_transaction & t);
 
-    const_data_buffer generate_replica(uint16_t replica, const const_data_buffer &buffer);
+    const_data_buffer generate_replica(uint16_t replica, const void * data, size_t size);
+	void store_replica(const service_provider& sp, const ::vds::database_transaction& t, const p2p_messages::chunk_send_replica& message);
   };
 }
 

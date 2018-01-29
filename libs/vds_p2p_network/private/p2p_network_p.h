@@ -56,6 +56,12 @@ namespace vds {
         const service_provider &sp,
         const guid &partner,
         const std::shared_ptr<std::exception> & ex);
+
+	void save_data(
+		const service_provider &sp,
+		const guid & this_device_id,
+		const guid & user_id,
+		const const_data_buffer & data);
   private:
     std::list<class p2p_network_service> network_services_;
 

@@ -15,6 +15,9 @@
 #include "user_manager.h"
 #include "cert_control.h"
 #include "certificate_chain_dbo.h"
+#include "messages/chunk_send_replica.h"
+#include "chunk_manager.h"
+#include "chunk_replicator.h"
 
 vds::p2p_network::p2p_network()
 :impl_(new _p2p_network()){
@@ -61,6 +64,15 @@ void vds::p2p_network::close_session(
     const guid &partner,
     const std::shared_ptr<std::exception> & ex) {
   this->impl_->close_session(sp, partner, ex);
+}
+
+void vds::p2p_network::save_data(
+	const service_provider &sp,
+	const guid & this_device_id,
+	const guid & user_id,
+	const const_data_buffer & data)
+{
+	this->impl_->save_data(sp, this_device_id, user_id, data);
 }
 
 //////////////////////////////////
@@ -216,6 +228,13 @@ void vds::_p2p_network::process_input_command(
 
 		break;
 	}
+	case p2p_messages::p2p_message_id::chunk_send_replica: {
+		p2p_messages::chunk_send_replica message(s);
+
+		sp.get<chunk_replicator>()->apply(sp, partner_id, message);
+
+		break;
+	}
     default:
       throw std::runtime_error("Invalid command");
   }
@@ -226,4 +245,17 @@ void vds::_p2p_network::close_session(
     const vds::guid &partner,
     const std::shared_ptr<std::exception> & ex) {
   this->route_->close_session(sp, partner, ex);
+}
+
+void vds::_p2p_network::save_data(
+	const service_provider& sp,
+	const guid& this_device_id,
+	const guid& user_id,
+	const const_data_buffer& data)
+{
+	this->route_->save_data(
+		sp,
+		this_device_id,
+		user_id,
+		data);
 }

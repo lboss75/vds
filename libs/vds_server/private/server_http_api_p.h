@@ -13,6 +13,7 @@ All rights reserved
 #include "tcp_socket_server.h"
 #include "http_middleware.h"
 #include "http_server.h"
+#include "server_http_api.h"
 
 namespace vds {
   class _server_http_api

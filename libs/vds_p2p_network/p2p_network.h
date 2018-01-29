@@ -50,6 +50,12 @@ namespace vds {
         const guid &partner,
         const std::shared_ptr<std::exception> & ex);
 
+	void save_data(
+		const service_provider &sp, 
+		const guid & this_device_id,
+		const guid & user_id,
+		const const_data_buffer & data);
+
   private:
     std::shared_ptr<class _p2p_network> impl_;
   };

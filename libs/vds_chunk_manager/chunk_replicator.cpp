@@ -15,6 +15,7 @@ All rights reserved
 #include "messages/chunk_send_replica.h"
 #include "member_user.h"
 #include "user_manager.h"
+#include "cert_control.h"
 
 void vds::chunk_replicator::start(const vds::service_provider &sp) {
   this->impl_.reset(new _chunk_replicator());
@@ -26,6 +27,12 @@ void vds::chunk_replicator::stop(const vds::service_provider &sp) {
   this->impl_.reset();
 }
 
+void vds::chunk_replicator::apply(const service_provider& sp, const guid& partner_id,
+	const p2p_messages::chunk_send_replica& message)
+{
+	this->impl_->apply(sp, partner_id, message);
+}
+
 /////////////////////////////////////////////////////////////////////
 vds::_chunk_replicator::_chunk_replicator()
 : update_timer_("Chunk Replicator"),
@@ -33,7 +40,9 @@ vds::_chunk_replicator::_chunk_replicator()
 
 }
 
-void vds::_chunk_replicator::start(const vds::service_provider &sp) {
+void vds::_chunk_replicator::start(const vds::service_provider &parent_scope) {
+	auto sp = parent_scope.create_scope(__FUNCTION__);
+	mt_service::enable_async(sp);
   this->update_timer_.start(
       sp,
       std::chrono::seconds(5),
@@ -42,20 +51,12 @@ void vds::_chunk_replicator::start(const vds::service_provider &sp) {
         if(!pthis->in_update_timer_){
           pthis->in_update_timer_ = true;
           sp.get<db_model>()->async_transaction(sp, [sp, pthis](database_transaction & t)->bool{
-            try {
               pthis->update_replicas(sp, t);
-
-              std::unique_lock<std::mutex> lock(pthis->update_timer_mutex_);
-              pthis->in_update_timer_ = false;
-
               return true;
-            }
-            catch(...) {
-              std::unique_lock<std::mutex> lock(pthis->update_timer_mutex_);
-              pthis->in_update_timer_ = false;
-              throw;
-            }
-          });
+          }).execute([pthis](const std::shared_ptr<std::exception> & ex){
+			  std::unique_lock<std::mutex> lock(pthis->update_timer_mutex_);
+			  pthis->in_update_timer_ = false;
+		  });
         }
 
         return !sp.get_shutdown_event().is_shuting_down();
@@ -73,6 +74,27 @@ void vds::_chunk_replicator::stop(const vds::service_provider &sp) {
 
     std::this_thread::sleep_for(std::chrono::seconds(1));
   }
+}
+
+void vds::_chunk_replicator::apply(
+	const service_provider& parent_scope,
+	const guid& partner_id,
+	const p2p_messages::chunk_send_replica& message)
+{
+	auto sp = parent_scope.create_scope(__FUNCTION__);
+	mt_service::enable_async(sp);
+
+	sp.get<db_model>()->async_transaction(sp, [sp, pthis = this->shared_from_this(), message](database_transaction & t)->bool {
+		pthis->store_replica(sp, t, message);
+		return true;
+	}).execute([sp](const std::shared_ptr<std::exception> & ex) {
+		sp.get<logger>()->warning(
+			THIS_MODULE,
+			sp,
+			"%s at storing replica",
+			ex->what());
+	});
+
 }
 
 void vds::_chunk_replicator::update_replicas(
@@ -99,67 +121,57 @@ void vds::_chunk_replicator::update_replicas(
     }
 
     auto block_id = t1.id.get(st);
-    blocks.push_back(block_id);
+	if (!block_id.empty()) {
+		blocks.push_back(block_id);
+	}
   }
   sp.get<logger>()->trace(THIS_MODULE, sp, "Found %d blocks to generate replicas", blocks.size());
 
   if(!blocks.empty()) {
     auto p2p = sp.get<p2p_network>();
-    auto nodes = p2p->active_nodes();
-    sp.get<logger>()->trace(THIS_MODULE, sp, "Found %d nodes", nodes.size());
-    if(!nodes.empty()) {
-      for (auto block_id : blocks) {
-        std::set<guid> candidates(nodes);
+      for (const auto & block_id : blocks) {
         std::set<int> replicas;
 
-        st = t.get_reader(t2.select(t2.replica, t2.device).where(t2.id == block_id));
+        st = t.get_reader(t2.select(t2.replica).where(t2.id == block_id));
         while (st.execute()) {
           auto replica = t2.replica.get(st);
           replicas.emplace(replica);
-
-          auto node_id = t2.device.get(st);
-          auto p = candidates.find(node_id);
-          if (candidates.end() != p) {
-            candidates.erase(p);
-            if(candidates.empty()){
-              break;
-            }
-          }
         }
 
-        const_data_buffer data;
+		st = t.get_reader(t1.select(t1.block_data).where(t1.id == block_id));
+		if (!st.execute()) {
+			throw std::runtime_error("Unable to load block data");
+		}
+
+		resizable_data_buffer data;
+      	data += t1.block_data.get(st);
+		if (0 != (data.size() % (sizeof(uint16_t) * chunk_replicator::MIN_HORCRUX))) {
+			data.padding(sizeof(uint16_t) * chunk_replicator::MIN_HORCRUX - (data.size() % (sizeof(uint16_t) * chunk_replicator::MIN_HORCRUX)));
+		}
+
         uint16_t replica = 0;
-        for(auto node : candidates) {
-          while(replicas.end() != replicas.find(replica)) {
-            ++replica;
-          }
-          if(replica > chunk_replicator::GENERATE_HORCRUX) {
-            break;
-          }
 
-          if(!data){
-            st = t.get_reader(t1.select(t1.block_data).where(t1.id == block_id));
-            if(!st.execute()){
-              throw std::runtime_error("Unable to load block data");
-            }
-            data = t1.block_data.get(st);
-          }
-
-          p2p->send(
-              sp,
-              node,
-              p2p_messages::chunk_send_replica(
-                  this_device.id(),
-                  this->generate_replica(replica, data)).serialize());
+        while(replicas.end() != replicas.find(replica)) {
+			++replica;
         }
-      }
+
+        if(replica > chunk_replicator::GENERATE_HORCRUX) {
+			break;
+        }
+
+	      const auto replica_data = this->generate_replica(replica, data.data(), data.size());
+          p2p->save_data(
+              sp,
+              this_device.id(),
+			  cert_control::get_user_id(this_device.user_certificate()),
+			  replica_data);
     }
   }
 }
 
 vds::const_data_buffer vds::_chunk_replicator::generate_replica(
     uint16_t replica,
-    const vds::const_data_buffer &buffer) {
+	const void * data, size_t size) {
 
   chunk_generator<uint16_t> * generator;
 
@@ -173,8 +185,16 @@ vds::const_data_buffer vds::_chunk_replicator::generate_replica(
   }
 
   binary_serializer s;
-  generator->write(s, buffer.data(), buffer.size());
+  generator->write(s, data, size);
 
   return s.data();
+}
+
+void vds::_chunk_replicator::store_replica(
+	const service_provider& sp,
+	const ::vds::database_transaction& t,
+	const p2p_messages::chunk_send_replica& message)
+{
+	throw std::runtime_error("Not implemented");
 }
 

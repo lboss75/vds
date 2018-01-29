@@ -2,6 +2,8 @@
 #include "p2p_route.h"
 #include "private/p2p_route_p.h"
 #include "p2p_node_info.h"
+#include "messages/p2p_message_id.h"
+#include "messages/chunk_send_replica.h"
 
 vds::p2p_route::p2p_route()
     : impl_(new _p2p_route()){
@@ -52,11 +54,6 @@ vds::async_task<> vds::_p2p_route::send_to(const service_provider &sp, const gui
   }
 
   return best_session->route(sp, node_id, message);
-}
-
-int vds::_p2p_route::calc_distance(const guid & source_node, const guid & target_node)
-{
-  return 0;
 }
 
 bool vds::_p2p_route::random_broadcast(
@@ -131,6 +128,30 @@ void vds::_p2p_route::close_session(
   }
 }
 
+void vds::_p2p_route::save_data(const service_provider& sp, const guid& this_device_id, const guid& user_id,
+	const const_data_buffer& data)
+{
+	const auto data_hash = hash::signature(hash::sha256(), data);
+
+	std::shared_ptr<session> best_session;
+	size_t best_distance;
+
+	std::shared_lock<std::shared_mutex> lock(this->sessions_mutex_);
+	for(auto & p : this->sessions_)
+	{
+		const auto distance = calc_distance(p.first, data_hash);
+		if(!best_session || best_distance > distance)
+		{
+			best_session = p.second;
+			best_distance = distance;
+		}
+	}
+
+	if (best_session) {
+		best_session->send(sp, p2p_messages::chunk_send_replica(this_device_id, data).serialize());
+	}
+}
+
 
 void vds::_p2p_route::session::lock() {
   this->state_mutex_.lock();
@@ -154,4 +175,32 @@ void vds::_p2p_route::session::close(
     const vds::service_provider &sp,
     const std::shared_ptr<std::exception> & ex) {
   this->target_->close(sp, ex);
+}
+
+size_t vds::_p2p_route::calc_distance(
+	const const_data_buffer& source_node,
+	const const_data_buffer& target_node)
+{
+	size_t result = 0;
+
+	const size_t min_size = (source_node.size() < target_node.size()) ? source_node.size() : target_node.size();
+	for(size_t i = 0; i < min_size; ++i)
+	{
+		const uint8_t value = (source_node.data()[i] ^ target_node.data()[i]);
+		if(0 != value)
+		{
+			uint8_t mask = 1;
+			while(mask != 0)
+			{
+				if(0 != (mask & value))
+				{
+					result++;
+				}
+
+				mask <<= 1;
+			}
+		}
+	}
+
+	return result + 8 * (((source_node.size() > target_node.size()) ? source_node.size() : target_node.size()) - min_size);
 }

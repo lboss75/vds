@@ -18,6 +18,13 @@ namespace vds {
       return this->add(data.data(), data.size());
     }
 
+	resizable_data_buffer & padding(size_t size, uint8_t value = 0) {
+		const auto offset = this->data_.size();
+		this->data_.resize(offset + size);
+		memset(this->data_.data() + offset, value, size);
+		return  *this;
+	}
+
     resizable_data_buffer & add (const uint8_t * data, size_t size){
       auto offset = this->data_.size();
       this->data_.resize(offset + size);

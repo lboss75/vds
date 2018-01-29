@@ -8,35 +8,22 @@ All rights reserved
 #include "private/server_p.h"
 #include "node_manager.h"
 #include "user_manager.h"
-#include "server_http_api.h"
 #include "private/server_http_api_p.h"
-#include "server_connection.h"
-#include "server_udp_api.h"
-#include "node_manager.h"
 #include "private/node_manager_p.h"
 #include "private/storage_log_p.h"
 #include "private/chunk_manager_p.h"
 #include "private/server_database_p.h"
 #include "private/local_cache_p.h"
-#include "private/node_manager_p.h"
-#include "private/server_connection_p.h"
-#include "private/server_udp_api_p.h"
-#include "server_certificate.h"
-#include "private/storage_log_p.h"
-#include "transaction_block.h"
-#include "transaction_block.h"
 #include "transaction_context.h"
 #include "p2p_network.h"
 #include "transaction_log.h"
 #include "db_model.h"
 #include "p2p_network_client.h"
-#include "run_configuration_dbo.h"
-#include "cert_control.h"
 #include "chunk_manager.h"
 #include "private/p2p_network_p.h"
 #include "log_sync_service.h"
 #include "file_manager_service.h"
-#include "chunk_manager.h"
+#include "chunk_replicator.h"
 
 vds::server::server()
 : impl_(new _server(this))
@@ -140,7 +127,9 @@ vds::_server::_server(server * owner)
   p2p_network_(new p2p_network()),
   network_client_(new p2p_network_client()),
   log_sync_service_(new log_sync_service()),
-  file_manager_(new file_manager::file_manager_service())
+  file_manager_(new file_manager::file_manager_service()),
+  chunk_replicator_(new chunk_replicator())
+
 {
   this->leak_detect_.name_ = "server";
   this->leak_detect_.dump_callback_ = [this](leak_detect_collector * collector){
@@ -158,15 +147,18 @@ void vds::_server::start(const service_provider& sp)
 	this->db_model_->start(sp);
   this->log_sync_service_->start(sp);
   this->file_manager_->start(sp);
+  this->chunk_replicator_->start(sp);
 }
 
 void vds::_server::stop(const service_provider& sp)
 {
+	this->chunk_replicator_->stop(sp);
   this->file_manager_->stop(sp);
   this->log_sync_service_->stop(sp);
   this->db_model_->stop(sp);
   this->p2p_network_->stop(sp);
 
+  this->chunk_replicator_.reset();
   this->file_manager_.reset();
   this->log_sync_service_.reset();
   this->db_model_.reset();

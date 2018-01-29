@@ -65,7 +65,7 @@ void vds::imt_service::async_enabled_check(const service_provider & sp)
   }
 
   throw std::runtime_error("Async call is not enabled");
-}
+;}
 
 vds::_mt_service::_mt_service(const service_provider & sp)
 : sp_(sp), is_shuting_down_(false)
