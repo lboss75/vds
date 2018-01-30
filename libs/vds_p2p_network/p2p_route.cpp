@@ -128,11 +128,10 @@ void vds::_p2p_route::close_session(
   }
 }
 
-void vds::_p2p_route::save_data(const service_provider& sp, const guid& this_device_id, const guid& user_id,
-	const const_data_buffer& data)
+void vds::_p2p_route::query_replica(
+    const service_provider &sp,
+    const const_data_buffer & data_hash)
 {
-	const auto data_hash = hash::signature(hash::sha256(), data);
-
 	std::shared_ptr<session> best_session;
 	size_t best_distance;
 
@@ -148,7 +147,11 @@ void vds::_p2p_route::save_data(const service_provider& sp, const guid& this_dev
 	}
 
 	if (best_session) {
-		best_session->send(sp, p2p_messages::chunk_send_replica(this_device_id, data).serialize());
+//		best_session->send(
+//        sp,
+//        p2p_messages::chunk_send_replica(
+//            this_device_id,
+//            data).serialize());
 	}
 }
 

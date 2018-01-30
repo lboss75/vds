@@ -5,6 +5,7 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
+#include <unordered_map>
 #include "transaction_log.h"
 #include "binary_serialize.h"
 #include "channel_message_transaction.h"
@@ -19,6 +20,7 @@ namespace vds {
 				const_data_buffer block_id;
 				const_data_buffer block_key;
 				uint32_t block_size;
+				std::unordered_map<uint16_t, const_data_buffer> replica_hashes;
 			};
 
 			file_add_transaction(

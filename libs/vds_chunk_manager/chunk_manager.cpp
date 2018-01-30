@@ -3,6 +3,8 @@
 #include <set>
 #include <transaction_block.h>
 #include <transactions/channel_add_message_transaction.h>
+#include <chunk.h>
+#include <chunk_replica_data_dbo.h>
 #include "chunk_manager.h"
 #include "chunk_manager.h"
 #include "private/chunk_manager_p.h"
@@ -10,6 +12,7 @@
 #include "inflate.h"
 #include "database_orm.h"
 #include "chunk_data_dbo.h"
+#include "chunk_replicator.h"
 
 static uint8_t pack_block_iv[] = {
     // 0     1     2     3     4     5     6     7
@@ -82,8 +85,27 @@ vds::chunk_manager::save_block(vds::database_transaction &t, const vds::const_da
 	dbo::chunk_data_dbo t1;
 	t.execute(t1.insert(
 			t1.id = base64::from_bytes(block.id),
-			t1.block_key = block.key,
-			t1.block_data = block.data));
+			t1.block_key = block.key));
+
+  resizable_data_buffer padded_data;
+  padded_data += block.data;
+  if (0 != (padded_data.size() % (sizeof(uint16_t) * chunk_replicator::MIN_HORCRUX))) {
+    padded_data.padding(sizeof(uint16_t) * chunk_replicator::MIN_HORCRUX - (padded_data.size() % (sizeof(uint16_t) * chunk_replicator::MIN_HORCRUX)));
+  }
+
+	for(int16_t replica = 0; replica < chunk_replicator::GENERATE_HORCRUX; ++replica){
+		chunk_generator<uint16_t> generator(chunk_replicator::MIN_HORCRUX, replica);
+
+		binary_serializer s;
+		generator.write(s, padded_data.data(), padded_data.size());
+
+		dbo::chunk_replica_data_dbo t2;
+		t.execute(t2.insert(
+			t2.id = base64::from_bytes(block.id),
+			t2.replica = (int)replica,
+			t2.replica_data = s.data(),
+			t2.replica_hash = hash::signature(hash::sha256(), s.data())));
+	}
 
 	return block;
 }

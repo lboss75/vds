@@ -77,8 +77,7 @@ void vds::db_model::migrate(
 
 		t.execute("CREATE TABLE chunk_data (\
 			id VARCHAR(64) PRIMARY KEY NOT NULL,\
-			block_key BLOB NOT NULL,\
-			block_data BLOB NOT NULL)");
+			block_key BLOB NOT NULL)");
 
     t.execute("CREATE TABLE run_configuration (\
 			id VARCHAR(64) PRIMARY KEY NOT NULL,\
@@ -103,11 +102,12 @@ void vds::db_model::migrate(
       follower_id VARCHAR(64) NOT NULL,\
 			CONSTRAINT pk_transaction_log_unknown_record PRIMARY KEY(id,follower_id))");
 
-    t.execute("CREATE TABLE chunk_replica(\
+    t.execute("CREATE TABLE chunk_replica_data(\
 			id VARCHAR(64) NOT NULL,\
 			replica INTEGER NOT NULL,\
 			replica_data BLOB NOT NULL,\
-			CONSTRAINT pk_chunk_replica PRIMARY KEY(id,replica))");
+			replica_hash BLOB NOT NULL,\
+			CONSTRAINT pk_chunk_replica_data PRIMARY KEY(id,replica))");
 
 		t.execute("CREATE TABLE chunk_map(\
 			id VARCHAR(64) NOT NULL,\

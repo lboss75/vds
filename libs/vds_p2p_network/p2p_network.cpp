@@ -66,13 +66,11 @@ void vds::p2p_network::close_session(
   this->impl_->close_session(sp, partner, ex);
 }
 
-void vds::p2p_network::save_data(
-	const service_provider &sp,
-	const guid & this_device_id,
-	const guid & user_id,
-	const const_data_buffer & data)
+void vds::p2p_network::query_replica(
+    const service_provider &sp,
+    const const_data_buffer & data_hash)
 {
-	this->impl_->save_data(sp, this_device_id, user_id, data);
+	this->impl_->query_replica(sp, data_hash);
 }
 
 //////////////////////////////////
@@ -247,15 +245,9 @@ void vds::_p2p_network::close_session(
   this->route_->close_session(sp, partner, ex);
 }
 
-void vds::_p2p_network::save_data(
-	const service_provider& sp,
-	const guid& this_device_id,
-	const guid& user_id,
-	const const_data_buffer& data)
+void vds::_p2p_network::query_replica(
+    const service_provider &sp,
+    const const_data_buffer & data_hash)
 {
-	this->route_->save_data(
-		sp,
-		this_device_id,
-		user_id,
-		data);
+	this->route_->query_replica(sp, data_hash);
 }

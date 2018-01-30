@@ -3,9 +3,6 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
-#include <chunk_map_dbo.h>
-#include <p2p_network.h>
-#include <messages/chunk_query_replica.h>
 #include "stdafx.h"
 #include "file_operations.h"
 #include "file.h"
@@ -22,9 +19,11 @@ All rights reserved
 #include "vds_exceptions.h"
 #include "cert_control.h"
 #include "chunk_data_dbo.h"
-#include "chunk_replica_dbo.h"
+#include "chunk_replica_data_dbo.h"
 #include "chunk_replicator.h"
 #include "chunk.h"
+#include "p2p_network.h"
+#include "messages/chunk_query_replica.h"
 
 vds::file_manager::file_operations::file_operations()
 : impl_(new file_manager_private::_file_operations()){
@@ -189,88 +188,54 @@ vds::async_task<> vds::file_manager_private::_file_operations::download_block(
 	const service_provider& sp,
 	database_transaction& t,
   file_manager::download_file_task::block_info & block,
-  const std::shared_ptr<file_manager::download_file_task> & result)
-{
-	dbo::chunk_data_dbo t1;
-	auto st = t.get_reader(t1.select(t1.block_key, t1.block_data).where(t1.id == base64::from_bytes(block.id_.block_id)));
-	if(st.execute()) {
-    auto data = chunk_manager::unpack_block(
-        block.id_.block_id,
-        t1.block_key.get(st),
-        t1.block_data.get(st));
-    result->set_file_data(block, data);
-	}
-	else {
-		dbo::chunk_replica_dbo t2;
-		st = t.get_reader(t2.select(t2.replica).where(t2.id == base64::from_bytes(
-        block.id_.block_id)));
+  const std::shared_ptr<file_manager::download_file_task> & result) {
+  auto left_replicas(block.id_.replica_hashes);
+  std::vector<uint16_t> replicas;
+  std::vector<const_data_buffer> datas;
 
-    std::list<uint16_t> replicas;
-    while(st.execute()){
-      replicas.push_back(safe_cast<uint16_t>(t2.replica.get(st)));
+  dbo::chunk_replica_data_dbo t1;
+  auto st = t.get_reader(
+      t1
+          .select(t1.replica, t1.replica_data)
+          .where(t1.id == base64::from_bytes(block.id_.block_id)));
+
+  while (st.execute()) {
+    auto replica = safe_cast<uint16_t>(t1.replica.get(st));
+    replicas.push_back(replica);
+    datas.push_back(t1.replica_data.get(st));
+    left_replicas.erase(replica);
+
+    if (replicas.size() >= chunk_replicator::MIN_HORCRUX) {
+      break;
     }
+  }
 
-		if(replicas.size() >= chunk_replicator::MIN_HORCRUX){
-      this->restore_chunk(sp, t, block, result);
+  if (replicas.size() >= chunk_replicator::MIN_HORCRUX) {
+
+    chunk_restore<uint16_t> restore(chunk_replicator::MIN_HORCRUX, replicas.data());
+    binary_serializer s;
+    restore.restore(s, datas);
+
+    result->set_file_data(block, s.data());
+  } else {
+    auto p2p = sp.get<p2p_network>();
+    auto user_mng = sp.get<user_manager>();
+
+    asymmetric_private_key device_private_key;
+    auto device_user = user_mng->get_current_device(sp, device_private_key);
+
+    for(auto &  replica : left_replicas) {
+
+      sp.get<logger>()->warning(
+          ThisModule,
+          sp,
+          "Send query for replica %s",
+          std::to_string(replica.first).c_str());
+
+      p2p->query_replica(sp, replica.second);
     }
-    else {
-      std::set<guid> devices;
-
-      dbo::chunk_map_dbo t3;
-      st = t.get_reader(
-          t3
-              .select(t3.device)
-              .where(t3.id == base64::from_bytes(block.id_.block_id)
-              && db_not_in_values(t3.replica, replicas)));
-
-      while(st.execute()){
-        auto device = t3.device.get(st);
-        if(devices.end() == devices.find(device)){
-          devices.emplace(device);
-        }
-      }
-
-      if(!devices.empty()) {
-        auto p2p = sp.get<p2p_network>();
-        auto user_mng = sp.get<user_manager>();
-
-        asymmetric_private_key device_private_key;
-        auto device_user = user_mng->get_current_device(sp,device_private_key);
-
-        for (auto device : devices) {
-          sp.get<logger>()->warning(
-              ThisModule,
-              sp,
-              "Send query for %s to device %s",
-              base64::from_bytes(block.id_.block_id).c_str(),
-              device.str().c_str());
-
-          p2p->send(sp, device, p2p_messages::chunk_query_replica(
-              device_user.id(),
-              block.id_.block_id,
-              replicas).serialize());
-        }
-      }
-      else {
-        sp.get<logger>()->warning(
-            ThisModule,
-            sp,
-            "No devices to get block %s",
-            base64::from_bytes(block.id_.block_id).c_str());
-      }
-    }
-
-//		{
-//			result->local_block_count++;
-//		}
-//		else
-//		{
-//			result->remote_block_count++;
-//
-//			throw std::runtime_error("Not implemented");
-//		}
-	}
-	return async_task<>::empty();
+  }
+  return async_task<>::empty();
 }
 
 void vds::file_manager_private::_file_operations::pack_file(
@@ -328,7 +293,7 @@ void
   std::vector<uint16_t> replicas;
   std::vector<const_data_buffer> datas;
 
-  dbo::chunk_replica_dbo t1;
+  dbo::chunk_replica_data_dbo t1;
   auto st = t.get_reader(
       t1
           .select(t1.replica, t1.replica_data)
@@ -354,8 +319,7 @@ void
   dbo::chunk_data_dbo t2;
   t.execute(t2.insert(
           t2.id = base64::from_bytes(block.id_.block_id),
-      t2.block_key = block.id_.block_key,
-      t2.block_data = s.data()));
+      t2.block_key = block.id_.block_key));
 
   result->set_file_data(block, s.data());
 }

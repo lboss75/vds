@@ -9,8 +9,7 @@ All rights reserved
 #include "db_model.h"
 #include "chunk_data_dbo.h"
 #include "p2p_network.h"
-#include "chunk_replica_dbo.h"
-#include "chunk_map_dbo.h"
+#include "chunk_replica_data_dbo.h"
 #include "chunk.h"
 #include "messages/chunk_send_replica.h"
 #include "member_user.h"
@@ -100,9 +99,12 @@ void vds::_chunk_replicator::apply(
 void vds::_chunk_replicator::update_replicas(
     const service_provider &sp,
     database_transaction &t) {
-
+/*
   asymmetric_private_key device_private_key;
   auto this_device = sp.get<user_manager>()->get_current_device(sp, device_private_key);
+  auto p2p = sp.get<p2p_network>();
+
+  p2p->get_neighbors();
 
   dbo::chunk_data_dbo t1;
   dbo::chunk_map_dbo t2;
@@ -128,7 +130,6 @@ void vds::_chunk_replicator::update_replicas(
   sp.get<logger>()->trace(THIS_MODULE, sp, "Found %d blocks to generate replicas", blocks.size());
 
   if(!blocks.empty()) {
-    auto p2p = sp.get<p2p_network>();
       for (const auto & block_id : blocks) {
         std::set<int> replicas;
 
@@ -166,7 +167,7 @@ void vds::_chunk_replicator::update_replicas(
 			  cert_control::get_user_id(this_device.user_certificate()),
 			  replica_data);
     }
-  }
+  }*/
 }
 
 vds::const_data_buffer vds::_chunk_replicator::generate_replica(
