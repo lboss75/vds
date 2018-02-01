@@ -20,6 +20,7 @@ namespace vds {
 				const_data_buffer block_id;
 				const_data_buffer block_key;
 				uint32_t block_size;
+        uint16_t padding;
 				std::unordered_map<uint16_t, const_data_buffer> replica_hashes;
 			};
 
@@ -66,13 +67,29 @@ namespace vds {
 inline vds::binary_serializer & operator << (
 	vds::binary_serializer & s,
 	const vds::transactions::file_add_transaction::file_block_t & data) {
-	return s << data.block_id << data.block_key << data.block_size;
+	s << data.block_id << data.block_key << data.block_size << data.padding;
+  size_t count = data.replica_hashes.size();
+  s.write_number(count);
+  for(auto & p : data.replica_hashes){
+    s << p.first << p.second;
+  }
+  return s;
 }
 
 inline vds::binary_deserializer & operator >> (
 	vds::binary_deserializer & s,
 	vds::transactions::file_add_transaction::file_block_t & data) {
-	return s >> data.block_id >> data.block_key >> data.block_size;
+	s >> data.block_id >> data.block_key >> data.block_size >> data.padding;
+  auto count = s.read_number();
+  while(0 < count--){
+    uint16_t replica;
+    vds::const_data_buffer replica_data;
+
+    s >> replica >> replica_data;
+    data.replica_hashes[replica] = replica_data;
+  }
+
+  return s;
 }
 
 #endif //__VDS_FILE_MANAGER_FILE_ADD_TRANSACTION_H_

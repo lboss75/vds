@@ -57,7 +57,8 @@ vds::chunk_manager::chunk_info vds::chunk_manager::pack_block(
 vds::const_data_buffer vds::chunk_manager::unpack_block(
     const const_data_buffer & block_id,
     const const_data_buffer & block_key,
-    const const_data_buffer & block_data)
+    const void * block_data,
+    size_t block_size)
 {
 	if (block_key.size() != symmetric_crypto::aes_256_cbc().key_size()
 		|| sizeof(pack_block_iv) != symmetric_crypto::aes_256_cbc().iv_size()) {
@@ -69,7 +70,7 @@ vds::const_data_buffer vds::chunk_manager::unpack_block(
 		block_key.data(),
 		pack_block_iv);
 
-	auto zipped = symmetric_decrypt::decrypt(key2, block_data);
+	auto zipped = symmetric_decrypt::decrypt(key2, block_data, block_size);
 	auto data = inflate::decompress(zipped.data(), zipped.size());
 	if (block_id != hash::signature(hash::sha256(), data)) {
 		throw std::runtime_error("Data block is corrupt");
@@ -79,7 +80,11 @@ vds::const_data_buffer vds::chunk_manager::unpack_block(
 }
 
 vds::chunk_manager::chunk_info
-vds::chunk_manager::save_block(vds::database_transaction &t, const vds::const_data_buffer &data) {
+vds::chunk_manager::save_block(
+		vds::database_transaction &t,
+		const vds::const_data_buffer &data,
+    size_t & padding,
+		std::unordered_map<uint16_t, const_data_buffer> & replica_hashes) {
 	auto block = pack_block(data);
 
 	dbo::chunk_data_dbo t1;
@@ -90,7 +95,11 @@ vds::chunk_manager::save_block(vds::database_transaction &t, const vds::const_da
   resizable_data_buffer padded_data;
   padded_data += block.data;
   if (0 != (padded_data.size() % (sizeof(uint16_t) * chunk_replicator::MIN_HORCRUX))) {
-    padded_data.padding(sizeof(uint16_t) * chunk_replicator::MIN_HORCRUX - (padded_data.size() % (sizeof(uint16_t) * chunk_replicator::MIN_HORCRUX)));
+    padding = sizeof(uint16_t) * chunk_replicator::MIN_HORCRUX - (padded_data.size() % (sizeof(uint16_t) * chunk_replicator::MIN_HORCRUX));
+    padded_data.padding(padding);
+  }
+  else {
+    padding = 0;
   }
 
 	for(int16_t replica = 0; replica < chunk_replicator::GENERATE_HORCRUX; ++replica){
@@ -99,12 +108,15 @@ vds::chunk_manager::save_block(vds::database_transaction &t, const vds::const_da
 		binary_serializer s;
 		generator.write(s, padded_data.data(), padded_data.size());
 
+		auto replica_hash = hash::signature(hash::sha256(), s.data());
+		replica_hashes[replica] = replica_hash;
+
 		dbo::chunk_replica_data_dbo t2;
 		t.execute(t2.insert(
 			t2.id = base64::from_bytes(block.id),
 			t2.replica = (int)replica,
 			t2.replica_data = s.data(),
-			t2.replica_hash = hash::signature(hash::sha256(), s.data())));
+			t2.replica_hash = replica_hash));
 	}
 
 	return block;

@@ -90,12 +90,14 @@ namespace vds {
       void set_file_data(
           block_info & block,
           const const_data_buffer & data){
+
         vds_assert(block.id_.block_size == data.size());
+
         block.is_processed_ = true;
 
         file f(this->target_file_, file::file_mode::open_or_create);
         f.seek(block.offset_);
-        f.write(data);
+        f.write(data.data(), block.id_.block_size);
         f.close();
 
         this->local_block_count_++;

@@ -202,7 +202,10 @@ vds::async_task<> vds::file_manager_private::_file_operations::download_block(
   while (st.execute()) {
     auto replica = safe_cast<uint16_t>(t1.replica.get(st));
     replicas.push_back(replica);
-    datas.push_back(t1.replica_data.get(st));
+
+    auto replica_data = t1.replica_data.get(st);
+    datas.push_back(replica_data);
+    vds_assert(hash::signature(hash::sha256(), replica_data) == left_replicas[replica]);
     left_replicas.erase(replica);
 
     if (replicas.size() >= chunk_replicator::MIN_HORCRUX) {
@@ -216,7 +219,13 @@ vds::async_task<> vds::file_manager_private::_file_operations::download_block(
     binary_serializer s;
     restore.restore(s, datas);
 
-    result->set_file_data(block, s.data());
+    auto data = chunk_manager::unpack_block(
+        block.id_.block_id,
+        block.id_.block_key,
+        s.data().data(),
+        s.size() - block.id_.padding);
+
+    result->set_file_data(block, data);
   } else {
     auto p2p = sp.get<p2p_network>();
     auto user_mng = sp.get<user_manager>();
@@ -252,14 +261,20 @@ void vds::file_manager_private::_file_operations::pack_file(
 
       auto readed = f.read(buffer.data(), file_size);
       vds_assert(readed == file_size);
+      size_t padding;
+      std::unordered_map<uint16_t, const_data_buffer> replica_hashes;
       auto block_info = chunk_mng->save_block(
-          t, vds::const_data_buffer(buffer.data(), readed));
+          t, vds::const_data_buffer(buffer.data(), readed),
+          padding,
+          replica_hashes);
       file_blocks.push_back(
           transactions::file_add_transaction::file_block_t
           {
               block_info.id,
               block_info.key,
-              safe_cast<decltype(transactions::file_add_transaction::file_block_t::block_size)>(readed)
+              safe_cast<decltype(transactions::file_add_transaction::file_block_t::block_size)>(readed),
+              static_cast<uint16_t>(padding),
+              replica_hashes
           });
     } else {
       auto count = file_size / vds::file_manager::file_operations::BLOCK_SIZE;
@@ -269,14 +284,19 @@ void vds::file_manager_private::_file_operations::pack_file(
 
       for (uint64_t offset = 0; offset < file_size; offset += block_size) {
         auto readed = f.read(buffer.data(), block_size);
+        size_t padding;
+        std::unordered_map<uint16_t, const_data_buffer> replica_hashes;
         auto block_info = chunk_mng->save_block(
-            t, vds::const_data_buffer(buffer.data(), readed));
+            t, vds::const_data_buffer(buffer.data(), readed),
+            padding, replica_hashes);
         file_blocks.push_back(
             transactions::file_add_transaction::file_block_t
                 {
                     block_info.id,
                     block_info.key,
-                    safe_cast<decltype(transactions::file_add_transaction::file_block_t::block_size)>(readed)
+                    safe_cast<decltype(transactions::file_add_transaction::file_block_t::block_size)>(readed),
+                    static_cast<uint16_t>(padding),
+                    replica_hashes
                 });
       }
     }
