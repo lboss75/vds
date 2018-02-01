@@ -40,6 +40,10 @@ namespace vds {
 		const guid &partner_id,
 		const p2p_messages::common_log_record & message);
 
+  operator bool() const {
+    return nullptr != this->impl_.get();
+  }
+
   private:
     std::shared_ptr<class _log_sync_service> impl_;
   };

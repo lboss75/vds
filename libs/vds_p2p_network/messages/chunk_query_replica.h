@@ -18,28 +18,25 @@ namespace vds {
 
       chunk_query_replica(
           const guid &source_node_id,
-          const const_data_buffer & block_id,
-          const std::list<uint16_t > & replicas)
+          const const_data_buffer & data_hash)
           : source_node_id_(source_node_id),
-            block_id_(block_id),
-            replicas_(replicas){
+            data_hash_(data_hash){
       }
 
       chunk_query_replica(
           binary_deserializer & s) {
-        s >> this->source_node_id_ >> this->block_id_ >> this->replicas_;
+        s >> this->source_node_id_ >> this->data_hash_;
       }
 
       const_data_buffer serialize() const {
         binary_serializer s;
-        s << message_id << this->source_node_id_ << this->block_id_ << this->replicas_;
+        s << message_id << this->source_node_id_ << this->data_hash_;
         return s.data();
       }
 
     private:
       guid source_node_id_;
-      const_data_buffer block_id_;
-      std::list<uint16_t> replicas_;
+      const_data_buffer data_hash_;
     };
   }
 }

@@ -27,6 +27,10 @@ namespace vds {
       void stop(const service_provider &);
       async_task<> prepare_to_stop(const service_provider &sp);
 
+      operator bool() const {
+        return nullptr != this->impl_;
+      }
+
     private:
       file_manager_private::_file_manager_service * const impl_;
     };

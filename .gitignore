@@ -49,3 +49,4 @@ externals/Build-VC-64-debug/
 externals/build_gtest/
 externals/googletest/
 externals/zlib_out/
+*.user

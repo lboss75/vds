@@ -102,7 +102,11 @@ vds::async_task<> vds::server::init_server(
 }
 
 vds::async_task<> vds::server::start_network(const vds::service_provider &sp) {
-  return this->impl_->p2p_network_->start_network(sp);
+  return this->impl_->p2p_network_->start_network(sp).then([this, sp]() {
+    this->impl_->log_sync_service_->start(sp);
+    this->impl_->file_manager_->start(sp);
+    this->impl_->chunk_replicator_->start(sp);
+  });
 }
 
 vds::async_task<> vds::server::prepare_to_stop(const vds::service_provider &sp) {
@@ -145,16 +149,21 @@ vds::_server::~_server()
 void vds::_server::start(const service_provider& sp)
 {
 	this->db_model_->start(sp);
-  this->log_sync_service_->start(sp);
-  this->file_manager_->start(sp);
-  this->chunk_replicator_->start(sp);
 }
 
 void vds::_server::stop(const service_provider& sp)
 {
-	this->chunk_replicator_->stop(sp);
-  this->file_manager_->stop(sp);
-  this->log_sync_service_->stop(sp);
+  if (*this->chunk_replicator_) {
+    this->chunk_replicator_->stop(sp);
+  }
+
+  if (*this->file_manager_) {
+    this->file_manager_->stop(sp);
+  }
+  if (*this->log_sync_service_) {
+    this->log_sync_service_->stop(sp);
+  }
+
   this->db_model_->stop(sp);
   this->p2p_network_->stop(sp);
 

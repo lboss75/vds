@@ -10,8 +10,9 @@ All rights reserved
 
 namespace vds {
 
-  class _p2p_route {
+  class _p2p_route : public std::enable_shared_from_this<_p2p_route> {
   public:
+    _p2p_route(const guid & this_device_id);
 
     async_task<> send_to(
         const service_provider & sp,
@@ -78,6 +79,9 @@ namespace vds {
 
     std::map<guid, std::shared_ptr<session>> sessions_;
     mutable std::shared_mutex sessions_mutex_;
+
+    guid this_device_id_;
+
 
     static size_t calc_distance(const const_data_buffer & source_node, const const_data_buffer & target_node);
   };

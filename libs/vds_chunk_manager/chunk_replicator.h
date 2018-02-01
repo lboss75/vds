@@ -22,6 +22,9 @@ namespace vds {
 
 	void apply(const service_provider& sp, const guid& partner_id, const p2p_messages::chunk_send_replica& message);
 
+    operator bool () const {
+      return nullptr != this->impl_.get();
+    }
   private:
     std::shared_ptr<class _chunk_replicator> impl_;
   };

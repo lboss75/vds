@@ -113,17 +113,25 @@ vds::async_task<> vds::_p2p_network::start_network(const vds::service_provider &
 	imt_service::enable_async(sp);
 
   auto run_conf = std::make_shared<std::list<run_data>>();
-  return sp.get<db_model>()->async_transaction(sp, [sp, run_conf](database_transaction & t){
+  return sp.get<db_model>()->async_transaction(sp, [sp, run_conf, pthis = this->shared_from_this()](database_transaction & t){
     dbo::run_configuration t1;
     auto st = t.get_reader(t1.select(t1.port, t1.cert, t1.cert_private_key));
     while(st.execute()){
+      if(!run_conf->empty()) {
+        throw std::runtime_error("Multiple run configuration is not supported");
+      }
+
+      auto device_cert = certificate::parse_der(t1.cert.get(st));
+      pthis->route_.init(cert_control::get_id(device_cert));
+
       run_data item;
       item.port = t1.port.get(st);
       item.key = asymmetric_private_key::parse_der(t1.cert_private_key.get(st), std::string());
-      item.cert_chain.push_back(certificate::parse_der(t1.cert.get(st)));
+      item.cert_chain.push_back(device_cert);
 
       run_conf->push_back(item);
-    }
+    }   
+
 
 	auto user_mng = sp.get<user_manager>();
 	user_mng->load(sp, t);
@@ -188,7 +196,9 @@ std::set<vds::p2p::p2p_node_info> vds::_p2p_network::get_neighbors() const {
 void vds::_p2p_network::broadcast(
     const service_provider & sp,
     const const_data_buffer & message) const {
-  this->route_->broadcast(sp, message);
+  if (this->route_) {
+    this->route_->broadcast(sp, message);
+  }
 }
 
 bool vds::_p2p_network::send(
