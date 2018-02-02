@@ -27,7 +27,6 @@ vds::p2p_network::~p2p_network() {
 
 }
 
-
 void
 vds::p2p_network::random_broadcast(const vds::service_provider &sp, const vds::const_data_buffer &message) {
   this->impl_->random_broadcast(sp, message);
@@ -73,6 +72,13 @@ void vds::p2p_network::query_replica(
 	this->impl_->query_replica(sp, data_hash);
 }
 
+size_t vds::p2p_network::calc_distance(
+  const const_data_buffer& source,
+  const const_data_buffer& target) {
+  return _p2p_route::calc_distance(source, target);
+}
+
+
 //////////////////////////////////
 vds::_p2p_network::_p2p_network()
 {
@@ -102,9 +108,11 @@ void vds::_p2p_network::add_route(const service_provider &sp, const vds::guid &p
 
 struct run_data
 {
+  vds::guid id;
   int port;
-  std::list<vds::certificate> cert_chain;
   vds::asymmetric_private_key key;
+  vds::service_provider scope;
+  std::list<vds::certificate> cert_chain;
 };
 
 
@@ -114,28 +122,24 @@ vds::async_task<> vds::_p2p_network::start_network(const vds::service_provider &
 
   auto run_conf = std::make_shared<std::list<run_data>>();
   return sp.get<db_model>()->async_transaction(sp, [sp, run_conf, pthis = this->shared_from_this()](database_transaction & t){
-    dbo::run_configuration t1;
-    auto st = t.get_reader(t1.select(t1.port, t1.cert, t1.cert_private_key));
-    while(st.execute()){
-      if(!run_conf->empty()) {
-        throw std::runtime_error("Multiple run configuration is not supported");
-      }
 
+    auto user_mng = sp.get<user_manager>();
+
+    dbo::run_configuration t1;
+    auto st = t.get_reader(t1.select(t1.id, t1.port, t1.cert, t1.cert_private_key));
+    while(st.execute()){
       auto device_cert = certificate::parse_der(t1.cert.get(st));
       pthis->route_.init(cert_control::get_id(device_cert));
 
-      run_data item;
-      item.port = t1.port.get(st);
-      item.key = asymmetric_private_key::parse_der(t1.cert_private_key.get(st), std::string());
-      item.cert_chain.push_back(device_cert);
+      run_conf->push_back(run_data{
+        t1.id.get(st),
+        t1.port.get(st),
+        asymmetric_private_key::parse_der(t1.cert_private_key.get(st), std::string()),
+        sp.create_scope("Configuration " + t1.id.get(st).str()) });
 
-      run_conf->push_back(item);
-    }   
-
-
-	auto user_mng = sp.get<user_manager>();
-	user_mng->load(sp, t);
-
+      run_conf->rbegin()->cert_chain.push_back(device_cert);
+      user_mng->load(run_conf->rbegin()->scope, t, t1.id.get(st));
+    }
 	for (auto & conf : *run_conf) {
 		auto parent_id = cert_control::get_parent_id(conf.cert_chain.front());
 		while (parent_id) {
@@ -160,9 +164,10 @@ vds::async_task<> vds::_p2p_network::start_network(const vds::service_provider &
     auto result = async_task<>::empty();
     for(auto & conf : *run_conf) {
       pthis->network_services_.push_back(p2p_network_service());
-      result = result.then([pthis, sp, conf]() {
+
+      result = result.then([pthis, conf]() {
         return pthis->network_services_.rbegin()->start(
-            sp, conf.port, conf.cert_chain, conf.key);
+          conf.scope, conf.port, conf.cert_chain, conf.key);
       });
     }
     return result;
@@ -261,3 +266,4 @@ void vds::_p2p_network::query_replica(
 {
 	this->route_->query_replica(sp, data_hash);
 }
+

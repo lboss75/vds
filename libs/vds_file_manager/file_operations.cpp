@@ -72,7 +72,7 @@ vds::async_task<> vds::file_manager_private::_file_operations::upload_file(
         asymmetric_private_key device_private_key;
         auto user = user_mng->get_current_device(sp, device_private_key);
 
-        auto channel = user_mng->get_channel(channel_id);
+        auto channel = user_mng->get_channel(sp, channel_id);
         if(!channel.write_cert()){
           sp.get<logger>()->error(
               ThisModule,
@@ -81,7 +81,7 @@ vds::async_task<> vds::file_manager_private::_file_operations::upload_file(
               channel_id.str().c_str());
           throw vds_exceptions::access_denied_error("User don't have write permission");
         }
-        auto channel_write_key = user_mng->get_channel_write_key(channel.id());
+        auto channel_write_key = user_mng->get_channel_write_key(sp, channel.id());
 
         std::list<transactions::file_add_transaction::file_block_t> file_blocks;
         pthis->pack_file(sp, file_path, t, file_blocks);
@@ -97,12 +97,12 @@ vds::async_task<> vds::file_manager_private::_file_operations::upload_file(
                 mimetype,
                 file_blocks));
 
-		auto common_channel_write_key = user_mng->get_channel_write_key(user_mng->get_common_channel().id());
+		auto common_channel_write_key = user_mng->get_channel_write_key(sp, user_mng->get_common_channel(sp).id());
 		log.save(
             sp,
             t,
-			user_mng->get_common_channel().read_cert(),
-			user_mng->get_common_channel().write_cert(),
+			user_mng->get_common_channel(sp).read_cert(),
+			user_mng->get_common_channel(sp).write_cert(),
 			common_channel_write_key);
 
 		return true;
@@ -122,7 +122,7 @@ vds::async_task<> vds::file_manager_private::_file_operations::download_file(
         if(task->file_blocks().empty()) {
 
           auto user_mng = sp.get<user_manager>();
-          auto channel = user_mng->get_channel(task->channel_id());
+          auto channel = user_mng->get_channel(sp, task->channel_id());
 
           dbo::channel_message t1;
           auto st = t.get_reader(
@@ -264,6 +264,7 @@ void vds::file_manager_private::_file_operations::pack_file(
       size_t padding;
       std::unordered_map<uint16_t, const_data_buffer> replica_hashes;
       auto block_info = chunk_mng->save_block(
+        sp,
           t, vds::const_data_buffer(buffer.data(), readed),
           padding,
           replica_hashes);
@@ -287,6 +288,7 @@ void vds::file_manager_private::_file_operations::pack_file(
         size_t padding;
         std::unordered_map<uint16_t, const_data_buffer> replica_hashes;
         auto block_info = chunk_mng->save_block(
+          sp,
             t, vds::const_data_buffer(buffer.data(), readed),
             padding, replica_hashes);
         file_blocks.push_back(

@@ -139,10 +139,10 @@ vds::orm::transaction_log_record_dbo::state_t vds::transaction_log::apply_block(
       >> signature;
 
   auto user_mng = sp.get<user_manager>();
-  auto common_channel = user_mng->get_common_channel();
+  auto common_channel = user_mng->get_common_channel(sp);
   //Validate
   bool is_validated = false;
-  auto validate_cert = user_mng->get_channel_write_cert(common_channel.id(), write_cert_id);
+  auto validate_cert = user_mng->get_channel_write_cert(sp, common_channel.id(), write_cert_id);
   if (validate_cert) {
     if (!asymmetric_sign_verify::verify(hash::sha256(), validate_cert.public_key(), signature, block_data.data(), crypted_size)) {
       throw vds_exceptions::signature_validate_error();
@@ -207,7 +207,7 @@ vds::orm::transaction_log_record_dbo::state_t vds::transaction_log::apply_block(
     asymmetric_private_key device_private_key;
     auto device_user = user_mng->get_current_device(sp, device_private_key);
 
-    auto common_private_key = user_mng->get_common_channel_read_key(read_cert_id);
+    auto common_private_key = user_mng->get_common_channel_read_key(sp, read_cert_id);
 
     auto key_data = common_private_key.decrypt(crypted_key);
     auto key = symmetric_key::deserialize(symmetric_crypto::aes_256_cbc(), key_data);
@@ -216,7 +216,7 @@ vds::orm::transaction_log_record_dbo::state_t vds::transaction_log::apply_block(
     apply_message(sp, t, data);
 
     if(!is_validated){
-      auto validate_cert = user_mng->get_channel_write_cert(common_channel.id(), write_cert_id);
+      auto validate_cert = user_mng->get_channel_write_cert(sp, common_channel.id(), write_cert_id);
       if (!validate_cert
           || !asymmetric_sign_verify::verify(hash::sha256(), validate_cert.public_key(), signature, block_data.data(), crypted_size)) {
           throw vds_exceptions::signature_validate_error();

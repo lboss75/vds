@@ -26,6 +26,7 @@ namespace vds {
 				const const_data_buffer &data);
 
 		static chunk_info save_block(
+        const service_provider & sp,
 				class database_transaction & t,
 				const const_data_buffer &data,
         size_t & padding,

@@ -1188,6 +1188,14 @@ namespace vds {
         std::forward<group_by_columns_types>(group_by_columns)...);
     }
 
+    template <typename... order_columns_types>
+    _database_order_builder<this_class, order_columns_types...> order_by(order_columns_types && ... order_columns)
+    {
+      return _database_order_builder<this_class, order_columns_types...>(
+        std::move(*this),
+        std::forward<order_columns_types>(order_columns)...);
+    }
+
   protected:
     database_table * t_;
     typename _database_column_holder<column_type>::holder column_;

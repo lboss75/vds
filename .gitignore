@@ -50,3 +50,6 @@ externals/build_gtest/
 externals/googletest/
 externals/zlib_out/
 *.user
+obj/
+bin/
+*.tmp

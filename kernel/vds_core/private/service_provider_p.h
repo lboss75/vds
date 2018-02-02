@@ -87,16 +87,16 @@ namespace vds {
     _service_provider(
       const std::shared_ptr<_service_registrator> & service_registrator,
       const std::shared_ptr<_service_provider> & parent,
-      const char * name)
+      const std::string & name)
     : id_(++s_last_id_),
-      name_((name == nullptr) ? parent->name() : name),
-      full_name_((name == nullptr) ? parent->full_name_ : ((parent ? (parent->full_name_ + "/") : std::string()) + "[" + std::to_string(id_) + "]" + name)),
+      name_(name),
+      full_name_((parent ? (parent->full_name_ + "/") : std::string()) + "[" + std::to_string(id_) + "]" + name),
       parent_(parent),
       service_registrator_(service_registrator)
     {
     }
 
-    service_provider create_scope(const service_provider * owner, const char * name) const
+    service_provider create_scope(const service_provider * owner, const std::string & name) const
     {
       return service_provider(std::make_shared<_service_provider>(
         this->service_registrator_,

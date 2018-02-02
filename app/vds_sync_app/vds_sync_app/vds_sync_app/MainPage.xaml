@@ -1,0 +1,45 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://xamarin.com/schemas/2014/forms"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:local="clr-namespace:vds_sync_app"
+             x:Class="vds_sync_app.MainPage">
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="100"/>
+        </Grid.ColumnDefinitions>
+        
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <StackLayout Orientation="Horizontal">
+            <Button>Menu</Button>
+            <Editor></Editor>
+        </StackLayout>
+        <ScrollView Grid.Row="1">
+            <ListView ItemsSource="{Binding Channels}">
+                <ListView.ItemTemplate>
+                    <DataTemplate>
+                        <ViewCell>
+                            <StackLayout BackgroundColor="#eee"
+                                         Orientation="Vertical">
+                                <StackLayout Orientation="Horizontal">
+                                    <Image Source="{Binding Image}" Width="100"/>
+                                    <Label Text="{Binding Title}"
+                                           TextColor="#f35e20" />
+                                    <Label Text="{Binding SubTitle}"
+                                           HorizontalOptions="EndAndExpand"
+                                           TextColor="#503026" />
+                                </StackLayout>
+                            </StackLayout>
+                        </ViewCell>
+                    </DataTemplate>
+                </ListView.ItemTemplate>
+            </ListView>
+        </ScrollView>
+
+    </Grid>
+
+
+</ContentPage>

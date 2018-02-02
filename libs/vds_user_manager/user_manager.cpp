@@ -34,32 +34,38 @@ vds::user_manager::user_manager()
 
 void vds::user_manager::load(
 	const service_provider & sp,
-	database_transaction & t)
+	database_transaction & t,
+  const guid & config_id)
 {
-	if (nullptr != this->impl_.get()) {
+	if (nullptr != this->get_impl(sp)) {
 		throw std::runtime_error("Logic error");
 	}
 
 	dbo::run_configuration t1;
-	auto st = t.get_reader(t1.select(t1.cert, t1.cert_private_key, t1.common_channel_id, t1.common_channel_read_cert, t1.common_channel_pkey));
+	auto st = t.get_reader(
+    t1
+    .select(t1.cert, t1.cert_private_key, t1.common_channel_id, t1.common_channel_read_cert, t1.common_channel_pkey, t1.port)
+    .where(t1.id == config_id));
 	if (!st.execute()) {
 		throw std::runtime_error("Unable to get current configuration");
 	}
 
-	auto common_channel_id = t1.common_channel_id.get(st);
-	auto device_cert = certificate::parse_der(t1.cert.get(st));
-	auto device_id = cert_control::get_user_id(device_cert);
-	auto device_private_key = asymmetric_private_key::parse_der(t1.cert_private_key.get(st), std::string());
-	auto common_channel_read_cert = certificate::parse_der(t1.common_channel_read_cert.get(st));
-	auto common_read_private_key = asymmetric_private_key::parse_der(t1.common_channel_pkey.get(st), std::string());
+  std::unique_ptr<_user_manager> mng(new _user_manager(
+    config_id,
+    certificate::parse_der(t1.cert.get(st)),
+    asymmetric_private_key::parse_der(t1.cert_private_key.get(st), std::string()),
+    safe_cast<uint16_t>(t1.port.get(st)),
+    t1.common_channel_id.get(st),
+    certificate::parse_der(t1.common_channel_read_cert.get(st)),
+    asymmetric_private_key::parse_der(t1.common_channel_pkey.get(st), std::string())));
 
-	if (st.execute()) {
-		throw std::runtime_error("Multiple config");
-	}
+  mng->load(sp, t);
 
-	this->impl_.reset(new _user_manager(common_channel_id, device_id, device_cert, device_private_key));
-	this->impl_->add_read_certificate(common_channel_id, common_channel_read_cert, common_read_private_key);
-	this->impl_->load(sp, t);
+  sp.set_property<current_run_configuration>(
+    service_provider::property_scope::local_scope,
+    mng.release());
+
+  this->current_users_.push_back(sp);
 }
 
 vds::user_invitation vds::user_manager::reset(
@@ -133,7 +139,7 @@ vds::user_invitation vds::user_manager::reset(
       common_channel.write_cert(),
       common_write_private_key,
 	  false);
-  this->load(sp, t);
+  this->load(sp, t, device_user.id());
   transaction_log::apply_block(sp, t, block_id);
 
   return user_invitation(
@@ -242,7 +248,7 @@ vds::async_task<> vds::user_manager::init_server(
 			request.common_channel_write_cert(),
 			request.common_channel_write_private_key(),
 			false);
-		this->load(sp, t);
+		this->load(sp, t, device_user.id());
 		transaction_log::apply_block(sp, t, block_id);
 
 		return true;
@@ -324,11 +330,10 @@ vds::user_manager::lock_to_device(
       device_private_key,
       device_name);
 
-  auto config_id = guid::new_guid();
   dbo::run_configuration t3;
   t.execute(
       t3.insert(
-          t3.id = config_id,
+          t3.id = device_user.id(),
           t3.cert = device_user.user_certificate().der(),
           t3.cert_private_key = device_private_key.der(std::string()),
           t3.port = port,
@@ -361,53 +366,70 @@ vds::member_user vds::user_manager::get_current_device(
     const vds::service_provider &sp,
     asymmetric_private_key &device_private_key) const {
 
-	return this->impl_->get_current_device(sp, device_private_key);
+	return this->get_impl(sp)->get_current_device(sp, device_private_key);
 }
 
-vds::certificate vds::user_manager::get_channel_write_cert(const guid & channel_id) const
+vds::certificate vds::user_manager::get_channel_write_cert(
+  const service_provider & sp,
+  const guid & channel_id) const
 {
-	return this->impl_->get_channel_write_cert(channel_id);
+	return this->get_impl(sp)->get_channel_write_cert(channel_id);
 }
 
-vds::certificate vds::user_manager::get_channel_write_cert(const guid & channel_id, const guid & cert_id) const
+vds::certificate vds::user_manager::get_channel_write_cert(
+  const service_provider & sp,
+  const guid & channel_id,
+  const guid & cert_id) const
 {
-  return this->impl_->get_channel_write_cert(channel_id, cert_id);
+  return this->get_impl(sp)->get_channel_write_cert(channel_id, cert_id);
 }
 
-vds::asymmetric_private_key vds::user_manager::get_channel_write_key(const guid & channel_id) const
+vds::asymmetric_private_key vds::user_manager::get_channel_write_key(
+  const service_provider & sp,
+  const guid & channel_id) const
 {
-	return this->impl_->get_channel_write_key(channel_id);
+	return this->get_impl(sp)->get_channel_write_key(channel_id);
 }
 
-vds::certificate vds::user_manager::get_channel_read_cert(const guid & channel_id) const
+vds::certificate vds::user_manager::get_channel_read_cert(
+  const service_provider & sp,
+  const guid & channel_id) const
 {
-	return this->impl_->get_channel_read_cert(channel_id);
+	return this->get_impl(sp)->get_channel_read_cert(channel_id);
 }
 
-vds::asymmetric_private_key vds::user_manager::get_channel_read_key(const guid & channel_id) const
+vds::asymmetric_private_key vds::user_manager::get_channel_read_key(
+  const service_provider & sp,
+  const guid & channel_id) const
 {
-	return this->impl_->get_channel_read_key(channel_id);
+	return this->get_impl(sp)->get_channel_read_key(channel_id);
 }
 
-vds::certificate vds::user_manager::get_certificate(const guid & cert_id) const
+vds::certificate vds::user_manager::get_certificate(
+  const service_provider & sp,
+  const guid & cert_id) const
 {
-	return this->impl_->get_certificate(cert_id);
+	return this->get_impl(sp)->get_certificate(cert_id);
 }
 
-vds::asymmetric_private_key vds::user_manager::get_common_channel_read_key(const guid & cert_id) const
+vds::asymmetric_private_key vds::user_manager::get_common_channel_read_key(
+  const service_provider & sp,
+  const guid & cert_id) const
 {
-	return this->impl_->get_common_channel_read_key(cert_id);
+	return this->get_impl(sp)->get_common_channel_read_key(cert_id);
 }
 
 
-vds::user_channel vds::user_manager::get_channel(const guid & channel_id) const
+vds::user_channel vds::user_manager::get_channel(
+  const service_provider & sp,
+  const guid & channel_id) const
 {
-	return this->impl_->get_channel(channel_id);
+	return this->get_impl(sp)->get_channel(channel_id);
 }
 
-vds::user_channel vds::user_manager::get_common_channel() const {
-	auto id = this->impl_->get_common_channel_id();
-  return this->get_channel(id);
+vds::user_channel vds::user_manager::get_common_channel(const service_provider & sp) const {
+	auto id = this->get_impl(sp)->get_common_channel_id();
+  return this->get_channel(sp, id);
 }
 
 vds::member_user vds::user_manager::create_root_user(transactions::transaction_block &playback, database_transaction &t,
@@ -438,9 +460,9 @@ void vds::user_manager::apply_channel_message(
 	const guid & read_cert_id,
 	const guid & write_cert_id,
 	const const_data_buffer & message,
-	const const_data_buffer & signature)
+	const const_data_buffer & signature) const
 {
-	this->impl_->apply(
+	this->get_impl(sp)->apply(
 		sp,
 		channel_id,
 		message_id,
@@ -450,17 +472,21 @@ void vds::user_manager::apply_channel_message(
 		signature);
 }
 
-vds::guid vds::user_manager::get_common_channel_id() const
+vds::guid vds::user_manager::get_common_channel_id(const service_provider & sp) const
 {
-	return this->impl_->get_common_channel_id();
+	return this->get_impl(sp)->get_common_channel_id();
+}
+
+vds::_user_manager* vds::user_manager::get_impl(const service_provider & sp) const {
+  return static_cast<_user_manager *>(sp.get_property<current_run_configuration>(service_provider::property_scope::any_scope));
 }
 
 vds::const_data_buffer
 vds::user_manager::decrypt_message(const vds::service_provider &parent_scope, const vds::guid &channel_id,
                                    int message_id, const vds::guid &read_cert_id, const vds::guid &write_cert_id,
                                    const vds::const_data_buffer &message_data,
-                                   const vds::const_data_buffer &signature) {
-  return this->impl_->decrypt_message(
+                                   const vds::const_data_buffer &signature) const {
+  return this->get_impl(parent_scope)->decrypt_message(
       parent_scope,
       channel_id,
       message_id,
@@ -472,12 +498,17 @@ vds::user_manager::decrypt_message(const vds::service_provider &parent_scope, co
 
 ////////////////////////////////////////////////////////////////////////
 vds::_user_manager::_user_manager(
-	const guid & common_channel_id,
-	const guid & user_id,
-	const certificate & user_cert,
-	const asymmetric_private_key & user_private_key)
-	: security_walker(common_channel_id, user_id, user_cert, user_private_key)
+  const guid& id,
+  const certificate& device_cert,
+  const asymmetric_private_key& device_private_key,
+  const uint16_t port,
+  const guid& common_channel_id,
+  const certificate& common_channel_read_cert,
+  const asymmetric_private_key& common_channel_pkey)
+	: security_walker(common_channel_id, cert_control::get_user_id(device_cert), device_cert, device_private_key),
+    current_run_configuration(id, device_cert, device_private_key, port, common_channel_id, common_channel_read_cert, common_channel_pkey)
 {
+  this->add_read_certificate(common_channel_id, common_channel_read_cert, common_channel_pkey);
 }
 
 vds::member_user vds::_user_manager::get_current_device(const service_provider & sp, asymmetric_private_key & device_private_key) const

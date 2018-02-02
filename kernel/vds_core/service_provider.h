@@ -32,7 +32,7 @@ namespace vds {
       return result;
     }
 
-    service_provider create_scope(const char * name) const;
+    service_provider create_scope(const std::string & name) const;
 
     size_t id() const;
     const std::string & name() const;
@@ -54,9 +54,9 @@ namespace vds {
     };
 
     template <typename property_type>
-    const property_type * get_property(property_scope scope) const
+    property_type * get_property(property_scope scope) const
     {
-      return static_cast<const property_type *>(this->get_property(scope, types::get_type_id<property_type>()));
+      return static_cast<property_type *>(this->get_property(scope, types::get_type_id<property_type>()));
     }
 
     template <typename property_type>
@@ -80,7 +80,7 @@ namespace vds {
     std::shared_ptr<_service_provider> impl_;
 
     void * get(size_t type_id) const;
-    const property_holder * get_property(property_scope scope, size_t type_id) const;
+    property_holder * get_property(property_scope scope, size_t type_id) const;
     void set_property(property_scope scope, size_t type_id, property_holder * value) const;
   };
 

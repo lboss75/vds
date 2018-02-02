@@ -103,7 +103,7 @@ void vds::_p2p_route::add(
   
   sp.get<db_model>()->async_transaction(sp, [sp, pthis = this->shared_from_this(), partner_id, session](database_transaction & t) {
     dbo::chunk_replica_data_dbo t1;
-    auto st = t.get_reader(t1.select(t1.replica_hash));
+    auto st = t.get_reader(t1.select(t1.replica_hash).order_by(db_desc_order(t1.distance)));
     while(st.execute()) {
       auto replica_hash = t1.replica_hash.get(st);
       if(calc_distance(pthis->this_device_id_, replica_hash) > calc_distance(partner_id, replica_hash)) {

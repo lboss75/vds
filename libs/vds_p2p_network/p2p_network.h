@@ -54,6 +54,10 @@ namespace vds {
 		const service_provider &sp, 
 		const const_data_buffer & data_hash);
 
+  static size_t calc_distance(
+    const const_data_buffer & sorce,
+    const const_data_buffer & target);
+
   private:
     std::shared_ptr<class _p2p_network> impl_;
   };

@@ -19,7 +19,7 @@ vds::service_provider vds::service_provider::empty()
   return service_provider(std::shared_ptr<_service_provider>());
 }
 
-vds::service_provider vds::service_provider::create_scope(const char * name) const
+vds::service_provider vds::service_provider::create_scope(const std::string & name) const
 {
   return this->impl_->create_scope(this, name);
 }
@@ -50,7 +50,7 @@ void * vds::service_provider::get(size_t type_id) const
   return this->impl_->get(type_id);
 }
 
-const vds::service_provider::property_holder * vds::service_provider::get_property(property_scope scope, size_t type_id) const
+vds::service_provider::property_holder * vds::service_provider::get_property(property_scope scope, size_t type_id) const
 {
   return this->impl_->get_property(scope, type_id);
 }

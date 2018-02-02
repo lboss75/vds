@@ -8,15 +8,19 @@ All rights reserved
 
 #include "user_manager.h"
 #include "security_walker.h"
+#include "run_configuration_dbo.h"
 
 namespace vds {
-  class _user_manager : public security_walker {
+  class _user_manager : public security_walker, public current_run_configuration {
   public:
     _user_manager(
-        const guid &common_channel_id,
-        const guid &user_id,
-        const certificate &user_cert,
-        const asymmetric_private_key &user_private_key);
+      const guid& id,
+      const certificate& device_cert,
+      const asymmetric_private_key& device_private_key,
+      const uint16_t port,
+      const guid& common_channel_id,
+      const certificate& common_channel_read_cert,
+      const asymmetric_private_key& common_channel_pkey);
 
     member_user get_current_device(
         const service_provider &sp,

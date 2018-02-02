@@ -46,6 +46,10 @@ namespace vds {
       const service_provider &sp,
       const const_data_buffer & data_hash);
 
+  static size_t calc_distance(
+    const const_data_buffer & source_node,
+    const const_data_buffer & target_node);
+
   private:
     class session {
     public:
@@ -83,7 +87,6 @@ namespace vds {
     guid this_device_id_;
 
 
-    static size_t calc_distance(const const_data_buffer & source_node, const const_data_buffer & target_node);
   };
 
 }

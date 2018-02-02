@@ -13,6 +13,8 @@
 #include "database_orm.h"
 #include "chunk_data_dbo.h"
 #include "chunk_replicator.h"
+#include <p2p_network.h>
+#include "run_configuration_dbo.h"
 
 static uint8_t pack_block_iv[] = {
     // 0     1     2     3     4     5     6     7
@@ -81,6 +83,7 @@ vds::const_data_buffer vds::chunk_manager::unpack_block(
 
 vds::chunk_manager::chunk_info
 vds::chunk_manager::save_block(
+    const service_provider & sp,
 		vds::database_transaction &t,
 		const vds::const_data_buffer &data,
     size_t & padding,
@@ -115,6 +118,7 @@ vds::chunk_manager::save_block(
 		t.execute(t2.insert(
 			t2.id = base64::from_bytes(block.id),
 			t2.replica = (int)replica,
+      t2.distance = sp.get<p2p_network>()->calc_distance(sp.get_property<current_run_configuration>(service_provider::property_scope::any_scope)->id(), replica_hash),
 			t2.replica_data = s.data(),
 			t2.replica_hash = replica_hash));
 	}

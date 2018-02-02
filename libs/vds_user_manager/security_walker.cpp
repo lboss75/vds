@@ -165,7 +165,7 @@ void vds::security_walker::apply(
     const guid & read_cert_id,
     const guid & write_cert_id,
     const const_data_buffer & message_data,
-    const const_data_buffer & signature) {
+    const const_data_buffer & signature){
 
 	if (channel_id != this->user_id_) {
 		return;
