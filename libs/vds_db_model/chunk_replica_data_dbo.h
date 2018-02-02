@@ -25,7 +25,7 @@ namespace vds {
 			database_column<int> replica;
       database_column<uint64_t> distance;
       database_column<const_data_buffer> replica_data;
-      database_column<const_data_buffer> replica_hash;
+      database_column<std::string> replica_hash;
 		};
 	}
 }

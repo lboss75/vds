@@ -34,5 +34,9 @@ namespace vds_sync_app
                 base.BindingContext = value;
 	        }
 	    }
+
+	    private void Menu_OnClicked(object sender, EventArgs e)
+	    {
+	    }
 	}
 }

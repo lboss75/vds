@@ -15,6 +15,8 @@ All rights reserved
 #include "member_user.h"
 #include "user_manager.h"
 #include "cert_control.h"
+#include "run_configuration_dbo.h"
+#include "messages/chunk_offer_replica.h"
 
 void vds::chunk_replicator::start(const vds::service_provider &sp) {
   this->impl_.reset(new _chunk_replicator());
@@ -30,6 +32,31 @@ void vds::chunk_replicator::apply(const service_provider& sp, const guid& partne
 	const p2p_messages::chunk_send_replica& message)
 {
 	this->impl_->apply(sp, partner_id, message);
+}
+
+void vds::chunk_replicator::apply(
+  const service_provider& sp,
+  const guid& partner_id,
+  const p2p_messages::chunk_query_replica& message) {
+  sp.get<db_model>()->async_transaction(sp, [sp, message](database_transaction & t)->bool{
+    dbo::chunk_replica_data_dbo t1;
+    auto st = t.get_reader(t1.select(t1.id, t1.replica, t1.replica_data).where(t1.replica_hash == base64::from_bytes(message.data_hash())));
+    if(st.execute()) {
+      sp.get<p2p_network>()->send(
+        sp,
+        message.source_node_id(),
+        p2p_messages::chunk_send_replica(
+          base64::to_bytes(t1.id.get(st)),
+          t1.replica.get(st),
+          message.data_hash(),
+          t1.replica_data.get(st)).serialize());
+    }
+    return true;
+  }).execute([sp, message](const std::shared_ptr<std::exception> & ex) {
+    if(ex) {
+      sp.get<logger>()->warning(ThisModule, sp, "%s at query replica %s", ex->what(), base64::from_bytes(message.data_hash()).c_str());
+    }
+  });
 }
 
 /////////////////////////////////////////////////////////////////////
@@ -88,7 +115,7 @@ void vds::_chunk_replicator::apply(
 		return true;
 	}).execute([sp](const std::shared_ptr<std::exception> & ex) {
 		sp.get<logger>()->warning(
-			THIS_MODULE,
+			ThisModule,
 			sp,
 			"%s at storing replica",
 			ex->what());
@@ -99,75 +126,33 @@ void vds::_chunk_replicator::apply(
 void vds::_chunk_replicator::update_replicas(
     const service_provider &sp,
     database_transaction &t) {
-/*
-  asymmetric_private_key device_private_key;
-  auto this_device = sp.get<user_manager>()->get_current_device(sp, device_private_key);
+
   auto p2p = sp.get<p2p_network>();
+  auto neighbors = p2p->get_neighbors();
 
-  p2p->get_neighbors();
+  auto user_mng = sp.get<user_manager>();
 
-  dbo::chunk_data_dbo t1;
-  dbo::chunk_map_dbo t2;
-  auto st = t.get_reader(
-      t1.select(t1.id, db_count(t2.replica))
-          .left_join(t2, t1.id == t2.id)
-          .order_by(db_count(t2.replica)));
+  for (auto & neighbor : neighbors) {
 
-  std::list<std::string> blocks;
-  while(st.execute()){
-    int replica_count;
-    st.get_value(1, replica_count);
+    dbo::chunk_replica_data_dbo t1;
+    auto st = t.get_reader(t1.select(t1.replica_hash).order_by(db_desc_order(t1.distance)));
+    while (st.execute()) {
+      auto replica_hash = base64::to_bytes(t1.replica_hash.get(st));
+      auto distance = p2p->calc_distance(neighbor.node_id, replica_hash);
+      bool is_good = true;
 
-    if(chunk_replicator::GENERATE_HORCRUX <= replica_count){
-      break;
+      for (auto & user_sp : user_mng->current_users()) {
+        auto this_device_id = user_sp.get_property<current_run_configuration>(service_provider::property_scope::any_scope)->id();
+        if (p2p->calc_distance(this_device_id, replica_hash) < distance ) {
+          is_good = false;
+        }
+      }
+
+      if (is_good) {
+        p2p->send(sp, neighbor.node_id, p2p_messages::chunk_offer_replica(replica_hash).serialize());
+      }
     }
-
-    auto block_id = t1.id.get(st);
-	if (!block_id.empty()) {
-		blocks.push_back(block_id);
-	}
   }
-  sp.get<logger>()->trace(THIS_MODULE, sp, "Found %d blocks to generate replicas", blocks.size());
-
-  if(!blocks.empty()) {
-      for (const auto & block_id : blocks) {
-        std::set<int> replicas;
-
-        st = t.get_reader(t2.select(t2.replica).where(t2.id == block_id));
-        while (st.execute()) {
-          auto replica = t2.replica.get(st);
-          replicas.emplace(replica);
-        }
-
-		st = t.get_reader(t1.select(t1.block_data).where(t1.id == block_id));
-		if (!st.execute()) {
-			throw std::runtime_error("Unable to load block data");
-		}
-
-		resizable_data_buffer data;
-      	data += t1.block_data.get(st);
-		if (0 != (data.size() % (sizeof(uint16_t) * chunk_replicator::MIN_HORCRUX))) {
-			data.padding(sizeof(uint16_t) * chunk_replicator::MIN_HORCRUX - (data.size() % (sizeof(uint16_t) * chunk_replicator::MIN_HORCRUX)));
-		}
-
-        uint16_t replica = 0;
-
-        while(replicas.end() != replicas.find(replica)) {
-			++replica;
-        }
-
-        if(replica > chunk_replicator::GENERATE_HORCRUX) {
-			break;
-        }
-
-	      const auto replica_data = this->generate_replica(replica, data.data(), data.size());
-          p2p->save_data(
-              sp,
-              this_device.id(),
-			  cert_control::get_user_id(this_device.user_certificate()),
-			  replica_data);
-    }
-  }*/
 }
 
 vds::const_data_buffer vds::_chunk_replicator::generate_replica(

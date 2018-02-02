@@ -13,27 +13,51 @@ namespace vds {
     public:
       static const uint8_t message_id = (uint8_t)p2p_message_id::chunk_send_replica;
 
+
       chunk_send_replica(
-          const guid &source_node_id,
-          const const_data_buffer &body)
-          : source_node_id_(source_node_id),
-            body_(body) {
+        const const_data_buffer & block_id,
+        const uint16_t replica,
+        const const_data_buffer& replica_data,
+        const const_data_buffer& replica_hash)
+        : block_id_(block_id),
+          replica_(replica),
+          replica_data_(replica_data),
+          replica_hash_(replica_hash) {
       }
 
       chunk_send_replica(
           binary_deserializer & s) {
-        s >> this->source_node_id_ >> this->body_;
+        s >> this->block_id_ >> this->replica_ >> this->replica_data_ >> this->replica_hash_;
       }
 
       const_data_buffer serialize() const {
         binary_serializer s;
-        s << message_id << this->source_node_id_ << this->body_;
+        s << message_id << this->block_id_ << this->replica_ << this->replica_data_ << this->replica_hash_;
         return s.data();
       }
 
+
+      const const_data_buffer & block_id() const {
+        return block_id_;
+      }
+
+      uint16_t replica() const {
+        return replica_;
+      }
+
+      const const_data_buffer & replica_data() const {
+        return replica_data_;
+      }
+
+      const const_data_buffer & replica_hash() const {
+        return replica_hash_;
+      }
+
     private:
-      guid source_node_id_;
-      const_data_buffer body_;
+      const_data_buffer block_id_;
+      uint16_t replica_;
+      const_data_buffer replica_data_;
+      const_data_buffer replica_hash_;
     };
   }
 }

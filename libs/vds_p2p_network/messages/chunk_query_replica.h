@@ -34,6 +34,15 @@ namespace vds {
         return s.data();
       }
 
+
+      const guid & source_node_id() const {
+        return source_node_id_;
+      }
+
+      const const_data_buffer & data_hash() const {
+        return data_hash_;
+      }
+
     private:
       guid source_node_id_;
       const_data_buffer data_hash_;

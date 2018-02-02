@@ -9,7 +9,7 @@ All rights reserved
 #include "vds_core.h"
 #include "vds_crypto.h"
 
-#define THIS_MODULE "CHUNKMNG"
+#define ThisModule "CHUNKMNG"
 
 #endif // __VDS_CHUNK_MANAGER_STDAFX_H_
 

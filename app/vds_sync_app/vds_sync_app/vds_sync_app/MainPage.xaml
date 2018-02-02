@@ -14,8 +14,8 @@
         </Grid.RowDefinitions>
 
         <StackLayout Orientation="Horizontal">
-            <Button>Menu</Button>
-            <Editor></Editor>
+            <Button x:Name="Menu" Image="images/menuA.png" Clicked="Menu_OnClicked">Menu</Button>
+            <Entry ></Entry>
         </StackLayout>
         <ScrollView Grid.Row="1">
             <ListView ItemsSource="{Binding Channels}">
@@ -40,6 +40,4 @@
         </ScrollView>
 
     </Grid>
-
-
 </ContentPage>

@@ -7,13 +7,12 @@ All rights reserved
 */
 #include "udp_transport.h"
 #include "p2p_node_info.h"
+#include "messages/p2p_message_id.h"
 
 namespace vds {
 
   class _p2p_route : public std::enable_shared_from_this<_p2p_route> {
   public:
-    _p2p_route(const guid & this_device_id);
-
     async_task<> send_to(
         const service_provider & sp,
         const guid & node_id,
@@ -45,6 +44,11 @@ namespace vds {
 	void query_replica(
       const service_provider &sp,
       const const_data_buffer & data_hash);
+
+  void query_replica(
+    const service_provider &sp,
+    const const_data_buffer & data_hash,
+    const guid & source_node);
 
   static size_t calc_distance(
     const const_data_buffer & source_node,
@@ -83,10 +87,6 @@ namespace vds {
 
     std::map<guid, std::shared_ptr<session>> sessions_;
     mutable std::shared_mutex sessions_mutex_;
-
-    guid this_device_id_;
-
-
   };
 
 }

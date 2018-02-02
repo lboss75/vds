@@ -13,9 +13,6 @@ namespace vds {
     p2p_route();
     ~p2p_route();
 
-    void init(
-      const guid & this_device_id);
-
     bool random_broadcast(
         const vds::service_provider &sp,
         const vds::const_data_buffer &message);

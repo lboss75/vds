@@ -63,6 +63,8 @@ void vds::server::register_services(service_registrator& registrator)
 
   registrator.add_service<log_sync_service>(this->impl_->log_sync_service_.get());
 
+  registrator.add_service<chunk_replicator>(this->impl_->chunk_replicator_.get());
+
   this->impl_->file_manager_->register_services(registrator);
 }
 

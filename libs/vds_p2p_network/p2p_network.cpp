@@ -18,6 +18,7 @@
 #include "messages/chunk_send_replica.h"
 #include "chunk_manager.h"
 #include "chunk_replicator.h"
+#include "messages/chunk_query_replica.h"
 
 vds::p2p_network::p2p_network()
 :impl_(new _p2p_network()){
@@ -129,7 +130,6 @@ vds::async_task<> vds::_p2p_network::start_network(const vds::service_provider &
     auto st = t.get_reader(t1.select(t1.id, t1.port, t1.cert, t1.cert_private_key));
     while(st.execute()){
       auto device_cert = certificate::parse_der(t1.cert.get(st));
-      pthis->route_.init(cert_control::get_id(device_cert));
 
       run_conf->push_back(run_data{
         t1.id.get(st),
@@ -214,42 +214,51 @@ bool vds::_p2p_network::send(
 }
 
 void vds::_p2p_network::process_input_command(
-    const service_provider &sp,
-    const guid &partner_id,
-    const std::shared_ptr<udp_transport::_session> &session,
-    const const_data_buffer &message_data) {
+  const service_provider &sp,
+  const guid &partner_id,
+  const std::shared_ptr<udp_transport::_session> &session,
+  const const_data_buffer &message_data) {
   binary_deserializer s(message_data);
   uint8_t  command_id;
   s >> command_id;
 
-  switch((p2p_messages::p2p_message_id)command_id){
-    case p2p_messages::p2p_message_id::common_log_state:{
-      p2p_messages::common_log_state message(s);
-      sp.get<log_sync_service>()->apply(sp, partner_id, message);
+  switch ((p2p_messages::p2p_message_id)command_id) {
+  case p2p_messages::p2p_message_id::common_log_state: {
+    p2p_messages::common_log_state message(s);
+    sp.get<log_sync_service>()->apply(sp, partner_id, message);
 
-      break;
+    break;
+  }
+  case p2p_messages::p2p_message_id::common_block_request: {
+    p2p_messages::common_block_request message(s);
+    sp.get<log_sync_service>()->apply(sp, partner_id, message);
+
+    break;
+  }
+  case p2p_messages::p2p_message_id::common_log_record: {
+    p2p_messages::common_log_record message(s);
+    sp.get<log_sync_service>()->apply(sp, partner_id, message);
+
+    break;
+  }
+  case p2p_messages::p2p_message_id::chunk_send_replica: {
+    p2p_messages::chunk_send_replica message(s);
+
+    sp.get<chunk_replicator>()->apply(sp, partner_id, message);
+
+    break;
+  }
+  case p2p_messages::p2p_message_id::chunk_query_replica: {
+    p2p_messages::chunk_query_replica message(s);
+    if (sp.get_property<current_run_configuration>(service_provider::property_scope::any_scope)->id() != message.source_node_id()) {
+      this->route_->query_replica(sp, message.data_hash(), message.source_node_id());
+      sp.get<chunk_replicator>()->apply(sp, partner_id, message);
     }
-    case p2p_messages::p2p_message_id::common_block_request:{
-      p2p_messages::common_block_request message(s);
-      sp.get<log_sync_service>()->apply(sp, partner_id, message);
+    break;
+  }
 
-      break;
-    }
-	case p2p_messages::p2p_message_id::common_log_record: {
-		p2p_messages::common_log_record message(s);
-		sp.get<log_sync_service>()->apply(sp, partner_id, message);
-
-		break;
-	}
-	case p2p_messages::p2p_message_id::chunk_send_replica: {
-		p2p_messages::chunk_send_replica message(s);
-
-		sp.get<chunk_replicator>()->apply(sp, partner_id, message);
-
-		break;
-	}
-    default:
-      throw std::runtime_error("Invalid command");
+  default:
+    throw std::runtime_error("Invalid command");
   }
 }
 

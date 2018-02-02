@@ -120,7 +120,7 @@ vds::chunk_manager::save_block(
 			t2.replica = (int)replica,
       t2.distance = sp.get<p2p_network>()->calc_distance(sp.get_property<current_run_configuration>(service_provider::property_scope::any_scope)->id(), replica_hash),
 			t2.replica_data = s.data(),
-			t2.replica_hash = replica_hash));
+			t2.replica_hash = base64::from_bytes(replica_hash)));
 	}
 
 	return block;

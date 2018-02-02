@@ -13,16 +13,13 @@ All rights reserved
 #include "chunk_replica_data_dbo.h"
 #include "messages/chunk_offer_replica.h"
 #include "messages/chunk_query_replica.h"
+#include "run_configuration_dbo.h"
 
-vds::p2p_route::p2p_route() {
+vds::p2p_route::p2p_route()
+: impl_(new _p2p_route()) {
 }
 
 vds::p2p_route::~p2p_route() {
-}
-
-void vds::p2p_route::init(
-  const guid & this_device_id) {
-  this->impl_.reset(new _p2p_route(this_device_id));  
 }
 
 
@@ -34,10 +31,6 @@ vds::p2p_route::random_broadcast(
 }
 
 //////////////////////////////////////////////
-vds::_p2p_route::_p2p_route(const guid & this_device_id)
-  : this_device_id_(this_device_id) {
-}
-
 
 vds::async_task<> vds::_p2p_route::send_to(const service_provider &sp, const guid &node_id,
                                            const const_data_buffer &message) {
@@ -100,24 +93,6 @@ void vds::_p2p_route::add(
   sp.get<logger>()->trace(ThisModule, sp,"Established connection with %s", partner_id.str().c_str());
   std::unique_lock<std::shared_mutex> lock(this->sessions_mutex_);
   this->sessions_[partner_id] = std::make_shared<vds::_p2p_route::session>(session);
-  
-  sp.get<db_model>()->async_transaction(sp, [sp, pthis = this->shared_from_this(), partner_id, session](database_transaction & t) {
-    dbo::chunk_replica_data_dbo t1;
-    auto st = t.get_reader(t1.select(t1.replica_hash).order_by(db_desc_order(t1.distance)));
-    while(st.execute()) {
-      auto replica_hash = t1.replica_hash.get(st);
-      if(calc_distance(pthis->this_device_id_, replica_hash) > calc_distance(partner_id, replica_hash)) {
-        session->send(
-          sp,
-          p2p_messages::chunk_offer_replica(replica_hash).serialize());
-      }
-    }
-  })
-  .execute([sp](const std::shared_ptr<std::exception> & ex) {
-    if (ex) {
-      sp.get<logger>()->warning(ThisModule, sp, "%s at find better place to chunk", ex->what());
-    }
-  });
 }
 
 std::set<vds::p2p::p2p_node_info> vds::_p2p_route::get_neighbors() const {
@@ -167,7 +142,17 @@ void vds::_p2p_route::close_session(
 
 void vds::_p2p_route::query_replica(
     const service_provider &sp,
-    const const_data_buffer & data_hash)
+    const const_data_buffer & data_hash) {
+  this->query_replica(
+    sp,
+    data_hash,
+    sp.get_property<current_run_configuration>(service_provider::property_scope::any_scope)->id());
+}
+
+void vds::_p2p_route::query_replica(
+  const service_provider &sp,
+  const const_data_buffer & data_hash,
+  const guid & source_node)
 {
 	std::shared_ptr<session> best_session;
 	size_t best_distance;
@@ -187,8 +172,8 @@ void vds::_p2p_route::query_replica(
 		best_session->send(
         sp,
         p2p_messages::chunk_query_replica(
-            this->this_device_id_,
-            data_hash).serialize());
+          source_node,
+          data_hash).serialize());
 	}
 }
 
