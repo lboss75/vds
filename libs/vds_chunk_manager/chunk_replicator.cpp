@@ -3,6 +3,7 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
+#include <messages/chunk_have_replica.h>
 #include "stdafx.h"
 #include "chunk_replicator.h"
 #include "private/chunk_replicator_p.h"
@@ -59,6 +60,80 @@ void vds::chunk_replicator::apply(
   });
 }
 
+void vds::chunk_replicator::apply(
+    const vds::service_provider &sp,
+    const vds::guid &partner_id,
+    const vds::p2p_messages::chunk_offer_replica &message) {
+
+  sp.get<db_model>()->async_transaction(sp, [sp, message](database_transaction & t)->bool{
+    dbo::chunk_replica_data_dbo t1;
+    auto st = t.get_reader(
+        t1.select(t1.id)
+            .where(t1.replica_hash == base64::from_bytes(message.data_hash())));
+    if(st.execute()) {
+      sp.get<logger>()->warning(
+          ThisModule,
+          sp,
+          "%s already exists",
+          base64::from_bytes(message.data_hash()).c_str());
+
+      sp.get<p2p_network>()->send(
+          sp,
+          message.source_node_id(),
+          p2p_messages::chunk_have_replica(
+              sp.get_property<current_run_configuration>(service_provider::property_scope::any_scope)->id(),
+              message.data_hash()).serialize());
+    }
+    else {
+      auto user_mng = sp.get<user_manager>();
+      for(const auto & user_scope : user_mng->current_users()){
+        auto id = user_scope.get_property<current_run_configuration>(service_provider::property_scope::any_scope)->id();
+        if(p2p_network::calc_distance(id, message.data_hash()) < message.distance()) {
+          user_scope.get<p2p_network>()->send(
+              sp,
+              message.source_node_id(),
+              p2p_messages::chunk_query_replica(
+                  id,
+                  message.data_hash()).serialize());
+        }
+      }
+    }
+    return true;
+  }).execute([sp, message](const std::shared_ptr<std::exception> & ex) {
+    if(ex) {
+      sp.get<logger>()->warning(ThisModule, sp, "%s at query replica %s", ex->what(), base64::from_bytes(message.data_hash()).c_str());
+    }
+  });
+}
+
+void vds::chunk_replicator::apply(
+    const vds::service_provider &sp,
+    const vds::guid &partner_id,
+    const vds::p2p_messages::chunk_have_replica &message) {
+  sp.get<db_model>()->async_transaction(sp, [sp, message](database_transaction & t)->bool{
+
+    sp.get<logger>()->info(
+        ThisModule,
+        sp,
+        "Remove replica %s because exist on node %s",
+        base64::from_bytes(message.data_hash()).c_str(),
+        message.node_id().str().c_str());
+
+    dbo::chunk_replica_data_dbo t1;
+    t.execute(t1.delete_if(t1.replica_hash == base64::from_bytes(message.data_hash())));
+    return true;
+  }).execute([sp, message](const std::shared_ptr<std::exception> & ex) {
+    if(ex) {
+      sp.get<logger>()->warning(
+          ThisModule,
+          sp,
+          "%s at removing replica %s",
+          ex->what(),
+          base64::from_bytes(message.data_hash()).c_str());
+    }
+  });
+}
+
 /////////////////////////////////////////////////////////////////////
 vds::_chunk_replicator::_chunk_replicator()
 : update_timer_("Chunk Replicator"),
@@ -105,51 +180,46 @@ void vds::_chunk_replicator::stop(const vds::service_provider &sp) {
 void vds::_chunk_replicator::apply(
 	const service_provider& parent_scope,
 	const guid& partner_id,
-	const p2p_messages::chunk_send_replica& message)
-{
-	auto sp = parent_scope.create_scope(__FUNCTION__);
-	mt_service::enable_async(sp);
+	const p2p_messages::chunk_send_replica& message) {
+  auto sp = parent_scope.create_scope(__FUNCTION__);
+  mt_service::enable_async(sp);
 
-	sp.get<db_model>()->async_transaction(sp, [sp, pthis = this->shared_from_this(), message](database_transaction & t)->bool {
-		pthis->store_replica(sp, t, message);
-		return true;
-	}).execute([sp](const std::shared_ptr<std::exception> & ex) {
-		sp.get<logger>()->warning(
-			ThisModule,
-			sp,
-			"%s at storing replica",
-			ex->what());
-	});
-
+  sp.get<db_model>()->async_transaction(sp, [sp, pthis = this->shared_from_this(), message](
+      database_transaction &t) -> bool {
+    pthis->store_replica(sp, t, message);
+    return true;
+  }).execute([sp](const std::shared_ptr<std::exception> &ex) {
+    sp.get<logger>()->warning(
+        ThisModule,
+        sp,
+        "%s at storing replica",
+        ex->what());
+  });
 }
 
 void vds::_chunk_replicator::update_replicas(
     const service_provider &sp,
     database_transaction &t) {
 
-  auto p2p = sp.get<p2p_network>();
-  auto neighbors = p2p->get_neighbors();
-
   auto user_mng = sp.get<user_manager>();
-
-  for (auto & neighbor : neighbors) {
-
-    dbo::chunk_replica_data_dbo t1;
-    auto st = t.get_reader(t1.select(t1.replica_hash).order_by(db_desc_order(t1.distance)));
-    while (st.execute()) {
-      auto replica_hash = base64::to_bytes(t1.replica_hash.get(st));
-      auto distance = p2p->calc_distance(neighbor.node_id, replica_hash);
-      bool is_good = true;
-
-      for (auto & user_sp : user_mng->current_users()) {
-        auto this_device_id = user_sp.get_property<current_run_configuration>(service_provider::property_scope::any_scope)->id();
-        if (p2p->calc_distance(this_device_id, replica_hash) < distance ) {
-          is_good = false;
+  for (auto &user_sp : user_mng->current_users()) {
+    auto this_device_id = user_sp.get_property<current_run_configuration>(
+        service_provider::property_scope::any_scope)->id();
+    auto p2p = user_sp.get<p2p_network>();
+    auto neighbors = p2p->get_neighbors();
+    for (auto &neighbor : neighbors) {
+      dbo::chunk_replica_data_dbo t1;
+      auto st = t.get_reader(t1.select(t1.replica_hash).order_by(db_desc_order(t1.distance)));
+      while (st.execute()) {
+        auto replica_hash = base64::to_bytes(t1.replica_hash.get(st));
+        auto this_distance = p2p_network::calc_distance(this_device_id, replica_hash);
+        auto distance = p2p->calc_distance(neighbor.node_id, replica_hash);
+        if (this_distance > distance) {
+          p2p->send(sp, neighbor.node_id, p2p_messages::chunk_offer_replica(
+              this_distance,
+              this_device_id,
+              replica_hash).serialize());
         }
-      }
-
-      if (is_good) {
-        p2p->send(sp, neighbor.node_id, p2p_messages::chunk_offer_replica(replica_hash).serialize());
       }
     }
   }

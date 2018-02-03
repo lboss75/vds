@@ -7,6 +7,8 @@ All rights reserved
 */
 
 #include <memory>
+#include <messages/chunk_offer_replica.h>
+#include <messages/chunk_have_replica.h>
 #include "service_provider.h"
 #include "messages/chunk_send_replica.h"
 #include "messages/chunk_query_replica.h"
@@ -21,8 +23,10 @@ namespace vds {
     void start(const service_provider & sp);
     void stop(const service_provider & sp);
 
-	void apply(const service_provider& sp, const guid& partner_id, const p2p_messages::chunk_send_replica& message);
-  void apply(const service_provider& sp, const guid& partner_id, const p2p_messages::chunk_query_replica & message);
+    void apply(const service_provider& sp, const guid& partner_id, const p2p_messages::chunk_send_replica& message);
+    void apply(const service_provider& sp, const guid& partner_id, const p2p_messages::chunk_query_replica & message);
+    void apply(const service_provider& sp, const guid& partner_id, const p2p_messages::chunk_offer_replica & message);
+    void apply(const service_provider& sp, const guid& partner_id, const p2p_messages::chunk_have_replica & message);
 
     operator bool () const {
       return nullptr != this->impl_.get();

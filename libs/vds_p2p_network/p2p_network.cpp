@@ -19,6 +19,8 @@
 #include "chunk_manager.h"
 #include "chunk_replicator.h"
 #include "messages/chunk_query_replica.h"
+#include "messages/chunk_offer_replica.h"
+#include "messages/chunk_have_replica.h"
 
 vds::p2p_network::p2p_network()
 :impl_(new _p2p_network()){
@@ -256,6 +258,21 @@ void vds::_p2p_network::process_input_command(
     }
     break;
   }
+    case p2p_messages::p2p_message_id::chunk_offer_replica: {
+      p2p_messages::chunk_offer_replica message(s);
+      if (sp.get_property<current_run_configuration>(service_provider::property_scope::any_scope)->id() != message.source_node_id()) {
+        sp.get<chunk_replicator>()->apply(sp, partner_id, message);
+      }
+      break;
+    }
+
+    case p2p_messages::p2p_message_id::chunk_have_replica: {
+      p2p_messages::chunk_have_replica message(s);
+      if (sp.get_property<current_run_configuration>(service_provider::property_scope::any_scope)->id() != message.node_id()) {
+        sp.get<chunk_replicator>()->apply(sp, partner_id, message);
+      }
+      break;
+    }
 
   default:
     throw std::runtime_error("Invalid command");

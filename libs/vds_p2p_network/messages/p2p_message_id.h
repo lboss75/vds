@@ -15,7 +15,8 @@ namespace vds {
       common_log_state = 's',
       common_block_request = 'q',
       chunk_query_replica = 'c',
-      chunk_offer_replica = 'o'
+      chunk_offer_replica = 'o',
+      chunk_have_replica = 'h'
     };
   }
 }
