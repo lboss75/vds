@@ -89,4 +89,34 @@ vds::network_address::network_address(sa_family_t af, uint16_t port) {
 
 }
 
+bool vds::network_address::is_martian() const {
+  auto addr = (const sockaddr *)&this->addr_;
+  switch(addr->sa_family) {
+    case AF_INET: {
+      struct sockaddr_in *sin = (struct sockaddr_in*)&this->addr_;
+      const unsigned char *address = (const unsigned char*)&sin->sin_addr;
+      return sin->sin_port == 0 ||
+             (address[0] == 0) ||
+             (address[0] == 127) ||
+             ((address[0] & 0xE0) == 0xE0);
+    }
+    case AF_INET6: {
+      static const unsigned char zeroes[20] = {0};
+      static const unsigned char v4prefix[16] = {
+          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xFF, 0xFF, 0, 0, 0, 0
+      };
+      struct sockaddr_in6 *sin6 = (struct sockaddr_in6*)&this->addr_;
+      const unsigned char *address = (const unsigned char*)&sin6->sin6_addr;
+      return sin6->sin6_port == 0 ||
+             (address[0] == 0xFF) ||
+             (address[0] == 0xFE && (address[1] & 0xC0) == 0x80) ||
+             (memcmp(address, zeroes, 15) == 0 &&
+              (address[15] == 0 || address[15] == 1)) ||
+             (memcmp(address, v4prefix, 12) == 0);
+    }
+    default:
+      throw std::runtime_error("Invalid state");
+  }
+}
+
 

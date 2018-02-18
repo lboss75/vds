@@ -51,15 +51,69 @@ namespace vds {
     const const_data_buffer & data_hash,
     const guid & source_node);
 
-  static size_t calc_distance(
+  static const_data_buffer calc_distance(
     const const_data_buffer & source_node,
     const const_data_buffer & target_node);
+
+  static uint8_t calc_distance_exp(
+      const const_data_buffer & source_node,
+      const const_data_buffer & target_node);
+
+    void on_timer(
+        const service_provider &sp);
 
   private:
     std::map<guid, std::shared_ptr<_p2p_crypto_tunnel>> sessions_;
     mutable std::shared_mutex sessions_mutex_;
-  };
 
+    struct node {
+      const_data_buffer id_;
+      std::shared_ptr<_p2p_crypto_tunnel> proxy_session_;
+      uint8_t pinged_;
+
+      node(
+          const const_data_buffer & id,
+          const std::shared_ptr<_p2p_crypto_tunnel> proxy_session)
+          : id_(id),
+            proxy_session_(proxy_session),
+            pinged_(0){
+      }
+
+      bool is_good() const {
+        return this->pinged_ < 5;
+      }
+
+      void reset(const const_data_buffer & id,
+                 const std::shared_ptr<_p2p_crypto_tunnel> proxy_session){
+        this->id_ = id;
+        this->proxy_session_ = proxy_session;
+        this->pinged_ = 0;
+      }
+    };
+
+    struct bucket {
+      static constexpr size_t MAX_NODES = 8;
+
+      std::shared_mutex nodes_mutex_;
+      std::list<node> nodes_;
+
+      void add_node(
+          const service_provider &sp,
+          const const_data_buffer & id,
+          const std::shared_ptr<_p2p_crypto_tunnel> & proxy_session);
+
+      void on_timer(
+          const service_provider &sp);
+    };
+
+    std::shared_mutex buckets_mutex_;
+    std::map<uint8_t, bucket> buckets_;
+
+    void add_node(
+        const service_provider & sp,
+        const const_data_buffer & id,
+        const std::shared_ptr<_p2p_crypto_tunnel> & proxy_session);
+  };
 }
 
 #endif //__VDS_P2P_NETWORK_P2P_ROUTE_P_H_

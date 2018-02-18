@@ -75,12 +75,6 @@ void vds::p2p_network::query_replica(
 	this->impl_->query_replica(sp, data_hash);
 }
 
-size_t vds::p2p_network::calc_distance(
-  const const_data_buffer& source,
-  const const_data_buffer& target) {
-  return _p2p_route::calc_distance(source, target);
-}
-
 
 //////////////////////////////////
 vds::_p2p_network::_p2p_network()

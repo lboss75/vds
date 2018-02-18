@@ -90,6 +90,11 @@ namespace vds{
       return *(this->impl_.get()) < *(other.impl_.get());
     }
 
+    bool operator > (const const_data_buffer & other) const
+    {
+      return *(this->impl_.get()) > *(other.impl_.get());
+    }
+
     bool operator != (const const_data_buffer & other) const
     {
       return *(this->impl_.get()) != *(other.impl_.get());
@@ -143,6 +148,12 @@ namespace vds{
       {
         return this->len_ == other.len_
                && 0 > memcmp(this->data_, other.data_, this->len_);
+      }
+
+      bool operator > (const _const_data_buffer & other) const
+      {
+        return this->len_ == other.len_
+               && 0 < memcmp(this->data_, other.data_, this->len_);
       }
 
       bool operator != (const _const_data_buffer & other) const

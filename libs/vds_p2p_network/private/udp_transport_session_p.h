@@ -14,6 +14,7 @@ All rights reserved
 #include "udp_transport.h"
 #include "leak_detect.h"
 #include "network_address.h"
+#include "legacy.h"
 
 namespace vds {
   class _p2p_crypto_tunnel;
@@ -21,28 +22,30 @@ namespace vds {
   class _udp_transport_session : public std::enable_shared_from_this<_p2p_crypto_tunnel> {
   public:
     _udp_transport_session(
-        const std::shared_ptr<_udp_transport> & owner,
+        const std::shared_ptr<_udp_transport> &owner,
         const network_address &address)
         :
-          current_state_(state_t::bof),
-          address_(address),
-          output_sequence_number_(0),
-          mtu_(65507),
-          min_incoming_sequence_(0),
-		      expected_size_(0),
-          owner_(owner),
-          sent_data_bytes_(0),
-          received_data_bytes_(0),
-			    timer_count_(0){
+        current_state_(state_t::bof),
+        address_(address),
+        output_sequence_number_(0),
+        mtu_(65507),
+        min_incoming_sequence_(0),
+        expected_size_(0),
+        owner_(owner),
+        sent_data_bytes_(0),
+        received_data_bytes_(0),
+        timer_count_(0) {
 
     }
 
     ~_udp_transport_session();
 
-    void set_instance_id(const guid & instance_id);
-    const guid & get_instance_id() const{
+    void set_instance_id(const guid &instance_id);
+
+    const guid &get_instance_id() const {
       return this->instance_id_;
     }
+
     bool is_failed() const;
 
     /*
@@ -72,15 +75,15 @@ namespace vds {
       return this->output_sequence_number_;
     }
 
-    uint32_t report_incoming_sequence(uint32_t & result_mask) const {
+    uint32_t report_incoming_sequence(uint32_t &result_mask) const {
       std::unique_lock<std::mutex> lock(this->incoming_sequence_mutex_);
 
       auto curent = this->min_incoming_sequence_;
       uint32_t result = 0;
-      for(size_t i = 0; i < 8 * sizeof(result); ++i){
+      for (size_t i = 0; i < 8 * sizeof(result); ++i) {
         ++curent;
         result >>= 1;
-        if(this->future_data_.end() != this->future_data_.find(curent)){
+        if (this->future_data_.end() != this->future_data_.find(curent)) {
           result |= 0x80000000;
         }
       }
@@ -106,7 +109,7 @@ namespace vds {
         uint16_t size);
 
     void on_timer(
-        const service_provider & sp,
+        const service_provider &sp,
         const std::shared_ptr<class _udp_transport> &owner);
 
     void add_datagram(const const_data_buffer &data) {
@@ -114,19 +117,20 @@ namespace vds {
       this->sent_data_[this->output_sequence_number_++] = data;
     }
 
-	void send_handshake(
-		const service_provider &sp,
-		const std::shared_ptr<_udp_transport> & owner) {
+    void send_handshake(
+        const service_provider &sp,
+        const std::shared_ptr<_udp_transport> &owner) {
 
-		std::unique_lock<std::shared_mutex> lock(this->current_state_mutex_);
-		this->send_handshake_(sp, owner);
-	}
+      std::unique_lock<std::shared_mutex> lock(this->current_state_mutex_);
+      this->send_handshake_(sp, owner);
+    }
 
     void handshake_sent();
 
     void send_welcome(
         const service_provider &sp,
-        const std::shared_ptr<_udp_transport> & owner);
+        const std::shared_ptr<_udp_transport> &owner);
+
     void welcome_sent();
 
     void send(const service_provider &sp, const const_data_buffer &message);
@@ -190,13 +194,20 @@ namespace vds {
     std::mutex incoming_datagram_mutex_;
     std::queue<const_data_buffer> incoming_datagrams_;
 
-	int timer_count_;
+    int timer_count_;
 
-	void try_read_data();
+    //DHT
+    time_t last_message_received_;
+    time_t last_correct_reply_received_;
+    time_t pinged_time_;
 
-	void send_handshake_(
-		const service_provider &sp,
-		const std::shared_ptr<_udp_transport> & owner);
+    int pinged_;/* how many requests we sent since last reply */
+
+    void try_read_data();
+
+    void send_handshake_(
+        const service_provider &sp,
+        const std::shared_ptr<_udp_transport> &owner);
 
   };
 }

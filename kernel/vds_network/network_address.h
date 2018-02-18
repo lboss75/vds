@@ -74,6 +74,8 @@ namespace vds {
       return this->addr_size_;
     }
 
+    bool is_martian() const;
+
   private:
     sockaddr_storage addr_;
     socklen_t addr_size_;

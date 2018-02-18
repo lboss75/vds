@@ -15,6 +15,10 @@ All rights reserved
 #include "messages/chunk_query_replica.h"
 #include "run_configuration_dbo.h"
 #include "private/p2p_crypto_tunnel_p.h"
+#include "vds_debug.h"
+#include "user_manager.h"
+#include "messages/dht_ping.h"
+
 
 vds::p2p_route::p2p_route()
 : impl_(new _p2p_route()) {
@@ -36,14 +40,14 @@ vds::p2p_route::random_broadcast(
 vds::async_task<> vds::_p2p_route::send_to(const service_provider &sp, const guid &node_id,
                                            const const_data_buffer &message) {
 
-  int best_distance;
+  const_data_buffer best_distance;
   std::shared_ptr<_p2p_crypto_tunnel> best_session;
 
   for(;;) {
     std::shared_lock<std::shared_mutex> lock(this->sessions_mutex_);
     for (auto &p : this->sessions_) {
-      int distance;
-      if (!best_session || (best_distance > (distance = this->calc_distance(p.first, node_id)))) {
+      const_data_buffer distance;
+      if (!best_session || (best_distance > (distance = calc_distance(p.first, node_id)))) {
         best_distance = distance;
         best_session = p.second;
       }
@@ -147,7 +151,7 @@ void vds::_p2p_route::query_replica(
   const guid & source_node)
 {
 	std::shared_ptr<_p2p_crypto_tunnel> best_session;
-	size_t best_distance;
+	const_data_buffer best_distance;
 
 	std::shared_lock<std::shared_mutex> lock(this->sessions_mutex_);
 	for(auto & p : this->sessions_)
@@ -169,30 +173,117 @@ void vds::_p2p_route::query_replica(
 	}
 }
 
-size_t vds::_p2p_route::calc_distance(
+vds::const_data_buffer vds::_p2p_route::calc_distance(
 	const const_data_buffer& source_node,
 	const const_data_buffer& target_node)
 {
-	size_t result = 0;
+  vds_assert(source_node.size() == target_node.size());
 
-	const size_t min_size = (source_node.size() < target_node.size()) ? source_node.size() : target_node.size();
-	for(size_t i = 0; i < min_size; ++i)
+  resizable_data_buffer result(source_node.size());
+
+	for(size_t i = 0; i < source_node.size(); ++i)
 	{
-		const uint8_t value = (source_node.data()[i] ^ target_node.data()[i]);
-		if(0 != value)
-		{
-			uint8_t mask = 1;
-			while(mask != 0)
-			{
-				if(0 != (mask & value))
-				{
-					result++;
-				}
-
-				mask <<= 1;
-			}
-		}
+    result.data()[i] = (source_node.data()[i] ^ target_node.data()[i]);
 	}
 
-	return result + 8 * (((source_node.size() > target_node.size()) ? source_node.size() : target_node.size()) - min_size);
+	return const_data_buffer(result.data(), result.size());
+}
+
+uint8_t vds::_p2p_route::calc_distance_exp(
+    const vds::const_data_buffer &source_node,
+    const vds::const_data_buffer &target_node) {
+  vds_assert(source_node.size() == target_node.size());
+
+  auto size = safe_cast<uint8_t>(source_node.size());
+  for(uint8_t i = 0; i < size; ++i) {
+    auto b = (source_node.data()[i] ^ target_node.data()[i]);
+    if(0 == b){
+      continue;
+    }
+
+    uint8_t result = (i << 3);
+
+    uint8_t mask = 0x80;
+    while(0 != mask){
+      if(b >= mask){
+        break;
+      }
+
+      ++result;
+      mask >>= 1;
+    }
+
+    return result;
+  }
+
+  return 0;
+}
+
+void vds::_p2p_route::add_node(
+    const vds::service_provider &sp,
+    const const_data_buffer & id,
+    const std::shared_ptr<_p2p_crypto_tunnel> & proxy_session) {
+  auto user_mng = sp.get<user_manager>();
+
+  asymmetric_private_key device_private_key;
+  auto current_user = user_mng->get_current_device(sp, device_private_key);
+
+  auto index = calc_distance_exp(id, current_user.id());
+
+  bucket * b;
+
+  std::shared_lock<std::shared_mutex> lock(this->buckets_mutex_);
+  auto p = this->buckets_.find(index);
+  if(this->buckets_.end() == p){
+    lock.unlock();
+
+    std::unique_lock<std::shared_mutex> ulock(this->buckets_mutex_);
+    auto p = this->buckets_.find(index);
+    if(this->buckets_.end() == p) {
+      b = &this->buckets_[index];
+    }
+    else {
+      b = &p->second;
+    }
+  }
+  else {
+    b = &p->second;
+    lock.unlock();
+  }
+
+  b->add_node(sp, id, proxy_session);
+}
+
+void vds::_p2p_route::on_timer(const vds::service_provider &sp) {
+  std::shared_lock<std::shared_mutex> lock(this->buckets_mutex_);
+  for(auto & p : this->buckets_){
+    p.second.on_timer(sp);
+  }
+}
+
+void vds::_p2p_route::bucket::add_node(
+    const vds::service_provider &sp,
+    const const_data_buffer & id,
+    const std::shared_ptr<_p2p_crypto_tunnel> & proxy_session) {
+
+  std::unique_lock<std::shared_mutex> ulock(this->nodes_mutex_);
+  if(MAX_NODES < this->nodes_.size()){
+    this->nodes_.push_back(node(id, proxy_session));
+    return;
+  }
+
+  for(auto & p : this->nodes_){
+    if(!p.is_good()){
+      p.reset(id, proxy_session);
+      p.pinged_ = 0;
+      return;
+    }
+  }
+}
+
+void vds::_p2p_route::bucket::on_timer(const vds::service_provider &sp) {
+  std::shared_lock<std::shared_mutex> lock(this->nodes_mutex_);
+  for(auto & p : this->nodes_){
+    p.proxy_session_->send(sp, p2p_messages::dht_ping(p.id_).serialize());
+  }
 }

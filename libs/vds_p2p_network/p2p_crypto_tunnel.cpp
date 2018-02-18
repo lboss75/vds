@@ -1,7 +1,3 @@
-//
-// Created by vadim on 12.11.17.
-//
-
 #include "stdafx.h"
 #include "cert_control.h"
 #include "p2p_crypto_tunnel.h"
@@ -9,6 +5,7 @@
 #include "private/p2p_crypto_tunnel_p.h"
 #include "private/p2p_network_p.h"
 #include "vds_exceptions.h"
+#include "user_manager.h"
 
 void vds::_p2p_crypto_tunnel::close(
     const service_provider &sp,
@@ -19,10 +16,25 @@ void vds::_p2p_crypto_tunnel::close(
 void vds::_p2p_crypto_tunnel::start(
     const service_provider &sp) {
 
+  std::list<certificate> certificate_chain;
+
+  auto user_mng = sp.get<user_manager>();
+
+  asymmetric_private_key device_private_key;
+  certificate_chain.push_back(user_mng->get_current_device(sp, device_private_key).user_certificate());
+  for(;;){
+    auto parent_id = cert_control::get_parent_id(certificate_chain.front());
+    if(!parent_id){
+      break;
+    }
+
+    certificate_chain.push_front(user_mng->get_certificate(sp, parent_id));
+  }
+
   binary_serializer s;
   s << (uint8_t)command_id::CertCain;
-  s << safe_cast<uint16_t>(this->certificate_chain_.size());
-  for (auto cert : this->certificate_chain_) {
+  s << safe_cast<uint16_t>(certificate_chain.size());
+  for (auto cert : certificate_chain) {
 	  s << cert.der();
   }
 
@@ -142,7 +154,12 @@ void vds::_p2p_crypto_tunnel::process_input_command(
       size_t lsize = size;
       s.pop_data(crypted_key.data(), lsize, false);
 
-      auto key_data = this->private_key_.decrypt(crypted_key.data(), size);
+      auto user_mng = sp.get<user_manager>();
+
+      asymmetric_private_key device_private_key;
+      user_mng->get_current_device(sp, device_private_key);
+
+      auto key_data = device_private_key.decrypt(crypted_key.data(), size);
       binary_deserializer key_stream(key_data);
 
       std::unique_lock<std::mutex> lock(this->key_mutex_);

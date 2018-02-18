@@ -16,7 +16,11 @@ namespace vds {
       common_block_request = 'q',
       chunk_query_replica = 'c',
       chunk_offer_replica = 'o',
-      chunk_have_replica = 'h'
+      chunk_have_replica = 'h',
+
+      dht_ping = 'p',
+      dht_find_node = 'f',
+      dht_find_node_response = 'a'
     };
   }
 }

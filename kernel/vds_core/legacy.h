@@ -128,17 +128,34 @@ namespace std {
   {
   public:
     shared_lock(mutex_type & owner)
-    : owner_(owner)
+    : is_locked_(true), owner_(owner)
     {
       this->owner_.lock_shared();
     }
     
     ~shared_lock()
     {
-      this->owner_.unlock_shared();
+      if(this->is_locked_) {
+        this->owner_.unlock_shared();
+      }
     }
-    
+
+    void unlock(){
+      if(this->is_locked_) {
+        this->owner_.unlock_shared();
+        this->is_locked_ = false;
+      }
+    }
+
+    void lock(){
+      if(!this->is_locked_) {
+        this->owner_.lock_shared();
+        this->is_locked_ = true;
+      }
+    }
+
   private:
+    bool is_locked_;
     mutex_type & owner_;
   };
 }
