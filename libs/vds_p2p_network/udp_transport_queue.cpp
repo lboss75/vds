@@ -3,6 +3,7 @@
 #include "private/udp_transport_queue_p.h"
 #include "private/udp_transport_p.h"
 #include "vds_debug.h"
+#include "private/p2p_crypto_tunnel_p.h"
 
 vds::_udp_transport_queue::_udp_transport_queue()
 : current_state_(state_t::bof, state_t::failed) {
@@ -47,15 +48,14 @@ void vds::_udp_transport_queue::continue_send_data(
   auto len = generator->generate_message(sp, this->buffer_);
   owner->write_async(
           udp_datagram(
-              static_cast<_udp_transport_session *>(generator->owner().get())->address().server_,
-              static_cast<_udp_transport_session *>(generator->owner().get())->address().port_,
+              generator->owner()->address(),
               this->buffer_,
               len,
               false))
       .execute(
           [pthis = this->shared_from_this(), sp, owner, generator, len](
               const std::shared_ptr<std::exception> & ex){
-            auto owner_ = static_cast<_udp_transport_session *>(generator->owner().get());
+            auto owner_ = generator->owner();
             if (ex) {
               auto datagram_error = std::dynamic_pointer_cast<udp_datagram_size_exception>(ex);
               if (datagram_error) {
@@ -137,7 +137,7 @@ void vds::_udp_transport_queue::continue_send_data(
 void vds::_udp_transport_queue::send_data(
     const vds::service_provider &sp,
     const std::shared_ptr<_udp_transport> &owner,
-    const std::shared_ptr<udp_transport::_session> &session,
+    const std::shared_ptr<_p2p_crypto_tunnel> &session,
     const vds::const_data_buffer &data) {
 
   this->emplace(
@@ -207,13 +207,12 @@ void vds::_udp_transport_queue::stop(const vds::service_provider &sp) {
 
 uint16_t vds::_udp_transport_queue::data_datagram::generate_message(const service_provider &sp, uint8_t *buffer) {
 
-  auto seq_number = static_cast<_udp_transport_session *>(this->owner().get())->output_sequence_number();
+  auto seq_number = this->owner()->output_sequence_number();
   *(uint32_t *)buffer = htonl(seq_number);
 
-  sp.get<logger>()->trace("P2PUDP", sp, "[%d] Send data to %s:%d",
+  sp.get<logger>()->trace("P2PUDP", sp, "[%d] Send data to %s",
                           seq_number,
-                          static_cast<_udp_transport_session *>(this->owner().get())->address().server_.c_str(),
-                          static_cast<_udp_transport_session *>(this->owner().get())->address().port_);
+                          this->owner()->address().to_string().c_str());
 
   if(0 == this->offset_){
 /*
@@ -230,7 +229,7 @@ uint16_t vds::_udp_transport_queue::data_datagram::generate_message(const servic
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 */
     *(uint16_t *)(buffer + 4) = htons(this->data_.size());
-    auto size = (size_t)(static_cast<_udp_transport_session *>(this->owner().get())->mtu() - 6);
+    auto size = (size_t)(this->owner()->mtu() - 6);
     if(size > this->data_.size()){
       size = this->data_.size();
     }
@@ -255,7 +254,7 @@ uint16_t vds::_udp_transport_queue::data_datagram::generate_message(const servic
     |                                                               |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 */
-    auto size = static_cast<_udp_transport_session *>(this->owner().get())->mtu() - 4;
+    auto size = this->owner()->mtu() - 4;
     if(size > this->data_.size() - this->offset_){
       size = this->data_.size() - this->offset_;
     }
@@ -271,13 +270,16 @@ uint16_t vds::_udp_transport_queue::data_datagram::generate_message(const servic
   }
 }
 
+void vds::_udp_transport_queue::data_datagram::complete(const uint8_t *buffer, size_t len) {
+  this->owner()->add_datagram(const_data_buffer(buffer, len));
+}
+
 uint16_t
 vds::_udp_transport_queue::acknowledgement_datagram::generate_message(const service_provider &sp, uint8_t *buffer) {
-  sp.get<logger>()->trace("P2PUDP", sp, "Send acknowledgement to %s:%d",
-                          static_cast<_udp_transport_session *>(this->owner().get())->address().server_.c_str(),
-                          static_cast<_udp_transport_session *>(this->owner().get())->address().port_);
+  sp.get<logger>()->trace("P2PUDP", sp, "Send acknowledgement to %s",
+                          this->owner()->address().to_string().c_str());
 
-  auto owner_ = static_cast<_udp_transport_session *>(this->owner().get());
+  auto owner_ = this->owner();
 
   uint32_t result_mask;
   auto seq = owner_->report_incoming_sequence(result_mask);
@@ -292,9 +294,8 @@ vds::_udp_transport_queue::acknowledgement_datagram::generate_message(const serv
 }
 
 uint16_t vds::_udp_transport_queue::handshake_datagram::generate_message(const service_provider &sp, uint8_t *buffer) {
-  sp.get<logger>()->trace("P2PUDP", sp, "Send handshake to %s:%d",
-                          static_cast<_udp_transport_session *>(this->owner().get())->address().server_.c_str(),
-                          static_cast<_udp_transport_session *>(this->owner().get())->address().port_);
+  sp.get<logger>()->trace("P2PUDP", sp, "Send handshake to %s",
+                          this->owner()->address().to_string().c_str());
 
   if(16 != this->instance_id_.size()){
     throw std::runtime_error("Invalid GUID size");
@@ -310,13 +311,12 @@ uint16_t vds::_udp_transport_queue::handshake_datagram::generate_message(const s
 
 void vds::_udp_transport_queue::handshake_datagram::complete(
     const uint8_t * buffer, size_t len) {
-  static_cast<_udp_transport_session *>(this->owner().get())->handshake_sent();
+  this->owner()->handshake_sent();
 }
 
 uint16_t vds::_udp_transport_queue::welcome_datagram::generate_message(const service_provider &sp, uint8_t *buffer) {
-  sp.get<logger>()->trace("P2PUDP", sp, "Send welcome to %s:%d",
-                          static_cast<_udp_transport_session *>(this->owner().get())->address().server_.c_str(),
-                          static_cast<_udp_transport_session *>(this->owner().get())->address().port_);
+  sp.get<logger>()->trace("P2PUDP", sp, "Send welcome to %s",
+                          this->owner()->address().to_string().c_str());
 
   *(reinterpret_cast<uint32_t *>(buffer)) = htonl(
       ((uint32_t)_udp_transport_session::control_type::Welcome) << 28
@@ -327,7 +327,7 @@ uint16_t vds::_udp_transport_queue::welcome_datagram::generate_message(const ser
 }
 
 void vds::_udp_transport_queue::welcome_datagram::complete(const uint8_t *buffer, size_t len) {
-  static_cast<_udp_transport_session *>(this->owner().get())->welcome_sent();
+  this->owner()->welcome_sent();
 }
 
 uint16_t
@@ -335,7 +335,7 @@ vds::_udp_transport_queue::keep_alive_datagram::generate_message(const vds::serv
   *(reinterpret_cast<uint32_t *>(buffer)) = htonl(
       ((uint32_t)_udp_transport_session::control_type::Keep_alive) << 28
       | safe_cast<uint32_t>(
-          static_cast<_udp_transport_session *>(this->owner().get())->output_sequence_number(), 0x0FFFFFFF));
+          this->owner()->output_sequence_number(), 0x0FFFFFFF));
 
   return 4;
 }
@@ -344,7 +344,7 @@ uint16_t
 vds::_udp_transport_queue::repeat_datagram::generate_message(
     const vds::service_provider &sp,
     uint8_t * buffer) {
-  return static_cast<_udp_transport_session *>(this->owner().get())->get_sent_data(
+  return this->owner()->get_sent_data(
       buffer, this->sequence_number_);
 }
 

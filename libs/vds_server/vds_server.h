@@ -11,7 +11,5 @@ All rights reserved
 #include "vds_parser.h"
 
 #include "server.h"
-#include "server_logic.h"
-#include "user_manager.h"
 
 #endif // __VDS_SERVER_VDS_SERVER_H_

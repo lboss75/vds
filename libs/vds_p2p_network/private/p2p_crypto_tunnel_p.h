@@ -13,18 +13,26 @@ All rights reserved
 #include "binary_serialize.h"
 #include "logger.h"
 #include "guid.h"
+#include "private/udp_transport_session_p.h"
 
 namespace vds {
-  class _p2p_crypto_tunnel : public udp_transport::_session {
+  class _p2p_crypto_tunnel : public _udp_transport_session {
+    using base_class = _udp_transport_session;
   public:
 	  _p2p_crypto_tunnel(
-		  const udp_transport::session & session,
+      const std::shared_ptr<_udp_transport> & owner,
+      const network_address &address,
 		  const std::list<certificate> & certificate_chain,
 		  const asymmetric_private_key & private_key)
-		  : session_(session),
+		  : base_class(owner, address),
 		  certificate_chain_(certificate_chain),
 		  private_key_(private_key) {
 	  }
+    _p2p_crypto_tunnel(
+        const std::shared_ptr<_udp_transport> & owner,
+        const network_address &address)
+        : base_class(owner, address){
+    }
 
     ////Server
     //_p2p_crypto_tunnel(
@@ -34,13 +42,11 @@ namespace vds {
 
     virtual void start(const service_provider &sp);
 
-    void send(const service_provider &sp, const const_data_buffer &message) override;
+    void send(const service_provider &sp, const const_data_buffer &message);
 
-    void close(const service_provider &sp, const std::shared_ptr<std::exception> &ex) override;
+    void close(const service_provider &sp, const std::shared_ptr<std::exception> &ex);
 
-    async_task<> prepare_to_stop(const vds::service_provider &sp) override;
-
-    void dump(leak_detect_collector * collector) override;
+    async_task<> prepare_to_stop(const vds::service_provider &sp);
 
   protected:
     enum class command_id : uint8_t {
@@ -50,8 +56,6 @@ namespace vds {
       Crypted
     };
 
-    udp_transport::session session_;
-
     std::mutex key_mutex_;
     symmetric_key output_key_;
     symmetric_key input_key_;
@@ -60,7 +64,6 @@ namespace vds {
     asymmetric_private_key private_key_;
 
     guid partner_id_;
-    async_task<const const_data_buffer &> read_async(const service_provider &sp) override;
 
     void process_input_command(
         const service_provider &sp,
@@ -70,8 +73,6 @@ namespace vds {
         const service_provider &sp,
         const command_id command,
         binary_deserializer & s);
-
-    void read_input_messages(const service_provider &sp);
 
     void send_crypted_command(
         const service_provider &sp,

@@ -10,6 +10,7 @@ All rights reserved
 #include "messages/p2p_message_id.h"
 
 namespace vds {
+  class _p2p_crypto_tunnel;
 
   class _p2p_route : public std::enable_shared_from_this<_p2p_route> {
   public:
@@ -23,7 +24,7 @@ namespace vds {
         const const_data_buffer &message);
 
     void add(const service_provider &sp, const guid &partner_id,
-                 const std::shared_ptr<udp_transport::_session> &session);
+                 const std::shared_ptr<_p2p_crypto_tunnel> &session);
 
     std::set<p2p::p2p_node_info> get_neighbors() const;
 
@@ -55,37 +56,7 @@ namespace vds {
     const const_data_buffer & target_node);
 
   private:
-    class session {
-    public:
-      session(const std::shared_ptr<udp_transport::_session> & target)
-      : target_(target), is_busy_(false){
-      }
-
-      void lock();
-      void unlock();
-
-      bool is_busy() const {
-        return this->is_busy_;
-      }
-
-      async_task<> route(const service_provider & sp,
-        const guid &node_id,
-        const const_data_buffer &message);
-
-      void send(const service_provider &sp,
-                const const_data_buffer &message);
-
-      void close(
-          const service_provider &sp,
-          const std::shared_ptr<std::exception> & ex);
-    private:
-      std::shared_ptr<udp_transport::_session> target_;
-
-      std::mutex state_mutex_;
-      bool is_busy_;
-    };
-
-    std::map<guid, std::shared_ptr<session>> sessions_;
+    std::map<guid, std::shared_ptr<_p2p_crypto_tunnel>> sessions_;
     mutable std::shared_mutex sessions_mutex_;
   };
 

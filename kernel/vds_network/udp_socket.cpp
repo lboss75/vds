@@ -12,12 +12,11 @@ vds::udp_datagram::udp_datagram(vds::_udp_datagram* impl)
 }
 
 vds::udp_datagram::udp_datagram(
-  const std::string& server,
-  uint16_t port,
+  const network_address & address,
   const void* data,
   size_t data_size,
   bool check_max_safe_data_size /*= true*/)
-: impl_(new _udp_datagram(server, port, data, data_size))
+: impl_(new _udp_datagram(address, data, data_size))
 {
   if (check_max_safe_data_size && max_safe_data_size < data_size) {
     throw std::runtime_error("Data too long");
@@ -25,16 +24,19 @@ vds::udp_datagram::udp_datagram(
 }
 
 vds::udp_datagram::udp_datagram(
-  const std::string& server,
-  uint16_t port,
+  const network_address & address,
   const const_data_buffer & data,
   bool check_max_safe_data_size /*= true*/)
-  : impl_(new _udp_datagram(server, port, data))
+  : impl_(new _udp_datagram(address, data))
 {
   if (check_max_safe_data_size && max_safe_data_size < data.size()) {
     auto size = data.size();
     throw std::runtime_error(string_format("Data too long: %d, max: %d", size, max_safe_data_size));
   }
+}
+
+vds::network_address vds::udp_datagram::address() const {
+  return this->impl_->address();
 }
 
 
@@ -46,16 +48,6 @@ vds::udp_datagram::udp_datagram(
 //
 //  this->impl_.reset(new _udp_datagram(server, port, data, data_size));
 //}
-
-std::string vds::udp_datagram::server() const
-{
-  return this->impl_->server();
-}
-
-uint16_t vds::udp_datagram::port() const
-{
-  return this->impl_->port();
-}
 
 const uint8_t * vds::udp_datagram::data() const
 {
@@ -91,7 +83,9 @@ void vds::udp_socket::stop()
   this->impl_->stop();
 }
 
-vds::udp_socket vds::udp_socket::create(const service_provider & sp)
+vds::udp_socket vds::udp_socket::create(
+    const service_provider & sp,
+    sa_family_t af)
 {
 #ifdef _WIN32
   auto s = WSASocket(AF_INET, SOCK_DGRAM, IPPROTO_UDP, NULL, 0, WSA_FLAG_OVERLAPPED);
@@ -102,7 +96,7 @@ vds::udp_socket vds::udp_socket::create(const service_provider & sp)
 
   static_cast<_network_service *>(sp.get<inetwork_service>())->associate(s);
 #else
-  auto s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+  auto s = socket(af, SOCK_DGRAM, IPPROTO_UDP);
   if (0 > s) {
     auto error = errno;
     throw std::system_error(error, std::system_category(), "create socket");
@@ -147,10 +141,9 @@ vds::udp_server::~udp_server()
 
 vds::udp_socket & vds::udp_server::start(
   const service_provider & sp,
-  const std::string & address,
-  int port)
+  const network_address & address)
 {
-  this->impl_.reset(new _udp_server(address, port));
+  this->impl_.reset(new _udp_server(address));
   return this->impl_->start(sp);
 
 }
@@ -183,10 +176,11 @@ vds::udp_client::~udp_client()
 }
 
 vds::udp_socket & vds::udp_client::start(
-    const service_provider & sp)
+    const service_provider & sp,
+    sa_family_t af)
 {
   this->impl_.reset(new _udp_client());
-  return this->impl_->start(sp);
+  return this->impl_->start(sp, af);
 }
 
 void vds::udp_client::stop(const service_provider & sp)

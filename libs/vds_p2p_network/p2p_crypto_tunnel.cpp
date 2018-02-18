@@ -10,32 +10,14 @@
 #include "private/p2p_network_p.h"
 #include "vds_exceptions.h"
 
-void vds::p2p_crypto_tunnel::start(
-    const service_provider & sp) {
-
-  static_cast<_p2p_crypto_tunnel *>(this->impl_.get())->start(sp);
-
-}
-
-vds::p2p_crypto_tunnel::p2p_crypto_tunnel(const std::shared_ptr<vds::udp_transport::_session> &impl)
-: session(impl) {
-
-}
-
-vds::p2p_crypto_tunnel::~p2p_crypto_tunnel() {
-}
-
-////////////////////////////////////////////////////////
 void vds::_p2p_crypto_tunnel::close(
     const service_provider &sp,
     const std::shared_ptr<std::exception> &ex) {
-  this->session_->close(sp, ex);
+  base_class::close(sp, ex);
 }
 
 void vds::_p2p_crypto_tunnel::start(
     const service_provider &sp) {
-
-  this->read_input_messages(sp);
 
   binary_serializer s;
   s << (uint8_t)command_id::CertCain;
@@ -44,21 +26,8 @@ void vds::_p2p_crypto_tunnel::start(
 	  s << cert.der();
   }
 
-  this->session_.send(sp, const_data_buffer(s.data().data(), s.size()));
+  base_class::send(sp, const_data_buffer(s.data().data(), s.size()));
 
-}
-
-void vds::_p2p_crypto_tunnel::read_input_messages(const service_provider &sp) {
-  session_.read_async(sp).execute(
-      [pthis = shared_from_this(), sp](
-          const std::shared_ptr<std::exception> & ex,
-          const const_data_buffer & message){
-        if(!ex) {
-          auto this_ = static_cast<_p2p_crypto_tunnel *>(pthis.get());
-          this_->process_input_command(sp, message);
-          this_->read_input_messages(sp);
-        }
-      });
 }
 
 void vds::_p2p_crypto_tunnel::process_input_command(
@@ -84,7 +53,7 @@ void vds::_p2p_crypto_tunnel::send_crypted_command(
     s << symmetric_encrypt::encrypt(this->output_key_, message);
   }
 
-  this->session_->send(
+  base_class::send(
       sp,
       const_data_buffer(s.data().data(), s.size()));
 }
@@ -102,14 +71,9 @@ void vds::_p2p_crypto_tunnel::send(
     s << symmetric_encrypt::encrypt(this->output_key_, message);
   }
 
-  this->session_->send(
+  base_class::send(
       sp,
       const_data_buffer(s.data().data(), s.size()));
-}
-
-vds::async_task<const vds::const_data_buffer &> vds::_p2p_crypto_tunnel::read_async(
-    const service_provider &sp) {
-  throw vds_exceptions::invalid_operation();
 }
 
 void vds::_p2p_crypto_tunnel::process_input_command(
@@ -150,7 +114,7 @@ void vds::_p2p_crypto_tunnel::process_input_command(
       out_stream << (uint8_t)command_id::SendKey << safe_cast<uint16_t>(crypted_key.size());
       out_stream.push_data(crypted_key.data(), crypted_key.size(), false);
 
-      this->session_.send(sp, const_data_buffer(out_stream.data().data(), out_stream.size()));
+      base_class::send(sp, const_data_buffer(out_stream.data().data(), out_stream.size()));
       return;
     }
     case command_id::Crypted:{
@@ -219,8 +183,4 @@ void vds::_p2p_crypto_tunnel::process_input_command(
 vds::async_task<> vds::_p2p_crypto_tunnel::prepare_to_stop(
     const vds::service_provider &sp) {
   return async_task<>::empty();
-}
-
-void vds::_p2p_crypto_tunnel::dump(vds::leak_detect_collector *collector) {
-  collector->add(this->session_);
 }

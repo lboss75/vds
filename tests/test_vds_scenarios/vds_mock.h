@@ -6,8 +6,6 @@ All rights reserved
 #define __TEST_VDS_SCENARIOS_VDS_MOCK_H_
 
 #include "network_service.h"
-#include "connection_manager.h"
-#include "server_log_sync.h"
 #include "p2p_network_service.h"
 #include "leak_detect.h"
 
@@ -22,7 +20,6 @@ public:
   static vds::user_invitation init_root(int index, int udp_port, const std::string & root_password);
   static void init(
 	  int index, int udp_port, const vds::user_invitation & invitation, const std::string & user_password);
-  vds::guid last_log_record() const;
 
   template <typename T>
   T * get() const {

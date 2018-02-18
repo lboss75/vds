@@ -18,6 +18,7 @@ All rights reserved
 #include "p2p_node_info.h"
 
 namespace vds {
+  class _p2p_crypto_tunnel;
 
   class _p2p_network : public std::enable_shared_from_this<_p2p_network> {
   public:
@@ -29,7 +30,7 @@ namespace vds {
         const vds::const_data_buffer &message);
 
     void add_route(const service_provider &sp, const guid &partner_id,
-                       const std::shared_ptr<udp_transport::_session> &session);
+                       const std::shared_ptr<_p2p_crypto_tunnel> &session);
 
     vds::async_task<> start_network(const vds::service_provider &sp);
     async_task<> prepare_to_stop(const vds::service_provider &sp);
@@ -49,7 +50,7 @@ namespace vds {
     void process_input_command(
         const service_provider &sp,
         const guid &partner_id,
-        const std::shared_ptr<udp_transport::_session> &session,
+        const std::shared_ptr<_p2p_crypto_tunnel> &session,
         const vds::const_data_buffer &message);
 
     void close_session(

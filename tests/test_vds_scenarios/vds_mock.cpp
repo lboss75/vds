@@ -8,13 +8,10 @@ All rights reserved
 #include "stdafx.h"
 #include "vds_mock.h"
 #include "test_config.h"
-#include "storage_log.h"
-#include "mt_service.h"
-#include "leak_detect.h"
 #include "private/server_p.h"
 #include "file_operations.h"
 #include "db_model.h"
-#include "member_user.h"
+#include "user_manager.h"
 
 vds_mock::vds_mock()
 {
@@ -123,12 +120,6 @@ void vds_mock::sync_wait()
   }
   
   std::cout << "Synchronize error\n";
-  
-  int index = 0;
-  for(auto & p : this->servers_) {
-    std::cout << "State[" << index ++ << "]: " << p->last_log_record().str() << "\n";
-  }
-  
   throw std::runtime_error("Synchronize error");
 }
 
@@ -589,11 +580,6 @@ void mock_server::start()
 void mock_server::stop()
 {
   this->registrator_.shutdown(this->sp_);
-}
-
-vds::guid mock_server::last_log_record() const
-{
-  return this->sp_.get<vds::istorage_log>()->get_last_applied_record(this->sp_);
 }
 
 void mock_server::init(int index, int udp_port, const vds::user_invitation & invitation, const std::string &user_password) {

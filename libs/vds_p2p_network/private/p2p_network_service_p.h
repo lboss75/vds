@@ -16,6 +16,7 @@ All rights reserved
 #include "leak_detect.h"
 
 namespace vds {
+  class _p2p_crypto_tunnel;
 
   class _p2p_network_service : public std::enable_shared_from_this<_p2p_network_service> {
   public:
@@ -35,10 +36,9 @@ namespace vds {
     timer backgroud_timer_;
 
     std::shared_mutex sessions_mutex_;
-    std::list<udp_transport::session> sessions_;
+    std::list<_p2p_crypto_tunnel> sessions_;
 
-    void start_network(const service_provider &sp, int port,
-                       const udp_transport::new_session_handler_t &new_session_handler);
+    void start_network(const service_provider &sp, int port);
 
     bool do_backgroud_tasks(const service_provider &sp);
 

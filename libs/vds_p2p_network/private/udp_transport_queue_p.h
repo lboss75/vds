@@ -18,7 +18,7 @@ namespace vds {
     void send_data(
         const service_provider & sp,
         const std::shared_ptr<_udp_transport> & owner,
-        const std::shared_ptr<udp_transport::_session> & session,
+        const std::shared_ptr<_p2p_crypto_tunnel> & session,
         const const_data_buffer & data);
 
     void stop(const service_provider & sp);
@@ -29,7 +29,7 @@ namespace vds {
 
     class datagram_generator {
     public:
-      datagram_generator(const std::shared_ptr<udp_transport::_session> & owner)
+      datagram_generator(const std::shared_ptr<_p2p_crypto_tunnel> & owner)
       : owner_(owner) {
         this->leak_detect_.name_ = "datagram_generator";
         this->leak_detect_.dump_callback_ = [this](leak_detect_collector * collector){
@@ -49,12 +49,12 @@ namespace vds {
 
       virtual bool is_eof() const = 0;
 
-      const std::shared_ptr<udp_transport::_session> & owner() const {
+      const std::shared_ptr<_p2p_crypto_tunnel> & owner() const {
         return this->owner_;
       }
 
     private:
-      std::shared_ptr<udp_transport::_session> owner_;
+      std::shared_ptr<_p2p_crypto_tunnel> owner_;
 
       virtual void dump(leak_detect_collector * collector)
       {
@@ -68,7 +68,7 @@ namespace vds {
     class data_datagram : public datagram_generator {
     public:
       data_datagram(
-          const std::shared_ptr<udp_transport::_session> & owner,
+          const std::shared_ptr<_p2p_crypto_tunnel> & owner,
           const const_data_buffer & data )
           : datagram_generator(owner),
             data_(data), offset_(0)
@@ -82,9 +82,7 @@ namespace vds {
           uint8_t *buffer) override;
 
       //Store sent message
-      void complete(const uint8_t * buffer, size_t len) override {
-        static_cast<_udp_transport_session *>(this->owner().get())->add_datagram(const_data_buffer(buffer, len));
-      }
+      void complete(const uint8_t * buffer, size_t len) override;
 
       //
       bool is_eof() const override {
@@ -99,7 +97,7 @@ namespace vds {
     class repeat_datagram : public datagram_generator {
     public:
       repeat_datagram(
-          const std::shared_ptr<udp_transport::_session> & owner,
+          const std::shared_ptr<_p2p_crypto_tunnel> & owner,
           const uint32_t sequence_number)
           : datagram_generator(owner), sequence_number_(sequence_number)
       {
@@ -127,7 +125,7 @@ namespace vds {
     class handshake_datagram : public datagram_generator {
     public:
       handshake_datagram(
-          const std::shared_ptr<udp_transport::_session> & owner,
+          const std::shared_ptr<_p2p_crypto_tunnel> & owner,
           const guid & instance_id)
           : datagram_generator(owner),
           instance_id_(instance_id)
@@ -150,7 +148,7 @@ namespace vds {
     class welcome_datagram : public datagram_generator {
     public:
       welcome_datagram(
-          const std::shared_ptr<udp_transport::_session> & owner,
+          const std::shared_ptr<_p2p_crypto_tunnel> & owner,
           const guid & instance_id)
           : datagram_generator(owner),
             instance_id_(instance_id)
@@ -173,7 +171,7 @@ namespace vds {
     class keep_alive_datagram : public datagram_generator {
     public:
       keep_alive_datagram(
-          const std::shared_ptr<udp_transport::_session> &owner)
+          const std::shared_ptr<_p2p_crypto_tunnel> &owner)
       : datagram_generator(owner)
       {
         this->leak_detect_.name_ = "keep_alive_datagram";
@@ -194,7 +192,7 @@ namespace vds {
     class acknowledgement_datagram : public datagram_generator {
     public:
       acknowledgement_datagram(
-          const std::shared_ptr<udp_transport::_session> &owner)
+          const std::shared_ptr<_p2p_crypto_tunnel> &owner)
           : datagram_generator(owner)
       {
         this->leak_detect_.name_ = "acknowledgement_datagram";
@@ -215,7 +213,7 @@ namespace vds {
 
     class failed_datagram : public datagram_generator {
     public:
-      failed_datagram(const std::shared_ptr<udp_transport::_session> &owner)
+      failed_datagram(const std::shared_ptr<_p2p_crypto_tunnel> &owner)
           : datagram_generator(owner) {
         this->leak_detect_.name_ = "failed_datagram";
       }

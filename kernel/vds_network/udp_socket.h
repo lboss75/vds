@@ -8,6 +8,7 @@ All rights reserved
 
 #include "async_buffer.h"
 #include "const_data_buffer.h"
+#include "network_address.h"
 
 namespace vds {
   class _udp_socket;
@@ -25,27 +26,17 @@ namespace vds {
     udp_datagram();
 
     udp_datagram(
-      const std::string & server,
-      uint16_t port,
+      const network_address & address,
       const void * data,
       size_t data_size,
       bool check_max_safe_data_size = true);
 
     udp_datagram(
-      const std::string & server,
-      uint16_t port,
+      const network_address & address,
       const const_data_buffer & data,
       bool check_max_safe_data_size = true);
 
-    //void reset(
-    //  const std::string & server,
-    //  uint16_t port,
-    //  const void * data,
-    //  size_t data_size,
-    //  bool check_max_safe_data_size = false);
-
-    std::string server() const;
-    uint16_t port() const;
+    network_address address() const;
 
     const uint8_t * data() const;
     size_t data_size() const;
@@ -78,7 +69,7 @@ namespace vds {
 
     _udp_socket * operator -> () const { return this->impl_.get(); }
 
-    static udp_socket create(const service_provider & sp);
+    static udp_socket create(const service_provider & sp, sa_family_t af);
 
     void send_broadcast(int port, const const_data_buffer &message);
 
@@ -105,14 +96,13 @@ namespace vds {
 
     udp_socket & start(
       const service_provider & sp,
-      const std::string & address,
-      int port);
+      const network_address & address);
 
     void prepare_to_stop(const service_provider & sp);
     void stop(const service_provider & sp);
 
     udp_socket & socket();
-	const udp_socket & socket() const;
+	  const udp_socket & socket() const;
 
     _udp_server *operator ->()const {
       return this->impl_.get();
@@ -134,7 +124,8 @@ namespace vds {
     ~udp_client();
 
     udp_socket & start(
-      const service_provider & sp);
+      const service_provider & sp,
+      sa_family_t af);
 
     void stop(const service_provider & sp);
 

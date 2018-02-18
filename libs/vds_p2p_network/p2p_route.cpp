@@ -14,6 +14,7 @@ All rights reserved
 #include "messages/chunk_offer_replica.h"
 #include "messages/chunk_query_replica.h"
 #include "run_configuration_dbo.h"
+#include "private/p2p_crypto_tunnel_p.h"
 
 vds::p2p_route::p2p_route()
 : impl_(new _p2p_route()) {
@@ -36,24 +37,14 @@ vds::async_task<> vds::_p2p_route::send_to(const service_provider &sp, const gui
                                            const const_data_buffer &message) {
 
   int best_distance;
-  std::shared_ptr<session> best_session;
+  std::shared_ptr<_p2p_crypto_tunnel> best_session;
 
   for(;;) {
     std::shared_lock<std::shared_mutex> lock(this->sessions_mutex_);
     for (auto &p : this->sessions_) {
       int distance;
       if (!best_session || (best_distance > (distance = this->calc_distance(p.first, node_id)))) {
-        p.second->lock();
-        if (p.second->is_busy()) {
-          p.second->unlock();
-          continue;
-        }
-
         best_distance = distance;
-        if (best_session) {
-          best_session->unlock();
-        }
-
         best_session = p.second;
       }
     }
@@ -63,7 +54,8 @@ vds::async_task<> vds::_p2p_route::send_to(const service_provider &sp, const gui
     }
   }
 
-  return best_session->route(sp, node_id, message);
+  throw std::runtime_error("Not implemented");
+  //return best_session->send(sp, node_id, message);
 }
 
 bool vds::_p2p_route::random_broadcast(
@@ -88,11 +80,11 @@ bool vds::_p2p_route::random_broadcast(
 void vds::_p2p_route::add(
 	const service_provider &sp,
 	const guid &partner_id,
-  const std::shared_ptr<udp_transport::_session> &session) {
+  const std::shared_ptr<_p2p_crypto_tunnel> &session) {
 
   sp.get<logger>()->trace(ThisModule, sp,"Established connection with %s", partner_id.str().c_str());
   std::unique_lock<std::shared_mutex> lock(this->sessions_mutex_);
-  this->sessions_[partner_id] = std::make_shared<vds::_p2p_route::session>(session);
+  this->sessions_[partner_id] = session;
 }
 
 std::set<vds::p2p::p2p_node_info> vds::_p2p_route::get_neighbors() const {
@@ -154,7 +146,7 @@ void vds::_p2p_route::query_replica(
   const const_data_buffer & data_hash,
   const guid & source_node)
 {
-	std::shared_ptr<session> best_session;
+	std::shared_ptr<_p2p_crypto_tunnel> best_session;
 	size_t best_distance;
 
 	std::shared_lock<std::shared_mutex> lock(this->sessions_mutex_);
@@ -175,34 +167,6 @@ void vds::_p2p_route::query_replica(
           source_node,
           data_hash).serialize());
 	}
-}
-
-
-void vds::_p2p_route::session::lock() {
-  this->state_mutex_.lock();
-}
-
-void vds::_p2p_route::session::unlock() {
-  this->state_mutex_.unlock();
-}
-
-void
-vds::_p2p_route::session::send(const vds::service_provider &sp, const vds::const_data_buffer &message) {
-  this->target_->send(sp, message);
-}
-
-vds::async_task<> vds::_p2p_route::session::route(
-  const vds::service_provider &sp,
-  const vds::guid &node_id,
-  const vds::const_data_buffer &message) {
-
-  throw std::runtime_error("Not implemented");
-}
-
-void vds::_p2p_route::session::close(
-    const vds::service_provider &sp,
-    const std::shared_ptr<std::exception> & ex) {
-  this->target_->close(sp, ex);
 }
 
 size_t vds::_p2p_route::calc_distance(

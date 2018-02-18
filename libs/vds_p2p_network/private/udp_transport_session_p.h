@@ -13,41 +13,28 @@ All rights reserved
 #include "resizable_data_buffer.h"
 #include "udp_transport.h"
 #include "leak_detect.h"
+#include "network_address.h"
 
 namespace vds {
-  struct _udp_transport_session_address_t {
-    std::string server_;
-    uint16_t port_;
+  class _p2p_crypto_tunnel;
 
-    _udp_transport_session_address_t(
-        const std::string & server,
-        uint16_t port)
-        : server_(server), port_(port)
-    {
-    }
-
-    bool operator < (const _udp_transport_session_address_t & other) const {
-      return (this->server_ < other.server_) ? true :
-             ((this->port_ < other.port_) ? true : false);
-    }
-  };
-
-  class _udp_transport_session : public udp_transport::_session {
+  class _udp_transport_session : public std::enable_shared_from_this<_p2p_crypto_tunnel> {
   public:
     _udp_transport_session(
         const std::shared_ptr<_udp_transport> & owner,
-        const _udp_transport_session_address_t &address)
-        : address_(address),
-          output_sequence_number_(0),
-		      expected_size_(0),
-          min_incoming_sequence_(0),
-          mtu_(65507),
-          owner_(owner),
+        const network_address &address)
+        :
           current_state_(state_t::bof),
+          address_(address),
+          output_sequence_number_(0),
+          mtu_(65507),
+          min_incoming_sequence_(0),
+		      expected_size_(0),
+          owner_(owner),
           sent_data_bytes_(0),
           received_data_bytes_(0),
-			timer_count_(0){
-      this->leak_detect_.name_ = "_udp_transport_session";
+			    timer_count_(0){
+
     }
 
     ~_udp_transport_session();
@@ -57,8 +44,6 @@ namespace vds {
       return this->instance_id_;
     }
     bool is_failed() const;
-
-    async_task<const const_data_buffer &> read_async(const service_provider &sp) override;
 
     /*
       0                   1                   2                   3
@@ -79,7 +64,7 @@ namespace vds {
       Failed = 0b1100 //seq: last package, info: failed bits
     };
 
-    const _udp_transport_session_address_t &address() const {
+    const network_address &address() const {
       return this->address_;
     }
 
@@ -144,17 +129,17 @@ namespace vds {
         const std::shared_ptr<_udp_transport> & owner);
     void welcome_sent();
 
-    void send(const service_provider &sp, const const_data_buffer &message) override;
+    void send(const service_provider &sp, const const_data_buffer &message);
 
     void close(
         const service_provider &sp,
-        const std::shared_ptr<std::exception> &ex) override;
+        const std::shared_ptr<std::exception> &ex);
 
     uint16_t get_sent_data(uint8_t *buffer, uint32_t sequence_number);
 
     void register_outgoing_traffic(uint32_t bytes);
 
-    async_task<> prepare_to_stop(const vds::service_provider &sp) override;
+    async_task<> prepare_to_stop(const vds::service_provider &sp);
 
   private:
     enum class state_t {
@@ -172,7 +157,7 @@ namespace vds {
     state_t current_state_;
 
     guid instance_id_;
-    _udp_transport_session_address_t address_;
+    network_address address_;
 
     std::mutex output_sequence_mutex_;
     uint32_t output_sequence_number_;
@@ -208,7 +193,6 @@ namespace vds {
 	int timer_count_;
 
 	void try_read_data();
-	void dump(leak_detect_collector * collector) override;
 
 	void send_handshake_(
 		const service_provider &sp,

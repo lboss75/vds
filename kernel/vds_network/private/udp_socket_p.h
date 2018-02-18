@@ -21,65 +21,39 @@ namespace vds {
   {
   public:
     _udp_datagram(
-      const std::string & server,
-      uint16_t port,
+      const network_address & address,
       const void * data,
       size_t data_size)
-      : data_(data, data_size)
+      : address_(address),
+        data_(data, data_size)
     {
-      memset((char *)&this->addr_, 0, sizeof(this->addr_));
-      this->addr_.sin_family = AF_INET;
-      this->addr_.sin_port = htons(port);
-      this->addr_.sin_addr.s_addr = inet_addr(server.c_str());
     }
 
     _udp_datagram(
-      const std::string & server,
-      uint16_t port,
+      const network_address & address,
       const const_data_buffer & data)
-      : data_(data)
-    {
-      memset((char *)&this->addr_, 0, sizeof(this->addr_));
-      this->addr_.sin_family = AF_INET;
-      this->addr_.sin_port = htons(port);
-      this->addr_.sin_addr.s_addr = inet_addr(server.c_str());
-    }
-
-    _udp_datagram(
-      const sockaddr_in & addr,
-      const void * data,
-      size_t data_size)
-      : addr_(addr), data_(data, data_size)
+      : address_(address),
+        data_(data)
     {
     }
 
-    _udp_datagram(
-      const sockaddr_in & addr,
-      const const_data_buffer & data)
-      : addr_(addr), data_(data)
-    {
-    }
-
-    sockaddr_in * addr() { return &this->addr_; }
+    const network_address & address() const { return this->address_; }
     
-    std::string server() const { return network_service::get_ip_address_string(this->addr_); }
-    uint16_t port() const { return ntohs(this->addr_.sin_port); }
-
     const uint8_t * data() const { return this->data_.data(); }
     size_t data_size() const { return this->data_.size(); }
 
-    static udp_datagram create(const sockaddr_in & addr, const void * data, size_t data_size)
+    static udp_datagram create(const network_address & addr, const void * data, size_t data_size)
     {
       return udp_datagram(new _udp_datagram(addr, data, data_size));
     }
 
-    static udp_datagram create(const sockaddr_in & addr, const const_data_buffer & data)
+    static udp_datagram create(const network_address & addr, const const_data_buffer & data)
     {
       return udp_datagram(new _udp_datagram(addr, data));
     }
 
   private:
-    sockaddr_in addr_;
+    network_address address_;
     const_data_buffer data_;
   };
 
@@ -475,7 +449,7 @@ namespace vds {
             this->write_message_.data(),
             size,
             0,
-            (sockaddr *)this->write_message_->addr(),
+            this->write_message_->address(),
             sizeof(sockaddr_in));
 
           this->write_status_ = write_status_t::bof;
@@ -492,7 +466,7 @@ namespace vds {
                   std::make_shared<std::system_error>(
                       error,
                       std::generic_category(),
-                      "Send to " + network_service::to_string(*this->write_message_->addr())));
+                      "Send to " + this->write_message_->address().to_string()));
             }
           }
         
@@ -505,7 +479,7 @@ namespace vds {
               this->sp_,
               "Sent %d bytes to %s",
               len,
-              network_service::to_string(*this->write_message_->addr()).c_str());
+              this->write_message_->address().to_string().c_str());
 
           this->write_result_.done();
         }
@@ -528,13 +502,13 @@ namespace vds {
           throw std::runtime_error("Invalid operation");
         }
 
-        this->addr_len_ = sizeof(this->addr_);
+        this->addr_.reset();
         int len = recvfrom(this->s_,
                            this->read_buffer_,
                            sizeof(this->read_buffer_),
                            0,
-                           (struct sockaddr *)&this->addr_,
-                           &this->addr_len_);
+                           this->addr_,
+                           this->addr_.size_ptr());
 
         if (len < 0) {
           int error = errno;
@@ -551,7 +525,7 @@ namespace vds {
         }
         else {
           this->sp_.get<logger>()->trace("UDP", this->sp_, "got %d bytes from %s", len,
-                                         network_service::to_string(this->addr_).c_str());
+                                         this->addr_.to_string().c_str());
           this->read_status_ = read_status_t::continue_read;
           auto result = std::move(this->read_result_);
           lock.unlock();
@@ -591,8 +565,7 @@ namespace vds {
       async_result<const udp_datagram &> read_result_;
       async_result<> write_result_;
 
-      sockaddr_in addr_;
-      socklen_t addr_len_;
+      network_address addr_;
       uint8_t read_buffer_[64 * 1024];
       
       udp_datagram write_message_;
@@ -615,10 +588,8 @@ namespace vds {
   class _udp_server
   {
   public:
-    _udp_server(
-      const std::string & address,
-      int port
-    ) : address_(address), port_(port)
+    _udp_server(const network_address & address)
+        : address_(address)
     {
       this->leak_detect_.name_ = "_udp_server";
       this->leak_detect_.dump_callback_ = [this](leak_detect_collector * collector){
@@ -628,18 +599,12 @@ namespace vds {
 
     udp_socket & start(const service_provider & sp)
     {
-      auto scope = sp.create_scope(("UDP server on " + this->address_ + ":" + std::to_string(this->port_)).c_str());
+      auto scope = sp.create_scope(("UDP server on " + this->address_.to_string()).c_str());
       imt_service::enable_async(scope);
 
-      this->socket_ = udp_socket::create(scope);
+      this->socket_ = udp_socket::create(scope, this->address_.family());
       
-      sockaddr_in addr;
-      memset((char *)&addr, 0, sizeof(addr));
-      addr.sin_family = AF_INET;
-      addr.sin_port = htons(this->port_);
-      addr.sin_addr.s_addr = htonl(INADDR_ANY);
-
-      if (0 > bind(this->socket_->handle(), (sockaddr *)&addr, sizeof(addr))) {
+      if (0 > bind(this->socket_->handle(), this->address_, this->address_.size())) {
 #ifdef _WIN32
         auto error = WSAGetLastError();
 #else
@@ -667,8 +632,7 @@ namespace vds {
 
   private:
     udp_socket socket_;
-    std::string address_;
-    int port_;
+    network_address address_;
 
   public:
     leak_detect_helper leak_detect_;
@@ -688,10 +652,11 @@ namespace vds {
 
     }
 
-    udp_socket & start(const service_provider & sp)
+    udp_socket & start(const service_provider & sp, sa_family_t af)
     {
-      this->socket_ = udp_socket::create(sp);
+      this->socket_ = udp_socket::create(sp, af);
 
+      /*
       sockaddr_in addr;
       memset((char *)&addr, 0, sizeof(addr));
       addr.sin_family = AF_INET;
@@ -706,7 +671,7 @@ namespace vds {
 #endif
         throw std::system_error(error, std::system_category(), "bind socket");
       }
-
+      */
       this->socket_->start(sp);
       return this->socket_;
     }

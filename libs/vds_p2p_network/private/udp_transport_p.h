@@ -21,7 +21,7 @@ namespace vds {
 
   class _udp_transport : public std::enable_shared_from_this<_udp_transport> {
   public:
-    _udp_transport(const udp_transport::new_session_handler_t &new_session_handler);
+    _udp_transport();
 
     ~_udp_transport();
 
@@ -45,12 +45,11 @@ namespace vds {
 
     udp_server server_;
     guid instance_id_;
-    udp_transport::new_session_handler_t new_session_handler_;
 
     udp_datagram incomming_buffer_;
     bool incomming_eof_;
 
-    std::map<_udp_transport_session_address_t, std::shared_ptr<_udp_transport_session>> sessions_;
+    std::map<network_address, std::shared_ptr<_p2p_crypto_tunnel>> sessions_;
     std::shared_mutex sessions_mutex_;
     bool is_closed_;
 
@@ -71,7 +70,7 @@ namespace vds {
 
     void send_data(
         const service_provider &sp,
-        const std::shared_ptr<_udp_transport_session> &session,
+        const std::shared_ptr<_p2p_crypto_tunnel> &session,
         const const_data_buffer &data);
 
     async_task<> write_async(udp_datagram &&message);
@@ -80,7 +79,7 @@ namespace vds {
 
     void handshake_completed(
         const service_provider &sp,
-        _udp_transport_session *session);
+        const std::shared_ptr<_p2p_crypto_tunnel> & session);
 
   public:
     leak_detect_helper leak_detect_;

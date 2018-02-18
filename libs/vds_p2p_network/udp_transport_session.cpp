@@ -17,23 +17,21 @@ void vds::_udp_transport_session::incomming_message(
     switch((control_type)(data[0] >> 4)){
       case control_type::Handshake:
       {
-        sp.get<logger>()->trace("P2PUDP", sp, "%s:%d: incomming handshake",
-                                this->address_.server_.c_str(),
-                                this->address_.port_);
+        sp.get<logger>()->trace("P2PUDP", sp, "%s: incomming handshake",
+                                this->address_.to_string().c_str());
         std::unique_lock<std::shared_mutex> lock(this->current_state_mutex_);
         if(state_t::bof == this->current_state_) {
           this->current_state_ = state_t::welcome_pending;
           this->send_welcome(sp, owner.shared_from_this());
-          owner.handshake_completed(sp, this);
+          owner.handshake_completed(sp, this->shared_from_this());
         }
 
         break;
       }
       case control_type::Welcome:
       {
-        sp.get<logger>()->trace("P2PUDP", sp, "%s:%d: incomming welcome",
-                                this->address_.server_.c_str(),
-                                this->address_.port_);
+        sp.get<logger>()->trace("P2PUDP", sp, "%s: incomming welcome",
+                                this->address_.to_string().c_str());
         if(20 != size){
           throw std::runtime_error("Invalid message");
         }
@@ -49,7 +47,7 @@ void vds::_udp_transport_session::incomming_message(
               this->instance_id_ = instance_id;
               this->current_state_ = state_t::wait_message;
 
-              owner.handshake_completed(sp, this);
+              owner.handshake_completed(sp, this->shared_from_this());
             } else if (this->instance_id_ != instance_id) {
               throw std::runtime_error("Invalid message");
             }
@@ -67,9 +65,8 @@ void vds::_udp_transport_session::incomming_message(
       }
       case control_type::Keep_alive:
       {
-        sp.get<logger>()->trace("P2PUDP", sp, "%s:%d: incoming keep alive",
-                                this->address_.server_.c_str(),
-                                this->address_.port_);
+        sp.get<logger>()->trace("P2PUDP", sp, "%s: incoming keep alive",
+                                this->address_.to_string().c_str());
         if(4 != size){
           throw std::runtime_error("Invalid message");
         }
@@ -84,9 +81,8 @@ void vds::_udp_transport_session::incomming_message(
       }
       case control_type::Acknowledgement:
       {
-        sp.get<logger>()->trace("P2PUDP", sp, "%s:%d: incoming acknowledgement",
-                                this->address_.server_.c_str(),
-                                this->address_.port_);
+        sp.get<logger>()->trace("P2PUDP", sp, "%s: incoming acknowledgement",
+                                this->address_.to_string().c_str());
         if(8 != size){
           throw std::runtime_error("Invalid message");
         }
@@ -146,9 +142,8 @@ void vds::_udp_transport_session::incomming_message(
 
     auto seq = ntohl(*(uint32_t *)data);
 	auto log = sp.get<logger>();
-	log->trace("P2PUDP", sp, "%s:%d: incoming data seq %d",
-                            this->address_.server_.c_str(),
-                            this->address_.port_,
+	log->trace("P2PUDP", sp, "%s: incoming data seq %d",
+                            this->address_.to_string().c_str(),
                             seq);
 
     std::unique_lock<std::mutex> seq_lock(this->incoming_sequence_mutex_);
@@ -157,9 +152,8 @@ void vds::_udp_transport_session::incomming_message(
       this->continue_process_incoming_data(sp, owner);
     }
 	else {
-		log->warning("P2PUDP", sp, "%s:%d: dublicate data seq %d",
-			this->address_.server_.c_str(),
-			this->address_.port_,
+		log->warning("P2PUDP", sp, "%s: dublicate data seq %d",
+			this->address_.to_string().c_str(),
 			seq);
 	}
   }
@@ -265,9 +259,8 @@ void vds::_udp_transport_session::send_handshake_(
   }
   this->current_state_ = state_t::handshake_pending;
 
-  sp.get<logger>()->trace("P2PUDP", sp, "Send handshake to %s:%d",
-                          this->address_.server_.c_str(),
-                          this->address_.port_);
+  sp.get<logger>()->trace("P2PUDP", sp, "Send handshake to %s",
+                          this->address_.to_string().c_str());
 
   owner->send_queue()->emplace(
       sp,
@@ -287,9 +280,8 @@ void vds::_udp_transport_session::handshake_sent() {
 void vds::_udp_transport_session::send_welcome(
     const vds::service_provider &sp,
     const std::shared_ptr<_udp_transport> & owner) {
-  sp.get<logger>()->trace("P2PUDP", sp, "Send welcome to %s:%d",
-                          this->address_.server_.c_str(),
-                          this->address_.port_);
+  sp.get<logger>()->trace("P2PUDP", sp, "Send welcome to %s",
+                          this->address_.to_string().c_str());
 
   owner->send_queue()->emplace(
       sp,
@@ -320,22 +312,6 @@ void vds::_udp_transport_session::send(
       new _udp_transport_queue::data_datagram(
           this->shared_from_this(),
           message));
-}
-
-vds::async_task<const vds::const_data_buffer &> vds::_udp_transport_session::read_async(
-    const vds::service_provider &sp) {
-
-  return [pthis = this->shared_from_this()](const async_result<const vds::const_data_buffer &> & result){
-    auto this_ = static_cast<_udp_transport_session *>(pthis.get());
-    std::unique_lock<std::mutex> lock(this_->read_result_mutex_);
-    if(this_->read_result_){
-      throw std::runtime_error("Invalid state");
-    }
-    this_->read_result_ = result;
-    lock.unlock();
-
-    this_->try_read_data();
-  };
 }
 
 void vds::_udp_transport_session::try_read_data() {
@@ -412,8 +388,3 @@ vds::async_task<> vds::_udp_transport_session::prepare_to_stop(const vds::servic
 
   return async_task<>::empty();
 }
-
-void vds::_udp_transport_session::dump(vds::leak_detect_collector *collector) {
-}
-
-

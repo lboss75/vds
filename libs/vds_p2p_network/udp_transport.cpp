@@ -11,6 +11,9 @@
 #include "network_service.h"
 #include "vds_debug.h"
 #include "private/udp_socket_p.h"
+#include "p2p_route.h"
+#include "p2p_network.h"
+#include "private/p2p_crypto_tunnel_p.h"
 
 ///////////////////////////////////////////////////////
 vds::udp_transport::udp_transport() {
@@ -23,9 +26,8 @@ vds::udp_transport::~udp_transport() {
 void
 vds::udp_transport::start(
     const vds::service_provider &sp,
-    int port,
-    const new_session_handler_t &new_session_handler) {
-  this->impl_.reset(new _udp_transport(new_session_handler));
+    int port) {
+  this->impl_.reset(new _udp_transport());
   this->impl_->start(sp, port);
 }
 
@@ -41,14 +43,10 @@ vds::async_task<> vds::udp_transport::prepare_to_stop(const vds::service_provide
   return this->impl_->prepare_to_stop(sp);
 }
 
-vds::async_task<> vds::udp_transport::session::prepare_to_stop(const vds::service_provider &sp) {
-  return this->impl_->prepare_to_stop(sp);
-}
 
 ///////////////////////////////////////////////////////
-vds::_udp_transport::_udp_transport(const udp_transport::new_session_handler_t & new_session_handler)
+vds::_udp_transport::_udp_transport()
 : instance_id_(guid::new_guid()),
-  new_session_handler_(new_session_handler),
   send_queue_(new _udp_transport_queue()),
   timer_("UDP transport timer"),
 	is_closed_(false)
@@ -68,7 +66,12 @@ vds::_udp_transport::~_udp_transport() {
 }
 
 void vds::_udp_transport::start(const service_provider &sp, int port) {
-  this->server_.start(sp, "127.0.0.1", port);
+  try {
+    this->server_.start(sp, network_address::any_ip6(port));
+  }
+  catch (...) {
+    this->server_.start(sp, network_address::any_ip4(port));
+  }
 
   this->read_message(sp);
 
@@ -106,17 +109,15 @@ void vds::_udp_transport::process_incommig_message(
 	  return;
   }
 
-  _udp_transport_session_address_t server_address(message.server(), message.port());
-
-  std::shared_ptr<_udp_transport_session> session;
-  auto p = this->sessions_.find(server_address);
+  std::shared_ptr<_p2p_crypto_tunnel> session;
+  auto p = this->sessions_.find(message.address());
   if (this->sessions_.end() != p) {
     session = p->second;
   } else {
-    session = std::make_shared<_udp_transport_session>(
+    session = std::make_shared<_p2p_crypto_tunnel>(
         this->shared_from_this(),
-        server_address);
-    this->sessions_[server_address] = session;
+        message.address());
+    this->sessions_[message.address()] = session;
   }
 
   if(0x80 == (0x80 & static_cast<const uint8_t *>(message.data())[0])
@@ -133,10 +134,10 @@ void vds::_udp_transport::process_incommig_message(
       guid instance_id(message.data() + 4, 16);
       if(instance_id != this->instance_id_){
         if(0 != session->get_instance_id().size()) {
-          session = std::make_shared<_udp_transport_session>(
+          session = std::make_shared<_p2p_crypto_tunnel>(
               this->shared_from_this(),
-              server_address);
-          this->sessions_[server_address] = session;
+              message.address());
+          this->sessions_[message.address()] = session;
         }
         sp.get<logger>()->trace("UDPAPI", sp, "%s: New session from %s",
                                 instance_id.str().c_str(), this->instance_id_.str().c_str());
@@ -169,7 +170,7 @@ void vds::_udp_transport::process_incommig_message(
 
 void vds::_udp_transport::send_data(
     const service_provider & sp,
-    const std::shared_ptr<_udp_transport_session> & session,
+    const std::shared_ptr<_p2p_crypto_tunnel> & session,
     const const_data_buffer & data)
 {
   this->send_queue_->send_data(sp, this->shared_from_this(), session, data);
@@ -182,7 +183,7 @@ void vds::_udp_transport::connect(const vds::service_provider &sp, const std::st
     throw std::invalid_argument("address");
   }
 
-  _udp_transport_session_address_t addr(na.server, (uint16_t)atoi(na.port.c_str()));
+  network_address addr(AF_INET, na.server, (uint16_t)atoi(na.port.c_str()));
 
   std::unique_lock<std::shared_mutex> lock(this->sessions_mutex_);
   if(this->sessions_.end() != this->sessions_.find(addr)){
@@ -191,14 +192,13 @@ void vds::_udp_transport::connect(const vds::service_provider &sp, const std::st
 
   auto scope = sp.create_scope(("Connect to " + address).c_str());
 
-  auto new_session = std::make_shared<_udp_transport_session>(this->shared_from_this(), addr);
+  auto new_session = std::make_shared<_p2p_crypto_tunnel>(this->shared_from_this(), addr);
   this->sessions_[addr] = new_session;
   new_session->send_handshake(scope, this->shared_from_this());
 }
 
 void vds::_udp_transport::stop(const vds::service_provider &sp) {
   this->server_.stop(sp);
-  this->new_session_handler_ = udp_transport::new_session_handler_t();
   this->sessions_.clear();
   this->send_queue_.reset();
 }
@@ -239,9 +239,10 @@ void vds::_udp_transport::read_message(const vds::service_provider &sp) {
 
 void vds::_udp_transport::handshake_completed(
     const vds::service_provider &sp,
-    _udp_transport_session *session) {
-  this->new_session_handler_(
-      udp_transport::session(session->shared_from_this()));
+    const std::shared_ptr<_p2p_crypto_tunnel> & session) {
+
+//  this->new_session_handler_(
+//      udp_transport::session(session->shared_from_this()));
 }
 
 vds::async_task<> vds::_udp_transport::prepare_to_stop(const vds::service_provider &sp) {

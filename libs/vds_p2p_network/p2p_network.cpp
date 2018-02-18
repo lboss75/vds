@@ -104,8 +104,10 @@ vds::_p2p_network::random_broadcast(
   this->route_.random_broadcast(sp, message);
 }
 
-void vds::_p2p_network::add_route(const service_provider &sp, const vds::guid &partner_id,
-                                  const std::shared_ptr<vds::udp_transport::_session> &session) {
+void vds::_p2p_network::add_route(
+    const service_provider &sp,
+    const vds::guid &partner_id,
+    const std::shared_ptr<_p2p_crypto_tunnel> &session) {
   this->route_->add(sp, partner_id, session);
 }
 
@@ -218,7 +220,7 @@ bool vds::_p2p_network::send(
 void vds::_p2p_network::process_input_command(
   const service_provider &sp,
   const guid &partner_id,
-  const std::shared_ptr<udp_transport::_session> &session,
+  const std::shared_ptr<_p2p_crypto_tunnel> &session,
   const const_data_buffer &message_data) {
   binary_deserializer s(message_data);
   uint8_t  command_id;

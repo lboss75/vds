@@ -6,14 +6,8 @@ All rights reserved
 #include "stdafx.h"
 #include "server.h"
 #include "private/server_p.h"
-#include "node_manager.h"
 #include "user_manager.h"
-#include "private/server_http_api_p.h"
-#include "private/node_manager_p.h"
-#include "private/storage_log_p.h"
 #include "private/chunk_manager_p.h"
-#include "private/server_database_p.h"
-#include "private/local_cache_p.h"
 #include "transaction_context.h"
 #include "p2p_network.h"
 #include "transaction_log.h"
@@ -40,19 +34,9 @@ vds::server::~server()
 void vds::server::register_services(service_registrator& registrator)
 {
   registrator.add_service<iserver>(this->impl_);
-  
-  registrator.add_service<istorage_log>(this->impl_->storage_log_.get());
 
-  registrator.add_service<principal_manager>(&(this->impl_->storage_log_->principal_manager_));
-  
   registrator.add_service<chunk_manager>(this->impl_->chunk_manager_.get());
   
-  registrator.add_service<iserver_database>(this->impl_->server_database_.get());
-  
-  registrator.add_service<ilocal_cache>(this->impl_->local_cache_.get());
-
-  registrator.add_service<node_manager>(this->impl_->node_manager_.get());
-
   registrator.add_service<user_manager>(this->impl_->user_manager_.get());
 
   registrator.add_service<db_model>(this->impl_->db_model_.get());
@@ -122,14 +106,9 @@ vds::async_task<vds::server_statistic> vds::server::get_statistic(const vds::ser
 
 vds::_server::_server(server * owner)
 : owner_(owner),
-  node_manager_(new _node_manager()),
   user_manager_(new user_manager()),
   db_model_(new db_model()),
-  server_http_api_(new _server_http_api()),
-  storage_log_(new _storage_log()),
   chunk_manager_(new chunk_manager()),
-  server_database_(new _server_database()),
-  local_cache_(new _local_cache()),
   p2p_network_(new p2p_network()),
   network_client_(new p2p_network_client()),
   log_sync_service_(new log_sync_service()),
