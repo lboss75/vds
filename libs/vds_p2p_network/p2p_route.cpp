@@ -37,8 +37,10 @@ vds::p2p_route::random_broadcast(
 
 //////////////////////////////////////////////
 
-vds::async_task<> vds::_p2p_route::send_to(const service_provider &sp, const guid &node_id,
-                                           const const_data_buffer &message) {
+vds::async_task<> vds::_p2p_route::send_to(
+    const service_provider &sp,
+    const guid &node_id,
+    const const_data_buffer &message) {
 
   const_data_buffer best_distance;
   std::shared_ptr<_p2p_crypto_tunnel> best_session;
@@ -285,5 +287,6 @@ void vds::_p2p_route::bucket::on_timer(const vds::service_provider &sp) {
   std::shared_lock<std::shared_mutex> lock(this->nodes_mutex_);
   for(auto & p : this->nodes_){
     p.proxy_session_->send(sp, p2p_messages::dht_ping(p.id_).serialize());
+    p.pinged_++;
   }
 }
