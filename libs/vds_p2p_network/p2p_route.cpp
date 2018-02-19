@@ -273,22 +273,29 @@ void vds::_p2p_route::search_nodes(
   auto current_user = user_mng->get_current_device(sp, device_private_key);
   auto index = node_id_t(current_user.id()).distance_exp(target_id);
 
+  std::map<vds::node_id_t, vds::node_id_t> result;
   std::shared_lock<std::shared_mutex> lock(this->buckets_mutex_);
   for(
       uint8_t distance = 0;
       result_nodes.size() < max_count
       && (index + distance < 8 * node_id_t::SIZE || index - distance >= 0);
       ++distance){
-    this->search_nodes(sp, target_id, max_count, result_nodes, index + distance);
-    this->search_nodes(sp, target_id, max_count, result_nodes, index - distance);
+    this->search_nodes(sp, target_id, result, index + distance);
+    this->search_nodes(sp, target_id, result, index - distance);
+  }
+
+  for(auto & p : result){
+    result_nodes.push_back(p.second);
+    if(result_nodes.size() >= max_count){
+      break;
+    }
   }
 }
 
 void vds::_p2p_route::search_nodes(
     const vds::service_provider &sp,
     const vds::const_data_buffer &target_id,
-    size_t max_count,
-    std::vector<vds::node_id_t> &result_nodes,
+    std::map<vds::node_id_t, vds::node_id_t> &result_nodes,
     uint8_t index) {
   auto p = this->buckets_.find(index);
   if(this->buckets_.end() == p) {
@@ -300,19 +307,8 @@ void vds::_p2p_route::search_nodes(
       continue;
     }
 
-    auto b = std::lower_bound(
-        result_nodes.cbegin(),
-        result_nodes.cend(),
-        node.id_,
-        [target_id](const node_id_t & value) -> bool {
-          return target_id < value;
-    });
-    if(result_nodes.cend() == b){
-      result_nodes.push_back(node.id_);
-    }
-    return first != last && !comp(value, *first) ? first : last;
+    result_nodes[node.id_.distance(target_id)] = node.id_;
   }
-
 }
 
 void vds::_p2p_route::bucket::add_node(

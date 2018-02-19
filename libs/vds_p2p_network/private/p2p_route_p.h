@@ -121,8 +121,11 @@ namespace vds {
         size_t max_count,
         std::vector<node_id_t> & result_nodes);
 
-    void search_nodes(const service_provider &sp, const const_data_buffer &target_id, size_t max_count,
-                    std::vector<node_id_t> &result_nodes, uint8_t index);
+    void search_nodes(
+        const service_provider &sp,
+        const const_data_buffer &target_id,
+        std::map<vds::node_id_t, vds::node_id_t> &result_nodes,
+        uint8_t index);
   };
 }
 
