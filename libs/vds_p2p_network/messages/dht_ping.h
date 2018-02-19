@@ -10,7 +10,7 @@ namespace vds {
       static const uint8_t message_id = (uint8_t) p2p_message_id::dht_ping;
 
       dht_ping(
-          const const_data_buffer & target_id)
+          const node_id_t & target_id)
       : target_id_(target_id) {
       }
 
@@ -26,7 +26,7 @@ namespace vds {
       }
 
     private:
-      const_data_buffer target_id_;
+      node_id_t target_id_;
     };
   }
 }

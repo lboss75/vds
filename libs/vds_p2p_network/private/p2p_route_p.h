@@ -8,6 +8,7 @@ All rights reserved
 #include "udp_transport.h"
 #include "p2p_node_info.h"
 #include "messages/p2p_message_id.h"
+#include "node_id_t.h"
 
 namespace vds {
   class _p2p_crypto_tunnel;
@@ -67,12 +68,12 @@ namespace vds {
     mutable std::shared_mutex sessions_mutex_;
 
     struct node {
-      const_data_buffer id_;
+      node_id_t id_;
       std::shared_ptr<_p2p_crypto_tunnel> proxy_session_;
       uint8_t pinged_;
 
       node(
-          const const_data_buffer & id,
+          const node_id_t & id,
           const std::shared_ptr<_p2p_crypto_tunnel> proxy_session)
           : id_(id),
             proxy_session_(proxy_session),
@@ -83,7 +84,7 @@ namespace vds {
         return this->pinged_ < 5;
       }
 
-      void reset(const const_data_buffer & id,
+      void reset(const node_id_t & id,
                  const std::shared_ptr<_p2p_crypto_tunnel> proxy_session){
         this->id_ = id;
         this->proxy_session_ = proxy_session;
@@ -99,7 +100,7 @@ namespace vds {
 
       void add_node(
           const service_provider &sp,
-          const const_data_buffer & id,
+          const node_id_t & id,
           const std::shared_ptr<_p2p_crypto_tunnel> & proxy_session);
 
       void on_timer(
@@ -111,8 +112,17 @@ namespace vds {
 
     void add_node(
         const service_provider & sp,
-        const const_data_buffer & id,
+        const node_id_t & id,
         const std::shared_ptr<_p2p_crypto_tunnel> & proxy_session);
+
+    void search_nodes(
+        const vds::service_provider &sp,
+        const const_data_buffer & target_id,
+        size_t max_count,
+        std::vector<node_id_t> & result_nodes);
+
+    void search_nodes(const service_provider &sp, const const_data_buffer &target_id, size_t max_count,
+                    std::vector<node_id_t> &result_nodes, uint8_t index);
   };
 }
 

@@ -223,14 +223,13 @@ uint8_t vds::_p2p_route::calc_distance_exp(
 
 void vds::_p2p_route::add_node(
     const vds::service_provider &sp,
-    const const_data_buffer & id,
+    const node_id_t & id,
     const std::shared_ptr<_p2p_crypto_tunnel> & proxy_session) {
   auto user_mng = sp.get<user_manager>();
-
   asymmetric_private_key device_private_key;
   auto current_user = user_mng->get_current_device(sp, device_private_key);
 
-  auto index = calc_distance_exp(id, current_user.id());
+  auto index = node_id_t(current_user.id()).distance_exp(id);
 
   bucket * b;
 
@@ -263,9 +262,62 @@ void vds::_p2p_route::on_timer(const vds::service_provider &sp) {
   }
 }
 
+void vds::_p2p_route::search_nodes(
+    const vds::service_provider &sp,
+    const vds::const_data_buffer &target_id,
+    size_t max_count,
+    std::vector<vds::node_id_t> &result_nodes) {
+
+  auto user_mng = sp.get<user_manager>();
+  asymmetric_private_key device_private_key;
+  auto current_user = user_mng->get_current_device(sp, device_private_key);
+  auto index = node_id_t(current_user.id()).distance_exp(target_id);
+
+  std::shared_lock<std::shared_mutex> lock(this->buckets_mutex_);
+  for(
+      uint8_t distance = 0;
+      result_nodes.size() < max_count
+      && (index + distance < 8 * node_id_t::SIZE || index - distance >= 0);
+      ++distance){
+    this->search_nodes(sp, target_id, max_count, result_nodes, index + distance);
+    this->search_nodes(sp, target_id, max_count, result_nodes, index - distance);
+  }
+}
+
+void vds::_p2p_route::search_nodes(
+    const vds::service_provider &sp,
+    const vds::const_data_buffer &target_id,
+    size_t max_count,
+    std::vector<vds::node_id_t> &result_nodes,
+    uint8_t index) {
+  auto p = this->buckets_.find(index);
+  if(this->buckets_.end() == p) {
+    return;
+  }
+
+  for(auto & node : p->second.nodes_){
+    if(!node.is_good()){
+      continue;
+    }
+
+    auto b = std::lower_bound(
+        result_nodes.cbegin(),
+        result_nodes.cend(),
+        node.id_,
+        [target_id](const node_id_t & value) -> bool {
+          return target_id < value;
+    });
+    if(result_nodes.cend() == b){
+      result_nodes.push_back(node.id_);
+    }
+    return first != last && !comp(value, *first) ? first : last;
+  }
+
+}
+
 void vds::_p2p_route::bucket::add_node(
     const vds::service_provider &sp,
-    const const_data_buffer & id,
+    const node_id_t & id,
     const std::shared_ptr<_p2p_crypto_tunnel> & proxy_session) {
 
   std::unique_lock<std::shared_mutex> ulock(this->nodes_mutex_);
