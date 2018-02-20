@@ -6,6 +6,7 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 #include <memory>
+#include "p2p_network_service.h"
 #include "udp_transport.h"
 #include "url_parser.h"
 #include "db_model.h"
@@ -56,7 +57,7 @@ namespace vds {
 			const const_data_buffer & data_hash);
 
   private:
-    std::list<class p2p_network_service> network_services_;
+    p2p_network_service network_service_;
 
     p2p_route route_;
 
