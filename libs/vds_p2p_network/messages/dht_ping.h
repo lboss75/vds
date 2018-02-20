@@ -9,24 +9,18 @@ namespace vds {
     public:
       static const uint8_t message_id = (uint8_t) p2p_message_id::dht_ping;
 
-      dht_ping(
-          const node_id_t & target_id)
-      : target_id_(target_id) {
+      dht_ping() {
       }
 
       dht_ping(
           binary_deserializer & s) {
-        s >> this->target_id_;
       }
 
       const_data_buffer serialize() const {
         binary_serializer s;
-        s << message_id << this->target_id_;
+        s << message_id;
         return s.data();
       }
-
-    private:
-      node_id_t target_id_;
     };
   }
 }

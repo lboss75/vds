@@ -91,19 +91,6 @@ vds::_p2p_network::~_p2p_network() {
 
 }
 
-void
-vds::_p2p_network::random_broadcast(
-    const vds::service_provider &sp,
-    const vds::const_data_buffer &message) {
-  this->route_.random_broadcast(sp, message);
-}
-
-void vds::_p2p_network::add_route(
-    const service_provider &sp,
-    const vds::guid &partner_id,
-    const std::shared_ptr<_p2p_crypto_tunnel> &session) {
-  this->route_->add(sp, partner_id, session);
-}
 
 struct run_data
 {
@@ -116,56 +103,58 @@ struct run_data
 
 
 vds::async_task<> vds::_p2p_network::start_network(const vds::service_provider &parent_scope) {
-	auto sp = parent_scope.create_scope(__FUNCTION__);
-	imt_service::enable_async(sp);
+  auto sp = parent_scope.create_scope(__FUNCTION__);
+  imt_service::enable_async(sp);
 
   auto run_conf = std::make_shared<std::list<run_data>>();
-  return sp.get<db_model>()->async_transaction(sp, [sp, run_conf, pthis = this->shared_from_this()](database_transaction & t){
+  return sp.get<db_model>()->async_transaction(sp, [sp, run_conf, pthis = this->shared_from_this()](
+      database_transaction &t) {
 
     auto user_mng = sp.get<user_manager>();
 
     dbo::run_configuration t1;
     auto st = t.get_reader(t1.select(t1.id, t1.port, t1.cert, t1.cert_private_key));
-    while(st.execute()){
+    while (st.execute()) {
       auto device_cert = certificate::parse_der(t1.cert.get(st));
 
       run_conf->push_back(run_data{
-        t1.id.get(st),
-        t1.port.get(st),
-        asymmetric_private_key::parse_der(t1.cert_private_key.get(st), std::string()),
-        sp.create_scope("Configuration " + t1.id.get(st).str()) });
+          t1.id.get(st),
+          t1.port.get(st),
+          asymmetric_private_key::parse_der(t1.cert_private_key.get(st), std::string()),
+          sp.create_scope("Configuration " + t1.id.get(st).str())});
 
       run_conf->rbegin()->cert_chain.push_back(device_cert);
       user_mng->load(run_conf->rbegin()->scope, t, t1.id.get(st));
     }
-	for (auto & conf : *run_conf) {
-		auto parent_id = cert_control::get_parent_id(conf.cert_chain.front());
-		while (parent_id) {
-			dbo::certificate_chain_dbo t2;
-			auto st = t.get_reader(t2.select(t2.cert).where(t2.id == parent_id));
-			if (!st.execute()) {
-				throw std::runtime_error("Wrong certificate id " + parent_id.str());
-			}
 
-			auto cert = certificate::parse_der(t2.cert.get(st));
-			conf.cert_chain.push_front(cert);
-			parent_id = cert_control::get_parent_id(cert);
-		}
-	}
+    for (auto &conf : *run_conf) {
+      auto parent_id = cert_control::get_parent_id(conf.cert_chain.front());
+      while (parent_id) {
+        dbo::certificate_chain_dbo t2;
+        auto st = t.get_reader(t2.select(t2.cert).where(t2.id == parent_id));
+        if (!st.execute()) {
+          throw std::runtime_error("Wrong certificate id " + parent_id.str());
+        }
+
+        auto cert = certificate::parse_der(t2.cert.get(st));
+        conf.cert_chain.push_front(cert);
+        parent_id = cert_control::get_parent_id(cert);
+      }
+    }
 
     return true;
-  }).then([sp, run_conf, pthis = this->shared_from_this()](){
-    if(run_conf->empty()){
+  }).then([sp, run_conf, pthis = this->shared_from_this()]() {
+    if (run_conf->empty()) {
       throw std::runtime_error("There is no active network configuration");
     }
 
     auto result = async_task<>::empty();
-    for(auto & conf : *run_conf) {
+    for (auto &conf : *run_conf) {
       pthis->network_services_.push_back(p2p_network_service());
 
       result = result.then([pthis, conf]() {
         return pthis->network_services_.rbegin()->start(
-          conf.scope, conf.port, conf.cert_chain, conf.key);
+            conf.scope, conf.port, conf.cert_chain, conf.key);
       });
     }
     return result;

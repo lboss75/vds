@@ -2,6 +2,8 @@
 #define __VDS_P2P_NETWORK_DHT_FIND_NODE_H_
 
 #include "p2p_message_id.h"
+#include "binary_serialize.h"
+#include "private/node_id_t.h"
 
 namespace vds {
   namespace p2p_messages {
@@ -10,7 +12,7 @@ namespace vds {
       static const uint8_t message_id = (uint8_t) p2p_message_id::dht_find_node;
 
       dht_find_node(
-          const const_data_buffer & target_id)
+          const node_id_t & target_id)
       : target_id_(target_id) {
       }
 
@@ -26,7 +28,7 @@ namespace vds {
       }
 
     private:
-      const_data_buffer target_id_;
+      node_id_t target_id_;
     };
   }
 }

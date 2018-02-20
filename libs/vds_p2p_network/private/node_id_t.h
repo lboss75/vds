@@ -13,6 +13,10 @@ namespace vds {
   public:
     static constexpr size_t SIZE = 16;
 
+    node_id_t() {
+      memset(this->id_, 0, sizeof(this->id_));
+    }
+
     node_id_t(const uint8_t * data, size_t len) {
       vds_assert(len == sizeof(this->id_));
       memcpy(this->id_, data, sizeof(this->id_));
@@ -102,18 +106,34 @@ namespace vds {
       return this->id_;
     }
 
+    node_id_t generate_random_id(uint8_t exp_index) const {
+      uint8_t result[SIZE];
+      memcpy(result, this->id_, sizeof(this->id_));
+
+      result[exp_index / 8] ^= (0x80 >> (exp_index % 8));
+      result[exp_index / 8] ^= ((0x80 >> (exp_index % 8)) - 1) & (uint8_t)std::rand();
+
+      for(uint8_t i = exp_index / 8 + 1; i < SIZE; ++i){
+        result[i] = (uint8_t)std::rand();
+      }
+
+      vds_assert(exp_index == distance_exp(result, SIZE));
+
+      return node_id_t(result, SIZE);
+    }
+
   private:
     uint8_t id_[SIZE];
   };
 }
 
-inline vds::binary_serializer & operator << (vds::binary_serializer & s, const node_id_t & value){
-  s.push_data(value.id(), node_id_t::SIZE, false);
+inline vds::binary_serializer & operator << (vds::binary_serializer & s, const vds::node_id_t & value){
+  s.push_data(value.id(), vds::node_id_t::SIZE, false);
   return s;
 }
 
-inline vds::binary_deserializer & operator >> (vds::binary_deserializer & s, node_id_t & value){
-  s.pop_data(value.id(), node_id_t::SIZE);
+inline vds::binary_deserializer & operator >> (vds::binary_deserializer & s, vds::node_id_t & value){
+  s.pop_data(value.id(), vds::node_id_t::SIZE);
   return s;
 }
 

@@ -71,21 +71,23 @@ void vds::_p2p_crypto_tunnel::send_crypted_command(
 }
 void vds::_p2p_crypto_tunnel::send(
     const service_provider &sp,
+    const std::list<node_id_t> & path,
     const const_data_buffer &message) {
 
-  binary_serializer s;
   if(!this->output_key_) {
     throw std::runtime_error("Invalid state");
   }
   else {
-    auto data = symmetric_encrypt::encrypt(this->output_key_, message);
-    s << (uint8_t) command_id::Data;
-    s << symmetric_encrypt::encrypt(this->output_key_, message);
-  }
+    binary_serializer data_convert;
+    data_convert << path << message;
 
-  base_class::send(
-      sp,
-      const_data_buffer(s.data().data(), s.size()));
+    binary_serializer s;
+    s << (uint8_t) command_id::Data;
+    s << symmetric_encrypt::encrypt(this->output_key_, data_convert.data());
+    base_class::send(
+        sp,
+        const_data_buffer(s.data()));
+  }
 }
 
 void vds::_p2p_crypto_tunnel::process_input_command(

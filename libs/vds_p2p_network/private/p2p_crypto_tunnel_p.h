@@ -14,6 +14,7 @@ All rights reserved
 #include "logger.h"
 #include "guid.h"
 #include "private/udp_transport_session_p.h"
+#include "node_id_t.h"
 
 namespace vds {
   class _p2p_crypto_tunnel : public _udp_transport_session {
@@ -33,7 +34,10 @@ namespace vds {
 
     virtual void start(const service_provider &sp);
 
-    void send(const service_provider &sp, const const_data_buffer &message);
+    void send(
+        const service_provider &sp,
+        const std::list<node_id_t> & path,
+        const const_data_buffer &message);
 
     void close(const service_provider &sp, const std::shared_ptr<std::exception> &ex);
 
