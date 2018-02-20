@@ -30,11 +30,6 @@ vds::p2p_network::~p2p_network() {
 
 }
 
-void
-vds::p2p_network::random_broadcast(const vds::service_provider &sp, const vds::const_data_buffer &message) {
-  this->impl_->random_broadcast(sp, message);
-}
-
 vds::async_task<> vds::p2p_network::start_network(const vds::service_provider &sp) {
   return this->impl_->start_network(sp);
 }
@@ -46,14 +41,6 @@ vds::async_task<> vds::p2p_network::prepare_to_stop(const vds::service_provider 
 void vds::p2p_network::stop(const vds::service_provider &sp) {
   this->impl_->stop(sp);
   this->impl_.reset();
-}
-
-std::set<vds::p2p::p2p_node_info> vds::p2p_network::get_neighbors() const {
-  return this->impl_->get_neighbors();
-}
-
-void vds::p2p_network::broadcast(const vds::service_provider &sp, const vds::const_data_buffer &message) {
-  this->impl_->broadcast(sp, message);
 }
 
 void vds::p2p_network::send(const vds::service_provider &sp, const vds::guid &device_id,
@@ -79,12 +66,6 @@ void vds::p2p_network::query_replica(
 //////////////////////////////////
 vds::_p2p_network::_p2p_network()
 {
-  this->leak_detect_.name_ = "_p2p_network";
-  this->leak_detect_.dump_callback_ = [this](leak_detect_collector * collector){
-    for(auto & p : this->network_services_){
-      collector->add(p);
-    }
-  };
 }
 
 vds::_p2p_network::~_p2p_network() {
@@ -158,23 +139,14 @@ void vds::_p2p_network::stop(const vds::service_provider &sp) {
   this->network_service_.stop(sp);
 }
 
-std::set<vds::p2p::p2p_node_info> vds::_p2p_network::get_neighbors() const {
-  return this->route_->get_neighbors();
-}
-
-void vds::_p2p_network::broadcast(
-    const service_provider & sp,
-    const const_data_buffer & message) const {
-  if (this->route_) {
-    this->route_->broadcast(sp, message);
-  }
-}
-
 bool vds::_p2p_network::send(
     const vds::service_provider &sp,
-    const vds::guid &device_id,
+    const node_id_t & node_id,
     const vds::const_data_buffer &message) {
-  return this->route_->send(sp, device_id, message);
+  return this->route_->send(
+      sp,
+      node_id,
+      message);
 }
 
 void vds::_p2p_network::process_input_command(
@@ -253,5 +225,13 @@ void vds::_p2p_network::query_replica(
     const const_data_buffer & data_hash)
 {
 	this->route_->query_replica(sp, data_hash);
+}
+
+void vds::_p2p_network::add_node(
+    const vds::service_provider &sp,
+    const vds::node_id_t &id,
+    const std::shared_ptr<vds::_p2p_crypto_tunnel> &proxy_session) {
+  this->route_->add_node(sp, id, proxy_session);
+
 }
 

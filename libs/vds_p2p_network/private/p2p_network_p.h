@@ -19,6 +19,7 @@ All rights reserved
 #include "p2p_node_info.h"
 
 namespace vds {
+	class node_id_t;
   class _p2p_crypto_tunnel;
 
   class _p2p_network : public std::enable_shared_from_this<_p2p_network> {
@@ -30,15 +31,9 @@ namespace vds {
     async_task<> prepare_to_stop(const vds::service_provider &sp);
     void stop(const vds::service_provider &sp);
 
-    std::set<p2p::p2p_node_info> get_neighbors() const;
-
-    void broadcast(
-        const service_provider & sp,
-        const const_data_buffer & message) const;
-
     bool send(
         const vds::service_provider &sp,
-        const vds::guid &device_id,
+        const node_id_t &device_id,
         const vds::const_data_buffer &message);
 
     void process_input_command(
@@ -56,13 +51,13 @@ namespace vds {
 			const service_provider &sp,
 			const const_data_buffer & data_hash);
 
+    void add_node(
+        const service_provider &sp,
+        const node_id_t & id,
+        const std::shared_ptr<_p2p_crypto_tunnel> & proxy_session);
   private:
     p2p_network_service network_service_;
-
     p2p_route route_;
-
-  public:
-    leak_detect_helper leak_detect_;
   };
 }
 

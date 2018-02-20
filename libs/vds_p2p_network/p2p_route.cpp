@@ -39,7 +39,7 @@ bool vds::_p2p_route::send(
       sp,
       target_node_id,
       1,
-      [sp, message](
+      [sp, message, target_node_id](
           const node_id_t & node_id,
           const std::shared_ptr<vds::_p2p_crypto_tunnel> & proxy_session) {
         proxy_session->send(

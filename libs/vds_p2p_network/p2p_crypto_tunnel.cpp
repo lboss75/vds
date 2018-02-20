@@ -172,7 +172,7 @@ void vds::_p2p_crypto_tunnel::process_input_command(
       if(this->output_key_){
         lock.unlock();
 
-        (*sp.get<p2p_network>())->add_route(
+        (*sp.get<p2p_network>())->add_node(
             sp,
             this->partner_id_,
             this->shared_from_this());
