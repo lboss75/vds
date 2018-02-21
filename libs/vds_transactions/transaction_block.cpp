@@ -7,7 +7,7 @@ All rights reserved
 #include <set>
 #include "chunk_manager.h"
 #include "p2p_network.h"
-#include "messages/common_log_record.h"
+#include "messages/channel_log_record.h"
 #include "user_manager.h"
 #include "transaction_block.h"
 #include "symmetriccrypto.h"
@@ -106,7 +106,7 @@ void vds::transactions::transaction_block::on_new_transaction(
     const const_data_buffer & id,
     const const_data_buffer &block) const {
 
-  sp.get<p2p_network>()->broadcast(sp, p2p_messages::common_log_record(
+  sp.get<p2p_network>()->broadcast(sp, p2p_messages::channel_log_record(
       id, block).serialize());
 
 }

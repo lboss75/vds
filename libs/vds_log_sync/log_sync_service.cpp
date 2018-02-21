@@ -7,9 +7,9 @@
 #include "transaction_log_record_dbo.h"
 #include "chunk_manager.h"
 #include "transaction_block.h"
-#include "messages/common_log_record.h"
-#include "messages/common_log_state.h"
-#include "messages/common_block_request.h"
+#include "messages/channel_log_record.h"
+#include "messages/channel_log_state.h"
+#include "messages/channel_log_request.h"
 #include "transaction_log.h"
 #include "transaction_log_unknown_record_dbo.h"
 
@@ -42,21 +42,21 @@ void vds::log_sync_service::get_statistic(database_transaction & t, vds::sync_st
 void vds::log_sync_service::apply(
     const vds::service_provider &sp,
     const vds::guid &partner_id,
-    const vds::p2p_messages::common_log_state &message) {
+    const vds::p2p_messages::channel_log_state &message) {
   this->impl_->apply(sp, partner_id, message);
 }
 
 void vds::log_sync_service::apply(
 	const vds::service_provider &sp,
 	const vds::guid &partner_id,
-	const vds::p2p_messages::common_block_request &message) {
+	const vds::p2p_messages::channel_log_request &message) {
 	this->impl_->apply(sp, partner_id, message);
 }
 
 void vds::log_sync_service::apply(
 	const vds::service_provider &sp,
 	const vds::guid &partner_id,
-	const vds::p2p_messages::common_log_record &message) {
+	const vds::p2p_messages::channel_log_record &message) {
 	this->impl_->apply(sp, partner_id, message);
 }
 
@@ -125,7 +125,7 @@ void vds::_log_sync_service::sync_process(
   }
 
   if(!record_ids.empty()){
-    p2p->random_broadcast(sp, p2p_messages::common_log_state(record_ids).serialize());
+    p2p->random_broadcast(sp, p2p_messages::channel_log_state(record_ids).serialize());
     return;
   }
 }
@@ -134,7 +134,7 @@ void vds::_log_sync_service::request_unknown_records(
     const service_provider &sp,
     p2p_network *p2p,
     const std::list<const_data_buffer> &record_ids) {
-  p2p->random_broadcast(sp, p2p_messages::common_block_request(record_ids).serialize());
+  p2p->random_broadcast(sp, p2p_messages::channel_log_request(record_ids).serialize());
 }
 
 void vds::_log_sync_service::get_statistic(
@@ -182,7 +182,7 @@ void vds::_log_sync_service::process_new_neighbors(
   }
 
   if(!leafs.empty()) {
-    auto message = p2p_messages::common_log_state(leafs).serialize();
+    auto message = p2p_messages::channel_log_state(leafs).serialize();
     for (auto &p : new_neighbors) {
       p2p->send(sp, p.node_id, message);
     }
@@ -190,7 +190,7 @@ void vds::_log_sync_service::process_new_neighbors(
 }
 
 void vds::_log_sync_service::apply(const vds::service_provider &sp, const vds::guid &partner_id,
-                              const vds::p2p_messages::common_log_state &message) {
+                              const vds::p2p_messages::channel_log_state &message) {
   sp.get<db_model>()->async_transaction(
       sp,
       [pthis = this->shared_from_this(), sp, partner_id, message](database_transaction & t) -> bool{
@@ -211,7 +211,7 @@ void vds::_log_sync_service::apply(const vds::service_provider &sp, const vds::g
           sp.get<p2p_network>()->send(
               sp,
               partner_id,
-              p2p_messages::common_block_request(requests).serialize());
+              p2p_messages::channel_log_request(requests).serialize());
         }
 
         return true;
@@ -224,7 +224,7 @@ void vds::_log_sync_service::apply(const vds::service_provider &sp, const vds::g
 }
 
 void vds::_log_sync_service::apply(const vds::service_provider &sp, const vds::guid &partner_id,
-	const vds::p2p_messages::common_block_request &message) {
+	const vds::p2p_messages::channel_log_request &message) {
 	sp.get<db_model>()->async_transaction(
 		sp,
 		[pthis = this->shared_from_this(), sp, partner_id, message](database_transaction & t) -> bool{
@@ -239,7 +239,7 @@ void vds::_log_sync_service::apply(const vds::service_provider &sp, const vds::g
 				p2p->send(
 					sp,
 					partner_id,
-					p2p_messages::common_log_record(p, t1.data.get(st)).serialize());
+					p2p_messages::channel_log_record(p, t1.data.get(st)).serialize());
 			}
 		}
 
@@ -253,7 +253,7 @@ void vds::_log_sync_service::apply(const vds::service_provider &sp, const vds::g
 }
 
 void vds::_log_sync_service::apply(const vds::service_provider &sp, const vds::guid &partner_id,
-	const vds::p2p_messages::common_log_record &message) {
+	const vds::p2p_messages::channel_log_record &message) {
 	sp.get<db_model>()->async_transaction(
 		sp,
 		[pthis = this->shared_from_this(), sp, partner_id, message](database_transaction & t) -> bool{

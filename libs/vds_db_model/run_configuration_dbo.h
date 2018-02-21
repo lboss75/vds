@@ -34,64 +34,6 @@ namespace vds {
 	  database_column <const_data_buffer> common_channel_pkey;
     };
   }
-
-  class current_run_configuration : public service_provider::property_holder {
-  public:
-    current_run_configuration(
-      const guid& id,
-      const certificate& device_cert,
-      const asymmetric_private_key& device_private_key,
-      const uint16_t port,
-      const guid& common_channel_id,
-      const certificate& common_channel_read_cert,
-      const asymmetric_private_key& common_channel_pkey)
-      : id_(id),
-        device_cert_(device_cert),
-        device_private_key_(device_private_key),
-        port_(port),
-        common_channel_id_(common_channel_id),
-        common_channel_read_cert_(common_channel_read_cert),
-        common_channel_pkey_(common_channel_pkey) {
-    }
-
-    const guid & id() const {
-      return id_;
-    }
-
-    const certificate & device_cert() const {
-      return device_cert_;
-    }
-
-    const asymmetric_private_key & device_private_key() const {
-      return device_private_key_;
-    }
-
-    uint16_t port() const {
-      return port_;
-    }
-
-    const guid & common_channel_id() const {
-      return common_channel_id_;
-    }
-
-    const certificate & common_channel_read_cert() const {
-      return common_channel_read_cert_;
-    }
-
-    const asymmetric_private_key & common_channel_pkey() const {
-      return common_channel_pkey_;
-    }
-
-  private:
-    guid id_;
-    certificate device_cert_;
-    asymmetric_private_key device_private_key_;
-    uint16_t port_;
-
-    guid common_channel_id_;
-    certificate common_channel_read_cert_;
-    asymmetric_private_key common_channel_pkey_;
-  };
 }
 
 

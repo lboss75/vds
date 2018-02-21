@@ -10,14 +10,16 @@ All rights reserved
 namespace vds {
   namespace p2p_messages {
     enum class p2p_message_id : uint8_t {
-      chunk_send_replica = 'r',
-      common_log_record = 'l',
-      common_log_state = 's',
-      common_block_request = 'q',
+      //Save log
+      channel_log_record = 'l',
+      channel_log_state = 's',
+      channel_log_request = 'r',
 
-      chunk_query_replica = 'c',
-      chunk_offer_replica = 'o',
+      chunk_query_replica = 'q',
       chunk_have_replica = 'h',
+
+      chunk_send_replica = 'c',
+      chunk_offer_replica = 'o',
 
       dht_ping = 'p',
       dht_find_node = 'f',

@@ -9,9 +9,9 @@
 #include "p2p_network_service.h"
 #include "private/p2p_network_service_p.h"
 #include "messages/p2p_message_id.h"
-#include "messages/common_log_state.h"
+#include "messages/channel_log_state.h"
 #include "../vds_log_sync/log_sync_service.h"
-#include "messages/common_block_request.h"
+#include "messages/channel_log_request.h"
 #include "user_manager.h"
 #include "cert_control.h"
 #include "certificate_chain_dbo.h"
@@ -159,20 +159,20 @@ void vds::_p2p_network::process_input_command(
   s >> command_id;
 
   switch ((p2p_messages::p2p_message_id)command_id) {
-  case p2p_messages::p2p_message_id::common_log_state: {
-    p2p_messages::common_log_state message(s);
+  case p2p_messages::p2p_message_id::channel_log_state: {
+    p2p_messages::channel_log_state message(s);
     sp.get<log_sync_service>()->apply(sp, partner_id, message);
 
     break;
   }
-  case p2p_messages::p2p_message_id::common_block_request: {
-    p2p_messages::common_block_request message(s);
+  case p2p_messages::p2p_message_id::channel_log_request: {
+    p2p_messages::channel_log_request message(s);
     sp.get<log_sync_service>()->apply(sp, partner_id, message);
 
     break;
   }
-  case p2p_messages::p2p_message_id::common_log_record: {
-    p2p_messages::common_log_record message(s);
+  case p2p_messages::p2p_message_id::channel_log_record: {
+    p2p_messages::channel_log_record message(s);
     sp.get<log_sync_service>()->apply(sp, partner_id, message);
 
     break;
@@ -186,25 +186,18 @@ void vds::_p2p_network::process_input_command(
   }
   case p2p_messages::p2p_message_id::chunk_query_replica: {
     p2p_messages::chunk_query_replica message(s);
-    if (sp.get_property<current_run_configuration>(service_provider::property_scope::any_scope)->id() != message.source_node_id()) {
-      this->route_->query_replica(sp, message.data_hash(), message.source_node_id());
-      sp.get<chunk_replicator>()->apply(sp, partner_id, message);
-    }
+    sp.get<chunk_replicator>()->apply(sp, partner_id, message);
     break;
   }
     case p2p_messages::p2p_message_id::chunk_offer_replica: {
       p2p_messages::chunk_offer_replica message(s);
-      if (sp.get_property<current_run_configuration>(service_provider::property_scope::any_scope)->id() != message.source_node_id()) {
-        sp.get<chunk_replicator>()->apply(sp, partner_id, message);
-      }
+      sp.get<chunk_replicator>()->apply(sp, partner_id, message);
       break;
     }
 
     case p2p_messages::p2p_message_id::chunk_have_replica: {
       p2p_messages::chunk_have_replica message(s);
-      if (sp.get_property<current_run_configuration>(service_provider::property_scope::any_scope)->id() != message.node_id()) {
-        sp.get<chunk_replicator>()->apply(sp, partner_id, message);
-      }
+      sp.get<chunk_replicator>()->apply(sp, partner_id, message);
       break;
     }
 

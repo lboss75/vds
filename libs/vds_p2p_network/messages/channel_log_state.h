@@ -11,16 +11,17 @@ All rights reserved
 
 namespace vds {
   namespace p2p_messages {
-    class common_log_state {
+    class channel_log_state {
     public:
-      static const uint8_t message_id = (uint8_t)p2p_message_id::common_log_state;
+      static const uint8_t message_id = (uint8_t)p2p_message_id::channel_log_state;
 
-      common_log_state(
+      channel_log_state(
+          const guid & channel_id,
           const std::list<const_data_buffer> & leafs)
           : leafs_(leafs) {
       }
 
-      common_log_state(
+      channel_log_state(
           binary_deserializer & s) {
         s >> this->leafs_;
       }

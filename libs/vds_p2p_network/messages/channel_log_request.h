@@ -11,23 +11,24 @@ All rights reserved
 
 namespace vds {
   namespace p2p_messages {
-    class common_block_request {
+    class channel_log_request {
     public:
-      static const uint8_t message_id = (uint8_t)p2p_message_id::common_block_request;
+      static const uint8_t message_id = (uint8_t)p2p_message_id::channel_log_request;
 
-      common_block_request(
+      channel_log_request(
+          const guid & channel_id,
           const std::list<const_data_buffer> & requests)
-      : requests_(requests){
+      : channel_id_(channel_id), requests_(requests){
       }
 
-      common_block_request(
+      channel_log_request(
           binary_deserializer & s) {
-        s >> this->requests_;
+        s >> this->requests_ >> this->channel_id_;
       }
 
       const_data_buffer serialize() const {
         binary_serializer s;
-        s << message_id << this->requests_;
+        s << message_id << this->requests_ << this->channel_id_;
         return s.data();
       }
 
@@ -36,6 +37,7 @@ namespace vds {
 	  }
 
     private:
+      guid channel_id_;
       std::list<const_data_buffer> requests_;
     };
   }

@@ -71,7 +71,7 @@ namespace vds {
           const std::shared_ptr<_p2p_crypto_tunnel> & proxy_session);
 
       void on_timer(
-          const service_provider &sp) const;
+          const service_provider &sp);
 
       bool contains(const node_id_t &node_id) const;
     };
@@ -91,7 +91,7 @@ namespace vds {
         std::map<vds::node_id_t, vds::node_id_t> &result_nodes,
         uint8_t index);
 
-    void ping_buckets(const service_provider &sp) const;
+    void ping_buckets(const service_provider &sp);
 
     void update_route_table(const service_provider &sp);
 

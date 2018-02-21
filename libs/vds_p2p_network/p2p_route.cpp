@@ -85,7 +85,7 @@ void vds::_p2p_route::on_timer(const vds::service_provider &sp) {
   this->update_route_table(sp);
 }
 
-void vds::_p2p_route::ping_buckets(const vds::service_provider &sp) const {
+void vds::_p2p_route::ping_buckets(const vds::service_provider &sp) {
   std::shared_lock<std::shared_mutex> lock(this->buckets_mutex_);
   for(auto & p : this->buckets_){
     p.second.on_timer(sp);
@@ -191,7 +191,7 @@ void vds::_p2p_route::for_near(
     auto index = this->current_node_id_.distance_exp(node_id);
     auto p = this->buckets_.find(index);
     if(this->buckets_.end() != p){
-      std::shared_lock<std::shared_lock> block(p->second.nodes_mutex_);
+      std::shared_lock<std::shared_mutex> block(p->second.nodes_mutex_);
       for(auto & node : p->second.nodes_){
         if(node.id_ == node_id){
           callback(node_id, node.proxy_session_);
@@ -201,7 +201,7 @@ void vds::_p2p_route::for_near(
   }
 }
 
-void _p2p_route::stop(const vds::service_provider &sp) {
+void vds::_p2p_route::stop(const vds::service_provider &sp) {
 
 }
 
@@ -224,7 +224,7 @@ void vds::_p2p_route::bucket::add_node(
   }
 }
 
-void vds::_p2p_route::bucket::on_timer(const vds::service_provider &sp) const {
+void vds::_p2p_route::bucket::on_timer(const vds::service_provider &sp) {
 
   std::shared_lock<std::shared_mutex> lock(this->nodes_mutex_);
   for(auto & p : this->nodes_){
