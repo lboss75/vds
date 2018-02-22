@@ -31,6 +31,10 @@ namespace vds {
     void on_timer(
         const service_provider &sp);
 
+    void close_session(
+        const vds::service_provider &sp,
+        const std::shared_ptr<_p2p_crypto_tunnel> & proxy_session);
+
   private:
     node_id_t current_node_id_;
 

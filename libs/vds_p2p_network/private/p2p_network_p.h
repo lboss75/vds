@@ -44,8 +44,7 @@ namespace vds {
 
     void close_session(
         const service_provider &sp,
-        const guid &partner,
-        const std::shared_ptr<std::exception> & ex);
+				const std::shared_ptr<_p2p_crypto_tunnel> & proxy_session);
 
 	void query_replica(
 			const service_provider &sp,

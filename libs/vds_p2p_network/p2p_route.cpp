@@ -205,6 +205,24 @@ void vds::_p2p_route::stop(const vds::service_provider &sp) {
 
 }
 
+void vds::_p2p_route::close_session(
+    const vds::service_provider &sp,
+    const std::shared_ptr<vds::_p2p_crypto_tunnel> &proxy_session) {
+
+  std::unique_lock<std::shared_mutex> lock(this->buckets_mutex_);
+  for(auto & p : this->buckets_){
+    auto n = p.second.nodes_.begin();
+    while(p.second.nodes_.end() != n){
+      if(n->proxy_session_.get() == proxy_session.get()){
+        n = p.second.nodes_.erase(n);
+      }
+      else {
+        ++n;
+      }
+    }
+  }
+}
+
 void vds::_p2p_route::bucket::add_node(
     const vds::service_provider &sp,
     const node_id_t & id,

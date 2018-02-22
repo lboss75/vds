@@ -48,20 +48,6 @@ void vds::p2p_network::send(const vds::service_provider &sp, const vds::guid &de
   this->impl_->send(sp, device_id, message);
 }
 
-void vds::p2p_network::close_session(
-    const service_provider &sp,
-    const guid &partner,
-    const std::shared_ptr<std::exception> & ex) {
-  this->impl_->close_session(sp, partner, ex);
-}
-
-void vds::p2p_network::query_replica(
-    const service_provider &sp,
-    const const_data_buffer & data_hash)
-{
-	this->impl_->query_replica(sp, data_hash);
-}
-
 
 //////////////////////////////////
 vds::_p2p_network::_p2p_network()
@@ -208,16 +194,8 @@ void vds::_p2p_network::process_input_command(
 
 void vds::_p2p_network::close_session(
     const vds::service_provider &sp,
-    const vds::guid &partner,
-    const std::shared_ptr<std::exception> & ex) {
-  this->route_->close_session(sp, partner, ex);
-}
-
-void vds::_p2p_network::query_replica(
-    const service_provider &sp,
-    const const_data_buffer & data_hash)
-{
-	this->route_->query_replica(sp, data_hash);
+    const std::shared_ptr<_p2p_crypto_tunnel> & proxy_session) {
+  this->route_->close_session(sp, proxy_session);
 }
 
 void vds::_p2p_network::add_node(
