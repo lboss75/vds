@@ -23,7 +23,15 @@ namespace vds {
 
       dht_ping = 'p',
       dht_find_node = 'f',
-      dht_find_node_response = 'a'
+      dht_find_node_response = 'a',
+
+      raft_get_lead = 'S',
+      raft_current_lead = 'L',
+      raft_start_election = 'E',
+      raft_vote_granted = 'G',
+      raft_request_vote = 'R',
+      raft_append_entries = 'A'
+
     };
   }
 }

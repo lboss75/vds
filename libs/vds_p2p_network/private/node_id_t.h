@@ -7,6 +7,7 @@ All rights reserved
 */
 #include "vds_debug.h"
 #include "guid.h"
+#include "binary_serialize.h"
 
 namespace vds {
   class node_id_t {
@@ -94,6 +95,10 @@ namespace vds {
       return memcmp(this->id_, other.id_, sizeof(this->id_)) == 0;
     }
 
+    int operator != (const node_id_t & other) const {
+      return memcmp(this->id_, other.id_, sizeof(this->id_)) != 0;
+    }
+
     int operator < (const node_id_t & other) const {
       return memcmp(this->id_, other.id_, sizeof(this->id_)) < 0;
     }
@@ -120,6 +125,20 @@ namespace vds {
       vds_assert(exp_index == distance_exp(result, SIZE));
 
       return node_id_t(result, SIZE);
+    }
+
+    bool operator !() const {
+      for(size_t i = 0; i < SIZE; ++i){
+        if(0 != this->id_[i]){
+          return false;
+        }
+      }
+
+      return true;
+    }
+
+    void clear() {
+      memset(this->id_, 0, sizeof(this->id_));
     }
 
   private:

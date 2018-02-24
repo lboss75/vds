@@ -28,12 +28,22 @@ namespace vds {
         const node_id_t & node_id,
         const const_data_buffer &message);
 
+    void search_nodes(
+        const vds::service_provider &sp,
+        const node_id_t & target_id,
+        size_t max_count,
+        std::set<node_id_t> & result_nodes);
+
     void on_timer(
         const service_provider &sp);
 
     void close_session(
         const vds::service_provider &sp,
         const std::shared_ptr<_p2p_crypto_tunnel> & proxy_session);
+
+    const vds::node_id_t & current_node_id() const {
+      return this->current_node_id_;
+    }
 
   private:
     node_id_t current_node_id_;
@@ -82,12 +92,6 @@ namespace vds {
 
     mutable std::shared_mutex buckets_mutex_;
     std::map<uint8_t, bucket> buckets_;
-
-    void search_nodes(
-        const vds::service_provider &sp,
-        const node_id_t & target_id,
-        size_t max_count,
-        std::vector<node_id_t> & result_nodes);
 
     void search_nodes(
         const service_provider &sp,

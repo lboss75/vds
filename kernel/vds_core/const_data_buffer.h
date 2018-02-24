@@ -110,6 +110,10 @@ namespace vds{
       return !this->impl_;
     }
 
+    void clear() {
+      this->impl_.reset();
+    }
+
   private:
     class _const_data_buffer
     {

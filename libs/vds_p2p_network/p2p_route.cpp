@@ -96,7 +96,7 @@ void vds::_p2p_route::search_nodes(
     const vds::service_provider &sp,
     const vds::node_id_t &target_id,
     size_t max_count,
-    std::vector<vds::node_id_t> &result_nodes) {
+    std::set<vds::node_id_t> &result_nodes) {
 
   auto index = this->current_node_id_.distance_exp(target_id);
 
@@ -112,7 +112,7 @@ void vds::_p2p_route::search_nodes(
   }
 
   for(auto & p : result){
-    result_nodes.push_back(p.second);
+    result_nodes.insert(p.second);
     if(result_nodes.size() >= max_count){
       break;
     }
@@ -183,7 +183,7 @@ void vds::_p2p_route::for_near(
     size_t max_count,
     const std::function<void(const node_id_t & node_id, const std::shared_ptr<vds::_p2p_crypto_tunnel> &)> &callback) {
 
-  std::vector<node_id_t> result_nodes;
+  std::set<node_id_t> result_nodes;
   this->search_nodes(sp, target_node_id, max_count, result_nodes);
 
   std::shared_lock<std::shared_mutex> lock(this->buckets_mutex_);
