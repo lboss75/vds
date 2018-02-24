@@ -38,7 +38,6 @@ namespace vds {
 				const vds::service_provider &sp,
         database_transaction &t,
         const const_data_buffer &block_data);
-
   };
 
 }

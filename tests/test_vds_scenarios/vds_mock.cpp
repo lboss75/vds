@@ -148,10 +148,9 @@ void vds_mock::allow_write_channel(size_t client_index, const vds::guid &channel
       ->get<vds::db_model>()
       ->async_transaction(
           sp,
-          [this, client_index, channel_id](vds::database_transaction & t)->bool {
+          [this, client_index, channel_id, sp](vds::database_transaction & t)->bool {
 
             auto user_mng = this->servers_[client_index]->get<vds::user_manager>();
-            auto sp = *user_mng->current_users().begin();
 
             auto root_user = this->root_user_invitation_.get_user();
 			vds::asymmetric_private_key root_user_private_key = this->root_user_invitation_.get_user_private_key();
@@ -208,10 +207,18 @@ void vds_mock::allow_write_channel(size_t client_index, const vds::guid &channel
             log.save(
                 sp,
                 t,
-                common_channel.read_cert(),
-                common_channel.write_cert(),
-                user_mng->get_channel_write_key(sp, common_channel.id()));
-
+                [sp, user_mng](const vds::guid & channel_id,
+                   vds::certificate & read_cert,
+                   vds::certificate & write_cert,
+                   vds::asymmetric_private_key & write_private_key){
+                  auto channel = user_mng->get_channel(sp, channel_id);
+                  if(!channel){
+                    throw std::runtime_error("Invalid channel");
+                  }
+                  read_cert = channel.read_cert();
+                  write_cert = channel.write_cert();
+                  write_private_key = user_mng->get_channel_write_key(sp, channel_id);
+                });
             return true;
           })
       .execute([&b, &error](const std::shared_ptr<std::exception> & ex){
@@ -237,11 +244,9 @@ void vds_mock::allow_read_channel(size_t client_index, const vds::guid &channel_
       ->get<vds::db_model>()
       ->async_transaction(
           sp,
-          [this, client_index, channel_id](vds::database_transaction & t)->bool {
+          [this, client_index, channel_id, sp](vds::database_transaction & t)->bool {
 
             auto user_mng = this->servers_[client_index]->get<vds::user_manager>();
-            auto sp = *user_mng->current_users().begin();
-
             auto root_user = this->root_user_invitation_.get_user();
             vds::asymmetric_private_key root_user_private_key = this->root_user_invitation_.get_user_private_key();
 
@@ -291,9 +296,18 @@ void vds_mock::allow_read_channel(size_t client_index, const vds::guid &channel_
             log.save(
                 sp,
                 t,
-                common_channel.read_cert(),
-                common_channel.write_cert(),
-                user_mng->get_channel_write_key(sp, common_channel.id()));
+                [sp, user_mng](const vds::guid & channel_id,
+                               vds::certificate & read_cert,
+                               vds::certificate & write_cert,
+                               vds::asymmetric_private_key & write_private_key){
+                  auto channel = user_mng->get_channel(sp, channel_id);
+                  if(!channel){
+                    throw std::runtime_error("Invalid channel");
+                  }
+                  read_cert = channel.read_cert();
+                  write_cert = channel.write_cert();
+                  write_private_key = user_mng->get_channel_write_key(sp, channel_id);
+                });
 
             return true;
           })
@@ -319,8 +333,8 @@ void vds_mock::upload_file(
   vds::barrier b;
   std::shared_ptr<std::exception> error;
 
-  auto user_mng = this->servers_[client_index]->get<vds::user_manager>();
-  auto sp = user_mng->current_users().begin()->create_scope(__FUNCTION__);
+  auto sp = this->servers_[client_index]->get_service_provider().create_scope(__FUNCTION__);
+
   vds::mt_service::enable_async(sp);
 
   sp.get<vds::file_manager::file_operations>()->upload_file(
@@ -347,8 +361,7 @@ void vds_mock::download_data(
 	const vds::guid &channel_id, 
 	const std::string &name,
 	const vds::filename &file_path) {
-  auto user_mng = this->servers_[client_index]->get<vds::user_manager>();
-  auto sp = user_mng->current_users().begin()->create_scope(__FUNCTION__);
+  auto sp = this->servers_[client_index]->get_service_provider().create_scope(__FUNCTION__);
   vds::mt_service::enable_async(sp);
   auto task = std::make_shared<vds::file_manager::download_file_task>(
       channel_id,
@@ -394,11 +407,10 @@ vds::user_channel vds_mock::create_channel(int index, const std::string &name) {
   vds::mt_service::enable_async(sp);
   this->servers_[index]->get<vds::db_model>()->async_transaction(
       sp,
-      [this, index, name, &result](vds::database_transaction & t) -> bool{
+      [this, sp, index, name, &result](vds::database_transaction & t) -> bool{
 
 
-    auto user_mng = this->servers_[index]->get<vds::user_manager>();
-    auto sp = *user_mng->current_users().begin();
+    auto user_mng = sp.get<vds::user_manager>();
 
     auto root_user = this->root_user_invitation_.get_user();
 	auto root_private_key = this->root_user_invitation_.get_user_private_key();
@@ -427,9 +439,18 @@ vds::user_channel vds_mock::create_channel(int index, const std::string &name) {
     log.save(
         sp,
         t,
-        common_channel.read_cert(),
-        common_channel.write_cert(),
-        user_mng->get_channel_write_key(sp, common_channel.id()));
+        [sp, user_mng](const vds::guid & channel_id,
+                       vds::certificate & read_cert,
+                       vds::certificate & write_cert,
+                       vds::asymmetric_private_key & write_private_key){
+          auto channel = user_mng->get_channel(sp, channel_id);
+          if(!channel){
+            throw std::runtime_error("Invalid channel");
+          }
+          read_cert = channel.read_cert();
+          write_cert = channel.write_cert();
+          write_private_key = user_mng->get_channel_write_key(sp, channel_id);
+        });
 
     return true;
   }).execute([&b, &error](const std::shared_ptr<std::exception> & ex){

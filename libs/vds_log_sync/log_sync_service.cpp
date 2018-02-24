@@ -124,17 +124,17 @@ void vds::_log_sync_service::sync_process(
     record_ids.push_back(base64::to_bytes(t2.id.get(st)));
   }
 
-  if(!record_ids.empty()){
-    p2p->random_broadcast(sp, p2p_messages::channel_log_state(record_ids).serialize());
-    return;
-  }
+//  if(!record_ids.empty()){
+//    p2p->random_broadcast(sp, p2p_messages::channel_log_state(record_ids).serialize());
+//    return;
+//  }
 }
 
 void vds::_log_sync_service::request_unknown_records(
     const service_provider &sp,
     p2p_network *p2p,
     const std::list<const_data_buffer> &record_ids) {
-  p2p->random_broadcast(sp, p2p_messages::channel_log_request(record_ids).serialize());
+//  p2p->random_broadcast(sp, p2p_messages::channel_log_request(record_ids).serialize());
 }
 
 void vds::_log_sync_service::get_statistic(
@@ -163,14 +163,14 @@ void vds::_log_sync_service::process_new_neighbors(
     vds::database_transaction &t) {
 
   std::set<p2p::p2p_node_info> new_neighbors;
-  auto neighbors = p2p->get_neighbors();
-  for(auto & p : neighbors){
-    if(this->neighbors_.end() == this->neighbors_.find(p)){
-      new_neighbors.emplace(p);
-    }
-  }
-
-  this->neighbors_ = neighbors;
+//  auto neighbors = p2p->get_neighbors();
+//  for(auto & p : neighbors){
+//    if(this->neighbors_.end() == this->neighbors_.find(p)){
+//      new_neighbors.emplace(p);
+//    }
+//  }
+//
+//  this->neighbors_ = neighbors;
 
   std::list<const_data_buffer> leafs;
   orm::transaction_log_record_dbo t1;
@@ -182,10 +182,10 @@ void vds::_log_sync_service::process_new_neighbors(
   }
 
   if(!leafs.empty()) {
-    auto message = p2p_messages::channel_log_state(leafs).serialize();
-    for (auto &p : new_neighbors) {
-      p2p->send(sp, p.node_id, message);
-    }
+//    auto message = p2p_messages::channel_log_state(leafs).serialize();
+//    for (auto &p : new_neighbors) {
+//      p2p->send(sp, p.node_id, message);
+//    }
   }
 }
 
@@ -207,17 +207,17 @@ void vds::_log_sync_service::apply(const vds::service_provider &sp, const vds::g
           }
         }
 
-        if(!requests.empty()){
-          sp.get<p2p_network>()->send(
-              sp,
-              partner_id,
-              p2p_messages::channel_log_request(requests).serialize());
-        }
+//        if(!requests.empty()){
+//          sp.get<p2p_network>()->send(
+//              sp,
+//              partner_id,
+//              p2p_messages::channel_log_request(requests).serialize());
+//        }
 
         return true;
   }).execute([sp, partner_id](const std::shared_ptr<std::exception> & ex){
     if(ex){
-      sp.get<p2p_network>()->close_session(sp, partner_id, ex);
+      //sp.get<p2p_network>()->close_session(sp, partner_id, ex);
     }
   });
 
@@ -236,17 +236,17 @@ void vds::_log_sync_service::apply(const vds::service_provider &sp, const vds::g
 		for (auto & p : message.requests()) {
 			auto st = t.get_reader(t1.select(t1.data).where(t1.id == base64::from_bytes(p)));
 			if (st.execute()) {
-				p2p->send(
-					sp,
-					partner_id,
-					p2p_messages::channel_log_record(p, t1.data.get(st)).serialize());
+//				p2p->send(
+//					sp,
+//					partner_id,
+//					p2p_messages::channel_log_record(p, t1.data.get(st)).serialize());
 			}
 		}
 
 		return true;
 	}).execute([sp, partner_id](const std::shared_ptr<std::exception> & ex) {
 		if (ex) {
-			sp.get<p2p_network>()->close_session(sp, partner_id, ex);
+//			sp.get<p2p_network>()->close_session(sp, partner_id, ex);
 		}
 	});
 
@@ -258,12 +258,12 @@ void vds::_log_sync_service::apply(const vds::service_provider &sp, const vds::g
 		sp,
 		[pthis = this->shared_from_this(), sp, partner_id, message](database_transaction & t) -> bool{
 
-		transaction_log::save(sp, t, message.block_id(), message.body());
+		//transaction_log::save(sp, t, message.block_id(), message.body());
 
 		return true;
 	}).execute([sp, partner_id](const std::shared_ptr<std::exception> & ex) {
 		if (ex) {
-			sp.get<p2p_network>()->close_session(sp, partner_id, ex);
+			//sp.get<p2p_network>()->close_session(sp, partner_id, ex);
 		}
 	});
 

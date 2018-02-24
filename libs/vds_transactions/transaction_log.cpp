@@ -27,6 +27,7 @@ All rights reserved
 #include "encoding.h"
 #include "cert_control.h"
 #include "vds_debug.h"
+#include "logger.h"
 
 void vds::transaction_log::save(
 	const service_provider & sp,
@@ -267,12 +268,6 @@ void vds::transaction_log::apply_message(
         break;
       }
 
-      case transactions::transaction_id::channel_message_transaction: {
-        transactions::channel_message_transaction message(s);
-        message.apply(sp, t);
-        break;
-      }
-
       case transactions::transaction_id::user_channel_create_transaction: {
         transactions::user_channel_create_transaction message(s);
         message.apply(sp, t);
@@ -290,29 +285,3 @@ void vds::transaction_log::apply_message(
     }
   }
 }
-
-////////////////////////////////////////////
-void vds::transactions::channel_message_transaction::apply(
-    const service_provider & sp,
-    database_transaction & t) const {
-
-  dbo::channel_message t1;
-  t.execute(t1.insert(
-      t1.channel_id = this->channel_id_,
-      t1.message_id = this->message_id_,
-      t1.read_cert_id = this->read_cert_id_,
-      t1.write_cert_id = this->write_cert_id_,
-      t1.message = this->data_,
-      t1.signature = this->signature_));
-
-  auto user_mng = sp.get<user_manager>();
-  user_mng->apply_channel_message(
-	  sp,
-	  this->channel_id_,
-	  this->message_id_,
-	  this->read_cert_id_,
-	  this->write_cert_id_,
-	  this->data_,
-	  this->signature_);
-}
-

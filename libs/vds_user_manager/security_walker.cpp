@@ -2,7 +2,6 @@
 #include "stdafx.h"
 #include "security_walker.h"
 #include "channel_message.h"
-#include "transactions/channel_message_transaction.h"
 #include "transactions/channel_add_writer_transaction.h"
 #include "vds_debug.h"
 #include "certificate_chain_dbo.h"
@@ -55,10 +54,10 @@ void vds::security_walker::load(
               t1.write_cert_id,
               t1.signature)
           .where(
-              t1.message_id == (int) transactions::channel_message_transaction::channel_message_id::channel_add_reader_transaction
-          || t1.message_id == (int) transactions::channel_message_transaction::channel_message_id::channel_create_transaction
-          || t1.message_id == (int) transactions::channel_message_transaction::channel_message_id::channel_add_writer_transaction
-          || t1.message_id == (int) transactions::channel_message_transaction::channel_message_id::channel_remove_reader_transaction)
+             t1.message_id == (int) transactions::transaction_id::channel_add_reader_transaction
+          || t1.message_id == (int) transactions::transaction_id::channel_create_transaction
+          || t1.message_id == (int) transactions::transaction_id::channel_add_writer_transaction
+          || t1.message_id == (int) transactions::transaction_id::channel_remove_reader_transaction)
           .order_by(t1.id));
 
   while (st.execute()) {
@@ -191,94 +190,69 @@ void vds::security_walker::apply(
 
   binary_deserializer s(data);
 
-  switch ((transactions::channel_message_transaction::channel_message_id) message_id) {
-    case transactions::channel_message_transaction::channel_message_id::channel_add_reader_transaction: {
-		transactions::channel_add_reader_transaction::parse_message(
-			s,
-			[this, log, &sp](
-				const guid & target_channel_id,
-				const std::string & name,
-				const certificate & read_cert,
-				const asymmetric_private_key & read_private_key,
-				const certificate & write_cert) {
+  switch ((transactions::transaction_id) message_id) {
+    case transactions::transaction_id::channel_add_reader_transaction: {
+			transactions::channel_add_reader_transaction message(s);
+			auto &cp = this->channels_[message.channel_id()];
 
+			cp.name_ = message.name();
 
-			auto &cp = this->channels_[target_channel_id];
+			auto write_id = cert_control::get_id(message.write_cert());
+			cp.write_certificates_[write_id] = message.write_cert();
 
-			cp.name_ = name;
-
-			auto write_id = cert_control::get_id(write_cert);
-			cp.write_certificates_[write_id] = write_cert;
-
-			auto id = cert_control::get_id(read_cert);
-			cp.read_certificates_[id] = read_cert;
-			cp.read_private_keys_[id] = read_private_key;
+			auto id = cert_control::get_id(message.read_cert());
+			cp.read_certificates_[id] = message.read_cert();
+			cp.read_private_keys_[id] = message.read_private_key();
 			cp.current_read_certificate_ = id;
 
 			log->debug(ThisModule, sp, "Got channel %s reader certificate %s",
-				target_channel_id.str().c_str(),
+        message.channel_id().str().c_str(),
 				id.str().c_str());
-		});
+
       break;
     }
 
-    case transactions::channel_message_transaction::channel_message_id::channel_add_writer_transaction: {
-		transactions::channel_add_writer_transaction::parse_message(
-			s,
-			[this, log, &sp](
-				const guid & target_channel_id,
-				const std::string & name,
-				const certificate & read_cert,
-				const certificate & write_cert,
-				const asymmetric_private_key & write_private_key) {
-			auto & cp = this->channels_[target_channel_id];
-			auto id = cert_control::get_id(write_cert);
-			cp.name_ = name;
-			cp.write_certificates_[id] = write_cert;
-			cp.write_private_keys_[id] = write_private_key;
+    case transactions::transaction_id::channel_add_writer_transaction: {
+			transactions::channel_add_writer_transaction message(s);
+			auto & cp = this->channels_[message.channel_id()];
+			auto id = cert_control::get_id(message.write_cert());
+			cp.name_ = message.name();
+			cp.write_certificates_[id] = message.write_cert();
+			cp.write_private_keys_[id] = message.write_private_key();
 			cp.current_write_certificate_ = id;
 
-			auto read_id = cert_control::get_id(read_cert);
-			cp.read_certificates_[read_id] = read_cert;
+			auto read_id = cert_control::get_id(message.read_cert());
+			cp.read_certificates_[read_id] = message.read_cert();
 			cp.current_read_certificate_ = read_id;
 
 			log->debug(ThisModule, sp, "Got channel %s write certificate %s, read certificate %s",
-				target_channel_id.str().c_str(),
+				message.channel_id().str().c_str(),
 				id.str().c_str(),
 				read_id.str().c_str());
-		});
+
       break;
     }
 
-    case transactions::channel_message_transaction::channel_message_id::channel_create_transaction: {
-      transactions::channel_create_transaction::parse_message(
-          s,
-          [this, log, &sp](
-          const guid &channel_id,
-          const std::string &name,
-          const certificate &read_cert,
-          const asymmetric_private_key &read_private_key,
-          const certificate &write_cert,
-          const asymmetric_private_key &write_private_key) {
-            auto & cp = this->channels_[channel_id];
-            cp.name_ = name;
-            cp.current_read_certificate_ = cert_control::get_id(read_cert);
-            cp.current_write_certificate_ = cert_control::get_id(write_cert);
-            cp.read_certificates_[cp.current_read_certificate_] = read_cert;
-            cp.read_private_keys_[cp.current_read_certificate_] = read_private_key;
-            cp.write_certificates_[cp.current_write_certificate_] = write_cert;
-            cp.write_private_keys_[cp.current_write_certificate_] = write_private_key;
+    case transactions::transaction_id::channel_create_transaction: {
+			transactions::channel_create_transaction message(s);
+			auto &cp = this->channels_[message.channel_id()];
+			cp.name_ = message.name();
+			cp.current_read_certificate_ = cert_control::get_id(message.read_cert());
+			cp.current_write_certificate_ = cert_control::get_id(message.write_cert());
+			cp.read_certificates_[cp.current_read_certificate_] = message.read_cert();
+			cp.read_private_keys_[cp.current_read_certificate_] = message.read_private_key();
+			cp.write_certificates_[cp.current_write_certificate_] = message.write_cert();
+			cp.write_private_keys_[cp.current_write_certificate_] = message.write_private_key();
 
 			log->debug(ThisModule, sp, "New channel %s(%s), read certificate %s, write certificate %s",
-				channel_id.str().c_str(),
-				name.c_str(),
-				cp.current_read_certificate_.str().c_str(),
-				cp.current_write_certificate_.str().c_str());
-	  });
+								 message.channel_id().str().c_str(),
+								 message.name().c_str(),
+								 cp.current_read_certificate_.str().c_str(),
+								 cp.current_write_certificate_.str().c_str());
 
-      break;
-    }
-    case transactions::channel_message_transaction::channel_message_id::channel_remove_reader_transaction: {
+			break;
+		}
+    case transactions::transaction_id::channel_remove_reader_transaction: {
       break;
     }
 

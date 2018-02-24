@@ -57,6 +57,10 @@ namespace vds {
 		const asymmetric_private_key& owner_private_key,
 		const asymmetric_private_key& channel_write_private_key) const;
 
+		bool operator !() const {
+			return nullptr == this->impl_.get();
+		}
+
   private:
     std::shared_ptr<class _user_channel> impl_;
   };

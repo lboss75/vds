@@ -109,12 +109,8 @@ namespace vds {
 
     guid get_common_channel_id(const service_provider & sp) const;
 
-    const std::list<service_provider> & current_users() const {
-      return this->current_users_;
-    }
   private:
-    std::list<service_provider> current_users_;
-    class _user_manager * get_impl(const service_provider & sp) const;
+    std::shared_ptr<class _user_manager> impl_;
 
   };
 }

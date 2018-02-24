@@ -11,7 +11,7 @@ All rights reserved
 #include "run_configuration_dbo.h"
 
 namespace vds {
-  class _user_manager : public security_walker, public current_run_configuration {
+  class _user_manager : public security_walker {
   public:
     _user_manager(
       const guid& id,
@@ -27,6 +27,15 @@ namespace vds {
         asymmetric_private_key &device_private_key) const;
 
     user_channel get_channel(const guid &channel_id) const;
+
+  private:
+    guid id_;
+    certificate device_cert_;
+    asymmetric_private_key device_private_key_;
+    uint16_t port_;
+    guid common_channel_id_;
+    certificate common_channel_read_cert_;
+    asymmetric_private_key common_channel_pkey_;
   };
 }
 

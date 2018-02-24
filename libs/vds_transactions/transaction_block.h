@@ -20,31 +20,36 @@ namespace vds {
 
       template<typename item_type>
       void add(
+          const guid & channel_id,
           item_type && item) {
 
-        this->s_ << item_type::message_id;
-        item.serialize(this->s_);
+        auto & s = this->data_[channel_id];
+        s << item_type::message_id;
+        item.serialize(s);
       }
 
-	  const_data_buffer save(
+      std::map<guid, const_data_buffer> save(
           const service_provider &sp,
           class vds::database_transaction & t,
-          const certificate & common_read_cert,
-          const certificate & write_cert,
-          const asymmetric_private_key & write_private_key,
-		  bool apply = true) const;
+          const std::function<void(
+              const guid & channel_id,
+              certificate & read_cert,
+              certificate & write_cert,
+              asymmetric_private_key & write_private_key)> & crypto_callback,
+		      bool apply = true) const;
 
     private:
-
-      binary_serializer s_;
+      std::map<guid, binary_serializer> data_;
 
       void collect_dependencies(
           class database_transaction &t,
+          const guid & channel_id,
           std::set<const_data_buffer> &ancestors) const;
 
       const_data_buffer register_transaction(
 		  const service_provider & sp,
           class database_transaction &t,
+          const guid & channel_id,
           const const_data_buffer &block,
           const std::set<const_data_buffer> &ancestors) const;
 

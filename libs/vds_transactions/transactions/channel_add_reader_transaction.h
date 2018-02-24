@@ -8,69 +8,74 @@ All rights reserved
 #include "guid.h"
 #include "asymmetriccrypto.h"
 #include "transaction_log.h"
-#include "channel_message_transaction.h"
 
 namespace vds {
   namespace transactions {
-    class channel_add_reader_transaction : public channel_message_transaction {
+    class channel_add_reader_transaction {
     public:
+			static const uint8_t message_id = (uint8_t)transaction_id::channel_add_reader_transaction;
+
       channel_add_reader_transaction(
-          const guid & channel_id,
-          const certificate & target_cert,
-          const certificate & sign_cert,
-          const asymmetric_private_key & sing_cert_private_key,
-
-		  const guid & target_channel_id,
-		  const std::string & name,
-		  const certificate & read_cert,
-		  const asymmetric_private_key & read_private_key,
-		  const certificate & write_cert)
-          : channel_message_transaction(
-          channel_message_id::channel_add_reader_transaction,
-		  channel_id,
-          target_cert,
-		  cert_control::get_id(sign_cert),
-          sing_cert_private_key,
-          (
-              binary_serializer()
-			  << target_channel_id
-			  << name
-			  << read_cert.der()
-              << read_private_key.der(std::string())
-			  << write_cert.der()
-          ).data()) {
-
+        const guid & channel_id,
+        const std::string & name,
+        const certificate & read_cert,
+        const asymmetric_private_key & read_private_key,
+        const certificate & write_cert)
+      : channel_id_(channel_id),
+        name_(name),
+        read_cert_(read_cert),
+        read_private_key_(read_private_key),
+        write_cert_(write_cert) {
       }
 
-      channel_add_reader_transaction(binary_deserializer & s)
-      : channel_message_transaction(s){
+      channel_add_reader_transaction(binary_deserializer & s){
+        const_data_buffer read_private_key_der;
+        s
+            >> this->channel_id_
+            >> this->name_
+            >> this->read_cert_
+            >> read_private_key_der
+            >> this->write_cert_;
+        this->read_private_key_ = asymmetric_private_key::parse_der(
+            read_private_key_der,
+            std::string());
       }
 
-	  template <typename target>
-	  static void parse_message(binary_deserializer &data_stream, target t) {
+      void serialize(binary_serializer & s){
+        s
+            << this->channel_id_
+            << this->name_
+            << this->read_cert_
+            << this->read_private_key_.der(std::string())
+            << this->write_cert_;
+      }
 
-		  std::string name;
-		  guid target_channel_id;
-		  certificate read_cert;
-		  const_data_buffer read_private_key_der;
-		  certificate write_cert;
+      const guid &channel_id() const {
+        return channel_id_;
+      }
 
-		  data_stream
-			  >> target_channel_id
-			  >> name
-			  >> read_cert
-			  >> read_private_key_der
-			  >> write_cert;
+      const std::string & name() const {
+        return name_;
+      }
 
-		  t(
-			  target_channel_id,
-			  name,
-			  read_cert,
-			  asymmetric_private_key::parse_der(read_private_key_der, std::string()),
-			  write_cert);
+      const certificate &read_cert() const {
+        return read_cert_;
+      }
 
-	  }
+      const asymmetric_private_key &read_private_key() const {
+        return read_private_key_;
+      }
 
+      const certificate & write_cert() const {
+        return write_cert_;
+      }
+
+    private:
+      guid channel_id_;
+      std::string name_;
+      certificate read_cert_;
+      asymmetric_private_key read_private_key_;
+      certificate write_cert_;
     };
   }
 }

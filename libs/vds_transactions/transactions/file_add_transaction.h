@@ -8,14 +8,15 @@ All rights reserved
 #include <unordered_map>
 #include "transaction_log.h"
 #include "binary_serialize.h"
-#include "channel_message_transaction.h"
 #include "transaction_id.h"
 
 namespace vds {
 	namespace transactions {
 
-		class file_add_transaction : public channel_message_transaction {
+		class file_add_transaction {
 		public:
+      static const uint8_t message_id = (uint8_t)transaction_id::file_add_transaction;
+
 			struct file_block_t {
 				const_data_buffer block_id;
 				const_data_buffer block_key;
@@ -25,42 +26,37 @@ namespace vds {
 			};
 
 			file_add_transaction(
-				const guid & channel_id,
-				const certificate &read_cert,
-				const guid &write_cert_id,
-				const asymmetric_private_key &cert_key,
 				const std::string &name,
 				const std::string &mimetype,
-				const std::list<file_block_t> & file_blocks);
-
-			template <typename target>
-			static void parse_message(binary_deserializer &data_stream, target t) {
-				std::string name;
-				std::string mimetype;
-				std::list<file_add_transaction::file_block_t> file_blocks;
-
-				data_stream >> name >> mimetype >> file_blocks;
-
-				t(name, mimetype, file_blocks);
+				const std::list<file_block_t> & file_blocks)
+					: name_(name), mimetype_(mimetype), file_blocks_(file_blocks){
 			}
-		};
 
-		inline file_add_transaction::file_add_transaction(
-			const guid & channel_id,
-			const certificate &read_cert,
-			const guid &write_cert_id,
-			const asymmetric_private_key &cert_key,
-			const std::string &name,
-			const std::string &mimetype,
-			const std::list<file_add_transaction::file_block_t> &file_blocks)
-			: channel_message_transaction(
-				channel_message_id::file_add_transaction,
-				channel_id,
-				read_cert,
-				write_cert_id,
-				cert_key,
-				(binary_serializer() << name << mimetype << file_blocks).data()) {
-		}
+      file_add_transaction(binary_deserializer & s){
+        s >> this->name_ >> this->mimetype_ >> this->file_blocks_;
+      }
+
+      void serialize(binary_serializer & s) const {
+        s << this->name_ << this->mimetype_ << this->file_blocks_;
+      }
+
+      const std::string & name() const {
+        return name_;
+      }
+
+      const std::string & mimetype() const {
+        return mimetype_;
+      }
+
+      const std::list<file_block_t> & file_blocks() const {
+        return file_blocks_;
+      }
+
+    private:
+			std::string name_;
+			std::string mimetype_;
+			std::list<file_block_t> file_blocks_;
+		};
 	}
 }
 

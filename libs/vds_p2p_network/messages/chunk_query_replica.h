@@ -17,9 +17,9 @@ namespace vds {
       static const uint8_t message_id = (uint8_t)p2p_message_id::chunk_query_replica;
 
       chunk_query_replica(
-          const guid &source_node_id,
+          //const guid &source_node_id,
           const const_data_buffer & data_hash)
-          : source_node_id_(source_node_id),
+          : //source_node_id_(source_node_id),
             data_hash_(data_hash){
       }
 

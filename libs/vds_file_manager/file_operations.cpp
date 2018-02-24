@@ -24,6 +24,9 @@ All rights reserved
 #include "chunk.h"
 #include "p2p_network.h"
 #include "messages/chunk_query_replica.h"
+#include "logger.h"
+#include "channel_message.h"
+#include "encoding.h"
 
 vds::file_manager::file_operations::file_operations()
 : impl_(new file_manager_private::_file_operations()){
@@ -88,22 +91,30 @@ vds::async_task<> vds::file_manager_private::_file_operations::upload_file(
 
         transactions::transaction_block log;
         log.add(
+            channel_id,
             transactions::file_add_transaction(
-                channel_id,
-                channel.read_cert(),
-                cert_control::get_id(channel.write_cert()),
-                channel_write_key,
                 name,
                 mimetype,
                 file_blocks));
 
+    auto common_channel = user_mng->get_common_channel(sp);
 		auto common_channel_write_key = user_mng->get_channel_write_key(sp, user_mng->get_common_channel(sp).id());
 		log.save(
             sp,
             t,
-			user_mng->get_common_channel(sp).read_cert(),
-			user_mng->get_common_channel(sp).write_cert(),
-			common_channel_write_key);
+            [common_channel, common_channel_write_key](const guid & channel_id,
+               certificate & read_cert,
+               certificate & write_cert,
+               asymmetric_private_key & write_private_key){
+              if(channel_id == common_channel.id()){
+                read_cert = common_channel.read_cert();
+			          write_cert = common_channel.write_cert();
+                write_private_key = common_channel_write_key;
+              }
+              else {
+                throw std::runtime_error("Invalid channel");
+              }
+            });
 
 		return true;
       }
@@ -136,7 +147,7 @@ vds::async_task<> vds::file_manager_private::_file_operations::download_file(
                       t1.signature)
                   .where(t1.channel_id == task->channel_id()
                          && t1.message_id ==
-                            (int) transactions::channel_message_transaction::channel_message_id::file_add_transaction)
+                            (int) transactions::transaction_id::file_add_transaction)
                   .order_by(db_desc_order(t1.id)));
           while (st.execute()) {
             auto data = user_mng->decrypt_message(
@@ -150,14 +161,10 @@ vds::async_task<> vds::file_manager_private::_file_operations::download_file(
 
             binary_deserializer s(data);
 
-            transactions::file_add_transaction::parse_message(s, [pthis, sp, &t, result, task](
-                const std::string &record_name,
-                const std::string &record_mimetype,
-                const std::list<transactions::file_add_transaction::file_block_t> &file_blocks) {
-              if (task->name() == record_name) {
-                task->set_file_blocks(record_mimetype, file_blocks);
-              }
-            });
+            transactions::file_add_transaction message(s);
+            if (task->name() == message.name()) {
+              task->set_file_blocks(message.mimetype(), message.file_blocks());
+            }
 
             if (!task->mime_type().empty()) {
               break;
@@ -241,7 +248,7 @@ vds::async_task<> vds::file_manager_private::_file_operations::download_block(
           "Send query for replica %s",
           std::to_string(replica.first).c_str());
 
-      p2p->query_replica(sp, replica.second);
+      //p2p->query_replica(sp, replica.second);
     }
   }
   return async_task<>::empty();

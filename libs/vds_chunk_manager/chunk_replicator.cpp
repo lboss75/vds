@@ -81,22 +81,14 @@ void vds::chunk_replicator::apply(
           sp,
           message.source_node_id(),
           p2p_messages::chunk_have_replica(
-              sp.get_property<current_run_configuration>(service_provider::property_scope::any_scope)->id(),
               message.data_hash()).serialize());
     }
     else {
-      auto user_mng = sp.get<user_manager>();
-      for(const auto & user_scope : user_mng->current_users()){
-        auto id = user_scope.get_property<current_run_configuration>(service_provider::property_scope::any_scope)->id();
-        if(p2p_network::calc_distance(id, message.data_hash()) < message.distance()) {
-          user_scope.get<p2p_network>()->send(
-              sp,
-              message.source_node_id(),
-              p2p_messages::chunk_query_replica(
-                  id,
-                  message.data_hash()).serialize());
-        }
-      }
+      sp.get<p2p_network>()->send(
+          sp,
+          message.source_node_id(),
+          p2p_messages::chunk_query_replica(
+              message.data_hash()).serialize());
     }
     return true;
   }).execute([sp, message](const std::shared_ptr<std::exception> & ex) {
@@ -201,28 +193,25 @@ void vds::_chunk_replicator::update_replicas(
     const service_provider &sp,
     database_transaction &t) {
 
-  auto user_mng = sp.get<user_manager>();
-  for (auto &user_sp : user_mng->current_users()) {
-    auto this_device_id = user_sp.get_property<current_run_configuration>(
-        service_provider::property_scope::any_scope)->id();
-    auto p2p = user_sp.get<p2p_network>();
-    auto neighbors = p2p->get_neighbors();
-    for (auto &neighbor : neighbors) {
-      dbo::chunk_replica_data_dbo t1;
-      auto st = t.get_reader(t1.select(t1.replica_hash).order_by(db_desc_order(t1.distance)));
-      while (st.execute()) {
-        auto replica_hash = base64::to_bytes(t1.replica_hash.get(st));
-        auto this_distance = p2p_network::calc_distance(this_device_id, replica_hash);
-        auto distance = p2p->calc_distance(neighbor.node_id, replica_hash);
-        if (this_distance > distance) {
-          p2p->send(sp, neighbor.node_id, p2p_messages::chunk_offer_replica(
-              this_distance,
-              this_device_id,
-              replica_hash).serialize());
-        }
-      }
-    }
-  }
+//  auto user_mng = sp.get<user_manager>();
+//    auto p2p = sp.get<p2p_network>();
+//    auto neighbors = p2p->get_neighbors();
+//    for (auto &neighbor : neighbors) {
+//      dbo::chunk_replica_data_dbo t1;
+//      auto st = t.get_reader(t1.select(t1.replica_hash).order_by(db_desc_order(t1.distance)));
+//      while (st.execute()) {
+//        auto replica_hash = base64::to_bytes(t1.replica_hash.get(st));
+//        auto this_distance = p2p_network::calc_distance(this_device_id, replica_hash);
+//        auto distance = p2p->calc_distance(neighbor.node_id, replica_hash);
+//        if (this_distance > distance) {
+//          p2p->send(sp, neighbor.node_id, p2p_messages::chunk_offer_replica(
+//              this_distance,
+//              this_device_id,
+//              replica_hash).serialize());
+//        }
+//      }
+//    }
+//  }
 }
 
 vds::const_data_buffer vds::_chunk_replicator::generate_replica(

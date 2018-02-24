@@ -23,51 +23,65 @@ All rights reserved
 #include "vds_debug.h"
 #include "transaction_log.h"
 
-vds::const_data_buffer vds::transactions::transaction_block::save(
+std::map<vds::guid, vds::const_data_buffer> vds::transactions::transaction_block::save(
     const service_provider &sp,
-    database_transaction &t,
-    const certificate & common_read_cert,
-    const certificate & write_cert,
-    const asymmetric_private_key & write_private_key,
-	bool apply /*= true*/) const {
+    class vds::database_transaction & t,
+    const std::function<void(
+        const guid & channel_id,
+        certificate & read_cert,
+        certificate & write_cert,
+        asymmetric_private_key & write_private_key)> & crypto_callback,
+    bool apply /*= true*/) const {
+  std::map<guid, vds::const_data_buffer> result;
+  for(auto & p : this->data_) {
+    vds_assert(0 != p.second.size());
 
-  vds_assert(0 != this->s_.size());
+    certificate read_cert;
+    certificate write_cert;
+    asymmetric_private_key write_private_key;
+    crypto_callback(p.first, read_cert, write_cert, write_private_key);
 
-  std::set<const_data_buffer> ancestors;
-  this->collect_dependencies(t, ancestors);
+    std::set<const_data_buffer> ancestors;
+    this->collect_dependencies(t, p.first, ancestors);
 
-  auto key = symmetric_key::generate(symmetric_crypto::aes_256_cbc());
+    auto key = symmetric_key::generate(symmetric_crypto::aes_256_cbc());
 
-  binary_serializer crypted;
-  crypted
-      << cert_control::get_id(common_read_cert)
-	    << cert_control::get_id(write_cert)
-      << ancestors
-	    << symmetric_encrypt::encrypt(key, this->s_.data())
-      << common_read_cert.public_key().encrypt(key.serialize());
+    binary_serializer crypted;
+    crypted
+        << p.first
+        << cert_control::get_id(read_cert)
+        << cert_control::get_id(write_cert)
+        << ancestors
+        << symmetric_encrypt::encrypt(key, p.second.data())
+        << read_cert.public_key().encrypt(key.serialize());
 
-  crypted << asymmetric_sign::signature(
-      hash::sha256(),
-      write_private_key,
-      crypted.data());
+    crypted << asymmetric_sign::signature(
+        hash::sha256(),
+        write_private_key,
+        crypted.data());
 
-  auto id = register_transaction(sp, t, crypted.data(), ancestors);
-  if (apply) {
-	  transaction_log::apply_block(sp, t, id);
+    auto id = register_transaction(sp, t, p.first, crypted.data(), ancestors);
+    if (apply) {
+      transaction_log::apply_block(sp, t, id);
+    }
+    on_new_transaction(sp, t, id, crypted.data());
+
+    result[p.first] = id;
   }
-  on_new_transaction(sp, t, id, crypted.data());
-
-  return id;
+  return result;
 }
 
 void vds::transactions::transaction_block::collect_dependencies(
     vds::database_transaction &t,
+    const guid & channel_id,
     std::set<const_data_buffer> &ancestors) const {
 
   vds::orm::transaction_log_record_dbo t1;
   auto st = t.get_reader(
       t1.select(t1.id)
-          .where(t1.state == (uint8_t)orm::transaction_log_record_dbo::state_t::leaf));
+          .where(
+              t1.channel_id == channel_id
+              && t1.state == (uint8_t)orm::transaction_log_record_dbo::state_t::leaf));
   while(st.execute()){
     auto id = t1.id.get(st);
     if(ancestors.end() == ancestors.find(vds::base64::to_bytes(id))) {
@@ -79,6 +93,7 @@ void vds::transactions::transaction_block::collect_dependencies(
 vds::const_data_buffer vds::transactions::transaction_block::register_transaction(
 	const service_provider & sp,
     vds::database_transaction &t,
+    const guid & channel_id,
     const const_data_buffer &block,
     const std::set<const_data_buffer> &ancestors) const {
 
@@ -87,6 +102,7 @@ vds::const_data_buffer vds::transactions::transaction_block::register_transactio
   orm::transaction_log_record_dbo t2;
   t.execute(t2.insert(
       t2.id = vds::base64::from_bytes(id),
+      t2.channel_id = channel_id,
       t2.data = block,
       t2.state = (uint8_t)orm::transaction_log_record_dbo::state_t::validated));
 
@@ -105,8 +121,5 @@ void vds::transactions::transaction_block::on_new_transaction(
     vds::database_transaction &t,
     const const_data_buffer & id,
     const const_data_buffer &block) const {
-
-  sp.get<p2p_network>()->broadcast(sp, p2p_messages::channel_log_record(
-      id, block).serialize());
 
 }

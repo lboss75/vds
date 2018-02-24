@@ -16,8 +16,11 @@ namespace vds {
     public:
       static const uint8_t message_id = (uint8_t)p2p_message_id::chunk_have_replica;
 
-      chunk_have_replica(const guid &node_id, const const_data_buffer &data_hash)
-          : node_id_(node_id), data_hash_(data_hash) {
+      chunk_have_replica(
+          //const guid &node_id,
+          const const_data_buffer &data_hash)
+          : //node_id_(node_id),
+            data_hash_(data_hash) {
       }
 
       chunk_have_replica(
