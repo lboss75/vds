@@ -1,5 +1,5 @@
-#ifndef __VDS_P2P_NETWORK_RAFT_GET_LEAD_H_
-#define __VDS_P2P_NETWORK_RAFT_GET_LEAD_H_
+#ifndef __VDS_P2P_NETWORK_RAFT_ADD_CLIENT_H_
+#define __VDS_P2P_NETWORK_RAFT_ADD_CLIENT_H_
 
 /*
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
@@ -15,11 +15,11 @@ All rights reserved
 
 namespace vds {
   namespace p2p_messages {
-    class raft_get_lead {
+    class raft_add_client {
     public:
-      static const uint8_t message_id = (uint8_t)p2p_message_id::raft_get_lead;
+      static constexpr uint8_t message_id = (uint8_t)p2p_message_id::raft_get_lead;
 
-      raft_get_lead(
+      raft_add_client(
           const guid & channel_id,
           const node_id_t & sender_id,
           const std::set<node_id_t> & nodes)
@@ -28,7 +28,7 @@ namespace vds {
             nodes_(nodes){
       }
 
-      raft_get_lead(
+      raft_add_client(
           binary_deserializer & s) {
         s >> this->channel_id_ >> this->sender_id_ >> this->nodes_;
       }
@@ -59,4 +59,4 @@ namespace vds {
   }
 }
 
-#endif //__VDS_P2P_NETWORK_RAFT_GET_LEAD_H_
+#endif //__VDS_P2P_NETWORK_RAFT_ADD_CLIENT_H_

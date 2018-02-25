@@ -8,18 +8,19 @@ All rights reserved
 #include <db_model.h>
 #include <raft_channel_member_dbo.h>
 #include <raft_channel_record_dbo.h>
+#include <raft_channel_dbo.h>
 #include "stdafx.h"
 #include "channel_coordinator.h"
 #include "private/channel_coordinator_p.h"
 #include "private/p2p_route_p.h"
-#include "messages/raft_get_lead.h"
-#include "messages/raft_current_lead.h"
+#include "messages/raft_add_client.h"
+#include "messages/raft_create_channel.h"
 #include "messages/raft_start_election.h"
 
 void vds::channel_coordinator::apply(
     const vds::service_provider &sp,
     const std::shared_ptr<_p2p_route> & route,
-    const vds::p2p_messages::raft_get_lead & messsage) {
+    const vds::p2p_messages::raft_add_client & messsage) {
 
   auto coordinator = this->get_or_create_coordinator(sp, route, messsage.channel_id());
   coordinator->apply(sp, route, messsage);
@@ -46,6 +47,7 @@ vds::channel_coordinator::get_or_create_coordinator(
   }
 
   auto result = std::make_shared<_channel_coordinator>(channel_id);
+  result->start(sp, route);
   this->coordinators_[channel_id] = result;
   return result;
 }
@@ -66,58 +68,113 @@ void vds::channel_coordinator::start(
       });
 }
 
+void vds::channel_coordinator::apply(
+    const vds::service_provider &sp,
+    const std::shared_ptr<vds::_p2p_route> &route,
+    const vds::p2p_messages::raft_create_channel &messsage) {
+
+  auto coordinator = this->get_or_create_coordinator(sp, route, messsage.channel_id());
+  coordinator->apply(sp, route, messsage);
+}
+
 ////////////////////////////////////////////////////////////////////////
 vds::_channel_coordinator::_channel_coordinator(
     const guid & channel_id)
 : channel_id_(channel_id),
-  state_(this_member_state_t::client),
+  state_(this_member_state_t::unknown),
   current_term_(0),
-  timeout_elapsed_(0),
-  request_timeout_(2),
-  election_timeout_(10),
-  election_timeout_rand_(10 + std::rand() % 10) {
+  election_timeout_rand_(election_timeout_ + std::rand() % election_timeout_) {
+}
+
+void vds::_channel_coordinator::apply(
+    const vds::service_provider &sp,
+    const std::shared_ptr<vds::_p2p_route> &route,
+    const vds::p2p_messages::raft_create_channel &message) {
+
+  sp.get<db_model>()->async_transaction(
+      sp,
+      [sp, route, message, pthis = this->shared_from_this()](database_transaction & t)-> bool {
+
+    std::unique_lock<std::mutex> lock(pthis->state_mutex_);
+    if (this_member_state_t::unknown != pthis->state_) {
+      sp.get<logger>()->warning(ThisModule, sp, "Channel %s is exist already", message.channel_id().str().c_str());
+      return true;
+    }
+
+    dbo::raft_channel_dbo t1;
+    auto st = t.get_reader(
+        t1
+            .select(t1.channel_id)
+            .where(t1.channel_id == message.channel_id()));
+    if (st.execute()) {
+      sp.get<logger>()->warning(ThisModule, sp, "Channel %s is exist already", message.channel_id().str().c_str());
+      return true;
+    }
+
+    t.execute(t1.insert(t1.channel_id = message.channel_id()));
+
+    dbo::raft_channel_member_dbo t2;
+    for (auto &node : message.nodes()) {
+      if (pthis->members_.end() == pthis->members_.find(node)) {
+        pthis->members_[node] = member_info_t(node, false);
+
+        t.execute(
+            t2.insert(
+                t2.channel_id = message.channel_id(),
+                t2.device_id = node.device_id(),
+                t2.is_client = true));
+      }
+    }
+
+    pthis->become_follower(sp, route);
+    return true;
+  }).execute([sp](const std::shared_ptr<std::exception> & ex){
+    if(ex){
+      sp.get<logger>()->warning(
+          ThisModule,
+          sp,
+          "%s at process raft_create_channel",
+          ex->what());
+    }
+  });
 }
 
 void vds::_channel_coordinator::start(
     const vds::service_provider &sp,
     const std::shared_ptr<_p2p_route> & route) {
+
   std::shared_ptr<std::exception> error;
   barrier b;
-  sp.get<db_model>()->async_transaction(sp,
-                                        [pthis = this->shared_from_this()](vds::database_transaction & t)->bool{
 
-    dbo::raft_channel_member_dbo t1;
-    auto st = t.get_reader(
-        t1
-            .select(t1.device_id)
-            .where(t1.channel_id == pthis->channel_id_));
-    while(st.execute()){
-      node_id_t node(t1.device_id.get(st));
-      pthis->members_[node] = member_info_t(node);
-    }
-
-    dbo::raft_channel_record_dbo t2;
-    st = t.get_reader(
-        t2
-            .select(db_max(t2.record_index))
-            .where(t2.channel_id == pthis->channel_id_));
-
-    if(st.execute()){
-      uint64_t last_index;
-      st.get_value(0, last_index);
-
-      pthis->last_log_idx_ = last_index;
-    }
-
-    return true;
-  }).execute([&b, &error](const std::shared_ptr<std::exception> & ex){
+  sp.get<db_model>()->async_transaction(
+      sp,
+      [sp, route, pthis = this->shared_from_this()](database_transaction & t)-> bool {
+        dbo::raft_channel_member_dbo t1;
+        auto st = t.get_reader(
+            t1
+                .select(t1.device_id, t1.is_client)
+                .where(t1.channel_id == pthis->channel_id_));
+        while (st.execute()) {
+          if (pthis->channel_id_ == t1.device_id.get(st)) {
+            pthis->state_ = t1.is_client.get(st)
+                           ? this_member_state_t::client
+                           : this_member_state_t::follower;
+          } else {
+            node_id_t node(t1.device_id.get(st));
+            pthis->members_[node] = member_info_t(node, t1.is_client.get(st));
+          }
+        }
+        return true;
+      }).execute([sp, &b, &error](const std::shared_ptr<std::exception> & ex) {
     if(ex){
       error = ex;
     }
+
     b.set();
   });
 
   b.wait();
+
   if(error){
     throw std::runtime_error(error->what());
   }
@@ -131,29 +188,40 @@ void vds::_channel_coordinator::on_timer(
 
   this->timeout_elapsed_++;
 
-  if(1 == this->voted_for_me_.size()
-     && !this->leader_){
-    this->become_leader(sp, route);
+  if (this->election_timeout_ <= this->timeout_elapsed_
+      && !this->leader_) {
+    this->election_start(sp, route);
+    return;
   }
 
-  //Send log
-  if(this_member_state_t::leader == this->state_){
-    if(this->request_timeout_ <= this->timeout_elapsed_) {
-      for (auto & p : this->members_) {
-        this->send_log(sp, route, p.second);
-      }
-    }
-  }
-  else
-  if(this->election_timeout_rand_ <= this->timeout_elapsed_) {
-    if(1 < this->voted_for_me_.size()
-       && this->voted_for_me_.end() != this->voted_for_me_.find(route->current_node_id())){
+  if (this->election_timeout_rand_ <= this->timeout_elapsed_) {
+    if (1 < this->voted_for_me_.size()
+        && this->voted_for_me_.end() != this->voted_for_me_.find(route->current_node_id())) {
       this->election_start(sp, route);
     }
-  }
 
-  if (this->last_applied_idx_ < this->commit_idx_) {
-    this->apply_entry(sp, route);
+    if (1 == this->voted_for_me_.size()
+        && !this->leader_) {
+      this->become_leader(sp, route);
+    }
+
+    //Send log
+    if (this_member_state_t::leader == this->state_) {
+      if (this->request_timeout_ <= this->timeout_elapsed_) {
+        for (auto &p : this->members_) {
+          this->send_log(sp, route, p.second);
+        }
+      }
+    } else if (this->election_timeout_rand_ <= this->timeout_elapsed_) {
+      if (1 < this->voted_for_me_.size()
+          && this->voted_for_me_.end() != this->voted_for_me_.find(route->current_node_id())) {
+        this->election_start(sp, route);
+      }
+    }
+
+    if (this->last_applied_idx_ < this->commit_idx_) {
+      this->apply_entry(sp, route);
+    }
   }
 }
 
@@ -161,81 +229,18 @@ void vds::_channel_coordinator::on_timer(
 void vds::_channel_coordinator::apply(
     const vds::service_provider &sp,
     const std::shared_ptr<vds::_p2p_route> &route,
-    const vds::p2p_messages::raft_get_lead &messsage) {
+    const vds::p2p_messages::raft_add_client &messsage) {
   std::unique_lock<std::mutex> lock(this->state_mutex_);
-  if(!this->leader_){
-    if(route->current_node_id() != messsage.sender_id()) {
-      if(!this->leader_) {
-        std::set<node_id_t> nodes;
-        route->search_nodes(sp, this->channel_id_, 40, nodes);
+  this->add_client(sp, messsage.sender_id());
+}
 
-        for (auto &p : nodes) {
-          if (this->members_.end() == this->members_.find(p)) {
-            this->members_.insert(p);
-          }
-        }
+void vds::_channel_coordinator::become_follower(
+    const vds::service_provider &sp,
+    const std::shared_ptr<vds::_p2p_route> &route) {
 
-        for (auto &p : messsage.nodes()) {
-          if (this->members_.end() == this->members_.find(p)) {
-            this->members_.insert(p);
-          }
-        }
 
-        if (this->members_.end() == this->members_.find(route->current_node_id())) {
-          this->members_.insert(route->current_node_id());
-        }
+  this->state_ = this_member_state_t::follower;
 
-        while (40 < this->members_.size()) {
-          this->members_.erase(std::prev(this->members_.end()));
-        }
-
-        if (this->members_.end() != this->members_.find(route->current_node_id())) {
-          //This node is server
-          for(auto & p : this->members_) {
-            route->send(
-                sp,
-                p,
-                p2p_messages::raft_start_election(
-                    this->channel_id_,
-                    messsage.sender_id(),
-                    this->members_).serialize());
-          }
-        }
-        else {
-          //This node is client
-          int count = 0;
-          for(auto & p : this->members_) {
-            route->send(
-                sp,
-                p,
-                p2p_messages::raft_get_lead(
-                    this->channel_id_,
-                    messsage.sender_id(),
-                    this->members_).serialize());
-            if(3 < count++){
-              break;
-            }
-          }
-        }
-      }
-      else {
-        route->send(
-            sp,
-            messsage.sender_id(),
-            p2p_messages::raft_current_lead(
-                this->channel_id_,
-                this->leader_).serialize());
-      }
-    }
-  }
-  else {
-    route->send(
-        sp,
-        messsage.sender_id(),
-        p2p_messages::raft_current_lead(
-            this->channel_id_,
-            this->leader_).serialize());
-  }
 }
 
 void vds::_channel_coordinator::become_candidate(
@@ -448,6 +453,30 @@ void vds::_channel_coordinator::apply(
 
   if(this->voted_for_me_.size() > 1 + server_count / 2) {
     this->become_leader(sp, route);
+  }
+}
+
+  void vds::_channel_coordinator::apply(const vds::service_provider &sp, const std::shared_ptr<vds::_p2p_route> &route,
+                                        const vds::p2p_messages::raft_create_channel &messsage) {
+
+  }
+
+  size_t vds::_channel_coordinator::majority_count() {
+    size_t result = 0;
+    for(auto & p : this->members_){
+      if(!p.second.is_client_){
+        ++result;
+      }
+    }
+
+    return result / 2 + 1;
+  }
+
+void vds::_channel_coordinator::add_client(
+    const vds::service_provider &sp,
+    const vds::node_id_t &node_id) {
+  if(this->members_.end() == this->members_.find(node_id)){
+    this->members_[node_id] = member_info_t(node_id, true);
   }
 }
 

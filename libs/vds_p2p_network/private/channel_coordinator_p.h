@@ -16,8 +16,8 @@ namespace vds {
   class _p2p_route;
 
   namespace p2p_messages {
-    class raft_get_lead;
-    class raft_current_lead;
+    class raft_add_client;
+    class raft_create_channel;
     class raft_start_election;
   }
 
@@ -33,12 +33,12 @@ namespace vds {
     void apply(
         const service_provider & sp,
         const std::shared_ptr<_p2p_route> & route,
-        const p2p_messages::raft_get_lead & messsage);
+        const p2p_messages::raft_create_channel & message);
 
     void apply(
         const service_provider & sp,
         const std::shared_ptr<_p2p_route> & route,
-        const p2p_messages::raft_current_lead & messsage);
+        const p2p_messages::raft_add_client & message);
 
     void apply(
         const service_provider & sp,
@@ -56,6 +56,7 @@ namespace vds {
 
   private:
     enum class this_member_state_t {
+      unknown,
       client,
       follower,
       candidate,
@@ -69,15 +70,15 @@ namespace vds {
 
       bool is_client_;
 
-      member_info_t(const node_id_t & id)
+      member_info_t(const node_id_t & id, bool is_client)
           : id_(id),
             last_log_idx_(0),
             match_idx_(0),
-            is_client_(false){
+            is_client_(is_client){
       }
     };
 
-    guid channel_id_;
+    const guid channel_id_;
 
     std::mutex state_mutex_;
     this_member_state_t state_;
@@ -93,15 +94,17 @@ namespace vds {
     size_t last_applied_idx_;
     size_t commit_idx_;
 
-    size_t timeout_elapsed_;
-    size_t request_timeout_;
-    size_t election_timeout_;
-    size_t election_timeout_rand_;
+    int timeout_elapsed_;
+
+    static constexpr int request_timeout_ = 2;
+    static constexpr int election_timeout_ = 10;
+
+    int election_timeout_rand_;
 
     std::map<node_id_t, member_info_t> members_;
     std::set<node_id_t> voted_for_me_;
 
-    enum record_type_t {
+    enum class record_type_t : uint8_t {
       normal,
       add_client_node,
       add_server_node,
@@ -109,11 +112,16 @@ namespace vds {
     };
 
     struct record_info {
+      node_id_t source_device;
+      uint64_t source_index;
       record_type_t record_type_;
-      size_t term_;
       const_data_buffer data_;
     };
     std::map<size_t, record_info> records_;
+
+    void become_follower(
+        const vds::service_provider &sp,
+        const std::shared_ptr<vds::_p2p_route> &route);
 
     void become_leader(
         const vds::service_provider &sp,
@@ -132,7 +140,13 @@ namespace vds {
         const service_provider &sp,
         const std::shared_ptr<_p2p_route> &route);
 
-    void election_start(const service_provider &sp, const std::shared_ptr<_p2p_route> &route);
+    void election_start(
+        const service_provider &sp,
+        const std::shared_ptr<_p2p_route> &route);
+
+    size_t majority_count();
+
+    void add_client(const service_provider &sp, const node_id_t &node_id);
   };
 }
 

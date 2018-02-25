@@ -6,13 +6,15 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
+#include <messages/raft_create_channel.h>
+
 namespace vds {
   class _p2p_route;
 
   class _channel_coordinator;
 
   namespace p2p_messages {
-    class raft_get_lead;
+    class raft_add_client;
   }
 
   class channel_coordinator : public std::enable_shared_from_this<channel_coordinator> {
@@ -21,7 +23,12 @@ namespace vds {
     void apply(
         const service_provider &sp,
         const std::shared_ptr<_p2p_route> &route,
-        const p2p_messages::raft_get_lead &messsage);
+        const p2p_messages::raft_add_client &messsage);
+
+    void apply(
+        const service_provider &sp,
+        const std::shared_ptr<_p2p_route> &route,
+        const p2p_messages::raft_create_channel &messsage);
 
     void start(
         const service_provider &sp,

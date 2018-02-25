@@ -14,10 +14,14 @@ namespace vds {
     public:
       raft_channel_dbo()
           : database_table("raft_channel"),
-            channel_id(this, "channel_id") {
+            channel_id(this, "channel_id"),
+            left_base_thread_id(this, "left_base_thread_id"),
+            right_base_thread_id(this, "right_base_thread_id") {
       }
 
       database_column<guid> channel_id;
+      database_column<const_data_buffer> left_base_thread_id;
+      database_column<const_data_buffer> right_base_thread_id;
     };
   }
 }
