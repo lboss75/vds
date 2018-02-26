@@ -17,27 +17,33 @@ namespace vds {
 
       channel_log_state(
           const guid & channel_id,
-          const std::list<const_data_buffer> & leafs)
-          : leafs_(leafs) {
+          const std::list<guid> & leafs)
+          : channel_id_(channel_id),
+            leafs_(leafs) {
       }
 
       channel_log_state(
           binary_deserializer & s) {
-        s >> this->leafs_;
+        s >> this->channel_id_ >>  this->leafs_;
       }
 
       const_data_buffer serialize() const {
         binary_serializer s;
-        s << message_id << this->leafs_;
+        s << message_id << this->channel_id_ << this->leafs_;
         return s.data();
       }
 
-      const std::list<const_data_buffer> & leafs() const {
+      const guid &channel_id() const {
+        return channel_id_;
+      }
+
+      const std::list<guid> & leafs() const {
         return this->leafs_;
       }
 
     private:
-      std::list<const_data_buffer> leafs_;
+      guid channel_id_;
+      std::list<guid> leafs_;
     };
   }
 }

@@ -1,4 +1,6 @@
 
+#include <channel_link_dbo.h>
+#include <channel_record_dbo.h>
 #include "stdafx.h"
 #include "log_sync_service.h"
 #include "private/log_sync_service_p.h"
@@ -94,7 +96,33 @@ void vds::_log_sync_service::start(const vds::service_provider &sp) {
 void vds::_log_sync_service::sync_process(
     const vds::service_provider &sp,
     vds::database_transaction &t) {
+
+  std::map<guid, std::list<guid>> state;
+
+  orm::channel_link_dbo t1;
+  orm::channel_record_dbo t2;
+  auto st = t.get_reader(
+      t2
+          .select(t2.id, t2.channel_id)
+          .where(db_not_in(t2.id, t1.select(t1.ancestor_id))));
+  while(st.execute()){
+    auto id = t2.id.get(st);
+    auto channel_id = t2.channel_id.get(st);
+
+    state[channel_id].push_back(id);
+  }
+
   auto p2p = sp.get<p2p_network>();
+  for(auto p : state){
+    p2p->send(
+        sp,
+        p.first,
+        p2p_messages::channel_log_state(
+            p.first,
+            p.second).serialize());
+  }
+
+
 
   this->process_new_neighbors(p2p, sp, t);
 
