@@ -17,28 +17,30 @@ namespace vds {
 
       channel_log_request(
           const guid & channel_id,
-          const std::list<guid> & requests)
-      : channel_id_(channel_id), requests_(requests){
+          const std::list<const_data_buffer> & requests,
+          const guid & source_id)
+      : channel_id_(channel_id), requests_(requests), source_id_(source_id){
       }
 
       channel_log_request(
           binary_deserializer & s) {
-        s >> this->requests_ >> this->channel_id_;
+        s >> this->requests_ >> this->channel_id_ >> this->source_id_;
       }
 
       const_data_buffer serialize() const {
         binary_serializer s;
-        s << message_id << this->requests_ << this->channel_id_;
+        s << message_id << this->requests_ << this->channel_id_ << this->source_id_;
         return s.data();
       }
 
-	  const std::list<guid> & requests() const {
+	  const std::list<const_data_buffer> & requests() const {
 		  return this->requests_;
 	  }
 
     private:
       guid channel_id_;
-      std::list<guid> requests_;
+      std::list<const_data_buffer> requests_;
+      guid source_id_;
     };
   }
 }

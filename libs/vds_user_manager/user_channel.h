@@ -10,6 +10,7 @@ All rights reserved
 #include <guid.h>
 #include "const_data_buffer.h"
 #include "transaction_block.h"
+#include "transaction_log_record_dbo.h"
 
 namespace vds {
   class member_user;
@@ -60,6 +61,7 @@ namespace vds {
 		bool operator !() const {
 			return nullptr == this->impl_.get();
 		}
+
 
   private:
     std::shared_ptr<class _user_channel> impl_;

@@ -1,7 +1,6 @@
 #include <transactions/channel_create_transaction.h>
 #include "stdafx.h"
 #include "security_walker.h"
-#include "channel_message.h"
 #include "transactions/channel_add_writer_transaction.h"
 #include "vds_debug.h"
 #include "certificate_chain_dbo.h"
@@ -46,9 +45,7 @@ void vds::security_walker::load(
   orm::transaction_log_record_dbo t1;
   auto st = t.get_reader(
     t1.select(t1.data)
-    .where(
-      t1.channel_id == this->user_id_
-      && t1.state != (int)orm::transaction_log_record_dbo::state_t::none)
+    .where(t1.channel_id == this->user_id_)
     .order_by(t1.order_no));
 
   while (st.execute()) {

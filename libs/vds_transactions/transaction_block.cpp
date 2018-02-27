@@ -30,8 +30,7 @@ std::map<vds::guid, vds::const_data_buffer> vds::transactions::transaction_block
         const guid & channel_id,
         certificate & read_cert,
         certificate & write_cert,
-        asymmetric_private_key & write_private_key)> & crypto_callback,
-    bool apply /*= true*/) const {
+        asymmetric_private_key & write_private_key)> & crypto_callback) const {
   std::map<guid, vds::const_data_buffer> result;
   for(auto & p : this->data_) {
     vds_assert(0 != p.second.size());
@@ -61,9 +60,6 @@ std::map<vds::guid, vds::const_data_buffer> vds::transactions::transaction_block
         crypted.data());
 
     auto id = register_transaction(sp, t, p.first, crypted.data(), ancestors);
-    if (apply) {
-      transaction_log::apply_block(sp, t, id);
-    }
     on_new_transaction(sp, t, id, crypted.data());
 
     result[p.first] = id;
@@ -152,7 +148,7 @@ vds::const_data_buffer vds::transactions::transaction_block::register_transactio
       t2.id = vds::base64::from_bytes(id),
       t2.channel_id = channel_id,
       t2.data = block,
-      t2.state = (uint8_t)orm::transaction_log_record_dbo::state_t::validated));
+      t2.state = (uint8_t)orm::transaction_log_record_dbo::state_t::processed));
 
   for(auto & ancestor : ancestors){
     orm::transaction_log_record_dbo t1;

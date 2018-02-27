@@ -17,7 +17,7 @@ namespace vds {
 
       channel_log_state(
           const guid & channel_id,
-          const std::list<guid> & leafs)
+          const std::list<const_data_buffer> & leafs)
           : channel_id_(channel_id),
             leafs_(leafs) {
       }
@@ -37,13 +37,13 @@ namespace vds {
         return channel_id_;
       }
 
-      const std::list<guid> & leafs() const {
+      const std::list<const_data_buffer> & leafs() const {
         return this->leafs_;
       }
 
     private:
       guid channel_id_;
-      std::list<guid> leafs_;
+      std::list<const_data_buffer> leafs_;
     };
   }
 }

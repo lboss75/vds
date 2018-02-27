@@ -3,6 +3,7 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
+#include <transactions/channel_message_walker.h>
 #include "stdafx.h"
 #include "file_operations.h"
 #include "file.h"
@@ -25,7 +26,6 @@ All rights reserved
 #include "p2p_network.h"
 #include "messages/chunk_query_replica.h"
 #include "logger.h"
-#include "channel_message.h"
 #include "encoding.h"
 
 vds::file_manager::file_operations::file_operations()
@@ -97,23 +97,14 @@ vds::async_task<> vds::file_manager_private::_file_operations::upload_file(
                 mimetype,
                 file_blocks));
 
-    auto common_channel = user_mng->get_common_channel(sp);
-		auto common_channel_write_key = user_mng->get_channel_write_key(sp, user_mng->get_common_channel(sp).id());
 		log.save(
             sp,
             t,
-            [common_channel, common_channel_write_key](const guid & channel_id,
+            [](const guid & channel_id,
                certificate & read_cert,
                certificate & write_cert,
                asymmetric_private_key & write_private_key){
-              if(channel_id == common_channel.id()){
-                read_cert = common_channel.read_cert();
-			          write_cert = common_channel.write_cert();
-                write_private_key = common_channel_write_key;
-              }
-              else {
                 throw std::runtime_error("Invalid channel");
-              }
             });
 
 		return true;
@@ -129,47 +120,26 @@ vds::async_task<> vds::file_manager_private::_file_operations::download_file(
 	return vds::async_task<>([sp, task, pthis = this->shared_from_this()](const vds::async_result<> & result) {
 		sp.get<db_model>()->async_transaction(
 			sp,
-			[pthis, sp, task, result](database_transaction & t) {
+			[pthis, sp, task, result](database_transaction & t) -> bool{
         if(task->file_blocks().empty()) {
 
           auto user_mng = sp.get<user_manager>();
           auto channel = user_mng->get_channel(sp, task->channel_id());
 
-          dbo::channel_message t1;
-          auto st = t.get_reader(
-              t1
-                  .select(
-                      t1.id,
-                      t1.message_id,
-                      t1.message,
-                      t1.read_cert_id,
-                      t1.write_cert_id,
-                      t1.signature)
-                  .where(t1.channel_id == task->channel_id()
-                         && t1.message_id ==
-                            (int) transactions::transaction_id::file_add_transaction)
-                  .order_by(db_desc_order(t1.id)));
-          while (st.execute()) {
-            auto data = user_mng->decrypt_message(
-                sp,
-                task->channel_id(),
-                t1.message_id.get(st),
-                t1.read_cert_id.get(st),
-                t1.write_cert_id.get(st),
-                t1.message.get(st),
-                t1.signature.get(st));
+          user_mng->walk_messages(
+              sp,
+              task->channel_id(),
+              t,
+              [task](const transactions::file_add_transaction &message)->bool {
+                if (task->name() == message.name()) {
+                  task->set_file_blocks(
+                      message.mimetype(),
+                      message.file_blocks());
+                  return false;
+                }
 
-            binary_deserializer s(data);
-
-            transactions::file_add_transaction message(s);
-            if (task->name() == message.name()) {
-              task->set_file_blocks(message.mimetype(), message.file_blocks());
-            }
-
-            if (!task->mime_type().empty()) {
-              break;
-            }
-          }
+                return true;
+              });
         }
 
         auto runner = new _async_series(result, task->remote_block_count());

@@ -16,7 +16,6 @@ All rights reserved
 #include "private/cert_control_p.h"
 #include "transaction_context.h"
 #include "cert_control.h"
-#include "channel_message.h"
 #include "transactions/device_user_add_transaction.h"
 #include "run_configuration_dbo.h"
 #include "vds_exceptions.h"
@@ -103,12 +102,8 @@ vds::user_invitation vds::user_manager::reset(
           certificate & write_cert,
           asymmetric_private_key & write_private_key) {
           throw std::runtime_error("Invalid channel id");
-      },
-	  false);
+      });
   this->load(sp, t, device_user.id());
-  for(auto & p : blocks) {
-    transaction_log::apply_block(sp, t, p.second);
-  }
 
   return user_invitation(
 	  root_user.id(),
@@ -176,20 +171,9 @@ vds::async_task<> vds::user_manager::init_server(
          certificate & read_cert,
          certificate & write_cert,
          asymmetric_private_key & write_private_key){
-        if(channel_id == request.common_channel_id()){
-          read_cert = request.common_channel_read_cert();
-          write_cert = request.common_channel_write_cert();
-          write_private_key = request.common_channel_write_private_key();
-        }
-        else {
           throw std::runtime_error("Invalid channel");
-        }
-      },
-			false);
+      });
 		this->load(sp, t, device_user.id());
-    for(auto & p : blocks) {
-      transaction_log::apply_block(sp, t, p.second);
-    }
 
 		return true;
 	});
@@ -258,9 +242,7 @@ vds::user_manager::lock_to_device(
                                   const asymmetric_private_key &user_private_key,
                                   const std::string &device_name,
                                   const asymmetric_private_key &device_private_key,
-                                  const guid &common_channel_id, int port,
-	const certificate & common_channel_read_cert,
-	const asymmetric_private_key & common_channel_pkey) {
+                                  int port) {
 
   auto device_user = user.create_device_user(
       user_private_key,
@@ -273,10 +255,7 @@ vds::user_manager::lock_to_device(
           t3.id = device_user.id(),
           t3.cert = device_user.user_certificate().der(),
           t3.cert_private_key = device_private_key.der(std::string()),
-          t3.port = port,
-          t3.common_channel_id = common_channel_id,
-		  t3.common_channel_read_cert = common_channel_read_cert.der(),
-		  t3.common_channel_pkey = common_channel_pkey.der(std::string())));
+          t3.port = port));
   dbo::certificate_chain_dbo t4;
   for(auto & cert : certificate_chain)
   {
@@ -313,19 +292,20 @@ vds::certificate vds::user_manager::get_channel_write_cert(
 	return this->impl_->get_channel_write_cert(channel_id);
 }
 
-vds::certificate vds::user_manager::get_channel_write_cert(
-  const service_provider & sp,
-  const guid & channel_id,
-  const guid & cert_id) const
-{
-  return this->impl_->get_channel_write_cert(channel_id, cert_id);
-}
 
 vds::asymmetric_private_key vds::user_manager::get_channel_write_key(
   const service_provider & sp,
   const guid & channel_id) const
 {
 	return this->impl_->get_channel_write_key(channel_id);
+}
+
+vds::asymmetric_private_key vds::user_manager::get_channel_write_key(
+		const service_provider & sp,
+		const guid & channel_id,
+		const guid & cert_id) const
+{
+	return this->impl_->get_channel_write_key(channel_id, cert_id);
 }
 
 vds::certificate vds::user_manager::get_channel_read_cert(
@@ -340,6 +320,14 @@ vds::asymmetric_private_key vds::user_manager::get_channel_read_key(
   const guid & channel_id) const
 {
 	return this->impl_->get_channel_read_key(channel_id);
+}
+
+vds::asymmetric_private_key vds::user_manager::get_channel_read_key(
+		const service_provider & sp,
+		const guid & channel_id,
+		const guid & cert_id) const
+{
+	return this->impl_->get_channel_read_key(channel_id, cert_id);
 }
 
 vds::certificate vds::user_manager::get_certificate(

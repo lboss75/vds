@@ -156,7 +156,6 @@ void vds_mock::allow_write_channel(size_t client_index, const vds::guid &channel
 			vds::asymmetric_private_key root_user_private_key = this->root_user_invitation_.get_user_private_key();
 
             vds::security_walker walker(
-				user_mng->get_common_channel(sp).id(),
                 root_user.id(),
                 root_user.user_certificate(),
                 root_user_private_key);
@@ -203,7 +202,6 @@ void vds_mock::allow_write_channel(size_t client_index, const vds::guid &channel
 					root_user_private_key,
 					channel_write_private_key);
 
-            auto common_channel = user_mng->get_common_channel(sp);
             log.save(
                 sp,
                 t,
@@ -251,7 +249,6 @@ void vds_mock::allow_read_channel(size_t client_index, const vds::guid &channel_
             vds::asymmetric_private_key root_user_private_key = this->root_user_invitation_.get_user_private_key();
 
             vds::security_walker walker(
-                user_mng->get_common_channel(sp).id(),
                 root_user.id(),
                 root_user.user_certificate(),
                 root_user_private_key);
@@ -292,7 +289,6 @@ void vds_mock::allow_read_channel(size_t client_index, const vds::guid &channel_
                 root_user_private_key,
                 channel_read_private_key);
 
-            auto common_channel = user_mng->get_common_channel(sp);
             log.save(
                 sp,
                 t,
@@ -414,7 +410,6 @@ vds::user_channel vds_mock::create_channel(int index, const std::string &name) {
 
     auto root_user = this->root_user_invitation_.get_user();
 	auto root_private_key = this->root_user_invitation_.get_user_private_key();
-	auto common_channel = user_mng->get_common_channel(sp);
 
     auto read_private_key = vds::asymmetric_private_key::generate(
         vds::asymmetric_crypto::rsa4096());

@@ -1,6 +1,4 @@
 
-#include <channel_link_dbo.h>
-#include <channel_record_dbo.h>
 #include "stdafx.h"
 #include "log_sync_service.h"
 #include "private/log_sync_service_p.h"
@@ -104,12 +102,12 @@ void vds::_log_sync_service::sync_process(
 
 void vds::_log_sync_service::ask_unknown_records(const vds::service_provider &sp, vds::database_transaction &t,
                                             vds::p2p_network *p2p) const {
-  std::map<guid, std::list<guid>> record_ids;
+  std::map<guid, std::list<const_data_buffer>> record_ids;
   orm::transaction_log_unknown_record_dbo t1;
   auto st = t.get_reader(t1.select(t1.id, t1.channel_id));
 
   while(st.execute()){
-    record_ids[t1.channel_id.get(st)].push_back(t1.id.get(st));
+    record_ids[t1.channel_id.get(st)].push_back(base64::to_bytes(t1.id.get(st)));
   }
 
   for(auto p : record_ids){
@@ -128,19 +126,18 @@ void vds::_log_sync_service::send_current_state(
     const vds::service_provider &sp,
     vds::database_transaction &t,
     vds::p2p_network *p2p) const {
-  std::map<guid, std::list<guid>> state;
+  std::map<guid, std::list<const_data_buffer>> state;
 
-  orm::channel_link_dbo t1;
-  orm::channel_record_dbo t2;
+  orm::transaction_log_record_dbo t1;
   auto st = t.get_reader(
-      t2
-          .select(t2.id, t2.channel_id)
-          .where(db_not_in(t2.id, t1.select(t1.ancestor_id))));
+      t1
+          .select(t1.id, t1.channel_id)
+          .where(t1.state == (int)orm::transaction_log_record_dbo::state_t::leaf));
   while(st.execute()){
-    auto id = t2.id.get(st);
-    auto channel_id = t2.channel_id.get(st);
+    auto id = t1.id.get(st);
+    auto channel_id = t1.channel_id.get(st);
 
-    state[channel_id].push_back(id);
+    state[channel_id].push_back(base64::to_bytes(id));
   }
 
   for(auto p : state){

@@ -14,30 +14,13 @@ All rights reserved
 namespace vds {
   class transaction_log {
   public:
-
+/*
 	  static void save(
 		  const service_provider &sp,
 		  class database_transaction &t,
 		  const class const_data_buffer & block_id,
 		  const class const_data_buffer & block_data);
-
-	  static void apply_block(
-		  const service_provider & sp,
-		  class database_transaction &t,
-		  const const_data_buffer & block_id);
-
-  private:
-    static orm::transaction_log_record_dbo::state_t apply_block(
-        const service_provider &sp,
-        class database_transaction &t,
-        const class const_data_buffer & block_id,
-        const class const_data_buffer & block_data,
-        std::list<const_data_buffer> & followers);
-
-    static void apply_message(
-				const vds::service_provider &sp,
-        database_transaction &t,
-        const const_data_buffer &block_data);
+*/
   };
 
 }

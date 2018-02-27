@@ -87,6 +87,17 @@ namespace vds {
 		return asymmetric_private_key();
 	}
 
+	asymmetric_private_key get_channel_write_key(const guid &channel_id, const guid & cert_id) const {
+		auto p = this->channels_.find(channel_id);
+		if (this->channels_.end() != p) {
+			auto p1 = p->second.write_private_keys_.find(cert_id);
+			if (p->second.write_private_keys_.end() != p1) {
+				return p1->second;
+			}
+		}
+		return asymmetric_private_key();
+	}
+
 	certificate get_channel_read_cert(const guid &channel_id) const {
 		auto p = this->channels_.find(channel_id);
 		if (this->channels_.end() != p && p->second.current_read_certificate_) {
@@ -108,6 +119,17 @@ namespace vds {
 		}
 		return asymmetric_private_key();
 	}
+
+		asymmetric_private_key get_channel_read_key(const guid &channel_id, const guid &cert_id) const {
+			auto p = this->channels_.find(channel_id);
+			if (this->channels_.end() != p) {
+				auto p1 = p->second.read_private_keys_.find(cert_id);
+				if (p->second.read_private_keys_.end() != p1) {
+					return p1->second;
+				}
+			}
+			return asymmetric_private_key();
+		}
 
 	void add_read_certificate(
 		const guid & channel_id,

@@ -9,9 +9,11 @@ All rights reserved
 #include <memory>
 #include <string>
 #include <stdafx.h>
+#include <transactions/file_add_transaction.h>
 #include "transaction_block.h"
 #include "user_channel.h"
 #include "user_invitation.h"
+#include "transactions/channel_message_walker.h"
 
 namespace vds {
 
@@ -73,15 +75,87 @@ namespace vds {
 
     certificate get_channel_write_cert(const service_provider & sp, const guid &channel_id) const;
     asymmetric_private_key get_channel_write_key(const service_provider & sp, const guid &channel_id) const;
+    asymmetric_private_key get_channel_write_key(const service_provider & sp, const guid &channel_id, const guid &cert_id) const;
     certificate get_channel_write_cert(const service_provider & sp, const guid & channel_id, const guid & cert_id) const;
 
     certificate get_channel_read_cert(const service_provider & sp, const guid &channel_id) const;
     asymmetric_private_key get_channel_read_key(const service_provider & sp, const guid &channel_id) const;
+    asymmetric_private_key get_channel_read_key(const service_provider & sp, const guid &channel_id, const guid &cert_id) const;
     certificate get_certificate(const service_provider & sp, const guid &cert_id) const;
 
     member_user import_user(const certificate &user_cert);
 
     user_channel get_channel(const service_provider & sp, const guid &channel_id) const;
+
+    template <typename... handler_types>
+    void walk_messages(
+        const service_provider & sp,
+        const guid & channel_id,
+        database_transaction & t,
+        handler_types && ... handlers) const{
+
+      orm::transaction_log_record_dbo t1;
+      auto st = t.get_reader(
+          t1.select(t1.data)
+              .where(t1.channel_id == channel_id)
+              .order_by(t1.order_no));
+
+      transactions::channel_message_walker_lambdas<handler_types...> walker(
+          std::forward<handler_types>(handlers)...);
+      while (st.execute()) {
+        guid channel_id;
+        guid read_cert_id;
+        guid write_cert_id;
+        std::set<const_data_buffer> ancestors;
+        const_data_buffer crypted_data;
+        const_data_buffer crypted_key;
+        const_data_buffer signature;
+
+        transactions::transaction_block::parse_block(
+            t1.data.get(st),
+            channel_id,
+            read_cert_id,
+            write_cert_id,
+            ancestors,
+            crypted_data,
+            crypted_key,
+            signature);
+
+        auto write_cert = this->get_channel_write_cert(sp, write_cert_id);
+        if (!transactions::transaction_block::validate_block(
+            write_cert,
+            channel_id,
+            read_cert_id,
+            write_cert_id,
+            ancestors,
+            crypted_data,
+            crypted_key,
+            signature)) {
+          throw std::runtime_error("Write signature error");
+        }
+
+        auto read_cert_key = this->get_channel_read_key(sp, channel_id, write_cert_id);
+        const auto key_data = read_cert_key.decrypt(crypted_key);
+        const auto key = symmetric_key::deserialize(symmetric_crypto::aes_256_cbc(), key_data);
+        const auto data = symmetric_decrypt::decrypt(key, crypted_data);
+
+        binary_deserializer s(data);
+
+        uint8_t message_id;
+        s >> message_id;
+
+        bool bContinue = true;
+        switch ((transactions::transaction_id)message_id) {
+          case transactions::transaction_id::file_add_transaction:
+            bContinue = walker.visit(transactions::file_add_transaction(s));
+            break;
+        }
+
+        if(!bContinue){
+          break;
+        }
+      }
+    }
 
   private:
     std::shared_ptr<class _user_manager> impl_;

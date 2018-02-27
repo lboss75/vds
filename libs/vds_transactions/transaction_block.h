@@ -35,8 +35,7 @@ namespace vds {
               const guid & channel_id,
               certificate & read_cert,
               certificate & write_cert,
-              asymmetric_private_key & write_private_key)> & crypto_callback,
-		      bool apply = true) const;
+              asymmetric_private_key & write_private_key)> & crypto_callback) const;
 
       static void parse_block(
         const const_data_buffer & data,

@@ -18,89 +18,68 @@ namespace vds {
     template<typename implementation_class>
     class channel_message_walker {
     public:
-
-      void apply(
-          const certificate &cert,
-          const asymmetric_private_key &cert_key,
-          const const_data_buffer &message) {
-
-        const_data_buffer key_crypted;
-        const_data_buffer data_crypted;
-        binary_deserializer s(message);
-        s
-            >> key_crypted
-            >> data_crypted;
-
-        auto body_size = message.size() - s.size();
-
-        const_data_buffer signature;
-        s >> signature;
-
-        if (!asymmetric_sign_verify::verify(
-            hash::sha256(),
-            cert.public_key(),
-            signature,
-            message.data(),
-            body_size)) {
-          throw std::runtime_error("Data is corrupted");
-        }
-
-        auto key_data = cert_key.decrypt(key_crypted);
-        auto skey = symmetric_key::deserialize(
-            symmetric_crypto::aes_256_cbc(),
-            binary_deserializer(key_data));
-
-        auto message_data = symmetric_decrypt::decrypt(skey, data_crypted);
-
-        binary_deserializer message_stream(message_data);
-        uint8_t message_id;
-        message_stream >> message_id;
-        switch (message_id) {
-          case transactions::create_channel_transaction::message_id: {
-            static_cast<implementation_class *>(this)->apply(
-                transactions::create_channel_transaction(message_stream));
-            break;
-          }
-          case channel_add_message_transaction::add_device_user::message_id: {
-            static_cast<implementation_class *>(this)->apply(
-                channel_add_message_transaction::add_device_user(message_stream));
-            break;
-          }
-          default:
-            throw std::runtime_error("Data is corrupted");
-        }
-
-        if (0 != message_stream.size()) {
-          throw std::runtime_error("Data is corrupted");
-        }
+      bool visit(const transactions::create_channel_transaction &message) {
+        return true;
       }
 
-      void apply(const transactions::create_channel_transaction &message) {
-      }
-
-      void apply(const channel_add_message_transaction::add_device_user &message) {
+      bool visit(const channel_add_message_transaction::add_device_user &message) {
+        return true;
       }
     };
 
-    class channel_collect_certificate : public channel_message_walker<channel_collect_certificate> {
-    public:
+    template <typename functor_type, typename functor_signature>
+    class _functor_info;
 
-      void apply(const transactions::create_channel_transaction &message) {
+    template <typename functor_type, typename result, typename class_name, typename arg_type>
+    class _functor_info<functor_type, result(class_name::*)(arg_type) const>
+    {
+    public:
+      typedef typename std::remove_const<typename std::remove_reference<arg_type>::type>::type argument_type;
+    };
+
+    template <typename functor_type, typename result, typename class_name, typename arg_type>
+    class _functor_info<functor_type, result(class_name::*)(arg_type)>
+    {
+    public:
+      typedef typename std::remove_const<typename std::remove_reference<arg_type>::type>::type argument_type;
+    };
+
+    template <typename functor_type>
+    class functor_info : public _functor_info<functor_type, decltype(&functor_type::operator())>
+    {};
+
+    template <typename... handler_types>
+    class channel_message_walker_lambdas;
+
+    template <>
+    class channel_message_walker_lambdas<>
+    {
+    public:
+      channel_message_walker_lambdas() {
+      }
+    };
+
+    template <typename first_handler_type, typename... handler_types>
+    class channel_message_walker_lambdas<first_handler_type, handler_types...>
+        : public channel_message_walker_lambdas<handler_types...>
+    {
+      using base_class = channel_message_walker_lambdas<handler_types...>;
+    public:
+      channel_message_walker_lambdas(
+          first_handler_type && first_handler,
+          handler_types && ... handler)
+      : first_handler_(std::forward<first_handler_type>(first_handler)),
+          base_class(std::forward<handler_types>(handler)...) {
       }
 
-      void apply(const channel_add_message_transaction::add_device_user &message) {
-
+      bool visit(const typename functor_info<first_handler_type>::argument_type & message){
+        return this->first_handler_(message);
       }
 
     private:
-      struct cert_info {
-        certificate cert;
-        asymmetric_private_key cert_key;
-      };
-
-      std::map<guid, cert_info> certificates_;
-
+      first_handler_type first_handler_;
     };
+
   }
 }
 

@@ -16,7 +16,6 @@ namespace vds {
     public:
       enum class state_t : int {
         none,
-        validated,
         processed,
         leaf
       };
@@ -24,9 +23,6 @@ namespace vds {
         switch(value){
           case state_t::none:
             return "none";
-
-          case state_t::validated:
-            return "validated";
 
           case state_t::processed:
             return "processed";

@@ -40,12 +40,6 @@ namespace vds {
             << this->write_cert_id_;
       }
 
-      void apply(
-          const service_provider & sp,
-          database_transaction & t) const{
-
-      }
-
     private:
       guid owner_id_;
       guid read_cert_id_;
