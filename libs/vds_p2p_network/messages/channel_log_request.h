@@ -17,7 +17,7 @@ namespace vds {
 
       channel_log_request(
           const guid & channel_id,
-          const std::list<const_data_buffer> & requests)
+          const std::list<guid> & requests)
       : channel_id_(channel_id), requests_(requests){
       }
 

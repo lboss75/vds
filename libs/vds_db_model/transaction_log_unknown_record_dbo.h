@@ -24,7 +24,8 @@ namespace vds {
             id(this, "id"),
             follower_id(this, "follower_id") {}
 
-      database_column<std::string> id;
+      database_column<guid> id;
+      database_column<guid> channel_id;
       database_column<std::string> follower_id;
     };
   }

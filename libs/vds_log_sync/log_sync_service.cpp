@@ -97,6 +97,37 @@ void vds::_log_sync_service::sync_process(
     const vds::service_provider &sp,
     vds::database_transaction &t) {
 
+  auto p2p = sp.get<p2p_network>();
+  this->send_current_state(sp, t, p2p);
+  this->ask_unknown_records(sp, t, p2p);
+}
+
+void vds::_log_sync_service::ask_unknown_records(const vds::service_provider &sp, vds::database_transaction &t,
+                                            vds::p2p_network *p2p) const {
+  std::map<guid, std::list<guid>> record_ids;
+  orm::transaction_log_unknown_record_dbo t1;
+  auto st = t.get_reader(t1.select(t1.id, t1.channel_id));
+
+  while(st.execute()){
+    record_ids[t1.channel_id.get(st)].push_back(t1.id.get(st));
+  }
+
+  for(auto p : record_ids){
+    p2p->send_tentatively(
+        sp,
+        p.first,
+        p2p_messages::channel_log_request(
+            p.first,
+            p.second,
+            p2p->current_node_id()).serialize(),
+        1024);
+  }
+}
+
+void vds::_log_sync_service::send_current_state(
+    const vds::service_provider &sp,
+    vds::database_transaction &t,
+    vds::p2p_network *p2p) const {
   std::map<guid, std::list<guid>> state;
 
   orm::channel_link_dbo t1;
@@ -112,57 +143,15 @@ void vds::_log_sync_service::sync_process(
     state[channel_id].push_back(id);
   }
 
-  auto p2p = sp.get<p2p_network>();
   for(auto p : state){
-    p2p->send(
+    p2p->send_tentatively(
         sp,
         p.first,
         p2p_messages::channel_log_state(
             p.first,
-            p.second).serialize());
+            p.second).serialize(),
+        1024);
   }
-
-
-
-  this->process_new_neighbors(p2p, sp, t);
-
-  orm::transaction_log_unknown_record_dbo t1;
-  auto st = t.get_reader(t1.select(t1.id));
-
-  std::list<const_data_buffer> record_ids;
-  while(st.execute()){
-    auto record_id = t1.id.get(st);
-    record_ids.push_back(base64::to_bytes(record_id));
-    if(record_ids.size() > 10) {
-      this->request_unknown_records(sp, p2p, record_ids);
-      record_ids.clear();
-    }
-  }
-  if(!record_ids.empty()){
-    this->request_unknown_records(sp, p2p, record_ids);
-    return;
-  }
-
-  orm::transaction_log_record_dbo t2;
-  st = t.get_reader(
-      t2
-          .select(t2.id)
-          .where(t2.state == (uint8_t)orm::transaction_log_record_dbo::state_t::leaf));
-  while(st.execute()){
-    record_ids.push_back(base64::to_bytes(t2.id.get(st)));
-  }
-
-//  if(!record_ids.empty()){
-//    p2p->random_broadcast(sp, p2p_messages::channel_log_state(record_ids).serialize());
-//    return;
-//  }
-}
-
-void vds::_log_sync_service::request_unknown_records(
-    const service_provider &sp,
-    p2p_network *p2p,
-    const std::list<const_data_buffer> &record_ids) {
-//  p2p->random_broadcast(sp, p2p_messages::channel_log_request(record_ids).serialize());
 }
 
 void vds::_log_sync_service::get_statistic(
@@ -183,38 +172,6 @@ void vds::_log_sync_service::stop(const vds::service_provider &sp) {
 
 vds::async_task<> vds::_log_sync_service::prepare_to_stop(const vds::service_provider &sp) {
   return vds::async_task<>::empty();
-}
-
-void vds::_log_sync_service::process_new_neighbors(
-    p2p_network * p2p,
-    const vds::service_provider &sp,
-    vds::database_transaction &t) {
-
-  std::set<p2p::p2p_node_info> new_neighbors;
-//  auto neighbors = p2p->get_neighbors();
-//  for(auto & p : neighbors){
-//    if(this->neighbors_.end() == this->neighbors_.find(p)){
-//      new_neighbors.emplace(p);
-//    }
-//  }
-//
-//  this->neighbors_ = neighbors;
-
-  std::list<const_data_buffer> leafs;
-  orm::transaction_log_record_dbo t1;
-  auto st = t.get_reader(
-      t1.select(t1.id)
-          .where(t1.state == (uint8_t)orm::transaction_log_record_dbo::state_t::leaf));
-  while(st.execute()){
-    leafs.push_back(base64::to_bytes(t1.id.get(st)));
-  }
-
-  if(!leafs.empty()) {
-//    auto message = p2p_messages::channel_log_state(leafs).serialize();
-//    for (auto &p : new_neighbors) {
-//      p2p->send(sp, p.node_id, message);
-//    }
-  }
 }
 
 void vds::_log_sync_service::apply(const vds::service_provider &sp, const vds::guid &partner_id,

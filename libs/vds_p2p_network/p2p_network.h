@@ -23,6 +23,14 @@ namespace vds {
         const guid & device_id,
         const const_data_buffer & message);
 
+    void send_tentatively(
+        const service_provider & sp,
+        const guid & device_id,
+        const const_data_buffer & message,
+        size_t distance);
+
+    guid current_node_id() const;
+
     std::shared_ptr<class _p2p_network> operator -> () const {
       return this->impl_;
     }

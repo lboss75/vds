@@ -43,18 +43,17 @@ namespace vds {
     std::mutex state_mutex_;
     bool sycn_scheduled_;
 
-    std::set<p2p::p2p_node_info> neighbors_;
-
     void sync_process(const service_provider & sp, class database_transaction & t);
-    void request_unknown_records(
-        const service_provider &sp,
-        class p2p_network *p2p,
-        const std::list<const_data_buffer> &record_ids);
 
-    void process_new_neighbors(
-        class p2p_network * p2p,
-        const service_provider &sp,
-        class database_transaction &t);
+		void send_current_state(
+				const service_provider &sp,
+				database_transaction &t,
+				class p2p_network *p2p) const;
+
+		void ask_unknown_records(
+				const vds::service_provider &sp,
+				database_transaction &t,
+				class p2p_network *p2p) const;
   };
 
 }

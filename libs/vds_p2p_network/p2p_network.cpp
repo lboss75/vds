@@ -43,9 +43,17 @@ void vds::p2p_network::stop(const vds::service_provider &sp) {
   this->impl_.reset();
 }
 
-void vds::p2p_network::send(const vds::service_provider &sp, const vds::guid &device_id,
-                            const vds::const_data_buffer &message) {
+void vds::p2p_network::send(
+    const vds::service_provider &sp,
+    const vds::guid &device_id,
+    const vds::const_data_buffer &message) {
   this->impl_->send(sp, device_id, message);
+}
+
+void vds::p2p_network::send_tentatively(const vds::service_provider &sp, const vds::guid &device_id,
+                                        const vds::const_data_buffer &message, size_t distance) {
+  this->impl_->send_tentatively(sp, device_id, message, distance);
+
 }
 
 
@@ -204,5 +212,21 @@ void vds::_p2p_network::add_node(
     const std::shared_ptr<vds::_p2p_crypto_tunnel> &proxy_session) {
   this->route_->add_node(sp, id, proxy_session);
 
+}
+
+void vds::_p2p_network::send_tentatively(const vds::service_provider &sp, const vds::guid &device_id,
+                                    const vds::const_data_buffer &message, size_t distance) {
+  std::set<node_id_t> candidates;
+  this->route_->search_nodes(sp, device_id, distance, candidates);
+
+  size_t index = std::rand() % candidates.size();
+  for(auto & p : candidates){
+    if(0 == index--){
+      this->route_->send(
+          sp,
+          index,
+          message);
+    }
+  }
 }
 
