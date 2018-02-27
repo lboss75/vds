@@ -7,12 +7,6 @@
 
 vds::_udp_transport_queue::_udp_transport_queue()
 : current_state_(state_t::bof, state_t::failed) {
-  this->leak_detect_.name_ = "_udp_transport_queue";
-  this->leak_detect_.dump_callback_ = [this](leak_detect_collector * collector) {
-    for (auto & p : this->send_data_buffer_) {
-      collector->add(p);
-    }
-  };
 }
 
 void vds::_udp_transport_queue::continue_send_data(

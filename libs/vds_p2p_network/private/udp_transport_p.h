@@ -80,9 +80,6 @@ namespace vds {
     void handshake_completed(
         const service_provider &sp,
         const std::shared_ptr<_p2p_crypto_tunnel> & session);
-
-  public:
-    leak_detect_helper leak_detect_;
   };
 }
 

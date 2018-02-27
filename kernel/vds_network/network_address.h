@@ -5,8 +5,12 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
-
+#ifndef _WIN32
 #include <sys/socket.h>
+#else
+#include <ws2def.h>
+typedef ADDRESS_FAMILY sa_family_t;
+#endif
 
 namespace vds {
   class network_address {

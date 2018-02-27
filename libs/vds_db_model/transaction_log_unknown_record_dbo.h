@@ -22,9 +22,10 @@ namespace vds {
       transaction_log_unknown_record_dbo()
           : database_table("transaction_log_unknown_record"),
             id(this, "id"),
+            channel_id(this, "channel_id"),
             follower_id(this, "follower_id") {}
 
-      database_column<guid> id;
+      database_column<std::string> id;
       database_column<guid> channel_id;
       database_column<std::string> follower_id;
     };

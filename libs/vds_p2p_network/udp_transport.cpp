@@ -51,14 +51,6 @@ vds::_udp_transport::_udp_transport()
   timer_("UDP transport timer"),
 	is_closed_(false)
 {
-  this->leak_detect_.name_ = "_udp_transport";
-  this->leak_detect_.dump_callback_ = [this](leak_detect_collector * collector){
-    collector->add(this->server_);
-    collector->add(this->send_queue_);
-    for(auto p : this->sessions_){
-      collector->add(p.second);
-    }
-  };
 }
 
 vds::_udp_transport::~_udp_transport() {

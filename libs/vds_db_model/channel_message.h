@@ -11,7 +11,7 @@ All rights reserved
 #include "const_data_buffer.h"
 
 namespace vds {
-  namespace dbo {
+  namespace dbo {/*
     class channel_message : public database_table {
     public:
 
@@ -33,7 +33,7 @@ namespace vds {
       database_column<guid> write_cert_id;
       database_column<const_data_buffer> message;
       database_column<const_data_buffer> signature;
-    };
+    };*/
   }
 }
 

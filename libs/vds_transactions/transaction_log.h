@@ -25,8 +25,8 @@ namespace vds {
 		  const service_provider & sp,
 		  class database_transaction &t,
 		  const const_data_buffer & block_id);
-  private:
 
+  private:
     static orm::transaction_log_record_dbo::state_t apply_block(
         const service_provider &sp,
         class database_transaction &t,

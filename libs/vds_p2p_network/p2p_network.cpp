@@ -224,8 +224,9 @@ void vds::_p2p_network::send_tentatively(const vds::service_provider &sp, const 
     if(0 == index--){
       this->route_->send(
           sp,
-          index,
+          p,
           message);
+      break;
     }
   }
 }

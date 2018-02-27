@@ -38,6 +38,26 @@ namespace vds {
               asymmetric_private_key & write_private_key)> & crypto_callback,
 		      bool apply = true) const;
 
+      static void parse_block(
+        const const_data_buffer & data,
+        guid & channel_id,
+        guid & read_cert_id,
+        guid & write_cert_id,
+        std::set<const_data_buffer> & ancestors,
+        const_data_buffer & crypted_data,
+        const_data_buffer & crypted_key,
+        const_data_buffer & signature);
+
+      static bool validate_block(
+        const certificate & write_cert,
+        const guid & channel_id,
+        const guid & read_cert_id,
+        const guid & write_cert_id,
+        const std::set<const_data_buffer> & ancestors,
+        const const_data_buffer & crypted_data,
+        const const_data_buffer & crypted_key,
+        const const_data_buffer & signature);
+
     private:
       std::map<guid, binary_serializer> data_;
 

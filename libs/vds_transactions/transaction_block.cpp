@@ -48,12 +48,12 @@ std::map<vds::guid, vds::const_data_buffer> vds::transactions::transaction_block
 
     binary_serializer crypted;
     crypted
-        << p.first
-        << cert_control::get_id(read_cert)
-        << cert_control::get_id(write_cert)
-        << ancestors
-        << symmetric_encrypt::encrypt(key, p.second.data())
-        << read_cert.public_key().encrypt(key.serialize());
+      << p.first
+      << cert_control::get_id(read_cert)
+      << cert_control::get_id(write_cert)
+      << ancestors
+      << symmetric_encrypt::encrypt(key, p.second.data())
+      << write_cert.public_key().encrypt(key.serialize());
 
     crypted << asymmetric_sign::signature(
         hash::sha256(),
@@ -69,6 +69,54 @@ std::map<vds::guid, vds::const_data_buffer> vds::transactions::transaction_block
     result[p.first] = id;
   }
   return result;
+}
+
+void vds::transactions::transaction_block::parse_block(
+  const const_data_buffer & data,
+  guid & channel_id,
+  guid & read_cert_id,
+  guid & write_cert_id,
+  std::set<const_data_buffer> & ancestors,
+  const_data_buffer & crypted_data,
+  const_data_buffer & crypted_key,
+  const_data_buffer & signature) {
+
+  binary_deserializer crypted(data);
+  crypted
+    >> channel_id
+    >> read_cert_id
+    >> write_cert_id
+    >> ancestors
+    >> crypted_data
+    >> crypted_key
+    >> signature;
+
+  vds_assert(0 == crypted.size());
+}
+
+bool vds::transactions::transaction_block::validate_block(
+  const certificate & write_cert,
+  const guid & channel_id,
+  const guid & read_cert_id,
+  const guid & write_cert_id,
+  const std::set<const_data_buffer> & ancestors,
+  const const_data_buffer & crypted_data,
+  const const_data_buffer & crypted_key,
+  const const_data_buffer & signature) {
+
+  vds_assert(cert_control::get_id(write_cert) == write_cert_id);
+
+  return asymmetric_sign_verify::verify(
+    hash::sha256(),
+    write_cert.public_key(),
+    signature,
+    (binary_serializer()
+      << channel_id
+      << read_cert_id
+      << write_cert_id
+      << ancestors
+      << crypted_key
+      << crypted_data).data());
 }
 
 void vds::transactions::transaction_block::collect_dependencies(

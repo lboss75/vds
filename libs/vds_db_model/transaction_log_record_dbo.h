@@ -44,12 +44,15 @@ namespace vds {
             id(this, "id"),
             channel_id(this, "channel_id"),
             data(this, "data"),
-            state(this, "state") {}
+            state(this, "state"),
+            order_no(this, "order_no") {
+      }
 
       database_column<std::string> id;
       database_column<guid> channel_id;
       database_column<const_data_buffer> data;
       database_column<int> state;
+      database_column<int> order_no;
     };
   }
 }

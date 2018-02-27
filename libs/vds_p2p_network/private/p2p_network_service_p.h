@@ -41,9 +41,6 @@ namespace vds {
     void start_network(const service_provider &sp, int port);
 
     bool do_backgroud_tasks(const service_provider &sp);
-
-  public:
-    leak_detect_helper leak_detect_;
   };
 
 }

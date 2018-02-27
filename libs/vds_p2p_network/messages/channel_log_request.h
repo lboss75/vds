@@ -32,13 +32,13 @@ namespace vds {
         return s.data();
       }
 
-	  const std::list<const_data_buffer> & requests() const {
+	  const std::list<guid> & requests() const {
 		  return this->requests_;
 	  }
 
     private:
       guid channel_id_;
-      std::list<const_data_buffer> requests_;
+      std::list<guid> requests_;
     };
   }
 }

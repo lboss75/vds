@@ -16,7 +16,6 @@ namespace vds {
   class security_walker {
   public:
     security_walker(
-		const guid & common_channel_id,
         const guid & user_id,
         const certificate & user_cert,
         const asymmetric_private_key & user_private_key);
@@ -169,7 +168,6 @@ namespace vds {
 
 
   private:
-	const guid common_channel_id_;
     const guid user_id_;
     const certificate user_cert_;
     const asymmetric_private_key user_private_key_;
@@ -182,7 +180,7 @@ namespace vds {
       std::map<guid, asymmetric_private_key> write_private_keys_;
 
       guid current_read_certificate_;
-	  guid current_write_certificate_;
+	    guid current_write_certificate_;
 
       std::string name_;
     };

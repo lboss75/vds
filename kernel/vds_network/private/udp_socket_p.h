@@ -222,7 +222,6 @@ namespace vds {
       {
         return [pthis = this->shared_from_this()](const async_result<const udp_datagram &> & result){
           auto this_ = static_cast<_udp_receive *>(pthis.get());
-          this_->addr_len_ = sizeof(sockaddr_in);
           this_->wsa_buf_.len = sizeof(this_->buffer_);
           this_->wsa_buf_.buf = (CHAR *)this_->buffer_;
           this_->result_ = result;
@@ -237,8 +236,8 @@ namespace vds {
             1,
             &numberOfBytesRecvd,
             &flags,
-            (struct sockaddr *)&this_->addr_,
-            &this_->addr_len_,
+            this_->addr_,
+            this_->addr_.size_ptr(),
             &this_->overlapped_,
             NULL)) {
             auto errorCode = WSAGetLastError();
@@ -266,14 +265,13 @@ namespace vds {
       SOCKET_HANDLE s_;
       async_result<const udp_datagram &> result_;
 
-      sockaddr_in addr_;
-      socklen_t addr_len_;
+      network_address addr_;
       uint8_t buffer_[64 * 1024];
 
       void process(DWORD dwBytesTransfered) override
       {
         auto pthis = this->shared_from_this();
-		this->sp_.get<logger>()->trace("UDP", this->sp_, "Readed %d", dwBytesTransfered);
+		    this->sp_.get<logger>()->trace("UDP", this->sp_, "Readed %d", dwBytesTransfered);
         this->result_.done(_udp_datagram::create(this->addr_, this->buffer_, (size_t)dwBytesTransfered));
       }
 
@@ -309,7 +307,7 @@ namespace vds {
             this_->result_ = result;
 
 			this_->sp_.get<logger>()->trace("UDP", this_->sp_, "WSASendTo");
-			if (NOERROR != WSASendTo(this_->s_, &this_->wsa_buf_, 1, NULL, 0, (const sockaddr *)this_->buffer_->addr(), sizeof(sockaddr_in), &this_->overlapped_, NULL)) {
+			if (NOERROR != WSASendTo(this_->s_, &this_->wsa_buf_, 1, NULL, 0, this_->buffer_->address(), this_->buffer_->address().size(), &this_->overlapped_, NULL)) {
               auto errorCode = WSAGetLastError();
               if (WSA_IO_PENDING != errorCode) {
                 result.error(std::make_shared<std::system_error>(errorCode, std::system_category(), "WSASend failed"));
