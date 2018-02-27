@@ -21,11 +21,6 @@ vds::const_data_buffer vds::user_invitation::pack(const std::string& user_passwo
 		<< this->user_name_
 		<< this->user_certificate_
 		<< this->user_private_key_.der(user_password)
-		<< this->common_channel_id_
-		<< this->common_channel_read_cert_
-		<< this->common_channel_read_private_key_.der(user_password)
-		<< this->common_channel_write_cert_
-		<< this->common_channel_write_private_key_.der(user_password)
 		<< this->certificate_chain_
 		<< asymmetric_sign::signature(
 			hash::sha256(), 
@@ -35,11 +30,6 @@ vds::const_data_buffer vds::user_invitation::pack(const std::string& user_passwo
 				<< this->user_name_
 				<< this->user_certificate_
 				<< this->user_private_key_.der(user_password)
-				<< this->common_channel_id_
-				<< this->common_channel_read_cert_
-				<< this->common_channel_read_private_key_.der(user_password)
-				<< this->common_channel_write_cert_
-				<< this->common_channel_write_private_key_.der(user_password)
 				<< this->certificate_chain_
 				<< hash::signature(hash::md5(), user_password.c_str(), user_password.length())).data())).data();
 }
@@ -50,11 +40,6 @@ vds::user_invitation vds::user_invitation::unpack(const const_data_buffer& data,
 	std::string user_name;
 	certificate user_cert;
 	const_data_buffer user_key_data;
-	guid common_channel_id;
-	certificate common_channel_read_cert;
-	const_data_buffer common_channel_private_key;
-	certificate common_channel_write_cert;
-	const_data_buffer common_channel_write_private_key;
 
 	std::list<certificate> certificate_chain;
 	const_data_buffer signature;
@@ -65,11 +50,6 @@ vds::user_invitation vds::user_invitation::unpack(const const_data_buffer& data,
 		>> user_name
 		>> user_cert
 		>> user_key_data
-		>> common_channel_id
-		>> common_channel_read_cert
-		>> common_channel_private_key
-		>> common_channel_write_cert
-		>> common_channel_write_private_key
 		>> certificate_chain
 		>> signature;
 
@@ -79,9 +59,6 @@ vds::user_invitation vds::user_invitation::unpack(const const_data_buffer& data,
 			<< user_name
 			<< user_cert
 			<< user_key_data
-			<< common_channel_id
-			<< common_channel_read_cert
-			<< common_channel_private_key
 			<< certificate_chain
 			<< hash::signature(hash::md5(), user_password.c_str(), user_password.length())).data()))
 	{
@@ -95,10 +72,5 @@ vds::user_invitation vds::user_invitation::unpack(const const_data_buffer& data,
 		user_name,
 		user_cert,
 		asymmetric_private_key::parse_der(user_key_data, user_password),
-		common_channel_id,
-		common_channel_read_cert,
-		asymmetric_private_key::parse_der(common_channel_private_key, user_password),
-		common_channel_write_cert,
-		asymmetric_private_key::parse_der(common_channel_write_private_key, user_password),
 		certificate_chain);
 }

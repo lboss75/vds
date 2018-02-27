@@ -36,24 +36,6 @@ namespace vds {
 		const service_provider & sp, 
 		class database_transaction &t);
 
-    const_data_buffer decrypt_message(
-        const service_provider & parent_scope,
-        const guid & channel_id,
-        int message_id,
-        const guid & read_cert_id,
-        const guid & write_cert_id,
-        const const_data_buffer & message_data,
-        const const_data_buffer & signature);
-
-
-      void apply(
-		const service_provider & sp,
-        const guid & channel_id,
-        int message_id,
-        const guid & read_cert_id,
-        const guid & write_cert_id,
-        const const_data_buffer & message,
-        const const_data_buffer & signature);
 
     bool get_channel_write_certificate(
 		const guid &channel_id,
@@ -125,24 +107,6 @@ namespace vds {
 			}
 		}
 		return asymmetric_private_key();
-	}
-
-	asymmetric_private_key get_common_channel_read_key(const guid & cert_id) const {
-		auto p = this->channels_.find(this->common_channel_id_);
-		if (this->channels_.end() == p) {
-			throw std::runtime_error("Invalid logic");
-		}
-
-		auto p1 = p->second.read_private_keys_.find(cert_id);
-		if (p->second.read_private_keys_.end() == p1) {
-			throw std::runtime_error("Invalid logic");
-		}
-
-		return p1->second;
-	}
-
-	guid get_common_channel_id() const {
-		return this->common_channel_id_;
 	}
 
 	void add_read_certificate(

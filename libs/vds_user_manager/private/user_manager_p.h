@@ -17,10 +17,7 @@ namespace vds {
       const guid& id,
       const certificate& device_cert,
       const asymmetric_private_key& device_private_key,
-      const uint16_t port,
-      const guid& common_channel_id,
-      const certificate& common_channel_read_cert,
-      const asymmetric_private_key& common_channel_pkey);
+      const uint16_t port);
 
     member_user get_current_device(
         const service_provider &sp,
@@ -33,9 +30,6 @@ namespace vds {
     certificate device_cert_;
     asymmetric_private_key device_private_key_;
     uint16_t port_;
-    guid common_channel_id_;
-    certificate common_channel_read_cert_;
-    asymmetric_private_key common_channel_pkey_;
   };
 }
 

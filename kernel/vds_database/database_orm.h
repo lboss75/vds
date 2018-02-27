@@ -31,6 +31,9 @@ namespace vds {
   class _database_expression_equ_exp;
 
   template<typename left_exp_type, typename right_exp_type>
+  class _database_expression_not_equ_exp;
+
+  template<typename left_exp_type, typename right_exp_type>
   class _database_expression_less_or_equ_exp;
 
   template<typename value_type>

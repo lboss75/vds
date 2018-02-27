@@ -44,7 +44,7 @@ void vds::user_manager::load(
 	dbo::run_configuration t1;
 	auto st = t.get_reader(
     t1
-    .select(t1.cert, t1.cert_private_key, t1.common_channel_id, t1.common_channel_read_cert, t1.common_channel_pkey, t1.port)
+    .select(t1.cert, t1.cert_private_key, t1.port)
     .where(t1.id == config_id));
 	if (!st.execute()) {
 		throw std::runtime_error("Unable to get current configuration");
@@ -54,10 +54,7 @@ void vds::user_manager::load(
     config_id,
     certificate::parse_der(t1.cert.get(st)),
     asymmetric_private_key::parse_der(t1.cert_private_key.get(st), std::string()),
-    safe_cast<uint16_t>(t1.port.get(st)),
-    t1.common_channel_id.get(st),
-    certificate::parse_der(t1.common_channel_read_cert.get(st)),
-    asymmetric_private_key::parse_der(t1.common_channel_pkey.get(st), std::string())));
+    safe_cast<uint16_t>(t1.port.get(st))));
 
 	this->impl_->load(sp, t);
 }
@@ -81,21 +78,6 @@ vds::user_invitation vds::user_manager::reset(
 	  root_user.id().str().c_str(),
 	  cert_control::get_id(root_user.user_certificate()).str().c_str());
 
-  //Create common channel
-  asymmetric_private_key common_read_private_key;
-  asymmetric_private_key common_write_private_key;
-  auto common_channel = this->create_channel(
-	  sp,
-	  playback,
-	  t,
-	  common_channel_id,
-	  "Common channel",
-	  root_user.id(),
-      root_user.user_certificate(),
-      root_private_key,
-	  common_read_private_key,
-	  common_write_private_key);
-
   //Lock to device
   std::list<certificate> certificate_chain;
   certificate_chain.push_back(root_user.user_certificate());
@@ -104,44 +86,23 @@ vds::user_invitation vds::user_manager::reset(
       sp, t, playback,
 	  certificate_chain,
 	  root_user, root_user_name, root_password, root_private_key,
-      device_name, device_key, common_channel_id, port,
-	  common_channel.read_cert(), common_read_private_key);
+      device_name, device_key, port);
 
   playback.add(
 			root_user.id(),
       transactions::device_user_add_transaction(
           device_user.id(),
           device_user.user_certificate()));
-  //
-  common_channel.add_reader(
-	  playback,
-	  device_user,
-	  root_user,
-	  root_private_key,
-	  common_read_private_key);
-
-  common_channel.add_writer(
-	  playback,
-	  device_user,
-	  root_user,
-	  root_private_key,
-	  common_write_private_key);
 
   auto blocks = playback.save(
       sp,
       t,
-      [&common_channel, common_write_private_key](
+      [](
           const guid & channel_id,
           certificate & read_cert,
           certificate & write_cert,
           asymmetric_private_key & write_private_key) {
-        if (channel_id == common_channel.id()) {
-          read_cert = common_channel.read_cert();
-          write_cert = common_channel.write_cert();
-          write_private_key = common_write_private_key;
-        } else {
           throw std::runtime_error("Invalid channel id");
-        }
       },
 	  false);
   this->load(sp, t, device_user.id());
@@ -154,11 +115,6 @@ vds::user_invitation vds::user_manager::reset(
 	  root_user_name,
 	  root_user.user_certificate(),
 	  root_private_key,
-	  common_channel_id,
-	  common_channel.read_cert(),
-	  common_read_private_key,
-	  common_channel.write_cert(),
-	  common_write_private_key,
 	  std::list<certificate>());
 }
 
@@ -172,10 +128,6 @@ vds::async_task<> vds::user_manager::init_server(
 	auto sp = parent_sp.create_scope(__FUNCTION__);
 	return sp.get<db_model>()->async_transaction(sp, [this, sp, request, user_password, device_name, port](database_transaction & t)
 	{
-		sp.get<logger>()->info("UDPAPI", sp, "Read certificate %s for channel %s",
-			cert_control::get_id(request.common_channel_read_cert()).str().c_str(),
-			request.common_channel_id().str().c_str());
-
 		//save certificates
 		dbo::certificate_chain_dbo t1;
 		for (auto &cert : request.certificate_chain()) {
@@ -210,39 +162,7 @@ vds::async_task<> vds::user_manager::init_server(
 			request.get_user_private_key(),
 			device_name, 
 			private_key,
-			request.common_channel_id(),
-			port,
-			request.common_channel_read_cert(),
-			request.common_channel_read_private_key());
-
-		user_channel channel(
-			request.common_channel_id(),
-			"Common channel",
-			request.common_channel_read_cert(),
-			request.common_channel_write_cert());
-
-		sp.get<logger>()->trace(
-			"UDPAPI",
-			sp,
-			"Allow read/write common channel (%s->%s) by local device user(%s->%s)",
-			request.common_channel_id().str().c_str(),
-			cert_control::get_id(request.common_channel_read_cert()).str().c_str(),
-			device_user.id().str().c_str(),
-			cert_control::get_id(device_user.user_certificate()).str().c_str());
-
-		channel.add_reader(
-			log,
-			device_user,
-			user, 
-			request.get_user_private_key(),
-			request.common_channel_read_private_key());
-
-		channel.add_writer(
-			log,
-			device_user,
-			user,
-			request.get_user_private_key(),
-			request.common_channel_write_private_key());
+			port);
 
 		log.add(
       user.id(),
@@ -429,24 +349,12 @@ vds::certificate vds::user_manager::get_certificate(
 	return this->impl_->get_certificate(cert_id);
 }
 
-vds::asymmetric_private_key vds::user_manager::get_common_channel_read_key(
-  const service_provider & sp,
-  const guid & cert_id) const
-{
-	return this->impl_->get_common_channel_read_key(cert_id);
-}
-
 
 vds::user_channel vds::user_manager::get_channel(
   const service_provider & sp,
   const guid & channel_id) const
 {
 	return this->impl_->get_channel(channel_id);
-}
-
-vds::user_channel vds::user_manager::get_common_channel(const service_provider & sp) const {
-	auto id = this->impl_->get_common_channel_id();
-  return this->get_channel(sp, id);
 }
 
 vds::member_user vds::user_manager::create_root_user(transactions::transaction_block &playback, database_transaction &t,
@@ -471,67 +379,20 @@ vds::member_user vds::user_manager::create_root_user(transactions::transaction_b
   return member_user(new _member_user(root_user_id, root_user_cert));
 }
 
-void vds::user_manager::apply_channel_message(
-	const service_provider & sp,
-	const guid & channel_id,
-	int message_id,
-	const guid & read_cert_id,
-	const guid & write_cert_id,
-	const const_data_buffer & message,
-	const const_data_buffer & signature) const
-{
-	this->impl_->apply(
-		sp,
-		channel_id,
-		message_id,
-		read_cert_id,
-		write_cert_id,
-		message,
-		signature);
-}
-
-vds::guid vds::user_manager::get_common_channel_id(const service_provider & sp) const
-{
-	return this->impl_->get_common_channel_id();
-}
-
-vds::const_data_buffer
-vds::user_manager::decrypt_message(const vds::service_provider &parent_scope, const vds::guid &channel_id,
-                                   int message_id, const vds::guid &read_cert_id, const vds::guid &write_cert_id,
-                                   const vds::const_data_buffer &message_data,
-                                   const vds::const_data_buffer &signature) const {
-  return this->impl_->decrypt_message(
-      parent_scope,
-      channel_id,
-      message_id,
-      read_cert_id,
-      write_cert_id,
-      message_data,
-      signature);
-}
-
 ////////////////////////////////////////////////////////////////////////
 vds::_user_manager::_user_manager(
   const guid& id,
   const certificate& device_cert,
   const asymmetric_private_key& device_private_key,
-  const uint16_t port,
-  const guid& common_channel_id,
-  const certificate& common_channel_read_cert,
-  const asymmetric_private_key& common_channel_pkey)
+  const uint16_t port)
 	: security_walker(
-		common_channel_id,
 		cert_control::get_user_id(device_cert),
 		device_cert,
 		device_private_key),
 		id_(id),
 		device_cert_(device_cert),
 		device_private_key_(device_private_key),
-		port_(port),
-		common_channel_id_(common_channel_id),
-		common_channel_read_cert_(common_channel_read_cert),
-		common_channel_pkey_(common_channel_pkey) {
-  this->add_read_certificate(common_channel_id, common_channel_read_cert, common_channel_pkey);
+		port_(port) {
 }
 
 vds::member_user vds::_user_manager::get_current_device(const service_provider & sp, asymmetric_private_key & device_private_key) const
