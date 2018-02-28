@@ -104,8 +104,8 @@ vds::transactions::transaction_block::validate_block(const certificate &write_ce
       << read_cert_id
       << write_cert_id
       << ancestors
-      << crypted_key
-      << crypted_data).data());
+      << crypted_data
+      << crypted_key).data());
 }
 
 uint64_t vds::transactions::transaction_block::collect_dependencies(
