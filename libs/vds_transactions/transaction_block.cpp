@@ -150,7 +150,7 @@ vds::const_data_buffer vds::transactions::transaction_block::register_transactio
       t2.id = vds::base64::from_bytes(id),
       t2.channel_id = channel_id,
       t2.data = block,
-      t2.state = (uint8_t)orm::transaction_log_record_dbo::state_t::validated,
+      t2.state = (uint8_t)orm::transaction_log_record_dbo::state_t::leaf,
       t2.order_no = order_no));
 
   for(auto & ancestor : ancestors){

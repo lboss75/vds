@@ -36,11 +36,11 @@ namespace vds {
         const node_id_t &device_id,
         const vds::const_data_buffer &message);
 
-		void send_tentatively(
-				const service_provider & sp,
-				const guid & device_id,
-				const const_data_buffer & message,
-				size_t distance);
+		bool send_tentatively(
+        const service_provider &sp,
+        const guid &device_id,
+        const const_data_buffer &message,
+        size_t distance);
 
     void process_input_command(
         const service_provider &sp,

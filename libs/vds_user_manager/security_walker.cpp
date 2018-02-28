@@ -1,4 +1,5 @@
 #include <transactions/channel_create_transaction.h>
+#include <transactions/device_user_add_transaction.h>
 #include "stdafx.h"
 #include "security_walker.h"
 #include "transactions/channel_add_writer_transaction.h"
@@ -147,7 +148,9 @@ void vds::security_walker::load(
 
           break;
         }
-        case transactions::transaction_id::channel_remove_reader_transaction: {
+
+        case transactions::transaction_id::device_user_add_transaction: {
+          transactions::device_user_add_transaction message(s);
           break;
         }
 
