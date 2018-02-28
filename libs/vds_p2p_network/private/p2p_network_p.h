@@ -60,6 +60,8 @@ namespace vds {
         const service_provider &sp,
         const node_id_t & id,
         const std::shared_ptr<_p2p_crypto_tunnel> & proxy_session);
+
+		guid current_node_id() const;
   private:
     p2p_network_service network_service_;
     p2p_route route_;

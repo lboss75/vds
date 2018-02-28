@@ -56,6 +56,10 @@ void vds::p2p_network::send_tentatively(const vds::service_provider &sp, const v
 
 }
 
+vds::guid vds::p2p_network::current_node_id() const {
+  return this->impl_->current_node_id();
+}
+
 
 //////////////////////////////////
 vds::_p2p_network::_p2p_network()
@@ -229,5 +233,9 @@ void vds::_p2p_network::send_tentatively(const vds::service_provider &sp, const 
       break;
     }
   }
+}
+
+vds::guid vds::_p2p_network::current_node_id() const {
+  return this->route_->current_node_id().device_id();
 }
 
