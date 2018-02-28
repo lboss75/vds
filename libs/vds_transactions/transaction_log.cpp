@@ -93,14 +93,13 @@ void vds::transaction_log::save(
                  : (int)orm::transaction_log_record_dbo::state_t::stored,
       t2.order_no));
 
-  std::list<const_data_buffer> followers;
-
-  t.execute(t2.insert(
-      t2.id = base64::from_bytes(block_id),
-      t2.data = block_data,
-      t2.state = (uint8_t)state));
-
   orm::transaction_log_unknown_record_dbo t4;
+  std::set<const_data_buffer> followers;
+  st = t.get_reader(t4.select(t4.follower_id).where(t4.id == base64::from_bytes(block_id)));
+  while(st.execute()){
+    followers.emplace(t4.id.get(st));
+  }
+
   for (auto &p : followers) {
     sp.get<logger>()->trace(
         ThisModule,
