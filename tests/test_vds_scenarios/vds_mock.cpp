@@ -434,10 +434,16 @@ vds::user_channel vds_mock::create_channel(int index, const std::string &name) {
     log.save(
         sp,
         t,
-        [sp, user_mng](const vds::guid & channel_id,
+        [sp, user_mng, &root_user, &root_private_key](const vds::guid & channel_id,
                        vds::certificate & read_cert,
                        vds::certificate & write_cert,
                        vds::asymmetric_private_key & write_private_key){
+          if(root_user.id() == channel_id){
+            read_cert = root_user.user_certificate();
+            write_cert = root_user.user_certificate();
+            write_private_key = root_private_key;
+            return;
+          }
           auto channel = user_mng->get_channel(sp, channel_id);
           if(!channel){
             throw std::runtime_error("Invalid channel");

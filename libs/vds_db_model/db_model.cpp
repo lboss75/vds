@@ -66,15 +66,6 @@ void vds::db_model::migrate(
 		  version INTEGER NOT NULL,\
 		  installed DATETIME NOT NULL)");
 
-    t.execute("CREATE TABLE channel_message(\
-			id INTEGER PRIMARY KEY AUTOINCREMENT,\
-      channel_id VARCHAR(64) NOT NULL,\
-      message_id INT NOT NULL,\
-			read_cert_id VARCHAR(64) NOT NULL,\
-      write_cert_id VARCHAR(64) NOT NULL,\
-			message BLOB NOT NULL,\
-			signature BLOB NOT NULL)");
-
 		t.execute("CREATE TABLE chunk_data (\
 			id VARCHAR(64) PRIMARY KEY NOT NULL,\
 			block_key BLOB NOT NULL)");
@@ -83,10 +74,7 @@ void vds::db_model::migrate(
 			id VARCHAR(64) PRIMARY KEY NOT NULL,\
 			cert BLOB NOT NULL,\
       cert_private_key BLOB NOT NULL,\
-			port INTEGER,\
-			common_channel_id VARCHAR(64) NOT NULL,\
-			common_channel_read_cert BLOB NOT NULL,\
-			common_channel_pkey BLOB NOT NULL)");
+			port INTEGER)");
 
 		t.execute("CREATE TABLE well_known_node(\
 			id VARCHAR(64) PRIMARY KEY NOT NULL,\
@@ -94,11 +82,14 @@ void vds::db_model::migrate(
 
 		t.execute("CREATE TABLE transaction_log_record(\
 			id VARCHAR(64) PRIMARY KEY NOT NULL,\
+      channel_id VARCHAR(64) NOT NULL,\
       data BLOB NOT NULL,\
-			state INTEGER NOT NULL)");
+			state INTEGER NOT NULL,\
+			order_no INTEGER NOT NULL)");
 
 		t.execute("CREATE TABLE transaction_log_unknown_record(\
 			id VARCHAR(64) NOT NULL,\
+      channel_id VARCHAR(64) NOT NULL,\
       follower_id VARCHAR(64) NOT NULL,\
 			CONSTRAINT pk_transaction_log_unknown_record PRIMARY KEY(id,follower_id))");
 

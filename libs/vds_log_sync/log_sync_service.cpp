@@ -146,7 +146,8 @@ void vds::_log_sync_service::send_current_state(
         p.first,
         p2p_messages::channel_log_state(
             p.first,
-            p.second).serialize(),
+            p.second,
+            p2p->current_node_id()).serialize(),
         1024);
   }
 }

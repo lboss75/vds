@@ -124,8 +124,7 @@ vds::async_task<> vds::_p2p_network::start_network(const vds::service_provider &
 
     return true;
   }).then([sp, run_conf, pthis = this->shared_from_this()]() {
-    auto result = async_task<>::empty();
-    pthis->network_service_.start(sp, run_conf->port, run_conf->cert_chain, run_conf->key);
+    return pthis->network_service_.start(sp, run_conf->port, run_conf->cert_chain, run_conf->key);
   });
 }
 

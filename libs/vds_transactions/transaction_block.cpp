@@ -60,7 +60,7 @@ std::map<vds::guid, vds::const_data_buffer> vds::transactions::transaction_block
         write_private_key,
         crypted.data());
 
-    auto id = register_transaction(sp, t, p.first, crypted.data(), ancestors);
+    auto id = register_transaction(sp, t, p.first, crypted.data(), order_no, ancestors);
     on_new_transaction(sp, t, id, crypted.data());
 
     result[p.first] = id;
@@ -140,6 +140,7 @@ vds::const_data_buffer vds::transactions::transaction_block::register_transactio
     vds::database_transaction &t,
     const guid & channel_id,
     const const_data_buffer &block,
+    uint64_t order_no,
     const std::set<const_data_buffer> &ancestors) const {
 
   auto id = hash::signature(hash::sha256(), block);
@@ -149,12 +150,13 @@ vds::const_data_buffer vds::transactions::transaction_block::register_transactio
       t2.id = vds::base64::from_bytes(id),
       t2.channel_id = channel_id,
       t2.data = block,
-      t2.state = (uint8_t)orm::transaction_log_record_dbo::state_t::processed));
+      t2.state = (uint8_t)orm::transaction_log_record_dbo::state_t::validated,
+      t2.order_no = order_no));
 
   for(auto & ancestor : ancestors){
     orm::transaction_log_record_dbo t1;
     t.execute(
-        t1.update(t1.state = (uint8_t)orm::transaction_log_record_dbo::state_t::processed)
+        t1.update(t1.state = (uint8_t)orm::transaction_log_record_dbo::state_t::validated)
             .where(t1.id == base64::from_bytes(ancestor)));
   }
   

@@ -466,6 +466,7 @@ namespace vds {
                       std::generic_category(),
                       "Send to " + this->write_message_->address().to_string()));
             }
+            return;
           }
         
           if((size_t)len != size){
