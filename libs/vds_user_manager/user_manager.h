@@ -104,6 +104,7 @@ namespace vds {
           std::forward<handler_types>(handlers)...);
       while (st.execute()) {
         guid channel_id;
+        uint64_t order_no;
         guid read_cert_id;
         guid write_cert_id;
         std::set<const_data_buffer> ancestors;
@@ -111,26 +112,14 @@ namespace vds {
         const_data_buffer crypted_key;
         const_data_buffer signature;
 
-        transactions::transaction_block::parse_block(
-            t1.data.get(st),
-            channel_id,
-            read_cert_id,
-            write_cert_id,
-            ancestors,
-            crypted_data,
-            crypted_key,
-            signature);
+        transactions::transaction_block::parse_block(t1.data.get(st), channel_id, order_no, read_cert_id,
+                                                     write_cert_id, ancestors,
+                                                     crypted_data, crypted_key, signature);
 
         auto write_cert = this->get_channel_write_cert(sp, write_cert_id);
-        if (!transactions::transaction_block::validate_block(
-            write_cert,
-            channel_id,
-            read_cert_id,
-            write_cert_id,
-            ancestors,
-            crypted_data,
-            crypted_key,
-            signature)) {
+        if (!transactions::transaction_block::validate_block(write_cert, channel_id, order_no, read_cert_id,
+                                                             write_cert_id, ancestors,
+                                                             crypted_data, crypted_key, signature)) {
           throw std::runtime_error("Write signature error");
         }
 

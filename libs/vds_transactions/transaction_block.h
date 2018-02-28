@@ -37,30 +37,19 @@ namespace vds {
               certificate & write_cert,
               asymmetric_private_key & write_private_key)> & crypto_callback) const;
 
-      static void parse_block(
-        const const_data_buffer & data,
-        guid & channel_id,
-        guid & read_cert_id,
-        guid & write_cert_id,
-        std::set<const_data_buffer> & ancestors,
-        const_data_buffer & crypted_data,
-        const_data_buffer & crypted_key,
-        const_data_buffer & signature);
+      static void parse_block(const const_data_buffer &data, guid &channel_id, uint64_t &order_no, guid &read_cert_id,
+                                   guid &write_cert_id, std::set<const_data_buffer> &ancestors, const_data_buffer &crypted_data,
+                                   const_data_buffer &crypted_key, const_data_buffer &signature);
 
-      static bool validate_block(
-        const certificate & write_cert,
-        const guid & channel_id,
-        const guid & read_cert_id,
-        const guid & write_cert_id,
-        const std::set<const_data_buffer> & ancestors,
-        const const_data_buffer & crypted_data,
-        const const_data_buffer & crypted_key,
-        const const_data_buffer & signature);
+      static bool validate_block(const certificate &write_cert, const guid &channel_id, uint64_t &order_no, const guid &read_cert_id,
+                                       const guid &write_cert_id, const std::set<const_data_buffer> &ancestors,
+                                       const const_data_buffer &crypted_data, const const_data_buffer &crypted_key,
+                                       const const_data_buffer &signature);
 
     private:
       std::map<guid, binary_serializer> data_;
 
-      void collect_dependencies(
+      uint64_t collect_dependencies(
           class database_transaction &t,
           const guid & channel_id,
           std::set<const_data_buffer> &ancestors) const;

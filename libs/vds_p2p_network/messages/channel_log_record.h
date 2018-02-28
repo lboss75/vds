@@ -18,27 +18,39 @@ namespace vds {
       channel_log_record(
           const guid & channel_id,
           const const_data_buffer & record_id,
-          const std::list<const_data_buffer> & base_records)
+          const const_data_buffer & data)
           : channel_id_(channel_id),
             record_id_(record_id),
-            base_records_(base_records){
+            data_(data){
       }
 
       channel_log_record(
           binary_deserializer & s) {
-        s >> this->channel_id_ >> this->record_id_ >> this->base_records_;
+        s >> this->channel_id_ >> this->record_id_ >> this->data_;
       }
 
       const_data_buffer serialize() const {
         binary_serializer s;
-        s << message_id << this->channel_id_ << this->record_id_ << this->base_records_;
+        s << message_id << this->channel_id_ << this->record_id_ << this->data_;
         return s.data();
       }
-	  
+
+      const guid & channel_id() const {
+        return channel_id_;
+      }
+
+      const const_data_buffer & record_id() const {
+        return record_id_;
+      }
+
+      const const_data_buffer & data() const {
+        return data_;
+      }
+
     private:
       guid channel_id_;
       const_data_buffer record_id_;
-      std::list<const_data_buffer> base_records_;
+      const_data_buffer data_;
     };
   }
 }

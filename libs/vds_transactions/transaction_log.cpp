@@ -28,10 +28,12 @@ All rights reserved
 #include "cert_control.h"
 #include "vds_debug.h"
 #include "logger.h"
-/*
+#include "transaction_block.h"
+
 void vds::transaction_log::save(
 	const service_provider & sp,
 	database_transaction & t,
+  const guid & channel_id,
 	const const_data_buffer & block_id,
 	const const_data_buffer & block_data)
 {
@@ -44,6 +46,52 @@ void vds::transaction_log::save(
 	if (st.execute()) {
 		return;//Already exists
 	}
+
+  guid block_channel_id;
+  guid read_cert_id;
+  guid write_cert_id;
+  std::set<const_data_buffer> ancestors;
+  const_data_buffer crypted_data;
+  const_data_buffer crypted_key;
+  const_data_buffer signature;
+  transactions::transaction_block::parse_block(block_data, block_channel_id, <#initializer#>, read_cert_id,
+                                               write_cert_id, ancestors,
+                                               crypted_data, crypted_key, signature);
+
+  if(block_channel_id != channel_id){
+    sp.get<logger>()->warning(ThisModule, sp, "Invalid record %s", channel_id.str().c_str());
+    return;
+  }
+
+  bool is_validated;
+
+  auto user_mng = sp.get<user_manager>();
+  auto write_cert = user_mng->get_channel_write_cert(sp, channel_id, write_cert_id);
+  if(!write_cert){
+    is_validated = false;
+  }
+  else {
+    if(!transactions::transaction_block::validate_block(write_cert, block_channel_id, <#initializer#>, read_cert_id,
+                                                        write_cert_id, ancestors,
+                                                        crypted_data, crypted_key, signature)){
+      sp.get<logger>()->warning(
+          ThisModule,
+          sp,
+          "Invalid signature record %s",
+          channel_id.str().c_str());
+      return;
+    }
+    is_validated = true;
+  }
+
+  t.execute(t2.insert(
+      t2.id = base64::from_bytes(block_id),
+      t2.channel_id = channel_id,
+      t2.data = block_data,
+      t2.state = is_validated
+                 ? (int)orm::transaction_log_record_dbo::state_t::validated
+                 : (int)orm::transaction_log_record_dbo::state_t::stored,
+      t2.order_no));
 
   std::list<const_data_buffer> followers;
 
@@ -67,4 +115,3 @@ void vds::transaction_log::save(
             && t4.follower_id == base64::from_bytes(p)));
   }
 }
-*/

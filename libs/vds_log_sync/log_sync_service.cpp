@@ -189,12 +189,16 @@ void vds::_log_sync_service::apply(const vds::service_provider &sp, const vds::g
           }
         }
 
-//        if(!requests.empty()){
-//          sp.get<p2p_network>()->send(
-//              sp,
-//              partner_id,
-//              p2p_messages::channel_log_request(requests).serialize());
-//        }
+        if(!requests.empty()){
+          auto p2p = sp.get<p2p_network>();
+          p2p->send(
+              sp,
+              message.source_node(),
+              p2p_messages::channel_log_request(
+                  message.channel_id(),
+                  requests,
+                  p2p->current_node_id()).serialize());
+        }
 
         return true;
   }).execute([sp, partner_id](const std::shared_ptr<std::exception> & ex){
@@ -216,12 +220,15 @@ void vds::_log_sync_service::apply(const vds::service_provider &sp, const vds::g
 		orm::transaction_log_record_dbo t1;
 		std::list<const_data_buffer> requests;
 		for (auto & p : message.requests()) {
-			auto st = t.get_reader(t1.select(t1.data).where(t1.id == base64::from_bytes(p)));
+			auto st = t.get_reader(t1.select(t1.channel_id, t1.data).where(t1.id == base64::from_bytes(p)));
 			if (st.execute()) {
-//				p2p->send(
-//					sp,
-//					partner_id,
-//					p2p_messages::channel_log_record(p, t1.data.get(st)).serialize());
+				p2p->send(
+					sp,
+					message.source_node(),
+					p2p_messages::channel_log_record(
+              t1.channel_id.get(st),
+              p,
+              t1.data.get(st)).serialize());
 			}
 		}
 
@@ -240,7 +247,7 @@ void vds::_log_sync_service::apply(const vds::service_provider &sp, const vds::g
 		sp,
 		[pthis = this->shared_from_this(), sp, partner_id, message](database_transaction & t) -> bool{
 
-		//transaction_log::save(sp, t, message.block_id(), message.body());
+		transaction_log::save(sp, t, message.channel_id(), message.record_id(), message.data());
 
 		return true;
 	}).execute([sp, partner_id](const std::shared_ptr<std::exception> & ex) {

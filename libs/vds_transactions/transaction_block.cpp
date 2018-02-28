@@ -41,13 +41,14 @@ std::map<vds::guid, vds::const_data_buffer> vds::transactions::transaction_block
     crypto_callback(p.first, read_cert, write_cert, write_private_key);
 
     std::set<const_data_buffer> ancestors;
-    this->collect_dependencies(t, p.first, ancestors);
+    uint64_t order_no = this->collect_dependencies(t, p.first, ancestors);
 
     auto key = symmetric_key::generate(symmetric_crypto::aes_256_cbc());
 
     binary_serializer crypted;
     crypted
       << p.first
+      << order_no
       << cert_control::get_id(read_cert)
       << cert_control::get_id(write_cert)
       << ancestors
@@ -67,19 +68,14 @@ std::map<vds::guid, vds::const_data_buffer> vds::transactions::transaction_block
   return result;
 }
 
-void vds::transactions::transaction_block::parse_block(
-  const const_data_buffer & data,
-  guid & channel_id,
-  guid & read_cert_id,
-  guid & write_cert_id,
-  std::set<const_data_buffer> & ancestors,
-  const_data_buffer & crypted_data,
-  const_data_buffer & crypted_key,
-  const_data_buffer & signature) {
+void vds::transactions::transaction_block::parse_block(const const_data_buffer &data, guid &channel_id, uint64_t &order_no, guid &read_cert_id,
+                                                      guid &write_cert_id, std::set<const_data_buffer> &ancestors, const_data_buffer &crypted_data,
+                                                      const_data_buffer &crypted_key, const_data_buffer &signature) {
 
   binary_deserializer crypted(data);
   crypted
     >> channel_id
+    >> order_no
     >> read_cert_id
     >> write_cert_id
     >> ancestors
@@ -90,15 +86,11 @@ void vds::transactions::transaction_block::parse_block(
   vds_assert(0 == crypted.size());
 }
 
-bool vds::transactions::transaction_block::validate_block(
-  const certificate & write_cert,
-  const guid & channel_id,
-  const guid & read_cert_id,
-  const guid & write_cert_id,
-  const std::set<const_data_buffer> & ancestors,
-  const const_data_buffer & crypted_data,
-  const const_data_buffer & crypted_key,
-  const const_data_buffer & signature) {
+bool
+vds::transactions::transaction_block::validate_block(const certificate &write_cert, const guid &channel_id, uint64_t &order_no, const guid &read_cert_id,
+                                                     const guid &write_cert_id, const std::set<const_data_buffer> &ancestors,
+                                                     const const_data_buffer &crypted_data, const const_data_buffer &crypted_key,
+                                                     const const_data_buffer &signature) {
 
   vds_assert(cert_control::get_id(write_cert) == write_cert_id);
 
@@ -108,6 +100,7 @@ bool vds::transactions::transaction_block::validate_block(
     signature,
     (binary_serializer()
       << channel_id
+      << order_no
       << read_cert_id
       << write_cert_id
       << ancestors
@@ -115,14 +108,15 @@ bool vds::transactions::transaction_block::validate_block(
       << crypted_data).data());
 }
 
-void vds::transactions::transaction_block::collect_dependencies(
+uint64_t vds::transactions::transaction_block::collect_dependencies(
     vds::database_transaction &t,
     const guid & channel_id,
     std::set<const_data_buffer> &ancestors) const {
 
+  uint64_t result = 0;
   vds::orm::transaction_log_record_dbo t1;
   auto st = t.get_reader(
-      t1.select(t1.id)
+      t1.select(t1.id, t1.order_no)
           .where(
               t1.channel_id == channel_id
               && t1.state == (uint8_t)orm::transaction_log_record_dbo::state_t::leaf));
@@ -131,7 +125,14 @@ void vds::transactions::transaction_block::collect_dependencies(
     if(ancestors.end() == ancestors.find(vds::base64::to_bytes(id))) {
       ancestors.emplace(vds::base64::to_bytes(id));
     }
+
+    auto order = t1.order_no.get(st);
+    if(result < order){
+      result = order;
+    }
   }
+
+  return result + 1;
 }
 
 vds::const_data_buffer vds::transactions::transaction_block::register_transaction(

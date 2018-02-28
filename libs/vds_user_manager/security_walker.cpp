@@ -50,6 +50,7 @@ void vds::security_walker::load(
 
   while (st.execute()) {
     guid channel_id;
+    uint64_t order_no;
     guid read_cert_id;
     guid write_cert_id;
     std::set<const_data_buffer> ancestors;
@@ -57,15 +58,9 @@ void vds::security_walker::load(
     const_data_buffer crypted_key;
     const_data_buffer signature;
 
-    transactions::transaction_block::parse_block(
-      t1.data.get(st),
-      channel_id,
-      read_cert_id,
-      write_cert_id,
-      ancestors,
-      crypted_data,
-      crypted_key,
-      signature);
+    transactions::transaction_block::parse_block(t1.data.get(st), channel_id, order_no, read_cert_id,
+                                                 write_cert_id, ancestors,
+                                                 crypted_data, crypted_key, signature);
 
     if (channel_id != this->user_id_
       || read_cert_id != cert_control::get_id(this->user_cert_)
@@ -73,15 +68,9 @@ void vds::security_walker::load(
       throw std::runtime_error("Ivalid record");
     }
 
-    if (!transactions::transaction_block::validate_block(
-      this->user_cert_,
-      channel_id,
-      read_cert_id,
-      write_cert_id,
-      ancestors,
-      crypted_data,
-      crypted_key,
-      signature)) {
+    if (!transactions::transaction_block::validate_block(this->user_cert_, channel_id, order_no, read_cert_id,
+                                                         write_cert_id, ancestors,
+                                                         crypted_data, crypted_key, signature)) {
       log->error(ThisModule, sp, "Write signature error");
       throw std::runtime_error("Write signature error");
     }

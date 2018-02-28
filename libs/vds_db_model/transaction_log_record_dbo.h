@@ -15,17 +15,17 @@ namespace vds {
     class transaction_log_record_dbo : public database_table {
     public:
       enum class state_t : int {
-        none,
-        processed,
+        stored,
+        validated,
         leaf
       };
       static std::string str(state_t value){
         switch(value){
-          case state_t::none:
-            return "none";
+          case state_t::stored:
+            return "stored";
 
-          case state_t::processed:
-            return "processed";
+          case state_t::validated:
+            return "validated";
 
           case state_t::leaf:
             return "leaf";
@@ -48,7 +48,7 @@ namespace vds {
       database_column<guid> channel_id;
       database_column<const_data_buffer> data;
       database_column<int> state;
-      database_column<int> order_no;
+      database_column<uint64_t> order_no;
     };
   }
 }
