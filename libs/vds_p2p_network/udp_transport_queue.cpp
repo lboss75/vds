@@ -65,7 +65,7 @@ void vds::_udp_transport_queue::continue_send_data(
               }
             } else {
               owner_->register_outgoing_traffic(len);
-              generator->complete(pthis->buffer_, len);
+              generator->complete(sp, pthis->buffer_, len);
             }
 
             if(generator->is_eof()){
@@ -264,7 +264,7 @@ uint16_t vds::_udp_transport_queue::data_datagram::generate_message(const servic
   }
 }
 
-void vds::_udp_transport_queue::data_datagram::complete(const uint8_t *buffer, size_t len) {
+void vds::_udp_transport_queue::data_datagram::complete(const service_provider &sp, const uint8_t *buffer, size_t len) {
   this->owner()->add_datagram(const_data_buffer(buffer, len));
 }
 
@@ -304,8 +304,10 @@ uint16_t vds::_udp_transport_queue::handshake_datagram::generate_message(const s
 }
 
 void vds::_udp_transport_queue::handshake_datagram::complete(
-    const uint8_t * buffer, size_t len) {
-  this->owner()->handshake_sent();
+    const service_provider &sp,
+    const uint8_t * buffer,
+    size_t len) {
+  this->owner()->handshake_sent(sp);
 }
 
 uint16_t vds::_udp_transport_queue::welcome_datagram::generate_message(const service_provider &sp, uint8_t *buffer) {
@@ -320,8 +322,8 @@ uint16_t vds::_udp_transport_queue::welcome_datagram::generate_message(const ser
   return safe_cast<uint16_t>(4 + this->instance_id_.size());
 }
 
-void vds::_udp_transport_queue::welcome_datagram::complete(const uint8_t *buffer, size_t len) {
-  this->owner()->welcome_sent();
+void vds::_udp_transport_queue::welcome_datagram::complete(const service_provider &sp, const uint8_t *buffer, size_t len) {
+  this->owner()->welcome_sent(sp);
 }
 
 uint16_t

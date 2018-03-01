@@ -26,12 +26,12 @@ namespace vds {
 
       channel_log_state(
           binary_deserializer & s) {
-        s >> this->channel_id_ >>  this->leafs_;
+        s >> this->channel_id_ >>  this->leafs_ >> this->source_node_;
       }
 
       const_data_buffer serialize() const {
         binary_serializer s;
-        s << message_id << this->channel_id_ << this->leafs_;
+        s << message_id << this->channel_id_ << this->leafs_ << this->source_node_;
         return s.data();
       }
 

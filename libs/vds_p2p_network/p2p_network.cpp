@@ -21,6 +21,7 @@
 #include "messages/chunk_query_replica.h"
 #include "messages/chunk_offer_replica.h"
 #include "messages/chunk_have_replica.h"
+#include "private/p2p_route_p.h"
 
 vds::p2p_network::p2p_network()
 :impl_(new _p2p_network()){
@@ -125,6 +126,8 @@ vds::async_task<> vds::_p2p_network::start_network(const vds::service_provider &
     return true;
   }).then([sp, run_conf, pthis = this->shared_from_this()]() {
     return pthis->network_service_.start(sp, run_conf->port, run_conf->cert_chain, run_conf->key);
+  }).then([sp, pthis = this->shared_from_this()]() {
+    pthis->route_->start(sp);
   });
 }
 
@@ -151,8 +154,19 @@ void vds::_p2p_network::process_input_command(
   const guid &partner_id,
   const std::shared_ptr<_p2p_crypto_tunnel> &session,
   const const_data_buffer &message_data) {
-  binary_deserializer s(message_data);
+
+  binary_deserializer ms(message_data);
+  node_id_t target_node;
+  const_data_buffer message_buffer;
+  ms >> target_node >> message_buffer;
+
+  if(target_node.device_id() != this->current_node_id()){
+    this->send(sp, target_node, message_buffer);
+    return;
+  }
+
   uint8_t  command_id;
+  binary_deserializer s(message_buffer);
   s >> command_id;
 
   switch ((p2p_messages::p2p_message_id)command_id) {
@@ -233,6 +247,13 @@ bool vds::_p2p_network::send_tentatively(const vds::service_provider &sp, const 
         return true;
       }
     }
+  }
+  else {
+    sp.get<logger>()->warning(
+        ThisModule,
+        sp,
+        "No canditates to route %s",
+        device_id.str().c_str());
   }
 
   return false;

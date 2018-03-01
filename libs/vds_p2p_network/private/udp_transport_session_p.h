@@ -125,13 +125,13 @@ namespace vds {
       this->send_handshake_(sp, owner);
     }
 
-    void handshake_sent();
+    void handshake_sent(const service_provider &sp);
 
     void send_welcome(
         const service_provider &sp,
         const std::shared_ptr<_udp_transport> &owner);
 
-    void welcome_sent();
+    void welcome_sent(const service_provider &sp);
 
     void send(const service_provider &sp, const const_data_buffer &message);
 
@@ -176,9 +176,6 @@ namespace vds {
     uint16_t expected_size_;
     resizable_data_buffer expected_buffer_;
 
-    std::mutex read_result_mutex_;
-    async_result<const const_data_buffer &> read_result_;
-
     std::weak_ptr<_udp_transport> owner_;
 
     uint32_t sent_data_bytes_;
@@ -203,7 +200,7 @@ namespace vds {
 
     int pinged_;/* how many requests we sent since last reply */
 
-    void try_read_data();
+    void try_read_data(const service_provider &sp);
 
     void send_handshake_(
         const service_provider &sp,

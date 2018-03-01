@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "private/udp_transport_session_p.h"
 #include "private/udp_transport_p.h"
+#include "private/p2p_crypto_tunnel_p.h"
 
 void vds::_udp_transport_session::incomming_message(
     const service_provider &sp,
@@ -19,6 +20,7 @@ void vds::_udp_transport_session::incomming_message(
         std::unique_lock<std::shared_mutex> lock(this->current_state_mutex_);
         if(state_t::bof == this->current_state_) {
           this->current_state_ = state_t::welcome_pending;
+          sp.get<logger>()->trace("P2PUDP", sp, "state -> welcome_pending");
           this->send_welcome(sp, owner.shared_from_this());
           owner.handshake_completed(sp, this->shared_from_this());
         }
@@ -43,6 +45,8 @@ void vds::_udp_transport_session::incomming_message(
             if (0 == this->instance_id_.size()) {
               this->instance_id_ = instance_id;
               this->current_state_ = state_t::wait_message;
+              sp.get<logger>()->trace("P2PUDP", sp, "state -> wait_message");
+
 
               owner.handshake_completed(sp, this->shared_from_this());
             } else if (this->instance_id_ != instance_id) {
@@ -119,6 +123,7 @@ void vds::_udp_transport_session::incomming_message(
       }
       case control_type::Failed:{
         this->current_state_ = state_t::fail;
+        sp.get<logger>()->trace("P2PUDP", sp, "state -> fail");
         break;
       }
       default:
@@ -135,6 +140,7 @@ void vds::_udp_transport_session::incomming_message(
       case state_t::welcome_pending:
       case state_t::welcome_sent:
         this->current_state_ = state_t::wait_message;
+        sp.get<logger>()->trace("P2PUDP", sp, "state -> wait_message");
         break;
 
       case state_t::wait_message:
@@ -212,7 +218,7 @@ void vds::_udp_transport_session::continue_process_incoming_data(
       this->expected_size_ = 0;
       this->expected_buffer_.clear();
 
-	  this->try_read_data();
+	  this->try_read_data(sp);
     }
   }
 }
@@ -263,6 +269,7 @@ void vds::_udp_transport_session::send_handshake_(
     throw std::runtime_error("Invalid state");
   }
   this->current_state_ = state_t::handshake_pending;
+  sp.get<logger>()->trace("P2PUDP", sp, "state -> handshake_pending");
 
   sp.get<logger>()->trace("P2PUDP", sp, "Send handshake to %s",
                           this->address_.to_string().c_str());
@@ -275,10 +282,11 @@ void vds::_udp_transport_session::send_handshake_(
           owner->instance_id_));
 }
 
-void vds::_udp_transport_session::handshake_sent() {
+void vds::_udp_transport_session::handshake_sent(const service_provider &sp) {
   std::unique_lock<std::shared_mutex> lock(this->current_state_mutex_);
   if(state_t::handshake_pending == this->current_state_) {
     this->current_state_ = state_t::handshake_sent;
+    sp.get<logger>()->trace("P2PUDP", sp, "state -> handshake_sent");
   }
 }
 
@@ -296,10 +304,11 @@ void vds::_udp_transport_session::send_welcome(
           owner->instance_id_));
 }
 
-void vds::_udp_transport_session::welcome_sent() {
+void vds::_udp_transport_session::welcome_sent(const service_provider &sp) {
   std::unique_lock<std::shared_mutex> lock(this->current_state_mutex_);
   if(state_t::welcome_pending == this->current_state_) {
     this->current_state_ = state_t::welcome_sent;
+    sp.get<logger>()->trace("P2PUDP", sp, "state -> welcome_sent");
   }
 }
 
@@ -319,26 +328,18 @@ void vds::_udp_transport_session::send(
           message));
 }
 
-void vds::_udp_transport_session::try_read_data() {
+void vds::_udp_transport_session::try_read_data(const service_provider &sp) {
   std::unique_lock<std::mutex> data_lock(this->incoming_datagram_mutex_);
   if(this->incoming_datagrams_.empty()){
     return;
   }
-
-  std::unique_lock<std::mutex> lock(this->read_result_mutex_);
-  if(!this->read_result_){
-    return;
-  }
-
-  auto result = std::move(this->read_result_);
-  lock.unlock();
 
   const_data_buffer message(this->incoming_datagrams_.front());
   this->incoming_datagrams_.pop();
 
   data_lock.unlock();
 
-  result.done(message);
+  static_cast<_p2p_crypto_tunnel *>(this)->process_input_command(sp, message);
 }
 
 uint16_t vds::_udp_transport_session::get_sent_data(
@@ -361,6 +362,7 @@ void vds::_udp_transport_session::register_outgoing_traffic(uint32_t bytes) {
 void vds::_udp_transport_session::close(const vds::service_provider &sp, const std::shared_ptr<std::exception> &ex) {
 
   this->current_state_ = state_t::fail;
+  sp.get<logger>()->trace("P2PUDP", sp, "state -> fail");
   this->error_ = ex;
 
   auto owner = this->owner_.lock();
@@ -389,7 +391,7 @@ bool vds::_udp_transport_session::is_failed() const {
 vds::async_task<> vds::_udp_transport_session::prepare_to_stop(const vds::service_provider &sp) {
   std::unique_lock<std::shared_mutex> lock(this->current_state_mutex_);
   this->current_state_ = state_t::closed;
-  this->read_result_.clear();
+  sp.get<logger>()->trace("P2PUDP", sp, "state -> closed");
 
   return async_task<>::empty();
 }

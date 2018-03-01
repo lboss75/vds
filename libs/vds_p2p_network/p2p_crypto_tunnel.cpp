@@ -52,26 +52,9 @@ void vds::_p2p_crypto_tunnel::process_input_command(
   this->process_input_command(sp, (command_id)command, s);
 }
 
-void vds::_p2p_crypto_tunnel::send_crypted_command(
-    const service_provider &sp,
-    const const_data_buffer &message) {
-
-  binary_serializer s;
-  if(!this->output_key_) {
-    throw std::runtime_error("Invalid state");
-  }
-  else {
-    s << (uint8_t) command_id::Crypted;
-    s << symmetric_encrypt::encrypt(this->output_key_, message);
-  }
-
-  base_class::send(
-      sp,
-      const_data_buffer(s.data().data(), s.size()));
-}
 void vds::_p2p_crypto_tunnel::send(
     const service_provider &sp,
-    const std::list<node_id_t> & path,
+    const node_id_t & target_node,
     const const_data_buffer &message) {
 
   if(!this->output_key_) {
@@ -79,11 +62,22 @@ void vds::_p2p_crypto_tunnel::send(
   }
   else {
     binary_serializer data_convert;
-    data_convert << path << message;
+    data_convert << target_node << message;
+    auto d = symmetric_encrypt::encrypt(this->output_key_, data_convert.data());
 
     binary_serializer s;
-    s << (uint8_t) command_id::Data;
-    s << symmetric_encrypt::encrypt(this->output_key_, data_convert.data());
+    s << (uint8_t) command_id::Data << d;
+
+    sp.get<logger>()->trace(
+        "CryptoTunnel",
+        sp,
+        "Send data %d bytes %s, key %s",
+        d.size(),
+        display_string(base64::from_bytes(d), 40).c_str(),
+        display_string(base64::from_bytes(this->output_key_.serialize()), 40).c_str());
+
+    auto decrypted = symmetric_decrypt::decrypt(this->output_key_, d);
+
     base_class::send(
         sp,
         const_data_buffer(s.data()));
@@ -119,6 +113,11 @@ void vds::_p2p_crypto_tunnel::process_input_command(
 
       binary_serializer key_stream;
       this->output_key_.serialize(key_stream);
+      sp.get<logger>()->trace(
+          "CryptoTunnel",
+          sp,
+          "Output key %s",
+          display_string(base64::from_bytes(this->output_key_.serialize()), 40).c_str());
 
       auto crypted_key = certificate_chain.rbegin()->public_key().encrypt(
           key_stream.data().data(),
@@ -168,6 +167,11 @@ void vds::_p2p_crypto_tunnel::process_input_command(
       this->input_key_ = symmetric_key::deserialize(
           symmetric_crypto::aes_256_cbc(),
           key_stream);
+      sp.get<logger>()->trace(
+          "CryptoTunnel",
+          sp,
+          "Input key %s",
+          display_string(base64::from_bytes(this->input_key_.serialize()), 40).c_str());
 
       if(this->output_key_){
         lock.unlock();
@@ -186,6 +190,14 @@ void vds::_p2p_crypto_tunnel::process_input_command(
 
       const_data_buffer data;
       s >> data;
+
+      sp.get<logger>()->trace(
+          "CryptoTunnel",
+          sp,
+          "Got data %d bytes %s, key %s",
+          data.size(),
+          display_string(base64::from_bytes(data), 40).c_str(),
+          display_string(base64::from_bytes(this->input_key_.serialize()), 40).c_str());
 
       (*sp.get<p2p_network>())->process_input_command(
           sp,

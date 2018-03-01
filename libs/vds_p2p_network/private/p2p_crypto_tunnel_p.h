@@ -32,11 +32,11 @@ namespace vds {
     //: session_(session) {
     //}
 
-    virtual void start(const service_provider &sp);
+    void start(const service_provider &sp);
 
     void send(
         const service_provider &sp,
-        const std::list<node_id_t> & path,
+        const node_id_t & target_node,
         const const_data_buffer &message);
 
     void close(const service_provider &sp, const std::shared_ptr<std::exception> &ex);
@@ -44,6 +44,8 @@ namespace vds {
     async_task<> prepare_to_stop(const vds::service_provider &sp);
 
   protected:
+    friend class _udp_transport_session;
+
     enum class command_id : uint8_t {
       Data = 0,
       CertCain, //size + certificate chain
@@ -66,9 +68,6 @@ namespace vds {
         const command_id command,
         binary_deserializer & s);
 
-    void send_crypted_command(
-        const service_provider &sp,
-        const const_data_buffer &message);
   };
 }
 

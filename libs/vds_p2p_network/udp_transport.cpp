@@ -73,26 +73,6 @@ void vds::_udp_transport::start(const service_provider &sp, int port) {
 
 }
 
-void vds::_udp_transport::send_broadcast(int port) {
-
-  this->server_.socket().send_broadcast(port, this->create_handshake_message());
-
-}
-
-vds::const_data_buffer vds::_udp_transport::create_handshake_message() {
-  if(16 != this->instance_id_.size()){
-    throw std::runtime_error("Invalid GUID size");
-  }
-
-  uint8_t data[20];
-  *(reinterpret_cast<uint32_t *>(data)) = htonl(
-      ((uint32_t)_udp_transport_session::control_type::Handshake) << 24
-      | udp_transport::protocol_version);
-  memcpy(data + 4, this->instance_id_.data(), this->instance_id_.size());
-
-  return const_data_buffer(data, sizeof(data));
-}
-
 void vds::_udp_transport::process_incommig_message(
     const service_provider & sp,
     const udp_datagram & message) {
@@ -110,6 +90,8 @@ void vds::_udp_transport::process_incommig_message(
         this->shared_from_this(),
         message.address());
     this->sessions_[message.address()] = session;
+    sp.get<logger>()->trace("UDPAPI", sp, "New session from %s",
+                            message.address().to_string().c_str());
   }
 
   if(0x80 == (0x80 & static_cast<const uint8_t *>(message.data())[0])
@@ -233,8 +215,7 @@ void vds::_udp_transport::handshake_completed(
     const vds::service_provider &sp,
     const std::shared_ptr<_p2p_crypto_tunnel> & session) {
 
-//  this->new_session_handler_(
-//      udp_transport::session(session->shared_from_this()));
+  session->start(sp);
 }
 
 vds::async_task<> vds::_udp_transport::prepare_to_stop(const vds::service_provider &sp) {

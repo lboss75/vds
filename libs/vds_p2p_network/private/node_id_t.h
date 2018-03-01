@@ -152,7 +152,8 @@ inline vds::binary_serializer & operator << (vds::binary_serializer & s, const v
 }
 
 inline vds::binary_deserializer & operator >> (vds::binary_deserializer & s, vds::node_id_t & value){
-  s.pop_data(value.id(), vds::node_id_t::SIZE);
+  size_t size = vds::node_id_t::SIZE;
+  s.pop_data(value.id(), size, false);
   return s;
 }
 

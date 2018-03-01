@@ -106,7 +106,7 @@ namespace vds {
               return result;
             }
 
-            result = ntohs(l->sin6_port) - ntohs(l->sin6_port);
+            result = ntohs(l->sin6_port) - ntohs(r->sin6_port);
             if(0 != result){
               return result;
             }
@@ -124,7 +124,7 @@ namespace vds {
         }
       }
       else {
-        if(this->addr_.ss_family == AF_INET && this->addr_.ss_family == AF_INET6){
+        if(this->addr_.ss_family == AF_INET && other.addr_.ss_family == AF_INET6){
           const auto l = reinterpret_cast<const sockaddr_in *>(&this->addr_);
           const auto r = reinterpret_cast<const sockaddr_in6 *>(&other.addr_);
           if(IN6_IS_ADDR_V4MAPPED(&r->sin6_addr)){
@@ -141,7 +141,7 @@ namespace vds {
           }
         }
         else
-        if(this->addr_.ss_family == AF_INET6 && this->addr_.ss_family == AF_INET){
+        if(this->addr_.ss_family == AF_INET6 && other.addr_.ss_family == AF_INET){
           const auto l = reinterpret_cast<const sockaddr_in6 *>(&this->addr_);
           const auto r = reinterpret_cast<const sockaddr_in *>(&other.addr_);
           if(IN6_IS_ADDR_V4MAPPED(&l->sin6_addr)){
@@ -158,7 +158,7 @@ namespace vds {
           }
         }
 
-        return this->addr_.ss_family - this->addr_.ss_family;
+        return this->addr_.ss_family - other.addr_.ss_family;
       }
     }
 

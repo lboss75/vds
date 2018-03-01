@@ -41,7 +41,9 @@ namespace vds {
           uint8_t *buffer) = 0;
 
       virtual  void complete(
-          const uint8_t * buffer, size_t len) = 0;
+          const service_provider &sp,
+          const uint8_t * buffer,
+          size_t len) = 0;
 
       virtual bool is_eof() const = 0;
 
@@ -68,7 +70,7 @@ namespace vds {
           uint8_t *buffer) override;
 
       //Store sent message
-      void complete(const uint8_t * buffer, size_t len) override;
+      void complete(const service_provider &sp, const uint8_t * buffer, size_t len) override;
 
       //
       bool is_eof() const override {
@@ -94,7 +96,7 @@ namespace vds {
           uint8_t *buffer) override;
 
       //Store sent message
-      void complete(const uint8_t * buffer, size_t len) override {
+      void complete(const service_provider &sp, const uint8_t * buffer, size_t len) override {
       }
 
       //
@@ -117,7 +119,10 @@ namespace vds {
 
       virtual uint16_t generate_message(const service_provider &sp, uint8_t *buffer) override;
 
-      void complete(const uint8_t * buffer, size_t len) override;
+      void complete(
+          const service_provider &sp,
+          const uint8_t * buffer,
+          size_t len) override;
 
       bool is_eof() const override {
         return true;
@@ -138,7 +143,7 @@ namespace vds {
 
       virtual uint16_t generate_message(const service_provider &sp, uint8_t *buffer) override;
 
-      void complete(const uint8_t * buffer, size_t len) override;
+      void complete(const service_provider &sp, const uint8_t * buffer, size_t len) override;
 
       bool is_eof() const override {
         return true;
@@ -163,7 +168,7 @@ namespace vds {
         return true;
       }
 
-      void complete(const uint8_t * buffer, size_t len) override {
+      void complete(const service_provider &sp, const uint8_t * buffer, size_t len) override {
       }
     };
 
@@ -182,7 +187,7 @@ namespace vds {
         return true;
       }
 
-      void complete(const uint8_t * buffer, size_t len) override {
+      void complete(const service_provider &sp, const uint8_t * buffer, size_t len) override {
       }
 
     };
@@ -199,7 +204,7 @@ namespace vds {
           uint8_t *buffer) override;
 
       //Store sent message
-      void complete(const uint8_t * buffer, size_t len) override {
+      void complete(const service_provider &sp, const uint8_t * buffer, size_t len) override {
       }
 
       //

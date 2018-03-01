@@ -44,7 +44,7 @@ bool vds::_p2p_route::send(
           const std::shared_ptr<vds::_p2p_crypto_tunnel> & proxy_session) {
         proxy_session->send(
             sp,
-            std::list<node_id_t>({node_id, target_node_id}),
+            target_node_id,
             message);
       });
   return true;
@@ -54,8 +54,14 @@ void vds::_p2p_route::add_node(
     const vds::service_provider &sp,
     const node_id_t & id,
     const std::shared_ptr<_p2p_crypto_tunnel> & proxy_session) {
-  auto index = this->current_node_id_.distance_exp(id);
+  sp.get<logger>()->trace(
+      ThisModule,
+      sp,
+      "Add route to %s over %s",
+      id.device_id().str().c_str(),
+      proxy_session->address().to_string().c_str());
 
+  auto index = this->current_node_id_.distance_exp(id);
   bucket * b;
 
   std::shared_lock<std::shared_mutex> lock(this->buckets_mutex_);
@@ -164,7 +170,7 @@ void vds::_p2p_route::find_node(
       [sp, target_node_id](const node_id_t & node_id, const std::shared_ptr<vds::_p2p_crypto_tunnel> & proxy_session) {
         proxy_session->send(
             sp,
-            std::list<node_id_t>({node_id}),
+            node_id,
             p2p_messages::dht_find_node(target_node_id).serialize());
 
       });
@@ -229,7 +235,7 @@ void vds::_p2p_route::bucket::add_node(
     const std::shared_ptr<_p2p_crypto_tunnel> & proxy_session) {
 
   std::unique_lock<std::shared_mutex> ulock(this->nodes_mutex_);
-  if(MAX_NODES < this->nodes_.size()){
+  if(MAX_NODES > this->nodes_.size()){
     this->nodes_.push_back(node(id, proxy_session));
     return;
   }
@@ -248,7 +254,7 @@ void vds::_p2p_route::bucket::on_timer(const vds::service_provider &sp) {
   for(auto & p : this->nodes_){
     p.proxy_session_->send(
         sp,
-        std::list<node_id_t>({p.id_}),
+        p.id_,
         p2p_messages::dht_ping().serialize());
     p.pinged_++;
   }

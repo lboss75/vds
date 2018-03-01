@@ -31,8 +31,6 @@ namespace vds {
 
     void connect(const service_provider &sp, const std::string &address);
 
-    void send_broadcast(int port);
-
     const std::shared_ptr<_udp_transport_queue> &send_queue() const {
       return this->send_queue_;
     }
@@ -59,8 +57,6 @@ namespace vds {
 
     bool do_timer_tasks(
         const service_provider &sp);
-
-    const_data_buffer create_handshake_message();
 
     void process_incommig_message(
         const service_provider &sp,
