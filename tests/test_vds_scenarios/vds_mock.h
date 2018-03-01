@@ -49,9 +49,6 @@ private:
   vds::task_manager task_manager_;
   vds::crypto_service crypto_service_;
   vds::server server_;
-
-public:
-  vds::leak_detect_helper leak_detect_;
 };
 
 class vds_mock

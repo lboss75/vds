@@ -50,9 +50,9 @@ void vds::p2p_network::send(
   this->impl_->send(sp, device_id, message);
 }
 
-void vds::p2p_network::send_tentatively(const vds::service_provider &sp, const vds::guid &device_id,
+bool vds::p2p_network::send_tentatively(const vds::service_provider &sp, const vds::guid &device_id,
                                         const vds::const_data_buffer &message, size_t distance) {
-  this->impl_->send_tentatively(sp, device_id, message, distance);
+  return this->impl_->send_tentatively(sp, device_id, message, distance);
 
 }
 
@@ -124,8 +124,7 @@ vds::async_task<> vds::_p2p_network::start_network(const vds::service_provider &
 
     return true;
   }).then([sp, run_conf, pthis = this->shared_from_this()]() {
-    auto result = async_task<>::empty();
-    pthis->network_service_.start(sp, run_conf->port, run_conf->cert_chain, run_conf->key);
+    return pthis->network_service_.start(sp, run_conf->port, run_conf->cert_chain, run_conf->key);
   });
 }
 
@@ -218,21 +217,25 @@ void vds::_p2p_network::add_node(
 
 }
 
-void vds::_p2p_network::send_tentatively(const vds::service_provider &sp, const vds::guid &device_id,
-                                    const vds::const_data_buffer &message, size_t distance) {
+bool vds::_p2p_network::send_tentatively(const vds::service_provider &sp, const vds::guid &device_id,
+                                         const vds::const_data_buffer &message, size_t distance) {
   std::set<node_id_t> candidates;
   this->route_->search_nodes(sp, device_id, distance, candidates);
 
-  size_t index = std::rand() % candidates.size();
-  for(auto & p : candidates){
-    if(0 == index--){
-      this->route_->send(
-          sp,
-          p,
-          message);
-      break;
+  if(!candidates.empty()) {
+    size_t index = std::rand() % candidates.size();
+    for (auto &p : candidates) {
+      if (0 == index--) {
+        this->route_->send(
+            sp,
+            p,
+            message);
+        return true;
+      }
     }
   }
+
+  return false;
 }
 
 vds::guid vds::_p2p_network::current_node_id() const {

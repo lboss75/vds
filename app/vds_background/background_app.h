@@ -5,8 +5,7 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
-#include "connection_manager.h"
-#include "server_log_sync.h"
+#include "stdafx.h"
 
 namespace vds {
   class background_app : public console_app<background_app>

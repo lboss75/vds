@@ -116,11 +116,6 @@ vds::_server::_server(server * owner)
   chunk_replicator_(new chunk_replicator())
 
 {
-  this->leak_detect_.name_ = "server";
-  this->leak_detect_.dump_callback_ = [this](leak_detect_collector * collector){
-    collector->add(*this->p2p_network_);
-    //collector->add(this->network_client_);
-  };
 }
 
 vds::_server::~_server()

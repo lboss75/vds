@@ -33,7 +33,6 @@ void vds_mock::start(size_t server_count)
   this->root_password_ = generate_password();
   const auto first_port = 8050;
 
-  vds::leak_detect_resolver resolver;
   for (size_t i = 0; i < server_count; ++i) {
     if (0 == i) {
       std::cout << "Initing root\n";
@@ -59,7 +58,6 @@ void vds_mock::start(size_t server_count)
       throw;
     }
 
-    resolver.add(&(*server).leak_detect_);
     this->servers_.push_back(std::move(server));
   }
 }
@@ -434,10 +432,16 @@ vds::user_channel vds_mock::create_channel(int index, const std::string &name) {
     log.save(
         sp,
         t,
-        [sp, user_mng](const vds::guid & channel_id,
+        [sp, user_mng, &root_user, &root_private_key](const vds::guid & channel_id,
                        vds::certificate & read_cert,
                        vds::certificate & write_cert,
                        vds::asymmetric_private_key & write_private_key){
+          if(root_user.id() == channel_id){
+            read_cert = root_user.user_certificate();
+            write_cert = root_user.user_certificate();
+            write_private_key = root_private_key;
+            return;
+          }
           auto channel = user_mng->get_channel(sp, channel_id);
           if(!channel){
             throw std::runtime_error("Invalid channel");
@@ -472,10 +476,6 @@ mock_server::mock_server(int index, int udp_port)
     test_config::instance().log_level(),
     test_config::instance().modules())
 {
-  this->leak_detect_.name_ = "mock_server";
-  this->leak_detect_.dump_callback_ = [this](vds::leak_detect_collector * collector){
-    collector->add(this->server_);
-  };
 }
 
 vds::user_invitation mock_server::init_root(int index, int udp_port, const std::string& root_password)

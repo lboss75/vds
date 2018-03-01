@@ -38,10 +38,27 @@ std::string vds::network_address::to_string() const {
 }
 
 std::string vds::network_address::server() const {
+//  char buffer[512];
+//
+//  auto addr = (sockaddr *)&this->addr_;
+//  inet_ntop(addr->sa_family, addr, buffer, this->addr_size_);
+//
+//  return buffer;
   char buffer[512];
 
-  auto addr = (sockaddr *)&this->addr_;
-  inet_ntop(addr->sa_family, addr, buffer, sizeof(buffer));
+  const auto err = getnameinfo(
+      (struct sockaddr *)&this->addr_,
+      this->addr_size_,
+      buffer,
+      sizeof(buffer),
+      0,
+      0,
+      NI_NUMERICHOST);
+
+  if (0 != err) {
+    const auto error = errno;
+    throw std::system_error(error, std::system_category(), "getnameinfo");
+  }
 
   return buffer;
 }

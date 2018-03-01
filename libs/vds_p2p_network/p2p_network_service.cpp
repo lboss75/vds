@@ -28,12 +28,19 @@ vds::async_task<> vds::p2p_network_service::start(
 }
 
 vds::async_task<> vds::p2p_network_service::prepare_to_stop(const vds::service_provider &sp) {
-  return this->impl_->prepare_to_stop(sp);
+  if(this->impl_) {
+    return this->impl_->prepare_to_stop(sp);
+  }
+  else {
+    return async_task<>::empty();
+  }
 }
 
 void vds::p2p_network_service::stop(const vds::service_provider & sp) {
-  this->impl_->stop(sp);
-  this->impl_.reset();
+  if(this->impl_) {
+    this->impl_->stop(sp);
+    this->impl_.reset();
+  }
 }
 
 //////////////////////////

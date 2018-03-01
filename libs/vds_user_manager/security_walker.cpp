@@ -1,4 +1,5 @@
 #include <transactions/channel_create_transaction.h>
+#include <transactions/device_user_add_transaction.h>
 #include "stdafx.h"
 #include "security_walker.h"
 #include "transactions/channel_add_writer_transaction.h"
@@ -81,77 +82,81 @@ void vds::security_walker::load(
 
     binary_deserializer s(data);
 
-    uint8_t message_id;
-    s >> message_id;
+    while(0 < s.size()) {
+      uint8_t message_id;
+      s >> message_id;
 
-    switch ((transactions::transaction_id)message_id) {
-    case transactions::transaction_id::channel_add_reader_transaction: {
-      transactions::channel_add_reader_transaction message(s);
-      auto &cp = this->channels_[message.channel_id()];
+      switch ((transactions::transaction_id) message_id) {
+        case transactions::transaction_id::channel_add_reader_transaction: {
+          transactions::channel_add_reader_transaction message(s);
+          auto &cp = this->channels_[message.channel_id()];
 
-      cp.name_ = message.name();
+          cp.name_ = message.name();
 
-      auto write_id = cert_control::get_id(message.write_cert());
-      cp.write_certificates_[write_id] = message.write_cert();
+          auto write_id = cert_control::get_id(message.write_cert());
+          cp.write_certificates_[write_id] = message.write_cert();
 
-      auto id = cert_control::get_id(message.read_cert());
-      cp.read_certificates_[id] = message.read_cert();
-      cp.read_private_keys_[id] = message.read_private_key();
-      cp.current_read_certificate_ = id;
+          auto id = cert_control::get_id(message.read_cert());
+          cp.read_certificates_[id] = message.read_cert();
+          cp.read_private_keys_[id] = message.read_private_key();
+          cp.current_read_certificate_ = id;
 
-      log->debug(ThisModule, sp, "Got channel %s reader certificate %s",
-        message.channel_id().str().c_str(),
-        id.str().c_str());
+          log->debug(ThisModule, sp, "Got channel %s reader certificate %s",
+                     message.channel_id().str().c_str(),
+                     id.str().c_str());
 
-      break;
-    }
+          break;
+        }
 
-    case transactions::transaction_id::channel_add_writer_transaction: {
-      transactions::channel_add_writer_transaction message(s);
-      auto & cp = this->channels_[message.channel_id()];
-      auto id = cert_control::get_id(message.write_cert());
-      cp.name_ = message.name();
-      cp.write_certificates_[id] = message.write_cert();
-      cp.write_private_keys_[id] = message.write_private_key();
-      cp.current_write_certificate_ = id;
+        case transactions::transaction_id::channel_add_writer_transaction: {
+          transactions::channel_add_writer_transaction message(s);
+          auto &cp = this->channels_[message.channel_id()];
+          auto id = cert_control::get_id(message.write_cert());
+          cp.name_ = message.name();
+          cp.write_certificates_[id] = message.write_cert();
+          cp.write_private_keys_[id] = message.write_private_key();
+          cp.current_write_certificate_ = id;
 
-      auto read_id = cert_control::get_id(message.read_cert());
-      cp.read_certificates_[read_id] = message.read_cert();
-      cp.current_read_certificate_ = read_id;
+          auto read_id = cert_control::get_id(message.read_cert());
+          cp.read_certificates_[read_id] = message.read_cert();
+          cp.current_read_certificate_ = read_id;
 
-      log->debug(ThisModule, sp, "Got channel %s write certificate %s, read certificate %s",
-        message.channel_id().str().c_str(),
-        id.str().c_str(),
-        read_id.str().c_str());
+          log->debug(ThisModule, sp, "Got channel %s write certificate %s, read certificate %s",
+                     message.channel_id().str().c_str(),
+                     id.str().c_str(),
+                     read_id.str().c_str());
 
-      break;
-    }
+          break;
+        }
 
-    case transactions::transaction_id::channel_create_transaction: {
-      transactions::channel_create_transaction message(s);
-      auto &cp = this->channels_[message.channel_id()];
-      cp.name_ = message.name();
-      cp.current_read_certificate_ = cert_control::get_id(message.read_cert());
-      cp.current_write_certificate_ = cert_control::get_id(message.write_cert());
-      cp.read_certificates_[cp.current_read_certificate_] = message.read_cert();
-      cp.read_private_keys_[cp.current_read_certificate_] = message.read_private_key();
-      cp.write_certificates_[cp.current_write_certificate_] = message.write_cert();
-      cp.write_private_keys_[cp.current_write_certificate_] = message.write_private_key();
+        case transactions::transaction_id::channel_create_transaction: {
+          transactions::channel_create_transaction message(s);
+          auto &cp = this->channels_[message.channel_id()];
+          cp.name_ = message.name();
+          cp.current_read_certificate_ = cert_control::get_id(message.read_cert());
+          cp.current_write_certificate_ = cert_control::get_id(message.write_cert());
+          cp.read_certificates_[cp.current_read_certificate_] = message.read_cert();
+          cp.read_private_keys_[cp.current_read_certificate_] = message.read_private_key();
+          cp.write_certificates_[cp.current_write_certificate_] = message.write_cert();
+          cp.write_private_keys_[cp.current_write_certificate_] = message.write_private_key();
 
-      log->debug(ThisModule, sp, "New channel %s(%s), read certificate %s, write certificate %s",
-        message.channel_id().str().c_str(),
-        message.name().c_str(),
-        cp.current_read_certificate_.str().c_str(),
-        cp.current_write_certificate_.str().c_str());
+          log->debug(ThisModule, sp, "New channel %s(%s), read certificate %s, write certificate %s",
+                     message.channel_id().str().c_str(),
+                     message.name().c_str(),
+                     cp.current_read_certificate_.str().c_str(),
+                     cp.current_write_certificate_.str().c_str());
 
-      break;
-    }
-    case transactions::transaction_id::channel_remove_reader_transaction: {
-      break;
-    }
+          break;
+        }
 
-    default:
-      throw std::runtime_error("logic error");
+        case transactions::transaction_id::device_user_add_transaction: {
+          transactions::device_user_add_transaction message(s);
+          break;
+        }
+
+        default:
+          throw std::runtime_error("logic error");
+      }
     }
   }
 }

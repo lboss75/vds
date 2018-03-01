@@ -59,6 +59,7 @@ namespace vds {
           class database_transaction &t,
           const guid & channel_id,
           const const_data_buffer &block,
+          uint64_t order_no,
           const std::set<const_data_buffer> &ancestors) const;
 
       void on_new_transaction(

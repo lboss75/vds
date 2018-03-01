@@ -48,15 +48,23 @@ void vds::transaction_log::save(
 	}
 
   guid block_channel_id;
+  uint64_t order_no;
   guid read_cert_id;
   guid write_cert_id;
   std::set<const_data_buffer> ancestors;
   const_data_buffer crypted_data;
   const_data_buffer crypted_key;
   const_data_buffer signature;
-  transactions::transaction_block::parse_block(block_data, block_channel_id, <#initializer#>, read_cert_id,
-                                               write_cert_id, ancestors,
-                                               crypted_data, crypted_key, signature);
+  transactions::transaction_block::parse_block(
+      block_data,
+      block_channel_id,
+      order_no,
+      read_cert_id,
+      write_cert_id,
+      ancestors,
+      crypted_data,
+      crypted_key,
+      signature);
 
   if(block_channel_id != channel_id){
     sp.get<logger>()->warning(ThisModule, sp, "Invalid record %s", channel_id.str().c_str());
@@ -71,7 +79,7 @@ void vds::transaction_log::save(
     is_validated = false;
   }
   else {
-    if(!transactions::transaction_block::validate_block(write_cert, block_channel_id, <#initializer#>, read_cert_id,
+    if(!transactions::transaction_block::validate_block(write_cert, block_channel_id, order_no, read_cert_id,
                                                         write_cert_id, ancestors,
                                                         crypted_data, crypted_key, signature)){
       sp.get<logger>()->warning(
@@ -91,13 +99,13 @@ void vds::transaction_log::save(
       t2.state = is_validated
                  ? (int)orm::transaction_log_record_dbo::state_t::validated
                  : (int)orm::transaction_log_record_dbo::state_t::stored,
-      t2.order_no));
+      t2.order_no = order_no));
 
   orm::transaction_log_unknown_record_dbo t4;
   std::set<const_data_buffer> followers;
   st = t.get_reader(t4.select(t4.follower_id).where(t4.id == base64::from_bytes(block_id)));
   while(st.execute()){
-    followers.emplace(t4.id.get(st));
+    followers.emplace(base64::to_bytes(t4.id.get(st)));
   }
 
   for (auto &p : followers) {

@@ -96,12 +96,19 @@ vds::user_invitation vds::user_manager::reset(
   auto blocks = playback.save(
       sp,
       t,
-      [](
+      [&root_user, &root_private_key](
           const guid & channel_id,
           certificate & read_cert,
           certificate & write_cert,
           asymmetric_private_key & write_private_key) {
+        if(root_user.id() == channel_id){
+          read_cert = root_user.user_certificate();
+          write_cert = root_user.user_certificate();
+          write_private_key = root_private_key;
+        }
+        else {
           throw std::runtime_error("Invalid channel id");
+        }
       });
   this->load(sp, t, device_user.id());
 
@@ -167,11 +174,18 @@ vds::async_task<> vds::user_manager::init_server(
 
 		auto blocks = log.save(
 			sp, t,
-      [&request](const guid & channel_id,
+      [&user, &request](const guid & channel_id,
          certificate & read_cert,
          certificate & write_cert,
          asymmetric_private_key & write_private_key){
+        if(user.id() == channel_id){
+          read_cert = user.user_certificate();
+          write_cert = user.user_certificate();
+          write_private_key = request.get_user_private_key();
+        }
+        else {
           throw std::runtime_error("Invalid channel");
+        }
       });
 		this->load(sp, t, device_user.id());
 
@@ -365,6 +379,13 @@ vds::member_user vds::user_manager::create_root_user(transactions::transaction_b
           hash::signature(hash::sha256(), root_password.c_str(), root_password.length())));
 
   return member_user(new _member_user(root_user_id, root_user_cert));
+}
+
+vds::certificate vds::user_manager::get_channel_write_cert(
+		const vds::service_provider &sp,
+		const vds::guid &channel_id,
+		const vds::guid &cert_id) const {
+	return this->impl_->get_channel_write_cert(channel_id, cert_id);
 }
 
 ////////////////////////////////////////////////////////////////////////

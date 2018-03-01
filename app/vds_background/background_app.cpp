@@ -7,7 +7,6 @@ All rights reserved
 #include "background_app.h"
 #include "http_router.h"
 #include "private/certificate_authority_p.h"
-#include "storage_log.h"
 
 vds::background_app::background_app()
 : server_start_command_set_("Server start", "Start web server", "start", "server"),

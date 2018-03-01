@@ -50,10 +50,7 @@ namespace vds {
 
     std::unique_ptr<class log_sync_service> log_sync_service_;
     std::unique_ptr<file_manager::file_manager_service> file_manager_;
-	std::unique_ptr<class chunk_replicator> chunk_replicator_;
-
-  public:
-    leak_detect_helper leak_detect_;
+	  std::unique_ptr<class chunk_replicator> chunk_replicator_;
   };
 }
 
