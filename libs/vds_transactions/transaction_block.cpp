@@ -149,12 +149,12 @@ vds::const_data_buffer vds::transactions::transaction_block::register_transactio
       t2.id = vds::base64::from_bytes(id),
       t2.channel_id = channel_id,
       t2.data = block,
-      t2.state = (uint8_t)orm::transaction_log_record_dbo::state_t::processed));
+      t2.state = (uint8_t)orm::transaction_log_record_dbo::state_t::validated));
 
   for(auto & ancestor : ancestors){
     orm::transaction_log_record_dbo t1;
     t.execute(
-        t1.update(t1.state = (uint8_t)orm::transaction_log_record_dbo::state_t::processed)
+        t1.update(t1.state = (uint8_t)orm::transaction_log_record_dbo::state_t::validated)
             .where(t1.id == base64::from_bytes(ancestor)));
   }
   
