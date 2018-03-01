@@ -8,9 +8,6 @@ void vds::_udp_transport_session::incomming_message(
     const uint8_t *data,
     uint16_t size)
 {
-  if(4 > size){
-    throw std::runtime_error("Small message");
-  }
   this->received_data_bytes_ += size;
 
   if(0x80 == (0x80 & data[0])){
@@ -120,11 +117,19 @@ void vds::_udp_transport_session::incomming_message(
 
         break;
       }
+      case control_type::Failed:{
+        this->current_state_ = state_t::fail;
+        break;
+      }
       default:
         throw std::runtime_error("Not implemented");
 
     }
   } else {
+    if(4 > size){
+      throw std::runtime_error("Small message");
+    }
+
     std::unique_lock<std::shared_mutex> lock(this->current_state_mutex_);
     switch (this->current_state_) {
       case state_t::welcome_pending:

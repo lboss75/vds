@@ -448,7 +448,7 @@ namespace vds {
             size,
             0,
             this->write_message_->address(),
-            sizeof(sockaddr_in));
+            this->write_message_->address().size());
         this->sp_.get<logger>()->trace("UDP", this->sp_, "send %d bytes to %s",
                                        size,
                                        this->write_message_->address().to_string().c_str());
