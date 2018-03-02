@@ -15,6 +15,8 @@ namespace vds {
 
   class _p2p_route : public std::enable_shared_from_this<_p2p_route> {
   public:
+    _p2p_route();
+
     void start(const service_provider &sp);
     void stop(const service_provider &sp);
 
@@ -34,9 +36,6 @@ namespace vds {
         size_t max_count,
         std::set<node_id_t> & result_nodes);
 
-    void on_timer(
-        const service_provider &sp);
-
     void close_session(
         const vds::service_provider &sp,
         const std::shared_ptr<_p2p_crypto_tunnel> & proxy_session);
@@ -46,6 +45,7 @@ namespace vds {
     }
 
   private:
+    timer backgroud_timer_;
     node_id_t current_node_id_;
 
     struct node {
@@ -110,6 +110,9 @@ namespace vds {
         const node_id_t &target_node_id,
         size_t max_count,
         const std::function<void(const node_id_t & node_id, const std::shared_ptr<_p2p_crypto_tunnel> & session)> & callback);
+
+    void on_timer(
+      const service_provider &sp);
   };
 }
 

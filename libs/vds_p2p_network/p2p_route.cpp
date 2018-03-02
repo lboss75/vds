@@ -31,23 +31,27 @@ vds::p2p_route::~p2p_route() {
 
 //////////////////////////////////////////////
 bool vds::_p2p_route::send(
-    const service_provider &sp,
-    const node_id_t & target_node_id,
-    const const_data_buffer & message) {
+  const service_provider &sp,
+  const node_id_t & target_node_id,
+  const const_data_buffer & message) {
 
+  bool result = false;
   this->for_near(
-      sp,
-      target_node_id,
-      1,
-      [sp, message, target_node_id](
-          const node_id_t & node_id,
-          const std::shared_ptr<vds::_p2p_crypto_tunnel> & proxy_session) {
-        proxy_session->send(
-            sp,
-            target_node_id,
-            message);
-      });
-  return true;
+    sp,
+    target_node_id,
+    1,
+    [sp, message, target_node_id, &result, this](
+      const node_id_t & node_id,
+      const std::shared_ptr<vds::_p2p_crypto_tunnel> & proxy_session) {
+    if (node_id.distance(target_node_id) < this->current_node_id_.distance(target_node_id)) {
+      proxy_session->send(
+        sp,
+        target_node_id,
+        message);
+      result = true;
+    }
+  });
+  return result;
 }
 
 void vds::_p2p_route::add_node(
@@ -176,11 +180,19 @@ void vds::_p2p_route::find_node(
       });
 }
 
+vds::_p2p_route::_p2p_route()
+: backgroud_timer_("P2P Route timer"){
+}
+
 void vds::_p2p_route::start(const vds::service_provider &sp) {
   auto user_mng = sp.get<user_manager>();
   asymmetric_private_key device_private_key;
   auto current_user = user_mng->get_current_device(sp, device_private_key);
   this->current_node_id_ = node_id_t(current_user.id());
+  this->backgroud_timer_.start(sp, std::chrono::seconds(1), [sp, pthis = this->shared_from_this()]()->bool{
+    pthis->on_timer(sp);
+    return !sp.get_shutdown_event().is_shuting_down();
+  });
 }
 
 void vds::_p2p_route::for_near(

@@ -9,19 +9,23 @@ All rights reserved
 namespace vds {
   struct sync_statistic {
 
-    std::list<std::string> leafs_;
+    std::map<guid, std::list<std::string>> leafs_;
 
 
     std::string str() const {
       std::string result;
-      for(auto & p : this->leafs_){
-        if(!result.empty()){
+      for (auto & c : this->leafs_) {
+        result += c.first.str();
+        result += '[';
+
+        for (auto & p : c.second) {
+          result += p;
           result += ',';
         }
 
-        result += p;
+        result += ']';
+        result += ',';
       }
-
       return result;
     }
 
@@ -34,30 +38,46 @@ namespace vds {
         return true;
       }
 
-      for(auto & p : this->leafs_){
-        bool is_good = false;
-        for(auto & p1 : other.leafs_){
-          if(p == p1){
-            is_good = true;
-            break;
-          }
-        }
-        if(!is_good){
+      for (auto & c : this->leafs_) {
+        auto oc = other.leafs_.find(c.first);
+        if (other.leafs_.end() == oc) {
           return true;
         }
-      }
-      for(auto & p : other.leafs_){
-        bool is_good = false;
-        for(auto & p1 : this->leafs_){
-          if(p == p1){
-            is_good = true;
-            break;
+
+        for (auto & p : c.second) {
+          bool is_good = false;
+          for (auto & p1 : oc->second) {
+            if (p == p1) {
+              is_good = true;
+              break;
+            }
+          }
+          if (!is_good) {
+            return true;
           }
         }
-        if(!is_good){
+      }
+
+      for (auto & oc : other.leafs_) {
+        auto c = this->leafs_.find(oc.first);
+        if (other.leafs_.end() == c) {
           return true;
         }
+
+        for (auto & p : oc.second) {
+          bool is_good = false;
+          for (auto & p1 : c->second) {
+            if (p == p1) {
+              is_good = true;
+              break;
+            }
+          }
+          if (!is_good) {
+            return true;
+          }
+        }
       }
+
       return false;
     }
   };

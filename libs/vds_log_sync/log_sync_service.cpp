@@ -83,7 +83,7 @@ void vds::_log_sync_service::start(const vds::service_provider &sp) {
         pthis->sycn_scheduled_ = false;
       }).execute([scope](const std::shared_ptr<std::exception> & ex){
         if(ex){
-          scope.get<logger>()->warning("LOGSYNC", scope, "Exception %s", ex->what());
+          scope.get<logger>()->warning(ThisModule, scope, "Exception %s", ex->what());
         }
       });
     }
@@ -111,6 +111,20 @@ void vds::_log_sync_service::ask_unknown_records(const vds::service_provider &sp
   }
 
   for(auto p : record_ids){
+
+    std::string log_message;
+    for(const auto & r : p.second) {
+      log_message += base64::from_bytes(r);
+      log_message += ' ';
+    }
+
+    sp.get<logger>()->trace(
+      ThisModule,
+      sp,
+      "Query log records %s of channel %s",
+        log_message.c_str(),
+        p.first.str().c_str());
+
     p2p->send_tentatively(
         sp,
         p.first,
@@ -141,6 +155,20 @@ void vds::_log_sync_service::send_current_state(
   }
 
   for(auto p : state){
+
+    std::string log_message;
+    for (const auto & r : p.second) {
+      log_message += base64::from_bytes(r);
+      log_message += ' ';
+    }
+
+    sp.get<logger>()->trace(
+      ThisModule,
+      sp,
+      "Channel %s state is %s",
+      p.first.str().c_str(),
+      log_message.c_str());
+
     p2p->send_tentatively(
         sp,
         p.first,
@@ -157,10 +185,10 @@ void vds::_log_sync_service::get_statistic(
     vds::sync_statistic &result) {
   orm::transaction_log_record_dbo t1;
   auto st = t.get_reader(
-      t1.select(t1.id)
+      t1.select(t1.id, t1.channel_id)
           .where(t1.state == (uint8_t)orm::transaction_log_record_dbo::state_t::leaf));
   while(st.execute()){
-    result.leafs_.push_back(t1.id.get(st));
+    result.leafs_[t1.channel_id.get(st)].push_back(t1.id.get(st));
   }
 }
 
@@ -191,6 +219,19 @@ void vds::_log_sync_service::apply(const vds::service_provider &sp, const vds::g
         }
 
         if(!requests.empty()){
+          std::string log_message;
+          for (const auto & r : requests) {
+            log_message += base64::from_bytes(r);
+            log_message += ' ';
+          }
+
+          sp.get<logger>()->trace(
+            ThisModule,
+            sp,
+            "Query log records %s of channel %s",
+            log_message.c_str(),
+            message.channel_id().str().c_str());
+
           auto p2p = sp.get<p2p_network>();
           p2p->send(
               sp,
@@ -223,7 +264,15 @@ void vds::_log_sync_service::apply(const vds::service_provider &sp, const vds::g
 		for (auto & p : message.requests()) {
 			auto st = t.get_reader(t1.select(t1.channel_id, t1.data).where(t1.id == base64::from_bytes(p)));
 			if (st.execute()) {
-				p2p->send(
+
+        sp.get<logger>()->trace(
+          ThisModule,
+          sp,
+          "Provide log record %s of channel %s",
+          base64::from_bytes(p).c_str(),
+          t1.channel_id.get(st).str().c_str());
+
+        p2p->send(
 					sp,
 					message.source_node(),
 					p2p_messages::channel_log_record(
@@ -248,7 +297,14 @@ void vds::_log_sync_service::apply(const vds::service_provider &sp, const vds::g
 		sp,
 		[pthis = this->shared_from_this(), sp, partner_id, message](database_transaction & t) -> bool{
 
-		transaction_log::save(sp, t, message.channel_id(), message.record_id(), message.data());
+    sp.get<logger>()->trace(
+      ThisModule,
+      sp,
+      "Save log record %s of channel %s",
+      base64::from_bytes(message.record_id()).c_str(),
+      message.channel_id().str().c_str());
+
+    transaction_log::save(sp, t, message.channel_id(), message.record_id(), message.data());
 
 		return true;
 	}).execute([sp, partner_id](const std::shared_ptr<std::exception> & ex) {

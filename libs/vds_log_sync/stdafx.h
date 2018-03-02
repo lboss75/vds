@@ -9,5 +9,7 @@ All rights reserved
 #include "vds_core.h"
 #include "vds_crypto.h"
 
+#define ThisModule "LOGSYNC"
+
 #endif // __VDS_LOG_SYNC_STDAFX_H_
 

@@ -161,8 +161,9 @@ void vds::_p2p_network::process_input_command(
   ms >> target_node >> message_buffer;
 
   if(target_node.device_id() != this->current_node_id()){
-    this->send(sp, target_node, message_buffer);
-    return;
+    if (this->send(sp, target_node, message_buffer)) {
+      return;
+    }
   }
 
   uint8_t  command_id;
