@@ -27,6 +27,11 @@ namespace vds {
         return s.data();
       }
 
+
+      const node_id_t & target_id() const {
+        return target_id_;
+      }
+
     private:
       node_id_t target_id_;
     };

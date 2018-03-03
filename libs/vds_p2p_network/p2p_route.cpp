@@ -34,6 +34,7 @@ bool vds::_p2p_route::send(
   const service_provider &sp,
   const node_id_t & target_node_id,
   const const_data_buffer & message) {
+  std::shared_lock<std::shared_mutex> lock(this->buckets_mutex_);
 
   bool result = false;
   this->for_near(
@@ -44,11 +45,24 @@ bool vds::_p2p_route::send(
       const node_id_t & node_id,
       const std::shared_ptr<vds::_p2p_crypto_tunnel> & proxy_session) {
     if (node_id.distance(target_node_id) < this->current_node_id_.distance(target_node_id)) {
+      sp.get<logger>()->trace(ThisModule, sp, "Send message %d bytes to %s over %s becouse node %s is near node %s for target %s",
+        message.size(),
+        target_node_id.device_id().str().c_str(),
+        proxy_session->address().to_string().c_str(),
+        node_id.str().c_str(),
+        this->current_node_id_.str().c_str(),
+        target_node_id.str().c_str());
       proxy_session->send(
         sp,
         target_node_id,
         message);
       result = true;
+    }
+    else {
+      sp.get<logger>()->trace(ThisModule, sp, "Don't send message %d bytes to %s over %s",
+        message.size(),
+        target_node_id.device_id().str().c_str(),
+        proxy_session->address().to_string().c_str());
     }
   });
   return result;
@@ -103,15 +117,23 @@ void vds::_p2p_route::ping_buckets(const vds::service_provider &sp) {
 }
 
 void vds::_p2p_route::search_nodes(
-    const vds::service_provider &sp,
-    const vds::node_id_t &target_id,
-    size_t max_count,
-    std::set<vds::node_id_t> &result_nodes) {
+  const vds::service_provider &sp,
+  const vds::node_id_t &target_id,
+  size_t max_count,
+  std::list<node> &result_nodes) {
+  std::shared_lock<std::shared_mutex> lock(this->buckets_mutex_);
+  this->_search_nodes(sp, target_id, max_count, result_nodes);
+}
+
+void vds::_p2p_route::_search_nodes(
+  const vds::service_provider &sp,
+  const vds::node_id_t &target_id,
+  size_t max_count,
+  std::list<node> &result_nodes) {
 
   auto index = this->current_node_id_.distance_exp(target_id);
 
-  std::map<vds::node_id_t, vds::node_id_t> result;
-  std::shared_lock<std::shared_mutex> lock(this->buckets_mutex_);
+  std::map<vds::node_id_t, node> result;
   for(
       uint8_t distance = 0;
       result_nodes.size() < max_count
@@ -122,7 +144,7 @@ void vds::_p2p_route::search_nodes(
   }
 
   for(auto & p : result){
-    result_nodes.insert(p.second);
+    result_nodes.push_back(p.second);
     if(result_nodes.size() >= max_count){
       break;
     }
@@ -132,7 +154,7 @@ void vds::_p2p_route::search_nodes(
 void vds::_p2p_route::search_nodes(
     const vds::service_provider &sp,
     const vds::node_id_t &target_id,
-    std::map<vds::node_id_t, vds::node_id_t> &result_nodes,
+    std::map<vds::node_id_t, node> &result_nodes,
     uint8_t index) {
   auto p = this->buckets_.find(index);
   if(this->buckets_.end() == p) {
@@ -144,7 +166,7 @@ void vds::_p2p_route::search_nodes(
       continue;
     }
 
-    result_nodes[node.id_.distance(target_id)] = node.id_;
+    result_nodes[node.id_.distance(target_id)] = node;
   }
 }
 
@@ -172,6 +194,10 @@ void vds::_p2p_route::find_node(
       target_node_id,
       40,
       [sp, target_node_id](const node_id_t & node_id, const std::shared_ptr<vds::_p2p_crypto_tunnel> & proxy_session) {
+    sp.get<logger>()->trace(ThisModule, sp, "DHT find node %s over %s (%s)",
+      target_node_id.device_id().str().c_str(),
+      node_id.device_id().str().c_str(),
+      proxy_session->address().to_string().c_str());
         proxy_session->send(
             sp,
             node_id,
@@ -201,18 +227,17 @@ void vds::_p2p_route::for_near(
     size_t max_count,
     const std::function<void(const node_id_t & node_id, const std::shared_ptr<vds::_p2p_crypto_tunnel> &)> &callback) {
 
-  std::set<node_id_t> result_nodes;
-  this->search_nodes(sp, target_node_id, max_count, result_nodes);
+  std::list<node> result_nodes;
+  this->_search_nodes(sp, target_node_id, max_count, result_nodes);
 
-  std::shared_lock<std::shared_mutex> lock(this->buckets_mutex_);
-  for(auto & node_id : result_nodes){
-    auto index = this->current_node_id_.distance_exp(node_id);
+  for(auto & node : result_nodes){
+    auto index = this->current_node_id_.distance_exp(node.id_);
     auto p = this->buckets_.find(index);
     if(this->buckets_.end() != p){
       std::shared_lock<std::shared_mutex> block(p->second.nodes_mutex_);
-      for(auto & node : p->second.nodes_){
-        if(node.id_ == node_id){
-          callback(node_id, node.proxy_session_);
+      for(auto & pnode : p->second.nodes_){
+        if(pnode.id_ == node.id_){
+          callback(node.id_, pnode.proxy_session_);
         }
       }
     }

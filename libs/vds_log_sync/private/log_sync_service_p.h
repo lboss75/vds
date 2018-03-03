@@ -54,6 +54,10 @@ namespace vds {
 				const vds::service_provider &sp,
 				database_transaction &t,
 				class p2p_network *p2p) const;
+    void ask_unknown_certificates(
+      const service_provider& sp,
+      const database_transaction& t,
+      class p2p_network * p2p);
   };
 
 }

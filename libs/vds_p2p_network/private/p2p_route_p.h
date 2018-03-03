@@ -15,6 +15,35 @@ namespace vds {
 
   class _p2p_route : public std::enable_shared_from_this<_p2p_route> {
   public:
+    struct node {
+      node_id_t id_;
+      std::shared_ptr<_p2p_crypto_tunnel> proxy_session_;
+      uint8_t pinged_;
+
+      node()
+        : pinged_(0) {
+      }
+
+      node(
+        const node_id_t & id,
+        const std::shared_ptr<_p2p_crypto_tunnel> proxy_session)
+        : id_(id),
+        proxy_session_(proxy_session),
+        pinged_(0) {
+      }
+
+      bool is_good() const {
+        return this->pinged_ < 5;
+      }
+
+      void reset(const node_id_t & id,
+        const std::shared_ptr<_p2p_crypto_tunnel> proxy_session) {
+        this->id_ = id;
+        this->proxy_session_ = proxy_session;
+        this->pinged_ = 0;
+      }
+    };
+
     _p2p_route();
 
     void start(const service_provider &sp);
@@ -34,7 +63,7 @@ namespace vds {
         const vds::service_provider &sp,
         const node_id_t & target_id,
         size_t max_count,
-        std::set<node_id_t> & result_nodes);
+        std::list<node> & result_nodes);
 
     void close_session(
         const vds::service_provider &sp,
@@ -47,31 +76,6 @@ namespace vds {
   private:
     timer backgroud_timer_;
     node_id_t current_node_id_;
-
-    struct node {
-      node_id_t id_;
-      std::shared_ptr<_p2p_crypto_tunnel> proxy_session_;
-      uint8_t pinged_;
-
-      node(
-          const node_id_t & id,
-          const std::shared_ptr<_p2p_crypto_tunnel> proxy_session)
-          : id_(id),
-            proxy_session_(proxy_session),
-            pinged_(0){
-      }
-
-      bool is_good() const {
-        return this->pinged_ < 5;
-      }
-
-      void reset(const node_id_t & id,
-                 const std::shared_ptr<_p2p_crypto_tunnel> proxy_session){
-        this->id_ = id;
-        this->proxy_session_ = proxy_session;
-        this->pinged_ = 0;
-      }
-    };
 
     struct bucket {
       static constexpr size_t MAX_NODES = 8;
@@ -93,10 +97,16 @@ namespace vds {
     mutable std::shared_mutex buckets_mutex_;
     std::map<uint8_t, bucket> buckets_;
 
+    void _search_nodes(
+      const vds::service_provider &sp,
+      const node_id_t & target_id,
+      size_t max_count,
+      std::list<node> & result_nodes);
+
     void search_nodes(
         const service_provider &sp,
         const node_id_t &target_id,
-        std::map<vds::node_id_t, vds::node_id_t> &result_nodes,
+        std::map<vds::node_id_t, node> &result_nodes,
         uint8_t index);
 
     void ping_buckets(const service_provider &sp);

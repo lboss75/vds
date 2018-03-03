@@ -22,6 +22,9 @@
 #include "messages/chunk_offer_replica.h"
 #include "messages/chunk_have_replica.h"
 #include "private/p2p_route_p.h"
+#include "messages/dht_find_node.h"
+#include "messages/dht_find_node_response.h"
+#include "messages/dht_ping.h"
 
 vds::p2p_network::p2p_network()
 :impl_(new _p2p_network()){
@@ -105,7 +108,7 @@ vds::async_task<> vds::_p2p_network::start_network(const vds::service_provider &
     run_conf->cert_chain.push_back(device_cert);
 
     if(st.execute()) {
-      throw std::runtime_error("Multiple run configuration is not found");
+      throw std::runtime_error("Multiple run configuration is not supported");
     }
 
     user_mng->load(sp, t, run_conf->id);
@@ -160,8 +163,61 @@ void vds::_p2p_network::process_input_command(
   const_data_buffer message_buffer;
   ms >> target_node >> message_buffer;
 
-  if(target_node.device_id() != this->current_node_id()){
+  if (target_node.device_id() != this->current_node_id()) {
     if (this->send(sp, target_node, message_buffer)) {
+      uint8_t  command_id;
+      binary_deserializer s(message_buffer);
+      s >> command_id;
+
+      switch ((p2p_messages::p2p_message_id)command_id) {
+      case p2p_messages::p2p_message_id::channel_log_state: {
+        sp.get<logger>()->trace(ThisModule, sp, "Skip message channel_log_state");
+        break;
+      }
+      case p2p_messages::p2p_message_id::channel_log_request: {
+        sp.get<logger>()->trace(ThisModule, sp, "Skip message channel_log_request");
+        break;
+      }
+      case p2p_messages::p2p_message_id::channel_log_record: {
+        sp.get<logger>()->trace(ThisModule, sp, "Skip message channel_log_record");
+        break;
+      }
+      case p2p_messages::p2p_message_id::chunk_send_replica: {
+        sp.get<logger>()->trace(ThisModule, sp, "Skip message chunk_send_replica");
+        break;
+      }
+      case p2p_messages::p2p_message_id::chunk_query_replica: {
+        sp.get<logger>()->trace(ThisModule, sp, "Skip message chunk_query_replica");
+        break;
+      }
+      case p2p_messages::p2p_message_id::chunk_offer_replica: {
+        sp.get<logger>()->trace(ThisModule, sp, "Skip message chunk_offer_replica");
+        break;
+      }
+
+      case p2p_messages::p2p_message_id::chunk_have_replica: {
+        sp.get<logger>()->trace(ThisModule, sp, "Skip message chunk_have_replica");
+        break;
+      }
+
+      case p2p_messages::p2p_message_id::dht_find_node: {
+        sp.get<logger>()->trace(ThisModule, sp, "Skip message dht_find_node");
+        break;
+      }
+      case p2p_messages::p2p_message_id::dht_ping: {
+        sp.get<logger>()->trace(ThisModule, sp, "Skip message dht_ping");
+        break;
+      }
+      case p2p_messages::p2p_message_id::dht_find_node_response: {
+        sp.get<logger>()->trace(ThisModule, sp, "Skip message dht_find_node_response");
+        break;
+      }
+      default:
+        sp.get<logger>()->trace(ThisModule, sp, "Skip invalid message");
+        break;
+      }
+      
+
       return;
     }
   }
@@ -201,18 +257,57 @@ void vds::_p2p_network::process_input_command(
     sp.get<chunk_replicator>()->apply(sp, partner_id, message);
     break;
   }
-    case p2p_messages::p2p_message_id::chunk_offer_replica: {
-      p2p_messages::chunk_offer_replica message(s);
-      sp.get<chunk_replicator>()->apply(sp, partner_id, message);
-      break;
-    }
+  case p2p_messages::p2p_message_id::chunk_offer_replica: {
+    p2p_messages::chunk_offer_replica message(s);
+    sp.get<chunk_replicator>()->apply(sp, partner_id, message);
+    break;
+  }
 
-    case p2p_messages::p2p_message_id::chunk_have_replica: {
-      p2p_messages::chunk_have_replica message(s);
-      sp.get<chunk_replicator>()->apply(sp, partner_id, message);
-      break;
-    }
+  case p2p_messages::p2p_message_id::chunk_have_replica: {
+    p2p_messages::chunk_have_replica message(s);
+    sp.get<chunk_replicator>()->apply(sp, partner_id, message);
+    break;
+  }
 
+  case p2p_messages::p2p_message_id::dht_find_node: {
+    p2p_messages::dht_find_node message(s);
+
+    sp.get<logger>()->trace(ThisModule, sp, "Incomming DHT find node %s from %s (%s)",
+      message.target_id().device_id().str().c_str(),
+      partner_id.str().c_str(),
+      session->address().to_string().c_str());
+
+    std::list<_p2p_route::node> result_nodes;
+    this->route_->search_nodes(sp, message.target_id(), 40, result_nodes);
+    if(!result_nodes.empty()) {
+      std::list<p2p_messages::dht_find_node_response::target_node> nodes;
+      for(auto p : result_nodes) {
+        sp.get<logger>()->trace(ThisModule, sp, "Found DHT node %s (%s) to %s",
+          p.id_.device_id().str().c_str(), 
+          p.proxy_session_->address().to_string().c_str(),
+          message.target_id().device_id().str().c_str());
+        nodes.push_back(
+          p2p_messages::dht_find_node_response::target_node(
+            p.id_.device_id(),
+            ((AF_INET6 == p.proxy_session_->address().family()) ? "udp6://" : "udp://")
+            + p.proxy_session_->address().to_string()));
+      }
+      session->send(sp, partner_id, p2p_messages::dht_find_node_response(nodes).serialize());
+    }
+    break;
+  }
+  case p2p_messages::p2p_message_id::dht_ping: {
+    p2p_messages::dht_ping message(s);
+    break;
+  }
+  case p2p_messages::p2p_message_id::dht_find_node_response: {
+    p2p_messages::dht_find_node_response message(s);
+    for(auto node : message.nodes()) {
+      this->route_->add_node(sp, node_id_t(node.target_id_), session);
+      this->network_service_->connect(sp, node.address_);
+    }
+    break;
+  }
   default:
     throw std::runtime_error("Invalid command");
   }
@@ -234,16 +329,16 @@ void vds::_p2p_network::add_node(
 
 bool vds::_p2p_network::send_tentatively(const vds::service_provider &sp, const vds::guid &device_id,
                                          const vds::const_data_buffer &message, size_t distance) {
-  std::set<node_id_t> candidates;
+  std::list<_p2p_route::node> candidates;
   this->route_->search_nodes(sp, device_id, distance, candidates);
 
   if(!candidates.empty()) {
     size_t index = std::rand() % candidates.size();
     for (auto &p : candidates) {
       if (0 == index--) {
-        this->route_->send(
+        p.proxy_session_->send(
             sp,
-            p,
+            device_id,
             message);
         return true;
       }

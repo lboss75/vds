@@ -102,6 +102,18 @@ void vds::transaction_log::save(
       t2.order_no = order_no));
 
   orm::transaction_log_unknown_record_dbo t4;
+
+  for(const auto & ancestor : ancestors) {
+    st = t.get_reader(t4.select(t4.id).where(t4.id == base64::from_bytes(ancestor)));
+    if(!st.execute()) {
+      t.execute(t4.insert(
+        t4.id = base64::from_bytes(ancestor),
+        t4.channel_id = channel_id,
+        t4.follower_id = base64::from_bytes(block_id)
+      ));
+    }
+  }
+
   std::set<const_data_buffer> followers;
   st = t.get_reader(t4.select(t4.follower_id).where(t4.id == base64::from_bytes(block_id)));
   while(st.execute()){

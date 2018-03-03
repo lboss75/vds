@@ -31,6 +31,7 @@ namespace vds {
     async_task<> prepare_to_stop(const vds::service_provider &sp);
     void stop(const service_provider & sp);
 
+    void connect(const service_provider & sp, const std::string & address);
   private:
     udp_transport transport_;
     timer backgroud_timer_;

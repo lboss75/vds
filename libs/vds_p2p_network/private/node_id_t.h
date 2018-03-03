@@ -141,6 +141,10 @@ namespace vds {
       memset(this->id_, 0, sizeof(this->id_));
     }
 
+    std::string str() const {
+      return this->device_id().str();
+    }
+
   private:
     uint8_t id_[SIZE];
   };

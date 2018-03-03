@@ -133,3 +133,7 @@ void vds::_p2p_network_service::stop(const vds::service_provider &sp) {
   this->sessions_.clear();
 
 }
+
+void vds::_p2p_network_service::connect(const service_provider& sp, const std::string& address) {
+  this->transport_->connect(sp, address);
+}

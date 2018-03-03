@@ -98,6 +98,7 @@ void vds::_log_sync_service::sync_process(
   auto p2p = sp.get<p2p_network>();
   this->send_current_state(sp, t, p2p);
   this->ask_unknown_records(sp, t, p2p);
+  this->ask_unknown_certificates(sp, t, p2p);
 }
 
 void vds::_log_sync_service::ask_unknown_records(const vds::service_provider &sp, vds::database_transaction &t,
@@ -134,6 +135,10 @@ void vds::_log_sync_service::ask_unknown_records(const vds::service_provider &sp
             p2p->current_node_id()).serialize(),
         1024);
   }
+}
+
+void vds::_log_sync_service::ask_unknown_certificates(const service_provider& sp, const database_transaction& t,
+  p2p_network* p2p) {
 }
 
 void vds::_log_sync_service::send_current_state(

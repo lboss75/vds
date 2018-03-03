@@ -10,8 +10,17 @@ namespace vds {
       static const uint8_t message_id = (uint8_t) p2p_message_id::dht_find_node_response;
 
       struct target_node {
-        const_data_buffer target_id_;
+        guid target_id_;
         std::string address_;
+
+        target_node() {
+        }
+
+        target_node(
+          const guid & target_id,
+          const std::string & address)
+        : target_id_(target_id), address_(address){          
+        }
       };
 
       dht_find_node_response(
@@ -19,7 +28,7 @@ namespace vds {
       : nodes_(nodes) {
       }
 
-      dht_find_node(
+      dht_find_node_response(
           binary_deserializer & s) {
         s >> this->nodes_;
       }
@@ -28,6 +37,11 @@ namespace vds {
         binary_serializer s;
         s << message_id << this->nodes_;
         return s.data();
+      }
+
+
+      const std::list<target_node> & nodes() const {
+        return nodes_;
       }
 
     private:
