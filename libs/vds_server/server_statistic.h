@@ -7,12 +7,12 @@ All rights reserved
 */
 
 #include "sync_statistic.h"
-
+#include "p2p_network_statistic.h"
 namespace vds {
 
   struct server_statistic {
     sync_statistic sync_statistic_;
-
+    p2p_network_statistic p2p_network_statistic_;
   };
 
 }

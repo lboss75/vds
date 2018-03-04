@@ -22,6 +22,7 @@ namespace vds {
       chunk_offer_replica = 'o',
 
       dht_ping = 'p',
+      dht_pong = 'P',
       dht_find_node = 'f',
       dht_find_node_response = 'a'
     };

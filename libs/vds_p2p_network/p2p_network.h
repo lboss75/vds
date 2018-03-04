@@ -11,6 +11,7 @@ All rights reserved
 #include "p2p_node_info.h"
 
 namespace vds {
+  
   class p2p_network {
   public:
     p2p_network();
@@ -26,7 +27,7 @@ namespace vds {
     void query_replica(
         const service_provider & sp,
         const const_data_buffer & block_id,
-        const std::vector<uint16_t> & exist_replicas,
+        const std::set<uint16_t> & exist_replicas,
         uint16_t distance);
 
     bool send_tentatively(
@@ -47,6 +48,8 @@ namespace vds {
     operator bool () const {
       return nullptr != this->impl_.get();
     }
+
+    void get_statistic(const vds::service_provider &sp, class p2p_network_statistic & result);
 
   private:
     std::shared_ptr<class _p2p_network> impl_;

@@ -161,6 +161,7 @@ vds::async_task<> vds::_server::prepare_to_stop(const vds::service_provider &sp)
 
 vds::async_task<vds::server_statistic> vds::_server::get_statistic(const vds::service_provider &sp) {
   auto result = std::make_shared<vds::server_statistic>();
+  this->p2p_network_->get_statistic(sp, result->p2p_network_statistic_);
   return sp.get<db_model>()->async_transaction(sp, [this, result](database_transaction & t){
     this->log_sync_service_->get_statistic(t, result->sync_statistic_);
     return true;

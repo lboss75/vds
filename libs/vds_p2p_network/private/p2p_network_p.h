@@ -34,7 +34,8 @@ namespace vds {
     bool send(
         const vds::service_provider &sp,
         const node_id_t &device_id,
-        const vds::const_data_buffer &message);
+        const vds::const_data_buffer &message,
+        bool allow_skip);
 
 		bool send_tentatively(
         const service_provider &sp,
@@ -56,7 +57,7 @@ namespace vds {
   query_replica(
 			const service_provider &sp,
 			const const_data_buffer & data_id,
-			const std::vector<uint16_t> &exist_replicas,
+			const std::set<uint16_t> &exist_replicas,
 			uint16_t distance);
 
     void add_node(
@@ -65,6 +66,7 @@ namespace vds {
         const std::shared_ptr<_p2p_crypto_tunnel> & proxy_session);
 
 		guid current_node_id() const;
+    void get_statistic(const service_provider& sp, class p2p_network_statistic& result);
   private:
     p2p_network_service network_service_;
     p2p_route route_;

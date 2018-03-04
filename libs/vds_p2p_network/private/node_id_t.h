@@ -56,7 +56,7 @@ namespace vds {
     uint8_t distance_exp(const uint8_t * data, size_t len) const {
       vds_assert(sizeof(this->id_) <= len);
       for(uint8_t i = 0; i < sizeof(this->id_); ++i) {
-        auto b = (this->id_[i] ^ data[i]);
+        const auto b = (uint8_t)(this->id_[i] ^ data[i]);
         if(0 == b){
           continue;
         }

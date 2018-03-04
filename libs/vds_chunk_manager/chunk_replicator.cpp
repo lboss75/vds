@@ -70,34 +70,45 @@ void vds::chunk_replicator::apply(
     const vds::p2p_messages::chunk_offer_replica &message) {
 
   sp.get<db_model>()->async_transaction(sp, [sp, message](database_transaction & t)->bool{
+    auto p2p = sp.get<p2p_network>();
+    std::set<uint16_t> exists;
+    std::set<uint16_t> dublicates;
     orm::chunk_replica_data_dbo t1;
     auto st = t.get_reader(
-        t1.select(t1.id)
-            .where(t1.replica_hash == base64::from_bytes(message.data_hash())));
-    if(st.execute()) {
-      sp.get<logger>()->warning(
-          ThisModule,
-          sp,
-          "%s already exists",
-          base64::from_bytes(message.data_hash()).c_str());
+        t1.select(t1.replica)
+            .where(t1.id == base64::from_bytes(message.object_id())));
+    if (st.execute()) {
+      const auto replica = t1.replica.get(st);
+      exists.emplace(replica);
+      if(message.replicas().end() != message.replicas().find(replica)) {
+        dublicates.emplace(replica);
+      }
+    }
 
-      sp.get<p2p_network>()->send(
+    if (!dublicates.empty()) {
+      p2p->send(
           sp,
           message.source_node_id(),
           p2p_messages::chunk_have_replica(
-              message.data_hash()).serialize());
+              p2p->current_node_id(),
+              message.object_id(),
+              dublicates).serialize());
     }
-    else {
-//      sp.get<p2p_network>()->send(
-//          sp,
-//          message.source_node_id(),
-//          p2p_messages::chunk_query_replica(
-//              message.data_hash()).serialize());
+
+    if(exists.size() < message.replicas().size() - dublicates.size()) {
+      p2p->send(
+          sp,
+          message.source_node_id(),
+          p2p_messages::chunk_query_replica(
+            p2p->current_node_id(),
+              message.object_id(),
+            exists).serialize());
     }
     return true;
+
   }).execute([sp, message](const std::shared_ptr<std::exception> & ex) {
     if(ex) {
-      sp.get<logger>()->warning(ThisModule, sp, "%s at query replica %s", ex->what(), base64::from_bytes(message.data_hash()).c_str());
+      sp.get<logger>()->warning(ThisModule, sp, "%s at query replica %s", ex->what(), base64::from_bytes(message.object_id()).c_str());
     }
   });
 }
@@ -106,39 +117,39 @@ void vds::chunk_replicator::apply(
     const vds::service_provider &sp,
     const vds::guid &partner_id,
     const vds::p2p_messages::chunk_have_replica &message) {
-  sp.get<db_model>()->async_transaction(sp, [sp, message](database_transaction & t)->bool{
+  //sp.get<db_model>()->async_transaction(sp, [sp, message](database_transaction & t)->bool{
 
-    sp.get<logger>()->info(
-        ThisModule,
-        sp,
-        "Remove replica %s because exist on node %s",
-        base64::from_bytes(message.data_hash()).c_str(),
-        message.node_id().str().c_str());
+  //  sp.get<logger>()->info(
+  //      ThisModule,
+  //      sp,
+  //      "Remove replica %s because exist on node %s",
+  //      base64::from_bytes(message.data_hash()).c_str(),
+  //      message.node_id().str().c_str());
 
-    dbo::chunk_replica_data_dbo t1;
-    t.execute(t1.delete_if(t1.replica_hash == base64::from_bytes(message.data_hash())));
-    return true;
-  }).execute([sp, message](const std::shared_ptr<std::exception> & ex) {
-    if(ex) {
-      sp.get<logger>()->warning(
-          ThisModule,
-          sp,
-          "%s at removing replica %s",
-          ex->what(),
-          base64::from_bytes(message.data_hash()).c_str());
-    }
-  });
+  //  dbo::chunk_replica_data_dbo t1;
+  //  t.execute(t1.delete_if(t1.replica_hash == base64::from_bytes(message.data_hash())));
+  //  return true;
+  //}).execute([sp, message](const std::shared_ptr<std::exception> & ex) {
+  //  if(ex) {
+  //    sp.get<logger>()->warning(
+  //        ThisModule,
+  //        sp,
+  //        "%s at removing replica %s",
+  //        ex->what(),
+  //        base64::from_bytes(message.data_hash()).c_str());
+  //  }
+  //});
 }
 
 vds::const_data_buffer vds::chunk_replicator::get_object(
     const vds::service_provider &sp,
     vds::database_transaction &t,
-    const vds::const_data_buffer &object_id) {
+    const vds::const_data_buffer &object_id) const {
 
   std::vector<uint16_t> replicas;
   std::vector<const_data_buffer> datas;
 
-  dbo::chunk_replica_data_dbo t1;
+  orm::chunk_replica_data_dbo t1;
   auto st = t.get_reader(
       t1
           .select(t1.replica, t1.replica_data)
@@ -169,12 +180,15 @@ vds::const_data_buffer vds::chunk_replicator::get_object(
         sp,
         "Send query for replicas of %s",
         base64::from_bytes(object_id).c_str());
-
+    std::set<uint16_t> qreplicas;
+    for(auto p : replicas) {
+      qreplicas.emplace(p);
+    }
     auto p2p = sp.get<p2p_network>();
     p2p->query_replica(
         sp,
         object_id,
-        replicas,
+        qreplicas,
         chunk_replicator::GENERATE_HORCRUX);
 
     return const_data_buffer();

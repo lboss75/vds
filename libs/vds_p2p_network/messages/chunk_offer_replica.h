@@ -16,41 +16,41 @@ namespace vds {
       static const uint8_t message_id = (uint8_t)p2p_message_id::chunk_offer_replica;
 
       chunk_offer_replica(
-          size_t distance,
           const guid &source_node_id,
-          const const_data_buffer & data_hash)
-          : distance_(distance),
-            source_node_id_(source_node_id),
-            data_hash_(data_hash) {
+          const const_data_buffer & object_id,
+          const std::set<uint16_t> & replicas)
+          : source_node_id_(source_node_id),
+        object_id_(object_id),
+        replicas_(replicas){
       }
 
       chunk_offer_replica(
           binary_deserializer & s) {
-        s >> this->distance_ >> this->source_node_id_ >> this->data_hash_;
+        s >> this->source_node_id_ >> this->object_id_ >> this->replicas_;
       }
 
       const_data_buffer serialize() const {
         binary_serializer s;
-        s << message_id << this->distance_ << this->source_node_id_ << this->data_hash_;
+        s << message_id << this->source_node_id_ << this->object_id_ << this->replicas_;
         return s.data();
-      }
-
-      size_t distance() const {
-        return this->distance_;
-      }
-
-      const const_data_buffer & data_hash() const {
-        return this->data_hash_;
       }
 
       const guid &source_node_id() const {
         return this->source_node_id_;
       }
 
+
+      const const_data_buffer & object_id() const {
+        return object_id_;
+      }
+
+      const std::set<uint16_t> & replicas() const {
+        return replicas_;
+      }
     private:
-      size_t distance_;
       guid source_node_id_;
-      const_data_buffer data_hash_;
+      const_data_buffer object_id_;
+      std::set<uint16_t> replicas_;
     };
   }
 }

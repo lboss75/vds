@@ -11,6 +11,12 @@ namespace vds {
 
     std::map<guid, std::list<std::string>> leafs_;
 
+    struct record_info {
+      std::string name_;
+      std::string state_;
+      std::list<std::shared_ptr<record_info>> children_;
+    };
+    std::list<std::shared_ptr<record_info>> roots_;
 
     std::string str() const {
       std::string result;
@@ -25,6 +31,12 @@ namespace vds {
 
         result += ']';
         result += ',';
+      }
+      result += '\n';
+
+      std::set<const record_info *> processed;
+      for(const auto & r : this->roots_) {
+        this->print_node(result, r.get(), 0, processed);
       }
       return result;
     }
@@ -79,6 +91,27 @@ namespace vds {
       }
 
       return false;
+    }
+  private:
+    static void print_node(std::string& result, const record_info * node, int level, std::set<const record_info *> & processed) {
+      for(int i = 0; i < level; ++i) {
+        result += '|';
+      }
+      result += node->name_;
+      result += '(';
+      result += node->state_;
+      result += ')';
+      if(processed.end() != processed.find(node)) {
+        result += "See below\n";
+      }
+      else {
+        processed.emplace(node);
+        result += '\n';
+
+        for (const auto & p : node->children_) {
+          print_node(result, p.get(), level + 1, processed);
+        }
+      }
     }
   };
 }

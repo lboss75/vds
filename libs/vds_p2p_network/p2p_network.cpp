@@ -25,6 +25,7 @@
 #include "messages/dht_find_node.h"
 #include "messages/dht_find_node_response.h"
 #include "messages/dht_ping.h"
+#include "messages/dht_pong.h"
 
 vds::p2p_network::p2p_network()
 :impl_(new _p2p_network()){
@@ -47,11 +48,16 @@ void vds::p2p_network::stop(const vds::service_provider &sp) {
   this->impl_.reset();
 }
 
+void vds::p2p_network::get_statistic(const vds::service_provider & sp, p2p_network_statistic & result)
+{
+  this->impl_->get_statistic(sp, result);
+}
+
 void vds::p2p_network::send(
     const vds::service_provider &sp,
     const vds::guid &device_id,
     const vds::const_data_buffer &message) {
-  this->impl_->send(sp, device_id, message);
+  this->impl_->send(sp, device_id, message, false);
 }
 
 bool vds::p2p_network::send_tentatively(const vds::service_provider &sp, const vds::guid &device_id,
@@ -67,7 +73,7 @@ vds::guid vds::p2p_network::current_node_id() const {
 void vds::p2p_network::query_replica(
     const vds::service_provider &sp,
     const vds::const_data_buffer &block_id,
-    const std::vector<uint16_t> &exist_replicas,
+    const std::set<uint16_t> &exist_replicas,
     uint16_t distance) {
   this->impl_->query_replica(sp, block_id, exist_replicas, distance);
 }
@@ -153,11 +159,13 @@ void vds::_p2p_network::stop(const vds::service_provider &sp) {
 bool vds::_p2p_network::send(
     const vds::service_provider &sp,
     const node_id_t & node_id,
-    const vds::const_data_buffer &message) {
+    const vds::const_data_buffer &message,
+    bool allow_skip) {
   return this->route_->send(
       sp,
       node_id,
-      message);
+      message,
+      allow_skip);
 }
 
 void vds::_p2p_network::process_input_command(
@@ -172,7 +180,7 @@ void vds::_p2p_network::process_input_command(
   ms >> target_node >> message_buffer;
 
   if (target_node.device_id() != this->current_node_id()) {
-    if (this->send(sp, target_node, message_buffer)) {
+    if (this->send(sp, target_node, message_buffer, true)) {
       uint8_t  command_id;
       binary_deserializer s(message_buffer);
       s >> command_id;
@@ -214,6 +222,10 @@ void vds::_p2p_network::process_input_command(
       }
       case p2p_messages::p2p_message_id::dht_ping: {
         sp.get<logger>()->trace(ThisModule, sp, "Skip message dht_ping");
+        break;
+      }
+      case p2p_messages::p2p_message_id::dht_pong: {
+        sp.get<logger>()->trace(ThisModule, sp, "Skip message dht_pong");
         break;
       }
       case p2p_messages::p2p_message_id::dht_find_node_response: {
@@ -306,6 +318,16 @@ void vds::_p2p_network::process_input_command(
   }
   case p2p_messages::p2p_message_id::dht_ping: {
     p2p_messages::dht_ping message(s);
+    if(this->route_->current_node_id() == target_node) {
+      session->send(sp, message.source_node(), p2p_messages::dht_pong(this->current_node_id()).serialize());
+    }
+    break;
+  }
+  case p2p_messages::p2p_message_id::dht_pong: {
+    p2p_messages::dht_pong message(s);
+    if (this->route_->current_node_id() == target_node) {
+      this->route_->apply(sp, session, message);
+    }
     break;
   }
   case p2p_messages::p2p_message_id::dht_find_node_response: {
@@ -367,10 +389,14 @@ vds::guid vds::_p2p_network::current_node_id() const {
   return this->route_->current_node_id().device_id();
 }
 
+void vds::_p2p_network::get_statistic(const service_provider& sp, p2p_network_statistic& result) {
+  this->route_->get_statistic(sp, result);
+}
+
 void vds::_p2p_network::query_replica(
     const vds::service_provider &sp,
     const vds::const_data_buffer &data_id,
-    const std::vector<uint16_t> &exist_replicas,
+    const std::set<uint16_t> &exist_replicas,
     uint16_t distance) {
   this->route_->query_replica(sp, data_id, exist_replicas, distance);
 }

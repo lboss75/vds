@@ -9,6 +9,7 @@ All rights reserved
 #include "p2p_node_info.h"
 #include "messages/p2p_message_id.h"
 #include "node_id_t.h"
+#include "messages/dht_pong.h"
 
 namespace vds {
   class _p2p_crypto_tunnel;
@@ -33,7 +34,7 @@ namespace vds {
       }
 
       bool is_good() const {
-        return this->pinged_ < 5;
+        return this->pinged_ < 100;
       }
 
       void reset(const node_id_t & id,
@@ -57,7 +58,8 @@ namespace vds {
     bool send(
         const service_provider &sp,
         const node_id_t & node_id,
-        const const_data_buffer &message);
+        const const_data_buffer &message,
+        bool allow_skip);
 
     void search_nodes(
         const vds::service_provider &sp,
@@ -77,8 +79,10 @@ namespace vds {
     query_replica(
         const service_provider &sp,
         const const_data_buffer & data_id,
-        const std::vector<uint16_t> &exist_replicas,
+        const std::set<uint16_t> &exist_replicas,
         uint16_t distance);
+    void get_statistic(const service_provider& sp, class p2p_network_statistic& result);
+    void apply(const service_provider& sp, const std::shared_ptr<_p2p_crypto_tunnel>& session, const p2p_messages::dht_pong& message);
 
   private:
     timer backgroud_timer_;
@@ -96,7 +100,8 @@ namespace vds {
           const std::shared_ptr<_p2p_crypto_tunnel> & proxy_session);
 
       void on_timer(
-          const service_provider &sp);
+          const service_provider &sp,
+        const _p2p_route * owner);
 
       bool contains(const node_id_t &node_id) const;
     };

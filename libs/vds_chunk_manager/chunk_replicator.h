@@ -42,7 +42,7 @@ namespace vds {
     const_data_buffer get_object(
         const service_provider &sp,
         class database_transaction &t,
-        const const_data_buffer &object_id);
+        const const_data_buffer &object_id) const;
 
   private:
     std::shared_ptr<class _chunk_replicator> impl_;

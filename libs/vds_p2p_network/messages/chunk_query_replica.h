@@ -19,7 +19,7 @@ namespace vds {
       chunk_query_replica(
           const guid &source_node_id,
           const const_data_buffer & object_id,
-          const std::vector<uint16_t> & exist_replicas)
+          const std::set<uint16_t> & exist_replicas)
           : source_node_id_(source_node_id),
             object_id_(object_id),
             exist_replicas_(exist_replicas){
@@ -41,7 +41,7 @@ namespace vds {
         return source_node_id_;
       }
 
-      const std::vector<uint16_t> & exist_replicas() const {
+      const std::set<uint16_t> & exist_replicas() const {
         return exist_replicas_;
       }
 
@@ -52,7 +52,7 @@ namespace vds {
     private:
       guid source_node_id_;
       const_data_buffer object_id_;
-      std::vector<uint16_t> exist_replicas_;
+      std::set<uint16_t> exist_replicas_;
     };
   }
 }

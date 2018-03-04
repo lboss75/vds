@@ -12,39 +12,47 @@ All rights reserved
 
 namespace vds {
   namespace p2p_messages {
+    //// Dublicates
     class chunk_have_replica {
     public:
       static const uint8_t message_id = (uint8_t)p2p_message_id::chunk_have_replica;
 
       chunk_have_replica(
-          //const guid &node_id,
-          const const_data_buffer &data_hash)
-          : //node_id_(node_id),
-            data_hash_(data_hash) {
+          const guid &source_node_id,
+          const const_data_buffer &object_id,
+          const std::set<uint16_t> & replicas)
+        : source_node_id_(source_node_id),
+        object_id_(object_id),
+        replicas_(replicas) {
       }
 
       chunk_have_replica(
-          binary_deserializer & s) {
-        s >> this->data_hash_;
+        binary_deserializer & s) {
+        s >> this->source_node_id_ >> this->object_id_ >> this->replicas_;
       }
 
       const_data_buffer serialize() const {
         binary_serializer s;
-        s << message_id << this->data_hash_;
+        s << message_id << this->source_node_id_ << this->object_id_ << this->replicas_;
         return s.data();
       }
 
-      const guid & node_id() const {
-        return node_id_;
+      const guid &source_node_id() const {
+        return this->source_node_id_;
       }
 
-      const const_data_buffer & data_hash() const {
-        return data_hash_;
+
+      const const_data_buffer & object_id() const {
+        return object_id_;
       }
 
+      const std::set<uint16_t> & replicas() const {
+        return replicas_;
+      }
     private:
-      guid node_id_;
-      const_data_buffer data_hash_;
+      guid source_node_id_;
+      const_data_buffer object_id_;
+      std::set<uint16_t> replicas_;
     };
   }
 }

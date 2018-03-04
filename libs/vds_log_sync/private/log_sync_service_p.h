@@ -36,12 +36,23 @@ namespace vds {
 		const vds::service_provider &sp,
 		const vds::guid &partner_id,
 		const vds::p2p_messages::channel_log_record &message);
+    void add_subscriber(
+      const service_provider& sp,
+      const guid & channel_id,
+      const guid & source_node_id);
+    void send_to_subscribles(
+      const service_provider& sp,
+      database_transaction& t,
+      const guid& channel_id);
 
   private:
     timer update_timer_;
 
     std::mutex state_mutex_;
     bool sycn_scheduled_;
+
+    std::shared_mutex channel_subscribers_mutex_;
+    std::map<guid, std::set<guid>> channel_subscribers_;
 
     void sync_process(const service_provider & sp, class database_transaction & t);
 

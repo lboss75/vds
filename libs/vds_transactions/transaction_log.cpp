@@ -97,7 +97,10 @@ void vds::transaction_log::save(
       t2.channel_id = channel_id,
       t2.data = block_data,
       t2.state = is_validated
-                 ? (int)orm::transaction_log_record_dbo::state_t::validated
+                 ? (int)(
+                    ancestors.empty()
+                   ? orm::transaction_log_record_dbo::state_t::leaf
+                   : orm::transaction_log_record_dbo::state_t::validated)
                  : (int)orm::transaction_log_record_dbo::state_t::stored,
       t2.order_no = order_no));
 

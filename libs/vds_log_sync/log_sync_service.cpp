@@ -14,6 +14,8 @@
 #include "messages/channel_log_request.h"
 #include "transaction_log.h"
 #include "transaction_log_unknown_record_dbo.h"
+#include "vds_debug.h"
+#include "chunk_replicator.h"
 
 vds::log_sync_service::log_sync_service() {
 
@@ -154,10 +156,10 @@ void vds::_log_sync_service::ask_unknown_certificates(
     return;
   }
 
-  auto chunk_mng = sp.get<chunk_manager>();
+  const auto chunk_rpt = sp.get<chunk_replicator>();
   auto user_mng = sp.get<user_manager>();
   for(auto p : unknown_certs) {
-    auto cert_data = chunk_mng->get_object(sp, t, p);
+    const auto cert_data = chunk_rpt->get_object(sp, t, p);
     if(!cert_data){
       continue;
     }
@@ -214,16 +216,121 @@ void vds::_log_sync_service::send_current_state(
 }
 
 void vds::_log_sync_service::get_statistic(
-    database_transaction & t,
-    vds::sync_statistic &result) {
+  database_transaction & t,
+  vds::sync_statistic &result) {
   orm::transaction_log_record_dbo t1;
   auto st = t.get_reader(
-      t1.select(t1.id, t1.channel_id)
-          .where(t1.state == (uint8_t)orm::transaction_log_record_dbo::state_t::leaf));
-  while(st.execute()){
+    t1.select(t1.id, t1.channel_id)
+    .where(t1.state == (uint8_t)orm::transaction_log_record_dbo::state_t::leaf));
+  while (st.execute()) {
     result.leafs_[t1.channel_id.get(st)].push_back(t1.id.get(st));
   }
+
+  std::map<std::string, std::shared_ptr<sync_statistic::record_info>> index;
+  std::map<std::string, std::shared_ptr<sync_statistic::record_info>> roots;
+  st = t.get_reader(t1.select(t1.id, t1.state, t1.data));
+  while (st.execute()) {
+    guid channel_id;
+    uint64_t order_no;
+    guid read_cert_id;
+    guid write_cert_id;
+    std::set<const_data_buffer> ancestors;
+    const_data_buffer crypted_data;
+    const_data_buffer crypted_key;
+    const_data_buffer signature;
+
+    transactions::transaction_block::parse_block(
+      t1.data.get(st),
+      channel_id,
+      order_no,
+      read_cert_id,
+      write_cert_id,
+      ancestors,
+      crypted_data,
+      crypted_key,
+      signature);
+
+    std::shared_ptr<sync_statistic::record_info> node;
+    auto id = t1.id.get(st);
+    auto p = index.find(id);
+    if (index.end() == p) {
+      node = std::make_shared<sync_statistic::record_info>();
+      index[id] = node;
+      roots[id] = node;
+    }
+    else {
+      node = p->second;
+    }
+
+    node->name_ = id;
+    switch ((orm::transaction_log_record_dbo::state_t)t1.state.get(st)) {
+    case orm::transaction_log_record_dbo::state_t::leaf:
+      node->state_ = "leaf";
+      break;
+    case orm::transaction_log_record_dbo::state_t::stored:
+      node->state_ = "stored";
+      break;
+    case orm::transaction_log_record_dbo::state_t::validated:
+      node->state_ = "validated";
+      break;
+    default:
+      node->state_ = "*** invalid ***";
+      break;
+    }
+    for (const auto & ancestor : ancestors) {
+      std::shared_ptr<sync_statistic::record_info> child_node;
+      const auto child_p = index.find(base64::from_bytes(ancestor));
+      if (index.end() == child_p) {
+        child_node = std::make_shared<sync_statistic::record_info>();
+        index[base64::from_bytes(ancestor)] = child_node;
+      }
+      else {
+        child_node = child_p->second;
+        const auto root_p = roots.find(base64::from_bytes(ancestor));
+        if (roots.end() != root_p) {
+          roots.erase(root_p);
+        }
+      }
+
+      node->children_.push_back(child_node);
+    }
+  }
+
+  orm::transaction_log_unknown_record_dbo t2;
+  st = t.get_reader(t2.select(t2.id, t2.follower_id));
+  while (st.execute()) {
+    std::shared_ptr<sync_statistic::record_info> node;
+    auto id = t2.id.get(st);
+    auto p = index.find(id);
+    if (index.end() == p) {
+      node = std::make_shared<sync_statistic::record_info>();
+      index[id] = node;
+      roots[id] = node;
+    }
+    else {
+      node = p->second;
+    }
+
+    node->name_ = id;
+    vds_assert(node->state_.empty() || node->state_ == "unknown");
+    node->state_ = "unknown";
+
+    const auto child_p = index.find(t2.follower_id.get(st));
+    vds_assert(index.end() != child_p);
+    const auto & child_node = child_p->second;
+    const auto root_p = roots.find(t2.follower_id.get(st));
+    if (roots.end() != root_p) {
+      roots.erase(root_p);
+    }
+
+    node->children_.push_back(child_node);
+  }
+
+  for(auto & p : roots) {
+    result.roots_.push_back(p.second);
+  }
 }
+
 
 void vds::_log_sync_service::stop(const vds::service_provider &sp) {
   this->update_timer_.stop(sp);
@@ -238,6 +345,9 @@ void vds::_log_sync_service::apply(const vds::service_provider &sp, const vds::g
   sp.get<db_model>()->async_transaction(
       sp,
       [pthis = this->shared_from_this(), sp, partner_id, message](database_transaction & t) -> bool{
+
+    pthis->add_subscriber(sp, message.channel_id(), message.source_node());
+
         orm::transaction_log_record_dbo t1;
 
         std::list<const_data_buffer> requests;
@@ -273,6 +383,20 @@ void vds::_log_sync_service::apply(const vds::service_provider &sp, const vds::g
                   message.channel_id(),
                   requests,
                   p2p->current_node_id()).serialize());
+        }
+        else {
+          std::string log_message;
+          for (const auto & r : message.leafs()) {
+            log_message += base64::from_bytes(r);
+            log_message += ' ';
+          }
+
+          sp.get<logger>()->trace(
+            ThisModule,
+            sp,
+            "log records %s of channel %s already exists",
+            log_message.c_str(),
+            message.channel_id().str().c_str());
         }
 
         return true;
@@ -339,12 +463,57 @@ void vds::_log_sync_service::apply(const vds::service_provider &sp, const vds::g
 
     transaction_log::save(sp, t, message.channel_id(), message.record_id(), message.data());
 
-		return true;
-	}).execute([sp, partner_id](const std::shared_ptr<std::exception> & ex) {
+    pthis->send_to_subscribles(sp, t, message.channel_id());
+
+    return true;
+  }).execute([sp, partner_id](const std::shared_ptr<std::exception> & ex) {
 		if (ex) {
 			//sp.get<p2p_network>()->close_session(sp, partner_id, ex);
 		}
 	});
+}
+
+void vds::_log_sync_service::add_subscriber(const service_provider& sp, const guid& channel_id,
+  const guid& source_node_id) {
+  std::unique_lock<std::shared_mutex> lock(this->channel_subscribers_mutex_);
+  const auto p = this->channel_subscribers_[channel_id].find(source_node_id);
+  if(this->channel_subscribers_[channel_id].end() == p) {
+    this->channel_subscribers_[channel_id].emplace(source_node_id);
+  }
+}
+
+void vds::_log_sync_service::send_to_subscribles(
+  const service_provider& sp,
+  database_transaction& t,
+  const guid& channel_id) {
+  std::list<const_data_buffer> state;
+  orm::transaction_log_record_dbo t1;
+  auto st = t.get_reader(
+    t1
+    .select(t1.id)
+    .where(t1.channel_id == channel_id
+      && t1.state == (int)orm::transaction_log_record_dbo::state_t::leaf));
+
+  while (st.execute()) {
+    auto id = t1.id.get(st);
+
+    state.push_back(base64::to_bytes(id));
+  }
+
+  std::shared_lock<std::shared_mutex> lock(this->channel_subscribers_mutex_);
+  auto p_channel = this->channel_subscribers_.find(channel_id);
+  if (this->channel_subscribers_.end() != p_channel) {
+    auto p2p = sp.get<p2p_network>();
+    for (auto node : p_channel->second) {
+      p2p->send(
+        sp,
+        node,
+        p2p_messages::channel_log_state(
+          channel_id,
+          state,
+          p2p->current_node_id()).serialize());
+    }
+  }
 }
 
 struct processed_record_info {

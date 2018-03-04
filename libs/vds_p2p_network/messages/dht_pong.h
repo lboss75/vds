@@ -1,19 +1,19 @@
-#ifndef __VDS_P2P_NETWORK_DHT_PING_H_
-#define __VDS_P2P_NETWORK_DHT_PING_H_
+#ifndef __VDS_P2P_NETWORK_DHT_PONG_H_
+#define __VDS_P2P_NETWORK_DHT_PONG_H_
 
 #include "p2p_message_id.h"
 
 namespace vds {
   namespace p2p_messages {
-    class dht_ping {
+    class dht_pong {
     public:
-      static const uint8_t message_id = (uint8_t) p2p_message_id::dht_ping;
+      static const uint8_t message_id = (uint8_t) p2p_message_id::dht_pong;
 
-      dht_ping(const guid & source_node)
+      dht_pong(const guid & source_node)
       : source_node_(source_node){
       }
 
-      dht_ping(
+      dht_pong(
           binary_deserializer & s) {
         s >> this->source_node_;
       }
@@ -31,11 +31,11 @@ namespace vds {
     private:
 
       /**
-       * \brief Ping initiator
+       * \brief Ping receiver
        */
       guid source_node_;
     };
   }
 }
 
-#endif //__VDS_P2P_NETWORK_DHT_PING_H_
+#endif //__VDS_P2P_NETWORK_DHT_PONG_H_
