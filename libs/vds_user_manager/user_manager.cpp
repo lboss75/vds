@@ -113,12 +113,7 @@ vds::user_invitation vds::user_manager::reset(
       });
   this->load(sp, t, device_user.id());
 
-  return user_invitation(
-	  root_user.id(),
-	  root_user_name,
-	  root_user.user_certificate(),
-	  root_private_key,
-	  std::list<certificate>());
+  return user_invitation(std::list<certificate>(), root_private_key);
 }
 
 vds::async_task<> vds::user_manager::init_server(
@@ -142,14 +137,9 @@ vds::async_task<> vds::user_manager::init_server(
 					t1.parent = cert_control::get_parent_id(cert)
 				));
 		}
-		auto user = request.get_user();
-		sp.get<logger>()->info(ThisModule, sp, "Stored certificate %s", cert_control::get_id(user.user_certificate()).str().c_str());
-		t.execute(
-			t1.insert(
-				t1.id = cert_control::get_id(user.user_certificate()),
-				t1.cert = user.user_certificate().der(),
-				t1.parent = cert_control::get_parent_id(user.user_certificate())
-			));
+
+    auto invitation_user = this->import_user(*request.certificate_chain().rbegin());
+    auto user = invitation_user.create_user(request.private_key(), "", "");
 
 		transactions::transaction_block log;
 
@@ -162,7 +152,7 @@ vds::async_task<> vds::user_manager::init_server(
 			user,
 			request.get_user_name(),
 			user_password,
-			request.get_user_private_key(),
+			request.private_key(),
 			device_name, 
 			private_key,
 			port);

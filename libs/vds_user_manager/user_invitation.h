@@ -13,23 +13,14 @@ namespace vds {
   {
   public:
 	  user_invitation() = default;
-	  user_invitation(
-			const guid & user_id,
-			const std::string & user_name,
-			const certificate & user_certificate,
-			const asymmetric_private_key & user_private_key,
-		  const std::list<certificate> & certificate_chain)
-		  :user_id_(user_id),
-		  user_name_(user_name),
-		  user_certificate_(user_certificate),
-		  user_private_key_(user_private_key),
+	  user_invitation(const std::list<certificate> &certificate_chain, const asymmetric_private_key &private_key)
+		  : private_key_(private_key),
 		  certificate_chain_(certificate_chain) {		  
 	  }
 
-	  member_user get_user() const;
-	  const asymmetric_private_key & get_user_private_key() const
+	  const asymmetric_private_key & private_key() const
 	  {
-		  return this->user_private_key_;		  
+		  return this->private_key_;
 	  }
 
 	  const std::list<certificate> & certificate_chain() const
@@ -37,18 +28,15 @@ namespace vds {
 		  return this->certificate_chain_;
 	  }
 
-	  const std::string & get_user_name() const { return this->user_name_; }
-
 	  const_data_buffer pack(const std::string & user_password) const;
-	  static user_invitation unpack(const const_data_buffer & data, const std::string & user_password);
+
+	  static user_invitation unpack(
+				const const_data_buffer & data,
+				const std::string & user_password);
 
   private:
-	  guid user_id_;
-	  std::string user_name_;
-	  certificate user_certificate_;
-	  asymmetric_private_key user_private_key_;
-
 	  std::list<certificate> certificate_chain_;
+		asymmetric_private_key private_key_;
 
   };
 }
