@@ -103,6 +103,10 @@ void vds::_log_sync_service::sync_process(
   this->send_current_state(sp, t, p2p);
   this->ask_unknown_records(sp, t, p2p);
   this->ask_unknown_certificates(sp, t, p2p);
+
+  sync_statistic stat;
+  this->get_statistic(t, stat);
+  sp.get<logger>()->trace(ThisModule, sp, "Statistic: %s", stat.str().c_str());
 }
 
 void vds::_log_sync_service::ask_unknown_records(const vds::service_provider &sp, vds::database_transaction &t,
@@ -174,7 +178,7 @@ void vds::_log_sync_service::ask_unknown_certificates(
 void vds::_log_sync_service::send_current_state(
     const vds::service_provider &sp,
     vds::database_transaction &t,
-    vds::p2p_network *p2p) const {
+    vds::p2p_network *p2p) {
   std::map<guid, std::list<const_data_buffer>> state;
 
   orm::transaction_log_record_dbo t1;
@@ -212,6 +216,21 @@ void vds::_log_sync_service::send_current_state(
             p.second,
             p2p->current_node_id()).serialize(),
         1024);
+
+    std::shared_lock<std::shared_mutex> lock(this->channel_subscribers_mutex_);
+    auto p_channel = this->channel_subscribers_.find(p.first);
+    if (this->channel_subscribers_.end() != p_channel) {
+      for (const auto & node : p_channel->second) {
+        p2p->send(
+          sp,
+          node,
+          p2p_messages::channel_log_state(
+            p.first,
+            p.second,
+            p2p->current_node_id()).serialize());
+      }
+    }
+
   }
 }
 

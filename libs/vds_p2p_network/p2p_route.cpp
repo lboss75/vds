@@ -111,6 +111,10 @@ void vds::_p2p_route::add_node(
 void vds::_p2p_route::on_timer(const vds::service_provider &sp) {
   this->ping_buckets(sp);
   this->update_route_table(sp);
+
+  p2p_network_statistic stat;
+  this->get_statistic(sp, stat);
+  sp.get<logger>()->trace(ThisModule, sp, "Statistic: %s", stat.str().c_str());
 }
 
 void vds::_p2p_route::ping_buckets(const vds::service_provider &sp) {

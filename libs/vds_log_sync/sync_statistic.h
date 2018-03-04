@@ -72,7 +72,7 @@ namespace vds {
 
       for (auto & oc : other.leafs_) {
         auto c = this->leafs_.find(oc.first);
-        if (other.leafs_.end() == c) {
+        if (this->leafs_.end() == c) {
           return true;
         }
 

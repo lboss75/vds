@@ -23,9 +23,7 @@ namespace vds {
 		  user_name_(user_name),
 		  user_certificate_(user_certificate),
 		  user_private_key_(user_private_key),
-		  certificate_chain_(certificate_chain)
-
-	  {		  
+		  certificate_chain_(certificate_chain) {		  
 	  }
 
 	  member_user get_user() const;

@@ -59,7 +59,7 @@ namespace vds {
 		void send_current_state(
 				const service_provider &sp,
 				database_transaction &t,
-				class p2p_network *p2p) const;
+				class p2p_network *p2p);
 
 		void ask_unknown_records(
 				const vds::service_provider &sp,
