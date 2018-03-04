@@ -366,6 +366,12 @@ bool vds::_p2p_network::send_tentatively(const vds::service_provider &sp, const 
     size_t index = std::rand() % candidates.size();
     for (auto &p : candidates) {
       if (0 == index--) {
+        sp.get<logger>()->trace(
+          ThisModule,
+          sp,
+          "Send tentatively canditates to route %s over %s",
+          device_id.str().c_str(),
+          p.proxy_session_->address().to_string().c_str());
         p.proxy_session_->send(
             sp,
             device_id,
