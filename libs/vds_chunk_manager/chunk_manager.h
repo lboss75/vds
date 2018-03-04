@@ -45,9 +45,10 @@ namespace vds {
       return unpack_block(block_id, block_key, block_data.data(), block_data.size());
     }
 
-	private:
+
+  private:
 		std::shared_ptr<class _chunk_manager> impl_;
-	};
+  };
 }
 
 #endif //__VDS_CHUNK_MANAGER_CHUNK_MANAGER_H_

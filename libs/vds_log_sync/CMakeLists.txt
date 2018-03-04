@@ -17,6 +17,7 @@ target_include_directories(vds_log_sync
         ${vds_db_model_INCLUDE_DIRS}
         ${vds_transactions_INCLUDE_DIRS}
         ${vds_p2p_network_INCLUDE_DIRS}
+		${vds_chunk_manager_INCLUDE_DIRS}
 	PUBLIC
 		${CMAKE_CURRENT_SOURCE_DIR})
 
@@ -28,5 +29,6 @@ target_link_libraries(
   vds_db_model
   vds_transactions
   vds_p2p_network
+  vds_chunk_manager
   ${CMAKE_THREAD_LIBS_INIT}
 )

@@ -1,4 +1,6 @@
 
+#include <certificate_unknown_dbo.h>
+#include <user_manager.h>
 #include "stdafx.h"
 #include "log_sync_service.h"
 #include "private/log_sync_service_p.h"
@@ -137,8 +139,34 @@ void vds::_log_sync_service::ask_unknown_records(const vds::service_provider &sp
   }
 }
 
-void vds::_log_sync_service::ask_unknown_certificates(const service_provider& sp, const database_transaction& t,
-  p2p_network* p2p) {
+void vds::_log_sync_service::ask_unknown_certificates(
+    const service_provider& sp,
+    database_transaction& t,
+    p2p_network* p2p) {
+  std::set<guid> unknown_certs;
+  orm::certificate_unknown_dbo t1;
+  auto st = t.get_reader(t1.select(t1.id));
+  while(st.execute()){
+    unknown_certs.emplace(t1.id.get(st));
+  }
+
+  if(unknown_certs.empty()){
+    return;
+  }
+
+  auto chunk_mng = sp.get<chunk_manager>();
+  auto user_mng = sp.get<user_manager>();
+  for(auto p : unknown_certs) {
+    auto cert_data = chunk_mng->get_object(sp, t, p);
+    if(!cert_data){
+      continue;
+    }
+
+    auto cert = certificate::parse_der(cert_data);
+    user_mng->save_certificate(sp, t, cert);
+  }
+
+  this->try_to_validate_records(sp, t);
 }
 
 void vds::_log_sync_service::send_current_state(
@@ -317,5 +345,88 @@ void vds::_log_sync_service::apply(const vds::service_provider &sp, const vds::g
 			//sp.get<p2p_network>()->close_session(sp, partner_id, ex);
 		}
 	});
+}
 
+struct processed_record_info {
+  std::set<vds::const_data_buffer> ancestors_;
+
+  processed_record_info(){
+  }
+
+  processed_record_info(
+      const std::set<vds::const_data_buffer> & ancestors)
+  : ancestors_(ancestors){
+  }
+};
+
+void vds::_log_sync_service::try_to_validate_records(
+    const vds::service_provider &sp,
+    vds::database_transaction &t) {
+
+  std::map<std::string, processed_record_info> processed_records;
+  std::list<std::string> invalid_records;
+
+  auto user_mng = sp.get<user_manager>();
+  orm::transaction_log_record_dbo t1;
+  auto st = t.get_reader(
+      t1
+          .select(t1.id, t1.data)
+          .where(t1.state == (int)orm::transaction_log_record_dbo::state_t::stored));
+
+  while(st.execute()) {
+    auto block_data = t1.data.get(st);
+
+    guid block_channel_id;
+    uint64_t order_no;
+    guid read_cert_id;
+    guid write_cert_id;
+    std::set<const_data_buffer> ancestors;
+    const_data_buffer crypted_data;
+    const_data_buffer crypted_key;
+    const_data_buffer signature;
+    transactions::transaction_block::parse_block(
+        block_data,
+        block_channel_id,
+        order_no,
+        read_cert_id,
+        write_cert_id,
+        ancestors,
+        crypted_data,
+        crypted_key,
+        signature);
+
+    auto write_cert = user_mng->get_channel_write_cert(sp, block_channel_id, write_cert_id);
+    if (!write_cert) {
+      continue;
+    } else {
+      if (!transactions::transaction_block::validate_block(write_cert, block_channel_id, order_no, read_cert_id,
+                                                           write_cert_id, ancestors,
+                                                           crypted_data, crypted_key, signature)) {
+        invalid_records.push_back(t1.id.get(st));
+      } else {
+        processed_records[t1.id.get(st)] = processed_record_info(ancestors);
+      }
+    }
+  }
+
+  if(!processed_records.empty()) {
+    for(const auto & p : processed_records) {
+      if(p.second.ancestors_.empty()) {
+        t.execute(
+            t1.update(
+                    t1.state = (int) orm::transaction_log_record_dbo::state_t::leaf)
+                .where(t1.id == p.first));
+      }
+      else {
+        t.execute(
+            t1.update(
+                    t1.state = (int) orm::transaction_log_record_dbo::state_t::validated)
+                .where(t1.id == p.first));
+      }
+    }
+  }
+
+  if(!invalid_records.empty()) {
+    t.execute(t1.delete_if(db_in_values(t1.id, invalid_records)));
+  }
 }

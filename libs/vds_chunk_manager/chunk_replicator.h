@@ -9,6 +9,7 @@ All rights reserved
 #include <memory>
 #include <messages/chunk_offer_replica.h>
 #include <messages/chunk_have_replica.h>
+#include <stdafx.h>
 #include "service_provider.h"
 #include "messages/chunk_send_replica.h"
 #include "messages/chunk_query_replica.h"
@@ -31,6 +32,18 @@ namespace vds {
     operator bool () const {
       return nullptr != this->impl_.get();
     }
+
+    void put_object(
+        const service_provider &sp,
+        class database_transaction &t,
+        const const_data_buffer &object_id,
+        const const_data_buffer & data);
+
+    const_data_buffer get_object(
+        const service_provider &sp,
+        class database_transaction &t,
+        const const_data_buffer &object_id);
+
   private:
     std::shared_ptr<class _chunk_replicator> impl_;
   };

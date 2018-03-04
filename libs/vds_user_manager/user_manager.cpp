@@ -2,6 +2,7 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
+#include <certificate_unknown_dbo.h>
 #include "stdafx.h"
 #include "user_manager.h"
 #include "member_user.h"
@@ -131,7 +132,7 @@ vds::async_task<> vds::user_manager::init_server(
 	return sp.get<db_model>()->async_transaction(sp, [this, sp, request, user_password, device_name, port](database_transaction & t)
 	{
 		//save certificates
-		dbo::certificate_chain_dbo t1;
+    orm::certificate_chain_dbo t1;
 		for (auto &cert : request.certificate_chain()) {
 			sp.get<logger>()->info(ThisModule, sp, "Stored certificate %s", cert_control::get_id(cert).str().c_str());
 			t.execute(
@@ -270,7 +271,7 @@ vds::user_manager::lock_to_device(
           t3.cert = device_user.user_certificate().der(),
           t3.cert_private_key = device_private_key.der(std::string()),
           t3.port = port));
-  dbo::certificate_chain_dbo t4;
+  orm::certificate_chain_dbo t4;
   for(auto & cert : certificate_chain)
   {
 	  t.execute(
@@ -388,6 +389,32 @@ vds::certificate vds::user_manager::get_channel_write_cert(
 	return this->impl_->get_channel_write_cert(channel_id, cert_id);
 }
 
+bool vds::user_manager::validate_and_save(
+		const service_provider & sp,
+		const std::list<vds::certificate> &cert_chain) {
+
+  return this->impl_->validate_and_save(
+      sp,
+      cert_chain);
+}
+
+void vds::user_manager::save_certificate(
+    const vds::service_provider &sp,
+    vds::database_transaction &t,
+    const vds::certificate &cert) {
+
+  orm::certificate_chain_dbo t1;
+  t.execute(
+      t1.insert(
+          t1.id = cert_control::get_id(cert),
+      t1.cert = cert.der(),
+      t1.parent = cert_control::get_parent_id(cert)));
+
+  orm::certificate_unknown_dbo t2;
+  t.execute(t2.delete_if(t2.id == cert_control::get_id(cert)));
+}
+
+
 ////////////////////////////////////////////////////////////////////////
 vds::_user_manager::_user_manager(
   const guid& id,
@@ -422,3 +449,50 @@ vds::user_channel vds::_user_manager::get_channel(const guid & channel_id) const
 		this->get_channel_write_cert(channel_id));
 }
 
+bool vds::_user_manager::validate_and_save(
+    const service_provider & sp,
+    const std::list<vds::certificate> &cert_chain) {
+
+  certificate_store store;
+  for(const auto & p : cert_chain){
+    auto cert = this->get_certificate(cert_control::get_id(p));
+    if(!cert) {
+      cert = p;
+
+      const auto result = store.verify(cert);
+      if (0 != result.error_code) {
+        sp.get<logger>()->warning(ThisModule, sp, "Invalid certificate %s %s",
+                                  result.error.c_str(),
+                                  result.issuer.c_str());
+        return false;
+      }
+    }
+
+    store.add(cert);
+    this->save_certificate(sp, cert);
+  }
+
+  return true;
+}
+
+void vds::_user_manager::save_certificate(const vds::service_provider &sp, const vds::certificate &cert) {
+  security_walker::add_certificate(cert);
+
+  sp.get<db_model>()->async_transaction(sp, [cert](database_transaction & t)->bool{
+
+    orm::certificate_chain_dbo t1;
+    auto st = t.get_reader(t1.select(t1.id).where(t1.id == cert_control::get_id(cert)));
+    if(!st.execute()){
+      t.execute(t1.insert(
+          t1.id = cert_control::get_id(cert),
+          t1.cert = cert.der(),
+          t1.parent = cert_control::get_parent_id(cert)));
+    }
+
+    return true;
+  }).execute([sp](const std::shared_ptr<std::exception> & ex){
+    if(ex) {
+      sp.get<logger>()->warning(ThisModule, sp, "%s at saving certificate", ex->what());
+    }
+  });
+}

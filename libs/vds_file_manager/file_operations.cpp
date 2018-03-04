@@ -315,10 +315,10 @@ void
   binary_serializer s;
   restore.restore(s, datas);
 
-  dbo::chunk_data_dbo t2;
-  t.execute(t2.insert(
-          t2.id = base64::from_bytes(block.id_.block_id),
-      t2.block_key = block.id_.block_key));
+//  dbo::chunk_data_dbo t2;
+//  t.execute(t2.insert(
+//          t2.id = base64::from_bytes(block.id_.block_id),
+//      t2.block_key = block.id_.block_key));
 
   result->set_file_data(block, s.data());
 }

@@ -52,9 +52,12 @@ namespace vds {
         const service_provider &sp,
 				const std::shared_ptr<_p2p_crypto_tunnel> & proxy_session);
 
-	void query_replica(
+	void
+  query_replica(
 			const service_provider &sp,
-			const const_data_buffer & data_hash);
+			const const_data_buffer & data_id,
+			const std::vector<uint16_t> &exist_replicas,
+			uint16_t distance);
 
     void add_node(
         const service_provider &sp,

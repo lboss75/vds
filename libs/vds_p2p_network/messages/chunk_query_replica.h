@@ -17,20 +17,22 @@ namespace vds {
       static const uint8_t message_id = (uint8_t)p2p_message_id::chunk_query_replica;
 
       chunk_query_replica(
-          //const guid &source_node_id,
-          const const_data_buffer & data_hash)
-          : //source_node_id_(source_node_id),
-            data_hash_(data_hash){
+          const guid &source_node_id,
+          const const_data_buffer & object_id,
+          const std::vector<uint16_t> & exist_replicas)
+          : source_node_id_(source_node_id),
+            object_id_(object_id),
+            exist_replicas_(exist_replicas){
       }
 
       chunk_query_replica(
           binary_deserializer & s) {
-        s >> this->source_node_id_ >> this->data_hash_;
+        s >> this->source_node_id_ >> this->object_id_ >> this->exist_replicas_;
       }
 
       const_data_buffer serialize() const {
         binary_serializer s;
-        s << message_id << this->source_node_id_ << this->data_hash_;
+        s << message_id << this->source_node_id_ << this->object_id_ << this->exist_replicas_;
         return s.data();
       }
 
@@ -39,13 +41,18 @@ namespace vds {
         return source_node_id_;
       }
 
-      const const_data_buffer & data_hash() const {
-        return data_hash_;
+      const std::vector<uint16_t> & exist_replicas() const {
+        return exist_replicas_;
+      }
+
+      const const_data_buffer & object_id() const {
+        return object_id_;
       }
 
     private:
       guid source_node_id_;
-      const_data_buffer data_hash_;
+      const_data_buffer object_id_;
+      std::vector<uint16_t> exist_replicas_;
     };
   }
 }

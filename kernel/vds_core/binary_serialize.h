@@ -54,6 +54,17 @@ namespace vds {
     }
 
     template <typename T>
+    binary_serializer & operator << (const std::vector<T> & value)
+    {
+      this->write_number(value.size());
+      for(auto & p : value){
+        *this << p;
+      }
+
+      return *this;
+    }
+
+    template <typename T>
     binary_serializer & operator << (const std::set<T> & value)
     {
       this->write_number(value.size());
@@ -111,6 +122,19 @@ namespace vds {
         value.push_back(item);
       }
       
+      return *this;
+    }
+
+    template <typename T>
+    binary_deserializer & operator >> (std::vector<T> & value)
+    {
+      auto count = this->read_number();
+      for(decltype(count) i = 0; i < count; ++i){
+        T item;
+        *this >> item;
+        value.push_back(item);
+      }
+
       return *this;
     }
 

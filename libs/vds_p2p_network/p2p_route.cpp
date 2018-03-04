@@ -266,6 +266,33 @@ void vds::_p2p_route::close_session(
   }
 }
 
+void vds::_p2p_route::query_replica(
+    const vds::service_provider &sp,
+    const vds::const_data_buffer &data_id,
+    const std::vector<uint16_t> &exist_replicas,
+    uint16_t distance) {
+
+  std::shared_lock<std::shared_mutex> lock(this->buckets_mutex_);
+  this->for_near(
+      sp,
+      node_id_t(data_id.data(), data_id.size()),
+      distance,
+      [
+          sp,
+          message = p2p_messages::chunk_query_replica(
+              this->current_node_id_.device_id(),
+              data_id,
+              exist_replicas).serialize()]
+          (
+              const node_id_t & node_id,
+              const std::shared_ptr<vds::_p2p_crypto_tunnel> & proxy_session){
+        proxy_session->send(
+            sp,
+            node_id,
+            message);
+      });
+}
+
 void vds::_p2p_route::bucket::add_node(
     const vds::service_provider &sp,
     const node_id_t & id,

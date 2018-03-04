@@ -40,22 +40,26 @@ void vds::chunk_replicator::apply(
   const guid& partner_id,
   const p2p_messages::chunk_query_replica& message) {
   sp.get<db_model>()->async_transaction(sp, [sp, message](database_transaction & t)->bool{
-    dbo::chunk_replica_data_dbo t1;
-    auto st = t.get_reader(t1.select(t1.id, t1.replica, t1.replica_data).where(t1.replica_hash == base64::from_bytes(message.data_hash())));
+    orm::chunk_replica_data_dbo t1;
+    auto st = t.get_reader(
+        t1.select(t1.id, t1.replica, t1.replica_data)
+            .where(t1.id == base64::from_bytes(message.object_id())
+                   && db_not_in_values(t1.replica, message.exist_replicas())));
     if(st.execute()) {
       sp.get<p2p_network>()->send(
         sp,
         message.source_node_id(),
         p2p_messages::chunk_send_replica(
-          base64::to_bytes(t1.id.get(st)),
+          message.object_id(),
           t1.replica.get(st),
-          message.data_hash(),
-          t1.replica_data.get(st)).serialize());
+          t1.replica_data.get(st),
+          hash::signature(hash::sha256(), t1.replica_data.get(st))).serialize());
     }
     return true;
   }).execute([sp, message](const std::shared_ptr<std::exception> & ex) {
     if(ex) {
-      sp.get<logger>()->warning(ThisModule, sp, "%s at query replica %s", ex->what(), base64::from_bytes(message.data_hash()).c_str());
+      sp.get<logger>()->warning(ThisModule, sp, "%s at query replica %s", ex->what(), base64::from_bytes(
+          message.object_id()).c_str());
     }
   });
 }
@@ -66,7 +70,7 @@ void vds::chunk_replicator::apply(
     const vds::p2p_messages::chunk_offer_replica &message) {
 
   sp.get<db_model>()->async_transaction(sp, [sp, message](database_transaction & t)->bool{
-    dbo::chunk_replica_data_dbo t1;
+    orm::chunk_replica_data_dbo t1;
     auto st = t.get_reader(
         t1.select(t1.id)
             .where(t1.replica_hash == base64::from_bytes(message.data_hash())));
@@ -84,11 +88,11 @@ void vds::chunk_replicator::apply(
               message.data_hash()).serialize());
     }
     else {
-      sp.get<p2p_network>()->send(
-          sp,
-          message.source_node_id(),
-          p2p_messages::chunk_query_replica(
-              message.data_hash()).serialize());
+//      sp.get<p2p_network>()->send(
+//          sp,
+//          message.source_node_id(),
+//          p2p_messages::chunk_query_replica(
+//              message.data_hash()).serialize());
     }
     return true;
   }).execute([sp, message](const std::shared_ptr<std::exception> & ex) {
@@ -124,6 +128,66 @@ void vds::chunk_replicator::apply(
           base64::from_bytes(message.data_hash()).c_str());
     }
   });
+}
+
+vds::const_data_buffer vds::chunk_replicator::get_object(
+    const vds::service_provider &sp,
+    vds::database_transaction &t,
+    const vds::const_data_buffer &object_id) {
+
+  std::vector<uint16_t> replicas;
+  std::vector<const_data_buffer> datas;
+
+  dbo::chunk_replica_data_dbo t1;
+  auto st = t.get_reader(
+      t1
+          .select(t1.replica, t1.replica_data)
+          .where(t1.id == base64::from_bytes(object_id)));
+
+  while (st.execute()) {
+    auto replica = safe_cast<uint16_t>(t1.replica.get(st));
+    replicas.push_back(replica);
+
+    auto replica_data = t1.replica_data.get(st);
+    datas.push_back(replica_data);
+
+    if (replicas.size() >= chunk_replicator::MIN_HORCRUX) {
+      break;
+    }
+  }
+
+  if (replicas.size() >= chunk_replicator::MIN_HORCRUX) {
+
+    chunk_restore<uint16_t> restore(chunk_replicator::MIN_HORCRUX, replicas.data());
+    binary_serializer s;
+    restore.restore(s, datas);
+
+    return s.data();
+  } else {
+    sp.get<logger>()->trace(
+        ThisModule,
+        sp,
+        "Send query for replicas of %s",
+        base64::from_bytes(object_id).c_str());
+
+    auto p2p = sp.get<p2p_network>();
+    p2p->query_replica(
+        sp,
+        object_id,
+        replicas,
+        chunk_replicator::GENERATE_HORCRUX);
+
+    return const_data_buffer();
+  }
+}
+
+void vds::chunk_replicator::put_object(
+    const vds::service_provider &sp,
+    vds::database_transaction &t,
+    const vds::const_data_buffer &object_id,
+    const vds::const_data_buffer &data) {
+
+  this->impl_->put_object(sp, t, object_id, data);
 }
 
 /////////////////////////////////////////////////////////////////////
@@ -237,9 +301,43 @@ vds::const_data_buffer vds::_chunk_replicator::generate_replica(
 
 void vds::_chunk_replicator::store_replica(
 	const service_provider& sp,
-	const ::vds::database_transaction& t,
+	database_transaction& t,
 	const p2p_messages::chunk_send_replica& message)
 {
 	throw std::runtime_error("Not implemented");
+}
+
+void vds::_chunk_replicator::put_object(
+    const vds::service_provider &sp,
+    vds::database_transaction &t,
+    const vds::const_data_buffer &object_id,
+    const vds::const_data_buffer &data) {
+
+  for(uint16_t replica = 0; replica < chunk_replicator::GENERATE_HORCRUX; ++replica) {
+    chunk_generator<uint16_t> *generator;
+
+    std::unique_lock<std::mutex> lock(this->generators_mutex_);
+    auto p = this->generators_.find(replica);
+    if (this->generators_.end() == p) {
+      generator = new chunk_generator<uint16_t>(chunk_replicator::MIN_HORCRUX, replica);
+      this->generators_[replica].reset(generator);
+    } else {
+      generator = p->second.get();
+    }
+    lock.unlock();
+
+    binary_serializer s;
+    generator->write(s, data.data(), data.size());
+    auto replica_data = s.data();
+
+    orm::chunk_replica_data_dbo t1;
+    t.execute(
+        t1.insert(
+            t1.id = base64::from_bytes(object_id),
+            t1.replica = replica,
+            t1.replica_data = replica_data,
+            t1.replica_hash = hash::signature(hash::sha256(), replica_data)
+        ));
+  }
 }
 

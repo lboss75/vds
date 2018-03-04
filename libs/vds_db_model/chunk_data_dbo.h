@@ -10,7 +10,7 @@ All rights reserved
 
 namespace vds {
   namespace dbo {
-
+/*
     class chunk_data_dbo : public database_table {
     public:
       chunk_data_dbo()
@@ -22,6 +22,7 @@ namespace vds {
       database_column<std::string> id;
       database_column<const_data_buffer> block_key;
     };
+    */
   }
 }
 

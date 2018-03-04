@@ -146,6 +146,12 @@ namespace vds {
       }
     }
 
+    bool validate_and_save(
+        const service_provider & sp,
+        const std::list<certificate> &cert_chain);
+
+    void save_certificate(const service_provider &sp, database_transaction &t, const certificate &cert);
+
   private:
     std::shared_ptr<class _user_manager> impl_;
 

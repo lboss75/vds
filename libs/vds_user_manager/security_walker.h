@@ -73,7 +73,7 @@ namespace vds {
 				}
 			}
 
-			return certificate();
+			return this->get_certificate(cert_id);
 		}
 
 	asymmetric_private_key get_channel_write_key(const guid &channel_id) const {
@@ -173,9 +173,11 @@ namespace vds {
 
     std::map<guid, channel_info> channels_;
 
-	std::map<guid, certificate> certificate_chain_;
+		std::map<guid, certificate> certificate_chain_;
 
-  };
+	protected:
+		void add_certificate(const certificate &cert);
+	};
 }
 
 #endif //__VDS_USER_MANAGER_SECURITY_WALKER_H_

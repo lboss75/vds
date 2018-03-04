@@ -14,6 +14,8 @@
 #include "chunk_data_dbo.h"
 #include "chunk_replicator.h"
 #include <p2p_network.h>
+#include <vds_debug.h>
+#include <user_manager.h>
 #include "run_configuration_dbo.h"
 
 static uint8_t pack_block_iv[] = {
@@ -90,10 +92,10 @@ vds::chunk_manager::save_block(
 		std::unordered_map<uint16_t, const_data_buffer> & replica_hashes) {
 	auto block = pack_block(data);
 
-	dbo::chunk_data_dbo t1;
-	t.execute(t1.insert(
-			t1.id = base64::from_bytes(block.id),
-			t1.block_key = block.key));
+//	orm::chunk_data_dbo t1;
+//	t.execute(t1.insert(
+//			t1.id = base64::from_bytes(block.id),
+//			t1.block_key = block.key));
 
   resizable_data_buffer padded_data;
   padded_data += block.data;
@@ -114,14 +116,14 @@ vds::chunk_manager::save_block(
 		auto replica_hash = hash::signature(hash::sha256(), s.data());
 		replica_hashes[replica] = replica_hash;
 
-		dbo::chunk_replica_data_dbo t2;
+		orm::chunk_replica_data_dbo t2;
 		t.execute(t2.insert(
 			t2.id = base64::from_bytes(block.id),
 			t2.replica = (int)replica,
-      //t2.distance = sp.get<p2p_network>()->calc_distance(sp.get_property<current_run_configuration>(service_provider::property_scope::any_scope)->id(), replica_hash),
 			t2.replica_data = s.data(),
-			t2.replica_hash = base64::from_bytes(replica_hash)));
+			t2.replica_hash = replica_hash));
 	}
 
 	return block;
 }
+

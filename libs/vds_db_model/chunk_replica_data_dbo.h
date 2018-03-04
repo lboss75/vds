@@ -8,14 +8,13 @@ All rights reserved
 #include "database_orm.h"
 
 namespace vds {
-	namespace dbo {
+	namespace orm {
 		class chunk_replica_data_dbo : public database_table {
 		public:
 			chunk_replica_data_dbo()
 				: database_table("chunk_replica_data"),
 				id(this, "id"),
 				replica(this, "replica"),
-        distance(this, "distance"),
         replica_data(this, "replica_data"),
         replica_hash(this, "replica_hash")
 			{
@@ -23,9 +22,8 @@ namespace vds {
 
 			database_column<std::string> id;
 			database_column<int> replica;
-      database_column<uint64_t> distance;
       database_column<const_data_buffer> replica_data;
-      database_column<std::string> replica_hash;
+      database_column<const_data_buffer> replica_hash;
 		};
 	}
 }

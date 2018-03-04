@@ -25,11 +25,17 @@ namespace vds {
 
     user_channel get_channel(const guid &channel_id) const;
 
+    bool validate_and_save(
+        const service_provider & sp,
+        const std::list<vds::certificate> &cert_chain);
+
   private:
     guid id_;
     certificate device_cert_;
     asymmetric_private_key device_private_key_;
     uint16_t port_;
+
+    void save_certificate(const service_provider &sp, const certificate &cert);
   };
 }
 

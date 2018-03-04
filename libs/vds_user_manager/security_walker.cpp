@@ -27,7 +27,7 @@ void vds::security_walker::load(
 
   this->certificate_chain_[cert_control::get_id(this->user_cert_)] = this->user_cert_;
 
-  dbo::certificate_chain_dbo t2;
+  orm::certificate_chain_dbo t2;
   auto cert_id = cert_control::get_parent_id(this->user_cert_);
   while (cert_id) {
 
@@ -199,5 +199,9 @@ vds::security_walker::get_channel_write_certificate(
   }
 
   return true;
+}
+
+void vds::security_walker::add_certificate(const vds::certificate &cert) {
+  this->certificate_chain_[cert_control::get_id(cert)] = cert;
 }
 

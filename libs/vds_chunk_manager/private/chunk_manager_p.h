@@ -8,6 +8,9 @@ All rights reserved
 
 namespace vds {
   class _chunk_manager {
+  public:
+
+  private:
 
   };
 }

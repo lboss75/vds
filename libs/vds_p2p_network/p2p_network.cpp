@@ -64,6 +64,14 @@ vds::guid vds::p2p_network::current_node_id() const {
   return this->impl_->current_node_id();
 }
 
+void vds::p2p_network::query_replica(
+    const vds::service_provider &sp,
+    const vds::const_data_buffer &block_id,
+    const std::vector<uint16_t> &exist_replicas,
+    uint16_t distance) {
+  this->impl_->query_replica(sp, block_id, exist_replicas, distance);
+}
+
 
 //////////////////////////////////
 vds::_p2p_network::_p2p_network()
@@ -115,7 +123,7 @@ vds::async_task<> vds::_p2p_network::start_network(const vds::service_provider &
 
     auto parent_id = cert_control::get_parent_id(run_conf->cert_chain.front());
     while (parent_id) {
-      dbo::certificate_chain_dbo t2;
+      orm::certificate_chain_dbo t2;
       auto st = t.get_reader(t2.select(t2.cert).where(t2.id == parent_id));
       if (!st.execute()) {
         throw std::runtime_error("Wrong certificate id " + parent_id.str());
@@ -357,5 +365,13 @@ bool vds::_p2p_network::send_tentatively(const vds::service_provider &sp, const 
 
 vds::guid vds::_p2p_network::current_node_id() const {
   return this->route_->current_node_id().device_id();
+}
+
+void vds::_p2p_network::query_replica(
+    const vds::service_provider &sp,
+    const vds::const_data_buffer &data_id,
+    const std::vector<uint16_t> &exist_replicas,
+    uint16_t distance) {
+  this->route_->query_replica(sp, data_id, exist_replicas, distance);
 }
 

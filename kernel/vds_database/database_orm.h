@@ -716,6 +716,42 @@ namespace vds {
     container_type right_;
   };
 
+  template <typename source_type, typename container_type>
+  class _db_in_values{
+  public:
+    _db_in_values(
+        source_type && left,
+        const container_type & right)
+        : left_(std::move(left)),
+          right_(right){
+    }
+
+    void collect_aliases(std::map<const database_table *, std::string> & aliases) const {
+      this->left_.collect_aliases(aliases);
+    }
+
+    std::string visit(_database_sql_builder & builder) const
+    {
+      std::string postfix;
+      for(auto p : this->right_){
+        if(!postfix.empty()){
+          postfix += ',';
+        }
+
+        postfix += builder.add_parameter([p](sql_statement & st, int index){
+          st.set_parameter(index, p);
+        });
+      }
+
+      return this->left_.visit(builder)
+             + " IN (" + postfix + ")";
+    }
+
+  private:
+    source_type left_;
+    container_type right_;
+  };
+
   template <typename source_type, typename command_type>
   inline _db_not_in<_db_simple_column, command_type> db_not_in(source_type & column, command_type && command)
   {
@@ -726,6 +762,12 @@ namespace vds {
   inline _db_not_in_values<_db_simple_column, container_type> db_not_in_values(source_type & column, const container_type & values)
   {
     return _db_not_in_values<_db_simple_column, container_type>(_db_simple_column(column), values);
+  }
+
+  template <typename source_type, typename container_type>
+  inline _db_in_values<_db_simple_column, container_type> db_in_values(source_type & column, const container_type & values)
+  {
+    return _db_in_values<_db_simple_column, container_type>(_db_simple_column(column), values);
   }
 
   template <typename base_builder, typename condition_type>

@@ -73,6 +73,13 @@ namespace vds {
       return this->current_node_id_;
     }
 
+    void
+    query_replica(
+        const service_provider &sp,
+        const const_data_buffer & data_id,
+        const std::vector<uint16_t> &exist_replicas,
+        uint16_t distance);
+
   private:
     timer backgroud_timer_;
     node_id_t current_node_id_;

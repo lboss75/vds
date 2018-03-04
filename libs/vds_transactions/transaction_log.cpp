@@ -134,3 +134,4 @@ void vds::transaction_log::save(
             && t4.follower_id == base64::from_bytes(p)));
   }
 }
+

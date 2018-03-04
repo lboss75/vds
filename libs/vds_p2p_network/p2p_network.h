@@ -23,6 +23,12 @@ namespace vds {
         const guid & device_id,
         const const_data_buffer & message);
 
+    void query_replica(
+        const service_provider & sp,
+        const const_data_buffer & block_id,
+        const std::vector<uint16_t> & exist_replicas,
+        uint16_t distance);
+
     bool send_tentatively(
         const service_provider &sp,
         const guid &device_id,
@@ -31,7 +37,7 @@ namespace vds {
 
     guid current_node_id() const;
 
-    std::shared_ptr<class _p2p_network> operator -> () const {
+    const std::shared_ptr<class _p2p_network> & operator -> () const {
       return this->impl_;
     }
 

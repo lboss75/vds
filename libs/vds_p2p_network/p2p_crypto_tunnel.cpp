@@ -101,7 +101,10 @@ void vds::_p2p_crypto_tunnel::process_input_command(
         certificate_chain.push_back(certificate::parse_der(buffer));
       }
 
-      //TODO: validate chain
+      auto user_mng = sp.get<user_manager>();
+      if(!user_mng->validate_and_save(sp, certificate_chain)){
+        throw std::runtime_error("Invalid certificate");
+      }
 
       if (!this->output_key_) {
         this->partner_id_ = cert_control::get_id(*certificate_chain.rbegin());

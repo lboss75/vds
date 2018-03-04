@@ -11,7 +11,7 @@ All rights reserved
 #include "const_data_buffer.h"
 
 namespace vds {
-  namespace dbo {
+  namespace orm {
 
     class certificate_chain_dbo : public database_table {
     public:

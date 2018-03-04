@@ -56,8 +56,10 @@ namespace vds {
 				class p2p_network *p2p) const;
     void ask_unknown_certificates(
       const service_provider& sp,
-      const database_transaction& t,
+      database_transaction& t,
       class p2p_network * p2p);
+
+    void try_to_validate_records(const service_provider &sp, database_transaction &t);
   };
 
 }
