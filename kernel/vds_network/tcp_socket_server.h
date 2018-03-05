@@ -22,7 +22,7 @@ namespace vds {
     async_task<> start(
       const service_provider & sp,
       const network_address & address,
-      const std::function<void(const tcp_network_socket & s)> & new_connection);
+      const std::function<void(tcp_network_socket s)> & new_connection);
     
     void stop(const service_provider & sp);
     

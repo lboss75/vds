@@ -75,7 +75,7 @@ void vds::tcp_network_socket::close()
 
 void vds::tcp_network_socket::start(
     const vds::service_provider &sp,
-    const vds::stream<uint8_t> &input_handler) {
+    const vds::stream<uint8_t> &input_handler) const {
   static_cast<_tcp_network_socket *>(this->impl_.get())->start(sp, input_handler);
 }
 

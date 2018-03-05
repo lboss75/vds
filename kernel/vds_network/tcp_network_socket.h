@@ -24,7 +24,7 @@ namespace vds {
     
     void start(
         const service_provider & sp,
-        const stream<uint8_t> & input_handler);
+        const stream<uint8_t> & input_handler) const;
 
     void close();
 

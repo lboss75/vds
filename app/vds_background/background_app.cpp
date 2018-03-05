@@ -158,7 +158,7 @@ void vds::background_app::register_command_line(command_line & cmd_line)
   base_class::register_command_line(cmd_line);
 
   cmd_line.add_command_set(this->server_start_command_set_);
-  this->server_start_command_set_.optional(this->port_);
+  this->server_start_command_set_.optional(this->start_web_);
 
   cmd_line.add_command_set(this->server_root_cmd_set_);
   this->server_root_cmd_set_.required(this->user_login_);
@@ -170,6 +170,7 @@ void vds::background_app::register_command_line(command_line & cmd_line)
   cmd_line.add_command_set(this->server_init_command_set_);
   this->server_init_command_set_.required(this->user_login_);
   this->server_init_command_set_.required(this->user_password_);
+  this->server_init_command_set_.required(this->device_actiovation_);
   this->server_init_command_set_.optional(this->node_name_);
   this->server_init_command_set_.optional(this->port_);
 }

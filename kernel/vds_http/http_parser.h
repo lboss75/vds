@@ -21,7 +21,7 @@ namespace vds {
   public:
     http_parser(
         const service_provider & sp,
-        const std::function<async_task<>(const std::shared_ptr<http_message> &message)> &message_callback)
+        const std::function<async_task<>(const http_message &message)> &message_callback)
     : stream<uint8_t>(new _http_parser(sp, message_callback)) {
     }
 
@@ -30,7 +30,7 @@ namespace vds {
     public:
       _http_parser(
           const service_provider & sp,
-          const std::function<async_task<>(const std::shared_ptr<http_message> &message)> &message_callback)
+          const std::function<async_task<>(const http_message &message)> &message_callback)
           : sp_(sp),
             message_callback_(message_callback),
             message_state_(MessageStateEnum::MESSAGE_STATE_NONE, MessageStateEnum::MESSAGE_STATE_FAILED),
@@ -45,10 +45,18 @@ namespace vds {
           //sp.get<logger>()->debug("HTTP", sp, "HTTP end");
 
           this->message_state_.change_state(
-              MessageStateEnum::MESSAGE_STATE_NONE,
-              MessageStateEnum::MESSAGE_STATE_MESSAGE_STARTED,
-              error_logic::throw_exception);
-          this->message_callback_(std::shared_ptr<http_message>())
+            [](MessageStateEnum & state)->bool {
+              switch (state) {
+              case MessageStateEnum::MESSAGE_STATE_NONE:
+              case MessageStateEnum::MESSAGE_STATE_MESSAGE_BODY_FINISH:
+                state = MessageStateEnum::MESSAGE_STATE_MESSAGE_STARTED;
+                return true;
+              }
+
+              return false;
+            
+          }, error_logic::throw_exception);
+          this->message_callback_(http_message())
               .execute(
                   [pthis](const std::shared_ptr<std::exception> &ex) {
                     auto this_ = static_cast<_http_parser *>(pthis.get());
@@ -73,7 +81,7 @@ namespace vds {
 
     private:
       service_provider sp_;
-      std::function<async_task<>(const std::shared_ptr<http_message> &message)> message_callback_;
+      std::function<async_task<>(const http_message &message)> message_callback_;
 
       enum class MessageStateEnum {
         MESSAGE_STATE_NONE,
@@ -86,7 +94,7 @@ namespace vds {
 
       std::string parse_buffer_;
       std::list<std::string> headers_;
-      std::shared_ptr<http_message> current_message_;
+      http_message current_message_;
 
       enum class StateEnum {
         STATE_PARSE_HEADER,
@@ -124,7 +132,7 @@ namespace vds {
                 throw std::logic_error("Invalid request");
               }
 
-              auto current_message = std::make_shared<http_message>(this->sp_, this->headers_);
+              http_message current_message(this->sp_, this->headers_);
 
               this->message_state_.change_state(
                   MessageStateEnum::MESSAGE_STATE_NONE,
@@ -150,7 +158,7 @@ namespace vds {
               this->headers_.clear();
 
               std::string content_length_header;
-              if (this->current_message_->get_header("Content-Length", content_length_header)) {
+              if (this->current_message_.get_header("Content-Length", content_length_header)) {
                 this->content_length_ = std::stoul(content_length_header);
               } else {
                 this->content_length_ = 0;
@@ -180,7 +188,7 @@ namespace vds {
                   MessageStateEnum::MESSAGE_STATE_MESSAGE_BODY_STARTED,
                   error_logic::throw_exception);
 
-              this->current_message_->body()->write_async(
+              this->current_message_.body()->write_async(
                       data,
                       size)
                   .execute(
@@ -205,7 +213,7 @@ namespace vds {
                     MessageStateEnum::MESSAGE_STATE_MESSAGE_BODY_STARTED,
                     MessageStateEnum::MESSAGE_STATE_MESSAGE_BODY_FINISH,
                     error_logic::throw_exception);
-                this->current_message_->body()->write_async(nullptr, 0)
+                this->current_message_.body()->write_async(nullptr, 0)
                     .execute(
                         [pthis](const std::shared_ptr<std::exception> &ex) {
                           auto this_ = static_cast<_http_parser *>(pthis.get());

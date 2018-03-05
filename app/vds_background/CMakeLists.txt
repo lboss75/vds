@@ -19,17 +19,18 @@ ADD_MSVC_PRECOMPILED_HEADER("stdafx.h" "stdafx.cpp" SOURCE_FILES)
 add_executable(vds_background ${SOURCE_FILES} ${HEADER_FILES})
 target_include_directories(vds_background
 	PRIVATE
-		${vds_core_SOURCE_DIR}
-		${vds_network_SOURCE_DIR}
-		${vds_parser_SOURCE_DIR}
-		${vds_http_SOURCE_DIR}
-		${vds_crypto_SOURCE_DIR}
-		${vds_upnp_SOURCE_DIR}
-		${vds_protocols_SOURCE_DIR}
-		${vds_server_SOURCE_DIR}
-		${vds_p2p_network_SOURCE_DIR}
-		${vds_user_manager_SOURCE_DIR}
-		${vds_transactions_SOURCE_DIR}
+		${vds_core_INCLUDE_DIR}
+		${vds_network_INCLUDE_DIR}
+		${vds_parser_INCLUDE_DIR}
+		${vds_http_INCLUDE_DIR}
+		${vds_crypto_INCLUDE_DIR}
+		${vds_upnp_INCLUDE_DIR}
+		${vds_protocols_INCLUDE_DIR}
+		${vds_server_INCLUDE_DIR}
+		${vds_p2p_network_INCLUDE_DIR}
+		${vds_user_manager_INCLUDE_DIR}
+		${vds_transactions_INCLUDE_DIR}
+		${vds_web_server_INCLUDE_DIR}
 		${OPENSSL_INCLUDE_DIR}
 		${UPNP_INCLUDE_DIR}
 	PUBLIC
@@ -51,6 +52,7 @@ target_link_libraries(
   vds_p2p_network
   vds_user_manager
   vds_transactions
+  vds_web_server
   ${UUID_LIBRARIES}
   ${OPENSSL_LIBRARIES}
   ${UPNP_LIBRARIES}

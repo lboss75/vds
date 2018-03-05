@@ -16,6 +16,9 @@ namespace vds {
   class http_message
   {
   public:
+    http_message() {
+    }
+
     http_message(
         const service_provider & sp,
         const std::list<std::string> & headers)

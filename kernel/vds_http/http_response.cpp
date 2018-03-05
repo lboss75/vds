@@ -39,7 +39,9 @@ vds::http_message vds::http_response::simple_text_response(
         if(!ex){
         result.body()->write_async(nullptr, 0).execute(
           [sp](const std::shared_ptr<std::exception> & ex) {
+          if (ex) {
             sp.unhandled_exception(ex);
+          }
           });
         } else {
           sp.unhandled_exception(ex);
