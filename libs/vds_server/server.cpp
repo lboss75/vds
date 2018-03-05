@@ -62,9 +62,9 @@ void vds::server::stop(const service_provider& sp)
   this->impl_->stop(sp);
 }
 
-vds::async_task<vds::user_invitation> vds::server::reset(const vds::service_provider &sp, const std::string &root_user_name, const std::string &root_password,
+vds::async_task<vds::device_activation> vds::server::reset(const vds::service_provider &sp, const std::string &root_user_name, const std::string &root_password,
                                      const std::string &device_name, int port) {
-	auto result = std::make_shared<user_invitation>();
+	auto result = std::make_shared<device_activation>();
   return sp.get<db_model>()->async_transaction(sp, [this, sp, root_user_name, root_password, device_name, port, result](
       database_transaction & t){
     auto usr_manager = sp.get<user_manager>();
@@ -79,7 +79,7 @@ vds::async_task<vds::user_invitation> vds::server::reset(const vds::service_prov
 
 vds::async_task<> vds::server::init_server(
 	const vds::service_provider &sp,
-	const user_invitation & request,
+	const device_activation & request,
 	const std::string & user_password,
 	const std::string &device_name,
 	int port) {

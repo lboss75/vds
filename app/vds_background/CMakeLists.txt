@@ -11,27 +11,31 @@ endif (UNIX)
 
 find_package (UPNP REQUIRED)
 
-
-include_directories(${vds_core_SOURCE_DIR})
-include_directories(${vds_network_SOURCE_DIR})
-include_directories(${vds_parser_SOURCE_DIR})
-include_directories(${vds_http_SOURCE_DIR})
-include_directories(${vds_crypto_SOURCE_DIR})
-include_directories(${vds_upnp_SOURCE_DIR})
-include_directories(${vds_protocols_SOURCE_DIR})
-include_directories(${vds_server_SOURCE_DIR})
-include_directories(${vds_p2p_network_SOURCE_DIR})
-include_directories(${vds_user_manager_SOURCE_DIR})
-include_directories(${vds_transactions_SOURCE_DIR})
-include_directories(${OPENSSL_INCLUDE_DIR})
-include_directories(${UPNP_INCLUDE_DIR})
-
 FILE(GLOB HEADER_FILES *.h)
 FILE(GLOB SOURCE_FILES *.cpp)
 
 ADD_MSVC_PRECOMPILED_HEADER("stdafx.h" "stdafx.cpp" SOURCE_FILES)
 
 add_executable(vds_background ${SOURCE_FILES} ${HEADER_FILES})
+target_include_directories(vds_background
+	PRIVATE
+		${vds_core_SOURCE_DIR}
+		${vds_network_SOURCE_DIR}
+		${vds_parser_SOURCE_DIR}
+		${vds_http_SOURCE_DIR}
+		${vds_crypto_SOURCE_DIR}
+		${vds_upnp_SOURCE_DIR}
+		${vds_protocols_SOURCE_DIR}
+		${vds_server_SOURCE_DIR}
+		${vds_p2p_network_SOURCE_DIR}
+		${vds_user_manager_SOURCE_DIR}
+		${vds_transactions_SOURCE_DIR}
+		${OPENSSL_INCLUDE_DIR}
+		${UPNP_INCLUDE_DIR}
+	PUBLIC
+		${CMAKE_CURRENT_SOURCE_DIR})
+
+
 target_link_libraries(
   vds_background
   vds_core

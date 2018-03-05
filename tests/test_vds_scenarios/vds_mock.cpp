@@ -36,10 +36,10 @@ void vds_mock::start(size_t server_count)
   for (size_t i = 0; i < server_count; ++i) {
     if (0 == i) {
       std::cout << "Initing root\n";
-	  this->root_user_invitation_ = mock_server::init_root(i, first_port + i, this->root_password_);
+	  this->root_device_activation_ = mock_server::init_root(i, first_port + i, this->root_password_);
     } else {
       std::cout << "Initing server " << i << "\n";
-      mock_server::init(i, first_port + i, this->root_user_invitation_, this->root_password_);
+      mock_server::init(i, first_port + i, this->root_device_activation_, this->root_password_);
     }
 
     std::unique_ptr<mock_server> server(new mock_server(i, first_port + i));
@@ -150,8 +150,8 @@ void vds_mock::allow_write_channel(size_t client_index, const vds::guid &channel
 
             auto user_mng = this->servers_[client_index]->get<vds::user_manager>();
 
-            auto root_user = this->root_user_invitation_.get_user();
-			vds::asymmetric_private_key root_user_private_key = this->root_user_invitation_.get_user_private_key();
+            auto root_user = user_mng->import_user(*this->root_device_activation_.certificate_chain().rbegin());
+			vds::asymmetric_private_key root_user_private_key = this->root_device_activation_.private_key();
 
             vds::security_walker walker(
                 root_user.id(),
@@ -243,8 +243,8 @@ void vds_mock::allow_read_channel(size_t client_index, const vds::guid &channel_
           [this, client_index, channel_id, sp](vds::database_transaction & t)->bool {
 
             auto user_mng = this->servers_[client_index]->get<vds::user_manager>();
-            auto root_user = this->root_user_invitation_.get_user();
-            vds::asymmetric_private_key root_user_private_key = this->root_user_invitation_.get_user_private_key();
+            auto root_user = user_mng->import_user(*this->root_device_activation_.certificate_chain().rbegin());
+            vds::asymmetric_private_key root_user_private_key = this->root_device_activation_.private_key();
 
             vds::security_walker walker(
                 root_user.id(),
@@ -406,8 +406,8 @@ vds::user_channel vds_mock::create_channel(int index, const std::string &name) {
 
     auto user_mng = sp.get<vds::user_manager>();
 
-    auto root_user = this->root_user_invitation_.get_user();
-	auto root_private_key = this->root_user_invitation_.get_user_private_key();
+    auto root_user = user_mng->import_user(*this->root_device_activation_.certificate_chain().rbegin());
+    auto root_private_key = this->root_device_activation_.private_key();
 
     auto read_private_key = vds::asymmetric_private_key::generate(
         vds::asymmetric_crypto::rsa4096());
@@ -478,7 +478,7 @@ mock_server::mock_server(int index, int udp_port)
 {
 }
 
-vds::user_invitation mock_server::init_root(int index, int udp_port, const std::string& root_password)
+vds::device_activation mock_server::init_root(int index, int udp_port, const std::string& root_password)
 {
   vds::service_registrator registrator;
 
@@ -502,7 +502,7 @@ vds::user_invitation mock_server::init_root(int index, int udp_port, const std::
   registrator.add(network_service);
   registrator.add(server);
 
-  vds::user_invitation result;
+  vds::device_activation result;
   std::shared_ptr<std::exception> error;
 
   auto sp = registrator.build("mock server::init_root");
@@ -524,7 +524,7 @@ vds::user_invitation mock_server::init_root(int index, int udp_port, const std::
 	vds::barrier b;
     server
         .reset(sp, "root", root_password, "test" + std::to_string(udp_port), udp_port)
-		.execute([&error, &b, &result](const std::shared_ptr<std::exception> & ex, const vds::user_invitation & invitation) {
+		.execute([&error, &b, &result](const std::shared_ptr<std::exception> & ex, const vds::device_activation & invitation) {
 		if (ex) {
 			error = ex;
 		}
@@ -598,7 +598,7 @@ void mock_server::stop()
   this->registrator_.shutdown(this->sp_);
 }
 
-void mock_server::init(int index, int udp_port, const vds::user_invitation & invitation, const std::string &user_password) {
+void mock_server::init(int index, int udp_port, const vds::device_activation & invitation, const std::string &user_password) {
   vds::service_registrator registrator;
 
   vds::mt_service mt_service;
@@ -663,7 +663,7 @@ void mock_server::init(int index, int udp_port, const vds::user_invitation & inv
   registrator.shutdown(sp);
 
   if (error) {
-    throw *error;
+    throw std::runtime_error(error->what());
   }
 
 }

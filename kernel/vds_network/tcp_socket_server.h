@@ -7,6 +7,7 @@ All rights reserved
 */
 
 #include "async_task.h"
+#include "network_address.h"
 
 namespace vds {
   class _tcp_socket_server;
@@ -20,9 +21,8 @@ namespace vds {
 
     async_task<> start(
       const service_provider & sp,
-      const std::string & address,
-      int port,
-      const std::function<void(const service_provider & sp, const tcp_network_socket & s)> & new_connection);
+      const network_address & address,
+      const std::function<void(const tcp_network_socket & s)> & new_connection);
     
     void stop(const service_provider & sp);
     

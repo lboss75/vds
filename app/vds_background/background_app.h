@@ -6,6 +6,7 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 #include "stdafx.h"
+#include "web_server.h"
 
 namespace vds {
   class background_app : public console_app<background_app>
@@ -29,6 +30,10 @@ namespace vds {
     command_line_value user_login_;
     command_line_value user_password_;
 
+    command_line_value device_actiovation_;
+
+    command_line_switch start_web_;
+
     command_line_value node_name_;
     command_line_value port_;
 
@@ -39,6 +44,7 @@ namespace vds {
     network_service network_service_;
     crypto_service crypto_service_;
     server server_;
+    web_server web_server_;
   };
 }
 

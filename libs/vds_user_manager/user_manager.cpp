@@ -59,7 +59,7 @@ void vds::user_manager::load(
 	this->impl_->load(sp, t);
 }
 
-vds::user_invitation vds::user_manager::reset(
+vds::device_activation vds::user_manager::reset(
     const service_provider &sp,
     database_transaction &t,
     const std::string &root_user_name,
@@ -113,12 +113,12 @@ vds::user_invitation vds::user_manager::reset(
       });
   this->load(sp, t, device_user.id());
 
-  return user_invitation(std::list<certificate>(), root_private_key);
+  return device_activation(root_user_name, certificate_chain, root_private_key);
 }
 
 vds::async_task<> vds::user_manager::init_server(
 	const service_provider & parent_sp,
-	const user_invitation & request,
+	const device_activation & request,
 	const std::string & user_password,
 	const std::string & device_name,
 	int port)
@@ -126,21 +126,7 @@ vds::async_task<> vds::user_manager::init_server(
 	auto sp = parent_sp.create_scope(__FUNCTION__);
 	return sp.get<db_model>()->async_transaction(sp, [this, sp, request, user_password, device_name, port](database_transaction & t)
 	{
-		//save certificates
-    orm::certificate_chain_dbo t1;
-		for (auto &cert : request.certificate_chain()) {
-			sp.get<logger>()->info(ThisModule, sp, "Stored certificate %s", cert_control::get_id(cert).str().c_str());
-			t.execute(
-				t1.insert(
-					t1.id = cert_control::get_id(cert),
-					t1.cert = cert.der(),
-					t1.parent = cert_control::get_parent_id(cert)
-				));
-		}
-
-    auto invitation_user = this->import_user(*request.certificate_chain().rbegin());
-    auto user = invitation_user.create_user(request.private_key(), "", "");
-
+    auto user = this->import_user(*request.certificate_chain().rbegin());
 		transactions::transaction_block log;
 
 		auto private_key = asymmetric_private_key::generate(asymmetric_crypto::rsa4096());
@@ -150,7 +136,7 @@ vds::async_task<> vds::user_manager::init_server(
 			log,
 			request.certificate_chain(),
 			user,
-			request.get_user_name(),
+			request.user_name(),
 			user_password,
 			request.private_key(),
 			device_name, 
@@ -172,7 +158,7 @@ vds::async_task<> vds::user_manager::init_server(
         if(user.id() == channel_id){
           read_cert = user.user_certificate();
           write_cert = user.user_certificate();
-          write_private_key = request.get_user_private_key();
+          write_private_key = request.private_key();
         }
         else {
           throw std::runtime_error("Invalid channel");

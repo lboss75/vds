@@ -9,7 +9,7 @@ All rights reserved
 #include "private/certificate_authority_p.h"
 
 vds::background_app::background_app()
-: server_start_command_set_("Server start", "Start web server", "start", "server"),
+: server_start_command_set_("Server start", "Start server", "start", "server"),
   server_root_cmd_set_("Install Root node", "Create new network", "root", "server"),
   server_init_command_set_("Initialize new node", "Attach this device to the network", "init", "server"),
   user_login_(
@@ -22,6 +22,16 @@ vds::background_app::background_app()
       "password",
       "Password",
       "User password"),
+  device_actiovation_(
+    "a",
+    "device-activation",
+    "Device activation file",
+    "Specify file to activate device"),
+  start_web_(
+    "w",
+    "web",
+    "Start Web",
+    "Start web server"),
   node_name_(
     "n",
     "name",
@@ -48,9 +58,14 @@ void vds::background_app::main(const service_provider & sp)
                this->user_password_.value(),
                this->node_name_.value(),
                this->port_.value().empty() ? 0 : atoi(this->port_.value().c_str()))
-        .execute([&error, &b](const std::shared_ptr<std::exception> & ex) {
+        .execute([&error, &b, this](const std::shared_ptr<std::exception> & ex, const vds::device_activation & device_activation) {
           if (ex) {
             error = ex;
+          }
+          else {
+            vds::file f(vds::filename(this->device_actiovation_.value()), vds::file::file_mode::truncate);
+            f.write(device_activation.pack(this->user_password_.value()));
+            f.close();
           }
 
           b.set();
@@ -63,12 +78,16 @@ void vds::background_app::main(const service_provider & sp)
   } else if(&this->server_init_command_set_ == this->current_command_set_){
     vds::imt_service::enable_async(sp);
 
+    auto device_actiovation = vds::device_activation::unpack(
+      vds::file::read_all(vds::filename(this->device_actiovation_.value())),
+      this->user_password_.value());
+    
     std::shared_ptr<std::exception> error;
     vds::barrier b;
     this->server_
         .init_server(
             sp,
-            this->user_login_.value(),
+            device_actiovation,
             this->user_password_.value(),
             this->node_name_.value(),
             this->port_.value().empty() ? 0 : atoi(this->port_.value().c_str()))
@@ -128,6 +147,9 @@ void vds::background_app::register_services(vds::service_registrator& registrato
   }
   
   if (&this->server_start_command_set_ == this->current_command_set_) {
+    if (this->start_web_.value()) {
+      registrator.add(this->web_server_);
+    }
   }
 }
 
@@ -141,6 +163,7 @@ void vds::background_app::register_command_line(command_line & cmd_line)
   cmd_line.add_command_set(this->server_root_cmd_set_);
   this->server_root_cmd_set_.required(this->user_login_);
   this->server_root_cmd_set_.required(this->user_password_);
+  this->server_root_cmd_set_.required(this->device_actiovation_);
   this->server_root_cmd_set_.optional(this->node_name_);
   this->server_root_cmd_set_.optional(this->port_);
 

@@ -12,7 +12,7 @@ All rights reserved
 #include <transactions/file_add_transaction.h>
 #include "transaction_block.h"
 #include "user_channel.h"
-#include "user_invitation.h"
+#include "device_activation.h"
 #include "transactions/channel_message_walker.h"
 
 namespace vds {
@@ -45,13 +45,13 @@ namespace vds {
       asymmetric_private_key &read_private_key,
       asymmetric_private_key &write_private_key) const;
 
-    user_invitation reset(const service_provider &sp, class database_transaction &t, const std::string &root_user_name,
+    device_activation reset(const service_provider &sp, class database_transaction &t, const std::string &root_user_name,
       const std::string &root_password, const asymmetric_private_key &root_private_key,
       const std::string &device_name, int port);
 
     async_task<> init_server(
       const vds::service_provider &sp,
-      const user_invitation & request,
+      const device_activation & request,
       const std::string & user_password,
       const std::string &device_name,
       int port);

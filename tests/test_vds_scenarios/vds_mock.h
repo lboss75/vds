@@ -8,6 +8,7 @@ All rights reserved
 #include "network_service.h"
 #include "p2p_network_service.h"
 #include "leak_detect.h"
+#include "device_activation.h"
 
 class mock_server
 {
@@ -17,9 +18,9 @@ public:
   void start();
   void stop();
 
-  static vds::user_invitation init_root(int index, int udp_port, const std::string & root_password);
+  static vds::device_activation init_root(int index, int udp_port, const std::string & root_password);
   static void init(
-	  int index, int udp_port, const vds::user_invitation & invitation, const std::string & user_password);
+	  int index, int udp_port, const vds::device_activation & invitation, const std::string & user_password);
 
   template <typename T>
   T * get() const {
@@ -78,7 +79,7 @@ public:
 private:
   std::vector<std::unique_ptr<mock_server>> servers_;
   std::string root_password_;
-  vds::user_invitation root_user_invitation_;
+  vds::device_activation root_device_activation_;
 
 
   static std::string generate_password(size_t min_len = 4, size_t max_len = 20);
