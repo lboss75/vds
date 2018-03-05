@@ -18,11 +18,10 @@ vds::tcp_socket_server::~tcp_socket_server()
 
 vds::async_task<> vds::tcp_socket_server::start(
   const vds::service_provider& sp,
-  const std::string& address,
-  int port,
-  const std::function<void(const service_provider & sp, const tcp_network_socket & s)>& new_connection)
+  const network_address & address,
+  const std::function<void(const tcp_network_socket & s)>& new_connection)
 {
-  return this->impl_->start(sp, address, port, new_connection);
+  return this->impl_->start(sp, address, new_connection);
 }
 
 void vds::tcp_socket_server::stop(const vds::service_provider& sp)

@@ -40,12 +40,11 @@ namespace vds {
 
     async_task<> start(
       const service_provider & sp,
-      const std::string & address,
-      int port,
-      const std::function<void(const service_provider & sp, const tcp_network_socket & s)> & new_connection)
+      const network_address & address,
+      const std::function<void(const tcp_network_socket & s)> & new_connection)
     {
       imt_service::async_enabled_check(sp);
-      return [this, sp, address, port, new_connection]() {
+      return [this, sp, address, new_connection]() {
         
 #ifdef _WIN32
         this->s_ = WSASocket(AF_INET, SOCK_STREAM, 0, NULL, 0, WSA_FLAG_OVERLAPPED);
@@ -55,14 +54,7 @@ namespace vds {
           throw std::system_error(error, std::system_category(), "create socket");
         }
 
-        //bind to address
-        sockaddr_in addr;
-        memset(&addr, 0, sizeof(addr));
-        addr.sin_family = AF_INET;
-        addr.sin_addr.s_addr = htonl(INADDR_ANY);
-        addr.sin_port = htons(port);
-
-        if (SOCKET_ERROR == ::bind(this->s_, (struct sockaddr *)&addr, sizeof(addr))) {
+        if (SOCKET_ERROR == ::bind(this->s_, address, address.size())) {
           auto error = WSAGetLastError();
           throw std::system_error(error, std::system_category(), "bind");
         }
@@ -101,9 +93,8 @@ namespace vds {
                 if (INVALID_SOCKET != socket) {
                   sp.get<logger>()->trace("TCP", sp, "Connection from %s", network_service::to_string(client_address).c_str());
                   static_cast<_network_service *>(sp.get<inetwork_service>())->associate(socket);
-                  auto scope = sp.create_scope(("Connection from " + network_service::to_string(client_address)).c_str());
                   auto s = _tcp_network_socket::from_handle(socket);
-                  new_connection(scope, s);
+                  new_connection(s);
                 }
               }
             }
