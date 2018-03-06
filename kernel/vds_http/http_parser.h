@@ -25,6 +25,11 @@ namespace vds {
     : stream<uint8_t>(new _http_parser(sp, message_callback)) {
     }
 
+    void ensure_finish() const {
+      auto p = static_cast<_http_parser *>(this->impl_.get());
+      p->ensure_finish();
+    }
+
   private:
     class _http_parser : public _stream<uint8_t> {
     public:
@@ -79,6 +84,11 @@ namespace vds {
         }
       }
 
+      void ensure_finish() const {
+        if(!message_state_.chech_state(MessageStateEnum::MESSAGE_STATE_NONE)) {
+          throw std::runtime_error("Ivalid state");
+        }
+      }
     private:
       service_provider sp_;
       std::function<async_task<>(const http_message &message)> message_callback_;

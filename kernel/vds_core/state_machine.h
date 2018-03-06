@@ -112,6 +112,11 @@ namespace vds {
     {
       return this->error_;
     }
+
+    bool chech_state(state_enum_type value) const {
+      std::unique_lock<std::mutex> lock(this->state_mutex_);
+      return this->state_ == value;
+    }
     
   private:
     state_enum_type state_;

@@ -10,6 +10,7 @@ All rights reserved
 #include "tcp_network_socket.h"
 #include "http_serializer.h"
 #include "../vds_file_manager/stdafx.h"
+#include "http_multipart_reader.h"
 
 vds::web_server::web_server() {
 }
@@ -88,11 +89,32 @@ vds::async_task<> vds::_web_server::prepare_to_stop(const service_provider& sp) 
   return vds::async_task<>::empty();
 }
 
+class file_upload_task {
+public:
+
+};
+
 vds::async_task<vds::http_message> vds::_web_server::route(
   const service_provider& sp,
   const http_message& message) const {
   
   http_request request(message);
+  if(request.url() == "/upload/" && request.method() == "POST") {
+    std::string content_type;
+    if(request.get_header("Content-Type", content_type)) {
+      static const char multipart_form_data[] = "multipart/form-data";
+      if(multipart_form_data == content_type.substr(0, sizeof(multipart_form_data) - 1)) {
+        auto task = std::make_shared<file_upload_task>();
+        auto reader = std::make_shared<http_multipart_reader>(sp, content_type, [](const http_message& part)->async_task<>{
+
+        });
+
+        return reader->start(sp, message).then([]() {
+          return vds::http_message();
+        });
+      }
+    }
+  }
 
   return vds::async_task<vds::http_message>::result(this->router_.route(sp, message));
 }
