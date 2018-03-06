@@ -106,7 +106,7 @@ vds::async_task<vds::http_message> vds::_web_server::route(
       if(multipart_form_data == content_type.substr(0, sizeof(multipart_form_data) - 1)) {
         auto task = std::make_shared<file_upload_task>();
         auto reader = std::make_shared<http_multipart_reader>(sp, content_type, [](const http_message& part)->async_task<>{
-
+          return async_task<>::empty();
         });
 
         return reader->start(sp, message).then([]() {

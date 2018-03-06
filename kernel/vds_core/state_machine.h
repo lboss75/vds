@@ -121,7 +121,7 @@ namespace vds {
   private:
     state_enum_type state_;
     const state_enum_type failed_state_;
-    std::mutex state_mutex_;
+    mutable std::mutex state_mutex_;
     std::condition_variable state_cond_;
     std::shared_ptr<std::exception> error_;
   };

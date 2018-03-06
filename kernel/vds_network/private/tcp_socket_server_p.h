@@ -127,13 +127,8 @@ namespace vds {
             }
             
             //bind to address
-            sp.get<logger>()->trace("UDP", sp, "Starting UDP server on the port %d", port);
-            sockaddr_in addr;
-            memset(&addr, 0, sizeof(addr));
-            addr.sin_family = AF_INET;
-            addr.sin_addr.s_addr = htonl(INADDR_ANY);
-            addr.sin_port = htons(port);
-            if (0 > ::bind(this->s_, (struct sockaddr *)&addr, sizeof(addr))) {
+            sp.get<logger>()->trace("UDP", sp, "Starting UDP server on %s", address.to_string().c_str());
+            if (0 > ::bind(this->s_, address, address.size())) {
               auto error = errno;
               throw std::system_error(error, std::system_category());
             }
@@ -186,11 +181,10 @@ namespace vds {
 
                     auto socket = accept(this->s_, &client_address, &client_address_length);
                     if (INVALID_SOCKET != socket) {
-                      auto scope = this->sp_.create_scope(("Connection from " + network_service::to_string(client_address, client_address_length)).c_str());
                       auto s = _tcp_network_socket::from_handle(socket);
                       s->make_socket_non_blocking();
                       s->set_timeouts();
-                      this->new_connection_(scope, s);
+                      this->new_connection_(s);
                     }
                   }
                 }
@@ -208,7 +202,7 @@ namespace vds {
     std::thread wait_accept_task_;
     bool is_shuting_down_;
 #ifndef _WIN32
-    std::function<void(const service_provider & sp, const tcp_network_socket & s)> new_connection_;
+    std::function<void(const tcp_network_socket & s)> new_connection_;
     service_provider sp_;
 
 #else
