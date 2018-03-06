@@ -91,7 +91,7 @@ namespace vds {
 #ifdef _WIN32
       return static_cast<_write_socket_task *>(this->socket_task_.get())->write_async(data, size);
 #else
-      auto task = this->socket_task_.lock();
+      auto task = this->socket_task_;
       return static_cast<_socket_handler *>(task.get())->write_async(data, size);
 #endif//_WIN32
     }
@@ -124,7 +124,7 @@ namespace vds {
 #ifdef _WIN32
     std::shared_ptr<_socket_task> socket_task_;
 #else
-    std::weak_ptr<_socket_task> socket_task_;
+    std::shared_ptr<_socket_task> socket_task_;
 #endif//_WIN32
 
 #ifdef _WIN32
@@ -317,6 +317,8 @@ namespace vds {
 #else
     class _socket_handler : public _socket_task_impl<_socket_handler>
     {
+      using base_class = _socket_task_impl<_socket_handler>;
+
     public:
       _socket_handler(
         const service_provider & sp,
@@ -327,6 +329,16 @@ namespace vds {
           target_(target)
       {
       }
+
+      ~_socket_handler(){
+        std::cout << "_socket_handler::~_socket_handler";
+      }
+
+      void start(){
+        base_class::start();
+        this->change_mask(EPOLLIN);
+      }
+
 
       async_task<> write_async(const uint8_t * data, size_t size) {
         std::lock_guard<std::mutex> lock(this->write_mutex_);
