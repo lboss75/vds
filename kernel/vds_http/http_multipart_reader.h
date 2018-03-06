@@ -72,7 +72,7 @@ namespace vds {
         .then([pthis = this->shared_from_this(), sp, message](const std::shared_ptr<std::exception> & ex, size_t readed) {
         if (0 != readed) {
           pthis->readed_ += readed;
-          return this->continue_read(sp, message);
+          return pthis->continue_read(sp, message);
         }
         else {
           return async_task<>::empty();
