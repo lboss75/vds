@@ -14,6 +14,7 @@ bool vds::http_message::get_header(const std::string& name, std::string& value) 
       && p[name.size()] == ':'
       && !p.compare(0, name.size(), name)) {
       value = p.substr(name.size() + 1);
+      trim(value);
       return true;
     }
   }

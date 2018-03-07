@@ -72,9 +72,16 @@ void vds::_web_server::start(const service_provider& sp) {
         session->handler_.reset();
         return async_task<>::empty();
       }
+
+      std::string keep_alive_header;
+      bool keep_alive = request.get_header("Connection", keep_alive_header) && keep_alive_header == "Keep-Alive";
       return pthis->middleware_.process(sp, request)
-      .then([session, sp](const http_message & response) {
-        return session->stream_->write_async(sp, response);
+      .then([session, sp, keep_alive](const http_message & response) {
+        return session->stream_->write_async(sp, response).then([sp, session, keep_alive]() {
+          if(!keep_alive) {
+            return session->stream_->write_async(sp, http_message());//Close session
+          }          
+        });
       });
     });
     session->s_.start(sp, *session->handler_);
@@ -102,16 +109,23 @@ vds::async_task<vds::http_message> vds::_web_server::route(
   if(request.url() == "/upload/" && request.method() == "POST") {
     std::string content_type;
     if(request.get_header("Content-Type", content_type)) {
-      static const char multipart_form_data[] = "multipart/form-data";
+      static const char multipart_form_data[] = "multipart/form-data;";
       if(multipart_form_data == content_type.substr(0, sizeof(multipart_form_data) - 1)) {
-        auto task = std::make_shared<file_upload_task>();
-        auto reader = std::make_shared<http_multipart_reader>(sp, content_type, [](const http_message& part)->async_task<>{
-          return async_task<>::empty();
-        });
+        auto boundary = content_type.substr(sizeof(multipart_form_data) - 1);
+        trim(boundary);
+        static const char boundary_prefix[] = "boundary=";
+        if (boundary_prefix == boundary.substr(0, sizeof(boundary_prefix) - 1)) {
+          boundary.erase(0, sizeof(boundary_prefix) - 1);
 
-        return reader->start(sp, message).then([]() {
-          return vds::http_message();
-        });
+          auto task = std::make_shared<file_upload_task>();
+          auto reader = std::make_shared<http_multipart_reader>(sp, boundary, [](const http_message& part)->async_task<> {
+            return async_task<>::empty();
+          });
+
+          return reader->start(sp, message).then([sp]() {
+            return vds::http_response::simple_text_response(sp, std::string());
+          });
+        }
       }
     }
   }

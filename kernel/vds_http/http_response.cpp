@@ -26,27 +26,40 @@ vds::http_message vds::http_response::create_message(const service_provider & sp
 
 vds::http_message vds::http_response::simple_text_response(
   const service_provider & sp,
-  const std::string & body)
+  const std::string & body,
+  int result_code /*= HTTP_OK*/,
+  const std::string & message /*= "OK"*/)
 {
-  http_response response(http_response::HTTP_OK, "OK");
+  http_response response(result_code, message);
   response.add_header("Content-Type", "text/html; charset=utf-8");
   response.add_header("Content-Length", std::to_string(body.length()));
   auto result = response.create_message(sp);
-  auto buffer = std::make_shared<std::string>(body);
-  result.body()->write_async((const uint8_t *)buffer->c_str(), buffer->length())
-    .execute(
-      [sp, result, buffer](const std::shared_ptr<std::exception> & ex) {
-        if(!ex){
+  if (!body.empty()) {
+    auto buffer = std::make_shared<std::string>(body);
+    result.body()->write_async((const uint8_t *)buffer->c_str(), buffer->length())
+      .execute(
+        [sp, result, buffer](const std::shared_ptr<std::exception> & ex) {
+      if (!ex) {
         result.body()->write_async(nullptr, 0).execute(
           [sp](const std::shared_ptr<std::exception> & ex) {
           if (ex) {
             sp.unhandled_exception(ex);
           }
-          });
-        } else {
-          sp.unhandled_exception(ex);
-        }
-      });
+        });
+      }
+      else {
+        sp.unhandled_exception(ex);
+      }
+    });
+  }
+  else {
+    result.body()->write_async(nullptr, 0).execute(
+      [sp](const std::shared_ptr<std::exception> & ex) {
+      if (ex) {
+        sp.unhandled_exception(ex);
+      }
+    });
+  }
   return result;
 }
 

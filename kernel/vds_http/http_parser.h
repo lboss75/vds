@@ -219,18 +219,14 @@ namespace vds {
 
               if (0 == this->content_length_) {
                 this->state_ = StateEnum::STATE_PARSE_HEADER;
-                this->message_state_.change_state(
-                    MessageStateEnum::MESSAGE_STATE_MESSAGE_BODY_STARTED,
-                    MessageStateEnum::MESSAGE_STATE_MESSAGE_BODY_FINISH,
-                    error_logic::throw_exception);
                 this->current_message_.body()->write_async(nullptr, 0)
                     .execute(
                         [pthis](const std::shared_ptr<std::exception> &ex) {
                           auto this_ = static_cast<_http_parser *>(pthis.get());
                           if (!ex) {
                             this_->message_state_.change_state(
-                                MessageStateEnum::MESSAGE_STATE_MESSAGE_BODY_STARTED,
                                 MessageStateEnum::MESSAGE_STATE_MESSAGE_BODY_FINISH,
+                                MessageStateEnum::MESSAGE_STATE_NONE,
                                 error_logic::return_false);
                           } else {
                             this_->message_state_.fail(ex);

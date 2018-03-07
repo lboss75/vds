@@ -59,7 +59,7 @@ namespace vds {
 
           return this->continue_read(sp, message);
         }
-        else {
+        else if(this->readed_ > this->boundary_.length()){
           this->parser_.write(this->buffer_, this->readed_ - this->boundary_.length());
           memmove(this->buffer_, this->buffer_ + this->readed_ - this->boundary_.length(), this->boundary_.length());
           this->readed_ = this->boundary_.length();
@@ -75,6 +75,10 @@ namespace vds {
           return pthis->continue_read(sp, message);
         }
         else {
+          if (pthis->readed_ > 0) {
+            pthis->parser_.write(pthis->buffer_, pthis->readed_);
+          }
+
           return async_task<>::empty();
         }
       });

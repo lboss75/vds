@@ -36,7 +36,11 @@ namespace vds {
 
     http_message create_message(const service_provider & sp) const;
 
-    static http_message simple_text_response(const service_provider & sp, const std::string & body);
+    static http_message simple_text_response(
+      const service_provider & sp,
+      const std::string & body,
+      int result_code = HTTP_OK,
+      const std::string & message = "OK");
 
   private:
     std::string protocol_;
