@@ -198,6 +198,7 @@ namespace vds {
 
         if (0 == dwBytesTransfered) {
           this->target_.write(nullptr, 0);
+          this->start();
         }
         else {
           this->target_.write(this->buffer_, (size_t)dwBytesTransfered);

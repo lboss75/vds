@@ -54,7 +54,7 @@ namespace vds {
       return this->message_.headers();
     }
 
-    bool get_header(const std::string & name, std::string & value) {
+    bool get_header(const std::string & name, std::string & value) const {
       return this->message_.get_header(name, value);
     }
     
