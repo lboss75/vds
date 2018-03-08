@@ -77,10 +77,11 @@ void vds::_web_server::start(const service_provider& sp) {
       bool keep_alive = request.get_header("Connection", keep_alive_header) && keep_alive_header == "Keep-Alive";
       return pthis->middleware_.process(sp, request, session->stream_)
       .then([session, sp, keep_alive](const http_message & response) {
-        return session->stream_->write_async(sp, response).then([sp, session, keep_alive]() {
+        return session->stream_->write_async(sp, response).then([sp, session, keep_alive]() -> async_task<> {
           if(!keep_alive) {
             return session->stream_->write_async(sp, http_message());//Close session
-          }          
+          }
+          return async_task<>::empty();
         });
       });
     },

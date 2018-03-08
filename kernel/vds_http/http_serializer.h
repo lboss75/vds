@@ -33,10 +33,10 @@ namespace vds {
 
         std::stringstream stream;
         for (auto & header : message.headers()) {
-          stream << header << "\n";
+          stream << header << "\r\n";
         }
         sp.get<logger>()->trace("HTTP", sp, "HTTP Send [%s]", logger::escape_string(stream.str()).c_str());
-        stream << "\n";
+        stream << "\r\n";
 
         auto data = std::make_shared<std::string>(stream.str());
         
@@ -119,10 +119,10 @@ namespace vds {
 
       std::stringstream stream;
       for (auto & header : message->headers()) {
-        stream << header << "\n";
+        stream << header << "\r\n";
       }
       sp.get<logger>()->trace("HTTP", sp, "HTTP Send [%s]", logger::escape_string(stream.str()).c_str());
-      stream << "\n";
+      stream << "\r\n";
 
       auto data = std::make_shared<std::string>(stream.str());
 
