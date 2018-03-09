@@ -50,7 +50,7 @@ vds::http_message vds::http_router::route(
     }
 
     sp.get<logger>()->debug("HTTP", sp, "File not found: %s", request.url().c_str());
-    return vds::http_response::simple_text_response(sp, std::string(), http_response::HTTP_Not_Found, "Not Found");
+    return http_response::simple_text_response(sp, std::string(), http_response::HTTP_Not_Found, "Not Found");
 }
 
 void vds::http_router::add_static(

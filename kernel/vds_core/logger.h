@@ -116,6 +116,7 @@ namespace vds {
         std::string result = str;
         replace_string(result, "\\", "\\\\");
         replace_string(result, "\n", "\\n");
+        replace_string(result, "\r", "\\r");
         return result;
       }
 

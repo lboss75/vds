@@ -54,7 +54,7 @@ namespace vds {
             return;
           }
           auto pthis = this->shared_from_this();
-          //sp.get<logger>()->debug("HTTP", sp, "HTTP end");
+          this->sp_.get<logger>()->debug("HTTP", this->sp_, "HTTP end");
 
           this->message_state_.change_state(
             [](MessageStateEnum & state)->bool {
@@ -85,10 +85,10 @@ namespace vds {
           this->message_state_.wait(MessageStateEnum::MESSAGE_STATE_NONE, error_logic::throw_exception);
         }
         else {
-          /*
-                    sp.get<logger>()->debug("HTTP", sp, "HTTP [%s]",
+          
+          this->sp_.get<logger>()->debug("HTTP", this->sp_, "HTTP [%s]",
                                             logger::escape_string(std::string((const char *) data, len)).c_str());
-          */
+          
           this->continue_push_data(data, len);
         }
       }
@@ -340,6 +340,7 @@ namespace vds {
               ++data;
               --len;
               this->state_ = StateEnum::STATE_PARSE_SIZE;
+              this->continue_read_data_();
             }
             else {
               throw std::runtime_error("Invalid data");
