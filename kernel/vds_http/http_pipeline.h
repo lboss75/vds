@@ -21,7 +21,8 @@ namespace vds {
         const std::shared_ptr<http_async_serializer> & output_stream)
         : _http_parser_base<_http_pipeline>(sp, [message_callback, this](
           const http_message &message)->async_task<>{
-      return message_callback(message).then([pthis = this->shared_from_this()](const http_message & response){
+      auto pthis = this->shared_from_this();
+      return message_callback(message).then([pthis](const http_message & response){
         static_cast<_http_pipeline *>(pthis.get())->response_ = response;
       });
           }), output_stream_(output_stream){

@@ -59,8 +59,8 @@ vds::transactions::file_add_transaction::file_block_t vds::_upload_stream_task::
   return transactions::file_add_transaction::file_block_t{
       /*block_id =*/ block_info.id,
       /*block_key =*/ block_info.key,
-      /*block_size =*/ block_info.data.size(),
-      /*padding =*/padding,
+      /*block_size =*/ safe_cast<uint32_t>(block_info.data.size()),
+      /*padding =*/safe_cast<uint16_t>(padding),
       /*replica_hashes =*/replica_hashes
   };
 }
