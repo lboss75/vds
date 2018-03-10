@@ -34,20 +34,24 @@ namespace vds {
       return this->comment_;
     }
 
-    http_message create_message(const service_provider & sp) const;
-
     static http_message simple_text_response(
       const service_provider & sp,
       const std::string & body,
       int result_code = HTTP_OK,
       const std::string & message = "OK");
 
+    static http_message status_response(
+        const service_provider & sp,
+        int result_code,
+        const std::string & message);
+
   private:
     std::string protocol_;
     int code_;
     std::string comment_;
-
     std::list<std::string> headers_;
+
+    http_message create_message(const service_provider & sp) const;
   };
 }
 

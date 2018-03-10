@@ -4,14 +4,16 @@ All rights reserved
 */
 
 #include "stdafx.h"
+#include <queue>
 #include "web_server.h"
 #include "private/web_server_p.h"
 #include "http_parser.h"
 #include "tcp_network_socket.h"
 #include "http_serializer.h"
-#include "../vds_file_manager/stdafx.h"
 #include "http_multipart_reader.h"
-#include <queue>
+#include "file_operations.h"
+#include "string_format.h"
+#include "http_pipeline.h"
 
 vds::web_server::web_server() {
 }
@@ -56,69 +58,30 @@ vds::_web_server::~_web_server() {
 struct session_data : public std::enable_shared_from_this<session_data> {
   vds::tcp_network_socket s_;
   std::shared_ptr<vds::http_async_serializer> stream_;
-  std::shared_ptr<vds::http_parser> handler_;
-  
-  std::mutex messages_queue_mutex_;
-  std::queue<vds::http_message> messages_queue_;
-  bool send_continue_;
+  std::shared_ptr<vds::http_pipeline> handler_;
 
   session_data(vds::tcp_network_socket && s)
     : s_(std::move(s)),
       stream_(std::make_shared<vds::http_async_serializer>(this->s_)) {
-  }
-
-  void send(const vds::service_provider & sp, const vds::http_message & message) {
-    std::unique_lock<std::mutex> lock(this->messages_queue_mutex_);
-    if(!this->messages_queue_.empty()) {
-      this->messages_queue_.emplace(message);
-    }
-    else {
-      this->messages_queue_.emplace(message);
-      this->continue_send(sp);
-    }
-  }
-private:
-  void continue_send(const vds::service_provider & sp) {
-    this->stream_->write_async(sp, this->messages_queue_.front()).execute([sp, pthis = this->shared_from_this()](const std::shared_ptr<std::exception> & ex) {
-      if (!ex) {
-        std::unique_lock<std::mutex> lock(pthis->messages_queue_mutex_);
-        pthis->messages_queue_.pop();
-        if (!pthis->messages_queue_.empty()) {
-          pthis->continue_send(sp);
-        }
-      }
-    });
   }
 };
 
 void vds::_web_server::start(const service_provider& sp) {
   this->server_.start(sp, network_address::any_ip4(8050), [sp, pthis = this->shared_from_this()](tcp_network_socket s) {
     auto session = std::make_shared<session_data>(std::move(s));
-    session->handler_ = std::make_shared<http_parser>(sp, [sp, pthis, session](const http_message & request) -> async_task<> {
+    session->handler_ = std::make_shared<http_pipeline>(
+        sp,
+        session->stream_,
+        [sp, pthis, session](const http_message & request) -> async_task<http_message> {
       if(request.headers().empty()) {
         session->stream_.reset();
         session->handler_.reset();
-        return async_task<>::empty();
+        return async_task<http_message>::empty();
       }
-
-      std::string expect_value;
-      session->send_continue_ = (request.get_header("Expect", expect_value) && "100-continue" == expect_value);
 
       std::string keep_alive_header;
       bool keep_alive = request.get_header("Connection", keep_alive_header) && keep_alive_header == "Keep-Alive";
-      return pthis->middleware_.process(sp, request, session->stream_)
-      .then([session, sp, keep_alive](const http_message & response) {
-        session->send(sp, response);
-      });
-    },
-      [session, sp]() {
-
-      if (session->send_continue_) {
-        auto continue_message = http_response(100, "Continue").create_message(sp);
-        session->send(sp, continue_message);
-        continue_message.body()->write_async(nullptr, 0)
-        .execute([](const std::shared_ptr<std::exception> & ex) {});
-      }
+      return pthis->middleware_.process(sp, request);
     });
     session->s_.start(sp, *session->handler_);
   }).execute([sp](const std::shared_ptr<std::exception> & ex) {
@@ -134,13 +97,67 @@ vds::async_task<> vds::_web_server::prepare_to_stop(const service_provider& sp) 
 
 class file_upload_task : public std::enable_shared_from_this<file_upload_task> {
 public:
-  vds::async_task<> read_part(const vds::http_message& part) {
-    return part.body()->read_async(this->buffer_, sizeof(this->buffer_)).then([pthis = this->shared_from_this(), part](size_t readed) -> vds::async_task<> {
+  file_upload_task(const vds::guid & channel_id)
+  : channel_id_(channel_id){
+  }
+
+  vds::async_task<> read_part(
+      const vds::service_provider & sp,
+      const vds::http_message& part) {
+    std::string content_disposition;
+    if(part.get_header("Content-Disposition", content_disposition)){
+      std::list<std::string> items;
+      for(;;){
+        auto p = content_disposition.find(';');
+        if(std::string::npos == p){
+          vds::trim(content_disposition);
+          items.push_back(content_disposition);
+          break;
+        }
+        else {
+          items.push_back(vds::trim_copy(content_disposition.substr(0, p)));
+          content_disposition.erase(0, p + 1);
+        }
+      }
+
+      if(!items.empty() && "form-data" == *items.begin()){
+        std::map<std::string, std::string> values;
+        for(const auto & item : items){
+          auto p = item.find('=');
+          if(std::string::npos != p){
+            auto value = item.substr(p + 1);
+            if(!value.empty()
+               && value[0] == '\"'
+               && value[value.length() - 1] == '\"'){
+              value.erase(0, 1);
+              value.erase(value.length() - 1, 1);
+            }
+
+            values[item.substr(0, p)] = value;
+          }
+        }
+
+        auto pname = values.find("name");
+        if(values.end() != pname){
+          return sp.get<vds::file_manager::file_operations>()->upload_file(
+                  sp,
+                  this->channel_id_,
+                  pname->second,
+                  values["Content-Type"],
+                  part.body());
+
+          return this->read_file(pname->second, part);
+        }
+      }
+    }
+
+    return part.body()->read_async(this->buffer_, sizeof(this->buffer_))
+        .then([pthis = this->shared_from_this(), sp, part](size_t readed) -> vds::async_task<> {
       if(0 == readed) {
         return vds::async_task<>::empty();
       }
 
-      return pthis->read_part(part);
+      return pthis->read_part(sp, part);
     });
   }
 
@@ -148,13 +165,25 @@ public:
     return vds::http_response::simple_text_response(sp, std::string());
   }
 private:
+  vds::guid channel_id_;
   uint8_t buffer_[1024];
+
+  vds::async_task<> read_file(const std::string & name, const vds::http_message& part){
+    return part.body()->read_async(this->buffer_, sizeof(this->buffer_))
+        .then([pthis = this->shared_from_this(), name, part](size_t readed) -> vds::async_task<> {
+      if(0 == readed) {
+        return vds::async_task<>::empty();
+      }
+
+      return pthis->read_file(name, part);
+    });
+
+  }
 };
 
 vds::async_task<vds::http_message> vds::_web_server::route(
   const service_provider& sp,
-  const http_message& message,
-  const std::shared_ptr<http_async_serializer> & output) const {
+  const http_message& message) const {
 
   http_request request(message);
   if(request.url() == "/upload/" && request.method() == "POST") {
@@ -168,12 +197,12 @@ vds::async_task<vds::http_message> vds::_web_server::route(
         if (boundary_prefix == boundary.substr(0, sizeof(boundary_prefix) - 1)) {
           boundary.erase(0, sizeof(boundary_prefix) - 1);
 
-          auto task = std::make_shared<file_upload_task>();
-          auto reader = std::make_shared<http_multipart_reader>(sp, "--" + boundary, [task](const http_message& part)->async_task<> {
-            return task->read_part(part);
+          auto task = std::make_shared<file_upload_task>(guid::parse(request.get_parameter("channel_id")));
+          auto reader = std::make_shared<http_multipart_reader>(sp, "--" + boundary, [sp, task](const http_message& part)->async_task<> {
+            return task->read_part(sp, part);
           });
 
-          return reader->start(sp, message).then([sp, task, output, request]() ->async_task<http_message> {
+          return reader->start(sp, message).then([sp, task, request]() ->async_task<http_message> {
             return async_task<http_message>::result(task->get_response(sp));
           });
         }

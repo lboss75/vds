@@ -85,3 +85,13 @@ vds::http_message vds::http_request::simple_request(
 
   return result;
 }
+
+std::string vds::http_request::get_parameter(const std::string &name) const {
+  for(auto & param : this->parameters_){
+    auto p = param.find('=');
+    if(std::string::npos != p && name == param.substr(0, p)){
+      return param.substr(p + 1);
+    }
+  }
+  return std::string();
+}

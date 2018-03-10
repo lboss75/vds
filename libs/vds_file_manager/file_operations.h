@@ -12,6 +12,7 @@ All rights reserved
 #include "async_task.h"
 #include "filename.h"
 #include "download_file_task.h"
+#include "async_buffer.h"
 
 namespace vds {
   namespace file_manager_private {
@@ -29,11 +30,18 @@ namespace vds {
 		  const service_provider &sp,
 		  const vds::guid &channel_id,
           const std::string &name,
-		  const std::string &mimetype,
+		  		const std::string &mimetype,
           const vds::filename &file_path);
 
+			vds::async_task<> upload_file(
+					const service_provider &sp,
+					const vds::guid &channel_id,
+					const std::string &name,
+					const std::string &mimetype,
+					const std::shared_ptr<continuous_buffer<uint8_t>> & input_stream);
 
-	  vds::async_task<> download_file(
+
+			vds::async_task<> download_file(
 		  const service_provider &sp,
 			const std::shared_ptr<download_file_task> & task);
 

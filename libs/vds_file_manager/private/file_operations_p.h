@@ -7,6 +7,7 @@ All rights reserved
 */
 #include "file_operations.h"
 #include "transactions/file_add_transaction.h"
+#include "async_buffer.h"
 
 namespace vds {
   namespace file_manager_private {
@@ -18,6 +19,13 @@ namespace vds {
           const std::string &name,
           const std::string &mimetype,
           const filename &file_path);
+
+			async_task<> upload_file(
+					const service_provider &sp,
+					const vds::guid &channel_id,
+					const std::string &name,
+					const std::string &mimetype,
+					const std::shared_ptr<continuous_buffer<uint8_t>> & input_stream);
 
 	    async_task<> download_file(
 					const service_provider &sp,
@@ -35,6 +43,12 @@ namespace vds {
           const vds::service_provider &sp,
           const vds::filename &file_path,
           vds::database_transaction &t,
+          std::list<transactions::file_add_transaction::file_block_t> &file_blocks) const;
+
+      async_task<> pack_file(
+          const service_provider &sp,
+          const std::shared_ptr<continuous_buffer<uint8_t>> & input_stream,
+          database_transaction &t,
           std::list<transactions::file_add_transaction::file_block_t> &file_blocks) const;
 
 			void restore_chunk(

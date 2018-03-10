@@ -6,69 +6,86 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
-#include "service_provider.h"
-#include "mt_service.h"
-#include "tcp_network_socket.h"
-#include "logger.h"
-#include "async_task.h"
-#include "http_message.h"
-#include "http_serializer.h"
+#include <queue>
 #include "http_parser.h"
-#include "async_buffer.h"
+#include "http_serializer.h"
+#include "http_response.h"
 
-/*
 namespace vds {
-    template <typename input_stream_type = async_buffer<uint8_t>, typename output_stream_type = continuous_buffer<uint8_t>>
-    inline async_task<> _copy_http_commands(
-      const service_provider & sp,
-      const std::shared_ptr<http_async_serializer> & serializer,
-      const std::shared_ptr<std::shared_ptr<http_message>> & buffer,
-      const std::shared_ptr<async_buffer<std::shared_ptr<http_message>>> & output_commands)
-    {
-      return output_commands->read_async(buffer.get(), 1)
-      .then([sp, serializer, buffer, output_commands](size_t readed){
-        if(0 != readed){
-          return serializer->write_async(sp, *buffer)
-          .then([sp, serializer, buffer, output_commands](){
-            _copy_http_commands(sp, serializer, buffer, output_commands);
-          });
-        } else {
-          return async_task<>::empty();
+
+  class _http_pipeline : public _http_parser_base<_http_pipeline> {
+  public:
+    _http_pipeline(
+        const service_provider &sp,
+        const std::function<async_task<http_message>(const http_message &message)> &message_callback,
+        const std::shared_ptr<http_async_serializer> & output_stream)
+        : _http_parser_base<_http_pipeline>(sp, [message_callback, this](
+          const http_message &message)->async_task<>{
+      return message_callback(message).then([pthis = this->shared_from_this()](const http_message & response){
+        static_cast<_http_pipeline *>(pthis.get())->response_ = response;
+      });
+          }), output_stream_(output_stream){
+    }
+
+    void continue_read_data(const service_provider &sp) {
+      auto continue_message = http_response::status_response(sp, 100, "Continue");
+      this->send(sp, continue_message);
+    }
+
+    void finish_message(const service_provider &sp) {
+      this->send(sp, this->response_);
+    }
+
+  private:
+    std::shared_ptr<http_async_serializer> output_stream_;
+    http_message response_;
+
+    std::mutex messages_queue_mutex_;
+    std::queue<vds::http_message> messages_queue_;
+    bool send_continue_;
+
+    void send(const vds::service_provider & sp, const vds::http_message & message) {
+      std::unique_lock<std::mutex> lock(this->messages_queue_mutex_);
+      if(!this->messages_queue_.empty()) {
+        this->messages_queue_.emplace(message);
+      }
+      else {
+        this->messages_queue_.emplace(message);
+        this->continue_send(sp);
+      }
+    }
+
+    void continue_send(const vds::service_provider & sp) {
+      this->output_stream_->write_async(
+          sp,
+          this->messages_queue_.front())
+          .execute([sp, pthis = this->shared_from_this()](const std::shared_ptr<std::exception> & ex) {
+        if (!ex) {
+          auto this_ = static_cast<_http_pipeline *>(pthis.get());
+          std::unique_lock<std::mutex> lock(this_->messages_queue_mutex_);
+          this_->messages_queue_.pop();
+          if (!this_->messages_queue_.empty()) {
+            this_->continue_send(sp);
+          }
         }
       });
     }
+  };
 
-    template <typename input_stream_type = async_buffer<uint8_t>, typename output_stream_type = continuous_buffer<uint8_t>>
-    inline async_task<> http_pipeline(
-      const service_provider & sp,
-      
-      const std::shared_ptr<input_stream_type> & input_stream,
-      const std::shared_ptr<async_buffer<std::shared_ptr<http_message>>> & input_commands,
+  class http_pipeline : public stream<uint8_t> {
+  public:
+    http_pipeline(
+        const service_provider &sp,
+        const std::shared_ptr<http_async_serializer> & output_stream,
+        const std::function<async_task<http_message>(const http_message &message)> &message_callback)
+        : stream<uint8_t>(new _http_pipeline(sp, message_callback, output_stream)) {
+        }
 
-      const std::shared_ptr<async_buffer<std::shared_ptr<http_message>>> & output_commands,
-      const std::shared_ptr<output_stream_type> & output_stream
-    )
-    {
-      auto parser = std::make_shared<http_parser>(
-        [sp, input_commands](const std::shared_ptr<http_message> & request) -> async_task<> {
-          if (!request) {
-            return input_commands->write_async(nullptr, 0);
-          }
-          else {
-            return input_commands->write_value_async(request);
-          }
-      });
-
-      return async_series(
-        _copy_http_commands(
-          sp,
-          std::make_shared<http_async_serializer>(*output_stream),
-          std::make_shared<std::shared_ptr<http_message>>(),
-          output_commands),
-        copy_stream<uint8_t>(sp, input_stream, parser)
-      );
+    void reset() const {
+      auto p = static_cast<_http_pipeline *>(this->impl_.get());
+      p->reset();
     }
+  };
 }
-*/
 
 #endif // __VDS_HTTP_HTTP_PIPELINE_H_

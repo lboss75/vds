@@ -22,8 +22,7 @@ namespace vds {
 
     async_task<http_message> route(
       const service_provider & sp,
-      const http_message & request,
-      const std::shared_ptr<class http_async_serializer> & output) const;
+      const http_message & request) const;
 
   private:
     tcp_socket_server server_;

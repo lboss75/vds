@@ -4,6 +4,7 @@ All rights reserved
 */
 
 #include <transactions/channel_message_walker.h>
+#include <private/upload_stream_task_p.h>
 #include "stdafx.h"
 #include "file_operations.h"
 #include "file.h"
@@ -47,6 +48,13 @@ vds::file_manager::file_operations::download_file(
     const std::shared_ptr<download_file_task> & task)
 {
 	return this->impl_->download_file(sp, task);
+}
+
+vds::async_task<>
+vds::file_manager::file_operations::upload_file(const vds::service_provider &sp, const vds::guid &channel_id,
+                                                const std::string &name, const std::string &mimetype,
+                                                const std::shared_ptr<vds::continuous_buffer<uint8_t>> &input_stream) {
+  return this->impl_->upload_file(sp, channel_id, name, mimetype, input_stream);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
@@ -108,6 +116,67 @@ vds::async_task<> vds::file_manager_private::_file_operations::upload_file(
             });
 
 		return true;
+      }
+  );
+}
+
+vds::async_task<> vds::file_manager_private::_file_operations::upload_file(
+    const service_provider & paren_sp,
+    const guid & channel_id,
+    const std::string &name,
+    const std::string &mimetype,
+    const std::shared_ptr<continuous_buffer<uint8_t>> & input_stream) {
+
+  auto sp = paren_sp.create_scope(__FUNCTION__);
+
+  return sp.get<db_model>()->async_transaction(
+      sp,
+      [pthis = this->shared_from_this(),
+          sp,
+          name,
+          mimetype,
+          input_stream,
+          channel_id](
+          database_transaction & t) {
+
+        auto user_mng = sp.get<user_manager>();
+
+        asymmetric_private_key device_private_key;
+        auto user = user_mng->get_current_device(sp, device_private_key);
+
+        auto channel = user_mng->get_channel(sp, channel_id);
+        if(!channel.write_cert()){
+          sp.get<logger>()->error(
+              ThisModule,
+              sp,
+              "Channel %s don't have write cert",
+              channel_id.str().c_str());
+          throw vds_exceptions::access_denied_error("User don't have write permission");
+        }
+        auto channel_write_key = user_mng->get_channel_write_key(sp, channel.id());
+
+        std::list<transactions::file_add_transaction::file_block_t> file_blocks;
+        pthis->pack_file(sp, input_stream, t, file_blocks);
+
+        transactions::transaction_block log;
+        log.add(
+            channel_id,
+            transactions::file_add_transaction(
+                name,
+                mimetype,
+                file_blocks));
+
+        log.save(
+            sp,
+            t,
+            [](const guid & channel_id,
+               certificate & read_cert,
+               certificate & write_cert,
+               asymmetric_private_key & write_private_key){
+              throw std::runtime_error("Invalid channel");
+            });
+
+        return true;
       }
   );
 }
@@ -280,6 +349,19 @@ void vds::file_manager_private::_file_operations::pack_file(
       }
     }
   }
+}
+
+struct buffer_data : public std::enable_shared_from_this<buffer_data> {
+  uint8_t buffer[vds::file_manager::file_operations::BLOCK_SIZE];
+};
+
+vds::async_task<> vds::file_manager_private::_file_operations::pack_file(
+    const vds::service_provider &sp,
+    const std::shared_ptr<continuous_buffer<uint8_t>> & input_stream,
+    vds::database_transaction &t,
+    std::list<transactions::file_add_transaction::file_block_t> &file_blocks) const {
+  auto task = std::make_shared<_upload_stream_task>();
+  return task->start(sp, t, input_stream, file_blocks);
 }
 
 void

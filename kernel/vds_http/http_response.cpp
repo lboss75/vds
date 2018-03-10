@@ -63,5 +63,22 @@ vds::http_message vds::http_response::simple_text_response(
   return result;
 }
 
+vds::http_message vds::http_response::status_response(
+    const service_provider & sp,
+    int result_code,
+    const std::string & message)
+{
+  http_response response(result_code, message);
+  auto result = response.create_message(sp);
+
+  result.body()->write_async(nullptr, 0).execute(
+      [sp](const std::shared_ptr<std::exception> & ex) {
+        if (ex) {
+          sp.unhandled_exception(ex);
+        }
+      });
+
+  return result;
+}
 
 

@@ -13,4 +13,6 @@ All rights reserved
 #include "vds_parser.h"
 #include "vds_crypto.h"
 
+#define ThisModule "WebServer"
+
 #endif // __VDS_SERVER_STDAFX_H_

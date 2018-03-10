@@ -61,6 +61,8 @@ namespace vds {
     const http_message & get_message() const {
       return this->message_;
     }
+
+    std::string get_parameter(const std::string & name) const;
     
     static http_message simple_request(
       const service_provider & sp,

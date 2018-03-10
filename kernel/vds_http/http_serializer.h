@@ -113,12 +113,12 @@ namespace vds {
 
     async_task<> write_async(
       const service_provider & sp,
-      const std::shared_ptr<http_message> & message)
+      const http_message & message)
     {
       this->buffer_ = std::make_shared<continuous_buffer<uint8_t>>(sp);
 
       std::stringstream stream;
-      for (auto & header : message->headers()) {
+      for (auto & header : message.headers()) {
         stream << header << "\r\n";
       }
       sp.get<logger>()->trace("HTTP", sp, "HTTP Send [%s]", logger::escape_string(stream.str()).c_str());
@@ -130,7 +130,7 @@ namespace vds {
         this->buffer_->write_async((const uint8_t *)data->c_str(), data->length())
         .then([pthis = this->shared_from_this(), sp, data, message]() {
         auto buffer = std::make_shared<std::vector<uint8_t>>(1024);
-        return pthis->write_body(sp, message, buffer);
+        return pthis->write_body(sp, message.body(), buffer);
       }),
         this->continue_process(sp));
     }
@@ -142,18 +142,18 @@ namespace vds {
 
     async_task<> write_body(
       const service_provider & sp,
-      const std::shared_ptr<http_message> & message,
+      const std::shared_ptr<continuous_buffer<uint8_t>> & body,
       const std::shared_ptr<std::vector<uint8_t>> & buffer)
     {
-      return message->body()->read_async(buffer->data(), buffer->size())
-        .then([pthis = this->shared_from_this(), sp, message, buffer](size_t readed) {
+      return body->read_async(buffer->data(), buffer->size())
+        .then([pthis = this->shared_from_this(), sp, body, buffer](size_t readed) {
         if (0 < readed) {
           sp.get<logger>()->trace("HTTP", sp, "HTTP Send [%s]", std::string((const char *)buffer->data(), readed).c_str());
 
           return pthis->buffer_->write_async(buffer->data(), readed)
             .then(
-              [pthis, sp, message, buffer]() {
-            pthis->write_body(sp, message, buffer);
+              [pthis, sp, body, buffer]() {
+            pthis->write_body(sp, body, buffer);
           });
         }
         else {
