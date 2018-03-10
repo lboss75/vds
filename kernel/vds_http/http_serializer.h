@@ -10,6 +10,7 @@ All rights reserved
 #include "http_message.h"
 #include "http_request.h"
 #include "json_object.h"
+#include "vds_debug.h"
 
 namespace vds {
   class http_async_serializer : public std::enable_shared_from_this<http_async_serializer>
@@ -29,6 +30,7 @@ namespace vds {
         const service_provider & sp,
         const http_message & message)
       {
+        vds_assert(message.body());
         this->buffer_ = std::make_shared<continuous_buffer<uint8_t>>(sp);
 
         std::stringstream stream;

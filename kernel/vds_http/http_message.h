@@ -36,6 +36,10 @@ namespace vds {
       return this->body_;
     }
 
+    operator bool () const {
+      return this->body_.get() != nullptr;
+    }
+
   private:
     std::list<std::string> headers_;
     std::shared_ptr<continuous_buffer<uint8_t>> body_;

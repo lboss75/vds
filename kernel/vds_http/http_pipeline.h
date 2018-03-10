@@ -24,6 +24,7 @@ namespace vds {
       auto pthis = this->shared_from_this();
       return message_callback(message).then([pthis](const http_message & response){
         static_cast<_http_pipeline *>(pthis.get())->response_ = response;
+        static_cast<_http_pipeline *>(pthis.get())->response_barrier_.set();
       });
           }), output_stream_(output_stream){
     }
@@ -34,11 +35,14 @@ namespace vds {
     }
 
     void finish_message(const service_provider &sp) {
+      this->response_barrier_.wait();
       this->send(sp, this->response_);
     }
 
   private:
     std::shared_ptr<http_async_serializer> output_stream_;
+
+    barrier response_barrier_;
     http_message response_;
 
     std::mutex messages_queue_mutex_;
@@ -46,6 +50,8 @@ namespace vds {
     bool send_continue_;
 
     void send(const vds::service_provider & sp, const vds::http_message & message) {
+      vds_assert(message.body());
+
       std::unique_lock<std::mutex> lock(this->messages_queue_mutex_);
       if(!this->messages_queue_.empty()) {
         this->messages_queue_.emplace(message);

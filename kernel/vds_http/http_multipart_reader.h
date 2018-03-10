@@ -21,7 +21,7 @@ namespace vds {
       : boundary_(boundary), parser_(sp, message_callback), readed_(0) {
     }
 
-    async_task<> start(
+    async_task<> process(
       const service_provider & sp,
       const http_message & message)
     {

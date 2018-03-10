@@ -16,6 +16,16 @@ vds::security_walker::security_walker(
   user_cert_(user_cert),
   user_private_key_(user_private_key){
 	this->certificate_chain_[cert_control::get_id(this->user_cert_)] = this->user_cert_;
+
+  auto & cert_info = this->channels_[cert_control::get_user_id(this->user_cert_)];
+  cert_info.name_ = "User channel";
+  cert_info.current_read_certificate_ = cert_control::get_id(user_cert);
+  cert_info.current_write_certificate_ = cert_control::get_id(user_cert);
+
+  cert_info.read_certificates_[cert_control::get_id(user_cert)] = user_cert;
+  cert_info.write_certificates_[cert_control::get_id(user_cert)] = user_cert;
+  cert_info.read_private_keys_[cert_control::get_id(user_cert)] = user_private_key;
+  cert_info.write_private_keys_[cert_control::get_id(user_cert)] = user_private_key;
 }
 
 void vds::security_walker::load(
