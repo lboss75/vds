@@ -27,11 +27,14 @@ vds::http_message vds::http_response::create_message(const service_provider & sp
 vds::http_message vds::http_response::simple_text_response(
   const service_provider & sp,
   const std::string & body,
+  const std::string & content_type /*= "text/html; charset=utf-8"*/,
   int result_code /*= HTTP_OK*/,
   const std::string & message /*= "OK"*/)
 {
   http_response response(result_code, message);
-  response.add_header("Content-Type", "text/html; charset=utf-8");
+  if (!content_type.empty()) {
+    response.add_header("Content-Type", content_type);
+  }
   response.add_header("Content-Length", std::to_string(body.length()));
   auto result = response.create_message(sp);
   if (!body.empty()) {

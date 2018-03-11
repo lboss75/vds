@@ -336,6 +336,10 @@ vds::user_channel vds::user_manager::get_channel(
 	return this->impl_->get_channel(channel_id);
 }
 
+std::list<vds::user_channel> vds::user_manager::get_channels() const {
+  return this->impl_->get_channels();
+}
+
 vds::member_user vds::user_manager::create_root_user(transactions::transaction_block &playback, database_transaction &t,
                                                      const guid &common_channel_id, const std::string &root_user_name,
                                                      const std::string &root_password,
@@ -449,6 +453,20 @@ bool vds::_user_manager::validate_and_save(
   }
 
   return true;
+}
+
+std::list<vds::user_channel> vds::_user_manager::get_channels() const {
+  std::list<vds::user_channel> result;
+  for(const auto & p : this->channels_) {
+    result.push_back(
+      vds::user_channel(
+        p.first,
+        p.second.name_,
+        p.second.read_certificates_.find(p.second.current_read_certificate_)->second,
+        p.second.write_certificates_.find(p.second.current_write_certificate_)->second));
+  }
+
+  return result;
 }
 
 void vds::_user_manager::save_certificate(const vds::service_provider &sp, const vds::certificate &cert) {

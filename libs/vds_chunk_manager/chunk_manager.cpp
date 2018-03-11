@@ -116,6 +116,8 @@ vds::chunk_manager::save_block(
 		auto replica_hash = hash::signature(hash::sha256(), s.data());
 		replica_hashes[replica] = replica_hash;
 
+    sp.get<logger>()->trace(ThisModule, sp, "Save replica %d of %s", replica, base64::from_bytes(block.id).c_str());
+
 		orm::chunk_replica_data_dbo t2;
 		t.execute(t2.insert(
 			t2.id = base64::from_bytes(block.id),

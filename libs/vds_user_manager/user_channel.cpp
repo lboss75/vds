@@ -24,6 +24,10 @@ const vds::guid &vds::user_channel::id() const {
   return this->impl_->id();
 }
 
+const std::string& vds::user_channel::name() const {
+  return this->impl_->name();
+}
+
 const vds::certificate &vds::user_channel::read_cert() const {
   return this->impl_->read_cert();
 }

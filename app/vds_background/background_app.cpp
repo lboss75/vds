@@ -147,7 +147,8 @@ void vds::background_app::register_services(vds::service_registrator& registrato
   }
   
   if (&this->server_start_command_set_ == this->current_command_set_) {
-    if (this->start_web_.value()) {
+    if (!this->start_web_.value().empty()) {
+      this->web_server_.static_root(this->start_web_.value());
       registrator.add(this->web_server_);
     }
   }

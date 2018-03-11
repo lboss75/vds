@@ -28,6 +28,7 @@ All rights reserved
 #include "messages/chunk_query_replica.h"
 #include "logger.h"
 #include "encoding.h"
+#include "barrier.h"
 
 vds::file_manager::file_operations::file_operations()
 : impl_(new file_manager_private::_file_operations()){
@@ -129,56 +130,62 @@ vds::async_task<> vds::file_manager_private::_file_operations::upload_file(
 
   auto sp = paren_sp.create_scope(__FUNCTION__);
 
-  return sp.get<db_model>()->async_transaction(
+  return this->pack_file(sp, input_stream)
+  .then(
+    [sp,
+    pthis = this->shared_from_this(),
+    name,
+    mimetype,
+    input_stream,
+    channel_id](const std::list<transactions::file_add_transaction::file_block_t> & file_blocks) {
+    return sp.get<db_model>()->async_transaction(
       sp,
-      [pthis = this->shared_from_this(),
+      [pthis,
+      sp,
+      name,
+      mimetype,
+      input_stream,
+      channel_id,
+      file_blocks](
+        database_transaction & t) {
+
+      auto user_mng = sp.get<user_manager>();
+
+      asymmetric_private_key device_private_key;
+      auto user = user_mng->get_current_device(sp, device_private_key);
+
+      auto channel = user_mng->get_channel(sp, channel_id);
+      if (!channel.write_cert()) {
+        sp.get<logger>()->error(
+          ThisModule,
           sp,
+          "Channel %s don't have write cert",
+          channel_id.str().c_str());
+        throw vds_exceptions::access_denied_error("User don't have write permission");
+      }
+      auto channel_write_key = user_mng->get_channel_write_key(sp, channel.id());
+
+      transactions::transaction_block log;
+      log.add(
+        channel_id,
+        transactions::file_add_transaction(
           name,
           mimetype,
-          input_stream,
-          channel_id](
-          database_transaction & t) {
+          file_blocks));
 
-        auto user_mng = sp.get<user_manager>();
+      log.save(
+        sp,
+        t,
+        [](const guid & channel_id,
+          certificate & read_cert,
+          certificate & write_cert,
+          asymmetric_private_key & write_private_key) {
+        throw std::runtime_error("Invalid channel");
+      });
 
-        asymmetric_private_key device_private_key;
-        auto user = user_mng->get_current_device(sp, device_private_key);
-
-        auto channel = user_mng->get_channel(sp, channel_id);
-        if(!channel.write_cert()){
-          sp.get<logger>()->error(
-              ThisModule,
-              sp,
-              "Channel %s don't have write cert",
-              channel_id.str().c_str());
-          throw vds_exceptions::access_denied_error("User don't have write permission");
-        }
-        auto channel_write_key = user_mng->get_channel_write_key(sp, channel.id());
-
-        std::list<transactions::file_add_transaction::file_block_t> file_blocks;
-        pthis->pack_file(sp, input_stream, t, file_blocks);
-
-        transactions::transaction_block log;
-        log.add(
-            channel_id,
-            transactions::file_add_transaction(
-                name,
-                mimetype,
-                file_blocks));
-
-        log.save(
-            sp,
-            t,
-            [](const guid & channel_id,
-               certificate & read_cert,
-               certificate & write_cert,
-               asymmetric_private_key & write_private_key){
-              throw std::runtime_error("Invalid channel");
-            });
-
-        return true;
-      }
-  );
+      return true;
+    });
+  });
 }
 
 vds::async_task<> vds::file_manager_private::_file_operations::download_file(
@@ -355,13 +362,11 @@ struct buffer_data : public std::enable_shared_from_this<buffer_data> {
   uint8_t buffer[vds::file_manager::file_operations::BLOCK_SIZE];
 };
 
-vds::async_task<> vds::file_manager_private::_file_operations::pack_file(
+vds::async_task<std::list<vds::transactions::file_add_transaction::file_block_t>> vds::file_manager_private::_file_operations::pack_file(
     const vds::service_provider &sp,
-    const std::shared_ptr<continuous_buffer<uint8_t>> & input_stream,
-    vds::database_transaction &t,
-    std::list<transactions::file_add_transaction::file_block_t> &file_blocks) const {
+    const std::shared_ptr<continuous_buffer<uint8_t>> & input_stream) const {
   auto task = std::make_shared<_upload_stream_task>();
-  return task->start(sp, t, input_stream, file_blocks);
+  return task->start(sp, input_stream);
 }
 
 void

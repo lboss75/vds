@@ -180,8 +180,26 @@ namespace vds {
               std::string content_length_header;
               if (this->current_message_.get_header("Content-Length", content_length_header)) {
                 this->content_length_ = std::stoul(content_length_header);
-              } else {
+              } else if(current_message.get_header("Transfer-Encoding", transfer_encoding)) {
                 this->content_length_ = (size_t) -1;
+              }
+              else {
+                this->content_length_ = 0;
+                this->current_message_.body()->write_async(nullptr, 0)
+                  .execute(
+                    [pthis](const std::shared_ptr<std::exception> &ex) {
+                  auto this_ = static_cast<_http_parser_base<implementation_class> *>(pthis.get());
+                  if (!ex) {
+                    this_->message_state_.change_state(
+                      MessageStateEnum::MESSAGE_STATE_MESSAGE_STARTED,
+                      MessageStateEnum::MESSAGE_STATE_MESSAGE_BODY_FINISH,
+                      error_logic::return_false);
+                  }
+                  else {
+                    this_->message_state_.fail(ex);
+                  }
+                });
+                static_cast<implementation_class *>(this)->finish_message(this->sp_);
               }
 
               if (this->expect_100_) {

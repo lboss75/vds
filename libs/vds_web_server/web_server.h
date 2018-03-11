@@ -25,8 +25,12 @@ namespace vds {
     }
 
     class _web_server * operator -> () const;
+    void static_root(const std::string& root_folder) {
+      this->root_folder_ = root_folder;
+    }
 
   private:
+    std::string root_folder_;
     std::shared_ptr<class _web_server> impl_;
   };
 }

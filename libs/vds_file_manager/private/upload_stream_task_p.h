@@ -15,26 +15,22 @@ namespace vds {
   public:
     _upload_stream_task();
 
-    async_task<> start(
+    async_task<std::list<transactions::file_add_transaction::file_block_t>> start(
         const service_provider & sp,
-        database_transaction &t,
-        const std::shared_ptr<continuous_buffer<uint8_t>> & input_stream,
-        std::list<transactions::file_add_transaction::file_block_t> &file_blocks);
+        const std::shared_ptr<continuous_buffer<uint8_t>> & input_stream);
 
   private:
     uint8_t buffer_[vds::file_manager::file_operations::BLOCK_SIZE];
     size_t readed_;
     class chunk_manager *chunk_mng_;
+    std::list<transactions::file_add_transaction::file_block_t> file_blocks_;
 
     async_task<> continue_read(
         const service_provider & sp,
-        database_transaction &t,
-        const std::shared_ptr<continuous_buffer<uint8_t>> & input_stream,
-        std::list<transactions::file_add_transaction::file_block_t> &file_blocks);
+        const std::shared_ptr<continuous_buffer<uint8_t>> & input_stream);
 
-    transactions::file_add_transaction::file_block_t process_data(
-        const service_provider & sp,
-        database_transaction &t);
+    async_task<> process_data(
+        const service_provider & sp);
   };
 }
 

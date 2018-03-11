@@ -15,6 +15,7 @@ All rights reserved
 #include "file_operations.h"
 #include "string_format.h"
 #include "http_pipeline.h"
+#include "user_manager.h"
 
 vds::web_server::web_server() {
 }
@@ -29,7 +30,7 @@ void vds::web_server::start(const service_provider& sp) {
   auto scope = sp.create_scope("Web server");
   mt_service::enable_async(scope);
   this->impl_ = std::make_shared<_web_server>(scope);
-  this->impl_->start(scope);
+  this->impl_->start(scope, this->root_folder_);
 }
 
 void vds::web_server::stop(const service_provider& sp) {
@@ -47,10 +48,6 @@ vds::_web_server * vds::web_server::operator->() const {
 vds::_web_server::_web_server(const service_provider& sp) 
 : middleware_(*this) {
 
-  this->router_.add_static(
-    "/",
-    "<html><body>Hello World</body></html>");
-
 }
 
 vds::_web_server::~_web_server() {
@@ -67,7 +64,8 @@ struct session_data : public std::enable_shared_from_this<session_data> {
   }
 };
 
-void vds::_web_server::start(const service_provider& sp) {
+void vds::_web_server::start(const service_provider& sp, const std::string & root_folder) {
+  this->load_web("/", foldername(root_folder));
   this->server_.start(sp, network_address::any_ip4(8050), [sp, pthis = this->shared_from_this()](tcp_network_socket s) {
     auto session = std::make_shared<session_data>(std::move(s));
     session->handler_ = std::make_shared<http_pipeline>(
@@ -101,6 +99,19 @@ vds::async_task<vds::http_message> vds::_web_server::route(
   const http_message& message) const {
 
   http_request request(message);
+  if(request.url() == "/api/channels" && request.method() == "GET") {
+    auto result = std::make_shared<json_array>();
+    auto user_mng = sp.get<user_manager>();
+    for(auto & channel : user_mng->get_channels()) {
+      auto item = std::make_shared<json_object>();
+      item->add_property("id", channel.id().str());
+      item->add_property("name", channel.name());
+      result->add(item);
+    }
+
+    return vds::async_task<vds::http_message>::result(
+      http_response::simple_text_response(sp, result->json_value::str(), "application/json; charset=utf-8"));
+  }
   if(request.url() == "/upload/" && request.method() == "POST") {
     std::string content_type;
     if(request.get_header("Content-Type", content_type)) {
@@ -126,5 +137,17 @@ vds::async_task<vds::http_message> vds::_web_server::route(
   }
 
   return vds::async_task<vds::http_message>::result(this->router_.route(sp, message));
+}
+
+void vds::_web_server::load_web(const std::string& path, const foldername & folder) {
+  foldername f(folder);
+  f.files([this, path](const filename & fn) -> bool{
+    this->router_.add_file(path + fn.name(), fn);
+    return true;
+  });
+  f.folders([this, path](const foldername & fn) -> bool {
+    this->load_web(path + fn.name() + "/", fn);
+    return true;
+  });
 }
 

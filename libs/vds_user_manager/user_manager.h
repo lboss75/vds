@@ -86,6 +86,7 @@ namespace vds {
     member_user import_user(const certificate &user_cert);
 
     user_channel get_channel(const service_provider & sp, const guid &channel_id) const;
+    std::list<user_channel> get_channels() const;
 
     template <typename... handler_types>
     void walk_messages(

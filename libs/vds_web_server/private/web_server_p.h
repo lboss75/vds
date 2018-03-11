@@ -16,8 +16,8 @@ namespace vds {
   public:
     _web_server(const service_provider & sp);
     ~_web_server();
-    
-    void start(const service_provider& sp);
+
+    void start(const service_provider& sp, const std::string & root_folder);
     async_task<> prepare_to_stop(const service_provider &sp);
 
     async_task<http_message> route(
@@ -28,6 +28,8 @@ namespace vds {
     tcp_socket_server server_;
     http_middleware<_web_server> middleware_;
     http_router router_;
+
+    void load_web(const std::string& path, const foldername & folder);
   };
 }
 

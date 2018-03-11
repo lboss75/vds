@@ -45,11 +45,9 @@ namespace vds {
           vds::database_transaction &t,
           std::list<transactions::file_add_transaction::file_block_t> &file_blocks) const;
 
-      async_task<> pack_file(
+      async_task<std::list<transactions::file_add_transaction::file_block_t>> pack_file(
           const service_provider &sp,
-          const std::shared_ptr<continuous_buffer<uint8_t>> & input_stream,
-          database_transaction &t,
-          std::list<transactions::file_add_transaction::file_block_t> &file_blocks) const;
+          const std::shared_ptr<continuous_buffer<uint8_t>> & input_stream) const;
 
 			void restore_chunk(
 					const service_provider& sp,

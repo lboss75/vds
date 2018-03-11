@@ -37,6 +37,7 @@ namespace vds {
     static http_message simple_text_response(
       const service_provider & sp,
       const std::string & body,
+      const std::string & content_type = "text/html; charset=utf-8",
       int result_code = HTTP_OK,
       const std::string & message = "OK");
 

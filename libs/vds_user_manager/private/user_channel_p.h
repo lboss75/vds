@@ -22,6 +22,7 @@ namespace vds {
         const vds::certificate & write_cert);
 
     const vds::guid &id() const { return this->id_;}
+    const std::string &name() const { return this->name_; }
     const vds::certificate & read_cert() const { return this->read_cert_; }
     const vds::certificate & write_cert() const { return this->write_cert_; }
 	  void add_reader(
@@ -40,7 +41,7 @@ namespace vds {
 
   private:
     guid id_;
-	std::string name_;
+	  std::string name_;
     certificate read_cert_;
     certificate write_cert_;
   };

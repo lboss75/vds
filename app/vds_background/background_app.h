@@ -32,7 +32,7 @@ namespace vds {
 
     command_line_value device_actiovation_;
 
-    command_line_switch start_web_;
+    command_line_value start_web_;
 
     command_line_value node_name_;
     command_line_value port_;

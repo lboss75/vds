@@ -28,6 +28,7 @@ namespace vds {
     bool validate_and_save(
         const service_provider & sp,
         const std::list<vds::certificate> &cert_chain);
+    std::list<user_channel> get_channels() const;
 
   private:
     guid id_;

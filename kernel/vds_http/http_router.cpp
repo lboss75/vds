@@ -26,31 +26,31 @@ vds::http_message vds::http_router::route(
 
     auto pf = this->files_.find(request.url());
     if (this->files_.end() != pf) {
-      throw std::runtime_error("Not implemented");
-//      http_response response(http_response::HTTP_OK, "OK");
-//
-//      auto ext = pf->second.extension();
-//      if (".js" == ext) {
-//        response.add_header("Content-Type", "application/javascript; charset=utf-8");
-//      }
-//      else if (".css" == ext) {
-//        response.add_header("Content-Type", "text/css");
-//      }
-//      else if (".woff" == ext) {
-//        response.add_header("Content-Type", "application/font-woff");
-//      }
-//      else if (".ttf" == ext) {
-//        response.add_header("Content-Type", "application/font-tff");
-//      }
-//      else {
-//        response.add_header("Content-Type", "text/html; charset=utf-8");
-//      }
-//
-//      return response.create_message(sp);
+      http_response response(http_response::HTTP_OK, "OK");
+
+      auto ext = pf->second.extension();
+      std::string content_type;
+      if (".js" == ext) {
+        content_type = "application/javascript; charset=utf-8";
+      }
+      else if (".css" == ext) {
+        content_type = "text/css";
+      }
+      else if (".woff" == ext) {
+        content_type = "application/font-woff";
+      }
+      else if (".ttf" == ext) {
+        content_type = "application/font-tff";
+      }
+      else {
+        content_type = "text/html; charset=utf-8";
+      }
+
+      return response.simple_text_response(sp, file::read_all_text(pf->second), content_type);
     }
 
     sp.get<logger>()->debug("HTTP", sp, "File not found: %s", request.url().c_str());
-    return http_response::simple_text_response(sp, std::string(), http_response::HTTP_Not_Found, "Not Found");
+    return http_response::simple_text_response(sp, std::string(), std::string(), http_response::HTTP_Not_Found, "Not Found");
 }
 
 void vds::http_router::add_static(

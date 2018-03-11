@@ -51,6 +51,8 @@ namespace vds {
 			return  p->second.name_;
 		}
 
+    auto str = this->channels_.begin()->first.str();
+
 		throw vds_exceptions::not_found();
 	}
 
@@ -153,7 +155,7 @@ namespace vds {
 	}
 
 
-  private:
+  protected:
     const guid user_id_;
     const certificate user_cert_;
     const asymmetric_private_key user_private_key_;

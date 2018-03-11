@@ -41,6 +41,7 @@ namespace vds {
 
 
     const vds::guid &id() const;
+    const std::string & name() const;
     const vds::certificate & read_cert() const;
     const vds::certificate & write_cert() const;
 
