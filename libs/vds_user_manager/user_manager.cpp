@@ -89,7 +89,6 @@ vds::device_activation vds::user_manager::reset(
       device_name, device_key, port);
 
   playback.add(
-			root_user.id(),
       transactions::device_user_add_transaction(
           device_user.id(),
           device_user.user_certificate()));
@@ -97,20 +96,10 @@ vds::device_activation vds::user_manager::reset(
   auto blocks = playback.save(
       sp,
       t,
-      [&root_user, &root_private_key](
-          const guid & channel_id,
-          certificate & read_cert,
-          certificate & write_cert,
-          asymmetric_private_key & write_private_key) {
-        if(root_user.id() == channel_id){
-          read_cert = root_user.user_certificate();
-          write_cert = root_user.user_certificate();
-          write_private_key = root_private_key;
-        }
-        else {
-          throw std::runtime_error("Invalid channel id");
-        }
-      });
+      root_user.id(),
+      root_user.user_certificate(),
+      root_user.user_certificate(),
+      root_private_key);
   this->load(sp, t, device_user.id());
 
   return device_activation(root_user_name, certificate_chain, root_private_key);
@@ -144,26 +133,16 @@ vds::async_task<> vds::user_manager::init_server(
 			port);
 
 		log.add(
-      user.id(),
 			transactions::device_user_add_transaction(
 				device_user.id(),
 				device_user.user_certificate()));
 
 		auto blocks = log.save(
 			sp, t,
-      [&user, &request](const guid & channel_id,
-         certificate & read_cert,
-         certificate & write_cert,
-         asymmetric_private_key & write_private_key){
-        if(user.id() == channel_id){
-          read_cert = user.user_certificate();
-          write_cert = user.user_certificate();
-          write_private_key = request.private_key();
-        }
-        else {
-          throw std::runtime_error("Invalid channel");
-        }
-      });
+          user.id(),
+          user.user_certificate(),
+          user.user_certificate(),
+          request.private_key());
 		this->load(sp, t, device_user.id());
 
 		return true;
@@ -176,6 +155,7 @@ vds::user_manager::create_channel(
 	transactions::transaction_block &log,
 	database_transaction &t,
     const vds::guid &channel_id,
+  user_channel::channel_type_t channel_type,
 	const std::string &name,
     const vds::guid &owner_id,
 	const certificate &owner_cert,
@@ -209,16 +189,16 @@ vds::user_manager::create_channel(
       owner_private_key);
 
   log.add(
-      owner_id,
       transactions::channel_create_transaction(
           channel_id,
+          std::to_string(channel_type),
           name,
           read_cert,
           read_private_key,
           write_cert,
           write_private_key));
 
-  return user_channel(channel_id, name, read_cert, write_cert);
+  return user_channel(channel_id, channel_type, name, read_cert, write_cert);
 }
 
 vds::member_user
@@ -351,7 +331,6 @@ vds::member_user vds::user_manager::create_root_user(transactions::transaction_b
       root_private_key);
 
   playback.add(
-      root_user_id,
       transactions::root_user_transaction(
           root_user_id,
           root_user_cert,
@@ -424,6 +403,7 @@ vds::user_channel vds::_user_manager::get_channel(const guid & channel_id) const
 {
 	return user_channel(
 		channel_id,
+    this->get_channel_type(channel_id),
 		this->get_channel_name(channel_id),
 		this->get_channel_read_cert(channel_id),
 		this->get_channel_write_cert(channel_id));
@@ -461,6 +441,7 @@ std::list<vds::user_channel> vds::_user_manager::get_channels() const {
     result.push_back(
       vds::user_channel(
         p.first,
+        p.second.type_,
         p.second.name_,
         p.second.read_certificates_.find(p.second.current_read_certificate_)->second,
         p.second.write_certificates_.find(p.second.current_write_certificate_)->second));

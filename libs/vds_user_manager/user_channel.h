@@ -31,16 +31,23 @@ namespace vds {
   class user_channel
   {
   public:
+    enum class channel_type_t {
+      account_channel,
+      personal_channel
+    };
+
     user_channel();
 
     user_channel(
         const guid & id,
-		const std::string & name,
-		const vds::certificate & read_cert,
+        channel_type_t channel_type,
+		    const std::string & name,
+		    const vds::certificate & read_cert,
         const vds::certificate & write_cert);
 
 
     const vds::guid &id() const;
+    channel_type_t channel_type() const;
     const std::string & name() const;
     const vds::certificate & read_cert() const;
     const vds::certificate & write_cert() const;
@@ -68,4 +75,22 @@ namespace vds {
     std::shared_ptr<class _user_channel> impl_;
   };
 }
+
+namespace std {
+  inline string to_string(vds::user_channel::channel_type_t val) {
+    switch (val) {
+    case vds::user_channel::channel_type_t::account_channel: {
+      return "a";
+    }
+    case vds::user_channel::channel_type_t::personal_channel: {
+      return "p";
+    }
+
+    default: {
+      throw std::runtime_error("Invalid value");
+    }
+    }
+  }
+}
+
 #endif // __VDS_USER_MANAGER_USER_CHANNEL_H_

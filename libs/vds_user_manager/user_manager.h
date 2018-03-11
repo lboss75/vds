@@ -39,7 +39,9 @@ namespace vds {
     user_channel create_channel(
       const service_provider & sp,
       transactions::transaction_block &log, database_transaction &t,
-      const vds::guid &channel_id, const std::string &name,
+      const vds::guid &channel_id,
+      user_channel::channel_type_t channel_type,
+      const std::string &name,
       const vds::guid &owner_id, const certificate &owner_cert,
       const asymmetric_private_key &owner_private_key,
       asymmetric_private_key &read_private_key,

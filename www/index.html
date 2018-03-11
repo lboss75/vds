@@ -55,7 +55,7 @@
 
 			<div class="col-lg-6 col-sm-6 col-12">
             <h4>Отправка сообщения</h4>
-	    <form id="send-message" method="post" action="messags" role="form">
+	    <form id="send-message" method="post" action="upload" role="form" enctype="multipart/form-data">
 <input id="channel_id" name="channel_id" type="hidden" />
 		 <div class="row">
             <div class="col-md-12">
@@ -68,7 +68,7 @@
             <div class="input-group">
                 <label class="input-group-btn">
                     <span class="btn btn-primary">
-                        Browse&hellip; <input type="file" style="display: none;" multiple>
+                        Browse&hellip; <input name="attachment[]" type="file" style="display: none;" multiple>
                     </span>
                 </label>
                 <input type="text" class="form-control" readonly>

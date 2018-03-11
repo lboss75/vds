@@ -20,12 +20,14 @@ namespace vds {
 
       channel_create_transaction(
           const guid &channel_id,
+          const std::string & channel_type,
           const std::string &name,
           const certificate &read_cert,
           const asymmetric_private_key &read_private_key,
           const certificate &write_cert,
           const asymmetric_private_key &write_private_key)
       : channel_id_(channel_id),
+        channel_type_(channel_type),
         name_(name),
         read_cert_(read_cert),
         read_private_key_(read_private_key),
@@ -38,6 +40,7 @@ namespace vds {
         const_data_buffer write_private_key_der;
         s
             >> this->channel_id_
+          >> this->channel_type_
             >> this->name_
             >> this->read_cert_
             >> read_private_key_der
@@ -53,6 +56,7 @@ namespace vds {
       void serialize(binary_serializer & s) const {
         s
             << this->channel_id_
+            << this->channel_type_
             << this->name_
             << this->read_cert_
             << read_private_key_.der(std::string())
@@ -62,6 +66,10 @@ namespace vds {
 
       const guid & channel_id() const {
         return channel_id_;
+      }
+
+      const std::string & channel_type() const {
+        return this->channel_type_;
       }
 
       const std::string & name() const {
@@ -92,6 +100,7 @@ namespace vds {
 
     private:
       guid channel_id_;
+      std::string channel_type_;
       std::string name_;
       certificate read_cert_;
       asymmetric_private_key read_private_key_;

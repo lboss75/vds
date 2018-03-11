@@ -17,11 +17,13 @@ namespace vds {
       _user_channel();
       _user_channel(
         const vds::guid &id,
-		const std::string & name,
+        user_channel::channel_type_t channel_type,
+		    const std::string & name,
         const vds::certificate & read_cert,
         const vds::certificate & write_cert);
 
     const vds::guid &id() const { return this->id_;}
+    user_channel::channel_type_t channel_type() const { return this->channel_type_; }
     const std::string &name() const { return this->name_; }
     const vds::certificate & read_cert() const { return this->read_cert_; }
     const vds::certificate & write_cert() const { return this->write_cert_; }
@@ -41,6 +43,7 @@ namespace vds {
 
   private:
     guid id_;
+    user_channel::channel_type_t channel_type_;
 	  std::string name_;
     certificate read_cert_;
     certificate write_cert_;

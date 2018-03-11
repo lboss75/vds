@@ -100,7 +100,6 @@ vds::async_task<> vds::file_manager_private::_file_operations::upload_file(
 
         transactions::transaction_block log;
         log.add(
-            channel_id,
             transactions::file_add_transaction(
                 name,
                 mimetype,
@@ -109,12 +108,10 @@ vds::async_task<> vds::file_manager_private::_file_operations::upload_file(
 		log.save(
             sp,
             t,
-            [](const guid & channel_id,
-               certificate & read_cert,
-               certificate & write_cert,
-               asymmetric_private_key & write_private_key){
-                throw std::runtime_error("Invalid channel");
-            });
+            channel_id,
+      channel.read_cert(),
+      channel.write_cert(),
+      channel_write_key);
 
 		return true;
       }
@@ -167,7 +164,6 @@ vds::async_task<> vds::file_manager_private::_file_operations::upload_file(
 
       transactions::transaction_block log;
       log.add(
-        channel_id,
         transactions::file_add_transaction(
           name,
           mimetype,
@@ -176,12 +172,10 @@ vds::async_task<> vds::file_manager_private::_file_operations::upload_file(
       log.save(
         sp,
         t,
-        [](const guid & channel_id,
-          certificate & read_cert,
-          certificate & write_cert,
-          asymmetric_private_key & write_private_key) {
-        throw std::runtime_error("Invalid channel");
-      });
+        channel_id,
+        channel.read_cert(),
+        channel.write_cert(),
+        channel_write_key);
 
       return true;
     });

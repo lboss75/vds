@@ -23,36 +23,28 @@ All rights reserved
 #include "vds_debug.h"
 #include "transaction_log.h"
 
-std::map<vds::guid, vds::const_data_buffer> vds::transactions::transaction_block::save(
+vds::const_data_buffer vds::transactions::transaction_block::save(
     const service_provider &sp,
     class vds::database_transaction & t,
-    const std::function<void(
-        const guid & channel_id,
-        certificate & read_cert,
-        certificate & write_cert,
-        asymmetric_private_key & write_private_key)> & crypto_callback) const {
-  std::map<guid, vds::const_data_buffer> result;
-  for(auto & p : this->data_) {
-    vds_assert(0 != p.second.size());
-
-    certificate read_cert;
-    certificate write_cert;
-    asymmetric_private_key write_private_key;
-    crypto_callback(p.first, read_cert, write_cert, write_private_key);
+    const guid & channel_id,
+    const certificate & read_cert,
+    const certificate & write_cert,
+    const asymmetric_private_key & write_private_key) const {
+    vds_assert(0 != this->data_.size());
 
     std::set<const_data_buffer> ancestors;
-    uint64_t order_no = this->collect_dependencies(t, p.first, ancestors);
+    uint64_t order_no = this->collect_dependencies(t, channel_id, ancestors);
 
     auto key = symmetric_key::generate(symmetric_crypto::aes_256_cbc());
 
     binary_serializer crypted;
     crypted
-      << p.first
+      << channel_id
       << order_no
       << cert_control::get_id(read_cert)
       << cert_control::get_id(write_cert)
       << ancestors
-      << symmetric_encrypt::encrypt(key, p.second.data())
+      << symmetric_encrypt::encrypt(key, this->data_.data())
       << write_cert.public_key().encrypt(key.serialize());
 
     crypted << asymmetric_sign::signature(
@@ -60,12 +52,10 @@ std::map<vds::guid, vds::const_data_buffer> vds::transactions::transaction_block
         write_private_key,
         crypted.data());
 
-    auto id = register_transaction(sp, t, p.first, crypted.data(), order_no, ancestors);
+    auto id = register_transaction(sp, t, channel_id, crypted.data(), order_no, ancestors);
     on_new_transaction(sp, t, id, crypted.data());
 
-    result[p.first] = id;
-  }
-  return result;
+  return id;
 }
 
 void vds::transactions::transaction_block::parse_block(const const_data_buffer &data, guid &channel_id, uint64_t &order_no, guid &read_cert_id,

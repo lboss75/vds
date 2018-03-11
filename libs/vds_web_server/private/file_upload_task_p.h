@@ -13,9 +13,12 @@ namespace vds {
 
   class _file_upload_task  : public std::enable_shared_from_this<_file_upload_task> {
   public:
-    _file_upload_task(const guid & channel_id)
-        : channel_id_(channel_id){
+    _file_upload_task() {
     }
+
+    async_task<> read_string_body(
+      const std::shared_ptr<std::string>& buffer,
+      const http_message& part);
 
     async_task<> read_part(
         const service_provider & sp,
@@ -31,7 +34,7 @@ namespace vds {
     http_message result_;
     async_result<vds::http_message> result_done_;
 
-    async_task<> read_file(const std::string & name, const vds::http_message& part);
+    async_task<> skip_part(const vds::http_message& part);
   };
 }
 

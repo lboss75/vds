@@ -112,7 +112,7 @@ vds::async_task<vds::http_message> vds::_web_server::route(
     return vds::async_task<vds::http_message>::result(
       http_response::simple_text_response(sp, result->json_value::str(), "application/json; charset=utf-8"));
   }
-  if(request.url() == "/upload/" && request.method() == "POST") {
+  if(request.url() == "/upload" && request.method() == "POST") {
     std::string content_type;
     if(request.get_header("Content-Type", content_type)) {
       static const char multipart_form_data[] = "multipart/form-data;";
@@ -123,7 +123,7 @@ vds::async_task<vds::http_message> vds::_web_server::route(
         if (boundary_prefix == boundary.substr(0, sizeof(boundary_prefix) - 1)) {
           boundary.erase(0, sizeof(boundary_prefix) - 1);
 
-          auto task = std::make_shared<_file_upload_task>(guid::parse(request.get_parameter("channel_id")));
+          auto task = std::make_shared<_file_upload_task>();
           auto reader = std::make_shared<http_multipart_reader>(sp, "--" + boundary, [sp, task](const http_message& part)->async_task<> {
             return task->read_part(sp, part);
           });

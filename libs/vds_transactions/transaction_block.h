@@ -19,23 +19,19 @@ namespace vds {
     public:
 
       template<typename item_type>
-      void add(
-          const guid & channel_id,
-          item_type && item) {
+      void add(item_type && item) {
 
-        auto & s = this->data_[channel_id];
-        s << item_type::message_id;
-        item.serialize(s);
+        this->data_ << item_type::message_id;
+        item.serialize(this->data_);
       }
 
-      std::map<guid, const_data_buffer> save(
+      const_data_buffer save(
           const service_provider &sp,
           class vds::database_transaction & t,
-          const std::function<void(
-              const guid & channel_id,
-              certificate & read_cert,
-              certificate & write_cert,
-              asymmetric_private_key & write_private_key)> & crypto_callback) const;
+          const guid & channel_id,
+          const certificate & read_cert,
+          const certificate & write_cert,
+          const asymmetric_private_key & write_private_key) const;
 
       static void parse_block(const const_data_buffer &data, guid &channel_id, uint64_t &order_no, guid &read_cert_id,
                                    guid &write_cert_id, std::set<const_data_buffer> &ancestors, const_data_buffer &crypted_data,
@@ -47,7 +43,7 @@ namespace vds {
                                        const const_data_buffer &signature);
 
     private:
-      std::map<guid, binary_serializer> data_;
+      binary_serializer data_;
 
       uint64_t collect_dependencies(
           class database_transaction &t,
@@ -55,7 +51,7 @@ namespace vds {
           std::set<const_data_buffer> &ancestors) const;
 
       const_data_buffer register_transaction(
-		  const service_provider & sp,
+		      const service_provider & sp,
           class database_transaction &t,
           const guid & channel_id,
           const const_data_buffer &block,

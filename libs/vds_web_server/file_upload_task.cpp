@@ -37,16 +37,23 @@ vds::async_task<> vds::_file_upload_task::read_part(const vds::service_provider 
       }
 
       auto pname = values.find("name");
-      if(values.end() != pname){
-        return sp.get<file_manager::file_operations>()->upload_file(
+      if (values.end() != pname) {
+        if ("channel_id" == pname->second) {
+          auto buffer = std::make_shared<std::string>();
+          return this->read_string_body(buffer, part).then([buffer, pthis = this->shared_from_this()]() {
+            pthis->channel_id_ = guid::parse(*buffer);
+          });
+        }
+        else {
+          return sp.get<file_manager::file_operations>()->upload_file(
             sp,
             this->channel_id_,
             pname->second,
             values["Content-Type"],
             part.body());
-
-        return this->read_file(pname->second, part);
+        }
       }
+      return this->skip_part(part);
     }
   }
 
@@ -60,16 +67,27 @@ vds::async_task<> vds::_file_upload_task::read_part(const vds::service_provider 
       });
 }
 
-vds::async_task<> vds::_file_upload_task::read_file(const std::string &name, const vds::http_message &part) {
+vds::async_task<> vds::_file_upload_task::skip_part(const vds::http_message &part) {
   return part.body()->read_async(this->buffer_, sizeof(this->buffer_))
-      .then([pthis = this->shared_from_this(), name, part](size_t readed) -> vds::async_task<> {
+      .then([pthis = this->shared_from_this(), part](size_t readed) -> vds::async_task<> {
         if(0 == readed) {
           return vds::async_task<>::empty();
         }
 
-        return pthis->read_file(name, part);
+        return pthis->skip_part(part);
       });
 
+}
+
+vds::async_task<> vds::_file_upload_task::read_string_body(const std::shared_ptr<std::string> & buffer, const vds::http_message &part) {
+  return part.body()->read_async(this->buffer_, sizeof(this->buffer_))
+    .then([pthis = this->shared_from_this(), buffer, part](size_t readed)->vds::async_task<> {
+    if (0 == readed) {
+      return vds::async_task<>::empty();
+    }
+    *buffer += std::string((const char *)pthis->buffer_, readed);
+    return pthis->read_string_body(buffer, part);
+  });
 }
 
 vds::async_task<vds::http_message> vds::_file_upload_task::get_response(const vds::service_provider &sp) {

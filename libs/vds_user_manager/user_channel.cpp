@@ -13,10 +13,11 @@ vds::user_channel::user_channel() {
 
 vds::user_channel::user_channel(
     const vds::guid &id,
+  user_channel::channel_type_t channel_type,
 	const std::string & name,
 	const vds::certificate & read_cert,
     const vds::certificate & write_cert)
-: impl_(new _user_channel(id, name, read_cert, write_cert))
+: impl_(new _user_channel(id, channel_type, name, read_cert, write_cert))
 {
 }
 
@@ -59,10 +60,11 @@ void vds::user_channel::add_writer(
 /////////////////////////////////////////////////
 vds::_user_channel::_user_channel(
     const vds::guid &id,
+  user_channel::channel_type_t channel_type,
 	const std::string & name,
 	const vds::certificate & read_cert,
     const vds::certificate & write_cert)
-: id_(id), name_(name), read_cert_(read_cert), write_cert_(write_cert)
+: id_(id), channel_type_(channel_type),  name_(name), read_cert_(read_cert), write_cert_(write_cert)
 {
 }
 
@@ -74,7 +76,6 @@ void vds::_user_channel::add_reader(
 	const asymmetric_private_key& channel_read_private_key) const
 {
 	playback.add(
-    member_user.id(),
 		transactions::channel_add_reader_transaction(
 			this->id_,
 			this->name_,
@@ -91,7 +92,6 @@ void vds::_user_channel::add_writer(
 	const asymmetric_private_key& channel_write_private_key) const
 {
 	playback.add(
-		member_user.id(),
 		transactions::channel_add_writer_transaction(
 			this->id_,
 			this->name_,

@@ -11,6 +11,7 @@ All rights reserved
 #include "asymmetriccrypto.h"
 #include "vds_exceptions.h"
 #include "cert_control.h"
+#include "user_channel.h"
 
 namespace vds {
   class security_walker {
@@ -51,10 +52,17 @@ namespace vds {
 			return  p->second.name_;
 		}
 
-    auto str = this->channels_.begin()->first.str();
-
 		throw vds_exceptions::not_found();
 	}
+
+  user_channel::channel_type_t get_channel_type(const guid &channel_id) const {
+    auto p = this->channels_.find(channel_id);
+    if (this->channels_.end() != p) {
+      return  p->second.type_;
+    }
+
+    throw vds_exceptions::not_found();
+  }
 
 	certificate get_channel_write_cert(const guid &channel_id) const {
 		auto p = this->channels_.find(channel_id);
@@ -170,6 +178,7 @@ namespace vds {
       guid current_read_certificate_;
 	    guid current_write_certificate_;
 
+      user_channel::channel_type_t type_;
       std::string name_;
     };
 
