@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+        <title>VDS</title>
+
+         <!-- Bootstrap CSS CDN -->
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+        <!-- Our Custom CSS -->
+        <link rel="stylesheet" href="../style.css">
+    </head>
+    <body>
+
+    <div class="container">
+        <div class="card card-container">
+	    <p id="profile-name" class="profile-name-card">Укажите параметры для входа:</p>
+            <form class="form-signin">
+    <div class="file-field">
+        <div class="btn btn-primary btn-sm float-left">
+            <input type="file">
+        </div>
+        <div class="file-path-wrapper">
+           <input class="file-path validate" type="text" placeholder="Укажите секретный файл">
+        </div>
+    </div>
+                <input type="password" id="inputPassword" class="form-control" placeholder="Пароль" required>
+                <button class="btn btn-lg btn-primary btn-block btn-signin" type="submit">Вход</button>
+            </form><!-- /form -->
+        </div><!-- /card-container -->
+    </div><!-- /container -->
+        <!-- jQuery CDN -->
+         <script src="https://code.jquery.com/jquery-1.12.0.min.js"></script>
+         <!-- Bootstrap Js CDN -->
+         <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+
+         <script type="text/javascript">
+             $(document).ready(function () {
+             });
+         </script>
+    </body>
+</html>
