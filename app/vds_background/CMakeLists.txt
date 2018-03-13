@@ -22,7 +22,6 @@ target_include_directories(vds_background
 		${vds_core_INCLUDE_DIR}
 		${vds_network_INCLUDE_DIR}
 		${vds_parser_INCLUDE_DIR}
-		${vds_http_INCLUDE_DIR}
 		${vds_crypto_INCLUDE_DIR}
 		${vds_upnp_INCLUDE_DIR}
 		${vds_protocols_INCLUDE_DIR}
@@ -30,7 +29,6 @@ target_include_directories(vds_background
 		${vds_p2p_network_INCLUDE_DIR}
 		${vds_user_manager_INCLUDE_DIR}
 		${vds_transactions_INCLUDE_DIR}
-		${vds_web_server_INCLUDE_DIR}
 		${OPENSSL_INCLUDE_DIR}
 		${UPNP_INCLUDE_DIR}
 	PUBLIC
@@ -43,7 +41,6 @@ target_link_libraries(
   vds_data
   vds_database
   vds_network
-  vds_http
   vds_crypto
   vds_upnp
   vds_parser
@@ -52,7 +49,6 @@ target_link_libraries(
   vds_p2p_network
   vds_user_manager
   vds_transactions
-  vds_web_server
   ${UUID_LIBRARIES}
   ${OPENSSL_LIBRARIES}
   ${UPNP_LIBRARIES}

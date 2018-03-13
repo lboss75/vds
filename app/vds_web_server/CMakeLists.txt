@@ -9,7 +9,7 @@ FILE(GLOB SOURCE_LIB *.cpp)
 
 ADD_MSVC_PRECOMPILED_HEADER("stdafx.h" "stdafx.cpp" SOURCE_LIB)
 
-add_library(vds_web_server STATIC ${PRIVATE_HEADER_FILES} ${SOURCE_LIB} ${HEADER_FILES})
+add_executable(vds_web_server ${PRIVATE_HEADER_FILES} ${SOURCE_LIB} ${HEADER_FILES})
 
 target_include_directories(vds_web_server
 	PRIVATE
@@ -25,6 +25,7 @@ target_include_directories(vds_web_server
 		${vds_user_manager_INCLUDE_DIRS}
 		${vds_chunk_manager_INCLUDE_DIRS}
 		${vds_db_model_INCLUDE_DIRS}
+		${vds_server_INCLUDE_DIR}
 		${vds_p2p_network_INCLUDE_DIRS}
         ${vds_log_sync_INCLUDE_DIRS}
 		${vds_file_manager_INCLUDE_DIRS}
@@ -49,6 +50,7 @@ target_link_libraries(
   vds_p2p_network
   vds_db_model
   vds_file_manager
+  vds_server
   vds_log_sync
   ${UUID_LIBRARIES}
   ${OPENSSL_LIBRARIES}

@@ -53,3 +53,5 @@ externals/zlib_out/
 obj/
 bin/
 *.tmp
+x64/
+*.aps
