@@ -32,6 +32,11 @@ namespace vds {
       return *this;
     }
 
+    resizable_data_buffer & add(const uint8_t value) {
+      this->data_.push_back(value);
+      return *this;
+    }
+
     uint8_t * data() {
       return this->data_.data();
     }

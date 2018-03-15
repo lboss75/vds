@@ -1,4 +1,5 @@
 add_subdirectory(vds_core)
+add_subdirectory(vds_dht)
 add_subdirectory(vds_parser)
 add_subdirectory(vds_crypto)
 add_subdirectory(vds_network)
