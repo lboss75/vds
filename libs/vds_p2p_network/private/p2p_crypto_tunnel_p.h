@@ -14,9 +14,9 @@ All rights reserved
 #include "logger.h"
 #include "guid.h"
 #include "private/udp_transport_session_p.h"
-#include "node_id_t.h"
 
 namespace vds {
+  /*
   class _p2p_crypto_tunnel : public _udp_transport_session {
     using base_class = _udp_transport_session;
   public:
@@ -69,6 +69,7 @@ namespace vds {
         binary_deserializer & s);
 
   };
+   */
 }
 
 #endif //__VDS_P2P_NETWORK_P2P_CRYPTO_TUNNEL_P_H_

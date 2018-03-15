@@ -15,9 +15,8 @@ All rights reserved
 #include "legacy.h"
 
 namespace vds {
-  class _p2p_crypto_tunnel;
-
-  class _udp_transport_session : public std::enable_shared_from_this<_p2p_crypto_tunnel> {
+  template <typename implementation_class>
+  class _udp_transport_session : public std::enable_shared_from_this<implementation_class> {
   public:
     _udp_transport_session(
         const std::shared_ptr<_udp_transport> &owner,

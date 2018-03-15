@@ -159,13 +159,20 @@ namespace vds {
         size_t max_count,
         std::list<node> & result_nodes) {
 
+        if(this->buckets_.empty()){
+          return;
+        }
+
         auto index = dht_object_id::distance_exp(this->current_node_id_, target_id);
 
-        std::map<vds::node_id_t, node> result;
+        auto min_index = this->buckets_.begin().first;
+        auto max_index = this->buckets_.rbegin().first;
+
+        std::map<const_data_buffer, node> result;
         for (
           uint8_t distance = 0;
           result_nodes.size() < max_count
-          && (index + distance < 8 * node_id_t::SIZE || index - distance >= 0);
+          && (index + distance < max_index || index - distance >= min_index);
           ++distance) {
           this->search_nodes(sp, target_id, result, index + distance);
           this->search_nodes(sp, target_id, result, index - distance);
@@ -208,9 +215,9 @@ namespace vds {
         }
 
         void update_route_table(const service_provider &sp) {
-          for (uint8_t i = 0; i < 8 * node_id_t::SIZE; ++i) {
+          for (uint8_t i = 0; i < 8 * this->current_node_id_.size(); ++i) {
             for (;;) {
-              auto canditate = this->current_node_id_.generate_random_id(i);
+              auto canditate = dht_object_id::generate_random_id(this->current_node_id_, i);
 
               std::unique_lock<std::shared_mutex> lock(this->buckets_mutex_);
               auto p = this->buckets_.find(i);

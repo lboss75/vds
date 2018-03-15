@@ -3,7 +3,6 @@
 
 #include "p2p_message_id.h"
 #include "binary_serialize.h"
-#include "private/node_id_t.h"
 
 namespace vds {
   namespace p2p_messages {
@@ -12,7 +11,7 @@ namespace vds {
       static const uint8_t message_id = (uint8_t) p2p_message_id::dht_find_node;
 
       dht_find_node(
-          const node_id_t & target_id)
+          const const_data_buffer & target_id)
       : target_id_(target_id) {
       }
 
@@ -28,12 +27,12 @@ namespace vds {
       }
 
 
-      const node_id_t & target_id() const {
+      const const_data_buffer & target_id() const {
         return target_id_;
       }
 
     private:
-      node_id_t target_id_;
+      const_data_buffer target_id_;
     };
   }
 }

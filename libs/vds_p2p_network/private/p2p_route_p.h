@@ -11,6 +11,7 @@ All rights reserved
 #include "messages/dht_pong.h"
 
 namespace vds {
+  /*
   class _p2p_crypto_tunnel;
 
   class _p2p_route : public std::enable_shared_from_this<_p2p_route> {
@@ -58,6 +59,7 @@ namespace vds {
     dht::dht_route<_p2p_crypto_tunnel> route_;
     timer backgroud_timer_;
   };
+   */
 }
 
 #endif //__VDS_P2P_NETWORK_P2P_ROUTE_P_H_
