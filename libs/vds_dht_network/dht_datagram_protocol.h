@@ -23,9 +23,9 @@ namespace vds {
       public:
         dht_datagram_protocol(
             const network_address & address,
-            const const_data_buffer & node_id)
+            const const_data_buffer & this_node_id)
         : address_(address),
-          this_node_id_(node_id),
+          this_node_id_(this_node_id),
           output_sequence_number_(0),
           mtu_(65507),
           input_sequence_number_(0),
@@ -158,7 +158,7 @@ namespace vds {
                 }
               }
 
-              return this->repeat_message(sp, sp, mask, index);
+              return this->repeat_message(sp, s, mask, index);
             }
             default: {
               if (datagram.size() < 5) {
@@ -178,7 +178,7 @@ namespace vds {
                     this->next_sequence_number_++;
                   } while(this->input_messages_.end() != this->input_messages_.find(this->next_sequence_number_));
 
-                  return this->continue_process_messages(sp);
+                  return this->continue_process_messages(sp, s);
                 }
               }
 
@@ -262,9 +262,9 @@ namespace vds {
             return async_task<>::empty();
           }
 
-          switch ((message_type_t)((uint8_t)message_type_t::SpecialCommand & p->second.data()[0]) {
+          switch ((message_type_t)((uint8_t)message_type_t::SpecialCommand & p->second.data()[0])) {
             case message_type_t::SingleData: {
-              auto message_type = p->second.data()[0] & ~(uint8_t) message_type_t::SpecialCommand;
+              auto message_type = (uint8_t)(p->second.data()[0] & ~(uint8_t) message_type_t::SpecialCommand);
               const_data_buffer message(p->second.data() + 5, p->second.size() - 5);
 
               this->input_messages_.erase(this->next_process_index_);
@@ -273,12 +273,12 @@ namespace vds {
               return static_cast<implementation_class *>(this)->process_message(
                   sp,
                   message_type,
-                  message).then([sp]() {
-                this->continue_process_messages(sp);
+                  message).then([sp, s, pthis = this->shared_from_this()]() {
+                pthis->continue_process_messages(sp, s);
               });
             }
             case message_type_t::Data: {
-              auto message_type = p->second.data()[0] & ~(uint8_t) message_type_t::SpecialCommand;
+              auto message_type = p->second.data()[0] & ~(uint8_t)message_type_t::SpecialCommand;
               size_t size = (p->second.data()[5] << 8) | (p->second.data()[6]);
 
               if(size <= p->second.size() - 7){
@@ -315,8 +315,8 @@ namespace vds {
                   return static_cast<implementation_class *>(this)->process_message(
                       sp,
                       message_type,
-                      message).then([sp]() {
-                    this->continue_process_messages(sp, s);
+                      const_data_buffer(message.data(), message.size())).then([sp, s, pthis = this->shared_from_this()]() {
+                    pthis->continue_process_messages(sp, s);
                   });
                 }
               }

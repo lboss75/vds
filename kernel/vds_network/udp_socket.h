@@ -55,15 +55,15 @@ namespace vds {
   public:
     udp_socket();
     udp_socket(udp_socket && original);
-    udp_socket(const udp_socket & original) = delete;
+    udp_socket(const udp_socket & original) = default;
 
     ~udp_socket();
 
     udp_socket &operator = (const udp_socket & original) = delete;
     udp_socket & operator = (udp_socket && original) = default;
 
-    async_task<const udp_datagram &> read_async();
-    async_task<> write_async(const udp_datagram & message);
+    async_task<const udp_datagram &> read_async() const;
+    async_task<> write_async(const udp_datagram & message) const;
 
     void stop();
 

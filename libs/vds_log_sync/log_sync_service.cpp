@@ -1,10 +1,9 @@
-
+/*
 #include <certificate_unknown_dbo.h>
 #include <user_manager.h>
 #include "stdafx.h"
 #include "log_sync_service.h"
 #include "private/log_sync_service_p.h"
-#include "p2p_network.h"
 #include "db_model.h"
 #include "transaction_log_record_dbo.h"
 #include "chunk_manager.h"
@@ -618,3 +617,4 @@ void vds::_log_sync_service::try_to_validate_records(
     t.execute(t1.delete_if(db_in_values(t1.id, invalid_records)));
   }
 }
+*/

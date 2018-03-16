@@ -5,10 +5,6 @@ All rights reserved
 
 #include "stdafx.h"
 #include <set>
-#include "chunk_manager.h"
-#include "p2p_network.h"
-#include "messages/channel_log_record.h"
-#include "user_manager.h"
 #include "transaction_block.h"
 #include "symmetriccrypto.h"
 #include "asymmetriccrypto.h"
@@ -19,7 +15,6 @@ All rights reserved
 #include "chunk_data_dbo.h"
 #include "transaction_log_record_dbo.h"
 #include "encoding.h"
-#include "member_user.h"
 #include "vds_debug.h"
 #include "transaction_log.h"
 

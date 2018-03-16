@@ -5,11 +5,10 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
-
+/*
 #include <memory>
-#include <messages/chunk_offer_replica.h>
-#include <messages/chunk_have_replica.h>
-#include <stdafx.h>
+#include "messages/chunk_offer_replica.h"
+#include "messages/chunk_have_replica.h"
 #include "service_provider.h"
 #include "messages/chunk_send_replica.h"
 #include "messages/chunk_query_replica.h"
@@ -49,5 +48,5 @@ namespace vds {
   };
 }
 
-
+*/
 #endif //__VDS_CHUNK_MANAGER_CHUNK_REPLICATOR_H_

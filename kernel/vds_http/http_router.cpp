@@ -15,16 +15,17 @@ vds::http_router::http_router()
 
 vds::http_message vds::http_router::route(
   const service_provider & sp,
-  const http_message & message) const
+  const http_message & message,
+  const std::string & local_path) const
 {
     http_request request(message);
 
-    auto p = this->static_.find(request.url());
+    auto p = this->static_.find(local_path);
     if (this->static_.end() != p) {
       return http_response::simple_text_response(sp, p->second);
     }
 
-    auto pf = this->files_.find(request.url());
+    auto pf = this->files_.find(local_path);
     if (this->files_.end() != pf) {
       http_response response(http_response::HTTP_OK, "OK");
 
@@ -49,8 +50,13 @@ vds::http_message vds::http_router::route(
       return response.simple_text_response(sp, file::read_all_text(pf->second), content_type);
     }
 
-    sp.get<logger>()->debug("HTTP", sp, "File not found: %s", request.url().c_str());
-    return http_response::simple_text_response(sp, std::string(), std::string(), http_response::HTTP_Not_Found, "Not Found");
+    sp.get<logger>()->debug("HTTP", sp, "File not found: %s", local_path.c_str());
+    return http_response::simple_text_response(
+      sp,
+      std::string(),
+      std::string(),
+      http_response::HTTP_Not_Found,
+      "Not Found");
 }
 
 void vds::http_router::add_static(

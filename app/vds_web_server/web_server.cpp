@@ -16,6 +16,7 @@ All rights reserved
 #include "string_format.h"
 #include "http_pipeline.h"
 #include "user_manager.h"
+#include "register_page.h"
 
 vds::web_server::web_server() {
 }
@@ -136,13 +137,39 @@ vds::async_task<vds::http_message> vds::_web_server::route(
     }
   }
 
-  return vds::async_task<vds::http_message>::result(this->router_.route(sp, message));
+  if (request.url() == "/" && request.method() == "GET") {
+    std::string cookie_value;
+    if(request.get_header("Cookie", cookie_value) && !cookie_value.empty()) {
+      for (auto item : split_string(cookie_value, ';', true)) {
+        auto p = item.find('=');
+        if(std::string::npos != p) {
+          auto name = item.substr(0, p);
+          if("Auth" == name) {
+            
+          }
+        }
+      }
+    }
+
+    return vds::async_task<vds::http_message>::result(this->router_.route(sp, message, "/login"));
+  }
+
+  if (request.url() == "/register" && request.method() == "POST") {
+    return register_page::post(sp, message);
+  }
+
+  return vds::async_task<vds::http_message>::result(this->router_.route(sp, message, request.url()));
 }
 
 void vds::_web_server::load_web(const std::string& path, const foldername & folder) {
   foldername f(folder);
   f.files([this, path](const filename & fn) -> bool{
-    this->router_.add_file(path + fn.name(), fn);
+    if(".html" == fn.extension()) {
+      this->router_.add_file(path + fn.name_without_extension(), fn);
+    }
+    else {
+      this->router_.add_file(path + fn.name(), fn);
+    }
     return true;
   });
   f.folders([this, path](const foldername & fn) -> bool {

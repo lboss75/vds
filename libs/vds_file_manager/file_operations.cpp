@@ -24,8 +24,6 @@ All rights reserved
 #include "chunk_replica_data_dbo.h"
 #include "chunk_replicator.h"
 #include "chunk.h"
-#include "p2p_network.h"
-#include "messages/chunk_query_replica.h"
 #include "logger.h"
 #include "encoding.h"
 #include "barrier.h"
@@ -236,6 +234,7 @@ vds::async_task<> vds::file_manager_private::_file_operations::download_block(
 	database_transaction& t,
   file_manager::download_file_task::block_info & block,
   const std::shared_ptr<file_manager::download_file_task> & result) {
+  /*
   auto left_replicas(block.id_.replica_hashes);
   std::vector<uint16_t> replicas;
   std::vector<const_data_buffer> datas;
@@ -291,6 +290,7 @@ vds::async_task<> vds::file_manager_private::_file_operations::download_block(
       //p2p->query_replica(sp, replica.second);
     }
   }
+  */
   return async_task<>::empty();
 }
 
@@ -299,6 +299,7 @@ void vds::file_manager_private::_file_operations::pack_file(
     const vds::filename &file_path,
     vds::database_transaction &t,
     std::list<transactions::file_add_transaction::file_block_t> &file_blocks) const {
+  /*
   auto chunk_mng = sp.get<vds::chunk_manager>();
   auto file_size = vds::file::length(file_path);
   if (file_size > 0) {
@@ -350,6 +351,7 @@ void vds::file_manager_private::_file_operations::pack_file(
       }
     }
   }
+  */
 }
 
 struct buffer_data : public std::enable_shared_from_this<buffer_data> {
@@ -369,7 +371,7 @@ void
       vds::database_transaction &t,
       vds::file_manager::download_file_task::block_info &block,
       const std::shared_ptr<vds::file_manager::download_file_task> &result) {
-
+  /*
   std::vector<uint16_t> replicas;
   std::vector<const_data_buffer> datas;
 
@@ -402,5 +404,6 @@ void
 //      t2.block_key = block.id_.block_key));
 
   result->set_file_data(block, s.data());
+  */
 }
 

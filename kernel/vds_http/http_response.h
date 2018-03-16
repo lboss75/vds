@@ -15,6 +15,8 @@ namespace vds {
     static constexpr int HTTP_OK = 200;
     static constexpr int HTTP_Internal_Server_Error = 500;
     static constexpr int HTTP_Not_Found = 404;
+    static constexpr int HTTP_Found = 302;
+
 
     http_response(
       int code,
@@ -40,6 +42,10 @@ namespace vds {
       const std::string & content_type = "text/html; charset=utf-8",
       int result_code = HTTP_OK,
       const std::string & message = "OK");
+
+    static http_message redirect(
+      const service_provider & sp,
+      const std::string & location);
 
     static http_message status_response(
         const service_provider & sp,

@@ -13,6 +13,7 @@ All rights reserved
 
 #include "service_provider.h"
 #include "string_format.h"
+#include "string_utils.h"
 
 namespace vds {
     enum class log_level {

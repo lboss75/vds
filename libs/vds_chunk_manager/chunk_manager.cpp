@@ -13,9 +13,8 @@
 #include "database_orm.h"
 #include "chunk_data_dbo.h"
 #include "chunk_replicator.h"
-#include <p2p_network.h>
-#include <vds_debug.h>
-#include <user_manager.h>
+#include "vds_debug.h"
+#include "user_manager.h"
 #include "run_configuration_dbo.h"
 
 static uint8_t pack_block_iv[] = {
@@ -83,6 +82,7 @@ vds::const_data_buffer vds::chunk_manager::unpack_block(
 	return data;
 }
 
+
 vds::chunk_manager::chunk_info
 vds::chunk_manager::save_block(
     const service_provider & sp,
@@ -90,8 +90,9 @@ vds::chunk_manager::save_block(
 		const vds::const_data_buffer &data,
     size_t & padding,
 		std::unordered_map<uint16_t, const_data_buffer> & replica_hashes) {
+  
 	auto block = pack_block(data);
-
+  /*
 //	orm::chunk_data_dbo t1;
 //	t.execute(t1.insert(
 //			t1.id = base64::from_bytes(block.id),
@@ -125,7 +126,7 @@ vds::chunk_manager::save_block(
 			t2.replica_data = s.data(),
 			t2.replica_hash = replica_hash));
 	}
-
+  */
 	return block;
 }
 

@@ -9,12 +9,9 @@ All rights reserved
 #include "user_manager.h"
 #include "private/chunk_manager_p.h"
 #include "transaction_context.h"
-#include "p2p_network.h"
 #include "transaction_log.h"
 #include "db_model.h"
-#include "p2p_network_client.h"
 #include "chunk_manager.h"
-#include "private/p2p_network_p.h"
 #include "log_sync_service.h"
 #include "file_manager_service.h"
 #include "chunk_replicator.h"
@@ -34,20 +31,8 @@ vds::server::~server()
 void vds::server::register_services(service_registrator& registrator)
 {
   registrator.add_service<iserver>(this->impl_);
-
-  registrator.add_service<chunk_manager>(this->impl_->chunk_manager_.get());
-  
   registrator.add_service<user_manager>(this->impl_->user_manager_.get());
-
   registrator.add_service<db_model>(this->impl_->db_model_.get());
-
-  registrator.add_service<ip2p_network_client>(this->impl_->network_client_.get());
-
-  registrator.add_service<p2p_network>(this->impl_->p2p_network_.get());
-
-  registrator.add_service<log_sync_service>(this->impl_->log_sync_service_.get());
-
-  registrator.add_service<chunk_replicator>(this->impl_->chunk_replicator_.get());
 
   this->impl_->file_manager_->register_services(registrator);
 }
@@ -88,11 +73,9 @@ vds::async_task<> vds::server::init_server(
 }
 
 vds::async_task<> vds::server::start_network(const vds::service_provider &sp) {
-  return this->impl_->p2p_network_->start_network(sp).then([this, sp]() {
-    this->impl_->log_sync_service_->start(sp);
+  return [this, sp]() {
     this->impl_->file_manager_->start(sp);
-    this->impl_->chunk_replicator_->start(sp);
-  });
+  };
 }
 
 vds::async_task<> vds::server::prepare_to_stop(const vds::service_provider &sp) {
@@ -108,14 +91,7 @@ vds::_server::_server(server * owner)
 : owner_(owner),
   user_manager_(new user_manager()),
   db_model_(new db_model()),
-  chunk_manager_(new chunk_manager()),
-  p2p_network_(new p2p_network()),
-  network_client_(new p2p_network_client()),
-  log_sync_service_(new log_sync_service()),
-  file_manager_(new file_manager::file_manager_service()),
-  chunk_replicator_(new chunk_replicator())
-
-{
+  file_manager_(new file_manager::file_manager_service()) {
 }
 
 vds::_server::~_server()
@@ -129,41 +105,24 @@ void vds::_server::start(const service_provider& sp)
 
 void vds::_server::stop(const service_provider& sp)
 {
-  if (*this->chunk_replicator_) {
-    this->chunk_replicator_->stop(sp);
-  }
-
   if (*this->file_manager_) {
     this->file_manager_->stop(sp);
   }
-  if (*this->log_sync_service_) {
-    this->log_sync_service_->stop(sp);
-  }
 
   this->db_model_->stop(sp);
-  this->p2p_network_->stop(sp);
-
-  this->chunk_replicator_.reset();
   this->file_manager_.reset();
-  this->log_sync_service_.reset();
   this->db_model_.reset();
-  this->p2p_network_.reset();
-  this->network_client_.reset();
 }
 
 vds::async_task<> vds::_server::prepare_to_stop(const vds::service_provider &sp) {
   return async_series(
-    this->log_sync_service_->prepare_to_stop(sp),
-    this->db_model_->prepare_to_stop(sp),
-    this->p2p_network_->prepare_to_stop(sp)
+    this->db_model_->prepare_to_stop(sp)
   );
 }
 
 vds::async_task<vds::server_statistic> vds::_server::get_statistic(const vds::service_provider &sp) {
   auto result = std::make_shared<vds::server_statistic>();
-  this->p2p_network_->get_statistic(sp, result->p2p_network_statistic_);
   return sp.get<db_model>()->async_transaction(sp, [this, result](database_transaction & t){
-    this->log_sync_service_->get_statistic(t, result->sync_statistic_);
     return true;
   }).then([result]()->server_statistic{
     return *result;

@@ -28,7 +28,7 @@ target_include_directories(vds_embedded
 		${vds_upnp_INCLUDE_DIR}
 		${vds_protocols_INCLUDE_DIR}
 		${vds_server_INCLUDE_DIR}
-		${vds_p2p_network_INCLUDE_DIR}
+		${vds_dht_network_INCLUDE_DIR}
 		${vds_user_manager_INCLUDE_DIR}
 		${vds_transactions_INCLUDE_DIR}
 		${OPENSSL_INCLUDE_DIR}
@@ -49,7 +49,7 @@ target_link_libraries(
   vds_parser
   vds_protocols
   vds_server
-  vds_p2p_network
+  vds_dht_network
   vds_user_manager
   vds_transactions
   ${UUID_LIBRARIES}

@@ -25,9 +25,9 @@ target_include_directories(vds_transactions
 		${vds_data_INCLUDE_DIRS}
 		${vds_http_INCLUDE_DIRS}
 		${vds_parser_INCLUDE_DIRS}
-		${vds_protocols_INCLUDE_DIRS}
 		${vds_database_INCLUDE_DIRS}
 		${vds_db_model_INCLUDE_DIRS}
+		${vds_user_manager_INCLUDE_DIRS}
 		${OPENSSL_INCLUDE_DIR}
 	PUBLIC
 		${CMAKE_CURRENT_SOURCE_DIR})
@@ -42,7 +42,7 @@ target_link_libraries(vds_transactions
   vds_crypto
   vds_upnp
   vds_parser
-  vds_protocols
+  vds_user_manager
   ${UUID_LIBRARIES}
   ${OPENSSL_LIBRARIES}
   ${UPNP_LIBRARIES}

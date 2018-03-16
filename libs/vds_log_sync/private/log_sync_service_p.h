@@ -5,9 +5,9 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
+/*
 #include <set>
 #include "task_manager.h"
-#include "p2p_node_info.h"
 
 namespace vds {
 
@@ -75,5 +75,5 @@ namespace vds {
 
 }
 
-
+*/
 #endif //__VDS_LOG_SYNC_LOG_SYNC_SERVICE_P_H_

@@ -82,6 +82,11 @@ namespace vds {
 
               return this->continue_read(sp, message);
             }
+            else if (this->buffer_[this->boundary_.length()] == '-'
+              && this->readed_ > this->boundary_.length() + 1
+              && this->buffer_[this->boundary_.length() + 1] == '-') {
+              return vds::async_task<>::empty();
+            }
           }
           else if (this->readed_ > this->boundary_.length()) {
             vds_assert(!this->is_first_);

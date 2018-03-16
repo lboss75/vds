@@ -8,19 +8,28 @@ All rights reserved
 
 #include "service_provider.h"
 #include "udp_socket.h"
+#include "dht_session.h"
 
 namespace vds {
   namespace dht {
     namespace network {
       class udp_transport : public std::enable_shared_from_this<udp_transport> {
       public:
+        static constexpr size_t NODE_ID_SIZE = 20;
+        static constexpr uint8_t PROTOCOL_VERSION = 0;
 
         void start(
             const service_provider & sp,
             const udp_socket & s);
 
       private:
+        const_data_buffer this_node_id_;
+
+        mutable std::shared_mutex sessions_mutex_;
         std::map<network_address, std::shared_ptr<dht_session>> sessions_;
+
+        void add_session(const network_address & address, const std::shared_ptr<dht_session> & session);
+        std::shared_ptr<dht_session> get_session(const network_address & address) const;
 
         void continue_read(const service_provider &sp, const udp_socket &s);
       };

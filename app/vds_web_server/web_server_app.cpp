@@ -6,7 +6,6 @@ All rights reserved
 #include "stdafx.h"
 #include "web_server_app.h"
 #include "http_router.h"
-#include "private/certificate_authority_p.h"
 
 vds::web_server_app::web_server_app()
 : server_start_command_set_("Server start", "Start server", "start", "server"),

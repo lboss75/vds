@@ -7,7 +7,6 @@ All rights reserved
 */
 
 #include "server.h"
-#include "p2p_network_service.h"
 
 namespace vds {
   class cert_manager;
@@ -44,13 +43,7 @@ namespace vds {
 
     std::unique_ptr<user_manager> user_manager_;
 	  std::unique_ptr<class db_model> db_model_;
-    std::unique_ptr<chunk_manager> chunk_manager_;
-    std::unique_ptr<class p2p_network> p2p_network_;
-    std::shared_ptr<class p2p_network_client> network_client_;
-
-    std::unique_ptr<class log_sync_service> log_sync_service_;
     std::unique_ptr<file_manager::file_manager_service> file_manager_;
-	  std::unique_ptr<class chunk_replicator> chunk_replicator_;
   };
 }
 

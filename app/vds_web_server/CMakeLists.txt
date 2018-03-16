@@ -19,14 +19,13 @@ target_include_directories(vds_web_server
 		${vds_data_INCLUDE_DIRS}
 		${vds_http_INCLUDE_DIRS}
 		${vds_parser_INCLUDE_DIRS}
-		${vds_protocols_INCLUDE_DIRS}
 		${vds_database_INCLUDE_DIRS}
 		${vds_transactions_INCLUDE_DIRS}
 		${vds_user_manager_INCLUDE_DIRS}
 		${vds_chunk_manager_INCLUDE_DIRS}
 		${vds_db_model_INCLUDE_DIRS}
 		${vds_server_INCLUDE_DIR}
-		${vds_p2p_network_INCLUDE_DIRS}
+		${vds_dht_network_INCLUDE_DIRS}
         ${vds_log_sync_INCLUDE_DIRS}
 		${vds_file_manager_INCLUDE_DIRS}
 		${OPENSSL_INCLUDE_DIR}
@@ -43,11 +42,10 @@ target_link_libraries(
   vds_crypto
   vds_upnp
   vds_parser
-  vds_protocols
   vds_transactions
   vds_chunk_manager
   vds_user_manager
-  vds_p2p_network
+  vds_dht_network
   vds_db_model
   vds_file_manager
   vds_server
