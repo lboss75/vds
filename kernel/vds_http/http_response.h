@@ -52,13 +52,12 @@ namespace vds {
         int result_code,
         const std::string & message);
 
+    http_message create_message(const service_provider & sp) const;
   private:
     std::string protocol_;
     int code_;
     std::string comment_;
     std::list<std::string> headers_;
-
-    http_message create_message(const service_provider & sp) const;
   };
 }
 

@@ -11,11 +11,14 @@ All rights reserved
 
 
 namespace vds {
+  class _web_server;
+
   class register_page
   {
   public:
     static async_task<http_message> post(
       const service_provider& sp,
+      const std::shared_ptr<_web_server> & owner,
       const http_message& message);
 
   private:

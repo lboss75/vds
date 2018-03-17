@@ -43,16 +43,23 @@ namespace vds {
       const service_provider & sp,
       const http_message & message)
     {
-      if (0 < this->readed_) {
+      while (0 < this->readed_) {
         std::string value((const char *)this->buffer_, this->readed_);
         auto p = value.find(this->boundary_);
         if (std::string::npos != p) {
           if (0 < p) {
-            this->parser_.write(this->buffer_, p);
+            auto finish = p;
+            if(0 < finish && this->buffer_[finish - 1] == '\n') {
+              --finish;
+            }
+            if (0 < finish && this->buffer_[finish - 1] == '\r') {
+              --finish;
+            }
+            this->parser_.write(this->buffer_, finish);
             memmove(this->buffer_, this->buffer_ + p, this->readed_ - p);
             this->readed_ -= p;
 
-            return this->continue_read(sp, message);
+            continue;
           }
 
           if (this->readed_ > this->boundary_.length()) {
@@ -80,11 +87,14 @@ namespace vds {
               this->readed_ -= offset;
               memmove(this->buffer_, this->buffer_ + this->boundary_.length() + offset, this->readed_);
 
-              return this->continue_read(sp, message);
+              continue;
             }
             else if (this->buffer_[this->boundary_.length()] == '-'
               && this->readed_ > this->boundary_.length() + 1
               && this->buffer_[this->boundary_.length() + 1] == '-') {
+              if (!this->is_first_) {
+                this->parser_.write(nullptr, 0);
+              }
               return vds::async_task<>::empty();
             }
           }
@@ -94,9 +104,10 @@ namespace vds {
             memmove(this->buffer_, this->buffer_ + this->readed_ - this->boundary_.length(), this->boundary_.length());
             this->readed_ = this->boundary_.length();
 
-            return this->continue_read(sp, message);
+            continue;
           }
         }
+        break;
       }
       return message.body()->read_async(this->buffer_ + this->readed_, sizeof(this->buffer_) - this->readed_)
         .then([pthis = this->shared_from_this(), sp, message](size_t readed) {

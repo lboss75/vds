@@ -36,6 +36,16 @@
 
          <script type="text/javascript">
              $(document).ready(function () {
+		function validatePassword(){
+  			if(inputPassword.value != confirmPassword.value) {
+    				confirmPassword.setCustomValidity("Пароли должны совпадать");
+  			} else {
+    				confirmPassword.setCustomValidity('');
+  			}
+		}
+
+		inputPassword.onchange = validatePassword;
+		confirmPassword.onkeyup = validatePassword;
              });
          </script>
     </body>
