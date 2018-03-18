@@ -15,7 +15,6 @@
 #include "chunk_replicator.h"
 #include "vds_debug.h"
 #include "user_manager.h"
-#include "run_configuration_dbo.h"
 
 static uint8_t pack_block_iv[] = {
     // 0     1     2     3     4     5     6     7

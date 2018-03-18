@@ -20,11 +20,11 @@ All rights reserved
 
 vds::const_data_buffer vds::transactions::transaction_block::save(
     const service_provider &sp,
-    class vds::database_transaction & t,
-    const guid & channel_id,
-    const certificate & read_cert,
-    const certificate & write_cert,
-    const asymmetric_private_key & write_private_key) const {
+    class vds::database_transaction &t,
+    const const_data_buffer &channel_id,
+    const certificate &read_cert,
+    const certificate &write_cert,
+    const asymmetric_private_key &write_private_key) const {
     vds_assert(0 != this->data_.size());
 
     std::set<const_data_buffer> ancestors;
@@ -53,7 +53,7 @@ vds::const_data_buffer vds::transactions::transaction_block::save(
   return id;
 }
 
-void vds::transactions::transaction_block::parse_block(const const_data_buffer &data, guid &channel_id, uint64_t &order_no, guid &read_cert_id,
+void vds::transactions::transaction_block::parse_block(const const_data_buffer &data, const_data_buffer &channel_id, uint64_t &order_no, guid &read_cert_id,
                                                       guid &write_cert_id, std::set<const_data_buffer> &ancestors, const_data_buffer &crypted_data,
                                                       const_data_buffer &crypted_key, const_data_buffer &signature) {
 
@@ -72,7 +72,7 @@ void vds::transactions::transaction_block::parse_block(const const_data_buffer &
 }
 
 bool
-vds::transactions::transaction_block::validate_block(const certificate &write_cert, const guid &channel_id, uint64_t &order_no, const guid &read_cert_id,
+vds::transactions::transaction_block::validate_block(const certificate &write_cert, const const_data_buffer &channel_id, uint64_t &order_no, const guid &read_cert_id,
                                                      const guid &write_cert_id, const std::set<const_data_buffer> &ancestors,
                                                      const const_data_buffer &crypted_data, const const_data_buffer &crypted_key,
                                                      const const_data_buffer &signature) {
@@ -95,7 +95,7 @@ vds::transactions::transaction_block::validate_block(const certificate &write_ce
 
 uint64_t vds::transactions::transaction_block::collect_dependencies(
     vds::database_transaction &t,
-    const guid & channel_id,
+    const const_data_buffer &channel_id,
     std::set<const_data_buffer> &ancestors) const {
 
   uint64_t result = 0;
@@ -103,7 +103,7 @@ uint64_t vds::transactions::transaction_block::collect_dependencies(
   auto st = t.get_reader(
       t1.select(t1.id, t1.order_no)
           .where(
-              t1.channel_id == channel_id
+              t1.channel_id == base64::from_bytes(channel_id)
               && t1.state == (uint8_t)orm::transaction_log_record_dbo::state_t::leaf));
   while(st.execute()){
     auto id = t1.id.get(st);
@@ -123,7 +123,7 @@ uint64_t vds::transactions::transaction_block::collect_dependencies(
 vds::const_data_buffer vds::transactions::transaction_block::register_transaction(
 	const service_provider & sp,
     vds::database_transaction &t,
-    const guid & channel_id,
+    const const_data_buffer & channel_id,
     const const_data_buffer &block,
     uint64_t order_no,
     const std::set<const_data_buffer> &ancestors) const {
@@ -133,7 +133,7 @@ vds::const_data_buffer vds::transactions::transaction_block::register_transactio
   orm::transaction_log_record_dbo t2;
   t.execute(t2.insert(
       t2.id = vds::base64::from_bytes(id),
-      t2.channel_id = channel_id,
+      t2.channel_id = base64::from_bytes(channel_id),
       t2.data = block,
       t2.state = (uint8_t)orm::transaction_log_record_dbo::state_t::leaf,
       t2.order_no = order_no));

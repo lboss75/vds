@@ -18,7 +18,7 @@ namespace vds {
   class http_middleware
   {
   public:
-    http_middleware(const router_type & router)
+    http_middleware(router_type & router)
     : router_(router)
     {
     }
@@ -35,7 +35,7 @@ namespace vds {
     }
 
   private:
-    const router_type & router_;
+    router_type & router_;
   };
 }
 

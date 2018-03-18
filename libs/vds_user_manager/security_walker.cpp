@@ -9,23 +9,10 @@
 #include "transaction_block.h"
 
 vds::security_walker::security_walker(
-    const vds::guid &user_id,
-    const vds::certificate &user_cert,
-    const vds::asymmetric_private_key &user_private_key)
-: user_id_(user_id),
-  user_cert_(user_cert),
-  user_private_key_(user_private_key){
-	this->certificate_chain_[cert_control::get_id(this->user_cert_)] = this->user_cert_;
-
-  auto & cert_info = this->channels_[cert_control::get_user_id(this->user_cert_)];
-  cert_info.name_ = "User channel";
-  cert_info.current_read_certificate_ = cert_control::get_id(user_cert);
-  cert_info.current_write_certificate_ = cert_control::get_id(user_cert);
-
-  cert_info.read_certificates_[cert_control::get_id(user_cert)] = user_cert;
-  cert_info.write_certificates_[cert_control::get_id(user_cert)] = user_cert;
-  cert_info.read_private_keys_[cert_control::get_id(user_cert)] = user_private_key;
-  cert_info.write_private_keys_[cert_control::get_id(user_cert)] = user_private_key;
+    const const_data_buffer & dht_user_id,
+    const symmetric_key & user_password_key)
+: dht_user_id_(dht_user_id),
+  user_password_key_(user_password_key){
 }
 
 void vds::security_walker::load(
@@ -35,28 +22,28 @@ void vds::security_walker::load(
   const auto log = sp.get<logger>();
   log->trace(ThisModule, sp, "security_walker::load");
 
-  this->certificate_chain_[cert_control::get_id(this->user_cert_)] = this->user_cert_;
-
-  orm::certificate_chain_dbo t2;
-  auto cert_id = cert_control::get_parent_id(this->user_cert_);
-  while (cert_id) {
-
-    auto st = t.get_reader(t2.select(t2.cert).where(t2.id == cert_id));
-    if (!st.execute()) {
-      throw std::runtime_error("Wrong certificate id " + cert_id.str());
-    }
-    const auto cert = certificate::parse_der(t2.cert.get(st));
-    log->debug(ThisModule, sp, "Loaded certificate %s",
-      cert_id.str().c_str());
-
-    this->certificate_chain_[cert_id] = cert;
-    cert_id = cert_control::get_parent_id(cert);
-  }
+//  this->certificate_chain_[cert_control::get_id(this->user_cert_)] = this->user_cert_;
+//
+//  orm::certificate_chain_dbo t2;
+//  auto cert_id = cert_control::get_parent_id(this->user_cert_);
+//  while (cert_id) {
+//
+//    auto st = t.get_reader(t2.select(t2.cert).where(t2.id == cert_id));
+//    if (!st.execute()) {
+//      throw std::runtime_error("Wrong certificate id " + cert_id.str());
+//    }
+//    const auto cert = certificate::parse_der(t2.cert.get(st));
+//    log->debug(ThisModule, sp, "Loaded certificate %s",
+//      cert_id.str().c_str());
+//
+//    this->certificate_chain_[cert_id] = cert;
+//    cert_id = cert_control::get_parent_id(cert);
+//  }
 
   orm::transaction_log_record_dbo t1;
   auto st = t.get_reader(
     t1.select(t1.data)
-    .where(t1.channel_id == this->user_id_)
+    .where(t1.channel_id == base64::from_bytes(this->dht_user_id_))
     .order_by(t1.order_no));
 
   while (st.execute()) {
@@ -69,9 +56,16 @@ void vds::security_walker::load(
     const_data_buffer crypted_key;
     const_data_buffer signature;
 
-    transactions::transaction_block::parse_block(t1.data.get(st), channel_id, order_no, read_cert_id,
-                                                 write_cert_id, ancestors,
-                                                 crypted_data, crypted_key, signature);
+    transactions::transaction_block::parse_block(
+        t1.data.get(st),
+        channel_id,
+        order_no,
+        read_cert_id,
+        write_cert_id,
+        ancestors,
+        crypted_data,
+        crypted_key,
+        signature);
 
     if (channel_id != this->user_id_
       || read_cert_id != cert_control::get_id(this->user_cert_)
@@ -79,9 +73,16 @@ void vds::security_walker::load(
       throw std::runtime_error("Ivalid record");
     }
 
-    if (!transactions::transaction_block::validate_block(this->user_cert_, channel_id, order_no, read_cert_id,
-                                                         write_cert_id, ancestors,
-                                                         crypted_data, crypted_key, signature)) {
+    if (!transactions::transaction_block::validate_block(
+        this->user_cert_,
+        channel_id,
+        order_no,
+        read_cert_id,
+        write_cert_id,
+        ancestors,
+        crypted_data,
+        crypted_key,
+        signature)) {
       log->error(ThisModule, sp, "Write signature error");
       throw std::runtime_error("Write signature error");
     }
@@ -112,7 +113,7 @@ void vds::security_walker::load(
           cp.current_read_certificate_ = id;
 
           log->debug(ThisModule, sp, "Got channel %s reader certificate %s",
-                     message.channel_id().str().c_str(),
+                     base64::from_bytes(message.channel_id()).c_str(),
                      id.str().c_str());
 
           break;
@@ -132,7 +133,7 @@ void vds::security_walker::load(
           cp.current_read_certificate_ = read_id;
 
           log->debug(ThisModule, sp, "Got channel %s write certificate %s, read certificate %s",
-                     message.channel_id().str().c_str(),
+                     base64::from_bytes(message.channel_id()).c_str(),
                      id.str().c_str(),
                      read_id.str().c_str());
 

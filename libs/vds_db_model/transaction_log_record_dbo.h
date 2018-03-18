@@ -45,7 +45,7 @@ namespace vds {
       }
 
       database_column<std::string> id;
-      database_column<guid> channel_id;
+      database_column<std::string> channel_id;
       database_column<const_data_buffer> data;
       database_column<int> state;
       database_column<uint64_t> order_no;

@@ -1,10 +1,11 @@
 //
 // Created by vadim on 15.03.18.
 //
-
+#include "stdafx.h"
 #include "udp_transport.h"
 #include "dht_message_type.h"
 #include "dht_session.h"
+#include "logger.h"
 
 void vds::dht::network::udp_transport::start(
     const vds::service_provider &sp,

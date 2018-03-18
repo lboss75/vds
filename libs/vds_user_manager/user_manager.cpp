@@ -18,7 +18,6 @@ All rights reserved
 #include "transaction_context.h"
 #include "cert_control.h"
 #include "transactions/device_user_add_transaction.h"
-#include "run_configuration_dbo.h"
 #include "vds_exceptions.h"
 #include "transactions/channel_create_transaction.h"
 #include "transactions/channel_add_reader_transaction.h"
@@ -27,6 +26,7 @@ All rights reserved
 #include "transaction_log.h"
 #include "db_model.h"
 #include "certificate_chain_dbo.h"
+#include "dht_object_id.h"
 
 vds::user_manager::user_manager()
 {
@@ -35,26 +35,16 @@ vds::user_manager::user_manager()
 void vds::user_manager::load(
 	const service_provider & sp,
 	database_transaction & t,
-  const guid & config_id)
+	const const_data_buffer & dht_user_id,
+	const symmetric_key & user_password_key)
 {
 	if (nullptr != this->impl_.get()) {
 		throw std::runtime_error("Logic error");
 	}
 
-	dbo::run_configuration t1;
-	auto st = t.get_reader(
-    t1
-    .select(t1.cert, t1.cert_private_key, t1.port)
-    .where(t1.id == config_id));
-	if (!st.execute()) {
-		throw std::runtime_error("Unable to get current configuration");
-	}
-
 	this->impl_.reset(new _user_manager(
-    config_id,
-    certificate::parse_der(t1.cert.get(st)),
-    asymmetric_private_key::parse_der(t1.cert_private_key.get(st), std::string()),
-    safe_cast<uint16_t>(t1.port.get(st))));
+		dht_user_id,
+		user_password_key));
 
 	this->impl_->load(sp, t);
 }
@@ -100,7 +90,7 @@ vds::device_activation vds::user_manager::reset(
       root_user.user_certificate(),
       root_user.user_certificate(),
       root_private_key);
-  this->load(sp, t, device_user.id());
+  //this->load(sp, t, device_user.id());
 
   return device_activation(root_user_name, certificate_chain, root_private_key);
 }
@@ -143,7 +133,7 @@ vds::async_task<> vds::user_manager::init_server(
           user.user_certificate(),
           user.user_certificate(),
           request.private_key());
-		this->load(sp, t, device_user.id());
+		//this->load(sp, t, device_user.id());
 
 		return true;
 	});
@@ -220,27 +210,27 @@ vds::user_manager::lock_to_device(
       device_private_key,
       device_name);
 
-  dbo::run_configuration t3;
-  t.execute(
-      t3.insert(
-          t3.id = device_user.id(),
-          t3.cert = device_user.user_certificate().der(),
-          t3.cert_private_key = device_private_key.der(std::string()),
-          t3.port = port));
-  orm::certificate_chain_dbo t4;
-  for(auto & cert : certificate_chain)
-  {
-	  t.execute(
-		  t4.insert(
-			  t4.id = cert_control::get_id(cert),
-			  t4.cert = cert.der(),
-			  t4.parent = cert_control::get_parent_id(cert)));
-  }
-  t.execute(
-	  t4.insert(
-		  t4.id = cert_control::get_id(device_user.user_certificate()),
-		  t4.cert = device_user.user_certificate().der(),
-		  t4.parent = cert_control::get_parent_id(device_user.user_certificate())));
+//  dbo::run_configuration t3;
+//  t.execute(
+//      t3.insert(
+//          t3.id = device_user.id(),
+//          t3.cert = device_user.user_certificate().der(),
+//          t3.cert_private_key = device_private_key.der(std::string()),
+//          t3.port = port));
+//  orm::certificate_chain_dbo t4;
+//  for(auto & cert : certificate_chain)
+//  {
+//	  t.execute(
+//		  t4.insert(
+//			  t4.id = cert_control::get_id(cert),
+//			  t4.cert = cert.der(),
+//			  t4.parent = cert_control::get_parent_id(cert)));
+//  }
+//  t.execute(
+//	  t4.insert(
+//		  t4.id = cert_control::get_id(device_user.user_certificate()),
+//		  t4.cert = device_user.user_certificate().der(),
+//		  t4.parent = cert_control::get_parent_id(device_user.user_certificate())));
 
   return device_user;
 }
@@ -258,7 +248,7 @@ vds::member_user vds::user_manager::get_current_device(
 
 vds::certificate vds::user_manager::get_channel_write_cert(
   const service_provider & sp,
-  const guid & channel_id) const
+  const const_data_buffer & channel_id) const
 {
 	return this->impl_->get_channel_write_cert(channel_id);
 }
@@ -266,14 +256,14 @@ vds::certificate vds::user_manager::get_channel_write_cert(
 
 vds::asymmetric_private_key vds::user_manager::get_channel_write_key(
   const service_provider & sp,
-  const guid & channel_id) const
+  const const_data_buffer & channel_id) const
 {
 	return this->impl_->get_channel_write_key(channel_id);
 }
 
 vds::asymmetric_private_key vds::user_manager::get_channel_write_key(
 		const service_provider & sp,
-		const guid & channel_id,
+		const const_data_buffer & channel_id,
 		const guid & cert_id) const
 {
 	return this->impl_->get_channel_write_key(channel_id, cert_id);
@@ -281,21 +271,21 @@ vds::asymmetric_private_key vds::user_manager::get_channel_write_key(
 
 vds::certificate vds::user_manager::get_channel_read_cert(
   const service_provider & sp,
-  const guid & channel_id) const
+  const const_data_buffer & channel_id) const
 {
 	return this->impl_->get_channel_read_cert(channel_id);
 }
 
 vds::asymmetric_private_key vds::user_manager::get_channel_read_key(
   const service_provider & sp,
-  const guid & channel_id) const
+  const const_data_buffer & channel_id) const
 {
 	return this->impl_->get_channel_read_key(channel_id);
 }
 
 vds::asymmetric_private_key vds::user_manager::get_channel_read_key(
 		const service_provider & sp,
-		const guid & channel_id,
+		const const_data_buffer & channel_id,
 		const guid & cert_id) const
 {
 	return this->impl_->get_channel_read_key(channel_id, cert_id);
@@ -343,7 +333,7 @@ vds::member_user vds::user_manager::create_root_user(transactions::transaction_b
 
 vds::certificate vds::user_manager::get_channel_write_cert(
 		const vds::service_provider &sp,
-		const vds::guid &channel_id,
+		const const_data_buffer &channel_id,
 		const vds::guid &cert_id) const {
 	return this->impl_->get_channel_write_cert(channel_id, cert_id);
 }
@@ -373,21 +363,44 @@ void vds::user_manager::save_certificate(
   t.execute(t2.delete_if(t2.id == cert_control::get_id(cert)));
 }
 
+void vds::user_manager::create_root_user(
+		const service_provider &sp,
+		database_transaction &t,
+		const std::string &user_email,
+		const symmetric_key &password_key,
+		const const_data_buffer &password_hash) {
+
+	auto private_key = asymmetric_private_key::generate(asymmetric_crypto::rsa4096());
+	auto user_id = guid::new_guid();
+	auto user_cert = _cert_control::create_root(
+			user_id,
+			"User " + user_email,
+			private_key);
+
+	transactions::transaction_block playback;
+	playback.add(
+			transactions::root_user_transaction(
+					user_id,
+					user_cert,
+					user_email,
+					symmetric_encrypt::encrypt(password_key, private_key.der(std::string())),
+					password_hash));
+
+	playback.save(
+			sp,
+			t,
+			dht::dht_object_id::from_user_email(user_email),
+			user_cert,
+			user_cert,private_key);
+
+
+}
 
 ////////////////////////////////////////////////////////////////////////
 vds::_user_manager::_user_manager(
-  const guid& id,
-  const certificate& device_cert,
-  const asymmetric_private_key& device_private_key,
-  const uint16_t port)
-	: security_walker(
-		cert_control::get_user_id(device_cert),
-		device_cert,
-		device_private_key),
-		id_(id),
-		device_cert_(device_cert),
-		device_private_key_(device_private_key),
-		port_(port) {
+		const const_data_buffer & dht_user_id,
+		const symmetric_key & user_password_key)
+	: security_walker(dht_user_id, user_password_key) {
 }
 
 vds::member_user vds::_user_manager::get_current_device(const service_provider & sp, asymmetric_private_key & device_private_key) const

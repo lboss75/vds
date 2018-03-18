@@ -14,8 +14,10 @@ namespace vds {
   public:
     static constexpr int HTTP_OK = 200;
     static constexpr int HTTP_Internal_Server_Error = 500;
-    static constexpr int HTTP_Not_Found = 404;
     static constexpr int HTTP_Found = 302;
+
+    static constexpr int HTTP_Unauthorized = 401;
+    static constexpr int HTTP_Not_Found = 404;
 
 
     http_response(

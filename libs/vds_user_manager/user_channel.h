@@ -39,14 +39,14 @@ namespace vds {
     user_channel();
 
     user_channel(
-        const guid & id,
+        const const_data_buffer & id,
         channel_type_t channel_type,
 		    const std::string & name,
 		    const vds::certificate & read_cert,
         const vds::certificate & write_cert);
 
 
-    const vds::guid &id() const;
+    const const_data_buffer &id() const;
     channel_type_t channel_type() const;
     const std::string & name() const;
     const vds::certificate & read_cert() const;

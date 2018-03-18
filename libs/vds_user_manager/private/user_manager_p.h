@@ -8,16 +8,13 @@ All rights reserved
 
 #include "user_manager.h"
 #include "security_walker.h"
-#include "run_configuration_dbo.h"
 
 namespace vds {
   class _user_manager : public security_walker {
   public:
     _user_manager(
-      const guid& id,
-      const certificate& device_cert,
-      const asymmetric_private_key& device_private_key,
-      const uint16_t port);
+        const const_data_buffer & dht_user_id,
+        const symmetric_key & user_password_key);
 
     member_user get_current_device(
         const service_provider &sp,
@@ -28,6 +25,7 @@ namespace vds {
     bool validate_and_save(
         const service_provider & sp,
         const std::list<vds::certificate> &cert_chain);
+
     std::list<user_channel> get_channels() const;
 
   private:

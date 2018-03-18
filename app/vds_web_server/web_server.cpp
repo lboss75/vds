@@ -6,6 +6,7 @@ All rights reserved
 #include "stdafx.h"
 #include <queue>
 #include <private/file_upload_task_p.h>
+#include <private/api_controller.h>
 #include "web_server.h"
 #include "private/web_server_p.h"
 #include "http_parser.h"
@@ -16,7 +17,8 @@ All rights reserved
 #include "string_format.h"
 #include "http_pipeline.h"
 #include "user_manager.h"
-#include "register_page.h"
+#include "private/register_page.h"
+#include "private/auth_session.h"
 
 vds::web_server::web_server() {
 }
@@ -97,21 +99,24 @@ vds::async_task<> vds::_web_server::prepare_to_stop(const service_provider& sp) 
 
 vds::async_task<vds::http_message> vds::_web_server::route(
   const service_provider& sp,
-  const http_message& message) const {
+  const http_message& message) {
 
   http_request request(message);
   if(request.url() == "/api/channels" && request.method() == "GET") {
-    auto result = std::make_shared<json_array>();
-    auto user_mng = sp.get<user_manager>();
-    for(auto & channel : user_mng->get_channels()) {
-      auto item = std::make_shared<json_object>();
-      item->add_property("id", channel.id().str());
-      item->add_property("name", channel.name());
-      result->add(item);
+    auto user_mng = this->get_secured_context(sp, message);
+    if(!user_mng){
+      return vds::async_task<vds::http_message>::result(
+        http_response::status_response(
+            sp,
+            http_response::HTTP_Unauthorized,
+            "Unauthorized"));
     }
 
-    return vds::async_task<vds::http_message>::result(
-      http_response::simple_text_response(sp, result->json_value::str(), "application/json; charset=utf-8"));
+    return api_controller::get_channels(
+        sp,
+        *user_mng,
+        this->shared_from_this(),
+        message);
   }
   if(request.url() == "/upload" && request.method() == "POST") {
     std::string content_type;
@@ -155,7 +160,7 @@ vds::async_task<vds::http_message> vds::_web_server::route(
   }
 
   if (request.url() == "/register" && request.method() == "POST") {
-    return register_page::post(sp, message);
+    return register_page::post(sp, this->shared_from_this(), message);
   }
 
   return vds::async_task<vds::http_message>::result(this->router_.route(sp, message, request.url()));
@@ -176,5 +181,44 @@ void vds::_web_server::load_web(const std::string& path, const foldername & fold
     this->load_web(path + fn.name() + "/", fn);
     return true;
   });
+}
+
+void vds::_web_server::add_auth_session(
+    const std::string &id,
+    const std::shared_ptr<vds::auth_session> &session) {
+
+  std::unique_lock<std::shared_mutex> lock(this->auth_session_mutex_);
+  this->auth_sessions_.emplace(id, session);
+
+}
+
+vds::user_manager * vds::_web_server::get_secured_context(
+    const service_provider & sp,
+    const vds::http_message &message) const {
+
+  std::string cookie_value;
+  if(message.get_header("Cookie", cookie_value) && !cookie_value.empty()) {
+    for (auto item : split_string(cookie_value, ';', true)) {
+      auto p = item.find('=');
+      if(std::string::npos != p) {
+        auto name = item.substr(0, p);
+        if("Auth" == name) {
+          auto session_id = item.substr(p + 1);
+          trim(session_id);
+
+          std::shared_lock<std::shared_mutex> lock(this->auth_session_mutex_);
+          auto p = this->auth_sessions_.find(session_id);
+          if(this->auth_sessions_.end() != p){
+            auto session = p->second;
+            lock.unlock();
+
+            return session->get_secured_context(sp);
+          }
+        }
+      }
+    }
+  }
+
+  return nullptr;
 }
 

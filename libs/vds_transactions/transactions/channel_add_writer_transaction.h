@@ -19,7 +19,7 @@ namespace vds {
 			static const uint8_t message_id = (uint8_t)transaction_id::channel_add_writer_transaction;
 
       channel_add_writer_transaction(
-          const guid &channel_id,
+          const const_data_buffer &channel_id,
           const std::string & name,
           const certificate & read_cert,
           const certificate & write_cert,
@@ -53,7 +53,7 @@ namespace vds {
             << this->write_private_key_.der(std::string());
       }
 
-      const guid &channel_id() const {
+      const const_data_buffer &channel_id() const {
         return channel_id_;
       }
 
@@ -74,7 +74,7 @@ namespace vds {
       }
 
     private:
-      guid channel_id_;
+      const_data_buffer channel_id_;
       std::string name_;
       certificate read_cert_;
       certificate write_cert_;

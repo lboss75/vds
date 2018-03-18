@@ -16,7 +16,6 @@ All rights reserved
 #include "transactions/device_user_add_transaction.h"
 #include "transactions/channel_create_transaction.h"
 #include "transactions/user_channel_create_transaction.h"
-#include "run_configuration_dbo.h"
 #include "vds_debug.h"
 #include "transaction_log_record_dbo.h"
 #include "encoding.h"
@@ -94,7 +93,7 @@ void vds::transaction_log::save(
 
   t.execute(t2.insert(
       t2.id = base64::from_bytes(block_id),
-      t2.channel_id = channel_id,
+      t2.channel_id = base64::from_bytes(channel_id),
       t2.data = block_data,
       t2.state = is_validated
                  ? (int)(

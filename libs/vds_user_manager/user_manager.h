@@ -14,6 +14,7 @@ All rights reserved
 #include "user_channel.h"
 #include "device_activation.h"
 #include "transactions/channel_message_walker.h"
+#include "encoding.h"
 
 namespace vds {
 
@@ -26,7 +27,8 @@ namespace vds {
     void load(
       const service_provider & sp,
       class database_transaction &t,
-      const guid & config_id);
+      const const_data_buffer & dht_user_id,
+      const symmetric_key & user_password_key);
 
     member_user create_root_user(
       transactions::transaction_block &log,
@@ -75,14 +77,14 @@ namespace vds {
       const service_provider &sp,
       asymmetric_private_key & device_private_key) const;
 
-    certificate get_channel_write_cert(const service_provider & sp, const guid &channel_id) const;
-    asymmetric_private_key get_channel_write_key(const service_provider & sp, const guid &channel_id) const;
-    asymmetric_private_key get_channel_write_key(const service_provider & sp, const guid &channel_id, const guid &cert_id) const;
-    certificate get_channel_write_cert(const service_provider & sp, const guid & channel_id, const guid & cert_id) const;
+    certificate get_channel_write_cert(const service_provider & sp, const const_data_buffer &channel_id) const;
+    asymmetric_private_key get_channel_write_key(const service_provider & sp, const const_data_buffer &channel_id) const;
+    asymmetric_private_key get_channel_write_key(const service_provider & sp, const const_data_buffer &channel_id, const guid &cert_id) const;
+    certificate get_channel_write_cert(const service_provider & sp, const const_data_buffer & channel_id, const guid & cert_id) const;
 
-    certificate get_channel_read_cert(const service_provider & sp, const guid &channel_id) const;
-    asymmetric_private_key get_channel_read_key(const service_provider & sp, const guid &channel_id) const;
-    asymmetric_private_key get_channel_read_key(const service_provider & sp, const guid &channel_id, const guid &cert_id) const;
+    certificate get_channel_read_cert(const service_provider & sp, const const_data_buffer &channel_id) const;
+    asymmetric_private_key get_channel_read_key(const service_provider & sp, const const_data_buffer &channel_id) const;
+    asymmetric_private_key get_channel_read_key(const service_provider & sp, const const_data_buffer &channel_id, const guid &cert_id) const;
     certificate get_certificate(const service_provider & sp, const guid &cert_id) const;
 
     member_user import_user(const certificate &user_cert);
@@ -93,20 +95,20 @@ namespace vds {
     template <typename... handler_types>
     void walk_messages(
         const service_provider & sp,
-        const guid & channel_id,
+        const const_data_buffer & channel_id,
         database_transaction & t,
         handler_types && ... handlers) const{
 
       orm::transaction_log_record_dbo t1;
       auto st = t.get_reader(
           t1.select(t1.data)
-              .where(t1.channel_id == channel_id)
+              .where(t1.channel_id == base64::from_bytes(channel_id))
               .order_by(t1.order_no));
 
       transactions::channel_message_walker_lambdas<handler_types...> walker(
           std::forward<handler_types>(handlers)...);
       while (st.execute()) {
-        guid channel_id;
+        const_data_buffer channel_id;
         uint64_t order_no;
         guid read_cert_id;
         guid write_cert_id;
@@ -154,6 +156,13 @@ namespace vds {
         const std::list<certificate> &cert_chain);
 
     void save_certificate(const service_provider &sp, database_transaction &t, const certificate &cert);
+
+    void create_root_user(
+        const service_provider &sp,
+        database_transaction &t,
+        const std::string &user_email,
+        const symmetric_key &password_key,
+        const const_data_buffer &password_hash);
 
   private:
     std::shared_ptr<class _user_manager> impl_;

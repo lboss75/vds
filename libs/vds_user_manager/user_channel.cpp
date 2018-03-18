@@ -12,7 +12,7 @@ vds::user_channel::user_channel() {
 }
 
 vds::user_channel::user_channel(
-    const vds::guid &id,
+    const const_data_buffer &id,
   user_channel::channel_type_t channel_type,
 	const std::string & name,
 	const vds::certificate & read_cert,
@@ -21,7 +21,7 @@ vds::user_channel::user_channel(
 {
 }
 
-const vds::guid &vds::user_channel::id() const {
+const vds::const_data_buffer &vds::user_channel::id() const {
   return this->impl_->id();
 }
 
@@ -59,7 +59,7 @@ void vds::user_channel::add_writer(
 
 /////////////////////////////////////////////////
 vds::_user_channel::_user_channel(
-    const vds::guid &id,
+    const const_data_buffer &id,
   user_channel::channel_type_t channel_type,
 	const std::string & name,
 	const vds::certificate & read_cert,

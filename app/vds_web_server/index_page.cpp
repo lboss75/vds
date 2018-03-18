@@ -4,5 +4,5 @@ All rights reserved
 */
 
 #include "stdafx.h"
-#include "index_page.h"
+#include "private/index_page.h"
 

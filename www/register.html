@@ -18,12 +18,14 @@
         <div class="card card-container">
 	    <p id="profile-name" class="profile-name-card">Виртуальная сеть хранения данных</p>
             <form class="form-signin" method="POST" enctype="multipart/form-data">
-		<h2 class="form-signin-heading">Регистрация</h2>
-	        <label for="inputEmail" class="sr-only">Адрес электройнной почты:</label>
-	        <input type="email" id="inputEmail" name="inputEmail" class="form-control" placeholder="Адрес электройнной почты" required autofocus>
-        	<label for="inputPassword" class="sr-only">Пароль:</label>
+                <h2 class="form-signin-heading">Регистрация</h2>
+                <label for="inputInvitation" class="sr-only">Приглашение:</label>
+                <input type="text" id="inputInvitation" name="inputInvitation" class="form-control" placeholder="Код приглашения" required autofocus>
+                <label for="inputEmail" class="sr-only">Адрес электройнной почты:</label>
+                <input type="email" id="inputEmail" name="inputEmail" class="form-control" placeholder="Адрес электройнной почты" required>
+                <label for="inputPassword" class="sr-only">Пароль:</label>
                 <input type="password" id="inputPassword" name="inputPassword" class="form-control" placeholder="Пароль" required>
-        	<label for="confirmPassword" class="sr-only">Повторить пароль:</label>
+                <label for="confirmPassword" class="sr-only">Повторить пароль:</label>
                 <input type="password" id="confirmPassword" name="confirmPassword" class="form-control" placeholder="Повтор пароля" required>
                 <button class="btn btn-lg btn-primary btn-block btn-signin" type="submit">Регистрация</button>
             </form><!-- /form -->

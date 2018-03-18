@@ -4,5 +4,5 @@ All rights reserved
 */
 
 #include "stdafx.h"
-#include "login_page.h"
+#include "private/login_page.h"
 

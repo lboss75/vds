@@ -5,10 +5,12 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
+#include "hash.h"
 #include "vds_debug.h"
 #include "guid.h"
 #include "binary_serialize.h"
 #include "resizable_data_buffer.h"
+#include "encoding.h"
 
 namespace vds {
   namespace dht {
@@ -79,6 +81,15 @@ namespace vds {
         vds_assert(exp_index == distance_exp(original, const_data_buffer(result.data(), result.size())));
 
         return const_data_buffer(result.data(), result.size());
+      }
+
+      static const_data_buffer from_user_email(const std::string & user_email){
+        return from_string("email:" + user_email);
+      }
+
+    private:
+      static const_data_buffer from_string(const std::string & value){
+        return hash::signature(hash::sha256(), value.c_str(), value.length());
       }
     };
   }

@@ -46,7 +46,7 @@ namespace vds {
             resizable_data_buffer buffer;
 
             if (message.size() < pthis->mtu_ - 5) {
-              buffer.add((uint8_t) (message_type_t::SingleData | message_type));
+              buffer.add((uint8_t) ((uint8_t)message_type_t::SingleData | message_type));
               buffer.add((uint8_t) (pthis->output_sequence_number_ >> 24));
               buffer.add((uint8_t) (pthis->output_sequence_number_ >> 16));
               buffer.add((uint8_t) (pthis->output_sequence_number_ >> 8));
@@ -54,15 +54,15 @@ namespace vds {
               buffer += message;
 
               const_data_buffer datagram(buffer.data(), buffer.size());
-              s.write_async(udp_datagram(this->address_, datagram))
-                  .execute([pthis, sp, s, message_type, message](
+              s.write_async(udp_datagram(pthis->address_, datagram))
+                  .execute([pthis, sp, s, message_type, message, result, datagram](
                       const std::shared_ptr<std::exception> &ex) {
                     if (ex) {
                       auto datagram_error = std::dynamic_pointer_cast<udp_datagram_size_exception>(ex);
                       if (datagram_error) {
                         pthis->mtu_ /= 2;
                         pthis->send_message(sp, s, message_type, message)
-                            .execute([](const std::shared_ptr<std::exception> &ex) {
+                            .execute([result](const std::shared_ptr<std::exception> &ex) {
                               if (ex) {
                                 result.error(ex);
                               } else {
@@ -79,27 +79,27 @@ namespace vds {
                     }
                   });
             } else {
-              buffer.add((uint8_t) (message_type_t::Data | message_type));
+              buffer.add((uint8_t) ((uint8_t)message_type_t::Data | message_type));
               buffer.add((uint8_t) (pthis->output_sequence_number_ >> 24));
               buffer.add((uint8_t) (pthis->output_sequence_number_ >> 16));
               buffer.add((uint8_t) (pthis->output_sequence_number_ >> 8));
               buffer.add((uint8_t) (pthis->output_sequence_number_));
               buffer.add((uint8_t) (message.size() >> 8));
               buffer.add((uint8_t) (message.size() & 0xFF));
-              buffer.add(message.data(), this->mtu_ - 7);
+              buffer.add(message.data(), pthis->mtu_ - 7);
 
-              auto offset = this->mtu_ - 7;
+              auto offset = pthis->mtu_ - 7;
 
               const_data_buffer datagram(buffer.data(), buffer.size());
-              s.write_async(udp_datagram(this->address_, datagram))
-                  .execute([pthis, sp, s, message_type, message, offset](
+              s.write_async(udp_datagram(pthis->address_, datagram))
+                  .execute([pthis, sp, s, message_type, message, offset, result, datagram](
                       const std::shared_ptr<std::exception> &ex) {
                     if (ex) {
                       auto datagram_error = std::dynamic_pointer_cast<udp_datagram_size_exception>(ex);
                       if (datagram_error) {
                         pthis->mtu_ /= 2;
                         pthis->send_message(sp, s, message_type, message)
-                            .execute([](const std::shared_ptr<std::exception> &ex) {
+                            .execute([result](const std::shared_ptr<std::exception> &ex) {
                               if (ex) {
                                 result.error(ex);
                               } else {
@@ -225,7 +225,7 @@ namespace vds {
           const_data_buffer datagram(buffer.data(), buffer.size());
           s.write_async(udp_datagram(this->address_, datagram))
               .execute(
-                  [pthis = this->shared_from_this(), sp, s, message, offset, size](
+                  [pthis = this->shared_from_this(), sp, s, message, offset, size, result, datagram](
                   const std::shared_ptr<std::exception> &ex) {
                 if (ex) {
                   auto datagram_error = std::dynamic_pointer_cast<udp_datagram_size_exception>(ex);
@@ -326,6 +326,8 @@ namespace vds {
             default:
               throw std::runtime_error("Unexcpected");
           }
+
+          throw std::runtime_error("Unexcpected");
         }
 
         async_task<> repeat_message(

@@ -6,7 +6,6 @@ All rights reserved
 #include "stdafx.h"
 #include "background_app.h"
 #include "http_router.h"
-#include "private/certificate_authority_p.h"
 
 vds::background_app::background_app()
 : server_start_command_set_("Server start", "Start server", "start", "server"),
@@ -27,11 +26,6 @@ vds::background_app::background_app()
     "device-activation",
     "Device activation file",
     "Specify file to activate device"),
-  start_web_(
-    "w",
-    "web",
-    "Start Web",
-    "Start web server"),
   node_name_(
     "n",
     "name",
@@ -145,13 +139,6 @@ void vds::background_app::register_services(vds::service_registrator& registrato
       || &this->server_init_command_set_ == this->current_command_set_){
     registrator.add(this->server_);
   }
-  
-  if (&this->server_start_command_set_ == this->current_command_set_) {
-    if (!this->start_web_.value().empty()) {
-      this->web_server_.static_root(this->start_web_.value());
-      registrator.add(this->web_server_);
-    }
-  }
 }
 
 void vds::background_app::register_command_line(command_line & cmd_line)
@@ -159,7 +146,6 @@ void vds::background_app::register_command_line(command_line & cmd_line)
   base_class::register_command_line(cmd_line);
 
   cmd_line.add_command_set(this->server_start_command_set_);
-  this->server_start_command_set_.optional(this->start_web_);
 
   cmd_line.add_command_set(this->server_root_cmd_set_);
   this->server_root_cmd_set_.required(this->user_login_);

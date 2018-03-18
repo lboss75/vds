@@ -9,6 +9,7 @@ All rights reserved
 #include "service_provider.h"
 #include "udp_socket.h"
 #include "dht_session.h"
+#include "legacy.h"
 
 namespace vds {
   namespace dht {

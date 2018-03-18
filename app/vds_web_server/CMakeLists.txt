@@ -1,4 +1,4 @@
-project(vds_server CXX C)
+project(vds_web_server CXX C)
 cmake_minimum_required(VERSION 2.6.2)
 
 find_package (OpenSSL REQUIRED)
