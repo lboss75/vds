@@ -5,9 +5,11 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
+#include "service_provider.h"
+#include "const_data_buffer.h"
 
 namespace vds {
-  namespace dth {
+  namespace dht {
     namespace network {
       class client {
       public:
