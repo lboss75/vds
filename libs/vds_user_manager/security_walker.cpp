@@ -10,44 +10,52 @@
 
 vds::security_walker::security_walker(
     const const_data_buffer & dht_user_id,
-    const symmetric_key & user_password_key)
+    const symmetric_key & user_password_key,
+  const const_data_buffer & user_password_hash)
 : dht_user_id_(dht_user_id),
-  user_password_key_(user_password_key){
+  user_password_key_(user_password_key),
+  user_password_hash_(user_password_hash),
+  login_state_(login_state_t::waiting_channel){
 }
 
-void vds::security_walker::load(
+void vds::security_walker::update(
   const service_provider & parent_scope,
   database_transaction &t) {
   auto sp = parent_scope.create_scope(__FUNCTION__);
   const auto log = sp.get<logger>();
   log->trace(ThisModule, sp, "security_walker::load");
 
-//  this->certificate_chain_[cert_control::get_id(this->user_cert_)] = this->user_cert_;
-//
-//  orm::certificate_chain_dbo t2;
-//  auto cert_id = cert_control::get_parent_id(this->user_cert_);
-//  while (cert_id) {
-//
-//    auto st = t.get_reader(t2.select(t2.cert).where(t2.id == cert_id));
-//    if (!st.execute()) {
-//      throw std::runtime_error("Wrong certificate id " + cert_id.str());
-//    }
-//    const auto cert = certificate::parse_der(t2.cert.get(st));
-//    log->debug(ThisModule, sp, "Loaded certificate %s",
-//      cert_id.str().c_str());
-//
-//    this->certificate_chain_[cert_id] = cert;
-//    cert_id = cert_control::get_parent_id(cert);
-//  }
+  //  this->certificate_chain_[cert_control::get_id(this->user_cert_)] = this->user_cert_;
+  //
+  //  orm::certificate_chain_dbo t2;
+  //  auto cert_id = cert_control::get_parent_id(this->user_cert_);
+  //  while (cert_id) {
+  //
+  //    auto st = t.get_reader(t2.select(t2.cert).where(t2.id == cert_id));
+  //    if (!st.execute()) {
+  //      throw std::runtime_error("Wrong certificate id " + cert_id.str());
+  //    }
+  //    const auto cert = certificate::parse_der(t2.cert.get(st));
+  //    log->debug(ThisModule, sp, "Loaded certificate %s",
+  //      cert_id.str().c_str());
+  //
+  //    this->certificate_chain_[cert_id] = cert;
+  //    cert_id = cert_control::get_parent_id(cert);
+  //  }
 
   orm::transaction_log_record_dbo t1;
   auto st = t.get_reader(
-    t1.select(t1.data)
+    t1.select(t1.id, t1.data)
     .where(t1.channel_id == base64::from_bytes(this->dht_user_id_))
     .order_by(t1.order_no));
 
   while (st.execute()) {
-    guid channel_id;
+    auto id = t1.id.get(st);
+    if (this->processed_.end() != this->processed_.find(id)) {
+      continue;;
+    }
+
+    const_data_buffer channel_id;
     uint64_t order_no;
     guid read_cert_id;
     guid write_cert_id;
@@ -55,120 +63,167 @@ void vds::security_walker::load(
     const_data_buffer crypted_data;
     const_data_buffer crypted_key;
     const_data_buffer signature;
+    std::list<certificate> certificates;
 
-    transactions::transaction_block::parse_block(
-        t1.data.get(st),
-        channel_id,
-        order_no,
-        read_cert_id,
-        write_cert_id,
-        ancestors,
-        crypted_data,
-        crypted_key,
-        signature);
+    auto block_type = transactions::transaction_block::parse_block(
+      t1.data.get(st),
+      channel_id,
+      order_no,
+      read_cert_id,
+      write_cert_id,
+      ancestors,
+      crypted_data,
+      crypted_key,
+      certificates,
+      signature);
 
-    if (channel_id != this->user_id_
-      || read_cert_id != cert_control::get_id(this->user_cert_)
-      || write_cert_id != cert_control::get_id(this->user_cert_)) {
+    if (channel_id != this->dht_user_id_) {
       throw std::runtime_error("Ivalid record");
     }
 
-    if (!transactions::transaction_block::validate_block(
-        this->user_cert_,
-        channel_id,
-        order_no,
-        read_cert_id,
-        write_cert_id,
-        ancestors,
-        crypted_data,
-        crypted_key,
-        signature)) {
+    certificate write_cert;
+    auto pcert = this->certificate_chain_.find(write_cert_id);
+    if(this->certificate_chain_.end() == pcert) {
+      for(auto & cert : certificates) {
+        if(write_cert_id == cert_control::get_id(cert)) {
+          write_cert = cert;
+          break;
+        }
+      }
+    } else {
+      write_cert = pcert->second;
+    }
+
+    if (!write_cert || !transactions::transaction_block::validate_block(
+      write_cert,
+      block_type,
+      channel_id,
+      order_no,
+      read_cert_id,
+      write_cert_id,
+      ancestors,
+      crypted_data,
+      crypted_key,
+      certificates,
+      signature)) {
       log->error(ThisModule, sp, "Write signature error");
       throw std::runtime_error("Write signature error");
     }
 
-    const auto key_data = this->user_private_key_.decrypt(crypted_key);
-    const auto key = symmetric_key::deserialize(symmetric_crypto::aes_256_cbc(), key_data);
-    const auto data = symmetric_decrypt::decrypt(key, crypted_data);
+    const_data_buffer data;
+    switch (block_type) {
+    case transactions::transaction_block::block_type_t::normal: {
+      const auto key_data = this->user_private_key_.decrypt(crypted_key);
+      const auto key = symmetric_key::deserialize(symmetric_crypto::aes_256_cbc(), key_data);
+      data = symmetric_decrypt::decrypt(key, crypted_data);
+      break;
+    }
+    case transactions::transaction_block::block_type_t::self_signed: {
+      if(this->user_password_hash_ != crypted_key) {
+        this->login_state_ = login_state_t::login_failed;
+      }
+      else {
+        data = symmetric_decrypt::decrypt(this->user_password_key_, crypted_data);
+      }
+      break;
+    }
+    default:
+      throw std::runtime_error("Invalid data");
+    }
 
     binary_deserializer s(data);
 
-    while(0 < s.size()) {
+    while (0 < s.size()) {
       uint8_t message_id;
       s >> message_id;
 
       switch ((transactions::transaction_id) message_id) {
-        case transactions::transaction_id::channel_add_reader_transaction: {
-          transactions::channel_add_reader_transaction message(s);
-          auto &cp = this->channels_[message.channel_id()];
-
-          cp.name_ = message.name();
-
-          auto write_id = cert_control::get_id(message.write_cert());
-          cp.write_certificates_[write_id] = message.write_cert();
-
-          auto id = cert_control::get_id(message.read_cert());
-          cp.read_certificates_[id] = message.read_cert();
-          cp.read_private_keys_[id] = message.read_private_key();
-          cp.current_read_certificate_ = id;
-
-          log->debug(ThisModule, sp, "Got channel %s reader certificate %s",
-                     base64::from_bytes(message.channel_id()).c_str(),
-                     id.str().c_str());
-
-          break;
+      case transactions::transaction_id::root_user_transaction: {
+        if(this->login_state_ != login_state_t::waiting_channel) {
+          throw std::runtime_error("Data error");          
         }
 
-        case transactions::transaction_id::channel_add_writer_transaction: {
-          transactions::channel_add_writer_transaction message(s);
-          auto &cp = this->channels_[message.channel_id()];
-          auto id = cert_control::get_id(message.write_cert());
-          cp.name_ = message.name();
-          cp.write_certificates_[id] = message.write_cert();
-          cp.write_private_keys_[id] = message.write_private_key();
-          cp.current_write_certificate_ = id;
+        transactions::root_user_transaction message(s);
+        this->user_id_ = message.id();
+        this->user_cert_ = message.user_cert();
+        this->user_name_ = message.user_name();
+        this->user_private_key_ = asymmetric_private_key::parse_der(message.user_private_key(), std::string());
 
-          auto read_id = cert_control::get_id(message.read_cert());
-          cp.read_certificates_[read_id] = message.read_cert();
-          cp.current_read_certificate_ = read_id;
+        this->login_state_ = login_state_t::login_sucessful;
+        break;
+      }
+      case transactions::transaction_id::channel_add_reader_transaction: {
+        transactions::channel_add_reader_transaction message(s);
+        auto &cp = this->channels_[message.channel_id()];
 
-          log->debug(ThisModule, sp, "Got channel %s write certificate %s, read certificate %s",
-                     base64::from_bytes(message.channel_id()).c_str(),
-                     id.str().c_str(),
-                     read_id.str().c_str());
+        cp.name_ = message.name();
 
-          break;
-        }
+        auto write_id = cert_control::get_id(message.write_cert());
+        cp.write_certificates_[write_id] = message.write_cert();
 
-        case transactions::transaction_id::channel_create_transaction: {
-          transactions::channel_create_transaction message(s);
-          auto &cp = this->channels_[message.channel_id()];
-          cp.name_ = message.name();
-          cp.current_read_certificate_ = cert_control::get_id(message.read_cert());
-          cp.current_write_certificate_ = cert_control::get_id(message.write_cert());
-          cp.read_certificates_[cp.current_read_certificate_] = message.read_cert();
-          cp.read_private_keys_[cp.current_read_certificate_] = message.read_private_key();
-          cp.write_certificates_[cp.current_write_certificate_] = message.write_cert();
-          cp.write_private_keys_[cp.current_write_certificate_] = message.write_private_key();
+        auto id = cert_control::get_id(message.read_cert());
+        cp.read_certificates_[id] = message.read_cert();
+        cp.read_private_keys_[id] = message.read_private_key();
+        cp.current_read_certificate_ = id;
 
-          log->debug(ThisModule, sp, "New channel %s(%s), read certificate %s, write certificate %s",
-                     message.channel_id().str().c_str(),
-                     message.name().c_str(),
-                     cp.current_read_certificate_.str().c_str(),
-                     cp.current_write_certificate_.str().c_str());
+        log->debug(ThisModule, sp, "Got channel %s reader certificate %s",
+          base64::from_bytes(message.channel_id()).c_str(),
+          id.str().c_str());
 
-          break;
-        }
+        break;
+      }
 
-        case transactions::transaction_id::device_user_add_transaction: {
-          transactions::device_user_add_transaction message(s);
-          break;
-        }
+      case transactions::transaction_id::channel_add_writer_transaction: {
+        transactions::channel_add_writer_transaction message(s);
+        auto &cp = this->channels_[message.channel_id()];
+        auto id = cert_control::get_id(message.write_cert());
+        cp.name_ = message.name();
+        cp.write_certificates_[id] = message.write_cert();
+        cp.write_private_keys_[id] = message.write_private_key();
+        cp.current_write_certificate_ = id;
 
-        default:
-          throw std::runtime_error("logic error");
+        auto read_id = cert_control::get_id(message.read_cert());
+        cp.read_certificates_[read_id] = message.read_cert();
+        cp.current_read_certificate_ = read_id;
+
+        log->debug(ThisModule, sp, "Got channel %s write certificate %s, read certificate %s",
+          base64::from_bytes(message.channel_id()).c_str(),
+          id.str().c_str(),
+          read_id.str().c_str());
+
+        break;
+      }
+
+      case transactions::transaction_id::channel_create_transaction: {
+        transactions::channel_create_transaction message(s);
+        auto &cp = this->channels_[message.channel_id()];
+        cp.name_ = message.name();
+        cp.current_read_certificate_ = cert_control::get_id(message.read_cert());
+        cp.current_write_certificate_ = cert_control::get_id(message.write_cert());
+        cp.read_certificates_[cp.current_read_certificate_] = message.read_cert();
+        cp.read_private_keys_[cp.current_read_certificate_] = message.read_private_key();
+        cp.write_certificates_[cp.current_write_certificate_] = message.write_cert();
+        cp.write_private_keys_[cp.current_write_certificate_] = message.write_private_key();
+
+        log->debug(ThisModule, sp, "New channel %s(%s), read certificate %s, write certificate %s",
+          message.channel_id().str().c_str(),
+          message.name().c_str(),
+          cp.current_read_certificate_.str().c_str(),
+          cp.current_write_certificate_.str().c_str());
+
+        break;
+      }
+
+      case transactions::transaction_id::device_user_add_transaction: {
+        transactions::device_user_add_transaction message(s);
+        break;
+      }
+
+      default:
+        throw std::runtime_error("logic error");
       }
     }
+    this->processed_.emplace(id);
   }
 }
 

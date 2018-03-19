@@ -13,8 +13,9 @@ namespace vds {
   class _user_manager : public security_walker {
   public:
     _user_manager(
-        const const_data_buffer & dht_user_id,
-        const symmetric_key & user_password_key);
+      const const_data_buffer & dht_user_id,
+      const symmetric_key & user_password_key,
+      const const_data_buffer& user_password_hash);
 
     member_user get_current_device(
         const service_provider &sp,
@@ -32,7 +33,7 @@ namespace vds {
     guid id_;
     certificate device_cert_;
     asymmetric_private_key device_private_key_;
-    uint16_t port_;
+    uint16_t port_;    
 
     void save_certificate(const service_provider &sp, const certificate &cert);
   };

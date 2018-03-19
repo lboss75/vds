@@ -1,6 +1,7 @@
 #include <db_model.h>
 #include "stdafx.h"
 #include "private/auth_session.h"
+#include "dht_object_id.h"
 
 vds::auth_session::auth_session(const std::string &login, const std::string &password)
 : login_(login),
@@ -18,5 +19,17 @@ vds::async_task<> vds::auth_session::create_user(const vds::service_provider &sp
         pthis->password_key_,
         pthis->password_hash_);
     return true;
+  });
+}
+
+vds::async_task<> vds::auth_session::load(const service_provider& sp) {
+  return sp.get<db_model>()->async_transaction(sp, [sp, pthis = this->shared_from_this()](database_transaction & t) {
+    pthis->user_mng_.load(
+      sp,
+      t, 
+      dht::dht_object_id::from_user_email(pthis->login_),
+      pthis->password_key_,
+      pthis->password_hash_
+    );
   });
 }

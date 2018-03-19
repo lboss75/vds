@@ -53,8 +53,9 @@ void vds::transaction_log::save(
   std::set<const_data_buffer> ancestors;
   const_data_buffer crypted_data;
   const_data_buffer crypted_key;
+  std::list<certificate> certificates;
   const_data_buffer signature;
-  transactions::transaction_block::parse_block(
+  auto block_type = transactions::transaction_block::parse_block(
       block_data,
       block_channel_id,
       order_no,
@@ -63,6 +64,7 @@ void vds::transaction_log::save(
       ancestors,
       crypted_data,
       crypted_key,
+      certificates,
       signature);
 
   if(block_channel_id != channel_id){
@@ -78,9 +80,18 @@ void vds::transaction_log::save(
     is_validated = false;
   }
   else {
-    if(!transactions::transaction_block::validate_block(write_cert, block_channel_id, order_no, read_cert_id,
-                                                        write_cert_id, ancestors,
-                                                        crypted_data, crypted_key, signature)){
+    if(!transactions::transaction_block::validate_block(
+      write_cert,
+      block_type,
+      block_channel_id,
+      order_no,
+      read_cert_id,
+      write_cert_id,
+      ancestors,
+      crypted_data,
+      crypted_key,
+      certificates,
+      signature)){
       sp.get<logger>()->warning(
           ThisModule,
           sp,

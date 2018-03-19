@@ -15,6 +15,7 @@ All rights reserved
 #include "device_activation.h"
 #include "transactions/channel_message_walker.h"
 #include "encoding.h"
+#include "security_walker.h"
 
 namespace vds {
 
@@ -24,16 +25,19 @@ namespace vds {
 
     user_manager();
 
+    async_task<> update(const service_provider & sp);
+    security_walker::login_state_t get_login_state() const;
+
     void load(
       const service_provider & sp,
       class database_transaction &t,
       const const_data_buffer & dht_user_id,
-      const symmetric_key & user_password_key);
+      const symmetric_key & user_password_key,
+      const const_data_buffer& user_password_hash);
 
     member_user create_root_user(
       transactions::transaction_block &log,
       class database_transaction &t,
-      const guid &common_channel_id,
       const std::string &user_name,
       const std::string &user_password,
       const asymmetric_private_key &private_key);
@@ -50,8 +54,7 @@ namespace vds {
       asymmetric_private_key &write_private_key) const;
 
     device_activation reset(const service_provider &sp, class database_transaction &t, const std::string &root_user_name,
-      const std::string &root_password, const asymmetric_private_key &root_private_key,
-      const std::string &device_name, int port);
+      const std::string &root_password, const asymmetric_private_key &root_private_key);
 
     async_task<> init_server(
       const vds::service_provider &sp,
@@ -115,16 +118,27 @@ namespace vds {
         std::set<const_data_buffer> ancestors;
         const_data_buffer crypted_data;
         const_data_buffer crypted_key;
+        std::list<certificate> certificates;
         const_data_buffer signature;
 
-        transactions::transaction_block::parse_block(t1.data.get(st), channel_id, order_no, read_cert_id,
+        auto block_type = transactions::transaction_block::parse_block(t1.data.get(st), channel_id, order_no, read_cert_id,
                                                      write_cert_id, ancestors,
-                                                     crypted_data, crypted_key, signature);
+                                                     crypted_data, crypted_key,
+                                                     certificates, signature);
 
         auto write_cert = this->get_channel_write_cert(sp, write_cert_id);
-        if (!transactions::transaction_block::validate_block(write_cert, channel_id, order_no, read_cert_id,
-                                                             write_cert_id, ancestors,
-                                                             crypted_data, crypted_key, signature)) {
+        if (!transactions::transaction_block::validate_block(
+          write_cert,
+          block_type,
+          channel_id,
+          order_no,
+          read_cert_id,
+          write_cert_id,
+          ancestors,
+          crypted_data,
+          crypted_key,
+          certificates,
+          signature)) {
           throw std::runtime_error("Write signature error");
         }
 

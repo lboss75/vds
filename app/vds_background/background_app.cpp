@@ -49,9 +49,7 @@ void vds::background_app::main(const service_provider & sp)
     this->server_
         .reset(sp,
                this->user_login_.value(),
-               this->user_password_.value(),
-               this->node_name_.value(),
-               this->port_.value().empty() ? 0 : atoi(this->port_.value().c_str()))
+               this->user_password_.value())
         .execute([&error, &b, this](const std::shared_ptr<std::exception> & ex, const vds::device_activation & device_activation) {
           if (ex) {
             error = ex;

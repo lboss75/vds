@@ -19,6 +19,7 @@ All rights reserved
 #include "user_manager.h"
 #include "private/register_page.h"
 #include "private/auth_session.h"
+#include "private/login_page.h"
 
 vds::web_server::web_server() {
 }
@@ -118,6 +119,24 @@ vds::async_task<vds::http_message> vds::_web_server::route(
         this->shared_from_this(),
         message);
   }
+
+  if (request.url() == "/api/login_state" && request.method() == "GET") {
+    auto user_mng = this->get_secured_context(sp, message);
+    if (!user_mng) {
+      return vds::async_task<vds::http_message>::result(
+        http_response::status_response(
+          sp,
+          http_response::HTTP_Unauthorized,
+          "Unauthorized"));
+    }
+
+    return api_controller::get_login_state(
+      sp,
+      *user_mng,
+      this->shared_from_this(),
+      message);
+  }
+
   if(request.url() == "/upload" && request.method() == "POST") {
     std::string content_type;
     if(request.get_header("Content-Type", content_type)) {
@@ -161,6 +180,10 @@ vds::async_task<vds::http_message> vds::_web_server::route(
 
   if (request.url() == "/register" && request.method() == "POST") {
     return register_page::post(sp, this->shared_from_this(), message);
+  }
+
+  if (request.url() == "/login" && request.method() == "POST") {
+    return login_page::post(sp, this->shared_from_this(), message);
   }
 
   return vds::async_task<vds::http_message>::result(this->router_.route(sp, message, request.url()));

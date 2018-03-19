@@ -47,14 +47,17 @@ void vds::server::stop(const service_provider& sp)
   this->impl_->stop(sp);
 }
 
-vds::async_task<vds::device_activation> vds::server::reset(const vds::service_provider &sp, const std::string &root_user_name, const std::string &root_password,
-                                     const std::string &device_name, int port) {
+vds::async_task<vds::device_activation> vds::server::reset(
+  const vds::service_provider &sp,
+  const std::string &root_user_name,
+  const std::string &root_password) {
 	auto result = std::make_shared<device_activation>();
-  return sp.get<db_model>()->async_transaction(sp, [this, sp, root_user_name, root_password, device_name, port, result](
+  return sp.get<db_model>()->async_transaction(sp, [this, sp, root_user_name, root_password, result](
       database_transaction & t){
-    auto usr_manager = sp.get<user_manager>();
     auto private_key = asymmetric_private_key::generate(asymmetric_crypto::rsa4096());
-    *result = usr_manager->reset(sp, t, root_user_name, root_password, private_key, device_name, port);
+
+    user_manager usr_manager;
+    *result = usr_manager.reset(sp, t, root_user_name, root_password, private_key);
 	return true;
   }).then([result]() {
 	  return *result;

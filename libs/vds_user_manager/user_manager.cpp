@@ -32,11 +32,23 @@ vds::user_manager::user_manager()
 {
 }
 
+vds::async_task<> vds::user_manager::update(const service_provider& sp) {
+  return sp.get<db_model>()->async_transaction(sp, [sp, pthis = this->impl_](database_transaction & t) {
+    pthis->update(sp, t);
+    return true;
+  });
+}
+
+vds::security_walker::login_state_t vds::user_manager::get_login_state() const {
+  return this->impl_->get_login_state();
+}
+
 void vds::user_manager::load(
-	const service_provider & sp,
-	database_transaction & t,
-	const const_data_buffer & dht_user_id,
-	const symmetric_key & user_password_key)
+  const service_provider & sp,
+  database_transaction & t,
+  const const_data_buffer & dht_user_id,
+  const symmetric_key & user_password_key,
+  const const_data_buffer& user_password_hash)
 {
 	if (nullptr != this->impl_.get()) {
 		throw std::runtime_error("Logic error");
@@ -44,9 +56,10 @@ void vds::user_manager::load(
 
 	this->impl_.reset(new _user_manager(
 		dht_user_id,
-		user_password_key));
+		user_password_key,
+    user_password_hash));
 
-	this->impl_->load(sp, t);
+	this->impl_->update(sp, t);
 }
 
 vds::device_activation vds::user_manager::reset(
@@ -54,14 +67,11 @@ vds::device_activation vds::user_manager::reset(
     database_transaction &t,
     const std::string &root_user_name,
     const std::string &root_password,
-    const asymmetric_private_key &root_private_key,
-    const std::string &device_name,
-    int port) {
+    const asymmetric_private_key &root_private_key) {
 
-  guid common_channel_id = guid::new_guid();
   transactions::transaction_block playback;
   //Create root user
-  auto root_user = this->create_root_user(playback, t, common_channel_id, root_user_name, root_password,
+  auto root_user = this->create_root_user(playback, t, root_user_name, root_password,
                                           root_private_key);
 
   sp.get<logger>()->info(ThisModule, sp, "Create root user %s. Cert %s", 
@@ -71,25 +81,15 @@ vds::device_activation vds::user_manager::reset(
   //Lock to device
   std::list<certificate> certificate_chain;
   certificate_chain.push_back(root_user.user_certificate());
-  auto device_key = asymmetric_private_key::generate(asymmetric_crypto::rsa4096());
-  auto device_user = this->lock_to_device(
-      sp, t, playback,
-	  certificate_chain,
-	  root_user, root_user_name, root_password, root_private_key,
-      device_name, device_key, port);
 
-  playback.add(
-      transactions::device_user_add_transaction(
-          device_user.id(),
-          device_user.user_certificate()));
-
-  auto blocks = playback.save(
+  auto blocks = playback.save_self_signed(
       sp,
       t,
-      root_user.id(),
+      dht::dht_object_id::from_user_email(root_user_name),
       root_user.user_certificate(),
-      root_user.user_certificate(),
-      root_private_key);
+      root_private_key,
+      symmetric_key::from_password(root_password),
+      hash::signature(hash::sha256(), root_password.c_str(), root_password.length()));
   //this->load(sp, t, device_user.id());
 
   return device_activation(root_user_name, certificate_chain, root_private_key);
@@ -310,10 +310,12 @@ std::list<vds::user_channel> vds::user_manager::get_channels() const {
   return this->impl_->get_channels();
 }
 
-vds::member_user vds::user_manager::create_root_user(transactions::transaction_block &playback, database_transaction &t,
-                                                     const guid &common_channel_id, const std::string &root_user_name,
-                                                     const std::string &root_password,
-                                                     const vds::asymmetric_private_key &root_private_key) {
+vds::member_user vds::user_manager::create_root_user(
+  transactions::transaction_block &playback,
+  database_transaction & t,
+  const std::string &root_user_name,
+  const std::string &root_password,
+  const vds::asymmetric_private_key &root_private_key) {
   auto root_user_id = guid::new_guid();
   auto root_user_cert = _cert_control::create_root(
       root_user_id,
@@ -327,6 +329,7 @@ vds::member_user vds::user_manager::create_root_user(transactions::transaction_b
           root_user_name,
           root_private_key.der(root_password),
           hash::signature(hash::sha256(), root_password.c_str(), root_password.length())));
+  playback.add_certificate(root_user_cert);
 
   return member_user(new _member_user(root_user_id, root_user_cert));
 }
@@ -399,8 +402,9 @@ void vds::user_manager::create_root_user(
 ////////////////////////////////////////////////////////////////////////
 vds::_user_manager::_user_manager(
 		const const_data_buffer & dht_user_id,
-		const symmetric_key & user_password_key)
-	: security_walker(dht_user_id, user_password_key) {
+		const symmetric_key & user_password_key,
+    const const_data_buffer & user_password_hash)
+	: security_walker(dht_user_id, user_password_key, user_password_hash) {
 }
 
 vds::member_user vds::_user_manager::get_current_device(const service_provider & sp, asymmetric_private_key & device_private_key) const

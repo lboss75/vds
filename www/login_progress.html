@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+        <title>VDS</title>
+
+         <!-- Bootstrap CSS CDN -->
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+        <!-- Our Custom CSS -->
+        <link rel="stylesheet" href="style.css">
+    </head>
+    <body>
+
+			<div class="col-lg-6 col-sm-6 col-12">
+            <h4>Ожидание сети для входа в систему</h4>
+<div class="progress">
+  <div id="progressBar" class="progress-bar progress-bar-striped active" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" />
+</div>
+        </div>
+            </div>
+        </div>
+
+
+
+
+
+        <!-- jQuery CDN -->
+         <script src="https://code.jquery.com/jquery-1.12.0.min.js"></script>
+         <!-- Bootstrap Js CDN -->
+         <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+
+         <script type="text/javascript">
+             $(document).ready(function () {
+		var timer = setInterval(updateState, 1000);
+		var valeur = 0;
+
+		function updateState() {
+		    $.ajax({
+		            type:'GET',
+		            url:'/api/login_state',
+		            success:function(state_result) { 
+				if('sucessful' == state_result.state){
+                                }
+				$('#progressBar').css('width', valeur+'%').attr('aria-valuenow', valeur); 
+				++valeur;
+		            }
+		    });
+		}
+             });
+         </script>
+    </body>
+</html>

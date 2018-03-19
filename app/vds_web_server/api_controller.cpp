@@ -27,3 +27,34 @@ vds::api_controller::get_channels(
           "application/json; charset=utf-8"));
 
 }
+
+vds::async_task<vds::http_message> vds::api_controller::get_login_state(const service_provider& sp,
+  user_manager& user_mng, const std::shared_ptr<_web_server>& owner, const http_message& message) {
+
+  return user_mng.update(sp).then([sp, &user_mng]() -> async_task<http_message> {
+
+    auto item = std::make_shared<json_object>();
+    switch (user_mng.get_login_state()) {
+    case security_walker::login_state_t::waiting_channel:
+      item->add_property("state", "waiting");
+      break;
+
+    case security_walker::login_state_t::login_sucessful:
+      item->add_property("state", "sucessful");
+      break;
+
+    case security_walker::login_state_t::login_failed:
+      item->add_property("state", "failed");
+      break;
+
+    default:
+      throw std::runtime_error("Invalid operation");
+    }
+
+    return vds::async_task<vds::http_message>::result(
+      http_response::simple_text_response(
+        sp,
+        item->json_value::str(),
+        "application/json; charset=utf-8"));
+  });
+}

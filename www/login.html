@@ -17,12 +17,12 @@
     <div class="container">
         <div class="card card-container">
 	    <p id="profile-name" class="profile-name-card">Виртуальная сеть хранения данных</p>
-            <form class="form-signin">
+            <form class="form-signin" action="/login" method="POST" enctype="multipart/form-data">
 		<h2 class="form-signin-heading">Вход в систему</h2>
 	        <label for="inputEmail" class="sr-only">Адрес электройнной почты:</label>
-	        <input type="email" id="inputEmail" class="form-control" placeholder="Адрес электройнной почты" required autofocus>
+	        <input type="email" id="inputEmail" name="inputEmail" class="form-control" placeholder="Адрес электройнной почты" required autofocus>
         	<label for="inputPassword" class="sr-only">Пароль:</label>
-                <input type="password" id="inputPassword" class="form-control" placeholder="Пароль" required>
+                <input type="password" id="inputPassword" name="inputPassword" class="form-control" placeholder="Пароль" required>
                 <button class="btn btn-lg btn-primary btn-block btn-signin" type="submit">Войти</button>
 		<div>
                         <button id="register_btn" type="button" class="btn btn-link">Регистрация</button>

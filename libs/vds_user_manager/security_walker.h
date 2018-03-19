@@ -16,9 +16,21 @@ All rights reserved
 namespace vds {
   class security_walker {
   public:
+    enum class login_state_t {
+      waiting_channel,
+      login_sucessful,
+      login_failed
+    };
+
     security_walker(
         const const_data_buffer & dht_user_id,
-        const symmetric_key & user_password_key);
+        const symmetric_key & user_password_key,
+        const const_data_buffer & user_password_hash);
+
+    login_state_t get_login_state() const {
+      return this->login_state_;
+    }
+
 
     const guid & user_id() const {
       return this->user_id_;
@@ -32,7 +44,7 @@ namespace vds {
       return this->user_private_key_;
     }
 
-    void load(
+    void update(
 		const service_provider & sp, 
 		class database_transaction &t);
 
@@ -166,12 +178,16 @@ namespace vds {
 	private:
 		const_data_buffer dht_user_id_;
 		symmetric_key user_password_key_;
+    const_data_buffer user_password_hash_;
+    login_state_t login_state_;
+
+    std::set<std::string> processed_;
+    guid user_id_;
+    certificate user_cert_;
+    std::string user_name_;
+    asymmetric_private_key user_private_key_;
 
   protected:
-    const guid user_id_;
-    const certificate user_cert_;
-    const asymmetric_private_key user_private_key_;
-
     struct channel_info {
       std::map<guid, certificate> read_certificates_;
       std::map<guid, certificate> write_certificates_;
