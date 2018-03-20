@@ -95,6 +95,11 @@ void vds::sql_statement::set_parameter(int index, const const_data_buffer & valu
   this->impl_->set_parameter(index, value);
 }
 
+void vds::sql_statement::set_parameter(int index, const std::chrono::system_clock::time_point &value) {
+  this->impl_->set_parameter(index, value);
+}
+
+
 bool vds::sql_statement::execute()
 {
   return this->impl_->execute();
@@ -130,6 +135,10 @@ bool vds::sql_statement::get_value(int index, double & value)
   return this->impl_->get_value(index, value);
 }
 
+bool vds::sql_statement::get_value(int index, std::chrono::system_clock::time_point &value) {
+  return this->impl_->get_value(index, value);
+}
+
 vds::sql_statement& vds::sql_statement::operator= (vds::sql_statement&& original)
 {
   delete this->impl_;
@@ -142,4 +151,6 @@ vds::sql_statement& vds::sql_statement::operator= (vds::sql_statement&& original
 bool vds::sql_statement::is_null(int index) const {
   return this->impl_->is_null(index);
 }
+
+
 //////////////////////////////////////
