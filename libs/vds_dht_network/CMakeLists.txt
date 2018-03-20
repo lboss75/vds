@@ -27,7 +27,6 @@ target_include_directories(vds_dht_network
 		 ${vds_db_model_INCLUDE_DIRS}
 		 ${vds_user_manager_INCLUDE_DIRS}
 		 ${vds_chunk_manager_INCLUDE_DIRS}
-		 ${vds_transactions_INCLUDE_DIRS}
 		 ${OPENSSL_INCLUDE_DIR}
 	PUBLIC
 		${CMAKE_CURRENT_SOURCE_DIR})
@@ -42,7 +41,6 @@ target_link_libraries(
         vds_db_model
         vds_user_manager
         vds_chunk_manager
-        vds_transactions
         ${OPENSSL_LIBRARIES}
         ${CMAKE_THREAD_LIBS_INIT}
 )

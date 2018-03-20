@@ -35,6 +35,7 @@ namespace vds {
     void set_parameter(int index, const std::string & value);
     void set_parameter(int index, const guid & value);
     void set_parameter(int index, const const_data_buffer & value);
+    void set_parameter(int index, const std::chrono::system_clock::time_point & value);
 
     bool execute();
 
@@ -44,6 +45,7 @@ namespace vds {
     bool get_value(int index, guid & value);
     bool get_value(int index, const_data_buffer & value);
     bool get_value(int index, double & value);
+    bool get_value(int index, std::chrono::system_clock::time_point & value);
 
     bool is_null(int index) const;
 

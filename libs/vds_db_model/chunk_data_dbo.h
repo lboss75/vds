@@ -9,20 +9,18 @@ All rights reserved
 #include "database_orm.h"
 
 namespace vds {
-  namespace dbo {
-/*
+  namespace orm {
     class chunk_data_dbo : public database_table {
     public:
       chunk_data_dbo()
           : database_table("chunk_data"),
             id(this, "id"),
-            block_key(this, "block_key") {
+            data(this, "data") {
       }
 
       database_column<std::string> id;
-      database_column<const_data_buffer> block_key;
+      database_column<const_data_buffer> data;
     };
-    */
   }
 }
 

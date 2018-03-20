@@ -66,6 +66,14 @@ namespace vds {
       this->set_parameter(index, value.str());
     }
 
+    void set_parameter(int index, const std::chrono::system_clock::time_point & value)
+    {
+      this->reset();
+
+      sqlite3_bind_int64(this->stmt_, index, std::chrono::system_clock::to_time_t(value));
+    }
+
+
     void set_parameter(int index, const const_data_buffer & value)
     {
       this->reset();
@@ -160,6 +168,16 @@ namespace vds {
       assert(0 <= index && index < sqlite3_column_count(this->stmt_));
 
       value = sqlite3_column_double(this->stmt_, index);
+      return true;
+    }
+
+    bool get_value(int index, std::chrono::system_clock::time_point & value)
+    {
+      assert(read_state == this->state_);
+      assert(0 <= index && index < sqlite3_column_count(this->stmt_));
+
+      value = std::chrono::system_clock::from_time_t(
+          sqlite3_column_int64(this->stmt_, index));
       return true;
     }
 
