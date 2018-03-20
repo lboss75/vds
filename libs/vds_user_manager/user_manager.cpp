@@ -327,7 +327,7 @@ vds::member_user vds::user_manager::create_root_user(
           root_user_id,
           root_user_cert,
           root_user_name,
-          root_private_key.der(root_password),
+          root_private_key.der(std::string()),
           hash::signature(hash::sha256(), root_password.c_str(), root_password.length())));
   playback.add_certificate(root_user_cert);
 

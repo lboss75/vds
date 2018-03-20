@@ -43,6 +43,8 @@
 		            url:'/api/login_state',
 		            success:function(state_result) { 
 				if('sucessful' == state_result.state){
+				    window.location.href = '/';
+				    return;
                                 }
 				$('#progressBar').css('width', valeur+'%').attr('aria-valuenow', valeur); 
 				++valeur;

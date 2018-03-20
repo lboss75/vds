@@ -162,20 +162,13 @@ vds::async_task<vds::http_message> vds::_web_server::route(
   }
 
   if (request.url() == "/" && request.method() == "GET") {
-    std::string cookie_value;
-    if(request.get_header("Cookie", cookie_value) && !cookie_value.empty()) {
-      for (auto item : split_string(cookie_value, ';', true)) {
-        auto p = item.find('=');
-        if(std::string::npos != p) {
-          auto name = item.substr(0, p);
-          if("Auth" == name) {
-            
-          }
-        }
-      }
+    const auto user_mng = this->get_secured_context(sp, message);
+    if (nullptr == user_mng) {
+      return vds::async_task<vds::http_message>::result(this->router_.route(sp, message, "/login"));
     }
-
-    return vds::async_task<vds::http_message>::result(this->router_.route(sp, message, "/login"));
+    else {
+      return vds::async_task<vds::http_message>::result(this->router_.route(sp, message, "/index"));
+    }
   }
 
   if (request.url() == "/register" && request.method() == "POST") {

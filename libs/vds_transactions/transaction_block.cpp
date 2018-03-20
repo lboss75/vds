@@ -190,12 +190,6 @@ vds::const_data_buffer vds::transactions::transaction_block::register_transactio
       t2.state = (uint8_t)orm::transaction_log_record_dbo::state_t::leaf,
       t2.order_no = order_no));
 
-  orm::channel_local_cache_dbo t3;
-  t.execute(t3.insert(
-      t3.id = vds::base64::from_bytes(id),
-      t3.data = block
-  ));
-
   for(auto & ancestor : ancestors){
     orm::transaction_log_record_dbo t1;
     t.execute(
