@@ -9,8 +9,16 @@
 
 void vds::dht::network::udp_transport::start(
     const vds::service_provider &sp,
-    const vds::udp_socket &s) {
-  this->continue_read(sp, s);
+    uint16_t port) {
+
+  try {
+    this->server_.start(sp, network_address::any_ip6(port));
+  }
+  catch (...) {
+    this->server_.start(sp, network_address::any_ip4(port));
+  }
+
+  this->continue_read(sp);
 }
 
 void vds::dht::network::udp_transport::add_session(const network_address& address,
@@ -32,10 +40,9 @@ std::shared_ptr<vds::dht::network::dht_session> vds::dht::network::udp_transport
 }
 
 void vds::dht::network::udp_transport::continue_read(
-    const vds::service_provider &sp,
-    const vds::udp_socket &s) {
+    const vds::service_provider &sp) {
 
-  s.read_async().execute([sp, s, pthis = this->shared_from_this()](
+  this->server_.socket().read_async().execute([sp, pthis = this->shared_from_this()](
       const std::shared_ptr<std::exception> & ex,
       const vds::udp_datagram & datagram){
     if(!ex && 0 != datagram.data_size()){
@@ -54,12 +61,12 @@ void vds::dht::network::udp_transport::continue_read(
           out_message.add((uint8_t)message_type_t::Welcome);
           out_message.add(pthis->this_node_id_.data(), pthis->this_node_id_.size());
 
-          s.write_async(udp_datagram(datagram.address(), out_message.data(), out_message.size()))
-          .execute([pthis, sp, s, address = datagram.address().to_string()](const std::shared_ptr<std::exception> & ex) {
+          pthis->server_.socket().write_async(udp_datagram(datagram.address(), out_message.data(), out_message.size()))
+          .execute([pthis, sp, address = datagram.address().to_string()](const std::shared_ptr<std::exception> & ex) {
             if (ex) {
               sp.get<logger>()->trace(ThisModule, sp, "%s at send welcome to %s", ex->what(), address.c_str());
             }
-            pthis->continue_read(sp, s);
+            pthis->continue_read(sp);
           });
 
           return;
@@ -79,19 +86,18 @@ void vds::dht::network::udp_transport::continue_read(
       else {
         auto session = pthis->get_session(datagram.address());
         if(session){
-          session->process_datagram(sp, s, const_data_buffer(datagram.data(), datagram.data_size()))
-              .execute([pthis, sp, s, address = datagram.address()](const std::shared_ptr<std::exception> & ex){
+          session->process_datagram(sp, pthis->server_.socket(), const_data_buffer(datagram.data(), datagram.data_size()))
+              .execute([pthis, sp, address = datagram.address()](const std::shared_ptr<std::exception> & ex){
                 if(ex){
                   pthis->sessions_.erase(address);
                 }
-                pthis->continue_read(sp, s);
+                pthis->continue_read(sp);
               });
           return;
         }
       }
     }
 
-    pthis->continue_read(sp, s);
-
+    pthis->continue_read(sp);
   });
 }

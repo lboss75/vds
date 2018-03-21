@@ -21,10 +21,11 @@ namespace vds {
 
         void start(
             const service_provider & sp,
-            const udp_socket & s);
+            uint16_t port);
 
       private:
         const_data_buffer this_node_id_;
+        udp_server server_;
 
         mutable std::shared_mutex sessions_mutex_;
         std::map<network_address, std::shared_ptr<dht_session>> sessions_;
@@ -32,7 +33,7 @@ namespace vds {
         void add_session(const network_address & address, const std::shared_ptr<dht_session> & session);
         std::shared_ptr<dht_session> get_session(const network_address & address) const;
 
-        void continue_read(const service_provider &sp, const udp_socket &s);
+        void continue_read(const service_provider &sp);
       };
     }
   }

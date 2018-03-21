@@ -11,6 +11,7 @@ namespace vds {
     namespace network {
       class sync_process {
       public:
+
       };
     }
   }

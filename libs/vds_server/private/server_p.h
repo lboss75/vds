@@ -9,6 +9,12 @@ All rights reserved
 #include "server.h"
 
 namespace vds {
+  namespace dht {
+    namespace network {
+      class service;
+    }
+  }
+
   class cert_manager;
   class user_manager;
   class server_http_api;
@@ -44,6 +50,7 @@ namespace vds {
     std::unique_ptr<user_manager> user_manager_;
 	  std::unique_ptr<class db_model> db_model_;
     std::unique_ptr<file_manager::file_manager_service> file_manager_;
+    std::unique_ptr<dht::network::service> dht_network_service_;
   };
 }
 

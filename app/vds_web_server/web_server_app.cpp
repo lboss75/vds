@@ -28,7 +28,7 @@ void vds::web_server_app::main(const service_provider & sp)
     std::shared_ptr<std::exception> error;
     vds::barrier b;
     this->server_
-        .start_network(sp)
+        .start_network(sp, (uint16_t)(this->port_.value().empty() ? 8050 : strtol(this->port_.value().c_str(), nullptr, 10)))
         .execute([&b, &error](const std::shared_ptr<std::exception> & ex){
       if(ex){
         error = ex;
@@ -63,6 +63,10 @@ void vds::web_server_app::register_services(vds::service_registrator& registrato
   
   if (&this->server_start_command_set_ == this->current_command_set_){
     registrator.add(this->server_);
+    if(!this->port_.value().empty()) {
+      this->web_server_.port(atoi(this->port_.value().c_str()));
+    }
+
     if (!this->start_web_.value().empty()) {
       this->web_server_.static_root(this->start_web_.value());
       registrator.add(this->web_server_);

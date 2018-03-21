@@ -16,6 +16,8 @@ namespace vds {
     namespace network {
 
       class dht_session : public dht_datagram_protocol<dht_session> {
+        using base_class = dht_datagram_protocol<dht_session>;
+
       public:
         dht_session(
           const network_address & address,

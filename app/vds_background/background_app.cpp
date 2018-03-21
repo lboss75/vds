@@ -99,7 +99,7 @@ void vds::background_app::main(const service_provider & sp)
     std::shared_ptr<std::exception> error;
     vds::barrier b;
     this->server_
-        .start_network(sp)
+        .start_network(sp, (uint16_t)(this->port_.value().empty() ? 8050 : strtol(this->port_.value().c_str(), nullptr, 10)))
         .execute([&b, &error](const std::shared_ptr<std::exception> & ex){
       if(ex){
         error = ex;

@@ -29,7 +29,16 @@ namespace vds {
       this->root_folder_ = root_folder;
     }
 
+    uint16_t port() const {
+      return this->port_;
+    }
+
+    void port(uint16_t value) {
+      this->port_ = value;
+    }
+
   private:
+    uint16_t port_;
     std::string root_folder_;
     std::shared_ptr<class _web_server> impl_;
   };

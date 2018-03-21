@@ -15,6 +15,7 @@ All rights reserved
 #include "log_sync_service.h"
 #include "file_manager_service.h"
 #include "chunk_replicator.h"
+#include "dht_network.h"
 
 vds::server::server()
 : impl_(new _server(this))
@@ -34,6 +35,7 @@ void vds::server::register_services(service_registrator& registrator)
   registrator.add_service<user_manager>(this->impl_->user_manager_.get());
   registrator.add_service<db_model>(this->impl_->db_model_.get());
 
+  this->impl_->dht_network_service_->register_services(registrator);
   this->impl_->file_manager_->register_services(registrator);
 }
 
@@ -75,8 +77,9 @@ vds::async_task<> vds::server::init_server(
       sp, request, user_password, device_name, port);
 }
 
-vds::async_task<> vds::server::start_network(const vds::service_provider &sp) {
-  return [this, sp]() {
+vds::async_task<> vds::server::start_network(const vds::service_provider &sp, uint16_t port) {
+  return [this, sp, port]() {
+    this->impl_->dht_network_service_->start(sp, port);
     this->impl_->file_manager_->start(sp);
   };
 }
@@ -94,7 +97,8 @@ vds::_server::_server(server * owner)
 : owner_(owner),
   user_manager_(new user_manager()),
   db_model_(new db_model()),
-  file_manager_(new file_manager::file_manager_service()) {
+  file_manager_(new file_manager::file_manager_service()),
+  dht_network_service_(new dht::network::service()){
 }
 
 vds::_server::~_server()
@@ -112,6 +116,7 @@ void vds::_server::stop(const service_provider& sp)
     this->file_manager_->stop(sp);
   }
 
+  this->dht_network_service_->stop(sp);
   this->db_model_->stop(sp);
   this->file_manager_.reset();
   this->db_model_.reset();
@@ -119,6 +124,7 @@ void vds::_server::stop(const service_provider& sp)
 
 vds::async_task<> vds::_server::prepare_to_stop(const vds::service_provider &sp) {
   return async_series(
+    this->dht_network_service_->prepare_to_stop(sp),
     this->db_model_->prepare_to_stop(sp)
   );
 }

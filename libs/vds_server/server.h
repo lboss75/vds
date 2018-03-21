@@ -25,7 +25,7 @@ namespace vds {
 
     vds::async_task<device_activation> reset(const vds::service_provider &sp, const std::string &root_user_name, const std::string &root_password);
 
-    vds::async_task<> start_network(const vds::service_provider &sp);
+    vds::async_task<> start_network(const vds::service_provider &sp, uint16_t port);
 
     vds::async_task<> init_server(
 		const vds::service_provider &sp,

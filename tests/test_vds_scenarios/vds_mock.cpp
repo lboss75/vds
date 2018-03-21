@@ -581,7 +581,7 @@ void mock_server::start()
 
   std::shared_ptr<std::exception> error;
   vds::barrier b;
-  this->server_.start_network(this->sp_).execute([&b, &error](const std::shared_ptr<std::exception> & ex){
+  this->server_.start_network(this->sp_,).execute([&b, &error](const std::shared_ptr<std::exception> & ex){
     if(ex){
       error = ex;
     }

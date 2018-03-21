@@ -21,7 +21,8 @@ All rights reserved
 #include "private/auth_session.h"
 #include "private/login_page.h"
 
-vds::web_server::web_server() {
+vds::web_server::web_server()
+: port_(8050) {
 }
 
 vds::web_server::~web_server() {
@@ -34,7 +35,7 @@ void vds::web_server::start(const service_provider& sp) {
   auto scope = sp.create_scope("Web server");
   mt_service::enable_async(scope);
   this->impl_ = std::make_shared<_web_server>(scope);
-  this->impl_->start(scope, this->root_folder_);
+  this->impl_->start(scope, this->root_folder_, this->port_);
 }
 
 void vds::web_server::stop(const service_provider& sp) {
@@ -68,9 +69,9 @@ struct session_data : public std::enable_shared_from_this<session_data> {
   }
 };
 
-void vds::_web_server::start(const service_provider& sp, const std::string & root_folder) {
+void vds::_web_server::start(const service_provider& sp, const std::string & root_folder, uint16_t port) {
   this->load_web("/", foldername(root_folder));
-  this->server_.start(sp, network_address::any_ip4(8050), [sp, pthis = this->shared_from_this()](tcp_network_socket s) {
+  this->server_.start(sp, network_address::any_ip4(port), [sp, pthis = this->shared_from_this()](tcp_network_socket s) {
     auto session = std::make_shared<session_data>(std::move(s));
     session->handler_ = std::make_shared<http_pipeline>(
         sp,
