@@ -4,7 +4,7 @@ All rights reserved
 */
 #include "stdafx.h"
 #include "dht_network.h"
-#include "udp_transport.h"
+#include "private/udp_transport.h"
 
 void vds::dht::network::service::register_services(service_registrator& registrator) {
 }

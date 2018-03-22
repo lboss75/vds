@@ -1,10 +1,12 @@
-//
-// Created by vadim on 15.03.18.
-//
+/*
+Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
+All rights reserved
+*/
+
 #include "stdafx.h"
-#include "udp_transport.h"
-#include "dht_message_type.h"
-#include "dht_session.h"
+#include "private/udp_transport.h"
+#include "private/dht_message_type.h"
+#include "private/dht_session.h"
 #include "logger.h"
 
 void vds::dht::network::udp_transport::start(

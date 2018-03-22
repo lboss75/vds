@@ -3,5 +3,4 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 #include "stdafx.h"
-#include "dht_network_client.h"
-
+#include "private/dht_datagram_protocol.h"

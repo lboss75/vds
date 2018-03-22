@@ -1,8 +1,9 @@
-//
-// Created by vadim on 15.03.18.
-//
-
-#include "dht_session.h"
+/*
+Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
+All rights reserved
+*/
+#include "stdafx.h"
+#include "private/dht_session.h"
 
 vds::dht::network::dht_session::dht_session(
   const network_address& address,

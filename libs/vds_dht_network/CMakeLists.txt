@@ -1,14 +1,17 @@
 project(vds_dht_network CXX C)
 cmake_minimum_required(VERSION 2.6.2)
 
-FILE(GLOB HEADER_FILES *.h)
+FILE(GLOB HEADER_FILES include/*.h)
 FILE(GLOB PRIVATE_HEADER_FILES private/*.h)
 FILE(GLOB MESSAGES_HEADER_FILES messages/*.h)
-FILE(GLOB SOURCE_LIB *.cpp)
+FILE(GLOB SOURCE_LIB impl/*.cpp)
 
-SOURCE_GROUP(private ${PRIVATE_HEADER_FILES})
+SOURCE_GROUP(private FILES ${PRIVATE_HEADER_FILES})
+SOURCE_GROUP(messages FILES ${MESSAGES_HEADER_FILES})
+SOURCE_GROUP(include FILES ${HEADER_FILES})
+SOURCE_GROUP(impl FILES ${SOURCE_LIB})
 
-ADD_MSVC_PRECOMPILED_HEADER("stdafx.h" "stdafx.cpp" SOURCE_LIB)
+ADD_MSVC_PRECOMPILED_HEADER("stdafx.h" "impl/stdafx.cpp" SOURCE_LIB)
 
 add_library(vds_dht_network
 		STATIC
@@ -28,8 +31,9 @@ target_include_directories(vds_dht_network
 		 ${vds_user_manager_INCLUDE_DIRS}
 		 ${vds_chunk_manager_INCLUDE_DIRS}
 		 ${OPENSSL_INCLUDE_DIR}
+                 ${CMAKE_CURRENT_SOURCE_DIR}/private
 	PUBLIC
-		${CMAKE_CURRENT_SOURCE_DIR})
+		${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 target_link_libraries(
 		vds_dht_network

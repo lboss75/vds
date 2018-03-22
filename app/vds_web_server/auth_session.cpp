@@ -2,6 +2,7 @@
 #include "stdafx.h"
 #include "private/auth_session.h"
 #include "dht_object_id.h"
+#include "dht_network_client.h"
 
 vds::auth_session::auth_session(const std::string &login, const std::string &password)
 : login_(login),

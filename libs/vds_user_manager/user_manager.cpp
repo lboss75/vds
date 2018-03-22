@@ -27,6 +27,7 @@ All rights reserved
 #include "db_model.h"
 #include "certificate_chain_dbo.h"
 #include "dht_object_id.h"
+#include "channel_local_cache_dbo.h"
 
 vds::user_manager::user_manager()
 {
@@ -53,6 +54,19 @@ void vds::user_manager::load(
 	if (nullptr != this->impl_.get()) {
 		throw std::runtime_error("Logic error");
 	}
+
+  orm::channel_local_cache_dbo t1;
+  auto st = t.get_reader(t1.select(t1.last_sync).where(t1.channel_id == base64::from_bytes(dht_user_id)));
+  if(!st.execute()) {
+    t.execute(t1.insert(
+      t1.channel_id = base64::from_bytes(dht_user_id),
+      t1.last_sync = std::chrono::system_clock::now()));
+  }
+  else {
+    t.execute(t1.update(t1.last_sync = std::chrono::system_clock::now()).where(
+      t1.channel_id == base64::from_bytes(dht_user_id)));
+  }
+
 
 	this->impl_.reset(new _user_manager(
 		dht_user_id,
