@@ -140,6 +140,15 @@ void vds::dht::network::udp_transport::continue_read(
               partner_node_id));
         }
         break;
+      case protocol_message_type_t::Failed: {
+        auto session = pthis->get_session(datagram.address());
+        if (session) {
+          std::shared_lock<std::shared_mutex> lock(pthis->sessions_mutex_);
+          pthis->sessions_.erase(datagram.address());
+        }
+
+        break;
+      }
       default: {
         auto session = pthis->get_session(datagram.address());
         if (session) {
@@ -158,6 +167,20 @@ void vds::dht::network::udp_transport::continue_read(
             std::shared_lock<std::shared_mutex> lock(pthis->sessions_mutex_);
             pthis->sessions_.erase(datagram.address());
           }
+        }
+        else {
+          resizable_data_buffer out_message;
+          out_message.add((uint8_t)protocol_message_type_t::Failed);
+
+          pthis->write_async(udp_datagram(datagram.address(), out_message.data(), out_message.size()))
+            .execute([pthis, sp, address = datagram.address().to_string()](const std::shared_ptr<std::exception> & ex) {
+            if (ex) {
+              sp.get<logger>()->trace(ThisModule, sp, "%s at send welcome to %s", ex->what(), address.c_str());
+            }
+            pthis->continue_read(sp);
+          });
+
+          return;
         }
         break;
       }

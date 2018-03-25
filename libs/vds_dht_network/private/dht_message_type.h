@@ -16,6 +16,8 @@ namespace vds {
 
         ContinueData = 3,
         Acknowledgment = 4,
+        
+        Failed = 5,
 
         SpecialCommand = 0b11000000,
 
