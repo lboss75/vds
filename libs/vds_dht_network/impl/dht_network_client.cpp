@@ -45,6 +45,11 @@ void vds::dht::network::_client::save(
   }
 }
 
+void vds::dht::network::_client::apply_message(const service_provider& sp, database_transaction& t,
+  const messages::channel_log_state& message) {
+  this->sync_process_.apply_message(sp, t, message);
+}
+
 void vds::dht::network::_client::apply_message(const service_provider& sp, const messages::dht_find_node& message) {
   std::map<const_data_buffer /*distance*/, std::list<dht_route<std::shared_ptr<dht_session>>::node>> result_nodes;
   this->route_.search_nodes(sp, message.target_id(), 70, result_nodes);
