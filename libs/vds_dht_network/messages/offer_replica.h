@@ -14,12 +14,12 @@ namespace vds {
     namespace messages {
       class offer_replica {
       public:
-        static const uint8_t message_id = (uint8_t)network::message_type_t::offer_replica;
+        static const network::message_type_t message_id = network::message_type_t::offer_replica;
 
         offer_replica(const const_data_buffer &object_id, uint16_t replica, const const_data_buffer &replica_data,
                               const const_data_buffer &adviser, const const_data_buffer &source_node)
-            : object_id_(object_id_), replica_(replica_), replica_data_(replica_data_), adviser_(adviser_),
-              source_node_(source_node_) {
+            : object_id_(object_id), replica_(replica), replica_data_(replica_data), adviser_(adviser),
+              source_node_(source_node) {
         }
 
         offer_replica(

@@ -14,7 +14,7 @@ namespace vds {
     namespace messages {
       class offer_move_replica {
       public:
-        static const uint8_t message_id = (uint8_t)network::message_type_t::offer_move_replica;
+        static const network::message_type_t message_id = network::message_type_t::offer_move_replica;
 
         offer_move_replica(
           const const_data_buffer & object_id,

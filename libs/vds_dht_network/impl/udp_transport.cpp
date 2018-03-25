@@ -24,6 +24,33 @@ void vds::dht::network::udp_transport::start(const vds::service_provider &sp, ui
   this->continue_read(sp);
 }
 
+void vds::dht::network::udp_transport::stop(const service_provider& sp) {
+  this->server_.stop(sp);
+}
+
+vds::async_task<> vds::dht::network::udp_transport::write_async(const udp_datagram& datagram) {
+  std::unique_lock<std::mutex> lock(this->write_mutex_);
+  while(this->write_in_progress_) {
+    this->write_cond_.wait(lock);
+  }
+  this->write_in_progress_ = true;
+
+  return [pthis = this->shared_from_this(), datagram](const async_result<> & result) {
+    return pthis->server_.socket().write_async(datagram).execute([pthis, result](const std::shared_ptr<std::exception> & ex) {
+      std::unique_lock<std::mutex> lock(pthis->write_mutex_);
+      pthis->write_in_progress_ = false;
+      pthis->write_cond_.notify_all();
+
+      if(ex) {
+        result.error(ex);
+      }
+      else {
+        result.done();
+      }
+    });
+  };
+}
+
 void vds::dht::network::udp_transport::add_session(const network_address& address,
   const std::shared_ptr<dht_session>& session) {
   std::unique_lock<std::shared_mutex> lock(this->sessions_mutex_);
@@ -89,7 +116,7 @@ void vds::dht::network::udp_transport::continue_read(
       else {
         auto session = pthis->get_session(datagram.address());
         if(session){
-          session->process_datagram(sp, pthis->server_.socket(), const_data_buffer(datagram.data(), datagram.data_size()))
+          session->process_datagram(sp, pthis, const_data_buffer(datagram.data(), datagram.data_size()))
               .execute([pthis, sp, address = datagram.address()](const std::shared_ptr<std::exception> & ex){
                 if(ex){
                   pthis->sessions_.erase(address);
@@ -105,6 +132,7 @@ void vds::dht::network::udp_transport::continue_read(
   });
 }
 
-vds::dht::network::udp_transport::udp_transport() {
+vds::dht::network::udp_transport::udp_transport()
+: write_in_progress_(false){
 }
 

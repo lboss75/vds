@@ -174,15 +174,6 @@ void vds::background_app::start_services(service_registrator & registrator, serv
     registrator.start(sp);
   }
   else {
-    if (&this->server_start_command_set_ == this->current_command_set_) {
-//      if (!this->port_.value().empty()) {
-//        this->server_.set_port(std::atoi(this->port_.value().c_str()));
-//      }
-//      else {
-//        this->server_.set_port(8050);
-//      }
-    }
-
     base_class::start_services(registrator, sp);
   }
 }

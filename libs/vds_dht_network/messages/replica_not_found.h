@@ -14,14 +14,15 @@ namespace vds {
     namespace messages {
       class replica_not_found {
       public:
-        static const uint8_t message_id = (uint8_t)network::message_type_t::replica_not_found;
+        static const network::message_type_t message_id = network::message_type_t::replica_not_found;
 
         replica_not_found(
             const const_data_buffer &object_id,
             uint16_t replica,
             const const_data_buffer &source_node)
-            : object_id_(object_id_), replica_(replica_),
-              source_node_(source_node_) {
+            : object_id_(object_id),
+              replica_(replica),
+              source_node_(source_node) {
         }
 
         replica_not_found(

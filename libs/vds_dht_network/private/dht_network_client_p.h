@@ -12,6 +12,7 @@ All rights reserved
 #include "chunk.h"
 #include "messages/offer_move_replica.h"
 #include "dht_sync_process.h"
+#include "udp_transport.h"
 
 namespace vds {
   class database_transaction;
@@ -27,7 +28,7 @@ namespace vds {
             const service_provider & sp,
             const const_data_buffer & node_id);
 
-        void start(const service_provider & sp);
+        void start(const service_provider & sp, uint16_t port);
         void stop(const service_provider & sp);
 
         void save(
@@ -55,7 +56,16 @@ namespace vds {
           this->sync_process_.apply_message(sp, t, message);
         }
 
+        template <typename message_type>
+        void send(
+          const service_provider & sp,
+          const const_data_buffer & node_id,
+          const message_type & message) {
+          this->send(sp, node_id, message_type::message_id, message.serialize());
+        }
+
       private:
+        std::shared_ptr<udp_transport> udp_transport_;
         dht_route<std::shared_ptr<dht_session>> route_;
         std::map<uint16_t, chunk_generator<uint16_t>> generators_;
         sync_process sync_process_;
@@ -63,9 +73,16 @@ namespace vds {
         timer update_timer_;
         bool in_update_timer_;
 
+        void update_route_table(const service_provider& sp);
         void process_update(
             const service_provider & sp,
             database_transaction & t);
+
+        void send(
+          const service_provider& sp,
+          const const_data_buffer& node_id,
+          const message_type_t message_id,
+          const const_data_buffer& message);
       };
     }
   }

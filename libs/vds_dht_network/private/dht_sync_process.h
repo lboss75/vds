@@ -5,6 +5,9 @@
 #include "service_provider.h"
 #include "database.h"
 #include "messages/offer_move_replica.h"
+#include "messages/replica_not_found.h"
+#include "messages/offer_replica.h"
+#include "messages/channel_log_state.h"
 
 /*
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
@@ -16,9 +19,16 @@ namespace vds {
     namespace network {
       class sync_process {
       public:
+        void query_unknown_records(const service_provider& sp, database_transaction& t);
+
         void do_sync(
           const service_provider & sp,
           database_transaction & t);
+
+        void apply_message(
+          const service_provider & sp,
+          database_transaction & t,
+          const messages::channel_log_state & message);
 
         void apply_message(
             const service_provider & sp,

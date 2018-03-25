@@ -7,7 +7,7 @@ namespace vds {
   namespace p2p_messages {
     class dht_pong {
     public:
-      static const uint8_t message_id = (uint8_t) p2p_message_id::dht_pong;
+      static const network::message_type_t message_id = p2p_message_id::dht_pong;
 
       dht_pong(const guid & source_node)
       : source_node_(source_node){

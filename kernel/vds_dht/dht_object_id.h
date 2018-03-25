@@ -67,14 +67,14 @@ namespace vds {
       }
 
 
-      static const_data_buffer generate_random_id(const const_data_buffer &original, uint8_t exp_index) {
+      static const_data_buffer generate_random_id(const const_data_buffer &original, size_t exp_index) {
         resizable_data_buffer result;
         result += original;
 
         result.data()[exp_index / 8] ^= (0x80 >> (exp_index % 8));
         result.data()[exp_index / 8] ^= ((0x80 >> (exp_index % 8)) - 1) & (uint8_t) std::rand();
 
-        for (uint8_t i = exp_index / 8 + 1; i < original.size(); ++i) {
+        for (size_t i = exp_index / 8 + 1; i < original.size(); ++i) {
           result.data()[i] = (uint8_t) std::rand();
         }
 

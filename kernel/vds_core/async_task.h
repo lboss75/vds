@@ -12,6 +12,7 @@ All rights reserved
 
 #include "func_utils.h"
 #include "result_or_error.h"
+#include "barrier.h"
 
 namespace vds {
 	template <typename... result_types>
@@ -236,7 +237,25 @@ namespace vds {
 		  && !_async_task_functor_helper<decltype(&functor_type::operator())>::task_as_result
 		  && !_async_task_functor_helper<decltype(&functor_type::operator())>::is_void_result>::type * = nullptr);
 
-		static async_task<result_types...> result(result_types && ... values);
+    void wait(result_types & ... values) {
+      barrier b;
+      std::shared_ptr<std::exception> error;
+      this->execute([&](const std::shared_ptr<std::exception> & ex, result_types ... args) {
+        if(ex) {
+          error = ex;
+        }
+        else {
+          _set_values<result_types...>(values...).from(args...);
+        }
+        b.set();
+      });
+      b.wait();
+      if(error) {
+        throw std::runtime_error(error->what());
+      }
+    }
+
+    static async_task<result_types...> result(result_types && ... values);
 		static async_task<result_types...> empty();
   private:
     async_task() = delete;

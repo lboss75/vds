@@ -12,9 +12,9 @@ void vds::dht::network::service::register_services(service_registrator& registra
   registrator.add_service<client>(&this->client_);
 }
 
-void vds::dht::network::service::start(const service_provider& sp, uint16_t port) {
-  barrier b;
-  std::shared_ptr<std::exception> error;
+void vds::dht::network::service::start(const service_provider& parent_scope, uint16_t port) {
+  auto sp = parent_scope.create_scope(__FUNCTION__);
+  mt_service::enable_async(sp);
   sp.get<db_model>()->async_transaction(sp, [sp, port, this](database_transaction & t){
 
     certificate node_cert;
@@ -37,29 +37,15 @@ void vds::dht::network::service::start(const service_provider& sp, uint16_t port
           t1.cert = node_cert.der(),
           t1.cert_key = private_key.der(std::string())));
     }
-    this->udp_transport_ = std::make_shared<udp_transport>();
-    this->udp_transport_->start(sp, port, node_cert.fingerprint(hash::sha256()));
 
-    this->client_.start(sp, node_cert.fingerprint(hash::sha256()));
+    this->client_.start(sp, node_cert.fingerprint(hash::sha256()), port);
 
     return true;
-  }).execute([&b, &error](const std::shared_ptr<std::exception> & ex){
-    if(ex){
-      error = ex;
-    }
-    b.set();
-  });
-
-  b.wait();
-  if(error){
-    throw std::runtime_error(error->what());
-  }
-
+  }).wait();
 }
 
 void vds::dht::network::service::stop(const service_provider& sp) {
   this->client_.stop(sp);
-  this->udp_transport_->stop(sp);
 }
 
 vds::async_task<> vds::dht::network::service::prepare_to_stop(const service_provider& sp) {

@@ -44,8 +44,6 @@ namespace vds {
     friend class iserver;
 
     server * owner_;
-    certificate certificate_;
-    asymmetric_private_key private_key_;
 
     std::unique_ptr<user_manager> user_manager_;
 	  std::unique_ptr<class db_model> db_model_;

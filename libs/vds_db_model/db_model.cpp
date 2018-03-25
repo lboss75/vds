@@ -86,6 +86,10 @@ void vds::db_model::migrate(
 			state INTEGER NOT NULL,\
 			order_no INTEGER NOT NULL)");
 
+    t.execute("CREATE TABLE channel_local_cache(\
+      channel_id VARCHAR(64) PRIMARY KEY NOT NULL,\
+      last_sync INTEGER NOT NULL)");
+
 		t.execute("CREATE TABLE transaction_log_unknown_record(\
 			id VARCHAR(64) NOT NULL,\
       channel_id VARCHAR(64) NOT NULL,\

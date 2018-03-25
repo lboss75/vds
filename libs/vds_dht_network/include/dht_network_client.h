@@ -14,42 +14,25 @@ namespace vds {
 
   namespace dht {
     namespace network {
+      enum class message_type_t;
       class _client;
 
       class client {
       public:
-
-        const const_data_buffer &current_node_id() const;
-
-        void start(const service_provider & sp, const const_data_buffer &this_node_id);
+        void start(const service_provider & sp, const const_data_buffer &this_node_id, uint16_t port);
         void stop(const service_provider & sp);
 
-        template <typename message_type>
-        void send(
-            const service_provider & sp,
-            const const_data_buffer & node_id,
-            const message_type & message){
-          this->send(sp, node_id, message_type::message_id, message.serialize());
-        }
-
         void save(
-            const service_provider & sp,
-            database_transaction & t,
-            const const_data_buffer & value);
+          const service_provider & sp,
+          database_transaction & t,
+          const const_data_buffer & value);
 
         _client *operator ->() const {
           return this->impl_.get();
         }
       private:
         std::shared_ptr<_client> impl_;
-
-        void send(
-            const service_provider & sp,
-            const const_data_buffer & node_id,
-            const uint8_t message_id,
-            const const_data_buffer & message);
-
-        };
+      };
     }
   }
 }

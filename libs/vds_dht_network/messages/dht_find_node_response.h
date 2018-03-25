@@ -7,7 +7,7 @@ namespace vds {
   namespace p2p_messages {
     class dht_find_node_response {
     public:
-      static const uint8_t message_id = (uint8_t) p2p_message_id::dht_find_node_response;
+      static const network::message_type_t message_id = p2p_message_id::dht_find_node_response;
 
       struct target_node {
         guid target_id_;

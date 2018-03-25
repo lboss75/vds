@@ -7,18 +7,18 @@ All rights reserved
 */
 
 #include <map>
-#include "udp_socket.h"
 #include "async_task.h"
 #include "const_data_buffer.h"
 #include "udp_datagram_size_exception.h"
 #include "vds_debug.h"
 #include "dht_message_type.h"
+#include "network_address.h"
 
 namespace vds {
   namespace dht {
     namespace network {
 
-      template <typename implementation_class>
+      template <typename implementation_class, typename transport_type>
       class dht_datagram_protocol : public std::enable_shared_from_this<implementation_class> {
       public:
         dht_datagram_protocol(
@@ -36,7 +36,7 @@ namespace vds {
 
         async_task<> send_message(
             const service_provider &sp,
-            const udp_socket & s,
+            const std::shared_ptr<transport_type> & s,
             uint8_t message_type,
             const const_data_buffer & message) {
           vds_assert(message.size() < 0xFFFF);
@@ -54,7 +54,7 @@ namespace vds {
               buffer += message;
 
               const_data_buffer datagram(buffer.data(), buffer.size());
-              s.write_async(udp_datagram(pthis->address_, datagram))
+              s->write_async(udp_datagram(pthis->address_, datagram))
                   .execute([pthis, sp, s, message_type, message, result, datagram](
                       const std::shared_ptr<std::exception> &ex) {
                     if (ex) {
@@ -91,7 +91,7 @@ namespace vds {
               auto offset = pthis->mtu_ - 7;
 
               const_data_buffer datagram(buffer.data(), buffer.size());
-              s.write_async(udp_datagram(pthis->address_, datagram))
+              s->write_async(udp_datagram(pthis->address_, datagram))
                   .execute([pthis, sp, s, message_type, message, offset, result, datagram](
                       const std::shared_ptr<std::exception> &ex) {
                     if (ex) {
@@ -126,7 +126,7 @@ namespace vds {
 
         async_task<> process_datagram(
             const service_provider & sp,
-            const udp_socket & s,
+            const std::shared_ptr<transport_type> & s,
             const const_data_buffer & datagram){
           if(datagram.size() == 0){
             return async_task<>(std::make_shared<std::runtime_error>("Invalid data"));
@@ -204,7 +204,7 @@ namespace vds {
 
         void continue_send_message(
             const service_provider &sp,
-            const udp_socket & s,
+            const std::shared_ptr<transport_type> & s,
             const const_data_buffer & message,
             size_t offset,
             const async_result<> &result){
@@ -223,7 +223,7 @@ namespace vds {
           buffer.add(message.data() + offset, size);
 
           const_data_buffer datagram(buffer.data(), buffer.size());
-          s.write_async(udp_datagram(this->address_, datagram))
+          s->write_async(udp_datagram(this->address_, datagram))
               .execute(
                   [pthis = this->shared_from_this(), sp, s, message, offset, size, result, datagram](
                   const std::shared_ptr<std::exception> &ex) {
@@ -231,15 +231,14 @@ namespace vds {
                   auto datagram_error = std::dynamic_pointer_cast<udp_datagram_size_exception>(ex);
                   if (datagram_error) {
                     pthis->mtu_ /= 2;
-                    pthis->continue_message(sp, s, message, offset, result);
+                    pthis->continue_send_message(sp, s, message, offset, result);
                   } else {
                     result.error(ex);
                   }
                 } else {
                   pthis->output_messages_[pthis->output_sequence_number_] = datagram;
-                  pthis->output_sequence_number_++;
-                  offset += size;
-                  if(offset < message.size()) {
+                  ++(pthis->output_sequence_number_);
+                 if(offset + size < message.size()) {
                     pthis->continue_send_message(
                         sp,
                         s,
@@ -256,7 +255,7 @@ namespace vds {
 
         async_task<> continue_process_messages(
             const service_provider &sp,
-            const udp_socket & s) {
+            const std::shared_ptr<transport_type> & s) {
           auto p = this->input_messages_.find(this->next_process_index_);
           if (this->input_messages_.end() == p) {
             return async_task<>::empty();
@@ -332,7 +331,7 @@ namespace vds {
 
         async_task<> repeat_message(
             const service_provider & sp,
-            const udp_socket & s,
+            const std::shared_ptr<transport_type> & s,
             size_t mask,
             size_t index){
 
@@ -344,7 +343,7 @@ namespace vds {
                 mask >>= 1;
                 ++index;
 
-                return s.write_async(udp_datagram(this->address_, p->second))
+                return s->write_async(udp_datagram(this->address_, p->second))
                     .then([pthis = this->shared_from_this(), sp, s, mask, index](){
                       return pthis->repeat_message(sp, s, mask, index);
                     });

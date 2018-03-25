@@ -13,7 +13,7 @@ namespace vds {
   namespace p2p_messages {
     class channel_log_record {
     public:
-      static const uint8_t message_id = (uint8_t)p2p_message_id::channel_log_record;
+      static const network::message_type_t message_id = (uint8_t)p2p_message_id::channel_log_record;
 
       channel_log_record(
           const guid & channel_id,

@@ -22,7 +22,6 @@ namespace vds {
 	      async_task<> prepare_to_stop(const service_provider &sp);
 
       private:
-        std::shared_ptr<udp_transport> udp_transport_;
 				client client_;
       };
     }

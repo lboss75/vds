@@ -6,7 +6,7 @@ All rights reserved
 #define __TEST_VDS_SCENARIOS_VDS_MOCK_H_
 
 #include "network_service.h"
-#include "p2p_network_service.h"
+#include "dht_network.h"
 #include "leak_detect.h"
 #include "device_activation.h"
 

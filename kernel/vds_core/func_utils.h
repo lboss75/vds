@@ -115,7 +115,52 @@ namespace vds {
   public:
     typedef result_type type(first_parameter_type, argument_types...);
   };
-  
+  ///////////////////////////////////////
+  template<typename... argument_types>
+  class _set_values;
+
+  template<>
+  class _set_values<> {
+  public:
+    _set_values() {
+    }
+
+    void from() {
+    }
+  };
+
+  template<typename first_parameter_type>
+  class _set_values<first_parameter_type> {
+  public:
+    _set_values(first_parameter_type & value)
+      :value_(value) {
+    }
+
+    void from(first_parameter_type && value) {
+      this->value_ = value;
+    }
+
+  private:
+    first_parameter_type & value_;
+  };
+
+  template<typename first_parameter_type, typename... argument_types>
+  class _set_values<first_parameter_type, argument_types...> : protected _set_values<argument_types...> {
+  public:
+    _set_values(first_parameter_type & value, argument_types &... values)
+      :_set_values<argument_types...>(values...),
+      value_(value) {
+      }
+
+    void from(first_parameter_type && value, argument_types &&... values) {
+      _set_values<argument_types...>::from(std::forward<argument_types...>(values...));
+      this->value_ = value;
+    }
+
+  private:
+    first_parameter_type & value_;
+  };
+
   ///////////////////////////////////////
   /*
   template <typename lambda_type, typename lambda_signature>

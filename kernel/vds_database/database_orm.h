@@ -1749,6 +1749,14 @@ namespace vds {
   }
 
   template <typename value_type, typename db_value_type>
+  _database_expression_greater_exp<_database_column_exp, _database_value_exp<value_type>> database_column<value_type,
+  db_value_type>::operator > (value_type value) const {
+    return _database_expression_greater_exp<_database_column_exp, _database_value_exp<value_type>>(
+      _database_column_exp(this),
+      _database_value_exp<value_type>(value));
+  }
+
+  template <typename value_type, typename db_value_type>
   _database_column_setter database_column<value_type, db_value_type>::operator = (const value_type & value) const {
     return _database_column_setter(this, [val = (db_value_type)value](sql_statement & st, int index) {
       st.set_parameter(index, val);

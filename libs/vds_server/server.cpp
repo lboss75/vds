@@ -91,6 +91,7 @@ vds::async_task<> vds::server::prepare_to_stop(const vds::service_provider &sp) 
 vds::async_task<vds::server_statistic> vds::server::get_statistic(const vds::service_provider &sp) const {
   return this->impl_->get_statistic(sp);
 }
+
 /////////////////////////////////////////////////////////////////////////////////////////////
 
 vds::_server::_server(server * owner)
@@ -107,7 +108,7 @@ vds::_server::~_server()
 
 void vds::_server::start(const service_provider& sp)
 {
-	this->db_model_->start(sp);
+  this->db_model_->start(sp);
 }
 
 void vds::_server::stop(const service_provider& sp)
@@ -138,3 +139,4 @@ vds::async_task<vds::server_statistic> vds::_server::get_statistic(const vds::se
   });
 
 }
+

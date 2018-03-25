@@ -14,7 +14,7 @@ namespace vds {
     namespace messages {
       class channel_log_state {
       public:
-        static const uint8_t message_id = (uint8_t)network::message_type_t::channel_log_state;
+        static const network::message_type_t message_id = network::message_type_t::channel_log_state;
 
         channel_log_state(
           const const_data_buffer & channel_id,
