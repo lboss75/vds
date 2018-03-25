@@ -34,6 +34,10 @@ namespace vds {
           return target_id_;
         }
 
+        const const_data_buffer & source_node() const {
+          return source_node_;
+        }
+
       private:
         const_data_buffer target_id_;
         const_data_buffer source_node_;

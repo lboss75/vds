@@ -64,13 +64,14 @@ void vds::dht::network::udp_transport::on_timer(const service_provider& sp) {
 
 void vds::dht::network::udp_transport::add_session(
   const vds::service_provider& sp,
-  const network_address& address, const std::shared_ptr<dht_session>& session) {
+  const network_address& address,
+  const std::shared_ptr<dht_session>& session) {
 
   std::unique_lock<std::shared_mutex> lock(this->sessions_mutex_);
   this->sessions_[address] = session;
   lock.unlock();
 
-  (*sp.get<client>())->add_session(sp, session);
+  (*sp.get<client>())->add_session(sp, session, 0);
 }
 
 std::shared_ptr<vds::dht::network::dht_session> vds::dht::network::udp_transport::get_session(

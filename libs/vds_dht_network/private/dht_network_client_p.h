@@ -15,6 +15,12 @@ All rights reserved
 #include "udp_transport.h"
 
 namespace vds {
+  namespace dht {
+    namespace messages {
+      class dht_find_node;
+    }
+  }
+
   class database_transaction;
 
   namespace dht {
@@ -50,6 +56,10 @@ namespace vds {
         }
 
         void apply_message(
+          const service_provider & sp,
+          const messages::dht_find_node & message);
+
+        void apply_message(
             const service_provider & sp,
             database_transaction & t,
             const messages::offer_move_replica & message) {
@@ -64,7 +74,7 @@ namespace vds {
           this->send(sp, node_id, message_type::message_id, message.serialize());
         }
 
-        void add_session(const service_provider& sp, const std::shared_ptr<dht_session>& session);
+        void add_session(const service_provider& sp, const std::shared_ptr<dht_session>& session, uint8_t hops);
 
       private:
         std::shared_ptr<udp_transport> udp_transport_;

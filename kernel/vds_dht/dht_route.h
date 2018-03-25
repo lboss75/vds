@@ -22,6 +22,7 @@ namespace vds {
         const_data_buffer node_id_;
         session_type proxy_session_;
         uint8_t pinged_;
+        uint8_t hops_;
 
         node()
             : pinged_(0) {
@@ -29,9 +30,11 @@ namespace vds {
 
         node(
             const const_data_buffer &id,
-            const session_type &proxy_session)
+            const session_type &proxy_session,
+            uint8_t hops)
             : node_id_(id),
               proxy_session_(proxy_session),
+              hops_(hops),
               pinged_(0) {
         }
 
@@ -41,9 +44,11 @@ namespace vds {
 
         void reset(
             const const_data_buffer &id,
-            const session_type &proxy_session) {
+            const session_type &proxy_session,
+            uint8_t hops) {
           this->node_id_ = id;
           this->proxy_session_ = proxy_session;
+          this->hops_ = hops;
           this->pinged_ = 0;
         }
       };
@@ -60,7 +65,8 @@ namespace vds {
       void add_node(
           const vds::service_provider &sp,
           const const_data_buffer &id,
-          const session_type &proxy_session) {
+          const session_type &proxy_session,
+          uint8_t hops) {
 
         const auto index = dht_object_id::distance_exp(this->current_node_id_, id);
         bucket *b;
@@ -82,7 +88,7 @@ namespace vds {
           lock.unlock();
         }
 
-        b->add_node(sp, id, proxy_session);
+        b->add_node(sp, id, proxy_session, hops);
       }
 
       void on_timer(
@@ -135,17 +141,8 @@ namespace vds {
 
         for (auto &presult : result_nodes) {
           for (auto & node : presult.second) {
-            auto index = dht_object_id::distance_exp(this->current_node_id_, node.node_id_);
-            auto p = this->buckets_.find(index);
-            if (this->buckets_.end() != p) {
-              std::shared_lock<std::shared_mutex> block(p->second.nodes_mutex_);
-              for (auto &pnode : p->second.nodes_) {
-                if (pnode.node_id_ == node.node_id_) {
-                  if(!callback(node.node_id_, pnode.proxy_session_)) {
-                    return;
-                  }
-                }
-              }
+            if (!callback(node.node_id_, node.proxy_session_)) {
+              return;
             }
           }
         }
@@ -163,7 +160,8 @@ namespace vds {
         void add_node(
             const service_provider &sp,
             const const_data_buffer &id,
-            const session_type &proxy_session) {
+            const session_type &proxy_session,
+            uint8_t hops) {
 
           std::unique_lock<std::shared_mutex> ulock(this->nodes_mutex_);
           for (const auto &p : this->nodes_) {
@@ -173,13 +171,13 @@ namespace vds {
           }
 
           if (MAX_NODES > this->nodes_.size()) {
-            this->nodes_.push_back(node(id, proxy_session));
+            this->nodes_.push_back(node(id, proxy_session, hops));
             return;
           }
 
           for (auto &p : this->nodes_) {
             if (!p.is_good()) {
-              p.reset(id, proxy_session);
+              p.reset(id, proxy_session, hops);
               return;
             }
           }

@@ -33,6 +33,7 @@ namespace vds {
         offer_replica,
         channel_log_request,
         dht_find_node,
+        dht_find_node_response,
       };
 
     }

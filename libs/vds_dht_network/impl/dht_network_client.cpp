@@ -8,6 +8,7 @@ All rights reserved
 #include "private/dht_network_client_p.h"
 #include "chunk_replica_data_dbo.h"
 #include "messages/dht_find_node.h"
+#include "messages/dht_find_node_response.h"
 
 vds::dht::network::_client::_client(
     const service_provider & sp,
@@ -44,8 +45,24 @@ void vds::dht::network::_client::save(
   }
 }
 
-void vds::dht::network::_client::add_session(const service_provider& sp, const std::shared_ptr<dht_session>& session) {
-  this->route_.add_node(sp, session->partner_node_id(), session);
+void vds::dht::network::_client::apply_message(const service_provider& sp, const messages::dht_find_node& message) {
+  std::map<const_data_buffer /*distance*/, std::list<dht_route<std::shared_ptr<dht_session>>::node>> result_nodes;
+  this->route_.search_nodes(sp, message.target_id(), 70, result_nodes);
+
+  std::list<messages::dht_find_node_response::target_node> result;
+  for (auto &presult : result_nodes) {
+    for (auto & node : presult.second) {
+      result.push_back(
+        messages::dht_find_node_response::target_node(
+          node.node_id_, node.proxy_session_->address().to_string(), node.hops_));
+    }
+  }
+
+  this->send(sp, message.source_node(), messages::dht_find_node_response(result));
+}
+
+void vds::dht::network::_client::add_session(const service_provider& sp, const std::shared_ptr<dht_session>& session, uint8_t hops) {
+  this->route_.add_node(sp, session->partner_node_id(), session, hops);
 }
 
 void vds::dht::network::_client::send(const service_provider& sp, const const_data_buffer& target_node_id,

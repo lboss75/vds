@@ -8,6 +8,7 @@ All rights reserved
 #include "db_model.h"
 #include "include/dht_network_client.h"
 #include "private/dht_network_client_p.h"
+#include "messages/dht_find_node.h"
 
 vds::dht::network::dht_session::dht_session(
   const network_address& address,
@@ -35,6 +36,14 @@ vds::async_task<> vds::dht::network::dht_session::process_message(
       });
       break;
     }
+
+    case network::message_type_t::dht_find_node: {
+      binary_deserializer s(message_data);
+      messages::dht_find_node message(s);
+      (*sp.get<client>())->apply_message(sp, message);
+      break;
+    }
+
     default:{
       throw std::runtime_error("Invalid command");
     }
