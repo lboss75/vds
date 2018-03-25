@@ -143,14 +143,22 @@ void vds::dht::network::udp_transport::continue_read(
       default: {
         auto session = pthis->get_session(datagram.address());
         if (session) {
-          session->process_datagram(sp, pthis, const_data_buffer(datagram.data(), datagram.data_size()))
-            .execute([pthis, sp, address = datagram.address()](const std::shared_ptr<std::exception> & ex){
-            if (ex) {
-              pthis->sessions_.erase(address);
-            }
+          try {
+            session->process_datagram(sp, pthis, const_data_buffer(datagram.data(), datagram.data_size()))
+              .execute([pthis, sp, address = datagram.address()](const std::shared_ptr<std::exception> & ex){
+              if (ex) {
+                std::shared_lock<std::shared_mutex> lock(pthis->sessions_mutex_);
+                pthis->sessions_.erase(address);
+              }
+              pthis->continue_read(sp);
+            });
+            return;
+          }
+          catch(...) {
+            std::shared_lock<std::shared_mutex> lock(pthis->sessions_mutex_);
+            pthis->sessions_.erase(datagram.address());
             pthis->continue_read(sp);
-          });
-          return;
+          }
         }
         break;
       }
