@@ -96,6 +96,9 @@ void vds::dht::network::udp_transport::continue_read(
       case protocol_message_type_t::Handshake:
         if (datagram.data_size() == NODE_ID_SIZE + 2 && PROTOCOL_VERSION == datagram.data()[1]) {
           const_data_buffer partner_node_id(datagram.data() + 2, NODE_ID_SIZE);
+          if(partner_node_id == this->this_node_id_){
+            break;
+          }
 
           pthis->add_session(
             datagram.address(),
@@ -108,7 +111,7 @@ void vds::dht::network::udp_transport::continue_read(
           out_message.add((uint8_t)protocol_message_type_t::Welcome);
           out_message.add(pthis->this_node_id_.data(), pthis->this_node_id_.size());
 
-          pthis->server_.socket().write_async(udp_datagram(datagram.address(), out_message.data(), out_message.size()))
+          pthis->write_async(udp_datagram(datagram.address(), out_message.data(), out_message.size()))
             .execute([pthis, sp, address = datagram.address().to_string()](const std::shared_ptr<std::exception> & ex) {
             if (ex) {
               sp.get<logger>()->trace(ThisModule, sp, "%s at send welcome to %s", ex->what(), address.c_str());
