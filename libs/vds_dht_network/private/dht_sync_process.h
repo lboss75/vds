@@ -17,6 +17,8 @@ All rights reserved
 namespace vds {
   namespace dht {
     namespace network {
+      class dht_session;
+
       class sync_process {
       public:
         void query_unknown_records(const service_provider& sp, database_transaction& t);

@@ -63,9 +63,91 @@ void vds::dht::network::sync_process::do_sync(
 
 }
 
-void vds::dht::network::sync_process::apply_message(const service_provider& sp, database_transaction& t,
+void vds::dht::network::sync_process::apply_message(
+  const service_provider& sp,
+  database_transaction& t,
   const messages::channel_log_state& message) {
 
+  orm::transaction_log_record_dbo t1;
+  std::list<const_data_buffer> requests;
+  for (auto & p : message.leafs()) {
+    auto st = t.get_reader(
+      t1.select(t1.state)
+      .where(t1.id == base64::from_bytes(p)));
+    if (!st.execute()) {
+      //Not found
+      requests.push_back(p);
+    }
+  }
+
+  if (!requests.empty()) {
+    std::string log_message;
+    for (const auto & r : requests) {
+      log_message += base64::from_bytes(r);
+      log_message += ' ';
+    }
+
+    sp.get<logger>()->trace(
+      ThisModule,
+      sp,
+      "Query log records %s of channel %s",
+      log_message.c_str(),
+      base64::from_bytes(message.channel_id()).c_str());
+
+    auto & client = *sp.get<vds::dht::network::client>();
+    client->send(
+      sp,
+      message.source_node(),
+      messages::channel_log_request(
+        message.channel_id(),
+        requests,
+        client->current_node_id()));
+  }
+  else {
+    orm::transaction_log_record_dbo t2;
+    auto st = t.get_reader(
+      t2.select(t2.id)
+      .where(t2.channel_id == base64::from_bytes(message.channel_id())
+        && t2.state == (int)orm::transaction_log_record_dbo::state_t::leaf));
+
+    bool need_answer = false;
+    std::list<const_data_buffer> current_state;
+    while (st.execute()) {
+      auto id = base64::to_bytes(t2.id.get(st));
+      current_state.push_back(id);
+      if (!need_answer) {
+        for (auto & p : message.leafs()) {
+          if (id == p) {
+            need_answer = true;
+          }
+        }
+      }
+    }
+
+    if(need_answer) {
+      auto & client = *sp.get<vds::dht::network::client>();
+      client->send(
+        sp,
+        message.source_node(),
+        messages::channel_log_state(
+          message.channel_id(),
+          current_state,
+          client->current_node_id()));
+    }
+
+    std::string log_message;
+    for (const auto & r : message.leafs()) {
+      log_message += base64::from_bytes(r);
+      log_message += ' ';
+    }
+
+    sp.get<logger>()->trace(
+      ThisModule,
+      sp,
+      "log records %s of channel %s already exists",
+      log_message.c_str(),
+      base64::from_bytes(message.channel_id()).c_str());
+  }
 }
 
 void vds::dht::network::sync_process::sync_local_channels(const service_provider& sp, database_transaction& t) {

@@ -171,7 +171,7 @@ namespace vds {
             auto pthis = this->pthis_;
             this->pthis_.reset();
 
-            if (WSAESHUTDOWN == errorCode) {
+            if (WSAESHUTDOWN == errorCode || WSAECONNABORTED == errorCode) {
               this->target_.write(nullptr, 0);
             }
             else {
