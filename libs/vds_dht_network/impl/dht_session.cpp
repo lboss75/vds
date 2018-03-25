@@ -28,6 +28,15 @@ vds::async_task<> vds::dht::network::dht_session::process_message(
   const const_data_buffer& message_data) {
 
   switch((network::message_type_t)message_type){
+  case network::message_type_t::channel_log_state: {
+    return sp.get<db_model>()->async_transaction(sp, [sp, message_data](database_transaction & t) {
+      binary_deserializer s(message_data);
+      messages::channel_log_state message(s);
+      (*sp.get<client>())->apply_message(sp, t, message);
+      return true;
+    });
+    break;
+  }
     case network::message_type_t::offer_move_replica: {
       return sp.get<db_model>()->async_transaction(sp, [sp, message_data](database_transaction & t){
         binary_deserializer s(message_data);

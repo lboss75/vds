@@ -58,6 +58,11 @@ namespace vds {
 
         void apply_message(
           const service_provider & sp,
+          database_transaction & t,
+          const messages::channel_log_state & message);
+
+        void apply_message(
+          const service_provider & sp,
           const messages::dht_find_node & message);
 
         void apply_message(
