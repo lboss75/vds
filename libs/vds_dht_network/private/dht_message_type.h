@@ -10,11 +10,12 @@ namespace vds {
   namespace dht {
     namespace network {
       enum class protocol_message_type_t{
-        Handshake = 0,
-        Welcome = 1,
+        HandshakeBroadcast = 0,
+        Handshake = 1,
+        Welcome = 2,
 
-        ContinueData = 2,
-        Acknowledgment = 3,
+        ContinueData = 3,
+        Acknowledgment = 4,
 
         SpecialCommand = 0b11000000,
 
