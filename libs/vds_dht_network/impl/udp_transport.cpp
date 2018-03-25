@@ -38,7 +38,7 @@ vds::async_task<> vds::dht::network::udp_transport::write_async(const udp_datagr
   this->write_in_progress_ = true;
 
   return [pthis = this->shared_from_this(), datagram](const async_result<> & result) {
-    return pthis->server_.socket().write_async(datagram).execute([pthis, result](const std::shared_ptr<std::exception> & ex) {
+    pthis->server_.socket().write_async(datagram).execute([pthis, result](const std::shared_ptr<std::exception> & ex) {
       std::unique_lock<std::mutex> lock(pthis->write_mutex_);
       pthis->write_in_progress_ = false;
       pthis->write_cond_.notify_all();
@@ -71,7 +71,8 @@ void vds::dht::network::udp_transport::try_handshake(const service_provider& sp,
   this->write_async(
     udp_datagram(
       network_address::parse(address),
-      const_data_buffer(out_message.data(), out_message.size())));
+      const_data_buffer(out_message.data(), out_message.size()))).execute([](const std::shared_ptr<std::exception> & ex){
+  });
 }
 
 void vds::dht::network::udp_transport::add_session(

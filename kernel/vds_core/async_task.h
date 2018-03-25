@@ -496,7 +496,7 @@ namespace vds {
   template<typename ...result_types>
   inline async_task<result_types...>::~async_task()
   {
-#ifdef DEBUG
+#if defined(DEBUG) || defined(_DEBUG)
 #ifdef _WIN32
 #pragma warning(disable: 4297)
 #endif
