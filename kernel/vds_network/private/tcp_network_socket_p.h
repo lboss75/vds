@@ -342,59 +342,39 @@ namespace vds {
 
 
       async_task<> write_async(const uint8_t * data, size_t size) {
-        std::lock_guard<std::mutex> lock(this->write_mutex_);
-        switch (this->write_status_){
-          case write_status_t::bof:
-            this->write_buffer_ = data;
-            this->write_buffer_size_ = size;
-            return [pthis = this->shared_from_this()](const async_result<> & result){
-              auto this_ = static_cast<_socket_handler *>(pthis.get());
-              this_->write_result_ = result;
-              this_->write_status_ = write_status_t::waiting_socket;
-              this_->change_mask(EPOLLOUT);
-            };
 
-          case write_status_t::eof:
-          case write_status_t::waiting_socket:
-          default:
-            throw  std::runtime_error("Invalid operator");
-        }
+        return [pthis = this->shared_from_this(), data, size](const async_result<> & result) {
+          auto this_ = static_cast<_socket_handler *>(pthis.get());
 
-      }
+          std::unique_lock<std::mutex> lock(this_->write_mutex_);
 
-      void write_data() {
-        std::unique_lock<std::mutex> lock(this->write_mutex_);
+          int len = write(
+              this_->s_,
+              data,
+              size);
 
-        if(write_status_t::waiting_socket != this->write_status_) {
-          throw std::runtime_error("Invalid operation");
-        }
+          if (len < 0) {
+            int error = errno;
+            this_->write_status_ = write_status_t::bof;
+            lock.unlock();
 
-        int len = write(
-            this->s_,
-            this->write_buffer_,
-            this->write_buffer_size_);
+            result.error(
+                std::make_shared<std::system_error>(
+                    error,
+                    std::generic_category(),
+                    "Send"));
+          } else {
+            this_->write_status_ = write_status_t::bof;
+            this_->sp_.get<logger>()->trace("TCP", this_->sp_, "Sent %d bytes", len);
 
-        if (len < 0) {
-          int error = errno;
-          this->write_status_ = write_status_t::bof;
-          lock.unlock();
+            if ((size_t) len != size) {
+              throw std::runtime_error("Invalid send TCP");
+            }
+            lock.unlock();
 
-          this->write_result_.error(
-              std::make_shared<std::system_error>(
-                  error,
-                  std::generic_category(),
-                  "Send"));
-        } else {
-          this->write_status_ = write_status_t::bof;
-          this->sp_.get<logger>()->trace("TCP", this->sp_, "Sent %d bytes", len);
-
-          if ((size_t) len != this->write_buffer_size_) {
-            throw std::runtime_error("Invalid send TCP");
+            result.done();
           }
-          lock.unlock();
-
-          this->write_result_.done();
-        }
+        };
       }
 
       void read_data() {
@@ -426,7 +406,7 @@ namespace vds {
 
       const uint8_t * write_buffer_;
       size_t write_buffer_size_;
-      async_result<> write_result_;
+      //async_result<> write_result_;
 
       stream<uint8_t> target_;
       uint8_t read_buffer_[1024];

@@ -87,14 +87,14 @@ namespace vds {
 
     void process(uint32_t events) override
     {
-      if(EPOLLOUT == (EPOLLOUT & events)){
-        if(0 == (this->event_masks_ & EPOLLOUT)) {
-          throw std::runtime_error("Invalid state");
-        }
-        this->change_mask(0, EPOLLOUT);
-
-        static_cast<implementation_class *>(this)->write_data();
-      }
+//      if(EPOLLOUT == (EPOLLOUT & events)){
+//        if(0 == (this->event_masks_ & EPOLLOUT)) {
+//          throw std::runtime_error("Invalid state");
+//        }
+//        this->change_mask(0, EPOLLOUT);
+//
+//        static_cast<implementation_class *>(this)->write_data();
+//      }
 
       if(EPOLLIN == (EPOLLIN & events)){
         if(0 == (this->event_masks_ & EPOLLIN)) {
@@ -123,7 +123,6 @@ namespace vds {
 
     enum class write_status_t {
       bof,
-      waiting_socket,
       eof
     };
 

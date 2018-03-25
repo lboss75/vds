@@ -395,89 +395,65 @@ namespace vds {
         }
       }
 
-      async_task<> write_async(const udp_datagram & message){
+      async_task<> write_async(const udp_datagram & message) {
+        return [message, pthis = this->shared_from_this()](const async_result<> &result) {
+          auto this_ = static_cast<_udp_handler *>(pthis.get());
 
-        std::lock_guard<std::mutex> lock(this->write_mutex_);
-        switch (this->write_status_){
-          case write_status_t::bof:
-            this->write_message_ = message;
-            return [pthis = this->shared_from_this()](const async_result<> & result){
-              auto this_ = static_cast<_udp_handler *>(pthis.get());
-              this_->write_result_ = result;
-              this_->write_status_ = write_status_t::waiting_socket;
-              this_->change_mask(EPOLLOUT);
-            };
+          std::unique_lock<std::mutex> lock(this_->write_mutex_);
 
-          case write_status_t::eof:
-            return async_task<>(
+          if (write_status_t::eof == this_->write_status_) {
+            result.error(
                 std::make_shared<std::system_error>(
-                    ECONNRESET, std::system_category()));
+                    ECONNRESET,
+                    std::generic_category()));
+            return;
+          }
 
-          case write_status_t::waiting_socket:
-          default:
-            throw  std::runtime_error("Invalid operator");
-        }
-      }
-
-      void write_data() {
-        std::unique_lock<std::mutex> lock(this->write_mutex_);
-
-        if(write_status_t::eof == this->write_status_) {
-          this->write_result_.error(
-              std::make_shared<std::system_error>(
-                  ECONNRESET,
-                  std::generic_category()));
-          return;
-        }
-
-        if(write_status_t::waiting_socket != this->write_status_) {
-          throw std::runtime_error("Invalid operation");
-        }
-
-          auto size = this->write_message_.data_size();
+          auto size = message.data_size();
           int len = sendto(
-            this->s_,
-            this->write_message_.data(),
-            size,
-            0,
-            this->write_message_->address(),
-            this->write_message_->address().size());
-        this->sp_.get<logger>()->trace("UDP", this->sp_, "send %d bytes to %s",
-                                       size,
-                                       this->write_message_->address().to_string().c_str());
+              this_->s_,
+              message.data(),
+              size,
+              0,
+              message.address(),
+              message.address().size());
+          this_->sp_.get<logger>()->trace("UDP", this_->sp_, "send %d bytes to %s",
+                                         size,
+                                         message.address().to_string().c_str());
 
-          this->write_status_ = write_status_t::bof;
+          this_->write_status_ = write_status_t::bof;
           if (len < 0) {
             int error = errno;
             lock.unlock();
 
-            if(EMSGSIZE == error){
-              this->write_result_.error(
+            if (EMSGSIZE == error) {
+              result.error(
                   std::make_shared<udp_datagram_size_exception>());
-            }
-            else {
-              this->write_result_.error(
+            } else {
+              result.error(
                   std::make_shared<std::system_error>(
                       error,
                       std::generic_category(),
-                      "Send to " + this->write_message_->address().to_string()));
+                      "Send to " + message.address().to_string()));
             }
             return;
           }
-        
-          if((size_t)len != size){
+
+          if ((size_t) len != size) {
             throw std::runtime_error("Invalid send UDP");
           }
+
           lock.unlock();
-          this->sp_.get<logger>()->trace(
+          this_->sp_.get<logger>()->trace(
               "UDP",
-              this->sp_,
+              this_->sp_,
               "Sent %d bytes to %s",
               len,
-              this->write_message_->address().to_string().c_str());
+              message.address().to_string().c_str());
 
-          this->write_result_.done();
-        }
+          result.done();
+        };
+      }
 
       void read_data() {
         std::unique_lock<std::mutex> lock(this->read_mutex_);
