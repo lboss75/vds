@@ -19,9 +19,13 @@ namespace vds {
         static constexpr size_t NODE_ID_SIZE = 20;
         static constexpr uint8_t PROTOCOL_VERSION = 0;
 
-        void start(
-            const service_provider & sp,
-            uint16_t port);
+        udp_transport();
+
+        void start(const vds::service_provider &sp, uint16_t port,
+                           const const_data_buffer &this_node_id);
+
+        void stop(
+            const service_provider & sp);
 
       private:
         const_data_buffer this_node_id_;

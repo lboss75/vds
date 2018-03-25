@@ -11,19 +11,19 @@ All rights reserved
 #include "const_data_buffer.h"
 
 namespace vds {
+  namespace orm {
+    class well_known_node_dbo : public database_table {
+    public:
+      well_known_node_dbo()
+          : database_table("well_known_node"),
+            id(this, "id"),
+            addresses(this, "addresses") {
+      }
 
-  class well_known_node_dbo : public database_table {
-  public:
-    well_known_node_dbo()
-        : database_table("well_known_node"),
-          id(this, "id"),
-          addresses(this, "addresses")
-    {
-    }
-
-    database_column<guid> id;
-    database_column<std::string> addresses;
-  };
+      database_column<guid> id;
+      database_column<std::string> addresses;
+    };
+  }
 }
 
 #endif //__VDS_DB_MODEL_WELL_KNOWN_NODE_DBO_H_

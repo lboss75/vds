@@ -70,11 +70,10 @@ void vds::db_model::migrate(
 			id VARCHAR(64) PRIMARY KEY NOT NULL,\
 			block_key BLOB NOT NULL)");
 
-    t.execute("CREATE TABLE run_configuration (\
-			id VARCHAR(64) PRIMARY KEY NOT NULL,\
+    t.execute("CREATE TABLE current_config (\
+			id INTEGER PRIMARY KEY AUTOINCREMENT,\
 			cert BLOB NOT NULL,\
-      cert_private_key BLOB NOT NULL,\
-			port INTEGER)");
+      cert_key BLOB NOT NULL)");
 
 		t.execute("CREATE TABLE well_known_node(\
 			id VARCHAR(64) PRIMARY KEY NOT NULL,\

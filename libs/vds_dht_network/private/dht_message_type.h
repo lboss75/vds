@@ -9,7 +9,7 @@ All rights reserved
 namespace vds {
   namespace dht {
     namespace network {
-      enum class message_type_t {
+      enum class protocol_message_type_t {
         Handshake = 0,
         Welcome = 1,
 
@@ -21,6 +21,13 @@ namespace vds {
         SingleData = 0b01000000,
         Data = 0b10000000,
       };
+
+      enum class message_type_t {
+        channel_log_state = 1,
+        offer_move_replica = 2,
+
+      };
+
     }
   }
 }

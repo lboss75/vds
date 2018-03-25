@@ -171,9 +171,9 @@ inline vds::chunk_generator<cell_type>::~chunk_generator()
 template<typename cell_type>
 inline void vds::chunk_generator<cell_type>::write(binary_serializer & s, const void * data, size_t size)
 {
-  if (0 != size % (sizeof(cell_type) * this->k_)) {
-    throw std::runtime_error("Align error");
-  }
+//  if (0 != size % (sizeof(cell_type) * this->k_)) {
+//    throw std::runtime_error("Align error");
+//  }
   uint64_t expected_size = ((size + sizeof(cell_type) * this->k_ - 1)/ sizeof(cell_type) / this->k_) * sizeof(cell_type);
   auto start = s.size();
 

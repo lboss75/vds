@@ -3,15 +3,16 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
+#include <db_model.h>
 #include "stdafx.h"
 #include "private/udp_transport.h"
 #include "private/dht_message_type.h"
 #include "private/dht_session.h"
 #include "logger.h"
 
-void vds::dht::network::udp_transport::start(
-    const vds::service_provider &sp,
-    uint16_t port) {
+void vds::dht::network::udp_transport::start(const vds::service_provider &sp, uint16_t port,
+                                             const const_data_buffer &this_node_id) {
+  this->this_node_id_ = this_node_id;
 
   try {
     this->server_.start(sp, network_address::any_ip6(port));
@@ -48,7 +49,7 @@ void vds::dht::network::udp_transport::continue_read(
       const std::shared_ptr<std::exception> & ex,
       const vds::udp_datagram & datagram){
     if(!ex && 0 != datagram.data_size()){
-      if(datagram.data()[0] == (uint8_t)message_type_t::Handshake){
+      if(datagram.data()[0] == (uint8_t)protocol_message_type_t::Handshake){
         if(datagram.data_size() != NODE_ID_SIZE + 2 && PROTOCOL_VERSION != datagram.data()[1]) {
           const_data_buffer partner_node_id(datagram.data() + 2, NODE_ID_SIZE);
 
@@ -60,7 +61,7 @@ void vds::dht::network::udp_transport::continue_read(
               partner_node_id));
 
           resizable_data_buffer out_message;
-          out_message.add((uint8_t)message_type_t::Welcome);
+          out_message.add((uint8_t)protocol_message_type_t::Welcome);
           out_message.add(pthis->this_node_id_.data(), pthis->this_node_id_.size());
 
           pthis->server_.socket().write_async(udp_datagram(datagram.address(), out_message.data(), out_message.size()))
@@ -74,7 +75,7 @@ void vds::dht::network::udp_transport::continue_read(
           return;
         }
       }
-      else if(datagram.data()[0] == (uint8_t)message_type_t::Welcome){
+      else if(datagram.data()[0] == (uint8_t)protocol_message_type_t::Welcome){
         if (datagram.data_size() != NODE_ID_SIZE + 1) {
           const_data_buffer partner_node_id(datagram.data() + 1, NODE_ID_SIZE);
           pthis->add_session(
@@ -103,3 +104,7 @@ void vds::dht::network::udp_transport::continue_read(
     pthis->continue_read(sp);
   });
 }
+
+vds::dht::network::udp_transport::udp_transport() {
+}
+

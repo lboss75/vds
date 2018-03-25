@@ -11,30 +11,32 @@ endif (UNIX)
 
 find_package (UPNP REQUIRED)
 
-include_directories(${vds_core_SOURCE_DIR})
-include_directories(${vds_network_SOURCE_DIR})
-include_directories(${vds_parser_SOURCE_DIR})
-include_directories(${vds_http_SOURCE_DIR})
-include_directories(${vds_crypto_SOURCE_DIR})
-include_directories(${vds_upnp_SOURCE_DIR})
-include_directories(${vds_storage_SOURCE_DIR})
-include_directories(${vds_client_SOURCE_DIR})
-include_directories(${vds_server_SOURCE_DIR})
-include_directories(${vds_dht_network_SOURCE_DIR})
-include_directories(${vds_user_manager_SOURCE_DIR})
-include_directories(${vds_transactions_SOURCE_DIR})
-include_directories(${test_libs_SOURCE_DIR})
-include_directories(${OPENSSL_INCLUDE_DIR})
-include_directories(${UPNP_INCLUDE_DIR})
-
 FILE(GLOB HEADER_FILES *.h)
 FILE(GLOB SOURCE_FILES *.cpp)
 
 ADD_MSVC_PRECOMPILED_HEADER("stdafx.h" "stdafx.cpp" SOURCE_FILES)
 
+add_executable(test_vds_scenarios ${SOURCE_FILES} ${HEADER_FILES})
+
+target_include_directories(test_vds_scenarios
+        PRIVATE
+          ${vds_core_INCLUDE_DIRS}
+          ${vds_network_INCLUDE_DIRS}
+          ${vds_parser_INCLUDE_DIRS}
+          ${vds_http_INCLUDE_DIRS}
+          ${vds_crypto_INCLUDE_DIRS}
+          ${vds_upnp_INCLUDE_DIRS}
+          ${vds_storage_INCLUDE_DIRS}
+          ${vds_server_INCLUDE_DIRS}
+          ${vds_dht_network_INCLUDE_DIRS}
+          ${vds_user_manager_INCLUDE_DIRS}
+          ${vds_transactions_INCLUDE_DIRS}
+          ${test_libs_INCLUDE_DIRS}
+          ${OPENSSL_INCLUDE_DIR}
+          ${UPNP_INCLUDE_DIR})
+
 enable_testing()
 
-add_executable(test_vds_scenarios ${SOURCE_FILES} ${HEADER_FILES})
 target_link_libraries(
   test_vds_scenarios
   vds_core
@@ -45,7 +47,6 @@ target_link_libraries(
   vds_crypto
   vds_upnp
   vds_parser
-  vds_client
   vds_server
   vds_user_manager
   vds_dht_network

@@ -46,7 +46,7 @@ namespace vds {
             resizable_data_buffer buffer;
 
             if (message.size() < pthis->mtu_ - 5) {
-              buffer.add((uint8_t) ((uint8_t)message_type_t::SingleData | message_type));
+              buffer.add((uint8_t) ((uint8_t)protocol_message_type_t::SingleData | message_type));
               buffer.add((uint8_t) (pthis->output_sequence_number_ >> 24));
               buffer.add((uint8_t) (pthis->output_sequence_number_ >> 16));
               buffer.add((uint8_t) (pthis->output_sequence_number_ >> 8));
@@ -79,7 +79,7 @@ namespace vds {
                     }
                   });
             } else {
-              buffer.add((uint8_t) ((uint8_t)message_type_t::Data | message_type));
+              buffer.add((uint8_t) ((uint8_t)protocol_message_type_t::Data | message_type));
               buffer.add((uint8_t) (pthis->output_sequence_number_ >> 24));
               buffer.add((uint8_t) (pthis->output_sequence_number_ >> 16));
               buffer.add((uint8_t) (pthis->output_sequence_number_ >> 8));
@@ -132,8 +132,8 @@ namespace vds {
             return async_task<>(std::make_shared<std::runtime_error>("Invalid data"));
           }
 
-          switch ((message_type_t)*datagram.data()){
-            case message_type_t::Acknowledgment: {
+          switch ((protocol_message_type_t)*datagram.data()){
+            case protocol_message_type_t::Acknowledgment: {
               if (datagram.size() < 9) {
                 return async_task<>(std::make_shared<std::runtime_error>("Invalid data"));
               }
@@ -215,7 +215,7 @@ namespace vds {
           }
 
           resizable_data_buffer buffer;
-          buffer.add((uint8_t) message_type_t::ContinueData);
+          buffer.add((uint8_t) protocol_message_type_t::ContinueData);
           buffer.add((uint8_t) (this->output_sequence_number_ >> 24));
           buffer.add((uint8_t) (this->output_sequence_number_ >> 16));
           buffer.add((uint8_t) (this->output_sequence_number_ >> 8));
@@ -262,9 +262,9 @@ namespace vds {
             return async_task<>::empty();
           }
 
-          switch ((message_type_t)((uint8_t)message_type_t::SpecialCommand & p->second.data()[0])) {
-            case message_type_t::SingleData: {
-              auto message_type = (uint8_t)(p->second.data()[0] & ~(uint8_t) message_type_t::SpecialCommand);
+          switch ((protocol_message_type_t)((uint8_t)protocol_message_type_t::SpecialCommand & p->second.data()[0])) {
+            case protocol_message_type_t::SingleData: {
+              auto message_type = (uint8_t)(p->second.data()[0] & ~(uint8_t) protocol_message_type_t::SpecialCommand);
               const_data_buffer message(p->second.data() + 5, p->second.size() - 5);
 
               this->input_messages_.erase(this->next_process_index_);
@@ -277,8 +277,8 @@ namespace vds {
                 pthis->continue_process_messages(sp, s);
               });
             }
-            case message_type_t::Data: {
-              auto message_type = p->second.data()[0] & ~(uint8_t)message_type_t::SpecialCommand;
+            case protocol_message_type_t::Data: {
+              auto message_type = p->second.data()[0] & ~(uint8_t)protocol_message_type_t::SpecialCommand;
               size_t size = (p->second.data()[5] << 8) | (p->second.data()[6]);
 
               if(size <= p->second.size() - 7){
@@ -295,7 +295,7 @@ namespace vds {
                   return async_task<>::empty();
                 }
 
-                if((uint8_t)message_type_t::ContinueData != p->second.data()[0]){
+                if((uint8_t)protocol_message_type_t::ContinueData != p->second.data()[0]){
                   return async_task<>(std::make_shared<std::runtime_error>("Invalid data"));
                 }
 

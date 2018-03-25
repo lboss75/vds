@@ -116,7 +116,11 @@ TEST(chunk_tests, test_chunks_storage) {
     while (size < 2000 || size > 6000) {
         size = std::rand();
     }
-    size -= (size % (sizeof(uint16_t) * min_horcrux));
+    //size -= (size % (sizeof(uint16_t) * min_horcrux));
+    auto padding = size % (sizeof(uint16_t) * min_horcrux);
+    if(0 != padding){
+        padding = sizeof(uint16_t) * min_horcrux - padding;
+    }
 
     //Generate test data
     uint8_t * data = new uint8_t[size];
@@ -142,10 +146,15 @@ TEST(chunk_tests, test_chunks_storage) {
 
     auto result = storage.restore_data(horcruxes);
 
-    ASSERT_EQ(size, result.size());
+    ASSERT_EQ(size, result.size() - padding);
     for (int i = 0; i < size; ++i) {
       if(data[i] != result[i]){
         FAIL() << "data[" << i << "](" << (int)data[i] << ") != result[" << i << "](" << (int)result[i] << ")";
       }
+    }
+    for (int i = size; i < result.size(); ++i) {
+        if(0 != result[i]){
+            FAIL() << "0 != result[" << i << "](" << (int)result[i] << ")";
+        }
     }
 }

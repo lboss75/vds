@@ -5,35 +5,51 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
+
 #include "service_provider.h"
 #include "const_data_buffer.h"
 
 namespace vds {
+  class database_transaction;
+
   namespace dht {
     namespace network {
+      class _client;
+
       class client {
       public:
 
-        void save_data(
+        const const_data_buffer &current_node_id() const;
+
+        void start(const service_provider & sp, const const_data_buffer &this_node_id);
+        void stop(const service_provider & sp);
+
+        template <typename message_type>
+        void send(
             const service_provider & sp,
-            const const_data_buffer & key,
+            const const_data_buffer & node_id,
+            const message_type & message){
+          this->send(sp, node_id, message_type::message_id, message.serialize());
+        }
+
+        void save(
+            const service_provider & sp,
+            database_transaction & t,
             const const_data_buffer & value);
 
-        void save_channel_state(
-            const service_provider & sp,
-            const const_data_buffer & channel_id,
-            const const_data_buffer & leaf_id,
-            const std::list<const_data_buffer> & basis);
+        _client *operator ->() const {
+          return this->impl_.get();
+        }
+      private:
+        std::shared_ptr<_client> impl_;
 
-        void query_data(
+        void send(
             const service_provider & sp,
-            const const_data_buffer & key);
+            const const_data_buffer & node_id,
+            const uint8_t message_id,
+            const const_data_buffer & message);
 
-        void query_channel_state(
-            const service_provider & sp,
-            const const_data_buffer & channel_id);
-
-      };
+        };
     }
   }
 }

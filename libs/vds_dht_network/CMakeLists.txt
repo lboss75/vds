@@ -26,12 +26,13 @@ target_include_directories(vds_dht_network
 		 ${vds_crypto_INCLUDE_DIRS}
 		 ${vds_network_INCLUDE_DIRS}
 		 ${vds_parser_INCLUDE_DIRS}
+		 ${vds_data_INCLUDE_DIRS}
 		 ${vds_database_INCLUDE_DIRS}
 		 ${vds_db_model_INCLUDE_DIRS}
 		 ${vds_user_manager_INCLUDE_DIRS}
 		 ${vds_chunk_manager_INCLUDE_DIRS}
 		 ${OPENSSL_INCLUDE_DIR}
-                 ${CMAKE_CURRENT_SOURCE_DIR}/private
+         ${CMAKE_CURRENT_SOURCE_DIR}/private
 	PUBLIC
 		${CMAKE_CURRENT_SOURCE_DIR}/include)
 
@@ -41,6 +42,7 @@ target_link_libraries(
         vds_crypto
         vds_network
         vds_parser
+		vds_data
         vds_database
         vds_db_model
         vds_user_manager

@@ -7,6 +7,7 @@ All rights reserved
 */
 #include "service_provider.h"
 #include "const_data_buffer.h"
+#include "dht_network_client.h"
 
 namespace vds {
   namespace dht {
@@ -22,6 +23,7 @@ namespace vds {
 
       private:
         std::shared_ptr<udp_transport> udp_transport_;
+				client client_;
       };
     }
   }
