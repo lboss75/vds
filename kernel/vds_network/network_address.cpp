@@ -59,6 +59,7 @@ vds::network_address vds::network_address::parse(const std::string& address) {
     else {
       throw std::runtime_error("Invalid addresss");
     }
+      return true;
   });
   return result;
 }

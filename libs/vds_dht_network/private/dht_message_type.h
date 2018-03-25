@@ -28,12 +28,12 @@ namespace vds {
       enum class message_type_t {
         channel_log_state = 1,
         offer_move_replica = 2,
-        got_replica,
-        replica_not_found,
-        offer_replica,
-        channel_log_request,
-        dht_find_node,
-        dht_find_node_response,
+        got_replica = 3,
+        replica_not_found = 4,
+        offer_replica = 5,
+        channel_log_request = 6,
+        dht_find_node = 7,
+        dht_find_node_response = 8,
       };
 
     }
