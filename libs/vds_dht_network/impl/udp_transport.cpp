@@ -157,7 +157,6 @@ void vds::dht::network::udp_transport::continue_read(
           catch(...) {
             std::shared_lock<std::shared_mutex> lock(pthis->sessions_mutex_);
             pthis->sessions_.erase(datagram.address());
-            pthis->continue_read(sp);
           }
         }
         break;
