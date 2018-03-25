@@ -96,7 +96,7 @@ void vds::dht::network::udp_transport::continue_read(
       case protocol_message_type_t::Handshake:
         if (datagram.data_size() == NODE_ID_SIZE + 2 && PROTOCOL_VERSION == datagram.data()[1]) {
           const_data_buffer partner_node_id(datagram.data() + 2, NODE_ID_SIZE);
-          if(partner_node_id == this->this_node_id_){
+          if(partner_node_id == pthis->this_node_id_){
             break;
           }
 
