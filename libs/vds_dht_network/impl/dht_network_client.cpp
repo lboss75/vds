@@ -86,7 +86,9 @@ void vds::dht::network::_client::send(const service_provider& sp, const const_da
       sp,
       pthis->udp_transport_,
       (uint8_t)message_id,
-      message).wait();
+      message).execute([](const std::shared_ptr<std::exception> & ex) {
+      
+    });
     return false;
   });
 }
