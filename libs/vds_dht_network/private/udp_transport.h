@@ -15,7 +15,7 @@ namespace vds {
     namespace network {
       class udp_transport : public std::enable_shared_from_this<udp_transport> {
       public:
-        static constexpr size_t NODE_ID_SIZE = 20;
+        static constexpr size_t NODE_ID_SIZE = 32;
         static constexpr uint8_t PROTOCOL_VERSION = 0;
 
         udp_transport();
@@ -28,6 +28,7 @@ namespace vds {
         void stop(const service_provider & sp);
 
         async_task<> write_async(const udp_datagram & datagram);
+        void on_timer(const service_provider& sp);
 
       private:
         const_data_buffer this_node_id_;

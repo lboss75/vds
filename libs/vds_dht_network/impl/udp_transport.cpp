@@ -51,6 +51,15 @@ vds::async_task<> vds::dht::network::udp_transport::write_async(const udp_datagr
   };
 }
 
+void vds::dht::network::udp_transport::on_timer(const service_provider& sp) {
+  resizable_data_buffer out_message;
+  out_message.add((uint8_t)protocol_message_type_t::HandshakeBroadcast);
+  out_message.add(PROTOCOL_VERSION);
+  out_message += this->this_node_id_;
+
+  this->server_.socket().send_broadcast(8050, const_data_buffer(out_message.data(), out_message.size()));
+}
+
 void vds::dht::network::udp_transport::add_session(const network_address& address,
   const std::shared_ptr<dht_session>& session) {
   std::unique_lock<std::shared_mutex> lock(this->sessions_mutex_);
@@ -70,14 +79,22 @@ std::shared_ptr<vds::dht::network::dht_session> vds::dht::network::udp_transport
 }
 
 void vds::dht::network::udp_transport::continue_read(
-    const vds::service_provider &sp) {
+  const vds::service_provider &sp) {
 
   this->server_.socket().read_async().execute([sp, pthis = this->shared_from_this()](
-      const std::shared_ptr<std::exception> & ex,
-      const vds::udp_datagram & datagram){
-    if(!ex && 0 != datagram.data_size()){
-      if(datagram.data()[0] == (uint8_t)protocol_message_type_t::Handshake){
-        if(datagram.data_size() != NODE_ID_SIZE + 2 && PROTOCOL_VERSION != datagram.data()[1]) {
+    const std::shared_ptr<std::exception> & ex,
+    const vds::udp_datagram & datagram){
+    if (!ex && 0 != datagram.data_size()) {
+      switch ((protocol_message_type_t)datagram.data()[0]) {
+      case protocol_message_type_t::HandshakeBroadcast: {
+        auto session = pthis->get_session(datagram.address());
+        if (session) {
+          break;
+        }
+        //break;
+      }
+      case protocol_message_type_t::Handshake:
+        if (datagram.data_size() == NODE_ID_SIZE + 2 && PROTOCOL_VERSION == datagram.data()[1]) {
           const_data_buffer partner_node_id(datagram.data() + 2, NODE_ID_SIZE);
 
           pthis->add_session(
@@ -92,7 +109,7 @@ void vds::dht::network::udp_transport::continue_read(
           out_message.add(pthis->this_node_id_.data(), pthis->this_node_id_.size());
 
           pthis->server_.socket().write_async(udp_datagram(datagram.address(), out_message.data(), out_message.size()))
-          .execute([pthis, sp, address = datagram.address().to_string()](const std::shared_ptr<std::exception> & ex) {
+            .execute([pthis, sp, address = datagram.address().to_string()](const std::shared_ptr<std::exception> & ex) {
             if (ex) {
               sp.get<logger>()->trace(ThisModule, sp, "%s at send welcome to %s", ex->what(), address.c_str());
             }
@@ -101,9 +118,9 @@ void vds::dht::network::udp_transport::continue_read(
 
           return;
         }
-      }
-      else if(datagram.data()[0] == (uint8_t)protocol_message_type_t::Welcome){
-        if (datagram.data_size() != NODE_ID_SIZE + 1) {
+        break;
+      case protocol_message_type_t::Welcome:
+        if (datagram.data_size() == NODE_ID_SIZE + 1) {
           const_data_buffer partner_node_id(datagram.data() + 1, NODE_ID_SIZE);
           pthis->add_session(
             datagram.address(),
@@ -112,22 +129,23 @@ void vds::dht::network::udp_transport::continue_read(
               pthis->this_node_id_,
               partner_node_id));
         }
-      }
-      else {
+        break;
+      default: {
         auto session = pthis->get_session(datagram.address());
-        if(session){
+        if (session) {
           session->process_datagram(sp, pthis, const_data_buffer(datagram.data(), datagram.data_size()))
-              .execute([pthis, sp, address = datagram.address()](const std::shared_ptr<std::exception> & ex){
-                if(ex){
-                  pthis->sessions_.erase(address);
-                }
-                pthis->continue_read(sp);
-              });
+            .execute([pthis, sp, address = datagram.address()](const std::shared_ptr<std::exception> & ex){
+            if (ex) {
+              pthis->sessions_.erase(address);
+            }
+            pthis->continue_read(sp);
+          });
           return;
         }
+        break;
+      }
       }
     }
-
     pthis->continue_read(sp);
   });
 }

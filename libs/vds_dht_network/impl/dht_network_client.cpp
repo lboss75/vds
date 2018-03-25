@@ -99,6 +99,7 @@ void vds::dht::network::_client::update_route_table(const service_provider& sp) 
 }
 
 void vds::dht::network::_client::process_update(const vds::service_provider &sp, vds::database_transaction &t) {
+  this->udp_transport_->on_timer(sp);
   this->route_.on_timer(sp);
   this->update_route_table(sp);
 }
