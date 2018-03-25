@@ -9,6 +9,7 @@ All rights reserved
 #include "include/dht_network_client.h"
 #include "private/dht_network_client_p.h"
 #include "messages/dht_find_node.h"
+#include "messages/dht_find_node_response.h"
 
 vds::dht::network::dht_session::dht_session(
   const network_address& address,
@@ -41,6 +42,13 @@ vds::async_task<> vds::dht::network::dht_session::process_message(
       binary_deserializer s(message_data);
       messages::dht_find_node message(s);
       (*sp.get<client>())->apply_message(sp, message);
+      break;
+    }
+
+    case network::message_type_t::dht_find_node_response: {
+      binary_deserializer s(message_data);
+      messages::dht_find_node_response message(s);
+      (*sp.get<client>())->apply_message(sp, this->shared_from_this(), message);
       break;
     }
 

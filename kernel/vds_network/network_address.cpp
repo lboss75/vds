@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "network_address.h"
+#include "url_parser.h"
 
 vds::network_address::network_address()
 : addr_size_(sizeof(this->addr_)) {
@@ -34,7 +35,32 @@ vds::network_address::network_address(sa_family_t af, const std::string &server,
 }
 
 std::string vds::network_address::to_string() const {
-  return this->server() + ":" + std::to_string(this->port());
+  return 
+    ((AF_INET6 == this->family()) ? "udp6://" : "udp://")
+    + this->server() + ":" + std::to_string(this->port());
+}
+
+vds::network_address vds::network_address::parse(const std::string& address) {
+  vds::network_address result;
+  url_parser::parse_addresses(
+    address,
+    [&result](const std::string &protocol, const std::string &address) -> bool {
+    if ("udp" == protocol || "udp6" == protocol) {
+      auto na = url_parser::parse_network_address(address);
+      if (na.protocol != "udp" && na.protocol != "udp6") {
+        throw std::invalid_argument("address");
+      }
+
+      result = network_address(
+        (na.protocol == "udp") ? AF_INET : AF_INET6,
+        na.server,
+        (uint16_t)atoi(na.port.c_str()));
+    }
+    else {
+      throw std::runtime_error("Invalid addresss");
+    }
+  });
+  return result;
 }
 
 std::string vds::network_address::server() const {

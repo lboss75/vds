@@ -62,6 +62,18 @@ void vds::dht::network::udp_transport::on_timer(const service_provider& sp) {
   this->server_.socket().send_broadcast(8050, const_data_buffer(out_message.data(), out_message.size()));
 }
 
+void vds::dht::network::udp_transport::try_handshake(const service_provider& sp, const std::string& address) {
+  resizable_data_buffer out_message;
+  out_message.add((uint8_t)protocol_message_type_t::HandshakeBroadcast);
+  out_message.add(PROTOCOL_VERSION);
+  out_message += this->this_node_id_;
+
+  this->write_async(
+    udp_datagram(
+      network_address::parse(address),
+      const_data_buffer(out_message.data(), out_message.size())));
+}
+
 void vds::dht::network::udp_transport::add_session(
   const vds::service_provider& sp,
   const network_address& address,

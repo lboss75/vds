@@ -29,6 +29,7 @@ namespace vds {
 
         async_task<> write_async(const udp_datagram & datagram);
         void on_timer(const service_provider& sp);
+        void try_handshake(const service_provider& sp, const std::string& address);
 
       private:
         const_data_buffer this_node_id_;

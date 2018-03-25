@@ -17,6 +17,7 @@ All rights reserved
 namespace vds {
   namespace dht {
     namespace messages {
+      class dht_find_node_response;
       class dht_find_node;
     }
   }
@@ -58,6 +59,11 @@ namespace vds {
         void apply_message(
           const service_provider & sp,
           const messages::dht_find_node & message);
+
+        void apply_message(
+          const service_provider & sp,
+          const std::shared_ptr<dht_session> & session,
+          const messages::dht_find_node_response & message);
 
         void apply_message(
             const service_provider & sp,

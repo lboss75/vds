@@ -61,6 +61,16 @@ void vds::dht::network::_client::apply_message(const service_provider& sp, const
   this->send(sp, message.source_node(), messages::dht_find_node_response(result));
 }
 
+void vds::dht::network::_client::apply_message(
+  const service_provider& sp,
+  const std::shared_ptr<dht_session> & session,
+  const messages::dht_find_node_response& message) {
+  for(auto & p : message.nodes()) {
+    this->route_.add_node(sp, p.target_id_, session, p.hops_ + 1);
+    this->udp_transport_->try_handshake(sp, p.address_);
+  }  
+}
+
 void vds::dht::network::_client::add_session(const service_provider& sp, const std::shared_ptr<dht_session>& session, uint8_t hops) {
   this->route_.add_node(sp, session->partner_node_id(), session, hops);
 }

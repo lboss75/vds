@@ -66,6 +66,7 @@ namespace vds {
     uint16_t port() const;
 
     std::string to_string() const;
+    static network_address parse(const std::string & address);
 
     socklen_t * size_ptr() {
       return &this->addr_size_;
