@@ -123,6 +123,7 @@ void vds::dht::network::_client::process_update(const vds::service_provider &sp,
   this->udp_transport_->on_timer(sp);
   this->route_.on_timer(sp);
   this->update_route_table(sp);
+  this->sync_process_.do_sync(sp, t);
 }
 
 void vds::dht::network::client::start(

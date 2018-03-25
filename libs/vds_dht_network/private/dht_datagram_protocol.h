@@ -55,7 +55,7 @@ namespace vds {
               buffer += message;
 
               const_data_buffer datagram(buffer.data(), buffer.size());
-              s->write_async(udp_datagram(pthis->address_, datagram))
+              s->write_async(udp_datagram(pthis->address_, datagram, false))
                   .execute([pthis, sp, s, message_type, message, result, datagram](
                       const std::shared_ptr<std::exception> &ex) {
                     if (ex) {
@@ -277,7 +277,7 @@ namespace vds {
                   sp,
                   message_type,
                   message).then([sp, s, pthis = this->shared_from_this()]() {
-                pthis->continue_process_messages(sp, s);
+                return pthis->continue_process_messages(sp, s);
               });
             }
             case protocol_message_type_t::Data: {
