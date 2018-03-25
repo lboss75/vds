@@ -112,5 +112,7 @@ void vds::dht::network::client::start(
 }
 
 void vds::dht::network::client::stop(const service_provider& sp) {
-  this->impl_->stop(sp);
+  if(this->impl_) {
+    this->impl_->stop(sp);
+  }
 }

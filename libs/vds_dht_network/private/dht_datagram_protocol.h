@@ -7,6 +7,7 @@ All rights reserved
 */
 
 #include <map>
+#include <udp_socket.h>
 #include "async_task.h"
 #include "const_data_buffer.h"
 #include "udp_datagram_size_exception.h"

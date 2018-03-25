@@ -55,9 +55,9 @@ void vds::background_app::main(const service_provider & sp)
             error = ex;
           }
           else {
-            vds::file f(vds::filename(this->device_actiovation_.value()), vds::file::file_mode::truncate);
-            f.write(device_activation.pack(this->user_password_.value()));
-            f.close();
+//            vds::file f(vds::filename(this->device_actiovation_.value()), vds::file::file_mode::truncate);
+//            f.write(device_activation.pack(this->user_password_.value()));
+//            f.close();
           }
 
           b.set();
