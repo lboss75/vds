@@ -64,6 +64,8 @@ namespace vds {
           this->send(sp, node_id, message_type::message_id, message.serialize());
         }
 
+        void add_session(const service_provider& sp, const std::shared_ptr<dht_session>& session);
+
       private:
         std::shared_ptr<udp_transport> udp_transport_;
         dht_route<std::shared_ptr<dht_session>> route_;

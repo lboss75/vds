@@ -41,7 +41,7 @@ namespace vds {
         mutable std::shared_mutex sessions_mutex_;
         std::map<network_address, std::shared_ptr<class dht_session>> sessions_;
 
-        void add_session(const network_address & address, const std::shared_ptr<dht_session> & session);
+        void add_session(const service_provider& sp, const network_address & address, const std::shared_ptr<dht_session> & session);
         std::shared_ptr<dht_session> get_session(const network_address & address) const;
 
         void continue_read(const service_provider &sp);

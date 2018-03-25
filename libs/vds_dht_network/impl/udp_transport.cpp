@@ -9,6 +9,8 @@ All rights reserved
 #include "private/dht_message_type.h"
 #include "private/dht_session.h"
 #include "logger.h"
+#include "dht_network_client.h"
+#include "dht_network_client_p.h"
 
 void vds::dht::network::udp_transport::start(const vds::service_provider &sp, uint16_t port,
                                              const const_data_buffer &this_node_id) {
@@ -60,10 +62,15 @@ void vds::dht::network::udp_transport::on_timer(const service_provider& sp) {
   this->server_.socket().send_broadcast(8050, const_data_buffer(out_message.data(), out_message.size()));
 }
 
-void vds::dht::network::udp_transport::add_session(const network_address& address,
-  const std::shared_ptr<dht_session>& session) {
+void vds::dht::network::udp_transport::add_session(
+  const vds::service_provider& sp,
+  const network_address& address, const std::shared_ptr<dht_session>& session) {
+
   std::unique_lock<std::shared_mutex> lock(this->sessions_mutex_);
   this->sessions_[address] = session;
+  lock.unlock();
+
+  (*sp.get<client>())->add_session(sp, session);
 }
 
 std::shared_ptr<vds::dht::network::dht_session> vds::dht::network::udp_transport::get_session(
@@ -101,8 +108,8 @@ void vds::dht::network::udp_transport::continue_read(
           }
 
           pthis->add_session(
-            datagram.address(),
-            std::make_shared<dht_session>(
+            ,
+            datagram.address(), std::make_shared<dht_session>(
               datagram.address(),
               pthis->this_node_id_,
               partner_node_id));
@@ -126,8 +133,8 @@ void vds::dht::network::udp_transport::continue_read(
         if (datagram.data_size() == NODE_ID_SIZE + 1) {
           const_data_buffer partner_node_id(datagram.data() + 1, NODE_ID_SIZE);
           pthis->add_session(
-            datagram.address(),
-            std::make_shared<dht_session>(
+            ,
+            datagram.address(), std::make_shared<dht_session>(
               datagram.address(),
               pthis->this_node_id_,
               partner_node_id));

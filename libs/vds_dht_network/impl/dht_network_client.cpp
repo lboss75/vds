@@ -44,6 +44,10 @@ void vds::dht::network::_client::save(
   }
 }
 
+void vds::dht::network::_client::add_session(const service_provider& sp, const std::shared_ptr<dht_session>& session) {
+  this->route_.add_node(sp, session->partner_node_id(), session);
+}
+
 void vds::dht::network::_client::send(const service_provider& sp, const const_data_buffer& target_node_id,
   const message_type_t message_id, const const_data_buffer& message) {
   this->route_.for_near(

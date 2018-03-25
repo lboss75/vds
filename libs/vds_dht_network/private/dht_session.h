@@ -33,7 +33,12 @@ namespace vds {
             const service_provider & sp,
             uint8_t message_type,
             const const_data_buffer & message);
+        const const_data_buffer & partner_node_id() const {
+          return this->partner_node_id_;
+        }
 
+      private:
+        const_data_buffer partner_node_id_;
       };
     }
   }
