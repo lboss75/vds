@@ -108,7 +108,7 @@ void vds::dht::network::udp_transport::continue_read(
           }
 
           pthis->add_session(
-            ,
+            sp,
             datagram.address(), std::make_shared<dht_session>(
               datagram.address(),
               pthis->this_node_id_,
@@ -133,7 +133,7 @@ void vds::dht::network::udp_transport::continue_read(
         if (datagram.data_size() == NODE_ID_SIZE + 1) {
           const_data_buffer partner_node_id(datagram.data() + 1, NODE_ID_SIZE);
           pthis->add_session(
-            ,
+            sp,
             datagram.address(), std::make_shared<dht_session>(
               datagram.address(),
               pthis->this_node_id_,

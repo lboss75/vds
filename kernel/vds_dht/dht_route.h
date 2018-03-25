@@ -167,7 +167,7 @@ namespace vds {
 
           std::unique_lock<std::shared_mutex> ulock(this->nodes_mutex_);
           for (const auto &p : this->nodes_) {
-            if (p.id_ == id && p.proxy_session_->address() == proxy_session->address()) {
+            if (p.node_id_ == id && p.proxy_session_->address() == proxy_session->address()) {
               return;//Already exists
             }
           }

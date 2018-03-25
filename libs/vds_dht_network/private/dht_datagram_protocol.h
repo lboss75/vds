@@ -188,6 +188,9 @@ namespace vds {
           }
         }
 
+        const network_address & address() const {
+          return this->address_;
+        }
 
       private:
         network_address address_;
