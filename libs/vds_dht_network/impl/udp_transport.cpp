@@ -60,6 +60,11 @@ void vds::dht::network::udp_transport::on_timer(const service_provider& sp) {
   out_message += this->this_node_id_;
 
   this->server_.socket().send_broadcast(8050, const_data_buffer(out_message.data(), out_message.size()));
+
+  std::shared_lock<std::shared_mutex> lock(this->sessions_mutex_);
+  for(auto & p : this->sessions_) {
+    p.second->on_timer(sp, this->shared_from_this());
+  }
 }
 
 void vds::dht::network::udp_transport::try_handshake(const service_provider& sp, const std::string& address) {

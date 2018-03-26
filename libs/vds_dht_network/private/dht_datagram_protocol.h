@@ -44,6 +44,7 @@ namespace vds {
 
           return [pthis = this->shared_from_this(), sp, s, message_type, message](
               const async_result<> &result) {
+            std::unique_lock<std::shared_mutex> lock(pthis->output_mutex_);
             resizable_data_buffer buffer;
 
             if (message.size() < pthis->mtu_ - 5) {
@@ -58,6 +59,7 @@ namespace vds {
               s->write_async(udp_datagram(pthis->address_, datagram, false))
                   .execute([pthis, sp, s, message_type, message, result, datagram](
                       const std::shared_ptr<std::exception> &ex) {
+                    std::unique_lock<std::shared_mutex> lock(pthis->output_mutex_);
                     if (ex) {
                       auto datagram_error = std::dynamic_pointer_cast<udp_datagram_size_exception>(ex);
                       if (datagram_error) {
@@ -95,6 +97,7 @@ namespace vds {
               s->write_async(udp_datagram(pthis->address_, datagram))
                   .execute([pthis, sp, s, message_type, message, offset, result, datagram](
                       const std::shared_ptr<std::exception> &ex) {
+                    std::unique_lock<std::shared_mutex> lock(pthis->output_mutex_);
                     if (ex) {
                       auto datagram_error = std::dynamic_pointer_cast<udp_datagram_size_exception>(ex);
                       if (datagram_error) {
@@ -129,6 +132,7 @@ namespace vds {
             const service_provider & sp,
             const std::shared_ptr<transport_type> & s,
             const const_data_buffer & datagram){
+          std::unique_lock<std::mutex> lock(this->input_mutex_);
           if(datagram.size() == 0){
             return async_task<>(std::make_shared<std::runtime_error>("Invalid data"));
           }
@@ -192,14 +196,45 @@ namespace vds {
           return this->address_;
         }
 
+        void on_timer(const service_provider & sp, const std::shared_ptr<transport_type> & s) {
+          std::shared_lock<std::shared_mutex> lock(this->output_mutex_);
+
+          uint32_t mask = 0;
+          for (size_t i = this->next_sequence_number_; i < this->next_sequence_number_ + 32; ++i)
+          {
+            mask >>= 1;
+            if (this->input_messages_.end() != this->input_messages_.find(i))
+            {
+              mask |= 0x80000000;
+            }
+          }
+
+          resizable_data_buffer buffer;
+
+          buffer.add((uint8_t)protocol_message_type_t::Acknowledgment);
+          buffer.add((uint8_t)(this->next_sequence_number_ >> 24));
+          buffer.add((uint8_t)(this->next_sequence_number_ >> 16));
+          buffer.add((uint8_t)(this->next_sequence_number_ >> 8));
+          buffer.add((uint8_t)(this->next_sequence_number_));
+          buffer.add((byte)(0xFF & (mask >> 24)));
+          buffer.add((byte)(0xFF & (mask >> 16)));
+          buffer.add((byte)(0xFF & (mask >> 8)));
+          buffer.add((byte)(0xFF & mask));
+
+          const_data_buffer datagram(buffer.data(), buffer.size());
+          s->write_async(udp_datagram(this->address_, datagram, false))
+            .execute([](const std::shared_ptr<std::exception> & ex) {});
+        }
       private:
         network_address address_;
         const_data_buffer this_node_id_;
 
+        std::shared_mutex output_mutex_;
         size_t output_sequence_number_;
         std::map<size_t, const_data_buffer> output_messages_;
         size_t mtu_;
 
+        std::mutex input_mutex_;
         size_t input_sequence_number_;
         std::map<size_t, const_data_buffer> input_messages_;
 
@@ -231,6 +266,7 @@ namespace vds {
               .execute(
                   [pthis = this->shared_from_this(), sp, s, message, offset, size, result, datagram](
                   const std::shared_ptr<std::exception> &ex) {
+                std::unique_lock<std::shared_mutex> lock(pthis->output_mutex_);
                 if (ex) {
                   auto datagram_error = std::dynamic_pointer_cast<udp_datagram_size_exception>(ex);
                   if (datagram_error) {
@@ -277,6 +313,7 @@ namespace vds {
                   sp,
                   message_type,
                   message).then([sp, s, pthis = this->shared_from_this()]() {
+                std::unique_lock<std::mutex> lock(pthis->input_mutex_);
                 return pthis->continue_process_messages(sp, s);
               });
             }
@@ -319,6 +356,7 @@ namespace vds {
                       sp,
                       message_type,
                       const_data_buffer(message.data(), message.size())).then([sp, s, pthis = this->shared_from_this()]() {
+                    std::unique_lock<std::mutex> lock(pthis->input_mutex_);
                     pthis->continue_process_messages(sp, s);
                   });
                 }
