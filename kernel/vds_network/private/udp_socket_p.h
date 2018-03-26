@@ -451,7 +451,9 @@ namespace vds {
               len,
               message.address().to_string().c_str());
 
-          result.done();
+          mt_service::async(this_->sp_, [result]() {
+            result.done();
+          });
         };
       }
 

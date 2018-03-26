@@ -216,10 +216,10 @@ namespace vds {
           buffer.add((uint8_t)(this->next_sequence_number_ >> 16));
           buffer.add((uint8_t)(this->next_sequence_number_ >> 8));
           buffer.add((uint8_t)(this->next_sequence_number_));
-          buffer.add((byte)(0xFF & (mask >> 24)));
-          buffer.add((byte)(0xFF & (mask >> 16)));
-          buffer.add((byte)(0xFF & (mask >> 8)));
-          buffer.add((byte)(0xFF & mask));
+          buffer.add((uint8_t)(0xFF & (mask >> 24)));
+          buffer.add((uint8_t)(0xFF & (mask >> 16)));
+          buffer.add((uint8_t)(0xFF & (mask >> 8)));
+          buffer.add((uint8_t)(0xFF & mask));
 
           const_data_buffer datagram(buffer.data(), buffer.size());
           s->write_async(udp_datagram(this->address_, datagram, false))
