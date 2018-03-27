@@ -14,6 +14,7 @@ All rights reserved
 #include "vds_debug.h"
 #include "dht_message_type.h"
 #include "network_address.h"
+#include "debug_mutex.h"
 
 namespace vds {
   namespace dht {
@@ -183,7 +184,7 @@ namespace vds {
                     this->next_sequence_number_++;
                   } while(this->input_messages_.end() != this->input_messages_.find(this->next_sequence_number_));
 
-                  return this->continue_process_messages(sp, s);
+                  return this->continue_process_messages(sp, s, lock);
                 }
               }
 
@@ -295,7 +296,9 @@ namespace vds {
 
         async_task<> continue_process_messages(
             const service_provider &sp,
-            const std::shared_ptr<transport_type> & s) {
+            const std::shared_ptr<transport_type> & s,
+            std::unique_lock<std::mutex> & locker
+        ) {
           auto p = this->input_messages_.find(this->next_process_index_);
           if (this->input_messages_.end() == p) {
             return async_task<>::empty();
@@ -309,12 +312,13 @@ namespace vds {
               this->input_messages_.erase(this->next_process_index_);
               this->next_process_index_++;
 
+              locker.unlock();
               return static_cast<implementation_class *>(this)->process_message(
                   sp,
                   message_type,
                   message).then([sp, s, pthis = this->shared_from_this()]() {
                 std::unique_lock<std::mutex> lock(pthis->input_mutex_);
-                return pthis->continue_process_messages(sp, s);
+                return pthis->continue_process_messages(sp, s, lock);
               });
             }
             case protocol_message_type_t::Data: {
@@ -352,12 +356,13 @@ namespace vds {
                     this->next_process_index_++;
                   }
 
+                  locker.unlock();
                   return static_cast<implementation_class *>(this)->process_message(
                       sp,
                       message_type,
                       const_data_buffer(message.data(), message.size())).then([sp, s, pthis = this->shared_from_this()]() {
                     std::unique_lock<std::mutex> lock(pthis->input_mutex_);
-                    pthis->continue_process_messages(sp, s);
+                    pthis->continue_process_messages(sp, s, lock);
                   });
                 }
               }

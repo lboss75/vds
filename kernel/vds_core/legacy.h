@@ -24,13 +24,22 @@ All rights reserved
 #include <mutex>
 #include <condition_variable>
 
+#ifndef _WIN32
+#include <unistd.h>
+#include <sys/syscall.h>
+#include <sys/types.h>
+#else
+#include <minwindef.h>
+#include <processthreadsapi.h>
+#endif//_WIN32
+
 namespace std {
   class shared_mutex
   {
   public:
 
     shared_mutex()
-    : state_(0)
+    : state_(0), owner_id_(0)
     {}
 
     // Exclusive ownership
@@ -46,6 +55,12 @@ namespace std {
       while (n_readers_ & this->state_){
         gate2_.wait(lock);
       }
+
+#ifndef _WIN32
+      this->owner_id_ = syscall(SYS_gettid);
+#else
+      this->owner_id_ = GetCurrentThreadId();
+#endif
     }
     
     bool try_lock()
@@ -54,6 +69,11 @@ namespace std {
       
       if (lock.owns_lock() && this->state_ == 0) {
         this->state_ = write_entered_;
+#ifndef _WIN32
+        this->owner_id_ = syscall(SYS_gettid);
+#else
+        this->owner_id_ = GetCurrentThreadId();
+#endif
         return true;
       }
       
@@ -65,6 +85,7 @@ namespace std {
       {
         lock_guard<mutex> lock(this->mutex_);
         this->state_ = 0;
+        this->owner_id_ = 0;
       }
       this->gate1_.notify_all();
     }
@@ -118,6 +139,11 @@ namespace std {
     condition_variable gate1_;
     condition_variable gate2_;
     unsigned state_;
+#ifndef _WIN32
+    pid_t owner_id_;
+#else
+    DWORD owner_id_;
+#endif//_WIN32
 
     static const unsigned write_entered_ = 1U << (sizeof(unsigned)*8 - 1);
     static const unsigned n_readers_ = ~write_entered_;

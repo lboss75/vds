@@ -9,6 +9,7 @@ All rights reserved
 #include "service_provider.h"
 #include "udp_socket.h"
 #include "legacy.h"
+#include "debug_mutex.h"
 
 namespace vds {
   namespace dht {
@@ -35,7 +36,7 @@ namespace vds {
         const_data_buffer this_node_id_;
         udp_server server_;
 
-        std::mutex write_mutex_;
+        std::debug_mutex write_mutex_;
         std::condition_variable write_cond_;
         bool write_in_progress_;
 

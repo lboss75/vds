@@ -3,7 +3,7 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
-#include <db_model.h>
+
 #include "stdafx.h"
 #include "private/udp_transport.h"
 #include "private/dht_message_type.h"
@@ -11,6 +11,7 @@ All rights reserved
 #include "logger.h"
 #include "dht_network_client.h"
 #include "dht_network_client_p.h"
+#include "db_model.h"
 
 void vds::dht::network::udp_transport::start(const vds::service_provider &sp, uint16_t port,
                                              const const_data_buffer &this_node_id) {
@@ -31,18 +32,18 @@ void vds::dht::network::udp_transport::stop(const service_provider& sp) {
 }
 
 vds::async_task<> vds::dht::network::udp_transport::write_async(const udp_datagram& datagram) {
-  std::unique_lock<std::mutex> lock(this->write_mutex_);
+  std::unique_lock<std::debug_mutex> lock(this->write_mutex_);
   while(this->write_in_progress_) {
-    this->write_cond_.wait(lock);
+    this->write_cond_.wait(*reinterpret_cast<std::unique_lock<std::mutex> *>(&lock));
   }
   this->write_in_progress_ = true;
 
   return [pthis = this->shared_from_this(), datagram](const async_result<> & result) {
     pthis->server_.socket().write_async(datagram).execute([pthis, result](const std::shared_ptr<std::exception> & ex) {
-      std::unique_lock<std::mutex> lock(pthis->write_mutex_);
+      std::unique_lock<std::debug_mutex> lock(pthis->write_mutex_);
       pthis->write_in_progress_ = false;
       pthis->write_cond_.notify_all();
-
+      lock.unlock();
       if(ex) {
         result.error(ex);
       }

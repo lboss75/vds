@@ -27,7 +27,7 @@ namespace vds {
       for(;;){
         if(expected_state == this->state_){
           this->state_ = new_state;
-          this->state_cond_.notify_one();
+          this->state_cond_.notify_all();
           return true;
         }
         else if(this->failed_state_ == this->state_) {
@@ -56,7 +56,7 @@ namespace vds {
 
       for(;;){
         if(change_state_method(this->state_)){
-          this->state_cond_.notify_one();
+          this->state_cond_.notify_all();
           return this->state_;
         }
         else if(this->failed_state_ == this->state_) {
@@ -100,7 +100,7 @@ namespace vds {
       if(this->failed_state_ != this->state_){
         this->error_ = ex;
         this->state_ = this->failed_state_;
-        this->state_cond_.notify_one();
+        this->state_cond_.notify_all();
         return true;
       }
       else {
