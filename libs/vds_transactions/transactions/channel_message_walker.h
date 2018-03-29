@@ -5,10 +5,7 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
-#include <map>
-#include "asymmetriccrypto.h"
 #include "binary_serialize.h"
-#include "symmetriccrypto.h"
 #include "channel_add_message_transaction.h"
 #include "create_channel_transaction.h"
 
@@ -24,6 +21,27 @@ namespace vds {
 
       bool visit(const channel_add_message_transaction::add_device_user &message) {
         return true;
+      }
+
+      void process(const const_data_buffer & message_data) {
+        binary_deserializer s(message_data);
+
+        for (;;) {
+          uint8_t message_id;
+          s >> message_id;
+
+          switch(message_id) {
+          case channel_add_message_transaction::add_device_user::message_id: {
+            if (!static_cast<implementation_class *>(this)->visit(channel_add_message_transaction::add_device_user(s))) {
+              return;
+            }
+            break;
+          }
+          default: {
+            throw std::runtime_error("Invalid message");
+          }
+          }
+        }
       }
     };
 

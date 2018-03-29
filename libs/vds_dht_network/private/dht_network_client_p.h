@@ -17,6 +17,8 @@ All rights reserved
 namespace vds {
   namespace dht {
     namespace messages {
+      class channel_log_record;
+      class channel_log_request;
       class dht_find_node_response;
       class dht_find_node;
     }
@@ -63,6 +65,16 @@ namespace vds {
 
         void apply_message(
           const service_provider & sp,
+          database_transaction & t,
+          const messages::channel_log_request & message);
+
+        void apply_message(
+          const service_provider & sp,
+          database_transaction & t,
+          const messages::channel_log_record & message);
+
+        void apply_message(
+          const service_provider & sp,
           const messages::dht_find_node & message);
 
         void apply_message(
@@ -94,6 +106,7 @@ namespace vds {
         sync_process sync_process_;
 
         timer update_timer_;
+        std::debug_mutex update_timer_mutex_;
         bool in_update_timer_;
 
         void update_route_table(const service_provider& sp);

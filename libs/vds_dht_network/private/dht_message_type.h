@@ -32,10 +32,10 @@ namespace vds {
         replica_not_found = 4,
         offer_replica = 5,
         channel_log_request = 6,
-        dht_find_node = 7,
-        dht_find_node_response = 8,
+        channel_log_record = 7,
+        dht_find_node = 8,
+        dht_find_node_response = 9,
       };
-
     }
   }
 }

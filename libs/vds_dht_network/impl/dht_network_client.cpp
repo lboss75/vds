@@ -50,8 +50,18 @@ void vds::dht::network::_client::apply_message(const service_provider& sp, datab
   this->sync_process_.apply_message(sp, t, message);
 }
 
+void vds::dht::network::_client::apply_message(const service_provider& sp, database_transaction& t,
+  const messages::channel_log_request& message) {
+  this->sync_process_.apply_message(sp, t, message);
+}
+
+void vds::dht::network::_client::apply_message(const service_provider& sp, database_transaction& t,
+  const messages::channel_log_record& message) {
+  this->sync_process_.apply_message(sp, t, message);
+}
+
 void vds::dht::network::_client::apply_message(const service_provider& sp, const messages::dht_find_node& message) {
-  std::map<const_data_buffer /*distance*/, std::list<dht_route<std::shared_ptr<dht_session>>::node>> result_nodes;
+  std::map<const_data_buffer /*distance*/, std::list<std::shared_ptr<dht_route<std::shared_ptr<dht_session>>::node>>> result_nodes;
   this->route_.search_nodes(sp, message.target_id(), 70, result_nodes);
 
   std::list<messages::dht_find_node_response::target_node> result;
@@ -59,7 +69,7 @@ void vds::dht::network::_client::apply_message(const service_provider& sp, const
     for (auto & node : presult.second) {
       result.push_back(
         messages::dht_find_node_response::target_node(
-          node.node_id_, node.proxy_session_->address().to_string(), node.hops_));
+          node->node_id_, node->proxy_session_->address().to_string(), node->hops_));
     }
   }
 
@@ -86,14 +96,12 @@ void vds::dht::network::_client::send(const service_provider& sp, const const_da
     sp,
     target_node_id,
     1,
-    [sp, target_node_id, message_id, message, pthis = this->shared_from_this()](const const_data_buffer &node_id, const std::shared_ptr<dht_session> &proxy_session) {
-    proxy_session->send_message(
+    [sp, target_node_id, message_id, message, pthis = this->shared_from_this()](const std::shared_ptr<dht_route<std::shared_ptr<dht_session>>::node> & candidate) {
+    candidate->send_message(
       sp,
       pthis->udp_transport_,
-      (uint8_t)message_id,
-      message).execute([](const std::shared_ptr<std::exception> & ex) {
-      
-    });
+      message_id,
+      message);
     return false;
   });
 }
@@ -104,14 +112,18 @@ void vds::dht::network::_client::start(const vds::service_provider &sp, uint16_t
   this->udp_transport_->start(sp, port, this->current_node_id());
 
   this->update_timer_.start(sp, std::chrono::seconds(1), [sp, pthis = this->shared_from_this()](){
+    std::unique_lock<std::debug_mutex> lock(pthis->update_timer_mutex_);
     if(!pthis->in_update_timer_){
       pthis->in_update_timer_ = true;
+      lock.unlock();
+
       sp.get<db_model>()->async_transaction(sp, [sp, pthis](database_transaction & t){
         pthis->process_update(sp, t);
         return true;
       }).execute([sp, pthis](const std::shared_ptr<std::exception> & ex){
         if(ex){
         }
+        std::unique_lock<std::debug_mutex> lock(pthis->update_timer_mutex_);
         pthis->in_update_timer_ = false;
       });
 

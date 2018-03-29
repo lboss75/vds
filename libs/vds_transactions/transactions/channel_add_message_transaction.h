@@ -10,7 +10,6 @@ All rights reserved
 #include "guid.h"
 #include "asymmetriccrypto.h"
 #include "symmetriccrypto.h"
-#include "transaction_log.h"
 
 namespace vds {
   namespace transactions {

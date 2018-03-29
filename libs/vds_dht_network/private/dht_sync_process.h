@@ -16,6 +16,15 @@ All rights reserved
 
 namespace vds {
   namespace dht {
+    namespace messages {
+      class channel_log_record;
+      class channel_log_request;
+    }
+  }
+}
+
+namespace vds {
+  namespace dht {
     namespace network {
       class dht_session;
 
@@ -31,6 +40,16 @@ namespace vds {
           const service_provider & sp,
           database_transaction & t,
           const messages::channel_log_state & message);
+
+        void apply_message(
+          const service_provider& sp,
+          database_transaction& t,
+          const messages::channel_log_request& message);
+
+        void apply_message(
+          const service_provider& sp,
+          database_transaction& t,
+          const messages::channel_log_record & message);
 
         void apply_message(
             const service_provider & sp,

@@ -14,6 +14,7 @@ All rights reserved
 #include "socket_task_p.h"
 #include "const_data_buffer.h"
 #include "leak_detect.h"
+#include "vds_debug.h"
 
 namespace vds {
 
@@ -204,17 +205,16 @@ namespace vds {
         const service_provider & sp,
         SOCKET_HANDLE s)
         : sp_(sp),
-          s_(s),
-          result_([](const std::shared_ptr<std::exception> &, const udp_datagram &) {
-            throw std::runtime_error("Design error");
-          })
+          s_(s)
       {
       }
 
       async_task<const udp_datagram &> read_async()
       {
+        vds_assert(!this->result_);
         return [pthis = this->shared_from_this()](const async_result<const udp_datagram &> & result){
           auto this_ = static_cast<_udp_receive *>(pthis.get());
+          vds_assert(result);
           this_->wsa_buf_.len = sizeof(this_->buffer_);
           this_->wsa_buf_.buf = (CHAR *)this_->buffer_;
           this_->result_ = result;
@@ -263,6 +263,7 @@ namespace vds {
 
       void process(DWORD dwBytesTransfered) override
       {
+        vds_assert(this->result_);
         auto pthis = this->shared_from_this();
 		    this->sp_.get<logger>()->trace("UDP", this->sp_, "Readed %d", dwBytesTransfered);
         this->result_.done(_udp_datagram::create(this->addr_, this->buffer_, (size_t)dwBytesTransfered));
@@ -281,25 +282,24 @@ namespace vds {
         const service_provider & sp,
         SOCKET_HANDLE s)
         : sp_(sp),
-          s_(s),
-          result_([](const std::shared_ptr<std::exception> &) {
-          throw std::runtime_error("Design error");
-        })
-      {
-		  this->leak_detect_.name_ = "_udp_send";
+          s_(s) {
+		    this->leak_detect_.name_ = "_udp_send";
       }
 
         async_task<> write_async(const udp_datagram & data)
         {
+          std::unique_lock<not_mutex> lock(this->not_mutex_);
           this->buffer_ = data;
           this->wsa_buf_.len = this->buffer_.data_size();
           this->wsa_buf_.buf = (CHAR *)this->buffer_.data();
 
           return[pthis = this->shared_from_this()](const async_result<> & result){
             auto this_ = static_cast<_udp_send *>(pthis.get());
+            std::unique_lock<not_mutex> lock(this_->not_mutex_);
+            vds_assert(!this_->result_);
             this_->result_ = result;
 
-			this_->sp_.get<logger>()->trace("UDP", this_->sp_, "WSASendTo");
+			this_->sp_.get<logger>()->trace("UDP", this_->sp_, "WSASendTo %s %d bytes", this_->buffer_->address().to_string().c_str(), this_->buffer_.data_size());
 			if (NOERROR != WSASendTo(this_->s_, &this_->wsa_buf_, 1, NULL, 0, this_->buffer_->address(), this_->buffer_->address().size(), &this_->overlapped_, NULL)) {
               auto errorCode = WSAGetLastError();
               if (WSA_IO_PENDING != errorCode) {
@@ -320,20 +320,24 @@ namespace vds {
 
       socklen_t addr_len_;
       udp_datagram buffer_;
+      not_mutex not_mutex_;
 
       void process(DWORD dwBytesTransfered) override
       {
+        vds_assert(this->result_);
         if (this->wsa_buf_.len != (size_t)dwBytesTransfered) {
           this->result_.error(std::make_shared<std::runtime_error>("Invalid sent UDP data"));
         }
         else {
 			this->sp_.get<logger>()->trace("UDP", this->sp_, "Sent %d", dwBytesTransfered);
 			this->result_.done();
+          
         }
       }
 
       void error(DWORD error_code) override
       {
+        vds_assert(this->result_);
         this->result_.error(std::make_shared<std::system_error>(error_code, std::system_category(), "WSASendTo failed"));
       }
 	};

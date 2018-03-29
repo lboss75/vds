@@ -28,11 +28,12 @@ All rights reserved
 #include "vds_debug.h"
 #include "logger.h"
 #include "transaction_block.h"
+#include "certificate_chain_dbo.h"
 
 void vds::transaction_log::save(
 	const service_provider & sp,
 	database_transaction & t,
-  const guid & channel_id,
+  const const_data_buffer & channel_id,
 	const const_data_buffer & block_id,
 	const const_data_buffer & block_data)
 {
@@ -46,7 +47,7 @@ void vds::transaction_log::save(
 		return;//Already exists
 	}
 
-  guid block_channel_id;
+  const_data_buffer block_channel_id;
   uint64_t order_no;
   guid read_cert_id;
   guid write_cert_id;
@@ -68,14 +69,25 @@ void vds::transaction_log::save(
       signature);
 
   if(block_channel_id != channel_id){
-    sp.get<logger>()->warning(ThisModule, sp, "Invalid record %s", channel_id.str().c_str());
+    sp.get<logger>()->warning(ThisModule, sp, "Invalid record %s", base64::from_bytes(channel_id).c_str());
     return;
   }
 
-  bool is_validated;
+  certificate write_cert;
+  orm::certificate_chain_dbo t6;
+  st = t.get_reader(t6.select(t6.cert).where(t6.id == write_cert_id));
+  if(st.execute()) {
+    write_cert = certificate::parse_der(t6.cert.get(st));
+  } else {
+    for (auto & cert : certificates) {
+      if (write_cert_id == cert_control::get_id(cert)) {
+        write_cert = cert;
+        break;
+      }
+    }
+  }
 
-  auto user_mng = sp.get<user_manager>();
-  auto write_cert = user_mng->get_channel_write_cert(sp, channel_id, write_cert_id);
+  bool is_validated;
   if(!write_cert){
     is_validated = false;
   }
@@ -96,7 +108,7 @@ void vds::transaction_log::save(
           ThisModule,
           sp,
           "Invalid signature record %s",
-          channel_id.str().c_str());
+          base64::from_bytes(channel_id).c_str());
       return;
     }
     is_validated = true;
@@ -145,6 +157,17 @@ void vds::transaction_log::save(
         t4.delete_if(
             t4.id == base64::from_bytes(block_id)
             && t4.follower_id == base64::from_bytes(p)));
+  }
+
+  for(auto & cert : certificates) {
+    t.execute(t6.insert(t6.id = cert_control::get_id(cert), t6.cert = cert.der(), t6.parent = cert_control::get_parent_id(cert)));
+  }
+
+  if(is_validated) {
+    //walk_messages(crypted_data,
+    //  []() {
+    //  
+    //});
   }
 }
 

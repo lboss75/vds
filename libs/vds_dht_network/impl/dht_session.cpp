@@ -10,6 +10,8 @@ All rights reserved
 #include "private/dht_network_client_p.h"
 #include "messages/dht_find_node.h"
 #include "messages/dht_find_node_response.h"
+#include "messages/channel_log_request.h"
+#include "messages/channel_log_record.h"
 
 vds::dht::network::dht_session::dht_session(
   const network_address& address,
@@ -37,7 +39,25 @@ vds::async_task<> vds::dht::network::dht_session::process_message(
     });
     break;
   }
-    case network::message_type_t::offer_move_replica: {
+  case network::message_type_t::channel_log_request: {
+    return sp.get<db_model>()->async_transaction(sp, [sp, message_data](database_transaction & t) {
+      binary_deserializer s(message_data);
+      messages::channel_log_request message(s);
+      (*sp.get<client>())->apply_message(sp, t, message);
+      return true;
+    });
+    break;
+  }
+  case network::message_type_t::channel_log_record: {
+    return sp.get<db_model>()->async_transaction(sp, [sp, message_data](database_transaction & t) {
+      binary_deserializer s(message_data);
+      messages::channel_log_record message(s);
+      (*sp.get<client>())->apply_message(sp, t, message);
+      return true;
+    });
+    break;
+  }
+  case network::message_type_t::offer_move_replica: {
       return sp.get<db_model>()->async_transaction(sp, [sp, message_data](database_transaction & t){
         binary_deserializer s(message_data);
         messages::offer_move_replica message(s);

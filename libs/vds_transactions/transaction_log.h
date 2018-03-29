@@ -10,6 +10,7 @@ All rights reserved
 #include "const_data_buffer.h"
 #include "transactions/root_user_transaction.h"
 #include "transaction_log_record_dbo.h"
+#include "transactions/channel_message_walker.h"
 
 namespace vds {
   class transaction_log {
@@ -18,10 +19,20 @@ namespace vds {
 	  static void save(
 		  const service_provider &sp,
 		  class database_transaction &t,
-      const guid & channel_id,
+      const class const_data_buffer & channel_id,
 		  const class const_data_buffer & block_id,
 		  const class const_data_buffer & block_data);
 
+    template <typename... handler_types>
+    void walk_messages(
+      const const_data_buffer & message_data,
+      handler_types && ... handlers) const {
+
+      transactions::channel_message_walker_lambdas<handler_types...> walker(
+        std::forward<handler_types>(handlers)...);
+
+      walker.process(message_data);
+    }
   };
 
 }

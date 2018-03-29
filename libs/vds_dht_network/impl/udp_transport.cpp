@@ -205,8 +205,13 @@ void vds::dht::network::udp_transport::continue_read(
         break;
       }
       }
+      pthis->continue_read(sp);
     }
-    pthis->continue_read(sp);
+    else {
+      mt_service::async(sp, [sp, pthis]() {
+        pthis->continue_read(sp);
+      });
+    }
   });
 }
 

@@ -60,7 +60,7 @@ namespace vds {
       std::function<void(const std::shared_ptr<std::exception> & ex, result_types... results)> callback_;
     };
     
-    std::shared_ptr<result_callback> impl_;
+    mutable std::shared_ptr<result_callback> impl_;
   };
 
   /////////////////////////////////////////////////////////////////////////////////
@@ -680,13 +680,15 @@ namespace vds {
   template<typename ...result_types>
   inline void async_result<result_types...>::done(const result_types & ...results) const
   {
-	  this->impl_->callback_(std::shared_ptr<std::exception>(), results...);
+    auto impl = std::move(this->impl_);
+	  impl->callback_(std::shared_ptr<std::exception>(), results...);
   }
 
   template<typename ...result_types>
   inline void async_result<result_types...>::error(const std::shared_ptr<std::exception>& ex) const
   {
-	  this->impl_->callback_(ex, typename std::remove_reference<result_types>::type()...);
+    auto impl = std::move(this->impl_);
+    impl->callback_(ex, typename std::remove_reference<result_types>::type()...);
   }
 
   template<typename ...result_types>

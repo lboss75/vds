@@ -18,7 +18,7 @@ namespace vds {
     template<typename session_type>
     class dht_route {
     public:
-      struct node {
+      struct node : public std::enable_shared_from_this<node>{
         const_data_buffer node_id_;
         session_type proxy_session_;
         uint8_t pinged_;
@@ -37,6 +37,18 @@ namespace vds {
               hops_(hops),
               pinged_(0) {
         }
+        node(node && origin)
+          : node_id_(std::move(origin.node_id_)),
+          proxy_session_(std::move(origin.proxy_session_)),
+          hops_(origin.hops_),
+          pinged_(origin.pinged_) {
+        }
+        node(const node & origin)
+          : node_id_(origin.node_id_),
+          proxy_session_(origin.proxy_session_),
+          hops_(origin.hops_),
+          pinged_(origin.pinged_) {
+        }
 
         bool is_good() const {
           return this->pinged_ < 10;
@@ -50,6 +62,20 @@ namespace vds {
           this->proxy_session_ = proxy_session;
           this->hops_ = hops;
           this->pinged_ = 0;
+        }
+
+        void send_message(
+          const service_provider& sp,
+          const std::shared_ptr<network::udp_transport>& transport,
+          const network::message_type_t message_id,
+          const const_data_buffer& message) {
+
+          proxy_session_->send_message(
+            sp,
+            transport,
+            (uint8_t)message_id,
+            message);
+
         }
       };
 
@@ -102,7 +128,7 @@ namespace vds {
           std::map<vds::const_data_buffer /*distance*/, std::list<vds::const_data_buffer/*node_id*/>> &result,
           uint16_t max_count) const {
 
-        std::map<vds::const_data_buffer /*distance*/, std::list<node>> tmp;
+        std::map<vds::const_data_buffer /*distance*/, std::list<std::shared_ptr<node>>> tmp;
 
         this->search_nodes(sp, target_id, max_count, tmp);
 
@@ -110,7 +136,7 @@ namespace vds {
         for (auto &p : tmp) {
           auto &presult = result[p.first];
           for (auto &pnode : p.second) {
-            presult.push_back(pnode.node_id_);
+            presult.push_back(pnode->node_id_);
             ++count;
           }
           if (count > max_count) {
@@ -123,7 +149,7 @@ namespace vds {
         const vds::service_provider &sp,
         const const_data_buffer &target_id,
         size_t max_count,
-        std::map<const_data_buffer /*distance*/, std::list<node>> &result_nodes) const {
+        std::map<const_data_buffer /*distance*/, std::list<std::shared_ptr<node>>> &result_nodes) const {
         std::shared_lock<std::shared_mutex> lock(this->buckets_mutex_);
         this->_search_nodes(sp, target_id, max_count, result_nodes);
       }
@@ -132,16 +158,14 @@ namespace vds {
         const service_provider &sp,
         const const_data_buffer &target_node_id,
         size_t max_count,
-        const std::function<bool(
-          const const_data_buffer &node_id,
-          const session_type &session)> &callback) {
+        const std::function<bool(const std::shared_ptr<node> & candidate)> &callback) {
 
-        std::map<const_data_buffer /*distance*/, std::list<node>> result_nodes;
+        std::map<const_data_buffer /*distance*/, std::list<std::shared_ptr<node>>> result_nodes;
         this->search_nodes(sp, target_node_id, max_count, result_nodes);
 
         for (auto &presult : result_nodes) {
           for (auto & node : presult.second) {
-            if (!callback(node.node_id_, node.proxy_session_)) {
+            if (!callback(node)) {
               return;
             }
           }
@@ -155,7 +179,7 @@ namespace vds {
         static constexpr size_t MAX_NODES = 8;
 
         mutable std::shared_mutex nodes_mutex_;
-        std::list<node> nodes_;
+        std::list<std::shared_ptr<node>> nodes_;
 
         void add_node(
             const service_provider &sp,
@@ -165,19 +189,19 @@ namespace vds {
 
           std::unique_lock<std::shared_mutex> ulock(this->nodes_mutex_);
           for (const auto &p : this->nodes_) {
-            if (p.node_id_ == id && p.proxy_session_->address() == proxy_session->address()) {
+            if (p->node_id_ == id && p->proxy_session_->address() == proxy_session->address()) {
               return;//Already exists
             }
           }
 
           if (MAX_NODES > this->nodes_.size()) {
-            this->nodes_.push_back(node(id, proxy_session, hops));
+            this->nodes_.push_back(std::make_shared<node>(id, proxy_session, hops));
             return;
           }
 
           for (auto &p : this->nodes_) {
-            if (!p.is_good()) {
-              p.reset(id, proxy_session, hops);
+            if (!p->is_good()) {
+              p->reset(id, proxy_session, hops);
               return;
             }
           }
@@ -189,15 +213,15 @@ namespace vds {
 
           std::shared_lock<std::shared_mutex> lock(this->nodes_mutex_);
           for (auto &p : this->nodes_) {
-            p.proxy_session_->ping_node(sp, p.node_id_);
-            p.pinged_++;
+            p->proxy_session_->ping_node(sp, p->node_id_);
+            p->pinged_++;
           }
         }
 
         bool contains(const const_data_buffer &node_id) const {
           std::shared_lock<std::shared_mutex> lock(this->nodes_mutex_);
           for (auto &p : this->nodes_) {
-            if (p.node_id_ == node_id) {
+            if (p->node_id_ == node_id) {
               return true;
             }
           }
@@ -214,7 +238,7 @@ namespace vds {
           const vds::service_provider &sp,
           const const_data_buffer &target_id,
           size_t max_count,
-          std::map<const_data_buffer /*distance*/, std::list<node>> &result_nodes) const {
+          std::map<const_data_buffer /*distance*/, std::list<std::shared_ptr<node>>> &result_nodes) const {
 
         if (this->buckets_.empty()) {
           return;
@@ -227,12 +251,16 @@ namespace vds {
 
         size_t count = 0;
         for (
-            uint8_t distance = 0;
+            size_t distance = 0;
             result_nodes.size() < max_count
-            && (index + distance < max_index || index - distance >= min_index);
+            && (index + distance <= max_index || (index >= distance && index - distance >= min_index));
             ++distance) {
-          count += this->search_nodes(sp, target_id, result_nodes, index + distance);
-          count += this->search_nodes(sp, target_id, result_nodes, index - distance);
+          if (index + distance <= max_index) {
+            count += this->search_nodes(sp, target_id, result_nodes, index + distance);
+          }
+          if (index >= distance && index - distance >= min_index) {
+            count += this->search_nodes(sp, target_id, result_nodes, index - distance);
+          }
           if (count > max_count) {
             break;
           }
@@ -242,7 +270,7 @@ namespace vds {
       size_t search_nodes(
           const service_provider &sp,
           const const_data_buffer &target_id,
-          std::map<const_data_buffer, std::list<node>> &result_nodes,
+          std::map<const_data_buffer, std::list<std::shared_ptr<node>>> &result_nodes,
           uint8_t index) const {
         size_t result = 0;
         auto p = this->buckets_.find(index);
@@ -251,11 +279,11 @@ namespace vds {
         }
 
         for (auto &node : p->second.nodes_) {
-          if (!node.is_good()) {
+          if (!node->is_good()) {
             continue;
           }
 
-          result_nodes[dht_object_id::distance(node.node_id_, target_id)].push_back(node);
+          result_nodes[dht_object_id::distance(node->node_id_, target_id)].push_back(node);
           ++result;
         }
 
