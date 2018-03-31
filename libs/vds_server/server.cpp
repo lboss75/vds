@@ -129,6 +129,16 @@ vds::async_task<> vds::_server::prepare_to_stop(const vds::service_provider &sp)
 vds::async_task<vds::server_statistic> vds::_server::get_statistic(const vds::service_provider &sp) {
   auto result = std::make_shared<vds::server_statistic>();
   return sp.get<db_model>()->async_transaction(sp, [this, result](database_transaction & t){
+
+    orm::transaction_log_record_dbo t2;
+    auto st = t.get_reader(
+        t2.select(t2.channel_id, t2.id)
+            .where(t2.state == (int)orm::transaction_log_record_dbo::state_t::leaf));
+
+    while (st.execute()) {
+      result->sync_statistic_.leafs_[base64::to_bytes(t2.channel_id.get(st))].push_back(base64::to_bytes(t2.id.get(st)));
+    }
+
     return true;
   }).then([result]()->server_statistic{
     return *result;

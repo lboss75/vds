@@ -9,7 +9,7 @@ All rights reserved
 namespace vds {
   struct sync_statistic {
 
-    std::map<guid, std::list<std::string>> leafs_;
+    std::map<const_data_buffer, std::list<const_data_buffer>> leafs_;
 
     struct record_info {
       std::string name_;
@@ -21,11 +21,11 @@ namespace vds {
     std::string str() const {
       std::string result;
       for (auto & c : this->leafs_) {
-        result += c.first.str();
+        result += base64::from_bytes(c.first);
         result += '[';
 
         for (auto & p : c.second) {
-          result += p;
+          result += base64::from_bytes(p);
           result += ',';
         }
 

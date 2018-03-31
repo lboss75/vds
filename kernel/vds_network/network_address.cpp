@@ -47,25 +47,24 @@ std::string vds::network_address::to_string() const {
 vds::network_address vds::network_address::parse(const std::string& address) {
   vds::network_address result;
   url_parser::parse_addresses(
-    address,
-    [&result](const std::string &protocol, const std::string &address) -> bool {
-    if ("udp" == protocol || "udp6" == protocol) {
-      auto na = url_parser::parse_network_address(address);
-      if (na.protocol != "udp" && na.protocol != "udp6") {
-        throw std::invalid_argument("address");
-      }
+      address,
+      [&result](const std::string &protocol, const std::string &address) -> bool {
+        if ("udp" == protocol || "udp6" == protocol) {
+          auto na = url_parser::parse_network_address(address);
+          if (na.protocol != "udp" && na.protocol != "udp6") {
+            throw std::invalid_argument("address");
+          }
 
-      result = network_address(
-        (na.protocol == "udp") ? AF_INET : AF_INET6,
-        na.server,
-        (uint16_t)atoi(na.port.c_str()));
-    }
-    else {
-      throw std::runtime_error("Invalid addresss");
-    }
-      return true;
-  });
-  if(!result){
+          result = network_address(
+              (na.protocol == "udp") ? AF_INET : AF_INET6,
+              na.server,
+              (uint16_t) atoi(na.port.c_str()));
+        } else {
+          throw std::runtime_error("Invalid addresss");
+        }
+        return true;
+      });
+  if (!result) {
     throw std::runtime_error("Invalid addresss");
   }
   return result;
