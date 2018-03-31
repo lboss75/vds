@@ -34,7 +34,7 @@ vds::file_manager::file_operations::file_operations()
 
 vds::async_task<> vds::file_manager::file_operations::upload_file(
     const service_provider &sp,
-    const guid &channel_id,
+    const const_data_buffer &channel_id,
     const std::string &name,
     const std::string &mimetype,
     const vds::filename &file_path) {
@@ -50,7 +50,7 @@ vds::file_manager::file_operations::download_file(
 }
 
 vds::async_task<>
-vds::file_manager::file_operations::upload_file(const vds::service_provider &sp, const vds::guid &channel_id,
+vds::file_manager::file_operations::upload_file(const vds::service_provider &sp, const const_data_buffer &channel_id,
                                                 const std::string &name, const std::string &mimetype,
                                                 const std::shared_ptr<vds::continuous_buffer<uint8_t>> &input_stream) {
   return this->impl_->upload_file(sp, channel_id, name, mimetype, input_stream);
@@ -59,7 +59,7 @@ vds::file_manager::file_operations::upload_file(const vds::service_provider &sp,
 //////////////////////////////////////////////////////////////////////////////////////////////
 vds::async_task<> vds::file_manager_private::_file_operations::upload_file(
     const service_provider & paren_sp,
-    const guid & channel_id,
+    const const_data_buffer & channel_id,
     const std::string &name,
     const std::string &mimetype,
     const vds::filename &file_path) {
@@ -88,7 +88,7 @@ vds::async_task<> vds::file_manager_private::_file_operations::upload_file(
               ThisModule,
               sp,
               "Channel %s don't have write cert",
-              channel_id.str().c_str());
+              base64::from_bytes(channel_id).c_str());
           throw vds_exceptions::access_denied_error("User don't have write permission");
         }
         auto channel_write_key = user_mng->get_channel_write_key(sp, channel.id());
@@ -118,7 +118,7 @@ vds::async_task<> vds::file_manager_private::_file_operations::upload_file(
 
 vds::async_task<> vds::file_manager_private::_file_operations::upload_file(
     const service_provider & paren_sp,
-    const guid & channel_id,
+    const const_data_buffer & channel_id,
     const std::string &name,
     const std::string &mimetype,
     const std::shared_ptr<continuous_buffer<uint8_t>> & input_stream) {
@@ -155,7 +155,7 @@ vds::async_task<> vds::file_manager_private::_file_operations::upload_file(
           ThisModule,
           sp,
           "Channel %s don't have write cert",
-          channel_id.str().c_str());
+          base64::from_bytes(channel_id).c_str());
         throw vds_exceptions::access_denied_error("User don't have write permission");
       }
       auto channel_write_key = user_mng->get_channel_write_key(sp, channel.id());

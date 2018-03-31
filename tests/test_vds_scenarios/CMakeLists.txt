@@ -51,6 +51,7 @@ target_link_libraries(
   vds_user_manager
   vds_dht_network
   vds_transactions
+  test_libs
   ${UUID_LIBRARIES}
   ${OPENSSL_LIBRARIES}
   ${UPNP_LIBRARIES}

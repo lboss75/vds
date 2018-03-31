@@ -6,7 +6,6 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 #include <unordered_map>
-#include "transaction_log.h"
 #include "binary_serialize.h"
 #include "transaction_id.h"
 

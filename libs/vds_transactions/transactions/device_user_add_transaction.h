@@ -7,7 +7,6 @@ All rights reserved
 */
 
 #include <stdafx.h>
-#include "transaction_log.h"
 #include "transaction_id.h"
 
 namespace vds {

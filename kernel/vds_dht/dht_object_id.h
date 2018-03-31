@@ -11,6 +11,7 @@ All rights reserved
 #include "binary_serialize.h"
 #include "resizable_data_buffer.h"
 #include "encoding.h"
+#include "crypto_service.h"
 
 namespace vds {
   namespace dht {
@@ -66,6 +67,12 @@ namespace vds {
         }
       }
 
+      static const_data_buffer generate_random_id() {
+        uint8_t buffer[32];//MD5 size
+        crypto_service::rand_bytes(buffer, sizeof(buffer));
+
+        return const_data_buffer(buffer, sizeof(buffer));
+      }
 
       static const_data_buffer generate_random_id(const const_data_buffer &original, size_t exp_index) {
         resizable_data_buffer result;

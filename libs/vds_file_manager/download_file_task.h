@@ -18,7 +18,7 @@ namespace vds {
       public:
 
       download_file_task(
-          const guid &channel_id,
+          const const_data_buffer &channel_id,
           const std::string &name,
           const filename &file_path)
           : channel_id_(channel_id),
@@ -43,7 +43,7 @@ namespace vds {
         }
       };
 
-      const guid & channel_id() const {
+      const const_data_buffer & channel_id() const {
         return this->channel_id_;
       }
 
@@ -105,7 +105,7 @@ namespace vds {
 
     private:
 
-      guid channel_id_;
+      const_data_buffer channel_id_;
       std::string name_;
       filename target_file_;
       std::string mime_type_;

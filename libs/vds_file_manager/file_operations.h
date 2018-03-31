@@ -28,14 +28,14 @@ namespace vds {
 
       vds::async_task<> upload_file(
 		  const service_provider &sp,
-		  const vds::guid &channel_id,
+		  		const const_data_buffer &channel_id,
           const std::string &name,
 		  		const std::string &mimetype,
           const vds::filename &file_path);
 
 			vds::async_task<> upload_file(
 					const service_provider &sp,
-					const vds::guid &channel_id,
+					const const_data_buffer &channel_id,
 					const std::string &name,
 					const std::string &mimetype,
 					const std::shared_ptr<continuous_buffer<uint8_t>> & input_stream);

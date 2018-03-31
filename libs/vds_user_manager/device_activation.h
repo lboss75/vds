@@ -10,6 +10,7 @@ All rights reserved
 */
 
 namespace vds {
+	/*
   class device_activation
   {
   public:
@@ -49,7 +50,7 @@ namespace vds {
 	  std::list<certificate> certificate_chain_;
 		asymmetric_private_key private_key_;
 
-  };
+  };*/
 }
 
 #endif // __VDS_USER_MANAGER_DEVICE_ACTIVATION_H_

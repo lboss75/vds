@@ -5,6 +5,7 @@ All rights reserved
 #include <security_walker.h>
 #include <transactions/channel_add_reader_transaction.h>
 #include <transactions/channel_add_writer_transaction.h>
+#include <dht_object_id.h>
 #include "stdafx.h"
 #include "vds_mock.h"
 #include "test_config.h"
@@ -29,17 +30,18 @@ void vds_mock::start(size_t server_count)
   
   auto clients_folder = vds::foldername(vds::filename::current_process().contains_folder(), "clients");
   clients_folder.delete_folder(true);
-            
+
+  this->root_login_ = "root";
   this->root_password_ = generate_password();
   const auto first_port = 8050;
 
   for (size_t i = 0; i < server_count; ++i) {
     if (0 == i) {
       std::cout << "Initing root\n";
-	  this->root_device_activation_ = mock_server::init_root(i, first_port + i, this->root_password_);
+	    mock_server::init_root(i, first_port + i, this->root_password_);
     } else {
       std::cout << "Initing server " << i << "\n";
-      mock_server::init(i, first_port + i, this->root_device_activation_, this->root_password_);
+      mock_server::init(i, first_port + i, this->root_login_, this->root_password_);
     }
 
     std::unique_ptr<mock_server> server(new mock_server(i, first_port + i));
@@ -136,191 +138,188 @@ std::string vds_mock::generate_password(size_t min_len, size_t max_len)
   return result;
 }
 
-void vds_mock::allow_write_channel(size_t client_index, const vds::guid &channel_id){
-  vds::barrier b;
-  std::shared_ptr<std::exception> error;
-
-  auto sp = this->servers_[client_index]->get_service_provider().create_scope(__FUNCTION__);
-  vds::mt_service::enable_async(sp);
-  this->servers_[client_index]
-      ->get<vds::db_model>()
-      ->async_transaction(
-          sp,
-          [this, client_index, channel_id, sp](vds::database_transaction & t)->bool {
-
-            auto user_mng = this->servers_[client_index]->get<vds::user_manager>();
-
-            auto root_user = user_mng->import_user(*this->root_device_activation_.certificate_chain().rbegin());
-			vds::asymmetric_private_key root_user_private_key = this->root_device_activation_.private_key();
-
-            vds::security_walker walker(
-                root_user.id(),
-                root_user.user_certificate(),
-                root_user_private_key);
-            walker.load(sp, t);
-
-            std::string channel_name;
-			vds::certificate channel_read_cert;
-			vds::asymmetric_private_key channel_read_private_key;
-			vds::certificate channel_write_cert;
-            vds::asymmetric_private_key channel_write_private_key;
-            if(!walker.get_channel_write_certificate(
-                channel_id,
-                channel_name,
-				channel_read_cert,
-				channel_read_private_key,
-                channel_write_cert,
-                channel_write_private_key)){
-              throw std::runtime_error("Unable to get channel write certificate");
-            }
-			vds::user_channel channel(channel_id, channel_name, channel_read_cert, channel_write_cert);
-
-			sp.get<vds::logger>()->trace("MOCK", sp, "Allow write channel %s(%s). Cert %s",
-				channel_name.c_str(),
-				channel_id.str().c_str(),
-				vds::cert_control::get_id(channel_write_cert).str().c_str());
-
-            vds::asymmetric_private_key device_private_key;
-            auto device_user = user_mng->get_current_device(
-                sp,
-                device_private_key);
-
-            vds::transactions::transaction_block log;
-
-			channel.add_reader(
-				log,
-				device_user,
-				root_user,
-				root_user_private_key,
-				channel_read_private_key);
-			channel.add_writer(
-					log,
-					device_user,
-					root_user,
-					root_user_private_key,
-					channel_write_private_key);
-
-            log.save(
-                sp,
-                t,
-                [sp, user_mng](const vds::guid & channel_id,
-                   vds::certificate & read_cert,
-                   vds::certificate & write_cert,
-                   vds::asymmetric_private_key & write_private_key){
-                  auto channel = user_mng->get_channel(sp, channel_id);
-                  if(!channel){
-                    throw std::runtime_error("Invalid channel");
-                  }
-                  read_cert = channel.read_cert();
-                  write_cert = channel.write_cert();
-                  write_private_key = user_mng->get_channel_write_key(sp, channel_id);
-                });
-            return true;
-          })
-      .execute([&b, &error](const std::shared_ptr<std::exception> & ex){
-        if(ex){
-          error = ex;
-        }
-        b.set();
-      });
-
-  b.wait();
-  if(error){
-    throw std::runtime_error(error->what());
-  }
+void vds_mock::allow_write_channel(size_t client_index, const vds::const_data_buffer &channel_id){
+//  vds::barrier b;
+//  std::shared_ptr<std::exception> error;
+//
+//  auto sp = this->servers_[client_index]->get_service_provider().create_scope(__FUNCTION__);
+//  vds::mt_service::enable_async(sp);
+//  this->servers_[client_index]
+//      ->get<vds::db_model>()
+//      ->async_transaction(
+//          sp,
+//          [this, client_index, channel_id, sp](vds::database_transaction & t)->bool {
+//
+//            auto user_mng = std::make_shared<vds::user_manager>();
+//            user_mng->load(
+//                sp,
+//                t,
+//                vds::dht::dht_object_id::from_user_email(this->root_login_),
+//                vds::symmetric_key::from_password(this->root_password_),
+//                vds::hash::signature(vds::hash::sha256(), this->root_password_.c_str(), this->root_password_.length())
+//
+//            std::string channel_name;
+//            vds::certificate channel_read_cert;
+//            vds::asymmetric_private_key channel_read_private_key;
+//            vds::certificate channel_write_cert;
+//            vds::asymmetric_private_key channel_write_private_key;
+//            if(!user_mng->get_channel_write_certificate(
+//                channel_id,
+//                channel_name,
+//                channel_read_cert,
+//                channel_read_private_key,
+//                channel_write_cert,
+//                channel_write_private_key)){
+//              throw std::runtime_error("Unable to get channel write certificate");
+//            }
+//			vds::user_channel channel(channel_id, channel_name, channel_read_cert, channel_write_cert);
+//
+//			sp.get<vds::logger>()->trace("MOCK", sp, "Allow write channel %s(%s). Cert %s",
+//				channel_name.c_str(),
+//				channel_id.str().c_str(),
+//				vds::cert_control::get_id(channel_write_cert).str().c_str());
+//
+//            vds::asymmetric_private_key device_private_key;
+//            auto device_user = user_mng->get_current_device(
+//                sp,
+//                device_private_key);
+//
+//            vds::transactions::transaction_block log;
+//
+//			channel.add_reader(
+//				log,
+//				device_user,
+//				root_user,
+//				root_user_private_key,
+//				channel_read_private_key);
+//			channel.add_writer(
+//					log,
+//					device_user,
+//					root_user,
+//					root_user_private_key,
+//					channel_write_private_key);
+//
+//            log.save(
+//                sp,
+//                t,
+//                [sp, user_mng](const vds::guid & channel_id,
+//                   vds::certificate & read_cert,
+//                   vds::certificate & write_cert,
+//                   vds::asymmetric_private_key & write_private_key){
+//                  auto channel = user_mng->get_channel(sp, channel_id);
+//                  if(!channel){
+//                    throw std::runtime_error("Invalid channel");
+//                  }
+//                  read_cert = channel.read_cert();
+//                  write_cert = channel.write_cert();
+//                  write_private_key = user_mng->get_channel_write_key(sp, channel_id);
+//                });
+//            return true;
+//          })
+//      .execute([&b, &error](const std::shared_ptr<std::exception> & ex){
+//        if(ex){
+//          error = ex;
+//        }
+//        b.set();
+//      });
+//
+//  b.wait();
+//  if(error){
+//    throw std::runtime_error(error->what());
+//  }
 }
 
-void vds_mock::allow_read_channel(size_t client_index, const vds::guid &channel_id){
-  vds::barrier b;
-  std::shared_ptr<std::exception> error;
-
-  auto sp = this->servers_[client_index]->get_service_provider().create_scope(__FUNCTION__);
-  vds::mt_service::enable_async(sp);
-  this->servers_[client_index]
-      ->get<vds::db_model>()
-      ->async_transaction(
-          sp,
-          [this, client_index, channel_id, sp](vds::database_transaction & t)->bool {
-
-            auto user_mng = this->servers_[client_index]->get<vds::user_manager>();
-            auto root_user = user_mng->import_user(*this->root_device_activation_.certificate_chain().rbegin());
-            vds::asymmetric_private_key root_user_private_key = this->root_device_activation_.private_key();
-
-            vds::security_walker walker(
-                root_user.id(),
-                root_user.user_certificate(),
-                root_user_private_key);
-            walker.load(sp, t);
-
-            std::string channel_name;
-            vds::certificate channel_read_cert;
-            vds::asymmetric_private_key channel_read_private_key;
-            vds::certificate channel_write_cert;
-            vds::asymmetric_private_key channel_write_private_key;
-            if(!walker.get_channel_write_certificate(
-                channel_id,
-                channel_name,
-                channel_read_cert,
-                channel_read_private_key,
-                channel_write_cert,
-                channel_write_private_key)){
-              throw std::runtime_error("Unable to get channel write certificate");
-            }
-            vds::user_channel channel(channel_id, channel_name, channel_read_cert, channel_write_cert);
-
-            sp.get<vds::logger>()->trace("MOCK", sp, "Allow write channel %s(%s). Cert %s",
-                                         channel_name.c_str(),
-                                         channel_id.str().c_str(),
-                                         vds::cert_control::get_id(channel_write_cert).str().c_str());
-
-            vds::asymmetric_private_key device_private_key;
-            auto device_user = user_mng->get_current_device(
-                sp,
-                device_private_key);
-
-            vds::transactions::transaction_block log;
-
-            channel.add_reader(
-                log,
-                device_user,
-                root_user,
-                root_user_private_key,
-                channel_read_private_key);
-
-            log.save(
-                sp,
-                t,
-                [sp, user_mng](const vds::guid & channel_id,
-                               vds::certificate & read_cert,
-                               vds::certificate & write_cert,
-                               vds::asymmetric_private_key & write_private_key){
-                  auto channel = user_mng->get_channel(sp, channel_id);
-                  if(!channel){
-                    throw std::runtime_error("Invalid channel");
-                  }
-                  read_cert = channel.read_cert();
-                  write_cert = channel.write_cert();
-                  write_private_key = user_mng->get_channel_write_key(sp, channel_id);
-                });
-
-            return true;
-          })
-      .execute([&b, &error](const std::shared_ptr<std::exception> & ex){
-        if(ex){
-          error = ex;
-        }
-        b.set();
-      });
-
-  b.wait();
-  if(error){
-    throw std::runtime_error(error->what());
-  }
+void vds_mock::allow_read_channel(size_t client_index, const vds::const_data_buffer &channel_id){
+//  vds::barrier b;
+//  std::shared_ptr<std::exception> error;
+//
+//  auto sp = this->servers_[client_index]->get_service_provider().create_scope(__FUNCTION__);
+//  vds::mt_service::enable_async(sp);
+//  this->servers_[client_index]
+//      ->get<vds::db_model>()
+//      ->async_transaction(
+//          sp,
+//          [this, client_index, channel_id, sp](vds::database_transaction & t)->bool {
+//
+//            auto user_mng = this->servers_[client_index]->get<vds::user_manager>();
+//            auto root_user = user_mng->import_user(*this->root_device_activation_.certificate_chain().rbegin());
+//            vds::asymmetric_private_key root_user_private_key = this->root_device_activation_.private_key();
+//
+//            vds::security_walker walker(
+//                root_user.id(),
+//                root_user.user_certificate(),
+//                root_user_private_key);
+//            walker.load(sp, t);
+//
+//            std::string channel_name;
+//            vds::certificate channel_read_cert;
+//            vds::asymmetric_private_key channel_read_private_key;
+//            vds::certificate channel_write_cert;
+//            vds::asymmetric_private_key channel_write_private_key;
+//            if(!walker.get_channel_write_certificate(
+//                channel_id,
+//                channel_name,
+//                channel_read_cert,
+//                channel_read_private_key,
+//                channel_write_cert,
+//                channel_write_private_key)){
+//              throw std::runtime_error("Unable to get channel write certificate");
+//            }
+//            vds::user_channel channel(channel_id, channel_name, channel_read_cert, channel_write_cert);
+//
+//            sp.get<vds::logger>()->trace("MOCK", sp, "Allow write channel %s(%s). Cert %s",
+//                                         channel_name.c_str(),
+//                                         channel_id.str().c_str(),
+//                                         vds::cert_control::get_id(channel_write_cert).str().c_str());
+//
+//            vds::asymmetric_private_key device_private_key;
+//            auto device_user = user_mng->get_current_device(
+//                sp,
+//                device_private_key);
+//
+//            vds::transactions::transaction_block log;
+//
+//            channel.add_reader(
+//                log,
+//                device_user,
+//                root_user,
+//                root_user_private_key,
+//                channel_read_private_key);
+//
+//            log.save(
+//                sp,
+//                t,
+//                [sp, user_mng](const vds::guid & channel_id,
+//                               vds::certificate & read_cert,
+//                               vds::certificate & write_cert,
+//                               vds::asymmetric_private_key & write_private_key){
+//                  auto channel = user_mng->get_channel(sp, channel_id);
+//                  if(!channel){
+//                    throw std::runtime_error("Invalid channel");
+//                  }
+//                  read_cert = channel.read_cert();
+//                  write_cert = channel.write_cert();
+//                  write_private_key = user_mng->get_channel_write_key(sp, channel_id);
+//                });
+//
+//            return true;
+//          })
+//      .execute([&b, &error](const std::shared_ptr<std::exception> & ex){
+//        if(ex){
+//          error = ex;
+//        }
+//        b.set();
+//      });
+//
+//  b.wait();
+//  if(error){
+//    throw std::runtime_error(error->what());
+//  }
 }
 
 void vds_mock::upload_file(
 	size_t client_index,
-	const vds::guid &channel_id,
+	const vds::const_data_buffer &channel_id,
 	const std::string &name,
     const std::string &mimetype,
 	const vds::filename &file_path) {
@@ -352,7 +351,7 @@ void vds_mock::upload_file(
 
 void vds_mock::download_data(
 	size_t client_index,
-	const vds::guid &channel_id, 
+	const vds::const_data_buffer &channel_id,
 	const std::string &name,
 	const vds::filename &file_path) {
   auto sp = this->servers_[client_index]->get_service_provider().create_scope(__FUNCTION__);
@@ -403,11 +402,13 @@ vds::user_channel vds_mock::create_channel(int index, const std::string &name) {
       sp,
       [this, sp, index, name, &result](vds::database_transaction & t) -> bool{
 
-
-    auto user_mng = sp.get<vds::user_manager>();
-
-    auto root_user = user_mng->import_user(*this->root_device_activation_.certificate_chain().rbegin());
-    auto root_private_key = this->root_device_activation_.private_key();
+      auto user_mng = std::make_shared<vds::user_manager>();
+      user_mng->load(
+          sp,
+          t,
+          vds::dht::dht_object_id::from_user_email(this->root_login_),
+          vds::symmetric_key::from_password(this->root_password_),
+          vds::hash::signature(vds::hash::sha256(), this->root_password_.c_str(), this->root_password_.length()));
 
     auto read_private_key = vds::asymmetric_private_key::generate(
         vds::asymmetric_crypto::rsa4096());
@@ -415,41 +416,12 @@ vds::user_channel vds_mock::create_channel(int index, const std::string &name) {
         vds::asymmetric_crypto::rsa4096());
 
     vds::transactions::transaction_block log;
-	vds::asymmetric_private_key channel_read_private_key;
-	vds::asymmetric_private_key channel_write_private_key;
-    result = user_mng->create_channel(
-		sp,
-        log,
-        t,
-        vds::guid::new_guid(),
-        name,
-        root_user.id(),
-        root_user.user_certificate(),
-        root_private_key,
-		channel_read_private_key,
-		channel_write_private_key);
-
-    log.save(
-        sp,
-        t,
-        [sp, user_mng, &root_user, &root_private_key](const vds::guid & channel_id,
-                       vds::certificate & read_cert,
-                       vds::certificate & write_cert,
-                       vds::asymmetric_private_key & write_private_key){
-          if(root_user.id() == channel_id){
-            read_cert = root_user.user_certificate();
-            write_cert = root_user.user_certificate();
-            write_private_key = root_private_key;
-            return;
-          }
-          auto channel = user_mng->get_channel(sp, channel_id);
-          if(!channel){
-            throw std::runtime_error("Invalid channel");
-          }
-          read_cert = channel.read_cert();
-          write_cert = channel.write_cert();
-          write_private_key = user_mng->get_channel_write_key(sp, channel_id);
-        });
+    vds::asymmetric_private_key channel_read_private_key;
+    vds::asymmetric_private_key channel_write_private_key;
+    result = user_mng->create_channel(sp, log, t, vds::dht::dht_object_id::generate_random_id(),
+                                      vds::user_channel::channel_type_t::personal_channel,
+                                      name,
+                                      channel_read_private_key, channel_write_private_key);
 
     return true;
   }).execute([&b, &error](const std::shared_ptr<std::exception> & ex){
@@ -478,7 +450,7 @@ mock_server::mock_server(int index, int udp_port)
 {
 }
 
-vds::device_activation mock_server::init_root(int index, int udp_port, const std::string& root_password)
+void mock_server::init_root(int index, int udp_port, const std::string& root_password)
 {
   vds::service_registrator registrator;
 
@@ -502,7 +474,6 @@ vds::device_activation mock_server::init_root(int index, int udp_port, const std
   registrator.add(network_service);
   registrator.add(server);
 
-  vds::device_activation result;
   std::shared_ptr<std::exception> error;
 
   auto sp = registrator.build("mock server::init_root");
@@ -523,14 +494,10 @@ vds::device_activation mock_server::init_root(int index, int udp_port, const std
 	vds::imt_service::enable_async(sp);
 	vds::barrier b;
     server
-        .reset(sp, "root", root_password, "test" + std::to_string(udp_port), udp_port)
-		.execute([&error, &b, &result](const std::shared_ptr<std::exception> & ex, const vds::device_activation & invitation) {
+        .reset(sp, "root", root_password)
+		.execute([&error, &b](const std::shared_ptr<std::exception> & ex) {
 		if (ex) {
 			error = ex;
-		}
-		else
-		{
-			result = invitation;
 		}
 		b.set();
 	});
@@ -550,8 +517,6 @@ vds::device_activation mock_server::init_root(int index, int udp_port, const std
   if (error) {
     throw *error;
   }
-
-  return  result;
 }
 
 
@@ -581,7 +546,8 @@ void mock_server::start()
 
   std::shared_ptr<std::exception> error;
   vds::barrier b;
-  this->server_.start_network(this->sp_,).execute([&b, &error](const std::shared_ptr<std::exception> & ex){
+  this->server_.start_network(this->sp_, this->udp_port_)
+      .execute([&b, &error](const std::shared_ptr<std::exception> & ex){
     if(ex){
       error = ex;
     }
@@ -598,7 +564,11 @@ void mock_server::stop()
   this->registrator_.shutdown(this->sp_);
 }
 
-void mock_server::init(int index, int udp_port, const vds::device_activation & invitation, const std::string &user_password) {
+void mock_server::init(
+    int index,
+    int udp_port,
+    const std::string &user_login,
+    const std::string &user_password) {
   vds::service_registrator registrator;
 
   vds::mt_service mt_service;
@@ -643,7 +613,7 @@ void mock_server::init(int index, int udp_port, const vds::device_activation & i
     vds::imt_service::enable_async(sp);
     vds::barrier b;
     server
-        .init_server(sp, invitation, user_password, "test" + std::to_string(udp_port), udp_port)
+        .init_server(sp, user_login, user_password, "test" + std::to_string(udp_port), udp_port)
         .execute([&error, &b](const std::shared_ptr<std::exception> & ex) {
           if (ex) {
             error = ex;

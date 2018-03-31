@@ -8,7 +8,6 @@ All rights reserved
 
 #include <stdafx.h>
 #include "guid.h"
-#include "transaction_log.h"
 #include "transaction_id.h"
 
 namespace vds {

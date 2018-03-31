@@ -23,13 +23,13 @@ namespace vds {
     async_task<> prepare_to_stop(const service_provider &sp) override;
 
 
-    vds::async_task<device_activation> reset(const vds::service_provider &sp, const std::string &root_user_name, const std::string &root_password);
+    vds::async_task<> reset(const vds::service_provider &sp, const std::string &root_user_name, const std::string &root_password);
 
     vds::async_task<> start_network(const vds::service_provider &sp, uint16_t port);
 
     vds::async_task<> init_server(
 		const vds::service_provider &sp,
-		const device_activation & request,
+    const std::string &root_user_name,
 		const std::string & user_password,
 		const std::string &device_name,
 		int port);

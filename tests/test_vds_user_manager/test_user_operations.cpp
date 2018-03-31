@@ -44,14 +44,14 @@ TEST(test_user_operations, test_add_user)
   
   auto channel1 = manager.create_channel(<#initializer#>, <#initializer#>, user1, user1_private_key, "channel1",
                                          <#initializer#>,
-                                         <#initializer#>);
+                                         <#initializer#>, <#initializer#>, <#initializer#>, <#initializer#>);
   auto channel2 = manager.create_channel(<#initializer#>, <#initializer#>, user2, user2_private_key, "channel2",
                                          <#initializer#>,
-                                         <#initializer#>);
+                                         <#initializer#>, <#initializer#>, <#initializer#>, <#initializer#>);
   
   auto channel3 = manager.create_channel(<#initializer#>, <#initializer#>, user1, user1_private_key, "channel3",
                                          <#initializer#>,
-                                         <#initializer#>);
+                                         <#initializer#>, <#initializer#>, <#initializer#>, <#initializer#>);
   //channel3.add_user(user2);
   
   char test_data1[] = "test message1";

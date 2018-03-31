@@ -21,7 +21,7 @@ namespace vds {
         const service_provider &sp,
         asymmetric_private_key &device_private_key) const;
 
-    user_channel get_channel(const guid &channel_id) const;
+    user_channel get_channel(const const_data_buffer &channel_id) const;
 
     bool validate_and_save(
         const service_provider & sp,

@@ -7,7 +7,7 @@ All rights reserved
 
 #include "guid.h"
 #include "asymmetriccrypto.h"
-#include "transaction_log.h"
+#include "transaction_id.h"
 
 namespace vds {
   namespace transactions {

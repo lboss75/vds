@@ -42,25 +42,28 @@ namespace vds {
       const std::string &user_password,
       const asymmetric_private_key &private_key);
 
-    user_channel create_channel(
-      const service_provider & sp,
-      transactions::transaction_block &log, database_transaction &t,
-      const vds::guid &channel_id,
-      user_channel::channel_type_t channel_type,
-      const std::string &name,
-      const vds::guid &owner_id, const certificate &owner_cert,
-      const asymmetric_private_key &owner_private_key,
-      asymmetric_private_key &read_private_key,
-      asymmetric_private_key &write_private_key) const;
+    vds::user_channel create_channel(
+        const service_provider &sp,
+        transactions::transaction_block &log,
+        database_transaction &t,
+        const vds::const_data_buffer &channel_id,
+        user_channel::channel_type_t channel_type,
+        const std::string &name,
+        asymmetric_private_key &read_private_key,
+        asymmetric_private_key &write_private_key) const;
 
-    device_activation reset(const service_provider &sp, class database_transaction &t, const std::string &root_user_name,
-      const std::string &root_password, const asymmetric_private_key &root_private_key);
+    void reset(
+        const service_provider &sp,
+        class database_transaction &t,
+        const std::string &root_user_name,
+        const std::string &root_password,
+        const asymmetric_private_key &root_private_key);
 
     async_task<> init_server(
       const vds::service_provider &sp,
-      const device_activation & request,
+      const std::string & root_user_name,
       const std::string & user_password,
-      const std::string &device_name,
+      const std::string & device_name,
       int port);
 
     member_user lock_to_device(
@@ -92,7 +95,7 @@ namespace vds {
 
     member_user import_user(const certificate &user_cert);
 
-    user_channel get_channel(const service_provider & sp, const guid &channel_id) const;
+    user_channel get_channel(const service_provider & sp, const const_data_buffer &channel_id) const;
     std::list<user_channel> get_channels() const;
 
     template <typename... handler_types>
@@ -181,6 +184,17 @@ namespace vds {
   private:
     std::shared_ptr<class _user_manager> impl_;
 
+    vds::user_channel create_channel(
+        const service_provider &sp,
+        transactions::transaction_block &log,
+        database_transaction &t,
+        const vds::const_data_buffer &channel_id,
+        user_channel::channel_type_t channel_type,
+        const std::string &name,
+        const certificate &owner_cert,
+        const asymmetric_private_key &owner_private_key,
+        asymmetric_private_key &read_private_key,
+        asymmetric_private_key &write_private_key) const;
   };
 }
 

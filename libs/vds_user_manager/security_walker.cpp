@@ -206,7 +206,7 @@ void vds::security_walker::update(
         cp.write_private_keys_[cp.current_write_certificate_] = message.write_private_key();
 
         log->debug(ThisModule, sp, "New channel %s(%s), read certificate %s, write certificate %s",
-          message.channel_id().str().c_str(),
+          base64::from_bytes(message.channel_id()).c_str(),
           message.name().c_str(),
           cp.current_read_certificate_.str().c_str(),
           cp.current_write_certificate_.str().c_str());

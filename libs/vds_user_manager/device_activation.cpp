@@ -8,7 +8,7 @@ All rights reserved
 #include "private/member_user_p.h"
 
 
-
+/*
 vds::const_data_buffer vds::device_activation::pack(const std::string& user_password) const
 {
   return  (
@@ -58,3 +58,4 @@ vds::device_activation vds::device_activation::unpack(const const_data_buffer& d
     certificate_chain,
     private_key);
 }
+*/

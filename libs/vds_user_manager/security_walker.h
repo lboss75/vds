@@ -57,7 +57,7 @@ namespace vds {
         certificate &write_certificate,
         asymmetric_private_key &write_key) const;
 
-	std::string get_channel_name(const guid &channel_id) const {
+	std::string get_channel_name(const const_data_buffer &channel_id) const {
 		auto p = this->channels_.find(channel_id);
 		if (this->channels_.end() != p) {
 			return  p->second.name_;
@@ -66,7 +66,7 @@ namespace vds {
 		throw vds_exceptions::not_found();
 	}
 
-  user_channel::channel_type_t get_channel_type(const guid &channel_id) const {
+  user_channel::channel_type_t get_channel_type(const const_data_buffer &channel_id) const {
     auto p = this->channels_.find(channel_id);
     if (this->channels_.end() != p) {
       return  p->second.type_;

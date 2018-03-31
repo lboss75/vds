@@ -18,9 +18,9 @@ public:
   void start();
   void stop();
 
-  static vds::device_activation init_root(int index, int udp_port, const std::string & root_password);
+  static void init_root(int index, int udp_port, const std::string & root_password);
   static void init(
-	  int index, int udp_port, const vds::device_activation & invitation, const std::string & user_password);
+	  int index, int udp_port, const std::string & user_login, const std::string & user_password);
 
   template <typename T>
   T * get() const {
@@ -61,14 +61,24 @@ public:
   void start(size_t server_count);
   void stop();
 
-  void allow_write_channel(size_t client_index, const vds::guid &channel_id);
-  void allow_read_channel(size_t client_index, const vds::guid &channel_id);
-  void upload_file(size_t client_index, const vds::guid &channel_id, const std::string &name,
-                     const std::string &mimetype, const vds::filename &file_path);
+  void allow_write_channel(
+      size_t client_index,
+      const vds::const_data_buffer &channel_id);
+
+  void allow_read_channel(
+      size_t client_index,
+      const vds::const_data_buffer &channel_id);
+
+  void upload_file(
+      size_t client_index,
+      const vds::const_data_buffer &channel_id,
+      const std::string &name,
+      const std::string &mimetype,
+      const vds::filename &file_path);
 
   void download_data(
 	  size_t client_index,
-	  const vds::guid & channel_id,
+	  const vds::const_data_buffer & channel_id,
 	  const std::string & name,
 	  const vds::filename & file_path);
 
@@ -78,9 +88,9 @@ public:
 
 private:
   std::vector<std::unique_ptr<mock_server>> servers_;
-  std::string root_password_;
-  vds::device_activation root_device_activation_;
 
+  std::string root_login_;
+  std::string root_password_;
 
   static std::string generate_password(size_t min_len = 4, size_t max_len = 20);
 };

@@ -8,18 +8,19 @@ All rights reserved
 #include "types.h"
 #include "guid.h"
 #include "asymmetriccrypto.h"
-#include "transaction_log.h"
 #include "binary_serialize.h"
 #include "transaction_id.h"
 
 namespace vds {
+  class database_transaction;
+
   namespace transactions {
     class channel_create_transaction {
     public:
       static const uint8_t message_id = (uint8_t)transaction_id::channel_create_transaction;
 
       channel_create_transaction(
-          const guid &channel_id,
+          const const_data_buffer &channel_id,
           const std::string & channel_type,
           const std::string &name,
           const certificate &read_cert,
@@ -40,7 +41,7 @@ namespace vds {
         const_data_buffer write_private_key_der;
         s
             >> this->channel_id_
-          >> this->channel_type_
+            >> this->channel_type_
             >> this->name_
             >> this->read_cert_
             >> read_private_key_der
@@ -64,7 +65,7 @@ namespace vds {
             << write_private_key_.der(std::string());
       }
 
-      const guid & channel_id() const {
+      const const_data_buffer & channel_id() const {
         return channel_id_;
       }
 
@@ -99,7 +100,7 @@ namespace vds {
       }
 
     private:
-      guid channel_id_;
+      const_data_buffer channel_id_;
       std::string channel_type_;
       std::string name_;
       certificate read_cert_;
@@ -107,7 +108,6 @@ namespace vds {
       certificate write_cert_;
       asymmetric_private_key write_private_key_;
     };
-
   }
 }
 
