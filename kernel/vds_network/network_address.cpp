@@ -24,7 +24,11 @@ vds::network_address::network_address(sa_family_t af, const std::string &server,
       auto addr = (sockaddr_in6 *) &this->addr_;
       addr->sin6_family = af;
       addr->sin6_port = htons(port);
-      inet_pton(AF_INET6, server.c_str(), &addr->sin6_addr);
+      if(!inet_pton(AF_INET6, server.c_str(), &addr->sin6_addr)){
+        auto error = errno;
+        throw std::system_error(error, std::system_category(), "Convert IPv6 address from text to binary form");
+      }
+
 
       this->addr_size_ = sizeof(sockaddr_in6);
       break;
@@ -61,6 +65,9 @@ vds::network_address vds::network_address::parse(const std::string& address) {
     }
       return true;
   });
+  if(!result){
+    throw std::runtime_error("Invalid addresss");
+  }
   return result;
 }
 

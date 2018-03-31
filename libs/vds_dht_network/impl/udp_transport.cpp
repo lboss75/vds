@@ -31,20 +31,30 @@ void vds::dht::network::udp_transport::stop(const service_provider& sp) {
   this->server_.stop(sp);
 }
 
-vds::async_task<> vds::dht::network::udp_transport::write_async(const udp_datagram& datagram) {
+vds::async_task<>
+vds::dht::network::udp_transport::write_async(const service_provider &sp, const udp_datagram &datagram) {
   std::unique_lock<std::debug_mutex> lock(this->write_mutex_);
   while(this->write_in_progress_) {
     this->write_cond_.wait(*reinterpret_cast<std::unique_lock<std::mutex> *>(&lock));
   }
   this->write_in_progress_ = true;
 
-  return [pthis = this->shared_from_this(), datagram](const async_result<> & result) {
-    pthis->server_.socket().write_async(datagram).execute([pthis, result](const std::shared_ptr<std::exception> & ex) {
+  return [sp, pthis = this->shared_from_this(), datagram](const async_result<> & result) {
+    pthis->server_.socket().write_async(datagram)
+        .execute([sp, pthis, result, datagram](const std::shared_ptr<std::exception> & ex) {
       std::unique_lock<std::debug_mutex> lock(pthis->write_mutex_);
       pthis->write_in_progress_ = false;
       pthis->write_cond_.notify_all();
       lock.unlock();
       if(ex) {
+        sp.get<logger>()->error(
+            ThisModule,
+            sp,
+            "%s at write UDP datagram %d bytes to %s",
+            ex->what(),
+            datagram.data_size(),
+            datagram.address().to_string().c_str());
+
         result.error(ex);
       }
       else {
@@ -74,10 +84,9 @@ void vds::dht::network::udp_transport::try_handshake(const service_provider& sp,
   out_message.add(PROTOCOL_VERSION);
   out_message += this->this_node_id_;
 
-  this->write_async(
-    udp_datagram(
-      network_address::parse(address),
-      const_data_buffer(out_message.data(), out_message.size()))).execute([](const std::shared_ptr<std::exception> & ex){
+  this->write_async(sp, udp_datagram(
+        network_address::parse(address),
+        const_data_buffer(out_message.data(), out_message.size()))).execute([](const std::shared_ptr<std::exception> & ex){
   });
 }
 
@@ -138,7 +147,7 @@ void vds::dht::network::udp_transport::continue_read(
           out_message.add((uint8_t)protocol_message_type_t::Welcome);
           out_message.add(pthis->this_node_id_.data(), pthis->this_node_id_.size());
 
-          pthis->write_async(udp_datagram(datagram.address(), out_message.data(), out_message.size()))
+          pthis->write_async(sp, udp_datagram(datagram.address(), out_message.data(), out_message.size()))
             .execute([pthis, sp, address = datagram.address().to_string()](const std::shared_ptr<std::exception> & ex) {
             if (ex) {
               sp.get<logger>()->trace(ThisModule, sp, "%s at send welcome to %s", ex->what(), address.c_str());
@@ -192,7 +201,7 @@ void vds::dht::network::udp_transport::continue_read(
           resizable_data_buffer out_message;
           out_message.add((uint8_t)protocol_message_type_t::Failed);
 
-          pthis->write_async(udp_datagram(datagram.address(), out_message.data(), out_message.size()))
+          pthis->write_async(sp, udp_datagram(datagram.address(), out_message.data(), out_message.size()))
             .execute([pthis, sp, address = datagram.address().to_string()](const std::shared_ptr<std::exception> & ex) {
             if (ex) {
               sp.get<logger>()->trace(ThisModule, sp, "%s at send welcome to %s", ex->what(), address.c_str());

@@ -28,7 +28,7 @@ namespace vds {
 
         void stop(const service_provider & sp);
 
-        async_task<> write_async(const udp_datagram & datagram);
+        vds::async_task<> write_async(const service_provider &sp, const udp_datagram &datagram);
         void on_timer(const service_provider& sp);
         void try_handshake(const service_provider& sp, const std::string& address);
 

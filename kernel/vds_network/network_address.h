@@ -175,6 +175,13 @@ namespace vds {
       return this->compare(other) > 0;
     }
 
+    operator bool () const {
+      return this->addr_.ss_family != 0;
+    }
+    bool operator ! () const {
+      return this->addr_.ss_family == 0;
+    }
+
   private:
     sockaddr_storage addr_;
     socklen_t addr_size_;

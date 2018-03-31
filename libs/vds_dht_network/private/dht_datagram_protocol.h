@@ -157,7 +157,7 @@ namespace vds {
 
           sp.get<logger>()->trace("DHT", sp, "Send Acknowledgment %d", this->next_sequence_number_);
           const_data_buffer datagram(buffer.data(), buffer.size());
-          s->write_async(udp_datagram(this->address_, datagram, false))
+          s->write_async(sp, udp_datagram(this->address_, datagram, false))
             .execute([](const std::shared_ptr<std::exception> & ex) {});
         }
       private:
@@ -199,7 +199,7 @@ namespace vds {
               buffer += message;
 
               const_data_buffer datagram(buffer.data(), buffer.size());
-              s->write_async(udp_datagram(pthis->address_, datagram, false))
+              s->write_async(sp, udp_datagram(pthis->address_, datagram, false))
                 .execute([pthis, sp, s, message_type, message, result, datagram, expected_index = pthis->output_sequence_number_](
                   const std::shared_ptr<std::exception> &ex) {
                 std::unique_lock<std::shared_mutex> lock(pthis->output_mutex_);
@@ -242,7 +242,7 @@ namespace vds {
               auto offset = pthis->mtu_ - 7;
 
               const_data_buffer datagram(buffer.data(), buffer.size());
-              s->write_async(udp_datagram(pthis->address_, datagram))
+              s->write_async(sp, udp_datagram(pthis->address_, datagram))
                 .execute([pthis, sp, s, message_type, message, offset, result, datagram, expected_index = pthis->output_sequence_number_](
                   const std::shared_ptr<std::exception> &ex) {
                 std::unique_lock<std::shared_mutex> lock(pthis->output_mutex_);
@@ -301,7 +301,7 @@ namespace vds {
           buffer.add(message.data() + offset, size);
 
           const_data_buffer datagram(buffer.data(), buffer.size());
-          s->write_async(udp_datagram(this->address_, datagram))
+          s->write_async(sp, udp_datagram(this->address_, datagram))
               .execute(
                   [pthis = this->shared_from_this(), sp, s, message, offset, size, result, datagram](
                   const std::shared_ptr<std::exception> &ex) {
@@ -427,7 +427,7 @@ namespace vds {
                 mask >>= 1;
                 ++index;
 
-                return s->write_async(udp_datagram(this->address_, p->second))
+                return s->write_async(sp, udp_datagram(this->address_, p->second))
                   .then([pthis = this->shared_from_this(), sp, s, mask, index](){
                   return pthis->repeat_message(sp, s, mask, index);
                 });
