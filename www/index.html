@@ -22,8 +22,13 @@
                 <div class="sidebar-header">
                     <h3>VDS</h3>
                 </div>
-
-                <ul class="list-unstyled components" id="channelsMenu">
+		<ul class="list-unstyled components">
+                <li>
+		   <a href="#channelsMenu" data-toggle="collapse" aria-expanded="false">Каналы</a>
+	           <ul class="list-unstyled components collapse" id="channelsMenu">
+                   </ul>
+		</li>
+		<li><a href="#" id="createChannelBtn">Создать канал</a></li>
                 </ul>
             </nav>
 
@@ -36,7 +41,7 @@
                         <div class="navbar-header">
                             <button type="button" id="sidebarCollapse" class="btn btn-info navbar-btn">
                                 <i class="glyphicon glyphicon-align-left"></i>
-                                <span>Показать каналы</span>
+                                <span>Меню</span>
                             </button>
                         </div>
 
@@ -68,16 +73,16 @@
             <div class="input-group">
                 <label class="input-group-btn">
                     <span class="btn btn-primary">
-                        Browse&hellip; <input name="attachment[]" type="file" style="display: none;" multiple>
+                        Выбрать&hellip; <input name="attachment[]" type="file" style="display: none;" multiple>
                     </span>
                 </label>
                 <input type="text" class="form-control" readonly>
             </div>
             <span class="help-block">
-                Try selecting one or more files and watch the feedback
+                Выберите файлы
             </span>
             <div class="col-md-12">
-                <input type="submit" class="btn btn-success btn-send" value="Send message">
+                <input type="submit" class="btn btn-success btn-send" value="Отправить">
             </div>
         </div>
 		</form>
@@ -85,7 +90,9 @@
             </div>
         </div>
 
-
+	<div id="create-channel-dialog" title="File Download">
+  		<div class="progress-label">Создать канал</div>
+	</div>
 
 
 
@@ -99,7 +106,33 @@
                  $('#sidebarCollapse').on('click', function () {
                      $('#sidebar').toggleClass('active');
                  });
-		//Load channels
+
+		var dialogButtons = [{
+		        text: "Cancel",
+		        click: function() {
+			      create_channel_dialog
+			        .dialog( "option", "buttons", dialogButtons )
+			        .dialog( "close" );
+			    }
+		}];
+
+		var create_channel_dialog = $("#create-channel-dialog").dialog({
+			autoOpen: false,
+        		closeOnEscape: false,
+        		resizable: true,
+        		buttons: dialogButtons,
+        		open: function() {
+        		},
+		        beforeClose: function() {
+          		}
+        		
+      		});
+      		var createChannelBtn = $( "#createChannelBtn" )
+	        .on( "click", function() {
+	          create_channel_dialog.dialog( "open" );
+ 		 });
+
+		 //Load channels
 		 $.getJSON('api/channels', function(data){
 		  var items = [];
  
@@ -137,7 +170,7 @@
 
       });
   });
-             });
+});
          </script>
     </body>
 </html>
