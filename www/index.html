@@ -28,7 +28,7 @@
 	           <ul class="list-unstyled components collapse" id="channelsMenu">
                    </ul>
 		</li>
-		<li><a href="#" id="createChannelBtn">Создать канал</a></li>
+		<li><a href="#" data-toggle="modal" data-target="#createChannelModal">Создать канал</a></li>
                 </ul>
             </nav>
 
@@ -61,7 +61,7 @@
 			<div class="col-lg-6 col-sm-6 col-12">
             <h4>Отправка сообщения</h4>
 	    <form id="send-message" method="post" action="upload" role="form" enctype="multipart/form-data">
-<input id="channel_id" name="channel_id" type="hidden" />
+            <input id="channel_id" name="channel_id" type="hidden" />
 		 <div class="row">
             <div class="col-md-12">
                 <div class="form-group">
@@ -90,10 +90,31 @@
             </div>
         </div>
 
-	<div id="create-channel-dialog" title="File Download">
-  		<div class="progress-label">Создать канал</div>
-	</div>
-
+        <div class="modal fade" id="createChannelModal" tabindex="-1" role="dialog" aria-labelledby="createChannelModal" aria-hidden="true">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Создать канал</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <form>
+                            <div class="form-group">
+                                <label for="channelName">Укажите название канала</label>
+                                <input type="text" class="form-control" id="channelName" aria-describedby="channelNameHelp" placeholder="Название канала"/>
+                                <small id="channelNameHelp" class="form-text text-muted">Имя канала для удобного названия</small>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-primary">Создать канал</button>
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Отмена</button>
+                    </div>
+                </div>
+            </div>
+        </div>
 
 
         <!-- jQuery CDN -->
@@ -107,30 +128,6 @@
                      $('#sidebar').toggleClass('active');
                  });
 
-		var dialogButtons = [{
-		        text: "Cancel",
-		        click: function() {
-			      create_channel_dialog
-			        .dialog( "option", "buttons", dialogButtons )
-			        .dialog( "close" );
-			    }
-		}];
-
-		var create_channel_dialog = $("#create-channel-dialog").dialog({
-			autoOpen: false,
-        		closeOnEscape: false,
-        		resizable: true,
-        		buttons: dialogButtons,
-        		open: function() {
-        		},
-		        beforeClose: function() {
-          		}
-        		
-      		});
-      		var createChannelBtn = $( "#createChannelBtn" )
-	        .on( "click", function() {
-	          create_channel_dialog.dialog( "open" );
- 		 });
 
 		 //Load channels
 		 $.getJSON('api/channels', function(data){
