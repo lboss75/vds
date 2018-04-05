@@ -79,8 +79,6 @@ vds::async_task<> vds::file_manager_private::_file_operations::upload_file(
 
         auto user_mng = sp.get<user_manager>();
 
-        asymmetric_private_key device_private_key;
-        auto user = user_mng->get_current_device(sp, device_private_key);
 
         auto channel = user_mng->get_channel(sp, channel_id);
         if(!channel.write_cert()){
@@ -146,8 +144,6 @@ vds::async_task<> vds::file_manager_private::_file_operations::upload_file(
 
       auto user_mng = sp.get<user_manager>();
 
-      asymmetric_private_key device_private_key;
-      auto user = user_mng->get_current_device(sp, device_private_key);
 
       auto channel = user_mng->get_channel(sp, channel_id);
       if (!channel.write_cert()) {

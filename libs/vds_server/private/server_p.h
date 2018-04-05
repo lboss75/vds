@@ -45,7 +45,6 @@ namespace vds {
 
     server * owner_;
 
-    std::unique_ptr<user_manager> user_manager_;
 	  std::unique_ptr<class db_model> db_model_;
     std::unique_ptr<file_manager::file_manager_service> file_manager_;
     std::unique_ptr<dht::network::service> dht_network_service_;

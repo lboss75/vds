@@ -20,6 +20,7 @@ All rights reserved
 #include "private/register_page.h"
 #include "private/auth_session.h"
 #include "private/login_page.h"
+#include "private/index_page.h"
 
 vds::web_server::web_server()
 : port_(8050) {
@@ -132,7 +133,7 @@ vds::async_task<vds::http_message> vds::_web_server::route(
                 "Unauthorized"));
       }
 
-      return api_controller::create_channel(
+      return index_page::create_channel(
           sp,
           user_mng,
           this->shared_from_this(),
@@ -229,7 +230,7 @@ void vds::_web_server::add_auth_session(
 
 }
 
-vds::user_manager * vds::_web_server::get_secured_context(
+std::shared_ptr<vds::user_manager> vds::_web_server::get_secured_context(
     const service_provider & sp,
     const vds::http_message &message) const {
 

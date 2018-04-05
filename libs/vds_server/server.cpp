@@ -32,7 +32,6 @@ vds::server::~server()
 void vds::server::register_services(service_registrator& registrator)
 {
   registrator.add_service<iserver>(this->impl_);
-  registrator.add_service<user_manager>(this->impl_->user_manager_.get());
   registrator.add_service<db_model>(this->impl_->db_model_.get());
 
   this->impl_->dht_network_service_->register_services(registrator);
@@ -63,16 +62,6 @@ vds::async_task<> vds::server::reset(
   });
 }
 
-vds::async_task<> vds::server::init_server(
-	const vds::service_provider &sp,
-  const std::string &root_user_name,
-	const std::string & user_password,
-	const std::string &device_name,
-	int port) {
-  return this->impl_->user_manager_->init_server(
-      sp, root_user_name, user_password, device_name, port);
-}
-
 vds::async_task<> vds::server::start_network(const vds::service_provider &sp, uint16_t port) {
   return [this, sp, port]() {
     this->impl_->dht_network_service_->start(sp, port);
@@ -92,7 +81,6 @@ vds::async_task<vds::server_statistic> vds::server::get_statistic(const vds::ser
 
 vds::_server::_server(server * owner)
 : owner_(owner),
-  user_manager_(new user_manager()),
   db_model_(new db_model()),
   file_manager_(new file_manager::file_manager_service()),
   dht_network_service_(new dht::network::service()){

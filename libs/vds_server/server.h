@@ -27,13 +27,6 @@ namespace vds {
 
     vds::async_task<> start_network(const vds::service_provider &sp, uint16_t port);
 
-    vds::async_task<> init_server(
-		const vds::service_provider &sp,
-    const std::string &root_user_name,
-		const std::string & user_password,
-		const std::string &device_name,
-		int port);
-
     operator bool () const {
       return nullptr != this->impl_;
     }

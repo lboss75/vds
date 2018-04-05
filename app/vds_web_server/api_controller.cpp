@@ -5,6 +5,15 @@
 #include "json_object.h"
 #include "user_manager.h"
 #include "private/api_controller.h"
+#include "http_simple_form_parser.h"
+
+std::shared_ptr<vds::json_object> vds::api_controller::channel_serialize(
+  const vds::user_channel & channel) {
+  auto item = std::make_shared<json_object>();
+  item->add_property("id", base64::from_bytes(channel.id()));
+  item->add_property("name", channel.name());
+  return item;
+}
 
 vds::async_task<vds::http_message>
 vds::api_controller::get_channels(
@@ -14,10 +23,7 @@ vds::api_controller::get_channels(
     const vds::http_message &message) {
   auto result = std::make_shared<json_array>();
   for(auto & channel : user_mng.get_channels()) {
-    auto item = std::make_shared<json_object>();
-    item->add_property("id", base64::from_bytes(channel.id()));
-    item->add_property("name", channel.name());
-    result->add(item);
+    result->add(channel_serialize(channel));
   }
 
   return vds::async_task<vds::http_message>::result(
@@ -60,8 +66,17 @@ vds::async_task<vds::http_message> vds::api_controller::get_login_state(const se
 }
 
 vds::async_task<vds::http_message>
-vds::api_controller::create_channel(const vds::service_provider &sp, const std::shared_ptr<vds::user_manager> &user_mng,
-                                    const std::shared_ptr<vds::_web_server> &web_server,
-                                    const vds::http_message &message) {
-  return vds::async_task<vds::http_message>(functor_type());
+vds::api_controller::create_channel(
+  const vds::service_provider &sp,
+  const std::shared_ptr<vds::user_manager> &user_mng,
+  user_channel::channel_type_t channel_type,
+  const std::string & name) {
+
+  return user_mng->create_channel(sp, channel_type, name).then([sp](const vds::user_channel & channel) {
+    return vds::async_task<vds::http_message>::result(
+      http_response::simple_text_response(
+        sp,
+        channel_serialize(channel)->json_value::str(),
+        "application/json; charset=utf-8"));
+  });
 }

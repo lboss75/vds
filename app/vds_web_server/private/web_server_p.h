@@ -40,7 +40,7 @@ namespace vds {
 
     void load_web(const std::string& path, const foldername & folder);
 
-    user_manager * get_secured_context(
+    std::shared_ptr<user_manager> get_secured_context(
         const service_provider & sp,
         const http_message &message) const;
   };

@@ -22,6 +22,21 @@ namespace vds {
       login_failed
     };
 
+    struct channel_info {
+      std::map<guid, certificate> read_certificates_;
+      std::map<guid, certificate> write_certificates_;
+
+      std::map<guid, asymmetric_private_key> read_private_keys_;
+      std::map<guid, asymmetric_private_key> write_private_keys_;
+
+      guid current_read_certificate_;
+      guid current_write_certificate_;
+
+      user_channel::channel_type_t type_;
+      std::string name_;
+    };
+
+
     security_walker(
         const const_data_buffer & dht_user_id,
         const symmetric_key & user_password_key,
@@ -36,6 +51,10 @@ namespace vds {
       return this->user_id_;
     }
 
+    const const_data_buffer & dht_user_id() const {
+      return this->dht_user_id_;
+    }
+    
     const certificate & user_cert() const {
       return this->user_cert_;
     }
@@ -175,6 +194,12 @@ namespace vds {
 		return p->second;
 	}
 
+  const std::map<const_data_buffer, channel_info> & channels() const {
+    return this->channels_;
+	}
+
+  void add_certificate(const certificate &cert);
+
 	private:
 		const_data_buffer dht_user_id_;
 		symmetric_key user_password_key_;
@@ -186,28 +211,8 @@ namespace vds {
     certificate user_cert_;
     std::string user_name_;
     asymmetric_private_key user_private_key_;
-
-  protected:
-    struct channel_info {
-      std::map<guid, certificate> read_certificates_;
-      std::map<guid, certificate> write_certificates_;
-
-      std::map<guid, asymmetric_private_key> read_private_keys_;
-      std::map<guid, asymmetric_private_key> write_private_keys_;
-
-      guid current_read_certificate_;
-	    guid current_write_certificate_;
-
-      user_channel::channel_type_t type_;
-      std::string name_;
-    };
-
     std::map<const_data_buffer, channel_info> channels_;
-
 		std::map<guid, certificate> certificate_chain_;
-
-	protected:
-		void add_certificate(const certificate &cert);
 	};
 }
 

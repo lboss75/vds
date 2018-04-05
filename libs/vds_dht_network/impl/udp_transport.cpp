@@ -116,6 +116,9 @@ std::shared_ptr<vds::dht::network::dht_session> vds::dht::network::udp_transport
 
 void vds::dht::network::udp_transport::continue_read(
   const vds::service_provider &sp) {
+  if(!this->server_) {
+    return;
+  }
 
   this->server_.socket().read_async().execute([sp, pthis = this->shared_from_this()](
     const std::shared_ptr<std::exception> & ex,

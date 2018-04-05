@@ -611,10 +611,24 @@ void mock_server::init(
     registrator.start(sp);
 
     vds::imt_service::enable_async(sp);
+
     vds::barrier b;
     server
-        .init_server(sp, user_login, user_password, "test" + std::to_string(udp_port), udp_port)
-        .execute([&error, &b](const std::shared_ptr<std::exception> & ex) {
+      .start_network(sp, udp_port)
+      .then([sp, user_login, user_password]() ->vds::async_task<> {
+        return sp.get<vds::db_model>()->async_transaction(sp, [sp, user_login, user_password](vds::database_transaction & t) {
+          auto user_mng = std::make_shared<vds::user_manager>();
+          user_mng->load(
+            sp,
+            t,
+            vds::dht::dht_object_id::from_user_email(user_login),
+            vds::symmetric_key::from_password(user_password),
+            vds::hash::signature(vds::hash::sha256(), user_password.c_str(), user_password.length())
+          );
+        });
+
+      })
+      .execute([&error, &b](const std::shared_ptr<std::exception> & ex) {
           if (ex) {
             error = ex;
           }

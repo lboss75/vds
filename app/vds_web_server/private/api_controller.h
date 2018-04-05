@@ -8,9 +8,10 @@ All rights reserved
 */
 
 
-#include <http_message.h>
-#include <service_provider.h>
+#include "http_message.h"
+#include "service_provider.h"
 #include "web_server_p.h"
+#include "user_channel.h"
 
 namespace vds {
   class api_controller {
@@ -27,9 +28,15 @@ namespace vds {
       const std::shared_ptr<_web_server>& owner,
       const http_message& message);
 
-    static async_task <http_message>
-  create_channel(const service_provider &sp, const std::shared_ptr<user_manager> &user_mng,
-                 const std::shared_ptr<_web_server> &web_server, const http_message &message);
+    static async_task <http_message> create_channel(
+      const service_provider &sp,
+      const std::shared_ptr<user_manager> &user_mng,
+      user_channel::channel_type_t channel_type,
+      const std::string & name);
+
+  private:
+    static std::shared_ptr<json_object> channel_serialize(const vds::user_channel & channel);
+
   };
 }
 

@@ -19,7 +19,7 @@ All rights reserved
 
 namespace vds {
 
-  class user_manager
+  class user_manager : public std::enable_shared_from_this<user_manager>
   {
   public:
 
@@ -41,6 +41,11 @@ namespace vds {
       const std::string &user_name,
       const std::string &user_password,
       const asymmetric_private_key &private_key);
+
+    async_task<vds::user_channel> create_channel(
+      const service_provider &sp,
+      user_channel::channel_type_t channel_type,
+      const std::string &name) const;
 
     vds::user_channel create_channel(
         const service_provider &sp,
@@ -65,23 +70,6 @@ namespace vds {
       const std::string & user_password,
       const std::string & device_name,
       int port);
-
-    member_user lock_to_device(
-      const service_provider &sp,
-      class database_transaction &t,
-      transactions::transaction_block & playback,
-      const std::list<certificate> & certificate_chain,
-      const member_user &user,
-      const std::string &user_name,
-      const std::string &user_password,
-      const asymmetric_private_key &user_private_key,
-      const std::string &device_name,
-      const asymmetric_private_key & device_private_key,
-      int port);
-
-    member_user get_current_device(
-      const service_provider &sp,
-      asymmetric_private_key & device_private_key) const;
 
     certificate get_channel_write_cert(const service_provider & sp, const const_data_buffer &channel_id) const;
     asymmetric_private_key get_channel_write_key(const service_provider & sp, const const_data_buffer &channel_id) const;
@@ -182,9 +170,13 @@ namespace vds {
         const const_data_buffer &password_hash);
 
   private:
-    std::shared_ptr<class _user_manager> impl_;
+    std::unique_ptr<security_walker> security_walker_;
 
-    vds::user_channel create_channel(
+    guid id_;
+    certificate device_cert_;
+    asymmetric_private_key device_private_key_;
+
+    user_channel create_channel(
         const service_provider &sp,
         transactions::transaction_block &log,
         database_transaction &t,
@@ -195,6 +187,9 @@ namespace vds {
         const asymmetric_private_key &owner_private_key,
         asymmetric_private_key &read_private_key,
         asymmetric_private_key &write_private_key) const;
+
+    void save_certificate(const service_provider &sp, const certificate &cert);
+
   };
 }
 

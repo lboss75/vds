@@ -10,6 +10,7 @@ All rights reserved
 #include "security_walker.h"
 
 namespace vds {
+  /*
   class _user_manager : public security_walker {
   public:
     _user_manager(
@@ -33,10 +34,10 @@ namespace vds {
     guid id_;
     certificate device_cert_;
     asymmetric_private_key device_private_key_;
-    uint16_t port_;    
 
     void save_certificate(const service_provider &sp, const certificate &cert);
   };
+  */
 }
 
 #endif // __VDS_USER_MANAGER_USER_MANAGER_P_H_

@@ -34,14 +34,14 @@ vds::user_manager::user_manager()
 }
 
 vds::async_task<> vds::user_manager::update(const service_provider& sp) {
-  return sp.get<db_model>()->async_transaction(sp, [sp, pthis = this->impl_](database_transaction & t) {
-    pthis->update(sp, t);
+  return sp.get<db_model>()->async_transaction(sp, [sp, pthis = this->shared_from_this()](database_transaction & t) {
+    pthis->security_walker_->update(sp, t);
     return true;
   });
 }
 
 vds::security_walker::login_state_t vds::user_manager::get_login_state() const {
-  return this->impl_->get_login_state();
+  return this->security_walker_->get_login_state();
 }
 
 void vds::user_manager::load(
@@ -51,7 +51,7 @@ void vds::user_manager::load(
   const symmetric_key & user_password_key,
   const const_data_buffer& user_password_hash)
 {
-	if (nullptr != this->impl_.get()) {
+	if (nullptr != this->security_walker_.get()) {
 		throw std::runtime_error("Logic error");
 	}
 
@@ -68,12 +68,12 @@ void vds::user_manager::load(
   }
 
 
-	this->impl_.reset(new _user_manager(
+	this->security_walker_.reset(new security_walker(
 		dht_user_id,
 		user_password_key,
     user_password_hash));
 
-	this->impl_->update(sp, t);
+	this->security_walker_->update(sp, t);
 }
 
 void vds::user_manager::reset(
@@ -168,7 +168,7 @@ vds::user_manager::create_channel(const service_provider &sp, transactions::tran
                                   asymmetric_private_key &read_private_key,
                                   asymmetric_private_key &write_private_key) const {
   return this->create_channel(sp, log, t, channel_id, channel_type, name,
-                              this->impl_->user_cert(), this->impl_->user_private_key(),
+                              this->security_walker_->user_cert(), this->security_walker_->user_private_key(),
                               read_private_key, write_private_key);
 }
 
@@ -219,66 +219,16 @@ vds::user_manager::create_channel(const service_provider &sp, transactions::tran
   return user_channel(channel_id, channel_type, name, read_cert, write_cert);
 }
 
-vds::member_user
-vds::user_manager::lock_to_device(
-	const vds::service_provider &sp,
-	vds::database_transaction &t,
-	transactions::transaction_block & playback,
-	const std::list<certificate> & certificate_chain,
-                                  const member_user &user,
-								  const std::string &user_name,
-                                  const std::string &user_password,
-                                  const asymmetric_private_key &user_private_key,
-                                  const std::string &device_name,
-                                  const asymmetric_private_key &device_private_key,
-                                  int port) {
-
-  auto device_user = user.create_device_user(
-      user_private_key,
-      device_private_key,
-      device_name);
-
-//  dbo::run_configuration t3;
-//  t.execute(
-//      t3.insert(
-//          t3.id = device_user.id(),
-//          t3.cert = device_user.user_certificate().der(),
-//          t3.cert_private_key = device_private_key.der(std::string()),
-//          t3.port = port));
-//  orm::certificate_chain_dbo t4;
-//  for(auto & cert : certificate_chain)
-//  {
-//	  t.execute(
-//		  t4.insert(
-//			  t4.id = cert_control::get_id(cert),
-//			  t4.cert = cert.der(),
-//			  t4.parent = cert_control::get_parent_id(cert)));
-//  }
-//  t.execute(
-//	  t4.insert(
-//		  t4.id = cert_control::get_id(device_user.user_certificate()),
-//		  t4.cert = device_user.user_certificate().der(),
-//		  t4.parent = cert_control::get_parent_id(device_user.user_certificate())));
-
-  return device_user;
-}
-
 vds::member_user vds::user_manager::import_user(const certificate &user_cert) {
   return vds::member_user::import_user(user_cert);
 }
 
-vds::member_user vds::user_manager::get_current_device(
-    const vds::service_provider &sp,
-    asymmetric_private_key &device_private_key) const {
-
-	return this->impl_->get_current_device(sp, device_private_key);
-}
 
 vds::certificate vds::user_manager::get_channel_write_cert(
   const service_provider & sp,
   const const_data_buffer & channel_id) const
 {
-	return this->impl_->get_channel_write_cert(channel_id);
+	return this->security_walker_->get_channel_write_cert(channel_id);
 }
 
 
@@ -286,7 +236,7 @@ vds::asymmetric_private_key vds::user_manager::get_channel_write_key(
   const service_provider & sp,
   const const_data_buffer & channel_id) const
 {
-	return this->impl_->get_channel_write_key(channel_id);
+	return this->security_walker_->get_channel_write_key(channel_id);
 }
 
 vds::asymmetric_private_key vds::user_manager::get_channel_write_key(
@@ -294,21 +244,21 @@ vds::asymmetric_private_key vds::user_manager::get_channel_write_key(
 		const const_data_buffer & channel_id,
 		const guid & cert_id) const
 {
-	return this->impl_->get_channel_write_key(channel_id, cert_id);
+	return this->security_walker_->get_channel_write_key(channel_id, cert_id);
 }
 
 vds::certificate vds::user_manager::get_channel_read_cert(
   const service_provider & sp,
   const const_data_buffer & channel_id) const
 {
-	return this->impl_->get_channel_read_cert(channel_id);
+	return this->security_walker_->get_channel_read_cert(channel_id);
 }
 
 vds::asymmetric_private_key vds::user_manager::get_channel_read_key(
   const service_provider & sp,
   const const_data_buffer & channel_id) const
 {
-	return this->impl_->get_channel_read_key(channel_id);
+	return this->security_walker_->get_channel_read_key(channel_id);
 }
 
 vds::asymmetric_private_key vds::user_manager::get_channel_read_key(
@@ -316,14 +266,14 @@ vds::asymmetric_private_key vds::user_manager::get_channel_read_key(
 		const const_data_buffer & channel_id,
 		const guid & cert_id) const
 {
-	return this->impl_->get_channel_read_key(channel_id, cert_id);
+	return this->security_walker_->get_channel_read_key(channel_id, cert_id);
 }
 
 vds::certificate vds::user_manager::get_certificate(
   const service_provider & sp,
   const guid & cert_id) const
 {
-	return this->impl_->get_certificate(cert_id);
+	return this->security_walker_->get_certificate(cert_id);
 }
 
 
@@ -331,11 +281,28 @@ vds::user_channel vds::user_manager::get_channel(
   const service_provider & sp,
   const const_data_buffer & channel_id) const
 {
-	return this->impl_->get_channel(channel_id);
+  return user_channel(
+    channel_id,
+    this->security_walker_->get_channel_type(channel_id),
+    this->security_walker_->get_channel_name(channel_id),
+    this->get_channel_read_cert(sp, channel_id),
+    this->get_channel_write_cert(sp, channel_id));
 }
 
 std::list<vds::user_channel> vds::user_manager::get_channels() const {
-  return this->impl_->get_channels();
+  std::list<vds::user_channel> result;
+
+  for (const auto & p : this->security_walker_->channels()) {
+    result.push_back(
+      vds::user_channel(
+        p.first,
+        p.second.type_,
+        p.second.name_,
+        p.second.read_certificates_.find(p.second.current_read_certificate_)->second,
+        p.second.write_certificates_.find(p.second.current_write_certificate_)->second));
+  }
+
+  return result;
 }
 
 vds::member_user vds::user_manager::create_root_user(
@@ -362,20 +329,79 @@ vds::member_user vds::user_manager::create_root_user(
   return member_user(new _member_user(root_user_id, root_user_cert));
 }
 
+vds::async_task<vds::user_channel> vds::user_manager::create_channel(
+  const service_provider& sp,
+  user_channel::channel_type_t channel_type,
+  const std::string& name) const {
+
+  auto result = std::make_shared<vds::user_channel>();
+  return sp.get<db_model>()->async_transaction(
+    sp,
+    [pthis = this->shared_from_this(), sp, channel_type, name, result](database_transaction & t)->bool {
+    auto read_private_key = vds::asymmetric_private_key::generate(
+      vds::asymmetric_crypto::rsa4096());
+    auto write_private_key = vds::asymmetric_private_key::generate(
+      vds::asymmetric_crypto::rsa4096());
+
+    vds::transactions::transaction_block log;
+    vds::asymmetric_private_key channel_read_private_key;
+    vds::asymmetric_private_key channel_write_private_key;
+    *result = pthis->create_channel(
+      sp,
+      log,
+      t, vds::dht::dht_object_id::generate_random_id(),
+      channel_type,
+      name,
+      channel_read_private_key, channel_write_private_key);
+
+    log.save(
+      sp,
+      t,
+      pthis->security_walker_->dht_user_id(),
+      pthis->security_walker_->user_cert(),
+      pthis->security_walker_->user_cert(),
+      pthis->security_walker_->user_private_key());
+
+    pthis->security_walker_->update(sp, t);
+
+    return true;
+  })
+  .then([result]() {
+    return *result;
+  });
+}
+
 vds::certificate vds::user_manager::get_channel_write_cert(
 		const vds::service_provider &sp,
 		const const_data_buffer &channel_id,
 		const vds::guid &cert_id) const {
-	return this->impl_->get_channel_write_cert(channel_id, cert_id);
+	return this->security_walker_->get_channel_write_cert(channel_id, cert_id);
 }
 
 bool vds::user_manager::validate_and_save(
 		const service_provider & sp,
 		const std::list<vds::certificate> &cert_chain) {
 
-  return this->impl_->validate_and_save(
-      sp,
-      cert_chain);
+  certificate_store store;
+  for (const auto & p : cert_chain) {
+    auto cert = this->get_certificate(sp, cert_control::get_id(p));
+    if (!cert) {
+      cert = p;
+
+      const auto result = store.verify(cert);
+      if (0 != result.error_code) {
+        sp.get<logger>()->warning(ThisModule, sp, "Invalid certificate %s %s",
+          result.error.c_str(),
+          result.issuer.c_str());
+        return false;
+      }
+    }
+
+    store.add(cert);
+    this->save_certificate(sp, cert);
+  }
+
+  return true;
 }
 
 void vds::user_manager::save_certificate(
@@ -427,76 +453,8 @@ void vds::user_manager::create_root_user(
 
 }
 
-////////////////////////////////////////////////////////////////////////
-vds::_user_manager::_user_manager(
-		const const_data_buffer & dht_user_id,
-		const symmetric_key & user_password_key,
-    const const_data_buffer & user_password_hash)
-	: security_walker(dht_user_id, user_password_key, user_password_hash) {
-}
-
-vds::member_user vds::_user_manager::get_current_device(const service_provider & sp, asymmetric_private_key & device_private_key) const
-{
-	device_private_key = this->user_private_key();
-	return member_user(
-		new _member_user(
-			this->user_id(),
-			this->user_cert()));
-}
-
-vds::user_channel vds::_user_manager::get_channel(const const_data_buffer & channel_id) const
-{
-	return user_channel(
-		channel_id,
-    this->get_channel_type(channel_id),
-		this->get_channel_name(channel_id),
-		this->get_channel_read_cert(channel_id),
-		this->get_channel_write_cert(channel_id));
-}
-
-bool vds::_user_manager::validate_and_save(
-    const service_provider & sp,
-    const std::list<vds::certificate> &cert_chain) {
-
-  certificate_store store;
-  for(const auto & p : cert_chain){
-    auto cert = this->get_certificate(cert_control::get_id(p));
-    if(!cert) {
-      cert = p;
-
-      const auto result = store.verify(cert);
-      if (0 != result.error_code) {
-        sp.get<logger>()->warning(ThisModule, sp, "Invalid certificate %s %s",
-                                  result.error.c_str(),
-                                  result.issuer.c_str());
-        return false;
-      }
-    }
-
-    store.add(cert);
-    this->save_certificate(sp, cert);
-  }
-
-  return true;
-}
-
-std::list<vds::user_channel> vds::_user_manager::get_channels() const {
-  std::list<vds::user_channel> result;
-  for(const auto & p : this->channels_) {
-    result.push_back(
-      vds::user_channel(
-        p.first,
-        p.second.type_,
-        p.second.name_,
-        p.second.read_certificates_.find(p.second.current_read_certificate_)->second,
-        p.second.write_certificates_.find(p.second.current_write_certificate_)->second));
-  }
-
-  return result;
-}
-
-void vds::_user_manager::save_certificate(const vds::service_provider &sp, const vds::certificate &cert) {
-  security_walker::add_certificate(cert);
+void vds::user_manager::save_certificate(const vds::service_provider &sp, const vds::certificate &cert) {
+  this->security_walker_->add_certificate(cert);
 
   sp.get<db_model>()->async_transaction(sp, [cert](database_transaction & t)->bool{
 
