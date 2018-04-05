@@ -259,9 +259,6 @@ void vds::_network_service::thread_loop(const service_provider & sp)
             return;
           }
         }
-		else {
-			sp.get<logger>()->error("network", sp, "GetQueuedCompletionStatus is OK");
-		}
 
         try {
           _socket_task::from_overlapped(pOverlapped)->process(dwBytesTransfered);
