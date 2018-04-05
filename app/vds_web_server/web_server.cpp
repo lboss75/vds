@@ -104,21 +104,40 @@ vds::async_task<vds::http_message> vds::_web_server::route(
   const http_message& message) {
 
   http_request request(message);
-  if(request.url() == "/api/channels" && request.method() == "GET") {
-    auto user_mng = this->get_secured_context(sp, message);
-    if(!user_mng){
-      return vds::async_task<vds::http_message>::result(
-        http_response::status_response(
-            sp,
-            http_response::HTTP_Unauthorized,
-            "Unauthorized"));
+  if(request.url() == "/api/channels") {
+    if (request.method() == "GET") {
+      auto user_mng = this->get_secured_context(sp, message);
+      if (!user_mng) {
+        return vds::async_task<vds::http_message>::result(
+            http_response::status_response(
+                sp,
+                http_response::HTTP_Unauthorized,
+                "Unauthorized"));
+      }
+
+      return api_controller::get_channels(
+          sp,
+          *user_mng,
+          this->shared_from_this(),
+          message);
     }
 
-    return api_controller::get_channels(
-        sp,
-        *user_mng,
-        this->shared_from_this(),
-        message);
+    if (request.method() == "POST") {
+      auto user_mng = this->get_secured_context(sp, message);
+      if (!user_mng) {
+        return vds::async_task<vds::http_message>::result(
+            http_response::status_response(
+                sp,
+                http_response::HTTP_Unauthorized,
+                "Unauthorized"));
+      }
+
+      return api_controller::create_channel(
+          sp,
+          user_mng,
+          this->shared_from_this(),
+          message);
+    }
   }
 
   if (request.url() == "/api/login_state" && request.method() == "GET") {
@@ -137,6 +156,7 @@ vds::async_task<vds::http_message> vds::_web_server::route(
       this->shared_from_this(),
       message);
   }
+
 
   if(request.url() == "/upload" && request.method() == "POST") {
     std::string content_type;

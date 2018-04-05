@@ -100,10 +100,10 @@
                         </button>
                     </div>
                     <div class="modal-body">
-                        <form>
+                        <form class="form-signin" action="api/channels" method="POST" enctype="multipart/form-data">
                             <div class="form-group">
                                 <label for="channelName">Укажите название канала</label>
-                                <input type="text" class="form-control" id="channelName" aria-describedby="channelNameHelp" placeholder="Название канала"/>
+                                <input type="text" class="form-control" id="channelName" name="channelName" aria-describedby="channelNameHelp" placeholder="Название канала"/>
                                 <small id="channelNameHelp" class="form-text text-muted">Имя канала для удобного названия</small>
                             </div>
                         </form>

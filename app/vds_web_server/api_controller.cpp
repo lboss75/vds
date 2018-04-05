@@ -58,3 +58,10 @@ vds::async_task<vds::http_message> vds::api_controller::get_login_state(const se
         "application/json; charset=utf-8"));
   });
 }
+
+vds::async_task<vds::http_message>
+vds::api_controller::create_channel(const vds::service_provider &sp, const std::shared_ptr<vds::user_manager> &user_mng,
+                                    const std::shared_ptr<vds::_web_server> &web_server,
+                                    const vds::http_message &message) {
+  return vds::async_task<vds::http_message>(functor_type());
+}
