@@ -28,9 +28,12 @@ namespace vds {
 
         void stop(const service_provider & sp);
 
-        vds::async_task<> write_async(const service_provider &sp, const udp_datagram &datagram);
-        void on_timer(const service_provider& sp);
-        void try_handshake(const service_provider& sp, const std::string& address);
+        async_task<> write_async(const service_provider &sp, const udp_datagram &datagram);
+        async_task<> try_handshake(const service_provider& sp, const std::string& address);
+
+        const const_data_buffer & this_node_id() const {
+          return this->this_node_id_;
+        }
 
       private:
         const_data_buffer this_node_id_;
@@ -39,10 +42,20 @@ namespace vds {
         std::debug_mutex write_mutex_;
         std::condition_variable write_cond_;
         bool write_in_progress_;
+#ifdef _DEBUG
+#ifndef _WIN32
+        pid_t owner_id_;
+#else
+        DWORD owner_id_;
+#endif//_WIN32
+#endif//_DEBUG
+
 
         mutable std::shared_mutex sessions_mutex_;
         std::map<network_address, std::shared_ptr<class dht_session>> sessions_;
+        timer timer_;
 
+        async_task<> on_timer(const service_provider& sp);
         void add_session(const service_provider& sp, const network_address & address, const std::shared_ptr<dht_session> & session);
         std::shared_ptr<dht_session> get_session(const network_address & address) const;
 

@@ -98,14 +98,14 @@ namespace vds {
               return vds::async_task<>::empty();
             }
           }
-          else if (this->readed_ > this->boundary_.length()) {
-            vds_assert(!this->is_first_);
-            this->parser_.write(this->buffer_, this->readed_ - this->boundary_.length());
-            memmove(this->buffer_, this->buffer_ + this->readed_ - this->boundary_.length(), this->boundary_.length());
-            this->readed_ = this->boundary_.length();
+        }
+        else if (this->readed_ > this->boundary_.length() + 2) {
+          vds_assert(!this->is_first_);
+          this->parser_.write(this->buffer_, this->readed_ - this->boundary_.length() - 2);
+          memmove(this->buffer_, this->buffer_ + this->readed_ - this->boundary_.length() - 2, this->boundary_.length() + 2);
+          this->readed_ = this->boundary_.length() + 2;
 
-            continue;
-          }
+          continue;
         }
         break;
       }

@@ -41,12 +41,13 @@ vds::async_task<> vds::_file_upload_task::read_part(const vds::service_provider 
         if ("channel_id" == pname->second) {
           auto buffer = std::make_shared<std::string>();
           return this->read_string_body(buffer, part).then([buffer, pthis = this->shared_from_this()]() {
-            pthis->channel_id_ = guid::parse(*buffer);
+            pthis->channel_id_ = base64::to_bytes(*buffer);
           });
         }
         else {
           return sp.get<file_manager::file_operations>()->upload_file(
             sp,
+            this->user_mng_,
             this->channel_id_,
             pname->second,
             values["Content-Type"],

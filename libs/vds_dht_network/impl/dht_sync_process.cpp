@@ -19,7 +19,7 @@ All rights reserved
 #include "messages/channel_log_record.h"
 #include "transaction_log.h"
 
-void vds::dht::network::sync_process::query_unknown_records(const service_provider& sp, database_transaction& t) {
+vds::async_task<> vds::dht::network::sync_process::query_unknown_records(const service_provider& sp, database_transaction& t) {
   std::map<const_data_buffer, std::list<const_data_buffer>> record_ids;
   orm::transaction_log_unknown_record_dbo t1;
   auto st = t.get_reader(t1.select(t1.id, t1.channel_id));
@@ -28,6 +28,7 @@ void vds::dht::network::sync_process::query_unknown_records(const service_provid
     record_ids[t1.channel_id.get(st)].push_back(base64::to_bytes(t1.id.get(st)));
   }
 
+  auto result = async_task<>::empty();
   auto & client = *sp.get<dht::network::client>();
   for (auto p : record_ids) {
 
@@ -43,29 +44,30 @@ void vds::dht::network::sync_process::query_unknown_records(const service_provid
       "Query log records %s of channel %s",
       log_message.c_str(),
       base64::from_bytes(p.first).c_str());
-
-    client->send(
-      sp,
-      p.first,
-      messages::channel_log_request(
-        p.first,
-        p.second,
-        client->current_node_id()));
+    result = result.then([client, sp, channel_id = p.first, requests = p.second]() {
+      client->send(
+        sp,
+        channel_id,
+        messages::channel_log_request(
+          channel_id,
+          requests,
+          client->current_node_id()));
+    });
   }
-
+  return result;
 }
 
-void vds::dht::network::sync_process::do_sync(
+vds::async_task<> vds::dht::network::sync_process::do_sync(
   const service_provider& sp,
   database_transaction& t) {
-
-  this->sync_local_channels(sp, t);
-  this->query_unknown_records(sp, t);
-  this->sync_replicas(sp, t);
-
+  return async_series(
+    this->sync_local_channels(sp, t),
+    this->query_unknown_records(sp, t),
+    this->sync_replicas(sp, t)
+  );
 }
 
-void vds::dht::network::sync_process::apply_message(
+vds::async_task<> vds::dht::network::sync_process::apply_message(
   const service_provider& sp,
   database_transaction& t,
   const messages::channel_log_state& message) {
@@ -81,7 +83,7 @@ void vds::dht::network::sync_process::apply_message(
       requests.push_back(p);
     }
   }
-
+  auto result = async_task<>::empty();
   if (!requests.empty()) {
     std::string log_message;
     for (const auto & r : requests) {
@@ -96,14 +98,16 @@ void vds::dht::network::sync_process::apply_message(
       log_message.c_str(),
       base64::from_bytes(message.channel_id()).c_str());
 
-    auto & client = *sp.get<vds::dht::network::client>();
-    client->send(
-      sp,
-      message.source_node(),
-      messages::channel_log_request(
-        message.channel_id(),
-        requests,
-        client->current_node_id()));
+    result = result.then([sp, message, requests]() {
+      auto & client = *sp.get<vds::dht::network::client>();
+      return client->send(
+        sp,
+        message.source_node(),
+        messages::channel_log_request(
+          message.channel_id(),
+          requests,
+          client->current_node_id()));
+    });
   }
   else {
     orm::transaction_log_record_dbo t2;
@@ -130,14 +134,16 @@ void vds::dht::network::sync_process::apply_message(
     }
 
     if(!current_state.empty()) {
-      auto & client = *sp.get<vds::dht::network::client>();
-      client->send(
-        sp,
-        message.source_node(),
-        messages::channel_log_state(
-          message.channel_id(),
-          current_state,
-          client->current_node_id()));
+      result = result.then([sp, message, current_state]() {
+        auto & client = *sp.get<vds::dht::network::client>();
+        return client->send(
+          sp,
+          message.source_node(),
+          messages::channel_log_state(
+            message.channel_id(),
+            current_state,
+            client->current_node_id()));
+      });
     }
 
     std::string log_message;
@@ -153,12 +159,13 @@ void vds::dht::network::sync_process::apply_message(
       log_message.c_str(),
       base64::from_bytes(message.channel_id()).c_str());
   }
+
+  return result;
 }
 
-void vds::dht::network::sync_process::apply_message(const service_provider& sp, database_transaction& t,
+vds::async_task<> vds::dht::network::sync_process::apply_message(const service_provider& sp, database_transaction& t,
   const messages::channel_log_request& message) {
-  auto & client = *sp.get<vds::dht::network::client>();
-
+  auto result = async_task<>::empty();
   orm::transaction_log_record_dbo t1;
   std::list<const_data_buffer> requests;
   for (auto & p : message.requests()) {
@@ -172,15 +179,25 @@ void vds::dht::network::sync_process::apply_message(const service_provider& sp, 
         base64::from_bytes(p).c_str(),
         t1.channel_id.get(st).c_str());
 
-      client->send(
-        sp,
-        message.source_node(),
-        messages::channel_log_record(
-          base64::to_bytes(t1.channel_id.get(st)),
-          p,
-          t1.data.get(st)));
+      result = result.then([
+          sp,
+          request = p,
+          message,
+          channel_id = base64::to_bytes(t1.channel_id.get(st)),
+          data = t1.data.get(st)]() {
+        auto & client = *sp.get<vds::dht::network::client>();
+        return client->send(
+          sp,
+          message.source_node(),
+          messages::channel_log_record(
+            channel_id,
+            request,
+            data));
+      });
     }
   }
+
+  return result;
 }
 
 void vds::dht::network::sync_process::apply_message(const service_provider& sp, database_transaction& t,
@@ -201,7 +218,7 @@ void vds::dht::network::sync_process::apply_message(const service_provider& sp, 
     message.data());
 }
 
-void vds::dht::network::sync_process::sync_local_channels(const service_provider& sp, database_transaction& t) {
+vds::async_task<> vds::dht::network::sync_process::sync_local_channels(const service_provider& sp, database_transaction& t) {
   auto & client = *sp.get<dht::network::client>();
   
   orm::channel_local_cache_dbo t1;
@@ -222,7 +239,7 @@ void vds::dht::network::sync_process::sync_local_channels(const service_provider
   while (st.execute()) {
     channels[base64::to_bytes(t2.channel_id.get(st))].push_back(base64::to_bytes(t2.id.get(st)));
   }
-
+  auto result = async_task<>::empty();
   for(auto p : channels){
 
     std::string log_message;
@@ -238,14 +255,17 @@ void vds::dht::network::sync_process::sync_local_channels(const service_provider
         base64::from_bytes(p.first).c_str(),
         log_message.c_str());
 
-    client->send(
+    result = result.then([client, sp, target_node = p.first, state = p.second]() {
+      return client->send(
         sp,
-        p.first,
+        target_node,
         messages::channel_log_state(
-            p.first,
-            p.second,
-            client->current_node_id()));
+          target_node,
+          state,
+          client->current_node_id()));
+    });
   }
+  return result;
 }
 
 struct object_info{
@@ -255,7 +275,7 @@ struct object_info{
   std::map<vds::const_data_buffer/*node_id*/, std::list<uint16_t>/*replica*/> nodes;
 };
 
-void vds::dht::network::sync_process::sync_replicas(
+vds::async_task<> vds::dht::network::sync_process::sync_replicas(
     const vds::service_provider &sp,
     vds::database_transaction &t) {
   auto & client = *sp.get<dht::network::client>();
@@ -272,6 +292,7 @@ void vds::dht::network::sync_process::sync_replicas(
   }
 
   //Move replicas closer to root
+  auto result = async_task<>::empty();
   for(auto & p : objects){
     std::map<vds::const_data_buffer /*distance*/, std::list<vds::const_data_buffer/*node_id*/>> neighbors;
     client->neighbors(sp, p.first, neighbors, _client::GENERATE_HORCRUX);
@@ -283,11 +304,19 @@ void vds::dht::network::sync_process::sync_replicas(
             for (auto &pnode : preplica.second) {
               if (pneighbor.first < pnode.first) {
                 for(auto & node : pnode.second) {
-                 client->send(sp, pneighbor_node, messages::offer_move_replica(
-                      p.first,
-                      preplica.first,
-                      node,
-                      client->current_node_id()));
+                 result = result.then([
+                      client,
+                      sp,
+                      neighbor_node = pneighbor_node,
+                      object_id = p.first,
+                      replica = preplica.first,
+                        target_node = node](){
+                        client->send(sp, neighbor_node, messages::offer_move_replica(
+                          object_id,
+                          replica,
+                          target_node,
+                          client->current_node_id()));
+                      });
                 }
               }
             }
@@ -296,7 +325,7 @@ void vds::dht::network::sync_process::sync_replicas(
     }
   }
 
-  //
+  return result;
 }
 
 void vds::dht::network::sync_process::apply_message(

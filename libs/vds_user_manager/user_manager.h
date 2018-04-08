@@ -133,7 +133,7 @@ namespace vds {
           throw std::runtime_error("Write signature error");
         }
 
-        auto read_cert_key = this->get_channel_read_key(sp, channel_id, write_cert_id);
+        auto read_cert_key = this->get_channel_read_key(sp, channel_id, read_cert_id);
         const auto key_data = read_cert_key.decrypt(crypted_key);
         const auto key = symmetric_key::deserialize(symmetric_crypto::aes_256_cbc(), key_data);
         const auto data = symmetric_decrypt::decrypt(key, crypted_data);

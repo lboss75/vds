@@ -6,6 +6,7 @@
 #include "user_manager.h"
 #include "private/api_controller.h"
 #include "http_simple_form_parser.h"
+#include "db_model.h"
 
 std::shared_ptr<vds::json_object> vds::api_controller::channel_serialize(
   const vds::user_channel & channel) {
@@ -15,7 +16,7 @@ std::shared_ptr<vds::json_object> vds::api_controller::channel_serialize(
   return item;
 }
 
-vds::async_task<vds::http_message>
+std::shared_ptr<vds::json_value>
 vds::api_controller::get_channels(
     const vds::service_provider &sp,
     user_manager & user_mng,
@@ -26,12 +27,7 @@ vds::api_controller::get_channels(
     result->add(channel_serialize(channel));
   }
 
-  return vds::async_task<vds::http_message>::result(
-      http_response::simple_text_response(
-          sp,
-          result->json_value::str(),
-          "application/json; charset=utf-8"));
-
+  return std::static_pointer_cast<json_value>(result);
 }
 
 vds::async_task<vds::http_message> vds::api_controller::get_login_state(const service_provider& sp,
@@ -78,5 +74,29 @@ vds::api_controller::create_channel(
         sp,
         channel_serialize(channel)->json_value::str(),
         "application/json; charset=utf-8"));
+  });
+}
+
+vds::async_task<std::shared_ptr<vds::json_value>> vds::api_controller::channel_feed(
+  const service_provider& sp,
+  const std::shared_ptr<user_manager>& user_mng,
+  const std::shared_ptr<_web_server>& owner,
+  const const_data_buffer & channel_id) {
+  auto result = std::make_shared<json_array>();
+  return sp.get<db_model>()->async_transaction(sp, [sp, user_mng, channel_id, result](database_transaction & t)->bool {
+    user_mng->walk_messages(
+      sp,
+      channel_id,
+      t,
+      [result](const transactions::file_add_transaction& message)-> bool {
+      auto record = std::make_shared<json_object>();
+      record->add_property("name", message.name());
+      record->add_property("mimetype", message.mimetype());
+      result->add(record);
+      return true;
+    });
+    return true;
+  }).then([result]() {
+    return std::static_pointer_cast<json_value>(result);
   });
 }

@@ -21,7 +21,6 @@ target_include_directories(vds_p2p_network
 		 ${vds_database_INCLUDE_DIRS}
 		 ${vds_db_model_INCLUDE_DIRS}
 		 ${vds_user_manager_INCLUDE_DIRS}
-		 ${vds_chunk_manager_INCLUDE_DIRS}
 		 ${vds_transactions_INCLUDE_DIRS}
 		 ${OPENSSL_INCLUDE_DIR}
 	PUBLIC
@@ -36,7 +35,6 @@ target_link_libraries(
         vds_database
         vds_db_model
         vds_user_manager
-        vds_chunk_manager
         vds_transactions
         ${OPENSSL_LIBRARIES}
         ${CMAKE_THREAD_LIBS_INIT}

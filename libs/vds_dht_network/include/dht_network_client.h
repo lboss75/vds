@@ -22,7 +22,12 @@ namespace vds {
         void start(const service_provider & sp, const const_data_buffer &this_node_id, uint16_t port);
         void stop(const service_provider & sp);
 
-        void save(
+        struct chunk_info {
+          const_data_buffer id;
+          const_data_buffer key;
+        };
+
+        chunk_info save(
           const service_provider & sp,
           database_transaction & t,
           const const_data_buffer & value);

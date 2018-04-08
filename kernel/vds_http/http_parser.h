@@ -42,17 +42,9 @@ namespace vds {
         logger::get(this->sp_)->debug("HTTP", this->sp_, "HTTP end");
 
         this->message_state_.change_state(
-            [](MessageStateEnum &state) -> bool {
-              switch (state) {
-                case MessageStateEnum::MESSAGE_STATE_NONE:
-                case MessageStateEnum::MESSAGE_STATE_MESSAGE_BODY_FINISH:
-                  state = MessageStateEnum::MESSAGE_STATE_MESSAGE_STARTED;
-                  return true;
-              }
-
-              return false;
-
-            }, error_logic::throw_exception);
+                MessageStateEnum::MESSAGE_STATE_NONE,
+                MessageStateEnum::MESSAGE_STATE_MESSAGE_STARTED,
+                error_logic::throw_exception);
         this->message_callback_(http_message())
             .execute(
                 [pthis](const std::shared_ptr<std::exception> &ex) {

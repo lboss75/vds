@@ -33,7 +33,8 @@ namespace vds {
   public:
     enum class channel_type_t {
       account_channel,
-      personal_channel
+      personal_channel,
+      notes_channel
     };
 
     user_channel();
@@ -84,6 +85,9 @@ namespace std {
     }
     case vds::user_channel::channel_type_t::personal_channel: {
       return "p";
+    }
+    case vds::user_channel::channel_type_t::notes_channel: {
+      return "n";
     }
 
     default: {

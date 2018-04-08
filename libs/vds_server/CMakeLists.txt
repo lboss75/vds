@@ -22,7 +22,6 @@ target_include_directories(vds_server
 		${vds_database_INCLUDE_DIRS}
 		${vds_transactions_INCLUDE_DIRS}
 		${vds_user_manager_INCLUDE_DIRS}
-		${vds_chunk_manager_INCLUDE_DIRS}
 		${vds_db_model_INCLUDE_DIRS}
 		${vds_dht_network_INCLUDE_DIRS}
         ${vds_log_sync_INCLUDE_DIRS}
@@ -42,7 +41,6 @@ target_link_libraries(
   vds_upnp
   vds_parser
   vds_transactions
-  vds_chunk_manager
   vds_user_manager
   vds_dht_network
   vds_db_model

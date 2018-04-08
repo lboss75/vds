@@ -62,7 +62,7 @@ wchar_t vds::utf8::next_char(const char *& utf8string, size_t & len)
 
     result = (wchar_t)(0x80 + (((0b00011111 & (uint8_t)utf8string[0]) << 6) | (0b00111111 & (uint8_t)utf8string[1])));
     utf8string += 2;
-    len += 2;
+    len -= 2;
   }
   else if (0b11100000 == (0b11110000 & (uint8_t)*utf8string)) {
     if (len < 3
@@ -77,7 +77,7 @@ wchar_t vds::utf8::next_char(const char *& utf8string, size_t & len)
         | (0b00111111 & (uint8_t)utf8string[2])
       ));
     utf8string += 3;
-    len += 3;
+    len -= 3;
   }
   else if (0b11110000 == (0b11111000 & (uint8_t)*utf8string)) {
     if (len < 4
@@ -94,7 +94,7 @@ wchar_t vds::utf8::next_char(const char *& utf8string, size_t & len)
       | (0b00111111 & (uint8_t)utf8string[3])
       ));
     utf8string += 4;
-    len += 4;
+    len -= 4;
   }
   else {
     throw std::runtime_error("Invalid UTF8 string");

@@ -1,40 +1,50 @@
 #ifndef __VDS_P2P_NETWORK_DHT_PING_H_
 #define __VDS_P2P_NETWORK_DHT_PING_H_
 
-#include "p2p_message_id.h"
+#include "dht_message_type.h"
+#include "binary_serialize.h"
 
 namespace vds {
-  namespace p2p_messages {
-    class dht_ping {
-    public:
-      static const network::message_type_t message_id = p2p_message_id::dht_ping;
+  namespace dht {
+    namespace messages {
+      class dht_ping {
+      public:
+        static const network::message_type_t message_id = network::message_type_t::dht_ping;
 
-      dht_ping(const guid & source_node)
-      : source_node_(source_node){
-      }
+        dht_ping(
+          const const_data_buffer & target_node,
+          const const_data_buffer & source_node)
+          : target_node_(target_node),
+          source_node_(source_node) {
+        }
 
-      dht_ping(
+        dht_ping(
           binary_deserializer & s) {
-        s >> this->source_node_;
-      }
+          s >> this->target_node_ >> this->source_node_;
+        }
 
-      const_data_buffer serialize() const {
-        binary_serializer s;
-        s << message_id << this->source_node_;
-        return s.data();
-      }
+        const_data_buffer serialize() const {
+          binary_serializer s;
+          s << this->target_node_ << this->source_node_;
+          return s.data();
+        }
 
-      const guid & source_node() const {
-        return source_node_;
-      }
+        const const_data_buffer & target_node() const {
+          return target_node_;
+        }
 
-    private:
+        const const_data_buffer & source_node() const {
+          return source_node_;
+        }
 
-      /**
-       * \brief Ping initiator
-       */
-      guid source_node_;
-    };
+      private:
+        const_data_buffer target_node_;
+        /**
+         * \brief Ping initiator
+         */
+        const_data_buffer source_node_;
+      };
+    }
   }
 }
 

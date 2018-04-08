@@ -73,7 +73,7 @@ namespace vds {
       }
     }
 
-    bool wait(state_enum_type expected_state, error_logic err_logic)
+    bool wait(state_enum_type expected_state, error_logic err_logic, const std::chrono::seconds & timeout = std::chrono::seconds(5))
     {
       std::unique_lock<std::mutex> lock(this->state_mutex_);
       for(;;){
@@ -88,7 +88,7 @@ namespace vds {
           return false;
         }
 
-        if(std::cv_status::timeout == this->state_cond_.wait_for(lock, std::chrono::seconds(5))){
+        if(std::cv_status::timeout == this->state_cond_.wait_for(lock, timeout)){
           throw std::runtime_error("Deadlock error");
         }
       }

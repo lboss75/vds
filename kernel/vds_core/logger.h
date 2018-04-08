@@ -212,10 +212,16 @@ namespace vds {
 
       //log_writer
       void write(const service_provider & sp, const log_record & record) override;
-
+      
     private:
-      std::mutex file_mutex_;
       std::unique_ptr<file> f_;
+      std::thread logger_thread_;
+
+      std::mutex log_mutex_;
+      std::condition_variable log_cond_;
+      std::string log_;
+      bool is_stopping_;
+      void logger_thread();
     };
 
 }

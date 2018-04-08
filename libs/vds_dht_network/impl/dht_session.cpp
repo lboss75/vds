@@ -12,6 +12,8 @@ All rights reserved
 #include "messages/dht_find_node_response.h"
 #include "messages/channel_log_request.h"
 #include "messages/channel_log_record.h"
+#include "messages/dht_ping.h"
+#include "messages/dht_pong.h"
 
 vds::dht::network::dht_session::dht_session(
   const network_address& address,
@@ -21,30 +23,46 @@ vds::dht::network::dht_session::dht_session(
   partner_node_id_(partner_node_id){
 }
 
-void vds::dht::network::dht_session::ping_node(const service_provider& sp, const const_data_buffer & node_id) {
+vds::async_task<> vds::dht::network::dht_session::ping_node(
+  const service_provider& sp,
+  const const_data_buffer & node_id,
+  const std::shared_ptr<udp_transport> & transport) {
+  return this->send_message(sp, transport, (uint8_t)messages::dht_ping::message_id, messages::dht_ping(node_id, transport->this_node_id()).serialize());
 }
 
 vds::async_task<> vds::dht::network::dht_session::process_message(
-  const service_provider& sp,
+  const service_provider& scope,
   uint8_t message_type,
   const const_data_buffer& message_data) {
-
+  auto sp = scope.create_scope(__FUNCTION__);
   switch((network::message_type_t)message_type){
   case network::message_type_t::channel_log_state: {
-    return sp.get<db_model>()->async_transaction(sp, [sp, message_data](database_transaction & t) {
+    auto result = std::make_shared<async_task<>>(async_task<>::empty());
+    return sp.get<db_model>()->async_transaction(sp, [sp, message_data, result](database_transaction & t) {
       binary_deserializer s(message_data);
       messages::channel_log_state message(s);
-      (*sp.get<client>())->apply_message(sp, t, message);
+      *result = (*sp.get<client>())->apply_message(sp.create_scope("messages::channel_log_state"), t, message);
       return true;
+    }).then([sp, result]() {
+      mt_service::async(sp, [result]() {
+        result->execute([](const std::shared_ptr<std::exception> & ) {
+        });
+      });
     });
     break;
   }
   case network::message_type_t::channel_log_request: {
-    return sp.get<db_model>()->async_transaction(sp, [sp, message_data](database_transaction & t) {
+    auto result = std::make_shared<async_task<>>(async_task<>::empty());
+    return sp.get<db_model>()->async_transaction(sp, [sp, message_data, result](database_transaction & t) {
       binary_deserializer s(message_data);
       messages::channel_log_request message(s);
-      (*sp.get<client>())->apply_message(sp, t, message);
+      *result = (*sp.get<client>())->apply_message(sp.create_scope("messages::channel_log_request"), t, message);
       return true;
+    }).then([sp, result]() {
+      mt_service::async(sp, [result]() {
+        result->execute([](const std::shared_ptr<std::exception> & ) {
+        });
+      });
     });
     break;
   }
@@ -52,7 +70,7 @@ vds::async_task<> vds::dht::network::dht_session::process_message(
     return sp.get<db_model>()->async_transaction(sp, [sp, message_data](database_transaction & t) {
       binary_deserializer s(message_data);
       messages::channel_log_record message(s);
-      (*sp.get<client>())->apply_message(sp, t, message);
+      (*sp.get<client>())->apply_message(sp.create_scope("messages::channel_log_record"), t, message);
       return true;
     });
     break;
@@ -61,7 +79,7 @@ vds::async_task<> vds::dht::network::dht_session::process_message(
       return sp.get<db_model>()->async_transaction(sp, [sp, message_data](database_transaction & t){
         binary_deserializer s(message_data);
         messages::offer_move_replica message(s);
-        (*sp.get<client>())->apply_message(sp, t, message);
+        (*sp.get<client>())->apply_message(sp.create_scope("messages::offer_move_replica"), t, message);
         return true;
       });
       break;
@@ -70,14 +88,44 @@ vds::async_task<> vds::dht::network::dht_session::process_message(
     case network::message_type_t::dht_find_node: {
       binary_deserializer s(message_data);
       messages::dht_find_node message(s);
-      (*sp.get<client>())->apply_message(sp, message);
+      auto result = std::make_shared<async_task<>>(async_task<>::empty());
+      *result = (*sp.get<client>())->apply_message(sp.create_scope("messages::dht_find_node"), message);
+      mt_service::async(sp, [result]() {
+        result->execute([](const std::shared_ptr<std::exception> & ) {});
+      });
       break;
     }
 
     case network::message_type_t::dht_find_node_response: {
       binary_deserializer s(message_data);
       messages::dht_find_node_response message(s);
-      (*sp.get<client>())->apply_message(sp, this->shared_from_this(), message);
+      auto result = std::make_shared<async_task<>>(async_task<>::empty());
+      *result = (*sp.get<client>())->apply_message(sp.create_scope("messages::dht_find_node_response"), this->shared_from_this(), message);
+      mt_service::async(sp, [result]() mutable {
+        result->execute([](const std::shared_ptr<std::exception> & ) {});
+      });
+      break;
+    }
+
+    case network::message_type_t::dht_ping: {
+      binary_deserializer s(message_data);
+      messages::dht_ping message(s);
+      auto result = std::make_shared<async_task<>>(async_task<>::empty());
+      *result = (*sp.get<client>())->apply_message(sp.create_scope("messages::dht_ping"), this->shared_from_this(), message);
+      mt_service::async(sp, [result]() mutable {
+        result->execute([](const std::shared_ptr<std::exception> & ) {});
+      });
+      break;
+    }
+
+    case network::message_type_t::dht_pong: {
+      binary_deserializer s(message_data);
+      messages::dht_pong message(s);
+      auto result = std::make_shared<async_task<>>(async_task<>::empty());
+      *result = (*sp.get<client>())->apply_message(sp.create_scope("messages::dht_pong"), this->shared_from_this(), message);
+      mt_service::async(sp, [result]() mutable {
+        result->execute([](const std::shared_ptr<std::exception> & ) {});
+      });
       break;
     }
 

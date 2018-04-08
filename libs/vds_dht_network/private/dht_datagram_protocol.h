@@ -35,35 +35,40 @@ namespace vds {
           send_in_process_(false)
         {
         }
-        void send_message(
+
+        async_task<> send_message(
           const service_provider &sp,
           const std::shared_ptr<transport_type> & s,
           uint8_t message_type,
           const const_data_buffer & message) {
 
-          std::unique_lock<std::mutex> lock(this->send_mutex_);
-          while (this->send_in_process_) {
-            this->send_cond_.wait(lock);
-          }
-          this->send_in_process_ = true;
-          lock.unlock();
-
-          this->send_message_async(
-            sp,
-            s,
-            message_type,
-            message).execute([pthis = this->shared_from_this()](const std::shared_ptr<std::exception> & ex) {
+          return [sp, s, message_type, message, pthis = this->shared_from_this()](const async_result<> & result_callback) {
             std::unique_lock<std::mutex> lock(pthis->send_mutex_);
-            pthis->send_in_process_ = false;
-            pthis->send_cond_.notify_all();
-          });
+            while (pthis->send_in_process_) {
+              pthis->send_cond_.wait(lock);
+            }
+            pthis->send_in_process_ = true;
+            lock.unlock();
+
+            pthis->send_message_async(
+              sp,
+              s,
+              message_type,
+              message,
+              result_callback).execute([pthis](const std::shared_ptr<std::exception> & ex) {
+              std::unique_lock<std::mutex> lock(pthis->send_mutex_);
+              pthis->send_in_process_ = false;
+              pthis->send_cond_.notify_all();
+            });
+          };
         }
 
 
         async_task<> process_datagram(
-            const service_provider & sp,
+            const service_provider & scope,
             const std::shared_ptr<transport_type> & s,
             const const_data_buffer & datagram){
+          auto sp = scope.create_scope(__FUNCTION__);
           std::unique_lock<std::mutex> lock(this->input_mutex_);
           if(datagram.size() == 0){
             return async_task<>(std::make_shared<std::runtime_error>("Invalid data"));
@@ -85,12 +90,19 @@ namespace vds {
                             | (datagram.data()[7] << 8)
                             | (datagram.data()[8]);
               sp.get<logger>()->trace("DHT", sp, "Acknowledgment %d", index);
-
               while(!this->output_messages_.empty()){
                 auto first_index = this->output_messages_.begin()->first;
                 sp.get<logger>()->trace("DHT", sp, "Acknowledgment %d of %d", index, first_index);
                 if(first_index < index){
                   this->output_messages_.erase(this->output_messages_.begin());
+                  auto pcallback = this->output_callbacks_.find(first_index);
+                  if (this->output_callbacks_.end() != pcallback) {
+                    mt_service::async(sp, [f = pcallback->second](){
+                      f.done();
+                    });
+                    this->output_callbacks_.erase(pcallback);
+                  }
+
                 }
                 else {
                   break;
@@ -130,7 +142,18 @@ namespace vds {
           return this->address_;
         }
 
-        void on_timer(const service_provider & sp, const std::shared_ptr<transport_type> & s) {
+        async_task<> on_timer(const service_provider & sp, const std::shared_ptr<transport_type> & s) {
+          sp.get<logger>()->trace("DHT", sp, "address=%s;this_node_id=%s;output_sequence_number=%d;output_messages=%s;mtu=%d;input_messages=%s;next_sequence_number=%d;next_process_index=%d;send_in_process=%d",
+            this->address_.to_string().c_str(),
+            base64::from_bytes(this->this_node_id_).c_str(),
+            this->output_sequence_number_,
+            this->output_messages_.empty() ? "[]" : ("[" + std::to_string(this->output_messages_.begin()->first) + ".." + std::to_string(this->output_messages_.rbegin()->first) + "]").c_str(),
+            this->mtu_,
+            this->input_messages_.empty() ? "[]" : ("[" + std::to_string(this->input_messages_.begin()->first) + ".." + std::to_string(this->input_messages_.rbegin()->first) + "]").c_str(),
+            this->next_sequence_number_,
+            this->next_process_index_,
+            this->send_in_process_ ? "true" : "false");
+
           std::shared_lock<std::shared_mutex> lock(this->output_mutex_);
 
           uint32_t mask = 0;
@@ -157,8 +180,7 @@ namespace vds {
 
           sp.get<logger>()->trace("DHT", sp, "Send Acknowledgment %d", this->next_sequence_number_);
           const_data_buffer datagram(buffer.data(), buffer.size());
-          s->write_async(sp, udp_datagram(this->address_, datagram, false))
-            .execute([](const std::shared_ptr<std::exception> & ex) {});
+          return s->write_async(sp, udp_datagram(this->address_, datagram, false));
         }
       private:
         network_address address_;
@@ -167,6 +189,7 @@ namespace vds {
         std::shared_mutex output_mutex_;
         size_t output_sequence_number_;
         std::map<size_t, const_data_buffer> output_messages_;
+        std::map<size_t, async_result<>> output_callbacks_;
         size_t mtu_;
 
         std::mutex input_mutex_;
@@ -182,10 +205,11 @@ namespace vds {
           const service_provider &sp,
           const std::shared_ptr<transport_type> & s,
           uint8_t message_type,
-          const const_data_buffer & message) {
+          const const_data_buffer & message,
+          const async_result<> & result_callback) {
           vds_assert(message.size() < 0xFFFF);
 
-          return[pthis = this->shared_from_this(), sp, s, message_type, message](
+          return[pthis = this->shared_from_this(), sp, s, message_type, message, result_callback](
             const async_result<> &result) {
             std::unique_lock<std::shared_mutex> lock(pthis->output_mutex_);
             resizable_data_buffer buffer;
@@ -200,14 +224,14 @@ namespace vds {
 
               const_data_buffer datagram(buffer.data(), buffer.size());
               s->write_async(sp, udp_datagram(pthis->address_, datagram, false))
-                .execute([pthis, sp, s, message_type, message, result, datagram, expected_index = pthis->output_sequence_number_](
+                .execute([pthis, sp, s, message_type, message, result, datagram, result_callback, expected_index = pthis->output_sequence_number_](
                   const std::shared_ptr<std::exception> &ex) {
                 std::unique_lock<std::shared_mutex> lock(pthis->output_mutex_);
                 if (ex) {
                   auto datagram_error = std::dynamic_pointer_cast<udp_datagram_size_exception>(ex);
                   if (datagram_error) {
                     pthis->mtu_ /= 2;
-                    pthis->send_message_async(sp, s, message_type, message)
+                    pthis->send_message_async(sp, s, message_type, message, result_callback)
                       .execute([result](const std::shared_ptr<std::exception> &ex) {
                       if (ex) {
                         result.error(ex);
@@ -224,6 +248,7 @@ namespace vds {
                 else {
                   vds_assert(expected_index == pthis->output_sequence_number_);
                   pthis->output_messages_[pthis->output_sequence_number_] = datagram;
+                  pthis->output_callbacks_[pthis->output_sequence_number_] = result_callback;
                   pthis->output_sequence_number_++;
                   result.done();
                 }
@@ -243,14 +268,14 @@ namespace vds {
 
               const_data_buffer datagram(buffer.data(), buffer.size());
               s->write_async(sp, udp_datagram(pthis->address_, datagram))
-                .execute([pthis, sp, s, message_type, message, offset, result, datagram, expected_index = pthis->output_sequence_number_](
+                .execute([pthis, sp, s, message_type, message, offset, result, datagram, result_callback, expected_index = pthis->output_sequence_number_](
                   const std::shared_ptr<std::exception> &ex) {
                 std::unique_lock<std::shared_mutex> lock(pthis->output_mutex_);
                 if (ex) {
                   auto datagram_error = std::dynamic_pointer_cast<udp_datagram_size_exception>(ex);
                   if (datagram_error) {
                     pthis->mtu_ /= 2;
-                    pthis->send_message_async(sp, s, message_type, message)
+                    pthis->send_message_async(sp, s, message_type, message, result_callback)
                       .execute([result](const std::shared_ptr<std::exception> &ex) {
                       if (ex) {
                         result.error(ex);
@@ -266,6 +291,7 @@ namespace vds {
                 }
                 else {
                   pthis->output_messages_[pthis->output_sequence_number_] = datagram;
+                  pthis->output_callbacks_[pthis->output_sequence_number_] = result_callback;
                   vds_assert(expected_index == pthis->output_sequence_number_);
                   pthis->output_sequence_number_++;
                   pthis->continue_send_message(
@@ -419,6 +445,7 @@ namespace vds {
             const std::shared_ptr<transport_type> & s,
             size_t mask,
             size_t index){
+          auto result = async_task<>::empty();
 
           while(mask > 0){
             auto p = this->output_messages_.find(index);
@@ -427,20 +454,27 @@ namespace vds {
                 mask >>= 1;
                 ++index;
 
-                return s->write_async(sp, udp_datagram(this->address_, p->second))
+                return s->write_async(sp, udp_datagram(this->address_, p->second, false))
                   .then([pthis = this->shared_from_this(), sp, s, mask, index](){
                   return pthis->repeat_message(sp, s, mask, index);
                 });
               }
               else {
                 this->output_messages_.erase(p);
+                auto pcallback = this->output_callbacks_.find(index);
+                if(this->output_callbacks_.end() != pcallback) {
+                  result = result.then([f = pcallback->second]() {
+                    f.done();
+                  });
+                  this->output_callbacks_.erase(pcallback);
+                }
               }
             }
             mask >>= 1;
             ++index;
           }
 
-          return async_task<>::empty();
+          return result;
         }
       };
     }

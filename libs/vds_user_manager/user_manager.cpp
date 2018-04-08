@@ -92,7 +92,23 @@ void vds::user_manager::reset(
 	  root_user.id().str().c_str(),
 	  cert_control::get_id(root_user.user_certificate()).str().c_str());
 
-  //Lock to device
+  //Create notes channel
+  auto channel_read_private_key = vds::asymmetric_private_key::generate(
+    vds::asymmetric_crypto::rsa4096());
+  auto channel_write_private_key = vds::asymmetric_private_key::generate(
+    vds::asymmetric_crypto::rsa4096());
+  this->create_channel(
+    sp,
+    playback,
+    t,
+    vds::dht::dht_object_id::generate_random_id(),
+    user_channel::channel_type_t::notes_channel,
+    "My Records",
+    root_user.user_certificate(),
+    root_private_key,
+    channel_read_private_key,
+    channel_write_private_key);
+
   std::list<certificate> certificate_chain;
   certificate_chain.push_back(root_user.user_certificate());
 

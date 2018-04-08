@@ -17,6 +17,8 @@ All rights reserved
 namespace vds {
   namespace dht {
     namespace messages {
+      class dht_pong;
+      class dht_ping;
       class channel_log_record;
       class channel_log_request;
       class dht_find_node_response;
@@ -58,12 +60,12 @@ namespace vds {
           this->route_.neighbors(sp, key, result, max_count);
         }
 
-        void apply_message(
+        async_task<> apply_message(
           const service_provider & sp,
           database_transaction & t,
           const messages::channel_log_state & message);
 
-        void apply_message(
+        async_task<> apply_message(
           const service_provider & sp,
           database_transaction & t,
           const messages::channel_log_request & message);
@@ -73,14 +75,24 @@ namespace vds {
           database_transaction & t,
           const messages::channel_log_record & message);
 
-        void apply_message(
+        async_task<> apply_message(
           const service_provider & sp,
           const messages::dht_find_node & message);
 
-        void apply_message(
+        async_task<> apply_message(
           const service_provider & sp,
           const std::shared_ptr<dht_session> & session,
           const messages::dht_find_node_response & message);
+
+        async_task<>  apply_message(
+          const service_provider & sp,
+          const std::shared_ptr<dht_session> & session,
+          const messages::dht_ping & message);
+
+        async_task<> apply_message(
+          const service_provider & sp,
+          const std::shared_ptr<dht_session> & session,
+          const messages::dht_pong & message);
 
         void apply_message(
             const service_provider & sp,
@@ -90,11 +102,11 @@ namespace vds {
         }
 
         template <typename message_type>
-        void send(
+        async_task<> send(
           const service_provider & sp,
           const const_data_buffer & node_id,
           const message_type & message) {
-          this->send(sp, node_id, message_type::message_id, message.serialize());
+          return this->send(sp, node_id, message_type::message_id, message.serialize());
         }
 
         void add_session(const service_provider& sp, const std::shared_ptr<dht_session>& session, uint8_t hops);
@@ -109,12 +121,12 @@ namespace vds {
         std::debug_mutex update_timer_mutex_;
         bool in_update_timer_;
 
-        void update_route_table(const service_provider& sp);
-        void process_update(
+        async_task<> update_route_table(const service_provider& sp);
+        async_task<> process_update(
             const service_provider & sp,
             database_transaction & t);
 
-        void send(
+        async_task<> send(
           const service_provider& sp,
           const const_data_buffer& node_id,
           const message_type_t message_id,

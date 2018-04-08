@@ -4,14 +4,61 @@ All rights reserved
 */
 
 #include "stdafx.h"
+#include <set>
 #include <iostream>
 #include "service_provider.h"
 #include "logger.h"
 #include "private/service_provider_p.h"
 
+#ifdef DEBUG
+class service_provider_debug {
+public:
+  service_provider_debug() {
+    std::thread([this]() {
+      this->dump();
+    }).detach();
+    
+  }
+
+  void add(vds::_service_provider * p) {
+    if (p != nullptr) {
+      std::lock_guard<std::mutex> lock(this->m_);
+      this->providers_.emplace(p);
+    }
+  }
+
+  void remove(vds::_service_provider * p) {
+    std::lock_guard<std::mutex> lock(this->m_);
+    this->providers_.erase(p);
+  }
+
+  void dump() {
+    for (;;) {
+      std::this_thread::sleep_for(std::chrono::seconds(60));
+      std::lock_guard<std::mutex> lock(this->m_);
+      if(this->providers_.empty()) {
+        break;
+      }
+      std::cout << "Service providers:\n";
+      for(auto p : this->providers_) {
+        std::cout << p->full_name() << "\n";
+      }
+    }
+  }
+private:
+  std::mutex m_;
+  std::set<vds::_service_provider *> providers_;
+};
+
+static service_provider_debug instance;
+#endif
+
 vds::service_provider::service_provider(std::shared_ptr<_service_provider> && impl)
   : impl_(impl)
 {
+#ifdef DEBUG
+  instance.add(this->impl_.get());
+#endif
 }
 
 vds::service_provider vds::service_provider::empty()
@@ -130,4 +177,10 @@ void vds::service_registrator::start(const service_provider & sp)
 void vds::service_registrator::add_service(size_t type_id, void * service)
 {
   this->impl_->add_service(type_id, service);
+}
+///////////////////////
+vds::_service_provider::~_service_provider() {
+#ifdef DEBUG
+  instance.remove(this);
+#endif
 }

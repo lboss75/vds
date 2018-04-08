@@ -16,7 +16,7 @@ All rights reserved
 namespace vds {
   class api_controller {
   public:
-    static async_task<http_message> get_channels(
+    static std::shared_ptr<json_value> get_channels(
         const service_provider& sp,
         user_manager & user_mng,
         const std::shared_ptr<_web_server> & owner,
@@ -33,6 +33,12 @@ namespace vds {
       const std::shared_ptr<user_manager> &user_mng,
       user_channel::channel_type_t channel_type,
       const std::string & name);
+
+    static async_task<std::shared_ptr<json_value>> channel_feed(
+      const service_provider& sp,
+      const std::shared_ptr<user_manager> & user_mng,
+      const std::shared_ptr<_web_server>& owner,
+      const const_data_buffer & channel_id);
 
   private:
     static std::shared_ptr<json_object> channel_serialize(const vds::user_channel & channel);

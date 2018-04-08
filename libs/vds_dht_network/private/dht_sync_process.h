@@ -30,18 +30,18 @@ namespace vds {
 
       class sync_process {
       public:
-        void query_unknown_records(const service_provider& sp, database_transaction& t);
+        async_task<> query_unknown_records(const service_provider& sp, database_transaction& t);
 
-        void do_sync(
+        async_task<> do_sync(
           const service_provider & sp,
           database_transaction & t);
 
-        void apply_message(
+        async_task<> apply_message(
           const service_provider & sp,
           database_transaction & t,
           const messages::channel_log_state & message);
 
-        void apply_message(
+        async_task<> apply_message(
           const service_provider& sp,
           database_transaction& t,
           const messages::channel_log_request& message);
@@ -72,11 +72,11 @@ namespace vds {
             const messages::got_replica & message);
 
       private:
-        void sync_local_channels(
+        async_task<> sync_local_channels(
           const service_provider & sp,
           database_transaction & t);
 
-        void sync_replicas(const service_provider &sp, database_transaction &t);
+        async_task<> sync_replicas(const service_provider &sp, database_transaction &t);
       };
     }
   }

@@ -51,7 +51,7 @@ namespace vds {
           }
         });
 
-        this->message_state_.wait(MessageStateEnum::MESSAGE_STATE_NONE, error_logic::throw_exception);
+        this->message_state_.wait(MessageStateEnum::MESSAGE_STATE_NONE, error_logic::throw_exception, std::chrono::seconds(600));
         this->state_ = StateEnum::STATE_PARSE_HEADER;
       } else {
 

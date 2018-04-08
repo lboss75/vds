@@ -11,6 +11,12 @@ All rights reserved
 #include "file_operations.h"
 
 namespace vds {
+  namespace dht {
+    namespace network {
+      class client;
+    }
+  }
+
   class _upload_stream_task : public std::enable_shared_from_this<_upload_stream_task> {
   public:
     _upload_stream_task();
@@ -22,15 +28,16 @@ namespace vds {
   private:
     uint8_t buffer_[vds::file_manager::file_operations::BLOCK_SIZE];
     size_t readed_;
-    class chunk_manager *chunk_mng_;
     std::list<transactions::file_add_transaction::file_block_t> file_blocks_;
 
     async_task<> continue_read(
         const service_provider & sp,
+        dht::network::client * network_client,
         const std::shared_ptr<continuous_buffer<uint8_t>> & input_stream);
 
     async_task<> process_data(
-        const service_provider & sp);
+        const service_provider & sp,
+        dht::network::client * network_client);
   };
 }
 

@@ -96,6 +96,8 @@ namespace vds {
     {
     }
 
+    ~_service_provider();
+
     service_provider create_scope(const service_provider * owner, const std::string & name) const
     {
       return service_provider(std::make_shared<_service_provider>(

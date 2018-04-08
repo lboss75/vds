@@ -12,6 +12,7 @@ All rights reserved
 #include "mt_service.h"
 #include "not_mutex.h"
 #include "stream.h"
+#include "vds_debug.h"
 
 namespace vds {
   
@@ -128,6 +129,8 @@ namespace vds {
 
       async_task<size_t /*readed*/> read_async(item_type * buffer, size_t buffer_size)
       {
+        vds_assert(0 != buffer_size);
+
         if (this->continue_read_) {
           throw std::runtime_error("Logic error 29");
         }
@@ -248,6 +251,7 @@ namespace vds {
         item_type * buffer,
         size_t buffer_size)
       {
+        vds_assert(0 != buffer_size);
         std::unique_lock<std::mutex> lock(this->buffer_mutex_);
 
         if (this->front_ < this->back_) {
@@ -269,7 +273,7 @@ namespace vds {
             this->continue_write_.swap(f);
             mt_service::async(this->sp_, f);
           }
-
+          vds_assert(0 != len);
           mt_service::async(this->sp_, [done, len]() {
             done(len);
           });

@@ -107,7 +107,7 @@ vds::async_task<vds::http_message> vds::_web_server::route(
   http_request request(message);
   if(request.url() == "/api/channels") {
     if (request.method() == "GET") {
-      auto user_mng = this->get_secured_context(sp, message);
+      const auto user_mng = this->get_secured_context(sp, message);
       if (!user_mng) {
         return vds::async_task<vds::http_message>::result(
             http_response::status_response(
@@ -116,11 +116,16 @@ vds::async_task<vds::http_message> vds::_web_server::route(
                 "Unauthorized"));
       }
 
-      return api_controller::get_channels(
+      const auto result = api_controller::get_channels(
           sp,
           *user_mng,
           this->shared_from_this(),
           message);
+      return vds::async_task<vds::http_message>::result(
+        http_response::simple_text_response(
+          sp,
+          result->str(),
+          "application/json; charset=utf-8"));
     }
 
     if (request.method() == "POST") {
@@ -158,29 +163,51 @@ vds::async_task<vds::http_message> vds::_web_server::route(
       message);
   }
 
+  if (request.url() == "/api/channel_feed") {
+    if (request.method() == "GET") {
+      const auto user_mng = this->get_secured_context(sp, message);
+      if (!user_mng) {
+        return vds::async_task<vds::http_message>::result(
+          http_response::status_response(
+            sp,
+            http_response::HTTP_Unauthorized,
+            "Unauthorized"));
+      }
+
+      http_request request(message);
+      const auto channel_id = base64::to_bytes(request.get_parameter("channel_id"));
+
+      return api_controller::channel_feed(
+        sp,
+        user_mng,
+        this->shared_from_this(),
+        channel_id)
+        .then([sp](const std::shared_ptr<vds::json_value> & result) {
+
+        return vds::async_task<vds::http_message>::result(
+          http_response::simple_text_response(
+            sp,
+            result->str(),
+            "application/json; charset=utf-8"));
+      });
+    }
+  }
 
   if(request.url() == "/upload" && request.method() == "POST") {
-    std::string content_type;
-    if(request.get_header("Content-Type", content_type)) {
-      static const char multipart_form_data[] = "multipart/form-data;";
-      if(multipart_form_data == content_type.substr(0, sizeof(multipart_form_data) - 1)) {
-        auto boundary = content_type.substr(sizeof(multipart_form_data) - 1);
-        trim(boundary);
-        static const char boundary_prefix[] = "boundary=";
-        if (boundary_prefix == boundary.substr(0, sizeof(boundary_prefix) - 1)) {
-          boundary.erase(0, sizeof(boundary_prefix) - 1);
-
-          auto task = std::make_shared<_file_upload_task>();
-          auto reader = std::make_shared<http_multipart_reader>(sp, "--" + boundary, [sp, task](const http_message& part)->async_task<> {
-            return task->read_part(sp, part);
-          });
-
-          return reader->process(sp, message).then([sp, task](){
-            return task->get_response(sp);
-          });
-        }
-      }
+    auto user_mng = this->get_secured_context(sp, message);
+    if (!user_mng) {
+      return vds::async_task<vds::http_message>::result(
+        http_response::status_response(
+          sp,
+          http_response::HTTP_Unauthorized,
+          "Unauthorized"));
     }
+
+    return index_page::create_message(
+      sp,
+      user_mng,
+      this->shared_from_this(),
+      message);  
   }
 
   if (request.url() == "/" && request.method() == "GET") {

@@ -134,15 +134,16 @@
 		  var items = [];
  
   		  $.each(data, function(){
-    			$('#channelsMenu').append('<li><a class="selectChannelMenu" href="#" data-menu="'+ this.id +'">' + this.name + '</a></li>');
-  		  });
+    			$('#channelsMenu')
+			.append($('<li/>')
+				.append($('<a class="selectChannelMenu" href="#" data-menu="'+ this.id +'">' + this.name + '</a>')
+		  			.on('click', function(e){
+        					$this = $(e.currentTarget);
 
-		  $('.selectChannelMenu').on('click', function(e){
-        		$this = $(e.currentTarget);
-
-        		channel_id = $this.data('menu');
-			$('#channel_id').val(channel_id);
-		  });
+        					channel_id = $this.data('menu');
+						$('#channel_id').val(channel_id);
+		  			})));
+		 });
 		});
 // We can attach the `fileselect` event to all file inputs on the page
   $(document).on('change', ':file', function() {

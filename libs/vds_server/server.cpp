@@ -7,14 +7,11 @@ All rights reserved
 #include "server.h"
 #include "private/server_p.h"
 #include "user_manager.h"
-#include "private/chunk_manager_p.h"
 #include "transaction_context.h"
 #include "transaction_log.h"
 #include "db_model.h"
-#include "chunk_manager.h"
 #include "log_sync_service.h"
 #include "file_manager_service.h"
-#include "chunk_replicator.h"
 #include "dht_network.h"
 
 vds::server::server()

@@ -21,12 +21,19 @@ namespace vds {
       sp.get<imt_service>()->async(handler);
     }
 
+    static void async(const service_provider & sp, std::function<void(void)> && handler)
+    {
+      async_enabled_check(sp);
+      sp.get<imt_service>()->async(std::move(handler));
+    }
+
     static void enable_async(const service_provider & sp);
     static void disable_async(const service_provider & sp);
     static void async_enabled_check(const service_provider & sp);
 
   private:
     void async(const std::function<void(void)> & handler);
+    void async(std::function<void(void)> && handler);
 
   };
 

@@ -227,10 +227,7 @@ namespace vds {
         const service_provider & sp,
         SOCKET_HANDLE s)
         : sp_(sp),
-          s_(s),
-        result_([](const std::shared_ptr<std::exception> &) {
-          throw std::runtime_error("Logic error");
-        })
+          s_(s)
       {
       }
 

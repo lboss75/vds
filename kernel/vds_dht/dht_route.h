@@ -64,13 +64,13 @@ namespace vds {
           this->pinged_ = 0;
         }
 
-        void send_message(
+        async_task<> send_message(
           const service_provider& sp,
           const std::shared_ptr<network::udp_transport>& transport,
           const network::message_type_t message_id,
           const const_data_buffer& message) {
 
-          proxy_session_->send_message(
+          return proxy_session_->send_message(
             sp,
             transport,
             (uint8_t)message_id,
@@ -95,7 +95,7 @@ namespace vds {
           uint8_t hops) {
 
         const auto index = dht_object_id::distance_exp(this->current_node_id_, id);
-        bucket *b;
+        std::shared_ptr<bucket> b;
 
         std::shared_lock<std::shared_mutex> lock(this->buckets_mutex_);
         auto p = this->buckets_.find(index);
@@ -105,21 +105,24 @@ namespace vds {
           std::unique_lock<std::shared_mutex> ulock(this->buckets_mutex_);
           auto p = this->buckets_.find(index);
           if (this->buckets_.end() == p) {
-            b = &this->buckets_[index];
+            b = std::make_shared<bucket>();
+            this->buckets_[index] = b;
           } else {
-            b = &p->second;
+            b = p->second;
           }
         } else {
-          b = &p->second;
+          b = p->second;
           lock.unlock();
         }
 
         b->add_node(sp, id, proxy_session, hops);
       }
 
-      void on_timer(
-          const service_provider &sp) {
-        this->ping_buckets(sp);
+      template <typename... timer_arg_types>
+      async_task<> on_timer(
+          const service_provider &sp,
+          timer_arg_types && ... timer_args) {
+        return this->ping_buckets(sp, std::forward<timer_arg_types>(timer_args)...);
       }
 
       void neighbors(
@@ -172,10 +175,20 @@ namespace vds {
         }
       }
 
+      void mark_pinged(const const_data_buffer& target_node, const network_address& address) {
+        auto index = dht_object_id::distance_exp(this->current_node_id_, target_node);
+
+        std::shared_lock<std::shared_mutex> lock(this->buckets_mutex_);
+        auto p = this->buckets_.find(index);
+        if(this->buckets_.end() != p) {
+          p->second->mark_pinged(target_node, address);
+        }
+      }
+
     private:
       const_data_buffer current_node_id_;
 
-      struct bucket {
+      struct bucket : public std::enable_shared_from_this<bucket> {
         static constexpr size_t MAX_NODES = 8;
 
         mutable std::shared_mutex nodes_mutex_;
@@ -207,15 +220,25 @@ namespace vds {
           }
         }
 
-        void on_timer(
+        template <typename... timer_arg_types>
+        async_task<> on_timer(
             const service_provider &sp,
-            const dht_route *owner) {
-
+            const dht_route *owner,
+            timer_arg_types && ... timer_args) {
+          auto result = async_task<>::empty();
           std::shared_lock<std::shared_mutex> lock(this->nodes_mutex_);
-          for (auto &p : this->nodes_) {
-            p->proxy_session_->ping_node(sp, p->node_id_);
-            p->pinged_++;
+          for (auto p : this->nodes_) {
+            sp.get<logger>()->trace("DHT", sp, "Bucket node node_id=%s,proxy_session=%s,pinged=%d,hops=%d",
+              base64::from_bytes(p->node_id_).c_str(),
+              p->proxy_session_->address().to_string().c_str(),
+              p->pinged_,
+              p->hops_);
+            result = result.then([node = p, sp, timer_args...](){
+              node->pinged_++;
+              return node->proxy_session_->ping_node(sp, node->node_id_, std::forward<timer_arg_types>(timer_args)...);
+            });
           }
+          return result;
         }
 
         bool contains(const const_data_buffer &node_id) const {
@@ -229,10 +252,19 @@ namespace vds {
           return false;
         }
 
+        void mark_pinged(const const_data_buffer& target_node, const network_address& address) {
+          std::shared_lock<std::shared_mutex> lock(this->nodes_mutex_);
+          for (auto &p : this->nodes_) {
+            if (p->node_id_ == target_node && p->proxy_session_->address() == address) {
+              p->pinged_ = 0;
+              break;
+            }
+          }
+        }
       };
 
       mutable std::shared_mutex buckets_mutex_;
-      std::map<size_t, bucket> buckets_;
+      std::map<size_t, std::shared_ptr<bucket>> buckets_;
 
       void _search_nodes(
           const vds::service_provider &sp,
@@ -268,7 +300,7 @@ namespace vds {
       }
 
       size_t search_nodes(
-          const service_provider &sp,
+          const service_provider &/*sp*/,
           const const_data_buffer &target_id,
           std::map<const_data_buffer, std::list<std::shared_ptr<node>>> &result_nodes,
           uint8_t index) const {
@@ -278,7 +310,7 @@ namespace vds {
           return result;
         }
 
-        for (auto &node : p->second.nodes_) {
+        for (auto &node : p->second->nodes_) {
           if (!node->is_good()) {
             continue;
           }
@@ -290,11 +322,17 @@ namespace vds {
         return result;
       }
 
-      void ping_buckets(const service_provider &sp) {
+      template <typename... timer_arg_types>
+      async_task<> ping_buckets(const service_provider &sp, timer_arg_types && ... timer_args) {
+        auto result = async_task<>::empty();
         std::shared_lock<std::shared_mutex> lock(this->buckets_mutex_);
         for (auto &p : this->buckets_) {
-          p.second.on_timer(sp, this);
+          sp.get<logger>()->trace("DHT", sp, "Bucket %d", p.first);
+          result = result.then([b = p.second, sp, this, timer_args...]() {
+            return b->on_timer(sp, this, timer_args...);
+          });
         }
+        return result;
       }
     };
   }

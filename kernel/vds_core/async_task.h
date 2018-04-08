@@ -17,7 +17,10 @@ All rights reserved
 namespace vds {
 	template <typename... result_types>
 	class async_task;
-    
+
+  template <typename... result_types>
+  class _async_task_base;
+
 
 	template <typename... result_types>
 	class async_result
@@ -25,7 +28,9 @@ namespace vds {
 	public:
 		async_result() = default;
 
-		async_result(std::function<void(const std::shared_ptr<std::exception> & ex, result_types... results)> && callback);
+		async_result(
+      _async_task_base<result_types...> * owner,
+      std::function<void(const std::shared_ptr<std::exception> & ex, result_types... results)> && callback);
     async_result(async_result<result_types...> && origin)
     : impl_(origin.impl_)
     {
@@ -52,11 +57,16 @@ namespace vds {
   private:
     struct result_callback
     {
-      result_callback(std::function<void(const std::shared_ptr<std::exception> & ex, result_types... results)> && callback)
-      : callback_(std::move(callback))
+      result_callback(
+        _async_task_base<result_types...> * owner, 
+        std::function<void(const std::shared_ptr<std::exception> & ex, result_types... results)> && callback)
+      : owner_(owner), callback_(std::move(callback))
       {
       }
-      
+
+      ~result_callback();
+
+      _async_task_base<result_types...> * owner_;
       std::function<void(const std::shared_ptr<std::exception> & ex, result_types... results)> callback_;
     };
     
@@ -163,9 +173,6 @@ namespace vds {
 		  async_task<> >::type task_type;
 	  typedef std::function<void(first_argument_type, arg_types...)> function_type;
   };
-  /////////////////////////////////////////////////////////////////////////////////
-  template <typename... result_types>
-  class _async_task_base;
   /////////////////////////////////////////////////////////////////////////////////
   template <typename... result_types>
   class async_task
@@ -519,6 +526,7 @@ namespace vds {
     this->impl_ = nullptr;
     impl->execute(
 		  async_result<result_types...>(
+        impl,
 			  std::move(done_callback)));
   }
   
@@ -531,6 +539,7 @@ namespace vds {
 		this->impl_ = nullptr;
 	  impl->execute(
 		  async_result<result_types...>(
+        impl,
 			  [done = std::move(done_callback)](const std::shared_ptr<std::exception> & ex, result_types... results){
 		  if (!ex) {
 			  done.done(std::forward<result_types>(results)...);
@@ -562,6 +571,7 @@ namespace vds {
 		this->impl_ = nullptr;
 	  impl->execute(
 		  async_result<result_types...>(
+        impl,
 			  [&f, d = std::move(done)](const std::shared_ptr<std::exception> & ex, result_types... result) {
           if(!ex){
             f(d, std::forward<result_types>(result)...);
@@ -583,7 +593,7 @@ namespace vds {
 		auto impl = this->impl_;
 		this->impl_ = nullptr;
 	  impl->execute(
-		  async_result<result_types...>([&f, d = std::move(done)](const std::shared_ptr<std::exception> & ex, result_types... result) mutable {
+		  async_result<result_types...>(impl, [&f, d = std::move(done)](const std::shared_ptr<std::exception> & ex, result_types... result) mutable {
         if(!ex){
 			try {
 				auto t = f(std::forward<result_types>(result)...);
@@ -612,6 +622,7 @@ namespace vds {
 		this->impl_ = nullptr;
 	  impl->execute(
 		  async_result<result_types...>(
+        impl,
 			  [&f, done](const std::shared_ptr<std::exception> & ex, result_types... result) {
           if(!ex){
             try {
@@ -639,7 +650,7 @@ namespace vds {
   {
 		auto impl = this->impl_;
 		this->impl_ = nullptr;
-	  impl->execute(async_result<result_types...>([&f, done](
+	  impl->execute(async_result<result_types...>(impl, [&f, done](
           const std::shared_ptr<std::exception> & ex,
           result_types... result) {
           if(!ex){
@@ -672,8 +683,9 @@ namespace vds {
 	/////////////////////////////////////////////////////////////////////////////////
   template<typename ...result_types>
   inline async_result<result_types...>::async_result(
+    _async_task_base<result_types...> * owner,
 	  std::function<void(const std::shared_ptr<std::exception> & ex, result_types...results)> && callback)
-	: impl_(new result_callback(std::move(callback)))
+	: impl_(new result_callback(owner, std::move(callback)))
   {
   }
 
@@ -694,6 +706,11 @@ namespace vds {
   template<typename ...result_types>
   inline void async_result<result_types...>::clear() {
 		this->impl_.reset();
+  }
+
+  template <typename ... result_types>
+  async_result<result_types...>::result_callback::~result_callback() {
+    delete this->owner_;
   }
 
   /////////////////////////////////////////////////////////////////////////////////

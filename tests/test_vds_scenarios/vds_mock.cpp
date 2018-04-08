@@ -329,14 +329,29 @@ void vds_mock::upload_file(
   auto sp = this->servers_[client_index]->get_service_provider().create_scope(__FUNCTION__);
 
   vds::mt_service::enable_async(sp);
+  auto user_mng = std::make_shared<vds::user_manager>();
+  this->servers_[client_index]->get<vds::db_model>()->async_transaction(
+    sp,
+    [this, sp, user_mng, name, channel_id, mimetype, file_path](vds::database_transaction & t) -> bool {
 
-  sp.get<vds::file_manager::file_operations>()->upload_file(
+    user_mng->load(
       sp,
+      t,
+      vds::dht::dht_object_id::from_user_email(this->root_login_),
+      vds::symmetric_key::from_password(this->root_password_),
+      vds::hash::signature(vds::hash::sha256(), this->root_password_.c_str(), this->root_password_.length()));
+
+    return true;
+  }).then([sp, name, channel_id, mimetype, file_path, user_mng]() {
+    return sp.get<vds::file_manager::file_operations>()->upload_file(
+      sp,
+      user_mng,
       channel_id,
       name,
       mimetype,
-      file_path)
-      .execute([&b, &error](const std::shared_ptr<std::exception> & ex){
+      file_path);
+  })
+   .execute([&b, &error](const std::shared_ptr<std::exception> & ex){
     if(ex){
       error = ex;
     }

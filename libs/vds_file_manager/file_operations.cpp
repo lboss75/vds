@@ -3,146 +3,75 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
-#include <transactions/channel_message_walker.h>
-#include <private/upload_stream_task_p.h>
 #include "stdafx.h"
 #include "file_operations.h"
 #include "file.h"
 #include "db_model.h"
 #include "private/file_operations_p.h"
-#include "chunk_manager.h"
 #include "service_provider.h"
-#include "vds_debug.h"
 #include "transaction_block.h"
 #include "transactions/file_add_transaction.h"
 #include "user_manager.h"
-#include "member_user.h"
-#include "transactions/channel_add_message_transaction.h"
 #include "vds_exceptions.h"
-#include "cert_control.h"
-#include "chunk_data_dbo.h"
-#include "chunk_replica_data_dbo.h"
-#include "chunk_replicator.h"
 #include "chunk.h"
 #include "logger.h"
 #include "encoding.h"
-#include "barrier.h"
+#include "private/upload_stream_task_p.h"
 
 vds::file_manager::file_operations::file_operations()
-: impl_(new file_manager_private::_file_operations()){
+  : impl_(new file_manager_private::_file_operations()) {
 }
 
 vds::async_task<> vds::file_manager::file_operations::upload_file(
-    const service_provider &sp,
-    const const_data_buffer &channel_id,
-    const std::string &name,
-    const std::string &mimetype,
-    const vds::filename &file_path) {
-  return this->impl_->upload_file(sp, channel_id, name, mimetype, file_path);
+  const service_provider& sp,
+  const std::shared_ptr<user_manager>& user_mng,
+  const const_data_buffer& channel_id,
+  const std::string& name,
+  const std::string& mimetype,
+  const filename& file_path) {
+  return this->impl_->upload_file(sp, user_mng, channel_id, name, mimetype, file_path);
 }
 
 vds::async_task<>
 vds::file_manager::file_operations::download_file(
-    const service_provider &sp,
-    const std::shared_ptr<download_file_task> & task)
-{
-	return this->impl_->download_file(sp, task);
+  const service_provider& sp,
+  const std::shared_ptr<download_file_task>& task) {
+  return this->impl_->download_file(sp, task);
 }
 
 vds::async_task<>
-vds::file_manager::file_operations::upload_file(const vds::service_provider &sp, const const_data_buffer &channel_id,
-                                                const std::string &name, const std::string &mimetype,
-                                                const std::shared_ptr<vds::continuous_buffer<uint8_t>> &input_stream) {
-  return this->impl_->upload_file(sp, channel_id, name, mimetype, input_stream);
+vds::file_manager::file_operations::upload_file(
+  const service_provider& sp,
+  const std::shared_ptr<user_manager>& user_mng,
+  const const_data_buffer& channel_id,
+  const std::string& name,
+  const std::string& mimetype,
+  const std::shared_ptr<continuous_buffer<uint8_t>>& input_stream) {
+  return this->impl_->upload_file(sp, user_mng, channel_id, name, mimetype, input_stream);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 vds::async_task<> vds::file_manager_private::_file_operations::upload_file(
-    const service_provider & paren_sp,
-    const const_data_buffer & channel_id,
-    const std::string &name,
-    const std::string &mimetype,
-    const vds::filename &file_path) {
-
-	auto sp = paren_sp.create_scope(__FUNCTION__);
-
-
-  return sp.get<db_model>()->async_transaction(
-      sp,
-      [pthis = this->shared_from_this(),
-          sp,
-          name,
-          mimetype,
-          file_path,
-          channel_id](
-          database_transaction & t) {
-
-        auto user_mng = sp.get<user_manager>();
-
-
-        auto channel = user_mng->get_channel(sp, channel_id);
-        if(!channel.write_cert()){
-          sp.get<logger>()->error(
-              ThisModule,
-              sp,
-              "Channel %s don't have write cert",
-              base64::from_bytes(channel_id).c_str());
-          throw vds_exceptions::access_denied_error("User don't have write permission");
-        }
-        auto channel_write_key = user_mng->get_channel_write_key(sp, channel.id());
-
-        std::list<transactions::file_add_transaction::file_block_t> file_blocks;
-        pthis->pack_file(sp, file_path, t, file_blocks);
-
-        transactions::transaction_block log;
-        log.add(
-            transactions::file_add_transaction(
-                name,
-                mimetype,
-                file_blocks));
-
-		log.save(
-            sp,
-            t,
-            channel_id,
-      channel.read_cert(),
-      channel.write_cert(),
-      channel_write_key);
-
-		return true;
-      }
-  );
-}
-
-vds::async_task<> vds::file_manager_private::_file_operations::upload_file(
-    const service_provider & paren_sp,
-    const const_data_buffer & channel_id,
-    const std::string &name,
-    const std::string &mimetype,
-    const std::shared_ptr<continuous_buffer<uint8_t>> & input_stream) {
+  const service_provider& paren_sp,
+  const std::shared_ptr<user_manager>& user_mng,
+  const const_data_buffer& channel_id,
+  const std::string& name,
+  const std::string& mimetype,
+  const filename& file_path) {
 
   auto sp = paren_sp.create_scope(__FUNCTION__);
 
-  return this->pack_file(sp, input_stream)
-  .then(
-    [sp,
-    pthis = this->shared_from_this(),
-    name,
-    mimetype,
-    input_stream,
-    channel_id](const std::list<transactions::file_add_transaction::file_block_t> & file_blocks) {
-    return sp.get<db_model>()->async_transaction(
+
+  return sp.get<db_model>()->async_transaction(
+    sp,
+    [pthis = this->shared_from_this(),
       sp,
-      [pthis,
-      sp,
+      user_mng,
       name,
       mimetype,
-      input_stream,
-      channel_id,
-      file_blocks](
-        database_transaction & t) {
-
-      auto user_mng = sp.get<user_manager>();
+      file_path,
+      channel_id](
+    database_transaction& t) {
 
 
       auto channel = user_mng->get_channel(sp, channel_id);
@@ -155,6 +84,9 @@ vds::async_task<> vds::file_manager_private::_file_operations::upload_file(
         throw vds_exceptions::access_denied_error("User don't have write permission");
       }
       auto channel_write_key = user_mng->get_channel_write_key(sp, channel.id());
+
+      std::list<transactions::file_add_transaction::file_block_t> file_blocks;
+      pthis->pack_file(sp, file_path, t, file_blocks);
 
       transactions::transaction_block log;
       log.add(
@@ -172,64 +104,126 @@ vds::async_task<> vds::file_manager_private::_file_operations::upload_file(
         channel_write_key);
 
       return true;
-    });
-  });
+    }
+  );
+}
+
+vds::async_task<> vds::file_manager_private::_file_operations::upload_file(
+  const service_provider& paren_sp,
+  const std::shared_ptr<user_manager>& user_mng,
+  const const_data_buffer& channel_id,
+  const std::string& name,
+  const std::string& mimetype,
+  const std::shared_ptr<continuous_buffer<uint8_t>>& input_stream) {
+
+  auto sp = paren_sp.create_scope(__FUNCTION__);
+
+  return this->pack_file(sp, input_stream)
+             .then(
+               [sp,
+                 pthis = this->shared_from_this(),
+                 user_mng,
+                 name,
+                 mimetype,
+                 input_stream,
+                 channel_id](const std::list<transactions::file_add_transaction::file_block_t>& file_blocks) {
+                 return sp.get<db_model>()->async_transaction(
+                   sp,
+                   [pthis,
+                     sp,
+                     user_mng,
+                     name,
+                     mimetype,
+                     input_stream,
+                     channel_id,
+                     file_blocks](
+                   database_transaction& t) {
+
+
+                     auto channel = user_mng->get_channel(sp, channel_id);
+                     if (!channel.write_cert()) {
+                       sp.get<logger>()->error(
+                         ThisModule,
+                         sp,
+                         "Channel %s don't have write cert",
+                         base64::from_bytes(channel_id).c_str());
+                       throw vds_exceptions::access_denied_error("User don't have write permission");
+                     }
+                     auto channel_write_key = user_mng->get_channel_write_key(sp, channel.id());
+
+                     transactions::transaction_block log;
+                     log.add(
+                       transactions::file_add_transaction(
+                         name,
+                         mimetype,
+                         file_blocks));
+
+                     log.save(
+                       sp,
+                       t,
+                       channel_id,
+                       channel.read_cert(),
+                       channel.write_cert(),
+                       channel_write_key);
+
+                     return true;
+                   });
+               });
 }
 
 vds::async_task<> vds::file_manager_private::_file_operations::download_file(
-	const service_provider& parent_sp,
-  const std::shared_ptr<vds::file_manager::download_file_task> & task)
-{
-	auto sp = parent_sp.create_scope(__FUNCTION__);
-	return vds::async_task<>([sp, task, pthis = this->shared_from_this()](const vds::async_result<> & result) {
-		sp.get<db_model>()->async_transaction(
-			sp,
-			[pthis, sp, task, result](database_transaction & t) -> bool{
-        if(task->file_blocks().empty()) {
+  const service_provider& parent_sp,
+  const std::shared_ptr<file_manager::download_file_task>& task) {
+  auto sp = parent_sp.create_scope(__FUNCTION__);
+  return vds::async_task<>([sp, task, pthis = this->shared_from_this()](const async_result<>& result) {
+    sp.get<db_model>()->async_transaction(
+      sp,
+      [pthis, sp, task, result](database_transaction& t) -> bool {
+        if (task->file_blocks().empty()) {
 
           auto user_mng = sp.get<user_manager>();
           auto channel = user_mng->get_channel(sp, task->channel_id());
 
           user_mng->walk_messages(
-              sp,
-              task->channel_id(),
-              t,
-              [task](const transactions::file_add_transaction &message)->bool {
-                if (task->name() == message.name()) {
-                  task->set_file_blocks(
-                      message.mimetype(),
-                      message.file_blocks());
-                  return false;
-                }
+            sp,
+            task->channel_id(),
+            t,
+            [task](const transactions::file_add_transaction& message)-> bool {
+              if (task->name() == message.name()) {
+                task->set_file_blocks(
+                  message.mimetype(),
+                  message.file_blocks());
+                return false;
+              }
 
-                return true;
-              });
+              return true;
+            });
         }
 
         auto runner = new _async_series(result, task->remote_block_count());
-        for (auto &block : task->file_blocks()) {
-          if(!block.is_processed_) {
+        for (auto& block : task->file_blocks()) {
+          if (!block.is_processed_) {
             runner->add(pthis->download_block(sp, t, block, task));
           }
         }
 
-			return true;
-		}).execute([result, task](const std::shared_ptr<std::exception> & ex) {
-			if(ex) {
-				result.error(ex);
-			}
-			else if (task->mime_type().empty()) {
-				result.error(std::make_shared<vds_exceptions::not_found>());
-			}
-		});
-	});
+        return true;
+      }).execute([result, task](const std::shared_ptr<std::exception>& ex) {
+      if (ex) {
+        result.error(ex);
+      }
+      else if (task->mime_type().empty()) {
+        result.error(std::make_shared<vds_exceptions::not_found>());
+      }
+    });
+  });
 }
 
 vds::async_task<> vds::file_manager_private::_file_operations::download_block(
-	const service_provider& sp,
-	database_transaction& t,
-  file_manager::download_file_task::block_info & block,
-  const std::shared_ptr<file_manager::download_file_task> & result) {
+  const service_provider& sp,
+  database_transaction& t,
+  file_manager::download_file_task::block_info& block,
+  const std::shared_ptr<file_manager::download_file_task>& result) {
   /*
   auto left_replicas(block.id_.replica_hashes);
   std::vector<uint16_t> replicas;
@@ -291,10 +285,10 @@ vds::async_task<> vds::file_manager_private::_file_operations::download_block(
 }
 
 void vds::file_manager_private::_file_operations::pack_file(
-    const vds::service_provider &sp,
-    const vds::filename &file_path,
-    vds::database_transaction &t,
-    std::list<transactions::file_add_transaction::file_block_t> &file_blocks) const {
+  const service_provider& sp,
+  const filename& file_path,
+  database_transaction& t,
+  std::list<transactions::file_add_transaction::file_block_t>& file_blocks) const {
   /*
   auto chunk_mng = sp.get<vds::chunk_manager>();
   auto file_size = vds::file::length(file_path);
@@ -354,19 +348,20 @@ struct buffer_data : public std::enable_shared_from_this<buffer_data> {
   uint8_t buffer[vds::file_manager::file_operations::BLOCK_SIZE];
 };
 
-vds::async_task<std::list<vds::transactions::file_add_transaction::file_block_t>> vds::file_manager_private::_file_operations::pack_file(
-    const vds::service_provider &sp,
-    const std::shared_ptr<continuous_buffer<uint8_t>> & input_stream) const {
+vds::async_task<std::list<vds::transactions::file_add_transaction::file_block_t>> vds::file_manager_private::
+_file_operations::pack_file(
+  const service_provider& sp,
+  const std::shared_ptr<continuous_buffer<uint8_t>>& input_stream) const {
   auto task = std::make_shared<_upload_stream_task>();
   return task->start(sp, input_stream);
 }
 
 void
-  vds::file_manager_private::_file_operations::restore_chunk(
-      const vds::service_provider &sp,
-      vds::database_transaction &t,
-      vds::file_manager::download_file_task::block_info &block,
-      const std::shared_ptr<vds::file_manager::download_file_task> &result) {
+vds::file_manager_private::_file_operations::restore_chunk(
+  const service_provider& sp,
+  database_transaction& t,
+  file_manager::download_file_task::block_info& block,
+  const std::shared_ptr<file_manager::download_file_task>& result) {
   /*
   std::vector<uint16_t> replicas;
   std::vector<const_data_buffer> datas;
@@ -402,4 +397,3 @@ void
   result->set_file_data(block, s.data());
   */
 }
-

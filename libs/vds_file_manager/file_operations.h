@@ -15,6 +15,8 @@ All rights reserved
 #include "async_buffer.h"
 
 namespace vds {
+  class user_manager;
+
   namespace file_manager_private {
     class _file_operations;
   };
@@ -27,7 +29,8 @@ namespace vds {
       file_operations();
 
       vds::async_task<> upload_file(
-		  const service_provider &sp,
+		      const service_provider &sp,
+          const std::shared_ptr<user_manager> & user_mng,
 		  		const const_data_buffer &channel_id,
           const std::string &name,
 		  		const std::string &mimetype,
@@ -35,6 +38,7 @@ namespace vds {
 
 			vds::async_task<> upload_file(
 					const service_provider &sp,
+          const std::shared_ptr<user_manager> & user_mng,
 					const const_data_buffer &channel_id,
 					const std::string &name,
 					const std::string &mimetype,

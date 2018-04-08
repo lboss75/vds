@@ -47,6 +47,11 @@ void vds::imt_service::async(const std::function<void(void)>& handler)
   ((mt_service *)this)->impl_->async(handler);
 }
 
+void vds::imt_service::async(std::function<void(void)> && handler)
+{
+  ((mt_service *)this)->impl_->async(std::move(handler));
+}
+
 void vds::imt_service::enable_async(const service_provider & sp)
 {
   sp.set_property<async_enabled_property>(service_provider::property_scope::any_scope, new async_enabled_property(true));
@@ -100,6 +105,13 @@ void vds::_mt_service::async(const std::function<void(void)> & handler)
 {
   std::unique_lock<std::mutex> lock(this->mutex_);
   this->queue_.push(handler);
+  this->cond_.notify_all();
+}
+
+void vds::_mt_service::async(std::function<void(void)> && handler)
+{
+  std::unique_lock<std::mutex> lock(this->mutex_);
+  this->queue_.push(std::move(handler));
   this->cond_.notify_all();
 }
 

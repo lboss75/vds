@@ -10,10 +10,12 @@ All rights reserved
 #include "http_message.h"
 
 namespace vds {
+  class user_manager;
 
   class _file_upload_task  : public std::enable_shared_from_this<_file_upload_task> {
   public:
-    _file_upload_task() {
+    _file_upload_task(const std::shared_ptr<user_manager> & user_mng)
+    : user_mng_(user_mng){
     }
 
     async_task<> read_string_body(
@@ -27,7 +29,8 @@ namespace vds {
     async_task<http_message> get_response(const vds::service_provider& sp);
 
   private:
-    vds::guid channel_id_;
+    std::shared_ptr<user_manager> user_mng_;
+    const_data_buffer channel_id_;
     uint8_t buffer_[1024];
 
     std::mutex result_mutex_;

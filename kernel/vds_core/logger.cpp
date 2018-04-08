@@ -11,6 +11,7 @@ All rights reserved
 #include "file.h"
 #include "persistence.h"
 #include "string_format.h"
+#include "mt_service.h"
 
 void vds::logger::operator()(
   const std::string & module,
@@ -76,7 +77,7 @@ void vds::console_logger::write(const service_provider & sp, const log_record & 
 /////////////////////////////////////////////////////////
 
 vds::file_logger::file_logger(log_level level, const std::unordered_set<std::string> & modules)
-: log_writer(level), logger(*this, level, modules)
+  : log_writer(level), logger(*this, level, modules), is_stopping_(false)
 {
 }
 
@@ -90,10 +91,18 @@ void vds::file_logger::start(const service_provider & sp)
   foldername folder(persistence::current_user(sp), ".vds");
   folder.create();
   this->f_.reset(new file(filename(folder, "vds.log"), file::file_mode::append));
+  this->logger_thread_ = std::thread([this]() { this->logger_thread(); });
 }
 
 void vds::file_logger::stop(const service_provider &)
 {
+  this->log_mutex_.lock();
+  this->is_stopping_ = true;
+  this->log_cond_.notify_all();
+  this->log_mutex_.unlock();
+
+  this->logger_thread_.join();
+
   this->f_->close();
   this->f_.reset();
 }
@@ -134,9 +143,29 @@ void vds::file_logger::write(
     tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec,
     level_str.c_str(), record.module.c_str(), record.message.c_str(), record.source.c_str());
 
-  std::lock_guard<std::mutex> lock(this->file_mutex_);
-  if (this->f_) {
-    this->f_->write(str.c_str(), str.length());
+  std::lock_guard<std::mutex> lock(this->log_mutex_);
+  this->log_ += str;
+  this->log_cond_.notify_all();
+}
+
+void vds::file_logger::logger_thread() {
+  for(;;) {
+    std::unique_lock<std::mutex> lock(this->log_mutex_);
+    for (;;) {
+      if (this->is_stopping_) {
+        return;
+      }
+      if (!this->log_.empty()) {
+        break;
+      }
+
+      this->log_cond_.wait(lock);
+    }
+    auto log = this->log_;
+    this->log_.clear();
+    lock.unlock();
+
+    this->f_->write(log.c_str(), log.length());
     this->f_->flush();
   }
 }

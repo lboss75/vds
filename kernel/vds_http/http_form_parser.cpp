@@ -1,0 +1,8 @@
+/*
+Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
+All rights reserved
+*/
+
+#include "stdafx.h"
+#include "http_form_parser.h"
+#include "http_multipart_reader.h"

@@ -298,6 +298,7 @@ namespace vds {
             std::unique_lock<not_mutex> lock(this_->not_mutex_);
             vds_assert(!this_->result_);
             this_->result_ = result;
+            lock.unlock();
 
 			this_->sp_.get<logger>()->trace("UDP", this_->sp_, "WSASendTo %s %d bytes", this_->buffer_->address().to_string().c_str(), this_->buffer_.data_size());
 			if (NOERROR != WSASendTo(this_->s_, &this_->wsa_buf_, 1, NULL, 0, this_->buffer_->address(), this_->buffer_->address().size(), &this_->overlapped_, NULL)) {

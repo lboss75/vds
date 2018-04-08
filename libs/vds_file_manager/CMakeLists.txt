@@ -18,7 +18,6 @@ target_include_directories(vds_file_manager
 	PRIVATE
 		${vds_core_INCLUDE_DIRS}
 		${vds_db_model_INCLUDE_DIRS}
-        ${vds_chunk_manager_INCLUDE_DIRS}
         ${vds_transactions_INCLUDE_DIRS}
 	PUBLIC
 		${CMAKE_CURRENT_SOURCE_DIR})
@@ -27,6 +26,5 @@ target_link_libraries(
 		vds_file_manager
         vds_core
         vds_db_model
-        vds_chunk_manager
         vds_transactions
         ${CMAKE_THREAD_LIBS_INIT})

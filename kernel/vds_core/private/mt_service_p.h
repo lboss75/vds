@@ -26,7 +26,8 @@ namespace vds {
     void stop();
     
     void async(const std::function<void(void)> & handler);
-    
+    void async(std::function<void(void)> && handler);
+
   private:
     service_provider sp_;
     std::list<std::thread> work_threads_;

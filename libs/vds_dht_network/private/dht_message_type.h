@@ -35,6 +35,8 @@ namespace vds {
         channel_log_record = 7,
         dht_find_node = 8,
         dht_find_node_response = 9,
+        dht_ping = 10,
+        dht_pong = 11,
       };
     }
   }
