@@ -21,6 +21,95 @@ namespace vds {
   template <typename... result_types>
   class _async_task_base;
 
+  class _async_task_execute_token : public std::enable_shared_from_this<_async_task_execute_token>{
+  public:
+		class callback_base {
+		public:
+			virtual ~callback_base(){
+			}
+
+			virtual void invoke() = 0;
+		};
+
+		template<typename functor_type>
+		class callback_type : public callback_base{
+		public:
+			callback_type(functor_type && f)
+					: f_(std::move(f)){
+			}
+
+			virtual void invoke() {
+				this->f_();
+			}
+
+		private:
+			functor_type f_;
+		};
+
+    _async_task_execute_token()
+    : state_(state_type::BOF), callback_(nullptr) {
+    }
+
+    bool process(){
+      std::unique_lock<std::mutex> lock(this->state_mutex_);
+      switch (this->state_){
+        case state_type::BOF: {
+          this->state_ = state_type::DETACHED;
+          return false;
+        }
+        case state_type::ATTACHED: {
+          this->state_ = state_type::BOF;
+					auto callback = std::move(this->callback_);
+					this->callback_ = nullptr;
+          lock.unlock();
+
+          callback->invoke();
+					return true;
+        }
+        default:{
+          throw std::runtime_error("Login error");
+        }
+      }
+    }
+
+		template <typename callback_t>
+    void set_callback(callback_t && callback){
+      std::unique_lock<std::mutex> lock(this->state_mutex_);
+      switch (this->state_){
+        case state_type::BOF: {
+          this->callback_.reset(new callback_type<callback_t>(std::move(callback)));
+          this->state_ = state_type::ATTACHED;
+          break;
+        }
+
+        case state_type::DETACHED:{
+          this->state_ = state_type::BOF;
+          lock.unlock();
+
+          callback();
+
+					while(this->process());
+          break;
+        }
+
+        default:{
+          throw std::runtime_error("Login error");
+        }
+      }
+    }
+
+  private:
+    enum class state_type {
+      BOF,
+      ATTACHED,
+      DETACHED
+    };
+
+    std::mutex state_mutex_;
+    state_type  state_;
+		std::unique_ptr<callback_base> callback_;
+  };
+
 
 	template <typename... result_types>
 	class async_result
@@ -210,7 +299,9 @@ namespace vds {
 	  void execute(functor_type && done_callback);
     
 	  template<typename functor_type>
-	  void operator()(functor_type && done_callback);
+	  void operator()(
+				const std::shared_ptr<_async_task_execute_token> & token,
+				functor_type && done_callback);
 
 	  async_task & operator = (async_task<result_types...> && origin);
 
@@ -221,12 +312,14 @@ namespace vds {
 
 	  template<typename functor_type, typename done_type>
 	  void execute_with(
+    const std::shared_ptr<_async_task_execute_token> & token,
 		functor_type & f,
 		done_type && done,
 		typename std::enable_if<_async_task_functor_helper<decltype(&functor_type::operator())>::is_async_callback>::type * = nullptr);
 
 	  template<typename functor_type, typename done_type>
 	  void execute_with(
+      const std::shared_ptr<_async_task_execute_token> & token,
 		  functor_type & f,
 		  done_type && done,
 		  typename std::enable_if<
@@ -235,6 +328,7 @@ namespace vds {
     
 	  template<typename functor_type, typename done_type>
 	  void execute_with(
+      const std::shared_ptr<_async_task_execute_token> & token,
 		  functor_type & f,
 		  done_type && done,
 		  typename std::enable_if<
@@ -244,6 +338,7 @@ namespace vds {
     
 	  template<typename functor_type, typename done_type>
 	  void execute_with(
+      const std::shared_ptr<_async_task_execute_token> & token,
 		  functor_type & f,
 		  done_type && done,
 		  typename std::enable_if<
@@ -284,7 +379,9 @@ namespace vds {
   public:
 	  virtual ~_async_task_base() {}
 
-	  virtual void execute(async_result<result_types...> && done) = 0;
+	  virtual void execute(
+        const std::shared_ptr<_async_task_execute_token> & token,
+        async_result<result_types...> && done) = 0;
   };
   /////////////////////////////////////////////////////////////////////////////////
   template <typename functor_type, typename... result_types>
@@ -296,7 +393,9 @@ namespace vds {
 	  {
 	  }
 
-	  void execute(async_result<result_types...> && done) override
+	  void execute(
+        const std::shared_ptr<_async_task_execute_token> & token,
+        async_result<result_types...> && done) override
 	  {
       try {
         this->f_(done);
@@ -348,7 +447,9 @@ namespace vds {
 	  {
 	  }
 
-	  void execute(async_result<> && done) override
+	  void execute(
+				const std::shared_ptr<_async_task_execute_token> & token,
+				async_result<> && done) override
 	  {
       try {
         this->f_();
@@ -361,8 +462,9 @@ namespace vds {
         done.error(std::make_shared<std::runtime_error>("Unexpected error"));
         return;
       }
-
-      done.done();
+			token->set_callback([d = std::move(done)]() {
+				d.done();
+			});
 	  }
 
   private:
@@ -383,9 +485,13 @@ namespace vds {
 	  {
 	  }
 
-	  void execute(async_result<result_types...> && done) override
+	  void execute(
+				const std::shared_ptr<_async_task_execute_token> & token,
+				async_result<result_types...> && done) override
 	  {
-      done.error(this->error_);
+			token->set_callback([d = std::move(done), e = this->error_]() {
+				d.error(e);
+			});
 	  }
 
   private:
@@ -401,7 +507,9 @@ namespace vds {
 		{
 		}
 
-		void execute(async_result<result_types...> && done) override
+		void execute(
+				const std::shared_ptr<_async_task_execute_token> & token,
+				async_result<result_types...> && done) override
 		{
 			call_with([d = std::move(done)](result_types &&... args) {
 				d.done(std::forward<result_types>(args)...);
@@ -420,9 +528,13 @@ namespace vds {
 	  {
 	  }
 
-	  void execute(async_result<result_types...> && done) override
+	  void execute(
+        const std::shared_ptr<_async_task_execute_token> & token,
+        async_result<result_types...> && done) override
 	  {
-      done.done(result_types()...);
+      token->set_callback([d = std::move(done)]() {
+        d.done(result_types()...);
+      });
 	  }
   };
 
@@ -436,9 +548,9 @@ namespace vds {
 	  {
 	  }
 
-	  void execute(async_result<result_types...> && done) override
+	  void execute(const std::shared_ptr<_async_task_execute_token> & token, async_result<result_types...> && done) override
 	  {
-		  this->parent_.execute_with(this->f_, std::move(done));
+		  this->parent_.execute_with(token, this->f_, std::move(done));
 	  }
 
   private:
@@ -529,23 +641,28 @@ namespace vds {
   template<typename functor_type>
   inline void async_task<result_types...>::execute(functor_type && done_callback)
   {
+    auto token = std::make_shared<_async_task_execute_token>();
     auto impl = this->impl_;
     this->impl_ = nullptr;
     impl->execute(
+      token,
 		  async_result<result_types...>(
         impl,
 			  std::move(done_callback)));
+
+    while(token->process());
   }
   
   template<typename ...result_types>
   template<typename functor_type>
   inline void async_task<result_types...>::operator()(
+		const std::shared_ptr<_async_task_execute_token> & token,
 	  functor_type && done_callback)
   {
 		auto impl = this->impl_;
 		this->impl_ = nullptr;
     done_callback.add_owner(impl);
-	  impl->execute(std::move(done_callback));
+	  impl->execute(token, std::move(done_callback));
   }
 
   template<typename ...result_types>
@@ -561,6 +678,7 @@ namespace vds {
   template<typename ...result_types>
   template<typename functor_type, typename done_type>
   inline void async_task<result_types...>::execute_with(
+  const std::shared_ptr<_async_task_execute_token> & token,
 	functor_type & f,
 	done_type && done,
 	typename std::enable_if<_async_task_functor_helper<decltype(&functor_type::operator())>::is_async_callback>::type *)
@@ -570,11 +688,11 @@ namespace vds {
 	  impl->execute(
 		  async_result<result_types...>(
         impl,
-			  [&f, d = std::move(done)](const std::shared_ptr<std::exception> & ex, result_types... result) {
+			  [&f, d = std::move(done), token](const std::shared_ptr<std::exception> & ex, result_types... result) {
           if(!ex){
-            f(d, std::forward<result_types>(result)...);
+            token->set_callback(std::bind(f, d, std::forward<result_types>(result)...));
           } else {
-            d.error(ex);
+            token->set_callback(std::bind(&done_type::error, d, ex));
           }
 			}));
   }
@@ -582,6 +700,7 @@ namespace vds {
   template<typename ...result_types>
   template<typename functor_type, typename done_type>
   inline void async_task<result_types...>::execute_with(
+    const std::shared_ptr<_async_task_execute_token> & token,
 	  functor_type & f,
 	  done_type && done,
 	  typename std::enable_if<
@@ -591,11 +710,14 @@ namespace vds {
 		auto impl = this->impl_;
 		this->impl_ = nullptr;
 	  impl->execute(
-		  async_result<result_types...>(impl, [&f, d = std::move(done)](const std::shared_ptr<std::exception> & ex, result_types... result) mutable {
+			token,
+		  async_result<result_types...>(impl, [token, &f, d = std::move(done)](const std::shared_ptr<std::exception> & ex, result_types... result) mutable {
         if(!ex){
 			try {
 				auto t = f(std::forward<result_types>(result)...);
-				t.operator() < done_type > (std::move(d));
+        token->set_callback([token, t1 = std::move(t), d1 = std::move(d)]() mutable {
+          t1.operator()<done_type>(token, std::move(d1));
+        });
 			}
 			catch (const std::exception & ex) {
 				d.error(std::make_shared<std::runtime_error>(ex.what()));
@@ -609,6 +731,7 @@ namespace vds {
   template<typename ...result_types>
   template<typename functor_type, typename done_type>
   inline void async_task<result_types...>::execute_with(
+    const std::shared_ptr<_async_task_execute_token> & token,
 	  functor_type & f,
 	  done_type && done,
 	  typename std::enable_if<
@@ -619,17 +742,18 @@ namespace vds {
 		auto impl = this->impl_;
 		this->impl_ = nullptr;
 	  impl->execute(
+			token,
 		  async_result<result_types...>(
         impl,
-			  [&f, done](const std::shared_ptr<std::exception> & ex, result_types... result) {
+			  [token, &f, done](const std::shared_ptr<std::exception> & ex, result_types... result) {
           if(!ex){
             try {
               f(std::forward<result_types>(result)...);
             } catch(const std::exception & ex){
               done.error(std::make_shared<std::runtime_error>(ex.what()));
               return;
-            }        
-            done.done();
+            }
+            token->set_callback(std::bind(&done_type::done, done));
           } else {
             done.error(ex);
           }
@@ -639,6 +763,7 @@ namespace vds {
   template<typename ...result_types>
   template<typename functor_type, typename done_type>
   inline void async_task<result_types...>::execute_with(
+    const std::shared_ptr<_async_task_execute_token> & token,
 	  functor_type & f,
 	  done_type && done,
 	  typename std::enable_if<
@@ -648,13 +773,15 @@ namespace vds {
   {
 		auto impl = this->impl_;
 		this->impl_ = nullptr;
-	  impl->execute(async_result<result_types...>(impl, [&f, done](
+	  impl->execute(token, async_result<result_types...>(impl, [&f, done, token](
           const std::shared_ptr<std::exception> & ex,
           result_types... result) {
           if(!ex){
             try {
               auto t = f(std::forward<result_types>(result)...);
-              done.done(t);
+              token->set_callback([d = std::move(done), t]() {
+                d.done(t);
+              });
             } catch(const std::exception & ex){
               done.error(std::make_shared<std::runtime_error>(ex.what()));
             }        
