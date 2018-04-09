@@ -27,11 +27,11 @@ namespace vds {
         std::shared_ptr<continuous_buffer<uint8_t>> stream;
       };
       //To override
-      void on_field(const simple_field_info & field) {
-      }
-
-      async_task<> on_file(const file_info & file) {
-      }
+//      void on_field(const simple_field_info & field) {
+//      }
+//
+//      async_task<> on_file(const file_info & file) {
+//      }
 
       async_task<> parse(
         const service_provider& sp,

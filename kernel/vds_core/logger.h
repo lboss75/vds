@@ -10,6 +10,7 @@ All rights reserved
 #include <mutex>
 #include <memory>
 #include <unordered_set>
+#include <thread>
 
 #include "service_provider.h"
 #include "string_format.h"

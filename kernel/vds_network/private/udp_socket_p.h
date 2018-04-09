@@ -353,13 +353,7 @@ namespace vds {
         const service_provider & sp,
         const std::shared_ptr<_udp_socket> & owner)
         : _socket_task_impl<_udp_handler>(sp, owner->s_),
-          owner_(owner),
-          read_result_([](const std::shared_ptr<std::exception> &, const udp_datagram & ){
-            throw std::runtime_error("Logic error");
-          }),
-          write_result_([](const std::shared_ptr<std::exception> & ){
-            throw std::runtime_error("Logic error");
-          })
+          owner_(owner)
       {
         this->leak_detect_.name_ = "_udp_handler";
         this->leak_detect_.dump_callback_ = [this](leak_detect_collector * collector){

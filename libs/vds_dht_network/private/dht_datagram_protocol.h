@@ -89,10 +89,10 @@ namespace vds {
                             | (datagram.data()[6] << 16)
                             | (datagram.data()[7] << 8)
                             | (datagram.data()[8]);
-              sp.get<logger>()->trace("DHT", sp, "Acknowledgment %d", index);
+              logger::get(sp)->trace("DHT", sp, "Acknowledgment %d", index);
               while(!this->output_messages_.empty()){
                 auto first_index = this->output_messages_.begin()->first;
-                sp.get<logger>()->trace("DHT", sp, "Acknowledgment %d of %d", index, first_index);
+                logger::get(sp)->trace("DHT", sp, "Acknowledgment %d of %d", index, first_index);
                 if(first_index < index){
                   this->output_messages_.erase(this->output_messages_.begin());
                   auto pcallback = this->output_callbacks_.find(first_index);
