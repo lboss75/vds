@@ -27,7 +27,7 @@ namespace vds {
       const service_provider & sp,
       const http_message & message)
     {
-      return this->continue_read(sp, message);
+      return this->continue_read(sp, message.body());
     }
 
   private:
@@ -41,7 +41,7 @@ namespace vds {
 
     async_task<> continue_read(
       const service_provider & sp,
-      const http_message & message)
+      const std::shared_ptr<continuous_buffer<uint8_t>> & body)
     {
       while (0 < this->readed_) {
         std::string value((const char *)this->buffer_, this->readed_);
@@ -109,11 +109,11 @@ namespace vds {
         }
         break;
       }
-      return message.body()->read_async(this->buffer_ + this->readed_, sizeof(this->buffer_) - this->readed_)
-        .then([pthis = this->shared_from_this(), sp, message](size_t readed) {
+      return body->read_async(this->buffer_ + this->readed_, sizeof(this->buffer_) - this->readed_)
+        .then([pthis = this->shared_from_this(), sp, body](size_t readed) {
         if (0 != readed) {
           pthis->readed_ += readed;
-          return pthis->continue_read(sp, message);
+          return pthis->continue_read(sp, body);
         }
         else {
           if (pthis->readed_ > 0) {

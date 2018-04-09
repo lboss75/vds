@@ -261,6 +261,16 @@ void vds::_network_service::thread_loop(const service_provider & sp)
         }
 
         try {
+          if (0 == dwBytesTransfered) {
+            auto errorCode = GetLastError();
+            if (WAIT_TIMEOUT == errorCode || ERROR_IO_PENDING == errorCode) {
+              continue;
+            }
+
+            if (0 != errorCode) {
+              throw std::system_error(errorCode, std::system_category(), "GetQueuedCompletionStatus");
+            }
+          }
           _socket_task::from_overlapped(pOverlapped)->process(dwBytesTransfered);
         }
         catch (const std::exception & ex) {

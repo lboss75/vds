@@ -54,19 +54,26 @@ namespace vds {
 
     void clear();
 
+    void add_owner(_async_task_base<result_types...> * owner);
+
   private:
     struct result_callback
     {
       result_callback(
         _async_task_base<result_types...> * owner, 
         std::function<void(const std::shared_ptr<std::exception> & ex, result_types... results)> && callback)
-      : owner_(owner), callback_(std::move(callback))
+      : callback_(std::move(callback))
       {
+        this->owners_.push_back(owner);
       }
 
       ~result_callback();
 
-      _async_task_base<result_types...> * owner_;
+      void add_owner(_async_task_base<result_types...> * owner) {
+        this->owners_.push_back(owner);
+      }
+
+      std::list<_async_task_base<result_types...> *> owners_;
       std::function<void(const std::shared_ptr<std::exception> & ex, result_types... results)> callback_;
     };
     
@@ -537,17 +544,8 @@ namespace vds {
   {
 		auto impl = this->impl_;
 		this->impl_ = nullptr;
-	  impl->execute(
-		  async_result<result_types...>(
-        impl,
-			  [done = std::move(done_callback)](const std::shared_ptr<std::exception> & ex, result_types... results){
-		  if (!ex) {
-			  done.done(std::forward<result_types>(results)...);
-		  }
-		  else {
-			  done.error(ex);
-		  }
-	  }));
+    done_callback.add_owner(impl);
+	  impl->execute(std::move(done_callback));
   }
 
   template<typename ...result_types>
@@ -709,8 +707,15 @@ namespace vds {
   }
 
   template <typename ... result_types>
+  void async_result<result_types...>::add_owner(_async_task_base<result_types...>* owner) {
+    this->impl_->add_owner(owner);
+  }
+
+  template <typename ... result_types>
   async_result<result_types...>::result_callback::~result_callback() {
-    delete this->owner_;
+    for(auto owner : this->owners_) {
+      delete owner;
+    }
   }
 
   /////////////////////////////////////////////////////////////////////////////////

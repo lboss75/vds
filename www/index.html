@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html>
     <head>
         <meta charset="utf-8">
@@ -56,37 +56,42 @@
                     </div>
                 </nav>
 
-                <div class="line"></div>
+                <div id="chat_feed" style="display: none">
+                    <div class="col-lg-6 col-sm-6 col-12">
+                        <ul id="feed_records"></ul>
+                    </div>
+                        <div class="line"></div>
 
-			<div class="col-lg-6 col-sm-6 col-12">
-            <h4>Отправка сообщения</h4>
-	    <form id="send-message" method="post" action="upload" role="form" enctype="multipart/form-data">
-            <input id="channel_id" name="channel_id" type="hidden" />
-		 <div class="row">
-            <div class="col-md-12">
-                <div class="form-group">
-                    <label for="form_message">Message *</label>
-                    <textarea id="form_message" name="message" class="form-control" placeholder="Message for me *" rows="4" required="required" data-error="Please,leave us a message."></textarea>
-                    <div class="help-block with-errors"></div>
-                </div>
-            </div>
-            <div class="input-group">
-                <label class="input-group-btn">
-                    <span class="btn btn-primary">
-                        Выбрать&hellip; <input name="attachment[]" type="file" style="display: none;" multiple>
-                    </span>
-                </label>
-                <input type="text" class="form-control" readonly>
-            </div>
-            <span class="help-block">
-                Выберите файлы
-            </span>
-            <div class="col-md-12">
-                <input type="submit" class="btn btn-success btn-send" value="Отправить">
-            </div>
-        </div>
-		</form>
-        </div>
+                        <div class="col-lg-6 col-sm-6 col-12">
+                            <h4>Отправка сообщения</h4>
+                            <form id="send-message" method="post" action="upload" role="form" enctype="multipart/form-data">
+                                <input id="channel_id" name="channel_id" type="hidden" />
+                                <div class="row">
+                                    <div class="col-md-12">
+                                        <div class="form-group">
+                                            <label for="form_message">Message *</label>
+                                            <textarea id="form_message" name="message" class="form-control" placeholder="Message for me *" rows="4" required="required" data-error="Please,leave us a message."></textarea>
+                                            <div class="help-block with-errors"></div>
+                                        </div>
+                                    </div>
+                                    <div class="input-group">
+                                        <label class="input-group-btn">
+                                            <span class="btn btn-primary">
+                                                Выбрать&hellip; <input name="attachment[]" type="file" style="display: none;" multiple>
+                                            </span>
+                                        </label>
+                                        <input type="text" class="form-control" readonly>
+                                    </div>
+                                    <span class="help-block">
+                                        Выберите файлы
+                                    </span>
+                                    <div class="col-md-12">
+                                        <input type="submit" class="btn btn-success btn-send" value="Отправить">
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
             </div>
         </div>
 
@@ -138,9 +143,11 @@
 			.append($('<li/>')
 				.append($('<a class="selectChannelMenu" href="#" data-menu="'+ this.id +'">' + this.name + '</a>')
 		  			.on('click', function(e){
-        					$this = $(e.currentTarget);
+		  			    $this = $(e.currentTarget);
+			                    $('#chat_feed').show();
 
-        					channel_id = $this.data('menu');
+			                    channel_id = $this.data('menu');
+			                    load_channel(channel_id, $this.text());
 						$('#channel_id').val(channel_id);
 		  			})));
 		 });
@@ -168,7 +175,25 @@
 
       });
   });
-});
+             });
+
+             function load_channel(channelId, channelTitle) {
+                 $('#feed_records').empty();
+
+                 //Load records
+                 $.getJSON('api/channel_feed?channel_id=' + channelId, function (data) {
+                     $.each(data, function () {
+                         $('#feed_records')
+                             .append($('<li/>')
+                                 .append($('<a href="#" data-record="' + this.id + '">' + this.name + '</a>')
+                                     .on('click', function (e) {
+                                         $this = $(e.currentTarget);
+
+                                         message_id = $this.data('record');
+                                     })));
+                     });
+                 });
+             }
          </script>
     </body>
 </html>

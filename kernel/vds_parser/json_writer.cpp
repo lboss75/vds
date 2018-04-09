@@ -226,7 +226,7 @@ void vds::json_writer::write_string(const std::string & value)
         this->stream_ << (char)ch;
       }
       else {
-        this->stream_ << "\\x" << std::setw(4) << std::setfill('0') << std::hex << (uint16_t)ch;
+        this->stream_ << "\\u" << std::setw(4) << std::setfill('0') << std::hex << (uint16_t)ch;
       }
     }
   }
