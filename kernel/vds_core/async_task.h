@@ -118,8 +118,10 @@ namespace vds {
 		async_result() = default;
 
 		async_result(
+      const std::shared_ptr<_async_task_execute_token> & token,
       _async_task_base<result_types...> * owner,
       std::function<void(const std::shared_ptr<std::exception> & ex, result_types... results)> && callback);
+
     async_result(async_result<result_types...> && origin)
     : impl_(origin.impl_)
     {
@@ -149,9 +151,10 @@ namespace vds {
     struct result_callback
     {
       result_callback(
+        const std::shared_ptr<_async_task_execute_token> & token,
         _async_task_base<result_types...> * owner, 
         std::function<void(const std::shared_ptr<std::exception> & ex, result_types... results)> && callback)
-      : callback_(std::move(callback))
+      : token_(token), callback_(std::move(callback))
       {
         this->owners_.push_back(owner);
       }
@@ -162,6 +165,7 @@ namespace vds {
         this->owners_.push_back(owner);
       }
 
+      std::shared_ptr<_async_task_execute_token> token_;
       std::list<_async_task_base<result_types...> *> owners_;
       std::function<void(const std::shared_ptr<std::exception> & ex, result_types... results)> callback_;
     };
@@ -421,7 +425,7 @@ namespace vds {
 	  {
 	  }
 
-	  void execute(async_result<result_types...> && done) override
+	  void execute(const std::shared_ptr<_async_task_execute_token> & token, async_result<result_types...> && done) override
 	  {
 		  try {
 			  done.done(this->f_());
@@ -462,9 +466,7 @@ namespace vds {
         done.error(std::make_shared<std::runtime_error>("Unexpected error"));
         return;
       }
-			token->set_callback([d = std::move(done)]() {
-				d.done();
-			});
+  		done.done();
 	  }
 
   private:
@@ -487,11 +489,8 @@ namespace vds {
 
 	  void execute(
 				const std::shared_ptr<_async_task_execute_token> & token,
-				async_result<result_types...> && done) override
-	  {
-			token->set_callback([d = std::move(done), e = this->error_]() {
-				d.error(e);
-			});
+				async_result<result_types...> && done) override {
+			done.error(this->error_);
 	  }
 
   private:
@@ -532,9 +531,7 @@ namespace vds {
         const std::shared_ptr<_async_task_execute_token> & token,
         async_result<result_types...> && done) override
 	  {
-      token->set_callback([d = std::move(done)]() {
-        d.done(result_types()...);
-      });
+      done.done(result_types()...);
 	  }
   };
 
@@ -647,6 +644,7 @@ namespace vds {
     impl->execute(
       token,
 		  async_result<result_types...>(
+        token,
         impl,
 			  std::move(done_callback)));
 
@@ -690,9 +688,9 @@ namespace vds {
         impl,
 			  [&f, d = std::move(done), token](const std::shared_ptr<std::exception> & ex, result_types... result) {
           if(!ex){
-            token->set_callback(std::bind(f, d, std::forward<result_types>(result)...));
+            f(d, std::forward<result_types>(result)...);
           } else {
-            token->set_callback(std::bind(&done_type::error, d, ex));
+            d.error(ex);
           }
 			}));
   }
@@ -711,13 +709,11 @@ namespace vds {
 		this->impl_ = nullptr;
 	  impl->execute(
 			token,
-		  async_result<result_types...>(impl, [token, &f, d = std::move(done)](const std::shared_ptr<std::exception> & ex, result_types... result) mutable {
+		  async_result<result_types...>(token, impl, [token, &f, d = std::move(done)](const std::shared_ptr<std::exception> & ex, result_types... result) mutable {
         if(!ex){
 			try {
 				auto t = f(std::forward<result_types>(result)...);
-        token->set_callback([token, t1 = std::move(t), d1 = std::move(d)]() mutable {
-          t1.operator()<done_type>(token, std::move(d1));
-        });
+        t.operator()<done_type>(token, std::move(d));
 			}
 			catch (const std::exception & ex) {
 				d.error(std::make_shared<std::runtime_error>(ex.what()));
@@ -744,6 +740,7 @@ namespace vds {
 	  impl->execute(
 			token,
 		  async_result<result_types...>(
+        token,
         impl,
 			  [token, &f, done](const std::shared_ptr<std::exception> & ex, result_types... result) {
           if(!ex){
@@ -753,7 +750,7 @@ namespace vds {
               done.error(std::make_shared<std::runtime_error>(ex.what()));
               return;
             }
-            token->set_callback(std::bind(&done_type::done, done));
+            done.done();
           } else {
             done.error(ex);
           }
@@ -773,15 +770,13 @@ namespace vds {
   {
 		auto impl = this->impl_;
 		this->impl_ = nullptr;
-	  impl->execute(token, async_result<result_types...>(impl, [&f, done, token](
+	  impl->execute(token, async_result<result_types...>(token, impl, [&f, done, token](
           const std::shared_ptr<std::exception> & ex,
           result_types... result) {
           if(!ex){
             try {
               auto t = f(std::forward<result_types>(result)...);
-              token->set_callback([d = std::move(done), t]() {
-                d.done(t);
-              });
+              done.done(t);
             } catch(const std::exception & ex){
               done.error(std::make_shared<std::runtime_error>(ex.what()));
             }        
@@ -808,9 +803,10 @@ namespace vds {
 	/////////////////////////////////////////////////////////////////////////////////
   template<typename ...result_types>
   inline async_result<result_types...>::async_result(
+    const std::shared_ptr<_async_task_execute_token> & token,
     _async_task_base<result_types...> * owner,
 	  std::function<void(const std::shared_ptr<std::exception> & ex, result_types...results)> && callback)
-	: impl_(new result_callback(owner, std::move(callback)))
+	: impl_(new result_callback(token, owner, std::move(callback)))
   {
   }
 
@@ -818,14 +814,14 @@ namespace vds {
   inline void async_result<result_types...>::done(const result_types & ...results) const
   {
     auto impl = std::move(this->impl_);
-	  impl->callback_(std::shared_ptr<std::exception>(), results...);
+    impl->token_->set_callback(std::bind(impl->callback_, std::shared_ptr<std::exception>(), results...));
   }
 
   template<typename ...result_types>
   inline void async_result<result_types...>::error(const std::shared_ptr<std::exception>& ex) const
   {
     auto impl = std::move(this->impl_);
-    impl->callback_(ex, typename std::remove_reference<result_types>::type()...);
+    impl->token_->set_callback(std::bind(impl->callback_, ex, typename std::remove_reference<result_types>::type()...));
   }
 
   template<typename ...result_types>
