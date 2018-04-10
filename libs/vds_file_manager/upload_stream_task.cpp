@@ -5,7 +5,7 @@
 #include "dht_network_client.h"
 
 vds::_upload_stream_task::_upload_stream_task()
-    : readed_(0) {
+: total_hash_(hash::sha256()), total_size_(0), readed_(0) {
 }
 
 vds::async_task<std::list<vds::transactions::file_add_transaction::file_block_t>> vds::_upload_stream_task::start(
@@ -46,6 +46,17 @@ vds::_upload_stream_task::continue_read(
 vds::async_task<> vds::_upload_stream_task::process_data(
   const service_provider & sp,
   dht::network::client * network_client) {
+
+  if(0 == this->readed_) {
+    this->total_hash_.final();
+    this->result_hash_ = this->total_hash_.signature();
+    return async_task<>::empty();
+  }
+  else {
+    this->total_hash_.update(this->buffer_, this->readed_);
+    this->total_size_ += this->readed_;
+  }
+
   return sp.get<db_model>()->async_transaction(sp, [sp, pthis = this->shared_from_this(), network_client](
     database_transaction &t)->bool{
 

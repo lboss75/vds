@@ -36,7 +36,7 @@ namespace vds {
 		  		const std::string &mimetype,
           const vds::filename &file_path);
 
-			vds::async_task<> upload_file(
+			vds::async_task<const_data_buffer> upload_file(
 					const service_provider &sp,
           const std::shared_ptr<user_manager> & user_mng,
 					const const_data_buffer &channel_id,

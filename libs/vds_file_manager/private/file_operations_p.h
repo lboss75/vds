@@ -8,6 +8,7 @@ All rights reserved
 #include "file_operations.h"
 #include "transactions/file_add_transaction.h"
 #include "async_buffer.h"
+#include "hash.h"
 
 namespace vds {
   class user_manager;
@@ -25,7 +26,7 @@ namespace vds {
           const std::string &mimetype,
           const filename &file_path);
 
-			async_task<> upload_file(
+			async_task<const_data_buffer> upload_file(
 					const service_provider &sp,
           const std::shared_ptr<user_manager> & user_mng,
 					const const_data_buffer &channel_id,
@@ -51,7 +52,13 @@ namespace vds {
           vds::database_transaction &t,
           std::list<transactions::file_add_transaction::file_block_t> &file_blocks) const;
 
-      async_task<std::list<transactions::file_add_transaction::file_block_t>> pack_file(
+      struct pack_file_result {
+        const_data_buffer total_hash;
+        size_t total_size;
+        std::list<transactions::file_add_transaction::file_block_t> file_blocks;
+      };
+
+      async_task<pack_file_result> pack_file(
           const service_provider &sp,
           const std::shared_ptr<continuous_buffer<uint8_t>> & input_stream) const;
 

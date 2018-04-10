@@ -9,6 +9,7 @@ All rights reserved
 #include <memory>
 #include "async_task.h"
 #include "file_operations.h"
+#include "hash.h"
 
 namespace vds {
   namespace dht {
@@ -25,10 +26,23 @@ namespace vds {
         const service_provider & sp,
         const std::shared_ptr<continuous_buffer<uint8_t>> & input_stream);
 
+    const const_data_buffer & result_hash() const {
+      return this->result_hash_;
+    }
+
+    size_t total_size() const {
+      return this->total_size_;
+    }
+
   private:
+    hash total_hash_;
+    size_t total_size_;
+
     uint8_t buffer_[vds::file_manager::file_operations::BLOCK_SIZE];
     size_t readed_;
     std::list<transactions::file_add_transaction::file_block_t> file_blocks_;
+
+    const_data_buffer result_hash_;
 
     async_task<> continue_read(
         const service_provider & sp,

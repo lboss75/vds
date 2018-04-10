@@ -51,7 +51,7 @@ vds::async_task<> vds::_file_upload_task::read_part(const vds::service_provider 
             this->channel_id_,
             pname->second,
             values["Content-Type"],
-            part.body());
+            part.body()).then([](const const_data_buffer & ){});
         }
       }
       return this->skip_part(part);

@@ -52,7 +52,7 @@ public:
         this->channel_id_,
         file.file_name,
         file.mimetype,
-        file.stream);
+        file.stream).then([](const vds::const_data_buffer &){});
   }
 
 private:

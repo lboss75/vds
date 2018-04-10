@@ -39,7 +39,7 @@ vds::file_manager::file_operations::download_file(
   return this->impl_->download_file(sp, task);
 }
 
-vds::async_task<>
+vds::async_task<vds::const_data_buffer>
 vds::file_manager::file_operations::upload_file(
   const service_provider& sp,
   const std::shared_ptr<user_manager>& user_mng,
@@ -88,27 +88,28 @@ vds::async_task<> vds::file_manager_private::_file_operations::upload_file(
       std::list<transactions::file_add_transaction::file_block_t> file_blocks;
       pthis->pack_file(sp, file_path, t, file_blocks);
 
-      transactions::transaction_block log;
-      log.add(
-        transactions::file_add_transaction(
-          name,
-          mimetype,
-          file_blocks));
+      throw std::runtime_error("Not implemented");
+      //transactions::transaction_block log;
+      //log.add(
+      //  transactions::file_add_transaction(
+      //    name,
+      //    mimetype,
+      //    file_blocks));
 
-      log.save(
-        sp,
-        t,
-        channel_id,
-        channel.read_cert(),
-        channel.write_cert(),
-        channel_write_key);
+      //log.save(
+      //  sp,
+      //  t,
+      //  channel_id,
+      //  channel.read_cert(),
+      //  channel.write_cert(),
+      //  channel_write_key);
 
       return true;
     }
   );
 }
 
-vds::async_task<> vds::file_manager_private::_file_operations::upload_file(
+vds::async_task<vds::const_data_buffer> vds::file_manager_private::_file_operations::upload_file(
   const service_provider& paren_sp,
   const std::shared_ptr<user_manager>& user_mng,
   const const_data_buffer& channel_id,
@@ -117,7 +118,6 @@ vds::async_task<> vds::file_manager_private::_file_operations::upload_file(
   const std::shared_ptr<continuous_buffer<uint8_t>>& input_stream) {
 
   auto sp = paren_sp.create_scope(__FUNCTION__);
-
   return this->pack_file(sp, input_stream)
              .then(
                [sp,
@@ -126,7 +126,7 @@ vds::async_task<> vds::file_manager_private::_file_operations::upload_file(
                  name,
                  mimetype,
                  input_stream,
-                 channel_id](const std::list<transactions::file_add_transaction::file_block_t>& file_blocks) {
+                 channel_id](const pack_file_result & file_info) {
                  return sp.get<db_model>()->async_transaction(
                    sp,
                    [pthis,
@@ -136,7 +136,7 @@ vds::async_task<> vds::file_manager_private::_file_operations::upload_file(
                      mimetype,
                      input_stream,
                      channel_id,
-                     file_blocks](
+                     file_info](
                    database_transaction& t) {
 
 
@@ -154,9 +154,11 @@ vds::async_task<> vds::file_manager_private::_file_operations::upload_file(
                      transactions::transaction_block log;
                      log.add(
                        transactions::file_add_transaction(
+                         file_info.total_hash,
+                         file_info.total_size,
                          name,
                          mimetype,
-                         file_blocks));
+                         file_info.file_blocks));
 
                      log.save(
                        sp,
@@ -167,6 +169,8 @@ vds::async_task<> vds::file_manager_private::_file_operations::upload_file(
                        channel_write_key);
 
                      return true;
+                   }).then([file_info]() {
+                     return file_info.total_hash;
                    });
                });
 }
@@ -348,12 +352,14 @@ struct buffer_data : public std::enable_shared_from_this<buffer_data> {
   uint8_t buffer[vds::file_manager::file_operations::BLOCK_SIZE];
 };
 
-vds::async_task<std::list<vds::transactions::file_add_transaction::file_block_t>> vds::file_manager_private::
-_file_operations::pack_file(
+vds::async_task<vds::file_manager_private::_file_operations::pack_file_result>
+vds::file_manager_private::_file_operations::pack_file(
   const service_provider& sp,
   const std::shared_ptr<continuous_buffer<uint8_t>>& input_stream) const {
   auto task = std::make_shared<_upload_stream_task>();
-  return task->start(sp, input_stream);
+  return task->start(sp, input_stream).then([task](const std::list<transactions::file_add_transaction::file_block_t> & file_blocks) {
+    return pack_file_result{ task->result_hash(), task->total_size(), file_blocks };
+  });
 }
 
 void
