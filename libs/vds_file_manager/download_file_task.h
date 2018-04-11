@@ -11,6 +11,7 @@ All rights reserved
 #include "transactions/file_add_transaction.h"
 #include "guid.h"
 #include "filename.h"
+#include "async_buffer.h"
 
 namespace vds {
   namespace file_manager {
@@ -18,14 +19,13 @@ namespace vds {
       public:
 
       download_file_task(
-          const const_data_buffer &channel_id,
-          const std::string &name,
-          const filename &file_path)
+          const const_data_buffer & channel_id,
+          const const_data_buffer & target_file,
+          const std::shared_ptr<async_buffer<uint8_t>> & target_stream)
           : channel_id_(channel_id),
-            name_(name),
-            target_file_(file_path),
-            local_block_count_(0)
-      {
+            target_file_(target_file),
+            target_stream_(target_stream),
+            body_size_(0) {
       }
 
       struct block_info {
@@ -51,20 +51,12 @@ namespace vds {
         return this->name_;
       }
 
-      const filename & target_file() const {
+      const const_data_buffer & target_file() const {
         return this->target_file_;
       }
 
       const std::string & mime_type() const {
         return this->mime_type_;
-      }
-
-      uint16_t local_block_count() const {
-        return this->local_block_count_;
-      }
-
-      uint16_t remote_block_count() const {
-        return this->file_blocks_.size() - this->local_block_count_;
       }
 
 
@@ -100,17 +92,21 @@ namespace vds {
         f.write(data.data(), block.id_.block_size);
         f.close();
 
-        this->local_block_count_++;
+      }
+
+
+      size_t body_size() const {
+        return this->body_size_;
       }
 
     private:
-
       const_data_buffer channel_id_;
       std::string name_;
-      filename target_file_;
+      const_data_buffer target_file_;
       std::string mime_type_;
-      uint16_t local_block_count_;
       std::list<block_info> file_blocks_;
+      std::shared_ptr<async_buffer<uint8_t>> target_stream_;
+      size_t body_size_;
     };
   }
 }

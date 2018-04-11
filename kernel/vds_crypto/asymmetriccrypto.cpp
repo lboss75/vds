@@ -192,12 +192,12 @@ vds::asymmetric_private_key vds::_asymmetric_private_key::parse_der(
       value.size());
     
     const unsigned char * p = buffer.data();
-    auto key = d2i_AutoPrivateKey(NULL, &p, buffer.size());
+    auto key = d2i_AutoPrivateKey(NULL, &p, safe_cast<long>(buffer.size()));
     return asymmetric_private_key(new _asymmetric_private_key(key));
   }
   else{
       const unsigned char * p = value.data();
-      auto key = d2i_AutoPrivateKey(NULL, &p, value.size());
+      auto key = d2i_AutoPrivateKey(NULL, &p, safe_cast<long>(value.size()));
       if(nullptr == key){
         auto error = ERR_get_error();
         throw crypto_exception("d2i_AutoPrivateKey", error);
@@ -346,9 +346,9 @@ vds::_asymmetric_sign::~_asymmetric_sign()
   }
 }
 
-void vds::_asymmetric_sign::write(const uint8_t * data, size_t len)
+void vds::_asymmetric_sign::write(const uint8_t * data, size_t data_size)
 {
-	if (0 == len) {
+	if (0 == data_size) {
 		size_t req = 0;
 		if (1 != EVP_DigestSignFinal(this->ctx_, NULL, &req) || req <= 0) {
 			auto error = ERR_get_error();
@@ -377,7 +377,7 @@ void vds::_asymmetric_sign::write(const uint8_t * data, size_t len)
 		this->sig_.reset(sig, len);
 		OPENSSL_free(sig);
 	}
-	else if (1 != EVP_DigestSignUpdate(this->ctx_, data, len)) {
+	else if (1 != EVP_DigestSignUpdate(this->ctx_, data, data_size)) {
     auto error = ERR_get_error();
     throw crypto_exception("EVP_DigestInit_ex", error);
   }
@@ -651,7 +651,7 @@ std::string vds::certificate::str() const
 vds::certificate vds::certificate::parse_der(const const_data_buffer & value)
 {
   auto p = value.data();
-  auto cert = d2i_X509(NULL, &p, value.size());
+  auto cert = d2i_X509(NULL, &p, safe_cast<long>(value.size()));
 
   if (NULL == cert) {
     auto error = ERR_get_error();

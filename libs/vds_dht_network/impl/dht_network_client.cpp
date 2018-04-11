@@ -41,7 +41,7 @@ void vds::dht::network::_client::save(
 
     orm::chunk_replica_data_dbo t1;
     t.execute(
-        t1.insert(
+        t1.insert_or_ignore(
             t1.id = base64::from_bytes(key),
             t1.replica = replica,
             t1.replica_data = replica_data

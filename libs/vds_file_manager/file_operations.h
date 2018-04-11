@@ -46,8 +46,9 @@ namespace vds {
 
 
 			vds::async_task<> download_file(
-		  const service_provider &sp,
-			const std::shared_ptr<download_file_task> & task);
+		    const service_provider &sp,
+        const std::shared_ptr<user_manager> & user_mng,
+			  const std::shared_ptr<download_file_task> & task);
 
     protected:
       std::shared_ptr<file_manager_private::_file_operations> impl_;

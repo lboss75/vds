@@ -193,6 +193,42 @@ vds::async_task<vds::http_message> vds::_web_server::route(
     }
   }
 
+  if (request.url() == "/api/download") {
+    if (request.method() == "GET") {
+      const auto user_mng = this->get_secured_context(sp, message);
+      if (!user_mng) {
+        return vds::async_task<vds::http_message>::result(
+          http_response::status_response(
+            sp,
+            http_response::HTTP_Unauthorized,
+            "Unauthorized"));
+      }
+
+      http_request request(message);
+      const auto channel_id = base64::to_bytes(request.get_parameter("channel_id"));
+      const auto file_hash = base64::to_bytes(request.get_parameter("id"));
+
+      return api_controller::download_file(
+        sp,
+        user_mng,
+        this->shared_from_this(),
+        channel_id,
+        file_hash)
+        .then([sp](
+          const std::string & content_type,
+          size_t body_size,
+          const std::shared_ptr<vds::async_buffer<uint8_t>> & output_stream) {
+
+        return vds::async_task<vds::http_message>::result(
+          http_response::file_response(
+            sp,
+            output_stream,
+            content_type,
+            body_size));
+      });
+    }
+  }
+
   if(request.url() == "/upload" && request.method() == "POST") {
     auto user_mng = this->get_secured_context(sp, message);
     if (!user_mng) {

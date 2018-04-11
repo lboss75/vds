@@ -35,8 +35,9 @@ vds::async_task<> vds::file_manager::file_operations::upload_file(
 vds::async_task<>
 vds::file_manager::file_operations::download_file(
   const service_provider& sp,
+  const std::shared_ptr<user_manager> & user_mng,
   const std::shared_ptr<download_file_task>& task) {
-  return this->impl_->download_file(sp, task);
+  return this->impl_->download_file(sp, user_mng, task);
 }
 
 vds::async_task<vds::const_data_buffer>

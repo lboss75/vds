@@ -27,7 +27,10 @@ vds::_upload_stream_task::continue_read(
   return input_stream->read_async(this->buffer_ + this->readed_, sizeof(this->buffer_) - this->readed_)
       .then([pthis = this->shared_from_this(), sp, input_stream, network_client](size_t readed) -> async_task<>{
         if(0 == readed){
-          return pthis->process_data(sp, network_client);
+          return pthis->process_data(sp, network_client).then([pthis]() {
+            pthis->total_hash_.final();
+            pthis->result_hash_ = pthis->total_hash_.signature();
+          });
         }
         else {
           pthis->readed_ += readed;
@@ -48,8 +51,6 @@ vds::async_task<> vds::_upload_stream_task::process_data(
   dht::network::client * network_client) {
 
   if(0 == this->readed_) {
-    this->total_hash_.final();
-    this->result_hash_ = this->total_hash_.signature();
     return async_task<>::empty();
   }
   else {

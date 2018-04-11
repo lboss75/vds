@@ -52,13 +52,20 @@ public:
         this->channel_id_,
         file.file_name,
         file.mimetype,
-        file.stream).then([](const vds::const_data_buffer &){});
+        file.stream).then([pthis = this->shared_from_this()](const vds::const_data_buffer & result_id) {
+      pthis->result_id_ = result_id;
+    });
+  }
+
+  const vds::const_data_buffer & result_id() const {
+    return this->result_id_;
   }
 
 private:
   vds::service_provider sp_;
   std::shared_ptr<vds::user_manager> user_mng_;
   vds::const_data_buffer channel_id_;
+  vds::const_data_buffer result_id_;
 };
 
 vds::async_task<vds::http_message> vds::index_page::create_message(const vds::service_provider& sp,
@@ -68,12 +75,12 @@ vds::async_task<vds::http_message> vds::index_page::create_message(const vds::se
   auto parser = std::make_shared<create_message_form>(sp, user_mng);
 
   return parser->parse(sp, message).then([sp, user_mng, web_server, parser]() -> async_task<http_message> {
-    //auto name = parser->values().find("channelName");
-    //return api_controller::create_channel(sp, user_mng, user_channel::channel_type_t::personal_channel, name->second);
+    auto result = std::make_shared<json_object>();
+    result->add_property("id", base64::from_bytes(parser->result_id()));
     return vds::async_task<vds::http_message>::result(
       http_response::simple_text_response(
         sp,
-        "{}",
+        result->json_value::str(),
         "application/json; charset=utf-8"));
   });
 }

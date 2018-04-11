@@ -528,7 +528,7 @@ namespace vds {
 	  }
 
 	  void execute(
-        const std::shared_ptr<_async_task_execute_token> & token,
+        const std::shared_ptr<_async_task_execute_token> & /*token*/,
         async_result<result_types...> && done) override
 	  {
       done.done(result_types()...);

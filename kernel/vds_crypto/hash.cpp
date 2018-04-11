@@ -153,7 +153,7 @@ vds::_hmac::_hmac(const std::string & key, const hash_info & info)
   this->ctx_ = &this->hmac_ctx_;
 #endif
 
-  HMAC_Init_ex(this->ctx_, key.c_str(), key.length(), info.type, NULL);
+  HMAC_Init_ex(this->ctx_, key.c_str(), safe_cast<int>(key.length()), info.type, NULL);
 }
 
 vds::_hmac::~_hmac()

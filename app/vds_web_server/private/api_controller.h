@@ -40,6 +40,17 @@ namespace vds {
       const std::shared_ptr<_web_server>& owner,
       const const_data_buffer & channel_id);
 
+    static async_task<
+      const std::string & /*content_type*/,
+      size_t /*body_size*/,
+      const std::shared_ptr<vds::async_buffer<uint8_t>> & /*output_stream*/>
+    download_file(
+      const service_provider& sp,
+      const std::shared_ptr<user_manager>& user_mng,
+      const std::shared_ptr<_web_server>& owner,
+      const const_data_buffer& channel_id,
+      const const_data_buffer& file_hash);
+
   private:
     static std::shared_ptr<json_object> channel_serialize(const vds::user_channel & channel);
 

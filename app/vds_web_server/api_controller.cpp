@@ -7,6 +7,8 @@
 #include "private/api_controller.h"
 #include "http_simple_form_parser.h"
 #include "db_model.h"
+#include "download_file_task.h"
+#include "file_operations.h"
 
 std::shared_ptr<vds::json_object> vds::api_controller::channel_serialize(
   const vds::user_channel & channel) {
@@ -90,13 +92,38 @@ vds::async_task<std::shared_ptr<vds::json_value>> vds::api_controller::channel_f
       t,
       [result](const transactions::file_add_transaction& message)-> bool {
       auto record = std::make_shared<json_object>();
+      record->add_property("id", base64::from_bytes(message.total_hash()));
       record->add_property("name", message.name());
       record->add_property("mimetype", message.mimetype());
+      record->add_property("size", message.total_size());
       result->add(record);
       return true;
     });
     return true;
   }).then([result]() {
     return std::static_pointer_cast<json_value>(result);
+  });
+}
+
+vds::async_task<
+  const std::string & /*content_type*/,
+  size_t /*body_size*/,
+  const std::shared_ptr<vds::async_buffer<uint8_t>> & /*output_stream*/>
+vds::api_controller::download_file(
+  const service_provider& sp,
+  const std::shared_ptr<user_manager>& user_mng,
+  const std::shared_ptr<_web_server>& owner,
+  const const_data_buffer& channel_id,
+  const const_data_buffer& file_hash) {
+
+  auto target_stream = std::make_shared<async_buffer<uint8_t>>(sp);
+  auto task = std::make_shared<file_manager::download_file_task>(channel_id, file_hash, target_stream);
+
+  return sp.get<file_manager::file_operations>()->download_file(sp, user_mng, task).then(
+    [target_stream, task]() -> async_task<const std::string &, size_t, const std::shared_ptr<vds::async_buffer<uint8_t>> &>{
+    return async_task<const std::string &, size_t, const std::shared_ptr<vds::async_buffer<uint8_t>> &>::result(
+      task->mime_type(),
+      task->body_size(),
+      target_stream);
   });
 }

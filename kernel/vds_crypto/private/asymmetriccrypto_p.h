@@ -55,7 +55,7 @@ namespace vds {
           n = blocksize;
         }
 
-        auto len = RSA_private_decrypt(n, p, buffer, EVP_PKEY_get1_RSA(this->key_), RSA_PKCS1_PADDING);
+        auto len = RSA_private_decrypt(safe_cast<int>(n), p, buffer, EVP_PKEY_get1_RSA(this->key_), RSA_PKCS1_PADDING);
         if (0 > len) {
           auto error = ERR_get_error();
           delete[] buffer;
@@ -115,7 +115,7 @@ namespace vds {
           n = blocksize;
         }
 
-        auto len = RSA_public_encrypt(n, p, buffer, EVP_PKEY_get1_RSA(this->key_), RSA_PKCS1_PADDING);
+        auto len = RSA_public_encrypt(safe_cast<int>(n), p, buffer, EVP_PKEY_get1_RSA(this->key_), RSA_PKCS1_PADDING);
         if (0 > len) {
           auto error = ERR_get_error();
           delete[] buffer;

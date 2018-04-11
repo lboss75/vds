@@ -36,6 +36,7 @@ namespace vds {
 
 	    async_task<> download_file(
 					const service_provider &sp,
+          const std::shared_ptr<user_manager> & user_mng,
 					const std::shared_ptr<file_manager::download_file_task> & task);
 
 

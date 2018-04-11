@@ -275,7 +275,7 @@ void vds::json_primitive::str(json_writer & writer) const
   writer.write_string_value(this->value_);
 }
 
-std::shared_ptr<vds::json_value> vds::json_primitive::clone(bool is_deep) const
+std::shared_ptr<vds::json_value> vds::json_primitive::clone(bool /*is_deep*/) const
 {
   return std::shared_ptr<json_value>(new json_primitive(this->value_));
 }

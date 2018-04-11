@@ -55,7 +55,37 @@
                         </div>
                     </div>
                 </nav>
+                <div id="chat_feed" style="display: none" class="row">
+                    <div class="panel panel-primary">
+                        <div class="panel-collapse collapse in" id="collapseOne" style="">
+                            <div class="panel-body">
+                                <ul id="feed_records"></ul>
+                            </div>
+                            <div class="panel-footer">
+                                <form id="send-message" method="post" action="upload" role="form" enctype="multipart/form-data">
+                                    <input id="channel_id" name="channel_id" type="hidden" />
+                                    <textarea id="form_message" name="message" class="form-control input-sm" placeholder="Message for me *" rows="4" required="required" data-error="Please,leave us a message."></textarea>
+                                    <div class="help-block with-errors"></div>
+                                    <div class="input-group">
+                                        <label class="input-group-btn">
 
+                                            <span class="btn btn-primary">
+                                                Выбрать&hellip; <input name="attachment[]" type="file" style="display: none;" multiple>
+                                            </span>
+                                        </label>
+                                        <input type="text" class="form-control" readonly>
+                                        <span class="input-group-btn">
+                                            <input type="submit" class="btn btn-success btn-send" value="Отправить">
+                                        </span>
+                                    </div>
+                                    <span class="help-block">
+                                        Выберите файлы
+                                    </span>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 <div id="chat_feed" style="display: none">
                     <div class="col-lg-6 col-sm-6 col-12">
                         <ul id="feed_records"></ul>
@@ -184,15 +214,33 @@
                  $.getJSON('api/channel_feed?channel_id=' + channelId, function (data) {
                      $.each(data, function () {
                          $('#feed_records')
-                             .append($('<li/>')
+                             .append($('<li class="left clearfix" />')
                                  .append($('<a href="#" data-record="' + this.id + '">' + this.name + '</a>')
                                      .on('click', function (e) {
                                          $this = $(e.currentTarget);
 
                                          message_id = $this.data('record');
-                                     })));
+                                     }))
+                             .append($('<small class="pull-right text-muted" />').text(humanFileSize(this.size, true)))
+                         );
                      });
                  });
+             }
+
+             function humanFileSize(bytes, si) {
+                 var thresh = si ? 1000 : 1024;
+                 if (Math.abs(bytes) < thresh) {
+                     return bytes + ' байт';
+                 }
+                 var units = si
+                     ? ['kB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB']
+                     : ['KiB', 'MiB', 'GiB', 'TiB', 'PiB', 'EiB', 'ZiB', 'YiB'];
+                 var u = -1;
+                 do {
+                     bytes /= thresh;
+                     ++u;
+                 } while (Math.abs(bytes) >= thresh && u < units.length - 1);
+                 return bytes.toFixed(1) + ' ' + units[u];
              }
          </script>
     </body>
