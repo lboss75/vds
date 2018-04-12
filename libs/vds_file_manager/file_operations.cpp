@@ -417,7 +417,7 @@ void vds::file_manager_private::_file_operations::download_stream(
       target_stream->write_async(nullptr, 0).execute([](const std::shared_ptr<std::exception> & ){});
     }
     else {
-      target_stream->write_async(data.data(), data.size()).execute(
+      target_stream->write_async(data.data(), file_blocks.begin()->block_size).execute(
           [data, pthis, sp, target_stream, file_blocks](const std::shared_ptr<std::exception> & ex) {
             auto f = file_blocks;
             f.pop_front();

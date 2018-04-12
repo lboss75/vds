@@ -41,9 +41,9 @@ namespace vds {
       const const_data_buffer & channel_id);
 
     static async_task<
-      const std::string & /*content_type*/,
+      std::string /*content_type*/,
       size_t /*body_size*/,
-      const std::shared_ptr<continuous_buffer<uint8_t>> & /*output_stream*/>
+      std::shared_ptr<continuous_buffer<uint8_t>> /*output_stream*/>
     download_file(
       const service_provider& sp,
       const std::shared_ptr<user_manager>& user_mng,

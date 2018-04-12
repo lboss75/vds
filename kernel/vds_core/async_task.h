@@ -368,7 +368,7 @@ namespace vds {
       }
     }
 
-    static async_task<result_types...> result(result_types && ... values);
+    static async_task<result_types...> result(result_types... values);
 		static async_task<result_types...> empty();
   private:
     async_task() = delete;
@@ -581,7 +581,7 @@ namespace vds {
   }
 
 	template<typename ...result_types>
-	inline async_task<result_types...> async_task<result_types...>::result(result_types && ... values)
+	inline async_task<result_types...> async_task<result_types...>::result(result_types ... values)
 	{
 		return async_task<result_types...>(
 				new _async_task_value<result_types...>(std::forward<result_types>(values)...));
@@ -814,14 +814,18 @@ namespace vds {
   inline void async_result<result_types...>::done(const result_types & ...results) const
   {
     auto impl = std::move(this->impl_);
-    impl->token_->set_callback(std::bind(impl->callback_, std::shared_ptr<std::exception>(), results...));
+    impl->token_->set_callback([impl, results...](){
+      impl->callback_(std::shared_ptr<std::exception>(), results...);
+    });
   }
 
   template<typename ...result_types>
   inline void async_result<result_types...>::error(const std::shared_ptr<std::exception>& ex) const
   {
     auto impl = std::move(this->impl_);
-    impl->token_->set_callback(std::bind(impl->callback_, ex, typename std::remove_reference<result_types>::type()...));
+    impl->token_->set_callback([impl, ex]() {
+      impl->callback_(ex, typename std::remove_reference<result_types>::type()...);
+    });
   }
 
   template<typename ...result_types>

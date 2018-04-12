@@ -11,6 +11,7 @@ All rights reserved
 
 #include "gf.h"
 #include "binary_serialize.h"
+#include "vds_debug.h"
 
 namespace vds {
     template<typename cell_type>
@@ -171,9 +172,6 @@ inline vds::chunk_generator<cell_type>::~chunk_generator()
 template<typename cell_type>
 inline void vds::chunk_generator<cell_type>::write(binary_serializer & s, const void * data, size_t size)
 {
-//  if (0 != size % (sizeof(cell_type) * this->k_)) {
-//    throw std::runtime_error("Align error");
-//  }
   uint64_t expected_size = ((size + sizeof(cell_type) * this->k_ - 1)/ sizeof(cell_type) / this->k_) * sizeof(cell_type);
   auto start = s.size();
 
@@ -198,6 +196,7 @@ inline void vds::chunk_generator<cell_type>::write(binary_serializer & s, const 
   
   auto final = s.size();
   assert(expected_size == final - start);
+  s << safe_cast<uint16_t>(size % (sizeof(cell_type) * this->k_));//Padding
 }
 
 
@@ -325,6 +324,18 @@ inline void vds::chunk_restore<cell_type>::restore(
   const std::vector<const_data_buffer> & chunks)
 {
   auto size = chunks.begin()->size();
+  auto padding = uint16_t(chunks.begin()->data()[size - 2] << 8) | chunks.begin()->data()[size - 1];
+  for (cell_type j = 1; j < this->k_; ++j) {
+    vds_assert(size == chunks[j].size());
+    vds_assert(padding == uint16_t(chunks[j].data()[size - 2] << 8) | chunks[j].data()[size - 1]);
+  }
+
+  auto expected_size = (size - 2) * this->k_;
+  if(0 != padding) {
+    expected_size -= sizeof(cell_type) * this->k_;
+    expected_size += padding;
+  }
+
   for (size_t index = 0; index < size; index += sizeof(cell_type)) {
     auto m = this->multipliers_;
     for (cell_type i = 0; i < this->k_; ++i) {
@@ -341,6 +352,9 @@ inline void vds::chunk_restore<cell_type>::restore(
               cell));
       }
       s << value;
+      if(s.size() == expected_size) {
+        return;
+      }
     }
   }
 }

@@ -111,7 +111,9 @@ vds::http_message vds::http_response::file_response(
   response.add_header("Content-Length", std::to_string(body_size));
 
   auto result = response.create_message(sp);
-  copy_stream(sp, body, result.body());
+  copy_stream(sp, body, result.body()).execute([](const std::shared_ptr<std::exception> & ex) {
+  });
+
   return result;
 }
 

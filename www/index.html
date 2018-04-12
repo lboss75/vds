@@ -215,12 +215,7 @@
                      $.each(data, function () {
                          $('#feed_records')
                              .append($('<li class="left clearfix" />')
-                                 .append($('<a href="#" data-record="' + this.id + '">' + this.name + '</a>')
-                                     .on('click', function (e) {
-                                         $this = $(e.currentTarget);
-
-                                         message_id = $this.data('record');
-                                     }))
+                             .append($('<a href="/api/download?channel_id='+channelId+'&id='+this.id+'">' + this.name + '</a>'))
                              .append($('<small class="pull-right text-muted" />').text(humanFileSize(this.size, true)))
                          );
                      });

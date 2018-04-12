@@ -49,7 +49,7 @@ void vds::http_request::parse_parameters()
 
   auto p = strchr(this->url_.c_str(), '?');
   if (nullptr != p) {
-    this->parameters_.push_back(p + 1);
+    this->parameters_ = split_string(p + 1, '&', false);
     this->url_.erase(p - this->url_.c_str());
   }
 }

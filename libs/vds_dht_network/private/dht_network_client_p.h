@@ -120,7 +120,7 @@ namespace vds {
       private:
         std::shared_ptr<udp_transport> udp_transport_;
         dht_route<std::shared_ptr<dht_session>> route_;
-        std::map<uint16_t, chunk_generator<uint16_t>> generators_;
+        std::map<uint16_t, std::unique_ptr<chunk_generator<uint16_t>>> generators_;
         sync_process sync_process_;
 
         timer update_timer_;

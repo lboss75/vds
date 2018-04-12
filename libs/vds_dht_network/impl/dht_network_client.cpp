@@ -15,6 +15,7 @@ All rights reserved
 #include "deflate.h"
 #include "db_model.h"
 #include "async_task.h"
+#include "inflate.h"
 
 vds::dht::network::_client::_client(
     const service_provider & sp,
@@ -24,7 +25,7 @@ vds::dht::network::_client::_client(
   route_(node_id)
 {
   for (uint16_t replica = 0; replica < GENERATE_HORCRUX; ++replica) {
-    this->generators_.emplace(replica, chunk_generator<uint16_t>(MIN_HORCRUX, replica));
+    this->generators_[replica].reset(new chunk_generator<uint16_t>(MIN_HORCRUX, replica));
   }
 }
 
@@ -35,19 +36,18 @@ void vds::dht::network::_client::save(
     const const_data_buffer & value) {
 
   for(uint16_t replica = 0; replica < GENERATE_HORCRUX; ++replica) {
-    chunk_generator<uint16_t> *generator;
-
     binary_serializer s;
-    this->generators_.find(replica)->second.write(s, value.data(), value.size());
+    this->generators_.find(replica)->second->write(s, value.data(), value.size());
     const auto replica_data = s.data();
 
     orm::chunk_replica_data_dbo t1;
     t.execute(
-        t1.insert_or_ignore(
+        t1.insert(
             t1.id = base64::from_bytes(key),
             t1.replica = replica,
             t1.replica_data = replica_data
         ));
+    //std::cout << "R" << replica << ":" << display_string(base64::from_bytes(replica_data)) << "\n";
   }
 }
 
@@ -231,6 +231,8 @@ vds::async_task<> vds::dht::network::_client::restore(
       replicas.push_back(safe_cast<uint16_t>(t1.replica.get(st)));
       datas.push_back(t1.replica_data.get(st));
 
+      //std::cout << "r" << t1.replica.get(st) << ":" << display_string(base64::from_bytes(t1.replica_data.get(st))) << "\n";
+
       if(replicas.size() >= MIN_HORCRUX){
         break;
       }
@@ -278,14 +280,14 @@ void vds::dht::network::client::stop(const service_provider& sp) {
   }
 }
 
+static const uint8_t pack_block_iv[] = {
+  // 0     1     2     3     4     5     6     7
+  0xa5, 0xbb, 0x9f, 0xce, 0xc2, 0xe4, 0x4b, 0x91,
+  0xa8, 0xc9, 0x59, 0x44, 0x62, 0x55, 0x90, 0x24
+};
+
 vds::dht::network::client::chunk_info vds::dht::network::client::save(const service_provider& sp,
   database_transaction& t, const const_data_buffer& data) {
-
-  static const uint8_t pack_block_iv[] = {
-    // 0     1     2     3     4     5     6     7
-    0xa5, 0xbb, 0x9f, 0xce, 0xc2, 0xe4, 0x4b, 0x91,
-    0xa8, 0xc9, 0x59, 0x44, 0x62, 0x55, 0x90, 0x24
-  };
 
   auto key_data = hash::signature(hash::sha256(), data);
 
@@ -324,5 +326,18 @@ vds::async_task<vds::const_data_buffer> vds::dht::network::client::restore(
     const vds::dht::network::client::chunk_info &block_id) {
   auto result = std::make_shared<const_data_buffer>();
   return this->impl_->restore(sp, block_id, result, std::chrono::steady_clock::now())
-      .then([result](){ return *result; });
+      .then([result, block_id]() {
+
+    auto key2 = symmetric_key::create(
+      symmetric_crypto::aes_256_cbc(),
+      block_id.key.data(),
+      pack_block_iv);
+
+    auto zipped = symmetric_decrypt::decrypt(key2, *result);
+    auto original_data = inflate::decompress(zipped.data(), zipped.size());
+
+    vds_assert(block_id.id == hash::signature(hash::sha256(), original_data));
+
+    return original_data;
+  });
 }

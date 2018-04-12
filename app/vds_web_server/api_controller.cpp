@@ -105,9 +105,9 @@ vds::async_task<std::shared_ptr<vds::json_value>> vds::api_controller::channel_f
 }
 
 vds::async_task<
-  const std::string & /*content_type*/,
+  std::string /*content_type*/,
   size_t /*body_size*/,
-  const std::shared_ptr<vds::continuous_buffer<uint8_t>> & /*output_stream*/>
+  std::shared_ptr<vds::continuous_buffer<uint8_t>> /*output_stream*/>
 vds::api_controller::download_file(
   const service_provider& sp,
   const std::shared_ptr<user_manager>& user_mng,
@@ -116,10 +116,10 @@ vds::api_controller::download_file(
   const const_data_buffer& file_hash) {
 
   return sp.get<file_manager::file_operations>()->download_file(sp, user_mng, channel_id, file_hash).then(
-    [](const file_manager::file_operations::download_result_t & result) -> async_task<const std::string &, size_t, const std::shared_ptr<vds::continuous_buffer<uint8_t>> &>{
-    return async_task<const std::string &, size_t, const std::shared_ptr<continuous_buffer<uint8_t>> &>::result(
+    [](const file_manager::file_operations::download_result_t & result) -> async_task<std::string, size_t, std::shared_ptr<vds::continuous_buffer<uint8_t>>>{
+    return async_task<std::string, size_t, std::shared_ptr<continuous_buffer<uint8_t>>>::result(
       result.mime_type,
-      (size_t)result.size,
+      result.size,
       result.output_stream);
   });
 }
