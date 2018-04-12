@@ -2,6 +2,8 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
+#include <vds_exceptions.h>
+#include <messages/replica_request.h>
 #include "stdafx.h"
 #include "dht_network_client.h"
 #include "private/dht_network_client_p.h"
@@ -208,6 +210,60 @@ vds::async_task<> vds::dht::network::_client::process_update(const vds::service_
     this->sync_process_.do_sync(sp, t));
 }
 
+vds::async_task<> vds::dht::network::_client::restore(
+    const vds::service_provider &sp,
+    const vds::dht::network::client::chunk_info &block_id,
+    const std::shared_ptr<const_data_buffer> & result,
+    const std::chrono::steady_clock::time_point & start) {
+  return sp.get<db_model>()->async_transaction(
+      sp,
+      [pthis = this->shared_from_this(), sp, block_id, result](database_transaction & t){
+    std::vector<uint16_t> replicas;
+    std::vector<const_data_buffer> datas;
+
+    orm::chunk_replica_data_dbo t1;
+    auto st = t.get_reader(
+        t1
+            .select(t1.replica, t1.replica_data)
+            .where(t1.id == base64::from_bytes(block_id.id)));
+
+    while(st.execute()){
+      replicas.push_back(safe_cast<uint16_t>(t1.replica.get(st)));
+      datas.push_back(t1.replica_data.get(st));
+
+      if(replicas.size() >= MIN_HORCRUX){
+        break;
+      }
+    }
+
+    if(replicas.size() >= MIN_HORCRUX){
+      chunk_restore<uint16_t> restore(MIN_HORCRUX, replicas.data());
+      binary_serializer s;
+      restore.restore(s, datas);
+      *result = s.data();
+      return true;
+    }
+
+    pthis->send(
+            sp,
+            block_id.key,
+            messages::replica_request(block_id.key, replicas, pthis->current_node_id()))
+        .execute([](const std::shared_ptr<std::exception> &){});
+
+    return true;
+  }).then([result, pthis = this->shared_from_this(), sp, block_id, start]()->async_task<>{
+    if(result->size() > 0){
+      return async_task<>::empty();
+    }
+
+    if(std::chrono::minutes(10) < (std::chrono::steady_clock::now() - start)){
+      return async_task<>(std::make_shared<vds_exceptions::not_found>());
+    }
+
+    return pthis->restore(sp, block_id, result, start);
+  });
+}
+
 void vds::dht::network::client::start(
   const vds::service_provider &sp,
   const vds::const_data_buffer &this_node_id, uint16_t port) {
@@ -261,4 +317,12 @@ vds::dht::network::client::chunk_info vds::dht::network::client::save(const serv
     key_data,
     key_data2
   };
+}
+
+vds::async_task<vds::const_data_buffer> vds::dht::network::client::restore(
+    const vds::service_provider &sp,
+    const vds::dht::network::client::chunk_info &block_id) {
+  auto result = std::make_shared<const_data_buffer>();
+  return this->impl_->restore(sp, block_id, result, std::chrono::steady_clock::now())
+      .then([result](){ return *result; });
 }

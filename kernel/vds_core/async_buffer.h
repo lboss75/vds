@@ -383,11 +383,10 @@ namespace vds {
       const std::shared_ptr<_continue_copy_stream_async> & context)
     {
       return context->source_->read_async(
-        context->sp_,
         context->buffer_,
         sizeof(context->buffer_) / sizeof(context->buffer_[0])).then(
         [context](size_t readed){
-          return context->target_->write_async(context->sp_, context->buffer_, readed).
+          return context->target_->write_async(context->buffer_, readed).
             then([context, is_eof = (0 == readed)](){
               if(is_eof){
                 return async_task<>::empty();

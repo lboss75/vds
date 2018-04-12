@@ -32,6 +32,10 @@ namespace vds {
           database_transaction & t,
           const const_data_buffer & value);
 
+        async_task<const_data_buffer> restore(
+            const service_provider & sp,
+            const chunk_info & block_id);
+
         _client *operator ->() const {
           return this->impl_.get();
         }

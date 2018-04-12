@@ -111,6 +111,12 @@ namespace vds {
 
         void add_session(const service_provider& sp, const std::shared_ptr<dht_session>& session, uint8_t hops);
 
+        async_task<> restore(
+            const service_provider &sp,
+            const client::chunk_info &block_id,
+            const std::shared_ptr<const_data_buffer> & result,
+            const std::chrono::steady_clock::time_point & start);
+
       private:
         std::shared_ptr<udp_transport> udp_transport_;
         dht_route<std::shared_ptr<dht_session>> route_;

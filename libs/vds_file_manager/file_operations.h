@@ -11,7 +11,6 @@ All rights reserved
 #include "const_data_buffer.h"
 #include "async_task.h"
 #include "filename.h"
-#include "download_file_task.h"
 #include "async_buffer.h"
 
 namespace vds {
@@ -44,11 +43,18 @@ namespace vds {
 					const std::string &mimetype,
 					const std::shared_ptr<continuous_buffer<uint8_t>> & input_stream);
 
+			struct download_result_t{
+        std::string name;
+        std::string mime_type;
+        size_t size;
+        std::shared_ptr<continuous_buffer<uint8_t>> output_stream;
+      };
 
-			vds::async_task<> download_file(
+			vds::async_task<download_result_t> download_file(
 		    const service_provider &sp,
         const std::shared_ptr<user_manager> & user_mng,
-			  const std::shared_ptr<download_file_task> & task);
+        const const_data_buffer & channel_id,
+        const const_data_buffer & target_file);
 
     protected:
       std::shared_ptr<file_manager_private::_file_operations> impl_;

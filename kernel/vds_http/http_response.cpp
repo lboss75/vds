@@ -98,4 +98,20 @@ vds::http_message vds::http_response::status_response(
   return result;
 }
 
+vds::http_message vds::http_response::file_response(
+    const service_provider & sp,
+    const std::shared_ptr<continuous_buffer<uint8_t>> & body,
+    const std::string & content_type,
+    size_t body_size,
+    int result_code /*= HTTP_OK*/,
+    const std::string & message /*= "OK"*/){
+
+  http_response response(result_code, message);
+  response.add_header("Content-Type", content_type);
+  response.add_header("Content-Length", std::to_string(body_size));
+
+  auto result = response.create_message(sp);
+  copy_stream(sp, body, result.body());
+  return result;
+}
 

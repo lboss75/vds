@@ -34,17 +34,18 @@ namespace vds {
 					const std::string &mimetype,
 					const std::shared_ptr<continuous_buffer<uint8_t>> & input_stream);
 
-	    async_task<> download_file(
+	    async_task<file_manager::file_operations::download_result_t> download_file(
 					const service_provider &sp,
           const std::shared_ptr<user_manager> & user_mng,
-					const std::shared_ptr<file_manager::download_file_task> & task);
+          const const_data_buffer & channel_id,
+          const const_data_buffer & target_file);
 
 
-	    async_task<> download_block(
-			const service_provider& sp,
-			database_transaction& t,
-      file_manager::download_file_task::block_info & block_id,
-			const std::shared_ptr<file_manager::download_file_task> & result);
+//	    async_task<> download_block(
+//			const service_provider& sp,
+//			database_transaction& t,
+//      file_manager::download_file_task::block_info & block_id,
+//			const std::shared_ptr<file_manager::download_file_task> & result);
 
     private:
       void pack_file(
@@ -63,12 +64,16 @@ namespace vds {
           const service_provider &sp,
           const std::shared_ptr<continuous_buffer<uint8_t>> & input_stream) const;
 
-			void restore_chunk(
-					const service_provider& sp,
-					database_transaction& t,
-					file_manager::download_file_task::block_info & block,
-					const std::shared_ptr<file_manager::download_file_task> & result);
+//			void restore_chunk(
+//					const service_provider& sp,
+//					database_transaction& t,
+//					file_manager::download_file_task::block_info & block,
+//					const std::shared_ptr<file_manager::download_file_task> & result);
 
+      void download_stream(
+          const service_provider& sp,
+          const std::shared_ptr<continuous_buffer<uint8_t>> & target_stream,
+          const std::list<transactions::file_add_transaction::file_block_t> &file_blocks);
 		};
   }
 }

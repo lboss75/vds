@@ -3,6 +3,7 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
+#include <dht_network_client.h>
 #include "stdafx.h"
 #include "file_operations.h"
 #include "file.h"
@@ -32,12 +33,13 @@ vds::async_task<> vds::file_manager::file_operations::upload_file(
   return this->impl_->upload_file(sp, user_mng, channel_id, name, mimetype, file_path);
 }
 
-vds::async_task<>
+vds::async_task<vds::file_manager::file_operations::download_result_t>
 vds::file_manager::file_operations::download_file(
   const service_provider& sp,
   const std::shared_ptr<user_manager> & user_mng,
-  const std::shared_ptr<download_file_task>& task) {
-  return this->impl_->download_file(sp, user_mng, task);
+  const const_data_buffer & channel_id,
+  const const_data_buffer & target_file) {
+  return this->impl_->download_file(sp, user_mng, channel_id, target_file);
 }
 
 vds::async_task<vds::const_data_buffer>
@@ -176,60 +178,50 @@ vds::async_task<vds::const_data_buffer> vds::file_manager_private::_file_operati
                });
 }
 
-vds::async_task<> vds::file_manager_private::_file_operations::download_file(
+vds::async_task<vds::file_manager::file_operations::download_result_t> vds::file_manager_private::_file_operations::download_file(
   const service_provider& parent_sp,
-  const std::shared_ptr<file_manager::download_file_task>& task) {
+  const std::shared_ptr<user_manager> & user_mng,
+  const const_data_buffer & channel_id,
+  const const_data_buffer & target_file) {
+  auto result = std::make_shared<file_manager::file_operations::download_result_t>();
   auto sp = parent_sp.create_scope(__FUNCTION__);
-  return vds::async_task<>([sp, task, pthis = this->shared_from_this()](const async_result<>& result) {
-    sp.get<db_model>()->async_transaction(
+  return sp.get<db_model>()->async_transaction(
       sp,
-      [pthis, sp, task, result](database_transaction& t) -> bool {
-        if (task->file_blocks().empty()) {
+      [pthis = this->shared_from_this(), sp, user_mng, channel_id, target_file, result](database_transaction &t) -> bool {
+        auto channel = user_mng->get_channel(sp, channel_id);
 
-          auto user_mng = sp.get<user_manager>();
-          auto channel = user_mng->get_channel(sp, task->channel_id());
-
-          user_mng->walk_messages(
+        user_mng->walk_messages(
             sp,
-            task->channel_id(),
+            channel_id,
             t,
-            [task](const transactions::file_add_transaction& message)-> bool {
-              if (task->name() == message.name()) {
-                task->set_file_blocks(
-                  message.mimetype(),
-                  message.file_blocks());
+            [sp, pthis, result, target_file](const transactions::file_add_transaction &message) -> bool {
+              if (target_file == message.total_hash()) {
+                result->name = message.name();
+                result->mime_type = message.mimetype();
+                result->size = message.total_size();
+                result->output_stream = std::make_shared<continuous_buffer<uint8_t>>(sp);
+                pthis->download_stream(sp, result->output_stream, message.file_blocks());
                 return false;
               }
 
               return true;
             });
-        }
-
-        auto runner = new _async_series(result, task->remote_block_count());
-        for (auto& block : task->file_blocks()) {
-          if (!block.is_processed_) {
-            runner->add(pthis->download_block(sp, t, block, task));
-          }
-        }
 
         return true;
-      }).execute([result, task](const std::shared_ptr<std::exception>& ex) {
-      if (ex) {
-        result.error(ex);
-      }
-      else if (task->mime_type().empty()) {
-        result.error(std::make_shared<vds_exceptions::not_found>());
-      }
-    });
+      }).then([result]() {
+    if (result->mime_type.empty()) {
+      throw vds_exceptions::not_found();
+    }
+    return *result;
   });
 }
-
+/*
 vds::async_task<> vds::file_manager_private::_file_operations::download_block(
   const service_provider& sp,
   database_transaction& t,
   file_manager::download_file_task::block_info& block,
   const std::shared_ptr<file_manager::download_file_task>& result) {
-  /*
+
   auto left_replicas(block.id_.replica_hashes);
   std::vector<uint16_t> replicas;
   std::vector<const_data_buffer> datas;
@@ -285,9 +277,10 @@ vds::async_task<> vds::file_manager_private::_file_operations::download_block(
       //p2p->query_replica(sp, replica.second);
     }
   }
-  */
+
   return async_task<>::empty();
 }
+ */
 
 void vds::file_manager_private::_file_operations::pack_file(
   const service_provider& sp,
@@ -362,14 +355,14 @@ vds::file_manager_private::_file_operations::pack_file(
     return pack_file_result{ task->result_hash(), task->total_size(), file_blocks };
   });
 }
-
+/*
 void
 vds::file_manager_private::_file_operations::restore_chunk(
   const service_provider& sp,
   database_transaction& t,
   file_manager::download_file_task::block_info& block,
   const std::shared_ptr<file_manager::download_file_task>& result) {
-  /*
+
   std::vector<uint16_t> replicas;
   std::vector<const_data_buffer> datas;
 
@@ -402,5 +395,34 @@ vds::file_manager_private::_file_operations::restore_chunk(
 //      t2.block_key = block.id_.block_key));
 
   result->set_file_data(block, s.data());
-  */
+}
+*/
+void vds::file_manager_private::_file_operations::download_stream(
+    const vds::service_provider &sp,
+    const std::shared_ptr<vds::continuous_buffer<uint8_t>> &target_stream,
+    const std::list<vds::transactions::file_add_transaction::file_block_t> &file_blocks) {
+  if(file_blocks.empty()){
+    target_stream->write_async(nullptr, 0).execute([](const std::shared_ptr<std::exception> &){
+    });
+
+    return;
+  }
+  auto network_client = sp.get<dht::network::client>();
+  network_client->restore(sp, dht::network::client::chunk_info {
+      file_blocks.begin()->block_id,
+      file_blocks.begin()->block_key })
+      .execute([pthis = this->shared_from_this(), sp, target_stream, file_blocks](const std::shared_ptr<std::exception> & ex, const const_data_buffer & data){
+        vds_assert(data.size() == file_blocks.begin()->block_size);
+    if(ex){
+      target_stream->write_async(nullptr, 0).execute([](const std::shared_ptr<std::exception> & ){});
+    }
+    else {
+      target_stream->write_async(data.data(), data.size()).execute(
+          [data, pthis, sp, target_stream, file_blocks](const std::shared_ptr<std::exception> & ex) {
+            auto f = file_blocks;
+            f.pop_front();
+            pthis->download_stream(sp, target_stream, f);
+      });
+    }
+  });
 }

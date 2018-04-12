@@ -47,7 +47,7 @@ namespace vds {
 
     static http_message file_response(
       const service_provider & sp,
-      const std::shared_ptr<async_buffer<uint8_t>> & body,
+      const std::shared_ptr<continuous_buffer<uint8_t>> & body,
       const std::string & content_type,
       size_t body_size,
       int result_code = HTTP_OK,

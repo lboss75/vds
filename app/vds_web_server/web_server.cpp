@@ -217,7 +217,7 @@ vds::async_task<vds::http_message> vds::_web_server::route(
         .then([sp](
           const std::string & content_type,
           size_t body_size,
-          const std::shared_ptr<vds::async_buffer<uint8_t>> & output_stream) {
+          const std::shared_ptr<vds::continuous_buffer<uint8_t>> & output_stream) {
 
         return vds::async_task<vds::http_message>::result(
           http_response::file_response(
