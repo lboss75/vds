@@ -38,15 +38,15 @@ vds::async_task<vds::http_message> vds::api_controller::get_login_state(const se
 
     auto item = std::make_shared<json_object>();
     switch (user_mng.get_login_state()) {
-    case security_walker::login_state_t::waiting_channel:
+    case user_manager::login_state_t::waiting_channel:
       item->add_property("state", "waiting");
       break;
 
-    case security_walker::login_state_t::login_sucessful:
+    case user_manager::login_state_t::login_sucessful:
       item->add_property("state", "sucessful");
       break;
 
-    case security_walker::login_state_t::login_failed:
+    case user_manager::login_state_t::login_failed:
       item->add_property("state", "failed");
       break;
 

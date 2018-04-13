@@ -7,6 +7,7 @@ All rights reserved
 */
 
 #include "sync_statistic.h"
+
 namespace vds {
 
   struct server_statistic {

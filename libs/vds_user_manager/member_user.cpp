@@ -10,7 +10,6 @@ All rights reserved
 #endif
 
 #include "member_user.h"
-#include "user_manager_storage.h"
 #include "database_orm.h"
 #include "transactions/root_user_transaction.h"
 #include "transaction_block.h"

@@ -12,21 +12,26 @@ All rights reserved
 #include <transactions/file_add_transaction.h>
 #include "transaction_block.h"
 #include "user_channel.h"
-#include "device_activation.h"
 #include "transactions/channel_message_walker.h"
 #include "encoding.h"
-#include "security_walker.h"
 
 namespace vds {
+  class _user_manager;
 
   class user_manager : public std::enable_shared_from_this<user_manager>
   {
   public:
+    enum class login_state_t {
+      waiting_channel,
+      login_sucessful,
+      login_failed
+    };
 
     user_manager();
+    ~user_manager();
 
     async_task<> update(const service_provider & sp);
-    security_walker::login_state_t get_login_state() const;
+    login_state_t get_login_state() const;
 
     void load(
       const service_provider & sp,
@@ -170,11 +175,7 @@ namespace vds {
         const const_data_buffer &password_hash);
 
   private:
-    std::unique_ptr<security_walker> security_walker_;
-
-    guid id_;
-    certificate device_cert_;
-    asymmetric_private_key device_private_key_;
+    std::unique_ptr<_user_manager> security_walker_;
 
     user_channel create_channel(
         const service_provider &sp,

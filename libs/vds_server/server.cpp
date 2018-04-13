@@ -10,7 +10,6 @@ All rights reserved
 #include "transaction_context.h"
 #include "transaction_log.h"
 #include "db_model.h"
-#include "log_sync_service.h"
 #include "file_manager_service.h"
 #include "dht_network.h"
 

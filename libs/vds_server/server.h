@@ -8,7 +8,6 @@ All rights reserved
 
 #include "server_statistic.h"
 #include "leak_detect.h"
-#include "device_activation.h"
 
 namespace vds {
   class server : public iservice_factory

@@ -4,6 +4,5 @@ All rights reserved
 */
 
 #include "stdafx.h"
-#include "private/membership_control_p.h"
 #include "private/cert_control_p.h"
 
