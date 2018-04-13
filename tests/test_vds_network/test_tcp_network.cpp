@@ -17,6 +17,30 @@ All rights reserved
 #include "test_config.h"
 #include "task_manager.h"
 
+class echo_stream : public vds::stream<uint8_t> {
+public:
+  echo_stream(const vds::tcp_network_socket & s)
+    : vds::stream<uint8_t>(new _echo_stream(s)) {
+  }
+
+private:
+  class _echo_stream : public vds::_stream<uint8_t> {
+  public:
+    _echo_stream(const vds::tcp_network_socket & s)
+      : s_(s) {
+    }
+
+    void write(
+      const uint8_t *data,
+      size_t len) override {
+      this->s_.write_async(data, len).wait();
+    }
+
+  private:
+    vds::tcp_network_socket s_;
+  };
+};
+
 TEST(network_tests, test_server)
 {
     vds::service_registrator registrator;
@@ -45,18 +69,9 @@ TEST(network_tests, test_server)
     vds::tcp_socket_server server;
     server.start(
         sp,
-        "127.0.0.1",
-        8000,
-    [&error](const vds::service_provider & sp, const vds::tcp_network_socket & s) {
-        vds::copy_stream<uint8_t>(sp, s.incoming(), s.outgoing())
-        .execute(
-        [s, sp, &error](const std::shared_ptr<std::exception> & ex) {
-            if(!ex) {
-                sp.get<vds::logger>()->debug("TCP", sp, "Server closed");
-            } else {
-                error = ex;
-            }
-        });
+        vds::network_address::any_ip4(8000),
+      [sp](vds::tcp_network_socket s) {
+      s.start(sp, echo_stream(s));
     }).execute(
     [&b, sp, &error](const std::shared_ptr<std::exception> & ex) {
         if(!ex) {
@@ -82,8 +97,7 @@ TEST(network_tests, test_server)
 
     vds::tcp_network_socket::connect(
         sp,
-        (const char *)"127.0.0.1",
-        8000)
+      vds::network_address::any_ip4(8000))
     .then(
         [&b, &answer, &data, sp](
     const vds::tcp_network_socket & s) {
