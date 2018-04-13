@@ -31,8 +31,7 @@ TEST(test_certificates, test_pem)
       std::string ca_private_key;
 
       {
-        vds::asymmetric_private_key ca_certificate_private_key(vds::asymmetric_crypto::rsa2048());
-        ca_certificate_private_key.generate();
+        auto ca_certificate_private_key = vds::asymmetric_private_key::generate(vds::asymmetric_crypto::rsa2048());
 
         vds::asymmetric_public_key ca_certificate_public_key(ca_certificate_private_key);
 
@@ -67,8 +66,7 @@ TEST(test_certificates, test_pem)
         
         GTEST_ASSERT_EQ(ca.get_extension(ca.extension_by_NID(oid)).value, "test_value");
 
-        vds::asymmetric_private_key sub_certificate_private_key(vds::asymmetric_crypto::rsa2048());
-        sub_certificate_private_key.generate();
+        auto sub_certificate_private_key = vds::asymmetric_private_key::generate(vds::asymmetric_crypto::rsa2048());
 
         vds::asymmetric_public_key sub_certificate_public_key(sub_certificate_private_key);
 
@@ -97,8 +95,7 @@ TEST(test_certificates, test_pem)
         vds::asymmetric_private_key sub_certificate_private_key = vds::asymmetric_private_key::parse(sub_private_key);
         vds::certificate sub_certificate = vds::certificate::parse(sub_certificate_text);
 
-        vds::asymmetric_private_key caudal_certificate_private_key(vds::asymmetric_crypto::rsa2048());
-        caudal_certificate_private_key.generate();
+        auto caudal_certificate_private_key = vds::asymmetric_private_key::generate(vds::asymmetric_crypto::rsa2048());
 
         vds::asymmetric_public_key caudal_certificate_public_key(caudal_certificate_private_key);
 
@@ -204,8 +201,7 @@ TEST(test_certificates, test_der)
     vds::const_data_buffer ca_private_key;
 
     {
-      vds::asymmetric_private_key ca_certificate_private_key(vds::asymmetric_crypto::rsa2048());
-      ca_certificate_private_key.generate();
+      auto ca_certificate_private_key = vds::asymmetric_private_key::generate(vds::asymmetric_crypto::rsa2048());
 
       vds::asymmetric_public_key ca_certificate_public_key(ca_certificate_private_key);
 
@@ -230,12 +226,11 @@ TEST(test_certificates, test_der)
     vds::const_data_buffer sub_private_key;
     
     {
-      auto ca_certificate_private_key = vds::asymmetric_private_key::parse_der(sp, ca_private_key, der_password);
+      auto ca_certificate_private_key = vds::asymmetric_private_key::parse_der(ca_private_key, der_password);
       
       vds::certificate ca = vds::certificate::parse_der(ca_certificate_text);
 
-      vds::asymmetric_private_key sub_certificate_private_key(vds::asymmetric_crypto::rsa2048());
-      sub_certificate_private_key.generate();
+      auto sub_certificate_private_key = vds::asymmetric_private_key::generate(vds::asymmetric_crypto::rsa2048());
 
       vds::asymmetric_public_key sub_certificate_public_key(sub_certificate_private_key);
 
@@ -260,12 +255,11 @@ TEST(test_certificates, test_der)
     vds::const_data_buffer caudal_certificate_text;
     std::string caudal_private_key;
     
-    auto sub_certificate_private_key = vds::asymmetric_private_key::parse_der(sp, sub_private_key, der_password);
+    auto sub_certificate_private_key = vds::asymmetric_private_key::parse_der(sub_private_key, der_password);
     {
       vds::certificate sub_certificate = vds::certificate::parse_der(sub_certificate_text);
 
-      vds::asymmetric_private_key caudal_certificate_private_key(vds::asymmetric_crypto::rsa2048());
-      caudal_certificate_private_key.generate();
+      auto caudal_certificate_private_key = vds::asymmetric_private_key::generate(vds::asymmetric_crypto::rsa2048());
 
       vds::asymmetric_public_key caudal_certificate_public_key(caudal_certificate_private_key);
 

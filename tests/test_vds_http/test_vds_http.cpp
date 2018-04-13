@@ -33,7 +33,7 @@ static vds::async_task<std::string> read_answer(
   const std::shared_ptr<vds::continuous_buffer<uint8_t>> & source,
   const std::string & result = std::string())
 {
-  return source->read_async(sp, buffer->data_, sizeof(buffer->data_))
+  return source->read_async(buffer->data_, sizeof(buffer->data_))
     .then([sp, b = std::move(buffer), source, result](size_t readed) mutable -> vds::async_task<std::string> {
     if (0 == readed) {
       return [result]() { return result; };

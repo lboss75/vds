@@ -34,8 +34,7 @@ TEST(test_vds_crypto, test_symmetric)
     std::vector<uint8_t> buffer(len);
     vds::crypto_service::rand_bytes(buffer.data(), (int)len);
 
-    vds::asymmetric_private_key private_key(vds::asymmetric_crypto::rsa2048());
-    private_key.generate();
+    auto private_key = vds::asymmetric_private_key::generate(vds::asymmetric_crypto::rsa2048());
 
     vds::asymmetric_public_key public_key(private_key);
 
@@ -79,8 +78,7 @@ TEST(test_vds_crypto, test_sign)
     std::unique_ptr<unsigned char> buffer(new unsigned char[len]);
     vds::crypto_service::rand_bytes(buffer.get(), (int)len);
 
-    vds::asymmetric_private_key key(vds::asymmetric_crypto::rsa2048());
-    key.generate();
+    auto key = vds::asymmetric_private_key::generate(vds::asymmetric_crypto::rsa2048());
 
     vds::asymmetric_sign s(vds::hash::sha256(), key);
     s.write(buffer.get(), len);

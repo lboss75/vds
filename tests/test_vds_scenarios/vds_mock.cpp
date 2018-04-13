@@ -2,10 +2,6 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
-#include <security_walker.h>
-#include <transactions/channel_add_reader_transaction.h>
-#include <transactions/channel_add_writer_transaction.h>
-#include <dht_object_id.h>
 #include "stdafx.h"
 #include "vds_mock.h"
 #include "test_config.h"
@@ -13,6 +9,9 @@ All rights reserved
 #include "file_operations.h"
 #include "db_model.h"
 #include "user_manager.h"
+#include "transactions/channel_add_reader_transaction.h"
+#include "transactions/channel_add_writer_transaction.h"
+#include "dht_object_id.h"
 
 vds_mock::vds_mock()
 {
