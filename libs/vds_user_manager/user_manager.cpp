@@ -515,30 +515,13 @@ void vds::_user_manager::update(
 	const auto log = sp.get<logger>();
 	log->trace(ThisModule, sp, "security_walker::load");
 
-	//  this->certificate_chain_[cert_control::get_id(this->user_cert_)] = this->user_cert_;
-	//
-	//  orm::certificate_chain_dbo t2;
-	//  auto cert_id = cert_control::get_parent_id(this->user_cert_);
-	//  while (cert_id) {
-	//
-	//    auto st = t.get_reader(t2.select(t2.cert).where(t2.id == cert_id));
-	//    if (!st.execute()) {
-	//      throw std::runtime_error("Wrong certificate id " + cert_id.str());
-	//    }
-	//    const auto cert = certificate::parse_der(t2.cert.get(st));
-	//    log->debug(ThisModule, sp, "Loaded certificate %s",
-	//      cert_id.str().c_str());
-	//
-	//    this->certificate_chain_[cert_id] = cert;
-	//    cert_id = cert_control::get_parent_id(cert);
-	//  }
-
 	orm::transaction_log_record_dbo t1;
 	auto st = t.get_reader(
 			t1.select(t1.id, t1.data)
 					.where(t1.channel_id == base64::from_bytes(this->dht_user_id_))
 					.order_by(t1.order_no));
 
+	std::set<const_data_buffer> new_channels;
 	while (st.execute()) {
 		auto id = t1.id.get(st);
 		if (this->processed_.end() != this->processed_.find(id)) {
@@ -686,6 +669,9 @@ void vds::_user_manager::update(
 
 				case transactions::transaction_id::channel_create_transaction: {
 					transactions::channel_create_transaction message(s);
+					if(new_channels.end() == new_channels.find(message.channel_id())) {
+						new_channels.emplace(message.channel_id());
+					}
 					auto &cp = this->channels_[message.channel_id()];
 					cp.name_ = message.name();
 					cp.current_read_certificate_ = cert_control::get_id(message.read_cert());
@@ -714,6 +700,23 @@ void vds::_user_manager::update(
 			}
 		}
 		this->processed_.emplace(id);
+	}
+
+	for(auto & channel_id : new_channels){
+		orm::channel_local_cache_dbo t1;
+		auto st = t.get_reader(t1.select(t1.last_sync).where(t1.channel_id == base64::from_bytes(channel_id)));
+		if(st.execute()){
+			t.execute(
+					t1.update(
+							t1.last_sync = std::chrono::system_clock::now())
+							.where(t1.channel_id == base64::from_bytes(channel_id)));
+		}
+		else {
+			t.execute(
+					t1.insert(
+							t1.channel_id = base64::from_bytes(channel_id),
+							t1.last_sync = std::chrono::system_clock::now()));
+		}
 	}
 }
 
