@@ -140,7 +140,7 @@ void vds::db_model::migrate(
 			parent VARCHAR(64) NOT NULL)");
 
 		t.execute("CREATE TABLE device_config(\
-			id VARCHAR(64) PRIMARY KEY NOT NULL,\
+			id VARCHAR(64) NOT NULL,\
 			owner_id VARCHAR(64) NOT NULL,\
 			name VARCHAR(64) NOT NULL,\
 			reserved_size INTEGER NOT NULL,\

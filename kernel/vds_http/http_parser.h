@@ -177,6 +177,9 @@ namespace vds {
               }
               else {
                 this->content_length_ = 0;
+              }
+
+              if(0 == this->content_length_) {
                 this->current_message_.body()->write_async(nullptr, 0)
                   .execute(
                     [pthis](const std::shared_ptr<std::exception> &ex) {

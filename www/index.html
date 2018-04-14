@@ -165,15 +165,17 @@
                             <div class="form-group">
                                 <label for="deviceName">Укажите название устройства</label>
                                 <input type="text" class="form-control" id="deviceName" name="deviceName" aria-describedby="deviceNameHelp" placeholder="Название устройства"/>
-                                <small id="deviceNameHelp" class="form-text text-muted">Имя устройтства для удобного названия</small>
+                                <small id="deviceNameHelp" class="form-text text-muted">Укажите имя устройтства для удобного названия</small>
+                            </div>
 
-                                <label for="deviceSize">Выделить места (Гигабайт)</label>
-                                <input type="text" class="form-control" id="deviceSize" name="deviceSize" aria-describedby="deviceSizeHelp" placeholder="Выделить вазмер"/>
-                                <small id="deviceSizeHelp" class="form-text text-muted">Размер</small>
+                            <div class="form-group">
+                                <label for="deviceFree">Выделить места (Гигабайт)</label>
+                                <input type="text" class="form-control" id="deviceFree" name="deviceFree" aria-describedby="deviceFreeHelp" placeholder="Выделить размер" />
+                                <small id="deviceFreeHelp" class="form-text text-muted">Укажите сколько выделить места из </small><small id="deviceSize"></small><small> Гигабайт</small>
                             </div>
                         </div>
                         <div class="modal-footer">
-                            <button type="submit" class="btn btn-primary">Выделить место</button>
+                            <button type="submit" class="btn btn-primary" id="lockDeviceBtn">Выделить место</button>
                             <button type="button" class="btn btn-secondary" data-dismiss="modal">Отмена</button>
                         </div>
                     </form>
@@ -210,28 +212,18 @@
 		 });
 		});
                  //Load devices
-                 $.getJSON('api/devices', function(data) {
-                     var reserved = 0;
-                     var free_size = 0;
-                     var have_default = false;
-                     $.each(data, function () {
-                         if(this.current == "true"){
-                             have_default = true;
-                         }
-                         reserved = this.reserved_size;
-                         free_size = this.free_size;
-                     });
-
-                     if(!have_default){
-                         $.getJSON('api/offer_device', function(data) {
-                             $('#deviceName').val(this.name);
-                             $('#deviceSize').val(this.size);
-
-                             $('#lockDeviceModal').modal('show');
-
+                 $('#lockDeviceBtn').on('click',
+                     function() {
+                         $.ajax({
+                             type: 'POST',
+                             url: '/api/devices?name=' +
+                                 encodeURIComponent($('#deviceName').val()) +
+                                 '&size=' +
+                                 encodeURIComponent($('#deviceFree').val()),
+                             success: function() { loadDevices(false); }
                          });
-                     }
-                 });
+                     });
+                 loadDevices(true);
 
 // We can attach the `fileselect` event to all file inputs on the page
   $(document).on('change', ':file', function() {
@@ -287,6 +279,30 @@
                      ++u;
                  } while (Math.abs(bytes) >= thresh && u < units.length - 1);
                  return bytes.toFixed(1) + ' ' + units[u];
+             }
+             function loadDevices(showDialog) {
+                 $.getJSON('api/devices', function (data) {
+                     var reserved = 0;
+                     var free_size = 0;
+                     var have_default = false;
+                     $.each(data, function () {
+                         if (this.current == "true") {
+                             have_default = true;
+                         }
+                         reserved = this.reserved_size;
+                         free_size = this.free_size;
+                     });
+
+                     if (!have_default && showDialog) {
+                         $.getJSON('api/offer_device', function (data) {
+                             $('#deviceName').val(data.name);
+                             $('#deviceFree').val(data.free);
+                             $('#deviceSize').text(data.size);
+
+                             $('#lockDeviceModal').modal('show');
+                         });
+                     }
+                 });
              }
          </script>
     </body>

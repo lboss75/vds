@@ -174,7 +174,8 @@ vds::api_controller::offer_device(
     auto error = errno;
     throw std::system_error(error, std::system_category(), "Get Free Size");
   }
-  result->add_property("size", buf.f_bfree * buf.f_frsize / (1024 * 1024 * 1024));
+  result->add_property("free", buf.f_bfree * buf.f_frsize / (1024 * 1024 * 1024));
+  result->add_property("size", buf.f_bsize * buf.f_frsize / (1024 * 1024 * 1024));
 #else// _WIN32
   CHAR hostname[256];
   DWORD bufCharCount = sizeof(hostname) / sizeof(hostname[0]);
@@ -185,15 +186,17 @@ vds::api_controller::offer_device(
   result->add_property("name", hostname);
 
   ULARGE_INTEGER freeBytesAvailable;
+  ULARGE_INTEGER totalNumberOfBytes;
   if(!GetDiskFreeSpaceExA(
     persistence::current_user(sp).local_name().c_str(),
     &freeBytesAvailable,
-    NULL,
+    &totalNumberOfBytes,
     NULL)){
     auto error = GetLastError();
     throw std::system_error(error, std::system_category(), "Get Free Size");
   }
-  result->add_property("size", freeBytesAvailable / (1024 * 1024 * 1024));
+  result->add_property("free", freeBytesAvailable.QuadPart / (1024 * 1024 * 1024));
+  result->add_property("size", totalNumberOfBytes.QuadPart / (1024 * 1024 * 1024));
 #endif// _WIN32
   return vds::async_task<std::shared_ptr<vds::json_value>>::result(result);
 }
