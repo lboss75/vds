@@ -244,6 +244,86 @@ vds::async_task<vds::http_message> vds::_web_server::route(
     }
   }
 
+  if (request.url() == "/api/devices") {
+    if (request.method() == "GET") {
+      const auto user_mng = this->get_secured_context(sp, message);
+      if (!user_mng) {
+        return vds::async_task<vds::http_message>::result(
+            http_response::status_response(
+                sp,
+                http_response::HTTP_Unauthorized,
+                "Unauthorized"));
+      }
+
+      return api_controller::user_devices(
+          sp,
+          user_mng,
+          this->shared_from_this())
+          .then([sp](const std::shared_ptr<vds::json_value> & result) {
+
+            return vds::async_task<vds::http_message>::result(
+                http_response::simple_text_response(
+                    sp,
+                    result->str(),
+                    "application/json; charset=utf-8"));
+          });
+    }
+    if (request.method() == "POST") {
+      auto user_mng = this->get_secured_context(sp, message);
+      if (!user_mng) {
+        return vds::async_task<vds::http_message>::result(
+            http_response::status_response(
+                sp,
+                http_response::HTTP_Unauthorized,
+                "Unauthorized"));
+      }
+
+      http_request request(message);
+      const auto device_name = request.get_parameter("name");
+      const auto reserved_size = safe_cast<uint64_t>(std::atoll(request.get_parameter("size").c_str()));
+      return api_controller::lock_device(
+          sp,
+          user_mng,
+          this->shared_from_this(),
+          device_name,
+          reserved_size)
+          .then([sp]() {
+
+            return vds::async_task<vds::http_message>::result(
+                http_response::status_response(
+                    sp,
+                    http_response::HTTP_OK,
+                    "OK"));
+          });
+    }
+  }
+
+  if (request.url() == "/api/offer_device") {
+    if (request.method() == "GET") {
+      const auto user_mng = this->get_secured_context(sp, message);
+      if (!user_mng) {
+        return vds::async_task<vds::http_message>::result(
+            http_response::status_response(
+                sp,
+                http_response::HTTP_Unauthorized,
+                "Unauthorized"));
+      }
+
+      return api_controller::offer_device(
+          sp,
+          user_mng,
+          this->shared_from_this())
+          .then([sp](const std::shared_ptr<vds::json_value> &result) {
+
+            return vds::async_task<vds::http_message>::result(
+                http_response::simple_text_response(
+                    sp,
+                    result->str(),
+                    "application/json; charset=utf-8"));
+          });
+    }
+  }
+
   if (request.url() == "/api/download") {
     if (request.method() == "GET") {
       const auto user_mng = this->get_secured_context(sp, message);

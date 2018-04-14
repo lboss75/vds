@@ -1,7 +1,9 @@
 //
 // Created by vadim on 18.03.18.
 //
-
+#include "stdafx.h"
+#include "device_config_dbo.h"
+#include "dht_network_client.h"
 #include "json_object.h"
 #include "user_manager.h"
 #include "private/api_controller.h"
@@ -121,5 +123,99 @@ vds::api_controller::download_file(
       result.mime_type,
       result.size,
       result.output_stream);
+  });
+}
+
+vds::async_task<std::shared_ptr<vds::json_value>>
+vds::api_controller::user_devices(
+    const vds::service_provider &sp,
+    const std::shared_ptr<vds::user_manager> &user_mng,
+    const std::shared_ptr<vds::_web_server> &owner) {
+  auto result = std::make_shared<json_array>();
+  return sp.get<db_model>()->async_read_transaction(sp, [sp, user_mng, result](database_transaction & t){
+    auto client = sp.get<dht::network::client>();
+    auto current_node = client->current_node_id();
+
+    orm::device_config_dbo t1;
+    auto st = t.get_reader(
+        t1.select(
+            t1.id,
+            t1.name,
+            t1.reserved_size,
+            t1.free_size)
+        .where(t1.owner_id == base64::from_bytes(user_mng->dht_user_id())));
+    while(st.execute()){
+      auto item = std::make_shared<json_object>();
+      item->add_property("id", t1.id.get(st));
+      item->add_property("name", t1.name.get(st));
+      item->add_property("reserved_size", t1.reserved_size.get(st));
+      item->add_property("free_size", t1.free_size.get(st));
+      item->add_property("current", (t1.id.get(st) == base64::from_bytes(current_node)) ? "true" : "false");
+      result->add(item);
+    }
+  }).then([result](){
+    return std::static_pointer_cast<json_value>(result);
+  });
+}
+
+vds::async_task<std::shared_ptr<vds::json_value>>
+vds::api_controller::offer_device(
+    const vds::service_provider &sp,
+    const std::shared_ptr<vds::user_manager> &user_mng,
+    const std::shared_ptr<vds::_web_server> &owner) {
+  auto result = std::make_shared<json_object>();
+#ifndef _WIN32
+  char hostname[HOST_NAME_MAX];
+  gethostname(hostname, HOST_NAME_MAX);
+  result->add_property("name", hostname);
+
+  struct statvfs buf;
+  if(0 != statvfs(persistence::current_user(sp).local_name().c_str(), &buf)){
+    auto error = errno;
+    throw std::system_error(error, std::system_category(), "Get Free Size");
+  }
+  result->add_property("size", buf.f_bfree * buf.f_frsize / (1024 * 1024 * 1024));
+#else// _WIN32
+  CHAR hostname[256];
+  DWORD bufCharCount = sizeof(hostname) / sizeof(hostname[0]);
+  if(!GetComputerNameA(hostname, &bufCharCount)){
+    auto error = GetLastError();
+    throw std::system_error(error, std::system_category(), "Get Computer Name");
+  }
+  result->add_property("name", hostname);
+
+  ULARGE_INTEGER freeBytesAvailable;
+  if(!GetDiskFreeSpaceExA(
+    persistence::current_user(sp).local_name().c_str(),
+    &freeBytesAvailable,
+    NULL,
+    NULL)){
+    auto error = GetLastError();
+    throw std::system_error(error, std::system_category(), "Get Free Size");
+  }
+  result->add_property("size", freeBytesAvailable / (1024 * 1024 * 1024));
+#endif// _WIN32
+  return vds::async_task<std::shared_ptr<vds::json_value>>::result(result);
+}
+
+vds::async_task<>
+vds::api_controller::lock_device(
+    const vds::service_provider &sp,
+    const std::shared_ptr<vds::user_manager> &user_mng,
+    const std::shared_ptr<vds::_web_server> &owner,
+    const std::string &device_name,
+    uint64_t reserved_size) {
+  return sp.get<db_model>()->async_transaction(sp, [sp, user_mng, device_name, reserved_size](database_transaction & t) {
+    auto client = sp.get<dht::network::client>();
+    auto current_node = client->current_node_id();
+
+    orm::device_config_dbo t1;
+    t.execute(
+        t1.insert(
+            t1.id = base64::from_bytes(current_node),
+            t1.owner_id = base64::from_bytes(user_mng->dht_user_id()),
+            t1.name = device_name,
+            t1.reserved_size = reserved_size,
+            t1.free_size = reserved_size));
   });
 }

@@ -8,8 +8,7 @@ All rights reserved
 
 #include <memory>
 #include <string>
-#include <stdafx.h>
-#include <transactions/file_add_transaction.h>
+#include "transactions/file_add_transaction.h"
 #include "transaction_block.h"
 #include "user_channel.h"
 #include "transactions/channel_message_walker.h"
@@ -174,8 +173,10 @@ namespace vds {
         const symmetric_key &password_key,
         const const_data_buffer &password_hash);
 
+    const const_data_buffer &dht_user_id() const;
+
   private:
-    std::unique_ptr<_user_manager> security_walker_;
+    std::unique_ptr<_user_manager> impl_;
 
     user_channel create_channel(
         const service_provider &sp,

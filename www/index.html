@@ -151,6 +151,35 @@
             </div>
         </div>
 
+        <div class="modal fade" id="lockDeviceModal" tabindex="-1" role="dialog" aria-labelledby="lockDeviceModal" aria-hidden="true">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <form>
+                        <div class="modal-header">
+                            <h5 class="modal-title">Выделить место на этом устройстве</h5>
+                            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                <span aria-hidden="true">&times;</span>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="form-group">
+                                <label for="deviceName">Укажите название устройства</label>
+                                <input type="text" class="form-control" id="deviceName" name="deviceName" aria-describedby="deviceNameHelp" placeholder="Название устройства"/>
+                                <small id="deviceNameHelp" class="form-text text-muted">Имя устройтства для удобного названия</small>
+
+                                <label for="deviceSize">Выделить места (Гигабайт)</label>
+                                <input type="text" class="form-control" id="deviceSize" name="deviceSize" aria-describedby="deviceSizeHelp" placeholder="Выделить вазмер"/>
+                                <small id="deviceSizeHelp" class="form-text text-muted">Размер</small>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="submit" class="btn btn-primary">Выделить место</button>
+                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Отмена</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
 
         <!-- jQuery CDN -->
          <script src="https://code.jquery.com/jquery-1.12.0.min.js"></script>
@@ -166,8 +195,6 @@
 
 		 //Load channels
 		 $.getJSON('api/channels', function(data){
-		  var items = [];
- 
   		  $.each(data, function(){
     			$('#channelsMenu')
 			.append($('<li/>')
@@ -182,6 +209,30 @@
 		  			})));
 		 });
 		});
+                 //Load devices
+                 $.getJSON('api/devices', function(data) {
+                     var reserved = 0;
+                     var free_size = 0;
+                     var have_default = false;
+                     $.each(data, function () {
+                         if(this.current == "true"){
+                             have_default = true;
+                         }
+                         reserved = this.reserved_size;
+                         free_size = this.free_size;
+                     });
+
+                     if(!have_default){
+                         $.getJSON('api/offer_device', function(data) {
+                             $('#deviceName').val(this.name);
+                             $('#deviceSize').val(this.size);
+
+                             $('#lockDeviceModal').modal('show');
+
+                         });
+                     }
+                 });
+
 // We can attach the `fileselect` event to all file inputs on the page
   $(document).on('change', ':file', function() {
     var input = $(this),

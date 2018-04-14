@@ -36,13 +36,13 @@ vds::user_manager::~user_manager() {
 
 vds::async_task<> vds::user_manager::update(const service_provider& sp) {
   return sp.get<db_model>()->async_transaction(sp, [sp, pthis = this->shared_from_this()](database_transaction & t) {
-    pthis->security_walker_->update(sp, t);
+    pthis->impl_->update(sp, t);
     return true;
   });
 }
 
 vds::user_manager::login_state_t vds::user_manager::get_login_state() const {
-  return this->security_walker_->get_login_state();
+  return this->impl_->get_login_state();
 }
 
 void vds::user_manager::load(
@@ -52,7 +52,7 @@ void vds::user_manager::load(
   const symmetric_key & user_password_key,
   const const_data_buffer& user_password_hash)
 {
-	if (nullptr != this->security_walker_.get()) {
+	if (nullptr != this->impl_.get()) {
 		throw std::runtime_error("Logic error");
 	}
 
@@ -69,12 +69,12 @@ void vds::user_manager::load(
   }
 
 
-	this->security_walker_.reset(new _user_manager(
+	this->impl_.reset(new _user_manager(
 		dht_user_id,
 		user_password_key,
     user_password_hash));
 
-	this->security_walker_->update(sp, t);
+	this->impl_->update(sp, t);
 }
 
 void vds::user_manager::reset(
@@ -185,7 +185,7 @@ vds::user_manager::create_channel(const service_provider &sp, transactions::tran
                                   asymmetric_private_key &read_private_key,
                                   asymmetric_private_key &write_private_key) const {
   return this->create_channel(sp, log, t, channel_id, channel_type, name,
-                              this->security_walker_->user_cert(), this->security_walker_->user_private_key(),
+                              this->impl_->user_cert(), this->impl_->user_private_key(),
                               read_private_key, write_private_key);
 }
 
@@ -245,7 +245,7 @@ vds::certificate vds::user_manager::get_channel_write_cert(
   const service_provider & sp,
   const const_data_buffer & channel_id) const
 {
-	return this->security_walker_->get_channel_write_cert(channel_id);
+	return this->impl_->get_channel_write_cert(channel_id);
 }
 
 
@@ -253,7 +253,7 @@ vds::asymmetric_private_key vds::user_manager::get_channel_write_key(
   const service_provider & sp,
   const const_data_buffer & channel_id) const
 {
-	return this->security_walker_->get_channel_write_key(channel_id);
+	return this->impl_->get_channel_write_key(channel_id);
 }
 
 vds::asymmetric_private_key vds::user_manager::get_channel_write_key(
@@ -261,21 +261,21 @@ vds::asymmetric_private_key vds::user_manager::get_channel_write_key(
 		const const_data_buffer & channel_id,
 		const guid & cert_id) const
 {
-	return this->security_walker_->get_channel_write_key(channel_id, cert_id);
+	return this->impl_->get_channel_write_key(channel_id, cert_id);
 }
 
 vds::certificate vds::user_manager::get_channel_read_cert(
   const service_provider & sp,
   const const_data_buffer & channel_id) const
 {
-	return this->security_walker_->get_channel_read_cert(channel_id);
+	return this->impl_->get_channel_read_cert(channel_id);
 }
 
 vds::asymmetric_private_key vds::user_manager::get_channel_read_key(
   const service_provider & sp,
   const const_data_buffer & channel_id) const
 {
-	return this->security_walker_->get_channel_read_key(channel_id);
+	return this->impl_->get_channel_read_key(channel_id);
 }
 
 vds::asymmetric_private_key vds::user_manager::get_channel_read_key(
@@ -283,14 +283,14 @@ vds::asymmetric_private_key vds::user_manager::get_channel_read_key(
 		const const_data_buffer & channel_id,
 		const guid & cert_id) const
 {
-	return this->security_walker_->get_channel_read_key(channel_id, cert_id);
+	return this->impl_->get_channel_read_key(channel_id, cert_id);
 }
 
 vds::certificate vds::user_manager::get_certificate(
   const service_provider & sp,
   const guid & cert_id) const
 {
-	return this->security_walker_->get_certificate(cert_id);
+	return this->impl_->get_certificate(cert_id);
 }
 
 
@@ -300,8 +300,8 @@ vds::user_channel vds::user_manager::get_channel(
 {
   return user_channel(
     channel_id,
-    this->security_walker_->get_channel_type(channel_id),
-    this->security_walker_->get_channel_name(channel_id),
+    this->impl_->get_channel_type(channel_id),
+    this->impl_->get_channel_name(channel_id),
     this->get_channel_read_cert(sp, channel_id),
     this->get_channel_write_cert(sp, channel_id));
 }
@@ -309,7 +309,7 @@ vds::user_channel vds::user_manager::get_channel(
 std::list<vds::user_channel> vds::user_manager::get_channels() const {
   std::list<vds::user_channel> result;
 
-  for (const auto & p : this->security_walker_->channels()) {
+  for (const auto & p : this->impl_->channels()) {
     result.push_back(
       vds::user_channel(
         p.first,
@@ -374,12 +374,12 @@ vds::async_task<vds::user_channel> vds::user_manager::create_channel(
     log.save(
       sp,
       t,
-      pthis->security_walker_->dht_user_id(),
-      pthis->security_walker_->user_cert(),
-      pthis->security_walker_->user_cert(),
-      pthis->security_walker_->user_private_key());
+      pthis->impl_->dht_user_id(),
+      pthis->impl_->user_cert(),
+      pthis->impl_->user_cert(),
+      pthis->impl_->user_private_key());
 
-    pthis->security_walker_->update(sp, t);
+    pthis->impl_->update(sp, t);
 
     return true;
   })
@@ -392,7 +392,7 @@ vds::certificate vds::user_manager::get_channel_write_cert(
 		const vds::service_provider &sp,
 		const const_data_buffer &channel_id,
 		const vds::guid &cert_id) const {
-	return this->security_walker_->get_channel_write_cert(channel_id, cert_id);
+	return this->impl_->get_channel_write_cert(channel_id, cert_id);
 }
 
 bool vds::user_manager::validate_and_save(
@@ -471,7 +471,7 @@ void vds::user_manager::create_root_user(
 }
 
 void vds::user_manager::save_certificate(const vds::service_provider &sp, const vds::certificate &cert) {
-  this->security_walker_->add_certificate(cert);
+  this->impl_->add_certificate(cert);
 
   sp.get<db_model>()->async_transaction(sp, [cert](database_transaction & t)->bool{
 
@@ -490,6 +490,10 @@ void vds::user_manager::save_certificate(const vds::service_provider &sp, const 
       sp.get<logger>()->warning(ThisModule, sp, "%s at saving certificate", ex->what());
     }
   });
+}
+
+const vds::const_data_buffer &vds::user_manager::dht_user_id() const {
+	return this->impl_->dht_user_id();
 }
 
 

@@ -341,3 +341,7 @@ vds::async_task<vds::const_data_buffer> vds::dht::network::client::restore(
     return original_data;
   });
 }
+
+const vds::const_data_buffer &vds::dht::network::client::current_node_id() const {
+  return this->impl_->current_node_id();
+}

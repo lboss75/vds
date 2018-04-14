@@ -10,7 +10,26 @@ vds::async_task<> vds::db_model::async_transaction(const vds::service_provider &
       }
       catch (const std::exception & ex){
         result.error(std::make_shared<std::runtime_error>(ex.what()));
-        return true;
+        return false;
+      }
+
+      result.done();
+      return true;
+    });
+  };
+}
+
+vds::async_task<> vds::db_model::async_read_transaction(
+    const vds::service_provider &sp,
+    const std::function<void(vds::database_transaction &)> &handler) {
+  return [this, sp, handler](const async_result<> & result){
+    this->db_.async_transaction(sp, [handler, result](database_transaction & t)->bool{
+      try {
+        handler(t);
+      }
+      catch (const std::exception & ex){
+        result.error(std::make_shared<std::runtime_error>(ex.what()));
+        return false;
       }
 
       result.done();
@@ -119,6 +138,14 @@ void vds::db_model::migrate(
 			id VARCHAR(64) PRIMARY KEY NOT NULL,\
 			cert BLOB NOT NULL,\
 			parent VARCHAR(64) NOT NULL)");
+
+		t.execute("CREATE TABLE device_config(\
+			id VARCHAR(64) PRIMARY KEY NOT NULL,\
+			owner_id VARCHAR(64) NOT NULL,\
+			name VARCHAR(64) NOT NULL,\
+			reserved_size INTEGER NOT NULL,\
+			free_size INTEGER NOT NULL,\
+      CONSTRAINT pk_device_config PRIMARY KEY(id,owner_id))");
 
 		t.execute("CREATE TABLE certificate_unknown(\
 			id VARCHAR(64) PRIMARY KEY NOT NULL)");

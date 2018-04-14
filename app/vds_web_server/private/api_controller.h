@@ -51,6 +51,20 @@ namespace vds {
       const const_data_buffer& channel_id,
       const const_data_buffer& file_hash);
 
+    static vds::async_task<std::shared_ptr<vds::json_value>>
+    user_devices(const service_provider &sp, const std::shared_ptr<user_manager> &user_mng,
+                             const std::shared_ptr<_web_server> &owner);
+
+    static async_task<> lock_device(const service_provider &sp, const std::shared_ptr<user_manager> &user_mng,
+                                    const std::shared_ptr<_web_server> &owner, const std::string &device_name,
+                                    uint64_t reserved_size);
+
+    static async_task<std::shared_ptr<vds::json_value>>
+    offer_device(
+        const vds::service_provider &sp,
+        const std::shared_ptr<user_manager> &user_mng,
+        const std::shared_ptr<_web_server> &owner);
+
   private:
     static std::shared_ptr<json_object> channel_serialize(const vds::user_channel & channel);
 

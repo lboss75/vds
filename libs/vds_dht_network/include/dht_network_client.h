@@ -36,6 +36,8 @@ namespace vds {
             const service_provider & sp,
             const chunk_info & block_id);
 
+        const const_data_buffer & current_node_id() const;
+
         _client *operator ->() const {
           return this->impl_.get();
         }
