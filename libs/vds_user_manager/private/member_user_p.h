@@ -14,22 +14,16 @@ namespace vds {
   {
   public:
     _member_user(
-      const guid & id,
       const certificate & user_cert);
 
-    vds::member_user create_user(const vds::asymmetric_private_key &owner_user_private_key, const std::string &user_name,
-                                     const vds::asymmetric_private_key &private_key);
+    vds::member_user create_user(
+      const vds::asymmetric_private_key &owner_user_private_key,
+      const std::string &user_name,
+      const vds::asymmetric_private_key &private_key);
 
-    member_user create_device_user(
-        const vds::asymmetric_private_key & owner_user_private_key,
-        const vds::asymmetric_private_key & private_key,
-        const std::string &device_name);
-
-    const guid & id() const { return this->id_; }
     const certificate & user_certificate() const { return this->user_cert_; }
 
   private:
-    guid id_;
     certificate user_cert_;
   };
 }

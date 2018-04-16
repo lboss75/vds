@@ -20,7 +20,7 @@ namespace vds {
             id(this, "id") {
       }
 
-      database_column<guid> id;
+      database_column<std::string> id;
     };
   }
 }

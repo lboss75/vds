@@ -49,8 +49,8 @@ void vds::transaction_log::save(
 
   const_data_buffer block_channel_id;
   uint64_t order_no;
-  guid read_cert_id;
-  guid write_cert_id;
+  std::string read_cert_id;
+  std::string write_cert_id;
   std::set<const_data_buffer> ancestors;
   const_data_buffer crypted_data;
   const_data_buffer crypted_key;
@@ -80,7 +80,7 @@ void vds::transaction_log::save(
     write_cert = certificate::parse_der(t6.cert.get(st));
   } else {
     for (auto & cert : certificates) {
-      if (write_cert_id == cert_control::get_id(cert)) {
+      if (write_cert_id == cert.subject()) {
         write_cert = cert;
         break;
       }
@@ -160,7 +160,7 @@ void vds::transaction_log::save(
   }
 
   for(auto & cert : certificates) {
-    t.execute(t6.insert(t6.id = cert_control::get_id(cert), t6.cert = cert.der(), t6.parent = cert_control::get_parent_id(cert)));
+    t.execute(t6.insert(t6.id = cert.subject(), t6.cert = cert.der(), t6.parent = cert.issuer()));
   }
 
   if(is_validated) {

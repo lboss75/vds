@@ -77,13 +77,13 @@ namespace vds {
 
     certificate get_channel_write_cert(const service_provider & sp, const const_data_buffer &channel_id) const;
     asymmetric_private_key get_channel_write_key(const service_provider & sp, const const_data_buffer &channel_id) const;
-    asymmetric_private_key get_channel_write_key(const service_provider & sp, const const_data_buffer &channel_id, const guid &cert_id) const;
-    certificate get_channel_write_cert(const service_provider & sp, const const_data_buffer & channel_id, const guid & cert_id) const;
+    asymmetric_private_key get_channel_write_key(const service_provider & sp, const const_data_buffer &channel_id, const std::string &cert_id) const;
+    certificate get_channel_write_cert(const service_provider & sp, const const_data_buffer & channel_id, const std::string & cert_id) const;
 
     certificate get_channel_read_cert(const service_provider & sp, const const_data_buffer &channel_id) const;
     asymmetric_private_key get_channel_read_key(const service_provider & sp, const const_data_buffer &channel_id) const;
-    asymmetric_private_key get_channel_read_key(const service_provider & sp, const const_data_buffer &channel_id, const guid &cert_id) const;
-    certificate get_certificate(const service_provider & sp, const guid &cert_id) const;
+    asymmetric_private_key get_channel_read_key(const service_provider & sp, const const_data_buffer &channel_id, const std::string &cert_id) const;
+    certificate get_certificate(const service_provider & sp, const std::string &cert_id) const;
 
     member_user import_user(const certificate &user_cert);
 
@@ -108,8 +108,8 @@ namespace vds {
       while (st.execute()) {
         const_data_buffer channel_id;
         uint64_t order_no;
-        guid read_cert_id;
-        guid write_cert_id;
+        std::string read_cert_id;
+        std::string write_cert_id;
         std::set<const_data_buffer> ancestors;
         const_data_buffer crypted_data;
         const_data_buffer crypted_key;
@@ -121,7 +121,7 @@ namespace vds {
                                                      crypted_data, crypted_key,
                                                      certificates, signature);
 
-        auto write_cert = this->get_channel_write_cert(sp, write_cert_id);
+        auto write_cert = this->get_channel_write_cert(sp, channel_id, write_cert_id);
         if (!transactions::transaction_block::validate_block(
           write_cert,
           block_type,

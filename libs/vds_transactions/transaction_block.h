@@ -9,7 +9,6 @@ All rights reserved
 #include <map>
 #include <stdafx.h>
 #include "binary_serialize.h"
-#include "guid.h"
 #include "database.h"
 #include "asymmetriccrypto.h"
 #include "symmetriccrypto.h"
@@ -51,12 +50,12 @@ namespace vds {
         const symmetric_key & user_password_key,
         const const_data_buffer & user_password_hash) const;
 
-      static block_type_t parse_block(const const_data_buffer &data, const_data_buffer &channel_id, uint64_t &order_no, guid &read_cert_id,
-                                   guid &write_cert_id, std::set<const_data_buffer> &ancestors, const_data_buffer &crypted_data,
+      static block_type_t parse_block(const const_data_buffer &data, const_data_buffer &channel_id, uint64_t &order_no, std::string &read_cert_id,
+        std::string &write_cert_id, std::set<const_data_buffer> &ancestors, const_data_buffer &crypted_data,
                                    const_data_buffer &crypted_key, std::list<certificate> & certificates, const_data_buffer &signature);
 
-      static bool validate_block(const certificate &write_cert, block_type_t block_type, const const_data_buffer &channel_id, uint64_t &order_no, const guid &read_cert_id,
-                                       const guid &write_cert_id, const std::set<const_data_buffer> &ancestors,
+      static bool validate_block(const certificate &write_cert, block_type_t block_type, const const_data_buffer &channel_id, uint64_t &order_no, const std::string &read_cert_id,
+                                       const std::string &write_cert_id, const std::set<const_data_buffer> &ancestors,
                                        const const_data_buffer &crypted_data, const const_data_buffer &crypted_key,
                                        const std::list<certificate> & certificates,
                                        const const_data_buffer &signature);

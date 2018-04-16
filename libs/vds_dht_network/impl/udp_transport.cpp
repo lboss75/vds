@@ -11,7 +11,6 @@ All rights reserved
 #include "logger.h"
 #include "dht_network_client.h"
 #include "dht_network_client_p.h"
-#include "db_model.h"
 
 void vds::dht::network::udp_transport::start(const vds::service_provider &sp, uint16_t port,
                                              const const_data_buffer &this_node_id) {
@@ -26,7 +25,7 @@ void vds::dht::network::udp_transport::start(const vds::service_provider &sp, ui
 
   this->continue_read(sp.create_scope("vds::dht::network::udp_transport::continue_read"));
   this->timer_.start(sp, std::chrono::seconds(1), [sp, pthis = this->shared_from_this()]()->bool{
-    pthis->on_timer(sp).wait();
+    pthis->on_timer(sp).execute([](const std::shared_ptr<std::exception> &){});
     return !sp.get_shutdown_event().is_shuting_down();
   });
 }

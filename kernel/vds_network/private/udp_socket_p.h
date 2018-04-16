@@ -296,7 +296,10 @@ namespace vds {
           return[pthis = this->shared_from_this()](const async_result<> & result){
             auto this_ = static_cast<_udp_send *>(pthis.get());
             std::unique_lock<not_mutex> lock(this_->not_mutex_);
-            vds_assert(!this_->result_);
+            //vds_assert(!this_->result_);
+            if(this_->result_) {
+              this_->result_.done();
+            }
             this_->result_ = result;
             lock.unlock();
 
@@ -304,7 +307,7 @@ namespace vds {
 			if (NOERROR != WSASendTo(this_->s_, &this_->wsa_buf_, 1, NULL, 0, this_->buffer_->address(), this_->buffer_->address().size(), &this_->overlapped_, NULL)) {
               auto errorCode = WSAGetLastError();
               if (WSA_IO_PENDING != errorCode) {
-                result.error(std::make_shared<std::system_error>(errorCode, std::system_category(), "WSASend failed"));
+                this_->result_.error(std::make_shared<std::system_error>(errorCode, std::system_category(), "WSASend failed"));
               }
             }
           };

@@ -22,22 +22,10 @@ vds::member_user::member_user(_member_user * impl)
 {
 }
 
-vds::member_user vds::member_user::create_device_user(
-    const vds::asymmetric_private_key &owner_user_private_key,
-    const vds::asymmetric_private_key &private_key,
-    const std::string &device_name) const
-{
-  return this->impl_->create_device_user(owner_user_private_key, private_key, device_name);
-}
-
 vds::member_user vds::member_user::create_user(const vds::asymmetric_private_key &owner_user_private_key, const std::string &user_name,
                                                const vds::asymmetric_private_key &private_key)
 {
   return this->impl_->create_user(owner_user_private_key, user_name, private_key);
-}
-
-const vds::guid &vds::member_user::id() const {
-  return this->impl_->id();
 }
 
 const vds::certificate &vds::member_user::user_certificate() const {
@@ -46,57 +34,31 @@ const vds::certificate &vds::member_user::user_certificate() const {
 
 vds::member_user vds::member_user::import_user(const certificate &user_cert) {
   return member_user(new _member_user(
-      cert_control::get_id(user_cert),
       user_cert));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
 vds::_member_user::_member_user(
-    const guid & id,
     const certificate & user_cert)
-  : id_(id),
-    user_cert_(user_cert)
+  : user_cert_(user_cert)
 {
 }
 
-vds::member_user vds::_member_user::create_device_user(const vds::asymmetric_private_key &owner_user_private_key,
-                                                       const vds::asymmetric_private_key &private_key,
-                                                       const std::string &device_name) {
 
-	auto name = device_name;
-#ifndef _WIN32
-  if(name.empty()) {
-    char hostname[HOST_NAME_MAX];
-    gethostname(hostname, HOST_NAME_MAX);
-    name = hostname;
-  }
-#else// _WIN32
-  CHAR hostname[256];
-  DWORD bufCharCount = sizeof(hostname) / sizeof(hostname[0]);
-  if(!GetComputerNameA(hostname, &bufCharCount)){
-    auto error = GetLastError();
-    throw std::system_error(error, std::system_category(), "Get Computer Name");
-  }
-  name = hostname;
-#endif// _WIN32
-
-  return create_user(owner_user_private_key, name, private_key);
-}
-
-vds::member_user vds::_member_user::create_user(const vds::asymmetric_private_key &owner_user_private_key, const std::string &user_name,
-                                                const vds::asymmetric_private_key &private_key)
+vds::member_user vds::_member_user::create_user(
+  const vds::asymmetric_private_key &owner_user_private_key,
+  const std::string &user_name,
+  const vds::asymmetric_private_key &private_key)
 {
   auto id = guid::new_guid();
   auto cert_id = guid::new_guid();
   auto cert = _cert_control::create_user_cert(
-	  cert_id,
-	  id,
-	  user_name,
-      private_key,
-      this->user_cert_,
-      owner_user_private_key);
+    user_name,
+    private_key,
+    this->user_cert_,
+    owner_user_private_key);
 
-  return member_user(new _member_user(id, cert));
+  return member_user(new _member_user(cert));
 }
 

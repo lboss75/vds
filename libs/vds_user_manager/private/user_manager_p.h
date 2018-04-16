@@ -15,14 +15,14 @@ namespace vds {
   public:
 
     struct channel_info {
-      std::map<guid, certificate> read_certificates_;
-      std::map<guid, certificate> write_certificates_;
+      std::map<std::string, certificate> read_certificates_;
+      std::map<std::string, certificate> write_certificates_;
 
-      std::map<guid, asymmetric_private_key> read_private_keys_;
-      std::map<guid, asymmetric_private_key> write_private_keys_;
+      std::map<std::string, asymmetric_private_key> read_private_keys_;
+      std::map<std::string, asymmetric_private_key> write_private_keys_;
 
-      guid current_read_certificate_;
-      guid current_write_certificate_;
+      std::string current_read_certificate_;
+      std::string current_write_certificate_;
 
       user_channel::channel_type_t type_;
       std::string name_;
@@ -38,10 +38,6 @@ namespace vds {
       return this->login_state_;
     }
 
-
-    const guid &user_id() const {
-      return this->user_id_;
-    }
 
     const const_data_buffer &dht_user_id() const {
       return this->dht_user_id_;
@@ -61,7 +57,7 @@ namespace vds {
 
 
     bool get_channel_write_certificate(
-        const guid &channel_id,
+        const const_data_buffer &channel_id,
         std::string &name,
         certificate &read_certificate,
         asymmetric_private_key &read_key,
@@ -88,7 +84,7 @@ namespace vds {
 
     certificate get_channel_write_cert(const const_data_buffer &channel_id) const {
       auto p = this->channels_.find(channel_id);
-      if (this->channels_.end() != p && p->second.current_write_certificate_) {
+      if (this->channels_.end() != p && !p->second.current_write_certificate_.empty()) {
         auto p1 = p->second.write_certificates_.find(p->second.current_write_certificate_);
         if (p->second.write_certificates_.end() != p1) {
           return p1->second;
@@ -99,21 +95,21 @@ namespace vds {
 
     certificate get_channel_write_cert(
         const const_data_buffer &channel_id,
-        const guid &cert_id) const {
+        const std::string &cert_subject) const {
       auto p = this->channels_.find(channel_id);
       if (this->channels_.end() != p) {
-        auto p1 = p->second.write_certificates_.find(cert_id);
+        auto p1 = p->second.write_certificates_.find(cert_subject);
         if (p->second.write_certificates_.end() != p1) {
           return p1->second;
         }
       }
 
-      return this->get_certificate(cert_id);
+      return this->get_certificate(cert_subject);
     }
 
     asymmetric_private_key get_channel_write_key(const const_data_buffer &channel_id) const {
       auto p = this->channels_.find(channel_id);
-      if (this->channels_.end() != p && p->second.current_write_certificate_) {
+      if (this->channels_.end() != p && !p->second.current_write_certificate_.empty()) {
         auto p1 = p->second.write_private_keys_.find(p->second.current_write_certificate_);
         if (p->second.write_private_keys_.end() != p1) {
           return p1->second;
@@ -122,10 +118,10 @@ namespace vds {
       return asymmetric_private_key();
     }
 
-    asymmetric_private_key get_channel_write_key(const const_data_buffer &channel_id, const guid &cert_id) const {
+    asymmetric_private_key get_channel_write_key(const const_data_buffer &channel_id, const std::string &cert_subject) const {
       auto p = this->channels_.find(channel_id);
       if (this->channels_.end() != p) {
-        auto p1 = p->second.write_private_keys_.find(cert_id);
+        auto p1 = p->second.write_private_keys_.find(cert_subject);
         if (p->second.write_private_keys_.end() != p1) {
           return p1->second;
         }
@@ -135,7 +131,7 @@ namespace vds {
 
     certificate get_channel_read_cert(const const_data_buffer &channel_id) const {
       auto p = this->channels_.find(channel_id);
-      if (this->channels_.end() != p && p->second.current_read_certificate_) {
+      if (this->channels_.end() != p && !p->second.current_read_certificate_.empty()) {
         auto p1 = p->second.read_certificates_.find(p->second.current_read_certificate_);
         if (p->second.read_certificates_.end() != p1) {
           return p1->second;
@@ -146,7 +142,7 @@ namespace vds {
 
     asymmetric_private_key get_channel_read_key(const const_data_buffer &channel_id) const {
       auto p = this->channels_.find(channel_id);
-      if (this->channels_.end() != p && p->second.current_read_certificate_) {
+      if (this->channels_.end() != p && !p->second.current_read_certificate_.empty()) {
         auto p1 = p->second.read_private_keys_.find(p->second.current_read_certificate_);
         if (p->second.read_private_keys_.end() != p1) {
           return p1->second;
@@ -155,10 +151,10 @@ namespace vds {
       return asymmetric_private_key();
     }
 
-    asymmetric_private_key get_channel_read_key(const const_data_buffer &channel_id, const guid &cert_id) const {
+    asymmetric_private_key get_channel_read_key(const const_data_buffer &channel_id, const std::string &cert_subject) const {
       auto p = this->channels_.find(channel_id);
       if (this->channels_.end() != p) {
-        auto p1 = p->second.read_private_keys_.find(cert_id);
+        auto p1 = p->second.read_private_keys_.find(cert_subject);
         if (p->second.read_private_keys_.end() != p1) {
           return p1->second;
         }
@@ -172,13 +168,13 @@ namespace vds {
         const asymmetric_private_key &read_private_key) {
       auto &cp = this->channels_[channel_id];
 
-      auto id = cert_control::get_id(read_cert);
+      auto id = read_cert.subject();
       cp.current_read_certificate_ = id;
       cp.read_certificates_[id] = read_cert;
       cp.read_private_keys_[id] = read_private_key;
     }
 
-    certificate get_certificate(const guid &id) const {
+    certificate get_certificate(const std::string &id) const {
       auto p = this->certificate_chain_.find(id);
       if (this->certificate_chain_.end() == p) {
         return certificate();
@@ -200,12 +196,11 @@ namespace vds {
     user_manager::login_state_t login_state_;
 
     std::set<std::string> processed_;
-    guid user_id_;
     certificate user_cert_;
     std::string user_name_;
     asymmetric_private_key user_private_key_;
     std::map<const_data_buffer, channel_info> channels_;
-    std::map<guid, certificate> certificate_chain_;
+    std::map<std::string, certificate> certificate_chain_;
   };
 }
 

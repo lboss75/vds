@@ -11,7 +11,7 @@ namespace vds {
       user_channel_create_transaction = 'u',
       root_user_transaction = 'R',
       file_add_transaction = 'a',
-      device_user_add_transaction = 'd',
+      //device_user_add_transaction = 'd',
       create_channel_transaction = 'p',
       channel_message_transaction = 'm',
       channel_create_transaction = 'n',

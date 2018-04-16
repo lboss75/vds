@@ -11,7 +11,6 @@ All rights reserved
 #include "transaction_block.h"
 #include "symmetriccrypto.h"
 #include "asymmetriccrypto.h"
-#include "guid.h"
 #include "transaction_context.h"
 #include "cert_control.h"
 #include "database_orm.h"
@@ -40,8 +39,8 @@ vds::const_data_buffer vds::transactions::transaction_block::save(
       << (uint8_t)block_type_t::normal
       << channel_id
       << order_no
-      << cert_control::get_id(read_cert)
-      << cert_control::get_id(write_cert)
+      << read_cert.subject()
+      << write_cert.subject()
       << ancestors
       << symmetric_encrypt::encrypt(key, this->data_.data())
       << read_cert.public_key().encrypt(key.serialize())
@@ -77,8 +76,8 @@ vds::const_data_buffer vds::transactions::transaction_block::save_self_signed(
     << (uint8_t)block_type_t::self_signed
     << channel_id
     << order_no
-    << cert_control::get_id(write_cert)
-    << cert_control::get_id(write_cert)
+    << write_cert.subject()
+    << write_cert.subject()
     << ancestors
     << symmetric_encrypt::encrypt(user_password_key, this->data_.data())
     << user_password_hash
@@ -96,8 +95,8 @@ vds::const_data_buffer vds::transactions::transaction_block::save_self_signed(
 }
 
 vds::transactions::transaction_block::block_type_t
-vds::transactions::transaction_block::parse_block(const const_data_buffer &data, const_data_buffer &channel_id, uint64_t &order_no, guid &read_cert_id,
-                                                      guid &write_cert_id, std::set<const_data_buffer> &ancestors, const_data_buffer &crypted_data,
+vds::transactions::transaction_block::parse_block(const const_data_buffer &data, const_data_buffer &channel_id, uint64_t &order_no, std::string &read_cert_id,
+  std::string &write_cert_id, std::set<const_data_buffer> &ancestors, const_data_buffer &crypted_data,
                                                       const_data_buffer &crypted_key,
   std::list<certificate> & certificates,
   const_data_buffer &signature) {
@@ -121,13 +120,13 @@ vds::transactions::transaction_block::parse_block(const const_data_buffer &data,
 }
 
 bool
-vds::transactions::transaction_block::validate_block(const certificate &write_cert, block_type_t block_type, const const_data_buffer &channel_id, uint64_t &order_no, const guid &read_cert_id,
-                                                     const guid &write_cert_id, const std::set<const_data_buffer> &ancestors,
+vds::transactions::transaction_block::validate_block(const certificate &write_cert, block_type_t block_type, const const_data_buffer &channel_id, uint64_t &order_no, const std::string &read_cert_id,
+                                                     const std::string &write_cert_id, const std::set<const_data_buffer> &ancestors,
                                                      const const_data_buffer &crypted_data, const const_data_buffer &crypted_key,
   const std::list<certificate> & certificates,
   const const_data_buffer &signature) {
 
-  vds_assert(cert_control::get_id(write_cert) == write_cert_id);
+  vds_assert(write_cert.subject() == write_cert_id);
 
   return asymmetric_sign_verify::verify(
     hash::sha256(),

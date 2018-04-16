@@ -22,9 +22,9 @@ namespace vds {
             parent(this, "parent") {
       }
 
-      database_column<guid> id;
+      database_column<std::string> id;
       database_column<const_data_buffer> cert;
-      database_column<guid> parent;
+      database_column<std::string> parent;
     };
   }
 }
