@@ -1,6 +1,5 @@
-
-#ifndef VDS_FILTER_PARSER_H
-#define VDS_FILTER_PARSER_H
+#ifndef __LOG_PARSER_FILTER_PARSER_H_
+#define __LOG_PARSER_FILTER_PARSER_H_
 
 #include <iostream>
 #include <cstring>
@@ -9,7 +8,8 @@
 
 class filter_parser {
 public:
-  
+
+  //Create state machine based on the filter
   static bool parse_filter(const char * filter, filter_statemachine & result){
     linked_list<parser_state_t> states;
 
@@ -30,21 +30,25 @@ public:
 
 
 private:
+
+  //Current position in the filter
   class filter_state_t {
   public:
+    //Filter pattern ?
     static const int ANY_CHAR = 256;
-    static const int ANY_CHAR_MULTIPLE = 257;
 
+    //Filter pattern *
+    static const int ANY_CHAR_MULTIPLE = 257;
 
     filter_state_t(const char * filter)
     : filter_(filter){
-      
     }
 
     const char * filter() const {
       return filter_;
     }
 
+    //Next symbol expected by the filter
     int next_char() const {
       switch (*filter_) {
       case '*':
@@ -62,6 +66,7 @@ private:
     const char * filter_;
   };
 
+  //Helper class to create new parser state
   class parser_state_builder_t {
   public:
     parser_state_builder_t() {
@@ -69,6 +74,7 @@ private:
 
     parser_state_builder_t(parser_state_builder_t && origin) = delete;
 
+    //Add filter state if it is not exists
     bool add_state(const char * filter_state) {
       trim_left(filter_state);
 
@@ -76,6 +82,7 @@ private:
         return false;
       }
 
+      //Filter that starts with *rest generates two states *rest and rest
       if ('*' == *filter_state) {
         return add(filter_state + 1);
       }
@@ -91,14 +98,55 @@ private:
     linked_list<filter_state_t> & items() {
       return items_;
     }
+
+    //Trim leads *
     static void trim_left(const char * & filter) {
       while('*' == filter[0] && '*' == filter[1]) {
         ++filter;
       }
     }
+
+    //Generate new states by applying symbol to the filter state
+    bool apply_char(int next_char, const filter_state_t & filter_state) {
+      switch (filter_state.next_char()) {
+        case filter_state_t::ANY_CHAR: {
+          if (!add_state(filter_state.filter() + 1)) {
+            return false;
+          }
+
+          break;
+        }
+
+        case filter_state_t::ANY_CHAR_MULTIPLE: {
+          if(!add_state(filter_state.filter())){
+            return false;
+          }
+
+          if (!add_state(filter_state.filter() + 1)) {
+            return false;
+          }
+
+          break;
+        }
+
+        default: {
+          if(next_char == filter_state.next_char()){
+            if(!add_state(filter_state.filter() + 1)){
+              return false;
+            }
+          }
+
+          break;
+        }
+      }
+
+      return true;
+    }
+
   private:
     linked_list<filter_state_t> items_;
 
+    //checks the state exists and add if it is not
     bool add(const char * filter_state) {
       auto p = items_.head();
       if (nullptr == p) {
@@ -119,6 +167,7 @@ private:
     }
   };
 
+  //Parser state
   class parser_state_t {
   public:
     parser_state_t () {
@@ -128,69 +177,52 @@ private:
     : items_((linked_list<filter_state_t> &&)origin.items()){
     }
 
+    //Calculate transitions by applying possible symbols
     bool build_transactions(linked_list<parser_state_t> & states) {
-      for (int i = 0; i < sizeof(transactions_) / sizeof(transactions_[0]); ++i) {
+      //Crear transitions table
+      for (size_t i = 0; i < sizeof(transactions_) / sizeof(transactions_[0]); ++i) {
         transactions_[i] = filter_statemachine::INVALID_STATE;
       }
 
+      //transition by 0 string terminator
+      if(can_final()) {
+        transactions_[0] = filter_statemachine::FINAL_STATE;
+      }
+
+      //transitions by specified in the filter symbols
       for (auto p = items_.head(); nullptr != p; p = p->next()) {
         auto next_char = p->value().next_char();
-        if (filter_state_t::ANY_CHAR == next_char || filter_state_t::ANY_CHAR_MULTIPLE == next_char) {
-          continue;
-        }
-        if (0 == next_char) {
-          transactions_[next_char] = filter_statemachine::FINAL_STATE;
-          break;
+        if(0 == next_char || next_char > 255){
+          continue;//Only real symbols
         }
 
-        if (filter_statemachine::INVALID_STATE == transactions_[next_char]) {
-          parser_state_builder_t next_state;
-          for (auto pstate = items_.head(); nullptr != pstate; pstate = pstate->next()) {
-            if ('*' == *pstate->value().filter()) {
-              next_state.add_state(pstate->value().filter());
-              next_state.add_state(pstate->value().filter() + 1);
-            }
-            else if ('?' == *pstate->value().filter()
-              || next_char == *pstate->value().filter()) {
-              next_state.add_state(pstate->value().filter() + 1);
-            }
-          }
+        if(filter_statemachine::INVALID_STATE != transactions_[next_char]){
+          continue;//Already calculated
+        }
 
-          transactions_[next_char] = add_state(
-            states,
-            static_cast<parser_state_builder_t &&>(next_state));
+        if(!next_state(states, next_char, transactions_[next_char])){
+          return false;
         }
       }
 
-      for (auto p = items_.head(); nullptr != p; p = p->next()) {
-        if (filter_state_t::ANY_CHAR == p->value().next_char() || filter_state_t::ANY_CHAR_MULTIPLE == p->value().next_char()) {
-          parser_state_builder_t next_state;
-          for (auto pstate = items_.head(); nullptr != pstate; pstate = pstate->next()) {
-            if ('*' == *pstate->value().filter()) {
-              next_state.add_state(pstate->value().filter());
-            }
+      //apply all other symbols
+      int default_state = filter_statemachine::INVALID_STATE;
+      if(!next_state(states, filter_state_t::ANY_CHAR, default_state)){
+        return false;
+      }
 
-            if ('\0' != *pstate->value().filter()) {
-              next_state.add_state(pstate->value().filter() + 1);
-            }
-          }
-
-          if (!next_state.items().empty()) {
-            int next_step_index = add_state(
-              states,
-              static_cast<parser_state_builder_t &&>(next_state));
-
-            for (int ch = 1; ch < 256; ++ch) {
-              if (filter_statemachine::INVALID_STATE == transactions_[ch]) {
-                transactions_[ch] = next_step_index;
-              }
-            }
+      if(filter_statemachine::INVALID_STATE != default_state){
+        for (size_t i = 1; i < sizeof(transactions_) / sizeof(transactions_[0]); ++i) {
+          if (filter_statemachine::INVALID_STATE == transactions_[i]) {
+            transactions_[i] = default_state;
           }
         }
       }
+
       return true;
     }
 
+    //Compare states
     bool operator == (parser_state_builder_t & state) const {
       for (auto p = items_.head(); nullptr != p; p = p->next()) {
         bool is_exists = false;
@@ -221,10 +253,6 @@ private:
       return true;
     }
 
-    void clean() {
-      this->items_.clear();
-    }
-
     const filter_statemachine::transactions_t & transactions() const {
       return transactions_;
     }
@@ -233,11 +261,41 @@ private:
       return items_;
     }
 
+    //Contains final state
+    bool can_final() const {
+      for (auto p = items_.head(); nullptr != p; p = p->next()) {
+        if('\0' == *p->value().filter()){
+          return true;
+        }
+      }
+
+      return false;
+    }
+
   private:
     linked_list<filter_state_t> items_;
     filter_statemachine::transactions_t transactions_;
+
+    //Calculate state after applying symbol
+    bool next_state(linked_list<parser_state_t> & states, int next_char, int & new_state) const{
+      parser_state_builder_t next_state;
+      for (auto pstate = items_.head(); nullptr != pstate; pstate = pstate->next()) {
+        if (!next_state.apply_char(next_char, pstate->value())) {
+          return false;
+        }
+      }
+
+      if (!next_state.items().empty()) {
+        new_state = add_state(
+            states,
+            static_cast<parser_state_builder_t &&>(next_state));
+      }
+
+      return true;
+    }
   };
 
+  //Looking to the state and add if it is not exists
   static int add_state(linked_list<parser_state_t> & states, parser_state_builder_t && state){
     auto p = states.head();
     if (nullptr == p) {
@@ -264,6 +322,7 @@ private:
     }
   }
 
+  //Start parser state
   static bool init_states(linked_list<parser_state_t> & states, const char * filter) {
     parser_state_builder_t first_state;
     if (!first_state.add_state(filter)) {
@@ -277,24 +336,25 @@ private:
     return true;
   }
 
+  //Generate transitions
   static bool generate_states(linked_list<parser_state_t> & states) {
+//    size_t count = 0;
     for (auto p = states.head(); nullptr != p; p = p->next()) {
       if (!p->value().build_transactions(states)) {
         return false;
       }
 
-#ifdef _DEBUG_PARSER_STATES
-      parser_debug("State %d\n", count);
-      int index = 0;
-      for (auto pstate = p->value().items().head(); nullptr != pstate; pstate = pstate->next()) {
-        parser_debug("%d: %s\n", index++, pstate->value().filter());
-      }
-#endif
+//      parser_debug("State %d\n", count++);
+//      int index = 0;
+//      for (auto pstate = p->value().items().head(); nullptr != pstate; pstate = pstate->next()) {
+//        parser_debug("%d: %s\n", index++, pstate->value().filter());
+//      }
     }
 
     return true;
   }
 
+  //Allocate result transition table
   static bool pack_result(linked_list<parser_state_t> & states, filter_statemachine & result) {
     auto transactions = reinterpret_cast<filter_statemachine::transactions_t *>(malloc(states.count() * sizeof(filter_statemachine::transactions_t)));
     if (nullptr == transactions) {
@@ -309,8 +369,7 @@ private:
     result.reset(transactions);
     return true;
   }
-
 };
 
 
-#endif //VDS_FILTER_PARSER_H
+#endif //__LOG_PARSER_FILTER_PARSER_H_

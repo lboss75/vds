@@ -1,18 +1,15 @@
-//
-// Created by vadim on 17.04.18.
-//
-
-#ifndef VDS_LINKED_LISK_H
-#define VDS_LINKED_LISK_H
+#ifndef __LOG_PARSER_LIB_LINKED_LISK_H_
+#define __LOG_PARSER_LIB_LINKED_LISK_H_
 
 #include "parser_alloc.h"
 #include "parser_debug.h"
 
+//Helper class to store nodes list
 template <typename item_type>
 class linked_list {
 public:
   linked_list()
-  : head_{nullptr} {
+  : head_(nullptr) {
   }
 
   linked_list(linked_list && origin)
@@ -48,6 +45,7 @@ public:
       return next_;
     };
 
+    //Add node after this node
     bool add(item_type && value) {
       if(nullptr != next_) {
         parser_debug("Invalid call %s\n", __FUNCTION__);
@@ -68,6 +66,7 @@ public:
     node_type * next_;
   };
 
+  //Add not as head
   bool add(item_type && value) {
     if (nullptr != head_) {
       parser_debug("Invalid call %s\n", __FUNCTION__);
@@ -83,6 +82,7 @@ public:
     return true;
   }
 
+  //Head node
   node_type * head() const {
     return head_;
   }
@@ -105,4 +105,4 @@ private:
   node_type * head_;
 };
 
-#endif //VDS_LINKED_LISK_H
+#endif //__LOG_PARSER_LIB_LINKED_LISK_H_

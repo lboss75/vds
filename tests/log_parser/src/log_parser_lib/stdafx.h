@@ -1,13 +1,7 @@
-// stdafx.h : include file for standard system include files,
-// or project specific include files that are used frequently, but
-// are changed infrequently
-//
+#ifndef __LOG_PARSER_LIB_STDAFX_H_
+#define __LOG_PARSER_LIB_STDAFX_H_
 
-#pragma once
+#include <cstdio>
 
-#include "targetver.h"
+#endif//__LOG_PARSER_LIB_STDAFX_H_
 
-#define WIN32_LEAN_AND_MEAN             // Exclude rarely-used stuff from Windows headers
-
-
-// TODO: reference additional headers your program requires here

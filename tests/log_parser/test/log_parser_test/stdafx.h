@@ -1,17 +1,11 @@
-// stdafx.h : include file for standard system include files,
-// or project specific include files that are used frequently, but
-// are changed infrequently
-//
-
-#pragma once
+#ifndef __LOG_PARSER_TEST_STDAFX_H_
+#define __LOG_PARSER_TEST_STDAFX_H_
 
 #include "targetver.h"
 
 #include <stdio.h>
-#include <tchar.h>
-
-
 #include <gtest/gtest.h>
 
-#include "log_parser.h"
 #include "filter_parser.h"
+
+#endif//__LOG_PARSER_TEST_STDAFX_H_

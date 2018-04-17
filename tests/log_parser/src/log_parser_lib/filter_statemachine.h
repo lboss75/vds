@@ -1,7 +1,9 @@
-#pragma once
+#ifndef __LOG_PARSER_FILTER_STATEMACHINE_H_
+#define __LOG_PARSER_FILTER_STATEMACHINE_H_
 #include "parser_alloc.h"
 #include "parser_debug.h"
 
+//Fast parser state machine
 class filter_statemachine
 {
 public:
@@ -33,6 +35,7 @@ public:
     }
   }
 
+  //Check data to match pattern
   bool is_match(const char * data) const {
     auto state = START_STATE;
     for (;;) {
@@ -52,10 +55,12 @@ public:
     }
   }
 
+  //Get next state after applying next_char
   int next_state(int current_state, char next_char) const {
     return states_[current_state][(unsigned char)next_char];
   }
 
+  //reset transitions
   void reset(transactions_t * states){
     if (nullptr != states_) {
       free(states_);
@@ -67,3 +72,4 @@ private:
   transactions_t * states_;
 };
 
+#endif//__LOG_PARSER_FILTER_STATEMACHINE_H_
