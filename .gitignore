@@ -55,3 +55,7 @@ bin/
 *.tmp
 x64/
 *.aps
+servers/
+*.VC.db
+Debug/
+ipch/
