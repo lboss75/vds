@@ -3,7 +3,8 @@
 #define VDS_FILTER_PARSER_H
 
 #include <iostream>
-#include "parser_vector.h"
+#include <cstring>
+#include "linked_list.h"
 
 class filter_parser {
 public:
@@ -28,7 +29,7 @@ public:
     for(;;){
       int new_state = states_[state].transactions[*data];
       if('\0' == *data){
-        return states_[state].can_be_finish;
+        return (states_[state].transactions[0] == -1);
       }
 
       ++data;
@@ -40,7 +41,7 @@ private:
   struct filter_state_t {
     const char * filter;
 
-    char allowed_char() const {
+    unsigned char allowed_char() const {
       if('*' == *filter) {
         return '?';
       }
@@ -51,28 +52,21 @@ private:
   };
 
   struct parser_state_builder_t {
-    parser_vector<filter_state_t> items;
-    bool can_be_finish;
+    linked_list<filter_state_t> items;
     int transactions[256];
 
-    parser_state_builder_t()
-        : can_be_finish(false){
+    parser_state_builder_t() {
       memset(transactions, 0, sizeof(transactions));
     }
 
     parser_state_builder_t(parser_state_builder_t && origin)
-    : items(static_cast<parser_vector<filter_state_t>&&>(origin.items)),
-      can_be_finish(origin.can_be_finish){
+    : items(static_cast<parser_vector<filter_state_t>&&>(origin.items)) {
 
       memset(transactions, 0, sizeof(transactions));
 
     }
 
     bool add(const char * filter_state){
-      if('\0' == filter_state){
-        can_be_finish = true;
-      }
-
       for(auto p : items){
         if(filter_state == p.filter){
           return true;//Already exists
@@ -95,7 +89,7 @@ private:
           continue;
         }
         if('\0' == allowed_char){
-          can_be_finish = true;
+          transactions[allowed_char] = -1;//Allow finish
           break;
         }
 
@@ -130,12 +124,14 @@ private:
             }
           }
 
-          int next_step_index = parser->add_state(
-              static_cast<parser_state_builder_t &&>(next_state));
+          if(0 < next_state.items.count()) {
+            int next_step_index = parser->add_state(
+                static_cast<parser_state_builder_t &&>(next_state));
 
-          for(int ch = 0; ch < 256; ++ch) {
-            if(transactions[ch] == 0) {
-              transactions[ch] = next_step_index;
+            for (int ch = 1; ch < 256; ++ch) {
+              if (transactions[ch] == 0) {
+                transactions[ch] = next_step_index;
+              }
             }
           }
         }
@@ -143,10 +139,6 @@ private:
     }
 
     bool operator == (parser_state_builder_t & state) const {
-      if(can_be_finish != state.can_be_finish){
-        return false;
-      }
-
       for(auto p : items){
         bool is_exists = false;
         for(auto p1 : state.items){
@@ -182,7 +174,6 @@ private:
 
     void operator =(parser_state_builder_t && origin){
       items = static_cast<parser_vector<filter_state_t>&&>(origin.items);
-      can_be_finish = origin.can_be_finish;
     }
   };
 
