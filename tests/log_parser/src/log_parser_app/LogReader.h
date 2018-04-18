@@ -1,4 +1,4 @@
-#pragma once
+п»ї#pragma once
 
 #include "MappedFileReader.h"
 #include "filter_statemachine.h"
@@ -9,23 +9,24 @@ public:
   CLogReader();
   ~CLogReader();
 
-  bool    Open(const TCHAR * filename);                         // открытие файла, false - ошибка
-  void    Close();                        // закрытие файла
+  bool    Open(const TCHAR * filename);   // РѕС‚РєСЂС‹С‚РёРµ С„Р°Р№Р»Р°, false - РѕС€РёР±РєР°
+  void    Close();                        // Р·Р°РєСЂС‹С‚РёРµ С„Р°Р№Р»Р°
 
-  bool    SetFilter(const char *filter);  // установка фильтра строк, false - ошибка
-  bool    GetNextLine(char *buf,          // запрос очередной найденной строки, 
-    const int bufsize);                   // buf - буфер, bufsize - максимальная длина
-                                          // false - конец файла или ошибка};
+  bool    SetFilter(const char *filter);  // СѓСЃС‚Р°РЅРѕРІРєР° С„РёР»СЊС‚СЂР° СЃС‚СЂРѕРє, false - РѕС€РёР±РєР°
+  bool    GetNextLine(char *buf,          // Р·Р°РїСЂРѕСЃ РѕС‡РµСЂРµРґРЅРѕР№ РЅР°Р№РґРµРЅРЅРѕР№ СЃС‚СЂРѕРєРё, 
+    const int bufsize);                   // buf - Р±СѓС„РµСЂ, bufsize - РјР°РєСЃРёРјР°Р»СЊРЅР°СЏ РґР»РёРЅР°
+                                          // false - РєРѕРЅРµС† С„Р°Р№Р»Р° РёР»Рё РѕС€РёР±РєР°};
 private:
   CMappedFileReader file_reader_;
   filter_statemachine filter_;
+
+  char current_char_;
+  bool next_char() {
+    if (!file_reader_.next_char(current_char_)) {
+      return false;
+    }
+
+    return true;
+  }
 };
-
-inline bool CLogReader::Open(const TCHAR * filename) {
-  return file_reader_.Open(filename);
-}
-
-inline void CLogReader::Close() {
-  file_reader_.Close();
-}
 

@@ -146,9 +146,6 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <Text Include="ReadMe.txt" />
-  </ItemGroup>
-  <ItemGroup>
     <ClInclude Include="LogReader.h" />
     <ClInclude Include="MappedFileReader.h" />
     <ClInclude Include="stdafx.h" />

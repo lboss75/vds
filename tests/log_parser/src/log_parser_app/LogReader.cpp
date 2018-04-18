@@ -13,51 +13,87 @@ CLogReader::~CLogReader()
   Close();
 }
 
+bool CLogReader::Open(const TCHAR * filename) {
+  if(!file_reader_.Open(filename)) {
+    return false;
+  }
+
+  if (!next_char()) {
+    return false;
+  }
+
+  return true;
+}
+
+inline void CLogReader::Close() {
+  file_reader_.Close();
+}
+
 bool CLogReader::SetFilter(const char *filter) {
   return filter_parser::parse_filter(filter, filter_);
 }
 
 bool CLogReader::GetNextLine(char * buf, const int bufsize) {
+  if(nullptr == buf || 0 > bufsize) {
+    return false;
+  }
 
-  for (;;) {
+  while ('\0' != current_char_) {
     auto state = filter_statemachine::START_STATE;
     auto pbuf = buf;
     auto left_size = bufsize;
 
-    char ch;
     for (;;) {
-      if(!file_reader_.next_char(ch)) {
-        return false;
+      // \r\n* -> \n*
+      // \r* -> \n*
+      auto ch = current_char_;
+      if('\r' == current_char_) {
+        if(!next_char()) {
+          return false;
+        }
+        ch = '\n';
       }
 
-      if('\r' == ch || '\n' == ch) {
-        ch = '\0';
-      }
-
-      state = filter_.next_state(state, ch);
+      state = filter_.next_state(state, ('\n' == ch) ? '\0' : ch);
       if(filter_statemachine::INVALID_STATE == state) {
         break;
       }
       else if(filter_statemachine::FINAL_STATE == state) {
-        if ('\0' == ch) {
+        if ('\n' == ch || '\0' == ch) {
+          if('\n' == current_char_) {
+            if (!next_char()) {
+              return false;
+            }
+          }
+          *pbuf = '\0';
           return true;
         }
         break;
       }
-      if(0 == left_size) {
+
+      *pbuf++ = ch;
+      --left_size;
+
+      if (0 == left_size) {
         //buffer too small
         break;;
       }
-      *pbuf++ = ch;
-      --left_size;
-    }
 
-    if('\0' == ch) {
-      continue;      
+      if (!next_char()) {
+        return false;
+      }
     }
 
     if (!file_reader_.skip_to_newline()) {
       return false;
     }
+
+    if (!next_char()) {
+      return false;
+    }
   }
+
+  *buf = '\0';
+  return true;
 }
+

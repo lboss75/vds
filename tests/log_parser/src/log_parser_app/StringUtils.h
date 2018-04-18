@@ -2,6 +2,7 @@
 class StringUtils
 {
 public:
+  //Convert from WIDE char to multibyte
   static char * to_mb(const wchar_t * str) {
     auto size = wcstombs(nullptr, str, 0);
     if(size < 0) {

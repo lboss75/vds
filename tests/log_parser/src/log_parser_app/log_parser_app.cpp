@@ -13,7 +13,7 @@ int _tmain(int argc, TCHAR *argv[]) {
 
   CLogReader reader;
   if(!reader.Open(argv[1])) {
-    puts("Open file error");
+    _tprintf(_T("Open file %s error\n"), argv[1]);
     return 1;
   }
 
@@ -35,9 +35,13 @@ int _tmain(int argc, TCHAR *argv[]) {
 
   char buffer[1024];
   while(reader.GetNextLine(buffer, sizeof(buffer))) {
+    if('\0' == *buffer) {
+      return 0;
+    }
+
     puts(buffer);
   }
 
-  return 0;
+  return 1;
 }
 

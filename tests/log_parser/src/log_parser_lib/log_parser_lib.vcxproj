@@ -127,16 +127,12 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <Text Include="ReadMe.txt" />
-  </ItemGroup>
-  <ItemGroup>
     <ClInclude Include="filter_parser.h" />
     <ClInclude Include="filter_statemachine.h" />
     <ClInclude Include="linked_list.h" />
     <ClInclude Include="parser_alloc.h" />
     <ClInclude Include="parser_debug.h" />
     <ClInclude Include="stdafx.h" />
-    <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="filter_parser.cpp" />
