@@ -23,16 +23,6 @@ vds::file_manager::file_operations::file_operations()
   : impl_(new file_manager_private::_file_operations()) {
 }
 
-vds::async_task<> vds::file_manager::file_operations::upload_file(
-  const service_provider& sp,
-  const std::shared_ptr<user_manager>& user_mng,
-  const const_data_buffer& channel_id,
-  const std::string& name,
-  const std::string& mimetype,
-  const filename& file_path) {
-  return this->impl_->upload_file(sp, user_mng, channel_id, name, mimetype, file_path);
-}
-
 vds::async_task<vds::file_manager::file_operations::download_result_t>
 vds::file_manager::file_operations::download_file(
   const service_provider& sp,
@@ -54,64 +44,6 @@ vds::file_manager::file_operations::upload_file(
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
-vds::async_task<> vds::file_manager_private::_file_operations::upload_file(
-  const service_provider& paren_sp,
-  const std::shared_ptr<user_manager>& user_mng,
-  const const_data_buffer& channel_id,
-  const std::string& name,
-  const std::string& mimetype,
-  const filename& file_path) {
-
-  auto sp = paren_sp.create_scope(__FUNCTION__);
-
-
-  return sp.get<db_model>()->async_transaction(
-    sp,
-    [pthis = this->shared_from_this(),
-      sp,
-      user_mng,
-      name,
-      mimetype,
-      file_path,
-      channel_id](
-    database_transaction& t) {
-
-
-      auto channel = user_mng->get_channel(sp, channel_id);
-      if (!channel.write_cert()) {
-        sp.get<logger>()->error(
-          ThisModule,
-          sp,
-          "Channel %s don't have write cert",
-          base64::from_bytes(channel_id).c_str());
-        throw vds_exceptions::access_denied_error("User don't have write permission");
-      }
-      auto channel_write_key = user_mng->get_channel_write_key(sp, channel.id());
-
-      std::list<transactions::file_add_transaction::file_block_t> file_blocks;
-      pthis->pack_file(sp, file_path, t, file_blocks);
-
-      throw std::runtime_error("Not implemented");
-      //transactions::transaction_block log;
-      //log.add(
-      //  transactions::file_add_transaction(
-      //    name,
-      //    mimetype,
-      //    file_blocks));
-
-      //log.save(
-      //  sp,
-      //  t,
-      //  channel_id,
-      //  channel.read_cert(),
-      //  channel.write_cert(),
-      //  channel_write_key);
-
-      return true;
-    }
-  );
-}
-
 vds::async_task<vds::const_data_buffer> vds::file_manager_private::_file_operations::upload_file(
   const service_provider& paren_sp,
   const std::shared_ptr<user_manager>& user_mng,

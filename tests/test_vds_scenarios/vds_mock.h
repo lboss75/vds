@@ -69,22 +69,28 @@ public:
       size_t client_index,
       const vds::const_data_buffer &channel_id);
 
-  void upload_file(
+  vds::const_data_buffer upload_file(
       size_t client_index,
       const vds::const_data_buffer &channel_id,
       const std::string &name,
       const std::string &mimetype,
-      const vds::filename &file_path);
+      const std::shared_ptr<vds::continuous_buffer<uint8_t>> & input_stream);
 
-  void download_data(
+  vds::async_task<
+      std::string /*content_type*/,
+      size_t /*body_size*/,
+      std::shared_ptr<vds::continuous_buffer<uint8_t>> /*output_stream*/>
+  download_data(
 	  size_t client_index,
 	  const vds::const_data_buffer & channel_id,
 	  const std::string & name,
-	  const vds::filename & file_path);
+	  const vds::const_data_buffer & file_hash);
 
   void sync_wait();
 
   vds::user_channel create_channel(int index, const std::string &name);
+
+  vds::service_provider get_sp(int client_index);
 
 private:
   std::vector<std::unique_ptr<mock_server>> servers_;

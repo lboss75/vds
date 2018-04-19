@@ -18,14 +18,6 @@ namespace vds {
   namespace file_manager_private {
     class _file_operations : public std::enable_shared_from_this<_file_operations> {
     public:
-      async_task<> upload_file(
-          const service_provider &sp,
-          const std::shared_ptr<user_manager> & user_mng,
-          const const_data_buffer & channel_id,
-          const std::string &name,
-          const std::string &mimetype,
-          const filename &file_path);
-
 			async_task<const_data_buffer> upload_file(
 					const service_provider &sp,
           const std::shared_ptr<user_manager> & user_mng,

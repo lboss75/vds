@@ -316,22 +316,21 @@ void vds_mock::allow_read_channel(size_t client_index, const vds::const_data_buf
 //  }
 }
 
-void vds_mock::upload_file(
+vds::const_data_buffer vds_mock::upload_file(
 	size_t client_index,
 	const vds::const_data_buffer &channel_id,
 	const std::string &name,
-    const std::string &mimetype,
-	const vds::filename &file_path) {
-  vds::barrier b;
-  std::shared_ptr<std::exception> error;
+  const std::string &mimetype,
+  const std::shared_ptr<vds::continuous_buffer<uint8_t>> & input_stream) {
 
+  auto result = std::make_shared<vds::const_data_buffer>();
   auto sp = this->servers_[client_index]->get_service_provider().create_scope(__FUNCTION__);
 
   vds::mt_service::enable_async(sp);
   auto user_mng = std::make_shared<vds::user_manager>();
   this->servers_[client_index]->get<vds::db_model>()->async_transaction(
     sp,
-    [this, sp, user_mng, name, channel_id, mimetype, file_path](vds::database_transaction & t) -> bool {
+    [this, sp, user_mng, name, channel_id, mimetype, input_stream](vds::database_transaction & t) -> bool {
 
     user_mng->load(
       sp,
@@ -341,69 +340,63 @@ void vds_mock::upload_file(
       vds::hash::signature(vds::hash::sha256(), this->root_password_.c_str(), this->root_password_.length()));
 
     return true;
-  }).then([sp, name, channel_id, mimetype, file_path, user_mng]() {
-    return sp.get<vds::file_manager::file_operations>()->upload_file(
-      sp,
-      user_mng,
-      channel_id,
-      name,
-      mimetype,
-      file_path);
-  })
-   .execute([&b, &error](const std::shared_ptr<std::exception> & ex){
-    if(ex){
-      error = ex;
-    }
-    b.set();
-  });
+  }).then([this, sp, name, channel_id, mimetype, input_stream, user_mng]() {
 
-  b.wait();
-  if(error){
-    throw std::runtime_error(error->what());
-  }
+    return sp.get<vds::file_manager::file_operations>()->upload_file(
+        sp,
+        user_mng,
+        channel_id,
+        name,
+        mimetype,
+        input_stream);
+  })
+      .then([result](const vds::const_data_buffer & file_hash){
+        *result = file_hash;
+      })
+      .wait();
+  return *result;
 }
 
-void vds_mock::download_data(
+vds::async_task<
+    std::string /*content_type*/,
+    size_t /*body_size*/,
+    std::shared_ptr<vds::continuous_buffer<uint8_t>> /*output_stream*/>
+vds_mock::download_data(
 	size_t client_index,
 	const vds::const_data_buffer &channel_id,
 	const std::string &name,
-	const vds::filename &file_path) {
+	const vds::const_data_buffer & file_hash) {
   auto sp = this->servers_[client_index]->get_service_provider().create_scope(__FUNCTION__);
   vds::mt_service::enable_async(sp);
-  auto task = std::make_shared<vds::file_manager::download_file_task>(
-      channel_id,
-      name,
-      file_path);
-  for(int try_count = 0; try_count < 10; ++try_count) {
-    vds::barrier b;
-    std::shared_ptr<std::exception> error;
-    sp.get<vds::file_manager::file_operations>()->download_file(
+
+  auto user_mng = std::make_shared<vds::user_manager>();
+  return this->servers_[client_index]->get<vds::db_model>()->async_transaction(
+      sp,
+      [this, sp, user_mng, name, channel_id, file_hash](vds::database_transaction & t) {
+
+        user_mng->load(
             sp,
-            task)
-        .execute([&b, &error, task](const std::shared_ptr<std::exception> &ex) {
-          if (ex) {
-            error = ex;
-          }
-          std::cout
-              << "Downloaded "
-              << task->local_block_count()
-              << " of "
-              << (task->local_block_count() + task->remote_block_count())
-              << "\n";
-          b.set();
-        });
+            t,
+            vds::dht::dht_object_id::from_user_email(this->root_login_),
+            vds::symmetric_key::from_password(this->root_password_),
+            vds::hash::signature(vds::hash::sha256(), this->root_password_.c_str(), this->root_password_.length()));
 
-    b.wait();
-    if (error) {
-      throw std::runtime_error(error->what());
-    }
+        return true;
+      }).then([sp, name, channel_id, file_hash, user_mng]() -> vds::async_task<std::string, size_t, std::shared_ptr<vds::continuous_buffer<uint8_t>>>{
 
-    if (0 == task->remote_block_count()) {
-      break;
-    }
 
-    std::this_thread::sleep_for(std::chrono::seconds(5));
-  }
+    return sp.get<vds::file_manager::file_operations>()->download_file(
+      sp,
+      user_mng,
+      channel_id,
+      file_hash).then(
+      [](const vds::file_manager::file_operations::download_result_t & result) -> vds::async_task<std::string, size_t, std::shared_ptr<vds::continuous_buffer<uint8_t>>>{
+        return vds::async_task<std::string, size_t, std::shared_ptr<vds::continuous_buffer<uint8_t>>>::result(
+          result.mime_type,
+          result.size,
+          result.output_stream);
+      });
+  });
 }
 
 vds::user_channel vds_mock::create_channel(int index, const std::string &name) {
@@ -451,6 +444,10 @@ vds::user_channel vds_mock::create_channel(int index, const std::string &name) {
   }
 
   return result;
+}
+
+vds::service_provider vds_mock::get_sp(int client_index) {
+  return this->servers_[client_index]->get_service_provider();
 }
 
 mock_server::mock_server(int index, int udp_port)
