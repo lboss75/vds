@@ -41,7 +41,7 @@ namespace vds {
         auto pthis = this->shared_from_this();
         logger::get(this->sp_)->debug("HTTP", this->sp_, "HTTP end");
 
-        this->sp_.get<logger>()->trace("HTTP", this->sp_, "State: NONE -> MESSAGE_STARTED");
+        logger::get(this->sp_)->trace("HTTP", this->sp_, "State: NONE -> MESSAGE_STARTED");
         this->message_state_.change_state(
                 MessageStateEnum::MESSAGE_STATE_NONE,
                 MessageStateEnum::MESSAGE_STATE_MESSAGE_STARTED,
@@ -51,7 +51,7 @@ namespace vds {
                 [pthis](const std::shared_ptr<std::exception> &ex) {
                   auto this_ = static_cast<_http_parser_base<implementation_class> *>(pthis.get());
                   if (!ex) {
-                    this_->sp_.get<logger>()->trace("HTTP", this_->sp_, "State: MESSAGE_STARTED -> NONE");
+                    logger::get(this_->sp_)->trace("HTTP", this_->sp_, "State: MESSAGE_STARTED -> NONE");
                     this_->message_state_.change_state(
                         MessageStateEnum::MESSAGE_STATE_MESSAGE_STARTED,
                         MessageStateEnum::MESSAGE_STATE_NONE,
@@ -148,7 +148,7 @@ namespace vds {
               this->expect_100_ = (current_message.get_header("Expect", expect_value) &&
                                    "100-continue" == expect_value);
 
-              this->sp_.get<logger>()->trace("HTTP", this->sp_, "State: Node -> MESSAGE_STARTED");
+              logger::get(this->sp_)->trace("HTTP", this->sp_, "State: Node -> MESSAGE_STARTED");
               this->message_state_.change_state(
                   MessageStateEnum::MESSAGE_STATE_NONE,
                   MessageStateEnum::MESSAGE_STATE_MESSAGE_STARTED,
@@ -160,7 +160,7 @@ namespace vds {
                     [pthis](const std::shared_ptr<std::exception> &ex) {
                       auto this_ = static_cast<_http_parser_base<implementation_class> *>(pthis.get());
                       if (!ex) {
-                        this_->sp_.get<logger>()->trace("HTTP", this_->sp_, "State: MESSAGE_BODY_FINISH -> None");
+                        logger::get(this_->sp_)->trace("HTTP", this_->sp_, "State: MESSAGE_BODY_FINISH -> None");
                         this_->message_state_.change_state(
                             MessageStateEnum::MESSAGE_STATE_MESSAGE_BODY_FINISH,
                             MessageStateEnum::MESSAGE_STATE_NONE,
@@ -189,7 +189,7 @@ namespace vds {
                     [pthis](const std::shared_ptr<std::exception> &ex) {
                   auto this_ = static_cast<_http_parser_base<implementation_class> *>(pthis.get());
                   if (!ex) {
-                    this_->sp_.get<logger>()->trace("HTTP", this_->sp_, "State: MESSAGE_STARTED -> MESSAGE_BODY_FINISH");
+                    logger::get(this_->sp_)->trace("HTTP", this_->sp_, "State: MESSAGE_STARTED -> MESSAGE_BODY_FINISH");
                     this_->message_state_.change_state(
                       MessageStateEnum::MESSAGE_STATE_MESSAGE_STARTED,
                       MessageStateEnum::MESSAGE_STATE_MESSAGE_BODY_FINISH,
@@ -257,7 +257,7 @@ namespace vds {
                           [pthis](const std::shared_ptr<std::exception> &ex) {
                             auto this_ = static_cast<_http_parser_base<implementation_class> *>(pthis.get());
                             if (!ex) {
-                              this_->sp_.get<logger>()->trace("HTTP", this_->sp_, "State: MESSAGE_STARTED -> MESSAGE_BODY_FINISH");
+                              logger::get(this_->sp_)->trace("HTTP", this_->sp_, "State: MESSAGE_STARTED -> MESSAGE_BODY_FINISH");
                               this_->message_state_.change_state(
                                   MessageStateEnum::MESSAGE_STATE_MESSAGE_STARTED,
                                   MessageStateEnum::MESSAGE_STATE_MESSAGE_BODY_FINISH,
@@ -316,7 +316,7 @@ namespace vds {
                       [pthis](const std::shared_ptr<std::exception> &ex) {
                         auto this_ = static_cast<_http_parser_base<implementation_class> *>(pthis.get());
                         if (!ex) {
-                          this_->sp_.get<logger>()->trace("HTTP", this_->sp_, "State: MESSAGE_STARTED -> MESSAGE_BODY_FINISH");
+                          logger::get(this_->sp_)->trace("HTTP", this_->sp_, "State: MESSAGE_STARTED -> MESSAGE_BODY_FINISH");
                           this_->message_state_.change_state(
                               MessageStateEnum::MESSAGE_STATE_MESSAGE_STARTED,
                               MessageStateEnum::MESSAGE_STATE_MESSAGE_BODY_FINISH,

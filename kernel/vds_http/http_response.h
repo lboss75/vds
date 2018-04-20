@@ -49,6 +49,7 @@ namespace vds {
       const service_provider & sp,
       const std::shared_ptr<continuous_buffer<uint8_t>> & body,
       const std::string & content_type,
+      const std::string & filename,
       size_t body_size,
       int result_code = HTTP_OK,
       const std::string & message = "OK");

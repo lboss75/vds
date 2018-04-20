@@ -42,6 +42,7 @@ namespace vds {
 
     static async_task<
       std::string /*content_type*/,
+      std::string /*filename*/,
       size_t /*body_size*/,
       std::shared_ptr<continuous_buffer<uint8_t>> /*output_stream*/>
     download_file(

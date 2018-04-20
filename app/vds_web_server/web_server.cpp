@@ -347,6 +347,7 @@ vds::async_task<vds::http_message> vds::_web_server::route(
         file_hash)
         .then([sp](
           const std::string & content_type,
+          const std::string & filename,
           size_t body_size,
           const std::shared_ptr<vds::continuous_buffer<uint8_t>> & output_stream) {
 
@@ -355,6 +356,7 @@ vds::async_task<vds::http_message> vds::_web_server::route(
             sp,
             output_stream,
             content_type,
+            filename,
             body_size));
       });
     }
