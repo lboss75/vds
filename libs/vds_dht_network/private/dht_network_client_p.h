@@ -100,6 +100,11 @@ namespace vds {
           const std::shared_ptr<dht_session> & session,
           const messages::replica_request & message);
 
+        async_task<> apply_message(
+            const service_provider & sp,
+            const std::shared_ptr<dht_session> & session,
+            const messages::offer_replica & message);
+
         void apply_message(
             const service_provider & sp,
             database_transaction & t,

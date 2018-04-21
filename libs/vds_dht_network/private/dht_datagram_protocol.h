@@ -243,18 +243,30 @@ namespace vds {
                         result.done();
                       }
                     });
+                    return;
                   }
                   else {
-                    result.error(ex);
+                    auto sys_error = std::dynamic_pointer_cast<std::system_error>(ex);
+                    if (sys_error) {
+                      if(
+                          std::system_category() != sys_error->code().category()
+                        || EPIPE != sys_error->code().value()){
+                        result.error(ex);
+                        return;
+                      }
+                    }
+                    else {
+                      result.error(ex);
+                      return;
+                    }
                   }
                 }
-                else {
-                  vds_assert(expected_index == pthis->output_sequence_number_);
-                  pthis->output_messages_[pthis->output_sequence_number_] = datagram;
-                  pthis->output_callbacks_[pthis->output_sequence_number_] = result_callback;
-                  pthis->output_sequence_number_++;
-                  result.done();
-                }
+
+                vds_assert(expected_index == pthis->output_sequence_number_);
+                pthis->output_messages_[pthis->output_sequence_number_] = datagram;
+                pthis->output_callbacks_[pthis->output_sequence_number_] = result_callback;
+                pthis->output_sequence_number_++;
+                result.done();
               });
             }
             else {
@@ -457,8 +469,10 @@ namespace vds {
                 mask >>= 1;
                 ++index;
 
-                return s->write_async(sp, udp_datagram(this->address_, p->second, false))
-                  .then([pthis = this->shared_from_this(), sp, s, mask, index](){
+                result = result.then([sp, s, data = udp_datagram(this->address_, p->second, false)]() {
+                  return s->write_async(sp, data);
+                })
+                .then([pthis = this->shared_from_this(), sp, s, mask, index](){
                   return pthis->repeat_message(sp, s, mask, index);
                 });
               }
@@ -477,7 +491,7 @@ namespace vds {
             ++index;
           }
 
-          return result;
+          return std::move(result);
         }
       };
     }

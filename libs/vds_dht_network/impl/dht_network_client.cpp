@@ -295,8 +295,8 @@ vds::async_task<> vds::dht::network::_client::restore(
 
     pthis->send(
             sp,
-            block_id.key,
-            messages::replica_request(block_id.key, replicas, pthis->current_node_id()))
+            block_id.id,
+            messages::replica_request(block_id.id, replicas, pthis->current_node_id()))
         .execute([](const std::shared_ptr<std::exception> &){});
 
     return true;
@@ -315,6 +315,27 @@ vds::async_task<> vds::dht::network::_client::restore(
 
 void vds::dht::network::_client::get_route_statistics(route_statistic& result) {
   this->route_.get_statistics(result);
+}
+
+vds::async_task<>
+vds::dht::network::_client::apply_message(const vds::service_provider &sp, const std::shared_ptr<dht_session> &session,
+                                          const vds::dht::messages::offer_replica &message) {
+  return sp.get<db_model>()->async_transaction(
+      sp,
+      [pthis = this->shared_from_this(), sp, message](database_transaction & t){
+        orm::chunk_replica_data_dbo t1;
+        t.execute(t1.insert_or_ignore(
+            t1.id = base64::from_bytes(message.object_id()),
+            t1.replica = message.replica(),
+            t1.replica_data = message.replica_data()));
+      }).then([sp, pthis = this->shared_from_this(), message](){
+    if(message.target_node() != pthis->current_node_id()){
+      return pthis->send(sp, message.target_node(), message);
+    }
+    else {
+      return async_task<>::empty();
+    }
+  });
 }
 
 void vds::dht::network::client::start(

@@ -142,6 +142,19 @@ vds::async_task<> vds::dht::network::dht_session::process_message(
       });
       break;
     }
+    case network::message_type_t::offer_replica: {
+      binary_deserializer s(message_data);
+      messages::offer_replica message(s);
+      auto result = std::make_shared<async_task<>>(async_task<>::empty());
+      *result = (*sp.get<client>())->apply_message(
+          sp.create_scope("messages::replica_request"),
+          this->shared_from_this(),
+          message);
+      mt_service::async(sp, [result]() mutable {
+        result->execute([](const std::shared_ptr<std::exception> &) {});
+      });
+      break;
+    }
     default:{
       throw std::runtime_error("Invalid command");
     }

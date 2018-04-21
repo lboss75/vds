@@ -344,11 +344,11 @@ void vds::file_manager_private::_file_operations::download_stream(
       file_blocks.begin()->block_id,
       file_blocks.begin()->block_key })
       .execute([pthis = this->shared_from_this(), sp, target_stream, file_blocks](const std::shared_ptr<std::exception> & ex, const const_data_buffer & data){
-        vds_assert(data.size() == file_blocks.begin()->block_size);
     if(ex){
       target_stream->write_async(nullptr, 0).execute([](const std::shared_ptr<std::exception> & ){});
     }
     else {
+      vds_assert(data.size() == file_blocks.begin()->block_size);
       target_stream->write_async(data.data(), file_blocks.begin()->block_size).execute(
           [data, pthis, sp, target_stream, file_blocks](const std::shared_ptr<std::exception> & ex) {
             auto f = file_blocks;

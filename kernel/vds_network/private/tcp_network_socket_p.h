@@ -339,40 +339,82 @@ namespace vds {
 
 
       async_task<> write_async(const uint8_t * data, size_t size) {
+        std::lock_guard<std::mutex> lock(this->write_mutex_);
+        switch (this->write_status_) {
+          case write_status_t::bof:
+            this->write_buffer_.reset(data, size);
+            return [pthis = this->shared_from_this()](
+                const async_result<> & result){
+              auto this_ = static_cast<_socket_handler *>(pthis.get());
+              this_->write_result_ = result;
+              this_->write_status_ = write_status_t::waiting_socket;
+              this_->change_mask(EPOLLOUT);
+            };
 
-        return [pthis = this->shared_from_this(), data, size](const async_result<> & result) {
-          auto this_ = static_cast<_socket_handler *>(pthis.get());
+          case write_status_t::continue_write:
+            this->write_buffer_.reset(data, size);
+            return [pthis = this->shared_from_this()](
+                const async_result<> & result){
+              auto this_ = static_cast<_socket_handler *>(pthis.get());
+              this_->write_result_ = result;
+              this_->write_data();
+            };
 
-          std::unique_lock<std::mutex> lock(this_->write_mutex_);
+          case write_status_t::eof:
+            return async_task<>(
+                std::make_shared<std::system_error>(ECONNRESET, std::system_category())
+            );
 
-          int len = send(
-              this_->s_,
-              data,
-              size,
-              MSG_NOSIGNAL);
+          default:
+            throw  std::runtime_error("Invalid operator");
+        }
 
-          if (len < 0) {
-            int error = errno;
-            this_->write_status_ = write_status_t::bof;
-            lock.unlock();
+      }
 
-            result.error(
-                std::make_shared<std::system_error>(
-                    error,
-                    std::generic_category(),
-                    "Send"));
-          } else {
-            this_->write_status_ = write_status_t::bof;
-            this_->sp_.get<logger>()->trace("TCP", this_->sp_, "Sent %d bytes", len);
+      void write_data() {
+        std::unique_lock<std::mutex> lock(this->write_mutex_);
 
-            if ((size_t) len != size) {
-              throw std::runtime_error("Invalid send TCP");
-            }
-            lock.unlock();
+        if(0 == this->write_buffer_.size()){
+          shutdown(this->s_, SHUT_WR);
+          this->write_status_ = write_status_t::eof;
+          return;
+        }
 
-            result.done();
+        int len = send(
+            this->s_,
+            this->write_buffer_.data(),
+            this->write_buffer_.size(),
+            MSG_NOSIGNAL);
+
+        if (len < 0) {
+          int error = errno;
+          if(EAGAIN == error){
+            this->write_status_ = write_status_t::waiting_socket;
+            this->change_mask(EPOLLOUT);
+            return;
           }
-        };
+
+          this->write_status_ = write_status_t::waiting_socket;
+          auto result = std::move(this->write_result_);
+          lock.unlock();
+
+          result.error(
+              std::make_shared<std::system_error>(
+                  error,
+                  std::generic_category(),
+                  "Send"));
+        } else {
+          this->sp_.get<logger>()->trace("TCP", this->sp_, "Sent %d bytes", len);
+
+          if ((size_t) len != this->write_buffer_.size()) {
+            throw std::runtime_error("Invalid send TCP");
+          }
+          this->write_status_ = write_status_t::continue_write;
+          auto result = std::move(this->write_result_);
+          lock.unlock();
+
+          result.done();
+        }
       }
 
       void read_data() {
@@ -382,12 +424,16 @@ namespace vds {
               this->read_buffer_,
               sizeof(this->read_buffer_));
 
-          if (len < 0) {
+          if (len <= 0) {
             int error = errno;
             if (EAGAIN == error) {
+              this->sp_.get<logger>()->trace("TCP", this->sp_, "Waiting socket");
+              this->read_status_ = read_status_t::waiting_socket;
+              this->change_mask(EPOLLIN);
               break;
             }
 
+            this->sp_.get<logger>()->trace("TCP", this->sp_, "Read error %d", error);
             throw std::system_error(
                     error,
                     std::generic_category(),
@@ -395,6 +441,7 @@ namespace vds {
           } else {
             this->sp_.get<logger>()->trace("TCP", this->sp_, "Read %d bytes", len);
             this->target_.write(this->read_buffer_, len);
+            this->sp_.get<logger>()->trace("TCP", this->sp_, "Processed %d bytes", len);
           }
         }
       }
@@ -402,9 +449,8 @@ namespace vds {
     private:
       std::shared_ptr<_stream_async<uint8_t>> owner_;
 
-      const uint8_t * write_buffer_;
-      size_t write_buffer_size_;
-      //async_result<> write_result_;
+      const_data_buffer write_buffer_;
+      async_result<> write_result_;
 
       stream<uint8_t> target_;
       uint8_t read_buffer_[1024];
