@@ -137,9 +137,10 @@ vds::async_task<> vds::dht::network::_client::apply_message(
   const service_provider& sp,
   const std::shared_ptr<dht_session>& session,
   const messages::replica_request& message) {
+  auto async_tasks = std::make_shared<async_task<>>(async_task<>::empty());
   return sp.get<db_model>()->async_transaction(
     sp,
-    [pthis = this->shared_from_this(), sp, session, message](database_transaction & t){
+    [pthis = this->shared_from_this(), sp, session, message, async_tasks](database_transaction & t){
 
     std::vector<uint16_t> have_replicas;
     orm::chunk_replica_data_dbo t1;
@@ -162,7 +163,7 @@ vds::async_task<> vds::dht::network::_client::apply_message(
         .where(t1.id == base64::from_bytes(message.object_id()) && t1.replica == replica));
       if (st.execute()) {
         auto data = t1.replica_data.get(st);
-        session->send_message(
+        *async_tasks = session->send_message(
           sp,
           pthis->udp_transport_,
           (uint8_t)messages::offer_replica::message_id,
@@ -175,6 +176,8 @@ vds::async_task<> vds::dht::network::_client::apply_message(
             pthis->current_node_id()).serialize());
       }
     }
+  }).then([async_tasks]() {
+    return std::move(*async_tasks);
   });
 }
 
