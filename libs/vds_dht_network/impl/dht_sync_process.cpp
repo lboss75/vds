@@ -2,8 +2,6 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
-#include <messages/offer_replica.h>
-#include <messages/replica_not_found.h>
 #include "stdafx.h"
 #include "private/dht_sync_process.h"
 #include "channel_local_cache_dbo.h"
@@ -18,6 +16,8 @@ All rights reserved
 #include "messages/channel_log_request.h"
 #include "messages/channel_log_record.h"
 #include "transaction_log.h"
+#include "messages/offer_replica.h"
+#include "messages/replica_not_found.h"
 
 vds::async_task<> vds::dht::network::sync_process::query_unknown_records(const service_provider& sp, database_transaction& t) {
   std::map<const_data_buffer, std::list<const_data_buffer>> record_ids;
@@ -349,6 +349,7 @@ void vds::dht::network::sync_process::apply_message(
   }
   else {
     client->send(sp, message.target_node(), messages::offer_replica(
+        message.target_node(),
         message.object_id(),
         message.replica(),
         t1.replica_data.get(st),

@@ -16,8 +16,13 @@ namespace vds {
       public:
         static const network::message_type_t message_id = network::message_type_t::offer_replica;
 
-        offer_replica(const const_data_buffer &object_id, uint16_t replica, const const_data_buffer &replica_data,
-                              const const_data_buffer &adviser, const const_data_buffer &source_node)
+        offer_replica(
+          const const_data_buffer &target_node,
+          const const_data_buffer &object_id,
+          uint16_t replica,
+          const const_data_buffer &replica_data,
+          const const_data_buffer &adviser,
+          const const_data_buffer &source_node)
             : object_id_(object_id), replica_(replica), replica_data_(replica_data), adviser_(adviser),
               source_node_(source_node) {
         }
@@ -25,6 +30,7 @@ namespace vds {
         offer_replica(
           binary_deserializer & s) {
           s
+              >> this->target_node_
               >> this->object_id_
               >> this->replica_
               >> this->replica_data_
@@ -36,12 +42,17 @@ namespace vds {
         const_data_buffer serialize() const {
           binary_serializer s;
           s
+              << this->target_node_
               << this->object_id_
               << this->replica_
               << this->replica_data_
               << this->adviser_
               << this->source_node_;
           return s.data();
+        }
+
+        const const_data_buffer & target_node() const {
+          return this->target_node_;
         }
 
         const const_data_buffer & object_id() const {
@@ -65,6 +76,7 @@ namespace vds {
         }
 
       private:
+        const_data_buffer target_node_;
         const_data_buffer object_id_;
         uint16_t replica_;
         const_data_buffer replica_data_;

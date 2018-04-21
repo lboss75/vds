@@ -11,6 +11,7 @@ All rights reserved
 #include "dht_route.h"
 #include "chunk.h"
 #include "messages/offer_move_replica.h"
+#include "messages/replica_request.h"
 #include "dht_sync_process.h"
 #include "udp_transport.h"
 
@@ -93,6 +94,11 @@ namespace vds {
           const service_provider & sp,
           const std::shared_ptr<dht_session> & session,
           const messages::dht_pong & message);
+
+        async_task<> apply_message(
+          const service_provider & sp,
+          const std::shared_ptr<dht_session> & session,
+          const messages::replica_request & message);
 
         void apply_message(
             const service_provider & sp,

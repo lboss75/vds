@@ -14,6 +14,7 @@ All rights reserved
 #include "messages/channel_log_record.h"
 #include "messages/dht_ping.h"
 #include "messages/dht_pong.h"
+#include "messages/replica_request.h"
 
 vds::dht::network::dht_session::dht_session(
   const network_address& address,
@@ -128,7 +129,19 @@ vds::async_task<> vds::dht::network::dht_session::process_message(
       });
       break;
     }
-
+    case network::message_type_t::replica_request: {
+      binary_deserializer s(message_data);
+      messages::replica_request message(s);
+      auto result = std::make_shared<async_task<>>(async_task<>::empty());
+      *result = (*sp.get<client>())->apply_message(
+        sp.create_scope("messages::replica_request"),
+        this->shared_from_this(),
+        message);
+      mt_service::async(sp, [result]() mutable {
+        result->execute([](const std::shared_ptr<std::exception> &) {});
+      });
+      break;
+    }
     default:{
       throw std::runtime_error("Invalid command");
     }

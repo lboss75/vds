@@ -117,7 +117,9 @@ vds::async_task<> vds::dht::network::_client::apply_message(const service_provid
   }
 }
 
-vds::async_task<> vds::dht::network::_client::apply_message(const service_provider& sp, const std::shared_ptr<dht_session>& session,
+vds::async_task<> vds::dht::network::_client::apply_message(
+  const service_provider& sp,
+  const std::shared_ptr<dht_session>& session,
   const messages::dht_pong& message) {
   this->route_.mark_pinged(message.target_node(), session->address());
 
@@ -129,6 +131,51 @@ vds::async_task<> vds::dht::network::_client::apply_message(const service_provid
     return true;
   });
   return result;
+}
+
+vds::async_task<> vds::dht::network::_client::apply_message(
+  const service_provider& sp,
+  const std::shared_ptr<dht_session>& session,
+  const messages::replica_request& message) {
+  return sp.get<db_model>()->async_transaction(
+    sp,
+    [pthis = this->shared_from_this(), sp, session, message](database_transaction & t){
+
+    std::vector<uint16_t> have_replicas;
+    orm::chunk_replica_data_dbo t1;
+    auto st = t.get_reader(
+      t1
+      .select(t1.replica)
+      .where(t1.id == base64::from_bytes(message.object_id()) && db_not_in_values(t1.replica, message.replicas())));
+
+    while (st.execute()) {
+      auto replica = safe_cast<uint16_t>(t1.replica.get(st));
+      have_replicas.push_back(replica);
+    }
+
+    if (!have_replicas.empty()) {
+      auto index = std::rand() % have_replicas.size();
+      auto replica = have_replicas[index];
+      st = t.get_reader(
+        t1
+        .select(t1.replica_data)
+        .where(t1.id == base64::from_bytes(message.object_id()) && t1.replica == replica));
+      if (st.execute()) {
+        auto data = t1.replica_data.get(st);
+        session->send_message(
+          sp,
+          pthis->udp_transport_,
+          (uint8_t)messages::offer_replica::message_id,
+          messages::offer_replica(
+            message.source_node(), 
+            message.object_id(),
+            replica,
+            data,
+            message.source_node(),
+            pthis->current_node_id()).serialize());
+      }
+    }
+  });
 }
 
 void vds::dht::network::_client::add_session(const service_provider& sp, const std::shared_ptr<dht_session>& session, uint8_t hops) {
