@@ -6,6 +6,7 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 #include <list>
+#include <string>
 #include "const_data_buffer.h"
 #include "guid.h"
 

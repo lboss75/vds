@@ -101,52 +101,7 @@ void vds::_web_server::start(const service_provider& sp, const std::string & roo
 vds::async_task<> vds::_web_server::prepare_to_stop(const service_provider& sp) {
   return vds::async_task<>::empty();
 }
-/*
-void test_db(const vds::service_provider& sp, size_t len) {
-  static uint8_t id[] = {0x59, 0x59, 0x59};
-  auto key = vds::base64::from_bytes(id, sizeof(id));
 
-  sp.get<vds::db_model>()->async_transaction(sp, [key, len](vds::database_transaction & t)->bool {
-    for (uint16_t replica = 0; replica < 1024; ++replica) {
-      vds::resizable_data_buffer data;
-
-      for (size_t i = 0; i < len; ++i) {
-        data.add((uint8_t)replica);
-      }
-
-      vds::orm::chunk_replica_data_dbo t1;
-      t.execute(
-        t1.insert(
-          t1.id = key,
-          t1.replica = replica,
-          t1.replica_data = vds::const_data_buffer(data.data(), data.size())
-        ));
-    }
-    return true;
-  }).wait();
-
-  sp.get<vds::db_model>()->async_transaction(sp, [key, len](vds::database_transaction & t)->bool {
-    vds::orm::chunk_replica_data_dbo t1;
-    std::map<int, vds::const_data_buffer> buf;
-    auto st = t.get_reader(t1.select(t1.replica, t1.replica_data).where(t1.id == key));
-    while (st.execute()) {
-      auto replica = t1.replica.get(st);
-      auto data = t1.replica_data.get(st);
-      buf[replica] = data;
-    }
-
-    for (auto & p : buf) {
-      vds::resizable_data_buffer data;
-
-      for (size_t i = 0; i < len; ++i) {
-        vds_assert(p.second[i] == (uint8_t)p.first);
-      }
-    }
-    return true;
-  }).wait();
-
-}
-*/
 vds::async_task<vds::http_message> vds::_web_server::route(
   const service_provider& sp,
   const http_message& message) {
@@ -156,8 +111,6 @@ vds::async_task<vds::http_message> vds::_web_server::route(
   http_request request(message);
   if(request.url() == "/api/channels") {
     if (request.method() == "GET") {
-      //test_db(sp, 500);
-
       const auto user_mng = this->get_secured_context(sp, message);
       if (!user_mng) {
         return vds::async_task<vds::http_message>::result(
@@ -395,6 +348,20 @@ vds::async_task<vds::http_message> vds::_web_server::route(
 
   if (request.url() == "/login" && request.method() == "POST") {
     return login_page::post(sp, this->shared_from_this(), message);
+  }
+
+  if (request.url() == "/api/statistics") {
+    if (request.method() == "GET") {
+      const auto result = api_controller::get_statistics(
+        sp,
+        this->shared_from_this(),
+        message);
+      return vds::async_task<vds::http_message>::result(
+        http_response::simple_text_response(
+          sp,
+          result->str(),
+          "application/json; charset=utf-8"));
+    }
   }
 
   return vds::async_task<vds::http_message>::result(this->router_.route(sp, message, request.url()));

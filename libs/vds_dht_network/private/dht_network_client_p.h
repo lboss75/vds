@@ -117,6 +117,8 @@ namespace vds {
             const std::shared_ptr<const_data_buffer> & result,
             const std::chrono::steady_clock::time_point & start);
 
+        void get_route_statistics(route_statistic& result);
+
       private:
         std::shared_ptr<udp_transport> udp_transport_;
         dht_route<std::shared_ptr<dht_session>> route_;

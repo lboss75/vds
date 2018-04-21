@@ -233,6 +233,12 @@ void vds::dht::network::udp_transport::continue_read(
       pthis->continue_read(sp);
     }
     else {
+      if(ex) {
+        sp.get<logger>()->trace(ThisModule, sp, "Error %s", ex->what());
+      }
+      if(0 == datagram.data_size()) {
+        sp.get<logger>()->trace(ThisModule, sp, "0 == datagram.data_size()");
+      }
       mt_service::async(sp, [sp, pthis]() {
         pthis->continue_read(sp);
       });

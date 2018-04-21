@@ -266,6 +266,10 @@ vds::async_task<> vds::dht::network::_client::restore(
   });
 }
 
+void vds::dht::network::_client::get_route_statistics(route_statistic& result) {
+  this->route_.get_statistics(result);
+}
+
 void vds::dht::network::client::start(
   const vds::service_provider &sp,
   const vds::const_data_buffer &this_node_id, uint16_t port) {
@@ -344,4 +348,8 @@ vds::async_task<vds::const_data_buffer> vds::dht::network::client::restore(
 
 const vds::const_data_buffer &vds::dht::network::client::current_node_id() const {
   return this->impl_->current_node_id();
+}
+
+void vds::dht::network::client::get_route_statistics(route_statistic& result) {
+  this->impl_->get_route_statistics(result);
 }

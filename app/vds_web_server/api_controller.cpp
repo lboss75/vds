@@ -203,6 +203,16 @@ vds::api_controller::offer_device(
   return vds::async_task<std::shared_ptr<vds::json_value>>::result(result);
 }
 
+std::shared_ptr<vds::json_value> vds::api_controller::get_statistics(const service_provider& sp,
+  const std::shared_ptr<_web_server>& owner, const http_message& message) {
+
+  http_request request(message);
+
+  route_statistic statistic;
+  sp.get<dht::network::client>()->get_route_statistics(statistic);
+  return statistic.serialize(request.get_parameter("all") == "true");
+}
+
 vds::async_task<>
 vds::api_controller::lock_device(
     const vds::service_provider &sp,

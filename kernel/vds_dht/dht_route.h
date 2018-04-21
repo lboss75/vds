@@ -185,6 +185,8 @@ namespace vds {
         }
       }
 
+      void get_statistics(route_statistic& result);
+
     private:
       const_data_buffer current_node_id_;
 
@@ -261,6 +263,20 @@ namespace vds {
             }
           }
         }
+
+        void get_statistics(route_statistic& result) {
+          std::shared_lock<std::shared_mutex> lock(this->nodes_mutex_);
+          for (auto &p : this->nodes_) {
+            result.items_.push_back(
+              route_statistic::route_info{
+                p->node_id_,
+                p->proxy_session_->address().to_string(),
+                p->pinged_,
+                p->hops_
+              }
+            );
+          }
+        }
       };
 
       mutable std::shared_mutex buckets_mutex_;
@@ -335,6 +351,15 @@ namespace vds {
         return result;
       }
     };
+
+    template <typename session_type>
+    void dht_route<session_type>::get_statistics(route_statistic& result) {
+      result.node_id_ = this->current_node_id();
+      std::shared_lock<std::shared_mutex> lock(this->buckets_mutex_);
+      for (auto &p : this->buckets_) {
+        p.second->get_statistics(result);
+      }
+    }
   }
 }
 

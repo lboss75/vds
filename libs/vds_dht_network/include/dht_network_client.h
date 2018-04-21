@@ -8,6 +8,7 @@ All rights reserved
 
 #include "service_provider.h"
 #include "const_data_buffer.h"
+#include "route_statistic.h"
 
 namespace vds {
   class database_transaction;
@@ -37,6 +38,8 @@ namespace vds {
             const chunk_info & block_id);
 
         const const_data_buffer & current_node_id() const;
+
+        void get_route_statistics(route_statistic & result);
 
         _client *operator ->() const {
           return this->impl_.get();
