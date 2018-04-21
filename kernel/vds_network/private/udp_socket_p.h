@@ -379,6 +379,7 @@ namespace vds {
               this_->read_status_ = read_status_t::waiting_socket;
               this_->change_mask(EPOLLIN);
             };
+
           case read_status_t::continue_read:
             return [pthis = this->shared_from_this()](
                 const async_result<const udp_datagram &> & result){
@@ -398,65 +399,34 @@ namespace vds {
       }
 
       async_task<> write_async(const udp_datagram & message) {
-        return [message, pthis = this->shared_from_this()](const async_result<> &result) {
-          auto this_ = static_cast<_udp_handler *>(pthis.get());
+        std::lock_guard<std::mutex> lock(this->write_mutex_);
+        switch (this->write_status_) {
+          case write_status_t::bof:
+            this->write_message_ = message;
+            return [pthis = this->shared_from_this()](
+                const async_result<> & result){
+              auto this_ = static_cast<_udp_handler *>(pthis.get());
+              this_->write_result_ = result;
+              this_->write_status_ = write_status_t::waiting_socket;
+              this_->change_mask(EPOLLOUT);
+            };
+          case write_status_t::continue_write:
+            this->write_message_ = message;
+            return [pthis = this->shared_from_this()](
+                const async_result<> & result){
+              auto this_ = static_cast<_udp_handler *>(pthis.get());
+              this_->write_result_ = result;
+              this_->write_data();
+            };
 
-          std::unique_lock<std::mutex> lock(this_->write_mutex_);
+          case write_status_t::eof:
+            return async_task<>(
+                std::make_shared<std::system_error>(ECONNRESET, std::system_category())
+            );
 
-          if (write_status_t::eof == this_->write_status_) {
-            result.error(
-                std::make_shared<std::system_error>(
-                    ECONNRESET,
-                    std::generic_category()));
-            return;
-          }
-
-          auto size = message.data_size();
-          int len = sendto(
-              this_->s_,
-              message.data(),
-              size,
-              0,
-              message.address(),
-              message.address().size());
-          this_->sp_.get<logger>()->trace("UDP", this_->sp_, "send %d bytes to %s",
-                                         size,
-                                         message.address().to_string().c_str());
-
-          this_->write_status_ = write_status_t::bof;
-          if (len < 0) {
-            int error = errno;
-            lock.unlock();
-
-            if (EMSGSIZE == error) {
-              result.error(
-                  std::make_shared<udp_datagram_size_exception>());
-            } else {
-              result.error(
-                  std::make_shared<std::system_error>(
-                      error,
-                      std::generic_category(),
-                      "Send to " + message.address().to_string()));
-            }
-            return;
-          }
-
-          if ((size_t) len != size) {
-            throw std::runtime_error("Invalid send UDP");
-          }
-
-          lock.unlock();
-          this_->sp_.get<logger>()->trace(
-              "UDP",
-              this_->sp_,
-              "Sent %d bytes to %s",
-              len,
-              message.address().to_string().c_str());
-
-          mt_service::async(this_->sp_, [result]() {
-            result.done();
-          });
-        };
+          default:
+            throw  std::runtime_error("Invalid operator");
+        }
       }
 
       void read_data() {
@@ -485,7 +455,7 @@ namespace vds {
                            this->addr_,
                            this->addr_.size_ptr());
 
-        if (len < 0) {
+        if (len <= 0) {
           int error = errno;
           if(EAGAIN == error){
             this->read_status_ = read_status_t::waiting_socket;
@@ -493,6 +463,7 @@ namespace vds {
             return;
           }
 
+          this->read_status_ = read_status_t::continue_read;
           auto result = std::move(this->read_result_);
           lock.unlock();
 
@@ -506,6 +477,82 @@ namespace vds {
           lock.unlock();
 
           result.done(_udp_datagram::create(this->addr_, this->read_buffer_, len));
+        }
+      }
+
+      void write_data(){
+        std::unique_lock<std::mutex> lock(this->write_mutex_);
+
+        if(write_status_t::eof == this->write_status_){
+          auto result = std::move(this->write_result_);
+          lock.unlock();
+
+          if(result) {
+            result.error(
+                std::make_shared<std::system_error>(
+                    ECONNRESET, std::system_category()));
+          }
+          return;
+        }
+
+        if(write_status_t::waiting_socket != this->write_status_
+           && write_status_t::continue_write != this->write_status_) {
+          throw std::runtime_error("Invalid operation");
+        }
+
+        auto size = this->write_message_.data_size();
+        int len = sendto(
+            this->s_,
+            this->write_message_.data(),
+            size,
+            0,
+            this->write_message_.address(),
+            this->write_message_.address().size());
+        this->sp_.get<logger>()->trace("UDP", this->sp_, "send %d bytes to %s",
+                                        size,
+                                       this->write_message_.address().to_string().c_str());
+
+        this->write_status_ = write_status_t::bof;
+        if (len < 0) {
+          int error = errno;
+          if(EAGAIN == error){
+            this->write_status_ = write_status_t::waiting_socket;
+            this->change_mask(EPOLLOUT);
+            return;
+          }
+
+          auto result = std::move(this->write_result_);
+          auto address = this->write_message_.address().to_string();
+          lock.unlock();
+
+          if (EMSGSIZE == error) {
+            result.error(
+                std::make_shared<udp_datagram_size_exception>());
+          } else {
+            result.error(
+                std::make_shared<std::system_error>(
+                    error,
+                    std::generic_category(),
+                    "Send to " + address));
+          }
+        }
+        else {
+          if ((size_t) len != size) {
+            throw std::runtime_error("Invalid send UDP");
+          }
+
+          this->sp_.get<logger>()->trace(
+              "UDP",
+              this->sp_,
+              "Sent %d bytes to %s",
+              len,
+              this->write_message_.address().to_string().c_str());
+
+          this->write_status_ = write_status_t::continue_write;
+          auto result = std::move(this->write_result_);
+          lock.unlock();
+
+          result.done();
         }
       }
 
