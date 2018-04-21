@@ -25,7 +25,7 @@ namespace vds {
         const std::function<async_task<>(const http_message &message)> &message_callback)
         : sp_(sp),
           message_callback_(message_callback),
-          message_state_(MessageStateEnum::MESSAGE_STATE_NONE, MessageStateEnum::MESSAGE_STATE_FAILED),
+          message_state_(MessageStateEnum::MESSAGE_STATE_NONE),
           state_(StateEnum::STATE_PARSE_HEADER) {
     }
 
@@ -37,21 +37,15 @@ namespace vds {
         logger::get(this->sp_)->debug("HTTP", this->sp_, "HTTP end");
 
         this->current_message_.body()->write_async(nullptr, 0)
-          .execute(
-            [pthis](const std::shared_ptr<std::exception> &ex) {
-          auto this_ = static_cast<_http_form_part_parser *>(pthis.get());
-          if (!ex) {
-            this_->message_state_.change_state(
+          .then([pthis]() {
+            auto this_ = static_cast<_http_form_part_parser *>(pthis.get());
+            return this_->message_state_.change_state(
               MessageStateEnum::MESSAGE_STATE_MESSAGE_STARTED,
-              MessageStateEnum::MESSAGE_STATE_MESSAGE_BODY_FINISH,
-              error_logic::return_false);
-          }
-          else {
-            this_->message_state_.fail(ex);
-          }
-        });
+              MessageStateEnum::MESSAGE_STATE_MESSAGE_BODY_FINISH);
+        })
+        .execute([](const std::shared_ptr<std::exception> &ex) {});
 
-        this->message_state_.wait(MessageStateEnum::MESSAGE_STATE_NONE, error_logic::throw_exception, std::chrono::seconds(600));
+        this->message_state_.wait(MessageStateEnum::MESSAGE_STATE_NONE).wait();
         this->state_ = StateEnum::STATE_PARSE_HEADER;
       } else {
 
@@ -63,7 +57,7 @@ namespace vds {
     }
 
     void reset() {
-      this->message_state_.wait(MessageStateEnum::MESSAGE_STATE_NONE, error_logic::throw_exception);
+      this->message_state_.wait(MessageStateEnum::MESSAGE_STATE_NONE).wait();
       this->state_ = StateEnum::STATE_PARSE_HEADER;
     }
 
@@ -118,22 +112,18 @@ namespace vds {
 
               this->message_state_.change_state(
                   MessageStateEnum::MESSAGE_STATE_NONE,
-                  MessageStateEnum::MESSAGE_STATE_MESSAGE_STARTED,
-                  error_logic::throw_exception);
+                  MessageStateEnum::MESSAGE_STATE_MESSAGE_STARTED).wait();
 
               mt_service::async(this->sp_, [pthis, current_message]() {
                 auto this_ = static_cast<_http_form_part_parser *>(pthis.get());
-                this_->message_callback_(current_message).execute(
-                    [pthis](const std::shared_ptr<std::exception> &ex) {
+                this_->message_callback_(current_message)
+                    .then([pthis]() {
                       auto this_ = static_cast<_http_form_part_parser *>(pthis.get());
-                      if (!ex) {
-                        this_->message_state_.change_state(
-                            MessageStateEnum::MESSAGE_STATE_MESSAGE_BODY_FINISH,
-                            MessageStateEnum::MESSAGE_STATE_NONE,
-                            error_logic::return_false);
-                      } else {
-                        this_->message_state_.fail(ex);
-                      }
+                      return this_->message_state_.change_state(
+                          MessageStateEnum::MESSAGE_STATE_MESSAGE_BODY_FINISH,
+                          MessageStateEnum::MESSAGE_STATE_NONE);
+                     })
+                    .execute([](const std::shared_ptr<std::exception> &ex) {
                     });
               });
               this->current_message_ = current_message;
@@ -153,11 +143,6 @@ namespace vds {
                     len)
                 .execute(
                     [pthis](const std::shared_ptr<std::exception> &ex) {
-                      auto this_ = static_cast<_http_form_part_parser *>(pthis.get());
-                      if (!ex) {
-                      } else {
-                        this_->message_state_.fail(ex);
-                      }
                     });
 
             len = 0;

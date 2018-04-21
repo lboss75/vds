@@ -26,7 +26,7 @@ namespace vds {
         const std::function<async_task<>(const http_message &message)> &message_callback)
         : sp_(sp),
           message_callback_(message_callback),
-          message_state_(MessageStateEnum::MESSAGE_STATE_NONE, MessageStateEnum::MESSAGE_STATE_FAILED),
+          message_state_(MessageStateEnum::MESSAGE_STATE_NONE),
           state_(StateEnum::STATE_PARSE_HEADER) {
     }
 
@@ -42,25 +42,26 @@ namespace vds {
         logger::get(this->sp_)->debug("HTTP", this->sp_, "HTTP end");
 
         logger::get(this->sp_)->trace("HTTP", this->sp_, "State: NONE -> MESSAGE_STARTED");
+
         this->message_state_.change_state(
                 MessageStateEnum::MESSAGE_STATE_NONE,
-                MessageStateEnum::MESSAGE_STATE_MESSAGE_STARTED,
-                error_logic::throw_exception);
-        this->message_callback_(http_message())
-            .execute(
-                [pthis](const std::shared_ptr<std::exception> &ex) {
-                  auto this_ = static_cast<_http_parser_base<implementation_class> *>(pthis.get());
-                  if (!ex) {
-                    logger::get(this_->sp_)->trace("HTTP", this_->sp_, "State: MESSAGE_STARTED -> NONE");
-                    this_->message_state_.change_state(
-                        MessageStateEnum::MESSAGE_STATE_MESSAGE_STARTED,
-                        MessageStateEnum::MESSAGE_STATE_NONE,
-                        error_logic::return_false);
-                  } else {
-                    this_->message_state_.fail(ex);
-                  }
-                });
-        this->message_state_.wait(MessageStateEnum::MESSAGE_STATE_NONE, error_logic::throw_exception);
+                MessageStateEnum::MESSAGE_STATE_MESSAGE_STARTED)
+        .then([pthis]() {
+          auto this_ = static_cast<_http_parser_base<implementation_class> *>(pthis.get());
+          return this_->message_callback_(http_message());
+        })
+        .then([pthis]() {
+          auto this_ = static_cast<_http_parser_base<implementation_class> *>(pthis.get());
+          logger::get(this_->sp_)->trace("HTTP", this_->sp_, "State: MESSAGE_STARTED -> NONE");
+          return this_->message_state_.change_state(
+              MessageStateEnum::MESSAGE_STATE_MESSAGE_STARTED,
+              MessageStateEnum::MESSAGE_STATE_NONE);
+        })
+        .then([pthis]() {
+          auto this_ = static_cast<_http_parser_base<implementation_class> *>(pthis.get());
+          this_->message_state_.wait(MessageStateEnum::MESSAGE_STATE_NONE).wait();
+        })
+        .wait();
       } else {
 
         logger::get(this->sp_)->debug("HTTP", this->sp_, "HTTP [%s]",
@@ -71,7 +72,7 @@ namespace vds {
     }
 
     void reset() {
-      this->message_state_.wait(MessageStateEnum::MESSAGE_STATE_NONE, error_logic::throw_exception);
+      this->message_state_.wait(MessageStateEnum::MESSAGE_STATE_NONE).wait();
       this->state_ = StateEnum::STATE_PARSE_HEADER;
     }
 
@@ -151,24 +152,19 @@ namespace vds {
               logger::get(this->sp_)->trace("HTTP", this->sp_, "State: Node -> MESSAGE_STARTED");
               this->message_state_.change_state(
                   MessageStateEnum::MESSAGE_STATE_NONE,
-                  MessageStateEnum::MESSAGE_STATE_MESSAGE_STARTED,
-                  error_logic::throw_exception);
+                  MessageStateEnum::MESSAGE_STATE_MESSAGE_STARTED).wait();
 
               mt_service::async(this->sp_, [pthis, current_message]() {
                 auto this_ = static_cast<_http_parser_base<implementation_class> *>(pthis.get());
-                this_->message_callback_(current_message).execute(
-                    [pthis](const std::shared_ptr<std::exception> &ex) {
+                this_->message_callback_(current_message)
+                    .then([pthis]() {
                       auto this_ = static_cast<_http_parser_base<implementation_class> *>(pthis.get());
-                      if (!ex) {
-                        logger::get(this_->sp_)->trace("HTTP", this_->sp_, "State: MESSAGE_BODY_FINISH -> None");
-                        this_->message_state_.change_state(
-                            MessageStateEnum::MESSAGE_STATE_MESSAGE_BODY_FINISH,
-                            MessageStateEnum::MESSAGE_STATE_NONE,
-                            error_logic::return_false);
-                      } else {
-                        this_->message_state_.fail(ex);
-                      }
-                    });
+                      logger::get(this_->sp_)->trace("HTTP", this_->sp_, "State: MESSAGE_BODY_FINISH -> None");
+                      return this_->message_state_.change_state(
+                          MessageStateEnum::MESSAGE_STATE_MESSAGE_BODY_FINISH,
+                          MessageStateEnum::MESSAGE_STATE_NONE);
+                    })
+                    .execute([](const std::shared_ptr<std::exception> &ex) {});
               });
               this->current_message_ = current_message;
               this->headers_.clear();
@@ -185,20 +181,14 @@ namespace vds {
 
               if(0 == this->content_length_) {
                 this->current_message_.body()->write_async(nullptr, 0)
-                  .execute(
-                    [pthis](const std::shared_ptr<std::exception> &ex) {
-                  auto this_ = static_cast<_http_parser_base<implementation_class> *>(pthis.get());
-                  if (!ex) {
+                  .then([pthis]() {
+                    auto this_ = static_cast<_http_parser_base<implementation_class> *>(pthis.get());
                     logger::get(this_->sp_)->trace("HTTP", this_->sp_, "State: MESSAGE_STARTED -> MESSAGE_BODY_FINISH");
-                    this_->message_state_.change_state(
+                    return this_->message_state_.change_state(
                       MessageStateEnum::MESSAGE_STATE_MESSAGE_STARTED,
-                      MessageStateEnum::MESSAGE_STATE_MESSAGE_BODY_FINISH,
-                      error_logic::return_false);
-                  }
-                  else {
-                    this_->message_state_.fail(ex);
-                  }
-                });
+                      MessageStateEnum::MESSAGE_STATE_MESSAGE_BODY_FINISH);
+                  })
+                  .execute([](const std::shared_ptr<std::exception> &ex) {});
                 static_cast<implementation_class *>(this)->finish_message(this->sp_);
               }
 
@@ -233,14 +223,7 @@ namespace vds {
               this->current_message_.body()->write_async(
                       data,
                       size)
-                  .execute(
-                      [pthis](const std::shared_ptr<std::exception> &ex) {
-                        auto this_ = static_cast<_http_parser_base<implementation_class> *>(pthis.get());
-                        if (!ex) {
-                        } else {
-                          this_->message_state_.fail(ex);
-                        }
-                      });
+                  .execute([pthis](const std::shared_ptr<std::exception> &ex) {});
 
               data += size;
               len -= size;
@@ -253,19 +236,14 @@ namespace vds {
                   static_cast<implementation_class *>(this)->finish_message(this->sp_);
                   this->state_ = StateEnum::STATE_PARSE_HEADER;
                   this->current_message_.body()->write_async(nullptr, 0)
-                      .execute(
-                          [pthis](const std::shared_ptr<std::exception> &ex) {
+                      .then([pthis]() {
                             auto this_ = static_cast<_http_parser_base<implementation_class> *>(pthis.get());
-                            if (!ex) {
                               logger::get(this_->sp_)->trace("HTTP", this_->sp_, "State: MESSAGE_STARTED -> MESSAGE_BODY_FINISH");
-                              this_->message_state_.change_state(
+                              return this_->message_state_.change_state(
                                   MessageStateEnum::MESSAGE_STATE_MESSAGE_STARTED,
-                                  MessageStateEnum::MESSAGE_STATE_MESSAGE_BODY_FINISH,
-                                  error_logic::return_false);
-                            } else {
-                              this_->message_state_.fail(ex);
-                            }
-                          });
+                                  MessageStateEnum::MESSAGE_STATE_MESSAGE_BODY_FINISH);
+                          })
+                  .execute([](const std::shared_ptr<std::exception> &ex) {});
                 }
               }
             }
@@ -312,19 +290,15 @@ namespace vds {
             } else {
               this->state_ = StateEnum::STATE_PARSE_HEADER;
               this->current_message_.body()->write_async(nullptr, 0)
-                  .execute(
-                      [pthis](const std::shared_ptr<std::exception> &ex) {
+                  .then(
+                      [pthis]() {
                         auto this_ = static_cast<_http_parser_base<implementation_class> *>(pthis.get());
-                        if (!ex) {
-                          logger::get(this_->sp_)->trace("HTTP", this_->sp_, "State: MESSAGE_STARTED -> MESSAGE_BODY_FINISH");
-                          this_->message_state_.change_state(
-                              MessageStateEnum::MESSAGE_STATE_MESSAGE_STARTED,
-                              MessageStateEnum::MESSAGE_STATE_MESSAGE_BODY_FINISH,
-                              error_logic::return_false);
-                        } else {
-                          this_->message_state_.fail(ex);
-                        }
-                      });
+                        logger::get(this_->sp_)->trace("HTTP", this_->sp_, "State: MESSAGE_STARTED -> MESSAGE_BODY_FINISH");
+                        return this_->message_state_.change_state(
+                            MessageStateEnum::MESSAGE_STATE_MESSAGE_STARTED,
+                            MessageStateEnum::MESSAGE_STATE_MESSAGE_BODY_FINISH);
+                      })
+              .execute([](const std::shared_ptr<std::exception> &ex) {});
             }
             break;
           }

@@ -34,14 +34,12 @@ namespace vds {
 
 	  enum state_t {
 		  bof,
-		  started,
 		  scheduled,
 		  in_handler,
-		  eof,
-		  fail
+		  eof
 	  };
 	  state_machine<state_t> current_state_;
-    
+		bool is_shuting_down_;
     void execute(const service_provider& sp);
     void schedule(const service_provider& sp);
   };

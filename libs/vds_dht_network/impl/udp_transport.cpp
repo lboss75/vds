@@ -80,7 +80,15 @@ vds::async_task<> vds::dht::network::udp_transport::on_timer(const service_provi
   out_message.add(PROTOCOL_VERSION);
   out_message += this->this_node_id_;
 
-  this->server_.socket().send_broadcast(8050, const_data_buffer(out_message.data(), out_message.size()));
+  try {
+    this->server_.socket().send_broadcast(8050, const_data_buffer(out_message.data(), out_message.size()));
+  }
+  catch(std::system_error & ex){
+    if(std::system_category() != ex.code().category()
+       || ENETUNREACH != ex.code().value()){
+      throw;
+    }
+  }
 
   auto result = async_task<>::empty();
   std::shared_lock<std::shared_mutex> lock(this->sessions_mutex_);
