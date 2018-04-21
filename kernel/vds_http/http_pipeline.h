@@ -23,8 +23,10 @@ namespace vds {
           const http_message &message)->async_task<> {
       auto pthis = this->shared_from_this();
       return message_callback(message).then([sp, pthis](const http_message &response) {
-        auto this_ = static_cast<_http_pipeline *>(pthis.get());
-        this_->send(sp, response);
+        if (nullptr != response.body()) {
+          auto this_ = static_cast<_http_pipeline *>(pthis.get());
+          this_->send(sp, response);
+        }
       });
     }),
       output_stream_(output_stream) {
