@@ -24,24 +24,10 @@ namespace vds {
       auto pthis = this->shared_from_this();
       return message_callback(message).then([sp, pthis](const http_message &response) {
         auto this_ = static_cast<_http_pipeline *>(pthis.get());
-        std::unique_lock<std::mutex> lock(this_->response_mutex_);
-        if (response_state_t::NONE == this_->response_state_) {
-          this_->response_state_ = response_state_t::RESPONSE_STORED;
-          this_->response_ = response;
-        }
-        else if (response_state_t::WAIT_RESPONSE == this_->response_state_) {
-          this_->response_state_ = response_state_t::NONE;
-          lock.unlock();
-
-          this_->send(sp, response);
-        }
-        else {
-          throw std::runtime_error("Login error");
-        }
+        this_->send(sp, response);
       });
     }),
-      output_stream_(output_stream),
-      response_state_(response_state_t::NONE) {
+      output_stream_(output_stream) {
       }
 
     void continue_read_data(const service_provider &sp) {
@@ -50,32 +36,10 @@ namespace vds {
     }
 
     void finish_message(const service_provider &sp) {
-      std::unique_lock<std::mutex> lock(this->response_mutex_);
-      if(response_state_t::NONE == this->response_state_) {
-        this->response_state_ = response_state_t::WAIT_RESPONSE;
-      }
-      else if(response_state_t::RESPONSE_STORED == this->response_state_){
-        this->response_state_ = response_state_t::NONE;
-        lock.unlock();
-
-        this->send(sp, this->response_);
-      }
-      else {
-        throw std::runtime_error("Login error");
-      }
     }
 
   private:
     std::shared_ptr<http_async_serializer> output_stream_;
-
-    std::mutex response_mutex_;
-    enum class response_state_t {
-      NONE,
-      RESPONSE_STORED,
-      WAIT_RESPONSE
-    };
-    response_state_t response_state_;
-    http_message response_;
 
     std::mutex messages_queue_mutex_;
     std::queue<vds::http_message> messages_queue_;

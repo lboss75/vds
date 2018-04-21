@@ -345,10 +345,11 @@ namespace vds {
 
           std::unique_lock<std::mutex> lock(this_->write_mutex_);
 
-          int len = write(
+          int len = send(
               this_->s_,
               data,
-              size);
+              size,
+              MSG_NOSIGNAL);
 
           if (len < 0) {
             int error = errno;
