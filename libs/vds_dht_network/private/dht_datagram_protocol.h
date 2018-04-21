@@ -215,16 +215,19 @@ namespace vds {
             resizable_data_buffer buffer;
 
             if (message.size() < pthis->mtu_ - 5) {
+              auto expected_index = pthis->output_sequence_number_;
+              lock.unlock();
+
               buffer.add((uint8_t)((uint8_t)protocol_message_type_t::SingleData | message_type));
-              buffer.add((uint8_t)(pthis->output_sequence_number_ >> 24));
-              buffer.add((uint8_t)(pthis->output_sequence_number_ >> 16));
-              buffer.add((uint8_t)(pthis->output_sequence_number_ >> 8));
-              buffer.add((uint8_t)(pthis->output_sequence_number_));
+              buffer.add((uint8_t)(expected_index >> 24));
+              buffer.add((uint8_t)(expected_index >> 16));
+              buffer.add((uint8_t)(expected_index >> 8));
+              buffer.add((uint8_t)(expected_index));
               buffer += message;
 
               const_data_buffer datagram(buffer.data(), buffer.size());
               s->write_async(sp, udp_datagram(pthis->address_, datagram, false))
-                .execute([pthis, sp, s, message_type, message, result, datagram, result_callback, expected_index = pthis->output_sequence_number_](
+                .execute([pthis, sp, s, message_type, message, result, datagram, result_callback, expected_index](
                   const std::shared_ptr<std::exception> &ex) {
                 std::unique_lock<std::shared_mutex> lock(pthis->output_mutex_);
                 if (ex) {
