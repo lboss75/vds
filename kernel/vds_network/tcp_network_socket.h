@@ -8,6 +8,7 @@ All rights reserved
 #include <memory>
 #include "async_task.h"
 #include "async_buffer.h"
+#include "network_address.h"
 
 namespace vds {
 
@@ -18,8 +19,7 @@ namespace vds {
 
     tcp_network_socket connect(
       const service_provider & sp,
-      const std::string & server,
-      const uint16_t port,
+      const network_address & address,
       const stream<uint8_t> & input_handler);
     
     void start(

@@ -97,7 +97,7 @@ TEST(network_tests, test_server)
 
     vds::tcp_network_socket::connect(
         sp,
-      vds::network_address::any_ip4(8000))
+        vds::network_address::any_ip4(8000))
     .then(
         [&b, &answer, &data, sp](
     const vds::tcp_network_socket & s) {

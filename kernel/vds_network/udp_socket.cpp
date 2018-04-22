@@ -88,7 +88,7 @@ vds::udp_socket vds::udp_socket::create(
     sa_family_t af)
 {
 #ifdef _WIN32
-  auto s = WSASocket(AF_INET, SOCK_DGRAM, IPPROTO_UDP, NULL, 0, WSA_FLAG_OVERLAPPED);
+  auto s = WSASocket(af, SOCK_DGRAM, IPPROTO_UDP, NULL, 0, WSA_FLAG_OVERLAPPED);
   if (INVALID_SOCKET == s) {
     auto error = WSAGetLastError();
     throw std::system_error(error, std::system_category(), "create socket");
