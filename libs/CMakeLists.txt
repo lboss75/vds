@@ -5,4 +5,4 @@ add_subdirectory(vds_transactions)
 add_subdirectory(vds_user_manager)
 add_subdirectory(vds_file_manager)
 add_subdirectory(vds_server)
-
+add_subdirectory(vds_data_coin)
