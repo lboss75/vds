@@ -7,12 +7,19 @@ All rights reserved
 */
 
 namespace vds {
+  namespace data_coin_private {
+    class _wallet;
+  }
+}
+
+namespace vds {
   namespace data_coin {
     class wallet {
     public:
 
 
     private:
+      std::shared_ptr<data_coin_private::_wallet> impl_;
     };
   }
 }

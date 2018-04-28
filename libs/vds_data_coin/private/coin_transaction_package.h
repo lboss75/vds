@@ -30,7 +30,13 @@ namespace vds {
         return this->base_packages_;
       }
 
+      const const_data_buffer & id() const {
+        return this->id_;
+      }
+
     private:
+      const_data_buffer id_;
+
       std::list<base_package_t> base_packages_;
       const_data_buffer sign_certificate_thumbprint_;
       const_data_buffer sign_;
