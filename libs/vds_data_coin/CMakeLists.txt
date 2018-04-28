@@ -6,12 +6,14 @@ FILE(GLOB PRIVATE_HEADER_FILES private/*.h)
 FILE(GLOB SOURCE_FILES impl/*.cpp)
 FILE(GLOB MESSAGES_FILES messages/*.h)
 FILE(GLOB ORM_FILES orm/*.h)
+FILE(GLOB TRANSACTIONS_FILES transactions/*.h)
 
 SOURCE_GROUP(private FILES ${PRIVATE_HEADER_FILES})
 SOURCE_GROUP(include FILES ${HEADER_FILES})
 SOURCE_GROUP(impl FILES ${SOURCE_FILES})
 SOURCE_GROUP(messages FILES ${MESSAGES_FILES})
 SOURCE_GROUP(orm FILES ${ORM_FILES})
+SOURCE_GROUP(transactions FILES ${TRANSACTIONS_FILES})
 
 ADD_MSVC_PRECOMPILED_HEADER("stdafx.h" "impl/stdafx.cpp" SOURCE_FILES)
 
@@ -21,7 +23,8 @@ add_library(vds_data_coin
 			${HEADER_FILES}
 			${PRIVATE_HEADER_FILES}
 			${MESSAGES_FILES}
-            ${ORM_FILES})
+            ${ORM_FILES}
+		    ${TRANSACTIONS_FILES})
 
 target_include_directories(vds_data_coin
 	PRIVATE
