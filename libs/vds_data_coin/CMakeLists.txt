@@ -3,19 +3,25 @@ cmake_minimum_required(VERSION 2.6.2)
 
 FILE(GLOB HEADER_FILES include/*.h)
 FILE(GLOB PRIVATE_HEADER_FILES private/*.h)
-FILE(GLOB SOURCE_LIB impl/*.cpp)
+FILE(GLOB SOURCE_FILES impl/*.cpp)
+FILE(GLOB MESSAGES_FILES messages/*.h)
+FILE(GLOB ORM_FILES orm/*.h)
 
 SOURCE_GROUP(private FILES ${PRIVATE_HEADER_FILES})
 SOURCE_GROUP(include FILES ${HEADER_FILES})
-SOURCE_GROUP(impl FILES ${SOURCE_LIB})
+SOURCE_GROUP(impl FILES ${SOURCE_FILES})
+SOURCE_GROUP(messages FILES ${MESSAGES_FILES})
+SOURCE_GROUP(orm FILES ${ORM_FILES})
 
-ADD_MSVC_PRECOMPILED_HEADER("stdafx.h" "impl/stdafx.cpp" SOURCE_LIB)
+ADD_MSVC_PRECOMPILED_HEADER("stdafx.h" "impl/stdafx.cpp" SOURCE_FILES)
 
 add_library(vds_data_coin
 		STATIC
-			${SOURCE_LIB}
+			${SOURCE_FILES}
 			${HEADER_FILES}
-			${PRIVATE_HEADER_FILES})
+			${PRIVATE_HEADER_FILES}
+			${MESSAGES_FILES}
+            ${ORM_FILES})
 
 target_include_directories(vds_data_coin
 	PRIVATE

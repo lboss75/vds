@@ -5,6 +5,8 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
+#include <database_orm.h>
+
 namespace vds {
   namespace data_coin {
     class bond {

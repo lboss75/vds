@@ -66,7 +66,7 @@ void vds::timer::execute(const vds::service_provider& sp)
         this->current_state_.change_state(state_t::in_handler, state_t::eof).wait();
       }
     } else {
-      this->current_state_.change_state(state_t::scheduled, state_t::eof);
+      this->current_state_.change_state(state_t::scheduled, state_t::eof).wait();
       sp.get<logger>()->trace("tm", sp, "Task finished by shuting down");
     }
   }

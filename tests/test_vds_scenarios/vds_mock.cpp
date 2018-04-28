@@ -102,7 +102,13 @@ void vds_mock::sync_wait()
         throw std::runtime_error(error->what());
       }
 
-      std::cout << "State[" << index ++ << "]: " << stat.sync_statistic_.str() << "\n";
+      std::cout
+          << "State[" << index ++ << "]: "
+          << stat.sync_statistic_.str()
+          << "\n"
+          << stat.route_statistic_.serialize(true)->str()
+          << "\n";
+
       if(!last_sync_statistic){
         last_sync_statistic = stat.sync_statistic_;
       }
