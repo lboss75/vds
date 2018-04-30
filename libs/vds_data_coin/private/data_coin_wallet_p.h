@@ -15,12 +15,12 @@ namespace vds {
     class _wallet : public std::enable_shared_from_this<_wallet> {
     public:
 
-      void merge_transaction(
+      void save_transaction(
         database_transaction & t,
         const data_coin::coin_transaction_package & transaction_package);
 
     private:
-      data_coin::coin_transaction_package transaction_package_;
+      data_coin::coin_transaction_package current_transaction_;
 
 
       data_coin::coin_transaction_package lookup_common_base(

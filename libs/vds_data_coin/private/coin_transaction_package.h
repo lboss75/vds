@@ -34,8 +34,13 @@ namespace vds {
         return this->id_;
       }
 
+      uint64_t level() const {
+        return this->level_;
+      }
+
     private:
       const_data_buffer id_;
+      uint64_t level_;
 
       std::list<base_package_t> base_packages_;
       const_data_buffer sign_certificate_thumbprint_;
