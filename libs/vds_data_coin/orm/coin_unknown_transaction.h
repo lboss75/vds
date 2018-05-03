@@ -15,10 +15,10 @@ namespace vds {
       public:
         coin_unknown_transaction()
             : database_table("coin_unknown_transaction"),
-              transaction_id(this, "transaction_id"){
+              id(this, "id"){
         }
 
-        database_column<std::string> transaction_id;
+        database_column<std::string> id;
       };
     }
   }

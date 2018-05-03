@@ -15,8 +15,7 @@ namespace vds {
       public:
 
       private:
-        const_data_buffer target_user_certificate_thumbprint_;
-        uint64_t value_;
+        const_data_buffer storage_block_;
       };
     }
   }

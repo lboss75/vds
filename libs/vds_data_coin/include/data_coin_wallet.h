@@ -6,6 +6,8 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
+#include "database.h"
+
 namespace vds {
   namespace data_coin_private {
     class _wallet;
@@ -16,6 +18,11 @@ namespace vds {
   namespace data_coin {
     class wallet {
     public:
+
+      void save_transaction(
+          database_transaction & t,
+          const const_data_buffer & transaction_data);
+
 
 
     private:

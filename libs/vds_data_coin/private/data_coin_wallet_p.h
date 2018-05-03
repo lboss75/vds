@@ -17,10 +17,13 @@ namespace vds {
 
       void save_transaction(
         database_transaction & t,
-        const data_coin::coin_transaction_package & transaction_package);
+        const const_data_buffer & transaction_data);
 
     private:
-      data_coin::coin_transaction_package current_transaction_;
+      std::set<const_data_buffer> applied_transactions_;
+      data_coin_private::coin_transaction_package current_transaction_;
+
+
 
 
       data_coin::coin_transaction_package lookup_common_base(
