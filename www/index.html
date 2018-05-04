@@ -29,6 +29,7 @@
                    </ul>
 		</li>
 		<li><a href="#" data-toggle="modal" data-target="#createChannelModal">Создать канал</a></li>
+		<li><a href="#" data-toggle="modal" data-target="#createInvite">Пригласить друга</a></li>
                 </ul>
             </nav>
 
@@ -151,6 +152,34 @@
             </div>
         </div>
 
+        <div class="modal fade" id="createInvite" tabindex="-1" role="dialog" aria-labelledby="createInvite" aria-hidden="true">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <form action="api/create_invite" method="POST" enctype="multipart/form-data">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Пригласить друга</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                            <div class="form-group">
+                                <label for="invateCode">Сообщите вашему другу следующий код приклашения:</label>
+                                <input type="text" class="form-control" id="invateCode" name="invateCode" aria-describedby="invateCodeHelp" placeholder="Код приглашения" readonly/>
+                                <small id="invateCodeHelp" class="form-text text-muted">Секретный код приглашения.
+					Данное приглашение будет действовать в течении 7 дней с момента, когда вы нажмёте кнопку
+					Активировать приглашение.</small>
+                            </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-primary">Активировать приглашение</button>
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Отмена</button>
+                    </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
         <div class="modal fade" id="lockDeviceModal" tabindex="-1" role="dialog" aria-labelledby="lockDeviceModal" aria-hidden="true">
             <div class="modal-dialog" role="document">
                 <div class="modal-content">
@@ -194,6 +223,11 @@
                      $('#sidebar').toggleClass('active');
                  });
 
+		$('#createInvite').on('shown.bs.modal', function () {
+			 $.getJSON('api/invate', function(data){
+				$('#invateCode').val(data.code);
+			 });
+		});
 
 		 //Load channels
 		 $.getJSON('api/channels', function(data){

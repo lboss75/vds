@@ -62,8 +62,8 @@ namespace vds {
   class _udp_socket : public std::enable_shared_from_this<_udp_socket>
   {
   public:
-    _udp_socket(SOCKET_HANDLE s = INVALID_SOCKET)
-      : s_(s), broadcast_enabled_(false)
+    _udp_socket(SOCKET_HANDLE s)
+      : s_(s)
     {
       this->leak_detect_.name_ = "_udp_socket";
       this->leak_detect_.dump_callback_ = [this](leak_detect_collector * collector){
@@ -144,40 +144,8 @@ namespace vds {
 #endif
     }
 
-    void send_broadcast(int port, const const_data_buffer & message)
-    {
-      if(!this->broadcast_enabled_) {
-        int broadcastEnable = 1;
-        setsockopt(this->s_, SOL_SOCKET, SO_BROADCAST, (const char *)&broadcastEnable, sizeof(broadcastEnable));
-        this->broadcast_enabled_ = true;
-      }
-
-      struct sockaddr_in s;
-      memset(&s, 0, sizeof(struct sockaddr_in));
-
-      s.sin_family = AF_INET;
-      s.sin_port = htons(port);
-      s.sin_addr.s_addr = htonl(INADDR_BROADCAST);
-
-      if(0 > sendto(
-          this->s_,
-          (const char *)message.data(),
-          message.size(),
-          0,
-          (struct sockaddr *)&s,
-          sizeof(struct sockaddr_in))) {
-        int error = errno;
-
-        if(EMSGSIZE == error){
-          throw udp_datagram_size_exception();
-        }
-
-        throw std::system_error(error, std::system_category(), "send broadcast");
-      }
-    }
 
   private:
-    bool broadcast_enabled_;
     SOCKET_HANDLE s_;
 
     void close()

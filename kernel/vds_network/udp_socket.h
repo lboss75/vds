@@ -71,8 +71,6 @@ namespace vds {
 
     static udp_socket create(const service_provider & sp, sa_family_t af);
 
-    void send_broadcast(int port, const const_data_buffer &message);
-
     operator bool () const {
       return this->impl_.get() != nullptr;
     }

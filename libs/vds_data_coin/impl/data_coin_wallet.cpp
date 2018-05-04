@@ -10,6 +10,11 @@ All rights reserved
 #include "orm/coin_transaction.h"
 #include "orm/coin_unknown_transaction.h"
 
+void vds::data_coin::wallet::save_transaction(database_transaction& t, const const_data_buffer& transaction_data) {
+  this->impl_->save_transaction(t, transaction_data);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void vds::data_coin_private::_wallet::save_transaction(
   database_transaction & t,
   const const_data_buffer & transaction_data) {
@@ -60,3 +65,4 @@ void vds::data_coin_private::_wallet::save_transaction(
 
 
 }
+

@@ -126,10 +126,6 @@ vds::udp_socket vds::udp_socket::create(
   return udp_socket(std::make_shared<_udp_socket>(s));
 }
 
-void vds::udp_socket::send_broadcast(int port, const vds::const_data_buffer &message) {
-  this->impl_->send_broadcast(port, message);
-}
-
 vds::udp_server::udp_server()
 {
 }

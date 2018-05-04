@@ -72,6 +72,13 @@ namespace vds {
       const std::shared_ptr<_web_server>& owner,
       const http_message & message);
 
+    static std::shared_ptr<json_value>
+    get_invite(
+      const service_provider& sp,
+      user_manager& user_mng,
+      const std::shared_ptr<_web_server>& owner,
+      const http_message& message);
+
   private:
     static std::shared_ptr<json_object> channel_serialize(const vds::user_channel & channel);
 

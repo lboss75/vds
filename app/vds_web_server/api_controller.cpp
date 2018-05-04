@@ -213,6 +213,14 @@ std::shared_ptr<vds::json_value> vds::api_controller::get_statistics(const servi
   return statistic.serialize(request.get_parameter("all") == "true");
 }
 
+std::shared_ptr<vds::json_value> vds::api_controller::get_invite(const service_provider& sp, user_manager& user_mng,
+  const std::shared_ptr<_web_server>& owner, const http_message& message) {
+
+  auto result = std::make_shared<json_object>();
+  result->add_property("code", "test");
+  return result;
+}
+
 vds::async_task<>
 vds::api_controller::lock_device(
     const vds::service_provider &sp,

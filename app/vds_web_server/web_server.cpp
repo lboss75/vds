@@ -315,6 +315,30 @@ vds::async_task<vds::http_message> vds::_web_server::route(
     }
   }
 
+  if (request.url() == "/api/invate" && request.method() == "GET") {
+    auto user_mng = this->get_secured_context(sp, message);
+    if (!user_mng) {
+      return vds::async_task<vds::http_message>::result(
+        http_response::status_response(
+          sp,
+          http_response::HTTP_Unauthorized,
+          "Unauthorized"));
+    }
+
+    auto result = api_controller::get_invite(
+      sp,
+      *user_mng,
+      this->shared_from_this(),
+      message);
+
+    return vds::async_task<vds::http_message>::result(
+      http_response::simple_text_response(
+        sp,
+        result->str(),
+        "application/json; charset=utf-8"));
+
+  }
+
   if(request.url() == "/upload" && request.method() == "POST") {
     auto user_mng = this->get_secured_context(sp, message);
     if (!user_mng) {
