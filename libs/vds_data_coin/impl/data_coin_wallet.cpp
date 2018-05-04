@@ -18,7 +18,7 @@ void vds::data_coin_private::_wallet::save_transaction(
 
   //Validate base packages
   auto state = data_coin::orm::coin_transaction::state_t::applied;
-  auto id_str = base64::from_bytes(transaction_package.id());
+  const auto id_str = base64::from_bytes(transaction_package.id());
   for(auto & p : transaction_package.base_packages()){
     data_coin::orm::coin_transaction t1;
     auto st = t.get_reader(t1.select(t1.state).where(t1.id == id_str));
@@ -33,13 +33,13 @@ void vds::data_coin_private::_wallet::save_transaction(
           state = data_coin::orm::coin_transaction::state_t::stored;
           break;
         }
+
         case data_coin::orm::coin_transaction::state_t::validated: {
           if(
               data_coin::orm::coin_transaction::state_t::applied == state
               && this->applied_transactions_.end() == this->applied_transactions_.find(transaction_package.id())){
             state = data_coin::orm::coin_transaction::state_t::validated;
           }
-
           break;
         }
       }

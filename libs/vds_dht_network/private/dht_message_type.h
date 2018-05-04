@@ -38,6 +38,10 @@ namespace vds {
         dht_find_node_response,
         dht_ping,
         dht_pong,
+
+        data_coin_log_record,
+        data_coin_log_request,
+        data_coin_log_state
       };
     }
   }

@@ -1,5 +1,5 @@
-#ifndef __VDS_DATA_COIN_COIN_TRANSACTION_H_
-#define __VDS_DATA_COIN_COIN_TRANSACTION_H_
+#ifndef __VDS_DHT_NETWORK_DATA_COIN_LOG_STATE_H_
+#define __VDS_DHT_NETWORK_DATA_COIN_LOG_STATE_H_
 
 /*
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
@@ -10,20 +10,20 @@ All rights reserved
 #include "binary_serialize.h"
 
 namespace vds {
-  namespace data_coin {
+  namespace dht {
     namespace messages {
-      class coin_transaction {
+      class data_coin_log_state {
       public:
-        static const dht::network::message_type_t message_id = dht::network::message_type_t::coin_transaction;
+        static const dht::network::message_type_t message_id = dht::network::message_type_t::data_coin_log_state;
 
-        coin_transaction(
+        data_coin_log_state(
           const std::list<const_data_buffer> & leafs,
           const const_data_buffer & source_node)
           : leafs_(leafs),
           source_node_(source_node) {
         }
 
-        coin_transaction(
+        data_coin_log_state(
           binary_deserializer & s) {
           s >> this->leafs_ >> this->source_node_;
         }
@@ -50,4 +50,4 @@ namespace vds {
   }
 }
 
-#endif //__VDS_DATA_COIN_COIN_TRANSACTION_H_
+#endif //__VDS_DHT_NETWORK_DATA_COIN_LOG_STATE_H_
