@@ -7,7 +7,7 @@ All rights reserved
 */
 
 #include "const_data_buffer.h"
-#include "transactions/payment_transaction.h"
+#include "../../vds_transactions/transactions/payment_transaction.h"
 #include "transactions/storage_payment_transaction.h"
 
 namespace vds {

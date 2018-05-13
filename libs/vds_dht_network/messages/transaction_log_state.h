@@ -12,32 +12,26 @@ All rights reserved
 namespace vds {
   namespace dht {
     namespace messages {
-      class channel_log_state {
+      class transaction_log_state {
       public:
-        static const network::message_type_t message_id = network::message_type_t::channel_log_state;
+        static const network::message_type_t message_id = network::message_type_t::transaction_log_state;
 
-        channel_log_state(
-          const const_data_buffer & channel_id,
+        transaction_log_state(
           const std::list<const_data_buffer> & leafs,
           const const_data_buffer & source_node)
-          : channel_id_(channel_id),
-          leafs_(leafs),
+        : leafs_(leafs),
           source_node_(source_node) {
         }
 
-        channel_log_state(
+        transaction_log_state(
           binary_deserializer & s) {
-          s >> this->channel_id_ >> this->leafs_ >> this->source_node_;
+          s >> this->leafs_ >> this->source_node_;
         }
 
         const_data_buffer serialize() const {
           binary_serializer s;
-          s << this->channel_id_ << this->leafs_ << this->source_node_;
+          s << this->leafs_ << this->source_node_;
           return s.data();
-        }
-
-        const const_data_buffer &channel_id() const {
-          return channel_id_;
         }
 
         const std::list<const_data_buffer> & leafs() const {
@@ -49,7 +43,6 @@ namespace vds {
         }
 
       private:
-        const_data_buffer channel_id_;
         std::list<const_data_buffer> leafs_;
         const_data_buffer source_node_;
       };

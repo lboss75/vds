@@ -9,7 +9,7 @@ All rights reserved
 #include <memory>
 #include <guid.h>
 #include "const_data_buffer.h"
-#include "transaction_block.h"
+#include "include/transaction_block_builder.h"
 #include "transaction_log_record_dbo.h"
 
 namespace vds {
@@ -54,14 +54,14 @@ namespace vds {
     const vds::certificate & write_cert() const;
 
 	void add_reader(
-		transactions::transaction_block& playback,
+		transactions::transaction_block_builder& playback,
 		const member_user& member_user,
 		const vds::member_user& owner_user,
 		const asymmetric_private_key& owner_private_key,
 		const asymmetric_private_key& channel_read_private_key) const;
 
 	void add_writer(
-		transactions::transaction_block& playback,
+		transactions::transaction_block_builder& playback,
 		const member_user& member_user,
 		const vds::member_user& owner_user,
 		const asymmetric_private_key& owner_private_key,

@@ -6,52 +6,46 @@ All rights reserved
 #include "private/dht_sync_process.h"
 #include "channel_local_cache_dbo.h"
 #include "dht_network_client.h"
-#include "messages/channel_log_state.h"
+#include "messages/transaction_log_state.h"
 #include "transaction_log_record_dbo.h"
 #include "chunk_replica_map_dbo.h"
 #include "private/dht_network_client_p.h"
 #include "messages/offer_move_replica.h"
 #include "chunk_replica_data_dbo.h"
 #include "transaction_log_unknown_record_dbo.h"
-#include "messages/channel_log_request.h"
-#include "messages/channel_log_record.h"
-#include "transaction_log.h"
+#include "messages/transaction_log_request.h"
+#include "messages/transaction_log_record.h"
+#include "include/transaction_log.h"
 #include "messages/offer_replica.h"
 #include "messages/replica_not_found.h"
 
 vds::async_task<> vds::dht::network::sync_process::query_unknown_records(const service_provider& sp, database_transaction& t) {
-  std::map<const_data_buffer, std::list<const_data_buffer>> record_ids;
+  std::map<const_data_buffer, std::vector<const_data_buffer>> record_ids;
   orm::transaction_log_unknown_record_dbo t1;
-  auto st = t.get_reader(t1.select(t1.id, t1.channel_id));
+  auto st = t.get_reader(t1.select(t1.id, t1.refer_id));
 
   while (st.execute()) {
-    record_ids[t1.channel_id.get(st)].push_back(base64::to_bytes(t1.id.get(st)));
+    record_ids[base64::to_bytes(t1.id.get(st))].push_back(t1.refer_id.get(st));
   }
 
   auto result = async_task<>::empty();
-  auto & client = *sp.get<dht::network::client>();
-  for (auto p : record_ids) {
-
-    std::string log_message;
-    for (const auto & r : p.second) {
-      log_message += base64::from_bytes(r);
-      log_message += ' ';
-    }
-
+  auto &client = *sp.get<dht::network::client>();
+  for(const auto & p : record_ids) {
+    auto index = std::rand() % p.second.size();
     sp.get<logger>()->trace(
-      ThisModule,
-      sp,
-      "Query log records %s of channel %s",
-      log_message.c_str(),
-      base64::from_bytes(p.first).c_str());
-    result = result.then([client, sp, channel_id = p.first, requests = p.second]() {
-      client->send(
+        ThisModule,
         sp,
-        channel_id,
-        messages::channel_log_request(
-          channel_id,
-          requests,
-          client->current_node_id()));
+        "Query log records %s from %s",
+        base64::from_bytes(p.first).c_str(),
+        base64::from_bytes(p.second[index]).c_str());
+
+    result = result.then([client, sp, node_id = p.second[index], record_id = p.first]() {
+      client->send(
+          sp,
+          p.first,
+          messages::transaction_log_request(
+              record_id,
+              client->current_node_id()));
     });
   }
   return result;
@@ -70,7 +64,7 @@ vds::async_task<> vds::dht::network::sync_process::do_sync(
 vds::async_task<> vds::dht::network::sync_process::apply_message(
   const service_provider& sp,
   database_transaction& t,
-  const messages::channel_log_state& message) {
+  const messages::transaction_log_state& message) {
 
   orm::transaction_log_record_dbo t1;
   std::list<const_data_buffer> requests;
@@ -85,36 +79,20 @@ vds::async_task<> vds::dht::network::sync_process::apply_message(
   }
   auto result = async_task<>::empty();
   if (!requests.empty()) {
-    std::string log_message;
-    for (const auto & r : requests) {
-      log_message += base64::from_bytes(r);
-      log_message += ' ';
+
+    orm::transaction_log_unknown_record_dbo t1;
+    for(const auto & p : requests){
+      t.execute(
+          t1.insert_or_ignore(
+              t1.id = base64::from_bytes(p),
+              t1.refer_id = message.source_node()));
     }
-
-    sp.get<logger>()->trace(
-      ThisModule,
-      sp,
-      "Query log records %s of channel %s",
-      log_message.c_str(),
-      base64::from_bytes(message.channel_id()).c_str());
-
-    result = result.then([sp, message, requests]() {
-      auto & client = *sp.get<vds::dht::network::client>();
-      return client->send(
-        sp,
-        message.source_node(),
-        messages::channel_log_request(
-          message.channel_id(),
-          requests,
-          client->current_node_id()));
-    });
   }
   else {
     orm::transaction_log_record_dbo t2;
     auto st = t.get_reader(
       t2.select(t2.id)
-      .where(t2.channel_id == base64::from_bytes(message.channel_id())
-        && t2.state == (int)orm::transaction_log_record_dbo::state_t::leaf));
+      .where(t2.state == (int)orm::transaction_log_record_dbo::state_t::leaf));
 
     std::list<const_data_buffer> current_state;
     while (st.execute()) {
@@ -139,81 +117,66 @@ vds::async_task<> vds::dht::network::sync_process::apply_message(
         return client->send(
           sp,
           message.source_node(),
-          messages::channel_log_state(
-            message.channel_id(),
+          messages::transaction_log_state(
             current_state,
             client->current_node_id()));
       });
     }
-
-    std::string log_message;
-    for (const auto & r : message.leafs()) {
-      log_message += base64::from_bytes(r);
-      log_message += ' ';
-    }
-
-    sp.get<logger>()->trace(
-      ThisModule,
-      sp,
-      "log records %s of channel %s already exists",
-      log_message.c_str(),
-      base64::from_bytes(message.channel_id()).c_str());
   }
 
   return result;
 }
 
-vds::async_task<> vds::dht::network::sync_process::apply_message(const service_provider& sp, database_transaction& t,
-  const messages::channel_log_request& message) {
+vds::async_task<> vds::dht::network::sync_process::apply_message(
+    const service_provider& sp,
+    database_transaction& t,
+    const messages::transaction_log_request& message) {
+
   auto result = async_task<>::empty();
   orm::transaction_log_record_dbo t1;
   std::list<const_data_buffer> requests;
-  for (auto & p : message.requests()) {
-    auto st = t.get_reader(t1.select(t1.channel_id, t1.data).where(t1.id == base64::from_bytes(p)));
-    if (st.execute()) {
+  auto st = t.get_reader(
+      t1.select(t1.data)
+          .where(t1.id == base64::from_bytes(message.transaction_id())));
+  if (st.execute()) {
 
-      sp.get<logger>()->trace(
+    sp.get<logger>()->trace(
         ThisModule,
         sp,
-        "Provide log record %s of channel %s",
-        base64::from_bytes(p).c_str(),
-        t1.channel_id.get(st).c_str());
+        "Provide log record %s",
+        base64::from_bytes(message.transaction_id()).c_str());
 
-      result = result.then([
-          sp,
-          request = p,
-          message,
-          channel_id = base64::to_bytes(t1.channel_id.get(st)),
-          data = t1.data.get(st)]() {
-        auto & client = *sp.get<vds::dht::network::client>();
-        return client->send(
+    result = result.then([
+                             sp,
+                             message,
+                             data = t1.data.get(st)]() {
+      auto &client = *sp.get<vds::dht::network::client>();
+      return client->send(
           sp,
           message.source_node(),
-          messages::channel_log_record(
-            channel_id,
-            request,
-            data));
-      });
-    }
+          messages::transaction_log_record(
+              message.transaction_id(),
+              data));
+    });
   }
 
   return result;
 }
 
-void vds::dht::network::sync_process::apply_message(const service_provider& sp, database_transaction& t,
-  const messages::channel_log_record& message) {
+void vds::dht::network::sync_process::apply_message(
+    const service_provider& sp,
+    database_transaction& t,
+    const messages::transaction_log_record& message) {
 
   sp.get<logger>()->trace(
     ThisModule,
     sp,
-    "Save log record %s of channel %s",
-    base64::from_bytes(message.record_id()).c_str(),
-    base64::from_bytes(message.channel_id()).c_str());
+    "Save log record %s",
+    base64::from_bytes(message.record_id()).c_str());
 
   transaction_log::save(
     sp,
     t,
-    message.channel_id(),
     message.record_id(),
     message.data());
 }
@@ -259,7 +222,7 @@ vds::async_task<> vds::dht::network::sync_process::sync_local_channels(const ser
       return client->send(
         sp,
         target_node,
-        messages::channel_log_state(
+        messages::transaction_log_state(
           target_node,
           state,
           client->current_node_id()));

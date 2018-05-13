@@ -189,7 +189,7 @@ void vds_mock::allow_write_channel(size_t client_index, const vds::const_data_bu
 //                sp,
 //                device_private_key);
 //
-//            vds::transactions::transaction_block log;
+//            vds::transactions::transaction_block_builder log;
 //
 //			channel.add_reader(
 //				log,
@@ -282,7 +282,7 @@ void vds_mock::allow_read_channel(size_t client_index, const vds::const_data_buf
 //                sp,
 //                device_private_key);
 //
-//            vds::transactions::transaction_block log;
+//            vds::transactions::transaction_block_builder log;
 //
 //            channel.add_reader(
 //                log,
@@ -428,7 +428,7 @@ vds::user_channel vds_mock::create_channel(int index, const std::string &name) {
     auto write_private_key = vds::asymmetric_private_key::generate(
         vds::asymmetric_crypto::rsa4096());
 
-    vds::transactions::transaction_block log;
+    vds::transactions::transaction_block_builder log;
     vds::asymmetric_private_key channel_read_private_key;
     vds::asymmetric_private_key channel_write_private_key;
     result = user_mng->create_channel(sp, log, t, vds::dht::dht_object_id::generate_random_id(),

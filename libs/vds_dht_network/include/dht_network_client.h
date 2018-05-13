@@ -20,7 +20,10 @@ namespace vds {
 
       class client {
       public:
-        void start(const service_provider & sp, const const_data_buffer &this_node_id, uint16_t port);
+        void start(
+            const service_provider & sp,
+            const const_data_buffer & this_node_id,
+            uint16_t port);
         void stop(const service_provider & sp);
 
         struct chunk_info {

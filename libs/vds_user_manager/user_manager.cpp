@@ -14,7 +14,7 @@ All rights reserved
 #include "transactions/channel_add_member_transaction.h"
 #include "transactions/channel_add_message_transaction.h"
 #include "private/cert_control_p.h"
-#include "transaction_context.h"
+#include "include/transaction_context.h"
 #include "cert_control.h"
 #include "transactions/device_user_add_transaction.h"
 #include "vds_exceptions.h"
@@ -22,7 +22,7 @@ All rights reserved
 #include "transactions/channel_add_reader_transaction.h"
 #include "transactions/channel_add_writer_transaction.h"
 #include "transactions/user_channel_create_transaction.h"
-#include "transaction_log.h"
+#include "include/transaction_log.h"
 #include "db_model.h"
 #include "certificate_chain_dbo.h"
 #include "dht_object_id.h"
@@ -84,7 +84,7 @@ void vds::user_manager::reset(
     const std::string &root_password,
     const asymmetric_private_key &root_private_key) {
 
-  transactions::transaction_block playback;
+  transactions::transaction_block_builder playback;
   //Create root user
   auto root_user = this->create_root_user(playback, t, root_user_name, root_password,
                                           root_private_key);
@@ -144,7 +144,7 @@ vds::async_task<> vds::user_manager::init_server(
 		);
 
 //    auto user = this->import_user(*request.certificate_chain().rbegin());
-//		transactions::transaction_block log;
+//		transactions::transaction_block_builder log;
 //
 //		auto private_key = asymmetric_private_key::generate(asymmetric_crypto::rsa4096());
 //		auto device_user = this->lock_to_device(
@@ -178,7 +178,7 @@ vds::async_task<> vds::user_manager::init_server(
 }
 
 vds::user_channel
-vds::user_manager::create_channel(const service_provider &sp, transactions::transaction_block &log,
+vds::user_manager::create_channel(const service_provider &sp, transactions::transaction_block_builder &log,
                                   database_transaction &t, const vds::const_data_buffer &channel_id,
                                   user_channel::channel_type_t channel_type, const std::string &name,
                                   asymmetric_private_key &read_private_key,
@@ -189,7 +189,7 @@ vds::user_manager::create_channel(const service_provider &sp, transactions::tran
 }
 
 vds::user_channel
-vds::user_manager::create_channel(const service_provider &sp, transactions::transaction_block &log,
+vds::user_manager::create_channel(const service_provider &sp, transactions::transaction_block_builder &log,
                                   database_transaction &t, const vds::const_data_buffer &channel_id,
                                   user_channel::channel_type_t channel_type, const std::string &name,
                                   const certificate &owner_cert,
@@ -316,7 +316,7 @@ std::list<vds::user_channel> vds::user_manager::get_channels() const {
 }
 
 vds::member_user vds::user_manager::create_root_user(
-  transactions::transaction_block &playback,
+  transactions::transaction_block_builder &playback,
   database_transaction & t,
   const std::string &root_user_name,
   const std::string &root_password,
@@ -350,7 +350,7 @@ vds::async_task<vds::user_channel> vds::user_manager::create_channel(
     auto write_private_key = vds::asymmetric_private_key::generate(
       vds::asymmetric_crypto::rsa4096());
 
-    vds::transactions::transaction_block log;
+    vds::transactions::transaction_block_builder log;
     vds::asymmetric_private_key channel_read_private_key;
     vds::asymmetric_private_key channel_write_private_key;
     *result = pthis->create_channel(
@@ -439,7 +439,7 @@ void vds::user_manager::create_root_user(
 			user_email,
 			private_key);
 
-	transactions::transaction_block playback;
+	transactions::transaction_block_builder playback;
 	playback.add(
 			transactions::root_user_transaction(
 					user_cert,
@@ -525,7 +525,7 @@ void vds::_user_manager::update(
 		const_data_buffer signature;
 		std::list<certificate> certificates;
 
-		auto block_type = transactions::transaction_block::parse_block(
+		auto block_type = transactions::transaction_block_builder::parse_block(
 				t1.data.get(st),
 				channel_id,
 				order_no,
@@ -554,7 +554,7 @@ void vds::_user_manager::update(
 			write_cert = pcert->second;
 		}
 
-		if (!write_cert || !transactions::transaction_block::validate_block(
+		if (!write_cert || !transactions::transaction_block_builder::validate_block(
 				write_cert,
 				block_type,
 				channel_id,
@@ -572,13 +572,13 @@ void vds::_user_manager::update(
 
 		const_data_buffer data;
 		switch (block_type) {
-			case transactions::transaction_block::block_type_t::normal: {
+			case transactions::transaction_block_builder::block_type_t::normal: {
 				const auto key_data = this->user_private_key_.decrypt(crypted_key);
 				const auto key = symmetric_key::deserialize(symmetric_crypto::aes_256_cbc(), key_data);
 				data = symmetric_decrypt::decrypt(key, crypted_data);
 				break;
 			}
-			case transactions::transaction_block::block_type_t::self_signed: {
+			case transactions::transaction_block_builder::block_type_t::self_signed: {
 				if(this->user_password_hash_ != crypted_key) {
 					this->login_state_ = user_manager::login_state_t::login_failed;
 				}

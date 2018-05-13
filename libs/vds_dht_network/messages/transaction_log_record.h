@@ -1,5 +1,5 @@
-#ifndef __VDS_P2P_NETWORK_COMMON_LOG_RECORD_H_
-#define __VDS_P2P_NETWORK_COMMON_LOG_RECORD_H_
+#ifndef __VDS_P2P_NETWORK_TRANSACTION_LOG_RECORD_H_
+#define __VDS_P2P_NETWORK_TRANSACTION_LOG_RECORD_H_
 
 /*
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
@@ -12,32 +12,26 @@ All rights reserved
 namespace vds {
   namespace dht {
     namespace messages {
-      class channel_log_record {
+      class transaction_log_record {
       public:
-        static const network::message_type_t message_id = network::message_type_t::channel_log_record;
+        static const network::message_type_t message_id = network::message_type_t::transaction_log_record;
 
-        channel_log_record(
-          const const_data_buffer & channel_id,
+        transaction_log_record(
           const const_data_buffer & record_id,
           const const_data_buffer & data)
-          : channel_id_(channel_id),
-          record_id_(record_id),
+          : record_id_(record_id),
           data_(data) {
         }
 
-        channel_log_record(
+        transaction_log_record(
           binary_deserializer & s) {
-          s >> this->channel_id_ >> this->record_id_ >> this->data_;
+          s >> this->record_id_ >> this->data_;
         }
 
         const_data_buffer serialize() const {
           binary_serializer s;
-          s << this->channel_id_ << this->record_id_ << this->data_;
+          s << this->record_id_ << this->data_;
           return s.data();
-        }
-
-        const const_data_buffer & channel_id() const {
-          return channel_id_;
         }
 
         const const_data_buffer & record_id() const {
@@ -49,7 +43,6 @@ namespace vds {
         }
 
       private:
-        const_data_buffer channel_id_;
         const_data_buffer record_id_;
         const_data_buffer data_;
       };
@@ -57,4 +50,4 @@ namespace vds {
   }
 }
 
-#endif //__VDS_P2P_NETWORK_COMMON_LOG_RECORD_H_
+#endif //__VDS_P2P_NETWORK_TRANSACTION_LOG_RECORD_H_

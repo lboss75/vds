@@ -7,6 +7,7 @@ All rights reserved
 
 #include <list>
 #include <set>
+#include <map>
 #include "types.h"
 #include "const_data_buffer.h"
 
@@ -70,6 +71,17 @@ namespace vds {
       this->write_number(value.size());
       for(auto & p : value){
         *this << p;
+      }
+
+      return *this;
+    }
+
+    template <typename TKey, typename TValue>
+    binary_serializer & operator << (const std::map<TKey, TValue> & value)
+    {
+      this->write_number(value.size());
+      for(const auto & p : value){
+        *this << p.first << p.second;
       }
 
       return *this;
@@ -146,6 +158,20 @@ namespace vds {
         T item;
         *this >> item;
         value.emplace(item);
+      }
+
+      return *this;
+    }
+
+    template <typename TKey, typename TValue>
+    binary_deserializer & operator >> (std::map<TKey, TValue> & value)
+    {
+      auto count = this->read_number();
+      for(decltype(count) i = 0; i < count; ++i){
+        TKey key;
+        TValue value;
+        *this >> key >> value;
+        value.emplace(std::move(key), std::move(value));
       }
 
       return *this;

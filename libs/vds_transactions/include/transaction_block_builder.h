@@ -1,5 +1,5 @@
-#ifndef __VDS_TRANSACTIONS_TRANSACTION_BLOCK_H_
-#define __VDS_TRANSACTIONS_TRANSACTION_BLOCK_H_
+#ifndef __VDS_TRANSACTIONS_TRANSACTION_BLOCK_BUILDER_H_
+#define __VDS_TRANSACTIONS_TRANSACTION_BLOCK_BUILDER_H_
 
 /*
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
@@ -7,7 +7,7 @@ All rights reserved
 */
 #include <set>
 #include <map>
-#include <stdafx.h>
+#include <private/stdafx.h>
 #include "binary_serialize.h"
 #include "database.h"
 #include "asymmetriccrypto.h"
@@ -15,13 +15,8 @@ All rights reserved
 
 namespace vds {
   namespace transactions {
-    class transaction_block {
+    class transaction_block_builder {
     public:
-      enum class block_type_t {
-        normal = 0,
-        self_signed = 1
-      };
-
       template<typename item_type>
       void add(item_type && item) {
 
@@ -36,8 +31,6 @@ namespace vds {
       const_data_buffer save(
           const service_provider &sp,
           class vds::database_transaction &t,
-          const const_data_buffer &channel_id,
-          const certificate &read_cert,
           const certificate &write_cert,
           const asymmetric_private_key &write_private_key) const;
 
@@ -49,16 +42,6 @@ namespace vds {
         const asymmetric_private_key &write_private_key,
         const symmetric_key & user_password_key,
         const const_data_buffer & user_password_hash) const;
-
-      static block_type_t parse_block(const const_data_buffer &data, const_data_buffer &channel_id, uint64_t &order_no, std::string &read_cert_id,
-        std::string &write_cert_id, std::set<const_data_buffer> &ancestors, const_data_buffer &crypted_data,
-                                   const_data_buffer &crypted_key, std::list<certificate> & certificates, const_data_buffer &signature);
-
-      static bool validate_block(const certificate &write_cert, block_type_t block_type, const const_data_buffer &channel_id, uint64_t &order_no, const std::string &read_cert_id,
-                                       const std::string &write_cert_id, const std::set<const_data_buffer> &ancestors,
-                                       const const_data_buffer &crypted_data, const const_data_buffer &crypted_key,
-                                       const std::list<certificate> & certificates,
-                                       const const_data_buffer &signature);
 
     private:
       binary_serializer data_;
@@ -85,4 +68,4 @@ namespace vds {
     };
   }
 }
-#endif //__VDS_TRANSACTIONS_TRANSACTION_BLOCK_H_
+#endif //__VDS_TRANSACTIONS_TRANSACTION_BLOCK_BUILDER_H_

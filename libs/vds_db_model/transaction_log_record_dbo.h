@@ -38,17 +38,16 @@ namespace vds {
       transaction_log_record_dbo()
           : database_table("transaction_log_record"),
             id(this, "id"),
-            channel_id(this, "channel_id"),
             data(this, "data"),
             state(this, "state"),
             order_no(this, "order_no") {
       }
 
       database_column<std::string> id;
-      database_column<std::string> channel_id;
       database_column<const_data_buffer> data;
       database_column<int> state;
       database_column<uint64_t> order_no;
+      database_column<const_data_buffer> state_data;
     };
   }
 }

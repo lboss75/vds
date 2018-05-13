@@ -8,7 +8,7 @@ All rights reserved
 #include "cert_control.h"
 #include "guid.h"
 #include "asymmetriccrypto.h"
-#include "transaction_log.h"
+#include "include/transaction_log.h"
 #include "symmetriccrypto.h"
 
 

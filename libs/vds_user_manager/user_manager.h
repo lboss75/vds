@@ -9,7 +9,7 @@ All rights reserved
 #include <memory>
 #include <string>
 #include "transactions/file_add_transaction.h"
-#include "transaction_block.h"
+#include "include/transaction_block_builder.h"
 #include "user_channel.h"
 #include "transactions/channel_message_walker.h"
 #include "encoding.h"
@@ -40,7 +40,7 @@ namespace vds {
       const const_data_buffer& user_password_hash);
 
     member_user create_root_user(
-      transactions::transaction_block &log,
+      transactions::transaction_block_builder &log,
       class database_transaction &t,
       const std::string &user_name,
       const std::string &user_password,
@@ -53,7 +53,7 @@ namespace vds {
 
     vds::user_channel create_channel(
         const service_provider &sp,
-        transactions::transaction_block &log,
+        transactions::transaction_block_builder &log,
         database_transaction &t,
         const vds::const_data_buffer &channel_id,
         user_channel::channel_type_t channel_type,
@@ -116,13 +116,13 @@ namespace vds {
         std::list<certificate> certificates;
         const_data_buffer signature;
 
-        auto block_type = transactions::transaction_block::parse_block(t1.data.get(st), channel_id, order_no, read_cert_id,
+        auto block_type = transactions::transaction_block_builder::parse_block(t1.data.get(st), channel_id, order_no, read_cert_id,
                                                      write_cert_id, ancestors,
                                                      crypted_data, crypted_key,
                                                      certificates, signature);
 
         auto write_cert = this->get_channel_write_cert(sp, channel_id, write_cert_id);
-        if (!transactions::transaction_block::validate_block(
+        if (!transactions::transaction_block_builder::validate_block(
           write_cert,
           block_type,
           channel_id,
@@ -180,7 +180,7 @@ namespace vds {
 
     user_channel create_channel(
         const service_provider &sp,
-        transactions::transaction_block &log,
+        transactions::transaction_block_builder &log,
         database_transaction &t,
         const vds::const_data_buffer &channel_id,
         user_channel::channel_type_t channel_type,

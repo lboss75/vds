@@ -20,8 +20,8 @@ namespace vds {
     namespace messages {
       class dht_pong;
       class dht_ping;
-      class channel_log_record;
-      class channel_log_request;
+      class transaction_log_record;
+      class transaction_log_request;
       class dht_find_node_response;
       class dht_find_node;
     }
@@ -64,17 +64,17 @@ namespace vds {
         async_task<> apply_message(
           const service_provider & sp,
           database_transaction & t,
-          const messages::channel_log_state & message);
+          const messages::transaction_log_state & message);
 
         async_task<> apply_message(
           const service_provider & sp,
           database_transaction & t,
-          const messages::channel_log_request & message);
+          const messages::transaction_log_request & message);
 
         void apply_message(
           const service_provider & sp,
           database_transaction & t,
-          const messages::channel_log_record & message);
+          const messages::transaction_log_record & message);
 
         async_task<> apply_message(
           const service_provider & sp,

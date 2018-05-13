@@ -4,7 +4,7 @@ All rights reserved
 */
 
 #include "stdafx.h"
-#include "data_coin_balance.h"
+#include "private/data_coin_balance.h"
 #include "orm/coin_transaction.h"
 #include "coin_transaction_walker.h"
 

@@ -28,14 +28,14 @@ namespace vds {
     const vds::certificate & read_cert() const { return this->read_cert_; }
     const vds::certificate & write_cert() const { return this->write_cert_; }
 	  void add_reader(
-		  transactions::transaction_block& playback,
+		  transactions::transaction_block_builder& playback,
 		  const member_user& member_user,
 		  const vds::member_user& owner_user,
 		  const asymmetric_private_key& owner_private_key,
 		  const asymmetric_private_key& channel_read_private_key) const;
 
 	  void add_writer(
-		  transactions::transaction_block& playback,
+		  transactions::transaction_block_builder& playback,
 		  const member_user& member_user,
 		  const vds::member_user& owner_user,
 		  const asymmetric_private_key& owner_private_key,

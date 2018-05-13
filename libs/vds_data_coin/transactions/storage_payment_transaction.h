@@ -6,7 +6,7 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
-#include "transactions/payment_transaction.h"
+#include "../../vds_transactions/transactions/payment_transaction.h"
 
 namespace vds {
   namespace data_coin {

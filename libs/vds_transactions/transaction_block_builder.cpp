@@ -3,24 +3,24 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
-#include "stdafx.h"
+#include "private/stdafx.h"
 #include <set>
 #include "channel_local_cache_dbo.h"
 #include "dht_network_client.h"
 
-#include "transaction_block.h"
+#include "include/transaction_block_builder.h"
 #include "symmetriccrypto.h"
 #include "asymmetriccrypto.h"
-#include "transaction_context.h"
+#include "include/transaction_context.h"
 #include "cert_control.h"
 #include "database_orm.h"
 #include "chunk_data_dbo.h"
 #include "transaction_log_record_dbo.h"
 #include "encoding.h"
 #include "vds_debug.h"
-#include "transaction_log.h"
+#include "include/transaction_log.h"
 
-vds::const_data_buffer vds::transactions::transaction_block::save(
+vds::const_data_buffer vds::transactions::transaction_block_builder::save(
     const service_provider &sp,
     class vds::database_transaction &t,
     const const_data_buffer &channel_id,
@@ -57,7 +57,7 @@ vds::const_data_buffer vds::transactions::transaction_block::save(
   return id;
 }
 
-vds::const_data_buffer vds::transactions::transaction_block::save_self_signed(
+vds::const_data_buffer vds::transactions::transaction_block_builder::save_self_signed(
   const service_provider &sp,
   class vds::database_transaction &t,
   const const_data_buffer &channel_id,
@@ -94,8 +94,8 @@ vds::const_data_buffer vds::transactions::transaction_block::save_self_signed(
   return id;
 }
 
-vds::transactions::transaction_block::block_type_t
-vds::transactions::transaction_block::parse_block(const const_data_buffer &data, const_data_buffer &channel_id, uint64_t &order_no, std::string &read_cert_id,
+vds::transactions::transaction_block_builder::block_type_t
+vds::transactions::transaction_block_builder::parse_block(const const_data_buffer &data, const_data_buffer &channel_id, uint64_t &order_no, std::string &read_cert_id,
   std::string &write_cert_id, std::set<const_data_buffer> &ancestors, const_data_buffer &crypted_data,
                                                       const_data_buffer &crypted_key,
   std::list<certificate> & certificates,
@@ -120,7 +120,7 @@ vds::transactions::transaction_block::parse_block(const const_data_buffer &data,
 }
 
 bool
-vds::transactions::transaction_block::validate_block(const certificate &write_cert, block_type_t block_type, const const_data_buffer &channel_id, uint64_t &order_no, const std::string &read_cert_id,
+vds::transactions::transaction_block_builder::validate_block(const certificate &write_cert, block_type_t block_type, const const_data_buffer &channel_id, uint64_t &order_no, const std::string &read_cert_id,
                                                      const std::string &write_cert_id, const std::set<const_data_buffer> &ancestors,
                                                      const const_data_buffer &crypted_data, const const_data_buffer &crypted_key,
   const std::list<certificate> & certificates,
@@ -144,7 +144,7 @@ vds::transactions::transaction_block::validate_block(const certificate &write_ce
       << certificates).data());
 }
 
-uint64_t vds::transactions::transaction_block::collect_dependencies(
+uint64_t vds::transactions::transaction_block_builder::collect_dependencies(
     vds::database_transaction &t,
     const const_data_buffer &channel_id,
     std::set<const_data_buffer> &ancestors) const {
@@ -171,7 +171,7 @@ uint64_t vds::transactions::transaction_block::collect_dependencies(
   return result + 1;
 }
 
-vds::const_data_buffer vds::transactions::transaction_block::register_transaction(
+vds::const_data_buffer vds::transactions::transaction_block_builder::register_transaction(
 	const service_provider & sp,
     vds::database_transaction &t,
     const const_data_buffer & channel_id,
@@ -199,7 +199,7 @@ vds::const_data_buffer vds::transactions::transaction_block::register_transactio
   return id;
 }
 
-void vds::transactions::transaction_block::on_new_transaction(
+void vds::transactions::transaction_block_builder::on_new_transaction(
     const vds::service_provider &sp,
     vds::database_transaction &t,
     const const_data_buffer & id,

@@ -7,7 +7,7 @@ All rights reserved
 */
 
 #include "database_orm.h"
-#include "transactions/payment_transaction.h"
+#include "../../vds_transactions/transactions/payment_transaction.h"
 #include "orm/coin_transaction.h"
 
 namespace vds {

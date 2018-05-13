@@ -26,22 +26,18 @@ namespace vds {
       };
 
       enum class message_type_t {
-        channel_log_state,
+        transaction_log_state,
         offer_move_replica,
         got_replica,
         replica_request,
         replica_not_found,
         offer_replica,
-        channel_log_request,
-        channel_log_record,
+        transaction_log_request,
+        transaction_log_record,
         dht_find_node,
         dht_find_node_response,
         dht_ping,
-        dht_pong,
-
-        data_coin_log_record,
-        data_coin_log_request,
-        data_coin_log_state
+        dht_pong
       };
     }
   }

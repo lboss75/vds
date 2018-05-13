@@ -38,7 +38,7 @@ const vds::certificate &vds::user_channel::write_cert() const {
 }
 
 void vds::user_channel::add_reader(
-	transactions::transaction_block& playback,
+	transactions::transaction_block_builder& playback,
 	const member_user& member_user,
 	const vds::member_user& owner_user,
 	const asymmetric_private_key& owner_private_key,
@@ -48,7 +48,7 @@ void vds::user_channel::add_reader(
 }
 
 void vds::user_channel::add_writer(
-	transactions::transaction_block& playback,
+	transactions::transaction_block_builder& playback,
 	const member_user& member_user,
 	const vds::member_user& owner_user,
 	const asymmetric_private_key& owner_private_key,
@@ -69,7 +69,7 @@ vds::_user_channel::_user_channel(
 }
 
 void vds::_user_channel::add_reader(
-	transactions::transaction_block& playback,
+	transactions::transaction_block_builder& playback,
 	const member_user& member_user,
 	const vds::member_user& owner_user,
 	const asymmetric_private_key& owner_private_key,
@@ -85,7 +85,7 @@ void vds::_user_channel::add_reader(
 }
 
 void vds::_user_channel::add_writer(
-	transactions::transaction_block& playback,
+	transactions::transaction_block_builder& playback,
 	const member_user& member_user,
 	const vds::member_user& owner_user,
 	const asymmetric_private_key& owner_private_key,

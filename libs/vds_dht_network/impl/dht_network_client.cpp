@@ -52,17 +52,17 @@ void vds::dht::network::_client::save(
 }
 
 vds::async_task<> vds::dht::network::_client::apply_message(const service_provider& sp, database_transaction& t,
-  const messages::channel_log_state& message) {
+  const messages::transaction_log_state& message) {
   return this->sync_process_.apply_message(sp, t, message);
 }
 
 vds::async_task<> vds::dht::network::_client::apply_message(const service_provider& sp, database_transaction& t,
-  const messages::channel_log_request& message) {
+  const messages::transaction_log_request& message) {
   return this->sync_process_.apply_message(sp, t, message);
 }
 
 void vds::dht::network::_client::apply_message(const service_provider& sp, database_transaction& t,
-  const messages::channel_log_record& message) {
+  const messages::transaction_log_record& message) {
   this->sync_process_.apply_message(sp, t, message);
 }
 

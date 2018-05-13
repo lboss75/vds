@@ -3,14 +3,14 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
-#include "stdafx.h"
+#include "private/stdafx.h"
 #include <set>
-#include "transaction_log.h"
+#include "include/transaction_log.h"
 #include "private/transaction_log_p.h"
 #include "asymmetriccrypto.h"
 #include "database_orm.h"
 #include "db_model.h"
-#include "transaction_block.h"
+#include "include/transaction_block_builder.h"
 #include "transaction_log_unknown_record_dbo.h"
 #include "transactions/channel_add_writer_transaction.h"
 #include "transactions/device_user_add_transaction.h"
@@ -27,13 +27,12 @@ All rights reserved
 #include "cert_control.h"
 #include "vds_debug.h"
 #include "logger.h"
-#include "transaction_block.h"
+#include "include/transaction_block_builder.h"
 #include "certificate_chain_dbo.h"
 
 void vds::transaction_log::save(
 	const service_provider & sp,
 	database_transaction & t,
-  const const_data_buffer & channel_id,
 	const const_data_buffer & block_id,
 	const const_data_buffer & block_data)
 {
@@ -56,7 +55,7 @@ void vds::transaction_log::save(
   const_data_buffer crypted_key;
   std::list<certificate> certificates;
   const_data_buffer signature;
-  auto block_type = transactions::transaction_block::parse_block(
+  auto block_type = transactions::transaction_block_builder::parse_block(
       block_data,
       block_channel_id,
       order_no,
@@ -67,11 +66,6 @@ void vds::transaction_log::save(
       crypted_key,
       certificates,
       signature);
-
-  if(block_channel_id != channel_id){
-    sp.get<logger>()->warning(ThisModule, sp, "Invalid record %s", base64::from_bytes(channel_id).c_str());
-    return;
-  }
 
   certificate write_cert;
   orm::certificate_chain_dbo t6;
@@ -92,7 +86,7 @@ void vds::transaction_log::save(
     is_validated = false;
   }
   else {
-    if(!transactions::transaction_block::validate_block(
+    if(!transactions::transaction_block_builder::validate_block(
       write_cert,
       block_type,
       block_channel_id,
@@ -116,7 +110,6 @@ void vds::transaction_log::save(
 
   t.execute(t2.insert(
       t2.id = base64::from_bytes(block_id),
-      t2.channel_id = base64::from_bytes(channel_id),
       t2.data = block_data,
       t2.state = is_validated
                  ? (int)(

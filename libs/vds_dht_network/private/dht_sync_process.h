@@ -7,7 +7,7 @@
 #include "messages/offer_move_replica.h"
 #include "messages/replica_not_found.h"
 #include "messages/offer_replica.h"
-#include "messages/channel_log_state.h"
+#include "messages/transaction_log_state.h"
 
 /*
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
@@ -17,8 +17,8 @@ All rights reserved
 namespace vds {
   namespace dht {
     namespace messages {
-      class channel_log_record;
-      class channel_log_request;
+      class transaction_log_record;
+      class transaction_log_request;
     }
   }
 }
@@ -39,17 +39,17 @@ namespace vds {
         async_task<> apply_message(
           const service_provider & sp,
           database_transaction & t,
-          const messages::channel_log_state & message);
+          const messages::transaction_log_state & message);
 
         async_task<> apply_message(
           const service_provider& sp,
           database_transaction& t,
-          const messages::channel_log_request& message);
+          const messages::transaction_log_request& message);
 
         void apply_message(
           const service_provider& sp,
           database_transaction& t,
-          const messages::channel_log_record & message);
+          const messages::transaction_log_record & message);
 
         void apply_message(
             const service_provider & sp,

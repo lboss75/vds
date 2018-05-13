@@ -19,12 +19,11 @@ namespace vds {
 	  static void save(
 		  const service_provider &sp,
 		  class database_transaction &t,
-      const class const_data_buffer & channel_id,
 		  const class const_data_buffer & block_id,
 		  const class const_data_buffer & block_data);
 
     template <typename... handler_types>
-    void walk_messages(
+    static void walk_messages(
       const const_data_buffer & message_data,
       handler_types && ... handlers) const {
 
