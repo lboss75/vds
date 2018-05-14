@@ -4,10 +4,11 @@ All rights reserved
 */
 #include <vds_exceptions.h>
 #include <messages/replica_request.h>
+#include <local_data_dbo.h>
 #include "stdafx.h"
 #include "dht_network_client.h"
 #include "private/dht_network_client_p.h"
-#include "chunk_replica_data_dbo.h"
+#include "chunk_map_dbo.h"
 #include "messages/dht_find_node.h"
 #include "messages/dht_find_node_response.h"
 #include "messages/dht_ping.h"
@@ -40,7 +41,7 @@ void vds::dht::network::_client::save(
     this->generators_.find(replica)->second->write(s, value.data(), value.size());
     const auto replica_data = s.data();
 
-    orm::chunk_replica_data_dbo t1;
+    orm::chunk_map_dbo t1;
     t.execute(
         t1.insert(
             t1.id = base64::from_bytes(key),
@@ -143,7 +144,7 @@ vds::async_task<> vds::dht::network::_client::apply_message(
     [pthis = this->shared_from_this(), sp, session, message, async_tasks](database_transaction & t){
 
     std::vector<uint16_t> have_replicas;
-    orm::chunk_replica_data_dbo t1;
+    orm::chunk_map_dbo t1;
     auto st = t.get_reader(
       t1
       .select(t1.replica)
@@ -271,7 +272,7 @@ vds::async_task<> vds::dht::network::_client::restore(
     std::vector<uint16_t> replicas;
     std::vector<const_data_buffer> datas;
 
-    orm::chunk_replica_data_dbo t1;
+    orm::chunk_map_dbo t1;
     auto st = t.get_reader(
         t1
             .select(t1.replica, t1.replica_data)
@@ -326,7 +327,7 @@ vds::dht::network::_client::apply_message(const vds::service_provider &sp, const
   return sp.get<db_model>()->async_transaction(
       sp,
       [pthis = this->shared_from_this(), sp, message](database_transaction & t){
-        orm::chunk_replica_data_dbo t1;
+        orm::chunk_map_dbo t1;
         t.execute(t1.insert_or_ignore(
             t1.id = base64::from_bytes(message.object_id()),
             t1.replica = message.replica(),
@@ -339,6 +340,35 @@ vds::dht::network::_client::apply_message(const vds::service_provider &sp, const
       return async_task<>::empty();
     }
   });
+}
+
+vds::async_task<> vds::dht::network::_client::restore(
+    const vds::service_provider &sp,
+    vds::database_transaction &t,
+    const vds::const_data_buffer &block_hash,
+    const std::shared_ptr<vds::const_data_buffer> &result,
+    const std::chrono::steady_clock::time_point &start) {
+
+  auto block_hash_str = base64::from_bytes(block_hash);
+
+  orm::local_data_dbo t1;
+  auto st = t.get_reader(
+      t1.select(t1.data)
+          .where(t1.id == block_hash_str));
+  if(st.execute()){
+    *result = t1.data.get(st);
+    return async_task<>::empty();
+  }
+
+  orm::chunk_map_dbo t2;
+  st = t.get_reader(
+      t2.select(t2.id).where(t2.source_hash == block_hash_str));
+
+  if(st.execute()){
+    //Recovery from chunks
+  }
+
+
 }
 
 void vds::dht::network::client::start(

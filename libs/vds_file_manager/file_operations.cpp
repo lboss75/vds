@@ -158,7 +158,7 @@ vds::async_task<> vds::file_manager_private::_file_operations::download_block(
   std::vector<uint16_t> replicas;
   std::vector<const_data_buffer> datas;
 
-  orm::chunk_replica_data_dbo t1;
+  orm::chunk_map_dbo t1;
   auto st = t.get_reader(
       t1
           .select(t1.replica, t1.replica_data)
@@ -298,7 +298,7 @@ vds::file_manager_private::_file_operations::restore_chunk(
   std::vector<uint16_t> replicas;
   std::vector<const_data_buffer> datas;
 
-  orm::chunk_replica_data_dbo t1;
+  orm::chunk_map_dbo t1;
   auto st = t.get_reader(
       t1
           .select(t1.replica, t1.replica_data)

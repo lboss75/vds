@@ -26,30 +26,43 @@ namespace vds {
         return s.data();
       }
 
-      void apply(
+      bool apply(
           const const_data_buffer & souce_account,
+          const const_data_buffer & transaction_id,
           const const_data_buffer & messages) {
 
+        bool result = true;
         transaction_log::walk_messages(
             messages,
-            [this, souce_account](payment_transaction & t){
+            [&result, this, souce_account, transaction_id](payment_transaction & t)->bool{
               auto p = this->account_state_.find(souce_account);
               if(this->account_state_.end() == p){
-                throw transaction_error("Transaction error");
+                result = false;
+                return false;
               }
 
-              if(p->second < t.value()){
-                throw transaction_error("Transaction error");
+              auto p1 = p->second.find(t.source_transaction());
+              if(p->second.end() == p1){
+                result = false;
+                return false;
               }
 
-              p->second -= t.value();
-              this->account_state_[t.target_user()] += t.value();
+              if(p1->second < t.value()){
+                result = false;
+                return false;
+              }
+
+              p1->second -= t.value();
+              this->account_state_[t.target_user()][transaction_id] += t.value();
+              return true;
             }
         );
+
+        return result;
       }
 
     private:
-      std::map<const_data_buffer, uint64_t> account_state_;
+      std::map<const_data_buffer, std::map<const_data_buffer, uint64_t>> account_state_;
     };
   }
 }

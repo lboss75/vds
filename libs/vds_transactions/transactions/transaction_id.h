@@ -17,7 +17,9 @@ namespace vds {
       channel_create_transaction = 'n',
       channel_add_writer_transaction = 'w',
       channel_add_reader_transaction = 'r',
-      channel_remove_reader_transaction = 'e'
+      channel_remove_reader_transaction = 'e',
+
+      split_block_transaction = 's'
 
     };
   }
