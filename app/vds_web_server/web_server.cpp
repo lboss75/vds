@@ -22,7 +22,7 @@ All rights reserved
 #include "private/login_page.h"
 #include "private/index_page.h"
 #include "db_model.h"
-#include "chunk_map_dbo.h"
+#include "chunk_replicas_dbo.h"
 
 vds::web_server::web_server()
 : port_(8050) {

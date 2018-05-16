@@ -129,11 +129,16 @@ namespace vds {
             const std::chrono::steady_clock::time_point & start);
 
         async_task<> restore(
-            const service_provider & sp,
-            database_transaction & t,
-            const const_data_buffer & block_hash,
+            const service_provider &sp,
+            const std::vector<const_data_buffer> & replica_hashes,
             const std::shared_ptr<const_data_buffer> & result,
             const std::chrono::steady_clock::time_point & start);
+
+        async_task<> restore(
+            const service_provider &sp,
+            const std::string & name,
+            const std::shared_ptr<const_data_buffer> &result,
+            const std::chrono::steady_clock::time_point &start);
 
         void get_route_statistics(route_statistic& result);
 

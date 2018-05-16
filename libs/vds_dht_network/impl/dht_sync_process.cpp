@@ -8,10 +8,10 @@ All rights reserved
 #include "dht_network_client.h"
 #include "messages/transaction_log_state.h"
 #include "transaction_log_record_dbo.h"
-#include "chunk_map_target_dbo.h"
+#include "chunk_replicas_dbo.h"
 #include "private/dht_network_client_p.h"
 #include "messages/offer_move_replica.h"
-#include "chunk_map_dbo.h"
+#include "chunk_replicas_dbo.h"
 #include "transaction_log_unknown_record_dbo.h"
 #include "messages/transaction_log_request.h"
 #include "messages/transaction_log_record.h"
@@ -244,7 +244,7 @@ vds::async_task<> vds::dht::network::sync_process::sync_replicas(
   auto & client = *sp.get<dht::network::client>();
 
   std::map<const_data_buffer /*object_id*/, object_info> objects;
-  orm::chunk_map_target_dbo t1;
+  orm::chunk_map_dbo t1;
   auto st = t.get_reader(t1.select(t1.id, t1.replica, t1.node));
   while(st.execute()){
     auto object_id = base64::to_bytes(t1.id.get(st));
@@ -323,7 +323,7 @@ void vds::dht::network::sync_process::apply_message(
 
 void vds::dht::network::sync_process::apply_message(const vds::service_provider &sp, vds::database_transaction &t,
                                                     const vds::dht::messages::replica_not_found &message) {
-  orm::chunk_map_target_dbo t1;
+  orm::chunk_map_dbo t1;
   t.execute(t1.delete_if(
       t1.id == base64::from_bytes(message.object_id())
       && t1.replica == message.replica()
@@ -336,7 +336,7 @@ void vds::dht::network::sync_process::apply_message(
     vds::database_transaction &t,
     const vds::dht::messages::offer_replica &message) {
 
-  orm::chunk_map_target_dbo t1;
+  orm::chunk_map_dbo t1;
   t.execute(t1.insert_or_ignore(
       t1.id = base64::from_bytes(message.object_id()),
       t1.replica = message.replica(),
@@ -377,7 +377,7 @@ void vds::dht::network::sync_process::apply_message(
     vds::database_transaction &t,
     const vds::dht::messages::got_replica &message) {
 
-  orm::chunk_map_target_dbo t1;
+  orm::chunk_map_dbo t1;
   t.execute(t1.insert_or_ignore(
       t1.id = base64::from_bytes(message.object_id()),
       t1.replica = message.replica(),

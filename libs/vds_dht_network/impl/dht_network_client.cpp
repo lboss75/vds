@@ -5,10 +5,11 @@ All rights reserved
 #include <vds_exceptions.h>
 #include <messages/replica_request.h>
 #include <local_data_dbo.h>
+#include <chunk_replicas_dbo.h>
 #include "stdafx.h"
 #include "dht_network_client.h"
 #include "private/dht_network_client_p.h"
-#include "chunk_map_dbo.h"
+#include "chunk_replicas_dbo.h"
 #include "messages/dht_find_node.h"
 #include "messages/dht_find_node_response.h"
 #include "messages/dht_ping.h"
@@ -344,32 +345,88 @@ vds::dht::network::_client::apply_message(const vds::service_provider &sp, const
 
 vds::async_task<> vds::dht::network::_client::restore(
     const vds::service_provider &sp,
-    vds::database_transaction &t,
-    const vds::const_data_buffer &block_hash,
+    const std::string & name,
     const std::shared_ptr<vds::const_data_buffer> &result,
     const std::chrono::steady_clock::time_point &start) {
 
-  auto block_hash_str = base64::from_bytes(block_hash);
-
-  orm::local_data_dbo t1;
-  auto st = t.get_reader(
-      t1.select(t1.data)
-          .where(t1.id == block_hash_str));
-  if(st.execute()){
-    *result = t1.data.get(st);
-    return async_task<>::empty();
+  std::vector<vds::const_data_buffer> replica_hashes;
+  for (uint16_t replica = 0; replica < GENERATE_HORCRUX; ++replica) {
+    auto id = "{" + std::to_string(replica) + "}" + name;
+    replica_hashes.push_back(hash::signature(hash::sha256(), id.c_str(), id.length()));
   }
 
-  orm::chunk_map_dbo t2;
-  st = t.get_reader(
-      t2.select(t2.id).where(t2.source_hash == block_hash_str));
-
-  if(st.execute()){
-    //Recovery from chunks
-  }
-
-
+  return this->restore(sp, replica_hashes, result, start);
 }
+
+vds::async_task<> vds::dht::network::_client::restore(
+    const vds::service_provider &sp,
+    const std::vector<vds::const_data_buffer> &replica_hashes,
+    const std::shared_ptr<vds::const_data_buffer> &result,
+    const std::chrono::steady_clock::time_point &start) {
+
+  auto result_task = std::make_shared<async_task<>>(async_task<>::empty());
+  return sp.get<db_model>()->async_read_transaction(
+          sp,
+          [pthis = this->shared_from_this(), sp, replica_hashes, result, result_task](database_transaction &t) -> bool {
+
+            std::vector<uint16_t> replicas;
+            std::vector<const_data_buffer> datas;
+            std::list<const_data_buffer> unknonw_replicas;
+
+            orm::chunk_replicas_dbo t1;
+            for (uint16_t replica = 0; replica < GENERATE_HORCRUX; ++replica) {
+              auto st = t.get_reader(
+                  t1
+                      .select(t1.replica_data)
+                      .where(t1.id == base64::from_bytes(replica_hashes[replica])));
+
+              if (st.execute()) {
+                replicas.push_back(replica);
+                datas.push_back(t1.replica_data.get(st));
+
+
+                if (replicas.size() >= MIN_HORCRUX) {
+                  break;
+                }
+              } else {
+                unknonw_replicas.push_back(replica_hashes[replica]);
+              }
+            }
+
+            if (replicas.size() >= MIN_HORCRUX) {
+              chunk_restore <uint16_t> restore(MIN_HORCRUX, replicas.data());
+              binary_serializer s;
+              restore.restore(s, datas);
+              *result = s.data();
+              return true;
+            }
+
+            for (const auto &replica : unknonw_replicas) {
+              *result_task = result_task->then([pthis, replica]() {
+                return pthis->send(
+                    sp,
+                    replica,
+                    messages::replica_request(replica, pthis->current_node_id()));
+              });
+            }
+            return true;
+          })
+      .then([result_task]() -> async_task<> {
+        return std::move(*result_task);
+      })
+      .then([result, pthis = this->shared_from_this(), sp, replica_hashes, start]() -> async_task<> {
+        if (result->size() > 0) {
+          return async_task<>::empty();
+        }
+
+        if (std::chrono::minutes(10) < (std::chrono::steady_clock::now() - start)) {
+          return async_task<>(std::make_shared<vds_exceptions::not_found>());
+        }
+
+        return pthis->restore(sp, replica_hashes, result, start);
+      });
+}
+
 
 void vds::dht::network::client::start(
   const vds::service_provider &sp,
