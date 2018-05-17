@@ -84,7 +84,8 @@ void vds::user_manager::reset(
     const std::string &root_password,
     const asymmetric_private_key &root_private_key) {
 
-  transactions::transaction_block_builder playback;
+  auto playback = transactions::transaction_block_builder::create_root_block();
+
   //Create root user
   auto root_user = this->create_root_user(playback, t, root_user_name, root_password,
                                           root_private_key);

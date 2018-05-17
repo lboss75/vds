@@ -8,7 +8,12 @@ FILE(GLOB TRANSACTIONS_HEADER_FILES transactions/*.h)
 FILE(GLOB SOURCE_LIB impl/*.cpp)
 FILE(GLOB HEADER_FILES include/*.h)
 
-ADD_MSVC_PRECOMPILED_HEADER("private/stdafx.h" "stdafx.cpp" SOURCE_LIB)
+SOURCE_GROUP(private FILES ${PRIVATE_HEADER_FILES})
+SOURCE_GROUP(transactions FILES ${TRANSACTIONS_HEADER_FILES})
+SOURCE_GROUP(include FILES ${HEADER_FILES})
+SOURCE_GROUP(impl FILES ${SOURCE_LIB})
+
+ADD_MSVC_PRECOMPILED_HEADER("private/stdafx.h" "impl/stdafx.cpp" SOURCE_LIB)
 
 add_library(vds_transactions
 		STATIC

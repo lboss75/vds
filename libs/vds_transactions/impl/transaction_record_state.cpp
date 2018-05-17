@@ -5,32 +5,35 @@ All rights reserved
 
 #include "private/stdafx.h"
 #include "include/transaction_record_state.h"
-#include "transaction_log_record_dbo.h"
 #include "encoding.h"
+#include "private/transaction_source_not_found_error.h"
+#include "private/transaction_lack_of_funds.h"
 
-vds::transactions::transaction_record_state
-vds::transactions::transaction_record_state::calculate(
-    struct database_transaction &t,
-    std::set<vds::const_data_buffer> ancestors) {
 
-  std::map<uint64_t, std::list<const_data_buffer>> records;
+void vds::transactions::transaction_record_state::apply(
+  const std::string & souce_account,
+  const const_data_buffer& transaction_id,
+  const const_data_buffer& messages) {
 
-  for(const auto & ancestor : ancestors){
-    orm::transaction_log_record_dbo t1;
-    auto st = t.get_reader(
-        t1.select(
-            t1.order_no,
-            t1.state_data)
-        .where(t1.id == base64::from_bytes(ancestor)));
-    if(!st.execute()){
-      throw std::runtime_error("Invalid data");
+  transaction_log::walk_messages(
+    messages,
+    [this, souce_account, transaction_id](payment_transaction & t)->bool {
+    auto p = this->account_state_.find(souce_account);
+    if (this->account_state_.end() == p) {
+      return false;
     }
 
-    auto state_data = t1.state_data.get(st);
-    binary_deserializer s(state_data);
+    auto p1 = p->second.find(t.source_transaction());
+    if (p->second.end() == p1) {
+      throw transaction_source_not_found_error(t.source_transaction(), transaction_id);
+    }
 
+    if (p1->second < t.value()) {
+      throw transaction_lack_of_funds(t.source_transaction(), transaction_id);
+    }
 
-
-  }
-
+    p1->second -= t.value();
+    this->account_state_[t.target_user()][transaction_id] += t.value();
+    return true;
+  });
 }

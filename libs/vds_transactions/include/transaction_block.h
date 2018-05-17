@@ -17,7 +17,8 @@ namespace vds {
   namespace transactions {
     class transaction_block {
     public:
-      transaction_block(const const_data_buffer &data){
+      transaction_block(const const_data_buffer &data)
+      : id_(hash::signature(hash::sha256(), data)){
         binary_deserializer s(data);
         s
             >> this->order_no_
@@ -26,6 +27,10 @@ namespace vds {
             >> this->block_messages_
             >> this->certificates_
             >> this->signature_;
+      }
+
+      const const_data_buffer & id() const {
+        return this->id_;
       }
 
       uint64_t order_no() const {
@@ -53,6 +58,7 @@ namespace vds {
       }
 
     private:
+      const_data_buffer id_;
       uint64_t order_no_;
       std::string write_cert_id_;
       std::set<const_data_buffer> ancestors_;

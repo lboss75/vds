@@ -20,7 +20,7 @@ namespace vds {
   namespace transactions {
     class root_user_transaction {
     public:
-      static const uint8_t message_id = (uint8_t)transaction_id::root_user_transaction;
+      static const transaction_id message_id = transaction_id::root_user_transaction;
 
       root_user_transaction(
           const certificate &user_cert,

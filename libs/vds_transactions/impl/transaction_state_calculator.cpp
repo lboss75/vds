@@ -10,7 +10,8 @@ All rights reserved
 #include "encoding.h"
 #include "include/transaction_block_builder.h"
 #include "vds_debug.h"
-#include "transaction_block.h"
+#include "include/transaction_block.h"
+
 
 vds::transactions::transaction_record_state
 vds::transactions::transaction_state_calculator::calculate(
@@ -74,7 +75,7 @@ vds::transactions::transaction_state_calculator::process(vds::database_transacti
     this->resolve(t, order_no, node_id);
   }
 
-  if(this->not_processed_.size() == 0){
+  if(this->not_processed_.empty()){
     throw std::runtime_error("Invalid program");
   }
 
@@ -92,7 +93,8 @@ vds::transactions::transaction_state_calculator::process(vds::database_transacti
 
   for(const auto & porder : this->items_){
     for(const auto & pitem : porder.second){
-      result.apply(pitem.second);
+      transaction_block block(pitem.second);
+      result.apply(block.write_cert_id(), block.id(), block.block_messages());
     }
   }
 
@@ -118,7 +120,7 @@ void vds::transactions::transaction_state_calculator::resolve(
 
   vds_assert(block.order_no() == parent_order_no);
 
-  this->items_[order_no][node_id] = block_messages;
+  this->items_[order_no][node_id] = block_data;
 
   for(const auto & ancestor : ancestors){
     this->add_ancestor(t, ancestor, order_no);

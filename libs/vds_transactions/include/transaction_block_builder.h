@@ -12,9 +12,12 @@ All rights reserved
 #include "database.h"
 #include "asymmetriccrypto.h"
 #include "symmetriccrypto.h"
+#include "transactions/transaction_id.h"
 
 namespace vds {
   namespace transactions {
+    class payment_transaction;
+
     class transaction_block_builder {
     public:
 
@@ -22,11 +25,37 @@ namespace vds {
         const service_provider &sp,
         class vds::database_transaction &t);
 
+      static transaction_block_builder create_root_block();
+
+
+      void add(const payment_transaction & item);
 
       template<typename item_type>
-      void add(item_type && item) {
-        this->data_ << item_type::message_id;
-        item.serialize(this->data_);
+      void add(
+        const const_data_buffer & channel_id,
+        const certificate & write_cert,
+        const asymmetric_private_key & write_key,
+        const certificate & channel_read_cert,
+        item_type && item) {
+
+        auto key = symmetric_key::generate(symmetric_crypto::aes_256_cbc());
+
+        binary_serializer s;
+        s
+          << (uint8_t)item_type::message_id
+          << channel_id
+          << symmetric_encrypt::encrypt(key, item.serialize());
+        key.serialize(s);
+
+
+        this->data_
+          << (uint8_t)transaction_id::channel_message
+          << channel_id
+          << channel_read_cert.subject()
+          << write_cert.subject()
+          << channel_read_cert.public_key().encrypt(key.serialize())
+          << s.data()
+          << asymmetric_sign::signature(hash::sha256(), write_key, s.data().data(), s.size());
       }
 
       void add_certificate(const certificate & cert) {

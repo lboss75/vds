@@ -19,8 +19,11 @@ namespace vds {
       channel_add_reader_transaction = 'r',
       channel_remove_reader_transaction = 'e',
 
-      split_block_transaction = 's'
+      split_block_transaction = 's',
 
+
+      payment_transaction = 'p',
+      channel_message = 'c'
     };
   }
 }

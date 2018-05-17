@@ -1,5 +1,5 @@
-#ifndef __VDS_DHT_NETWORK_DATA_COIN_BALANCE_H_
-#define __VDS_DHT_NETWORK_DATA_COIN_BALANCE_H_
+#ifndef __VDS_TRANSACTIONS_DATA_COIN_BALANCE_H_
+#define __VDS_TRANSACTIONS_DATA_COIN_BALANCE_H_
 
 /*
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
@@ -11,7 +11,7 @@ All rights reserved
 #include "include/transaction_record_state.h"
 
 namespace vds {
-  namespace dht_network_private {
+  namespace transactions {
     class data_coin_balance {
     public:
 
@@ -20,19 +20,17 @@ namespace vds {
       data_coin_balance(data_coin_balance && original);
 
       static data_coin_balance load(
-          database_transaction & t,
-          const std::list<const_data_buffer> & base_packages);
+        database_transaction & t);
 
     private:
-      transactions::transaction_record_state state_;
+      uint64_t order_no_;
+      transaction_record_state state_;
 
-      void apply(
-          const const_data_buffer & source_user,
-          const data_coin::transactions::payment_transaction &transaction);
+      data_coin_balance(uint64_t order_no, transaction_record_state && state);
 
     };
   }
 }
 
-#endif // __VDS_DHT_NETWORK_DATA_COIN_BALANCE_H_
+#endif // __VDS_TRANSACTIONS_DATA_COIN_BALANCE_H_
 

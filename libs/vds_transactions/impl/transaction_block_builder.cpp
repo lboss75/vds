@@ -19,6 +19,7 @@ All rights reserved
 #include "encoding.h"
 #include "vds_debug.h"
 #include "include/transaction_log.h"
+#include "transactions/payment_transaction.h"
 
 vds::const_data_buffer vds::transactions::transaction_block_builder::save(
     const service_provider &sp,
@@ -80,6 +81,11 @@ vds::transactions::transaction_block_builder::transaction_block_builder(
 
   return result + 1;
 
+}
+
+void vds::transactions::transaction_block_builder::add(const payment_transaction& item) {
+  this->data_ << (uint8_t)payment_transaction::message_id;
+  item.serialize(this->data_);
 }
 
 vds::const_data_buffer vds::transactions::transaction_block_builder::save_self_signed(
