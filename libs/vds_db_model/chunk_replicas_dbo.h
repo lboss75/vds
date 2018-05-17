@@ -15,13 +15,13 @@ namespace vds {
 				: database_table("chunk_replicas"),
 				id(this, "id"),
 				replica_data(this, "replica_data"),
-        replica_sent(this, "replica_sent")
+        last_sync(this, "last_sync")
 			{
 			}
 
 			database_column<std::string> id;
 			database_column<const_data_buffer> replica_data;
-      database_column<bool> replica_sent;
+      database_column<std::chrono::system_clock::time_point> last_sync;
     };
 	}
 }

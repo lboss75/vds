@@ -17,7 +17,10 @@ namespace vds {
       enum class state_t : int {
         stored,
         validated,
-        leaf
+        leaf,
+        consensus,
+        invalid,
+        leaf_invalid
       };
       static std::string str(state_t value){
         switch(value){
@@ -40,7 +43,8 @@ namespace vds {
             id(this, "id"),
             data(this, "data"),
             state(this, "state"),
-            order_no(this, "order_no") {
+            order_no(this, "order_no"),
+            state_data(this, "state_data"){
       }
 
       database_column<std::string> id;

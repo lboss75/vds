@@ -244,8 +244,12 @@ vds::async_task<> vds::dht::network::sync_process::sync_replicas(
   auto & client = *sp.get<dht::network::client>();
 
   std::map<const_data_buffer /*object_id*/, object_info> objects;
-  orm::chunk_map_dbo t1;
-  auto st = t.get_reader(t1.select(t1.id, t1.replica, t1.node));
+  orm::chunk_replicas_dbo t1;
+  auto st = t.get_reader(
+    t1
+    .select(t1.id)
+    .where(t1.last_sync <= std::chrono::system_clock::now() - std::chrono::minutes(10))
+    .order_by(t1.last_sync));
   while(st.execute()){
     auto object_id = base64::to_bytes(t1.id.get(st));
     auto node_id = base64::to_bytes(t1.node.get(st));

@@ -25,7 +25,7 @@ namespace vds {
     template <typename... handler_types>
     static void walk_messages(
       const const_data_buffer & message_data,
-      handler_types && ... handlers) const {
+      handler_types && ... handlers) {
 
       transactions::channel_message_walker_lambdas<handler_types...> walker(
         std::forward<handler_types>(handlers)...);

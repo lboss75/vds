@@ -43,7 +43,7 @@ namespace vds {
         void start(const service_provider & sp, uint16_t port);
         void stop(const service_provider & sp);
 
-        std::list<const_data_buffer> save(
+        std::vector<const_data_buffer> save(
             const service_provider & sp,
             database_transaction & t,
             const const_data_buffer & value);

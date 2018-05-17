@@ -17,9 +17,14 @@ namespace vds {
   namespace transactions {
     class transaction_block_builder {
     public:
+
+      transaction_block_builder(
+        const service_provider &sp,
+        class vds::database_transaction &t);
+
+
       template<typename item_type>
       void add(item_type && item) {
-
         this->data_ << item_type::message_id;
         item.serialize(this->data_);
       }

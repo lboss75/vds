@@ -57,6 +57,31 @@ vds::const_data_buffer vds::transactions::transaction_block_builder::save(
   return id;
 }
 
+vds::transactions::transaction_block_builder::transaction_block_builder(
+  const service_provider& sp,
+  vds::database_transaction& t) {
+
+  uint64_t result = 0;
+  vds::orm::transaction_log_record_dbo t1;
+  auto st = t.get_reader(
+    t1.select(t1.id, t1.order_no)
+    .where(t1.state == (uint8_t)orm::transaction_log_record_dbo::state_t::leaf));
+  while (st.execute()) {
+    auto id = t1.id.get(st);
+    if (ancestors.end() == ancestors.find(vds::base64::to_bytes(id))) {
+      ancestors.emplace(vds::base64::to_bytes(id));
+    }
+
+    auto order = t1.order_no.get(st);
+    if (result < order) {
+      result = order;
+    }
+  }
+
+  return result + 1;
+
+}
+
 vds::const_data_buffer vds::transactions::transaction_block_builder::save_self_signed(
   const service_provider &sp,
   class vds::database_transaction &t,

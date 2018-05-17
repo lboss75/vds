@@ -29,12 +29,12 @@ vds::dht::network::_client::_client(
   }
 }
 
-std::list<vds::const_data_buffer> vds::dht::network::_client::save(
+std::vector<vds::const_data_buffer> vds::dht::network::_client::save(
     const service_provider &sp,
     database_transaction &t,
     const const_data_buffer & value) {
 
-  std::list<vds::const_data_buffer> result;
+  std::vector<vds::const_data_buffer> result(GENERATE_HORCRUX);
   for(uint16_t replica = 0; replica < GENERATE_HORCRUX; ++replica) {
     binary_serializer s;
     this->generators_.find(replica)->second->write(s, value.data(), value.size());
@@ -46,7 +46,7 @@ std::list<vds::const_data_buffer> vds::dht::network::_client::save(
         t1.insert(
             t1.id = base64::from_bytes(replica_id),
             t1.replica_data = replica_data,
-            t1.replica_sent = false
+            t1.last_sync = std::chrono::system_clock::now() - std::chrono::hours(24)
         ));
     result.push_back(replica_id);
   }
@@ -69,7 +69,7 @@ void vds::dht::network::_client::save(
       t1.insert(
         t1.id = base64::from_bytes(replica_id(name, replica)),
         t1.replica_data = replica_data,
-        t1.replica_sent = false
+        t1.last_sync = std::chrono::system_clock::now() - std::chrono::hours(24)
       ));
   }
 }
@@ -449,11 +449,11 @@ vds::dht::network::client::chunk_info vds::dht::network::client::save(
   auto zipped = deflate::compress(data);
 
   auto crypted_data = symmetric_encrypt::encrypt(key2, zipped);
-  this->impl_->save(sp, t, key_data, crypted_data);
   return chunk_info
   {
     key_data,
-    key_data2
+    key_data2,
+    this->impl_->save(sp, t, crypted_data)
   };
 }
 
@@ -461,7 +461,7 @@ vds::async_task<vds::const_data_buffer> vds::dht::network::client::restore(
     const vds::service_provider &sp,
     const vds::dht::network::client::chunk_info &block_id) {
   auto result = std::make_shared<const_data_buffer>();
-  return this->impl_->restore(sp, block_id, result, std::chrono::steady_clock::now())
+  return this->impl_->restore(sp, block_id.replica_hashes, result, std::chrono::steady_clock::now())
       .then([result, block_id]() {
 
     auto key2 = symmetric_key::create(
