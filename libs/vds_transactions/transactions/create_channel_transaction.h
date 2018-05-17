@@ -6,15 +6,14 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
-#include <stdafx.h>
 #include "guid.h"
-#include "transaction_id.h"
+#include "channel_message_id.h"
 
 namespace vds {
   namespace transactions {
     class create_channel_transaction {
     public:
-      static const uint8_t message_id = (uint8_t)transaction_id::create_channel_transaction;
+      static const channel_message_id message_id = channel_message_id::create_channel_transaction;
 
       create_channel_transaction(
           const guid &id,

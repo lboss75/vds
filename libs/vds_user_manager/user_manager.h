@@ -8,10 +8,11 @@ All rights reserved
 
 #include <memory>
 #include <string>
+#include <include/transaction_block.h>
 #include "transactions/file_add_transaction.h"
 #include "include/transaction_block_builder.h"
 #include "user_channel.h"
-#include "transactions/channel_message_walker.h"
+#include "transactions/transaction_messages_walker.h"
 #include "encoding.h"
 
 namespace vds {
@@ -100,61 +101,33 @@ namespace vds {
       orm::transaction_log_record_dbo t1;
       auto st = t.get_reader(
           t1.select(t1.data)
-              .where(t1.channel_id == base64::from_bytes(channel_id))
+              .where(
+                  t1.state == (int)orm::transaction_log_record_dbo::state_t::validated
+                  || t1.state == (int)orm::transaction_log_record_dbo::state_t::leaf
+                  || t1.state == (int)orm::transaction_log_record_dbo::state_t::consensus)
               .order_by(t1.order_no));
 
-      transactions::channel_message_walker_lambdas<handler_types...> walker(
+      transactions::transaction_messages_walker_lambdas<handler_types...> channel_handlers(
           std::forward<handler_types>(handlers)...);
+      transactions::transaction_messages_walker_lambdas<handler_types...> walker(
+          [this, sp, channel_id, &channel_handlers](const transactions::channel_message & message){
+            if(channel_id == message.channel_id()){
+
+              auto read_cert_key = this->get_channel_read_key(
+                  sp,
+                  channel_id,
+                  message.channel_read_cert_subject());
+              const auto key_data = read_cert_key.decrypt(message.crypted_key());
+              const auto key = symmetric_key::deserialize(symmetric_crypto::aes_256_cbc(), key_data);
+              const auto data = symmetric_decrypt::decrypt(key, message.crypted_data());
+
+              return channel_handlers.process(data);
+            }
+            return true;
+          });
       while (st.execute()) {
-        const_data_buffer channel_id;
-        uint64_t order_no;
-        std::string read_cert_id;
-        std::string write_cert_id;
-        std::set<const_data_buffer> ancestors;
-        const_data_buffer crypted_data;
-        const_data_buffer crypted_key;
-        std::list<certificate> certificates;
-        const_data_buffer signature;
-
-        auto block_type = transactions::transaction_block_builder::parse_block(t1.data.get(st), channel_id, order_no, read_cert_id,
-                                                     write_cert_id, ancestors,
-                                                     crypted_data, crypted_key,
-                                                     certificates, signature);
-
-        auto write_cert = this->get_channel_write_cert(sp, channel_id, write_cert_id);
-        if (!transactions::transaction_block_builder::validate_block(
-          write_cert,
-          block_type,
-          channel_id,
-          order_no,
-          read_cert_id,
-          write_cert_id,
-          ancestors,
-          crypted_data,
-          crypted_key,
-          certificates,
-          signature)) {
-          throw std::runtime_error("Write signature error");
-        }
-
-        auto read_cert_key = this->get_channel_read_key(sp, channel_id, read_cert_id);
-        const auto key_data = read_cert_key.decrypt(crypted_key);
-        const auto key = symmetric_key::deserialize(symmetric_crypto::aes_256_cbc(), key_data);
-        const auto data = symmetric_decrypt::decrypt(key, crypted_data);
-
-        binary_deserializer s(data);
-
-        uint8_t message_id;
-        s >> message_id;
-
-        bool bContinue = true;
-        switch ((transactions::transaction_id)message_id) {
-          case transactions::transaction_id::file_add_transaction:
-            bContinue = walker.visit(transactions::file_add_transaction(s));
-            break;
-        }
-
-        if(!bContinue){
+        transactions::transaction_block block(t1.data.get(st));
+        if(!walker.process(block.block_messages())){
           break;
         }
       }

@@ -8,13 +8,14 @@ All rights reserved
 #include <unordered_map>
 #include "binary_serialize.h"
 #include "transaction_id.h"
+#include "channel_message_id.h"
 
 namespace vds {
 	namespace transactions {
 
 		class file_add_transaction {
 		public:
-      static const uint8_t message_id = (uint8_t)transaction_id::file_add_transaction;
+      static const channel_message_id message_id = channel_message_id::file_add_transaction;
 
 			struct file_block_t {
 				const_data_buffer block_id;

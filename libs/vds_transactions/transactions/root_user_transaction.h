@@ -15,12 +15,13 @@ All rights reserved
 #include "binary_serialize.h"
 #include "transaction_id.h"
 #include "database_orm.h"
+#include "channel_message_id.h"
 
 namespace vds {
   namespace transactions {
     class root_user_transaction {
     public:
-      static const transaction_id message_id = transaction_id::root_user_transaction;
+      static const channel_message_id message_id = channel_message_id::root_user_transaction;
 
       root_user_transaction(
           const certificate &user_cert,

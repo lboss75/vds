@@ -10,7 +10,7 @@ All rights reserved
 #include "const_data_buffer.h"
 #include "transactions/root_user_transaction.h"
 #include "transaction_log_record_dbo.h"
-#include "transactions/channel_message_walker.h"
+#include "transactions/transaction_messages_walker.h"
 
 namespace vds {
   class transaction_log {
@@ -27,7 +27,7 @@ namespace vds {
       const const_data_buffer & message_data,
       handler_types && ... handlers) {
 
-      transactions::channel_message_walker_lambdas<handler_types...> walker(
+      transactions::transaction_messages_walker_lambdas<handler_types...> walker(
         std::forward<handler_types>(handlers)...);
 
       walker.process(message_data);

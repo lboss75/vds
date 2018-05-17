@@ -8,6 +8,7 @@ All rights reserved
 #include <set>
 #include <map>
 #include <private/stdafx.h>
+#include <transactions/channel_message.h>
 #include "binary_serialize.h"
 #include "database.h"
 #include "asymmetriccrypto.h"
@@ -40,22 +41,24 @@ namespace vds {
 
         auto key = symmetric_key::generate(symmetric_crypto::aes_256_cbc());
 
+        binary_serializer item_data;
+        item.serialize(item_data);
+
         binary_serializer s;
         s
           << (uint8_t)item_type::message_id
           << channel_id
-          << symmetric_encrypt::encrypt(key, item.serialize());
+          << symmetric_encrypt::encrypt(key, item_data.data().data(), item_data.size());
         key.serialize(s);
 
-
-        this->data_
-          << (uint8_t)transaction_id::channel_message
-          << channel_id
-          << channel_read_cert.subject()
-          << write_cert.subject()
-          << channel_read_cert.public_key().encrypt(key.serialize())
-          << s.data()
-          << asymmetric_sign::signature(hash::sha256(), write_key, s.data().data(), s.size());
+        channel_message(
+          channel_id,
+          channel_read_cert.subject(),
+          write_cert.subject(),
+          channel_read_cert.public_key().encrypt(key.serialize()),
+          s.data(),
+          asymmetric_sign::signature(hash::sha256(), write_key, s.data().data(), s.size()))
+        .serialize(this->data_);
       }
 
       void add_certificate(const certificate & cert) {

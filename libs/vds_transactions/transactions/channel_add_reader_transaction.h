@@ -7,22 +7,20 @@ All rights reserved
 
 #include "guid.h"
 #include "asymmetriccrypto.h"
-#include "transaction_id.h"
+#include "channel_message_id.h"
 
 namespace vds {
   namespace transactions {
     class channel_add_reader_transaction {
     public:
-			static const uint8_t message_id = (uint8_t)transaction_id::channel_add_reader_transaction;
+			static const channel_message_id message_id = channel_message_id::channel_add_reader_transaction;
 
       channel_add_reader_transaction(
-        const const_data_buffer & channel_id,
         const std::string & name,
         const certificate & read_cert,
         const asymmetric_private_key & read_private_key,
         const certificate & write_cert)
-      : channel_id_(channel_id),
-        name_(name),
+      : name_(name),
         read_cert_(read_cert),
         read_private_key_(read_private_key),
         write_cert_(write_cert) {
@@ -31,7 +29,6 @@ namespace vds {
       channel_add_reader_transaction(binary_deserializer & s){
         const_data_buffer read_private_key_der;
         s
-            >> this->channel_id_
             >> this->name_
             >> this->read_cert_
             >> read_private_key_der
@@ -43,15 +40,10 @@ namespace vds {
 
       void serialize(binary_serializer & s){
         s
-            << this->channel_id_
             << this->name_
             << this->read_cert_
             << this->read_private_key_.der(std::string())
             << this->write_cert_;
-      }
-
-      const const_data_buffer &channel_id() const {
-        return channel_id_;
       }
 
       const std::string & name() const {
@@ -71,7 +63,6 @@ namespace vds {
       }
 
     private:
-      const_data_buffer channel_id_;
       std::string name_;
       certificate read_cert_;
       asymmetric_private_key read_private_key_;

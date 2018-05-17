@@ -17,7 +17,7 @@ namespace vds {
   namespace transactions {
     class channel_create_transaction {
     public:
-      static const uint8_t message_id = (uint8_t)transaction_id::channel_create_transaction;
+      static const channel_message_id message_id = channel_message_id::channel_create_transaction;
 
       channel_create_transaction(
           const const_data_buffer &channel_id,

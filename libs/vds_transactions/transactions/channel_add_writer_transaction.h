@@ -16,16 +16,14 @@ namespace vds {
   namespace transactions {
     class channel_add_writer_transaction  {
     public:
-			static const uint8_t message_id = (uint8_t)transaction_id::channel_add_writer_transaction;
+			static const channel_message_id message_id = channel_message_id::channel_add_writer_transaction;
 
       channel_add_writer_transaction(
-          const const_data_buffer &channel_id,
           const std::string & name,
           const certificate & read_cert,
           const certificate & write_cert,
           const asymmetric_private_key & write_private_key)
-          : channel_id_(channel_id),
-            name_(name),
+          : name_(name),
             read_cert_(read_cert),
             write_cert_(write_cert),
             write_private_key_(write_private_key) {
@@ -34,7 +32,6 @@ namespace vds {
       channel_add_writer_transaction(binary_deserializer & s) {
         const_data_buffer write_private_key_der;
         s
-            >> this->channel_id_
             >> this->name_
             >> this->read_cert_
             >> this->write_cert_
@@ -46,15 +43,10 @@ namespace vds {
 
       void serialize(binary_serializer & s) const {
         s
-            << this->channel_id_
             << this->name_
             << this->read_cert_
             << this->write_cert_
             << this->write_private_key_.der(std::string());
-      }
-
-      const const_data_buffer &channel_id() const {
-        return channel_id_;
       }
 
       const std::string &name() const {
@@ -74,7 +66,6 @@ namespace vds {
       }
 
     private:
-      const_data_buffer channel_id_;
       std::string name_;
       certificate read_cert_;
       certificate write_cert_;

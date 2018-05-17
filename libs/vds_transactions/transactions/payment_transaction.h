@@ -6,6 +6,7 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
+#include "binary_serialize.h"
 #include "const_data_buffer.h"
 #include "transaction_id.h"
 
@@ -22,6 +23,10 @@ namespace vds {
         : source_transaction_(source_transaction),
           target_user_(target_user),
           value_(value) {
+      }
+
+      payment_transaction(binary_deserializer & s){
+        s >> this->source_transaction_ >> this->target_user_ >> this->value_;
       }
 
       void serialize(binary_serializer & s) const {
