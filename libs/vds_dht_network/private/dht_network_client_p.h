@@ -43,11 +43,16 @@ namespace vds {
         void start(const service_provider & sp, uint16_t port);
         void stop(const service_provider & sp);
 
-        void save(
+        std::list<const_data_buffer> save(
             const service_provider & sp,
             database_transaction & t,
-            const const_data_buffer & key,
             const const_data_buffer & value);
+
+        void save(
+          const service_provider & sp,
+          database_transaction & t,
+          const std::string & name,
+          const const_data_buffer & value);
 
         const const_data_buffer &current_node_id() const {
           return this->route_.current_node_id();
@@ -124,12 +129,6 @@ namespace vds {
 
         async_task<> restore(
             const service_provider &sp,
-            const client::chunk_info &block_id,
-            const std::shared_ptr<const_data_buffer> & result,
-            const std::chrono::steady_clock::time_point & start);
-
-        async_task<> restore(
-            const service_provider &sp,
             const std::vector<const_data_buffer> & replica_hashes,
             const std::shared_ptr<const_data_buffer> & result,
             const std::chrono::steady_clock::time_point & start);
@@ -150,7 +149,7 @@ namespace vds {
 
         timer update_timer_;
         std::debug_mutex update_timer_mutex_;
-        bool in_update_timer_;
+        bool in_update_timer_ = false;
 
         async_task<> update_route_table(const service_provider& sp);
         async_task<> process_update(
@@ -162,6 +161,10 @@ namespace vds {
           const const_data_buffer& node_id,
           const message_type_t message_id,
           const const_data_buffer& message);
+
+        static const_data_buffer replica_id(
+          const std::string & key,
+          uint16_t replica);
       };
     }
   }

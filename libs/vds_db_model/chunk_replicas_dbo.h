@@ -14,13 +14,15 @@ namespace vds {
 			chunk_replicas_dbo()
 				: database_table("chunk_replicas"),
 				id(this, "id"),
-				replica_data(this, "replica_data")
+				replica_data(this, "replica_data"),
+        replica_sent(this, "replica_sent")
 			{
 			}
 
 			database_column<std::string> id;
 			database_column<const_data_buffer> replica_data;
-		};
+      database_column<bool> replica_sent;
+    };
 	}
 }
 
