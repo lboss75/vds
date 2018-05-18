@@ -218,6 +218,10 @@ vds::user_manager::create_channel(const service_provider &sp, transactions::tran
       owner_private_key);
 
   log.add(
+    owner_cert.fingerprint(),
+    owner_cert,
+    owner_private_key,
+    owner_cert,
       transactions::channel_create_transaction(
           channel_id,
           std::to_string(channel_type),
