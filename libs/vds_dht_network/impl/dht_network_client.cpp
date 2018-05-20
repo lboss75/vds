@@ -165,39 +165,22 @@ vds::async_task<> vds::dht::network::_client::apply_message(
     sp,
     [pthis = this->shared_from_this(), sp, session, message, async_tasks](database_transaction & t){
 
-    std::vector<uint16_t> have_replicas;
-    orm::chunk_map_dbo t1;
+    orm::chunk_replicas_dbo t1;
     auto st = t.get_reader(
       t1
-      .select(t1.replica)
-      .where(t1.id == base64::from_bytes(message.object_id()) && db_not_in_values(t1.replica, message.replicas())));
+      .select(t1.replica_data)
+      .where(t1.id == base64::from_bytes(message.replica_hash())));
 
-    while (st.execute()) {
-      auto replica = safe_cast<uint16_t>(t1.replica.get(st));
-      have_replicas.push_back(replica);
-    }
-
-    if (!have_replicas.empty()) {
-      auto index = std::rand() % have_replicas.size();
-      auto replica = have_replicas[index];
-      st = t.get_reader(
-        t1
-        .select(t1.replica_data)
-        .where(t1.id == base64::from_bytes(message.object_id()) && t1.replica == replica));
-      if (st.execute()) {
-        auto data = t1.replica_data.get(st);
-        *async_tasks = session->send_message(
-          sp,
-          pthis->udp_transport_,
-          (uint8_t)messages::offer_replica::message_id,
-          messages::offer_replica(
-            message.source_node(), 
-            message.object_id(),
-            replica,
-            data,
-            message.source_node(),
-            pthis->current_node_id()).serialize());
-      }
+    if (st.execute()) {
+      auto data = t1.replica_data.get(st);
+      *async_tasks = session->send_message(
+        sp,
+        pthis->udp_transport_,
+        static_cast<uint8_t>(messages::offer_replica::message_id),
+        messages::offer_replica(
+          message.replica_hash(),
+          data,
+          pthis->current_node_id()).serialize());
     }
   }).then([async_tasks]() {
     return std::move(*async_tasks);
@@ -222,6 +205,22 @@ vds::async_task<> vds::dht::network::_client::send(const service_provider& sp, c
       message_id,
       message);
     return false;
+  });
+  return result;
+}
+
+vds::async_task<> vds::dht::network::_client::send_neighbors(const service_provider& sp,
+  const message_type_t message_id, const const_data_buffer& message) {
+  auto result = async_task<>::empty();
+  this->route_.for_neighbors(
+    sp,
+    [sp, message_id, message, &result, pthis = this->shared_from_this()](const std::shared_ptr<dht_route<std::shared_ptr<dht_session>>::node> & candidate) {
+    result = candidate->send_message(
+      sp,
+      pthis->udp_transport_,
+      message_id,
+      message);
+    return true;
   });
   return result;
 }
@@ -300,19 +299,12 @@ vds::dht::network::_client::apply_message(
   return sp.get<db_model>()->async_transaction(
       sp,
       [pthis = this->shared_from_this(), sp, message](database_transaction & t){
-        orm::chunk_map_dbo t1;
+        orm::chunk_replicas_dbo t1;
         t.execute(t1.insert_or_ignore(
-            t1.id = base64::from_bytes(message.object_id()),
-            t1.replica = message.replica(),
-            t1.replica_data = message.replica_data()));
-      }).then([sp, pthis = this->shared_from_this(), message](){
-    if(message.target_node() != pthis->current_node_id()){
-      return pthis->send(sp, message.target_node(), message);
-    }
-    else {
-      return async_task<>::empty();
-    }
-  });
+            t1.id = base64::from_bytes(message.replica_hash()),
+            t1.replica_data = message.replica_data(),
+            t1.last_sync = std::chrono::system_clock::now()));
+      });
 }
 
 
@@ -374,7 +366,7 @@ vds::async_task<> vds::dht::network::_client::restore(
             }
 
             for (const auto &replica : unknonw_replicas) {
-              *result_task = result_task->then([pthis, replica]() {
+              *result_task = result_task->then([pthis, sp, replica]() {
                 return pthis->send(
                     sp,
                     replica,

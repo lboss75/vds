@@ -17,19 +17,16 @@ namespace vds {
         static const network::message_type_t message_id = network::message_type_t::got_replica;
 
         got_replica(
-            const const_data_buffer &object_id,
-            uint16_t replica,
+            const const_data_buffer &replica_hash,
             const const_data_buffer &source_node)
-            : object_id_(object_id),
-              replica_(replica),
+            : replica_hash_(replica_hash),
               source_node_(source_node) {
         }
 
         got_replica(
             binary_deserializer & s) {
           s
-              >> this->object_id_
-              >> this->replica_
+              >> this->replica_hash_
               >> this->source_node_;
           ;
         }
@@ -37,18 +34,13 @@ namespace vds {
         const_data_buffer serialize() const {
           binary_serializer s;
           s
-              << this->object_id_
-              << this->replica_
+              << this->replica_hash_
               << this->source_node_;
           return s.data();
         }
 
-        const const_data_buffer & object_id() const {
-          return object_id_;
-        }
-
-        uint16_t replica() const {
-          return replica_;
+        const const_data_buffer & replica_hash() const {
+          return replica_hash_;
         }
 
         const const_data_buffer & source_node() const {
@@ -56,8 +48,7 @@ namespace vds {
         }
 
       private:
-        const_data_buffer object_id_;
-        uint16_t replica_;
+        const_data_buffer replica_hash_;
         const_data_buffer source_node_;
       };
     }

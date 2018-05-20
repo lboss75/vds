@@ -6,12 +6,11 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 #include <set>
-#include <map>
-#include <private/stdafx.h>
 #include "binary_serialize.h"
 #include "database.h"
 #include "asymmetriccrypto.h"
-#include "symmetriccrypto.h"
+#include "channel_messages_walker.h"
+#include "transaction_messages_walker.h"
 
 namespace vds {
   namespace transactions {
@@ -25,7 +24,6 @@ namespace vds {
             >> this->write_cert_id_
             >> this->ancestors_
             >> this->block_messages_
-            >> this->certificates_
             >> this->signature_;
       }
 
@@ -49,12 +47,21 @@ namespace vds {
         return this->block_messages_;
       }
 
-      const std::list<certificate> & certificates() const {
-        return this->certificates_;
-      }
-
       const const_data_buffer & signature() const {
         return this->signature_;
+      }
+
+      bool validate(const certificate& write_cert);
+      bool exists(database_transaction& t);
+
+      template <typename... handler_types>
+      bool walk_messages(
+        handler_types && ... handlers) const {
+
+        transaction_messages_walker_lambdas<handler_types...> walker(
+          std::forward<handler_types>(handlers)...);
+
+        return walker.process(this->block_messages_);
       }
 
     private:
@@ -63,7 +70,6 @@ namespace vds {
       std::string write_cert_id_;
       std::set<const_data_buffer> ancestors_;
       const_data_buffer block_messages_;
-      std::list<certificate> certificates_;
       const_data_buffer signature_;
     };
   }

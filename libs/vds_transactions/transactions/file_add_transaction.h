@@ -7,7 +7,6 @@ All rights reserved
 */
 #include <unordered_map>
 #include "binary_serialize.h"
-#include "transaction_id.h"
 #include "channel_message_id.h"
 
 namespace vds {

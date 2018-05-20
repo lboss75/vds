@@ -11,8 +11,8 @@ All rights reserved
 
 #include "member_user.h"
 #include "database_orm.h"
-#include "transactions/root_user_transaction.h"
-#include "include/transaction_block_builder.h"
+#include "root_user_transaction.h"
+#include "transaction_block_builder.h"
 #include "private/member_user_p.h"
 #include "private/cert_control_p.h"
 #include "cert_control.h"

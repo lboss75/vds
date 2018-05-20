@@ -27,7 +27,6 @@ namespace vds {
 
       enum class message_type_t {
         transaction_log_state,
-        offer_move_replica,
         got_replica,
         replica_request,
         replica_not_found,

@@ -7,8 +7,7 @@ All rights reserved
 #include "server.h"
 #include "private/server_p.h"
 #include "user_manager.h"
-#include "include/transaction_context.h"
-#include "include/transaction_log.h"
+#include "transaction_context.h"
 #include "db_model.h"
 #include "file_manager_service.h"
 #include "dht_network.h"
@@ -117,11 +116,11 @@ vds::async_task<vds::server_statistic> vds::_server::get_statistic(const vds::se
 
     orm::transaction_log_record_dbo t2;
     auto st = t.get_reader(
-        t2.select(t2.channel_id, t2.id)
+        t2.select(t2.id)
             .where(t2.state == (int)orm::transaction_log_record_dbo::state_t::leaf));
 
     while (st.execute()) {
-      result->sync_statistic_.leafs_[base64::to_bytes(t2.channel_id.get(st))].push_back(base64::to_bytes(t2.id.get(st)));
+      result->sync_statistic_.leafs_.push_back(base64::to_bytes(t2.id.get(st)));
     }
 
     return true;

@@ -6,11 +6,9 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 #include <string>
-#include <guid.h>
-#include <transactions/file_add_transaction.h>
+#include "file_add_transaction.h"
 #include "const_data_buffer.h"
 #include "async_task.h"
-#include "filename.h"
 #include "async_buffer.h"
 
 namespace vds {

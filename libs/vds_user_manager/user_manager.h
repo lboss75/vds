@@ -8,11 +8,10 @@ All rights reserved
 
 #include <memory>
 #include <string>
-#include <include/transaction_block.h>
-#include "transactions/file_add_transaction.h"
-#include "include/transaction_block_builder.h"
+#include "transaction_block.h"
+#include "transaction_block_builder.h"
 #include "user_channel.h"
-#include "transactions/transaction_messages_walker.h"
+#include "transaction_messages_walker.h"
 #include "encoding.h"
 
 namespace vds {
@@ -93,41 +92,39 @@ namespace vds {
 
     template <typename... handler_types>
     void walk_messages(
-        const service_provider & sp,
-        const const_data_buffer & channel_id,
-        database_transaction & t,
-        handler_types && ... handlers) const{
+      const service_provider & sp,
+      const const_data_buffer & channel_id,
+      database_transaction & t,
+      handler_types && ... handlers) const {
 
       orm::transaction_log_record_dbo t1;
       auto st = t.get_reader(
-          t1.select(t1.data)
-              .where(
-                  t1.state == (int)orm::transaction_log_record_dbo::state_t::validated
-                  || t1.state == (int)orm::transaction_log_record_dbo::state_t::leaf
-                  || t1.state == (int)orm::transaction_log_record_dbo::state_t::consensus)
-              .order_by(t1.order_no));
+        t1.select(t1.data)
+        .where(
+          t1.state == static_cast<int>(orm::transaction_log_record_dbo::state_t::processed)
+          || t1.state == static_cast<int>(orm::transaction_log_record_dbo::state_t::leaf))
+        .order_by(t1.order_no));
 
-      transactions::transaction_messages_walker_lambdas<handler_types...> channel_handlers(
-          std::forward<handler_types>(handlers)...);
-      transactions::transaction_messages_walker_lambdas<handler_types...> walker(
-          [this, sp, channel_id, &channel_handlers](const transactions::channel_message & message){
-            if(channel_id == message.channel_id()){
-
-              auto read_cert_key = this->get_channel_read_key(
-                  sp,
-                  channel_id,
-                  message.channel_read_cert_subject());
-              const auto key_data = read_cert_key.decrypt(message.crypted_key());
-              const auto key = symmetric_key::deserialize(symmetric_crypto::aes_256_cbc(), key_data);
-              const auto data = symmetric_decrypt::decrypt(key, message.crypted_data());
-
-              return channel_handlers.process(data);
-            }
-            return true;
-          });
+      transactions::channel_messages_walker_lambdas<handler_types...> channel_handlers(
+        std::forward<handler_types>(handlers)...);
       while (st.execute()) {
         transactions::transaction_block block(t1.data.get(st));
-        if(!walker.process(block.block_messages())){
+        if (!block.walk_messages(
+          [this, sp, channel_id, &channel_handlers](const transactions::channel_message & message)->bool {
+          if (channel_id == message.channel_id()) {
+
+            auto read_cert_key = this->get_channel_read_key(
+              sp,
+              channel_id,
+              message.channel_read_cert_subject());
+            const auto key_data = read_cert_key.decrypt(message.crypted_key());
+            const auto key = symmetric_key::deserialize(symmetric_crypto::aes_256_cbc(), key_data);
+            const auto data = symmetric_decrypt::decrypt(key, message.crypted_data());
+
+            return channel_handlers.process(data);
+          }
+          return true;
+        })) {
           break;
         }
       }
@@ -147,6 +144,7 @@ namespace vds {
         const const_data_buffer &password_hash);
 
     const const_data_buffer &dht_user_id() const;
+    member_user get_current_user() const;
 
   private:
     std::unique_ptr<_user_manager> impl_;

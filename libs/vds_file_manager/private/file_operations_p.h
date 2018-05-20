@@ -6,7 +6,7 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 #include "file_operations.h"
-#include "transactions/file_add_transaction.h"
+#include "file_add_transaction.h"
 #include "async_buffer.h"
 #include "hash.h"
 

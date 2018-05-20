@@ -16,6 +16,9 @@ namespace vds {
   class binary_serializer
   {
   public:
+    //bool
+    binary_serializer & operator << (bool value);
+
     //1 byte
     binary_serializer & operator << (uint8_t value);
 
@@ -101,6 +104,9 @@ namespace vds {
     binary_deserializer(std::vector<uint8_t> && data) = delete;
     
     //1 byte
+    binary_deserializer & operator >> (bool & value);
+
+    //1 byte
     binary_deserializer & operator >> (uint8_t & value);
 
     //2 byte
@@ -164,14 +170,14 @@ namespace vds {
     }
 
     template <typename TKey, typename TValue>
-    binary_deserializer & operator >> (std::map<TKey, TValue> & value)
+    binary_deserializer & operator >> (std::map<TKey, TValue> & item)
     {
       auto count = this->read_number();
       for(decltype(count) i = 0; i < count; ++i){
         TKey key;
         TValue value;
         *this >> key >> value;
-        value.emplace(std::move(key), std::move(value));
+        item.emplace(std::move(key), std::move(value));
       }
 
       return *this;

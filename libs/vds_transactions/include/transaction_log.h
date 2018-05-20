@@ -6,34 +6,29 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
-#include "async_task.h"
 #include "const_data_buffer.h"
-#include "transactions/root_user_transaction.h"
-#include "transaction_log_record_dbo.h"
-#include "transactions/transaction_messages_walker.h"
+#include "root_user_transaction.h"
 
 namespace vds {
-  class transaction_log {
-  public:
+  namespace transactions {
+    class transaction_block;
 
-	  static void save(
-		  const service_provider &sp,
-		  class database_transaction &t,
-		  const class const_data_buffer & block_id,
-		  const class const_data_buffer & block_data);
+    class transaction_log {
+    public:
 
-    template <typename... handler_types>
-    static void walk_messages(
-      const const_data_buffer & message_data,
-      handler_types && ... handlers) {
+      static void save(
+        const service_provider &sp,
+        class database_transaction &t,
+        const const_data_buffer & refer_id,
+        const const_data_buffer & block_data);
 
-      transactions::transaction_messages_walker_lambdas<handler_types...> walker(
-        std::forward<handler_types>(handlers)...);
-
-      walker.process(message_data);
-    }
-  };
-
+    private:
+      static void update_consensus(
+        database_transaction& t,
+        const transaction_block& block,
+        const std::string & account);
+    };
+  }
 }
 
 

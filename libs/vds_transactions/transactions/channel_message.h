@@ -6,12 +6,11 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
-#include <cert_control.h>
 #include "const_data_buffer.h"
 #include "asymmetriccrypto.h"
 #include "transaction_id.h"
 #include "symmetriccrypto.h"
-#include "guid.h"
+#include "channel_messages_walker.h"
 
 namespace vds {
   namespace transactions {
@@ -78,6 +77,24 @@ namespace vds {
 
       const const_data_buffer & signature() const {
         return this->signature_;
+      }
+
+
+      template <typename... handler_types>
+      void walk_messages(
+        const asymmetric_private_key & channel_read_key,
+        handler_types && ... handlers) const {
+
+        const auto decrypted_data = channel_read_key.decrypt(this->crypted_key_);
+        const auto key = symmetric_key::deserialize(
+          symmetric_crypto::aes_256_cbc(),
+          decrypted_data);
+        auto data = symmetric_decrypt::decrypt(key, this->crypted_data_);
+
+        channel_messages_walker_lambdas<handler_types...> walker(
+          std::forward<handler_types>(handlers)...);
+
+        walker.process(data);
       }
 
     private:

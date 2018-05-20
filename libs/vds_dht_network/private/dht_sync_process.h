@@ -4,8 +4,6 @@
 #include <messages/got_replica.h>
 #include "service_provider.h"
 #include "database.h"
-#include "messages/offer_move_replica.h"
-#include "messages/replica_not_found.h"
 #include "messages/offer_replica.h"
 #include "messages/transaction_log_state.h"
 
@@ -50,16 +48,6 @@ namespace vds {
           const service_provider& sp,
           database_transaction& t,
           const messages::transaction_log_record & message);
-
-        void apply_message(
-            const service_provider & sp,
-            database_transaction & t,
-            const messages::offer_move_replica & message);
-
-        void apply_message(
-            const service_provider & sp,
-            database_transaction & t,
-            const messages::replica_not_found & message);
 
         void apply_message(
             const service_provider & sp,

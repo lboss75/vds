@@ -10,8 +10,8 @@ All rights reserved
 #include "db_model.h"
 #include "private/file_operations_p.h"
 #include "service_provider.h"
-#include "include/transaction_block_builder.h"
-#include "transactions/file_add_transaction.h"
+#include "transaction_block_builder.h"
+#include "file_add_transaction.h"
 #include "user_manager.h"
 #include "vds_exceptions.h"
 #include "chunk.h"
@@ -86,8 +86,12 @@ vds::async_task<vds::const_data_buffer> vds::file_manager_private::_file_operati
                      }
                      auto channel_write_key = user_mng->get_channel_write_key(sp, channel.id());
 
-                     transactions::transaction_block_builder log;
+                     transactions::transaction_block_builder log(sp, t);
                      log.add(
+                       channel_id,
+                       channel.write_cert(),
+                       channel_write_key,
+                       channel.read_cert(),
                        transactions::file_add_transaction(
                          file_info.total_hash,
                          file_info.total_size,
@@ -98,8 +102,6 @@ vds::async_task<vds::const_data_buffer> vds::file_manager_private::_file_operati
                      log.save(
                        sp,
                        t,
-                       channel_id,
-                       channel.read_cert(),
                        channel.write_cert(),
                        channel_write_key);
 

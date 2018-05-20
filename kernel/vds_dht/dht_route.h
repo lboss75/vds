@@ -175,6 +175,22 @@ namespace vds {
         }
       }
 
+      void get_neighbors(const service_provider& sp, std::list<std::shared_ptr<node>> & result_nodes) const;
+
+      void for_neighbors(
+        const service_provider &sp,
+        const std::function<bool(const std::shared_ptr<node> & candidate)> &callback) {
+
+        std::list<std::shared_ptr<node>> result_nodes;
+        this->get_neighbors(sp, result_nodes);
+
+        for (auto & node : result_nodes) {
+          if (!callback(node)) {
+            return;
+          }
+        }
+      }
+
       void mark_pinged(const const_data_buffer& target_node, const network_address& address) {
         auto index = dht_object_id::distance_exp(this->current_node_id_, target_node);
 
@@ -277,6 +293,15 @@ namespace vds {
             );
           }
         }
+
+        void get_neighbors(const service_provider & sp, std::list<std::shared_ptr<node>> & result_nodes) const {
+          std::shared_lock<std::shared_mutex> lock(this->nodes_mutex_);
+          for (auto & p : this->nodes_) {
+            if (p->hops_ == 1) {
+              result_nodes.push_back(p);
+            }
+          }
+        }
       };
 
       mutable std::shared_mutex buckets_mutex_;
@@ -351,6 +376,15 @@ namespace vds {
         return result;
       }
     };
+
+    template <typename session_type>
+    void dht_route<session_type>::get_neighbors(const service_provider& sp,
+      std::list<std::shared_ptr<node>>& result_nodes) const {
+      std::shared_lock<std::shared_mutex> lock(this->buckets_mutex_);
+      for (auto &p : this->buckets_) {
+        p.second->get_neighbors(sp, result_nodes);
+      }
+    }
 
     template <typename session_type>
     void dht_route<session_type>::get_statistics(route_statistic& result) {

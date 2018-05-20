@@ -188,6 +188,7 @@ namespace vds {
     }
 
     void add_certificate(const certificate &cert);
+    member_user get_current_user() const;
 
   private:
     const_data_buffer dht_user_id_;

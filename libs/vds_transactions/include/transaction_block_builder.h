@@ -7,13 +7,12 @@ All rights reserved
 */
 #include <set>
 #include <map>
-#include <private/stdafx.h>
-#include <transactions/channel_message.h>
+#include "channel_message.h"
 #include "binary_serialize.h"
 #include "database.h"
 #include "asymmetriccrypto.h"
 #include "symmetriccrypto.h"
-#include "transactions/transaction_id.h"
+#include "data_coin_balance.h"
 
 namespace vds {
   namespace transactions {
@@ -26,9 +25,11 @@ namespace vds {
         const service_provider &sp,
         class vds::database_transaction &t);
 
-      static transaction_block_builder create_root_block();
-
-
+      static transaction_block_builder create_root_block() {
+        return transaction_block_builder();
+      }
+      
+      void add(const root_user_transaction & item);
       void add(const payment_transaction & item);
 
       template<typename item_type>
@@ -61,33 +62,20 @@ namespace vds {
         .serialize(this->data_);
       }
 
-      void add_certificate(const certificate & cert) {
-        this->certificates_.push_back(cert);
-      }
-
       const_data_buffer save(
           const service_provider &sp,
           class vds::database_transaction &t,
           const certificate &write_cert,
-          const asymmetric_private_key &write_private_key) const;
+          const asymmetric_private_key &write_private_key);
 
-      const_data_buffer save_self_signed(
-        const service_provider &sp,
-        class vds::database_transaction &t,
-        const const_data_buffer &channel_id,
-        const certificate &write_cert,
-        const asymmetric_private_key &write_private_key,
-        const symmetric_key & user_password_key,
-        const const_data_buffer & user_password_hash) const;
-
-    private:
+      private:
+      std::set<const_data_buffer> ancestors_;
+      data_coin_balance balance_;
       binary_serializer data_;
-      std::list<certificate> certificates_;
 
-      uint64_t collect_dependencies(
-          class database_transaction &t,
-          const const_data_buffer &channel_id,
-          std::set<const_data_buffer> &ancestors) const;
+      transaction_block_builder() {
+      }
+
 
       const_data_buffer register_transaction(
 		      const service_provider & sp,

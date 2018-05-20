@@ -5,6 +5,12 @@ All rights reserved
 #include "stdafx.h"
 #include "binary_serialize.h"
 
+vds::binary_serializer& vds::binary_serializer::operator << (bool value)
+{
+  this->data_.push_back(value ? (uint8_t)0xFF : (uint8_t)0);
+  return *this;
+}
+
 vds::binary_serializer& vds::binary_serializer::operator << (uint8_t value)
 {
   this->data_.push_back(value);
@@ -121,6 +127,17 @@ vds::binary_deserializer::binary_deserializer(const void* data, size_t len)
 vds::binary_deserializer::binary_deserializer(const std::vector<uint8_t> & data)
 : data_(data.data()), len_(data.size())
 {
+}
+
+vds::binary_deserializer& vds::binary_deserializer::operator>>(bool& value) {
+  if (1 > this->len_) {
+    throw std::runtime_error("Invalid data");
+  }
+
+  value = (0 != *this->data_++);
+  --this->len_;
+
+  return *this;
 }
 
 vds::binary_deserializer& vds::binary_deserializer::operator>>(uint8_t & value)

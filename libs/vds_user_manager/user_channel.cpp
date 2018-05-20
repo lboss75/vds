@@ -5,8 +5,8 @@ All rights reserved
 #include "stdafx.h"
 #include "user_channel.h"
 #include "private/user_channel_p.h"
-#include "transactions/channel_add_reader_transaction.h"
-#include "transactions/channel_add_writer_transaction.h"
+#include "channel_add_reader_transaction.h"
+#include "channel_add_writer_transaction.h"
 
 vds::user_channel::user_channel() {
 }

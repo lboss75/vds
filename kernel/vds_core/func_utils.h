@@ -12,6 +12,58 @@ namespace vds {
   template <typename functor_type, typename functor_signature>
   struct _functor_info;
 
+  template <typename functor_type, typename result, typename class_name, typename arg_type>
+  struct _functor_info<functor_type, result(class_name::*)(arg_type)>
+  {
+    typedef result signature(arg_type);
+
+    template<template<typename...> typename target_template>
+    struct build_type
+    {
+      typedef target_template<arg_type> type;
+    };
+
+    typedef typename std::remove_const<typename std::remove_reference<arg_type>::type>::type argument_type;
+    typedef std::tuple<arg_type> arguments_typle;
+    typedef std::function<signature> function_type;
+    typedef result result_type;
+
+    static std::function<signature> to_function(functor_type & f)
+    {
+      return std::function<signature>([&f](arg_type args) { f(args); });
+    }
+    static std::function<signature> to_function(functor_type && f)
+    {
+      return std::function<signature>(f);
+    }
+  };
+
+  template <typename functor_type, typename result, typename class_name, typename arg_type>
+  struct _functor_info<functor_type, result(class_name::*)(arg_type) const>
+  {
+    typedef result signature(arg_type);
+    typedef typename std::remove_const<typename std::remove_reference<arg_type>::type>::type argument_type;
+    typedef std::tuple<arg_type> arguments_typle;
+    typedef std::function<signature> function_type;
+    typedef result result_type;
+
+    template<template<typename...> typename target_template>
+    struct build_type
+    {
+      typedef target_template<arg_type> type;
+    };
+
+    static std::function<signature> to_function(functor_type & f)
+    {
+      return std::function<signature>([&f](arg_type args) { f(args); });
+    }
+
+    static std::function<signature> to_function(functor_type && f)
+    {
+      return std::function<signature>(f);
+    }
+  };
+
   template <typename functor_type, typename result, typename class_name, typename... arg_types>
   struct _functor_info<functor_type, result (class_name::*)(arg_types...)>
   {

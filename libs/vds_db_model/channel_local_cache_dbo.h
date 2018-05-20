@@ -11,17 +11,17 @@ All rights reserved
 namespace vds {
   namespace orm {
 
-    class channel_local_cache_dbo : public database_table {
-    public:
-      channel_local_cache_dbo()
-          : database_table("channel_local_cache"),
-            channel_id(this, "channel_id"),
-            last_sync(this, "last_sync") {
-      }
+    //class channel_local_cache_dbo : public database_table {
+    //public:
+    //  channel_local_cache_dbo()
+    //      : database_table("channel_local_cache"),
+    //        channel_id(this, "channel_id"),
+    //        last_sync(this, "last_sync") {
+    //  }
 
-      database_column<std::string> channel_id;
-      database_column<std::chrono::system_clock::time_point> last_sync;
-    };
+    //  database_column<std::string> channel_id;
+    //  database_column<std::chrono::system_clock::time_point> last_sync;
+    //};
   }
 }
 

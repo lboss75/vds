@@ -6,6 +6,7 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
+#include <chrono>
 #include "database_orm.h"
 
 namespace vds {
@@ -22,7 +23,7 @@ namespace vds {
 
       database_column<std::string> id;
       database_column<const_data_buffer> data;
-      database_column<std::chrono::time_point> create_time;
+      database_column<std::chrono::system_clock::time_point> create_time;
       database_column<bool> is_new;
     };
   }

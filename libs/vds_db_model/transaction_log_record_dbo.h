@@ -15,20 +15,17 @@ namespace vds {
     class transaction_log_record_dbo : public database_table {
     public:
       enum class state_t : int {
-        stored,
-        validated,
+        processed,
         leaf,
-        consensus,
         invalid,
-        leaf_invalid
       };
       static std::string str(state_t value){
         switch(value){
-          case state_t::stored:
-            return "stored";
+          case state_t::processed:
+            return "processed";
 
-          case state_t::validated:
-            return "validated";
+          case state_t::invalid:
+            return "invalid";
 
           case state_t::leaf:
             return "leaf";
@@ -44,7 +41,7 @@ namespace vds {
             data(this, "data"),
             state(this, "state"),
             order_no(this, "order_no"),
-            state_data(this, "state_data"){
+            state_data(this, "state_data") {
       }
 
       database_column<std::string> id;

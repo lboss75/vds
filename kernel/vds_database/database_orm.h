@@ -586,7 +586,7 @@ namespace vds {
   template<typename left_exp_type, typename right_exp_type>
   class _database_expression_less_or_equ_exp : public _database_binary_expression<_database_expression_less_or_equ_exp<left_exp_type, right_exp_type>, left_exp_type, right_exp_type>
   {
-    using base_class = _database_binary_expression<_database_expression_equ_exp<left_exp_type, right_exp_type>, left_exp_type, right_exp_type>;
+    using base_class = _database_binary_expression<_database_expression_less_or_equ_exp<left_exp_type, right_exp_type>, left_exp_type, right_exp_type>;
   public:
     _database_expression_less_or_equ_exp(
       left_exp_type && left,
@@ -779,6 +779,27 @@ namespace vds {
     container_type right_;
   };
 
+  template <typename source_type>
+  class _db_is_null {
+  public:
+    _db_is_null(
+      source_type && left)
+      : left_(std::move(left)) {
+    }
+
+    void collect_aliases(std::map<const database_table *, std::string> & aliases) const {
+      this->left_.collect_aliases(aliases);
+    }
+
+    std::string visit(_database_sql_builder & builder) const
+    {
+      return "(" + this->left_.visit(builder) + " IS NULL )";
+    }
+
+  private:
+    source_type left_;
+  };
+
   template <typename source_type, typename command_type>
   inline _db_not_in<_db_simple_column, command_type> db_not_in(source_type & column, command_type && command)
   {
@@ -795,6 +816,12 @@ namespace vds {
   inline _db_in_values<_db_simple_column, container_type> db_in_values(source_type & column, const container_type & values)
   {
     return _db_in_values<_db_simple_column, container_type>(_db_simple_column(column), values);
+  }
+
+  template <typename source_type>
+  inline _db_is_null<_db_simple_column> db_is_null(source_type & column)
+  {
+    return _db_is_null<_db_simple_column>(_db_simple_column(column));
   }
 
   template <typename base_builder, typename condition_type>

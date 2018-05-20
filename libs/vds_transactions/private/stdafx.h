@@ -8,4 +8,11 @@ All rights reserved
 
 #define ThisModule "TRLOG"
 
+#ifdef _WIN32
+
+#include "vds_core.h"
+
+#endif//_WIN32
+
+
 #endif // __VDS_TRANSACTIONS_STDAFX_H_

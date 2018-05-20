@@ -21,7 +21,7 @@ namespace vds {
 
       database_column<std::string> id;
       database_column<const_data_buffer> data;
-      database_column<std::chrono::time_point> last_access;
+      database_column<std::chrono::system_clock::time_point> last_access;
     };
   }
 }

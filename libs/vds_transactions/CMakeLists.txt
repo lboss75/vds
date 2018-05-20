@@ -37,7 +37,8 @@ target_include_directories(vds_transactions
 		${vds_dht_network_INCLUDE_DIRS}
 		${OPENSSL_INCLUDE_DIR}
 	PUBLIC
-		${CMAKE_CURRENT_SOURCE_DIR})
+		${CMAKE_CURRENT_SOURCE_DIR}/include
+		${CMAKE_CURRENT_SOURCE_DIR}/transactions)
 
 target_link_libraries(vds_transactions
   vds_core

@@ -10,7 +10,6 @@ All rights reserved
 #include "dht_session.h"
 #include "dht_route.h"
 #include "chunk.h"
-#include "messages/offer_move_replica.h"
 #include "messages/replica_request.h"
 #include "dht_sync_process.h"
 #include "udp_transport.h"
@@ -110,19 +109,19 @@ namespace vds {
             const std::shared_ptr<dht_session> & session,
             const messages::offer_replica & message);
 
-        void apply_message(
-            const service_provider & sp,
-            database_transaction & t,
-            const messages::offer_move_replica & message) {
-          this->sync_process_.apply_message(sp, t, message);
-        }
-
         template <typename message_type>
         async_task<> send(
           const service_provider & sp,
           const const_data_buffer & node_id,
           const message_type & message) {
           return this->send(sp, node_id, message_type::message_id, message.serialize());
+        }
+
+        template <typename message_type>
+        async_task<> send_neighbors(
+          const service_provider& sp,
+          const message_type & message) {
+          return this->send_neighbors(sp, message_type::message_id, message.serialize());
         }
 
         void add_session(const service_provider& sp, const std::shared_ptr<dht_session>& session, uint8_t hops);
@@ -159,6 +158,11 @@ namespace vds {
         async_task<> send(
           const service_provider& sp,
           const const_data_buffer& node_id,
+          const message_type_t message_id,
+          const const_data_buffer& message);
+
+        async_task<> send_neighbors(
+          const service_provider& sp,
           const message_type_t message_id,
           const const_data_buffer& message);
 

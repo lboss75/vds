@@ -9,7 +9,7 @@ All rights reserved
 namespace vds {
   struct sync_statistic {
 
-    std::map<const_data_buffer, std::list<const_data_buffer>> leafs_;
+    std::list<const_data_buffer> leafs_;
 
     struct record_info {
       std::string name_;
@@ -21,15 +21,7 @@ namespace vds {
     std::string str() const {
       std::string result;
       for (auto & c : this->leafs_) {
-        result += base64::from_bytes(c.first);
-        result += '[';
-
-        for (auto & p : c.second) {
-          result += base64::from_bytes(p);
-          result += ',';
-        }
-
-        result += ']';
+        result += base64::from_bytes(c);
         result += ',';
       }
       result += '\n';
@@ -50,44 +42,31 @@ namespace vds {
         return true;
       }
 
-      for (auto & c : this->leafs_) {
-        auto oc = other.leafs_.find(c.first);
-        if (other.leafs_.end() == oc) {
-          return true;
+      for (auto & p : this->leafs_) {
+        bool is_good = false;
+        for (auto & p1 : other.leafs_) {
+          if (p == p1) {
+            is_good = true;
+            break;
+          }
         }
-
-        for (auto & p : c.second) {
-          bool is_good = false;
-          for (auto & p1 : oc->second) {
-            if (p == p1) {
-              is_good = true;
-              break;
-            }
-          }
-          if (!is_good) {
-            return true;
-          }
+        if (!is_good) {
+          return true;
         }
       }
 
-      for (auto & oc : other.leafs_) {
-        auto c = this->leafs_.find(oc.first);
-        if (this->leafs_.end() == c) {
+      for (auto & p : other.leafs_) {
+        bool is_good = false;
+        for (auto & p1 : this->leafs_) {
+          if (p == p1) {
+            is_good = true;
+            break;
+          }
+        }
+        if (!is_good) {
           return true;
         }
 
-        for (auto & p : oc.second) {
-          bool is_good = false;
-          for (auto & p1 : c->second) {
-            if (p == p1) {
-              is_good = true;
-              break;
-            }
-          }
-          if (!is_good) {
-            return true;
-          }
-        }
       }
 
       return false;

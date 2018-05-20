@@ -4,13 +4,13 @@ All rights reserved
 */
 
 #include "private/stdafx.h"
-#include "private/transaction_state_calculator.h"
+#include "transaction_state_calculator.h"
 #include "database.h"
 #include "transaction_log_record_dbo.h"
 #include "encoding.h"
-#include "include/transaction_block_builder.h"
+#include "transaction_block_builder.h"
 #include "vds_debug.h"
-#include "include/transaction_block.h"
+#include "transaction_block.h"
 
 
 vds::transactions::transaction_record_state
@@ -90,11 +90,12 @@ vds::transactions::transaction_state_calculator::process(vds::database_transacti
   const auto state_data = t1.state_data.get(st);
   binary_deserializer s(state_data);
   transaction_record_state result(s);
+  result.reset_consensus();
 
   for(const auto & porder : this->items_){
     for(const auto & pitem : porder.second){
       transaction_block block(pitem.second);
-      result.apply(block.write_cert_id(), block.id(), block.block_messages());
+      result.apply(block);
     }
   }
 
@@ -120,9 +121,9 @@ void vds::transactions::transaction_state_calculator::resolve(
 
   vds_assert(block.order_no() == parent_order_no);
 
-  this->items_[order_no][node_id] = block_data;
+  this->items_[block.order_no()][node_id] = block_data;
 
-  for(const auto & ancestor : ancestors){
-    this->add_ancestor(t, ancestor, order_no);
+  for(const auto & ancestor : block.ancestors()){
+    this->add_ancestor(t, ancestor, block.order_no());
   }
 }
