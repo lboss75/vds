@@ -87,23 +87,24 @@ void vds::db_model::migrate(
 
 		t.execute("CREATE TABLE chunk_data (\
 			id VARCHAR(64) PRIMARY KEY NOT NULL,\
-			block_key BLOB NOT NULL)");
+      data  BLOB NOT NULL,\
+			last_access INTEGER NOT NULL)");
+
+		t.execute("CREATE TABLE well_known_node(\
+			id VARCHAR(64) PRIMARY KEY NOT NULL,\
+			addresses TEXT NOT NULL)");
 
     t.execute("CREATE TABLE current_config (\
 			id INTEGER PRIMARY KEY AUTOINCREMENT,\
 			cert BLOB NOT NULL,\
       cert_key BLOB NOT NULL)");
 
-		t.execute("CREATE TABLE well_known_node(\
-			id VARCHAR(64) PRIMARY KEY NOT NULL,\
-			addresses TEXT NOT NULL)");
-
 		t.execute("CREATE TABLE transaction_log_record(\
 			id VARCHAR(64) PRIMARY KEY NOT NULL,\
-      channel_id VARCHAR(64) NOT NULL,\
       data BLOB NOT NULL,\
 			state INTEGER NOT NULL,\
-			order_no INTEGER NOT NULL)");
+			order_no INTEGER NOT NULL,\
+      state_data BLOB NULL)");
 
     t.execute("CREATE TABLE channel_local_cache(\
       channel_id VARCHAR(64) PRIMARY KEY NOT NULL,\
@@ -111,21 +112,20 @@ void vds::db_model::migrate(
 
 		t.execute("CREATE TABLE transaction_log_unknown_record(\
 			id VARCHAR(64) NOT NULL,\
-      channel_id VARCHAR(64) NOT NULL,\
+      refer_id VARCHAR(64) NOT NULL,\
       follower_id VARCHAR(64) NOT NULL,\
-			CONSTRAINT pk_transaction_log_unknown_record PRIMARY KEY(id,follower_id))");
+			CONSTRAINT pk_transaction_log_unknown_record PRIMARY KEY(id,refer_id,follower_id))");
 
-    t.execute("CREATE TABLE chunk_replica_data(\
-			id VARCHAR(64) NOT NULL,\
-			replica INTEGER NOT NULL,\
+    t.execute("CREATE TABLE chunk_replicas(\
+			id VARCHAR(64) PRIMARY KEY NOT NULL,\
 			replica_data BLOB NOT NULL,\
-			CONSTRAINT pk_chunk_replica_data PRIMARY KEY(id,replica))");
+			last_sync INTEGER NOT NULL)");
 
-    t.execute("CREATE TABLE chunk_replica_map(\
-			id VARCHAR(64) NOT NULL,\
-			replica INTEGER NOT NULL,\
-			node VARCHAR(64) NOT NULL,\
-			CONSTRAINT pk_chunk_replica_map PRIMARY KEY(id,replica))");
+    t.execute("CREATE TABLE local_data_dbo(\
+			id VARCHAR(64) PRIMARY KEY NOT NULL,\
+			data BLOB NOT NULL,\
+			create_time VARCHAR(64) NOT NULL,\
+      is_new INTEGER NOT NULL)");
 
 		t.execute("CREATE TABLE chunk_map(\
 			id VARCHAR(64) NOT NULL,\

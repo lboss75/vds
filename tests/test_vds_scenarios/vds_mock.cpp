@@ -9,8 +9,8 @@ All rights reserved
 #include "file_operations.h"
 #include "db_model.h"
 #include "user_manager.h"
-#include "transactions/channel_add_reader_transaction.h"
-#include "transactions/channel_add_writer_transaction.h"
+#include "channel_add_reader_transaction.h"
+#include "channel_add_writer_transaction.h"
 #include "dht_object_id.h"
 
 vds_mock::vds_mock()
@@ -428,13 +428,13 @@ vds::user_channel vds_mock::create_channel(int index, const std::string &name) {
     auto write_private_key = vds::asymmetric_private_key::generate(
         vds::asymmetric_crypto::rsa4096());
 
-    vds::transactions::transaction_block_builder log;
-    vds::asymmetric_private_key channel_read_private_key;
-    vds::asymmetric_private_key channel_write_private_key;
-    result = user_mng->create_channel(sp, log, t, vds::dht::dht_object_id::generate_random_id(),
-                                      vds::user_channel::channel_type_t::personal_channel,
-                                      name,
-                                      channel_read_private_key, channel_write_private_key);
+    //vds::transactions::transaction_block_builder log;
+    //vds::asymmetric_private_key channel_read_private_key;
+    //vds::asymmetric_private_key channel_write_private_key;
+    //result = user_mng->create_channel(sp, log, t, vds::dht::dht_object_id::generate_random_id(),
+    //                                  vds::user_channel::channel_type_t::personal_channel,
+    //                                  name,
+    //                                  channel_read_private_key, channel_write_private_key);
 
     return true;
   }).execute([&b, &error](const std::shared_ptr<std::exception> & ex){

@@ -210,13 +210,12 @@ vds::async_task<> vds::dht::network::sync_process::sync_local_channels(const ser
     "state is %s",
     log_message.c_str());
 
-  return[client, sp, leafs]() {
-    return client->send_neighbors(
-      sp,
-      messages::transaction_log_state(
-        leafs,
-        client->current_node_id()));
-  };
+  return client->send_neighbors(
+    sp,
+    messages::transaction_log_state(
+      leafs,
+      client->current_node_id()));
+
 }
 
 vds::async_task<> vds::dht::network::sync_process::sync_replicas(
