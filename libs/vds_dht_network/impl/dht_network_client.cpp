@@ -2,6 +2,8 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
+#include <well_known_node_dbo.h>
+#include <url_parser.h>
 #include "stdafx.h"
 #include "dht_network_client.h"
 #include "private/dht_network_client_p.h"
@@ -284,7 +286,8 @@ vds::async_task<> vds::dht::network::_client::process_update(const vds::service_
   return async_series(
     this->route_.on_timer(sp, this->udp_transport_),
     this->update_route_table(sp),
-    this->sync_process_.do_sync(sp, t));
+    this->sync_process_.do_sync(sp, t),
+    this->update_wellknown_connection(sp, t));
 }
 
 void vds::dht::network::_client::get_route_statistics(route_statistic& result) {
@@ -389,6 +392,26 @@ vds::async_task<> vds::dht::network::_client::restore(
 
         return pthis->restore(sp, replica_hashes, result, start);
       });
+}
+
+vds::async_task<>
+vds::dht::network::_client::update_wellknown_connection(
+    const vds::service_provider &sp,
+    vds::database_transaction &t) {
+
+  auto result = async_task<>::empty();
+  orm::well_known_node_dbo t1;
+  auto st = t.get_reader(t1.select(t1.addresses));
+  while(st.execute()){
+    for(const auto & address : split_string(t1.addresses.get(st), ';', true)){
+      result = result.then(
+          [pthis = this->shared_from_this(), sp, address]()->async_task<> {
+            return pthis->udp_transport_->try_handshake(sp, address);
+          });
+    }
+  }
+
+  return result;
 }
 
 

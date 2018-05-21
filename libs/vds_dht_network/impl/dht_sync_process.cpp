@@ -198,6 +198,10 @@ vds::async_task<> vds::dht::network::sync_process::sync_local_channels(const ser
     leafs.push_back(base64::to_bytes(t1.id.get(st)));
   }
 
+  if(leafs.empty()){
+    return async_task<>::empty();
+  }
+
   std::string log_message;
   for (const auto & r : leafs) {
     log_message += base64::from_bytes(r);

@@ -169,6 +169,10 @@ namespace vds {
         static const_data_buffer replica_id(
           const std::string & key,
           uint16_t replica);
+
+        async_task<> update_wellknown_connection(
+            const service_provider &sp,
+            database_transaction &t);
       };
     }
   }

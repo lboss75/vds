@@ -7,6 +7,8 @@ All rights reserved
 #include "include/data_coin_balance.h"
 #include "include/transaction_state_calculator.h"
 #include "transaction_log_record_dbo.h"
+#include "vds_debug.h"
+#include "encoding.h"
 
 void vds::transactions::data_coin_balance::reset_root(const const_data_buffer& id, const std::string& root_account) {
   vds_assert(1 == this->order_no_);
