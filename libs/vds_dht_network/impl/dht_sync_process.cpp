@@ -23,10 +23,7 @@ vds::async_task<> vds::dht::network::sync_process::query_unknown_records(const s
     t1.select(
       t1.id,
       t1.refer_id)
-    .left_join(
-      t2,
-      t2.id == t1.follower_id)
-  .where(db_is_null(t2.id)));
+    .where(db_not_in(t1.id, t2.select(t2.follower_id))));
 
   while (st.execute()) {
     record_ids[base64::to_bytes(t1.id.get(st))].push_back(t1.refer_id.get(st));
