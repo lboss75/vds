@@ -1229,10 +1229,10 @@ namespace vds {
           join_str = " INNER JOIN ";
           break;
         case join_t::left:
-          join_str = " LEFT JOIN ";
+          join_str = " LEFT OUTER JOIN ";
           break;
         case join_t::right:
-          join_str = " RIGHT JOIN ";
+          join_str = " RIGHT OUTER JOIN ";
           break;
         case join_t::outer:
           join_str = " OUTER JOIN ";
