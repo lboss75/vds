@@ -368,6 +368,13 @@ namespace vds {
       }
     }
 
+    void no_wait() {
+      this->execute([&](const std::shared_ptr<std::exception> & ex, result_types ... args) {
+        if (ex) {
+        }
+      });
+    }
+
     static async_task<result_types...> result(result_types... values);
 		static async_task<result_types...> empty();
   private:

@@ -55,6 +55,9 @@ namespace vds {
         std::map<network_address, std::shared_ptr<class dht_session>> sessions_;
         timer timer_;
 
+        std::mutex block_list_mutex_;
+        std::map<std::string, std::chrono::steady_clock::time_point> block_list_;
+
         async_task<> on_timer(const service_provider& sp);
         void add_session(const service_provider& sp, const network_address & address, const std::shared_ptr<dht_session> & session);
         std::shared_ptr<dht_session> get_session(const network_address & address) const;

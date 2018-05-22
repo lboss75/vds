@@ -297,7 +297,7 @@ namespace vds {
         void get_neighbors(const service_provider & sp, std::list<std::shared_ptr<node>> & result_nodes) const {
           std::shared_lock<std::shared_mutex> lock(this->nodes_mutex_);
           for (auto & p : this->nodes_) {
-            if (p->hops_ == 1) {
+            if (p->hops_ == 0) {
               result_nodes.push_back(p);
             }
           }

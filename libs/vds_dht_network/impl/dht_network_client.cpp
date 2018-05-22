@@ -24,7 +24,8 @@ vds::dht::network::_client::_client(
     const service_provider & sp,
     const const_data_buffer & node_id)
 : update_timer_("DHT Network"),
-  route_(node_id)
+  route_(node_id),
+  update_route_table_counter_(0)
 {
   for (uint16_t replica = 0; replica < GENERATE_HORCRUX; ++replica) {
     this->generators_[replica].reset(new chunk_generator<uint16_t>(MIN_HORCRUX, replica));
@@ -91,7 +92,7 @@ void vds::dht::network::_client::apply_message(const service_provider& sp, datab
   this->sync_process_.apply_message(sp, t, message);
 }
 
-vds::async_task<> vds::dht::network::_client::apply_message(const service_provider& sp, const messages::dht_find_node& message) {
+void vds::dht::network::_client::apply_message(const service_provider& sp, const messages::dht_find_node& message) {
   std::map<const_data_buffer /*distance*/, std::list<std::shared_ptr<dht_route<std::shared_ptr<dht_session>>::node>>> result_nodes;
   this->route_.search_nodes(sp, message.target_id(), 70, result_nodes);
 
@@ -104,7 +105,12 @@ vds::async_task<> vds::dht::network::_client::apply_message(const service_provid
     }
   }
 
-  return this->send(sp, message.source_node(), messages::dht_find_node_response(result));
+  this->send(sp, message.source_node(), messages::dht_find_node_response(result))
+  .execute([sp](const std::shared_ptr<std::exception> & ex) {
+    if(ex) {
+      sp.get<logger>()->warning(ThisModule, sp, "%s at send dht_find_node_response", ex->what());
+    }
+  });
 }
 
 vds::async_task<>  vds::dht::network::_client::apply_message(
@@ -115,30 +121,35 @@ vds::async_task<>  vds::dht::network::_client::apply_message(
   for(auto & p : message.nodes()) {
     this->route_.add_node(sp, p.target_id_, session, p.hops_ + 1);
     result = result.then([sp, pthis = this->shared_from_this(), address = p.address_]() {
-      return pthis->udp_transport_->try_handshake(sp, address);
+      pthis->udp_transport_->try_handshake(sp, address)
+      .execute([sp, address](const std::shared_ptr<std::exception> & ex) {
+        if(ex) {
+          sp.get<logger>()->warning(ThisModule, sp, "%s at try handshake %s",
+            ex->what(),
+            address.c_str());
+        }
+      });
     });
   }
   return result;
 }
 
-vds::async_task<> vds::dht::network::_client::apply_message(const service_provider& sp, const std::shared_ptr<dht_session>& session,
+void vds::dht::network::_client::apply_message(const service_provider& sp, const std::shared_ptr<dht_session>& session,
   const messages::dht_ping& message) {
   if(message.target_node() == this->current_node_id()) {
-    return session->send_message(
+    session->send_message(
       sp,
       this->udp_transport_,
       (uint8_t)messages::dht_pong::message_id,
-      messages::dht_pong(message.source_node(), this->current_node_id()).serialize());
+      messages::dht_pong(message.source_node(), this->current_node_id()).serialize()).no_wait();
   }
   else {
-    auto result = async_task<>::empty();
-    this->route_.for_near(sp, message.target_node(), 1, [this, &message, &result, sp](const std::shared_ptr<dht_route<std::shared_ptr<dht_session>>::node> & candidate)->bool {
+    this->route_.for_near(sp, message.target_node(), 1, [this, &message, sp](const std::shared_ptr<dht_route<std::shared_ptr<dht_session>>::node> & candidate)->bool {
       if (dht_object_id::distance(message.target_node(), candidate->node_id_) < dht_object_id::distance(message.target_node(), this->current_node_id())) {
-        result = this->send(sp, message.target_node(), message);
+        this->send(sp, message.target_node(), message).no_wait();
       }
       return true;
     });
-    return result;
   }
 }
 
@@ -270,24 +281,33 @@ void vds::dht::network::_client::stop(const service_provider& sp) {
 
 vds::async_task<> vds::dht::network::_client::update_route_table(const service_provider& sp) {
   auto result = async_task<>::empty();
-  for (size_t i = 0; i < 8 * this->route_.current_node_id().size(); ++i) {
-    auto canditate = dht_object_id::generate_random_id(this->route_.current_node_id(), i);
-    result = result.then([pthis = this->shared_from_this(), sp, canditate]() {
-      return pthis->send(
-        sp,
-        canditate,
-        messages::dht_find_node(canditate, pthis->route_.current_node_id()));
-    });
+  if (0 == this->update_route_table_counter_++ % 100) {
+    for (size_t i = 0; i < 8 * this->route_.current_node_id().size(); ++i) {
+      auto canditate = dht_object_id::generate_random_id(this->route_.current_node_id(), i);
+      result = result.then([pthis = this->shared_from_this(), sp, canditate]() {
+        pthis->send(
+          sp,
+          canditate,
+          messages::dht_find_node(canditate, pthis->route_.current_node_id()))
+          .execute([sp, canditate](const std::shared_ptr<std::exception> & ex) {
+          if (ex) {
+            sp.get<logger>()->warning(ThisModule, sp, "%s at update route table %s",
+              ex->what(),
+              base64::from_bytes(canditate).c_str());
+          }
+        });
+      });
+    }
   }
   return result;
 }
 
 vds::async_task<> vds::dht::network::_client::process_update(const vds::service_provider &sp, vds::database_transaction &t) {
   return async_series(
-    this->route_.on_timer(sp, this->udp_transport_),
-    this->update_route_table(sp),
-    this->sync_process_.do_sync(sp, t),
-    this->update_wellknown_connection(sp, t));
+    this->route_.on_timer(sp.create_scope("Route update"), this->udp_transport_),
+    this->update_route_table(sp.create_scope("Route table update")),
+    this->sync_process_.do_sync(sp.create_scope("Sync process"), t),
+    this->update_wellknown_connection(sp.create_scope("wellknown connection update"), t));
 }
 
 void vds::dht::network::_client::get_route_statistics(route_statistic& result) {
@@ -405,9 +425,14 @@ vds::dht::network::_client::update_wellknown_connection(
   while(st.execute()){
     for(const auto & address : split_string(t1.addresses.get(st), ';', true)){
       result = result.then(
-          [pthis = this->shared_from_this(), sp, address]()->async_task<> {
-            return pthis->udp_transport_->try_handshake(sp, address);
-          });
+        [pthis = this->shared_from_this(), sp, address]() {
+        pthis->udp_transport_->try_handshake(sp, address).execute([sp, address](const std::shared_ptr<std::exception> & ex) {
+          if (ex) {
+            sp.get<logger>()->warning(ThisModule, sp, "%s at send handshake to %s",
+              ex->what(), address.c_str());
+          }
+        });
+      });
     }
   }
 

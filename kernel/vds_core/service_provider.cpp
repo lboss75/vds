@@ -15,7 +15,7 @@ class service_provider_debug {
 public:
   service_provider_debug() {
     std::thread([this]() {
-      this->dump();
+      //this->dump();
     }).detach();
     
   }

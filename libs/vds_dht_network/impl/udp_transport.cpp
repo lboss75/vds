@@ -87,6 +87,16 @@ vds::async_task<> vds::dht::network::udp_transport::on_timer(const service_provi
 }
 
 vds::async_task<> vds::dht::network::udp_transport::try_handshake(const service_provider& sp, const std::string& address) {
+
+  this->block_list_mutex_.lock();
+  auto p = this->block_list_.find(address);
+  if(this->block_list_.end() != p && p->second < std::chrono::steady_clock::now()) {
+    this->block_list_mutex_.unlock();
+    return async_task<>::empty();
+  }
+  this->block_list_[address] = std::chrono::steady_clock::now() + std::chrono::minutes(10);
+  this->block_list_mutex_.unlock();
+
   resizable_data_buffer out_message;
   out_message.add((uint8_t)protocol_message_type_t::HandshakeBroadcast);
   out_message.add(PROTOCOL_VERSION);

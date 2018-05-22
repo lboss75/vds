@@ -143,7 +143,7 @@ namespace vds {
         }
 
         async_task<> on_timer(const service_provider & sp, const std::shared_ptr<transport_type> & s) {
-          sp.get<logger>()->trace("DHT", sp, "address=%s;this_node_id=%s;output_sequence_number=%d;output_messages=%s;mtu=%d;input_messages=%s;next_sequence_number=%d;next_process_index=%d;send_in_process=%d",
+          sp.get<logger>()->trace("DHT", sp, "address=%s;this_node_id=%s;output_sequence_number=%d;output_messages=%s;mtu=%d;input_messages=%s;next_sequence_number=%d;next_process_index=%d;send_in_process=%s",
             this->address_.to_string().c_str(),
             base64::from_bytes(this->this_node_id_).c_str(),
             this->output_sequence_number_,

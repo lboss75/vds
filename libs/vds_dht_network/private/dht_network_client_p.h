@@ -80,7 +80,7 @@ namespace vds {
           database_transaction & t,
           const messages::transaction_log_record & message);
 
-        async_task<> apply_message(
+        void apply_message(
           const service_provider & sp,
           const messages::dht_find_node & message);
 
@@ -89,7 +89,7 @@ namespace vds {
           const std::shared_ptr<dht_session> & session,
           const messages::dht_find_node_response & message);
 
-        async_task<>  apply_message(
+        void  apply_message(
           const service_provider & sp,
           const std::shared_ptr<dht_session> & session,
           const messages::dht_ping & message);
@@ -149,6 +149,8 @@ namespace vds {
         timer update_timer_;
         std::debug_mutex update_timer_mutex_;
         bool in_update_timer_ = false;
+
+        uint32_t update_route_table_counter_;
 
         async_task<> update_route_table(const service_provider& sp);
         async_task<> process_update(
