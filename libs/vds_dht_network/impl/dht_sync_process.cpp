@@ -30,24 +30,49 @@ vds::async_task<> vds::dht::network::sync_process::query_unknown_records(const s
   }
 
   auto result = async_task<>::empty();
-  auto &client = *sp.get<dht::network::client>();
-  for(const auto & p : record_ids) {
-    auto index = std::rand() % p.second.size();
-    sp.get<logger>()->trace(
-        ThisModule,
-        sp,
-        "Query log records %s from %s",
-        base64::from_bytes(p.first).c_str(),
-        base64::from_bytes(p.second[index]).c_str());
+  if(record_ids.empty()){
+    orm::transaction_log_record_dbo t2;
+    auto st = t.get_reader(
+        t2.select(t2.id)
+            .where(t2.state == (int)orm::transaction_log_record_dbo::state_t::leaf));
 
-    result = result.then([client, sp, node_id = p.second[index], record_id = p.first]() {
-      client->send(
+    std::list<const_data_buffer> current_state;
+    while (st.execute()) {
+      auto id = base64::to_bytes(t2.id.get(st));
+      current_state.push_back(id);
+    }
+
+    if(!current_state.empty()) {
+      result = result.then([sp, current_state]() {
+        auto & client = *sp.get<vds::dht::network::client>();
+        client->send_neighbors(
+            sp,
+            messages::transaction_log_state(
+                current_state,
+                client->current_node_id())).no_wait();
+      });
+    }
+  }
+  else {
+    auto &client = *sp.get<dht::network::client>();
+    for (const auto &p : record_ids) {
+      auto index = std::rand() % p.second.size();
+      sp.get<logger>()->trace(
+          ThisModule,
           sp,
-          node_id,
-          messages::transaction_log_request(
-              record_id,
-              client->current_node_id()));
-    });
+          "Query log records %s from %s",
+          base64::from_bytes(p.first).c_str(),
+          base64::from_bytes(p.second[index]).c_str());
+
+      result = result.then([client, sp, node_id = p.second[index], record_id = p.first]() {
+        client->send(
+            sp,
+            node_id,
+            messages::transaction_log_request(
+                record_id,
+                client->current_node_id())).no_wait();
+      });
+    }
   }
   return result;
 }
@@ -86,7 +111,8 @@ vds::async_task<> vds::dht::network::sync_process::apply_message(
       t.execute(
           t1.insert_or_ignore(
               t1.id = base64::from_bytes(p),
-              t1.refer_id = message.source_node()));
+              t1.refer_id = message.source_node(),
+              t1.follower_id = std::string()));
     }
   }
   else {
@@ -115,12 +141,12 @@ vds::async_task<> vds::dht::network::sync_process::apply_message(
     if(!current_state.empty()) {
       result = result.then([sp, message, current_state]() {
         auto & client = *sp.get<vds::dht::network::client>();
-        return client->send(
+        client->send(
           sp,
           message.source_node(),
           messages::transaction_log_state(
             current_state,
-            client->current_node_id()));
+            client->current_node_id())).no_wait();
       });
     }
   }

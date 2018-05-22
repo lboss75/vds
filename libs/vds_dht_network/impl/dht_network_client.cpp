@@ -157,7 +157,7 @@ vds::async_task<> vds::dht::network::_client::apply_message(
   const service_provider& sp,
   const std::shared_ptr<dht_session>& session,
   const messages::dht_pong& message) {
-  this->route_.mark_pinged(message.target_node(), session->address());
+  this->route_.mark_pinged(message.source_node(), session->address());
 
   auto result = async_task<>::empty();
   this->route_.for_near(sp, message.target_node(), 1, [this, &message, &result, sp](const std::shared_ptr<dht_route<std::shared_ptr<dht_session>>::node> & candidate)->bool {

@@ -10,13 +10,6 @@ All rights reserved
 #include "vds_debug.h"
 #include "encoding.h"
 
-void vds::transactions::data_coin_balance::reset_root(const const_data_buffer& id, const std::string& root_account) {
-  vds_assert(1 == this->order_no_);
-  vds_assert(this->state_.account_state_.empty());
-
-  this->state_.account_state_[root_account].balance_[id] = UINT64_MAX;
-}
-
 vds::transactions::data_coin_balance vds::transactions::data_coin_balance::load(
     vds::database_transaction &t,
     std::set<vds::const_data_buffer> & base_packages) {

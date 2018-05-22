@@ -48,7 +48,7 @@ vds::const_data_buffer vds::transactions::transaction_block_builder::save(
     transaction_block block(block_data.data());
     block.walk_messages(
       [this, id](const root_user_transaction & message)->bool{
-      this->balance_.reset_root(id, message.user_cert().subject());
+      this->balance_ = data_coin_balance(id, message.user_cert().subject());
       return true;
     });
 

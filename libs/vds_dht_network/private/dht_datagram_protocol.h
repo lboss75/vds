@@ -143,6 +143,10 @@ namespace vds {
         }
 
         async_task<> on_timer(const service_provider & sp, const std::shared_ptr<transport_type> & s) {
+
+          std::shared_lock<std::shared_mutex> lock(this->output_mutex_);
+          std::unique_lock<std::mutex> input_lock(this->input_mutex_);
+
           sp.get<logger>()->trace("DHT", sp, "address=%s;this_node_id=%s;output_sequence_number=%d;output_messages=%s;mtu=%d;input_messages=%s;next_sequence_number=%d;next_process_index=%d;send_in_process=%s",
             this->address_.to_string().c_str(),
             base64::from_bytes(this->this_node_id_).c_str(),
@@ -153,8 +157,6 @@ namespace vds {
             this->next_sequence_number_,
             this->next_process_index_,
             this->send_in_process_ ? "true" : "false");
-
-          std::shared_lock<std::shared_mutex> lock(this->output_mutex_);
 
           uint32_t mask = 0;
           for (size_t i = this->next_sequence_number_; i < this->next_sequence_number_ + 32; ++i)

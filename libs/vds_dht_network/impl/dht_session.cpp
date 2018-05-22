@@ -27,7 +27,12 @@ vds::async_task<> vds::dht::network::dht_session::ping_node(
   const service_provider& sp,
   const const_data_buffer & node_id,
   const std::shared_ptr<udp_transport> & transport) {
-  return this->send_message(sp, transport, (uint8_t)messages::dht_ping::message_id, messages::dht_ping(node_id, transport->this_node_id()).serialize());
+
+  return this->send_message(
+      sp,
+      transport,
+      (uint8_t)messages::dht_ping::message_id,
+      messages::dht_ping(node_id, transport->this_node_id()).serialize());
 }
 
 vds::async_task<> vds::dht::network::dht_session::process_message(

@@ -20,6 +20,12 @@ namespace vds {
       transaction_record_state() {        
       }
 
+      transaction_record_state(
+          const const_data_buffer & root_block_id,
+          const std::string & root_account) {
+        this->account_state_[root_account].balance_[root_block_id] = UINT64_MAX;
+      }
+
       transaction_record_state(transaction_record_state && original)
       : account_state_(std::move(original.account_state_)){
       }
@@ -77,6 +83,10 @@ namespace vds {
         }
       }
 
+      transaction_record_state &operator = (transaction_record_state && original){
+        this->account_state_ = std::move(original.account_state_);
+        return *this;
+      }
     private:
       friend class data_coin_balance;
 

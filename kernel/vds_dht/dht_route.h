@@ -253,7 +253,10 @@ namespace vds {
               p->hops_);
             result = result.then([node = p, sp, timer_args...](){
               node->pinged_++;
-              return node->proxy_session_->ping_node(sp, node->node_id_, std::forward<timer_arg_types>(timer_args)...);
+              return node->proxy_session_->ping_node(
+                  sp,
+                  node->node_id_,
+                  std::forward<timer_arg_types>(timer_args)...);
             });
           }
           return result;

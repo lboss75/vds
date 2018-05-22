@@ -117,30 +117,50 @@ void vds::transactions::transaction_log::save(
   else {
     update_consensus(t, block, block.write_cert_id());
 
-    //try {
-    auto state = transaction_state_calculator::calculate(t, block.ancestors(), block.order_no());
-    state.apply(block);
-    //}
-    //catch (const transactions::transaction_source_not_found_error & ex) {
-    //  //
-    //}
-    //catch (const transactions::transaction_lack_of_funds & ex) {
+    if(block.ancestors().empty()) {//Root
+      //Root transaction
+      block.walk_messages(
+          [&block, &t, &block_data](const root_user_transaction & message)->bool{
+            transaction_record_state state(block.id(), message.user_cert().subject());
 
-    //}
+            orm::transaction_log_record_dbo t1;
+            t.execute(
+                t1.insert(
+                    t1.id = base64::from_bytes(block.id()),
+                    t1.data = block_data,
+                    t1.state = static_cast<int>(orm::transaction_log_record_dbo::state_t::leaf),
+                    t1.order_no = block.order_no(),
+                    t1.state_data = state.serialize()));
+            return true;
+          });
+    }
+    else {
 
-    t.execute(
-      t1.insert(
-        t1.id = base64::from_bytes(block.id()),
-        t1.data = block_data,
-        t1.state = static_cast<int>(orm::transaction_log_record_dbo::state_t::leaf),
-        t1.order_no = block.order_no(),
-        t1.state_data = state.serialize()));
+      //try {
+      auto state = transaction_state_calculator::calculate(t, block.ancestors(), block.order_no());
+      state.apply(block);
+      //}
+      //catch (const transactions::transaction_source_not_found_error & ex) {
+      //  //
+      //}
+      //catch (const transactions::transaction_lack_of_funds & ex) {
 
-    for (const auto & p : remove_leaf) {
+      //}
+
       t.execute(
-        t1.update(
-          t1.state = static_cast<int>(orm::transaction_log_record_dbo::state_t::processed))
-        .where(t1.id == base64::from_bytes(p)));
+          t1.insert(
+              t1.id = base64::from_bytes(block.id()),
+              t1.data = block_data,
+              t1.state = static_cast<int>(orm::transaction_log_record_dbo::state_t::leaf),
+              t1.order_no = block.order_no(),
+              t1.state_data = state.serialize()));
+
+      for (const auto &p : remove_leaf) {
+        t.execute(
+            t1.update(
+                    t1.state = static_cast<int>(orm::transaction_log_record_dbo::state_t::processed))
+                .where(t1.id == base64::from_bytes(p)));
+      }
     }
   }
 
@@ -149,7 +169,10 @@ void vds::transactions::transaction_log::save(
   orm::transaction_log_unknown_record_dbo t4;
   auto st = t.get_reader(t4.select(t4.follower_id).where(t4.id == base64::from_bytes(block.id())));
   while (st.execute()) {
-    followers.emplace(base64::to_bytes(t4.id.get(st)));
+    auto follower_id = t4.follower_id.get(st);
+    if(!follower_id.empty()) {
+      followers.emplace(base64::to_bytes(follower_id));
+    }
   }
 
   for (const auto &p : followers) {
