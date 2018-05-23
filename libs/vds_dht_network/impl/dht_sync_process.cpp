@@ -281,7 +281,7 @@ vds::async_task<> vds::dht::network::sync_process::sync_replicas(
               client->send(sp, target_node, messages::offer_replica(
                 replica_hash,
                 replica_data,
-                client->current_node_id()));
+                client->current_node_id())).no_wait();
             });
         }
         break;
