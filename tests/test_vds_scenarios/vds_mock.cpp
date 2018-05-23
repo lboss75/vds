@@ -107,6 +107,8 @@ void vds_mock::sync_wait()
           << stat.sync_statistic_.str()
           << "\n"
           << stat.route_statistic_.serialize(true)->str()
+          << "\n"
+          << stat.session_statistic_.serialize()->str()
           << "\n";
 
       if(!last_sync_statistic){

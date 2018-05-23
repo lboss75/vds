@@ -12,6 +12,10 @@ All rights reserved
 #include "debug_mutex.h"
 
 namespace vds {
+  struct session_statistic;
+}
+
+namespace vds {
   namespace dht {
     namespace network {
       class udp_transport : public std::enable_shared_from_this<udp_transport> {
@@ -34,6 +38,8 @@ namespace vds {
         const const_data_buffer & this_node_id() const {
           return this->this_node_id_;
         }
+
+        void get_session_statistics(session_statistic& session_statistic);
 
       private:
         const_data_buffer this_node_id_;

@@ -8,12 +8,14 @@ All rights reserved
 
 #include "route_statistic.h"
 #include "sync_statistic.h"
+#include "session_statistic.h"
 
 namespace vds {
 
   struct server_statistic {
     sync_statistic sync_statistic_;
     route_statistic route_statistic_;
+    session_statistic session_statistic_;
   };
 
 }

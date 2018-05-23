@@ -11,6 +11,7 @@ All rights reserved
 #include "const_data_buffer.h"
 #include "dht_datagram_protocol.h"
 #include "udp_transport.h"
+#include "session_statistic.h"
 
 namespace vds {
   namespace dht {
@@ -38,8 +39,20 @@ namespace vds {
           return this->partner_node_id_;
         }
 
+        session_statistic::session_info get_statistic() const;
+
       private:
         const_data_buffer partner_node_id_;
+
+        unsigned int offer_replica_;
+        unsigned int replica_request_;
+        unsigned int dht_pong_;
+        unsigned int dht_ping_;
+        unsigned int dht_find_node_response_;
+        unsigned int dht_find_node_;
+        unsigned int transaction_log_record_;
+        unsigned int transaction_log_request_;
+        unsigned int transaction_log_state_count_;
       };
     }
   }

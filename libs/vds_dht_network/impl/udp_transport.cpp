@@ -107,6 +107,15 @@ vds::async_task<> vds::dht::network::udp_transport::try_handshake(const service_
         const_data_buffer(out_message.data(), out_message.size())));
 }
 
+void vds::dht::network::udp_transport::get_session_statistics(session_statistic& session_statistic) {
+
+  std::shared_lock<std::shared_mutex> lock(this->sessions_mutex_);
+  for(const auto & p : this->sessions_) {
+    const auto session = p.second;
+    session_statistic.items_.push_back(session->get_statistic());
+  }
+}
+
 void vds::dht::network::udp_transport::add_session(
   const vds::service_provider& sp,
   const network_address& address,

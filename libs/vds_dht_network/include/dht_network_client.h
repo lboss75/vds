@@ -9,6 +9,7 @@ All rights reserved
 #include "service_provider.h"
 #include "const_data_buffer.h"
 #include "route_statistic.h"
+#include "session_statistic.h"
 
 namespace vds {
   class database_transaction;
@@ -44,6 +45,7 @@ namespace vds {
         const const_data_buffer & current_node_id() const;
 
         void get_route_statistics(route_statistic & result);
+        void get_session_statistics(session_statistic & session_statistic);
 
         _client *operator ->() const {
           return this->impl_.get();

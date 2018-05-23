@@ -118,10 +118,10 @@ namespace vds {
         }
 
         template <typename message_type>
-        async_task<> send_neighbors(
+        void send_neighbors(
           const service_provider& sp,
           const message_type & message) {
-          return this->send_neighbors(sp, message_type::message_id, message.serialize());
+          this->send_neighbors(sp, message_type::message_id, message.serialize());
         }
 
         void add_session(const service_provider& sp, const std::shared_ptr<dht_session>& session, uint8_t hops);
@@ -139,6 +139,7 @@ namespace vds {
             const std::chrono::steady_clock::time_point &start);
 
         void get_route_statistics(route_statistic& result);
+        void get_session_statistics(session_statistic& session_statistic);
 
       private:
         std::shared_ptr<udp_transport> udp_transport_;
@@ -163,7 +164,7 @@ namespace vds {
           const message_type_t message_id,
           const const_data_buffer& message);
 
-        async_task<> send_neighbors(
+        void send_neighbors(
           const service_provider& sp,
           const message_type_t message_id,
           const const_data_buffer& message);

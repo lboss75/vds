@@ -60,7 +60,7 @@ namespace vds {
             const messages::got_replica & message);
 
       private:
-        async_task<> sync_local_channels(
+        void sync_local_channels(
           const service_provider & sp,
           database_transaction & t);
 

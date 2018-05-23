@@ -112,6 +112,7 @@ vds::async_task<> vds::_server::prepare_to_stop(const vds::service_provider &sp)
 vds::async_task<vds::server_statistic> vds::_server::get_statistic(const vds::service_provider &sp) {
   auto result = std::make_shared<vds::server_statistic>();
   sp.get<dht::network::client>()->get_route_statistics(result->route_statistic_);
+  sp.get<dht::network::client>()->get_session_statistics(result->session_statistic_);
   return sp.get<db_model>()->async_transaction(sp, [this, result](database_transaction & t){
 
     orm::transaction_log_record_dbo t2;

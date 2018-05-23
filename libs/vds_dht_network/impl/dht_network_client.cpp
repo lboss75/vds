@@ -222,20 +222,18 @@ vds::async_task<> vds::dht::network::_client::send(const service_provider& sp, c
   return result;
 }
 
-vds::async_task<> vds::dht::network::_client::send_neighbors(const service_provider& sp,
+void vds::dht::network::_client::send_neighbors(const service_provider& sp,
   const message_type_t message_id, const const_data_buffer& message) {
-  auto result = async_task<>::empty();
   this->route_.for_neighbors(
     sp,
-    [sp, message_id, message, &result, pthis = this->shared_from_this()](const std::shared_ptr<dht_route<std::shared_ptr<dht_session>>::node> & candidate) {
-    result = candidate->send_message(
+    [sp, message_id, message, pthis = this->shared_from_this()](const std::shared_ptr<dht_route<std::shared_ptr<dht_session>>::node> & candidate) {
+    candidate->send_message(
       sp,
       pthis->udp_transport_,
       message_id,
-      message);
+      message).no_wait();
     return true;
   });
-  return result;
 }
 
 vds::const_data_buffer vds::dht::network::_client::replica_id(const std::string& key, uint16_t replica) {
@@ -312,6 +310,10 @@ vds::async_task<> vds::dht::network::_client::process_update(const vds::service_
 
 void vds::dht::network::_client::get_route_statistics(route_statistic& result) {
   this->route_.get_statistics(result);
+}
+
+void vds::dht::network::_client::get_session_statistics(session_statistic& session_statistic) {
+  this->udp_transport_->get_session_statistics(session_statistic);
 }
 
 vds::async_task<>
@@ -524,4 +526,8 @@ const vds::const_data_buffer &vds::dht::network::client::current_node_id() const
 
 void vds::dht::network::client::get_route_statistics(route_statistic& result) {
   this->impl_->get_route_statistics(result);
+}
+
+void vds::dht::network::client::get_session_statistics(session_statistic& session_statistic) {
+  this->impl_->get_session_statistics(session_statistic);
 }

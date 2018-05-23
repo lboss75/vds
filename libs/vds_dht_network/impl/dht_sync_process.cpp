@@ -49,7 +49,7 @@ vds::async_task<> vds::dht::network::sync_process::query_unknown_records(const s
             sp,
             messages::transaction_log_state(
                 current_state,
-                client->current_node_id())).no_wait();
+                client->current_node_id()));
       });
     }
   }
@@ -80,8 +80,10 @@ vds::async_task<> vds::dht::network::sync_process::query_unknown_records(const s
 vds::async_task<> vds::dht::network::sync_process::do_sync(
   const service_provider& sp,
   database_transaction& t) {
+
+  this->sync_local_channels(sp, t);
+
   return async_series(
-    this->sync_local_channels(sp, t),
     this->query_unknown_records(sp, t),
     this->sync_replicas(sp, t)
   );
@@ -141,12 +143,11 @@ vds::async_task<> vds::dht::network::sync_process::apply_message(
     if(!current_state.empty()) {
       result = result.then([sp, message, current_state]() {
         auto & client = *sp.get<vds::dht::network::client>();
-        client->send(
+        client->send_neighbors(
           sp,
-          message.source_node(),
           messages::transaction_log_state(
             current_state,
-            client->current_node_id())).no_wait();
+            client->current_node_id()));
       });
     }
   }
@@ -208,7 +209,7 @@ void vds::dht::network::sync_process::apply_message(
     message.data());
 }
 
-vds::async_task<> vds::dht::network::sync_process::sync_local_channels(const service_provider& sp, database_transaction& t) {
+void vds::dht::network::sync_process::sync_local_channels(const service_provider& sp, database_transaction& t) {
   auto & client = *sp.get<dht::network::client>();
 
   orm::transaction_log_record_dbo t1;
@@ -222,7 +223,7 @@ vds::async_task<> vds::dht::network::sync_process::sync_local_channels(const ser
   }
 
   if(leafs.empty()){
-    return async_task<>::empty();
+    return;
   }
 
   std::string log_message;
@@ -237,7 +238,7 @@ vds::async_task<> vds::dht::network::sync_process::sync_local_channels(const ser
     "state is %s",
     log_message.c_str());
 
-  return client->send_neighbors(
+  client->send_neighbors(
     sp,
     messages::transaction_log_state(
       leafs,
