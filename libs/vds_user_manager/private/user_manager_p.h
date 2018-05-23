@@ -190,6 +190,10 @@ namespace vds {
     void add_certificate(const certificate &cert);
     member_user get_current_user() const;
 
+    const asymmetric_private_key & get_current_user_private_key() const {
+      return this->user_private_key_;
+    }
+
   private:
     const_data_buffer dht_user_id_;
     symmetric_key user_password_key_;

@@ -464,6 +464,10 @@ vds::member_user vds::user_manager::get_current_user() const {
   return this->impl_->get_current_user();
 }
 
+const vds::asymmetric_private_key& vds::user_manager::get_current_user_private_key() const {
+  return this->impl_->get_current_user_private_key();
+}
+
 
 /////////////////////////////////////////////////////////////////////
 vds::_user_manager::_user_manager(

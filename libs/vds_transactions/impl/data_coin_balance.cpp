@@ -34,6 +34,6 @@ vds::transactions::data_coin_balance vds::transactions::data_coin_balance::load(
 
   return vds::transactions::data_coin_balance(
     max_order_no + 1,
-    transaction_state_calculator::calculate(t, base_packages, max_order_no));
+    transaction_state_calculator::calculate(t, base_packages, max_order_no + 1));
 }
 

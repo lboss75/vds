@@ -31,7 +31,7 @@ vds::const_data_buffer vds::transactions::transaction_block_builder::save(
 
   binary_serializer block_data;
   block_data
-    << (this->ancestors_.empty() ? this->balance_.order_no() : 1)
+    << (this->ancestors_.empty() ? 1 : this->balance_.order_no())
     << write_cert.subject()
     << this->ancestors_
     << this->data_.data();
