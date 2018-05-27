@@ -5,6 +5,7 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
+
 #include "hash.h"
 #include "vds_debug.h"
 #include "guid.h"
@@ -92,6 +93,23 @@ namespace vds {
 
       static const_data_buffer from_user_email(const std::string & user_email){
         return from_string("email:" + user_email);
+      }
+
+      static const_data_buffer my_record_channel(const std::string & user_email) {
+        return from_string("my.records.channel:" + user_email);
+      }
+
+      static std::string user_credentials_to_key(const std::string & user_email, const std::string & user_password) {
+        return user_credentials_to_key(
+          user_email,
+          hash::signature(hash::sha256(), user_password.c_str(), user_password.length()));
+      }
+
+      static std::string user_credentials_to_key(const std::string & user_email, const const_data_buffer & password_hash) {
+        auto ph = base64::from_bytes(password_hash);
+        return "credentials:"
+          + std::to_string(user_email.length()) + "." + user_email + ","
+          + std::to_string(ph.length()) + "." + ph;
       }
 
     private:

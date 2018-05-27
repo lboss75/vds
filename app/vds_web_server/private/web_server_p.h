@@ -43,6 +43,10 @@ namespace vds {
     std::shared_ptr<user_manager> get_secured_context(
         const service_provider & sp,
         const http_message &message) const;
+
+    std::shared_ptr<auth_session> get_session(
+      const service_provider & sp,
+      const http_message &message) const;
   };
 }
 

@@ -30,6 +30,10 @@ namespace vds {
           const service_provider & sp,
           const http_message& part);
 
+        async_task<> read_form_urlencoded(
+          const service_provider& sp, 
+          const http_message& message);
+
       private:
         std::shared_ptr<simple_form_parser> owner_;
         uint8_t buffer_[1024];

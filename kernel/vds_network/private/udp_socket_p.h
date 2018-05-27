@@ -618,8 +618,11 @@ namespace vds {
     }
 
     udp_socket & socket() { return this->socket_; }
-	const udp_socket & socket() const { return this->socket_; }
+	  const udp_socket & socket() const { return this->socket_; }
 
+    const network_address & address() const {
+      return this->address_;
+    }
   private:
     udp_socket socket_;
     network_address address_;

@@ -16,7 +16,7 @@ All rights reserved
 namespace vds {
   
   template <typename state_enum_type>
-  class state_machine
+  class state_machine : public std::enable_shared_from_this<state_machine<state_enum_type>>
   {
   public:
     state_machine(state_enum_type start_state)
@@ -26,14 +26,15 @@ namespace vds {
     
     async_task<> change_state(state_enum_type expected_state, state_enum_type new_state)
     {
-      return [this, expected_state, new_state](const async_result<> & result){
-        std::unique_lock<std::mutex> lock(this->state_mutex_);
-        if(expected_state == this->state_){
-          this->state_ = new_state;
-          auto p = this->state_expectants_.find(new_state);
-          if(this->state_expectants_.end() != p){
+      return [pthis = this->shared_from_this(), expected_state, new_state](const async_result<> & result){
+        std::unique_lock<std::mutex> lock(pthis->state_mutex_);
+        if(expected_state == pthis->state_){
+          pthis->state_ = new_state;
+          auto p = pthis->state_expectants_.find(new_state);
+          if(pthis->state_expectants_.end() != p){
             auto callback = p->second;
-            this->state_expectants_.erase(p);
+            pthis->state_expectants_.erase(p);
+            lock.unlock();
 
             callback.done();
           }
@@ -41,22 +42,22 @@ namespace vds {
           result.done();
         }
         else {
-          vds_assert(this->state_expectants_.end() == this->state_expectants_.find(expected_state));
-          this->state_expectants_[expected_state] = result;
+          vds_assert(pthis->state_expectants_.end() == pthis->state_expectants_.find(expected_state));
+          pthis->state_expectants_[expected_state] = result;
         }
       };
     }
 
     async_task<> wait(state_enum_type expected_state)
     {
-      return [this, expected_state](const async_result<> & result){
-        std::unique_lock<std::mutex> lock(this->state_mutex_);
-        if(expected_state == this->state_){
+      return [pthis = this->shared_from_this(), expected_state](const async_result<> & result){
+        std::unique_lock<std::mutex> lock(pthis->state_mutex_);
+        if(expected_state == pthis->state_){
           result.done();
         }
         else {
-          vds_assert(this->state_expectants_.end() == this->state_expectants_.find(expected_state));
-          this->state_expectants_[expected_state] = result;
+          vds_assert(pthis->state_expectants_.end() == pthis->state_expectants_.find(expected_state));
+          pthis->state_expectants_[expected_state] = result;
         }
       };
     }

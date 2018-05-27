@@ -108,6 +108,9 @@ namespace vds {
     operator bool () const  {
       return nullptr != this->impl_.get();
     }
+
+    const network_address & address() const;
+
 	bool operator ! () const {
 		return nullptr == this->impl_.get() || !this->socket();
 	}

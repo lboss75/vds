@@ -267,8 +267,8 @@ void vds::_network_service::thread_loop(const service_provider & sp)
               continue;
             }
 
-            if (0 != errorCode) {
-              throw std::system_error(errorCode, std::system_category(), "GetQueuedCompletionStatus");
+            if (0 != errorCode && ERROR_PORT_UNREACHABLE != errorCode) {
+              _socket_task::from_overlapped(pOverlapped)->error(errorCode);
             }
           }
           _socket_task::from_overlapped(pOverlapped)->process(dwBytesTransfered);

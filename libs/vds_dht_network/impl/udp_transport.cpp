@@ -103,7 +103,7 @@ vds::async_task<> vds::dht::network::udp_transport::try_handshake(const service_
   out_message += this->this_node_id_;
 
   return this->write_async(sp, udp_datagram(
-        network_address::parse(address),
+        network_address::parse(this->server_.address().family(), address),
         const_data_buffer(out_message.data(), out_message.size())));
 }
 

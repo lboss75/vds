@@ -10,6 +10,8 @@
 #include "http_simple_form_parser.h"
 #include "db_model.h"
 #include "file_operations.h"
+#include "private/auth_session.h"
+#include "dht_object_id.h"
 
 std::shared_ptr<vds::json_object> vds::api_controller::channel_serialize(
   const vds::user_channel & channel) {
@@ -33,34 +35,65 @@ vds::api_controller::get_channels(
   return std::static_pointer_cast<json_value>(result);
 }
 
-vds::async_task<vds::http_message> vds::api_controller::get_login_state(const service_provider& sp,
-  user_manager& user_mng, const std::shared_ptr<_web_server>& owner, const http_message& message) {
+vds::async_task<vds::http_message> vds::api_controller::get_login_state(
+  const service_provider& sp,
+  const std::string & login,
+  const std::string & password,
+  const std::shared_ptr<_web_server>& owner,
+  const http_message& message) {
 
-  return user_mng.update(sp).then([sp, &user_mng]() -> async_task<http_message> {
+  return sp.get<dht::network::client>()->restore_async(
+    sp,
+    dht::dht_object_id::user_credentials_to_key(login, password))
+    .then([sp, owner, login, password](uint8_t percent, const const_data_buffer & crypted_private_key) {
+    if (!crypted_private_key) {
+      auto item = std::make_shared<json_object>();
+      item->add_property("state", std::to_string(percent));
 
-    auto item = std::make_shared<json_object>();
-    switch (user_mng.get_login_state()) {
-    case user_manager::login_state_t::waiting_channel:
-      item->add_property("state", "waiting");
-      break;
-
-    case user_manager::login_state_t::login_sucessful:
-      item->add_property("state", "sucessful");
-      break;
-
-    case user_manager::login_state_t::login_failed:
-      item->add_property("state", "failed");
-      break;
-
-    default:
-      throw std::runtime_error("Invalid operation");
+      return vds::async_task<vds::http_message>::result(
+        http_response::simple_text_response(
+          sp,
+          item->json_value::str(),
+          "application/json; charset=utf-8"));
     }
 
-    return vds::async_task<vds::http_message>::result(
-      http_response::simple_text_response(
-        sp,
-        item->json_value::str(),
-        "application/json; charset=utf-8"));
+    auto session_id = guid::new_guid().str();
+    auto session = std::make_shared<auth_session>(login, password);
+    return session->load(sp, crypted_private_key).then([sp, session_id, session, owner]() {
+      owner->add_auth_session(session_id, session);
+
+      auto item = std::make_shared<json_object>();
+      item->add_property("state", "100");
+      item->add_property("url", "/");
+
+      const auto body = item->json_value::str();
+
+      http_response response(http_response::HTTP_OK, "OK");
+      response.add_header("Content-Type", "application/json; charset=utf-8");
+      response.add_header("Content-Length", std::to_string(body.length()));
+      response.add_header("Set-Cookie", "Auth=" + session_id + "; Path=/");
+
+      auto result = response.create_message(sp);
+      auto buffer = std::make_shared<std::string>(body);
+      result.body()->write_async((const uint8_t *)buffer->c_str(), buffer->length())
+        .execute(
+          [sp, result, buffer](const std::shared_ptr<std::exception> & ex) {
+        if (!ex) {
+          result.body()->write_async(nullptr, 0).execute(
+            [sp](const std::shared_ptr<std::exception> & ex) {
+            if (ex) {
+              sp.unhandled_exception(ex);
+            }
+          });
+        }
+        else {
+          sp.unhandled_exception(ex);
+        }
+      });
+
+      return result;
+    });
+
   });
 }
 

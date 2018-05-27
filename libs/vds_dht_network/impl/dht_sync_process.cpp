@@ -14,6 +14,7 @@ All rights reserved
 #include "messages/transaction_log_record.h"
 #include "messages/offer_replica.h"
 #include "transaction_log.h"
+#include "messages/got_replica.h"
 
 vds::async_task<> vds::dht::network::sync_process::query_unknown_records(const service_provider& sp, database_transaction& t) {
   std::map<const_data_buffer, std::vector<const_data_buffer>> record_ids;
@@ -264,31 +265,36 @@ vds::async_task<> vds::dht::network::sync_process::sync_replicas(
   }
 
   //Move replicas closer to root
-  auto result = async_task<>::empty();
-  for (auto & p : objects) {
-    std::map<vds::const_data_buffer /*distance*/, std::list<vds::const_data_buffer/*node_id*/>> neighbors;
-    client->neighbors(sp, p.first, neighbors, _client::GENERATE_HORCRUX);
+  return [sp, objects](const async_result<> & result) {
+    auto client = sp.get<dht::network::client>();
+    auto runner = new _async_series(result, objects.size());
 
-    for (auto & pneighbor : neighbors) {
-      if (pneighbor.first < std::get<0>(p.second)) {
-        for (auto & node : pneighbor.second) {
-          result = result.then([
-            client,
-              sp,
-              replica_hash = p.first,
-              target_node = node,
-              replica_data = std::get<1>(p.second)](){
-              client->send(sp, target_node, messages::offer_replica(
-                replica_hash,
-                replica_data,
-                client->current_node_id())).no_wait();
-            });
+    for (auto & p : objects) {
+      std::map<vds::const_data_buffer /*distance*/, std::list<vds::const_data_buffer/*node_id*/>> neighbors;
+      (*client)->neighbors(sp, p.first, neighbors, _client::GENERATE_HORCRUX);
+
+      auto result = async_task<>::empty();
+      for (auto & pneighbor : neighbors) {
+        if (pneighbor.first < std::get<0>(p.second)) {
+          for (auto & node : pneighbor.second) {
+            result = result.then([
+              client,
+                sp,
+                replica_hash = p.first,
+                target_node = node,
+                replica_data = std::get<1>(p.second)](){
+                return (*client)->send(sp, target_node, messages::offer_replica(
+                  replica_hash,
+                  replica_data,
+                  (*client)->current_node_id()));
+              });
+          }
+          break;
         }
-        break;
       }
+      runner->add(std::move(result));
     }
-  }
-  return result;
+  };
 }
 
 void vds::dht::network::sync_process::apply_message(

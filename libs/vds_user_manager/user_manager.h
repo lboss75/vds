@@ -20,24 +20,16 @@ namespace vds {
   class user_manager : public std::enable_shared_from_this<user_manager>
   {
   public:
-    enum class login_state_t {
-      waiting_channel,
-      login_sucessful,
-      login_failed
-    };
-
     user_manager();
     ~user_manager();
 
     async_task<> update(const service_provider & sp);
-    login_state_t get_login_state() const;
 
     void load(
       const service_provider & sp,
       class database_transaction &t,
       const const_data_buffer & dht_user_id,
-      const symmetric_key & user_password_key,
-      const const_data_buffer& user_password_hash);
+      const const asymmetric_private_key & user_password_key);
 
     member_user create_root_user(
       transactions::transaction_block_builder &log,
@@ -68,12 +60,12 @@ namespace vds {
         const std::string &root_password,
         const asymmetric_private_key &root_private_key);
 
-    async_task<> init_server(
-      const vds::service_provider &sp,
-      const std::string & root_user_name,
-      const std::string & user_password,
-      const std::string & device_name,
-      int port);
+    //async_task<> init_server(
+    //  const vds::service_provider &sp,
+    //  const std::string & root_user_name,
+    //  const std::string & user_password,
+    //  const std::string & device_name,
+    //  int port);
 
     certificate get_channel_write_cert(const service_provider & sp, const const_data_buffer &channel_id) const;
     asymmetric_private_key get_channel_write_key(const service_provider & sp, const const_data_buffer &channel_id) const;

@@ -16,10 +16,6 @@ namespace vds {
   class login_page
   {
   public:
-    static async_task<http_message> post(
-      const service_provider& sp,
-      const std::shared_ptr<_web_server> & owner,
-      const http_message& message);
   };
 }
 

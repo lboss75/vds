@@ -25,7 +25,7 @@ namespace vds {
         const std::function<async_task<>(const http_message &message)> &message_callback)
         : sp_(sp),
           message_callback_(message_callback),
-          message_state_(MessageStateEnum::MESSAGE_STATE_NONE),
+          message_state_(std::make_shared<state_machine<MessageStateEnum>>(MessageStateEnum::MESSAGE_STATE_NONE)),
           state_(StateEnum::STATE_PARSE_HEADER) {
     }
 
@@ -39,13 +39,13 @@ namespace vds {
         this->current_message_.body()->write_async(nullptr, 0)
           .then([pthis]() {
             auto this_ = static_cast<_http_form_part_parser *>(pthis.get());
-            return this_->message_state_.change_state(
+            return this_->message_state_->change_state(
               MessageStateEnum::MESSAGE_STATE_MESSAGE_STARTED,
               MessageStateEnum::MESSAGE_STATE_MESSAGE_BODY_FINISH);
         })
         .execute([](const std::shared_ptr<std::exception> &ex) {});
 
-        this->message_state_.wait(MessageStateEnum::MESSAGE_STATE_NONE).wait();
+        this->message_state_->wait(MessageStateEnum::MESSAGE_STATE_NONE).wait();
         this->state_ = StateEnum::STATE_PARSE_HEADER;
       } else {
 
@@ -57,7 +57,7 @@ namespace vds {
     }
 
     void reset() {
-      this->message_state_.wait(MessageStateEnum::MESSAGE_STATE_NONE).wait();
+      this->message_state_->wait(MessageStateEnum::MESSAGE_STATE_NONE).wait();
       this->state_ = StateEnum::STATE_PARSE_HEADER;
     }
 
@@ -71,7 +71,7 @@ namespace vds {
       MESSAGE_STATE_MESSAGE_BODY_FINISH,
       MESSAGE_STATE_FAILED
     };
-    state_machine<MessageStateEnum> message_state_;
+    std::shared_ptr<state_machine<MessageStateEnum>> message_state_;
 
     std::string parse_buffer_;
     std::list<std::string> headers_;
@@ -110,7 +110,7 @@ namespace vds {
             if (0 == this->parse_buffer_.length()) {
               http_message current_message(this->sp_, this->headers_);
 
-              this->message_state_.change_state(
+              this->message_state_->change_state(
                   MessageStateEnum::MESSAGE_STATE_NONE,
                   MessageStateEnum::MESSAGE_STATE_MESSAGE_STARTED).wait();
 
@@ -119,7 +119,7 @@ namespace vds {
                 this_->message_callback_(current_message)
                     .then([pthis]() {
                       auto this_ = static_cast<_http_form_part_parser *>(pthis.get());
-                      return this_->message_state_.change_state(
+                      return this_->message_state_->change_state(
                           MessageStateEnum::MESSAGE_STATE_MESSAGE_BODY_FINISH,
                           MessageStateEnum::MESSAGE_STATE_NONE);
                      })

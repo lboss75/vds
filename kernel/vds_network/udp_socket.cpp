@@ -158,6 +158,10 @@ const vds::udp_socket &vds::udp_server::socket() const{
 	return this->impl_->socket();
 }
 
+const vds::network_address& vds::udp_server::address() const {
+  return this->impl_->address();
+}
+
 void vds::udp_server::prepare_to_stop(const service_provider & sp) {
   this->impl_->prepare_to_stop(sp);
 }

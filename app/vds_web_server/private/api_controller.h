@@ -24,7 +24,8 @@ namespace vds {
 
     static async_task<http_message> get_login_state(
       const service_provider& sp,
-      user_manager& user_mng,
+      const std::string & login,
+      const std::string & password,
       const std::shared_ptr<_web_server>& owner,
       const http_message& message);
 

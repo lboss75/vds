@@ -73,6 +73,57 @@ vds::network_address vds::network_address::parse(const std::string& address) {
   return result;
 }
 
+vds::network_address vds::network_address::parse(sa_family_t family, const std::string& address) {
+  vds::network_address result;
+  url_parser::parse_addresses(
+    address,
+    [&result, family](const std::string &protocol, const std::string &address) -> bool {
+    if ("udp" == protocol || "udp6" == protocol) {
+      auto na = url_parser::parse_network_address(address);
+      if (na.protocol != "udp" && na.protocol != "udp6") {
+        throw std::invalid_argument("address");
+      }
+      switch (family) {
+        case AF_INET6: {
+          if ("udp" == na.protocol) {
+            result = network_address(
+              AF_INET6,
+              ("127.0.0.1" == na.server) ? "::1" : ("::ffff:" + na.server),
+              (uint16_t)atoi(na.port.c_str()));
+          }
+          else if ("udp6" == na.protocol) {
+              result = network_address(
+                AF_INET6,
+                na.server,
+                (uint16_t)atoi(na.port.c_str()));
+            }
+          break;
+        }
+        case AF_INET: {
+          if ("udp" == na.protocol) {
+            result = network_address(
+              AF_INET,
+              na.server,
+              (uint16_t)atoi(na.port.c_str()));
+          }
+          else if ("udp6" == na.protocol) {
+            throw std::runtime_error("Invalid addresss");
+          }
+          break;
+        }
+      }
+    }
+    else {
+      throw std::runtime_error("Invalid addresss");
+    }
+    return true;
+  });
+  if (!result) {
+    throw std::runtime_error("Invalid addresss");
+  }
+  return result;
+}
+
 std::string vds::network_address::server() const {
 //  char buffer[512];
 //

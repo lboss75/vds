@@ -30,7 +30,14 @@ vds::async_task<> vds::http::simple_form_parser::parse(const service_provider& s
       }
     }
     else {
-      throw std::runtime_error("Invalid content type " + content_type);
+      static const char form_urlencoded[] = "application/x-www-form-urlencoded;";
+      if (form_urlencoded == content_type.substr(0, sizeof(form_urlencoded) - 1)) {
+        auto task = std::make_shared<form_parser>(this->shared_from_this());
+        return task->read_form_urlencoded(sp, message);
+      }
+      else {
+        throw std::runtime_error("Invalid content type " + content_type);
+      }
     }
   }
   else {
@@ -108,6 +115,30 @@ vds::async_task<> vds::http::simple_form_parser::form_parser::read_part(const se
     }
 
     return pthis->read_part(sp, part);
+  });
+}
+
+vds::async_task<> vds::http::simple_form_parser::form_parser::read_form_urlencoded(const service_provider& sp,
+  const http_message& message) {
+  auto buffer = std::make_shared<std::string>();
+  return this->read_string_body(buffer, message)
+  .then([buffer, pthis = this->shared_from_this()]() {
+    auto items = split_string(*buffer, '&', true);
+    std::map<std::string, std::string> values;
+    for (const auto & item : items) {
+      auto p = item.find('=');
+      if (std::string::npos != p) {
+        auto value = item.substr(p + 1);
+        if (!value.empty()
+          && value[0] == '\"'
+          && value[value.length() - 1] == '\"') {
+          value.erase(0, 1);
+          value.erase(value.length() - 1, 1);
+        }
+
+        pthis->owner_->values_[item.substr(0, p)] = http_parser::url_unescape(value);
+      }
+    }
   });
 }
 

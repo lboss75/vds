@@ -31,13 +31,7 @@ namespace vds {
 
     _user_manager(
         const const_data_buffer &dht_user_id,
-        const symmetric_key &user_password_key,
-        const const_data_buffer &user_password_hash);
-
-    user_manager::login_state_t get_login_state() const {
-      return this->login_state_;
-    }
-
+        const asymmetric_private_key & user_password_key);
 
     const const_data_buffer &dht_user_id() const {
       return this->dht_user_id_;
@@ -196,14 +190,11 @@ namespace vds {
 
   private:
     const_data_buffer dht_user_id_;
-    symmetric_key user_password_key_;
-    const_data_buffer user_password_hash_;
-    user_manager::login_state_t login_state_;
+    asymmetric_private_key user_private_key_;
 
     std::set<std::string> processed_;
     certificate user_cert_;
     std::string user_name_;
-    asymmetric_private_key user_private_key_;
     std::map<const_data_buffer, channel_info> channels_;
     std::map<std::string, certificate> certificate_chain_;
   };

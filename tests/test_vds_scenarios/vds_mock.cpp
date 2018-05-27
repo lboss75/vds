@@ -337,19 +337,28 @@ vds::const_data_buffer vds_mock::upload_file(
 
   vds::mt_service::enable_async(sp);
   auto user_mng = std::make_shared<vds::user_manager>();
-  this->servers_[client_index]->get<vds::db_model>()->async_transaction(
+  sp.get<vds::dht::network::client>()->restore(
     sp,
-    [this, sp, user_mng, name, channel_id, mimetype, input_stream](vds::database_transaction & t) -> bool {
-
-    user_mng->load(
+    vds::dht::dht_object_id::user_credentials_to_key(this->root_login_, this->root_password_))
+    .then([sp, this, user_mng](const vds::const_data_buffer & crypted_private_key)->vds::async_task<> {
+    auto user_private_key = vds::asymmetric_private_key::parse_der(
+      vds::symmetric_decrypt::decrypt(
+        vds::symmetric_key::from_password(this->root_password_),
+        crypted_private_key), std::string());
+      return sp.get<vds::db_model>()->async_transaction(
       sp,
-      t,
-      vds::dht::dht_object_id::from_user_email(this->root_login_),
-      vds::symmetric_key::from_password(this->root_password_),
-      vds::hash::signature(vds::hash::sha256(), this->root_password_.c_str(), this->root_password_.length()));
+      [this, sp, user_mng, user_private_key](vds::database_transaction & t) -> bool {
 
-    return true;
-  }).then([this, sp, name, channel_id, mimetype, input_stream, user_mng]() {
+      user_mng->load(
+        sp,
+        t,
+        vds::dht::dht_object_id::from_user_email(this->root_login_),
+        user_private_key);
+
+      return true;
+    });
+  })
+  .then([sp, name, channel_id, mimetype, input_stream, user_mng]() {
 
     return sp.get<vds::file_manager::file_operations>()->upload_file(
         sp,
@@ -410,22 +419,31 @@ vds_mock::download_data(
 
 vds::user_channel vds_mock::create_channel(int index, const std::string &name) {
   vds::user_channel result;
-  vds::barrier b;
-  std::shared_ptr<std::exception> error;
   auto sp = this->servers_[index]->get_service_provider().create_scope(__FUNCTION__);
   vds::mt_service::enable_async(sp);
-  this->servers_[index]->get<vds::db_model>()->async_transaction(
+  vds::user_channel result;
+
+  auto user_mng = std::make_shared<vds::user_manager>();
+  sp.get<vds::dht::network::client>()->restore(
+    sp,
+    vds::dht::dht_object_id::user_credentials_to_key(this->root_login_, this->root_password_))
+    .then([sp, this, user_mng](const vds::const_data_buffer & crypted_private_key)->vds::async_task<> {
+    auto user_private_key = vds::asymmetric_private_key::parse_der(
+      vds::symmetric_decrypt::decrypt(
+        vds::symmetric_key::from_password(this->root_password_),
+        crypted_private_key), std::string());
+    return sp.get<vds::db_model>()->async_transaction(
       sp,
-      [this, sp, index, name, &result](vds::database_transaction & t) -> bool{
+      [this, sp, user_mng, user_private_key](vds::database_transaction & t) -> bool {
 
-      auto user_mng = std::make_shared<vds::user_manager>();
       user_mng->load(
-          sp,
-          t,
-          vds::dht::dht_object_id::from_user_email(this->root_login_),
-          vds::symmetric_key::from_password(this->root_password_),
-          vds::hash::signature(vds::hash::sha256(), this->root_password_.c_str(), this->root_password_.length()));
-
+        sp,
+        t,
+        vds::dht::dht_object_id::from_user_email(this->root_login_),
+        user_private_key);
+    });
+  })
+  .then([sp, user_mng, name, &result](){
     auto read_private_key = vds::asymmetric_private_key::generate(
         vds::asymmetric_crypto::rsa4096());
     auto write_private_key = vds::asymmetric_private_key::generate(
@@ -446,17 +464,7 @@ vds::user_channel vds_mock::create_channel(int index, const std::string &name) {
       user_mng->get_current_user_private_key());
 
     return true;
-  }).execute([&b, &error](const std::shared_ptr<std::exception> & ex){
-    if(ex){
-      error = ex;
-    }
-    b.set();
-  });
-
-  b.wait();
-  if(error){
-    throw std::runtime_error(error->what());
-  }
+  }).wait();
 
   return result;
 }

@@ -150,19 +150,14 @@ vds::async_task<vds::http_message> vds::_web_server::route(
     }
   }
 
-  if (request.url() == "/api/login_state" && request.method() == "GET") {
-    auto user_mng = this->get_secured_context(sp, message);
-    if (!user_mng) {
-      return vds::async_task<vds::http_message>::result(
-        http_response::status_response(
-          sp,
-          http_response::HTTP_Unauthorized,
-          "Unauthorized"));
-    }
+  if (request.url() == "/api/try_login" && request.method() == "GET") {
+    const auto login = request.get_parameter("login");
+    const auto password = request.get_parameter("password");
 
     return api_controller::get_login_state(
       sp,
-      *user_mng,
+      login,
+      password,
       this->shared_from_this(),
       message);
   }
@@ -356,10 +351,23 @@ vds::async_task<vds::http_message> vds::_web_server::route(
       message);  
   }
 
+  if (request.url() == "/login" && request.method() == "GET") {
+    return vds::async_task<vds::http_message>::result(this->router_.route(sp, message, "/login"));
+  }
+
   if (request.url() == "/" && request.method() == "GET") {
     const auto user_mng = this->get_secured_context(sp, message);
     if (nullptr == user_mng) {
-      return vds::async_task<vds::http_message>::result(this->router_.route(sp, message, "/login"));
+      http_response response(302, "Found");
+      response.add_header("Location", "/login");
+      auto result = response.create_message(sp);
+      result.body()->write_async(nullptr, 0).execute(
+        [sp](const std::shared_ptr<std::exception> &ex) {
+        if (ex) {
+          sp.unhandled_exception(ex);
+        }
+      });
+      return vds::async_task<vds::http_message>::result(result);
     }
     else {
       return vds::async_task<vds::http_message>::result(this->router_.route(sp, message, "/index"));
@@ -368,10 +376,6 @@ vds::async_task<vds::http_message> vds::_web_server::route(
 
   if (request.url() == "/register" && request.method() == "POST") {
     return register_page::post(sp, this->shared_from_this(), message);
-  }
-
-  if (request.url() == "/login" && request.method() == "POST") {
-    return login_page::post(sp, this->shared_from_this(), message);
   }
 
   if (request.url() == "/api/statistics") {
@@ -417,31 +421,41 @@ void vds::_web_server::add_auth_session(
 
 }
 
-std::shared_ptr<vds::user_manager> vds::_web_server::get_secured_context(
-    const service_provider & sp,
-    const vds::http_message &message) const {
+std::shared_ptr<vds::auth_session> vds::_web_server::get_session(
+  const service_provider & sp,
+  const vds::http_message &message) const {
 
   std::string cookie_value;
-  if(message.get_header("Cookie", cookie_value) && !cookie_value.empty()) {
+  if (message.get_header("Cookie", cookie_value) && !cookie_value.empty()) {
     for (auto item : split_string(cookie_value, ';', true)) {
       auto p = item.find('=');
-      if(std::string::npos != p) {
+      if (std::string::npos != p) {
         auto name = item.substr(0, p);
-        if("Auth" == name) {
+        if ("Auth" == name) {
           auto session_id = item.substr(p + 1);
           trim(session_id);
 
           std::shared_lock<std::shared_mutex> lock(this->auth_session_mutex_);
           auto p = this->auth_sessions_.find(session_id);
-          if(this->auth_sessions_.end() != p){
-            auto session = p->second;
-            lock.unlock();
-
-            return session->get_secured_context(sp);
+          if (this->auth_sessions_.end() != p) {
+            return p->second;
           }
         }
       }
     }
+  }
+
+  return nullptr;
+}
+
+std::shared_ptr<vds::user_manager> vds::_web_server::get_secured_context(
+  const service_provider & sp,
+  const vds::http_message &message) const {
+
+  auto session = this->get_session(sp, message);
+
+  if (session) {
+    return session->get_secured_context(sp);
   }
 
   return nullptr;

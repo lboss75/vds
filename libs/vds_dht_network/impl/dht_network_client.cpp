@@ -2,8 +2,6 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
-#include <well_known_node_dbo.h>
-#include <url_parser.h>
 #include "stdafx.h"
 #include "dht_network_client.h"
 #include "private/dht_network_client_p.h"
@@ -19,6 +17,9 @@ All rights reserved
 #include "inflate.h"
 #include "vds_exceptions.h"
 #include "local_data_dbo.h"
+#include "messages/offer_replica.h"
+#include "well_known_node_dbo.h"
+#include "url_parser.h"
 
 vds::dht::network::_client::_client(
     const service_provider & sp,
@@ -51,7 +52,7 @@ std::vector<vds::const_data_buffer> vds::dht::network::_client::save(
             t1.replica_data = replica_data,
             t1.last_sync = std::chrono::system_clock::now() - std::chrono::hours(24)
         ));
-    result.push_back(replica_id);
+    result[replica] = replica_id;
   }
 
   return result;
@@ -66,11 +67,20 @@ void vds::dht::network::_client::save(
     binary_serializer s;
     this->generators_.find(replica)->second->write(s, value.data(), value.size());
     const auto replica_data = s.data();
+    const auto id = base64::from_bytes(replica_id(name, replica));
+
+    sp.get<logger>()->trace(
+      ThisModule,
+      sp,
+      "save replica %s[%d]: %s",
+      name.c_str(),
+      replica,
+      id.c_str());
 
     orm::chunk_replicas_dbo t1;
     t.execute(
       t1.insert(
-        t1.id = base64::from_bytes(replica_id(name, replica)),
+        t1.id = id,
         t1.replica_data = replica_data,
         t1.last_sync = std::chrono::system_clock::now() - std::chrono::hours(24)
       ));
@@ -347,63 +357,30 @@ vds::async_task<> vds::dht::network::_client::restore(
   return this->restore(sp, replica_hashes, result, start);
 }
 
+vds::async_task<uint8_t> vds::dht::network::_client::restore_async(
+  const vds::service_provider &sp,
+  const std::string & name,
+  const std::shared_ptr<vds::const_data_buffer> &result) {
+
+  std::vector<vds::const_data_buffer> replica_hashes;
+  for (uint16_t replica = 0; replica < GENERATE_HORCRUX; ++replica) {
+    replica_hashes.push_back(replica_id(name, replica));
+  }
+
+  return this->restore_async(sp, replica_hashes, result);
+}
+
 vds::async_task<> vds::dht::network::_client::restore(
     const vds::service_provider &sp,
     const std::vector<vds::const_data_buffer> &replica_hashes,
     const std::shared_ptr<vds::const_data_buffer> &result,
     const std::chrono::steady_clock::time_point &start) {
 
-  auto result_task = std::make_shared<async_task<>>(async_task<>::empty());
-  return sp.get<db_model>()->async_read_transaction(
-          sp,
-          [pthis = this->shared_from_this(), sp, replica_hashes, result, result_task](database_transaction &t) -> bool {
-
-            std::vector<uint16_t> replicas;
-            std::vector<const_data_buffer> datas;
-            std::list<const_data_buffer> unknonw_replicas;
-
-            orm::chunk_replicas_dbo t1;
-            for (uint16_t replica = 0; replica < GENERATE_HORCRUX; ++replica) {
-              auto st = t.get_reader(
-                  t1
-                      .select(t1.replica_data)
-                      .where(t1.id == base64::from_bytes(replica_hashes[replica])));
-
-              if (st.execute()) {
-                replicas.push_back(replica);
-                datas.push_back(t1.replica_data.get(st));
-
-
-                if (replicas.size() >= MIN_HORCRUX) {
-                  break;
-                }
-              } else {
-                unknonw_replicas.push_back(replica_hashes[replica]);
-              }
-            }
-
-            if (replicas.size() >= MIN_HORCRUX) {
-              chunk_restore <uint16_t> restore(MIN_HORCRUX, replicas.data());
-              binary_serializer s;
-              restore.restore(s, datas);
-              *result = s.data();
-              return true;
-            }
-
-            for (const auto &replica : unknonw_replicas) {
-              *result_task = result_task->then([pthis, sp, replica]() {
-                return pthis->send(
-                    sp,
-                    replica,
-                    messages::replica_request(replica, pthis->current_node_id()));
-              });
-            }
-            return true;
-          })
-      .then([result_task]() -> async_task<> {
-        return std::move(*result_task);
-      })
-      .then([result, pthis = this->shared_from_this(), sp, replica_hashes, start]() -> async_task<> {
+  return this->restore_async(
+    sp,
+    replica_hashes,
+    result)
+      .then([result, pthis = this->shared_from_this(), sp, replica_hashes, start](uint8_t progress) -> async_task<> {
         if (result->size() > 0) {
           return async_task<>::empty();
         }
@@ -414,6 +391,70 @@ vds::async_task<> vds::dht::network::_client::restore(
 
         return pthis->restore(sp, replica_hashes, result, start);
       });
+}
+
+vds::async_task<uint8_t> vds::dht::network::_client::restore_async(
+  const vds::service_provider &sp,
+  const std::vector<vds::const_data_buffer> &replica_hashes,
+  const std::shared_ptr<vds::const_data_buffer> &result) {
+
+  auto result_progress = std::make_shared<uint8_t>();
+  auto result_task = std::make_shared<async_task<>>(async_task<>::empty());
+  return sp.get<db_model>()->async_read_transaction(
+    sp,
+    [pthis = this->shared_from_this(), sp, replica_hashes, result, result_task, result_progress](database_transaction &t) -> bool {
+
+    std::vector<uint16_t> replicas;
+    std::vector<const_data_buffer> datas;
+    std::list<const_data_buffer> unknonw_replicas;
+
+    orm::chunk_replicas_dbo t1;
+    for (uint16_t replica = 0; replica < GENERATE_HORCRUX; ++replica) {
+      auto st = t.get_reader(
+        t1
+        .select(t1.replica_data)
+        .where(t1.id == base64::from_bytes(replica_hashes[replica])));
+
+      if (st.execute()) {
+        replicas.push_back(replica);
+        datas.push_back(t1.replica_data.get(st));
+
+
+        if (replicas.size() >= MIN_HORCRUX) {
+          break;
+        }
+      }
+      else {
+        unknonw_replicas.push_back(replica_hashes[replica]);
+      }
+    }
+
+    if (replicas.size() >= MIN_HORCRUX) {
+      chunk_restore <uint16_t> restore(MIN_HORCRUX, replicas.data());
+      binary_serializer s;
+      restore.restore(s, datas);
+      *result = s.data();
+      *result_progress = 100;
+      return true;
+    }
+
+    *result_progress = 99 * replicas.size() / MIN_HORCRUX;
+    for (const auto &replica : unknonw_replicas) {
+      *result_task = result_task->then([pthis, sp, replica]() {
+        pthis->send(
+          sp,
+          replica,
+          messages::replica_request(replica, pthis->current_node_id())).no_wait();
+      });
+    }
+    return true;
+  })
+    .then([result_task]() -> async_task<> {
+    return std::move(*result_task);
+  })
+    .then([pthis = this->shared_from_this(), result_progress]() {
+    return *result_progress;
+  });
 }
 
 vds::async_task<>
@@ -499,6 +540,11 @@ vds::dht::network::client::chunk_info vds::dht::network::client::save(
   };
 }
 
+void vds::dht::network::client::save(const service_provider& sp, database_transaction& t, const std::string& key,
+  const const_data_buffer& value) {
+  this->impl_->save(sp, t, key, value);
+}
+
 vds::async_task<vds::const_data_buffer> vds::dht::network::client::restore(
     const vds::service_provider &sp,
     const vds::dht::network::client::chunk_info &block_id) {
@@ -517,6 +563,24 @@ vds::async_task<vds::const_data_buffer> vds::dht::network::client::restore(
     vds_assert(block_id.id == hash::signature(hash::sha256(), original_data));
 
     return original_data;
+  });
+}
+
+vds::async_task<vds::const_data_buffer> vds::dht::network::client::restore(const service_provider& sp,
+  const std::string& key) {
+  auto result = std::make_shared<const_data_buffer>();
+  return this->impl_->restore(sp, key, result, std::chrono::steady_clock::now())
+  .then([result]() {
+    return *result;
+  });
+}
+
+vds::async_task<uint8_t, vds::const_data_buffer> vds::dht::network::client::restore_async(
+  const service_provider& sp, const std::string& key) {
+  auto result = std::make_shared<const_data_buffer>();
+  return this->impl_->restore_async(sp, key, result)
+    .then([result](uint8_t percent) {
+    return vds::async_task<uint8_t, vds::const_data_buffer>::result(percent, *result);
   });
 }
 

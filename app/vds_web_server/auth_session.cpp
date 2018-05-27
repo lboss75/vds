@@ -24,14 +24,13 @@ vds::async_task<> vds::auth_session::create_user(const vds::service_provider &sp
   });
 }
 
-vds::async_task<> vds::auth_session::load(const service_provider& sp) {
-  return sp.get<db_model>()->async_transaction(sp, [sp, pthis = this->shared_from_this()](database_transaction & t) {
-    pthis->user_mng_->load(
-      sp,
-      t, 
-      dht::dht_object_id::from_user_email(pthis->login_),
-      pthis->password_key_,
-      pthis->password_hash_
-    );
+vds::async_task<> vds::auth_session::load(const service_provider& sp, const const_data_buffer & crypted_private_key) {
+
+  return sp.get<db_model>()->async_transaction(sp, [sp, pthis = this->shared_from_this(), crypted_private_key](database_transaction & t) {
+      pthis->user_mng_->load(
+        sp,
+        t,
+        dht::dht_object_id::from_user_email(pthis->login_),
+        asymmetric_private_key::parse_der(symmetric_decrypt::decrypt(pthis->password_key_, crypted_private_key), std::string()));
   });
 }

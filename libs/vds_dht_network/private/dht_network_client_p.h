@@ -10,13 +10,13 @@ All rights reserved
 #include "dht_session.h"
 #include "dht_route.h"
 #include "chunk.h"
-#include "messages/replica_request.h"
 #include "dht_sync_process.h"
 #include "udp_transport.h"
 
 namespace vds {
   namespace dht {
     namespace messages {
+      class replica_request;
       class dht_pong;
       class dht_ping;
       class transaction_log_record;
@@ -137,6 +137,16 @@ namespace vds {
             const std::string & name,
             const std::shared_ptr<const_data_buffer> &result,
             const std::chrono::steady_clock::time_point &start);
+
+        async_task<uint8_t> restore_async(
+          const service_provider &sp,
+          const std::vector<const_data_buffer> & replica_hashes,
+          const std::shared_ptr<const_data_buffer> & result);
+
+        async_task<uint8_t> restore_async(
+          const service_provider &sp,
+          const std::string & name,
+          const std::shared_ptr<const_data_buffer> &result);
 
         void get_route_statistics(route_statistic& result);
         void get_session_statistics(session_statistic& session_statistic);

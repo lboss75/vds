@@ -40,11 +40,11 @@ namespace vds {
     user_channel();
 
     user_channel(
-        const const_data_buffer & id,
-        channel_type_t channel_type,
-		    const std::string & name,
-		    const vds::certificate & read_cert,
-        const vds::certificate & write_cert);
+      const const_data_buffer & id,
+      channel_type_t channel_type,
+      const std::string & name,
+      const vds::certificate & read_cert,
+      const vds::certificate & write_cert);
 
 
     const const_data_buffer &id() const;
@@ -53,30 +53,42 @@ namespace vds {
     const vds::certificate & read_cert() const;
     const vds::certificate & write_cert() const;
 
-	void add_reader(
-		transactions::transaction_block_builder& playback,
-		const member_user& member_user,
-		const vds::member_user& owner_user,
-		const asymmetric_private_key& owner_private_key,
-		const asymmetric_private_key& channel_read_private_key) const;
+    void add_reader(
+      transactions::transaction_block_builder& playback,
+      const member_user& member_user,
+      const vds::member_user& owner_user,
+      const asymmetric_private_key& owner_private_key,
+      const asymmetric_private_key& channel_read_private_key) const;
 
-	void add_writer(
-		transactions::transaction_block_builder& playback,
-		const member_user& member_user,
-		const vds::member_user& owner_user,
-		const asymmetric_private_key& owner_private_key,
-		const asymmetric_private_key& channel_write_private_key) const;
+    void add_writer(
+      transactions::transaction_block_builder& playback,
+      const member_user& member_user,
+      const vds::member_user& owner_user,
+      const asymmetric_private_key& owner_private_key,
+      const asymmetric_private_key& channel_write_private_key) const;
 
-		bool operator !() const {
-			return nullptr == this->impl_.get();
-		}
+    bool operator !() const {
+      return nullptr == this->impl_.get();
+    }
 
 
   private:
     std::shared_ptr<class _user_channel> impl_;
   };
-}
 
+  inline user_channel::channel_type_t string2channel_type(const std::string & val) {
+    if ("a" == val) {
+      return  vds::user_channel::channel_type_t::account_channel;
+    }
+    if ("p" == val) {
+      return vds::user_channel::channel_type_t::personal_channel;
+    }
+    if ("n" == val) {
+      return vds::user_channel::channel_type_t::notes_channel;
+    }
+    throw std::runtime_error("Invalid value");
+  }
+}
 namespace std {
   inline string to_string(vds::user_channel::channel_type_t val) {
     switch (val) {

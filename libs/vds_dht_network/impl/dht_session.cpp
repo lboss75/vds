@@ -14,6 +14,8 @@ All rights reserved
 #include "messages/dht_ping.h"
 #include "messages/dht_pong.h"
 #include "messages/replica_request.h"
+#include "messages/transaction_log_state.h"
+#include "messages/offer_replica.h"
 
 vds::dht::network::dht_session::dht_session(
   const network_address& address,

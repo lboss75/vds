@@ -344,7 +344,8 @@ void vds::file_manager_private::_file_operations::download_stream(
   auto network_client = sp.get<dht::network::client>();
   network_client->restore(sp, dht::network::client::chunk_info {
       file_blocks.begin()->block_id,
-      file_blocks.begin()->block_key })
+      file_blocks.begin()->block_key,
+      file_blocks.begin()->replica_hashes })
       .execute([pthis = this->shared_from_this(), sp, target_stream, file_blocks](const std::shared_ptr<std::exception> & ex, const const_data_buffer & data){
     if(ex){
       target_stream->write_async(nullptr, 0).execute([](const std::shared_ptr<std::exception> & ){});

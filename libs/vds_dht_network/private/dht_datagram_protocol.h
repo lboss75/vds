@@ -41,6 +41,7 @@ namespace vds {
           const std::shared_ptr<transport_type> & s,
           uint8_t message_type,
           const const_data_buffer & message) {
+          vds_assert(message.size() < 0xFFFF);
 
           return [sp, s, message_type, message, pthis = this->shared_from_this()](const async_result<> & result_callback) {
             std::unique_lock<std::mutex> lock(pthis->send_mutex_);

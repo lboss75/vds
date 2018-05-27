@@ -7,10 +7,8 @@
 
         <title>VDS</title>
 
-         <!-- Bootstrap CSS CDN -->
-        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
-        <!-- Our Custom CSS -->
-        <link rel="stylesheet" href="style.css">
+        <link rel="stylesheet" href="/bootstrap-4.1.0/css/bootstrap.min.css">
+        <link rel="stylesheet" href="/style.css">
     </head>
     <body>
 
@@ -56,37 +54,6 @@
                         </div>
                     </div>
                 </nav>
-                <div id="chat_feed" style="display: none" class="row">
-                    <div class="panel panel-primary">
-                        <div class="panel-collapse collapse in" id="collapseOne" style="">
-                            <div class="panel-body">
-                                <ul id="feed_records"></ul>
-                            </div>
-                            <div class="panel-footer">
-                                <form id="send-message" method="post" action="upload" role="form" enctype="multipart/form-data">
-                                    <input id="channel_id" name="channel_id" type="hidden" />
-                                    <textarea id="form_message" name="message" class="form-control input-sm" placeholder="Message for me *" rows="4" required="required" data-error="Please,leave us a message."></textarea>
-                                    <div class="help-block with-errors"></div>
-                                    <div class="input-group">
-                                        <label class="input-group-btn">
-
-                                            <span class="btn btn-primary">
-                                                Выбрать&hellip; <input name="attachment[]" type="file" style="display: none;" multiple>
-                                            </span>
-                                        </label>
-                                        <input type="text" class="form-control" readonly>
-                                        <span class="input-group-btn">
-                                            <input type="submit" class="btn btn-success btn-send" value="Отправить">
-                                        </span>
-                                    </div>
-                                    <span class="help-block">
-                                        Выберите файлы
-                                    </span>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-                </div>
                 <div id="chat_feed" style="display: none">
                     <div class="col-lg-6 col-sm-6 col-12">
                         <ul id="feed_records"></ul>
@@ -212,10 +179,8 @@
             </div>
         </div>
 
-        <!-- jQuery CDN -->
-         <script src="https://code.jquery.com/jquery-1.12.0.min.js"></script>
-         <!-- Bootstrap Js CDN -->
-         <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+        <script src="/js/jquery-3.3.1.min.js"></script>
+        <script src="/bootstrap-4.1.0/js/bootstrap.min.js"></script>
 
          <script type="text/javascript">
              $(document).ready(function () {

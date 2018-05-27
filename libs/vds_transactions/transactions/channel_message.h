@@ -24,14 +24,24 @@ namespace vds {
           const std::string &write_cert_subject,
           const const_data_buffer &crypted_key,
           const const_data_buffer &crypted_data,
-          const const_data_buffer &signature)
+          const asymmetric_private_key & write_key)
           : channel_id_(channel_id),
             channel_read_cert_subject_(channel_read_cert_subject),
             write_cert_subject_(write_cert_subject),
             crypted_key_(crypted_key),
-            crypted_data_(crypted_data),
-            signature_(signature)
-      {}
+            crypted_data_(crypted_data){
+
+        binary_serializer s;
+        s
+          << (uint8_t)message_id
+          << this->channel_id_
+          << this->channel_read_cert_subject_
+          << this->write_cert_subject_
+          << this->crypted_key_
+          << this->crypted_data_;
+
+        this->signature_ = asymmetric_sign::signature(hash::sha256(), write_key, s.data().data(), s.size());
+      }
 
       channel_message(binary_deserializer & s){
         s

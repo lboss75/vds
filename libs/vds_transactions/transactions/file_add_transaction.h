@@ -19,6 +19,7 @@ namespace vds {
 			struct file_block_t {
 				const_data_buffer block_id;
 				const_data_buffer block_key;
+        std::vector<const_data_buffer> replica_hashes;
         size_t block_size;
 			};
 
@@ -72,14 +73,14 @@ namespace vds {
 inline vds::binary_serializer & operator << (
 	vds::binary_serializer & s,
 	const vds::transactions::file_add_transaction::file_block_t & data) {
-	s << data.block_id << data.block_key << data.block_size;
+	s << data.block_id << data.block_key << data.replica_hashes << data.block_size;
   return s;
 }
 
 inline vds::binary_deserializer & operator >> (
 	vds::binary_deserializer & s,
 	vds::transactions::file_add_transaction::file_block_t & data) {
-	s >> data.block_id >> data.block_key >> data.block_size;
+	s >> data.block_id >> data.block_key >> data.replica_hashes >> data.block_size;
   return s;
 }
 

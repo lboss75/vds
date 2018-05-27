@@ -22,7 +22,8 @@ namespace vds {
     async_task<> create_user(const service_provider & sp);
 
     async_task<> load(
-      const service_provider & sp);
+      const service_provider & sp,
+      const const_data_buffer & crypted_private_key);
 
     const std::shared_ptr<user_manager> & get_secured_context(
         const service_provider & sp) const {

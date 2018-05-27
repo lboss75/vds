@@ -38,7 +38,7 @@ namespace vds {
 		  in_handler,
 		  eof
 	  };
-	  state_machine<state_t> current_state_;
+    std::shared_ptr<state_machine<state_t>> current_state_;
 		bool is_shuting_down_;
     void execute(const service_provider& sp);
     void schedule(const service_provider& sp);

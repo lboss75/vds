@@ -1,11 +1,7 @@
 #ifndef __VDS_DHT_NETWORK_DTH_SYNC_PROCESS_H_
 #define __VDS_DHT_NETWORK_DTH_SYNC_PROCESS_H_
 
-#include <messages/got_replica.h>
-#include "service_provider.h"
 #include "database.h"
-#include "messages/offer_replica.h"
-#include "messages/transaction_log_state.h"
 
 /*
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
@@ -15,8 +11,11 @@ All rights reserved
 namespace vds {
   namespace dht {
     namespace messages {
+      class offer_replica;
+      class transaction_log_state;
       class transaction_log_record;
       class transaction_log_request;
+      class got_replica;
     }
   }
 }

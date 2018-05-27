@@ -42,23 +42,18 @@ namespace vds {
 
         auto key = symmetric_key::generate(symmetric_crypto::aes_256_cbc());
 
-        binary_serializer item_data;
-        item.serialize(item_data);
-
         binary_serializer s;
         s
-          << (uint8_t)item_type::message_id
-          << channel_id
-          << symmetric_encrypt::encrypt(key, item_data.data().data(), item_data.size());
-        key.serialize(s);
+          << (uint8_t)item_type::message_id;
+        item.serialize(s);
 
         channel_message(
           channel_id,
           channel_read_cert.subject(),
           write_cert.subject(),
           channel_read_cert.public_key().encrypt(key.serialize()),
-          s.data(),
-          asymmetric_sign::signature(hash::sha256(), write_key, s.data().data(), s.size()))
+          symmetric_encrypt::encrypt(key, s.data().data(), s.data().size()),
+          write_key)
         .serialize(this->data_);
       }
 

@@ -17,12 +17,11 @@ All rights reserved
 #include "channel_create_transaction.h"
 #include "channel_add_reader_transaction.h"
 #include "channel_add_writer_transaction.h"
-#include "user_channel_create_transaction.h"
-#include "transaction_log.h"
 #include "db_model.h"
 #include "certificate_chain_dbo.h"
 #include "dht_object_id.h"
-#include "channel_local_cache_dbo.h"
+#include "dht_network_client.h"
+#include "../vds_dht_network/private/dht_network_client_p.h"
 
 vds::user_manager::user_manager(){
 }
@@ -37,16 +36,11 @@ vds::async_task<> vds::user_manager::update(const service_provider& sp) {
   });
 }
 
-vds::user_manager::login_state_t vds::user_manager::get_login_state() const {
-  return this->impl_->get_login_state();
-}
-
 void vds::user_manager::load(
   const service_provider & sp,
   database_transaction & t,
   const const_data_buffer & dht_user_id,
-  const symmetric_key & user_password_key,
-  const const_data_buffer& user_password_hash)
+  const asymmetric_private_key & user_password_key)
 {
 	if (nullptr != this->impl_.get()) {
 		throw std::runtime_error("Logic error");
@@ -54,8 +48,7 @@ void vds::user_manager::load(
 
 	this->impl_.reset(new _user_manager(
 		dht_user_id,
-		user_password_key,
-    user_password_hash));
+    user_password_key));
 
 	this->impl_->update(sp, t);
 }
@@ -69,9 +62,20 @@ void vds::user_manager::reset(
 
   auto playback = transactions::transaction_block_builder::create_root_block();
 
+  auto client = std::make_shared<dht::network::_client>(sp, const_data_buffer());
+  client->save(
+    sp,
+    t,
+    dht::dht_object_id::user_credentials_to_key(root_user_name, root_password),
+    root_private_key.der(root_password));
+
   //Create root user
-  auto root_user = this->create_root_user(playback, t, root_user_name, root_password,
-                                          root_private_key);
+  auto root_user = this->create_root_user(
+    playback,
+    t,
+    root_user_name,
+    root_password,
+    root_private_key);
 
   sp.get<logger>()->info(ThisModule, sp, "Create root user %s", 
 	  root_user.user_certificate().subject().c_str());
@@ -85,7 +89,7 @@ void vds::user_manager::reset(
     sp,
     playback,
     t,
-    vds::dht::dht_object_id::generate_random_id(),
+    vds::dht::dht_object_id::my_record_channel(root_user_name),
     user_channel::channel_type_t::notes_channel,
     "My Records",
     root_user.user_certificate(),
@@ -103,23 +107,23 @@ void vds::user_manager::reset(
       root_private_key);
 }
 
-vds::async_task<> vds::user_manager::init_server(
-	const service_provider & parent_sp,
-	const std::string &root_user_name,
-	const std::string & user_password,
-	const std::string & device_name,
-	int port)
-{
-	auto sp = parent_sp.create_scope(__FUNCTION__);
-	return sp.get<db_model>()->async_transaction(sp, [this, sp, root_user_name, user_password, device_name, port](database_transaction & t)
-	{
-		this->load(
-				sp,
-				t,
-				dht::dht_object_id::from_user_email(root_user_name),
-				symmetric_key::from_password(user_password),
-				hash::signature(hash::sha256(), user_password.c_str(), user_password.length())
-		);
+//vds::async_task<> vds::user_manager::init_server(
+//	const service_provider & parent_sp,
+//	const std::string &root_user_name,
+//	const std::string & user_password,
+//	const std::string & device_name,
+//	int port)
+//{
+//	auto sp = parent_sp.create_scope(__FUNCTION__);
+//	return sp.get<db_model>()->async_transaction(sp, [this, sp, root_user_name, user_password, device_name, port](database_transaction & t)
+//	{
+//		this->load(
+//				sp,
+//				t,
+//				dht::dht_object_id::from_user_email(root_user_name),
+//				symmetric_key::from_password(user_password),
+//				hash::signature(hash::sha256(), user_password.c_str(), user_password.length())
+//		);
 
 //    auto user = this->import_user(*request.certificate_chain().rbegin());
 //		transactions::transaction_block_builder log;
@@ -150,10 +154,10 @@ vds::async_task<> vds::user_manager::init_server(
 //          user.user_certificate(),
 //          request.private_key());
 		//this->load(sp, t, device_user.id());
-
-		return true;
-	});
-}
+//
+//		return true;
+//	});
+//}
 
 vds::user_channel
 vds::user_manager::create_channel(const service_provider &sp, transactions::transaction_block_builder &log,
@@ -285,13 +289,15 @@ std::list<vds::user_channel> vds::user_manager::get_channels() const {
   std::list<vds::user_channel> result;
 
   for (const auto & p : this->impl_->channels()) {
-    result.push_back(
-      vds::user_channel(
-        p.first,
-        p.second.type_,
-        p.second.name_,
-        p.second.read_certificates_.find(p.second.current_read_certificate_)->second,
-        p.second.write_certificates_.find(p.second.current_write_certificate_)->second));
+    if (p.second.type_ != user_channel::channel_type_t::account_channel) {
+      result.push_back(
+        vds::user_channel(
+          p.first,
+          p.second.type_,
+          p.second.name_,
+          p.second.read_certificates_.find(p.second.current_read_certificate_)->second,
+          p.second.write_certificates_.find(p.second.current_write_certificate_)->second));
+    }
   }
 
   return result;
@@ -310,9 +316,7 @@ vds::member_user vds::user_manager::create_root_user(
   playback.add(
       transactions::root_user_transaction(
           root_user_cert,
-          root_user_name,
-          root_private_key.der(std::string()),
-          hash::signature(hash::sha256(), root_password.c_str(), root_password.length())));
+          root_user_name));
 
   return member_user(new _member_user(root_user_cert));
 }
@@ -337,10 +341,12 @@ vds::async_task<vds::user_channel> vds::user_manager::create_channel(
     *result = pthis->create_channel(
       sp,
       log,
-      t, vds::dht::dht_object_id::generate_random_id(),
+      t,
+      vds::dht::dht_object_id::generate_random_id(),
       channel_type,
       name,
-      channel_read_private_key, channel_write_private_key);
+      channel_read_private_key,
+      channel_write_private_key);
 
     log.save(
       sp,
@@ -423,9 +429,7 @@ void vds::user_manager::create_root_user(
 
 			transactions::root_user_transaction(
 					user_cert,
-					user_email,
-					symmetric_encrypt::encrypt(password_key, private_key.der(std::string())),
-					password_hash));
+					user_email));
 
 	playback.save(
 			sp,
@@ -472,12 +476,9 @@ const vds::asymmetric_private_key& vds::user_manager::get_current_user_private_k
 /////////////////////////////////////////////////////////////////////
 vds::_user_manager::_user_manager(
 		const const_data_buffer & dht_user_id,
-		const symmetric_key & user_password_key,
-		const const_data_buffer & user_password_hash)
+    const asymmetric_private_key & user_password_key)
 		: dht_user_id_(dht_user_id),
-			user_password_key_(user_password_key),
-			user_password_hash_(user_password_hash),
-			login_state_(user_manager::login_state_t::waiting_channel){
+      user_private_key_(user_password_key) {
 }
 
 void vds::_user_manager::update(
@@ -487,7 +488,7 @@ void vds::_user_manager::update(
 	const auto log = sp.get<logger>();
 	log->trace(ThisModule, sp, "security_walker::load");
 
-  std::set<std::string> new_records;
+  std::list<std::string> new_records;
   orm::transaction_log_record_dbo t1;
 	auto st = t.get_reader(
 			t1.select(t1.id)
@@ -498,7 +499,7 @@ void vds::_user_manager::update(
       continue;
     }
 
-    new_records.emplace(id);
+    new_records.push_back(id);
   }
 
 	std::set<const_data_buffer> new_channels;
@@ -515,15 +516,21 @@ void vds::_user_manager::update(
     transactions::transaction_block block(data);
 	  block.walk_messages(
       [this](const transactions::root_user_transaction & message)->bool{
-        if (this->login_state_ != user_manager::login_state_t::waiting_channel) {
-          throw std::runtime_error("Data error");
-        }
-
         this->user_cert_ = message.user_cert();
         this->user_name_ = message.user_name();
-        this->user_private_key_ = asymmetric_private_key::parse_der(message.user_private_key(), std::string());
 
-        this->login_state_ = user_manager::login_state_t::login_sucessful;
+        auto &cp = this->channels_[this->user_cert_.fingerprint()];
+
+        cp.name_ = "!Private";
+
+        auto write_id = this->user_cert_.subject();
+        cp.write_certificates_[write_id] = this->user_cert_;
+
+        auto id = this->user_cert_.subject();
+        cp.read_certificates_[id] = this->user_cert_;
+        cp.read_private_keys_[id] = this->user_private_key_;
+        cp.current_read_certificate_ = id;
+
         return true;
       },
       [this, sp, &new_channels, log](const transactions::channel_message  & message)->bool {
@@ -573,6 +580,7 @@ void vds::_user_manager::update(
                 new_channels.emplace(message.channel_id());
               }
               auto &cp = this->channels_[message.channel_id()];
+              cp.type_ = string2channel_type(message.channel_type());
               cp.name_ = message.name();
               cp.current_read_certificate_ = message.read_cert().subject();
               cp.current_write_certificate_ = message.write_cert().subject();
