@@ -20,6 +20,7 @@
             <label for="inputPassword" class="sr-only">Пароль:</label>
             <input type="password" id="inputPassword" name="inputPassword" class="form-control" placeholder="Пароль" required>
             <button id="login_btn" class="btn btn-lg btn-primary btn-block btn-signin">Войти</button>
+	    <button id="register_btn" type="button" class="btn btn-link">Регистрация</button>
         </div><!-- /card-container -->
     </div><!-- /container -->
     <div class="modal fade" id="processDialog" tabindex="-1" role="dialog" aria-labelledby="processDialog" aria-hidden="true">
@@ -43,6 +44,37 @@
             </div>
         </div>
     </div>
+    <div class="modal fade" id="registerDialog" tabindex="-1" role="dialog" aria-labelledby="registerDialog" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Регистрация в системе</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <label for="userName">Для регистрации в сети Вам необходимо указать приведённые ниже параметры.</label>
+
+                                <input type="text" class="form-control" id="userName" name="userName" aria-describedby="userNameHelp" placeholder="ФИО" required autofocus/>
+                                <small id="userNameHelp" class="form-text text-muted">Имя канала для удобного названия</small>
+
+			        <input type="email" id="userEmail" name="userEmail" class="form-control" placeholder="Адрес электройнной почты" required>
+			        <small for="userEmail" class="sr-only">Адрес электройнной почты:</small>
+
+			        <input type="password" id="userPassword" name="userPassword" class="form-control" placeholder="Пароль" required>
+			        <small for="userPassword" class="sr-only">Пароль:</small>
+
+			        <input type="password" id="confirmPassword" name="confirmPassword" class="form-control" placeholder="Пароль" required>
+			        <small for="confirmPassword" class="sr-only">Пароль:</small>
+                </div>
+                <div class="modal-footer">
+                    <button id="register_btn" class="btn btn-lg btn-primary btn-block btn-signin">Запрос доступа</button>
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Отмена</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
 <script src="/js/jquery-3.3.1.min.js"></script>
     <script src="/bootstrap-4.1.0/js/bootstrap.min.js"></script>
@@ -52,6 +84,9 @@
             $('#login_btn').click(function () {
                 $('#processDialog').modal('show');
                 try_login();
+            });
+	    $('#register_btn').click(function () {
+                $('#registerDialog').modal('show');
             });
         });
 
