@@ -16,12 +16,13 @@ vds::async_task<vds::http_message> vds::login_page::register_request_post(const 
 
   return parser->parse(sp, message).then([sp, owner, parser]() -> async_task<http_message> {
     auto userName = parser->values().find("userName");
+    auto userEmail = parser->values().find("userEmail");
     auto userPassword = parser->values().find("userPassword");
 
     if (
-      invitation == parser->values().end()
-      || login == parser->values().end()
-      || password == parser->values().end()) {
+      userName == parser->values().end()
+      || userEmail == parser->values().end()
+      || userPassword == parser->values().end()) {
       return async_task<http_message>::result(
         http_response::redirect(sp, "/error/?code=InvalidRegister"));
     }
