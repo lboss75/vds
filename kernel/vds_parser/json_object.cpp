@@ -221,6 +221,11 @@ void vds::json_object::add_property(const std::string & name, uint64_t value)
   this->add_property(std::make_shared<json_property>(name, std::make_shared<json_primitive>(std::to_string(value))));
 }
 
+void vds::json_object::add_property(const std::string& name, const std::chrono::system_clock::time_point& value) {
+
+  this->add_property(std::make_shared<json_property>(name, std::make_shared<json_primitive>(std::to_string(value))));
+}
+
 void vds::json_object::add_property(const std::string & name, const std::string & value)
 {
   this->add_property(std::make_shared<json_property>(name, std::make_shared<json_primitive>(value)));

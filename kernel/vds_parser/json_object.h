@@ -100,6 +100,8 @@ namespace vds {
     void add_property(const std::shared_ptr<json_property> & prop);
     void add_property(const std::string & name, const std::shared_ptr<json_value> & value);
     void add_property(const std::string & name, uint64_t value);
+    void add_property(const std::string & name, const std::chrono::system_clock::time_point & value);
+    void add_property(const std::string & name, const std::chrono::steady_clock::time_point & value);
     void add_property(const std::string & name, const std::string & value);
     void add_property(const std::string & name, const const_data_buffer & value);
     void add_property(const std::string & name, const std::list<const_data_buffer> & value);

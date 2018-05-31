@@ -374,6 +374,10 @@ vds::async_task<vds::http_message> vds::_web_server::route(
     }
   }
 
+  if(request.url() == "/register_request" && request.method() == "POST") {
+    return login_page::register_request_post(sp, this->shared_from_this(), message);
+  }
+
   if (request.url() == "/register" && request.method() == "POST") {
     return register_page::post(sp, this->shared_from_this(), message);
   }
