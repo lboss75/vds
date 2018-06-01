@@ -89,6 +89,9 @@ namespace vds {
     static asymmetric_public_key parse(const std::string & format);
     std::string str() const;
 
+    static asymmetric_public_key parse_der(const const_data_buffer & value);
+    const_data_buffer der() const;
+
     void load(const filename & filename);
     void save(const filename & filename);
 
@@ -100,6 +103,8 @@ namespace vds {
     
     friend class _asymmetric_sign_verify;
     friend class _certificate;
+    friend class _asymmetric_public_key;
+
     std::shared_ptr<_asymmetric_public_key> impl_;
   };
 

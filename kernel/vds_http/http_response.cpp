@@ -118,3 +118,31 @@ vds::http_message vds::http_response::file_response(
   return result;
 }
 
+vds::http_message vds::http_response::file_response(const service_provider& sp, const const_data_buffer& body,
+  const std::string& filename, const std::string& content_type, int result_code, const std::string& message) {
+
+  http_response response(result_code, message);
+  response.add_header("Content-Type", content_type);
+  response.add_header("Content-Length", std::to_string(body.size()));
+  response.add_header("Content-Disposition", "attachment; filename=\"" + filename + "\"");
+  auto result = response.create_message(sp);
+  result.body()->write_async(body.data(), body.size())
+    .execute(
+      [sp, result, body](const std::shared_ptr<std::exception> & ex) {
+    if (!ex) {
+      result.body()->write_async(nullptr, 0).execute(
+        [sp](const std::shared_ptr<std::exception> & ex) {
+        if (ex) {
+          sp.unhandled_exception(ex);
+        }
+      });
+    }
+    else {
+      sp.unhandled_exception(ex);
+    }
+  });
+
+  return result;
+
+}
+

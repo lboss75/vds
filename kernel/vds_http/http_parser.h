@@ -164,7 +164,11 @@ namespace vds {
                           MessageStateEnum::MESSAGE_STATE_MESSAGE_BODY_FINISH,
                           MessageStateEnum::MESSAGE_STATE_NONE);
                     })
-                    .execute([](const std::shared_ptr<std::exception> &ex) {});
+                    .execute([sp = this_->sp_](const std::shared_ptr<std::exception> &ex) {
+                  if(ex) {
+                    sp.unhandled_exception(ex);
+                  }
+                });
               });
               this->current_message_ = current_message;
               this->headers_.clear();

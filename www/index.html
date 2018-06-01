@@ -26,6 +26,7 @@
 	           <ul class="list-unstyled components collapse" id="channelsMenu">
                    </ul>
 		</li>
+		<li><a href="#" id="show_balance">Взаиморасчёты</a></li>
 		<li><a href="#" data-toggle="modal" data-target="#createChannelModal">Создать канал</a></li>
 		<li><a href="#" data-toggle="modal" data-target="#createInvite">Пригласить друга</a></li>
                 </ul>
@@ -90,6 +91,46 @@
                             </form>
                         </div>
                     </div>
+                <div id="balance_panel" style="display: none">
+                        <table class="table table-hover">
+                        <thead>
+                        <tr>
+                            <th scope="col">Месяц</th>
+                            <th scope="col">Ваши данные в сети</th>
+                            <th scope="col">Данные сети на ваших устройствах</th>
+                            <th scope="col">Вы заплатили</th>
+                            <th scope="col">Заплатили Вам</th>
+                            <th scope="col">Баланс</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>май 2018</th>
+                                <td class="text-right">100 Гигабайт</td>
+                                <td class="text-right">200 Гигабайт</td>
+                                <td class="text-right">100 DC</td>
+                                <td class="text-right">200 DC</td>
+                                <td class="text-right">195 DC</td>
+                            </tr>
+                            <tr>
+                                <td>апрель 2018</th>
+                                <td class="text-right">10 Гигабайт</td>
+                                <td class="text-right">100 Гигабайт</td>
+                                <td class="text-right">10 DC</td>
+                                <td class="text-right">100 DC</td>
+                                <td class="text-right">95 DC</td>
+                            </tr>
+                        <tr>
+                            <td>март 2018</th>
+                            <td class="text-right">5 Гигабайт</td>
+                            <td class="text-right">10 Гигабайт</td>
+                            <td class="text-right">5 DC</td>
+                            <td class="text-right">10 DC</td>
+                            <td class="text-right">5 DC</td>
+                        </tr>
+                        </tbody>
+                        </table>
+                </div>
             </div>
         </div>
 
@@ -188,6 +229,13 @@
                      $('#sidebar').toggleClass('active');
                  });
 
+                 $('#show_balance').on('click',
+                     function() {
+                         $('#chat_feed').hide();
+                         $('#balance_panel').show();
+
+                     });
+
 		$('#createInvite').on('shown.bs.modal', function () {
 			 $.getJSON('api/invate', function(data){
 				$('#invateCode').val(data.code);
@@ -202,6 +250,7 @@
 				.append($('<a class="selectChannelMenu" href="#" data-menu="'+ this.id +'">' + this.name + '</a>')
 		  			.on('click', function(e){
 		  			    $this = $(e.currentTarget);
+			                    $('#balance_panel').hide();
 			                    $('#chat_feed').show();
 
 			                    channel_id = $this.data('menu');

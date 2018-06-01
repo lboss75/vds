@@ -503,6 +503,14 @@ std::string vds::asymmetric_public_key::str() const
   return this->impl_->str();
 }
 
+vds::asymmetric_public_key vds::asymmetric_public_key::parse_der(const const_data_buffer& value) {
+  return _asymmetric_public_key::parse_der(value);
+}
+
+vds::const_data_buffer vds::asymmetric_public_key::der() const {
+  return this->impl_->der();
+}
+
 void vds::asymmetric_public_key::load(const filename & filename)
 {
   this->impl_->load(filename);
@@ -554,6 +562,36 @@ vds::_asymmetric_public_key::~_asymmetric_public_key()
   if(nullptr != this->key_){
     EVP_PKEY_free(this->key_);
   }
+}
+
+vds::const_data_buffer vds::_asymmetric_public_key::der() const {
+  const auto len = i2d_PublicKey(this->key_, NULL);
+
+  const auto buf = (unsigned char *)OPENSSL_malloc(len);
+  if (NULL == buf) {
+    throw std::runtime_error("Out of memory at get DER format of public key");
+  }
+
+  auto p = buf;
+  i2d_PublicKey(this->key_, &p);
+
+  const_data_buffer result(buf, len);
+  OPENSSL_free(buf);
+
+  return result;
+}
+
+vds::asymmetric_public_key vds::_asymmetric_public_key::parse_der(const const_data_buffer& value) {
+  const unsigned char * p = value.data();
+  auto key_data = d2i_RSAPublicKey(NULL, &p, safe_cast<long>(value.size()));
+  if (nullptr == key_data) {
+    auto error = ERR_get_error();
+    throw crypto_exception("d2i_PublicKey", error);
+  }
+
+  auto key = EVP_PKEY_new();
+  EVP_PKEY_assign_RSA(key, key_data);
+  return asymmetric_public_key(new _asymmetric_public_key(key));
 }
 
 

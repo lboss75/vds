@@ -38,7 +38,7 @@ TEST(network_tests, test_udp_server)
   std::shared_ptr<std::exception> error;
   vds::udp_server server;
 
-  auto server_socket = server.start(sp, "127.0.0.1", 8000);
+  auto server_socket = server.start(sp, vds::network_address::any_ip4(8000));
 
     vds::copy_stream<vds::udp_datagram>(sp, server_socket.incoming(), server_socket.outgoing())
     .execute(

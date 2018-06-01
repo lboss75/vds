@@ -173,7 +173,6 @@ vds::async_task<vds::http_message> vds::_web_server::route(
             "Unauthorized"));
       }
 
-      http_request request(message);
       const auto channel_id = base64::to_bytes(request.get_parameter("channel_id"));
 
       return api_controller::channel_feed(
@@ -372,6 +371,31 @@ vds::async_task<vds::http_message> vds::_web_server::route(
     else {
       return vds::async_task<vds::http_message>::result(this->router_.route(sp, message, "/index"));
     }
+  }
+
+  if (request.url() == "/api/register_request" && request.method() == "GET") {
+    return api_controller::get_register_requests(sp, this->shared_from_this(), message)
+      .then([sp](const std::shared_ptr<vds::json_value> &result) {
+
+      return vds::async_task<vds::http_message>::result(
+        http_response::simple_text_response(
+          sp,
+          result->str(),
+          "application/json; charset=utf-8"));
+    });
+  }
+  if (request.url() == "/api/download_register_request" && request.method() == "GET") {
+    const auto request_id = atoi(request.get_parameter("id").c_str());
+
+    return api_controller::get_register_request(sp, this->shared_from_this(), request_id)
+      .then([sp](const const_data_buffer &result) {
+
+      return vds::async_task<vds::http_message>::result(
+        http_response::file_response(
+          sp,
+          result,
+          "user_invite.bin"));
+    });
   }
 
   if(request.url() == "/register_request" && request.method() == "POST") {

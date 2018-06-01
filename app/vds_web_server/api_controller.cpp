@@ -13,6 +13,7 @@
 #include "private/auth_session.h"
 #include "dht_object_id.h"
 #include "register_request.h"
+#include "vds_exceptions.h"
 
 std::shared_ptr<vds::json_object> vds::api_controller::channel_serialize(
   const vds::user_channel & channel) {
@@ -280,7 +281,6 @@ vds::api_controller::lock_device(
 vds::async_task<std::shared_ptr<vds::json_value>>
 vds::api_controller::get_register_requests(
   const vds::service_provider &sp,
-  user_manager & user_mng,
   const std::shared_ptr<vds::_web_server> &owner,
   const vds::http_message &message) {
 
@@ -299,6 +299,29 @@ vds::api_controller::get_register_requests(
     }
   }).then([result]() {
     return std::static_pointer_cast<json_value>(result);
+  });
+}
+
+vds::async_task<vds::const_data_buffer> vds::api_controller::get_register_request(
+  const service_provider& sp,
+  const std::shared_ptr<_web_server>& owner,
+  int request_id) {
+
+  auto result = std::make_shared<const_data_buffer>();
+
+  return sp.get<db_model>()->async_read_transaction(sp, [sp, request_id, result](database_transaction & t) {
+    orm::register_request t1;
+    auto st = t.get_reader(t1.select(t1.data).where(t1.id == request_id));
+    if (!st.execute()) {
+      throw vds::vds_exceptions::not_found();
+    }
+
+    *result = t1.data.get(st);
+
+    return true;
+  })
+  .then([result]() {
+    return *result;
   });
 }
 

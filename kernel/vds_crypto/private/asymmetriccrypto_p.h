@@ -94,6 +94,9 @@ namespace vds {
       return this->key_;
     }
 
+    const_data_buffer der() const;
+    static asymmetric_public_key parse_der(const const_data_buffer& value);
+
     static asymmetric_public_key parse(const std::string & format);
     std::string str() const;
 

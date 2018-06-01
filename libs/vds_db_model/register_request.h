@@ -22,7 +22,7 @@ namespace vds {
             create_time(this, "create_time") {
       }
 
-      database_column<std::string> id;
+      database_column<int> id;
       database_column<std::string> name;
       database_column<std::string> email;
       database_column<const_data_buffer> data;

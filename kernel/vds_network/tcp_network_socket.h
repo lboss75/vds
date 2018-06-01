@@ -17,7 +17,7 @@ namespace vds {
   public:
     tcp_network_socket();
 
-    tcp_network_socket connect(
+    static tcp_network_socket connect(
       const service_provider & sp,
       const network_address & address,
       const stream<uint8_t> & input_handler);

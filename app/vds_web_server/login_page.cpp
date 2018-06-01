@@ -9,9 +9,14 @@ All rights reserved
 #include "http_response.h"
 #include "private/auth_session.h"
 #include "private/web_server_p.h"
+#include "db_model.h"
+#include "register_request.h"
+#include "dht_object_id.h"
 
-vds::async_task<vds::http_message> vds::login_page::register_request_post(const service_provider& sp,
-  const std::shared_ptr<_web_server>& owner, const http_message& message) {
+vds::async_task<vds::http_message> vds::login_page::register_request_post(
+  const service_provider& sp,
+  const std::shared_ptr<_web_server>& owner,
+  const http_message& message) {
   auto parser = std::make_shared<http::simple_form_parser>();
 
   return parser->parse(sp, message).then([sp, owner, parser]() -> async_task<http_message> {
@@ -27,23 +32,13 @@ vds::async_task<vds::http_message> vds::login_page::register_request_post(const 
         http_response::redirect(sp, "/error/?code=InvalidRegister"));
     }
 
-    auto session_id = guid::new_guid().str();
-    auto session = std::make_shared<auth_session>(login->second, password->second);
-    return session->create_user(sp).then([sp, owner, session_id, session]() {
-      owner->add_auth_session(session_id, session);
+    return user_manager::create_register_request(
+      sp,
+      userName->second,
+      userEmail->second,
+      userPassword->second).then([sp](){
 
-      http_response response(302, "Found");
-      response.add_header("Location", "/");
-      response.add_header("Set-Cookie", "Auth=" + session_id);
-      auto result = response.create_message(sp);
-      result.body()->write_async(nullptr, 0).execute(
-        [sp](const std::shared_ptr<std::exception> &ex) {
-        if (ex) {
-          sp.unhandled_exception(ex);
-        }
-      });
-
-      return result;
+      return http_response::redirect(sp, "/register_request");
     });
   });
 }

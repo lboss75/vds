@@ -12,19 +12,42 @@
 </head>
 <body>
 <main class="col-12 col-md-9 col-xl-8 py-md-3 pl-md-5 bd-content" role="main">
-<h1 class="bd-title" id="content">Регистрация в системе</h1>
-    <p class="bd-lead">Для Вас был создан специальный файл, в котором зашифрована информация о вашем запросе на доступ к сети.
+<h1>Регистрация в системе</h1>
+    <p >Для Вас был создан специальный файл, в котором зашифрована информация о вашем запросе на доступ к сети.
         Скачайте и пошлите этот файл известному вам участнику сети с просьбой на допуск в сеть.
         После открытия доступа, вы сможете войти в сеть по указаному вами паролю.</p>
-
+    <p>
+        <table class="table">
+        <thead>
+        <tr>
+            <th scope="col">ФИО</th>
+            <th scope="col">Электронная почта</th>
+            <th scope="col">Операция</th>
+        </tr>
+        </thead>
+        <tbody id="requests_body">
+        </tbody>
+        </table>
+    </p>
 </main>
 <script src="/js/jquery-3.3.1.min.js"></script>
     <script src="/bootstrap-4.1.0/js/bootstrap.min.js"></script>
 
     <script type="text/javascript">
         $(document).ready(function() {
-            $('#login_btn').click(function() {
-            });
+            $.getJSON('/api/register_request',
+                function(data) {
+                    $.each(data,
+                        function () {
+                            $('#requests_body').append(
+                                $('<tr />')
+                                    .append($('<td />').text(this.name))
+                                    .append($('<td />').text(this.email))
+                                    .append($('<td />')
+                                        .append($('<a />').attr('href', '/api/download_register_request?id=' + this.id).text('Скачать')))
+                            );
+                        });
+                });
         });
     </script>
 </body>

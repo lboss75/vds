@@ -151,7 +151,7 @@ void vds::db_model::migrate(
 			id VARCHAR(64) PRIMARY KEY NOT NULL)");
 
 		t.execute("CREATE TABLE register_request_dbo(\
-			id VARCHAR(64) PRIMARY KEY NOT NULL,\
+			id INTEGER PRIMARY KEY AUTOINCREMENT,\
       name VARCHAR(64) NOT NULL,\
       email VARCHAR(64) NOT NULL,\
 			data BLOB NOT NULL,\

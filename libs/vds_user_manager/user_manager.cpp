@@ -22,6 +22,7 @@ All rights reserved
 #include "dht_object_id.h"
 #include "dht_network_client.h"
 #include "../vds_dht_network/private/dht_network_client_p.h"
+#include "register_request.h"
 
 vds::user_manager::user_manager(){
 }
@@ -470,6 +471,40 @@ vds::member_user vds::user_manager::get_current_user() const {
 
 const vds::asymmetric_private_key& vds::user_manager::get_current_user_private_key() const {
   return this->impl_->get_current_user_private_key();
+}
+
+vds::async_task<> vds::user_manager::create_register_request(const service_provider& sp, const std::string& userName,
+  const std::string& userEmail, const std::string& userPassword) {
+
+  return sp.get<db_model>()->async_transaction(
+    sp,
+    [sp, userName, userEmail, userPassword](database_transaction & t) {
+
+    auto user_private_key = vds::asymmetric_private_key::generate(
+      vds::asymmetric_crypto::rsa4096());
+
+    asymmetric_public_key user_public_key(user_private_key);
+
+    binary_serializer s;
+    s
+      << userName
+      << userEmail
+      << user_public_key.der()
+      << dht::dht_object_id::user_credentials_to_key(userName, userPassword)
+      << user_private_key.der(userPassword);
+
+    s << asymmetric_sign::signature(hash::sha256(), user_private_key, s.data());
+
+    orm::register_request t1;
+    t.execute(
+      t1.insert(
+        t1.name = userName,
+        t1.email = userEmail,
+        t1.data = s.data(),
+        t1.create_time = std::chrono::system_clock::now()));
+
+    return true;
+  });
 }
 
 
