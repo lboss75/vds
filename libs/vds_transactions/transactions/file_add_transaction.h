@@ -26,18 +26,36 @@ namespace vds {
 			file_add_transaction(
         const const_data_buffer & total_hash,
         size_t total_size,
+				const std::string &message,
 				const std::string &name,
 				const std::string &mimetype,
 				const std::list<file_block_t> & file_blocks)
-					: total_hash_(total_hash), total_size_(total_size), name_(name), mimetype_(mimetype), file_blocks_(file_blocks){
+					: total_hash_(total_hash),
+						total_size_(total_size),
+						message_(message),
+						name_(name),
+						mimetype_(mimetype),
+						file_blocks_(file_blocks){
 			}
 
       file_add_transaction(binary_deserializer & s){
-        s >> this->total_hash_ >> this->total_size_ >> this->name_ >> this->mimetype_ >> this->file_blocks_;
+        s
+						>> this->total_hash_
+						>> this->total_size_
+						>> this->message_
+						>> this->name_
+						>> this->mimetype_
+						>> this->file_blocks_;
       }
 
       void serialize(binary_serializer & s) const {
-        s << this->total_hash_ << this->total_size_ << this->name_ << this->mimetype_ << this->file_blocks_;
+        s
+						<< this->total_hash_
+						<< this->total_size_
+						<< this->message_
+						<< this->name_
+						<< this->mimetype_
+						<< this->file_blocks_;
       }
 
       const const_data_buffer & total_hash() const {
@@ -47,6 +65,10 @@ namespace vds {
       size_t total_size() const {
         return this->total_size_;
       }
+
+			const std::string & message() const {
+				return message_;
+			}
 
       const std::string & name() const {
         return name_;
@@ -63,6 +85,7 @@ namespace vds {
     private:
       const_data_buffer total_hash_;
       size_t total_size_;
+			std::string message_;
       std::string name_;
 			std::string mimetype_;
 			std::list<file_block_t> file_blocks_;

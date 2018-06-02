@@ -5,7 +5,6 @@ All rights reserved
 
 #include "stdafx.h"
 #include <queue>
-#include <private/file_upload_task_p.h>
 #include <private/api_controller.h>
 #include "web_server.h"
 #include "private/web_server_p.h"

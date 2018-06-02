@@ -37,10 +37,11 @@ vds::file_manager::file_operations::upload_file(
   const service_provider& sp,
   const std::shared_ptr<user_manager>& user_mng,
   const const_data_buffer& channel_id,
+  const std::string &message,
   const std::string& name,
   const std::string& mimetype,
   const std::shared_ptr<continuous_buffer<uint8_t>>& input_stream) {
-  return this->impl_->upload_file(sp, user_mng, channel_id, name, mimetype, input_stream);
+  return this->impl_->upload_file(sp, user_mng, channel_id, message, name, mimetype, input_stream);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
@@ -48,6 +49,7 @@ vds::async_task<vds::const_data_buffer> vds::file_manager_private::_file_operati
   const service_provider& paren_sp,
   const std::shared_ptr<user_manager>& user_mng,
   const const_data_buffer& channel_id,
+  const std::string &message,
   const std::string& name,
   const std::string& mimetype,
   const std::shared_ptr<continuous_buffer<uint8_t>>& input_stream) {
@@ -58,6 +60,7 @@ vds::async_task<vds::const_data_buffer> vds::file_manager_private::_file_operati
                [sp,
                  pthis = this->shared_from_this(),
                  user_mng,
+                 message,
                  name,
                  mimetype,
                  input_stream,
@@ -67,6 +70,7 @@ vds::async_task<vds::const_data_buffer> vds::file_manager_private::_file_operati
                    [pthis,
                      sp,
                      user_mng,
+                     message,
                      name,
                      mimetype,
                      input_stream,
@@ -95,6 +99,7 @@ vds::async_task<vds::const_data_buffer> vds::file_manager_private::_file_operati
                        transactions::file_add_transaction(
                          file_info.total_hash,
                          file_info.total_size,
+                         message,
                          name,
                          mimetype,
                          file_info.file_blocks));

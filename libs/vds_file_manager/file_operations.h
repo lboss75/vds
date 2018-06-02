@@ -29,6 +29,7 @@ namespace vds {
 					const service_provider &sp,
           const std::shared_ptr<user_manager> & user_mng,
 					const const_data_buffer &channel_id,
+					const std::string &message,
 					const std::string &name,
 					const std::string &mimetype,
 					const std::shared_ptr<continuous_buffer<uint8_t>> & input_stream);

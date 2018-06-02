@@ -38,7 +38,7 @@ public:
     }
     else
     if (field.name == "message") {
-      //send_message();
+      this->message_ = field.value;
     }
     else {
       throw std::runtime_error("Invalid field " + field.name);
@@ -50,6 +50,7 @@ public:
         this->sp_,
         this->user_mng_,
         this->channel_id_,
+        this->message_,
         file.file_name,
         file.mimetype,
         file.stream).then([pthis = this->shared_from_this()](const vds::const_data_buffer & result_id) {
@@ -66,6 +67,7 @@ private:
   std::shared_ptr<vds::user_manager> user_mng_;
   vds::const_data_buffer channel_id_;
   vds::const_data_buffer result_id_;
+  std::string message_;
 };
 
 vds::async_task<vds::http_message> vds::index_page::create_message(const vds::service_provider& sp,

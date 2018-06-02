@@ -129,6 +129,7 @@ vds::async_task<std::shared_ptr<vds::json_value>> vds::api_controller::channel_f
       [result](const transactions::file_add_transaction& message)-> bool {
       auto record = std::make_shared<json_object>();
       record->add_property("id", base64::from_bytes(message.total_hash()));
+      record->add_property("message", message.message());
       record->add_property("name", message.name());
       record->add_property("mimetype", message.mimetype());
       record->add_property("size", message.total_size());

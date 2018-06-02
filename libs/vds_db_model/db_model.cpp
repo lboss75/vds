@@ -157,6 +157,14 @@ void vds::db_model::migrate(
 			data BLOB NOT NULL,\
       create_time INTEGER NOT NULL)");
 
+		t.execute("CREATE TABLE incoming_request_dbo(\
+			id INTEGER PRIMARY KEY AUTOINCREMENT,\
+      owner VARCHAR(64) NOT NULL,\
+      name VARCHAR(64) NOT NULL,\
+      email VARCHAR(64) NOT NULL,\
+			data BLOB NOT NULL,\
+      create_time INTEGER NOT NULL)");
+
     t.execute("INSERT INTO well_known_node(id, addresses) VALUES(\
 									'3940754a-64dd-4491-9777-719315b36a67',\
 									'udp://127.0.0.1:8050')");

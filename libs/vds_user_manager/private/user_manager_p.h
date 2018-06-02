@@ -188,6 +188,11 @@ namespace vds {
       return this->user_private_key_;
     }
 
+    async_task<> add_register_request(
+        const service_provider& sp,
+        const const_data_buffer & data);
+
+
   private:
     const_data_buffer dht_user_id_;
     asymmetric_private_key user_private_key_;

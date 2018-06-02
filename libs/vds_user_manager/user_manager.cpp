@@ -507,6 +507,11 @@ vds::async_task<> vds::user_manager::create_register_request(const service_provi
   });
 }
 
+vds::async_task<>
+vds::user_manager::add_register_request(const vds::service_provider &sp, const vds::const_data_buffer &data) {
+  return this->impl_->add_register_request(sp, data);
+}
+
 
 /////////////////////////////////////////////////////////////////////
 vds::_user_manager::_user_manager(
@@ -685,5 +690,49 @@ void vds::_user_manager::add_certificate(const vds::certificate &cert) {
 
 vds::member_user vds::_user_manager::get_current_user() const {
   return member_user::import_user(this->user_cert_);
+}
+
+vds::async_task<>
+vds::_user_manager::add_register_request(
+    const vds::service_provider &sp,
+    const vds::const_data_buffer &data) {
+
+  std::string userName;
+  std::string userEmail;
+  std::string userPassword;
+  const_data_buffer user_public_key_der;
+  const_data_buffer user_object_id;
+  const_data_buffer user_private_key_der;
+
+  binary_deserializer s(data);
+  s
+      >> userName
+      >> userEmail
+      >> user_public_key_der
+      >> user_object_id
+      >> user_private_key_der;
+
+  auto pos = s.size();
+
+  const_data_buffer signature;
+  s >> signature;
+
+  auto user_public_key = asymmetric_public_key::parse_der(user_public_key_der);
+
+  if(!asymmetric_sign_verify::verify(
+      hash::sha256(),
+      user_public_key,
+      signature,
+      data.data(),
+      data.size() - pos)){
+    return async_task<>(
+        std::make_shared<std::runtime_error>("Signature error"));
+  }
+
+  return sp.get<db_model>()->async_transaction(
+      sp,
+      [sp, userName, userEmail, userPassword](database_transaction & t) {
+
+      });
 }
 
