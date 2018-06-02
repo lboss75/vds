@@ -56,40 +56,25 @@
                     </div>
                 </nav>
                 <div id="chat_feed" style="display: none">
-                    <div class="col-lg-6 col-sm-6 col-12">
-                        <ul id="feed_records"></ul>
+                    <div class="col-sm-9 col-xs-12 chat" style="overflow: hidden; outline: none;" tabindex="5001">
+                            <div class="col-inside-lg decor-default">
+                                <div class="chat-body" id="feed_records">
+                                </div>
+                            </div>
                     </div>
                         <div class="line"></div>
-
-                        <div class="col-lg-6 col-sm-6 col-12">
-                            <h4>Отправка сообщения</h4>
-                            <form id="send-message" method="post" action="upload" role="form" enctype="multipart/form-data">
-                                <input id="channel_id" name="channel_id" type="hidden" />
-                                <div class="row">
-                                    <div class="col-md-12">
-                                        <div class="form-group">
-                                            <label for="form_message">Message *</label>
-                                            <textarea id="form_message" name="message" class="form-control" placeholder="Message for me *" rows="4" required="required" data-error="Please,leave us a message."></textarea>
-                                            <div class="help-block with-errors"></div>
-                                        </div>
-                                    </div>
-                                    <div class="input-group">
-                                        <label class="input-group-btn">
-                                            <span class="btn btn-primary">
-                                                Выбрать&hellip; <input name="attachment[]" type="file" style="display: none;" multiple>
-                                            </span>
-                                        </label>
-                                        <input type="text" class="form-control" readonly>
-                                    </div>
-                                    <span class="help-block">
-                                        Выберите файлы
-                                    </span>
-                                    <div class="col-md-12">
-                                        <input type="submit" class="btn btn-success btn-send" value="Отправить">
-                                    </div>
-                                </div>
-                            </form>
-                        </div>
+                    <div class="answer-add">
+                        <form id="send-message" method="post" action="upload" role="form" enctype="multipart/form-data">
+                            <input id="channel_id" name="channel_id" type="hidden" />
+                            <input placeholder="Напишите сообщение">
+                            <label class="input-group-btn">
+                                <span class="btn btn-primary answer-btn answer-btn-1">
+                                    <input name="attachment[]" type="file" style="display: none;" multiple>
+                                </span>
+                            </label>
+                            <input type="submit" class="btn btn-success btn-send answer-btn answer-btn-2" value="" >
+                        </form>
+                        <input type="text" id="selected_files" readonly>
                     </div>
                 <div id="balance_panel" style="display: none">
                         <table class="table table-hover">
@@ -285,7 +270,7 @@
   $(document).ready( function() {
       $(':file').on('fileselect', function(event, numFiles, label) {
 
-          var input = $(this).parents('.input-group').find(':text'),
+          var input = $('#selected_files'),
               log = numFiles > 1 ? numFiles + ' files selected' : label;
 
           if( input.length ) {
@@ -305,10 +290,19 @@
                  $.getJSON('api/channel_feed?channel_id=' + channelId, function (data) {
                      $.each(data, function () {
                          $('#feed_records')
-                             .append($('<li class="left clearfix" />')
-                             .append($('<a href="/api/download?channel_id='+channelId+'&id='+this.id+'">' + this.name + '</a>'))
-                             .append($('<small class="pull-right text-muted" />').text(humanFileSize(this.size, true)))
-                         );
+                             .append(
+                                 $('<div class="answer left"/>')
+                                    .append($('<div class="avatar"/>')
+                                        .append($('<img src="https://bootdey.com/img/Content/avatar/avatar1.png" alt="User name"/>'))
+                                        .append($('<div class="status offline"></div>')))
+                                    .append($('<div class="name">Vadim Malyshev</div>'))
+                                    .append($('<div class="text">')
+                                        .text(this.message)
+                                        .append($('<ul/>')
+                                            .append($('<li class="left clearfix" />')
+                                            .append($('<a href="/api/download?channel_id='+channelId+'&id='+this.id+'">' + this.name + '</a>'))
+                                            .append($('<small class="pull-right text-muted" />').text(humanFileSize(this.size, true))))))
+                                     .append($('<div class="time">5 min ago</div>')));
                      });
                  });
              }
