@@ -3,6 +3,7 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
+#include <user_manager.h>
 #include "stdafx.h"
 #include "private/index_page.h"
 #include "http_simple_form_parser.h"
@@ -84,5 +85,75 @@ vds::async_task<vds::http_message> vds::index_page::create_message(const vds::se
         sp,
         result->json_value::str(),
         "application/json; charset=utf-8"));
+  });
+}
+
+class parse_request_form : public vds::http::form_parser<parse_request_form> {
+public:
+  parse_request_form(
+      const vds::service_provider & sp)
+      : sp_(sp), successful_(false) {
+
+  }
+
+  void on_field(const simple_field_info & field) {
+    throw std::runtime_error("Invalid field " + field.name);
+  }
+
+  vds::async_task<> on_file(const file_info & file) {
+
+    return file.stream->read_all()
+        .then([this](const vds::const_data_buffer & buffer){
+         this->successful_ = vds::user_manager::parse_join_request(
+        this->sp_,
+        buffer,
+         this->userName_,
+         this->userEmail_);
+    });
+  }
+
+  bool successful() const {
+    return this->successful_;
+  }
+
+  const std::string &userName() const {
+    return this->userName_;
+  }
+
+  const std::string & userEmail() const {
+    return this->userEmail_;
+  }
+
+private:
+  vds::service_provider sp_;
+  bool successful_;
+  std::string userName_;
+  std::string userEmail_;
+};
+
+vds::async_task<vds::http_message> vds::index_page::parse_join_request(
+    const vds::service_provider& sp,
+    const std::shared_ptr<user_manager>& user_mng,
+    const std::shared_ptr<_web_server>& web_server,
+    const http_message& message) {
+
+  auto parser = std::make_shared<parse_request_form>(sp);
+
+  return parser->parse(sp, message)
+      .then([sp, user_mng, web_server, parser]() -> async_task<http_message> {
+    auto result = std::make_shared<json_object>();
+        if(parser->successful()) {
+          result->add_property("successful", "true");
+          result->add_property("name", parser->userName());
+          result->add_property("email", parser->userEmail());
+        }
+        else {
+          result->add_property("successful", "false");
+        }
+    return vds::async_task<vds::http_message>::result(
+        http_response::simple_text_response(
+            sp,
+            result->json_value::str(),
+            "application/json; charset=utf-8"));
   });
 }

@@ -192,9 +192,11 @@ namespace vds {
       return this->user_private_key_;
     }
 
-    async_task<> add_register_request(
+    static bool parse_join_request(
         const service_provider& sp,
-        const const_data_buffer & data);
+        const const_data_buffer & data,
+        std::string & userName,
+        std::string & userEmail);
 
 
   private:

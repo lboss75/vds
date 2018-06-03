@@ -230,6 +230,9 @@ vds::binary_deserializer& vds::binary_deserializer::operator>>(std::string& valu
 vds::binary_deserializer& vds::binary_deserializer::operator>>(vds::const_data_buffer& data)
 {
   auto len = this->read_number();
+  if(len > 1024 * 1024 * 1024){
+    throw std::runtime_error("very big object");
+  }
   std::vector<uint8_t> buffer(len);
   for(uint64_t i = 0; i < len; ++i){
     uint8_t ch;

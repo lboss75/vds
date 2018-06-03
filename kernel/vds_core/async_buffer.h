@@ -42,7 +42,13 @@ namespace vds {
     {
       return static_cast<_continuous_buffer *>(this->impl_.get())->read_async(buffer, buffer_size);
     }
-    
+
+    async_task<const_data_buffer> read_all()
+    {
+      auto buffer = std::make_shared<std::tuple<resizable_data_buffer, item_type [1024]>>();
+      return static_cast<_continuous_buffer *>(this->impl_.get())->read_all(buffer);
+    }
+
     void reset()
     {
       return static_cast<_continuous_buffer *>(this->impl_.get())->reset();
@@ -147,6 +153,24 @@ namespace vds {
             result.done(readed);
           }, buffer, buffer_size);
         };
+      }
+
+      async_task<const_data_buffer> read_all(
+          const std::shared_ptr<std::tuple<resizable_data_buffer, item_type [1024]>> & buffer)
+      {
+        return this->read_async(std::get<1>(*buffer), 1024)
+            .then([buffer, pthis = this->shared_from_this()](size_t readed) -> async_task<const_data_buffer>{
+              if(0 == readed){
+                return async_task<const_data_buffer>::result(
+                    const_data_buffer(
+                        std::get<0>(*buffer).data(),
+                        std::get<0>(*buffer).size()));
+              }
+              else {
+                std::get<0>(*buffer).add(std::get<1>(*buffer), readed);
+                return static_cast<_continuous_buffer *>(pthis.get())->read_all(buffer);
+              }
+            });
       }
 
       void reset()

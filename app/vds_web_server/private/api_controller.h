@@ -91,6 +91,7 @@ namespace vds {
         const service_provider& sp,
         const std::shared_ptr<_web_server>& owner,
         int request_id);
+
   private:
     static std::shared_ptr<json_object> channel_serialize(const vds::user_channel & channel);
 

@@ -325,4 +325,3 @@ vds::async_task<vds::const_data_buffer> vds::api_controller::get_register_reques
     return *result;
   });
 }
-

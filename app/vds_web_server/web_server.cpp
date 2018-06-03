@@ -5,7 +5,7 @@ All rights reserved
 
 #include "stdafx.h"
 #include <queue>
-#include <private/api_controller.h>
+#include "private/api_controller.h"
 #include "web_server.h"
 #include "private/web_server_p.h"
 #include "http_parser.h"
@@ -308,7 +308,7 @@ vds::async_task<vds::http_message> vds::_web_server::route(
     }
   }
 
-  if (request.url() == "/api/invate" && request.method() == "GET") {
+  if (request.url() == "/api/parse_access_request" && request.method() == "POST") {
     auto user_mng = this->get_secured_context(sp, message);
     if (!user_mng) {
       return vds::async_task<vds::http_message>::result(
@@ -318,18 +318,11 @@ vds::async_task<vds::http_message> vds::_web_server::route(
           "Unauthorized"));
     }
 
-    auto result = api_controller::get_invite(
+    return index_page::parse_join_request(
       sp,
-      *user_mng,
+      user_mng,
       this->shared_from_this(),
       message);
-
-    return vds::async_task<vds::http_message>::result(
-      http_response::simple_text_response(
-        sp,
-        result->str(),
-        "application/json; charset=utf-8"));
-
   }
 
   if(request.url() == "/upload" && request.method() == "POST") {

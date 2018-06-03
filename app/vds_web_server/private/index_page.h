@@ -28,6 +28,12 @@ namespace vds {
       const std::shared_ptr<user_manager> &user_mng,
       const std::shared_ptr<_web_server> &web_server,
       const http_message &message);
+
+    static async_task<vds::http_message> parse_join_request(
+        const vds::service_provider& sp,
+        const std::shared_ptr<user_manager>& user_mng,
+        const std::shared_ptr<_web_server>& web_server,
+        const http_message& message);
   };
 }
 

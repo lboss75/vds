@@ -432,6 +432,10 @@ namespace vds {
               this->change_mask(EPOLLIN);
               break;
             }
+            if(0 == error && 0 == len){
+              this->target_.write(nullptr, 0);
+              break;
+            }
 
             this->sp_.get<logger>()->trace("TCP", this->sp_, "Read error %d", error);
             throw std::system_error(
