@@ -331,6 +331,7 @@ a.article, a.article:hover {
 }
 .chat-body .answer.left .avatar {
     left: 0;
+width: 100%;
 }
 .chat-body .answer .avatar {
     bottom: 36px;

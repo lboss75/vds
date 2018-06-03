@@ -45,6 +45,10 @@ namespace vds {
       return this->user_private_key_;
     }
 
+    user_manager::login_state_t get_login_state() const {
+      return this->login_state_;
+    }
+
     void update(
         const service_provider &sp,
         class database_transaction &t);
@@ -77,9 +81,9 @@ namespace vds {
     }
 
     certificate get_channel_write_cert(const const_data_buffer &channel_id) const {
-      auto p = this->channels_.find(channel_id);
+      const auto p = this->channels_.find(channel_id);
       if (this->channels_.end() != p && !p->second.current_write_certificate_.empty()) {
-        auto p1 = p->second.write_certificates_.find(p->second.current_write_certificate_);
+        const auto p1 = p->second.write_certificates_.find(p->second.current_write_certificate_);
         if (p->second.write_certificates_.end() != p1) {
           return p1->second;
         }
@@ -196,6 +200,10 @@ namespace vds {
   private:
     const_data_buffer dht_user_id_;
     asymmetric_private_key user_private_key_;
+    user_manager::login_state_t login_state_;
+
+    certificate root_user_cert_;
+    std::string root_user_name_;
 
     std::set<std::string> processed_;
     certificate user_cert_;

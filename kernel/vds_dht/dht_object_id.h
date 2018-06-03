@@ -19,8 +19,8 @@ namespace vds {
     class dht_object_id {
     public:
       static const_data_buffer distance(const const_data_buffer &left, const const_data_buffer &right) {
-        auto min_size = (left.size() < right.size()) ? left.size() : right.size();
-        auto max_size = (left.size() > right.size()) ? left.size() : right.size();
+        const auto min_size = (left.size() < right.size()) ? left.size() : right.size();
+        const auto max_size = (left.size() > right.size()) ? left.size() : right.size();
 
         resizable_data_buffer result;
 
@@ -38,15 +38,15 @@ namespace vds {
       }
 
       static size_t distance_exp(const const_data_buffer &left, const const_data_buffer &right) {
-        auto min_size = (left.size() < right.size()) ? left.size() : right.size();
+        const auto min_size = (left.size() < right.size()) ? left.size() : right.size();
 
         for (size_t i = 0; i < min_size; ++i) {
-          const auto b = (uint8_t) (left[i] ^ right[i]);
+          const auto b = static_cast<uint8_t>(left[i] ^ right[i]);
           if (0 == b) {
             continue;
           }
 
-          size_t result = (i << 3);
+          auto result = (i << 3);
 
           uint8_t mask = 0x80;
           while (0 != mask) {
@@ -80,10 +80,10 @@ namespace vds {
         result += original;
 
         result.data()[exp_index / 8] ^= (0x80 >> (exp_index % 8));
-        result.data()[exp_index / 8] ^= ((0x80 >> (exp_index % 8)) - 1) & (uint8_t) std::rand();
+        result.data()[exp_index / 8] ^= ((0x80 >> (exp_index % 8)) - 1) & static_cast<uint8_t>(std::rand());
 
         for (size_t i = exp_index / 8 + 1; i < original.size(); ++i) {
-          result.data()[i] = (uint8_t) std::rand();
+          result.data()[i] = static_cast<uint8_t>(std::rand());
         }
 
         vds_assert(exp_index == distance_exp(original, const_data_buffer(result.data(), result.size())));

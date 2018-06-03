@@ -30,6 +30,10 @@ vds::user_manager::user_manager(){
 vds::user_manager::~user_manager() {
 }
 
+vds::user_manager::login_state_t vds::user_manager::get_login_state() const {
+  return this->impl_->get_login_state();
+}
+
 vds::async_task<> vds::user_manager::update(const service_provider& sp) {
   return sp.get<db_model>()->async_transaction(sp, [sp, pthis = this->shared_from_this()](database_transaction & t) {
     pthis->impl_->update(sp, t);
@@ -518,7 +522,9 @@ vds::_user_manager::_user_manager(
 		const const_data_buffer & dht_user_id,
     const asymmetric_private_key & user_password_key)
 		: dht_user_id_(dht_user_id),
-      user_private_key_(user_password_key) {
+      user_private_key_(user_password_key),
+      login_state_(user_manager::login_state_t::waiting_channel)
+{
 }
 
 void vds::_user_manager::update(

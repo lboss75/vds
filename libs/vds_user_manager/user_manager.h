@@ -20,8 +20,16 @@ namespace vds {
   class user_manager : public std::enable_shared_from_this<user_manager>
   {
   public:
+    enum class login_state_t {
+      waiting_channel,
+      login_sucessful,
+      login_failed
+    };
+
     user_manager();
     ~user_manager();
+
+    login_state_t get_login_state() const;
 
     async_task<> update(const service_provider & sp);
 
