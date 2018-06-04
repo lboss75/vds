@@ -312,10 +312,18 @@ vds::async_task<> vds::dht::network::_client::update_route_table(const service_p
 
 vds::async_task<> vds::dht::network::_client::process_update(const vds::service_provider &sp, vds::database_transaction &t) {
   return async_series(
-    this->route_.on_timer(sp.create_scope("Route update"), this->udp_transport_),
-    this->update_route_table(sp.create_scope("Route table update")),
-    this->sync_process_.do_sync(sp.create_scope("Sync process"), t),
-    this->update_wellknown_connection(sp.create_scope("wellknown connection update"), t));
+    this->route_.on_timer(sp.create_scope("Route update"), this->udp_transport_).then([]() {
+      std::cout << "Route update finished\n";
+    }),
+    this->update_route_table(sp.create_scope("Route table update")).then([]() {
+      std::cout << "Route table update finished\n";
+    }),
+    this->sync_process_.do_sync(sp.create_scope("Sync process"), t).then([]() {
+      std::cout << "Sync process finished\n";
+    }),
+    this->update_wellknown_connection(sp.create_scope("wellknown connection update"), t).then([]() {
+      std::cout << "wellknown connection update finished\n";
+    }));
 }
 
 void vds::dht::network::_client::get_route_statistics(route_statistic& result) {

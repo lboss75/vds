@@ -9,6 +9,7 @@ All rights reserved
 #include "payment_transaction.h"
 #include "root_user_transaction.h"
 #include "channel_message.h"
+#include "create_user_transaction.h"
 
 namespace vds {
   namespace transactions {
@@ -24,6 +25,10 @@ namespace vds {
       }
 
       virtual bool visit(const channel_message &message) {
+        return true;
+      }
+
+      virtual bool visit(const create_user_transaction &message) {
         return true;
       }
 
@@ -43,6 +48,12 @@ namespace vds {
             }
             case transactions::root_user_transaction::message_id: {
               if (!this->visit(root_user_transaction(s))) {
+                return false;
+              }
+              break;
+            }
+            case transactions::create_user_transaction::message_id: {
+              if (!this->visit(create_user_transaction(s))) {
                 return false;
               }
               break;

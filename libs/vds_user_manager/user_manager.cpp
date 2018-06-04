@@ -23,6 +23,7 @@ All rights reserved
 #include "dht_network_client.h"
 #include "../vds_dht_network/private/dht_network_client_p.h"
 #include "register_request.h"
+#include "create_user_transaction.h"
 
 vds::user_manager::user_manager(){
 }
@@ -44,7 +45,7 @@ vds::async_task<> vds::user_manager::update(const service_provider& sp) {
 void vds::user_manager::load(
   const service_provider & sp,
   database_transaction & t,
-  const const_data_buffer & dht_user_id,
+  const std::string &user_credentials_key,
   const asymmetric_private_key & user_password_key)
 {
 	if (nullptr != this->impl_.get()) {
@@ -52,7 +53,7 @@ void vds::user_manager::load(
 	}
 
 	this->impl_.reset(new _user_manager(
-		dht_user_id,
+    user_credentials_key,
     user_password_key));
 
 	this->impl_->update(sp, t);
@@ -320,6 +321,7 @@ vds::member_user vds::user_manager::create_root_user(
 
   playback.add(
       transactions::root_user_transaction(
+          dht::dht_object_id::user_credentials_to_key(root_user_name, root_password),
           root_user_cert,
           root_user_name));
 
@@ -417,32 +419,6 @@ void vds::user_manager::save_certificate(
   t.execute(t2.delete_if(t2.id == cert.subject()));
 }
 
-void vds::user_manager::create_root_user(
-		const service_provider &sp,
-		database_transaction &t,
-		const std::string &user_email,
-		const symmetric_key &password_key,
-		const const_data_buffer &password_hash) {
-
-	auto private_key = asymmetric_private_key::generate(asymmetric_crypto::rsa4096());
-	auto user_cert = _cert_control::create_root(
-			user_email,
-			private_key);
-
-	transactions::transaction_block_builder playback(sp, t);
-	playback.add(
-
-			transactions::root_user_transaction(
-					user_cert,
-					user_email));
-
-	playback.save(
-			sp,
-			t,
-			user_cert,
-      private_key);
-}
-
 void vds::user_manager::save_certificate(const vds::service_provider &sp, const vds::certificate &cert) {
   this->impl_->add_certificate(cert);
 
@@ -463,10 +439,6 @@ void vds::user_manager::save_certificate(const vds::service_provider &sp, const 
       sp.get<logger>()->warning(ThisModule, sp, "%s at saving certificate", ex->what());
     }
   });
-}
-
-const vds::const_data_buffer &vds::user_manager::dht_user_id() const {
-	return this->impl_->dht_user_id();
 }
 
 vds::member_user vds::user_manager::get_current_user() const {
@@ -516,13 +488,17 @@ bool vds::user_manager::parse_join_request(const vds::service_provider &sp, cons
   return _user_manager::parse_join_request(sp, data, userName, userEmail);
 }
 
+bool vds::user_manager::approve_join_request(const service_provider& sp, const const_data_buffer& data) {
+  return this->impl_->approve_join_request(sp, data);
+}
+
 /////////////////////////////////////////////////////////////////////
 vds::_user_manager::_user_manager(
-		const const_data_buffer & dht_user_id,
+		const std::string & user_credentials_key,
     const asymmetric_private_key & user_password_key)
-		: dht_user_id_(dht_user_id),
+		: user_credentials_key_(user_credentials_key),
       user_private_key_(user_password_key),
-      login_state_(user_manager::login_state_t::waiting_channel)
+      login_state_(user_manager::login_state_t::waiting)
 {
 }
 
@@ -561,24 +537,50 @@ void vds::_user_manager::update(
     transactions::transaction_block block(data);
 	  block.walk_messages(
       [this](const transactions::root_user_transaction & message)->bool{
-        this->user_cert_ = message.user_cert();
-        this->user_name_ = message.user_name();
+        this->root_user_cert_ = message.user_cert();
+        this->root_user_name_ = message.user_name();
 
-        auto &cp = this->channels_[this->user_cert_.fingerprint()];
+        if (this->user_credentials_key_ == message.user_credentials_key()) {
+          this->user_cert_ = message.user_cert();
+          this->user_name_ = message.user_name();
+          this->login_state_ = user_manager::login_state_t::login_sucessful;
 
-        cp.name_ = "!Private";
+          auto &cp = this->channels_[this->user_cert_.fingerprint()];
 
-        auto write_id = this->user_cert_.subject();
-        cp.write_certificates_[write_id] = this->user_cert_;
+          cp.name_ = "!Private";
 
-        auto id = this->user_cert_.subject();
-        cp.read_certificates_[id] = this->user_cert_;
-        cp.read_private_keys_[id] = this->user_private_key_;
-        cp.current_read_certificate_ = id;
+          auto write_id = this->user_cert_.subject();
+          cp.write_certificates_[write_id] = this->user_cert_;
+
+          auto id = this->user_cert_.subject();
+          cp.read_certificates_[id] = this->user_cert_;
+          cp.read_private_keys_[id] = this->user_private_key_;
+          cp.current_read_certificate_ = id;
+        }
 
         return true;
       },
-      [this, sp, &new_channels, log](const transactions::channel_message  & message)->bool {
+      [this](const transactions::create_user_transaction & message)->bool {
+        if (this->user_credentials_key_ == message.user_credentials_key()) {
+          this->user_cert_ = message.user_cert();
+          this->user_name_ = message.user_name();
+          this->login_state_ = user_manager::login_state_t::login_sucessful;
+
+          auto &cp = this->channels_[this->user_cert_.fingerprint()];
+
+          cp.name_ = "!Private";
+
+          auto write_id = this->user_cert_.subject();
+          cp.write_certificates_[write_id] = this->user_cert_;
+
+          auto id = this->user_cert_.subject();
+          cp.read_certificates_[id] = this->user_cert_;
+          cp.read_private_keys_[id] = this->user_private_key_;
+          cp.current_read_certificate_ = id;
+        }
+        return true;
+      },
+        [this, sp, &new_channels, log](const transactions::channel_message  & message)->bool {
         auto channel_read_key = this->get_channel_read_key(message.channel_id(), message.channel_read_cert_subject());
         if (channel_read_key) {
           message.walk_messages(channel_read_key,
@@ -697,39 +699,112 @@ vds::member_user vds::_user_manager::get_current_user() const {
   return member_user::import_user(this->user_cert_);
 }
 
-bool vds::_user_manager::parse_join_request(
-    const vds::service_provider &sp,
-    const vds::const_data_buffer &data,
-    std::string & userName,
-    std::string & userEmail) {
-try {
-  const_data_buffer user_public_key_der;
-  const_data_buffer user_object_id;
-  const_data_buffer user_private_key_der;
+bool vds::_user_manager::approve_join_request(const service_provider& sp, const const_data_buffer& data) {
+  try {
+    const_data_buffer user_public_key_der;
+    std::string user_object_id;
+    const_data_buffer user_private_key_der;
+    std::string userName;
+    std::string userEmail;
 
-  binary_deserializer s(data);
-  s
+    binary_deserializer s(data);
+    s
       >> userName
       >> userEmail
       >> user_public_key_der
       >> user_object_id
       >> user_private_key_der;
 
-  auto pos = s.size();
+    const auto pos = s.size();
 
-  const_data_buffer signature;
-  s >> signature;
+    const_data_buffer signature;
+    s >> signature;
 
-  auto user_public_key = asymmetric_public_key::parse_der(user_public_key_der);
+    const auto user_public_key = asymmetric_public_key::parse_der(user_public_key_der);
 
-  return asymmetric_sign_verify::verify(
+    if (!asymmetric_sign_verify::verify(
+      hash::sha256(),
+      user_public_key,
+      signature,
+      data.data(),
+      data.size() - pos)) {
+      return false;
+    }
+
+    sp.get<db_model>()->async_transaction(sp,
+      [
+        pthis = this->shared_from_this(),
+        sp,
+        user_public_key,
+        user_object_id,
+        user_private_key_der,
+        userName,
+        userEmail
+      ](database_transaction & t) {
+      certificate::create_options local_user_options;
+      local_user_options.country = "RU";
+      local_user_options.organization = "IVySoft";
+      local_user_options.name = userName;
+      local_user_options.ca_certificate = &pthis->user_cert_;
+      local_user_options.ca_certificate_private_key = &pthis->user_private_key_;
+
+      auto user_cert = certificate::create_new(user_public_key, asymmetric_private_key(), local_user_options);
+
+      transactions::transaction_block_builder playback(sp, t);
+      playback.add(
+        transactions::create_user_transaction(
+          user_object_id,
+          user_cert,
+          userEmail,
+          pthis->user_cert_));
+
+      playback.save(
+        sp,
+        t,
+        pthis->user_cert_,
+        pthis->user_private_key_);
+
+      return true;
+    }).wait();
+  }
+  catch (...) {
+    return false;
+  }
+}
+
+bool vds::_user_manager::parse_join_request(
+  const vds::service_provider &sp,
+  const vds::const_data_buffer &data,
+  std::string & userName,
+  std::string & userEmail) {
+  try {
+    const_data_buffer user_public_key_der;
+    std::string user_object_id;
+    const_data_buffer user_private_key_der;
+
+    binary_deserializer s(data);
+    s
+      >> userName
+      >> userEmail
+      >> user_public_key_der
+      >> user_object_id
+      >> user_private_key_der;
+
+    auto pos = s.size();
+
+    const_data_buffer signature;
+    s >> signature;
+
+    auto user_public_key = asymmetric_public_key::parse_der(user_public_key_der);
+
+    return asymmetric_sign_verify::verify(
       hash::sha256(),
       user_public_key,
       signature,
       data.data(),
       data.size() - pos);
-}
-  catch (...){
+  }
+  catch (...) {
     return false;
   }
 }

@@ -30,11 +30,11 @@ namespace vds {
 
 
     _user_manager(
-        const const_data_buffer &dht_user_id,
+        const std::string &user_credentials_key,
         const asymmetric_private_key & user_password_key);
 
-    const const_data_buffer &dht_user_id() const {
-      return this->dht_user_id_;
+    const std::string & user_credentials_key() const {
+      return this->user_credentials_key_;
     }
 
     const certificate &user_cert() const {
@@ -192,6 +192,8 @@ namespace vds {
       return this->user_private_key_;
     }
 
+    bool approve_join_request(const service_provider& sp, const const_data_buffer& data);
+
     static bool parse_join_request(
         const service_provider& sp,
         const const_data_buffer & data,
@@ -200,7 +202,7 @@ namespace vds {
 
 
   private:
-    const_data_buffer dht_user_id_;
+    std::string user_credentials_key_;
     asymmetric_private_key user_private_key_;
     user_manager::login_state_t login_state_;
 

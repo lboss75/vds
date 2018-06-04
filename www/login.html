@@ -96,13 +96,13 @@
 
         function try_login() {
             $.getJSON('api/try_login?login=' + escape(inputEmail.value) + '&password=' + escape(inputPassword.value),
-                function(data) {
-                    $('#progressBar').css('width', data.state + '%').attr('aria-valuenow', data.state);
-                    if ('100' == data.state) {
-
+                function (data) {
+                    if ('sucessful' == data.state) {
                         $('#processDialog').modal('hide');
                         window.location.href = data.url;
-                    } else {
+                    }
+                    else {
+                        $('#progressBar').css('width', data.state + '%').attr('aria-valuenow', data.state);
                         try_login();
                     }
                 });

@@ -103,12 +103,12 @@ public:
   vds::async_task<> on_file(const file_info & file) {
 
     return file.stream->read_all()
-        .then([this](const vds::const_data_buffer & buffer){
-         this->successful_ = vds::user_manager::parse_join_request(
-        this->sp_,
+        .then([pthis = this->shared_from_this()](const vds::const_data_buffer & buffer){
+         pthis->successful_ = vds::user_manager::parse_join_request(
+        pthis->sp_,
         buffer,
-         this->userName_,
-         this->userEmail_);
+         pthis->userName_,
+         pthis->userEmail_);
     });
   }
 
@@ -155,5 +155,51 @@ vds::async_task<vds::http_message> vds::index_page::parse_join_request(
             sp,
             result->json_value::str(),
             "application/json; charset=utf-8"));
+  });
+}
+
+class approve_join_request_form : public vds::http::form_parser<approve_join_request_form> {
+public:
+  approve_join_request_form(
+    const vds::service_provider & sp,
+    const std::shared_ptr<vds::user_manager>& user_mng)
+    : sp_(sp), user_mng_(user_mng), successful_(false) {
+
+  }
+
+  void on_field(const simple_field_info & field) {
+    throw std::runtime_error("Invalid field " + field.name);
+  }
+
+  vds::async_task<> on_file(const file_info & file) {
+
+    return file.stream->read_all()
+      .then([pthis = this->shared_from_this()](const vds::const_data_buffer & buffer) {
+      pthis->successful_ = pthis->user_mng_->approve_join_request(pthis->sp_, buffer);
+    });
+  }
+
+  bool successful() const {
+    return this->successful_;
+  }
+
+private:
+  vds::service_provider sp_;
+  std::shared_ptr<vds::user_manager> user_mng_;
+  bool successful_;
+};
+
+
+vds::async_task<vds::http_message> vds::index_page::approve_join_request(const vds::service_provider& sp,
+  const std::shared_ptr<user_manager>& user_mng, const std::shared_ptr<_web_server>& web_server,
+  const http_message& message) {
+
+  auto parser = std::make_shared<approve_join_request_form>(sp, user_mng);
+
+  return parser->parse(sp, message)
+    .then([sp, user_mng, web_server, parser]() -> async_task<http_message> {
+
+    return vds::async_task<vds::http_message>::result(
+      http_response::redirect(sp, "/"));
   });
 }

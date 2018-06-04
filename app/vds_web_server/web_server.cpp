@@ -16,7 +16,6 @@ All rights reserved
 #include "string_format.h"
 #include "http_pipeline.h"
 #include "user_manager.h"
-#include "private/register_page.h"
 #include "private/auth_session.h"
 #include "private/login_page.h"
 #include "private/index_page.h"
@@ -308,7 +307,7 @@ vds::async_task<vds::http_message> vds::_web_server::route(
     }
   }
 
-  if (request.url() == "/api/parse_access_request" && request.method() == "POST") {
+  if (request.url() == "/api/parse_join_request" && request.method() == "POST") {
     auto user_mng = this->get_secured_context(sp, message);
     if (!user_mng) {
       return vds::async_task<vds::http_message>::result(
@@ -319,6 +318,22 @@ vds::async_task<vds::http_message> vds::_web_server::route(
     }
 
     return index_page::parse_join_request(
+      sp,
+      user_mng,
+      this->shared_from_this(),
+      message);
+  }
+  if (request.url() == "/approve_join_request" && request.method() == "POST") {
+    auto user_mng = this->get_secured_context(sp, message);
+    if (!user_mng) {
+      return vds::async_task<vds::http_message>::result(
+        http_response::status_response(
+          sp,
+          http_response::HTTP_Unauthorized,
+          "Unauthorized"));
+    }
+
+    return index_page::approve_join_request(
       sp,
       user_mng,
       this->shared_from_this(),
@@ -392,10 +407,6 @@ vds::async_task<vds::http_message> vds::_web_server::route(
 
   if(request.url() == "/register_request" && request.method() == "POST") {
     return login_page::register_request_post(sp, this->shared_from_this(), message);
-  }
-
-  if (request.url() == "/register" && request.method() == "POST") {
-    return register_page::post(sp, this->shared_from_this(), message);
   }
 
   if (request.url() == "/api/statistics") {

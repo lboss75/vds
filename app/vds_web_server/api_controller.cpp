@@ -14,6 +14,7 @@
 #include "dht_object_id.h"
 #include "register_request.h"
 #include "vds_exceptions.h"
+#include "member_user.h"
 
 std::shared_ptr<vds::json_object> vds::api_controller::channel_serialize(
   const vds::user_channel & channel) {
@@ -62,18 +63,35 @@ vds::async_task<vds::http_message> vds::api_controller::get_login_state(
     auto session_id = guid::new_guid().str();
     auto session = std::make_shared<auth_session>(login, password);
     return session->load(sp, crypted_private_key).then([sp, session_id, session, owner]() {
-      owner->add_auth_session(session_id, session);
 
+      http_response response(http_response::HTTP_OK, "OK");
       auto item = std::make_shared<json_object>();
-      item->add_property("state", "100");
-      item->add_property("url", "/");
+
+      switch (session->get_login_state()) {
+      case user_manager::login_state_t::waiting:
+        item->add_property("state", "100");
+        break;
+
+      case user_manager::login_state_t::login_failed:
+        item->add_property("state", "failed");
+        break;
+
+      case user_manager::login_state_t::login_sucessful:
+        item->add_property("state", "sucessful");
+        item->add_property("url", "/");
+
+        owner->add_auth_session(session_id, session);
+        response.add_header("Set-Cookie", "Auth=" + session_id + "; Path=/");
+        break;
+
+      default:
+        throw std::runtime_error("Invalid program");
+      }
 
       const auto body = item->json_value::str();
 
-      http_response response(http_response::HTTP_OK, "OK");
       response.add_header("Content-Type", "application/json; charset=utf-8");
       response.add_header("Content-Length", std::to_string(body.length()));
-      response.add_header("Set-Cookie", "Auth=" + session_id + "; Path=/");
 
       auto result = response.create_message(sp);
       auto buffer = std::make_shared<std::string>(body);
@@ -181,7 +199,7 @@ vds::api_controller::user_devices(
             t1.name,
             t1.reserved_size,
             t1.free_size)
-        .where(t1.owner_id == base64::from_bytes(user_mng->dht_user_id())));
+        .where(t1.owner_id == user_mng->get_current_user().user_certificate().subject()));
     while(st.execute()){
       auto item = std::make_shared<json_object>();
       item->add_property("id", t1.id.get(st));
@@ -272,7 +290,7 @@ vds::api_controller::lock_device(
     t.execute(
         t1.insert(
             t1.id = base64::from_bytes(current_node),
-            t1.owner_id = base64::from_bytes(user_mng->dht_user_id()),
+            t1.owner_id = user_mng->get_current_user().user_certificate().subject(),
             t1.name = device_name,
             t1.reserved_size = reserved_size,
             t1.free_size = reserved_size));

@@ -16,6 +16,7 @@ All rights reserved
 
 namespace vds {
   namespace transactions {
+    class create_user_transaction;
     class payment_transaction;
 
     class transaction_block_builder {
@@ -30,6 +31,7 @@ namespace vds {
       }
       
       void add(const root_user_transaction & item);
+      void add(const create_user_transaction & item);
       void add(const payment_transaction & item);
 
       template<typename item_type>
@@ -70,7 +72,6 @@ namespace vds {
 
       transaction_block_builder() {
       }
-
 
       const_data_buffer register_transaction(
 		      const service_provider & sp,

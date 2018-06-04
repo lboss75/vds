@@ -21,7 +21,7 @@ namespace vds {
   {
   public:
     enum class login_state_t {
-      waiting_channel,
+      waiting,
       login_sucessful,
       login_failed
     };
@@ -36,7 +36,7 @@ namespace vds {
     void load(
       const service_provider & sp,
       class database_transaction &t,
-      const const_data_buffer & dht_user_id,
+      const std::string &user_credentials_key,
       const asymmetric_private_key & user_password_key);
 
     member_user create_root_user(
@@ -136,14 +136,6 @@ namespace vds {
 
     void save_certificate(const service_provider &sp, database_transaction &t, const certificate &cert);
 
-    void create_root_user(
-        const service_provider &sp,
-        database_transaction &t,
-        const std::string &user_email,
-        const symmetric_key &password_key,
-        const const_data_buffer &password_hash);
-
-    const const_data_buffer &dht_user_id() const;
     member_user get_current_user() const;
     const asymmetric_private_key & get_current_user_private_key() const;
 
@@ -153,6 +145,10 @@ namespace vds {
         const const_data_buffer & data,
         std::string & userName,
         std::string & userEmail);
+
+    bool approve_join_request(
+      const service_provider& sp,
+      const const_data_buffer & data);
 
   private:
     std::unique_ptr<_user_manager> impl_;

@@ -4,23 +4,16 @@ All rights reserved
 */
 
 #include "private/stdafx.h"
-#include <set>
-#include "channel_local_cache_dbo.h"
 #include "dht_network_client.h"
-
 #include "include/transaction_block_builder.h"
-#include "symmetriccrypto.h"
 #include "asymmetriccrypto.h"
-#include "include/transaction_context.h"
-#include "cert_control.h"
 #include "database_orm.h"
-#include "chunk_data_dbo.h"
 #include "transaction_log_record_dbo.h"
 #include "encoding.h"
 #include "vds_debug.h"
-#include "include/transaction_log.h"
 #include "transactions/payment_transaction.h"
 #include "transaction_block.h"
+#include "create_user_transaction.h"
 
 vds::const_data_buffer vds::transactions::transaction_block_builder::save(
   const service_provider &sp,
@@ -80,6 +73,11 @@ vds::transactions::transaction_block_builder::transaction_block_builder(
 
 void vds::transactions::transaction_block_builder::add(const root_user_transaction& item) {
   this->data_ << (uint8_t)root_user_transaction::message_id;
+  item.serialize(this->data_);
+}
+
+void vds::transactions::transaction_block_builder::add(const create_user_transaction& item) {
+  this->data_ << (uint8_t)create_user_transaction::message_id;
   item.serialize(this->data_);
 }
 

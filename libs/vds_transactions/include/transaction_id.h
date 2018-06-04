@@ -10,7 +10,8 @@ namespace vds {
     enum class transaction_id : uint8_t {
       payment_transaction = 'p',
       channel_message = 'c',
-      root_user_transaction = 'r'
+      root_user_transaction = 'r',
+      create_user_transaction = 'u'
     };
   }
 }

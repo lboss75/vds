@@ -23,8 +23,11 @@ namespace vds {
       static const transaction_id message_id = transaction_id::root_user_transaction;
 
       root_user_transaction(
-          const certificate &user_cert,
-          const std::string &user_name);
+          const std::string & user_credentials_key,
+          const certificate & user_cert,
+          const std::string & user_name);
+
+      const std::string & user_credentials_key() const { return this->user_credentials_key_; }
 
       const certificate &user_cert() const { return this->user_cert_; }
 
@@ -40,25 +43,28 @@ namespace vds {
       }
 
     private:
+      std::string user_credentials_key_;
       certificate user_cert_;
       std::string user_name_;
     };
 
     inline root_user_transaction::root_user_transaction(
+        const std::string & user_credentials_key,
         const certificate &user_cert,
         const std::string &user_name)
-        : user_cert_(user_cert),
+        : user_credentials_key_(user_credentials_key),
+          user_cert_(user_cert),
           user_name_(user_name) {
     }
 
     inline root_user_transaction::root_user_transaction(struct binary_deserializer &b) {
       const_data_buffer cert_der;
-      b >> cert_der >> this->user_name_;
+      b >> this->user_credentials_key_ >> cert_der >> this->user_name_;
       this->user_cert_ = certificate::parse_der(cert_der);
     }
 
     inline void root_user_transaction::serialize(vds::binary_serializer &b) const {
-      b << this->user_cert_.der() << this->user_name_;
+      b << this->user_credentials_key_ << this->user_cert_.der() << this->user_name_;
     }
   }
 }
