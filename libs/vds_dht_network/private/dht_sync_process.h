@@ -27,9 +27,9 @@ namespace vds {
 
       class sync_process {
       public:
-        async_task<> query_unknown_records(const service_provider& sp, database_transaction& t);
+        void query_unknown_records(const service_provider& sp, database_transaction& t);
 
-        async_task<> do_sync(
+        void do_sync(
           const service_provider & sp,
           database_transaction & t);
 
@@ -63,7 +63,7 @@ namespace vds {
           const service_provider & sp,
           database_transaction & t);
 
-        async_task<> sync_replicas(const service_provider &sp, database_transaction &t);
+        void sync_replicas(const service_provider &sp, database_transaction &t);
       };
     }
   }

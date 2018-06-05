@@ -94,7 +94,7 @@ namespace vds {
           const std::shared_ptr<dht_session> & session,
           const messages::dht_ping & message);
 
-        async_task<> apply_message(
+        void apply_message(
           const service_provider & sp,
           const std::shared_ptr<dht_session> & session,
           const messages::dht_pong & message);
@@ -110,11 +110,11 @@ namespace vds {
             const messages::offer_replica & message);
 
         template <typename message_type>
-        async_task<> send(
+        void send(
           const service_provider & sp,
           const const_data_buffer & node_id,
           const message_type & message) {
-          return this->send(sp, node_id, message_type::message_id, message.serialize());
+          this->send(sp, node_id, message_type::message_id, message.serialize());
         }
 
         template <typename message_type>
@@ -168,7 +168,7 @@ namespace vds {
             const service_provider & sp,
             database_transaction & t);
 
-        async_task<> send(
+        void send(
           const service_provider& sp,
           const const_data_buffer& node_id,
           const message_type_t message_id,

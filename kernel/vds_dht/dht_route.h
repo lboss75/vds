@@ -64,13 +64,13 @@ namespace vds {
           this->pinged_ = 0;
         }
 
-        async_task<> send_message(
+        void send_message(
           const service_provider& sp,
           const std::shared_ptr<network::udp_transport>& transport,
           const network::message_type_t message_id,
           const const_data_buffer& message) {
 
-          return proxy_session_->send_message(
+          proxy_session_->send_message(
             sp,
             transport,
             (uint8_t)message_id,

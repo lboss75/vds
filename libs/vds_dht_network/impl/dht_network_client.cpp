@@ -115,12 +115,8 @@ void vds::dht::network::_client::apply_message(const service_provider& sp, const
     }
   }
 
-  this->send(sp, message.source_node(), messages::dht_find_node_response(result))
-  .execute([sp](const std::shared_ptr<std::exception> & ex) {
-    if(ex) {
-      sp.get<logger>()->warning(ThisModule, sp, "%s at send dht_find_node_response", ex->what());
-    }
-  });
+  sp.get<logger>()->trace(ThisModule, sp, "Send dht_find_node_response");
+  this->send(sp, message.source_node(), messages::dht_find_node_response(result));
 }
 
 vds::async_task<>  vds::dht::network::_client::apply_message(
@@ -147,46 +143,44 @@ vds::async_task<>  vds::dht::network::_client::apply_message(
 void vds::dht::network::_client::apply_message(const service_provider& sp, const std::shared_ptr<dht_session>& session,
   const messages::dht_ping& message) {
   if(message.target_node() == this->current_node_id()) {
+    sp.get<logger>()->trace(ThisModule, sp, "Send dht_pong");
     session->send_message(
       sp,
       this->udp_transport_,
       (uint8_t)messages::dht_pong::message_id,
-      messages::dht_pong(message.source_node(), this->current_node_id()).serialize()).no_wait();
+      messages::dht_pong(message.source_node(), this->current_node_id()).serialize());
   }
   else {
     this->route_.for_near(sp, message.target_node(), 1, [this, &message, sp](const std::shared_ptr<dht_route<std::shared_ptr<dht_session>>::node> & candidate)->bool {
       if (dht_object_id::distance(message.target_node(), candidate->node_id_) < dht_object_id::distance(message.target_node(), this->current_node_id())) {
-        this->send(sp, message.target_node(), message).no_wait();
+        this->send(sp, message.target_node(), message);
       }
       return true;
     });
   }
 }
 
-vds::async_task<> vds::dht::network::_client::apply_message(
+void vds::dht::network::_client::apply_message(
   const service_provider& sp,
   const std::shared_ptr<dht_session>& session,
   const messages::dht_pong& message) {
   this->route_.mark_pinged(message.source_node(), session->address());
 
-  auto result = async_task<>::empty();
-  this->route_.for_near(sp, message.target_node(), 1, [this, &message, &result, sp](const std::shared_ptr<dht_route<std::shared_ptr<dht_session>>::node> & candidate)->bool {
+  this->route_.for_near(sp, message.target_node(), 1, [this, &message, sp](const std::shared_ptr<dht_route<std::shared_ptr<dht_session>>::node> & candidate)->bool {
     if (dht_object_id::distance(message.target_node(), candidate->node_id_) < dht_object_id::distance(message.target_node(), this->current_node_id())) {
-      result = this->send(sp, message.target_node(), message);
+      this->send(sp, message.target_node(), message);
     }
     return true;
   });
-  return result;
 }
 
 vds::async_task<> vds::dht::network::_client::apply_message(
   const service_provider& sp,
   const std::shared_ptr<dht_session>& session,
   const messages::replica_request& message) {
-  auto async_tasks = std::make_shared<async_task<>>(async_task<>::empty());
   return sp.get<db_model>()->async_transaction(
     sp,
-    [pthis = this->shared_from_this(), sp, session, message, async_tasks](database_transaction & t){
+    [pthis = this->shared_from_this(), sp, session, message](database_transaction & t){
 
     orm::chunk_replicas_dbo t1;
     auto st = t.get_reader(
@@ -196,7 +190,7 @@ vds::async_task<> vds::dht::network::_client::apply_message(
 
     if (st.execute()) {
       auto data = t1.replica_data.get(st);
-      *async_tasks = session->send_message(
+      session->send_message(
         sp,
         pthis->udp_transport_,
         static_cast<uint8_t>(messages::offer_replica::message_id),
@@ -205,8 +199,6 @@ vds::async_task<> vds::dht::network::_client::apply_message(
           data,
           pthis->current_node_id()).serialize());
     }
-  }).then([async_tasks]() {
-    return std::move(*async_tasks);
   });
 }
 
@@ -214,22 +206,20 @@ void vds::dht::network::_client::add_session(const service_provider& sp, const s
   this->route_.add_node(sp, session->partner_node_id(), session, hops);
 }
 
-vds::async_task<> vds::dht::network::_client::send(const service_provider& sp, const const_data_buffer& target_node_id,
+void vds::dht::network::_client::send(const service_provider& sp, const const_data_buffer& target_node_id,
   const message_type_t message_id, const const_data_buffer& message) {
-  auto result = async_task<>::empty();
   this->route_.for_near(
     sp,
     target_node_id,
     1,
-    [sp, target_node_id, message_id, message, &result, pthis = this->shared_from_this()](const std::shared_ptr<dht_route<std::shared_ptr<dht_session>>::node> & candidate) {
-    result = candidate->send_message(
+    [sp, target_node_id, message_id, message, pthis = this->shared_from_this()](const std::shared_ptr<dht_route<std::shared_ptr<dht_session>>::node> & candidate) {
+    candidate->send_message(
       sp,
       pthis->udp_transport_,
       message_id,
       message);
     return false;
   });
-  return result;
 }
 
 void vds::dht::network::_client::send_neighbors(const service_provider& sp,
@@ -241,7 +231,7 @@ void vds::dht::network::_client::send_neighbors(const service_provider& sp,
       sp,
       pthis->udp_transport_,
       message_id,
-      message).no_wait();
+      message);
     return true;
   });
 }
@@ -296,14 +286,7 @@ vds::async_task<> vds::dht::network::_client::update_route_table(const service_p
         pthis->send(
           sp,
           canditate,
-          messages::dht_find_node(canditate, pthis->route_.current_node_id()))
-          .execute([sp, canditate](const std::shared_ptr<std::exception> & ex) {
-          if (ex) {
-            sp.get<logger>()->warning(ThisModule, sp, "%s at update route table %s",
-              ex->what(),
-              base64::from_bytes(canditate).c_str());
-          }
-        });
+          messages::dht_find_node(canditate, pthis->route_.current_node_id()));
       });
     }
   }
@@ -311,15 +294,14 @@ vds::async_task<> vds::dht::network::_client::update_route_table(const service_p
 }
 
 vds::async_task<> vds::dht::network::_client::process_update(const vds::service_provider &sp, vds::database_transaction &t) {
+  this->sync_process_.do_sync(sp.create_scope("Sync process"), t);
+
   return async_series(
     this->route_.on_timer(sp.create_scope("Route update"), this->udp_transport_).then([]() {
       std::cout << "Route update finished\n";
     }),
     this->update_route_table(sp.create_scope("Route table update")).then([]() {
       std::cout << "Route table update finished\n";
-    }),
-    this->sync_process_.do_sync(sp.create_scope("Sync process"), t).then([]() {
-      std::cout << "Sync process finished\n";
     }),
     this->update_wellknown_connection(sp.create_scope("wellknown connection update"), t).then([]() {
       std::cout << "wellknown connection update finished\n";
@@ -452,7 +434,7 @@ vds::async_task<uint8_t> vds::dht::network::_client::restore_async(
         pthis->send(
           sp,
           replica,
-          messages::replica_request(replica, pthis->current_node_id())).no_wait();
+          messages::replica_request(replica, pthis->current_node_id()));
       });
     }
     return true;

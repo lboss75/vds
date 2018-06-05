@@ -34,12 +34,12 @@ vds::dht::network::dht_session::dht_session(
   transaction_log_state_count_(0) {
 }
 
-vds::async_task<> vds::dht::network::dht_session::ping_node(
+void vds::dht::network::dht_session::ping_node(
   const service_provider& sp,
   const const_data_buffer & node_id,
   const std::shared_ptr<udp_transport> & transport) {
 
-  return this->send_message(
+  this->send_message(
       sp,
       transport,
       (uint8_t)messages::dht_ping::message_id,
@@ -134,11 +134,7 @@ vds::async_task<> vds::dht::network::dht_session::process_message(
 
       binary_deserializer s(message_data);
       messages::dht_pong message(s);
-      auto result = std::make_shared<async_task<>>(async_task<>::empty());
-      *result = (*sp.get<client>())->apply_message(sp.create_scope("messages::dht_pong"), this->shared_from_this(), message);
-      mt_service::async(sp, [result]() mutable {
-        result->execute([](const std::shared_ptr<std::exception> & ) {});
-      });
+      (*sp.get<client>())->apply_message(sp.create_scope("messages::dht_pong"), this->shared_from_this(), message);
       break;
     }
     case network::message_type_t::replica_request: {

@@ -109,7 +109,7 @@ namespace vds {
         return this->min_log_level_;
       }
       
-      static logger * get(service_provider & sp)
+      static logger * get(const service_provider & sp)
       {
         return sp.get<logger>();
       }

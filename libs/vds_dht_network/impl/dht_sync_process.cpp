@@ -16,7 +16,7 @@ All rights reserved
 #include "transaction_log.h"
 #include "messages/got_replica.h"
 
-vds::async_task<> vds::dht::network::sync_process::query_unknown_records(const service_provider& sp, database_transaction& t) {
+void vds::dht::network::sync_process::query_unknown_records(const service_provider& sp, database_transaction& t) {
   std::map<const_data_buffer, std::vector<const_data_buffer>> record_ids;
   orm::transaction_log_unknown_record_dbo t1;
   orm::transaction_log_unknown_record_dbo t2;
@@ -30,7 +30,6 @@ vds::async_task<> vds::dht::network::sync_process::query_unknown_records(const s
     record_ids[base64::to_bytes(t1.id.get(st))].push_back(t1.refer_id.get(st));
   }
 
-  auto result = async_task<>::empty();
   if(record_ids.empty()){
     orm::transaction_log_record_dbo t2;
     auto st = t.get_reader(
@@ -44,14 +43,12 @@ vds::async_task<> vds::dht::network::sync_process::query_unknown_records(const s
     }
 
     if(!current_state.empty()) {
-      result = result.then([sp, current_state]() {
         auto & client = *sp.get<vds::dht::network::client>();
         client->send_neighbors(
             sp,
             messages::transaction_log_state(
                 current_state,
                 client->current_node_id()));
-      });
     }
   }
   else {
@@ -65,29 +62,23 @@ vds::async_task<> vds::dht::network::sync_process::query_unknown_records(const s
           base64::from_bytes(p.first).c_str(),
           base64::from_bytes(p.second[index]).c_str());
 
-      result = result.then([client, sp, node_id = p.second[index], record_id = p.first]() {
         client->send(
             sp,
-            node_id,
+          p.second[index],
             messages::transaction_log_request(
-                record_id,
-                client->current_node_id())).no_wait();
-      });
+              p.first,
+                client->current_node_id()));
     }
   }
-  return result;
 }
 
-vds::async_task<> vds::dht::network::sync_process::do_sync(
+void vds::dht::network::sync_process::do_sync(
   const service_provider& sp,
   database_transaction& t) {
 
   this->sync_local_channels(sp, t);
-
-  return async_series(
-    this->query_unknown_records(sp, t),
-    this->sync_replicas(sp, t)
-  );
+  this->sync_replicas(sp, t);
+  this->query_unknown_records(sp, t);
 }
 
 vds::async_task<> vds::dht::network::sync_process::apply_message(
@@ -239,6 +230,7 @@ void vds::dht::network::sync_process::sync_local_channels(const service_provider
     "state is %s",
     log_message.c_str());
 
+  sp.get<logger>()->trace(ThisModule, sp, "Send transaction_log_state");
   client->send_neighbors(
     sp,
     messages::transaction_log_state(
@@ -247,9 +239,9 @@ void vds::dht::network::sync_process::sync_local_channels(const service_provider
 
 }
 
-vds::async_task<> vds::dht::network::sync_process::sync_replicas(
-    const vds::service_provider &sp,
-    vds::database_transaction &t) {
+void vds::dht::network::sync_process::sync_replicas(
+  const vds::service_provider &sp,
+  vds::database_transaction &t) {
   auto & client = *sp.get<dht::network::client>();
 
   std::map<const_data_buffer /*replica_hash*/, std::tuple<vds::const_data_buffer /*distance*/, vds::const_data_buffer /*data*/>> objects;
@@ -259,43 +251,32 @@ vds::async_task<> vds::dht::network::sync_process::sync_replicas(
     .select(t1.id, t1.replica_data)
     .where(t1.last_sync <= std::chrono::system_clock::now() - std::chrono::minutes(10))
     .order_by(t1.last_sync));
-  while(st.execute()){
+  while (st.execute()) {
     const auto replica_hash = base64::to_bytes(t1.id.get(st));
     objects[replica_hash] = std::make_tuple(dht_object_id::distance(replica_hash, client.current_node_id()), t1.replica_data.get(st));
   }
 
   //Move replicas closer to root
-  return [sp, objects](const async_result<> & result) {
-    auto client = sp.get<dht::network::client>();
-    auto runner = new _async_series(result, objects.size());
+  for (auto & p : objects) {
+    std::map<vds::const_data_buffer /*distance*/, std::list<vds::const_data_buffer/*node_id*/>> neighbors;
+    client->neighbors(sp, p.first, neighbors, _client::GENERATE_HORCRUX);
 
-    for (auto & p : objects) {
-      std::map<vds::const_data_buffer /*distance*/, std::list<vds::const_data_buffer/*node_id*/>> neighbors;
-      (*client)->neighbors(sp, p.first, neighbors, _client::GENERATE_HORCRUX);
+    for (auto & pneighbor : neighbors) {
+      if (pneighbor.first < std::get<0>(p.second)) {
+        for (auto & node : pneighbor.second) {
+          sp.get<logger>()->trace(ThisModule, sp, "Send offer_replica");
+          client->send(sp, node, messages::offer_replica(
+            p.first,
+            std::get<1>(p.second),
+            client->current_node_id()));
 
-      auto result = async_task<>::empty();
-      for (auto & pneighbor : neighbors) {
-        if (pneighbor.first < std::get<0>(p.second)) {
-          for (auto & node : pneighbor.second) {
-            result = result.then([
-              client,
-                sp,
-                replica_hash = p.first,
-                target_node = node,
-                replica_data = std::get<1>(p.second)](){
-                return (*client)->send(sp, target_node, messages::offer_replica(
-                  replica_hash,
-                  replica_data,
-                  (*client)->current_node_id()));
-              });
-          }
           break;
         }
       }
-      runner->add(std::move(result));
     }
-  };
+  }
 }
+
 
 void vds::dht::network::sync_process::apply_message(
     const vds::service_provider &sp,

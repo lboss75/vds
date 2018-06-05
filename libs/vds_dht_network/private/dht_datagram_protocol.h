@@ -36,32 +36,29 @@ namespace vds {
         {
         }
 
-        async_task<> send_message(
+        void send_message(
           const service_provider &sp,
           const std::shared_ptr<transport_type> & s,
           uint8_t message_type,
           const const_data_buffer & message) {
           vds_assert(message.size() < 0xFFFF);
 
-          return [sp, s, message_type, message, pthis = this->shared_from_this()](const async_result<> & result_callback) {
-            std::unique_lock<std::mutex> lock(pthis->send_mutex_);
-            while (pthis->send_in_process_) {
-              pthis->send_cond_.wait(lock);
-            }
-            pthis->send_in_process_ = true;
-            lock.unlock();
+          std::unique_lock<std::mutex> lock(this->send_mutex_);
+          while (this->send_in_process_) {
+            this->send_cond_.wait(lock);
+          }
+          this->send_in_process_ = true;
+          lock.unlock();
 
-            pthis->send_message_async(
-              sp,
-              s,
-              message_type,
-              message,
-              result_callback).execute([pthis](const std::shared_ptr<std::exception> & ex) {
-              std::unique_lock<std::mutex> lock(pthis->send_mutex_);
-              pthis->send_in_process_ = false;
-              pthis->send_cond_.notify_all();
-            });
-          };
+          this->send_message_async(
+            sp,
+            s,
+            message_type,
+            message).execute([pthis = this->shared_from_this()](const std::shared_ptr<std::exception> & ex) {
+            std::unique_lock<std::mutex> lock(pthis->send_mutex_);
+            pthis->send_in_process_ = false;
+            pthis->send_cond_.notify_all();
+          });
         }
 
 
@@ -96,14 +93,7 @@ namespace vds {
                 logger::get(sp)->trace("DHT", sp, "Acknowledgment %d of %d", index, first_index);
                 if(first_index < index){
                   this->output_messages_.erase(this->output_messages_.begin());
-                  auto pcallback = this->output_callbacks_.find(first_index);
-                  if (this->output_callbacks_.end() != pcallback) {
-                    mt_service::async(sp, [f = pcallback->second](){
-                      f.done();
-                    });
-                    this->output_callbacks_.erase(pcallback);
-                  }
-
+                  logger::get(sp)->trace("DHT", sp, "Remove out datagram %d", first_index);
                 }
                 else {
                   break;
@@ -124,6 +114,7 @@ namespace vds {
 
               if(this->input_messages_.end() == this->input_messages_.find(index)){
                 this->input_messages_[index] = datagram;
+                logger::get(sp)->trace("DHT", sp, "Datagram[%d]: %d bytes", index, datagram.size());
 
                 if(index == this->next_sequence_number_){
                   do{
@@ -192,7 +183,6 @@ namespace vds {
         std::shared_mutex output_mutex_;
         size_t output_sequence_number_;
         std::map<size_t, const_data_buffer> output_messages_;
-        std::map<size_t, async_result<>> output_callbacks_;
         size_t mtu_;
 
         std::mutex input_mutex_;
@@ -208,11 +198,10 @@ namespace vds {
           const service_provider &sp,
           const std::shared_ptr<transport_type> & s,
           uint8_t message_type,
-          const const_data_buffer & message,
-          const async_result<> & result_callback) {
+          const const_data_buffer & message) {
           vds_assert(message.size() < 0xFFFF);
 
-          return[pthis = this->shared_from_this(), sp, s, message_type, message, result_callback](
+          return[pthis = this->shared_from_this(), sp, s, message_type, message](
             const async_result<> &result) {
             std::unique_lock<std::shared_mutex> lock(pthis->output_mutex_);
             resizable_data_buffer buffer;
@@ -230,14 +219,14 @@ namespace vds {
 
               const_data_buffer datagram(buffer.data(), buffer.size());
               s->write_async(sp, udp_datagram(pthis->address_, datagram, false))
-                .execute([pthis, sp, s, message_type, message, result, datagram, result_callback, expected_index](
+                .execute([pthis, sp, s, message_type, message, result, datagram, expected_index](
                   const std::shared_ptr<std::exception> &ex) {
                 std::unique_lock<std::shared_mutex> lock(pthis->output_mutex_);
                 if (ex) {
                   auto datagram_error = std::dynamic_pointer_cast<udp_datagram_size_exception>(ex);
                   if (datagram_error) {
                     pthis->mtu_ /= 2;
-                    pthis->send_message_async(sp, s, message_type, message, result_callback)
+                    pthis->send_message_async(sp, s, message_type, message)
                       .execute([result](const std::shared_ptr<std::exception> &ex) {
                       if (ex) {
                         result.error(ex);
@@ -267,7 +256,12 @@ namespace vds {
 
                 vds_assert(expected_index == pthis->output_sequence_number_);
                 pthis->output_messages_[pthis->output_sequence_number_] = datagram;
-                pthis->output_callbacks_[pthis->output_sequence_number_] = result_callback;
+                logger::get(sp)->trace(
+                  "DHT",
+                  sp,
+                  "Out datagram[%d]: %d bytes",
+                  pthis->output_sequence_number_,
+                  datagram.size());
                 pthis->output_sequence_number_++;
                 result.done();
               });
@@ -286,14 +280,14 @@ namespace vds {
 
               const_data_buffer datagram(buffer.data(), buffer.size());
               s->write_async(sp, udp_datagram(pthis->address_, datagram))
-                .execute([pthis, sp, s, message_type, message, offset, result, datagram, result_callback, expected_index = pthis->output_sequence_number_](
+                .execute([pthis, sp, s, message_type, message, offset, result, datagram, expected_index = pthis->output_sequence_number_](
                   const std::shared_ptr<std::exception> &ex) {
                 std::unique_lock<std::shared_mutex> lock(pthis->output_mutex_);
                 if (ex) {
                   auto datagram_error = std::dynamic_pointer_cast<udp_datagram_size_exception>(ex);
                   if (datagram_error) {
                     pthis->mtu_ /= 2;
-                    pthis->send_message_async(sp, s, message_type, message, result_callback)
+                    pthis->send_message_async(sp, s, message_type, message)
                       .execute([result](const std::shared_ptr<std::exception> &ex) {
                       if (ex) {
                         result.error(ex);
@@ -309,7 +303,7 @@ namespace vds {
                 }
                 else {
                   pthis->output_messages_[pthis->output_sequence_number_] = datagram;
-                  pthis->output_callbacks_[pthis->output_sequence_number_] = result_callback;
+                  logger::get(sp)->trace("DHT", sp, "Out datagram[%d]: %d bytes", pthis->output_sequence_number_, datagram.size());
                   vds_assert(expected_index == pthis->output_sequence_number_);
                   pthis->output_sequence_number_++;
                   pthis->continue_send_message(
@@ -360,6 +354,7 @@ namespace vds {
                   }
                 } else {
                   pthis->output_messages_[pthis->output_sequence_number_] = datagram;
+                  logger::get(sp)->trace("DHT", sp, "Out datagram[%d]: %d bytes", pthis->output_sequence_number_, datagram.size());
                   ++(pthis->output_sequence_number_);
                  if(offset + size < message.size()) {
                     pthis->continue_send_message(
@@ -392,6 +387,7 @@ namespace vds {
               const_data_buffer message(p->second.data() + 5, p->second.size() - 5);
 
               this->input_messages_.erase(this->next_process_index_);
+              logger::get(sp)->trace("DHT", sp, "Processed datagram %d", this->next_process_index_);
               this->next_process_index_++;
 
               locker.unlock();
@@ -435,6 +431,8 @@ namespace vds {
                 if(0 == size){
                   while(index <= this->next_process_index_) {
                     this->input_messages_.erase(this->next_process_index_);
+                    logger::get(sp)->trace("DHT", sp, "Processed datagram %d", this->next_process_index_);
+
                     this->next_process_index_++;
                   }
 
@@ -469,6 +467,7 @@ namespace vds {
             auto p = this->output_messages_.find(index);
             if (this->output_messages_.end() != p) {
               if (0 == (mask & 1)) {
+                sp.get<logger>()->trace(ThisModule, sp, "Repeat message %d", index);
                 mask >>= 1;
                 ++index;
 
@@ -481,13 +480,7 @@ namespace vds {
               }
               else {
                 this->output_messages_.erase(p);
-                auto pcallback = this->output_callbacks_.find(index);
-                if(this->output_callbacks_.end() != pcallback) {
-                  result = result.then([f = pcallback->second]() {
-                    f.done();
-                  });
-                  this->output_callbacks_.erase(pcallback);
-                }
+                logger::get(sp)->trace("DHT", sp, "Remove out datagram %d", index);
               }
             }
             mask >>= 1;
