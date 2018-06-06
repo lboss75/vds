@@ -96,8 +96,8 @@ namespace vds {
       channel_messages_walker_lambdas(
           first_handler_type && first_handler,
           handler_types && ... handler)
-      : first_handler_(std::forward<first_handler_type>(first_handler)),
-          base_class(std::forward<handler_types>(handler)...) {
+      : base_class(std::forward<handler_types>(handler)...),
+        first_handler_(std::forward<first_handler_type>(first_handler)) {
       }
 
       bool visit(const typename functor_info<first_handler_type>::argument_type & message) override{

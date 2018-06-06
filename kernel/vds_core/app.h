@@ -58,10 +58,10 @@ namespace vds{
     : logger_(log_level::ll_info, std::unordered_set<std::string>()),
       log_level_("ll", "log_level", "Log Level", "Set log level"),
       log_modules_("lm", "log_modules", "Log modules", "Set log modules"),
-      help_cmd_set_("Show help", "Show application help"),
-      help_cmd_switch_("h", "help", "Help", "Show help"),
       root_folder_("", "root-folder", "Root folder", "Root folder to store files"),
-      current_command_set_(nullptr)
+      current_command_set_(nullptr),
+      help_cmd_set_("Show help", "Show application help"),
+      help_cmd_switch_("h", "help", "Help", "Show help")
     {
     }
 

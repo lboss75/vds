@@ -37,7 +37,7 @@ namespace vds {
       const service_provider & sp,
       class database_transaction &t,
       const std::string &user_credentials_key,
-      const asymmetric_private_key & user_password_key);
+      const asymmetric_private_key & user_private_key);
 
     member_user create_root_user(
       transactions::transaction_block_builder &log,

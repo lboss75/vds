@@ -46,7 +46,7 @@ void vds::user_manager::load(
   const service_provider & sp,
   database_transaction & t,
   const std::string &user_credentials_key,
-  const asymmetric_private_key & user_password_key)
+  const asymmetric_private_key & user_private_key)
 {
 	if (nullptr != this->impl_.get()) {
 		throw std::runtime_error("Logic error");
@@ -54,7 +54,7 @@ void vds::user_manager::load(
 
 	this->impl_.reset(new _user_manager(
     user_credentials_key,
-    user_password_key));
+    user_private_key));
 
 	this->impl_->update(sp, t);
 }
@@ -495,9 +495,9 @@ bool vds::user_manager::approve_join_request(const service_provider& sp, const c
 /////////////////////////////////////////////////////////////////////
 vds::_user_manager::_user_manager(
 		const std::string & user_credentials_key,
-    const asymmetric_private_key & user_password_key)
+    const asymmetric_private_key & user_private_key)
 		: user_credentials_key_(user_credentials_key),
-      user_private_key_(user_password_key),
+      user_private_key_(user_private_key),
       login_state_(user_manager::login_state_t::waiting)
 {
 }
@@ -766,6 +766,8 @@ bool vds::_user_manager::approve_join_request(const service_provider& sp, const 
 
       return true;
     }).wait();
+
+    return true;
   }
   catch (...) {
     return false;

@@ -31,7 +31,7 @@ namespace vds {
 
     _user_manager(
         const std::string &user_credentials_key,
-        const asymmetric_private_key & user_password_key);
+        const asymmetric_private_key & user_private_key);
 
     const std::string & user_credentials_key() const {
       return this->user_credentials_key_;
