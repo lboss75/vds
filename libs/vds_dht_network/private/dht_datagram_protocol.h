@@ -44,6 +44,10 @@ namespace vds {
           vds_assert(message.size() < 0xFFFF);
 
           std::unique_lock<std::mutex> lock(this->send_mutex_);
+          if(this->output_messages_.size() > 128){
+            return;//Overflow protect
+          }
+
           while (this->send_in_process_) {
             this->send_cond_.wait(lock);
           }
@@ -114,7 +118,7 @@ namespace vds {
 
               if(this->input_messages_.end() == this->input_messages_.find(index)){
                 this->input_messages_[index] = datagram;
-                logger::get(sp)->trace("DHT", sp, "Datagram[%d]: %d bytes", index, datagram.size());
+                logger::get(sp)->trace("DHT", sp, "Input Datagram[%d]: %d bytes", index, datagram.size());
 
                 if(index == this->next_sequence_number_){
                   do{
@@ -154,7 +158,7 @@ namespace vds {
           for (size_t i = this->next_sequence_number_; i < this->next_sequence_number_ + 32; ++i)
           {
             mask >>= 1;
-            if (this->input_messages_.end() != this->input_messages_.find(i))
+            if (this->input_messages_.end() == this->input_messages_.find(i))
             {
               mask |= 0x80000000;
             }
@@ -466,22 +470,20 @@ namespace vds {
           while(mask > 0){
             auto p = this->output_messages_.find(index);
             if (this->output_messages_.end() != p) {
-              if (0 == (mask & 1)) {
-                sp.get<logger>()->trace(ThisModule, sp, "Repeat message %d", index);
-                mask >>= 1;
-                ++index;
+              if (0 != (mask & 1)) {
+                sp.get<logger>()->trace(ThisModule, sp, "Repeat message %d to %s", index, this->address_.to_string().c_str());
 
                 result = result.then([sp, s, data = udp_datagram(this->address_, p->second, false)]() {
                   return s->write_async(sp, data);
-                })
-                .then([pthis = this->shared_from_this(), sp, s, mask, index](){
-                  return pthis->repeat_message(sp, s, mask, index);
                 });
               }
               else {
                 this->output_messages_.erase(p);
-                logger::get(sp)->trace("DHT", sp, "Remove out datagram %d", index);
+                logger::get(sp)->trace("DHT", sp, "Remove out datagram %d to %s", index, this->address_.to_string().c_str());
               }
+            }
+            else {
+              logger::get(sp)->trace("DHT", sp, "Message not found %d ot %s", index, this->address_.to_string().c_str());
             }
             mask >>= 1;
             ++index;

@@ -36,42 +36,62 @@ void vds::dht::network::udp_transport::stop(const service_provider& sp) {
 
 vds::async_task<>
 vds::dht::network::udp_transport::write_async(const service_provider &sp, const udp_datagram &datagram) {
-  std::unique_lock<std::debug_mutex> lock(this->write_mutex_);
-  while(this->write_in_progress_) {
-    this->write_cond_.wait(*reinterpret_cast<std::unique_lock<std::mutex> *>(&lock));
-  }
-  this->write_in_progress_ = true;
-#ifdef _DEBUG
-#ifndef _WIN32
-  this->owner_id_ = syscall(SYS_gettid);
-#else
-  this->owner_id_ = GetCurrentThreadId();
-#endif
-#endif//_DEBUG
+//  std::unique_lock<std::debug_mutex> lock(this->write_mutex_);
+//  while(this->write_in_progress_) {
+//    this->write_cond_.wait(*reinterpret_cast<std::unique_lock<std::mutex> *>(&lock));
+//  }
+//  this->write_in_progress_ = true;
+//#ifdef _DEBUG
+//#ifndef _WIN32
+//  this->owner_id_ = syscall(SYS_gettid);
+//#else
+//  this->owner_id_ = GetCurrentThreadId();
+//#endif
+//#endif//_DEBUG
 
   return [sp, pthis = this->shared_from_this(), datagram](const async_result<> & result) {
-    pthis->server_.socket().write_async(datagram)
-        .execute([sp, pthis, result, datagram](const std::shared_ptr<std::exception> & ex) {
-      std::unique_lock<std::debug_mutex> lock(pthis->write_mutex_);
-      pthis->write_in_progress_ = false;
-      pthis->write_cond_.notify_all();
-      lock.unlock();
-      if(ex) {
-        sp.get<logger>()->error(
-            ThisModule,
-            sp,
-            "%s at write UDP datagram %d bytes to %s",
-            ex->what(),
-            datagram.data_size(),
-            datagram.address().to_string().c_str());
+    std::unique_lock<std::debug_mutex> lock(pthis->write_mutex_);
+    bool need_send = pthis->send_queue_.empty();
+    pthis->send_queue_.push_back(std::make_tuple(datagram, std::move(result)));
 
-        result.error(ex);
-      }
-      else {
-        result.done();
-      }
-    });
+    if(need_send) {
+      pthis->continue_send(sp);
+    }
   };
+}
+
+void
+vds::dht::network::udp_transport::continue_send(const service_provider &sp) {
+  auto p = this->send_queue_.begin();
+  auto datagram = std::move(std::get<0>(*p));
+  auto r = std::move(std::get<1>(*p));
+  this->send_queue_.pop_front();
+
+  this->server_.socket().write_async(datagram)
+      .execute([sp, pthis = this->shared_from_this(), datagram, result = std::move(r)](const std::shared_ptr<std::exception> &ex) {
+        mt_service::async(sp, [sp, pthis]() {
+          std::unique_lock<std::debug_mutex> lock(pthis->write_mutex_);
+          if (!pthis->send_queue_.empty()) {
+            pthis->continue_send(sp);
+          }
+          lock.unlock();
+        });
+
+        if (ex) {
+          sp.get<logger>()->error(
+              ThisModule,
+              sp,
+              "%s at write UDP datagram %d bytes to %s",
+              ex->what(),
+              datagram.data_size(),
+              datagram.address().to_string().c_str());
+
+          result.error(ex);
+        } else {
+          result.done();
+        }
+      });
+
 }
 
 vds::async_task<> vds::dht::network::udp_transport::on_timer(const service_provider& sp) {

@@ -108,10 +108,11 @@ void vds_mock::sync_wait()
     std::map<int, std::list<vds::const_data_buffer>> order_no;
     std::map<vds::const_data_buffer, std::map<int, char>> states;
     for(std::size_t i = 0; i < statistics.size(); ++i) {
+      for (auto p : statistics[i].sync_statistic_.unknown_) {
+        states[p][i] = '?';
+      }
+
       for(auto leaf : statistics[i].sync_statistic_.leafs_) {
-        for (auto p : statistics[i].sync_statistic_.unknown_) {
-          states[p][i] = '?';
-        }
 
         auto & p = order_no[leaf.order_no];
         if(p.end() == std::find(p.begin(), p.end(), leaf.id)) {

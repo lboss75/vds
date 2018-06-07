@@ -7,13 +7,6 @@ All rights reserved
 #include "test_config.h"
 
 int main(int argc, char **argv) {
-  
-#ifndef _WIN32
-  // core dumps may be disallowed by parent of this process; change that
-  struct rlimit core_limits;
-  core_limits.rlim_cur = core_limits.rlim_max = RLIM_INFINITY;
-  setrlimit(RLIMIT_CORE, &core_limits);
-#endif
 
     setlocale(LC_ALL, "Russian");
     ::testing::InitGoogleTest(&argc, argv);

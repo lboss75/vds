@@ -45,6 +45,8 @@ namespace vds {
         const_data_buffer this_node_id_;
         udp_server server_;
 
+        std::list<std::tuple<udp_datagram, async_result<>>> send_queue_;
+
         std::debug_mutex write_mutex_;
         std::condition_variable write_cond_;
         bool write_in_progress_;
@@ -69,6 +71,7 @@ namespace vds {
         std::shared_ptr<dht_session> get_session(const network_address & address) const;
 
         void continue_read(const service_provider &sp);
+        void continue_send(const service_provider &sp);
       };
     }
   }
