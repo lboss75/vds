@@ -48,6 +48,7 @@ TEST(test_vds, test_initial)
       b.set();
     });
 
+    std::cout << "Upload local file...\n";
     auto file_hash = mock.upload_file(3, channel.id(), "test data", "application/octet-stream", input_stream);
     b.wait();
     ASSERT_TRUE(!error);

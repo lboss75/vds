@@ -14,4 +14,6 @@ All rights reserved
 
 #include "gtest/gtest.h"
 
+#include <iomanip>
+
 #endif//__TEST_VDS_SCENARIOS_STDAFX_H_

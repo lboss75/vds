@@ -9,7 +9,15 @@ All rights reserved
 namespace vds {
   struct sync_statistic {
 
-    std::list<const_data_buffer> leafs_;
+    struct log_info_t {
+      const_data_buffer id;
+      int state;
+      uint64_t order_no;
+    };
+    std::list<log_info_t> leafs_;
+    std::set<const_data_buffer> unknown_;
+
+    std::set<const_data_buffer> replicas_;
 
     struct record_info {
       std::string name_;
@@ -17,21 +25,6 @@ namespace vds {
       std::list<std::shared_ptr<record_info>> children_;
     };
     std::list<std::shared_ptr<record_info>> roots_;
-
-    std::string str() const {
-      std::string result;
-      for (auto & c : this->leafs_) {
-        result += base64::from_bytes(c);
-        result += ',';
-      }
-      result += '\n';
-
-      std::set<const record_info *> processed;
-      for(const auto & r : this->roots_) {
-        this->print_node(result, r.get(), 0, processed);
-      }
-      return result;
-    }
 
     operator bool () const {
       return !this->leafs_.empty();
@@ -45,7 +38,7 @@ namespace vds {
       for (auto & p : this->leafs_) {
         bool is_good = false;
         for (auto & p1 : other.leafs_) {
-          if (p == p1) {
+          if (p.id == p1.id) {
             is_good = true;
             break;
           }
@@ -58,7 +51,7 @@ namespace vds {
       for (auto & p : other.leafs_) {
         bool is_good = false;
         for (auto & p1 : this->leafs_) {
-          if (p == p1) {
+          if (p.id == p1.id) {
             is_good = true;
             break;
           }

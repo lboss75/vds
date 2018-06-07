@@ -47,6 +47,7 @@ namespace vds {
     void shutdown(service_provider & sp)
     {
       this->shutdown_event_.set();
+      std::this_thread::sleep_for(std::chrono::seconds(5));
 
       barrier b;
       async_task<>([this, sp](const async_result<> & result){

@@ -50,6 +50,11 @@ vds::async_task<> vds::dht::network::dht_session::process_message(
   const service_provider& scope,
   uint8_t message_type,
   const const_data_buffer& message_data) {
+
+  if(scope.get_shutdown_event().is_shuting_down()) {
+    return async_task<>::empty();
+  }
+
   auto sp = scope.create_scope(__FUNCTION__);
   switch((network::message_type_t)message_type){
   case network::message_type_t::transaction_log_state: {
@@ -157,14 +162,11 @@ vds::async_task<> vds::dht::network::dht_session::process_message(
 
       binary_deserializer s(message_data);
       messages::offer_replica message(s);
-      auto result = std::make_shared<async_task<>>(async_task<>::empty());
-      *result = (*sp.get<client>())->apply_message(
+      (*sp.get<client>())->apply_message(
           sp.create_scope("messages::replica_request"),
           this->shared_from_this(),
-          message);
-      mt_service::async(sp, [result]() mutable {
-        result->execute([](const std::shared_ptr<std::exception> &) {});
-      });
+          message)
+      .execute([](const std::shared_ptr<std::exception> &) {});
       break;
     }
     default:{

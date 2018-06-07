@@ -65,7 +65,6 @@ vds::udp_socket::udp_socket()
 
 vds::udp_socket::~udp_socket()
 {
-	std::cout << "vds::udp_socket::~udp_socket\n";
 }
 
 vds::async_task<const vds::udp_datagram&> vds::udp_socket::read_async() const
@@ -132,7 +131,6 @@ vds::udp_server::udp_server()
 
 vds::udp_server::~udp_server()
 {
-	std::cout << "vds::udp_server::~udp_server\n";
 }
 
 vds::udp_socket & vds::udp_server::start(
@@ -172,7 +170,6 @@ vds::udp_client::udp_client()
 
 vds::udp_client::~udp_client()
 {
-	std::cout << "vds::udp_client::~udp_client\n";
 }
 
 vds::udp_socket & vds::udp_client::start(

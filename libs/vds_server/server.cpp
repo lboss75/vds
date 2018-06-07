@@ -11,6 +11,8 @@ All rights reserved
 #include "db_model.h"
 #include "file_manager_service.h"
 #include "dht_network.h"
+#include "transaction_log_unknown_record_dbo.h"
+#include "chunk_replicas_dbo.h"
 
 vds::server::server()
 : impl_(new _server(this))
@@ -116,12 +118,37 @@ vds::async_task<vds::server_statistic> vds::_server::get_statistic(const vds::se
   return sp.get<db_model>()->async_transaction(sp, [this, result](database_transaction & t){
 
     orm::transaction_log_record_dbo t2;
-    auto st = t.get_reader(
-        t2.select(t2.id)
-            .where(t2.state == (int)orm::transaction_log_record_dbo::state_t::leaf));
+    auto st = t.get_reader(t2.select(t2.id, t2.state, t2.order_no));
 
     while (st.execute()) {
-      result->sync_statistic_.leafs_.push_back(base64::to_bytes(t2.id.get(st)));
+      result->sync_statistic_.leafs_.push_back(
+        sync_statistic::log_info_t {
+          base64::to_bytes(t2.id.get(st)),
+          t2.state.get(st),
+          t2.order_no.get(st)
+        });
+    }
+
+    orm::transaction_log_unknown_record_dbo t3;
+    st = t.get_reader(t3.select(t3.id));
+
+    while(st.execute()) {
+      auto id = base64::to_bytes(t3.id.get(st));
+
+      if(result->sync_statistic_.unknown_.end() == result->sync_statistic_.unknown_.find(id)) {
+        result->sync_statistic_.unknown_.emplace(id);
+      }
+    }
+
+    orm::chunk_replicas_dbo t4;
+    st = t.get_reader(t4.select(t4.id));
+
+    while (st.execute()) {
+      auto id = base64::to_bytes(t4.id.get(st));
+
+      if (result->sync_statistic_.replicas_.end() == result->sync_statistic_.replicas_.find(id)) {
+        result->sync_statistic_.replicas_.emplace(id);
+      }
     }
 
     return true;

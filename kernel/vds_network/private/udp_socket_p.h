@@ -152,8 +152,6 @@ namespace vds {
     {
 #ifdef _WIN32
       if (INVALID_SOCKET != this->s_) {
-		  std::cout << "vds::_udp_socket::close\n";
-
         closesocket(this->s_);
         this->s_ = INVALID_SOCKET;
       }

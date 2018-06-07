@@ -39,10 +39,11 @@ void vds_mock::start(size_t server_count)
     if (0 == i) {
       std::cout << "Initing root\n";
 	    mock_server::init_root(i, first_port + i, this->root_password_);
-    } else {
-      std::cout << "Initing server " << i << "\n";
-      mock_server::init(i, first_port + i, this->root_login_, this->root_password_);
     }
+    //else {
+    //  std::cout << "Initing server " << i << "\n";
+    //  mock_server::init(i, first_port + i, this->root_login_, this->root_password_);
+    //}
 
     std::unique_ptr<mock_server> server(new mock_server(i, first_port + i));
     try {
@@ -73,49 +74,95 @@ void vds_mock::stop()
 
 void vds_mock::sync_wait()
 {
+  std::cout << "Waiting to synchronize...\n";
   for(int i = 0; i < 1000; ++i){
-    std::cout << "Waiting to synchronize...\n";
-    
-    bool is_good = true;
-    vds::sync_statistic last_sync_statistic;
-    int index = 0;
-    for(auto & p : this->servers_) {
+
+    std::vector<vds::server_statistic> statistics;
+    for (auto & p : this->servers_) {
 
       vds::barrier b;
       std::shared_ptr<std::exception> error;
-      vds::server_statistic stat;
 
       p->get_statistic()
-          .execute([&b, &error, &stat](
-              const std::shared_ptr<std::exception> & ex,
-              const vds::server_statistic & statistic){
-        if(ex){
+        .execute([&b, &error, &statistics](
+          const std::shared_ptr<std::exception> & ex,
+          const vds::server_statistic & statistic) {
+        if (ex) {
           error = ex;
-        } else {
-          stat = statistic;
+        }
+        else {
+          statistics.push_back(statistic);
         }
 
         b.set();
       });
       b.wait();
 
-      if(error){
+      if (error) {
         throw std::runtime_error(error->what());
       }
+    }
 
-      std::cout
-          << "State[" << index ++ << "]: "
-          << stat.sync_statistic_.str()
-          << "\n"
-          << stat.route_statistic_.serialize(true)->str()
-          << "\n"
-          << stat.session_statistic_.serialize()->str()
-          << "\n";
+    std::cout << "order|                      id                    |";
+
+    std::map<int, std::list<vds::const_data_buffer>> order_no;
+    std::map<vds::const_data_buffer, std::map<int, char>> states;
+    for(std::size_t i = 0; i < statistics.size(); ++i) {
+      for(auto leaf : statistics[i].sync_statistic_.leafs_) {
+        for (auto p : statistics[i].sync_statistic_.unknown_) {
+          states[p][i] = '?';
+        }
+
+        auto & p = order_no[leaf.order_no];
+        if(p.end() == std::find(p.begin(), p.end(), leaf.id)) {
+          p.push_back(leaf.id);
+        }
+        switch ((vds::orm::transaction_log_record_dbo::state_t)leaf.state) {
+        case vds::orm::transaction_log_record_dbo::state_t::processed:
+          states[leaf.id][i] = '+';
+          break;
+        case vds::orm::transaction_log_record_dbo::state_t::leaf:
+          states[leaf.id][i] = 'V';
+          break;
+        case vds::orm::transaction_log_record_dbo::state_t::invalid:
+          states[leaf.id][i] = 'X';
+          break;
+        }
+      }
+      std::cout << i << "|";
+    }
+    std::cout << "\n";
+
+    for (auto p : order_no) {
+      for (auto record : p.second) {
+        std::cout << std::setw(5) << p.first << "|" << std::setw(16) << vds::base64::from_bytes(record) << "|";
+        for (std::size_t i = 0; i < statistics.size(); ++i) {
+          auto p2 = states.find(record);
+          if(states.end() == p2) {
+            std::cout << " |";            
+          }
+          else {
+            const auto p1 = p2->second.find(i);
+            if (p2->second.end() == p1) {
+              std::cout << " |";
+            }
+            else {
+              std::cout << p1->second << "|";
+            }
+          }
+        }
+      }
+      std::cout << "\n";
+    }
+    
+    bool is_good = true;
+    vds::sync_statistic last_sync_statistic;
+    for(auto & p : statistics) {
 
       if(!last_sync_statistic){
-        last_sync_statistic = stat.sync_statistic_;
+        last_sync_statistic = p.sync_statistic_;
       }
-      else if(last_sync_statistic != stat.sync_statistic_){
+      else if(last_sync_statistic != p.sync_statistic_){
         is_good = false;
       }
     }
@@ -123,7 +170,35 @@ void vds_mock::sync_wait()
     if(is_good){
       return;
     }
-    
+
+    std::map<vds::const_data_buffer, std::set<std::size_t>> all_replicas;
+    for (std::size_t i = 0; i < statistics.size(); ++i) {
+      for (auto replica : statistics[i].sync_statistic_.replicas_) {
+        all_replicas[replica].emplace(i);
+      }
+      std::cout << i << "|";
+    }
+    std::cout << "\n";
+
+    std::map<std::string, int> replicas;
+    for(auto & p : all_replicas) {
+      std::string mask;
+      for (std::size_t i = 0; i < statistics.size(); ++i) {
+        if(p.second.end() == p.second.find(i)) {
+          mask += " |";
+        }
+        else {
+          mask += "+|";
+        }
+      }
+
+      replicas[mask]++;
+    }
+
+    for(auto & r : replicas) {
+      std::cout << r.first << r.second << "\n";
+    }
+
     std::this_thread::sleep_for(std::chrono::seconds(5));
   }
   

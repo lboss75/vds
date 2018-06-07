@@ -148,6 +148,11 @@ void vds::dht::network::udp_transport::continue_read(
   this->server_.socket().read_async().execute([sp, pthis = this->shared_from_this()](
     const std::shared_ptr<std::exception> & ex,
     const vds::udp_datagram & datagram){
+
+    if(sp.get_shutdown_event().is_shuting_down()) {
+      return;
+    }
+
     if (!ex && 0 != datagram.data_size()) {
       switch ((protocol_message_type_t)datagram.data()[0]) {
       case protocol_message_type_t::HandshakeBroadcast: {
@@ -248,12 +253,19 @@ void vds::dht::network::udp_transport::continue_read(
     else {
       if(ex) {
         sp.get<logger>()->trace(ThisModule, sp, "Error %s", ex->what());
+
+        //auto sys_error = std::dynamic_pointer_cast<std::system_error>(ex);
+        //if(sys_error && sys_error->code().value() == ERROR_PORT_UNREACHABLE) {
+        //  return;          
+        //}
       }
       if(0 == datagram.data_size()) {
         sp.get<logger>()->trace(ThisModule, sp, "0 == datagram.data_size()");
       }
       mt_service::async(sp, [sp, pthis]() {
-        pthis->continue_read(sp);
+        if (!sp.get_shutdown_event().is_shuting_down()) {
+          pthis->continue_read(sp);
+        }
       });
     }
   });
