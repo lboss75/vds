@@ -13,6 +13,7 @@ All rights reserved
 #include "dht_network.h"
 #include "transaction_log_unknown_record_dbo.h"
 #include "chunk_replicas_dbo.h"
+#include "chunk_replica_data_dbo.h"
 
 vds::server::server()
 : impl_(new _server(this))
@@ -148,6 +149,17 @@ vds::async_task<vds::server_statistic> vds::_server::get_statistic(const vds::se
 
       if (result->sync_statistic_.replicas_.end() == result->sync_statistic_.replicas_.find(id)) {
         result->sync_statistic_.replicas_.emplace(id);
+      }
+    }
+
+    orm::chunk_replica_data_dbo t5;
+    st = t.get_reader(t5.select(t5.id, t5.replica));
+
+    while (st.execute()) {
+      const auto id = t5.id.get(st) + "." + std::to_string(t5.replica.get(st));
+
+      if (result->sync_statistic_.replica_distribution_.end() == result->sync_statistic_.replica_distribution_.find(id)) {
+        result->sync_statistic_.replica_distribution_.emplace(id);
       }
     }
 

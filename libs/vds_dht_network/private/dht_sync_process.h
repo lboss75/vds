@@ -48,16 +48,6 @@ namespace vds {
           database_transaction& t,
           const messages::transaction_log_record & message);
 
-        void apply_message(
-            const service_provider & sp,
-            database_transaction & t,
-            const messages::offer_replica & message);
-
-        void apply_message(
-            const service_provider & sp,
-            database_transaction & t,
-            const messages::got_replica & message);
-
       private:
         void sync_local_channels(
           const service_provider & sp,

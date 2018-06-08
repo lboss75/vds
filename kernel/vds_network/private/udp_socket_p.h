@@ -183,7 +183,7 @@ namespace vds {
           vds_assert(result);
           this_->wsa_buf_.len = sizeof(this_->buffer_);
           this_->wsa_buf_.buf = (CHAR *)this_->buffer_;
-          this_->result_ = result;
+          this_->result_ = std::move(result);
           
 		  this_->sp_.get<logger>()->trace("UDP", this_->sp_, "WSARecvFrom %d", this_->s_);
 
@@ -201,7 +201,7 @@ namespace vds {
             NULL)) {
             auto errorCode = WSAGetLastError();
             if (WSA_IO_PENDING != errorCode) {
-              result.error(std::make_shared<std::system_error>(errorCode, std::system_category(), "WSARecvFrom failed"));
+              this_->result_.error(std::make_shared<std::system_error>(errorCode, std::system_category(), "WSARecvFrom failed"));
             }
 			else {
 				this_->sp_.get<logger>()->trace("UDP", this_->sp_, "Read scheduled");

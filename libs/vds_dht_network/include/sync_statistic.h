@@ -18,6 +18,7 @@ namespace vds {
     std::set<const_data_buffer> unknown_;
 
     std::set<const_data_buffer> replicas_;
+    std::set<std::string> replica_distribution_;
 
     struct record_info {
       std::string name_;

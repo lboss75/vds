@@ -18,8 +18,10 @@ namespace vds {
 
         replica_request(
             const const_data_buffer &replica_hash,
+            const std::set<uint16_t> & exist_replicas,
             const const_data_buffer &source_node)
             : replica_hash_(replica_hash),
+              exist_replicas_(exist_replicas),
               source_node_(source_node) {
         }
 
@@ -27,6 +29,7 @@ namespace vds {
             binary_deserializer & s) {
           s
               >> this->replica_hash_
+              >> this->exist_replicas_
               >> this->source_node_;
           ;
         }
@@ -35,6 +38,7 @@ namespace vds {
           binary_serializer s;
           s
               << this->replica_hash_
+              << this->exist_replicas_
               << this->source_node_;
           return s.data();
         }
@@ -43,12 +47,17 @@ namespace vds {
           return replica_hash_;
         }
 
+        const std::set<uint16_t> & exist_replicas() const {
+          return this->exist_replicas_;
+        }
+
         const const_data_buffer & source_node() const {
           return source_node_;
         }
 
       private:
         const_data_buffer replica_hash_;
+        std::set<uint16_t> exist_replicas_;
         const_data_buffer source_node_;
       };
     }

@@ -172,6 +172,7 @@ void vds_mock::sync_wait()
       return;
     }
 
+    //////////////////////////////////////////////////////////////////////
     std::map<vds::const_data_buffer, std::set<std::size_t>> all_replicas;
     for (std::size_t i = 0; i < statistics.size(); ++i) {
       for (auto replica : statistics[i].sync_statistic_.replicas_) {
@@ -197,6 +198,34 @@ void vds_mock::sync_wait()
     }
 
     for(auto & r : replicas) {
+      std::cout << r.first << r.second << "\n";
+    }
+    //////////////////////////////////////////////////////////////////////
+    std::map<std::string, std::set<std::size_t>> all_replica_dist;
+    for (std::size_t i = 0; i < statistics.size(); ++i) {
+      for (auto replica : statistics[i].sync_statistic_.replica_distribution_) {
+        all_replica_dist[replica].emplace(i);
+      }
+      std::cout << i << "|";
+    }
+    std::cout << "\n";
+
+    std::map<std::string, int> replica_dist;
+    for (auto & p : all_replica_dist) {
+      std::string mask;
+      for (std::size_t i = 0; i < statistics.size(); ++i) {
+        if (p.second.end() == p.second.find(i)) {
+          mask += " |";
+        }
+        else {
+          mask += "+|";
+        }
+      }
+
+      replica_dist[mask]++;
+    }
+
+    for (auto & r : replica_dist) {
       std::cout << r.first << r.second << "\n";
     }
 

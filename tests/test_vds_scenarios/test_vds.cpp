@@ -12,7 +12,7 @@ TEST(test_vds, test_initial)
   try{
     vds_mock mock;
 
-    mock.start(5);
+    mock.start(16);
 
     //Waiting to sync logs
     mock.sync_wait();

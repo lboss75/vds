@@ -16,6 +16,8 @@ All rights reserved
 #include "messages/replica_request.h"
 #include "messages/transaction_log_state.h"
 #include "messages/offer_replica.h"
+#include "messages/replica_data.h"
+#include "messages/got_replica.h"
 
 vds::dht::network::dht_session::dht_session(
   const network_address& address,
@@ -167,6 +169,26 @@ vds::async_task<> vds::dht::network::dht_session::process_message(
           this->shared_from_this(),
           message)
       .execute([](const std::shared_ptr<std::exception> &) {});
+      break;
+    }
+    case network::message_type_t::replica_data: {
+      binary_deserializer s(message_data);
+      messages::replica_data message(s);
+      (*sp.get<client>())->apply_message(
+        sp.create_scope("messages::replica_data"),
+        this->shared_from_this(),
+        message)
+        .execute([](const std::shared_ptr<std::exception> &) {});
+      break;
+    }
+    case network::message_type_t::got_replica: {
+      binary_deserializer s(message_data);
+      messages::got_replica message(s);
+      (*sp.get<client>())->apply_message(
+        sp.create_scope("messages::replica_data"),
+        this->shared_from_this(),
+        message)
+        .execute([](const std::shared_ptr<std::exception> &) {});
       break;
     }
     default:{

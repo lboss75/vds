@@ -16,6 +16,7 @@ All rights reserved
 namespace vds {
   namespace dht {
     namespace messages {
+      class replica_data;
       class replica_request;
       class dht_pong;
       class dht_ping;
@@ -32,8 +33,11 @@ namespace vds {
     namespace network {
       class _client : public std::enable_shared_from_this<_client> {
       public:
-        static constexpr uint16_t MIN_HORCRUX = 512;
-        static constexpr uint16_t GENERATE_HORCRUX = 1024;
+        static constexpr uint16_t MIN_HORCRUX = 3;
+        static constexpr uint16_t GENERATE_HORCRUX = 5;
+
+        static constexpr uint16_t MIN_DISTRIBUTED_PIECES = 3;
+        static constexpr uint16_t GENERATE_DISTRIBUTED_PIECES = 5;
 
         _client(
             const service_provider & sp,
@@ -104,10 +108,21 @@ namespace vds {
           const std::shared_ptr<dht_session> & session,
           const messages::replica_request & message);
 
+        vds::async_task<> apply_message(
+          const service_provider & sp,
+          const std::shared_ptr<dht_session> & session,
+          const messages::replica_data & message);
+        
+
         async_task<> apply_message(
             const service_provider & sp,
             const std::shared_ptr<dht_session> & session,
             const messages::offer_replica & message);
+
+        async_task<> apply_message(
+          const service_provider& sp,
+          const std::shared_ptr<dht_session>& session,
+          const messages::got_replica& message);
 
         template <typename message_type>
         void send(
@@ -155,6 +170,7 @@ namespace vds {
         std::shared_ptr<udp_transport> udp_transport_;
         dht_route<std::shared_ptr<dht_session>> route_;
         std::map<uint16_t, std::unique_ptr<chunk_generator<uint16_t>>> generators_;
+        std::map<uint16_t, std::unique_ptr<chunk_generator<uint16_t>>> distributed_generators_;
         sync_process sync_process_;
 
         timer update_timer_;

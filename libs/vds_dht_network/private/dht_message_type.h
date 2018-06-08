@@ -31,6 +31,7 @@ namespace vds {
         replica_request,
         replica_not_found,
         offer_replica,
+        replica_data,
         transaction_log_request,
         transaction_log_record,
         dht_find_node,

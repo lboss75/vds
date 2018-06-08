@@ -18,9 +18,8 @@ namespace vds {
 
         offer_replica(
           const const_data_buffer &replica_hash,
-          const const_data_buffer &replica_data,
           const const_data_buffer &source_node)
-            : replica_hash_(replica_hash), replica_data_(replica_data),
+            : replica_hash_(replica_hash),
               source_node_(source_node) {
         }
 
@@ -28,7 +27,6 @@ namespace vds {
           binary_deserializer & s) {
           s
               >> this->replica_hash_
-              >> this->replica_data_
               >> this->source_node_;
           ;
         }
@@ -37,7 +35,6 @@ namespace vds {
           binary_serializer s;
           s
               << this->replica_hash_
-              << this->replica_data_
               << this->source_node_;
           return s.data();
         }
@@ -46,17 +43,12 @@ namespace vds {
           return replica_hash_;
         }
 
-        const const_data_buffer & replica_data() const {
-          return replica_data_;
-        }
-
         const const_data_buffer & source_node() const {
           return source_node_;
         }
 
       private:
         const_data_buffer replica_hash_;
-        const_data_buffer replica_data_;
         const_data_buffer source_node_;
       };
     }
