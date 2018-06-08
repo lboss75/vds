@@ -228,11 +228,11 @@ vds::async_task<> vds::dht::network::_client::apply_message(
         }
       }
 
-      get_replica = [&t, data = t1.replica_data.get(st), object_id](uint16_t replica)->const_data_buffer{
+      get_replica = [&t, object_id](uint16_t replica)->const_data_buffer{
         orm::chunk_replica_data_dbo t2;
         auto st = t.get_reader(
           t2
-          .select(t2.replica)
+          .select(t2.replica_data)
           .where(t2.id == object_id
             && t2.replica == replica));
         if (st.execute()) {
