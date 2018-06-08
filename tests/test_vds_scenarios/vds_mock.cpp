@@ -446,6 +446,7 @@ vds::const_data_buffer vds_mock::upload_file(
     sp,
     vds::dht::dht_object_id::user_credentials_to_key(this->root_login_, this->root_password_))
     .then([sp, this, user_mng](const vds::const_data_buffer & crypted_private_key)->vds::async_task<> {
+    std::cout << "Got user private key\n";
     auto user_private_key = vds::asymmetric_private_key::parse_der(
       vds::symmetric_decrypt::decrypt(
         vds::symmetric_key::from_password(this->root_password_),
@@ -499,7 +500,8 @@ vds_mock::download_data(
           vds::dht::dht_object_id::user_credentials_to_key(this->root_login_, this->root_password_))
       .then([sp, this, channel_id, name, file_hash, user_mng](
           const vds::const_data_buffer &crypted_private_key) -> vds::async_task<> {
-        auto user_private_key = vds::asymmetric_private_key::parse_der(
+    std::cout << "Got user private key\n";
+    auto user_private_key = vds::asymmetric_private_key::parse_der(
             vds::symmetric_decrypt::decrypt(
                 vds::symmetric_key::from_password(this->root_password_),
                 crypted_private_key), std::string());

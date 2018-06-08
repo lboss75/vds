@@ -76,13 +76,22 @@ TEST(test_vds, test_initial)
     mock.sync_wait();
     std::cout << "Download file...\n";
 
-//	mock.download_data(4, channel.id(), "test data", tmp_ofn);
-//	auto result = vds::file::read_all(tmp_ofn);
+    result_data = std::make_shared<compare_data<uint8_t>>(buffer.get(), len);
+    mock.download_data(4, channel.id(), "test data", file_hash)
+      .then([sp, &result_mime, &result_size, &result_data](
+        const std::string & content_type,
+        size_t body_size,
+        const std::shared_ptr<vds::continuous_buffer<uint8_t>> & output_stream) {
+      result_mime = content_type;
+      result_size = body_size;
+      return vds::copy_stream(sp, output_stream, result_data);
+    }).wait();
 
+    ASSERT_EQ(len, result_size);
+
+    std::cout << "Done...\n";
     mock.stop();
-   
-//    ASSERT_EQ(len, result.size());
-//    ASSERT_EQ(memcmp(buffer.get(), result.data(), len), 0);
+
   }
   catch (const std::exception & ex) {
     GTEST_FAIL() << ex.what();
