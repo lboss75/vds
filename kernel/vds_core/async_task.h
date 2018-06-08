@@ -123,7 +123,7 @@ namespace vds {
       std::function<void(const std::shared_ptr<std::exception> & ex, result_types... results)> && callback);
 
     async_result(async_result<result_types...> && origin)
-    : impl_(origin.impl_)
+    : impl_(std::move(origin.impl_))
     {
     }
     async_result(const async_result<result_types...> & origin)

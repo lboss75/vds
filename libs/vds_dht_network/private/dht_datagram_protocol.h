@@ -82,12 +82,12 @@ namespace vds {
                 return async_task<>(std::make_shared<std::runtime_error>("Invalid data"));
               }
 
-              size_t index = (datagram.data()[1] << 24)
+              uint32_t index = (datagram.data()[1] << 24)
                              | (datagram.data()[2] << 16)
                              | (datagram.data()[3] << 8)
                              | (datagram.data()[4]);
 
-              size_t mask = (datagram.data()[5] << 24)
+              uint32_t mask = (datagram.data()[5] << 24)
                             | (datagram.data()[6] << 16)
                             | (datagram.data()[7] << 8)
                             | (datagram.data()[8]);
@@ -111,12 +111,12 @@ namespace vds {
                 return async_task<>(std::make_shared<std::runtime_error>("Invalid data"));
               }
 
-              size_t index = (datagram.data()[1] << 24)
+              const uint32_t index = (datagram.data()[1] << 24)
                 | (datagram.data()[2] << 16)
                 | (datagram.data()[3] << 8)
                 | (datagram.data()[4]);
 
-              if(this->input_messages_.end() == this->input_messages_.find(index)){
+              if(index >= this->next_sequence_number_ && this->input_messages_.end() == this->input_messages_.find(index)){
                 this->input_messages_[index] = datagram;
                 logger::get(sp)->trace("DHT", sp, "Input Datagram[%d]: %d bytes", index, datagram.size());
 
@@ -155,7 +155,7 @@ namespace vds {
             this->send_in_process_ ? "true" : "false");
 
           uint32_t mask = 0;
-          for (size_t i = this->next_sequence_number_; i < this->next_sequence_number_ + 32; ++i)
+          for (uint32_t i = this->next_sequence_number_; i < this->next_sequence_number_ + 32; ++i)
           {
             mask >>= 1;
             if (this->input_messages_.end() == this->input_messages_.find(i))
@@ -185,14 +185,14 @@ namespace vds {
         const_data_buffer this_node_id_;
 
         std::shared_mutex output_mutex_;
-        size_t output_sequence_number_;
-        std::map<size_t, const_data_buffer> output_messages_;
-        size_t mtu_;
+        uint32_t output_sequence_number_;
+        std::map<uint32_t, const_data_buffer> output_messages_;
+        uint32_t mtu_;
 
         std::mutex input_mutex_;
-        std::map<size_t, const_data_buffer> input_messages_;
-        size_t next_sequence_number_;
-        size_t next_process_index_;
+        std::map<uint32_t, const_data_buffer> input_messages_;
+        uint32_t next_sequence_number_;
+        uint32_t next_process_index_;
 
         std::mutex send_mutex_;
         std::condition_variable send_cond_;
@@ -463,8 +463,8 @@ namespace vds {
         async_task<> repeat_message(
             const service_provider & sp,
             const std::shared_ptr<transport_type> & s,
-            size_t mask,
-            size_t index){
+            uint32_t mask,
+            uint32_t index){
           auto result = async_task<>::empty();
 
           while(mask > 0){

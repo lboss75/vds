@@ -255,17 +255,21 @@ namespace vds {
         async_task<> write_async(const udp_datagram & data)
         {
           std::unique_lock<not_mutex> lock(this->not_mutex_);
+          vds_assert(!this->result_);
           this->buffer_ = data;
           this->wsa_buf_.len = this->buffer_.data_size();
           this->wsa_buf_.buf = (CHAR *)this->buffer_.data();
+          this->sp_.get<logger>()->trace(
+            "UDP",
+            this->sp_,
+            "write_async %s %d bytes",
+            this->buffer_->address().to_string().c_str(),
+            this->buffer_.data_size());
 
           return[pthis = this->shared_from_this()](const async_result<> & result){
             auto this_ = static_cast<_udp_send *>(pthis.get());
             std::unique_lock<not_mutex> lock(this_->not_mutex_);
-            //vds_assert(!this_->result_);
-            if(this_->result_) {
-              this_->result_.done();
-            }
+            vds_assert(!this_->result_);
             this_->result_ = result;
             lock.unlock();
 
@@ -294,21 +298,29 @@ namespace vds {
 
       void process(DWORD dwBytesTransfered) override
       {
+        std::unique_lock<not_mutex> lock(this->not_mutex_);
         vds_assert(this->result_);
+        auto result = std::move(this->result_);
+        lock.unlock();
+
         if (this->wsa_buf_.len != (size_t)dwBytesTransfered) {
-          this->result_.error(std::make_shared<std::runtime_error>("Invalid sent UDP data"));
+          result.error(std::make_shared<std::runtime_error>("Invalid sent UDP data"));
         }
         else {
 			this->sp_.get<logger>()->trace("UDP", this->sp_, "Sent %d", dwBytesTransfered);
-			this->result_.done();
+			result.done();
           
         }
       }
 
       void error(DWORD error_code) override
       {
+        std::unique_lock<not_mutex> lock(this->not_mutex_);
         vds_assert(this->result_);
-        this->result_.error(std::make_shared<std::system_error>(error_code, std::system_category(), "WSASendTo failed"));
+        auto result = std::move(this->result_);
+        lock.unlock();
+
+        result.error(std::make_shared<std::system_error>(error_code, std::system_category(), "WSASendTo failed"));
       }
 	};
 

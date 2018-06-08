@@ -62,36 +62,38 @@ vds::dht::network::udp_transport::write_async(const service_provider &sp, const 
 
 void
 vds::dht::network::udp_transport::continue_send(const service_provider &sp) {
-  auto p = this->send_queue_.begin();
-  auto datagram = std::move(std::get<0>(*p));
-  auto r = std::move(std::get<1>(*p));
-  this->send_queue_.pop_front();
 
-  this->server_.socket().write_async(datagram)
-      .execute([sp, pthis = this->shared_from_this(), datagram, result = std::move(r)](const std::shared_ptr<std::exception> &ex) {
-        mt_service::async(sp, [sp, pthis]() {
-          std::unique_lock<std::debug_mutex> lock(pthis->write_mutex_);
-          if (!pthis->send_queue_.empty()) {
-            pthis->continue_send(sp);
-          }
-          lock.unlock();
-        });
+  this->server_.socket().write_async(std::get<0>(this->send_queue_.front()))
+    .execute([sp, pthis = this->shared_from_this()](const std::shared_ptr<std::exception> &ex) {
+    mt_service::async(sp, [sp, ex, pthis]() {
 
-        if (ex) {
-          sp.get<logger>()->error(
-              ThisModule,
-              sp,
-              "%s at write UDP datagram %d bytes to %s",
-              ex->what(),
-              datagram.data_size(),
-              datagram.address().to_string().c_str());
+      std::unique_lock<std::debug_mutex> lock(pthis->write_mutex_);
+      auto p = pthis->send_queue_.begin();
+      auto datagram = std::move(std::get<0>(*p));
+      auto result = std::move(std::get<1>(*p));
+      pthis->send_queue_.pop_front();
+      if (!pthis->send_queue_.empty()) {
+        pthis->continue_send(sp);
+      }
+      lock.unlock();
 
-          result.error(ex);
-        } else {
-          result.done();
-        }
-      });
 
+      if (ex) {
+        sp.get<logger>()->error(
+          ThisModule,
+          sp,
+          "%s at write UDP datagram %d bytes to %s",
+          ex->what(),
+          datagram.data_size(),
+          datagram.address().to_string().c_str());
+
+        result.error(ex);
+      }
+      else {
+        result.done();
+      }
+    });
+  });
 }
 
 vds::async_task<> vds::dht::network::udp_transport::on_timer(const service_provider& sp) {
