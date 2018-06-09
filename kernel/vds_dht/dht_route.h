@@ -175,7 +175,9 @@ namespace vds {
         }
       }
 
-      void get_neighbors(const service_provider& sp, std::list<std::shared_ptr<node>> & result_nodes) const;
+      void get_neighbors(
+        const service_provider& sp,
+        std::list<std::shared_ptr<node>> & result_nodes) const;
 
       void for_neighbors(
         const service_provider &sp,
