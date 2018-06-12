@@ -229,6 +229,14 @@ void vds_mock::sync_wait()
       std::cout << r.first << r.second << "\n";
     }
 
+    if(i > 5){
+      int index = 0;
+      for(auto & p : statistics) {
+        std::cout << "[" << index++ << "]:" << p.route_statistic_.serialize()->str() << "\n";
+      }
+    }
+    //
+
     std::this_thread::sleep_for(std::chrono::seconds(5));
   }
   

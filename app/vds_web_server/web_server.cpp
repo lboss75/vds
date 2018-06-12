@@ -85,7 +85,7 @@ void vds::_web_server::start(const service_provider& sp, const std::string & roo
       }
 
       std::string keep_alive_header;
-      bool keep_alive = request.get_header("Connection", keep_alive_header) && keep_alive_header == "Keep-Alive";
+      //bool keep_alive = request.get_header("Connection", keep_alive_header) && keep_alive_header == "Keep-Alive";
       return pthis->middleware_.process(sp, request);
     });
     session->s_.start(sp, *session->handler_);

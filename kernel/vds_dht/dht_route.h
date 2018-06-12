@@ -227,7 +227,7 @@ namespace vds {
             }
           }
 
-          if (MAX_NODES > this->nodes_.size()) {
+          if (0 == hops || MAX_NODES > this->nodes_.size()) {
             this->nodes_.push_back(std::make_shared<node>(id, proxy_session, hops));
             return;
           }

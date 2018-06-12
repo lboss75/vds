@@ -143,6 +143,8 @@ void vds::dht::network::udp_transport::add_session(
   const network_address& address,
   const std::shared_ptr<dht_session>& session) {
 
+  sp.get<logger>()->trace(ThisModule, sp, "Add session %s", address.to_string().c_str());
+
   std::unique_lock<std::shared_mutex> lock(this->sessions_mutex_);
   this->sessions_[address] = session;
   lock.unlock();
@@ -212,6 +214,9 @@ void vds::dht::network::udp_transport::continue_read(
 
           return;
         }
+          else {
+          throw std::runtime_error("Invalid protocol");
+        }
         break;
       case protocol_message_type_t::Welcome:
         if (datagram.data_size() == NODE_ID_SIZE + 1) {
@@ -223,7 +228,11 @@ void vds::dht::network::udp_transport::continue_read(
               pthis->this_node_id_,
               partner_node_id));
         }
-        break;
+        else {
+          throw std::runtime_error("Invalid protocol");
+        }
+
+          break;
       case protocol_message_type_t::Failed: {
         auto session = pthis->get_session(datagram.address());
         if (session) {
