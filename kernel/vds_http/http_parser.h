@@ -64,7 +64,7 @@ namespace vds {
         .wait();
       } else {
 
-        logger::get(this->sp_)->debug("HTTP", this->sp_, "HTTP [%s]",
+        logger::get(this->sp_)->debug("HTTP", this->sp_, "HTTP Parse [%s]",
                                        logger::escape_string(std::string((const char *) data, len)).c_str());
 
         this->continue_push_data(data, len);
@@ -223,11 +223,8 @@ namespace vds {
 
             if (0 < size) {
               this->content_length_ -= size;
-
-              this->current_message_.body()->write_async(
-                      data,
-                      size)
-                  .execute([pthis](const std::shared_ptr<std::exception> &ex) {});
+              this->current_message_.body()->write_async(data, size)
+                  .wait();
 
               data += size;
               len -= size;

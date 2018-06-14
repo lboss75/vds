@@ -56,7 +56,7 @@
                     </div>
                 </nav>
                 <div id="chat_feed" style="display: none">
-                    <div class="col-sm-9 col-xs-12 chat" style="overflow: hidden; outline: none;" tabindex="5001">
+                    <div class="col-sm-9 col-xs-12 chat" style="outline: none;" tabindex="5001">
                             <div class="col-inside-lg decor-default">
                                 <div class="chat-body" id="feed_records">
                                 </div>
@@ -149,7 +149,7 @@
         <div class="modal fade" id="createInvite" tabindex="-1" role="dialog" aria-labelledby="createInvite" aria-hidden="true">
             <div class="modal-dialog" role="document">
                 <div class="modal-content">
-                    <form action="/approve_join_request" method="POST" enctype="multipart/form-data">
+                    <form id="parse_join_request" action="/approve_join_request" method="POST" enctype="multipart/form-data">
                     <div class="modal-header">
                         <h5 class="modal-title">Пригласить друга</h5>
                         <button type="button" class="close" data-dismiss="modal" aria-label="Close">
@@ -158,10 +158,8 @@
                     </div>
                     <div class="modal-body">
                         <div class="custom-file">
-                            <form id="parse_join_request" method="POST" enctype="multipart/form-data">
-                                <input type="file" class="custom-file-input" id="joinRequestFile" required>
-                                <label class="custom-file-label" for="joinRequestFile">Выберите файл с запросом на доступ...</label>
-                            </form>
+                            <input type="file" class="custom-file-input" name="joinRequestFile" id="joinRequestFile" required>
+                            <label class="custom-file-label" for="joinRequestFile">Выберите файл с запросом на доступ...</label>
                         </div>
                         <div id="join_request_error" class="alert alert-danger" style="display: none">
                             Ошибка анализа файла

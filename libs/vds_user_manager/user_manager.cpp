@@ -171,8 +171,7 @@ vds::user_manager::create_channel(const service_provider &sp, transactions::tran
                                   user_channel::channel_type_t channel_type, const std::string &name,
                                   asymmetric_private_key &read_private_key,
                                   asymmetric_private_key &write_private_key) const {
-  return this->create_channel(sp, log, t, channel_id, channel_type, name,
-                              this->impl_->user_cert(), this->impl_->user_private_key(),
+  return this->impl_->create_channel(sp, log, t, channel_id, channel_type, name,
                               read_private_key, write_private_key);
 }
 
@@ -184,41 +183,10 @@ vds::user_manager::create_channel(const service_provider &sp, transactions::tran
                                   const asymmetric_private_key &owner_private_key,
                                   asymmetric_private_key &read_private_key,
                                   asymmetric_private_key &write_private_key) const {
+  return this->impl_->create_channel(sp, log, t, channel_id, channel_type, name,
+    owner_cert, owner_private_key,
+    read_private_key, write_private_key);
 
-
-	sp.get<logger>()->info(ThisModule, sp, "Create channel %s(%s)",
-    base64::from_bytes(channel_id).c_str(),
-		name.c_str());
-
-  read_private_key = vds::asymmetric_private_key::generate(vds::asymmetric_crypto::rsa4096());
-  auto read_cert = vds::_cert_control::create_cert(
-      base64::from_bytes(channel_id) + "(Read)",
-      read_private_key,
-      owner_cert,
-      owner_private_key);
-
-  write_private_key = vds::asymmetric_private_key::generate(vds::asymmetric_crypto::rsa4096());
-  auto write_cert = vds::_cert_control::create_cert(
-      base64::from_bytes(channel_id) + "(Write)",
-      write_private_key,
-      owner_cert,
-      owner_private_key);
-
-  log.add(
-    owner_cert.fingerprint(),
-    owner_cert,
-    owner_private_key,
-    owner_cert,
-      transactions::channel_create_transaction(
-          channel_id,
-          std::to_string(channel_type),
-          name,
-          read_cert,
-          read_private_key,
-          write_cert,
-          write_private_key));
-
-  return user_channel(channel_id, channel_type, name, read_cert, write_cert);
 }
 
 vds::member_user vds::user_manager::import_user(const certificate &user_cert) {
@@ -466,7 +434,7 @@ vds::async_task<> vds::user_manager::create_register_request(const service_provi
       << userName
       << userEmail
       << user_public_key.der()
-      << dht::dht_object_id::user_credentials_to_key(userName, userPassword)
+      << dht::dht_object_id::user_credentials_to_key(userEmail, userPassword)
       << user_private_key.der(userPassword);
 
     s << asymmetric_sign::signature(hash::sha256(), user_private_key, s.data());
@@ -488,7 +456,7 @@ bool vds::user_manager::parse_join_request(const vds::service_provider &sp, cons
   return _user_manager::parse_join_request(sp, data, userName, userEmail);
 }
 
-bool vds::user_manager::approve_join_request(const service_provider& sp, const const_data_buffer& data) {
+vds::async_task<bool> vds::user_manager::approve_join_request(const service_provider& sp, const const_data_buffer& data) {
   return this->impl_->approve_join_request(sp, data);
 }
 
@@ -699,7 +667,7 @@ vds::member_user vds::_user_manager::get_current_user() const {
   return member_user::import_user(this->user_cert_);
 }
 
-bool vds::_user_manager::approve_join_request(const service_provider& sp, const const_data_buffer& data) {
+vds::async_task<bool> vds::_user_manager::approve_join_request(const service_provider& sp, const const_data_buffer& data) {
   try {
     const_data_buffer user_public_key_der;
     std::string user_object_id;
@@ -728,10 +696,9 @@ bool vds::_user_manager::approve_join_request(const service_provider& sp, const 
       signature,
       data.data(),
       data.size() - pos)) {
-      return false;
+      return vds::async_task<bool>::result(false);
     }
-
-    sp.get<db_model>()->async_transaction(sp,
+    return sp.get<db_model>()->async_transaction(sp,
       [
         pthis = this->shared_from_this(),
         sp,
@@ -758,19 +725,47 @@ bool vds::_user_manager::approve_join_request(const service_provider& sp, const 
           userEmail,
           pthis->user_cert_));
 
+      auto channel_id = dht::dht_object_id::generate_random_id();
+
+      auto read_private_key = asymmetric_private_key::generate(asymmetric_crypto::rsa4096());
+      auto write_private_key = asymmetric_private_key::generate(asymmetric_crypto::rsa4096());
+      auto channel = pthis->create_channel(
+        sp,
+        playback,
+        t,
+        channel_id,
+        user_channel::channel_type_t::inter_person,
+        userName,
+        read_private_key,
+        write_private_key);
+
+      channel.add_writer(
+        playback,
+        member_user::import_user(user_cert),
+        member_user::import_user(pthis->user_cert_),
+        pthis->user_private_key_,
+        write_private_key);
+
       playback.save(
         sp,
         t,
         pthis->user_cert_,
         pthis->user_private_key_);
 
-      return true;
-    }).wait();
+      auto client = sp.get<dht::network::client>();
+      client->save(
+        sp,
+        t,
+        user_object_id,
+        user_private_key_der);
 
-    return true;
+      return true;
+    }).then([sp]() -> bool {
+      return true;
+    });
   }
   catch (...) {
-    return false;
+    return vds::async_task<bool>::result(false);
   }
 }
 
@@ -811,3 +806,58 @@ bool vds::_user_manager::parse_join_request(
   }
 }
 
+vds::user_channel
+vds::_user_manager::create_channel(const service_provider &sp, transactions::transaction_block_builder &log,
+  database_transaction &t, const vds::const_data_buffer &channel_id,
+  user_channel::channel_type_t channel_type, const std::string &name,
+  asymmetric_private_key &read_private_key,
+  asymmetric_private_key &write_private_key) const {
+  return this->create_channel(sp, log, t, channel_id, channel_type, name,
+    this->user_cert(), this->user_private_key(),
+    read_private_key, write_private_key);
+}
+
+vds::user_channel
+vds::_user_manager::create_channel(const service_provider &sp, transactions::transaction_block_builder &log,
+  database_transaction &t, const vds::const_data_buffer &channel_id,
+  user_channel::channel_type_t channel_type, const std::string &name,
+  const certificate &owner_cert,
+  const asymmetric_private_key &owner_private_key,
+  asymmetric_private_key &read_private_key,
+  asymmetric_private_key &write_private_key) const {
+
+
+  sp.get<logger>()->info(ThisModule, sp, "Create channel %s(%s)",
+    base64::from_bytes(channel_id).c_str(),
+    name.c_str());
+
+  read_private_key = vds::asymmetric_private_key::generate(vds::asymmetric_crypto::rsa4096());
+  auto read_cert = vds::_cert_control::create_cert(
+    base64::from_bytes(channel_id) + "(Read)",
+    read_private_key,
+    owner_cert,
+    owner_private_key);
+
+  write_private_key = vds::asymmetric_private_key::generate(vds::asymmetric_crypto::rsa4096());
+  auto write_cert = vds::_cert_control::create_cert(
+    base64::from_bytes(channel_id) + "(Write)",
+    write_private_key,
+    owner_cert,
+    owner_private_key);
+
+  log.add(
+    owner_cert.fingerprint(),
+    owner_cert,
+    owner_private_key,
+    owner_cert,
+    transactions::channel_create_transaction(
+      channel_id,
+      std::to_string(channel_type),
+      name,
+      read_cert,
+      read_private_key,
+      write_cert,
+      write_private_key));
+
+  return user_channel(channel_id, channel_type, name, read_cert, write_cert);
+}

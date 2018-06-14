@@ -146,12 +146,12 @@ namespace vds {
         std::string & userName,
         std::string & userEmail);
 
-    bool approve_join_request(
+    async_task<bool> approve_join_request(
       const service_provider& sp,
       const const_data_buffer & data);
 
   private:
-    std::unique_ptr<_user_manager> impl_;
+    std::shared_ptr<_user_manager> impl_;
 
     user_channel create_channel(
         const service_provider &sp,

@@ -141,10 +141,7 @@ namespace vds {
             this->current_message_.body()->write_async(
                     data,
                     len)
-                .execute(
-                    [pthis](const std::shared_ptr<std::exception> &ex) {
-                    });
-
+                .wait();
             len = 0;
             break;
           }

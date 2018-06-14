@@ -97,7 +97,7 @@ public:
   }
 
   void on_field(const simple_field_info & field) {
-    throw std::runtime_error("Invalid field " + field.name);
+    //Ignore throw std::runtime_error("Invalid field " + field.name);
   }
 
   vds::async_task<> on_file(const file_info & file) {
@@ -168,14 +168,16 @@ public:
   }
 
   void on_field(const simple_field_info & field) {
-    throw std::runtime_error("Invalid field " + field.name);
+    //Ignore
   }
 
   vds::async_task<> on_file(const file_info & file) {
-
+    auto pthis = this->shared_from_this();
     return file.stream->read_all()
-      .then([pthis = this->shared_from_this()](const vds::const_data_buffer & buffer) {
-      pthis->successful_ = pthis->user_mng_->approve_join_request(pthis->sp_, buffer);
+      .then([pthis](const vds::const_data_buffer & buffer) {
+      return pthis->user_mng_->approve_join_request(pthis->sp_, buffer);
+    }).then([pthis](bool result) {
+      pthis->successful_ = result;
     });
   }
 
@@ -200,6 +202,6 @@ vds::async_task<vds::http_message> vds::index_page::approve_join_request(const v
     .then([sp, user_mng, web_server, parser]() -> async_task<http_message> {
 
     return vds::async_task<vds::http_message>::result(
-      http_response::redirect(sp, "/"));
+      http_response::redirect(sp, parser->successful() ? "/?message=approve_successful" : "/?message=approve_failed"));
   });
 }

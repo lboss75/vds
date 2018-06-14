@@ -47,19 +47,28 @@ std::vector<vds::const_data_buffer> vds::dht::network::_client::save(
     const const_data_buffer & value) {
 
   std::vector<vds::const_data_buffer> result(GENERATE_HORCRUX);
-  for(uint16_t replica = 0; replica < GENERATE_HORCRUX; ++replica) {
+  for (uint16_t replica = 0; replica < GENERATE_HORCRUX; ++replica) {
     binary_serializer s;
     this->generators_.find(replica)->second->write(s, value.data(), value.size());
     const auto replica_data = s.data();
     const auto replica_id = hash::signature(hash::sha256(), replica_data);
 
     orm::chunk_replicas_dbo t1;
-    t.execute(
+
+    auto st = t.get_reader(t1.select(t1.replica_data).where(t1.id == base64::from_bytes(replica_id)));
+    if (st.execute()) {
+      if(t1.replica_data.get(st) != replica_data) {
+        throw std::runtime_error("Data is not equal");
+      }
+    }
+    else {
+      t.execute(
         t1.insert(
-            t1.id = base64::from_bytes(replica_id),
-            t1.replica_data = replica_data,
-            t1.last_sync = std::chrono::system_clock::now() - std::chrono::hours(24)
+          t1.id = base64::from_bytes(replica_id),
+          t1.replica_data = replica_data,
+          t1.last_sync = std::chrono::system_clock::now() - std::chrono::hours(24)
         ));
+    }
     result[replica] = replica_id;
   }
 

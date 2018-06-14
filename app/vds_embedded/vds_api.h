@@ -20,13 +20,13 @@ All rights reserved
 extern "C" {
 #endif
 
-void * API vds_init();
-void API vds_done(void * vds);
-const char * API vds_last_error(void * vds);
+API void * vds_init();
+API void vds_done(void * vds);
+API const char * vds_last_error(void * vds);
 
-void API vds_set_root_folder(void * vds, const char * root_folder);
+API void vds_set_root_folder(void * vds, const char * root_folder);
 
-void API vds_server_root (void * vds, const char * login, const char * password);
+API void vds_server_root (void * vds, const char * login, const char * password);
 
 #ifdef __cplusplus
 }

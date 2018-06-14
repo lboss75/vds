@@ -192,13 +192,29 @@ namespace vds {
       return this->user_private_key_;
     }
 
-    bool approve_join_request(const service_provider& sp, const const_data_buffer& data);
+    async_task<bool> approve_join_request(const service_provider& sp, const const_data_buffer& data);
 
     static bool parse_join_request(
         const service_provider& sp,
         const const_data_buffer & data,
         std::string & userName,
         std::string & userEmail);
+
+    user_channel
+      create_channel(const service_provider &sp, transactions::transaction_block_builder &log,
+        database_transaction &t, const vds::const_data_buffer &channel_id,
+        user_channel::channel_type_t channel_type, const std::string &name,
+        asymmetric_private_key &read_private_key,
+        asymmetric_private_key &write_private_key) const;
+
+    user_channel
+      create_channel(const service_provider &sp, transactions::transaction_block_builder &log,
+        database_transaction &t, const vds::const_data_buffer &channel_id,
+        user_channel::channel_type_t channel_type, const std::string &name,
+        const certificate &owner_cert,
+        const asymmetric_private_key &owner_private_key,
+        asymmetric_private_key &read_private_key,
+        asymmetric_private_key &write_private_key) const;
 
 
   private:
