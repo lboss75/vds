@@ -11,7 +11,7 @@ namespace test_vds_embedded.net
         public void ScenarionTests()
         {
             var api = new vds_api();
-            api.root_folder(Directory.GetCurrentDirectory());
+            api.root_folder(Path.Combine(Directory.GetCurrentDirectory(), "servers"));
             api.server_root("vadim@iv-soft.ru", "123");
         }
     }
