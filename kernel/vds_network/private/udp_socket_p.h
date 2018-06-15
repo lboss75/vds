@@ -13,7 +13,6 @@ All rights reserved
 #include "udp_socket.h"
 #include "socket_task_p.h"
 #include "const_data_buffer.h"
-#include "leak_detect.h"
 #include "vds_debug.h"
 
 namespace vds {
@@ -65,15 +64,6 @@ namespace vds {
     _udp_socket(SOCKET_HANDLE s)
       : s_(s)
     {
-      this->leak_detect_.name_ = "_udp_socket";
-      this->leak_detect_.dump_callback_ = [this](leak_detect_collector * collector){
-#ifdef _WIN32
-		  collector->add(this->reader_);
-		  collector->add(this->writter_);
-#else
-		  collector->add(this->handler_);
-#endif
-      };
     }
 
     ~_udp_socket()
@@ -249,7 +239,6 @@ namespace vds {
         SOCKET_HANDLE s)
         : sp_(sp),
           s_(s) {
-		    this->leak_detect_.name_ = "_udp_send";
       }
 
         async_task<> write_async(const udp_datagram & data)
@@ -581,8 +570,6 @@ namespace vds {
     std::shared_ptr<_udp_send> writter_;
 #else
 #endif
-  public:
-    leak_detect_helper leak_detect_;
   };
 
   class _udp_server
@@ -591,10 +578,6 @@ namespace vds {
     _udp_server(const network_address & address)
         : address_(address)
     {
-      this->leak_detect_.name_ = "_udp_server";
-      this->leak_detect_.dump_callback_ = [this](leak_detect_collector * collector){
-        collector->add(this->socket_);
-      };
     }
 
     udp_socket & start(const service_provider & sp)
@@ -636,9 +619,6 @@ namespace vds {
   private:
     udp_socket socket_;
     network_address address_;
-
-  public:
-    leak_detect_helper leak_detect_;
   };
 
 

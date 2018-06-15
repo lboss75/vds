@@ -22,10 +22,12 @@ namespace vds_embedded.net
                 throw new Exception(error);
             }
         }
-
+#if __linux__
         const string lib_embedded = "libvds_embedded";
-
-        [DllImport (lib_embedded)]
+#else
+        const string lib_embedded = "vds_embedded";
+#endif
+        [DllImport (lib_embedded, CallingConvention = CallingConvention.Cdecl)]
         private static extern IntPtr vds_init ();
 
         [DllImport (lib_embedded, CharSet = CharSet.Ansi)]
