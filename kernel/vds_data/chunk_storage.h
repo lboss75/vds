@@ -8,7 +8,6 @@ All rights reserved
 
 #include <unordered_map>
 
-#include "guid.h"
 #include "binary_serialize.h"
 
 namespace vds {

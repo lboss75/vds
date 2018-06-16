@@ -53,7 +53,6 @@ target_link_libraries(vds_transactions
   vds_user_manager
   vds_dht
   vds_dht_network
-  ${UUID_LIBRARIES}
   ${OPENSSL_LIBRARIES}
   ${UPNP_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT})

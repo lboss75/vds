@@ -1,12 +1,6 @@
 project(vds_core CXX C)
 cmake_minimum_required(VERSION 2.6.2)
 
-if (UNIX)
-  set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../cmake")
-  find_package (UUID REQUIRED)
-endif (UNIX)
-
-
 FILE(GLOB HEADER_FILES *.h)
 FILE(GLOB SOURCE_LIB *.cpp)
 

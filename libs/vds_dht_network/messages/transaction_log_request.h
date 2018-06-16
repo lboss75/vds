@@ -8,7 +8,6 @@ All rights reserved
 #include "dht_message_type.h"
 #include "const_data_buffer.h"
 #include "binary_serialize.h"
-#include "guid.h"
 
 namespace vds {
   namespace dht {

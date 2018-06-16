@@ -6,7 +6,6 @@ All rights reserved
 */
 
 #include "types.h"
-#include "guid.h"
 #include "asymmetriccrypto.h"
 #include "binary_serialize.h"
 #include "transaction_id.h"

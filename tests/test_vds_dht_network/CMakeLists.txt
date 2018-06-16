@@ -44,7 +44,6 @@ target_link_libraries(
   vds_dht_network
   vds_transactions
   test_libs
-  ${UUID_LIBRARIES}
   ${OPENSSL_LIBRARIES}
   ${UPNP_LIBRARIES}
   ${GTEST_LIBRARIES}

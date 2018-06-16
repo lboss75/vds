@@ -7,7 +7,6 @@ All rights reserved
 */
 
 #include "database_orm.h"
-#include "guid.h"
 #include "const_data_buffer.h"
 
 namespace vds {

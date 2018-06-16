@@ -44,7 +44,6 @@ target_link_libraries(
   vds_dht_network
   vds_db_model
   vds_file_manager
-  ${UUID_LIBRARIES}
   ${OPENSSL_LIBRARIES}
   ${UPNP_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT})

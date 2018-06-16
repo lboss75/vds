@@ -60,7 +60,7 @@ vds::async_task<vds::http_message> vds::api_controller::get_login_state(
           "application/json; charset=utf-8"));
     }
 
-    auto session_id = guid::new_guid().str();
+    auto session_id = std::to_string(std::rand()) + "." + std::to_string(std::rand()) + "." + std::to_string(std::rand());
     auto session = std::make_shared<auth_session>(login, password);
     return session->load(sp, crypted_private_key).then([sp, session_id, session, owner]() {
 

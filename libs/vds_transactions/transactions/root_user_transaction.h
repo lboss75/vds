@@ -9,7 +9,6 @@ All rights reserved
 
 #include "cert_control.h"
 #include "types.h"
-#include "guid.h"
 #include "asymmetriccrypto.h"
 #include "const_data_buffer.h"
 #include "binary_serialize.h"

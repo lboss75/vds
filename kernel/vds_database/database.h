@@ -10,7 +10,6 @@ All rights reserved
 #include <string>
 #include <mutex>
 
-#include "guid.h"
 #include "filename.h"
 #include "async_task.h"
 
@@ -33,7 +32,6 @@ namespace vds {
     void set_parameter(int index, int value);
     void set_parameter(int index, uint64_t value);
     void set_parameter(int index, const std::string & value);
-    void set_parameter(int index, const guid & value);
     void set_parameter(int index, const const_data_buffer & value);
     void set_parameter(int index, const std::chrono::system_clock::time_point & value);
 
@@ -42,7 +40,6 @@ namespace vds {
     bool get_value(int index, int & value);
     bool get_value(int index, uint64_t & value);
     bool get_value(int index, std::string & value);
-    bool get_value(int index, guid & value);
     bool get_value(int index, const_data_buffer & value);
     bool get_value(int index, double & value);
     bool get_value(int index, std::chrono::system_clock::time_point & value);

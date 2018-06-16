@@ -8,7 +8,6 @@ All rights reserved
 #include <list>
 #include <string>
 #include "const_data_buffer.h"
-#include "guid.h"
 
 namespace vds {
   class json_writer;
@@ -106,7 +105,6 @@ namespace vds {
     void add_property(const std::string & name, const const_data_buffer & value);
     void add_property(const std::string & name, const std::list<const_data_buffer> & value);
     void add_property(const std::string & name, const std::list<uint16_t> & value);
-    void add_property(const std::string & name, const std::list<guid> & value);
 
     template<typename item_type>
     void add_property(const std::string & name, const std::list<item_type> & value);
@@ -121,7 +119,6 @@ namespace vds {
     bool get_property(const std::string & name, uint32_t & value, bool throw_error = true) const;
     bool get_property(const std::string & name, uint64_t & value, bool throw_error = true) const;
     bool get_property(const std::string & name, std::list<const_data_buffer> & value, bool throw_error = true) const;
-    bool get_property(const std::string & name, std::list<guid> & value, bool throw_error = true) const;
 
     template<typename item_type>
     bool get_property(const std::string & name, std::list<item_type> & value, bool throw_error = true) const;
@@ -180,16 +177,6 @@ namespace vds {
       array->add(std::make_shared<json_primitive>(std::to_string(item)));
     }
     
-    this->add_property(name, array);
-  }
-
-  inline void json_object::add_property(const std::string & name, const std::list<guid> & value)
-  {
-    auto array = std::make_shared<json_array>();
-    for (auto & item : value) {
-      array->add(std::make_shared<json_primitive>(item.str()));
-    }
-
     this->add_property(name, array);
   }
 

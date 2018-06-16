@@ -7,7 +7,6 @@ All rights reserved
 #include "server.h"
 #include "private/server_p.h"
 #include "user_manager.h"
-#include "transaction_context.h"
 #include "db_model.h"
 #include "file_manager_service.h"
 #include "dht_network.h"

@@ -59,13 +59,6 @@ namespace vds {
       sqlite3_bind_text(this->stmt_, index, value.c_str(), -1, SQLITE_TRANSIENT);
     }
 
-    void set_parameter(int index, const guid & value)
-    {
-      this->reset();
-      
-      this->set_parameter(index, value.str());
-    }
-
     void set_parameter(int index, const std::chrono::system_clock::time_point & value)
     {
       this->reset();
@@ -128,20 +121,6 @@ namespace vds {
       }
       
       value = v;
-      return true;
-    }
-
-    bool get_value(int index, guid & value)
-    {
-      assert(read_state == this->state_);
-      assert(0 <= index && index < sqlite3_column_count(this->stmt_));
-
-      std::string v;
-      if (!this->get_value(index, v)) {
-        return false;
-      }
-
-      value = guid::parse(v);
       return true;
     }
 

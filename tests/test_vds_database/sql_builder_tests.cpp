@@ -66,10 +66,6 @@ void vds::mock_sql_statement::set_parameter(int index, const std::string & value
   string_parameter_value = value;
 }
 
-void vds::mock_sql_statement::set_parameter(int , const guid & )
-{
-}
-
 void vds::mock_sql_statement::set_parameter(int , const const_data_buffer & )
 {
 }

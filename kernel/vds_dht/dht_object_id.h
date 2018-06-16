@@ -8,7 +8,6 @@ All rights reserved
 
 #include "hash.h"
 #include "vds_debug.h"
-#include "guid.h"
 #include "binary_serialize.h"
 #include "resizable_data_buffer.h"
 #include "encoding.h"

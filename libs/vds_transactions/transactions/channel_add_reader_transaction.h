@@ -5,7 +5,6 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
-#include "guid.h"
 #include "asymmetriccrypto.h"
 #include "channel_message_id.h"
 

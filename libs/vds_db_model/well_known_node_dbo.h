@@ -7,7 +7,6 @@ All rights reserved
 */
 
 #include "database_orm.h"
-#include "guid.h"
 #include "const_data_buffer.h"
 
 namespace vds {
@@ -20,7 +19,7 @@ namespace vds {
             addresses(this, "addresses") {
       }
 
-      database_column<guid> id;
+      database_column<std::string> id;
       database_column<std::string> addresses;
     };
   }

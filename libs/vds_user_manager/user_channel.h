@@ -7,7 +7,6 @@ All rights reserved
 */
 
 #include <memory>
-#include <guid.h>
 #include "const_data_buffer.h"
 #include "transaction_block_builder.h"
 #include "transaction_log_record_dbo.h"

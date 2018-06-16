@@ -51,8 +51,6 @@ vds::member_user vds::_member_user::create_user(
   const std::string &user_name,
   const vds::asymmetric_private_key &private_key)
 {
-  auto id = guid::new_guid();
-  auto cert_id = guid::new_guid();
   auto cert = _cert_control::create_user_cert(
     user_name,
     private_key,

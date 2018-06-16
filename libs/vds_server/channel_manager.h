@@ -8,7 +8,6 @@ All rights reserved
 
 #include "service_provider.h"
 #include "database.h"
-#include "guid.h"
 
 namespace vds {
   class channel_manager
@@ -17,15 +16,15 @@ namespace vds {
     void register_channel(
       const service_provider & sp,
       const database_transaction & t,
-      const guid & id,
+      const std::string & id,
       const std::string & name
     );
     
     void add_member(
-      const guid & id);
+      const std::string & id);
     
     void remove_member(
-      const guid & id);
+      const std::string & id);
     
   private:
   };
