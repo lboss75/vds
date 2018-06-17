@@ -1,0 +1,5 @@
+set(OPENSSL_INCLUDE_DIR ${OPENSSL_ROOT_DIR}/include)
+set(OPENSSL_LIBRARIES ${OPENSSL_ROOT_DIR}/lib/libssl.lib)
+
+
+

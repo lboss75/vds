@@ -1,6 +1,10 @@
 project(vds_crypto CXX C)
 cmake_minimum_required(VERSION 2.6.2)
 
+if(ANDROID_PLATFORM)
+set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../cmake")
+endif(ANDROID_PLATFORM)
+
 find_package (OpenSSL REQUIRED)
 
 FILE(GLOB HEADER_FILES *.h)

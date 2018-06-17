@@ -19,8 +19,6 @@ All rights reserved
 #include <fcntl.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-/* Libevent. */
-#include <event.h>
 #endif
 
 #include <cstring>

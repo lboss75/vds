@@ -325,10 +325,6 @@ namespace vds {
         : _socket_task_impl<_udp_handler>(sp, owner->s_),
           owner_(owner)
       {
-        this->leak_detect_.name_ = "_udp_handler";
-        this->leak_detect_.dump_callback_ = [this](leak_detect_collector * collector){
-          collector->add(this->owner_);
-        };
       }
       
       ~_udp_handler()
@@ -558,9 +554,6 @@ namespace vds {
       uint8_t read_buffer_[64 * 1024];
       
       udp_datagram write_message_;
-
-    public:
-      leak_detect_helper leak_detect_;
     };
 
     std::shared_ptr<_udp_handler> handler_;

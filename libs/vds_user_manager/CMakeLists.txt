@@ -1,8 +1,6 @@
 project(vds_user_manager CXX C)
 cmake_minimum_required(VERSION 2.6.2)
 
-find_package (OpenSSL REQUIRED)
-
 FILE(GLOB HEADER_FILES *.h)
 FILE(GLOB PRIVATE_HEADER_FILES private/*.h)
 FILE(GLOB SOURCE_LIB *.cpp)

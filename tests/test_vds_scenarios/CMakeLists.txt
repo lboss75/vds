@@ -5,8 +5,6 @@ find_package (OpenSSL REQUIRED)
 
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../cmake")
 
-find_package (UPNP REQUIRED)
-
 FILE(GLOB HEADER_FILES *.h)
 FILE(GLOB SOURCE_FILES *.cpp)
 
@@ -21,15 +19,13 @@ target_include_directories(test_vds_scenarios
           ${vds_parser_INCLUDE_DIRS}
           ${vds_http_INCLUDE_DIRS}
           ${vds_crypto_INCLUDE_DIRS}
-          ${vds_upnp_INCLUDE_DIRS}
           ${vds_storage_INCLUDE_DIRS}
           ${vds_server_INCLUDE_DIRS}
           ${vds_dht_network_INCLUDE_DIRS}
           ${vds_user_manager_INCLUDE_DIRS}
           ${vds_transactions_INCLUDE_DIRS}
           ${test_libs_INCLUDE_DIRS}
-          ${OPENSSL_INCLUDE_DIR}
-          ${UPNP_INCLUDE_DIR})
+          ${OPENSSL_INCLUDE_DIR})
 
 enable_testing()
 
@@ -41,7 +37,6 @@ target_link_libraries(
   vds_network
   vds_http
   vds_crypto
-  vds_upnp
   vds_parser
   vds_server
   vds_user_manager
@@ -49,7 +44,6 @@ target_link_libraries(
   vds_transactions
   test_libs
   ${OPENSSL_LIBRARIES}
-  ${UPNP_LIBRARIES}
   ${GTEST_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT}
   ${EVENT_LIBRARY})

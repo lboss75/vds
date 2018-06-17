@@ -1,5 +1,4 @@
 add_subdirectory(vds_db_model)
-add_subdirectory(vds_upnp)
 add_subdirectory(vds_dht_network)
 add_subdirectory(vds_transactions)
 add_subdirectory(vds_user_manager)

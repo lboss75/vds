@@ -39,15 +39,8 @@ namespace vds {
         }
       };
 
-      transaction_record_state(binary_deserializer & s){
-        s >> this->account_state_;
-      }
-
-      const_data_buffer serialize() const {
-        binary_serializer s;
-        s << this->account_state_;
-        return s.data();
-      }
+      transaction_record_state(binary_deserializer & s);
+      const_data_buffer serialize() const ;
 
       void apply(
         const transaction_block & block);
@@ -93,8 +86,6 @@ namespace vds {
       std::map<std::string/*account*/, account_state_t> account_state_;
     };
   }
-}
-
 inline vds::binary_serializer & operator << (
   vds::binary_serializer & s,
   const vds::transactions::transaction_record_state::account_state_t & item) {
@@ -108,5 +99,18 @@ inline vds::binary_deserializer & operator >> (
   s >> item.is_approved_ >> item.balance_;
   return s;
 }
+}
+
+
+inline  vds::transactions::transaction_record_state::transaction_record_state(binary_deserializer & s){
+        s >> this->account_state_;
+      }
+
+inline  vds::const_data_buffer vds::transactions::transaction_record_state::serialize() const {
+        binary_serializer s;
+        s << this->account_state_;
+        return s.data();
+      }
+
 
 #endif //__VDS_TRANSACTIONS_TRANSACTION_RECORD_STATE_H_

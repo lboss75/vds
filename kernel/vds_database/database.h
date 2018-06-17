@@ -12,6 +12,7 @@ All rights reserved
 
 #include "filename.h"
 #include "async_task.h"
+#include "const_data_buffer.h"
 
 namespace vds {
   class _database;

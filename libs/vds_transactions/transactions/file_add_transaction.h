@@ -38,25 +38,8 @@ namespace vds {
 						file_blocks_(file_blocks){
 			}
 
-      file_add_transaction(binary_deserializer & s){
-        s
-						>> this->total_hash_
-						>> this->total_size_
-						>> this->message_
-						>> this->name_
-						>> this->mimetype_
-						>> this->file_blocks_;
-      }
-
-      void serialize(binary_serializer & s) const {
-        s
-						<< this->total_hash_
-						<< this->total_size_
-						<< this->message_
-						<< this->name_
-						<< this->mimetype_
-						<< this->file_blocks_;
-      }
+      file_add_transaction(binary_deserializer & s);
+      void serialize(binary_serializer & s) const;
 
       const const_data_buffer & total_hash() const {
         return this->total_hash_;
@@ -91,8 +74,6 @@ namespace vds {
 			std::list<file_block_t> file_blocks_;
 		};
 	}
-}
-
 inline vds::binary_serializer & operator << (
 	vds::binary_serializer & s,
 	const vds::transactions::file_add_transaction::file_block_t & data) {
@@ -106,5 +87,27 @@ inline vds::binary_deserializer & operator >> (
 	s >> data.block_id >> data.block_key >> data.replica_hashes >> data.block_size;
   return s;
 }
+}
+
+
+inline vds::transactions::file_add_transaction::file_add_transaction(vds::binary_deserializer & s){
+        s
+						>> this->total_hash_
+						>> this->total_size_
+						>> this->message_
+						>> this->name_
+						>> this->mimetype_
+						>> this->file_blocks_;
+      }
+
+inline void vds::transactions::file_add_transaction::serialize(vds::binary_serializer & s) const {
+        s
+						<< this->total_hash_
+						<< this->total_size_
+						<< this->message_
+						<< this->name_
+						<< this->mimetype_
+						<< this->file_blocks_;
+      }
 
 #endif //__VDS_FILE_MANAGER_FILE_ADD_TRANSACTION_H_

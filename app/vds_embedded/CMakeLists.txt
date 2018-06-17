@@ -1,11 +1,7 @@
 project(vds_embedded CXX C)
 cmake_minimum_required(VERSION 2.6.2)
 
-find_package (OpenSSL REQUIRED)
-
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../cmake")
-
-find_package (UPNP REQUIRED)
 
 FILE(GLOB HEADER_FILES *.h)
 FILE(GLOB SOURCE_FILES *.cpp)
@@ -20,13 +16,10 @@ target_include_directories(
 		${vds_network_INCLUDE_DIR}
 		${vds_parser_INCLUDE_DIR}
 		${vds_crypto_INCLUDE_DIR}
-		${vds_upnp_INCLUDE_DIR}
 		${vds_server_INCLUDE_DIR}
 		${vds_dht_network_INCLUDE_DIR}
 		${vds_user_manager_INCLUDE_DIR}
 		${vds_transactions_INCLUDE_DIR}
-		${OPENSSL_INCLUDE_DIR}
-		${UPNP_INCLUDE_DIR}
 	PUBLIC
 		${CMAKE_CURRENT_SOURCE_DIR})
 
@@ -37,7 +30,6 @@ target_link_libraries(
   vds_database
   vds_network
   vds_crypto
-  vds_upnp
   vds_parser
   vds_server
   vds_dht_network
@@ -45,7 +37,6 @@ target_link_libraries(
   vds_transactions
   ${UUID_LIBRARIES}
   ${OPENSSL_LIBRARIES}
-  ${UPNP_LIBRARIES}
   ${PTHREAD_LIB}
   ${CMAKE_DL_LIBS}
   ${CMAKE_THREAD_LIBS_INIT})

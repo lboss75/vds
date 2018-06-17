@@ -56,7 +56,7 @@ namespace vds {
           user_name_(user_name) {
     }
 
-    inline root_user_transaction::root_user_transaction(struct binary_deserializer &b) {
+    inline root_user_transaction::root_user_transaction(binary_deserializer &b) {
       const_data_buffer cert_der;
       b >> this->user_credentials_key_ >> cert_der >> this->user_name_;
       this->user_cert_ = certificate::parse_der(cert_der);

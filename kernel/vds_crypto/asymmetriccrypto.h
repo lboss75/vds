@@ -275,7 +275,6 @@ namespace vds {
   private:
     _certificate_store * impl_;
   };
-}
 
 inline vds::binary_serializer & operator << (vds::binary_serializer & s, const vds::certificate & cert)
 {
@@ -289,5 +288,7 @@ inline vds::binary_deserializer & operator >> (vds::binary_deserializer & s, vds
 	cert = vds::certificate::parse_der(cert_data);
 	return s;
 }
+}
+
 
 #endif // __VDS_CRYPTO_ASYMMETRICCRYPTO_H_

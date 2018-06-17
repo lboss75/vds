@@ -17,15 +17,12 @@ target_include_directories(test_vds_dht_network
           ${vds_parser_INCLUDE_DIRS}
           ${vds_http_INCLUDE_DIRS}
           ${vds_crypto_INCLUDE_DIRS}
-          ${vds_upnp_INCLUDE_DIRS}
           ${vds_storage_INCLUDE_DIRS}
           ${vds_server_INCLUDE_DIRS}
           ${vds_dht_network_INCLUDE_DIRS}
           ${vds_user_manager_INCLUDE_DIRS}
           ${vds_transactions_INCLUDE_DIRS}
-          ${test_libs_INCLUDE_DIRS}
-          ${OPENSSL_INCLUDE_DIR}
-          ${UPNP_INCLUDE_DIR})
+          ${test_libs_INCLUDE_DIRS})
 
 enable_testing()
 
@@ -37,15 +34,12 @@ target_link_libraries(
   vds_network
   vds_http
   vds_crypto
-  vds_upnp
   vds_parser
   vds_server
   vds_user_manager
   vds_dht_network
   vds_transactions
   test_libs
-  ${OPENSSL_LIBRARIES}
-  ${UPNP_LIBRARIES}
   ${GTEST_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT}
   ${EVENT_LIBRARY})

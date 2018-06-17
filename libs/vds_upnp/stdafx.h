@@ -14,9 +14,11 @@ All rights reserved
 
 #else//_WIN32
 
+#ifndef ANDROID
 #include <miniupnpc.h>
 #include <upnpcommands.h>
 #include <upnperrors.h>
+#endif//ANDROID
 
 #endif//_WIN32
 

@@ -11,7 +11,6 @@ All rights reserved
 #include "gf.h"
 #include "chunk.h"
 #include "chunk_storage.h"
-#include "object_container.h"
 #include "inflate.h"
 #include "deflate.h"
 

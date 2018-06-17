@@ -17,12 +17,6 @@ namespace vds {
   {
     typedef result signature(arg_type);
 
-    template<template<typename...> typename target_template>
-    struct build_type
-    {
-      typedef target_template<arg_type> type;
-    };
-
     typedef typename std::remove_const<typename std::remove_reference<arg_type>::type>::type argument_type;
     typedef std::tuple<arg_type> arguments_typle;
     typedef std::function<signature> function_type;
@@ -47,12 +41,6 @@ namespace vds {
     typedef std::function<signature> function_type;
     typedef result result_type;
 
-    template<template<typename...> typename target_template>
-    struct build_type
-    {
-      typedef target_template<arg_type> type;
-    };
-
     static std::function<signature> to_function(functor_type & f)
     {
       return std::function<signature>([&f](arg_type args) { f(args); });
@@ -68,12 +56,6 @@ namespace vds {
   struct _functor_info<functor_type, result (class_name::*)(arg_types...)>
   {
     typedef result signature(arg_types...);
-    
-    template<template<typename...> typename target_template>
-    struct build_type
-    {
-      typedef target_template<arg_types...> type;
-    };
     
     typedef std::tuple<arg_types...> arguments_typle;
     typedef std::function<signature> function_type;
@@ -97,12 +79,6 @@ namespace vds {
     typedef std::function<signature> function_type;
     typedef result result_type;
     
-    template<template<typename...> typename target_template>
-    struct build_type
-    {
-      typedef target_template<arg_types...> type;
-    };
-
     static std::function<signature> to_function(functor_type & f)
     {
       return std::function<signature>([&f](arg_types ...args){ f(args...);});

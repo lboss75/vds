@@ -146,7 +146,7 @@ void vds::hmac::final()
 vds::_hmac::_hmac(const std::string & key, const hash_info & info)
 : info_(info)
 {
-#ifdef _WIN32
+#if defined(_WIN32) || defined(ANDROID)
   this->ctx_ = HMAC_CTX_new();
 #else
   HMAC_CTX_init(&this->hmac_ctx_);
@@ -158,7 +158,7 @@ vds::_hmac::_hmac(const std::string & key, const hash_info & info)
 
 vds::_hmac::~_hmac()
 {
-#ifdef _WIN32
+#if defined(_WIN32) || defined(ANDROID)
   HMAC_CTX_free(this->ctx_);
 #else
   HMAC_CTX_cleanup(&this->hmac_ctx_);

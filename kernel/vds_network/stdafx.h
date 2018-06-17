@@ -15,6 +15,9 @@ All rights reserved
 
 #include <Ws2tcpip.h>
 
+#else
+#include <sys/socket.h>
+#include <netdb.h>
 #endif
 
 #endif//__VDS_NETWORK_STDAFX_H_

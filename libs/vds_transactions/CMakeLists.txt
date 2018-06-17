@@ -1,6 +1,10 @@
 project(vds_transactions CXX C)
 cmake_minimum_required(VERSION 2.6.2)
 
+if(ANDROID_PLATFORM)
+set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../cmake")
+endif(ANDROID_PLATFORM)
+
 find_package (OpenSSL REQUIRED)
 
 FILE(GLOB PRIVATE_HEADER_FILES private/*.h)
@@ -48,11 +52,9 @@ target_link_libraries(vds_transactions
   vds_network
   vds_http
   vds_crypto
-  vds_upnp
   vds_parser
   vds_user_manager
   vds_dht
   vds_dht_network
   ${OPENSSL_LIBRARIES}
-  ${UPNP_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT})

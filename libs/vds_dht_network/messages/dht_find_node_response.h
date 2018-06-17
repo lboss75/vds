@@ -56,8 +56,6 @@ namespace vds {
       };
     }
   }
-}
-
 inline vds::binary_serializer & operator << (
     vds::binary_serializer & s,
     const vds::dht::messages::dht_find_node_response::target_node & node) {
@@ -69,5 +67,7 @@ inline vds::binary_deserializer & operator >> (
     vds::dht::messages::dht_find_node_response::target_node & node) {
   return s >> node.target_id_ >> node.address_ >> node.hops_;
 }
+}
+
 
 #endif //__VDS_P2P_NETWORK_DHT_FIND_NODE_RESPONSE_H_

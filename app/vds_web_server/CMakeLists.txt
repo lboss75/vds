@@ -1,8 +1,6 @@
 project(vds_web_server CXX C)
 cmake_minimum_required(VERSION 2.6.2)
 
-find_package (OpenSSL REQUIRED)
-
 FILE(GLOB HEADER_FILES *.h)
 FILE(GLOB PRIVATE_HEADER_FILES private/*.h)
 FILE(GLOB SOURCE_LIB *.cpp)
@@ -26,7 +24,6 @@ target_include_directories(vds_web_server
 		${vds_server_INCLUDE_DIR}
 		${vds_dht_network_INCLUDE_DIRS}
 		${vds_file_manager_INCLUDE_DIRS}
-		${OPENSSL_INCLUDE_DIR}
 	PUBLIC
 		${CMAKE_CURRENT_SOURCE_DIR})
 
@@ -38,7 +35,6 @@ target_link_libraries(
   vds_network
   vds_http
   vds_crypto
-  vds_upnp
   vds_parser
   vds_transactions
   vds_user_manager
@@ -47,5 +43,4 @@ target_link_libraries(
   vds_file_manager
   vds_server
   ${OPENSSL_LIBRARIES}
-  ${UPNP_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT})

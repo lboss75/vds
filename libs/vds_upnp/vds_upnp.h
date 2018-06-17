@@ -13,10 +13,12 @@ All rights reserved
 
 #else//_WIN32
 
+#ifdef ANDROID
 #include <miniupnpc.h>
 #include <upnpcommands.h>
 #include <upnperrors.h>
-
+#endif//ANDROID
+              
 #endif//_WIN32
 
 #include "upnp_client.h"

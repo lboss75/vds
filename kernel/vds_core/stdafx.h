@@ -6,7 +6,6 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
-/*
 #include "targetver.h"
 
 #include <assert.h>
@@ -36,7 +35,6 @@ All rights reserved
 #include <pwd.h>
 #include <locale>
 #include <sys/stat.h>
-#include <uuid/uuid.h>
 
 #else
 #include <io.h>
@@ -44,6 +42,6 @@ All rights reserved
 #endif//_WIN32
 
 #include <iomanip>
-*/
+
 
 #endif//__VDS_CORE_STDAFX_H_

@@ -111,7 +111,7 @@ namespace vds {
     void write(
         const uint8_t * input_buffer,
         size_t input_buffer_size) override {
-      if (0 < input_buffer) {
+      if (0 < input_buffer_size) {
         while (0 < input_buffer_size) {
           auto s = this->block_size_ - this->input_buffer_offset_;
           if (s > input_buffer_size) {
@@ -229,7 +229,7 @@ namespace vds {
         const uint8_t * input_buffer,
         size_t input_buffer_size) override
     {
-      if (0 < input_buffer) {
+      if (0 < input_buffer_size) {
         while (0 < input_buffer_size) {
           auto s = this->block_size_ - this->input_buffer_offset_;
           if (s > input_buffer_size) {
