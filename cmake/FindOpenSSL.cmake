@@ -1,5 +1,7 @@
-set(OPENSSL_INCLUDE_DIR ${OPENSSL_ROOT_DIR}/include)
-set(OPENSSL_LIBRARIES ${OPENSSL_ROOT_DIR}/lib/libssl.lib)
+set(OPENSSL_INCLUDE_DIR /home/vadim/projects/openssl/build/include)
+set(OPENSSL_LIBRARIES
+ /home/vadim/projects/openssl/build/lib/libssl.a
+  /home/vadim/projects/openssl/build/lib/libcrypto.a)
 
 
 

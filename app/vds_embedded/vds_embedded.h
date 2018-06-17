@@ -14,9 +14,9 @@ namespace vds {
   class vds_embedded {
   public:
 
-    void set_root_folder(const char * root_folder);
+    void set_root_folder(const std::string & root_folder);
 
-    void server_root(const char * login, const char * password);
+    void server_root(const std::string & login, const std::string & password);
 
     const std::string & last_error() const {
       return this->last_error_;

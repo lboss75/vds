@@ -4,7 +4,7 @@
 #include "stdafx.h"
 #include "vds_embedded.h"
 
-void vds::vds_embedded::server_root(const char *login, const char *password) {
+void vds::vds_embedded::server_root(const std::string & login, const std::string & password) {
   this->last_error_.clear();
   try {
     if (this->root_folder_.empty()) {
@@ -84,6 +84,6 @@ void vds::vds_embedded::server_root(const char *login, const char *password) {
   }
 }
 
-void vds::vds_embedded::set_root_folder(const char *root_folder) {
+void vds::vds_embedded::set_root_folder(const std::string & root_folder) {
   this->root_folder_ = root_folder;
 }

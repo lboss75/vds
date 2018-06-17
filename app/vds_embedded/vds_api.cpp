@@ -3,26 +3,29 @@
 #include "vds_embedded.h"
 
 
-void * vds_init() {
-  return new vds::vds_embedded();
+api_void_ptr vds_init(APIENV_) {
+  return (api_void_ptr)new vds::vds_embedded();
 }
 
-void vds_done(void * vds) {
-  auto pthis = static_cast<vds::vds_embedded *>(vds);
+void vds_done(APIENV api_void_ptr vds) {
+  auto pthis = (vds::vds_embedded *)vds;
   delete pthis;
 }
 
-const char * vds_last_error(void * vds) {
-  auto pthis = static_cast<vds::vds_embedded *>(vds);
-  return pthis->last_error().c_str();
+api_string vds_last_error(APIENV api_void_ptr vds) {
+  auto pthis = (vds::vds_embedded *)vds;
+  return api_return_string(pthis->last_error().c_str());
 }
 
-void vds_set_root_folder(void * vds, const char * root_folder) {
-  auto pthis = static_cast<vds::vds_embedded *>(vds);
+void vds_set_root_folder(APIENV api_void_ptr vds, api_string root_folder_) {
+  auto pthis = (vds::vds_embedded *)vds;
+  api_string_argument(root_folder, root_folder_);
   pthis->set_root_folder(root_folder);
 }
 
-void vds_server_root (void * vds, const char * login, const char * password) {
-  auto pthis = static_cast<vds::vds_embedded *>(vds);
+void vds_server_root (APIENV api_void_ptr vds, api_string login_, api_string password_) {
+  auto pthis = (vds::vds_embedded *)vds;
+  api_string_argument(login, login_);
+  api_string_argument(password, password_);
   pthis->server_root(login, password);
 }
