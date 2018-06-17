@@ -720,7 +720,11 @@ namespace vds {
         if(!ex){
 			try {
 				auto t = f(std::forward<result_types>(result)...);
+#ifdef __clang__
         t.template operator()<done_type>(token, std::move(d));
+#else
+        t.operator()<done_type>(token, std::move(d));
+#endif
 			}
 			catch (const std::exception & ex) {
 				d.error(std::make_shared<std::runtime_error>(ex.what()));
