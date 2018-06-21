@@ -7,8 +7,8 @@ mkdir %root_folder%\android64
 cd %root_folder%\openssl
 
 set ANDROID_NDK=C:\Users\v.malyshev\AppData\Local\Android\Sdk\ndk-bundle
-set PATH=%ANDROID_NDK%\toolchains\x86-4.9\prebuilt\windows-x86_64\bin;%PATH%;
-perl Configure android-x86 no-shared no-tests --prefix=%root_folder%\android64 --openssldir=%root_folder%\android64 -D__ANDROID_API__=14
+set PATH=%ANDROID_NDK%/toolchains/x86_64-4.9/prebuilt/windows-x86_64/bin;%ANDROID_NDK%/prebuilt/windows-x86_64/bin;%PATH%;
+perl Configure android-x86_64 no-shared no-tests --prefix=%root_folder%\android64 --openssldir=%root_folder%\android64 -D__ANDROID_API__=28
 
 make clean
 make 

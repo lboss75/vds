@@ -77,10 +77,10 @@ void vds::_user_channel::add_reader(
 {
 	playback.add(
 		member_user.user_certificate().fingerprint(hash::sha256()),
-    member_user.user_certificate(),
+    owner_user.user_certificate(),
     owner_private_key,
-    this->read_cert_,
-		transactions::channel_add_reader_transaction(
+    member_user.user_certificate(),
+    transactions::channel_add_reader_transaction(
 			this->name_,
 			this->read_cert_,
 			channel_read_private_key,
@@ -95,10 +95,10 @@ void vds::_user_channel::add_writer(
 	const asymmetric_private_key& channel_write_private_key) const
 {
 	playback.add(
-			this->id_,
-			member_user.user_certificate(),
+      member_user.user_certificate().fingerprint(hash::sha256()),
+      owner_user.user_certificate(),
 			owner_private_key,
-			this->read_cert_,
+      member_user.user_certificate(),
 		transactions::channel_add_writer_transaction(
 			this->name_,
 			this->read_cert_,

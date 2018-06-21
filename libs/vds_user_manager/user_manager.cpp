@@ -416,11 +416,11 @@ const vds::asymmetric_private_key& vds::user_manager::get_current_user_private_k
 }
 
 vds::async_task<> vds::user_manager::create_register_request(const service_provider& sp, const std::string& userName,
-  const std::string& userEmail, const std::string& userPassword) {
+  const std::string& user_email, const std::string& user_password) {
 
   return sp.get<db_model>()->async_transaction(
     sp,
-    [sp, userName, userEmail, userPassword](database_transaction & t) {
+    [sp, userName, user_email, user_password](database_transaction & t) {
 
     auto user_private_key = vds::asymmetric_private_key::generate(
       vds::asymmetric_crypto::rsa4096());
@@ -430,10 +430,10 @@ vds::async_task<> vds::user_manager::create_register_request(const service_provi
     binary_serializer s;
     s
       << userName
-      << userEmail
+      << user_email
       << user_public_key.der()
-      << dht::dht_object_id::user_credentials_to_key(userEmail, userPassword)
-      << user_private_key.der(userPassword);
+      << dht::dht_object_id::user_credentials_to_key(user_email, user_password)
+      << user_private_key.der(user_password);
 
     s << asymmetric_sign::signature(hash::sha256(), user_private_key, s.data());
 
@@ -441,7 +441,7 @@ vds::async_task<> vds::user_manager::create_register_request(const service_provi
     t.execute(
       t1.insert(
         t1.name = userName,
-        t1.email = userEmail,
+        t1.email = user_email,
         t1.data = s.data(),
         t1.create_time = std::chrono::system_clock::now()));
 
@@ -454,7 +454,9 @@ bool vds::user_manager::parse_join_request(const vds::service_provider &sp, cons
   return _user_manager::parse_join_request(sp, data, userName, userEmail);
 }
 
-vds::async_task<bool> vds::user_manager::approve_join_request(const service_provider& sp, const const_data_buffer& data) {
+vds::async_task<bool> vds::user_manager::approve_join_request(
+  const service_provider& sp,
+  const const_data_buffer& data) {
   return this->impl_->approve_join_request(sp, data);
 }
 
@@ -573,6 +575,7 @@ void vds::_user_manager::update(
               auto &cp = this->channels_[channel_id];
               auto id = message.write_cert().subject();
               cp.name_ = message.name();
+              cp.type_ = message.channel_type();
               cp.write_certificates_[id] = message.write_cert();
               cp.write_private_keys_[id] = message.write_private_key();
               cp.current_write_certificate_ = id;
