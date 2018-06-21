@@ -7,7 +7,6 @@ All rights reserved
 
 #include "network_service.h"
 #include "dht_network.h"
-#include "leak_detect.h"
 #include "user_channel.h"
 
 class mock_server

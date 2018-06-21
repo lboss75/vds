@@ -57,9 +57,8 @@ namespace vds {
     const hash_info & info_;
     HMAC_CTX * ctx_;
     const_data_buffer sig_;
-    
-#if !defined(_WIN32) && !defined(ANDROID)
-    HMAC_CTX hmac_ctx_;
+#ifndef _WIN32
+    HMAC_CTX ctx_data_;
 #endif
   };
 

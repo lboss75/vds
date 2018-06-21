@@ -5,6 +5,12 @@ FILE(GLOB HEADER_FILES *.h)
 FILE(GLOB PRIVATE_HEADER_FILES private/*.h)
 FILE(GLOB SOURCE_LIB *.cpp)
 
+if(UNIX)
+	find_package (Threads REQUIRED)
+endif(UNIX)
+
+find_package(OpenSSL REQUIRED)
+
 ADD_MSVC_PRECOMPILED_HEADER("stdafx.h" "stdafx.cpp" SOURCE_LIB)
 
 add_executable(vds_web_server ${PRIVATE_HEADER_FILES} ${SOURCE_LIB} ${HEADER_FILES})

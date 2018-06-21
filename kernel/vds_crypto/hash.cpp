@@ -146,11 +146,10 @@ void vds::hmac::final()
 vds::_hmac::_hmac(const std::string & key, const hash_info & info)
 : info_(info)
 {
-#if defined(_WIN32) || defined(ANDROID)
-  this->ctx_ = HMAC_CTX_new();
+#ifndef _WIN32
+  this->ctx_ = &this->ctx_data_;
 #else
-  HMAC_CTX_init(&this->hmac_ctx_);
-  this->ctx_ = &this->hmac_ctx_;
+  this->ctx_ = HMAC_CTX_new();
 #endif
 
   HMAC_Init_ex(this->ctx_, key.c_str(), safe_cast<int>(key.length()), info.type, NULL);
@@ -158,11 +157,11 @@ vds::_hmac::_hmac(const std::string & key, const hash_info & info)
 
 vds::_hmac::~_hmac()
 {
-#if defined(_WIN32) || defined(ANDROID)
+#ifdef _WIN32
   HMAC_CTX_free(this->ctx_);
 #else
-  HMAC_CTX_cleanup(&this->hmac_ctx_);
-#endif
+  HMAC_CTX_cleanup(this->ctx_);
+#endif//_WIN32
 }
 
 void vds::_hmac::update(const void * data, size_t len)

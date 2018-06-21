@@ -5,6 +5,7 @@
 #include "vds_embedded.h"
 
 void vds::vds_embedded::server_root(const std::string & login, const std::string & password) {
+
   this->last_error_.clear();
   try {
     if (this->root_folder_.empty()) {

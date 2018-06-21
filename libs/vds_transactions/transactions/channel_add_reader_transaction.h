@@ -15,11 +15,13 @@ namespace vds {
 			static const channel_message_id message_id = channel_message_id::channel_add_reader_transaction;
 
       channel_add_reader_transaction(
+        uint8_t channel_type,
         const std::string & name,
         const certificate & read_cert,
         const asymmetric_private_key & read_private_key,
         const certificate & write_cert)
-      : name_(name),
+      : channel_type_(channel_type),
+        name_(name),
         read_cert_(read_cert),
         read_private_key_(read_private_key),
         write_cert_(write_cert) {
@@ -45,6 +47,10 @@ namespace vds {
             << this->write_cert_;
       }
 
+      uint8_t channel_type() const {
+        return this->channel_type_;
+      }
+
       const std::string & name() const {
         return name_;
       }
@@ -62,6 +68,7 @@ namespace vds {
       }
 
     private:
+      uint8_t channel_type_;
       std::string name_;
       certificate read_cert_;
       asymmetric_private_key read_private_key_;

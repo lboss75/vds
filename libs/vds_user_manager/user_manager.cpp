@@ -575,7 +575,7 @@ void vds::_user_manager::update(
               auto &cp = this->channels_[channel_id];
               auto id = message.write_cert().subject();
               cp.name_ = message.name();
-              cp.type_ = message.channel_type();
+              cp.type_ = (user_channel::channel_type_t)message.channel_type();
               cp.write_certificates_[id] = message.write_cert();
               cp.write_private_keys_[id] = message.write_private_key();
               cp.current_write_certificate_ = id;

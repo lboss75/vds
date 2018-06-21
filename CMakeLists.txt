@@ -11,6 +11,7 @@ add_subdirectory(app)
 if(ANDROID_PLATFORM)
 	add_subdirectory(android/app)
 else(ANDROID_PLATFORM)
+	enable_testing()
 	add_subdirectory(tests)
 endif(ANDROID_PLATFORM)
 

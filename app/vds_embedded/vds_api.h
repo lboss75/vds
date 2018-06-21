@@ -35,6 +35,17 @@ typedef jlong api_void_ptr;
 #else
 
 #define API __attribute__ ((visibility("default")))
+#define APICALL
+#define APIENV_
+#define APIENV
+
+typedef std::string api_string;
+typedef void * api_void_ptr;
+
+#define api_return_string(str) std::string(str)
+
+#define api_string_argument(local_name, paramenter_name)\
+    std::string local_name = paramenter_name;
 
 #endif
 

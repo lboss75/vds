@@ -1,6 +1,10 @@
 project(vds_background CXX C)
 cmake_minimum_required(VERSION 2.6.2)
 
+if(UNIX)
+	find_package (Threads REQUIRED)
+endif(UNIX)
+
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../cmake")
 
 find_package (UPNP REQUIRED)

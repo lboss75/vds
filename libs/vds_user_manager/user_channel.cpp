@@ -81,6 +81,7 @@ void vds::_user_channel::add_reader(
     owner_private_key,
     member_user.user_certificate(),
     transactions::channel_add_reader_transaction(
+			(uint8_t)this->channel_type_,
 			this->name_,
 			this->read_cert_,
 			channel_read_private_key,
@@ -100,6 +101,7 @@ void vds::_user_channel::add_writer(
 			owner_private_key,
       member_user.user_certificate(),
 		transactions::channel_add_writer_transaction(
+			(uint8_t)this->channel_type_,
 			this->name_,
 			this->read_cert_,
 			this->write_cert_,
