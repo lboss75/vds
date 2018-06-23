@@ -18,6 +18,7 @@ All rights reserved
 #include "logger.h"
 #include "encoding.h"
 #include "private/upload_stream_task_p.h"
+#include "member_user.h"
 
 vds::file_manager::file_operations::file_operations()
   : impl_(new file_manager_private::_file_operations()) {
@@ -88,14 +89,10 @@ vds::async_task<vds::const_data_buffer> vds::file_manager_private::_file_operati
                          base64::from_bytes(channel_id).c_str());
                        throw vds_exceptions::access_denied_error("User don't have write permission");
                      }
-                     auto channel_write_key = user_mng->get_channel_write_key(sp, channel.id());
 
                      transactions::transaction_block_builder log(sp, t);
-                     log.add(
-                       channel_id,
-                       channel.write_cert(),
-                       channel_write_key,
-                       channel.read_cert(),
+                   channel.add_log(
+                     log,
                        transactions::file_add_transaction(
                          file_info.total_hash,
                          file_info.total_size,
@@ -107,8 +104,8 @@ vds::async_task<vds::const_data_buffer> vds::file_manager_private::_file_operati
                      log.save(
                        sp,
                        t,
-                       channel.write_cert(),
-                       channel_write_key);
+                       user_mng->get_current_user().user_certificate(),
+                       user_mng->get_current_user_private_key());
 
                      return true;
                    }).then([file_info]() {

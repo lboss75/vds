@@ -32,7 +32,7 @@ vds::api_controller::get_channels(
     const vds::http_message &message) {
   auto result = std::make_shared<json_array>();
   for(auto & channel : user_mng.get_channels()) {
-    result->add(channel_serialize(channel));
+    result->add(channel_serialize(channel.second));
   }
 
   return std::static_pointer_cast<json_value>(result);
@@ -121,10 +121,9 @@ vds::async_task<vds::http_message>
 vds::api_controller::create_channel(
   const vds::service_provider &sp,
   const std::shared_ptr<vds::user_manager> &user_mng,
-  user_channel::channel_type_t channel_type,
   const std::string & name) {
 
-  return user_mng->create_channel(sp, channel_type, name).then([sp](const vds::user_channel & channel) {
+  return user_mng->create_channel(sp, name).then([sp](const vds::user_channel & channel) {
     return vds::async_task<vds::http_message>::result(
       http_response::simple_text_response(
         sp,

@@ -20,33 +20,147 @@ namespace vds {
         user_channel::channel_type_t channel_type,
 		    const std::string & name,
         const vds::certificate & read_cert,
-        const vds::certificate & write_cert);
+        const asymmetric_private_key & read_private_key,
+        const vds::certificate & write_cert,
+        const asymmetric_private_key & write_private_key);
 
     const const_data_buffer &id() const { return this->id_;}
     user_channel::channel_type_t channel_type() const { return this->channel_type_; }
     const std::string &name() const { return this->name_; }
-    const vds::certificate & read_cert() const { return this->read_cert_; }
-    const vds::certificate & write_cert() const { return this->write_cert_; }
+
+    const vds::certificate & read_cert() const {
+      if (this->current_read_certificate_.empty()) {
+        throw std::invalid_argument("vds::_user_channel::add_reader");
+      }
+      return this->read_certificates_.find(this->current_read_certificate_)->second;
+    }
+
+    const vds::certificate & read_cert(const std::string & subject) const {
+      auto p = this->read_certificates_.find(subject);
+      if (this->read_certificates_.end() == p) {
+        return vds::certificate();
+      }
+
+      return p->second;
+    }
+
+    const vds::certificate & write_cert() const {
+      if (this->current_read_certificate_.empty() || this->current_write_certificate_.empty()) {
+        throw std::invalid_argument("vds::_user_channel::add_reader");
+      }
+      return this->write_certificates_.find(this->current_write_certificate_)->second;
+    }
+
+    const asymmetric_private_key & read_private_key() const {
+      if (this->current_read_certificate_.empty()) {
+        throw std::invalid_argument("vds::_user_channel::read_private_key");
+      }
+      return this->read_private_keys_.find(this->current_read_certificate_)->second;
+    }
+
+    const asymmetric_private_key & write_private_key() const {
+      if (this->current_write_certificate_.empty()) {
+        throw std::invalid_argument("vds::_user_channel::write_private_key");
+      }
+      return this->write_private_keys_.find(this->current_write_certificate_)->second;
+    }
+
 	  void add_reader(
-		  transactions::transaction_block_builder& playback,
-		  const member_user& member_user,
-		  const vds::member_user& owner_user,
-		  const asymmetric_private_key& owner_private_key,
-		  const asymmetric_private_key& channel_read_private_key) const;
+	    transactions::transaction_block_builder& playback,
+	    const member_user& member_user,
+	    const vds::member_user& owner_user,
+	    const asymmetric_private_key& owner_private_key) const;
 
 	  void add_writer(
-		  transactions::transaction_block_builder& playback,
-		  const member_user& member_user,
-		  const vds::member_user& owner_user,
-		  const asymmetric_private_key& owner_private_key,
-		  const asymmetric_private_key& channel_write_private_key) const;
+	    transactions::transaction_block_builder& playback,
+	    const member_user& member_user,
+	    const vds::member_user& owner_user) const;
+
+    void add_writer(
+      transactions::transaction_block_builder& playback,
+      const std::string & name,
+      const member_user& member_user,
+      const vds::member_user& owner_user) const;
+
+    asymmetric_private_key read_cert_private_key(const std::string& cert_subject) {
+      auto p = this->read_private_keys_.find(cert_subject);
+      if (this->read_private_keys_.end() == p) {
+        return asymmetric_private_key();
+      }
+
+      return p->second;
+    }
+
+    static user_channel import_personal_channel(
+      const service_provider & sp,
+      const certificate& user_cert,
+      const asymmetric_private_key& user_private_key);
+
+    template<typename item_type>
+    void add_log(
+      transactions::transaction_block_builder & log,
+      const member_user & writter,
+      item_type && item) {
+
+      auto key = symmetric_key::generate(symmetric_crypto::aes_256_cbc());
+
+      binary_serializer s;
+      s
+        << (uint8_t)item_type::message_id;
+      item.serialize(s);
+
+      transactions::channel_message(
+        this->id_,
+        this->read_cert().subject(),
+        writter.user_certificate().subject(),
+        this->read_cert().public_key().encrypt(key.serialize()),
+        symmetric_encrypt::encrypt(key, s.data().data(), s.data().size()),
+        writter.private_key())
+        .serialize(log.data_);
+    }
+
+    template<typename item_type>
+    void add_log(
+      transactions::transaction_block_builder & log,
+      item_type && item) {
+
+      binary_serializer s;
+      s
+        << (uint8_t)item_type::message_id;
+      item.serialize(s);
+
+      this->add_to_log(log, s.data().data(), s.size());
+    }
+
+    void add_to_log(
+      transactions::transaction_block_builder & log, 
+      const uint8_t * data,
+      size_t size) {
+
+      auto key = symmetric_key::generate(symmetric_crypto::aes_256_cbc());
+
+      transactions::channel_message(
+        this->id_,
+        this->read_cert().subject(),
+        this->write_cert().subject(),
+        this->read_cert().public_key().encrypt(key.serialize()),
+        symmetric_encrypt::encrypt(key, data, size),
+        this->write_private_key()).serialize(log.data_);
+    }
 
   private:
 		const_data_buffer id_;
     user_channel::channel_type_t channel_type_;
 	  std::string name_;
-    certificate read_cert_;
-    certificate write_cert_;
+
+    std::map<std::string, certificate> read_certificates_;
+    std::map<std::string, certificate> write_certificates_;
+
+    std::map<std::string, asymmetric_private_key> read_private_keys_;
+    std::map<std::string, asymmetric_private_key> write_private_keys_;
+
+    std::string current_read_certificate_;
+    std::string current_write_certificate_;
   };
 }
 

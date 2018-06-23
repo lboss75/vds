@@ -15,6 +15,8 @@ All rights reserved
 #include "data_coin_balance.h"
 
 namespace vds {
+  class _user_channel;
+
   namespace transactions {
     class create_user_transaction;
     class payment_transaction;
@@ -34,31 +36,6 @@ namespace vds {
       void add(const create_user_transaction & item);
       void add(const payment_transaction & item);
 
-      template<typename item_type>
-      void add(
-        const const_data_buffer & channel_id,
-        const certificate & write_cert,
-        const asymmetric_private_key & write_key,
-        const certificate & channel_read_cert,
-        item_type && item) {
-
-        auto key = symmetric_key::generate(symmetric_crypto::aes_256_cbc());
-
-        binary_serializer s;
-        s
-          << (uint8_t)item_type::message_id;
-        item.serialize(s);
-
-        channel_message(
-          channel_id,
-          channel_read_cert.subject(),
-          write_cert.subject(),
-          channel_read_cert.public_key().encrypt(key.serialize()),
-          symmetric_encrypt::encrypt(key, s.data().data(), s.data().size()),
-          write_key)
-        .serialize(this->data_);
-      }
-
       const_data_buffer save(
           const service_provider &sp,
           class vds::database_transaction &t,
@@ -66,6 +43,7 @@ namespace vds {
           const asymmetric_private_key &write_private_key);
 
       private:
+        friend class _user_channel;
       std::set<const_data_buffer> ancestors_;
       data_coin_balance balance_;
       binary_serializer data_;

@@ -18,22 +18,27 @@ namespace vds {
 			static const channel_message_id message_id = channel_message_id::channel_add_writer_transaction;
 
       channel_add_writer_transaction(
-          uint8_t channel_type,
-          const std::string & name,
-          const certificate & read_cert,
-          const certificate & write_cert,
-          const asymmetric_private_key & write_private_key)
-          : channel_type_(channel_type),
-            name_(name),
-            read_cert_(read_cert),
-            write_cert_(write_cert),
-            write_private_key_(write_private_key) {
+        const const_data_buffer & id,
+        const std::string & channel_type,
+        const std::string & name,
+        const certificate & read_cert,
+        const asymmetric_private_key & read_private_key,
+        const certificate & write_cert,
+        const asymmetric_private_key & write_private_key)
+        : id_(id),
+        channel_type_(channel_type),
+        name_(name),
+        read_cert_(read_cert),
+        read_private_key_(read_private_key),
+        write_cert_(write_cert),
+        write_private_key_(write_private_key) {
       }
 
       channel_add_writer_transaction(binary_deserializer & s) {
         const_data_buffer write_private_key_der;
         s
-            >> this->channel_type_
+          >> this->id_
+          >> this->channel_type_
             >> this->name_
             >> this->read_cert_
             >> this->write_cert_
@@ -46,37 +51,48 @@ namespace vds {
 
       void serialize(binary_serializer & s) const {
         s
-            << this->channel_type_
+          << this->id_
+          << this->channel_type_
             << this->name_
             << this->read_cert_
             << this->write_cert_
             << this->write_private_key_.der(std::string());
       }
 
-      uint8_t channel_type() const {
+      const const_data_buffer & id() const {
+        return this->id_;
+      }
+
+      const std::string & channel_type() const {
         return this->channel_type_;
       }
 
       const std::string &name() const {
-        return name_;
+        return this->name_;
       }
 
       const certificate &read_cert() const {
-        return read_cert_;
+        return this->read_cert_;
+      }
+
+      const asymmetric_private_key & read_private_key() const {
+        return this->read_private_key_;
       }
 
       const certificate &write_cert() const {
-        return write_cert_;
+        return this->write_cert_;
       }
 
       const asymmetric_private_key &write_private_key() const {
-        return write_private_key_;
+        return this->write_private_key_;
       }
 
     private:
-      uint8_t channel_type_;
+      const_data_buffer id_;
+      std::string channel_type_;
       std::string name_;
       certificate read_cert_;
+      asymmetric_private_key read_private_key_;
       certificate write_cert_;
       asymmetric_private_key write_private_key_;
     };

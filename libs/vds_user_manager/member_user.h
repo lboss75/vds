@@ -17,19 +17,31 @@ namespace vds {
   class member_user
   {
   public:
-    member_user(_member_user * impl);
+    member_user(
+      const certificate &user_cert,
+      const asymmetric_private_key & private_key);
 
     const certificate & user_certificate() const;
+    const asymmetric_private_key & private_key() const;
 
-    member_user create_user(
-        const vds::asymmetric_private_key &owner_user_private_key,
-        const std::string &user_name,
-        const vds::asymmetric_private_key &private_key);
+    //member_user create_user(
+    //    const vds::asymmetric_private_key &owner_user_private_key,
+    //    const std::string &user_name,
+    //    const vds::asymmetric_private_key &private_key);
 
-    static member_user import_user(const certificate &user_cert);
+    user_channel create_channel(
+      const service_provider &sp,
+      transactions::transaction_block_builder &log,
+      const std::string &name);
+
+    _member_user * operator -> () const {
+      return this->impl_.get();
+    }
 
   private:
     std::shared_ptr<_member_user> impl_;
+
+    member_user(_member_user * impl);
   };
 }
 

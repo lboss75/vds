@@ -13,6 +13,8 @@ All rights reserved
 #include "transaction_log_unknown_record_dbo.h"
 #include "chunk_replicas_dbo.h"
 #include "chunk_replica_data_dbo.h"
+#include "dht_object_id.h"
+#include "../vds_dht_network/private/dht_network_client_p.h"
 
 vds::server::server()
 : impl_(new _server(this))
@@ -55,6 +57,14 @@ vds::async_task<> vds::server::reset(
 
     user_manager usr_manager;
     usr_manager.reset(sp, t, root_user_name, root_password, private_key);
+
+    auto client = std::make_shared<dht::network::_client>(sp, const_data_buffer());
+    client->save(
+      sp,
+      t,
+      dht::dht_object_id::user_credentials_to_key(root_user_name, root_password),
+      private_key.der(root_password));
+
 	  return true;
   });
 }

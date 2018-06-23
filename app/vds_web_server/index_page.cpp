@@ -20,7 +20,7 @@ vds::async_task<vds::http_message> vds::index_page::create_channel(const vds::se
 
   return parser->parse(sp, message).then([sp, user_mng, web_server, parser]() -> async_task<http_message> {
     auto name = parser->values().find("channelName");
-    return api_controller::create_channel(sp, user_mng, user_channel::channel_type_t::personal_channel, name->second);
+    return api_controller::create_channel(sp, user_mng, name->second);
   });
 }
 

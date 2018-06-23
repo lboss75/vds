@@ -22,6 +22,7 @@ All rights reserved
 #include "../vds_dht_network/private/dht_network_client_p.h"
 #include "register_request.h"
 #include "create_user_transaction.h"
+#include "private/user_channel_p.h"
 
 vds::user_manager::user_manager(){
 }
@@ -57,6 +58,11 @@ void vds::user_manager::load(
 	this->impl_->update(sp, t);
 }
 
+vds::async_task<vds::user_channel> vds::user_manager::create_channel(const service_provider& sp,
+  const std::string& name) const {
+  return this->impl_->create_channel(sp, name);
+}
+
 void vds::user_manager::reset(
     const service_provider &sp,
     database_transaction &t,
@@ -66,43 +72,14 @@ void vds::user_manager::reset(
 
   auto playback = transactions::transaction_block_builder::create_root_block();
 
-  auto client = std::make_shared<dht::network::_client>(sp, const_data_buffer());
-  client->save(
-    sp,
-    t,
-    dht::dht_object_id::user_credentials_to_key(root_user_name, root_password),
-    root_private_key.der(root_password));
-
   //Create root user
-  auto root_user = this->create_root_user(
+  auto root_user = _member_user::create_root_user(
+    sp,
     playback,
     t,
     root_user_name,
     root_password,
     root_private_key);
-
-  sp.get<logger>()->info(ThisModule, sp, "Create root user %s", 
-	  root_user.user_certificate().subject().c_str());
-
-  //Create notes channel
-  auto channel_read_private_key = vds::asymmetric_private_key::generate(
-    vds::asymmetric_crypto::rsa4096());
-  auto channel_write_private_key = vds::asymmetric_private_key::generate(
-    vds::asymmetric_crypto::rsa4096());
-  this->create_channel(
-    sp,
-    playback,
-    t,
-    vds::dht::dht_object_id::my_record_channel(root_user_name),
-    user_channel::channel_type_t::notes_channel,
-    "My Records",
-    root_user.user_certificate(),
-    root_private_key,
-    channel_read_private_key,
-    channel_write_private_key);
-
-  std::list<certificate> certificate_chain;
-  certificate_chain.push_back(root_user.user_certificate());
 
   playback.save(
       sp,
@@ -163,184 +140,17 @@ void vds::user_manager::reset(
 //	});
 //}
 
-vds::user_channel
-vds::user_manager::create_channel(const service_provider &sp, transactions::transaction_block_builder &log,
-                                  database_transaction &t, const vds::const_data_buffer &channel_id,
-                                  user_channel::channel_type_t channel_type, const std::string &name,
-                                  asymmetric_private_key &read_private_key,
-                                  asymmetric_private_key &write_private_key) const {
-  return this->impl_->create_channel(sp, log, t, channel_id, channel_type, name,
-                              read_private_key, write_private_key);
-}
-
-vds::user_channel
-vds::user_manager::create_channel(const service_provider &sp, transactions::transaction_block_builder &log,
-                                  database_transaction &t, const vds::const_data_buffer &channel_id,
-                                  user_channel::channel_type_t channel_type, const std::string &name,
-                                  const certificate &owner_cert,
-                                  const asymmetric_private_key &owner_private_key,
-                                  asymmetric_private_key &read_private_key,
-                                  asymmetric_private_key &write_private_key) const {
-  return this->impl_->create_channel(sp, log, t, channel_id, channel_type, name,
-    owner_cert, owner_private_key,
-    read_private_key, write_private_key);
-
-}
-
-vds::member_user vds::user_manager::import_user(const certificate &user_cert) {
-  return vds::member_user::import_user(user_cert);
-}
-
-
-vds::certificate vds::user_manager::get_channel_write_cert(
-  const service_provider & sp,
-  const const_data_buffer & channel_id) const
-{
-	return this->impl_->get_channel_write_cert(channel_id);
-}
-
-
-vds::asymmetric_private_key vds::user_manager::get_channel_write_key(
-  const service_provider & sp,
-  const const_data_buffer & channel_id) const
-{
-	return this->impl_->get_channel_write_key(channel_id);
-}
-
-vds::asymmetric_private_key vds::user_manager::get_channel_write_key(
-		const service_provider & sp,
-		const const_data_buffer & channel_id,
-		const std::string & cert_id) const
-{
-	return this->impl_->get_channel_write_key(channel_id, cert_id);
-}
-
-vds::certificate vds::user_manager::get_channel_read_cert(
-  const service_provider & sp,
-  const const_data_buffer & channel_id) const
-{
-	return this->impl_->get_channel_read_cert(channel_id);
-}
-
-vds::asymmetric_private_key vds::user_manager::get_channel_read_key(
-  const service_provider & sp,
-  const const_data_buffer & channel_id) const
-{
-	return this->impl_->get_channel_read_key(channel_id);
-}
-
-vds::asymmetric_private_key vds::user_manager::get_channel_read_key(
-		const service_provider & sp,
-		const const_data_buffer & channel_id,
-		const std::string & cert_id) const
-{
-	return this->impl_->get_channel_read_key(channel_id, cert_id);
-}
-
-vds::certificate vds::user_manager::get_certificate(
-  const service_provider & sp,
-  const std::string & cert_id) const
-{
-	return this->impl_->get_certificate(cert_id);
-}
-
-
 vds::user_channel vds::user_manager::get_channel(
   const service_provider & sp,
   const const_data_buffer & channel_id) const
 {
-  return user_channel(
-    channel_id,
-    this->impl_->get_channel_type(channel_id),
-    this->impl_->get_channel_name(channel_id),
-    this->get_channel_read_cert(sp, channel_id),
-    this->get_channel_write_cert(sp, channel_id));
+  return this->impl_->get_channel(channel_id);
 }
 
-std::list<vds::user_channel> vds::user_manager::get_channels() const {
+std::map<vds::const_data_buffer, vds::user_channel> vds::user_manager::get_channels() const {
   std::list<vds::user_channel> result;
 
-  for (const auto & p : this->impl_->channels()) {
-    if (p.second.type_ != user_channel::channel_type_t::account_channel) {
-      result.push_back(
-        vds::user_channel(
-          p.first,
-          p.second.type_,
-          p.second.name_,
-          p.second.read_certificates_.find(p.second.current_read_certificate_)->second,
-          p.second.write_certificates_.find(p.second.current_write_certificate_)->second));
-    }
-  }
-
-  return result;
-}
-
-vds::member_user vds::user_manager::create_root_user(
-  transactions::transaction_block_builder &playback,
-  database_transaction & t,
-  const std::string &root_user_name,
-  const std::string &root_password,
-  const vds::asymmetric_private_key &root_private_key) {
-  const auto root_user_cert = _cert_control::create_root(
-      root_user_name,
-      root_private_key);
-
-  playback.add(
-      transactions::root_user_transaction(
-          dht::dht_object_id::user_credentials_to_key(root_user_name, root_password),
-          root_user_cert,
-          root_user_name));
-
-  return member_user(new _member_user(root_user_cert));
-}
-
-vds::async_task<vds::user_channel> vds::user_manager::create_channel(
-  const service_provider& sp,
-  user_channel::channel_type_t channel_type,
-  const std::string& name) const {
-
-  auto result = std::make_shared<vds::user_channel>();
-  return sp.get<db_model>()->async_transaction(
-    sp,
-    [pthis = this->shared_from_this(), sp, channel_type, name, result](database_transaction & t)->bool {
-    auto read_private_key = vds::asymmetric_private_key::generate(
-      vds::asymmetric_crypto::rsa4096());
-    auto write_private_key = vds::asymmetric_private_key::generate(
-      vds::asymmetric_crypto::rsa4096());
-
-    vds::transactions::transaction_block_builder log(sp, t);
-    vds::asymmetric_private_key channel_read_private_key;
-    vds::asymmetric_private_key channel_write_private_key;
-    *result = pthis->create_channel(
-      sp,
-      log,
-      t,
-      vds::dht::dht_object_id::generate_random_id(),
-      channel_type,
-      name,
-      channel_read_private_key,
-      channel_write_private_key);
-
-    log.save(
-      sp,
-      t,
-      pthis->impl_->user_cert(),
-      pthis->impl_->user_private_key());
-
-    pthis->impl_->update(sp, t);
-
-    return true;
-  })
-  .then([result]() {
-    return *result;
-  });
-}
-
-vds::certificate vds::user_manager::get_channel_write_cert(
-		const vds::service_provider &sp,
-		const const_data_buffer &channel_id,
-		const std::string &cert_id) const {
-	return this->impl_->get_channel_write_cert(channel_id, cert_id);
+  return this->impl_->channels();
 }
 
 bool vds::user_manager::validate_and_save(
@@ -349,7 +159,7 @@ bool vds::user_manager::validate_and_save(
 
   certificate_store store;
   for (const auto & p : cert_chain) {
-    auto cert = this->get_certificate(sp, p.subject());
+    auto cert = this->impl_->get_certificate(p.subject());
     if (!cert) {
       cert = p;
 
@@ -504,7 +314,7 @@ void vds::_user_manager::update(
     const auto data = t1.data.get(st);
     transactions::transaction_block block(data);
 	  block.walk_messages(
-      [this](const transactions::root_user_transaction & message)->bool{
+      [this, sp](const transactions::root_user_transaction & message)->bool{
         this->root_user_cert_ = message.user_cert();
         this->root_user_name_ = message.user_name();
 
@@ -513,106 +323,98 @@ void vds::_user_manager::update(
           this->user_name_ = message.user_name();
           this->login_state_ = user_manager::login_state_t::login_sucessful;
 
-          auto &cp = this->channels_[this->user_cert_.fingerprint()];
+          auto cp = _user_channel::import_personal_channel(
+            sp,
+            this->user_cert_,
+            this->user_private_key_);
+          this->channels_[cp.id()] = cp;
 
-          cp.name_ = "!Private";
-
-          auto write_id = this->user_cert_.subject();
-          cp.write_certificates_[write_id] = this->user_cert_;
-
-          auto id = this->user_cert_.subject();
-          cp.read_certificates_[id] = this->user_cert_;
-          cp.read_private_keys_[id] = this->user_private_key_;
-          cp.current_read_certificate_ = id;
+          cp = _user_channel::import_personal_channel(
+            sp,
+            this->user_cert_,
+            this->user_private_key_);
+          this->channels_[cp.id()] = cp;
         }
 
         return true;
       },
-      [this](const transactions::create_user_transaction & message)->bool {
+      [this, sp](const transactions::create_user_transaction & message)->bool {
         if (this->user_credentials_key_ == message.user_credentials_key()) {
           this->user_cert_ = message.user_cert();
           this->user_name_ = message.user_name();
           this->login_state_ = user_manager::login_state_t::login_sucessful;
 
-          auto &cp = this->channels_[this->user_cert_.fingerprint()];
-
-          cp.name_ = "!Private";
-
-          auto write_id = this->user_cert_.subject();
-          cp.write_certificates_[write_id] = this->user_cert_;
-
-          auto id = this->user_cert_.subject();
-          cp.read_certificates_[id] = this->user_cert_;
-          cp.read_private_keys_[id] = this->user_private_key_;
-          cp.current_read_certificate_ = id;
+          auto cp = _user_channel::import_personal_channel(
+            sp,
+            this->user_cert_,
+            this->user_private_key_);
+          this->channels_[cp.id()] = cp;
         }
         return true;
       },
         [this, sp, &new_channels, log](const transactions::channel_message  & message)->bool {
-        auto channel_read_key = this->get_channel_read_key(message.channel_id(), message.channel_read_cert_subject());
-        if (channel_read_key) {
-          message.walk_messages(channel_read_key,
-            [sp, this, channel_id = message.channel_id(), log](const transactions::channel_add_reader_transaction & message)->bool {
-              auto &cp = this->channels_[channel_id];
+        auto channel = this->get_channel(message.channel_id());
+        if (channel) {
+          auto channel_read_key = channel->read_cert_private_key(message.channel_read_cert_subject());
+          if (channel_read_key) {
+            message.walk_messages(channel_read_key,
+              [sp, this, channel_id = message.channel_id(), log](const transactions::channel_add_reader_transaction & message)->bool {
+              auto cp = user_channel(
+                message.id(),
+                string2channel_type(message.channel_type()),
+                message.name(),
+                message.read_cert(),
+                message.read_private_key(),
+                message.write_cert(),
+                asymmetric_private_key());
 
-              cp.name_ = message.name();
-
-              auto write_id = message.write_cert().subject();
-              cp.write_certificates_[write_id] = message.write_cert();
-
-              auto id = message.read_cert().subject();
-              cp.read_certificates_[id] = message.read_cert();
-              cp.read_private_keys_[id] = message.read_private_key();
-              cp.current_read_certificate_ = id;
-
-              log->debug(ThisModule, sp, "Got channel %s reader certificate %s",
-                base64::from_bytes(channel_id).c_str(),
-                id.c_str());
-
-              return true;
-            },
-            [sp, this, channel_id = message.channel_id(), log](const transactions::channel_add_writer_transaction & message)->bool {
-              auto &cp = this->channels_[channel_id];
-              auto id = message.write_cert().subject();
-              cp.name_ = message.name();
-              cp.type_ = (user_channel::channel_type_t)message.channel_type();
-              cp.write_certificates_[id] = message.write_cert();
-              cp.write_private_keys_[id] = message.write_private_key();
-              cp.current_write_certificate_ = id;
-
-              auto read_id = message.read_cert().subject();
-              cp.read_certificates_[read_id] = message.read_cert();
-              cp.current_read_certificate_ = read_id;
-
-              log->debug(ThisModule, sp, "Got channel %s write certificate %s, read certificate %s",
-                base64::from_bytes(channel_id).c_str(),
-                id.c_str(),
-                read_id.c_str());
+              this->channels_[cp.id()] = cp;
+              log->debug(ThisModule, sp, "Got channel %s reader certificate",
+                base64::from_bytes(cp.id()).c_str());
 
               return true;
             },
-            [sp, this, channel_id = message.channel_id(), log, &new_channels](const transactions::channel_create_transaction & message)->bool {
+              [sp, this, channel_id = message.channel_id(), log](const transactions::channel_add_writer_transaction & message)->bool {
+              auto cp = user_channel(
+                message.id(),
+                string2channel_type(message.channel_type()),
+                message.name(),
+                message.read_cert(),
+                message.read_private_key(),
+                message.write_cert(),
+                message.write_private_key());
+
+              this->channels_[cp.id()] = cp;
+
+              log->debug(ThisModule, sp, "Got channel %s write certificate",
+                base64::from_bytes(cp.id()).c_str());
+
+              return true;
+            },
+              [sp, this, channel_id = message.channel_id(), log, &new_channels](const transactions::channel_create_transaction & message)->bool {
               if (new_channels.end() == new_channels.find(channel_id)) {
                 new_channels.emplace(message.channel_id());
               }
-              auto &cp = this->channels_[message.channel_id()];
-              cp.type_ = string2channel_type(message.channel_type());
-              cp.name_ = message.name();
-              cp.current_read_certificate_ = message.read_cert().subject();
-              cp.current_write_certificate_ = message.write_cert().subject();
-              cp.read_certificates_[cp.current_read_certificate_] = message.read_cert();
-              cp.read_private_keys_[cp.current_read_certificate_] = message.read_private_key();
-              cp.write_certificates_[cp.current_write_certificate_] = message.write_cert();
-              cp.write_private_keys_[cp.current_write_certificate_] = message.write_private_key();
+              auto cp = user_channel(
+                message.channel_id(),
+                string2channel_type(message.channel_type()),
+                message.name(),
+                message.read_cert(),
+                message.read_private_key(),
+                message.write_cert(),
+                message.write_private_key());
+
+              this->channels_[cp.id()] = cp;
 
               log->debug(ThisModule, sp, "New channel %s(%s), read certificate %s, write certificate %s",
                 base64::from_bytes(message.channel_id()).c_str(),
                 message.name().c_str(),
-                cp.current_read_certificate_.c_str(),
-                cp.current_write_certificate_.c_str());
+                cp.read_cert().subject().c_str(),
+                cp.write_cert().subject().c_str());
 
               return true;
             });
+          }
         }
 
         return true;
@@ -620,52 +422,12 @@ void vds::_user_manager::update(
 	}
 }
 
-bool
-vds::_user_manager::get_channel_write_certificate(
-		const const_data_buffer &channel_id,
-		std::string & name,
-		certificate & read_certificate,
-		asymmetric_private_key &read_key,
-		certificate & write_certificate,
-		asymmetric_private_key &write_key) const {
-	auto p = this->channels_.find(channel_id);
-	if(this->channels_.end() == p){
-		return false;
-	}
-
-	name = p->second.name_;
-
-	if (!p->second.current_read_certificate_.empty()) {
-		auto p1 = p->second.read_certificates_.find(p->second.current_read_certificate_);
-		if (p->second.read_certificates_.end() != p1) {
-			read_certificate = p1->second;
-		}
-		auto p2 = p->second.read_private_keys_.find(p->second.current_read_certificate_);
-		if (p->second.read_private_keys_.end() != p2) {
-			read_key = p2->second;
-		}
-	}
-
-	if (!p->second.current_write_certificate_.empty()) {
-		auto p1 = p->second.write_certificates_.find(p->second.current_write_certificate_);
-		if (p->second.write_certificates_.end() != p1) {
-			write_certificate = p1->second;
-		}
-		auto p2 = p->second.write_private_keys_.find(p->second.current_write_certificate_);
-		if (p->second.write_private_keys_.end() != p2) {
-			write_key = p2->second;
-		}
-	}
-
-	return true;
-}
-
 void vds::_user_manager::add_certificate(const vds::certificate &cert) {
 	this->certificate_chain_[cert.subject()] = cert;
 }
 
 vds::member_user vds::_user_manager::get_current_user() const {
-  return member_user::import_user(this->user_cert_);
+  return member_user(this->user_cert_, this->user_private_key_);
 }
 
 vds::async_task<bool> vds::_user_manager::approve_join_request(const service_provider& sp, const const_data_buffer& data) {
@@ -730,22 +492,16 @@ vds::async_task<bool> vds::_user_manager::approve_join_request(const service_pro
 
       auto read_private_key = asymmetric_private_key::generate(asymmetric_crypto::rsa4096());
       auto write_private_key = asymmetric_private_key::generate(asymmetric_crypto::rsa4096());
-      auto channel = pthis->create_channel(
+      auto channel = member_user(pthis->user_cert_, pthis->user_private_key_).create_channel(
         sp,
         playback,
-        t,
-        channel_id,
-        user_channel::channel_type_t::inter_person,
-        userName,
-        read_private_key,
-        write_private_key);
+        userName);
 
-      channel.add_writer(
+      channel->add_writer(
         playback,
-        member_user::import_user(user_cert),
-        member_user::import_user(pthis->user_cert_),
-        pthis->user_private_key_,
-        write_private_key);
+        pthis->user_name_,
+        member_user(user_cert, asymmetric_private_key()),
+        member_user(pthis->user_cert_, pthis->user_private_key_));
 
       playback.save(
         sp,
@@ -807,58 +563,34 @@ bool vds::_user_manager::parse_join_request(
   }
 }
 
-vds::user_channel
-vds::_user_manager::create_channel(const service_provider &sp, transactions::transaction_block_builder &log,
-  database_transaction &t, const vds::const_data_buffer &channel_id,
-  user_channel::channel_type_t channel_type, const std::string &name,
-  asymmetric_private_key &read_private_key,
-  asymmetric_private_key &write_private_key) const {
-  return this->create_channel(sp, log, t, channel_id, channel_type, name,
-    this->user_cert(), this->user_private_key(),
-    read_private_key, write_private_key);
-}
+vds::async_task<vds::user_channel> vds::_user_manager::create_channel(
+  const service_provider& sp,
+  const std::string& name) {
+  auto result = std::make_shared<vds::user_channel>();
+  return sp.get<db_model>()->async_transaction(
+    sp,
+    [pthis = this->shared_from_this(), sp, name, result](database_transaction & t)->bool {
 
-vds::user_channel
-vds::_user_manager::create_channel(const service_provider &sp, transactions::transaction_block_builder &log,
-  database_transaction &t, const vds::const_data_buffer &channel_id,
-  user_channel::channel_type_t channel_type, const std::string &name,
-  const certificate &owner_cert,
-  const asymmetric_private_key &owner_private_key,
-  asymmetric_private_key &read_private_key,
-  asymmetric_private_key &write_private_key) const {
+    vds::transactions::transaction_block_builder log(sp, t);
+    vds::asymmetric_private_key channel_read_private_key;
+    vds::asymmetric_private_key channel_write_private_key;
+    *result = member_user(pthis->user_cert_, pthis->user_private_key_).create_channel(
+      sp,
+      log,
+      name);
 
+    log.save(
+      sp,
+      t,
+      pthis->user_cert(),
+      pthis->user_private_key());
 
-  sp.get<logger>()->info(ThisModule, sp, "Create channel %s(%s)",
-    base64::from_bytes(channel_id).c_str(),
-    name.c_str());
+    pthis->update(sp, t);
 
-  read_private_key = vds::asymmetric_private_key::generate(vds::asymmetric_crypto::rsa4096());
-  auto read_cert = vds::_cert_control::create_cert(
-    base64::from_bytes(channel_id) + "(Read)",
-    read_private_key,
-    owner_cert,
-    owner_private_key);
+    return true;
+  })
+      .then([result]() {
+    return *result;
+  });
 
-  write_private_key = vds::asymmetric_private_key::generate(vds::asymmetric_crypto::rsa4096());
-  auto write_cert = vds::_cert_control::create_cert(
-    base64::from_bytes(channel_id) + "(Write)",
-    write_private_key,
-    owner_cert,
-    owner_private_key);
-
-  log.add(
-    owner_cert.fingerprint(),
-    owner_cert,
-    owner_private_key,
-    owner_cert,
-    transactions::channel_create_transaction(
-      channel_id,
-      std::to_string(channel_type),
-      name,
-      read_cert,
-      read_private_key,
-      write_cert,
-      write_private_key));
-
-  return user_channel(channel_id, channel_type, name, read_cert, write_cert);
 }

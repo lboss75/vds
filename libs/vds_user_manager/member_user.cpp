@@ -16,32 +16,43 @@ All rights reserved
 #include "private/member_user_p.h"
 #include "private/cert_control_p.h"
 #include "cert_control.h"
+#include "dht_object_id.h"
+#include "private/user_channel_p.h"
 
 vds::member_user::member_user(_member_user * impl)
   : impl_(impl)
 {
 }
 
-vds::member_user vds::member_user::create_user(const vds::asymmetric_private_key &owner_user_private_key, const std::string &user_name,
-                                               const vds::asymmetric_private_key &private_key)
-{
-  return this->impl_->create_user(owner_user_private_key, user_name, private_key);
+//vds::member_user vds::member_user::create_user(const vds::asymmetric_private_key &owner_user_private_key, const std::string &user_name,
+//                                               const vds::asymmetric_private_key &private_key)
+//{
+//  return this->impl_->create_user(owner_user_private_key, user_name, private_key);
+//}
+
+vds::member_user::member_user(const certificate& user_cert, const asymmetric_private_key& private_key)
+  : impl_(new _member_user(user_cert, private_key)) {
 }
 
 const vds::certificate &vds::member_user::user_certificate() const {
   return this->impl_->user_certificate();
 }
 
-vds::member_user vds::member_user::import_user(const certificate &user_cert) {
-  return member_user(new _member_user(
-      user_cert));
+const vds::asymmetric_private_key& vds::member_user::private_key() const {
+  return this->impl_->private_key();
+}
+
+vds::user_channel vds::member_user::create_channel(const service_provider& sp,
+  transactions::transaction_block_builder& log, const std::string& name) {
+  return this->impl_->create_channel(sp, log, name);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
 vds::_member_user::_member_user(
-    const certificate & user_cert)
-  : user_cert_(user_cert)
+  const certificate & user_cert,
+  const asymmetric_private_key &private_key)
+  : user_cert_(user_cert), private_key_(private_key)
 {
 }
 
@@ -57,6 +68,87 @@ vds::member_user vds::_member_user::create_user(
     this->user_cert_,
     owner_user_private_key);
 
-  return member_user(new _member_user(cert));
+  return member_user(cert, private_key);
+}
+
+vds::user_channel vds::_member_user::create_channel(
+  const service_provider& sp,
+  transactions::transaction_block_builder& log,
+  const std::string& name) {
+
+  auto read_private_key = vds::asymmetric_private_key::generate(vds::asymmetric_crypto::rsa4096());
+  auto write_private_key = vds::asymmetric_private_key::generate(vds::asymmetric_crypto::rsa4096());
+
+  auto channel_id = hash::signature(hash::sha256(), read_private_key.der(std::string()));
+  sp.get<logger>()->info(ThisModule, sp, "Create channel %s(%s)",
+    base64::from_bytes(channel_id).c_str(),
+    name.c_str());
+
+  auto read_cert = vds::_cert_control::create_cert(
+    base64::from_bytes(channel_id) + "(Read)",
+    read_private_key,
+    this->user_cert_,
+    this->private_key_);
+
+  auto write_cert = vds::_cert_control::create_cert(
+    base64::from_bytes(channel_id) + "(Write)",
+    write_private_key,
+    this->user_cert_,
+    this->private_key_);
+
+  (*this).personal_channel()->add_log(
+    log,
+    transactions::channel_create_transaction(
+      channel_id,
+      std::to_string(user_channel::channel_type_t::inter_person),
+      name,
+      read_cert,
+      read_private_key,
+      write_cert,
+      write_private_key));
+
+  return user_channel(
+    channel_id,
+    user_channel::channel_type_t::inter_person,
+    name,
+    read_cert,
+    read_private_key,
+    write_cert,
+    write_private_key);
+
+}
+
+vds::member_user vds::_member_user::create_root_user(const service_provider& sp,
+  transactions::transaction_block_builder& playback, database_transaction& t, const std::string& root_user_name,
+  const std::string& root_password, const vds::asymmetric_private_key& root_private_key) {
+
+  const auto root_user_cert = _cert_control::create_root(
+    root_user_name,
+    root_private_key);
+
+  playback.add(
+    transactions::root_user_transaction(
+      dht::dht_object_id::user_credentials_to_key(root_user_name, root_password),
+      root_user_cert,
+      root_user_name));
+
+  sp.get<logger>()->info(ThisModule, sp, "Create root user %s",
+    root_user_cert.subject().c_str());
+
+  std::list<certificate> certificate_chain;
+  certificate_chain.push_back(root_user_cert);
+
+  return member_user(root_user_cert, root_private_key);
+}
+
+vds::user_channel vds::_member_user::personal_channel() const {
+  return user_channel(
+    this->user_cert_.fingerprint(hash::sha256()),
+    user_channel::channel_type_t::personal_channel,
+    "!Personal",
+    this->user_cert_,
+    this->private_key_,
+    this->user_cert_,
+    this->private_key_);
 }
 

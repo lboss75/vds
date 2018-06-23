@@ -546,7 +546,9 @@ vds_mock::download_data(
 }
 
 vds::user_channel vds_mock::create_channel(int index, const std::string &name) {
+
   vds::user_channel result;
+
   auto sp = this->servers_[index]->get_service_provider().create_scope(__FUNCTION__);
   vds::mt_service::enable_async(sp);
 
@@ -561,7 +563,7 @@ vds::user_channel vds_mock::create_channel(int index, const std::string &name) {
               crypted_private_key), std::string());
       return sp.get<vds::db_model>()->async_transaction(
           sp,
-          [this, sp, user_mng, &result, name, user_private_key](vds::database_transaction &t) -> bool {
+          [this, sp, user_mng, user_private_key](vds::database_transaction &t) -> bool {
 
             user_mng->load(
                 sp,
@@ -569,27 +571,14 @@ vds::user_channel vds_mock::create_channel(int index, const std::string &name) {
                 vds::dht::dht_object_id::user_credentials_to_key(this->root_login_, this->root_password_),
                 user_private_key);
 
-            auto read_private_key = vds::asymmetric_private_key::generate(
-                vds::asymmetric_crypto::rsa4096());
-            auto write_private_key = vds::asymmetric_private_key::generate(
-                vds::asymmetric_crypto::rsa4096());
-
-            vds::transactions::transaction_block_builder log(sp, t);
-            vds::asymmetric_private_key channel_read_private_key;
-            vds::asymmetric_private_key channel_write_private_key;
-            result = user_mng->create_channel(sp, log, t, vds::dht::dht_object_id::generate_random_id(),
-                                              vds::user_channel::channel_type_t::personal_channel,
-                                              name,
-                                              channel_read_private_key, channel_write_private_key);
-
-            log.save(
-                sp,
-                t,
-                user_mng->get_current_user().user_certificate(),
-                user_mng->get_current_user_private_key());
 
             return true;
           });
+    })
+    .then([sp, user_mng, name]() {
+      return user_mng->create_channel(sp, name);
+    }).then([&result](const vds::user_channel & channel) {
+        result = channel;
     }).wait();
 
   return result;

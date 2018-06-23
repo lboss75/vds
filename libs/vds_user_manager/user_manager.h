@@ -39,27 +39,9 @@ namespace vds {
       const std::string &user_credentials_key,
       const asymmetric_private_key & user_private_key);
 
-    member_user create_root_user(
-      transactions::transaction_block_builder &log,
-      class database_transaction &t,
-      const std::string &user_name,
-      const std::string &user_password,
-      const asymmetric_private_key &private_key);
-
     async_task<vds::user_channel> create_channel(
       const service_provider &sp,
-      user_channel::channel_type_t channel_type,
       const std::string &name) const;
-
-    vds::user_channel create_channel(
-        const service_provider &sp,
-        transactions::transaction_block_builder &log,
-        database_transaction &t,
-        const vds::const_data_buffer &channel_id,
-        user_channel::channel_type_t channel_type,
-        const std::string &name,
-        asymmetric_private_key &read_private_key,
-        asymmetric_private_key &write_private_key) const;
 
     void reset(
         const service_provider &sp,
@@ -75,20 +57,8 @@ namespace vds {
     //  const std::string & device_name,
     //  int port);
 
-    certificate get_channel_write_cert(const service_provider & sp, const const_data_buffer &channel_id) const;
-    asymmetric_private_key get_channel_write_key(const service_provider & sp, const const_data_buffer &channel_id) const;
-    asymmetric_private_key get_channel_write_key(const service_provider & sp, const const_data_buffer &channel_id, const std::string &cert_id) const;
-    certificate get_channel_write_cert(const service_provider & sp, const const_data_buffer & channel_id, const std::string & cert_id) const;
-
-    certificate get_channel_read_cert(const service_provider & sp, const const_data_buffer &channel_id) const;
-    asymmetric_private_key get_channel_read_key(const service_provider & sp, const const_data_buffer &channel_id) const;
-    asymmetric_private_key get_channel_read_key(const service_provider & sp, const const_data_buffer &channel_id, const std::string &cert_id) const;
-    certificate get_certificate(const service_provider & sp, const std::string &cert_id) const;
-
-    member_user import_user(const certificate &user_cert);
-
     user_channel get_channel(const service_provider & sp, const const_data_buffer &channel_id) const;
-    std::list<user_channel> get_channels() const;
+    std::map<const_data_buffer, user_channel> get_channels() const;
 
     template <typename... handler_types>
     void walk_messages(
@@ -113,10 +83,7 @@ namespace vds {
           [this, sp, channel_id, &channel_handlers](const transactions::channel_message & message)->bool {
           if (channel_id == message.channel_id()) {
 
-            auto read_cert_key = this->get_channel_read_key(
-              sp,
-              channel_id,
-              message.channel_read_cert_subject());
+            auto read_cert_key = this->get_channel(sp, channel_id).read_cert_private_key(message.channel_read_cert_subject());
             const auto key_data = read_cert_key.decrypt(message.crypted_key());
             const auto key = symmetric_key::deserialize(symmetric_crypto::aes_256_cbc(), key_data);
             const auto data = symmetric_decrypt::decrypt(key, message.crypted_data());
@@ -153,20 +120,7 @@ namespace vds {
   private:
     std::shared_ptr<_user_manager> impl_;
 
-    user_channel create_channel(
-        const service_provider &sp,
-        transactions::transaction_block_builder &log,
-        database_transaction &t,
-        const vds::const_data_buffer &channel_id,
-        user_channel::channel_type_t channel_type,
-        const std::string &name,
-        const certificate &owner_cert,
-        const asymmetric_private_key &owner_private_key,
-        asymmetric_private_key &read_private_key,
-        asymmetric_private_key &write_private_key) const;
-
     void save_certificate(const service_provider &sp, const certificate &cert);
-
   };
 }
 

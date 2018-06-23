@@ -1,5 +1,6 @@
 #ifndef __VDS_DHT_NETWORK_P2P_ROUTE_H_
 #define __VDS_DHT_NETWORK_P2P_ROUTE_H_
+
 #include "const_data_buffer.h"
 #include "logger.h"
 #include "dht_object_id.h"
@@ -12,9 +13,9 @@ All rights reserved
 */
 
 namespace vds {
+  struct route_statistic;
 
   namespace dht {
-
     template<typename session_type>
     class dht_route {
     public:

@@ -31,7 +31,6 @@ namespace vds {
   {
   public:
     enum class channel_type_t {
-      account_channel,
       personal_channel,
       notes_channel,
       inter_person
@@ -44,7 +43,9 @@ namespace vds {
       channel_type_t channel_type,
       const std::string & name,
       const vds::certificate & read_cert,
-      const vds::certificate & write_cert);
+      const asymmetric_private_key & read_private_key,
+      const vds::certificate & write_cert,
+      const asymmetric_private_key & write_private_key);
 
 
     const const_data_buffer &id() const;
@@ -63,23 +64,45 @@ namespace vds {
     void add_writer(
       transactions::transaction_block_builder& playback,
       const member_user& member_user,
-      const vds::member_user& owner_user,
-      const asymmetric_private_key& owner_private_key,
-      const asymmetric_private_key& channel_write_private_key) const;
+      const vds::member_user& owner_user) const;
 
     bool operator !() const {
       return nullptr == this->impl_.get();
     }
 
+    operator bool () const {
+      return nullptr != this->impl_.get();
+    }
+
+    class _user_channel * operator -> () const {
+      return this->impl_.get();
+    }
+
+    asymmetric_private_key read_cert_private_key(const std::string& cert_subject);
+
+    template<typename item_type>
+    void add_log(
+      transactions::transaction_block_builder & log,
+      item_type && item) {
+
+      binary_serializer s;
+      s
+        << (uint8_t)item_type::message_id;
+      item.serialize(s);
+
+      this->add_to_log(log, s.data().data(), s.size());
+    }
 
   private:
     std::shared_ptr<class _user_channel> impl_;
+
+    void add_to_log(
+      transactions::transaction_block_builder & log,
+      const uint8_t * data,
+      size_t size);
   };
 
   inline user_channel::channel_type_t string2channel_type(const std::string & val) {
-    if ("a" == val) {
-      return  vds::user_channel::channel_type_t::account_channel;
-    }
     if ("p" == val) {
       return vds::user_channel::channel_type_t::personal_channel;
     }
@@ -95,9 +118,6 @@ namespace vds {
 namespace std {
   inline string to_string(vds::user_channel::channel_type_t val) {
     switch (val) {
-    case vds::user_channel::channel_type_t::account_channel: {
-      return "a";
-    }
     case vds::user_channel::channel_type_t::personal_channel: {
       return "p";
     }
