@@ -109,9 +109,9 @@ vds::async_task<> vds::dht::network::_client::apply_message(const service_provid
   return this->sync_process_.apply_message(sp, t, message);
 }
 
-vds::async_task<> vds::dht::network::_client::apply_message(const service_provider& sp, database_transaction& t,
+void vds::dht::network::_client::apply_message(const service_provider& sp, database_transaction& t,
   const messages::transaction_log_request& message) {
-  return this->sync_process_.apply_message(sp, t, message);
+  this->sync_process_.apply_message(sp, t, message);
 }
 
 void vds::dht::network::_client::apply_message(const service_provider& sp, database_transaction& t,

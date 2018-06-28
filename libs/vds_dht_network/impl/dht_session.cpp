@@ -79,17 +79,11 @@ vds::async_task<> vds::dht::network::dht_session::process_message(
   case network::message_type_t::transaction_log_request: {
     this->transaction_log_request_++;
 
-    auto result = std::make_shared<async_task<>>(async_task<>::empty());
-    return sp.get<db_model>()->async_transaction(sp, [sp, message_data, result](database_transaction & t) {
+    return sp.get<db_model>()->async_transaction(sp, [sp, message_data](database_transaction & t) {
       binary_deserializer s(message_data);
       messages::transaction_log_request message(s);
-      *result = (*sp.get<client>())->apply_message(sp.create_scope("messages::transaction_log_request"), t, message);
+      (*sp.get<client>())->apply_message(sp.create_scope("messages::transaction_log_request"), t, message);
       return true;
-    }).then([sp, result]() {
-      mt_service::async(sp, [result]() {
-        result->execute([](const std::shared_ptr<std::exception> & ) {
-        });
-      });
     });
     break;
   }

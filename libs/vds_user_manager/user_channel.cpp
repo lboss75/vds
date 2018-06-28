@@ -59,7 +59,7 @@ void vds::user_channel::add_writer(
 }
 
 vds::asymmetric_private_key vds::user_channel::read_cert_private_key(const std::string& cert_subject) {
-  return this->read_cert_private_key(cert_subject);
+  return this->impl_->read_cert_private_key(cert_subject);
 }
 
 void vds::user_channel::add_to_log(transactions::transaction_block_builder& log, const uint8_t* data, size_t size) {

@@ -74,7 +74,7 @@ namespace vds {
           database_transaction & t,
           const messages::transaction_log_state & message);
 
-        async_task<> apply_message(
+        void apply_message(
           const service_provider & sp,
           database_transaction & t,
           const messages::transaction_log_request & message);

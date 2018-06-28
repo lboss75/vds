@@ -150,12 +150,11 @@ vds::async_task<> vds::dht::network::sync_process::apply_message(
   return result;
 }
 
-vds::async_task<> vds::dht::network::sync_process::apply_message(
+void vds::dht::network::sync_process::apply_message(
     const service_provider& sp,
     database_transaction& t,
     const messages::transaction_log_request& message) {
 
-  auto result = async_task<>::empty();
   orm::transaction_log_record_dbo t1;
   std::list<const_data_buffer> requests;
   auto st = t.get_reader(
@@ -169,12 +168,9 @@ vds::async_task<> vds::dht::network::sync_process::apply_message(
         "Provide log record %s",
         base64::from_bytes(message.transaction_id()).c_str());
 
-    result = result.then([
-                             sp,
-                             message,
-                             data = t1.data.get(st)]() {
+    mt_service::async(sp, [sp, message, data = t1.data.get(st)]() {
       auto &client = *sp.get<vds::dht::network::client>();
-      return client->send(
+      client->send(
           sp,
           message.source_node(),
           messages::transaction_log_record(
@@ -182,8 +178,6 @@ vds::async_task<> vds::dht::network::sync_process::apply_message(
               data));
     });
   }
-
-  return result;
 }
 
 void vds::dht::network::sync_process::apply_message(

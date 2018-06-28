@@ -44,7 +44,7 @@ namespace vds {
         return p->second;
       }
 
-      throw vds_exceptions::not_found();
+      return user_channel();
     }
 
     const std::map<const_data_buffer, user_channel> &channels() const {
