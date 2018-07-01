@@ -336,3 +336,9 @@ vds::const_data_buffer vds::file::read_all(const vds::filename& fn)
   return const_data_buffer(buffer.data(), buffer.size());
 }
 
+void vds::file::write_all(const vds::filename &fn, const vds::const_data_buffer &data) {
+  file f(fn, file::file_mode::truncate);
+  f.write(data.data(), data.size());
+  f.close();
+}
+

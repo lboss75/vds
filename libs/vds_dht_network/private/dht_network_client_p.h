@@ -202,6 +202,10 @@ namespace vds {
         async_task<> update_wellknown_connection(
             const service_provider &sp,
             database_transaction &t);
+
+        static const_data_buffer read_data(
+            const std::string &data_hash,
+            const filename &data_path);
       };
     }
   }

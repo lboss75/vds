@@ -76,6 +76,7 @@ namespace vds {
     static void delete_file(const filename & fn, bool ignore_error = false);
     static std::string read_all_text(const filename & fn);
     static const_data_buffer read_all(const filename & fn);
+    static void write_all(const filename & fn, const const_data_buffer & data);
 
   private:
     filename filename_;

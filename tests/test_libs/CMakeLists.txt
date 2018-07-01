@@ -19,7 +19,3 @@ target_include_directories(test_libs
 target_link_libraries(test_libs
         vds_core)
 
-add_test(
-    NAME runUnitTests
-    COMMAND test_libs
-)

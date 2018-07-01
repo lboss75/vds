@@ -35,6 +35,7 @@ namespace vds {
       void add(const root_user_transaction & item);
       void add(const create_user_transaction & item);
       void add(const payment_transaction & item);
+      void add(const channel_message & item);
 
       const_data_buffer save(
           const service_provider &sp,
@@ -48,22 +49,8 @@ namespace vds {
       data_coin_balance balance_;
       binary_serializer data_;
 
-      transaction_block_builder() {
-      }
+      transaction_block_builder() = default;
 
-      const_data_buffer register_transaction(
-		      const service_provider & sp,
-          class database_transaction &t,
-          const const_data_buffer & channel_id,
-          const const_data_buffer &block,
-          uint64_t order_no,
-          const std::set<const_data_buffer> &ancestors) const;
-
-      void on_new_transaction(
-          const service_provider &sp,
-          class database_transaction &t,
-          const const_data_buffer & id,
-          const const_data_buffer &block) const;
     };
   }
 }

@@ -103,5 +103,17 @@ namespace vds {
 
     return result;
   }
+
+  static inline void str_replace(std::string & result, char original, char target) {
+    size_t index = 0;
+    for (;;) {
+      index = result.find(original, index);
+      if (index == std::string::npos) {
+        break;
+      }
+      result[index] = target;
+      ++index;
+    }
+  }
 }
 #endif//__VDS_CORE_STRING_UTILS_H_

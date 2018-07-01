@@ -1,6 +1,7 @@
 //
 // Created by vadim on 18.03.18.
 //
+#include <device_record_dbo.h>
 #include "stdafx.h"
 #include "device_config_dbo.h"
 #include "dht_network_client.h"
@@ -192,13 +193,18 @@ vds::api_controller::user_devices(
     auto current_node = client->current_node_id();
 
     orm::device_config_dbo t1;
+    orm::device_record_dbo t2;
+    db_value<uint64_t> used_size;
     auto st = t.get_reader(
         t1.select(
-            t1.id,
             t1.name,
+            t1.local_path,
             t1.reserved_size,
-            t1.free_size)
-        .where(t1.owner_id == user_mng->get_current_user().user_certificate().subject()));
+            db_sum(t2.data_size).as(used_size))
+        .left_join(t2, t2.local_path == t1.local_path && t2.node_id == t1.node_id)
+        .where(
+            t1.node_id == base64::from_bytes(current_node)
+            && t1.owner_id == user_mng->get_current_user().user_certificate().subject()));
     while(st.execute()){
       auto item = std::make_shared<json_object>();
       item->add_property("id", t1.id.get(st));

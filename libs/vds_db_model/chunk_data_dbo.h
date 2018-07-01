@@ -15,12 +15,12 @@ namespace vds {
       chunk_data_dbo()
           : database_table("chunk_data"),
             id(this, "id"),
-            data(this, "data"),
+            data_hash(this, "data_hash"),
             last_access(this, "last_access"){
       }
 
       database_column<std::string> id;
-      database_column<const_data_buffer> data;
+      database_column<std::string> data_hash;
       database_column<std::chrono::system_clock::time_point> last_access;
     };
   }

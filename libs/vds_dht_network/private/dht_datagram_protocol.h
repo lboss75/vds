@@ -471,7 +471,7 @@ namespace vds {
             auto p = this->output_messages_.find(index);
             if (this->output_messages_.end() != p) {
               if (0 != (mask & 1)) {
-                sp.get<logger>()->trace(ThisModule, sp, "Repeat message %d to %s", index, this->address_.to_string().c_str());
+                sp.get<logger>()->trace("DHT", sp, "Repeat message %d to %s", index, this->address_.to_string().c_str());
 
                 result = result.then([sp, s, data = udp_datagram(this->address_, p->second, false)]() {
                   return s->write_async(sp, data);

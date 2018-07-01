@@ -87,7 +87,7 @@ void vds::db_model::migrate(
 
 		t.execute("CREATE TABLE chunk_data (\
 			id VARCHAR(64) PRIMARY KEY NOT NULL,\
-      data  BLOB NOT NULL,\
+      data_hash VARCHAR(64) NOT NULL,\
 			last_access INTEGER NOT NULL)");
 
 		t.execute("CREATE TABLE well_known_node(\
@@ -140,12 +140,19 @@ void vds::db_model::migrate(
 			parent VARCHAR(64) NOT NULL)");
 
 		t.execute("CREATE TABLE device_config(\
-			id VARCHAR(64) NOT NULL,\
+			node_id VARCHAR(64) NOT NULL,\
+			local_path VARCHAR(254) NOT NULL,\
 			owner_id VARCHAR(64) NOT NULL,\
 			name VARCHAR(64) NOT NULL,\
 			reserved_size INTEGER NOT NULL,\
-			free_size INTEGER NOT NULL,\
-      CONSTRAINT pk_device_config PRIMARY KEY(id,owner_id))");
+      CONSTRAINT pk_device_config PRIMARY KEY(node_id,local_path))");
+
+    t.execute("CREATE TABLE device_record(\
+			node_id VARCHAR(64) NOT NULL,\
+			local_path VARCHAR(254) NOT NULL,\
+			data_hash VARCHAR(64) NOT NULL,\
+			data_size INTEGER NOT NULL,\
+      CONSTRAINT pk_device_record PRIMARY KEY(node_id,local_path,data_hash))");
 
 		t.execute("CREATE TABLE certificate_unknown(\
 			id VARCHAR(64) PRIMARY KEY NOT NULL)");
@@ -168,7 +175,8 @@ void vds::db_model::migrate(
     t.execute("CREATE TABLE chunk_replica_data(\
 			id VARCHAR(64) NOT NULL,\
       replica INTEGER NOT NULL,\
-			replica_data BLOB NOT NULL,\
+			replica_hash VARCHAR(64) NOT NULL,\
+      replica_path VARCHAR(256) NOT NULL,\
       CONSTRAINT pk_chunk_replica_data PRIMARY KEY(id,replica))");
 
     t.execute("CREATE TABLE chunk_replica_map(\

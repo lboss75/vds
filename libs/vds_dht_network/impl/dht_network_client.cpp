@@ -2,6 +2,8 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
+#include <device_config_dbo.h>
+#include <device_record_dbo.h>
 #include "stdafx.h"
 #include "dht_network_client.h"
 #include "private/dht_network_client_p.h"
@@ -28,8 +30,8 @@ All rights reserved
 vds::dht::network::_client::_client(
     const service_provider & sp,
     const const_data_buffer & node_id)
-: update_timer_("DHT Network"),
-  route_(node_id),
+: route_(node_id),
+  update_timer_("DHT Network"),
   update_route_table_counter_(0)
 {
   for (uint16_t replica = 0; replica < GENERATE_HORCRUX; ++replica) {
@@ -224,31 +226,27 @@ vds::async_task<> vds::dht::network::_client::apply_message(
       }
     }
     else {
+      std::map<uint16_t, std::tuple<std::string, std::string>> replica_hashes;
       orm::chunk_replica_data_dbo t2;
       st = t.get_reader(
         t2
-        .select(t2.replica)
+        .select(t2.replica, t2.replica_hash, t2.replica_path)
         .where(t2.id == object_id));
 
       while (st.execute()) {
         auto replica = t2.replica.get(st);
         if (message.exist_replicas().end() == message.exist_replicas().find(replica)) {
           allowed_replicas.emplace(replica);
+          replica_hashes[replica] = std::make_tuple(
+              t2.replica_hash.get(st),
+              t2.replica_path.get(st));
         }
       }
 
-      get_replica = [&t, object_id](uint16_t replica)->const_data_buffer{
-        orm::chunk_replica_data_dbo t2;
-        auto st = t.get_reader(
-          t2
-          .select(t2.replica_data)
-          .where(t2.id == object_id
-            && t2.replica == replica));
-        if (st.execute()) {
-          return t2.replica_data.get(st);
-        }
-
-        return const_data_buffer();
+      get_replica = [replica_hashes](uint16_t replica)->const_data_buffer{
+        return read_data(
+            std::get<0>(replica_hashes.find(replica)->second),
+            filename(std::get<1>(replica_hashes.find(replica)->second)));
       };
     }
 
@@ -296,15 +294,63 @@ vds::async_task<> vds::dht::network::_client::apply_message(
     sp,
     [pthis = this->shared_from_this(), sp, session, message](database_transaction & t) -> bool{
 
+      auto data_hash = base64::from_bytes(hash::signature(hash::sha256(), message.data()));
     orm::chunk_replica_data_dbo t2;
-    t.execute(
-      t2.insert_or_ignore(
-        t2.id = base64::from_bytes(message.replica_hash()),
-        t2.replica = message.replica(),
-        t2.replica_data = message.data()));
+    auto st = t.get_reader(
+        t2.select(t2.replica_hash)
+        .where(t2.id == base64::from_bytes(message.replica_hash())
+           && t2.replica == message.replica()));
+    if(st.execute()){
+      vds_assert(t2.replica_hash.get(st) == data_hash);
+    }
+    else {
+      uint64_t allowed_size = 0;
+      std::string local_path;
+
+      orm::device_config_dbo t3;
+      orm::device_record_dbo t4;
+      db_value<uint64_t> data_size;
+      st = t.get_reader(
+          t3.select(t3.local_path, t3.reserved_size, db_sum(t4.data_size).as(data_size))
+          .left_join(t4, t4.node_id == t3.node_id && t4.local_path == t3.local_path)
+          .where(t3.node_id == base64::from_bytes(pthis->current_node_id()))
+          .group_by(t3.local_path, t3.reserved_size));
+      while(st.execute()){
+        uint64_t size = data_size.is_null(st) ? 0 : data_size.get(st);
+        if(t3.reserved_size.get(st) > size && allowed_size < (t3.reserved_size.get(st) - size)) {
+          allowed_size = (t3.reserved_size.get(st) - size);
+          local_path = t3.local_path.get(st);
+        }
+      }
+
+      if(!local_path.empty()){
+        auto append_path = data_hash;
+        str_replace(append_path, '+', '.');
+        str_replace(append_path, '/', '_');
+
+        foldername fl(local_path);
+        fl.create();
+
+        fl = foldername(fl, append_path.substr(0, 10));
+        fl.create();
+
+        fl = foldername(fl, append_path.substr(10, 10));
+        fl.create();
+
+        filename fn(fl, append_path.substr(20));
+        file::write_all(fn, message.data());
+
+        t.execute(
+            t2.insert(
+                t2.id = base64::from_bytes(message.replica_hash()),
+                t2.replica = message.replica(),
+                t2.replica_hash = data_hash,
+                t2.replica_path = fn.full_name()));
+      }
+    }
 
     std::set<uint16_t> replicas;
-    auto st = t.get_reader(t2.select(t2.replica).where(t2.id == base64::from_bytes(message.replica_hash())));
+    st = t.get_reader(t2.select(t2.replica).where(t2.id == base64::from_bytes(message.replica_hash())));
     while(st.execute()) {
         replicas.emplace(t2.replica.get(st));
     }
@@ -587,10 +633,16 @@ vds::async_task<uint8_t> vds::dht::network::_client::restore_async(
       datas.clear();
 
       orm::chunk_replica_data_dbo t2;
-      auto st = t.get_reader(t2.select(t2.replica, t2.replica_data).where(t2.id == base64::from_bytes(replica)));
+      auto st = t.get_reader(
+          t2.select(
+          t2.replica, t2.replica_hash, t2.replica_path)
+              .where(t2.id == base64::from_bytes(replica)));
       while(st.execute()) {
         replicas.push_back(t2.replica.get(st));
-        datas.push_back(t2.replica_data.get(st));
+        datas.push_back(
+            read_data(
+                t2.replica_hash.get(st),
+                filename(t2.replica_path.get(st))));
 
         if (replicas.size() >= MIN_DISTRIBUTED_PIECES) {
           break;
@@ -658,6 +710,14 @@ vds::dht::network::_client::update_wellknown_connection(
   return result;
 }
 
+vds::const_data_buffer
+vds::dht::network::_client::read_data(
+    const std::string &data_hash,
+    const filename &data_path) {
+  auto data = file::read_all(data_path);
+  vds_assert(data_hash == base64::from_bytes(hash::signature(hash::sha256(), data)));
+  return data;
+}
 
 void vds::dht::network::client::start(
   const vds::service_provider &sp,

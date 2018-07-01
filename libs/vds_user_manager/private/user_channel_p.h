@@ -35,7 +35,7 @@ namespace vds {
       return this->read_certificates_.find(this->current_read_certificate_)->second;
     }
 
-    const vds::certificate & read_cert(const std::string & subject) const {
+    vds::certificate read_cert(const std::string & subject) const {
       auto p = this->read_certificates_.find(subject);
       if (this->read_certificates_.end() == p) {
         return vds::certificate();
@@ -109,14 +109,14 @@ namespace vds {
         << (uint8_t)item_type::message_id;
       item.serialize(s);
 
-      transactions::channel_message(
-        this->id_,
-        this->read_cert().subject(),
-        writter.user_certificate().subject(),
-        this->read_cert().public_key().encrypt(key.serialize()),
-        symmetric_encrypt::encrypt(key, s.data().data(), s.data().size()),
-        writter.private_key())
-        .serialize(log.data_);
+      log.add(
+        transactions::channel_message(
+          this->id_,
+          this->read_cert().subject(),
+          writter.user_certificate().subject(),
+          this->read_cert().public_key().encrypt(key.serialize()),
+          symmetric_encrypt::encrypt(key, s.data().data(), s.data().size()),
+          writter.private_key()));
     }
 
     template<typename item_type>
@@ -132,23 +132,9 @@ namespace vds {
       this->add_to_log(log, s.data().data(), s.size());
     }
 
-    void add_to_log(
-      transactions::transaction_block_builder & log, 
-      const uint8_t * data,
-      size_t size) {
-
-      auto key = symmetric_key::generate(symmetric_crypto::aes_256_cbc());
-
-      transactions::channel_message(
-        this->id_,
-        this->read_cert().subject(),
-        this->write_cert().subject(),
-        this->read_cert().public_key().encrypt(key.serialize()),
-        symmetric_encrypt::encrypt(key, data, size),
-        this->write_private_key()).serialize(log.data_);
-    }
-
   private:
+    friend class user_channel;
+
 		const_data_buffer id_;
     user_channel::channel_type_t channel_type_;
 	  std::string name_;
@@ -161,6 +147,23 @@ namespace vds {
 
     std::string current_read_certificate_;
     std::string current_write_certificate_;
+
+    void add_to_log(
+        transactions::transaction_block_builder & log,
+        const uint8_t * data,
+        size_t size) {
+
+      auto key = symmetric_key::generate(symmetric_crypto::aes_256_cbc());
+
+      log.add(
+          transactions::channel_message(
+              this->id_,
+              this->read_cert().subject(),
+              this->write_cert().subject(),
+              this->read_cert().public_key().encrypt(key.serialize()),
+              symmetric_encrypt::encrypt(key, data, size),
+              this->write_private_key()));
+    }
   };
 }
 

@@ -153,7 +153,52 @@ namespace vds {
     const _database_column_base * column_;
     std::function<void(sql_statement & st, int index)> set_parameter_;
   };
-  
+  //////////////////////////////////////////////
+  template <typename value_type>
+  class db_value
+  {
+  public:
+    db_value()
+        : index_(-1)
+    {
+    }
+
+    value_type get(sql_statement & st) const {
+      value_type result;
+      st.get_value(this->index_, result);
+      return (value_type)result;
+    }
+
+    bool is_null(sql_statement & st) const {
+      return st.is_null(this->index_);
+    }
+
+    void set_index(int index)
+    {
+      this->index_ = index;
+    }
+
+  private:
+    int index_;
+  };
+
+  template <typename value_type, typename base_type>
+  class _db_as_value : public base_type
+  {
+  public:
+    _db_as_value(base_type && original, db_value<value_type> & value)
+        : base_type(std::move(original)), value_(value)
+    {
+    }
+
+    void set_index(int index) const
+    {
+      this->value_.set_index(index);
+    }
+
+  private:
+    db_value<value_type> & value_;
+  };
   //////////////////////////////////////////////
   class _database_sql_builder
   {
@@ -358,6 +403,11 @@ namespace vds {
 
     void set_index(int index) const
     {
+    }
+
+    template <typename value_type>
+    _db_as_value<value_type, _db_sum<source_type>> as(db_value<value_type> & value) {
+      return _db_as_value<value_type, _db_sum<source_type>>(std::move(*this), value);
     }
 
   private:
@@ -1140,6 +1190,14 @@ namespace vds {
       return _database_order_builder<this_class, order_columns_types...>(
         std::move(*this),
         std::forward<order_columns_types>(order_columns)...);
+    }
+
+    template <typename... group_by_columns_types>
+    _database_group_by_builder<this_class, group_by_columns_types...> group_by(group_by_columns_types && ... group_by_columns)
+    {
+      return _database_group_by_builder<this_class, group_by_columns_types...>(
+          std::move(*this),
+          std::forward<group_by_columns_types>(group_by_columns)...);
     }
   };
 
