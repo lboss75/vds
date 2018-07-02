@@ -35,7 +35,6 @@ namespace vds {
       void add(const root_user_transaction & item);
       void add(const create_user_transaction & item);
       void add(const payment_transaction & item);
-      void add(const channel_message & item);
 
       const_data_buffer save(
           const service_provider &sp,
@@ -45,11 +44,12 @@ namespace vds {
 
       private:
         friend class _user_channel;
-      std::set<const_data_buffer> ancestors_;
-      data_coin_balance balance_;
-      binary_serializer data_;
+        std::set<const_data_buffer> ancestors_;
+        data_coin_balance balance_;
+        binary_serializer data_;
 
-      transaction_block_builder() = default;
+        transaction_block_builder() = default;
+        void add(const channel_message & item);
 
     };
   }

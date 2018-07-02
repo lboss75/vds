@@ -16,6 +16,7 @@ All rights reserved
 #include "foldername.h"
 #include "filename.h"
 #include "file.h"
+#include "persistence.h"
 
 vds::foldername::foldername(
   const vds::foldername& base,
@@ -232,7 +233,7 @@ uint64_t vds::foldername::free_size() const {
   ULARGE_INTEGER freeBytesAvailable;
   ULARGE_INTEGER totalNumberOfBytes;
   if(!GetDiskFreeSpaceExA(
-    persistence::current_user(sp).local_name().c_str(),
+    this->local_name().c_str(),
     &freeBytesAvailable,
     &totalNumberOfBytes,
     NULL)){
@@ -255,7 +256,7 @@ uint64_t vds::foldername::total_size() const {
   ULARGE_INTEGER freeBytesAvailable;
   ULARGE_INTEGER totalNumberOfBytes;
   if(!GetDiskFreeSpaceExA(
-    persistence::current_user(sp).local_name().c_str(),
+    this->local_name().c_str(),
     &freeBytesAvailable,
     &totalNumberOfBytes,
     NULL)){

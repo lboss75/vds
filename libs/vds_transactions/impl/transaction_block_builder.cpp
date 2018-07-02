@@ -89,7 +89,6 @@ void vds::transactions::transaction_block_builder::add(const payment_transaction
 void vds::transactions::transaction_block_builder::add(
     const vds::transactions::channel_message &item) {
 
-  this->data_ << (uint8_t)channel_message::message_id;
   item.serialize(this->data_);
 
 }
