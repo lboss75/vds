@@ -226,12 +226,9 @@ vds::async_task<vds::http_message> vds::_web_server::route(
       http_request request(message);
       const auto device_name = request.get_parameter("name");
       const auto reserved_size = safe_cast<uint64_t>(std::atoll(request.get_parameter("size").c_str()));
-      return api_controller::lock_device(
-          sp,
-          user_mng,
-          this->shared_from_this(),
-          device_name,
-          reserved_size)
+      const auto local_path = request.get_parameter("path");
+      return api_controller::lock_device(sp, user_mng, this->shared_from_this(), device_name, local_path,
+                                         reserved_size)
           .then([sp]() {
 
             return vds::async_task<vds::http_message>::result(

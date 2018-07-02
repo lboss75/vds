@@ -219,3 +219,49 @@ void vds::foldername::create()
     }
   }
 }
+
+uint64_t vds::foldername::free_size() const {
+#ifndef _WIN32
+  struct statvfs buf;
+  if(0 != statvfs(this->local_name().c_str(), &buf)){
+    auto error = errno;
+    throw std::system_error(error, std::system_category(), "Get Free Size");
+  }
+  return buf.f_bfree * buf.f_frsize;
+#else// _WIN32
+  ULARGE_INTEGER freeBytesAvailable;
+  ULARGE_INTEGER totalNumberOfBytes;
+  if(!GetDiskFreeSpaceExA(
+    persistence::current_user(sp).local_name().c_str(),
+    &freeBytesAvailable,
+    &totalNumberOfBytes,
+    NULL)){
+    auto error = GetLastError();
+    throw std::system_error(error, std::system_category(), "Get Free Size");
+  }
+  return freeBytesAvailable.QuadPart / (1024 * 1024 * 1024);
+#endif// _WIN32
+}
+
+uint64_t vds::foldername::total_size() const {
+#ifndef _WIN32
+  struct statvfs buf;
+  if(0 != statvfs(this->local_name().c_str(), &buf)){
+    auto error = errno;
+    throw std::system_error(error, std::system_category(), "Get Free Size");
+  }
+  return buf.f_bsize * buf.f_frsize / (1024 * 1024 * 1024);
+#else// _WIN32
+  ULARGE_INTEGER freeBytesAvailable;
+  ULARGE_INTEGER totalNumberOfBytes;
+  if(!GetDiskFreeSpaceExA(
+    persistence::current_user(sp).local_name().c_str(),
+    &freeBytesAvailable,
+    &totalNumberOfBytes,
+    NULL)){
+    auto error = GetLastError();
+    throw std::system_error(error, std::system_category(), "Get Free Size");
+  }
+  return totalNumberOfBytes.QuadPart / (1024 * 1024 * 1024);
+#endif// _WIN32
+}

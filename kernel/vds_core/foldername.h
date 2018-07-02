@@ -90,6 +90,11 @@ namespace vds {
 
       foldername contains_folder() const;
 
+      uint64_t free_size() const;
+      uint64_t total_size() const;
+
+      static std::list<foldername> mounted_roots();
+
   private:
     friend class filename;
     std::string value_;

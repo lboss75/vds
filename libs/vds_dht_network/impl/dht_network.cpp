@@ -2,6 +2,7 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
+#include <device_config_dbo.h>
 #include "stdafx.h"
 #include "dht_network.h"
 #include "private/udp_transport.h"
@@ -36,6 +37,18 @@ void vds::dht::network::service::start(const service_provider& parent_scope, uin
       t.execute(t1.insert(
           t1.cert = node_cert.der(),
           t1.cert_key = private_key.der(std::string())));
+
+      //System reserved
+      foldername system_reserved(persistence::current_user(sp), "reserved");
+      system_reserved.create();
+
+      orm::device_config_dbo t2;
+      t.execute(t2.insert(
+          t2.node_id = base64::from_bytes(node_cert.fingerprint(hash::sha256())),
+          t2.local_path = system_reserved.full_name(),
+          t2.owner_id = "root_user", //TODO: Need to set default user
+          t2.name = "System Reserved",
+          t2.reserved_size = 4 * 1024 * 1024 * 1024));
     }
 
     this->client_.start(sp, node_cert.fingerprint(hash::sha256()), port);

@@ -25,7 +25,6 @@ All rights reserved
 #include <stdexcept>
 #include <system_error>
 
-
 #ifndef _WIN32
 #include <errno.h>
 #include <sys/types.h>
@@ -34,7 +33,9 @@ All rights reserved
 #include <unistd.h>
 #include <pwd.h>
 #include <locale>
+#include <limits.h>
 #include <sys/stat.h>
+#include <sys/statvfs.h>
 
 #else
 #include <io.h>

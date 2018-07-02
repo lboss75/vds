@@ -1,7 +1,6 @@
 //
 // Created by vadim on 18.03.18.
 //
-#include <device_record_dbo.h>
 #include "stdafx.h"
 #include "device_config_dbo.h"
 #include "dht_network_client.h"
@@ -16,6 +15,7 @@
 #include "register_request.h"
 #include "vds_exceptions.h"
 #include "member_user.h"
+#include "device_record_dbo.h"
 
 std::shared_ptr<vds::json_object> vds::api_controller::channel_serialize(
   const vds::user_channel & channel) {
@@ -202,16 +202,18 @@ vds::api_controller::user_devices(
             t1.reserved_size,
             db_sum(t2.data_size).as(used_size))
         .left_join(t2, t2.local_path == t1.local_path && t2.node_id == t1.node_id)
-        .where(
-            t1.node_id == base64::from_bytes(current_node)
-            && t1.owner_id == user_mng->get_current_user().user_certificate().subject()));
+        .where(t1.owner_id == user_mng->get_current_user().user_certificate().subject()));
     while(st.execute()){
       auto item = std::make_shared<json_object>();
-      item->add_property("id", t1.id.get(st));
       item->add_property("name", t1.name.get(st));
+      item->add_property("local_path", t1.local_path.get(st));
       item->add_property("reserved_size", t1.reserved_size.get(st));
-      item->add_property("free_size", t1.free_size.get(st));
-      item->add_property("current", (t1.id.get(st) == base64::from_bytes(current_node)) ? "true" : "false");
+      item->add_property("used_size", std::to_string(used_size.get(st)));
+      item->add_property("free_size", std::to_string(foldername(t1.local_path.get(st)).free_size()));
+      item->add_property(
+          "current",
+          (t1.node_id.get(st) == base64::from_bytes(current_node)) ? "true" : "false");
+
       result->add(item);
     }
   }).then([result](){
@@ -229,14 +231,6 @@ vds::api_controller::offer_device(
   char hostname[HOST_NAME_MAX];
   gethostname(hostname, HOST_NAME_MAX);
   result->add_property("name", hostname);
-
-  struct statvfs buf;
-  if(0 != statvfs(persistence::current_user(sp).local_name().c_str(), &buf)){
-    auto error = errno;
-    throw std::system_error(error, std::system_category(), "Get Free Size");
-  }
-  result->add_property("free", buf.f_bfree * buf.f_frsize / (1024 * 1024 * 1024));
-  result->add_property("size", buf.f_bsize * buf.f_frsize / (1024 * 1024 * 1024));
 #else// _WIN32
   CHAR hostname[256];
   DWORD bufCharCount = sizeof(hostname) / sizeof(hostname[0]);
@@ -245,20 +239,19 @@ vds::api_controller::offer_device(
     throw std::system_error(error, std::system_category(), "Get Computer Name");
   }
   result->add_property("name", hostname);
-
-  ULARGE_INTEGER freeBytesAvailable;
-  ULARGE_INTEGER totalNumberOfBytes;
-  if(!GetDiskFreeSpaceExA(
-    persistence::current_user(sp).local_name().c_str(),
-    &freeBytesAvailable,
-    &totalNumberOfBytes,
-    NULL)){
-    auto error = GetLastError();
-    throw std::system_error(error, std::system_category(), "Get Free Size");
-  }
-  result->add_property("free", freeBytesAvailable.QuadPart / (1024 * 1024 * 1024));
-  result->add_property("size", totalNumberOfBytes.QuadPart / (1024 * 1024 * 1024));
 #endif// _WIN32
+  for(uint64_t i = 0; i < INT64_MAX; ++i){
+    foldername folder(persistence::current_user(sp), "storage" + std::to_string(i));
+    if(folder.exist()){
+      continue;
+    }
+
+    result->add_property("path", folder.local_name());
+    result->add_property("free", folder.free_size() / (1024 * 1024 * 1024));
+    result->add_property("size", folder.total_size() / (1024 * 1024 * 1024));
+    break;
+  }
+
   return vds::async_task<std::shared_ptr<vds::json_value>>::result(result);
 }
 
@@ -281,24 +274,21 @@ std::shared_ptr<vds::json_value> vds::api_controller::get_invite(const service_p
 }
 
 vds::async_task<>
-vds::api_controller::lock_device(
-    const vds::service_provider &sp,
-    const std::shared_ptr<vds::user_manager> &user_mng,
-    const std::shared_ptr<vds::_web_server> &owner,
-    const std::string &device_name,
-    uint64_t reserved_size) {
-  return sp.get<db_model>()->async_transaction(sp, [sp, user_mng, device_name, reserved_size](database_transaction & t) {
+vds::api_controller::lock_device(const vds::service_provider &sp, const std::shared_ptr<vds::user_manager> &user_mng,
+                                 const std::shared_ptr<vds::_web_server> &owner, const std::string &device_name,
+                                 const std::string &local_path, uint64_t reserved_size) {
+  return sp.get<db_model>()->async_transaction(sp, [sp, user_mng, device_name, local_path, reserved_size](database_transaction & t) {
     auto client = sp.get<dht::network::client>();
     auto current_node = client->current_node_id();
 
     orm::device_config_dbo t1;
     t.execute(
         t1.insert(
-            t1.id = base64::from_bytes(current_node),
+            t1.node_id = base64::from_bytes(current_node),
+            t1.local_path = local_path,
             t1.owner_id = user_mng->get_current_user().user_certificate().subject(),
             t1.name = device_name,
-            t1.reserved_size = reserved_size,
-            t1.free_size = reserved_size));
+            t1.reserved_size = reserved_size));
   });
 }
 

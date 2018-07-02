@@ -56,9 +56,9 @@ namespace vds {
     user_devices(const service_provider &sp, const std::shared_ptr<user_manager> &user_mng,
                              const std::shared_ptr<_web_server> &owner);
 
-    static async_task<> lock_device(const service_provider &sp, const std::shared_ptr<user_manager> &user_mng,
-                                    const std::shared_ptr<_web_server> &owner, const std::string &device_name,
-                                    uint64_t reserved_size);
+    static async_task<> lock_device(const vds::service_provider &sp, const std::shared_ptr<vds::user_manager> &user_mng,
+                                        const std::shared_ptr<vds::_web_server> &owner, const std::string &device_name,
+                                        const std::string &local_path, uint64_t reserved_size);
 
     static async_task<std::shared_ptr<vds::json_value>>
     offer_device(
