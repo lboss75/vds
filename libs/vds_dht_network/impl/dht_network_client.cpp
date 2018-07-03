@@ -693,10 +693,16 @@ vds::async_task<uint8_t> vds::dht::network::_client::restore_async(
             t1.last_sync = std::chrono::system_clock::now()));
       }
       else {
+        std::string log_message = "request replica " + base64::from_bytes(replica) + ". Exists: ";
         std::set<uint16_t> exist_replicas;
         for(auto p : replicas) {
+          log_message += std::to_string(p);
+          log_message += ',';
+
           exist_replicas.emplace(p);
         }
+
+        sp.get<logger>()->trace(ThisModule, sp, "%s", log_message.c_str());
 
         pthis->send(
           sp,
