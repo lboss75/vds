@@ -10,6 +10,8 @@ All rights reserved
 #include "dht_network_client.h"
 
 namespace vds {
+  class server;
+
   namespace dht {
     namespace network {
       class udp_transport;
@@ -23,6 +25,9 @@ namespace vds {
 
       private:
 				client client_;
+
+        friend class server;
+        static certificate prepare_to_start(const service_provider& parent_scope, database_transaction & t);
       };
     }
   }

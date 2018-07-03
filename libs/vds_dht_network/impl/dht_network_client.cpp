@@ -57,17 +57,18 @@ std::vector<vds::const_data_buffer> vds::dht::network::_client::save(
 
     orm::chunk_replicas_dbo t1;
 
-    auto st = t.get_reader(t1.select(t1.replica_data).where(t1.id == base64::from_bytes(replica_id)));
+    auto st = t.get_reader(t1.select(t1.id).where(t1.replica_hash == base64::from_bytes(replica_id)));
     if (st.execute()) {
-      if(t1.replica_data.get(st) != replica_data) {
-        throw std::runtime_error("Data is not equal");
+      if(t1.id.get(st) != base64::from_bytes(replica_id)) {
+        throw std::runtime_error("data conflict at " + sp.full_name());
       }
     }
     else {
+      auto fn = save_data(sp, t, replica_id, replica_data);
       t.execute(
         t1.insert(
           t1.id = base64::from_bytes(replica_id),
-          t1.replica_data = replica_data,
+          t1.replica_hash = base64::from_bytes(replica_id),
           t1.last_sync = std::chrono::system_clock::now() - std::chrono::hours(24)
         ));
     }
@@ -96,11 +97,13 @@ void vds::dht::network::_client::save(
       replica,
       id.c_str());
 
+    auto replica_hash = hash::signature(hash::sha256(), replica_data);
+    auto fn = this->save_data(sp, t, replica_hash, replica_data);
     orm::chunk_replicas_dbo t1;
     t.execute(
       t1.insert(
         t1.id = id,
-        t1.replica_data = replica_data,
+        t1.replica_hash = base64::from_bytes(replica_hash),
         t1.last_sync = std::chrono::system_clock::now() - std::chrono::hours(24)
       ));
   }
@@ -204,15 +207,17 @@ vds::async_task<> vds::dht::network::_client::apply_message(
     auto object_id = base64::from_bytes(message.replica_hash());
 
     orm::chunk_replicas_dbo t1;
+    orm::device_record_dbo t3;
     auto st = t.get_reader(
       t1
-      .select(t1.replica_data)
+      .select(t3.local_path)
+      .inner_join(t3, t3.node_id == base64::from_bytes(pthis->current_node_id()) && t3.data_hash == t1.replica_hash)
       .where(t1.id == object_id));
 
     std::set<uint8_t> allowed_replicas;
     std::function<const_data_buffer(uint16_t)> get_replica;
     if (st.execute()) {
-      get_replica = [data = t1.replica_data.get(st), pthis](uint16_t replica)->const_data_buffer{
+      get_replica = [data = file::read_all(filename(t3.local_path.get(st))), pthis](uint16_t replica)->const_data_buffer{
         binary_serializer s;
         pthis->distributed_generators_.find(replica)->second->write(s, data.data(), data.size());
 
@@ -228,9 +233,11 @@ vds::async_task<> vds::dht::network::_client::apply_message(
     else {
       std::map<uint16_t, std::tuple<std::string, std::string>> replica_hashes;
       orm::chunk_replica_data_dbo t2;
+      orm::device_record_dbo t4;
       st = t.get_reader(
         t2
-        .select(t2.replica, t2.replica_hash, t2.replica_path)
+        .select(t2.replica, t2.replica_hash, t4.local_path)
+        .inner_join(t4, t4.node_id == base64::from_bytes(pthis->current_node_id()) && t4.data_hash == t2.replica_hash)
         .where(t2.id == object_id));
 
       while (st.execute()) {
@@ -239,7 +246,7 @@ vds::async_task<> vds::dht::network::_client::apply_message(
           allowed_replicas.emplace(replica);
           replica_hashes[replica] = std::make_tuple(
               t2.replica_hash.get(st),
-              t2.replica_path.get(st));
+              t4.local_path.get(st));
         }
       }
 
@@ -294,59 +301,22 @@ vds::async_task<> vds::dht::network::_client::apply_message(
     sp,
     [pthis = this->shared_from_this(), sp, session, message](database_transaction & t) -> bool{
 
-      auto data_hash = base64::from_bytes(hash::signature(hash::sha256(), message.data()));
     orm::chunk_replica_data_dbo t2;
     auto st = t.get_reader(
         t2.select(t2.replica_hash)
         .where(t2.id == base64::from_bytes(message.replica_hash())
            && t2.replica == message.replica()));
     if(st.execute()){
-      vds_assert(t2.replica_hash.get(st) == data_hash);
     }
     else {
-      uint64_t allowed_size = 0;
-      std::string local_path;
+      auto data_hash = hash::signature(hash::sha256(), message.data());
+      auto fn = pthis->save_data(sp, t, data_hash, message.data());
 
-      orm::device_config_dbo t3;
-      orm::device_record_dbo t4;
-      db_value<uint64_t> data_size;
-      st = t.get_reader(
-          t3.select(t3.local_path, t3.reserved_size, db_sum(t4.data_size).as(data_size))
-          .left_join(t4, t4.node_id == t3.node_id && t4.local_path == t3.local_path)
-          .where(t3.node_id == base64::from_bytes(pthis->current_node_id()))
-          .group_by(t3.local_path, t3.reserved_size));
-      while(st.execute()){
-        uint64_t size = data_size.is_null(st) ? 0 : data_size.get(st);
-        if(t3.reserved_size.get(st) > size && allowed_size < (t3.reserved_size.get(st) - size)) {
-          allowed_size = (t3.reserved_size.get(st) - size);
-          local_path = t3.local_path.get(st);
-        }
-      }
-
-      if(!local_path.empty()){
-        auto append_path = data_hash;
-        str_replace(append_path, '+', '.');
-        str_replace(append_path, '/', '_');
-
-        foldername fl(local_path);
-        fl.create();
-
-        fl = foldername(fl, append_path.substr(0, 10));
-        fl.create();
-
-        fl = foldername(fl, append_path.substr(10, 10));
-        fl.create();
-
-        filename fn(fl, append_path.substr(20));
-        file::write_all(fn, message.data());
-
-        t.execute(
-            t2.insert(
-                t2.id = base64::from_bytes(message.replica_hash()),
-                t2.replica = message.replica(),
-                t2.replica_hash = data_hash,
-                t2.replica_path = fn.full_name()));
-      }
+      t.execute(
+          t2.insert(
+              t2.id = base64::from_bytes(message.replica_hash()),
+              t2.replica = message.replica(),
+              t2.replica_hash = base64::from_bytes(data_hash)));
     }
 
     std::set<uint16_t> replicas;
@@ -440,6 +410,61 @@ void vds::dht::network::_client::start(const vds::service_provider &sp, uint16_t
 
 void vds::dht::network::_client::stop(const service_provider& sp) {
   this->udp_transport_->stop(sp);
+}
+
+vds::filename vds::dht::network::_client::save_data(
+  const service_provider& sp,
+  database_transaction& t,
+  const const_data_buffer & data_hash,
+  const const_data_buffer& data) {
+
+  uint64_t allowed_size = 0;
+  std::string local_path;
+
+  orm::device_config_dbo t3;
+  orm::device_record_dbo t4;
+  db_value<uint64_t> data_size;
+  auto st = t.get_reader(
+    t3.select(t3.local_path, t3.reserved_size, db_sum(t4.data_size).as(data_size))
+    .left_join(t4, t4.node_id == t3.node_id && t4.storage_path == t3.local_path)
+    .where(t3.node_id == base64::from_bytes(this->current_node_id()))
+    .group_by(t3.local_path, t3.reserved_size));
+  while (st.execute()) {
+    const uint64_t size = data_size.is_null(st) ? 0 : data_size.get(st);
+    if (t3.reserved_size.get(st) > size && allowed_size < (t3.reserved_size.get(st) - size)) {
+      allowed_size = (t3.reserved_size.get(st) - size);
+      local_path = t3.local_path.get(st);
+    }
+  }
+
+  if (local_path.empty() || allowed_size < data.size()) {
+    throw std::runtime_error("No disk space");
+  }
+
+  auto append_path = base64::from_bytes(data_hash);
+  str_replace(append_path, '+', '#');
+  str_replace(append_path, '/', '_');
+
+  foldername fl(local_path);
+  fl.create();
+
+  fl = foldername(fl, append_path.substr(0, 10));
+  fl.create();
+
+  fl = foldername(fl, append_path.substr(10, 10));
+  fl.create();
+
+  filename fn(fl, append_path.substr(20));
+  file::write_all(fn, data);
+
+  t.execute(t4.insert(
+    t4.node_id = base64::from_bytes(this->current_node_id()),
+    t4.storage_path = local_path,
+    t4.local_path = fn.full_name(),
+    t4.data_hash = base64::from_bytes(data_hash),
+    t4.data_size = data.size()));
+
+  return fn;
 }
 
 vds::async_task<> vds::dht::network::_client::update_route_table(const service_provider& sp) {
@@ -598,15 +623,17 @@ vds::async_task<uint8_t> vds::dht::network::_client::restore_async(
     std::list<const_data_buffer> unknonw_replicas;
 
     orm::chunk_replicas_dbo t1;
+    orm::device_record_dbo t4;
     for (uint16_t replica = 0; replica < GENERATE_HORCRUX; ++replica) {
       auto st = t.get_reader(
         t1
-        .select(t1.replica_data)
+        .select(t4.local_path)
+        .inner_join(t4, t4.node_id == base64::from_bytes(pthis->current_node_id()) && t4.data_hash == t1.replica_hash)
         .where(t1.id == base64::from_bytes(replica_hashes[replica])));
 
       if (st.execute()) {
         replicas.push_back(replica);
-        datas.push_back(t1.replica_data.get(st));
+        datas.push_back(file::read_all(filename(t4.local_path.get(st))));
 
 
         if (replicas.size() >= MIN_HORCRUX) {
@@ -635,14 +662,15 @@ vds::async_task<uint8_t> vds::dht::network::_client::restore_async(
       orm::chunk_replica_data_dbo t2;
       auto st = t.get_reader(
           t2.select(
-          t2.replica, t2.replica_hash, t2.replica_path)
-              .where(t2.id == base64::from_bytes(replica)));
+          t2.replica, t2.replica_hash, t4.local_path)
+        .inner_join(t4, t4.node_id == base64::from_bytes(pthis->current_node_id()) && t4.data_hash == t2.replica_hash)
+        .where(t2.id == base64::from_bytes(replica)));
       while(st.execute()) {
         replicas.push_back(t2.replica.get(st));
         datas.push_back(
             read_data(
                 t2.replica_hash.get(st),
-                filename(t2.replica_path.get(st))));
+                filename(t4.local_path.get(st))));
 
         if (replicas.size() >= MIN_DISTRIBUTED_PIECES) {
           break;
@@ -654,10 +682,14 @@ vds::async_task<uint8_t> vds::dht::network::_client::restore_async(
         binary_serializer s;
         restore.restore(s, datas);
 
+        auto data = s.data();
+        auto data_hash = hash::signature(hash::sha256(), data);
+        pthis->save_data(sp, t, data_hash, data);
+
         t.execute(
           t1.insert(
             t1.id = base64::from_bytes(replica),
-            t1.replica_data = s.data(),
+            t1.replica_hash = base64::from_bytes(data_hash),
             t1.last_sync = std::chrono::system_clock::now()));
       }
       else {

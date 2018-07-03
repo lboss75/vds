@@ -15,15 +15,13 @@ namespace vds {
 				: database_table("chunk_replica_data"),
 				id(this, "id"),
 				replica(this, "replica"),
-        replica_hash(this, "replica_hash"),
-				replica_path(this, "replica_path")
+        replica_hash(this, "replica_hash")
 			{
 			}
 
 			database_column<std::string> id;
 			database_column<int> replica;
       database_column<std::string> replica_hash;
-			database_column<std::string> replica_path;
 		};
 	}
 }

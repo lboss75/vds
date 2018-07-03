@@ -55,10 +55,12 @@ vds::async_task<> vds::server::reset(
       database_transaction & t){
     auto private_key = asymmetric_private_key::generate(asymmetric_crypto::rsa4096());
 
+    auto node_cert = dht::network::service::prepare_to_start(sp, t);
+
     user_manager usr_manager;
     usr_manager.reset(sp, t, root_user_name, root_password, private_key);
 
-    auto client = std::make_shared<dht::network::_client>(sp, const_data_buffer());
+    auto client = std::make_shared<dht::network::_client>(sp, node_cert.fingerprint(hash::sha256()));
     client->save(
       sp,
       t,

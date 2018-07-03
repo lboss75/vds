@@ -118,7 +118,7 @@ void vds::db_model::migrate(
 
     t.execute("CREATE TABLE chunk_replicas(\
 			id VARCHAR(64) PRIMARY KEY NOT NULL,\
-			replica_data BLOB NOT NULL,\
+      replica_hash VARCHAR(254) NOT NULL,\
 			last_sync INTEGER NOT NULL)");
 
     t.execute("CREATE TABLE local_data_dbo(\
@@ -149,10 +149,11 @@ void vds::db_model::migrate(
 
     t.execute("CREATE TABLE device_record(\
 			node_id VARCHAR(64) NOT NULL,\
+      storage_path VARCHAR(254) NOT NULL,\
 			local_path VARCHAR(254) NOT NULL,\
 			data_hash VARCHAR(64) NOT NULL,\
 			data_size INTEGER NOT NULL,\
-      CONSTRAINT pk_device_record PRIMARY KEY(node_id,local_path,data_hash))");
+      CONSTRAINT pk_device_record PRIMARY KEY(node_id,storage_path,data_hash))");
 
 		t.execute("CREATE TABLE certificate_unknown(\
 			id VARCHAR(64) PRIMARY KEY NOT NULL)");
@@ -176,7 +177,6 @@ void vds::db_model::migrate(
 			id VARCHAR(64) NOT NULL,\
       replica INTEGER NOT NULL,\
 			replica_hash VARCHAR(64) NOT NULL,\
-      replica_path VARCHAR(256) NOT NULL,\
       CONSTRAINT pk_chunk_replica_data PRIMARY KEY(id,replica))");
 
     t.execute("CREATE TABLE chunk_replica_map(\
