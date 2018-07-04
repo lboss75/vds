@@ -16,6 +16,7 @@ namespace vds {
       static transaction_record_state calculate(
           struct database_transaction &t,
           const std::set<const_data_buffer> & ancestors,
+          const std::chrono::system_clock::time_point & time_point,
           uint64_t max_order_no);
 
     private:
@@ -25,6 +26,7 @@ namespace vds {
       void add_ancestor(
           vds::database_transaction &t,
           const const_data_buffer &ancestor_id,
+          const std::chrono::system_clock::time_point & max_time_point,
           uint64_t max_order_no);
 
       transaction_record_state process(database_transaction &t);

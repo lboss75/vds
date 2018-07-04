@@ -17,11 +17,12 @@ vds::transactions::transaction_record_state
 vds::transactions::transaction_state_calculator::calculate(
     database_transaction &t,
     const std::set<vds::const_data_buffer> & ancestors,
+    const std::chrono::system_clock::time_point & time_point,
     uint64_t max_order_no) {
 
   transaction_state_calculator calculator;
   for(const auto & ancestor : ancestors){
-    calculator.add_ancestor(t, ancestor, max_order_no);
+    calculator.add_ancestor(t, ancestor, time_point, max_order_no);
   }
 
   return calculator.process(t);
@@ -30,13 +31,15 @@ vds::transactions::transaction_state_calculator::calculate(
 void vds::transactions::transaction_state_calculator::add_ancestor(
     vds::database_transaction &t,
     const vds::const_data_buffer &ancestor_id,
+    const std::chrono::system_clock::time_point & max_time_point,
     uint64_t max_order_no) {
 
   orm::transaction_log_record_dbo t1;
   auto st = t.get_reader(
       t1.select(
               t1.id,
-              t1.order_no)
+              t1.order_no,
+              t1.time_point)
           .where(t1.id == base64::from_bytes(ancestor_id)));
   if(!st.execute()){
     throw std::runtime_error("Invalid data");
@@ -44,7 +47,9 @@ void vds::transactions::transaction_state_calculator::add_ancestor(
 
   const auto id = base64::to_bytes(t1.id.get(st));
   const auto order_no = t1.order_no.get(st);
+  const auto time_point = t1.time_point.get(st);
   vds_assert(order_no < max_order_no);
+  vds_assert(time_point < max_time_point);
 
   auto pitems = this->items_.find(order_no);
   if(this->items_.end() != pitems){
@@ -124,6 +129,6 @@ void vds::transactions::transaction_state_calculator::resolve(
   this->items_[block.order_no()][node_id] = block_data;
 
   for(const auto & ancestor : block.ancestors()){
-    this->add_ancestor(t, ancestor, block.order_no());
+    this->add_ancestor(t, ancestor, block.time_point(), block.order_no());
   }
 }

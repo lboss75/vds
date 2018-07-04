@@ -130,6 +130,7 @@ void vds::transactions::transaction_log::save(
                     t1.data = block_data,
                     t1.state = static_cast<int>(orm::transaction_log_record_dbo::state_t::leaf),
                     t1.order_no = block.order_no(),
+                    t1.time_point = block.time_point(),
                     t1.state_data = state.serialize()));
             return true;
           });
@@ -137,7 +138,7 @@ void vds::transactions::transaction_log::save(
     else {
 
       //try {
-      auto state = transaction_state_calculator::calculate(t, block.ancestors(), block.order_no());
+      auto state = transaction_state_calculator::calculate(t, block.ancestors(), block.time_point(), block.order_no());
       state.apply(block);
       //}
       //catch (const transactions::transaction_source_not_found_error & ex) {
@@ -153,6 +154,7 @@ void vds::transactions::transaction_log::save(
               t1.data = block_data,
               t1.state = static_cast<int>(orm::transaction_log_record_dbo::state_t::leaf),
               t1.order_no = block.order_no(),
+              t1.time_point = block.time_point(),
               t1.state_data = state.serialize()));
 
       for (const auto &p : remove_leaf) {

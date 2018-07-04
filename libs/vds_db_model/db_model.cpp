@@ -104,6 +104,7 @@ void vds::db_model::migrate(
       data BLOB NOT NULL,\
 			state INTEGER NOT NULL,\
 			order_no INTEGER NOT NULL,\
+      time_point INTEGER NOT NULL,\
       state_data BLOB NULL)");
 
     t.execute("CREATE TABLE channel_local_cache(\

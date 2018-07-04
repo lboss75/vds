@@ -33,11 +33,11 @@ namespace vds {
     namespace network {
       class _client : public std::enable_shared_from_this<_client> {
       public:
-        static constexpr uint16_t MIN_HORCRUX = 3;
-        static constexpr uint16_t GENERATE_HORCRUX = 5;
+        static constexpr uint16_t MIN_HORCRUX = 16;
+        static constexpr uint16_t GENERATE_HORCRUX = 32;
 
-        static constexpr uint16_t MIN_DISTRIBUTED_PIECES = 3;
-        static constexpr uint16_t GENERATE_DISTRIBUTED_PIECES = 5;
+        static constexpr uint16_t MIN_DISTRIBUTED_PIECES = 16;
+        static constexpr uint16_t GENERATE_DISTRIBUTED_PIECES = 32;
 
         _client(
             const service_provider & sp,

@@ -12,6 +12,7 @@ All rights reserved
 
 vds::transactions::data_coin_balance vds::transactions::data_coin_balance::load(
     vds::database_transaction &t,
+    const std::chrono::system_clock::time_point & time_point,
     std::set<vds::const_data_buffer> & base_packages) {
 
   uint64_t max_order_no = 0;
@@ -19,7 +20,9 @@ vds::transactions::data_coin_balance vds::transactions::data_coin_balance::load(
   orm::transaction_log_record_dbo t1;
   auto st = t.get_reader(
     t1.select(t1.id, t1.order_no, t1.state_data)
-    .where(t1.state == (uint8_t)orm::transaction_log_record_dbo::state_t::leaf));
+    .where(
+      t1.time_point <= time_point
+      && t1.state == (uint8_t)orm::transaction_log_record_dbo::state_t::leaf));
   while (st.execute()) {
     base_packages.emplace(base64::to_bytes(t1.id.get(st)));
     auto order = t1.order_no.get(st);
@@ -34,6 +37,6 @@ vds::transactions::data_coin_balance vds::transactions::data_coin_balance::load(
 
   return vds::transactions::data_coin_balance(
     max_order_no + 1,
-    transaction_state_calculator::calculate(t, base_packages, max_order_no + 1));
+    transaction_state_calculator::calculate(t, base_packages, time_point, max_order_no + 1));
 }
 

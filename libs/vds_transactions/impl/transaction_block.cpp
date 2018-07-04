@@ -11,6 +11,8 @@ All rights reserved
 bool vds::transactions::transaction_block::validate(const certificate& write_cert) {
   binary_serializer block_data;
   block_data
+    << this->version_
+    << (uint64_t)std::chrono::system_clock::to_time_t(this->time_point_)
     << this->order_no_
     << this->write_cert_id_
     << this->ancestors_

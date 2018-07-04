@@ -21,9 +21,10 @@ vds::const_data_buffer vds::transactions::transaction_block_builder::save(
   const certificate &write_cert,
   const asymmetric_private_key &write_private_key) {
   vds_assert(0 != this->data_.size());
-
   binary_serializer block_data;
   block_data
+    << transaction_block::CURRENT_VERSION
+    << static_cast<uint64_t>(std::chrono::system_clock::to_time_t(this->time_point_))
     << (this->ancestors_.empty() ? 1 : this->balance_.order_no())
     << write_cert.subject()
     << this->ancestors_
@@ -53,6 +54,7 @@ vds::const_data_buffer vds::transactions::transaction_block_builder::save(
     t2.data = block_data.data(),
     t2.state = static_cast<uint8_t>(orm::transaction_log_record_dbo::state_t::leaf),
     t2.order_no = this->balance_.order_no(),
+    t2.time_point = this->time_point_,
     t2.state_data = this->balance_.serialize()));
 
   for (auto & ancestor : this->ancestors_) {
@@ -68,7 +70,8 @@ vds::const_data_buffer vds::transactions::transaction_block_builder::save(
 vds::transactions::transaction_block_builder::transaction_block_builder(
   const service_provider& sp,
   vds::database_transaction& t)
-: balance_(data_coin_balance::load(t, this->ancestors_)) {
+: time_point_(std::chrono::system_clock::now()),
+  balance_(data_coin_balance::load(t, this->time_point_, this->ancestors_)) {
 }
 
 void vds::transactions::transaction_block_builder::add(const root_user_transaction& item) {

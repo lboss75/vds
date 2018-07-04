@@ -64,7 +64,7 @@ std::vector<vds::const_data_buffer> vds::dht::network::_client::save(
       }
     }
     else {
-      auto fn = save_data(sp, t, replica_id, replica_data);
+      save_data(sp, t, replica_id, replica_data);
       t.execute(
         t1.insert(
           t1.id = base64::from_bytes(replica_id),

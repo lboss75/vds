@@ -44,6 +44,8 @@ namespace vds {
 
       private:
         friend class _user_channel;
+        std::chrono::system_clock::time_point time_point_;
+
         std::set<const_data_buffer> ancestors_;
         data_coin_balance balance_;
         binary_serializer data_;

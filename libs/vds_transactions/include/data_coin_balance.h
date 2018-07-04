@@ -34,6 +34,7 @@ namespace vds {
 
       static data_coin_balance load(
         database_transaction & t,
+        const std::chrono::system_clock::time_point & time_point,
         std::set<vds::const_data_buffer> & base_packages);
 
       const_data_buffer serialize() const {

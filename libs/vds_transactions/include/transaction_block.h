@@ -16,16 +16,42 @@ namespace vds {
   namespace transactions {
     class transaction_block {
     public:
+
+      /**
+       * \brief Current protocol version
+       */
+      static constexpr uint32_t CURRENT_VERSION = 0x31564453U;//1VDS
+
       transaction_block(const const_data_buffer &data)
       : id_(hash::signature(hash::sha256(), data)){
         binary_deserializer s(data);
         s
-            >> this->order_no_
-            >> this->write_cert_id_
-            >> this->ancestors_
-            >> this->block_messages_
-            >> this->signature_;
+          >> this->version_;
+
+        if(this->version_ != CURRENT_VERSION) {
+          throw std::runtime_error("Invalid block version");
+        }
+
+        uint64_t time_point;
+        s
+          >> time_point
+          >> this->order_no_
+          >> this->write_cert_id_
+          >> this->ancestors_
+          >> this->block_messages_
+          >> this->signature_;
+
+        this->time_point_ = std::chrono::system_clock::from_time_t(static_cast<__time64_t>(time_point));
       }
+
+      const uint32_t & version() const {
+        return this->version_;
+      }
+
+      std::chrono::system_clock::time_point time_point() const {
+        return this->time_point_;
+      }
+
 
       const const_data_buffer & id() const {
         return this->id_;
@@ -65,6 +91,8 @@ namespace vds {
       }
 
     private:
+      uint32_t version_;
+      std::chrono::system_clock::time_point time_point_;
       const_data_buffer id_;
       uint64_t order_no_;
       std::string write_cert_id_;

@@ -40,7 +40,8 @@ namespace vds {
             data(this, "data"),
             state(this, "state"),
             order_no(this, "order_no"),
-            state_data(this, "state_data") {
+            state_data(this, "state_data"),
+            time_point(this, "time_point"){
       }
 
       database_column<std::string> id;
@@ -48,6 +49,7 @@ namespace vds {
       database_column<int> state;
       database_column<uint64_t> order_no;
       database_column<const_data_buffer> state_data;
+      database_column<std::chrono::system_clock::time_point> time_point;
     };
   }
 }
