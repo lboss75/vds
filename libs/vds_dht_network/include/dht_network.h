@@ -23,11 +23,12 @@ namespace vds {
 	      void stop(const service_provider &);
 	      async_task<> prepare_to_stop(const service_provider &sp);
 
+				static certificate prepare_to_start(
+						const service_provider& sp,
+						database_transaction & t);
+
       private:
 				client client_;
-
-        friend class server;
-        static certificate prepare_to_start(const service_provider& parent_scope, database_transaction & t);
       };
     }
   }

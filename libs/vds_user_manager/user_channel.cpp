@@ -173,3 +173,18 @@ vds::user_channel vds::_user_channel::import_personal_channel(
     user_private_key);
 }
 
+void vds::_user_channel::add_to_log(
+    transactions::transaction_block_builder &log,
+    const uint8_t * data, size_t size) {
+
+  auto key = symmetric_key::generate(symmetric_crypto::aes_256_cbc());
+
+  log.add(
+      transactions::channel_message(
+          this->id_,
+          this->read_cert().subject(),
+          this->write_cert().subject(),
+          this->read_cert().public_key().encrypt(key.serialize()),
+          symmetric_encrypt::encrypt(key, data, size),
+          this->write_private_key()));
+}

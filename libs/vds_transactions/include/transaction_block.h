@@ -41,7 +41,7 @@ namespace vds {
           >> this->block_messages_
           >> this->signature_;
 
-        this->time_point_ = std::chrono::system_clock::from_time_t(static_cast<__time64_t>(time_point));
+        this->time_point_ = std::chrono::system_clock::from_time_t(time_point);
       }
 
       const uint32_t & version() const {

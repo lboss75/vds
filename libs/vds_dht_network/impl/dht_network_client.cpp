@@ -469,7 +469,7 @@ vds::filename vds::dht::network::_client::save_data(
 
 vds::async_task<> vds::dht::network::_client::update_route_table(const service_provider& sp) {
   auto result = async_task<>::empty();
-  if (0 == this->update_route_table_counter_++ % 100) {
+  if (0 == this->update_route_table_counter_++ % 10) {
     for (size_t i = 0; i < 8 * this->route_.current_node_id().size(); ++i) {
       auto canditate = dht_object_id::generate_random_id(this->route_.current_node_id(), i);
       result = result.then([pthis = this->shared_from_this(), sp, canditate]() {
