@@ -198,11 +198,13 @@ vds::api_controller::user_devices(
     auto st = t.get_reader(
         t1.select(
             t1.name,
+            t1.node_id,
             t1.local_path,
             t1.reserved_size,
             db_sum(t2.data_size).as(used_size))
         .left_join(t2, t2.local_path == t1.local_path && t2.node_id == t1.node_id)
-        .where(t1.owner_id == user_mng->get_current_user().user_certificate().subject()));
+        .where(t1.owner_id == user_mng->get_current_user().user_certificate().subject())
+        .group_by(t1.name, t1.node_id, t1.local_path, t1.reserved_size));
     while(st.execute()){
       auto item = std::make_shared<json_object>();
       item->add_property("name", t1.name.get(st));
@@ -240,15 +242,19 @@ vds::api_controller::offer_device(
   }
   result->add_property("name", hostname);
 #endif// _WIN32
+  const foldername root_rolder(persistence::current_user(sp), ".vds");
+  const auto free_size = root_rolder.free_size() / (1024 * 1024 * 1024);
+  const auto total_size = root_rolder.total_size() / (1024 * 1024 * 1024);
+
   for(uint64_t i = 0; i < INT64_MAX; ++i){
-    foldername folder(persistence::current_user(sp), "storage" + std::to_string(i));
+    foldername folder(root_rolder, "storage" + std::to_string(i));
     if(folder.exist()){
       continue;
     }
 
     result->add_property("path", folder.local_name());
-    result->add_property("free", folder.free_size() / (1024 * 1024 * 1024));
-    result->add_property("size", folder.total_size() / (1024 * 1024 * 1024));
+    result->add_property("free", free_size);
+    result->add_property("size", total_size);
     break;
   }
 
@@ -277,6 +283,16 @@ vds::async_task<>
 vds::api_controller::lock_device(const vds::service_provider &sp, const std::shared_ptr<vds::user_manager> &user_mng,
                                  const std::shared_ptr<vds::_web_server> &owner, const std::string &device_name,
                                  const std::string &local_path, uint64_t reserved_size) {
+  if(local_path.empty() || reserved_size < 1) {
+    return vds::async_task<>(std::make_shared<vds_exceptions::invalid_operation>());
+  }
+
+  foldername fl(local_path);
+  if(fl.exist()) {
+    return vds::async_task<>(std::make_shared<std::runtime_error>("Folder " + local_path + " already exists"));
+  }
+  fl.create();
+
   return sp.get<db_model>()->async_transaction(sp, [sp, user_mng, device_name, local_path, reserved_size](database_transaction & t) {
     auto client = sp.get<dht::network::client>();
     auto current_node = client->current_node_id();
@@ -288,7 +304,7 @@ vds::api_controller::lock_device(const vds::service_provider &sp, const std::sha
             t1.local_path = local_path,
             t1.owner_id = user_mng->get_current_user().user_certificate().subject(),
             t1.name = device_name,
-            t1.reserved_size = reserved_size));
+            t1.reserved_size = reserved_size * 1024 * 1024 * 1024));
   });
 }
 

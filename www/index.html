@@ -192,6 +192,7 @@
                                 <span aria-hidden="true">&times;</span>
                             </button>
                         </div>
+
                         <div class="modal-body">
                             <div class="form-group">
                                 <label for="deviceName">Укажите название устройства</label>
@@ -200,10 +201,12 @@
                             </div>
 
                             <div class="form-group">
-                                <label for="deviceFree">Выделить места (Гигабайт)</label>
-                                <input type="text" class="form-control" id="deviceFree" name="deviceFree" aria-describedby="deviceFreeHelp" placeholder="Выделить размер" />
-                                <small id="deviceFreeHelp" class="form-text text-muted">Укажите сколько выделить места из </small><small id="deviceSize"></small><small> Гигабайт</small>
+                                <label for="deviceAllocate">Выделить места (Гигабайт)</label>
+                                <input type="text" class="form-control" id="deviceAllocate" name="deviceAllocate" aria-describedby="deviceAllocateHelp" placeholder="Выделить размер" />
+                                <small id="deviceAllocateHelp" class="form-text text-muted">На устройстве свободно <span id="deviceFree"></span> Гигабайт из <span id="deviceSize"></span> Гигабайт</small>
                             </div>
+
+                            <input type="hidden" id="devicePath" name="devicePath" />
                         </div>
                         <div class="modal-footer">
                             <button type="submit" class="btn btn-primary" id="lockDeviceBtn">Выделить место</button>
@@ -280,10 +283,9 @@
                      function() {
                          $.ajax({
                              type: 'POST',
-                             url: '/api/devices?name=' +
-                                 encodeURIComponent($('#deviceName').val()) +
-                                 '&size=' +
-                                 encodeURIComponent($('#deviceFree').val()),
+                             url: '/api/devices?name=' + encodeURIComponent($('#deviceName').val())
+                                 + '&size=' + encodeURIComponent($('#deviceAllocate').val())
+                                 + '&path=' + encodeURIComponent($('#devicePath').val()),
                              success: function() { loadDevices(false); }
                          });
                      });
@@ -369,7 +371,10 @@
                      if (!have_default && showDialog) {
                          $.getJSON('api/offer_device', function (data) {
                              $('#deviceName').val(data.name);
-                             $('#deviceFree').val(data.free);
+                             $('#deviceAllocate').val(Math.round(data.free / 10));
+                             $('#devicePath').val(data.path);
+
+                             $('#deviceFree').text(data.free);
                              $('#deviceSize').text(data.size);
 
                              $('#lockDeviceModal').modal('show');

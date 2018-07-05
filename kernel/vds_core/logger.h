@@ -39,6 +39,7 @@ namespace vds {
       log_writer(log_level level);
 
       virtual void write(const service_provider & sp, const log_record & record) = 0;
+      virtual void flush() = 0;
 
       log_level level() const {
         return this->log_level_;
@@ -169,6 +170,10 @@ namespace vds {
         return this->all_modules_;
       }
 
+      void flush() {
+        this->log_writer_.flush();
+      }
+
     private:
       log_writer & log_writer_;
       log_level min_log_level_;
@@ -198,6 +203,7 @@ namespace vds {
 
       //log_writer
       void write(const service_provider & sp, const log_record & record) override;
+      void flush() override;
     };
 
     class file;
@@ -213,7 +219,8 @@ namespace vds {
 
       //log_writer
       void write(const service_provider & sp, const log_record & record) override;
-      
+      void flush() override;
+
     private:
       std::unique_ptr<file> f_;
       std::thread logger_thread_;

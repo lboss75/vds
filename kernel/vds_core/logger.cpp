@@ -23,6 +23,7 @@ void vds::logger::operator()(
 
   this->log_writer_.write(sp, record);
 }
+
 /////////////////////////////////////////////////////////
 vds::log_writer::log_writer(log_level level)
 : log_level_(level)
@@ -73,6 +74,11 @@ void vds::console_logger::write(const service_provider & sp, const log_record & 
     break;
   }
 }
+
+void vds::console_logger::flush() {
+  std::cout.flush();
+}
+
 
 /////////////////////////////////////////////////////////
 
@@ -146,6 +152,18 @@ void vds::file_logger::write(
   std::lock_guard<std::mutex> lock(this->log_mutex_);
   this->log_ += str;
   this->log_cond_.notify_all();
+}
+
+void vds::file_logger::flush() {
+  std::unique_lock<std::mutex> lock(this->log_mutex_);
+  if (!this->log_.empty()) {
+    auto log = this->log_;
+    this->log_.clear();
+    lock.unlock();
+
+    this->f_->write(log.c_str(), log.length());
+    this->f_->flush();
+  }
 }
 
 void vds::file_logger::logger_thread() {

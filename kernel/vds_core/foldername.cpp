@@ -240,7 +240,7 @@ uint64_t vds::foldername::free_size() const {
     auto error = GetLastError();
     throw std::system_error(error, std::system_category(), "Get Free Size");
   }
-  return freeBytesAvailable.QuadPart / (1024 * 1024 * 1024);
+  return freeBytesAvailable.QuadPart;
 #endif// _WIN32
 }
 
@@ -263,6 +263,6 @@ uint64_t vds::foldername::total_size() const {
     auto error = GetLastError();
     throw std::system_error(error, std::system_category(), "Get Free Size");
   }
-  return totalNumberOfBytes.QuadPart / (1024 * 1024 * 1024);
+  return totalNumberOfBytes.QuadPart;
 #endif// _WIN32
 }

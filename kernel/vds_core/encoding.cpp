@@ -239,3 +239,96 @@ vds::const_data_buffer vds::base64::to_bytes(const std::string& data)
   
   return const_data_buffer(result);
 }
+
+std::string vds::url_encode::encode(const std::string& original) {
+  std::string escaped;
+
+  for (char ch : original) {
+    if (isalnum(ch) || ch == '-' || ch == '_' || ch == '.' || ch == '~') {
+      escaped += ch;
+      continue;
+    }
+
+    escaped += '%';
+    if (10 <= (ch >> 4)) {
+      escaped += 'A' + (ch >> 4) - 10;
+    }
+    else {
+      escaped += '0' + (ch >> 4);
+    }
+
+    if (10 <= (ch & 0x0F)) {
+      escaped += 'A' + (ch & 0x0F) - 10;
+    }
+    else {
+      escaped += '0' + (ch & 0x0F);
+    }
+  }
+
+  return escaped;
+}
+
+std::string vds::url_encode::decode(const std::string& original) {
+  std::string decoded;
+
+  auto state = 0;
+  char val;
+  for (char ch : original) {
+    switch (state) {
+    case 0: {
+      if (ch == '%') {
+        state = 1;
+      }
+      else {
+        decoded += ch;
+      }
+      break;
+    }
+
+    case 1: {
+      if ('0' <= ch && ch <= '9') {
+        val = (ch - '0');
+        state = 2;
+      }
+      else if ('a' <= ch && ch <= 'f') {
+        val = (ch - 'a' + 10);
+        state = 2;
+      }
+      else if ('A' <= ch && ch <= 'F') {
+        val = (ch - 'A' + 10);
+        state = 2;
+      }
+      else {
+        decoded += '%';
+        decoded += ch;
+
+        state = 0;
+      }
+      break;
+    }
+
+    case 2: {
+      if ('0' <= ch && ch <= '9') {
+        decoded += ((val << 4) | (ch - '0'));
+        state = 0;
+      }
+      else if ('a' <= ch && ch <= 'f') {
+        decoded += ((val << 4) | (ch - 'a' + 10));
+        state = 0;
+      }
+      else if ('A' <= ch && ch <= 'F') {
+        decoded += ((val << 4) | (ch - 'A' + 10));
+        state = 0;
+      }
+      else {
+        decoded += '%';
+        decoded += ch;
+
+        state = 0;
+      }
+      break;
+    }
+    }
+  }
+  return decoded;
+}

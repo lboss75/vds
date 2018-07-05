@@ -33,6 +33,12 @@ namespace vds {
     static std::string from_bytes(const const_data_buffer & data);
     static const_data_buffer to_bytes(const std::string & data);
   };
+
+  class url_encode {
+  public:
+    static std::string encode(const std::string & original);
+    static std::string decode(const std::string & original);
+  };
   
   /*
   class utf8_byte_to_wchar
