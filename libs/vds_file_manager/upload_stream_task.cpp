@@ -69,7 +69,7 @@ vds::async_task<> vds::_upload_stream_task::process_data(
     pthis->file_blocks_.push_back(transactions::file_add_transaction::file_block_t{
       /*block_id =*/ block_info.id,
       /*block_key =*/ block_info.key,
-      /*replica_hashes*/block_info.replica_hashes,
+      /*object_ids*/block_info.object_ids,
       /*block_size =*/ pthis->readed_
     });
 

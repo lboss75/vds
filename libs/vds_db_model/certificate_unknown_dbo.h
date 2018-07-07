@@ -16,7 +16,7 @@ namespace vds {
     public:
       certificate_unknown_dbo()
           : database_table("certificate_unknown"),
-            id(this, "id") {
+            id(this, "object_id") {
       }
 
       database_column<std::string> id;

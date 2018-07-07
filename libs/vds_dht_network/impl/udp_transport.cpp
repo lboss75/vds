@@ -55,6 +55,10 @@ vds::dht::network::udp_transport::write_async(const service_provider &sp, const 
     pthis->send_queue_.push_back(std::make_tuple(datagram, std::move(result)));
 
     if(need_send) {
+      sp.get<logger>()->trace(
+        ThisModule,
+        sp,
+        "started send");
       pthis->continue_send(sp);
     }
   };
@@ -65,7 +69,15 @@ vds::dht::network::udp_transport::continue_send(const service_provider &sp) {
 
   this->server_.socket().write_async(std::get<0>(this->send_queue_.front()))
     .execute([sp, pthis = this->shared_from_this()](const std::shared_ptr<std::exception> &ex) {
+    sp.get<logger>()->trace(
+      ThisModule,
+      sp,
+      "udp_transport socket sent");
     mt_service::async(sp, [sp, ex, pthis]() {
+      sp.get<logger>()->trace(
+        ThisModule,
+        sp,
+        "udp_transport sent");
 
       std::unique_lock<std::debug_mutex> lock(pthis->write_mutex_);
       auto p = pthis->send_queue_.begin();
@@ -75,8 +87,13 @@ vds::dht::network::udp_transport::continue_send(const service_provider &sp) {
       if (!pthis->send_queue_.empty()) {
         pthis->continue_send(sp);
       }
+      else {
+        sp.get<logger>()->trace(
+          ThisModule,
+          sp,
+          "stopped send");
+      }
       lock.unlock();
-
 
       if (ex) {
         sp.get<logger>()->error(

@@ -17,8 +17,8 @@ namespace vds {
     std::list<log_info_t> leafs_;
     std::set<const_data_buffer> unknown_;
 
-    std::set<const_data_buffer> replicas_;
-    std::set<std::string> replica_distribution_;
+    std::set<const_data_buffer> chunks_;
+    std::map<std::string, std::set<uint16_t>> chunk_replicas_;
 
     struct record_info {
       std::string name_;

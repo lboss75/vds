@@ -125,16 +125,16 @@ void vds::user_manager::reset(
 //
 //		log.add(
 //			transactions::device_user_add_transaction(
-//				device_user.id(),
+//				device_user.object_id(),
 //				device_user.user_certificate()));
 //
 //		auto blocks = log.save(
 //			sp, t,
-//          user.id(),
+//          user.object_id(),
 //          user.user_certificate(),
 //          user.user_certificate(),
 //          request.private_key());
-		//this->load(sp, t, device_user.id());
+		//this->load(sp, t, device_user.object_id());
 //
 //		return true;
 //	});

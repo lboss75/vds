@@ -10,6 +10,7 @@ All rights reserved
 #include "private/mt_service_p.h"
 
 #include <thread>
+#include "logger.h"
 
 #ifndef _WIN32
 #include <sys/syscall.h>
@@ -42,14 +43,14 @@ void vds::mt_service::stop(const vds::service_provider&)
 	}
 }
 
-void vds::imt_service::async(const std::function<void(void)>& handler)
+void vds::imt_service::do_async(const service_provider & sp, const std::function<void(void)>& handler)
 {
-  ((mt_service *)this)->impl_->async(handler);
+  ((mt_service *)this)->impl_->do_async(sp, handler);
 }
 
-void vds::imt_service::async(std::function<void(void)> && handler)
+void vds::imt_service::do_async(const service_provider & sp, std::function<void(void)> && handler)
 {
-  ((mt_service *)this)->impl_->async(std::move(handler));
+  ((mt_service *)this)->impl_->do_async(sp, std::move(handler));
 }
 
 void vds::imt_service::enable_async(const service_provider & sp)
@@ -101,17 +102,43 @@ void vds::_mt_service::stop()
   }
 }
 
-void vds::_mt_service::async(const std::function<void(void)> & handler)
+void vds::_mt_service::do_async(const service_provider & sp, const std::function<void(void)> & handler)
 {
   std::unique_lock<std::mutex> lock(this->mutex_);
+#if defined(DEBUG)
+  this->queue_.push([sp, handler, thread_id =
+#ifndef _WIN32
+    syscall(SYS_gettid)
+#else
+    GetCurrentThreadId()
+#endif
+  ]() {
+    sp.get<logger>()->trace("Async", sp, "Anync from %d", thread_id);
+    handler();
+  });
+#else//defined(DEBUG)
   this->queue_.push(handler);
+#endif//defined(DEBUG)
   this->cond_.notify_all();
 }
 
-void vds::_mt_service::async(std::function<void(void)> && handler)
+void vds::_mt_service::do_async(const service_provider & sp, std::function<void(void)> && handler)
 {
   std::unique_lock<std::mutex> lock(this->mutex_);
+#if defined(DEBUG)
+  this->queue_.push([sp, h = std::move(handler), thread_id =
+#ifndef _WIN32
+    syscall(SYS_gettid)
+#else
+    GetCurrentThreadId()
+#endif
+  ]() {
+    sp.get<logger>()->trace("Async", sp, "Anync from %d", thread_id);
+    h();
+  });
+#else//defined(DEBUG)
   this->queue_.push(std::move(handler));
+#endif//defined(DEBUG)
   this->cond_.notify_all();
 }
 

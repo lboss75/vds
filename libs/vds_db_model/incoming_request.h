@@ -15,7 +15,7 @@ namespace vds {
     public:
       incoming_request()
           : database_table("incoming_request_dbo"),
-            id(this, "id"),
+            id(this, "object_id"),
             owner(this, "owner"),
             name(this, "name"),
             email(this, "email"),

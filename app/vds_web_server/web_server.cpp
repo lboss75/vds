@@ -20,7 +20,7 @@ All rights reserved
 #include "private/login_page.h"
 #include "private/index_page.h"
 #include "db_model.h"
-#include "chunk_replicas_dbo.h"
+#include "chunk_dbo.h"
 
 vds::web_server::web_server()
 : port_(8050) {
@@ -279,7 +279,7 @@ vds::async_task<vds::http_message> vds::_web_server::route(
 
       http_request request(message);
       const auto channel_id = base64::to_bytes(request.get_parameter("channel_id"));
-      const auto file_hash = base64::to_bytes(request.get_parameter("id"));
+      const auto file_hash = base64::to_bytes(request.get_parameter("object_id"));
 
       return api_controller::download_file(
         sp,
@@ -389,7 +389,7 @@ vds::async_task<vds::http_message> vds::_web_server::route(
     });
   }
   if (request.url() == "/api/download_register_request" && request.method() == "GET") {
-    const auto request_id = atoi(request.get_parameter("id").c_str());
+    const auto request_id = atoi(request.get_parameter("object_id").c_str());
 
     return api_controller::get_register_request(sp, this->shared_from_this(), request_id)
       .then([sp](const const_data_buffer &result) {

@@ -126,11 +126,12 @@ namespace vds {
     : impl_(std::move(origin.impl_))
     {
     }
+
     async_result(const async_result<result_types...> & origin)
     : impl_(origin.impl_)
     {
     }
-
+    
 		void done(const result_types &... results) const;
 		void error(const std::shared_ptr<std::exception> & ex) const;
 
@@ -154,7 +155,7 @@ namespace vds {
         const std::shared_ptr<_async_task_execute_token> & token,
         _async_task_base<result_types...> * owner, 
         std::function<void(const std::shared_ptr<std::exception> & ex, result_types... results)> && callback)
-      : token_(token), callback_(std::move(callback))
+      : done_(false), token_(token), callback_(std::move(callback))
       {
         this->owners_.push_back(owner);
       }
@@ -165,6 +166,7 @@ namespace vds {
         this->owners_.push_back(owner);
       }
 
+      bool done_;
       std::shared_ptr<_async_task_execute_token> token_;
       std::list<_async_task_base<result_types...> *> owners_;
       std::function<void(const std::shared_ptr<std::exception> & ex, result_types... results)> callback_;
@@ -826,6 +828,7 @@ namespace vds {
   {
     auto impl = std::move(this->impl_);
     impl->token_->set_callback([impl, results...](){
+      impl->done_ = true;
       impl->callback_(std::shared_ptr<std::exception>(), results...);
     });
   }
@@ -835,6 +838,7 @@ namespace vds {
   {
     auto impl = std::move(this->impl_);
     impl->token_->set_callback([impl, ex]() {
+      impl->done_ = true;
       impl->callback_(ex, typename std::remove_reference<result_types>::type()...);
     });
   }
@@ -854,6 +858,17 @@ namespace vds {
     for(auto owner : this->owners_) {
       delete owner;
     }
+#if defined(DEBUG) || defined(_DEBUG)
+#ifdef _WIN32
+#pragma warning(disable: 4297)
+#endif
+      if (!this->done_) {
+        throw std::runtime_error("Task without execute");
+      }
+#ifdef _WIN32
+#pragma warning(default: 4297)
+#endif
+#endif//DEBUG
   }
 
   /////////////////////////////////////////////////////////////////////////////////

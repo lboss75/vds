@@ -11,7 +11,7 @@ All rights reserved
 #include "file_manager_service.h"
 #include "dht_network.h"
 #include "transaction_log_unknown_record_dbo.h"
-#include "chunk_replicas_dbo.h"
+#include "chunk_dbo.h"
 #include "chunk_replica_data_dbo.h"
 #include "dht_object_id.h"
 #include "../vds_dht_network/private/dht_network_client_p.h"
@@ -127,7 +127,7 @@ vds::async_task<vds::server_statistic> vds::_server::get_statistic(const vds::se
   auto result = std::make_shared<vds::server_statistic>();
   sp.get<dht::network::client>()->get_route_statistics(result->route_statistic_);
   sp.get<dht::network::client>()->get_session_statistics(result->session_statistic_);
-  return sp.get<db_model>()->async_transaction(sp, [this, result](database_transaction & t){
+  return sp.get<db_model>()->async_read_transaction(sp, [this, result](database_transaction & t){
 
     orm::transaction_log_record_dbo t2;
     auto st = t.get_reader(t2.select(t2.id, t2.state, t2.order_no));
@@ -152,26 +152,22 @@ vds::async_task<vds::server_statistic> vds::_server::get_statistic(const vds::se
       }
     }
 
-    orm::chunk_replicas_dbo t4;
-    st = t.get_reader(t4.select(t4.id));
+    orm::chunk_dbo t4;
+    st = t.get_reader(t4.select(t4.object_id));
 
     while (st.execute()) {
-      auto id = base64::to_bytes(t4.id.get(st));
+      auto id = base64::to_bytes(t4.object_id.get(st));
 
-      if (result->sync_statistic_.replicas_.end() == result->sync_statistic_.replicas_.find(id)) {
-        result->sync_statistic_.replicas_.emplace(id);
+      if (result->sync_statistic_.chunks_.end() == result->sync_statistic_.chunks_.find(id)) {
+        result->sync_statistic_.chunks_.emplace(id);
       }
     }
 
     orm::chunk_replica_data_dbo t5;
-    st = t.get_reader(t5.select(t5.id, t5.replica));
+    st = t.get_reader(t5.select(t5.object_id, t5.replica));
 
     while (st.execute()) {
-      const auto id = t5.id.get(st) + "." + std::to_string(t5.replica.get(st));
-
-      if (result->sync_statistic_.replica_distribution_.end() == result->sync_statistic_.replica_distribution_.find(id)) {
-        result->sync_statistic_.replica_distribution_.emplace(id);
-      }
+      result->sync_statistic_.chunk_replicas_[t5.object_id.get(st)].emplace(t5.replica.get(st));
     }
 
     return true;

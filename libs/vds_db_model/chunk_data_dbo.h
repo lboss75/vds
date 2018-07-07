@@ -14,12 +14,12 @@ namespace vds {
     //public:
     //  chunk_data_dbo()
     //      : database_table("chunk_data"),
-    //        id(this, "id"),
+    //        object_id(this, "object_id"),
     //        data_hash(this, "data_hash"),
     //        last_access(this, "last_access"){
     //  }
 
-    //  database_column<std::string> id;
+    //  database_column<std::string> object_id;
     //  database_column<std::string> data_hash;
     //  database_column<std::chrono::system_clock::time_point> last_access;
     //};

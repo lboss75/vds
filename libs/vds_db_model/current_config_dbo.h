@@ -14,7 +14,7 @@ namespace vds {
     public:
       current_config_dbo()
           : database_table("current_config"),
-            id(this, "id"),
+            id(this, "object_id"),
             cert(this, "cert"),
             cert_key(this, "cert_key") {
       }

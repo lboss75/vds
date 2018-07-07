@@ -51,6 +51,7 @@ TEST(test_vds, test_initial)
     std::cout << "Upload local file...\n";
     auto file_hash = mock.upload_file(3, channel.id(), "test data", "application/octet-stream", input_stream);
     b.wait();
+    b.reset();
     ASSERT_TRUE(!error);
 
     std::cout << "Download local file...\n";
@@ -85,7 +86,18 @@ TEST(test_vds, test_initial)
       result_mime = content_type;
       result_size = body_size;
       return vds::copy_stream(sp, output_stream, result_data);
-    }).wait();
+    }).execute([&b, &error](const std::shared_ptr<std::exception> & ex) {
+      if (ex) {
+        error = ex;
+      }
+      b.set();
+    });
+
+    while(!b.wait_for(std::chrono::seconds(5))) {
+      std::vector<vds::server_statistic> statistics;
+      mock.dump_statistic(statistics);
+    }
+
 
     ASSERT_EQ(len, result_size);
 

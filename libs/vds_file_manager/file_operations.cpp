@@ -158,15 +158,15 @@ vds::async_task<> vds::file_manager_private::_file_operations::download_block(
   file_manager::download_file_task::block_info& block,
   const std::shared_ptr<file_manager::download_file_task>& result) {
 
-  auto left_replicas(block.id_.replica_hashes);
+  auto left_replicas(block.id_.object_ids);
   std::vector<uint16_t> replicas;
   std::vector<const_data_buffer> datas;
 
-  orm::chunk_replicas_dbo t1;
+  orm::chunk_dbo t1;
   auto st = t.get_reader(
       t1
           .select(t1.replica, t1.replica_data)
-          .where(t1.id == base64::from_bytes(block.id_.block_id)));
+          .where(t1.object_id == base64::from_bytes(block.id_.block_id)));
 
   while (st.execute()) {
     auto replica = safe_cast<uint16_t>(t1.replica.get(st));
@@ -234,20 +234,20 @@ void vds::file_manager_private::_file_operations::pack_file(
       auto readed = f.read(buffer.data(), file_size);
       vds_assert(readed == file_size);
       size_t padding;
-      std::unordered_map<uint16_t, const_data_buffer> replica_hashes;
+      std::unordered_map<uint16_t, const_data_buffer> object_ids;
       auto block_info = chunk_mng->save_block(
         sp,
           t, vds::const_data_buffer(buffer.data(), readed),
           padding,
-          replica_hashes);
+          object_ids);
       file_blocks.push_back(
           transactions::file_add_transaction::file_block_t
           {
-              block_info.id,
+              block_info.object_id,
               block_info.key,
               safe_cast<decltype(transactions::file_add_transaction::file_block_t::block_size)>(readed),
               static_cast<uint16_t>(padding),
-              replica_hashes
+              object_ids
           });
     } else {
       auto count = file_size / vds::file_manager::file_operations::BLOCK_SIZE;
@@ -258,19 +258,19 @@ void vds::file_manager_private::_file_operations::pack_file(
       for (uint64_t offset = 0; offset < file_size; offset += block_size) {
         auto readed = f.read(buffer.data(), block_size);
         size_t padding;
-        std::unordered_map<uint16_t, const_data_buffer> replica_hashes;
+        std::unordered_map<uint16_t, const_data_buffer> object_ids;
         auto block_info = chunk_mng->save_block(
           sp,
             t, vds::const_data_buffer(buffer.data(), readed),
-            padding, replica_hashes);
+            padding, object_ids);
         file_blocks.push_back(
             transactions::file_add_transaction::file_block_t
                 {
-                    block_info.id,
+                    block_info.object_id,
                     block_info.key,
                     safe_cast<decltype(transactions::file_add_transaction::file_block_t::block_size)>(readed),
                     static_cast<uint16_t>(padding),
-                    replica_hashes
+                    object_ids
                 });
       }
     }
@@ -302,11 +302,11 @@ vds::file_manager_private::_file_operations::restore_chunk(
   std::vector<uint16_t> replicas;
   std::vector<const_data_buffer> datas;
 
-  orm::chunk_replicas_dbo t1;
+  orm::chunk_dbo t1;
   auto st = t.get_reader(
       t1
           .select(t1.replica, t1.replica_data)
-          .where(t1.id == base64::from_bytes(block.id_.block_id)));
+          .where(t1.object_id == base64::from_bytes(block.id_.block_id)));
 
   while(st.execute()){
     replicas.push_back(safe_cast<uint16_t>(t1.replica.get(st)));
@@ -327,7 +327,7 @@ vds::file_manager_private::_file_operations::restore_chunk(
 
 //  dbo::chunk_data_dbo t2;
 //  t.execute(t2.insert(
-//          t2.id = base64::from_bytes(block.id_.block_id),
+//          t2.object_id = base64::from_bytes(block.id_.block_id),
 //      t2.block_key = block.id_.block_key));
 
   result->set_file_data(block, s.data());

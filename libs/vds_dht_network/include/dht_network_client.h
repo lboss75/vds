@@ -30,7 +30,7 @@ namespace vds {
         struct chunk_info {
           const_data_buffer id;
           const_data_buffer key;
-          std::vector<const_data_buffer> replica_hashes;
+          std::vector<const_data_buffer> object_ids;
         };
 
         chunk_info save(

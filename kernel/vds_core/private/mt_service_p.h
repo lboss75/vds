@@ -25,8 +25,8 @@ namespace vds {
     void start();
     void stop();
     
-    void async(const std::function<void(void)> & handler);
-    void async(std::function<void(void)> && handler);
+    void do_async(const service_provider & sp, const std::function<void(void)> & handler);
+    void do_async(const service_provider & sp, std::function<void(void)> && handler);
 
   private:
     service_provider sp_;

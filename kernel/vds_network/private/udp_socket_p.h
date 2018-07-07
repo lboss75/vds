@@ -296,7 +296,7 @@ namespace vds {
           result.error(std::make_shared<std::runtime_error>("Invalid sent UDP data"));
         }
         else {
-			this->sp_.get<logger>()->trace("UDP", this->sp_, "Sent %d", dwBytesTransfered);
+			this->sp_.get<logger>()->trace("UDP", this->sp_, "Sent %d bytes", dwBytesTransfered);
 			result.done();
           
         }

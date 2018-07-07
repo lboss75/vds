@@ -13,7 +13,7 @@ All rights reserved
 #include "messages/transaction_log_record.h"
 #include "messages/dht_ping.h"
 #include "messages/dht_pong.h"
-#include "messages/replica_request.h"
+#include "messages/object_request.h"
 #include "messages/transaction_log_state.h"
 #include "messages/offer_replica.h"
 #include "messages/replica_data.h"
@@ -142,10 +142,10 @@ vds::async_task<> vds::dht::network::dht_session::process_message(
       this->replica_request_++;
 
       binary_deserializer s(message_data);
-      messages::replica_request message(s);
+      messages::object_request message(s);
       auto result = std::make_shared<async_task<>>(async_task<>::empty());
       *result = (*sp.get<client>())->apply_message(
-        sp.create_scope("messages::replica_request"),
+        sp.create_scope("messages::object_request"),
         this->shared_from_this(),
         message);
       mt_service::async(sp, [result]() mutable {
@@ -159,7 +159,7 @@ vds::async_task<> vds::dht::network::dht_session::process_message(
       binary_deserializer s(message_data);
       messages::offer_replica message(s);
       (*sp.get<client>())->apply_message(
-          sp.create_scope("messages::replica_request"),
+          sp.create_scope("messages::object_request"),
           this->shared_from_this(),
           message)
       .execute([](const std::shared_ptr<std::exception> &) {});

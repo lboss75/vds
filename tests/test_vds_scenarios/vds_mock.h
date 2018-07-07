@@ -85,6 +85,7 @@ public:
 	  const std::string & name,
 	  const vds::const_data_buffer & file_hash);
 
+  bool dump_statistic(std::vector<vds::server_statistic>& statistics);
   void sync_wait();
 
   vds::user_channel create_channel(int index, const std::string &name);

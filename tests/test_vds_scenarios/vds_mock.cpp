@@ -72,161 +72,190 @@ void vds_mock::stop()
   }
 }
 
+static void print_value(const std::string & value, int width) {
+  std::cout << value;
+  for(int i = value.length(); i < width; ++i) {
+    std::cout << ' ';
+  }
+}
+
+static void print_table(const std::list<std::tuple<std::string, std::map<std::string, std::string>>> & table) {
+  std::size_t first_column_width = 0U;
+  std::map<std::string, std::size_t> column_witdhs;
+
+  //Calculate
+  for(auto row : table) {
+    if(first_column_width < std::get<0>(row).length()) {
+      first_column_width = std::get<0>(row).length();
+    }
+    
+    for(auto column : std::get<1>(row)) {
+      if (column_witdhs[column.first] < column.first.length()) {
+        column_witdhs[column.first] = column.first.length();
+      }
+
+      if(column_witdhs[column.first] < column.second.length()) {
+        column_witdhs[column.first] = column.second.length();
+      }
+    }
+  }
+  //Out
+  print_value(std::string(), first_column_width);
+
+  for (auto column : column_witdhs) {
+    std::cout << '|';
+    print_value(column.first, column.second);
+  }
+  std::cout << '\n';
+
+  for (auto row : table) {
+    print_value(std::get<0>(row), first_column_width);
+
+    for (auto column : column_witdhs) {
+      std::cout << '|';
+      print_value(std::get<1>(row)[column.first], column.second);
+    }
+    std::cout << '\n';
+  }
+}
+
+
+bool vds_mock::dump_statistic(std::vector<vds::server_statistic>& statistics) {
+  for (auto & p : this->servers_) {
+
+    vds::barrier b;
+    std::shared_ptr<std::exception> error;
+
+    p->get_statistic()
+     .execute([&b, &error, &statistics](
+       const std::shared_ptr<std::exception> & ex,
+       const vds::server_statistic & statistic) {
+         if (ex) {
+           error = ex;
+         }
+         else {
+           statistics.push_back(statistic);
+         }
+
+         b.set();
+       });
+    b.wait();
+
+    if (error) {
+      throw std::runtime_error(error->what());
+    }
+  }
+
+  std::map<int, std::list<vds::const_data_buffer>> order_no;
+  std::map<vds::const_data_buffer, std::map<std::string, std::string>> states;
+  for(std::size_t i = 0; i < statistics.size(); ++i) {
+    auto istr = std::to_string(i);
+    for (auto p : statistics[i].sync_statistic_.unknown_) {
+      states[p][istr] = "?";
+    }
+
+    for(auto leaf : statistics[i].sync_statistic_.leafs_) {
+
+      auto & p = order_no[leaf.order_no];
+      if(p.end() == std::find(p.begin(), p.end(), leaf.id)) {
+        p.push_back(leaf.id);
+      }
+      switch ((vds::orm::transaction_log_record_dbo::state_t)leaf.state) {
+      case vds::orm::transaction_log_record_dbo::state_t::processed:
+        states[leaf.id][istr] = "+";
+        break;
+      case vds::orm::transaction_log_record_dbo::state_t::leaf:
+        states[leaf.id][istr] = "V";
+        break;
+      case vds::orm::transaction_log_record_dbo::state_t::invalid:
+        states[leaf.id][istr] = "X";
+        break;
+      }
+    }
+  }
+
+  std::list<std::tuple<std::string, std::map<std::string, std::string>>> table;
+  for (auto p : order_no) {
+    for (auto record : p.second) {
+      table.push_back(std::make_tuple(
+        std::to_string(p.first) + "." + vds::base64::from_bytes(record),
+        states[record]));
+    }
+  }
+  print_table(table);
+
+  bool is_good = true;
+  vds::sync_statistic last_sync_statistic;
+  for(auto & p : statistics) {
+
+    if(!last_sync_statistic){
+      last_sync_statistic = p.sync_statistic_;
+    }
+    else if(last_sync_statistic != p.sync_statistic_){
+      is_good = false;
+    }
+  }
+    
+  //////////////////////////////////////////////////////////////////////
+  table.clear();
+  std::cout << "Replicas:\n";
+  for (std::size_t i = 0; i < statistics.size(); ++i) {
+    for (auto chunk : statistics[i].sync_statistic_.chunks_) {
+      std::map<std::string, std::string> * prow = nullptr;
+      for (auto & row : table) {
+        if (std::get<0>(row) == vds::base64::from_bytes(chunk)) {
+          prow = &std::get<1>(row);
+          break;
+        }
+      }
+      if (prow == nullptr) {
+        table.push_back(std::make_tuple(vds::base64::from_bytes(chunk), std::map<std::string, std::string>()));
+        prow = &std::get<1>(*table.rbegin());
+      }
+
+      (*prow)[std::to_string(i)] = "*";
+    }
+
+    for (auto chunk : statistics[i].sync_statistic_.chunk_replicas_) {
+
+      std::map<std::string, std::string> * prow = nullptr;
+      for(auto & row : table) {
+        if(std::get<0>(row) == chunk.first) {
+          prow = &std::get<1>(row);
+          break;
+        }
+      }
+      if(prow == nullptr) {
+        table.push_back(std::make_tuple(chunk.first, std::map<std::string, std::string>()));
+        prow = &std::get<1>(*table.rbegin());
+      }
+
+      auto & val = (*prow)[std::to_string(i)];
+
+      for (auto replica : chunk.second) {
+        if (val.empty()) {
+          val = std::to_string(replica);
+        }
+        else {
+          val += ',';
+          val += std::to_string(replica);
+        }
+      }
+    }
+  }
+  print_table(table);
+
+  return is_good;
+}
+
 void vds_mock::sync_wait()
 {
   std::cout << "Waiting to synchronize...\n";
   for(int i = 0; i < 1000; ++i){
 
     std::vector<vds::server_statistic> statistics;
-    for (auto & p : this->servers_) {
-
-      vds::barrier b;
-      std::shared_ptr<std::exception> error;
-
-      p->get_statistic()
-        .execute([&b, &error, &statistics](
-          const std::shared_ptr<std::exception> & ex,
-          const vds::server_statistic & statistic) {
-        if (ex) {
-          error = ex;
-        }
-        else {
-          statistics.push_back(statistic);
-        }
-
-        b.set();
-      });
-      b.wait();
-
-      if (error) {
-        throw std::runtime_error(error->what());
-      }
-    }
-
-    std::cout << "order|                      id                    |";
-
-    std::map<int, std::list<vds::const_data_buffer>> order_no;
-    std::map<vds::const_data_buffer, std::map<int, char>> states;
-    for(std::size_t i = 0; i < statistics.size(); ++i) {
-      for (auto p : statistics[i].sync_statistic_.unknown_) {
-        states[p][i] = '?';
-      }
-
-      for(auto leaf : statistics[i].sync_statistic_.leafs_) {
-
-        auto & p = order_no[leaf.order_no];
-        if(p.end() == std::find(p.begin(), p.end(), leaf.id)) {
-          p.push_back(leaf.id);
-        }
-        switch ((vds::orm::transaction_log_record_dbo::state_t)leaf.state) {
-        case vds::orm::transaction_log_record_dbo::state_t::processed:
-          states[leaf.id][i] = '+';
-          break;
-        case vds::orm::transaction_log_record_dbo::state_t::leaf:
-          states[leaf.id][i] = 'V';
-          break;
-        case vds::orm::transaction_log_record_dbo::state_t::invalid:
-          states[leaf.id][i] = 'X';
-          break;
-        }
-      }
-      std::cout << i << "|";
-    }
-    std::cout << "\n";
-
-    for (auto p : order_no) {
-      for (auto record : p.second) {
-        std::cout << std::setw(5) << p.first << "|" << std::setw(16) << vds::base64::from_bytes(record) << "|";
-        for (std::size_t i = 0; i < statistics.size(); ++i) {
-          auto p2 = states.find(record);
-          if(states.end() == p2) {
-            std::cout << " |";            
-          }
-          else {
-            const auto p1 = p2->second.find(i);
-            if (p2->second.end() == p1) {
-              std::cout << " |";
-            }
-            else {
-              std::cout << p1->second << "|";
-            }
-          }
-        }
-      }
-      std::cout << "\n";
-    }
-    
-    bool is_good = true;
-    vds::sync_statistic last_sync_statistic;
-    for(auto & p : statistics) {
-
-      if(!last_sync_statistic){
-        last_sync_statistic = p.sync_statistic_;
-      }
-      else if(last_sync_statistic != p.sync_statistic_){
-        is_good = false;
-      }
-    }
-    
-    if(is_good){
+    if (this->dump_statistic(statistics)) {
       return;
-    }
-
-    //////////////////////////////////////////////////////////////////////
-    std::map<vds::const_data_buffer, std::set<std::size_t>> all_replicas;
-    for (std::size_t i = 0; i < statistics.size(); ++i) {
-      for (auto replica : statistics[i].sync_statistic_.replicas_) {
-        all_replicas[replica].emplace(i);
-      }
-      std::cout << i << "|";
-    }
-    std::cout << "\n";
-
-    std::map<std::string, int> replicas;
-    for(auto & p : all_replicas) {
-      std::string mask;
-      for (std::size_t i = 0; i < statistics.size(); ++i) {
-        if(p.second.end() == p.second.find(i)) {
-          mask += " |";
-        }
-        else {
-          mask += "+|";
-        }
-      }
-
-      replicas[mask]++;
-    }
-
-    for(auto & r : replicas) {
-      std::cout << r.first << r.second << "\n";
-    }
-    //////////////////////////////////////////////////////////////////////
-    std::map<std::string, std::set<std::size_t>> all_replica_dist;
-    for (std::size_t i = 0; i < statistics.size(); ++i) {
-      for (auto replica : statistics[i].sync_statistic_.replica_distribution_) {
-        all_replica_dist[replica].emplace(i);
-      }
-      std::cout << i << "|";
-    }
-    std::cout << "\n";
-
-    std::map<std::string, int> replica_dist;
-    for (auto & p : all_replica_dist) {
-      std::string mask;
-      for (std::size_t i = 0; i < statistics.size(); ++i) {
-        if (p.second.end() == p.second.find(i)) {
-          mask += " |";
-        }
-        else {
-          mask += "+|";
-        }
-      }
-
-      replica_dist[mask]++;
-    }
-
-    for (auto & r : replica_dist) {
-      std::cout << r.first << r.second << "\n";
     }
 
     if(i > 5){
@@ -367,7 +396,7 @@ void vds_mock::allow_read_channel(size_t client_index, const vds::const_data_buf
 //            vds::asymmetric_private_key root_user_private_key = this->root_device_activation_.private_key();
 //
 //            vds::security_walker walker(
-//                root_user.id(),
+//                root_user.object_id(),
 //                root_user.user_certificate(),
 //                root_user_private_key);
 //            walker.load(sp, t);

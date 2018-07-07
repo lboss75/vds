@@ -20,7 +20,7 @@
 std::shared_ptr<vds::json_object> vds::api_controller::channel_serialize(
   const vds::user_channel & channel) {
   auto item = std::make_shared<json_object>();
-  item->add_property("id", base64::from_bytes(channel.id()));
+  item->add_property("object_id", base64::from_bytes(channel.id()));
   item->add_property("name", channel.name());
   return item;
 }
@@ -146,7 +146,7 @@ vds::async_task<std::shared_ptr<vds::json_value>> vds::api_controller::channel_f
       t,
       [result](const transactions::file_add_transaction& message)-> bool {
       auto record = std::make_shared<json_object>();
-      record->add_property("id", base64::from_bytes(message.total_hash()));
+      record->add_property("object_id", base64::from_bytes(message.total_hash()));
       record->add_property("message", message.message());
       record->add_property("name", message.name());
       record->add_property("mimetype", message.mimetype());
@@ -321,7 +321,7 @@ vds::api_controller::get_register_requests(
     auto st = t.get_reader(t1.select(t1.id, t1.name, t1.email, t1.create_time));
     while(st.execute()){
       auto item = std::make_shared<json_object>();
-      item->add_property("id", t1.id.get(st));
+      item->add_property("object_id", t1.id.get(st));
       item->add_property("name", t1.name.get(st));
       item->add_property("email", t1.email.get(st));
       item->add_property("create_time", t1.create_time.get(st));

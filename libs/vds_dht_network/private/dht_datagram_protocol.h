@@ -15,6 +15,7 @@ All rights reserved
 #include "dht_message_type.h"
 #include "network_address.h"
 #include "debug_mutex.h"
+#include <queue>
 
 namespace vds {
   namespace dht {
@@ -31,8 +32,7 @@ namespace vds {
           output_sequence_number_(0),
           mtu_(65507),
           next_sequence_number_(0),
-          next_process_index_(0),
-          send_in_process_(false)
+          next_process_index_(0)
         {
         }
 
@@ -48,23 +48,15 @@ namespace vds {
             return;//Overflow protect
           }
 
-          while (this->send_in_process_) {
-            this->send_cond_.wait(lock);
-          }
-          this->send_in_process_ = true;
+          bool need_start = this->send_queue_.empty();
+          this->send_queue_.push(std::make_tuple(sp, s, message_type, message));
+
           lock.unlock();
 
-          this->send_message_async(
-            sp,
-            s,
-            message_type,
-            message).execute([pthis = this->shared_from_this()](const std::shared_ptr<std::exception> & ex) {
-            std::unique_lock<std::mutex> lock(pthis->send_mutex_);
-            pthis->send_in_process_ = false;
-            pthis->send_cond_.notify_all();
-          });
+          if (need_start) {
+            this->continue_send(false);
+          }
         }
-
 
         async_task<> process_datagram(
             const service_provider & scope,
@@ -143,7 +135,7 @@ namespace vds {
           std::shared_lock<std::shared_mutex> lock(this->output_mutex_);
           std::unique_lock<std::mutex> input_lock(this->input_mutex_);
 
-          sp.get<logger>()->trace("DHT", sp, "address=%s;this_node_id=%s;output_sequence_number=%d;output_messages=%s;mtu=%d;input_messages=%s;next_sequence_number=%d;next_process_index=%d;send_in_process=%s",
+          sp.get<logger>()->trace("DHT", sp, "address=%s;this_node_id=%s;output_sequence_number=%d;output_messages=%s;mtu=%d;input_messages=%s;next_sequence_number=%d;next_process_index=%d",
             this->address_.to_string().c_str(),
             base64::from_bytes(this->this_node_id_).c_str(),
             this->output_sequence_number_,
@@ -151,8 +143,7 @@ namespace vds {
             this->mtu_,
             this->input_messages_.empty() ? "[]" : ("[" + std::to_string(this->input_messages_.begin()->first) + ".." + std::to_string(this->input_messages_.rbegin()->first) + "]").c_str(),
             this->next_sequence_number_,
-            this->next_process_index_,
-            this->send_in_process_ ? "true" : "false");
+            this->next_process_index_);
 
           uint32_t mask = 0;
           for (uint32_t i = this->next_sequence_number_; i < this->next_sequence_number_ + 32; ++i)
@@ -195,8 +186,7 @@ namespace vds {
         uint32_t next_process_index_;
 
         std::mutex send_mutex_;
-        std::condition_variable send_cond_;
-        bool send_in_process_;
+        std::queue<std::tuple<service_provider, std::shared_ptr<transport_type>, uint8_t, const_data_buffer>> send_queue_;
 
         async_task<> send_message_async(
           const service_provider &sp,
@@ -490,6 +480,37 @@ namespace vds {
           }
 
           return std::move(result);
+        }
+
+        void continue_send(bool remove_first) {
+          std::unique_lock<std::mutex> lock(this->send_mutex_);
+
+          if (remove_first) {
+            this->send_queue_.pop();
+          }
+
+          if (this->send_queue_.empty()) {
+            return;
+          }
+
+          auto sp = std::get<0>(this->send_queue_.front());
+          auto s = std::get<1>(this->send_queue_.front());
+          auto message_type = std::get<2>(this->send_queue_.front());
+          auto message = std::get<3>(this->send_queue_.front());
+          lock.unlock();
+
+          this->send_message_async(
+            sp,
+            s,
+            message_type,
+            message).execute([sp, pthis = this->shared_from_this()](const std::shared_ptr<std::exception> & ex) {
+            if(ex) {
+              sp.get<logger>()->warning(ThisModule, sp, "%s at send dht datagram", ex->what());
+            }
+            mt_service::async(sp, [pthis]() {
+              pthis->continue_send(true);
+            });
+          });
         }
       };
     }

@@ -3,7 +3,7 @@
 #include "cert_control.h"
 
 /*
- * User: user_id -> certificate (id, user_id, parent_id)
+ * User: user_id -> certificate (object_id, user_id, parent_id)
  *
  *
  */
@@ -85,7 +85,7 @@ vds::certificate vds::_cert_control::create_user_cert(
   local_user_options.ca_certificate_private_key = &user_private_key;
 
   //local_user_options.extensions.push_back(
-  //    certificate_extension(id_extension_type(), id.str()));
+  //    certificate_extension(id_extension_type(), object_id.str()));
 
   //local_user_options.extensions.push_back(
   //    certificate_extension(user_id_extension_type(), user_id.str()));
@@ -113,7 +113,7 @@ vds::certificate vds::_cert_control::create_cert(
 	local_user_options.ca_certificate_private_key = &user_private_key;
 
 	//local_user_options.extensions.push_back(
-	//	certificate_extension(id_extension_type(), id.str()));
+	//	certificate_extension(id_extension_type(), object_id.str()));
 
 	//local_user_options.extensions.push_back(
 	//	certificate_extension(parent_id_extension_type(), cert_control::get_id(user_cert).str()));

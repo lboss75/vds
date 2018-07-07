@@ -1,5 +1,5 @@
-#ifndef __VDS_DB_MODEL_CHUNK_REPLICAS_DBO_H_
-#define __VDS_DB_MODEL_CHUNK_REPLICAS_DBO_H_
+#ifndef __VDS_DB_MODEL_CHUNK_DBO_H_
+#define __VDS_DB_MODEL_CHUNK_DBO_H_
 /*
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
@@ -9,21 +9,21 @@ All rights reserved
 
 namespace vds {
 	namespace orm {
-		class chunk_replicas_dbo : public database_table {
+		class chunk_dbo : public database_table {
 		public:
-			chunk_replicas_dbo()
-				: database_table("chunk_replicas"),
-				id(this, "id"),
+			chunk_dbo()
+				: database_table("chunk"),
+				object_id(this, "object_id"),
         replica_hash(this, "replica_hash"),
         last_sync(this, "last_sync")
 			{
 			}
 
-			database_column<std::string> id;
+			database_column<std::string> object_id;
       database_column<std::string> replica_hash;
       database_column<std::chrono::system_clock::time_point> last_sync;
     };
 	}
 }
 
-#endif //__VDS_DB_MODEL_CHUNK_REPLICAS_DBO_H_
+#endif //__VDS_DB_MODEL_CHUNK_DBO_H_

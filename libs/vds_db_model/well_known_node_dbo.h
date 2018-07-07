@@ -15,7 +15,7 @@ namespace vds {
     public:
       well_known_node_dbo()
           : database_table("well_known_node"),
-            id(this, "id"),
+            id(this, "object_id"),
             addresses(this, "addresses") {
       }
 

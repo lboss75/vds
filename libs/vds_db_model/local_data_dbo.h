@@ -15,7 +15,7 @@ namespace vds {
     public:
       local_data_dbo()
           : database_table("local_data_dbo"),
-            id(this, "id"),
+            id(this, "object_id"),
             data(this, "data"),
             create_time(this, "create_time"),
             is_new(this, "is_new"){

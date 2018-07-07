@@ -4,16 +4,20 @@
 vds::async_task<> vds::db_model::async_transaction(const vds::service_provider &sp,
                                                    const std::function<void(vds::database_transaction &)> &handler) {
   return [this, sp, handler](const async_result<> & result){
-    this->db_.async_transaction(sp, [handler, result](database_transaction & t)->bool{
+    this->db_.async_transaction(sp, [sp, handler, result](database_transaction & t)->bool{
       try {
         handler(t);
       }
       catch (const std::exception & ex){
-        result.error(std::make_shared<std::runtime_error>(ex.what()));
+        mt_service::async(sp, [result, error = std::make_shared<std::runtime_error>(ex.what())]() {
+          result.error(error);
+        });
         return false;
       }
 
-      result.done();
+      mt_service::async(sp, [result]() {
+        result.done();
+      });
       return true;
     });
   };
@@ -23,16 +27,20 @@ vds::async_task<> vds::db_model::async_read_transaction(
     const vds::service_provider &sp,
     const std::function<void(vds::database_transaction &)> &handler) {
   return [this, sp, handler](const async_result<> & result){
-    this->db_.async_transaction(sp, [handler, result](database_transaction & t)->bool{
+    this->db_.async_transaction(sp, [sp, handler, result](database_transaction & t)->bool{
       try {
         handler(t);
       }
-      catch (const std::exception & ex){
-        result.error(std::make_shared<std::runtime_error>(ex.what()));
+      catch (const std::exception & ex) {
+        mt_service::async(sp, [result, error = std::make_shared<std::runtime_error>(ex.what())]() {
+          result.error(error);
+        });
         return false;
       }
 
-      result.done();
+      mt_service::async(sp, [result]() {
+        result.done();
+      });
       return true;
     });
   };
@@ -117,10 +125,16 @@ void vds::db_model::migrate(
       follower_id VARCHAR(64) NOT NULL,\
 			CONSTRAINT pk_transaction_log_unknown_record PRIMARY KEY(id,refer_id,follower_id))");
 
-    t.execute("CREATE TABLE chunk_replicas(\
-			id VARCHAR(64) PRIMARY KEY NOT NULL,\
+    t.execute("CREATE TABLE chunk (\
+			object_id VARCHAR(64) PRIMARY KEY NOT NULL,\
       replica_hash VARCHAR(254) NOT NULL,\
 			last_sync INTEGER NOT NULL)");
+
+    t.execute("CREATE TABLE chunk_replica_data(\
+			object_id VARCHAR(64) NOT NULL,\
+      replica INTEGER NOT NULL,\
+			replica_hash VARCHAR(64) NOT NULL,\
+      CONSTRAINT pk_chunk_replica_data PRIMARY KEY(object_id,replica))");
 
     t.execute("CREATE TABLE local_data_dbo(\
 			id VARCHAR(64) PRIMARY KEY NOT NULL,\
@@ -174,17 +188,12 @@ void vds::db_model::migrate(
 			data BLOB NOT NULL,\
       create_time INTEGER NOT NULL)");
 
-    t.execute("CREATE TABLE chunk_replica_data(\
-			id VARCHAR(64) NOT NULL,\
-      replica INTEGER NOT NULL,\
-			replica_hash VARCHAR(64) NOT NULL,\
-      CONSTRAINT pk_chunk_replica_data PRIMARY KEY(id,replica))");
 
     t.execute("CREATE TABLE chunk_replica_map(\
-			id VARCHAR(64) NOT NULL,\
+			object_id VARCHAR(64) NOT NULL,\
       replica INTEGER NOT NULL,\
 			node VARCHAR(64) NOT NULL,\
-      CONSTRAINT pk_chunk_replica_map PRIMARY KEY(id,replica))");
+      CONSTRAINT pk_chunk_replica_map PRIMARY KEY(object_id,replica))");
 
     t.execute("INSERT INTO well_known_node(id, addresses) VALUES(\
 									'3940754a-64dd-4491-9777-719315b36a67',\

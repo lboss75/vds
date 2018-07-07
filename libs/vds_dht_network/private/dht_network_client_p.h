@@ -17,7 +17,7 @@ namespace vds {
   namespace dht {
     namespace messages {
       class replica_data;
-      class replica_request;
+      class object_request;
       class dht_pong;
       class dht_ping;
       class transaction_log_record;
@@ -33,11 +33,11 @@ namespace vds {
     namespace network {
       class _client : public std::enable_shared_from_this<_client> {
       public:
-        static constexpr uint16_t MIN_HORCRUX = 16;
-        static constexpr uint16_t GENERATE_HORCRUX = 32;
+        static constexpr uint16_t MIN_HORCRUX = 4;
+        static constexpr uint16_t GENERATE_HORCRUX = 8;
 
-        static constexpr uint16_t MIN_DISTRIBUTED_PIECES = 16;
-        static constexpr uint16_t GENERATE_DISTRIBUTED_PIECES = 32;
+        static constexpr uint16_t MIN_DISTRIBUTED_PIECES = 4;
+        static constexpr uint16_t GENERATE_DISTRIBUTED_PIECES = 8;
 
         _client(
             const service_provider & sp,
@@ -112,7 +112,7 @@ namespace vds {
         async_task<> apply_message(
           const service_provider & sp,
           const std::shared_ptr<dht_session> & session,
-          const messages::replica_request & message);
+          const messages::object_request & message);
 
         vds::async_task<> apply_message(
           const service_provider & sp,
@@ -139,6 +139,15 @@ namespace vds {
         }
 
         template <typename message_type>
+        void send_near(
+          const service_provider & sp,
+          const const_data_buffer & node_id,
+          size_t radius,
+          const message_type & message) {
+          this->send_near(sp, node_id, radius, message_type::message_id, message.serialize());
+        }
+
+        template <typename message_type>
         void send_neighbors(
           const service_provider& sp,
           const message_type & message) {
@@ -149,7 +158,7 @@ namespace vds {
 
         async_task<> restore(
             const service_provider &sp,
-            const std::vector<const_data_buffer> & replica_hashes,
+            const std::vector<const_data_buffer> & object_ids,
             const std::shared_ptr<const_data_buffer> & result,
             const std::chrono::steady_clock::time_point & start);
 
@@ -161,7 +170,7 @@ namespace vds {
 
         async_task<uint8_t> restore_async(
           const service_provider &sp,
-          const std::vector<const_data_buffer> & replica_hashes,
+          const std::vector<const_data_buffer> & object_ids,
           const std::shared_ptr<const_data_buffer> & result);
 
         async_task<uint8_t> restore_async(
@@ -193,6 +202,13 @@ namespace vds {
         void send(
           const service_provider& sp,
           const const_data_buffer& node_id,
+          const message_type_t message_id,
+          const const_data_buffer& message);
+
+        void send_near(
+          const service_provider& sp,
+          const const_data_buffer& node_id,
+          size_t radius,
           const message_type_t message_id,
           const const_data_buffer& message);
 

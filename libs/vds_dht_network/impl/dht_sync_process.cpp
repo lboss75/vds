@@ -7,7 +7,7 @@ All rights reserved
 #include "dht_network_client.h"
 #include "messages/transaction_log_state.h"
 #include "transaction_log_record_dbo.h"
-#include "chunk_replicas_dbo.h"
+#include "chunk_dbo.h"
 #include "private/dht_network_client_p.h"
 #include "transaction_log_unknown_record_dbo.h"
 #include "messages/transaction_log_request.h"
@@ -16,7 +16,7 @@ All rights reserved
 #include "transaction_log.h"
 #include "messages/got_replica.h"
 #include "chunk_replica_data_dbo.h"
-#include "messages/replica_request.h"
+#include "messages/object_request.h"
 #include "chunk_replica_map_dbo.h"
 
 void vds::dht::network::sync_process::query_unknown_records(const service_provider& sp, database_transaction& t) {
@@ -241,15 +241,15 @@ void vds::dht::network::sync_process::sync_replicas(
   vds::database_transaction &t) {
   auto & client = *sp.get<dht::network::client>();
 
-  std::set<const_data_buffer /*replica_hash*/> objects;
-  orm::chunk_replicas_dbo t1;
+  std::set<const_data_buffer /*object_id*/> objects;
+  orm::chunk_dbo t1;
   auto st = t.get_reader(
     t1
-    .select(t1.id)
+    .select(t1.object_id)
     .where(t1.last_sync <= std::chrono::system_clock::now() - std::chrono::minutes(10))
     .order_by(t1.last_sync));
   while (st.execute()) {
-    const auto replica_hash = base64::to_bytes(t1.id.get(st));
+    const auto replica_hash = base64::to_bytes(t1.object_id.get(st));
     objects.emplace(replica_hash);
   }
 
@@ -257,7 +257,7 @@ void vds::dht::network::sync_process::sync_replicas(
   for (const auto & p : objects) {
     std::set<uint16_t> replicas;
     orm::chunk_replica_map_dbo t3;
-    st = t.get_reader(t3.select(t3.replica).where(t3.id == base64::from_bytes(p)));
+    st = t.get_reader(t3.select(t3.replica).where(t3.object_id == base64::from_bytes(p)));
     while (st.execute()) {
       if (replicas.end() == replicas.find(t3.replica.get(st))) {
         replicas.emplace(t3.replica.get(st));
@@ -265,7 +265,7 @@ void vds::dht::network::sync_process::sync_replicas(
     }
 
     if (_client::GENERATE_DISTRIBUTED_PIECES <= replicas.size()) {
-      t.execute(t1.update(t1.last_sync = std::chrono::system_clock::now()).where(t1.id == base64::from_bytes(p)));
+      t.execute(t1.update(t1.last_sync = std::chrono::system_clock::now()).where(t1.object_id == base64::from_bytes(p)));
     }
 
     std::map<vds::const_data_buffer /*distance*/, std::list<vds::const_data_buffer/*node_id*/>> neighbors;

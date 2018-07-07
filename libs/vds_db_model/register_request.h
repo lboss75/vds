@@ -15,7 +15,7 @@ namespace vds {
     public:
       register_request()
           : database_table("register_request_dbo"),
-            id(this, "id"),
+            id(this, "object_id"),
             name(this, "name"),
             email(this, "email"),
             data(this, "data"),
