@@ -135,7 +135,7 @@ void vds::file::write(
 #else
       auto error = errno;
 #endif
-      throw std::system_error(error, std::system_category(), "Unable to write file " + this->filename_.str());
+      throw std::system_error(error, std::system_category(), "Unable to write file " + this->filename_.full_name());
     }
 
     if ((size_t)written == buffer_len) {
@@ -152,7 +152,7 @@ size_t vds::file::length() const
   struct stat buffer;
   if (0 != fstat(this->handle_, &buffer)) {
     auto error = errno;
-    throw std::system_error(error, std::generic_category(), "Unable to get file size of " + this->filename_.name());
+    throw std::system_error(error, std::generic_category(), "Unable to get file size of " + this->filename_.full_name());
   }
   
   return buffer.st_size;
