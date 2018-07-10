@@ -258,6 +258,25 @@ void vds::dht::network::sync_process::sync_entry::make_leader(const service_prov
 
 }
 
+void vds::dht::network::sync_process::sync_entry::make_canditate(
+  const service_provider& sp,
+  const const_data_buffer& object_id) {
+
+  this->state_ = sync_entry::state_t::canditate;
+  this->last_operation_ = std::chrono::system_clock::now();
+  this->current_term_++;
+
+  auto & client = *sp.get<dht::network::client>();
+  client->send_near(
+    sp,
+    object_id,
+    _client::GENERATE_DISTRIBUTED_PIECES,
+    messages::sync_new_election_request(
+      object_id,
+      this->current_term_,
+      client.current_node_id()));
+}
+
 
 void vds::dht::network::sync_process::sync_entryes(
   const service_provider& sp,
@@ -271,6 +290,7 @@ void vds::dht::network::sync_process::sync_entryes(
     case sync_entry::state_t::connecting:
       if(now - p.second.last_operation_ > sync_entry::CONNECTION_TIMEOUT) {
         p.second.state_ = sync_entry::state_t::start_election;
+        p.second.quorum_ = _client::GENERATE_DISTRIBUTED_PIECES / 2;
         p.second.last_operation_ = now;
         p.second.current_term_++;
 
@@ -288,38 +308,22 @@ void vds::dht::network::sync_process::sync_entryes(
 
     case sync_entry::state_t::start_election:
       if (now - p.second.last_operation_ > sync_entry::ELECTION_TIMEOUT) {
-        p.second.state_ = sync_entry::state_t::canditate;
-        p.second.last_operation_ = now;
-        p.second.current_term_++;
-
-        auto & client = *sp.get<dht::network::client>();
-        client->send_near(
-          sp,
-          p.first,
-          _client::GENERATE_DISTRIBUTED_PIECES,
-          messages::sync_new_election_request(
-            p.first,
-            p.second.current_term_,
-            client.current_node_id()));
+        p.second.make_canditate(sp, p.first);
       }
       break;
 
     case sync_entry::state_t::canditate:
       if (now - p.second.last_operation_ > sync_entry::CANDITATE_TIMEOUT) {
-        p.second.state_ = sync_entry::state_t::leader;
-        p.second.last_operation_ = now;
+        p.second.quorum_--;
 
-        auto & client = *sp.get<dht::network::client>();
-        client->send_near(
-          sp,
-          p.first,
-          _client::GENERATE_DISTRIBUTED_PIECES,
-          messages::sync_new_election_request(
-            p.first,
-            client.current_node_id()));
+        if(2 > p.second.quorum_) {
+          p.second.make_leader(sp);
+        }
+        else {
+          p.second.make_canditate(sp, p.first);
+        }
       }
       break;
-
     }
   }
 }

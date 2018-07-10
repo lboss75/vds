@@ -94,6 +94,7 @@ namespace vds {
           uint64_t last_applied_;
 
           std::set<const_data_buffer> voted_notes_;
+          std::size_t quorum_;
 
           sync_entry()
           : state_(state_t::connecting),
@@ -110,6 +111,10 @@ namespace vds {
             uint64_t current_term);
 
           void make_leader(const service_provider& sp);
+
+          void make_canditate(
+            const service_provider& sp,
+            const const_data_buffer& object_id);
 
 
         };
