@@ -4,7 +4,7 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
-
+#include <chrono>
 #include "database_orm.h"
 
 namespace vds {
@@ -15,13 +15,14 @@ namespace vds {
 				: database_table("chunk_replica_map"),
 				object_id(this, "object_id"),
 				replica(this, "replica"),
-				node(this, "node")
-			{
+				node(this, "node"),
+        last_access(this, "last_access") {
 			}
 
 			database_column<std::string> object_id;
 			database_column<int> replica;
       database_column<std::string> node;
+      database_column<std::chrono::system_clock::time_point> last_access;
 		};
 	}
 }

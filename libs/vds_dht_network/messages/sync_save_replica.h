@@ -1,5 +1,5 @@
-#ifndef __VDS_DHT_NETWORK_SYNC_NEW_ELECTION_H_
-#define __VDS_DHT_NETWORK_SYNC_NEW_ELECTION_H_
+#ifndef __VDS_DHT_NETWORK_SYNC_VOTE_LEADER_H_
+#define __VDS_DHT_NETWORK_SYNC_VOTE_LEADER_H_
 
 /*
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
@@ -12,73 +12,21 @@ All rights reserved
 namespace vds {
   namespace dht {
     namespace messages {
-      class sync_new_election_request {
+      class sync_get_vote_request {
       public:
-        static const network::message_type_t message_id = network::message_type_t::sync_new_election_request;
+        static const network::message_type_t message_id = network::message_type_t::sync_get_vote_request;
 
-        sync_new_election_request(
+        sync_get_vote_request(
             const const_data_buffer &object_id,
-            uint64_t current_term,
             const const_data_buffer &source_node)
             : object_id_(object_id),
-              current_term_(current_term),
               source_node_(source_node) {
         }
 
-        sync_new_election_request(
-            binary_deserializer & s) {
-          s
-            >> this->object_id_
-            >> this->current_term_
-            >> this->source_node_;
-          ;
-        }
-
-        const_data_buffer serialize() const {
-          binary_serializer s;
-          s
-              << this->object_id_
-              << this->current_term_
-              << this->source_node_;
-          return s.data();
-        }
-
-        const const_data_buffer & object_id() const {
-          return this->object_id_;
-        }
-
-        uint64_t current_term() const {
-          return this->current_term_;
-        }
-
-        const const_data_buffer & source_node() const {
-          return this->source_node_;
-        }
-
-      private:
-        const_data_buffer object_id_;
-        uint64_t current_term_;
-        const_data_buffer source_node_;
-      };
-
-      class sync_new_election_response {
-      public:
-        static const network::message_type_t message_id = network::message_type_t::sync_new_election_response;
-
-        sync_new_election_response(
-          const const_data_buffer &object_id,
-          uint64_t current_term,
-          const const_data_buffer & source_node)
-            : object_id_(object_id),
-              current_term_(current_term),
-              source_node_(source_node) {
-        }
-
-        sync_new_election_response(
+        sync_get_vote_request(
             binary_deserializer & s) {
           s
               >> this->object_id_
-              >> this->current_term_
               >> this->source_node_;
           ;
         }
@@ -87,7 +35,6 @@ namespace vds {
           binary_serializer s;
           s
               << this->object_id_
-              << this->current_term_
               << this->source_node_;
           return s.data();
         }
@@ -96,8 +43,45 @@ namespace vds {
           return object_id_;
         }
 
-        uint64_t current_term() const {
-          return this->current_term_;
+        const const_data_buffer & source_node() const {
+          return source_node_;
+        }
+
+      private:
+        const_data_buffer object_id_;
+        const_data_buffer source_node_;
+      };
+
+      class sync_get_vote_response {
+      public:
+        static const network::message_type_t message_id = network::message_type_t::sync_get_vote_response;
+
+        sync_get_vote_response(
+            const const_data_buffer &object_id,
+            const const_data_buffer &target_node,
+	    uint64_t generation_id)
+            : object_id_(object_id),
+              source_node_(source_node) {
+        }
+
+        sync_get_leader_response(
+            binary_deserializer & s) {
+          s
+              >> this->object_id_
+              >> this->source_node_;
+          ;
+        }
+
+        const_data_buffer serialize() const {
+          binary_serializer s;
+          s
+              << this->object_id_
+              << this->source_node_;
+          return s.data();
+        }
+
+        const const_data_buffer & object_id() const {
+          return object_id_;
         }
 
         const const_data_buffer & source_node() const {
@@ -106,11 +90,10 @@ namespace vds {
 
       private:
         const_data_buffer object_id_;
-        uint64_t current_term_;
         const_data_buffer source_node_;
       };
     }
   }
 }
 
-#endif //__VDS_DHT_NETWORK_SYNC_NEW_ELECTION_H_
+#endif //__VDS_DHT_NETWORK_REPLICA_REQUEST_H_

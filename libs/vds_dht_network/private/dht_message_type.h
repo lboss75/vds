@@ -37,7 +37,14 @@ namespace vds {
         dht_find_node,
         dht_find_node_response,
         dht_ping,
-        dht_pong
+        dht_pong,
+
+        sync_get_leader_request,
+        sync_get_leader_response,
+
+        sync_new_election_request,
+        sync_new_election_response,
+
       };
     }
   }

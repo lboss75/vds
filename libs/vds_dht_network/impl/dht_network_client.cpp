@@ -54,12 +54,13 @@ std::vector<vds::const_data_buffer> vds::dht::network::_client::save(
     this->generators_.find(replica)->second->write(s, value.data(), value.size());
     const auto replica_data = s.data();
     const auto replica_hash = hash::signature(hash::sha256(), replica_data);
+    const auto object_id = base64::from_bytes(replica_hash);
 
     orm::chunk_dbo t1;
 
-    auto st = t.get_reader(t1.select(t1.object_id).where(t1.replica_hash == base64::from_bytes(replica_hash)));
+    auto st = t.get_reader(t1.select(t1.object_id).where(t1.replica_hash == object_id));
     if (st.execute()) {
-      if(t1.object_id.get(st) != base64::from_bytes(replica_hash)) {
+      if(t1.object_id.get(st) != object_id) {
         throw std::runtime_error("data conflict at " + sp.full_name());
       }
     }
@@ -67,10 +68,15 @@ std::vector<vds::const_data_buffer> vds::dht::network::_client::save(
       save_data(sp, t, replica_hash, replica_data);
       t.execute(
         t1.insert(
-          t1.object_id = base64::from_bytes(replica_hash),
-          t1.replica_hash = base64::from_bytes(replica_hash),
+          t1.object_id = object_id,
+          t1.replica_hash = object_id,
           t1.last_sync = std::chrono::system_clock::now() - std::chrono::hours(24)
         ));
+
+      this->sync_process_.add_sync_entry(
+        sp,
+        t,
+        replica_hash);
     }
     result[replica] = replica_hash;
   }

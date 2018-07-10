@@ -96,4 +96,4 @@ namespace vds {
   }
 }
 
-#endif //__VDS_DHT_NETWORK_REPLICA_REQUEST_H_
+#endif //__VDS_DHT_NETWORK_SYNC_GET_LEADER_H_
