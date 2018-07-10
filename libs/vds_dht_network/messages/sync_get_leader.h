@@ -58,8 +58,8 @@ namespace vds {
 
         sync_get_leader_response(
             const const_data_buffer &object_id,
-            const const_data_buffer &target_node,
-	    uint64_t generation_id)
+            const const_data_buffer &source_node,
+	          uint64_t generation_id)
             : object_id_(object_id),
               source_node_(source_node) {
         }

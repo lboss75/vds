@@ -9,6 +9,7 @@ All rights reserved
 #include "targetver.h"
 
 #include <assert.h>
+#include <ctime>
 #include <memory>
 #include <string>
 #include <typeinfo>
@@ -36,6 +37,7 @@ All rights reserved
 #include <limits.h>
 #include <sys/stat.h>
 #include <sys/statvfs.h>
+#include <syscall.h>
 
 #else
 #include <io.h>

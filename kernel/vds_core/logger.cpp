@@ -4,9 +4,6 @@ All rights reserved
 */
 
 #include "stdafx.h"
-#include "targetver.h"
-#include <iostream>
-#include <ctime>
 #include "logger.h"
 #include "file.h"
 #include "persistence.h"

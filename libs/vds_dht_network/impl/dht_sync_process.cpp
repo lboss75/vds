@@ -211,17 +211,8 @@ void vds::dht::network::sync_process::add_sync_entry(
     return;
   }
 
-  this->sync_entries_[object_id] = sync_entry(std::chrono::system_clock::now());
-  mt_service::async(sp, [sp, object_id]() {
-    auto & client = *sp.get<dht::network::client>();
-    client->send_near(
-      sp, 
-      object_id,
-      _client::GENERATE_DISTRIBUTED_PIECES,
-      messages::sync_get_leader_request(
-        object_id,
-        client.current_node_id()));
-  });
+  this->sync_entries_[object_id].make_leader(sp);
+
 }
 
 void vds::dht::network::sync_process::sync_entry::make_follower(const service_provider& sp,
