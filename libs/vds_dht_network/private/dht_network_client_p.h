@@ -148,6 +148,15 @@ namespace vds {
         }
 
         template <typename message_type>
+        void send_closer(
+          const service_provider & sp,
+          const const_data_buffer & node_id,
+          size_t radius,
+          const message_type & message) {
+          this->send_closer(sp, node_id, radius, message_type::message_id, message.serialize());
+        }
+
+        template <typename message_type>
         void send_neighbors(
           const service_provider& sp,
           const message_type & message) {
@@ -206,6 +215,13 @@ namespace vds {
           const const_data_buffer& message);
 
         void send_near(
+          const service_provider& sp,
+          const const_data_buffer& node_id,
+          size_t radius,
+          const message_type_t message_id,
+          const const_data_buffer& message);
+
+        void send_closer(
           const service_provider& sp,
           const const_data_buffer& node_id,
           size_t radius,

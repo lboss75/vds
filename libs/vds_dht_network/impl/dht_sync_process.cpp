@@ -211,8 +211,17 @@ void vds::dht::network::sync_process::add_sync_entry(
     return;
   }
 
-  this->sync_entries_[object_id].make_leader(sp);
+  this->sync_entries_[object_id].make_canditate(sp, object_id);
 
+}
+
+vds::dht::network::sync_process::sync_entry::sync_entry()
+: state_(state_t::follower),
+  last_operation_(std::chrono::system_clock::now()),
+  current_term_(0),
+  commit_index_(0),
+  last_applied_(0),
+  quorum_(_client::GENERATE_DISTRIBUTED_PIECES / 2) {
 }
 
 void vds::dht::network::sync_process::sync_entry::make_follower(const service_provider& sp,
@@ -221,6 +230,8 @@ void vds::dht::network::sync_process::sync_entry::make_follower(const service_pr
   this->state_ = sync_entry::state_t::follower;
   this->current_term_ = current_term;
   this->voted_for_ = source_node;
+
+  sp.get<logger>()->trace(ThisModule, sp, "Make follower %s:%d", base64::from_bytes(object_id).c_str(), this->current_term_);
 
   auto & client = *sp.get<dht::network::client>();
   client->send(
@@ -232,16 +243,21 @@ void vds::dht::network::sync_process::sync_entry::make_follower(const service_pr
       client.current_node_id()));
 }
 
-void vds::dht::network::sync_process::sync_entry::make_leader(const service_provider& sp) {
+void vds::dht::network::sync_process::sync_entry::make_leader(
+  const service_provider& sp,
+  const const_data_buffer& object_id) {
   vds_assert(sync_entry::state_t::canditate == this->state_);
 
   this->state_ = sync_entry::state_t::leader;
   this->last_operation_ = std::chrono::system_clock::now();
 
+  sp.get<logger>()->trace(ThisModule, sp, "Make leader %s:%d", base64::from_bytes(object_id).c_str(), this->current_term_);
+
   auto & client = *sp.get<dht::network::client>();
-  client->send(
+  client->send_near(
     sp,
-    source_node,
+    object_id,
+    _client::GENERATE_DISTRIBUTED_PIECES,
     messages::sync_new_election_response(
       object_id,
       current_term,
@@ -256,6 +272,8 @@ void vds::dht::network::sync_process::sync_entry::make_canditate(
   this->state_ = sync_entry::state_t::canditate;
   this->last_operation_ = std::chrono::system_clock::now();
   this->current_term_++;
+
+  sp.get<logger>()->trace(ThisModule, sp, "Make candidate %s:%d", base64::from_bytes(object_id).c_str(), this->current_term_);
 
   auto & client = *sp.get<dht::network::client>();
   client->send_near(
@@ -278,24 +296,6 @@ void vds::dht::network::sync_process::sync_entryes(
   for(auto p : this->sync_entries_) {
     switch(p.second.state_) {
 
-    case sync_entry::state_t::connecting:
-      if(now - p.second.last_operation_ > sync_entry::CONNECTION_TIMEOUT) {
-        p.second.state_ = sync_entry::state_t::start_election;
-        p.second.quorum_ = _client::GENERATE_DISTRIBUTED_PIECES / 2;
-        p.second.last_operation_ = now;
-        p.second.current_term_++;
-
-        auto & client = *sp.get<dht::network::client>();
-        client->send_near(
-          sp,
-          p.first,
-          _client::GENERATE_DISTRIBUTED_PIECES,
-          messages::sync_new_election_request(
-            p.first,
-            p.second.current_term_,
-            client.current_node_id()));
-      }
-      break;
 
     case sync_entry::state_t::start_election:
       if (now - p.second.last_operation_ > sync_entry::ELECTION_TIMEOUT) {
@@ -315,27 +315,6 @@ void vds::dht::network::sync_process::sync_entryes(
         }
       }
       break;
-    }
-  }
-}
-
-void vds::dht::network::sync_process::apply_message(
-  const service_provider& sp,
-  const messages::sync_get_leader_request & message) {
-
-  std::unique_lock<std::shared_mutex> lock(this->sync_mutex_);
-  auto p = this->sync_entries_.find(message.object_id());
-  if(this->sync_entries_.end() != p) {
-    if(p->second.state_ != sync_entry::state_t::canditate) {
-      auto & client = *sp.get<dht::network::client>();
-      client->send(
-        sp,
-        message.source_node(),
-        messages::sync_get_leader_response(
-          message.object_id(),
-          p->second.leader_,
-          p->second.current_term_,
-          client.current_node_id()));
     }
   }
 }
@@ -362,6 +341,14 @@ void vds::dht::network::sync_process::apply_message(
       message.source_node(),
       message.current_term());
   }
+
+  auto & client = *sp.get<dht::network::client>();
+  client->send_closer(
+    sp,
+    message.object_id(),
+    _client::GENERATE_DISTRIBUTED_PIECES,
+    message);
+
 }
 
 void vds::dht::network::sync_process::apply_message(
@@ -376,8 +363,8 @@ void vds::dht::network::sync_process::apply_message(
 
       p->second.voted_notes_.emplace(message.source_node());
 
-      if(_client::GENERATE_DISTRIBUTED_PIECES / 2 < p->second.voted_notes_.size()) {
-        p->second.make_leader(sp);
+      if(p->second.quorum_ < p->second.voted_notes_.size()) {
+        p->second.make_leader(sp, message.object_id());
       }
     }
   }

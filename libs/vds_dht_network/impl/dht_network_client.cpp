@@ -380,7 +380,36 @@ void vds::dht::network::_client::send_near(
       pthis->udp_transport_,
       message_id,
       message);
-    return false;
+    return true;
+  });
+}
+
+void vds::dht::network::_client::send_closer(
+  const service_provider& sp,
+  const const_data_buffer& target_node_id,
+  size_t radius,
+  const message_type_t message_id,
+  const const_data_buffer& message) {
+  this->route_.for_near(
+    sp,
+    target_node_id,
+    radius,
+    [
+      sp,
+      target_node_id,
+      message_id,
+      message,
+      pthis = this->shared_from_this(),
+      distance = dht_object_id::distance(this->current_node_id(), target_node_id)](
+      const std::shared_ptr<dht_route<std::shared_ptr<dht_session>>::node> & candidate) {
+    if (dht_object_id::distance(candidate->node_id_, target_node_id) < distance) {
+      candidate->send_message(
+        sp,
+        pthis->udp_transport_,
+        message_id,
+        message);
+    }
+    return true;
   });
 }
 

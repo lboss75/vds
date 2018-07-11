@@ -13,7 +13,6 @@ namespace vds {
     namespace messages {
       class sync_new_election_response;
       class sync_new_election_request;
-      class sync_get_leader_request;
       class offer_replica;
       class transaction_log_state;
       class transaction_log_record;
@@ -58,10 +57,6 @@ namespace vds {
 
         void apply_message(
           const service_provider& sp,
-          const messages::sync_get_leader_request & message);
-
-        void apply_message(
-          const service_provider& sp,
           const messages::sync_new_election_request & message);
 
         void apply_message(
@@ -71,12 +66,10 @@ namespace vds {
       private:
 
         struct sync_entry {
-          static constexpr std::chrono::system_clock::duration CONNECTION_TIMEOUT = std::chrono::seconds(1);
           static constexpr std::chrono::system_clock::duration ELECTION_TIMEOUT = std::chrono::seconds(5);
           static constexpr std::chrono::system_clock::duration CANDITATE_TIMEOUT = std::chrono::seconds(5);
 
           enum class state_t {
-            connecting,         
             follower,
             start_election,
             canditate,
@@ -96,13 +89,7 @@ namespace vds {
           std::set<const_data_buffer> voted_notes_;
           std::size_t quorum_;
 
-          sync_entry()
-          : state_(state_t::connecting),
-            last_operation_(std::chrono::system_clock::now()),
-            current_term_(0),
-            commit_index_(0),
-            last_applied_(0) {
-          }
+          sync_entry();
 
           void make_follower(
             const service_provider& sp,
@@ -110,7 +97,9 @@ namespace vds {
             const const_data_buffer& source_node,
             uint64_t current_term);
 
-          void make_leader(const service_provider& sp);
+          void make_leader(
+            const service_provider& sp,
+            const const_data_buffer& object_id);
 
           void make_canditate(
             const service_provider& sp,
