@@ -2,6 +2,7 @@
 #define __VDS_DHT_NETWORK_DTH_SYNC_PROCESS_H_
 
 #include "database.h"
+#include "thread_apartment.h"
 
 /*
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
@@ -11,6 +12,8 @@ All rights reserved
 namespace vds {
   namespace dht {
     namespace messages {
+      class sync_coronation_response;
+      class sync_coronation_request;
       class sync_new_election_response;
       class sync_new_election_request;
       class offer_replica;
@@ -63,6 +66,14 @@ namespace vds {
           const service_provider& sp,
           const messages::sync_new_election_response & message);
 
+        void apply_message(
+          const service_provider& sp,
+          const messages::sync_coronation_request & message);
+
+        void apply_message(
+          const service_provider& sp,
+          const messages::sync_coronation_response & message);
+
       private:
 
         struct sync_entry {
@@ -86,7 +97,7 @@ namespace vds {
           uint64_t commit_index_;
           uint64_t last_applied_;
 
-          std::set<const_data_buffer> voted_notes_;
+          std::set<const_data_buffer> member_notes_;
           std::size_t quorum_;
 
           sync_entry();
@@ -108,7 +119,7 @@ namespace vds {
 
         };
 
-        std::shared_mutex sync_mutex_;
+        std::shared_ptr<thread_apartment> sync_object_;
         std::map<const_data_buffer, sync_entry> sync_entries_;
 
         void sync_entryes(

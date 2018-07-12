@@ -130,6 +130,22 @@ namespace vds {
           const std::shared_ptr<dht_session>& session,
           const messages::got_replica& message);
 
+        void apply_message(
+          const service_provider & sp,
+          const messages::sync_new_election_request & message);
+
+        void apply_message(
+          const service_provider & sp,
+          const messages::sync_new_election_response & message);
+
+        void apply_message(
+          const service_provider & sp,
+          const messages::sync_coronation_request & message);
+
+        void apply_message(
+          const service_provider & sp,
+          const messages::sync_coronation_response & message);
+
         template <typename message_type>
         void send(
           const service_provider & sp,

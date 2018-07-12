@@ -241,7 +241,7 @@ namespace vds {
     {
     }
 
-    void collect_aliases(std::map<const database_table *, std::string> & aliases) const{
+    void collect_aliases(std::map<const database_table *, std::string> & /*aliases*/) const{
     }
 
     std::string visit(_database_sql_builder & builder) const
@@ -274,7 +274,7 @@ namespace vds {
     {
     }
 
-    void collect_aliases(std::map<const database_table *, std::string> & aliases) const{
+    void collect_aliases(std::map<const database_table *, std::string> & /*aliases*/) const{
     }
 
     std::string visit(_database_sql_builder & builder) const
@@ -345,7 +345,7 @@ namespace vds {
       return "MAX(" + this->column_.visit(builder) + ")";
     }
 
-    void set_index(int index) const
+    void set_index(int /*index*/) const
     {
     }
 
@@ -1701,7 +1701,7 @@ namespace vds {
     {
     }
     
-    std::string start_sql(_database_sql_builder & builder) const
+    std::string start_sql(_database_sql_builder & /*builder*/) const
     {
       return "DELETE FROM " + this->table_.name();
     }
@@ -1740,7 +1740,7 @@ namespace vds {
   class sql_command_builder
   {
   public:
-    sql_statement build(database_transaction & t, const source_type & source)
+    sql_statement build(database_read_transaction & t, const source_type & source)
     {
       std::map<const database_table *, std::string> aliases;
       source.collect_aliases(aliases);

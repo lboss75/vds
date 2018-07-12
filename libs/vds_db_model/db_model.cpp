@@ -25,9 +25,9 @@ vds::async_task<> vds::db_model::async_transaction(const vds::service_provider &
 
 vds::async_task<> vds::db_model::async_read_transaction(
     const vds::service_provider &sp,
-    const std::function<void(vds::database_transaction &)> &handler) {
+    const std::function<void(vds::database_read_transaction &)> &handler) {
   return [this, sp, handler](const async_result<> & result){
-    this->db_.async_transaction(sp, [sp, handler, result](database_transaction & t)->bool{
+    this->db_.async_read_transaction(sp, [sp, handler, result](database_read_transaction & t){
       try {
         handler(t);
       }
@@ -35,13 +35,12 @@ vds::async_task<> vds::db_model::async_read_transaction(
         mt_service::async(sp, [result, error = std::make_shared<std::runtime_error>(ex.what())]() {
           result.error(error);
         });
-        return false;
+        return;
       }
 
       mt_service::async(sp, [result]() {
         result.done();
       });
-      return true;
     });
   };
 }
@@ -53,7 +52,7 @@ void vds::db_model::start(const service_provider & sp)
 	if (!file::exists(db_filename)) {
 		this->db_.open(sp, db_filename);
 
-		this->db_.sync_transaction(sp, [this](database_transaction & t) {
+		this->db_.async_transaction(sp, [this](database_transaction & t) {
 			this->migrate(t, 0);
 			return true;
 		});
@@ -61,7 +60,7 @@ void vds::db_model::start(const service_provider & sp)
 	else {
 		this->db_.open(sp, db_filename);
 
-		this->db_.sync_transaction(sp, [this](database_transaction & t) {
+		this->db_.async_transaction(sp, [this](database_transaction & t) {
 			auto st = t.parse("SELECT version FROM module WHERE id='kernel'");
 			if (!st.execute()) {
 				throw std::runtime_error("Database has been corrupted");

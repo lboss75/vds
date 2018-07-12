@@ -127,7 +127,7 @@ vds::async_task<vds::server_statistic> vds::_server::get_statistic(const vds::se
   auto result = std::make_shared<vds::server_statistic>();
   sp.get<dht::network::client>()->get_route_statistics(result->route_statistic_);
   sp.get<dht::network::client>()->get_session_statistics(result->session_statistic_);
-  return sp.get<db_model>()->async_read_transaction(sp, [this, result](database_transaction & t){
+  return sp.get<db_model>()->async_read_transaction(sp, [this, result](database_read_transaction & t){
 
     orm::transaction_log_record_dbo t2;
     auto st = t.get_reader(t2.select(t2.id, t2.state, t2.order_no));
@@ -169,8 +169,6 @@ vds::async_task<vds::server_statistic> vds::_server::get_statistic(const vds::se
     while (st.execute()) {
       result->sync_statistic_.chunk_replicas_[t5.object_id.get(st)].emplace(t5.replica.get(st));
     }
-
-    return true;
   }).then([result]()->server_statistic{
     return *result;
   });

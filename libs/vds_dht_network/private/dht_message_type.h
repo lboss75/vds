@@ -39,11 +39,11 @@ namespace vds {
         dht_ping,
         dht_pong,
 
-        sync_get_leader_request,
-        sync_get_leader_response,
-
         sync_new_election_request,
         sync_new_election_response,
+
+        sync_coronation_request,
+        sync_coronation_response,
 
       };
     }

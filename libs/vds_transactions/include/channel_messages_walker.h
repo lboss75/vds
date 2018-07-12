@@ -17,19 +17,19 @@ namespace vds {
   namespace transactions {
     class channel_messages_walker {
     public:
-      virtual bool visit(const channel_add_reader_transaction & message) {
+      virtual bool visit(const channel_add_reader_transaction & /*message*/) {
         return true;
       }
 
-      virtual bool visit(const channel_add_writer_transaction & message) {
+      virtual bool visit(const channel_add_writer_transaction & /*message*/) {
         return true;
       }
 
-      virtual bool visit(const channel_create_transaction & message) {
+      virtual bool visit(const channel_create_transaction & /*message*/) {
         return true;
       }
 
-      virtual bool visit(const file_add_transaction & message) {
+      virtual bool visit(const file_add_transaction & /*message*/) {
         return true;
       }
       

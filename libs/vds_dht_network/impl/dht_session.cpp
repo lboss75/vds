@@ -18,6 +18,8 @@ All rights reserved
 #include "messages/offer_replica.h"
 #include "messages/replica_data.h"
 #include "messages/got_replica.h"
+#include "messages/sync_new_election.h"
+#include "messages/sync_coronation.h"
 
 vds::dht::network::dht_session::dht_session(
   const network_address& address,
@@ -185,6 +187,43 @@ vds::async_task<> vds::dht::network::dht_session::process_message(
         .execute([](const std::shared_ptr<std::exception> &) {});
       break;
     }
+
+    case network::message_type_t::sync_new_election_request: {
+      binary_deserializer s(message_data);
+      const messages::sync_new_election_request message(s);
+      (*sp.get<client>())->apply_message(
+        sp.create_scope("messages::sync_new_election_request"),
+        message);
+      break;
+    }
+
+    case network::message_type_t::sync_new_election_response: {
+      binary_deserializer s(message_data);
+      const messages::sync_new_election_response message(s);
+      (*sp.get<client>())->apply_message(
+        sp.create_scope("messages::sync_new_election_response"),
+        message);
+      break;
+    }
+
+    case network::message_type_t::sync_coronation_request: {
+      binary_deserializer s(message_data);
+      const messages::sync_coronation_request message(s);
+      (*sp.get<client>())->apply_message(
+        sp.create_scope("messages::sync_coronation_request"),
+        message);
+      break;
+    }
+
+    case network::message_type_t::sync_coronation_response: {
+      binary_deserializer s(message_data);
+      const messages::sync_coronation_response message(s);
+      (*sp.get<client>())->apply_message(
+        sp.create_scope("messages::sync_coronation_response"),
+        message);
+      break;
+    }
+
     default:{
       throw std::runtime_error("Invalid command");
     }

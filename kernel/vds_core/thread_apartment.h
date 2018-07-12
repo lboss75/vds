@@ -8,11 +8,46 @@ All rights reserved
 #include <queue>
 #include <functional>
 #include <mutex>
+#include "mt_service.h"
+#include "vds_debug.h"
 
 namespace vds {
-  class thread_apartment {
+
+  class thread_apartment : std::enable_shared_from_this<thread_apartment> {
   public:
-    void schedule(const std::function<void(void)> & callback);
+    ~thread_apartment() {
+      vds_assert(this->task_queue_.empty());
+    }
+
+    void schedule(const service_provider & sp, const std::function<void(void)> & callback) {
+      std::unique_lock<std::mutex> lock(this->task_queue_mutex_);
+      const auto need_start = this->task_queue_.empty();
+      this->task_queue_.push(callback);
+      lock.unlock();
+
+      if(need_start) {
+        mt_service::async(sp, [pthis = this->shared_from_this()]() {
+          for (;;) {
+            std::unique_lock<std::mutex> lock(pthis->task_queue_mutex_);
+            auto f = pthis->task_queue_.front();
+            lock.unlock();
+
+            try {
+              f();
+            }
+            catch (...) {
+            }
+
+            lock.lock();
+            pthis->task_queue_.pop();
+            if (pthis->task_queue_.empty()) {
+              break;
+            }
+            lock.unlock();
+          }
+        });
+      }
+    }
 
   private:
     std::mutex task_queue_mutex_;

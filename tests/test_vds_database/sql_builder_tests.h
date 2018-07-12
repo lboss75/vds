@@ -6,6 +6,7 @@ All rights reserved
 #define __VDS_TEST_DATABASE_SQL_BUILDER_TESTS_H_
 
 #define database mock_database
+#define database_read_transaction mock_database_read_transaction
 #define database_transaction mock_database_transaction
 #define sql_statement mock_sql_statement
 

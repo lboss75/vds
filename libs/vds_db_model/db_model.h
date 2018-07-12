@@ -18,7 +18,7 @@ namespace vds {
 
 		async_task<> async_read_transaction(
 				const service_provider & sp,
-				const std::function<void(class database_transaction & t)> & handler);
+				const std::function<void(class database_read_transaction & t)> & handler);
 
 	void start(const service_provider & sp);
 	void stop(const service_provider & sp);

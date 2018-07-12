@@ -53,40 +53,46 @@ namespace vds {
     _sql_statement * impl_;
   };
 
-  class database_transaction
-  {
+  class database_read_transaction {
   public:
-    void execute(const char * sql);
     sql_statement parse(const char * sql);
 
-    template <typename command_type>
-    void execute(const command_type & command)
-    {
-      auto st = sql_command_builder<command_type>().build(*this, command);
-      st.execute();      
-    }
-    
     template <typename command_type>
     sql_statement get_reader(const command_type & command)
     {
       return sql_command_builder<command_type>().build(*this, command);
     }
 
+  protected:
+    friend class _database;
+    friend class database;
+
+    database_read_transaction(const std::shared_ptr<_database> & impl)
+      : impl_(impl) {
+    }
+
+    std::shared_ptr<_database> impl_;
+  };
+
+  class database_transaction : public database_read_transaction
+  {
+  public:
+    void execute(const char * sql);
+
+    template <typename command_type>
+    void execute(const command_type & command)
+    {
+      auto st = sql_command_builder<command_type>().build(*this, command);
+      st.execute();      
+    }    
+
   private:
     friend class _database;
     friend class database;
-   
-    database_transaction()
-      : impl_(nullptr)
-    {
-    }
-    
-    database_transaction(_database * impl)
-      : impl_(impl)
-    {
-    }
 
-    _database * const impl_;
+    database_transaction(const std::shared_ptr<_database> & impl)
+      : database_read_transaction(impl) {
+    }
   };
 
   class database
@@ -101,10 +107,10 @@ namespace vds {
     void async_transaction(
       const service_provider & sp,
       const std::function<bool(database_transaction & tr)> & callback);
-    
-    void sync_transaction(
+
+    void async_read_transaction(
       const service_provider & sp,
-      const std::function<bool(database_transaction & tr)> & callback);
+      const std::function<void(database_read_transaction & tr)> & callback);
 
     async_task<> prepare_to_stop(const service_provider &sp);
 

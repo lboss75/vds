@@ -564,7 +564,7 @@ vds::dht::network::_client::apply_message(
 
   return sp.get<db_model>()->async_read_transaction(
     sp,
-    [pthis = this->shared_from_this(), sp, message](database_transaction &t) -> bool {
+    [pthis = this->shared_from_this(), sp, message](database_read_transaction &t) {
 
       auto & client = *sp.get<vds::dht::network::client>();
 
@@ -603,7 +603,6 @@ vds::dht::network::_client::apply_message(
         }
       }
     }
-    return true;
   });
 }
 
@@ -613,7 +612,7 @@ vds::dht::network::_client::apply_message(
   const std::shared_ptr<dht_session> &session,
   const vds::dht::messages::got_replica &message) {
 
-  return sp.get<db_model>()->async_read_transaction(
+  return sp.get<db_model>()->async_transaction(
     sp,
     [pthis = this->shared_from_this(), sp, message](database_transaction &t) -> bool {
     for (const auto p : message.replicas()) {
@@ -628,6 +627,28 @@ vds::dht::network::_client::apply_message(
     return true;
   });
 }
+
+void vds::dht::network::_client::apply_message(
+  const service_provider& sp,
+  const messages::sync_new_election_request& message) {
+  this->sync_process_.apply_message(sp, message);
+}
+
+void vds::dht::network::_client::apply_message(const service_provider& sp,
+  const messages::sync_new_election_response& message) {
+  this->sync_process_.apply_message(sp, message);
+}
+
+void vds::dht::network::_client::apply_message(const service_provider& sp,
+  const messages::sync_coronation_request& message) {
+  this->sync_process_.apply_message(sp, message);
+}
+
+void vds::dht::network::_client::apply_message(const service_provider& sp,
+  const messages::sync_coronation_response& message) {
+  this->sync_process_.apply_message(sp, message);
+}
+
 vds::async_task<> vds::dht::network::_client::restore(
     const vds::service_provider &sp,
     const std::string & name,
@@ -685,7 +706,7 @@ vds::async_task<uint8_t> vds::dht::network::_client::restore_async(
 
   auto result_progress = std::make_shared<uint8_t>();
   auto result_task = std::make_shared<async_task<>>(async_task<>::empty());
-  return sp.get<db_model>()->async_read_transaction(
+  return sp.get<db_model>()->async_transaction(
     sp,
     [pthis = this->shared_from_this(), sp, object_ids, result, result_task, result_progress](database_transaction &t) -> bool {
 

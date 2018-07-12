@@ -33,11 +33,9 @@ void vds::database::async_transaction(
   this->impl_->async_transaction(sp, callback);
 }
 
-void vds::database::sync_transaction(
-  const service_provider & sp,
-  const std::function<bool(database_transaction & tr)> & callback)
-{
-  this->impl_->sync_transaction(sp, callback);
+void vds::database::async_read_transaction(const service_provider& sp,
+  const std::function<void(database_read_transaction& tr)>& callback) {
+  this->impl_->async_read_transaction(sp, callback);
 }
 
 vds::async_task<> vds::database::prepare_to_stop(const vds::service_provider &sp) {
@@ -49,7 +47,7 @@ void vds::database_transaction::execute(const char * sql)
    this->impl_->execute(sql);
 }
 
-vds::sql_statement vds::database_transaction::parse(const char * sql)
+vds::sql_statement vds::database_read_transaction::parse(const char * sql)
 {
   return this->impl_->parse(sql);
 }

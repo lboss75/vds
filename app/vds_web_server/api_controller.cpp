@@ -188,7 +188,7 @@ vds::api_controller::user_devices(
     const std::shared_ptr<vds::user_manager> &user_mng,
     const std::shared_ptr<vds::_web_server> &owner) {
   auto result = std::make_shared<json_array>();
-  return sp.get<db_model>()->async_read_transaction(sp, [sp, user_mng, result](database_transaction & t){
+  return sp.get<db_model>()->async_read_transaction(sp, [sp, user_mng, result](database_read_transaction & t){
     auto client = sp.get<dht::network::client>();
     auto current_node = client->current_node_id();
 
@@ -339,7 +339,7 @@ vds::async_task<vds::const_data_buffer> vds::api_controller::get_register_reques
 
   auto result = std::make_shared<const_data_buffer>();
 
-  return sp.get<db_model>()->async_read_transaction(sp, [sp, request_id, result](database_transaction & t) {
+  return sp.get<db_model>()->async_read_transaction(sp, [sp, request_id, result](database_read_transaction & t) {
     orm::register_request t1;
     auto st = t.get_reader(t1.select(t1.data).where(t1.id == request_id));
     if (!st.execute()) {

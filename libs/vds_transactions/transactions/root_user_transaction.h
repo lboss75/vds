@@ -36,11 +36,6 @@ namespace vds {
 
       void serialize(class binary_serializer &b) const;
 
-      void apply(
-          const service_provider & sp,
-          database_transaction & t) const {
-      }
-
     private:
       std::string user_credentials_key_;
       certificate user_cert_;

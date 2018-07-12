@@ -92,12 +92,6 @@ namespace vds {
         return write_private_key_;
       }
 
-      void apply(
-          const service_provider & sp,
-          database_transaction & t) {
-
-      }
-
     private:
       const_data_buffer channel_id_;
       std::string channel_type_;
