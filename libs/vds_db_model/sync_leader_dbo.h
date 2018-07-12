@@ -14,16 +14,14 @@ namespace vds {
 			sync_leader_dbo()
 				: database_table("sync_leader"),
 				object_id(this, "object_id"),
-				replica(this, "replica"),
         leader(this, "leader"),
-        generation(this, "generation")
+        last_sync(this, "last_sync")
 			{
 			}
 
 			database_column<std::string> object_id;
-			database_column<int> replica;
       database_column<std::string> leader;
-      database_column<int> generation;
+      database_column<std::chrono::system_clock::time_point> last_sync;
 		};
 	}
 }

@@ -122,7 +122,7 @@ namespace vds {
         std::shared_ptr<thread_apartment> sync_object_;
         std::map<const_data_buffer, sync_entry> sync_entries_;
 
-        void sync_entryes(
+        void sync_entries(
           const service_provider &sp,
           database_transaction & t);
 

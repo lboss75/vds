@@ -21,6 +21,7 @@ All rights reserved
 #include "messages/sync_get_leader.h"
 #include "messages/sync_new_election.h"
 #include "messages/sync_coronation.h"
+#include "sync_leader_dbo.h"
 
 void vds::dht::network::sync_process::query_unknown_records(const service_provider& sp, database_transaction& t) {
   std::map<const_data_buffer, std::vector<const_data_buffer>> record_ids;
@@ -285,11 +286,29 @@ void vds::dht::network::sync_process::sync_entry::make_canditate(
 }
 
 
-void vds::dht::network::sync_process::sync_entryes(
+void vds::dht::network::sync_process::sync_entries(
   const service_provider& sp,
   database_transaction& t) {
 
-  this->sync_object_->schedule(sp, [this, sp]() {
+  std::map<const_data_buffer, const_data_buffer> objects;
+  orm::sync_leader_dbo t1;
+  auto st = t.get_reader(t1.select(t1.object_id, t1.leader).where(t1.last_sync <= std::chrono::system_clock::now() - std::chrono::hours(1)));
+  while(st.execute()) {
+    objects[base64::to_bytes(t1.object_id.get(st))] = base64::to_bytes(t1.leader.get(st));
+  }
+
+  const auto now = std::chrono::system_clock::now();
+  for(const auto & object : objects) {
+    t.execute(t1.update(t1.last_sync = now).where(t1.object_id == base64::from_bytes(object.first)));
+  }
+
+  this->sync_object_->schedule(sp, [this, sp, objects]() {
+    for (const auto & object : objects) {
+      auto p = this->sync_entries_.find(object.first);
+      if(this->sync_entries_.end() == p) {
+        this->sync_entries_[object.first].make_follower(sp, object.first, object.second, 0);
+      }
+    }
 
     auto now = std::chrono::system_clock::now();
     for (auto p : this->sync_entries_) {
