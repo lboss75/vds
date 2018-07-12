@@ -91,6 +91,7 @@ namespace vds {
           std::chrono::system_clock::time_point last_operation_;
 
           const_data_buffer leader_;
+          uint64_t generation_;
           uint64_t current_term_;
 
           const_data_buffer voted_for_;

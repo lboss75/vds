@@ -18,7 +18,7 @@ All rights reserved
 #include "chunk_replica_data_dbo.h"
 #include "messages/object_request.h"
 #include "chunk_replica_map_dbo.h"
-#include "messages/sync_get_leader.h"
+#include "messages/sync_member_operation.h"
 #include "messages/sync_new_election.h"
 #include "messages/sync_coronation.h"
 #include "sync_leader_dbo.h"
@@ -215,7 +215,6 @@ void vds::dht::network::sync_process::add_sync_entry(
 
     this->sync_entries_[object_id].make_canditate(sp, object_id);
   });
-
 }
 
 vds::dht::network::sync_process::sync_entry::sync_entry()
