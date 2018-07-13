@@ -17,6 +17,7 @@ All rights reserved
 #endif
 
 #define ThisModule "dht"
+#define SyncModule "dht_sync"
 
 #endif // __VDS_DHT_NETWORK_STDAFX_H_
 

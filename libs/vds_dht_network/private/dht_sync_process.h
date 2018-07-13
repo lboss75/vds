@@ -12,6 +12,7 @@ All rights reserved
 namespace vds {
   namespace dht {
     namespace messages {
+      class sync_base_message_request;
       class sync_coronation_response;
       class sync_coronation_request;
       class sync_new_election_response;
@@ -46,6 +47,11 @@ namespace vds {
         void apply_message(
           const service_provider& sp,
           database_transaction& t,
+          const messages::sync_base_message_request & message);
+
+          void apply_message(
+          const service_provider& sp,
+          database_transaction& t,
           const messages::transaction_log_request& message);
 
         void apply_message(
@@ -66,8 +72,14 @@ namespace vds {
           const service_provider& sp,
           const messages::sync_new_election_response & message);
 
+        void make_new_follower(
+          const service_provider& sp,
+          database_transaction& t,
+          const messages::sync_coronation_request& message);
+
         void apply_message(
           const service_provider& sp,
+          database_transaction & t,
           const messages::sync_coronation_request & message);
 
         void apply_message(
@@ -75,31 +87,12 @@ namespace vds {
           const messages::sync_coronation_response & message);
 
       private:
+        static constexpr std::chrono::system_clock::duration LEADER_BROADCAST_TIMEOUT = std::chrono::minutes(10);
+        static constexpr std::chrono::system_clock::duration ELECTION_TIMEOUT = std::chrono::seconds(5);
+        static constexpr std::chrono::system_clock::duration CANDITATE_TIMEOUT = std::chrono::seconds(5);
 
         struct sync_entry {
-          static constexpr std::chrono::system_clock::duration ELECTION_TIMEOUT = std::chrono::seconds(5);
-          static constexpr std::chrono::system_clock::duration CANDITATE_TIMEOUT = std::chrono::seconds(5);
 
-          enum class state_t {
-            follower,
-            start_election,
-            canditate,
-            leader
-          };
-
-          state_t state_;
-          std::chrono::system_clock::time_point last_operation_;
-
-          const_data_buffer leader_;
-          uint64_t generation_;
-          uint64_t current_term_;
-
-          const_data_buffer voted_for_;
-          uint64_t commit_index_;
-          uint64_t last_applied_;
-
-          std::set<const_data_buffer> member_notes_;
-          std::size_t quorum_;
 
           sync_entry();
 

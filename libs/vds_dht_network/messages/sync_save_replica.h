@@ -1,4 +1,4 @@
-#ifndef __VDS_DHT_NETWORK_SYNC_VOTE_LEADER_H_
+#ifndef __VDS_DHT_NETWORK_sync_save_replica_H_
 #define __VDS_DHT_NETWORK_SYNC_VOTE_LEADER_H_
 
 /*
@@ -12,9 +12,9 @@ All rights reserved
 namespace vds {
   namespace dht {
     namespace messages {
-      class sync_get_vote_request {
+      class sync_save_replica_request {
       public:
-        static const network::message_type_t message_id = network::message_type_t::sync_get_vote_request;
+        static const network::message_type_t message_id = network::message_type_t::sync_save_replica_request;
 
         sync_get_vote_request(
             const const_data_buffer &object_id,

@@ -9,9 +9,9 @@ All rights reserved
 
 namespace vds {
 	namespace orm {
-		class chunk_replica_map_dbo : public database_table {
+		class sync_replica_map_dbo : public database_table {
 		public:
-			chunk_replica_map_dbo()
+			sync_replica_map_dbo()
 				: database_table("chunk_replica_map"),
 				object_id(this, "object_id"),
 				replica(this, "replica"),

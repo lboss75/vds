@@ -17,11 +17,13 @@ All rights reserved
 #include "messages/got_replica.h"
 #include "chunk_replica_data_dbo.h"
 #include "messages/object_request.h"
-#include "chunk_replica_map_dbo.h"
+#include "sync_replica_map_dbo.h"
 #include "messages/sync_member_operation.h"
 #include "messages/sync_new_election.h"
 #include "messages/sync_coronation.h"
-#include "sync_leader_dbo.h"
+#include "sync_state_dbo.h"
+#include "sync_member_dbo.h"
+#include "messages/sync_apply_operation.h"
 
 void vds::dht::network::sync_process::query_unknown_records(const service_provider& sp, database_transaction& t) {
   std::map<const_data_buffer, std::vector<const_data_buffer>> record_ids;
@@ -86,6 +88,7 @@ void vds::dht::network::sync_process::do_sync(
   this->sync_local_channels(sp, t);
   this->sync_replicas(sp, t);
   this->query_unknown_records(sp, t);
+  this->sync_entries(sp, t);
 }
 
 vds::async_task<> vds::dht::network::sync_process::apply_message(
@@ -202,29 +205,140 @@ void vds::dht::network::sync_process::apply_message(
     message.data());
 }
 
+void vds::dht::network::sync_process::apply_message(
+  const service_provider& sp,
+  database_transaction& t,
+  const messages::sync_base_message_request & message) {
+
+  orm::sync_state_dbo t1;
+  orm::sync_member_dbo t2;
+  auto st = t.get_reader(t1.select(
+    t1.state, t1.generation, t1.current_term, t1.voted_for)
+    .where(t1.object_id == base64::from_bytes(message.object_id())));
+
+  if (st.execute()) {
+    if (
+      message.generation() < t1.generation.get(st)
+      || (message.generation() == t1.generation.get(st) && message.current_term() < t1.current_term.get(st))) {
+      this->send_coronation_request(sp, t, message.object_id(), message.source_node());
+    }
+    else {
+      auto & client = *sp.get<dht::network::client>();
+      if (message.member_notes().end() == message.member_notes().find(client->current_node_id())) {
+        client->send(
+          sp,
+          message.source_node(),
+          messages::sync_member_operation_request(
+            message.object_id(),
+            client.current_node_id(),
+            t1.generation.get(st),
+            t1.current_term.get(st),
+            messages::sync_member_operation_request::operation_type_t::add_member));
+
+        t.execute(t2.delete_if(t2.object_id == base64::from_bytes(message.object_id())));
+        t.execute(t1.delete_if(t1.object_id == base64::from_bytes(message.object_id())));
+      }
+      else {
+        this->make_follower(sp, t, message);
+      }
+    }
+  }
+  else {
+    this->make_follower(sp, t, message);
+  }
+
+  this->sync_object_->schedule(sp, [this, sp, message]() {
+    auto p = this->sync_entries_.find(message.object_id());
+    if (this->sync_entries_.end() == p) {
+      auto & entry = this->sync_entries_.at(message.object_id());
+      entry.make_follower(sp, message.object_id(), message.source_node(), message.current_term());
+
+      auto & client = *sp.get<dht::network::client>();
+      if (message.member_notes().end() == message.member_notes().find(client->current_node_id())) {
+        client->send(
+          sp,
+          message.source_node(),
+          messages::sync_coronation_response(
+            message.object_id(),
+            message.current_term(),
+            client.current_node_id()));
+      }
+    }
+    else if (p->second.current_term_ <= message.current_term()) {
+      p->second.make_follower(sp, message.object_id(), message.source_node(), message.current_term());
+
+      auto & client = *sp.get<dht::network::client>();
+      if (message.member_notes().end() == message.member_notes().find(client->current_node_id())) {
+        client->send(
+          sp,
+          message.source_node(),
+          messages::sync_coronation_response(
+            message.object_id(),
+            message.current_term(),
+            client.current_node_id()));
+      }
+    }
+    else {
+      auto & client = *sp.get<dht::network::client>();
+      if (message.member_notes().end() == message.member_notes().find(client->current_node_id())) {
+        client->send(
+          sp,
+          message.source_node(),
+          messages::sync_coronation_request(
+            message.object_id(),
+            message.current_term(),
+            std::set<const_data_buffer>(),
+            p->second.voted_for_));
+      }
+    }
+  });
+
+
+}
+
 void vds::dht::network::sync_process::add_sync_entry(
   const service_provider& sp,
   database_transaction& t,
   const const_data_buffer& object_id) {
 
-  this->sync_object_->schedule(sp, [this, sp, object_id]() {
-    const auto p = this->sync_entries_.find(object_id);
-    if (this->sync_entries_.end() != p) {
-      return;
-    }
+  auto & client = *sp.get<dht::network::client>();
 
-    this->sync_entries_[object_id].make_canditate(sp, object_id);
-  });
+  orm::sync_state_dbo t1;
+  t.execute(t1.insert(
+    t1.object_id = base64::from_bytes(object_id),
+    t1.state = static_cast<uint8_t>(orm::sync_state_dbo::state_t::leader),
+    t1.next_sync = std::chrono::system_clock::now() + LEADER_BROADCAST_TIMEOUT,
+    t1.voted_for = base64::from_bytes(client.current_node_id()),
+    t1.generation = 0,
+    t1.current_term = 0,
+    t1.commit_index = 0,
+    t1.last_applied = 0));
+
+  sp.get<logger>()->trace(ThisModule, sp, "Make leader %s:0:0", base64::from_bytes(object_id).c_str());
+  std::map<const_data_buffer, std::set<uint16_t>> members_map;
+  orm::sync_replica_map_dbo t2;
+  for(uint16_t i = 0; i < _client::GENERATE_DISTRIBUTED_PIECES; ++i) {
+    t.execute(t2.insert(
+      t2.object_id = base64::from_bytes(object_id),
+      t2.replica = i,
+      t2.node = base64::from_bytes(client.current_node_id()),
+      t2.last_access = std::chrono::system_clock::now()));
+
+    members_map[client.current_node_id()].emplace(i);
+  }
+  client->send_near(
+    sp,
+    object_id,
+    _client::GENERATE_DISTRIBUTED_PIECES,
+    messages::sync_coronation_request(
+      object_id,
+      0,
+      0,
+      members_map,
+      client.current_node_id()));
+
 }
 
-vds::dht::network::sync_process::sync_entry::sync_entry()
-: state_(state_t::follower),
-  last_operation_(std::chrono::system_clock::now()),
-  current_term_(0),
-  commit_index_(0),
-  last_applied_(0),
-  quorum_(_client::GENERATE_DISTRIBUTED_PIECES / 2) {
-}
 
 void vds::dht::network::sync_process::sync_entry::make_follower(
   const service_provider& sp,
@@ -406,9 +520,95 @@ void vds::dht::network::sync_process::apply_message(
   });
 }
 
+void vds::dht::network::sync_process::make_new_follower(
+  const service_provider& sp,
+  database_transaction& t,
+  const messages::sync_coronation_request& message) {
+
+  orm::sync_state_dbo t1;
+  t.execute(t1.insert(
+    t1.object_id = base64::from_bytes(message.object_id()),
+    t1.state = static_cast<uint8_t>(orm::sync_state_dbo::state_t::follower),
+    t1.next_sync = std::chrono::system_clock::now() + LEADER_BROADCAST_TIMEOUT,
+    t1.voted_for = base64::from_bytes(message.source_node()),
+    t1.generation = message.generation(),
+    t1.current_term = message.current_term(),
+    t1.commit_index = 0,
+    t1.last_applied = 0));
+
+  orm::sync_replica_map_dbo t2;
+  for(auto p : message.member_notes()) {
+    for (auto replica : p.second) {
+      t.execute(t2.insert(
+        t2.object_id = base64::from_bytes(message.object_id()),
+        t2.replica = replica,
+        t2.node = base64::from_bytes(p.first),
+        t2.last_access = std::chrono::system_clock::now()));
+    }
+  }
+
+  sp.get<logger>()->trace(
+    SyncModule,
+    sp,
+    "Make follower %s:%d:%d",
+    base64::from_bytes(message.object_id()).c_str(),
+    message.generation(),
+    message.current_term());
+
+  auto & client = *sp.get<dht::network::client>();
+  client->send(
+    sp,
+    message.source_node(),
+    messages::sync_apply_operation_request(
+      message.object_id(),
+      client.current_node_id(),
+      message.generation(),
+      message.current_term(),
+      0,
+      0
+      ));
+}
+
 void vds::dht::network::sync_process::apply_message(
   const service_provider& sp,
+  database_transaction & t,
   const messages::sync_coronation_request& message) {
+
+  orm::sync_state_dbo t1;
+  orm::sync_member_dbo t2;
+  auto st = t.get_reader(t1.select(
+    t1.state, t1.generation, t1.current_term)
+    .where(t1.object_id == base64::from_bytes(message.object_id())));
+
+  if(st.execute()) {
+    if (
+      message.generation() < t1.generation.get(st)
+      || (message.generation() == t1.generation.get(st) && message.current_term() < t1.current_term.get(st))) {
+      this->send_coronation_request(sp, t, message.object_id(), message.source_node());
+    }
+    else {
+      auto & client = *sp.get<dht::network::client>();
+      if (message.member_notes().end() == message.member_notes().find(client->current_node_id())) {
+        client->send(
+          sp,
+          message.source_node(),
+          messages::sync_member_operation_request(
+            message.object_id(),
+            client.current_node_id(),
+            t1.generation.get(st),
+            t1.current_term.get(st),
+            messages::sync_member_operation_request::operation_type_t::add_member));
+
+        t.execute(t2.delete_if(t2.object_id == base64::from_bytes(message.object_id())));
+        t.execute(t1.delete_if(t1.object_id == base64::from_bytes(message.object_id())));
+      } else {
+        this->make_follower(sp, t, message);
+      }
+    }
+  }
+  else {
+    this->make_follower(sp, t, message);
+  }
 
   this->sync_object_->schedule(sp, [this, sp, message]() {
     auto p = this->sync_entries_.find(message.object_id());
@@ -523,7 +723,7 @@ void vds::dht::network::sync_process::sync_replicas(
   //Move replicas closer to root
   for (const auto & p : objects) {
     std::set<uint16_t> replicas;
-    orm::chunk_replica_map_dbo t3;
+    orm::sync_replica_map_dbo t3;
     st = t.get_reader(t3.select(t3.replica).where(t3.object_id == base64::from_bytes(p)));
     while (st.execute()) {
       if (replicas.end() == replicas.find(t3.replica.get(st))) {

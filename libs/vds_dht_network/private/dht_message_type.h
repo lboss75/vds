@@ -45,6 +45,10 @@ namespace vds {
         sync_coronation_request,
         sync_coronation_response,
 
+        sync_apply_operation_request,
+        sync_apply_operation_response,
+
+
       };
     }
   }

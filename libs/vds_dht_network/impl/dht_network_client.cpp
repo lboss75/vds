@@ -25,7 +25,7 @@ All rights reserved
 #include "chunk_replica_data_dbo.h"
 #include "messages/replica_data.h"
 #include "messages/got_replica.h"
-#include "chunk_replica_map_dbo.h"
+#include "sync_replica_map_dbo.h"
 
 vds::dht::network::_client::_client(
     const service_provider & sp,
@@ -616,7 +616,7 @@ vds::dht::network::_client::apply_message(
     sp,
     [pthis = this->shared_from_this(), sp, message](database_transaction &t) -> bool {
     for (const auto p : message.replicas()) {
-      orm::chunk_replica_map_dbo t1;
+      orm::sync_replica_map_dbo t1;
       t.execute(
         t1.insert_or_ignore(
           t1.object_id = base64::from_bytes(message.object_id()),
