@@ -12,7 +12,7 @@ All rights reserved
 namespace vds {
   namespace dht {
     namespace messages {
-      class sync_member_operation_request {
+      class sync_member_operation_request : public sync_base_message_request {
       public:
         static const network::message_type_t message_id = network::message_type_t::sync_member_operation_request;
 
@@ -96,7 +96,7 @@ namespace vds {
               source_node_(source_node) {
         }
 
-        sync_get_leader_response(
+        sync_member_operation_response(
             binary_deserializer & s) {
           s
               >> this->object_id_

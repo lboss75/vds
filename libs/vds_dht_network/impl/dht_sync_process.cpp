@@ -404,8 +404,9 @@ void vds::dht::network::sync_process::sync_entries(
   database_transaction& t) {
 
   std::map<const_data_buffer, const_data_buffer> objects;
-  orm::sync_leader_dbo t1;
-  auto st = t.get_reader(t1.select(t1.object_id, t1.leader).where(t1.last_sync <= std::chrono::system_clock::now() - std::chrono::hours(1)));
+  orm::sync_state_dbo t1;
+  auto st = t.get_reader(
+      t1.select(t1.object_id, t1.leader).where(t1.last_sync <= std::chrono::system_clock::now() - std::chrono::hours(1)));
   while(st.execute()) {
     objects[base64::to_bytes(t1.object_id.get(st))] = base64::to_bytes(t1.leader.get(st));
   }
