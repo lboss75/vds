@@ -220,80 +220,15 @@ void vds::dht::network::sync_process::apply_message(
     if (
       message.generation() < t1.generation.get(st)
       || (message.generation() == t1.generation.get(st) && message.current_term() < t1.current_term.get(st))) {
-      this->send_coronation_request(sp, t, message.object_id(), message.source_node());
+      this->send_coronation_request(sp, t, message.object_id(), message.leader_node());
     }
-    else {
-      auto & client = *sp.get<dht::network::client>();
-      if (message.member_notes().end() == message.member_notes().find(client->current_node_id())) {
-        client->send(
-          sp,
-          message.source_node(),
-          messages::sync_member_operation_request(
-            message.object_id(),
-            client.current_node_id(),
-            t1.generation.get(st),
-            t1.current_term.get(st),
-            messages::sync_member_operation_request::operation_type_t::add_member));
-
-        t.execute(t2.delete_if(t2.object_id == base64::from_bytes(message.object_id())));
-        t.execute(t1.delete_if(t1.object_id == base64::from_bytes(message.object_id())));
-      }
-      else {
-        this->make_follower(sp, t, message);
-      }
+    else if(
+      message.generation() == t1.generation.get(st)
+      && message.generation() == t1.generation.get(st)
+      && base64::to_bytes(t1.voted_for.get(st)) != message.leader_node()) {
+        this->make_new_election(sp, t);
     }
   }
-  else {
-    this->make_follower(sp, t, message);
-  }
-
-  this->sync_object_->schedule(sp, [this, sp, message]() {
-    auto p = this->sync_entries_.find(message.object_id());
-    if (this->sync_entries_.end() == p) {
-      auto & entry = this->sync_entries_.at(message.object_id());
-      entry.make_follower(sp, message.object_id(), message.source_node(), message.current_term());
-
-      auto & client = *sp.get<dht::network::client>();
-      if (message.member_notes().end() == message.member_notes().find(client->current_node_id())) {
-        client->send(
-          sp,
-          message.source_node(),
-          messages::sync_coronation_response(
-            message.object_id(),
-            message.current_term(),
-            client.current_node_id()));
-      }
-    }
-    else if (p->second.current_term_ <= message.current_term()) {
-      p->second.make_follower(sp, message.object_id(), message.source_node(), message.current_term());
-
-      auto & client = *sp.get<dht::network::client>();
-      if (message.member_notes().end() == message.member_notes().find(client->current_node_id())) {
-        client->send(
-          sp,
-          message.source_node(),
-          messages::sync_coronation_response(
-            message.object_id(),
-            message.current_term(),
-            client.current_node_id()));
-      }
-    }
-    else {
-      auto & client = *sp.get<dht::network::client>();
-      if (message.member_notes().end() == message.member_notes().find(client->current_node_id())) {
-        client->send(
-          sp,
-          message.source_node(),
-          messages::sync_coronation_request(
-            message.object_id(),
-            message.current_term(),
-            std::set<const_data_buffer>(),
-            p->second.voted_for_));
-      }
-    }
-  });
-
-
 }
 
 void vds::dht::network::sync_process::add_sync_entry(
@@ -403,11 +338,44 @@ void vds::dht::network::sync_process::sync_entries(
   const service_provider& sp,
   database_transaction& t) {
 
-  std::map<const_data_buffer, const_data_buffer> objects;
-  orm::sync_leader_dbo t1;
-  auto st = t.get_reader(t1.select(t1.object_id, t1.leader).where(t1.last_sync <= std::chrono::system_clock::now() - std::chrono::hours(1)));
-  while(st.execute()) {
-    objects[base64::to_bytes(t1.object_id.get(st))] = base64::to_bytes(t1.leader.get(st));
+  std::map<const_data_buffer, std::tuple<orm::sync_state_dbo::state_t>> objects;
+  orm::sync_state_dbo t1;
+  auto st = t.get_reader(
+    t1.select(
+      t1.object_id,
+      t1.state)
+    .where(t1.next_sync <= std::chrono::system_clock::now()));
+  while (st.execute()) {
+    auto object_id = t1.object_id.get(st);
+    auto state = static_cast<orm::sync_state_dbo::state_t>(t1.state.get(st));
+    objects[object_id] = std::make_tuple(state);
+  }
+
+  for (const auto & p : objects) {
+    switch (p.second) {
+    case orm::sync_state_dbo::state_t::canditate: {
+
+      break;
+    }
+
+    case orm::sync_state_dbo::state_t::leader: {
+      orm::sync_member_dbo t2;
+      st = t.get_reader(
+        t2.select(t2.member_id)
+        .where(t2.object_id == base64::from_bytes(p.first)));
+      while (st.execute()) {
+        auto member_id = t2.member_id.get(st);
+
+      }
+
+      break;
+    }
+
+    case orm::sync_state_dbo::state_t::follower: {
+
+      break;
+    }
+    }
   }
 
   const auto now = std::chrono::system_clock::now();
