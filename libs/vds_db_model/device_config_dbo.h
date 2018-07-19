@@ -18,7 +18,9 @@ namespace vds {
         local_path(this, "local_path"),
         owner_id(this, "owner_id"),
         name(this, "name"),
-        reserved_size(this, "reserved_size"){
+        reserved_size(this, "reserved_size"),
+        cert(this, "cert"),
+        private_key(this, "private_key") {
       }
 
       database_column<std::string> node_id;
@@ -28,6 +30,9 @@ namespace vds {
 
       database_column<std::string> name;
       database_column<uint64_t> reserved_size;
+
+      database_column<std::string> cert;
+      database_column<std::string> private_key;
     };
   }
 }
