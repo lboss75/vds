@@ -213,7 +213,7 @@ void vds::dht::network::sync_process::apply_message(
   orm::sync_state_dbo t1;
   orm::sync_member_dbo t2;
   auto st = t.get_reader(t1.select(
-    t1.state, t1.generation, t1.current_term, t1.voted_for)
+    t1.state, t1.generation, t1.current_term, t1.voted_for, t1.last_applied, t1.commit_index)
     .where(t1.object_id == base64::from_bytes(message.object_id())));
 
   if (st.execute()) {
@@ -348,13 +348,20 @@ void vds::dht::network::sync_process::sync_entries(
   while (st.execute()) {
     auto object_id = t1.object_id.get(st);
     auto state = static_cast<orm::sync_state_dbo::state_t>(t1.state.get(st));
-    objects[object_id] = std::make_tuple(state);
+    auto & p = objects.at(base64::to_bytes(object_id));
+    std::get<0>(p) = state;
   }
 
   for (const auto & p : objects) {
-    switch (p.second) {
-    case orm::sync_state_dbo::state_t::canditate: {
+    switch (std::get<0>(p.second)) {
 
+    case orm::sync_state_dbo::state_t::follower: {
+      this->make_candidate(sp, t, p.first);
+      break;
+    }
+
+    case orm::sync_state_dbo::state_t::canditate: {
+      this->make_candidate(sp, t, p.first);
       break;
     }
 
@@ -371,50 +378,8 @@ void vds::dht::network::sync_process::sync_entries(
       break;
     }
 
-    case orm::sync_state_dbo::state_t::follower: {
-
-      break;
-    }
     }
   }
-
-  const auto now = std::chrono::system_clock::now();
-  for(const auto & object : objects) {
-    t.execute(t1.update(t1.last_sync = now).where(t1.object_id == base64::from_bytes(object.first)));
-  }
-
-  this->sync_object_->schedule(sp, [this, sp, objects]() {
-    for (const auto & object : objects) {
-      auto p = this->sync_entries_.find(object.first);
-      if(this->sync_entries_.end() == p) {
-        this->sync_entries_[object.first].make_follower(sp, object.first, object.second, 0);
-      }
-    }
-
-    auto now = std::chrono::system_clock::now();
-    for (auto p : this->sync_entries_) {
-      switch (p.second.state_) {
-      case sync_entry::state_t::start_election:
-        if (now - p.second.last_operation_ > sync_entry::ELECTION_TIMEOUT) {
-          p.second.make_canditate(sp, p.first);
-        }
-        break;
-
-      case sync_entry::state_t::canditate:
-        if (now - p.second.last_operation_ > sync_entry::CANDITATE_TIMEOUT) {
-          p.second.quorum_--;
-
-          if (2 > p.second.quorum_) {
-            p.second.make_leader(sp, p.first);
-          }
-          else {
-            p.second.make_canditate(sp, p.first);
-          }
-        }
-        break;
-      }
-    }
-  });
 }
 
 void vds::dht::network::sync_process::apply_message(
