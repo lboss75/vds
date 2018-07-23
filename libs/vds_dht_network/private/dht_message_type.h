@@ -48,7 +48,14 @@ namespace vds {
         sync_apply_operation_request,
         sync_apply_operation_response,
 
+        sync_leader_broadcast_request,
+        sync_leader_broadcast_response,
 
+        sync_replica_operations_request,
+        sync_replica_operations_response,
+
+        sync_looking_storage_request,
+        sync_looking_storage_response,
       };
     }
   }

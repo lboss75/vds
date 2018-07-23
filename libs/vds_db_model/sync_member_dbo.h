@@ -14,13 +14,13 @@ namespace vds {
       sync_member_dbo()
 				: database_table("sync_member"),
 				object_id(this, "object_id"),
-        member_id(this, "member_id"),
+        member_node(this, "member_node"),
         last_activity(this, "last_activity")
 			{
 			}
 
 			database_column<std::string> object_id;
-      database_column<std::string> member_id;
+      database_column<std::string> member_node;
       database_column<std::chrono::system_clock::time_point> last_activity;
     };
 	}

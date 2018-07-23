@@ -90,6 +90,7 @@ namespace vds {
         static constexpr std::chrono::system_clock::duration LEADER_BROADCAST_TIMEOUT = std::chrono::minutes(10);
         static constexpr std::chrono::system_clock::duration ELECTION_TIMEOUT = std::chrono::seconds(5);
         static constexpr std::chrono::system_clock::duration CANDITATE_TIMEOUT = std::chrono::seconds(5);
+        static constexpr std::chrono::system_clock::duration MEMBER_TIMEOUT = std::chrono::hours(1);
 
         struct sync_entry {
 

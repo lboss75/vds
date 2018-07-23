@@ -1,5 +1,5 @@
-#ifndef __VDS_DHT_NETWORK_sync_save_replica_H_
-#define __VDS_DHT_NETWORK_SYNC_VOTE_LEADER_H_
+#ifndef __VDS_DHT_NETWORK_SYNC_SAVE_REPLICA_H_
+#define __VDS_DHT_NETWORK_SYNC_SAVE_REPLICA_H_
 
 /*
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
@@ -96,4 +96,4 @@ namespace vds {
   }
 }
 
-#endif //__VDS_DHT_NETWORK_REPLICA_REQUEST_H_
+#endif //__VDS_DHT_NETWORK_SYNC_SAVE_REPLICA_H_

@@ -24,6 +24,10 @@ All rights reserved
 #include "sync_state_dbo.h"
 #include "sync_member_dbo.h"
 #include "messages/sync_apply_operation.h"
+#include "messages/sync_leader_broadcast.h"
+#include "sync_message_dbo.h"
+#include "messages/sync_replica_operations.h"
+#include "messages/sync_looking_storage.h"
 
 void vds::dht::network::sync_process::query_unknown_records(const service_provider& sp, database_transaction& t) {
   std::map<const_data_buffer, std::vector<const_data_buffer>> record_ids;
@@ -338,21 +342,40 @@ void vds::dht::network::sync_process::sync_entries(
   const service_provider& sp,
   database_transaction& t) {
 
-  std::map<const_data_buffer, std::tuple<orm::sync_state_dbo::state_t>> objects;
+  std::map<const_data_buffer, 
+    std::tuple<
+      orm::sync_state_dbo::state_t /*state*/,
+      uint64_t /*generation*/,
+      uint64_t /*current_term*/,
+      uint64_t /*commit_index*/,
+      uint64_t /*last_applied*/,
+      uint64_t /*next_index*/,
+      uint64_t /*object_size*/>> objects;
   orm::sync_state_dbo t1;
   auto st = t.get_reader(
     t1.select(
       t1.object_id,
-      t1.state)
+      t1.object_size,
+      t1.state,
+      t1.generation,
+      t1.current_term,
+      t1.commit_index,
+      t1.last_applied,
+      t1.next_index)
     .where(t1.next_sync <= std::chrono::system_clock::now()));
   while (st.execute()) {
-    auto object_id = t1.object_id.get(st);
-    auto state = static_cast<orm::sync_state_dbo::state_t>(t1.state.get(st));
+    const auto object_id = t1.object_id.get(st);
     auto & p = objects.at(base64::to_bytes(object_id));
-    std::get<0>(p) = state;
+    std::get<0>(p) = static_cast<orm::sync_state_dbo::state_t>(t1.state.get(st));
+    std::get<1>(p) = t1.generation.get(st);
+    std::get<2>(p) = t1.current_term.get(st);
+    std::get<3>(p) = t1.commit_index.get(st);
+    std::get<4>(p) = t1.last_applied.get(st);
+    std::get<5>(p) = t1.next_index.get(st);
+    std::get<6>(p) = t1.object_size.get(st);
   }
 
-  for (const auto & p : objects) {
+  for (auto & p : objects) {
     switch (std::get<0>(p.second)) {
 
     case orm::sync_state_dbo::state_t::follower: {
@@ -366,14 +389,95 @@ void vds::dht::network::sync_process::sync_entries(
     }
 
     case orm::sync_state_dbo::state_t::leader: {
+      auto & client = *sp.get<dht::network::client>();
+      //Send leader broadcast
       orm::sync_member_dbo t2;
       st = t.get_reader(
-        t2.select(t2.member_id)
+        t2.select(t2.member_node, t2.last_activity)
         .where(t2.object_id == base64::from_bytes(p.first)));
+      std::set<const_data_buffer> to_remove;
+      std::set<const_data_buffer> member_nodes;
       while (st.execute()) {
-        auto member_id = t2.member_id.get(st);
-
+        const auto member_node = t2.member_node.get(st);
+        
+        const auto last_activity = t2.last_activity.get(st);
+        if(std::chrono::system_clock::now() - last_activity > MEMBER_TIMEOUT) {
+          to_remove.emplace(base64::to_bytes(member_node));
+        }
+        else {
+          member_nodes.emplace(base64::to_bytes(member_node));
+        }
       }
+
+      if(to_remove.empty()) {
+        for (auto member_node : to_remove) {
+          sp.get<logger>()->trace(ThisModule, sp, "Send leader broadcast to %s", base64::from_bytes(member_node).c_str());
+
+          client->send(
+            sp,
+            member_node,
+            messages::sync_leader_broadcast_request(
+              p.first,
+              client.current_node_id(),
+              std::get<1>(p.second),
+              std::get<2>(p.second),
+              std::get<3>(p.second),
+              std::get<4>(p.second)));
+        }
+      }
+      else {
+        //Remove members
+        for (auto member_node : to_remove) {
+          orm::sync_message_dbo t3;
+          t.execute(
+            t3.insert(
+              t3.object_id = base64::from_bytes(p.first),
+              t3.generation = std::get<1>(p.second),
+              t3.current_term = std::get<2>(p.second),
+              t3.index = std::get<5>(p.second)++,
+              t3.message_type = static_cast<uint8_t>(orm::sync_message_dbo::message_type_t::remove_member),
+              t3.member_node = base64::from_bytes(member_node)));
+
+          for (auto member : member_nodes) {
+            client->send(
+              sp,
+              member,
+              messages::sync_replica_operations_request(
+                p.first,
+                client.current_node_id(),
+                std::get<1>(p.second),
+                std::get<2>(p.second),
+                std::get<3>(p.second),
+                std::get<4>(p.second),
+                std::get<5>(p.second),
+                orm::sync_message_dbo::message_type_t::remove_member,
+                base64::from_bytes(member_node)));
+          }
+        }
+      }
+
+      if(_client::GENERATE_DISTRIBUTED_PIECES > member_nodes.size()) {
+        client->send_near(
+          sp,
+          p.first,
+          _client::GENERATE_DISTRIBUTED_PIECES,
+          messages::sync_looking_storage_request(
+            p.first,
+            client.current_node_id(),
+            std::get<1>(p.second),
+            std::get<2>(p.second),
+            std::get<3>(p.second),
+            std::get<4>(p.second),
+            std::get<6>(p.second)),
+          [member_nodes](const const_data_buffer & )->bool{
+          });
+      }
+
+      t.execute(
+        t1.update(
+          t1.next_sync = std::chrono::system_clock::now() + LEADER_BROADCAST_TIMEOUT,
+          t1.next_index = std::get<5>(p.second))
+        .where(t1.object_id == base64::from_bytes(p.first)));
 
       break;
     }

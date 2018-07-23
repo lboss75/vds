@@ -164,6 +164,16 @@ namespace vds {
         }
 
         template <typename message_type>
+        void send_near(
+          const service_provider & sp,
+          const const_data_buffer & node_id,
+          size_t radius,
+          const message_type & message,
+          const std::function<bool(const dht_route<std::shared_ptr<dht_session>>::node & node)> & filter) {
+          this->send_near(sp, node_id, radius, message_type::message_id, message.serialize(), filter);
+        }
+
+        template <typename message_type>
         void send_closer(
           const service_provider & sp,
           const const_data_buffer & node_id,
@@ -236,6 +246,14 @@ namespace vds {
           size_t radius,
           const message_type_t message_id,
           const const_data_buffer& message);
+
+        void send_near(
+          const service_provider& sp,
+          const const_data_buffer& node_id,
+          size_t radius,
+          const message_type_t message_id,
+          const const_data_buffer& message,
+          const std::function<bool(const dht_route<std::shared_ptr<dht_session>>::node & node)> & filter);
 
         void send_closer(
           const service_provider& sp,

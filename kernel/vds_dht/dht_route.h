@@ -176,6 +176,26 @@ namespace vds {
         }
       }
 
+      void for_near(
+        const service_provider &sp,
+        const const_data_buffer &target_node_id,
+        size_t max_count,
+        const std::function<bool(const dht_route<std::shared_ptr<dht_session>>::node & node)>& filter,
+        const std::function<bool(const std::shared_ptr<node> & candidate)> &callback) {
+
+        std::map<const_data_buffer /*distance*/, std::list<std::shared_ptr<node>>> result_nodes;
+        this->search_nodes(sp, target_node_id, max_count, filter, result_nodes);
+
+        for (auto &presult : result_nodes) {
+          for (auto & node : presult.second) {
+            if (!callback(node)) {
+              return;
+            }
+          }
+        }
+      }
+      
+
       void get_neighbors(
         const service_provider& sp,
         std::list<std::shared_ptr<node>> & result_nodes) const;
@@ -349,6 +369,7 @@ namespace vds {
       size_t search_nodes(
           const service_provider &/*sp*/,
           const const_data_buffer &target_id,
+          const std::function<bool(const node & node)>& filter,
           std::map<const_data_buffer, std::list<std::shared_ptr<node>>> &result_nodes,
           uint8_t index) const {
         size_t result = 0;
@@ -358,7 +379,7 @@ namespace vds {
         }
 
         for (auto &node : p->second->nodes_) {
-          if (!node->is_good()) {
+          if (!node->is_good() || !filter(node)) {
             continue;
           }
 
