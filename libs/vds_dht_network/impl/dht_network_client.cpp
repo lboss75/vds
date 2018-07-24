@@ -73,10 +73,7 @@ std::vector<vds::const_data_buffer> vds::dht::network::_client::save(
           t1.last_sync = std::chrono::system_clock::now() - std::chrono::hours(24)
         ));
 
-      this->sync_process_.add_sync_entry(
-        sp,
-        t,
-        replica_hash);
+      this->sync_process_.add_sync_entry(sp, t, replica_hash, 0);
     }
     result[replica] = replica_hash;
   }
@@ -354,19 +351,27 @@ void vds::dht::network::_client::send_near(
   size_t radius,
   const message_type_t message_id,
   const const_data_buffer& message) {
+  std::map<network_address, std::shared_ptr<dht_session>> sessions;
   this->route_.for_near(
     sp,
     target_node_id,
     radius,
-    [sp, target_node_id, message_id, message, pthis = this->shared_from_this()](
-      const std::shared_ptr<dht_route<std::shared_ptr<dht_session>>::node> & candidate) {
-    candidate->send_message(
-      sp,
-      pthis->udp_transport_,
-      message_id,
-      message);
-    return true;
-  });
+    [&sessions](
+        const std::shared_ptr<dht_route<std::shared_ptr<dht_session>>::node> & candidate) {
+      auto session = candidate->proxy_session_;
+      if(sessions.end() == sessions.find(session->address())){
+        sessions.at(session->address()) = session;
+      }
+      return true;
+    });
+
+  for(auto session : sessions){
+    session.second->send_message(
+        sp,
+        this->udp_transport_,
+        (uint8_t)message_id,
+        message);
+  }
 }
 
 void vds::dht::network::_client::send_near(
@@ -376,20 +381,28 @@ void vds::dht::network::_client::send_near(
   const message_type_t message_id,
   const const_data_buffer& message,
   const std::function<bool(const dht_route<std::shared_ptr<dht_session>>::node& node)>& filter) {
+  std::map<network_address, std::shared_ptr<dht_session>> sessions;
   this->route_.for_near(
     sp,
     target_node_id,
     radius,
     filter,
-    [sp, target_node_id, message_id, message, pthis = this->shared_from_this()](
+    [&sessions](
       const std::shared_ptr<dht_route<std::shared_ptr<dht_session>>::node> & candidate) {
-    candidate->send_message(
-      sp,
-      pthis->udp_transport_,
-      message_id,
-      message);
-    return true;
+      auto session = candidate->proxy_session_;
+      if(sessions.end() == sessions.find(session->address())){
+        sessions.at(session->address()) = session;
+      }
+      return true;
   });
+
+  for(auto session : sessions){
+    session.second->send_message(
+        sp,
+        this->udp_transport_,
+        (uint8_t)message_id,
+        message);
+  }
 }
 
 void vds::dht::network::_client::send_closer(

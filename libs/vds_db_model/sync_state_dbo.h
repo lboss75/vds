@@ -33,7 +33,7 @@ namespace vds {
 			}
 
 			database_column<std::string> object_id;
-      database_column<uint64_t> object_size;
+      database_column<uint32_t> object_size;
       database_column<uint8_t> state;
       database_column<std::chrono::system_clock::time_point> next_sync;
       database_column<std::string> voted_for;

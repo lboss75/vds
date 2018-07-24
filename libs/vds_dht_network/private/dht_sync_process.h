@@ -40,10 +40,8 @@ namespace vds {
           const service_provider & sp,
           database_transaction & t);
 
-        void add_sync_entry(
-          const service_provider& sp,
-          database_transaction& t,
-          const const_data_buffer& object_id);
+        void add_sync_entry(const service_provider &sp, database_transaction &t,
+                                    const const_data_buffer &object_id, uint32_t object_size);
         
         async_task<> apply_message(
           const service_provider & sp,

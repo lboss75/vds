@@ -39,120 +39,6 @@ void vds::dht::network::sync_process::do_sync(
   this->sync_entries(sp, t);
 }
 
-vds::async_task<> vds::dht::network::sync_process::apply_message(
-  const service_provider& sp,
-  database_transaction& t,
-  const messages::transaction_log_state& message) {
-
-  orm::transaction_log_record_dbo t1;
-  std::list<const_data_buffer> requests;
-  for (auto & p : message.leafs()) {
-    auto st = t.get_reader(
-      t1.select(t1.state)
-      .where(t1.id == base64::from_bytes(p)));
-    if (!st.execute()) {
-      //Not found
-      requests.push_back(p);
-    }
-  }
-  auto result = async_task<>::empty();
-  if (!requests.empty()) {
-
-    orm::transaction_log_unknown_record_dbo t1;
-    for(const auto & p : requests){
-      t.execute(
-          t1.insert_or_ignore(
-              t1.id = base64::from_bytes(p),
-              t1.refer_id = message.source_node(),
-              t1.follower_id = std::string()));
-    }
-  }
-  else {
-    orm::transaction_log_record_dbo t2;
-    auto st = t.get_reader(
-      t2.select(t2.id)
-      .where(t2.state == (int)orm::transaction_log_record_dbo::state_t::leaf));
-
-    std::list<const_data_buffer> current_state;
-    while (st.execute()) {
-      auto id = base64::to_bytes(t2.id.get(st));
-      
-      auto exist = false;
-      for (auto & p : message.leafs()) {
-        if (id == p) {
-          exist = true;
-          break;;
-        }
-      }
-
-      if(!exist) {
-        current_state.push_back(id);
-      }
-    }
-
-    if(!current_state.empty()) {
-      result = result.then([sp, message, current_state]() {
-        auto & client = *sp.get<vds::dht::network::client>();
-        client->send_neighbors(
-          sp,
-          messages::transaction_log_state(
-            current_state,
-            client->current_node_id()));
-      });
-    }
-  }
-
-  return result;
-}
-
-void vds::dht::network::sync_process::apply_message(
-    const service_provider& sp,
-    database_transaction& t,
-    const messages::transaction_log_request& message) {
-
-  orm::transaction_log_record_dbo t1;
-  std::list<const_data_buffer> requests;
-  auto st = t.get_reader(
-      t1.select(t1.data)
-          .where(t1.id == base64::from_bytes(message.transaction_id())));
-  if (st.execute()) {
-
-    sp.get<logger>()->trace(
-        ThisModule,
-        sp,
-        "Provide log record %s",
-        base64::from_bytes(message.transaction_id()).c_str());
-
-    mt_service::async(sp, [sp, message, data = t1.data.get(st)]() {
-      auto &client = *sp.get<vds::dht::network::client>();
-      client->send(
-          sp,
-          message.source_node(),
-          messages::transaction_log_record(
-              message.transaction_id(),
-              data));
-    });
-  }
-}
-
-void vds::dht::network::sync_process::apply_message(
-    const service_provider& sp,
-    database_transaction& t,
-    const messages::transaction_log_record& message) {
-
-  sp.get<logger>()->trace(
-    ThisModule,
-    sp,
-    "Save log record %s",
-    base64::from_bytes(message.record_id()).c_str());
-
-  transactions::transaction_log::save(
-    sp,
-    t,
-    message.record_id(),
-    message.data());
-}
-
 bool vds::dht::network::sync_process::apply_message(
   const service_provider& sp,
   database_transaction& t,
@@ -186,15 +72,17 @@ bool vds::dht::network::sync_process::apply_message(
 }
 
 void vds::dht::network::sync_process::add_sync_entry(
-  const service_provider& sp,
-  database_transaction& t,
-  const const_data_buffer& object_id) {
+    const service_provider &sp,
+    database_transaction &t,
+    const const_data_buffer &object_id,
+    uint32_t object_size) {
 
   auto & client = *sp.get<dht::network::client>();
 
   orm::sync_state_dbo t1;
   t.execute(t1.insert(
     t1.object_id = base64::from_bytes(object_id),
+    t1.object_size = object_size,
     t1.state = static_cast<uint8_t>(orm::sync_state_dbo::state_t::leader),
     t1.next_sync = std::chrono::system_clock::now() + LEADER_BROADCAST_TIMEOUT,
     t1.voted_for = base64::from_bytes(client.current_node_id()),
@@ -220,14 +108,102 @@ void vds::dht::network::sync_process::add_sync_entry(
     sp,
     object_id,
     _client::GENERATE_DISTRIBUTED_PIECES,
-    messages::sync_coronation_request(
+    messages::sync_looking_storage_request(
       object_id,
       client.current_node_id(),
-      0,
-      0,
-      0,
-      0,
-      members_map));
+      object_size));
+}
+
+void vds::dht::network::sync_process::apply_message(
+    const service_provider& sp,
+    const messages::sync_looking_storage_request & message) {
+
+  auto & client = *sp.get<dht::network::client>();
+  client->send_closer(
+      sp,
+      message.object_id(),
+      _client::GENERATE_DISTRIBUTED_PIECES,
+      message);
+
+  sp.get<db_model>()->async_read_transaction(sp, [sp, message](database_read_transaction & t) {
+    auto & client = *sp.get<dht::network::client>();
+
+    for(const auto & record : orm::device_config_dbo::get_free_space(t, client.current_node_id())) {
+      if(record.used_size + message.object_size() < record.reserved_size
+         && message.object_size() < record.free_size) {
+
+        std::set<uint16_t> replicas;
+        orm::chunk_replica_data_dbo t1;
+        auto st = t.get_reader(t1.select(t1.replica).where(t1.object_id == base64::from_bytes(message.object_id())));
+        while(st.execute()) {
+          replicas.emplace(t1.replica.get(st));
+        }
+
+        client->send(
+            sp,
+            message.leader_node(),
+            messages::sync_looking_storage_response(
+                message.object_id(),
+                message.leader_node(),
+                client.current_node_id(),
+                replicas));
+
+        return;
+      }
+    }
+  });
+}
+
+void vds::dht::network::sync_process::apply_message(
+    const service_provider& sp,
+    database_transaction & t,
+    const messages::sync_looking_storage_response & message) {
+
+  auto & client = *sp.get<dht::network::client>();
+  if (message.leader_node() != client.current_node_id()) {
+    client->send(
+        sp,
+        message.leader_node(),
+        message);
+    return;
+  }
+
+  const auto leader = this->get_leader(sp, t);
+  if (leader != message.leader_node()) {
+    client->send(
+        sp,
+        leader,
+        messages::sync_looking_storage_response(
+            message.object_id(),
+            leader,
+            message.source_node(),
+            message.replicas()));
+    return;
+  }
+
+  if (!message.replicas().empty()) {
+    //Register replica
+    for (auto replica : message.replicas()) {
+      orm::sync_replica_map_dbo t1;
+      auto st = t.get_reader(
+          t1.select(t1.last_access)
+              .where(
+                  t1.object_id == base64::from_bytes(message.object_id())
+                  && t1.node == base64::from_bytes(message.source_node())
+                  && t1.replica == replica));
+      if (!st.execute()) {
+        t.execute(
+            t1.insert(
+                t1.object_id = base64::from_bytes(message.object_id()),
+                t1.node = base64::from_bytes(message.source_node()),
+                t1.replica = replica,
+                t1.last_access = std::chrono::system_clock::now()));
+      }
+    }
+  }
+  //Add member
+  this->add_member_node(sp, t, message.source_node());
+
 }
 
 void vds::dht::network::sync_process::sync_entries(
@@ -388,94 +364,6 @@ void vds::dht::network::sync_process::send_snapshot_request(
       object_id,
       client.current_node_id()));
 
-}
-
-void vds::dht::network::sync_process::apply_message(
-  const service_provider& sp,
-  const messages::sync_looking_storage_request & message) {
-  sp.get<db_model>()->async_read_transaction(sp, [sp, message](database_read_transaction & t) {
-    auto & client = *sp.get<dht::network::client>();
-
-    for(const auto & record : orm::device_config_dbo::get_free_space(t, client.current_node_id())) {
-      if(record.used_size + message.object_size() < record.reserved_size
-        && message.object_size() < record.free_size) {
-        
-        std::set<uint16_t> replicas;
-        orm::chunk_replica_data_dbo t1;
-        auto st = t.get_reader(t1.select(t1.replica).where(t1.object_id == base64::from_bytes(message.object_id())));
-        while(st.execute()) {
-          replicas.emplace(t1.replica.get(st));
-        }
-
-        client->send(
-          sp,
-          message.leader_node(),
-          messages::sync_looking_storage_response(
-            message.object_id(),
-            message.leader_node(),
-            client.current_node_id(),
-            replicas));
-
-        return;
-      }
-    }
-  });
-}
-
-void vds::dht::network::sync_process::apply_message(
-  const service_provider& sp,
-  database_transaction & t,
-  const messages::sync_looking_storage_response & message) {
-
-  auto & client = *sp.get<dht::network::client>();
-  if (message.leader_node() != client.current_node_id()) {
-    client->send(
-      sp,
-      message.leader_node(),
-      message);
-    return;
-  }
-
-  const auto leader = this->get_leader(sp, t);
-  if (leader != message.leader_node()) {
-    client->send(
-      sp,
-      leader,
-      messages::sync_looking_storage_response(
-        message.object_id(),
-        leader,
-        message.source_node(),
-        message.replicas()));
-    return;
-  }
-
-  if (message.replicas().empty()) {
-    client->send_random_replica(sp, t, message.object_id(), message.source_node());
-  }
-  else {
-
-    //Register replica
-    for (auto replica : message.replicas()) {
-      orm::sync_replica_map_dbo t1;
-      auto st = t.get_reader(
-        t1.select(t1.last_access)
-        .where(
-          t1.object_id == base64::from_bytes(message.object_id())
-          && t1.node == base64::from_bytes(message.source_node())
-          && t1.replica == replica));
-      if (!st.execute()) {
-        t.execute(
-          t1.insert(
-            t1.object_id = base64::from_bytes(message.object_id()),
-            t1.node = base64::from_bytes(message.source_node()),
-            t1.replica = replica,
-            t1.last_access = std::chrono::system_clock::now()));
-      }
-    }
-
-    //Add member
-    this->add_member_node(sp, t, message.source_node());
-  }
 }
 
 void vds::dht::network::sync_process::apply_message(
