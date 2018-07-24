@@ -27,8 +27,7 @@ namespace vds {
         generation(this, "generation"),
         current_term(this, "current_term"),
         commit_index(this, "commit_index"),
-        last_applied(this, "last_applied"),
-        next_index(this, "next_index")
+        last_applied(this, "last_applied")
 			{
 			}
 
@@ -41,8 +40,6 @@ namespace vds {
       database_column<uint64_t> current_term;
       database_column<uint64_t> commit_index;
       database_column<uint64_t> last_applied;
-      database_column<uint64_t> next_index;
-
     };
 	}
 }

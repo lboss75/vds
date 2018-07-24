@@ -168,8 +168,23 @@ void vds::dht::network::sync_process::apply_message(
     return;
   }
 
-  const auto leader = this->get_leader(sp, t);
-  if (leader != message.leader_node()) {
+  orm::sync_state_dbo t1;
+  auto st = t.get_reader(
+      t1.select(
+              t1.state,
+              t1.generation,
+              t1.current_term,
+              t1.commit_index,
+              t1.last_applied,
+              t1.voted_for)
+          .where(t1.object_id == base64::from_bytes(message.object_id())));
+
+  if(!st.execute()) {
+    return;
+  }
+
+  if (orm::sync_state_dbo::state_t::leader != static_cast<orm::sync_state_dbo::state_t>(t1.state.get(st))) {
+    const auto leader = base64::to_bytes(t1.voted_for.get(st));
     client->send(
         sp,
         leader,
@@ -178,31 +193,71 @@ void vds::dht::network::sync_process::apply_message(
             leader,
             message.source_node(),
             message.replicas()));
+
     return;
   }
+  const auto generation = t1.generation.get(st);
+  const auto current_term = t1.current_term.get(st);
+  const auto commit_index = t1.commit_index.get(st);
+  auto index = t1.last_applied.get(st);
+
+  orm::sync_message_dbo t2;
+  t.execute(
+      t2.insert(
+          t2.object_id = base64::from_bytes(message.object_id()),
+          t2.generation = generation,
+          t2.current_term = current_term,
+          t2.index = index,
+          t2.message_type = (uint8_t)orm::sync_message_dbo::message_type_t::add_member,
+          t2.member_node = base64::from_bytes(message.source_node())
+  ));
+  this->send_to_members(
+      sp,
+      t,
+      messages::sync_replica_operations_request(
+          message.object_id(),
+          client->current_node_id(),
+          generation,
+          current_term,
+          commit_index,
+          index++,
+          orm::sync_message_dbo::message_type_t::add_member,
+          message.source_node(),
+          0).serialize());
 
   if (!message.replicas().empty()) {
     //Register replica
     for (auto replica : message.replicas()) {
-      orm::sync_replica_map_dbo t1;
-      auto st = t.get_reader(
-          t1.select(t1.last_access)
-              .where(
-                  t1.object_id == base64::from_bytes(message.object_id())
-                  && t1.node == base64::from_bytes(message.source_node())
-                  && t1.replica == replica));
-      if (!st.execute()) {
-        t.execute(
-            t1.insert(
-                t1.object_id = base64::from_bytes(message.object_id()),
-                t1.node = base64::from_bytes(message.source_node()),
-                t1.replica = replica,
-                t1.last_access = std::chrono::system_clock::now()));
-      }
+      t.execute(
+          t2.insert(
+              t2.object_id = base64::from_bytes(message.object_id()),
+              t2.generation = generation,
+              t2.current_term = current_term,
+              t2.index = index,
+              t2.message_type = (uint8_t)orm::sync_message_dbo::message_type_t::add_replica,
+              t2.member_node = base64::from_bytes(message.source_node()),
+              t2.replica = replica
+          ));
+      this->send_to_members(
+          sp,
+          t,
+          messages::sync_replica_operations_request(
+              message.object_id(),
+              client->current_node_id(),
+              generation,
+              current_term,
+              commit_index,
+              index++,
+              orm::sync_message_dbo::message_type_t::add_replica,
+              message.source_node(),
+              replica).serialize());
     }
   }
-  //Add member
-  this->add_member_node(sp, t, message.source_node());
+
+  t.execute(
+      t1.update(
+          t1.last_applied = index)
+      .where(t1.object_id == base64::from_bytes(message.object_id())));
 
 }
 
@@ -580,5 +635,80 @@ void vds::dht::network::sync_process::apply_message(
 
 }
 
+vds::const_data_buffer
+vds::dht::network::sync_process::get_leader(
+    const vds::service_provider &sp,
+    vds::database_transaction &t,
+    const const_data_buffer &object_id) {
 
+  orm::sync_state_dbo t1;
+  auto st = t.get_reader(
+      t1.select(
+              t1.state,
+              t1.voted_for)
+          .where(t1.object_id == base64::from_bytes(object_id)));
+  if(st.execute()) {
+    if(orm::sync_state_dbo::state_t::leader == static_cast<orm::sync_state_dbo::state_t>(t1.state.get(st))){
+      auto client = sp.get<dht::network::client>();
+      return client->current_node_id();
+    }
+    else {
+      return base64::to_bytes(t1.voted_for.get(st));
+    }
+  }
 
+  return const_data_buffer();
+}
+
+void vds::dht::network::sync_process::apply_record(
+    const vds::service_provider &sp,
+    vds::database_transaction &t,
+    const const_data_buffer &object_id,
+    orm::sync_message_dbo::message_type_t message_type,
+    const const_data_buffer & member_node,
+    uint16_t replica) {
+  switch (message_type) {
+    case orm::sync_message_dbo::message_type_t::add_member: {
+      orm::sync_member_dbo t1;
+      auto st = t.get_reader(
+          t1.select(t1.object_id)
+              .where(
+                  t1.object_id == base64::from_bytes(object_id)
+                  && t1.member_node == base64::from_bytes(member_node)));
+
+      if (!st.execute()) {
+        t.execute(
+            t1.insert(
+                t1.object_id = base64::from_bytes(object_id),
+                t1.member_node = base64::from_bytes(member_node),
+                t1.last_activity = std::chrono::system_clock::now()));
+      }
+
+      break;
+    }
+
+    case orm::sync_message_dbo::message_type_t::add_replica:{
+      orm::sync_replica_map_dbo t1;
+      auto st = t.get_reader(
+          t1.select(t1.last_access)
+              .where(
+                  t1.object_id == base64::from_bytes(object_id)
+                  && t1.node == base64::from_bytes(member_node)
+                  && t1.replica == replica));
+      if (!st.execute()) {
+        t.execute(
+            t1.insert(
+                t1.object_id = base64::from_bytes(object_id),
+                t1.node = base64::from_bytes(member_node),
+                t1.replica = replica,
+                t1.last_access = std::chrono::system_clock::now()));
+      }
+
+      break;
+    }
+
+    default:{
+      throw std::runtime_error("Invalid operation");
+    }
+  }
+}

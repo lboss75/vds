@@ -25,7 +25,8 @@ namespace vds {
         current_term(this, "current_term"),
         index(this, "index"),
         message_type(this, "message_type"),
-        member_node(this, "member_node")
+        member_node(this, "member_node"),
+				replica(this, "replica")
 			{
 			}
 
@@ -35,6 +36,7 @@ namespace vds {
       database_column<uint64_t> index;
       database_column<uint8_t> message_type;
       database_column<std::string> member_node;
+			database_column<uint16_t> replica;
 
     };
 	}

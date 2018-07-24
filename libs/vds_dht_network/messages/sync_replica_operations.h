@@ -25,9 +25,9 @@ namespace vds {
           uint64_t current_term,
           uint64_t commit_index,
           uint64_t last_applied,
-          uint64_t message_index,
           orm::sync_message_dbo::message_type_t message_type,
-          const std::string & member_node)
+          const const_data_buffer & member_node,
+          uint16_t replica)
             : sync_base_message_request(
               object_id,
               leader_node,
@@ -35,9 +35,9 @@ namespace vds {
               current_term,
               commit_index,
               last_applied),
-        message_index_(message_index),
         message_type_(message_type),
-        member_node_(member_node) {
+        member_node_(member_node),
+        replica_(replica){
         }
 
         sync_replica_operations_request(
@@ -46,8 +46,8 @@ namespace vds {
           uint8_t message_type;
           s
             >> message_type
-            >> this->message_index_
-            >> this->member_node_;
+            >> this->member_node_
+            >> this->replica_;
 
           this->message_type_ = static_cast<orm::sync_message_dbo::message_type_t>(message_type);
         }
@@ -57,26 +57,26 @@ namespace vds {
           sync_base_message_request::serialize(s);
           s
             << static_cast<uint8_t>(this->message_type_)
-            << this->message_index_
-            << this->member_node_;
+            << this->member_node_
+            << this->replica_;
           return s.data();
-        }
-
-        uint64_t message_index() const {
-          return this->message_index_;
         }
         orm::sync_message_dbo::message_type_t message_type() const {
           return this->message_type_;
         }
         
-        const std::string & member_node() const {
+        const const_data_buffer & member_node() const {
           return this->member_node_;
         }
 
+        uint16_t replica() const {
+          return this->replica_;
+        }
+
       private:
-        uint64_t message_index_;
         orm::sync_message_dbo::message_type_t message_type_;
-        std::string member_node_;
+        const_data_buffer member_node_;
+        uint16_t replica_;
       };
 
       class sync_replica_operations_response : public sync_base_message_response {

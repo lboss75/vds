@@ -3,6 +3,7 @@
 
 #include "database.h"
 #include "thread_apartment.h"
+#include "sync_message_dbo.h"
 
 /*
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
@@ -109,6 +110,19 @@ namespace vds {
           const service_provider& sp,
           const const_data_buffer& object_id,
           const const_data_buffer& leader_node);
+
+        const_data_buffer get_leader(
+            const service_provider &sp,
+            database_transaction &t,
+            const const_data_buffer &object_id);
+
+        void vds::dht::network::sync_process::apply_record(
+            const vds::service_provider &sp,
+            vds::database_transaction &t,
+            const const_data_buffer &object_id,
+            orm::sync_message_dbo::message_type_t message_type,
+            const const_data_buffer & member_node,
+            uint16_t replica);
       };
     }
   }
