@@ -12,6 +12,8 @@ All rights reserved
 namespace vds {
   namespace dht {
     namespace messages {
+      class sync_looking_storage_response;
+      class sync_looking_storage_request;
       class sync_base_message_request;
       class sync_coronation_response;
       class sync_coronation_request;
@@ -85,6 +87,14 @@ namespace vds {
         void apply_message(
           const service_provider& sp,
           const messages::sync_coronation_response & message);
+
+        void apply_message(
+          const service_provider& sp,
+          const messages::sync_looking_storage_request & message);
+
+        void apply_message(
+          const service_provider& sp,
+          const messages::sync_looking_storage_response & message);
 
       private:
         static constexpr std::chrono::system_clock::duration LEADER_BROADCAST_TIMEOUT = std::chrono::minutes(10);

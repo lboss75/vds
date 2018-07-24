@@ -33,6 +33,18 @@ namespace vds {
 
       database_column<std::string> cert;
       database_column<std::string> private_key;
+
+      struct device_info {
+        std::string name;
+        std::string local_path;
+        uint64_t reserved_size;
+        uint64_t used_size;
+        uint64_t free_size;
+      };
+
+      static std::list<device_info> get_free_space(
+        database_read_transaction & t,
+        const const_data_buffer & node_id);
     };
   }
 }

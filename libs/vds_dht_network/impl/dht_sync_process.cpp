@@ -28,6 +28,8 @@ All rights reserved
 #include "sync_message_dbo.h"
 #include "messages/sync_replica_operations.h"
 #include "messages/sync_looking_storage.h"
+#include "db_model.h"
+#include "device_config_dbo.h"
 
 void vds::dht::network::sync_process::query_unknown_records(const service_provider& sp, database_transaction& t) {
   std::map<const_data_buffer, std::vector<const_data_buffer>> record_ids;
@@ -469,7 +471,8 @@ void vds::dht::network::sync_process::sync_entries(
             std::get<3>(p.second),
             std::get<4>(p.second),
             std::get<6>(p.second)),
-          [member_nodes](const const_data_buffer & )->bool{
+          [&member_nodes](const dht_route<std::shared_ptr<dht_session>>::node & node)->bool {
+            return member_nodes.end() == member_nodes.find(node.node_id_);
           });
       }
 
@@ -483,6 +486,65 @@ void vds::dht::network::sync_process::sync_entries(
     }
 
     }
+  }
+}
+
+void vds::dht::network::sync_process::apply_message(
+  const service_provider& sp,
+  const messages::sync_looking_storage_request & message) {
+  sp.get<db_model>()->async_read_transaction(sp, [sp, message](database_read_transaction & t) {
+    auto & client = *sp.get<dht::network::client>();
+
+    for(const auto & record : orm::device_config_dbo::get_free_space(t, client.current_node_id())) {
+      if(record.used_size + message.object_size() < record.reserved_size
+        && message.object_size() < record.free_size) {
+        
+        std::set<uint16_t> replicas;
+        orm::chunk_replica_data_dbo t1;
+        auto st = t.get_reader(t1.select(t1.replica).where(t1.object_id == base64::from_bytes(message.object_id())));
+        while(st.execute()) {
+          replicas.emplace(t1.replica.get(st));
+        }
+
+        client->send(
+          sp,
+          message.leader_node(),
+          messages::sync_looking_storage_response(
+            message.object_id(),
+            message.leader_node(),
+            client.current_node_id(),
+            replicas));
+
+        return;
+      }
+    }
+  });
+}
+
+void vds::dht::network::sync_process::apply_message(
+  const service_provider& sp,
+  const messages::sync_looking_storage_response & message) {
+
+  auto & client = *sp.get<dht::network::client>();
+  if (message.leader_node() != client.current_node_id()) {
+    client->send(
+      sp,
+      message.leader_node(),
+      message);
+  }
+  else {
+    sp.get<db_model>()->async_transaction(sp, [sp, message](database_transaction & t) {
+
+
+
+      if (message.replicas().empty()) {
+        //Restore object
+      }
+      else {
+        
+      }
+
+    });
   }
 }
 

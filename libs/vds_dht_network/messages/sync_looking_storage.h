@@ -13,99 +13,100 @@ All rights reserved
 namespace vds {
   namespace dht {
     namespace messages {
-      class sync_looking_storage_request : public sync_base_message_request {
+      class sync_looking_storage_request {
       public:
         static const network::message_type_t message_id = network::message_type_t::sync_looking_storage_request;
 
         sync_looking_storage_request(
           const const_data_buffer &object_id,
           const const_data_buffer &leader_node,
-          uint64_t generation,
-          uint64_t current_term,
-          uint64_t commit_index,
-          uint64_t last_applied,
           uint32_t object_size)
-            : sync_base_message_request(
-              object_id,
-              leader_node,
-              generation,
-              current_term,
-              commit_index,
-              last_applied),
+        : object_id_(object_id),
+          leader_node_(leader_node),
           object_size_(object_size){
         }
 
         sync_looking_storage_request(
-            binary_deserializer & s)
-        : sync_base_message_request(s){
+            binary_deserializer & s){
           s
-              >> this->object_size_;
+            >> this->object_id_
+            >> this->leader_node_
+            >> this->object_size_
           ;
         }
 
         const_data_buffer serialize() const {
           binary_serializer s;
-          sync_base_message_request::serialize(s);
           s
-              << this->object_size_;
+            << this->object_id_
+            << this->leader_node_
+            << this->object_size_;
           return s.data();
         }
 
-        uint32_t source_node() const {
+        const const_data_buffer & object_id() const {
+          return this->object_id_;
+        }
+
+        const const_data_buffer & leader_node() const {
+          return this->leader_node_;
+        }
+
+        uint32_t object_size() const {
           return this->object_size_;
         }
 
       private:
+        const_data_buffer object_id_;
+        const_data_buffer leader_node_;
         uint32_t object_size_;
       };
 
-      class sync_looking_storage_response : public sync_base_message_response {
+      class sync_looking_storage_response {
       public:
         static const network::message_type_t message_id = network::message_type_t::sync_looking_storage_response;
 
         sync_looking_storage_response(
           const const_data_buffer &object_id,
           const const_data_buffer &leader_node,
-          uint64_t generation,
-          uint64_t current_term,
-          uint64_t commit_index,
-          uint64_t last_applied,
           const const_data_buffer &source_node,
-          uint64_t free_space,
           const std::set<uint16_t> & replicas)
-            : sync_base_message_response(
-              object_id,
-              leader_node,
-              generation,
-              current_term,
-              commit_index,
-              last_applied,
-              source_node),
-        free_space_(free_space),
-        replicas_(replicas) {
+        : object_id_(object_id),
+          leader_node_(leader_node),
+          source_node_(source_node),
+          replicas_(replicas) {
         }
 
         sync_looking_storage_response(
-            binary_deserializer & s)
-        : sync_base_message_response(s) {
+            binary_deserializer & s) {
           s
-              >> this->free_space_
-              >> this->replicas_;
+            >> this->object_id_
+            >> this->leader_node_
+            >> this->source_node_
+            >> this->replicas_
           ;
         }
 
         const_data_buffer serialize() const {
           binary_serializer s;
-          sync_base_message_response::serialize(s);
           s
-              << this->free_space_
-              << this->replicas_;
+            << this->object_id_
+            << this->leader_node_
+            << this->source_node_
+            << this->replicas_;
           return s.data();
         }
 
+        const const_data_buffer & object_id() const {
+          return this->object_id_;
+        }
 
-        uint64_t free_space() const {
-          return this->free_space_;
+        const const_data_buffer & leader_node() const {
+          return this->leader_node_;
+        }
+
+        const const_data_buffer & source_node() const {
+          return this->source_node_;          
         }
 
         const std::set<uint16_t> & replicas() const {
@@ -113,7 +114,9 @@ namespace vds {
         }
 
       private:
-        uint64_t free_space_;
+        const_data_buffer object_id_;
+        const_data_buffer leader_node_;
+        const_data_buffer source_node_;
         std::set<uint16_t> replicas_;
       };
     }

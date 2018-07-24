@@ -180,7 +180,7 @@ namespace vds {
         const service_provider &sp,
         const const_data_buffer &target_node_id,
         size_t max_count,
-        const std::function<bool(const dht_route<std::shared_ptr<dht_session>>::node & node)>& filter,
+        const std::function<bool(const node & node)>& filter,
         const std::function<bool(const std::shared_ptr<node> & candidate)> &callback) {
 
         std::map<const_data_buffer /*distance*/, std::list<std::shared_ptr<node>>> result_nodes;
@@ -359,6 +359,40 @@ namespace vds {
           }
           if (index >= distance && index - distance >= min_index) {
             count += this->search_nodes(sp, target_id, result_nodes, index - distance);
+          }
+          if (count > max_count) {
+            break;
+          }
+        }
+      }
+
+      void _search_nodes(
+        const vds::service_provider &sp,
+        const const_data_buffer &target_id,
+        size_t max_count,
+        const std::function<bool(const node & node)>& filter,
+        std::map<const_data_buffer /*distance*/, std::list<std::shared_ptr<node>>> &result_nodes) const {
+
+        if (this->buckets_.empty()) {
+          return;
+        }
+
+        auto index = dht_object_id::distance_exp(this->current_node_id_, target_id);
+
+        auto min_index = this->buckets_.begin()->first;
+        auto max_index = this->buckets_.rbegin()->first;
+
+        size_t count = 0;
+        for (
+          size_t distance = 0;
+          result_nodes.size() < max_count
+          && (index + distance <= max_index || (index >= distance && index - distance >= min_index));
+          ++distance) {
+          if (index + distance <= max_index) {
+            count += this->search_nodes(sp, target_id, filter, result_nodes, index + distance);
+          }
+          if (index >= distance && index - distance >= min_index) {
+            count += this->search_nodes(sp, target_id, filter, result_nodes, index - distance);
           }
           if (count > max_count) {
             break;
