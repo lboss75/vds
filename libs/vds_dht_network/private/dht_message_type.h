@@ -56,6 +56,10 @@ namespace vds {
 
         sync_looking_storage_request,
         sync_looking_storage_response,
+
+        sync_snapshot_request,
+        sync_snapshot_response
+
       };
     }
   }

@@ -15,6 +15,7 @@ All rights reserved
 #include "chunk_replica_data_dbo.h"
 #include "dht_object_id.h"
 #include "../vds_dht_network/private/dht_network_client_p.h"
+#include "../vds_log_sync/private/sync_process.h"
 
 vds::server::server()
 : impl_(new _server(this))
@@ -102,6 +103,7 @@ vds::_server::~_server()
 void vds::_server::start(const service_provider& sp)
 {
   this->db_model_->start(sp);
+  this->transaction_log_sync_process_.reset(new transaction_log::sync_process());
 }
 
 void vds::_server::stop(const service_provider& sp)

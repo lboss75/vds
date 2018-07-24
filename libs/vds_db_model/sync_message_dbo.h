@@ -24,7 +24,8 @@ namespace vds {
         generation(this, "generation"),
         current_term(this, "current_term"),
         index(this, "index"),
-        message_type(this, "message_type")
+        message_type(this, "message_type"),
+        member_node(this, "member_node")
 			{
 			}
 

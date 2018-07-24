@@ -84,40 +84,33 @@ namespace vds {
         static const network::message_type_t message_id = network::message_type_t::sync_replica_operations_response;
 
         sync_replica_operations_response(
-            const const_data_buffer &object_id,
-            const const_data_buffer &target_node,
-	    uint64_t generation_id)
-            : object_id_(object_id),
-              source_node_(source_node) {
+          const const_data_buffer &object_id,
+          const const_data_buffer &leader_node,
+          uint64_t generation,
+          uint64_t current_term,
+          uint64_t commit_index,
+          uint64_t last_applied,
+          const const_data_buffer &source_node)
+            : sync_base_message_response(
+              object_id,
+              leader_node,
+              generation,
+              current_term,
+              commit_index,
+              last_applied,
+              source_node) {
         }
 
         sync_replica_operations_response(
-            binary_deserializer & s) {
-          s
-              >> this->object_id_
-              >> this->source_node_;
-          ;
+            binary_deserializer & s)
+        : sync_base_message_response(s) {
         }
 
         const_data_buffer serialize() const {
           binary_serializer s;
-          s
-              << this->object_id_
-              << this->source_node_;
+          sync_base_message_response::serialize(s);
           return s.data();
         }
-
-        const const_data_buffer & object_id() const {
-          return object_id_;
-        }
-
-        const const_data_buffer & source_node() const {
-          return source_node_;
-        }
-
-      private:
-        const_data_buffer object_id_;
-        const_data_buffer source_node_;
       };
     }
   }

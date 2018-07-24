@@ -158,6 +158,16 @@ namespace vds {
         this->_search_nodes(sp, target_id, max_count, result_nodes);
       }
 
+      void search_nodes(
+        const vds::service_provider &sp,
+        const const_data_buffer &target_id,
+        size_t max_count,
+        const std::function<bool(const node & node)>& filter,
+        std::map<const_data_buffer /*distance*/, std::list<std::shared_ptr<node>>> &result_nodes) const {
+        std::shared_lock<std::shared_mutex> lock(this->buckets_mutex_);
+        this->_search_nodes(sp, target_id, max_count, filter, result_nodes);
+      }
+
       void for_near(
         const service_provider &sp,
         const const_data_buffer &target_node_id,
@@ -355,10 +365,10 @@ namespace vds {
             && (index + distance <= max_index || (index >= distance && index - distance >= min_index));
             ++distance) {
           if (index + distance <= max_index) {
-            count += this->search_nodes(sp, target_id, result_nodes, index + distance);
+            count += this->looking_nodes(sp, target_id, [](const node &)->bool {return true; }, result_nodes, index + distance);
           }
           if (index >= distance && index - distance >= min_index) {
-            count += this->search_nodes(sp, target_id, result_nodes, index - distance);
+            count += this->looking_nodes(sp, target_id, [](const node &)->bool {return true; }, result_nodes, index - distance);
           }
           if (count > max_count) {
             break;
@@ -389,10 +399,10 @@ namespace vds {
           && (index + distance <= max_index || (index >= distance && index - distance >= min_index));
           ++distance) {
           if (index + distance <= max_index) {
-            count += this->search_nodes(sp, target_id, filter, result_nodes, index + distance);
+            count += this->looking_nodes(sp, target_id, filter, result_nodes, index + distance);
           }
           if (index >= distance && index - distance >= min_index) {
-            count += this->search_nodes(sp, target_id, filter, result_nodes, index - distance);
+            count += this->looking_nodes(sp, target_id, filter, result_nodes, index - distance);
           }
           if (count > max_count) {
             break;
@@ -400,7 +410,7 @@ namespace vds {
         }
       }
 
-      size_t search_nodes(
+      size_t looking_nodes(
           const service_provider &/*sp*/,
           const const_data_buffer &target_id,
           const std::function<bool(const node & node)>& filter,
@@ -413,7 +423,7 @@ namespace vds {
         }
 
         for (auto &node : p->second->nodes_) {
-          if (!node->is_good() || !filter(node)) {
+          if (!node->is_good() || !filter(*node)) {
             continue;
           }
 

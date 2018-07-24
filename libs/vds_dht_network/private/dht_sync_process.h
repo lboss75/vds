@@ -35,23 +35,27 @@ namespace vds {
 
       class sync_process {
       public:
-        void query_unknown_records(const service_provider& sp, database_transaction& t);
 
         void do_sync(
           const service_provider & sp,
           database_transaction & t);
 
+        void add_sync_entry(
+          const service_provider& sp,
+          database_transaction& t,
+          const const_data_buffer& object_id);
+        
         async_task<> apply_message(
           const service_provider & sp,
           database_transaction & t,
           const messages::transaction_log_state & message);
 
-        void apply_message(
+        bool apply_message(
           const service_provider& sp,
           database_transaction& t,
           const messages::sync_base_message_request & message);
 
-          void apply_message(
+        void apply_message(
           const service_provider& sp,
           database_transaction& t,
           const messages::transaction_log_request& message);
@@ -61,11 +65,6 @@ namespace vds {
           database_transaction& t,
           const messages::transaction_log_record & message);
 
-        void add_sync_entry(
-          const service_provider& sp,
-          database_transaction& t,
-          const const_data_buffer& object_id);
-
         void apply_message(
           const service_provider& sp,
           const messages::sync_new_election_request & message);
@@ -73,11 +72,6 @@ namespace vds {
         void apply_message(
           const service_provider& sp,
           const messages::sync_new_election_response & message);
-
-        void make_new_follower(
-          const service_provider& sp,
-          database_transaction& t,
-          const messages::sync_coronation_request& message);
 
         void apply_message(
           const service_provider& sp,
@@ -94,6 +88,7 @@ namespace vds {
 
         void apply_message(
           const service_provider& sp,
+          database_transaction & t,
           const messages::sync_looking_storage_response & message);
 
       private:
@@ -102,41 +97,20 @@ namespace vds {
         static constexpr std::chrono::system_clock::duration CANDITATE_TIMEOUT = std::chrono::seconds(5);
         static constexpr std::chrono::system_clock::duration MEMBER_TIMEOUT = std::chrono::hours(1);
 
-        struct sync_entry {
 
-
-          sync_entry();
-
-          void make_follower(
-            const service_provider& sp,
-            const const_data_buffer& object_id,
-            const const_data_buffer& source_node,
-            uint64_t current_term);
-
-          void make_leader(
-            const service_provider& sp,
-            const const_data_buffer& object_id);
-
-          void make_canditate(
-            const service_provider& sp,
-            const const_data_buffer& object_id);
-
-
-        };
-
-        std::shared_ptr<thread_apartment> sync_object_;
-        std::map<const_data_buffer, sync_entry> sync_entries_;
+        void make_new_follower(
+          const service_provider& sp,
+          database_transaction& t,
+          const messages::sync_coronation_request& message);
 
         void sync_entries(
           const service_provider &sp,
           database_transaction & t);
 
-
-        void sync_local_channels(
-          const service_provider & sp,
-          database_transaction & t);
-
-        void sync_replicas(const service_provider &sp, database_transaction &t);
+        void send_snapshot_request(
+          const service_provider& sp,
+          const const_data_buffer& object_id,
+          const const_data_buffer& leader_node);
       };
     }
   }

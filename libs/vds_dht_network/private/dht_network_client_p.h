@@ -75,21 +75,6 @@ namespace vds {
           this->route_.neighbors(sp, key, result, max_count);
         }
 
-        async_task<> apply_message(
-          const service_provider & sp,
-          database_transaction & t,
-          const messages::transaction_log_state & message);
-
-        void apply_message(
-          const service_provider & sp,
-          database_transaction & t,
-          const messages::transaction_log_request & message);
-
-        void apply_message(
-          const service_provider & sp,
-          database_transaction & t,
-          const messages::transaction_log_record & message);
-
         void apply_message(
           const service_provider & sp,
           const messages::dht_find_node & message);
@@ -140,6 +125,7 @@ namespace vds {
 
         void apply_message(
           const service_provider & sp,
+          database_transaction & t,
           const messages::sync_coronation_request & message);
 
         void apply_message(

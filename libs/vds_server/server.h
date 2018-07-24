@@ -38,12 +38,6 @@ namespace vds {
   private:
     class _server * const impl_;
   };
-  
-  class iserver
-  {
-  public:
-
-  };
 }
 
 #endif // __VDS_SERVER_SERVER_H_

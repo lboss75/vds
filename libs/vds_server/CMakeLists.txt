@@ -27,6 +27,7 @@ target_include_directories(vds_server
 		${vds_db_model_INCLUDE_DIRS}
 		${vds_dht_network_INCLUDE_DIRS}
 		${vds_file_manager_INCLUDE_DIRS}
+		${vds_log_sync_INCLUDE_DIRS}
 	PUBLIC
 		${CMAKE_CURRENT_SOURCE_DIR})
 
@@ -44,5 +45,6 @@ target_link_libraries(
   vds_dht_network
   vds_db_model
   vds_file_manager
+  vds_log_sync
   ${OPENSSL_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT})
