@@ -122,13 +122,19 @@ namespace vds {
             database_transaction &t,
             const const_data_buffer &object_id);
 
-        void vds::dht::network::sync_process::apply_record(
+        void apply_record(
             const vds::service_provider &sp,
             vds::database_transaction &t,
             const const_data_buffer &object_id,
             orm::sync_message_dbo::message_type_t message_type,
             const const_data_buffer & member_node,
             uint16_t replica);
+
+        static void send_snapshot(
+          const service_provider& sp,
+          database_read_transaction & t,
+          const const_data_buffer& object_id,
+          const const_data_buffer& target_node);
       };
     }
   }

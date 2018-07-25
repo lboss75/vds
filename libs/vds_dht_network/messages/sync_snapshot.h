@@ -63,13 +63,17 @@ namespace vds {
           uint64_t generation,
           uint64_t current_term,
           uint64_t commit_index,
-          uint64_t last_applied)
+          uint64_t last_applied,
+          const std::map<const_data_buffer, std::set<uint16_t>> & replica_map,
+          const std::set<const_data_buffer> & members)
           : object_id_(object_id),
           leader_node_(leader_node),
           generation_(generation),
           current_term_(current_term),
           commit_index_(commit_index),
-          last_applied_(last_applied) {
+          last_applied_(last_applied),
+          replica_map_(replica_map),
+          members_(members){
         }
 
         sync_snapshot_response(
@@ -81,6 +85,8 @@ namespace vds {
             >> this->current_term_
             >> this->commit_index_
             >> this->last_applied_
+            >> this->replica_map_
+            >> this->members_
             ;
         }
 
@@ -93,6 +99,8 @@ namespace vds {
             << this->current_term_
             << this->commit_index_
             << this->last_applied_
+            << this->replica_map_
+            << this->members_
             ;
           return s.data();
         }
@@ -121,6 +129,14 @@ namespace vds {
           return this->last_applied_;
         }
 
+        const std::map<const_data_buffer, std::set<uint16_t>> & replica_map() const {
+          return this->replica_map_;
+        }
+
+        const std::set<const_data_buffer> & members() const {
+          return this->members_;
+        }
+
       private:
         const_data_buffer object_id_;
         const_data_buffer leader_node_;
@@ -128,6 +144,8 @@ namespace vds {
         uint64_t current_term_;
         uint64_t commit_index_;
         uint64_t last_applied_;
+        std::map<const_data_buffer, std::set<uint16_t>> replica_map_;
+        std::set<const_data_buffer> members_;
       };
     }
   }

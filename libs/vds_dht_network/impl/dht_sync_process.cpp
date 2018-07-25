@@ -70,7 +70,7 @@ bool vds::dht::network::sync_process::apply_message(
     if (
       message.generation() > t1.generation.get(st)
       || (message.generation() == t1.generation.get(st) && message.current_term() > t1.current_term.get(st))) {
-      this->send_snapshot_request(sp, message.object_id(), message.leader_node(),);
+      send_snapshot_request(sp, message.object_id(), message.leader_node());
       return false;
     }
     else if (
@@ -80,10 +80,10 @@ bool vds::dht::network::sync_process::apply_message(
       auto & client = *sp.get<dht::network::client>();
       const auto leader = this->get_leader(sp, t, message.object_id());
       if(!leader || client->current_node_id() == leader) {
-        this->send_snapshot(sp, t, message.object_id(), message.source_node());
+        send_snapshot(sp, t, message.object_id(), message.source_node());
       }
       else {
-        this->send_snapshot_request(sp, message.object_id(), message.leader_node(), message.source_node());
+        send_snapshot_request(sp, message.object_id(), message.leader_node(), message.source_node());
       }
 
       return false;
@@ -93,6 +93,10 @@ bool vds::dht::network::sync_process::apply_message(
       && base64::to_bytes(t1.voted_for.get(st)) != message.leader_node()) {
         this->make_new_election(sp, t);
       return false;
+    }
+    else if(message.generation() == t1.generation.get(st)
+      && message.current_term() == t1.current_term.get(st)) {
+      
     }
   }
   else {
@@ -449,7 +453,7 @@ void vds::dht::network::sync_process::send_snapshot_request(
     leader_node,
     messages::sync_snapshot_request(
       object_id,
-      ((!from_node) ? client.current_node_id() : from_node));
+      ((!from_node) ? client.current_node_id() : from_node)));
 
 }
 
@@ -743,4 +747,70 @@ void vds::dht::network::sync_process::apply_record(
       throw std::runtime_error("Invalid operation");
     }
   }
+}
+
+void vds::dht::network::sync_process::send_snapshot(
+  const service_provider& sp,
+  database_read_transaction& t,
+  const const_data_buffer& object_id,
+  const const_data_buffer& target_node) {
+
+  orm::sync_state_dbo t1;
+  auto st = t.get_reader(
+    t1.select(
+      t1.object_size,
+      t1.state,
+      t1.generation,
+      t1.current_term,
+      t1.commit_index,
+      t1.last_applied)
+    .where(t1.object_id == base64::from_bytes(object_id)));
+
+  if(!st.execute() || orm::sync_state_dbo::state_t::leader != static_cast<orm::sync_state_dbo::state_t>(t1.state.get(st))) {
+    return;
+  }
+
+  const auto object_size = t1.object_size.get(st);
+  const auto generation = t1.generation.get(st);
+  const auto current_term = t1.current_term.get(st);
+  const auto commit_index = t1.commit_index.get(st);
+  const auto last_applied = t1.last_applied.get(st);
+
+  //
+  orm::sync_replica_map_dbo t2;
+  st = t.get_reader(
+    t2.select(
+      t2.replica,
+      t2.node)
+    .where(t2.object_id == base64::from_bytes(object_id)));
+  std::map<const_data_buffer, std::set<uint16_t>> replica_map;
+  while(st.execute()) {
+    replica_map[base64::to_bytes(t2.node.get(st))].emplace(t2.replica.get(st));
+  }
+
+  //
+  orm::sync_member_dbo t3;
+  st = t.get_reader(
+    t3.select(
+      t3.member_node)
+    .where(t3.object_id == base64::from_bytes(object_id)));
+  std::set<const_data_buffer> members;
+  while (st.execute()) {
+    members.emplace(base64::to_bytes(t2.node.get(st)));
+  }
+
+  auto & client = *sp.get<dht::network::client>();
+  client->send(
+    sp,
+    target_node,
+    messages::sync_snapshot_response(
+      object_id,
+      client.current_node_id(),
+      generation,
+      current_term,
+      commit_index,
+      last_applied,
+      replica_map,
+      members));
+
 }
