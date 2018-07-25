@@ -49,6 +49,11 @@ namespace vds {
           database_transaction & t,
           const messages::transaction_log_state & message);
 
+        static std::set<const_data_buffer> get_members(
+          const service_provider& sp,
+          database_transaction& t,
+          const const_data_buffer& object_id);
+
         bool apply_message(
           const service_provider& sp,
           database_transaction& t,
@@ -109,7 +114,8 @@ namespace vds {
         void send_snapshot_request(
           const service_provider& sp,
           const const_data_buffer& object_id,
-          const const_data_buffer& leader_node);
+          const const_data_buffer& leader_node,
+          const const_data_buffer& from_node = const_data_buffer());
 
         const_data_buffer get_leader(
             const service_provider &sp,

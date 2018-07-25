@@ -39,6 +39,22 @@ void vds::dht::network::sync_process::do_sync(
   this->sync_entries(sp, t);
 }
 
+std::set<vds::const_data_buffer> vds::dht::network::sync_process::get_members(
+  const service_provider& sp,
+  database_transaction& t,
+  const vds::const_data_buffer& object_id) {
+
+  orm::sync_member_dbo t1;
+  auto st = t.get_reader(t1.select(t1.member_node).where(t1.object_id == base64::from_bytes(object_id)));
+
+  std::set<vds::const_data_buffer> result;
+  while(st.execute()) {
+    result.emplace(base64::to_bytes(t1.member_node.get(st)));
+  }
+
+  return result;
+}
+
 bool vds::dht::network::sync_process::apply_message(
   const service_provider& sp,
   database_transaction& t,
@@ -52,9 +68,24 @@ bool vds::dht::network::sync_process::apply_message(
 
   if (st.execute()) {
     if (
+      message.generation() > t1.generation.get(st)
+      || (message.generation() == t1.generation.get(st) && message.current_term() > t1.current_term.get(st))) {
+      this->send_snapshot_request(sp, message.object_id(), message.leader_node(),);
+      return false;
+    }
+    else if (
       message.generation() < t1.generation.get(st)
       || (message.generation() == t1.generation.get(st) && message.current_term() < t1.current_term.get(st))) {
-      this->send_snapshot_request(sp, message.object_id(), message.leader_node());
+
+      auto & client = *sp.get<dht::network::client>();
+      const auto leader = this->get_leader(sp, t, message.object_id());
+      if(!leader || client->current_node_id() == leader) {
+        this->send_snapshot(sp, t, message.object_id(), message.source_node());
+      }
+      else {
+        this->send_snapshot_request(sp, message.object_id(), message.leader_node(), message.source_node());
+      }
+
       return false;
     }
     else if(
@@ -409,7 +440,8 @@ void vds::dht::network::sync_process::sync_entries(
 void vds::dht::network::sync_process::send_snapshot_request(
   const service_provider& sp,
   const const_data_buffer& object_id,
-  const const_data_buffer& leader_node) {
+  const const_data_buffer& leader_node,
+  const const_data_buffer& from_node) {
 
   auto & client = *sp.get<dht::network::client>();
   client->send(
@@ -417,7 +449,7 @@ void vds::dht::network::sync_process::send_snapshot_request(
     leader_node,
     messages::sync_snapshot_request(
       object_id,
-      client.current_node_id()));
+      ((!from_node) ? client.current_node_id() : from_node));
 
 }
 
