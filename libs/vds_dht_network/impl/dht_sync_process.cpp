@@ -97,6 +97,9 @@ bool vds::dht::network::sync_process::apply_message(
     else if(message.generation() == t1.generation.get(st)
       && message.current_term() == t1.current_term.get(st)) {
       
+      if(t1.state.get(st) == orm::sync_state_dbo::state_t::leader) {
+      }
+
     }
   }
   else {
