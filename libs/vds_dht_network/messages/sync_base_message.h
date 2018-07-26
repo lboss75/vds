@@ -38,9 +38,7 @@ namespace vds {
           return this->last_applied_;
         }
 
-        const const_data_buffer & source_node() const {
-          return this->source_node_;
-        }
+        virtual const const_data_buffer & source_node() const = 0;
 
       protected:
         sync_base_message_request(
@@ -49,15 +47,13 @@ namespace vds {
           uint64_t generation,
           uint64_t current_term,
           uint64_t commit_index,
-          uint64_t last_applied,
-          const const_data_buffer &source_node)
+          uint64_t last_applied)
           : object_id_(object_id),
           leader_node_(leader_node),
           generation_(generation),
           current_term_(current_term),
           commit_index_(commit_index),
-          last_applied_(last_applied),
-          source_node_(source_node){
+          last_applied_(last_applied){
         }
 
         sync_base_message_request(
@@ -69,7 +65,6 @@ namespace vds {
             >> this->current_term_
             >> this->commit_index_
             >> this->last_applied_
-            >> this->source_node_
             ;
         }
 
@@ -81,7 +76,6 @@ namespace vds {
             << this->current_term_
             << this->commit_index_
             << this->last_applied_
-            << this->source_node_
             ;
         }
       private:
@@ -91,7 +85,6 @@ namespace vds {
         uint64_t current_term_;
         uint64_t commit_index_;
         uint64_t last_applied_;
-        const_data_buffer source_node_;
       };
 
       class sync_base_message_response {

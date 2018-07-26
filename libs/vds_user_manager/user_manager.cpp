@@ -287,7 +287,7 @@ void vds::_user_manager::update(
 	const auto log = sp.get<logger>();
 	log->trace(ThisModule, sp, "security_walker::load");
 
-  std::list<std::string> new_records;
+  std::list<const_data_buffer> new_records;
   orm::transaction_log_record_dbo t1;
 	auto st = t.get_reader(
 			t1.select(t1.id)

@@ -22,26 +22,36 @@ namespace vds {
           uint64_t generation,
           uint64_t current_term,
           uint64_t commit_index,
-          uint64_t last_applied)
+          uint64_t last_applied,
+          const const_data_buffer &source_node)
             : sync_base_message_request(
               object_id,
               leader_node,
               generation,
               current_term,
               commit_index,
-              last_applied) {
+              last_applied),
+          source_node_(source_node) {
         }
 
         sync_apply_operation_request(
             binary_deserializer & s)
         : sync_base_message_request(s) {
+          s >> this->source_node_;
         }
 
         const_data_buffer serialize() const {
           binary_serializer s;
           sync_base_message_request::serialize(s);
+          s << this->source_node_;
           return s.data();
         }
+
+        const const_data_buffer & source_node() const override {
+          return this->source_node_;
+        }
+      private:
+        const_data_buffer source_node_;
       };
 
       class sync_apply_operation_response : public sync_base_message_response {

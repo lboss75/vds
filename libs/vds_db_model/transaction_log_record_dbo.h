@@ -13,7 +13,7 @@ namespace vds {
   namespace orm {
     class transaction_log_record_dbo : public database_table {
     public:
-      enum class state_t : int {
+      enum class state_t : uint8_t {
         processed,
         leaf,
         invalid,
@@ -30,7 +30,7 @@ namespace vds {
             return "leaf";
 
           default:
-            return "unknown(" + std::to_string((int)value) + ")";
+            return "unknown(" + std::to_string((uint8_t)value) + ")";
         }
       }
 
@@ -44,9 +44,9 @@ namespace vds {
             time_point(this, "time_point"){
       }
 
-      database_column<std::string> id;
+      database_column<const_data_buffer, std::string> id;
       database_column<const_data_buffer> data;
-      database_column<int> state;
+      database_column<state_t, int> state;
       database_column<uint64_t> order_no;
       database_column<const_data_buffer> state_data;
       database_column<std::chrono::system_clock::time_point> time_point;

@@ -73,6 +73,10 @@ namespace vds {
           return this->replica_;
         }
 
+        const const_data_buffer & source_node() const override {
+          return this->leader_node();
+        }
+
       private:
         orm::sync_message_dbo::message_type_t message_type_;
         const_data_buffer member_node_;

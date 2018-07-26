@@ -23,7 +23,7 @@ namespace vds {
         private_key(this, "private_key") {
       }
 
-      database_column<std::string> node_id;
+      database_column<const_data_buffer, std::string> node_id;
       database_column<std::string> local_path;
 
       database_column<std::string> owner_id;
@@ -31,8 +31,8 @@ namespace vds {
       database_column<std::string> name;
       database_column<uint64_t> reserved_size;
 
-      database_column<std::string> cert;
-      database_column<std::string> private_key;
+      database_column<const_data_buffer, std::string> cert;
+      database_column<const_data_buffer, std::string> private_key;
 
       struct device_info {
         std::string name;

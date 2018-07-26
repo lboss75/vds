@@ -42,6 +42,11 @@ namespace vds {
           sync_base_message_request::serialize(s);
           return s.data();
         }
+        
+        const const_data_buffer& source_node() const override {
+          return this->leader_node();
+        }
+
       };
 
       class sync_leader_broadcast_response : public sync_base_message_response {

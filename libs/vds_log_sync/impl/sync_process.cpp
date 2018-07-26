@@ -3,7 +3,7 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 #include "stdafx.h"
-#include "private/sync_process.h"
+#include "sync_process.h"
 #include "dht_network_client.h"
 #include "transaction_log_record_dbo.h"
 #include "chunk_dbo.h"
@@ -34,18 +34,18 @@ void vds::transaction_log::sync_process::query_unknown_records(const service_pro
     .where(db_not_in(t1.id, t2.select(t2.follower_id))));
 
   while (st.execute()) {
-    record_ids[base64::to_bytes(t1.id.get(st))].push_back(t1.refer_id.get(st));
+    record_ids[t1.id.get(st)].push_back(t1.refer_id.get(st));
   }
 
   if(record_ids.empty()){
     orm::transaction_log_record_dbo t2;
     auto st = t.get_reader(
         t2.select(t2.id)
-            .where(t2.state == (int)orm::transaction_log_record_dbo::state_t::leaf));
+            .where(t2.state == orm::transaction_log_record_dbo::state_t::leaf));
 
     std::list<const_data_buffer> current_state;
     while (st.execute()) {
-      auto id = base64::to_bytes(t2.id.get(st));
+      auto id = t2.id.get(st);
       current_state.push_back(id);
     }
 
@@ -103,20 +103,20 @@ vds::async_task<> vds::transaction_log::sync_process::apply_message(
     for(const auto & p : requests){
       t.execute(
           t1.insert_or_ignore(
-              t1.id = base64::from_bytes(p),
+              t1.id = p,
               t1.refer_id = message.source_node(),
-              t1.follower_id = std::string()));
+              t1.follower_id = const_data_buffer()));
     }
   }
   else {
     orm::transaction_log_record_dbo t2;
     auto st = t.get_reader(
       t2.select(t2.id)
-      .where(t2.state == (int)orm::transaction_log_record_dbo::state_t::leaf));
+      .where(t2.state == orm::transaction_log_record_dbo::state_t::leaf));
 
     std::list<const_data_buffer> current_state;
     while (st.execute()) {
-      auto id = base64::to_bytes(t2.id.get(st));
+      auto id = t2.id.get(st);
       
       auto exist = false;
       for (auto & p : message.leafs()) {
@@ -155,7 +155,7 @@ void vds::transaction_log::sync_process::apply_message(
   std::list<const_data_buffer> requests;
   auto st = t.get_reader(
       t1.select(t1.data)
-          .where(t1.id == base64::from_bytes(message.transaction_id())));
+          .where(t1.id == message.transaction_id()));
   if (st.execute()) {
 
     sp.get<logger>()->trace(
@@ -202,11 +202,11 @@ void vds::transaction_log::sync_process::sync_local_channels(
   orm::transaction_log_record_dbo t1;
   auto st = t.get_reader(
     t1.select(t1.id)
-    .where(t1.state == static_cast<int>(orm::transaction_log_record_dbo::state_t::leaf)));
+    .where(t1.state == orm::transaction_log_record_dbo::state_t::leaf));
 
   std::list<const_data_buffer> leafs;
   while (st.execute()) {
-    leafs.push_back(base64::to_bytes(t1.id.get(st)));
+    leafs.push_back(t1.id.get(st));
   }
 
   if (leafs.empty()) {
@@ -247,7 +247,7 @@ void vds::transaction_log::sync_process::sync_replicas(
     .where(t1.last_sync <= std::chrono::system_clock::now() - std::chrono::minutes(10))
     .order_by(t1.last_sync));
   while (st.execute()) {
-    const auto replica_hash = base64::to_bytes(t1.object_id.get(st));
+    const auto replica_hash = t1.object_id.get(st);
     objects.emplace(replica_hash);
   }
 
@@ -255,7 +255,7 @@ void vds::transaction_log::sync_process::sync_replicas(
   for (const auto & p : objects) {
     std::set<uint16_t> replicas;
     orm::sync_replica_map_dbo t3;
-    st = t.get_reader(t3.select(t3.replica).where(t3.object_id == base64::from_bytes(p)));
+    st = t.get_reader(t3.select(t3.replica).where(t3.object_id == p));
     while (st.execute()) {
       if (replicas.end() == replicas.find(t3.replica.get(st))) {
         replicas.emplace(t3.replica.get(st));
@@ -263,7 +263,7 @@ void vds::transaction_log::sync_process::sync_replicas(
     }
 
     if (_client::GENERATE_DISTRIBUTED_PIECES <= replicas.size()) {
-      t.execute(t1.update(t1.last_sync = std::chrono::system_clock::now()).where(t1.object_id == base64::from_bytes(p)));
+      t.execute(t1.update(t1.last_sync = std::chrono::system_clock::now()).where(t1.object_id == p));
     }
 
     std::map<vds::const_data_buffer /*distance*/, std::list<vds::const_data_buffer/*node_id*/>> neighbors;

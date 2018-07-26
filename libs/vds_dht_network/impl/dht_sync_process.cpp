@@ -45,11 +45,11 @@ std::set<vds::const_data_buffer> vds::dht::network::sync_process::get_members(
   const vds::const_data_buffer& object_id) {
 
   orm::sync_member_dbo t1;
-  auto st = t.get_reader(t1.select(t1.member_node).where(t1.object_id == base64::from_bytes(object_id)));
+  auto st = t.get_reader(t1.select(t1.member_node).where(t1.object_id == object_id));
 
   std::set<vds::const_data_buffer> result;
   while(st.execute()) {
-    result.emplace(base64::to_bytes(t1.member_node.get(st)));
+    result.emplace(t1.member_node.get(st));
   }
 
   return result;
@@ -64,7 +64,7 @@ bool vds::dht::network::sync_process::apply_message(
   orm::sync_member_dbo t2;
   auto st = t.get_reader(t1.select(
     t1.state, t1.generation, t1.current_term, t1.voted_for, t1.last_applied, t1.commit_index)
-    .where(t1.object_id == base64::from_bytes(message.object_id())));
+    .where(t1.object_id == message.object_id()));
 
   if (st.execute()) {
     if (
@@ -90,7 +90,7 @@ bool vds::dht::network::sync_process::apply_message(
     }
     else if(
       message.generation() == t1.generation.get(st)
-      && base64::to_bytes(t1.voted_for.get(st)) != message.leader_node()) {
+      && t1.voted_for.get(st) != message.leader_node()) {
         this->make_new_election(sp, t);
       return false;
     }
@@ -116,11 +116,11 @@ void vds::dht::network::sync_process::add_sync_entry(
 
   orm::sync_state_dbo t1;
   t.execute(t1.insert(
-    t1.object_id = base64::from_bytes(object_id),
+    t1.object_id = object_id,
     t1.object_size = object_size,
-    t1.state = static_cast<uint8_t>(orm::sync_state_dbo::state_t::leader),
+    t1.state = orm::sync_state_dbo::state_t::leader,
     t1.next_sync = std::chrono::system_clock::now() + LEADER_BROADCAST_TIMEOUT,
-    t1.voted_for = base64::from_bytes(client.current_node_id()),
+    t1.voted_for = client.current_node_id(),
     t1.generation = 0,
     t1.current_term = 0,
     t1.commit_index = 0,
@@ -131,9 +131,9 @@ void vds::dht::network::sync_process::add_sync_entry(
   orm::sync_replica_map_dbo t2;
   for(uint16_t i = 0; i < _client::GENERATE_DISTRIBUTED_PIECES; ++i) {
     t.execute(t2.insert(
-      t2.object_id = base64::from_bytes(object_id),
+      t2.object_id = object_id,
       t2.replica = i,
-      t2.node = base64::from_bytes(client.current_node_id()),
+      t2.node = client.current_node_id(),
       t2.last_access = std::chrono::system_clock::now()));
 
     members_map[client.current_node_id()].emplace(i);
@@ -169,7 +169,7 @@ void vds::dht::network::sync_process::apply_message(
 
         std::set<uint16_t> replicas;
         orm::chunk_replica_data_dbo t1;
-        auto st = t.get_reader(t1.select(t1.replica).where(t1.object_id == base64::from_bytes(message.object_id())));
+        auto st = t.get_reader(t1.select(t1.replica).where(t1.object_id == message.object_id()));
         while(st.execute()) {
           replicas.emplace(t1.replica.get(st));
         }
@@ -212,14 +212,14 @@ void vds::dht::network::sync_process::apply_message(
               t1.commit_index,
               t1.last_applied,
               t1.voted_for)
-          .where(t1.object_id == base64::from_bytes(message.object_id())));
+          .where(t1.object_id == message.object_id()));
 
   if(!st.execute()) {
     return;
   }
 
   if (orm::sync_state_dbo::state_t::leader != static_cast<orm::sync_state_dbo::state_t>(t1.state.get(st))) {
-    const auto leader = base64::to_bytes(t1.voted_for.get(st));
+    const auto leader = t1.voted_for.get(st);
     client->send(
         sp,
         leader,
@@ -239,12 +239,12 @@ void vds::dht::network::sync_process::apply_message(
   orm::sync_message_dbo t2;
   t.execute(
       t2.insert(
-          t2.object_id = base64::from_bytes(message.object_id()),
+          t2.object_id = message.object_id(),
           t2.generation = generation,
           t2.current_term = current_term,
           t2.index = index,
-          t2.message_type = (uint8_t)orm::sync_message_dbo::message_type_t::add_member,
-          t2.member_node = base64::from_bytes(message.source_node())
+          t2.message_type = orm::sync_message_dbo::message_type_t::add_member,
+          t2.member_node = message.source_node()
   ));
   this->send_to_members(
       sp,
@@ -265,12 +265,12 @@ void vds::dht::network::sync_process::apply_message(
     for (auto replica : message.replicas()) {
       t.execute(
           t2.insert(
-              t2.object_id = base64::from_bytes(message.object_id()),
+              t2.object_id = message.object_id(),
               t2.generation = generation,
               t2.current_term = current_term,
               t2.index = index,
-              t2.message_type = (uint8_t)orm::sync_message_dbo::message_type_t::add_replica,
-              t2.member_node = base64::from_bytes(message.source_node()),
+              t2.message_type = orm::sync_message_dbo::message_type_t::add_replica,
+              t2.member_node = message.source_node(),
               t2.replica = replica
           ));
       this->send_to_members(
@@ -292,23 +292,24 @@ void vds::dht::network::sync_process::apply_message(
   t.execute(
       t1.update(
           t1.last_applied = index)
-      .where(t1.object_id == base64::from_bytes(message.object_id())));
+      .where(t1.object_id == message.object_id()));
 
 }
+
+struct object_info_t {
+  vds::orm::sync_state_dbo::state_t state;
+  uint64_t generation;
+  uint64_t current_term;
+  uint64_t commit_index;
+  uint64_t last_applied;
+  uint64_t object_size;
+};
 
 void vds::dht::network::sync_process::sync_entries(
   const service_provider& sp,
   database_transaction& t) {
 
-  std::map<const_data_buffer, 
-    std::tuple<
-      orm::sync_state_dbo::state_t /*state*/,
-      uint64_t /*generation*/,
-      uint64_t /*current_term*/,
-      uint64_t /*commit_index*/,
-      uint64_t /*last_applied*/,
-      uint64_t /*next_index*/,
-      uint64_t /*object_size*/>> objects;
+  std::map<const_data_buffer, object_info_t> objects;
   orm::sync_state_dbo t1;
   auto st = t.get_reader(
     t1.select(
@@ -318,23 +319,21 @@ void vds::dht::network::sync_process::sync_entries(
       t1.generation,
       t1.current_term,
       t1.commit_index,
-      t1.last_applied,
-      t1.next_index)
+      t1.last_applied)
     .where(t1.next_sync <= std::chrono::system_clock::now()));
   while (st.execute()) {
     const auto object_id = t1.object_id.get(st);
-    auto & p = objects.at(base64::to_bytes(object_id));
-    std::get<0>(p) = static_cast<orm::sync_state_dbo::state_t>(t1.state.get(st));
-    std::get<1>(p) = t1.generation.get(st);
-    std::get<2>(p) = t1.current_term.get(st);
-    std::get<3>(p) = t1.commit_index.get(st);
-    std::get<4>(p) = t1.last_applied.get(st);
-    std::get<5>(p) = t1.next_index.get(st);
-    std::get<6>(p) = t1.object_size.get(st);
+    auto & p = objects.at(object_id);
+    p.state = static_cast<orm::sync_state_dbo::state_t>(t1.state.get(st));
+    p.generation = t1.generation.get(st);
+    p.current_term = t1.current_term.get(st);
+    p.commit_index = t1.commit_index.get(st);
+    p.last_applied = t1.last_applied.get(st);
+    p.object_size = t1.object_size.get(st);
   }
 
   for (auto & p : objects) {
-    switch (std::get<0>(p.second)) {
+    switch (p.second.state) {
 
     case orm::sync_state_dbo::state_t::follower: {
       this->make_candidate(sp, t, p.first);
@@ -352,7 +351,7 @@ void vds::dht::network::sync_process::sync_entries(
       orm::sync_member_dbo t2;
       st = t.get_reader(
         t2.select(t2.member_node, t2.last_activity)
-        .where(t2.object_id == base64::from_bytes(p.first)));
+        .where(t2.object_id == p.first));
       std::set<const_data_buffer> to_remove;
       std::set<const_data_buffer> member_nodes;
       while (st.execute()) {
@@ -360,10 +359,10 @@ void vds::dht::network::sync_process::sync_entries(
         
         const auto last_activity = t2.last_activity.get(st);
         if(std::chrono::system_clock::now() - last_activity > MEMBER_TIMEOUT) {
-          to_remove.emplace(base64::to_bytes(member_node));
+          to_remove.emplace(member_node);
         }
         else {
-          member_nodes.emplace(base64::to_bytes(member_node));
+          member_nodes.emplace(member_node);
         }
       }
 
@@ -377,10 +376,10 @@ void vds::dht::network::sync_process::sync_entries(
             messages::sync_leader_broadcast_request(
               p.first,
               client.current_node_id(),
-              std::get<1>(p.second),
-              std::get<2>(p.second),
-              std::get<3>(p.second),
-              std::get<4>(p.second)));
+              p.second.generation,
+              p.second.current_term,
+              p.second.commit_index,
+              p.second.last_applied));
         }
       }
       else {
@@ -389,12 +388,12 @@ void vds::dht::network::sync_process::sync_entries(
           orm::sync_message_dbo t3;
           t.execute(
             t3.insert(
-              t3.object_id = base64::from_bytes(p.first),
-              t3.generation = std::get<1>(p.second),
-              t3.current_term = std::get<2>(p.second),
-              t3.index = std::get<5>(p.second)++,
-              t3.message_type = static_cast<uint8_t>(orm::sync_message_dbo::message_type_t::remove_member),
-              t3.member_node = base64::from_bytes(member_node)));
+              t3.object_id = p.first,
+              t3.generation = p.second.generation,
+              t3.current_term = p.second.current_term,
+              t3.index = p.second.last_applied++,
+              t3.message_type = orm::sync_message_dbo::message_type_t::remove_member,
+              t3.member_node = member_node));
 
           for (auto member : member_nodes) {
             client->send(
@@ -403,13 +402,13 @@ void vds::dht::network::sync_process::sync_entries(
               messages::sync_replica_operations_request(
                 p.first,
                 client.current_node_id(),
-                std::get<1>(p.second),
-                std::get<2>(p.second),
-                std::get<3>(p.second),
-                std::get<4>(p.second),
-                std::get<5>(p.second),
+                p.second.generation,
+                p.second.current_term,
+                p.second.commit_index,
+                p.second.last_applied,
                 orm::sync_message_dbo::message_type_t::remove_member,
-                base64::from_bytes(member_node)));
+                member_node,
+                0));
           }
         }
       }
@@ -422,7 +421,7 @@ void vds::dht::network::sync_process::sync_entries(
           messages::sync_looking_storage_request(
             p.first,
             client.current_node_id(),
-            std::get<6>(p.second)),
+            p.second.object_size),
           [&member_nodes](const dht_route<std::shared_ptr<dht_session>>::node & node)->bool {
             return member_nodes.end() == member_nodes.find(node.node_id_);
           });
@@ -431,8 +430,8 @@ void vds::dht::network::sync_process::sync_entries(
       t.execute(
         t1.update(
           t1.next_sync = std::chrono::system_clock::now() + LEADER_BROADCAST_TIMEOUT,
-          t1.next_index = std::get<5>(p.second))
-        .where(t1.object_id == base64::from_bytes(p.first)));
+          t1.last_applied = p.second.last_applied)
+        .where(t1.object_id == p.first));
 
       break;
     }
@@ -535,10 +534,10 @@ void vds::dht::network::sync_process::make_new_follower(
 
   orm::sync_state_dbo t1;
   t.execute(t1.insert(
-    t1.object_id = base64::from_bytes(message.object_id()),
-    t1.state = static_cast<uint8_t>(orm::sync_state_dbo::state_t::follower),
+    t1.object_id = message.object_id(),
+    t1.state = orm::sync_state_dbo::state_t::follower,
     t1.next_sync = std::chrono::system_clock::now() + LEADER_BROADCAST_TIMEOUT,
-    t1.voted_for = base64::from_bytes(message.source_node()),
+    t1.voted_for = message.source_node(),
     t1.generation = message.generation(),
     t1.current_term = message.current_term(),
     t1.commit_index = 0,
@@ -548,9 +547,9 @@ void vds::dht::network::sync_process::make_new_follower(
   for(auto p : message.member_notes()) {
     for (auto replica : p.second) {
       t.execute(t2.insert(
-        t2.object_id = base64::from_bytes(message.object_id()),
+        t2.object_id = message.object_id(),
         t2.replica = replica,
-        t2.node = base64::from_bytes(p.first),
+        t2.node = p.first,
         t2.last_access = std::chrono::system_clock::now()));
     }
   }
@@ -607,8 +606,8 @@ void vds::dht::network::sync_process::apply_message(
             t1.current_term.get(st),
             messages::sync_member_operation_request::operation_type_t::add_member));
 
-        t.execute(t2.delete_if(t2.object_id == base64::from_bytes(message.object_id())));
-        t.execute(t1.delete_if(t1.object_id == base64::from_bytes(message.object_id())));
+        t.execute(t2.delete_if(t2.object_id == message.object_id()));
+        t.execute(t1.delete_if(t1.object_id == message.object_id()));
       } else {
         this->make_follower(sp, t, message);
       }
@@ -682,14 +681,14 @@ vds::dht::network::sync_process::get_leader(
       t1.select(
               t1.state,
               t1.voted_for)
-          .where(t1.object_id == base64::from_bytes(object_id)));
+          .where(t1.object_id == object_id));
   if(st.execute()) {
     if(orm::sync_state_dbo::state_t::leader == static_cast<orm::sync_state_dbo::state_t>(t1.state.get(st))){
       auto client = sp.get<dht::network::client>();
       return client->current_node_id();
     }
     else {
-      return base64::to_bytes(t1.voted_for.get(st));
+      return t1.voted_for.get(st);
     }
   }
 
@@ -709,14 +708,14 @@ void vds::dht::network::sync_process::apply_record(
       auto st = t.get_reader(
           t1.select(t1.object_id)
               .where(
-                  t1.object_id == base64::from_bytes(object_id)
-                  && t1.member_node == base64::from_bytes(member_node)));
+                  t1.object_id == object_id
+                  && t1.member_node == member_node));
 
       if (!st.execute()) {
         t.execute(
             t1.insert(
-                t1.object_id = base64::from_bytes(object_id),
-                t1.member_node = base64::from_bytes(member_node),
+                t1.object_id = object_id,
+                t1.member_node = member_node,
                 t1.last_activity = std::chrono::system_clock::now()));
       }
 
@@ -728,14 +727,14 @@ void vds::dht::network::sync_process::apply_record(
       auto st = t.get_reader(
           t1.select(t1.last_access)
               .where(
-                  t1.object_id == base64::from_bytes(object_id)
-                  && t1.node == base64::from_bytes(member_node)
+                  t1.object_id == object_id
+                  && t1.node == member_node
                   && t1.replica == replica));
       if (!st.execute()) {
         t.execute(
             t1.insert(
-                t1.object_id = base64::from_bytes(object_id),
-                t1.node = base64::from_bytes(member_node),
+                t1.object_id = object_id,
+                t1.node = member_node,
                 t1.replica = replica,
                 t1.last_access = std::chrono::system_clock::now()));
       }
@@ -764,7 +763,7 @@ void vds::dht::network::sync_process::send_snapshot(
       t1.current_term,
       t1.commit_index,
       t1.last_applied)
-    .where(t1.object_id == base64::from_bytes(object_id)));
+    .where(t1.object_id == object_id));
 
   if(!st.execute() || orm::sync_state_dbo::state_t::leader != static_cast<orm::sync_state_dbo::state_t>(t1.state.get(st))) {
     return;
@@ -782,10 +781,10 @@ void vds::dht::network::sync_process::send_snapshot(
     t2.select(
       t2.replica,
       t2.node)
-    .where(t2.object_id == base64::from_bytes(object_id)));
+    .where(t2.object_id == object_id));
   std::map<const_data_buffer, std::set<uint16_t>> replica_map;
   while(st.execute()) {
-    replica_map[base64::to_bytes(t2.node.get(st))].emplace(t2.replica.get(st));
+    replica_map[t2.node.get(st)].emplace(t2.replica.get(st));
   }
 
   //
@@ -793,10 +792,10 @@ void vds::dht::network::sync_process::send_snapshot(
   st = t.get_reader(
     t3.select(
       t3.member_node)
-    .where(t3.object_id == base64::from_bytes(object_id)));
+    .where(t3.object_id == object_id));
   std::set<const_data_buffer> members;
   while (st.execute()) {
-    members.emplace(base64::to_bytes(t2.node.get(st)));
+    members.emplace(t2.node.get(st));
   }
 
   auto & client = *sp.get<dht::network::client>();

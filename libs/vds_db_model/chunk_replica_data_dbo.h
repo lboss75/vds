@@ -19,9 +19,9 @@ namespace vds {
 			{
 			}
 
-			database_column<std::string> object_id;
+			database_column<const_data_buffer, std::string> object_id;
 			database_column<int> replica;
-      database_column<std::string> replica_hash;
+      database_column<const_data_buffer, std::string> replica_hash;
 		};
 	}
 }

@@ -56,7 +56,7 @@ vds::certificate vds::dht::network::service::prepare_to_start(const service_prov
 
       orm::device_config_dbo t2;
       t.execute(t2.insert(
-        t2.node_id = base64::from_bytes(result.fingerprint(hash::sha256())),
+        t2.node_id = result.fingerprint(hash::sha256()),
         t2.local_path = system_reserved.full_name(),
         t2.owner_id = "root_user", //TODO: Need to set default user
         t2.name = "System Reserved",

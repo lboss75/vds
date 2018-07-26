@@ -89,7 +89,7 @@ namespace vds {
     certificate root_user_cert_;
     std::string root_user_name_;
 
-    std::set<std::string> processed_;
+    std::set<const_data_buffer> processed_;
     certificate user_cert_;
     std::string user_name_;
     std::map<const_data_buffer, user_channel> channels_;

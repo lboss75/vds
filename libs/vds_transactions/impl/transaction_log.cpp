@@ -36,14 +36,14 @@ void vds::transactions::transaction_log::save(
   bool ancestor_invalid = false;
   orm::transaction_log_record_dbo t1;
   for (const auto & ancestor : block.ancestors()) {
-    auto st = t.get_reader(t1.select(t1.state).where(t1.id == base64::from_bytes(ancestor)));
+    auto st = t.get_reader(t1.select(t1.state).where(t1.id == ancestor));
     if (!st.execute()) {
       ancestors_exist = false;
       orm::transaction_log_unknown_record_dbo t4;
       t.execute(t4.insert_or_ignore(
-        t4.id = base64::from_bytes(ancestor),
+        t4.id = ancestor,
         t4.refer_id = refer_id,
-        t4.follower_id = base64::from_bytes(block.id())
+        t4.follower_id = block.id()
       ));
     }
     else {
@@ -109,9 +109,9 @@ void vds::transactions::transaction_log::save(
   if(ancestor_invalid) {
     t.execute(
       t1.insert(
-        t1.id = base64::from_bytes(block.id()),
+        t1.id = block.id(),
         t1.data = block_data,
-        t1.state = static_cast<int>(orm::transaction_log_record_dbo::state_t::invalid),
+        t1.state = orm::transaction_log_record_dbo::state_t::invalid,
         t1.order_no = block.order_no()));
   }
   else {
@@ -126,9 +126,9 @@ void vds::transactions::transaction_log::save(
             orm::transaction_log_record_dbo t1;
             t.execute(
                 t1.insert(
-                    t1.id = base64::from_bytes(block.id()),
+                    t1.id = block.id(),
                     t1.data = block_data,
-                    t1.state = static_cast<int>(orm::transaction_log_record_dbo::state_t::leaf),
+                    t1.state = orm::transaction_log_record_dbo::state_t::leaf,
                     t1.order_no = block.order_no(),
                     t1.time_point = block.time_point(),
                     t1.state_data = state.serialize()));
@@ -150,9 +150,9 @@ void vds::transactions::transaction_log::save(
 
       t.execute(
           t1.insert(
-              t1.id = base64::from_bytes(block.id()),
+              t1.id = block.id(),
               t1.data = block_data,
-              t1.state = static_cast<int>(orm::transaction_log_record_dbo::state_t::leaf),
+              t1.state = orm::transaction_log_record_dbo::state_t::leaf,
               t1.order_no = block.order_no(),
               t1.time_point = block.time_point(),
               t1.state_data = state.serialize()));
@@ -160,8 +160,8 @@ void vds::transactions::transaction_log::save(
       for (const auto &p : remove_leaf) {
         t.execute(
             t1.update(
-                    t1.state = static_cast<int>(orm::transaction_log_record_dbo::state_t::processed))
-                .where(t1.id == base64::from_bytes(p)));
+                    t1.state = orm::transaction_log_record_dbo::state_t::processed)
+                .where(t1.id == p));
       }
     }
   }
@@ -169,11 +169,11 @@ void vds::transactions::transaction_log::save(
   //process followers
   std::set<const_data_buffer> followers;
   orm::transaction_log_unknown_record_dbo t4;
-  auto st = t.get_reader(t4.select(t4.follower_id).where(t4.id == base64::from_bytes(block.id())));
+  auto st = t.get_reader(t4.select(t4.follower_id).where(t4.id == block.id()));
   while (st.execute()) {
-    auto follower_id = t4.follower_id.get(st);
-    if(!follower_id.empty()) {
-      followers.emplace(base64::to_bytes(follower_id));
+    const auto follower_id = t4.follower_id.get(st);
+    if(follower_id) {
+      followers.emplace(follower_id);
     }
   }
 
@@ -185,15 +185,15 @@ void vds::transactions::transaction_log::save(
       base64::from_bytes(p).c_str(),
       base64::from_bytes(block.id()).c_str());
 
-    st = t.get_reader(t1.select(t1.data).where(t1.id == base64::from_bytes(p)));
+    st = t.get_reader(t1.select(t1.data).where(t1.id == p));
     if (!st.execute()) {
       throw std::runtime_error("Invalid data");
     }
 
     t.execute(
       t4.delete_if(
-        t4.id == base64::from_bytes(block.id())
-        && t4.follower_id == base64::from_bytes(p)));
+        t4.id == block.id()
+        && t4.follower_id == p));
   }
 }
 
@@ -204,7 +204,7 @@ void vds::transactions::transaction_log::update_consensus(
 
   orm::transaction_log_record_dbo t1;
   for (const auto & ancestor_id : block.ancestors()) {
-    auto st = t.get_reader(t1.select(t1.data, t1.state_data).where(t1.id == base64::from_bytes(ancestor_id)));
+    auto st = t.get_reader(t1.select(t1.data, t1.state_data).where(t1.id == ancestor_id));
     if (!st.execute()) {
       throw std::runtime_error("Invalid program");
     }

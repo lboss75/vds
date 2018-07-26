@@ -7,6 +7,7 @@ All rights reserved
 */
 
 #include "database.h"
+#include "encoding.h"
 
 namespace vds {
   //forwards
@@ -39,13 +40,37 @@ namespace vds {
   template<typename left_exp_type, typename right_exp_type>
   class _database_expression_greater_exp;
 
-  template<typename value_type>
+  template<typename value_type, typename db_value_type>
   class _database_value_exp;
   
   class _database_source_base;
 
   template<typename left_exp_type, typename right_exp_type>
   class _database_logical_or;
+
+  template<typename value_type, typename db_value_type>
+  class _database_value_convertor {
+  public:
+    static value_type from_db_value(db_value_type value) {
+      return static_cast<value_type>(value);
+    }
+    
+    static db_value_type to_db_value(value_type value) {
+      return static_cast<db_value_type>(value);
+    }
+  };
+
+  template<>
+  class _database_value_convertor<const_data_buffer, std::string> {
+  public:
+    static const_data_buffer from_db_value(const std::string & value) {
+      return base64::to_bytes(value);
+    }
+
+    static std::string to_db_value(const const_data_buffer & value) {
+      return base64::from_bytes(value);
+    }
+  };
 
   //database table
   class database_table
@@ -119,15 +144,15 @@ namespace vds {
 
     value_type get(sql_statement & st) const;
 
-    _database_expression_equ_exp<_database_column_exp, _database_value_exp<value_type>> operator == (value_type value) const;
-    _database_expression_equ_exp<_database_column_exp, _database_column_exp> operator == (const database_column<value_type> & right) const;
+    _database_expression_equ_exp<_database_column_exp, _database_value_exp<value_type, db_value_type>> operator == (value_type value) const;
+    _database_expression_equ_exp<_database_column_exp, _database_column_exp> operator == (const database_column<value_type, db_value_type> & right) const;
 
-    _database_expression_not_equ_exp<_database_column_exp, _database_value_exp<value_type>> operator != (value_type value) const;
-    _database_expression_not_equ_exp<_database_column_exp, _database_column_exp> operator != (const database_column<value_type> & right) const;
+    _database_expression_not_equ_exp<_database_column_exp, _database_value_exp<value_type, db_value_type>> operator != (value_type value) const;
+    _database_expression_not_equ_exp<_database_column_exp, _database_column_exp> operator != (const database_column<value_type, db_value_type> & right) const;
 
-    _database_expression_less_or_equ_exp<_database_column_exp, _database_value_exp<value_type>> operator <= (value_type value) const;
+    _database_expression_less_or_equ_exp<_database_column_exp, _database_value_exp<value_type, db_value_type>> operator <= (value_type value) const;
 
-    _database_expression_greater_exp<_database_column_exp, _database_value_exp<value_type>> operator > (value_type value) const;
+    _database_expression_greater_exp<_database_column_exp, _database_value_exp<value_type, db_value_type>> operator > (value_type value) const;
 
     _database_column_setter operator = (const value_type & value) const;
 
@@ -154,7 +179,7 @@ namespace vds {
     std::function<void(sql_statement & st, int index)> set_parameter_;
   };
   //////////////////////////////////////////////
-  template <typename value_type>
+  template <typename value_type, typename db_value_type = value_type>
   class db_value
   {
   public:
@@ -164,9 +189,9 @@ namespace vds {
     }
 
     value_type get(sql_statement & st) const {
-      value_type result;
+      db_value_type result;
       st.get_value(this->index_, result);
-      return (value_type)result;
+      return _database_value_convertor<value_type, db_value_type>::from_db_value(result);
     }
 
     bool is_null(sql_statement & st) const {
@@ -182,11 +207,11 @@ namespace vds {
     int index_;
   };
 
-  template <typename value_type, typename base_type>
+  template <typename value_type, typename db_value_type, typename base_type>
   class _db_as_value : public base_type
   {
   public:
-    _db_as_value(base_type && original, db_value<value_type> & value)
+    _db_as_value(base_type && original, db_value<value_type, db_value_type> & value)
         : base_type(std::move(original)), value_(value)
     {
     }
@@ -197,7 +222,7 @@ namespace vds {
     }
 
   private:
-    db_value<value_type> & value_;
+    db_value<value_type, db_value_type> & value_;
   };
   //////////////////////////////////////////////
   class _database_sql_builder
@@ -405,9 +430,9 @@ namespace vds {
     {
     }
 
-    template <typename value_type>
-    _db_as_value<value_type, _db_sum<source_type>> as(db_value<value_type> & value) {
-      return _db_as_value<value_type, _db_sum<source_type>>(std::move(*this), value);
+    template <typename value_type, typename db_value_type>
+    _db_as_value<value_type, db_value_type, _db_sum<source_type>> as(db_value<value_type, db_value_type> & value) {
+      return _db_as_value<value_type, db_value_type, _db_sum<source_type>>(std::move(*this), value);
     }
 
   private:
@@ -538,7 +563,7 @@ namespace vds {
   }
 
 
-  template<typename value_type>
+  template<typename value_type, typename db_value_type>
   class _database_value_exp
   {
   public:
@@ -555,7 +580,7 @@ namespace vds {
     {
       return builder.add_parameter(
         [value = this->value_](sql_statement & st, int index){
-          st.set_parameter(index, value);
+          st.set_parameter(index, _database_value_convertor<value_type, db_value_type>::to_db_value(value));
         });
     }
     
@@ -1803,18 +1828,18 @@ namespace vds {
   inline value_type database_column<value_type, db_value_type>::get(sql_statement & st) const {
     db_value_type result;
     st.get_value(this->index_, result);
-    return (value_type)result;
+    return _database_value_convertor<value_type, db_value_type>::from_db_value(result);
   }
 
   template <typename value_type, typename db_value_type>
-  inline _database_expression_equ_exp<_database_column_exp, _database_value_exp<value_type>> database_column<value_type, db_value_type>::operator == (value_type value) const {
-    return _database_expression_equ_exp<_database_column_exp, _database_value_exp<value_type>>(
+  inline _database_expression_equ_exp<_database_column_exp, _database_value_exp<value_type, db_value_type>> database_column<value_type, db_value_type>::operator == (value_type value) const {
+    return _database_expression_equ_exp<_database_column_exp, _database_value_exp<value_type, db_value_type>>(
         _database_column_exp(this),
-        _database_value_exp<value_type>(value));
+        _database_value_exp<value_type, db_value_type>(value));
   }
     
   template <typename value_type, typename db_value_type>
-  inline _database_expression_equ_exp<_database_column_exp, _database_column_exp> database_column<value_type, db_value_type>::operator == (const database_column<value_type> & right) const {
+  inline _database_expression_equ_exp<_database_column_exp, _database_column_exp> database_column<value_type, db_value_type>::operator == (const database_column<value_type, db_value_type> & right) const {
     return _database_expression_equ_exp<_database_column_exp, _database_column_exp>(
         _database_column_exp(this),
         _database_column_exp(&right));
@@ -1827,23 +1852,23 @@ namespace vds {
   }
 
   template <typename value_type, typename db_value_type>
-  inline _database_expression_less_or_equ_exp<_database_column_exp, _database_value_exp<value_type>> database_column<value_type, db_value_type>::operator <= (value_type value) const {
-    return _database_expression_less_or_equ_exp<_database_column_exp, _database_value_exp<value_type>>(
+  inline _database_expression_less_or_equ_exp<_database_column_exp, _database_value_exp<value_type, db_value_type>> database_column<value_type, db_value_type>::operator <= (value_type value) const {
+    return _database_expression_less_or_equ_exp<_database_column_exp, _database_value_exp<value_type, db_value_type>>(
       _database_column_exp(this),
-      _database_value_exp<value_type>(value));
+      _database_value_exp<value_type, db_value_type>(value));
   }
 
   template <typename value_type, typename db_value_type>
-  _database_expression_greater_exp<_database_column_exp, _database_value_exp<value_type>> database_column<value_type,
+  _database_expression_greater_exp<_database_column_exp, _database_value_exp<value_type, db_value_type>> database_column<value_type,
   db_value_type>::operator > (value_type value) const {
-    return _database_expression_greater_exp<_database_column_exp, _database_value_exp<value_type>>(
+    return _database_expression_greater_exp<_database_column_exp, _database_value_exp<value_type, db_value_type>>(
       _database_column_exp(this),
-      _database_value_exp<value_type>(value));
+      _database_value_exp<value_type, db_value_type>(value));
   }
 
   template <typename value_type, typename db_value_type>
   _database_column_setter database_column<value_type, db_value_type>::operator = (const value_type & value) const {
-    return _database_column_setter(this, [val = (db_value_type)value](sql_statement & st, int index) {
+    return _database_column_setter(this, [val = _database_value_convertor<value_type, db_value_type>::to_db_value(value)](sql_statement & st, int index) {
       st.set_parameter(index, val);
     });
   }

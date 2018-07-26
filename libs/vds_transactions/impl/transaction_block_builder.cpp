@@ -50,9 +50,9 @@ vds::const_data_buffer vds::transactions::transaction_block_builder::save(
 
   orm::transaction_log_record_dbo t2;
   t.execute(t2.insert(
-    t2.id = vds::base64::from_bytes(id),
+    t2.id = id,
     t2.data = block_data.data(),
-    t2.state = static_cast<uint8_t>(orm::transaction_log_record_dbo::state_t::leaf),
+    t2.state = orm::transaction_log_record_dbo::state_t::leaf,
     t2.order_no = this->balance_.order_no(),
     t2.time_point = this->time_point_,
     t2.state_data = this->balance_.serialize()));
@@ -60,8 +60,8 @@ vds::const_data_buffer vds::transactions::transaction_block_builder::save(
   for (auto & ancestor : this->ancestors_) {
     orm::transaction_log_record_dbo t1;
     t.execute(
-      t1.update(t1.state = (uint8_t)orm::transaction_log_record_dbo::state_t::processed)
-      .where(t1.id == base64::from_bytes(ancestor)));
+      t1.update(t1.state = orm::transaction_log_record_dbo::state_t::processed)
+      .where(t1.id == ancestor));
   }
 
   return id;

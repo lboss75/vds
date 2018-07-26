@@ -262,8 +262,8 @@ namespace vds {
             database_transaction &t);
 
         static const_data_buffer read_data(
-            const std::string &data_hash,
-            const filename &data_path);
+          const const_data_buffer& data_hash,
+          const filename &data_path);
       };
     }
   }

@@ -22,9 +22,9 @@ vds::transactions::data_coin_balance vds::transactions::data_coin_balance::load(
     t1.select(t1.id, t1.order_no, t1.state_data)
     .where(
       t1.time_point <= time_point
-      && t1.state == (uint8_t)orm::transaction_log_record_dbo::state_t::leaf));
+      && t1.state == orm::transaction_log_record_dbo::state_t::leaf));
   while (st.execute()) {
-    base_packages.emplace(base64::to_bytes(t1.id.get(st)));
+    base_packages.emplace(t1.id.get(st));
     auto order = t1.order_no.get(st);
     if (max_order_no < order) {
       max_order_no = order;

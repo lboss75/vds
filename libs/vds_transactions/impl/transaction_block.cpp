@@ -30,7 +30,7 @@ bool vds::transactions::transaction_block::exists(database_transaction& t) {
   auto st = t.get_reader(
     t1
     .select(t1.state)
-    .where(t1.id == base64::from_bytes(this->id())));
+    .where(t1.id == this->id()));
 
   if (st.execute()) {
     return true;

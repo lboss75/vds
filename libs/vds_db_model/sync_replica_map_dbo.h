@@ -19,9 +19,9 @@ namespace vds {
         last_access(this, "last_access") {
 			}
 
-			database_column<std::string> object_id;
+			database_column<const_data_buffer, std::string> object_id;
 			database_column<int> replica;
-      database_column<std::string> node;
+      database_column<const_data_buffer, std::string> node;
       database_column<std::chrono::system_clock::time_point> last_access;
 		};
 	}

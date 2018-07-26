@@ -21,12 +21,12 @@ namespace vds {
         data_size(this, "data_size"){
       }
 
-      database_column<std::string> node_id;
+      database_column<const_data_buffer, std::string> node_id;
       database_column<std::string> storage_path;
 
       database_column<std::string> local_path;
 
-      database_column<std::string> data_hash;
+      database_column<const_data_buffer, std::string> data_hash;
       database_column<uint64_t> data_size;
     };
   }

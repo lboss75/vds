@@ -15,12 +15,22 @@ namespace vds {
 				: database_table("sync_member"),
 				object_id(this, "object_id"),
         member_node(this, "member_node"),
+        generation(this, "generation"),
+        current_term(this, "current_term"),
+        commit_index(this, "commit_index"),
+        last_applied(this, "last_applied"),
         last_activity(this, "last_activity")
-			{
+		  {
 			}
 
-			database_column<std::string> object_id;
-      database_column<std::string> member_node;
+			database_column<const_data_buffer, std::string> object_id;
+      database_column<const_data_buffer, std::string> member_node;
+
+      database_column<uint64_t> generation;
+      database_column<uint64_t> current_term;
+      database_column<uint64_t> commit_index;
+      database_column<uint64_t> last_applied;
+
       database_column<std::chrono::system_clock::time_point> last_activity;
     };
 	}

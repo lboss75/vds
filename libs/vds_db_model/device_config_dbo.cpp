@@ -19,7 +19,7 @@ std::list<vds::orm::device_config_dbo::device_info> vds::orm::device_config_dbo:
       t1.reserved_size,
       db_sum(t2.data_size).as(used_size))
     .left_join(t2, t2.local_path == t1.local_path && t2.node_id == t1.node_id)
-    .where(t1.node_id == base64::from_bytes(node_id))
+    .where(t1.node_id == node_id)
     .group_by(t1.name, t1.node_id, t1.local_path, t1.reserved_size));
   while (st.execute()) {
     try {

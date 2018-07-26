@@ -20,9 +20,9 @@ namespace vds {
             refer_id(this, "refer_id"),
             follower_id(this, "follower_id") {}
 
-      database_column<std::string> id;
+      database_column<const_data_buffer, std::string> id;
       database_column<const_data_buffer> refer_id;
-      database_column<std::string> follower_id;
+      database_column<const_data_buffer, std::string> follower_id;
     };
   }
 }

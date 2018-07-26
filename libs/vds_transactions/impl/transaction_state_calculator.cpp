@@ -40,12 +40,12 @@ void vds::transactions::transaction_state_calculator::add_ancestor(
               t1.id,
               t1.order_no,
               t1.time_point)
-          .where(t1.id == base64::from_bytes(ancestor_id)));
+          .where(t1.id == ancestor_id));
   if(!st.execute()){
     throw std::runtime_error("Invalid data");
   }
 
-  const auto id = base64::to_bytes(t1.id.get(st));
+  const auto id = t1.id.get(st);
   const auto order_no = t1.order_no.get(st);
   const auto time_point = t1.time_point.get(st);
   vds_assert(order_no < max_order_no);
@@ -87,7 +87,7 @@ vds::transactions::transaction_state_calculator::process(vds::database_transacti
   orm::transaction_log_record_dbo t1;
   auto st = t.get_reader(
       t1.select(t1.state_data)
-          .where(t1.id == base64::from_bytes(*this->not_processed_.begin()->second.begin())));
+          .where(t1.id == *this->not_processed_.begin()->second.begin()));
   if(!st.execute()){
     throw std::runtime_error("Invalid data");
   }
@@ -115,7 +115,7 @@ void vds::transactions::transaction_state_calculator::resolve(
   orm::transaction_log_record_dbo t1;
   auto st = t.get_reader(
       t1.select(t1.data)
-          .where(t1.id == base64::from_bytes(node_id)));
+          .where(t1.id == node_id));
   if(!st.execute()){
     throw std::runtime_error("Invalid data");
   }

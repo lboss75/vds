@@ -25,10 +25,10 @@ namespace vds {
 			{
 			}
 
-			database_column<std::string> object_id;
+			database_column<const_data_buffer, std::string> object_id;
       database_column<uint8_t> state;
       database_column<std::chrono::system_clock::time_point> next_sync;
-      database_column<std::string> voted_for;
+      database_column<const_data_buffer, std::string> voted_for;
       database_column<uint64_t> generation;
       database_column<uint64_t> current_term;
       database_column<uint64_t> commit_index;

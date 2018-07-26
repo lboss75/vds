@@ -21,7 +21,7 @@ namespace vds {
             is_new(this, "is_new"){
       }
 
-      database_column<std::string> id;
+      database_column<const_data_buffer, std::string> id;
       database_column<const_data_buffer> data;
       database_column<std::chrono::system_clock::time_point> create_time;
       database_column<bool> is_new;

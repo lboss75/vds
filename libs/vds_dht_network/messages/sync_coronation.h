@@ -49,6 +49,11 @@ namespace vds {
           return this->member_notes_;
         }
 
+        const const_data_buffer & source_node() const override {
+          return this->leader_node();
+        }
+
+
       private:
         std::map<const_data_buffer, std::set<uint16_t>> member_notes_;
       };

@@ -110,6 +110,11 @@ namespace vds{
       return !this->impl_;
     }
 
+    operator bool() const
+    {
+      return this->size() != 0;
+    }
+
     void clear() {
       this->impl_.reset();
     }

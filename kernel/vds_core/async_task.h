@@ -802,7 +802,7 @@ namespace vds {
   template<typename ...result_types>
   inline async_task<result_types...> async_task<result_types...>::empty()
   {
-    return async_task<result_types...>(new _async_task_empty<result_types...>());
+    return async_task<result_types...>(static_cast<_async_task_base<result_types...> *>(new _async_task_empty<result_types...>()));
   }
 
 	template<typename ...result_types>

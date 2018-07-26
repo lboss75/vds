@@ -54,7 +54,7 @@ std::vector<vds::const_data_buffer> vds::dht::network::_client::save(
     this->generators_.find(replica)->second->write(s, value.data(), value.size());
     const auto replica_data = s.data();
     const auto replica_hash = hash::signature(hash::sha256(), replica_data);
-    const auto object_id = base64::from_bytes(replica_hash);
+    const auto object_id = replica_hash;
 
     orm::chunk_dbo t1;
 
@@ -90,7 +90,7 @@ void vds::dht::network::_client::save(
     binary_serializer s;
     this->generators_.find(replica)->second->write(s, value.data(), value.size());
     const auto replica_data = s.data();
-    const auto id = base64::from_bytes(replica_id(name, replica));
+    const auto id = replica_id(name, replica);
 
     sp.get<logger>()->trace(
       ThisModule,
@@ -98,7 +98,7 @@ void vds::dht::network::_client::save(
       "save replica %s[%d]: %s",
       name.c_str(),
       replica,
-      id.c_str());
+      base64::from_bytes(id).c_str());
 
     auto replica_hash = hash::signature(hash::sha256(), replica_data);
     auto fn = this->save_data(sp, t, replica_hash, replica_data);
@@ -106,7 +106,7 @@ void vds::dht::network::_client::save(
     t.execute(
       t1.insert(
         t1.object_id = id,
-        t1.replica_hash = base64::from_bytes(replica_hash),
+        t1.replica_hash = replica_hash,
         t1.last_sync = std::chrono::system_clock::now() - std::chrono::hours(24)
       ));
   }
@@ -192,14 +192,14 @@ vds::async_task<> vds::dht::network::_client::apply_message(
     sp,
     [pthis = this->shared_from_this(), sp, session, message](database_transaction & t) -> bool{
 
-    auto object_id = base64::from_bytes(message.object_id());
+    auto object_id = message.object_id();
 
     orm::chunk_dbo t1;
     orm::device_record_dbo t3;
     auto st = t.get_reader(
       t1
       .select(t3.local_path)
-      .inner_join(t3, t3.node_id == base64::from_bytes(pthis->current_node_id()) && t3.data_hash == t1.replica_hash)
+      .inner_join(t3, t3.node_id == pthis->current_node_id() && t3.data_hash == t1.replica_hash)
       .where(t1.object_id == object_id));
 
     std::set<uint8_t> allowed_replicas;
@@ -219,13 +219,13 @@ vds::async_task<> vds::dht::network::_client::apply_message(
       }
     }
     else {
-      std::map<uint16_t, std::tuple<std::string, std::string>> replica_hashes;
+      std::map<uint16_t, std::tuple<const_data_buffer, std::string>> replica_hashes;
       orm::chunk_replica_data_dbo t2;
       orm::device_record_dbo t4;
       st = t.get_reader(
         t2
         .select(t2.replica, t2.replica_hash, t4.local_path)
-        .inner_join(t4, t4.node_id == base64::from_bytes(pthis->current_node_id()) && t4.data_hash == t2.replica_hash)
+        .inner_join(t4, t4.node_id == pthis->current_node_id() && t4.data_hash == t2.replica_hash)
         .where(t2.object_id == object_id));
 
       while (st.execute()) {
@@ -240,8 +240,8 @@ vds::async_task<> vds::dht::network::_client::apply_message(
 
       get_replica = [replica_hashes](uint16_t replica)->const_data_buffer{
         return read_data(
-            std::get<0>(replica_hashes.find(replica)->second),
-            filename(std::get<1>(replica_hashes.find(replica)->second)));
+          std::get<0>(replica_hashes.find(replica)->second),
+          filename(std::get<1>(replica_hashes.find(replica)->second)));
       };
     }
 
@@ -255,7 +255,7 @@ vds::async_task<> vds::dht::network::_client::apply_message(
               ThisModule,
               sp,
               "Send replica %s:%d to %s",
-              object_id.c_str(),
+              base64::from_bytes(object_id).c_str(),
               replica,
               base64::from_bytes(message.source_node()).c_str());
 
@@ -292,7 +292,7 @@ vds::async_task<> vds::dht::network::_client::apply_message(
     orm::chunk_replica_data_dbo t2;
     auto st = t.get_reader(
         t2.select(t2.replica_hash)
-        .where(t2.object_id == base64::from_bytes(message.object_id())
+        .where(t2.object_id == message.object_id()
            && t2.replica == message.replica()));
     if(st.execute()){
     }
@@ -302,13 +302,13 @@ vds::async_task<> vds::dht::network::_client::apply_message(
 
       t.execute(
           t2.insert(
-              t2.object_id = base64::from_bytes(message.object_id()),
+              t2.object_id = message.object_id(),
               t2.replica = message.replica(),
-              t2.replica_hash = base64::from_bytes(data_hash)));
+              t2.replica_hash = data_hash));
     }
 
     std::set<uint16_t> replicas;
-    st = t.get_reader(t2.select(t2.replica).where(t2.object_id == base64::from_bytes(message.object_id())));
+    st = t.get_reader(t2.select(t2.replica).where(t2.object_id == message.object_id()));
     while(st.execute()) {
         replicas.emplace(t2.replica.get(st));
     }
@@ -504,7 +504,7 @@ vds::filename vds::dht::network::_client::save_data(
   auto st = t.get_reader(
     t3.select(t3.local_path, t3.reserved_size, db_sum(t4.data_size).as(data_size))
     .left_join(t4, t4.node_id == t3.node_id && t4.storage_path == t3.local_path)
-    .where(t3.node_id == base64::from_bytes(this->current_node_id()))
+    .where(t3.node_id == this->current_node_id())
     .group_by(t3.local_path, t3.reserved_size));
   while (st.execute()) {
     const uint64_t size = data_size.is_null(st) ? 0 : data_size.get(st);
@@ -535,10 +535,10 @@ vds::filename vds::dht::network::_client::save_data(
   file::write_all(fn, data);
 
   t.execute(t4.insert(
-    t4.node_id = base64::from_bytes(this->current_node_id()),
+    t4.node_id = this->current_node_id(),
     t4.storage_path = local_path,
     t4.local_path = fn.full_name(),
-    t4.data_hash = base64::from_bytes(data_hash),
+    t4.data_hash = data_hash,
     t4.data_size = data.size()));
 
   return fn;
@@ -590,7 +590,7 @@ vds::dht::network::_client::apply_message(
       auto & client = *sp.get<vds::dht::network::client>();
 
     orm::chunk_replica_data_dbo t1;
-    auto st = t.get_reader(t1.select(t1.replica).where(t1.object_id == base64::from_bytes(message.object_id())));
+    auto st = t.get_reader(t1.select(t1.replica).where(t1.object_id == message.object_id()));
     if (!st.execute()) {
       client->send(sp, message.source_node(), messages::object_request(
         message.object_id(),
@@ -640,9 +640,9 @@ vds::dht::network::_client::apply_message(
       orm::sync_replica_map_dbo t1;
       t.execute(
         t1.insert_or_ignore(
-          t1.object_id = base64::from_bytes(message.object_id()),
+          t1.object_id = message.object_id(),
           t1.replica = p,
-          t1.node = base64::from_bytes(message.source_node())));
+          t1.node = message.source_node()));
     }
 
     return true;
@@ -743,8 +743,8 @@ vds::async_task<uint8_t> vds::dht::network::_client::restore_async(
       auto st = t.get_reader(
         t1
         .select(t4.local_path)
-        .inner_join(t4, t4.node_id == base64::from_bytes(pthis->current_node_id()) && t4.data_hash == t1.replica_hash)
-        .where(t1.object_id == base64::from_bytes(object_ids[replica])));
+        .inner_join(t4, t4.node_id == pthis->current_node_id() && t4.data_hash == t1.replica_hash)
+        .where(t1.object_id == object_ids[replica]));
 
       if (st.execute()) {
         replicas.push_back(replica);
@@ -778,14 +778,14 @@ vds::async_task<uint8_t> vds::dht::network::_client::restore_async(
       auto st = t.get_reader(
           t2.select(
           t2.replica, t2.replica_hash, t4.local_path)
-        .inner_join(t4, t4.node_id == base64::from_bytes(pthis->current_node_id()) && t4.data_hash == t2.replica_hash)
-        .where(t2.object_id == base64::from_bytes(replica)));
+        .inner_join(t4, t4.node_id == pthis->current_node_id() && t4.data_hash == t2.replica_hash)
+        .where(t2.object_id == replica));
       while(st.execute()) {
         replicas.push_back(t2.replica.get(st));
         datas.push_back(
             read_data(
-                t2.replica_hash.get(st),
-                filename(t4.local_path.get(st))));
+              t2.replica_hash.get(st),
+              filename(t4.local_path.get(st))));
 
         if (replicas.size() >= MIN_DISTRIBUTED_PIECES) {
           break;
@@ -803,8 +803,8 @@ vds::async_task<uint8_t> vds::dht::network::_client::restore_async(
 
         t.execute(
           t1.insert(
-            t1.object_id = base64::from_bytes(replica),
-            t1.replica_hash = base64::from_bytes(data_hash),
+            t1.object_id = replica,
+            t1.replica_hash = data_hash,
             t1.last_sync = std::chrono::system_clock::now()));
       }
       else {
@@ -866,10 +866,10 @@ vds::dht::network::_client::update_wellknown_connection(
 
 vds::const_data_buffer
 vds::dht::network::_client::read_data(
-    const std::string &data_hash,
+    const const_data_buffer &data_hash,
     const filename &data_path) {
   auto data = file::read_all(data_path);
-  vds_assert(data_hash == base64::from_bytes(hash::signature(hash::sha256(), data)));
+  vds_assert(data_hash == hash::signature(hash::sha256(), data));
   return data;
 }
 
