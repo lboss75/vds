@@ -18,10 +18,14 @@ namespace vds {
 
         sync_new_election_request(
             const const_data_buffer &object_id,
+            uint64_t generation,
             uint64_t current_term,
-            const const_data_buffer &source_node)
+          const const_data_buffer &target_node,
+          const const_data_buffer &source_node)
             : object_id_(object_id),
+              generation_(generation),
               current_term_(current_term),
+              target_node_(target_node),
               source_node_(source_node) {
         }
 
@@ -29,7 +33,9 @@ namespace vds {
             binary_deserializer & s) {
           s
             >> this->object_id_
+            >> this->generation_
             >> this->current_term_
+            >> this->target_node_
             >> this->source_node_;
           ;
         }
@@ -38,7 +44,9 @@ namespace vds {
           binary_serializer s;
           s
               << this->object_id_
+              << this->generation_
               << this->current_term_
+              << this->target_node_
               << this->source_node_;
           return s.data();
         }
@@ -47,8 +55,16 @@ namespace vds {
           return this->object_id_;
         }
 
+        uint64_t generation() const {
+          return this->generation_;
+        }
+
         uint64_t current_term() const {
           return this->current_term_;
+        }
+
+        const const_data_buffer & target_node() const {
+          return this->target_node_;
         }
 
         const const_data_buffer & source_node() const {
@@ -57,7 +73,9 @@ namespace vds {
 
       private:
         const_data_buffer object_id_;
+        uint64_t generation_;
         uint64_t current_term_;
+        const_data_buffer target_node_;
         const_data_buffer source_node_;
       };
 
@@ -67,28 +85,37 @@ namespace vds {
 
         sync_new_election_response(
           const const_data_buffer &object_id,
+          uint64_t generation,
           uint64_t current_term,
+          const const_data_buffer &target_node,
           const const_data_buffer & source_node)
             : object_id_(object_id),
+              generation_(generation),
               current_term_(current_term),
-              source_node_(source_node) {
+          target_node_(target_node),
+          source_node_(source_node) {
         }
 
         sync_new_election_response(
-            binary_deserializer & s) {
+          binary_deserializer & s) {
           s
-              >> this->object_id_
-              >> this->current_term_
-              >> this->source_node_;
-          ;
+            >> this->object_id_
+            >> this->generation_
+            >> this->current_term_
+            >> this->target_node_
+            >> this->source_node_
+            ;
         }
 
         const_data_buffer serialize() const {
           binary_serializer s;
           s
-              << this->object_id_
-              << this->current_term_
-              << this->source_node_;
+            << this->object_id_
+            << this->generation_
+            << this->current_term_
+            << this->target_node_
+            << this->source_node_
+            ;
           return s.data();
         }
 
@@ -96,8 +123,16 @@ namespace vds {
           return object_id_;
         }
 
+        uint64_t generation() const {
+          return this->generation_;
+        }
+
         uint64_t current_term() const {
           return this->current_term_;
+        }
+
+        const const_data_buffer & target_node() const {
+          return this->target_node_;
         }
 
         const const_data_buffer & source_node() const {
@@ -106,7 +141,9 @@ namespace vds {
 
       private:
         const_data_buffer object_id_;
+        uint64_t generation_;
         uint64_t current_term_;
+        const_data_buffer target_node_;
         const_data_buffer source_node_;
       };
     }

@@ -11,6 +11,7 @@ All rights reserved
 
 #include "sqllite3/sqlite3.h"
 #include "thread_apartment.h"
+#include "vds_exceptions.h"
 
 namespace vds {
   class database;
@@ -255,7 +256,7 @@ namespace vds {
       }
     }
 
-    sql_statement parse(const char * sql)
+    sql_statement parse(const char * sql) const
     {
       return sql_statement(new _sql_statement(this->db_, sql));
     }
@@ -297,6 +298,30 @@ namespace vds {
 
     async_task<> prepare_to_stop(const service_provider & sp){
       return async_task<>::empty();
+    }
+
+
+    /**
+     * \brief This function returns the number of rows modified, inserted or deleted by 
+     * the most recently completed INSERT, UPDATE or DELETE statement on the database connection
+     * \return Count The Number Of Rows Modified
+     */
+    int rows_modified() const {
+      return sqlite3_changes(this->db_);
+    }
+
+    int last_insert_rowid() const {
+      auto st = this->parse("select last_insert_rowid()");
+      if(!st.execute()) {
+        throw vds_exceptions::invalid_operation();
+      }
+
+      int result;
+      if(!st.get_value(0, result)) {
+        throw vds_exceptions::invalid_operation();
+      }
+
+      return result;
     }
 
   private:

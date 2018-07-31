@@ -17,6 +17,11 @@ namespace vds {
     namespace network {
       class service;
     }
+    namespace messages {
+      class transaction_log_state;
+      class transaction_log_request;
+      class transaction_log_record;
+    }
   }
 
   class cert_manager;
@@ -31,7 +36,7 @@ namespace vds {
   }
 
 
-  class _server : public iserver
+  class _server
   {
   public:
     _server(server * owner);
@@ -43,9 +48,23 @@ namespace vds {
 
     async_task<server_statistic> get_statistic(const vds::service_provider &sp);
 
+    async_task<> apply_message(
+      const service_provider & sp,
+      database_transaction & t,
+      const dht::messages::transaction_log_state & message);
+
+    void apply_message(
+      const service_provider& sp,
+      database_transaction& t,
+      const dht::messages::transaction_log_request& message);
+
+    void apply_message(
+      const service_provider& sp,
+      database_transaction& t,
+      const dht::messages::transaction_log_record & message);
+
   private:
     friend class server;
-    friend class iserver;
 
     server * owner_;
 

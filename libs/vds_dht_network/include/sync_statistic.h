@@ -18,7 +18,7 @@ namespace vds {
     std::set<const_data_buffer> unknown_;
 
     std::set<const_data_buffer> chunks_;
-    std::map<std::string, std::set<uint16_t>> chunk_replicas_;
+    std::map<const_data_buffer, std::set<uint16_t>> chunk_replicas_;
 
     struct record_info {
       std::string name_;

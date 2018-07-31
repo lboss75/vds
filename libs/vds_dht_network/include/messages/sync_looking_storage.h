@@ -13,43 +13,47 @@ All rights reserved
 namespace vds {
   namespace dht {
     namespace messages {
-      class sync_looking_storage_request {
+      class sync_looking_storage_request : public sync_base_message_request {
       public:
         static const network::message_type_t message_id = network::message_type_t::sync_looking_storage_request;
 
         sync_looking_storage_request(
           const const_data_buffer &object_id,
           const const_data_buffer &leader_node,
+          uint64_t generation,
+          uint64_t current_term,
+          uint64_t commit_index,
+          uint64_t last_applied,
           uint32_t object_size)
-        : object_id_(object_id),
-          leader_node_(leader_node),
+        : sync_base_message_request(
+          object_id,
+          leader_node,
+          generation,
+          current_term,
+          commit_index,
+          last_applied),
           object_size_(object_size){
         }
 
         sync_looking_storage_request(
-            binary_deserializer & s){
+            binary_deserializer & s)
+        : sync_base_message_request(s){
           s
-            >> this->object_id_
-            >> this->leader_node_
             >> this->object_size_
           ;
         }
 
         const_data_buffer serialize() const {
           binary_serializer s;
+          sync_base_message_request::serialize(s);
           s
-            << this->object_id_
-            << this->leader_node_
             << this->object_size_;
           return s.data();
         }
 
-        const const_data_buffer & object_id() const {
-          return this->object_id_;
-        }
 
-        const const_data_buffer & leader_node() const {
-          return this->leader_node_;
+        const const_data_buffer& source_node() const override {
+          return this->leader_node();
         }
 
         uint32_t object_size() const {
@@ -57,8 +61,6 @@ namespace vds {
         }
 
       private:
-        const_data_buffer object_id_;
-        const_data_buffer leader_node_;
         uint32_t object_size_;
       };
 

@@ -71,8 +71,8 @@ namespace vds {
       auto st = t.get_reader(
         t1.select(t1.data)
         .where(
-          t1.state == static_cast<int>(orm::transaction_log_record_dbo::state_t::processed)
-          || t1.state == static_cast<int>(orm::transaction_log_record_dbo::state_t::leaf))
+          t1.state == orm::transaction_log_record_dbo::state_t::processed
+          || t1.state == orm::transaction_log_record_dbo::state_t::leaf)
         .order_by(t1.order_no));
 
       transactions::channel_messages_walker_lambdas<handler_types...> channel_handlers(

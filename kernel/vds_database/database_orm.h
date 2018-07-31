@@ -463,6 +463,10 @@ namespace vds {
     {
     }
 
+    template <typename value_type, typename db_value_type>
+    _db_as_value<value_type, db_value_type, _db_count<source_type>> as(db_value<value_type, db_value_type> & value) {
+      return _db_as_value<value_type, db_value_type, _db_count<source_type>>(std::move(*this), value);
+    }
   private:
     source_type column_;
   };

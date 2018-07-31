@@ -22,24 +22,13 @@ namespace vds {
 				object_id(this, "object_id"),
         object_size(this, "object_size"),
         state(this, "state"),
-        next_sync(this, "next_sync"),
-        voted_for(this, "voted_for"),
-        generation(this, "generation"),
-        current_term(this, "current_term"),
-        commit_index(this, "commit_index"),
-        last_applied(this, "last_applied")
-			{
+        next_sync(this, "next_sync") {
 			}
 
 			database_column<const_data_buffer, std::string> object_id;
-      database_column<uint32_t> object_size;
-      database_column<state_t, uint8_t> state;
+      database_column<uint32_t, int> object_size;
+      database_column<state_t, int> state;
       database_column<std::chrono::system_clock::time_point> next_sync;
-      database_column<const_data_buffer, std::string> voted_for;
-      database_column<uint64_t> generation;
-      database_column<uint64_t> current_term;
-      database_column<uint64_t> commit_index;
-      database_column<uint64_t> last_applied;
     };
 	}
 }

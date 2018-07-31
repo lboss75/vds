@@ -16,6 +16,11 @@ All rights reserved
 namespace vds {
   namespace dht {
     namespace messages {
+      class sync_replica_operations_response;
+      class sync_replica_operations_request;
+      class sync_leader_broadcast_response;
+      class sync_leader_broadcast_request;
+      class sync_add_message_request;
       class replica_data;
       class object_request;
       class dht_pong;
@@ -115,23 +120,62 @@ namespace vds {
           const std::shared_ptr<dht_session>& session,
           const messages::got_replica& message);
 
+        //Sync messages
         void apply_message(
           const service_provider & sp,
+          database_transaction & t,
           const messages::sync_new_election_request & message);
 
         void apply_message(
           const service_provider & sp,
+          database_transaction & t,
           const messages::sync_new_election_response & message);
 
         void apply_message(
           const service_provider & sp,
           database_transaction & t,
-          const messages::sync_coronation_request & message);
+          const messages::sync_add_message_request & message);
 
         void apply_message(
           const service_provider & sp,
-          const messages::sync_coronation_response & message);
+          database_transaction & t,
+          const messages::sync_leader_broadcast_request & message);
 
+        void apply_message(
+          const service_provider & sp,
+          database_transaction & t,
+          const messages::sync_leader_broadcast_response & message);
+
+        void apply_message(
+          const service_provider & sp,
+          database_transaction & t,
+          const messages::sync_replica_operations_request & message);
+
+        void apply_message(
+          const service_provider & sp,
+          database_transaction & t,
+          const messages::sync_replica_operations_response & message);
+
+        void apply_message(
+          const service_provider & sp,
+          database_transaction & t,
+          const messages::sync_looking_storage_request & message);
+
+        void apply_message(
+          const service_provider & sp,
+          database_transaction & t,
+          const messages::sync_looking_storage_response & message);
+
+        void apply_message(
+          const service_provider & sp,
+          database_transaction & t,
+          const messages::sync_snapshot_request & message);
+
+        void apply_message(
+          const service_provider & sp,
+          database_transaction & t,
+          const messages::sync_snapshot_response & message);
+        //
         template <typename message_type>
         void send(
           const service_provider & sp,
@@ -139,6 +183,12 @@ namespace vds {
           const message_type & message) {
           this->send(sp, node_id, message_type::message_id, message.serialize());
         }
+
+        void send(
+          const service_provider& sp,
+          const const_data_buffer& node_id,
+          const message_type_t message_id,
+          const const_data_buffer& message);
 
         template <typename message_type>
         void send_near(
@@ -220,11 +270,6 @@ namespace vds {
             const service_provider & sp,
             database_transaction & t);
 
-        void send(
-          const service_provider& sp,
-          const const_data_buffer& node_id,
-          const message_type_t message_id,
-          const const_data_buffer& message);
 
         void send_near(
           const service_provider& sp,

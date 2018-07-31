@@ -57,16 +57,26 @@ namespace vds {
       public:
         static const network::message_type_t message_id = network::message_type_t::sync_snapshot_response;
 
+        struct member_state {
+          const_data_buffer voted_for;
+          const_data_buffer cert;
+          const_data_buffer sign;
+        };
+
         sync_snapshot_response(
           const const_data_buffer &object_id,
+          uint32_t object_size,
+          const const_data_buffer &target_node,
           const const_data_buffer &leader_node,
           uint64_t generation,
           uint64_t current_term,
           uint64_t commit_index,
           uint64_t last_applied,
           const std::map<const_data_buffer, std::set<uint16_t>> & replica_map,
-          const std::set<const_data_buffer> & members)
+          const std::map<const_data_buffer, member_state> & members)
           : object_id_(object_id),
+          object_size_(object_size),
+          target_node_(target_node),
           leader_node_(leader_node),
           generation_(generation),
           current_term_(current_term),
@@ -80,6 +90,8 @@ namespace vds {
             binary_deserializer & s) {
           s
             >> this->object_id_
+            >> this->object_size_
+            >> this->target_node_
             >> this->leader_node_
             >> this->generation_
             >> this->current_term_
@@ -94,6 +106,8 @@ namespace vds {
           binary_serializer s;
           s
             << this->object_id_
+            << this->object_size_
+            << this->target_node_
             << this->leader_node_
             << this->generation_
             << this->current_term_
@@ -107,6 +121,14 @@ namespace vds {
 
         const const_data_buffer & object_id() const {
           return this->object_id_;
+        }
+
+        uint32_t object_size() const {
+          return this->object_size_;
+        }
+
+        const const_data_buffer & target_node() const {
+          return this->leader_node_;
         }
 
         const const_data_buffer & leader_node() const {
@@ -133,22 +155,36 @@ namespace vds {
           return this->replica_map_;
         }
 
-        const std::set<const_data_buffer> & members() const {
+        const std::map<const_data_buffer, member_state> & members() const {
           return this->members_;
         }
 
+
       private:
         const_data_buffer object_id_;
+        uint32_t object_size_;
+        const_data_buffer target_node_;
         const_data_buffer leader_node_;
         uint64_t generation_;
         uint64_t current_term_;
         uint64_t commit_index_;
         uint64_t last_applied_;
         std::map<const_data_buffer, std::set<uint16_t>> replica_map_;
-        std::set<const_data_buffer> members_;
+        std::map<const_data_buffer, member_state> members_;
       };
     }
   }
+
+  inline binary_serializer & operator << (binary_serializer & s, const dht::messages::sync_snapshot_response::member_state & value) {
+    s << value.voted_for << value.cert << value.sign;
+    return s;
+  }
+
+  inline binary_deserializer & operator >> (binary_deserializer & s, dht::messages::sync_snapshot_response::member_state & value) {
+    s >> value.voted_for >> value.cert >> value.sign;
+    return s;
+  }
 }
+
 
 #endif //__VDS_DHT_NETWORK_SYNC_SNAPSHOT_H_

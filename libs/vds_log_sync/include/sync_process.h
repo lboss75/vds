@@ -26,10 +26,6 @@ namespace vds {
         const service_provider & sp,
         database_transaction & t);
 
-
-    private:
-      void query_unknown_records(const service_provider& sp, database_transaction& t);
-
       async_task<> apply_message(
         const service_provider & sp,
         database_transaction & t,
@@ -44,6 +40,10 @@ namespace vds {
         const service_provider& sp,
         database_transaction& t,
         const dht::messages::transaction_log_record & message);
+
+    private:
+      void query_unknown_records(const service_provider& sp, database_transaction& t);
+
 
       void sync_local_channels(
         const service_provider & sp,

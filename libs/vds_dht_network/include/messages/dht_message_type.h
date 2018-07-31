@@ -42,11 +42,7 @@ namespace vds {
         sync_new_election_request,
         sync_new_election_response,
 
-        sync_coronation_request,
-        sync_coronation_response,
-
-        sync_apply_operation_request,
-        sync_apply_operation_response,
+        sync_add_message_request,
 
         sync_leader_broadcast_request,
         sync_leader_broadcast_response,

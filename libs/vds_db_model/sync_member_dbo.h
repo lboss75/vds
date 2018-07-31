@@ -15,6 +15,7 @@ namespace vds {
 				: database_table("sync_member"),
 				object_id(this, "object_id"),
         member_node(this, "member_node"),
+        voted_for(this, "voted_for"),
         generation(this, "generation"),
         current_term(this, "current_term"),
         commit_index(this, "commit_index"),
@@ -25,6 +26,7 @@ namespace vds {
 
 			database_column<const_data_buffer, std::string> object_id;
       database_column<const_data_buffer, std::string> member_node;
+      database_column<const_data_buffer, std::string> voted_for;
 
       database_column<uint64_t> generation;
       database_column<uint64_t> current_term;

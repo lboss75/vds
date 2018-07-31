@@ -15,7 +15,8 @@ All rights reserved
 #include "chunk_replica_data_dbo.h"
 #include "dht_object_id.h"
 #include "../vds_dht_network/private/dht_network_client_p.h"
-#include "../vds_log_sync/private/sync_process.h"
+#include "../vds_log_sync/include/sync_process.h"
+#include "sync_process.h"
 
 vds::server::server()
 : impl_(new _server(this))
@@ -31,7 +32,7 @@ vds::server::~server()
 
 void vds::server::register_services(service_registrator& registrator)
 {
-  registrator.add_service<iserver>(this->impl_);
+  registrator.add_service<server>(this);
   registrator.add_service<db_model>(this->impl_->db_model_.get());
 
   this->impl_->dht_network_service_->register_services(registrator);
@@ -137,8 +138,8 @@ vds::async_task<vds::server_statistic> vds::_server::get_statistic(const vds::se
     while (st.execute()) {
       result->sync_statistic_.leafs_.push_back(
         sync_statistic::log_info_t {
-          base64::to_bytes(t2.id.get(st)),
-          t2.state.get(st),
+          t2.id.get(st),
+          static_cast<int>(t2.state.get(st)),
           t2.order_no.get(st)
         });
     }
@@ -147,7 +148,7 @@ vds::async_task<vds::server_statistic> vds::_server::get_statistic(const vds::se
     st = t.get_reader(t3.select(t3.id));
 
     while(st.execute()) {
-      auto id = base64::to_bytes(t3.id.get(st));
+      auto id = t3.id.get(st);
 
       if(result->sync_statistic_.unknown_.end() == result->sync_statistic_.unknown_.find(id)) {
         result->sync_statistic_.unknown_.emplace(id);
@@ -158,7 +159,7 @@ vds::async_task<vds::server_statistic> vds::_server::get_statistic(const vds::se
     st = t.get_reader(t4.select(t4.object_id));
 
     while (st.execute()) {
-      auto id = base64::to_bytes(t4.object_id.get(st));
+      auto id = t4.object_id.get(st);
 
       if (result->sync_statistic_.chunks_.end() == result->sync_statistic_.chunks_.find(id)) {
         result->sync_statistic_.chunks_.emplace(id);
@@ -177,3 +178,23 @@ vds::async_task<vds::server_statistic> vds::_server::get_statistic(const vds::se
 
 }
 
+vds::async_task<> vds::_server::apply_message(
+  const service_provider & sp,
+  database_transaction & t,
+  const dht::messages::transaction_log_state & message) {
+  return this->transaction_log_sync_process_->apply_message(sp, t, message);
+}
+
+void vds::_server::apply_message(
+  const service_provider & sp,
+  database_transaction & t,
+  const dht::messages::transaction_log_request & message) {
+  this->transaction_log_sync_process_->apply_message(sp, t, message);
+}
+
+void vds::_server::apply_message(
+  const service_provider & sp,
+  database_transaction & t,
+  const dht::messages::transaction_log_record & message) {
+  this->transaction_log_sync_process_->apply_message(sp, t, message);
+}

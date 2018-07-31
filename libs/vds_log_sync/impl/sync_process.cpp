@@ -16,6 +16,11 @@ All rights reserved
 #include "sync_message_dbo.h"
 #include "db_model.h"
 #include "device_config_dbo.h"
+#include "../../vds_dht_network/private/dht_network_client_p.h"
+#include "messages/transaction_log_state.h"
+#include "messages/transaction_log_request.h"
+#include "messages/transaction_log_record.h"
+#include "messages/offer_replica.h"
 
 void vds::transaction_log::sync_process::do_sync(const service_provider& sp, database_transaction& t) {
   this->sync_local_channels(sp, t);
@@ -50,10 +55,10 @@ void vds::transaction_log::sync_process::query_unknown_records(const service_pro
     }
 
     if(!current_state.empty()) {
-        auto & client = *sp.get<vds::dht::network::client>();
-        client->send_neighbors(
-            sp,
-            messages::transaction_log_state(
+        auto client = sp.get<vds::dht::network::client>();
+        (*client)->send_neighbors(
+          sp,
+          dht::messages::transaction_log_state(
                 current_state,
                 client->current_node_id()));
     }
@@ -72,7 +77,7 @@ void vds::transaction_log::sync_process::query_unknown_records(const service_pro
         client->send(
             sp,
           p.second[index],
-            messages::transaction_log_request(
+            dht::messages::transaction_log_request(
               p.first,
                 client->current_node_id()));
     }
@@ -90,7 +95,7 @@ vds::async_task<> vds::transaction_log::sync_process::apply_message(
   for (auto & p : message.leafs()) {
     auto st = t.get_reader(
       t1.select(t1.state)
-      .where(t1.id == base64::from_bytes(p)));
+      .where(t1.id == p));
     if (!st.execute()) {
       //Not found
       requests.push_back(p);
@@ -136,7 +141,7 @@ vds::async_task<> vds::transaction_log::sync_process::apply_message(
         auto & client = *sp.get<vds::dht::network::client>();
         client->send_neighbors(
           sp,
-          messages::transaction_log_state(
+          dht::messages::transaction_log_state(
             current_state,
             client->current_node_id()));
       });
@@ -169,7 +174,7 @@ void vds::transaction_log::sync_process::apply_message(
       client->send(
           sp,
           message.source_node(),
-          messages::transaction_log_record(
+          dht::messages::transaction_log_record(
               message.transaction_id(),
               data));
     });
@@ -228,7 +233,7 @@ void vds::transaction_log::sync_process::sync_local_channels(
   sp.get<logger>()->trace(ThisModule, sp, "Send transaction_log_state");
   client->send_neighbors(
     sp,
-    messages::transaction_log_state(
+    dht::messages::transaction_log_state(
       leafs,
       client->current_node_id()));
 
@@ -262,17 +267,17 @@ void vds::transaction_log::sync_process::sync_replicas(
       }
     }
 
-    if (_client::GENERATE_DISTRIBUTED_PIECES <= replicas.size()) {
+    if (dht::network::_client::GENERATE_DISTRIBUTED_PIECES <= replicas.size()) {
       t.execute(t1.update(t1.last_sync = std::chrono::system_clock::now()).where(t1.object_id == p));
     }
 
     std::map<vds::const_data_buffer /*distance*/, std::list<vds::const_data_buffer/*node_id*/>> neighbors;
-    client->neighbors(sp, p, neighbors, _client::GENERATE_DISTRIBUTED_PIECES);
+    client->neighbors(sp, p, neighbors, dht::network::_client::GENERATE_DISTRIBUTED_PIECES);
 
     for (auto & pneighbor : neighbors) {
       for (auto & node : pneighbor.second) {
         sp.get<logger>()->trace(ThisModule, sp, "Send offer_replica");
-        client->send(sp, node, messages::offer_replica(
+        client->send(sp, node, dht::messages::offer_replica(
           p,
           client->current_node_id()));
       }

@@ -1,19 +1,39 @@
 #include "stdafx.h"
 #include "../vds_dht_network/private/dht_session.h"
-#include "../vds_dht_network/messages/transaction_log_state.h"
+#include "messages/transaction_log_state.h"
 #include "db_model.h"
 #include "dht_network_client.h"
-#include "../vds_dht_network/messages/transaction_log_request.h"
-#include "../vds_dht_network/messages/transaction_log_record.h"
-#include "../vds_dht_network/messages/dht_find_node.h"
-#include "../vds_dht_network/messages/dht_find_node_response.h"
-#include "../vds_dht_network/messages/dht_ping.h"
-#include "../vds_dht_network/messages/dht_pong.h"
-#include "../vds_dht_network/messages/object_request.h"
-#include "../vds_dht_network/messages/offer_replica.h"
-#include "../vds_dht_network/messages/replica_data.h"
+#include "messages/transaction_log_request.h"
+#include "messages/transaction_log_record.h"
+#include "messages/dht_find_node.h"
+#include "messages/dht_find_node_response.h"
+#include "messages/dht_ping.h"
+#include "messages/dht_pong.h"
+#include "messages/object_request.h"
+#include "messages/offer_replica.h"
+#include "messages/replica_data.h"
 #include "server.h"
 #include "private/server_p.h"
+#include "../vds_dht_network/private/dht_network_client_p.h"
+#include "messages/got_replica.h"
+#include "messages/sync_new_election.h"
+#include "messages/sync_add_message.h"
+#include "messages/sync_leader_broadcast.h"
+#include "messages/sync_replica_operations.h"
+#include "messages/sync_looking_storage.h"
+#include "messages/sync_snapshot.h"
+
+#define route_client(message_type)\
+  case network::message_type_t::message_type: {\
+      return sp.get<db_model>()->async_transaction(sp, [sp, message_data](database_transaction & t) {\
+        binary_deserializer s(message_data);\
+        messages::message_type message(s);\
+        (*sp.get<client>())->apply_message(sp.create_scope("messages::" #message_type), t, message);\
+        return true;\
+      });\
+      break;\
+    }
+
 
 vds::async_task<> vds::dht::network::dht_session::process_message(
   const service_provider& scope,
@@ -49,7 +69,7 @@ vds::async_task<> vds::dht::network::dht_session::process_message(
     return sp.get<db_model>()->async_transaction(sp, [sp, message_data](database_transaction & t) {
       binary_deserializer s(message_data);
       messages::transaction_log_request message(s);
-      (*sp.get<client>())->apply_message(sp.create_scope("messages::transaction_log_request"), t, message);
+      (*sp.get<server>())->apply_message(sp.create_scope("messages::transaction_log_request"), t, message);
       return true;
     });
     break;
@@ -60,7 +80,7 @@ vds::async_task<> vds::dht::network::dht_session::process_message(
     return sp.get<db_model>()->async_transaction(sp, [sp, message_data](database_transaction & t) {
       binary_deserializer s(message_data);
       messages::transaction_log_record message(s);
-      (*sp.get<client>())->apply_message(sp.create_scope("messages::transaction_log_record"), t, message);
+      (*sp.get<server>())->apply_message(sp.create_scope("messages::transaction_log_record"), t, message);
       return true;
     });
     break;
@@ -134,7 +154,7 @@ vds::async_task<> vds::dht::network::dht_session::process_message(
     }
     case network::message_type_t::replica_data: {
       binary_deserializer s(message_data);
-      messages::replica_data message(s);
+      const messages::replica_data message(s);
       (*sp.get<client>())->apply_message(
         sp.create_scope("messages::replica_data"),
         this->shared_from_this(),
@@ -144,7 +164,7 @@ vds::async_task<> vds::dht::network::dht_session::process_message(
     }
     case network::message_type_t::got_replica: {
       binary_deserializer s(message_data);
-      messages::got_replica message(s);
+      const messages::got_replica message(s);
       (*sp.get<client>())->apply_message(
         sp.create_scope("messages::replica_data"),
         this->shared_from_this(),
@@ -153,41 +173,22 @@ vds::async_task<> vds::dht::network::dht_session::process_message(
       break;
     }
 
-    case network::message_type_t::sync_new_election_request: {
-      binary_deserializer s(message_data);
-      const messages::sync_new_election_request message(s);
-      (*sp.get<client>())->apply_message(
-        sp.create_scope("messages::sync_new_election_request"),
-        message);
-      break;
-    }
+    route_client(sync_new_election_request)
+    route_client(sync_new_election_response)
 
-    case network::message_type_t::sync_new_election_response: {
-      binary_deserializer s(message_data);
-      const messages::sync_new_election_response message(s);
-      (*sp.get<client>())->apply_message(
-        sp.create_scope("messages::sync_new_election_response"),
-        message);
-      break;
-    }
+    route_client(sync_add_message_request)
 
-    case network::message_type_t::sync_coronation_request: {
-      binary_deserializer s(message_data);
-      const messages::sync_coronation_request message(s);
-      (*sp.get<client>())->apply_message(
-        sp.create_scope("messages::sync_coronation_request"),
-        message);
-      break;
-    }
+    route_client(sync_leader_broadcast_request)
+    route_client(sync_leader_broadcast_response)
 
-    case network::message_type_t::sync_coronation_response: {
-      binary_deserializer s(message_data);
-      const messages::sync_coronation_response message(s);
-      (*sp.get<client>())->apply_message(
-        sp.create_scope("messages::sync_coronation_response"),
-        message);
-      break;
-    }
+    route_client(sync_replica_operations_request)
+    route_client(sync_replica_operations_response)
+
+    route_client(sync_looking_storage_request)
+    route_client(sync_looking_storage_response)
+
+    route_client(sync_snapshot_request)
+    route_client(sync_snapshot_response)
 
     default:{
       throw std::runtime_error("Invalid command");

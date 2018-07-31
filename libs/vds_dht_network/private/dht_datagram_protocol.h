@@ -12,7 +12,7 @@ All rights reserved
 #include "const_data_buffer.h"
 #include "udp_datagram_size_exception.h"
 #include "vds_debug.h"
-#include "dht_message_type.h"
+#include "messages/dht_message_type.h"
 #include "network_address.h"
 #include "debug_mutex.h"
 #include <queue>

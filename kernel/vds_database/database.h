@@ -84,7 +84,10 @@ namespace vds {
     {
       auto st = sql_command_builder<command_type>().build(*this, command);
       st.execute();      
-    }    
+    }
+
+    int rows_modified() const;
+    int last_insert_rowid() const;
 
   private:
     friend class _database;

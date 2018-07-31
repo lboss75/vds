@@ -214,7 +214,7 @@ vds::api_controller::user_devices(
       item->add_property("free_size", std::to_string(foldername(t1.local_path.get(st)).free_size()));
       item->add_property(
           "current",
-          (t1.node_id.get(st) == base64::from_bytes(current_node)) ? "true" : "false");
+          (t1.node_id.get(st) == current_node) ? "true" : "false");
 
       result->add(item);
     }
@@ -300,7 +300,7 @@ vds::api_controller::lock_device(const vds::service_provider &sp, const std::sha
     orm::device_config_dbo t1;
     t.execute(
         t1.insert(
-            t1.node_id = base64::from_bytes(current_node),
+            t1.node_id = current_node,
             t1.local_path = local_path,
             t1.owner_id = user_mng->get_current_user().user_certificate().subject(),
             t1.name = device_name,

@@ -220,13 +220,13 @@ bool vds_mock::dump_statistic(std::vector<vds::server_statistic>& statistics) {
 
       std::map<std::string, std::string> * prow = nullptr;
       for(auto & row : table) {
-        if(std::get<0>(row) == chunk.first) {
+        if(std::get<0>(row) == vds::base64::from_bytes(chunk.first)) {
           prow = &std::get<1>(row);
           break;
         }
       }
       if(prow == nullptr) {
-        table.push_back(std::make_tuple(chunk.first, std::map<std::string, std::string>()));
+        table.push_back(std::make_tuple(vds::base64::from_bytes(chunk.first), std::map<std::string, std::string>()));
         prow = &std::get<1>(*table.rbegin());
       }
 

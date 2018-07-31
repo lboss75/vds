@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 2.6.2)
 
 FILE(GLOB HEADER_FILES include/*.h)
 FILE(GLOB PRIVATE_HEADER_FILES private/*.h)
-FILE(GLOB MESSAGES_HEADER_FILES messages/*.h)
+FILE(GLOB MESSAGES_HEADER_FILES include/messages/*.h)
 FILE(GLOB SOURCE_LIB impl/*.cpp)
 
 SOURCE_GROUP(private FILES ${PRIVATE_HEADER_FILES})

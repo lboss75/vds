@@ -54,7 +54,7 @@ std::vector<vds::const_data_buffer> vds::dht::network::_client::save(
     this->generators_.find(replica)->second->write(s, value.data(), value.size());
     const auto replica_data = s.data();
     const auto replica_hash = hash::signature(hash::sha256(), replica_data);
-    const auto object_id = replica_hash;
+    const auto & object_id = replica_hash;
 
     orm::chunk_dbo t1;
 
@@ -100,7 +100,7 @@ void vds::dht::network::_client::save(
       replica,
       base64::from_bytes(id).c_str());
 
-    auto replica_hash = hash::signature(hash::sha256(), replica_data);
+    const auto replica_hash = hash::signature(hash::sha256(), replica_data);
     auto fn = this->save_data(sp, t, replica_hash, replica_data);
     orm::chunk_dbo t1;
     t.execute(
@@ -119,9 +119,8 @@ void vds::dht::network::_client::apply_message(const service_provider& sp, const
   std::list<messages::dht_find_node_response::target_node> result;
   for (auto &presult : result_nodes) {
     for (auto & node : presult.second) {
-      result.push_back(
-        messages::dht_find_node_response::target_node(
-          node->node_id_, node->proxy_session_->address().to_string(), node->hops_));
+      result.emplace_back(
+          node->node_id_, node->proxy_session_->address().to_string(), node->hops_);
     }
   }
 
@@ -651,25 +650,61 @@ vds::dht::network::_client::apply_message(
 
 void vds::dht::network::_client::apply_message(
   const service_provider& sp,
+  database_transaction & t,
   const messages::sync_new_election_request& message) {
-  this->sync_process_.apply_message(sp, message);
-}
-
-void vds::dht::network::_client::apply_message(const service_provider& sp,
-  const messages::sync_new_election_response& message) {
-  this->sync_process_.apply_message(sp, message);
+  this->sync_process_.apply_message(sp, t, message);
 }
 
 void vds::dht::network::_client::apply_message(
   const service_provider& sp,
   database_transaction & t,
-  const messages::sync_coronation_request& message) {
+  const messages::sync_new_election_response& message) {
   this->sync_process_.apply_message(sp, t, message);
 }
 
-void vds::dht::network::_client::apply_message(const service_provider& sp,
-  const messages::sync_coronation_response& message) {
-  this->sync_process_.apply_message(sp, message);
+void vds::dht::network::_client::apply_message(const service_provider& sp, database_transaction& t,
+  const messages::sync_add_message_request& message) {
+  this->sync_process_.apply_message(sp, t, message);
+}
+
+void vds::dht::network::_client::apply_message(const service_provider& sp, database_transaction& t,
+  const messages::sync_leader_broadcast_request& message) {
+  this->sync_process_.apply_message(sp, t, message);
+}
+
+void vds::dht::network::_client::apply_message(const service_provider& sp, database_transaction& t,
+  const messages::sync_leader_broadcast_response& message) {
+  this->sync_process_.apply_message(sp, t, message);
+}
+
+void vds::dht::network::_client::apply_message(const service_provider& sp, database_transaction& t,
+  const messages::sync_replica_operations_request& message) {
+  this->sync_process_.apply_message(sp, t, message);
+}
+
+void vds::dht::network::_client::apply_message(const service_provider& sp, database_transaction& t,
+  const messages::sync_replica_operations_response& message) {
+  this->sync_process_.apply_message(sp, t, message);
+}
+
+void vds::dht::network::_client::apply_message(const service_provider& sp, database_transaction& t,
+  const messages::sync_looking_storage_request& message) {
+  this->sync_process_.apply_message(sp, t, message);
+}
+
+void vds::dht::network::_client::apply_message(const service_provider& sp, database_transaction& t,
+  const messages::sync_looking_storage_response& message) {
+  this->sync_process_.apply_message(sp, t, message);
+}
+
+void vds::dht::network::_client::apply_message(const service_provider& sp, database_transaction& t,
+  const messages::sync_snapshot_request& message) {
+  this->sync_process_.apply_message(sp, t, message);
+}
+
+void vds::dht::network::_client::apply_message(const service_provider& sp, database_transaction& t,
+  const messages::sync_snapshot_response& message) {
+  this->sync_process_.apply_message(sp, t, message);
 }
 
 vds::async_task<> vds::dht::network::_client::restore(
