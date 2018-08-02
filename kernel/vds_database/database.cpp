@@ -7,13 +7,12 @@ All rights reserved
 #include "private/database_p.h"
 
 vds::database::database()
-  : impl_(new _database())
+  : impl_(std::make_shared<_database>())
 {
 }
 
 vds::database::~database()
 {
-  delete this->impl_;
 }
 
 void vds::database::open(const service_provider & sp, const filename & fn)

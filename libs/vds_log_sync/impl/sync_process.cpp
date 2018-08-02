@@ -24,7 +24,6 @@ All rights reserved
 
 void vds::transaction_log::sync_process::do_sync(const service_provider& sp, database_transaction& t) {
   this->sync_local_channels(sp, t);
-  this->sync_replicas(sp, t);
   this->query_unknown_records(sp, t);
 }
 
@@ -238,51 +237,3 @@ void vds::transaction_log::sync_process::sync_local_channels(
       client->current_node_id()));
 
 }
-
-void vds::transaction_log::sync_process::sync_replicas(
-  const vds::service_provider &sp,
-  vds::database_transaction &t) {
-  auto & client = *sp.get<dht::network::client>();
-
-  std::set<const_data_buffer /*object_id*/> objects;
-  orm::chunk_dbo t1;
-  auto st = t.get_reader(
-    t1
-    .select(t1.object_id)
-    .where(t1.last_sync <= std::chrono::system_clock::now() - std::chrono::minutes(10))
-    .order_by(t1.last_sync));
-  while (st.execute()) {
-    const auto replica_hash = t1.object_id.get(st);
-    objects.emplace(replica_hash);
-  }
-
-  //Move replicas closer to root
-  for (const auto & p : objects) {
-    std::set<uint16_t> replicas;
-    orm::sync_replica_map_dbo t3;
-    st = t.get_reader(t3.select(t3.replica).where(t3.object_id == p));
-    while (st.execute()) {
-      if (replicas.end() == replicas.find(t3.replica.get(st))) {
-        replicas.emplace(t3.replica.get(st));
-      }
-    }
-
-    if (dht::network::_client::GENERATE_DISTRIBUTED_PIECES <= replicas.size()) {
-      t.execute(t1.update(t1.last_sync = std::chrono::system_clock::now()).where(t1.object_id == p));
-    }
-
-    std::map<vds::const_data_buffer /*distance*/, std::list<vds::const_data_buffer/*node_id*/>> neighbors;
-    client->neighbors(sp, p, neighbors, dht::network::_client::GENERATE_DISTRIBUTED_PIECES);
-
-    for (auto & pneighbor : neighbors) {
-      for (auto & node : pneighbor.second) {
-        sp.get<logger>()->trace(ThisModule, sp, "Send offer_replica");
-        client->send(sp, node, dht::messages::offer_replica(
-          p,
-          client->current_node_id()));
-      }
-
-    }
-  }
-}
-

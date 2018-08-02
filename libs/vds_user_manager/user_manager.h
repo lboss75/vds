@@ -45,10 +45,8 @@ namespace vds {
 
     void reset(
         const service_provider &sp,
-        class database_transaction &t,
         const std::string &root_user_name,
-        const std::string &root_password,
-        const asymmetric_private_key &root_private_key);
+        const std::string &root_password);
 
     //async_task<> init_server(
     //  const vds::service_provider &sp,

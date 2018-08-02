@@ -165,16 +165,16 @@ vds::async_task<> vds::file_manager_private::_file_operations::download_block(
   orm::chunk_dbo t1;
   auto st = t.get_reader(
       t1
-          .select(t1.replica, t1.replica_data)
+          .select(t1.replica, t1.sync_replica_data)
           .where(t1.object_id == base64::from_bytes(block.id_.block_id)));
 
   while (st.execute()) {
     auto replica = safe_cast<uint16_t>(t1.replica.get(st));
     replicas.push_back(replica);
 
-    auto replica_data = t1.replica_data.get(st);
-    datas.push_back(replica_data);
-    vds_assert(hash::signature(hash::sha256(), replica_data) == left_replicas[replica]);
+    auto sync_replica_data = t1.sync_replica_data.get(st);
+    datas.push_back(sync_replica_data);
+    vds_assert(hash::signature(hash::sha256(), sync_replica_data) == left_replicas[replica]);
     left_replicas.erase(replica);
 
     if (replicas.size() >= chunk_replicator::MIN_HORCRUX) {
@@ -305,12 +305,12 @@ vds::file_manager_private::_file_operations::restore_chunk(
   orm::chunk_dbo t1;
   auto st = t.get_reader(
       t1
-          .select(t1.replica, t1.replica_data)
+          .select(t1.replica, t1.sync_replica_data)
           .where(t1.object_id == base64::from_bytes(block.id_.block_id)));
 
   while(st.execute()){
     replicas.push_back(safe_cast<uint16_t>(t1.replica.get(st)));
-    datas.push_back(t1.replica_data.get(st));
+    datas.push_back(t1.sync_replica_data.get(st));
 
     if(replicas.size() >= chunk_replicator::MIN_HORCRUX){
       break;

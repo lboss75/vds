@@ -20,7 +20,7 @@ namespace vds {
 			}
 
 			database_column<const_data_buffer, std::string> object_id;
-			database_column<int> replica;
+			database_column<uint16_t, int> replica;
       database_column<const_data_buffer, std::string> node;
       database_column<std::chrono::system_clock::time_point> last_access;
 		};

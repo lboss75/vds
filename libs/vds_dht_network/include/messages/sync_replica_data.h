@@ -1,5 +1,5 @@
-#ifndef __VDS_DHT_NETWORK_REPLICA_REQUEST_H_
-#define __VDS_DHT_NETWORK_REPLICA_REQUEST_H_
+#ifndef __VDS_DHT_NETWORK_REPLICA_DATA_H_
+#define __VDS_DHT_NETWORK_REPLICA_DATA_H_
 
 /*
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
@@ -12,24 +12,27 @@ All rights reserved
 namespace vds {
   namespace dht {
     namespace messages {
-      class object_request {
+      class sync_replica_data {
       public:
-        static const network::message_type_t message_id = network::message_type_t::replica_request;
+        static const network::message_type_t message_id = network::message_type_t::sync_replica_data;
 
-        object_request(
+        sync_replica_data(
             const const_data_buffer &object_id,
-            const std::set<uint16_t> & exist_replicas,
+            uint16_t replica,
+            const const_data_buffer & data,
             const const_data_buffer &source_node)
             : object_id_(object_id),
-              exist_replicas_(exist_replicas),
+              replica_(replica),
+              data_(data),
               source_node_(source_node) {
         }
 
-        object_request(
+        sync_replica_data(
             binary_deserializer & s) {
           s
               >> this->object_id_
-              >> this->exist_replicas_
+              >> this->replica_
+              >> this->data_
               >> this->source_node_;
           ;
         }
@@ -38,7 +41,8 @@ namespace vds {
           binary_serializer s;
           s
               << this->object_id_
-              << this->exist_replicas_
+              << this->replica_
+              << this->data_
               << this->source_node_;
           return s.data();
         }
@@ -47,8 +51,12 @@ namespace vds {
           return object_id_;
         }
 
-        const std::set<uint16_t> & exist_replicas() const {
-          return this->exist_replicas_;
+        uint16_t replica() const {
+          return this->replica_;
+        }
+
+        const const_data_buffer & data() const {
+          return this->data_;
         }
 
         const const_data_buffer & source_node() const {
@@ -57,11 +65,12 @@ namespace vds {
 
       private:
         const_data_buffer object_id_;
-        std::set<uint16_t> exist_replicas_;
+        uint16_t replica_;
+        const_data_buffer data_;
         const_data_buffer source_node_;
       };
     }
   }
 }
 
-#endif //__VDS_DHT_NETWORK_REPLICA_REQUEST_H_
+#endif //__VDS_DHT_NETWORK_REPLICA_DATA_H_

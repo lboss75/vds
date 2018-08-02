@@ -25,7 +25,6 @@ vds::server::server()
 
 vds::server::~server()
 {
-  delete impl_;
 }
 
 
@@ -49,30 +48,6 @@ void vds::server::stop(const service_provider& sp)
   this->impl_->stop(sp);
 }
 
-vds::async_task<> vds::server::reset(
-  const vds::service_provider &sp,
-  const std::string &root_user_name,
-  const std::string &root_password) {
-  return sp.get<db_model>()->async_transaction(sp, [this, sp, root_user_name, root_password](
-      database_transaction & t){
-    auto private_key = asymmetric_private_key::generate(asymmetric_crypto::rsa4096());
-
-    auto node_cert = dht::network::service::prepare_to_start(sp, t);
-
-    user_manager usr_manager;
-    usr_manager.reset(sp, t, root_user_name, root_password, private_key);
-
-    auto client = std::make_shared<dht::network::_client>(sp, node_cert.fingerprint(hash::sha256()));
-    client->save(
-      sp,
-      t,
-      dht::dht_object_id::user_credentials_to_key(root_user_name, root_password),
-      private_key.der(root_password));
-
-	  return true;
-  });
-}
-
 vds::async_task<> vds::server::start_network(const vds::service_provider &sp, uint16_t port) {
   return [this, sp, port]() {
     this->impl_->dht_network_service_->start(sp, port);
@@ -94,17 +69,42 @@ vds::_server::_server(server * owner)
 : owner_(owner),
   db_model_(new db_model()),
   file_manager_(new file_manager::file_manager_service()),
-  dht_network_service_(new dht::network::service()){
+  dht_network_service_(new dht::network::service()),
+  update_timer_("Log Sync") {
 }
 
 vds::_server::~_server()
 {
 }
 
-void vds::_server::start(const service_provider& sp)
+void vds::_server::start(const service_provider& scope)
 {
-  this->db_model_->start(sp);
+  this->db_model_->start(scope);
   this->transaction_log_sync_process_.reset(new transaction_log::sync_process());
+
+  auto sp = scope.create_scope("Server Update Timer");
+  imt_service::enable_async(sp);
+
+  this->update_timer_.start(sp, std::chrono::seconds(1), [sp, pthis = this->shared_from_this()](){
+    std::unique_lock<std::debug_mutex> lock(pthis->update_timer_mutex_);
+    if (!pthis->in_update_timer_) {
+      pthis->in_update_timer_ = true;
+      lock.unlock();
+
+      sp.get<db_model>()->async_transaction(sp, [sp, pthis](database_transaction & t) {
+        if (!sp.get_shutdown_event().is_shuting_down()) {
+          pthis->transaction_log_sync_process_->do_sync(sp, t);
+        }
+      }).execute([sp, pthis](const std::shared_ptr<std::exception> & ex) {
+        if (ex) {
+        }
+        std::unique_lock<std::debug_mutex> lock(pthis->update_timer_mutex_);
+        pthis->in_update_timer_ = false;
+      });
+    }
+
+    return !sp.get_shutdown_event().is_shuting_down();
+  });
 }
 
 void vds::_server::stop(const service_provider& sp)

@@ -9,6 +9,10 @@ All rights reserved
 #include "dht_network.h"
 #include "user_channel.h"
 
+namespace vds {
+  class user_manager;
+}
+
 class mock_server
 {
 public:
@@ -17,7 +21,12 @@ public:
   void start();
   void stop();
 
-  static void init_root(int index, int udp_port, const std::string & root_password);
+  void init_root(
+    const std::string &root_user_name,
+    const std::string &root_password);
+  //void allocate_storage(
+  //  const std::string& root_login,
+  //  const std::string& root_password);
   static void init(
 	  int index, int udp_port, const std::string & user_login, const std::string & user_password);
 
@@ -49,6 +58,12 @@ private:
   vds::task_manager task_manager_;
   vds::crypto_service crypto_service_;
   vds::server server_;
+
+  void login(
+    const std::string& root_login,
+    const std::string& root_password,
+    const std::function<void(const vds::service_provider & sp, const std::shared_ptr<vds::user_manager> & user_mng)> & callback);
+
 };
 
 class vds_mock

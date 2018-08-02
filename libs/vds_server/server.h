@@ -21,8 +21,6 @@ namespace vds {
     async_task<> prepare_to_stop(const service_provider &sp) override;
 
 
-    vds::async_task<> reset(const vds::service_provider &sp, const std::string &root_user_name, const std::string &root_password);
-
     vds::async_task<> start_network(const vds::service_provider &sp, uint16_t port);
 
     operator bool () const {
@@ -30,13 +28,13 @@ namespace vds {
     }
 
     class _server *operator -> () const {
-      return this->impl_;
+      return this->impl_.get();
     }
 
     async_task<server_statistic> get_statistic(const service_provider &sp) const;
 
   private:
-    class _server * const impl_;
+    std::shared_ptr<_server> impl_;
   };
 }
 

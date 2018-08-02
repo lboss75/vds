@@ -24,7 +24,7 @@ namespace vds {
 			{
 			}
 
-      database_column<uint64_t> local_index;
+      database_column<uint64_t, int> local_index;
       database_column<const_data_buffer, std::string> object_id;
       database_column<sync_message_dbo::message_type_t, int> message_type;
       database_column<const_data_buffer, std::string> member_node;

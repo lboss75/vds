@@ -10,7 +10,7 @@ All rights reserved
 #include "dht_session.h"
 #include "dht_route.h"
 #include "chunk.h"
-#include "dht_sync_process.h"
+#include "sync_process.h"
 #include "udp_transport.h"
 
 namespace vds {
@@ -21,8 +21,8 @@ namespace vds {
       class sync_leader_broadcast_response;
       class sync_leader_broadcast_request;
       class sync_add_message_request;
-      class replica_data;
-      class object_request;
+      class sync_replica_data;
+      class sync_replica_request;
       class dht_pong;
       class dht_ping;
       class transaction_log_record;
@@ -41,9 +41,6 @@ namespace vds {
         static constexpr uint16_t MIN_HORCRUX = 4;
         static constexpr uint16_t GENERATE_HORCRUX = 8;
 
-        static constexpr uint16_t MIN_DISTRIBUTED_PIECES = 4;
-        static constexpr uint16_t GENERATE_DISTRIBUTED_PIECES = 8;
-
         _client(
             const service_provider & sp,
             const const_data_buffer & node_id);
@@ -51,7 +48,7 @@ namespace vds {
         void start(const service_provider & sp, uint16_t port);
         void stop(const service_provider & sp);
 
-        filename save_data(
+        static filename save_data(
           const service_provider& sp,
           database_transaction & t,
           const const_data_buffer & data_hash,
@@ -98,27 +95,6 @@ namespace vds {
           const service_provider & sp,
           const std::shared_ptr<dht_session> & session,
           const messages::dht_pong & message);
-
-        async_task<> apply_message(
-          const service_provider & sp,
-          const std::shared_ptr<dht_session> & session,
-          const messages::object_request & message);
-
-        vds::async_task<> apply_message(
-          const service_provider & sp,
-          const std::shared_ptr<dht_session> & session,
-          const messages::replica_data & message);
-        
-
-        async_task<> apply_message(
-            const service_provider & sp,
-            const std::shared_ptr<dht_session> & session,
-            const messages::offer_replica & message);
-
-        async_task<> apply_message(
-          const service_provider& sp,
-          const std::shared_ptr<dht_session>& session,
-          const messages::got_replica& message);
 
         //Sync messages
         void apply_message(
@@ -175,6 +151,22 @@ namespace vds {
           const service_provider & sp,
           database_transaction & t,
           const messages::sync_snapshot_response & message);
+
+        void apply_message(
+          const service_provider & sp,
+          database_transaction & t,
+          const messages::sync_offer_replica_operation_request & message);
+
+        void apply_message(
+          const service_provider & sp,
+          database_transaction & t,
+          const messages::sync_replica_request & message);
+
+        void apply_message(
+          const service_provider & sp,
+          database_transaction & t,
+          const messages::sync_replica_data & message);
+
         //
         template <typename message_type>
         void send(
@@ -253,10 +245,11 @@ namespace vds {
         void get_session_statistics(session_statistic& session_statistic);
 
       private:
+        friend class sync_process;
+
         std::shared_ptr<udp_transport> udp_transport_;
         dht_route<std::shared_ptr<dht_session>> route_;
         std::map<uint16_t, std::unique_ptr<chunk_generator<uint16_t>>> generators_;
-        std::map<uint16_t, std::unique_ptr<chunk_generator<uint16_t>>> distributed_generators_;
         sync_process sync_process_;
 
         timer update_timer_;

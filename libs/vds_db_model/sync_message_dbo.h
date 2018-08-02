@@ -23,11 +23,12 @@ namespace vds {
 				object_id(this, "object_id"),
         generation(this, "generation"),
         current_term(this, "current_term"),
-        index(this, "index"),
+        index(this, "message_index"),
         message_type(this, "message_type"),
         member_node(this, "member_node"),
 				replica(this, "replica"),
-        member_index(this, "member_index")
+        source_node(this, "source_node"),
+        source_index(this, "source_index")
 			{
 			}
 
@@ -38,7 +39,8 @@ namespace vds {
       database_column<message_type_t, int> message_type;
       database_column<const_data_buffer, std::string> member_node;
 			database_column<uint16_t, int> replica;
-      database_column<uint64_t> member_index;
+      database_column<const_data_buffer, std::string> source_node;
+      database_column<uint64_t> source_index;
 
     };
 	}

@@ -118,7 +118,7 @@ namespace vds {
     async_task<> prepare_to_stop(const service_provider &sp);
 
   private:
-    _database * const impl_;
+    std::shared_ptr<_database> impl_;
   };
 }
 

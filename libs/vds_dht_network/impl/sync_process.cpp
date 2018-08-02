@@ -3,7 +3,7 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 #include "stdafx.h"
-#include "private/dht_sync_process.h"
+#include "private/sync_process.h"
 #include "dht_network_client.h"
 #include "messages/transaction_log_state.h"
 #include "transaction_log_record_dbo.h"
@@ -24,7 +24,18 @@ All rights reserved
 #include "vds_exceptions.h"
 #include "sync_local_queue_dbo.h"
 #include "messages/sync_add_message.h"
+#include "chunk_dbo.h"
+#include "messages/sync_replica_request.h"
+#include "messages/sync_offer_replica_operation.h"
+#include "device_record_dbo.h"
+#include "messages/sync_replica_data.h"
 
+
+vds::dht::network::sync_process::sync_process() {
+  for (uint16_t replica = 0; replica < GENERATE_DISTRIBUTED_PIECES; ++replica) {
+    this->distributed_generators_[replica].reset(new chunk_generator<uint16_t>(MIN_DISTRIBUTED_PIECES, replica));
+  }
+}
 
 void vds::dht::network::sync_process::do_sync(
   const service_provider& sp,
@@ -32,6 +43,7 @@ void vds::dht::network::sync_process::do_sync(
 
   this->sync_entries(sp, t);
   this->sync_local_queues(sp, t);
+  this->sync_replicas(sp, t);
 }
 
 void vds::dht::network::sync_process::add_local_log(
@@ -91,7 +103,8 @@ void vds::dht::network::sync_process::add_local_log(
       t3.message_type = message_type,
       t3.member_node = member_node,
       t3.replica = replica,
-      t3.member_index = member_index));
+      t3.source_node = client.current_node_id(),
+      t3.source_index = member_index));
 
     t.execute(t2.update(
       t2.last_applied = last_applied + 1)
@@ -114,8 +127,7 @@ void vds::dht::network::sync_process::add_local_log(
         replica));
 
     while (this->get_quorum(sp, t, object_id) < 2 && commit_index < last_applied) {
-      this->apply_record(sp, t, object_id, generation, current_term, commit_index);
-      ++commit_index;
+      this->apply_record(sp, t, object_id, generation, current_term, ++commit_index);
     }
   }
   else {
@@ -399,7 +411,7 @@ void vds::dht::network::sync_process::add_sync_entry(
     client->send_near(
       sp,
       object_id,
-      _client::GENERATE_DISTRIBUTED_PIECES,
+      GENERATE_DISTRIBUTED_PIECES,
       messages::sync_looking_storage_request(
         object_id,
         client.current_node_id(),
@@ -416,7 +428,7 @@ void vds::dht::network::sync_process::add_sync_entry(
   sp.get<logger>()->trace(ThisModule, sp, "Make leader %s:0:0", base64::from_bytes(object_id).c_str());
 
   orm::sync_replica_map_dbo t3;
-  for(uint16_t i = 0; i < _client::GENERATE_DISTRIBUTED_PIECES; ++i) {
+  for(uint16_t i = 0; i < GENERATE_DISTRIBUTED_PIECES; ++i) {
     this->add_local_log(
       sp,
       t,
@@ -425,6 +437,110 @@ void vds::dht::network::sync_process::add_sync_entry(
       client->current_node_id(),
       i,
       leader);
+  }
+}
+
+vds::const_data_buffer vds::dht::network::sync_process::restore_replica(
+  const service_provider& sp,
+  database_transaction& t,
+  const const_data_buffer& object_id) {
+  auto client = sp.get<dht::network::client>();
+  std::vector<uint16_t> replicas;
+  std::vector<const_data_buffer> datas;
+
+  orm::chunk_replica_data_dbo t2;
+  orm::device_record_dbo t4;
+  auto st = t.get_reader(
+    t2.select(
+      t2.replica, t2.replica_hash, t4.local_path)
+    .inner_join(t4, t4.node_id == client->current_node_id() && t4.data_hash == t2.replica_hash)
+    .where(t2.object_id == object_id));
+  while (st.execute()) {
+    replicas.push_back(t2.replica.get(st));
+    datas.push_back(
+      _client::read_data(
+        t2.replica_hash.get(st),
+        filename(t4.local_path.get(st))));
+
+    if (replicas.size() >= MIN_DISTRIBUTED_PIECES) {
+      break;
+    }
+  }
+
+  if (replicas.size() >= MIN_DISTRIBUTED_PIECES) {
+    chunk_restore <uint16_t> restore(MIN_DISTRIBUTED_PIECES, replicas.data());
+    binary_serializer s;
+    restore.restore(s, datas);
+
+    auto data = s.data();
+    const auto data_hash = hash::signature(hash::sha256(), data);
+    _client::save_data(sp, t, data_hash, data);
+
+    orm::chunk_dbo t1;
+    t.execute(
+      t1.insert(
+        t1.object_id = object_id,
+        t1.replica_hash = data_hash,
+        t1.last_sync = std::chrono::system_clock::now()));
+
+    return data;
+  }
+  else {
+    std::string log_message = "request replica " + base64::from_bytes(object_id) + ". Exists: ";
+    std::set<uint16_t> exist_replicas;
+    for (auto p : replicas) {
+      log_message += std::to_string(p);
+      log_message += ',';
+
+      exist_replicas.emplace(p);
+    }
+
+    sp.get<logger>()->trace(ThisModule, sp, "%s", log_message.c_str());
+
+
+    std::set<const_data_buffer> candidates;
+    orm::sync_replica_map_dbo t5;
+    st = t.get_reader(t5.select(t5.node).where(t5.object_id == object_id));
+    while (st.execute()) {
+      if (candidates.end() == candidates.find(t5.node.get(st))) {
+        candidates.emplace(t5.node.get(st));
+      }
+    }
+
+    orm::sync_member_dbo t6;
+    st = t.get_reader(t6.select(t6.voted_for, t6.member_node).where(t6.object_id == object_id));
+    while (st.execute()) {
+      if (candidates.end() == candidates.find(t6.member_node.get(st))) {
+        candidates.emplace(t6.member_node.get(st));
+      }
+      if (candidates.end() == candidates.find(t6.voted_for.get(st))) {
+        candidates.emplace(t6.voted_for.get(st));
+      }
+    }
+
+    if (!candidates.empty()) {
+      for (const auto & candidate : candidates) {
+        (*client)->send(
+          sp,
+          candidate,
+          messages::sync_replica_request(
+            object_id,
+            exist_replicas,
+            client->current_node_id()));
+      }
+    }
+    else {
+      (*client)->send_near(
+        sp,
+        object_id,
+        GENERATE_DISTRIBUTED_PIECES,
+        messages::sync_replica_request(
+          object_id,
+          exist_replicas,
+          client->current_node_id()));
+    }
+
+    return const_data_buffer();
   }
 }
 
@@ -437,7 +553,7 @@ void vds::dht::network::sync_process::apply_message(
   client->send_closer(
     sp,
     message.object_id(),
-    _client::GENERATE_DISTRIBUTED_PIECES,
+    GENERATE_DISTRIBUTED_PIECES,
     message);
 
   switch (this->apply_base_message(sp, t, message)) {
@@ -680,22 +796,206 @@ void vds::dht::network::sync_process::apply_message(
   const service_provider& sp,
   database_transaction& t,
   const messages::sync_add_message_request& message) {
+  throw vds_exceptions::invalid_operation();
 }
 
 void vds::dht::network::sync_process::apply_message(const service_provider& sp, database_transaction& t,
   const messages::sync_leader_broadcast_request& message) {
+  throw vds_exceptions::invalid_operation();
 }
 
 void vds::dht::network::sync_process::apply_message(const service_provider& sp, database_transaction& t,
   const messages::sync_leader_broadcast_response& message) {
+  throw vds_exceptions::invalid_operation();
 }
 
 void vds::dht::network::sync_process::apply_message(const service_provider& sp, database_transaction& t,
   const messages::sync_replica_operations_request& message) {
+  throw vds_exceptions::invalid_operation();
 }
 
 void vds::dht::network::sync_process::apply_message(const service_provider& sp, database_transaction& t,
   const messages::sync_replica_operations_response& message) {
+  throw vds_exceptions::invalid_operation();
+}
+
+void vds::dht::network::sync_process::apply_message(const service_provider& sp, database_transaction& t,
+  const messages::sync_offer_replica_operation_request& message) {
+  throw vds_exceptions::invalid_operation();
+}
+
+void vds::dht::network::sync_process::apply_message(
+  const service_provider& sp,
+  database_transaction& t,
+  const messages::sync_replica_request& message) {
+
+  auto client = sp.get<dht::network::client>();
+  const auto& object_id = message.object_id();
+
+  orm::chunk_dbo t1;
+  orm::device_record_dbo t3;
+  auto st = t.get_reader(
+    t1
+    .select(t3.local_path)
+    .inner_join(t3, t3.node_id == client->current_node_id() && t3.data_hash == t1.replica_hash)
+    .where(t1.object_id == object_id));
+
+  std::set<uint8_t> allowed_replicas;
+  std::function<const_data_buffer(uint16_t)> get_replica;
+  if (st.execute()) {
+    get_replica = [data = file::read_all(filename(t3.local_path.get(st))), this](uint16_t replica)->const_data_buffer{
+      binary_serializer s;
+      this->distributed_generators_.find(replica)->second->write(s, data.data(), data.size());
+
+      return s.data();
+    };
+
+    for (uint16_t replica = 0; replica < GENERATE_DISTRIBUTED_PIECES; ++replica) {
+      if (message.exist_replicas().end() == message.exist_replicas().find(replica)) {
+        allowed_replicas.emplace(replica);
+      }
+    }
+  }
+  else {
+    std::map<uint16_t, std::tuple<const_data_buffer, std::string>> replica_hashes;
+    orm::chunk_replica_data_dbo t2;
+    orm::device_record_dbo t4;
+    st = t.get_reader(
+      t2
+      .select(t2.replica, t2.replica_hash, t4.local_path)
+      .inner_join(t4, t4.node_id == client->current_node_id() && t4.data_hash == t2.replica_hash)
+      .where(t2.object_id == object_id));
+
+    while (st.execute()) {
+      auto replica = t2.replica.get(st);
+      if (message.exist_replicas().end() == message.exist_replicas().find(replica)) {
+        allowed_replicas.emplace(replica);
+        replica_hashes[replica] = std::make_tuple(
+          t2.replica_hash.get(st),
+          t4.local_path.get(st));
+      }
+    }
+
+    get_replica = [replica_hashes](uint16_t replica)->const_data_buffer {
+      return _client::read_data(
+        std::get<0>(replica_hashes.find(replica)->second),
+        filename(std::get<1>(replica_hashes.find(replica)->second)));
+    };
+  }
+
+  if (!allowed_replicas.empty()) {
+    auto index = std::rand() % allowed_replicas.size();
+    for (auto replica : allowed_replicas) {
+      if (0 == index) {
+        auto data = get_replica(replica);
+        if (0 < data.size()) {
+          sp.get<logger>()->trace(
+            ThisModule,
+            sp,
+            "Send replica %s:%d to %s",
+            base64::from_bytes(object_id).c_str(),
+            replica,
+            base64::from_bytes(message.source_node()).c_str());
+
+          (*client)->send(
+            sp,
+            message.source_node(),
+            messages::sync_replica_data(
+              message.object_id(),
+              replica,
+              data,
+              client->current_node_id()));
+        }
+
+        return;
+      }
+
+      --index;
+    }
+
+    vds_assert(false);
+  }
+
+  bool forwarded = false;
+  orm::sync_replica_map_dbo t5;
+  st = t.get_reader(t5.select(t5.replica, t5.node).where(t5.object_id == object_id));
+  while (st.execute()) {
+    if (message.exist_replicas().end() == message.exist_replicas().find(t5.replica.get(st))
+      && t5.node.get(st) != client->current_node_id()) {
+      (*client)->send(
+        sp,
+        t5.node.get(st),
+        message);
+      forwarded = true;
+    }
+  }
+
+  if (!forwarded) {
+    orm::sync_member_dbo t6;
+    st = t.get_reader(t6.select(t6.voted_for, t6.member_node).where(t6.object_id == object_id));
+    std::set<const_data_buffer> candidates;
+    while (st.execute()) {
+      if(candidates.end() == candidates.find(t6.member_node.get(st))) {
+        candidates.emplace(t6.member_node.get(st));
+      }
+      if (candidates.end() == candidates.find(t6.voted_for.get(st))) {
+        candidates.emplace(t6.voted_for.get(st));
+      }
+    }
+    for(const auto & candidate : candidates) {
+      (*client)->send(
+        sp,
+        candidate,
+        message);
+      forwarded = true;
+    }
+  }
+
+  if (!forwarded) {
+    (*client)->send_closer(sp, message.object_id(), GENERATE_DISTRIBUTED_PIECES, message);
+  }
+}
+
+void vds::dht::network::sync_process::apply_message(
+  const service_provider& sp,
+  database_transaction& t,
+  const messages::sync_replica_data& message) {
+
+  auto client = sp.get<dht::network::client>();
+
+  orm::chunk_replica_data_dbo t2;
+  auto st = t.get_reader(
+    t2.select(t2.replica_hash)
+    .where(t2.object_id == message.object_id()
+      && t2.replica == message.replica()));
+  if (st.execute()) {
+    //Already exists
+  }
+  else {
+    const auto data_hash = hash::signature(hash::sha256(), message.data());
+    auto fn = _client::save_data(sp, t, data_hash, message.data());
+
+    t.execute(
+      t2.insert(
+        t2.object_id = message.object_id(),
+        t2.replica = message.replica(),
+        t2.replica_hash = data_hash));
+
+    auto leader = this->get_leader(sp, t, message.object_id());
+    if(!leader) {
+      this->send_snapshot_request(sp, message.object_id(), message.object_id());
+    }
+    else {
+      this->add_local_log(
+        sp,
+        t,
+        message.object_id(),
+        orm::sync_message_dbo::message_type_t::add_replica,
+        client->current_node_id(),
+        message.replica(),
+        leader);
+    }
+  }
 }
 
 void vds::dht::network::sync_process::send_leader_broadcast(
@@ -765,7 +1065,7 @@ void vds::dht::network::sync_process::send_leader_broadcast(
     }
   }
 
-  if(_client::GENERATE_DISTRIBUTED_PIECES > member_nodes.size()) {
+  if(GENERATE_DISTRIBUTED_PIECES > member_nodes.size()) {
     st = t.get_reader(
       t1.select(t1.object_size, t2.generation, t2.current_term, t2.commit_index, t2.last_applied)
       .inner_join(t2, t2.object_id == t1.object_id && t2.member_node == client->current_node_id())
@@ -783,7 +1083,7 @@ void vds::dht::network::sync_process::send_leader_broadcast(
     client->send_near(
       sp,
       object_id,
-      _client::GENERATE_DISTRIBUTED_PIECES,
+      GENERATE_DISTRIBUTED_PIECES,
       messages::sync_looking_storage_request(
         object_id,
         client.current_node_id(),
@@ -1090,7 +1390,9 @@ void vds::dht::network::sync_process::apply_record(const vds::service_provider& 
     t1.select(
       t1.message_type,
       t1.replica,
-      t1.member_node)
+      t1.member_node,
+      t1.source_node,
+      t1.source_index)
     .where(t1.object_id == object_id
       && t1.generation == generation
       && t1.current_term == current_term
@@ -1106,7 +1408,8 @@ void vds::dht::network::sync_process::apply_record(const vds::service_provider& 
     t1.message_type.get(st),
     t1.member_node.get(st),
     t1.replica.get(st),
-    message_index);
+    t1.source_node.get(st),
+    t1.source_index.get(st));
 
   const auto client = sp.get<dht::network::client>();
   orm::sync_member_dbo t2;
@@ -1128,6 +1431,7 @@ void vds::dht::network::sync_process::apply_record(
     orm::sync_message_dbo::message_type_t message_type,
     const const_data_buffer & member_node,
     uint16_t replica,
+    const const_data_buffer & message_node,
     uint64_t message_index) {
 
   switch (message_type) {
@@ -1199,7 +1503,7 @@ void vds::dht::network::sync_process::apply_record(
 
   //remove local record
   const auto client = sp.get<dht::network::client>();
-  if(client->current_node_id() == member_node) {
+  if(client->current_node_id() == message_node) {
     orm::sync_local_queue_dbo t2;
     t.execute(t2.delete_if(t2.object_id == object_id && t2.local_index == message_index));
     vds_assert(t.rows_modified() == 1);
@@ -1237,6 +1541,14 @@ void vds::dht::network::sync_process::send_snapshot(
     .where(t1.object_id == object_id));
 
   if(!st.execute() || orm::sync_state_dbo::state_t::leader != t1.state.get(st)) {
+    for (const auto & target_node : target_nodes) {
+      (*client)->send_closer(
+        sp,
+        object_id,
+        GENERATE_DISTRIBUTED_PIECES,
+        messages::sync_snapshot_request(object_id, target_node));
+    }
+
     return;
   }
 
@@ -1266,7 +1578,7 @@ void vds::dht::network::sync_process::send_snapshot(
     .where(t2.object_id == object_id));
   std::map<const_data_buffer, messages::sync_snapshot_response::member_state> members;
   while (st.execute()) {
-    auto & p = members.at(t2.member_node.get(st));
+    auto & p = members[t2.member_node.get(st)];
     p.voted_for = t2.voted_for.get(st);
   }
 
@@ -1324,6 +1636,406 @@ void vds::dht::network::sync_process::sync_local_queues(
 
   for(const auto local_index : processed) {
     t.execute(t1.update(t1.last_send = std::chrono::system_clock::now()).where(t1.local_index == local_index));
+  }
+}
+
+void vds::dht::network::sync_process::sync_replicas(const service_provider& sp, database_transaction& t) {
+  replica_sync sync;
+  sync.load(sp, t);
+  sync.normalize_density(sp, t);
+}
+
+void vds::dht::network::sync_process::replica_sync::load(const service_provider& sp, database_transaction& t) {
+  const auto client = sp.get<dht::network::client>();
+
+  orm::chunk_dbo t1;
+  auto st = t.get_reader(
+    t1
+    .select(t1.object_id)
+    .where(t1.last_sync <= std::chrono::system_clock::now() - std::chrono::minutes(10))
+    .order_by(t1.last_sync));
+  while (st.execute()) {
+    this->register_local_chunk(t1.object_id.get(st), client->current_node_id());
+  }
+
+  orm::sync_replica_map_dbo t2;
+  st = t.get_reader(t2.select(t2.object_id, t2.replica, t2.node));
+  while (st.execute()) {
+    this->register_replica(t2.object_id.get(st), t2.replica.get(st), t2.node.get(st));
+  }
+
+  orm::sync_state_dbo t3;
+  orm::sync_member_dbo t4;
+  st = t.get_reader(t3.select(
+    t3.object_id,
+    t3.state,
+    t4.voted_for,
+    t4.generation,
+    t4.current_term,
+    t4.commit_index,
+    t4.last_applied)
+    .inner_join(t4, t4.object_id == t3.object_id && t4.member_node == client->current_node_id()));
+  while(st.execute()) {
+    if(t3.state.get(st) == orm::sync_state_dbo::state_t::leader) {
+      this->register_sync_leader(
+        t3.object_id.get(st),
+        client->current_node_id(),
+        t4.generation.get(st),
+        t4.current_term.get(st),
+        t4.commit_index.get(st),
+        t4.last_applied.get(st));
+    }
+    else {
+      this->register_sync_leader(
+        t3.object_id.get(st),
+        t4.voted_for.get(st),
+        t4.generation.get(st),
+        t4.current_term.get(st),
+        t4.commit_index.get(st),
+        t4.last_applied.get(st));
+    }
+  }
+
+  st = t.get_reader(t4.select(t4.object_id, t4.member_node));
+  while (st.execute()) {
+    this->register_sync_member(t4.object_id.get(st), t4.member_node.get(st));
+  }
+}
+
+void vds::dht::network::sync_process::replica_sync::object_info_t::restore_chunk(const vds::service_provider& sp, const std::map<uint16_t, std::set<vds::const_data_buffer>>& replica_nodes, const vds::const_data_buffer& object_id) const {
+  const auto client = sp.get<dht::network::client>();
+
+  //Ask for missing replicas
+  std::set<uint16_t> exist_replicas;
+  const auto current_node = this->nodes_.find(client->current_node_id());
+  if(this->nodes_.end() != current_node) {
+    exist_replicas = current_node->second.replicas_;
+  }
+
+  for (uint16_t replica = 0; replica < GENERATE_DISTRIBUTED_PIECES; ++replica) {
+    if(exist_replicas.end() != exist_replicas.find(replica)) {
+      continue;//exists already
+    }
+
+    const auto sources = replica_nodes.find(replica);
+    if (replica_nodes.end() == sources){
+      continue;//No sources
+    }
+
+    auto index = std::rand() % sources->second.size();
+    for(const auto & source : sources->second) {
+      if(index-- == 0) {
+        (*client)->send(
+          sp,
+          source,
+          messages::sync_replica_request(
+            object_id,
+            exist_replicas,
+            client->current_node_id()));
+        break;
+      }
+    }
+  }
+}
+
+void vds::dht::network::sync_process::replica_sync::object_info_t::generate_missing_replicas(const vds::service_provider& sp, const std::map<uint16_t, std::set<vds::const_data_buffer>>& replica_nodes, const vds::const_data_buffer& object_id, std::set<vds::const_data_buffer> chunk_nodes) const {
+  const auto client = sp.get<dht::network::client>();
+
+  //Detect members with minimal replicas
+  std::map<std::size_t, std::set<const_data_buffer>> replica_count2nodes;
+  for (const auto & node : this->nodes_) {
+    replica_count2nodes[node.second.replicas_.size()].emplace(node.first);
+  }
+
+  //
+  std::set<uint16_t> exist_replicas;
+  for(const auto & replica : replica_nodes) {
+    exist_replicas.emplace(replica.first);
+  }
+
+  uint16_t replica = 0;
+  for(const auto & replica_count : replica_count2nodes) {
+    for(const auto & node : replica_count.second) {
+      //looking missing replica
+      while(replica_nodes.end() != replica_nodes.find(replica)) {
+        ++replica;
+        if(replica >= GENERATE_DISTRIBUTED_PIECES) {
+          break;
+        }
+      }
+      if (replica >= GENERATE_DISTRIBUTED_PIECES) {
+        break;
+      }
+
+      auto index = std::rand() % chunk_nodes.size();
+      for(const auto & chunk_node : chunk_nodes) {
+        if(index-- == 0) {
+          (*client)->send(
+            sp,
+            chunk_node,
+            messages::sync_replica_request(
+              object_id,
+              exist_replicas,
+              node));
+          break;
+        }
+      }
+    }
+    if (replica >= GENERATE_DISTRIBUTED_PIECES) {
+      break;
+    }
+  }
+}
+
+void vds::dht::network::sync_process::replica_sync::object_info_t::restore_replicas(
+  const vds::service_provider& sp,
+  const std::map<uint16_t, std::set<vds::const_data_buffer>> & replica_nodes,
+  const const_data_buffer & object_id) const {
+
+  const auto client = sp.get<dht::network::client>();
+  //How can generate replicas?
+  std::set<const_data_buffer> chunk_nodes;
+  for (const auto & node : this->nodes_) {
+    if(node.second.replicas_.size() >= MIN_DISTRIBUTED_PIECES) {
+      chunk_nodes.emplace(node.first);
+      break;
+    }
+  }
+
+  if(chunk_nodes.empty()) {
+    this->restore_chunk(sp, replica_nodes, object_id);
+  }
+  else {
+    this->generate_missing_replicas(sp, replica_nodes, object_id, chunk_nodes);
+  }
+}
+
+void vds::dht::network::sync_process::replica_sync::object_info_t::normalize_density(
+  const vds::service_provider& sp,
+  const std::map<uint16_t, std::set<vds::const_data_buffer>>& replica_nodes,
+  const const_data_buffer& object_id) const {
+
+  const auto client = sp.get<dht::network::client>();
+
+  vds_assert(!this->nodes_.empty());
+  auto target_count = GENERATE_DISTRIBUTED_PIECES / this->nodes_.size();
+  if (0 == target_count) {
+    target_count = 1;
+  }
+
+  std::map<std::size_t, std::set<const_data_buffer>> replica_count;
+  for (const auto & node : this->nodes_) {
+    replica_count[node.second.replicas_.size()].emplace(node.first);
+  }
+
+  auto head = replica_count.cbegin();
+  auto tail = replica_count.crbegin();
+
+  while (
+    head != replica_count.cend()
+    && tail != replica_count.crend()
+    && head->first < target_count
+    && tail->first > target_count) {
+
+    auto head_node = head->second.cbegin();
+    if(head->second.cend() == head_node) {
+      ++head;
+      continue;
+    }
+
+    auto tail_node = tail->second.cbegin();
+    if(tail->second.cend() == tail_node) {
+      ++tail;
+      continue;
+    }
+
+    for (;;) {
+      (*client)->send(
+        sp,
+        *tail_node,
+        messages::sync_replica_request(
+          object_id,
+          (this->nodes_.end() == this->nodes_.find(*head_node))
+          ? std::set<uint16_t>()
+          : this->nodes_.find(*head_node)->second.replicas_,
+          *head_node));
+
+      ++head_node;
+      while (head->second.cend() == head_node) {
+        ++head;
+        if (
+          head == replica_count.cend()
+          || head->first >= target_count) {
+          break;
+        }
+
+        head_node = head->second.cbegin();
+      }
+      if (
+        head == replica_count.cend()
+        || head->first >= target_count) {
+        break;
+      }
+
+      ++tail_node;
+      while (tail->second.cend() == tail_node) {
+        ++tail;
+        if (
+          tail == replica_count.crend()
+          || tail->first <= target_count) {
+          break;
+        }
+
+        tail_node = tail->second.cbegin();
+      }
+      if (
+        tail == replica_count.crend()
+        || tail->first <= target_count) {
+        break;
+      }
+    }
+  }
+}
+
+void vds::dht::network::sync_process::replica_sync::object_info_t::remove_duplicates(
+  const vds::service_provider& sp,
+  const std::map<uint16_t, std::set<vds::const_data_buffer>>& replica_nodes,
+  const const_data_buffer& object_id) const {
+
+  const auto client = sp.get<dht::network::client>();
+
+  std::map<std::size_t, std::set<uint16_t>> replica_counts;
+  for (const auto & node : replica_nodes) {
+    replica_counts[node.second.size()].emplace(node.first);
+  }
+
+  for (const auto & replica_count : replica_counts) {
+    if (1 < replica_count.first) {
+      for (const auto replica : replica_count.second) {
+        std::size_t max_replica_count = 0;
+        std::set<const_data_buffer> most_replica_nodes;
+        for (const auto & node : replica_nodes.find(replica)->second) {
+          const auto count = this->nodes_.find(node)->second.replicas_.size();
+          if (max_replica_count < count) {
+            max_replica_count = count;
+            most_replica_nodes.clear();
+            most_replica_nodes.emplace(node);
+          }
+          else if (max_replica_count == count) {
+            most_replica_nodes.emplace(node);
+          }
+        }
+
+        vds_assert(0 < max_replica_count);
+        if (max_replica_count > 1) {
+          for (const auto & node : most_replica_nodes) {
+            (*client)->send(
+              sp,
+              node,
+              messages::sync_offer_replica_operation_request(
+                object_id,
+                this->sync_leader_,
+                this->sync_generation_,
+                this->sync_current_term_,
+                this->sync_commit_index_,
+                this->sync_last_applied_,
+                messages::sync_offer_replica_operation_request::message_type_t::remove_replica,
+                node,
+                replica));
+          }
+        }
+      }
+    }
+  }
+}
+
+void vds::dht::network::sync_process::replica_sync::object_info_t::try_to_attach(
+  const service_provider& sp,
+  const const_data_buffer& object_id) const {
+
+  const auto client = sp.get<dht::network::client>();
+  const auto p = this->nodes_.find(client->current_node_id());
+  if (this->nodes_.end() != p) {
+
+    (*client)->send_near(
+      sp,
+      object_id,
+      GENERATE_DISTRIBUTED_PIECES,
+      messages::sync_looking_storage_response(
+        object_id,
+        const_data_buffer(),
+        client->current_node_id(),
+        p->second.replicas_));
+  }
+}
+
+void vds::dht::network::sync_process::replica_sync::register_local_chunk(
+  const const_data_buffer& object_id, const const_data_buffer& current_node_id) {
+  auto & p = this->objects_[object_id].nodes_[current_node_id];
+  for (uint16_t replica = 0; replica < GENERATE_DISTRIBUTED_PIECES; ++replica) {
+    p.replicas_.emplace(replica);
+  }
+}
+
+void vds::dht::network::sync_process::replica_sync::register_replica(const const_data_buffer& object_id,
+  uint16_t replica, const const_data_buffer& node_id) {
+  auto & p = this->objects_[object_id].nodes_[node_id];
+  if(p.replicas_.end() == p.replicas_.find(replica)) {
+    p.replicas_.emplace(replica);
+  }
+}
+
+void vds::dht::network::sync_process::replica_sync::register_sync_leader(
+  const const_data_buffer& object_id,
+  const const_data_buffer& leader_node_id,
+  uint64_t generation,
+  uint64_t current_term,
+  uint64_t commit_index,
+  uint64_t last_applied) {
+  auto & p = this->objects_[object_id];
+  vds_assert(!p.sync_leader_);
+  p.sync_leader_ = leader_node_id;
+  p.sync_generation_ = generation;
+  p.sync_current_term_ = current_term;
+  p.sync_commit_index_ = commit_index;
+  p.sync_last_applied_ = last_applied;
+}
+
+void vds::dht::network::sync_process::replica_sync::register_sync_member(
+  const const_data_buffer& object_id,
+  const const_data_buffer& member_node) {
+  auto & p = this->objects_[object_id];
+  if(p.nodes_.end() == p.nodes_.find(member_node)) {
+    p.nodes_.at(member_node);
+  }
+}
+
+void vds::dht::network::sync_process::replica_sync::normalize_density(
+  const service_provider& sp,
+  database_transaction& t) {
+  const auto client = sp.get<dht::network::client>();
+  for(const auto & object : this->objects_) {
+    //Send chunks if this node is not in memebers
+    if(!object.second.sync_leader_) {
+      object.second.try_to_attach(sp, object.first);
+    }
+    else if(object.second.sync_leader_ == client->current_node_id()) {
+      std::map<uint16_t, std::set<const_data_buffer>> replica_nodes;
+      for(const auto & node : object.second.nodes_) {
+        for(const auto replica : node.second.replicas_) {
+          replica_nodes[replica].emplace(node.first);
+        }
+      }
+
+      //Some replicas has been lost
+      if(replica_nodes.size() < GENERATE_DISTRIBUTED_PIECES) {
+        object.second.restore_replicas(sp, replica_nodes, object.first);
+      }
+      else {//All replicas exists
+        object.second.normalize_density(sp, replica_nodes, object.first);
+        object.second.remove_duplicates(sp, replica_nodes, object.first);
+      }
+    }
   }
 }
 

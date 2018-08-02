@@ -45,8 +45,11 @@ vds::async_task<> vds::db_model::async_read_transaction(
   };
 }
 
-void vds::db_model::start(const service_provider & sp)
+void vds::db_model::start(const service_provider & scope)
 {
+  auto sp = scope.create_scope("Init database model");
+  imt_service::enable_async(sp);
+
 	filename db_filename(foldername(persistence::current_user(sp), ".vds"), "local.db");
 
 	if (!file::exists(db_filename)) {
@@ -187,12 +190,51 @@ void vds::db_model::migrate(
 			data BLOB NOT NULL,\
       create_time INTEGER NOT NULL)");
 
+    t.execute("CREATE TABLE sync_local_queue(\
+			local_index INTEGER PRIMARY KEY AUTOINCREMENT,\
+      object_id VARCHAR(64) NOT NULL,\
+      message_type INTEGER NOT NULL,\
+      member_node VARCHAR(64) NOT NULL,\
+			replica INTEGER NOT NULL,\
+      last_send INTEGER NOT NULL)");
+
+    t.execute("CREATE TABLE sync_member(\
+			object_id VARCHAR(64) NOT NULL,\
+      member_node VARCHAR(64) NOT NULL,\
+      voted_for VARCHAR(64) NOT NULL,\
+      generation INTEGER NOT NULL,\
+			current_term INTEGER NOT NULL,\
+			commit_index INTEGER NOT NULL,\
+			last_applied INTEGER NOT NULL,\
+      last_activity INTEGER NOT NULL,\
+      CONSTRAINT pk_sync_member PRIMARY KEY(object_id,member_node))");
+
+    t.execute("CREATE TABLE sync_message(\
+			object_id VARCHAR(64) NOT NULL,\
+      generation INTEGER NOT NULL,\
+			current_term INTEGER NOT NULL,\
+			message_index INTEGER NOT NULL,\
+			message_type INTEGER NOT NULL,\
+      member_node VARCHAR(64) NOT NULL,\
+			replica INTEGER NOT NULL,\
+      source_node VARCHAR(64) NOT NULL,\
+			source_index INTEGER NOT NULL,\
+      CONSTRAINT pk_sync_message PRIMARY KEY(object_id,generation,current_term,message_index))");
+
+    t.execute("CREATE UNIQUE INDEX fk_sync_message ON sync_message(source_node,source_index)");
 
     t.execute("CREATE TABLE chunk_replica_map(\
 			object_id VARCHAR(64) NOT NULL,\
-      replica INTEGER NOT NULL,\
+			replica INTEGER NOT NULL,\
 			node VARCHAR(64) NOT NULL,\
-      CONSTRAINT pk_chunk_replica_map PRIMARY KEY(object_id,replica))");
+			last_access INTEGER NOT NULL,\
+      CONSTRAINT pk_chunk_replica_map PRIMARY KEY(object_id,replica,replica,node))");
+
+    t.execute("CREATE TABLE sync_state(\
+			object_id VARCHAR(64) PRIMARY KEY NOT NULL,\
+			object_size INTEGER NOT NULL,\
+			state INTEGER NOT NULL,\
+			next_sync INTEGER NOT NULL)");
 
     t.execute("INSERT INTO well_known_node(id, addresses) VALUES(\
 									'3940754a-64dd-4491-9777-719315b36a67',\

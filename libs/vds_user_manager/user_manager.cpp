@@ -65,27 +65,37 @@ vds::async_task<vds::user_channel> vds::user_manager::create_channel(const servi
 
 void vds::user_manager::reset(
     const service_provider &sp,
-    database_transaction &t,
     const std::string &root_user_name,
-    const std::string &root_password,
-    const asymmetric_private_key &root_private_key) {
+    const std::string &root_password) {
+  return sp.get<db_model>()->async_transaction(sp, [this, sp, root_user_name, root_password](
+    database_transaction & t) {
+    const auto root_private_key = cert_control::get_root_private_key(root_password);
+    auto client = sp.get<dht::network::client>();
+    client->save(
+      sp,
+      t,
+      dht::dht_object_id::user_credentials_to_key(root_user_name, root_password),
+      root_private_key.der(root_password));
 
-  auto playback = transactions::transaction_block_builder::create_root_block();
+    auto playback = transactions::transaction_block_builder::create_root_block();
 
-  //Create root user
-  auto root_user = _member_user::create_root_user(
-    sp,
-    playback,
-    t,
-    root_user_name,
-    root_password,
-    root_private_key);
+    //Create root user
+    auto root_user = _member_user::create_root_user(
+      sp,
+      playback,
+      t,
+      root_user_name,
+      root_password,
+      root_private_key);
 
-  playback.save(
+    playback.save(
       sp,
       t,
       root_user.user_certificate(),
       root_private_key);
+
+
+  }).wait();
 }
 
 //vds::async_task<> vds::user_manager::init_server(

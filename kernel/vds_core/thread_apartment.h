@@ -13,7 +13,7 @@ All rights reserved
 
 namespace vds {
 
-  class thread_apartment : std::enable_shared_from_this<thread_apartment> {
+  class thread_apartment : public std::enable_shared_from_this<thread_apartment> {
   public:
     ~thread_apartment() {
       vds_assert(this->task_queue_.empty());

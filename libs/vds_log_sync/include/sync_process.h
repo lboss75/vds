@@ -48,10 +48,6 @@ namespace vds {
       void sync_local_channels(
         const service_provider & sp,
         database_transaction & t);
-
-      void sync_replicas(
-        const service_provider &sp,
-        database_transaction &t);
     };
   }
 }

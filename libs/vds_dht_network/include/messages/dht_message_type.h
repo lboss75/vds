@@ -27,13 +27,13 @@ namespace vds {
 
       enum class message_type_t {
         transaction_log_state,
-        got_replica,
-        replica_request,
-        replica_not_found,
-        offer_replica,
-        replica_data,
         transaction_log_request,
         transaction_log_record,
+        //got_replica,
+        //replica_request,
+        //replica_not_found,
+        //offer_replica,
+        //sync_replica_data,
         dht_find_node,
         dht_find_node_response,
         dht_ping,
@@ -54,7 +54,13 @@ namespace vds {
         sync_looking_storage_response,
 
         sync_snapshot_request,
-        sync_snapshot_response
+        sync_snapshot_response,
+
+        sync_offer_replica_operation_request,
+        //sync_offer_replica_operation_response,
+
+        sync_replica_request,
+        sync_replica_data
 
       };
     }

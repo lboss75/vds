@@ -122,9 +122,7 @@ vds::member_user vds::_member_user::create_root_user(const service_provider& sp,
   transactions::transaction_block_builder& playback, database_transaction& t, const std::string& root_user_name,
   const std::string& root_password, const vds::asymmetric_private_key& root_private_key) {
 
-  const auto root_user_cert = _cert_control::create_root(
-    root_user_name,
-    root_private_key);
+  const auto root_user_cert = cert_control::get_root_certificate();
 
   playback.add(
     transactions::root_user_transaction(

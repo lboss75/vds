@@ -198,7 +198,7 @@ namespace vds {
   public:
     _database()
     : db_(nullptr),
-      execute_queue_(new thread_apartment())
+      execute_queue_(std::make_shared<thread_apartment>())
     {
     }
 
@@ -325,9 +325,7 @@ namespace vds {
     }
 
   private:
-    filename database_file_;
     sqlite3 * db_;    
-
     std::shared_ptr<thread_apartment> execute_queue_;
   };
 }

@@ -7,6 +7,7 @@ All rights reserved
 */
 
 #include "server.h"
+#include "debug_mutex.h"
 
 namespace vds {
   namespace transaction_log {
@@ -36,7 +37,7 @@ namespace vds {
   }
 
 
-  class _server
+  class _server : public std::enable_shared_from_this<_server>
   {
   public:
     _server(server * owner);
@@ -67,6 +68,10 @@ namespace vds {
     friend class server;
 
     server * owner_;
+
+    timer update_timer_;
+    std::debug_mutex update_timer_mutex_;
+    bool in_update_timer_ = false;
 
 	  std::unique_ptr<class db_model> db_model_;
     std::unique_ptr<file_manager::file_manager_service> file_manager_;

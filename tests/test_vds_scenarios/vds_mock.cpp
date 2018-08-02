@@ -13,6 +13,7 @@ All rights reserved
 #include "channel_add_writer_transaction.h"
 #include "dht_object_id.h"
 #include "member_user.h"
+#include "device_config_dbo.h"
 
 vds_mock::vds_mock()
 {
@@ -36,19 +37,16 @@ void vds_mock::start(size_t server_count)
   const auto first_port = 8050;
 
   for (size_t i = 0; i < server_count; ++i) {
-    if (0 == i) {
-      std::cout << "Initing root\n";
-	    mock_server::init_root(i, first_port + i, this->root_password_);
-    }
-    //else {
-    //  std::cout << "Initing server " << i << "\n";
-    //  mock_server::init(i, first_port + i, this->root_login_, this->root_password_);
-    //}
-
     std::unique_ptr<mock_server> server(new mock_server(i, first_port + i));
     try {
       std::cout << "Starring server " << i << "\n";
       server->start();
+      if (0 == i) {
+        std::cout << "Initing root\n";
+        server->init_root(this->root_login_, this->root_password_);
+      }
+
+      //server->allocate_storage(this->root_login_, this->root_password_);
     }
     catch (...) {
       std::cout << "Error...\n";
@@ -628,75 +626,85 @@ mock_server::mock_server(int index, int udp_port)
 {
 }
 
-void mock_server::init_root(int index, int udp_port, const std::string& root_password)
+void mock_server::init_root(
+  const std::string &root_user_name,
+  const std::string &root_password)
 {
-  vds::service_registrator registrator;
+  vds::cert_control::genereate_all(root_user_name, root_password);
 
-  vds::mt_service mt_service;
-  vds::network_service network_service;
-  vds::file_logger logger(
-    test_config::instance().log_level(),
-    test_config::instance().modules());
-  vds::crypto_service crypto_service;
-  vds::task_manager task_manager;
-  vds::server server;
+  auto user_mng = std::make_shared<vds::user_manager>();
 
-  auto folder = vds::foldername(vds::foldername(vds::filename::current_process().contains_folder(), "servers"), std::to_string(0));
-  folder.delete_folder(true);
-  vds::foldername(folder, ".vds").create();
+  auto sp = this->get_service_provider().create_scope(__FUNCTION__);
+  vds::mt_service::enable_async(sp);
 
-  registrator.add(mt_service);
-  registrator.add(logger);
-  registrator.add(task_manager);
-  registrator.add(crypto_service);
-  registrator.add(network_service);
-  registrator.add(server);
-
-  std::shared_ptr<std::exception> error;
-
-  auto sp = registrator.build("mock server::init_root");
-  sp.set_property<vds::unhandled_exception_handler>(
-    vds::service_provider::property_scope::any_scope,
-    new vds::unhandled_exception_handler(
-      [&error](const vds::service_provider & sp, const std::shared_ptr<std::exception> & ex) {
-        error = ex;
-      }));
-  try {
-    auto root_folders = new vds::persistence_values();
-    root_folders->current_user_ = folder;
-    root_folders->local_machine_ = folder;
-    sp.set_property<vds::persistence_values>(vds::service_provider::property_scope::root_scope, root_folders);
-	
-    registrator.start(sp);
-
-	vds::imt_service::enable_async(sp);
-	vds::barrier b;
-    server
-        .reset(sp, "root", root_password)
-		.execute([&error, &b](const std::shared_ptr<std::exception> & ex) {
-		if (ex) {
-			error = ex;
-		}
-		b.set();
-	});
-
-	b.wait();
-
-  }
-  catch (...) {
-    try { registrator.shutdown(sp); }
-    catch (...) {}
-
-    throw;
-  }
-
-  registrator.shutdown(sp);
-
-  if (error) {
-    throw *error;
-  }
+  user_mng->reset(sp, root_user_name, root_password);
 }
 
+//
+//void mock_server::allocate_storage(const std::string& root_login, const std::string& root_password) {
+//  this->login(root_login, root_password,[](const vds::service_provider & sp, const std::shared_ptr<vds::user_manager> & user_mng) {
+//    return sp.get<db_model>()->async_transaction(sp, [sp, user_mng](database_transaction & t) {
+//      auto client = sp.get<dht::network::client>();
+//      auto current_node = client->current_node_id();
+//      foldername fl(foldername(persistence::current_user(sp), ".vds"), "storage");
+//      fl.create();
+//
+//
+//      vds::orm::device_config_dbo t1;
+//      t.execute(
+//        t1.insert(
+//          t1.node_id = current_node,
+//          t1.local_path = fl.full_name(),
+//          t1.owner_id = user_mng->get_current_user().user_certificate().subject(),
+//          t1.name = device_name,
+//          t1.reserved_size = reserved_size * 1024 * 1024 * 1024));
+//    });
+//
+//  });
+//}
+
+void mock_server::login(
+  const std::string& root_login,
+  const std::string& root_password,
+  const std::function<void(const vds::service_provider & sp, const std::shared_ptr<vds::user_manager> & user_mng)> & callback) {
+
+auto sp = this->get_service_provider().create_scope(__FUNCTION__);
+vds::mt_service::enable_async(sp);
+
+auto user_mng = std::make_shared<vds::user_manager>();
+sp.get<vds::dht::network::client>()->restore(
+  sp,
+  vds::dht::dht_object_id::user_credentials_to_key(root_login, root_password))
+  .then([sp, this, user_mng, root_login, root_password](
+    const vds::const_data_buffer &crypted_private_key) -> vds::async_task<> {
+  std::cout << "Got user private key\n";
+  auto user_private_key = vds::asymmetric_private_key::parse_der(
+    vds::symmetric_decrypt::decrypt(
+      vds::symmetric_key::from_password(root_password),
+      crypted_private_key), std::string());
+
+  return sp.get<vds::db_model>()->async_transaction(
+    sp,
+    [sp, user_mng, user_private_key, root_login, root_password](vds::database_transaction &t) {
+
+    user_mng->load(
+      sp,
+      t,
+      vds::dht::dht_object_id::user_credentials_to_key(root_login, root_password),
+      user_private_key);
+
+  });
+})
+.then(
+  [sp, user_mng, callback]() {
+
+
+  return callback(
+    sp,
+    user_mng);
+  }).wait();
+
+}
 
 void mock_server::start()
 {

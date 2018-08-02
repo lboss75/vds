@@ -9,9 +9,9 @@
 #include "messages/dht_find_node_response.h"
 #include "messages/dht_ping.h"
 #include "messages/dht_pong.h"
-#include "messages/object_request.h"
+#include "messages/sync_replica_request.h"
 #include "messages/offer_replica.h"
-#include "messages/replica_data.h"
+#include "messages/sync_replica_data.h"
 #include "server.h"
 #include "private/server_p.h"
 #include "../vds_dht_network/private/dht_network_client_p.h"
@@ -22,6 +22,7 @@
 #include "messages/sync_replica_operations.h"
 #include "messages/sync_looking_storage.h"
 #include "messages/sync_snapshot.h"
+#include "messages/sync_offer_replica_operation.h"
 
 #define route_client(message_type)\
   case network::message_type_t::message_type: {\
@@ -125,14 +126,14 @@ vds::async_task<> vds::dht::network::dht_session::process_message(
       (*sp.get<client>())->apply_message(sp.create_scope("messages::dht_pong"), this->shared_from_this(), message);
       break;
     }
-    case network::message_type_t::replica_request: {
+ /*   case network::message_type_t::replica_request: {
       this->replica_request_++;
 
       binary_deserializer s(message_data);
-      messages::object_request message(s);
+      messages::sync_replica_request message(s);
       auto result = std::make_shared<async_task<>>(async_task<>::empty());
       *result = (*sp.get<client>())->apply_message(
-        sp.create_scope("messages::object_request"),
+        sp.create_scope("messages::sync_replica_request"),
         this->shared_from_this(),
         message);
       mt_service::async(sp, [result]() mutable {
@@ -140,38 +141,38 @@ vds::async_task<> vds::dht::network::dht_session::process_message(
       });
       break;
     }
-    case network::message_type_t::offer_replica: {
-      this->offer_replica_++;
+ */   //case network::message_type_t::offer_replica: {
+    //  this->offer_replica_++;
 
-      binary_deserializer s(message_data);
-      messages::offer_replica message(s);
-      (*sp.get<client>())->apply_message(
-          sp.create_scope("messages::object_request"),
-          this->shared_from_this(),
-          message)
-      .execute([](const std::shared_ptr<std::exception> &) {});
-      break;
-    }
-    case network::message_type_t::replica_data: {
-      binary_deserializer s(message_data);
-      const messages::replica_data message(s);
-      (*sp.get<client>())->apply_message(
-        sp.create_scope("messages::replica_data"),
-        this->shared_from_this(),
-        message)
-        .execute([](const std::shared_ptr<std::exception> &) {});
-      break;
-    }
-    case network::message_type_t::got_replica: {
-      binary_deserializer s(message_data);
-      const messages::got_replica message(s);
-      (*sp.get<client>())->apply_message(
-        sp.create_scope("messages::replica_data"),
-        this->shared_from_this(),
-        message)
-        .execute([](const std::shared_ptr<std::exception> &) {});
-      break;
-    }
+    //  binary_deserializer s(message_data);
+    //  messages::offer_replica message(s);
+    //  (*sp.get<client>())->apply_message(
+    //      sp.create_scope("messages::sync_replica_request"),
+    //      this->shared_from_this(),
+    //      message)
+    //  .execute([](const std::shared_ptr<std::exception> &) {});
+    //  break;
+    //}
+    //case network::message_type_t::replica_data: {
+    //  binary_deserializer s(message_data);
+    //  const messages::sync_replica_data message(s);
+    //  (*sp.get<client>())->apply_message(
+    //    sp.create_scope("messages::sync_replica_data"),
+    //    this->shared_from_this(),
+    //    message)
+    //    .execute([](const std::shared_ptr<std::exception> &) {});
+    //  break;
+    //}
+    //case network::message_type_t::got_replica: {
+    //  binary_deserializer s(message_data);
+    //  const messages::got_replica message(s);
+    //  (*sp.get<client>())->apply_message(
+    //    sp.create_scope("messages::sync_replica_data"),
+    //    this->shared_from_this(),
+    //    message)
+    //    .execute([](const std::shared_ptr<std::exception> &) {});
+    //  break;
+    //}
 
     route_client(sync_new_election_request)
     route_client(sync_new_election_response)
@@ -189,6 +190,11 @@ vds::async_task<> vds::dht::network::dht_session::process_message(
 
     route_client(sync_snapshot_request)
     route_client(sync_snapshot_response)
+
+    route_client(sync_offer_replica_operation_request)
+
+    route_client(sync_replica_request)
+    route_client(sync_replica_data)
 
     default:{
       throw std::runtime_error("Invalid command");
