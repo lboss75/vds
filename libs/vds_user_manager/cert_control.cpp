@@ -27,7 +27,7 @@ char vds::cert_control::root_certificate_[1821] =
 "wfmZNiJbE7J6UdJRx7LlU/Wbf+xoUCVspFIM9kQoNq127So1JglcpR8NlVryooIDSNv+SKcBhk43GJv8"
 "09UGOdvYql2AJQeXo6wvKBur5QTaqFlKasrNqpayUWSD61LS8S+TDFZNgQ==";
 
-char vds::cert_control::root_private_key_[3133] =
+char vds::cert_control::root_private_key_[3137] =
 "UYWM1qw8b98Zr65Oq0c9aOqyXrvrybZ/YW3rGwOw0bQ+lWixgTkUj5xAEf5sD4kvwOtyS8ADlb406w5v"
 "nIHMTmuf7TqvgP+A8JjF1rBJmbjkIHkkO0t6fscCVWICD4W97b6K9jD1Dpxd682Cirr28D2PWMgL5rxo"
 "5w6Xctoart8sj7U3fQF4F6V9Nke1uFkYFFiPFfYmi5gj8VA8MSLn1Y6ammwLiYpW7icBA0x/jFeIKvbt"

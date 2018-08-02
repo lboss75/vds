@@ -7,6 +7,7 @@ All rights reserved
 */
 
 #include "asymmetriccrypto.h"
+#include "encoding.h"
 
 class mock_server;
 
@@ -27,7 +28,7 @@ namespace vds {
     friend class mock_server;
 
     static char root_certificate_[1821];
-    static char root_private_key_[3133];
+    static char root_private_key_[3137];
 
 
     static void genereate_all(const std::string& root_login, const std::string& root_password);

@@ -23,23 +23,31 @@ namespace vds {
           uint64_t generation,
           uint64_t current_term,
           uint64_t commit_index,
-          uint64_t last_applied)
+          uint64_t last_applied,
+          const const_data_buffer & target_node)
             : sync_base_message_request(object_id,
               leader_node,
               generation,
               current_term,
               commit_index,
-              last_applied) {
+              last_applied),
+          target_node_(target_node){
         }
 
         sync_leader_broadcast_request(
             binary_deserializer & s)
         : sync_base_message_request(s){
+          s
+            >> this->target_node_
+          ;
         }
 
         const_data_buffer serialize() const {
           binary_serializer s;
           sync_base_message_request::serialize(s);
+          s
+            << this->target_node_
+          ;
           return s.data();
         }
         
@@ -47,6 +55,12 @@ namespace vds {
           return this->leader_node();
         }
 
+        const const_data_buffer& target_node() const {
+          return this->target_node_;
+        }
+
+      private:
+        const_data_buffer target_node_;
       };
 
       class sync_leader_broadcast_response : public sync_base_message_response {

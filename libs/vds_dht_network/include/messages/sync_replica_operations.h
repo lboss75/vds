@@ -27,7 +27,10 @@ namespace vds {
           uint64_t last_applied,
           orm::sync_message_dbo::message_type_t message_type,
           const const_data_buffer & member_node,
-          uint16_t replica)
+          uint16_t replica,
+          const const_data_buffer & message_source_node,
+          uint64_t message_source_index,
+          const const_data_buffer & target_node)
             : sync_base_message_request(
               object_id,
               leader_node,
@@ -37,7 +40,10 @@ namespace vds {
               last_applied),
         message_type_(message_type),
         member_node_(member_node),
-        replica_(replica){
+        replica_(replica),
+          message_source_node_(message_source_node),
+        message_source_index_(message_source_index),
+        target_node_(target_node) {
         }
 
         sync_replica_operations_request(
@@ -47,7 +53,11 @@ namespace vds {
           s
             >> message_type
             >> this->member_node_
-            >> this->replica_;
+            >> this->replica_
+            >> this->message_source_node_
+            >> this->message_source_index_
+            >> this->target_node_
+            ;
 
           this->message_type_ = static_cast<orm::sync_message_dbo::message_type_t>(message_type);
         }
@@ -58,7 +68,11 @@ namespace vds {
           s
             << static_cast<uint8_t>(this->message_type_)
             << this->member_node_
-            << this->replica_;
+            << this->replica_
+            << this->message_source_node_
+            << this->message_source_index_
+            << this->target_node_
+            ;
           return s.data();
         }
         orm::sync_message_dbo::message_type_t message_type() const {
@@ -77,10 +91,25 @@ namespace vds {
           return this->leader_node();
         }
 
+        const const_data_buffer& target_node() const {
+          return this->target_node_;
+        }
+
+        const const_data_buffer & message_source_node() const {
+          return this->message_source_node_;
+        }
+
+        uint64_t message_source_index() const {
+          return this->message_source_index_;
+        }
+
       private:
         orm::sync_message_dbo::message_type_t message_type_;
         const_data_buffer member_node_;
         uint16_t replica_;
+        const_data_buffer message_source_node_;
+        uint64_t message_source_index_;
+        const_data_buffer target_node_;
       };
 
       class sync_replica_operations_response : public sync_base_message_response {

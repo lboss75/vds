@@ -6,6 +6,7 @@ All rights reserved
 #include "stdafx.h"
 #include "background_app.h"
 #include "http_router.h"
+#include "user_manager.h"
 
 vds::background_app::background_app()
 : server_start_command_set_("Server start", "Start server", "start", "server"),
@@ -36,52 +37,34 @@ vds::background_app::background_app()
 
 void vds::background_app::main(const service_provider & sp)
 {
-  if(&this->server_root_cmd_set_ == this->current_command_set_){
-    vds::imt_service::enable_async(sp);
+  if (this->current_command_set_ == &this->server_start_command_set_
+    || &this->server_root_cmd_set_ == this->current_command_set_) {
 
-    std::shared_ptr<std::exception> error;
-    vds::barrier b;
     this->server_
-        .reset(sp,
-               this->user_login_.value(),
-               this->user_password_.value())
-        .execute([&error, &b, this](const std::shared_ptr<std::exception> & ex) {
-          if (ex) {
-            error = ex;
-          }
+      .start_network(sp, (uint16_t)(this->port_.value().empty() ? 8050 : strtol(this->port_.value().c_str(), nullptr, 10)))
+      .wait();
 
-          b.set();
-        });
+    if (&this->server_root_cmd_set_ == this->current_command_set_) {
+      auto scope = sp.create_scope(__FUNCTION__);
+      imt_service::enable_async(scope);
 
-    b.wait();
-    if(error){
-      std::cout << "Failed:" << error->what() << "\n";
+      auto user_mng = std::make_shared<user_manager>();
+      user_mng->reset(scope,
+        this->user_login_.value(),
+        this->user_password_.value());
     }
-  } else if(this->current_command_set_ == &this->server_start_command_set_){
-    std::shared_ptr<std::exception> error;
-    vds::barrier b;
-    this->server_
-        .start_network(sp, (uint16_t)(this->port_.value().empty() ? 8050 : strtol(this->port_.value().c_str(), nullptr, 10)))
-        .execute([&b, &error](const std::shared_ptr<std::exception> & ex){
-      if(ex){
-        error = ex;
+    else {
+      for (;;) {
+        std::cout << "Enter command:\n";
+
+        std::string cmd;
+        std::cin >> cmd;
+
+        if ("exit" == cmd) {
+          break;
+        }
       }
-      b.set();
-    });
-    b.wait();
-    if(error){
-      std::cout << "Failed:" << error->what() << "\n";
-    }
 
-    for (;;) {
-      std::cout << "Enter command:\n";
-
-      std::string cmd;
-      std::cin >> cmd;
-
-      if ("exit" == cmd) {
-        break;
-      }
     }
   }
 }

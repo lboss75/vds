@@ -55,14 +55,14 @@ void vds::vds_embedded::server_root(const std::string & login, const std::string
 
       vds::imt_service::enable_async(sp);
       vds::barrier b;
-      server
-          .reset(sp, login, password)
-          .execute([&error, &b](const std::shared_ptr<std::exception> &ex) {
-            if (ex) {
-              error = ex;
-            }
-            b.set();
-          });
+      //server
+      //    .reset(sp, login, password)
+      //    .execute([&error, &b](const std::shared_ptr<std::exception> &ex) {
+      //      if (ex) {
+      //        error = ex;
+      //      }
+      //      b.set();
+      //    });
 
       b.wait();
 

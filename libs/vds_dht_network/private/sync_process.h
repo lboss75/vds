@@ -51,15 +51,6 @@ namespace vds {
           const service_provider & sp,
           database_transaction & t);
 
-        void add_local_log(
-          const service_provider& sp,
-          database_transaction& t,
-          const const_data_buffer & object_id,
-          orm::sync_message_dbo::message_type_t message_type,
-          const const_data_buffer & member_node,
-          uint16_t replica,
-          const const_data_buffer& leader_node);
-
         void add_sync_entry(const service_provider &sp, database_transaction &t,
                                     const const_data_buffer &object_id, uint32_t object_size);
 
@@ -67,24 +58,6 @@ namespace vds {
           const service_provider& sp,
           database_transaction& t,
           const const_data_buffer& object_id);
-
-        static std::set<const_data_buffer> get_members(
-          const service_provider& sp,
-          database_read_transaction & t,
-          const const_data_buffer& object_id);
-
-        void make_new_election(
-          const service_provider& sp,
-          database_transaction& t,
-          const const_data_buffer& object_id) const;
-
-        void make_follower(
-          const service_provider& sp,
-          database_transaction& t,
-          const const_data_buffer& object_id,
-          uint64_t generation,
-          uint64_t current_term,
-          const const_data_buffer& leader_node);
 
         void apply_message(
           const service_provider& sp,
@@ -178,6 +151,41 @@ namespace vds {
         static constexpr std::chrono::system_clock::duration LOCAL_QUEUE_TIMEOUT = std::chrono::seconds(5);
 
         std::map<uint16_t, std::unique_ptr<chunk_generator<uint16_t>>> distributed_generators_;
+
+        void add_to_log(const vds::service_provider& sp, vds::database_transaction& t,
+          const vds::const_data_buffer& object_id,
+          vds::orm::sync_message_dbo::message_type_t message_type,
+          const vds::const_data_buffer& member_node,
+          uint16_t replica,
+          const vds::const_data_buffer& source_node,
+          uint64_t source_index);
+
+        void add_local_log(
+          const service_provider& sp,
+          database_transaction& t,
+          const const_data_buffer & object_id,
+          orm::sync_message_dbo::message_type_t message_type,
+          const const_data_buffer & member_node,
+          uint16_t replica,
+          const const_data_buffer& leader_node);
+
+        static std::set<const_data_buffer> get_members(
+          const service_provider& sp,
+          database_read_transaction & t,
+          const const_data_buffer& object_id);
+
+        void make_new_election(
+          const service_provider& sp,
+          database_transaction& t,
+          const const_data_buffer& object_id) const;
+
+        void make_follower(
+          const service_provider& sp,
+          database_transaction& t,
+          const const_data_buffer& object_id,
+          uint64_t generation,
+          uint64_t current_term,
+          const const_data_buffer& leader_node);
 
         uint32_t get_quorum(
           const service_provider& sp,

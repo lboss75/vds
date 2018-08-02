@@ -247,7 +247,7 @@ void vds::dht::network::_client::send_near(
       const std::shared_ptr<dht_route<std::shared_ptr<dht_session>>::node> & candidate) {
       auto session = candidate->proxy_session_;
       if(sessions.end() == sessions.find(session->address())){
-        sessions.at(session->address()) = session;
+        sessions[session->address()] = session;
       }
       return true;
   });
