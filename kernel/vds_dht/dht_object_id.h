@@ -33,7 +33,7 @@ namespace vds {
           result.add(left.data() + min_size, max_size - min_size);
         }
 
-        return const_data_buffer(result.data(), result.size());
+        return result.get_data();
       }
 
       static size_t distance_exp(const const_data_buffer &left, const const_data_buffer &right) {
@@ -75,14 +75,14 @@ namespace vds {
       }
 
       static const_data_buffer generate_random_id(const const_data_buffer &original, size_t exp_index) {
-        resizable_data_buffer result;
-        result += original;
+        std::vector<uint8_t> result(original.size());
+        memcpy(result.data(), original.data(), original.size());
 
-        result.data()[exp_index / 8] ^= (0x80 >> (exp_index % 8));
-        result.data()[exp_index / 8] ^= ((0x80 >> (exp_index % 8)) - 1) & static_cast<uint8_t>(std::rand());
+        result[exp_index / 8] ^= (0x80 >> (exp_index % 8));
+        result[exp_index / 8] ^= ((0x80 >> (exp_index % 8)) - 1) & static_cast<uint8_t>(std::rand());
 
         for (size_t i = exp_index / 8 + 1; i < original.size(); ++i) {
-          result.data()[i] = static_cast<uint8_t>(std::rand());
+          result[i] = static_cast<uint8_t>(std::rand());
         }
 
         vds_assert(exp_index == distance_exp(original, const_data_buffer(result.data(), result.size())));

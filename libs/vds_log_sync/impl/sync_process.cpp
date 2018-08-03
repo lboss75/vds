@@ -28,17 +28,18 @@ void vds::transaction_log::sync_process::do_sync(const service_provider& sp, dat
 }
 
 void vds::transaction_log::sync_process::query_unknown_records(const service_provider& sp, database_transaction& t) {
-  std::map<const_data_buffer, std::vector<const_data_buffer>> record_ids;
+  std::set<const_data_buffer> record_ids;
   orm::transaction_log_unknown_record_dbo t1;
   orm::transaction_log_unknown_record_dbo t2;
   auto st = t.get_reader(
     t1.select(
-      t1.id,
-      t1.refer_id)
+      t1.id)
     .where(db_not_in(t1.id, t2.select(t2.follower_id))));
 
   while (st.execute()) {
-    record_ids[t1.id.get(st)].push_back(t1.refer_id.get(st));
+    if (record_ids.end() == record_ids.find(t1.id.get(st))) {
+      record_ids.emplace(t1.id.get(st));
+    }
   }
 
   if(record_ids.empty()){
@@ -64,21 +65,18 @@ void vds::transaction_log::sync_process::query_unknown_records(const service_pro
   }
   else {
     auto &client = *sp.get<dht::network::client>();
-    for (const auto &p : record_ids) {
-      auto index = std::rand() % p.second.size();
+    for (const auto & p : record_ids) {
       sp.get<logger>()->trace(
           ThisModule,
           sp,
-          "Query log records %s from %s",
-          base64::from_bytes(p.first).c_str(),
-          base64::from_bytes(p.second[index]).c_str());
+          "Query log records %s",
+          base64::from_bytes(p).c_str());
 
-        client->send(
+        client->send_neighbors(
             sp,
-          p.second[index],
             dht::messages::transaction_log_request(
-              p.first,
-                client->current_node_id()));
+              p,
+              client->current_node_id()));
     }
   }
 }
@@ -103,13 +101,17 @@ vds::async_task<> vds::transaction_log::sync_process::apply_message(
   auto result = async_task<>::empty();
   if (!requests.empty()) {
 
-    orm::transaction_log_unknown_record_dbo t1;
+    orm::transaction_log_unknown_record_dbo t3;
     for(const auto & p : requests){
-      t.execute(
-          t1.insert_or_ignore(
-              t1.id = p,
-              t1.refer_id = message.source_node(),
-              t1.follower_id = const_data_buffer()));
+      result = result.then([sp, message, target_node = message.source_node(), transaction_id = p]() {
+        auto & client = *sp.get<vds::dht::network::client>();
+        client->send(
+          sp,
+          target_node,
+          dht::messages::transaction_log_request(
+            transaction_id,
+            client->current_node_id()));
+      });
     }
   }
   else {

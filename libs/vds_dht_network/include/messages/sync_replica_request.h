@@ -12,6 +12,10 @@ All rights reserved
 namespace vds {
   namespace dht {
     namespace messages {
+
+      /**
+       * \brief Replica data request from outside object's consensus
+       */
       class sync_replica_request {
       public:
         static const network::message_type_t message_id = network::message_type_t::sync_replica_request;

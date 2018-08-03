@@ -20,7 +20,7 @@ vds::const_data_buffer vds::inflate::decompress(const void * data, size_t size)
 	inf.write((const uint8_t *)data, size);
 	inf.write(nullptr, 0);
 
-	return const_data_buffer(result.data(), result.size());
+	return result.get_data();
 }
 
 //////////////////////////////////////////////////////

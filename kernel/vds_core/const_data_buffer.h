@@ -7,6 +7,7 @@ All rights reserved
 */
 #include "targetver.h"
 #include <vector>
+#include <list>
 #include "types.h"
 
 namespace vds{
@@ -37,6 +38,11 @@ namespace vds{
     const_data_buffer(const std::vector<uint8_t> & data)
     : impl_(new _const_data_buffer(data.data(), data.size()))
     {
+    }
+
+    const_data_buffer(const std::list<const_data_buffer> & data)
+      : impl_(new _const_data_buffer(data)) {
+      
     }
       
     const uint8_t * data() const
@@ -137,6 +143,21 @@ namespace vds{
       : data_(new uint8_t[len]), len_(len)
       {
         memcpy(this->data_, data, len);
+      }
+
+      _const_data_buffer(const std::list<const_data_buffer> & data) {
+        size_t size = 0;
+        for(const auto & p : data) {
+          size += p.size();
+        }
+        this->data_ = new uint8_t[this->len_ = size];
+        size = 0;
+        for (const auto & p : data) {
+          if (p.size() > 0) {
+            memcpy(this->data_ + size, p.data(), p.size());
+            size += p.size();
+          }
+        }
       }
       
       ~_const_data_buffer()

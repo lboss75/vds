@@ -28,7 +28,7 @@ vds::const_data_buffer vds::deflate::compress(
   df.write(data, len);
   df.write(nullptr, 0);
   
-  return const_data_buffer(result.data(), result.size());  
+  return result.get_data();  
 }
 
 vds::const_data_buffer vds::deflate::compress(

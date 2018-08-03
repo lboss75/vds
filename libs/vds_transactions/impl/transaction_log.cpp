@@ -35,14 +35,13 @@ void vds::transactions::transaction_log::save(
   bool ancestors_exist = true;
   bool ancestor_invalid = false;
   orm::transaction_log_record_dbo t1;
+  orm::transaction_log_unknown_record_dbo t4;
   for (const auto & ancestor : block.ancestors()) {
     auto st = t.get_reader(t1.select(t1.state).where(t1.id == ancestor));
     if (!st.execute()) {
       ancestors_exist = false;
-      orm::transaction_log_unknown_record_dbo t4;
       t.execute(t4.insert_or_ignore(
         t4.id = ancestor,
-        t4.refer_id = refer_id,
         t4.follower_id = block.id()
       ));
     }
@@ -72,39 +71,33 @@ void vds::transactions::transaction_log::save(
 
   certificate write_cert;
   if (block.ancestors().empty()) {
-    block.walk_messages(
-      [&write_cert](const root_user_transaction & message)->bool{
-      write_cert = message.user_cert();
-      return true;
-    });
+    write_cert = cert_control::get_root_certificate();
   }
-
-  if (!write_cert) {
+  else {
     orm::certificate_chain_dbo t2;
     auto st = t.get_reader(t2.select(t2.cert).where(t2.id == block.write_cert_id()));
     if (st.execute()) {
       write_cert = certificate::parse_der(t2.cert.get(st));
     }
-  }
-
-  if(!write_cert){
-    sp.get<logger>()->warning(
-      ThisModule,
-      sp,
-      "Invalid certificate %s for block %s",
-      block.write_cert_id().c_str(),
-      base64::from_bytes(block.id()).c_str());
-  }
-  else {
-    if(!block.validate(write_cert)){
+    else {
       sp.get<logger>()->warning(
-          ThisModule,
-          sp,
-          "Invalid signature record %s",
-          base64::from_bytes(block.id()).c_str());
+        ThisModule,
+        sp,
+        "Invalid certificate %s for block %s",
+        block.write_cert_id().c_str(),
+        base64::from_bytes(block.id()).c_str());
       return;
     }
   }
+
+  if(!block.validate(write_cert)){
+    sp.get<logger>()->warning(
+        ThisModule,
+        sp,
+        "Invalid signature record %s",
+        base64::from_bytes(block.id()).c_str());
+    return;
+  }  
 
   if(ancestor_invalid) {
     t.execute(
@@ -118,22 +111,15 @@ void vds::transactions::transaction_log::save(
     update_consensus(t, block, block.write_cert_id());
 
     if(block.ancestors().empty()) {//Root
-      //Root transaction
-      block.walk_messages(
-          [&block, &t, &block_data](const root_user_transaction & message)->bool{
-            transaction_record_state state(block.id(), message.user_cert().subject());
-
-            orm::transaction_log_record_dbo t1;
-            t.execute(
-                t1.insert(
-                    t1.id = block.id(),
-                    t1.data = block_data,
-                    t1.state = orm::transaction_log_record_dbo::state_t::leaf,
-                    t1.order_no = block.order_no(),
-                    t1.time_point = block.time_point(),
-                    t1.state_data = state.serialize()));
-            return true;
-          });
+        transaction_record_state state(block.id(), cert_control::get_root_certificate().subject());
+        t.execute(
+            t1.insert(
+                t1.id = block.id(),
+                t1.data = block_data,
+                t1.state = orm::transaction_log_record_dbo::state_t::leaf,
+                t1.order_no = block.order_no(),
+                t1.time_point = block.time_point(),
+                t1.state_data = state.serialize()));
     }
     else {
 
@@ -168,7 +154,6 @@ void vds::transactions::transaction_log::save(
 
   //process followers
   std::set<const_data_buffer> followers;
-  orm::transaction_log_unknown_record_dbo t4;
   auto st = t.get_reader(t4.select(t4.follower_id).where(t4.id == block.id()));
   while (st.execute()) {
     const auto follower_id = t4.follower_id.get(st);

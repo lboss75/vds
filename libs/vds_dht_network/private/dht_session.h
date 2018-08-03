@@ -44,15 +44,9 @@ namespace vds {
       private:
         const_data_buffer partner_node_id_;
 
-        unsigned int offer_replica_;
-        unsigned int replica_request_;
-        unsigned int dht_pong_;
-        unsigned int dht_ping_;
-        unsigned int dht_find_node_response_;
-        unsigned int dht_find_node_;
-        unsigned int transaction_log_record_;
-        unsigned int transaction_log_request_;
-        unsigned int transaction_log_state_count_;
+        static std::mutex statistic_mutex_;
+        static std::map<network::message_type_t, size_t> statistic_;
+        static std::map<network::message_type_t, size_t> statistic_count_;
       };
     }
   }

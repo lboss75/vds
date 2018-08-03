@@ -10,42 +10,22 @@ namespace vds {
 
     }
 
-    resizable_data_buffer(size_t size){
-      this->data_.resize(size);
-    }
-
     resizable_data_buffer &operator += (const const_data_buffer & data){
       return this->add(data.data(), data.size());
     }
 
-	resizable_data_buffer & padding(size_t size, uint8_t value = 0) {
-		const auto offset = this->data_.size();
-		this->data_.resize(offset + size);
-		memset(this->data_.data() + offset, value, size);
-		return  *this;
-	}
-
     resizable_data_buffer & add (const uint8_t * data, size_t size){
-      auto offset = this->data_.size();
-      this->data_.resize(offset + size);
-      memcpy(this->data_.data() + offset, data, size);
+      this->data_.push_back(const_data_buffer(data, size));
       return *this;
     }
 
     resizable_data_buffer & add(const uint8_t value) {
-      this->data_.push_back(value);
+      this->data_.push_back(const_data_buffer(&value, sizeof(value)));
       return *this;
     }
 
-    uint8_t * data() {
-      return this->data_.data();
-    }
-    const uint8_t * data() const {
-      return this->data_.data();
-    }
-
-    size_t size() const {
-      return this->data_.size();
+    const_data_buffer get_data() const {
+      return const_data_buffer(this->data_);
     }
 
     void clear(){
@@ -53,7 +33,7 @@ namespace vds {
     }
 
   private:
-    std::vector<uint8_t> data_;
+    std::list<const_data_buffer> data_;
   };
 }
 

@@ -17,11 +17,9 @@ namespace vds {
       transaction_log_unknown_record_dbo()
           : database_table("transaction_log_unknown_record"),
             id(this, "id"),
-            refer_id(this, "refer_id"),
             follower_id(this, "follower_id") {}
 
       database_column<const_data_buffer, std::string> id;
-      database_column<const_data_buffer> refer_id;
       database_column<const_data_buffer, std::string> follower_id;
     };
   }

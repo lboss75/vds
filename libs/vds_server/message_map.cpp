@@ -22,7 +22,8 @@
 #include "messages/sync_replica_operations.h"
 #include "messages/sync_looking_storage.h"
 #include "messages/sync_snapshot.h"
-#include "messages/sync_offer_replica_operation.h"
+#include "messages/sync_offer_send_replica_operation.h"
+#include "messages/sync_offer_remove_replica_operation.h"
 
 #define route_client(message_type)\
   case network::message_type_t::message_type: {\
@@ -35,11 +36,19 @@
       break;\
     }
 
+std::mutex vds::dht::network::dht_session::statistic_mutex_;
+std::map<vds::dht::network::message_type_t, size_t> vds::dht::network::dht_session::statistic_;
+std::map<vds::dht::network::message_type_t, size_t> vds::dht::network::dht_session::statistic_count_;
 
 vds::async_task<> vds::dht::network::dht_session::process_message(
   const service_provider& scope,
   uint8_t message_type,
   const const_data_buffer& message_data) {
+
+  statistic_mutex_.lock();
+  statistic_[static_cast<network::message_type_t>(message_type)] += message_data.size();
+  statistic_count_[static_cast<network::message_type_t>(message_type)]++;
+  statistic_mutex_.unlock();
 
   if(scope.get_shutdown_event().is_shuting_down()) {
     return async_task<>::empty();
@@ -48,8 +57,6 @@ vds::async_task<> vds::dht::network::dht_session::process_message(
   auto sp = scope.create_scope(__FUNCTION__);
   switch((network::message_type_t)message_type){
   case network::message_type_t::transaction_log_state: {
-    this->transaction_log_state_count_++;
-
     auto result = std::make_shared<async_task<>>(async_task<>::empty());
     return sp.get<db_model>()->async_transaction(sp, [sp, message_data, result](database_transaction & t) {
       binary_deserializer s(message_data);
@@ -65,8 +72,6 @@ vds::async_task<> vds::dht::network::dht_session::process_message(
     break;
   }
   case network::message_type_t::transaction_log_request: {
-    this->transaction_log_request_++;
-
     return sp.get<db_model>()->async_transaction(sp, [sp, message_data](database_transaction & t) {
       binary_deserializer s(message_data);
       messages::transaction_log_request message(s);
@@ -76,8 +81,6 @@ vds::async_task<> vds::dht::network::dht_session::process_message(
     break;
   }
   case network::message_type_t::transaction_log_record: {
-    this->transaction_log_record_++;
-
     return sp.get<db_model>()->async_transaction(sp, [sp, message_data](database_transaction & t) {
       binary_deserializer s(message_data);
       messages::transaction_log_record message(s);
@@ -88,8 +91,6 @@ vds::async_task<> vds::dht::network::dht_session::process_message(
   }
 
     case network::message_type_t::dht_find_node: {
-      this->dht_find_node_++;
-
       binary_deserializer s(message_data);
       messages::dht_find_node message(s);
       (*sp.get<client>())->apply_message(sp.create_scope("messages::dht_find_node"), message);
@@ -97,8 +98,6 @@ vds::async_task<> vds::dht::network::dht_session::process_message(
     }
 
     case network::message_type_t::dht_find_node_response: {
-      this->dht_find_node_response_++;
-
       binary_deserializer s(message_data);
       messages::dht_find_node_response message(s);
       auto result = std::make_shared<async_task<>>(async_task<>::empty());
@@ -110,8 +109,6 @@ vds::async_task<> vds::dht::network::dht_session::process_message(
     }
 
     case network::message_type_t::dht_ping: {
-      this->dht_ping_++;
-
       binary_deserializer s(message_data);
       messages::dht_ping message(s);
       (*sp.get<client>())->apply_message(sp.create_scope("messages::dht_ping"), this->shared_from_this(), message);
@@ -119,8 +116,6 @@ vds::async_task<> vds::dht::network::dht_session::process_message(
     }
 
     case network::message_type_t::dht_pong: {
-      this->dht_pong_++;
-
       binary_deserializer s(message_data);
       messages::dht_pong message(s);
       (*sp.get<client>())->apply_message(sp.create_scope("messages::dht_pong"), this->shared_from_this(), message);
@@ -191,7 +186,7 @@ vds::async_task<> vds::dht::network::dht_session::process_message(
     route_client(sync_snapshot_request)
     route_client(sync_snapshot_response)
 
-    route_client(sync_offer_replica_operation_request)
+    route_client(sync_offer_send_replica_operation_request)
 
     route_client(sync_replica_request)
     route_client(sync_replica_data)

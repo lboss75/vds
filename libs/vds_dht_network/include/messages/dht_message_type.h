@@ -56,7 +56,8 @@ namespace vds {
         sync_snapshot_request,
         sync_snapshot_response,
 
-        sync_offer_replica_operation_request,
+        sync_offer_send_replica_operation_request,
+        sync_offer_remove_replica_operation_request,
         //sync_offer_replica_operation_response,
 
         sync_replica_request,

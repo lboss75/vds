@@ -1,5 +1,5 @@
-#ifndef __VDS_DHT_NETWORK_SYNC_OFFER_REPLICA_OPERATION_H_
-#define __VDS_DHT_NETWORK_SYNC_OFFER_REPLICA_OPERATION_H_
+#ifndef __VDS_DHT_NETWORK_SYNC_OFFER_SEND_REPLICA_OPERATION_H_
+#define __VDS_DHT_NETWORK_SYNC_OFFER_SEND_REPLICA_OPERATION_H_
 
 /*
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
@@ -14,26 +14,20 @@ All rights reserved
 namespace vds {
   namespace dht {
     namespace messages {
-      class sync_offer_replica_operation_request : public sync_base_message_request {
+      class sync_offer_send_replica_operation_request : public sync_base_message_request {
       public:
-        static const network::message_type_t message_id = network::message_type_t::sync_offer_replica_operation_request;
+        static const network::message_type_t message_id = network::message_type_t::sync_offer_send_replica_operation_request;
 
-        enum class message_type_t : uint8_t {
-          add_replica,
-          move_replica,
-          remove_replica
-        };
-
-        sync_offer_replica_operation_request(
+        sync_offer_send_replica_operation_request(
           const const_data_buffer &object_id,
           const const_data_buffer &leader_node,
           uint64_t generation,
           uint64_t current_term,
           uint64_t commit_index,
           uint64_t last_applied,
-          message_type_t message_type,
           const const_data_buffer & member_node,
-          uint16_t replica)
+          uint16_t replica,
+          const const_data_buffer &target_node)
           : sync_base_message_request(
             object_id,
             leader_node,
@@ -41,37 +35,32 @@ namespace vds {
             current_term,
             commit_index,
             last_applied),
-          message_type_(message_type),
           member_node_(member_node),
-          replica_(replica) {
+          replica_(replica),
+          target_node_(target_node){
         }
 
-        sync_offer_replica_operation_request(
+        sync_offer_send_replica_operation_request(
           binary_deserializer & s)
           : sync_base_message_request(s) {
-          uint8_t message_type;
           s
-            >> message_type
             >> this->member_node_
-            >> this->replica_;
-
-          this->message_type_ = static_cast<message_type_t>(message_type);
+            >> this->replica_
+            >> this->target_node_
+          ;
         }
 
         const_data_buffer serialize() const {
           binary_serializer s;
           sync_base_message_request::serialize(s);
           s
-            << static_cast<uint8_t>(this->message_type_)
             << this->member_node_
-            << this->replica_;
+            << this->replica_
+            << this->target_node_
+            ;
           return s.data();
         }
         
-        message_type_t message_type() const {
-          return this->message_type_;
-        }
-
         const const_data_buffer & member_node() const {
           return this->member_node_;
         }
@@ -84,10 +73,13 @@ namespace vds {
           return this->leader_node();
         }
 
+        const const_data_buffer & target_node() const {
+          return  this->target_node_;
+        }
       private:
-        message_type_t message_type_;
         const_data_buffer member_node_;
         uint16_t replica_;
+        const_data_buffer target_node_;
       };
 
       //class sync_offer_replica_operation_response : public sync_base_message_response {
@@ -163,4 +155,4 @@ namespace vds {
   }
 }
 
-#endif //__VDS_DHT_NETWORK_SYNC_OFFER_REPLICA_OPERATION_H_
+#endif //__VDS_DHT_NETWORK_SYNC_OFFER_SEND_REPLICA_OPERATION_H_

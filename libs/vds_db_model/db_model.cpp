@@ -123,9 +123,8 @@ void vds::db_model::migrate(
 
 		t.execute("CREATE TABLE transaction_log_unknown_record(\
 			id VARCHAR(64) NOT NULL,\
-      refer_id VARCHAR(64) NOT NULL,\
       follower_id VARCHAR(64) NOT NULL,\
-			CONSTRAINT pk_transaction_log_unknown_record PRIMARY KEY(id,refer_id,follower_id))");
+			CONSTRAINT pk_transaction_log_unknown_record PRIMARY KEY(id,follower_id))");
 
     t.execute("CREATE TABLE chunk (\
 			object_id VARCHAR(64) PRIMARY KEY NOT NULL,\

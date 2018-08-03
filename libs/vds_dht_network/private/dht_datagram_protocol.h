@@ -168,7 +168,7 @@ namespace vds {
           buffer.add((uint8_t)(0xFF & mask));
 
           sp.get<logger>()->trace("DHT", sp, "Send Acknowledgment %d", this->next_sequence_number_);
-          const_data_buffer datagram(buffer.data(), buffer.size());
+          const_data_buffer datagram = buffer.get_data();
           return s->write_async(sp, udp_datagram(this->address_, datagram, false));
         }
       private:
@@ -211,7 +211,7 @@ namespace vds {
               buffer.add((uint8_t)(expected_index));
               buffer += message;
 
-              const_data_buffer datagram(buffer.data(), buffer.size());
+              const_data_buffer datagram = buffer.get_data();
               s->write_async(sp, udp_datagram(pthis->address_, datagram, false))
                 .execute([pthis, sp, s, message_type, message, result, datagram, expected_index](
                   const std::shared_ptr<std::exception> &ex) {
@@ -272,7 +272,7 @@ namespace vds {
 
               auto offset = pthis->mtu_ - 7;
 
-              const_data_buffer datagram(buffer.data(), buffer.size());
+              const_data_buffer datagram = buffer.get_data();
               s->write_async(sp, udp_datagram(pthis->address_, datagram))
                 .execute([pthis, sp, s, message_type, message, offset, result, datagram, expected_index = pthis->output_sequence_number_](
                   const std::shared_ptr<std::exception> &ex) {
@@ -332,7 +332,7 @@ namespace vds {
           buffer.add((uint8_t) (this->output_sequence_number_));
           buffer.add(message.data() + offset, size);
 
-          const_data_buffer datagram(buffer.data(), buffer.size());
+          const_data_buffer datagram = buffer.get_data();
           s->write_async(sp, udp_datagram(this->address_, datagram))
               .execute(
                   [pthis = this->shared_from_this(), sp, s, message, offset, size, result, datagram](
@@ -434,7 +434,7 @@ namespace vds {
                   return static_cast<implementation_class *>(this)->process_message(
                       sp,
                       message_type,
-                      const_data_buffer(message.data(), message.size())).then([sp, s, pthis = this->shared_from_this()]() {
+                      message.get_data()).then([sp, s, pthis = this->shared_from_this()]() {
                     std::unique_lock<std::mutex> lock(pthis->input_mutex_);
                     pthis->continue_process_messages(sp, s, lock);
                   });

@@ -155,7 +155,7 @@ namespace vds {
         void apply_message(
           const service_provider & sp,
           database_transaction & t,
-          const messages::sync_offer_replica_operation_request & message);
+          const messages::sync_offer_send_replica_operation_request & message);
 
         void apply_message(
           const service_provider & sp,

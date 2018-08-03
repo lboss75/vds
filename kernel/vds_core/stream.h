@@ -89,16 +89,11 @@ namespace vds {
     {
     }
 
-    const item_type * data() const
+    const_data_buffer get_data() const
     {
-      return static_cast<const _collect_data *>(this->impl_.get())->data();
+      return static_cast<const _collect_data *>(this->impl_.get())->get_data();
     }
     
-    size_t size() const
-    {
-      return static_cast<const _collect_data *>(this->impl_.get())->size();
-    }
-
   protected:
     class _collect_data : public _stream<item_type> {
     public:
@@ -108,14 +103,9 @@ namespace vds {
         this->data_.add(data, len);
       }
 
-      const item_type *data() const {
-        return this->data_.data();
+      const_data_buffer get_data() const {
+        return this->data_.get_data();
       }
-
-      size_t size() const {
-        return this->data_.size();
-      }
-
     private:
       resizable_data_buffer data_;
     };

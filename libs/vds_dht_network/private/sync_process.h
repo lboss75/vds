@@ -30,7 +30,7 @@ namespace vds {
       class sync_base_message_request;
       class sync_new_election_response;
       class sync_new_election_request;
-      class sync_offer_replica_operation_request;
+      class sync_offer_send_replica_operation_request;
       class transaction_log_state;
       class transaction_log_record;
       class transaction_log_request;
@@ -126,7 +126,7 @@ namespace vds {
         void apply_message(
           const service_provider & sp,
           database_transaction & t,
-          const messages::sync_offer_replica_operation_request & message);
+          const messages::sync_offer_send_replica_operation_request & message);
 
         void apply_message(
           const service_provider & sp,
@@ -257,13 +257,6 @@ namespace vds {
           database_transaction& t,
           const messages::sync_base_message_response & message);
 
-        void send_to_members(
-          const service_provider& sp,
-          database_read_transaction& t,
-          const const_data_buffer & object_id,
-          dht::network::message_type_t message_id,
-          const const_data_buffer& message_body) const;
-
         static void send_snapshot(
           const service_provider& sp,
           database_read_transaction & t,
@@ -369,6 +362,10 @@ namespace vds {
             const const_data_buffer & member_node);
 
         };
+
+        static void send_random_replicas(
+          std::map<uint16_t, std::list<std::function<void()>>> & allowed_replicas,
+          std::set<uint16_t> & send_replicas);
 
       };
     }

@@ -158,12 +158,11 @@ void vds::dht::network::_client::apply_message(const service_provider& sp, const
       messages::dht_pong(message.source_node(), this->current_node_id()).serialize());
   }
   else {
-    this->route_.for_near(sp, message.target_node(), 1, [this, &message, sp](const std::shared_ptr<dht_route<std::shared_ptr<dht_session>>::node> & candidate)->bool {
-      if (dht_object_id::distance(message.target_node(), candidate->node_id_) < dht_object_id::distance(message.target_node(), this->current_node_id())) {
-        this->send(sp, message.target_node(), message);
-      }
-      return true;
-    });
+    this->send_closer(
+      sp,
+      message.target_node(),
+      5,
+      message);
   }
 }
 
@@ -495,7 +494,7 @@ void vds::dht::network::_client::apply_message(const service_provider& sp, datab
 }
 
 void vds::dht::network::_client::apply_message(const service_provider& sp, database_transaction& t,
-  const messages::sync_offer_replica_operation_request& message) {
+  const messages::sync_offer_send_replica_operation_request& message) {
   this->sync_process_.apply_message(sp, t, message);
 }
 

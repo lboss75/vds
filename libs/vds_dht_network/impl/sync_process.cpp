@@ -26,7 +26,8 @@ All rights reserved
 #include "messages/sync_add_message.h"
 #include "chunk_dbo.h"
 #include "messages/sync_replica_request.h"
-#include "messages/sync_offer_replica_operation.h"
+#include "messages/sync_offer_send_replica_operation.h"
+#include "messages/sync_offer_remove_replica_operation.h"
 #include "device_record_dbo.h"
 #include "messages/sync_replica_data.h"
 
@@ -957,9 +958,77 @@ void vds::dht::network::sync_process::apply_message(const service_provider& sp, 
   throw vds_exceptions::invalid_operation();
 }
 
-void vds::dht::network::sync_process::apply_message(const service_provider& sp, database_transaction& t,
-  const messages::sync_offer_replica_operation_request& message) {
-  throw vds_exceptions::invalid_operation();
+void vds::dht::network::sync_process::apply_message(
+  const service_provider& sp,
+  database_transaction& t,
+  const messages::sync_offer_send_replica_operation_request & message) {
+
+  auto client = sp.get<dht::network::client>();
+  if(client->current_node_id() != message.member_node()) {
+    (*client)->send(sp, message.member_node(), message);
+    return;
+  }
+
+  if(this->apply_base_message(sp, t, message) != base_message_type::successful) {
+    return;
+  }
+
+  orm::chunk_replica_data_dbo t1;
+  orm::device_record_dbo t2;
+  auto st = t.get_reader(t1.select(
+    t1.replica_hash,
+    t2.local_path)
+    .inner_join(t2, t2.node_id == client->current_node_id() && t2.data_hash == t1.replica_hash)
+    .where(t1.object_id == message.object_id() && t1.replica == message.replica()));
+  if(!st.execute()) {
+    return;
+  }
+
+  const auto data = _client::read_data(
+    t1.replica_hash.get(st),
+    filename(t2.local_path.get(st)));
+
+  (*client)->send(
+    sp,
+    message.target_node(),
+    messages::sync_replica_data(
+      message.object_id(),
+      message.leader_node(),
+      message.generation(),
+      message.current_term(),
+      message.commit_index(),
+      message.last_applied(),
+      message.replica(),
+      data,
+      client->current_node_id(),
+      message.target_node()));
+
+}
+
+void vds::dht::network::sync_process::send_random_replicas(
+  std::map<uint16_t, std::list<std::function<void()>>> & allowed_replicas,
+  std::set<uint16_t> & send_replicas) {
+  while(!allowed_replicas.empty() && MIN_DISTRIBUTED_PIECES >= send_replicas.size()) {
+    auto index = std::rand() % allowed_replicas.size();
+    for (const auto & replica : allowed_replicas) {
+      if (0 == index--) {
+        vds_assert(send_replicas.end() == send_replicas.find(replica.first));
+        vds_assert(!replica.second.empty());
+
+        auto sender_index = std::rand() % replica.second.size();
+        for(const auto & sender : replica.second) {
+          if(0 == sender_index--) {
+            sender();
+            break;
+          }
+        }
+
+        send_replicas.emplace(replica.first);
+        allowed_replicas.erase(replica.first);
+        break;
+      }
+    }
+  }
 }
 
 void vds::dht::network::sync_process::apply_message(
@@ -968,129 +1037,185 @@ void vds::dht::network::sync_process::apply_message(
   const messages::sync_replica_request& message) {
 
   auto client = sp.get<dht::network::client>();
-  const auto& object_id = message.object_id();
-
-  orm::chunk_dbo t1;
-  orm::device_record_dbo t3;
+  orm::sync_state_dbo t1;
+  orm::sync_member_dbo t2;
   auto st = t.get_reader(
-    t1
-    .select(t3.local_path)
-    .inner_join(t3, t3.node_id == client->current_node_id() && t3.data_hash == t1.replica_hash)
-    .where(t1.object_id == object_id));
-
-  std::set<uint8_t> allowed_replicas;
-  std::function<const_data_buffer(uint16_t)> get_replica;
-  if (st.execute()) {
-    get_replica = [data = file::read_all(filename(t3.local_path.get(st))), this](uint16_t replica)->const_data_buffer{
-      binary_serializer s;
-      this->distributed_generators_.find(replica)->second->write(s, data.data(), data.size());
-
-      return s.data();
-    };
-
-    for (uint16_t replica = 0; replica < GENERATE_DISTRIBUTED_PIECES; ++replica) {
-      if (message.exist_replicas().end() == message.exist_replicas().find(replica)) {
-        allowed_replicas.emplace(replica);
-      }
-    }
+    t1.select(
+      t1.state,
+      t2.voted_for,
+      t2.generation,
+      t2.current_term,
+      t2.commit_index,
+      t2.last_applied)
+    .inner_join(t2, t2.object_id == t1.object_id && t2.member_node == client->current_node_id())
+    .where(t1.object_id == message.object_id()));
+  if(!st.execute()) {
+    (*client)->send_closer(
+      sp,
+      message.object_id(),
+      GENERATE_DISTRIBUTED_PIECES,
+      message);
   }
   else {
-    std::map<uint16_t, std::tuple<const_data_buffer, std::string>> replica_hashes;
-    orm::chunk_replica_data_dbo t2;
-    orm::device_record_dbo t4;
-    st = t.get_reader(
-      t2
-      .select(t2.replica, t2.replica_hash, t4.local_path)
-      .inner_join(t4, t4.node_id == client->current_node_id() && t4.data_hash == t2.replica_hash)
-      .where(t2.object_id == object_id));
-
-    while (st.execute()) {
-      auto replica = t2.replica.get(st);
-      if (message.exist_replicas().end() == message.exist_replicas().find(replica)) {
-        allowed_replicas.emplace(replica);
-        replica_hashes[replica] = std::make_tuple(
-          t2.replica_hash.get(st),
-          t4.local_path.get(st));
-      }
+    if (t1.state.get(st) != orm::sync_state_dbo::state_t::leader) {
+      (*client)->send(
+        sp,
+        t2.voted_for.get(st),
+        message);
     }
+    else {
+      const auto generation = t2.generation.get(st);
+      const auto current_term = t2.current_term.get(st);
+      const auto commit_index = t2.commit_index.get(st);
+      const auto last_applied = t2.last_applied.get(st);
 
-    get_replica = [replica_hashes](uint16_t replica)->const_data_buffer {
-      return _client::read_data(
-        std::get<0>(replica_hashes.find(replica)->second),
-        filename(std::get<1>(replica_hashes.find(replica)->second)));
-    };
-  }
+      //collect possible sources
+      std::map<uint16_t, std::list<std::function<void(void)>>> allowed_replicas;
+      
+      orm::chunk_replica_data_dbo t5;
+      orm::device_record_dbo t6;
+      st = t.get_reader(
+        t5
+        .select(t5.replica, t5.replica_hash, t6.local_path)
+        .inner_join(t6, t6.node_id == client->current_node_id() && t6.data_hash == t5.replica_hash)
+        .where(t5.object_id == message.object_id()));
 
-  if (!allowed_replicas.empty()) {
-    auto index = std::rand() % allowed_replicas.size();
-    for (auto replica : allowed_replicas) {
-      if (0 == index) {
-        auto data = get_replica(replica);
-        if (0 < data.size()) {
-          sp.get<logger>()->trace(
-            ThisModule,
-            sp,
-            "Send replica %s:%d to %s",
-            base64::from_bytes(object_id).c_str(),
-            replica,
-            base64::from_bytes(message.source_node()).c_str());
-
-          (*client)->send(
-            sp,
-            message.source_node(),
-            messages::sync_replica_data(
-              message.object_id(),
+      while (st.execute()) {
+        const auto replica = t5.replica.get(st);
+        if (message.exist_replicas().end() == message.exist_replicas().find(replica)) {
+          allowed_replicas[replica].push_back([
+              client,
+              generation,
+              current_term,
+              commit_index,
+              last_applied,
               replica,
-              data,
-              client->current_node_id()));
+              replica_hash = t5.replica_hash.get(st),
+              local_path = t6.local_path.get(st),
+              sp,
+              target_node = message.source_node(),
+              object_id = message.object_id()]() {
+              auto data = _client::read_data(
+                replica_hash,
+                filename(local_path));
+              (*client)->send(
+                sp,
+                target_node,
+                messages::sync_replica_data(
+                  object_id,
+                  client->current_node_id(),
+                  generation,
+                  current_term,
+                  commit_index,
+                  last_applied,
+                  replica,
+                  data,
+                  client->current_node_id(),
+                  target_node));
+            });
         }
-
-        return;
       }
 
-      --index;
-    }
-
-    vds_assert(false);
-  }
-
-  bool forwarded = false;
-  orm::sync_replica_map_dbo t5;
-  st = t.get_reader(t5.select(t5.replica, t5.node).where(t5.object_id == object_id));
-  while (st.execute()) {
-    if (message.exist_replicas().end() == message.exist_replicas().find(t5.replica.get(st))
-      && t5.node.get(st) != client->current_node_id()) {
-      (*client)->send(
-        sp,
-        t5.node.get(st),
-        message);
-      forwarded = true;
-    }
-  }
-
-  if (!forwarded) {
-    orm::sync_member_dbo t6;
-    st = t.get_reader(t6.select(t6.voted_for, t6.member_node).where(t6.object_id == object_id));
-    std::set<const_data_buffer> candidates;
-    while (st.execute()) {
-      if(candidates.end() == candidates.find(t6.member_node.get(st))) {
-        candidates.emplace(t6.member_node.get(st));
+      orm::sync_replica_map_dbo t7;
+      st = t.get_reader(t7.select(t7.replica, t7.node).where(t7.object_id == message.object_id()));
+      while(st.execute()) {
+        auto replica = t7.replica.get(st);
+        if (message.exist_replicas().end() == message.exist_replicas().find(replica)
+          && t7.node.get(st) != client->current_node_id()) {
+          allowed_replicas[replica].push_back([
+              client,
+              replica,
+              node = t7.node.get(st),
+              sp,
+              generation,
+              current_term,
+              commit_index,
+              last_applied,
+              target_node = message.source_node(),
+              object_id = message.object_id()]() {
+              (*client)->send(
+                sp,
+                node,
+                messages::sync_offer_send_replica_operation_request(
+                  object_id,
+                  client->current_node_id(),
+                  generation,
+                  current_term,
+                  commit_index,
+                  last_applied,
+                  node,
+                  replica,
+                  target_node));
+            });
+        }
       }
-      if (candidates.end() == candidates.find(t6.voted_for.get(st))) {
-        candidates.emplace(t6.voted_for.get(st));
+
+      //Send replicas
+      auto send_replicas = message.exist_replicas();
+      this->send_random_replicas(allowed_replicas, send_replicas);
+
+      if(MIN_DISTRIBUTED_PIECES >= send_replicas.size()) {
+        allowed_replicas.clear();
+
+        orm::chunk_dbo t3;
+        orm::device_record_dbo t4;
+        st = t.get_reader(
+          t3
+          .select(t4.local_path)
+          .inner_join(t4, t4.node_id == client->current_node_id() && t4.data_hash == t3.replica_hash)
+          .where(t3.object_id == message.object_id()));
+
+        if (st.execute()) {
+          auto data = file::read_all(filename(t4.local_path.get(st)));
+          for (uint16_t replica = 0; replica < GENERATE_DISTRIBUTED_PIECES; ++replica) {
+            if (send_replicas.end() == send_replicas.find(replica)) {
+              allowed_replicas[replica].push_back([
+                  this,
+                  &t,
+                  &t5,
+                  client,
+                  data,
+                  generation,
+                  current_term,
+                  commit_index,
+                  last_applied,
+                  replica,
+                  sp,
+                  target_node = message.source_node(),
+                  object_id = message.object_id()]() {
+                  binary_serializer s;
+                  this->distributed_generators_.find(replica)->second->write(s, data.data(), data.size());
+                  const_data_buffer replica_data(s.data());
+                  (*client)->send(
+                    sp,
+                    target_node,
+                    messages::sync_replica_data(
+                      object_id,
+                      client->current_node_id(),
+                      generation,
+                      current_term,
+                      commit_index,
+                      last_applied,
+                      replica,
+                      replica_data,
+                      client->current_node_id(),
+                      target_node));
+
+                  const auto data_hash = hash::signature(hash::sha256(), replica_data);
+                  auto fn = _client::save_data(sp, t, data_hash, replica_data);
+
+                  t.execute(
+                    t5.insert(
+                      t5.object_id = object_id,
+                      t5.replica = replica,
+                      t5.replica_hash = data_hash));
+                });
+            }
+          }
+        }
+        this->send_random_replicas(allowed_replicas, send_replicas);
       }
     }
-    for(const auto & candidate : candidates) {
-      (*client)->send(
-        sp,
-        candidate,
-        message);
-      forwarded = true;
-    }
-  }
-
-  if (!forwarded) {
-    (*client)->send_closer(sp, message.object_id(), GENERATE_DISTRIBUTED_PIECES, message);
   }
 }
 
@@ -1100,6 +1225,9 @@ void vds::dht::network::sync_process::apply_message(
   const messages::sync_replica_data& message) {
 
   auto client = sp.get<dht::network::client>();
+  if(client->current_node_id() != message.target_node()) {
+    (*client)->send(sp, message.target_node(), message);
+  }
 
   orm::chunk_replica_data_dbo t2;
   auto st = t.get_reader(
@@ -1119,11 +1247,13 @@ void vds::dht::network::sync_process::apply_message(
         t2.replica = message.replica(),
         t2.replica_hash = data_hash));
 
-    auto leader = this->get_leader(sp, t, message.object_id());
-    if(!leader) {
-      this->send_snapshot_request(sp, message.object_id(), message.object_id());
+    switch (this->apply_base_message(sp, t, message)) {
+    case base_message_type::not_found: {
+      this->send_snapshot_request(sp, message.object_id(), message.leader_node());
+      break;
     }
-    else {
+    case base_message_type::successful: {
+      const auto leader = this->get_leader(sp, t, message.object_id());
       this->add_local_log(
         sp,
         t,
@@ -1132,6 +1262,7 @@ void vds::dht::network::sync_process::apply_message(
         client->current_node_id(),
         message.replica(),
         leader);
+    }
     }
   }
 }
@@ -1655,17 +1786,6 @@ void vds::dht::network::sync_process::apply_record(
   }
 }
 
-void vds::dht::network::sync_process::send_to_members(const service_provider& sp, database_read_transaction& t,
-  const const_data_buffer& object_id, dht::network::message_type_t message_id, const const_data_buffer& message_body) const {
-  const auto client = sp.get<dht::network::client>();
-  auto members = this->get_members(sp, t, object_id);
-  for(const auto & member : members) {
-    if (client->current_node_id() != member) {
-      (*client)->send(sp, member, message_id, message_body);
-    }
-  }
-}
-
 void vds::dht::network::sync_process::send_snapshot(
   const service_provider& sp,
   database_read_transaction& t,
@@ -1885,7 +2005,11 @@ void vds::dht::network::sync_process::replica_sync::object_info_t::restore_chunk
   }
 }
 
-void vds::dht::network::sync_process::replica_sync::object_info_t::generate_missing_replicas(const vds::service_provider& sp, const std::map<uint16_t, std::set<vds::const_data_buffer>>& replica_nodes, const vds::const_data_buffer& object_id, std::set<vds::const_data_buffer> chunk_nodes) const {
+void vds::dht::network::sync_process::replica_sync::object_info_t::generate_missing_replicas(
+  const vds::service_provider& sp,
+  const std::map<uint16_t, std::set<vds::const_data_buffer>>& replica_nodes,
+  const vds::const_data_buffer& object_id,
+  std::set<vds::const_data_buffer> chunk_nodes) const {
   const auto client = sp.get<dht::network::client>();
 
   //Detect members with minimal replicas
@@ -1920,9 +2044,15 @@ void vds::dht::network::sync_process::replica_sync::object_info_t::generate_miss
           (*client)->send(
             sp,
             chunk_node,
-            messages::sync_replica_request(
+            messages::sync_offer_send_replica_operation_request(
               object_id,
-              exist_replicas,
+              this->sync_leader_,
+              this->sync_generation_,
+              this->sync_current_term_,
+              this->sync_commit_index_,
+              this->sync_last_applied_,
+              chunk_node,
+              replica,
               node));
           break;
         }
@@ -1996,15 +2126,34 @@ void vds::dht::network::sync_process::replica_sync::object_info_t::normalize_den
       continue;
     }
 
+#ifdef max
+#undef max
+#endif
+
     for (;;) {
+      std::size_t minimal_repilica_count = std::numeric_limits<std::size_t>::max();
+      uint16_t minimal_replica;
+
+      for(const auto replica : this->nodes_.at(*tail_node).replicas_) {
+        if(minimal_repilica_count > replica_nodes.at(replica).size()) {
+          minimal_repilica_count = replica_nodes.at(replica).size();
+          minimal_replica = replica;
+        }
+      }
+      vds_assert(minimal_repilica_count != std::numeric_limits<std::size_t>::max());
+
       (*client)->send(
         sp,
         *tail_node,
-        messages::sync_replica_request(
+        messages::sync_offer_send_replica_operation_request(
           object_id,
-          (this->nodes_.end() == this->nodes_.find(*head_node))
-          ? std::set<uint16_t>()
-          : this->nodes_.find(*head_node)->second.replicas_,
+          this->sync_leader_,
+          this->sync_generation_,
+          this->sync_current_term_,
+          this->sync_commit_index_,
+          this->sync_last_applied_,
+          *tail_node,
+          minimal_replica,
           *head_node));
 
       ++head_node;
@@ -2079,14 +2228,13 @@ void vds::dht::network::sync_process::replica_sync::object_info_t::remove_duplic
             (*client)->send(
               sp,
               node,
-              messages::sync_offer_replica_operation_request(
+              messages::sync_offer_remove_replica_operation_request(
                 object_id,
                 this->sync_leader_,
                 this->sync_generation_,
                 this->sync_current_term_,
                 this->sync_commit_index_,
                 this->sync_last_applied_,
-                messages::sync_offer_replica_operation_request::message_type_t::remove_replica,
                 node,
                 replica));
           }
