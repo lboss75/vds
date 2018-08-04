@@ -16,6 +16,7 @@
 #include "vds_exceptions.h"
 #include "member_user.h"
 #include "device_record_dbo.h"
+#include "server.h"
 
 std::shared_ptr<vds::json_object> vds::api_controller::channel_serialize(
   const vds::user_channel & channel) {
@@ -261,14 +262,14 @@ vds::api_controller::offer_device(
   return vds::async_task<std::shared_ptr<vds::json_value>>::result(result);
 }
 
-std::shared_ptr<vds::json_value> vds::api_controller::get_statistics(const service_provider& sp,
+vds::async_task<std::shared_ptr<vds::json_value>> vds::api_controller::get_statistics(const service_provider& sp,
   const std::shared_ptr<_web_server>& owner, const http_message& message) {
 
   http_request request(message);
 
-  route_statistic statistic;
-  sp.get<dht::network::client>()->get_route_statistics(statistic);
-  return statistic.serialize(request.get_parameter("all") == "true");
+  return sp.get<server>()->get_statistic(sp).then([](const server_statistic & statistic)->std::shared_ptr<vds::json_value>{
+    return statistic.serialize();
+    });
 }
 
 std::shared_ptr<vds::json_value> vds::api_controller::get_invite(const service_provider& sp, user_manager& user_mng,

@@ -192,8 +192,12 @@ namespace vds {
                       MessageStateEnum::MESSAGE_STATE_MESSAGE_STARTED,
                       MessageStateEnum::MESSAGE_STATE_MESSAGE_BODY_FINISH);
                   })
-                  .execute([](const std::shared_ptr<std::exception> &ex) {});
-                static_cast<implementation_class *>(this)->finish_message(this->sp_);
+                  .execute([sp = static_cast<_http_parser_base<implementation_class> *>(pthis.get())->sp_](const std::shared_ptr<std::exception> &ex) {
+                    if (ex) {
+                      sp.unhandled_exception(ex);
+                    }
+                  });
+                  static_cast<implementation_class *>(this)->finish_message(this->sp_);
               }
 
               if (this->expect_100_) {
@@ -244,7 +248,11 @@ namespace vds {
                                   MessageStateEnum::MESSAGE_STATE_MESSAGE_STARTED,
                                   MessageStateEnum::MESSAGE_STATE_MESSAGE_BODY_FINISH);
                           })
-                  .execute([](const std::shared_ptr<std::exception> &ex) {});
+                  .execute([sp = static_cast<_http_parser_base<implementation_class> *>(pthis.get())->sp_](const std::shared_ptr<std::exception> &ex) {
+                    if(ex) {
+                      sp.unhandled_exception(ex);
+                    }
+                  });
                 }
               }
             }
@@ -299,7 +307,11 @@ namespace vds {
                             MessageStateEnum::MESSAGE_STATE_MESSAGE_STARTED,
                             MessageStateEnum::MESSAGE_STATE_MESSAGE_BODY_FINISH);
                       })
-              .execute([](const std::shared_ptr<std::exception> &ex) {});
+                .execute([sp = static_cast<_http_parser_base<implementation_class> *>(pthis.get())->sp_](const std::shared_ptr<std::exception> &ex) {
+                        if (ex) {
+                          sp.unhandled_exception(ex);
+                        }
+                      });
             }
             break;
           }

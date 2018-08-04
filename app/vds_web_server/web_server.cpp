@@ -77,16 +77,21 @@ void vds::_web_server::start(const service_provider& sp, const std::string & roo
     session->handler_ = std::make_shared<http_pipeline>(
         sp,
         session->stream_,
-        [sp, pthis, session](const http_message & request) -> async_task<http_message> {
-      if(request.headers().empty()) {
-        session->stream_.reset();
-        session->handler_.reset();
-        return async_task<http_message>::empty();
-      }
+      [sp, pthis, session](const http_message & request) -> async_task<http_message> {
+      try {
+        if (request.headers().empty()) {
+          session->stream_.reset();
+          session->handler_.reset();
+          return async_task<http_message>::empty();
+        }
 
-      std::string keep_alive_header;
-      //bool keep_alive = request.get_header("Connection", keep_alive_header) && keep_alive_header == "Keep-Alive";
-      return pthis->middleware_.process(sp, request);
+        std::string keep_alive_header;
+        //bool keep_alive = request.get_header("Connection", keep_alive_header) && keep_alive_header == "Keep-Alive";
+        return pthis->middleware_.process(sp, request);
+      }
+      catch (const std::exception & ex) {
+        return async_task<http_message>::result(http_response::status_response(sp, http_response::HTTP_Internal_Server_Error, ex.what()));
+      }
     });
     session->s_.start(sp, *session->handler_);
   }).execute([sp](const std::shared_ptr<std::exception> & ex) {
@@ -408,15 +413,15 @@ vds::async_task<vds::http_message> vds::_web_server::route(
 
   if (request.url() == "/api/statistics") {
     if (request.method() == "GET") {
-      const auto result = api_controller::get_statistics(
+      return api_controller::get_statistics(
         sp,
         this->shared_from_this(),
-        message);
-      return vds::async_task<vds::http_message>::result(
-        http_response::simple_text_response(
+        message).then([sp](const std::shared_ptr<vds::json_value> & result) {
+        return http_response::simple_text_response(
           sp,
           result->str(),
-          "application/json; charset=utf-8"));
+          "application/json; charset=utf-8");
+      });
     }
   }
 

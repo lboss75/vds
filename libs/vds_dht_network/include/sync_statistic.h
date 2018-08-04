@@ -1,5 +1,6 @@
 #ifndef __VDS_DHT_NETWORK_SYNC_STATISTIC_H_
 #define __VDS_DHT_NETWORK_SYNC_STATISTIC_H_
+#include "json_object.h"
 
 /*
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
@@ -13,6 +14,15 @@ namespace vds {
       const_data_buffer id;
       int state;
       uint64_t order_no;
+
+      std::shared_ptr<json_value> serialize() const {
+        auto result = std::make_shared<vds::json_object>();
+        result->add_property("id", base64::from_bytes(this->id));
+        result->add_property("state", this->state);
+        result->add_property("order_no", this->order_no);
+
+        return result;
+      }
     };
     std::list<log_info_t> leafs_;
     std::set<const_data_buffer> unknown_;
@@ -64,6 +74,24 @@ namespace vds {
       }
 
       return false;
+    }
+
+    std::shared_ptr<json_value> serialize() const {
+      auto result = std::make_shared<vds::json_object>();
+
+      auto leafs = std::make_shared<vds::json_array>();
+      for(const auto & leaf : this->leafs_) {
+        leafs->add(leaf.serialize());
+      }
+      result->add_property("leafs", leafs);
+
+      auto unknowns = std::make_shared<vds::json_array>();
+      for (const auto & unknown : this->unknown_) {
+        unknowns->add(std::make_shared<json_primitive>(base64::from_bytes(unknown)));
+      }
+      result->add_property("unknowns", unknowns);
+
+      return result;
     }
   private:
     static void print_node(std::string& result, const record_info * node, int level, std::set<const record_info *> & processed) {

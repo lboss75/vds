@@ -289,7 +289,7 @@
   		  $.each(data, function(){
     			$('#channelsMenu')
 			.append($('<li/>')
-				.append($('<a class="selectChannelMenu" href="#" data-menu="'+ this.id +'">' + this.name + '</a>')
+				.append($('<a class="selectChannelMenu" href="#" data-menu="'+ this.object_id +'">' + this.name + '</a>')
 		  			.on('click', function(e){
 		  			    $this = $(e.currentTarget);
 			                    $('#balance_panel').hide();
@@ -356,7 +356,7 @@
                                         .text(this.message)
                                         .append($('<ul/>')
                                             .append($('<li class="left clearfix" />')
-                                            .append($('<a href="/api/download?channel_id='+channelId+'&id='+this.id+'">' + this.name + '</a>'))
+                                            .append($('<a href="/api/download?channel_id=' + channelId + '&object_id=' + this.object_id + '">' + this.name + '</a>'))
                                             .append($('<small class="pull-right text-muted" />').text(humanFileSize(this.size, true))))))
                                      .append($('<div class="time">5 min ago</div>')));
                      });

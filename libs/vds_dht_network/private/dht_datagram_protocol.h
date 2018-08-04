@@ -16,6 +16,7 @@ All rights reserved
 #include "network_address.h"
 #include "debug_mutex.h"
 #include <queue>
+#include "vds_exceptions.h"
 
 namespace vds {
   namespace dht {
@@ -44,7 +45,7 @@ namespace vds {
           vds_assert(message.size() < 0xFFFF);
 
           std::unique_lock<std::mutex> lock(this->send_mutex_);
-          if(this->output_messages_.size() > 128){
+          if(this->output_messages_.size() > 1024){
             return;//Overflow protect
           }
 

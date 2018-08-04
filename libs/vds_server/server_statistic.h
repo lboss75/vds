@@ -16,6 +16,13 @@ namespace vds {
     sync_statistic sync_statistic_;
     route_statistic route_statistic_;
     session_statistic session_statistic_;
+    std::shared_ptr<vds::json_value> serialize() const {
+      auto result = std::make_shared<vds::json_object>();
+      result->add_property("sync", this->sync_statistic_.serialize());
+      result->add_property("route", this->route_statistic_.serialize());
+      result->add_property("session", this->session_statistic_.serialize());
+      return result;
+    }
   };
 
 }
