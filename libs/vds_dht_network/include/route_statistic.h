@@ -16,6 +16,7 @@ namespace vds {
     struct route_info {
       const_data_buffer node_id_;
       std::string proxy_address_;
+      size_t outgoing_queue_size_;
       uint8_t pinged_;
       uint8_t hops_;
 
@@ -24,6 +25,7 @@ namespace vds {
           auto result = std::make_shared<json_object>();
           result->add_property("node_id", base64::from_bytes(this->node_id_));
           result->add_property("proxy", this->proxy_address_);
+          result->add_property("outgoing_queue_size", this->outgoing_queue_size_);
           result->add_property("pinged", this->pinged_);
           result->add_property("hops", this->hops_);
           items->add(result);

@@ -27,9 +27,11 @@ namespace vds {
       public:
         dht_datagram_protocol(
             const network_address & address,
-            const const_data_buffer & this_node_id)
+            const const_data_buffer & this_node_id,
+            uint32_t session_id)
         : address_(address),
           this_node_id_(this_node_id),
+          session_id_(session_id),
           output_sequence_number_(0),
           mtu_(65507),
           next_sequence_number_(0),
@@ -45,11 +47,8 @@ namespace vds {
           vds_assert(message.size() < 0xFFFF);
 
           std::unique_lock<std::mutex> lock(this->send_mutex_);
-          if(this->output_messages_.size() > 1024){
-            return;//Overflow protect
-          }
 
-          bool need_start = this->send_queue_.empty();
+          const bool need_start = this->send_queue_.empty();
           this->send_queue_.push(std::make_tuple(sp, s, message_type, message));
 
           lock.unlock();
@@ -57,6 +56,11 @@ namespace vds {
           if (need_start) {
             this->continue_send(false);
           }
+        }
+
+        size_t outgoing_queue_size() const {
+          std::unique_lock<std::mutex> lock(this->send_mutex_);
+          return this->output_messages_.size();
         }
 
         async_task<> process_datagram(
@@ -69,22 +73,37 @@ namespace vds {
             return async_task<>(std::make_shared<std::runtime_error>("Invalid data"));
           }
 
-          switch ((protocol_message_type_t)*datagram.data()){
+          switch (static_cast<protocol_message_type_t>(*datagram.data())){
             case protocol_message_type_t::Acknowledgment: {
-              if (datagram.size() < 9) {
+              if (datagram.size() < 13) {
                 return async_task<>(std::make_shared<std::runtime_error>("Invalid data"));
               }
+              const uint32_t session_id = (datagram.data()[1] << 24)
+                | (datagram.data()[2] << 16)
+                | (datagram.data()[3] << 8)
+                | (datagram.data()[4]);
 
-              uint32_t index = (datagram.data()[1] << 24)
-                             | (datagram.data()[2] << 16)
-                             | (datagram.data()[3] << 8)
-                             | (datagram.data()[4]);
+              uint32_t index = (datagram.data()[5] << 24)
+                             | (datagram.data()[6] << 16)
+                             | (datagram.data()[7] << 8)
+                             | (datagram.data()[8]);
 
-              uint32_t mask = (datagram.data()[5] << 24)
-                            | (datagram.data()[6] << 16)
-                            | (datagram.data()[7] << 8)
-                            | (datagram.data()[8]);
-              logger::get(sp)->trace("DHT", sp, "Acknowledgment %d", index);
+              uint32_t mask = (datagram.data()[9] << 24)
+                            | (datagram.data()[10] << 16)
+                            | (datagram.data()[11] << 8)
+                            | (datagram.data()[12]);
+              
+              if(this->session_id_ != session_id) {
+                return async_task<>(std::make_shared<std::runtime_error>("Invalid session_id"));
+              }
+
+              logger::get(sp)->trace(
+                "DHT",
+                sp,
+                "Acknowledgment %d from %s",
+                index,
+                this->address_.to_string().c_str());
+
               while(!this->output_messages_.empty()){
                 auto first_index = this->output_messages_.begin()->first;
                 logger::get(sp)->trace("DHT", sp, "Acknowledgment %d of %d", index, first_index);
@@ -111,7 +130,13 @@ namespace vds {
 
               if(index >= this->next_sequence_number_ && this->input_messages_.end() == this->input_messages_.find(index)){
                 this->input_messages_[index] = datagram;
-                logger::get(sp)->trace("DHT", sp, "Input Datagram[%d]: %d bytes", index, datagram.size());
+                logger::get(sp)->trace(
+                  "DHT",
+                  sp,
+                  "Input Datagram[%d]: %d bytes from %s",
+                  index,
+                  datagram.size(),
+                  this->address_.to_string().c_str());
 
                 if(index == this->next_sequence_number_){
                   do{
@@ -119,6 +144,14 @@ namespace vds {
                   } while(this->input_messages_.end() != this->input_messages_.find(this->next_sequence_number_));
 
                   return this->continue_process_messages(sp, s, lock);
+                }
+                else {
+                  logger::get(sp)->trace(
+                    "DHT",
+                    sp,
+                    "Wrong Datagram [%d]: expected %d",
+                    index,
+                    this->next_sequence_number_);
                 }
               }
 
@@ -156,25 +189,29 @@ namespace vds {
             }
           }
 
-          resizable_data_buffer buffer;
+          uint8_t buffer[13];
 
-          buffer.add((uint8_t)protocol_message_type_t::Acknowledgment);
-          buffer.add((uint8_t)(this->next_sequence_number_ >> 24));
-          buffer.add((uint8_t)(this->next_sequence_number_ >> 16));
-          buffer.add((uint8_t)(this->next_sequence_number_ >> 8));
-          buffer.add((uint8_t)(this->next_sequence_number_));
-          buffer.add((uint8_t)(0xFF & (mask >> 24)));
-          buffer.add((uint8_t)(0xFF & (mask >> 16)));
-          buffer.add((uint8_t)(0xFF & (mask >> 8)));
-          buffer.add((uint8_t)(0xFF & mask));
+          buffer[0] = static_cast<uint8_t>(protocol_message_type_t::Acknowledgment);
+          buffer[1] = static_cast<uint8_t>(this->session_id_ >> 24);
+          buffer[2] = static_cast<uint8_t>(this->session_id_ >> 16);
+          buffer[3] = static_cast<uint8_t>(this->session_id_ >> 8);
+          buffer[4] = static_cast<uint8_t>(this->session_id_);
+          buffer[5] = static_cast<uint8_t>(this->next_sequence_number_ >> 24);
+          buffer[6] = static_cast<uint8_t>(this->next_sequence_number_ >> 16);
+          buffer[7] = static_cast<uint8_t>(this->next_sequence_number_ >> 8);
+          buffer[8] = static_cast<uint8_t>(this->next_sequence_number_);
+          buffer[9] = static_cast<uint8_t>(0xFF & (mask >> 24));
+          buffer[10] = static_cast<uint8_t>(0xFF & (mask >> 16));
+          buffer[11] = static_cast<uint8_t>(0xFF & (mask >> 8));
+          buffer[12] = static_cast<uint8_t>(0xFF & mask);
 
           sp.get<logger>()->trace("DHT", sp, "Send Acknowledgment %d", this->next_sequence_number_);
-          const_data_buffer datagram = buffer.get_data();
-          return s->write_async(sp, udp_datagram(this->address_, datagram, false));
+          return s->write_async(sp, udp_datagram(this->address_, const_data_buffer(buffer, sizeof(buffer)), false));
         }
       private:
         network_address address_;
         const_data_buffer this_node_id_;
+        uint32_t session_id_;
 
         std::shared_mutex output_mutex_;
         uint32_t output_sequence_number_;
@@ -186,7 +223,7 @@ namespace vds {
         uint32_t next_sequence_number_;
         uint32_t next_process_index_;
 
-        std::mutex send_mutex_;
+        mutable std::mutex send_mutex_;
         std::queue<std::tuple<service_provider, std::shared_ptr<transport_type>, uint8_t, const_data_buffer>> send_queue_;
 
         async_task<> send_message_async(
@@ -254,9 +291,10 @@ namespace vds {
                 logger::get(sp)->trace(
                   "DHT",
                   sp,
-                  "Out datagram[%d]: %d bytes",
+                  "Out datagram[%d]: %d bytes to %s",
                   pthis->output_sequence_number_,
-                  datagram.size());
+                  datagram.size(),
+                  pthis->address_.to_string().c_str());
                 pthis->output_sequence_number_++;
                 result.done();
               });
@@ -298,7 +336,13 @@ namespace vds {
                 }
                 else {
                   pthis->output_messages_[pthis->output_sequence_number_] = datagram;
-                  logger::get(sp)->trace("DHT", sp, "Out datagram[%d]: %d bytes", pthis->output_sequence_number_, datagram.size());
+                  logger::get(sp)->trace(
+                    "DHT",
+                    sp,
+                    "Out datagram[%d]: %d bytes to %s",
+                    pthis->output_sequence_number_,
+                    datagram.size(),
+                    pthis->address_.to_string().c_str());
                   vds_assert(expected_index == pthis->output_sequence_number_);
                   pthis->output_sequence_number_++;
                   pthis->continue_send_message(

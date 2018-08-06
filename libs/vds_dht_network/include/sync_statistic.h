@@ -91,6 +91,28 @@ namespace vds {
       }
       result->add_property("unknowns", unknowns);
 
+      auto chunks = std::make_shared<json_array>();
+      std::map<const_data_buffer, std::shared_ptr<json_object>> processed;
+      for(const auto & chunk : this->chunks_) {
+        auto o = std::make_shared<json_object>();
+        o->add_property("full", "true");
+        processed[chunk] = o;
+        chunks->add(o);
+      }
+      for(const auto & chunk_replica : this->chunk_replicas_) {
+        auto & o = processed[chunk_replica.first];
+        if(!o) {
+          o = std::make_shared<json_object>();
+          chunks->add(o);
+        }
+        auto replicas = std::make_shared<json_array>();
+        for(auto replica : chunk_replica.second) {
+          replicas->add(std::make_shared<json_primitive>(std::to_string(replica)));
+        }
+        o->add_property("replicas", replicas);
+      }
+
+      result->add_property("chunks", chunks);
       return result;
     }
   private:

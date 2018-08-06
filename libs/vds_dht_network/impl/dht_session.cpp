@@ -24,9 +24,10 @@ All rights reserved
 vds::dht::network::dht_session::dht_session(
   const network_address& address,
   const const_data_buffer& this_node_id,
-  const const_data_buffer& partner_node_id)
-: base_class(address, this_node_id),
-  partner_node_id_(partner_node_id){
+  const const_data_buffer& partner_node_id,
+  uint32_t session_id)
+: base_class(address, this_node_id, session_id),
+  partner_node_id_(partner_node_id) {
 }
 
 void vds::dht::network::dht_session::ping_node(

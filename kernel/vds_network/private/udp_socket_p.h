@@ -171,6 +171,7 @@ namespace vds {
         return [pthis = this->shared_from_this()](const async_result<const udp_datagram &> & result){
           auto this_ = static_cast<_udp_receive *>(pthis.get());
           vds_assert(result);
+          memset(&this_->overlapped_, 0, sizeof(this_->overlapped_));
           this_->wsa_buf_.len = sizeof(this_->buffer_);
           this_->wsa_buf_.buf = (CHAR *)this_->buffer_;
           this_->result_ = std::move(result);
@@ -245,6 +246,7 @@ namespace vds {
         {
           std::unique_lock<not_mutex> lock(this->not_mutex_);
           vds_assert(!this->result_);
+          memset(&this->overlapped_, 0, sizeof(this->overlapped_));
           this->buffer_ = data;
           this->wsa_buf_.len = this->buffer_.data_size();
           this->wsa_buf_.buf = (CHAR *)this->buffer_.data();
@@ -262,7 +264,14 @@ namespace vds {
             this_->result_ = result;
             lock.unlock();
 
-			this_->sp_.get<logger>()->trace("UDP", this_->sp_, "WSASendTo %s %d bytes", this_->buffer_->address().to_string().c_str(), this_->buffer_.data_size());
+			this_->sp_.get<logger>()->trace(
+        "UDP",
+        this_->sp_,
+        "WSASendTo %s %d bytes (%s)",
+        this_->buffer_->address().to_string().c_str(),
+        this_->buffer_.data_size(),
+        base64::from_bytes(static_cast<const sockaddr *>(this_->buffer_->address()), this_->buffer_->address().size()).c_str()
+      );
 			if (NOERROR != WSASendTo(this_->s_, &this_->wsa_buf_, 1, NULL, 0, this_->buffer_->address(), this_->buffer_->address().size(), &this_->overlapped_, NULL)) {
               auto errorCode = WSAGetLastError();
               if (WSA_IO_PENDING != errorCode) {
@@ -304,6 +313,14 @@ namespace vds {
 
       void error(DWORD error_code) override
       {
+        this->sp_.get<logger>()->trace(
+          "UDP",
+          this->sp_,
+          "WSASendTo %s (%s) failed %d",
+          this->buffer_->address().to_string().c_str(),
+          base64::from_bytes(static_cast<const sockaddr *>(this->buffer_->address()), this->buffer_->address().size()).c_str(),
+          error_code);
+
         std::unique_lock<not_mutex> lock(this->not_mutex_);
         vds_assert(this->result_);
         auto result = std::move(this->result_);

@@ -150,6 +150,7 @@ namespace vds {
 
       void start()
       {
+        memset(&this->overlapped_, 0, sizeof(this->overlapped_));
         this->wsa_buf_.len = BUFFER_SIZE;
         this->wsa_buf_.buf = (CHAR *)this->buffer_;
 
@@ -261,7 +262,7 @@ namespace vds {
           shutdown(this->s_, SD_SEND);
         }
         else {
-
+          memset(&this->overlapped_, 0, sizeof(this->overlapped_));
           this->wsa_buf_.buf = (CHAR *)data;
           this->wsa_buf_.len = (ULONG)len;
 

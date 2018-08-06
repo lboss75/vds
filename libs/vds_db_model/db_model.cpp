@@ -236,9 +236,12 @@ void vds::db_model::migrate(
 			next_sync INTEGER NOT NULL)");
 
     t.execute("INSERT INTO well_known_node(id, addresses) VALUES(\
-									'3940754a-64dd-4491-9777-719315b36a67',\
+									'local',\
 									'udp://127.0.0.1:8050')");
-		t.execute("INSERT INTO module(id, version, installed) VALUES('kernel', 1, datetime('now'))");
+    //t.execute("INSERT INTO well_known_node(id, addresses) VALUES(\
+				//					'vds.iv-soft.ru',\
+				//					'udp://178.207.91.252:8050')");
+    t.execute("INSERT INTO module(id, version, installed) VALUES('kernel', 1, datetime('now'))");
 	}
 }
 
