@@ -72,11 +72,18 @@ void vds::transaction_log::sync_process::query_unknown_records(const service_pro
           "Query log records %s",
           base64::from_bytes(p).c_str());
 
-        client->send_neighbors(
-            sp,
-            dht::messages::transaction_log_request(
-              p,
-              client->current_node_id()));
+      std::list<std::shared_ptr<dht::dht_route<std::shared_ptr<dht::network::dht_session>>::node>> neighbors;
+      client->get_neighbors(sp, neighbors);
+
+      for (const auto& neighbor : neighbors) {
+        client->send(
+          sp,
+          neighbor->node_id_,
+          dht::messages::transaction_log_request(
+            p,
+            client->current_node_id(),
+            neighbor->node_id_));
+      }
     }
   }
 }
@@ -110,7 +117,8 @@ vds::async_task<> vds::transaction_log::sync_process::apply_message(
           target_node,
           dht::messages::transaction_log_request(
             transaction_id,
-            client->current_node_id()));
+            client->current_node_id(),
+            target_node));
       });
     }
   }
@@ -171,14 +179,23 @@ void vds::transaction_log::sync_process::apply_message(
         base64::from_bytes(message.transaction_id()).c_str());
 
     mt_service::async(sp, [sp, message, data = t1.data.get(st)]() {
-      auto &client = *sp.get<vds::dht::network::client>();
-      client->send(
+      auto client = sp.get<vds::dht::network::client>();
+      (*client)->send(
           sp,
           message.source_node(),
           dht::messages::transaction_log_record(
               message.transaction_id(),
               data));
     });
+  }
+  else {
+    auto client = sp.get<vds::dht::network::client>();
+    (*client)->send_closer(
+      sp,
+      message.target_node(),
+      1,
+      message);
+
   }
 }
 

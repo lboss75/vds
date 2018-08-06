@@ -31,6 +31,8 @@ All rights reserved
 #include "device_record_dbo.h"
 #include "messages/sync_replica_data.h"
 
+#undef ThisModule
+#define ThisModule "DHT_SYNC"
 
 vds::dht::network::sync_process::sync_process() {
   for (uint16_t replica = 0; replica < GENERATE_DISTRIBUTED_PIECES; ++replica) {
@@ -121,8 +123,16 @@ void vds::dht::network::sync_process::add_to_log(
           member));
     }
   }
-
-  while (this->get_quorum(sp, t, object_id) < 2 && commit_index < last_applied) {
+  auto quorum = this->get_quorum(sp, t, object_id);
+  sp.get<logger>()->trace(
+    ThisModule,
+    sp,
+    "Sync %s: quorum=%d, commit_index=%d, last_applied=%d",
+    base64::from_bytes(object_id).c_str(),
+    quorum,
+    commit_index,
+    last_applied);
+  while (quorum < 2 && commit_index < last_applied) {
     this->apply_record(sp, t, object_id, generation, current_term, ++commit_index);
   }
 }
@@ -513,6 +523,7 @@ vds::const_data_buffer vds::dht::network::sync_process::restore_replica(
     const auto data_hash = hash::signature(hash::sha256(), data);
     _client::save_data(sp, t, data_hash, data);
 
+    sp.get<logger>()->trace(ThisModule, sp, "Restored object %s", base64::from_bytes(object_id).c_str());
     orm::chunk_dbo t1;
     t.execute(
       t1.insert(
@@ -617,6 +628,11 @@ void vds::dht::network::sync_process::apply_message(
       while (st.execute()) {
         replicas.emplace(t1.replica.get(st));
       }
+      sp.get<logger>()->trace(
+        ThisModule,
+        sp,
+        "Ready to store object %s",
+        base64::from_bytes(message.object_id()).c_str());
 
       client->send(
         sp,
@@ -684,6 +700,14 @@ void vds::dht::network::sync_process::apply_message(
 
   st = t.get_reader(t2.select(t2.generation).where(t2.object_id == message.object_id() && t2.member_node == message.source_node()));
   if(!st.execute()) {
+    
+    sp.get<logger>()->trace(
+      ThisModule,
+      sp,
+      "Add member %s to store object %s",
+      base64::from_bytes(message.source_node()).c_str(),
+      base64::from_bytes(message.object_id()).c_str());
+
     this->add_local_log(
       sp,
       t,
@@ -1098,6 +1122,13 @@ void vds::dht::network::sync_process::apply_message(
               auto data = _client::read_data(
                 replica_hash,
                 filename(local_path));
+              sp.get<logger>()->trace(
+                ThisModule,
+                sp,
+                "Send replica %s:%d to %s",
+                base64::from_bytes(object_id).c_str(),
+                replica,
+                base64::from_bytes(target_node).c_str());
               (*client)->send(
                 sp,
                 target_node,
@@ -1133,7 +1164,14 @@ void vds::dht::network::sync_process::apply_message(
               last_applied,
               target_node = message.source_node(),
               object_id = message.object_id()]() {
-              (*client)->send(
+                sp.get<logger>()->trace(
+                  ThisModule,
+                  sp,
+                  "Send replica %s:%d to %s",
+                  base64::from_bytes(object_id).c_str(),
+                  replica,
+                  base64::from_bytes(node).c_str());
+                (*client)->send(
                 sp,
                 node,
                 messages::sync_offer_send_replica_operation_request(
@@ -1186,6 +1224,13 @@ void vds::dht::network::sync_process::apply_message(
                   binary_serializer s;
                   this->distributed_generators_.find(replica)->second->write(s, data.data(), data.size());
                   const_data_buffer replica_data(s.data());
+                  sp.get<logger>()->trace(
+                    ThisModule,
+                    sp,
+                    "Send replica %s:%d to %s",
+                    base64::from_bytes(object_id).c_str(),
+                    replica,
+                    base64::from_bytes(target_node).c_str());
                   (*client)->send(
                     sp,
                     target_node,
@@ -1223,7 +1268,6 @@ void vds::dht::network::sync_process::apply_message(
   const service_provider& sp,
   database_transaction& t,
   const messages::sync_replica_data& message) {
-
   auto client = sp.get<dht::network::client>();
   if(client->current_node_id() != message.target_node()) {
     (*client)->send(sp, message.target_node(), message);
@@ -1236,10 +1280,24 @@ void vds::dht::network::sync_process::apply_message(
       && t2.replica == message.replica()));
   if (st.execute()) {
     //Already exists
+    sp.get<logger>()->trace(
+      ThisModule,
+      sp,
+      "Replica %s:%d from %s is already exists",
+      base64::from_bytes(message.object_id()).c_str(),
+      message.replica(),
+      base64::from_bytes(message.source_node()).c_str());
   }
   else {
     const auto data_hash = hash::signature(hash::sha256(), message.data());
     auto fn = _client::save_data(sp, t, data_hash, message.data());
+    sp.get<logger>()->trace(
+      ThisModule,
+      sp,
+      "Got replica %s:%d from %s",
+      base64::from_bytes(message.object_id()).c_str(),
+      message.replica(),
+      base64::from_bytes(message.source_node()).c_str());
 
     t.execute(
       t2.insert(
@@ -1713,6 +1771,13 @@ void vds::dht::network::sync_process::apply_record(
 
   switch (message_type) {
     case orm::sync_message_dbo::message_type_t::add_member: {
+      sp.get<logger>()->trace(
+        ThisModule,
+        sp,
+        "Appply: Add member %s to store object %s",
+        base64::from_bytes(member_node).c_str(),
+        base64::from_bytes(object_id).c_str());
+
       orm::sync_member_dbo t1;
       auto st = t.get_reader(
           t1.select(t1.object_id)
@@ -1742,6 +1807,14 @@ void vds::dht::network::sync_process::apply_record(
     }
 
     case orm::sync_message_dbo::message_type_t::add_replica:{
+      sp.get<logger>()->trace(
+        ThisModule,
+        sp,
+        "Appply: Add replica %s:%d to node %s",
+        base64::from_bytes(object_id).c_str(),
+        replica,
+        base64::from_bytes(member_node).c_str());
+
       orm::sync_replica_map_dbo t1;
       auto st = t.get_reader(
           t1.select(t1.last_access)

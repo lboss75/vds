@@ -69,9 +69,10 @@ void vds::transactions::transaction_log::save(
     return;
   }
 
+  const auto root_cert = cert_control::get_root_certificate();
   certificate write_cert;
-  if (block.ancestors().empty()) {
-    write_cert = cert_control::get_root_certificate();
+  if (block.ancestors().empty() || block.write_cert_id() == root_cert.subject()) {
+    write_cert = root_cert;
   }
   else {
     orm::certificate_chain_dbo t2;

@@ -18,18 +18,27 @@ namespace vds {
 
         transaction_log_request(
             const const_data_buffer &transaction_id,
-            const const_data_buffer &source_node)
-          : transaction_id_(transaction_id), source_node_(source_node) {
+            const const_data_buffer &source_node,
+            const const_data_buffer & target_node)
+          : transaction_id_(transaction_id),
+            source_node_(source_node),
+            target_node_(target_node) {
         }
 
         transaction_log_request(
           binary_deserializer & s) {
-          s >> this->transaction_id_ >> this->source_node_;
+          s
+            >> this->transaction_id_
+            >> this->source_node_
+            >> this->target_node_;
         }
 
         const_data_buffer serialize() const {
           binary_serializer s;
-          s << this->transaction_id_ << this->source_node_;
+          s
+            << this->transaction_id_
+            << this->source_node_
+            << this->target_node_;
           return s.data();
         }
 
@@ -42,9 +51,14 @@ namespace vds {
           return source_node_;
         }
 
+        const const_data_buffer & target_node() const {
+          return this->target_node_;
+        }
+
       private:
         const_data_buffer transaction_id_;
         const_data_buffer source_node_;
+        const_data_buffer target_node_;
       };
     }
   }

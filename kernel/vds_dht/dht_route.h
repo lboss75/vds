@@ -323,7 +323,6 @@ namespace vds {
               route_statistic::route_info{
                 p->node_id_,
                 p->proxy_session_->address().to_string(),
-                p->proxy_session_->outgoing_queue_size(),
                 p->pinged_,
                 p->hops_
               }

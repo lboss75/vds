@@ -34,8 +34,7 @@ namespace vds {
           session_id_(session_id),
           output_sequence_number_(0),
           mtu_(65507),
-          next_sequence_number_(0),
-          next_process_index_(0)
+          next_sequence_number_(0)
         {
         }
 
@@ -58,11 +57,6 @@ namespace vds {
           }
         }
 
-        size_t outgoing_queue_size() const {
-          std::unique_lock<std::mutex> lock(this->send_mutex_);
-          return this->output_messages_.size();
-        }
-
         async_task<> process_datagram(
             const service_provider & scope,
             const std::shared_ptr<transport_type> & s,
@@ -75,7 +69,7 @@ namespace vds {
 
           switch (static_cast<protocol_message_type_t>(*datagram.data())){
             case protocol_message_type_t::Acknowledgment: {
-              if (datagram.size() < 13) {
+              if (datagram.size() < 5) {
                 return async_task<>(std::make_shared<std::runtime_error>("Invalid data"));
               }
               const uint32_t session_id = (datagram.data()[1] << 24)
@@ -83,16 +77,6 @@ namespace vds {
                 | (datagram.data()[3] << 8)
                 | (datagram.data()[4]);
 
-              uint32_t index = (datagram.data()[5] << 24)
-                             | (datagram.data()[6] << 16)
-                             | (datagram.data()[7] << 8)
-                             | (datagram.data()[8]);
-
-              uint32_t mask = (datagram.data()[9] << 24)
-                            | (datagram.data()[10] << 16)
-                            | (datagram.data()[11] << 8)
-                            | (datagram.data()[12]);
-              
               if(this->session_id_ != session_id) {
                 return async_task<>(std::make_shared<std::runtime_error>("Invalid session_id"));
               }
@@ -100,23 +84,11 @@ namespace vds {
               logger::get(sp)->trace(
                 "DHT",
                 sp,
-                "Acknowledgment %d from %s",
-                index,
+                "Acknowledgment from %s",
                 this->address_.to_string().c_str());
 
-              while(!this->output_messages_.empty()){
-                auto first_index = this->output_messages_.begin()->first;
-                logger::get(sp)->trace("DHT", sp, "Acknowledgment %d of %d", index, first_index);
-                if(first_index < index){
-                  this->output_messages_.erase(this->output_messages_.begin());
-                  logger::get(sp)->trace("DHT", sp, "Remove out datagram %d", first_index);
-                }
-                else {
-                  break;
-                }
-              }
 
-              return this->repeat_message(sp, s, mask, index);
+              return async_task<>::empty();
             }
             default: {
               if (datagram.size() < 5) {
@@ -138,21 +110,7 @@ namespace vds {
                   datagram.size(),
                   this->address_.to_string().c_str());
 
-                if(index == this->next_sequence_number_){
-                  do{
-                    this->next_sequence_number_++;
-                  } while(this->input_messages_.end() != this->input_messages_.find(this->next_sequence_number_));
-
-                  return this->continue_process_messages(sp, s, lock);
-                }
-                else {
-                  logger::get(sp)->trace(
-                    "DHT",
-                    sp,
-                    "Wrong Datagram [%d]: expected %d",
-                    index,
-                    this->next_sequence_number_);
-                }
+                return this->continue_process_messages(sp, s, lock);
               }
 
               return async_task<>::empty();
@@ -169,26 +127,6 @@ namespace vds {
           std::shared_lock<std::shared_mutex> lock(this->output_mutex_);
           std::unique_lock<std::mutex> input_lock(this->input_mutex_);
 
-          sp.get<logger>()->trace("DHT", sp, "address=%s;this_node_id=%s;output_sequence_number=%d;output_messages=%s;mtu=%d;input_messages=%s;next_sequence_number=%d;next_process_index=%d",
-            this->address_.to_string().c_str(),
-            base64::from_bytes(this->this_node_id_).c_str(),
-            this->output_sequence_number_,
-            this->output_messages_.empty() ? "[]" : ("[" + std::to_string(this->output_messages_.begin()->first) + ".." + std::to_string(this->output_messages_.rbegin()->first) + "]").c_str(),
-            this->mtu_,
-            this->input_messages_.empty() ? "[]" : ("[" + std::to_string(this->input_messages_.begin()->first) + ".." + std::to_string(this->input_messages_.rbegin()->first) + "]").c_str(),
-            this->next_sequence_number_,
-            this->next_process_index_);
-
-          uint32_t mask = 0;
-          for (uint32_t i = this->next_sequence_number_; i < this->next_sequence_number_ + 32; ++i)
-          {
-            mask >>= 1;
-            if (this->input_messages_.end() == this->input_messages_.find(i))
-            {
-              mask |= 0x80000000;
-            }
-          }
-
           uint8_t buffer[13];
 
           buffer[0] = static_cast<uint8_t>(protocol_message_type_t::Acknowledgment);
@@ -196,14 +134,6 @@ namespace vds {
           buffer[2] = static_cast<uint8_t>(this->session_id_ >> 16);
           buffer[3] = static_cast<uint8_t>(this->session_id_ >> 8);
           buffer[4] = static_cast<uint8_t>(this->session_id_);
-          buffer[5] = static_cast<uint8_t>(this->next_sequence_number_ >> 24);
-          buffer[6] = static_cast<uint8_t>(this->next_sequence_number_ >> 16);
-          buffer[7] = static_cast<uint8_t>(this->next_sequence_number_ >> 8);
-          buffer[8] = static_cast<uint8_t>(this->next_sequence_number_);
-          buffer[9] = static_cast<uint8_t>(0xFF & (mask >> 24));
-          buffer[10] = static_cast<uint8_t>(0xFF & (mask >> 16));
-          buffer[11] = static_cast<uint8_t>(0xFF & (mask >> 8));
-          buffer[12] = static_cast<uint8_t>(0xFF & mask);
 
           sp.get<logger>()->trace("DHT", sp, "Send Acknowledgment %d", this->next_sequence_number_);
           return s->write_async(sp, udp_datagram(this->address_, const_data_buffer(buffer, sizeof(buffer)), false));
@@ -215,13 +145,11 @@ namespace vds {
 
         std::shared_mutex output_mutex_;
         uint32_t output_sequence_number_;
-        std::map<uint32_t, const_data_buffer> output_messages_;
         uint32_t mtu_;
 
         std::mutex input_mutex_;
         std::map<uint32_t, const_data_buffer> input_messages_;
         uint32_t next_sequence_number_;
-        uint32_t next_process_index_;
 
         mutable std::mutex send_mutex_;
         std::queue<std::tuple<service_provider, std::shared_ptr<transport_type>, uint8_t, const_data_buffer>> send_queue_;
@@ -287,7 +215,6 @@ namespace vds {
                 }
 
                 vds_assert(expected_index == pthis->output_sequence_number_);
-                pthis->output_messages_[pthis->output_sequence_number_] = datagram;
                 logger::get(sp)->trace(
                   "DHT",
                   sp,
@@ -335,7 +262,6 @@ namespace vds {
                   }
                 }
                 else {
-                  pthis->output_messages_[pthis->output_sequence_number_] = datagram;
                   logger::get(sp)->trace(
                     "DHT",
                     sp,
@@ -392,7 +318,6 @@ namespace vds {
                     result.error(ex);
                   }
                 } else {
-                  pthis->output_messages_[pthis->output_sequence_number_] = datagram;
                   logger::get(sp)->trace("DHT", sp, "Out datagram[%d]: %d bytes", pthis->output_sequence_number_, datagram.size());
                   ++(pthis->output_sequence_number_);
                  if(offset + size < message.size()) {
@@ -415,25 +340,22 @@ namespace vds {
             const std::shared_ptr<transport_type> & s,
             std::unique_lock<std::mutex> & locker
         ) {
-          auto p = this->input_messages_.find(this->next_process_index_);
-          if (this->input_messages_.end() == p) {
-            return async_task<>::empty();
-          }
-
-          switch ((protocol_message_type_t)((uint8_t)protocol_message_type_t::SpecialCommand & p->second.data()[0])) {
+          
+          for (auto p = this->input_messages_.begin(); p != this->input_messages_.end(); ++p) {
+            switch (static_cast<protocol_message_type_t>((uint8_t)protocol_message_type_t::SpecialCommand & p->second.data()[0])) {
             case protocol_message_type_t::SingleData: {
-              auto message_type = (uint8_t)(p->second.data()[0] & ~(uint8_t) protocol_message_type_t::SpecialCommand);
+              auto message_type = (uint8_t)(p->second.data()[0] & ~(uint8_t)protocol_message_type_t::SpecialCommand);
               const_data_buffer message(p->second.data() + 5, p->second.size() - 5);
 
-              this->input_messages_.erase(this->next_process_index_);
-              logger::get(sp)->trace("DHT", sp, "Processed datagram %d", this->next_process_index_);
-              this->next_process_index_++;
+              logger::get(sp)->trace("DHT", sp, "Processed datagram %d", p->first);
+              this->input_messages_.erase(this->input_messages_.begin(), p);
+              this->input_messages_.erase(p);
 
               locker.unlock();
               return static_cast<implementation_class *>(this)->process_message(
-                  sp,
-                  message_type,
-                  message).then([sp, s, pthis = this->shared_from_this()]() {
+                sp,
+                message_type,
+                message).then([sp, s, pthis = this->shared_from_this()]() {
                 std::unique_lock<std::mutex> lock(pthis->input_mutex_);
                 return pthis->continue_process_messages(sp, s, lock);
               });
@@ -442,7 +364,7 @@ namespace vds {
               auto message_type = p->second.data()[0] & ~(uint8_t)protocol_message_type_t::SpecialCommand;
               size_t size = (p->second.data()[5] << 8) | (p->second.data()[6]);
 
-              if(size <= p->second.size() - 7){
+              if (size <= p->second.size() - 7) {
                 return async_task<>(std::make_shared<std::runtime_error>("Invalid data"));
               }
               size -= p->second.size() - 7;
@@ -450,36 +372,32 @@ namespace vds {
               resizable_data_buffer message;
               message.add(p->second.data() + 7, p->second.size() - 7);
 
-              for(auto index = this->next_process_index_ + 1;; ++index){
-                auto p = this->input_messages_.find(index);
-                if (this->input_messages_.end() == p) {
-                  return async_task<>::empty();
+              for (auto index = p->first + 1;; ++index) {
+                auto p1 = this->input_messages_.find(index);
+                if (this->input_messages_.end() == p1) {
+                  break;
                 }
 
-                if((uint8_t)protocol_message_type_t::ContinueData != p->second.data()[0]){
+                if ((uint8_t)protocol_message_type_t::ContinueData != p1->second.data()[0]) {
                   return async_task<>(std::make_shared<std::runtime_error>("Invalid data"));
                 }
 
-                if(size < p->second.size() - 1){
+                if (size < p1->second.size() - 1) {
                   return async_task<>(std::make_shared<std::runtime_error>("Invalid data"));
                 }
 
-                message.add(p->second.data() + 1, p->second.size() - 1);
-                size -= p->second.size() - 1;
+                message.add(p1->second.data() + 1, p1->second.size() - 1);
+                size -= p1->second.size() - 1;
 
-                if(0 == size){
-                  while(index <= this->next_process_index_) {
-                    this->input_messages_.erase(this->next_process_index_);
-                    logger::get(sp)->trace("DHT", sp, "Processed datagram %d", this->next_process_index_);
-
-                    this->next_process_index_++;
-                  }
+                if (0 == size) {
+                  this->input_messages_.erase(this->input_messages_.begin(), p1);
+                  this->input_messages_.erase(p1);
 
                   locker.unlock();
                   return static_cast<implementation_class *>(this)->process_message(
-                      sp,
-                      message_type,
-                      message.get_data()).then([sp, s, pthis = this->shared_from_this()]() {
+                    sp,
+                    message_type,
+                    message.get_data()).then([sp, s, pthis = this->shared_from_this()]() {
                     std::unique_lock<std::mutex> lock(pthis->input_mutex_);
                     pthis->continue_process_messages(sp, s, lock);
                   });
@@ -488,43 +406,9 @@ namespace vds {
 
               break;
             }
-            default:
-              throw std::runtime_error("Unexcpected");
-          }
-
-          throw std::runtime_error("Unexcpected");
-        }
-
-        async_task<> repeat_message(
-            const service_provider & sp,
-            const std::shared_ptr<transport_type> & s,
-            uint32_t mask,
-            uint32_t index){
-          auto result = async_task<>::empty();
-
-          while(mask > 0){
-            auto p = this->output_messages_.find(index);
-            if (this->output_messages_.end() != p) {
-              if (0 != (mask & 1)) {
-                sp.get<logger>()->trace("DHT", sp, "Repeat message %d to %s", index, this->address_.to_string().c_str());
-
-                result = result.then([sp, s, data = udp_datagram(this->address_, p->second, false)]() {
-                  return s->write_async(sp, data);
-                });
-              }
-              else {
-                this->output_messages_.erase(p);
-                logger::get(sp)->trace("DHT", sp, "Remove out datagram %d to %s", index, this->address_.to_string().c_str());
-              }
             }
-            else {
-              logger::get(sp)->trace("DHT", sp, "Message not found %d ot %s", index, this->address_.to_string().c_str());
-            }
-            mask >>= 1;
-            ++index;
           }
-
-          return std::move(result);
+          return async_task<>::empty();
         }
 
         void continue_send(bool remove_first) {

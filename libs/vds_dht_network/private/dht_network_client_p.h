@@ -47,6 +47,9 @@ namespace vds {
 
         void start(const service_provider & sp, uint16_t port);
         void stop(const service_provider & sp);
+        void get_neighbors(
+          const service_provider& sp,
+          std::list<std::shared_ptr<dht_route<std::shared_ptr<dht_session>>::node>>& result);
 
         static filename save_data(
           const service_provider& sp,

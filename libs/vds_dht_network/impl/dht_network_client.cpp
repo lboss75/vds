@@ -344,6 +344,11 @@ void vds::dht::network::_client::stop(const service_provider& sp) {
   this->udp_transport_->stop(sp);
 }
 
+void vds::dht::network::_client::get_neighbors(const service_provider& sp,
+  std::list<std::shared_ptr<dht_route<std::shared_ptr<dht_session>>::node>>& result) {
+  this->route_.get_neighbors(sp, result);
+}
+
 vds::filename vds::dht::network::_client::save_data(
   const service_provider& sp,
   database_transaction& t,
@@ -553,7 +558,7 @@ vds::async_task<> vds::dht::network::_client::restore(
         if (std::chrono::minutes(10) < (std::chrono::steady_clock::now() - start)) {
           return async_task<>(std::make_shared<vds_exceptions::not_found>());
         }
-
+        std::this_thread::sleep_for(std::chrono::seconds(30));
         return pthis->restore(sp, object_ids, result, start);
       });
 }

@@ -43,7 +43,7 @@ namespace vds {
         session_statistic::session_info get_statistic() const;
       private:
         const_data_buffer partner_node_id_;
-
+        
         static std::mutex statistic_mutex_;
         static std::map<network::message_type_t, size_t> statistic_;
         static std::map<network::message_type_t, size_t> statistic_count_;
