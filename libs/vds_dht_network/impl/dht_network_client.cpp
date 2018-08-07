@@ -132,17 +132,20 @@ vds::async_task<>  vds::dht::network::_client::apply_message(
   const messages::dht_find_node_response& message) {
   auto result = async_task<>::empty();
   for(auto & p : message.nodes()) {
-    this->route_.add_node(sp, p.target_id_, session, p.hops_ + 1);
-    result = result.then([sp, pthis = this->shared_from_this(), address = p.address_]() {
-      pthis->udp_transport_->try_handshake(sp, address)
-      .execute([sp, address](const std::shared_ptr<std::exception> & ex) {
-        if(ex) {
-          sp.get<logger>()->warning(ThisModule, sp, "%s at try handshake %s",
-            ex->what(),
-            address.c_str());
-        }
+    if (this->route_.add_node(sp, p.target_id_, session, p.hops_ + 1)) {
+      result = result.then([sp, pthis = this->shared_from_this(), address = p.address_]() {
+        pthis->udp_transport_->try_handshake(sp, address)
+          .execute([sp, address](const std::shared_ptr<std::exception> & ex) {
+          if (ex) {
+            sp.get<logger>()->warning(ThisModule, sp, "%s at try handshake %s",
+              ex->what(),
+              address.c_str());
+          }
+        });
       });
-    });
+
+      this->update_route_table_counter_ = 3;
+    }
   }
   return result;
 }
@@ -408,7 +411,7 @@ vds::filename vds::dht::network::_client::save_data(
 
 vds::async_task<> vds::dht::network::_client::update_route_table(const service_provider& sp) {
   auto result = async_task<>::empty();
-  if (0 == this->update_route_table_counter_++ % 10) {
+  if (0 == this->update_route_table_counter_) {
     for (size_t i = 0; i < 8 * this->route_.current_node_id().size(); ++i) {
       auto canditate = dht_object_id::generate_random_id(this->route_.current_node_id(), i);
       result = result.then([pthis = this->shared_from_this(), sp, canditate]() {
@@ -418,6 +421,10 @@ vds::async_task<> vds::dht::network::_client::update_route_table(const service_p
           messages::dht_find_node(canditate, pthis->route_.current_node_id()));
       });
     }
+    this->update_route_table_counter_ = 10;
+  }
+  else {
+    this->update_route_table_counter_--;
   }
   return result;
 }

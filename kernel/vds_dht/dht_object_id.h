@@ -18,22 +18,38 @@ namespace vds {
     class dht_object_id {
     public:
       static const_data_buffer distance(const const_data_buffer &left, const const_data_buffer &right) {
-        const auto min_size = (left.size() < right.size()) ? left.size() : right.size();
-        const auto max_size = (left.size() > right.size()) ? left.size() : right.size();
+        size_t min_size;
+        size_t max_size;
+        const uint8_t * pleft;
+        const uint8_t * pright;
 
-        resizable_data_buffer result;
+        if(left.size() < right.size()) {
+          min_size = left.size();
+          max_size = right.size();
+          pleft = left.data();
+          pright = right.data();
+        }
+        else {
+          min_size = right.size();
+          max_size = left.size();
+          pleft = right.data();
+          pright = left.data();
 
-        for (size_t offset = 0; offset < min_size; ++offset) {
-          result.add(left[offset] ^ right[offset]);
         }
 
-        if (left.size() < right.size()) {
-          result.add(right.data() + min_size, max_size - min_size);
-        } else if (left.size() > right.size()) {
-          result.add(left.data() + min_size, max_size - min_size);
+        auto p = alloca(max_size);
+        auto result = static_cast<uint8_t *>(p);
+
+        auto offset = min_size;
+        while (0 != offset--) {
+          *result++ = *pleft++ ^ *pright++;
         }
 
-        return result.get_data();
+        if (max_size > min_size) {
+          memcpy(result, pright, max_size - min_size);
+        }
+
+        return const_data_buffer(p, max_size);
       }
 
       static size_t distance_exp(const const_data_buffer &left, const const_data_buffer &right) {

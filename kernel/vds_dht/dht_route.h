@@ -89,7 +89,7 @@ namespace vds {
         return this->current_node_id_;
       }
 
-      void add_node(
+      bool add_node(
           const vds::service_provider &sp,
           const const_data_buffer &id,
           const session_type &proxy_session,
@@ -116,7 +116,7 @@ namespace vds {
           lock.unlock();
         }
 
-        b->add_node(sp, id, proxy_session, hops);
+        return b->add_node(sp, id, proxy_session, hops);
       }
 
       template <typename... timer_arg_types>
@@ -245,7 +245,7 @@ namespace vds {
         mutable std::shared_mutex nodes_mutex_;
         std::list<std::shared_ptr<node>> nodes_;
 
-        void add_node(
+        bool add_node(
             const service_provider &sp,
             const const_data_buffer &id,
             const session_type &proxy_session,
@@ -254,21 +254,23 @@ namespace vds {
           std::unique_lock<std::shared_mutex> ulock(this->nodes_mutex_);
           for (const auto &p : this->nodes_) {
             if (p->node_id_ == id && p->proxy_session_->address() == proxy_session->address()) {
-              return;//Already exists
+              return false;//Already exists
             }
           }
 
           if (0 == hops || MAX_NODES > this->nodes_.size()) {
             this->nodes_.push_back(std::make_shared<node>(id, proxy_session, hops));
-            return;
+            return true;
           }
 
           for (auto &p : this->nodes_) {
             if (!p->is_good()) {
               p->reset(id, proxy_session, hops);
-              return;
+              return true;
             }
           }
+
+          return false;
         }
 
         template <typename... timer_arg_types>
