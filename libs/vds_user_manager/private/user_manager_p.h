@@ -71,6 +71,8 @@ namespace vds {
       const service_provider& sp,
       const const_data_buffer& data);
 
+    const std::string& user_name() const;
+
     static bool parse_join_request(
         const service_provider& sp,
         const const_data_buffer & data,

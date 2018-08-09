@@ -48,10 +48,26 @@ void vds::background_app::main(const service_provider & sp)
       auto scope = sp.create_scope(__FUNCTION__);
       imt_service::enable_async(scope);
 
+      const auto data = file::read_all(filename("keys"));
+      const_data_buffer root_private_key, common_news_write_private_key, common_news_admin_private_key;
+      binary_deserializer s(data);
+      s
+        >> root_private_key
+        >> common_news_write_private_key
+        >> common_news_admin_private_key
+        ;
+
+      cert_control::private_info_t private_info;
+      private_info.root_private_key_ = asymmetric_private_key::parse_der(root_private_key, this->user_password_.value());
+      private_info.common_news_write_private_key_ = asymmetric_private_key::parse_der(common_news_write_private_key, this->user_password_.value());
+      private_info.common_news_admin_private_key_ = asymmetric_private_key::parse_der(common_news_admin_private_key, this->user_password_.value());
+
+
       auto user_mng = std::make_shared<user_manager>();
       user_mng->reset(scope,
         this->user_login_.value(),
-        this->user_password_.value());
+        this->user_password_.value(),
+        private_info);
     }
     else {
       for (;;) {

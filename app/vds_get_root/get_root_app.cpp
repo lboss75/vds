@@ -34,27 +34,42 @@ void out_multiline(const std::string & value, std::size_t width = 80) {
     }
   }
 }
+#define write_member(member_name)\
+  std::cout << "char vds::cert_control::" #member_name "[" \
+  << sizeof(cert_control::member_name) \
+  << "] = \n";\
+  out_multiline(cert_control::member_name);\
+  std::cout << ";\n";
 
 void vds::get_root_app::main(const service_provider & sp)
 {
   if (&this->key_generate_command_set_ == this->current_command_set_) {
     vds::imt_service::enable_async(sp);
 
+    cert_control::private_info_t private_info;
+    private_info.genereate_all();
+
     cert_control::genereate_all(
         this->user_login_.value(),
-      this->user_password_.value());
+        this->user_password_.value(),
+        private_info);
     
-    std::cout << "char vds::cert_control::root_certificate_["
-      << (strlen(cert_control::root_certificate_) + 1)
-      << "] = ";
-    out_multiline(cert_control::root_certificate_);
-    std::cout << ";\n";
+    write_member(root_certificate_);
+    write_member(common_news_read_certificate_);
+    write_member(common_news_read_private_key_);
+    write_member(common_news_write_certificate_);
+    write_member(common_news_admin_certificate_);
 
-    std::cout << "char vds::cert_control::root_private_key_["
-      << (strlen(cert_control::root_private_key_) + 1)
-      << "] = ";
-    out_multiline(cert_control::root_private_key_);
-    std::cout << ";\n";
+    write_member(common_storage_certificate_);
+    write_member(common_storage_private_key_);
+
+    binary_serializer s;
+    s
+      << private_info.root_private_key_.der(this->user_password_.value())
+      << private_info.common_news_write_private_key_.der(this->user_password_.value())
+      << private_info.common_news_admin_private_key_.der(this->user_password_.value())
+    ;
+    file::write_all(filename("keys"), s.data());
   }
 }
 

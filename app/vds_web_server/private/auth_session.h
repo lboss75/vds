@@ -29,6 +29,7 @@ namespace vds {
     }
 
     user_manager::login_state_t get_login_state() const;
+    const std::string & user_name();
 
   private:
     std::string login_;

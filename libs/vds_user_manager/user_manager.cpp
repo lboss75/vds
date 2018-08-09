@@ -66,16 +66,16 @@ vds::async_task<vds::user_channel> vds::user_manager::create_channel(const servi
 void vds::user_manager::reset(
     const service_provider &sp,
     const std::string &root_user_name,
-    const std::string &root_password) {
-  return sp.get<db_model>()->async_transaction(sp, [this, sp, root_user_name, root_password](
+    const std::string &root_password,
+    const cert_control::private_info_t & private_info) {
+  return sp.get<db_model>()->async_transaction(sp, [this, sp, root_user_name, root_password, private_info](
     database_transaction & t) {
-    const auto root_private_key = cert_control::get_root_private_key(root_password);
     auto client = sp.get<dht::network::client>();
     client->save(
       sp,
       t,
       dht::dht_object_id::user_credentials_to_key(root_user_name, root_password),
-      root_private_key.der(root_password));
+      private_info.root_private_key_.der(root_password));
 
     auto playback = transactions::transaction_block_builder::create_root_block();
 
@@ -86,13 +86,31 @@ void vds::user_manager::reset(
       t,
       root_user_name,
       root_password,
-      root_private_key);
+      private_info.root_private_key_);
+
+    //common news
+    auto common_news_admin_certificate = cert_control::get_common_news_admin_certificate();
+    auto channel_id = common_news_admin_certificate.fingerprint(hash::sha256());
+    sp.get<logger>()->info(ThisModule, sp, "Create channel %s(Common News)",
+      base64::from_bytes(channel_id).c_str());
+
+    root_user->personal_channel().add_log(
+      playback,
+      transactions::channel_create_transaction(
+        channel_id,
+        std::to_string(user_channel::channel_type_t::news_channel),
+        "Common news",
+        cert_control::get_common_news_read_certificate(),
+        cert_control::get_common_news_read_private_key(),
+        cert_control::get_common_news_write_certificate(),
+        private_info.common_news_write_private_key_));
+
 
     playback.save(
       sp,
       t,
       root_user.user_certificate(),
-      root_private_key);
+      private_info.root_private_key_);
 
 
   }).wait();
@@ -536,6 +554,10 @@ vds::async_task<bool> vds::_user_manager::approve_join_request(const service_pro
   }
 }
 
+const std::string& vds::_user_manager::user_name() const {
+  return this->user_name_;
+}
+
 bool vds::_user_manager::parse_join_request(
   const vds::service_provider &sp,
   const vds::const_data_buffer &data,
@@ -603,4 +625,8 @@ vds::async_task<vds::user_channel> vds::_user_manager::create_channel(
     return *result;
   });
 
+}
+
+const std::string& vds::user_manager::user_name() const {
+  return this->impl_->user_name();
 }

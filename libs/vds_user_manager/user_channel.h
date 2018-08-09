@@ -33,7 +33,9 @@ namespace vds {
     enum class channel_type_t {
       personal_channel,
       notes_channel,
-      inter_person
+      inter_person,
+      news_channel,
+      files_channel
     };
 
     user_channel();
@@ -112,6 +114,13 @@ namespace vds {
     if ("c" == val) {
       return vds::user_channel::channel_type_t::inter_person;
     }
+    if ("N" == val) {
+      return vds::user_channel::channel_type_t::news_channel;
+    }
+    if("f" == val) {
+      return vds::user_channel::channel_type_t::files_channel;
+    }
+
     throw std::runtime_error("Invalid value");
   }
 }
@@ -126,6 +135,12 @@ namespace std {
     }
     case vds::user_channel::channel_type_t::inter_person: {
       return "c";
+    }
+    case vds::user_channel::channel_type_t::news_channel: {
+      return "N";
+    }
+    case vds::user_channel::channel_type_t::files_channel: {
+      return "f";
     }
 
     default: {

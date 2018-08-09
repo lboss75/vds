@@ -628,16 +628,17 @@ mock_server::mock_server(int index, int udp_port)
 
 void mock_server::init_root(
   const std::string &root_user_name,
-  const std::string &root_password)
-{
-  vds::cert_control::genereate_all(root_user_name, root_password);
+  const std::string &root_password) const {
+  vds::cert_control::private_info_t private_info;
+  private_info.genereate_all();
+  vds::cert_control::genereate_all(root_user_name, root_password, private_info);
 
   auto user_mng = std::make_shared<vds::user_manager>();
 
-  auto sp = this->get_service_provider().create_scope(__FUNCTION__);
+  const auto sp = this->get_service_provider().create_scope(__FUNCTION__);
   vds::mt_service::enable_async(sp);
 
-  user_mng->reset(sp, root_user_name, root_password);
+  user_mng->reset(sp, root_user_name, root_password, private_info);
 }
 
 //

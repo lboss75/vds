@@ -28,3 +28,7 @@ vds::async_task<> vds::auth_session::load(const service_provider& sp, const cons
 vds::user_manager::login_state_t vds::auth_session::get_login_state() const {
   return this->user_mng_->get_login_state();
 }
+
+const std::string& vds::auth_session::user_name() {
+  return this->user_mng_->user_name();
+}

@@ -1,410 +1,253 @@
 ﻿<!DOCTYPE html>
 <html>
-    <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
 
-        <title>VDS</title>
+    <title>Децентрализированное Хранилище Данных</title>
 
-        <link rel="stylesheet" href="/bootstrap-4.1.0/css/bootstrap.min.css">
-        <link rel="stylesheet" href="/style.css">
-    </head>
-    <body>
+    <link rel="stylesheet" href="/bootstrap-4.1.0/css/bootstrap.min.css">
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
 
     <header class="navbar navbar-expand navbar-dark flex-column flex-md-row bd-navbar">
         <div class="navbar-nav-scroll">
             <ul class="navbar-nav bd-navbar-nav flex-row">
                 <li class="nav-item">
-                    <h3>VDS</h3>
+                    <h3>АйВи</h3>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link active" href="/docs/4.1/getting-started/introduction/" onclick="ga('send', 'event', 'Navbar', 'Community links', 'Docs');">Documentation</a>
+                    <a class="nav-link active" href="/">Домашняя</a>
                 </li>
-                <li class="nav-item">
-                    <a class="nav-link " href="/docs/4.1/examples/" onclick="ga('send', 'event', 'Navbar', 'Community links', 'Examples');">Examples</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="https://themes.getbootstrap.com" onclick="ga('send', 'event', 'Navbar', 'Community links', 'Themes');" target="_blank" rel="noopener">Themes</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="https://jobs.getbootstrap.com" onclick="ga('send', 'event', 'Navbar', 'Community links', 'Jobs');" target="_blank" rel="noopener">Jobs</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="https://expo.getbootstrap.com" onclick="ga('send', 'event', 'Navbar', 'Community links', 'Expo');" target="_blank" rel="noopener">Expo</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="https://blog.getbootstrap.com" onclick="ga('send', 'event', 'Navbar', 'Community links', 'Blog');" target="_blank" rel="noopener">Blog</a>
+                <li class="nav-item d-none d-md-flex">
+                    <a class="nav-link d-none d-md-flex" href="/about">О компании</a>
                 </li>
             </ul>
         </div>
+        <ul class="navbar-nav flex-row ml-md-auto">
+            <li id="login_menu" style="display: none">
+                <div class="btn-group navbar-btn">
+                    <button class="btn" data-toggle="modal" data-target="#loginModal">Вход</button>
+                    <button data-toggle="dropdown" class="btn dropdown-toggle"><span class="caret"></span></button>
+                    <ul class="dropdown-menu">
+                        <li class="nav-item"><a href="#" data-toggle="modal" data-target="#registerDialog">Регистрация</a></li>
+                    </ul>
+                </div>
+            </li>
+            <li id="user_menu" style="display: none" class="nav-item dropdown">
+                <a id="user_login" class="nav-item nav-link dropdown-toggle mr-md-2" href="#" id="bd-versions" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    Пользователь
+                </a>
+                <div class="dropdown-menu dropdown-menu-right" aria-labelledby="bd-versions">
+                    <a class="dropdown-item" href="/docs/4.1/">Выход</a>
+                </div>
+            </li>
+        </ul>
     </header>
+    <main class="bd-masthead" role="main" id="anonymous_content" style="display: none">
+        <div class="container" >
+            <div class="alert alert-danger" role="alert">
+                Данный сайт в разработке
+            </div>
+            <div class="row align-items-center">
+                <div class="col-6 mx-auto col-md-6 order-md-2">
+                    <img class="img-fluid mb-3 mb-md-0" src="/assets/img/bootstrap-stack.png" alt="" width="1024" height="860">
+                </div>
+                <div class="col-md-6 order-md-1 text-center text-md-left pr-md-5">
+                    <h1 class="mb-3 bd-text-purple-bright">Децентрализированное Хранилище Данных</h1>
+                    <p class="lead">
+                        Данный продукт объеденяет свободные ресурсы пользователей в общее децентрализованное облако.
+                    </p>
+                    <p class="lead mb-4">
+                        Главными характеристиками облака является сверхдешевое и надежное хранение данных.
+                        Это позволяет участникам системы обмениваться свободными ресурсами
+                        и для одних участников системы решит проблему нехватки свободных ресурсов,
+                        в тоже время другие участники смогут коммерциализовать неиспользуемые ресурсы.
+                    </p>
+                    <div class="d-flex flex-column flex-md-row lead mb-3">
+                        <a href="/start" class="btn btn-outline-primary btn-lg">Подробнее</a>
+                        <a href="#" class="btn btn-outline-secondary btn-lg disabled">Скачать агента</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="masthead-followup row m-0 border border-white">
+            <div class="col-12 col-md-4 p-3 p-md-5 bg-light border border-white">
+                <h3>Зарабатывай</h3>
+                <p>Предоставляя ресурсы свого компьютера для сети Вы получаете возможность
+                    зарабатывать за каждый Гигабайт хранимой у вас информации</p>
 
-        <div class="wrapper">
-            <!-- Sidebar Holder -->
-            <nav id="sidebar">
-		<ul class="list-unstyled components">
-                <li>
-		   <a href="#channelsMenu" data-toggle="collapse" aria-expanded="false">Каналы</a>
-	           <ul class="list-unstyled components collapse" id="channelsMenu">
-                   </ul>
-		</li>
-		<li><a href="#" id="show_balance">Взаиморасчёты</a></li>
-		<li><a href="#" data-toggle="modal" data-target="#createChannelModal">Создать канал</a></li>
-		<li><a href="#" data-toggle="modal" data-target="#createInvite">Пригласить друга</a></li>
+                <hr class="half-rule">
+                <a href="/earn" class="btn btn-outline-primary btn-lg">Подробнее</a>
+            </div>
+
+            <div class="col-12 col-md-4 p-3 p-md-5 bg-light border border-white">
+                <h3>Храни данные</h3>
+                <p>Возможности хранить данные в цедентрализованной сети обладает существенными преимуществами:</p>
+                <ul>
+                    <li>Низкая себестоимость хранения</li>
+                    <li>Независимость от провайдера данных</li>
                 </ul>
+
+
+                <hr class="half-rule">
+                <a class="btn btn-outline-primary" href="/store">Подробнее</a>
+            </div>
+
+            <div class="col-12 col-md-4 p-3 p-md-5 bg-light border border-white">
+                <h3>Подробнее</h3>
+                <p>
+                    Описание технологии и проектов на базе технологии.
+                </p>
+                <hr class="half-rule">
+                <a href="/tech" class="btn btn-outline-primary">Технология</a>
+                <a href="/projects" class="btn btn-outline-secondary">Проекты</a>
+            </div>
+        </div>
+    </main>
+    <main class="wrapper" id="user_content" style="display: none">
+        <!-- Sidebar Holder -->
+        <nav id="sidebar">
+            <ul class="list-unstyled components" id="channelsMenu" />
+        </nav>
+        <div class="chat-container column col-sm-10 col-xs-11">
+            <nav class="navbar navbar-default">
+                <div class="container-fluid">
+
+                    <div class="navbar-header">
+                        <button type="button" id="sidebarCollapse" class="btn btn-info navbar-btn">
+                            <i class="glyphicon glyphicon-align-left"></i>
+                            <span>Меню</span>
+                        </button>
+                    </div>
+
+                    <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+                        <ul class="nav navbar-nav navbar-right">
+                            <li><a href="#">Page</a></li>
+                            <li><a href="#">Page</a></li>
+                            <li><a href="#">Page</a></li>
+                            <li><a href="#">Page</a></li>
+                        </ul>
+                    </div>
+                </div>
             </nav>
-
-            <!-- Page Content Holder -->
-            <div id="content">
-
-                <nav class="navbar navbar-default">
-                    <div class="container-fluid">
-
-                        <div class="navbar-header">
-                            <button type="button" id="sidebarCollapse" class="btn btn-info navbar-btn">
-                                <i class="glyphicon glyphicon-align-left"></i>
-                                <span>Меню</span>
-                            </button>
+            <div id="chat_feed" >
+                <div class="col-sm-9 col-xs-12 chat" style="outline: none;" tabindex="5001">
+                    <div class="col-inside-lg decor-default">
+                        <div class="chat-body" id="feed_records">
                         </div>
-
-                        <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
-                            <ul class="nav navbar-nav navbar-right">
-                                <li><a href="#">Page</a></li>
-                                <li><a href="#">Page</a></li>
-                                <li><a href="#">Page</a></li>
-                                <li><a href="#">Page</a></li>
-                            </ul>
-                        </div>
-                    </div>
-                </nav>
-                <div id="chat_feed" style="display: none">
-                    <div class="col-sm-9 col-xs-12 chat" style="outline: none;" tabindex="5001">
-                            <div class="col-inside-lg decor-default">
-                                <div class="chat-body" id="feed_records">
-                                </div>
-                            </div>
-                    </div>
-                        <div class="line"></div>
-                    <div class="answer-add">
-                        <form id="send-message" method="post" action="upload" role="form" enctype="multipart/form-data">
-                            <input id="channel_id" name="channel_id" type="hidden" />
-                            <input name="message" placeholder="Напишите сообщение">
-                            <label class="input-group-btn">
-                                <span class="btn btn-primary answer-btn answer-btn-1">
-                                    <input id="answerFile" name="attachment[]" type="file" style="display: none;" multiple>
-                                </span>
-                            </label>
-                            <input type="submit" class="btn btn-success btn-send answer-btn answer-btn-2" value="" >
-                        </form>
-                        <input type="text" id="selected_files" readonly>
                     </div>
                 </div>
-                <div id="balance_panel" style="display: none">
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th scope="col">Месяц</th>
-                                <th scope="col">Ваши данные в сети</th>
-                                <th scope="col">Данные сети на ваших устройствах</th>
-                                <th scope="col">Вы заплатили</th>
-                                <th scope="col">Заплатили Вам</th>
-                                <th scope="col">Баланс</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td>май 2018</th>
-                                <td class="text-right">100 Гигабайт</td>
-                                <td class="text-right">200 Гигабайт</td>
-                                <td class="text-right">100 DC</td>
-                                <td class="text-right">200 DC</td>
-                                <td class="text-right">195 DC</td>
-                            </tr>
-                            <tr>
-                                <td>апрель 2018</th>
-                                <td class="text-right">10 Гигабайт</td>
-                                <td class="text-right">100 Гигабайт</td>
-                                <td class="text-right">10 DC</td>
-                                <td class="text-right">100 DC</td>
-                                <td class="text-right">95 DC</td>
-                            </tr>
-                            <tr>
-                                <td>март 2018</th>
-                                <td class="text-right">5 Гигабайт</td>
-                                <td class="text-right">10 Гигабайт</td>
-                                <td class="text-right">5 DC</td>
-                                <td class="text-right">10 DC</td>
-                                <td class="text-right">5 DC</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                <div class="line"></div>
+                <div class="answer-add">
+                    <form id="send-message" method="post" action="upload" role="form" enctype="multipart/form-data">
+                        <input id="channel_id" name="channel_id" type="hidden" />
+                        <input name="message" placeholder="Напишите сообщение">
+                        <label class="input-group-btn">
+                            <span class="btn btn-primary answer-btn answer-btn-1">
+                                <input id="answerFile" name="attachment[]" type="file" style="display: none;" multiple>
+                            </span>
+                        </label>
+                        <input type="submit" class="btn btn-success btn-send answer-btn answer-btn-2" value="">
+                    </form>
+                    <input type="text" id="selected_files" readonly>
                 </div>
             </div>
         </div>
+    </main>
 
-        <div class="modal fade" id="createChannelModal" tabindex="-1" role="dialog" aria-labelledby="createChannelModal" aria-hidden="true">
-            <div class="modal-dialog" role="document">
-                <div class="modal-content">
-                    <form action="api/channels" method="POST" enctype="multipart/form-data">
+
+    <div class="modal fade" id="loginModal" tabindex="-1" role="dialog" aria-labelledby="loginModal" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <form>
                     <div class="modal-header">
-                        <h5 class="modal-title">Создать канал</h5>
+                        <h5 class="modal-title">Вход</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label for="inputEmail">Логин</label>
+                            <input type="text" class="form-control" id="inputEmail" name="inputEmail" aria-describedby="inputEmailHelp" placeholder="Ваш адрес электронной почты" />
+                            <small id="inputEmailHelp" class="form-text text-muted">Укажите Ваш адрес электройнной почты</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="inputPassword">Пароль</label>
+                            <input type="password" class="form-control" id="inputPassword" name="inputPassword" aria-describedby="inputPasswordHelp" placeholder="Пароль" />
+                            <small id="inputPasswordHelp" class="form-text text-muted">Укажите пароль</small>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button id="login_btn" class="btn btn-primary" id="lockDeviceBtn">Вход</button>
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Отмена</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="modal fade" id="processDialog" tabindex="-1" role="dialog" aria-labelledby="processDialog" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Вход в систему</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <label for="channelName">Ожидание сети</label>
+                    <div class="progress">
+                        <div id="progressBar"
+                             class="progress-bar progress-bar-striped active"
+                             role="progressbar"
+                             aria-valuenow="0"
+                             aria-valuemin="0"
+                             aria-valuemax="100"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Отмена</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal fade" id="registerDialog" tabindex="-1" role="dialog" aria-labelledby="registerDialog" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <form action="register_request" method="POST" enctype="multipart/form-data">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Регистрация в системе</h5>
                         <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                             <span aria-hidden="true">&times;</span>
                         </button>
                     </div>
                     <div class="modal-body">
-                            <div class="form-group">
-                                <label for="channelName">Укажите название канала</label>
-                                <input type="text" class="form-control" id="channelName" name="channelName" aria-describedby="channelNameHelp" placeholder="Название канала"/>
-                                <small id="channelNameHelp" class="form-text text-muted">Имя канала для удобного названия</small>
-                            </div>
+                        <label for="userName">Для регистрации в сети Вам необходимо указать приведённые ниже параметры.</label>
+
+                        <input type="text" class="form-control" id="userName" name="userName" aria-describedby="userNameHelp" placeholder="ФИО" required autofocus />
+
+                        <input type="email" id="userEmail" name="userEmail" class="form-control" placeholder="Адрес электройнной почты" required>
+
+                        <input type="password" id="userPassword" name="userPassword" class="form-control" placeholder="Пароль" required>
+
+                        <input type="password" id="confirmPassword" name="confirmPassword" class="form-control" placeholder="Повтор пароля" required>
                     </div>
                     <div class="modal-footer">
-                        <button type="submit" class="btn btn-primary">Создать канал</button>
+                        <button id="access_request" class="btn btn-lg btn-primary btn-block btn-signin">Генерация запроса</button>
                         <button type="button" class="btn btn-secondary" data-dismiss="modal">Отмена</button>
                     </div>
-                    </form>
-                </div>
+                </form>
             </div>
         </div>
-
-        <div class="modal fade" id="createInvite" tabindex="-1" role="dialog" aria-labelledby="createInvite" aria-hidden="true">
-            <div class="modal-dialog" role="document">
-                <div class="modal-content">
-                    <form id="parse_join_request" action="/approve_join_request" method="POST" enctype="multipart/form-data">
-                    <div class="modal-header">
-                        <h5 class="modal-title">Пригласить друга</h5>
-                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                            <span aria-hidden="true">&times;</span>
-                        </button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="custom-file">
-                            <input type="file" class="custom-file-input" name="joinRequestFile" id="joinRequestFile" required>
-                            <label class="custom-file-label" for="joinRequestFile">Выберите файл с запросом на доступ...</label>
-                        </div>
-                        <div id="join_request_error" class="alert alert-danger" style="display: none">
-                            Ошибка анализа файла
-                        </div>
-                        <div class="form-group" style="display: none" id="userNameForm">
-                            <label for="userName">ФИО</label>
-                            <input type="text" class="form-control" id="userName" name="userName" aria-describedby="userNameHelp" readonly/>
-                        </div>
-                        <div class="form-group" style="display: none" id="userEmailForm">
-                            <label for="userEmail">Электронная почта</label>
-                            <input type="text" class="form-control" id="userEmail" name="userEmail" aria-describedby="userEmailHelp" readonly />
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="submit" class="btn btn-primary">Утвердить запрос</button>
-                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Отмена</button>
-                    </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-
-        <div class="modal fade" id="lockDeviceModal" tabindex="-1" role="dialog" aria-labelledby="lockDeviceModal" aria-hidden="true">
-            <div class="modal-dialog" role="document">
-                <div class="modal-content">
-                    <form>
-                        <div class="modal-header">
-                            <h5 class="modal-title">Выделить место на этом устройстве</h5>
-                            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                                <span aria-hidden="true">&times;</span>
-                            </button>
-                        </div>
-
-                        <div class="modal-body">
-                            <div class="form-group">
-                                <label for="deviceName">Укажите название устройства</label>
-                                <input type="text" class="form-control" id="deviceName" name="deviceName" aria-describedby="deviceNameHelp" placeholder="Название устройства"/>
-                                <small id="deviceNameHelp" class="form-text text-muted">Укажите имя устройтства для удобного названия</small>
-                            </div>
-
-                            <div class="form-group">
-                                <label for="deviceAllocate">Выделить места (Гигабайт)</label>
-                                <input type="text" class="form-control" id="deviceAllocate" name="deviceAllocate" aria-describedby="deviceAllocateHelp" placeholder="Выделить размер" />
-                                <small id="deviceAllocateHelp" class="form-text text-muted">На устройстве свободно <span id="deviceFree"></span> Гигабайт из <span id="deviceSize"></span> Гигабайт</small>
-                            </div>
-
-                            <input type="hidden" id="devicePath" name="devicePath" />
-                        </div>
-                        <div class="modal-footer">
-                            <button type="submit" class="btn btn-primary" id="lockDeviceBtn">Выделить место</button>
-                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Отмена</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-
-        <script src="/js/jquery-3.3.1.min.js"></script>
-        <script src="/bootstrap-4.1.0/js/bootstrap.min.js"></script>
-
-         <script type="text/javascript">
-             $(document).ready(function () {
-                 $('#sidebarCollapse').on('click', function () {
-                     $('#sidebar').toggleClass('active');
-                 });
-
-                 $(document).on('change', '#joinRequestFile', function() {
-                     var formData = new FormData($('#parse_join_request')[0]);
-                     var file_prop = document.getElementById('joinRequestFile').files[0];
-                     formData.append("file", file_prop);
-
-                     $.ajax({
-                         url: '/api/parse_join_request',
-                         type: 'POST',
-                         data: formData,
-                         async: false,
-                         success: function (data) {
-                             if(data.successful){
-                                 $('#userNameForm').show();
-                                 $('#userEmailForm').show();
-
-                                 $('#userName').val(data.name);
-                                 $('#userEmail').val(data.email);
-                             }
-                             else {
-                                 $('#join_request_error').show();
-                             }
-                         },
-                         cache: false,
-                         contentType: false,
-                         processData: false
-                     });
-                 });
-
-                 $('#show_balance').on('click',
-                     function() {
-                         $('#chat_feed').hide();
-                         $('#balance_panel').show();
-
-                     });
-
-		 //Load channels
-		 $.getJSON('api/channels', function(data){
-  		  $.each(data, function(){
-    			$('#channelsMenu')
-			.append($('<li/>')
-				.append($('<a class="selectChannelMenu" href="#" data-menu="'+ this.object_id +'">' + this.name + '</a>')
-		  			.on('click', function(e){
-		  			    $this = $(e.currentTarget);
-			                    $('#balance_panel').hide();
-			                    $('#chat_feed').show();
-
-			                    channel_id = $this.data('menu');
-			                    load_channel(channel_id, $this.text());
-						$('#channel_id').val(channel_id);
-		  			})));
-		 });
-		});
-                 //Load devices
-                 $('#lockDeviceBtn').on('click',
-                     function() {
-                         $.ajax({
-                             type: 'POST',
-                             url: '/api/devices?name=' + encodeURIComponent($('#deviceName').val())
-                                 + '&size=' + encodeURIComponent($('#deviceAllocate').val())
-                                 + '&path=' + encodeURIComponent($('#devicePath').val()),
-                             success: function() { loadDevices(false); }
-                         });
-                     });
-                 loadDevices(true);
-
-// We can attach the `fileselect` event to all file inputs on the page
-  $(document).on('change', '#answerFile', function() {
-    var input = $(this),
-        numFiles = input.get(0).files ? input.get(0).files.length : 1,
-        label = input.val().replace(/\\/g, '/').replace(/.*\//, '');
-    input.trigger('fileselect', [numFiles, label]);
-  });
-
-  // We can watch for our custom `fileselect` event like this
-  $(document).ready( function() {
-      $('#answerFile').on('fileselect', function(event, numFiles, label) {
-
-          var input = $('#selected_files'),
-              log = numFiles > 1 ? numFiles + ' files selected' : label;
-
-          if( input.length ) {
-              input.val(log);
-          } else {
-              if( log ) alert(log);
-          }
-
-      });
-  });
-             });
-
-             function load_channel(channelId, channelTitle) {
-                 $('#feed_records').empty();
-
-                 //Load records
-                 $.getJSON('api/channel_feed?channel_id=' + channelId, function (data) {
-                     $.each(data, function () {
-                         $('#feed_records')
-                             .append(
-                                 $('<div class="answer left"/>')
-                                    .append($('<div class="avatar"/>')
-                                        .append($('<img src="https://bootdey.com/img/Content/avatar/avatar1.png" alt="User name"/>'))
-                                        .append($('<div class="status offline"></div>')))
-                                    .append($('<div class="name">Vadim Malyshev</div>'))
-                                    .append($('<div class="text">')
-                                        .text(this.message)
-                                        .append($('<ul/>')
-                                            .append($('<li class="left clearfix" />')
-                                            .append($('<a href="/api/download?channel_id=' + channelId + '&object_id=' + this.object_id + '">' + this.name + '</a>'))
-                                            .append($('<small class="pull-right text-muted" />').text(humanFileSize(this.size, true))))))
-                                     .append($('<div class="time">5 min ago</div>')));
-                     });
-                 });
-             }
-
-             function humanFileSize(bytes, si) {
-                 var thresh = si ? 1000 : 1024;
-                 if (Math.abs(bytes) < thresh) {
-                     return bytes + ' байт';
-                 }
-                 var units = si
-                     ? ['kB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB']
-                     : ['KiB', 'MiB', 'GiB', 'TiB', 'PiB', 'EiB', 'ZiB', 'YiB'];
-                 var u = -1;
-                 do {
-                     bytes /= thresh;
-                     ++u;
-                 } while (Math.abs(bytes) >= thresh && u < units.length - 1);
-                 return bytes.toFixed(1) + ' ' + units[u];
-             }
-             function loadDevices(showDialog) {
-                 $.getJSON('api/devices', function (data) {
-                     var reserved = 0;
-                     var free_size = 0;
-                     var have_default = false;
-                     $.each(data, function () {
-                         if (this.current == "true") {
-                             have_default = true;
-                         }
-                         reserved = this.reserved_size;
-                         free_size = this.free_size;
-                     });
-
-                     if (!have_default && showDialog) {
-                         $.getJSON('api/offer_device', function (data) {
-                             $('#deviceName').val(data.name);
-                             $('#deviceAllocate').val(Math.round(data.free / 10));
-                             $('#devicePath').val(data.path);
-
-                             $('#deviceFree').text(data.free);
-                             $('#deviceSize').text(data.size);
-
-                             $('#lockDeviceModal').modal('show');
-                         });
-                     }
-                 });
-             }
-         </script>
-    </body>
+    </div>
+    <script src="/js/jquery-3.3.1.min.js"></script>
+    <script src="/bootstrap-4.1.0/js/bootstrap.min.js"></script>
+    <script src="/js/site.js"></script>
+</body>
 </html>

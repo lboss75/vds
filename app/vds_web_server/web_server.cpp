@@ -114,7 +114,7 @@ vds::async_task<vds::http_message> vds::_web_server::route(
   http_request request(message);
   if(request.url() == "/api/channels") {
     if (request.method() == "GET") {
-      const auto user_mng = this->get_secured_context(sp, message);
+      const auto user_mng = this->get_secured_context(sp, request.get_parameter("session"));
       if (!user_mng) {
         return vds::async_task<vds::http_message>::result(
             http_response::status_response(
@@ -136,7 +136,7 @@ vds::async_task<vds::http_message> vds::_web_server::route(
     }
 
     if (request.method() == "POST") {
-      auto user_mng = this->get_secured_context(sp, message);
+      auto user_mng = this->get_secured_context(sp, request.get_parameter("session"));
       if (!user_mng) {
         return vds::async_task<vds::http_message>::result(
             http_response::status_response(
@@ -167,7 +167,7 @@ vds::async_task<vds::http_message> vds::_web_server::route(
 
   if (request.url() == "/api/channel_feed") {
     if (request.method() == "GET") {
-      const auto user_mng = this->get_secured_context(sp, message);
+      const auto user_mng = this->get_secured_context(sp, request.get_parameter("session"));
       if (!user_mng) {
         return vds::async_task<vds::http_message>::result(
           http_response::status_response(
@@ -196,7 +196,7 @@ vds::async_task<vds::http_message> vds::_web_server::route(
 
   if (request.url() == "/api/devices") {
     if (request.method() == "GET") {
-      const auto user_mng = this->get_secured_context(sp, message);
+      const auto user_mng = this->get_secured_context(sp, request.get_parameter("session"));
       if (!user_mng) {
         return vds::async_task<vds::http_message>::result(
             http_response::status_response(
@@ -219,7 +219,7 @@ vds::async_task<vds::http_message> vds::_web_server::route(
           });
     }
     if (request.method() == "POST") {
-      auto user_mng = this->get_secured_context(sp, message);
+      auto user_mng = this->get_secured_context(sp, request.get_parameter("session"));
       if (!user_mng) {
         return vds::async_task<vds::http_message>::result(
             http_response::status_response(
@@ -247,7 +247,7 @@ vds::async_task<vds::http_message> vds::_web_server::route(
 
   if (request.url() == "/api/offer_device") {
     if (request.method() == "GET") {
-      const auto user_mng = this->get_secured_context(sp, message);
+      const auto user_mng = this->get_secured_context(sp, request.get_parameter("session"));
       if (!user_mng) {
         return vds::async_task<vds::http_message>::result(
             http_response::status_response(
@@ -273,7 +273,7 @@ vds::async_task<vds::http_message> vds::_web_server::route(
 
   if (request.url() == "/api/download") {
     if (request.method() == "GET") {
-      const auto user_mng = this->get_secured_context(sp, message);
+      const auto user_mng = this->get_secured_context(sp, request.get_parameter("session"));
       if (!user_mng) {
         return vds::async_task<vds::http_message>::result(
           http_response::status_response(
@@ -310,7 +310,7 @@ vds::async_task<vds::http_message> vds::_web_server::route(
   }
 
   if (request.url() == "/api/parse_join_request" && request.method() == "POST") {
-    auto user_mng = this->get_secured_context(sp, message);
+    auto user_mng = this->get_secured_context(sp, request.get_parameter("session"));
     if (!user_mng) {
       return vds::async_task<vds::http_message>::result(
         http_response::status_response(
@@ -326,7 +326,7 @@ vds::async_task<vds::http_message> vds::_web_server::route(
       message);
   }
   if (request.url() == "/approve_join_request" && request.method() == "POST") {
-    auto user_mng = this->get_secured_context(sp, message);
+    auto user_mng = this->get_secured_context(sp, request.get_parameter("session"));
     if (!user_mng) {
       return vds::async_task<vds::http_message>::result(
         http_response::status_response(
@@ -343,7 +343,7 @@ vds::async_task<vds::http_message> vds::_web_server::route(
   }
 
   if(request.url() == "/upload" && request.method() == "POST") {
-    auto user_mng = this->get_secured_context(sp, message);
+    auto user_mng = this->get_secured_context(sp, request.get_parameter("session"));
     if (!user_mng) {
       return vds::async_task<vds::http_message>::result(
         http_response::status_response(
@@ -359,27 +359,8 @@ vds::async_task<vds::http_message> vds::_web_server::route(
       message);  
   }
 
-  if (request.url() == "/login" && request.method() == "GET") {
-    return vds::async_task<vds::http_message>::result(this->router_.route(sp, message, "/login"));
-  }
-
   if (request.url() == "/" && request.method() == "GET") {
-    const auto user_mng = this->get_secured_context(sp, message);
-    if (nullptr == user_mng) {
-      http_response response(302, "Found");
-      response.add_header("Location", "/login");
-      auto result = response.create_message(sp);
-      result.body()->write_async(nullptr, 0).execute(
-        [sp](const std::shared_ptr<std::exception> &ex) {
-        if (ex) {
-          sp.unhandled_exception(ex);
-        }
-      });
-      return vds::async_task<vds::http_message>::result(result);
-    }
-    else {
-      return vds::async_task<vds::http_message>::result(this->router_.route(sp, message, "/index"));
-    }
+    return vds::async_task<vds::http_message>::result(this->router_.route(sp, message, "/index"));
   }
 
   if (request.url() == "/api/register_request" && request.method() == "GET") {
@@ -451,31 +432,16 @@ void vds::_web_server::add_auth_session(
 
   std::unique_lock<std::shared_mutex> lock(this->auth_session_mutex_);
   this->auth_sessions_.emplace(id, session);
-
 }
 
 std::shared_ptr<vds::auth_session> vds::_web_server::get_session(
   const service_provider & sp,
-  const vds::http_message &message) const {
+  const std::string & session_id) const {
 
-  std::string cookie_value;
-  if (message.get_header("Cookie", cookie_value) && !cookie_value.empty()) {
-    for (auto item : split_string(cookie_value, ';', true)) {
-      auto p = item.find('=');
-      if (std::string::npos != p) {
-        auto name = item.substr(0, p);
-        if ("Auth" == name) {
-          auto session_id = item.substr(p + 1);
-          trim(session_id);
-
-          std::shared_lock<std::shared_mutex> lock(this->auth_session_mutex_);
-          auto p = this->auth_sessions_.find(session_id);
-          if (this->auth_sessions_.end() != p) {
-            return p->second;
-          }
-        }
-      }
-    }
+  std::shared_lock<std::shared_mutex> lock(this->auth_session_mutex_);
+  const auto p = this->auth_sessions_.find(session_id);
+  if (this->auth_sessions_.end() != p) {
+    return p->second;
   }
 
   return nullptr;
@@ -483,9 +449,9 @@ std::shared_ptr<vds::auth_session> vds::_web_server::get_session(
 
 std::shared_ptr<vds::user_manager> vds::_web_server::get_secured_context(
   const service_provider & sp,
-  const vds::http_message &message) const {
+  const std::string & session_id) const {
 
-  auto session = this->get_session(sp, message);
+  auto session = this->get_session(sp, session_id);
 
   if (session) {
     return session->get_secured_context(sp);

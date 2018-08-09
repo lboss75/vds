@@ -80,10 +80,10 @@ vds::async_task<vds::http_message> vds::api_controller::get_login_state(
 
       case user_manager::login_state_t::login_sucessful:
         item->add_property("state", "sucessful");
-        item->add_property("url", "/");
+        item->add_property("session", session_id);
+        item->add_property("user_name", session->user_name());
 
         owner->add_auth_session(session_id, session);
-        response.add_header("Set-Cookie", "Auth=" + session_id + "; Path=/");
         break;
 
       default:

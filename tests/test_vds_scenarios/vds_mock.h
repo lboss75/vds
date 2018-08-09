@@ -23,7 +23,7 @@ public:
 
   void init_root(
     const std::string &root_user_name,
-    const std::string &root_password);
+    const std::string &root_password) const;
   //void allocate_storage(
   //  const std::string& root_login,
   //  const std::string& root_password);
