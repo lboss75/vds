@@ -7,7 +7,9 @@ endif(UNIX)
 
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../cmake")
 
+if(0)
 find_package (UPNP REQUIRED)
+endif(0)
 
 FILE(GLOB HEADER_FILES *.h)
 FILE(GLOB SOURCE_FILES *.cpp)
