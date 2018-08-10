@@ -174,8 +174,8 @@ void vds::db_model::migrate(
 		t.execute("CREATE TABLE certificate_unknown(\
 			id VARCHAR(64) PRIMARY KEY NOT NULL)");
 
-		t.execute("CREATE TABLE register_request_dbo(\
-			id INTEGER PRIMARY KEY AUTOINCREMENT,\
+		t.execute("CREATE TABLE register_request(\
+			id VARCHAR(64) PRIMARY KEY NOT NULL,\
       name VARCHAR(64) NOT NULL,\
       email VARCHAR(64) NOT NULL,\
 			data BLOB NOT NULL,\

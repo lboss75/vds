@@ -106,7 +106,12 @@ namespace vds {
     const asymmetric_private_key & get_current_user_private_key() const;
     const std::string & user_name() const;
 
-    static async_task<> create_register_request(const service_provider& sp, const std::string& userName, const std::string& userEmail, const std::string& userPassword);
+    static async_task<const_data_buffer> create_register_request(
+      const service_provider& sp,
+      const std::string& userName,
+      const std::string& userEmail,
+      const std::string& userPassword);
+
     static bool parse_join_request(
         const service_provider& sp,
         const const_data_buffer & data,

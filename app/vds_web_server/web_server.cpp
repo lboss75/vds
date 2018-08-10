@@ -364,9 +364,24 @@ vds::async_task<vds::http_message> vds::_web_server::route(
     return vds::async_task<vds::http_message>::result(this->router_.route(sp, message, "/index"));
   }
 
+  if (request.url() == "/api/register_requests" && request.method() == "GET") {
+    message.ignore_empty_body();
+    return api_controller::get_register_requests(sp, this->shared_from_this())
+      .then([sp](const std::shared_ptr<vds::json_value> &result) {
+
+      return vds::async_task<vds::http_message>::result(
+        http_response::simple_text_response(
+          sp,
+          result->str(),
+          "application/json; charset=utf-8"));
+    });
+  }
   if (request.url() == "/api/register_request" && request.method() == "GET") {
     message.ignore_empty_body();
-    return api_controller::get_register_requests(sp, this->shared_from_this(), message)
+    return api_controller::get_register_request(
+      sp,
+      this->shared_from_this(),
+      base64::to_bytes(request.get_parameter("id")))
       .then([sp](const std::shared_ptr<vds::json_value> &result) {
 
       return vds::async_task<vds::http_message>::result(
@@ -377,10 +392,10 @@ vds::async_task<vds::http_message> vds::_web_server::route(
     });
   }
   if (request.url() == "/api/download_register_request" && request.method() == "GET") {
-    const auto request_id = atoi(request.get_parameter("object_id").c_str());
+    const auto request_id = base64::to_bytes(request.get_parameter("id"));
     message.ignore_empty_body();
 
-    return api_controller::get_register_request(sp, this->shared_from_this(), request_id)
+    return api_controller::get_register_request_body(sp, this->shared_from_this(), request_id)
       .then([sp](const const_data_buffer &result) {
 
       return vds::async_task<vds::http_message>::result(

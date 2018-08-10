@@ -70,21 +70,3 @@ function try_login() {
     });
 }
 
-$(document).ready(function () {
-    var auth_state = sessionStorage.getItem("vds_auth");
-    if (auth_state) {
-        after_login(JSON.parse(auth_state));
-    } else {
-        $('#user_menu').hide();
-        $('#login_menu').show();
-        $('#user_content').hide();
-        $('#anonymous_content').show();
-        $('#login_btn').on('click',
-            function() {
-                $('#processDialog').modal('show');
-                $('#loginModal').modal('hide');
-                try_login();
-                return false;
-            });
-    }
-});

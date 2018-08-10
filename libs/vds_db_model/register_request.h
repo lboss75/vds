@@ -14,15 +14,15 @@ namespace vds {
     class register_request : public database_table {
     public:
       register_request()
-          : database_table("register_request_dbo"),
-            id(this, "object_id"),
+          : database_table("register_request"),
+            id(this, "id"),
             name(this, "name"),
             email(this, "email"),
             data(this, "data"),
             create_time(this, "create_time") {
       }
 
-      database_column<int> id;
+      database_column<const_data_buffer, std::string> id;
       database_column<std::string> name;
       database_column<std::string> email;
       database_column<const_data_buffer> data;

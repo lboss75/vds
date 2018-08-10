@@ -36,9 +36,9 @@ vds::async_task<vds::http_message> vds::login_page::register_request_post(
       sp,
       userName->second,
       userEmail->second,
-      userPassword->second).then([sp](){
+      userPassword->second).then([sp](const const_data_buffer & request_id){
 
-      return http_response::redirect(sp, "/register_request");
+      return http_response::redirect(sp, "/register_request?id=" + url_encode::encode(base64::from_bytes(request_id)));
     });
   });
 }

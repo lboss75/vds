@@ -82,14 +82,19 @@ namespace vds {
     static async_task<std::shared_ptr<vds::json_value>>
       get_register_requests(
         const service_provider& sp,
-        const std::shared_ptr<_web_server>& owner,
-        const http_message& message);
+        const std::shared_ptr<_web_server>& owner);
 
-    static async_task<const_data_buffer>
+    static async_task<std::shared_ptr<vds::json_value>>
       get_register_request(
         const service_provider& sp,
         const std::shared_ptr<_web_server>& owner,
-        int request_id);
+        const const_data_buffer & request_id);
+
+    static async_task<const_data_buffer>
+      get_register_request_body(
+        const service_provider& sp,
+        const std::shared_ptr<_web_server>& owner,
+        const const_data_buffer & request_id);
 
   private:
     static std::shared_ptr<json_object> channel_serialize(const vds::user_channel & channel);

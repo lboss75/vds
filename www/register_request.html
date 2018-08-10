@@ -5,37 +5,80 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
 
-    <title>VDS</title>
+    <title>Децентрализированное Хранилище Данных</title>
 
-    <link rel="stylesheet" href="/bootstrap-4.1.0/css/bootstrap.min.css">
+    <link rel="stylesheet" href="/bootstrap-3.3.7/css/bootstrap.min.css">
     <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-<main class="col-12 col-md-9 col-xl-8 py-md-3 pl-md-5 bd-content" role="main">
-<h1>Регистрация в системе</h1>
-    <p >Для Вас был создан специальный файл, в котором зашифрована информация о вашем запросе на доступ к сети.
-        Скачайте и пошлите этот файл известному вам участнику сети с просьбой на допуск в сеть.
-        После открытия доступа, вы сможете войти в сеть по указаному вами паролю.</p>
-    <p>
-        <table class="table">
-        <thead>
-        <tr>
-            <th scope="col">ФИО</th>
-            <th scope="col">Электронная почта</th>
-            <th scope="col">Операция</th>
-        </tr>
-        </thead>
-        <tbody id="requests_body">
-        </tbody>
-        </table>
-    </p>
-</main>
-<script src="/js/jquery-3.3.1.min.js"></script>
-    <script src="/bootstrap-4.1.0/js/bootstrap.min.js"></script>
+    <nav class="navbar navbar-default navbar-fixed-top">
+        <div class="container">
+            <div class="navbar-header">
+                <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
+                    <span class="sr-only">Toggle navigation</span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                </button>
+                <a class="navbar-brand" href="/">АйВи</a>
+            </div>
+            <div id="navbar" class="navbar-collapse collapse">
+                <ul class="nav navbar-nav">
+                    <li><a href="/">Домашняя</a></li>
+                    <li><a href="/about">О компании</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+    <div class="container">
+        <div class="alert alert-danger" role="alert">
+            Данный сайт в разработке
+        </div>
+        <div class="row">
 
+            <div class="col-md-9" role="main">
+                <p id="description">Для Вас был создан специальный файл, в котором зашифрована информация о вашем запросе на доступ к сети.
+                    Скачайте и пошлите этот файл известному вам участнику сети с просьбой на допуск в сеть.
+                    После открытия доступа, вы сможете войти в сеть по указаному вами паролю.</p>
+                <p>
+                    <table class="table">
+                        <thead>
+                        <tr>
+                            <th scope="col">ФИО</th>
+                            <th scope="col">Электронная почта</th>
+                            <th scope="col">Операция</th>
+                        </tr>
+                        </thead>
+                        <tbody id="requests_body">
+                        </tbody>
+                    </table>
+                </p>
+                <h2 id="how-it-works">Как это работатает</h2>
+                <p>
+                    Стать участиником данной децентрализованной сети можно только по приглашению уже существующего участника сети.
+                    Для этого необходимо переслать этому участнику сгенерированый файл запроса. Существующий участник сети должен
+                    подтвердить, что Вы знакомы, после этого Вы получите доступ в сеть.
+                </p>
+            </div>
+
+            <div class="col-md-3" role="complementary">
+                <nav class="hidden-print hidden-sm hidden-xs affix">
+                    <ul class="nav">
+                        <li class=""><a href="#description">Описание</a></li>
+                        <li class=""><a href="#how-it-works">Как это работатает</a></li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </div>
+
+    <script src="jquery/1.12.4/jquery.min.js"></script>
+    <script src="/bootstrap-3.3.7/js/bootstrap.min.js"></script>
+    <script src="/js/site.js"></script>
     <script type="text/javascript">
         $(document).ready(function() {
-            $.getJSON('/api/register_request',
+            var urlParams = new URLSearchParams(window.location.search);
+            $.getJSON('/api/register_request?id=' + urlParams.get('id'),
                 function(data) {
                     $.each(data,
                         function () {
@@ -44,7 +87,9 @@
                                     .append($('<td />').text(this.name))
                                     .append($('<td />').text(this.email))
                                     .append($('<td />')
-                                        .append($('<a />').attr('href', '/api/download_register_request?id=' + this.id).text('Скачать')))
+                                    .append($('<a />')
+                                        .attr('href', '/api/download_register_request?id=' + encodeURIComponent(this.object_id))
+                                        .text('Скачать')))
                             );
                         });
                 });
@@ -52,3 +97,4 @@
     </script>
 </body>
 </html>
+<body>
