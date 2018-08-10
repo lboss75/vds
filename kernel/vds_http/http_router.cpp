@@ -22,6 +22,7 @@ vds::http_message vds::http_router::route(
 
     auto p = this->static_.find(local_path);
     if (this->static_.end() != p) {
+      message.ignore_empty_body();
       return http_response::simple_text_response(sp, p->second);
     }
 
@@ -47,10 +48,12 @@ vds::http_message vds::http_router::route(
         content_type = "text/html; charset=utf-8";
       }
 
+      message.ignore_empty_body();
       return response.simple_text_response(sp, file::read_all_text(pf->second), content_type);
     }
 
     sp.get<logger>()->debug("HTTP", sp, "File not found: %s", local_path.c_str());
+    message.ignore_empty_body();
     return http_response::simple_text_response(
       sp,
       std::string(),

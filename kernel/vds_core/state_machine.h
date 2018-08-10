@@ -26,24 +26,33 @@ namespace vds {
     
     async_task<> change_state(state_enum_type expected_state, state_enum_type new_state)
     {
-      return [pthis = this->shared_from_this(), expected_state, new_state](const async_result<> & result){
+        return [pthis = this->shared_from_this(), expected_state, new_state](const async_result<> & result){
         std::unique_lock<std::mutex> lock(pthis->state_mutex_);
         if(expected_state == pthis->state_){
           pthis->state_ = new_state;
-          auto p = pthis->state_expectants_.find(new_state);
-          if(pthis->state_expectants_.end() != p){
-            auto callback = p->second;
-            pthis->state_expectants_.erase(p);
-            lock.unlock();
-
-            callback.done();
-          }
+          lock.unlock();
 
           result.done();
+
+          for (;;) {
+            lock.lock();
+            auto p = pthis->state_expectants_.find(pthis->state_);
+            if (pthis->state_expectants_.end() != p) {
+              pthis->state_ = std::get<0>(p->second);
+              auto callback = std::get<1>(p->second);
+              pthis->state_expectants_.erase(p);
+              lock.unlock();
+
+              callback.done();
+            }
+            else {
+              break;
+            }
+          }
         }
         else {
           vds_assert(pthis->state_expectants_.end() == pthis->state_expectants_.find(expected_state));
-          pthis->state_expectants_[expected_state] = result;
+          pthis->state_expectants_[expected_state] = std::make_tuple(new_state, result);
         }
       };
     }
@@ -57,7 +66,7 @@ namespace vds {
         }
         else {
           vds_assert(pthis->state_expectants_.end() == pthis->state_expectants_.find(expected_state));
-          pthis->state_expectants_[expected_state] = result;
+          pthis->state_expectants_[expected_state] = std::make_tuple(expected_state, result);
         }
       };
     }
@@ -67,7 +76,7 @@ namespace vds {
     state_enum_type state_;
 
     mutable std::mutex state_mutex_;
-    std::map<state_enum_type, async_result<>> state_expectants_;
+    std::map<state_enum_type, std::tuple<state_enum_type, async_result<>>> state_expectants_;
   };
   
 };

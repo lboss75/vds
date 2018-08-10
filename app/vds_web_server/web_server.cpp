@@ -273,6 +273,7 @@ vds::async_task<vds::http_message> vds::_web_server::route(
 
   if (request.url() == "/api/download") {
     if (request.method() == "GET") {
+      message.ignore_empty_body();
       const auto user_mng = this->get_secured_context(sp, request.get_parameter("session"));
       if (!user_mng) {
         return vds::async_task<vds::http_message>::result(
@@ -282,7 +283,6 @@ vds::async_task<vds::http_message> vds::_web_server::route(
             "Unauthorized"));
       }
 
-      http_request request(message);
       const auto channel_id = base64::to_bytes(request.get_parameter("channel_id"));
       const auto file_hash = base64::to_bytes(request.get_parameter("object_id"));
 
@@ -310,7 +310,7 @@ vds::async_task<vds::http_message> vds::_web_server::route(
   }
 
   if (request.url() == "/api/parse_join_request" && request.method() == "POST") {
-    auto user_mng = this->get_secured_context(sp, request.get_parameter("session"));
+    const auto user_mng = this->get_secured_context(sp, request.get_parameter("session"));
     if (!user_mng) {
       return vds::async_task<vds::http_message>::result(
         http_response::status_response(
@@ -345,6 +345,7 @@ vds::async_task<vds::http_message> vds::_web_server::route(
   if(request.url() == "/upload" && request.method() == "POST") {
     auto user_mng = this->get_secured_context(sp, request.get_parameter("session"));
     if (!user_mng) {
+      message.ignore_body();
       return vds::async_task<vds::http_message>::result(
         http_response::status_response(
           sp,
@@ -364,6 +365,7 @@ vds::async_task<vds::http_message> vds::_web_server::route(
   }
 
   if (request.url() == "/api/register_request" && request.method() == "GET") {
+    message.ignore_empty_body();
     return api_controller::get_register_requests(sp, this->shared_from_this(), message)
       .then([sp](const std::shared_ptr<vds::json_value> &result) {
 
@@ -376,6 +378,7 @@ vds::async_task<vds::http_message> vds::_web_server::route(
   }
   if (request.url() == "/api/download_register_request" && request.method() == "GET") {
     const auto request_id = atoi(request.get_parameter("object_id").c_str());
+    message.ignore_empty_body();
 
     return api_controller::get_register_request(sp, this->shared_from_this(), request_id)
       .then([sp](const const_data_buffer &result) {
@@ -394,6 +397,8 @@ vds::async_task<vds::http_message> vds::_web_server::route(
 
   if (request.url() == "/api/statistics") {
     if (request.method() == "GET") {
+      message.ignore_empty_body();
+
       return api_controller::get_statistics(
         sp,
         this->shared_from_this(),

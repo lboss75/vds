@@ -40,9 +40,17 @@ namespace vds {
       return this->body_.get() != nullptr;
     }
 
+    void ignore_empty_body() const;
+    void ignore_body() const;
+
   private:
     std::list<std::string> headers_;
     std::shared_ptr<continuous_buffer<uint8_t>> body_;
+
+    static async_task<> ignore_body(
+      const std::shared_ptr<continuous_buffer<uint8_t>> & body,
+      const std::shared_ptr<uint8_t[1024]> & buffer);
+
   };
 }
 #endif // __VDS_HTTP_HTTP_MESSAGE_H_

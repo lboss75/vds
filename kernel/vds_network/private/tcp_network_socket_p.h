@@ -210,7 +210,7 @@ namespace vds {
       void error(DWORD error_code) override
       {
         this->sp_.get<logger>()->trace("TCP", this->sp_, "WSARecv error(%d)", error_code);
-        if (ERROR_NETNAME_DELETED == error_code) {
+        if (ERROR_NETNAME_DELETED == error_code || WSAECONNABORTED == error_code) {
           this->process(0);
         }
         else {

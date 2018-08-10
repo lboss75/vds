@@ -66,7 +66,7 @@ namespace vds {
     public:
 
       _continuous_buffer(const service_provider & sp)
-        : sp_(sp), second_(0), front_(0), back_(0), eof_(false)
+        : sp_(sp), second_(0), front_(0), back_(0), eof_(false), eof_readed_(false)
       {
       }
 
@@ -74,7 +74,8 @@ namespace vds {
       {
   #ifdef _DEBUG
   #pragma warning(disable: 4297)
-        if (0 != this->second_ || 0 != this->front_ || 0 != this->back_ || this->continue_read_ || this->continue_write_) {
+        if (0 != this->second_ || 0 != this->front_ || 0 != this->back_ || this->continue_read_ || this->continue_write_ 
+          || !this->eof_ || !this->eof_readed_) {
           if(!std::current_exception()){
             throw std::runtime_error("continuous_buffer::~continuous_buffer logic error");
           }
@@ -178,6 +179,7 @@ namespace vds {
         }
 
         this->eof_ = false;
+        this->eof_readed_ = false;
       }
 
     private:
@@ -192,6 +194,7 @@ namespace vds {
       uint32_t front_;
       uint32_t back_;
       bool eof_;
+      bool eof_readed_;
       std::string eof_stack_;
       //            0    second   front    back   buffer_size
       // to read    [...2...]       [...1...]
@@ -301,7 +304,8 @@ namespace vds {
           });
         }
         else if(this->eof_){
-
+          vds_assert(!this->eof_readed_);
+          this->eof_readed_ = true;
           lock.unlock();
           mt_service::async(this->sp_, [done](){
             done(0);
