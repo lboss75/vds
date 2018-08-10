@@ -1,253 +1,253 @@
 ﻿<!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <title>Децентрализированное Хранилище Данных</title>
 
-    <link rel="stylesheet" href="/bootstrap-4.1.0/css/bootstrap.min.css">
+    <link rel="stylesheet" href="/bootstrap-3.3.7/css/bootstrap.min.css">
     <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-
-    <header class="navbar navbar-expand navbar-dark flex-column flex-md-row bd-navbar">
-        <div class="navbar-nav-scroll">
-            <ul class="navbar-nav bd-navbar-nav flex-row">
-                <li class="nav-item">
-                    <h3>АйВи</h3>
+<nav class="navbar navbar-default navbar-fixed-top">
+    <div class="container">
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="#">АйВи</a>
+        </div>
+        <div id="navbar" class="navbar-collapse collapse">
+            <ul class="nav navbar-nav">
+                <li class="active"><a href="/">Домашняя</a></li>
+                <li><a href="/about">О компании</a></li>
+            </ul>
+            <ul class="nav navbar-nav navbar-right">
+                <li role="presentation" class="dropdown" id="login_menu" style="display: none">
+                    <a class="dropdown-toggle" data-toggle="dropdown" href="#" role="button" aria-haspopup="true" aria-expanded="false">
+                        <span class="glyphicon glyphicon-user"></span> Учёткая запись <span class="caret"></span>
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li class="nav-item"><a href="#" data-toggle="modal" data-target="#loginModal">Вход</a></li>
+                        <li class="nav-item"><a href="#" data-toggle="modal" data-target="#registerDialog">Регистрация</a></li>
+                    </ul>
                 </li>
-                <li class="nav-item">
-                    <a class="nav-link active" href="/">Домашняя</a>
-                </li>
-                <li class="nav-item d-none d-md-flex">
-                    <a class="nav-link d-none d-md-flex" href="/about">О компании</a>
+                <li id="user_menu" style="display: none" class="dropdown">
+                    <a id="user_login" class="dropdown-toggle" href="#" id="bd-versions" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        Пользователь
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li class="nav-item"><a href="#" data-toggle="modal" data-target="#logoutModal">Выход</a></li>
+                    </ul>
                 </li>
             </ul>
         </div>
-        <ul class="navbar-nav flex-row ml-md-auto">
-            <li id="login_menu" style="display: none">
-                <div class="btn-group navbar-btn">
-                    <button class="btn" data-toggle="modal" data-target="#loginModal">Вход</button>
-                    <button data-toggle="dropdown" class="btn dropdown-toggle"><span class="caret"></span></button>
-                    <ul class="dropdown-menu">
-                        <li class="nav-item"><a href="#" data-toggle="modal" data-target="#registerDialog">Регистрация</a></li>
-                    </ul>
-                </div>
-            </li>
-            <li id="user_menu" style="display: none" class="nav-item dropdown">
-                <a id="user_login" class="nav-item nav-link dropdown-toggle mr-md-2" href="#" id="bd-versions" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                    Пользователь
-                </a>
-                <div class="dropdown-menu dropdown-menu-right" aria-labelledby="bd-versions">
-                    <a class="dropdown-item" href="/docs/4.1/">Выход</a>
-                </div>
-            </li>
+    </div>
+</nav>
+<div class="jumbotron">
+    <div class="container">
+        <div class="alert alert-danger" role="alert">
+            Данный сайт в разработке
+        </div>
+        <h1>Децентрализированное Хранилище Данных</h1>
+        <p>
+            Данный продукт объеденяет свободные ресурсы пользователей в общее децентрализованное облако.
+            Это позволяет участникам системы обмениваться свободными ресурсами
+            и для одних участников системы решит проблему нехватки свободных ресурсов,
+            в тоже время другие участники могут зарабатывать на своих неиспользуемых ресурсах.
+        </p>
+        <p><a class="btn btn-primary btn-lg" href="/start" role="button">Подробнее &raquo;</a></p>
+    </div>
+</div>
+<div class="container">
+<div class="row">
+    <div class="col-md-4">
+
+        <h3>Зарабатывай</h3>
+        <p>
+            Предоставляя ресурсы свого компьютера для сети Вы получаете возможность
+            зарабатывать за каждый Гигабайт хранимой у вас информации
+        </p>
+
+        <hr class="half-rule">
+        <p><a class="btn btn-default" href="/earn" role="button">Подробнее &raquo;</a></p>
+    </div>
+
+    <div class="col-md-4">
+        <h3>Храни данные</h3>
+        <p>Возможности хранить данные в цедентрализованной сети обладает существенными преимуществами:</p>
+        <ul>
+            <li>Низкая себестоимость хранения</li>
+            <li>Независимость от провайдера данных</li>
         </ul>
-    </header>
-    <main class="bd-masthead" role="main" id="anonymous_content" style="display: none">
-        <div class="container" >
-            <div class="alert alert-danger" role="alert">
-                Данный сайт в разработке
-            </div>
-            <div class="row align-items-center">
-                <div class="col-6 mx-auto col-md-6 order-md-2">
-                    <img class="img-fluid mb-3 mb-md-0" src="/assets/img/bootstrap-stack.png" alt="" width="1024" height="860">
-                </div>
-                <div class="col-md-6 order-md-1 text-center text-md-left pr-md-5">
-                    <h1 class="mb-3 bd-text-purple-bright">Децентрализированное Хранилище Данных</h1>
-                    <p class="lead">
-                        Данный продукт объеденяет свободные ресурсы пользователей в общее децентрализованное облако.
-                    </p>
-                    <p class="lead mb-4">
-                        Главными характеристиками облака является сверхдешевое и надежное хранение данных.
-                        Это позволяет участникам системы обмениваться свободными ресурсами
-                        и для одних участников системы решит проблему нехватки свободных ресурсов,
-                        в тоже время другие участники смогут коммерциализовать неиспользуемые ресурсы.
-                    </p>
-                    <div class="d-flex flex-column flex-md-row lead mb-3">
-                        <a href="/start" class="btn btn-outline-primary btn-lg">Подробнее</a>
-                        <a href="#" class="btn btn-outline-secondary btn-lg disabled">Скачать агента</a>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="masthead-followup row m-0 border border-white">
-            <div class="col-12 col-md-4 p-3 p-md-5 bg-light border border-white">
-                <h3>Зарабатывай</h3>
-                <p>Предоставляя ресурсы свого компьютера для сети Вы получаете возможность
-                    зарабатывать за каждый Гигабайт хранимой у вас информации</p>
-
-                <hr class="half-rule">
-                <a href="/earn" class="btn btn-outline-primary btn-lg">Подробнее</a>
-            </div>
-
-            <div class="col-12 col-md-4 p-3 p-md-5 bg-light border border-white">
-                <h3>Храни данные</h3>
-                <p>Возможности хранить данные в цедентрализованной сети обладает существенными преимуществами:</p>
-                <ul>
-                    <li>Низкая себестоимость хранения</li>
-                    <li>Независимость от провайдера данных</li>
-                </ul>
 
 
-                <hr class="half-rule">
-                <a class="btn btn-outline-primary" href="/store">Подробнее</a>
-            </div>
+        <hr class="half-rule">
+        <p><a class="btn btn-default" href="/store" role="button">Подробнее &raquo;</a></p>
+    </div>
 
-            <div class="col-12 col-md-4 p-3 p-md-5 bg-light border border-white">
-                <h3>Подробнее</h3>
-                <p>
-                    Описание технологии и проектов на базе технологии.
-                </p>
-                <hr class="half-rule">
-                <a href="/tech" class="btn btn-outline-primary">Технология</a>
-                <a href="/projects" class="btn btn-outline-secondary">Проекты</a>
-            </div>
-        </div>
-    </main>
-    <main class="wrapper" id="user_content" style="display: none">
-        <!-- Sidebar Holder -->
-        <nav id="sidebar">
-            <ul class="list-unstyled components" id="channelsMenu" />
-        </nav>
-        <div class="chat-container column col-sm-10 col-xs-11">
-            <nav class="navbar navbar-default">
-                <div class="container-fluid">
-
-                    <div class="navbar-header">
-                        <button type="button" id="sidebarCollapse" class="btn btn-info navbar-btn">
-                            <i class="glyphicon glyphicon-align-left"></i>
-                            <span>Меню</span>
-                        </button>
-                    </div>
-
-                    <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
-                        <ul class="nav navbar-nav navbar-right">
-                            <li><a href="#">Page</a></li>
-                            <li><a href="#">Page</a></li>
-                            <li><a href="#">Page</a></li>
-                            <li><a href="#">Page</a></li>
-                        </ul>
-                    </div>
-                </div>
+    <div class="col-md-4">
+        <h3>Подробнее</h3>
+        <p>
+            Описание технологии и проектов на базе технологии.
+        </p>
+        <hr class="half-rule">
+        <p>
+            <a class="btn btn-default" href="/tech" role="button">Технология &raquo;
+        
+        <a class="btn btn-default" href="/projects" role="button">Проекты &raquo;</a></p>
+    </div>
+</div>
+    </div>
+        <main class="wrapper" id="user_content" style="display: none">
+            <!-- Sidebar Holder -->
+            <nav id="sidebar">
+                <ul class="list-unstyled components" id="channelsMenu" />
             </nav>
-            <div id="chat_feed" >
-                <div class="col-sm-9 col-xs-12 chat" style="outline: none;" tabindex="5001">
-                    <div class="col-inside-lg decor-default">
-                        <div class="chat-body" id="feed_records">
+            <div class="chat-container column col-sm-10 col-xs-11">
+                <nav class="navbar navbar-default">
+                    <div class="container-fluid">
+
+                        <div class="navbar-header">
+                            <button type="button" id="sidebarCollapse" class="btn btn-info navbar-btn">
+                                <i class="glyphicon glyphicon-align-left"></i>
+                                <span>Меню</span>
+                            </button>
+                        </div>
+
+                        <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+                            <ul class="nav navbar-nav navbar-right">
+                                <li><a href="#">Page</a></li>
+                                <li><a href="#">Page</a></li>
+                                <li><a href="#">Page</a></li>
+                                <li><a href="#">Page</a></li>
+                            </ul>
                         </div>
                     </div>
+                </nav>
+                <div id="chat_feed">
+                    <div class="col-sm-9 col-xs-12 chat" style="outline: none;" tabindex="5001">
+                        <div class="col-inside-lg decor-default">
+                            <div class="chat-body" id="feed_records">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="line"></div>
+                    <div class="answer-add">
+                        <form id="send-message" method="post" action="upload" role="form" enctype="multipart/form-data">
+                            <input id="channel_id" name="channel_id" type="hidden" />
+                            <input name="message" placeholder="Напишите сообщение">
+                            <label class="input-group-btn">
+                                <span class="btn btn-primary answer-btn answer-btn-1">
+                                    <input id="answerFile" name="attachment[]" type="file" style="display: none;" multiple>
+                                </span>
+                            </label>
+                            <input type="submit" class="btn btn-success btn-send answer-btn answer-btn-2" value="">
+                        </form>
+                        <input type="text" id="selected_files" readonly>
+                    </div>
                 </div>
-                <div class="line"></div>
-                <div class="answer-add">
-                    <form id="send-message" method="post" action="upload" role="form" enctype="multipart/form-data">
-                        <input id="channel_id" name="channel_id" type="hidden" />
-                        <input name="message" placeholder="Напишите сообщение">
-                        <label class="input-group-btn">
-                            <span class="btn btn-primary answer-btn answer-btn-1">
-                                <input id="answerFile" name="attachment[]" type="file" style="display: none;" multiple>
-                            </span>
-                        </label>
-                        <input type="submit" class="btn btn-success btn-send answer-btn answer-btn-2" value="">
+            </div>
+        </main>
+
+
+        <div class="modal fade" id="loginModal" tabindex="-1" role="dialog" aria-labelledby="loginModal" aria-hidden="true">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <form>
+                        <div class="modal-header">
+                            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                <span aria-hidden="true">&times;</span>
+                            </button>
+                            <h5 class="modal-title">Вход</h5>
+                            <div class="alert alert-danger" role="alert">
+                                Не рекомендуется входить на сайты в надёжности которых Вы не уверены.
+                                Лучше скачайте локального агента и входите через него.
+                            </div>
+                        </div>
+                        <div class="modal-body">
+                            <div class="form-group">
+                                <label for="inputEmail">Логин</label>
+                                <input type="text" class="form-control" id="inputEmail" name="inputEmail" aria-describedby="inputEmailHelp" placeholder="Ваш адрес электронной почты" />
+                                <small id="inputEmailHelp" class="form-text text-muted">Укажите Ваш адрес электройнной почты</small>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="inputPassword">Пароль</label>
+                                <input type="password" class="form-control" id="inputPassword" name="inputPassword" aria-describedby="inputPasswordHelp" placeholder="Пароль" />
+                                <small id="inputPasswordHelp" class="form-text text-muted">Укажите пароль</small>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button id="login_btn" class="btn btn-primary" id="lockDeviceBtn">Вход</button>
+                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Отмена</button>
+                        </div>
                     </form>
-                    <input type="text" id="selected_files" readonly>
                 </div>
             </div>
         </div>
-    </main>
-
-
-    <div class="modal fade" id="loginModal" tabindex="-1" role="dialog" aria-labelledby="loginModal" aria-hidden="true">
-        <div class="modal-dialog" role="document">
-            <div class="modal-content">
-                <form>
+        <div class="modal fade" id="processDialog" tabindex="-1" role="dialog" aria-labelledby="processDialog" aria-hidden="true">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title">Вход</h5>
-                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                            <span aria-hidden="true">&times;</span>
-                        </button>
-                    </div>
-
-                    <div class="modal-body">
-                        <div class="form-group">
-                            <label for="inputEmail">Логин</label>
-                            <input type="text" class="form-control" id="inputEmail" name="inputEmail" aria-describedby="inputEmailHelp" placeholder="Ваш адрес электронной почты" />
-                            <small id="inputEmailHelp" class="form-text text-muted">Укажите Ваш адрес электройнной почты</small>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="inputPassword">Пароль</label>
-                            <input type="password" class="form-control" id="inputPassword" name="inputPassword" aria-describedby="inputPasswordHelp" placeholder="Пароль" />
-                            <small id="inputPasswordHelp" class="form-text text-muted">Укажите пароль</small>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button id="login_btn" class="btn btn-primary" id="lockDeviceBtn">Вход</button>
-                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Отмена</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-    <div class="modal fade" id="processDialog" tabindex="-1" role="dialog" aria-labelledby="processDialog" aria-hidden="true">
-        <div class="modal-dialog" role="document">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Вход в систему</h5>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
-                </div>
-                <div class="modal-body">
-                    <label for="channelName">Ожидание сети</label>
-                    <div class="progress">
-                        <div id="progressBar"
-                             class="progress-bar progress-bar-striped active"
-                             role="progressbar"
-                             aria-valuenow="0"
-                             aria-valuemin="0"
-                             aria-valuemax="100"></div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Отмена</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="modal fade" id="registerDialog" tabindex="-1" role="dialog" aria-labelledby="registerDialog" aria-hidden="true">
-        <div class="modal-dialog" role="document">
-            <div class="modal-content">
-                <form action="register_request" method="POST" enctype="multipart/form-data">
-                    <div class="modal-header">
-                        <h5 class="modal-title">Регистрация в системе</h5>
+                        <h5 class="modal-title">Вход в систему</h5>
                         <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                             <span aria-hidden="true">&times;</span>
                         </button>
                     </div>
                     <div class="modal-body">
-                        <label for="userName">Для регистрации в сети Вам необходимо указать приведённые ниже параметры.</label>
-
-                        <input type="text" class="form-control" id="userName" name="userName" aria-describedby="userNameHelp" placeholder="ФИО" required autofocus />
-
-                        <input type="email" id="userEmail" name="userEmail" class="form-control" placeholder="Адрес электройнной почты" required>
-
-                        <input type="password" id="userPassword" name="userPassword" class="form-control" placeholder="Пароль" required>
-
-                        <input type="password" id="confirmPassword" name="confirmPassword" class="form-control" placeholder="Повтор пароля" required>
+                        <label for="channelName">Ожидание сети</label>
+                        <div class="progress">
+                            <div id="progressBar"
+                                 class="progress-bar progress-bar-striped active"
+                                 role="progressbar"
+                                 aria-valuenow="0"
+                                 aria-valuemin="0"
+                                 aria-valuemax="100"></div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Отмена</button>
+                        </div>
                     </div>
-                    <div class="modal-footer">
-                        <button id="access_request" class="btn btn-lg btn-primary btn-block btn-signin">Генерация запроса</button>
-                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Отмена</button>
-                    </div>
-                </form>
+                </div>
             </div>
         </div>
-    </div>
-    <script src="/js/jquery-3.3.1.min.js"></script>
-    <script src="/bootstrap-4.1.0/js/bootstrap.min.js"></script>
-    <script src="/js/site.js"></script>
+        <div class="modal fade" id="registerDialog" tabindex="-1" role="dialog" aria-labelledby="registerDialog" aria-hidden="true">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <form action="register_request" method="POST" enctype="multipart/form-data">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Регистрация в системе</h5>
+                            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                <span aria-hidden="true">&times;</span>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            <label for="userName">Для регистрации в сети Вам необходимо указать приведённые ниже параметры.</label>
+
+                            <input type="text" class="form-control" id="userName" name="userName" aria-describedby="userNameHelp" placeholder="ФИО" required autofocus />
+
+                            <input type="email" id="userEmail" name="userEmail" class="form-control" placeholder="Адрес электройнной почты" required>
+
+                            <input type="password" id="userPassword" name="userPassword" class="form-control" placeholder="Пароль" required>
+
+                            <input type="password" id="confirmPassword" name="confirmPassword" class="form-control" placeholder="Повтор пароля" required>
+                        </div>
+                        <div class="modal-footer">
+                            <button id="access_request" class="btn btn-lg btn-primary btn-block btn-signin">Генерация запроса</button>
+                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Отмена</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <script src="jquery/1.12.4/jquery.min.js"></script>
+        <script src="/bootstrap-3.3.7/js/bootstrap.min.js"></script>
+        <script src="/js/site.js"></script>
 </body>
 </html>
