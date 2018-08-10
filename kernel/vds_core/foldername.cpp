@@ -63,13 +63,15 @@ void vds::foldername::folders(
   if (d) {
     try{
       struct dirent *dir;
+      struct stat statbuf;
       while ((dir = readdir(d)) != NULL) {
-        if(
-          DT_DIR == (dir->d_type & DT_DIR)
-          && nullptr == strstr("..", dir->d_name)
-        ) {
-          if (!callback(foldername(*this, dir->d_name))) {
-            break;
+        if(nullptr == strstr("..", dir->d_name)) {
+          if (
+              stat(foldername(*this, dir->d_name).local_name().c_str(), &statbuf) != -1
+              && S_ISDIR(statbuf.st_mode)) {
+            if (!callback(foldername(*this, dir->d_name))) {
+              break;
+            }
           }
         }
       }
@@ -118,12 +120,15 @@ void vds::foldername::files(
   if (d) {
     try{
       struct dirent *dir;
+      struct stat statbuf;
       while ((dir = readdir(d)) != NULL) {
-        if(
-          DT_DIR != (dir->d_type & DT_DIR)
-        ) {
-          if (!callback(filename(*this, dir->d_name))) {
-            break;
+        if(nullptr == strstr("..", dir->d_name)) {
+          if (
+              stat(filename(*this, dir->d_name).local_name().c_str(), &statbuf) != -1
+              && S_ISDIR(statbuf.st_mode)) {
+            if (!callback(filename(*this, dir->d_name))) {
+              break;
+            }
           }
         }
       }
