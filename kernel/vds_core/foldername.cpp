@@ -125,7 +125,7 @@ void vds::foldername::files(
         if(nullptr == strstr("..", dir->d_name)) {
           if (
               stat(filename(*this, dir->d_name).local_name().c_str(), &statbuf) != -1
-              && S_ISDIR(statbuf.st_mode)) {
+              && S_ISREG(statbuf.st_mode)) {
             if (!callback(filename(*this, dir->d_name))) {
               break;
             }
