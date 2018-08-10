@@ -47,9 +47,12 @@ namespace vds {
     std::list<std::string> headers_;
     std::shared_ptr<continuous_buffer<uint8_t>> body_;
 
+    struct buffer_t {
+      uint8_t data_[1024];
+    };
     static async_task<> ignore_body(
       const std::shared_ptr<continuous_buffer<uint8_t>> & body,
-      const std::shared_ptr<uint8_t[1024]> & buffer);
+      const std::shared_ptr<buffer_t> & buffer);
 
   };
 }

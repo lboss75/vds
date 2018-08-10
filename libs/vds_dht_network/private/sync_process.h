@@ -142,13 +142,29 @@ namespace vds {
         static constexpr uint16_t MIN_DISTRIBUTED_PIECES = 4;
         static constexpr uint16_t GENERATE_DISTRIBUTED_PIECES = 8;
 
-        static constexpr std::chrono::system_clock::duration FOLLOWER_TIMEOUT = std::chrono::minutes(1);
-        static constexpr std::chrono::system_clock::duration LEADER_BROADCAST_TIMEOUT = std::chrono::minutes(10);
+        static std::chrono::system_clock::duration FOLLOWER_TIMEOUT() {
+          return std::chrono::minutes(1);
+        }
 
-        static constexpr std::chrono::system_clock::duration ELECTION_TIMEOUT = std::chrono::seconds(5);
-        static constexpr std::chrono::system_clock::duration CANDITATE_TIMEOUT = std::chrono::seconds(5);
-        static constexpr std::chrono::system_clock::duration MEMBER_TIMEOUT = std::chrono::hours(1);
-        static constexpr std::chrono::system_clock::duration LOCAL_QUEUE_TIMEOUT = std::chrono::seconds(5);
+        static std::chrono::system_clock::duration LEADER_BROADCAST_TIMEOUT() {
+          return std::chrono::minutes(10);
+        }
+
+        static std::chrono::system_clock::duration ELECTION_TIMEOUT() {
+          return std::chrono::seconds(5);
+        }
+
+        static std::chrono::system_clock::duration CANDITATE_TIMEOUT() {
+          return std::chrono::seconds(5);
+        }
+
+        static std::chrono::system_clock::duration MEMBER_TIMEOUT() {
+          return std::chrono::hours(1);
+        }
+
+        static std::chrono::system_clock::duration LOCAL_QUEUE_TIMEOUT() {
+          return std::chrono::seconds(5);
+        }
 
         std::map<uint16_t, std::unique_ptr<chunk_generator<uint16_t>>> distributed_generators_;
 

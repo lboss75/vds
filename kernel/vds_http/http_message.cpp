@@ -29,7 +29,7 @@ void vds::http_message::ignore_empty_body() const {
 }
 
 void vds::http_message::ignore_body() const {
-  auto buffer = std::make_shared<uint8_t[1024]>();
+  auto buffer = std::make_shared<buffer_t>();
   return ignore_body(this->body_, buffer)
   .execute([buffer](const std::shared_ptr<std::exception> & ex) {
     vds_assert(!ex);
@@ -38,8 +38,8 @@ void vds::http_message::ignore_body() const {
 
 vds::async_task<> vds::http_message::ignore_body(
   const std::shared_ptr<continuous_buffer<uint8_t>> & body,
-  const std::shared_ptr<uint8_t[1024]>& buffer) {
-  return body->read_async(*buffer, 1024)
+  const std::shared_ptr<buffer_t>& buffer) {
+  return body->read_async(buffer->data_, sizeof(buffer->data_))
     .then([body, buffer](size_t readed) -> async_task<> {
     if (0 == readed) {
       return async_task<>::empty();

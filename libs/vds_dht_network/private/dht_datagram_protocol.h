@@ -434,7 +434,7 @@ namespace vds {
             message_type,
             message).execute([sp, pthis = this->shared_from_this()](const std::shared_ptr<std::exception> & ex) {
             if(ex) {
-              logger::get(sp)->warning(ThisModule, sp, "%s at send dht datagram", ex->what());
+              logger::get(sp)->warning("DHT", sp, "%s at send dht datagram", ex->what());
             }
             mt_service::async(sp, [pthis]() {
               pthis->continue_send(true);

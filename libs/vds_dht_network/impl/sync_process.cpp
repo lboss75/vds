@@ -227,7 +227,7 @@ void vds::dht::network::sync_process::make_new_election(
 
     t.execute(t1.update(
       t1.state = orm::sync_state_dbo::state_t::canditate,
-      t1.next_sync = std::chrono::system_clock::now() + ELECTION_TIMEOUT)
+      t1.next_sync = std::chrono::system_clock::now() + ELECTION_TIMEOUT())
       .where(t1.object_id == object_id));
 
     t.execute(t2.update(
@@ -443,7 +443,7 @@ void vds::dht::network::sync_process::add_sync_entry(
       t1.object_id = object_id,
       t1.object_size = object_size,
       t1.state = orm::sync_state_dbo::state_t::leader,
-      t1.next_sync = std::chrono::system_clock::now() + FOLLOWER_TIMEOUT));
+      t1.next_sync = std::chrono::system_clock::now() + FOLLOWER_TIMEOUT()));
 
     t.execute(t2.insert(
       t2.object_id = object_id,
@@ -796,7 +796,7 @@ void vds::dht::network::sync_process::apply_message(
     //merge
     t.execute(t1.update(
       t1.state = orm::sync_state_dbo::state_t::follower,
-      t1.next_sync = std::chrono::system_clock::now() + LEADER_BROADCAST_TIMEOUT)
+      t1.next_sync = std::chrono::system_clock::now() + LEADER_BROADCAST_TIMEOUT())
     .where(t1.object_id == message.object_id()));
 
     auto members = this->get_members(sp, t, message.object_id());
@@ -829,7 +829,7 @@ void vds::dht::network::sync_process::apply_message(
     t1.object_id = message.object_id(),
       t1.object_size = message.object_size(),
       t1.state = orm::sync_state_dbo::state_t::follower,
-      t1.next_sync = std::chrono::system_clock::now() + LEADER_BROADCAST_TIMEOUT));
+      t1.next_sync = std::chrono::system_clock::now() + LEADER_BROADCAST_TIMEOUT()));
 
     for (const auto & member : message.members()) {
       t.execute(t2.insert(
@@ -1343,7 +1343,7 @@ void vds::dht::network::sync_process::send_leader_broadcast(
     if (member_node != client->current_node_id()) {
       const auto last_activity = t2.last_activity.get(st);
 
-      if (std::chrono::system_clock::now() - last_activity > MEMBER_TIMEOUT) {
+      if (std::chrono::system_clock::now() - last_activity > MEMBER_TIMEOUT()) {
         to_remove.emplace(member_node);
       }
       else {
@@ -1428,7 +1428,7 @@ void vds::dht::network::sync_process::send_leader_broadcast(
 
   t.execute(
     t1.update(
-        t1.next_sync = std::chrono::system_clock::now() + FOLLOWER_TIMEOUT)
+        t1.next_sync = std::chrono::system_clock::now() + FOLLOWER_TIMEOUT())
       .where(t1.object_id == object_id));
 }
 
@@ -1957,7 +1957,7 @@ void vds::dht::network::sync_process::sync_local_queues(
     t3.voted_for)
     .inner_join(t2, t2.state == orm::sync_state_dbo::state_t::follower && t2.object_id == t1.object_id)
     .inner_join(t3, t3.object_id == t1.object_id && t3.member_node == client->current_node_id())
-    .where(t1.last_send <= std::chrono::system_clock::now() - LOCAL_QUEUE_TIMEOUT));
+    .where(t1.last_send <= std::chrono::system_clock::now() - LOCAL_QUEUE_TIMEOUT()));
   std::set<uint64_t> processed;
   while (st.execute()) {
     (*client)->send(
@@ -2416,7 +2416,7 @@ void vds::dht::network::sync_process::make_leader(
   orm::sync_state_dbo t1;
   t.execute(t1.update(
     t1.state = orm::sync_state_dbo::state_t::leader,
-    t1.next_sync = std::chrono::system_clock::now() + FOLLOWER_TIMEOUT)
+    t1.next_sync = std::chrono::system_clock::now() + FOLLOWER_TIMEOUT())
     .where(t1.object_id == object_id));
 
   this->send_snapshot(sp, t, object_id, this->get_members(sp, t, object_id));
@@ -2429,7 +2429,7 @@ void vds::dht::network::sync_process::make_follower(const service_provider& sp, 
   orm::sync_state_dbo t1;
   t.execute(t1.update(
     t1.state = orm::sync_state_dbo::state_t::follower,
-    t1.next_sync = std::chrono::system_clock::now() + LEADER_BROADCAST_TIMEOUT)
+    t1.next_sync = std::chrono::system_clock::now() + LEADER_BROADCAST_TIMEOUT())
     .where(t1.object_id == object_id));
 
   const auto client = sp.get<dht::network::client>();

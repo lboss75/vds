@@ -90,6 +90,6 @@ void vds::web_server_app::start_services(service_registrator & registrator, serv
 
 bool vds::web_server_app::need_demonize()
 {
-  return false;
-  //return (this->current_command_set_ == &this->server_start_command_set_);
+  //return false;
+  return (this->current_command_set_ == &this->server_start_command_set_);
 }
