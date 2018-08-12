@@ -22,7 +22,7 @@ namespace vds {
   public:
     _upload_stream_task();
 
-    async_task<std::list<transactions::file_add_transaction::file_block_t>> start(
+    async_task<std::list<transactions::user_message_transaction::file_block_t>> start(
         const service_provider & sp,
         const std::shared_ptr<continuous_buffer<uint8_t>> & input_stream);
 
@@ -40,7 +40,7 @@ namespace vds {
 
     uint8_t buffer_[vds::file_manager::file_operations::BLOCK_SIZE];
     size_t readed_;
-    std::list<transactions::file_add_transaction::file_block_t> file_blocks_;
+    std::list<transactions::user_message_transaction::file_block_t> file_blocks_;
 
     const_data_buffer result_hash_;
 

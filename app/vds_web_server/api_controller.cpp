@@ -66,7 +66,6 @@ vds::async_task<vds::http_message> vds::api_controller::get_login_state(
     auto session = std::make_shared<auth_session>(login, password);
     return session->load(sp, crypted_private_key).then([sp, session_id, session, owner]() {
 
-      http_response response(http_response::HTTP_OK, "OK");
       auto item = std::make_shared<json_object>();
 
       switch (session->get_login_state()) {
@@ -90,30 +89,11 @@ vds::async_task<vds::http_message> vds::api_controller::get_login_state(
         throw std::runtime_error("Invalid program");
       }
 
-      const auto body = item->json_value::str();
-
-      response.add_header("Content-Type", "application/json; charset=utf-8");
-      response.add_header("Content-Length", std::to_string(body.length()));
-
-      auto result = response.create_message(sp);
-      auto buffer = std::make_shared<std::string>(body);
-      result.body()->write_async((const uint8_t *)buffer->c_str(), buffer->length())
-        .execute(
-          [sp, result, buffer](const std::shared_ptr<std::exception> & ex) {
-        if (!ex) {
-          result.body()->write_async(nullptr, 0).execute(
-            [sp](const std::shared_ptr<std::exception> & ex) {
-            if (ex) {
-              sp.unhandled_exception(ex);
-            }
-          });
-        }
-        else {
-          sp.unhandled_exception(ex);
-        }
-      });
-
-      return result;
+      return vds::async_task<vds::http_message>::result(
+        http_response::simple_text_response(
+          sp,
+          item->json_value::str(),
+          "application/json; charset=utf-8"));
     });
 
   });
@@ -145,14 +125,20 @@ vds::async_task<std::shared_ptr<vds::json_value>> vds::api_controller::channel_f
       sp,
       channel_id,
       t,
-      [result](const transactions::file_add_transaction& message)-> bool {
+      [result](const transactions::user_message_transaction& message)-> bool {
       auto record = std::make_shared<json_object>();
-      record->add_property("object_id", base64::from_bytes(message.total_hash()));
       record->add_property("message", message.message());
-      record->add_property("name", message.name());
-      record->add_property("mimetype", message.mimetype());
-      record->add_property("size", message.total_size());
-      result->add(record);
+      auto files = std::make_shared<json_array>();
+        for(const auto & file : message.files()) {
+          auto item = std::make_shared<json_object>();
+          item->add_property("object_id", base64::from_bytes(file.file_id));
+          item->add_property("name", file.name);
+          item->add_property("mimetype", file.mime_type);
+          item->add_property("size", file.size);
+          files->add(item);
+        }
+        record->add_property("files", files);
+        result->add(record);
       return true;
     });
     return true;
@@ -377,4 +363,38 @@ vds::async_task<vds::const_data_buffer> vds::api_controller::get_register_reques
   .then([result]() {
     return *result;
   });
+}
+
+vds::async_task<vds::http_message> vds::api_controller::get_session(
+  const service_provider& sp,
+  const std::shared_ptr<_web_server>& owner,
+  const std::string& session_id) {
+  auto session = owner->get_session(sp, session_id);
+
+  auto result = std::make_shared<json_object>();
+
+  if(!session) {
+    result->add_property("state", "fail");
+  }
+  else {
+    result->add_property("state", "sucessful");
+    result->add_property("session", session_id);
+    result->add_property("user_name", session->user_name());
+  }
+
+  return vds::async_task<vds::http_message>::result(
+    http_response::simple_text_response(
+      sp,
+      result->json_value::str(),
+      "application/json; charset=utf-8"));
+}
+
+vds::async_task<vds::http_message> vds::api_controller::logout(const service_provider& sp,
+  const std::shared_ptr<_web_server>& owner, const std::string & session_id) {
+  owner->kill_session(sp, session_id);
+
+  return vds::async_task<vds::http_message>::result(
+    http_response::redirect(
+      sp,
+      "/"));
 }

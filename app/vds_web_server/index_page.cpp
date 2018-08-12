@@ -50,24 +50,27 @@ public:
     return this->sp_.get<vds::file_manager::file_operations>()->upload_file(
         this->sp_,
         this->user_mng_,
-        this->channel_id_,
-        this->message_,
         file.file_name,
         file.mimetype,
-        file.stream).then([pthis = this->shared_from_this()](const vds::const_data_buffer & result_id) {
-      pthis->result_id_ = result_id;
+        file.stream).then([pthis = this->shared_from_this(), file](const vds::transactions::user_message_transaction::file_info_t & file_info) {
+      pthis->files_.push_back(file_info);
     });
   }
 
-  const vds::const_data_buffer & result_id() const {
-    return this->result_id_;
+  vds::async_task<> complete() {
+    return this->sp_.get<vds::file_manager::file_operations>()->create_message(
+      this->sp_,
+      this->user_mng_,
+      this->channel_id_,
+      this->message_,
+      this->files_);
   }
 
 private:
   vds::service_provider sp_;
   std::shared_ptr<vds::user_manager> user_mng_;
   vds::const_data_buffer channel_id_;
-  vds::const_data_buffer result_id_;
+  std::list<vds::transactions::user_message_transaction::file_info_t> files_;
   std::string message_;
 };
 
@@ -78,13 +81,11 @@ vds::async_task<vds::http_message> vds::index_page::create_message(const vds::se
   auto parser = std::make_shared<create_message_form>(sp, user_mng);
 
   return parser->parse(sp, message).then([sp, user_mng, web_server, parser]() -> async_task<http_message> {
-    auto result = std::make_shared<json_object>();
-    result->add_property("id", base64::from_bytes(parser->result_id()));
-    return vds::async_task<vds::http_message>::result(
-      http_response::simple_text_response(
+    return parser->complete().then([sp]() {
+      return http_response::redirect(
         sp,
-        result->json_value::str(),
-        "application/json; charset=utf-8"));
+        "/");
+    });
   });
 }
 

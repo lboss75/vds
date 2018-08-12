@@ -6,7 +6,7 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 #include <string>
-#include "file_add_transaction.h"
+#include "user_message_transaction.h"
 #include "const_data_buffer.h"
 #include "async_task.h"
 #include "async_buffer.h"
@@ -23,23 +23,30 @@ namespace vds {
     public:
       static const size_t BLOCK_SIZE = 8 * 64 * 1024;//MIN_HORCRUX * MIN_DISTRIBUTED_PIECES
 
-      file_operations();
-
-			vds::async_task<const_data_buffer> upload_file(
-					const service_provider &sp,
-          const std::shared_ptr<user_manager> & user_mng,
-					const const_data_buffer &channel_id,
-					const std::string &message,
-					const std::string &name,
-					const std::string &mimetype,
-					const std::shared_ptr<continuous_buffer<uint8_t>> & input_stream);
-
-			struct download_result_t{
+      struct download_result_t {
         std::string name;
         std::string mime_type;
         size_t size;
         std::shared_ptr<continuous_buffer<uint8_t>> output_stream;
       };
+
+
+      file_operations();
+
+			vds::async_task<transactions::user_message_transaction::file_info_t> upload_file(
+				const service_provider &sp,
+        const std::shared_ptr<user_manager> & user_mng,
+        const std::string & name,
+        const std::string & mime_type,
+        const std::shared_ptr<continuous_buffer<uint8_t>> & input_stream);
+
+      async_task<> create_message(
+        const service_provider& sp,
+        const std::shared_ptr<user_manager>& user_mng,
+        const const_data_buffer& channel_id,
+        const std::string& message,
+        const std::list<transactions::user_message_transaction::file_info_t>& files);
+
 
 			vds::async_task<download_result_t> download_file(
 		    const service_provider &sp,
