@@ -8,7 +8,7 @@ vds::_upload_stream_task::_upload_stream_task()
 : total_hash_(hash::sha256()), total_size_(0), readed_(0) {
 }
 
-vds::async_task<std::list<vds::transactions::file_add_transaction::file_block_t>> vds::_upload_stream_task::start(
+vds::async_task<std::list<vds::transactions::user_message_transaction::file_block_t>> vds::_upload_stream_task::start(
     const service_provider & sp,
     const std::shared_ptr<continuous_buffer<uint8_t>> & input_stream) {
 
@@ -66,7 +66,7 @@ vds::async_task<> vds::_upload_stream_task::process_data(
       t,
       vds::const_data_buffer(pthis->buffer_, pthis->readed_));
 
-    pthis->file_blocks_.push_back(transactions::file_add_transaction::file_block_t{
+    pthis->file_blocks_.push_back(transactions::user_message_transaction::file_block_t{
       /*block_id =*/ block_info.id,
       /*block_key =*/ block_info.key,
       /*object_ids*/block_info.object_ids,

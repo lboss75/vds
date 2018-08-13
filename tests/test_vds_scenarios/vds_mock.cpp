@@ -499,21 +499,26 @@ vds::const_data_buffer vds_mock::upload_file(
       return true;
     });
   })
-  .then([sp, name, channel_id, mimetype, input_stream, user_mng]() {
+    .then([sp, name, channel_id, mimetype, input_stream, user_mng]() {
 
     return sp.get<vds::file_manager::file_operations>()->upload_file(
+      sp,
+      user_mng,
+      name,
+      mimetype,
+      input_stream);
+  })
+  .then([sp, name, channel_id, mimetype, input_stream, user_mng, result](const vds::transactions::user_message_transaction::file_info_t & file_info) {
+    *result = file_info.file_id;
+    std::list<vds::transactions::user_message_transaction::file_info_t> files {file_info};
+      return sp.get<vds::file_manager::file_operations>()->create_message(
         sp,
         user_mng,
         channel_id,
         "test message",
-        name,
-        mimetype,
-        input_stream);
+        files);
   })
-      .then([result](const vds::const_data_buffer & file_hash){
-        *result = file_hash;
-      })
-      .wait();
+  .wait();
   return *result;
 }
 

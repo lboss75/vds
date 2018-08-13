@@ -96,6 +96,16 @@ namespace vds {
         const std::shared_ptr<_web_server>& owner,
         const const_data_buffer & request_id);
 
+    static async_task<http_message> get_session(
+      const service_provider& sp,
+      const std::shared_ptr<_web_server>& owner,
+      const std::string& session_id);
+    
+    static async_task<http_message> logout(
+      const service_provider& sp,
+      const std::shared_ptr<_web_server>& owner,
+      const std::string& session_id);
+
   private:
     static std::shared_ptr<json_object> channel_serialize(const vds::user_channel & channel);
 

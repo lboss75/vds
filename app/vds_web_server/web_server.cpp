@@ -165,6 +165,24 @@ vds::async_task<vds::http_message> vds::_web_server::route(
       message);
   }
 
+  if (request.url() == "/api/session" && request.method() == "GET") {
+    const auto session_id = request.get_parameter("session");
+
+    return api_controller::get_session(
+      sp,
+      this->shared_from_this(),
+      session_id);
+  }
+
+  if (request.url() == "/api/logout" && request.method() == "POST") {
+    const auto session_id = request.get_parameter("session");
+
+    return api_controller::logout(
+      sp,
+      this->shared_from_this(),
+      session_id);
+  }
+
   if (request.url() == "/api/channel_feed") {
     if (request.method() == "GET") {
       const auto user_mng = this->get_secured_context(sp, request.get_parameter("session"));
@@ -465,6 +483,14 @@ std::shared_ptr<vds::auth_session> vds::_web_server::get_session(
   }
 
   return nullptr;
+}
+
+void vds::_web_server::kill_session(const service_provider& sp, const std::string& session_id) {
+  std::shared_lock<std::shared_mutex> lock(this->auth_session_mutex_);
+  const auto p = this->auth_sessions_.find(session_id);
+  if (this->auth_sessions_.end() != p) {
+    this->auth_sessions_.erase(p);
+  }
 }
 
 std::shared_ptr<vds::user_manager> vds::_web_server::get_secured_context(

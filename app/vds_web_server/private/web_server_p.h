@@ -30,6 +30,14 @@ namespace vds {
         const std::string & id,
         const std::shared_ptr<auth_session> & session);
 
+    std::shared_ptr<auth_session> get_session(
+      const service_provider & sp,
+      const std::string & session_id) const;
+
+    void kill_session(
+      const service_provider& sp,
+      const std::string& session_id);
+
   private:
     tcp_socket_server server_;
     http_middleware<_web_server> middleware_;
@@ -44,9 +52,6 @@ namespace vds {
         const service_provider & sp,
       const std::string & session_id) const;
 
-    std::shared_ptr<auth_session> get_session(
-      const service_provider & sp,
-      const std::string & session_id) const;
   };
 }
 

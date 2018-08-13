@@ -11,7 +11,7 @@ All rights reserved
 #include "channel_add_reader_transaction.h"
 #include "channel_add_writer_transaction.h"
 #include "channel_create_transaction.h"
-#include "file_add_transaction.h"
+#include "user_message_transaction.h"
 
 namespace vds {
   namespace transactions {
@@ -29,7 +29,7 @@ namespace vds {
         return true;
       }
 
-      virtual bool visit(const file_add_transaction & /*message*/) {
+      virtual bool visit(const user_message_transaction & /*message*/) {
         return true;
       }
       
@@ -59,8 +59,8 @@ namespace vds {
               }
               break;
             }
-            case file_add_transaction::message_id: {
-              if (!this->visit(file_add_transaction(s))) {
+            case user_message_transaction::message_id: {
+              if (!this->visit(user_message_transaction(s))) {
                 return false;
               }
               break;

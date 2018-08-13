@@ -6,7 +6,7 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 #include "file_operations.h"
-#include "file_add_transaction.h"
+#include "user_message_transaction.h"
 #include "async_buffer.h"
 #include "hash.h"
 
@@ -18,13 +18,11 @@ namespace vds {
   namespace file_manager_private {
     class _file_operations : public std::enable_shared_from_this<_file_operations> {
     public:
-			async_task<const_data_buffer> upload_file(
+			async_task<transactions::user_message_transaction::file_info_t> upload_file(
 					const service_provider &sp,
           const std::shared_ptr<user_manager> & user_mng,
-					const const_data_buffer &channel_id,
-					const std::string &message,
-					const std::string &name,
-					const std::string &mimetype,
+          const std::string & name,
+          const std::string & mime_type,
 					const std::shared_ptr<continuous_buffer<uint8_t>> & input_stream);
 
 	    async_task<file_manager::file_operations::download_result_t> download_file(
@@ -33,24 +31,25 @@ namespace vds {
           const const_data_buffer & channel_id,
           const const_data_buffer & target_file);
 
+      async_task<> create_message(
+        const service_provider& sp,
+        const std::shared_ptr<user_manager>& user_mng,
+        const const_data_buffer& channel_id,
+        const std::string& message,
+        const std::list<transactions::user_message_transaction::file_info_t>& files);
 
-//	    async_task<> download_block(
+
+      //	    async_task<> download_block(
 //			const service_provider& sp,
 //			database_transaction& t,
 //      file_manager::download_file_task::block_info & block_id,
 //			const std::shared_ptr<file_manager::download_file_task> & result);
 
     private:
-      void pack_file(
-          const vds::service_provider &sp,
-          const vds::filename &file_path,
-          vds::database_transaction &t,
-          std::list<transactions::file_add_transaction::file_block_t> &file_blocks) const;
-
       struct pack_file_result {
         const_data_buffer total_hash;
         size_t total_size;
-        std::list<transactions::file_add_transaction::file_block_t> file_blocks;
+        std::list<transactions::user_message_transaction::file_block_t> file_blocks;
       };
 
       async_task<pack_file_result> pack_file(
@@ -66,7 +65,7 @@ namespace vds {
       void download_stream(
           const service_provider& sp,
           const std::shared_ptr<continuous_buffer<uint8_t>> & target_stream,
-          const std::list<transactions::file_add_transaction::file_block_t> &file_blocks);
+          const std::list<transactions::user_message_transaction::file_block_t> &file_blocks);
 		};
   }
 }
