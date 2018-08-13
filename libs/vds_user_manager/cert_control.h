@@ -50,13 +50,17 @@ namespace vds {
       asymmetric_private_key common_news_write_private_key_;
       asymmetric_private_key common_news_admin_private_key_;
 
+
+      void genereate_all();
     private:
       friend class get_root_app;
       friend class mock_server;
-
-      void genereate_all();
     };
 
+    static void genereate_all(
+        const std::string& root_login,
+        const std::string& root_password,
+        const private_info_t & private_info);
     private:
     friend class get_root_app;
     friend class mock_server;
@@ -71,10 +75,6 @@ namespace vds {
     static char common_storage_certificate_[1821];
     static char common_storage_private_key_[3137];
 
-    static void genereate_all(
-      const std::string& root_login,
-      const std::string& root_password,
-      const private_info_t & private_info);
   };
 }
 

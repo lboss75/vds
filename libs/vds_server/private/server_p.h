@@ -8,6 +8,7 @@ All rights reserved
 
 #include "server.h"
 #include "debug_mutex.h"
+#include "imessage_map.h"
 
 namespace vds {
   namespace transaction_log {
@@ -37,7 +38,9 @@ namespace vds {
   }
 
 
-  class _server : public std::enable_shared_from_this<_server>
+  class _server
+      : public std::enable_shared_from_this<_server>,
+        public dht::network::imessage_map
   {
   public:
     _server(server * owner);
@@ -49,7 +52,14 @@ namespace vds {
 
     async_task<server_statistic> get_statistic(const vds::service_provider &sp);
 
-    async_task<> apply_message(
+    async_task<> process_message(
+        const service_provider& scope,
+        const std::shared_ptr<dht::network::dht_session> & session,
+        uint8_t message_type,
+        const const_data_buffer& message_data) override;
+
+
+      async_task<> apply_message(
       const service_provider & sp,
       database_transaction & t,
       const dht::messages::transaction_log_state & message);

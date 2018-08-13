@@ -31,9 +31,6 @@ All rights reserved
 #include "device_record_dbo.h"
 #include "messages/sync_replica_data.h"
 
-#undef ThisModule
-#define ThisModule "DHT_SYNC"
-
 vds::dht::network::sync_process::sync_process() {
   for (uint16_t replica = 0; replica < GENERATE_DISTRIBUTED_PIECES; ++replica) {
     this->distributed_generators_[replica].reset(new chunk_generator<uint16_t>(MIN_DISTRIBUTED_PIECES, replica));
@@ -125,7 +122,7 @@ void vds::dht::network::sync_process::add_to_log(
   }
   auto quorum = this->get_quorum(sp, t, object_id);
   sp.get<logger>()->trace(
-    ThisModule,
+    SyncModule,
     sp,
     "Sync %s: quorum=%d, commit_index=%d, last_applied=%d",
     base64::from_bytes(object_id).c_str(),
@@ -472,7 +469,7 @@ void vds::dht::network::sync_process::add_sync_entry(
     leader = t2.voted_for.get(st);
   }
 
-  sp.get<logger>()->trace(ThisModule, sp, "Make leader %s:0:0", base64::from_bytes(object_id).c_str());
+  sp.get<logger>()->trace(SyncModule, sp, "Make leader %s:0:0", base64::from_bytes(object_id).c_str());
 
   orm::sync_replica_map_dbo t3;
   for(uint16_t i = 0; i < GENERATE_DISTRIBUTED_PIECES; ++i) {
@@ -523,7 +520,7 @@ vds::const_data_buffer vds::dht::network::sync_process::restore_replica(
     const auto data_hash = hash::signature(hash::sha256(), data);
     _client::save_data(sp, t, data_hash, data);
 
-    sp.get<logger>()->trace(ThisModule, sp, "Restored object %s", base64::from_bytes(object_id).c_str());
+    sp.get<logger>()->trace(SyncModule, sp, "Restored object %s", base64::from_bytes(object_id).c_str());
     orm::chunk_dbo t1;
     t.execute(
       t1.insert(
@@ -543,7 +540,7 @@ vds::const_data_buffer vds::dht::network::sync_process::restore_replica(
       exist_replicas.emplace(p);
     }
 
-    sp.get<logger>()->trace(ThisModule, sp, "%s", log_message.c_str());
+    sp.get<logger>()->trace(SyncModule, sp, "%s", log_message.c_str());
 
 
     std::set<const_data_buffer> candidates;
@@ -629,7 +626,7 @@ void vds::dht::network::sync_process::apply_message(
         replicas.emplace(t1.replica.get(st));
       }
       sp.get<logger>()->trace(
-        ThisModule,
+        SyncModule,
         sp,
         "Ready to store object %s",
         base64::from_bytes(message.object_id()).c_str());
@@ -702,7 +699,7 @@ void vds::dht::network::sync_process::apply_message(
   if(!st.execute()) {
     
     sp.get<logger>()->trace(
-      ThisModule,
+      SyncModule,
       sp,
       "Add member %s to store object %s",
       base64::from_bytes(message.source_node()).c_str(),
@@ -997,36 +994,17 @@ void vds::dht::network::sync_process::apply_message(
     return;
   }
 
-  orm::chunk_replica_data_dbo t1;
-  orm::device_record_dbo t2;
-  auto st = t.get_reader(t1.select(
-    t1.replica_hash,
-    t2.local_path)
-    .inner_join(t2, t2.node_id == client->current_node_id() && t2.data_hash == t1.replica_hash)
-    .where(t1.object_id == message.object_id() && t1.replica == message.replica()));
-  if(!st.execute()) {
-    return;
-  }
-
-  const auto data = _client::read_data(
-    t1.replica_hash.get(st),
-    filename(t2.local_path.get(st)));
-
-  (*client)->send(
-    sp,
-    message.target_node(),
-    messages::sync_replica_data(
+  send_replica(
+      sp,
+      t,
+      message.target_node(),
       message.object_id(),
+      message.replica(),
       message.leader_node(),
       message.generation(),
       message.current_term(),
       message.commit_index(),
-      message.last_applied(),
-      message.replica(),
-      data,
-      client->current_node_id(),
-      message.target_node()));
-
+      message.last_applied());
 }
 
 void vds::dht::network::sync_process::send_random_replicas(
@@ -1123,7 +1101,7 @@ void vds::dht::network::sync_process::apply_message(
                 replica_hash,
                 filename(local_path));
               sp.get<logger>()->trace(
-                ThisModule,
+                SyncModule,
                 sp,
                 "Send replica %s:%d to %s",
                 base64::from_bytes(object_id).c_str(),
@@ -1165,12 +1143,13 @@ void vds::dht::network::sync_process::apply_message(
               target_node = message.source_node(),
               object_id = message.object_id()]() {
                 sp.get<logger>()->trace(
-                  ThisModule,
+                  SyncModule,
                   sp,
-                  "Send replica %s:%d to %s",
+                  "Offer %s to send replica %s:%d to %s",
+                  base64::from_bytes(node).c_str(),
                   base64::from_bytes(object_id).c_str(),
                   replica,
-                  base64::from_bytes(node).c_str());
+                  base64::from_bytes(target_node).c_str());
                 (*client)->send(
                 sp,
                 node,
@@ -1225,7 +1204,7 @@ void vds::dht::network::sync_process::apply_message(
                   this->distributed_generators_.find(replica)->second->write(s, data.data(), data.size());
                   const_data_buffer replica_data(s.data());
                   sp.get<logger>()->trace(
-                    ThisModule,
+                    SyncModule,
                     sp,
                     "Send replica %s:%d to %s",
                     base64::from_bytes(object_id).c_str(),
@@ -1281,7 +1260,7 @@ void vds::dht::network::sync_process::apply_message(
   if (st.execute()) {
     //Already exists
     sp.get<logger>()->trace(
-      ThisModule,
+        SyncModule,
       sp,
       "Replica %s:%d from %s is already exists",
       base64::from_bytes(message.object_id()).c_str(),
@@ -1292,7 +1271,7 @@ void vds::dht::network::sync_process::apply_message(
     const auto data_hash = hash::signature(hash::sha256(), message.data());
     auto fn = _client::save_data(sp, t, data_hash, message.data());
     sp.get<logger>()->trace(
-      ThisModule,
+        SyncModule,
       sp,
       "Got replica %s:%d from %s",
       base64::from_bytes(message.object_id()).c_str(),
@@ -1366,7 +1345,7 @@ void vds::dht::network::sync_process::send_leader_broadcast(
     const auto last_applied = t2.last_applied.get(st);
 
     for (const auto & member_node : member_nodes) {
-      sp.get<logger>()->trace(ThisModule, sp, "Send leader broadcast to %s", base64::from_bytes(member_node).c_str());
+      sp.get<logger>()->trace(SyncModule, sp, "Send leader broadcast to %s", base64::from_bytes(member_node).c_str());
       client->send(
         sp,
         member_node,
@@ -1772,7 +1751,7 @@ void vds::dht::network::sync_process::apply_record(
   switch (message_type) {
     case orm::sync_message_dbo::message_type_t::add_member: {
       sp.get<logger>()->trace(
-        ThisModule,
+          SyncModule,
         sp,
         "Appply: Add member %s to store object %s",
         base64::from_bytes(member_node).c_str(),
@@ -1808,7 +1787,7 @@ void vds::dht::network::sync_process::apply_record(
 
     case orm::sync_message_dbo::message_type_t::add_replica:{
       sp.get<logger>()->trace(
-        ThisModule,
+          SyncModule,
         sp,
         "Appply: Add replica %s:%d to node %s",
         base64::from_bytes(object_id).c_str(),
@@ -2080,6 +2059,7 @@ void vds::dht::network::sync_process::replica_sync::object_info_t::restore_chunk
 
 void vds::dht::network::sync_process::replica_sync::object_info_t::generate_missing_replicas(
   const vds::service_provider& sp,
+  const database_read_transaction & t,
   const std::map<uint16_t, std::set<vds::const_data_buffer>>& replica_nodes,
   const vds::const_data_buffer& object_id,
   std::set<vds::const_data_buffer> chunk_nodes) const {
@@ -2113,20 +2093,35 @@ void vds::dht::network::sync_process::replica_sync::object_info_t::generate_miss
 
       auto index = std::rand() % chunk_nodes.size();
       for(const auto & chunk_node : chunk_nodes) {
-        if(index-- == 0) {
-          (*client)->send(
+        if(chunk_node == client->current_node_id()){
+          send_replica(
             sp,
-            chunk_node,
-            messages::sync_offer_send_replica_operation_request(
-              object_id,
-              this->sync_leader_,
-              this->sync_generation_,
-              this->sync_current_term_,
-              this->sync_commit_index_,
-              this->sync_last_applied_,
+            t,
+            node,
+            object_id,
+            replica,
+            this->sync_leader_,
+            this->sync_generation_,
+            this->sync_current_term_,
+            this->sync_commit_index_,
+            this->sync_last_applied_);
+        }
+        else {
+          (*client)->send(
+              sp,
               chunk_node,
-              replica,
-              node));
+              messages::sync_offer_send_replica_operation_request(
+                  object_id,
+                  this->sync_leader_,
+                  this->sync_generation_,
+                  this->sync_current_term_,
+                  this->sync_commit_index_,
+                  this->sync_last_applied_,
+                  chunk_node,
+                  replica,
+                  node));
+        }
+        if(index-- == 0) {
           break;
         }
       }
@@ -2139,6 +2134,7 @@ void vds::dht::network::sync_process::replica_sync::object_info_t::generate_miss
 
 void vds::dht::network::sync_process::replica_sync::object_info_t::restore_replicas(
   const vds::service_provider& sp,
+  const database_read_transaction & t,
   const std::map<uint16_t, std::set<vds::const_data_buffer>> & replica_nodes,
   const const_data_buffer & object_id) const {
 
@@ -2156,7 +2152,7 @@ void vds::dht::network::sync_process::replica_sync::object_info_t::restore_repli
     this->restore_chunk(sp, replica_nodes, object_id);
   }
   else {
-    this->generate_missing_replicas(sp, replica_nodes, object_id, chunk_nodes);
+    this->generate_missing_replicas(sp, t, replica_nodes, object_id, chunk_nodes);
   }
 }
 
@@ -2172,6 +2168,13 @@ void vds::dht::network::sync_process::replica_sync::object_info_t::normalize_den
   if (0 == target_count) {
     target_count = 1;
   }
+  sp.get<logger>()->trace(
+      SyncModule,
+      sp,
+      "normalize object %s density to %d replicas",
+      base64::from_bytes(object_id).c_str(),
+      target_count);
+
 
   std::map<std::size_t, std::set<const_data_buffer>> replica_count;
   for (const auto & node : this->nodes_) {
@@ -2215,6 +2218,14 @@ void vds::dht::network::sync_process::replica_sync::object_info_t::normalize_den
       }
       vds_assert(minimal_repilica_count != std::numeric_limits<std::size_t>::max());
 
+      sp.get<logger>()->trace(
+          SyncModule,
+          sp,
+          "offer send replica %s:%d from %s to %s",
+          base64::from_bytes(object_id).c_str(),
+          minimal_replica,
+          base64::from_bytes(*tail_node).c_str(),
+          base64::from_bytes(*head_node).c_str());
       (*client)->send(
         sp,
         *tail_node,
@@ -2298,6 +2309,14 @@ void vds::dht::network::sync_process::replica_sync::object_info_t::remove_duplic
         vds_assert(0 < max_replica_count);
         if (max_replica_count > 1) {
           for (const auto & node : most_replica_nodes) {
+            sp.get<logger>()->trace(
+                SyncModule,
+                sp,
+                "offer remove replica %s:%d from %s",
+                base64::from_bytes(object_id).c_str(),
+                replica,
+                base64::from_bytes(node).c_str());
+
             (*client)->send(
               sp,
               node,
@@ -2385,6 +2404,12 @@ void vds::dht::network::sync_process::replica_sync::normalize_density(
   for(const auto & object : this->objects_) {
     //Send chunks if this node is not in memebers
     if(!object.second.sync_leader_) {
+      sp.get<logger>()->trace(
+          SyncModule,
+          sp,
+          "This node has replicas %s without leader",
+          base64::from_bytes(object.first).c_str());
+
       object.second.try_to_attach(sp, object.first);
     }
     else if(object.second.sync_leader_ == client->current_node_id()) {
@@ -2397,12 +2422,26 @@ void vds::dht::network::sync_process::replica_sync::normalize_density(
 
       //Some replicas has been lost
       if(replica_nodes.size() < GENERATE_DISTRIBUTED_PIECES) {
-        object.second.restore_replicas(sp, replica_nodes, object.first);
+        sp.get<logger>()->trace(
+            SyncModule,
+            sp,
+            "object %s have %d replicas",
+            base64::from_bytes(object.first).c_str(),
+            replica_nodes.size());
+        object.second.restore_replicas(sp, t, replica_nodes, object.first);
       }
       else {//All replicas exists
         object.second.normalize_density(sp, replica_nodes, object.first);
         object.second.remove_duplicates(sp, replica_nodes, object.first);
       }
+    }
+    else {
+      sp.get<logger>()->trace(
+          SyncModule,
+          sp,
+          "This node watch leader %s for object %s",
+          base64::from_bytes(object.second.sync_leader_).c_str(),
+          base64::from_bytes(object.first).c_str());
     }
   }
 }
@@ -2442,4 +2481,49 @@ void vds::dht::network::sync_process::make_follower(const service_provider& sp, 
     t2.last_applied = 0,
     t2.last_activity = std::chrono::system_clock::now())
   .where(t2.object_id == object_id && t2.member_node == client->current_node_id()));
+}
+
+void vds::dht::network::sync_process::send_replica(
+    const vds::service_provider &sp,
+    const database_read_transaction & t,
+    const const_data_buffer & target_node,
+    const const_data_buffer & object_id,
+    uint16_t replica,
+    const const_data_buffer& leader_node_id,
+    uint64_t generation,
+    uint64_t current_term,
+    uint64_t commit_index,
+    uint64_t last_applied) {
+
+  const auto client = sp.get<dht::network::client>();
+
+  orm::chunk_replica_data_dbo t1;
+  orm::device_record_dbo t2;
+  auto st = t.get_reader(t1.select(
+          t1.replica_hash,
+          t2.local_path)
+  .inner_join(t2, t2.node_id == client->current_node_id() && t2.data_hash == t1.replica_hash)
+  .where(t1.object_id == object_id && t1.replica == replica));
+  if(!st.execute()) {
+    return;
+  }
+
+  const auto data = _client::read_data(
+      t1.replica_hash.get(st),
+      filename(t2.local_path.get(st)));
+
+  (*client)->send(
+      sp,
+      target_node,
+      messages::sync_replica_data(
+          object_id,
+          leader_node_id,
+          generation,
+          current_term,
+          commit_index,
+          last_applied,
+          replica,
+          data,
+          client->current_node_id(),
+          target_node));
 }

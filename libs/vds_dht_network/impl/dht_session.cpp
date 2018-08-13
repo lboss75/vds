@@ -2,6 +2,7 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
+#include <include/imessage_map.h>
 #include "stdafx.h"
 #include "private/dht_session.h"
 #include "db_model.h"
@@ -46,4 +47,15 @@ vds::session_statistic::session_info vds::dht::network::dht_session::get_statist
   return session_statistic::session_info{
     this->address().to_string()
   };
+}
+
+vds::async_task<> vds::dht::network::dht_session::process_message(
+    const vds::service_provider &sp,
+    uint8_t message_type,
+    const vds::const_data_buffer &message) {
+  return sp.get<imessage_map>()->process_message(
+      sp,
+      this->shared_from_this(),
+      message_type,
+      message);
 }
