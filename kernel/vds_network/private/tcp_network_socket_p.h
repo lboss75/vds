@@ -330,7 +330,6 @@ namespace vds {
       }
 
       ~_socket_handler(){
-        std::cout << "_socket_handler::~_socket_handler";
       }
 
       void start(){
@@ -428,7 +427,6 @@ namespace vds {
           if (len <= 0) {
             int error = errno;
             if (EAGAIN == error) {
-              this->sp_.get<logger>()->trace("TCP", this->sp_, "Waiting socket");
               this->read_status_ = read_status_t::waiting_socket;
               this->change_mask(EPOLLIN);
               break;

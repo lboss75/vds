@@ -1769,7 +1769,7 @@ namespace vds {
   class sql_command_builder
   {
   public:
-    sql_statement build(database_read_transaction & t, const source_type & source)
+    sql_statement build(const database_read_transaction & t, const source_type & source)
     {
       std::map<const database_table *, std::string> aliases;
       source.collect_aliases(aliases);

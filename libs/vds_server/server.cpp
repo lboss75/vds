@@ -32,6 +32,7 @@ vds::server::~server()
 void vds::server::register_services(service_registrator& registrator)
 {
   registrator.add_service<server>(this);
+  registrator.add_service<dht::network::imessage_map>(this->impl_.get());
   registrator.add_service<db_model>(this->impl_->db_model_.get());
 
   this->impl_->dht_network_service_->register_services(registrator);

@@ -36,6 +36,7 @@ namespace vds {
             const service_provider & sp,
             uint8_t message_type,
             const const_data_buffer & message);
+
         const const_data_buffer & partner_node_id() const {
           return this->partner_node_id_;
         }
@@ -43,10 +44,6 @@ namespace vds {
         session_statistic::session_info get_statistic() const;
       private:
         const_data_buffer partner_node_id_;
-        
-        static std::mutex statistic_mutex_;
-        static std::map<network::message_type_t, size_t> statistic_;
-        static std::map<network::message_type_t, size_t> statistic_count_;
       };
     }
   }

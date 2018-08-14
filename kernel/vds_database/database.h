@@ -55,10 +55,10 @@ namespace vds {
 
   class database_read_transaction {
   public:
-    sql_statement parse(const char * sql);
+    sql_statement parse(const char * sql) const;
 
     template <typename command_type>
-    sql_statement get_reader(const command_type & command)
+    sql_statement get_reader(const command_type & command) const
     {
       return sql_command_builder<command_type>().build(*this, command);
     }

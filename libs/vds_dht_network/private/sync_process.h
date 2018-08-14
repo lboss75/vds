@@ -320,11 +320,13 @@ namespace vds {
                                const std::map<uint16_t, std::set<vds::const_data_buffer>>& replica_nodes,
                                const vds::const_data_buffer& object_id) const;
             void generate_missing_replicas(const vds::service_provider& sp,
+                                           const database_read_transaction & t,
                                            const std::map<uint16_t, std::set<vds::const_data_buffer>>& replica_nodes,
                                            const vds::const_data_buffer& object_id,
                                            std::set<vds::const_data_buffer> chunk_nodes) const;
             void restore_replicas(
               const vds::service_provider& sp,
+              const database_read_transaction & t,
               const std::map<uint16_t, std::set<vds::const_data_buffer>> & replica_nodes,
               const const_data_buffer & object_id) const;
 
@@ -382,6 +384,18 @@ namespace vds {
         static void send_random_replicas(
           std::map<uint16_t, std::list<std::function<void()>>> & allowed_replicas,
           std::set<uint16_t> & send_replicas);
+
+        static void send_replica(
+            const vds::service_provider &sp,
+            const database_read_transaction & t,
+            const const_data_buffer & target_node,
+            const const_data_buffer & object_id,
+            uint16_t replica,
+            const const_data_buffer& leader_node_id,
+            uint64_t generation,
+            uint64_t current_term,
+            uint64_t commit_index,
+            uint64_t last_applied);
 
       };
     }

@@ -54,7 +54,7 @@ int vds::database_transaction::last_insert_rowid() const {
   return this->impl_->last_insert_rowid();
 }
 
-vds::sql_statement vds::database_read_transaction::parse(const char * sql)
+vds::sql_statement vds::database_read_transaction::parse(const char * sql) const
 {
   return this->impl_->parse(sql);
 }
