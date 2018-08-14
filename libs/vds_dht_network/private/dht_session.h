@@ -34,6 +34,7 @@ namespace vds {
 
         async_task<> process_message(
             const service_provider & sp,
+            const std::shared_ptr<udp_transport> & transport,
             uint8_t message_type,
             const const_data_buffer & message);
 

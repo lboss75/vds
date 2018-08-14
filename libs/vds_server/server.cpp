@@ -182,20 +182,23 @@ vds::async_task<vds::server_statistic> vds::_server::get_statistic(const vds::se
 vds::async_task<> vds::_server::apply_message(
   const service_provider & sp,
   database_transaction & t,
-  const dht::messages::transaction_log_state & message) {
-  return this->transaction_log_sync_process_->apply_message(sp, t, message);
+  const dht::messages::transaction_log_state & message,
+  const message_info_t & message_info) {
+  return this->transaction_log_sync_process_->apply_message(sp, t, message, message_info);
 }
 
 void vds::_server::apply_message(
   const service_provider & sp,
   database_transaction & t,
-  const dht::messages::transaction_log_request & message) {
-  this->transaction_log_sync_process_->apply_message(sp, t, message);
+  const dht::messages::transaction_log_request & message,
+  const message_info_t & message_info) {
+  this->transaction_log_sync_process_->apply_message(sp, t, message, message_info);
 }
 
 void vds::_server::apply_message(
   const service_provider & sp,
   database_transaction & t,
-  const dht::messages::transaction_log_record & message) {
-  this->transaction_log_sync_process_->apply_message(sp, t, message);
+  const dht::messages::transaction_log_record & message,
+  const message_info_t & message_info) {
+  this->transaction_log_sync_process_->apply_message(sp, t, message, message_info);
 }

@@ -20,7 +20,6 @@ namespace vds {
 
         sync_offer_send_replica_operation_request(
           const const_data_buffer &object_id,
-          const const_data_buffer &leader_node,
           uint64_t generation,
           uint64_t current_term,
           uint64_t commit_index,
@@ -29,7 +28,6 @@ namespace vds {
           const const_data_buffer &target_node)
           : sync_base_message_request(
             object_id,
-            leader_node,
             generation,
             current_term,
             commit_index,
@@ -59,10 +57,6 @@ namespace vds {
         
         uint16_t replica() const {
           return this->replica_;
-        }
-
-        const const_data_buffer & source_node() const override {
-          return this->leader_node();
         }
 
         const const_data_buffer & target_node() const {

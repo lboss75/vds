@@ -6,6 +6,7 @@
 #include "messages/dht_message_type.h"
 #include "dht_network_client.h"
 #include "chunk.h"
+#include "imessage_map.h"
 
 /*
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
@@ -63,12 +64,14 @@ namespace vds {
         void apply_message(
           const service_provider& sp,
           database_transaction& t,
-          const messages::sync_new_election_request & message);
+          const messages::sync_new_election_request & message,
+          const imessage_map::message_info_t & message_info);
 
         void apply_message(
           const service_provider& sp,
           database_transaction& t,
-          const messages::sync_new_election_response & message);
+          const messages::sync_new_election_response & message,
+          const imessage_map::message_info_t & message_info);
 
         //void apply_message(
         //  const service_provider& sp,
@@ -82,67 +85,80 @@ namespace vds {
         void apply_message(
           const service_provider& sp,
           database_transaction & t,
-          const messages::sync_looking_storage_request & message);
+          const messages::sync_looking_storage_request & message,
+          const imessage_map::message_info_t & message_info);
 
         void apply_message(
           const service_provider& sp,
           database_transaction & t,
-          const messages::sync_looking_storage_response & message);
+          const messages::sync_looking_storage_response & message,
+          const imessage_map::message_info_t & message_info);
 
         void apply_message(
           const service_provider& sp,
           database_transaction & t,
-          const messages::sync_snapshot_request & message);
+          const messages::sync_snapshot_request & message,
+          const imessage_map::message_info_t & message_info);
 
         void apply_message(
           const service_provider& sp,
           database_transaction & t,
-          const messages::sync_snapshot_response & message);
+          const messages::sync_snapshot_response & message,
+          const imessage_map::message_info_t & message_info);
 
         void apply_message(
           const service_provider & sp,
           database_transaction & t,
-          const messages::sync_add_message_request & message);
+          const messages::sync_add_message_request & message,
+          const imessage_map::message_info_t & message_info);
 
         void apply_message(
           const service_provider & sp,
           database_transaction & t,
-          const messages::sync_leader_broadcast_request & message);
+          const messages::sync_leader_broadcast_request & message,
+          const imessage_map::message_info_t & message_info);
 
         void apply_message(
           const service_provider & sp,
           database_transaction & t,
-          const messages::sync_leader_broadcast_response & message);
+          const messages::sync_leader_broadcast_response & message,
+          const imessage_map::message_info_t & message_info);
 
         void apply_message(
           const service_provider & sp,
           database_transaction & t,
-          const messages::sync_replica_operations_request & message);
+          const messages::sync_replica_operations_request & message,
+          const imessage_map::message_info_t & message_info);
 
         void apply_message(
           const service_provider & sp,
           database_transaction & t,
-          const messages::sync_replica_operations_response & message);
+          const messages::sync_replica_operations_response & message,
+          const imessage_map::message_info_t & message_info);
 
         void apply_message(
           const service_provider & sp,
           database_transaction & t,
-          const messages::sync_offer_send_replica_operation_request & message);
+          const messages::sync_offer_send_replica_operation_request & message,
+          const imessage_map::message_info_t & message_info);
 
         void apply_message(
           const service_provider & sp,
           database_transaction & t,
-          const messages::sync_offer_remove_replica_operation_request & message);
+          const messages::sync_offer_remove_replica_operation_request & message,
+          const imessage_map::message_info_t & message_info);
 
         void apply_message(
           const service_provider & sp,
           database_transaction & t,
-          const messages::sync_replica_request & message);
+          const messages::sync_replica_request & message,
+          const imessage_map::message_info_t & message_info);
 
         void apply_message(
           const service_provider & sp,
           database_transaction & t,
-          const messages::sync_replica_data & message);
+          const messages::sync_replica_data & message,
+          const imessage_map::message_info_t & message_info);
 
       private:
         static constexpr uint16_t MIN_DISTRIBUTED_PIECES = 4;
@@ -272,12 +288,14 @@ namespace vds {
         base_message_type apply_base_message(
           const service_provider& sp,
           database_transaction& t,
-          const messages::sync_base_message_request & message);
+          const messages::sync_base_message_request & message,
+          const imessage_map::message_info_t & message_info);
 
         bool apply_base_message(
           const service_provider& sp,
           database_transaction& t,
-          const messages::sync_base_message_response & message);
+          const messages::sync_base_message_response & message,
+          const imessage_map::message_info_t & message_info);
 
         static void send_snapshot(
           const service_provider& sp,

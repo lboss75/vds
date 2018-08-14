@@ -19,7 +19,6 @@ namespace vds {
 
         sync_looking_storage_request(
           const const_data_buffer &object_id,
-          const const_data_buffer &leader_node,
           uint64_t generation,
           uint64_t current_term,
           uint64_t commit_index,
@@ -27,7 +26,6 @@ namespace vds {
           uint32_t object_size)
         : sync_base_message_request(
           object_id,
-          leader_node,
           generation,
           current_term,
           commit_index,
@@ -52,10 +50,6 @@ namespace vds {
         }
 
 
-        const const_data_buffer& source_node() const override {
-          return this->leader_node();
-        }
-
         uint32_t object_size() const {
           return this->object_size_;
         }
@@ -70,12 +64,8 @@ namespace vds {
 
         sync_looking_storage_response(
           const const_data_buffer &object_id,
-          const const_data_buffer &leader_node,
-          const const_data_buffer &source_node,
           const std::set<uint16_t> & replicas)
         : object_id_(object_id),
-          leader_node_(leader_node),
-          source_node_(source_node),
           replicas_(replicas) {
         }
 
@@ -83,8 +73,6 @@ namespace vds {
             binary_deserializer & s) {
           s
             >> this->object_id_
-            >> this->leader_node_
-            >> this->source_node_
             >> this->replicas_
           ;
         }
@@ -93,8 +81,6 @@ namespace vds {
           binary_serializer s;
           s
             << this->object_id_
-            << this->leader_node_
-            << this->source_node_
             << this->replicas_;
           return s.data();
         }
@@ -103,22 +89,12 @@ namespace vds {
           return this->object_id_;
         }
 
-        const const_data_buffer & leader_node() const {
-          return this->leader_node_;
-        }
-
-        const const_data_buffer & source_node() const {
-          return this->source_node_;          
-        }
-
         const std::set<uint16_t> & replicas() const {
           return this->replicas_;
         }
 
       private:
         const_data_buffer object_id_;
-        const_data_buffer leader_node_;
-        const_data_buffer source_node_;
         std::set<uint16_t> replicas_;
       };
     }

@@ -22,11 +22,9 @@ namespace vds {
 
         sync_replica_request(
             const const_data_buffer &object_id,
-            const std::set<uint16_t> & exist_replicas,
-            const const_data_buffer &source_node)
+            const std::set<uint16_t> & exist_replicas)
             : object_id_(object_id),
-              exist_replicas_(exist_replicas),
-              source_node_(source_node) {
+              exist_replicas_(exist_replicas) {
         }
 
         sync_replica_request(
@@ -34,7 +32,6 @@ namespace vds {
           s
               >> this->object_id_
               >> this->exist_replicas_
-              >> this->source_node_;
           ;
         }
 
@@ -42,8 +39,7 @@ namespace vds {
           binary_serializer s;
           s
               << this->object_id_
-              << this->exist_replicas_
-              << this->source_node_;
+              << this->exist_replicas_;
           return s.data();
         }
 
@@ -55,14 +51,10 @@ namespace vds {
           return this->exist_replicas_;
         }
 
-        const const_data_buffer & source_node() const {
-          return source_node_;
-        }
 
       private:
         const_data_buffer object_id_;
         std::set<uint16_t> exist_replicas_;
-        const_data_buffer source_node_;
       };
     }
   }

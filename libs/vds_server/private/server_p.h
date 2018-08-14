@@ -54,25 +54,26 @@ namespace vds {
 
     async_task<> process_message(
         const service_provider& scope,
-        const std::shared_ptr<dht::network::dht_session> & session,
-        uint8_t message_type,
-        const const_data_buffer& message_data) override;
+        const message_info_t & message_info) override;
 
 
       async_task<> apply_message(
       const service_provider & sp,
       database_transaction & t,
-      const dht::messages::transaction_log_state & message);
+      const dht::messages::transaction_log_state & message,
+      const message_info_t & message_info);
 
     void apply_message(
       const service_provider& sp,
       database_transaction& t,
-      const dht::messages::transaction_log_request& message);
+      const dht::messages::transaction_log_request& message,
+      const message_info_t & message_info);
 
     void apply_message(
       const service_provider& sp,
       database_transaction& t,
-      const dht::messages::transaction_log_record & message);
+      const dht::messages::transaction_log_record & message,
+      const message_info_t & message_info);
 
   private:
     friend class server;

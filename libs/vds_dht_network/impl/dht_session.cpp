@@ -43,7 +43,9 @@ void vds::dht::network::dht_session::ping_node(
       transport,
       (uint8_t)messages::dht_ping::message_id,
       node_id,
-      messages::dht_ping(transport->this_node_id()).serialize());
+      transport->this_node_id(),
+      0,
+      messages::dht_ping().serialize());
 }
 
 vds::session_statistic::session_info vds::dht::network::dht_session::get_statistic() const {
@@ -54,27 +56,42 @@ vds::session_statistic::session_info vds::dht::network::dht_session::get_statist
 
 vds::async_task<> vds::dht::network::dht_session::process_message(
     const vds::service_provider &sp,
+    const std::shared_ptr<udp_transport> & transport,
     uint8_t message_type,
     const vds::const_data_buffer &message) {
 
-  vds_assert(message.size() >= 32);
+  vds_assert(message.size() >= 66);
   const_data_buffer target_node(message.data(), 32);
-  const_data_buffer message_data(message.data() + 32, message.size() - 32);
+  const_data_buffer source_node(message.data() + 32, 32);
+  uint16_t hops = (message.data()[64] << 8) | message.data()[65];
+
+  (*sp.get<client>())->add_route(sp, source_node, hops, this->shared_from_this());
+
+  const_data_buffer message_data(message.data() + 66, message.size() - 66);
   if(target_node != this->this_node_id()) {
-    return [sp, message_type, target_node, message_data]() {
+    if(hops == std::numeric_limits<uint16_t>::max()){
+      return async_task<>::empty();
+    }
+
+    return [sp, message_type, target_node, message_data, source_node, hops]() {
       (*sp.get<client>())->send_closer(
         sp,
         target_node,
         1,
         static_cast<message_type_t>(message_type),
-        message_data);
+        message_data,
+        source_node,
+        hops + 1);
     };
   }
   else {
     return sp.get<imessage_map>()->process_message(
       sp,
-      this->shared_from_this(),
-      message_type,
-      message_data);
+      imessage_map::message_info_t {
+        this->shared_from_this(),
+        static_cast<message_type_t>(message_type),
+        message_data,
+        source_node,
+        hops});
   }
 }

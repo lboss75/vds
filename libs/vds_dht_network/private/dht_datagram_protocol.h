@@ -43,6 +43,8 @@ namespace vds {
           const std::shared_ptr<transport_type> & s,
           uint8_t message_type,
           const const_data_buffer & target_node,
+          const const_data_buffer & source_node,
+          const uint16_t hops,
           const const_data_buffer & message) {
           vds_assert(message.size() < 0xFFFF);
           vds_assert(target_node != this->this_node_id_);
@@ -50,7 +52,13 @@ namespace vds {
           std::unique_lock<std::mutex> lock(this->send_mutex_);
 
           const bool need_start = this->send_queue_.empty();
-          this->send_queue_.push(std::make_tuple(sp, s, message_type, target_node, message));
+          this->send_queue_.push(send_queue_item_t {
+            sp,
+            s,
+            message_type,
+            target_node,
+            source_node,
+            hops, message });
 
           lock.unlock();
 
@@ -159,17 +167,36 @@ namespace vds {
         uint32_t next_sequence_number_;
 
         mutable std::mutex send_mutex_;
-        std::queue<std::tuple<service_provider, std::shared_ptr<transport_type>, uint8_t, const_data_buffer, const_data_buffer>> send_queue_;
+        struct send_queue_item_t {
+          service_provider sp;
+          std::shared_ptr<transport_type> transport;
+          uint8_t message_type;
+          const_data_buffer target_node;
+          const_data_buffer source_node;
+          uint16_t hops;
+          const_data_buffer message;
+        };
+        std::queue<send_queue_item_t> send_queue_;
 
         async_task<> send_message_async(
           const service_provider &sp,
           const std::shared_ptr<transport_type> & s,
           uint8_t message_type,
           const const_data_buffer & target_node,
+          const const_data_buffer & source_node,
+          const uint16_t hops,
           const const_data_buffer & message) {
           vds_assert(message.size() < 0xFFFF);
 
-          return[pthis = this->shared_from_this(), sp, s, message_type, target_node, message](
+          return [
+              pthis = this->shared_from_this(),
+                  sp,
+              s,
+              message_type,
+              target_node,
+              source_node,
+              hops,
+              message](
             const async_result<> &result) {
             std::unique_lock<std::shared_mutex> lock(pthis->output_mutex_);
             resizable_data_buffer buffer;
@@ -184,18 +211,39 @@ namespace vds {
               buffer.add((uint8_t)(expected_index >> 8));
               buffer.add((uint8_t)(expected_index));
               buffer += target_node;
+              buffer += source_node;
+              buffer.add((uint8_t)(hops >> 8));
+              buffer.add((uint8_t)(hops));
               buffer += message;
 
               const_data_buffer datagram = buffer.get_data();
               s->write_async(sp, udp_datagram(pthis->address_, datagram, false))
-                .execute([pthis, sp, s, message_type, target_node, message, result, datagram, expected_index](
+                .execute([
+                    pthis,
+                             sp,
+                             s,
+                             message_type,
+                             target_node,
+                             source_node,
+                             hops,
+                             message,
+                             result,
+                             datagram,
+                             expected_index](
                   const std::shared_ptr<std::exception> &ex) {
                 std::unique_lock<std::shared_mutex> lock(pthis->output_mutex_);
                 if (ex) {
                   auto datagram_error = std::dynamic_pointer_cast<udp_datagram_size_exception>(ex);
                   if (datagram_error) {
                     pthis->mtu_ /= 2;
-                    pthis->send_message_async(sp, s, message_type, target_node, message)
+                    pthis->send_message_async(
+                        sp,
+                        s,
+                        message_type,
+                        target_node,
+                        source_node,
+                        hops,
+                        message)
                       .execute([result](const std::shared_ptr<std::exception> &ex) {
                       if (ex) {
                         result.error(ex);
@@ -241,24 +289,46 @@ namespace vds {
               buffer.add((uint8_t)(pthis->output_sequence_number_ >> 16));
               buffer.add((uint8_t)(pthis->output_sequence_number_ >> 8));
               buffer.add((uint8_t)(pthis->output_sequence_number_));
-              buffer.add((uint8_t)((message.size() + target_node.size()) >> 8));
-              buffer.add((uint8_t)((message.size() + target_node.size()) & 0xFF));
+              buffer.add((uint8_t)((message.size() + target_node.size() + source_node.size()) >> 8));
+              buffer.add((uint8_t)((message.size() + target_node.size() + source_node.size()) & 0xFF));
               vds_assert(target_node.size() == 32);
               buffer += target_node;
-              buffer.add(message.data(), pthis->mtu_ - 39);
+              buffer += source_node;
+              buffer.add((uint8_t)(hops >> 8));
+              buffer.add((uint8_t)(hops));
+              buffer.add(message.data(), pthis->mtu_ - 57);
 
-              auto offset = pthis->mtu_ - 39;
+              auto offset = pthis->mtu_ - 57;
 
               const_data_buffer datagram = buffer.get_data();
               s->write_async(sp, udp_datagram(pthis->address_, datagram))
-                .execute([pthis, sp, s, message_type, target_node, message, offset, result, datagram, expected_index = pthis->output_sequence_number_](
+                .execute([
+                    pthis,
+                             sp,
+                             s,
+                             message_type,
+                             target_node,
+                             source_node,
+                             hops,
+                             message,
+                             offset,
+                             result,
+                             datagram,
+                             expected_index = pthis->output_sequence_number_](
                   const std::shared_ptr<std::exception> &ex) {
                 std::unique_lock<std::shared_mutex> lock(pthis->output_mutex_);
                 if (ex) {
                   auto datagram_error = std::dynamic_pointer_cast<udp_datagram_size_exception>(ex);
                   if (datagram_error) {
                     pthis->mtu_ /= 2;
-                    pthis->send_message_async(sp, s, message_type, target_node, message)
+                    pthis->send_message_async(
+                        sp,
+                        s,
+                        message_type,
+                        target_node,
+                        source_node,
+                        hops,
+                        message)
                       .execute([result](const std::shared_ptr<std::exception> &ex) {
                       if (ex) {
                         result.error(ex);
@@ -365,6 +435,7 @@ namespace vds {
               locker.unlock();
               return static_cast<implementation_class *>(this)->process_message(
                 sp,
+                s,
                 message_type,
                 message).then([sp, s, pthis = this->shared_from_this()]() {
                 std::unique_lock<std::mutex> lock(pthis->input_mutex_);
@@ -407,6 +478,7 @@ namespace vds {
                   locker.unlock();
                   return static_cast<implementation_class *>(this)->process_message(
                     sp,
+                    s,
                     message_type,
                     message.get_data()).then([sp, s, pthis = this->shared_from_this()]() {
                     std::unique_lock<std::mutex> lock(pthis->input_mutex_);
@@ -433,11 +505,14 @@ namespace vds {
             return;
           }
 
-          auto sp = std::get<0>(this->send_queue_.front());
-          auto s = std::get<1>(this->send_queue_.front());
-          auto message_type = std::get<2>(this->send_queue_.front());
-          auto target_node = std::get<3>(this->send_queue_.front());
-          auto message = std::get<4>(this->send_queue_.front());
+          const auto & p = this->send_queue_.front();
+          auto sp = p.sp;
+          auto s = p.transport;
+          auto message_type = p.message_type;
+          auto target_node = p.target_node;
+          auto source_node = p.source_node;
+          auto hops = p.hops;
+          auto message = p.message;
           lock.unlock();
 
           this->send_message_async(
@@ -445,6 +520,8 @@ namespace vds {
             s,
             message_type,
             target_node,
+            source_node,
+            hops,
             message).execute([sp, pthis = this->shared_from_this()](const std::shared_ptr<std::exception> & ex) {
             if(ex) {
               logger::get(sp)->warning("DHT", sp, "%s at send dht datagram", ex->what());

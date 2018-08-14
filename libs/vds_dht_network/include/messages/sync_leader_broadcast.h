@@ -19,13 +19,11 @@ namespace vds {
 
         sync_leader_broadcast_request(
           const const_data_buffer &object_id,
-          const const_data_buffer &leader_node,
           uint64_t generation,
           uint64_t current_term,
           uint64_t commit_index,
           uint64_t last_applied)
             : sync_base_message_request(object_id,
-              leader_node,
               generation,
               current_term,
               commit_index,
@@ -42,11 +40,6 @@ namespace vds {
           sync_base_message_request::serialize(s);
           return s.data();
         }
-        
-        const const_data_buffer& source_node() const override {
-          return this->leader_node();
-        }
-
       };
 
       class sync_leader_broadcast_response : public sync_base_message_response {
@@ -58,15 +51,13 @@ namespace vds {
           uint64_t generation,
           uint64_t current_term,
           uint64_t commit_index,
-          uint64_t last_applied,
-          const const_data_buffer &source_node)
+          uint64_t last_applied)
             : sync_base_message_response(
               object_id,
               generation,
               current_term,
               commit_index,
-              last_applied,
-              source_node) {
+              last_applied) {
         }
 
         sync_leader_broadcast_response(

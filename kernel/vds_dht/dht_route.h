@@ -70,13 +70,17 @@ namespace vds {
           const std::shared_ptr<network::udp_transport>& transport,
           const network::message_type_t message_id,
           const const_data_buffer& target_node,
-          const const_data_buffer& message) {
+          const const_data_buffer& message,
+          const const_data_buffer& source_node,
+          uint16_t hops) {
 
           proxy_session_->send_message(
             sp,
             transport,
             (uint8_t)message_id,
             target_node,
+            source_node,
+            hops,
             message);
 
         }
@@ -95,7 +99,8 @@ namespace vds {
           const vds::service_provider &sp,
           const const_data_buffer &id,
           const session_type &proxy_session,
-          uint8_t hops) {
+          uint8_t hops,
+          bool allow_skip) {
         if(id == this->current_node_id_) {
           return false;
         }
@@ -121,7 +126,7 @@ namespace vds {
           lock.unlock();
         }
 
-        return b->add_node(sp, id, proxy_session, hops);
+        return b->add_node(sp, id, proxy_session, hops, allow_skip);
       }
 
       template <typename... timer_arg_types>
@@ -254,7 +259,8 @@ namespace vds {
             const service_provider &sp,
             const const_data_buffer &id,
             const session_type &proxy_session,
-            uint8_t hops) {
+            uint8_t hops,
+            bool allow_skip) {
 
           std::unique_lock<std::shared_mutex> ulock(this->nodes_mutex_);
           for (const auto &p : this->nodes_) {
@@ -263,7 +269,7 @@ namespace vds {
             }
           }
 
-          if (0 == hops || MAX_NODES > this->nodes_.size()) {
+          if (!allow_skip || 0 == hops || MAX_NODES > this->nodes_.size()) {
             this->nodes_.push_back(std::make_shared<node>(id, proxy_session, hops));
             return true;
           }

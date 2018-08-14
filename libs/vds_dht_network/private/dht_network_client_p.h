@@ -12,6 +12,7 @@ All rights reserved
 #include "chunk.h"
 #include "sync_process.h"
 #include "udp_transport.h"
+#include "imessage_map.h"
 
 namespace vds {
   namespace dht {
@@ -82,98 +83,114 @@ namespace vds {
 
         void apply_message(
           const service_provider & sp,
-          const messages::dht_find_node & message);
+          const messages::dht_find_node & message,
+          const imessage_map::message_info_t & message_info);
 
         async_task<> apply_message(
           const service_provider & sp,
-          const std::shared_ptr<dht_session> & session,
-          const messages::dht_find_node_response & message);
+          const messages::dht_find_node_response & message,
+          const imessage_map::message_info_t & message_info);
 
         void  apply_message(
           const service_provider & sp,
-          const std::shared_ptr<dht_session> & session,
-          const messages::dht_ping & message);
+          const messages::dht_ping & message,
+          const imessage_map::message_info_t & message_info);
 
         void apply_message(
           const service_provider & sp,
-          const std::shared_ptr<dht_session> & session,
-          const messages::dht_pong & message);
+          const messages::dht_pong & message,
+          const imessage_map::message_info_t & message_info);
 
         //Sync messages
         void apply_message(
           const service_provider & sp,
           database_transaction & t,
-          const messages::sync_new_election_request & message);
+          const messages::sync_new_election_request & message,
+          const imessage_map::message_info_t & message_info);
 
         void apply_message(
           const service_provider & sp,
           database_transaction & t,
-          const messages::sync_new_election_response & message);
+          const messages::sync_new_election_response & message,
+          const imessage_map::message_info_t & message_info);
 
         void apply_message(
           const service_provider & sp,
           database_transaction & t,
-          const messages::sync_add_message_request & message);
+          const messages::sync_add_message_request & message,
+          const imessage_map::message_info_t & message_info);
 
         void apply_message(
           const service_provider & sp,
           database_transaction & t,
-          const messages::sync_leader_broadcast_request & message);
+          const messages::sync_leader_broadcast_request & message,
+          const imessage_map::message_info_t & message_info);
 
         void apply_message(
           const service_provider & sp,
           database_transaction & t,
-          const messages::sync_leader_broadcast_response & message);
+          const messages::sync_leader_broadcast_response & message,
+          const imessage_map::message_info_t & message_info);
 
         void apply_message(
           const service_provider & sp,
           database_transaction & t,
-          const messages::sync_replica_operations_request & message);
+          const messages::sync_replica_operations_request & message,
+          const imessage_map::message_info_t & message_info);
 
         void apply_message(
           const service_provider & sp,
           database_transaction & t,
-          const messages::sync_replica_operations_response & message);
+          const messages::sync_replica_operations_response & message,
+          const imessage_map::message_info_t & message_info);
 
         void apply_message(
           const service_provider & sp,
           database_transaction & t,
-          const messages::sync_looking_storage_request & message);
+          const messages::sync_looking_storage_request & message,
+          const imessage_map::message_info_t & message_info);
 
         void apply_message(
           const service_provider & sp,
           database_transaction & t,
-          const messages::sync_looking_storage_response & message);
+          const messages::sync_looking_storage_response & message,
+          const imessage_map::message_info_t & message_info);
 
         void apply_message(
           const service_provider & sp,
           database_transaction & t,
-          const messages::sync_snapshot_request & message);
+          const messages::sync_snapshot_request & message,
+          const imessage_map::message_info_t & message_info);
 
         void apply_message(
           const service_provider & sp,
           database_transaction & t,
-          const messages::sync_snapshot_response & message);
+          const messages::sync_snapshot_response & message,
+          const imessage_map::message_info_t & message_info);
 
         void apply_message(
           const service_provider & sp,
           database_transaction & t,
-          const messages::sync_offer_send_replica_operation_request & message);
+          const messages::sync_offer_send_replica_operation_request & message,
+          const imessage_map::message_info_t & message_info);
 
         void apply_message(
           const service_provider & sp,
           database_transaction & t,
-          const messages::sync_offer_remove_replica_operation_request & message);
+          const messages::sync_offer_remove_replica_operation_request & message,
+          const imessage_map::message_info_t & message_info);
 
         void apply_message(
           const service_provider & sp,
           database_transaction & t,
-          const messages::sync_replica_request & message);
+          const messages::sync_replica_request & message,
+          const imessage_map::message_info_t & message_info);
 
         void apply_message(
           const service_provider & sp,
           database_transaction & t,
-          const messages::sync_replica_data & message);
+          const messages::sync_replica_data & message,
+          const imessage_map::message_info_t & message_info);
 
         //
         template <typename message_type>
@@ -215,7 +232,14 @@ namespace vds {
           const const_data_buffer & node_id,
           size_t radius,
           const message_type & message) {
-          this->send_closer(sp, node_id, radius, message_type::message_id, message.serialize());
+          this->send_closer(
+              sp,
+              node_id,
+              radius,
+              message_type::message_id,
+              message.serialize(),
+              this->current_node_id(),
+              0);
         }
 
         template <typename message_type>
@@ -252,6 +276,11 @@ namespace vds {
         void get_route_statistics(route_statistic& result);
         void get_session_statistics(session_statistic& session_statistic);
 
+        void add_route(
+            const vds::service_provider &sp,
+            const const_data_buffer & source_node,
+            uint16_t hops,
+            const std::shared_ptr<dht_session> & session);
       private:
         friend class sync_process;
         friend class dht_session;
@@ -293,7 +322,9 @@ namespace vds {
           const const_data_buffer& node_id,
           size_t radius,
           const message_type_t message_id,
-          const const_data_buffer& message);
+          const const_data_buffer& message,
+          const const_data_buffer& source_node,
+          uint16_t hops);
 
         void send_neighbors(
           const service_provider& sp,

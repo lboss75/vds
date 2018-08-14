@@ -105,7 +105,10 @@ void vds::dht::network::_client::save(
   }
 }
 
-void vds::dht::network::_client::apply_message(const service_provider& sp, const messages::dht_find_node& message) {
+void vds::dht::network::_client::apply_message(
+    const service_provider& sp,
+    const messages::dht_find_node & message,
+    const imessage_map::message_info_t & message_info) {
   std::map<const_data_buffer /*distance*/, std::list<std::shared_ptr<dht_route<std::shared_ptr<dht_session>>::node>>> result_nodes;
   this->route_.search_nodes(sp, message.target_id(), 70, result_nodes);
 
@@ -118,16 +121,24 @@ void vds::dht::network::_client::apply_message(const service_provider& sp, const
   }
 
   sp.get<logger>()->trace(ThisModule, sp, "Send dht_find_node_response");
-  this->send(sp, message.source_node(), messages::dht_find_node_response(result));
+  this->send(
+      sp,
+      message_info.source_node(),
+      messages::dht_find_node_response(result));
 }
 
 vds::async_task<>  vds::dht::network::_client::apply_message(
   const service_provider& sp,
-  const std::shared_ptr<dht_session> & session,
-  const messages::dht_find_node_response& message) {
+  const messages::dht_find_node_response& message,
+  const imessage_map::message_info_t & message_info) {
   auto result = async_task<>::empty();
   for(auto & p : message.nodes()) {
-    if (this->route_.add_node(sp, p.target_id_, session, p.hops_ + 1)) {
+    if (this->route_.add_node(
+        sp,
+        p.target_id_,
+        message_info.session(),
+        p.hops_ + message_info.hops() + 1,
+        true)) {
       result = result.then([sp, pthis = this->shared_from_this(), address = p.address_]() {
         pthis->udp_transport_->try_handshake(sp, address)
           .execute([sp, address](const std::shared_ptr<std::exception> & ex) {
@@ -147,31 +158,38 @@ vds::async_task<>  vds::dht::network::_client::apply_message(
 
 void vds::dht::network::_client::apply_message(
   const service_provider& sp,
-  const std::shared_ptr<dht_session>& session,
-  const messages::dht_ping& message) {
+  const messages::dht_ping& message,
+  const imessage_map::message_info_t & message_info) {
 
     sp.get<logger>()->trace(ThisModule, sp, "Send dht_pong");
-    session->send_message(
+    message_info.session()->send_message(
       sp,
       this->udp_transport_,
       (uint8_t)messages::dht_pong::message_id,
-      message.source_node(),
-      messages::dht_pong(this->current_node_id()).serialize());
+      message_info.source_node(),
+      this->current_node_id(),
+      0,
+      messages::dht_pong().serialize());
 }
 
 void vds::dht::network::_client::apply_message(
   const service_provider& sp,
-  const std::shared_ptr<dht_session>& session,
-  const messages::dht_pong& message) {
-  this->route_.mark_pinged(message.source_node(), session->address());
+  const messages::dht_pong& message,
+  const imessage_map::message_info_t & message_info) {
+  this->route_.mark_pinged(
+      message_info.source_node(),
+      message_info.session()->address());
 }
 
 void vds::dht::network::_client::add_session(const service_provider& sp, const std::shared_ptr<dht_session>& session, uint8_t hops) {
-  this->route_.add_node(sp, session->partner_node_id(), session, hops);
+  this->route_.add_node(sp, session->partner_node_id(), session, hops, false);
 }
 
-void vds::dht::network::_client::send(const service_provider& sp, const const_data_buffer& target_node_id,
-  const message_type_t message_id, const const_data_buffer& message) {
+void vds::dht::network::_client::send(
+    const service_provider& sp,
+    const const_data_buffer& target_node_id,
+    const message_type_t message_id,
+    const const_data_buffer& message) {
   this->route_.for_near(
     sp,
     target_node_id,
@@ -182,7 +200,9 @@ void vds::dht::network::_client::send(const service_provider& sp, const const_da
       pthis->udp_transport_,
       message_id,
       candidate->node_id_,
-      message);
+      message,
+      pthis->current_node_id(),
+      0);
     return false;
   });
 }
@@ -203,7 +223,9 @@ void vds::dht::network::_client::send_near(
       pthis->udp_transport_,
       message_id,
       candidate->node_id_,
-      message);
+      message,
+      pthis->current_node_id(),
+      0);
     return true;
     });
 }
@@ -227,7 +249,9 @@ void vds::dht::network::_client::send_near(
       pthis->udp_transport_,
       message_id,
       candidate->node_id_,
-      message);
+      message,
+      pthis->current_node_id(),
+      0);
     return true;
   });
 }
@@ -237,7 +261,9 @@ void vds::dht::network::_client::send_closer(
   const const_data_buffer& target_node_id,
   size_t radius,
   const message_type_t message_id,
-  const const_data_buffer& message) {
+  const const_data_buffer& message,
+  const const_data_buffer& source_node,
+  uint16_t hops) {
   this->route_.for_near(
     sp,
     target_node_id,
@@ -248,7 +274,9 @@ void vds::dht::network::_client::send_closer(
       message_id,
       message,
       pthis = this->shared_from_this(),
-      distance = dht_object_id::distance(this->current_node_id(), target_node_id)](
+      distance = dht_object_id::distance(this->current_node_id(), target_node_id),
+      source_node,
+      hops](
       const std::shared_ptr<dht_route<std::shared_ptr<dht_session>>::node> & candidate) {
     if (dht_object_id::distance(candidate->node_id_, target_node_id) < distance) {
       candidate->send_message(
@@ -256,7 +284,9 @@ void vds::dht::network::_client::send_closer(
         pthis->udp_transport_,
         message_id,
         target_node_id,
-        message);
+        message,
+        source_node,
+        hops);
     }
     return true;
   });
@@ -272,7 +302,9 @@ void vds::dht::network::_client::send_neighbors(const service_provider& sp,
       pthis->udp_transport_,
       message_id,
       candidate->node_id_,
-      message);
+      message,
+      pthis->current_node_id(),
+      0);
     return true;
   });
 }
@@ -389,7 +421,7 @@ vds::async_task<> vds::dht::network::_client::update_route_table(const service_p
         pthis->send(
           sp,
           canditate,
-          messages::dht_find_node(canditate, pthis->route_.current_node_id()));
+          messages::dht_find_node(canditate));
       });
     }
     this->update_route_table_counter_ = 10;
@@ -420,80 +452,96 @@ void vds::dht::network::_client::get_session_statistics(session_statistic& sessi
 void vds::dht::network::_client::apply_message(
   const service_provider& sp,
   database_transaction & t,
-  const messages::sync_new_election_request& message) {
-  this->sync_process_.apply_message(sp, t, message);
+  const messages::sync_new_election_request& message,
+  const imessage_map::message_info_t & message_info) {
+  this->sync_process_.apply_message(sp, t, message, message_info);
 }
 
 void vds::dht::network::_client::apply_message(
   const service_provider& sp,
   database_transaction & t,
-  const messages::sync_new_election_response& message) {
-  this->sync_process_.apply_message(sp, t, message);
+  const messages::sync_new_election_response& message,
+  const imessage_map::message_info_t & message_info) {
+  this->sync_process_.apply_message(sp, t, message, message_info);
 }
 
 void vds::dht::network::_client::apply_message(const service_provider& sp, database_transaction& t,
-  const messages::sync_add_message_request& message) {
-  this->sync_process_.apply_message(sp, t, message);
+  const messages::sync_add_message_request& message,
+  const imessage_map::message_info_t & message_info) {
+  this->sync_process_.apply_message(sp, t, message, message_info);
 }
 
 void vds::dht::network::_client::apply_message(const service_provider& sp, database_transaction& t,
-  const messages::sync_leader_broadcast_request& message) {
-  this->sync_process_.apply_message(sp, t, message);
+  const messages::sync_leader_broadcast_request& message,
+  const imessage_map::message_info_t & message_info) {
+  this->sync_process_.apply_message(sp, t, message, message_info);
 }
 
 void vds::dht::network::_client::apply_message(const service_provider& sp, database_transaction& t,
-  const messages::sync_leader_broadcast_response& message) {
-  this->sync_process_.apply_message(sp, t, message);
+  const messages::sync_leader_broadcast_response& message,
+  const imessage_map::message_info_t & message_info) {
+  this->sync_process_.apply_message(sp, t, message, message_info);
 }
 
 void vds::dht::network::_client::apply_message(const service_provider& sp, database_transaction& t,
-  const messages::sync_replica_operations_request& message) {
-  this->sync_process_.apply_message(sp, t, message);
+  const messages::sync_replica_operations_request& message,
+  const imessage_map::message_info_t & message_info) {
+  this->sync_process_.apply_message(sp, t, message, message_info);
 }
 
 void vds::dht::network::_client::apply_message(const service_provider& sp, database_transaction& t,
-  const messages::sync_replica_operations_response& message) {
-  this->sync_process_.apply_message(sp, t, message);
+  const messages::sync_replica_operations_response& message,
+  const imessage_map::message_info_t & message_info) {
+  this->sync_process_.apply_message(sp, t, message, message_info);
 }
 
 void vds::dht::network::_client::apply_message(const service_provider& sp, database_transaction& t,
-  const messages::sync_looking_storage_request& message) {
-  this->sync_process_.apply_message(sp, t, message);
+  const messages::sync_looking_storage_request& message,
+  const imessage_map::message_info_t & message_info) {
+  this->sync_process_.apply_message(sp, t, message, message_info);
 }
 
 void vds::dht::network::_client::apply_message(const service_provider& sp, database_transaction& t,
-  const messages::sync_looking_storage_response& message) {
-  this->sync_process_.apply_message(sp, t, message);
+  const messages::sync_looking_storage_response& message,
+  const imessage_map::message_info_t & message_info) {
+  this->sync_process_.apply_message(sp, t, message, message_info);
 }
 
 void vds::dht::network::_client::apply_message(const service_provider& sp, database_transaction& t,
-  const messages::sync_snapshot_request& message) {
-  this->sync_process_.apply_message(sp, t, message);
+  const messages::sync_snapshot_request& message,
+  const imessage_map::message_info_t & message_info) {
+  this->sync_process_.apply_message(sp, t, message, message_info);
 }
 
 void vds::dht::network::_client::apply_message(const service_provider& sp, database_transaction& t,
-  const messages::sync_snapshot_response& message) {
-  this->sync_process_.apply_message(sp, t, message);
+  const messages::sync_snapshot_response& message,
+  const imessage_map::message_info_t & message_info) {
+  this->sync_process_.apply_message(sp, t, message, message_info);
 }
 
 void vds::dht::network::_client::apply_message(const service_provider& sp, database_transaction& t,
-  const messages::sync_offer_send_replica_operation_request& message) {
-  this->sync_process_.apply_message(sp, t, message);
+  const messages::sync_offer_send_replica_operation_request& message,
+  const imessage_map::message_info_t & message_info) {
+  this->sync_process_.apply_message(sp, t, message, message_info);
 }
 
 void vds::dht::network::_client::apply_message(const service_provider& sp, database_transaction& t,
-  const messages::sync_offer_remove_replica_operation_request& message) {
-  this->sync_process_.apply_message(sp, t, message);
+  const messages::sync_offer_remove_replica_operation_request& message,
+  const imessage_map::message_info_t & message_info) {
+  this->sync_process_.apply_message(sp, t, message, message_info);
 }
 
 void vds::dht::network::_client::apply_message(const service_provider& sp, database_transaction& t,
-  const messages::sync_replica_request& message) {
-  this->sync_process_.apply_message(sp, t, message);
+  const messages::sync_replica_request& message,
+  const imessage_map::message_info_t & message_info) {
+  this->sync_process_.apply_message(sp, t, message, message_info);
 }
 
-void vds::dht::network::_client::apply_message(const service_provider& sp, database_transaction& t,
-  const messages::sync_replica_data& message) {
-  this->sync_process_.apply_message(sp, t, message);
+void vds::dht::network::_client::apply_message(
+    const service_provider& sp, database_transaction& t,
+    const messages::sync_replica_data& message,
+    const imessage_map::message_info_t & message_info) {
+    this->sync_process_.apply_message(sp, t, message, message_info);
 }
 
 vds::async_task<> vds::dht::network::_client::restore(
@@ -645,6 +693,15 @@ void vds::dht::network::_client::delete_data(
   const const_data_buffer& /*replica_hash*/,
   const filename& data_path) {
   file::delete_file(data_path);
+}
+
+void vds::dht::network::_client::add_route(
+    const vds::service_provider &sp,
+    const vds::const_data_buffer &source_node,
+    uint16_t hops,
+    const std::shared_ptr<dht_session> &session) {
+  this->route_.add_node(sp, source_node, session, hops, false);
+
 }
 
 void vds::dht::network::client::start(

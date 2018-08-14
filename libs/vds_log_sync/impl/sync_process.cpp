@@ -91,7 +91,8 @@ void vds::transaction_log::sync_process::query_unknown_records(const service_pro
 vds::async_task<> vds::transaction_log::sync_process::apply_message(
   const service_provider& sp,
   database_transaction& t,
-  const dht::messages::transaction_log_state& message) {
+  const dht::messages::transaction_log_state& message,
+  const dht::network::imessage_map::message_info_t & message_info) {
 
   orm::transaction_log_record_dbo t1;
   std::list<const_data_buffer> requests;
@@ -161,7 +162,8 @@ vds::async_task<> vds::transaction_log::sync_process::apply_message(
 void vds::transaction_log::sync_process::apply_message(
     const service_provider& sp,
     database_transaction& t,
-    const dht::messages::transaction_log_request& message) {
+    const dht::messages::transaction_log_request& message,
+    const dht::network::imessage_map::message_info_t & message_info) {
 
   orm::transaction_log_record_dbo t1;
   std::list<const_data_buffer> requests;
@@ -191,7 +193,8 @@ void vds::transaction_log::sync_process::apply_message(
 void vds::transaction_log::sync_process::apply_message(
     const service_provider& sp,
     database_transaction& t,
-    const dht::messages::transaction_log_record& message) {
+    const dht::messages::transaction_log_record& message,
+    const dht::network::imessage_map::message_info_t & message_info) {
 
   sp.get<logger>()->trace(
     ThisModule,
