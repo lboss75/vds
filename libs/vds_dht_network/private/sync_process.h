@@ -15,6 +15,7 @@ All rights reserved
 namespace vds {
   namespace dht {
     namespace messages {
+      class sync_offer_remove_replica_operation_request;
       class sync_replica_data;
       class sync_replica_request;
       class sync_replica_operations_response;
@@ -127,6 +128,11 @@ namespace vds {
           const service_provider & sp,
           database_transaction & t,
           const messages::sync_offer_send_replica_operation_request & message);
+
+        void apply_message(
+          const service_provider & sp,
+          database_transaction & t,
+          const messages::sync_offer_remove_replica_operation_request & message);
 
         void apply_message(
           const service_provider & sp,

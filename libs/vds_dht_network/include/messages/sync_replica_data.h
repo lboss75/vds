@@ -26,8 +26,7 @@ namespace vds {
             uint64_t last_applied,
             uint16_t replica,
             const const_data_buffer & data,
-            const const_data_buffer &source_node,
-            const const_data_buffer &target_node)
+            const const_data_buffer &source_node)
             : sync_base_message_request(
               object_id,
               leader_node,
@@ -37,8 +36,7 @@ namespace vds {
               last_applied),
               replica_(replica),
               data_(data),
-              source_node_(source_node),
-              target_node_(target_node) {
+              source_node_(source_node) {
         }
 
         sync_replica_data(
@@ -48,7 +46,6 @@ namespace vds {
               >> this->replica_
               >> this->data_
               >> this->source_node_
-              >> this->target_node_
           ;
         }
 
@@ -59,7 +56,6 @@ namespace vds {
               << this->replica_
               << this->data_
               << this->source_node_
-              << this->target_node_
           ;
           return s.data();
         }
@@ -75,14 +71,10 @@ namespace vds {
         const const_data_buffer & source_node() const override {
           return this->source_node_;
         }
-        const const_data_buffer &target_node() const {
-          return this->target_node_;
-        }
       private:
         uint16_t replica_;
         const_data_buffer data_;
         const_data_buffer source_node_;
-        const_data_buffer target_node_;
       };
     }
   }

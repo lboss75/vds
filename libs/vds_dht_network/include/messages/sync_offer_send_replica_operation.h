@@ -25,7 +25,6 @@ namespace vds {
           uint64_t current_term,
           uint64_t commit_index,
           uint64_t last_applied,
-          const const_data_buffer & member_node,
           uint16_t replica,
           const const_data_buffer &target_node)
           : sync_base_message_request(
@@ -35,7 +34,6 @@ namespace vds {
             current_term,
             commit_index,
             last_applied),
-          member_node_(member_node),
           replica_(replica),
           target_node_(target_node){
         }
@@ -44,7 +42,6 @@ namespace vds {
           binary_deserializer & s)
           : sync_base_message_request(s) {
           s
-            >> this->member_node_
             >> this->replica_
             >> this->target_node_
           ;
@@ -54,17 +51,12 @@ namespace vds {
           binary_serializer s;
           sync_base_message_request::serialize(s);
           s
-            << this->member_node_
             << this->replica_
             << this->target_node_
             ;
           return s.data();
         }
         
-        const const_data_buffer & member_node() const {
-          return this->member_node_;
-        }
-
         uint16_t replica() const {
           return this->replica_;
         }
@@ -77,7 +69,6 @@ namespace vds {
           return  this->target_node_;
         }
       private:
-        const_data_buffer member_node_;
         uint16_t replica_;
         const_data_buffer target_node_;
       };

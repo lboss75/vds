@@ -163,6 +163,11 @@ namespace vds {
         void apply_message(
           const service_provider & sp,
           database_transaction & t,
+          const messages::sync_offer_remove_replica_operation_request & message);
+
+        void apply_message(
+          const service_provider & sp,
+          database_transaction & t,
           const messages::sync_replica_request & message);
 
         void apply_message(
@@ -249,6 +254,7 @@ namespace vds {
 
       private:
         friend class sync_process;
+        friend class dht_session;
 
         std::shared_ptr<udp_transport> udp_transport_;
         dht_route<std::shared_ptr<dht_session>> route_;
@@ -305,6 +311,11 @@ namespace vds {
         static const_data_buffer read_data(
           const const_data_buffer& data_hash,
           const filename &data_path);
+
+        static void delete_data(
+          const const_data_buffer& replica_hash,
+          const filename& filename);
+
       };
     }
   }

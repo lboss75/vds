@@ -81,8 +81,7 @@ void vds::transaction_log::sync_process::query_unknown_records(const service_pro
           neighbor->node_id_,
           dht::messages::transaction_log_request(
             p,
-            client->current_node_id(),
-            neighbor->node_id_));
+            client->current_node_id()));
       }
     }
   }
@@ -117,8 +116,7 @@ vds::async_task<> vds::transaction_log::sync_process::apply_message(
           target_node,
           dht::messages::transaction_log_request(
             transaction_id,
-            client->current_node_id(),
-            target_node));
+            client->current_node_id()));
       });
     }
   }
@@ -187,15 +185,6 @@ void vds::transaction_log::sync_process::apply_message(
               message.transaction_id(),
               data));
     });
-  }
-  else {
-    auto client = sp.get<vds::dht::network::client>();
-    (*client)->send_closer(
-      sp,
-      message.target_node(),
-      1,
-      message);
-
   }
 }
 

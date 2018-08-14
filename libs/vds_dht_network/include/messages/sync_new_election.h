@@ -20,12 +20,10 @@ namespace vds {
             const const_data_buffer &object_id,
             uint64_t generation,
             uint64_t current_term,
-          const const_data_buffer &target_node,
           const const_data_buffer &source_node)
             : object_id_(object_id),
               generation_(generation),
               current_term_(current_term),
-              target_node_(target_node),
               source_node_(source_node) {
         }
 
@@ -35,7 +33,6 @@ namespace vds {
             >> this->object_id_
             >> this->generation_
             >> this->current_term_
-            >> this->target_node_
             >> this->source_node_;
           ;
         }
@@ -46,7 +43,6 @@ namespace vds {
               << this->object_id_
               << this->generation_
               << this->current_term_
-              << this->target_node_
               << this->source_node_;
           return s.data();
         }
@@ -63,10 +59,6 @@ namespace vds {
           return this->current_term_;
         }
 
-        const const_data_buffer & target_node() const {
-          return this->target_node_;
-        }
-
         const const_data_buffer & source_node() const {
           return this->source_node_;
         }
@@ -75,7 +67,6 @@ namespace vds {
         const_data_buffer object_id_;
         uint64_t generation_;
         uint64_t current_term_;
-        const_data_buffer target_node_;
         const_data_buffer source_node_;
       };
 
@@ -87,12 +78,10 @@ namespace vds {
           const const_data_buffer &object_id,
           uint64_t generation,
           uint64_t current_term,
-          const const_data_buffer &target_node,
           const const_data_buffer & source_node)
             : object_id_(object_id),
               generation_(generation),
               current_term_(current_term),
-          target_node_(target_node),
           source_node_(source_node) {
         }
 
@@ -102,7 +91,6 @@ namespace vds {
             >> this->object_id_
             >> this->generation_
             >> this->current_term_
-            >> this->target_node_
             >> this->source_node_
             ;
         }
@@ -113,7 +101,6 @@ namespace vds {
             << this->object_id_
             << this->generation_
             << this->current_term_
-            << this->target_node_
             << this->source_node_
             ;
           return s.data();
@@ -131,10 +118,6 @@ namespace vds {
           return this->current_term_;
         }
 
-        const const_data_buffer & target_node() const {
-          return this->target_node_;
-        }
-
         const const_data_buffer & source_node() const {
           return source_node_;
         }
@@ -143,7 +126,6 @@ namespace vds {
         const_data_buffer object_id_;
         uint64_t generation_;
         uint64_t current_term_;
-        const_data_buffer target_node_;
         const_data_buffer source_node_;
       };
     }

@@ -12,25 +12,19 @@ namespace vds {
         static const network::message_type_t message_id = network::message_type_t::dht_ping;
 
         dht_ping(
-          const const_data_buffer & target_node,
           const const_data_buffer & source_node)
-          : target_node_(target_node),
-          source_node_(source_node) {
+          : source_node_(source_node) {
         }
 
         dht_ping(
           binary_deserializer & s) {
-          s >> this->target_node_ >> this->source_node_;
+          s >> this->source_node_;
         }
 
         const_data_buffer serialize() const {
           binary_serializer s;
-          s << this->target_node_ << this->source_node_;
+          s << this->source_node_;
           return s.data();
-        }
-
-        const const_data_buffer & target_node() const {
-          return target_node_;
         }
 
         const const_data_buffer & source_node() const {
@@ -38,7 +32,6 @@ namespace vds {
         }
 
       private:
-        const_data_buffer target_node_;
         /**
          * \brief Ping initiator
          */

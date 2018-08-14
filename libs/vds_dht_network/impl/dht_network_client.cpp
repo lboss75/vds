@@ -145,23 +145,18 @@ vds::async_task<>  vds::dht::network::_client::apply_message(
   return result;
 }
 
-void vds::dht::network::_client::apply_message(const service_provider& sp, const std::shared_ptr<dht_session>& session,
+void vds::dht::network::_client::apply_message(
+  const service_provider& sp,
+  const std::shared_ptr<dht_session>& session,
   const messages::dht_ping& message) {
-  if(message.target_node() == this->current_node_id()) {
+
     sp.get<logger>()->trace(ThisModule, sp, "Send dht_pong");
     session->send_message(
       sp,
       this->udp_transport_,
       (uint8_t)messages::dht_pong::message_id,
-      messages::dht_pong(message.source_node(), this->current_node_id()).serialize());
-  }
-  else {
-    this->send_closer(
-      sp,
-      message.target_node(),
-      5,
-      message);
-  }
+      message.source_node(),
+      messages::dht_pong(this->current_node_id()).serialize());
 }
 
 void vds::dht::network::_client::apply_message(
@@ -169,13 +164,6 @@ void vds::dht::network::_client::apply_message(
   const std::shared_ptr<dht_session>& session,
   const messages::dht_pong& message) {
   this->route_.mark_pinged(message.source_node(), session->address());
-
-  this->route_.for_near(sp, message.target_node(), 1, [this, &message, sp](const std::shared_ptr<dht_route<std::shared_ptr<dht_session>>::node> & candidate)->bool {
-    if (dht_object_id::distance(message.target_node(), candidate->node_id_) < dht_object_id::distance(message.target_node(), this->current_node_id())) {
-      this->send(sp, message.target_node(), message);
-    }
-    return true;
-  });
 }
 
 void vds::dht::network::_client::add_session(const service_provider& sp, const std::shared_ptr<dht_session>& session, uint8_t hops) {
@@ -193,6 +181,7 @@ void vds::dht::network::_client::send(const service_provider& sp, const const_da
       sp,
       pthis->udp_transport_,
       message_id,
+      candidate->node_id_,
       message);
     return false;
   });
@@ -204,27 +193,19 @@ void vds::dht::network::_client::send_near(
   size_t radius,
   const message_type_t message_id,
   const const_data_buffer& message) {
-  std::map<network_address, std::shared_ptr<dht_session>> sessions;
   this->route_.for_near(
     sp,
     target_node_id,
     radius,
-    [&sessions](
-        const std::shared_ptr<dht_route<std::shared_ptr<dht_session>>::node> & candidate) {
-      auto session = candidate->proxy_session_;
-      if(sessions.end() == sessions.find(session->address())){
-        sessions[session->address()] = session;
-      }
-      return true;
+    [sp, target_node_id, message_id, message, pthis = this->shared_from_this()](const std::shared_ptr<dht_route<std::shared_ptr<dht_session>>::node> & candidate) {
+    candidate->send_message(
+      sp,
+      pthis->udp_transport_,
+      message_id,
+      candidate->node_id_,
+      message);
+    return true;
     });
-
-  for(auto session : sessions){
-    session.second->send_message(
-        sp,
-        this->udp_transport_,
-        (uint8_t)message_id,
-        message);
-  }
 }
 
 void vds::dht::network::_client::send_near(
@@ -240,22 +221,15 @@ void vds::dht::network::_client::send_near(
     target_node_id,
     radius,
     filter,
-    [&sessions](
-      const std::shared_ptr<dht_route<std::shared_ptr<dht_session>>::node> & candidate) {
-      auto session = candidate->proxy_session_;
-      if(sessions.end() == sessions.find(session->address())){
-        sessions[session->address()] = session;
-      }
-      return true;
+    [sp, target_node_id, message_id, message, pthis = this->shared_from_this()](const std::shared_ptr<dht_route<std::shared_ptr<dht_session>>::node> & candidate) {
+    candidate->send_message(
+      sp,
+      pthis->udp_transport_,
+      message_id,
+      candidate->node_id_,
+      message);
+    return true;
   });
-
-  for(auto session : sessions){
-    session.second->send_message(
-        sp,
-        this->udp_transport_,
-        (uint8_t)message_id,
-        message);
-  }
 }
 
 void vds::dht::network::_client::send_closer(
@@ -281,6 +255,7 @@ void vds::dht::network::_client::send_closer(
         sp,
         pthis->udp_transport_,
         message_id,
+        target_node_id,
         message);
     }
     return true;
@@ -296,6 +271,7 @@ void vds::dht::network::_client::send_neighbors(const service_provider& sp,
       sp,
       pthis->udp_transport_,
       message_id,
+      candidate->node_id_,
       message);
     return true;
   });
@@ -506,6 +482,11 @@ void vds::dht::network::_client::apply_message(const service_provider& sp, datab
 }
 
 void vds::dht::network::_client::apply_message(const service_provider& sp, database_transaction& t,
+  const messages::sync_offer_remove_replica_operation_request& message) {
+  this->sync_process_.apply_message(sp, t, message);
+}
+
+void vds::dht::network::_client::apply_message(const service_provider& sp, database_transaction& t,
   const messages::sync_replica_request& message) {
   this->sync_process_.apply_message(sp, t, message);
 }
@@ -658,6 +639,12 @@ vds::dht::network::_client::read_data(
   auto data = file::read_all(data_path);
   vds_assert(data_hash == hash::signature(hash::sha256(), data));
   return data;
+}
+
+void vds::dht::network::_client::delete_data(
+  const const_data_buffer& /*replica_hash*/,
+  const filename& data_path) {
+  file::delete_file(data_path);
 }
 
 void vds::dht::network::client::start(

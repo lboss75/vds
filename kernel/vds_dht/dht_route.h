@@ -69,12 +69,14 @@ namespace vds {
           const service_provider& sp,
           const std::shared_ptr<network::udp_transport>& transport,
           const network::message_type_t message_id,
+          const const_data_buffer& target_node,
           const const_data_buffer& message) {
 
           proxy_session_->send_message(
             sp,
             transport,
             (uint8_t)message_id,
+            target_node,
             message);
 
         }
@@ -94,6 +96,9 @@ namespace vds {
           const const_data_buffer &id,
           const session_type &proxy_session,
           uint8_t hops) {
+        if(id == this->current_node_id_) {
+          return false;
+        }
 
         const auto index = dht_object_id::distance_exp(this->current_node_id_, id);
         std::shared_ptr<bucket> b;

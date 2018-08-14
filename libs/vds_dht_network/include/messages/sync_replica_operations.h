@@ -29,8 +29,7 @@ namespace vds {
           const const_data_buffer & member_node,
           uint16_t replica,
           const const_data_buffer & message_source_node,
-          uint64_t message_source_index,
-          const const_data_buffer & target_node)
+          uint64_t message_source_index)
             : sync_base_message_request(
               object_id,
               leader_node,
@@ -42,8 +41,7 @@ namespace vds {
         member_node_(member_node),
         replica_(replica),
           message_source_node_(message_source_node),
-        message_source_index_(message_source_index),
-        target_node_(target_node) {
+        message_source_index_(message_source_index) {
         }
 
         sync_replica_operations_request(
@@ -56,7 +54,6 @@ namespace vds {
             >> this->replica_
             >> this->message_source_node_
             >> this->message_source_index_
-            >> this->target_node_
             ;
 
           this->message_type_ = static_cast<orm::sync_message_dbo::message_type_t>(message_type);
@@ -71,7 +68,6 @@ namespace vds {
             << this->replica_
             << this->message_source_node_
             << this->message_source_index_
-            << this->target_node_
             ;
           return s.data();
         }
@@ -91,10 +87,6 @@ namespace vds {
           return this->leader_node();
         }
 
-        const const_data_buffer& target_node() const {
-          return this->target_node_;
-        }
-
         const const_data_buffer & message_source_node() const {
           return this->message_source_node_;
         }
@@ -109,7 +101,6 @@ namespace vds {
         uint16_t replica_;
         const_data_buffer message_source_node_;
         uint64_t message_source_index_;
-        const_data_buffer target_node_;
       };
 
       class sync_replica_operations_response : public sync_base_message_response {
@@ -118,7 +109,6 @@ namespace vds {
 
         sync_replica_operations_response(
           const const_data_buffer &object_id,
-          const const_data_buffer &leader_node,
           uint64_t generation,
           uint64_t current_term,
           uint64_t commit_index,
@@ -126,7 +116,6 @@ namespace vds {
           const const_data_buffer &source_node)
             : sync_base_message_response(
               object_id,
-              leader_node,
               generation,
               current_term,
               commit_index,

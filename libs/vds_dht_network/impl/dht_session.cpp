@@ -36,11 +36,14 @@ void vds::dht::network::dht_session::ping_node(
   const const_data_buffer & node_id,
   const std::shared_ptr<udp_transport> & transport) {
 
+  vds_assert(node_id != transport->this_node_id());
+
   this->send_message(
       sp,
       transport,
       (uint8_t)messages::dht_ping::message_id,
-      messages::dht_ping(node_id, transport->this_node_id()).serialize());
+      node_id,
+      messages::dht_ping(transport->this_node_id()).serialize());
 }
 
 vds::session_statistic::session_info vds::dht::network::dht_session::get_statistic() const {
@@ -53,9 +56,25 @@ vds::async_task<> vds::dht::network::dht_session::process_message(
     const vds::service_provider &sp,
     uint8_t message_type,
     const vds::const_data_buffer &message) {
-  return sp.get<imessage_map>()->process_message(
+
+  vds_assert(message.size() >= 32);
+  const_data_buffer target_node(message.data(), 32);
+  const_data_buffer message_data(message.data() + 32, message.size() - 32);
+  if(target_node != this->this_node_id()) {
+    return [sp, message_type, target_node, message_data]() {
+      (*sp.get<client>())->send_closer(
+        sp,
+        target_node,
+        1,
+        static_cast<message_type_t>(message_type),
+        message_data);
+    };
+  }
+  else {
+    return sp.get<imessage_map>()->process_message(
       sp,
       this->shared_from_this(),
       message_type,
-      message);
+      message_data);
+  }
 }

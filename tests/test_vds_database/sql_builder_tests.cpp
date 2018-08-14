@@ -77,7 +77,7 @@ bool vds::mock_sql_statement::execute()
 
 static std::string result_sql;
 
-vds::mock_sql_statement vds::mock_database_read_transaction::parse(const char * sql)
+vds::mock_sql_statement vds::mock_database_read_transaction::parse(const char * sql) const
 {
   result_sql = sql;
   return mock_sql_statement(nullptr);
