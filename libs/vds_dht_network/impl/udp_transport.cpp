@@ -286,7 +286,9 @@ void vds::dht::network::udp_transport::continue_read(
                 std::shared_lock<std::shared_mutex> lock(pthis->sessions_mutex_);
                 pthis->sessions_.erase(address);
               }
-              pthis->continue_read(sp);
+              mt_service::async(sp, [sp, pthis](){
+                pthis->continue_read(sp);
+              });
             });
             return;
           }
