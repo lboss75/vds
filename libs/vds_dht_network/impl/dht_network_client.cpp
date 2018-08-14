@@ -19,13 +19,8 @@ All rights reserved
 #include "inflate.h"
 #include "vds_exceptions.h"
 #include "local_data_dbo.h"
-#include "messages/offer_replica.h"
 #include "well_known_node_dbo.h"
-#include "url_parser.h"
-#include "chunk_replica_data_dbo.h"
 #include "messages/sync_replica_data.h"
-#include "messages/got_replica.h"
-#include "sync_replica_map_dbo.h"
 
 vds::dht::network::_client::_client(
     const service_provider & sp,
