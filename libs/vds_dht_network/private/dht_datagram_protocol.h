@@ -55,8 +55,17 @@ namespace vds {
           this->message_count_[message_type]++;
           this->message_size_[message_type] += message.size();
 
+          for(const auto & p : this->send_queue_){
+            if(p.message_type == message_type
+              && p.target_node == target_node
+              && p.source_node == source_node
+              && p.message == message ) {
+              return;
+            }
+          }
+
           const bool need_start = this->send_queue_.empty();
-          this->send_queue_.push(send_queue_item_t {
+          this->send_queue_.push_back(send_queue_item_t {
             sp,
             s,
             message_type,
@@ -180,7 +189,7 @@ namespace vds {
           uint16_t hops;
           const_data_buffer message;
         };
-        std::queue<send_queue_item_t> send_queue_;
+        std::list<send_queue_item_t> send_queue_;
 
         std::map<uint8_t, uint64_t> message_count_;
         std::map<uint8_t, uint64_t> message_size_;
@@ -512,7 +521,7 @@ namespace vds {
           std::unique_lock<std::mutex> lock(this->send_mutex_);
 
           if (remove_first) {
-            this->send_queue_.pop();
+            this->send_queue_.pop_front();
           }
 
           if (this->send_queue_.empty()) {
