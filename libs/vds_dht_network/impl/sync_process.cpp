@@ -31,7 +31,8 @@ All rights reserved
 #include "device_record_dbo.h"
 #include "messages/sync_replica_data.h"
 
-vds::dht::network::sync_process::sync_process() {
+vds::dht::network::sync_process::sync_process()
+: sync_replicas_timeout_(0) {
   for (uint16_t replica = 0; replica < GENERATE_DISTRIBUTED_PIECES; ++replica) {
     this->distributed_generators_[replica].reset(new chunk_generator<uint16_t>(MIN_DISTRIBUTED_PIECES, replica));
   }
@@ -2038,9 +2039,11 @@ void vds::dht::network::sync_process::sync_local_queues(
 }
 
 void vds::dht::network::sync_process::sync_replicas(const service_provider& sp, database_transaction& t) {
-  replica_sync sync;
-  sync.load(sp, t);
-  sync.normalize_density(sp, t);
+  if (this->sync_replicas_timeout_++ == 120) {
+    replica_sync sync;
+    sync.load(sp, t);
+    sync.normalize_density(sp, t);
+  }
 }
 
 void vds::dht::network::sync_process::replica_sync::load(const service_provider& sp, database_transaction& t) {

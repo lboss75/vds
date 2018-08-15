@@ -189,6 +189,7 @@ namespace vds {
         }
 
         std::map<uint16_t, std::unique_ptr<chunk_generator<uint16_t>>> distributed_generators_;
+        int sync_replicas_timeout_;
 
         void add_to_log(const vds::service_provider& sp, vds::database_transaction& t,
           const vds::const_data_buffer& object_id,
