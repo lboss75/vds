@@ -550,7 +550,7 @@ vds::const_data_buffer vds::dht::network::sync_process::restore_replica(
     binary_serializer s;
     restore.restore(s, datas);
 
-    auto data = s.data();
+    auto data = s.get_data();
     const auto data_hash = hash::signature(hash::sha256(), data);
     _client::save_data(sp, t, data_hash, data);
 
@@ -1140,7 +1140,7 @@ void vds::dht::network::sync_process::apply_message(
         base64::from_bytes(client->current_node_id()).c_str(),
         base64::from_bytes(message.object_id()).c_str(),
         base64::from_bytes(message_info.source_node()).c_str());
-    (*client)->send_closer(
+    (*client)->send_near(
       sp,
       message.object_id(),
       GENERATE_DISTRIBUTED_PIECES,
@@ -1294,7 +1294,7 @@ void vds::dht::network::sync_process::apply_message(
                   object_id = message.object_id()]() {
                   binary_serializer s;
                   this->distributed_generators_.find(replica)->second->write(s, data.data(), data.size());
-                  const_data_buffer replica_data(s.data());
+                  const_data_buffer replica_data(s.get_data());
                   sp.get<logger>()->trace(
                     SyncModule,
                     sp,

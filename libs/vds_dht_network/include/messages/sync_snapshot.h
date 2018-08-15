@@ -37,7 +37,7 @@ namespace vds {
             << this->object_id_
             << this->source_node_
           ;
-          return s.data();
+          return s.get_data();
         }
 
         const const_data_buffer & object_id() const {
@@ -116,7 +116,7 @@ namespace vds {
             << this->replica_map_
             << this->members_
             ;
-          return s.data();
+          return s.get_data();
         }
 
         const const_data_buffer & object_id() const {

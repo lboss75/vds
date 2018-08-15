@@ -38,7 +38,7 @@ namespace vds {
         const_data_buffer serialize() const {
           binary_serializer s;
           sync_base_message_request::serialize(s);
-          return s.data();
+          return s.get_data();
         }
       };
 
@@ -68,7 +68,7 @@ namespace vds {
         const_data_buffer serialize() const {
           binary_serializer s;
           sync_base_message_response::serialize(s);
-          return s.data();
+          return s.get_data();
         }
       };
     }

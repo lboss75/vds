@@ -22,7 +22,8 @@ bool vds::transactions::transaction_block::validate(const certificate& write_cer
     hash::sha256(),
     write_cert.public_key(),
     this->signature_, 
-    block_data.data());
+    block_data.get_buffer(),
+    block_data.size());
 }
 
 bool vds::transactions::transaction_block::exists(database_transaction& t) {

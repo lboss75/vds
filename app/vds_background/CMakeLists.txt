@@ -14,9 +14,15 @@ endif(0)
 FILE(GLOB HEADER_FILES *.h)
 FILE(GLOB SOURCE_FILES *.cpp)
 
+if(UNIX)
+else(UNIX)
+	FILE(GLOB GLOBAL_RES ${CMAKE_SOURCE_DIR}/resources/*.rc ${CMAKE_SOURCE_DIR}/resources/*.h)
+endif(UNIX)
+
 ADD_MSVC_PRECOMPILED_HEADER("stdafx.h" "stdafx.cpp" SOURCE_FILES)
 
-add_executable(vds_background ${SOURCE_FILES} ${HEADER_FILES})
+add_executable(vds_background ${SOURCE_FILES} ${HEADER_FILES} ${GLOBAL_RES})
+
 target_include_directories(vds_background
 	PRIVATE
 		${vds_core_INCLUDE_DIR}

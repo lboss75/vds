@@ -40,7 +40,7 @@ namespace vds {
           s
               << this->object_id_
               << this->exist_replicas_;
-          return s.data();
+          return s.get_data();
         }
 
         const const_data_buffer & object_id() const {

@@ -152,9 +152,8 @@ void vds::_mt_service::work_thread()
     std::function<void(void)> handler;
     {
       std::unique_lock<std::mutex> lock(this->mutex_);
-      this->cond_.wait_for(
+      this->cond_.wait(
         lock,
-        std::chrono::seconds(1),
         [this]()->bool { return !this->queue_.empty(); });
       
       if(this->queue_.empty()){

@@ -115,7 +115,7 @@ namespace vds {
           this->read_cert().subject(),
           writter.user_certificate().subject(),
           this->read_cert().public_key().encrypt(key.serialize()),
-          symmetric_encrypt::encrypt(key, s.data().data(), s.data().size()),
+          symmetric_encrypt::encrypt(key, s.get_buffer(), s.size()),
           writter.private_key()));
     }
 
@@ -129,7 +129,7 @@ namespace vds {
         << (uint8_t)item_type::message_id;
       item.serialize(s);
 
-      this->add_to_log(log, s.data().data(), s.size());
+      this->add_to_log(log, s.get_buffer(), s.size());
     }
 
   private:

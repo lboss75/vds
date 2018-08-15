@@ -67,7 +67,7 @@ namespace vds {
             << this->message_source_node_
             << this->message_source_index_
             ;
-          return s.data();
+          return s.get_data();
         }
         orm::sync_message_dbo::message_type_t message_type() const {
           return this->message_type_;
@@ -123,7 +123,7 @@ namespace vds {
         const_data_buffer serialize() const {
           binary_serializer s;
           sync_base_message_response::serialize(s);
-          return s.data();
+          return s.get_data();
         }
       };
     }

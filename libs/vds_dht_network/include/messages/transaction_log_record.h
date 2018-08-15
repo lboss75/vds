@@ -31,7 +31,7 @@ namespace vds {
         const_data_buffer serialize() const {
           binary_serializer s;
           s << this->record_id_ << this->data_;
-          return s.data();
+          return s.get_data();
         }
 
         const const_data_buffer & record_id() const {

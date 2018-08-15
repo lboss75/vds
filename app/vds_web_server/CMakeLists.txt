@@ -7,6 +7,8 @@ FILE(GLOB SOURCE_LIB *.cpp)
 
 if(UNIX)
 	find_package (Threads REQUIRED)
+else(UNIX)
+	FILE(GLOB GLOBAL_RES ${CMAKE_SOURCE_DIR}/resources/*.rc ${CMAKE_SOURCE_DIR}/resources/*.h)
 endif(UNIX)
 
 find_package(OpenSSL REQUIRED)
@@ -14,7 +16,7 @@ set(OPENSSL_USE_STATIC_LIBS TRUE)
 
 ADD_MSVC_PRECOMPILED_HEADER("stdafx.h" "stdafx.cpp" SOURCE_LIB)
 
-add_executable(vds_web_server ${PRIVATE_HEADER_FILES} ${SOURCE_LIB} ${HEADER_FILES})
+add_executable(vds_web_server ${PRIVATE_HEADER_FILES} ${SOURCE_LIB} ${HEADER_FILES} ${GLOBAL_RES})
 
 target_include_directories(vds_web_server
 	PRIVATE

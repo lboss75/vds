@@ -2,7 +2,6 @@
 Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
-#include <include/imessage_map.h>
 #include "stdafx.h"
 #include "private/dht_session.h"
 #include "db_model.h"
@@ -21,6 +20,7 @@ All rights reserved
 #include "messages/got_replica.h"
 #include "messages/sync_new_election.h"
 #include "messages/sync_coronation.h"
+#include "imessage_map.h"
 
 vds::dht::network::dht_session::dht_session(
   const network_address& address,

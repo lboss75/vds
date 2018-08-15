@@ -43,7 +43,7 @@ namespace vds {
         const_data_buffer serialize() const {
           binary_serializer s;
           s << this->nodes_;
-          return s.data();
+          return s.get_data();
         }
 
 

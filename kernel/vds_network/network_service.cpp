@@ -243,7 +243,7 @@ void vds::_network_service::thread_loop(const service_provider & sp)
           &dwBytesTransfered,
           (PULONG_PTR)&lpContext,
           &pOverlapped,
-          1000)) {
+          60 * 1000)) {
           auto errorCode = GetLastError();
           if (errorCode == WAIT_TIMEOUT) {
             continue;

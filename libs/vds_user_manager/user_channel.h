@@ -92,7 +92,7 @@ namespace vds {
         << (uint8_t)item_type::message_id;
       item.serialize(s);
 
-      this->add_to_log(log, s.data().data(), s.size());
+      this->add_to_log(log, s.get_buffer(), s.size());
     }
 
   private:

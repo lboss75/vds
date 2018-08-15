@@ -34,7 +34,8 @@ namespace vds {
           session_id_(session_id),
           output_sequence_number_(0),
           mtu_(65507),
-          next_sequence_number_(0)
+          next_sequence_number_(0),
+          skipped_datagrams_(0)
         {
         }
 
@@ -50,6 +51,9 @@ namespace vds {
           vds_assert(target_node != this->this_node_id_);
 
           std::unique_lock<std::mutex> lock(this->send_mutex_);
+
+          this->message_count_[message_type]++;
+          this->message_size_[message_type] += message.size();
 
           const bool need_start = this->send_queue_.empty();
           this->send_queue_.push(send_queue_item_t {
@@ -177,6 +181,10 @@ namespace vds {
           const_data_buffer message;
         };
         std::queue<send_queue_item_t> send_queue_;
+
+        std::map<uint8_t, uint64_t> message_count_;
+        std::map<uint8_t, uint64_t> message_size_;
+        uint64_t skipped_datagrams_;
 
         async_task<> send_message_async(
           const service_provider &sp,
@@ -429,6 +437,9 @@ namespace vds {
               const_data_buffer message(p->second.data() + 5, p->second.size() - 5);
 
               logger::get(sp)->trace("DHT", sp, "Processed datagram %d", p->first);
+              for(auto premove = this->input_messages_.begin(); premove != p; ++premove) {
+                ++this->skipped_datagrams_;
+              }
               this->input_messages_.erase(this->input_messages_.begin(), p);
               this->input_messages_.erase(p);
 
@@ -472,6 +483,9 @@ namespace vds {
                 size -= p1->second.size() - 1;
 
                 if (0 == size) {
+                  for (auto premove = this->input_messages_.begin(); premove != p; ++premove) {
+                    ++this->skipped_datagrams_;
+                  }
                   this->input_messages_.erase(this->input_messages_.begin(), p1);
                   this->input_messages_.erase(p1);
 

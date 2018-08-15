@@ -46,7 +46,7 @@ namespace vds {
           sync_base_message_request::serialize(s);
           s
             << this->object_size_;
-          return s.data();
+          return s.get_data();
         }
 
 
@@ -82,7 +82,7 @@ namespace vds {
           s
             << this->object_id_
             << this->replicas_;
-          return s.data();
+          return s.get_data();
         }
 
         const const_data_buffer & object_id() const {

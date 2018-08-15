@@ -10,6 +10,7 @@ All rights reserved
 #include <map>
 #include "types.h"
 #include "const_data_buffer.h"
+#include "resizable_data_buffer.h"
 
 namespace vds {
 
@@ -39,10 +40,13 @@ namespace vds {
     
     binary_serializer & operator << (const const_data_buffer & data);
 
-    const std::vector<uint8_t> & data() const;
-    
-    uint8_t operator[](size_t index) const;
-    uint8_t & operator[](size_t index);
+    const uint8_t * get_buffer() const {
+      return this->data_.data();
+    }
+
+    const_data_buffer get_data() const {
+      return this->data_.get_data();
+    }
 
     size_t size() const { return this->data_.size(); }
     
@@ -91,7 +95,9 @@ namespace vds {
     }
 
   private:
-    std::vector<uint8_t> data_;
+    resizable_data_buffer data_;
+
+    binary_serializer & operator << (const uint8_t * value);//to avoid convert uint8_t * to std::string
   };
   
   class binary_deserializer

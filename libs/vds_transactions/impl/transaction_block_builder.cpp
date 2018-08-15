@@ -28,18 +28,20 @@ vds::const_data_buffer vds::transactions::transaction_block_builder::save(
     << (this->ancestors_.empty() ? 1 : this->balance_.order_no())
     << write_cert.subject()
     << this->ancestors_
-    << this->data_.data();
+    << this->data_.get_data();
 
   block_data << asymmetric_sign::signature(
     hash::sha256(),
     write_private_key,
-    block_data.data());
+    block_data.get_buffer(),
+    block_data.size());
 
-  auto id = hash::signature(hash::sha256(), block_data.data());
+  auto id = hash::signature(hash::sha256(), block_data.get_buffer(), block_data.size());
 
+  const auto data = block_data.get_data();
   if(this->ancestors_.empty()) {
     //Root transaction
-    transaction_block block(block_data.data());
+    transaction_block block(data);
     block.walk_messages(
       [this, id](const root_user_transaction & message)->bool{
       this->balance_ = data_coin_balance(id, message.user_cert().subject());
@@ -51,7 +53,7 @@ vds::const_data_buffer vds::transactions::transaction_block_builder::save(
   orm::transaction_log_record_dbo t2;
   t.execute(t2.insert(
     t2.id = id,
-    t2.data = block_data.data(),
+    t2.data = data,
     t2.state = orm::transaction_log_record_dbo::state_t::leaf,
     t2.order_no = this->balance_.order_no(),
     t2.time_point = this->time_point_,
@@ -65,6 +67,10 @@ vds::const_data_buffer vds::transactions::transaction_block_builder::save(
   }
 
   return id;
+}
+
+vds::transactions::transaction_block_builder::transaction_block_builder()
+  : time_point_(std::chrono::system_clock::now()) {
 }
 
 vds::transactions::transaction_block_builder::transaction_block_builder(

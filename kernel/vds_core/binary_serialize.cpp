@@ -7,42 +7,42 @@ All rights reserved
 
 vds::binary_serializer& vds::binary_serializer::operator << (bool value)
 {
-  this->data_.push_back(value ? (uint8_t)0xFF : (uint8_t)0);
+  this->data_.add(value ? (uint8_t)0xFF : (uint8_t)0);
   return *this;
 }
 
 vds::binary_serializer& vds::binary_serializer::operator << (uint8_t value)
 {
-  this->data_.push_back(value);
+  this->data_.add(value);
   return *this;
 }
 
 vds::binary_serializer& vds::binary_serializer::operator << (uint16_t value)
 {
-  this->data_.push_back((value >> 8) & 0xFF);
-  this->data_.push_back(value & 0xFF);
+  this->data_.add((value >> 8) & 0xFF);
+  this->data_.add(value & 0xFF);
   return *this;
 }
 
 vds::binary_serializer& vds::binary_serializer::operator << (uint32_t value)
 {
-  this->data_.push_back((value >> 24) & 0xFF);
-  this->data_.push_back((value >> 16) & 0xFF);
-  this->data_.push_back((value >> 8) & 0xFF);
-  this->data_.push_back(value & 0xFF);
+  this->data_.add((value >> 24) & 0xFF);
+  this->data_.add((value >> 16) & 0xFF);
+  this->data_.add((value >> 8) & 0xFF);
+  this->data_.add(value & 0xFF);
   return *this;
 }
 
 vds::binary_serializer& vds::binary_serializer::operator << (uint64_t value)
 {
-  this->data_.push_back((value >> 56) & 0xFF);
-  this->data_.push_back((value >> 48) & 0xFF);
-  this->data_.push_back((value >> 40) & 0xFF);
-  this->data_.push_back((value >> 32) & 0xFF);
-  this->data_.push_back((value >> 24) & 0xFF);
-  this->data_.push_back((value >> 16) & 0xFF);
-  this->data_.push_back((value >> 8) & 0xFF);
-  this->data_.push_back(value & 0xFF);
+  this->data_.add((value >> 56) & 0xFF);
+  this->data_.add((value >> 48) & 0xFF);
+  this->data_.add((value >> 40) & 0xFF);
+  this->data_.add((value >> 32) & 0xFF);
+  this->data_.add((value >> 24) & 0xFF);
+  this->data_.add((value >> 16) & 0xFF);
+  this->data_.add((value >> 8) & 0xFF);
+  this->data_.add(value & 0xFF);
   return *this;
 }
 
@@ -61,9 +61,9 @@ vds::binary_serializer & vds::binary_serializer::write_number(uint64_t value)
     value >>= 8;
   } while (0 != value);
   
-  this->data_.push_back((uint8_t)(0x80 | data.size()));
+  this->data_.add((uint8_t)(0x80 | data.size()));
   for(auto p = data.rbegin(); data.rend() != p; ++p){
-    this->data_.push_back(*p);
+    this->data_.add(*p);
   }
   
   return *this;
@@ -71,10 +71,8 @@ vds::binary_serializer & vds::binary_serializer::write_number(uint64_t value)
 
 vds::binary_serializer& vds::binary_serializer::operator<<(const std::string & value)
 {
-  this->write_number(value.size());
-  for(auto ch : value){
-    this->data_.push_back(ch);
-  }
+  this->write_number(value.length());
+  this->data_.add(value.c_str(), value.length());
   
   return *this;
 }
@@ -85,32 +83,13 @@ vds::binary_serializer & vds::binary_serializer::push_data(const void * data, si
     this->write_number(size);
   }
   
-  const uint8_t * p = (const uint8_t *)data;
-  while (0 < size--) {
-    this->data_.push_back(*p++);
-  }
-
+  this->data_.add(data, size);
   return *this;
 }
 
 vds::binary_serializer& vds::binary_serializer::operator << (const const_data_buffer& data)
 {
   return this->push_data(data.data(), data.size(), true);
-}
-
-const std::vector<uint8_t>& vds::binary_serializer::data() const
-{
-  return this->data_;
-}
-
-uint8_t& vds::binary_serializer::operator[](size_t index)
-{
-  return this->data_[index];
-}
-
-uint8_t vds::binary_serializer::operator[](size_t index) const
-{
-  return this->data_[index];
 }
 
 ///////////////////////////////////////////////////////////////////////////

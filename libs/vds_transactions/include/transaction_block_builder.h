@@ -51,7 +51,7 @@ namespace vds {
         data_coin_balance balance_;
         binary_serializer data_;
 
-        transaction_block_builder() = default;
+        transaction_block_builder();
 
     };
   }

@@ -276,9 +276,9 @@ vds::async_task<vds::const_data_buffer> vds::user_manager::create_register_reque
       << dht::dht_object_id::user_credentials_to_key(user_email, user_password)
       << user_private_key.der(user_password);
 
-    s << asymmetric_sign::signature(hash::sha256(), user_private_key, s.data());
+    s << asymmetric_sign::signature(hash::sha256(), user_private_key, s.get_buffer(), s.size());
 
-    auto id = hash::signature(hash::md5(), s.data());
+    auto id = hash::signature(hash::md5(), s.get_buffer(), s.size());
     *result = id;
     orm::register_request t1;
     t.execute(
@@ -286,7 +286,7 @@ vds::async_task<vds::const_data_buffer> vds::user_manager::create_register_reque
         t1.id = id,
         t1.name = userName,
         t1.email = user_email,
-        t1.data = s.data(),
+        t1.data = s.get_data(),
         t1.create_time = std::chrono::system_clock::now()));
 
     return true;

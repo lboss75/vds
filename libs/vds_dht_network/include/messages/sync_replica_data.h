@@ -55,7 +55,7 @@ namespace vds {
               << this->data_
               << this->leader_node_
           ;
-          return s.data();
+          return s.get_data();
         }
 
         uint16_t replica() const {

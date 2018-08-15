@@ -51,7 +51,7 @@ namespace vds {
             << this->member_node_
             << this->replica_
             ;
-          return s.data();
+          return s.get_data();
         }
         
         const const_data_buffer & member_node() const {

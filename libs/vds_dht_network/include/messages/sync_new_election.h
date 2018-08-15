@@ -44,7 +44,7 @@ namespace vds {
               << this->generation_
               << this->current_term_
               << this->source_node_;
-          return s.data();
+          return s.get_data();
         }
 
         const const_data_buffer & object_id() const {
@@ -103,7 +103,7 @@ namespace vds {
             << this->current_term_
             << this->source_node_
             ;
-          return s.data();
+          return s.get_data();
         }
 
         const const_data_buffer & object_id() const {

@@ -44,7 +44,7 @@ std::vector<vds::const_data_buffer> vds::dht::network::_client::save(
   for (uint16_t replica = 0; replica < GENERATE_HORCRUX; ++replica) {
     binary_serializer s;
     this->generators_.find(replica)->second->write(s, value.data(), value.size());
-    const auto replica_data = s.data();
+    const auto replica_data = s.get_data();
     const auto replica_hash = hash::signature(hash::sha256(), replica_data);
     const auto & object_id = replica_hash;
 
@@ -81,7 +81,7 @@ void vds::dht::network::_client::save(
   for (uint16_t replica = 0; replica < GENERATE_HORCRUX; ++replica) {
     binary_serializer s;
     this->generators_.find(replica)->second->write(s, value.data(), value.size());
-    const auto replica_data = s.data();
+    const auto replica_data = s.get_data();
     const auto id = replica_id(name, replica);
 
     sp.get<logger>()->trace(
@@ -213,21 +213,31 @@ void vds::dht::network::_client::send_near(
   size_t radius,
   const message_type_t message_id,
   const const_data_buffer& message) {
+  bool exist = false;
   this->route_.for_near(
     sp,
     target_node_id,
     radius,
-    [sp, target_node_id, message_id, message, pthis = this->shared_from_this()](const std::shared_ptr<dht_route<std::shared_ptr<dht_session>>::node> & candidate) {
+    [sp, target_node_id, message_id, message, this, &exist](const std::shared_ptr<dht_route<std::shared_ptr<dht_session>>::node> & candidate) {
+
+    if(candidate->node_id_ == target_node_id) {
+      exist = true;
+    }
+
     candidate->send_message(
       sp,
-      pthis->udp_transport_,
+      this->udp_transport_,
       message_id,
       candidate->node_id_,
       message,
-      pthis->current_node_id(),
+      this->current_node_id(),
       0);
     return true;
     });
+
+  if (!exist) {
+    this->send_neighbors(sp, messages::dht_find_node(target_node_id));
+  }
 }
 
 void vds::dht::network::_client::send_near(
@@ -237,23 +247,31 @@ void vds::dht::network::_client::send_near(
   const message_type_t message_id,
   const const_data_buffer& message,
   const std::function<bool(const dht_route<std::shared_ptr<dht_session>>::node& node)>& filter) {
-  std::map<network_address, std::shared_ptr<dht_session>> sessions;
+
+  bool exist = false;
   this->route_.for_near(
     sp,
     target_node_id,
     radius,
     filter,
-    [sp, target_node_id, message_id, message, pthis = this->shared_from_this()](const std::shared_ptr<dht_route<std::shared_ptr<dht_session>>::node> & candidate) {
+    [sp, target_node_id, message_id, message, this, &exist](const std::shared_ptr<dht_route<std::shared_ptr<dht_session>>::node> & candidate) {
+    if (candidate->node_id_ == target_node_id) {
+      exist = true;
+    }
     candidate->send_message(
       sp,
-      pthis->udp_transport_,
+      this->udp_transport_,
       message_id,
       candidate->node_id_,
       message,
-      pthis->current_node_id(),
+      this->current_node_id(),
       0);
     return true;
   });
+
+  if (!exist) {
+    this->send_neighbors(sp, messages::dht_find_node(target_node_id));
+  }
 }
 
 void vds::dht::network::_client::send_closer(
@@ -279,6 +297,18 @@ void vds::dht::network::_client::send_closer(
       hops](
       const std::shared_ptr<dht_route<std::shared_ptr<dht_session>>::node> & candidate) {
     if (dht_object_id::distance(candidate->node_id_, target_node_id) < distance) {
+      
+      sp.get<logger>()->trace(
+        "dht_protocol",
+        sp,
+        "%s Message %d from %s to %s redirected to %s over %s",
+        base64::from_bytes(pthis->current_node_id()).c_str(),
+        message_id,
+        base64::from_bytes(source_node).c_str(),
+        base64::from_bytes(target_node_id).c_str(),
+        base64::from_bytes(candidate->node_id_).c_str(),
+        candidate->proxy_session_->address().to_string().c_str());
+
       candidate->send_message(
         sp,
         pthis->udp_transport_,
@@ -287,6 +317,7 @@ void vds::dht::network::_client::send_closer(
         message,
         source_node,
         hops);
+      return false;
     }
     return true;
   });
@@ -424,7 +455,7 @@ vds::async_task<> vds::dht::network::_client::update_route_table(const service_p
           messages::dht_find_node(canditate));
       });
     }
-    this->update_route_table_counter_ = 10;
+    this->update_route_table_counter_ = 100;
   }
   else {
     this->update_route_table_counter_--;
@@ -636,7 +667,7 @@ vds::async_task<uint8_t> vds::dht::network::_client::restore_async(
       chunk_restore <uint16_t> restore(MIN_HORCRUX, replicas.data());
       binary_serializer s;
       restore.restore(s, datas);
-      *result = s.data();
+      *result = s.get_data();
       *result_progress = 100;
       return true;
     }

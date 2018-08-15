@@ -19,5 +19,10 @@ All rights reserved
 #define ThisModule "dht"
 #define SyncModule "dht_sync"
 
+#ifdef max
+#undef max
+#endif
+
+
 #endif // __VDS_DHT_NETWORK_STDAFX_H_
 
