@@ -818,45 +818,23 @@ void vds::dht::network::sync_process::apply_message(
     if(last_applied > message.last_applied()) {
       return;
     }
-
-    //merge
-    t.execute(t1.update(
-      t1.state = orm::sync_state_dbo::state_t::follower,
-      t1.next_sync = std::chrono::system_clock::now() + LEADER_BROADCAST_TIMEOUT())
-    .where(t1.object_id == message.object_id()));
-
-    auto members = this->get_members(sp, t, message.object_id());
-    for (const auto & member : message.members()) {
-      auto p = members.find(member.first);
-      if (members.end() == p) {
-        t.execute(t2.insert(
-          t2.object_id = message.object_id(),
-          t2.member_node = member.first,
-          t2.voted_for = message.leader_node(),
-          t2.generation = message.generation(),
-          t2.current_term = message.current_term(),
-          t2.commit_index = message.commit_index(),
-          t2.last_applied = message.last_applied(),
-          t2.last_activity = std::chrono::system_clock::now()));
-      }
-      else {
-        members.erase(p);
-      }
-    }
-
-    for (const auto & member : members) {
-      t.execute(t2.delete_if(
-        t2.object_id == message.object_id()
-        && t2.member_node == member));
-    }
   }
   else if(message.members().end() != message.members().find(client->current_node_id())) {
-    t.execute(t1.insert(
-    t1.object_id = message.object_id(),
-      t1.object_size = message.object_size(),
-      t1.state = orm::sync_state_dbo::state_t::follower,
-      t1.next_sync = std::chrono::system_clock::now() + LEADER_BROADCAST_TIMEOUT()));
-
+    st = t.get_reader(t1.select(t1.object_id).where(t1.object_id == message.object_id()));
+    if(st.execute()) {
+      t.execute(t1.update(
+        t1.object_size = message.object_size(),
+        t1.state = orm::sync_state_dbo::state_t::follower,
+        t1.next_sync = std::chrono::system_clock::now() + LEADER_BROADCAST_TIMEOUT())
+        .where(t1.object_id == message.object_id()));
+    }
+    else {
+      t.execute(t1.insert(
+        t1.object_id = message.object_id(),
+        t1.object_size = message.object_size(),
+        t1.state = orm::sync_state_dbo::state_t::follower,
+        t1.next_sync = std::chrono::system_clock::now() + LEADER_BROADCAST_TIMEOUT()));
+    }
     for (const auto & member : message.members()) {
       t.execute(t2.insert(
         t2.object_id = message.object_id(),
@@ -872,6 +850,39 @@ void vds::dht::network::sync_process::apply_message(
   else {
     return;
   }
+
+  //merge members
+  t.execute(t1.update(
+    t1.state = orm::sync_state_dbo::state_t::follower,
+    t1.next_sync = std::chrono::system_clock::now() + LEADER_BROADCAST_TIMEOUT())
+    .where(t1.object_id == message.object_id()));
+
+  auto members = this->get_members(sp, t, message.object_id());
+  for (const auto & member : message.members()) {
+    auto p = members.find(member.first);
+    if (members.end() == p) {
+      t.execute(t2.insert(
+        t2.object_id = message.object_id(),
+        t2.member_node = member.first,
+        t2.voted_for = message.leader_node(),
+        t2.generation = message.generation(),
+        t2.current_term = message.current_term(),
+        t2.commit_index = message.commit_index(),
+        t2.last_applied = message.last_applied(),
+        t2.last_activity = std::chrono::system_clock::now()));
+    }
+    else {
+      members.erase(p);
+    }
+  }
+
+  for (const auto & member : members) {
+    t.execute(t2.delete_if(
+      t2.object_id == message.object_id()
+      && t2.member_node == member));
+  }
+
+  //
   orm::sync_replica_map_dbo t3;
   t.execute(t3.delete_if(t3.object_id == message.object_id()));
 
