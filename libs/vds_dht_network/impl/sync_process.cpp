@@ -30,6 +30,7 @@ All rights reserved
 #include "messages/sync_offer_remove_replica_operation.h"
 #include "device_record_dbo.h"
 #include "messages/sync_replica_data.h"
+#include "messages/dht_find_node.h"
 
 vds::dht::network::sync_process::sync_process()
 : sync_replicas_timeout_(0) {
@@ -641,6 +642,10 @@ vds::const_data_buffer vds::dht::network::sync_process::restore_replica(
       }
     }
     else {
+      (*client)->send_neighbors(
+          sp,
+          messages::dht_find_node(object_id));
+
       (*client)->send_near(
         sp,
         object_id,
@@ -1972,11 +1977,13 @@ void vds::dht::network::sync_process::send_snapshot(
 
   if(!st.execute() || orm::sync_state_dbo::state_t::leader != t1.state.get(st)) {
     for (const auto & target_node : target_nodes) {
-      (*client)->send_closer(
-        sp,
-        object_id,
-        GENERATE_DISTRIBUTED_PIECES,
-        messages::sync_snapshot_request(object_id, target_node));
+      if(target_node != client->current_node_id()) {
+        (*client)->send_closer(
+            sp,
+            object_id,
+            GENERATE_DISTRIBUTED_PIECES,
+            messages::sync_snapshot_request(object_id, target_node));
+      }
     }
 
     return;

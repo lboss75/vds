@@ -142,15 +142,15 @@ namespace vds {
           std::map<vds::const_data_buffer /*distance*/, std::list<vds::const_data_buffer/*node_id*/>> &result,
           uint16_t max_count) const {
 
-        std::map<vds::const_data_buffer /*distance*/, std::list<std::shared_ptr<node>>> tmp;
+        std::map<vds::const_data_buffer /*distance*/, std::map<vds::const_data_buffer, std::shared_ptr<node>>> tmp;
 
         this->search_nodes(sp, target_id, max_count, tmp);
 
         uint16_t count = 0;
         for (auto &p : tmp) {
           auto &presult = result[p.first];
-          for (auto &pnode : p.second) {
-            presult.push_back(pnode->node_id_);
+          for (auto & pnode : p.second) {
+            presult.push_back(pnode.first);
             ++count;
           }
           if (count > max_count) {
@@ -163,7 +163,7 @@ namespace vds {
         const vds::service_provider &sp,
         const const_data_buffer &target_id,
         size_t max_count,
-        std::map<const_data_buffer /*distance*/, std::list<std::shared_ptr<node>>> &result_nodes) const {
+        std::map<const_data_buffer /*distance*/, std::map<const_data_buffer, std::shared_ptr<node>>> &result_nodes) const {
         std::shared_lock<std::shared_mutex> lock(this->buckets_mutex_);
         this->_search_nodes(sp, target_id, max_count, result_nodes);
       }
@@ -173,7 +173,7 @@ namespace vds {
         const const_data_buffer &target_id,
         size_t max_count,
         const std::function<bool(const node & node)>& filter,
-        std::map<const_data_buffer /*distance*/, std::list<std::shared_ptr<node>>> &result_nodes) const {
+        std::map<const_data_buffer /*distance*/, std::map<const_data_buffer, std::shared_ptr<node>>> &result_nodes) const {
         std::shared_lock<std::shared_mutex> lock(this->buckets_mutex_);
         this->_search_nodes(sp, target_id, max_count, filter, result_nodes);
       }
@@ -184,12 +184,14 @@ namespace vds {
         size_t max_count,
         const std::function<bool(const std::shared_ptr<node> & candidate)> &callback) {
 
-        std::map<const_data_buffer /*distance*/, std::list<std::shared_ptr<node>>> result_nodes;
+        std::map<
+            const_data_buffer /*distance*/,
+            std::map<const_data_buffer, std::shared_ptr<node>>> result_nodes;
         this->search_nodes(sp, target_node_id, max_count, result_nodes);
 
         for (auto &presult : result_nodes) {
           for (auto & node : presult.second) {
-            if (!callback(node)) {
+            if (!callback(node.second)) {
               return;
             }
           }
@@ -203,12 +205,14 @@ namespace vds {
         const std::function<bool(const node & node)>& filter,
         const std::function<bool(const std::shared_ptr<node> & candidate)> &callback) {
 
-        std::map<const_data_buffer /*distance*/, std::list<std::shared_ptr<node>>> result_nodes;
+        std::map<
+            const_data_buffer /*distance*/,
+            std::map<const_data_buffer, std::shared_ptr<node>>> result_nodes;
         this->search_nodes(sp, target_node_id, max_count, filter, result_nodes);
 
         for (auto &presult : result_nodes) {
           for (auto & node : presult.second) {
-            if (!callback(node)) {
+            if (!callback(node.second)) {
               return;
             }
           }
@@ -360,7 +364,7 @@ namespace vds {
           const vds::service_provider &sp,
           const const_data_buffer &target_id,
           size_t max_count,
-          std::map<const_data_buffer /*distance*/, std::list<std::shared_ptr<node>>> &result_nodes) const {
+          std::map<const_data_buffer /*distance*/, std::map<const_data_buffer, std::shared_ptr<node>>> &result_nodes) const {
 
         if (this->buckets_.empty()) {
           return;
@@ -394,7 +398,7 @@ namespace vds {
         const const_data_buffer &target_id,
         size_t max_count,
         const std::function<bool(const node & node)>& filter,
-        std::map<const_data_buffer /*distance*/, std::list<std::shared_ptr<node>>> &result_nodes) const {
+        std::map<const_data_buffer /*distance*/, std::map<const_data_buffer, std::shared_ptr<node>>> &result_nodes) const {
 
         if (this->buckets_.empty()) {
           return;
@@ -427,7 +431,7 @@ namespace vds {
           const service_provider &/*sp*/,
           const const_data_buffer &target_id,
           const std::function<bool(const node & node)>& filter,
-          std::map<const_data_buffer, std::list<std::shared_ptr<node>>> &result_nodes,
+          std::map<const_data_buffer, std::map<const_data_buffer, std::shared_ptr<node>>> &result_nodes,
           uint8_t index) const {
         size_t result = 0;
         auto p = this->buckets_.find(index);
@@ -441,20 +445,15 @@ namespace vds {
           }
 
           auto & result_node = result_nodes[dht_object_id::distance(node->node_id_, target_id)];
-          bool exists = false;
-          for(auto & exist : result_node) {
-            if(exist->node_id_ == node->node_id_) {
-              if(exist->hops_ > node->hops_) {
-                exist = node;
-              }
-              exists = true;
-              break;
-            }
-          }
-
-          if (!exists) {
-            result_node.push_back(node);
+          auto exists = result_node.find(node->node_id_);
+          if(result_node.end() == exists){
+            result_node[node->node_id_] = node;
             ++result;
+          }
+          else {
+            if (exists->second->hops_ > node->hops_) {
+              exists->second = node;
+            }
           }
         }
 

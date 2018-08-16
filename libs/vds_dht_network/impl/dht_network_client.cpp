@@ -109,14 +109,16 @@ void vds::dht::network::_client::apply_message(
     const service_provider& sp,
     const messages::dht_find_node & message,
     const imessage_map::message_info_t & message_info) {
-  std::map<const_data_buffer /*distance*/, std::list<std::shared_ptr<dht_route<std::shared_ptr<dht_session>>::node>>> result_nodes;
+  std::map<const_data_buffer /*distance*/, std::map<const_data_buffer, std::shared_ptr<dht_route<std::shared_ptr<dht_session>>::node>>> result_nodes;
   this->route_.search_nodes(sp, message.target_id(), 70, result_nodes);
 
   std::list<messages::dht_find_node_response::target_node> result;
   for (auto &presult : result_nodes) {
     for (auto & node : presult.second) {
       result.emplace_back(
-          node->node_id_, node->proxy_session_->address().to_string(), node->hops_);
+          node.second->node_id_,
+          node.second->proxy_session_->address().to_string(),
+          node.second->hops_);
     }
   }
 
@@ -213,16 +215,12 @@ void vds::dht::network::_client::send_near(
   size_t radius,
   const message_type_t message_id,
   const const_data_buffer& message) {
-  bool exist = false;
   this->route_.for_near(
     sp,
     target_node_id,
     radius,
-    [sp, target_node_id, message_id, message, this, &exist](const std::shared_ptr<dht_route<std::shared_ptr<dht_session>>::node> & candidate) {
+    [sp, target_node_id, message_id, message, this](const std::shared_ptr<dht_route<std::shared_ptr<dht_session>>::node> & candidate) {
 
-    if(candidate->node_id_ == target_node_id) {
-      exist = true;
-    }
 
     candidate->send_message(
       sp,
@@ -234,10 +232,6 @@ void vds::dht::network::_client::send_near(
       0);
     return true;
     });
-
-  if (!exist) {
-    this->send_neighbors(sp, messages::dht_find_node(target_node_id));
-  }
 }
 
 void vds::dht::network::_client::send_near(
@@ -248,16 +242,12 @@ void vds::dht::network::_client::send_near(
   const const_data_buffer& message,
   const std::function<bool(const dht_route<std::shared_ptr<dht_session>>::node& node)>& filter) {
 
-  bool exist = false;
   this->route_.for_near(
     sp,
     target_node_id,
     radius,
     filter,
-    [sp, target_node_id, message_id, message, this, &exist](const std::shared_ptr<dht_route<std::shared_ptr<dht_session>>::node> & candidate) {
-    if (candidate->node_id_ == target_node_id) {
-      exist = true;
-    }
+    [sp, target_node_id, message_id, message, this](const std::shared_ptr<dht_route<std::shared_ptr<dht_session>>::node> & candidate) {
     candidate->send_message(
       sp,
       this->udp_transport_,
@@ -268,10 +258,6 @@ void vds::dht::network::_client::send_near(
       0);
     return true;
   });
-
-  if (!exist) {
-    this->send_neighbors(sp, messages::dht_find_node(target_node_id));
-  }
 }
 
 void vds::dht::network::_client::send_closer(

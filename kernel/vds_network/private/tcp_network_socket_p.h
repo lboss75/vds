@@ -342,7 +342,8 @@ namespace vds {
         std::lock_guard<std::mutex> lock(this->write_mutex_);
         switch (this->write_status_) {
           case write_status_t::bof:
-            this->write_buffer_.reset(data, size);
+            this->write_buffer_.resize(size);
+            memcpy(this->write_buffer_.data(), data, size);
             return [pthis = this->shared_from_this()](
                 const async_result<> & result){
               auto this_ = static_cast<_socket_handler *>(pthis.get());
@@ -352,7 +353,8 @@ namespace vds {
             };
 
           case write_status_t::continue_write:
-            this->write_buffer_.reset(data, size);
+            this->write_buffer_.resize(size);
+            memcpy(this->write_buffer_.data(), data, size);
             return [pthis = this->shared_from_this()](
                 const async_result<> & result){
               auto this_ = static_cast<_socket_handler *>(pthis.get());
