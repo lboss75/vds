@@ -52,7 +52,7 @@ namespace vds {
             << this->replica_
             << this->target_node_
             ;
-          return s.get_data();
+          return s.move_data();
         }
         
         uint16_t replica() const {

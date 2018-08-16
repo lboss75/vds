@@ -44,8 +44,8 @@ namespace vds {
       return this->data_.data();
     }
 
-    const_data_buffer get_data() const {
-      return this->data_.get_data();
+    const_data_buffer move_data() {
+      return this->data_.move_data();
     }
 
     size_t size() const { return this->data_.size(); }
@@ -106,8 +106,6 @@ namespace vds {
     binary_deserializer(const const_data_buffer & data);
     binary_deserializer(const_data_buffer && data) = delete;
     binary_deserializer(const void * data, size_t len);
-    binary_deserializer(const std::vector<uint8_t> & data);
-    binary_deserializer(std::vector<uint8_t> && data) = delete;
     
     //1 byte
     binary_deserializer & operator >> (bool & value);

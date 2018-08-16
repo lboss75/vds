@@ -60,7 +60,7 @@ namespace vds {
             << this->member_node_
             << this->replica_
             ;
-            return s.get_data();
+            return s.move_data();
         }
 
 

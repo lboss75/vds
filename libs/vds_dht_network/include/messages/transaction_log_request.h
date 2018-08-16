@@ -35,7 +35,7 @@ namespace vds {
           s
             << this->transaction_id_
             << this->source_node_;
-          return s.get_data();
+          return s.move_data();
         }
 
 

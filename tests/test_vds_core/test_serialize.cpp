@@ -45,7 +45,8 @@ TEST(core_tests, test_serialize) {
     p->serialize(s);
   }
   
-  vds::binary_deserializer ds(s.get_data());
+  auto buffer = s.move_data();
+  vds::binary_deserializer ds(buffer.data(), buffer.size());
   for(auto & p : steps) {
     p->deserialize(ds);
   }

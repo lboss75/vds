@@ -122,12 +122,11 @@ public:
         size = std::rand();
     }
     
+    this->data_.resize(size);
     std::vector<uint8_t> buffer;
     for(int i = 0; i < size; ++i){
-      buffer.push_back((uint8_t)std::rand());
+      buffer[i] = (uint8_t)std::rand();
     }
-    
-    this->data_.reset(buffer.data(), buffer.size());
   }
   
   ~test_write_buffer()

@@ -7,7 +7,7 @@ All rights reserved
 #include "test_config.h"
 
 int main(int argc, char **argv) {
-  
+
 #ifndef _WIN32
   // core dumps may be disallowed by parent of this process; change that
   struct rlimit core_limits;

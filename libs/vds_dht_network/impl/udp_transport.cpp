@@ -143,7 +143,7 @@ vds::async_task<> vds::dht::network::udp_transport::try_handshake(const service_
 
   return this->write_async(sp, udp_datagram(
         network_address::parse(this->server_.address().family(), address),
-        out_message.get_data()));
+        out_message.move_data()));
 }
 
 void vds::dht::network::udp_transport::get_session_statistics(session_statistic& session_statistic) {
@@ -226,7 +226,7 @@ void vds::dht::network::udp_transport::continue_read(
           out_message.add(static_cast<uint8_t>(session_id));
           out_message.add(pthis->this_node_id_.data(), pthis->this_node_id_.size());
 
-          pthis->write_async(sp, udp_datagram(datagram.address(), out_message.get_data()))
+          pthis->write_async(sp, udp_datagram(datagram.address(), out_message.move_data()))
             .execute([
               pthis,
                 sp,
@@ -298,10 +298,9 @@ void vds::dht::network::udp_transport::continue_read(
           }
         }
         else {
-          resizable_data_buffer out_message;
-          out_message.add((uint8_t)protocol_message_type_t::Failed);
+          uint8_t out_message[] = { (uint8_t)protocol_message_type_t::Failed };
           auto scope = sp.create_scope("Send Failed");
-          pthis->write_async(scope, udp_datagram(datagram.address(), out_message.get_data()))
+          pthis->write_async(scope, udp_datagram(datagram.address(), const_data_buffer(out_message, sizeof(out_message))))
             .execute([pthis, sp, scope, address = datagram.address().to_string()](const std::shared_ptr<std::exception> & ex) {
             if (ex) {
               sp.get<logger>()->trace(ThisModule, sp, "%s at send welcome to %s", ex->what(), address.c_str());

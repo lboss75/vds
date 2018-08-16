@@ -108,18 +108,16 @@ void vds::_hash::update(const void * data, size_t len)
 void vds::_hash::final()
 {
   auto len = (unsigned int)EVP_MD_size(this->info_.type);
-  std::vector<unsigned char> buffer(len);
+  this->sig_.resize(len);
 
-  if (1 != EVP_DigestFinal_ex(this->ctx_, buffer.data(), &len)) {
+  if (1 != EVP_DigestFinal_ex(this->ctx_, this->sig_.data(), &len)) {
     auto error = ERR_get_error();
     throw crypto_exception("EVP_DigestFinal_ex", error);
   }
 
-  if (len != buffer.size()) {
+  if (len != this->sig_.size()) {
     throw std::runtime_error("len != this->sig_len_");
   }
-  
-  this->sig_.reset(buffer.data(), buffer.size());  
 }
 ///////////////////////////////////////////////////////////////
 vds::hmac::hmac(const std::string & key, const hash_info & info)
@@ -175,15 +173,13 @@ void vds::_hmac::update(const void * data, size_t len)
 void vds::_hmac::final()
 {
   auto len = (unsigned int)EVP_MD_size(this->info_.type);
-  std::vector<unsigned char> buffer(len);
-  if (1 != HMAC_Final(this->ctx_, buffer.data(), &len)) {
+  this->sig_.resize(len);
+  if (1 != HMAC_Final(this->ctx_, this->sig_.data(), &len)) {
     auto error = ERR_get_error();
     throw crypto_exception("HMAC_Final", error);
   }
 
-  if (len != buffer.size()) {
+  if (len != this->sig_.size()) {
     throw std::runtime_error("len != this->sig_len_");
   }
-  
-  this->sig_.reset(buffer.data(), buffer.size());
 }

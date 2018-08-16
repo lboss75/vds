@@ -290,7 +290,8 @@ namespace vds {
           const service_provider& sp,
           database_transaction& t,
           const messages::sync_base_message_request & message,
-          const imessage_map::message_info_t & message_info);
+          const imessage_map::message_info_t & message_info,
+          const const_data_buffer & leader_node);
 
         bool apply_base_message(
           const service_provider& sp,

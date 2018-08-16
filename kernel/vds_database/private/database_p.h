@@ -131,14 +131,14 @@ namespace vds {
       assert(read_state == this->state_);
       assert(0 <= index && index < sqlite3_column_count(this->stmt_));
 
-      auto size = sqlite3_column_bytes(this->stmt_, index);
+      const auto size = sqlite3_column_bytes(this->stmt_, index);
       if (0 >= size) {
-        value.reset(nullptr, 0);
+        value.resize(0);
         return false;
       }
       else {
         auto v = sqlite3_column_blob(this->stmt_, index);
-        value.reset(v, size);
+        value = const_data_buffer(v, size);
         return true;
       }
     }

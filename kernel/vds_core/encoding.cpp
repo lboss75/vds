@@ -6,6 +6,8 @@ All rights reserved
 #include <locale>
 #include <codecvt>
 #include "encoding.h"
+#include "resizable_data_buffer.h"
+#include "vds_debug.h"
 
 std::wstring vds::utf16::from_utf8(const std::string & original)
 {
@@ -189,11 +191,11 @@ vds::const_data_buffer vds::base64::to_bytes(const std::string& data)
     }
   }
   
-  std::vector< uint8_t > result;
-  result.reserve(((data.length()/4)*3) - padding);
+  const_data_buffer result;
+  result.resize(((data.length()/4)*3) - padding);
   
   uint32_t temp=0;
-  
+  size_t offset = 0;
   size_t quantumPosition = 0;
   for(auto ch : data) {
     temp <<= 6;
@@ -215,11 +217,11 @@ vds::const_data_buffer vds::base64::to_bytes(const std::string& data)
     else if  (ch == padCharacter) {
       switch(padding) {
       case 1: //One pad character
-        result.push_back((temp >> 16) & 0x000000FF);
-        result.push_back((temp >> 8 ) & 0x000000FF);
+        result[offset++] = (temp >> 16) & 0x000000FF;
+        result[offset++] = (temp >> 8 ) & 0x000000FF;
         return const_data_buffer(result);
       case 2: //Two pad characters
-        result.push_back((temp >> 10) & 0x000000FF);
+        result[offset++] = (temp >> 10) & 0x000000FF;
         return const_data_buffer(result);
       default:
         throw std::runtime_error("Invalid Padding in Base 64!");
@@ -230,14 +232,17 @@ vds::const_data_buffer vds::base64::to_bytes(const std::string& data)
     }
     
     if(4 == ++quantumPosition) {
-      result.push_back((temp >> 16) & 0x000000FF);
-      result.push_back((temp >> 8 ) & 0x000000FF);
-      result.push_back((temp      ) & 0x000000FF);
+      result[offset++] = (temp >> 16) & 0x000000FF;
+      result[offset++] = (temp >> 8 ) & 0x000000FF;
+      result[offset++] = (temp      ) & 0x000000FF;
       quantumPosition = 0;
     }
   }
-  
-  return const_data_buffer(result);
+
+  vds_assert(offset == ((data.length() / 4) * 3) - padding);
+  vds_assert(result.size() == ((data.length() / 4) * 3) - padding);
+
+  return result;
 }
 
 std::string vds::url_encode::encode(const std::string& original) {

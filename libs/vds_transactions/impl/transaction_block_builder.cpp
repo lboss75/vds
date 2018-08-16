@@ -28,7 +28,7 @@ vds::const_data_buffer vds::transactions::transaction_block_builder::save(
     << (this->ancestors_.empty() ? 1 : this->balance_.order_no())
     << write_cert.subject()
     << this->ancestors_
-    << this->data_.get_data();
+    << this->data_.move_data();
 
   block_data << asymmetric_sign::signature(
     hash::sha256(),
@@ -38,7 +38,7 @@ vds::const_data_buffer vds::transactions::transaction_block_builder::save(
 
   auto id = hash::signature(hash::sha256(), block_data.get_buffer(), block_data.size());
 
-  const auto data = block_data.get_data();
+  const auto data = block_data.move_data();
   if(this->ancestors_.empty()) {
     //Root transaction
     transaction_block block(data);

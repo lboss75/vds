@@ -64,6 +64,14 @@ namespace vds {
             }
           }
 
+          sp.get<logger>()->trace(
+            "dht_session",
+            sp,
+            "send %d from %s to %s",
+            message_type,
+            base64::from_bytes(source_node).c_str(),
+            base64::from_bytes(target_node).c_str());
+
           const bool need_start = this->send_queue_.empty();
           this->send_queue_.push_back(send_queue_item_t {
             sp,
@@ -233,7 +241,7 @@ namespace vds {
               buffer.add((uint8_t)(hops));
               buffer += message;
 
-              const_data_buffer datagram = buffer.get_data();
+              const_data_buffer datagram = buffer.move_data();
               s->write_async(sp, udp_datagram(pthis->address_, datagram, false))
                 .execute([
                     pthis,
@@ -317,7 +325,7 @@ namespace vds {
 
               auto offset = pthis->mtu_ - 57;
 
-              const_data_buffer datagram = buffer.get_data();
+              const_data_buffer datagram = buffer.move_data();
               s->write_async(sp, udp_datagram(pthis->address_, datagram))
                 .execute([
                     pthis,
@@ -401,7 +409,7 @@ namespace vds {
           buffer.add((uint8_t) (this->output_sequence_number_));
           buffer.add(message.data() + offset, size);
 
-          const_data_buffer datagram = buffer.get_data();
+          const_data_buffer datagram = buffer.move_data();
           s->write_async(sp, udp_datagram(this->address_, datagram))
               .execute(
                   [pthis = this->shared_from_this(), sp, s, message, offset, size, result, datagram](
@@ -503,7 +511,7 @@ namespace vds {
                     sp,
                     s,
                     message_type,
-                    message.get_data()).then([sp, s, pthis = this->shared_from_this()]() {
+                    message.move_data()).then([sp, s, pthis = this->shared_from_this()]() {
                     std::unique_lock<std::mutex> lock(pthis->input_mutex_);
                     pthis->continue_process_messages(sp, s, lock);
                   });

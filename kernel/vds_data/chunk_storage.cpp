@@ -57,7 +57,7 @@ vds::const_data_buffer vds::_chunk_storage::generate_replica(
   binary_serializer s;
   generator->write(s, data, size);
 
-  return s.get_data();
+  return s.move_data();
 }
 
 vds::const_data_buffer vds::_chunk_storage::restore_data(
@@ -85,6 +85,6 @@ vds::const_data_buffer vds::_chunk_storage::restore_data(
   binary_serializer s;
   restore.restore(s, datas);
 
-  return s.get_data();
+  return s.move_data();
 }
 

@@ -44,7 +44,7 @@ std::vector<vds::const_data_buffer> vds::dht::network::_client::save(
   for (uint16_t replica = 0; replica < GENERATE_HORCRUX; ++replica) {
     binary_serializer s;
     this->generators_.find(replica)->second->write(s, value.data(), value.size());
-    const auto replica_data = s.get_data();
+    const auto replica_data = s.move_data();
     const auto replica_hash = hash::signature(hash::sha256(), replica_data);
     const auto & object_id = replica_hash;
 
@@ -81,7 +81,7 @@ void vds::dht::network::_client::save(
   for (uint16_t replica = 0; replica < GENERATE_HORCRUX; ++replica) {
     binary_serializer s;
     this->generators_.find(replica)->second->write(s, value.data(), value.size());
-    const auto replica_data = s.get_data();
+    const auto replica_data = s.move_data();
     const auto id = replica_id(name, replica);
 
     sp.get<logger>()->trace(
@@ -199,7 +199,7 @@ void vds::dht::network::_client::send(
       sp,
       pthis->udp_transport_,
       message_id,
-      candidate->node_id_,
+      target_node_id,
       message,
       pthis->current_node_id(),
       0);
@@ -667,7 +667,7 @@ vds::async_task<uint8_t> vds::dht::network::_client::restore_async(
       chunk_restore <uint16_t> restore(MIN_HORCRUX, replicas.data());
       binary_serializer s;
       restore.restore(s, datas);
-      *result = s.get_data();
+      *result = s.move_data();
       *result_progress = 100;
       return true;
     }

@@ -24,7 +24,7 @@ namespace vds {
         const_data_buffer serialize() const {
           binary_serializer s;
           s << this->target_id_;
-          return s.get_data();
+          return s.move_data();
         }
 
 

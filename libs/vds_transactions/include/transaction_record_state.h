@@ -109,7 +109,7 @@ inline  vds::transactions::transaction_record_state::transaction_record_state(bi
 inline  vds::const_data_buffer vds::transactions::transaction_record_state::serialize() const {
         binary_serializer s;
         s << this->account_state_;
-        return s.get_data();
+        return s.move_data();
       }
 
 

@@ -65,6 +65,14 @@ vds::async_task<> vds::dht::network::dht_session::process_message(
   const_data_buffer source_node(message.data() + 32, 32);
   uint16_t hops = (message.data()[64] << 8) | message.data()[65];
 
+  sp.get<logger>()->trace(
+    "dht_session",
+    sp,
+    "receive %d from %s to %s",
+    message_type,
+    base64::from_bytes(source_node).c_str(),
+    base64::from_bytes(target_node).c_str());
+
   (*sp.get<client>())->add_route(sp, source_node, hops, this->shared_from_this());
 
   const_data_buffer message_data(message.data() + 66, message.size() - 66);
@@ -74,6 +82,14 @@ vds::async_task<> vds::dht::network::dht_session::process_message(
     }
 
     return [sp, message_type, target_node, message_data, source_node, hops]() {
+      sp.get<logger>()->trace(
+        "dht_session",
+        sp,
+        "redirect %d from %s to %s",
+        message_type,
+        base64::from_bytes(source_node).c_str(),
+        base64::from_bytes(target_node).c_str());
+
       (*sp.get<client>())->send_closer(
         sp,
         target_node,

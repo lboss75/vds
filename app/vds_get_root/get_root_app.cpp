@@ -69,7 +69,7 @@ void vds::get_root_app::main(const service_provider & sp)
       << private_info.common_news_write_private_key_.der(this->user_password_.value())
       << private_info.common_news_admin_private_key_.der(this->user_password_.value())
     ;
-    file::write_all(filename("keys"), s.data());
+    file::write_all(filename("keys"), s.move_data());
   }
 }
 

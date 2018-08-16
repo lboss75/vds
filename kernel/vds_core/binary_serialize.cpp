@@ -93,20 +93,14 @@ vds::binary_serializer& vds::binary_serializer::operator << (const const_data_bu
 }
 
 ///////////////////////////////////////////////////////////////////////////
-vds::binary_deserializer::binary_deserializer(const const_data_buffer & data)
-  : data_(data.data()), len_(data.size())
-{
+vds::binary_deserializer::binary_deserializer(const const_data_buffer& data)
+  : data_(data.data()), len_(data.size()) {
 }
 
 vds::binary_deserializer::binary_deserializer(const void* data, size_t len)
-: data_((const uint8_t *)data), len_(len)
-{
+: data_((const uint8_t *)data), len_(len) {
 }
 
-vds::binary_deserializer::binary_deserializer(const std::vector<uint8_t> & data)
-: data_(data.data()), len_(data.size())
-{
-}
 
 vds::binary_deserializer& vds::binary_deserializer::operator>>(bool& value) {
   if (1 > this->len_) {
@@ -206,20 +200,22 @@ vds::binary_deserializer& vds::binary_deserializer::operator>>(std::string& valu
 }
 
 
-vds::binary_deserializer& vds::binary_deserializer::operator>>(vds::const_data_buffer& data)
+vds::binary_deserializer& vds::binary_deserializer::operator>>(vds::const_data_buffer & data)
 {
   auto len = this->read_number();
   if(len > 1024 * 1024 * 1024){
     throw std::runtime_error("very big object");
   }
-  std::vector<uint8_t> buffer(len);
-  for(uint64_t i = 0; i < len; ++i){
-    uint8_t ch;
-    *this >> ch;
-    buffer[i] = ch;
+
+
+  if (len > this->len_) {
+    throw std::runtime_error("Invalid data");
   }
-  
-  data.reset(buffer.data(), len);
+
+  data.resize(len);
+  memcpy(&data[0], this->data_, len);
+  this->data_ += len;
+  this->len_ -= len;
 
   return *this;
 }
@@ -233,12 +229,14 @@ void vds::binary_deserializer::pop_data(void* data, size_t& size, bool serialize
     }
     size = len;
   }
-  uint8_t * p = (uint8_t *)data;
-  for(uint64_t i = 0; i < size; ++i){
-    uint8_t ch;
-    *this >> ch;
-    *p++ = ch;
+
+  if (size > this->len_) {
+    throw std::runtime_error("Invalid data");
   }
+
+  memcpy(data, this->data_, size);
+  this->data_ += size;
+  this->len_ -= size;
 }
 
 size_t vds::binary_deserializer::pop_data(void* data, size_t size)

@@ -289,7 +289,8 @@ namespace vds {
 		  functor_type && f,
 		  typename std::enable_if<!_async_task_functor_helper<decltype(&functor_type::operator())>::is_async_callback>::type * = nullptr);
 
-	  async_task(async_task<result_types...> && origin);
+    async_task(const async_task<result_types...> & origin) = delete;
+    async_task(async_task<result_types...> && origin);
 	  async_task(std::shared_ptr<std::exception> && error);
 
 	  async_task(const std::shared_ptr<std::exception> & error);
@@ -310,6 +311,7 @@ namespace vds {
 				functor_type && done_callback);
 
 	  async_task & operator = (async_task<result_types...> && origin);
+    async_task & operator = (const async_task<result_types...> & origin) = delete;
 
 
 	  template<typename functor_type>

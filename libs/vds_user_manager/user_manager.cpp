@@ -286,7 +286,7 @@ vds::async_task<vds::const_data_buffer> vds::user_manager::create_register_reque
         t1.id = id,
         t1.name = userName,
         t1.email = user_email,
-        t1.data = s.get_data(),
+        t1.data = s.move_data(),
         t1.create_time = std::chrono::system_clock::now()));
 
     return true;

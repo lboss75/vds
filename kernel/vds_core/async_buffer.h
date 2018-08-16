@@ -163,7 +163,7 @@ namespace vds {
             .then([buffer, pthis = this->shared_from_this()](size_t readed) -> async_task<const_data_buffer>{
               if(0 == readed){
                 return async_task<const_data_buffer>::result(
-                        std::get<0>(*buffer).get_data());
+                        std::get<0>(*buffer).move_data());
               }
               else {
                 std::get<0>(*buffer).add(std::get<1>(*buffer), readed);

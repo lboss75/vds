@@ -126,9 +126,10 @@ vds::http_message vds::http_response::file_response(const service_provider& sp, 
   response.add_header("Content-Length", std::to_string(body.size()));
   response.add_header("Content-Disposition", "attachment; filename=\"" + filename + "\"");
   auto result = response.create_message(sp);
-  result.body()->write_async(body.data(), body.size())
+  auto buffer = std::make_shared<const_data_buffer>(body);
+  result.body()->write_async(buffer->data(), buffer->size())
     .execute(
-      [sp, result, body](const std::shared_ptr<std::exception> & ex) {
+      [sp, result, buffer](const std::shared_ptr<std::exception> & ex) {
     if (!ex) {
       result.body()->write_async(nullptr, 0).execute(
         [sp](const std::shared_ptr<std::exception> & ex) {

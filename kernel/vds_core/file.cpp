@@ -110,7 +110,7 @@ size_t vds::file::read(
   void * buffer,
   size_t buffer_len)
 {
-  auto readed = ::read(this->handle_, buffer, buffer_len);
+  auto readed = ::read(this->handle_, buffer, safe_cast<unsigned int>(buffer_len));
   if (0 > readed) {
 #ifdef _WIN32
     auto error = GetLastError();
@@ -128,7 +128,7 @@ void vds::file::write(
   size_t buffer_len)
 {
   while (0 < buffer_len) {
-    auto written = ::write(this->handle_, buffer, buffer_len);
+    auto written = ::write(this->handle_, buffer, safe_cast<unsigned int>(buffer_len));
     if (0 > written) {
 #ifdef _WIN32
       auto error = GetLastError();

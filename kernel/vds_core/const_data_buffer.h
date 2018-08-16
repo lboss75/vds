@@ -9,111 +9,126 @@ All rights reserved
 #include <vector>
 #include <list>
 #include "types.h"
+#include "vds_debug.h"
 
 namespace vds{
   class binary_serializer;
+  class resizable_data_buffer;
 
   class const_data_buffer
   {
   public:
     const_data_buffer()
+      : data_(nullptr), size_(0), allocated_size_(0)
     {
     }
-      
+
     const_data_buffer(const void * data, size_t len)
-    : impl_(new _const_data_buffer(data, len))
+      : data_(static_cast<uint8_t *>(len ? malloc(len) : nullptr)), size_(len), allocated_size_(len)
     {
+      memcpy(this->data_, data, len);
     }
       
     const_data_buffer(const const_data_buffer & other)
-    : impl_(other.impl_)
+      : data_(static_cast<uint8_t *>(other.size_ ? malloc(other.size_) : nullptr)), size_(other.size_), allocated_size_(other.size_)
     {
-    }
-      
-    const_data_buffer(const_data_buffer&& other)
-    : impl_(std::move(other.impl_))
-    {
-    }
-      
-    const_data_buffer(const std::vector<uint8_t> & data)
-    : impl_(new _const_data_buffer(data.data(), data.size()))
-    {
+      memcpy(this->data_, other.data_, other.size_);
     }
 
-    const_data_buffer(const std::list<const_data_buffer> & data)
-      : impl_(new _const_data_buffer(data)) {
+    const_data_buffer(resizable_data_buffer && other);
       
-    }
-      
-    const uint8_t * data() const
+    const_data_buffer(const_data_buffer&& other) noexcept
+      : data_(other.data_), size_(other.size_), allocated_size_(other.allocated_size_)
     {
-      if (this->impl_) {
-        return this->impl_->data();
-      }
-      else {
-        return nullptr;
-      }
+      other.data_ = nullptr;
+      other.size_ = 0;
+      other.allocated_size_ = 0;
     }
+     
 
-    size_t size() const
-    {
-      if (this->impl_) {
-        return this->impl_->size();
-      }
-      else {
-        return 0;
+    ~const_data_buffer() {
+      if (this->data_) {
+        free(this->data_);
       }
     }
-      
-    void reset(const void * data, size_t len)
-    {
-      this->impl_.reset(new _const_data_buffer(data, len));
-    }
+          
+    const uint8_t * data() const { return this->data_; }
+    uint8_t * data() { return this->data_; }
+    size_t size() const { return this->size_; }
+    
+    void resize(size_t len) {
+      if (this->allocated_size_ < len) {
+        if (this->data_) {
+          free(this->data_);
+        }
+        this->data_ = static_cast<uint8_t *>(malloc(len));
+        this->allocated_size_ = len;
+      }
 
-    void reset(size_t size) {
-      this->impl_.reset(new _const_data_buffer(size));
+      this->size_ = len;
     }
 
     const_data_buffer & operator = (const const_data_buffer & other)
     {
-      this->impl_ = other.impl_;
+      this->resize(other.size_);
+      memcpy(this->data_, other.data_, other.size_);
+
       return *this;
     }
     
-    const_data_buffer & operator = (const_data_buffer && other)
+    const_data_buffer & operator = (const_data_buffer && other) noexcept
     {
-      this->impl_ = std::move(other.impl_);
+      if (this->data_) {
+        free(this->data_);
+      }
+      this->data_ = other.data_;
+      this->size_ = other.size_;
+      this->allocated_size_ = other.allocated_size_;
+
+      other.data_ = nullptr;
+      other.size_ = 0;
+      other.allocated_size_ = 0;
+
       return *this;
     }
      
     bool operator == (const const_data_buffer & other) const
     {
-      return *(this->impl_.get()) == *(other.impl_.get());
+      return this->size_ == other.size_
+      && 0 == memcmp(this->data_, other.data_, this->size_);
     }
 
     bool operator < (const const_data_buffer & other) const
     {
-      return *(this->impl_.get()) < *(other.impl_.get());
+      vds_assert(this->size_ == other.size_);
+      return 0 > memcmp(this->data_, other.data_, this->size_);
     }
 
     bool operator > (const const_data_buffer & other) const
     {
-      return *(this->impl_.get()) > *(other.impl_.get());
+      vds_assert(this->size_ == other.size_);
+      return 0 < memcmp(this->data_, other.data_, this->size_);
     }
 
     bool operator != (const const_data_buffer & other) const
     {
-      return *(this->impl_.get()) != *(other.impl_.get());
+      return this->size_ != other.size_
+        || 0 != memcmp(this->data_, other.data_, this->size_);
     }
     
     uint8_t operator[](size_t index) const
     {
-      return (*(this->impl_.get()))[index];
+      return this->data_[index];
     }
-    
+
+    uint8_t & operator[](size_t index)
+    {
+      return this->data_[index];
+    }
+
     bool operator !() const
     {
-      return !this->impl_;
+      return this->size() == 0;
     }
 
     operator bool() const
@@ -121,89 +136,11 @@ namespace vds{
       return this->size() != 0;
     }
 
-    void clear() {
-      this->impl_.reset();
-    }
-
   private:
-    class _const_data_buffer
-    {
-    public:
-      _const_data_buffer()
-      : data_(nullptr), len_(0)
-      {
-      }
-
-      _const_data_buffer(size_t len)
-          : data_(new uint8_t[len]), len_(len)
-      {
-      }
-
-      _const_data_buffer(const void * data, size_t len)
-      : data_(new uint8_t[len]), len_(len)
-      {
-        memcpy(this->data_, data, len);
-      }
-
-      _const_data_buffer(const std::list<const_data_buffer> & data) {
-        size_t size = 0;
-        for(const auto & p : data) {
-          size += p.size();
-        }
-        this->data_ = new uint8_t[this->len_ = size];
-        size = 0;
-        for (const auto & p : data) {
-          if (p.size() > 0) {
-            memcpy(this->data_ + size, p.data(), p.size());
-            size += p.size();
-          }
-        }
-      }
-      
-      ~_const_data_buffer()
-      {
-        delete[] this->data_;
-      }
-      
-      const uint8_t * data() const { return this->data_; }
-      size_t size() const { return this->len_; }
-      
-      bool operator == (const _const_data_buffer & other) const
-      {
-        return this->len_ == other.len_
-        && 0 == memcmp(this->data_, other.data_, this->len_);
-      }
-
-      bool operator < (const _const_data_buffer & other) const
-      {
-        return this->len_ == other.len_
-               && 0 > memcmp(this->data_, other.data_, this->len_);
-      }
-
-      bool operator > (const _const_data_buffer & other) const
-      {
-        return this->len_ == other.len_
-               && 0 < memcmp(this->data_, other.data_, this->len_);
-      }
-
-      bool operator != (const _const_data_buffer & other) const
-      {
-        return this->len_ != other.len_
-        || 0 != memcmp(this->data_, other.data_, this->len_);
-      }
-      
-      uint8_t operator[](size_t index) const
-      {
-        return this->data_[index];
-      }
-
-    private:
-      uint8_t * data_;
-      size_t len_;
-    };
-    std::shared_ptr<_const_data_buffer> impl_;
+    uint8_t * data_;
+    size_t size_;
+    size_t allocated_size_;
   };
- 
 }
 
 #endif // __VDS_CORE_DATA_BUFFER_H_

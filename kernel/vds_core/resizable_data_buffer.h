@@ -7,7 +7,7 @@ namespace vds {
   class resizable_data_buffer {
   public:
     resizable_data_buffer()
-    : data_(nullptr), size_(0), allocated_(0) {
+    : data_(nullptr), size_(0), allocated_size_(0) {
 
     }
 
@@ -35,8 +35,8 @@ namespace vds {
       return *this;
     }
 
-    const_data_buffer get_data() const {
-      return const_data_buffer(this->data_, this->size_);
+    const_data_buffer move_data() {
+      return const_data_buffer(std::move(*this));
     }
 
     const uint8_t * data() const {
@@ -52,14 +52,16 @@ namespace vds {
     }
 
   private:
+    friend class const_data_buffer;
+
     uint8_t * data_;
     size_t size_;
-    size_t allocated_;
+    size_t allocated_size_;
 
     void resize_data(size_t size) {
-      if (this->allocated_ < size) {
-        this->allocated_ = 1024 * ((size + 1023) / 1024);
-        this->data_ = static_cast<uint8_t *>(realloc(this->data_, this->allocated_));
+      if (this->allocated_size_ < size) {
+        this->allocated_size_ = 1024 * ((size + 1023) / 1024);
+        this->data_ = static_cast<uint8_t *>(realloc(this->data_, this->allocated_size_));
         if (nullptr == this->data_) {
           throw std::runtime_error("Out of memmory");
         }

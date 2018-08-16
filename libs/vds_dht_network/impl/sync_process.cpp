@@ -103,6 +103,13 @@ void vds::dht::network::sync_process::add_to_log(
   auto members = get_members(sp, t, object_id);
   for (const auto & member : members) {
     if (client->client::current_node_id() != member) {
+      sp.get<logger>()->trace(
+        SyncModule,
+        sp,
+        "sync_replica_operations_request to %s about %s",
+        base64::from_bytes(member).c_str(),
+        base64::from_bytes(object_id).c_str());
+
       (*client)->send(
         sp,
         member,
@@ -236,14 +243,16 @@ void vds::dht::network::sync_process::make_new_election(
 
     auto members = this->get_members(sp, t, object_id);
     for (const auto & member : members) {
-      client->send(
-        sp,
-        member,
-        messages::sync_new_election_request(
-          object_id,
-          generation,
-          current_term,
-          client->current_node_id()));
+      if (member != client->current_node_id()) {
+        client->send(
+          sp,
+          member,
+          messages::sync_new_election_request(
+            object_id,
+            generation,
+            current_term,
+            client->current_node_id()));
+      }
     }
   }
   else {
@@ -255,7 +264,8 @@ vds::dht::network::sync_process::base_message_type vds::dht::network::sync_proce
   const service_provider& sp,
   database_transaction& t,
   const messages::sync_base_message_request & message,
-  const imessage_map::message_info_t & message_info) {
+  const imessage_map::message_info_t & message_info,
+  const const_data_buffer & leader_node) {
 
   auto & client = *sp.get<dht::network::client>();
 
@@ -270,13 +280,13 @@ vds::dht::network::sync_process::base_message_type vds::dht::network::sync_proce
     if (
       message.generation() > t2.generation.get(st)
       || (message.generation() == t2.generation.get(st) && message.current_term() > t2.current_term.get(st))) {
-      send_snapshot_request(sp, message.object_id(), message_info.source_node());
+      send_snapshot_request(sp, message.object_id(), leader_node);
       sp.get<logger>()->trace(
         SyncModule,
         sp,
         "Object %s from feature. Leader %s",
         base64::from_bytes(message.object_id()).c_str(),
-        base64::from_bytes(message_info.source_node()).c_str());
+        base64::from_bytes(leader_node).c_str());
       return base_message_type::from_future;
     }
     else if (
@@ -288,7 +298,7 @@ vds::dht::network::sync_process::base_message_type vds::dht::network::sync_proce
         send_snapshot(sp, t, message.object_id(), { message_info.source_node() });
       }
       else {
-        send_snapshot_request(sp, message.object_id(), message_info.source_node());
+        send_snapshot_request(sp, message.object_id(), leader_node, message_info.source_node());
       }
 
       sp.get<logger>()->trace(
@@ -296,13 +306,13 @@ vds::dht::network::sync_process::base_message_type vds::dht::network::sync_proce
         sp,
         "Object %s from past. Leader %s",
         base64::from_bytes(message.object_id()).c_str(),
-        base64::from_bytes(message_info.source_node()).c_str());
+        base64::from_bytes(leader_node).c_str());
 
       return base_message_type::from_past;
     }
     else if(
       message.generation() == t2.generation.get(st)
-      && t2.voted_for.get(st) != message_info.source_node()) {
+      && t2.voted_for.get(st) != leader_node) {
         this->make_new_election(sp, t, message.object_id());
 
         sp.get<logger>()->trace(
@@ -310,11 +320,26 @@ vds::dht::network::sync_process::base_message_type vds::dht::network::sync_proce
           sp,
           "Object %s other leader. Leader %s",
           base64::from_bytes(message.object_id()).c_str(),
-          base64::from_bytes(message_info.source_node()).c_str());
+          base64::from_bytes(leader_node).c_str());
         return base_message_type::other_leader;
     }
     else if(message.generation() == t2.generation.get(st)
       && message.current_term() == t2.current_term.get(st)) {
+      switch (t1.state.get(st)) {
+      case orm::sync_state_dbo::state_t::follower:
+        t.execute(t1.update(
+          t1.next_sync = std::chrono::system_clock::now() + LEADER_BROADCAST_TIMEOUT())
+          .where(t1.object_id == message.object_id()));
+        break;
+
+      case orm::sync_state_dbo::state_t::leader:
+        break;
+
+      default:
+        vds_assert(false);
+        break;
+      }
+
       return base_message_type::successful;
     }
     else {
@@ -323,7 +348,7 @@ vds::dht::network::sync_process::base_message_type vds::dht::network::sync_proce
         sp,
         "Object %s case error. Leader %s",
         base64::from_bytes(message.object_id()).c_str(),
-        base64::from_bytes(message_info.source_node()).c_str());
+        base64::from_bytes(leader_node).c_str());
       throw std::runtime_error("Case error");
     }
   }
@@ -333,7 +358,7 @@ vds::dht::network::sync_process::base_message_type vds::dht::network::sync_proce
       sp,
       "Object %s not found. Leader %s",
       base64::from_bytes(message.object_id()).c_str(),
-      base64::from_bytes(message_info.source_node()).c_str());
+      base64::from_bytes(leader_node).c_str());
     return base_message_type::not_found;
   }
 }
@@ -551,7 +576,7 @@ vds::const_data_buffer vds::dht::network::sync_process::restore_replica(
     binary_serializer s;
     restore.restore(s, datas);
 
-    auto data = s.get_data();
+    auto data = s.move_data();
     const auto data_hash = hash::signature(hash::sha256(), data);
     _client::save_data(sp, t, data_hash, data);
 
@@ -582,7 +607,7 @@ vds::const_data_buffer vds::dht::network::sync_process::restore_replica(
     orm::sync_replica_map_dbo t5;
     st = t.get_reader(t5.select(t5.node).where(t5.object_id == object_id));
     while (st.execute()) {
-      if (candidates.end() == candidates.find(t5.node.get(st))) {
+      if (candidates.end() == candidates.find(t5.node.get(st)) && client->current_node_id() != t5.node.get(st)) {
         candidates.emplace(t5.node.get(st));
       }
     }
@@ -590,10 +615,10 @@ vds::const_data_buffer vds::dht::network::sync_process::restore_replica(
     orm::sync_member_dbo t6;
     st = t.get_reader(t6.select(t6.voted_for, t6.member_node).where(t6.object_id == object_id));
     while (st.execute()) {
-      if (candidates.end() == candidates.find(t6.member_node.get(st))) {
+      if (candidates.end() == candidates.find(t6.member_node.get(st)) && client->current_node_id() != t6.member_node.get(st)) {
         candidates.emplace(t6.member_node.get(st));
       }
-      if (candidates.end() == candidates.find(t6.voted_for.get(st))) {
+      if (candidates.end() == candidates.find(t6.voted_for.get(st)) && client->current_node_id() != t6.voted_for.get(st)) {
         candidates.emplace(t6.voted_for.get(st));
       }
     }
@@ -636,13 +661,8 @@ void vds::dht::network::sync_process::apply_message(
   const imessage_map::message_info_t & message_info) {
 
   auto & client = *sp.get<dht::network::client>();
-  client->send_closer(
-    sp,
-    message.object_id(),
-    GENERATE_DISTRIBUTED_PIECES,
-    message);
 
-  switch (this->apply_base_message(sp, t, message, message_info)) {
+  switch (this->apply_base_message(sp, t, message, message_info, message_info.source_node())) {
   case base_message_type::not_found:
   case base_message_type::successful:
     break;
@@ -835,17 +855,6 @@ void vds::dht::network::sync_process::apply_message(
         t1.state = orm::sync_state_dbo::state_t::follower,
         t1.next_sync = std::chrono::system_clock::now() + LEADER_BROADCAST_TIMEOUT()));
     }
-    for (const auto & member : message.members()) {
-      t.execute(t2.insert(
-        t2.object_id = message.object_id(),
-        t2.member_node = member.first,
-        t2.voted_for = message.leader_node(),
-        t2.generation = message.generation(),
-        t2.current_term = message.current_term(),
-        t2.commit_index = message.commit_index(),
-        t2.last_applied = message.last_applied(),
-        t2.last_activity = std::chrono::system_clock::now()));
-    }
   }
   else {
     return;
@@ -945,7 +954,7 @@ void vds::dht::network::sync_process::apply_message(const service_provider& sp, 
   const imessage_map::message_info_t & message_info) {
   
   auto client = sp.get<dht::network::client>();
-  if(base_message_type::successful == this->apply_base_message(sp, t, message, message_info)) {
+  if(base_message_type::successful == this->apply_base_message(sp, t, message, message_info, message_info.source_node())) {
 
   }
 }
@@ -965,7 +974,14 @@ void vds::dht::network::sync_process::apply_message(
     const imessage_map::message_info_t & message_info) {
   auto client = sp.get<dht::network::client>();
 
-  if(this->apply_base_message(sp, t, message, message_info) == base_message_type::successful) {
+  sp.get<logger>()->trace(
+    SyncModule,
+    sp,
+    "got sync_replica_operations_request from %s about %s",
+    base64::from_bytes(message_info.source_node()).c_str(),
+    base64::from_bytes(message.object_id()).c_str());
+
+  if(this->apply_base_message(sp, t, message, message_info, message_info.source_node()) == base_message_type::successful) {
     orm::sync_message_dbo t1;
     auto st = t.get_reader(t1.select(
       t1.message_type,
@@ -997,6 +1013,13 @@ void vds::dht::network::sync_process::apply_message(
         t1.current_term = message.current_term(),
         t1.index = message.last_applied()));
     }
+
+    sp.get<logger>()->trace(
+      SyncModule,
+      sp,
+      "send sync_replica_operations_response to %s about %s",
+      base64::from_bytes(message_info.source_node()).c_str(),
+      base64::from_bytes(message.object_id()).c_str());
     (*client)->send(
       sp,
       message_info.source_node(),
@@ -1014,6 +1037,12 @@ void vds::dht::network::sync_process::apply_message(
   const messages::sync_replica_operations_response& message,
     const imessage_map::message_info_t & message_info) {
 
+  sp.get<logger>()->trace(
+    SyncModule,
+    sp,
+    "sync_replica_operations_response from %s about %s",
+    base64::from_bytes(message_info.source_node()).c_str(),
+    base64::from_bytes(message.object_id()).c_str());
   if(this->apply_base_message(sp, t, message, message_info)) {
     
   }
@@ -1027,7 +1056,7 @@ void vds::dht::network::sync_process::apply_message(
 
   auto client = sp.get<dht::network::client>();
 
-  if(this->apply_base_message(sp, t, message, message_info) != base_message_type::successful) {
+  if(this->apply_base_message(sp, t, message, message_info, message_info.source_node()) != base_message_type::successful) {
     return;
   }
 
@@ -1052,7 +1081,7 @@ void vds::dht::network::sync_process::apply_message(
 
   auto client = sp.get<dht::network::client>();
 
-  if (this->apply_base_message(sp, t, message, message_info) != base_message_type::successful) {
+  if (this->apply_base_message(sp, t, message, message_info, message_info.source_node()) != base_message_type::successful) {
     return;
   }
 
@@ -1152,11 +1181,6 @@ void vds::dht::network::sync_process::apply_message(
         base64::from_bytes(client->current_node_id()).c_str(),
         base64::from_bytes(message.object_id()).c_str(),
         base64::from_bytes(message_info.source_node()).c_str());
-    (*client)->send_near(
-      sp,
-      message.object_id(),
-      GENERATE_DISTRIBUTED_PIECES,
-      message);
   }
   else {
     if (t1.state.get(st) != orm::sync_state_dbo::state_t::leader) {
@@ -1168,10 +1192,6 @@ void vds::dht::network::sync_process::apply_message(
           base64::from_bytes(message.object_id()).c_str(),
           base64::from_bytes(message_info.source_node()).c_str(),
           base64::from_bytes(t2.voted_for.get(st)).c_str());
-      (*client)->send(
-        sp,
-        t2.voted_for.get(st),
-        message);
     }
     else {
       const auto generation = t2.generation.get(st);
@@ -1306,7 +1326,7 @@ void vds::dht::network::sync_process::apply_message(
                   object_id = message.object_id()]() {
                   binary_serializer s;
                   this->distributed_generators_.find(replica)->second->write(s, data.data(), data.size());
-                  const_data_buffer replica_data(s.get_data());
+                  const_data_buffer replica_data(s.move_data());
                   sp.get<logger>()->trace(
                     SyncModule,
                     sp,
@@ -1384,7 +1404,7 @@ void vds::dht::network::sync_process::apply_message(
         t2.replica = message.replica(),
         t2.replica_hash = data_hash));
 
-    switch (this->apply_base_message(sp, t, message, message_info)) {
+    switch (this->apply_base_message(sp, t, message, message_info, message.leader_node())) {
     case base_message_type::not_found: {
       this->send_snapshot_request(sp, message.object_id(), message.leader_node());
       break;

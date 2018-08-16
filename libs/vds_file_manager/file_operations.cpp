@@ -200,8 +200,9 @@ void vds::file_manager_private::_file_operations::download_stream(
     }
     else {
       vds_assert(data.size() == file_blocks.begin()->block_size);
-      target_stream->write_async(data.data(), file_blocks.begin()->block_size).execute(
-          [data, pthis, sp, target_stream, file_blocks](const std::shared_ptr<std::exception> & ex) {
+      auto buffer = std::make_shared<const_data_buffer>(data);
+      target_stream->write_async(buffer->data(), buffer->size()).execute(
+          [buffer, pthis, sp, target_stream, file_blocks](const std::shared_ptr<std::exception> & ex) {
             auto f = file_blocks;
             f.pop_front();
             pthis->download_stream(sp, target_stream, f);

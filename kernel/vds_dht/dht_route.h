@@ -435,13 +435,27 @@ namespace vds {
           return result;
         }
 
-        for (auto &node : p->second->nodes_) {
+        for (const auto & node : p->second->nodes_) {
           if (!node->is_good() || !filter(*node)) {
             continue;
           }
 
-          result_nodes[dht_object_id::distance(node->node_id_, target_id)].push_back(node);
-          ++result;
+          auto & result_node = result_nodes[dht_object_id::distance(node->node_id_, target_id)];
+          bool exists = false;
+          for(auto & exist : result_node) {
+            if(exist->node_id_ == node->node_id_) {
+              if(exist->hops_ > node->hops_) {
+                exist = node;
+              }
+              exists = true;
+              break;
+            }
+          }
+
+          if (!exists) {
+            result_node.push_back(node);
+            ++result;
+          }
         }
 
         return result;

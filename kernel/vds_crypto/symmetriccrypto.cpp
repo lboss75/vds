@@ -161,7 +161,7 @@ vds::const_data_buffer vds::symmetric_encrypt::encrypt(
   s.write((const uint8_t *)input_buffer, input_buffer_size);
   s.write(nullptr, 0);
 
-  return result.get_data();
+  return result.move_data();
 }
 
 
@@ -199,5 +199,5 @@ vds::const_data_buffer vds::symmetric_decrypt::decrypt(
   s.write((const uint8_t *)input_buffer, input_buffer_size);
   s.write(nullptr, 0);
 
-  return result.get_data();
+  return result.move_data();
 }

@@ -355,30 +355,21 @@ void vds::_asymmetric_sign::write(const uint8_t * data, size_t data_size)
 			throw crypto_exception("EVP_DigestSignFinal", error);
 		}
 
-		auto sig = (unsigned char *)OPENSSL_malloc(req);
-		if (nullptr == sig) {
-			auto error = ERR_get_error();
-			throw crypto_exception("OPENSSL_malloc", error);
-		}
+    this->sig_.resize(req);
 
 		auto len = req;
-		if (1 != EVP_DigestSignFinal(this->ctx_, sig, &len)) {
-			auto error = ERR_get_error();
-			OPENSSL_free(sig);
+		if (1 != EVP_DigestSignFinal(this->ctx_, this->sig_.data(), &len)) {
+			const auto error = ERR_get_error();
 			throw crypto_exception("EVP_DigestSignFinal", error);
 		}
 
 		if (len != req) {
-			auto error = ERR_get_error();
-			OPENSSL_free(sig);
+			const auto error = ERR_get_error();
 			throw crypto_exception("EVP_DigestSignFinal", error);
 		}
-
-		this->sig_.reset(sig, len);
-		OPENSSL_free(sig);
 	}
 	else if (1 != EVP_DigestSignUpdate(this->ctx_, data, data_size)) {
-    auto error = ERR_get_error();
+    const auto error = ERR_get_error();
     throw crypto_exception("EVP_DigestInit_ex", error);
   }
 }
