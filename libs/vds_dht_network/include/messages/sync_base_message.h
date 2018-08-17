@@ -14,7 +14,7 @@ namespace vds {
     namespace messages {
       class sync_base_message_request {
       public:
-        const const_data_buffer & object_id() const {
+        const const_data_buffer& object_id() const {
           return this->object_id_;
         }
 
@@ -36,38 +36,37 @@ namespace vds {
 
       protected:
         sync_base_message_request(
-          const const_data_buffer &object_id,
+          const const_data_buffer& object_id,
           uint64_t generation,
           uint64_t current_term,
           uint64_t commit_index,
           uint64_t last_applied)
           : object_id_(object_id),
-          generation_(generation),
-          current_term_(current_term),
-          commit_index_(commit_index),
-          last_applied_(last_applied){
+            generation_(generation),
+            current_term_(current_term),
+            commit_index_(commit_index),
+            last_applied_(last_applied) {
         }
 
         sync_base_message_request(
-          binary_deserializer & s) {
+          binary_deserializer& s) {
           s
             >> this->object_id_
             >> this->generation_
             >> this->current_term_
             >> this->commit_index_
-            >> this->last_applied_
-            ;
+            >> this->last_applied_;
         }
 
-        void serialize(binary_serializer & s) const {
+        void serialize(binary_serializer& s) const {
           s
             << this->object_id_
             << this->generation_
             << this->current_term_
             << this->commit_index_
-            << this->last_applied_
-            ;
+            << this->last_applied_;
         }
+
       private:
         const_data_buffer object_id_;
         uint64_t generation_;
@@ -78,7 +77,7 @@ namespace vds {
 
       class sync_base_message_response {
       public:
-        const const_data_buffer & object_id() const {
+        const const_data_buffer& object_id() const {
           return this->object_id_;
         }
 
@@ -100,38 +99,37 @@ namespace vds {
 
       protected:
         sync_base_message_response(
-          const const_data_buffer &object_id,
+          const const_data_buffer& object_id,
           uint64_t generation,
           uint64_t current_term,
           uint64_t commit_index,
           uint64_t last_applied)
           : object_id_(object_id),
-          generation_(generation),
-          current_term_(current_term),
-          commit_index_(commit_index),
-          last_applied_(last_applied){
+            generation_(generation),
+            current_term_(current_term),
+            commit_index_(commit_index),
+            last_applied_(last_applied) {
         }
 
         sync_base_message_response(
-          binary_deserializer & s) {
+          binary_deserializer& s) {
           s
             >> this->object_id_
             >> this->generation_
             >> this->current_term_
             >> this->commit_index_
-            >> this->last_applied_
-            ;
+            >> this->last_applied_;
         }
 
-        void serialize(binary_serializer & s) const {
+        void serialize(binary_serializer& s) const {
           s
             << this->object_id_
             << this->generation_
             << this->current_term_
             << this->commit_index_
-            << this->last_applied_
-            ;
+            << this->last_applied_;
         }
+
       private:
         const_data_buffer object_id_;
         uint64_t generation_;

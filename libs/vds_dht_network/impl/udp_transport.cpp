@@ -12,8 +12,8 @@ All rights reserved
 #include "dht_network_client.h"
 #include "dht_network_client_p.h"
 
-void vds::dht::network::udp_transport::start(const vds::service_provider &sp, uint16_t port,
-                                             const const_data_buffer &this_node_id) {
+void vds::dht::network::udp_transport::start(const service_provider& sp, uint16_t port,
+                                             const const_data_buffer& this_node_id) {
   this->this_node_id_ = this_node_id;
 
   try {
@@ -24,8 +24,9 @@ void vds::dht::network::udp_transport::start(const vds::service_provider &sp, ui
   }
 
   this->continue_read(sp.create_scope("vds::dht::network::udp_transport::continue_read"));
-  this->timer_.start(sp, std::chrono::seconds(1), [sp, pthis = this->shared_from_this()]()->bool{
-    pthis->on_timer(sp).execute([](const std::shared_ptr<std::exception> &){});
+  this->timer_.start(sp, std::chrono::seconds(1), [sp, pthis = this->shared_from_this()]()-> bool {
+    pthis->on_timer(sp).execute([](const std::shared_ptr<std::exception>&) {
+    });
     return !sp.get_shutdown_event().is_shuting_down();
   });
 }
@@ -35,26 +36,26 @@ void vds::dht::network::udp_transport::stop(const service_provider& sp) {
 }
 
 vds::async_task<>
-vds::dht::network::udp_transport::write_async(const service_provider &sp, const udp_datagram &datagram) {
-//  std::unique_lock<std::debug_mutex> lock(this->write_mutex_);
-//  while(this->write_in_progress_) {
-//    this->write_cond_.wait(*reinterpret_cast<std::unique_lock<std::mutex> *>(&lock));
-//  }
-//  this->write_in_progress_ = true;
-//#ifdef _DEBUG
-//#ifndef _WIN32
-//  this->owner_id_ = syscall(SYS_gettid);
-//#else
-//  this->owner_id_ = GetCurrentThreadId();
-//#endif
-//#endif//_DEBUG
+vds::dht::network::udp_transport::write_async(const service_provider& sp, const udp_datagram& datagram) {
+  //  std::unique_lock<std::debug_mutex> lock(this->write_mutex_);
+  //  while(this->write_in_progress_) {
+  //    this->write_cond_.wait(*reinterpret_cast<std::unique_lock<std::mutex> *>(&lock));
+  //  }
+  //  this->write_in_progress_ = true;
+  //#ifdef _DEBUG
+  //#ifndef _WIN32
+  //  this->owner_id_ = syscall(SYS_gettid);
+  //#else
+  //  this->owner_id_ = GetCurrentThreadId();
+  //#endif
+  //#endif//_DEBUG
 
-  return [sp, pthis = this->shared_from_this(), datagram](const async_result<> & result) {
+  return [sp, pthis = this->shared_from_this(), datagram](const async_result<>& result) {
     std::unique_lock<std::debug_mutex> lock(pthis->write_mutex_);
     bool need_send = pthis->send_queue_.empty();
     pthis->send_queue_.push_back(std::make_tuple(datagram, std::move(result)));
 
-    if(need_send) {
+    if (need_send) {
       sp.get<logger>()->trace(
         ThisModule,
         sp,
@@ -65,59 +66,59 @@ vds::dht::network::udp_transport::write_async(const service_provider &sp, const 
 }
 
 void
-vds::dht::network::udp_transport::continue_send(const service_provider &sp) {
+vds::dht::network::udp_transport::continue_send(const service_provider& sp) {
 
   this->server_.socket().write_async(std::get<0>(this->send_queue_.front()))
-    .execute([sp, pthis = this->shared_from_this()](const std::shared_ptr<std::exception> &ex) {
-    sp.get<logger>()->trace(
-      ThisModule,
-      sp,
-      "udp_transport socket sent");
-    mt_service::async(sp, [sp, ex, pthis]() {
-      sp.get<logger>()->trace(
-        ThisModule,
-        sp,
-        "udp_transport sent");
-
-      std::unique_lock<std::debug_mutex> lock(pthis->write_mutex_);
-      auto p = pthis->send_queue_.begin();
-      auto datagram = std::move(std::get<0>(*p));
-      auto result = std::move(std::get<1>(*p));
-      pthis->send_queue_.pop_front();
-      if (!pthis->send_queue_.empty()) {
-        pthis->continue_send(sp);
-      }
-      else {
+      .execute([sp, pthis = this->shared_from_this()](const std::shared_ptr<std::exception>& ex) {
         sp.get<logger>()->trace(
           ThisModule,
           sp,
-          "stopped send");
-      }
-      lock.unlock();
+          "udp_transport socket sent");
+        mt_service::async(sp, [sp, ex, pthis]() {
+          sp.get<logger>()->trace(
+            ThisModule,
+            sp,
+            "udp_transport sent");
 
-      if (ex) {
-        sp.get<logger>()->error(
-          ThisModule,
-          sp,
-          "%s at write UDP datagram %d bytes to %s",
-          ex->what(),
-          datagram.data_size(),
-          datagram.address().to_string().c_str());
+          std::unique_lock<std::debug_mutex> lock(pthis->write_mutex_);
+          auto p = pthis->send_queue_.begin();
+          auto datagram = std::move(std::get<0>(*p));
+          auto result = std::move(std::get<1>(*p));
+          pthis->send_queue_.pop_front();
+          if (!pthis->send_queue_.empty()) {
+            pthis->continue_send(sp);
+          }
+          else {
+            sp.get<logger>()->trace(
+              ThisModule,
+              sp,
+              "stopped send");
+          }
+          lock.unlock();
 
-        result.error(ex);
-      }
-      else {
-        result.done();
-      }
-    });
-  });
+          if (ex) {
+            sp.get<logger>()->error(
+              ThisModule,
+              sp,
+              "%s at write UDP datagram %d bytes to %s",
+              ex->what(),
+              datagram.data_size(),
+              datagram.address().to_string().c_str());
+
+            result.error(ex);
+          }
+          else {
+            result.done();
+          }
+        });
+      });
 }
 
 vds::async_task<> vds::dht::network::udp_transport::on_timer(const service_provider& sp) {
   resizable_data_buffer out_message;
   auto result = async_task<>::empty();
   std::shared_lock<std::shared_mutex> lock(this->sessions_mutex_);
-  for(auto & p : this->sessions_) {
+  for (auto& p : this->sessions_) {
     result = result.then([session = p.second, sp, pthis = this->shared_from_this()]() {
       return session->on_timer(sp, pthis);
     });
@@ -125,11 +126,12 @@ vds::async_task<> vds::dht::network::udp_transport::on_timer(const service_provi
   return result;
 }
 
-vds::async_task<> vds::dht::network::udp_transport::try_handshake(const service_provider& sp, const std::string& address) {
+vds::async_task<> vds::dht::network::udp_transport::try_handshake(const service_provider& sp,
+                                                                  const std::string& address) {
 
   this->block_list_mutex_.lock();
   auto p = this->block_list_.find(address);
-  if(this->block_list_.end() != p && p->second < std::chrono::steady_clock::now()) {
+  if (this->block_list_.end() != p && p->second < std::chrono::steady_clock::now()) {
     this->block_list_mutex_.unlock();
     return async_task<>::empty();
   }
@@ -142,21 +144,21 @@ vds::async_task<> vds::dht::network::udp_transport::try_handshake(const service_
   out_message += this->this_node_id_;
 
   return this->write_async(sp, udp_datagram(
-        network_address::parse(this->server_.address().family(), address),
-        out_message.move_data()));
+                             network_address::parse(this->server_.address().family(), address),
+                             out_message.move_data()));
 }
 
 void vds::dht::network::udp_transport::get_session_statistics(session_statistic& session_statistic) {
 
   std::shared_lock<std::shared_mutex> lock(this->sessions_mutex_);
-  for(const auto & p : this->sessions_) {
+  for (const auto& p : this->sessions_) {
     const auto session = p.second;
     session_statistic.items_.push_back(session->get_statistic());
   }
 }
 
 void vds::dht::network::udp_transport::add_session(
-  const vds::service_provider& sp,
+  const service_provider& sp,
   const network_address& address,
   const std::shared_ptr<dht_session>& session) {
 
@@ -174,7 +176,7 @@ std::shared_ptr<vds::dht::network::dht_session> vds::dht::network::udp_transport
 
   std::shared_lock<std::shared_mutex> lock(this->sessions_mutex_);
   auto p = this->sessions_.find(address);
-  if(this->sessions_.end() == p) {
+  if (this->sessions_.end() == p) {
     return std::shared_ptr<dht_session>();
   }
 
@@ -182,162 +184,166 @@ std::shared_ptr<vds::dht::network::dht_session> vds::dht::network::udp_transport
 }
 
 void vds::dht::network::udp_transport::continue_read(
-  const vds::service_provider & sp) {
-  if(!this->server_) {
+  const service_provider& sp) {
+  if (!this->server_) {
     return;
   }
   this->server_.socket().read_async().execute([sp, pthis = this->shared_from_this()](
-    const std::shared_ptr<std::exception> & ex,
-    const vds::udp_datagram & datagram){
+    const std::shared_ptr<std::exception>& ex,
+    const udp_datagram& datagram) {
 
-    if(sp.get_shutdown_event().is_shuting_down()) {
-      return;
-    }
+      if (sp.get_shutdown_event().is_shuting_down()) {
+        return;
+      }
 
-    if (!ex && 0 != datagram.data_size()) {
-      switch ((protocol_message_type_t)datagram.data()[0]) {
-      case protocol_message_type_t::HandshakeBroadcast:
-      case protocol_message_type_t::Handshake: {
-        auto session = pthis->get_session(datagram.address());
-        if (session) {
-          break;
-        }
-        if (datagram.data_size() == NODE_ID_SIZE + 2 && PROTOCOL_VERSION == datagram.data()[1]) {
-          const_data_buffer partner_node_id(datagram.data() + 2, NODE_ID_SIZE);
-          if (partner_node_id == pthis->this_node_id_) {
+      if (!ex && 0 != datagram.data_size()) {
+        switch ((protocol_message_type_t)datagram.data()[0]) {
+        case protocol_message_type_t::HandshakeBroadcast:
+        case protocol_message_type_t::Handshake: {
+          auto session = pthis->get_session(datagram.address());
+          if (session) {
             break;
           }
+          if (datagram.data_size() == NODE_ID_SIZE + 2 && PROTOCOL_VERSION == datagram.data()[1]) {
+            const_data_buffer partner_node_id(datagram.data() + 2, NODE_ID_SIZE);
+            if (partner_node_id == pthis->this_node_id_) {
+              break;
+            }
 
-          uint32_t session_id = static_cast<uint32_t>(std::rand());
-          pthis->add_session(
-            sp,
-            datagram.address(),
-            std::make_shared<dht_session>(
+            uint32_t session_id = static_cast<uint32_t>(std::rand());
+            pthis->add_session(
+              sp,
               datagram.address(),
-              pthis->this_node_id_,
-              partner_node_id,
-              session_id));
+              std::make_shared<dht_session>(
+                datagram.address(),
+                pthis->this_node_id_,
+                partner_node_id,
+                session_id));
 
-          resizable_data_buffer out_message;
-          out_message.add(static_cast<uint8_t>(protocol_message_type_t::Welcome));
-          out_message.add(static_cast<uint8_t>(session_id >> 24));
-          out_message.add(static_cast<uint8_t>(session_id >> 16));
-          out_message.add(static_cast<uint8_t>(session_id >> 8));
-          out_message.add(static_cast<uint8_t>(session_id));
-          out_message.add(pthis->this_node_id_.data(), pthis->this_node_id_.size());
+            resizable_data_buffer out_message;
+            out_message.add(static_cast<uint8_t>(protocol_message_type_t::Welcome));
+            out_message.add(static_cast<uint8_t>(session_id >> 24));
+            out_message.add(static_cast<uint8_t>(session_id >> 16));
+            out_message.add(static_cast<uint8_t>(session_id >> 8));
+            out_message.add(static_cast<uint8_t>(session_id));
+            out_message.add(pthis->this_node_id_.data(), pthis->this_node_id_.size());
 
-          pthis->write_async(sp, udp_datagram(datagram.address(), out_message.move_data()))
-            .execute([
-              pthis,
-                sp,
-                scope = sp.create_scope("Send Welcome"),
-                address = datagram.address().to_string()](const std::shared_ptr<std::exception> & ex) {
-                if (ex) {
-                  sp.get<logger>()->trace(ThisModule, sp, "%s at send welcome to %s", ex->what(), address.c_str());
-                }
-                pthis->continue_read(sp);
-              });
+            pthis->write_async(sp, udp_datagram(datagram.address(), out_message.move_data()))
+                 .execute([
+                     pthis,
+                     sp,
+                     scope = sp.create_scope("Send Welcome"),
+                     address = datagram.address().to_string()](const std::shared_ptr<std::exception>& ex) {
+                     if (ex) {
+                       sp.get<logger>()->trace(ThisModule, sp, "%s at send welcome to %s", ex->what(),
+                                               address.c_str());
+                     }
+                     pthis->continue_read(sp);
+                   });
 
-          return;
-        }
-        else {
-          throw std::runtime_error("Invalid protocol");
-        }
-        break;
-      }
-      case protocol_message_type_t::Welcome: {
-        if (datagram.data_size() == NODE_ID_SIZE + 5) {
-          uint32_t session_id = (datagram.data()[1] << 24)
-            | (datagram.data()[2] << 16)
-            | (datagram.data()[3] << 8)
-            | (datagram.data()[4]);
-          const_data_buffer partner_node_id(datagram.data() + 5, NODE_ID_SIZE);
-          pthis->add_session(
-            sp,
-            datagram.address(), std::make_shared<dht_session>(
-              datagram.address(),
-              pthis->this_node_id_,
-              partner_node_id,
-              session_id));
-        }
-        else {
-          throw std::runtime_error("Invalid protocol");
-        }
-
-        break;
-      }
-      case protocol_message_type_t::Failed: {
-        auto session = pthis->get_session(datagram.address());
-        if (session) {
-          std::shared_lock<std::shared_mutex> lock(pthis->sessions_mutex_);
-          pthis->sessions_.erase(datagram.address());
-        }
-
-        break;
-      }
-      default: {
-        auto session = pthis->get_session(datagram.address());
-        if (session) {
-          try {
-            auto scope = sp.create_scope("Process datagram");
-            session->process_datagram(scope, pthis, const_data_buffer(datagram.data(), datagram.data_size()))
-              .execute([pthis, sp, scope, address = datagram.address()](const std::shared_ptr<std::exception> & ex){
-              if (ex) {
-                std::shared_lock<std::shared_mutex> lock(pthis->sessions_mutex_);
-                pthis->sessions_.erase(address);
-              }
-              mt_service::async(sp, [sp, pthis](){
-                pthis->continue_read(sp);
-              });
-            });
             return;
           }
-          catch(...) {
+          else {
+            throw std::runtime_error("Invalid protocol");
+          }
+          break;
+        }
+        case protocol_message_type_t::Welcome: {
+          if (datagram.data_size() == NODE_ID_SIZE + 5) {
+            uint32_t session_id = (datagram.data()[1] << 24)
+              | (datagram.data()[2] << 16)
+              | (datagram.data()[3] << 8)
+              | (datagram.data()[4]);
+            const_data_buffer partner_node_id(datagram.data() + 5, NODE_ID_SIZE);
+            pthis->add_session(
+              sp,
+              datagram.address(), std::make_shared<dht_session>(
+                datagram.address(),
+                pthis->this_node_id_,
+                partner_node_id,
+                session_id));
+          }
+          else {
+            throw std::runtime_error("Invalid protocol");
+          }
+
+          break;
+        }
+        case protocol_message_type_t::Failed: {
+          auto session = pthis->get_session(datagram.address());
+          if (session) {
             std::shared_lock<std::shared_mutex> lock(pthis->sessions_mutex_);
             pthis->sessions_.erase(datagram.address());
           }
+
+          break;
         }
-        else {
-          uint8_t out_message[] = { (uint8_t)protocol_message_type_t::Failed };
-          auto scope = sp.create_scope("Send Failed");
-          pthis->write_async(scope, udp_datagram(datagram.address(), const_data_buffer(out_message, sizeof(out_message))))
-            .execute([pthis, sp, scope, address = datagram.address().to_string()](const std::shared_ptr<std::exception> & ex) {
-            if (ex) {
-              sp.get<logger>()->trace(ThisModule, sp, "%s at send welcome to %s", ex->what(), address.c_str());
+        default: {
+          auto session = pthis->get_session(datagram.address());
+          if (session) {
+            try {
+              auto scope = sp.create_scope("Process datagram");
+              session->process_datagram(scope, pthis, const_data_buffer(datagram.data(), datagram.data_size()))
+                     .execute([pthis, sp, scope, address = datagram.address()](
+                       const std::shared_ptr<std::exception>& ex) {
+                         if (ex) {
+                           std::shared_lock<std::shared_mutex> lock(pthis->sessions_mutex_);
+                           pthis->sessions_.erase(address);
+                         }
+                         mt_service::async(sp, [sp, pthis]() {
+                           pthis->continue_read(sp);
+                         });
+                       });
+              return;
             }
+            catch (...) {
+              std::shared_lock<std::shared_mutex> lock(pthis->sessions_mutex_);
+              pthis->sessions_.erase(datagram.address());
+            }
+          }
+          else {
+            uint8_t out_message[] = {(uint8_t)protocol_message_type_t::Failed};
+            auto scope = sp.create_scope("Send Failed");
+            pthis->write_async(scope, udp_datagram(datagram.address(),
+                                                   const_data_buffer(out_message, sizeof(out_message))))
+                 .execute([pthis, sp, scope, address = datagram.address().to_string()](
+                   const std::shared_ptr<std::exception>& ex) {
+                     if (ex) {
+                       sp.get<logger>()->trace(ThisModule, sp, "%s at send welcome to %s", ex->what(),
+                                               address.c_str());
+                     }
+                     pthis->continue_read(sp);
+                   });
+
+            return;
+          }
+          break;
+        }
+        }
+        pthis->continue_read(sp);
+      }
+      else {
+        if (ex) {
+          sp.get<logger>()->trace(ThisModule, sp, "Error %s", ex->what());
+
+          //auto sys_error = std::dynamic_pointer_cast<std::system_error>(ex);
+          //if(sys_error && sys_error->code().value() == ERROR_PORT_UNREACHABLE) {
+          //  return;          
+          //}
+        }
+        if (0 == datagram.data_size()) {
+          sp.get<logger>()->trace(ThisModule, sp, "0 == datagram.data_size()");
+        }
+        mt_service::async(sp, [sp, pthis]() {
+          if (!sp.get_shutdown_event().is_shuting_down()) {
             pthis->continue_read(sp);
-          });
-
-          return;
-        }
-        break;
+          }
+        });
       }
-      }
-      pthis->continue_read(sp);
-    }
-    else {
-      if(ex) {
-        sp.get<logger>()->trace(ThisModule, sp, "Error %s", ex->what());
-
-        //auto sys_error = std::dynamic_pointer_cast<std::system_error>(ex);
-        //if(sys_error && sys_error->code().value() == ERROR_PORT_UNREACHABLE) {
-        //  return;          
-        //}
-      }
-      if(0 == datagram.data_size()) {
-        sp.get<logger>()->trace(ThisModule, sp, "0 == datagram.data_size()");
-      }
-      mt_service::async(sp, [sp, pthis]() {
-        if (!sp.get_shutdown_event().is_shuting_down()) {
-          pthis->continue_read(sp);
-        }
-      });
-    }
-  });
+    });
 }
 
 vds::dht::network::udp_transport::udp_transport()
-: write_in_progress_(false),
-  timer_("UDP timer"){
+  : write_in_progress_(false),
+    timer_("UDP timer") {
 }
-

@@ -15,7 +15,7 @@ namespace vds {
         }
 
         dht_pong(
-          binary_deserializer & s) {
+          binary_deserializer& s) {
         }
 
         const_data_buffer serialize() const {

@@ -154,7 +154,7 @@ void vds::_mt_service::work_thread()
       std::unique_lock<std::mutex> lock(this->mutex_);
       this->cond_.wait(
         lock,
-        [this]()->bool { return !this->queue_.empty(); });
+        [this]()->bool { return this->is_shuting_down_ || !this->queue_.empty(); });
       
       if(this->queue_.empty()){
         continue;

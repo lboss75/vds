@@ -17,37 +17,36 @@ namespace vds {
         static const network::message_type_t message_id = network::message_type_t::sync_new_election_request;
 
         sync_new_election_request(
-            const const_data_buffer &object_id,
-            uint64_t generation,
-            uint64_t current_term,
-          const const_data_buffer &source_node)
-            : object_id_(object_id),
-              generation_(generation),
-              current_term_(current_term),
-              source_node_(source_node) {
+          const const_data_buffer& object_id,
+          uint64_t generation,
+          uint64_t current_term,
+          const const_data_buffer& source_node)
+          : object_id_(object_id),
+            generation_(generation),
+            current_term_(current_term),
+            source_node_(source_node) {
         }
 
         sync_new_election_request(
-            binary_deserializer & s) {
+          binary_deserializer& s) {
           s
             >> this->object_id_
             >> this->generation_
             >> this->current_term_
             >> this->source_node_;
-          ;
         }
 
         const_data_buffer serialize() const {
           binary_serializer s;
           s
-              << this->object_id_
-              << this->generation_
-              << this->current_term_
-              << this->source_node_;
+            << this->object_id_
+            << this->generation_
+            << this->current_term_
+            << this->source_node_;
           return s.move_data();
         }
 
-        const const_data_buffer & object_id() const {
+        const const_data_buffer& object_id() const {
           return this->object_id_;
         }
 
@@ -59,7 +58,7 @@ namespace vds {
           return this->current_term_;
         }
 
-        const const_data_buffer & source_node() const {
+        const const_data_buffer& source_node() const {
           return this->source_node_;
         }
 
@@ -75,24 +74,23 @@ namespace vds {
         static const network::message_type_t message_id = network::message_type_t::sync_new_election_response;
 
         sync_new_election_response(
-          const const_data_buffer &object_id,
+          const const_data_buffer& object_id,
           uint64_t generation,
           uint64_t current_term,
-          const const_data_buffer & source_node)
-            : object_id_(object_id),
-              generation_(generation),
-              current_term_(current_term),
-          source_node_(source_node) {
+          const const_data_buffer& source_node)
+          : object_id_(object_id),
+            generation_(generation),
+            current_term_(current_term),
+            source_node_(source_node) {
         }
 
         sync_new_election_response(
-          binary_deserializer & s) {
+          binary_deserializer& s) {
           s
             >> this->object_id_
             >> this->generation_
             >> this->current_term_
-            >> this->source_node_
-            ;
+            >> this->source_node_;
         }
 
         const_data_buffer serialize() const {
@@ -101,12 +99,11 @@ namespace vds {
             << this->object_id_
             << this->generation_
             << this->current_term_
-            << this->source_node_
-            ;
+            << this->source_node_;
           return s.move_data();
         }
 
-        const const_data_buffer & object_id() const {
+        const const_data_buffer& object_id() const {
           return object_id_;
         }
 
@@ -118,7 +115,7 @@ namespace vds {
           return this->current_term_;
         }
 
-        const const_data_buffer & source_node() const {
+        const const_data_buffer& source_node() const {
           return source_node_;
         }
 

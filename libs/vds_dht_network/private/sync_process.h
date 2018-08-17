@@ -50,11 +50,11 @@ namespace vds {
         sync_process();
 
         void do_sync(
-          const service_provider & sp,
-          database_transaction & t);
+          const service_provider& sp,
+          database_transaction& t);
 
-        void add_sync_entry(const service_provider &sp, database_transaction &t,
-                                    const const_data_buffer &object_id, uint32_t object_size);
+        void add_sync_entry(const service_provider& sp, database_transaction& t,
+                            const const_data_buffer& object_id, uint32_t object_size);
 
         const_data_buffer restore_replica(
           const service_provider& sp,
@@ -64,14 +64,14 @@ namespace vds {
         void apply_message(
           const service_provider& sp,
           database_transaction& t,
-          const messages::sync_new_election_request & message,
-          const imessage_map::message_info_t & message_info);
+          const messages::sync_new_election_request& message,
+          const imessage_map::message_info_t& message_info);
 
         void apply_message(
           const service_provider& sp,
           database_transaction& t,
-          const messages::sync_new_election_response & message,
-          const imessage_map::message_info_t & message_info);
+          const messages::sync_new_election_response& message,
+          const imessage_map::message_info_t& message_info);
 
         //void apply_message(
         //  const service_provider& sp,
@@ -84,85 +84,83 @@ namespace vds {
 
         void apply_message(
           const service_provider& sp,
-          database_transaction & t,
-          const messages::sync_looking_storage_request & message,
-          const imessage_map::message_info_t & message_info);
+          database_transaction& t,
+          const messages::sync_looking_storage_request& message,
+          const imessage_map::message_info_t& message_info);
 
         void apply_message(
           const service_provider& sp,
-          database_transaction & t,
-          const messages::sync_looking_storage_response & message,
-          const imessage_map::message_info_t & message_info);
+          database_transaction& t,
+          const messages::sync_looking_storage_response& message,
+          const imessage_map::message_info_t& message_info);
 
         void apply_message(
           const service_provider& sp,
-          database_transaction & t,
-          const messages::sync_snapshot_request & message,
-          const imessage_map::message_info_t & message_info);
+          database_transaction& t,
+          const messages::sync_snapshot_request& message,
+          const imessage_map::message_info_t& message_info);
 
         void apply_message(
           const service_provider& sp,
-          database_transaction & t,
-          const messages::sync_snapshot_response & message,
-          const imessage_map::message_info_t & message_info);
+          database_transaction& t,
+          const messages::sync_snapshot_response& message,
+          const imessage_map::message_info_t& message_info);
 
         void apply_message(
-          const service_provider & sp,
-          database_transaction & t,
-          const messages::sync_add_message_request & message,
-          const imessage_map::message_info_t & message_info);
+          const service_provider& sp,
+          database_transaction& t,
+          const messages::sync_add_message_request& message,
+          const imessage_map::message_info_t& message_info);
 
         void apply_message(
-          const service_provider & sp,
-          database_transaction & t,
-          const messages::sync_leader_broadcast_request & message,
-          const imessage_map::message_info_t & message_info);
+          const service_provider& sp,
+          database_transaction& t,
+          const messages::sync_leader_broadcast_request& message,
+          const imessage_map::message_info_t& message_info);
 
         void apply_message(
-          const service_provider & sp,
-          database_transaction & t,
-          const messages::sync_leader_broadcast_response & message,
-          const imessage_map::message_info_t & message_info);
+          const service_provider& sp,
+          database_transaction& t,
+          const messages::sync_leader_broadcast_response& message,
+          const imessage_map::message_info_t& message_info);
 
         void apply_message(
-          const service_provider & sp,
-          database_transaction & t,
-          const messages::sync_replica_operations_request & message,
-          const imessage_map::message_info_t & message_info);
+          const service_provider& sp,
+          database_transaction& t,
+          const messages::sync_replica_operations_request& message,
+          const imessage_map::message_info_t& message_info);
 
         void apply_message(
-          const service_provider & sp,
-          database_transaction & t,
-          const messages::sync_replica_operations_response & message,
-          const imessage_map::message_info_t & message_info);
+          const service_provider& sp,
+          database_transaction& t,
+          const messages::sync_replica_operations_response& message,
+          const imessage_map::message_info_t& message_info);
 
         void apply_message(
-          const service_provider & sp,
-          database_transaction & t,
-          const messages::sync_offer_send_replica_operation_request & message,
-          const imessage_map::message_info_t & message_info);
+          const service_provider& sp,
+          database_transaction& t,
+          const messages::sync_offer_send_replica_operation_request& message,
+          const imessage_map::message_info_t& message_info);
 
         void apply_message(
-          const service_provider & sp,
-          database_transaction & t,
-          const messages::sync_offer_remove_replica_operation_request & message,
-          const imessage_map::message_info_t & message_info);
+          const service_provider& sp,
+          database_transaction& t,
+          const messages::sync_offer_remove_replica_operation_request& message,
+          const imessage_map::message_info_t& message_info);
 
         void apply_message(
-          const service_provider & sp,
-          database_transaction & t,
-          const messages::sync_replica_request & message,
-          const imessage_map::message_info_t & message_info);
+          const service_provider& sp,
+          database_transaction& t,
+          const messages::sync_replica_request& message,
+          const imessage_map::message_info_t& message_info);
 
         void apply_message(
-          const service_provider & sp,
-          database_transaction & t,
-          const messages::sync_replica_data & message,
-          const imessage_map::message_info_t & message_info);
+          const service_provider& sp,
+          database_transaction& t,
+          const messages::sync_replica_data& message,
+          const imessage_map::message_info_t& message_info);
 
       private:
-        static constexpr uint16_t MIN_DISTRIBUTED_PIECES = 4;
-        static constexpr uint16_t GENERATE_DISTRIBUTED_PIECES = 8;
 
         static std::chrono::system_clock::duration FOLLOWER_TIMEOUT() {
           return std::chrono::minutes(1);
@@ -191,26 +189,26 @@ namespace vds {
         std::map<uint16_t, std::unique_ptr<chunk_generator<uint16_t>>> distributed_generators_;
         int sync_replicas_timeout_;
 
-        void add_to_log(const vds::service_provider& sp, vds::database_transaction& t,
-          const vds::const_data_buffer& object_id,
-          vds::orm::sync_message_dbo::message_type_t message_type,
-          const vds::const_data_buffer& member_node,
-          uint16_t replica,
-          const vds::const_data_buffer& source_node,
-          uint64_t source_index);
+        void add_to_log(const service_provider& sp, database_transaction& t,
+                        const const_data_buffer& object_id,
+                        orm::sync_message_dbo::message_type_t message_type,
+                        const const_data_buffer& member_node,
+                        uint16_t replica,
+                        const const_data_buffer& source_node,
+                        uint64_t source_index);
 
         void add_local_log(
           const service_provider& sp,
           database_transaction& t,
-          const const_data_buffer & object_id,
+          const const_data_buffer& object_id,
           orm::sync_message_dbo::message_type_t message_type,
-          const const_data_buffer & member_node,
+          const const_data_buffer& member_node,
           uint16_t replica,
           const const_data_buffer& leader_node);
 
         static std::set<const_data_buffer> get_members(
           const service_provider& sp,
-          database_read_transaction & t,
+          database_read_transaction& t,
           const const_data_buffer& object_id);
 
         void make_new_election(
@@ -229,16 +227,16 @@ namespace vds {
         uint32_t get_quorum(
           const service_provider& sp,
           database_read_transaction& t,
-          const const_data_buffer & object_id) const;
+          const const_data_buffer& object_id) const;
 
         void send_leader_broadcast(
-          const vds::service_provider& sp,
-          vds::database_transaction& t,
-          const const_data_buffer & object_id);
+          const service_provider& sp,
+          database_transaction& t,
+          const const_data_buffer& object_id);
 
         void sync_entries(
-          const service_provider &sp,
-          database_transaction & t);
+          const service_provider& sp,
+          database_transaction& t);
 
         void send_snapshot_request(
           const service_provider& sp,
@@ -247,34 +245,34 @@ namespace vds {
           const const_data_buffer& from_node = const_data_buffer());
 
         const_data_buffer get_leader(
-            const service_provider &sp,
-            database_transaction &t,
-            const const_data_buffer &object_id);
+          const service_provider& sp,
+          database_transaction& t,
+          const const_data_buffer& object_id);
 
         void apply_record(
-          const vds::service_provider &sp,
-          vds::database_transaction &t,
-          const const_data_buffer &object_id,
+          const service_provider& sp,
+          database_transaction& t,
+          const const_data_buffer& object_id,
           uint64_t generation,
           uint64_t current_term,
           uint64_t message_index);
 
         void apply_record(
-            const vds::service_provider &sp,
-            vds::database_transaction &t,
-            const const_data_buffer &object_id,
-            orm::sync_message_dbo::message_type_t message_type,
-            const const_data_buffer & member_node,
-            uint16_t replica,
-            const const_data_buffer & message_node,
-            uint64_t message_index);
+          const service_provider& sp,
+          database_transaction& t,
+          const const_data_buffer& object_id,
+          orm::sync_message_dbo::message_type_t message_type,
+          const const_data_buffer& member_node,
+          uint16_t replica,
+          const const_data_buffer& message_node,
+          uint64_t message_index);
 
-        template<typename message_type>
+        template <typename message_type>
         void send_to_members(
           const service_provider& sp,
           database_read_transaction& t,
-          const const_data_buffer & object_id,
-          const message_type & message) const {
+          const const_data_buffer& object_id,
+          const message_type& message) const {
           this->send_to_members(sp, t, object_id, message_type::message_id, message.serialize());
         }
 
@@ -289,21 +287,21 @@ namespace vds {
         base_message_type apply_base_message(
           const service_provider& sp,
           database_transaction& t,
-          const messages::sync_base_message_request & message,
-          const imessage_map::message_info_t & message_info,
-          const const_data_buffer & leader_node);
+          const messages::sync_base_message_request& message,
+          const imessage_map::message_info_t& message_info,
+          const const_data_buffer& leader_node);
 
         bool apply_base_message(
           const service_provider& sp,
           database_transaction& t,
-          const messages::sync_base_message_response & message,
-          const imessage_map::message_info_t & message_info);
+          const messages::sync_base_message_response& message,
+          const imessage_map::message_info_t& message_info);
 
         static void send_snapshot(
           const service_provider& sp,
-          database_read_transaction & t,
+          database_read_transaction& t,
           const const_data_buffer& object_id,
-          const std::set<vds::const_data_buffer> & target_nodes);
+          const std::set<const_data_buffer>& target_nodes);
 
         void sync_local_queues(
           const service_provider& sp,
@@ -316,14 +314,14 @@ namespace vds {
 
         //Sync replicas
         void sync_replicas(
-          const service_provider &sp,
-          database_transaction &t);
+          const service_provider& sp,
+          database_transaction& t);
 
         class replica_sync {
         public:
           void load(
-            const service_provider &sp,
-            database_transaction &t);
+            const service_provider& sp,
+            database_transaction& t);
 
           void normalize_density(
             const service_provider& sp,
@@ -342,19 +340,19 @@ namespace vds {
 
             std::map<const_data_buffer, node_info_t> nodes_;
 
-            void restore_chunk(const vds::service_provider& sp,
-                               const std::map<uint16_t, std::set<vds::const_data_buffer>>& replica_nodes,
-                               const vds::const_data_buffer& object_id) const;
-            void generate_missing_replicas(const vds::service_provider& sp,
-                                           const database_read_transaction & t,
-                                           const std::map<uint16_t, std::set<vds::const_data_buffer>>& replica_nodes,
-                                           const vds::const_data_buffer& object_id,
-                                           std::set<vds::const_data_buffer> chunk_nodes) const;
+            void restore_chunk(const service_provider& sp,
+                               const std::map<uint16_t, std::set<const_data_buffer>>& replica_nodes,
+                               const const_data_buffer& object_id) const;
+            void generate_missing_replicas(const service_provider& sp,
+                                           const database_read_transaction& t,
+                                           const std::map<uint16_t, std::set<const_data_buffer>>& replica_nodes,
+                                           const const_data_buffer& object_id,
+                                           std::set<const_data_buffer> chunk_nodes) const;
             void restore_replicas(
-              const vds::service_provider& sp,
-              const database_read_transaction & t,
-              const std::map<uint16_t, std::set<vds::const_data_buffer>> & replica_nodes,
-              const const_data_buffer & object_id) const;
+              const service_provider& sp,
+              const database_read_transaction& t,
+              const std::map<uint16_t, std::set<const_data_buffer>>& replica_nodes,
+              const const_data_buffer& object_id) const;
 
             /**
              * \brief evenly distribute replicas
@@ -362,9 +360,9 @@ namespace vds {
              * \param replica_nodes 
              * \param object_id 
              */
-            void normalize_density(const vds::service_provider& sp,
-              const std::map<uint16_t, std::set<vds::const_data_buffer>> & replica_nodes,
-              const const_data_buffer & object_id) const;
+            void normalize_density(const service_provider& sp,
+                                   const std::map<uint16_t, std::set<const_data_buffer>>& replica_nodes,
+                                   const const_data_buffer& object_id) const;
 
             /**
              * \brief remove replica on many nodes
@@ -372,13 +370,13 @@ namespace vds {
              * \param replica_nodes 
              * \param object_id 
              */
-            void remove_duplicates(const vds::service_provider& sp,
-              const std::map<uint16_t, std::set<vds::const_data_buffer>> & replica_nodes,
-              const const_data_buffer & object_id) const;
+            void remove_duplicates(const service_provider& sp,
+                                   const std::map<uint16_t, std::set<const_data_buffer>>& replica_nodes,
+                                   const const_data_buffer& object_id) const;
 
             void try_to_attach(
               const service_provider& sp,
-              const const_data_buffer & object_id) const;
+              const const_data_buffer& object_id) const;
 
           };
 
@@ -402,26 +400,26 @@ namespace vds {
             uint64_t last_applied);
 
           void register_sync_member(
-            const const_data_buffer & object_id,
-            const const_data_buffer & member_node);
+            const const_data_buffer& object_id,
+            const const_data_buffer& member_node);
 
         };
 
         static void send_random_replicas(
-          std::map<uint16_t, std::list<std::function<void()>>> & allowed_replicas,
-          std::set<uint16_t> & send_replicas);
+          std::map<uint16_t, std::list<std::function<void()>>>& allowed_replicas,
+          std::set<uint16_t>& send_replicas);
 
         static void send_replica(
-            const vds::service_provider &sp,
-            const database_read_transaction & t,
-            const const_data_buffer & target_node,
-            const const_data_buffer & object_id,
-            uint16_t replica,
-            const const_data_buffer& leader_node_id,
-            uint64_t generation,
-            uint64_t current_term,
-            uint64_t commit_index,
-            uint64_t last_applied);
+          const service_provider& sp,
+          const database_read_transaction& t,
+          const const_data_buffer& target_node,
+          const const_data_buffer& object_id,
+          uint16_t replica,
+          const const_data_buffer& leader_node_id,
+          uint64_t generation,
+          uint64_t current_term,
+          uint64_t commit_index,
+          uint64_t last_applied);
 
       };
     }

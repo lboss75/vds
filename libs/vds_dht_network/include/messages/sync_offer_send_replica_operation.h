@@ -16,33 +16,33 @@ namespace vds {
     namespace messages {
       class sync_offer_send_replica_operation_request : public sync_base_message_request {
       public:
-        static const network::message_type_t message_id = network::message_type_t::sync_offer_send_replica_operation_request;
+        static const network::message_type_t message_id = network::message_type_t::
+          sync_offer_send_replica_operation_request;
 
         sync_offer_send_replica_operation_request(
-          const const_data_buffer &object_id,
+          const const_data_buffer& object_id,
           uint64_t generation,
           uint64_t current_term,
           uint64_t commit_index,
           uint64_t last_applied,
           uint16_t replica,
-          const const_data_buffer &target_node)
+          const const_data_buffer& target_node)
           : sync_base_message_request(
-            object_id,
-            generation,
-            current_term,
-            commit_index,
-            last_applied),
-          replica_(replica),
-          target_node_(target_node){
+              object_id,
+              generation,
+              current_term,
+              commit_index,
+              last_applied),
+            replica_(replica),
+            target_node_(target_node) {
         }
 
         sync_offer_send_replica_operation_request(
-          binary_deserializer & s)
+          binary_deserializer& s)
           : sync_base_message_request(s) {
           s
             >> this->replica_
-            >> this->target_node_
-          ;
+            >> this->target_node_;
         }
 
         const_data_buffer serialize() const {
@@ -50,18 +50,18 @@ namespace vds {
           sync_base_message_request::serialize(s);
           s
             << this->replica_
-            << this->target_node_
-            ;
+            << this->target_node_;
           return s.move_data();
         }
-        
+
         uint16_t replica() const {
           return this->replica_;
         }
 
-        const const_data_buffer & target_node() const {
-          return  this->target_node_;
+        const const_data_buffer& target_node() const {
+          return this->target_node_;
         }
+
       private:
         uint16_t replica_;
         const_data_buffer target_node_;

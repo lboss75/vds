@@ -160,7 +160,7 @@ vds::async_task<> vds::file_manager_private::_file_operations::create_message(co
 }
 
 struct buffer_data : public std::enable_shared_from_this<buffer_data> {
-  uint8_t buffer[vds::file_manager::file_operations::BLOCK_SIZE];
+  uint8_t buffer[vds::dht::network::service::BLOCK_SIZE];
 };
 
 vds::async_task<vds::file_manager_private::_file_operations::pack_file_result>

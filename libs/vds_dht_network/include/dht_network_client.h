@@ -22,10 +22,10 @@ namespace vds {
       class client {
       public:
         void start(
-            const service_provider & sp,
-            const const_data_buffer & this_node_id,
-            uint16_t port);
-        void stop(const service_provider & sp);
+          const service_provider& sp,
+          const const_data_buffer& this_node_id,
+          uint16_t port);
+        void stop(const service_provider& sp);
 
         struct chunk_info {
           const_data_buffer id;
@@ -34,36 +34,37 @@ namespace vds {
         };
 
         chunk_info save(
-          const service_provider & sp,
-          database_transaction & t,
-          const const_data_buffer & value);
+          const service_provider& sp,
+          database_transaction& t,
+          const const_data_buffer& value);
 
         void save(
-          const service_provider & sp,
-          database_transaction & t,
-          const std::string & key,
-          const const_data_buffer & value);
+          const service_provider& sp,
+          database_transaction& t,
+          const std::string& key,
+          const const_data_buffer& value);
 
         async_task<const_data_buffer> restore(
-            const service_provider & sp,
-            const chunk_info & block_id);
+          const service_provider& sp,
+          const chunk_info& block_id);
 
         async_task<const_data_buffer> restore(
-          const service_provider & sp,
-          const std::string & key);
+          const service_provider& sp,
+          const std::string& key);
 
         async_task<uint8_t, const_data_buffer> restore_async(
-          const service_provider & sp,
-          const std::string & key);
+          const service_provider& sp,
+          const std::string& key);
 
-        const const_data_buffer & current_node_id() const;
+        const const_data_buffer& current_node_id() const;
 
-        void get_route_statistics(route_statistic & result);
-        void get_session_statistics(session_statistic & session_statistic);
+        void get_route_statistics(route_statistic& result);
+        void get_session_statistics(session_statistic& session_statistic);
 
-        _client *operator ->() const {
+        _client* operator ->() const {
           return this->impl_.get();
         }
+
       private:
         std::shared_ptr<_client> impl_;
       };

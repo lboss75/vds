@@ -27,25 +27,25 @@ vds::dht::network::dht_session::dht_session(
   const const_data_buffer& this_node_id,
   const const_data_buffer& partner_node_id,
   uint32_t session_id)
-: base_class(address, this_node_id, session_id),
-  partner_node_id_(partner_node_id) {
+  : base_class(address, this_node_id, session_id),
+    partner_node_id_(partner_node_id) {
 }
 
 void vds::dht::network::dht_session::ping_node(
   const service_provider& sp,
-  const const_data_buffer & node_id,
-  const std::shared_ptr<udp_transport> & transport) {
+  const const_data_buffer& node_id,
+  const std::shared_ptr<udp_transport>& transport) {
 
   vds_assert(node_id != transport->this_node_id());
 
   this->send_message(
-      sp,
-      transport,
-      (uint8_t)messages::dht_ping::message_id,
-      node_id,
-      transport->this_node_id(),
-      0,
-      messages::dht_ping().serialize());
+    sp,
+    transport,
+    (uint8_t)messages::dht_ping::message_id,
+    node_id,
+    transport->this_node_id(),
+    0,
+    messages::dht_ping().serialize());
 }
 
 vds::session_statistic::session_info vds::dht::network::dht_session::get_statistic() const {
@@ -55,10 +55,10 @@ vds::session_statistic::session_info vds::dht::network::dht_session::get_statist
 }
 
 vds::async_task<> vds::dht::network::dht_session::process_message(
-    const vds::service_provider &sp,
-    const std::shared_ptr<udp_transport> & transport,
-    uint8_t message_type,
-    const vds::const_data_buffer &message) {
+  const service_provider& sp,
+  const std::shared_ptr<udp_transport>& transport,
+  uint8_t message_type,
+  const const_data_buffer& message) {
 
   vds_assert(message.size() >= 66);
   const_data_buffer target_node(message.data(), 32);
@@ -76,8 +76,8 @@ vds::async_task<> vds::dht::network::dht_session::process_message(
   (*sp.get<client>())->add_route(sp, source_node, hops, this->shared_from_this());
 
   const_data_buffer message_data(message.data() + 66, message.size() - 66);
-  if(target_node != this->this_node_id()) {
-    if(hops == std::numeric_limits<uint16_t>::max()){
+  if (target_node != this->this_node_id()) {
+    if (hops == std::numeric_limits<uint16_t>::max()) {
       return async_task<>::empty();
     }
 
@@ -100,14 +100,13 @@ vds::async_task<> vds::dht::network::dht_session::process_message(
         hops + 1);
     };
   }
-  else {
-    return sp.get<imessage_map>()->process_message(
-      sp,
-      imessage_map::message_info_t {
-        this->shared_from_this(),
-        static_cast<message_type_t>(message_type),
-        message_data,
-        source_node,
-        hops});
-  }
+  return sp.get<imessage_map>()->process_message(
+    sp,
+    imessage_map::message_info_t{
+      this->shared_from_this(),
+      static_cast<message_type_t>(message_type),
+      message_data,
+      source_node,
+      hops
+    });
 }

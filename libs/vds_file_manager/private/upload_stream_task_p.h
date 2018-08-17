@@ -10,6 +10,7 @@ All rights reserved
 #include "async_task.h"
 #include "file_operations.h"
 #include "hash.h"
+#include "dht_network.h"
 
 namespace vds {
   namespace dht {
@@ -38,7 +39,7 @@ namespace vds {
     hash total_hash_;
     size_t total_size_;
 
-    uint8_t buffer_[vds::file_manager::file_operations::BLOCK_SIZE];
+    uint8_t buffer_[vds::dht::network::service::BLOCK_SIZE];
     size_t readed_;
     std::list<transactions::user_message_transaction::file_block_t> file_blocks_;
 

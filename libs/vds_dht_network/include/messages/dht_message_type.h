@@ -9,14 +9,14 @@ All rights reserved
 namespace vds {
   namespace dht {
     namespace network {
-      enum class protocol_message_type_t{
+      enum class protocol_message_type_t {
         HandshakeBroadcast = 0,
         Handshake = 1,
         Welcome = 2,
 
         ContinueData = 3,
         Acknowledgment = 4,
-        
+
         Failed = 5,
 
         SpecialCommand = 0b11000000,

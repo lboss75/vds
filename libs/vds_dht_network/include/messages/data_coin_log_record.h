@@ -14,17 +14,17 @@ namespace vds {
     namespace messages {
       class data_coin_log_record {
       public:
-        static const dht::network::message_type_t message_id = dht::network::message_type_t::data_coin_log_record;
+        static const network::message_type_t message_id = network::message_type_t::data_coin_log_record;
 
         data_coin_log_record(
-          const const_data_buffer & transaction_data,
-          const const_data_buffer & source_node)
+          const const_data_buffer& transaction_data,
+          const const_data_buffer& source_node)
           : transaction_data_(transaction_data),
-          source_node_(source_node) {
+            source_node_(source_node) {
         }
 
         data_coin_log_record(
-          binary_deserializer & s) {
+          binary_deserializer& s) {
           s >> this->transaction_data_ >> this->source_node_;
         }
 
@@ -34,11 +34,11 @@ namespace vds {
           return s.data();
         }
 
-        const const_data_buffer & transaction_data() const {
+        const const_data_buffer& transaction_data() const {
           return this->transaction_data_;
         }
 
-        const const_data_buffer & source_node() const {
+        const const_data_buffer& source_node() const {
           return source_node_;
         }
 

@@ -17,14 +17,14 @@ namespace vds {
         static const network::message_type_t message_id = network::message_type_t::transaction_log_request;
 
         transaction_log_request(
-            const const_data_buffer &transaction_id,
-            const const_data_buffer &source_node)
+          const const_data_buffer& transaction_id,
+          const const_data_buffer& source_node)
           : transaction_id_(transaction_id),
             source_node_(source_node) {
         }
 
         transaction_log_request(
-          binary_deserializer & s) {
+          binary_deserializer& s) {
           s
             >> this->transaction_id_
             >> this->source_node_;
@@ -39,11 +39,11 @@ namespace vds {
         }
 
 
-        const const_data_buffer & transaction_id() const {
+        const const_data_buffer& transaction_id() const {
           return this->transaction_id_;
         }
 
-        const const_data_buffer & source_node() const {
+        const const_data_buffer& source_node() const {
           return source_node_;
         }
 

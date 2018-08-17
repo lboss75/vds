@@ -24,18 +24,18 @@ namespace vds {
         static constexpr uint8_t PROTOCOL_VERSION = 0;
 
         udp_transport();
-        udp_transport(const udp_transport &) = delete;
-        udp_transport(udp_transport &&) = delete;
+        udp_transport(const udp_transport&) = delete;
+        udp_transport(udp_transport&&) = delete;
 
-        void start(const vds::service_provider &sp, uint16_t port,
-                           const const_data_buffer &this_node_id);
+        void start(const service_provider& sp, uint16_t port,
+                   const const_data_buffer& this_node_id);
 
-        void stop(const service_provider & sp);
+        void stop(const service_provider& sp);
 
-        async_task<> write_async(const service_provider &sp, const udp_datagram &datagram);
+        async_task<> write_async(const service_provider& sp, const udp_datagram& datagram);
         async_task<> try_handshake(const service_provider& sp, const std::string& address);
 
-        const const_data_buffer & this_node_id() const {
+        const const_data_buffer& this_node_id() const {
           return this->this_node_id_;
         }
 
@@ -67,11 +67,12 @@ namespace vds {
         std::map<std::string, std::chrono::steady_clock::time_point> block_list_;
 
         async_task<> on_timer(const service_provider& sp);
-        void add_session(const service_provider& sp, const network_address & address, const std::shared_ptr<dht_session> & session);
-        std::shared_ptr<dht_session> get_session(const network_address & address) const;
+        void add_session(const service_provider& sp, const network_address& address,
+                         const std::shared_ptr<dht_session>& session);
+        std::shared_ptr<dht_session> get_session(const network_address& address) const;
 
-        void continue_read(const service_provider &sp);
-        void continue_send(const service_provider &sp);
+        void continue_read(const service_provider& sp);
+        void continue_send(const service_provider& sp);
       };
     }
   }

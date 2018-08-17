@@ -21,33 +21,32 @@ namespace vds {
         static const network::message_type_t message_id = network::message_type_t::sync_replica_request;
 
         sync_replica_request(
-            const const_data_buffer &object_id,
-            const std::set<uint16_t> & exist_replicas)
-            : object_id_(object_id),
-              exist_replicas_(exist_replicas) {
+          const const_data_buffer& object_id,
+          const std::set<uint16_t>& exist_replicas)
+          : object_id_(object_id),
+            exist_replicas_(exist_replicas) {
         }
 
         sync_replica_request(
-            binary_deserializer & s) {
+          binary_deserializer& s) {
           s
-              >> this->object_id_
-              >> this->exist_replicas_
-          ;
+            >> this->object_id_
+            >> this->exist_replicas_;
         }
 
         const_data_buffer serialize() const {
           binary_serializer s;
           s
-              << this->object_id_
-              << this->exist_replicas_;
+            << this->object_id_
+            << this->exist_replicas_;
           return s.move_data();
         }
 
-        const const_data_buffer & object_id() const {
+        const const_data_buffer& object_id() const {
           return object_id_;
         }
 
-        const std::set<uint16_t> & exist_replicas() const {
+        const std::set<uint16_t>& exist_replicas() const {
           return this->exist_replicas_;
         }
 

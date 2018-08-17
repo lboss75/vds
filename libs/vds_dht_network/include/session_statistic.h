@@ -16,7 +16,7 @@ namespace vds {
     struct session_info {
       std::string address_;
 
-      void serialize(std::shared_ptr<json_array> & items) const {
+      void serialize(std::shared_ptr<json_array>& items) const {
         auto result = std::make_shared<json_object>();
         result->add_property("address", this->address_);
         items->add(result);
@@ -29,7 +29,7 @@ namespace vds {
       auto result = std::make_shared<json_object>();
 
       auto items = std::make_shared<json_array>();
-      for(const auto & p : this->items_) {
+      for (const auto& p : this->items_) {
         p.serialize(items);
       }
 

@@ -18,24 +18,24 @@ namespace vds {
         static const network::message_type_t message_id = network::message_type_t::sync_add_message_request;
 
         sync_add_message_request(
-          const const_data_buffer &object_id,
-          const const_data_buffer &leader_node,
-          const const_data_buffer &source_node,
+          const const_data_buffer& object_id,
+          const const_data_buffer& leader_node,
+          const const_data_buffer& source_node,
           uint64_t local_index,
           orm::sync_message_dbo::message_type_t message_type,
-          const const_data_buffer &member_node,
+          const const_data_buffer& member_node,
           uint16_t replica)
-        : object_id_(object_id),
-          leader_node_(leader_node),
-          source_node_(source_node),
-          local_index_(local_index),
-          message_type_(message_type),
-          member_node_(member_node),
-          replica_(replica) {
+          : object_id_(object_id),
+            leader_node_(leader_node),
+            source_node_(source_node),
+            local_index_(local_index),
+            message_type_(message_type),
+            member_node_(member_node),
+            replica_(replica) {
         }
 
         sync_add_message_request(
-            binary_deserializer & s) {
+          binary_deserializer& s) {
           uint8_t message_type;
           s
             >> this->object_id_
@@ -44,8 +44,7 @@ namespace vds {
             >> this->local_index_
             >> message_type
             >> this->member_node_
-            >> this->replica_
-          ;
+            >> this->replica_;
           this->message_type_ = static_cast<orm::sync_message_dbo::message_type_t>(message_type);
         }
 
@@ -58,9 +57,8 @@ namespace vds {
             << this->local_index_
             << static_cast<uint8_t>(this->message_type_)
             << this->member_node_
-            << this->replica_
-            ;
-            return s.move_data();
+            << this->replica_;
+          return s.move_data();
         }
 
 
@@ -84,7 +82,7 @@ namespace vds {
           return this->message_type_;
         }
 
-        const const_data_buffer &member_node() const {
+        const const_data_buffer& member_node() const {
           return this->member_node_;
         }
 

@@ -12,12 +12,12 @@ namespace vds {
         static const network::message_type_t message_id = network::message_type_t::dht_find_node;
 
         dht_find_node(
-          const const_data_buffer & target_id)
-          : target_id_(target_id){
+          const const_data_buffer& target_id)
+          : target_id_(target_id) {
         }
 
         dht_find_node(
-          binary_deserializer & s) {
+          binary_deserializer& s) {
           s >> this->target_id_;
         }
 
@@ -28,7 +28,7 @@ namespace vds {
         }
 
 
-        const const_data_buffer & target_id() const {
+        const const_data_buffer& target_id() const {
           return target_id_;
         }
 

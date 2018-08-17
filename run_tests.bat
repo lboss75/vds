@@ -1,30 +1,12 @@
-build\tests\test_vds_core\Debug\test_vds_core.exe
-IF  %ERRORLEVEL% NEQ 0 goto ERROR
+set root_folder=%~d0%~p0
 
-build\tests\test_vds_crypto\Debug\test_vds_crypto.exe 
-IF  %ERRORLEVEL% NEQ 0 goto ERROR
+rmdir %root_folder%servers /s /q
 
-build\tests\test_vds_data\Debug\test_vds_data.exe 
-IF  %ERRORLEVEL% NEQ 0 goto ERROR
+echo creating server
+build\app\vds_background\Debug\vds_background.exe server root -l vadim@iv-soft.ru -p 123 --root-folder C:\Users\v.malyshev\source\repos\vds\servers\4 -ll trace -lm dht_sync
 
-build\tests\test_vds_database\Debug\test_vds_database.exe
-IF  %ERRORLEVEL% NEQ 0 goto ERROR
-
-build\tests\test_vds_http\Debug\test_vds_http.exe 
-IF  %ERRORLEVEL% NEQ 0 goto ERROR
-
-build\tests\test_vds_network\Debug\test_vds_network.exe 
-IF  %ERRORLEVEL% NEQ 0 goto ERROR
-
-build\tests\test_vds_parser\Debug\test_vds_parser.exe 
-IF  %ERRORLEVEL% NEQ 0 goto ERROR
-
-build\tests\test_vds_scenarios\Debug\test_vds_scenarios.exe 
-IF  %ERRORLEVEL% NEQ 0 goto ERROR
-
-:END
-exit 0
-
-:ERROR
-echo Test failed
-exit /b 1
+start build\app\vds_web_server\Debug\vds_web_server.exe server start -P 8050 --root-folder C:\Users\v.malyshev\source\repos\vds\servers\0 -ll trace -lm dht_sync --web C:\Users\v.malyshev\source\repos\vds\www
+rem start build\app\vds_web_server\Debug\vds_web_server.exe server start -P 8051 --root-folder C:\Users\v.malyshev\source\repos\vds\servers\1 -ll trace -lm dht_sync --web C:\Users\v.malyshev\source\repos\vds\www
+start build\app\vds_web_server\Debug\vds_web_server.exe server start -P 8052 --root-folder C:\Users\v.malyshev\source\repos\vds\servers\2 -ll trace -lm dht_sync --web C:\Users\v.malyshev\source\repos\vds\www
+start build\app\vds_web_server\Debug\vds_web_server.exe server start -P 8053 --root-folder C:\Users\v.malyshev\source\repos\vds\servers\3 -ll trace -lm dht_sync --web C:\Users\v.malyshev\source\repos\vds\www
+start build\app\vds_web_server\Debug\vds_web_server.exe server start -P 8054 --root-folder C:\Users\v.malyshev\source\repos\vds\servers\4 -ll trace -lm dht_sync --web C:\Users\v.malyshev\source\repos\vds\www

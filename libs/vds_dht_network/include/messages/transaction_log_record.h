@@ -17,14 +17,14 @@ namespace vds {
         static const network::message_type_t message_id = network::message_type_t::transaction_log_record;
 
         transaction_log_record(
-          const const_data_buffer & record_id,
-          const const_data_buffer & data)
+          const const_data_buffer& record_id,
+          const const_data_buffer& data)
           : record_id_(record_id),
-          data_(data) {
+            data_(data) {
         }
 
         transaction_log_record(
-          binary_deserializer & s) {
+          binary_deserializer& s) {
           s >> this->record_id_ >> this->data_;
         }
 
@@ -34,11 +34,11 @@ namespace vds {
           return s.move_data();
         }
 
-        const const_data_buffer & record_id() const {
+        const const_data_buffer& record_id() const {
           return record_id_;
         }
 
-        const const_data_buffer & data() const {
+        const const_data_buffer& data() const {
           return data_;
         }
 

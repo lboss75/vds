@@ -23,20 +23,20 @@ namespace vds {
           }
 
           target_node(
-            const const_data_buffer & target_id,
-            const std::string & address,
+            const const_data_buffer& target_id,
+            const std::string& address,
             uint8_t hops)
             : target_id_(target_id), address_(address), hops_(hops) {
           }
         };
 
         dht_find_node_response(
-          const std::list<target_node> & nodes)
+          const std::list<target_node>& nodes)
           : nodes_(nodes) {
         }
 
         dht_find_node_response(
-          binary_deserializer & s) {
+          binary_deserializer& s) {
           s >> this->nodes_;
         }
 
@@ -47,7 +47,7 @@ namespace vds {
         }
 
 
-        const std::list<target_node> & nodes() const {
+        const std::list<target_node>& nodes() const {
           return nodes_;
         }
 
@@ -56,17 +56,18 @@ namespace vds {
       };
     }
   }
-inline vds::binary_serializer & operator << (
-    vds::binary_serializer & s,
-    const vds::dht::messages::dht_find_node_response::target_node & node) {
-  return s << node.target_id_ << node.address_ << node.hops_;
-}
 
-inline vds::binary_deserializer & operator >> (
-    vds::binary_deserializer & s,
-    vds::dht::messages::dht_find_node_response::target_node & node) {
-  return s >> node.target_id_ >> node.address_ >> node.hops_;
-}
+  inline binary_serializer& operator <<(
+    binary_serializer& s,
+    const dht::messages::dht_find_node_response::target_node& node) {
+    return s << node.target_id_ << node.address_ << node.hops_;
+  }
+
+  inline binary_deserializer& operator >>(
+    binary_deserializer& s,
+    dht::messages::dht_find_node_response::target_node& node) {
+    return s >> node.target_id_ >> node.address_ >> node.hops_;
+  }
 }
 
 

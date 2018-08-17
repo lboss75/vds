@@ -18,21 +18,21 @@ namespace vds {
         static const network::message_type_t message_id = network::message_type_t::sync_leader_broadcast_request;
 
         sync_leader_broadcast_request(
-          const const_data_buffer &object_id,
+          const const_data_buffer& object_id,
           uint64_t generation,
           uint64_t current_term,
           uint64_t commit_index,
           uint64_t last_applied)
-            : sync_base_message_request(object_id,
-              generation,
-              current_term,
-              commit_index,
-              last_applied){
+          : sync_base_message_request(object_id,
+                                      generation,
+                                      current_term,
+                                      commit_index,
+                                      last_applied) {
         }
 
         sync_leader_broadcast_request(
-            binary_deserializer & s)
-        : sync_base_message_request(s){
+          binary_deserializer& s)
+          : sync_base_message_request(s) {
         }
 
         const_data_buffer serialize() const {
@@ -47,22 +47,22 @@ namespace vds {
         static const network::message_type_t message_id = network::message_type_t::sync_leader_broadcast_response;
 
         sync_leader_broadcast_response(
-          const const_data_buffer &object_id,
+          const const_data_buffer& object_id,
           uint64_t generation,
           uint64_t current_term,
           uint64_t commit_index,
           uint64_t last_applied)
-            : sync_base_message_response(
-              object_id,
-              generation,
-              current_term,
-              commit_index,
-              last_applied) {
+          : sync_base_message_response(
+            object_id,
+            generation,
+            current_term,
+            commit_index,
+            last_applied) {
         }
 
         sync_leader_broadcast_response(
-            binary_deserializer & s)
-        : sync_base_message_response(s) {
+          binary_deserializer& s)
+          : sync_base_message_response(s) {
         }
 
         const_data_buffer serialize() const {

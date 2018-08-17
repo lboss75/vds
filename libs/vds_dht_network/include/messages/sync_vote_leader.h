@@ -17,33 +17,32 @@ namespace vds {
         static const network::message_type_t message_id = network::message_type_t::sync_get_vote_request;
 
         sync_get_vote_request(
-            const const_data_buffer &object_id,
-            const const_data_buffer &source_node)
-            : object_id_(object_id),
-              source_node_(source_node) {
+          const const_data_buffer& object_id,
+          const const_data_buffer& source_node)
+          : object_id_(object_id),
+            source_node_(source_node) {
         }
 
         sync_get_vote_request(
-            binary_deserializer & s) {
+          binary_deserializer& s) {
           s
-              >> this->object_id_
-              >> this->source_node_;
-          ;
+            >> this->object_id_
+            >> this->source_node_;
         }
 
         const_data_buffer serialize() const {
           binary_serializer s;
           s
-              << this->object_id_
-              << this->source_node_;
+            << this->object_id_
+            << this->source_node_;
           return s.data();
         }
 
-        const const_data_buffer & object_id() const {
+        const const_data_buffer& object_id() const {
           return object_id_;
         }
 
-        const const_data_buffer & source_node() const {
+        const const_data_buffer& source_node() const {
           return source_node_;
         }
 
@@ -57,34 +56,33 @@ namespace vds {
         static const network::message_type_t message_id = network::message_type_t::sync_get_vote_response;
 
         sync_get_vote_response(
-            const const_data_buffer &object_id,
-            const const_data_buffer &target_node,
-	    uint64_t generation_id)
-            : object_id_(object_id),
-              source_node_(source_node) {
+          const const_data_buffer& object_id,
+          const const_data_buffer& target_node,
+          uint64_t generation_id)
+          : object_id_(object_id),
+            source_node_(source_node) {
         }
 
         sync_get_leader_response(
-            binary_deserializer & s) {
+          binary_deserializer& s) {
           s
-              >> this->object_id_
-              >> this->source_node_;
-          ;
+            >> this->object_id_
+            >> this->source_node_;
         }
 
         const_data_buffer serialize() const {
           binary_serializer s;
           s
-              << this->object_id_
-              << this->source_node_;
+            << this->object_id_
+            << this->source_node_;
           return s.data();
         }
 
-        const const_data_buffer & object_id() const {
+        const const_data_buffer& object_id() const {
           return object_id_;
         }
 
-        const const_data_buffer & source_node() const {
+        const const_data_buffer& source_node() const {
           return source_node_;
         }
 

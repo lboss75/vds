@@ -21,8 +21,6 @@ namespace vds {
   namespace file_manager {
     class file_operations {
     public:
-      static const size_t BLOCK_SIZE = 8 * 64 * 1024;//MIN_HORCRUX * MIN_DISTRIBUTED_PIECES
-
       struct download_result_t {
         std::string name;
         std::string mime_type;

@@ -18,27 +18,26 @@ namespace vds {
         static const network::message_type_t message_id = network::message_type_t::sync_looking_storage_request;
 
         sync_looking_storage_request(
-          const const_data_buffer &object_id,
+          const const_data_buffer& object_id,
           uint64_t generation,
           uint64_t current_term,
           uint64_t commit_index,
           uint64_t last_applied,
           uint32_t object_size)
-        : sync_base_message_request(
-          object_id,
-          generation,
-          current_term,
-          commit_index,
-          last_applied),
-          object_size_(object_size){
+          : sync_base_message_request(
+              object_id,
+              generation,
+              current_term,
+              commit_index,
+              last_applied),
+            object_size_(object_size) {
         }
 
         sync_looking_storage_request(
-            binary_deserializer & s)
-        : sync_base_message_request(s){
+          binary_deserializer& s)
+          : sync_base_message_request(s) {
           s
-            >> this->object_size_
-          ;
+            >> this->object_size_;
         }
 
         const_data_buffer serialize() const {
@@ -63,18 +62,17 @@ namespace vds {
         static const network::message_type_t message_id = network::message_type_t::sync_looking_storage_response;
 
         sync_looking_storage_response(
-          const const_data_buffer &object_id,
-          const std::set<uint16_t> & replicas)
-        : object_id_(object_id),
-          replicas_(replicas) {
+          const const_data_buffer& object_id,
+          const std::set<uint16_t>& replicas)
+          : object_id_(object_id),
+            replicas_(replicas) {
         }
 
         sync_looking_storage_response(
-            binary_deserializer & s) {
+          binary_deserializer& s) {
           s
             >> this->object_id_
-            >> this->replicas_
-          ;
+            >> this->replicas_;
         }
 
         const_data_buffer serialize() const {
@@ -85,11 +83,11 @@ namespace vds {
           return s.move_data();
         }
 
-        const const_data_buffer & object_id() const {
+        const const_data_buffer& object_id() const {
           return this->object_id_;
         }
 
-        const std::set<uint16_t> & replicas() const {
+        const std::set<uint16_t>& replicas() const {
           return this->replicas_;
         }
 

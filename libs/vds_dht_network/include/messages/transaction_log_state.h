@@ -17,14 +17,14 @@ namespace vds {
         static const network::message_type_t message_id = network::message_type_t::transaction_log_state;
 
         transaction_log_state(
-          const std::list<const_data_buffer> & leafs,
-          const const_data_buffer & source_node)
-        : leafs_(leafs),
-          source_node_(source_node) {
+          const std::list<const_data_buffer>& leafs,
+          const const_data_buffer& source_node)
+          : leafs_(leafs),
+            source_node_(source_node) {
         }
 
         transaction_log_state(
-          binary_deserializer & s) {
+          binary_deserializer& s) {
           s >> this->leafs_ >> this->source_node_;
         }
 
@@ -34,11 +34,11 @@ namespace vds {
           return s.move_data();
         }
 
-        const std::list<const_data_buffer> & leafs() const {
+        const std::list<const_data_buffer>& leafs() const {
           return this->leafs_;
         }
 
-        const const_data_buffer & source_node() const {
+        const const_data_buffer& source_node() const {
           return source_node_;
         }
 

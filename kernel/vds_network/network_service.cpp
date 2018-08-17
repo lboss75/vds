@@ -71,6 +71,8 @@ std::string vds::network_service::get_ip_address_string(const sockaddr_in & from
   return buffer;
 }
 /////////////////////////////////////////////////////////////////////////////
+#define NETWORK_EXIT 0xA1F8
+
 vds::_network_service::_network_service()
 {
 }
@@ -165,10 +167,13 @@ void vds::_network_service::stop(const service_provider & sp)
         this->epoll_thread_.join();
       }
 #else
-        for (auto p : this->work_threads_) {
+      for (auto p : this->work_threads_) {
+        PostQueuedCompletionStatus(this->handle_, 0, NETWORK_EXIT, NULL);
+      }
+      for (auto p : this->work_threads_) {
             p->join();
             delete p;
-        }
+      }
 #endif
         
 #ifdef _WIN32
@@ -235,15 +240,15 @@ void vds::_network_service::thread_loop(const service_provider & sp)
 {
     while (!sp.get_shutdown_event().is_shuting_down()) {
         DWORD dwBytesTransfered = 0;
-        void * lpContext = NULL;
+        ULONG_PTR lpContext;
         OVERLAPPED * pOverlapped = NULL;
 
         if (!GetQueuedCompletionStatus(
           this->handle_,
           &dwBytesTransfered,
-          (PULONG_PTR)&lpContext,
+          &lpContext,
           &pOverlapped,
-          60 * 1000)) {
+          INFINITE)) {
           auto errorCode = GetLastError();
           if (errorCode == WAIT_TIMEOUT) {
             continue;
@@ -259,6 +264,10 @@ void vds::_network_service::thread_loop(const service_provider & sp)
             return;
           }
         }
+
+      if(lpContext == NETWORK_EXIT) {
+        return;
+      }
 
         try {
           if (0 == dwBytesTransfered) {

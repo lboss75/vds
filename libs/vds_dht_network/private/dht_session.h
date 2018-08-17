@@ -22,23 +22,23 @@ namespace vds {
 
       public:
         dht_session(
-          const network_address & address,
-          const const_data_buffer & this_node_id,
-          const const_data_buffer & partner_node_id,
+          const network_address& address,
+          const const_data_buffer& this_node_id,
+          const const_data_buffer& partner_node_id,
           uint32_t session_id);
 
         void ping_node(
-          const service_provider & sp,
-          const const_data_buffer & node_id,
-          const std::shared_ptr<udp_transport> & transport);
+          const service_provider& sp,
+          const const_data_buffer& node_id,
+          const std::shared_ptr<udp_transport>& transport);
 
         async_task<> process_message(
-            const service_provider & sp,
-            const std::shared_ptr<udp_transport> & transport,
-            uint8_t message_type,
-            const const_data_buffer & message);
+          const service_provider& sp,
+          const std::shared_ptr<udp_transport>& transport,
+          uint8_t message_type,
+          const const_data_buffer& message);
 
-        const const_data_buffer & partner_node_id() const {
+        const const_data_buffer& partner_node_id() const {
           return this->partner_node_id_;
         }
 

@@ -16,7 +16,7 @@ namespace vds {
       uint64_t order_no;
 
       std::shared_ptr<json_value> serialize() const {
-        auto result = std::make_shared<vds::json_object>();
+        auto result = std::make_shared<json_object>();
         result->add_property("id", base64::from_bytes(this->id));
         result->add_property("state", this->state);
         result->add_property("order_no", this->order_no);
@@ -24,6 +24,7 @@ namespace vds {
         return result;
       }
     };
+
     std::list<log_info_t> leafs_;
     std::set<const_data_buffer> unknown_;
 
@@ -35,20 +36,21 @@ namespace vds {
       std::string state_;
       std::list<std::shared_ptr<record_info>> children_;
     };
+
     std::list<std::shared_ptr<record_info>> roots_;
 
-    operator bool () const {
+    operator bool() const {
       return !this->leafs_.empty();
     }
 
-    bool operator != (const sync_statistic & other) const {
-      if(this->leafs_.size() != other.leafs_.size()){
+    bool operator !=(const sync_statistic& other) const {
+      if (this->leafs_.size() != other.leafs_.size()) {
         return true;
       }
 
-      for (auto & p : this->leafs_) {
+      for (auto& p : this->leafs_) {
         bool is_good = false;
-        for (auto & p1 : other.leafs_) {
+        for (auto& p1 : other.leafs_) {
           if (p.id == p1.id) {
             is_good = true;
             break;
@@ -59,9 +61,9 @@ namespace vds {
         }
       }
 
-      for (auto & p : other.leafs_) {
+      for (auto& p : other.leafs_) {
         bool is_good = false;
-        for (auto & p1 : this->leafs_) {
+        for (auto& p1 : this->leafs_) {
           if (p.id == p1.id) {
             is_good = true;
             break;
@@ -77,36 +79,36 @@ namespace vds {
     }
 
     std::shared_ptr<json_value> serialize() const {
-      auto result = std::make_shared<vds::json_object>();
+      auto result = std::make_shared<json_object>();
 
-      auto leafs = std::make_shared<vds::json_array>();
-      for(const auto & leaf : this->leafs_) {
+      auto leafs = std::make_shared<json_array>();
+      for (const auto& leaf : this->leafs_) {
         leafs->add(leaf.serialize());
       }
       result->add_property("leafs", leafs);
 
-      auto unknowns = std::make_shared<vds::json_array>();
-      for (const auto & unknown : this->unknown_) {
+      auto unknowns = std::make_shared<json_array>();
+      for (const auto& unknown : this->unknown_) {
         unknowns->add(std::make_shared<json_primitive>(base64::from_bytes(unknown)));
       }
       result->add_property("unknowns", unknowns);
 
       auto chunks = std::make_shared<json_array>();
       std::map<const_data_buffer, std::shared_ptr<json_object>> processed;
-      for(const auto & chunk : this->chunks_) {
+      for (const auto& chunk : this->chunks_) {
         auto o = std::make_shared<json_object>();
         o->add_property("full", "true");
         processed[chunk] = o;
         chunks->add(o);
       }
-      for(const auto & chunk_replica : this->chunk_replicas_) {
-        auto & o = processed[chunk_replica.first];
-        if(!o) {
+      for (const auto& chunk_replica : this->chunk_replicas_) {
+        auto& o = processed[chunk_replica.first];
+        if (!o) {
           o = std::make_shared<json_object>();
           chunks->add(o);
         }
         auto replicas = std::make_shared<json_array>();
-        for(auto replica : chunk_replica.second) {
+        for (auto replica : chunk_replica.second) {
           replicas->add(std::make_shared<json_primitive>(std::to_string(replica)));
         }
         o->add_property("replicas", replicas);
@@ -115,23 +117,25 @@ namespace vds {
       result->add_property("chunks", chunks);
       return result;
     }
+
   private:
-    static void print_node(std::string& result, const record_info * node, int level, std::set<const record_info *> & processed) {
-      for(int i = 0; i < level; ++i) {
+    static void print_node(std::string& result, const record_info* node, int level,
+                           std::set<const record_info *>& processed) {
+      for (int i = 0; i < level; ++i) {
         result += '|';
       }
       result += node->name_;
       result += '(';
       result += node->state_;
       result += ')';
-      if(processed.end() != processed.find(node)) {
+      if (processed.end() != processed.find(node)) {
         result += "See below\n";
       }
       else {
         processed.emplace(node);
         result += '\n';
 
-        for (const auto & p : node->children_) {
+        for (const auto& p : node->children_) {
           print_node(result, p.get(), level + 1, processed);
         }
       }

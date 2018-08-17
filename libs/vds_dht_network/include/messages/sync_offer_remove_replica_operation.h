@@ -15,33 +15,33 @@ namespace vds {
     namespace messages {
       class sync_offer_remove_replica_operation_request : public sync_base_message_request {
       public:
-        static const network::message_type_t message_id = network::message_type_t::sync_offer_remove_replica_operation_request;
+        static const network::message_type_t message_id = network::message_type_t::
+          sync_offer_remove_replica_operation_request;
 
         sync_offer_remove_replica_operation_request(
-          const const_data_buffer &object_id,
+          const const_data_buffer& object_id,
           uint64_t generation,
           uint64_t current_term,
           uint64_t commit_index,
           uint64_t last_applied,
-          const const_data_buffer & member_node,
+          const const_data_buffer& member_node,
           uint16_t replica)
           : sync_base_message_request(
-            object_id,
-            generation,
-            current_term,
-            commit_index,
-            last_applied),
-          member_node_(member_node),
-          replica_(replica){
+              object_id,
+              generation,
+              current_term,
+              commit_index,
+              last_applied),
+            member_node_(member_node),
+            replica_(replica) {
         }
 
         sync_offer_remove_replica_operation_request(
-          binary_deserializer & s)
+          binary_deserializer& s)
           : sync_base_message_request(s) {
           s
             >> this->member_node_
-            >> this->replica_
-          ;
+            >> this->replica_;
         }
 
         const_data_buffer serialize() const {
@@ -49,12 +49,11 @@ namespace vds {
           sync_base_message_request::serialize(s);
           s
             << this->member_node_
-            << this->replica_
-            ;
+            << this->replica_;
           return s.move_data();
         }
-        
-        const const_data_buffer & member_node() const {
+
+        const const_data_buffer& member_node() const {
           return this->member_node_;
         }
 

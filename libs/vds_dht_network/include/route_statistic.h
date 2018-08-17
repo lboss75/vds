@@ -19,8 +19,8 @@ namespace vds {
       uint8_t pinged_;
       uint8_t hops_;
 
-      void serialize(bool include_invalid, std::shared_ptr<json_array> & items) const {
-        if(include_invalid || pinged_ < 10) {
+      void serialize(bool include_invalid, std::shared_ptr<json_array>& items) const {
+        if (include_invalid || pinged_ < 10) {
           auto result = std::make_shared<json_object>();
           result->add_property("node_id", base64::from_bytes(this->node_id_));
           result->add_property("proxy", this->proxy_address_);
@@ -39,7 +39,7 @@ namespace vds {
       result->add_property("node_id", base64::from_bytes(this->node_id_));
 
       auto items = std::make_shared<json_array>();
-      for(const auto & p : items_) {
+      for (const auto& p : items_) {
         p.serialize(include_invalid, items);
       }
 
