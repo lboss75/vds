@@ -31,6 +31,11 @@ namespace vds {
 			access_denied_error(const std::string & message);
 
 		};
+		class shooting_down_exception : public std::runtime_error {
+		public:
+			shooting_down_exception();
+
+		};
   };
 }
 

@@ -7,6 +7,7 @@ All rights reserved
 */
 
 #include <udp_datagram_size_exception.h>
+#include <vds_exceptions.h>
 #include "network_types_p.h"
 #include "service_provider.h"
 #include "network_service_p.h"
@@ -556,8 +557,12 @@ namespace vds {
       void stop(){
         base_class::stop();
 
-        this->read_result_.clear();
-        this->write_result_.clear();
+        if(this->read_result_){
+          this->read_result_.error(std::make_shared<vds_exceptions::shooting_down_exception>());
+        }
+        if(this->write_result_){
+          this->write_result_.error(std::make_shared<vds_exceptions::shooting_down_exception>());
+        }
 
         this->owner_.reset();
       }

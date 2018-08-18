@@ -22,3 +22,8 @@ vds::vds_exceptions::access_denied_error::access_denied_error(const std::string 
 	: std::runtime_error(message) {
 
 }
+
+vds::vds_exceptions::shooting_down_exception::shooting_down_exception()
+		: std::runtime_error("shooting down") {
+
+}
