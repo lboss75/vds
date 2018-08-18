@@ -64,26 +64,6 @@ namespace vds {
           this->hops_ = hops;
           this->pinged_ = 0;
         }
-
-        void send_message(
-          const service_provider& sp,
-          const std::shared_ptr<network::udp_transport>& transport,
-          const network::message_type_t message_id,
-          const const_data_buffer& target_node,
-          const const_data_buffer& message,
-          const const_data_buffer& source_node,
-          uint16_t hops) {
-
-          proxy_session_->send_message(
-            sp,
-            transport,
-            (uint8_t)message_id,
-            target_node,
-            source_node,
-            hops,
-            message);
-
-        }
       };
 
       dht_route(const const_data_buffer &this_node_id)

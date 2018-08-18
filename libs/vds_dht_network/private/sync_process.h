@@ -163,7 +163,7 @@ namespace vds {
       private:
 
         static std::chrono::system_clock::duration FOLLOWER_TIMEOUT() {
-          return std::chrono::minutes(1);
+          return std::chrono::seconds(10);
         }
 
         static std::chrono::system_clock::duration LEADER_BROADCAST_TIMEOUT() {
@@ -171,7 +171,7 @@ namespace vds {
         }
 
         static std::chrono::system_clock::duration ELECTION_TIMEOUT() {
-          return std::chrono::seconds(5);
+          return std::chrono::minutes(1);
         }
 
         static std::chrono::system_clock::duration CANDITATE_TIMEOUT() {

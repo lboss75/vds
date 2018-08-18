@@ -27,8 +27,11 @@ vds::dht::network::dht_session::dht_session(
   const const_data_buffer& this_node_id,
   const const_data_buffer& partner_node_id,
   uint32_t session_id)
-  : base_class(address, this_node_id, session_id),
-    partner_node_id_(partner_node_id) {
+  : base_class(
+      address,
+      this_node_id,
+      partner_node_id,
+      session_id) {
 }
 
 void vds::dht::network::dht_session::ping_node(
@@ -43,8 +46,6 @@ void vds::dht::network::dht_session::ping_node(
     transport,
     (uint8_t)messages::dht_ping::message_id,
     node_id,
-    transport->this_node_id(),
-    0,
     messages::dht_ping().serialize());
 }
 
@@ -58,12 +59,11 @@ vds::async_task<> vds::dht::network::dht_session::process_message(
   const service_provider& sp,
   const std::shared_ptr<udp_transport>& transport,
   uint8_t message_type,
+  const const_data_buffer & target_node,
+  const const_data_buffer & source_node,
+  uint32_t source_index,
+  uint16_t hops,
   const const_data_buffer& message) {
-
-  vds_assert(message.size() >= 66);
-  const_data_buffer target_node(message.data(), 32);
-  const_data_buffer source_node(message.data() + 32, 32);
-  uint16_t hops = (message.data()[64] << 8) | message.data()[65];
 
   sp.get<logger>()->trace(
     "dht_session",
@@ -75,13 +75,12 @@ vds::async_task<> vds::dht::network::dht_session::process_message(
 
   (*sp.get<client>())->add_route(sp, source_node, hops, this->shared_from_this());
 
-  const_data_buffer message_data(message.data() + 66, message.size() - 66);
   if (target_node != this->this_node_id()) {
     if (hops == std::numeric_limits<uint16_t>::max()) {
       return async_task<>::empty();
     }
 
-    return [sp, message_type, target_node, message_data, source_node, hops]() {
+    return [sp, message_type, target_node, message, source_node, source_index, hops]() {
       sp.get<logger>()->trace(
         "dht_session",
         sp,
@@ -90,13 +89,13 @@ vds::async_task<> vds::dht::network::dht_session::process_message(
         base64::from_bytes(source_node).c_str(),
         base64::from_bytes(target_node).c_str());
 
-      (*sp.get<client>())->send_closer(
+      (*sp.get<client>())->proxy_message(
         sp,
         target_node,
-        1,
-        static_cast<message_type_t>(message_type),
-        message_data,
+        (message_type_t)message_type,
+        message,
         source_node,
+        source_index,
         hops + 1);
     };
   }
@@ -105,7 +104,7 @@ vds::async_task<> vds::dht::network::dht_session::process_message(
     imessage_map::message_info_t{
       this->shared_from_this(),
       static_cast<message_type_t>(message_type),
-      message_data,
+      message,
       source_node,
       hops
     });

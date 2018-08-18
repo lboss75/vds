@@ -19,10 +19,16 @@ namespace vds {
 
         Failed = 5,
 
-        SpecialCommand = 0b11000000,
+        SpecialCommand = 0b11100000,
 
-        SingleData = 0b01000000,
-        Data = 0b10000000,
+        SingleData = 0b00100000,
+        Data = 0b01000000,
+
+        RouteSingleData = 0b01100000,
+        RouteData = 0b10000000,
+
+        ProxySingleData = 0b10100000,
+        ProxyData = 0b11000000,
       };
 
       enum class message_type_t {

@@ -28,6 +28,7 @@ namespace vds {
         dht_datagram_protocol(
           const network_address& address,
           const const_data_buffer& this_node_id,
+          const const_data_buffer& partner_node_id,
           uint32_t session_id)
           : address_(address),
             this_node_id_(this_node_id),
@@ -35,15 +36,66 @@ namespace vds {
             output_sequence_number_(0),
             mtu_(65507),
             next_sequence_number_(0),
-            skipped_datagrams_(0) {
+            skipped_datagrams_(0),
+            partner_node_id_(partner_node_id) {
         }
 
         void send_message(
+            const service_provider& sp,
+            const std::shared_ptr<transport_type>& s,
+            uint8_t message_type,
+            const const_data_buffer& target_node,
+            const const_data_buffer& message) {
+          vds_assert(message.size() < 0xFFFF);
+          vds_assert(target_node != this->this_node_id_);
+
+          std::unique_lock<std::mutex> lock(this->send_mutex_);
+
+          ++this->message_count_[message_type];
+          this->message_size_[message_type] += message.size();
+
+          for (const auto& p : this->send_queue_) {
+            if (p.message_type == message_type
+                && p.target_node == target_node
+                && p.source_node == this->this_node_id_
+                && p.message == message) {
+              return;
+            }
+          }
+
+          sp.get<logger>()->trace(
+              "dht_session",
+              sp,
+              "send %d from this node %s to %s",
+              message_type,
+              base64::from_bytes(this->this_node_id_).c_str(),
+              base64::from_bytes(target_node).c_str());
+
+          const bool need_start = this->send_queue_.empty();
+          this->send_queue_.push_back(send_queue_item_t{
+              sp,
+              s,
+              message_type,
+              target_node,
+              this->this_node_id_,
+              0,
+              0,
+              message
+          });
+
+          lock.unlock();
+
+          if (need_start) {
+            this->continue_send(false);
+          }
+        }
+        void proxy_message(
           const service_provider& sp,
           const std::shared_ptr<transport_type>& s,
           uint8_t message_type,
           const const_data_buffer& target_node,
           const const_data_buffer& source_node,
+          uint32_t source_index,
           const uint16_t hops,
           const const_data_buffer& message) {
           vds_assert(message.size() < 0xFFFF);
@@ -55,10 +107,12 @@ namespace vds {
           this->message_size_[message_type] += message.size();
 
           for (const auto& p : this->send_queue_) {
-            if (p.message_type == message_type
+            if ((p.message_type == message_type
               && p.target_node == target_node
               && p.source_node == source_node
-              && p.message == message) {
+              && p.message == message)
+            || (p.source_node == source_node
+                && p.source_index >= source_index)) {
               return;
             }
           }
@@ -78,7 +132,9 @@ namespace vds {
             message_type,
             target_node,
             source_node,
-            hops, message
+            source_index,
+            hops,
+            message
           });
 
           lock.unlock();
@@ -175,6 +231,10 @@ namespace vds {
           return this->this_node_id_;
         }
 
+        const const_data_buffer& partner_node_id() const {
+          return this->partner_node_id_;
+        }
+
       private:
         network_address address_;
         const_data_buffer this_node_id_;
@@ -196,6 +256,7 @@ namespace vds {
           uint8_t message_type;
           const_data_buffer target_node;
           const_data_buffer source_node;
+          uint32_t source_index;
           uint16_t hops;
           const_data_buffer message;
         };
@@ -205,6 +266,7 @@ namespace vds {
         std::map<uint8_t, uint64_t> message_count_;
         std::map<uint8_t, uint64_t> message_size_;
         uint64_t skipped_datagrams_;
+        const_data_buffer partner_node_id_;
 
         async_task<> send_message_async(
           const service_provider& sp,
@@ -212,6 +274,7 @@ namespace vds {
           uint8_t message_type,
           const const_data_buffer& target_node,
           const const_data_buffer& source_node,
+          const uint32_t source_index,
           const uint16_t hops,
           const const_data_buffer& message) {
           vds_assert(message.size() < 0xFFFF);
@@ -223,6 +286,7 @@ namespace vds {
               message_type,
               target_node,
               source_node,
+              source_index,
               hops,
               message](
             const async_result<>& result) {
@@ -232,16 +296,38 @@ namespace vds {
             if (message.size() < pthis->mtu_ - 5) {
               auto expected_index = pthis->output_sequence_number_;
               lock.unlock();
-
-              buffer.add((uint8_t)((uint8_t)protocol_message_type_t::SingleData | message_type));
-              buffer.add((uint8_t)(expected_index >> 24));
-              buffer.add((uint8_t)(expected_index >> 16));
-              buffer.add((uint8_t)(expected_index >> 8));
-              buffer.add((uint8_t)(expected_index));
-              buffer += target_node;
-              buffer += source_node;
-              buffer.add((uint8_t)(hops >> 8));
-              buffer.add((uint8_t)(hops));
+              if(pthis->this_node_id_ == source_node){
+                if(pthis->partner_node_id_ == target_node) {
+                  buffer.add((uint8_t) ((uint8_t) protocol_message_type_t::SingleData | message_type));
+                  buffer.add((uint8_t) (expected_index >> 24));
+                  buffer.add((uint8_t) (expected_index >> 16));
+                  buffer.add((uint8_t) (expected_index >> 8));
+                  buffer.add((uint8_t) (expected_index));
+                }
+                else {
+                  buffer.add((uint8_t) ((uint8_t) protocol_message_type_t::RouteSingleData | message_type));
+                  buffer.add((uint8_t) (expected_index >> 24));
+                  buffer.add((uint8_t) (expected_index >> 16));
+                  buffer.add((uint8_t) (expected_index >> 8));
+                  buffer.add((uint8_t) (expected_index));
+                  buffer += target_node;
+                }
+              }
+              else {
+                buffer.add((uint8_t)((uint8_t)protocol_message_type_t::ProxySingleData | message_type));
+                buffer.add((uint8_t)(expected_index >> 24));
+                buffer.add((uint8_t)(expected_index >> 16));
+                buffer.add((uint8_t)(expected_index >> 8));
+                buffer.add((uint8_t)(expected_index));
+                buffer += target_node;
+                buffer += source_node;
+                buffer.add((uint8_t)(source_index >> 24));
+                buffer.add((uint8_t)(source_index >> 16));
+                buffer.add((uint8_t)(source_index >> 8));
+                buffer.add((uint8_t)(source_index));
+                buffer.add((uint8_t)(hops >> 8));
+                buffer.add((uint8_t)(hops));
+              }
               buffer += message;
 
               const_data_buffer datagram = buffer.move_data();
@@ -253,6 +339,7 @@ namespace vds {
                    message_type,
                    target_node,
                    source_node,
+                   source_index,
                    hops,
                    message,
                    result,
@@ -270,6 +357,7 @@ namespace vds {
                               message_type,
                               target_node,
                               source_node,
+                              source_index,
                               hops,
                               message)
                             .execute([result](const std::shared_ptr<std::exception>& ex) {
@@ -312,21 +400,55 @@ namespace vds {
                  });
             }
             else {
-              buffer.add((uint8_t)((uint8_t)protocol_message_type_t::Data | message_type));
-              buffer.add((uint8_t)(pthis->output_sequence_number_ >> 24));
-              buffer.add((uint8_t)(pthis->output_sequence_number_ >> 16));
-              buffer.add((uint8_t)(pthis->output_sequence_number_ >> 8));
-              buffer.add((uint8_t)(pthis->output_sequence_number_));
-              buffer.add((uint8_t)((message.size() + target_node.size() + source_node.size()) >> 8));
-              buffer.add((uint8_t)((message.size() + target_node.size() + source_node.size()) & 0xFF));
-              vds_assert(target_node.size() == 32);
-              buffer += target_node;
-              buffer += source_node;
-              buffer.add((uint8_t)(hops >> 8));
-              buffer.add((uint8_t)(hops));
-              buffer.add(message.data(), pthis->mtu_ - 57);
+              uint16_t offset;
 
-              auto offset = pthis->mtu_ - 57;
+              if(pthis->this_node_id_ == source_node) {
+                if(pthis->partner_node_id_ == target_node) {
+                  buffer.add((uint8_t) ((uint8_t) protocol_message_type_t::Data | message_type));
+                  buffer.add((uint8_t) (pthis->output_sequence_number_ >> 24));
+                  buffer.add((uint8_t) (pthis->output_sequence_number_ >> 16));
+                  buffer.add((uint8_t) (pthis->output_sequence_number_ >> 8));
+                  buffer.add((uint8_t) (pthis->output_sequence_number_));
+                  buffer.add((uint8_t) ((message.size()) >> 8));
+                  buffer.add((uint8_t) ((message.size()) & 0xFF));
+                  buffer.add(message.data(), pthis->mtu_ - 7);
+                  offset = pthis->mtu_ - 7;
+                }
+                else {
+                  buffer.add((uint8_t) ((uint8_t) protocol_message_type_t::RouteData | message_type));
+                  buffer.add((uint8_t) (pthis->output_sequence_number_ >> 24));
+                  buffer.add((uint8_t) (pthis->output_sequence_number_ >> 16));
+                  buffer.add((uint8_t) (pthis->output_sequence_number_ >> 8));
+                  buffer.add((uint8_t) (pthis->output_sequence_number_));
+                  buffer.add((uint8_t) ((message.size() + target_node.size()) >> 8));
+                  buffer.add((uint8_t) ((message.size() + target_node.size()) & 0xFF));
+                  vds_assert(target_node.size() == 32);
+                  buffer += target_node;
+                  buffer.add(message.data(), pthis->mtu_ - 39);
+                  offset = pthis->mtu_ - 39;
+                }
+              }
+              else {
+                buffer.add((uint8_t) ((uint8_t) protocol_message_type_t::ProxyData | message_type));
+                buffer.add((uint8_t) (pthis->output_sequence_number_ >> 24));
+                buffer.add((uint8_t) (pthis->output_sequence_number_ >> 16));
+                buffer.add((uint8_t) (pthis->output_sequence_number_ >> 8));
+                buffer.add((uint8_t) (pthis->output_sequence_number_));
+                buffer.add((uint8_t) ((message.size() + target_node.size() + source_node.size() + 6) >> 8));
+                buffer.add((uint8_t) ((message.size() + target_node.size() + source_node.size() + 6) & 0xFF));
+                vds_assert(target_node.size() == 32);
+                vds_assert(source_node.size() == 32);
+                buffer += target_node;
+                buffer += source_node;
+                buffer.add((uint8_t) (source_index >> 24));
+                buffer.add((uint8_t) (source_index >> 16));
+                buffer.add((uint8_t) (source_index >> 8));
+                buffer.add((uint8_t) (source_index));
+                buffer.add((uint8_t) (hops >> 8));
+                buffer.add((uint8_t) (hops));
+                buffer.add(message.data(), pthis->mtu_ - 77);
+                offset = pthis->mtu_ - 77;
+              }
 
               const_data_buffer datagram = buffer.move_data();
               s->write_async(sp, udp_datagram(pthis->address_, datagram))
@@ -337,6 +459,7 @@ namespace vds {
                    message_type,
                    target_node,
                    source_node,
+                   source_index,
                    hops,
                    message,
                    offset,
@@ -355,6 +478,7 @@ namespace vds {
                               message_type,
                               target_node,
                               source_node,
+                              source_index,
                               hops,
                               message)
                             .execute([result](const std::shared_ptr<std::exception>& ex) {
@@ -429,8 +553,12 @@ namespace vds {
                  }
                }
                else {
-                 logger::get(sp)->trace("DHT", sp, "Out datagram[%d]: %d bytes", pthis->output_sequence_number_,
-                                        datagram.size());
+                 logger::get(sp)->trace(
+                     "DHT",
+                     sp,
+                     "Out datagram[%d]: %d bytes",
+                     pthis->output_sequence_number_,
+                     datagram.size());
                  ++(pthis->output_sequence_number_);
                  if (offset + size < message.size()) {
                    pthis->continue_send_message(
@@ -454,13 +582,56 @@ namespace vds {
         ) {
 
           for (auto p = this->input_messages_.begin(); p != this->input_messages_.end(); ++p) {
-            switch (static_cast<protocol_message_type_t>((uint8_t)protocol_message_type_t::SpecialCommand & p
-                                                                                                            ->second.
-                                                                                                            data()[0])
+            switch (
+                static_cast<protocol_message_type_t>(
+                    (uint8_t)protocol_message_type_t::SpecialCommand & p->second.data()[0])
             ) {
-            case protocol_message_type_t::SingleData: {
+            case protocol_message_type_t::SingleData:
+            case protocol_message_type_t::RouteSingleData:
+            case protocol_message_type_t::ProxySingleData:{
               auto message_type = (uint8_t)(p->second.data()[0] & ~(uint8_t)protocol_message_type_t::SpecialCommand);
-              const_data_buffer message(p->second.data() + 5, p->second.size() - 5);
+
+              const_data_buffer target_node;
+              const_data_buffer source_node;
+              uint32_t source_index;
+              uint16_t hops;
+              const_data_buffer message;
+
+              switch (
+                  static_cast<protocol_message_type_t>(
+                      (uint8_t)protocol_message_type_t::SpecialCommand & p->second.data()[0])
+                  ) {
+                case protocol_message_type_t::SingleData:{
+                  target_node = this->this_node_id_;
+                  source_node = this->partner_node_id_;
+                  source_index = p->first;
+                  hops = 0;
+                  message = const_data_buffer(p->second.data() + 5, p->second.size() - 5);
+                  break;
+                }
+
+                case protocol_message_type_t::RouteSingleData:{
+                  target_node = const_data_buffer(p->second.data() + 5, 32);
+                  source_node = this->partner_node_id_;
+                  source_index = p->first;
+                  hops = 0;
+                  message = const_data_buffer(p->second.data() + 37, p->second.size() - 37);
+                  break;
+                }
+
+                case protocol_message_type_t::ProxySingleData:{
+                  target_node = const_data_buffer(p->second.data() + 5, 32);
+                  source_node = const_data_buffer(p->second.data() + 37, 32);
+                  source_index = (p->second.data()[69] << 24)
+                                         | (p->second.data()[70] << 16)
+                                         | (p->second.data()[71] << 8)
+                                         | (p->second.data()[72]);
+
+                  hops = (p->second.data()[73] << 8) | p->second.data()[74];
+                  message = const_data_buffer(p->second.data() + 75, p->second.size() - 75);
+                  break;
+                }
+              }
 
               logger::get(sp)->trace("DHT", sp, "Processed datagram %d", p->first);
               for (auto premove = this->input_messages_.begin(); premove != p; ++premove) {
@@ -474,6 +645,10 @@ namespace vds {
                 sp,
                 s,
                 message_type,
+                target_node,
+                source_node,
+                source_index,
+                hops,
                 message).then(
                 [sp, s, pthis = this->shared_from_this()]() {
                   std::unique_lock<std::mutex> lock(
@@ -482,17 +657,71 @@ namespace vds {
                     continue_process_messages(sp, s, lock);
                 });
             }
-            case protocol_message_type_t::Data: {
+
+            case protocol_message_type_t::Data:
+            case protocol_message_type_t::RouteData:
+            case protocol_message_type_t::ProxyData: {
+
+
               auto message_type = p->second.data()[0] & ~(uint8_t)protocol_message_type_t::SpecialCommand;
               size_t size = (p->second.data()[5] << 8) | (p->second.data()[6]);
 
-              if (size <= p->second.size() - 7) {
-                return async_task<>(std::make_shared<std::runtime_error>("Invalid data"));
-              }
-              size -= p->second.size() - 7;
-
+              const_data_buffer target_node;
+              const_data_buffer source_node;
+              uint32_t source_index;
+              uint16_t hops;
               resizable_data_buffer message;
-              message.add(p->second.data() + 7, p->second.size() - 7);
+
+              switch (
+                  static_cast<protocol_message_type_t>(
+                      (uint8_t)protocol_message_type_t::SpecialCommand & p->second.data()[0])
+                  ) {
+                case protocol_message_type_t::Data:{
+                  if (size <= p->second.size() - 7) {
+                    return async_task<>(std::make_shared<std::runtime_error>("Invalid data"));
+                  }
+                  size -= p->second.size() - 7;
+
+                  target_node = this->this_node_id_;
+                  source_node = this->partner_node_id_;
+                  source_index = p->first;
+                  hops = 0;
+                  message.add(p->second.data() + 7, p->second.size() - 7);
+                  break;
+                }
+
+                case protocol_message_type_t::RouteData:{
+                  if (size <= p->second.size() - 39) {
+                    return async_task<>(std::make_shared<std::runtime_error>("Invalid data"));
+                  }
+                  size -= p->second.size() - 39;
+
+                  target_node = const_data_buffer(p->second.data() + 7, 32);
+                  source_node = this->partner_node_id_;
+                  source_index = p->first;
+                  hops = 0;
+                  message.add(p->second.data() + 39, p->second.size() - 39);
+                  break;
+                }
+
+                case protocol_message_type_t::ProxyData:{
+                  if (size <= p->second.size() - 77) {
+                    return async_task<>(std::make_shared<std::runtime_error>("Invalid data"));
+                  }
+                  size -= p->second.size() - 77;
+
+                  target_node = const_data_buffer(p->second.data() + 7, 32);
+                  source_node = const_data_buffer(p->second.data() + 39, 32);
+                  source_index = (p->second.data()[71] << 24)
+                                 | (p->second.data()[72] << 16)
+                                 | (p->second.data()[73] << 8)
+                                 | (p->second.data()[74]);
+
+                  hops = (p->second.data()[75] << 8) | p->second.data()[76];
+                  message.add(p->second.data() + 77, p->second.size() - 77);
+                  break;
+                }
+              }
 
               for (auto index = p->first + 1;; ++index) {
                 auto p1 = this->input_messages_.find(index);
@@ -523,6 +752,10 @@ namespace vds {
                     sp,
                     s,
                     message_type,
+                    target_node,
+                    source_node,
+                    source_index,
+                    hops,
                     message.move_data()).then(
                     [sp, s, pthis = this->shared_from_this()]() {
                       std::unique_lock<std::mutex> lock(
@@ -534,6 +767,11 @@ namespace vds {
 
               break;
             }
+              default:{
+                vds_assert(false);
+                break;
+              }
+
             }
           }
           return async_task<>::empty();
@@ -556,6 +794,7 @@ namespace vds {
           auto message_type = p.message_type;
           auto target_node = p.target_node;
           auto source_node = p.source_node;
+          const auto source_index = p.source_index;
           auto hops = p.hops;
           auto message = p.message;
           lock.unlock();
@@ -566,6 +805,7 @@ namespace vds {
             message_type,
             target_node,
             source_node,
+            source_index,
             hops,
             message).execute([sp, pthis = this->shared_from_this()](const std::shared_ptr<std::exception>& ex) {
             if (ex) {

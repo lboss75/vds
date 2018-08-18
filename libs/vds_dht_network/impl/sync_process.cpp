@@ -520,17 +520,10 @@ void vds::dht::network::sync_process::add_sync_entry(
       t2.commit_index = 0,
       t2.last_applied = 0));
 
-    client->send_near(
+    client->find_nodes(
       sp,
       object_id,
-      service::GENERATE_DISTRIBUTED_PIECES,
-      messages::sync_looking_storage_request(
-        object_id,
-        0,
-        0,
-        0,
-        0,
-        object_size));
+      service::GENERATE_DISTRIBUTED_PIECES);
   }
   else {
     leader = t2.voted_for.get(st);
@@ -701,7 +694,8 @@ void vds::dht::network::sync_process::apply_message(
       sp.get<logger>()->trace(
         SyncModule,
         sp,
-        "Ready to store object %s",
+        "%s: Ready to store object %s",
+        base64::from_bytes(client->current_node_id()).c_str(),
         base64::from_bytes(message.object_id()).c_str());
 
       client->send(
@@ -738,10 +732,22 @@ void vds::dht::network::sync_process::apply_message(
       .where(t1.object_id == message.object_id()));
 
   if (!st.execute()) {
+    sp.get<logger>()->trace(
+        SyncModule,
+        sp,
+        "sync_looking_storage_response form %s about unknown object %s",
+        base64::from_bytes(message_info.source_node()).c_str(),
+        base64::from_bytes(message.object_id()).c_str());
     return;
   }
 
   if (orm::sync_state_dbo::state_t::leader != static_cast<orm::sync_state_dbo::state_t>(t1.state.get(st))) {
+    sp.get<logger>()->trace(
+        SyncModule,
+        sp,
+        "sync_looking_storage_response form %s about object %s. not leader",
+        base64::from_bytes(message_info.source_node()).c_str(),
+        base64::from_bytes(message.object_id()).c_str());
     return;
   }
 
@@ -1511,7 +1517,17 @@ void vds::dht::network::sync_process::send_leader_broadcast(
     const auto last_applied = t2.last_applied.get(st);
 
     for (const auto& member_node : member_nodes) {
-      sp.get<logger>()->trace(SyncModule, sp, "Send leader broadcast to %s", base64::from_bytes(member_node).c_str());
+      sp.get<logger>()->trace(
+          SyncModule,
+          sp,
+          "Send leader broadcast to %s. object_id=%s,generation=%d,current_term=%d,commit_index=%d,last_applied=%d",
+          base64::from_bytes(member_node).c_str(),
+          base64::from_bytes(object_id).c_str(),
+          generation,
+          current_term,
+          commit_index,
+          last_applied);
+
       client->send(
         sp,
         member_node,
@@ -2017,16 +2033,7 @@ void vds::dht::network::sync_process::send_snapshot(
       .where(t1.object_id == object_id));
 
   if (!st.execute() || orm::sync_state_dbo::state_t::leader != t1.state.get(st)) {
-    for (const auto& target_node : target_nodes) {
-      if (target_node != client->current_node_id()) {
-        (*client)->send_closer(
-          sp,
-          object_id,
-          service::GENERATE_DISTRIBUTED_PIECES,
-          messages::sync_snapshot_request(object_id, target_node));
-      }
-    }
-
+    vds_assert(false);
     return;
   }
 

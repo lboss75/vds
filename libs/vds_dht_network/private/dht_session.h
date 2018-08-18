@@ -36,15 +36,14 @@ namespace vds {
           const service_provider& sp,
           const std::shared_ptr<udp_transport>& transport,
           uint8_t message_type,
+          const const_data_buffer & target_node,
+          const const_data_buffer & source_node,
+          uint32_t source_index,
+          uint16_t hops,
           const const_data_buffer& message);
 
-        const const_data_buffer& partner_node_id() const {
-          return this->partner_node_id_;
-        }
 
         session_statistic::session_info get_statistic() const;
-      private:
-        const_data_buffer partner_node_id_;
       };
     }
   }
