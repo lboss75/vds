@@ -668,8 +668,10 @@ void vds::dht::network::sync_process::apply_message(
   auto& client = *sp.get<network::client>();
 
   switch (this->apply_base_message(sp, t, message, message_info, message_info.source_node())) {
-  case base_message_type::not_found:
   case base_message_type::successful:
+    return;
+
+  case base_message_type::not_found:
     break;
 
   case base_message_type::from_future:
@@ -1673,8 +1675,12 @@ void vds::dht::network::sync_process::apply_message(
       if (t1.state.get(st) == orm::sync_state_dbo::state_t::leader) {
         send_snapshot(sp, t, message.object_id(), {message.source_node()});
       }
-      else {
-        this->send_snapshot_request(sp, message.object_id(), t2.voted_for.get(st), message.source_node());
+      else if(t1.state.get(st) == orm::sync_state_dbo::state_t::follower){
+        this->send_snapshot_request(
+            sp,
+            message.object_id(),
+            t2.voted_for.get(st),
+            message.source_node());
       }
       return;
     }
@@ -1926,7 +1932,7 @@ void vds::dht::network::sync_process::apply_record(
     sp.get<logger>()->trace(
       SyncModule,
       sp,
-      "Appply: Add member %s to store object %s",
+      "Apply: Add member %s to store object %s",
       base64::from_bytes(member_node).c_str(),
       base64::from_bytes(object_id).c_str());
 
@@ -1962,7 +1968,7 @@ void vds::dht::network::sync_process::apply_record(
     sp.get<logger>()->trace(
       SyncModule,
       sp,
-      "Appply: Add replica %s:%d to node %s",
+      "Apply: Add replica %s:%d to node %s",
       base64::from_bytes(object_id).c_str(),
       replica,
       base64::from_bytes(member_node).c_str());

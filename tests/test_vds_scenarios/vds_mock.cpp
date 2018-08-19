@@ -243,6 +243,35 @@ bool vds_mock::dump_statistic(std::vector<vds::server_statistic>& statistics) {
   }
   print_table(table);
 
+  //Network
+  table.clear();
+  std::cout << "Route:\n";
+  std::map<vds::const_data_buffer, std::size_t> node_id2index;
+  for (std::size_t i = 0; i < statistics.size(); ++i) {
+    node_id2index[statistics[i].route_statistic_.node_id_] = i;
+  }
+
+  for (std::size_t i = 0; i < statistics.size(); ++i) {
+    std::map<std::string, std::string> columns;
+
+    for(const auto & item : statistics[i].route_statistic_.items_){
+      auto index = std::to_string(node_id2index.at(item.node_id_));
+      auto p = columns.find(index);
+      if(p == columns.end()){
+        columns[index] = std::to_string(item.hops_);
+      }
+      else if(item.hops_ < atoi(p->second.c_str())){
+        p->second = std::to_string(item.hops_);
+      }
+    }
+
+    table.push_back(
+        std::make_tuple(
+            std::to_string(i) + "." + vds::base64::from_bytes(statistics[i].route_statistic_.node_id_),
+            columns));
+  }
+  print_table(table);
+
   return is_good;
 }
 

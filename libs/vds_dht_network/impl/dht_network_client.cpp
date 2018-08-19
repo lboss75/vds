@@ -152,8 +152,6 @@ vds::async_task<> vds::dht::network::_client::apply_message(
                }
              });
       });
-
-      this->update_route_table_counter_ = 3;
     }
   }
   return result;
