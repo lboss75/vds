@@ -11,8 +11,8 @@ else(UNIX)
 	FILE(GLOB GLOBAL_RES ${CMAKE_SOURCE_DIR}/resources/*.rc ${CMAKE_SOURCE_DIR}/resources/*.h)
 endif(UNIX)
 
-find_package(OpenSSL REQUIRED)
 set(OPENSSL_USE_STATIC_LIBS TRUE)
+find_package(OpenSSL REQUIRED)
 
 ADD_MSVC_PRECOMPILED_HEADER("stdafx.h" "stdafx.cpp" SOURCE_LIB)
 
@@ -51,5 +51,5 @@ target_link_libraries(
   vds_db_model
   vds_file_manager
   vds_server
-  ${OPENSSL_LIBRARIES}
+  OpenSSL::Crypto
   ${CMAKE_THREAD_LIBS_INIT})
