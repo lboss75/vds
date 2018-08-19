@@ -304,10 +304,10 @@ vds::dht::network::sync_process::base_message_type vds::dht::network::sync_proce
       || (message.generation() == t2.generation.get(st) && message.current_term() < t2.current_term.get(st))) {
 
       const auto leader = this->get_leader(sp, t, message.object_id());
-      if (!leader || client->current_node_id() == leader) {
+      if (client->current_node_id() == leader) {
         send_snapshot(sp, t, message.object_id(), {message_info.source_node()});
       }
-      else {
+      else if(leader) {
         send_snapshot_request(sp, message.object_id(), leader_node, message_info.source_node());
       }
 
