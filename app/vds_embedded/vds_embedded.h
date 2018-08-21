@@ -21,7 +21,7 @@ namespace vds {
     const std::string & last_error() const {
       return this->last_error_;
     }
-
+    
   private:
     std::string root_folder_;
     std::string last_error_;

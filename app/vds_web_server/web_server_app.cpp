@@ -9,7 +9,8 @@ All rights reserved
 
 vds::web_server_app::web_server_app()
 : server_start_command_set_("Server start", "Start server", "start", "server"),
-  start_web_(
+  server_service_command_set_("Service start", "Start service", "service", "server"),
+start_web_(
     "w",
     "web",
     "Start Web",
@@ -24,30 +25,33 @@ vds::web_server_app::web_server_app()
 
 void vds::web_server_app::main(const service_provider & sp)
 {
-  if(this->current_command_set_ == &this->server_start_command_set_){
+  if (this->current_command_set_ == &this->server_start_command_set_
+    || this->current_command_set_ == &this->server_start_command_set_) {
     std::shared_ptr<std::exception> error;
     vds::barrier b;
     this->server_
-        .start_network(sp, (uint16_t)(this->port_.value().empty() ? 8050 : strtol(this->port_.value().c_str(), nullptr, 10)))
-        .execute([&b, &error](const std::shared_ptr<std::exception> & ex){
-      if(ex){
+      .start_network(sp, (uint16_t)(this->port_.value().empty() ? 8050 : strtol(this->port_.value().c_str(), nullptr, 10)))
+      .execute([&b, &error](const std::shared_ptr<std::exception> & ex) {
+      if (ex) {
         error = ex;
       }
       b.set();
     });
     b.wait();
-    if(error){
+    if (error) {
       std::cout << "Failed:" << error->what() << "\n";
     }
 
-    for (;;) {
-      std::cout << "Enter command:\n";
+    if (this->current_command_set_ == &this->server_start_command_set_) {
+      for (;;) {
+        std::cout << "Enter command:\n";
 
-      std::string cmd;
-      std::cin >> cmd;
+        std::string cmd;
+        std::cin >> cmd;
 
-      if ("exit" == cmd) {
-        break;
+        if ("exit" == cmd) {
+          break;
+        }
       }
     }
   }
@@ -90,6 +94,5 @@ void vds::web_server_app::start_services(service_registrator & registrator, serv
 
 bool vds::web_server_app::need_demonize()
 {
-  //return false;
-  return (this->current_command_set_ == &this->server_start_command_set_);
+  return (this->current_command_set_ == &this->server_service_command_set_);
 }

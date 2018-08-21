@@ -21,10 +21,18 @@ namespace vds {
     void register_services(service_registrator & registrator);
     void register_command_line(command_line & cmd_line);
     void start_services(service_registrator & registrator, service_provider & sp);
+
     bool need_demonize();
+
+#ifdef _WIN32
+    TCHAR * service_name() const {
+      return "ivsoft_vds";
+    }
+#endif
 
   private:
     command_line_set server_start_command_set_;
+    command_line_set server_service_command_set_;
 
     command_line_value start_web_;
     command_line_value port_;

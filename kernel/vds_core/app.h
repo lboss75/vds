@@ -28,12 +28,17 @@ All rights reserved
 #include "filename.h"
 #include "persistence.h"
 #include "file.h"
+#include "vds_exceptions.h"
 
 namespace vds{
   
   class app
   {
   public:
+    app() {
+      the_app_ = this;
+    }
+
     std::string app_name() const {
       return "VDS application";
     }
@@ -47,6 +52,7 @@ namespace vds{
     }
     
   protected:
+    static app * the_app_;
     
   };
   
@@ -98,16 +104,12 @@ namespace vds{
 				return 0;
 			}
 
-#ifndef _WIN32
 			if (pthis->need_demonize()) {
 				pthis->demonize();
 			}
 			else {
 				pthis->start();
 			}
-#else
-			pthis->start();
-#endif // _WIN32
 
 			return 0;
 		}
@@ -245,12 +247,131 @@ namespace vds{
       }
     }
 
-#ifndef _WIN32
-
     bool need_demonize()
     {
       return false;
     }
+
+#ifdef _WIN32
+    TCHAR * service_name() const {
+      throw vds_exceptions::invalid_operation();
+    }
+
+    void demonize()
+    {
+      SERVICE_TABLE_ENTRY DispatchTable[] =
+      {
+        { static_cast<app_impl *>(this)->service_name(), (LPSERVICE_MAIN_FUNCTION)SvcMain },
+        { NULL, NULL }
+      };
+
+      // This call returns when the service has stopped. 
+      // The process should simply terminate when the call returns.
+
+      if (!StartServiceCtrlDispatcher(DispatchTable)) {
+        DWORD error = GetLastError();
+        throw std::system_error(error, std::system_category(), "StartServiceCtrlDispatcher");
+      }
+    }
+
+    static VOID WINAPI SvcMain(DWORD dwArgc, LPTSTR *lpszArgv)
+    {
+      static_cast<app_impl *>(the_app_)->service_main();
+    }
+
+    SERVICE_STATUS          gSvcStatus;
+    SERVICE_STATUS_HANDLE   gSvcStatusHandle;
+    HANDLE                  ghSvcStopEvent;
+
+    void service_main()
+    {
+      gSvcStatusHandle = RegisterServiceCtrlHandler(
+        static_cast<app_impl *>(this)->service_name(),
+        SvcCtrlHandler);
+
+      if (!gSvcStatusHandle) {
+        return;
+      }
+
+      // These SERVICE_STATUS members remain as set here
+
+      gSvcStatus.dwServiceType = SERVICE_WIN32_OWN_PROCESS;
+      gSvcStatus.dwServiceSpecificExitCode = 0;
+
+      ReportSvcStatus(SERVICE_START_PENDING, NO_ERROR, 3000);
+
+      SvcInit();
+    }
+
+    void SvcInit()
+    {
+      ghSvcStopEvent = CreateEvent(
+        NULL,    // default security attributes
+        TRUE,    // manual reset event
+        FALSE,   // not signaled
+        NULL);   // no name
+
+      if (ghSvcStopEvent == NULL) {
+        ReportSvcStatus(SERVICE_STOPPED, NO_ERROR, 0);
+        return;
+      }
+
+      ReportSvcStatus(SERVICE_RUNNING, NO_ERROR, 0);
+
+      static_cast<app_impl *>(this)->start();
+
+      WaitForSingleObject(ghSvcStopEvent, INFINITE);
+
+      ReportSvcStatus(SERVICE_STOPPED, NO_ERROR, 0);
+    }
+
+    VOID ReportSvcStatus(DWORD dwCurrentState,
+      DWORD dwWin32ExitCode,
+      DWORD dwWaitHint)
+    {
+      static DWORD dwCheckPoint = 1;
+
+      // Fill in the SERVICE_STATUS structure.
+
+      gSvcStatus.dwCurrentState = dwCurrentState;
+      gSvcStatus.dwWin32ExitCode = dwWin32ExitCode;
+      gSvcStatus.dwWaitHint = dwWaitHint;
+
+      if (dwCurrentState == SERVICE_START_PENDING)
+        gSvcStatus.dwControlsAccepted = 0;
+      else gSvcStatus.dwControlsAccepted = SERVICE_ACCEPT_STOP;
+
+      if ((dwCurrentState == SERVICE_RUNNING) ||
+        (dwCurrentState == SERVICE_STOPPED))
+        gSvcStatus.dwCheckPoint = 0;
+      else gSvcStatus.dwCheckPoint = dwCheckPoint++;
+
+      // Report the status of the service to the SCM.
+      SetServiceStatus(gSvcStatusHandle, &gSvcStatus);
+    }
+
+    static VOID WINAPI SvcCtrlHandler(DWORD dwCtrl)
+    {
+       
+
+      switch (dwCtrl)
+      {
+      case SERVICE_CONTROL_STOP:
+        static_cast<app_base *>(the_app_)->ReportSvcStatus(SERVICE_STOP_PENDING, NO_ERROR, 0);
+
+        SetEvent(static_cast<app_base *>(the_app_)->ghSvcStopEvent);
+        static_cast<app_base *>(the_app_)->ReportSvcStatus(static_cast<app_base *>(the_app_)->gSvcStatus.dwCurrentState, NO_ERROR, 0);
+
+        return;
+
+      case SERVICE_CONTROL_INTERROGATE:
+        break;
+
+      default:
+        break;
+      }
+    }
+#else//_WIN32
     
     void demonize()
     {
