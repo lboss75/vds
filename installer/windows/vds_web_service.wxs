@@ -1,0 +1,53 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+ <?define ProductName="Децентрализованное хранилище" ?>
+ <?define ProductVersion="0.0.1.0" ?>
+ <?define ProductCode="134BC1FA-9A2B-47EB-A302-5B7282D468D7"?>
+ <?define UpgradeCode="CADEAFE2-B927-4B41-9C52-29C39F26C09E"?>
+ <?define Manufacturer="АйВи Консалтинг"?>
+
+ <Product 
+	Id="$(var.ProductCode)"
+	Name="$(var.ProductName)"
+	Language="1049"
+	Version="$(var.ProductVersion)"
+	Manufacturer="$(var.Manufacturer)"
+	UpgradeCode="$(var.UpgradeCode)">
+
+    <Package InstallerVersion="200" Compressed="yes" />
+
+    <Media Id="1" Cabinet="media1.cab" EmbedCab="yes" />
+
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFilesFolder">
+        <Directory Id="INSTALLLOCATION" Name="$(var.ProductName)">
+          <Component Id="ProductComponent" Guid="6273698F-677C-40ED-A6CB-87062E60ECA3">
+	      <File Id='VdsWebServerExe' Name='vds_web_server.exe' DiskId='1' Source='$(var.src_dir)\vds_web_server.exe'  KeyPath='yes'/>         
+		<ServiceInstall
+  			Id="ServiceInstaller"
+  			Type="ownProcess"
+  			Name="ivsoft_vds"
+  			DisplayName="VDS Service"
+  			Description="Запросы VDS"
+  			Start="auto"
+  			ErrorControl="normal"
+  			Arguments=" server service -P 8050 -ll trace -lm * --web C:\Users\v.malyshev\source\repos\vds\www"
+  		/>
+  		<ServiceControl Id="StartService" Start="install" Stop="both" Remove="uninstall" Name="ivsoft_vds" Wait="yes" />
+          </Component>
+        </Directory>
+      </Directory>
+    </Directory>
+
+    <Feature Id="ProductFeature" Title="VDS" Level="1">
+   <ComponentRef Id="ProductComponent" />
+  </Feature>
+
+
+  <Property Id="WIXUI_INSTALLDIR" Value="INSTALLLOCATION" ></Property>
+  <WixVariable Id="WixUILicenseRtf" Overridable="yes" Value="License.rtf"/>
+  <UIRef Id="WixUI_InstallDir"/>
+ 
+  </Product>
+</Wix>

@@ -26,7 +26,7 @@ start_web_(
 void vds::web_server_app::main(const service_provider & sp)
 {
   if (this->current_command_set_ == &this->server_start_command_set_
-    || this->current_command_set_ == &this->server_start_command_set_) {
+    || this->current_command_set_ == &this->server_service_command_set_) {
     std::shared_ptr<std::exception> error;
     vds::barrier b;
     this->server_
@@ -54,6 +54,9 @@ void vds::web_server_app::main(const service_provider & sp)
         }
       }
     }
+    else {
+      this->waiting_stop_signal();
+    }
   }
 }
 
@@ -65,7 +68,8 @@ void vds::web_server_app::register_services(vds::service_registrator& registrato
   registrator.add(this->network_service_);
   registrator.add(this->crypto_service_);
   
-  if (&this->server_start_command_set_ == this->current_command_set_){
+  if (&this->server_start_command_set_ == this->current_command_set_
+    || &this->server_service_command_set_ == this->current_command_set_){
     registrator.add(this->server_);
     if(!this->port_.value().empty()) {
       this->web_server_.port(atoi(this->port_.value().c_str()));
@@ -85,6 +89,10 @@ void vds::web_server_app::register_command_line(command_line & cmd_line)
   cmd_line.add_command_set(this->server_start_command_set_);
   this->server_start_command_set_.optional(this->start_web_);
   this->server_start_command_set_.optional(this->port_);
+
+  cmd_line.add_command_set(this->server_service_command_set_);
+  this->server_service_command_set_.optional(this->start_web_);
+  this->server_service_command_set_.optional(this->port_);
 }
 
 void vds::web_server_app::start_services(service_registrator & registrator, service_provider & sp)

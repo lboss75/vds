@@ -74,6 +74,9 @@ std::string vds::network_service::get_ip_address_string(const sockaddr_in & from
 #define NETWORK_EXIT 0xA1F8
 
 vds::_network_service::_network_service()
+#ifdef _WIN32
+  : handle_(NULL)
+#endif
 {
 }
 

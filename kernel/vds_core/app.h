@@ -316,12 +316,13 @@ namespace vds{
         return;
       }
 
-      ReportSvcStatus(SERVICE_RUNNING, NO_ERROR, 0);
-
+      //::Sleep(60 * 1000);
       static_cast<app_impl *>(this)->start();
+    }
 
+    void waiting_stop_signal() {
+      ReportSvcStatus(SERVICE_RUNNING, NO_ERROR, 0);
       WaitForSingleObject(ghSvcStopEvent, INFINITE);
-
       ReportSvcStatus(SERVICE_STOPPED, NO_ERROR, 0);
     }
 
