@@ -10,6 +10,46 @@ vds::network_address::network_address()
 vds::network_address::network_address(sa_family_t af, const std::string &server, uint16_t port) {
   memset((char *)&this->addr_, 0, sizeof(this->addr_));
 
+  addrinfo hints;
+
+  memset(&hints, 0, sizeof(hints));
+  hints.ai_family = af;
+  hints.ai_socktype = SOCK_DGRAM;
+  hints.ai_protocol = IPPROTO_UDP;
+  hints.ai_flags = AI_NUMERICSERV | AI_ALL | AI_V4MAPPED | AI_NUMERICHOST;
+
+  addrinfo * buffer;
+  auto status = getaddrinfo(server.c_str(), std::to_string(port).c_str(), &hints, &buffer);
+  if (status) {
+    hints.ai_flags &= ~AI_NUMERICHOST;
+    status = getaddrinfo(server.c_str(), std::to_string(port).c_str(), &hints, &buffer);
+    if (status) {
+      throw std::system_error(status, std::system_category(), "Parse address " + server);
+    }
+  }
+
+  for (auto res = buffer; res != nullptr; res = res->ai_next) {
+    if(res->ai_family == af) {
+      switch(af) {
+      case AF_INET: {
+        this->addr_size_ = sizeof(sockaddr_in);
+        memcpy(&this->addr_, res->ai_addr, this->addr_size_);
+        freeaddrinfo(buffer);
+        return;
+      }
+      case AF_INET6: {
+        this->addr_size_ = sizeof(sockaddr_in6);
+        memcpy(&this->addr_, res->ai_addr, this->addr_size_);
+        freeaddrinfo(buffer);
+        return;
+      }
+      }
+    }
+  }
+  freeaddrinfo(buffer);
+
+  throw std::runtime_error("Unable to resolve " + server);
+/*
   switch(af) {
     case AF_INET: {
       auto addr = (sockaddr_in *) &this->addr_;
@@ -39,6 +79,7 @@ vds::network_address::network_address(sa_family_t af, const std::string &server,
     default:
       throw std::runtime_error("Invalid error");
   }
+  */
 }
 
 std::string vds::network_address::to_string() const {
@@ -88,7 +129,7 @@ vds::network_address vds::network_address::parse(sa_family_t family, const std::
           if ("udp" == na.protocol) {
             result = network_address(
               AF_INET6,
-              ("127.0.0.1" == na.server) ? "::1" : ("::ffff:" + na.server),
+              na.server,
               (uint16_t)atoi(na.port.c_str()));
           }
           else if ("udp6" == na.protocol) {
@@ -123,6 +164,7 @@ vds::network_address vds::network_address::parse(sa_family_t family, const std::
   }
   return result;
 }
+
 
 std::string vds::network_address::server() const {
 //  char buffer[512];

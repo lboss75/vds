@@ -93,6 +93,14 @@ vds::udp_socket vds::udp_socket::create(
     throw std::system_error(error, std::system_category(), "create socket");
   }
 
+  if (af == AF_INET6) {
+    int no = 0;
+    if (setsockopt(s, IPPROTO_IPV6, IPV6_V6ONLY, (char *)&no, sizeof(no)) < 0) {
+      auto error = WSAGetLastError();
+      ::close(s);
+      throw std::system_error(error, std::system_category(), "set IPV6_V6ONLY=0");
+    }
+  }
   static_cast<_network_service *>(sp.get<inetwork_service>())->associate(s);
 #else
   auto s = socket(af, SOCK_DGRAM, IPPROTO_UDP);
@@ -121,6 +129,16 @@ vds::udp_socket vds::udp_socket::create(
     ::close(s);
     throw std::system_error(error, std::system_category(), "Set socket to be nonblocking");
   }
+
+  if (af == AF_INET6) {
+    int no = 0;
+    if (setsockopt(s, IPPROTO_IPV6, IPV6_V6ONLY, (char *)&no, sizeof(no)) < 0) {
+      auto error = errno;
+      ::close(s);
+      throw std::system_error(error, std::system_category(), "set IPV6_V6ONLY=0");
+    }
+  }
+
 #endif
   return udp_socket(std::make_shared<_udp_socket>(s));
 }

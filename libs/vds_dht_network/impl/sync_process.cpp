@@ -128,7 +128,7 @@ void vds::dht::network::sync_process::add_to_log(
           source_index));
     }
   }
-  auto quorum = this->get_quorum(sp, t, object_id);
+  auto quorum = get_quorum(sp, t, object_id);
   sp.get<logger>()->trace(
     SyncModule,
     sp,
@@ -138,7 +138,7 @@ void vds::dht::network::sync_process::add_to_log(
     commit_index,
     last_applied);
   while (quorum < 2 && commit_index < last_applied) {
-    this->apply_record(sp, t, object_id, generation, current_term, ++commit_index);
+    apply_record(sp, t, object_id, generation, current_term, ++commit_index);
   }
 }
 
@@ -180,7 +180,7 @@ void vds::dht::network::sync_process::add_local_log(
   const auto member_index = t.last_insert_rowid();
   auto client = sp.get<network::client>();
   if (leader_node == client->current_node_id()) {
-    this->add_to_log(
+    add_to_log(
       sp,
       t,
       object_id,
@@ -372,7 +372,7 @@ vds::dht::network::sync_process::base_message_type vds::dht::network::sync_proce
 uint32_t vds::dht::network::sync_process::get_quorum(
   const service_provider& sp,
   database_read_transaction& t,
-  const const_data_buffer& object_id) const {
+  const const_data_buffer& object_id) {
 
   db_value<uint64_t> member_count;
   orm::sync_member_dbo t1;
@@ -1106,6 +1106,49 @@ void vds::dht::network::sync_process::apply_message(
     message.last_applied());
 }
 
+void vds::dht::network::sync_process::remove_replica(
+  const vds::service_provider& sp,
+  vds::database_transaction& t,
+  const const_data_buffer & object_id,
+  uint16_t replica,
+  const const_data_buffer & leader_node) {
+  auto client = sp.get<network::client>();
+
+  orm::chunk_replica_data_dbo t1;
+  orm::device_record_dbo t2;
+  auto st = t.get_reader(t1.select(
+                             t1.replica_hash,
+                             t2.local_path)
+                           .inner_join(t2, t2.node_id == client->current_node_id() && t2.data_hash == t1.replica_hash)
+                           .where(t1.object_id == object_id && t1.replica == replica));
+  if (!st.sql_statement::execute()) {
+    sp.get<logger>()->trace(
+      SyncModule,
+      sp,
+      "Remove replica %s:%d not found",
+      base64::from_bytes(object_id).c_str(),
+      replica);
+    return;
+  }
+
+  const auto replica_hash = t1.replica_hash.get(st);
+  _client::delete_data(
+    replica_hash,
+    filename(t2.local_path.get(st)));
+
+  t.execute(t1.delete_if(t1.object_id == object_id && t1.replica == replica));
+  t.execute(t2.delete_if(t2.node_id == client->client::current_node_id() && t2.data_hash == replica_hash));
+
+  add_local_log(
+    sp,
+    t,
+    object_id,
+    orm::sync_message_dbo::message_type_t::remove_replica,
+    client->client::current_node_id(),
+    replica,
+    leader_node);
+}
+
 void vds::dht::network::sync_process::apply_message(
   const service_provider& sp,
   database_transaction& t,
@@ -1119,39 +1162,7 @@ void vds::dht::network::sync_process::apply_message(
     return;
   }
 
-  orm::chunk_replica_data_dbo t1;
-  orm::device_record_dbo t2;
-  auto st = t.get_reader(t1.select(
-                             t1.replica_hash,
-                             t2.local_path)
-                           .inner_join(t2, t2.node_id == client->current_node_id() && t2.data_hash == t1.replica_hash)
-                           .where(t1.object_id == message.object_id() && t1.replica == message.replica()));
-  if (!st.execute()) {
-    sp.get<logger>()->trace(
-      SyncModule,
-      sp,
-      "Remove replica %s:%d not found",
-      base64::from_bytes(message.object_id()).c_str(),
-      message.replica());
-    return;
-  }
-
-  const auto replica_hash = t1.replica_hash.get(st);
-  _client::delete_data(
-    replica_hash,
-    filename(t2.local_path.get(st)));
-
-  t.execute(t1.delete_if(t1.object_id == message.object_id() && t1.replica == message.replica()));
-  t.execute(t2.delete_if(t2.node_id == client->current_node_id() && t2.data_hash == replica_hash));
-
-  this->add_local_log(
-    sp,
-    t,
-    message.object_id(),
-    orm::sync_message_dbo::message_type_t::remove_replica,
-    client->current_node_id(),
-    message.replica(),
-    message_info.source_node());
+  this->remove_replica(sp, t, message.object_id(), message.replica(), message_info.source_node());
 }
 
 void vds::dht::network::sync_process::send_random_replicas(
@@ -1894,7 +1905,7 @@ void vds::dht::network::sync_process::apply_record(const service_provider& sp, d
     throw vds_exceptions::not_found();
   }
 
-  this->apply_record(
+  apply_record(
     sp,
     t,
     object_id,
@@ -1950,7 +1961,7 @@ void vds::dht::network::sync_process::apply_record(
           t1.member_node = member_node));
     }
 
-    this->send_snapshot(sp, t, object_id, {member_node});
+    send_snapshot(sp, t, object_id, {member_node});
     break;
   }
 
@@ -2469,6 +2480,7 @@ void vds::dht::network::sync_process::replica_sync::object_info_t::normalize_den
 
 void vds::dht::network::sync_process::replica_sync::object_info_t::remove_duplicates(
   const service_provider& sp,
+  database_transaction & t,
   const std::map<uint16_t, std::set<const_data_buffer>>& replica_nodes,
   const const_data_buffer& object_id) const {
 
@@ -2508,17 +2520,22 @@ void vds::dht::network::sync_process::replica_sync::object_info_t::remove_duplic
               base64::from_bytes(node).c_str());
 
             vds_assert(this->sync_leader_ == client->current_node_id());
-            (*client)->send(
-              sp,
-              node,
-              messages::sync_offer_remove_replica_operation_request(
-                object_id,
-                this->sync_generation_,
-                this->sync_current_term_,
-                this->sync_commit_index_,
-                this->sync_last_applied_,
+            if(node == client->current_node_id()) {
+              remove_replica(sp, t, object_id, replica, node);
+            }
+            else {
+              (*client)->send(
+                sp,
                 node,
-                replica));
+                messages::sync_offer_remove_replica_operation_request(
+                  object_id,
+                  this->sync_generation_,
+                  this->sync_current_term_,
+                  this->sync_commit_index_,
+                  this->sync_last_applied_,
+                  node,
+                  replica));
+            }
           }
         }
       }
@@ -2622,7 +2639,7 @@ void vds::dht::network::sync_process::replica_sync::normalize_density(
       else {
         //All replicas exists
         object.second.normalize_density(sp, replica_nodes, object.first);
-        object.second.remove_duplicates(sp, replica_nodes, object.first);
+        object.second.remove_duplicates(sp, t, replica_nodes, object.first);
       }
     }
   }

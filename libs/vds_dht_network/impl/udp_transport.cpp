@@ -144,8 +144,8 @@ vds::async_task<> vds::dht::network::udp_transport::try_handshake(const service_
   out_message += this->this_node_id_;
 
   return this->write_async(sp, udp_datagram(
-                             network_address::parse(this->server_.address().family(), address),
-                             out_message.move_data()));
+    network_address::parse(this->server_.address().family(), address),
+    out_message.move_data()));
 }
 
 void vds::dht::network::udp_transport::get_session_statistics(session_statistic& session_statistic) {

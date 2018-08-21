@@ -189,7 +189,7 @@ namespace vds {
         std::map<uint16_t, std::unique_ptr<chunk_generator<uint16_t>>> distributed_generators_;
         int sync_replicas_timeout_;
 
-        void add_to_log(const service_provider& sp, database_transaction& t,
+        static void add_to_log(const service_provider& sp, database_transaction& t,
                         const const_data_buffer& object_id,
                         orm::sync_message_dbo::message_type_t message_type,
                         const const_data_buffer& member_node,
@@ -197,7 +197,7 @@ namespace vds {
                         const const_data_buffer& source_node,
                         uint64_t source_index);
 
-        void add_local_log(
+        static void add_local_log(
           const service_provider& sp,
           database_transaction& t,
           const const_data_buffer& object_id,
@@ -224,10 +224,10 @@ namespace vds {
           uint64_t current_term,
           const const_data_buffer& leader_node);
 
-        uint32_t get_quorum(
+        static uint32_t get_quorum(
           const service_provider& sp,
           database_read_transaction& t,
-          const const_data_buffer& object_id) const;
+          const const_data_buffer& object_id);
 
         void send_leader_broadcast(
           const service_provider& sp,
@@ -249,7 +249,7 @@ namespace vds {
           database_transaction& t,
           const const_data_buffer& object_id);
 
-        void apply_record(
+        static void apply_record(
           const service_provider& sp,
           database_transaction& t,
           const const_data_buffer& object_id,
@@ -257,7 +257,7 @@ namespace vds {
           uint64_t current_term,
           uint64_t message_index);
 
-        void apply_record(
+        static void apply_record(
           const service_provider& sp,
           database_transaction& t,
           const const_data_buffer& object_id,
@@ -370,9 +370,11 @@ namespace vds {
              * \param replica_nodes 
              * \param object_id 
              */
-            void remove_duplicates(const service_provider& sp,
-                                   const std::map<uint16_t, std::set<const_data_buffer>>& replica_nodes,
-                                   const const_data_buffer& object_id) const;
+            void remove_duplicates(
+              const service_provider& sp,
+              database_transaction & t,
+              const std::map<uint16_t, std::set<const_data_buffer>>& replica_nodes,
+              const const_data_buffer& object_id) const;
 
             void try_to_attach(
               const service_provider& sp,
@@ -421,6 +423,12 @@ namespace vds {
           uint64_t commit_index,
           uint64_t last_applied);
 
+        static void remove_replica(
+          const service_provider& sp,
+          database_transaction& t,
+          const const_data_buffer & object_id,
+          uint16_t replica,
+          const const_data_buffer & leader_node);
       };
     }
   }

@@ -273,7 +273,16 @@ namespace vds {
         this_->buffer_.data_size(),
         base64::from_bytes(static_cast<const sockaddr *>(this_->buffer_->address()), this_->buffer_->address().size()).c_str()
       );
-			if (NOERROR != WSASendTo(this_->s_, &this_->wsa_buf_, 1, NULL, 0, this_->buffer_->address(), this_->buffer_->address().size(), &this_->overlapped_, NULL)) {
+			if (NOERROR != WSASendTo(
+        this_->s_,
+        &this_->wsa_buf_,
+        1,
+        NULL,
+        0,
+        this_->buffer_->address(),
+        this_->buffer_->address().size(),
+        &this_->overlapped_,
+        NULL)) {
               auto errorCode = WSAGetLastError();
               if (WSA_IO_PENDING != errorCode) {
                 this_->result_.error(std::make_shared<std::system_error>(errorCode, std::system_category(), "WSASend failed"));
