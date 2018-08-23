@@ -21,6 +21,7 @@ namespace vds {
 
       class client {
       public:
+        static bool is_debug;
         void start(
           const service_provider& sp,
           const const_data_buffer& this_node_id,

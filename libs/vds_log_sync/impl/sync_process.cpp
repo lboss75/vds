@@ -212,6 +212,7 @@ void vds::transaction_log::sync_process::apply_message(
 void vds::transaction_log::sync_process::sync_local_channels(
   const service_provider& sp,
   database_transaction& t) {
+
   auto & client = *sp.get<dht::network::client>();
 
   orm::transaction_log_record_dbo t1;

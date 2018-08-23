@@ -73,4 +73,54 @@ namespace vds {
     }
   }
 }
+
+namespace std {
+
+  inline std::string to_string(const vds::dht::network::message_type_t message_type) {
+    switch (message_type) {
+
+#define out_member(member)\
+    case vds::dht::network::message_type_t::member:\
+      return #member;
+
+      out_member(transaction_log_state)
+        out_member(transaction_log_request)
+        out_member(transaction_log_record)
+        //out_member(got_replica)
+        //out_member(replica_request)
+        //out_member(replica_not_found)
+        //out_member(offer_replica)
+        //out_member(sync_replica_data)
+        out_member(dht_find_node)
+        out_member(dht_find_node_response)
+        out_member(dht_ping)
+        out_member(dht_pong)
+
+        out_member(sync_new_election_request)
+        out_member(sync_new_election_response)
+
+        out_member(sync_add_message_request)
+
+        out_member(sync_leader_broadcast_request)
+        out_member(sync_leader_broadcast_response)
+
+        out_member(sync_replica_operations_request)
+        out_member(sync_replica_operations_response)
+
+        out_member(sync_looking_storage_request)
+        out_member(sync_looking_storage_response)
+
+        out_member(sync_snapshot_request)
+        out_member(sync_snapshot_response)
+
+        out_member(sync_offer_send_replica_operation_request)
+        out_member(sync_offer_remove_replica_operation_request)
+        //out_member(sync_offer_replica_operation_response)
+
+        out_member(sync_replica_request)
+        out_member(sync_replica_data)
+    }
+    return "unknown";
+    }
+}
 #endif //__VDS_DHT_NETWORK_DHT_MESSAGE_TYPE_H_

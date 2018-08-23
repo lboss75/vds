@@ -23,6 +23,8 @@ All rights reserved
 #include "messages/sync_replica_data.h"
 #include "dht_network.h"
 
+bool vds::dht::network::client::is_debug = true;
+
 vds::dht::network::_client::_client(
   const service_provider& sp,
   const const_data_buffer& node_id)
@@ -180,9 +182,17 @@ void vds::dht::network::_client::apply_message(
     message_info.session()->address());
 }
 
-void vds::dht::network::_client::add_session(const service_provider& sp, const std::shared_ptr<dht_session>& session,
-                                             uint8_t hops) {
+void vds::dht::network::_client::add_session(
+  const service_provider& sp,
+  const std::shared_ptr<dht_session>& session,
+  uint8_t hops) {
   this->route_.add_node(sp, session->partner_node_id(), session, hops, false);
+  this->send_neighbors(sp, messages::dht_find_node_response({
+    messages::dht_find_node_response::target_node(
+      session->partner_node_id(),
+      session->address().to_string(),
+      hops + 1)
+  }));
 }
 
 void vds::dht::network::_client::send(
@@ -331,7 +341,7 @@ void vds::dht::network::_client::start(const service_provider& sp, uint16_t port
   this->udp_transport_ = std::make_shared<udp_transport>();
   this->udp_transport_->start(sp, port, this->current_node_id());
 
-  this->update_timer_.start(sp, std::chrono::seconds(1), [sp, pthis = this->shared_from_this()]() {
+  this->update_timer_.start(sp, std::chrono::seconds(60), [sp, pthis = this->shared_from_this()]() {
     std::unique_lock<std::debug_mutex> lock(pthis->update_timer_mutex_);
     if (!pthis->in_update_timer_) {
       pthis->in_update_timer_ = true;

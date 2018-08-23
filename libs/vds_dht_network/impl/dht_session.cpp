@@ -64,8 +64,15 @@ vds::async_task<> vds::dht::network::dht_session::process_message(
   uint32_t source_index,
   uint16_t hops,
   const const_data_buffer& message) {
+  //std::cout
+  //  << base64::from_bytes(source_node)
+  //  << "=>"
+  //  << base64::from_bytes(target_node)
+  //  << ": "
+  //  << std::to_string((message_type_t)message_type)
+  //  << "\n";
 
-  sp.get<logger>()->trace(
+    sp.get<logger>()->trace(
     "dht_session",
     sp,
     "receive %d from %s to %s",

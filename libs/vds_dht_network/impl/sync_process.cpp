@@ -33,6 +33,8 @@ All rights reserved
 #include "messages/dht_find_node.h"
 #include "dht_network.h"
 
+vds::const_data_buffer trace_object_id;
+
 vds::dht::network::sync_process::sync_process()
   : sync_replicas_timeout_(0) {
   for (uint16_t replica = 0; replica < service::GENERATE_DISTRIBUTED_PIECES; ++replica) {
@@ -58,6 +60,10 @@ void vds::dht::network::sync_process::add_to_log(
   uint16_t replica,
   const const_data_buffer& source_node,
   uint64_t source_index) {
+  if (trace_object_id && trace_object_id == object_id) {
+    std::cout << "add_to_log" << split_string(sp.full_name(), '/', true).front() << "\n";
+  }
+
   orm::sync_message_dbo t3;
   auto st = t.get_reader(t3.select(t3.object_id)
                            .where(t3.object_id == object_id
@@ -151,6 +157,10 @@ void vds::dht::network::sync_process::add_local_log(
   uint16_t replica,
   const const_data_buffer& leader_node) {
 
+  if (trace_object_id && trace_object_id == object_id) {
+    std::cout << "add_local_log" << split_string(sp.full_name(), '/', true).front() << "\n";
+  }
+
   orm::sync_local_queue_dbo t1;
   auto st = t.get_reader(t1
                          .select(t1.last_send)
@@ -227,6 +237,10 @@ void vds::dht::network::sync_process::make_new_election(
   const const_data_buffer& object_id) const {
   auto& client = *sp.get<network::client>();
 
+  if (trace_object_id && trace_object_id == object_id) {
+    std::cout << "make_new_election" << split_string(sp.full_name(), '/', true).front() << "\n";
+  }
+
   orm::sync_state_dbo t1;
   orm::sync_member_dbo t2;
   auto st = t.get_reader(t1.select(
@@ -276,6 +290,10 @@ vds::dht::network::sync_process::base_message_type vds::dht::network::sync_proce
   const messages::sync_base_message_request& message,
   const imessage_map::message_info_t& message_info,
   const const_data_buffer& leader_node) {
+
+  if (trace_object_id && trace_object_id == message.object_id()) {
+    std::cout << "apply_base_message" << split_string(sp.full_name(), '/', true).front() << "\n";
+  }
 
   auto& client = *sp.get<network::client>();
 
@@ -493,6 +511,15 @@ void vds::dht::network::sync_process::add_sync_entry(
   const const_data_buffer& object_id,
   uint32_t object_size) {
 
+  if(network::client::is_debug && !trace_object_id) {
+    trace_object_id = object_id;
+    std::cout << "track " << base64::from_bytes(trace_object_id) << "\n";
+  }
+
+  if (trace_object_id && trace_object_id == object_id) {
+    std::cout << "add_to_log" << split_string(sp.full_name(), '/', true).front() << "\n";
+  }
+
   const_data_buffer leader;
   auto& client = *sp.get<network::client>();
 
@@ -548,6 +575,11 @@ vds::const_data_buffer vds::dht::network::sync_process::restore_replica(
   const service_provider& sp,
   database_transaction& t,
   const const_data_buffer& object_id) {
+
+  if (trace_object_id && trace_object_id == object_id) {
+    std::cout << "add_to_log" << split_string(sp.full_name(), '/', true).front() << "\n";
+  }
+
   auto client = sp.get<network::client>();
   std::vector<uint16_t> replicas;
   std::vector<const_data_buffer> datas;
@@ -665,6 +697,10 @@ void vds::dht::network::sync_process::apply_message(
   const messages::sync_looking_storage_request& message,
   const imessage_map::message_info_t& message_info) {
 
+  if (trace_object_id && trace_object_id == message.object_id()) {
+    std::cout << "looking_storage" << split_string(sp.full_name(), '/', true).front() << "\n";
+  }
+
   auto& client = *sp.get<network::client>();
 
   switch (this->apply_base_message(sp, t, message, message_info, message_info.source_node())) {
@@ -717,6 +753,10 @@ void vds::dht::network::sync_process::apply_message(
   database_transaction& t,
   const messages::sync_looking_storage_response& message,
   const imessage_map::message_info_t& message_info) {
+
+  if (trace_object_id && trace_object_id == message.object_id()) {
+    std::cout << "looking storage response" << split_string(sp.full_name(), '/', true).front() << "\n";
+  }
 
   auto& client = *sp.get<network::client>();
 
@@ -800,6 +840,11 @@ void vds::dht::network::sync_process::apply_message(
   database_transaction& t,
   const messages::sync_snapshot_request& message,
   const imessage_map::message_info_t& message_info) {
+
+  if (trace_object_id && trace_object_id == message.object_id()) {
+    std::cout << "snapshot request " << split_string(sp.full_name(), '/', true).front() << "\n";
+  }
+
   auto& client = *sp.get<network::client>();
   const auto leader = this->get_leader(sp, t, message.object_id());
   if (leader && client->current_node_id() != leader) {
@@ -818,6 +863,10 @@ void vds::dht::network::sync_process::apply_message(
   database_transaction& t,
   const messages::sync_snapshot_response& message,
   const imessage_map::message_info_t& message_info) {
+
+  if (trace_object_id && trace_object_id == message.object_id()) {
+    std::cout << "snapshot response" << split_string(sp.full_name(), '/', true).front() << "\n";
+  }
 
   auto& client = *sp.get<network::client>();
 
@@ -932,6 +981,10 @@ void vds::dht::network::sync_process::apply_message(
   const messages::sync_add_message_request& message,
   const imessage_map::message_info_t& message_info) {
 
+  if (trace_object_id && trace_object_id == message.object_id()) {
+    std::cout << "add message request " << split_string(sp.full_name(), '/', true).front() << "\n";
+  }
+
   auto client = sp.get<network::client>();
 
   auto leader = this->get_leader(sp, t, message.object_id());
@@ -973,6 +1026,10 @@ void vds::dht::network::sync_process::apply_message(const service_provider& sp, 
                                                     const messages::sync_leader_broadcast_request& message,
                                                     const imessage_map::message_info_t& message_info) {
 
+  if (trace_object_id && trace_object_id == message.object_id()) {
+    std::cout << "sync_leader_broadcast_request " << split_string(sp.full_name(), '/', true).front() << "\n";
+  }
+
   auto client = sp.get<network::client>();
   if (base_message_type::successful == this->apply_base_message(sp, t, message, message_info,
                                                                 message_info.source_node())) {
@@ -993,6 +1050,11 @@ void vds::dht::network::sync_process::apply_message(
   database_transaction& t,
   const messages::sync_replica_operations_request& message,
   const imessage_map::message_info_t& message_info) {
+
+  if (trace_object_id && trace_object_id == message.object_id()) {
+    std::cout << "sync_replica_operations_request " << split_string(sp.full_name(), '/', true).front() << "\n";
+  }
+
   const auto client = sp.get<network::client>();
 
   sp.get<logger>()->trace(
@@ -1069,6 +1131,10 @@ void vds::dht::network::sync_process::apply_message(
   const messages::sync_replica_operations_response& message,
   const imessage_map::message_info_t& message_info) {
 
+  if (trace_object_id && trace_object_id == message.object_id()) {
+    std::cout << "sync_replica_operations_response " << split_string(sp.full_name(), '/', true).front() << "\n";
+  }
+
   sp.get<logger>()->trace(
     SyncModule,
     sp,
@@ -1085,6 +1151,10 @@ void vds::dht::network::sync_process::apply_message(
   database_transaction& t,
   const messages::sync_offer_send_replica_operation_request& message,
   const imessage_map::message_info_t& message_info) {
+
+  if (trace_object_id && trace_object_id == message.object_id()) {
+    std::cout << "sync_offer_send_replica_operation_request " << split_string(sp.full_name(), '/', true).front() << "\n";
+  }
 
   auto client = sp.get<network::client>();
 
@@ -1112,6 +1182,11 @@ void vds::dht::network::sync_process::remove_replica(
   const const_data_buffer & object_id,
   uint16_t replica,
   const const_data_buffer & leader_node) {
+
+  if (trace_object_id && trace_object_id == object_id) {
+    std::cout << "remove replica " << split_string(sp.full_name(), '/', true).front() << "\n";
+  }
+
   auto client = sp.get<network::client>();
 
   orm::chunk_replica_data_dbo t1;
@@ -1155,6 +1230,10 @@ void vds::dht::network::sync_process::apply_message(
   const messages::sync_offer_remove_replica_operation_request& message,
   const imessage_map::message_info_t& message_info) {
 
+  if (trace_object_id && trace_object_id == message.object_id()) {
+    std::cout << "sync_offer_remove_replica_operation_request " << split_string(sp.full_name(), '/', true).front() << "\n";
+  }
+
   auto client = sp.get<network::client>();
 
   if (this->apply_base_message(sp, t, message, message_info, message_info.source_node()) != base_message_type::
@@ -1196,6 +1275,10 @@ void vds::dht::network::sync_process::apply_message(
   database_transaction& t,
   const messages::sync_replica_request& message,
   const imessage_map::message_info_t& message_info) {
+
+  if (trace_object_id && trace_object_id == message.object_id()) {
+    std::cout << "sync_replica_request " << split_string(sp.full_name(), '/', true).front() << "\n";
+  }
 
   auto client = sp.get<network::client>();
   sp.get<logger>()->trace(
@@ -1415,6 +1498,11 @@ void vds::dht::network::sync_process::apply_message(
   database_transaction& t,
   const messages::sync_replica_data& message,
   const imessage_map::message_info_t& message_info) {
+
+  if (trace_object_id && trace_object_id == message.object_id()) {
+    std::cout << "sync_replica_data " << split_string(sp.full_name(), '/', true).front() << "\n";
+  }
+
   auto client = sp.get<network::client>();
 
   orm::chunk_replica_data_dbo t2;
@@ -1493,6 +1581,10 @@ void vds::dht::network::sync_process::send_leader_broadcast(
   const service_provider& sp,
   database_transaction& t,
   const const_data_buffer& object_id) {
+
+  if (trace_object_id && trace_object_id == object_id) {
+    std::cout << "send_leader_broadcast " << split_string(sp.full_name(), '/', true).front() << "\n";
+  }
 
   auto& client = *sp.get<network::client>();
   orm::sync_state_dbo t1;
@@ -1649,6 +1741,10 @@ void vds::dht::network::sync_process::send_snapshot_request(
   const const_data_buffer& leader_node,
   const const_data_buffer& from_node) {
 
+  if (trace_object_id && trace_object_id == object_id) {
+    std::cout << "send_snapshot_request " << split_string(sp.full_name(), '/', true).front() << "\n";
+  }
+
   auto& client = *sp.get<network::client>();
   client->send(
     sp,
@@ -1664,6 +1760,10 @@ void vds::dht::network::sync_process::apply_message(
   database_transaction& t,
   const messages::sync_new_election_request& message,
   const imessage_map::message_info_t& message_info) {
+
+  if (trace_object_id && trace_object_id == message.object_id()) {
+    std::cout << "sync_new_election_request " << split_string(sp.full_name(), '/', true).front() << "\n";
+  }
 
   auto& client = *sp.get<network::client>();
 
@@ -1708,6 +1808,10 @@ void vds::dht::network::sync_process::apply_message(
   database_transaction& t,
   const messages::sync_new_election_response& message,
   const imessage_map::message_info_t& message_info) {
+
+  if (trace_object_id && trace_object_id == message.object_id()) {
+    std::cout << "sync_new_election_response " << split_string(sp.full_name(), '/', true).front() << "\n";
+  }
 
   auto& client = *sp.get<network::client>();
 
@@ -1938,6 +2042,10 @@ void vds::dht::network::sync_process::apply_record(
   const const_data_buffer& message_node,
   uint64_t message_index) {
 
+  if (trace_object_id && trace_object_id == object_id) {
+    std::cout << "apply_record " << split_string(sp.full_name(), '/', true).front() << "\n";
+  }
+
   switch (message_type) {
   case orm::sync_message_dbo::message_type_t::add_member: {
     sp.get<logger>()->trace(
@@ -2033,6 +2141,10 @@ void vds::dht::network::sync_process::send_snapshot(
   database_read_transaction& t,
   const const_data_buffer& object_id,
   const std::set<const_data_buffer>& target_nodes) {
+
+  if (trace_object_id && trace_object_id == object_id) {
+    std::cout << "send_snapshot " << split_string(sp.full_name(), '/', true).front() << "\n";
+  }
 
   const auto client = sp.get<network::client>();
 
@@ -2266,6 +2378,11 @@ void vds::dht::network::sync_process::replica_sync::object_info_t::generate_miss
   const std::map<uint16_t, std::set<const_data_buffer>>& replica_nodes,
   const const_data_buffer& object_id,
   std::set<const_data_buffer> chunk_nodes) const {
+
+  if (trace_object_id && trace_object_id == object_id) {
+    std::cout << "generate_missing_replicas " << split_string(sp.full_name(), '/', true).front() << "\n";
+  }
+
   const auto client = sp.get<network::client>();
 
   //Detect members with minimal replicas
@@ -2547,6 +2664,10 @@ void vds::dht::network::sync_process::replica_sync::object_info_t::try_to_attach
   const service_provider& sp,
   const const_data_buffer& object_id) const {
 
+  if (trace_object_id && trace_object_id == object_id) {
+    std::cout << "try_to_attach " << split_string(sp.full_name(), '/', true).front() << "\n";
+  }
+
   const auto client = sp.get<network::client>();
   const auto p = this->nodes_.find(client->current_node_id());
   if (this->nodes_.end() != p) {
@@ -2649,6 +2770,11 @@ void vds::dht::network::sync_process::make_leader(
   const service_provider& sp,
   database_transaction& t,
   const const_data_buffer& object_id) {
+
+  if (trace_object_id && trace_object_id == object_id) {
+    std::cout << "make_leader " << split_string(sp.full_name(), '/', true).front() << "\n";
+  }
+
   const auto client = sp.get<network::client>();
 
   orm::sync_state_dbo t1;
@@ -2664,6 +2790,10 @@ void vds::dht::network::sync_process::make_follower(const service_provider& sp, 
                                                     const const_data_buffer& object_id, uint64_t generation,
                                                     uint64_t current_term,
                                                     const const_data_buffer& leader_node) {
+
+  if (trace_object_id && trace_object_id == object_id) {
+    std::cout << "make_follower " << split_string(sp.full_name(), '/', true).front() << "\n";
+  }
 
   orm::sync_state_dbo t1;
   t.execute(t1.update(
@@ -2694,6 +2824,10 @@ void vds::dht::network::sync_process::send_replica(
   uint64_t current_term,
   uint64_t commit_index,
   uint64_t last_applied) {
+
+  if (trace_object_id && trace_object_id == object_id) {
+    std::cout << "send_replica " << split_string(sp.full_name(), '/', true).front() << "\n";
+  }
 
   const auto client = sp.get<network::client>();
 

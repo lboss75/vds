@@ -86,7 +86,7 @@ void vds::_server::start(const service_provider& scope)
   auto sp = scope.create_scope("Server Update Timer");
   imt_service::enable_async(sp);
 
-  this->update_timer_.start(sp, std::chrono::seconds(1), [sp, pthis = this->shared_from_this()](){
+  this->update_timer_.start(sp, std::chrono::seconds(60), [sp, pthis = this->shared_from_this()](){
     std::unique_lock<std::debug_mutex> lock(pthis->update_timer_mutex_);
     if (!pthis->in_update_timer_) {
       pthis->in_update_timer_ = true;
