@@ -15,7 +15,6 @@ namespace vds {
         Welcome = 2,
 
         ContinueData = 3,
-        Acknowledgment = 4,
 
         Failed = 5,
 

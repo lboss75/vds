@@ -13,6 +13,9 @@ All rights reserved
 
 namespace vds {
   class database_transaction;
+  class certificate;
+  class asymmetric_private_key;
+
 
   namespace dht {
     namespace network {
@@ -24,7 +27,8 @@ namespace vds {
         static bool is_debug;
         void start(
           const service_provider& sp,
-          const const_data_buffer& this_node_id,
+          const certificate & node_cert,
+          const asymmetric_private_key & node_key,
           uint16_t port);
         void stop(const service_provider& sp);
 

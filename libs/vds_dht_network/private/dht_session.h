@@ -25,7 +25,7 @@ namespace vds {
           const network_address& address,
           const const_data_buffer& this_node_id,
           const const_data_buffer& partner_node_id,
-          uint32_t session_id);
+          const const_data_buffer& session_key);
 
         void ping_node(
           const service_provider& sp,

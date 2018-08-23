@@ -12,9 +12,12 @@ All rights reserved
 #include "dht_network_client.h"
 #include "dht_network_client_p.h"
 
-void vds::dht::network::udp_transport::start(const service_provider& sp, uint16_t port,
-                                             const const_data_buffer& this_node_id) {
-  this->this_node_id_ = this_node_id;
+vds::dht::network::udp_transport::udp_transport(const certificate & node_cert,
+                                                const asymmetric_private_key & node_key)
+    : write_in_progress_(false), node_cert_(node_cert), node_key_(node_key) {
+}
+
+void vds::dht::network::udp_transport::start(const service_provider& sp, uint16_t port) {
 
   try {
     this->server_.start(sp, network_address::any_ip6(port));
@@ -24,11 +27,6 @@ void vds::dht::network::udp_transport::start(const service_provider& sp, uint16_
   }
 
   this->continue_read(sp.create_scope("vds::dht::network::udp_transport::continue_read"));
-  this->timer_.start(sp, std::chrono::seconds(1), [sp, pthis = this->shared_from_this()]()-> bool {
-    pthis->on_timer(sp).execute([](const std::shared_ptr<std::exception>&) {
-    });
-    return !sp.get_shutdown_event().is_shuting_down();
-  });
 }
 
 void vds::dht::network::udp_transport::stop(const service_provider& sp) {
@@ -114,17 +112,6 @@ vds::dht::network::udp_transport::continue_send(const service_provider& sp) {
       });
 }
 
-vds::async_task<> vds::dht::network::udp_transport::on_timer(const service_provider& sp) {
-  resizable_data_buffer out_message;
-  auto result = async_task<>::empty();
-  std::shared_lock<std::shared_mutex> lock(this->sessions_mutex_);
-  for (auto& p : this->sessions_) {
-    result = result.then([session = p.second, sp, pthis = this->shared_from_this()]() {
-      return session->on_timer(sp, pthis);
-    });
-  }
-  return result;
-}
 
 vds::async_task<> vds::dht::network::udp_transport::try_handshake(const service_provider& sp,
                                                                   const std::string& address) {
@@ -140,8 +127,16 @@ vds::async_task<> vds::dht::network::udp_transport::try_handshake(const service_
 
   resizable_data_buffer out_message;
   out_message.add((uint8_t)protocol_message_type_t::HandshakeBroadcast);
+  out_message.add(MAGIC_LABEL >> 24);
+  out_message.add(MAGIC_LABEL >> 16);
+  out_message.add(MAGIC_LABEL >> 8);
+  out_message.add(MAGIC_LABEL);
   out_message.add(PROTOCOL_VERSION);
-  out_message += this->this_node_id_;
+
+  binary_serializer bs;
+  bs << this->node_cert_.der();
+
+  out_message += bs.move_data();
 
   return this->write_async(sp, udp_datagram(
     network_address::parse(this->server_.address().family(), address),
@@ -200,17 +195,26 @@ void vds::dht::network::udp_transport::continue_read(
         switch ((protocol_message_type_t)datagram.data()[0]) {
         case protocol_message_type_t::HandshakeBroadcast:
         case protocol_message_type_t::Handshake: {
-          auto session = pthis->get_session(datagram.address());
-          if (session) {
-            break;
-          }
-          if (datagram.data_size() == NODE_ID_SIZE + 2 && PROTOCOL_VERSION == datagram.data()[1]) {
-            const_data_buffer partner_node_id(datagram.data() + 2, NODE_ID_SIZE);
+
+          if (
+              (uint8_t)(MAGIC_LABEL >> 24) == datagram.data()[1]
+              && (uint8_t)(MAGIC_LABEL >> 16) == datagram.data()[2]
+              && (uint8_t)(MAGIC_LABEL >> 8) == datagram.data()[3]
+              && (uint8_t)(MAGIC_LABEL) == datagram.data()[4]
+              && PROTOCOL_VERSION == datagram.data()[5]) {
+            binary_deserializer bd(datagram.data() + 6, datagram.data_size() - 6);
+            const_data_buffer partner_node_cert_der;
+            bd >> partner_node_cert_der;
+            auto partner_node_cert = certificate::parse_der(partner_node_cert_der);
+            auto partner_node_id = partner_node_cert.fingerprint(hash::sha256());
             if (partner_node_id == pthis->this_node_id_) {
               break;
             }
 
-            uint32_t session_id = static_cast<uint32_t>(std::rand());
+            const_data_buffer key;
+            key.resize(32);
+            crypto_service::rand_bytes(key.data(), key.size());
+
             pthis->add_session(
               sp,
               datagram.address(),
@@ -218,15 +222,21 @@ void vds::dht::network::udp_transport::continue_read(
                 datagram.address(),
                 pthis->this_node_id_,
                 partner_node_id,
-                session_id));
+                key));
 
             resizable_data_buffer out_message;
             out_message.add(static_cast<uint8_t>(protocol_message_type_t::Welcome));
-            out_message.add(static_cast<uint8_t>(session_id >> 24));
-            out_message.add(static_cast<uint8_t>(session_id >> 16));
-            out_message.add(static_cast<uint8_t>(session_id >> 8));
-            out_message.add(static_cast<uint8_t>(session_id));
-            out_message.add(pthis->this_node_id_.data(), pthis->this_node_id_.size());
+            out_message.add(MAGIC_LABEL >> 24);
+            out_message.add(MAGIC_LABEL >> 16);
+            out_message.add(MAGIC_LABEL >> 8);
+            out_message.add(MAGIC_LABEL);
+
+            binary_serializer bs;
+            bs
+                << pthis->node_cert_.der()
+                << partner_node_cert.public_key().encrypt(key);
+
+            out_message += bs.move_data();
 
             pthis->write_async(sp, udp_datagram(datagram.address(), out_message.move_data()))
                  .execute([
@@ -343,7 +353,3 @@ void vds::dht::network::udp_transport::continue_read(
     });
 }
 
-vds::dht::network::udp_transport::udp_transport()
-  : write_in_progress_(false),
-    timer_("UDP timer") {
-}

@@ -40,23 +40,18 @@ namespace vds {
   class _hmac
   {
   public:
-    _hmac(const std::string & key, const hash_info & info = hash::sha256());
+    _hmac(const const_data_buffer & key, const hash_info & info = hash::sha256());
     ~_hmac();
 
     void update(
       const void * data,
       size_t len);
 
-    void final();
-
-    const const_data_buffer signature() const {
-      return this->sig_;
-    }
+    const_data_buffer && final();
 
   private:
     const hash_info & info_;
     HMAC_CTX * ctx_;
-    const_data_buffer sig_;
 #ifndef _WIN32
     HMAC_CTX ctx_data_;
 #endif

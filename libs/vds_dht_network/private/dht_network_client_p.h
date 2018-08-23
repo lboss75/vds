@@ -41,7 +41,8 @@ namespace vds {
       public:
         _client(
           const service_provider& sp,
-          const const_data_buffer& node_id);
+          const certificate & node_cert,
+          const asymmetric_private_key & node_key);
 
         void start(const service_provider& sp, uint16_t port);
         void stop(const service_provider& sp);
@@ -309,7 +310,6 @@ namespace vds {
             message_type_t message_id,
             const const_data_buffer &message,
             const const_data_buffer &source_node,
-            uint32_t source_index,
             uint16_t hops);
 
         void send_neighbors(

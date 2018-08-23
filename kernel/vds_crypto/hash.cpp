@@ -120,7 +120,7 @@ void vds::_hash::final()
   }
 }
 ///////////////////////////////////////////////////////////////
-vds::hmac::hmac(const std::string & key, const hash_info & info)
+vds::hmac::hmac(const const_data_buffer & key, const hash_info & info)
 : impl_(new _hmac(key, info))
 {
 }
@@ -135,13 +135,16 @@ void vds::hmac::update(const void * data, size_t len)
   this->impl_->update(data, len);
 }
 
-void vds::hmac::final()
+vds::const_data_buffer && vds::hmac::final()
 {
-  this->impl_->final();
+  return this->impl_->final();
 }
+
 ///////////////////////////////////////////////////////////////
 
-vds::_hmac::_hmac(const std::string & key, const hash_info & info)
+vds::_hmac::_hmac(
+    const const_data_buffer & key,
+    const hash_info & info)
 : info_(info)
 {
 #ifndef _WIN32
@@ -150,7 +153,7 @@ vds::_hmac::_hmac(const std::string & key, const hash_info & info)
   this->ctx_ = HMAC_CTX_new();
 #endif
 
-  HMAC_Init_ex(this->ctx_, key.c_str(), safe_cast<int>(key.length()), info.type, NULL);
+  HMAC_Init_ex(this->ctx_, key.data(), safe_cast<int>(key.size()), info.type, NULL);
 }
 
 vds::_hmac::~_hmac()
@@ -162,24 +165,26 @@ vds::_hmac::~_hmac()
 #endif//_WIN32
 }
 
-void vds::_hmac::update(const void * data, size_t len)
-{
-  if (1 != HMAC_Update(this->ctx_, reinterpret_cast<const unsigned char*>(data), len)) {
+void vds::_hmac::update(const void * data, size_t len) {
+  if (1 != HMAC_Update(this->ctx_, reinterpret_cast<const unsigned char *>(data), len)) {
     auto error = ERR_get_error();
     throw crypto_exception("EVP_DigestUpdate", error);
   }
 }
 
-void vds::_hmac::final()
-{
-  auto len = (unsigned int)EVP_MD_size(this->info_.type);
-  this->sig_.resize(len);
-  if (1 != HMAC_Final(this->ctx_, this->sig_.data(), &len)) {
+vds::const_data_buffer && vds::_hmac::final() {
+
+  auto result_len = (unsigned int)EVP_MD_size(this->info_.type);
+  const_data_buffer result;
+  result.resize(result_len);
+  if (1 != HMAC_Final(this->ctx_, result.data(), &result_len)) {
     auto error = ERR_get_error();
     throw crypto_exception("HMAC_Final", error);
   }
 
-  if (len != this->sig_.size()) {
+  if (result_len != result.size()) {
     throw std::runtime_error("len != this->sig_len_");
   }
+
+  return std::move(result);
 }

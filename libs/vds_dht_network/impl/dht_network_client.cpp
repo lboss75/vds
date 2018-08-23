@@ -27,10 +27,12 @@ bool vds::dht::network::client::is_debug = true;
 
 vds::dht::network::_client::_client(
   const service_provider& sp,
-  const const_data_buffer& node_id)
-  : route_(node_id),
+  const certificate & node_cert,
+  const asymmetric_private_key & node_key)
+  : route_(node_cert.fingerprint(hash::sha256())),
     update_timer_("DHT Network"),
-    update_route_table_counter_(0) {
+    update_route_table_counter_(0),
+    udp_transport_(new udp_transport(node_cert, node_key)){
   for (uint16_t replica = 0; replica < service::GENERATE_HORCRUX; ++replica) {
     this->generators_[replica].reset(new chunk_generator<uint16_t>(service::MIN_HORCRUX, replica));
   }
@@ -270,7 +272,6 @@ void vds::dht::network::_client::proxy_message(
     message_type_t message_id,
     const const_data_buffer &message,
     const const_data_buffer &source_node,
-    uint32_t source_index,
     uint16_t hops) {
   this->route_.for_near(
     sp,
@@ -284,7 +285,6 @@ void vds::dht::network::_client::proxy_message(
       pthis = this->shared_from_this(),
       distance = dht_object_id::distance(this->current_node_id(), target_node_id),
       source_node,
-      source_index,
       hops](
     const std::shared_ptr<dht_route<std::shared_ptr<dht_session>>::node>& candidate) {
       if (dht_object_id::distance(candidate->node_id_, target_node_id) < distance) {
@@ -306,7 +306,6 @@ void vds::dht::network::_client::proxy_message(
           (uint8_t)message_id,
           target_node_id,
           source_node,
-          source_index,
           hops,
           message);
         return false;
@@ -338,8 +337,7 @@ vds::const_data_buffer vds::dht::network::_client::replica_id(const std::string&
 
 
 void vds::dht::network::_client::start(const service_provider& sp, uint16_t port) {
-  this->udp_transport_ = std::make_shared<udp_transport>();
-  this->udp_transport_->start(sp, port, this->current_node_id());
+  this->udp_transport_->start(sp, port);
 
   this->update_timer_.start(sp, std::chrono::seconds(60), [sp, pthis = this->shared_from_this()]() {
     std::unique_lock<std::debug_mutex> lock(pthis->update_timer_mutex_);
@@ -741,8 +739,10 @@ void vds::dht::network::_client::find_nodes(
 
 void vds::dht::network::client::start(
   const service_provider& sp,
-  const const_data_buffer& this_node_id, uint16_t port) {
-  this->impl_.reset(new _client(sp, this_node_id));
+  const certificate & node_cert,
+  const asymmetric_private_key & node_key,
+  uint16_t port) {
+  this->impl_.reset(new _client(sp, node_cert, node_key));
   this->impl_->start(sp, port);
 
 }

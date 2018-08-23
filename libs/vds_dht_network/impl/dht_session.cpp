@@ -26,12 +26,12 @@ vds::dht::network::dht_session::dht_session(
   const network_address& address,
   const const_data_buffer& this_node_id,
   const const_data_buffer& partner_node_id,
-  uint32_t session_id)
+  const const_data_buffer& session_key)
   : base_class(
       address,
       this_node_id,
       partner_node_id,
-      session_id) {
+      session_key) {
 }
 
 void vds::dht::network::dht_session::ping_node(
@@ -102,7 +102,6 @@ vds::async_task<> vds::dht::network::dht_session::process_message(
         (message_type_t)message_type,
         message,
         source_node,
-        source_index,
         hops + 1);
     };
   }

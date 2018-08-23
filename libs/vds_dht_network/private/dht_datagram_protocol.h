@@ -17,6 +17,7 @@ All rights reserved
 #include "debug_mutex.h"
 #include <queue>
 #include "vds_exceptions.h"
+#include "hash.h"
 
 namespace vds {
   namespace dht {
@@ -29,15 +30,17 @@ namespace vds {
           const network_address& address,
           const const_data_buffer& this_node_id,
           const const_data_buffer& partner_node_id,
-          uint32_t session_id)
+          const const_data_buffer& session_key)
           : address_(address),
             this_node_id_(this_node_id),
-            session_id_(session_id),
-            output_sequence_number_(0),
+            partner_node_id_(partner_node_id),
+            session_key_(session_key),
             mtu_(65507),
-            next_sequence_number_(0),
-            skipped_datagrams_(0),
-            partner_node_id_(partner_node_id) {
+            next_sequence_number_(0) {
+        }
+
+        void set_mtu(uint16_t value){
+          this->mtu_ = value;
         }
 
         void send_message(
@@ -50,18 +53,6 @@ namespace vds {
           vds_assert(target_node != this->this_node_id_);
 
           std::unique_lock<std::mutex> lock(this->send_mutex_);
-
-          ++this->message_count_[message_type];
-          this->message_size_[message_type] += message.size();
-
-          for (const auto& p : this->send_queue_) {
-            if (p.message_type == message_type
-                && p.target_node == target_node
-                && p.source_node == this->this_node_id_
-                && p.message == message) {
-              return;
-            }
-          }
 
           sp.get<logger>()->trace(
               "dht_session",
@@ -79,7 +70,6 @@ namespace vds {
               target_node,
               this->this_node_id_,
               0,
-              0,
               message
           });
 
@@ -89,34 +79,19 @@ namespace vds {
             this->continue_send(false);
           }
         }
+
         void proxy_message(
           const service_provider& sp,
           const std::shared_ptr<transport_type>& s,
           uint8_t message_type,
           const const_data_buffer& target_node,
           const const_data_buffer& source_node,
-          uint32_t source_index,
           const uint16_t hops,
           const const_data_buffer& message) {
           vds_assert(message.size() < 0xFFFF);
           vds_assert(target_node != this->this_node_id_);
 
           std::unique_lock<std::mutex> lock(this->send_mutex_);
-
-          ++this->message_count_[message_type];
-          this->message_size_[message_type] += message.size();
-
-          for (const auto& p : this->send_queue_) {
-            if ((p.message_type == message_type
-              && p.target_node == target_node
-              && p.source_node == source_node
-              && p.message == message)
-            || (p.source_node == source_node
-                && p.source_index >= source_index)) {
-              return;
-            }
-          }
-
           sp.get<logger>()->trace(
             "dht_session",
             sp,
@@ -132,7 +107,6 @@ namespace vds {
             message_type,
             target_node,
             source_node,
-            source_index,
             hops,
             message
           });
@@ -155,28 +129,6 @@ namespace vds {
           }
 
           switch (static_cast<protocol_message_type_t>(*datagram.data())) {
-          case protocol_message_type_t::Acknowledgment: {
-            if (datagram.size() < 5) {
-              return async_task<>(std::make_shared<std::runtime_error>("Invalid data"));
-            }
-            const uint32_t session_id = (datagram.data()[1] << 24)
-              | (datagram.data()[2] << 16)
-              | (datagram.data()[3] << 8)
-              | (datagram.data()[4]);
-
-            if (this->session_id_ != session_id) {
-              return async_task<>(std::make_shared<std::runtime_error>("Invalid session_id"));
-            }
-
-            logger::get(sp)->trace(
-              "DHT",
-              sp,
-              "Acknowledgment from %s",
-              this->address_.to_string().c_str());
-
-
-            return async_task<>::empty();
-          }
           default: {
             if (datagram.size() < 5) {
               return async_task<>(std::make_shared<std::runtime_error>("Invalid data"));
@@ -210,23 +162,6 @@ namespace vds {
           return this->address_;
         }
 
-        async_task<> on_timer(const service_provider& sp, const std::shared_ptr<transport_type>& s) {
-
-          std::shared_lock<std::shared_mutex> lock(this->output_mutex_);
-          std::unique_lock<std::mutex> input_lock(this->input_mutex_);
-
-          uint8_t buffer[13];
-
-          buffer[0] = static_cast<uint8_t>(protocol_message_type_t::Acknowledgment);
-          buffer[1] = static_cast<uint8_t>(this->session_id_ >> 24);
-          buffer[2] = static_cast<uint8_t>(this->session_id_ >> 16);
-          buffer[3] = static_cast<uint8_t>(this->session_id_ >> 8);
-          buffer[4] = static_cast<uint8_t>(this->session_id_);
-
-          sp.get<logger>()->trace("DHT", sp, "Send Acknowledgment %d", this->next_sequence_number_);
-          return s->write_async(sp, udp_datagram(this->address_, const_data_buffer(buffer, sizeof(buffer)), false));
-        }
-
         const const_data_buffer this_node_id() const {
           return this->this_node_id_;
         }
@@ -236,37 +171,33 @@ namespace vds {
         }
 
       private:
-        network_address address_;
-        const_data_buffer this_node_id_;
-        uint32_t session_id_;
-
-        std::shared_mutex output_mutex_;
-        uint32_t output_sequence_number_;
-        uint32_t mtu_;
-
-        std::mutex input_mutex_;
-        std::map<uint32_t, const_data_buffer> input_messages_;
-        uint32_t next_sequence_number_;
-
-        mutable std::mutex send_mutex_;
-
         struct send_queue_item_t {
           service_provider sp;
           std::shared_ptr<transport_type> transport;
           uint8_t message_type;
           const_data_buffer target_node;
           const_data_buffer source_node;
-          uint32_t source_index;
           uint16_t hops;
           const_data_buffer message;
         };
 
+        network_address address_;
+        const_data_buffer this_node_id_;
+        const_data_buffer partner_node_id_;
+        const_data_buffer session_key_;
+
+        std::shared_mutex output_mutex_;
+        uint32_t mtu_;
+
+        std::mutex input_mutex_;
+        const_data_buffer last_input_message_;
+        std::map<uint32_t, const_data_buffer> input_messages_;
+        uint32_t next_sequence_number_;
+
+        mutable std::mutex send_mutex_;
+
         std::list<send_queue_item_t> send_queue_;
 
-        std::map<uint8_t, uint64_t> message_count_;
-        std::map<uint8_t, uint64_t> message_size_;
-        uint64_t skipped_datagrams_;
-        const_data_buffer partner_node_id_;
 
         async_task<> send_message_async(
           const service_provider& sp,
@@ -274,8 +205,7 @@ namespace vds {
           uint8_t message_type,
           const const_data_buffer& target_node,
           const const_data_buffer& source_node,
-          const uint32_t source_index,
-          const uint16_t hops,
+          const uint8_t hops,
           const const_data_buffer& message) {
           vds_assert(message.size() < 0xFFFF);
 
@@ -286,7 +216,6 @@ namespace vds {
               message_type,
               target_node,
               source_node,
-              source_index,
               hops,
               message](
             const async_result<>& result) {
@@ -294,41 +223,28 @@ namespace vds {
             resizable_data_buffer buffer;
 
             if (message.size() < pthis->mtu_ - 5) {
-              auto expected_index = pthis->output_sequence_number_;
               lock.unlock();
               if(pthis->this_node_id_ == source_node){
                 if(pthis->partner_node_id_ == target_node) {
                   buffer.add((uint8_t) ((uint8_t) protocol_message_type_t::SingleData | message_type));
-                  buffer.add((uint8_t) (expected_index >> 24));
-                  buffer.add((uint8_t) (expected_index >> 16));
-                  buffer.add((uint8_t) (expected_index >> 8));
-                  buffer.add((uint8_t) (expected_index));
                 }
                 else {
                   buffer.add((uint8_t) ((uint8_t) protocol_message_type_t::RouteSingleData | message_type));
-                  buffer.add((uint8_t) (expected_index >> 24));
-                  buffer.add((uint8_t) (expected_index >> 16));
-                  buffer.add((uint8_t) (expected_index >> 8));
-                  buffer.add((uint8_t) (expected_index));
                   buffer += target_node;
                 }
               }
               else {
                 buffer.add((uint8_t)((uint8_t)protocol_message_type_t::ProxySingleData | message_type));
-                buffer.add((uint8_t)(expected_index >> 24));
-                buffer.add((uint8_t)(expected_index >> 16));
-                buffer.add((uint8_t)(expected_index >> 8));
-                buffer.add((uint8_t)(expected_index));
                 buffer += target_node;
                 buffer += source_node;
-                buffer.add((uint8_t)(source_index >> 24));
-                buffer.add((uint8_t)(source_index >> 16));
-                buffer.add((uint8_t)(source_index >> 8));
-                buffer.add((uint8_t)(source_index));
-                buffer.add((uint8_t)(hops >> 8));
-                buffer.add((uint8_t)(hops));
+                buffer.add(hops);
               }
               buffer += message;
+              buffer += hmac::signature(
+                  pthis->session_key_,
+                  hash::sha256(),
+                  buffer.data(),
+                  buffer.size());
 
               const_data_buffer datagram = buffer.move_data();
               s->write_async(sp, udp_datagram(pthis->address_, datagram, false))
@@ -339,12 +255,10 @@ namespace vds {
                    message_type,
                    target_node,
                    source_node,
-                   source_index,
                    hops,
                    message,
                    result,
-                   datagram,
-                   expected_index](
+                   datagram](
                  const std::shared_ptr<std::exception>& ex) {
                    std::unique_lock<std::shared_mutex> lock(pthis->output_mutex_);
                    if (ex) {
@@ -357,7 +271,6 @@ namespace vds {
                               message_type,
                               target_node,
                               source_node,
-                              source_index,
                               hops,
                               message)
                             .execute([result](const std::shared_ptr<std::exception>& ex) {
@@ -387,39 +300,34 @@ namespace vds {
                      }
                    }
 
-                   vds_assert(expected_index == pthis->output_sequence_number_);
-                   logger::get(sp)->trace(
-                     "DHT",
-                     sp,
-                     "Out datagram[%d]: %d bytes to %s",
-                     pthis->output_sequence_number_,
-                     datagram.size(),
-                     pthis->address_.to_string().c_str());
-                   ++pthis->output_sequence_number_;
                    result.done();
                  });
             }
             else {
+              binary_serializer bs;
+              bs
+                  << message_type
+                  << target_node
+                  << source_node
+                  << hops
+                  << message;
+              const auto message_id = hash::signature(hash::sha256(), bs.move_data());
+              vds_assert(message_id.size() == 32);
+
               uint16_t offset;
 
               if(pthis->this_node_id_ == source_node) {
                 if(pthis->partner_node_id_ == target_node) {
                   buffer.add((uint8_t) ((uint8_t) protocol_message_type_t::Data | message_type));
-                  buffer.add((uint8_t) (pthis->output_sequence_number_ >> 24));
-                  buffer.add((uint8_t) (pthis->output_sequence_number_ >> 16));
-                  buffer.add((uint8_t) (pthis->output_sequence_number_ >> 8));
-                  buffer.add((uint8_t) (pthis->output_sequence_number_));
+                  buffer += message_id;
                   buffer.add((uint8_t) ((message.size()) >> 8));
                   buffer.add((uint8_t) ((message.size()) & 0xFF));
-                  buffer.add(message.data(), pthis->mtu_ - 7);
-                  offset = pthis->mtu_ - 7;
+                  buffer.add(message.data(), pthis->mtu_ - (1 + 32 + 2));
+                  offset = pthis->mtu_ - (1 + 32 + 2);
                 }
                 else {
                   buffer.add((uint8_t) ((uint8_t) protocol_message_type_t::RouteData | message_type));
-                  buffer.add((uint8_t) (pthis->output_sequence_number_ >> 24));
-                  buffer.add((uint8_t) (pthis->output_sequence_number_ >> 16));
-                  buffer.add((uint8_t) (pthis->output_sequence_number_ >> 8));
-                  buffer.add((uint8_t) (pthis->output_sequence_number_));
+                  buffer += message_id;
                   buffer.add((uint8_t) ((message.size() + target_node.size()) >> 8));
                   buffer.add((uint8_t) ((message.size() + target_node.size()) & 0xFF));
                   vds_assert(target_node.size() == 32);
@@ -430,26 +338,24 @@ namespace vds {
               }
               else {
                 buffer.add((uint8_t) ((uint8_t) protocol_message_type_t::ProxyData | message_type));
-                buffer.add((uint8_t) (pthis->output_sequence_number_ >> 24));
-                buffer.add((uint8_t) (pthis->output_sequence_number_ >> 16));
-                buffer.add((uint8_t) (pthis->output_sequence_number_ >> 8));
-                buffer.add((uint8_t) (pthis->output_sequence_number_));
+                buffer += message_id;
                 buffer.add((uint8_t) ((message.size() + target_node.size() + source_node.size() + 6) >> 8));
                 buffer.add((uint8_t) ((message.size() + target_node.size() + source_node.size() + 6) & 0xFF));
                 vds_assert(target_node.size() == 32);
                 vds_assert(source_node.size() == 32);
                 buffer += target_node;
                 buffer += source_node;
-                buffer.add((uint8_t) (source_index >> 24));
-                buffer.add((uint8_t) (source_index >> 16));
-                buffer.add((uint8_t) (source_index >> 8));
-                buffer.add((uint8_t) (source_index));
                 buffer.add((uint8_t) (hops >> 8));
                 buffer.add((uint8_t) (hops));
                 buffer.add(message.data(), pthis->mtu_ - 77);
                 offset = pthis->mtu_ - 77;
               }
 
+              buffer += hmac::signature(
+                  pthis->session_key_,
+                  hash::sha256(),
+                  buffer.data(),
+                  buffer.size());
               const_data_buffer datagram = buffer.move_data();
               s->write_async(sp, udp_datagram(pthis->address_, datagram))
                .execute([
@@ -459,13 +365,12 @@ namespace vds {
                    message_type,
                    target_node,
                    source_node,
-                   source_index,
+                   message_id,
                    hops,
                    message,
                    offset,
                    result,
-                   datagram,
-                   expected_index = pthis->output_sequence_number_](
+                   datagram](
                  const std::shared_ptr<std::exception>& ex) {
                    std::unique_lock<std::shared_mutex> lock(pthis->output_mutex_);
                    if (ex) {
@@ -478,7 +383,6 @@ namespace vds {
                               message_type,
                               target_node,
                               source_node,
-                              source_index,
                               hops,
                               message)
                             .execute([result](const std::shared_ptr<std::exception>& ex) {
@@ -495,21 +399,14 @@ namespace vds {
                      }
                    }
                    else {
-                     logger::get(sp)->trace(
-                       "DHT",
-                       sp,
-                       "Out datagram[%d]: %d bytes to %s",
-                       pthis->output_sequence_number_,
-                       datagram.size(),
-                       pthis->address_.to_string().c_str());
-                     vds_assert(expected_index == pthis->output_sequence_number_);
-                     ++pthis->output_sequence_number_;
                      pthis->continue_send_message(
                        sp,
                        s,
+                       message_id,
                        message,
                        offset,
-                       result);
+                       result,
+                       0);
                    }
                  });
             }
@@ -519,9 +416,11 @@ namespace vds {
         void continue_send_message(
           const service_provider& sp,
           const std::shared_ptr<transport_type>& s,
+          const const_data_buffer& message_id,
           const const_data_buffer& message,
           size_t offset,
-          const async_result<>& result) {
+          const async_result<>& result,
+          uint8_t index) {
 
           auto size = this->mtu_ - 5;
           if (size > message.size() - offset) {
@@ -530,43 +429,49 @@ namespace vds {
 
           resizable_data_buffer buffer;
           buffer.add((uint8_t)protocol_message_type_t::ContinueData);
-          buffer.add((uint8_t)(this->output_sequence_number_ >> 24));
-          buffer.add((uint8_t)(this->output_sequence_number_ >> 16));
-          buffer.add((uint8_t)(this->output_sequence_number_ >> 8));
-          buffer.add((uint8_t)(this->output_sequence_number_));
+          buffer += message_id;
+          buffer.add(index);
           buffer.add(message.data() + offset, size);
+
+          buffer += hmac::signature(
+              this->session_key_,
+              hash::sha256(),
+              buffer.data(),
+              buffer.size());
 
           const_data_buffer datagram = buffer.move_data();
           s->write_async(sp, udp_datagram(this->address_, datagram))
            .execute(
-             [pthis = this->shared_from_this(), sp, s, message, offset, size, result, datagram](
+             [pthis = this->shared_from_this(), sp, s, message_id, message, offset, size, result, datagram, index](
              const std::shared_ptr<std::exception>& ex) {
                std::unique_lock<std::shared_mutex> lock(pthis->output_mutex_);
                if (ex) {
                  auto datagram_error = std::dynamic_pointer_cast<udp_datagram_size_exception>(ex);
                  if (datagram_error) {
                    pthis->mtu_ /= 2;
-                   pthis->continue_send_message(sp, s, message, offset, result);
+                   pthis->continue_send_message(
+                       sp,
+                       s,
+                       message_id,
+                       message,
+                       offset,
+                       result,
+                       index);
                  }
                  else {
                    result.error(ex);
                  }
                }
                else {
-                 logger::get(sp)->trace(
-                     "DHT",
-                     sp,
-                     "Out datagram[%d]: %d bytes",
-                     pthis->output_sequence_number_,
-                     datagram.size());
-                 ++(pthis->output_sequence_number_);
                  if (offset + size < message.size()) {
                    pthis->continue_send_message(
                      sp,
                      s,
+                     message_id,
                      message,
                      offset + size,
-                     result);
+                     result,
+                     index + 1);
                  }
                  else {
                    result.done();
@@ -634,9 +539,6 @@ namespace vds {
               }
 
               logger::get(sp)->trace("DHT", sp, "Processed datagram %d", p->first);
-              for (auto premove = this->input_messages_.begin(); premove != p; ++premove) {
-                ++this->skipped_datagrams_;
-              }
               this->input_messages_.erase(this->input_messages_.begin(), p);
               this->input_messages_.erase(p);
 
@@ -741,9 +643,6 @@ namespace vds {
                 size -= p1->second.size() - 1;
 
                 if (0 == size) {
-                  for (auto premove = this->input_messages_.begin(); premove != p; ++premove) {
-                    ++this->skipped_datagrams_;
-                  }
                   this->input_messages_.erase(this->input_messages_.begin(), p1);
                   this->input_messages_.erase(p1);
 
@@ -794,7 +693,6 @@ namespace vds {
           auto message_type = p.message_type;
           auto target_node = p.target_node;
           auto source_node = p.source_node;
-          const auto source_index = p.source_index;
           auto hops = p.hops;
           auto message = p.message;
           lock.unlock();
@@ -805,7 +703,6 @@ namespace vds {
             message_type,
             target_node,
             source_node,
-            source_index,
             hops,
             message).execute([sp, pthis = this->shared_from_this()](const std::shared_ptr<std::exception>& ex) {
             if (ex) {
