@@ -19,9 +19,16 @@ All rights reserved
 #include "vds_exceptions.h"
 #include "hash.h"
 
+
 namespace vds {
   namespace dht {
     namespace network {
+
+      class tester {
+      public:
+        static void register_datagram(const const_data_buffer & data, const const_data_buffer & key);
+        static void check_datagram(const const_data_buffer & data, const const_data_buffer & key);
+      };
 
       template <typename implementation_class, typename transport_type>
       class dht_datagram_protocol : public std::enable_shared_from_this<implementation_class> {
@@ -49,7 +56,7 @@ namespace vds {
             uint8_t message_type,
             const const_data_buffer& target_node,
             const const_data_buffer& message) {
-          vds_assert(message.size() < 0xFFFF);
+          vds_assert(message.size() <= 0xFFFF);
           vds_assert(target_node != this->this_node_id_);
 
           std::unique_lock<std::mutex> lock(this->send_mutex_);
@@ -88,7 +95,7 @@ namespace vds {
           const const_data_buffer& source_node,
           const uint16_t hops,
           const const_data_buffer& message) {
-          vds_assert(message.size() < 0xFFFF);
+          vds_assert(message.size() <= 0xFFFF);
           vds_assert(target_node != this->this_node_id_);
 
           std::unique_lock<std::mutex> lock(this->send_mutex_);
@@ -122,38 +129,103 @@ namespace vds {
           const service_provider& scope,
           const std::shared_ptr<transport_type>& s,
           const const_data_buffer& datagram) {
+
+          tester::check_datagram(datagram, this->session_key_);
+
           auto sp = scope.create_scope(__FUNCTION__);
           std::unique_lock<std::mutex> lock(this->input_mutex_);
-          if (datagram.size() == 0) {
+          if (datagram.size() < 33) {
             return async_task<>(std::make_shared<std::runtime_error>("Invalid data"));
           }
 
-          switch (static_cast<protocol_message_type_t>(*datagram.data())) {
-          default: {
-            if (datagram.size() < 5) {
+          if (!hmac::verify(
+            this->session_key_,
+            hash::sha256(),
+            datagram.data(), datagram.size() - 32,
+            datagram.data() + datagram.size() - 32, 32)) {
+            return async_task<>(std::make_shared<std::runtime_error>("Invalid signature"));
+          }
+
+          switch (static_cast<protocol_message_type_t>((uint8_t)protocol_message_type_t::SpecialCommand & *datagram.data())) {
+          case protocol_message_type_t::SingleData:
+          case protocol_message_type_t::RouteSingleData:
+          case protocol_message_type_t::ProxySingleData: {
+            auto message_type = (uint8_t)(datagram.data()[0] & ~(uint8_t)protocol_message_type_t::SpecialCommand);
+
+            const_data_buffer target_node;
+            const_data_buffer source_node;
+            uint16_t hops;
+            const_data_buffer message;
+
+            switch (
+              static_cast<protocol_message_type_t>(
+              (uint8_t)protocol_message_type_t::SpecialCommand & datagram.data()[0])
+              ) {
+            case protocol_message_type_t::SingleData: {
+              target_node = this->this_node_id_;
+              source_node = this->partner_node_id_;
+              hops = 0;
+              message = const_data_buffer(datagram.data() + 1, datagram.size() - 1 - 32);
+              break;
+            }
+
+            case protocol_message_type_t::RouteSingleData: {
+              target_node = const_data_buffer(datagram.data() + 1, 32);
+              source_node = this->partner_node_id_;
+              hops = 0;
+              message = const_data_buffer(datagram.data() + 33, datagram.size() - 33 - 32);
+              break;
+            }
+
+            case protocol_message_type_t::ProxySingleData: {
+              target_node = const_data_buffer(datagram.data() + 1, 32);
+              source_node = const_data_buffer(datagram.data() + 1 + 32, 32);
+              hops = datagram.data()[1 + 32 + 32];
+
+              message = const_data_buffer(datagram.data() + 1 + 32 + 32 + 1, datagram.size() - (1 + 32 + 32 + 1 + 32));
+              break;
+            }
+            }
+
+            return static_cast<implementation_class *>(this)->process_message(
+              sp,
+              s,
+              message_type,
+              target_node,
+              source_node,
+              hops,
+              message);
+          }
+
+          case protocol_message_type_t::Data:
+          case protocol_message_type_t::RouteData:
+          case protocol_message_type_t::ProxyData: {
+            if (datagram.size() < 33) {
               return async_task<>(std::make_shared<std::runtime_error>("Invalid data"));
             }
 
-            const uint32_t index = (datagram.data()[1] << 24)
-              | (datagram.data()[2] << 16)
-              | (datagram.data()[3] << 8)
-              | (datagram.data()[4]);
-
-            if (index >= this->next_sequence_number_ && this->input_messages_.end() == this->input_messages_.find(index)
-            ) {
-              this->input_messages_[index] = datagram;
-              logger::get(sp)->trace(
-                "DHT",
-                sp,
-                "Input Datagram[%d]: %d bytes from %s",
-                index,
-                datagram.size(),
-                this->address_.to_string().c_str());
-
-              return this->continue_process_messages(sp, s, lock);
-            }
+            this->last_input_message_id_ = const_data_buffer(datagram.data() + 1, 32);
+            this->input_messages_.clear();
+            this->input_messages_[0] = datagram;
 
             return async_task<>::empty();
+          }
+          default: {
+            if (datagram.data()[0] == (uint8_t)protocol_message_type_t::ContinueData) {
+              if (datagram.size() < 34) {
+                return async_task<>(std::make_shared<std::runtime_error>("Invalid data"));
+              }
+
+              const auto message_id = const_data_buffer(datagram.data() + 1, 32);
+              if (this->last_input_message_id_ != message_id) {
+                return async_task<>(std::make_shared<std::runtime_error>("Invalid message_id"));
+              }
+              this->input_messages_[datagram.data()[1 + 32]] = datagram;
+              return this->continue_process_messages(sp, s, lock);
+            }
+            else {
+                                                      return async_task<>(std::make_shared<std::runtime_error>("Invalid data"));
+            }
           }
           }
         }
@@ -186,16 +258,14 @@ namespace vds {
         const_data_buffer partner_node_id_;
         const_data_buffer session_key_;
 
-        std::shared_mutex output_mutex_;
         uint32_t mtu_;
 
         std::mutex input_mutex_;
-        const_data_buffer last_input_message_;
+        const_data_buffer last_input_message_id_;
         std::map<uint32_t, const_data_buffer> input_messages_;
         uint32_t next_sequence_number_;
 
         mutable std::mutex send_mutex_;
-
         std::list<send_queue_item_t> send_queue_;
 
 
@@ -207,7 +277,6 @@ namespace vds {
           const const_data_buffer& source_node,
           const uint8_t hops,
           const const_data_buffer& message) {
-          vds_assert(message.size() < 0xFFFF);
 
           return [
               pthis = this->shared_from_this(),
@@ -219,11 +288,9 @@ namespace vds {
               hops,
               message](
             const async_result<>& result) {
-            std::unique_lock<std::shared_mutex> lock(pthis->output_mutex_);
             resizable_data_buffer buffer;
 
             if (message.size() < pthis->mtu_ - 5) {
-              lock.unlock();
               if(pthis->this_node_id_ == source_node){
                 if(pthis->partner_node_id_ == target_node) {
                   buffer.add((uint8_t) ((uint8_t) protocol_message_type_t::SingleData | message_type));
@@ -247,6 +314,7 @@ namespace vds {
                   buffer.size());
 
               const_data_buffer datagram = buffer.move_data();
+              tester::register_datagram(datagram, pthis->session_key_);
               s->write_async(sp, udp_datagram(pthis->address_, datagram, false))
                .execute([
                    pthis,
@@ -260,7 +328,6 @@ namespace vds {
                    result,
                    datagram](
                  const std::shared_ptr<std::exception>& ex) {
-                   std::unique_lock<std::shared_mutex> lock(pthis->output_mutex_);
                    if (ex) {
                      auto datagram_error = std::dynamic_pointer_cast<udp_datagram_size_exception>(ex);
                      if (datagram_error) {
@@ -318,37 +385,36 @@ namespace vds {
 
               if(pthis->this_node_id_ == source_node) {
                 if(pthis->partner_node_id_ == target_node) {
-                  buffer.add((uint8_t) ((uint8_t) protocol_message_type_t::Data | message_type));
-                  buffer += message_id;
-                  buffer.add((uint8_t) ((message.size()) >> 8));
-                  buffer.add((uint8_t) ((message.size()) & 0xFF));
+                  buffer.add((uint8_t) ((uint8_t) protocol_message_type_t::Data | message_type));//1
+                  buffer += message_id;//32
+                  buffer.add((uint8_t) ((message.size()) >> 8));//1
+                  buffer.add((uint8_t) ((message.size()) & 0xFF));//1
                   buffer.add(message.data(), pthis->mtu_ - (1 + 32 + 2));
                   offset = pthis->mtu_ - (1 + 32 + 2);
                 }
                 else {
-                  buffer.add((uint8_t) ((uint8_t) protocol_message_type_t::RouteData | message_type));
-                  buffer += message_id;
-                  buffer.add((uint8_t) ((message.size() + target_node.size()) >> 8));
-                  buffer.add((uint8_t) ((message.size() + target_node.size()) & 0xFF));
+                  buffer.add((uint8_t) ((uint8_t) protocol_message_type_t::RouteData | message_type));//1
+                  buffer += message_id;//32
+                  buffer.add((uint8_t)((message.size()) >> 8));//1
+                  buffer.add((uint8_t)((message.size()) & 0xFF));//1
                   vds_assert(target_node.size() == 32);
-                  buffer += target_node;
-                  buffer.add(message.data(), pthis->mtu_ - 39);
-                  offset = pthis->mtu_ - 39;
+                  buffer += target_node;//32
+                  buffer.add(message.data(), pthis->mtu_ - (1 + 32 + 2 + 32));
+                  offset = pthis->mtu_ - (1 + 32 + 2 + 32);
                 }
               }
               else {
-                buffer.add((uint8_t) ((uint8_t) protocol_message_type_t::ProxyData | message_type));
-                buffer += message_id;
-                buffer.add((uint8_t) ((message.size() + target_node.size() + source_node.size() + 6) >> 8));
-                buffer.add((uint8_t) ((message.size() + target_node.size() + source_node.size() + 6) & 0xFF));
+                buffer.add((uint8_t) ((uint8_t) protocol_message_type_t::ProxyData | message_type));//1
+                buffer += message_id;//32
+                buffer.add((uint8_t)((message.size()) >> 8));//1
+                buffer.add((uint8_t)((message.size()) & 0xFF));//1
                 vds_assert(target_node.size() == 32);
                 vds_assert(source_node.size() == 32);
-                buffer += target_node;
-                buffer += source_node;
-                buffer.add((uint8_t) (hops >> 8));
-                buffer.add((uint8_t) (hops));
-                buffer.add(message.data(), pthis->mtu_ - 77);
-                offset = pthis->mtu_ - 77;
+                buffer += target_node;//32
+                buffer += source_node;//32
+                buffer.add((uint8_t) (hops));//1
+                buffer.add(message.data(), pthis->mtu_ - (1 + 32 + 2 + 32 + 32 + 1));
+                offset = pthis->mtu_ - (1 + 32 + 2 + 32 + 32 + 1);
               }
 
               buffer += hmac::signature(
@@ -357,7 +423,8 @@ namespace vds {
                   buffer.data(),
                   buffer.size());
               const_data_buffer datagram = buffer.move_data();
-              s->write_async(sp, udp_datagram(pthis->address_, datagram))
+              tester::register_datagram(datagram, pthis->session_key_);
+              s->write_async(sp, udp_datagram(pthis->address_, datagram, false))
                .execute([
                    pthis,
                    sp,
@@ -372,7 +439,6 @@ namespace vds {
                    result,
                    datagram](
                  const std::shared_ptr<std::exception>& ex) {
-                   std::unique_lock<std::shared_mutex> lock(pthis->output_mutex_);
                    if (ex) {
                      auto datagram_error = std::dynamic_pointer_cast<udp_datagram_size_exception>(ex);
                      if (datagram_error) {
@@ -406,7 +472,7 @@ namespace vds {
                        message,
                        offset,
                        result,
-                       0);
+                       1);
                    }
                  });
             }
@@ -422,16 +488,16 @@ namespace vds {
           const async_result<>& result,
           uint8_t index) {
 
-          auto size = this->mtu_ - 5;
+          auto size = this->mtu_ - (1 + 32 + 1 + 32);
           if (size > message.size() - offset) {
             size = message.size() - offset;
           }
 
           resizable_data_buffer buffer;
-          buffer.add((uint8_t)protocol_message_type_t::ContinueData);
-          buffer += message_id;
-          buffer.add(index);
-          buffer.add(message.data() + offset, size);
+          buffer.add((uint8_t)protocol_message_type_t::ContinueData);//1
+          buffer += message_id;//32
+          buffer.add(index);//1
+          buffer.add(message.data() + offset, size);//
 
           buffer += hmac::signature(
               this->session_key_,
@@ -440,11 +506,11 @@ namespace vds {
               buffer.size());
 
           const_data_buffer datagram = buffer.move_data();
-          s->write_async(sp, udp_datagram(this->address_, datagram))
+          tester::register_datagram(datagram, this->session_key_);
+          s->write_async(sp, udp_datagram(this->address_, datagram, false))
            .execute(
              [pthis = this->shared_from_this(), sp, s, message_id, message, offset, size, result, datagram, index](
              const std::shared_ptr<std::exception>& ex) {
-               std::unique_lock<std::shared_mutex> lock(pthis->output_mutex_);
                if (ex) {
                  auto datagram_error = std::dynamic_pointer_cast<udp_datagram_size_exception>(ex);
                  if (datagram_error) {
@@ -485,194 +551,112 @@ namespace vds {
           const std::shared_ptr<transport_type>& s,
           std::unique_lock<std::mutex>& locker
         ) {
+          auto p = this->input_messages_.find(0);
+          if (p == this->input_messages_.end()) {
+            return async_task<>::empty();
+          }
 
-          for (auto p = this->input_messages_.begin(); p != this->input_messages_.end(); ++p) {
-            switch (
-                static_cast<protocol_message_type_t>(
-                    (uint8_t)protocol_message_type_t::SpecialCommand & p->second.data()[0])
+          switch (
+            static_cast<protocol_message_type_t>(
+            (uint8_t)protocol_message_type_t::SpecialCommand & p->second.data()[0])
             ) {
-            case protocol_message_type_t::SingleData:
-            case protocol_message_type_t::RouteSingleData:
-            case protocol_message_type_t::ProxySingleData:{
-              auto message_type = (uint8_t)(p->second.data()[0] & ~(uint8_t)protocol_message_type_t::SpecialCommand);
+          case protocol_message_type_t::Data:
+          case protocol_message_type_t::RouteData:
+          case protocol_message_type_t::ProxyData: {
+            auto message_type = p->second.data()[0] & ~(uint8_t)protocol_message_type_t::SpecialCommand;
+            size_t size = (p->second.data()[1 + 32] << 8) | (p->second.data()[1 + 32 + 1]);
 
-              const_data_buffer target_node;
-              const_data_buffer source_node;
-              uint32_t source_index;
-              uint16_t hops;
-              const_data_buffer message;
+            const_data_buffer target_node;
+            const_data_buffer source_node;
+            uint16_t hops;
+            resizable_data_buffer message;
 
-              switch (
-                  static_cast<protocol_message_type_t>(
-                      (uint8_t)protocol_message_type_t::SpecialCommand & p->second.data()[0])
-                  ) {
-                case protocol_message_type_t::SingleData:{
-                  target_node = this->this_node_id_;
-                  source_node = this->partner_node_id_;
-                  source_index = p->first;
-                  hops = 0;
-                  message = const_data_buffer(p->second.data() + 5, p->second.size() - 5);
-                  break;
-                }
-
-                case protocol_message_type_t::RouteSingleData:{
-                  target_node = const_data_buffer(p->second.data() + 5, 32);
-                  source_node = this->partner_node_id_;
-                  source_index = p->first;
-                  hops = 0;
-                  message = const_data_buffer(p->second.data() + 37, p->second.size() - 37);
-                  break;
-                }
-
-                case protocol_message_type_t::ProxySingleData:{
-                  target_node = const_data_buffer(p->second.data() + 5, 32);
-                  source_node = const_data_buffer(p->second.data() + 37, 32);
-                  source_index = (p->second.data()[69] << 24)
-                                         | (p->second.data()[70] << 16)
-                                         | (p->second.data()[71] << 8)
-                                         | (p->second.data()[72]);
-
-                  hops = (p->second.data()[73] << 8) | p->second.data()[74];
-                  message = const_data_buffer(p->second.data() + 75, p->second.size() - 75);
-                  break;
-                }
+            switch (
+              static_cast<protocol_message_type_t>(
+              (uint8_t)protocol_message_type_t::SpecialCommand & p->second.data()[0])
+              ) {
+            case protocol_message_type_t::Data: {
+              if (size <= p->second.size() - (1 + 32 + 2 + 32)) {
+                return async_task<>(std::make_shared<std::runtime_error>("Invalid data"));
               }
+              size -= p->second.size() - (1 + 32 + 2 + 32);
 
-              logger::get(sp)->trace("DHT", sp, "Processed datagram %d", p->first);
-              this->input_messages_.erase(this->input_messages_.begin(), p);
-              this->input_messages_.erase(p);
-
-              locker.unlock();
-              return static_cast<implementation_class *>(this)->process_message(
-                sp,
-                s,
-                message_type,
-                target_node,
-                source_node,
-                source_index,
-                hops,
-                message).then(
-                [sp, s, pthis = this->shared_from_this()]() {
-                  std::unique_lock<std::mutex> lock(
-                    pthis->input_mutex_);
-                  return pthis->
-                    continue_process_messages(sp, s, lock);
-                });
-            }
-
-            case protocol_message_type_t::Data:
-            case protocol_message_type_t::RouteData:
-            case protocol_message_type_t::ProxyData: {
-
-
-              auto message_type = p->second.data()[0] & ~(uint8_t)protocol_message_type_t::SpecialCommand;
-              size_t size = (p->second.data()[5] << 8) | (p->second.data()[6]);
-
-              const_data_buffer target_node;
-              const_data_buffer source_node;
-              uint32_t source_index;
-              uint16_t hops;
-              resizable_data_buffer message;
-
-              switch (
-                  static_cast<protocol_message_type_t>(
-                      (uint8_t)protocol_message_type_t::SpecialCommand & p->second.data()[0])
-                  ) {
-                case protocol_message_type_t::Data:{
-                  if (size <= p->second.size() - 7) {
-                    return async_task<>(std::make_shared<std::runtime_error>("Invalid data"));
-                  }
-                  size -= p->second.size() - 7;
-
-                  target_node = this->this_node_id_;
-                  source_node = this->partner_node_id_;
-                  source_index = p->first;
-                  hops = 0;
-                  message.add(p->second.data() + 7, p->second.size() - 7);
-                  break;
-                }
-
-                case protocol_message_type_t::RouteData:{
-                  if (size <= p->second.size() - 39) {
-                    return async_task<>(std::make_shared<std::runtime_error>("Invalid data"));
-                  }
-                  size -= p->second.size() - 39;
-
-                  target_node = const_data_buffer(p->second.data() + 7, 32);
-                  source_node = this->partner_node_id_;
-                  source_index = p->first;
-                  hops = 0;
-                  message.add(p->second.data() + 39, p->second.size() - 39);
-                  break;
-                }
-
-                case protocol_message_type_t::ProxyData:{
-                  if (size <= p->second.size() - 77) {
-                    return async_task<>(std::make_shared<std::runtime_error>("Invalid data"));
-                  }
-                  size -= p->second.size() - 77;
-
-                  target_node = const_data_buffer(p->second.data() + 7, 32);
-                  source_node = const_data_buffer(p->second.data() + 39, 32);
-                  source_index = (p->second.data()[71] << 24)
-                                 | (p->second.data()[72] << 16)
-                                 | (p->second.data()[73] << 8)
-                                 | (p->second.data()[74]);
-
-                  hops = (p->second.data()[75] << 8) | p->second.data()[76];
-                  message.add(p->second.data() + 77, p->second.size() - 77);
-                  break;
-                }
-              }
-
-              for (auto index = p->first + 1;; ++index) {
-                auto p1 = this->input_messages_.find(index);
-                if (this->input_messages_.end() == p1) {
-                  break;
-                }
-
-                if ((uint8_t)protocol_message_type_t::ContinueData != p1->second.data()[0]) {
-                  return async_task<>(std::make_shared<std::runtime_error>("Invalid data"));
-                }
-
-                if (size < p1->second.size() - 1) {
-                  return async_task<>(std::make_shared<std::runtime_error>("Invalid data"));
-                }
-
-                message.add(p1->second.data() + 1, p1->second.size() - 1);
-                size -= p1->second.size() - 1;
-
-                if (0 == size) {
-                  this->input_messages_.erase(this->input_messages_.begin(), p1);
-                  this->input_messages_.erase(p1);
-
-                  locker.unlock();
-                  return static_cast<implementation_class *>(this)->process_message(
-                    sp,
-                    s,
-                    message_type,
-                    target_node,
-                    source_node,
-                    source_index,
-                    hops,
-                    message.move_data()).then(
-                    [sp, s, pthis = this->shared_from_this()]() {
-                      std::unique_lock<std::mutex> lock(
-                        pthis->input_mutex_);
-                      pthis->continue_process_messages(sp, s, lock);
-                    });
-                }
-              }
-
+              target_node = this->this_node_id_;
+              source_node = this->partner_node_id_;
+              hops = 0;
+              message.add(p->second.data() + 1 + 32 + 2, p->second.size() - (1 + 32 + 2 + 32));
               break;
             }
-              default:{
-                vds_assert(false);
+
+            case protocol_message_type_t::RouteData: {
+              if (size <= p->second.size() - (1 + 32 + 2 + 32 + 32)) {
+                return async_task<>(std::make_shared<std::runtime_error>("Invalid data"));
+              }
+              size -= p->second.size() - (1 + 32 + 2 + 32 + 32);
+
+              target_node = const_data_buffer(p->second.data() + 1 + 32 + 2, 32);
+              source_node = this->partner_node_id_;
+              hops = 0;
+              message.add(p->second.data() + (1 + 32 + 2 + 32), p->second.size() - (1 + 32 + 2 + 32 + 32));
+              break;
+            }
+
+            case protocol_message_type_t::ProxyData: {
+              if (size <= p->second.size() - (1 + 32 + 2 + 32 + 32 + 1 + 32)) {
+                return async_task<>(std::make_shared<std::runtime_error>("Invalid data"));
+              }
+              size -= p->second.size() - (1 + 32 + 2 + 32 + 32 + 1 + 32);
+
+              target_node = const_data_buffer(p->second.data() + 1 + 32 + 2, 32);
+              source_node = const_data_buffer(p->second.data() + 1 + 32 + 2 + 32, 32);
+
+              hops = p->second.data()[1 + 32 + 2 + 32 + 32];
+              message.add(p->second.data() + (1 + 32 + 2 + 32 + 32 + 1), p->second.size() - (1 + 32 + 2 + 32 + 32 + 1 + 32));
+              break;
+            }
+            }
+
+            for (uint8_t index = 1;; ++index) {
+              auto p1 = this->input_messages_.find(index);
+              if (this->input_messages_.end() == p1) {
                 break;
               }
 
+              if ((uint8_t)protocol_message_type_t::ContinueData != p1->second.data()[0]) {
+                return async_task<>(std::make_shared<std::runtime_error>("Invalid data"));
+              }
+
+              if (size < p1->second.size() - (1 + 32 + 1 + 32)) {
+                return async_task<>(std::make_shared<std::runtime_error>("Invalid data"));
+              }
+
+              message.add(p1->second.data() + (1 + 32 + 1), p1->second.size() - (1 + 32 + 1 + 32));
+              size -= p1->second.size() - (1 + 32 + 1 + 32);
+
+              if (0 == size) {
+                this->last_input_message_id_.clear();
+                this->input_messages_.clear();
+                locker.unlock();
+
+                return static_cast<implementation_class *>(this)->process_message(
+                  sp,
+                  s,
+                  message_type,
+                  target_node,
+                  source_node,
+                  hops,
+                  message.move_data());
+              }
             }
+
+            break;
           }
+          default: {
+            vds_assert(false);
+            break;
+          }
+          }
+
           return async_task<>::empty();
         }
 

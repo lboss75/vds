@@ -25,8 +25,8 @@ public:
     const vds::network_address& address,
     const vds::const_data_buffer& this_node_id,
     const vds::const_data_buffer& partner_node_id,
-    uint32_t session_id)
-    : base_class(address, this_node_id, partner_node_id, session_id) {
+    const vds::const_data_buffer& session_key)
+    : base_class(address, this_node_id, partner_node_id, session_key) {
   }
 
   vds::async_task<> process_message(
@@ -35,7 +35,6 @@ public:
       uint8_t message_type,
       const vds::const_data_buffer & target_node,
       const vds::const_data_buffer & source_node,
-      uint32_t source_index,
       uint16_t hops,
       const vds::const_data_buffer& message) {
 
@@ -43,7 +42,6 @@ public:
     this->message_ = message;
     this->target_node_ = target_node;
     this->source_node_ = source_node;
-    this->source_index_ = source_index;
     this->hops_ = hops;
 
     return vds::async_task<>::empty();
@@ -51,8 +49,56 @@ public:
 
 
   void check_message(uint8_t message_type, const vds::const_data_buffer & message){
-    GTEST_ASSERT_EQ(message_type, this->message_type_);
-    GTEST_ASSERT_EQ(message, this->message_);
+    for(int i = 0; i < 10; ++i) {
+      if(!this->message_) {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+      }
+      else {
+        break;
+      }
+    }
+    if(message_type != this->message_type_) {
+      throw std::runtime_error("Invalid message type");
+    }
+    if (message != this->message_) {
+      throw std::runtime_error("Invalid message");
+    }
+
+    this->message_.clear();
+  }
+
+  void check_message(
+    uint8_t message_type,
+    const vds::const_data_buffer & message,
+    const vds::const_data_buffer & target_node,
+    const vds::const_data_buffer & source_node,
+    uint16_t hops) {
+    int i;
+    for (i = 0; i < 10; ++i) {
+      if (!this->message_) {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+      }
+      else {
+        break;
+      }
+    }
+    if (message_type != this->message_type_) {
+      throw std::runtime_error("Invalid message type");
+    }
+    if (message != this->message_) {
+      throw std::runtime_error("Invalid message");
+    }
+    if (target_node != this->target_node_) {
+      throw std::runtime_error("Invalid target_node");
+    }
+    if (source_node != this->source_node_) {
+      throw std::runtime_error("Invalid source_node");
+    }
+    if (hops != this->hops_) {
+      throw std::runtime_error("Invalid hops");
+    }
+
+    this->message_.clear();
   }
 
   private:
@@ -60,7 +106,6 @@ public:
     vds::const_data_buffer message_;
     vds::const_data_buffer target_node_;
     vds::const_data_buffer source_node_;
-    uint32_t source_index_;
     uint16_t hops_;
 };
 

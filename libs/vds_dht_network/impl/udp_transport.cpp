@@ -14,7 +14,9 @@ All rights reserved
 
 vds::dht::network::udp_transport::udp_transport(const certificate & node_cert,
                                                 const asymmetric_private_key & node_key)
-    : write_in_progress_(false), node_cert_(node_cert), node_key_(node_key) {
+    : this_node_id_(node_cert.fingerprint(hash::sha256())),
+      node_cert_(node_cert), node_key_(node_key),
+      write_in_progress_(false) {
 }
 
 void vds::dht::network::udp_transport::start(const service_provider& sp, uint16_t port) {
@@ -140,7 +142,8 @@ vds::async_task<> vds::dht::network::udp_transport::try_handshake(const service_
 
   return this->write_async(sp, udp_datagram(
     network_address::parse(this->server_.address().family(), address),
-    out_message.move_data()));
+    out_message.move_data(),
+    false));
 }
 
 void vds::dht::network::udp_transport::get_session_statistics(session_statistic& session_statistic) {
@@ -178,6 +181,9 @@ std::shared_ptr<vds::dht::network::dht_session> vds::dht::network::udp_transport
   return p->second;
 }
 
+static std::mutex session_mutex;
+static std::map<vds::const_data_buffer, std::map<vds::const_data_buffer, vds::const_data_buffer>> session_keys;
+
 void vds::dht::network::udp_transport::continue_read(
   const service_provider& sp) {
   if (!this->server_) {
@@ -195,6 +201,13 @@ void vds::dht::network::udp_transport::continue_read(
         switch ((protocol_message_type_t)datagram.data()[0]) {
         case protocol_message_type_t::HandshakeBroadcast:
         case protocol_message_type_t::Handshake: {
+
+          std::unique_lock<std::shared_mutex> lock(pthis->sessions_mutex_);
+          if(pthis->sessions_.end() != pthis->sessions_.find(datagram.address())) {
+            lock.unlock();
+            return;
+          }
+          lock.unlock();
 
           if (
               (uint8_t)(MAGIC_LABEL >> 24) == datagram.data()[1]
@@ -214,6 +227,16 @@ void vds::dht::network::udp_transport::continue_read(
             const_data_buffer key;
             key.resize(32);
             crypto_service::rand_bytes(key.data(), key.size());
+
+            session_mutex.lock();
+            vds_assert(session_keys.find(pthis->this_node_id_) == session_keys.end()
+            || session_keys.at(pthis->this_node_id_).find(partner_node_id) == session_keys.at(pthis->this_node_id_).end());
+
+            vds_assert(session_keys.find(partner_node_id) == session_keys.end()
+              || session_keys.at(partner_node_id).find(pthis->this_node_id_) == session_keys.at(partner_node_id).end());
+
+            session_keys[pthis->this_node_id_][partner_node_id] = key;
+            session_mutex.unlock();
 
             pthis->add_session(
               sp,
@@ -237,8 +260,7 @@ void vds::dht::network::udp_transport::continue_read(
                 << partner_node_cert.public_key().encrypt(key);
 
             out_message += bs.move_data();
-
-            pthis->write_async(sp, udp_datagram(datagram.address(), out_message.move_data()))
+            pthis->write_async(sp, udp_datagram(datagram.address(), out_message.move_data(), false))
                  .execute([
                      pthis,
                      sp,
@@ -259,19 +281,35 @@ void vds::dht::network::udp_transport::continue_read(
           break;
         }
         case protocol_message_type_t::Welcome: {
-          if (datagram.data_size() == NODE_ID_SIZE + 5) {
-            uint32_t session_id = (datagram.data()[1] << 24)
-              | (datagram.data()[2] << 16)
-              | (datagram.data()[3] << 8)
-              | (datagram.data()[4]);
-            const_data_buffer partner_node_id(datagram.data() + 5, NODE_ID_SIZE);
+          if (datagram.data_size() > 5
+            && (uint8_t)(MAGIC_LABEL >> 24) == datagram.data()[1]
+            && (uint8_t)(MAGIC_LABEL >> 16) == datagram.data()[2]
+            && (uint8_t)(MAGIC_LABEL >> 8) == datagram.data()[3]
+            && (uint8_t)(MAGIC_LABEL) == datagram.data()[4]) {
+
+            const_data_buffer cert_buffer;
+            const_data_buffer key_buffer;
+            binary_deserializer bd(datagram.data() + 5, datagram.data_size() - 5);
+            bd
+              >> cert_buffer
+              >> key_buffer;
+
+            auto cert = certificate::parse_der(cert_buffer);
+            auto key = pthis->node_key_.decrypt(key_buffer);
+
+            //TODO: validate cert
+            session_mutex.lock();
+            auto partner = cert.fingerprint(hash::sha256());
+            vds_assert(session_keys.at(partner).at(pthis->this_node_id_) == key);
+            session_mutex.unlock();
+
             pthis->add_session(
               sp,
               datagram.address(), std::make_shared<dht_session>(
                 datagram.address(),
                 pthis->this_node_id_,
-                partner_node_id,
-                session_id));
+                cert.fingerprint(hash::sha256()),
+                key));
           }
           else {
             throw std::runtime_error("Invalid protocol");

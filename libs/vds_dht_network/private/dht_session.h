@@ -38,7 +38,6 @@ namespace vds {
           uint8_t message_type,
           const const_data_buffer & target_node,
           const const_data_buffer & source_node,
-          uint32_t source_index,
           uint16_t hops,
           const const_data_buffer& message);
 

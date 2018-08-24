@@ -135,7 +135,7 @@ void vds::hmac::update(const void * data, size_t len)
   this->impl_->update(data, len);
 }
 
-vds::const_data_buffer && vds::hmac::final()
+vds::const_data_buffer vds::hmac::final()
 {
   return this->impl_->final();
 }
@@ -172,7 +172,7 @@ void vds::_hmac::update(const void * data, size_t len) {
   }
 }
 
-vds::const_data_buffer && vds::_hmac::final() {
+vds::const_data_buffer vds::_hmac::final() {
 
   auto result_len = (unsigned int)EVP_MD_size(this->info_.type);
   const_data_buffer result;
@@ -186,5 +186,5 @@ vds::const_data_buffer && vds::_hmac::final() {
     throw std::runtime_error("len != this->sig_len_");
   }
 
-  return std::move(result);
+  return result;
 }

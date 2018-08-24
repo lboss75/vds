@@ -50,7 +50,7 @@ namespace vds {
       const void * data,
       size_t len);
 
-    const_data_buffer && final();
+    const_data_buffer final();
 
     static const const_data_buffer signature(
         const const_data_buffer & key,
@@ -60,6 +60,21 @@ namespace vds {
       hmac h(key, info);
       h.update(data, len);
       return h.final();
+    }
+
+    static bool verify(
+      const const_data_buffer & key,
+      const hash_info & info,
+      const void * data,
+      size_t len,
+      const void * signature,
+      size_t signature_len) {
+
+      hmac h(key, info);
+      h.update(data, len);
+      auto result = h.final();
+      return (result.size() == signature_len)
+      && (memcmp(result.data(), signature, signature_len) == 0);
     }
 
   private:

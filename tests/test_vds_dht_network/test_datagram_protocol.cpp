@@ -21,13 +21,75 @@ static void send_message_check(
   }
 
   session1->send_message(sp, transport12, 10, node2, message);
-  session1->check_message(10, message);
+  session2->check_message(10, message);
 
   session2->send_message(sp, transport21, 10, node1, message);
-  session2->check_message(10, message);
+  session1->check_message(10, message);
 }
 
+static void proxy_message_check(
+  const vds::service_provider & sp,
+  const vds::const_data_buffer & node1,
+  const vds::const_data_buffer & node2,
+  const std::shared_ptr<mock_session> & session1,
+  const std::shared_ptr<mock_session> & session2,
+  const std::shared_ptr<mock_transport> & transport12,
+  const std::shared_ptr<mock_transport> & transport21,
+  size_t size) {
+
+  vds::const_data_buffer message;
+  message.resize(size);
+  for (size_t i = 0; i < size; ++i) {
+    message[i] = std::rand();
+  }
+
+  vds::const_data_buffer node3;
+  node3.resize(32);
+
+  vds::crypto_service::rand_bytes(node3.data(), node3.size());
+  session1->proxy_message(
+    sp,
+    transport12,
+    10,
+    node3,
+    node1,
+    0,
+    message);
+  session2->check_message(
+    10,
+    message,
+    node3,
+    node1,
+    0);
+
+  session1->proxy_message(
+    sp,
+    transport12,
+    10,
+    node2,
+    node3,
+    2,
+    message);
+  session2->check_message(
+    10,
+    message,
+    node2,
+    node3,
+    2);
+}
+
+
 TEST(test_vds_dht_network, test_data_exchange) {
+
+#ifdef _WIN32
+  //Initialize Winsock
+  WSADATA wsaData;
+  if (NO_ERROR != WSAStartup(MAKEWORD(2, 2), &wsaData)) {
+    auto error = WSAGetLastError();
+    throw std::system_error(error, std::system_category(), "Initiates Winsock");
+  }
+#endif
+
   vds::service_registrator registrator;
 
   vds::console_logger logger(
@@ -68,24 +130,30 @@ TEST(test_vds_dht_network, test_data_exchange) {
   vds::crypto_service::rand_bytes(session_key.data(), session_key.size());
 
   auto session1 = std::make_shared<mock_session>(
-    vds::network_address(AF_INET, 8050),
+    vds::network_address(AF_INET, "8.8.8.8", 8050),
     node1,
     node2,
     session_key);
-  session1->set_mtu(5 * 1024);
+  session1->set_mtu(3 * 1024);
 
   auto session2 = std::make_shared<mock_session>(
-    vds::network_address(AF_INET, 8051),
+    vds::network_address(AF_INET, "8.8.8.8", 8051),
     node2,
     node1,
     session_key);
+  session1->set_mtu(20 * 1024);
 
   auto transport12 = std::make_shared<mock_transport>(*session2);
   auto transport21 = std::make_shared<mock_transport>(*session1);
 
   send_message_check(sp, node1, node2, session1, session2, transport12, transport21, 10);
   send_message_check(sp, node1, node2, session1, session2, transport12, transport21, 10 * 1024);
-  send_message_check(sp, node1, node2, session1, session2, transport12, transport21, 10 * 1024 * 1024);
+  send_message_check(sp, node1, node2, session1, session2, transport12, transport21, 0xFFFF);
+
+
+  proxy_message_check(sp, node1, node2, session1, session2, transport12, transport21, 10);
+  proxy_message_check(sp, node1, node2, session1, session2, transport12, transport21, 10 * 1024);
+  proxy_message_check(sp, node1, node2, session1, session2, transport12, transport21, 0xFFFF);
 
   registrator.shutdown(sp);
 }

@@ -61,16 +61,15 @@ vds::async_task<> vds::dht::network::dht_session::process_message(
   uint8_t message_type,
   const const_data_buffer & target_node,
   const const_data_buffer & source_node,
-  uint32_t source_index,
   uint16_t hops,
   const const_data_buffer& message) {
-  //std::cout
-  //  << base64::from_bytes(source_node)
-  //  << "=>"
-  //  << base64::from_bytes(target_node)
-  //  << ": "
-  //  << std::to_string((message_type_t)message_type)
-  //  << "\n";
+  std::cout
+    << base64::from_bytes(source_node)
+    << "=>"
+    << base64::from_bytes(target_node)
+    << ": "
+    << std::to_string((message_type_t)message_type)
+    << "\n";
 
     sp.get<logger>()->trace(
     "dht_session",
@@ -87,7 +86,7 @@ vds::async_task<> vds::dht::network::dht_session::process_message(
       return async_task<>::empty();
     }
 
-    return [sp, message_type, target_node, message, source_node, source_index, hops]() {
+    return [sp, message_type, target_node, message, source_node, hops]() {
       sp.get<logger>()->trace(
         "dht_session",
         sp,

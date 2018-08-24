@@ -100,14 +100,14 @@ namespace vds{
 
     bool operator < (const const_data_buffer & other) const
     {
-      vds_assert(this->size_ == other.size_);
-      return 0 > memcmp(this->data_, other.data_, this->size_);
+      return (this->size_ < other.size_)
+      || ((this->size_ == other.size_) && (0 > memcmp(this->data_, other.data_, other.size_)));
     }
 
     bool operator > (const const_data_buffer & other) const
     {
-      vds_assert(this->size_ == other.size_);
-      return 0 < memcmp(this->data_, other.data_, this->size_);
+      return (this->size_ > other.size_)
+      || ((this->size_ == other.size_) && (0 < memcmp(this->data_, other.data_, this->size_)));
     }
 
     bool operator != (const const_data_buffer & other) const
@@ -134,6 +134,10 @@ namespace vds{
     operator bool() const
     {
       return this->size() != 0;
+    }
+
+    void clear() {
+      this->size_ = 0;
     }
 
   private:

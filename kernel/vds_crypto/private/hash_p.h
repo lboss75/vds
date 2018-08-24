@@ -47,7 +47,7 @@ namespace vds {
       const void * data,
       size_t len);
 
-    const_data_buffer && final();
+    const_data_buffer final();
 
   private:
     const hash_info & info_;
