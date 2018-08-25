@@ -202,11 +202,13 @@ void vds::transaction_log::sync_process::apply_message(
     "Save log record %s",
     base64::from_bytes(message.record_id()).c_str());
 
-  transactions::transaction_log::save(
+  if(transactions::transaction_log::save(
     sp,
     t,
     message.record_id(),
-    message.data());
+    message.data())) {
+    this->sync_local_channels(sp, t);
+  }
 }
 
 void vds::transaction_log::sync_process::sync_local_channels(

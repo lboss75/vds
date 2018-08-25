@@ -19,7 +19,7 @@ All rights reserved
 #include "certificate_chain_dbo.h"
 #include "include/transaction_state_calculator.h"
 
-void vds::transactions::transaction_log::save(
+bool vds::transactions::transaction_log::save(
 	const service_provider & sp,
 	database_transaction & t,
   const const_data_buffer & refer_id,
@@ -28,7 +28,7 @@ void vds::transactions::transaction_log::save(
   transaction_block block(block_data);
 
   if(block.exists(t)) {
-    return;
+    return false;
   }
 
   std::set<const_data_buffer> remove_leaf;
@@ -66,7 +66,7 @@ void vds::transactions::transaction_log::save(
   }
 
   if (!ancestors_exist) {
-    return;
+    return false;
   }
 
   const auto root_cert = cert_control::get_root_certificate();
@@ -87,7 +87,7 @@ void vds::transactions::transaction_log::save(
         "Invalid certificate %s for block %s",
         block.write_cert_id().c_str(),
         base64::from_bytes(block.id()).c_str());
-      return;
+      return false;
     }
   }
 
@@ -97,7 +97,7 @@ void vds::transactions::transaction_log::save(
         sp,
         "Invalid signature record %s",
         base64::from_bytes(block.id()).c_str());
-    return;
+    return false;
   }  
 
   if(ancestor_invalid) {
@@ -181,6 +181,8 @@ void vds::transactions::transaction_log::save(
         t4.id == block.id()
         && t4.follower_id == p));
   }
+
+  return true;
 }
 
 void vds::transactions::transaction_log::update_consensus(

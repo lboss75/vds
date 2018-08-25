@@ -23,7 +23,7 @@ All rights reserved
 #include "messages/sync_replica_data.h"
 #include "dht_network.h"
 
-bool vds::dht::network::client::is_debug = true;
+bool vds::dht::network::client::is_debug = false;
 
 vds::dht::network::_client::_client(
   const service_provider& sp,
@@ -189,12 +189,6 @@ void vds::dht::network::_client::add_session(
   const std::shared_ptr<dht_session>& session,
   uint8_t hops) {
   this->route_.add_node(sp, session->partner_node_id(), session, hops, false);
-  this->send_neighbors(sp, messages::dht_find_node_response({
-    messages::dht_find_node_response::target_node(
-      session->partner_node_id(),
-      session->address().to_string(),
-      hops + 1)
-  }));
 }
 
 void vds::dht::network::_client::send(

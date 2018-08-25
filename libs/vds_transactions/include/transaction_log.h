@@ -16,7 +16,7 @@ namespace vds {
     class transaction_log {
     public:
 
-      static void save(
+      static bool save(
         const service_provider &sp,
         class database_transaction &t,
         const const_data_buffer & refer_id,

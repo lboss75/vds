@@ -20,6 +20,7 @@ namespace vds {
   namespace transactions {
     class create_user_transaction;
     class payment_transaction;
+    class root_user_transaction;
 
     class transaction_block_builder {
     public:

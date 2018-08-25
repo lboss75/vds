@@ -11,6 +11,7 @@ All rights reserved
 #include "logger.h"
 #include "dht_network_client.h"
 #include "dht_network_client_p.h"
+#include "messages/dht_find_node_response.h"
 
 vds::dht::network::udp_transport::udp_transport(const certificate & node_cert,
                                                 const asymmetric_private_key & node_key)
@@ -205,6 +206,8 @@ void vds::dht::network::udp_transport::continue_read(
           std::unique_lock<std::shared_mutex> lock(pthis->sessions_mutex_);
           if(pthis->sessions_.end() != pthis->sessions_.find(datagram.address())) {
             lock.unlock();
+
+            pthis->continue_read(sp);
             return;
           }
           lock.unlock();
@@ -265,11 +268,16 @@ void vds::dht::network::udp_transport::continue_read(
                      pthis,
                      sp,
                      scope = sp.create_scope("Send Welcome"),
+                     partner_node_id,
                      address = datagram.address().to_string()](const std::shared_ptr<std::exception>& ex) {
                      if (ex) {
                        sp.get<logger>()->trace(ThisModule, sp, "%s at send welcome to %s", ex->what(),
                                                address.c_str());
                      }
+                     (*sp.get<client>())->send_neighbors(
+                       sp,
+                       messages::dht_find_node_response({
+                       messages::dht_find_node_response::target_node(partner_node_id, address, 0) }));
                      pthis->continue_read(sp);
                    });
 

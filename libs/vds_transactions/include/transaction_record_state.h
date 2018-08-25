@@ -9,11 +9,12 @@ All rights reserved
 #include <map>
 #include "payment_transaction.h"
 #include "binary_serialize.h"
-#include "transaction_log.h"
 
 
 namespace vds {
   namespace transactions {
+    class transaction_block;
+
     class transaction_record_state {
     public:
 
