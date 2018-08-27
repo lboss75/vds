@@ -63,14 +63,17 @@ vds::async_task<> vds::dht::network::dht_session::process_message(
   const const_data_buffer & source_node,
   uint16_t hops,
   const const_data_buffer& message) {
-  //std::cout
-  //  << base64::from_bytes(source_node)
-  //  << "=>"
-  //  << base64::from_bytes(target_node)
-  //  << ": "
-  //  << std::to_string((message_type_t)message_type)
-  //  << "\n";
 
+  //if (message_type == (uint8_t)message_type_t::sync_looking_storage_response
+  //  || message_type == (uint8_t)message_type_t::sync_looking_storage_request) {
+  //  std::cout
+  //    << base64::from_bytes(source_node)
+  //    << "=>"
+  //    << base64::from_bytes(target_node)
+  //    << ": "
+  //    << std::to_string((message_type_t)message_type)
+  //    << "\n";
+  //}
     sp.get<logger>()->trace(
     "dht_session",
     sp,

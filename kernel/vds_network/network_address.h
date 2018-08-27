@@ -18,6 +18,11 @@ namespace vds {
   class network_address {
   public:
     network_address();
+    network_address(const network_address & other) = default;
+    network_address(network_address && other) = default;
+
+    network_address & operator = (const network_address & other) = default;
+    network_address & operator = (network_address && other) = default;
 
     network_address(
         sa_family_t af,
@@ -176,7 +181,7 @@ namespace vds {
       return this->compare(other) > 0;
     }
 
-    operator bool () const {
+    explicit operator bool () const {
       return this->addr_.ss_family != 0;
     }
     bool operator ! () const {

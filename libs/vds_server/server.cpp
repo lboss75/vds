@@ -17,6 +17,9 @@ All rights reserved
 #include "../vds_dht_network/private/dht_network_client_p.h"
 #include "../vds_log_sync/include/sync_process.h"
 #include "sync_process.h"
+#include "sync_state_dbo.h"
+#include "sync_member_dbo.h"
+#include "sync_replica_map_dbo.h"
 
 vds::server::server()
 : impl_(new _server(this))
@@ -131,7 +134,7 @@ vds::async_task<vds::server_statistic> vds::_server::get_statistic(const vds::se
   auto result = std::make_shared<vds::server_statistic>();
   sp.get<dht::network::client>()->get_route_statistics(result->route_statistic_);
   sp.get<dht::network::client>()->get_session_statistics(result->session_statistic_);
-  return sp.get<db_model>()->async_read_transaction(sp, [this, result](database_read_transaction & t){
+  return sp.get<db_model>()->async_read_transaction(sp, [sp, this, result](database_read_transaction & t){
 
     orm::transaction_log_record_dbo t2;
     auto st = t.get_reader(t2.select(t2.id, t2.state, t2.order_no));
@@ -173,6 +176,92 @@ vds::async_task<vds::server_statistic> vds::_server::get_statistic(const vds::se
     while (st.execute()) {
       result->sync_statistic_.chunk_replicas_[t5.object_id.get(st)].emplace(t5.replica.get(st));
     }
+
+    //Sync statistics
+    const auto client = sp.get<dht::network::client>();
+
+    std::set<const_data_buffer> leaders;
+    orm::sync_state_dbo t6;
+    orm::sync_member_dbo t7;
+    st = t.get_reader(
+      t6.select(
+        t6.object_id,
+        t6.state,
+        t7.generation,
+        t7.current_term,
+        t7.commit_index,
+        t7.last_applied)
+      .inner_join(t7, t7.object_id == t6.object_id && t7.member_node == client->current_node_id()));
+    while(st.execute()) {
+      std::string state;
+      switch(t6.state.get(st)) {
+      case orm::sync_state_dbo::state_t::canditate:
+        state = 'c';
+        break;
+      case orm::sync_state_dbo::state_t::follower:
+        state = 'f';
+        break;
+      case orm::sync_state_dbo::state_t::leader:
+        state = 'l';
+        leaders.emplace(t6.object_id.get(st));
+        break;
+      }
+      result->sync_statistic_.sync_states_[t6.object_id.get(st)].node_state_ = state 
+      + std::to_string(t7.generation.get(st))
+      + "," + std::to_string(t7.current_term.get(st))
+      + "," + std::to_string(t7.commit_index.get(st))
+      + "," + std::to_string(t7.last_applied.get(st))
+      ;
+    }
+
+    for(const auto & leader : leaders) {
+      orm::sync_message_dbo t9;
+      st = t.get_reader(t9.select(
+        t9.index,
+        t9.message_type,
+        t9.member_node,
+        t9.replica,
+        t9.source_node,
+        t9.source_index)
+        .where(t9.object_id == leader));
+      while (st.execute()) {
+        std::string ch;
+        switch(t9.message_type.get(st)) {
+        case orm::sync_message_dbo::message_type_t::add_member:
+          ch = "m+";
+          break;
+        case orm::sync_message_dbo::message_type_t::remove_replica:
+          ch = "r-";
+          break;
+        case orm::sync_message_dbo::message_type_t::add_replica:
+          ch = "r+";
+          break;
+        case orm::sync_message_dbo::message_type_t::remove_member:
+          ch = "m-";
+          break;
+
+        }
+        result->sync_statistic_.sync_states_[leader].messages_[t9.index.get(st)] = sync_statistic::sync_message {
+          ch,
+          t9.member_node.get(st),
+          t9.replica.get(st),
+          t9.source_node.get(st),
+          t9.source_index.get(st)
+        };
+      }
+    }
+
+    st = t.get_reader(t7.select(t7.object_id, t7.member_node, t7.voted_for));
+    while(st.execute()) {
+      result->sync_statistic_.sync_states_[t7.object_id.get(st)].members_[t7.member_node.get(st)].voted_for_ = t7.voted_for.get(st);
+    }
+
+    orm::sync_replica_map_dbo t8;
+    st = t.get_reader(t8.select(t8.object_id, t8.node, t8.replica));
+    while (st.execute()) {
+      result->sync_statistic_.sync_states_[t8.object_id.get(st)].members_[t8.node.get(st)].replicas_.emplace(t8.replica.get(st));
+    }
+
   }).then([result]()->server_statistic{
     return *result;
   });
@@ -201,4 +290,15 @@ void vds::_server::apply_message(
   const dht::messages::transaction_log_record & message,
   const message_info_t & message_info) {
   this->transaction_log_sync_process_->apply_message(sp, t, message, message_info);
+}
+
+void vds::_server::on_new_session(const service_provider& sp, const const_data_buffer& partner_id) {
+  
+  sp.get<db_model>()->async_read_transaction(sp, [this, sp, partner_id](database_read_transaction & t) {
+
+    this->transaction_log_sync_process_->on_new_session(sp, t, partner_id);
+    (*sp.get<dht::network::client>())->on_new_session(sp, t, partner_id);
+  }).execute([](const std::shared_ptr<std::exception> & ex) {
+    
+  });
 }

@@ -182,9 +182,6 @@ std::shared_ptr<vds::dht::network::dht_session> vds::dht::network::udp_transport
   return p->second;
 }
 
-static std::mutex session_mutex;
-static std::map<vds::const_data_buffer, std::map<vds::const_data_buffer, vds::const_data_buffer>> session_keys;
-
 void vds::dht::network::udp_transport::continue_read(
   const service_provider& sp) {
   if (!this->server_) {
@@ -231,16 +228,6 @@ void vds::dht::network::udp_transport::continue_read(
             key.resize(32);
             crypto_service::rand_bytes(key.data(), key.size());
 
-            session_mutex.lock();
-            vds_assert(session_keys.find(pthis->this_node_id_) == session_keys.end()
-            || session_keys.at(pthis->this_node_id_).find(partner_node_id) == session_keys.at(pthis->this_node_id_).end());
-
-            vds_assert(session_keys.find(partner_node_id) == session_keys.end()
-              || session_keys.at(partner_node_id).find(pthis->this_node_id_) == session_keys.at(partner_node_id).end());
-
-            session_keys[pthis->this_node_id_][partner_node_id] = key;
-            session_mutex.unlock();
-
             pthis->add_session(
               sp,
               datagram.address(),
@@ -278,6 +265,11 @@ void vds::dht::network::udp_transport::continue_read(
                        sp,
                        messages::dht_find_node_response({
                        messages::dht_find_node_response::target_node(partner_node_id, address, 0) }));
+
+                     sp.get<imessage_map>()->on_new_session(
+                       sp,
+                       partner_node_id);
+
                      pthis->continue_read(sp);
                    });
 
@@ -305,19 +297,22 @@ void vds::dht::network::udp_transport::continue_read(
             auto cert = certificate::parse_der(cert_buffer);
             auto key = pthis->node_key_.decrypt(key_buffer);
 
+            auto partner_id = cert.fingerprint(hash::sha256());
+
             //TODO: validate cert
-            session_mutex.lock();
-            auto partner = cert.fingerprint(hash::sha256());
-            vds_assert(session_keys.at(partner).at(pthis->this_node_id_) == key);
-            session_mutex.unlock();
 
             pthis->add_session(
               sp,
-              datagram.address(), std::make_shared<dht_session>(
+              datagram.address(),
+              std::make_shared<dht_session>(
                 datagram.address(),
                 pthis->this_node_id_,
-                cert.fingerprint(hash::sha256()),
+                partner_id,
                 key));
+
+            sp.get<imessage_map>()->on_new_session(
+              sp,
+              partner_id);
           }
           else {
             throw std::runtime_error("Invalid protocol");
@@ -340,15 +335,28 @@ void vds::dht::network::udp_transport::continue_read(
             try {
               auto scope = sp.create_scope("Process datagram");
               session->process_datagram(scope, pthis, const_data_buffer(datagram.data(), datagram.data_size()))
-                     .execute([pthis, sp, scope, address = datagram.address()](
+                     .execute([pthis, sp, scope, datagram](
                        const std::shared_ptr<std::exception>& ex) {
                          if (ex) {
-                           std::shared_lock<std::shared_mutex> lock(pthis->sessions_mutex_);
-                           pthis->sessions_.erase(address);
+                           uint8_t out_message[] = { (uint8_t)protocol_message_type_t::Failed };
+                           pthis->write_async(sp, udp_datagram(datagram.address(),
+                             const_data_buffer(out_message, sizeof(out_message))))
+                             .execute([pthis, sp, datagram](
+                               const std::shared_ptr<std::exception>& ex) {
+                             if (ex) {
+                               sp.get<logger>()->trace(ThisModule, sp, "%s at send failed to %s", ex->what(),
+                                 datagram.address().to_string().c_str());
+                             }
+                             std::shared_lock<std::shared_mutex> lock(pthis->sessions_mutex_);
+                             pthis->sessions_.erase(datagram.address());
+                             pthis->continue_read(sp);
+                           });
                          }
-                         mt_service::async(sp, [sp, pthis]() {
-                           pthis->continue_read(sp);
-                         });
+                         else {
+                           mt_service::async(sp, [sp, pthis]() {
+                             pthis->continue_read(sp);
+                           });
+                         }
                        });
               return;
             }
@@ -362,12 +370,14 @@ void vds::dht::network::udp_transport::continue_read(
             auto scope = sp.create_scope("Send Failed");
             pthis->write_async(scope, udp_datagram(datagram.address(),
                                                    const_data_buffer(out_message, sizeof(out_message))))
-                 .execute([pthis, sp, scope, address = datagram.address().to_string()](
+                 .execute([pthis, sp, scope, address = datagram.address()](
                    const std::shared_ptr<std::exception>& ex) {
                      if (ex) {
-                       sp.get<logger>()->trace(ThisModule, sp, "%s at send welcome to %s", ex->what(),
-                                               address.c_str());
+                       sp.get<logger>()->trace(ThisModule, sp, "%s at send failed to %s", ex->what(),
+                                               address.to_string().c_str());
                      }
+                     std::shared_lock<std::shared_mutex> lock(pthis->sessions_mutex_);
+                     pthis->sessions_.erase(address);
                      pthis->continue_read(sp);
                    });
 

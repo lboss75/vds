@@ -36,8 +36,30 @@ namespace vds {
       std::string state_;
       std::list<std::shared_ptr<record_info>> children_;
     };
-
     std::list<std::shared_ptr<record_info>> roots_;
+
+    struct sync_member_state {
+      const_data_buffer voted_for_;
+      std::set<uint16_t> replicas_;
+    };
+
+    struct sync_message {
+      std::string message_type_;
+      const_data_buffer member_node_;
+      uint16_t replica_;
+      const_data_buffer source_node_;
+      uint64_t source_index_;
+    };
+
+    struct sync_state {
+      std::string node_state_;
+      std::map<const_data_buffer, sync_member_state> members_;
+      std::map<uint64_t, sync_message> messages_;
+
+    };
+
+    std::map<const_data_buffer, sync_state> sync_states_;
+
 
     operator bool() const {
       return !this->leafs_.empty();

@@ -24,6 +24,7 @@
 #include "messages/sync_snapshot.h"
 #include "messages/sync_offer_send_replica_operation.h"
 #include "messages/sync_offer_remove_replica_operation.h"
+#include "messages/sync_replica_query_operations.h"
 
 #define route_client(message_type)\
   case dht::network::message_type_t::message_type: {\
@@ -211,6 +212,8 @@ vds::async_task<> vds::_server::process_message(
 
     route_client(sync_replica_request)
     route_client(sync_replica_data)
+    
+    route_client(sync_replica_query_operations_request)
 
     default:{
       throw std::runtime_error("Invalid command");
@@ -218,5 +221,6 @@ vds::async_task<> vds::_server::process_message(
   }
   return async_task<>::empty();
 }
+
 
 

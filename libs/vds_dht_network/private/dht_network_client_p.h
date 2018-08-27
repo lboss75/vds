@@ -49,6 +49,11 @@ namespace vds {
         void get_neighbors(
           const service_provider& sp,
           std::list<std::shared_ptr<dht_route<std::shared_ptr<dht_session>>::node>>& result);
+        
+        void on_new_session(
+          const service_provider& sp,
+          database_read_transaction& t,
+          const const_data_buffer& partner_id);
 
         static filename save_data(
           const service_provider& sp,
@@ -188,6 +193,12 @@ namespace vds {
           const service_provider& sp,
           database_transaction& t,
           const messages::sync_replica_data& message,
+          const imessage_map::message_info_t& message_info);
+
+        void apply_message(
+          const service_provider& sp,
+          database_transaction& t,
+          const messages::sync_replica_query_operations_request & message,
           const imessage_map::message_info_t& message_info);
 
         //

@@ -22,6 +22,7 @@ All rights reserved
 #include "well_known_node_dbo.h"
 #include "messages/sync_replica_data.h"
 #include "dht_network.h"
+#include "sync_replica_map_dbo.h"
 
 bool vds::dht::network::client::is_debug = false;
 
@@ -53,7 +54,7 @@ std::vector<vds::const_data_buffer> vds::dht::network::_client::save(
     const auto& object_id = replica_hash;
 
     orm::chunk_dbo t1;
-
+    orm::sync_replica_map_dbo t2;
     auto st = t.get_reader(t1.select(t1.object_id).where(t1.replica_hash == object_id));
     if (st.execute()) {
       if (t1.object_id.get(st) != object_id) {
@@ -61,6 +62,7 @@ std::vector<vds::const_data_buffer> vds::dht::network::_client::save(
       }
     }
     else {
+      auto client = sp.get<dht::network::client>();
       save_data(sp, t, replica_hash, replica_data);
       t.execute(
         t1.insert(
@@ -68,6 +70,15 @@ std::vector<vds::const_data_buffer> vds::dht::network::_client::save(
           t1.replica_hash = object_id,
           t1.last_sync = std::chrono::system_clock::now() - std::chrono::hours(24)
         ));
+      for (uint16_t distributed_replica = 0; distributed_replica < service::GENERATE_DISTRIBUTED_PIECES; ++distributed_replica) {
+        t.execute(
+          t2.insert(
+            t2.object_id = object_id,
+            t2.node = client->current_node_id(),
+            t2.replica = distributed_replica,
+            t2.last_access = std::chrono::system_clock::now()
+          ));
+      }
 
       this->sync_process_.add_sync_entry(sp, t, object_id, replica_data.size());
     }
@@ -370,6 +381,16 @@ void vds::dht::network::_client::get_neighbors(const service_provider& sp,
   this->route_.get_neighbors(sp, result);
 }
 
+void vds::dht::network::_client::on_new_session(
+  const service_provider& sp,
+  database_read_transaction& t,
+  const const_data_buffer& partner_id) {
+  this->sync_process_.on_new_session(
+    sp,
+    t,
+    partner_id);
+}
+
 vds::filename vds::dht::network::_client::save_data(
   const service_provider& sp,
   database_transaction& t,
@@ -555,6 +576,11 @@ void vds::dht::network::_client::apply_message(
   const service_provider& sp, database_transaction& t,
   const messages::sync_replica_data& message,
   const imessage_map::message_info_t& message_info) {
+  this->sync_process_.apply_message(sp, t, message, message_info);
+}
+
+void vds::dht::network::_client::apply_message(const service_provider& sp, database_transaction& t,
+  const messages::sync_replica_query_operations_request& message, const imessage_map::message_info_t& message_info) {
   this->sync_process_.apply_message(sp, t, message, message_info);
 }
 

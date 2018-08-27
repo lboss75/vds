@@ -66,7 +66,9 @@ namespace vds {
         //sync_offer_replica_operation_response,
 
         sync_replica_request,
-        sync_replica_data
+        sync_replica_data,
+
+        sync_replica_query_operations_request
 
       };
     }

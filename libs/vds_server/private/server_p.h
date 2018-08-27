@@ -57,6 +57,10 @@ namespace vds {
         const message_info_t & message_info) override;
 
 
+    void on_new_session(
+      const service_provider& sp,
+      const const_data_buffer& partner_id) override;
+
       async_task<> apply_message(
       const service_provider & sp,
       database_transaction & t,

@@ -23,7 +23,7 @@ All rights reserved
 #include "messages/offer_replica.h"
 
 void vds::transaction_log::sync_process::do_sync(const service_provider& sp, database_transaction& t) {
-  this->sync_local_channels(sp, t);
+  this->sync_local_channels(sp, t, const_data_buffer());
   this->query_unknown_records(sp, t);
 }
 
@@ -207,13 +207,21 @@ void vds::transaction_log::sync_process::apply_message(
     t,
     message.record_id(),
     message.data())) {
-    this->sync_local_channels(sp, t);
+    this->sync_local_channels(sp, t, const_data_buffer());
   }
+}
+
+void vds::transaction_log::sync_process::on_new_session(
+  const service_provider& sp,
+  database_read_transaction & t,
+  const const_data_buffer& partner_id) {
+  this->sync_local_channels(sp, t, partner_id);
 }
 
 void vds::transaction_log::sync_process::sync_local_channels(
   const service_provider& sp,
-  database_transaction& t) {
+  database_read_transaction& t,
+  const const_data_buffer& partner_id) {
 
   auto & client = *sp.get<dht::network::client>();
 
@@ -244,10 +252,19 @@ void vds::transaction_log::sync_process::sync_local_channels(
     log_message.c_str());
 
   sp.get<logger>()->trace(ThisModule, sp, "Send transaction_log_state");
-  client->send_neighbors(
-    sp,
-    dht::messages::transaction_log_state(
-      leafs,
-      client->current_node_id()));
-
+  if (!partner_id) {
+    client->send_neighbors(
+      sp,
+      dht::messages::transaction_log_state(
+        leafs,
+        client->current_node_id()));
+  }
+  else {
+    client->send(
+      sp,
+      partner_id,
+      dht::messages::transaction_log_state(
+        leafs,
+        client->current_node_id()));
+  }
 }

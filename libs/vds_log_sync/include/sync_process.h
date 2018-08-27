@@ -45,13 +45,19 @@ namespace vds {
         const dht::messages::transaction_log_record & message,
         const dht::network::imessage_map::message_info_t & message_info);
 
+      void on_new_session(
+        const service_provider& sp,
+        database_read_transaction & t,
+        const const_data_buffer& partner_id);
+
     private:
       void query_unknown_records(const service_provider& sp, database_transaction& t);
 
 
       void sync_local_channels(
         const service_provider & sp,
-        database_transaction & t);
+        database_read_transaction & t,
+        const const_data_buffer& partner_id);
     };
   }
 }

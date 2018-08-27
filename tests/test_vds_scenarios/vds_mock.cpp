@@ -196,6 +196,7 @@ bool vds_mock::dump_statistic(std::vector<vds::server_statistic>& statistics) {
     
   //////////////////////////////////////////////////////////////////////
   table.clear();
+  std::map<vds::const_data_buffer, std::map<std::size_t, std::string>> objects;
   std::cout << "Replicas:\n";
   for (std::size_t i = 0; i < statistics.size(); ++i) {
     for (auto chunk : statistics[i].sync_statistic_.chunks_) {
@@ -212,6 +213,7 @@ bool vds_mock::dump_statistic(std::vector<vds::server_statistic>& statistics) {
       }
 
       (*prow)[std::to_string(i)] = "*";
+      objects[chunk][i] = "*";
     }
 
     for (auto chunk : statistics[i].sync_statistic_.chunk_replicas_) {
@@ -233,44 +235,114 @@ bool vds_mock::dump_statistic(std::vector<vds::server_statistic>& statistics) {
       for (auto replica : chunk.second) {
         if (val.empty()) {
           val = std::to_string(replica);
+          objects[chunk.first][i] = std::to_string(replica);
         }
         else {
           val += ',';
           val += std::to_string(replica);
+          objects[chunk.first][i] = val;
         }
       }
     }
   }
   print_table(table);
-
-  //Network
-  table.clear();
-  std::cout << "Route:\n";
+  //Sync state
   std::map<vds::const_data_buffer, std::size_t> node_id2index;
   for (std::size_t i = 0; i < statistics.size(); ++i) {
     node_id2index[statistics[i].route_statistic_.node_id_] = i;
   }
+  for (const auto & object : objects) {
+    std::cout << "Object replicas:" << vds::base64::from_bytes(object.first) << "\n";
 
-  for (std::size_t i = 0; i < statistics.size(); ++i) {
+    table.clear();
     std::map<std::string, std::string> columns;
+    for (std::size_t i = 0; i < statistics.size(); ++i) {
 
-    for(const auto & item : statistics[i].route_statistic_.items_){
-      auto index = std::to_string(node_id2index.at(item.node_id_));
-      auto p = columns.find(index);
-      if(p == columns.end()){
-        columns[index] = std::to_string(item.hops_);
+      const auto p = object.second.find(i);
+      if (object.second.end() != p) {
+        columns[std::to_string(i)] = p->second;
       }
-      else if(item.hops_ < atoi(p->second.c_str())){
-        p->second = std::to_string(item.hops_);
+
+    }
+    table.push_back(std::make_tuple(
+      "Real",
+      columns));
+
+    for (std::size_t i = 0; i < statistics.size(); ++i) {
+      columns.clear();
+
+      const auto p1 = statistics[i].sync_statistic_.sync_states_.find(object.first);
+      if (statistics[i].sync_statistic_.sync_states_.end() != p1) {
+        columns["S"] = p1->second.node_state_;
+
+        for (const auto & sync_member : p1->second.members_) {
+          std::string val;
+          for(const auto & item : sync_member.second.replicas_) {
+            if(val.empty()) {
+              val = std::to_string(item);
+            }
+            else {
+              val += ',';
+              val += std::to_string(item);
+            }
+          }
+          columns[std::to_string(node_id2index[sync_member.first])] = val;
+        }
+
+        table.push_back(std::make_tuple(
+          std::to_string(i) + "." + vds::base64::from_bytes(statistics[i].route_statistic_.node_id_),
+          columns));
       }
     }
+    print_table(table);
 
-    table.push_back(
-        std::make_tuple(
-            std::to_string(i) + "." + vds::base64::from_bytes(statistics[i].route_statistic_.node_id_),
+    for (std::size_t i = 0; i < statistics.size(); ++i) {
+      const auto p1 = statistics[i].sync_statistic_.sync_states_.find(object.first);
+      if (statistics[i].sync_statistic_.sync_states_.end() != p1 && !p1->second.messages_.empty()) {
+        table.clear();
+        for (const auto & message : p1->second.messages_) {
+          std::map<std::string, std::string> columns;
+          columns["T"] = message.second.message_type_;
+          columns["M"] = std::to_string(node_id2index[message.second.member_node_]) + "." + vds::base64::from_bytes(message.second.member_node_);
+          columns["R"] = std::to_string(message.second.replica_);
+          columns["S"] = std::to_string(node_id2index[message.second.source_node_]) + "." + vds::base64::from_bytes(message.second.source_node_);
+          columns["I"] = std::to_string(message.second.source_index_);
+          table.push_back(std::make_tuple(
+            std::to_string(message.first),
             columns));
+        }
+        print_table(table);
+      }
+    }
   }
-  print_table(table);
+  //Network
+  //table.clear();
+  //std::cout << "Route:\n";
+  //std::map<vds::const_data_buffer, std::size_t> node_id2index;
+  //for (std::size_t i = 0; i < statistics.size(); ++i) {
+  //  node_id2index[statistics[i].route_statistic_.node_id_] = i;
+  //}
+
+  //for (std::size_t i = 0; i < statistics.size(); ++i) {
+  //  std::map<std::string, std::string> columns;
+
+  //  for(const auto & item : statistics[i].route_statistic_.items_){
+  //    auto index = std::to_string(node_id2index.at(item.node_id_));
+  //    auto p = columns.find(index);
+  //    if(p == columns.end()){
+  //      columns[index] = std::to_string(item.hops_);
+  //    }
+  //    else if(item.hops_ < atoi(p->second.c_str())){
+  //      p->second = std::to_string(item.hops_);
+  //    }
+  //  }
+
+  //  table.push_back(
+  //      std::make_tuple(
+  //          std::to_string(i) + "." + vds::base64::from_bytes(statistics[i].route_statistic_.node_id_),
+  //          columns));
+  //}
+  //print_table(table);
 
   return is_good;
 }

@@ -24,12 +24,6 @@ namespace vds {
   namespace dht {
     namespace network {
 
-      class tester {
-      public:
-        static void register_datagram(const const_data_buffer & data, const const_data_buffer & key);
-        static void check_datagram(const const_data_buffer & data, const const_data_buffer & key);
-      };
-
       template <typename implementation_class, typename transport_type>
       class dht_datagram_protocol : public std::enable_shared_from_this<implementation_class> {
       public:
@@ -129,8 +123,6 @@ namespace vds {
           const service_provider& scope,
           const std::shared_ptr<transport_type>& s,
           const const_data_buffer& datagram) {
-
-          tester::check_datagram(datagram, this->session_key_);
 
           auto sp = scope.create_scope(__FUNCTION__);
           std::unique_lock<std::mutex> lock(this->input_mutex_);
@@ -314,7 +306,6 @@ namespace vds {
                   buffer.size());
 
               const_data_buffer datagram = buffer.move_data();
-              tester::register_datagram(datagram, pthis->session_key_);
               s->write_async(sp, udp_datagram(pthis->address_, datagram, false))
                .execute([
                    pthis,
@@ -423,7 +414,6 @@ namespace vds {
                   buffer.data(),
                   buffer.size());
               const_data_buffer datagram = buffer.move_data();
-              tester::register_datagram(datagram, pthis->session_key_);
               s->write_async(sp, udp_datagram(pthis->address_, datagram, false))
                .execute([
                    pthis,
@@ -506,7 +496,6 @@ namespace vds {
               buffer.size());
 
           const_data_buffer datagram = buffer.move_data();
-          tester::register_datagram(datagram, this->session_key_);
           s->write_async(sp, udp_datagram(this->address_, datagram, false))
            .execute(
              [pthis = this->shared_from_this(), sp, s, message_id, message, offset, size, result, datagram, index](

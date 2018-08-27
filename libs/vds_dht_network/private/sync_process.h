@@ -16,6 +16,7 @@ All rights reserved
 namespace vds {
   namespace dht {
     namespace messages {
+      class sync_replica_query_operations_request;
       class sync_offer_remove_replica_operation_request;
       class sync_replica_data;
       class sync_replica_request;
@@ -159,6 +160,17 @@ namespace vds {
           database_transaction& t,
           const messages::sync_replica_data& message,
           const imessage_map::message_info_t& message_info);
+        
+        void apply_message(
+          const service_provider& sp,
+          database_transaction& t,
+          const messages::sync_replica_query_operations_request & message,
+          const imessage_map::message_info_t& message_info);
+        
+        void on_new_session(
+          const service_provider& sp,
+          database_read_transaction& t,
+          const const_data_buffer& partner_id);
 
       private:
 
@@ -253,9 +265,11 @@ namespace vds {
           const service_provider& sp,
           database_transaction& t,
           const const_data_buffer& object_id,
+          const const_data_buffer& leader_node_id,
           uint64_t generation,
           uint64_t current_term,
-          uint64_t message_index);
+          uint64_t message_index,
+          uint64_t last_applied);
 
         static void apply_record(
           const service_provider& sp,
@@ -265,7 +279,12 @@ namespace vds {
           const const_data_buffer& member_node,
           uint16_t replica,
           const const_data_buffer& message_node,
-          uint64_t message_index);
+          uint64_t message_index,
+          const const_data_buffer& leader_node_id,
+          uint64_t generation,
+          uint64_t current_term,
+          uint64_t commit_index,
+          uint64_t last_applied);
 
         template <typename message_type>
         void send_to_members(
@@ -289,7 +308,8 @@ namespace vds {
           database_transaction& t,
           const messages::sync_base_message_request& message,
           const imessage_map::message_info_t& message_info,
-          const const_data_buffer& leader_node);
+          const const_data_buffer& leader_node,
+          uint64_t last_applied);
 
         bool apply_base_message(
           const service_provider& sp,
@@ -409,7 +429,9 @@ namespace vds {
 
         static void send_random_replicas(
           std::map<uint16_t, std::list<std::function<void()>>>& allowed_replicas,
-          std::set<uint16_t>& send_replicas);
+          std::set<uint16_t>& send_replicas,
+          const uint16_t count,
+          const std::map<size_t, std::set<uint16_t>> & replica_frequency);
 
         static void send_replica(
           const service_provider& sp,
@@ -429,6 +451,28 @@ namespace vds {
           const const_data_buffer & object_id,
           uint16_t replica,
           const const_data_buffer & leader_node);
+
+        std::map<size_t, std::set<uint16_t>> get_replica_frequency(
+          const service_provider& sp,
+          database_transaction& t,
+          const const_data_buffer& object_id);
+
+        enum class send_random_replica_goal_t {
+          restore_object,
+          new_member
+        };
+        void send_random_replicas(
+          const vds::service_provider& sp,
+          vds::database_transaction& t,
+          const const_data_buffer & object_id,
+          const const_data_buffer & target_node,
+          const send_random_replica_goal_t goal,
+          const std::set<uint16_t>& exist_replicas);
+
+        static void validate_last_applied(
+          const vds::service_provider& sp,
+          vds::database_transaction& t,
+          const const_data_buffer & object_id);
       };
     }
   }
