@@ -9,5 +9,6 @@ All rights reserved
 #include "vds_core.h"
 
 #include "gtest/gtest.h"
+#include "test_config.h"
 
 #endif//__TEST_VDS_DHT_NETWORK_STDAFX_H_

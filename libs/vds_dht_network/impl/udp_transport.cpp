@@ -13,14 +13,19 @@ All rights reserved
 #include "dht_network_client_p.h"
 #include "messages/dht_find_node_response.h"
 
-vds::dht::network::udp_transport::udp_transport(const certificate & node_cert,
-                                                const asymmetric_private_key & node_key)
-    : this_node_id_(node_cert.fingerprint(hash::sha256())),
-      node_cert_(node_cert), node_key_(node_key),
-      write_in_progress_(false) {
+vds::dht::network::udp_transport::udp_transport()
+: write_in_progress_(false) {
 }
 
-void vds::dht::network::udp_transport::start(const service_provider& sp, uint16_t port) {
+void vds::dht::network::udp_transport::start(
+  const service_provider& sp,
+  const certificate & node_cert,
+  const asymmetric_private_key & node_key,
+  uint16_t port) {
+
+  this->this_node_id_ = node_cert.fingerprint(hash::sha256());
+  this->node_cert_ = node_cert;
+  this->node_key_ = node_key;
 
   try {
     this->server_.start(sp, network_address::any_ip6(port));
@@ -52,16 +57,17 @@ vds::dht::network::udp_transport::write_async(const service_provider& sp, const 
   //#endif//_DEBUG
 
   return [sp, pthis = this->shared_from_this(), datagram](const async_result<>& result) {
-    std::unique_lock<std::debug_mutex> lock(pthis->write_mutex_);
-    bool need_send = pthis->send_queue_.empty();
-    pthis->send_queue_.push_back(std::make_tuple(datagram, std::move(result)));
+    auto this_ = static_cast<udp_transport *>(pthis.get());
+    std::unique_lock<std::debug_mutex> lock(this_->write_mutex_);
+    bool need_send = this_->send_queue_.empty();
+    this_->send_queue_.push_back(std::make_tuple(datagram, std::move(result)));
 
     if (need_send) {
       sp.get<logger>()->trace(
         ThisModule,
         sp,
         "started send");
-      pthis->continue_send(sp);
+      this_->continue_send(sp);
     }
   };
 }
@@ -71,23 +77,25 @@ vds::dht::network::udp_transport::continue_send(const service_provider& sp) {
 
   this->server_.socket().write_async(std::get<0>(this->send_queue_.front()))
       .execute([sp, pthis = this->shared_from_this()](const std::shared_ptr<std::exception>& ex) {
+        auto this_ = static_cast<udp_transport *>(pthis.get());
         sp.get<logger>()->trace(
           ThisModule,
           sp,
           "udp_transport socket sent");
         mt_service::async(sp, [sp, ex, pthis]() {
+          auto this_ = static_cast<udp_transport *>(pthis.get());
           sp.get<logger>()->trace(
             ThisModule,
             sp,
             "udp_transport sent");
 
-          std::unique_lock<std::debug_mutex> lock(pthis->write_mutex_);
-          auto p = pthis->send_queue_.begin();
+          std::unique_lock<std::debug_mutex> lock(this_->write_mutex_);
+          auto p = this_->send_queue_.begin();
           auto datagram = std::move(std::get<0>(*p));
           auto result = std::move(std::get<1>(*p));
-          pthis->send_queue_.pop_front();
-          if (!pthis->send_queue_.empty()) {
-            pthis->continue_send(sp);
+          this_->send_queue_.pop_front();
+          if (!this_->send_queue_.empty()) {
+            this_->continue_send(sp);
           }
           else {
             sp.get<logger>()->trace(
@@ -190,6 +198,7 @@ void vds::dht::network::udp_transport::continue_read(
   this->server_.socket().read_async().execute([sp, pthis = this->shared_from_this()](
     const std::shared_ptr<std::exception>& ex,
     const udp_datagram& datagram) {
+    auto this_ = static_cast<udp_transport *>(pthis.get());
 
       if (sp.get_shutdown_event().is_shuting_down()) {
         return;
@@ -200,11 +209,11 @@ void vds::dht::network::udp_transport::continue_read(
         case protocol_message_type_t::HandshakeBroadcast:
         case protocol_message_type_t::Handshake: {
 
-          std::unique_lock<std::shared_mutex> lock(pthis->sessions_mutex_);
-          if(pthis->sessions_.end() != pthis->sessions_.find(datagram.address())) {
+          std::unique_lock<std::shared_mutex> lock(this_->sessions_mutex_);
+          if(this_->sessions_.end() != this_->sessions_.find(datagram.address())) {
             lock.unlock();
 
-            pthis->continue_read(sp);
+            this_->continue_read(sp);
             return;
           }
           lock.unlock();
@@ -220,7 +229,7 @@ void vds::dht::network::udp_transport::continue_read(
             bd >> partner_node_cert_der;
             auto partner_node_cert = certificate::parse_der(partner_node_cert_der);
             auto partner_node_id = partner_node_cert.fingerprint(hash::sha256());
-            if (partner_node_id == pthis->this_node_id_) {
+            if (partner_node_id == this_->this_node_id_) {
               break;
             }
 
@@ -228,12 +237,12 @@ void vds::dht::network::udp_transport::continue_read(
             key.resize(32);
             crypto_service::rand_bytes(key.data(), key.size());
 
-            pthis->add_session(
+            this_->add_session(
               sp,
               datagram.address(),
               std::make_shared<dht_session>(
                 datagram.address(),
-                pthis->this_node_id_,
+                this_->this_node_id_,
                 partner_node_id,
                 key));
 
@@ -246,7 +255,7 @@ void vds::dht::network::udp_transport::continue_read(
 
             binary_serializer bs;
             bs
-                << pthis->node_cert_.der()
+                << this_->node_cert_.der()
                 << partner_node_cert.public_key().encrypt(key);
 
             out_message += bs.move_data();
@@ -257,6 +266,7 @@ void vds::dht::network::udp_transport::continue_read(
                      scope = sp.create_scope("Send Welcome"),
                      partner_node_id,
                      address = datagram.address().to_string()](const std::shared_ptr<std::exception>& ex) {
+                       auto this_ = static_cast<udp_transport *>(pthis.get());
                      if (ex) {
                        sp.get<logger>()->trace(ThisModule, sp, "%s at send welcome to %s", ex->what(),
                                                address.c_str());
@@ -270,7 +280,7 @@ void vds::dht::network::udp_transport::continue_read(
                        sp,
                        partner_node_id);
 
-                     pthis->continue_read(sp);
+                     this_->continue_read(sp);
                    });
 
             return;
@@ -295,18 +305,18 @@ void vds::dht::network::udp_transport::continue_read(
               >> key_buffer;
 
             auto cert = certificate::parse_der(cert_buffer);
-            auto key = pthis->node_key_.decrypt(key_buffer);
+            auto key = this_->node_key_.decrypt(key_buffer);
 
             auto partner_id = cert.fingerprint(hash::sha256());
 
             //TODO: validate cert
 
-            pthis->add_session(
+            this_->add_session(
               sp,
               datagram.address(),
               std::make_shared<dht_session>(
                 datagram.address(),
-                pthis->this_node_id_,
+                this_->this_node_id_,
                 partner_id,
                 key));
 
@@ -321,48 +331,51 @@ void vds::dht::network::udp_transport::continue_read(
           break;
         }
         case protocol_message_type_t::Failed: {
-          auto session = pthis->get_session(datagram.address());
+          auto session = this_->get_session(datagram.address());
           if (session) {
-            std::shared_lock<std::shared_mutex> lock(pthis->sessions_mutex_);
-            pthis->sessions_.erase(datagram.address());
+            std::shared_lock<std::shared_mutex> lock(this_->sessions_mutex_);
+            this_->sessions_.erase(datagram.address());
           }
 
           break;
         }
         default: {
-          auto session = pthis->get_session(datagram.address());
+          auto session = this_->get_session(datagram.address());
           if (session) {
             try {
               auto scope = sp.create_scope("Process datagram");
               session->process_datagram(scope, pthis, const_data_buffer(datagram.data(), datagram.data_size()))
                      .execute([pthis, sp, scope, datagram](
                        const std::shared_ptr<std::exception>& ex) {
+                          auto this_ = static_cast<udp_transport *>(pthis.get());
                          if (ex) {
                            uint8_t out_message[] = { (uint8_t)protocol_message_type_t::Failed };
                            pthis->write_async(sp, udp_datagram(datagram.address(),
                              const_data_buffer(out_message, sizeof(out_message))))
                              .execute([pthis, sp, datagram](
                                const std::shared_ptr<std::exception>& ex) {
+                             auto this_ = static_cast<udp_transport *>(pthis.get());
                              if (ex) {
                                sp.get<logger>()->trace(ThisModule, sp, "%s at send failed to %s", ex->what(),
                                  datagram.address().to_string().c_str());
                              }
-                             std::shared_lock<std::shared_mutex> lock(pthis->sessions_mutex_);
-                             pthis->sessions_.erase(datagram.address());
-                             pthis->continue_read(sp);
+                             std::shared_lock<std::shared_mutex> lock(this_->sessions_mutex_);
+                             this_->sessions_.erase(datagram.address());
+                             this_->continue_read(sp);
                            });
                          }
                          else {
                            mt_service::async(sp, [sp, pthis]() {
-                             pthis->continue_read(sp);
+                             auto this_ = static_cast<udp_transport *>(pthis.get());
+                             this_->continue_read(sp);
                            });
                          }
                        });
               return;
             }
             catch (...) {
-              std::shared_lock<std::shared_mutex> lock(pthis->sessions_mutex_);
-              pthis->sessions_.erase(datagram.address());
+              std::shared_lock<std::shared_mutex> lock(this_->sessions_mutex_);
+              this_->sessions_.erase(datagram.address());
             }
           }
           else {
@@ -372,13 +385,14 @@ void vds::dht::network::udp_transport::continue_read(
                                                    const_data_buffer(out_message, sizeof(out_message))))
                  .execute([pthis, sp, scope, address = datagram.address()](
                    const std::shared_ptr<std::exception>& ex) {
+                    auto this_ = static_cast<udp_transport *>(pthis.get());
                      if (ex) {
                        sp.get<logger>()->trace(ThisModule, sp, "%s at send failed to %s", ex->what(),
                                                address.to_string().c_str());
                      }
-                     std::shared_lock<std::shared_mutex> lock(pthis->sessions_mutex_);
-                     pthis->sessions_.erase(address);
-                     pthis->continue_read(sp);
+                     std::shared_lock<std::shared_mutex> lock(this_->sessions_mutex_);
+                     this_->sessions_.erase(address);
+                     this_->continue_read(sp);
                    });
 
             return;
@@ -386,7 +400,7 @@ void vds::dht::network::udp_transport::continue_read(
           break;
         }
         }
-        pthis->continue_read(sp);
+        this_->continue_read(sp);
       }
       else {
         if (ex) {
@@ -401,8 +415,9 @@ void vds::dht::network::udp_transport::continue_read(
           sp.get<logger>()->trace(ThisModule, sp, "0 == datagram.data_size()");
         }
         mt_service::async(sp, [sp, pthis]() {
+          auto this_ = static_cast<udp_transport *>(pthis.get());
           if (!sp.get_shutdown_event().is_shuting_down()) {
-            pthis->continue_read(sp);
+            this_->continue_read(sp);
           }
         });
       }

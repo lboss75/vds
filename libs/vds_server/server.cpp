@@ -54,7 +54,7 @@ void vds::server::stop(const service_provider& sp)
 
 vds::async_task<> vds::server::start_network(const vds::service_provider &sp, uint16_t port) {
   return [this, sp, port]() {
-    this->impl_->dht_network_service_->start(sp, port);
+    this->impl_->dht_network_service_->start(sp, this->impl_->udp_transport_, port);
     this->impl_->file_manager_->start(sp);
   };
 }
@@ -73,6 +73,7 @@ vds::_server::_server(server * owner)
 : owner_(owner),
   db_model_(new db_model()),
   file_manager_(new file_manager::file_manager_service()),
+  udp_transport_(new dht::network::udp_transport()),
   dht_network_service_(new dht::network::service()),
   update_timer_("Log Sync") {
 }
@@ -118,6 +119,7 @@ void vds::_server::stop(const service_provider& sp)
   }
 
   this->dht_network_service_->stop(sp);
+  this->udp_transport_->stop(sp);
   this->db_model_->stop(sp);
   this->file_manager_.reset();
   this->db_model_.reset();

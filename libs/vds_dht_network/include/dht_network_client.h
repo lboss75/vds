@@ -19,17 +19,20 @@ namespace vds {
 
   namespace dht {
     namespace network {
+      class iudp_transport;
       enum class message_type_t;
       class _client;
 
       class client {
       public:
         static bool is_debug;
+
         void start(
           const service_provider& sp,
           const certificate & node_cert,
           const asymmetric_private_key & node_key,
-          uint16_t port);
+          const std::shared_ptr<iudp_transport> & udp_transport);
+
         void stop(const service_provider& sp);
 
         struct chunk_info {

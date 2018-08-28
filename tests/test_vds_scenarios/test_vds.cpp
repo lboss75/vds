@@ -96,7 +96,10 @@ TEST(test_vds, test_initial)
 
     while(!b.wait_for(std::chrono::seconds(5))) {
       std::vector<vds::server_statistic> statistics;
-      mock.dump_statistic(statistics);
+      std::ofstream logfile("test.log", std::ofstream::app);
+      mock.dump_statistic(logfile, statistics);
+      logfile.flush();
+      logfile.close();
     }
 
 

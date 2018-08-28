@@ -17,8 +17,8 @@ namespace vds {
   namespace dht {
     namespace network {
 
-      class dht_session : public dht_datagram_protocol<dht_session, udp_transport> {
-        using base_class = dht_datagram_protocol<dht_session, udp_transport>;
+      class dht_session : public dht_datagram_protocol<dht_session, iudp_transport> {
+        using base_class = dht_datagram_protocol<dht_session, iudp_transport>;
 
       public:
         dht_session(
@@ -30,11 +30,11 @@ namespace vds {
         void ping_node(
           const service_provider& sp,
           const const_data_buffer& node_id,
-          const std::shared_ptr<udp_transport>& transport);
+          const std::shared_ptr<iudp_transport>& transport);
 
         async_task<> process_message(
           const service_provider& sp,
-          const std::shared_ptr<udp_transport>& transport,
+          const std::shared_ptr<iudp_transport>& transport,
           uint8_t message_type,
           const const_data_buffer & target_node,
           const const_data_buffer & source_node,

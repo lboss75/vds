@@ -2,7 +2,6 @@
 #include "test_datagram_protocol.h"
 #include "cert_control.h"
 #include "private/cert_control_p.h"
-#include "test_config.h"
 
 static void send_message_check(
   const vds::service_provider & sp,
@@ -79,7 +78,7 @@ static void proxy_message_check(
 }
 
 
-TEST(test_vds_dht_network, test_data_exchange) {
+TEST(DISABLED_test_vds_dht_network, test_data_exchange) {
 
 #ifdef _WIN32
   //Initialize Winsock

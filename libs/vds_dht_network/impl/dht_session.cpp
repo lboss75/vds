@@ -37,9 +37,9 @@ vds::dht::network::dht_session::dht_session(
 void vds::dht::network::dht_session::ping_node(
   const service_provider& sp,
   const const_data_buffer& node_id,
-  const std::shared_ptr<udp_transport>& transport) {
+  const std::shared_ptr<iudp_transport>& transport) {
 
-  vds_assert(node_id != transport->this_node_id());
+  //vds_assert(node_id != transport->this_node_id());
 
   this->send_message(
     sp,
@@ -57,7 +57,7 @@ vds::session_statistic::session_info vds::dht::network::dht_session::get_statist
 
 vds::async_task<> vds::dht::network::dht_session::process_message(
   const service_provider& sp,
-  const std::shared_ptr<udp_transport>& transport,
+  const std::shared_ptr<iudp_transport>& transport,
   uint8_t message_type,
   const const_data_buffer & target_node,
   const const_data_buffer & source_node,

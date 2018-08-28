@@ -13,10 +13,13 @@ void vds::dht::network::service::register_services(service_registrator& registra
   registrator.add_service<client>(&this->client_);
 }
 
-void vds::dht::network::service::start(const service_provider& parent_scope, uint16_t port) {
+void vds::dht::network::service::start(
+  const service_provider& parent_scope,
+  const std::shared_ptr<iudp_transport> & udp_transport,
+  const uint16_t port) {
   auto sp = parent_scope.create_scope(__FUNCTION__);
   mt_service::enable_async(sp);
-  sp.get<db_model>()->async_transaction(sp, [this, sp, port](database_transaction& t) {
+  sp.get<db_model>()->async_transaction(sp, [this, sp, udp_transport, port](database_transaction& t) {
     certificate node_cert;
     asymmetric_private_key node_key;
 
@@ -52,11 +55,17 @@ void vds::dht::network::service::start(const service_provider& parent_scope, uin
           t2.reserved_size = 4ULL * 1024 * 1024 * 1024));
     }
 
+    udp_transport->start(
+      sp,
+      node_cert,
+      node_key, 
+      port);
+
     this->client_.start(
         sp,
         node_cert,
         node_key,
-        port);
+        udp_transport);
     return true;
   }).wait();
 }

@@ -29,7 +29,10 @@ namespace vds {
 
 
         void register_services(service_registrator& registrator);
-        void start(const service_provider& sp, uint16_t port);
+        void start(
+          const service_provider& sp,
+          const std::shared_ptr<iudp_transport> & udp_transport,
+          const uint16_t port);
         void stop(const service_provider&);
         async_task<> prepare_to_stop(const service_provider& sp);
 
