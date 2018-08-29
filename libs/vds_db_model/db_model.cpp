@@ -237,7 +237,7 @@ void vds::db_model::migrate(
 
     t.execute("INSERT INTO well_known_node(id, addresses) VALUES(\
 									'local',\
-									'udp://127.0.0.1:8050')");
+									'udp://localhost:8050')");
     t.execute("INSERT INTO well_known_node(id, addresses) VALUES(\
 									'vds.iv-soft.ru',\
 									'udp://178.207.91.252:8050')");
