@@ -112,7 +112,7 @@ namespace vds {
 
     void shutdown(service_provider & sp);
 
-    service_provider build(const char * name);
+    service_provider build(const std::string & name);
     void start(const service_provider & sp);
 
   private:

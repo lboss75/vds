@@ -152,7 +152,9 @@ vds::async_task<> vds::dht::network::_client::apply_message(
   const imessage_map::message_info_t& message_info) {
   auto result = async_task<>::empty();
   for (auto& p : message.nodes()) {
-    if (this->route_.add_node(
+    if (
+      p.target_id_ != this->current_node_id()
+      && this->route_.add_node(
       sp,
       p.target_id_,
       message_info.session(),

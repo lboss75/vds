@@ -580,6 +580,19 @@ void vds::dht::network::sync_process::add_sync_entry(
       sp,
       object_id,
       service::GENERATE_DISTRIBUTED_PIECES);
+
+    client->send_near(
+      sp,
+      object_id,
+      service::GENERATE_DISTRIBUTED_PIECES,
+      messages::sync_looking_storage_request(
+        object_id,
+        0,
+        0,
+        0,
+        0,
+        0));
+
   }
   else {
     leader = t2.voted_for.get(st);
