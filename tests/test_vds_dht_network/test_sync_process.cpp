@@ -21,6 +21,7 @@
 #include "messages/dht_find_node_response.h"
 #include "messages/dht_ping.h"
 #include "messages/dht_pong.h"
+#include "chunk_dbo.h"
 
 #define SERVER_COUNT 10
 
@@ -57,12 +58,18 @@ TEST(test_vds_dht_network, test_sync_process) {
     0xDF, 0xC8, 0x91, 0xF6
   };
   vds::const_data_buffer object_id(object_id_data, sizeof(object_id_data));
-  servers[4]->add_sync_entry(object_id, 0x100);
+  vds::const_data_buffer object_data;
+  object_data.resize(100);
+  for(size_t i = 0; i < object_data.size(); ++i) {
+    object_data[i] = std::rand();
+  }
+  servers[4]->add_sync_entry(object_id, object_data);
 
   //All corresponding nodes have to approove data storage
   int stage = 0;
+  size_t replica_count = 0;
   for(int try_count = 0; try_count < 10; ++try_count) {
-    size_t replica_count = 0;
+    replica_count = 0;
     std::map<vds::const_data_buffer/*node*/, std::set<uint16_t /*replicas*/>> members;
     hab->walk_messages([stage, &object_id, &members, &replica_count](const message_log_t & log_record)->message_log_action{
       switch (log_record.message_info_.message_type()) {
@@ -83,8 +90,10 @@ TEST(test_vds_dht_network, test_sync_process) {
         }
         switch (message.message_type()) {
         case vds::orm::sync_message_dbo::message_type_t::add_replica: {
-          members.at(message.member_node()).emplace(message.replica());
-          ++replica_count;
+          if (members.at(message.member_node()).end() == members.at(message.member_node()).find(message.replica())) {
+            members.at(message.member_node()).emplace(message.replica());
+            ++replica_count;
+          }
           break;
         }
         }
@@ -93,7 +102,15 @@ TEST(test_vds_dht_network, test_sync_process) {
       case vds::dht::network::message_type_t::dht_ping:
       case vds::dht::network::message_type_t::dht_pong:
       case vds::dht::network::message_type_t::dht_find_node:
-      case vds::dht::network::message_type_t::dht_find_node_response: {
+      case vds::dht::network::message_type_t::dht_find_node_response:
+      case vds::dht::network::message_type_t::sync_looking_storage_response:
+      case vds::dht::network::message_type_t::sync_snapshot_response:
+      case vds::dht::network::message_type_t::sync_leader_broadcast_response:
+      case vds::dht::network::message_type_t::sync_replica_query_operations_request:
+      case vds::dht::network::message_type_t::sync_replica_operations_response:
+      case vds::dht::network::message_type_t::sync_replica_data:
+      case vds::dht::network::message_type_t::sync_add_message_request:
+      {
         break;
       }
       default: {
@@ -120,6 +137,7 @@ TEST(test_vds_dht_network, test_sync_process) {
   for(auto server : servers){
     server->stop();
   }
+  GTEST_ASSERT_EQ(stage, 1);
 }
 
 vds::async_task<> transport_hab::write_async(
@@ -218,8 +236,8 @@ void test_server::stop() {
   registrator_.shutdown(sp_);
 }
 
-void test_server::add_sync_entry(const vds::const_data_buffer& object_id, uint32_t object_size) {
-  this->server_.add_sync_entry(this->sp_, object_id, object_size);
+void test_server::add_sync_entry(const vds::const_data_buffer& object_id, const vds::const_data_buffer& object_data) {
+  this->server_.add_sync_entry(this->sp_, object_id, object_data);
 }
 
 vds::async_task<> test_server::process_datagram(
@@ -234,7 +252,7 @@ vds::async_task<> test_server::process_datagram(
 }
 
 const vds::const_data_buffer& test_server::node_id() const {
-  return this->server_.node_id();
+  return (*this->sp_.get<vds::dht::network::client>())->current_node_id();
 }
 
 const vds::network_address& test_server::address() const {
@@ -262,11 +280,8 @@ void mock_server::add_session(
   const vds::service_provider& sp,
   const std::shared_ptr<vds::dht::network::dht_session>& session) {
   this->sessions_.emplace(session->address(), session);
-  this->client_->add_session(sp, session, 0);
-}
 
-const vds::const_data_buffer& mock_server::node_id() const {
-  return this->client_.current_node_id();
+  (*sp.get<vds::dht::network::client>())->add_session(sp, session, 0);
 }
 
 const vds::network_address& mock_server::address() const {
@@ -314,7 +329,8 @@ const vds::network_address& mock_server::address() const {
 vds::async_task<> mock_server::process_message(
   const vds::service_provider& sp,
   const message_info_t& message_info) {
-  static_cast<mock_transport *>(this->transport_.get())->hab()->register_message(sp, this->node_id(), message_info);
+
+  static_cast<mock_transport *>(this->transport_.get())->hab()->register_message(sp, sp.get<vds::dht::network::client>()->current_node_id(), message_info);
 
   switch (message_info.message_type()) {
     route_client(sync_new_election_request)
@@ -341,16 +357,11 @@ vds::async_task<> mock_server::process_message(
       route_client(sync_replica_data)
 
       route_client(sync_replica_query_operations_request)
-  case vds::dht::network::message_type_t::dht_find_node: {
-      vds::binary_deserializer s(message_info.message_data());
-      vds::dht::messages::dht_find_node message(s);
-      static_cast<mock_transport *>(this->transport_.get())->find_node(sp, message.target_id(), message_info.source_node());
-      break;
-    }
 
-  route_client_wait(dht_find_node_response)
-  route_client_nowait(dht_ping)
-  route_client_nowait(dht_pong)
+      route_client_nowait(dht_find_node)
+      route_client_wait(dht_find_node_response)
+      route_client_nowait(dht_ping)
+      route_client_nowait(dht_pong)
 
   default: {
       throw std::runtime_error("Invalid command");
@@ -364,21 +375,23 @@ void mock_server::on_new_session(const vds::service_provider& sp, const vds::con
   throw vds::vds_exceptions::invalid_operation();
 }
 
-void mock_server::find_node(const vds::service_provider& sp, const vds::const_data_buffer& target_node_id,
-  const vds::const_data_buffer& node_id) {
-  std::list<vds::dht::messages::dht_find_node_response::target_node> nodes;
-  for (const auto & record : this->sessions_) {
-    nodes.emplace_back(record.second->partner_node_id(), record.second->address().to_string(), 0);
-  }
-  this->client_->send(sp, node_id, vds::dht::messages::dht_find_node_response(nodes));
-}
 
 void mock_server::add_sync_entry(
   const vds::service_provider& sp,
   const vds::const_data_buffer& object_id,
-  uint32_t object_size) {
-  sp.get<vds::db_model>()->async_transaction(sp, [this, sp, object_id, object_size](vds::database_transaction & t) {
-    this->sync_process_.add_sync_entry(sp, t, object_id, object_size);
+  const vds::const_data_buffer& object_data) {
+  sp.get<vds::db_model>()->async_transaction(sp, [sp, object_id, object_data](vds::database_transaction & t) {
+    auto client = sp.get<vds::dht::network::client>();
+    const auto replica_hash = vds::hash::signature(vds::hash::sha256(), object_data);
+    auto fn = (*client)->save_data(sp, t, replica_hash, object_data);
+    vds::orm::chunk_dbo t1;
+    t.execute(
+      t1.insert(
+        t1.object_id = object_id,
+        t1.replica_hash = replica_hash,
+        t1.last_sync = std::chrono::system_clock::now() - std::chrono::hours(24)
+      ));
+    (*client)->sync_process_.add_sync_entry(sp, t, object_id, object_data.size());
   }).wait();
 
 }
@@ -393,27 +406,18 @@ mock_server::mock_server(const vds::network_address & address, const std::shared
 
 void mock_server::register_services(vds::service_registrator& registrator) {
   registrator.add_service<vds::db_model>(&this->db_model_);
-  registrator.add_service<vds::dht::network::client>(&this->client_);
+  this->client_.register_services(registrator);
   registrator.add_service<vds::dht::network::imessage_map>(this);
 }
 
 void mock_server::start(const vds::service_provider& sp) {
   this->db_model_.start(sp);
 
-  auto node_key = vds::asymmetric_private_key::generate(vds::asymmetric_crypto::rsa4096());
-  vds::asymmetric_public_key public_key(node_key);
-
-  vds::certificate::create_options options;
-  options.name = "Node Cert";
-  options.country = "RU";
-  options.organization = "IVySoft";
-  auto node_cert = vds::certificate::create_new(public_key, node_key, options);
-
-  this->transport_->start(sp, node_cert, node_key, 0);
-  this->client_.start(sp, node_cert, node_key, this->transport_);
+  this->client_.start(sp, this->transport_, 0);
 }
 
 void mock_server::stop(const vds::service_provider& sp) {
+  this->client_.stop(sp);
   this->db_model_.stop(sp);
 }
 
@@ -447,13 +451,3 @@ vds::async_task<> mock_transport::try_handshake(
   return vds::async_task<>::empty();
 }
 
-void mock_transport::find_node(
-  const vds::service_provider& sp,
-  const vds::const_data_buffer& target_node_id,
-  const vds::const_data_buffer& node_id) {
-
-  this->owner_->find_node(
-    sp,
-    target_node_id,
-    node_id);
-}

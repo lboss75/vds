@@ -24,7 +24,7 @@ All rights reserved
 #include "dht_network.h"
 #include "sync_replica_map_dbo.h"
 
-bool vds::dht::network::client::is_debug = false;
+bool vds::dht::network::client::is_debug = true;
 
 vds::dht::network::_client::_client(
   const service_provider& sp,

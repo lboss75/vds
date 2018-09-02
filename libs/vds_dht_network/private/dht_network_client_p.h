@@ -14,6 +14,8 @@ All rights reserved
 #include "udp_transport.h"
 #include "imessage_map.h"
 
+class mock_server;
+
 namespace vds {
   namespace dht {
     namespace messages {
@@ -283,6 +285,7 @@ namespace vds {
       private:
         friend class sync_process;
         friend class dht_session;
+        friend class mock_server;
 
         std::shared_ptr<iudp_transport> udp_transport_;
         dht_route<std::shared_ptr<dht_session>> route_;

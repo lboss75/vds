@@ -5,6 +5,7 @@
 #include "db_model.h"
 #include "iudp_transport.h"
 #include "network_address.h"
+#include "dht_network.h"
 
 namespace vds {
   class udp_datagram;
@@ -81,11 +82,6 @@ public:
     return this->hab_;
   }
 
-  void find_node(
-    const vds::service_provider& sp,
-    const vds::const_data_buffer& target_node_id,
-    const vds::const_data_buffer& node_id);
-
 private:
   mock_server * owner_;
   std::shared_ptr<transport_hab> hab_;
@@ -113,32 +109,24 @@ public:
     const vds::service_provider& sp,
     const std::shared_ptr<vds::dht::network::dht_session> & session);
 
-  const vds::const_data_buffer & node_id() const;
   const vds::network_address & address() const;
 
   void add_sync_entry(
     const vds::service_provider& sp,
     const vds::const_data_buffer& object_id,
-    uint32_t object_size);
+    const vds::const_data_buffer& object_data);
 
 
   vds::async_task<> process_message(const vds::service_provider& scope, const message_info_t& message_info) override;
   void on_new_session(const vds::service_provider& sp, const vds::const_data_buffer& partner_id) override;
-  void find_node(const vds::service_provider& sp, const vds::const_data_buffer& target_node_id, const vds::const_data_buffer& node_id);
 private:
-  class mock_client : public vds::dht::network::client {
-  public:
-
-  };
 
   vds::db_model db_model_;
-  mock_client client_;
+  vds::dht::network::service client_;
 
   std::shared_ptr<vds::dht::network::iudp_transport> transport_;
   std::map<vds::network_address, std::shared_ptr<vds::dht::network::dht_session>> sessions_;
   vds::network_address address_;
-
-  vds::dht::network::sync_process sync_process_;
 };
 
 class test_server {
@@ -149,7 +137,9 @@ public:
   void start(const std::shared_ptr<transport_hab> & hab, int index);
   void stop();
 
-  void add_sync_entry(const vds::const_data_buffer& object_id, uint32_t object_size);
+  void add_sync_entry(
+    const vds::const_data_buffer& object_id,
+    const vds::const_data_buffer& object_data);
 
   vds::async_task<> process_datagram(
     const vds::udp_datagram& datagram,
@@ -165,7 +155,7 @@ public:
 private:
 
   vds::service_registrator registrator_;
-  vds::console_logger logger_;
+  vds::file_logger logger_;
   vds::mt_service mt_service_;
   vds::task_manager task_manager_;
   mock_server server_;
