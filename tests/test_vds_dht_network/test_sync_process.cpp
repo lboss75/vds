@@ -123,8 +123,26 @@ TEST(test_vds_dht_network, test_sync_process) {
 
     if(stage == 0) {
       //valudate member count
-      if(replica_count > vds::dht::network::service::GENERATE_DISTRIBUTED_PIECES) {
+      if(replica_count >= vds::dht::network::service::GENERATE_DISTRIBUTED_PIECES) {
         stage = 1;
+        //Dump
+        vds::const_data_buffer watch_target;
+        for(const auto & p : members) {
+          if(p.second.size() > 0) {
+            watch_target = p.first;
+            break;
+          }
+        }
+        std::list<std::tuple<vds::const_data_buffer/*from*/, vds::const_data_buffer/*to*/, vds::dht::network::message_type_t>> log_messages;
+        hab->walk_messages([stage, &object_id, &watch_target, &log_messages](const message_log_t & log_record)->message_log_action {
+          if(log_record.target_node_id_ == watch_target || log_record.message_info_.source_node() == watch_target) {
+            log_messages.push_back(std::make_tuple(
+              log_record.message_info_.source_node(),
+              log_record.target_node_id_,
+              log_record.message_info_.message_type()));
+          }
+          return message_log_action::skip;
+        });
       }
     }
     else {

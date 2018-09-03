@@ -24,7 +24,7 @@ All rights reserved
 #include "dht_network.h"
 #include "sync_replica_map_dbo.h"
 
-bool vds::dht::network::client::is_debug = true;
+bool vds::dht::network::client::is_debug = false;
 
 vds::dht::network::_client::_client(
   const service_provider& sp,
@@ -295,7 +295,8 @@ void vds::dht::network::_client::proxy_message(
       source_node,
       hops](
     const std::shared_ptr<dht_route<std::shared_ptr<dht_session>>::node>& candidate) {
-      if (dht_object_id::distance(candidate->node_id_, target_node_id) < distance) {
+      if (dht_object_id::distance(candidate->node_id_, target_node_id) < distance
+        && source_node != candidate->proxy_session_->partner_node_id()) {
 
         sp.get<logger>()->trace(
           "dht_protocol",
