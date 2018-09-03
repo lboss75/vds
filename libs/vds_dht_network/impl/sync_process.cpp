@@ -580,6 +580,19 @@ void vds::dht::network::sync_process::add_sync_entry(
       sp,
       object_id,
       service::GENERATE_DISTRIBUTED_PIECES);
+
+    client->send_near(
+      sp,
+      object_id,
+      service::GENERATE_DISTRIBUTED_PIECES,
+      messages::sync_looking_storage_request(
+        object_id,
+        0,
+        0,
+        0,
+        0,
+        0));
+
   }
   else {
     leader = t2.voted_for.get(st);
@@ -1614,12 +1627,21 @@ void vds::dht::network::sync_process::send_random_replicas(
         }
       }
 
-      const auto replica_frequency = this->get_replica_frequency(sp, t, object_id);
-      this->send_random_replicas(
-        allowed_replicas,
-        send_replicas,
-        (goal == send_random_replica_goal_t::new_member) ? 1 : service::MIN_DISTRIBUTED_PIECES,
-        replica_frequency);
+      if(goal == send_random_replica_goal_t::new_member) {
+        std::set<uint16_t> fake_send_replicas;
+        this->send_random_replicas(
+          allowed_replicas,
+          fake_send_replicas,
+          1,
+          replica_frequency);
+      }
+      else {
+        this->send_random_replicas(
+          allowed_replicas,
+          send_replicas,
+          service::MIN_DISTRIBUTED_PIECES,
+          replica_frequency);
+      }
     }
   }
 }

@@ -91,6 +91,7 @@ namespace vds {
           const const_data_buffer& message) {
           vds_assert(message.size() <= 0xFFFF);
           vds_assert(target_node != this->this_node_id_);
+          vds_assert(source_node != this->partner_node_id_);
 
           std::unique_lock<std::mutex> lock(this->send_mutex_);
           sp.get<logger>()->trace(

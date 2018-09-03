@@ -28,12 +28,13 @@ bool vds::dht::network::client::is_debug = false;
 
 vds::dht::network::_client::_client(
   const service_provider& sp,
+  const std::shared_ptr<iudp_transport> & udp_transport,
   const certificate & node_cert,
   const asymmetric_private_key & node_key)
   : route_(node_cert.fingerprint(hash::sha256())),
     update_timer_("DHT Network"),
     update_route_table_counter_(0),
-    udp_transport_(new udp_transport(node_cert, node_key)){
+    udp_transport_(udp_transport){
   for (uint16_t replica = 0; replica < service::GENERATE_HORCRUX; ++replica) {
     this->generators_[replica].reset(new chunk_generator<uint16_t>(service::MIN_HORCRUX, replica));
   }
@@ -151,7 +152,9 @@ vds::async_task<> vds::dht::network::_client::apply_message(
   const imessage_map::message_info_t& message_info) {
   auto result = async_task<>::empty();
   for (auto& p : message.nodes()) {
-    if (this->route_.add_node(
+    if (
+      p.target_id_ != this->current_node_id()
+      && this->route_.add_node(
       sp,
       p.target_id_,
       message_info.session(),
@@ -292,7 +295,8 @@ void vds::dht::network::_client::proxy_message(
       source_node,
       hops](
     const std::shared_ptr<dht_route<std::shared_ptr<dht_session>>::node>& candidate) {
-      if (dht_object_id::distance(candidate->node_id_, target_node_id) < distance) {
+      if (dht_object_id::distance(candidate->node_id_, target_node_id) < distance
+        && source_node != candidate->proxy_session_->partner_node_id()) {
 
         sp.get<logger>()->trace(
           "dht_protocol",
@@ -341,9 +345,7 @@ vds::const_data_buffer vds::dht::network::_client::replica_id(const std::string&
 }
 
 
-void vds::dht::network::_client::start(const service_provider& sp, uint16_t port) {
-  this->udp_transport_->start(sp, port);
-
+void vds::dht::network::_client::start(const service_provider& sp) {
   this->update_timer_.start(sp, std::chrono::seconds(60), [sp, pthis = this->shared_from_this()]() {
     std::unique_lock<std::debug_mutex> lock(pthis->update_timer_mutex_);
     if (!pthis->in_update_timer_) {
@@ -372,7 +374,7 @@ void vds::dht::network::_client::start(const service_provider& sp, uint16_t port
 }
 
 void vds::dht::network::_client::stop(const service_provider& sp) {
-  this->udp_transport_->stop(sp);
+  //this->udp_transport_->stop(sp);
 }
 
 void vds::dht::network::_client::get_neighbors(const service_provider& sp,
@@ -481,7 +483,7 @@ void vds::dht::network::_client::get_route_statistics(route_statistic& result) {
 }
 
 void vds::dht::network::_client::get_session_statistics(session_statistic& session_statistic) {
-  this->udp_transport_->get_session_statistics(session_statistic);
+  //this->udp_transport_->get_session_statistics(session_statistic);
 }
 
 void vds::dht::network::_client::apply_message(
@@ -761,9 +763,9 @@ void vds::dht::network::client::start(
   const service_provider& sp,
   const certificate & node_cert,
   const asymmetric_private_key & node_key,
-  uint16_t port) {
-  this->impl_.reset(new _client(sp, node_cert, node_key));
-  this->impl_->start(sp, port);
+  const std::shared_ptr<iudp_transport> & udp_transport) {
+  this->impl_.reset(new _client(sp, udp_transport, node_cert, node_key));
+  this->impl_->start(sp);
 
 }
 

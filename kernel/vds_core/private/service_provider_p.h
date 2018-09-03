@@ -71,7 +71,7 @@ namespace vds {
 
     service_provider build(
       service_registrator & owner,
-      const char * name);
+      const std::string & name);
 
     void start(
       const service_provider & sp);

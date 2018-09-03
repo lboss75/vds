@@ -90,6 +90,7 @@ namespace vds {
 
 	  std::unique_ptr<class db_model> db_model_;
     std::unique_ptr<file_manager::file_manager_service> file_manager_;
+    std::shared_ptr<dht::network::iudp_transport> udp_transport_;
     std::unique_ptr<dht::network::service> dht_network_service_;
 
     std::shared_ptr<transaction_log::sync_process> transaction_log_sync_process_;

@@ -79,7 +79,7 @@ std::atomic_size_t vds::_service_provider::s_last_id_;
 
 vds::service_provider vds::_service_registrator::build(
   service_registrator & owner,
-  const char * name)
+  const std::string & name)
 {
   auto sp = service_provider(
     std::make_shared<_service_provider>(
@@ -119,7 +119,7 @@ void vds::service_registrator::shutdown(service_provider & sp)
   this->impl_->shutdown(sp);
 }
 
-vds::service_provider vds::service_registrator::build(const char * name)
+vds::service_provider vds::service_registrator::build(const std::string & name)
 {
   return this->impl_->build(*this, name);
 }

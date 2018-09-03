@@ -14,6 +14,8 @@ All rights reserved
 #include "udp_transport.h"
 #include "imessage_map.h"
 
+class mock_server;
+
 namespace vds {
   namespace dht {
     namespace messages {
@@ -41,10 +43,11 @@ namespace vds {
       public:
         _client(
           const service_provider& sp,
+          const std::shared_ptr<iudp_transport> & udp_transport,
           const certificate & node_cert,
           const asymmetric_private_key & node_key);
 
-        void start(const service_provider& sp, uint16_t port);
+        void start(const service_provider& sp);
         void stop(const service_provider& sp);
         void get_neighbors(
           const service_provider& sp,
@@ -282,8 +285,9 @@ namespace vds {
       private:
         friend class sync_process;
         friend class dht_session;
+        friend class mock_server;
 
-        std::shared_ptr<udp_transport> udp_transport_;
+        std::shared_ptr<iudp_transport> udp_transport_;
         dht_route<std::shared_ptr<dht_session>> route_;
         std::map<uint16_t, std::unique_ptr<chunk_generator<uint16_t>>> generators_;
         sync_process sync_process_;

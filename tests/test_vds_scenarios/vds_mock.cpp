@@ -70,14 +70,14 @@ void vds_mock::stop()
   }
 }
 
-static void print_value(const std::string & value, int width) {
-  std::cout << value;
+static void print_value(std::ostream & logfile, const std::string & value, int width) {
+  logfile << value;
   for(int i = value.length(); i < width; ++i) {
-    std::cout << ' ';
+    logfile << ' ';
   }
 }
 
-static void print_table(const std::list<std::tuple<std::string, std::map<std::string, std::string>>> & table) {
+static void print_table(std::ostream & logfile, const std::list<std::tuple<std::string, std::map<std::string, std::string>>> & table) {
   std::size_t first_column_width = 0U;
   std::map<std::string, std::size_t> column_witdhs;
 
@@ -98,27 +98,27 @@ static void print_table(const std::list<std::tuple<std::string, std::map<std::st
     }
   }
   //Out
-  print_value(std::string(), first_column_width);
+  print_value(logfile, std::string(), first_column_width);
 
   for (auto column : column_witdhs) {
-    std::cout << '|';
-    print_value(column.first, column.second);
+    logfile << '|';
+    print_value(logfile, column.first, column.second);
   }
-  std::cout << '\n';
+  logfile << '\n';
 
   for (auto row : table) {
-    print_value(std::get<0>(row), first_column_width);
+    print_value(logfile, std::get<0>(row), first_column_width);
 
     for (auto column : column_witdhs) {
-      std::cout << '|';
-      print_value(std::get<1>(row)[column.first], column.second);
+      logfile << '|';
+      print_value(logfile, std::get<1>(row)[column.first], column.second);
     }
-    std::cout << '\n';
+    logfile << '\n';
   }
 }
 
 
-bool vds_mock::dump_statistic(std::vector<vds::server_statistic>& statistics) {
+bool vds_mock::dump_statistic(std::ostream & logfile, std::vector<vds::server_statistic>& statistics) {
   for (auto & p : this->servers_) {
 
     vds::barrier b;
@@ -180,7 +180,7 @@ bool vds_mock::dump_statistic(std::vector<vds::server_statistic>& statistics) {
         states[record]));
     }
   }
-  print_table(table);
+  print_table(logfile, table);
 
   bool is_good = true;
   vds::sync_statistic last_sync_statistic;
@@ -197,7 +197,7 @@ bool vds_mock::dump_statistic(std::vector<vds::server_statistic>& statistics) {
   //////////////////////////////////////////////////////////////////////
   table.clear();
   std::map<vds::const_data_buffer, std::map<std::size_t, std::string>> objects;
-  std::cout << "Replicas:\n";
+  logfile << "Replicas:\n";
   for (std::size_t i = 0; i < statistics.size(); ++i) {
     for (auto chunk : statistics[i].sync_statistic_.chunks_) {
       std::map<std::string, std::string> * prow = nullptr;
@@ -245,14 +245,14 @@ bool vds_mock::dump_statistic(std::vector<vds::server_statistic>& statistics) {
       }
     }
   }
-  print_table(table);
+  print_table(logfile, table);
   //Sync state
   std::map<vds::const_data_buffer, std::size_t> node_id2index;
   for (std::size_t i = 0; i < statistics.size(); ++i) {
     node_id2index[statistics[i].route_statistic_.node_id_] = i;
   }
   for (const auto & object : objects) {
-    std::cout << "Object replicas:" << vds::base64::from_bytes(object.first) << "\n";
+    logfile << "Object replicas:" << vds::base64::from_bytes(object.first) << "\n";
 
     table.clear();
     std::map<std::string, std::string> columns;
@@ -294,7 +294,7 @@ bool vds_mock::dump_statistic(std::vector<vds::server_statistic>& statistics) {
           columns));
       }
     }
-    print_table(table);
+    print_table(logfile, table);
 
     for (std::size_t i = 0; i < statistics.size(); ++i) {
       const auto p1 = statistics[i].sync_statistic_.sync_states_.find(object.first);
@@ -311,49 +311,47 @@ bool vds_mock::dump_statistic(std::vector<vds::server_statistic>& statistics) {
             std::to_string(message.first),
             columns));
         }
-        print_table(table);
+        print_table(logfile, table);
       }
     }
   }
   //Network
-  //table.clear();
-  //std::cout << "Route:\n";
-  //std::map<vds::const_data_buffer, std::size_t> node_id2index;
-  //for (std::size_t i = 0; i < statistics.size(); ++i) {
-  //  node_id2index[statistics[i].route_statistic_.node_id_] = i;
-  //}
+  table.clear();
+  logfile << "Route:\n";
+  for (std::size_t i = 0; i < statistics.size(); ++i) {
+    std::map<std::string, std::string> columns;
 
-  //for (std::size_t i = 0; i < statistics.size(); ++i) {
-  //  std::map<std::string, std::string> columns;
+    for(const auto & item : statistics[i].route_statistic_.items_){
+      auto index = std::to_string(node_id2index.at(item.node_id_));
+      auto p = columns.find(index);
+      if(p == columns.end()){
+        columns[index] = std::to_string(item.hops_);
+      }
+      else if(item.hops_ < atoi(p->second.c_str())){
+        p->second = std::to_string(item.hops_);
+      }
+    }
 
-  //  for(const auto & item : statistics[i].route_statistic_.items_){
-  //    auto index = std::to_string(node_id2index.at(item.node_id_));
-  //    auto p = columns.find(index);
-  //    if(p == columns.end()){
-  //      columns[index] = std::to_string(item.hops_);
-  //    }
-  //    else if(item.hops_ < atoi(p->second.c_str())){
-  //      p->second = std::to_string(item.hops_);
-  //    }
-  //  }
-
-  //  table.push_back(
-  //      std::make_tuple(
-  //          std::to_string(i) + "." + vds::base64::from_bytes(statistics[i].route_statistic_.node_id_),
-  //          columns));
-  //}
-  //print_table(table);
+    table.push_back(
+        std::make_tuple(
+            std::to_string(i) + "." + vds::base64::from_bytes(statistics[i].route_statistic_.node_id_),
+            columns));
+  }
+  print_table(logfile, table);
 
   return is_good;
 }
 
 void vds_mock::sync_wait()
 {
+  std::ofstream logfile("test.log", std::ofstream::app);
+
   std::cout << "Waiting to synchronize...\n";
   for(int i = 0; i < 1000; ++i){
 
     std::vector<vds::server_statistic> statistics;
-    if (this->dump_statistic(statistics)) {
+    if (this->dump_statistic(logfile, statistics)) {
+      logfile.flush();
       return;
     }
 

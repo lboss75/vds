@@ -10,6 +10,7 @@ All rights reserved
 #include "udp_socket.h"
 #include "legacy.h"
 #include "debug_mutex.h"
+#include "iudp_transport.h"
 
 namespace vds {
   struct session_statistic;
@@ -18,20 +19,22 @@ namespace vds {
 namespace vds {
   namespace dht {
     namespace network {
-      class udp_transport : public std::enable_shared_from_this<udp_transport> {
+      class udp_transport : public iudp_transport {
       public:
         static constexpr uint32_t MAGIC_LABEL = 0xAFAFAFAF;
         static constexpr uint8_t PROTOCOL_VERSION = 0;
 
-        udp_transport(
-            const certificate & node_cert,
-            const asymmetric_private_key & node_key);
+        udp_transport();
         udp_transport(const udp_transport&) = delete;
         udp_transport(udp_transport&&) = delete;
 
-        void start(const service_provider& sp, uint16_t port);
+        void start(
+          const service_provider& sp,
+          const certificate & node_cert,
+          const asymmetric_private_key & node_key,
+          uint16_t port) override;
 
-        void stop(const service_provider& sp);
+        void stop(const service_provider& sp) override;
 
         async_task<> write_async(const service_provider& sp, const udp_datagram& datagram);
         async_task<> try_handshake(const service_provider& sp, const std::string& address);
