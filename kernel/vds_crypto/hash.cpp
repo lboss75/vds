@@ -149,6 +149,7 @@ vds::_hmac::_hmac(
 {
 #ifndef _WIN32
   this->ctx_ = &this->ctx_data_;
+  HMAC_CTX_init(this->ctx_);
 #else
   this->ctx_ = HMAC_CTX_new();
 #endif
