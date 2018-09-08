@@ -481,6 +481,10 @@ namespace vds{
       auto pthis = static_cast<app_impl *>(this);
       pthis->start();
     }
+    
+    void waiting_stop_signal() {
+    }
+
 #endif // _WIN32
 
   private:
