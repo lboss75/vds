@@ -1373,11 +1373,11 @@ std::map<size_t, std::set<uint16_t>> vds::dht::network::sync_process::get_replic
 
   std::map<size_t, std::set<uint16_t>> result;
 
-  db_value<size_t> count;
+  db_value<int> count;
   orm::sync_replica_map_dbo t1;
   auto st = t.get_reader(t1.select(db_count(t1.node).as(count), t1.replica).where(t1.object_id == object_id).group_by(t1.replica));
   while(st.execute()) {
-    result[count.get(st)].emplace(t1.replica.get(st));
+    result[static_cast<size_t>(count.get(st))].emplace(t1.replica.get(st));
   }
 
   return result;
