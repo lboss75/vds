@@ -110,7 +110,7 @@ void vds::dht::network::sync_process::add_to_log(
                 && t2.member_node == client->current_node_id()));
   validate_last_applied(sp, t, object_id);
 
-  auto members = get_members(sp, t, object_id);
+  auto members = get_members(sp, t, object_id, true);
   for (const auto& member : members) {
     if (client->current_node_id() != member) {
       sp.get<logger>()->trace(
@@ -220,10 +220,17 @@ void vds::dht::network::sync_process::add_local_log(
 std::set<vds::const_data_buffer> vds::dht::network::sync_process::get_members(
   const service_provider& sp,
   database_read_transaction& t,
-  const const_data_buffer& object_id) {
+  const const_data_buffer& object_id,
+  bool include_removed) {
 
   orm::sync_member_dbo t1;
-  auto st = t.get_reader(t1.select(t1.member_node).where(t1.object_id == object_id));
+  auto st = include_removed 
+  ? t.get_reader(t1.select(
+    t1.member_node)
+    .where(t1.object_id == object_id))
+  : t.get_reader(t1.select(
+      t1.member_node)
+      .where(t1.object_id == object_id && t1.delete_index == 0));
 
   std::set<const_data_buffer> result;
   while (st.execute()) {
@@ -267,7 +274,7 @@ void vds::dht::network::sync_process::make_new_election(
                   t2.last_activity = std::chrono::system_clock::now())
                 .where(t2.object_id == object_id && t2.member_node == client->current_node_id()));
 
-    auto members = this->get_members(sp, t, object_id);
+    auto members = this->get_members(sp, t, object_id, true);
     for (const auto& member : members) {
       if (member != client->current_node_id()) {
         client->send(
@@ -380,9 +387,25 @@ vds::dht::network::sync_process::base_message_type vds::dht::network::sync_proce
         }
         break;
       }
-      case orm::sync_state_dbo::state_t::leader:
-        break;
+      case orm::sync_state_dbo::state_t::leader: {
+        st = t.get_reader(t2.select(t2.delete_index)
+          .where(t2.object_id == message.object_id()
+            && t2.member_node == message_info.source_node()));
+        if(st.execute()) {
+          if(t2.delete_index.get(st) > 0 && message.last_applied() >= t2.delete_index.get(st)) {
+            t.execute(t2.delete_if(
+              t2.object_id == message.object_id()
+              && t2.member_node == message_info.source_node()));
+          }
+        }
+        else {
+          sp.get<logger>()->trace(SyncModule, sp, "Member %s not found of %s",
+            base64::from_bytes(message_info.source_node()).c_str(),
+            base64::from_bytes(message.object_id()).c_str());
+        }
 
+        break;
+      }
       default:
         vds_assert(false);
         break;
@@ -574,7 +597,8 @@ void vds::dht::network::sync_process::add_sync_entry(
       t2.generation = 0,
       t2.current_term = 0,
       t2.commit_index = 0,
-      t2.last_applied = 0));
+      t2.last_applied = 0,
+      t2.delete_index = 0));
 
     client->find_nodes(
       sp,
@@ -977,7 +1001,7 @@ void vds::dht::network::sync_process::apply_message(
                 t1.next_sync = std::chrono::system_clock::now() + LEADER_BROADCAST_TIMEOUT())
               .where(t1.object_id == message.object_id()));
 
-  auto members = this->get_members(sp, t, message.object_id());
+  auto members = this->get_members(sp, t, message.object_id(), false);
   for (const auto& member : message.members()) {
     auto p = members.find(member.first);
     if (members.end() == p) {
@@ -989,6 +1013,7 @@ void vds::dht::network::sync_process::apply_message(
         t2.current_term = message.current_term(),
         t2.commit_index = message.commit_index(),
         t2.last_applied = message.commit_index(),
+        t2.delete_index = 0,
         t2.last_activity = std::chrono::system_clock::now()));
       validate_last_applied(sp, t, message.object_id());
     }
@@ -1419,7 +1444,7 @@ void vds::dht::network::sync_process::send_random_replicas(
   const send_random_replica_goal_t goal,
   const std::set<uint16_t>& exist_replicas) {
 
-  auto replica_frequency = this->get_replica_frequency(sp, t, object_id);
+  const auto replica_frequency = this->get_replica_frequency(sp, t, object_id);
 
   auto client = sp.get<network::client>();
 
@@ -1777,6 +1802,7 @@ void vds::dht::network::sync_process::apply_message(
           t3.current_term = message.current_term(),
           t3.commit_index = message.commit_index(),
           t3.last_applied = message.commit_index(),
+          t3.delete_index = 0,
           t3.last_activity = std::chrono::system_clock::now()));
         validate_last_applied(sp, t, message.object_id());
       }
@@ -2284,10 +2310,12 @@ vds::dht::network::sync_process::get_leader(
       .inner_join(t2, t2.object_id == t1.object_id && t2.member_node == client->current_node_id())
       .where(t1.object_id == object_id));
   if (st.execute()) {
-    if (orm::sync_state_dbo::state_t::leader == static_cast<orm::sync_state_dbo::state_t>(t1.state.get(st))) {
+    if (orm::sync_state_dbo::state_t::leader == t1.state.get(st)) {
       return client->current_node_id();
     }
-    return t2.voted_for.get(st);
+    if (t2.voted_for.get(st) != client->current_node_id()) {
+      return t2.voted_for.get(st);
+    }
   }
 
   return const_data_buffer();
@@ -2392,20 +2420,34 @@ void vds::dht::network::sync_process::apply_record(
           t1.current_term = current_term,
           t1.commit_index = commit_index,
           t1.last_applied = last_applied,
+          t1.delete_index = 0,
           t1.last_activity = std::chrono::system_clock::now()));
     }
 
-    send_snapshot(sp, t, object_id, {member_node});
+    if (leader_node_id == client->current_node_id()) {
+      send_snapshot(sp, t, object_id, { member_node });
+    }
+
     break;
   }
 
   case orm::sync_message_dbo::message_type_t::remove_member: {
     orm::sync_member_dbo t1;
-    t.execute(
-      t1.delete_if(
-        t1.object_id == object_id
-        && t1.member_node == member_node));
+    if (leader_node_id != client->current_node_id()) {
+      t.execute(
+        t1.delete_if(
+          t1.object_id == object_id
+          && t1.member_node == member_node));
+    }
+    else {
+      t.execute(
+        t1.update(
+          t1.delete_index = commit_index)
+        .where(
+          t1.object_id == object_id
+          && t1.member_node == member_node));
 
+    }
     break;
   }
 
@@ -3108,7 +3150,7 @@ void vds::dht::network::sync_process::make_leader(
                 t1.next_sync = std::chrono::system_clock::now() + FOLLOWER_TIMEOUT())
               .where(t1.object_id == object_id));
 
-  this->send_snapshot(sp, t, object_id, this->get_members(sp, t, object_id));
+  this->send_snapshot(sp, t, object_id, this->get_members(sp, t, object_id, true));
 }
 
 void vds::dht::network::sync_process::make_follower(const service_provider& sp, database_transaction& t,

@@ -221,7 +221,8 @@ namespace vds {
         static std::set<const_data_buffer> get_members(
           const service_provider& sp,
           database_read_transaction& t,
-          const const_data_buffer& object_id);
+          const const_data_buffer& object_id,
+          bool include_removed);
 
         void make_new_election(
           const service_provider& sp,

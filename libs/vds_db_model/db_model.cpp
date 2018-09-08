@@ -200,12 +200,13 @@ void vds::db_model::migrate(
     t.execute("CREATE TABLE sync_member(\
 			object_id VARCHAR(64) NOT NULL,\
       member_node VARCHAR(64) NOT NULL,\
-      voted_for VARCHAR(64) NULL,\
-      generation INTEGER NULL,\
-			current_term INTEGER NULL,\
-			commit_index INTEGER NULL,\
-			last_applied INTEGER NULL,\
-      last_activity INTEGER NULL,\
+      voted_for VARCHAR(64) NOT NULL,\
+      generation INTEGER NOT NULL,\
+			current_term INTEGER NOT NULL,\
+			commit_index INTEGER NOT NULL,\
+			last_applied INTEGER NOT NULL,\
+      delete_index INTEGER NOT NULL,\
+      last_activity INTEGER NOT NULL,\
       CONSTRAINT pk_sync_member PRIMARY KEY(object_id,member_node))");
 
     t.execute("CREATE TABLE sync_message(\

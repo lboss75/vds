@@ -20,6 +20,7 @@ namespace vds {
         current_term(this, "current_term"),
         commit_index(this, "commit_index"),
         last_applied(this, "last_applied"),
+        delete_index(this, "delete_index"),
         last_activity(this, "last_activity")
 		  {
 			}
@@ -32,6 +33,8 @@ namespace vds {
       database_column<uint64_t> current_term;
       database_column<uint64_t> commit_index;
       database_column<uint64_t> last_applied;
+
+      database_column<uint64_t> delete_index;
 
       database_column<std::chrono::system_clock::time_point> last_activity;
     };
