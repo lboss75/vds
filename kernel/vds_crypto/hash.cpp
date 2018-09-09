@@ -147,7 +147,7 @@ vds::_hmac::_hmac(
     const hash_info & info)
 : info_(info)
 {
-#ifndef _WIN32
+#if OPENSSL_VERSION_NUMBER<0x10100000L
   this->ctx_ = &this->ctx_data_;
   HMAC_CTX_init(this->ctx_);
 #else
@@ -159,10 +159,10 @@ vds::_hmac::_hmac(
 
 vds::_hmac::~_hmac()
 {
-#ifdef _WIN32
-  HMAC_CTX_free(this->ctx_);
-#else
+#if OPENSSL_VERSION_NUMBER<0x10100000L
   HMAC_CTX_cleanup(this->ctx_);
+#else
+	HMAC_CTX_free(this->ctx_);
 #endif//_WIN32
 }
 
