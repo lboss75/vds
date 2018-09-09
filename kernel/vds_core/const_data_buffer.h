@@ -10,6 +10,7 @@ All rights reserved
 #include <list>
 #include "types.h"
 #include "vds_debug.h"
+#include <cstdlib>
 
 namespace vds{
   class binary_serializer;
@@ -24,13 +25,13 @@ namespace vds{
     }
 
     const_data_buffer(const void * data, size_t len)
-      : data_(static_cast<uint8_t *>(len ? malloc(len) : nullptr)), size_(len), allocated_size_(len)
+      : data_(static_cast<uint8_t *>(len ? std::malloc(len) : nullptr)), size_(len), allocated_size_(len)
     {
       memcpy(this->data_, data, len);
     }
       
     const_data_buffer(const const_data_buffer & other)
-      : data_(static_cast<uint8_t *>(other.size_ ? malloc(other.size_) : nullptr)), size_(other.size_), allocated_size_(other.size_)
+      : data_(static_cast<uint8_t *>(other.size_ ? std::malloc(other.size_) : nullptr)), size_(other.size_), allocated_size_(other.size_)
     {
       memcpy(this->data_, other.data_, other.size_);
     }
@@ -48,7 +49,7 @@ namespace vds{
 
     ~const_data_buffer() {
       if (this->data_) {
-        free(this->data_);
+        std::free(this->data_);
       }
     }
           
@@ -59,7 +60,7 @@ namespace vds{
     void resize(size_t len) {
       if (this->allocated_size_ < len) {
         if (this->data_) {
-          free(this->data_);
+          std::free(this->data_);
         }
         this->data_ = static_cast<uint8_t *>(malloc(len));
         this->allocated_size_ = len;
@@ -79,7 +80,7 @@ namespace vds{
     const_data_buffer & operator = (const_data_buffer && other) noexcept
     {
       if (this->data_) {
-        free(this->data_);
+        std::free(this->data_);
       }
       this->data_ = other.data_;
       this->size_ = other.size_;

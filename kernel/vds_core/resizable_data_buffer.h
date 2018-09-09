@@ -2,6 +2,7 @@
 #define __VDS_CORE_RESIZABLE_DATA_BUFFER_H_
 
 #include "const_data_buffer.h"
+#include <cstdlib>
 
 namespace vds {
   class resizable_data_buffer {
@@ -13,7 +14,7 @@ namespace vds {
 
     ~resizable_data_buffer() {
       if(this->data_ != nullptr) {
-        free(this->data_);
+        std::free(this->data_);
       }
     }
 
@@ -61,7 +62,7 @@ namespace vds {
     void resize_data(size_t size) {
       if (this->allocated_size_ < size) {
         this->allocated_size_ = 1024 * ((size + 1023) / 1024);
-        this->data_ = static_cast<uint8_t *>(realloc(this->data_, this->allocated_size_));
+        this->data_ = static_cast<uint8_t *>(std::realloc(this->data_, this->allocated_size_));
         if (nullptr == this->data_) {
           throw std::runtime_error("Out of memmory");
         }

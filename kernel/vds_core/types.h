@@ -15,6 +15,7 @@ All rights reserved
 #include <cstring>
 #include <functional>
 #include <memory>
+#include <stdexcept>
 
 namespace vds {
   class service_provider;

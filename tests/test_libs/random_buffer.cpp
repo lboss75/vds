@@ -1,4 +1,5 @@
 #include "random_buffer.h"
+#include <cstdlib>
 
 random_buffer::random_buffer(size_t min_size, size_t max_size)
 {
