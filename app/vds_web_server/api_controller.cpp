@@ -40,7 +40,7 @@ vds::api_controller::get_channels(
   return std::static_pointer_cast<json_value>(result);
 }
 
-vds::async_task<vds::http_message> vds::api_controller::get_login_state(
+std::future<vds::http_message> vds::api_controller::get_login_state(
   const service_provider& sp,
   const std::string & login,
   const std::string & password,
@@ -55,7 +55,7 @@ vds::async_task<vds::http_message> vds::api_controller::get_login_state(
       auto item = std::make_shared<json_object>();
       item->add_property("state", std::to_string(percent));
 
-      return vds::async_task<vds::http_message>::result(
+      return std::future<vds::http_message>::result(
         http_response::simple_text_response(
           sp,
           item->json_value::str(),
@@ -89,7 +89,7 @@ vds::async_task<vds::http_message> vds::api_controller::get_login_state(
         throw std::runtime_error("Invalid program");
       }
 
-      return vds::async_task<vds::http_message>::result(
+      return std::future<vds::http_message>::result(
         http_response::simple_text_response(
           sp,
           item->json_value::str(),
@@ -99,14 +99,14 @@ vds::async_task<vds::http_message> vds::api_controller::get_login_state(
   });
 }
 
-vds::async_task<vds::http_message>
+std::future<vds::http_message>
 vds::api_controller::create_channel(
   const vds::service_provider &sp,
   const std::shared_ptr<vds::user_manager> &user_mng,
   const std::string & name) {
 
   return user_mng->create_channel(sp, name).then([sp](const vds::user_channel & channel) {
-    return vds::async_task<vds::http_message>::result(
+    return std::future<vds::http_message>::result(
       http_response::simple_text_response(
         sp,
         channel_serialize(channel)->json_value::str(),
@@ -114,7 +114,7 @@ vds::api_controller::create_channel(
   });
 }
 
-vds::async_task<std::shared_ptr<vds::json_value>> vds::api_controller::channel_feed(
+std::future<std::shared_ptr<vds::json_value>> vds::api_controller::channel_feed(
   const service_provider& sp,
   const std::shared_ptr<user_manager>& user_mng,
   const std::shared_ptr<_web_server>& owner,
@@ -147,7 +147,7 @@ vds::async_task<std::shared_ptr<vds::json_value>> vds::api_controller::channel_f
   });
 }
 
-vds::async_task<
+std::future<
   std::string /*content_type*/,
   std::string /*filename*/,
   size_t /*body_size*/,
@@ -160,8 +160,8 @@ vds::api_controller::download_file(
   const const_data_buffer& file_hash) {
 
   return sp.get<file_manager::file_operations>()->download_file(sp, user_mng, channel_id, file_hash).then(
-    [](const file_manager::file_operations::download_result_t & result) -> async_task<std::string, std::string, size_t, std::shared_ptr<vds::continuous_buffer<uint8_t>>>{
-    return async_task<std::string, std::string, size_t, std::shared_ptr<continuous_buffer<uint8_t>>>::result(
+    [](const file_manager::file_operations::download_result_t & result) -> std::future<std::string, std::string, size_t, std::shared_ptr<vds::continuous_buffer<uint8_t>>>{
+    return std::future<std::string, std::string, size_t, std::shared_ptr<continuous_buffer<uint8_t>>>::result(
       result.mime_type,
       result.name,
       result.size,
@@ -169,7 +169,7 @@ vds::api_controller::download_file(
   });
 }
 
-vds::async_task<std::shared_ptr<vds::json_value>>
+std::future<std::shared_ptr<vds::json_value>>
 vds::api_controller::user_devices(
     const vds::service_provider &sp,
     const std::shared_ptr<vds::user_manager> &user_mng,
@@ -210,7 +210,7 @@ vds::api_controller::user_devices(
   });
 }
 
-vds::async_task<std::shared_ptr<vds::json_value>>
+std::future<std::shared_ptr<vds::json_value>>
 vds::api_controller::offer_device(
     const vds::service_provider &sp,
     const std::shared_ptr<vds::user_manager> &user_mng,
@@ -245,10 +245,10 @@ vds::api_controller::offer_device(
     break;
   }
 
-  return vds::async_task<std::shared_ptr<vds::json_value>>::result(result);
+  return std::future<std::shared_ptr<vds::json_value>>::result(result);
 }
 
-vds::async_task<std::shared_ptr<vds::json_value>> vds::api_controller::get_statistics(const service_provider& sp,
+std::future<std::shared_ptr<vds::json_value>> vds::api_controller::get_statistics(const service_provider& sp,
   const std::shared_ptr<_web_server>& owner, const http_message& message) {
 
   http_request request(message);
@@ -266,17 +266,17 @@ std::shared_ptr<vds::json_value> vds::api_controller::get_invite(const service_p
   return result;
 }
 
-vds::async_task<>
+std::future<void>
 vds::api_controller::lock_device(const vds::service_provider &sp, const std::shared_ptr<vds::user_manager> &user_mng,
                                  const std::shared_ptr<vds::_web_server> &owner, const std::string &device_name,
                                  const std::string &local_path, uint64_t reserved_size) {
   if(local_path.empty() || reserved_size < 1) {
-    return vds::async_task<>(std::make_shared<vds_exceptions::invalid_operation>());
+    return std::future<void>(std::make_shared<vds_exceptions::invalid_operation>());
   }
 
   foldername fl(local_path);
   if(fl.exist()) {
-    return vds::async_task<>(std::make_shared<std::runtime_error>("Folder " + local_path + " already exists"));
+    return std::future<void>(std::make_shared<std::runtime_error>("Folder " + local_path + " already exists"));
   }
   fl.create();
 
@@ -295,7 +295,7 @@ vds::api_controller::lock_device(const vds::service_provider &sp, const std::sha
   });
 }
 
-vds::async_task<std::shared_ptr<vds::json_value>>
+std::future<std::shared_ptr<vds::json_value>>
 vds::api_controller::get_register_requests(
   const vds::service_provider &sp,
   const std::shared_ptr<vds::_web_server> &owner) {
@@ -318,7 +318,7 @@ vds::api_controller::get_register_requests(
   });
 }
 
-vds::async_task<std::shared_ptr<vds::json_value>>
+std::future<std::shared_ptr<vds::json_value>>
 vds::api_controller::get_register_request(
   const vds::service_provider &sp,
   const std::shared_ptr<vds::_web_server> &owner,
@@ -342,7 +342,7 @@ vds::api_controller::get_register_request(
   });
 }
 
-vds::async_task<vds::const_data_buffer> vds::api_controller::get_register_request_body(
+std::future<vds::const_data_buffer> vds::api_controller::get_register_request_body(
   const service_provider& sp,
   const std::shared_ptr<_web_server>& owner,
   const const_data_buffer & request_id) {
@@ -365,7 +365,7 @@ vds::async_task<vds::const_data_buffer> vds::api_controller::get_register_reques
   });
 }
 
-vds::async_task<vds::http_message> vds::api_controller::get_session(
+std::future<vds::http_message> vds::api_controller::get_session(
   const service_provider& sp,
   const std::shared_ptr<_web_server>& owner,
   const std::string& session_id) {
@@ -382,18 +382,18 @@ vds::async_task<vds::http_message> vds::api_controller::get_session(
     result->add_property("user_name", session->user_name());
   }
 
-  return vds::async_task<vds::http_message>::result(
+  return std::future<vds::http_message>::result(
     http_response::simple_text_response(
       sp,
       result->json_value::str(),
       "application/json; charset=utf-8"));
 }
 
-vds::async_task<vds::http_message> vds::api_controller::logout(const service_provider& sp,
+std::future<vds::http_message> vds::api_controller::logout(const service_provider& sp,
   const std::shared_ptr<_web_server>& owner, const std::string & session_id) {
   owner->kill_session(sp, session_id);
 
-  return vds::async_task<vds::http_message>::result(
+  return std::future<vds::http_message>::result(
     http_response::redirect(
       sp,
       "/"));

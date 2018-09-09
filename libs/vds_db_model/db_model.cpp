@@ -1,9 +1,9 @@
 #include "stdafx.h"
 #include "db_model.h"
 
-vds::async_task<> vds::db_model::async_transaction(const vds::service_provider &sp,
+std::future<void> vds::db_model::async_transaction(const vds::service_provider &sp,
                                                    const std::function<void(vds::database_transaction &)> &handler) {
-  return [this, sp, handler](const async_result<> & result){
+  return [this, sp, handler](const std::promise<> & result){
     this->db_.async_transaction(sp, [sp, handler, result](database_transaction & t)->bool{
       try {
         handler(t);
@@ -23,10 +23,10 @@ vds::async_task<> vds::db_model::async_transaction(const vds::service_provider &
   };
 }
 
-vds::async_task<> vds::db_model::async_read_transaction(
+std::future<void> vds::db_model::async_read_transaction(
     const vds::service_provider &sp,
     const std::function<void(vds::database_read_transaction &)> &handler) {
-  return [this, sp, handler](const async_result<> & result){
+  return [this, sp, handler](const std::promise<> & result){
     this->db_.async_read_transaction(sp, [sp, handler, result](database_read_transaction & t){
       try {
         handler(t);
@@ -249,6 +249,6 @@ void vds::db_model::migrate(
 	}
 }
 
-vds::async_task<> vds::db_model::prepare_to_stop(const vds::service_provider &sp) {
+std::future<void> vds::db_model::prepare_to_stop(const vds::service_provider &sp) {
   return this->db_.prepare_to_stop(sp);
 }

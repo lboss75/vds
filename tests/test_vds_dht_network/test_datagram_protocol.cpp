@@ -157,7 +157,7 @@ TEST(DISABLED_test_vds_dht_network, test_data_exchange) {
   registrator.shutdown(sp);
 }
 
-vds::async_task<> mock_transport::write_async(
+std::future<void> mock_transport::write_async(
     const vds::service_provider &sp,
     const vds::udp_datagram &data) {
   return this->s_.process_datagram(

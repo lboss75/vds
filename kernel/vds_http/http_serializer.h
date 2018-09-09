@@ -26,7 +26,7 @@ namespace vds {
       {
       }
 
-      async_task<> write_async(
+      std::future<void> write_async(
         const service_provider & sp,
         const http_message & message)
       {
@@ -56,7 +56,7 @@ namespace vds {
       std::shared_ptr<continuous_buffer<uint8_t>> buffer_;
       uint8_t output_buffer_[1024];
 
-      async_task<> write_body(
+      std::future<void> write_body(
         const service_provider & sp,
         const http_message & message,
         const std::shared_ptr<std::vector<uint8_t>> & buffer)
@@ -79,7 +79,7 @@ namespace vds {
         });
       }
 
-      async_task<> continue_process(const service_provider & sp)
+      std::future<void> continue_process(const service_provider & sp)
       {
         return this->buffer_->read_async(this->output_buffer_, sizeof(this->output_buffer_))
           .then([pthis = this->shared_from_this(), sp](size_t readed) {
@@ -93,7 +93,7 @@ namespace vds {
             else {
               return pthis->target_.write_async(nullptr, 0)
                 .then([]() {
-                  return async_task<>::empty();
+                  return std::future<void>::empty();
                 });
             }
           });
@@ -113,7 +113,7 @@ namespace vds {
     {
     }
 
-    async_task<> write_async(
+    std::future<void> write_async(
       const service_provider & sp,
       const http_message & message)
     {
@@ -142,7 +142,7 @@ namespace vds {
     std::shared_ptr<continuous_buffer<uint8_t>> buffer_;
     uint8_t output_buffer_[1024];
 
-    async_task<> write_body(
+    std::future<void> write_body(
       const service_provider & sp,
       const std::shared_ptr<continuous_buffer<uint8_t>> & body,
       const std::shared_ptr<std::vector<uint8_t>> & buffer)
@@ -165,7 +165,7 @@ namespace vds {
       });
     }
 
-    async_task<> continue_process(const service_provider & sp)
+    std::future<void> continue_process(const service_provider & sp)
     {
       return this->buffer_->read_async(this->output_buffer_, sizeof(this->output_buffer_))
         .then([pthis = this->shared_from_this(), sp](size_t readed) {
@@ -175,7 +175,7 @@ namespace vds {
         }
         else {
           pthis->target_.write(nullptr, 0);
-          return async_task<>::empty();
+          return std::future<void>::empty();
         }
       });
     }

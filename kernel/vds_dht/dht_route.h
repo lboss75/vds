@@ -108,7 +108,7 @@ namespace vds {
       }
 
       template <typename... timer_arg_types>
-      async_task<> on_timer(
+      std::future<void> on_timer(
           const service_provider &sp,
           timer_arg_types && ... timer_args) {
         return this->ping_buckets(sp, std::forward<timer_arg_types>(timer_args)...);
@@ -267,11 +267,11 @@ namespace vds {
         }
 
         template <typename... timer_arg_types>
-        async_task<> on_timer(
+        std::future<void> on_timer(
             const service_provider &sp,
             const dht_route *owner,
             timer_arg_types && ... timer_args) {
-          auto result = async_task<>::empty();
+          auto result = std::future<void>::empty();
           std::shared_lock<std::shared_mutex> lock(this->nodes_mutex_);
           for (auto p : this->nodes_) {
             sp.get<logger>()->trace("DHT", sp, "Bucket node node_id=%s,proxy_session=%s,pinged=%d,hops=%d",
@@ -439,8 +439,8 @@ namespace vds {
       }
 
       template <typename... timer_arg_types>
-      async_task<> ping_buckets(const service_provider &sp, timer_arg_types && ... timer_args) {
-        auto result = async_task<>::empty();
+      std::future<void> ping_buckets(const service_provider &sp, timer_arg_types && ... timer_args) {
+        auto result = std::future<void>::empty();
         std::shared_lock<std::shared_mutex> lock(this->buckets_mutex_);
         for (auto &p : this->buckets_) {
           sp.get<logger>()->trace("DHT", sp, "Bucket %d", p.first);

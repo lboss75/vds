@@ -92,7 +92,7 @@ namespace vds {
           const messages::dht_find_node& message,
           const imessage_map::message_info_t& message_info);
 
-        async_task<> apply_message(
+        std::future<void> apply_message(
           const service_provider& sp,
           const messages::dht_find_node_response& message,
           const imessage_map::message_info_t& message_info);
@@ -252,24 +252,24 @@ namespace vds {
 
         void add_session(const service_provider& sp, const std::shared_ptr<dht_session>& session, uint8_t hops);
 
-        async_task<> restore(
+        std::future<void> restore(
           const service_provider& sp,
           const std::vector<const_data_buffer>& object_ids,
           const std::shared_ptr<const_data_buffer>& result,
           const std::chrono::steady_clock::time_point& start);
 
-        async_task<> restore(
+        std::future<void> restore(
           const service_provider& sp,
           const std::string& name,
           const std::shared_ptr<const_data_buffer>& result,
           const std::chrono::steady_clock::time_point& start);
 
-        async_task<uint8_t> restore_async(
+        std::future<uint8_t> restore_async(
           const service_provider& sp,
           const std::vector<const_data_buffer>& object_ids,
           const std::shared_ptr<const_data_buffer>& result);
 
-        async_task<uint8_t> restore_async(
+        std::future<uint8_t> restore_async(
           const service_provider& sp,
           const std::string& name,
           const std::shared_ptr<const_data_buffer>& result);
@@ -298,8 +298,8 @@ namespace vds {
 
         uint32_t update_route_table_counter_;
 
-        async_task<> update_route_table(const service_provider& sp);
-        async_task<> process_update(
+        std::future<void> update_route_table(const service_provider& sp);
+        std::future<void> process_update(
           const service_provider& sp,
           database_transaction& t);
 
@@ -336,7 +336,7 @@ namespace vds {
           const std::string& key,
           uint16_t replica);
 
-        async_task<> update_wellknown_connection(
+        std::future<void> update_wellknown_connection(
           const service_provider& sp,
           database_transaction& t);
 

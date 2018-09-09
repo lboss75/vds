@@ -37,7 +37,7 @@ void vds::database::async_read_transaction(const service_provider& sp,
   this->impl_->async_read_transaction(sp, callback);
 }
 
-vds::async_task<> vds::database::prepare_to_stop(const vds::service_provider &sp) {
+std::future<void> vds::database::prepare_to_stop(const vds::service_provider &sp) {
   return this->impl_->prepare_to_stop(sp);
 }
 

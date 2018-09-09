@@ -6,7 +6,7 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
-#include "async_task.h"
+
 #include "mt_service.h"
 #include "network_types_p.h"
 #include "network_service_p.h"
@@ -38,7 +38,7 @@ namespace vds {
       }
     }
 
-    async_task<> start(
+    std::future<void> start(
       const service_provider & sp,
       const network_address & address,
       const std::function<void(tcp_network_socket s)> & new_connection)

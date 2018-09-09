@@ -6,7 +6,7 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 #include <memory>
-#include "async_task.h"
+
 #include "async_buffer.h"
 #include "network_address.h"
 

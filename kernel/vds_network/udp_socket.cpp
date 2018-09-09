@@ -67,12 +67,12 @@ vds::udp_socket::~udp_socket()
 {
 }
 
-vds::async_task<const vds::udp_datagram&> vds::udp_socket::read_async() const
+std::future<const vds::udp_datagram&> vds::udp_socket::read_async() const
 {
   return this->impl_->read_async();
 }
 
-vds::async_task<> vds::udp_socket::write_async(const udp_datagram & message) const
+std::future<void> vds::udp_socket::write_async(const udp_datagram & message) const
 {
   return this->impl_->write_async(message);
 }

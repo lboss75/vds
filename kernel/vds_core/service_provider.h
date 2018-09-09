@@ -8,7 +8,8 @@ All rights reserved
 
 #include <string>
 #include "types.h"
-#include "async_task.h"
+#include <future>
+
 
 namespace vds {
   class shutdown_event;
@@ -91,8 +92,8 @@ namespace vds {
     virtual void register_services(service_registrator &) = 0;
     virtual void start(const service_provider &) = 0;
     virtual void stop(const service_provider &) = 0;
-    virtual async_task<> prepare_to_stop(const service_provider &) {
-      return async_task<>::empty();
+    virtual std::future<void> prepare_to_stop(const service_provider &) {
+      return std::future<void>();
     }
   };
   

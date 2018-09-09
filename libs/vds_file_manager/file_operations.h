@@ -8,7 +8,7 @@ All rights reserved
 #include <string>
 #include "user_message_transaction.h"
 #include "const_data_buffer.h"
-#include "async_task.h"
+
 #include "async_buffer.h"
 
 namespace vds {
@@ -31,14 +31,14 @@ namespace vds {
 
       file_operations();
 
-			vds::async_task<transactions::user_message_transaction::file_info_t> upload_file(
+			std::future<transactions::user_message_transaction::file_info_t> upload_file(
 				const service_provider &sp,
         const std::shared_ptr<user_manager> & user_mng,
         const std::string & name,
         const std::string & mime_type,
         const std::shared_ptr<continuous_buffer<uint8_t>> & input_stream);
 
-      async_task<> create_message(
+      std::future<void> create_message(
         const service_provider& sp,
         const std::shared_ptr<user_manager>& user_mng,
         const const_data_buffer& channel_id,
@@ -46,7 +46,7 @@ namespace vds {
         const std::list<transactions::user_message_transaction::file_info_t>& files);
 
 
-			vds::async_task<download_result_t> download_file(
+			std::future<download_result_t> download_file(
 		    const service_provider &sp,
         const std::shared_ptr<user_manager> & user_mng,
         const const_data_buffer & channel_id,

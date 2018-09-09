@@ -10,7 +10,7 @@ public:
   mock_transport(mock_session & s)
   : s_(s){
   }
-  vds::async_task<> write_async(
+  std::future<void> write_async(
       const vds::service_provider & sp,
       const vds::udp_datagram & data);
 
@@ -29,7 +29,7 @@ public:
     : base_class(address, this_node_id, partner_node_id, session_key) {
   }
 
-  vds::async_task<> process_message(
+  std::future<void> process_message(
       const vds::service_provider& sp,
       const std::shared_ptr<mock_transport>& transport,
       uint8_t message_type,
@@ -44,7 +44,7 @@ public:
     this->source_node_ = source_node;
     this->hops_ = hops;
 
-    return vds::async_task<>::empty();
+    return std::future<void>::empty();
   }
 
 

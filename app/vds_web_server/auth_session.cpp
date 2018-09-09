@@ -14,7 +14,7 @@ vds::auth_session::auth_session(const std::string &login, const std::string &pas
 }
 
 
-vds::async_task<> vds::auth_session::load(const service_provider& sp, const const_data_buffer & crypted_private_key) {
+std::future<void> vds::auth_session::load(const service_provider& sp, const const_data_buffer & crypted_private_key) {
 
   return sp.get<db_model>()->async_transaction(sp, [sp, pthis = this->shared_from_this(), crypted_private_key](database_transaction & t) {
       pthis->user_mng_->load(

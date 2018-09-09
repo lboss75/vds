@@ -43,7 +43,7 @@ void vds::web_server::stop(const service_provider& sp) {
   this->impl_.reset();
 }
 
-vds::async_task<> vds::web_server::prepare_to_stop(const service_provider& sp) {
+std::future<void> vds::web_server::prepare_to_stop(const service_provider& sp) {
   return this->impl_->prepare_to_stop(sp);
 }
 
@@ -77,12 +77,12 @@ void vds::_web_server::start(const service_provider& sp, const std::string & roo
     session->handler_ = std::make_shared<http_pipeline>(
         sp,
         session->stream_,
-      [sp, pthis, session](const http_message & request) -> async_task<http_message> {
+      [sp, pthis, session](const http_message & request) -> std::future<http_message> {
       try {
         if (request.headers().empty()) {
           session->stream_.reset();
           session->handler_.reset();
-          return async_task<http_message>::empty();
+          return std::future<http_message>::empty();
         }
 
         std::string keep_alive_header;
@@ -90,7 +90,7 @@ void vds::_web_server::start(const service_provider& sp, const std::string & roo
         return pthis->middleware_.process(sp, request);
       }
       catch (const std::exception & ex) {
-        return async_task<http_message>::result(http_response::status_response(sp, http_response::HTTP_Internal_Server_Error, ex.what()));
+        return std::future<http_message>::result(http_response::status_response(sp, http_response::HTTP_Internal_Server_Error, ex.what()));
       }
     });
     session->s_.start(sp, *session->handler_);
@@ -101,11 +101,11 @@ void vds::_web_server::start(const service_provider& sp, const std::string & roo
   });
 }
 
-vds::async_task<> vds::_web_server::prepare_to_stop(const service_provider& sp) {
-  return vds::async_task<>::empty();
+std::future<void> vds::_web_server::prepare_to_stop(const service_provider& sp) {
+  return std::future<void>::empty();
 }
 
-vds::async_task<vds::http_message> vds::_web_server::route(
+std::future<vds::http_message> vds::_web_server::route(
   const service_provider& sp,
   const http_message& message) {
 
@@ -116,7 +116,7 @@ vds::async_task<vds::http_message> vds::_web_server::route(
     if (request.method() == "GET") {
       const auto user_mng = this->get_secured_context(sp, request.get_parameter("session"));
       if (!user_mng) {
-        return vds::async_task<vds::http_message>::result(
+        return std::future<vds::http_message>::result(
             http_response::status_response(
                 sp,
                 http_response::HTTP_Unauthorized,
@@ -128,7 +128,7 @@ vds::async_task<vds::http_message> vds::_web_server::route(
           *user_mng,
           this->shared_from_this(),
           message);
-      return vds::async_task<vds::http_message>::result(
+      return std::future<vds::http_message>::result(
         http_response::simple_text_response(
           sp,
           result->str(),
@@ -138,7 +138,7 @@ vds::async_task<vds::http_message> vds::_web_server::route(
     if (request.method() == "POST") {
       auto user_mng = this->get_secured_context(sp, request.get_parameter("session"));
       if (!user_mng) {
-        return vds::async_task<vds::http_message>::result(
+        return std::future<vds::http_message>::result(
             http_response::status_response(
                 sp,
                 http_response::HTTP_Unauthorized,
@@ -187,7 +187,7 @@ vds::async_task<vds::http_message> vds::_web_server::route(
     if (request.method() == "GET") {
       const auto user_mng = this->get_secured_context(sp, request.get_parameter("session"));
       if (!user_mng) {
-        return vds::async_task<vds::http_message>::result(
+        return std::future<vds::http_message>::result(
           http_response::status_response(
             sp,
             http_response::HTTP_Unauthorized,
@@ -203,7 +203,7 @@ vds::async_task<vds::http_message> vds::_web_server::route(
         channel_id)
         .then([sp](const std::shared_ptr<vds::json_value> & result) {
 
-        return vds::async_task<vds::http_message>::result(
+        return std::future<vds::http_message>::result(
           http_response::simple_text_response(
             sp,
             result->str(),
@@ -216,7 +216,7 @@ vds::async_task<vds::http_message> vds::_web_server::route(
     if (request.method() == "GET") {
       const auto user_mng = this->get_secured_context(sp, request.get_parameter("session"));
       if (!user_mng) {
-        return vds::async_task<vds::http_message>::result(
+        return std::future<vds::http_message>::result(
             http_response::status_response(
                 sp,
                 http_response::HTTP_Unauthorized,
@@ -229,7 +229,7 @@ vds::async_task<vds::http_message> vds::_web_server::route(
           this->shared_from_this())
           .then([sp](const std::shared_ptr<vds::json_value> & result) {
 
-            return vds::async_task<vds::http_message>::result(
+            return std::future<vds::http_message>::result(
                 http_response::simple_text_response(
                     sp,
                     result->str(),
@@ -239,7 +239,7 @@ vds::async_task<vds::http_message> vds::_web_server::route(
     if (request.method() == "POST") {
       auto user_mng = this->get_secured_context(sp, request.get_parameter("session"));
       if (!user_mng) {
-        return vds::async_task<vds::http_message>::result(
+        return std::future<vds::http_message>::result(
             http_response::status_response(
                 sp,
                 http_response::HTTP_Unauthorized,
@@ -254,7 +254,7 @@ vds::async_task<vds::http_message> vds::_web_server::route(
                                          reserved_size)
           .then([sp]() {
 
-            return vds::async_task<vds::http_message>::result(
+            return std::future<vds::http_message>::result(
                 http_response::status_response(
                     sp,
                     http_response::HTTP_OK,
@@ -267,7 +267,7 @@ vds::async_task<vds::http_message> vds::_web_server::route(
     if (request.method() == "GET") {
       const auto user_mng = this->get_secured_context(sp, request.get_parameter("session"));
       if (!user_mng) {
-        return vds::async_task<vds::http_message>::result(
+        return std::future<vds::http_message>::result(
             http_response::status_response(
                 sp,
                 http_response::HTTP_Unauthorized,
@@ -280,7 +280,7 @@ vds::async_task<vds::http_message> vds::_web_server::route(
           this->shared_from_this())
           .then([sp](const std::shared_ptr<vds::json_value> &result) {
 
-            return vds::async_task<vds::http_message>::result(
+            return std::future<vds::http_message>::result(
                 http_response::simple_text_response(
                     sp,
                     result->str(),
@@ -294,7 +294,7 @@ vds::async_task<vds::http_message> vds::_web_server::route(
       message.ignore_empty_body();
       const auto user_mng = this->get_secured_context(sp, request.get_parameter("session"));
       if (!user_mng) {
-        return vds::async_task<vds::http_message>::result(
+        return std::future<vds::http_message>::result(
           http_response::status_response(
             sp,
             http_response::HTTP_Unauthorized,
@@ -316,7 +316,7 @@ vds::async_task<vds::http_message> vds::_web_server::route(
           size_t body_size,
           const std::shared_ptr<vds::continuous_buffer<uint8_t>> & output_stream) {
 
-        return vds::async_task<vds::http_message>::result(
+        return std::future<vds::http_message>::result(
           http_response::file_response(
             sp,
             output_stream,
@@ -330,7 +330,7 @@ vds::async_task<vds::http_message> vds::_web_server::route(
   if (request.url() == "/api/parse_join_request" && request.method() == "POST") {
     const auto user_mng = this->get_secured_context(sp, request.get_parameter("session"));
     if (!user_mng) {
-      return vds::async_task<vds::http_message>::result(
+      return std::future<vds::http_message>::result(
         http_response::status_response(
           sp,
           http_response::HTTP_Unauthorized,
@@ -346,7 +346,7 @@ vds::async_task<vds::http_message> vds::_web_server::route(
   if (request.url() == "/approve_join_request" && request.method() == "POST") {
     auto user_mng = this->get_secured_context(sp, request.get_parameter("session"));
     if (!user_mng) {
-      return vds::async_task<vds::http_message>::result(
+      return std::future<vds::http_message>::result(
         http_response::status_response(
           sp,
           http_response::HTTP_Unauthorized,
@@ -364,7 +364,7 @@ vds::async_task<vds::http_message> vds::_web_server::route(
     auto user_mng = this->get_secured_context(sp, request.get_parameter("session"));
     if (!user_mng) {
       message.ignore_body();
-      return vds::async_task<vds::http_message>::result(
+      return std::future<vds::http_message>::result(
         http_response::status_response(
           sp,
           http_response::HTTP_Unauthorized,
@@ -379,7 +379,7 @@ vds::async_task<vds::http_message> vds::_web_server::route(
   }
 
   if (request.url() == "/" && request.method() == "GET") {
-    return vds::async_task<vds::http_message>::result(this->router_.route(sp, message, "/index"));
+    return std::future<vds::http_message>::result(this->router_.route(sp, message, "/index"));
   }
 
   if (request.url() == "/api/register_requests" && request.method() == "GET") {
@@ -387,7 +387,7 @@ vds::async_task<vds::http_message> vds::_web_server::route(
     return api_controller::get_register_requests(sp, this->shared_from_this())
       .then([sp](const std::shared_ptr<vds::json_value> &result) {
 
-      return vds::async_task<vds::http_message>::result(
+      return std::future<vds::http_message>::result(
         http_response::simple_text_response(
           sp,
           result->str(),
@@ -402,7 +402,7 @@ vds::async_task<vds::http_message> vds::_web_server::route(
       base64::to_bytes(request.get_parameter("id")))
       .then([sp](const std::shared_ptr<vds::json_value> &result) {
 
-      return vds::async_task<vds::http_message>::result(
+      return std::future<vds::http_message>::result(
         http_response::simple_text_response(
           sp,
           result->str(),
@@ -416,7 +416,7 @@ vds::async_task<vds::http_message> vds::_web_server::route(
     return api_controller::get_register_request_body(sp, this->shared_from_this(), request_id)
       .then([sp](const const_data_buffer &result) {
 
-      return vds::async_task<vds::http_message>::result(
+      return std::future<vds::http_message>::result(
         http_response::file_response(
           sp,
           result,
@@ -444,7 +444,7 @@ vds::async_task<vds::http_message> vds::_web_server::route(
     }
   }
 
-  return vds::async_task<vds::http_message>::result(this->router_.route(sp, message, request.url()));
+  return std::future<vds::http_message>::result(this->router_.route(sp, message, request.url()));
 }
 
 void vds::_web_server::load_web(const std::string& path, const foldername & folder) {

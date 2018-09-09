@@ -63,7 +63,7 @@ private:
         : target_(target) {
     }
 
-    vds::async_task<> write_async(const item_type *data, size_t len) override {
+    std::future<void> write_async(const item_type *data, size_t len) override {
       if (0 == len) {
         return this->target_.write_async(data, len);
       } else {

@@ -7,7 +7,7 @@ All rights reserved
 */
 
 #include "service_provider.h"
-#include "async_task.h"
+
 
 namespace vds {
   class udp_datagram;
@@ -24,8 +24,8 @@ namespace vds {
 
         virtual void stop(const service_provider& sp) = 0;
 
-        virtual async_task<> write_async(const service_provider& sp, const udp_datagram& datagram) = 0;
-        virtual async_task<> try_handshake(const service_provider& sp, const std::string& address) = 0;
+        virtual std::future<void> write_async(const service_provider& sp, const udp_datagram& datagram) = 0;
+        virtual std::future<void> try_handshake(const service_provider& sp, const std::string& address) = 0;
       };
     }
   }

@@ -41,7 +41,7 @@ void vds::dht::network::udp_transport::stop(const service_provider& sp) {
   this->server_.stop(sp);
 }
 
-vds::async_task<>
+std::future<void>
 vds::dht::network::udp_transport::write_async(const service_provider& sp, const udp_datagram& datagram) {
   //  std::unique_lock<std::debug_mutex> lock(this->write_mutex_);
   //  while(this->write_in_progress_) {
@@ -56,7 +56,7 @@ vds::dht::network::udp_transport::write_async(const service_provider& sp, const 
   //#endif
   //#endif//_DEBUG
 
-  return [sp, pthis = this->shared_from_this(), datagram](const async_result<>& result) {
+  return [sp, pthis = this->shared_from_this(), datagram](const std::promise<>& result) {
     auto this_ = static_cast<udp_transport *>(pthis.get());
     std::unique_lock<std::debug_mutex> lock(this_->write_mutex_);
     bool need_send = this_->send_queue_.empty();
@@ -124,14 +124,14 @@ vds::dht::network::udp_transport::continue_send(const service_provider& sp) {
 }
 
 
-vds::async_task<> vds::dht::network::udp_transport::try_handshake(const service_provider& sp,
+std::future<void> vds::dht::network::udp_transport::try_handshake(const service_provider& sp,
                                                                   const std::string& address) {
 
   this->block_list_mutex_.lock();
   auto p = this->block_list_.find(address);
   if (this->block_list_.end() != p && p->second < std::chrono::steady_clock::now()) {
     this->block_list_mutex_.unlock();
-    return async_task<>::empty();
+    return std::future<void>::empty();
   }
   this->block_list_[address] = std::chrono::steady_clock::now() + std::chrono::minutes(1);
   this->block_list_mutex_.unlock();

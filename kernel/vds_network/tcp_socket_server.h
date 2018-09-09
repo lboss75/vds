@@ -6,7 +6,7 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
-#include "async_task.h"
+
 #include "network_address.h"
 
 namespace vds {
@@ -19,7 +19,7 @@ namespace vds {
     tcp_socket_server();
     ~tcp_socket_server();
 
-    async_task<> start(
+    std::future<void> start(
       const service_provider & sp,
       const network_address & address,
       const std::function<void(tcp_network_socket s)> & new_connection);

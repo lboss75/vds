@@ -16,7 +16,7 @@ vds::tcp_socket_server::~tcp_socket_server()
 {
 }
 
-vds::async_task<> vds::tcp_socket_server::start(
+std::future<void> vds::tcp_socket_server::start(
   const vds::service_provider& sp,
   const network_address & address,
   const std::function<void(tcp_network_socket s)>& new_connection)

@@ -7,7 +7,7 @@ Copyright (c) 2017, Vadim Malyshev, lboss75@gmail.com
 All rights reserved
 */
 
-#include "async_task.h"
+
 #include "const_data_buffer.h"
 #include "dht_datagram_protocol.h"
 #include "udp_transport.h"
@@ -32,7 +32,7 @@ namespace vds {
           const const_data_buffer& node_id,
           const std::shared_ptr<iudp_transport>& transport);
 
-        async_task<> process_message(
+        std::future<void> process_message(
           const service_provider& sp,
           const std::shared_ptr<iudp_transport>& transport,
           uint8_t message_type,

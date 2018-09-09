@@ -110,11 +110,11 @@ namespace vds {
 #endif
     }
 
-    async_task<const udp_datagram &> read_async()
+    std::future<const udp_datagram &> read_async()
     {
 #ifdef _WIN32
 		if (!this->reader_) {
-			return async_task<const udp_datagram &>(std::make_shared<std::system_error>(
+			return std::future<const udp_datagram &>(std::make_shared<std::system_error>(
 				ECONNRESET, std::system_category(), "Socket is closed"));
 		}
 		return this->reader_->read_async();
@@ -126,7 +126,7 @@ namespace vds {
 #endif
     }
 
-    async_task<> write_async(const udp_datagram & message)
+    std::future<void> write_async(const udp_datagram & message)
     {
 #ifdef _WIN32
       return this->writter_->write_async(message);
@@ -166,10 +166,10 @@ namespace vds {
       {
       }
 
-      async_task<const udp_datagram &> read_async()
+      std::future<const udp_datagram &> read_async()
       {
         vds_assert(!this->result_);
-        return [pthis = this->shared_from_this()](const async_result<const udp_datagram &> & result){
+        return [pthis = this->shared_from_this()](const std::promise<const udp_datagram &> & result){
           auto this_ = static_cast<_udp_receive *>(pthis.get());
           vds_assert(result);
           memset(&this_->overlapped_, 0, sizeof(this_->overlapped_));
@@ -214,7 +214,7 @@ namespace vds {
     private:
       service_provider sp_;
       SOCKET_HANDLE s_;
-      async_result<const udp_datagram &> result_;
+      std::promise<const udp_datagram &> result_;
 
       network_address addr_;
       uint8_t buffer_[64 * 1024];
@@ -243,7 +243,7 @@ namespace vds {
           s_(s) {
       }
 
-        async_task<> write_async(const udp_datagram & data)
+        std::future<void> write_async(const udp_datagram & data)
         {
           std::unique_lock<not_mutex> lock(this->not_mutex_);
           vds_assert(!this->result_);
@@ -258,7 +258,7 @@ namespace vds {
             this->buffer_->address().to_string().c_str(),
             this->buffer_.data_size());
 
-          return[pthis = this->shared_from_this()](const async_result<> & result){
+          return[pthis = this->shared_from_this()](const std::promise<> & result){
             auto this_ = static_cast<_udp_send *>(pthis.get());
             std::unique_lock<not_mutex> lock(this_->not_mutex_);
             vds_assert(!this_->result_);
@@ -298,7 +298,7 @@ namespace vds {
     private:
       service_provider sp_;
       SOCKET_HANDLE s_;
-      async_result<> result_;
+      std::promise<> result_;
 
       socklen_t addr_len_;
       udp_datagram buffer_;
@@ -358,12 +358,12 @@ namespace vds {
       {
       }
 
-      async_task<const udp_datagram &> read_async() {
+      std::future<const udp_datagram &> read_async() {
         std::lock_guard<std::mutex> lock(this->read_mutex_);
         switch (this->read_status_) {
           case read_status_t::bof:
             return [pthis = this->shared_from_this()](
-                const async_result<const udp_datagram &> & result){
+                const std::promise<const udp_datagram &> & result){
               auto this_ = static_cast<_udp_handler *>(pthis.get());
               this_->read_result_ = result;
               this_->read_status_ = read_status_t::waiting_socket;
@@ -372,14 +372,14 @@ namespace vds {
 
           case read_status_t::continue_read:
             return [pthis = this->shared_from_this()](
-                const async_result<const udp_datagram &> & result){
+                const std::promise<const udp_datagram &> & result){
               auto this_ = static_cast<_udp_handler *>(pthis.get());
               this_->read_result_ = result;
               this_->read_data();
             };
 
           case read_status_t::eof:
-            return async_task<const udp_datagram &>(
+            return std::future<const udp_datagram &>(
                 std::make_shared<std::system_error>(ECONNRESET, std::system_category())
             );
 
@@ -388,13 +388,13 @@ namespace vds {
         }
       }
 
-      async_task<> write_async(const udp_datagram & message) {
+      std::future<void> write_async(const udp_datagram & message) {
         std::lock_guard<std::mutex> lock(this->write_mutex_);
         switch (this->write_status_) {
           case write_status_t::bof:
             this->write_message_ = message;
             return [pthis = this->shared_from_this()](
-                const async_result<> & result){
+                const std::promise<> & result){
               auto this_ = static_cast<_udp_handler *>(pthis.get());
               this_->write_result_ = result;
               this_->write_status_ = write_status_t::waiting_socket;
@@ -403,14 +403,14 @@ namespace vds {
           case write_status_t::continue_write:
             this->write_message_ = message;
             return [pthis = this->shared_from_this()](
-                const async_result<> & result){
+                const std::promise<> & result){
               auto this_ = static_cast<_udp_handler *>(pthis.get());
               this_->write_result_ = result;
               this_->write_data();
             };
 
           case write_status_t::eof:
-            return async_task<>(
+            return std::future<void>(
                 std::make_shared<std::system_error>(ECONNRESET, std::system_category())
             );
 
@@ -578,8 +578,8 @@ namespace vds {
 
     private:
       std::shared_ptr<_udp_socket> owner_;
-      async_result<const udp_datagram &> read_result_;
-      async_result<> write_result_;
+      std::promise<const udp_datagram &> read_result_;
+      std::promise<> write_result_;
 
       network_address addr_;
       uint8_t read_buffer_[64 * 1024];

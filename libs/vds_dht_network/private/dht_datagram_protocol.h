@@ -8,7 +8,7 @@ All rights reserved
 
 #include <map>
 #include <udp_socket.h>
-#include "async_task.h"
+
 #include "const_data_buffer.h"
 #include "udp_datagram_size_exception.h"
 #include "vds_debug.h"
@@ -120,7 +120,7 @@ namespace vds {
           }
         }
 
-        async_task<> process_datagram(
+        std::future<void> process_datagram(
           const service_provider& scope,
           const std::shared_ptr<transport_type>& s,
           const const_data_buffer& datagram) {
@@ -128,7 +128,7 @@ namespace vds {
           auto sp = scope.create_scope(__FUNCTION__);
           std::unique_lock<std::mutex> lock(this->input_mutex_);
           if (datagram.size() < 33) {
-            return async_task<>(std::make_shared<std::runtime_error>("Invalid data"));
+            return std::future<void>(std::make_shared<std::runtime_error>("Invalid data"));
           }
 
           if (!hmac::verify(
@@ -136,7 +136,7 @@ namespace vds {
             hash::sha256(),
             datagram.data(), datagram.size() - 32,
             datagram.data() + datagram.size() - 32, 32)) {
-            return async_task<>(std::make_shared<std::runtime_error>("Invalid signature"));
+            return std::future<void>(std::make_shared<std::runtime_error>("Invalid signature"));
           }
 
           switch (static_cast<protocol_message_type_t>((uint8_t)protocol_message_type_t::SpecialCommand & *datagram.data())) {
@@ -194,30 +194,30 @@ namespace vds {
           case protocol_message_type_t::RouteData:
           case protocol_message_type_t::ProxyData: {
             if (datagram.size() < 33) {
-              return async_task<>(std::make_shared<std::runtime_error>("Invalid data"));
+              return std::future<void>(std::make_shared<std::runtime_error>("Invalid data"));
             }
 
             this->last_input_message_id_ = const_data_buffer(datagram.data() + 1, 32);
             this->input_messages_.clear();
             this->input_messages_[0] = datagram;
 
-            return async_task<>::empty();
+            return std::future<void>::empty();
           }
           default: {
             if (datagram.data()[0] == (uint8_t)protocol_message_type_t::ContinueData) {
               if (datagram.size() < 34) {
-                return async_task<>(std::make_shared<std::runtime_error>("Invalid data"));
+                return std::future<void>(std::make_shared<std::runtime_error>("Invalid data"));
               }
 
               const auto message_id = const_data_buffer(datagram.data() + 1, 32);
               if (this->last_input_message_id_ != message_id) {
-                return async_task<>(std::make_shared<std::runtime_error>("Invalid message_id"));
+                return std::future<void>(std::make_shared<std::runtime_error>("Invalid message_id"));
               }
               this->input_messages_[datagram.data()[1 + 32]] = datagram;
               return this->continue_process_messages(sp, s, lock);
             }
             else {
-                                                      return async_task<>(std::make_shared<std::runtime_error>("Invalid data"));
+                                                      return std::future<void>(std::make_shared<std::runtime_error>("Invalid data"));
             }
           }
           }
@@ -262,7 +262,7 @@ namespace vds {
         std::list<send_queue_item_t> send_queue_;
 
 
-        async_task<> send_message_async(
+        std::future<void> send_message_async(
           const service_provider& sp,
           const std::shared_ptr<transport_type>& s,
           uint8_t message_type,
@@ -280,7 +280,7 @@ namespace vds {
               source_node,
               hops,
               message](
-            const async_result<>& result) {
+            const std::promise<>& result) {
             resizable_data_buffer buffer;
 
             if (message.size() < pthis->mtu_ - 5) {
@@ -476,7 +476,7 @@ namespace vds {
           const const_data_buffer& message_id,
           const const_data_buffer& message,
           size_t offset,
-          const async_result<>& result,
+          const std::promise<>& result,
           uint8_t index) {
 
           auto size = this->mtu_ - (1 + 32 + 1 + 32);
@@ -536,14 +536,14 @@ namespace vds {
              });
         }
 
-        async_task<> continue_process_messages(
+        std::future<void> continue_process_messages(
           const service_provider& sp,
           const std::shared_ptr<transport_type>& s,
           std::unique_lock<std::mutex>& locker
         ) {
           auto p = this->input_messages_.find(0);
           if (p == this->input_messages_.end()) {
-            return async_task<>::empty();
+            return std::future<void>::empty();
           }
 
           switch (
@@ -567,7 +567,7 @@ namespace vds {
               ) {
             case protocol_message_type_t::Data: {
               if (size <= p->second.size() - (1 + 32 + 2 + 32)) {
-                return async_task<>(std::make_shared<std::runtime_error>("Invalid data"));
+                return std::future<void>(std::make_shared<std::runtime_error>("Invalid data"));
               }
               size -= p->second.size() - (1 + 32 + 2 + 32);
 
@@ -580,7 +580,7 @@ namespace vds {
 
             case protocol_message_type_t::RouteData: {
               if (size <= p->second.size() - (1 + 32 + 2 + 32 + 32)) {
-                return async_task<>(std::make_shared<std::runtime_error>("Invalid data"));
+                return std::future<void>(std::make_shared<std::runtime_error>("Invalid data"));
               }
               size -= p->second.size() - (1 + 32 + 2 + 32 + 32);
 
@@ -593,7 +593,7 @@ namespace vds {
 
             case protocol_message_type_t::ProxyData: {
               if (size <= p->second.size() - (1 + 32 + 2 + 32 + 32 + 1 + 32)) {
-                return async_task<>(std::make_shared<std::runtime_error>("Invalid data"));
+                return std::future<void>(std::make_shared<std::runtime_error>("Invalid data"));
               }
               size -= p->second.size() - (1 + 32 + 2 + 32 + 32 + 1 + 32);
 
@@ -613,11 +613,11 @@ namespace vds {
               }
 
               if ((uint8_t)protocol_message_type_t::ContinueData != p1->second.data()[0]) {
-                return async_task<>(std::make_shared<std::runtime_error>("Invalid data"));
+                return std::future<void>(std::make_shared<std::runtime_error>("Invalid data"));
               }
 
               if (size < p1->second.size() - (1 + 32 + 1 + 32)) {
-                return async_task<>(std::make_shared<std::runtime_error>("Invalid data"));
+                return std::future<void>(std::make_shared<std::runtime_error>("Invalid data"));
               }
 
               message.add(p1->second.data() + (1 + 32 + 1), p1->second.size() - (1 + 32 + 1 + 32));
@@ -647,7 +647,7 @@ namespace vds {
           }
           }
 
-          return async_task<>::empty();
+          return std::future<void>::empty();
         }
 
         void continue_send(bool remove_first) {

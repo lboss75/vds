@@ -19,7 +19,7 @@ sudo service ssh restart
 
 Install dependencies:
 sudo apt-get update
-sudo apt-get install -y git install cmake clang-5.0 libssl-dev zlib1g-dev libgtest-dev libc++-dev
+sudo apt-get install -y git install cmake clang-5.0 libssl-dev zlib1g-dev libgtest-dev libc++-dev libc++abi-dev
 
 cd /usr/src/gtest
 sudo cmake CMakeLists.txt

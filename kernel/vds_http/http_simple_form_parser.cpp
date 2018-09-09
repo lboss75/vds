@@ -7,7 +7,7 @@ All rights reserved
 #include "http_simple_form_parser.h"
 #include "http_multipart_reader.h"
 
-vds::async_task<> vds::http::simple_form_parser::parse(const service_provider& sp, const http_message& message) {
+std::future<void> vds::http::simple_form_parser::parse(const service_provider& sp, const http_message& message) {
   std::string content_type;
   if (message.get_header("Content-Type", content_type)) {
     static const char multipart_form_data[] = "multipart/form-data;";
@@ -19,7 +19,7 @@ vds::async_task<> vds::http::simple_form_parser::parse(const service_provider& s
         boundary.erase(0, sizeof(boundary_prefix) - 1);
 
         auto task = std::make_shared<form_parser>(this->shared_from_this());
-        auto reader = std::make_shared<http_multipart_reader>(sp, "--" + boundary, [sp, task](const http_message& part)->async_task<> {
+        auto reader = std::make_shared<http_multipart_reader>(sp, "--" + boundary, [sp, task](const http_message& part)->std::future<void> {
           return task->read_part(sp, part);
         });
 
@@ -45,12 +45,12 @@ vds::async_task<> vds::http::simple_form_parser::parse(const service_provider& s
   }
 }
 
-vds::async_task<> vds::http::simple_form_parser::form_parser::read_string_body(
+std::future<void> vds::http::simple_form_parser::form_parser::read_string_body(
   const std::shared_ptr<std::string>& buffer, const http_message& part) {
   return part.body()->read_async(this->buffer_, sizeof(this->buffer_))
-    .then([pthis = this->shared_from_this(), buffer, part](size_t readed)->vds::async_task<> {
+    .then([pthis = this->shared_from_this(), buffer, part](size_t readed)->std::future<void> {
     if (0 == readed) {
-      return vds::async_task<>::empty();
+      return std::future<void>::empty();
     }
     *buffer += std::string((const char *)pthis->buffer_, readed);
     return pthis->read_string_body(buffer, part);
@@ -61,7 +61,7 @@ vds::http::simple_form_parser::form_parser::form_parser(const std::shared_ptr<si
 : owner_(owner) {
 }
 
-vds::async_task<> vds::http::simple_form_parser::form_parser::read_part(const service_provider& sp,
+std::future<void> vds::http::simple_form_parser::form_parser::read_part(const service_provider& sp,
   const http_message& part) {
   std::string content_disposition;
   if (part.get_header("Content-Disposition", content_disposition)) {
@@ -109,16 +109,16 @@ vds::async_task<> vds::http::simple_form_parser::form_parser::read_part(const se
   }
 
   return part.body()->read_async(this->buffer_, sizeof(this->buffer_))
-    .then([pthis = this->shared_from_this(), sp, part](size_t readed)->vds::async_task<> {
+    .then([pthis = this->shared_from_this(), sp, part](size_t readed)->std::future<void> {
     if (0 == readed) {
-      return vds::async_task<>::empty();
+      return std::future<void>::empty();
     }
 
     return pthis->read_part(sp, part);
   });
 }
 
-vds::async_task<> vds::http::simple_form_parser::form_parser::read_form_urlencoded(const service_provider& sp,
+std::future<void> vds::http::simple_form_parser::form_parser::read_form_urlencoded(const service_provider& sp,
   const http_message& message) {
   auto buffer = std::make_shared<std::string>();
   return this->read_string_body(buffer, message)
@@ -142,11 +142,11 @@ vds::async_task<> vds::http::simple_form_parser::form_parser::read_form_urlencod
   });
 }
 
-vds::async_task<> vds::http::simple_form_parser::form_parser::skip_part(const vds::http_message& part) {
+std::future<void> vds::http::simple_form_parser::form_parser::skip_part(const vds::http_message& part) {
   return part.body()->read_async(this->buffer_, sizeof(this->buffer_))
-    .then([pthis = this->shared_from_this(), part](size_t readed)->vds::async_task<> {
+    .then([pthis = this->shared_from_this(), part](size_t readed)->std::future<void> {
     if (0 == readed) {
-      return vds::async_task<>::empty();
+      return std::future<void>::empty();
     }
 
     return pthis->skip_part(part);

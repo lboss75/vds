@@ -36,13 +36,13 @@ void vds::http_message::ignore_body() const {
   });
 }
 
-vds::async_task<> vds::http_message::ignore_body(
+std::future<void> vds::http_message::ignore_body(
   const std::shared_ptr<continuous_buffer<uint8_t>> & body,
   const std::shared_ptr<buffer_t>& buffer) {
   return body->read_async(buffer->data_, sizeof(buffer->data_))
-    .then([body, buffer](size_t readed) -> async_task<> {
+    .then([body, buffer](size_t readed) -> std::future<void> {
     if (0 == readed) {
-      return async_task<>::empty();
+      return std::future<void>::empty();
     }
     else {
       return ignore_body(body, buffer);

@@ -15,7 +15,7 @@ All rights reserved
 #include "messages/sync_replica_request.h"
 #include "deflate.h"
 #include "db_model.h"
-#include "async_task.h"
+
 #include "inflate.h"
 #include "vds_exceptions.h"
 #include "local_data_dbo.h"
@@ -146,11 +146,11 @@ void vds::dht::network::_client::apply_message(
     messages::dht_find_node_response(result));
 }
 
-vds::async_task<> vds::dht::network::_client::apply_message(
+std::future<void> vds::dht::network::_client::apply_message(
   const service_provider& sp,
   const messages::dht_find_node_response& message,
   const imessage_map::message_info_t& message_info) {
-  auto result = async_task<>::empty();
+  auto result = std::future<void>::empty();
   for (auto& p : message.nodes()) {
     if (
       p.target_id_ != this->current_node_id()
@@ -352,13 +352,13 @@ void vds::dht::network::_client::start(const service_provider& sp) {
       pthis->in_update_timer_ = true;
       lock.unlock();
 
-      auto async_tasks = std::make_shared<async_task<>>(async_task<>::empty());
-      sp.get<db_model>()->async_transaction(sp, [sp, pthis, async_tasks](database_transaction& t) {
-          *async_tasks = pthis->process_update(sp, t);
+      auto std::futures = std::make_shared<std::future<void>>(std::future<void>::empty());
+      sp.get<db_model>()->async_transaction(sp, [sp, pthis, std::futures](database_transaction& t) {
+          *std::futures = pthis->process_update(sp, t);
           return true;
         })
-        .then([async_tasks]() {
-          return std::move(*async_tasks);
+        .then([std::futures]() {
+          return std::move(*std::futures);
         })
         .execute([sp, pthis](const std::shared_ptr<std::exception>& ex) {
           if (ex) {
@@ -450,8 +450,8 @@ vds::filename vds::dht::network::_client::save_data(
   return fn;
 }
 
-vds::async_task<> vds::dht::network::_client::update_route_table(const service_provider& sp) {
-  auto result = async_task<>::empty();
+std::future<void> vds::dht::network::_client::update_route_table(const service_provider& sp) {
+  auto result = std::future<void>::empty();
   if (0 == this->update_route_table_counter_) {
     for (size_t i = 0; i < 8 * this->route_.current_node_id().size(); ++i) {
       auto canditate = dht_object_id::generate_random_id(this->route_.current_node_id(), i);
@@ -469,7 +469,7 @@ vds::async_task<> vds::dht::network::_client::update_route_table(const service_p
   return result;
 }
 
-vds::async_task<> vds::dht::network::_client::process_update(const service_provider& sp, database_transaction& t) {
+std::future<void> vds::dht::network::_client::process_update(const service_provider& sp, database_transaction& t) {
   this->sync_process_.do_sync(sp.create_scope("Sync process"), t);
 
   return async_series(
@@ -586,7 +586,7 @@ void vds::dht::network::_client::apply_message(const service_provider& sp, datab
   this->sync_process_.apply_message(sp, t, message, message_info);
 }
 
-vds::async_task<> vds::dht::network::_client::restore(
+std::future<void> vds::dht::network::_client::restore(
   const service_provider& sp,
   const std::string& name,
   const std::shared_ptr<const_data_buffer>& result,
@@ -600,7 +600,7 @@ vds::async_task<> vds::dht::network::_client::restore(
   return this->restore(sp, replica_hashes, result, start);
 }
 
-vds::async_task<uint8_t> vds::dht::network::_client::restore_async(
+std::future<uint8_t> vds::dht::network::_client::restore_async(
   const service_provider& sp,
   const std::string& name,
   const std::shared_ptr<const_data_buffer>& result) {
@@ -613,7 +613,7 @@ vds::async_task<uint8_t> vds::dht::network::_client::restore_async(
   return this->restore_async(sp, object_ids, result);
 }
 
-vds::async_task<> vds::dht::network::_client::restore(
+std::future<void> vds::dht::network::_client::restore(
   const service_provider& sp,
   const std::vector<const_data_buffer>& object_ids,
   const std::shared_ptr<const_data_buffer>& result,
@@ -624,26 +624,26 @@ vds::async_task<> vds::dht::network::_client::restore(
                object_ids,
                result)
              .then([result, pthis = this->shared_from_this(), sp, object_ids, start
-               ](uint8_t progress) -> async_task<> {
+               ](uint8_t progress) -> std::future<void> {
                  if (result->size() > 0) {
-                   return async_task<>::empty();
+                   return std::future<void>::empty();
                  }
 
                  if (std::chrono::minutes(10) < (std::chrono::steady_clock::now() - start)) {
-                   return async_task<>(std::make_shared<vds_exceptions::not_found>());
+                   return std::future<void>(std::make_shared<vds_exceptions::not_found>());
                  }
                  std::this_thread::sleep_for(std::chrono::minutes(2));
                  return pthis->restore(sp, object_ids, result, start);
                });
 }
 
-vds::async_task<uint8_t> vds::dht::network::_client::restore_async(
+std::future<uint8_t> vds::dht::network::_client::restore_async(
   const service_provider& sp,
   const std::vector<const_data_buffer>& object_ids,
   const std::shared_ptr<const_data_buffer>& result) {
 
   auto result_progress = std::make_shared<uint8_t>();
-  auto result_task = std::make_shared<async_task<>>(async_task<>::empty());
+  auto result_task = std::make_shared<std::future<void>>(std::future<void>::empty());
   return sp.get<db_model>()->async_transaction(
              sp,
              [pthis = this->shared_from_this(), sp, object_ids, result, result_task, result_progress](
@@ -691,7 +691,7 @@ vds::async_task<uint8_t> vds::dht::network::_client::restore_async(
                }
                return true;
              })
-           .then([result_task]() -> async_task<> {
+           .then([result_task]() -> std::future<void> {
              return std::move(*result_task);
            })
            .then([pthis = this->shared_from_this(), result_progress]() {
@@ -699,12 +699,12 @@ vds::async_task<uint8_t> vds::dht::network::_client::restore_async(
            });
 }
 
-vds::async_task<>
+std::future<void>
 vds::dht::network::_client::update_wellknown_connection(
   const service_provider& sp,
   database_transaction& t) {
 
-  auto result = async_task<>::empty();
+  auto result = std::future<void>::empty();
   orm::well_known_node_dbo t1;
   auto st = t.get_reader(t1.select(t1.addresses));
   while (st.execute()) {
@@ -823,7 +823,7 @@ void vds::dht::network::client::save(const service_provider& sp, database_transa
   this->impl_->save(sp, t, key, value);
 }
 
-vds::async_task<vds::const_data_buffer> vds::dht::network::client::restore(
+std::future<vds::const_data_buffer> vds::dht::network::client::restore(
   const service_provider& sp,
   const chunk_info& block_id) {
   auto result = std::make_shared<const_data_buffer>();
@@ -844,7 +844,7 @@ vds::async_task<vds::const_data_buffer> vds::dht::network::client::restore(
              });
 }
 
-vds::async_task<vds::const_data_buffer> vds::dht::network::client::restore(const service_provider& sp,
+std::future<vds::const_data_buffer> vds::dht::network::client::restore(const service_provider& sp,
                                                                            const std::string& key) {
   auto result = std::make_shared<const_data_buffer>();
   return this->impl_->restore(sp, key, result, std::chrono::steady_clock::now())
@@ -853,12 +853,12 @@ vds::async_task<vds::const_data_buffer> vds::dht::network::client::restore(const
              });
 }
 
-vds::async_task<uint8_t, vds::const_data_buffer> vds::dht::network::client::restore_async(
+std::future<uint8_t, vds::const_data_buffer> vds::dht::network::client::restore_async(
   const service_provider& sp, const std::string& key) {
   auto result = std::make_shared<const_data_buffer>();
   return this->impl_->restore_async(sp, key, result)
              .then([result](uint8_t percent) {
-               return async_task<uint8_t, const_data_buffer>::result(percent, *result);
+               return std::future<uint8_t, const_data_buffer>::result(percent, *result);
              });
 }
 

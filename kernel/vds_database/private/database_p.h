@@ -296,8 +296,8 @@ namespace vds {
       });
     }
 
-    async_task<> prepare_to_stop(const service_provider & sp){
-      return async_task<>::empty();
+    std::future<void> prepare_to_stop(const service_provider & sp){
+      return std::future<void>::empty();
     }
 
 

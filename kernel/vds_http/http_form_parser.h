@@ -30,10 +30,10 @@ namespace vds {
 //      void on_field(const simple_field_info & field) {
 //      }
 //
-//      async_task<> on_file(const file_info & file) {
+//      std::future<void> on_file(const file_info & file) {
 //      }
 
-      async_task<> parse(
+      std::future<void> parse(
         const service_provider& sp,
         const http_message & message);
 
@@ -45,7 +45,7 @@ namespace vds {
           : owner_(owner) {
         }
 
-        async_task<> read_part(
+        std::future<void> read_part(
           const service_provider & sp,
           const http_message& part);
 
@@ -53,22 +53,22 @@ namespace vds {
         std::shared_ptr<form_parser> owner_;
         uint8_t buffer_[1024];
 
-        async_task<> read_string_body(
+        std::future<void> read_string_body(
           const std::shared_ptr<std::string>& buffer,
           const http_message& part);
 
-        async_task<> read_file(
+        std::future<void> read_file(
           const std::shared_ptr<stream_async<uint8_t>> & buffer,
           const http_message& part);
 
-          async_task<> skip_part(
+          std::future<void> skip_part(
           const vds::http_message& part);
 
       };
     };
 
     template <typename implementation_class>
-    async_task<> form_parser<implementation_class>::parse(const service_provider& sp, const http_message& message) {
+    std::future<void> form_parser<implementation_class>::parse(const service_provider& sp, const http_message& message) {
       std::string content_type;
       if (message.get_header("Content-Type", content_type)) {
         static const char multipart_form_data[] = "multipart/form-data;";
@@ -80,7 +80,7 @@ namespace vds {
             boundary.erase(0, sizeof(boundary_prefix) - 1);
 
             auto task = std::make_shared<_form_parser>(this->shared_from_this());
-            auto reader = std::make_shared<http_multipart_reader>(sp, "--" + boundary, [sp, task](const http_message& part)->async_task<> {
+            auto reader = std::make_shared<http_multipart_reader>(sp, "--" + boundary, [sp, task](const http_message& part)->std::future<void> {
               return task->read_part(sp, part);
             });
 
@@ -100,7 +100,7 @@ namespace vds {
     }
 
     template <typename implementation_class>
-    async_task<> form_parser<implementation_class>::_form_parser::read_part(const service_provider& sp,
+    std::future<void> form_parser<implementation_class>::_form_parser::read_part(const service_provider& sp,
       const http_message& part) {
       std::string content_disposition;
       if (part.get_header("Content-Disposition", content_disposition)) {
@@ -167,9 +167,9 @@ namespace vds {
       }
 
       return part.body()->read_async(this->buffer_, sizeof(this->buffer_))
-        .then([pthis = this->shared_from_this(), sp, part](size_t readed)->vds::async_task<> {
+        .then([pthis = this->shared_from_this(), sp, part](size_t readed)->std::future<void> {
         if (0 == readed) {
-          return vds::async_task<>::empty();
+          return std::future<void>::empty();
         }
 
         return pthis->read_part(sp, part);
@@ -177,12 +177,12 @@ namespace vds {
     }
 
     template <typename implementation_class>
-    async_task<> form_parser<implementation_class>::_form_parser::read_string_body(
+    std::future<void> form_parser<implementation_class>::_form_parser::read_string_body(
       const std::shared_ptr<std::string>& buffer, const http_message& part) {
       return part.body()->read_async(this->buffer_, sizeof(this->buffer_))
-        .then([pthis = this->shared_from_this(), buffer, part](size_t readed)->vds::async_task<> {
+        .then([pthis = this->shared_from_this(), buffer, part](size_t readed)->std::future<void> {
         if (0 == readed) {
-          return vds::async_task<>::empty();
+          return std::future<void>::empty();
         }
         *buffer += std::string((const char *)pthis->buffer_, readed);
         return pthis->read_string_body(buffer, part);
@@ -190,10 +190,10 @@ namespace vds {
     }
 
     template <typename implementation_class>
-    async_task<> form_parser<implementation_class>::_form_parser::read_file(
+    std::future<void> form_parser<implementation_class>::_form_parser::read_file(
       const std::shared_ptr<stream_async<uint8_t>>& buffer, const http_message& part) {
       return part.body()->read_async(this->buffer_, sizeof(this->buffer_))
-        .then([pthis = this->shared_from_this(), buffer, part](size_t readed)->vds::async_task<> {
+        .then([pthis = this->shared_from_this(), buffer, part](size_t readed)->std::future<void> {
         if (0 == readed) {
           return buffer->write_async(nullptr, 0);
         }
@@ -206,11 +206,11 @@ namespace vds {
     }
 
     template <typename implementation_class>
-    async_task<> form_parser<implementation_class>::_form_parser::skip_part(const vds::http_message& part) {
+    std::future<void> form_parser<implementation_class>::_form_parser::skip_part(const vds::http_message& part) {
       return part.body()->read_async(this->buffer_, sizeof(this->buffer_))
-        .then([pthis = this->shared_from_this(), part](size_t readed)->vds::async_task<> {
+        .then([pthis = this->shared_from_this(), part](size_t readed)->std::future<void> {
         if (0 == readed) {
-          return vds::async_task<>::empty();
+          return std::future<void>::empty();
         }
 
         return pthis->skip_part(part);

@@ -17,10 +17,10 @@ namespace vds {
   public:
     _http_pipeline(
         const service_provider &sp,
-        const std::function<async_task<http_message>(const http_message &message)> &message_callback,
+        const std::function<std::future<http_message>(const http_message &message)> &message_callback,
         const std::shared_ptr<http_async_serializer> & output_stream)
         : _http_parser_base<_http_pipeline>(sp, [sp, message_callback, this](
-          const http_message &message)->async_task<> {
+          const http_message &message)->std::future<void> {
       auto pthis = this->shared_from_this();
       return message_callback(message).then([sp, pthis](const http_message &response) {
         if (nullptr != response.body()) {
@@ -82,7 +82,7 @@ namespace vds {
     http_pipeline(
         const service_provider &sp,
         const std::shared_ptr<http_async_serializer> & output_stream,
-        const std::function<async_task<http_message>(const http_message &message)> &message_callback)
+        const std::function<std::future<http_message>(const http_message &message)> &message_callback)
         : stream<uint8_t>(new _http_pipeline(sp, message_callback, output_stream)) {
         }
 

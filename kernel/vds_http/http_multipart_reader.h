@@ -19,11 +19,11 @@ namespace vds {
     http_multipart_reader(
       const service_provider & sp,
       const std::string & boundary,
-      const std::function<async_task<>(const http_message &message)> & message_callback)
+      const std::function<std::future<void>(const http_message &message)> & message_callback)
       : boundary_(boundary), parser_(sp, message_callback), readed_(0), is_first_(true){
     }
 
-    async_task<> process(
+    std::future<void> process(
       const service_provider & sp,
       const http_message & message)
     {
@@ -39,7 +39,7 @@ namespace vds {
 
     bool is_first_;
 
-    async_task<> continue_read(
+    std::future<void> continue_read(
       const service_provider & sp,
       const std::shared_ptr<continuous_buffer<uint8_t>> & body)
     {
@@ -95,7 +95,7 @@ namespace vds {
               if (!this->is_first_) {
                 this->parser_.write(nullptr, 0);
               }
-              return vds::async_task<>::empty();
+              return std::future<void>::empty();
             }
           }
         }
@@ -120,7 +120,7 @@ namespace vds {
             pthis->parser_.write(pthis->buffer_, pthis->readed_);
           }
 
-          return async_task<>::empty();
+          return std::future<void>::empty();
         }
       });
     }

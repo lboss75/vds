@@ -26,7 +26,7 @@ All rights reserved
 #include "simple_cache.h"
 #include "binary_serialize.h"
 #include "const_data_buffer.h"
-#include "async_task.h"
+
 #include "shutdown_exception.h"
 #include "shutdown_event.h"
 

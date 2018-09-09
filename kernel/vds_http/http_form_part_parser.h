@@ -22,7 +22,7 @@ namespace vds {
   public:
     _http_form_part_parser(
         const service_provider &sp,
-        const std::function<async_task<>(const http_message &message)> &message_callback)
+        const std::function<std::future<void>(const http_message &message)> &message_callback)
         : sp_(sp),
           message_callback_(message_callback),
           message_state_(std::make_shared<state_machine<MessageStateEnum>>(MessageStateEnum::MESSAGE_STATE_NONE)),
@@ -63,7 +63,7 @@ namespace vds {
 
   private:
     service_provider sp_;
-    std::function<async_task<>(const http_message &message)> message_callback_;
+    std::function<std::future<void>(const http_message &message)> message_callback_;
 
     enum class MessageStateEnum {
       MESSAGE_STATE_NONE,
@@ -157,7 +157,7 @@ namespace vds {
   public:
     http_form_part_parser(
         const service_provider &sp,
-        const std::function<async_task<>(const http_message &message)> &message_callback)
+        const std::function<std::future<void>(const http_message &message)> &message_callback)
         : stream<uint8_t>(new _http_form_part_parser(sp, message_callback)) {
     }
 

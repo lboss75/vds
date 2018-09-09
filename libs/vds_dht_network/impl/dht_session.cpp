@@ -55,7 +55,7 @@ vds::session_statistic::session_info vds::dht::network::dht_session::get_statist
   };
 }
 
-vds::async_task<> vds::dht::network::dht_session::process_message(
+std::future<void> vds::dht::network::dht_session::process_message(
   const service_provider& sp,
   const std::shared_ptr<iudp_transport>& transport,
   uint8_t message_type,
@@ -86,7 +86,7 @@ vds::async_task<> vds::dht::network::dht_session::process_message(
 
   if (target_node != this->this_node_id()) {
     if (hops == std::numeric_limits<uint16_t>::max()) {
-      return async_task<>::empty();
+      return std::future<void>::empty();
     }
 
     return [sp, message_type, target_node, message, source_node, hops]() {

@@ -36,8 +36,8 @@ namespace vds {
 
         void stop(const service_provider& sp) override;
 
-        async_task<> write_async(const service_provider& sp, const udp_datagram& datagram);
-        async_task<> try_handshake(const service_provider& sp, const std::string& address);
+        std::future<void> write_async(const service_provider& sp, const udp_datagram& datagram);
+        std::future<void> try_handshake(const service_provider& sp, const std::string& address);
 
         const const_data_buffer& this_node_id() const {
           return this->this_node_id_;
@@ -51,7 +51,7 @@ namespace vds {
         asymmetric_private_key node_key_;
         udp_server server_;
 
-        std::list<std::tuple<udp_datagram, async_result<>>> send_queue_;
+        std::list<std::tuple<udp_datagram, std::promise<>>> send_queue_;
 
         std::debug_mutex write_mutex_;
         std::condition_variable write_cond_;

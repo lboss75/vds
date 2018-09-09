@@ -7,7 +7,8 @@ All rights reserved
 */
 
 #include <vector>
-#include "async_task.h"
+#include <future>
+
 #include "resizable_data_buffer.h"
 
 namespace vds {
@@ -15,7 +16,7 @@ namespace vds {
   class _stream_async : public std::enable_shared_from_this<_stream_async<item_type>> {
   public:
     ~_stream_async() {}
-    virtual async_task<> write_async(
+    virtual std::future<void> write_async(
         const item_type *data,
         size_t len) = 0;
   };
@@ -30,7 +31,7 @@ namespace vds {
     {
     }
 
-    async_task<> write_async(
+    std::future<void> write_async(
         const item_type *data,
         size_t len)
     {

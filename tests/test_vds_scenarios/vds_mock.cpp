@@ -581,7 +581,7 @@ vds::const_data_buffer vds_mock::upload_file(
   sp.get<vds::dht::network::client>()->restore(
     sp,
     vds::dht::dht_object_id::user_credentials_to_key(this->root_login_, this->root_password_))
-    .then([sp, this, user_mng](const vds::const_data_buffer & crypted_private_key)->vds::async_task<> {
+    .then([sp, this, user_mng](const vds::const_data_buffer & crypted_private_key)->std::future<void> {
     std::cout << "Got user private key\n";
     auto user_private_key = vds::asymmetric_private_key::parse_der(
       vds::symmetric_decrypt::decrypt(
@@ -623,7 +623,7 @@ vds::const_data_buffer vds_mock::upload_file(
   return *result;
 }
 
-vds::async_task<
+std::future<
     std::string /*content_type*/,
     size_t /*body_size*/,
     std::shared_ptr<vds::continuous_buffer<uint8_t>> /*output_stream*/>
@@ -640,7 +640,7 @@ vds_mock::download_data(
           sp,
           vds::dht::dht_object_id::user_credentials_to_key(this->root_login_, this->root_password_))
       .then([sp, this, channel_id, name, file_hash, user_mng](
-          const vds::const_data_buffer &crypted_private_key) -> vds::async_task<> {
+          const vds::const_data_buffer &crypted_private_key) -> std::future<void> {
     std::cout << "Got user private key\n";
     auto user_private_key = vds::asymmetric_private_key::parse_der(
             vds::symmetric_decrypt::decrypt(
@@ -661,7 +661,7 @@ vds_mock::download_data(
             });
       })
       .then(
-          [sp, name, channel_id, file_hash, user_mng]() -> vds::async_task<std::string, size_t, std::shared_ptr<vds::continuous_buffer<uint8_t>>> {
+          [sp, name, channel_id, file_hash, user_mng]() -> std::future<std::string, size_t, std::shared_ptr<vds::continuous_buffer<uint8_t>>> {
 
 
             return sp.get<vds::file_manager::file_operations>()->download_file(
@@ -669,8 +669,8 @@ vds_mock::download_data(
                 user_mng,
                 channel_id,
                 file_hash).then(
-                [](const vds::file_manager::file_operations::download_result_t &result) -> vds::async_task<std::string, size_t, std::shared_ptr<vds::continuous_buffer<uint8_t>>> {
-                  return vds::async_task<std::string, size_t, std::shared_ptr<vds::continuous_buffer<uint8_t>>>::result(
+                [](const vds::file_manager::file_operations::download_result_t &result) -> std::future<std::string, size_t, std::shared_ptr<vds::continuous_buffer<uint8_t>>> {
+                  return std::future<std::string, size_t, std::shared_ptr<vds::continuous_buffer<uint8_t>>>::result(
                       result.mime_type,
                       result.size,
                       result.output_stream);
@@ -689,7 +689,7 @@ vds::user_channel vds_mock::create_channel(int index, const std::string &name) {
   sp.get<vds::dht::network::client>()->restore(
     sp,
     vds::dht::dht_object_id::user_credentials_to_key(this->root_login_, this->root_password_))
-    .then([sp, this, user_mng, name, &result](const vds::const_data_buffer & crypted_private_key)->vds::async_task<> {
+    .then([sp, this, user_mng, name, &result](const vds::const_data_buffer & crypted_private_key)->std::future<void> {
       auto user_private_key = vds::asymmetric_private_key::parse_der(
           vds::symmetric_decrypt::decrypt(
               vds::symmetric_key::from_password(this->root_password_),
@@ -783,7 +783,7 @@ sp.get<vds::dht::network::client>()->restore(
   sp,
   vds::dht::dht_object_id::user_credentials_to_key(root_login, root_password))
   .then([sp, this, user_mng, root_login, root_password](
-    const vds::const_data_buffer &crypted_private_key) -> vds::async_task<> {
+    const vds::const_data_buffer &crypted_private_key) -> std::future<void> {
   std::cout << "Got user private key\n";
   auto user_private_key = vds::asymmetric_private_key::parse_der(
     vds::symmetric_decrypt::decrypt(
@@ -908,13 +908,13 @@ void mock_server::init(
     vds::barrier b;
     server
       .start_network(sp, udp_port)
-      .then([sp, user_login, user_password]() ->vds::async_task<> {
+      .then([sp, user_login, user_password]() ->std::future<void> {
 
         auto user_mng = std::make_shared<vds::user_manager>();
         return sp.get<vds::dht::network::client>()->restore(
                 sp,
                 vds::dht::dht_object_id::user_credentials_to_key(user_login, user_password))
-            .then([sp, user_mng, user_login, user_password](const vds::const_data_buffer & crypted_private_key)->vds::async_task<> {
+            .then([sp, user_mng, user_login, user_password](const vds::const_data_buffer & crypted_private_key)->std::future<void> {
               auto user_private_key = vds::asymmetric_private_key::parse_der(
                   vds::symmetric_decrypt::decrypt(
                       vds::symmetric_key::from_password(user_password),

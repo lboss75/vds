@@ -52,15 +52,15 @@ namespace vds {
           const std::string& key,
           const const_data_buffer& value);
 
-        async_task<const_data_buffer> restore(
+        std::future<const_data_buffer> restore(
           const service_provider& sp,
           const chunk_info& block_id);
 
-        async_task<const_data_buffer> restore(
+        std::future<const_data_buffer> restore(
           const service_provider& sp,
           const std::string& key);
 
-        async_task<uint8_t, const_data_buffer> restore_async(
+        std::future<uint8_t, const_data_buffer> restore_async(
           const service_provider& sp,
           const std::string& key);
 

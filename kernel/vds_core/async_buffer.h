@@ -8,7 +8,7 @@ All rights reserved
 #include <mutex>
 #include <memory>
 
-#include "async_task.h"
+
 #include "mt_service.h"
 #include "not_mutex.h"
 #include "stream.h"
@@ -32,18 +32,18 @@ namespace vds {
     {
     }
 
-    async_task<> write_value_async(const item_type & data)
+    std::future<void> write_value_async(const item_type & data)
     {
       auto p = std::make_shared<item_type>(data);
       return this->write_async(p.get(), 1).then([p]() {});
     }
     
-    async_task<size_t /*readed*/> read_async(item_type * buffer, size_t buffer_size)
+    std::future<size_t /*readed*/> read_async(item_type * buffer, size_t buffer_size)
     {
       return static_cast<_continuous_buffer *>(this->impl_.get())->read_async(buffer, buffer_size);
     }
 
-    async_task<const_data_buffer> read_all()
+    std::future<const_data_buffer> read_all()
     {
       auto buffer = std::make_shared<std::tuple<resizable_data_buffer, item_type [1024]>>();
       return static_cast<_continuous_buffer *>(this->impl_.get())->read_all(buffer);
@@ -84,7 +84,7 @@ namespace vds {
   #endif//_DEBUG
       }
 
-      async_task<> write_async(
+      std::future<void> write_async(
         const item_type * data,
         size_t data_size) override
       {
@@ -96,7 +96,7 @@ namespace vds {
         this->in_mutex_stack_ = this->sp_.full_name();
 
         return [pthis = this->shared_from_this(), data, data_size](
-            const async_result<> & done) {
+            const std::promise<> & done) {
           auto this_ = static_cast<_continuous_buffer *>(pthis.get());
 
           if (0 == data_size) {
@@ -134,7 +134,7 @@ namespace vds {
         };
       }
 
-      async_task<size_t /*readed*/> read_async(item_type * buffer, size_t buffer_size)
+      std::future<size_t /*readed*/> read_async(item_type * buffer, size_t buffer_size)
       {
         vds_assert(0 != buffer_size);
 
@@ -145,7 +145,7 @@ namespace vds {
         this->out_mutex_.lock();
         this->out_mutex_stack_ = this->sp_.full_name();
 
-        return [pthis = this->shared_from_this(), buffer, buffer_size](const async_result<size_t /*readed*/> & result) {
+        return [pthis = this->shared_from_this(), buffer, buffer_size](const std::promise<size_t /*readed*/> & result) {
           auto this_ = static_cast<_continuous_buffer *>(pthis.get());
 
           this_->continue_read([pthis, result](size_t readed){
@@ -156,13 +156,13 @@ namespace vds {
         };
       }
 
-      async_task<const_data_buffer> read_all(
+      std::future<const_data_buffer> read_all(
           const std::shared_ptr<std::tuple<resizable_data_buffer, item_type [1024]>> & buffer)
       {
         return this->read_async(std::get<1>(*buffer), 1024)
-            .then([buffer, pthis = this->shared_from_this()](size_t readed) -> async_task<const_data_buffer>{
+            .then([buffer, pthis = this->shared_from_this()](size_t readed) -> std::future<const_data_buffer>{
               if(0 == readed){
-                return async_task<const_data_buffer>::result(
+                return std::future<const_data_buffer>::result(
                         std::get<0>(*buffer).move_data());
               }
               else {
@@ -329,11 +329,11 @@ namespace vds {
         : stream_async<item_t>(new _async_buffer(sp)) {
     }
 
-    async_task<> write_value_async(const item_type & data) {
+    std::future<void> write_value_async(const item_type & data) {
       return static_cast<_async_buffer *>(this->impl_.get())->write_value_async(data);
     }
 
-    async_task<size_t /*readed*/> read_async(item_type *buffer, size_t buffer_size) {
+    std::future<size_t /*readed*/> read_async(item_type *buffer, size_t buffer_size) {
       return static_cast<_async_buffer *>(this->impl_.get())->read_async(buffer, buffer_size);
     }
 
@@ -346,7 +346,7 @@ namespace vds {
             data_(sp) {
       }
 
-      async_task<> write_value_async(const item_type &data) {
+      std::future<void> write_value_async(const item_type &data) {
         std::unique_lock<std::mutex> lock(this->data_mutex_);
         while (!this->ready_to_data_) {
           this->data_barier_.wait(lock);
@@ -363,7 +363,7 @@ namespace vds {
             });
       }
 
-      async_task<> write_async(const item_type *data, size_t data_size) override {
+      std::future<void> write_async(const item_type *data, size_t data_size) override {
         std::unique_lock<std::mutex> lock(this->data_mutex_);
         while (!this->ready_to_data_) {
           this->data_barier_.wait_for(lock, std::chrono::microseconds(100));
@@ -381,7 +381,7 @@ namespace vds {
             });
       }
 
-      async_task<size_t /*readed*/> read_async(item_type *buffer, size_t buffer_size) {
+      std::future<size_t /*readed*/> read_async(item_type *buffer, size_t buffer_size) {
         return this->data_.read_async(buffer, buffer_size);
       }
 
@@ -405,7 +405,7 @@ namespace vds {
     {
     }
     
-    static async_task<> _continue_copy(
+    static std::future<void> _continue_copy(
       const std::shared_ptr<_continue_copy_stream_async> & context)
     {
       return context->source_->read_async(
@@ -415,7 +415,7 @@ namespace vds {
           return context->target_->write_async(context->buffer_, readed).
             then([context, is_eof = (0 == readed)](){
               if(is_eof){
-                return async_task<>::empty();
+                return std::future<void>::empty();
               }
               else {
                 return _continue_copy(context);
@@ -434,7 +434,7 @@ namespace vds {
   
   
   template <typename item_type>
-  inline async_task<> copy_stream(
+  inline std::future<void> copy_stream(
     const service_provider & sp,
     const std::shared_ptr<continuous_buffer<item_type>> & source,
     const std::shared_ptr<async_buffer<item_type>> & target)
@@ -444,7 +444,7 @@ namespace vds {
   }
   
   template <typename item_type>
-  inline async_task<> copy_stream(
+  inline std::future<void> copy_stream(
     const service_provider & sp,
     const std::shared_ptr<async_buffer<item_type>> & source,
     const std::shared_ptr<continuous_buffer<item_type>> & target)
@@ -454,7 +454,7 @@ namespace vds {
   }
   
   template <typename item_type>
-  inline async_task<> copy_stream(
+  inline std::future<void> copy_stream(
     const service_provider & sp,
     const std::shared_ptr<continuous_buffer<item_type>> & source,
     const std::shared_ptr<continuous_buffer<item_type>> & target)
@@ -464,7 +464,7 @@ namespace vds {
   }
   
   template <typename item_type>
-  inline async_task<> copy_stream(
+  inline std::future<void> copy_stream(
     const service_provider & sp,
     const std::shared_ptr<continuous_buffer<item_type>> & source,
     const std::shared_ptr<stream_async<item_type>> & target)
@@ -485,7 +485,7 @@ namespace vds {
     {
     }
 
-    static async_task<> _continue_copy(
+    static std::future<void> _continue_copy(
       const std::shared_ptr<_continue_copy_stream> & context)
     {
       return context->source_->read_async(
@@ -494,7 +494,7 @@ namespace vds {
           [context](size_t readed) {
         context->target_->write(context->buffer_, readed);
         if (0 == readed) {
-          return async_task<>::empty();
+          return std::future<void>::empty();
         }
         else {
           return _continue_copy(context);
@@ -510,7 +510,7 @@ namespace vds {
   };
 
   template <typename item_type>
-  inline async_task<> copy_stream(
+  inline std::future<void> copy_stream(
     const service_provider & sp,
     const std::shared_ptr<continuous_buffer<item_type>> & source,
     const std::shared_ptr<stream<item_type>> & target)
@@ -520,7 +520,7 @@ namespace vds {
   }
 
   template <typename item_type>
-  inline async_task<> copy_stream(
+  inline std::future<void> copy_stream(
     const service_provider & sp,
     const std::shared_ptr<async_buffer<item_type>> & source,
     const std::shared_ptr<stream<item_type>> & target)

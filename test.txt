@@ -1,0 +1,4 @@
+server root -l vadim@iv-soft.ru -p 123 --root-folder C:\Users\v.malyshev\source\repos\vds\servers\0 -ll trace -lm * -a C:\Users\v.malyshev\source\repos\vds\root_user
+server init -P 8050 -p 123qwe --root-folder C:\Users\v.malyshev\source\repos\vds\servers\0 -ll trace -lm * -a C:\Users\v.malyshev\source\repos\vds\root_user --web
+server start --root-folder C:\Users\v.malyshev\source\repos\vds\servers\0 -ll trace -lm *
+server start -P 8051 --root-folder C:\Users\v.malyshev\source\repos\vds\servers\1 -ll trace -lm * --web C:\Users\v.malyshev\source\repos\vds\www 

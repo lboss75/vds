@@ -31,7 +31,7 @@ namespace vds {
 
     login_state_t get_login_state() const;
 
-    async_task<> update(const service_provider & sp);
+    std::future<void> update(const service_provider & sp);
 
     void load(
       const service_provider & sp,
@@ -39,7 +39,7 @@ namespace vds {
       const std::string &user_credentials_key,
       const asymmetric_private_key & user_private_key);
 
-    async_task<vds::user_channel> create_channel(
+    std::future<vds::user_channel> create_channel(
       const service_provider &sp,
       const std::string &name) const;
 
@@ -49,7 +49,7 @@ namespace vds {
         const std::string &root_password,
         const cert_control::private_info_t & private_info);
 
-    //async_task<> init_server(
+    //std::future<void> init_server(
     //  const vds::service_provider &sp,
     //  const std::string & root_user_name,
     //  const std::string & user_password,
@@ -106,7 +106,7 @@ namespace vds {
     const asymmetric_private_key & get_current_user_private_key() const;
     const std::string & user_name() const;
 
-    static async_task<const_data_buffer> create_register_request(
+    static std::future<const_data_buffer> create_register_request(
       const service_provider& sp,
       const std::string& userName,
       const std::string& userEmail,
@@ -118,7 +118,7 @@ namespace vds {
         std::string & userName,
         std::string & userEmail);
 
-    async_task<bool> approve_join_request(
+    std::future<bool> approve_join_request(
       const service_provider& sp,
       const const_data_buffer & data);
 
